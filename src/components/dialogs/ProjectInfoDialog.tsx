@@ -1,0 +1,120 @@
+import { useState } from 'react';
+import { useAppStore } from '@/state/appStore';
+import { useI18n } from '@/i18n/i18n';
+import { X } from 'lucide-react';
+
+export function ProjectInfoDialog() {
+  const { t } = useI18n();
+  const project = useAppStore(s => s.project);
+  const setProject = useAppStore(s => s.setProject);
+  const setUI = useAppStore(s => s.setUI);
+
+  const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description);
+  const [author, setAuthor] = useState(project.author);
+  const [company, setCompany] = useState(project.company);
+  const [startDate, setStartDate] = useState(project.startDate);
+  const [endDate, setEndDate] = useState(project.endDate);
+
+  const handleApply = () => {
+    setProject({ name, description, author, company, startDate, endDate });
+    setUI({ showProjectInfoDialog: false });
+  };
+
+  const handleClose = () => {
+    setUI({ showProjectInfoDialog: false });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={handleClose}>
+      <div
+        className="bg-surface-alt border border-border rounded-lg shadow-xl w-[480px] max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
+          <span className="text-sm font-semibold">{t('projectInfo.title')}</span>
+          <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium">{t('projectInfo.name')}</label>
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium">{t('projectInfo.description')}</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-text-secondary font-medium">{t('projectInfo.author')}</label>
+              <input
+                value={author}
+                onChange={e => setAuthor(e.target.value)}
+                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-text-secondary font-medium">{t('projectInfo.company')}</label>
+              <input
+                value={company}
+                onChange={e => setCompany(e.target.value)}
+                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-text-secondary font-medium">{t('projectInfo.startDate')}</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-text-secondary font-medium">{t('projectInfo.endDate')}</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
+          <button
+            onClick={handleClose}
+            className="px-4 py-1.5 border border-border rounded hover:bg-surface-hover text-xs"
+          >
+            {t('projectInfo.cancel')}
+          </button>
+          <button
+            onClick={handleApply}
+            className="px-4 py-1.5 bg-accent text-white rounded hover:bg-accent-hover text-xs"
+          >
+            {t('projectInfo.apply')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
