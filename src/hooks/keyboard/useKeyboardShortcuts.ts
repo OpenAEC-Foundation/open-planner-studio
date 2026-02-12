@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { openPrintPreview } from '@/services/print/printPreview';
 
 export function useKeyboardShortcuts() {
   const undo = useAppStore(s => s.undo);
@@ -12,11 +11,6 @@ export function useKeyboardShortcuts() {
   const setUI = useAppStore(s => s.setUI);
   const setZoom = useAppStore(s => s.setZoom);
   const zoom = useAppStore(s => s.view.zoom);
-  const tasks = useAppStore(s => s.tasks);
-  const sequences = useAppStore(s => s.sequences);
-  const calendar = useAppStore(s => s.calendar);
-  const projectName = useAppStore(s => s.project.name);
-  const viewStartDate = useAppStore(s => s.view.viewStartDate);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -52,7 +46,7 @@ export function useKeyboardShortcuts() {
         setZoom(zoom - 10);
       } else if (ctrl && e.key === 'p') {
         e.preventDefault();
-        openPrintPreview(tasks, sequences, calendar, projectName, viewStartDate);
+        setUI({ activeRibbonTab: 'report' });
       } else if (ctrl && e.key === 'n') {
         e.preventDefault();
         setUI({ showTaskDialog: true, editingTaskId: null });
@@ -61,5 +55,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, deselectAll, setUI, setZoom, zoom, tasks, sequences, calendar, projectName, viewStartDate]);
+  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, deselectAll, setUI, setZoom, zoom]);
 }

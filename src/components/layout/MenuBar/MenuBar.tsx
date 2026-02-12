@@ -2,8 +2,6 @@ import { useState, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { openPrintPreview } from '@/services/print/printPreview';
-
 interface MenuItem {
   label: string;
   shortcut?: string;
@@ -63,13 +61,7 @@ export function MenuBar() {
   }, [store]);
 
   const handlePrint = useCallback(() => {
-    openPrintPreview(
-      store.tasks,
-      store.sequences,
-      store.calendar,
-      store.project.name,
-      store.view.viewStartDate,
-    );
+    store.setUI({ activeRibbonTab: 'report' });
     setActiveMenu(null);
   }, [store]);
 

@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
-import { openPrintPreview } from '@/services/print/printPreview';
 import { RibbonTab } from '@/state/slices/types';
 import './Ribbon.css';
 
@@ -26,7 +25,6 @@ const LANGUAGES: [Locale, string, string][] = [
 export function Ribbon() {
   const { t, locale, setLocale } = useI18n();
 
-  const store = useAppStore.getState;
   const addTask = useAppStore(s => s.addTask);
   const deleteTask = useAppStore(s => s.deleteTask);
   const runCPM = useAppStore(s => s.runCPM);
@@ -75,9 +73,8 @@ export function Ribbon() {
   }, [selectedTaskIds, deleteTask]);
 
   const handlePrint = useCallback(() => {
-    const s = store();
-    openPrintPreview(s.tasks, s.sequences, s.calendar, s.project.name, s.view.viewStartDate);
-  }, [store]);
+    setUI({ activeRibbonTab: 'report' });
+  }, [setUI]);
 
   const handleNewProject = useCallback(() => {
     if (confirm(t('confirm.newProject'))) newProject();
