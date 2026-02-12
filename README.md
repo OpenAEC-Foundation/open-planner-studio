@@ -13,11 +13,13 @@ Open-source bouwplanningapplicatie voor de bouwsector. Native IFC-bestandsformaa
 - **Ribbon toolbar** — Microsoft Office-achtige ribbon met tabbladen
 - **Meertalig** — Nederlands, English, Francais, Deutsch, Espanol, Zhongwen
 - **Tabelweergave** — Excel-achtige editor met dubbelklik-bewerking
-- **Rapportage** — instelbare printuitvoer met papierformaat, orientatie, legenda
+- **Rapportage** — live afdrukvoorbeeld in de ribbon met instelbare opties
 - **Context menu** — rechtermuisknop voor snelle acties op taken
 - **Resource management** — arbeid, materieel, onderaannemers
 - **Bouwsector-specifiek** — feestdagen, bouwvak, inspectiemomenten, fasering
 - **4D BIM-ready** — koppeling planning aan IFC-gebouwmodel
+
+![Rapport Tab](screenshot-rapport.png)
 
 ![Context Menu](screenshot-context-menu.png)
 
@@ -78,7 +80,7 @@ examples/            # Voorbeeld IFC-planningen
 | **Instellingen** | Project info, Kalender, Taalinstelling |
 | **Tabel** | Excel-achtige tabelweergave met inline bewerking |
 | **IFC** | IFC 4.3 code-editor met genereren/toepassen |
-| **Rapport** | Rapportinstellingen en afdrukvoorbeeld |
+| **Rapport** | Live afdrukvoorbeeld met instelbare opties |
 
 ## Architectuur
 
