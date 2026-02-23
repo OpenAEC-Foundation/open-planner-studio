@@ -123,34 +123,6 @@ jobs:
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
 
-      - name: Sign Windows installer
-        if: ${{ secrets.AZURE_TENANT_ID != '' }}
-        uses: azure/trusted-signing-action@v0.5.0
-        with:
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ secrets.AZURE_ENDPOINT }}
-          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
-          certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
-          files-folder: ${{ github.workspace }}/src-tauri/target/release/bundle/nsis
-          files-folder-filter: exe
-          files-folder-depth: 1
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
-
-      - name: Upload signed installer to release
-        if: ${{ secrets.AZURE_TENANT_ID != '' }}
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ needs.create-release.outputs.version }}"
-          for file in src-tauri/target/release/bundle/nsis/*-setup.exe; do
-            gh release upload "$VERSION" "$file" --clobber --repo "${{ github.repository }}"
-          done
-
   publish-release:
     permissions:
       contents: write
