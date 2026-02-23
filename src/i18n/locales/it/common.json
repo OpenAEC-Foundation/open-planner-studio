@@ -1,0 +1,44 @@
+{
+  "app": {
+    "title": "Open Planner Studio"
+  },
+  "yes": "Sì",
+  "no": "No",
+  "days": "g",
+  "daysLong": "giorni",
+  "ok": "OK",
+  "apply": "Applica",
+  "cancel": "Annulla",
+  "save": "Salva",
+  "add": "Aggiungi",
+  "delete": "Elimina",
+  "properties": "Proprietà",
+  "sidebar": {
+    "properties": "Proprietà",
+    "collapse": "Comprimi",
+    "expand": "Espandi"
+  },
+  "context": {
+    "edit": "Modifica...",
+    "addSubtask": "Aggiungi sottoattività",
+    "addMilestone": "Aggiungi traguardo",
+    "addRelation": "Aggiungi relazione",
+    "toggleCollapse": "Comprimi/espandi",
+    "delete": "Elimina",
+    "newTask": "Nuova attività"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "general": "Generale",
+    "language": "Lingua",
+    "version": "Versione",
+    "defaultZoom": "Zoom predefinito",
+    "projectInfo": "Informazioni sul progetto...",
+    "theme": "Tema"
+  },
+  "confirm": {
+    "newProject": "Creare un nuovo progetto? Le modifiche non salvate andranno perse.",
+    "deleteTask": "Sei sicuro di voler eliminare questa attività?",
+    "unsavedChanges": "Le modifiche non salvate andranno perse. Continuare?"
+  }
+}

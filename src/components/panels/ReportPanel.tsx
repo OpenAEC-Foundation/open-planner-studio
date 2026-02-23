@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { useTranslation } from 'react-i18next';
 import { renderPrintCanvas, PrintOptions } from '@/services/print/printPreview';
+import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 
 export function ReportPanel() {
+  const { t } = useTranslation('report');
+  const { i18n } = useTranslation();
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const calendar = useAppStore(s => s.calendar);
@@ -18,9 +22,35 @@ export function ReportPanel() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const locale = i18n.language;
+  const localizedMonths = getLocalizedMonths(locale);
+  const localizedMonthsShort = getLocalizedMonthsShort(locale);
+
+  const labels = {
+    noTasks: t('noTasks'),
+    printed: t('printed'),
+    legend: {
+      criticalPath: t('legend.criticalPath'),
+      normal: t('legend.normal'),
+      milestone: t('legend.milestone'),
+      summary: t('legend.summary'),
+    },
+    tableHeaders: {
+      wbs: t('tableHeaders.wbs'),
+      taskName: t('tableHeaders.taskName'),
+      start: t('tableHeaders.start'),
+      end: t('tableHeaders.end'),
+      duration: t('tableHeaders.duration'),
+    },
+  };
+
   const options: PrintOptions = {
     showCritical, showFloat, showDeps, showWeekends, showLegend,
     paperSize, orientation,
+    labels,
+    localizedMonths,
+    localizedMonthsShort,
+    locale,
   };
 
   // Re-render the canvas whenever data or options change
@@ -28,7 +58,7 @@ export function ReportPanel() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     renderPrintCanvas(canvas, tasks, sequences, calendar, projectName, options);
-  }, [tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, paperSize, orientation]);
+  }, [tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, paperSize, orientation, locale]);
 
   const handlePrint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -58,29 +88,29 @@ export function ReportPanel() {
     <div className="flex-1 flex overflow-hidden bg-surface">
       {/* Left: Settings panel */}
       <div className="w-64 flex-shrink-0 border-r border-border overflow-y-auto p-3 flex flex-col gap-3">
-        <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">Rapportage</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">{t('title')}</span>
 
         {/* Project summary */}
         <div className="bg-surface-alt border border-border rounded-lg p-3">
-          <h3 className="text-xs font-bold mb-2">Overzicht</h3>
+          <h3 className="text-xs font-bold mb-2">{t('summary')}</h3>
           <div className="grid grid-cols-2 gap-1 text-xs">
-            <span className="text-text-secondary">Taken:</span>
+            <span className="text-text-secondary">{t('tasks')}</span>
             <span>{tasks.length}</span>
-            <span className="text-text-secondary">Bladtaken:</span>
+            <span className="text-text-secondary">{t('leafTasks')}</span>
             <span>{leafCount}</span>
-            <span className="text-text-secondary">Kritiek:</span>
+            <span className="text-text-secondary">{t('critical')}</span>
             <span className="text-red-400 font-bold">{criticalCount}</span>
-            <span className="text-text-secondary">Relaties:</span>
+            <span className="text-text-secondary">{t('relations')}</span>
             <span>{sequences.length}</span>
           </div>
         </div>
 
         {/* Report options */}
         <div className="bg-surface-alt border border-border rounded-lg p-3">
-          <h3 className="text-xs font-bold mb-2">Instellingen</h3>
+          <h3 className="text-xs font-bold mb-2">{t('settings')}</h3>
           <div className="flex flex-col gap-2 text-xs">
             <div className="flex items-center gap-2">
-              <label className="text-text-secondary w-20">Papier:</label>
+              <label className="text-text-secondary w-20">{t('paper')}</label>
               <select
                 value={paperSize}
                 onChange={e => setPaperSize(e.target.value as 'A3' | 'A4' | 'A1')}
@@ -92,36 +122,36 @@ export function ReportPanel() {
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-text-secondary w-20">Orientatie:</label>
+              <label className="text-text-secondary w-20">{t('orientation')}</label>
               <select
                 value={orientation}
                 onChange={e => setOrientation(e.target.value as 'landscape' | 'portrait')}
                 className="flex-1 px-2 py-1 bg-surface border border-border rounded text-xs focus:border-accent focus:outline-none"
               >
-                <option value="landscape">Liggend</option>
-                <option value="portrait">Staand</option>
+                <option value="landscape">{t('landscape')}</option>
+                <option value="portrait">{t('portrait')}</option>
               </select>
             </div>
 
             <label className="flex items-center gap-2 mt-1">
               <input type="checkbox" checked={showCritical} onChange={e => setShowCritical(e.target.checked)} className="accent-accent" />
-              <span>Kritiek pad</span>
+              <span>{t('showCriticalPath')}</span>
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={showFloat} onChange={e => setShowFloat(e.target.checked)} className="accent-accent" />
-              <span>Speling tonen</span>
+              <span>{t('showFloat')}</span>
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent" />
-              <span>Afhankelijkheden</span>
+              <span>{t('showDependencies')}</span>
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={showWeekends} onChange={e => setShowWeekends(e.target.checked)} className="accent-accent" />
-              <span>Weekenden</span>
+              <span>{t('showWeekends')}</span>
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={showLegend} onChange={e => setShowLegend(e.target.checked)} className="accent-accent" />
-              <span>Legenda</span>
+              <span>{t('showLegend')}</span>
             </label>
           </div>
         </div>
@@ -131,7 +161,7 @@ export function ReportPanel() {
           onClick={handlePrint}
           className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover text-xs font-medium"
         >
-          Afdrukken...
+          {t('print')}
         </button>
       </div>
 

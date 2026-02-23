@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { useI18n } from '@/i18n/i18n';
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 export function ProjectInfoDialog() {
-  const { t } = useI18n();
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
   const project = useAppStore(s => s.project);
   const setProject = useAppStore(s => s.setProject);
   const setUI = useAppStore(s => s.setUI);
@@ -32,7 +33,7 @@ export function ProjectInfoDialog() {
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold">{t('projectInfo.title')}</span>
+          <span className="text-sm font-semibold">{tMenu('projectInfo.title')}</span>
           <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded">
             <X size={16} />
           </button>
@@ -40,7 +41,7 @@ export function ProjectInfoDialog() {
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
           <div className="flex flex-col gap-1">
-            <label className="text-text-secondary font-medium">{t('projectInfo.name')}</label>
+            <label className="text-text-secondary font-medium">{tMenu('projectInfo.name')}</label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
@@ -50,7 +51,7 @@ export function ProjectInfoDialog() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-text-secondary font-medium">{t('projectInfo.description')}</label>
+            <label className="text-text-secondary font-medium">{tMenu('projectInfo.description')}</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
@@ -61,7 +62,7 @@ export function ProjectInfoDialog() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-text-secondary font-medium">{t('projectInfo.author')}</label>
+              <label className="text-text-secondary font-medium">{tMenu('projectInfo.author')}</label>
               <input
                 value={author}
                 onChange={e => setAuthor(e.target.value)}
@@ -69,7 +70,7 @@ export function ProjectInfoDialog() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-text-secondary font-medium">{t('projectInfo.company')}</label>
+              <label className="text-text-secondary font-medium">{tMenu('projectInfo.company')}</label>
               <input
                 value={company}
                 onChange={e => setCompany(e.target.value)}
@@ -80,7 +81,7 @@ export function ProjectInfoDialog() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-text-secondary font-medium">{t('projectInfo.startDate')}</label>
+              <label className="text-text-secondary font-medium">{tMenu('projectInfo.startDate')}</label>
               <input
                 type="date"
                 value={startDate}
@@ -89,7 +90,7 @@ export function ProjectInfoDialog() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-text-secondary font-medium">{t('projectInfo.endDate')}</label>
+              <label className="text-text-secondary font-medium">{tMenu('projectInfo.endDate')}</label>
               <input
                 type="date"
                 value={endDate}
@@ -105,13 +106,13 @@ export function ProjectInfoDialog() {
             onClick={handleClose}
             className="px-4 py-1.5 border border-border rounded hover:bg-surface-hover text-xs"
           >
-            {t('projectInfo.cancel')}
+            {tCommon('cancel')}
           </button>
           <button
             onClick={handleApply}
             className="px-4 py-1.5 bg-accent text-white rounded hover:bg-accent-hover text-xs"
           >
-            {t('projectInfo.apply')}
+            {tCommon('apply')}
           </button>
         </div>
       </div>

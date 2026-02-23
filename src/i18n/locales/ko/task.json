@@ -1,0 +1,8 @@
+{
+  "table": { "title": "테이블", "wbs": "WBS", "name": "작업 이름", "duration": "기간", "start": "시작", "finish": "종료", "type": "유형", "critical": "크리티컬", "totalFloat": "총 여유", "completion": "진행률" },
+  "taskType": { "CONSTRUCTION": "건설", "INSTALLATION": "설치", "DEMOLITION": "철거", "LOGISTIC": "물류", "ATTENDANCE": "검사", "MOVE": "이전", "RENOVATION": "리모델링", "MAINTENANCE": "유지보수", "USERDEFINED": "기타" },
+  "dialog": { "editTitle": "작업 편집", "newTitle": "새 작업", "name": "이름", "nameRequired": "이름 *", "description": "설명", "wbsCode": "WBS 코드", "type": "유형", "startDate": "시작일", "duration": "기간 (근무일)", "parentTask": "상위 작업", "noParent": "- 없음 (루트) -", "milestone": "마일스톤 (기간 없음)", "wbsPlaceholder": "예: RB-301" },
+  "properties": { "task": "작업", "deleteTask": "작업 삭제", "selectPrompt": "속성을 보려면 작업을 선택하세요.", "multiSelect": "{{count}}개 작업 선택됨", "name": "이름", "wbsCode": "WBS 코드", "description": "설명", "type": "유형", "milestone": "마일스톤", "time": "시간", "start": "시작", "duration": "기간 (일)", "completion": "진행률 (%)", "cpmResult": "CPM 결과", "earlyStart": "빠른 시작:", "earlyFinish": "빠른 종료:", "lateStart": "늦은 시작:", "lateFinish": "늦은 종료:", "totalFloat": "총 여유:", "freeFloat": "자유 여유:", "criticalPath": "크리티컬 패스:", "dependencies": "종속성", "recalculate": "CPM 재계산" },
+  "defaultTask": "새 작업",
+  "defaultMilestone": "새 마일스톤"
+}

@@ -1,0 +1,8 @@
+{
+  "title": "Rapporto", "summary": "Riepilogo", "tasks": "Attività:", "leafTasks": "Attività foglia:", "critical": "Critiche:", "relations": "Relazioni:",
+  "settings": "Impostazioni", "paper": "Carta:", "orientation": "Orientamento:", "landscape": "Orizzontale", "portrait": "Verticale",
+  "showCriticalPath": "Percorso critico", "showFloat": "Mostra scorrimento", "showDependencies": "Dipendenze", "showWeekends": "Fine settimana", "showLegend": "Legenda", "print": "Stampa...",
+  "noTasks": "Nessuna attività da visualizzare", "printed": "Stampato:",
+  "legend": { "criticalPath": "Percorso critico", "normal": "Normale", "milestone": "Traguardo", "summary": "Riepilogo" },
+  "tableHeaders": { "wbs": "WBS", "taskName": "Nome attività", "start": "Inizio", "end": "Fine", "duration": "Durata" }
+}

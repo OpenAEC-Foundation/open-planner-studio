@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useI18n } from '@/i18n/i18n';
+import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 
 export interface ContextMenuProps {
@@ -21,7 +21,7 @@ export function ContextMenu({
   onEdit, onAddSubtask, onAddMilestone, onAddRelation,
   onToggleCollapse, onDelete, onAddTask,
 }: ContextMenuProps) {
-  const { t } = useI18n();
+  const { t } = useTranslation('common');
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close on click outside or Escape (delay to avoid immediate close from the triggering right-click)
@@ -67,24 +67,24 @@ export function ContextMenu({
     >
       {task ? (
         <>
-          <MenuItem label={t('ctx.edit')} onClick={() => { onEdit(); onClose(); }} />
+          <MenuItem label={t('context.edit')} onClick={() => { onEdit(); onClose(); }} />
           <Separator />
-          <MenuItem label={t('ctx.addSubtask')} onClick={() => { onAddSubtask(); onClose(); }} />
-          <MenuItem label={t('ctx.addMilestone')} onClick={() => { onAddMilestone(); onClose(); }} />
-          <MenuItem label={t('ctx.addRelation')} onClick={() => { onAddRelation(); onClose(); }} />
+          <MenuItem label={t('context.addSubtask')} onClick={() => { onAddSubtask(); onClose(); }} />
+          <MenuItem label={t('context.addMilestone')} onClick={() => { onAddMilestone(); onClose(); }} />
+          <MenuItem label={t('context.addRelation')} onClick={() => { onAddRelation(); onClose(); }} />
           {isSummary && (
             <>
               <Separator />
-              <MenuItem label={t('ctx.toggleCollapse')} onClick={() => { onToggleCollapse(); onClose(); }} />
+              <MenuItem label={t('context.toggleCollapse')} onClick={() => { onToggleCollapse(); onClose(); }} />
             </>
           )}
           <Separator />
-          <MenuItem label={t('ctx.delete')} danger onClick={() => { onDelete(); onClose(); }} />
+          <MenuItem label={t('context.delete')} danger onClick={() => { onDelete(); onClose(); }} />
         </>
       ) : (
         <>
-          <MenuItem label={t('ctx.newTask')} onClick={() => { onAddTask(); onClose(); }} />
-          <MenuItem label={t('ctx.addMilestone')} onClick={() => { onAddMilestone(); onClose(); }} />
+          <MenuItem label={t('context.newTask')} onClick={() => { onAddTask(); onClose(); }} />
+          <MenuItem label={t('context.addMilestone')} onClick={() => { onAddMilestone(); onClose(); }} />
         </>
       )}
     </div>

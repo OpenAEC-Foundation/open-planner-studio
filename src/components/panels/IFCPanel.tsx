@@ -1,11 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { useI18n } from '@/i18n/i18n';
+import { useTranslation } from 'react-i18next';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 
 export function IFCPanel() {
-  const { t } = useI18n();
+  const { t } = useTranslation('menu');
   const project = useAppStore(s => s.project);
   const calendar = useAppStore(s => s.calendar);
   const tasks = useAppStore(s => s.tasks);

@@ -1,0 +1,34 @@
+{
+  "title": "Rapport",
+  "summary": "Résumé",
+  "tasks": "Tâches :",
+  "leafTasks": "Tâches feuilles :",
+  "critical": "Critique :",
+  "relations": "Relations :",
+  "settings": "Paramètres",
+  "paper": "Papier :",
+  "orientation": "Orientation :",
+  "landscape": "Paysage",
+  "portrait": "Portrait",
+  "showCriticalPath": "Chemin critique",
+  "showFloat": "Afficher la marge",
+  "showDependencies": "Dépendances",
+  "showWeekends": "Week-ends",
+  "showLegend": "Légende",
+  "print": "Imprimer...",
+  "noTasks": "Aucune tâche à afficher",
+  "printed": "Imprimé :",
+  "legend": {
+    "criticalPath": "Chemin critique",
+    "normal": "Normal",
+    "milestone": "Jalon",
+    "summary": "Résumé"
+  },
+  "tableHeaders": {
+    "wbs": "WBS",
+    "taskName": "Nom de la tâche",
+    "start": "Début",
+    "end": "Fin",
+    "duration": "Durée"
+  }
+}

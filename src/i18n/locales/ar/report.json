@@ -1,0 +1,8 @@
+{
+  "title": "التقرير", "summary": "الملخص", "tasks": "المهام:", "leafTasks": "المهام الفرعية:", "critical": "الحرجة:", "relations": "العلاقات:",
+  "settings": "الإعدادات", "paper": "الورق:", "orientation": "الاتجاه:", "landscape": "أفقي", "portrait": "عمودي",
+  "showCriticalPath": "المسار الحرج", "showFloat": "إظهار الفائض", "showDependencies": "التبعيات", "showWeekends": "عطلات نهاية الأسبوع", "showLegend": "وسيلة الإيضاح", "print": "طباعة...",
+  "noTasks": "لا توجد مهام لعرضها", "printed": "طبع في:",
+  "legend": { "criticalPath": "المسار الحرج", "normal": "عادي", "milestone": "معلم", "summary": "ملخص" },
+  "tableHeaders": { "wbs": "WBS", "taskName": "اسم المهمة", "start": "البداية", "end": "النهاية", "duration": "المدة" }
+}

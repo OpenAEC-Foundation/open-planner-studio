@@ -1,0 +1,44 @@
+{
+  "app": {
+    "title": "Open Planner Studio"
+  },
+  "yes": "예",
+  "no": "아니오",
+  "days": "일",
+  "daysLong": "일",
+  "ok": "확인",
+  "apply": "적용",
+  "cancel": "취소",
+  "save": "저장",
+  "add": "추가",
+  "delete": "삭제",
+  "properties": "속성",
+  "sidebar": {
+    "properties": "속성",
+    "collapse": "접기",
+    "expand": "펼치기"
+  },
+  "context": {
+    "edit": "편집...",
+    "addSubtask": "하위 작업 추가",
+    "addMilestone": "마일스톤 추가",
+    "addRelation": "관계 추가",
+    "toggleCollapse": "접기/펼치기",
+    "delete": "삭제",
+    "newTask": "새 작업"
+  },
+  "settings": {
+    "title": "설정",
+    "general": "일반",
+    "language": "언어",
+    "version": "버전",
+    "defaultZoom": "기본 확대/축소",
+    "projectInfo": "프로젝트 정보...",
+    "theme": "테마"
+  },
+  "confirm": {
+    "newProject": "새 프로젝트를 만드시겠습니까? 저장되지 않은 변경 사항이 손실됩니다.",
+    "deleteTask": "이 작업을 삭제하시겠습니까?",
+    "unsavedChanges": "저장되지 않은 변경 사항이 손실됩니다. 계속하시겠습니까?"
+  }
+}

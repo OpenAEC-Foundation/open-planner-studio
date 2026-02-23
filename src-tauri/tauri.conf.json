@@ -1,11 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "Open Planner Studio",
-  "version": "0.1.0",
+  "version": "2026.2.0",
   "identifier": "org.openaec.planner",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:4200",
+    "devUrl": "http://localhost:3007",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
@@ -17,7 +17,7 @@
         "height": 900,
         "minWidth": 1024,
         "minHeight": 600,
-        "decorations": true,
+        "decorations": false,
         "dragDropEnabled": true
       }
     ],
@@ -27,6 +27,6 @@
   },
   "plugins": {
     "shell": { "open": true },
-    "fs": { "scope": ["**"] }
+    "fs": {}
   }
 }

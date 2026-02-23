@@ -1,0 +1,8 @@
+{
+  "table": { "title": "Tabella", "wbs": "WBS", "name": "Nome attività", "duration": "Durata", "start": "Inizio", "finish": "Fine", "type": "Tipo", "critical": "Critica", "totalFloat": "Scorrimento totale", "completion": "Progresso" },
+  "taskType": { "CONSTRUCTION": "Costruzione", "INSTALLATION": "Installazione", "DEMOLITION": "Demolizione", "LOGISTIC": "Logistica", "ATTENDANCE": "Ispezione", "MOVE": "Trasferimento", "RENOVATION": "Ristrutturazione", "MAINTENANCE": "Manutenzione", "USERDEFINED": "Altro" },
+  "dialog": { "editTitle": "Modifica attività", "newTitle": "Nuova attività", "name": "Nome", "nameRequired": "Nome *", "description": "Descrizione", "wbsCode": "Codice WBS", "type": "Tipo", "startDate": "Data di inizio", "duration": "Durata (giorni lavorativi)", "parentTask": "Attività padre", "noParent": "- Nessuna (radice) -", "milestone": "Traguardo (durata zero)", "wbsPlaceholder": "es. RB-301" },
+  "properties": { "task": "Attività", "deleteTask": "Elimina attività", "selectPrompt": "Seleziona un'attività per visualizzare le proprietà.", "multiSelect": "{{count}} attività selezionate", "name": "Nome", "wbsCode": "Codice WBS", "description": "Descrizione", "type": "Tipo", "milestone": "Traguardo", "time": "Tempo", "start": "Inizio", "duration": "Durata (giorni)", "completion": "Progresso (%)", "cpmResult": "Risultato CPM", "earlyStart": "Inizio anticipato:", "earlyFinish": "Fine anticipata:", "lateStart": "Inizio ritardato:", "lateFinish": "Fine ritardata:", "totalFloat": "Scorrimento totale:", "freeFloat": "Scorrimento libero:", "criticalPath": "Percorso critico:", "dependencies": "Dipendenze", "recalculate": "Ricalcola CPM" },
+  "defaultTask": "Nuova attività",
+  "defaultMilestone": "Nuovo traguardo"
+}

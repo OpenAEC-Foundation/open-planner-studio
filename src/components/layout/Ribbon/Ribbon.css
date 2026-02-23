@@ -1,217 +1,262 @@
-.ribbon {
-  background: var(--color-surface-alt);
-  border-bottom: 1px solid var(--color-border);
+/* Ribbon Container - Theme-aware */
+.ribbon-container {
+  background: var(--theme-ribbon-bg);
+  border-bottom: 1px solid var(--theme-border-light);
+  flex-shrink: 0;
   user-select: none;
+  cursor: default;
 }
 
+/* Ribbon Tabs */
 .ribbon-tabs {
+  background: var(--theme-ribbon-tab-bg);
+  border-bottom: 1px solid var(--theme-border-light);
   display: flex;
-  background: var(--color-surface);
   padding: 0 8px;
   gap: 2px;
+  height: 28px;
+  align-items: flex-end;
 }
 
 .ribbon-tab {
   padding: 6px 16px;
-  background: transparent;
-  border: none;
-  color: var(--color-text-secondary);
   font-size: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  color: var(--theme-text-dim);
   font-weight: 500;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
+  border-radius: 4px 4px 0 0;
   transition: all 0.15s ease;
+  cursor: default;
+  position: relative;
+}
+
+.ribbon-tab:focus {
+  outline: none;
 }
 
 .ribbon-tab:hover {
-  color: var(--color-text-primary);
-  background: rgba(128, 128, 128, 0.08);
+  background: var(--theme-hover);
+  color: var(--theme-text);
 }
 
 .ribbon-tab.active {
-  color: var(--color-text-primary);
-  background: var(--color-surface-alt);
-  border-bottom-color: var(--color-accent);
+  background: var(--theme-ribbon-content-bg);
+  color: var(--theme-text);
+  border-color: var(--theme-border-light);
+  border-bottom: 1px solid var(--theme-ribbon-content-bg);
+  margin-bottom: -1px;
 }
 
+/* Ribbon Content */
 .ribbon-content {
+  background: var(--theme-ribbon-content-bg);
+  padding: 4px 8px 0 8px;
   display: flex;
-  padding: 6px 10px;
-  height: 100px;
-  overflow: hidden;
-  gap: 4px;
+  align-items: stretch;
+  height: 94px;
 }
 
+/* Ribbon Groups */
 .ribbon-group {
   display: flex;
   flex-direction: column;
-  padding: 2px 8px;
-  min-width: 60px;
+  padding: 0 4px;
+  min-width: 50px;
+  height: 100%;
 }
 
-.ribbon-group-title {
-  font-size: 10px;
-  color: var(--color-text-secondary);
+.ribbon-group-label {
+  font-size: 9px;
+  color: var(--theme-text-muted);
   text-align: center;
+  font-weight: 500;
+  padding: 2px 0;
   margin-top: auto;
-  padding-top: 2px;
-  padding-bottom: 3px;
+  white-space: nowrap;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-top: 1px solid var(--color-border);
+  letter-spacing: 0.3px;
 }
 
 .ribbon-group-content {
   display: flex;
-  gap: 1px;
-  flex: 1;
+  gap: 2px;
   align-items: flex-start;
+  flex: 1;
+  padding: 2px 0;
 }
 
-.ribbon-group-content.vertical {
+/* Button stacks */
+.ribbon-btn-stack {
+  display: flex;
   flex-direction: column;
-  justify-content: center;
-}
-
-.ribbon-group-content.grid-2x2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
   gap: 1px;
+  height: 100%;
+  justify-content: flex-start;
 }
 
-.ribbon-group-content.grid-3x2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 1px;
-}
-
-.ribbon-group-content.wrap {
-  flex-wrap: wrap;
-  max-width: 200px;
-  align-items: stretch;
-}
-
-.ribbon-group-content.wrap .ribbon-button.small {
-  min-width: 44px;
-  width: 44px;
-  padding: 4px 4px;
-  font-size: 9px;
-  box-sizing: border-box;
-}
-
-.ribbon-separator {
-  width: 1px;
-  background: var(--color-border);
-  margin: 2px 6px;
-}
-
-/* Ribbon buttons */
-.ribbon-button {
+/* Ribbon Buttons - Default (Large) */
+.ribbon-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 4px 4px;
-  min-width: 36px;
+  justify-content: flex-start;
+  padding: 4px 6px 2px 6px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--color-text-primary);
-  font-size: 9px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  gap: 0px;
-}
-
-.ribbon-button:hover {
-  background: var(--color-surface-hover);
-  border-color: var(--color-border);
-}
-
-.ribbon-button.active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: #fff;
-  box-shadow: 0 0 8px rgba(37, 99, 235, 0.3);
-}
-
-.ribbon-button.small {
-  min-width: 38px;
-  width: 38px;
-  padding: 3px 3px;
-  font-size: 9px;
-}
-
-.ribbon-button.large {
-  min-width: 52px;
-  padding: 6px 10px;
-}
-
-.ribbon-button.large span:not(.ribbon-icon) {
-  font-size: 10px;
-}
-
-.ribbon-button.primary {
-  background: #22c55e;
-  border-color: #22c55e;
-  color: #fff;
-}
-
-.ribbon-button.primary:hover {
-  background: #16a34a;
-  border-color: #16a34a;
-}
-
-.ribbon-button.danger:hover {
-  background: #ef4444;
-  border-color: #ef4444;
-  color: #fff;
-}
-
-.ribbon-button:disabled {
-  opacity: 0.4;
+  border-radius: 4px;
   cursor: default;
+  transition: all 0.15s ease;
+  min-width: 54px;
+  gap: 4px;
+  height: 66px;
 }
 
-.ribbon-icon {
+.ribbon-btn:focus {
+  outline: none;
+}
+
+.ribbon-btn:hover {
+  background: var(--theme-hover);
+  border-color: var(--theme-border-light);
+}
+
+.ribbon-btn.active {
+  background: var(--theme-active);
+  border-color: var(--theme-active-border);
+}
+
+.ribbon-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ribbon-btn.disabled:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.ribbon-btn-icon {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
+  flex-shrink: 0;
+  color: var(--theme-text-dim);
 }
 
-.ribbon-icon svg {
-  width: 20px;
-  height: 20px;
+.ribbon-btn:hover .ribbon-btn-icon {
+  color: var(--theme-text);
 }
 
-.ribbon-button.small .ribbon-icon svg {
+.ribbon-btn.active .ribbon-btn-icon {
+  color: #ffffff;
+}
+
+.ribbon-btn-label {
+  font-size: 10px;
+  color: var(--theme-text-dim);
+  text-align: center;
+  line-height: 1.1;
+  max-width: 58px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+  flex-shrink: 1;
+}
+
+.ribbon-btn:hover .ribbon-btn-label {
+  color: var(--theme-text);
+}
+
+.ribbon-btn.active .ribbon-btn-label {
+  color: #ffffff;
+}
+
+/* Small ribbon buttons - horizontal layout, 3 fit vertically */
+.ribbon-btn.small {
+  flex-direction: row;
+  min-width: 70px;
+  height: 22px;
+  padding: 2px 8px 2px 4px;
+  gap: 6px;
+  justify-content: flex-start;
+  border-radius: 3px;
+}
+
+.ribbon-btn.small .ribbon-btn-icon {
   width: 16px;
   height: 16px;
 }
 
+.ribbon-btn.small .ribbon-btn-label {
+  font-size: 11px;
+  text-align: left;
+  max-width: none;
+  white-space: nowrap;
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+/* Primary button */
+.ribbon-btn.primary {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+.ribbon-btn.primary .ribbon-btn-icon,
+.ribbon-btn.primary .ribbon-btn-label {
+  color: #ffffff;
+}
+
+.ribbon-btn.primary:hover {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+/* Danger button */
+.ribbon-btn.danger:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.ribbon-btn.danger:hover .ribbon-btn-icon,
+.ribbon-btn.danger:hover .ribbon-btn-label {
+  color: #ffffff;
+}
+
+/* Select control in ribbon */
 .ribbon-select {
   padding: 4px 8px;
-  background: var(--color-surface-hover);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text-primary);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-border-light);
+  border-radius: 3px;
+  color: var(--theme-text);
   font-size: 11px;
   min-width: 100px;
+  cursor: default;
 }
 
 .ribbon-select:focus {
   outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  border-color: var(--theme-accent);
 }
 
 .ribbon-info {
   font-size: 10px;
-  color: var(--color-text-secondary);
+  color: var(--theme-text-dim);
   padding: 4px 8px;
   white-space: nowrap;
+}
+
+/* Separator between groups */
+.ribbon-separator {
+  width: 1px;
+  background: var(--theme-border-light);
+  margin: 4px 2px;
+  align-self: stretch;
 }

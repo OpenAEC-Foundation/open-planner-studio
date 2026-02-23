@@ -37,6 +37,15 @@ export interface PrintOptions {
   showLegend: boolean;
   paperSize: 'A4' | 'A3' | 'A1';
   orientation: 'landscape' | 'portrait';
+  labels?: {
+    noTasks: string;
+    printed: string;
+    legend: { criticalPath: string; normal: string; milestone: string; summary: string };
+    tableHeaders: { wbs: string; taskName: string; start: string; end: string; duration: string };
+  };
+  localizedMonths?: string[];
+  localizedMonthsShort?: string[];
+  locale?: string;
 }
 
 interface PrintTask extends Task {
@@ -90,7 +99,7 @@ export function renderPrintCanvas(
     ctx.fillStyle = PRINT_COLORS.textSecondary;
     ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Geen taken om weer te geven', 300, 100);
+    ctx.fillText(options.labels?.noTasks ?? 'No tasks to display', 300, 100);
     return { width: 600, height: 200 };
   }
 
@@ -331,7 +340,7 @@ export function renderPrintCanvas(
   ctx.lineTo(canvasWidth, HEADER_HEIGHT);
   ctx.stroke();
 
-  const months = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  const months = options.localizedMonthsShort ?? ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
   let lastMonth = -1;
   let lastWeek = -1;
 
@@ -372,11 +381,12 @@ export function renderPrintCanvas(
   ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillText('WBS', 8, HEADER_HEIGHT / 2);
-  ctx.fillText('Taaknaam', 52, HEADER_HEIGHT / 2);
-  ctx.fillText('Start', TABLE_WIDTH - 110, HEADER_HEIGHT / 2);
-  ctx.fillText('Eind', TABLE_WIDTH - 58, HEADER_HEIGHT / 2);
-  ctx.fillText('Duur', TABLE_WIDTH - 112, HEADER_HEIGHT / 4 + 2);
+  const th = options.labels?.tableHeaders;
+  ctx.fillText(th?.wbs ?? 'WBS', 8, HEADER_HEIGHT / 2);
+  ctx.fillText(th?.taskName ?? 'Task Name', 52, HEADER_HEIGHT / 2);
+  ctx.fillText(th?.start ?? 'Start', TABLE_WIDTH - 110, HEADER_HEIGHT / 2);
+  ctx.fillText(th?.end ?? 'End', TABLE_WIDTH - 58, HEADER_HEIGHT / 2);
+  ctx.fillText(th?.duration ?? 'Duration', TABLE_WIDTH - 112, HEADER_HEIGHT / 4 + 2);
 
   // Divider between header columns
   ctx.strokeStyle = PRINT_COLORS.border;
@@ -470,25 +480,27 @@ export function renderPrintCanvas(
 
   ctx.fillStyle = PRINT_COLORS.textSecondary;
   ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
-  const dateStr = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' });
-  ctx.fillText(`Afgedrukt: ${dateStr}`, 10, footerY + 28);
+  const printLocale = options.locale ?? 'nl';
+  const dateStr = new Date().toLocaleDateString(printLocale, { day: '2-digit', month: 'long', year: 'numeric' });
+  ctx.fillText(`${options.labels?.printed ?? 'Printed:'} ${dateStr}`, 10, footerY + 28);
 
   // Legend
   if (options.showLegend) {
     const legendX = TABLE_WIDTH + 10;
+    const lg = options.labels?.legend;
     ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
 
     if (options.showCritical) {
       ctx.fillStyle = PRINT_COLORS.critical;
       ctx.fillRect(legendX, footerY + 6, 20, 10);
       ctx.fillStyle = PRINT_COLORS.textSecondary;
-      ctx.fillText('Kritiek pad', legendX + 24, footerY + 14);
+      ctx.fillText(lg?.criticalPath ?? 'Critical path', legendX + 24, footerY + 14);
     }
 
     ctx.fillStyle = PRINT_COLORS.normal;
     ctx.fillRect(legendX + 110, footerY + 6, 20, 10);
     ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.fillText('Normaal', legendX + 134, footerY + 14);
+    ctx.fillText(lg?.normal ?? 'Normal', legendX + 134, footerY + 14);
 
     ctx.fillStyle = PRINT_COLORS.milestone;
     ctx.beginPath();
@@ -500,12 +512,12 @@ export function renderPrintCanvas(
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.fillText('Mijlpaal', legendX + 234, footerY + 14);
+    ctx.fillText(lg?.milestone ?? 'Milestone', legendX + 234, footerY + 14);
 
     ctx.fillStyle = PRINT_COLORS.summary;
     ctx.fillRect(legendX + 310, footerY + 9, 20, 5);
     ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.fillText('Samenvatting', legendX + 334, footerY + 14);
+    ctx.fillText(lg?.summary ?? 'Summary', legendX + 334, footerY + 14);
   }
 
   ctx.fillStyle = PRINT_COLORS.textSecondary;

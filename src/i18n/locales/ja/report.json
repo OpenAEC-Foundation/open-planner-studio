@@ -1,0 +1,8 @@
+{
+  "title": "レポート", "summary": "概要", "tasks": "タスク：", "leafTasks": "リーフタスク：", "critical": "クリティカル：", "relations": "関係：",
+  "settings": "設定", "paper": "用紙：", "orientation": "向き：", "landscape": "横向き", "portrait": "縦向き",
+  "showCriticalPath": "クリティカルパス", "showFloat": "フロートを表示", "showDependencies": "依存関係", "showWeekends": "週末", "showLegend": "凡例", "print": "印刷...",
+  "noTasks": "表示するタスクがありません", "printed": "印刷日：",
+  "legend": { "criticalPath": "クリティカルパス", "normal": "通常", "milestone": "マイルストーン", "summary": "サマリー" },
+  "tableHeaders": { "wbs": "WBS", "taskName": "タスク名", "start": "開始", "end": "終了", "duration": "期間" }
+}

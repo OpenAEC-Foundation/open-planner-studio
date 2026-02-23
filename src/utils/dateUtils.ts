@@ -46,10 +46,14 @@ export function getMonthStart(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-/** Format a date for display (e.g., "2 mrt 2026") */
-export function formatDisplayDate(d: Date): string {
-  const months = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-  return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+/** Format a date for display (e.g., "2 Mar 2026") using Intl */
+export function formatDisplayDate(d: Date, locale = 'en'): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(d);
 }
 
 /** Difference in calendar days between two ISO date strings */

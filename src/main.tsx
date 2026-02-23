@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './i18n/config';
 import App from './App';
 import './styles/globals.css';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -17,7 +18,7 @@ async function loadExampleAndStart() {
       store.runCPM();
     }
   } catch (e) {
-    console.warn('Kon voorbeeld niet laden:', e);
+    console.warn('Could not load example:', e);
   }
 
   ReactDOM.createRoot(document.getElementById('root')!).render(

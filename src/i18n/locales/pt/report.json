@@ -1,0 +1,8 @@
+{
+  "title": "Relatório", "summary": "Resumo", "tasks": "Tarefas:", "leafTasks": "Tarefas folha:", "critical": "Críticas:", "relations": "Relações:",
+  "settings": "Configurações", "paper": "Papel:", "orientation": "Orientação:", "landscape": "Paisagem", "portrait": "Retrato",
+  "showCriticalPath": "Caminho crítico", "showFloat": "Mostrar folga", "showDependencies": "Dependências", "showWeekends": "Fins de semana", "showLegend": "Legenda", "print": "Imprimir...",
+  "noTasks": "Não há tarefas para apresentar", "printed": "Impresso:",
+  "legend": { "criticalPath": "Caminho crítico", "normal": "Normal", "milestone": "Marco", "summary": "Resumo" },
+  "tableHeaders": { "wbs": "WBS", "taskName": "Nome da tarefa", "start": "Início", "end": "Fim", "duration": "Duração" }
+}

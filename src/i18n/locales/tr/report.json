@@ -1,0 +1,8 @@
+{
+  "title": "Rapor", "summary": "Özet", "tasks": "Görevler:", "leafTasks": "Yaprak görevler:", "critical": "Kritik:", "relations": "İlişkiler:",
+  "settings": "Ayarlar", "paper": "Kağıt:", "orientation": "Yön:", "landscape": "Yatay", "portrait": "Dikey",
+  "showCriticalPath": "Kritik yol", "showFloat": "Bolluğu göster", "showDependencies": "Bağımlılıklar", "showWeekends": "Hafta sonları", "showLegend": "Gösterge", "print": "Yazdır...",
+  "noTasks": "Görüntülenecek görev yok", "printed": "Yazdırıldı:",
+  "legend": { "criticalPath": "Kritik yol", "normal": "Normal", "milestone": "Kilometre taşı", "summary": "Özet" },
+  "tableHeaders": { "wbs": "WBS", "taskName": "Görev adı", "start": "Başlangıç", "end": "Bitiş", "duration": "Süre" }
+}

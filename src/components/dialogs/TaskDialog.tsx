@@ -1,20 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { useTranslation } from 'react-i18next';
 import { TaskType } from '@/types/task';
+import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { X } from 'lucide-react';
 
-const TASK_TYPES: { value: TaskType; label: string }[] = [
-  { value: 'CONSTRUCTION', label: 'Bouw' },
-  { value: 'INSTALLATION', label: 'Installatie' },
-  { value: 'DEMOLITION', label: 'Sloop' },
-  { value: 'LOGISTIC', label: 'Logistiek' },
-  { value: 'ATTENDANCE', label: 'Keuring/Inspectie' },
-  { value: 'MOVE', label: 'Verplaatsing' },
-  { value: 'RENOVATION', label: 'Renovatie' },
-  { value: 'MAINTENANCE', label: 'Onderhoud' },
-];
-
 export function TaskDialog() {
+  const { t } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
+  const { options: taskTypeOptions } = useTaskTypeLabels();
+
   const showTaskDialog = useAppStore(s => s.ui.showTaskDialog);
   const editingTaskId = useAppStore(s => s.ui.editingTaskId);
   const tasks = useAppStore(s => s.tasks);
@@ -106,8 +101,6 @@ export function TaskDialog() {
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
-  // const summaryTasks = tasks.filter(t => t.childIds.length > 0 || !editingTask);
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleClose}>
       <div
@@ -116,7 +109,7 @@ export function TaskDialog() {
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-sm font-bold">
-            {editingTask ? 'Taak bewerken' : 'Nieuwe taak'}
+            {editingTask ? t('dialog.editTitle') : t('dialog.newTitle')}
           </h2>
           <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded">
             <X size={16} />
@@ -125,7 +118,7 @@ export function TaskDialog() {
 
         <div className="p-4 flex flex-col gap-3 text-xs">
           <div className="flex flex-col gap-1">
-            <label className="text-text-secondary">Naam *</label>
+            <label className="text-text-secondary">{t('dialog.nameRequired')}</label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
@@ -135,7 +128,7 @@ export function TaskDialog() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-text-secondary">Beschrijving</label>
+            <label className="text-text-secondary">{t('dialog.description')}</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
@@ -145,23 +138,23 @@ export function TaskDialog() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">WBS Code</label>
+              <label className="text-text-secondary">{t('dialog.wbsCode')}</label>
               <input
                 value={wbsCode}
                 onChange={e => setWbsCode(e.target.value)}
                 className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
-                placeholder="bijv. RB-301"
+                placeholder={t('dialog.wbsPlaceholder')}
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">Type</label>
+              <label className="text-text-secondary">{t('dialog.type')}</label>
               <select
                 value={taskType}
                 onChange={e => setTaskType(e.target.value as TaskType)}
                 className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
               >
-                {TASK_TYPES.map(tt => (
+                {taskTypeOptions.map(tt => (
                   <option key={tt.value} value={tt.value}>{tt.label}</option>
                 ))}
               </select>
@@ -170,7 +163,7 @@ export function TaskDialog() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">Startdatum</label>
+              <label className="text-text-secondary">{t('dialog.startDate')}</label>
               <input
                 type="date"
                 value={startDate}
@@ -180,7 +173,7 @@ export function TaskDialog() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">Duur (werkdagen)</label>
+              <label className="text-text-secondary">{t('dialog.duration')}</label>
               <input
                 type="number"
                 value={isMilestone ? 0 : duration}
@@ -193,13 +186,13 @@ export function TaskDialog() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-text-secondary">Bovenliggende taak</label>
+            <label className="text-text-secondary">{t('dialog.parentTask')}</label>
             <select
               value={parentId}
               onChange={e => setParentId(e.target.value)}
               className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
             >
-              <option value="">- Geen (root) -</option>
+              <option value="">{t('dialog.noParent')}</option>
               {tasks
                 .filter(t => t.id !== editingTaskId)
                 .map(t => (
@@ -215,7 +208,7 @@ export function TaskDialog() {
               onChange={e => setIsMilestone(e.target.checked)}
               className="accent-accent"
             />
-            <span>Mijlpaal (nul duur)</span>
+            <span>{t('dialog.milestone')}</span>
           </label>
         </div>
 
@@ -224,14 +217,14 @@ export function TaskDialog() {
             onClick={handleClose}
             className="px-4 py-1.5 border border-border rounded hover:bg-surface-hover text-xs"
           >
-            Annuleren
+            {tCommon('cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim()}
             className="px-4 py-1.5 bg-accent text-white rounded hover:bg-accent-hover text-xs disabled:opacity-50"
           >
-            {editingTask ? 'Opslaan' : 'Toevoegen'}
+            {editingTask ? tCommon('save') : tCommon('add')}
           </button>
         </div>
       </div>

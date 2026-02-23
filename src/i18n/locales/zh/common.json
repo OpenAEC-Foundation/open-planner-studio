@@ -1,0 +1,44 @@
+{
+  "app": {
+    "title": "Open Planner Studio"
+  },
+  "yes": "是",
+  "no": "否",
+  "days": "天",
+  "daysLong": "天",
+  "ok": "确定",
+  "apply": "应用",
+  "cancel": "取消",
+  "save": "保存",
+  "add": "添加",
+  "delete": "删除",
+  "properties": "属性",
+  "sidebar": {
+    "properties": "属性",
+    "collapse": "折叠",
+    "expand": "展开"
+  },
+  "context": {
+    "edit": "编辑...",
+    "addSubtask": "添加子任务",
+    "addMilestone": "添加里程碑",
+    "addRelation": "添加关系",
+    "toggleCollapse": "折叠/展开",
+    "delete": "删除",
+    "newTask": "新建任务"
+  },
+  "settings": {
+    "title": "设置",
+    "general": "常规",
+    "language": "语言",
+    "version": "版本",
+    "defaultZoom": "默认缩放",
+    "projectInfo": "项目信息...",
+    "theme": "主题"
+  },
+  "confirm": {
+    "newProject": "创建新项目？未保存的更改将丢失。",
+    "deleteTask": "确定要删除此任务吗？",
+    "unsavedChanges": "未保存的更改将丢失。是否继续？"
+  }
+}

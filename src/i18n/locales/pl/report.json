@@ -1,0 +1,8 @@
+{
+  "title": "Raport", "summary": "Podsumowanie", "tasks": "Zadania:", "leafTasks": "Zadania liściowe:", "critical": "Krytyczne:", "relations": "Relacje:",
+  "settings": "Ustawienia", "paper": "Papier:", "orientation": "Orientacja:", "landscape": "Poziomo", "portrait": "Pionowo",
+  "showCriticalPath": "Ścieżka krytyczna", "showFloat": "Pokaż zapas", "showDependencies": "Zależności", "showWeekends": "Weekendy", "showLegend": "Legenda", "print": "Drukuj...",
+  "noTasks": "Brak zadań do wyświetlenia", "printed": "Wydrukowano:",
+  "legend": { "criticalPath": "Ścieżka krytyczna", "normal": "Normalne", "milestone": "Kamień milowy", "summary": "Podsumowanie" },
+  "tableHeaders": { "wbs": "WBS", "taskName": "Nazwa zadania", "start": "Początek", "end": "Koniec", "duration": "Czas trwania" }
+}

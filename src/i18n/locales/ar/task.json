@@ -1,0 +1,8 @@
+{
+  "table": { "title": "الجدول", "wbs": "WBS", "name": "اسم المهمة", "duration": "المدة", "start": "البداية", "finish": "النهاية", "type": "النوع", "critical": "حرج", "totalFloat": "الفائض الكلي", "completion": "التقدم" },
+  "taskType": { "CONSTRUCTION": "بناء", "INSTALLATION": "تركيب", "DEMOLITION": "هدم", "LOGISTIC": "لوجستيات", "ATTENDANCE": "تفتيش", "MOVE": "نقل", "RENOVATION": "تجديد", "MAINTENANCE": "صيانة", "USERDEFINED": "أخرى" },
+  "dialog": { "editTitle": "تعديل المهمة", "newTitle": "مهمة جديدة", "name": "الاسم", "nameRequired": "الاسم *", "description": "الوصف", "wbsCode": "رمز WBS", "type": "النوع", "startDate": "تاريخ البداية", "duration": "المدة (أيام عمل)", "parentTask": "المهمة الأصلية", "noParent": "- لا شيء (جذر) -", "milestone": "معلم (مدة صفرية)", "wbsPlaceholder": "مثال RB-301" },
+  "properties": { "task": "المهمة", "deleteTask": "حذف المهمة", "selectPrompt": "اختر مهمة لعرض الخصائص.", "multiSelect": "تم تحديد {{count}} مهمة", "name": "الاسم", "wbsCode": "رمز WBS", "description": "الوصف", "type": "النوع", "milestone": "معلم", "time": "الوقت", "start": "البداية", "duration": "المدة (أيام)", "completion": "التقدم (%)", "cpmResult": "نتيجة CPM", "earlyStart": "البداية المبكرة:", "earlyFinish": "النهاية المبكرة:", "lateStart": "البداية المتأخرة:", "lateFinish": "النهاية المتأخرة:", "totalFloat": "الفائض الكلي:", "freeFloat": "الفائض الحر:", "criticalPath": "المسار الحرج:", "dependencies": "التبعيات", "recalculate": "إعادة حساب CPM" },
+  "defaultTask": "مهمة جديدة",
+  "defaultMilestone": "معلم جديد"
+}

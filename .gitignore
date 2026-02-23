@@ -3,3 +3,9 @@ dist/
 .vite/
 *.local
 .DS_Store
+CLAUDE.md
+.claude/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/

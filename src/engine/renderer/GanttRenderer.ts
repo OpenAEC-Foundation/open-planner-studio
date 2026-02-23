@@ -16,36 +16,44 @@ export interface GanttRenderOptions {
   taskTableWidth: number;
   rowHeight: number;
   headerHeight: number;
+  localizedMonths?: string[];
+  columnHeaders?: { wbs: string; taskName: string; duration: string };
 }
 
-// Colors
-const COLORS = {
-  bg: '#1e1e2e',
-  surface: '#252536',
-  grid: '#2e2e42',
-  gridWeekend: '#1a1a28',
-  border: '#3e3e55',
-  text: '#e0e0e8',
-  textSecondary: '#9090a8',
-  critical: '#DC2626',
-  criticalLight: '#991B1B',
-  normal: '#2563EB',
-  normalLight: '#1D4ED8',
-  milestone: '#7C3AED',
-  float: '#10B981',
-  baseline: '#6B7280',
-  complete: '#1D4ED8',
-  selected: '#F59E0B',
-  dependency: '#6B7280',
-  today: '#F59E0B',
-  headerBg: '#252536',
-  summary: '#8B5CF6',
-};
+// Read theme colors from CSS variables on the document element
+function getThemeColors() {
+  const s = getComputedStyle(document.documentElement);
+  const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
+  return {
+    bg: v('--theme-bg', '#1e1e2e'),
+    surface: v('--theme-surface-alt', '#252536'),
+    grid: v('--theme-surface-elevated', '#2e2e42'),
+    gridWeekend: v('--theme-input-bg', '#1a1a28'),
+    border: v('--theme-border', '#3e3e55'),
+    text: v('--theme-text', '#e0e0e8'),
+    textSecondary: v('--theme-text-dim', '#9090a8'),
+    critical: '#DC2626',
+    criticalLight: '#991B1B',
+    normal: '#2563EB',
+    normalLight: '#1D4ED8',
+    milestone: '#7C3AED',
+    float: '#10B981',
+    baseline: '#6B7280',
+    complete: '#1D4ED8',
+    selected: '#F59E0B',
+    dependency: '#6B7280',
+    today: '#F59E0B',
+    headerBg: v('--theme-surface-alt', '#252536'),
+    summary: '#8B5CF6',
+  };
+}
+
+type ThemeColors = ReturnType<typeof getThemeColors>;
 
 export class GanttRenderer {
   private ctx: CanvasRenderingContext2D;
   private opts: GanttRenderOptions;
-
+  private colors: ThemeColors;
 
   // Computed
   private viewStart: Date;
@@ -56,6 +64,7 @@ export class GanttRenderer {
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
+    this.colors = getThemeColors();
 
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.taskDepths = new Map();
@@ -122,7 +131,7 @@ export class GanttRenderer {
     const ctx = this.ctx;
 
     // Clear
-    ctx.fillStyle = COLORS.bg;
+    ctx.fillStyle = this.colors.bg;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Draw layers
@@ -150,12 +159,12 @@ export class GanttRenderer {
 
       // Weekend or holiday background
       if (dayOfWeek === 6 || dayOfWeek === 7 || this.holidaySet.has(dateStr)) {
-        ctx.fillStyle = COLORS.gridWeekend;
+        ctx.fillStyle = this.colors.gridWeekend;
         ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
       }
 
       // Vertical grid line
-      ctx.strokeStyle = COLORS.grid;
+      ctx.strokeStyle = this.colors.grid;
       ctx.lineWidth = dayOfWeek === 1 ? 1 : 0.5; // Thicker on Monday
       ctx.beginPath();
       ctx.moveTo(x, headerHeight);
@@ -167,7 +176,7 @@ export class GanttRenderer {
     for (let i = 0; i < this.flatTasks.length + 1; i++) {
       const y = this.rowToY(i);
       if (y < headerHeight || y > canvasHeight) continue;
-      ctx.strokeStyle = COLORS.grid;
+      ctx.strokeStyle = this.colors.grid;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(0, y);
@@ -182,7 +191,7 @@ export class GanttRenderer {
     const x = this.dateToX(today);
 
     if (x > this.opts.taskTableWidth && x < this.opts.canvasWidth) {
-      ctx.strokeStyle = COLORS.today;
+      ctx.strokeStyle = this.colors.today;
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -198,11 +207,11 @@ export class GanttRenderer {
     const ctx = this.ctx;
 
     // Header background
-    ctx.fillStyle = COLORS.headerBg;
+    ctx.fillStyle = this.colors.headerBg;
     ctx.fillRect(0, 0, canvasWidth, headerHeight);
 
     // Bottom border
-    ctx.strokeStyle = COLORS.border;
+    ctx.strokeStyle = this.colors.border;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, headerHeight);
@@ -214,7 +223,7 @@ export class GanttRenderer {
 
     // Draw month/week labels (top row)
     ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillStyle = COLORS.text;
+    ctx.fillStyle = this.colors.text;
     ctx.textBaseline = 'middle';
 
     let lastMonth = -1;
@@ -233,8 +242,8 @@ export class GanttRenderer {
       // Month label (top row)
       if (month !== lastMonth) {
         lastMonth = month;
-        const months = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
-        ctx.fillStyle = COLORS.text;
+        const months = this.opts.localizedMonths || ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
+        ctx.fillStyle = this.colors.text;
         ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
         ctx.fillText(`${months[month]} ${date.getUTCFullYear()}`, x + 4, headerHeight / 4);
       }
@@ -242,14 +251,14 @@ export class GanttRenderer {
       // Week label (bottom row)
       if (dayOfWeek === 1 && weekNum !== lastWeek) {
         lastWeek = weekNum;
-        ctx.fillStyle = COLORS.textSecondary;
+        ctx.fillStyle = this.colors.textSecondary;
         ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
         ctx.fillText(`W${weekNum}`, x + 2, headerHeight * 3 / 4);
       }
 
       // Day number if zoom is large enough
       if (view.zoom >= 20) {
-        ctx.fillStyle = COLORS.textSecondary;
+        ctx.fillStyle = this.colors.textSecondary;
         ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(`${date.getUTCDate()}`, x + view.zoom / 2, headerHeight / 2);
@@ -290,7 +299,7 @@ export class GanttRenderer {
     if (x2 < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
 
     const width = Math.max(x2 - x1, 4);
-    const color = task.time.isCritical ? COLORS.critical : (task.color || COLORS.normal);
+    const color = task.time.isCritical ? this.colors.critical : (task.color || this.colors.normal);
 
     // Bar background
     ctx.fillStyle = color;
@@ -301,7 +310,7 @@ export class GanttRenderer {
     // Progress fill
     if (task.time.completion > 0) {
       const progressWidth = width * task.time.completion;
-      ctx.fillStyle = task.time.isCritical ? COLORS.criticalLight : COLORS.normalLight;
+      ctx.fillStyle = task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
       ctx.beginPath();
       ctx.roundRect(x1, y, progressWidth, height, 3);
       ctx.fill();
@@ -310,13 +319,13 @@ export class GanttRenderer {
     // Float indicator
     if (task.time.totalFloat > 0 && !task.time.isCritical) {
       const floatWidth = task.time.totalFloat * this.opts.view.zoom;
-      ctx.fillStyle = COLORS.float + '40'; // 25% opacity
+      ctx.fillStyle = this.colors.float + '40'; // 25% opacity
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
     }
 
     // Selection highlight
     if (isSelected) {
-      ctx.strokeStyle = COLORS.selected;
+      ctx.strokeStyle = this.colors.selected;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.roundRect(x1 - 1, y - 1, width + 2, height + 2, 4);
@@ -351,7 +360,7 @@ export class GanttRenderer {
     const barH = height * 0.4;
 
     // Summary bar
-    ctx.fillStyle = COLORS.summary;
+    ctx.fillStyle = this.colors.summary;
     ctx.fillRect(x1, barY, width, barH);
 
     // Triangles at start and end
@@ -370,7 +379,7 @@ export class GanttRenderer {
     ctx.fill();
 
     if (isSelected) {
-      ctx.strokeStyle = COLORS.selected;
+      ctx.strokeStyle = this.colors.selected;
       ctx.lineWidth = 2;
       ctx.strokeRect(x1 - 1, barY - 1, width + 2, barH + 6);
     }
@@ -383,7 +392,7 @@ export class GanttRenderer {
     const cy = y + height / 2;
     const size = height * 0.4;
 
-    ctx.fillStyle = COLORS.milestone;
+    ctx.fillStyle = this.colors.milestone;
     ctx.beginPath();
     ctx.moveTo(x, cy - size);
     ctx.lineTo(x + size, cy);
@@ -393,13 +402,13 @@ export class GanttRenderer {
     ctx.fill();
 
     if (isSelected) {
-      ctx.strokeStyle = COLORS.selected;
+      ctx.strokeStyle = this.colors.selected;
       ctx.lineWidth = 2;
       ctx.stroke();
     }
 
     // Label
-    ctx.fillStyle = COLORS.text;
+    ctx.fillStyle = this.colors.text;
     ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textBaseline = 'middle';
     ctx.fillText(task.name, x + size + 6, cy);
@@ -407,8 +416,8 @@ export class GanttRenderer {
 
   private drawDependencyArrows(): void {
     const ctx = this.ctx;
-    ctx.strokeStyle = COLORS.dependency;
-    ctx.fillStyle = COLORS.dependency;
+    ctx.strokeStyle = this.colors.dependency;
+    ctx.fillStyle = this.colors.dependency;
     ctx.lineWidth = 1;
 
     for (const seq of this.opts.sequences) {
@@ -475,23 +484,24 @@ export class GanttRenderer {
     const collapsed = new Set(this.opts.collapsedTaskIds);
 
     // Table background
-    ctx.fillStyle = COLORS.surface;
+    ctx.fillStyle = this.colors.surface;
     ctx.fillRect(0, 0, taskTableWidth, canvasHeight);
 
     // Header
-    ctx.fillStyle = COLORS.headerBg;
+    ctx.fillStyle = this.colors.headerBg;
     ctx.fillRect(0, 0, taskTableWidth, headerHeight);
 
     // Header text
-    ctx.fillStyle = COLORS.text;
+    const headers = this.opts.columnHeaders || { wbs: 'WBS', taskName: 'Taaknaam', duration: 'Duur' };
+    ctx.fillStyle = this.colors.text;
     ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textBaseline = 'middle';
-    ctx.fillText('WBS', 8, headerHeight / 2);
-    ctx.fillText('Taaknaam', 60, headerHeight / 2);
-    ctx.fillText('Duur', taskTableWidth - 45, headerHeight / 2);
+    ctx.fillText(headers.wbs, 8, headerHeight / 2);
+    ctx.fillText(headers.taskName, 60, headerHeight / 2);
+    ctx.fillText(headers.duration, taskTableWidth - 45, headerHeight / 2);
 
     // Header border
-    ctx.strokeStyle = COLORS.border;
+    ctx.strokeStyle = this.colors.border;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, headerHeight);
@@ -511,18 +521,18 @@ export class GanttRenderer {
 
       // Selection highlight
       if (isSelected) {
-        ctx.fillStyle = COLORS.selected + '20';
+        ctx.fillStyle = this.colors.selected + '20';
         ctx.fillRect(0, y, taskTableWidth, rowHeight);
       }
 
       // Summary row subtle background
       if (isSummary) {
-        ctx.fillStyle = COLORS.summary + '08';
+        ctx.fillStyle = this.colors.summary + '08';
         ctx.fillRect(0, y, taskTableWidth, rowHeight);
       }
 
       // Row border
-      ctx.strokeStyle = COLORS.grid;
+      ctx.strokeStyle = this.colors.grid;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(0, y + rowHeight);
@@ -533,7 +543,7 @@ export class GanttRenderer {
       const indent = 55 + depth * 16;
 
       // WBS code
-      ctx.fillStyle = COLORS.textSecondary;
+      ctx.fillStyle = this.colors.textSecondary;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.fillText(task.wbsCode || '', 8, textY);
 
@@ -541,7 +551,7 @@ export class GanttRenderer {
       if (isSummary) {
         const triX = indent - 2;
         const triY = textY;
-        ctx.fillStyle = COLORS.textSecondary;
+        ctx.fillStyle = this.colors.textSecondary;
         ctx.beginPath();
         if (isCollapsed) {
           // Right-pointing triangle (collapsed)
@@ -559,7 +569,7 @@ export class GanttRenderer {
       }
 
       // Task name
-      ctx.fillStyle = isSummary ? COLORS.summary : COLORS.text;
+      ctx.fillStyle = isSummary ? this.colors.summary : this.colors.text;
       ctx.font = isSummary ? 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif' : '11px -apple-system, BlinkMacSystemFont, sans-serif';
 
       ctx.save();
@@ -574,7 +584,7 @@ export class GanttRenderer {
         const btnX = taskTableWidth - 52;
         const btnY = textY - 6;
         const btnSize = 12;
-        ctx.fillStyle = COLORS.float + '60';
+        ctx.fillStyle = this.colors.float + '60';
         ctx.beginPath();
         ctx.roundRect(btnX, btnY, btnSize, btnSize, 2);
         ctx.fill();
@@ -586,7 +596,7 @@ export class GanttRenderer {
       }
 
       // Duration
-      ctx.fillStyle = COLORS.textSecondary;
+      ctx.fillStyle = this.colors.textSecondary;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.textAlign = 'right';
       const durText = task.isMilestone ? '0d' : `${task.time.scheduleDuration}d`;
@@ -595,7 +605,7 @@ export class GanttRenderer {
     }
 
     // Right border of table
-    ctx.strokeStyle = COLORS.border;
+    ctx.strokeStyle = this.colors.border;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(taskTableWidth, 0);

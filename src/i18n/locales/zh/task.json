@@ -1,0 +1,8 @@
+{
+  "table": { "title": "表格", "wbs": "WBS", "name": "任务名称", "duration": "工期", "start": "开始", "finish": "完成", "type": "类型", "critical": "关键", "totalFloat": "总浮动", "completion": "进度" },
+  "taskType": { "CONSTRUCTION": "施工", "INSTALLATION": "安装", "DEMOLITION": "拆除", "LOGISTIC": "物流", "ATTENDANCE": "检查", "MOVE": "搬迁", "RENOVATION": "翻新", "MAINTENANCE": "维护", "USERDEFINED": "其他" },
+  "dialog": { "editTitle": "编辑任务", "newTitle": "新建任务", "name": "名称", "nameRequired": "名称 *", "description": "描述", "wbsCode": "WBS 编码", "type": "类型", "startDate": "开始日期", "duration": "工期（工作日）", "parentTask": "父任务", "noParent": "- 无（根级）-", "milestone": "里程碑（零工期）", "wbsPlaceholder": "例如 RB-301" },
+  "properties": { "task": "任务", "deleteTask": "删除任务", "selectPrompt": "选择一个任务以查看属性。", "multiSelect": "已选择 {{count}} 个任务", "name": "名称", "wbsCode": "WBS 编码", "description": "描述", "type": "类型", "milestone": "里程碑", "time": "时间", "start": "开始", "duration": "工期（天）", "completion": "进度（%）", "cpmResult": "CPM 结果", "earlyStart": "最早开始：", "earlyFinish": "最早完成：", "lateStart": "最晚开始：", "lateFinish": "最晚完成：", "totalFloat": "总浮动：", "freeFloat": "自由浮动：", "criticalPath": "关键路径：", "dependencies": "依赖关系", "recalculate": "重新计算 CPM" },
+  "defaultTask": "新建任务",
+  "defaultMilestone": "新建里程碑"
+}

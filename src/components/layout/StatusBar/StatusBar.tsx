@@ -1,6 +1,8 @@
 import { useAppStore } from '@/state/appStore';
+import { useTranslation } from 'react-i18next';
 
 export function StatusBar() {
+  const { t } = useTranslation('menu');
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
@@ -12,22 +14,22 @@ export function StatusBar() {
   const criticalCount = cpmResult?.criticalPath.length || 0;
 
   return (
-    <div className="flex items-center h-6 bg-surface-alt border-t border-border px-3 text-[10px] text-text-secondary select-none gap-4">
-      <span>Taken: {leafTasks.length}</span>
-      <span>Mijlpalen: {milestones.length}</span>
+    <div className="flex items-center h-7 bg-surface-alt border-t border-border px-3 text-[11px] text-text-secondary select-none gap-4">
+      <span>{t('status.tasks')} {leafTasks.length}</span>
+      <span>{t('status.milestones')} {milestones.length}</span>
       {cpmResult && (
         <>
-          <span className="text-critical">Kritiek pad: {criticalCount} taken, {cpmResult.projectDuration} werkdagen</span>
-          <span>Einde: {cpmResult.projectEnd}</span>
+          <span className="text-critical">{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
+          <span>{t('status.end')} {cpmResult.projectEnd}</span>
         </>
       )}
       {selectedTaskIds.length > 0 && (
-        <span>Selectie: {selectedTaskIds.length} taak/taken</span>
+        <span>{t('status.selection', { count: selectedTaskIds.length })}</span>
       )}
       <div className="flex-1" />
-      <span>Schaal: {view.timeScale}</span>
-      <span>Zoom: {Math.round(view.zoom)}px/dag</span>
-      {isDirty && <span className="text-yellow-500">Niet opgeslagen</span>}
+      <span>{t('status.scale')} {view.timeScale}</span>
+      <span>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
+      {isDirty && <span className="text-yellow-500">{t('status.unsaved')}</span>}
     </div>
   );
 }

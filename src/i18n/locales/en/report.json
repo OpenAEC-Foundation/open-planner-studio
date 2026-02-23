@@ -1,0 +1,34 @@
+{
+  "title": "Report",
+  "summary": "Summary",
+  "tasks": "Tasks:",
+  "leafTasks": "Leaf tasks:",
+  "critical": "Critical:",
+  "relations": "Relations:",
+  "settings": "Settings",
+  "paper": "Paper:",
+  "orientation": "Orientation:",
+  "landscape": "Landscape",
+  "portrait": "Portrait",
+  "showCriticalPath": "Critical path",
+  "showFloat": "Show float",
+  "showDependencies": "Dependencies",
+  "showWeekends": "Weekends",
+  "showLegend": "Legend",
+  "print": "Print...",
+  "noTasks": "No tasks to display",
+  "printed": "Printed:",
+  "legend": {
+    "criticalPath": "Critical path",
+    "normal": "Normal",
+    "milestone": "Milestone",
+    "summary": "Summary"
+  },
+  "tableHeaders": {
+    "wbs": "WBS",
+    "taskName": "Task Name",
+    "start": "Start",
+    "end": "End",
+    "duration": "Duration"
+  }
+}

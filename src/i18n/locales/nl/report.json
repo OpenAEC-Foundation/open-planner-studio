@@ -1,0 +1,34 @@
+{
+  "title": "Rapportage",
+  "summary": "Overzicht",
+  "tasks": "Taken:",
+  "leafTasks": "Bladtaken:",
+  "critical": "Kritiek:",
+  "relations": "Relaties:",
+  "settings": "Instellingen",
+  "paper": "Papier:",
+  "orientation": "Orientatie:",
+  "landscape": "Liggend",
+  "portrait": "Staand",
+  "showCriticalPath": "Kritiek pad",
+  "showFloat": "Speling tonen",
+  "showDependencies": "Afhankelijkheden",
+  "showWeekends": "Weekenden",
+  "showLegend": "Legenda",
+  "print": "Afdrukken...",
+  "noTasks": "Geen taken om weer te geven",
+  "printed": "Afgedrukt:",
+  "legend": {
+    "criticalPath": "Kritiek pad",
+    "normal": "Normaal",
+    "milestone": "Mijlpaal",
+    "summary": "Samenvatting"
+  },
+  "tableHeaders": {
+    "wbs": "WBS",
+    "taskName": "Taaknaam",
+    "start": "Start",
+    "end": "Eind",
+    "duration": "Duur"
+  }
+}

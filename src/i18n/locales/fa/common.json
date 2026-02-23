@@ -1,0 +1,44 @@
+{
+  "app": {
+    "title": "Open Planner Studio"
+  },
+  "yes": "بله",
+  "no": "خیر",
+  "days": "ر",
+  "daysLong": "روز",
+  "ok": "تایید",
+  "apply": "اعمال",
+  "cancel": "لغو",
+  "save": "ذخیره",
+  "add": "افزودن",
+  "delete": "حذف",
+  "properties": "ویژگی‌ها",
+  "sidebar": {
+    "properties": "ویژگی‌ها",
+    "collapse": "جمع",
+    "expand": "باز"
+  },
+  "context": {
+    "edit": "ویرایش...",
+    "addSubtask": "افزودن زیروظیفه",
+    "addMilestone": "افزودن نقطه عطف",
+    "addRelation": "افزودن رابطه",
+    "toggleCollapse": "جمع/باز",
+    "delete": "حذف",
+    "newTask": "وظیفه جدید"
+  },
+  "settings": {
+    "title": "تنظیمات",
+    "general": "عمومی",
+    "language": "زبان",
+    "version": "نسخه",
+    "defaultZoom": "بزرگنمایی پیش‌فرض",
+    "projectInfo": "اطلاعات پروژه...",
+    "theme": "پوسته"
+  },
+  "confirm": {
+    "newProject": "پروژه جدید ایجاد شود؟ تغییرات ذخیره‌نشده از بین خواهند رفت.",
+    "deleteTask": "آیا مطمئن هستید که می‌خواهید این وظیفه را حذف کنید؟",
+    "unsavedChanges": "تغییرات ذخیره‌نشده از بین خواهند رفت. ادامه می‌دهید؟"
+  }
+}

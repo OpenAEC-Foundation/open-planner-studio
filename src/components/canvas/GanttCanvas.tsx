@@ -1,9 +1,11 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
+import { getLocalizedMonths } from '@/i18n/dateFormat';
 
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
@@ -29,6 +31,8 @@ export function GanttCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const hScrollRef = useRef<HTMLDivElement>(null);
 
+  const { t: tTask, i18n } = useTranslation('task');
+
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const calendar = useAppStore(s => s.calendar);
@@ -45,11 +49,20 @@ export function GanttCanvas() {
   const setZoom = useAppStore(s => s.setZoom);
   const setUI = useAppStore(s => s.setUI);
   const project = useAppStore(s => s.project);
+  const uiTheme = useAppStore(s => s.ui.uiTheme);
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [cursor, setCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
+
+  const columnHeaders = useMemo(() => ({
+    wbs: tTask('table.wbs'),
+    taskName: tTask('table.name'),
+    duration: tTask('table.duration'),
+  }), [tTask]);
 
   // Calculate total content width based on task date range
   const totalContentWidth = useMemo(() => {
@@ -95,12 +108,14 @@ export function GanttCanvas() {
       taskTableWidth: TASK_TABLE_WIDTH,
       rowHeight: ROW_HEIGHT,
       headerHeight: HEADER_HEIGHT,
+      localizedMonths,
+      columnHeaders,
     };
 
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, view, selectedTaskIds, collapsedTaskIds]);
+  }, [tasks, sequences, calendar, view, selectedTaskIds, collapsedTaskIds, localizedMonths, columnHeaders, uiTheme]);
 
   // Render on changes
   useEffect(() => {
@@ -152,6 +167,9 @@ export function GanttCanvas() {
     }
   }, [view.scrollX]);
 
+  const defaultTaskName = tTask('defaultTask');
+  const defaultMilestoneName = tTask('defaultMilestone');
+
   // Click handler with collapse/expand and '+' button support
   const handleClick = useCallback((e: React.MouseEvent) => {
     const canvas = canvasRef.current;
@@ -179,7 +197,7 @@ export function GanttCanvas() {
       if (addTarget) {
         const startDate = project.startDate || formatDate(new Date());
         addTask({
-          name: 'Nieuwe taak',
+          name: defaultTaskName,
           parentId: addTarget.id,
           time: createDefaultTaskTime(startDate, 5),
         });
@@ -194,7 +212,7 @@ export function GanttCanvas() {
     } else {
       deselectAll();
     }
-  }, [selectTask, deselectAll, toggleCollapse, addTask, project.startDate]);
+  }, [selectTask, deselectAll, toggleCollapse, addTask, project.startDate, defaultTaskName]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     const canvas = canvasRef.current;
@@ -411,14 +429,14 @@ export function GanttCanvas() {
           onAddSubtask={() => {
             const parentId = contextMenu.task?.id || null;
             addTask({
-              name: 'Nieuwe taak',
+              name: defaultTaskName,
               parentId,
               time: createDefaultTaskTime(startDate, 5),
             });
           }}
           onAddMilestone={() => {
             addTask({
-              name: 'Nieuwe mijlpaal',
+              name: defaultMilestoneName,
               isMilestone: true,
               taskType: 'ATTENDANCE',
               parentId: contextMenu.task?.id || null,
@@ -438,7 +456,7 @@ export function GanttCanvas() {
           }}
           onAddTask={() => {
             addTask({
-              name: 'Nieuwe taak',
+              name: defaultTaskName,
               time: createDefaultTaskTime(startDate, 5),
             });
           }}

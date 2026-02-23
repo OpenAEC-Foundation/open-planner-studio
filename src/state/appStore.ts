@@ -153,6 +153,8 @@ function createDefaultUI(): UIState {
     activeRibbonTab: 'start',
     collapsedTaskIds: [],
     inlineEditTaskId: null,
+    showSettingsDialog: false,
+    uiTheme: 'dark',
   };
 }
 

@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { useI18n } from '@/i18n/i18n';
-import { Locale } from '@/i18n/i18n';
+import { useTranslation } from 'react-i18next';
 import {
   Plus, Link, Diamond, Play, Undo2, Redo2, ZoomIn, ZoomOut,
   FileText, FolderOpen, Save, Printer, Trash2,
@@ -13,17 +12,65 @@ import { createDefaultTaskTime } from '@/types/task';
 import { RibbonTab } from '@/state/slices/types';
 import './Ribbon.css';
 
-const LANGUAGES: [Locale, string, string][] = [
-  ['nl', 'NL', 'Nederlands'],
-  ['en', 'EN', 'English'],
-  ['fr', 'FR', 'Fran\u00e7ais'],
-  ['de', 'DE', 'Deutsch'],
-  ['es', 'ES', 'Espa\u00f1ol'],
-  ['zh', 'ZH', '\u4E2D\u6587'],
-];
+function RibbonButton({ icon, label, onClick, active, disabled, primary, danger }: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  primary?: boolean;
+  danger?: boolean;
+}) {
+  const cls = ['ribbon-btn'];
+  if (active) cls.push('active');
+  if (disabled) cls.push('disabled');
+  if (primary) cls.push('primary');
+  if (danger) cls.push('danger');
+  return (
+    <button className={cls.join(' ')} onClick={disabled ? undefined : onClick}>
+      <span className="ribbon-btn-icon">{icon}</span>
+      <span className="ribbon-btn-label">{label}</span>
+    </button>
+  );
+}
+
+function RibbonSmallButton({ icon, label, onClick, active, disabled, danger }: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  const cls = ['ribbon-btn', 'small'];
+  if (active) cls.push('active');
+  if (disabled) cls.push('disabled');
+  if (danger) cls.push('danger');
+  return (
+    <button className={cls.join(' ')} onClick={disabled ? undefined : onClick}>
+      <span className="ribbon-btn-icon">{icon}</span>
+      <span className="ribbon-btn-label">{label}</span>
+    </button>
+  );
+}
+
+function RibbonGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="ribbon-group">
+      <div className="ribbon-group-content">{children}</div>
+      <div className="ribbon-group-label">{label}</div>
+    </div>
+  );
+}
+
+function RibbonButtonStack({ children }: { children: React.ReactNode }) {
+  return <div className="ribbon-btn-stack">{children}</div>;
+}
 
 export function Ribbon() {
-  const { t, locale, setLocale } = useI18n();
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tTask } = useTranslation('task');
 
   const addTask = useAppStore(s => s.addTask);
   const deleteTask = useAppStore(s => s.deleteTask);
@@ -50,19 +97,19 @@ export function Ribbon() {
 
   const handleAddTask = useCallback(() => {
     addTask({
-      name: 'Nieuwe taak',
+      name: tTask('defaultTask'),
       time: createDefaultTaskTime(project.startDate || formatDate(new Date()), 5),
     });
-  }, [addTask, project.startDate]);
+  }, [addTask, project.startDate, tTask]);
 
   const handleAddMilestone = useCallback(() => {
     addTask({
-      name: 'Nieuwe mijlpaal',
+      name: tTask('defaultMilestone'),
       isMilestone: true,
       taskType: 'ATTENDANCE',
       time: createDefaultTaskTime(project.startDate || formatDate(new Date()), 0),
     });
-  }, [addTask, project.startDate]);
+  }, [addTask, project.startDate, tTask]);
 
   const handleToggleDependency = useCallback(() => {
     setUI({ showDependencyMode: !showDependencyMode, dependencySourceId: null });
@@ -77,11 +124,12 @@ export function Ribbon() {
   }, [setUI]);
 
   const handleNewProject = useCallback(() => {
-    if (confirm(t('confirm.newProject'))) newProject();
-  }, [newProject, t]);
+    if (confirm(tCommon('confirm.newProject'))) newProject();
+  }, [newProject, tCommon]);
 
   return (
-    <div className="ribbon">
+    <div className="ribbon-container">
+      {/* Tabs */}
       <div className="ribbon-tabs">
         {(['start', 'planning', 'beeld', 'instellingen', 'table', 'ifc', 'report'] as RibbonTab[]).map(tab => (
           <button
@@ -89,287 +137,154 @@ export function Ribbon() {
             className={`ribbon-tab ${activeTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
-            {t(`ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`)}
+            {tMenu(`ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`)}
           </button>
         ))}
       </div>
 
+      {/* Content */}
       <div className="ribbon-content">
         {activeTab === 'start' && (
           <>
-            {/* File */}
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.file')}</div>
-              <div className="ribbon-group-content grid-2x2">
-                <button className="ribbon-button small" onClick={handleNewProject} title={t('ribbon.newProject.title')}>
-                  <span className="ribbon-icon"><FileText size={14} /></span>
-                  <span>{t('ribbon.new')}</span>
-                </button>
-                <button className="ribbon-button small" title={t('ribbon.save.title')}>
-                  <span className="ribbon-icon"><Save size={14} /></span>
-                  <span>{t('ribbon.save')}</span>
-                </button>
-                <button className="ribbon-button small" title={t('ribbon.open.title')}>
-                  <span className="ribbon-icon"><FolderOpen size={14} /></span>
-                  <span>{t('ribbon.open')}</span>
-                </button>
-                <button className="ribbon-button small" onClick={handlePrint} title={t('ribbon.print.title')}>
-                  <span className="ribbon-icon"><Printer size={14} /></span>
-                  <span>{t('ribbon.print')}</span>
-                </button>
-              </div>
-            </div>
+            <RibbonGroup label={tMenu('ribbon.file')}>
+              <RibbonButtonStack>
+                <RibbonSmallButton icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={handleNewProject} />
+                <RibbonSmallButton icon={<Save size={14} />} label={tMenu('ribbon.save')} />
+                <RibbonSmallButton icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} />
+              </RibbonButtonStack>
+            </RibbonGroup>
 
             <div className="ribbon-separator" />
 
-            {/* Edit */}
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.edit')}</div>
-              <div className="ribbon-group-content grid-2x2">
-                <button className="ribbon-button small" onClick={undo} disabled={undoStack.length === 0} title={t('ribbon.undo.title')}>
-                  <span className="ribbon-icon"><Undo2 size={14} /></span>
-                  <span>{t('ribbon.undo')}</span>
-                </button>
-                <button className="ribbon-button small" onClick={redo} disabled={redoStack.length === 0} title={t('ribbon.redo.title')}>
-                  <span className="ribbon-icon"><Redo2 size={14} /></span>
-                  <span>{t('ribbon.redo')}</span>
-                </button>
-                <button className="ribbon-button small danger" onClick={handleDeleteSelected} disabled={selectedTaskIds.length === 0} title={t('ribbon.delete.title')}>
-                  <span className="ribbon-icon"><Trash2 size={14} /></span>
-                  <span>{t('ribbon.delete')}</span>
-                </button>
-              </div>
-            </div>
+            <RibbonGroup label={tMenu('ribbon.edit')}>
+              <RibbonButtonStack>
+                <RibbonSmallButton icon={<Undo2 size={14} />} label={tMenu('ribbon.undo')} onClick={undo} disabled={undoStack.length === 0} />
+                <RibbonSmallButton icon={<Redo2 size={14} />} label={tMenu('ribbon.redo')} onClick={redo} disabled={redoStack.length === 0} />
+                <RibbonSmallButton icon={<Trash2 size={14} />} label={tMenu('ribbon.delete')} onClick={handleDeleteSelected} disabled={selectedTaskIds.length === 0} danger />
+              </RibbonButtonStack>
+            </RibbonGroup>
 
             <div className="ribbon-separator" />
 
-            {/* Tasks */}
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.tasks')}</div>
-              <div className="ribbon-group-content">
-                <button className="ribbon-button large" onClick={handleAddTask} title={t('ribbon.task.title')}>
-                  <span className="ribbon-icon"><Plus size={20} /></span>
-                  <span>{t('ribbon.task')}</span>
-                </button>
-                <button className="ribbon-button large" onClick={handleAddMilestone} title={t('ribbon.milestone.title')}>
-                  <span className="ribbon-icon"><Diamond size={20} /></span>
-                  <span>{t('ribbon.milestone')}</span>
-                </button>
-                <button className={`ribbon-button large ${showDependencyMode ? 'active' : ''}`} onClick={handleToggleDependency} title={t('ribbon.relation.title')}>
-                  <span className="ribbon-icon"><Link size={20} /></span>
-                  <span>{t('ribbon.relation')}</span>
-                </button>
-              </div>
-            </div>
+            <RibbonGroup label={tMenu('ribbon.tasks')}>
+              <RibbonButton icon={<Plus size={20} />} label={tMenu('ribbon.task')} onClick={handleAddTask} />
+              <RibbonButton icon={<Diamond size={20} />} label={tMenu('ribbon.milestone')} onClick={handleAddMilestone} />
+              <RibbonButton icon={<Link size={20} />} label={tMenu('ribbon.relation')} onClick={handleToggleDependency} active={showDependencyMode} />
+            </RibbonGroup>
 
             <div className="ribbon-separator" />
 
-            {/* Calculate */}
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.schedule')}</div>
-              <div className="ribbon-group-content">
-                <button className="ribbon-button large primary" onClick={runCPM} title={t('ribbon.calculate.title')}>
-                  <span className="ribbon-icon"><Play size={20} /></span>
-                  <span>{t('ribbon.calculate')}</span>
-                </button>
-              </div>
-            </div>
+            <RibbonGroup label={tMenu('ribbon.schedule')}>
+              <RibbonButton icon={<Play size={20} />} label={tMenu('ribbon.calculate')} onClick={runCPM} primary />
+            </RibbonGroup>
 
             <div className="ribbon-separator" />
 
-            {/* Zoom */}
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.zoom')}</div>
-              <div className="ribbon-group-content grid-2x2">
-                <button className="ribbon-button small" onClick={() => setZoom(zoom + 10)} title={t('ribbon.zoomIn.title')}>
-                  <span className="ribbon-icon"><ZoomIn size={14} /></span>
-                  <span>{t('ribbon.zoomIn')}</span>
-                </button>
-                <button className="ribbon-button small" onClick={() => setZoom(zoom - 5)} title={t('ribbon.zoomOut.title')}>
-                  <span className="ribbon-icon"><ZoomOut size={14} /></span>
-                  <span>{t('ribbon.zoomOut')}</span>
-                </button>
-              </div>
-            </div>
+            <RibbonGroup label={tMenu('ribbon.zoom')}>
+              <RibbonButtonStack>
+                <RibbonSmallButton icon={<ZoomIn size={14} />} label={tMenu('ribbon.zoomIn')} onClick={() => setZoom(zoom + 10)} />
+                <RibbonSmallButton icon={<ZoomOut size={14} />} label={tMenu('ribbon.zoomOut')} onClick={() => setZoom(zoom - 5)} />
+              </RibbonButtonStack>
+            </RibbonGroup>
           </>
         )}
 
         {activeTab === 'planning' && (
           <>
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.schedule')}</div>
-              <div className="ribbon-group-content">
-                <button className="ribbon-button large primary" onClick={runCPM} title={t('ribbon.calculate.title')}>
-                  <span className="ribbon-icon"><Play size={20} /></span>
-                  <span>CPM</span>
-                </button>
-              </div>
-            </div>
+            <RibbonGroup label={tMenu('ribbon.schedule')}>
+              <RibbonButton icon={<Play size={20} />} label="CPM" onClick={runCPM} primary />
+            </RibbonGroup>
+
             <div className="ribbon-separator" />
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.relations')}</div>
-              <div className="ribbon-group-content">
-                <button className={`ribbon-button large ${showDependencyMode ? 'active' : ''}`} onClick={handleToggleDependency}>
-                  <span className="ribbon-icon"><Link size={20} /></span>
-                  <span>{t('ribbon.relation')}</span>
-                </button>
-                <button className="ribbon-button large" title={t('ribbon.manage.title')}>
-                  <span className="ribbon-icon"><ArrowRightLeft size={20} /></span>
-                  <span>{t('ribbon.manage')}</span>
-                </button>
-              </div>
-            </div>
+
+            <RibbonGroup label={tMenu('ribbon.relations')}>
+              <RibbonButton icon={<Link size={20} />} label={tMenu('ribbon.relation')} onClick={handleToggleDependency} active={showDependencyMode} />
+              <RibbonButton icon={<ArrowRightLeft size={20} />} label={tMenu('ribbon.manage')} />
+            </RibbonGroup>
+
             <div className="ribbon-separator" />
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.calendar')}</div>
-              <div className="ribbon-group-content">
-                <button className="ribbon-button large">
-                  <span className="ribbon-icon"><Calendar size={20} /></span>
-                  <span>{t('ribbon.calendar')}</span>
-                </button>
-                <button className="ribbon-button large">
-                  <span className="ribbon-icon"><Clock size={20} /></span>
-                  <span>{t('ribbon.holidays')}</span>
-                </button>
-              </div>
-            </div>
+
+            <RibbonGroup label={tMenu('ribbon.calendar')}>
+              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} />
+              <RibbonButton icon={<Clock size={20} />} label={tMenu('ribbon.holidays')} />
+            </RibbonGroup>
           </>
         )}
 
         {activeTab === 'beeld' && (
           <>
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.zoom')}</div>
-              <div className="ribbon-group-content grid-2x2">
-                <button className="ribbon-button small" onClick={() => setZoom(zoom + 10)}>
-                  <span className="ribbon-icon"><ZoomIn size={14} /></span>
-                  <span>{t('ribbon.zoomIn')}</span>
-                </button>
-                <button className="ribbon-button small" onClick={() => setZoom(zoom - 5)}>
-                  <span className="ribbon-icon"><ZoomOut size={14} /></span>
-                  <span>{t('ribbon.zoomOut')}</span>
-                </button>
-                <button className="ribbon-button small" onClick={() => setZoom(30)}>
-                  <span className="ribbon-icon"><Eye size={14} /></span>
-                  <span>{t('ribbon.zoomReset')}</span>
-                </button>
-              </div>
-            </div>
+            <RibbonGroup label={tMenu('ribbon.zoom')}>
+              <RibbonButtonStack>
+                <RibbonSmallButton icon={<ZoomIn size={14} />} label={tMenu('ribbon.zoomIn')} onClick={() => setZoom(zoom + 10)} />
+                <RibbonSmallButton icon={<ZoomOut size={14} />} label={tMenu('ribbon.zoomOut')} onClick={() => setZoom(zoom - 5)} />
+                <RibbonSmallButton icon={<Eye size={14} />} label={tMenu('ribbon.zoomReset')} onClick={() => setZoom(30)} />
+              </RibbonButtonStack>
+            </RibbonGroup>
+
             <div className="ribbon-separator" />
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.timeScale')}</div>
-              <div className="ribbon-group-content vertical">
+
+            <RibbonGroup label={tMenu('ribbon.timeScale')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
                 <select className="ribbon-select" value={timeScale} onChange={e => setTimeScale(e.target.value as 'day' | 'week' | 'month')}>
-                  <option value="day">{t('ribbon.day')}</option>
-                  <option value="week">{t('ribbon.week')}</option>
-                  <option value="month">{t('ribbon.month')}</option>
+                  <option value="day">{tMenu('ribbon.day')}</option>
+                  <option value="week">{tMenu('ribbon.week')}</option>
+                  <option value="month">{tMenu('ribbon.month')}</option>
                 </select>
-                <span className="ribbon-info">{t('ribbon.zoomLevel', Math.round(zoom))}</span>
+                <span className="ribbon-info">{tMenu('ribbon.zoomLevel', { level: Math.round(zoom) })}</span>
               </div>
-            </div>
+            </RibbonGroup>
+
             <div className="ribbon-separator" />
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.panels')}</div>
-              <div className="ribbon-group-content">
-                <button className={`ribbon-button large ${!rightPanelCollapsed ? 'active' : ''}`} onClick={() => setUI({ rightPanelCollapsed: !rightPanelCollapsed })} title={t('ribbon.properties.title')}>
-                  <span className="ribbon-icon">{!rightPanelCollapsed ? <Eye size={20} /> : <EyeOff size={20} />}</span>
-                  <span>{t('ribbon.properties')}</span>
-                </button>
-              </div>
-            </div>
+
+            <RibbonGroup label={tMenu('ribbon.panels')}>
+              <RibbonButton
+                icon={!rightPanelCollapsed ? <Eye size={20} /> : <EyeOff size={20} />}
+                label={tMenu('ribbon.properties')}
+                onClick={() => setUI({ rightPanelCollapsed: !rightPanelCollapsed })}
+                active={!rightPanelCollapsed}
+              />
+            </RibbonGroup>
+
             <div className="ribbon-separator" />
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.printing')}</div>
-              <div className="ribbon-group-content">
-                <button className="ribbon-button large" onClick={handlePrint} title={t('ribbon.printPreview.title')}>
-                  <span className="ribbon-icon"><Printer size={20} /></span>
-                  <span>{t('ribbon.printPreview')}</span>
-                </button>
-              </div>
-            </div>
+
+            <RibbonGroup label={tMenu('ribbon.printing')}>
+              <RibbonButton icon={<Printer size={20} />} label={tMenu('ribbon.printPreview')} onClick={handlePrint} />
+            </RibbonGroup>
           </>
         )}
 
         {activeTab === 'instellingen' && (
           <>
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.project')}</div>
-              <div className="ribbon-group-content">
-                <button className="ribbon-button large" onClick={() => setUI({ showProjectInfoDialog: true })} title={t('ribbon.projectInfo.title')}>
-                  <span className="ribbon-icon"><Info size={20} /></span>
-                  <span>{t('ribbon.projectInfo')}</span>
-                </button>
-                <button className="ribbon-button large" title={t('ribbon.projectSettings.title')}>
-                  <span className="ribbon-icon"><Settings size={20} /></span>
-                  <span>{t('ribbon.projectSettings')}</span>
-                </button>
-              </div>
-            </div>
+            <RibbonGroup label={tMenu('ribbon.project')}>
+              <RibbonButton icon={<Info size={20} />} label={tMenu('ribbon.projectInfo')} onClick={() => setUI({ showProjectInfoDialog: true })} />
+              <RibbonButton icon={<Settings size={20} />} label={tMenu('ribbon.projectSettings')} />
+            </RibbonGroup>
+
             <div className="ribbon-separator" />
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.calendar')}</div>
-              <div className="ribbon-group-content">
-                <button className="ribbon-button large">
-                  <span className="ribbon-icon"><Calendar size={20} /></span>
-                  <span>{t('ribbon.calendar')}</span>
-                </button>
-              </div>
-            </div>
-            <div className="ribbon-separator" />
-            <div className="ribbon-group">
-              <div className="ribbon-group-title">{t('ribbon.language')}</div>
-              <div className="ribbon-group-content" style={{ flexWrap: 'wrap', maxWidth: 220 }}>
-                {LANGUAGES.map(([code, short, label]) => (
-                  <button
-                    key={code}
-                    className={`ribbon-button small ${locale === code ? 'active' : ''}`}
-                    onClick={() => setLocale(code)}
-                    title={label}
-                    style={{ minWidth: 52, fontSize: 11 }}
-                  >
-                    <span>{short}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+
+            <RibbonGroup label={tMenu('ribbon.calendar')}>
+              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} />
+            </RibbonGroup>
           </>
         )}
 
         {activeTab === 'table' && (
-          <div className="ribbon-group">
-            <div className="ribbon-group-title">{t('table.title')}</div>
-            <div className="ribbon-group-content">
-              <button className="ribbon-button large primary" onClick={runCPM} title={t('ribbon.calculate.title')}>
-                <span className="ribbon-icon"><Play size={20} /></span>
-                <span>{t('ribbon.calculate')}</span>
-              </button>
-              <button className="ribbon-button large" onClick={handleAddTask}>
-                <span className="ribbon-icon"><Plus size={20} /></span>
-                <span>{t('ribbon.task')}</span>
-              </button>
-            </div>
-          </div>
+          <RibbonGroup label={tTask('table.title')}>
+            <RibbonButton icon={<Play size={20} />} label={tMenu('ribbon.calculate')} onClick={runCPM} primary />
+            <RibbonButton icon={<Plus size={20} />} label={tMenu('ribbon.task')} onClick={handleAddTask} />
+          </RibbonGroup>
         )}
 
         {activeTab === 'ifc' && (
-          <div className="ribbon-group">
-            <div className="ribbon-group-title">IFC</div>
-            <div className="ribbon-group-content">
-              <span className="ribbon-info">IFC 4x3 - Industry Foundation Classes</span>
-            </div>
-          </div>
+          <RibbonGroup label="IFC">
+            <span className="ribbon-info">{tMenu('ribbon.ifcInfo')}</span>
+          </RibbonGroup>
         )}
 
         {activeTab === 'report' && (
-          <div className="ribbon-group">
-            <div className="ribbon-group-title">Rapportage</div>
-            <div className="ribbon-group-content">
-              <button className="ribbon-button large" onClick={handlePrint}>
-                <span className="ribbon-icon"><Printer size={20} /></span>
-                <span>{t('ribbon.printPreview')}</span>
-              </button>
-            </div>
-          </div>
+          <RibbonGroup label={tMenu('ribbon.reporting')}>
+            <RibbonButton icon={<Printer size={20} />} label={tMenu('ribbon.printPreview')} onClick={handlePrint} />
+          </RibbonGroup>
         )}
       </div>
     </div>

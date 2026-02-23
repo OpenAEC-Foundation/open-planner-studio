@@ -1,0 +1,34 @@
+{
+  "title": "Bericht",
+  "summary": "Übersicht",
+  "tasks": "Aufgaben:",
+  "leafTasks": "Blattaufgaben:",
+  "critical": "Kritisch:",
+  "relations": "Beziehungen:",
+  "settings": "Einstellungen",
+  "paper": "Papier:",
+  "orientation": "Ausrichtung:",
+  "landscape": "Querformat",
+  "portrait": "Hochformat",
+  "showCriticalPath": "Kritischer Pfad",
+  "showFloat": "Puffer anzeigen",
+  "showDependencies": "Abhängigkeiten",
+  "showWeekends": "Wochenenden",
+  "showLegend": "Legende",
+  "print": "Drucken...",
+  "noTasks": "Keine Aufgaben vorhanden",
+  "printed": "Gedruckt:",
+  "legend": {
+    "criticalPath": "Kritischer Pfad",
+    "normal": "Normal",
+    "milestone": "Meilenstein",
+    "summary": "Zusammenfassung"
+  },
+  "tableHeaders": {
+    "wbs": "PSP",
+    "taskName": "Aufgabenname",
+    "start": "Anfang",
+    "end": "Ende",
+    "duration": "Dauer"
+  }
+}

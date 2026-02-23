@@ -1,18 +1,8 @@
 import { useAppStore } from '@/state/appStore';
+import { useTranslation } from 'react-i18next';
 import { Task, TaskType } from '@/types/task';
-
+import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { Trash2 } from 'lucide-react';
-
-const TASK_TYPES: { value: TaskType; label: string }[] = [
-  { value: 'CONSTRUCTION', label: 'Bouw' },
-  { value: 'INSTALLATION', label: 'Installatie' },
-  { value: 'DEMOLITION', label: 'Sloop' },
-  { value: 'LOGISTIC', label: 'Logistiek' },
-  { value: 'ATTENDANCE', label: 'Keuring/Inspectie' },
-  { value: 'MOVE', label: 'Verplaatsing' },
-  { value: 'RENOVATION', label: 'Renovatie' },
-  { value: 'MAINTENANCE', label: 'Onderhoud' },
-];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -45,6 +35,10 @@ function Input({ value, onChange, type = 'text', min, max, step }: {
 }
 
 export function TaskPropertiesPanel() {
+  const { t } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
+  const { options: taskTypeOptions } = useTaskTypeLabels();
+
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
@@ -56,7 +50,7 @@ export function TaskPropertiesPanel() {
   if (selectedTaskIds.length === 0) {
     return (
       <div className="p-3 text-xs text-text-secondary">
-        Selecteer een taak om eigenschappen te bekijken.
+        {t('properties.selectPrompt')}
       </div>
     );
   }
@@ -64,7 +58,7 @@ export function TaskPropertiesPanel() {
   if (selectedTaskIds.length > 1) {
     return (
       <div className="p-3 text-xs text-text-secondary">
-        {selectedTaskIds.length} taken geselecteerd
+        {t('properties.multiSelect', { count: selectedTaskIds.length })}
       </div>
     );
   }
@@ -89,25 +83,25 @@ export function TaskPropertiesPanel() {
   return (
     <div className="flex flex-col gap-3 p-3 text-xs overflow-y-auto">
       <div className="flex items-center justify-between">
-        <span className="font-bold text-sm">Taak</span>
+        <span className="font-bold text-sm">{t('properties.task')}</span>
         <button
           onClick={() => deleteTask(task.id)}
           className="p-1 hover:bg-red-500/20 rounded text-red-400"
-          title="Verwijder taak"
+          title={t('properties.deleteTask')}
         >
           <Trash2 size={14} />
         </button>
       </div>
 
-      <Field label="Naam">
+      <Field label={t('properties.name')}>
         <Input value={task.name} onChange={v => update({ name: v })} />
       </Field>
 
-      <Field label="WBS Code">
+      <Field label={t('properties.wbsCode')}>
         <Input value={task.wbsCode} onChange={v => update({ wbsCode: v })} />
       </Field>
 
-      <Field label="Beschrijving">
+      <Field label={t('properties.description')}>
         <textarea
           value={task.description}
           onChange={e => update({ description: e.target.value })}
@@ -115,13 +109,13 @@ export function TaskPropertiesPanel() {
         />
       </Field>
 
-      <Field label="Type">
+      <Field label={t('properties.type')}>
         <select
           value={task.taskType}
           onChange={e => update({ taskType: e.target.value as TaskType })}
           className="w-full px-2 py-1 text-xs bg-surface border border-border rounded focus:border-accent focus:outline-none"
         >
-          {TASK_TYPES.map(tt => (
+          {taskTypeOptions.map(tt => (
             <option key={tt.value} value={tt.value}>{tt.label}</option>
           ))}
         </select>
@@ -135,23 +129,23 @@ export function TaskPropertiesPanel() {
             onChange={e => update({ isMilestone: e.target.checked })}
             className="accent-accent"
           />
-          Mijlpaal
+          {t('properties.milestone')}
         </label>
       </div>
 
       <div className="h-px bg-border" />
 
-      <span className="font-bold">Tijd</span>
+      <span className="font-bold">{t('properties.time')}</span>
 
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Start">
+        <Field label={t('properties.start')}>
           <Input
             type="date"
             value={task.time.scheduleStart}
             onChange={v => updateTime('scheduleStart', v)}
           />
         </Field>
-        <Field label="Duur (dagen)">
+        <Field label={t('properties.duration')}>
           <Input
             type="number"
             value={task.time.scheduleDuration}
@@ -161,7 +155,7 @@ export function TaskPropertiesPanel() {
         </Field>
       </div>
 
-      <Field label="Voortgang (%)">
+      <Field label={t('properties.completion')}>
         <div className="flex items-center gap-2">
           <input
             type="range"
@@ -178,23 +172,23 @@ export function TaskPropertiesPanel() {
       {task.time.isCritical !== undefined && (
         <>
           <div className="h-px bg-border" />
-          <span className="font-bold">CPM Resultaat</span>
+          <span className="font-bold">{t('properties.cpmResult')}</span>
           <div className="grid grid-cols-2 gap-1 text-[10px]">
-            <span className="text-text-secondary">Vroegste start:</span>
+            <span className="text-text-secondary">{t('properties.earlyStart')}</span>
             <span>{task.time.earlyStart}</span>
-            <span className="text-text-secondary">Vroegste einde:</span>
+            <span className="text-text-secondary">{t('properties.earlyFinish')}</span>
             <span>{task.time.earlyFinish}</span>
-            <span className="text-text-secondary">Laatste start:</span>
+            <span className="text-text-secondary">{t('properties.lateStart')}</span>
             <span>{task.time.lateStart}</span>
-            <span className="text-text-secondary">Laatste einde:</span>
+            <span className="text-text-secondary">{t('properties.lateFinish')}</span>
             <span>{task.time.lateFinish}</span>
-            <span className="text-text-secondary">Totale speling:</span>
-            <span>{task.time.totalFloat} dagen</span>
-            <span className="text-text-secondary">Vrije speling:</span>
-            <span>{task.time.freeFloat} dagen</span>
-            <span className="text-text-secondary">Kritiek pad:</span>
+            <span className="text-text-secondary">{t('properties.totalFloat')}</span>
+            <span>{task.time.totalFloat} {tCommon('daysLong')}</span>
+            <span className="text-text-secondary">{t('properties.freeFloat')}</span>
+            <span>{task.time.freeFloat} {tCommon('daysLong')}</span>
+            <span className="text-text-secondary">{t('properties.criticalPath')}</span>
             <span className={task.time.isCritical ? 'text-critical font-bold' : ''}>
-              {task.time.isCritical ? 'Ja' : 'Nee'}
+              {task.time.isCritical ? tCommon('yes') : tCommon('no')}
             </span>
           </div>
         </>
@@ -203,7 +197,7 @@ export function TaskPropertiesPanel() {
       {taskSequences.length > 0 && (
         <>
           <div className="h-px bg-border" />
-          <span className="font-bold">Dependencies</span>
+          <span className="font-bold">{t('properties.dependencies')}</span>
           {taskSequences.map(seq => {
             const other = seq.predecessorId === task.id
               ? tasks.find(t => t.id === seq.successorId)
@@ -231,7 +225,7 @@ export function TaskPropertiesPanel() {
         onClick={runCPM}
         className="mt-2 px-3 py-1.5 bg-accent text-white rounded hover:bg-accent-hover text-xs"
       >
-        CPM Herberekenen
+        {t('properties.recalculate')}
       </button>
     </div>
   );

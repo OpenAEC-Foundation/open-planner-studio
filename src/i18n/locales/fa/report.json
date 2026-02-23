@@ -1,0 +1,8 @@
+{
+  "title": "گزارش", "summary": "خلاصه", "tasks": "وظایف:", "leafTasks": "وظایف برگ:", "critical": "بحرانی:", "relations": "روابط:",
+  "settings": "تنظیمات", "paper": "کاغذ:", "orientation": "جهت:", "landscape": "افقی", "portrait": "عمودی",
+  "showCriticalPath": "مسیر بحرانی", "showFloat": "نمایش شناوری", "showDependencies": "وابستگی‌ها", "showWeekends": "آخر هفته‌ها", "showLegend": "راهنما", "print": "چاپ...",
+  "noTasks": "وظیفه‌ای برای نمایش وجود ندارد", "printed": "چاپ شده:",
+  "legend": { "criticalPath": "مسیر بحرانی", "normal": "عادی", "milestone": "نقطه عطف", "summary": "خلاصه" },
+  "tableHeaders": { "wbs": "WBS", "taskName": "نام وظیفه", "start": "شروع", "end": "پایان", "duration": "مدت" }
+}

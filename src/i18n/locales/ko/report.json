@@ -1,0 +1,8 @@
+{
+  "title": "보고서", "summary": "요약", "tasks": "작업:", "leafTasks": "리프 작업:", "critical": "크리티컬:", "relations": "관계:",
+  "settings": "설정", "paper": "용지:", "orientation": "방향:", "landscape": "가로", "portrait": "세로",
+  "showCriticalPath": "크리티컬 패스", "showFloat": "여유 표시", "showDependencies": "종속성", "showWeekends": "주말", "showLegend": "범례", "print": "인쇄...",
+  "noTasks": "표시할 작업이 없습니다", "printed": "인쇄일:",
+  "legend": { "criticalPath": "크리티컬 패스", "normal": "일반", "milestone": "마일스톤", "summary": "요약" },
+  "tableHeaders": { "wbs": "WBS", "taskName": "작업 이름", "start": "시작", "end": "종료", "duration": "기간" }
+}

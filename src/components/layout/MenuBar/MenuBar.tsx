@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { useTranslation } from 'react-i18next';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 interface MenuItem {
@@ -11,14 +12,16 @@ interface MenuItem {
 
 export function MenuBar() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const { t } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
 
   const store = useAppStore();
 
   const handleNew = useCallback(() => {
-    if (store.isDirty && !confirm('Niet-opgeslagen wijzigingen gaan verloren. Doorgaan?')) return;
+    if (store.isDirty && !confirm(tCommon('confirm.unsavedChanges'))) return;
     store.newProject();
     setActiveMenu(null);
-  }, [store]);
+  }, [store, tCommon]);
 
   const handleOpen = useCallback(async () => {
     try {
@@ -66,24 +69,24 @@ export function MenuBar() {
   }, [store]);
 
   const menus: Record<string, MenuItem[]> = {
-    Bestand: [
-      { label: 'Nieuw project', shortcut: 'Ctrl+N', action: handleNew },
-      { label: 'Openen...', shortcut: 'Ctrl+O', action: handleOpen },
+    [t('menuBar.file')]: [
+      { label: t('menuBar.newProject'), shortcut: 'Ctrl+N', action: handleNew },
+      { label: t('menuBar.open'), shortcut: 'Ctrl+O', action: handleOpen },
       { separator: true, label: '' },
-      { label: 'Opslaan als IFC...', shortcut: 'Ctrl+S', action: handleSave },
+      { label: t('menuBar.saveAs'), shortcut: 'Ctrl+S', action: handleSave },
       { separator: true, label: '' },
-      { label: 'Afdrukvoorbeeld...', shortcut: 'Ctrl+P', action: handlePrint },
+      { label: t('menuBar.printPreview'), shortcut: 'Ctrl+P', action: handlePrint },
     ],
-    Bewerken: [
-      { label: 'Ongedaan maken', shortcut: 'Ctrl+Z', action: () => { store.undo(); setActiveMenu(null); } },
-      { label: 'Opnieuw', shortcut: 'Ctrl+Y', action: () => { store.redo(); setActiveMenu(null); } },
+    [t('menuBar.edit')]: [
+      { label: t('menuBar.undo'), shortcut: 'Ctrl+Z', action: () => { store.undo(); setActiveMenu(null); } },
+      { label: t('menuBar.redo'), shortcut: 'Ctrl+Y', action: () => { store.redo(); setActiveMenu(null); } },
     ],
-    Beeld: [
-      { label: 'Inzoomen', shortcut: 'Ctrl++', action: () => { store.setZoom(store.view.zoom + 10); setActiveMenu(null); } },
-      { label: 'Uitzoomen', shortcut: 'Ctrl+-', action: () => { store.setZoom(store.view.zoom - 10); setActiveMenu(null); } },
+    [t('menuBar.view')]: [
+      { label: t('menuBar.zoomIn'), shortcut: 'Ctrl++', action: () => { store.setZoom(store.view.zoom + 10); setActiveMenu(null); } },
+      { label: t('menuBar.zoomOut'), shortcut: 'Ctrl+-', action: () => { store.setZoom(store.view.zoom - 10); setActiveMenu(null); } },
     ],
-    Planning: [
-      { label: 'CPM berekenen', shortcut: 'F5', action: () => { store.runCPM(); setActiveMenu(null); } },
+    [t('menuBar.planning')]: [
+      { label: t('menuBar.calculateCPM'), shortcut: 'F5', action: () => { store.runCPM(); setActiveMenu(null); } },
     ],
   };
 
@@ -120,7 +123,7 @@ export function MenuBar() {
       ))}
 
       <div className="flex-1" />
-      <span className="px-3 text-text-secondary">Open Planner Studio v0.1</span>
+      <span className="px-3 text-text-secondary">{t('menuBar.version')}</span>
     </div>
   );
 }

@@ -1,22 +1,13 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { useI18n } from '@/i18n/i18n';
-import { Task, TaskType } from '@/types/task';
-
-const TASK_TYPE_LABELS: Record<TaskType, string> = {
-  CONSTRUCTION: 'Bouw',
-  INSTALLATION: 'Installatie',
-  DEMOLITION: 'Sloop',
-  LOGISTIC: 'Logistiek',
-  ATTENDANCE: 'Keuring',
-  MOVE: 'Verplaatsing',
-  RENOVATION: 'Renovatie',
-  MAINTENANCE: 'Onderhoud',
-  USERDEFINED: 'Overig',
-};
+import { useTranslation } from 'react-i18next';
+import { Task } from '@/types/task';
+import { useTaskTypeLabels } from '@/i18n/taskTypes';
 
 export function TableEditor() {
-  const { t } = useI18n();
+  const { t } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
+  const { labels: taskTypeLabels } = useTaskTypeLabels();
   const tasks = useAppStore(s => s.tasks);
   const updateTask = useAppStore(s => s.updateTask);
   const selectTask = useAppStore(s => s.selectTask);
@@ -154,17 +145,17 @@ export function TableEditor() {
                 {renderCell(task.id, 'finish', task.time.earlyFinish || task.time.scheduleFinish, '100px')}
               </div>
               <div className="w-[80px] px-1 flex items-center text-text-secondary text-[10px]">
-                {TASK_TYPE_LABELS[task.taskType] || task.taskType}
+                {taskTypeLabels[task.taskType] || task.taskType}
               </div>
               <div className="w-[50px] px-1 flex items-center justify-center">
                 {task.time.isCritical ? (
-                  <span className="text-red-400 font-bold">{t('table.yes')}</span>
+                  <span className="text-red-400 font-bold">{tCommon('yes')}</span>
                 ) : (
-                  <span className="text-text-secondary">{t('table.no')}</span>
+                  <span className="text-text-secondary">{tCommon('no')}</span>
                 )}
               </div>
               <div className="w-[50px] px-1 flex items-center justify-end text-text-secondary">
-                {task.time.totalFloat}{t('table.days')}
+                {task.time.totalFloat}{tCommon('days')}
               </div>
               <div className="w-[60px] px-1 flex items-center justify-end">
                 {renderCell(task.id, 'completion', `${Math.round(task.time.completion * 100)}`, '60px', 'right')}
