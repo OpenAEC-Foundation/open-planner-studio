@@ -26,10 +26,30 @@ interface DragState {
   originalDuration: number;
 }
 
+interface TooltipState {
+  x: number;
+  y: number;
+  task: Task;
+}
+
+interface DependencyDragState {
+  sourceTaskId: string;
+  sourceX: number;
+  sourceY: number;
+  currentX: number;
+  currentY: number;
+}
+
+interface ToastState {
+  message: string;
+  type: 'error' | 'info';
+}
+
 export function GanttCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hScrollRef = useRef<HTMLDivElement>(null);
+  const depLineCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const { t: tTask, i18n } = useTranslation('task');
 
@@ -43,6 +63,7 @@ export function GanttCanvas() {
   const deselectAll = useAppStore(s => s.deselectAll);
   const toggleCollapse = useAppStore(s => s.toggleCollapse);
   const addTask = useAppStore(s => s.addTask);
+  const addSequence = useAppStore(s => s.addSequence);
   const updateTask = useAppStore(s => s.updateTask);
   const deleteTask = useAppStore(s => s.deleteTask);
   const setScroll = useAppStore(s => s.setScroll);
@@ -50,11 +71,15 @@ export function GanttCanvas() {
   const setUI = useAppStore(s => s.setUI);
   const project = useAppStore(s => s.project);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
+  const cpmResult = useAppStore(s => s.cpmResult);
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
   const [cursor, setCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
 
@@ -63,6 +88,20 @@ export function GanttCanvas() {
     taskName: tTask('table.name'),
     duration: tTask('table.duration'),
   }), [tTask]);
+
+  // Show toast when CPM detects circular dependency
+  useEffect(() => {
+    if (cpmResult?.error) {
+      setToast({ message: cpmResult.error, type: 'error' });
+    }
+  }, [cpmResult]);
+
+  // Auto-dismiss toast after 5 seconds
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Calculate total content width based on task date range
   const totalContentWidth = useMemo(() => {
@@ -170,7 +209,7 @@ export function GanttCanvas() {
   const defaultTaskName = tTask('defaultTask');
   const defaultMilestoneName = tTask('defaultMilestone');
 
-  // Click handler with collapse/expand and '+' button support
+  // Click handler with collapse/expand, '+' button support, and multi-selection
   const handleClick = useCallback((e: React.MouseEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -205,10 +244,19 @@ export function GanttCanvas() {
       }
     }
 
-    // Normal task selection
+    // Normal task selection with multi-select support
     const task = renderer.getTaskAtY(y);
     if (task) {
-      selectTask(task.id, e.ctrlKey || e.metaKey);
+      if (e.shiftKey) {
+        // Shift+click: range selection
+        selectTask(task.id, false, true);
+      } else if (e.ctrlKey || e.metaKey) {
+        // Ctrl+click: toggle individual task in selection
+        selectTask(task.id, true, false);
+      } else {
+        // Plain click: single select (deselect others)
+        selectTask(task.id, false, false);
+      }
     } else {
       deselectAll();
     }
@@ -251,7 +299,7 @@ export function GanttCanvas() {
     setContextMenu({ x: e.clientX, y: e.clientY, task });
   }, [selectTask]);
 
-  // Drag and drop: mousedown
+  // Drag and drop: mousedown (task move/resize + dependency drawing)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     const canvas = canvasRef.current;
@@ -268,6 +316,19 @@ export function GanttCanvas() {
 
     const hit = renderer.getTaskBarBounds(x, y);
     if (hit) {
+      // Shift+drag from task bar starts dependency drawing
+      if (e.shiftKey) {
+        e.preventDefault();
+        setDepDragState({
+          sourceTaskId: hit.task.id,
+          sourceX: e.clientX,
+          sourceY: e.clientY,
+          currentX: e.clientX,
+          currentY: e.clientY,
+        });
+        return;
+      }
+
       e.preventDefault();
       setDragState({
         taskId: hit.task.id,
@@ -280,6 +341,91 @@ export function GanttCanvas() {
       selectTask(hit.task.id, false);
     }
   }, [selectTask]);
+
+  // Dependency drag: draw temporary line and handle release
+  useEffect(() => {
+    if (!depDragState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setDepDragState(prev => prev ? { ...prev, currentX: e.clientX, currentY: e.clientY } : null);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      const canvas = canvasRef.current;
+      const renderer = rendererRef.current;
+      if (canvas && renderer) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const targetTask = renderer.getTaskAtY(y);
+        if (targetTask && targetTask.id !== depDragState.sourceTaskId && x >= TASK_TABLE_WIDTH) {
+          // Create Finish-to-Start dependency
+          addSequence({
+            predecessorId: depDragState.sourceTaskId,
+            successorId: targetTask.id,
+            type: 'FINISH_START',
+            lagDays: 0,
+          });
+        }
+      }
+      setDepDragState(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [depDragState, addSequence]);
+
+  // Draw temporary dependency line on overlay canvas
+  useEffect(() => {
+    const depCanvas = depLineCanvasRef.current;
+    const container = containerRef.current;
+    if (!depCanvas || !container) return;
+
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    depCanvas.width = rect.width * dpr;
+    depCanvas.height = rect.height * dpr;
+    depCanvas.style.width = `${rect.width}px`;
+    depCanvas.style.height = `${rect.height}px`;
+
+    const ctx = depCanvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    if (depDragState) {
+      const canvasRect = depCanvas.getBoundingClientRect();
+      const startX = depDragState.sourceX - canvasRect.left;
+      const startY = depDragState.sourceY - canvasRect.top;
+      const endX = depDragState.currentX - canvasRect.left;
+      const endY = depDragState.currentY - canvasRect.top;
+
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+
+      // Arrowhead
+      const angle = Math.atan2(endY - startY, endX - startX);
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#F59E0B';
+      ctx.beginPath();
+      ctx.moveTo(endX, endY);
+      ctx.lineTo(endX - 10 * Math.cos(angle - Math.PI / 6), endY - 10 * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(endX - 10 * Math.cos(angle + Math.PI / 6), endY - 10 * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+    }
+  }, [depDragState]);
 
   // Drag and drop: mousemove (via native event for performance)
   useEffect(() => {
@@ -345,9 +491,12 @@ export function GanttCanvas() {
     };
   }, [dragState, view.zoom, updateTask]);
 
-  // Cursor changes on hover
+  // Cursor changes on hover + tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (dragState) return; // Don't change cursor while dragging
+    if (dragState || depDragState) {
+      setTooltip(null);
+      return;
+    }
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -360,6 +509,7 @@ export function GanttCanvas() {
 
     if (y < HEADER_HEIGHT) {
       setCursor('default');
+      setTooltip(null);
       return;
     }
 
@@ -369,21 +519,37 @@ export function GanttCanvas() {
       if (hit.edge === 'left' || hit.edge === 'right') {
         setCursor('ew-resize');
       } else {
-        setCursor('grab');
+        setCursor(e.shiftKey ? 'crosshair' : 'grab');
       }
+      // Show tooltip for the hovered task
+      setTooltip({ x: e.clientX, y: e.clientY, task: hit.task });
       return;
+    }
+
+    // Check if hovering task row in gantt area (not just bar)
+    const hoveredTask = renderer.getTaskAtY(y);
+    if (hoveredTask && x >= TASK_TABLE_WIDTH) {
+      setTooltip({ x: e.clientX, y: e.clientY, task: hoveredTask });
+    } else {
+      setTooltip(null);
     }
 
     // Check for collapse toggle or '+' button
     if (renderer.isInTaskTable(x)) {
       if (renderer.isCollapseToggle(x, y) || renderer.isAddButton(x, y)) {
         setCursor('pointer');
+        setTooltip(null);
         return;
       }
     }
 
     setCursor('default');
-  }, [dragState]);
+  }, [dragState, depDragState]);
+
+  // Hide tooltip on mouse leave
+  const handleMouseLeave = useCallback(() => {
+    setTooltip(null);
+  }, []);
 
   const handleHScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -392,19 +558,86 @@ export function GanttCanvas() {
 
   const startDate = project.startDate || formatDate(new Date());
 
+  // Format date for tooltip display
+  const formatTooltipDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    try {
+      const d = parseDate(dateStr);
+      return `${d.getUTCDate().toString().padStart(2, '0')}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}-${d.getUTCFullYear()}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div ref={containerRef} className="flex-1 overflow-hidden relative">
         <canvas
           ref={canvasRef}
           className="absolute inset-0"
-          style={{ cursor: dragState ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize') : cursor }}
+          style={{
+            cursor: dragState
+              ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
+              : depDragState
+                ? 'crosshair'
+                : cursor,
+          }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
           onContextMenu={handleContextMenu}
         />
+        {/* Overlay canvas for dependency drag line */}
+        <canvas
+          ref={depLineCanvasRef}
+          className="absolute inset-0"
+          style={{ pointerEvents: 'none' }}
+        />
+
+        {/* Tooltip */}
+        {tooltip && (
+          <div
+            className="gantt-tooltip"
+            style={{
+              left: tooltip.x - (containerRef.current?.getBoundingClientRect().left || 0) + 16,
+              top: tooltip.y - (containerRef.current?.getBoundingClientRect().top || 0) - 10,
+            }}
+          >
+            <div className="tooltip-title">{tooltip.task.name}</div>
+            <div className="tooltip-row">
+              <span className="tooltip-label">WBS:</span>
+              <span className="tooltip-value">{tooltip.task.wbsCode || '-'}</span>
+            </div>
+            <div className="tooltip-row">
+              <span className="tooltip-label">Duration:</span>
+              <span className="tooltip-value">{tooltip.task.time.scheduleDuration}d</span>
+            </div>
+            <div className="tooltip-row">
+              <span className="tooltip-label">Start:</span>
+              <span className="tooltip-value">{formatTooltipDate(tooltip.task.time.earlyStart || tooltip.task.time.scheduleStart)}</span>
+            </div>
+            <div className="tooltip-row">
+              <span className="tooltip-label">End:</span>
+              <span className="tooltip-value">{formatTooltipDate(tooltip.task.time.earlyFinish || tooltip.task.time.scheduleFinish)}</span>
+            </div>
+            <div className="tooltip-row">
+              <span className="tooltip-label">Status:</span>
+              <span className="tooltip-value">{tooltip.task.status}</span>
+            </div>
+            <div className="tooltip-row">
+              <span className="tooltip-label">Critical:</span>
+              <span className={tooltip.task.time.isCritical ? 'tooltip-critical-yes' : 'tooltip-value'}>
+                {tooltip.task.time.isCritical ? 'Yes' : 'No'}
+              </span>
+            </div>
+            <div className="tooltip-row">
+              <span className="tooltip-label">Total float:</span>
+              <span className="tooltip-value">{tooltip.task.time.totalFloat}d</span>
+            </div>
+          </div>
+        )}
       </div>
       {/* Horizontal scrollbar */}
       <div
@@ -461,6 +694,17 @@ export function GanttCanvas() {
             });
           }}
         />
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          className={`gantt-toast ${toast.type === 'error' ? 'toast-error' : 'toast-info'}`}
+          onClick={() => setToast(null)}
+          style={{ cursor: 'pointer' }}
+        >
+          {toast.message}
+        </div>
       )}
     </div>
   );

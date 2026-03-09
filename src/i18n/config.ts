@@ -1,6 +1,5 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { locale as getOsLocale } from '@tauri-apps/plugin-os';
 import { syncSettingToLocalStorage } from '@/utils/settingsStore';
 
 // --- Eager-import every namespace for every locale ---
@@ -153,18 +152,11 @@ export async function initLocale(): Promise<void> {
     return;
   }
 
-  // No saved preference — detect from OS
-  try {
-    const osLocale = await getOsLocale();
-    if (osLocale) {
-      const lang = osLocale.split('-')[0].toLowerCase() as Locale;
-      if (supportedLanguages.includes(lang)) {
-        await i18n.changeLanguage(lang);
-        return;
-      }
-    }
-  } catch {
-    // OS plugin unavailable (e.g. running in browser), fall through to default
+  // No saved preference — detect from browser/OS
+  const browserLang = navigator.language?.split('-')[0]?.toLowerCase() as Locale;
+  if (browserLang && supportedLanguages.includes(browserLang)) {
+    await i18n.changeLanguage(browserLang);
+    return;
   }
 }
 

@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
 import { initTheme } from '@/utils/settingsStore';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -30,6 +32,8 @@ function AppContent() {
   const showSettingsDialog = useAppStore(s => s.ui.showSettingsDialog);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
+  const isDirty = useAppStore(s => s.isDirty);
+  const filePath = useAppStore(s => s.filePath);
 
   useEffect(() => {
     initLocale();
@@ -44,8 +48,53 @@ function AppContent() {
   }, [uiTheme]);
 
   useEffect(() => {
-    document.title = `${project.name} — Open Planner Studio`;
-  }, [project.name]);
+    const dirtyMark = isDirty ? '* ' : '';
+    const fileInfo = filePath ? ` — ${filePath.split(/[/\\]/).pop()}` : '';
+    document.title = `${dirtyMark}${project.name}${fileInfo} — Open Planner Studio`;
+  }, [project.name, isDirty, filePath]);
+
+  // Auto-save every 60 seconds if dirty
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api) return;
+
+    const interval = setInterval(() => {
+      const state = useAppStore.getState();
+      if (!state.isDirty) return;
+      const content = writeIFC(
+        state.project, state.calendar, state.tasks,
+        state.sequences, state.resources, state.assignments,
+      );
+      api.autoSave(content);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Check for recovery file on startup
+  const recoveryChecked = useRef(false);
+  useEffect(() => {
+    if (recoveryChecked.current) return;
+    recoveryChecked.current = true;
+
+    const api = window.electronAPI;
+    if (!api) return;
+
+    api.checkRecovery().then((result) => {
+      if (result.exists && result.content) {
+        const shouldRecover = confirm('A recovery file was found. Would you like to restore your previous work?');
+        if (shouldRecover) {
+          try {
+            const parsed = readIFC(result.content);
+            useAppStore.getState().loadState(parsed);
+          } catch (err) {
+            console.error('Failed to restore recovery file:', err);
+          }
+        }
+        api.clearRecovery();
+      }
+    });
+  }, []);
 
   // Determine if we should show the gantt canvas or a full-panel view
   const isFullPanel = activeTab === 'table' || activeTab === 'ifc' || activeTab === 'report';

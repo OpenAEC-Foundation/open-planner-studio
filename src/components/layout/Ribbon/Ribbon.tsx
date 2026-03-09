@@ -1,11 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import {
   Plus, Link, Diamond, Play, Undo2, Redo2, ZoomIn, ZoomOut,
   FileText, FolderOpen, Save, Printer, Trash2,
   Calendar, Settings, Info, Clock,
-  ArrowRightLeft, Eye, EyeOff,
+  ArrowRightLeft, Eye, EyeOff, History, SaveAll,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
@@ -67,6 +67,71 @@ function RibbonButtonStack({ children }: { children: React.ReactNode }) {
   return <div className="ribbon-btn-stack">{children}</div>;
 }
 
+function RecentFilesDropdown() {
+  const [open, setOpen] = useState(false);
+  const recentFiles = useAppStore(s => s.getRecentFiles)();
+  const openRecentFile = useAppStore(s => s.openRecentFile);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative' }}>
+      <button
+        className="ribbon-btn small"
+        onClick={() => setOpen(!open)}
+      >
+        <span className="ribbon-btn-icon"><History size={14} /></span>
+        <span className="ribbon-btn-label">Recent</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 1000,
+          minWidth: 280, maxWidth: 400,
+          background: 'var(--color-surface-alt)', border: '1px solid var(--color-border)',
+          borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '4px 0',
+        }}>
+          {recentFiles.length === 0 ? (
+            <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--color-text-secondary)' }}>
+              No recent files
+            </div>
+          ) : (
+            recentFiles.map((fp, i) => (
+              <button
+                key={i}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '6px 12px', fontSize: 11, border: 'none',
+                  background: 'transparent', color: 'var(--color-text-primary)',
+                  cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}
+                title={fp}
+                onMouseOver={e => (e.currentTarget.style.background = 'var(--color-surface-hover)')}
+                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => { openRecentFile(fp); setOpen(false); }}
+              >
+                {fp.split(/[/\\]/).pop()}
+                <span style={{ display: 'block', fontSize: 9, color: 'var(--color-text-secondary)', marginTop: 1 }}>
+                  {fp}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Ribbon() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -90,6 +155,9 @@ export function Ribbon() {
   const redoStack = useAppStore(s => s.redoStack);
   const newProject = useAppStore(s => s.newProject);
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
+  const saveFile = useAppStore(s => s.saveFile);
+  const saveFileAs = useAppStore(s => s.saveFileAs);
+  const openFileAction = useAppStore(s => s.openFile);
 
   const setActiveTab = useCallback((tab: RibbonTab) => {
     setUI({ activeRibbonTab: tab });
@@ -149,8 +217,12 @@ export function Ribbon() {
             <RibbonGroup label={tMenu('ribbon.file')}>
               <RibbonButtonStack>
                 <RibbonSmallButton icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={handleNewProject} />
-                <RibbonSmallButton icon={<Save size={14} />} label={tMenu('ribbon.save')} />
-                <RibbonSmallButton icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} />
+                <RibbonSmallButton icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => saveFile()} />
+                <RibbonSmallButton icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => openFileAction()} />
+              </RibbonButtonStack>
+              <RibbonButtonStack>
+                <RibbonSmallButton icon={<SaveAll size={14} />} label="Save As" onClick={() => saveFileAs()} />
+                <RecentFilesDropdown />
               </RibbonButtonStack>
             </RibbonGroup>
 

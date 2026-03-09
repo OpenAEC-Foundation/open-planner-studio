@@ -8,6 +8,7 @@ export interface CPMResult {
   criticalPath: string[];
   projectEnd: string;
   projectDuration: number; // work days
+  error?: string; // Set if circular dependency detected
 }
 
 export interface CPMTaskResult {
@@ -47,10 +48,78 @@ export class CPMSolver {
   }
 
   solve(): CPMResult {
+    // Check for circular dependencies before running CPM
+    const cycle = this.detectCycle();
+    if (cycle) {
+      const cycleNames = cycle.map(id => this.tasks.get(id)?.name || id).join(' -> ');
+      return {
+        tasks: new Map(),
+        criticalPath: [],
+        projectEnd: '',
+        projectDuration: 0,
+        error: `Circular dependency detected: ${cycleNames}`,
+      };
+    }
+
     const order = this.topologicalSort();
     const earlyDates = this.forwardPass(order);
     const lateDates = this.backwardPass(order, earlyDates);
     return this.computeResults(order, earlyDates, lateDates);
+  }
+
+  /** Detect cycles using DFS. Returns array of task IDs in the cycle, or null. */
+  private detectCycle(): string[] | null {
+    const color = new Map<string, number>();
+    const parent = new Map<string, string | null>();
+
+    for (const id of this.tasks.keys()) {
+      color.set(id, 0); // WHITE
+    }
+
+    for (const id of this.tasks.keys()) {
+      if (color.get(id) === 0) {
+        const cycle = this.dfsVisit(id, color, parent);
+        if (cycle) return cycle;
+      }
+    }
+    return null;
+  }
+
+  private dfsVisit(
+    u: string,
+    color: Map<string, number>,
+    parent: Map<string, string | null>,
+  ): string[] | null {
+    color.set(u, 1); // GRAY
+
+    for (const seq of this.successors.get(u) || []) {
+      const v = seq.successorId;
+      if (!this.tasks.has(v)) continue;
+
+      if (color.get(v) === 1) { // GRAY = back edge
+        // Back edge found - reconstruct cycle
+        const cycle: string[] = [v, u];
+        let current = u;
+        while (current !== v) {
+          const p = parent.get(current);
+          if (p === null || p === undefined) break;
+          cycle.push(p);
+          current = p;
+          if (current === v) break;
+        }
+        cycle.reverse();
+        return cycle;
+      }
+
+      if (color.get(v) === 0) { // WHITE
+        parent.set(v, u);
+        const cycle = this.dfsVisit(v, color, parent);
+        if (cycle) return cycle;
+      }
+    }
+
+    color.set(u, 2); // BLACK
+    return null;
   }
 
   private topologicalSort(): string[] {

@@ -11,8 +11,30 @@ import { CPMSolver, CPMResult } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
 
 enableMapSet();
+
+// ---- Recent files ----
+const RECENT_FILES_KEY = 'open-planner-studio-recent-files';
+const MAX_RECENT_FILES = 10;
+
+function getRecentFiles(): string[] {
+  try {
+    const stored = localStorage.getItem(RECENT_FILES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addRecentFile(filePath: string): void {
+  const recent = getRecentFiles().filter(f => f !== filePath);
+  recent.unshift(filePath);
+  if (recent.length > MAX_RECENT_FILES) recent.length = MAX_RECENT_FILES;
+  localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(recent));
+}
 
 // ---- Undo/Redo snapshot ----
 interface Snapshot {
@@ -71,7 +93,8 @@ export interface AppState {
   unassignResource: (assignmentId: string) => void;
 
   // Actions: Selection
-  selectTask: (id: string, multi?: boolean) => void;
+  selectTask: (id: string, multi?: boolean, range?: boolean) => void;
+  selectTaskRange: (fromId: string, toId: string) => void;
   deselectAll: () => void;
 
   // Actions: CPM
@@ -102,6 +125,13 @@ export interface AppState {
     resources: Resource[];
     assignments: ResourceAssignment[];
   }) => void;
+
+  // Actions: File operations
+  openFile: () => Promise<void>;
+  saveFile: () => Promise<void>;
+  saveFileAs: () => Promise<void>;
+  getRecentFiles: () => string[];
+  openRecentFile: (path: string) => Promise<void>;
 }
 
 function createSnapshot(state: AppState): Snapshot {
@@ -159,7 +189,7 @@ function createDefaultUI(): UIState {
 }
 
 export const useAppStore = create<AppState>()(
-  immer((set, _get) => ({
+  immer((set, get) => ({
     // Initial state
     project: createDefaultProject(),
     calendar: createDefaultCalendar(),
@@ -381,9 +411,25 @@ export const useAppStore = create<AppState>()(
       }),
 
     // --- Selection ---
-    selectTask: (id, multi = false) =>
+    selectTask: (id, multi = false, range = false) =>
       set((s) => {
-        if (multi) {
+        if (range && s.selectedTaskIds.length > 0) {
+          // Shift+click: select range from last selected to clicked task
+          const lastSelected = s.selectedTaskIds[s.selectedTaskIds.length - 1];
+          const flatIds = s.tasks.map(t => t.id);
+          const fromIdx = flatIds.indexOf(lastSelected);
+          const toIdx = flatIds.indexOf(id);
+          if (fromIdx >= 0 && toIdx >= 0) {
+            const start = Math.min(fromIdx, toIdx);
+            const end = Math.max(fromIdx, toIdx);
+            const rangeIds = flatIds.slice(start, end + 1);
+            // Merge with existing selection (union)
+            const merged = new Set([...s.selectedTaskIds, ...rangeIds]);
+            s.selectedTaskIds = Array.from(merged);
+          } else {
+            s.selectedTaskIds = [id];
+          }
+        } else if (multi) {
           const idx = s.selectedTaskIds.indexOf(id);
           if (idx >= 0) {
             s.selectedTaskIds.splice(idx, 1);
@@ -392,6 +438,18 @@ export const useAppStore = create<AppState>()(
           }
         } else {
           s.selectedTaskIds = [id];
+        }
+      }),
+
+    selectTaskRange: (fromId, toId) =>
+      set((s) => {
+        const flatIds = s.tasks.map(t => t.id);
+        const fromIdx = flatIds.indexOf(fromId);
+        const toIdx = flatIds.indexOf(toId);
+        if (fromIdx >= 0 && toIdx >= 0) {
+          const start = Math.min(fromIdx, toIdx);
+          const end = Math.max(fromIdx, toIdx);
+          s.selectedTaskIds = flatIds.slice(start, end + 1);
         }
       }),
 
@@ -408,6 +466,12 @@ export const useAppStore = create<AppState>()(
         const leafTasks = s.tasks.filter(t => t.childIds.length === 0);
         const solver = new CPMSolver(leafTasks, s.sequences, calEngine);
         const result = solver.solve();
+
+        // If circular dependency detected, store the result (with error) and bail
+        if (result.error) {
+          s.cpmResult = result;
+          return;
+        }
 
         // Apply results back to tasks
         for (const task of s.tasks) {
@@ -536,5 +600,112 @@ export const useAppStore = create<AppState>()(
         s.redoStack = [];
         s.isDirty = false;
       }),
+
+    // --- File operations ---
+    openFile: async () => {
+      const api = window.electronAPI;
+      if (!api) return;
+      const result = await api.openFile();
+      if (!result) return;
+      try {
+        const parsed = readIFC(result.content);
+        set((s) => {
+          s.project = parsed.project;
+          s.calendar = parsed.calendar;
+          s.tasks = parsed.tasks;
+          s.sequences = parsed.sequences;
+          s.resources = parsed.resources;
+          s.assignments = parsed.assignments;
+          s.selectedTaskIds = [];
+          s.cpmResult = null;
+          s.undoStack = [];
+          s.redoStack = [];
+          s.isDirty = false;
+          s.filePath = result.path;
+        });
+        addRecentFile(result.path);
+      } catch (err) {
+        console.error('Failed to parse IFC file:', err);
+      }
+    },
+
+    saveFile: async () => {
+      const state = get();
+      const api = window.electronAPI;
+      if (!api) return;
+
+      const content = writeIFC(
+        state.project, state.calendar, state.tasks,
+        state.sequences, state.resources, state.assignments,
+      );
+
+      if (state.filePath) {
+        const saved = await api.saveFile(state.filePath, content);
+        if (saved) {
+          set((s) => { s.isDirty = false; });
+          api.clearRecovery?.();
+        }
+      } else {
+        // No path yet, trigger Save As
+        const savedPath = await api.saveFileAs(content);
+        if (savedPath) {
+          set((s) => {
+            s.filePath = savedPath;
+            s.isDirty = false;
+          });
+          addRecentFile(savedPath);
+          api.clearRecovery?.();
+        }
+      }
+    },
+
+    saveFileAs: async () => {
+      const state = get();
+      const api = window.electronAPI;
+      if (!api) return;
+
+      const content = writeIFC(
+        state.project, state.calendar, state.tasks,
+        state.sequences, state.resources, state.assignments,
+      );
+
+      const savedPath = await api.saveFileAs(content);
+      if (savedPath) {
+        set((s) => {
+          s.filePath = savedPath;
+          s.isDirty = false;
+        });
+        addRecentFile(savedPath);
+        api.clearRecovery?.();
+      }
+    },
+
+    getRecentFiles: () => getRecentFiles(),
+
+    openRecentFile: async (filePath: string) => {
+      const api = window.electronAPI;
+      if (!api) return;
+      try {
+        const content = await api.readFile(filePath);
+        const parsed = readIFC(content);
+        set((s) => {
+          s.project = parsed.project;
+          s.calendar = parsed.calendar;
+          s.tasks = parsed.tasks;
+          s.sequences = parsed.sequences;
+          s.resources = parsed.resources;
+          s.assignments = parsed.assignments;
+          s.selectedTaskIds = [];
+          s.cpmResult = null;
+          s.undoStack = [];
+          s.redoStack = [];
+          s.isDirty = false;
+          s.filePath = filePath;
+        });
+        addRecentFile(filePath);
+      } catch (err) {
+        console.error('Failed to open recent file:', err);
+      }
+    },
   }))
 );

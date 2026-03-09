@@ -15,6 +15,10 @@ const BLOCKED_SHORTCUTS: Array<{ key: string; ctrl?: boolean; shift?: boolean }>
   { key: 'g', ctrl: true },               // Ctrl+G  Find
   { key: 'f', ctrl: true },               // Ctrl+F  Find (browser)
   { key: 'l', ctrl: true },               // Ctrl+L  Address bar
+  { key: 's', ctrl: true },               // Ctrl+S  handled by app (save)
+  { key: 's', ctrl: true, shift: true },  // Ctrl+Shift+S  handled by app (save as)
+  { key: 'o', ctrl: true },               // Ctrl+O  handled by app (open)
+  { key: 'n', ctrl: true },               // Ctrl+N  handled by app (new project)
 ];
 
 function isBrowserShortcut(e: KeyboardEvent): boolean {
@@ -36,14 +40,22 @@ export function useKeyboardShortcuts() {
   const setUI = useAppStore(s => s.setUI);
   const setZoom = useAppStore(s => s.setZoom);
   const zoom = useAppStore(s => s.view.zoom);
+  const saveFile = useAppStore(s => s.saveFile);
+  const saveFileAs = useAppStore(s => s.saveFileAs);
+  const openFile = useAppStore(s => s.openFile);
+  const newProject = useAppStore(s => s.newProject);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Block browser shortcuts in production
+      // Block browser shortcuts in production but still run app actions
       if (isProduction && isBrowserShortcut(e)) {
         e.preventDefault();
-        // Still run app action for F5
+        const ctrlB = e.ctrlKey || e.metaKey;
         if (e.key === 'F5') runCPM();
+        else if (ctrlB && e.shiftKey && e.key.toLowerCase() === 's') saveFileAs();
+        else if (ctrlB && e.key.toLowerCase() === 's') saveFile();
+        else if (ctrlB && e.key.toLowerCase() === 'o') openFile();
+        else if (ctrlB && e.key.toLowerCase() === 'n') newProject();
         return;
       }
 
@@ -52,7 +64,16 @@ export function useKeyboardShortcuts() {
 
       const ctrl = e.ctrlKey || e.metaKey;
 
-      if (ctrl && e.key === 'z') {
+      if (ctrl && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveFileAs();
+      } else if (ctrl && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveFile();
+      } else if (ctrl && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        openFile();
+      } else if (ctrl && e.key === 'z') {
         e.preventDefault();
         undo();
       } else if (ctrl && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
@@ -82,7 +103,7 @@ export function useKeyboardShortcuts() {
         setUI({ activeRibbonTab: 'report' });
       } else if (ctrl && e.key === 'n') {
         e.preventDefault();
-        setUI({ showTaskDialog: true, editingTaskId: null });
+        newProject();
       }
     };
 
@@ -97,5 +118,5 @@ export function useKeyboardShortcuts() {
       window.removeEventListener('keydown', handler);
       window.removeEventListener('contextmenu', contextHandler);
     };
-  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, deselectAll, setUI, setZoom, zoom]);
+  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, newProject]);
 }

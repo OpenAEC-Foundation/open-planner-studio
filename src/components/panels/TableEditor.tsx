@@ -63,6 +63,56 @@ export function TableEditor() {
     setEditCell(null);
   }, [editCell, editValue, tasks, updateTask]);
 
+  const editableFields = ['wbsCode', 'name', 'duration', 'start', 'finish', 'completion'];
+
+  const navigateCell = useCallback((taskId: string, field: string, direction: 'up' | 'down' | 'left' | 'right') => {
+    commitEdit();
+    const rowIndex = flatTasks.findIndex(ft => ft.task.id === taskId);
+    const colIndex = editableFields.indexOf(field);
+    if (rowIndex === -1 || colIndex === -1) return;
+
+    let newRow = rowIndex;
+    let newCol = colIndex;
+
+    if (direction === 'up') newRow = Math.max(0, rowIndex - 1);
+    else if (direction === 'down') newRow = Math.min(flatTasks.length - 1, rowIndex + 1);
+    else if (direction === 'left') newCol = Math.max(0, colIndex - 1);
+    else if (direction === 'right') newCol = Math.min(editableFields.length - 1, colIndex + 1);
+
+    if (newRow === rowIndex && newCol === colIndex) return;
+
+    const nextTask = flatTasks[newRow].task;
+    const nextField = editableFields[newCol];
+    const nextValue = getCellValue(nextTask, nextField);
+    selectTask(nextTask.id);
+    startEdit(nextTask.id, nextField, nextValue);
+  }, [flatTasks, commitEdit, selectTask, startEdit]);
+
+  const getCellValue = (task: Task, field: string): string => {
+    if (field === 'name') return task.name;
+    if (field === 'wbsCode') return task.wbsCode;
+    if (field === 'duration') return `${task.time.scheduleDuration}`;
+    if (field === 'start') return task.time.earlyStart || task.time.scheduleStart;
+    if (field === 'finish') return task.time.earlyFinish || task.time.scheduleFinish;
+    if (field === 'completion') return `${Math.round(task.time.completion * 100)}`;
+    return '';
+  };
+
+  const handleCellKeyDown = useCallback((e: React.KeyboardEvent, taskId: string, field: string) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      navigateCell(taskId, field, 'down');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      navigateCell(taskId, field, 'up');
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      navigateCell(taskId, field, e.shiftKey ? 'left' : 'right');
+    } else if (e.key === 'Escape') {
+      setEditCell(null);
+    }
+  }, [navigateCell]);
+
   const renderCell = (taskId: string, field: string, value: string, _width: string, align = 'left') => {
     const isEditing = editCell?.taskId === taskId && editCell?.field === field;
     if (isEditing) {
@@ -72,7 +122,7 @@ export function TableEditor() {
           value={editValue}
           onChange={e => setEditValue(e.target.value)}
           onBlur={commitEdit}
-          onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditCell(null); }}
+          onKeyDown={e => handleCellKeyDown(e, taskId, field)}
           className="w-full bg-surface border border-accent px-1 py-0.5 text-xs outline-none"
           style={{ textAlign: align as 'left' | 'right' | 'center' }}
         />
