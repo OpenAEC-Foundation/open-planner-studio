@@ -17,7 +17,7 @@ declare global {
       writeFile: (path: string, contents: string) => Promise<void>;
       openFile: () => Promise<{ path: string; content: string } | null>;
       saveFile: (path: string, content: string) => Promise<string | null>;
-      saveFileAs: (content: string) => Promise<string | null>;
+      saveFileAs: (content: string, filterType?: string) => Promise<string | null>;
       autoSave: (content: string) => Promise<boolean>;
       checkRecovery: () => Promise<{ exists: boolean; content: string | null }>;
       clearRecovery: () => Promise<void>;

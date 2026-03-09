@@ -13,6 +13,14 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { writeCSV } from '@/services/csv/csvWriter';
+import { readCSV } from '@/services/csv/csvReader';
+import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { readMSPDI } from '@/services/msproject/mspdiReader';
+import { writeP6XML } from '@/services/p6/p6xmlWriter';
+import { readP6XML } from '@/services/p6/p6xmlReader';
+
+export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
 
 enableMapSet();
 
@@ -130,6 +138,7 @@ export interface AppState {
   openFile: () => Promise<void>;
   saveFile: () => Promise<void>;
   saveFileAs: () => Promise<void>;
+  exportAs: (format: ExportFormat) => Promise<void>;
   getRecentFiles: () => string[];
   openRecentFile: (path: string) => Promise<void>;
 }
@@ -608,7 +617,30 @@ export const useAppStore = create<AppState>()(
       const result = await api.openFile();
       if (!result) return;
       try {
-        const parsed = readIFC(result.content);
+        const ext = result.path.split('.').pop()?.toLowerCase() || '';
+        let parsed;
+
+        if (ext === 'csv') {
+          parsed = readCSV(result.content);
+        } else if (ext === 'xml') {
+          // Auto-detect: check for MS Project or P6 XML
+          if (result.content.includes('schemas.microsoft.com/project') || result.content.includes('<Project')) {
+            // Check more specifically for P6
+            if (result.content.includes('APIBusinessObjects') || result.content.includes('Primavera')) {
+              parsed = readP6XML(result.content);
+            } else {
+              parsed = readMSPDI(result.content);
+            }
+          } else if (result.content.includes('APIBusinessObjects') || result.content.includes('Primavera')) {
+            parsed = readP6XML(result.content);
+          } else {
+            // Default to MSPDI for .xml
+            parsed = readMSPDI(result.content);
+          }
+        } else {
+          parsed = readIFC(result.content);
+        }
+
         set((s) => {
           s.project = parsed.project;
           s.calendar = parsed.calendar;
@@ -625,7 +657,7 @@ export const useAppStore = create<AppState>()(
         });
         addRecentFile(result.path);
       } catch (err) {
-        console.error('Failed to parse IFC file:', err);
+        console.error('Failed to parse file:', err);
       }
     },
 
@@ -680,6 +712,52 @@ export const useAppStore = create<AppState>()(
       }
     },
 
+    exportAs: async (format: ExportFormat) => {
+      const state = get();
+      const api = window.electronAPI;
+      if (!api) return;
+
+      let content: string;
+      let filterType: string;
+
+      switch (format) {
+        case 'csv':
+          content = writeCSV(
+            state.project, state.calendar, state.tasks,
+            state.sequences, state.resources, state.assignments,
+          );
+          filterType = 'csv';
+          break;
+        case 'mspdi':
+          content = writeMSPDI(
+            state.project, state.calendar, state.tasks,
+            state.sequences, state.resources, state.assignments,
+          );
+          filterType = 'mspdi';
+          break;
+        case 'p6':
+          content = writeP6XML(
+            state.project, state.calendar, state.tasks,
+            state.sequences, state.resources, state.assignments,
+          );
+          filterType = 'p6';
+          break;
+        case 'ifc':
+        default:
+          content = writeIFC(
+            state.project, state.calendar, state.tasks,
+            state.sequences, state.resources, state.assignments,
+          );
+          filterType = 'ifc';
+          break;
+      }
+
+      const savedPath = await api.saveFileAs(content, filterType);
+      if (savedPath) {
+        addRecentFile(savedPath);
+      }
+    },
+
     getRecentFiles: () => getRecentFiles(),
 
     openRecentFile: async (filePath: string) => {
@@ -687,7 +765,21 @@ export const useAppStore = create<AppState>()(
       if (!api) return;
       try {
         const content = await api.readFile(filePath);
-        const parsed = readIFC(content);
+        const ext = filePath.split('.').pop()?.toLowerCase() || '';
+        let parsed;
+
+        if (ext === 'csv') {
+          parsed = readCSV(content);
+        } else if (ext === 'xml') {
+          if (content.includes('APIBusinessObjects') || content.includes('Primavera')) {
+            parsed = readP6XML(content);
+          } else {
+            parsed = readMSPDI(content);
+          }
+        } else {
+          parsed = readIFC(content);
+        }
+
         set((s) => {
           s.project = parsed.project;
           s.calendar = parsed.calendar;

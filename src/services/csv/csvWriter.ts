@@ -28,13 +28,8 @@ function formatLag(lagDays: number): string {
   return lagDays > 0 ? `+${lagDays}d` : `${lagDays}d`;
 }
 
-function getOutlineLevel(wbs: string): number {
-  if (!wbs) return 0;
-  return wbs.split('.').length - 1;
-}
-
 export function writeCSV(
-  project: Project,
+  _project: Project,
   _calendar: WorkCalendar,
   tasks: Task[],
   sequences: Sequence[],
@@ -70,7 +65,6 @@ export function writeCSV(
   rows.push(headers.map(h => escapeCSV(h)).join(DELIMITER));
 
   for (const task of tasks) {
-    const isSummary = task.childIds.length > 0;
     const predecessors = predMap.get(task.id)?.join(', ') || '';
     const completion = Math.round(task.time.completion * 100);
 

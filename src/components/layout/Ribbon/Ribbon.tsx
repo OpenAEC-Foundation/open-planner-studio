@@ -6,7 +6,9 @@ import {
   FileText, FolderOpen, Save, Printer, Trash2,
   Calendar, Settings, Info, Clock,
   ArrowRightLeft, Eye, EyeOff, History, SaveAll,
+  Download,
 } from 'lucide-react';
+import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
 import { RibbonTab } from '@/state/slices/types';
@@ -132,6 +134,67 @@ function RecentFilesDropdown() {
   );
 }
 
+function ExportDropdown() {
+  const [open, setOpen] = useState(false);
+  const exportAs = useAppStore(s => s.exportAs);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const formats: { label: string; format: ExportFormat }[] = [
+    { label: 'CSV (;)', format: 'csv' },
+    { label: 'MS Project XML', format: 'mspdi' },
+    { label: 'Primavera P6 XML', format: 'p6' },
+    { label: 'IFC 4x3', format: 'ifc' },
+  ];
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative' }}>
+      <button
+        className="ribbon-btn small"
+        onClick={() => setOpen(!open)}
+      >
+        <span className="ribbon-btn-icon"><Download size={14} /></span>
+        <span className="ribbon-btn-label">Export</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 1000,
+          minWidth: 180,
+          background: 'var(--color-surface-alt)', border: '1px solid var(--color-border)',
+          borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '4px 0',
+        }}>
+          {formats.map((f) => (
+            <button
+              key={f.format}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '6px 12px', fontSize: 11, border: 'none',
+                background: 'transparent', color: 'var(--color-text-primary)',
+                cursor: 'pointer',
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = 'var(--color-surface-hover)')}
+              onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+              onClick={() => { exportAs(f.format); setOpen(false); }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Ribbon() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -223,6 +286,7 @@ export function Ribbon() {
               <RibbonButtonStack>
                 <RibbonSmallButton icon={<SaveAll size={14} />} label="Save As" onClick={() => saveFileAs()} />
                 <RecentFilesDropdown />
+                <ExportDropdown />
               </RibbonButtonStack>
             </RibbonGroup>
 

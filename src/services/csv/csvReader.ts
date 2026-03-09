@@ -1,4 +1,4 @@
-import { Task, TaskType, TaskStatus, createDefaultTaskTime } from '@/types/task';
+import { Task, TaskType, TaskStatus } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';

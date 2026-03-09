@@ -44,11 +44,23 @@ ipcMain.handle('write-file', (_event, filePath, contents) => {
 });
 
 // Dialog-based file operations
+const ALL_OPEN_FILTERS = [
+  { name: 'All Supported Files', extensions: ['ifc', 'xml', 'csv'] },
+  { name: 'IFC Files', extensions: ['ifc'] },
+  { name: 'MS Project XML', extensions: ['xml'] },
+  { name: 'Primavera P6 XML', extensions: ['xml'] },
+  { name: 'CSV Files', extensions: ['csv'] },
+  { name: 'All Files', extensions: ['*'] },
+];
+
 const IFC_FILTERS = [{ name: 'IFC Files', extensions: ['ifc'] }, { name: 'All Files', extensions: ['*'] }];
+const CSV_FILTERS = [{ name: 'CSV Files', extensions: ['csv'] }, { name: 'All Files', extensions: ['*'] }];
+const MSPDI_FILTERS = [{ name: 'MS Project XML', extensions: ['xml'] }, { name: 'All Files', extensions: ['*'] }];
+const P6_FILTERS = [{ name: 'Primavera P6 XML', extensions: ['xml'] }, { name: 'All Files', extensions: ['*'] }];
 
 ipcMain.handle('dialog-open-file', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    filters: IFC_FILTERS,
+    filters: ALL_OPEN_FILTERS,
     properties: ['openFile'],
   });
   if (result.canceled || result.filePaths.length === 0) return null;
@@ -66,10 +78,24 @@ ipcMain.handle('dialog-save-file', async (_event, filePath, content) => {
   }
 });
 
-ipcMain.handle('dialog-save-file-as', async (_event, content) => {
+ipcMain.handle('dialog-save-file-as', async (_event, content, filterType) => {
+  let filters = IFC_FILTERS;
+  let defaultPath = 'project.ifc';
+
+  if (filterType === 'csv') {
+    filters = CSV_FILTERS;
+    defaultPath = 'project.csv';
+  } else if (filterType === 'mspdi') {
+    filters = MSPDI_FILTERS;
+    defaultPath = 'project.xml';
+  } else if (filterType === 'p6') {
+    filters = P6_FILTERS;
+    defaultPath = 'project.xml';
+  }
+
   const result = await dialog.showSaveDialog(mainWindow, {
-    filters: IFC_FILTERS,
-    defaultPath: 'project.ifc',
+    filters,
+    defaultPath,
   });
   if (result.canceled || !result.filePath) return null;
   fs.writeFileSync(result.filePath, content, 'utf-8');
