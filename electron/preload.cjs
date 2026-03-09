@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFile: () => ipcRenderer.invoke('dialog-open-file'),
   saveFile: (path, content) => ipcRenderer.invoke('dialog-save-file', path, content),
   saveFileAs: (content, filterType) => ipcRenderer.invoke('dialog-save-file-as', content, filterType),
+  exportPDF: (dataUrl, defaultName) => ipcRenderer.invoke('export-pdf', dataUrl, defaultName),
   autoSave: (content) => ipcRenderer.invoke('auto-save', content),
   checkRecovery: () => ipcRenderer.invoke('check-recovery'),
   clearRecovery: () => ipcRenderer.invoke('clear-recovery'),

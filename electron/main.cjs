@@ -102,6 +102,48 @@ ipcMain.handle('dialog-save-file-as', async (_event, content, filterType) => {
   return result.filePath;
 });
 
+// PDF Export
+ipcMain.handle('export-pdf', async (_event, dataUrl, defaultName) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
+    defaultPath: defaultName || 'planning.pdf',
+  });
+  if (result.canceled || !result.filePath) return null;
+
+  // Create a hidden BrowserWindow to render the image and print to PDF
+  const pdfWindow = new BrowserWindow({
+    show: false,
+    width: 2000,
+    height: 1400,
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  });
+
+  const htmlContent = `<!DOCTYPE html>
+<html><head><style>
+  * { margin: 0; padding: 0; }
+  body { display: flex; justify-content: center; align-items: flex-start; }
+  img { max-width: 100%; height: auto; }
+  @page { margin: 0; }
+</style></head><body>
+<img src="${dataUrl}" />
+</body></html>`;
+
+  await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
+
+  // Wait for image to load
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  const pdfData = await pdfWindow.webContents.printToPDF({
+    landscape: true,
+    printBackground: true,
+    margins: { top: 0, bottom: 0, left: 0, right: 0 },
+  });
+
+  fs.writeFileSync(result.filePath, pdfData);
+  pdfWindow.close();
+  return result.filePath;
+});
+
 // Auto-save recovery
 const RECOVERY_FILE = path.join(app.getPath('userData'), 'recovery.ifc');
 

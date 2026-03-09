@@ -18,6 +18,7 @@ declare global {
       openFile: () => Promise<{ path: string; content: string } | null>;
       saveFile: (path: string, content: string) => Promise<string | null>;
       saveFileAs: (content: string, filterType?: string) => Promise<string | null>;
+      exportPDF: (dataUrl: string, defaultName: string) => Promise<string | null>;
       autoSave: (content: string) => Promise<boolean>;
       checkRecovery: () => Promise<{ exists: boolean; content: string | null }>;
       clearRecovery: () => Promise<void>;

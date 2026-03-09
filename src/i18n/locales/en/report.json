@@ -15,20 +15,34 @@
   "showDependencies": "Dependencies",
   "showWeekends": "Weekends",
   "showLegend": "Legend",
+  "showTaskNames": "Task names on bars",
+  "showCompletion": "Show completion",
+  "autoFit": "Auto-fit to paper",
+  "zoom": "Zoom:",
+  "company": "Company:",
+  "companyPlaceholder": "Company name",
+  "author": "Author:",
   "print": "Print...",
+  "exportPDF": "Export PDF",
   "noTasks": "No tasks to display",
   "printed": "Printed:",
+  "page": "Page",
+  "of": "of",
   "legend": {
     "criticalPath": "Critical path",
     "normal": "Normal",
     "milestone": "Milestone",
-    "summary": "Summary"
+    "summary": "Summary",
+    "float": "Float",
+    "completion": "Completion"
   },
   "tableHeaders": {
+    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Task Name",
     "start": "Start",
     "end": "End",
-    "duration": "Duration"
+    "duration": "Duration",
+    "completion": "Compl."
   }
 }

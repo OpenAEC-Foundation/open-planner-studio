@@ -15,20 +15,34 @@
   "showDependencies": "Afhankelijkheden",
   "showWeekends": "Weekenden",
   "showLegend": "Legenda",
+  "showTaskNames": "Taaknamen op staafjes",
+  "showCompletion": "Voltooiing tonen",
+  "autoFit": "Auto-fit op papier",
+  "zoom": "Zoom:",
+  "company": "Bedrijf:",
+  "companyPlaceholder": "Bedrijfsnaam",
+  "author": "Auteur:",
   "print": "Afdrukken...",
+  "exportPDF": "Exporteer PDF",
   "noTasks": "Geen taken om weer te geven",
   "printed": "Afgedrukt:",
+  "page": "Pagina",
+  "of": "van",
   "legend": {
     "criticalPath": "Kritiek pad",
     "normal": "Normaal",
     "milestone": "Mijlpaal",
-    "summary": "Samenvatting"
+    "summary": "Samenvatting",
+    "float": "Speling",
+    "completion": "Voltooiing"
   },
   "tableHeaders": {
+    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Taaknaam",
     "start": "Start",
-    "end": "Eind",
-    "duration": "Duur"
+    "end": "Einde",
+    "duration": "Duur",
+    "completion": "Volt."
   }
 }
