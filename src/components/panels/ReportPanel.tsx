@@ -3,8 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { renderPrintCanvas, PrintOptions } from '@/services/print/printPreview';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
-import { save } from '@tauri-apps/plugin-dialog';
-import { writeFile } from '@tauri-apps/plugin-fs';
+const isTauri = () => '__TAURI_INTERNALS__' in window;
 
 export function ReportPanel() {
   const { t } = useTranslation('report');
@@ -105,17 +104,26 @@ export function ReportPanel() {
 
     const defaultName = `${projectName || 'project'}-planning.png`;
 
-    const savedPath = await save({
-      defaultPath: defaultName,
-      filters: [{ name: 'PNG Image', extensions: ['png'] }],
-    });
-    if (!savedPath) return;
+    if (isTauri()) {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+      const savedPath = await save({
+        defaultPath: defaultName,
+        filters: [{ name: 'PNG Image', extensions: ['png'] }],
+      });
+      if (!savedPath) return;
 
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      const buffer = await blob.arrayBuffer();
-      await writeFile(savedPath, new Uint8Array(buffer));
-    }, 'image/png');
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const buffer = await blob.arrayBuffer();
+        await writeFile(savedPath, new Uint8Array(buffer));
+      }, 'image/png');
+    } else {
+      const link = document.createElement('a');
+      link.download = `${projectName || 'project'}-planning.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
   }, [projectName]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;

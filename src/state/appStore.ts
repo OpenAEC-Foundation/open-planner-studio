@@ -19,8 +19,7 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
-import { open, save } from '@tauri-apps/plugin-dialog';
-import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+const isTauri = () => '__TAURI_INTERNALS__' in window;
 
 export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
 
@@ -614,6 +613,9 @@ export const useAppStore = create<AppState>()(
 
     // --- File operations ---
     openFile: async () => {
+      if (!isTauri()) return;
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const { readTextFile } = await import('@tauri-apps/plugin-fs');
       const selected = await open({
         multiple: false,
         filters: [
@@ -669,6 +671,9 @@ export const useAppStore = create<AppState>()(
     },
 
     saveFile: async () => {
+      if (!isTauri()) return;
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
       const state = get();
 
       const content = writeIFC(
@@ -695,6 +700,9 @@ export const useAppStore = create<AppState>()(
     },
 
     saveFileAs: async () => {
+      if (!isTauri()) return;
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
       const state = get();
 
       const content = writeIFC(
@@ -716,6 +724,9 @@ export const useAppStore = create<AppState>()(
     },
 
     exportAs: async (format: ExportFormat) => {
+      if (!isTauri()) return;
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
       const state = get();
 
       let content: string;
@@ -763,6 +774,8 @@ export const useAppStore = create<AppState>()(
     getRecentFiles: () => getRecentFiles(),
 
     openRecentFile: async (filePath: string) => {
+      if (!isTauri()) return;
+      const { readTextFile } = await import('@tauri-apps/plugin-fs');
       try {
         const content = await readTextFile(filePath);
         const ext = filePath.split('.').pop()?.toLowerCase() || '';

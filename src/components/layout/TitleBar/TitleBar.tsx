@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+const isTauri = () => '__TAURI_INTERNALS__' in window;
 import {
   FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings,
 } from 'lucide-react';
@@ -23,16 +23,26 @@ export function TitleBar() {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    const appWindow = getCurrentWindow();
-    appWindow.isMaximized().then(setMaximized);
-    const unlisten = appWindow.onResized(() => {
+    if (!isTauri()) return;
+    (async () => {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const appWindow = getCurrentWindow();
       appWindow.isMaximized().then(setMaximized);
-    });
-    return () => { unlisten.then(fn => fn()); };
+      const unlisten = appWindow.onResized(() => {
+        appWindow.isMaximized().then(setMaximized);
+      });
+      return () => { unlisten.then(fn => fn()); };
+    })();
   }, []);
 
-  const handleMinimize = useCallback(() => getCurrentWindow().minimize(), []);
+  const handleMinimize = useCallback(async () => {
+    if (!isTauri()) return;
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    getCurrentWindow().minimize();
+  }, []);
   const handleMaximize = useCallback(async () => {
+    if (!isTauri()) return;
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
     const appWindow = getCurrentWindow();
     if (await appWindow.isMaximized()) {
       appWindow.unmaximize();
@@ -40,7 +50,11 @@ export function TitleBar() {
       appWindow.maximize();
     }
   }, []);
-  const handleClose = useCallback(() => getCurrentWindow().close(), []);
+  const handleClose = useCallback(async () => {
+    if (!isTauri()) return;
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    getCurrentWindow().close();
+  }, []);
 
   return (
     <div className="title-bar" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
