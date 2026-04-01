@@ -166,50 +166,25 @@
 }
 
 /* Theme selector */
-.settings-theme-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.settings-theme-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  border: 2px solid var(--theme-border);
-  border-radius: 4px;
-  background: var(--theme-surface);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  min-width: 80px;
-}
-
-.settings-theme-btn:hover {
-  border-color: var(--theme-text-dim);
-}
-
-.settings-theme-btn.active {
-  border-color: var(--theme-accent);
-  background: var(--theme-hover);
-}
-
-.settings-theme-swatch {
-  width: 40px;
-  height: 24px;
-  border-radius: 3px;
-  border: 1px solid var(--theme-border-light);
-}
-
-.settings-theme-label {
-  font-size: 10px;
-  color: var(--theme-text-dim);
-}
-
-.settings-theme-btn.active .settings-theme-label {
+.settings-select {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 11px;
   color: var(--theme-text);
-  font-weight: 600;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 0;
+  cursor: pointer;
+  outline: none;
+}
+
+.settings-select option {
+  color: var(--theme-text);
+  background: var(--theme-surface);
+}
+
+.settings-select:focus {
+  border-color: var(--theme-accent);
 }
 
 /* Language list */

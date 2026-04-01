@@ -8,12 +8,6 @@ import './SettingsDialog.css';
 
 type SettingsTab = 'general' | 'language';
 
-const THEME_SWATCHES: Record<UITheme, string> = {
-  dark: '#1e1e2e',
-  light: '#f5f5f5',
-  blue: '#0d1b2a',
-  highContrast: '#000000',
-};
 
 export function SettingsDialog() {
   const { t, i18n } = useTranslation('common');
@@ -110,21 +104,15 @@ export function SettingsDialog() {
                 <div className="settings-section-list">
                   <div className="settings-section">
                     <h3>{t('settings.theme')}</h3>
-                    <div className="settings-theme-grid">
+                    <select
+                      className="settings-select"
+                      value={pendingTheme}
+                      onChange={e => setPendingTheme(e.target.value as UITheme)}
+                    >
                       {UI_THEMES.map(({ id, label }) => (
-                        <button
-                          key={id}
-                          className={`settings-theme-btn ${pendingTheme === id ? 'active' : ''}`}
-                          onClick={() => setPendingTheme(id)}
-                        >
-                          <div
-                            className="settings-theme-swatch"
-                            style={{ background: THEME_SWATCHES[id] }}
-                          />
-                          <span className="settings-theme-label">{label}</span>
-                        </button>
+                        <option key={id} value={id}>{label}</option>
                       ))}
-                    </div>
+                    </select>
                   </div>
                   <div className="settings-section">
                     <h3>{t('settings.version')}</h3>
@@ -152,22 +140,24 @@ export function SettingsDialog() {
               )}
 
               {activeTab === 'language' && (
-                <div className="settings-lang-list">
-                  {[...supportedLanguages]
-                    .sort((a, b) => LANGUAGE_LABELS[a][0].localeCompare(LANGUAGE_LABELS[b][0]))
-                    .map(code => {
-                      const [short, label] = LANGUAGE_LABELS[code];
-                      return (
-                        <div
-                          key={code}
-                          className={`settings-lang-item ${pendingLocale === code ? 'active' : ''}`}
-                          onClick={() => setPendingLocale(code)}
-                        >
-                          <span className="settings-lang-code">{short}</span>
-                          <span>{label}</span>
-                        </div>
-                      );
-                    })}
+                <div className="settings-section-list">
+                  <div className="settings-section">
+                    <h3>{t('settings.language')}</h3>
+                    <select
+                      className="settings-select"
+                      value={pendingLocale}
+                      onChange={e => setPendingLocale(e.target.value as Locale)}
+                    >
+                      {[...supportedLanguages]
+                        .sort((a, b) => LANGUAGE_LABELS[a][0].localeCompare(LANGUAGE_LABELS[b][0]))
+                        .map(code => {
+                          const [short, label] = LANGUAGE_LABELS[code];
+                          return (
+                            <option key={code} value={code}>{short} — {label}</option>
+                          );
+                        })}
+                    </select>
+                  </div>
                 </div>
               )}
             </div>

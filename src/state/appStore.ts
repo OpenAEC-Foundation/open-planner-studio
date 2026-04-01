@@ -19,6 +19,8 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 
 export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
 
@@ -193,7 +195,7 @@ function createDefaultUI(): UIState {
     collapsedTaskIds: [],
     inlineEditTaskId: null,
     showSettingsDialog: false,
-    uiTheme: 'dark',
+    uiTheme: 'default',
   };
 }
 
@@ -612,33 +614,38 @@ export const useAppStore = create<AppState>()(
 
     // --- File operations ---
     openFile: async () => {
-      const api = window.electronAPI;
-      if (!api) return;
-      const result = await api.openFile();
-      if (!result) return;
+      const selected = await open({
+        multiple: false,
+        filters: [
+          { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
+          { name: 'IFC Files', extensions: ['ifc'] },
+          { name: 'CSV Files', extensions: ['csv'] },
+          { name: 'XML Files', extensions: ['xml'] },
+        ],
+      });
+      if (!selected) return;
+      const filePath = selected as string;
       try {
-        const ext = result.path.split('.').pop()?.toLowerCase() || '';
+        const content = await readTextFile(filePath);
+        const ext = filePath.split('.').pop()?.toLowerCase() || '';
         let parsed;
 
         if (ext === 'csv') {
-          parsed = readCSV(result.content);
+          parsed = readCSV(content);
         } else if (ext === 'xml') {
-          // Auto-detect: check for MS Project or P6 XML
-          if (result.content.includes('schemas.microsoft.com/project') || result.content.includes('<Project')) {
-            // Check more specifically for P6
-            if (result.content.includes('APIBusinessObjects') || result.content.includes('Primavera')) {
-              parsed = readP6XML(result.content);
+          if (content.includes('schemas.microsoft.com/project') || content.includes('<Project')) {
+            if (content.includes('APIBusinessObjects') || content.includes('Primavera')) {
+              parsed = readP6XML(content);
             } else {
-              parsed = readMSPDI(result.content);
+              parsed = readMSPDI(content);
             }
-          } else if (result.content.includes('APIBusinessObjects') || result.content.includes('Primavera')) {
-            parsed = readP6XML(result.content);
+          } else if (content.includes('APIBusinessObjects') || content.includes('Primavera')) {
+            parsed = readP6XML(content);
           } else {
-            // Default to MSPDI for .xml
-            parsed = readMSPDI(result.content);
+            parsed = readMSPDI(content);
           }
         } else {
-          parsed = readIFC(result.content);
+          parsed = readIFC(content);
         }
 
         set((s) => {
@@ -653,9 +660,9 @@ export const useAppStore = create<AppState>()(
           s.undoStack = [];
           s.redoStack = [];
           s.isDirty = false;
-          s.filePath = result.path;
+          s.filePath = filePath;
         });
-        addRecentFile(result.path);
+        addRecentFile(filePath);
       } catch (err) {
         console.error('Failed to parse file:', err);
       }
@@ -663,8 +670,6 @@ export const useAppStore = create<AppState>()(
 
     saveFile: async () => {
       const state = get();
-      const api = window.electronAPI;
-      if (!api) return;
 
       const content = writeIFC(
         state.project, state.calendar, state.tasks,
@@ -672,53 +677,49 @@ export const useAppStore = create<AppState>()(
       );
 
       if (state.filePath) {
-        const saved = await api.saveFile(state.filePath, content);
-        if (saved) {
-          set((s) => { s.isDirty = false; });
-          api.clearRecovery?.();
-        }
+        await writeTextFile(state.filePath, content);
+        set((s) => { s.isDirty = false; });
       } else {
-        // No path yet, trigger Save As
-        const savedPath = await api.saveFileAs(content);
+        const savedPath = await save({
+          filters: [{ name: 'IFC Files', extensions: ['ifc'] }],
+        });
         if (savedPath) {
+          await writeTextFile(savedPath, content);
           set((s) => {
             s.filePath = savedPath;
             s.isDirty = false;
           });
           addRecentFile(savedPath);
-          api.clearRecovery?.();
         }
       }
     },
 
     saveFileAs: async () => {
       const state = get();
-      const api = window.electronAPI;
-      if (!api) return;
 
       const content = writeIFC(
         state.project, state.calendar, state.tasks,
         state.sequences, state.resources, state.assignments,
       );
 
-      const savedPath = await api.saveFileAs(content);
+      const savedPath = await save({
+        filters: [{ name: 'IFC Files', extensions: ['ifc'] }],
+      });
       if (savedPath) {
+        await writeTextFile(savedPath, content);
         set((s) => {
           s.filePath = savedPath;
           s.isDirty = false;
         });
         addRecentFile(savedPath);
-        api.clearRecovery?.();
       }
     },
 
     exportAs: async (format: ExportFormat) => {
       const state = get();
-      const api = window.electronAPI;
-      if (!api) return;
 
       let content: string;
-      let filterType: string;
+      let filters: { name: string; extensions: string[] }[];
 
       switch (format) {
         case 'csv':
@@ -726,21 +727,21 @@ export const useAppStore = create<AppState>()(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments,
           );
-          filterType = 'csv';
+          filters = [{ name: 'CSV Files', extensions: ['csv'] }];
           break;
         case 'mspdi':
           content = writeMSPDI(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments,
           );
-          filterType = 'mspdi';
+          filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
         case 'p6':
           content = writeP6XML(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments,
           );
-          filterType = 'p6';
+          filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
         case 'ifc':
         default:
@@ -748,12 +749,13 @@ export const useAppStore = create<AppState>()(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments,
           );
-          filterType = 'ifc';
+          filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
           break;
       }
 
-      const savedPath = await api.saveFileAs(content, filterType);
+      const savedPath = await save({ filters });
       if (savedPath) {
+        await writeTextFile(savedPath, content);
         addRecentFile(savedPath);
       }
     },
@@ -761,10 +763,8 @@ export const useAppStore = create<AppState>()(
     getRecentFiles: () => getRecentFiles(),
 
     openRecentFile: async (filePath: string) => {
-      const api = window.electronAPI;
-      if (!api) return;
       try {
-        const content = await api.readFile(filePath);
+        const content = await readTextFile(filePath);
         const ext = filePath.split('.').pop()?.toLowerCase() || '';
         let parsed;
 

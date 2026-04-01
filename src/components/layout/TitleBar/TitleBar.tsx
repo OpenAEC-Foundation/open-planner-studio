@@ -1,30 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings,
 } from 'lucide-react';
-
-declare global {
-  interface Window {
-    electronAPI?: {
-      minimize: () => void;
-      maximize: () => void;
-      close: () => void;
-      isMaximized: () => Promise<boolean>;
-      onResize: (callback: () => void) => () => void;
-      readFile: (path: string) => Promise<string>;
-      writeFile: (path: string, contents: string) => Promise<void>;
-      openFile: () => Promise<{ path: string; content: string } | null>;
-      saveFile: (path: string, content: string) => Promise<string | null>;
-      saveFileAs: (content: string, filterType?: string) => Promise<string | null>;
-      exportPDF: (dataUrl: string, defaultName: string) => Promise<string | null>;
-      autoSave: (content: string) => Promise<boolean>;
-      checkRecovery: () => Promise<{ exists: boolean; content: string | null }>;
-      clearRecovery: () => Promise<void>;
-    };
-  }
-}
 
 export function TitleBar() {
   const { t: tMenu } = useTranslation('menu');
@@ -43,21 +23,27 @@ export function TitleBar() {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    const api = window.electronAPI;
-    if (!api) return;
-    api.isMaximized().then(setMaximized);
-    const cleanup = api.onResize(() => {
-      api.isMaximized().then(setMaximized);
+    const appWindow = getCurrentWindow();
+    appWindow.isMaximized().then(setMaximized);
+    const unlisten = appWindow.onResized(() => {
+      appWindow.isMaximized().then(setMaximized);
     });
-    return cleanup;
+    return () => { unlisten.then(fn => fn()); };
   }, []);
 
-  const handleMinimize = useCallback(() => window.electronAPI?.minimize(), []);
-  const handleMaximize = useCallback(() => window.electronAPI?.maximize(), []);
-  const handleClose = useCallback(() => window.electronAPI?.close(), []);
+  const handleMinimize = useCallback(() => getCurrentWindow().minimize(), []);
+  const handleMaximize = useCallback(async () => {
+    const appWindow = getCurrentWindow();
+    if (await appWindow.isMaximized()) {
+      appWindow.unmaximize();
+    } else {
+      appWindow.maximize();
+    }
+  }, []);
+  const handleClose = useCallback(() => getCurrentWindow().close(), []);
 
   return (
-    <div className="title-bar" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+    <div className="title-bar" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
       <div className="title-bar-left">
         <div className="quick-access-toolbar">
           <img src="/icon.png" className="title-bar-app-icon" alt="Open Planner Studio" />
@@ -104,7 +90,7 @@ export function TitleBar() {
         </div>
       </div>
 
-      <div className="title-bar-center" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+      <div className="title-bar-center" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
         <span className="title-bar-app-name">Open Planner Studio v{__APP_VERSION__}</span>
         {project.name && (
           <span className="title-bar-file-name">

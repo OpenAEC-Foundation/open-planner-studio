@@ -5,6 +5,8 @@ dist/
 .DS_Store
 CLAUDE.md
 .claude/
+temp/
 
-# Electron
-release/
+# Tauri
+src-tauri/target/
+src-tauri/gen/

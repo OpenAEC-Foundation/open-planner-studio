@@ -25,5 +25,5 @@ export async function saveTheme(theme: string): Promise<void> {
 
 export async function initTheme(): Promise<string> {
   const saved = localStorage.getItem('ops-theme');
-  return saved || 'dark';
+  return saved || 'default';
 }

@@ -1,11 +1,14 @@
 export type TimeScale = 'day' | 'week' | 'month' | 'quarter';
 
-export type UITheme = 'dark' | 'light' | 'blue' | 'highContrast';
+export type UITheme = 'default' | 'light' | 'dark' | 'blue' | 'amber-navy' | 'warm-ember' | 'highContrast';
 
 export const UI_THEMES: { id: UITheme; label: string }[] = [
-  { id: 'dark', label: 'Dark' },
+  { id: 'default', label: 'Default' },
   { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
   { id: 'blue', label: 'Blue' },
+  { id: 'amber-navy', label: 'Amber Navy' },
+  { id: 'warm-ember', label: 'Warm Ember' },
   { id: 'highContrast', label: 'High Contrast' },
 ];
 

@@ -4,6 +4,8 @@ import { initLocale } from '@/i18n/config';
 import { initTheme } from '@/utils/settingsStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { writeTextFile, readTextFile, exists, remove } from '@tauri-apps/plugin-fs';
+import { appDataDir } from '@tauri-apps/api/path';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -55,17 +57,19 @@ function AppContent() {
 
   // Auto-save every 60 seconds if dirty
   useEffect(() => {
-    const api = window.electronAPI;
-    if (!api) return;
-
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       const state = useAppStore.getState();
       if (!state.isDirty) return;
-      const content = writeIFC(
-        state.project, state.calendar, state.tasks,
-        state.sequences, state.resources, state.assignments,
-      );
-      api.autoSave(content);
+      try {
+        const content = writeIFC(
+          state.project, state.calendar, state.tasks,
+          state.sequences, state.resources, state.assignments,
+        );
+        const dir = await appDataDir();
+        await writeTextFile(`${dir}recovery.ifc`, content);
+      } catch (err) {
+        console.error('Auto-save failed:', err);
+      }
     }, 60000);
 
     return () => clearInterval(interval);
@@ -77,23 +81,28 @@ function AppContent() {
     if (recoveryChecked.current) return;
     recoveryChecked.current = true;
 
-    const api = window.electronAPI;
-    if (!api) return;
-
-    api.checkRecovery().then((result) => {
-      if (result.exists && result.content) {
-        const shouldRecover = confirm('A recovery file was found. Would you like to restore your previous work?');
-        if (shouldRecover) {
-          try {
-            const parsed = readIFC(result.content);
-            useAppStore.getState().loadState(parsed);
-          } catch (err) {
-            console.error('Failed to restore recovery file:', err);
+    (async () => {
+      try {
+        const dir = await appDataDir();
+        const recoveryPath = `${dir}recovery.ifc`;
+        const hasRecovery = await exists(recoveryPath);
+        if (hasRecovery) {
+          const content = await readTextFile(recoveryPath);
+          const shouldRecover = confirm('A recovery file was found. Would you like to restore your previous work?');
+          if (shouldRecover) {
+            try {
+              const parsed = readIFC(content);
+              useAppStore.getState().loadState(parsed);
+            } catch (err) {
+              console.error('Failed to restore recovery file:', err);
+            }
           }
+          await remove(recoveryPath);
         }
-        api.clearRecovery();
+      } catch (err) {
+        console.error('Recovery check failed:', err);
       }
-    });
+    })();
   }, []);
 
   // Determine if we should show the gantt canvas or a full-panel view
