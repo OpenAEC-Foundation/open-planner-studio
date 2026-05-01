@@ -34,7 +34,16 @@
     "version": "Versie",
     "defaultZoom": "Standaard zoom",
     "projectInfo": "Projectinformatie...",
-    "theme": "Thema"
+    "theme": "Thema",
+    "timeline": "Tijdlijn / Zoomen",
+    "mouseWheelMode": "Muiswiel-gedrag",
+    "mouseWheelModeZoom": "Zoomen",
+    "mouseWheelModeScroll": "Scrollen",
+    "enableQuarterHourZoom": "Kwartieren tonen bij ver inzoomen",
+    "weekStartDay": "Week begint op",
+    "weekStartMonday": "Maandag",
+    "weekStartSunday": "Zondag",
+    "smoothZoom": "Vloeiende zoom-animatie"
   },
   "confirm": {
     "newProject": "Nieuw project aanmaken? Niet-opgeslagen wijzigingen gaan verloren.",

@@ -34,7 +34,16 @@
     "version": "Version",
     "defaultZoom": "Default zoom",
     "projectInfo": "Project information...",
-    "theme": "Theme"
+    "theme": "Theme",
+    "timeline": "Timeline / Zoom",
+    "mouseWheelMode": "Mouse wheel behavior",
+    "mouseWheelModeZoom": "Zoom",
+    "mouseWheelModeScroll": "Scroll",
+    "enableQuarterHourZoom": "Show quarter-hours when zoomed in far",
+    "weekStartDay": "Week starts on",
+    "weekStartMonday": "Monday",
+    "weekStartSunday": "Sunday",
+    "smoothZoom": "Smooth zoom animation"
   },
   "confirm": {
     "newProject": "Create new project? Unsaved changes will be lost.",
