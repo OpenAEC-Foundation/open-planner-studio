@@ -44,13 +44,13 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
       } else if (e.key === '0' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setZoom(DEFAULT_ZOOM);
-        setScroll(0, v.scrollY);
+        setScroll(0, 0);
       } else if (e.key === '0' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         // Fit to project
         if (t.length === 0) {
           setZoom(DEFAULT_ZOOM);
-          setScroll(0, v.scrollY);
+          setScroll(0, 0);
           return;
         }
         let minStart: string | null = null;
@@ -69,7 +69,7 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
         const newZoom = Math.max(0.5, Math.min(max, usable / span));
         setZoom(newZoom);
         setViewStartDate(minStart);
-        setScroll(0, v.scrollY);
+        setScroll(0, 0);
       }
     };
 
