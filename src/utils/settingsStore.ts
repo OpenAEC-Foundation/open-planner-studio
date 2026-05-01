@@ -1,3 +1,5 @@
+import type { MouseWheelMode, WeekStartDay } from '@/state/slices/types';
+
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
   if (raw === null) return undefined;
@@ -26,4 +28,31 @@ export async function saveTheme(theme: string): Promise<void> {
 export async function initTheme(): Promise<string> {
   const saved = localStorage.getItem('ops-theme');
   return saved || 'default';
+}
+
+export interface PersistedZoomSettings {
+  mouseWheelMode: MouseWheelMode;
+  enableQuarterHourZoom: boolean;
+  weekStartDay: WeekStartDay;
+  smoothZoom: boolean;
+}
+
+export async function loadZoomSettings(): Promise<Partial<PersistedZoomSettings>> {
+  const result: Partial<PersistedZoomSettings> = {};
+  const wheel = await getSetting<MouseWheelMode>('mouseWheelMode');
+  const qh = await getSetting<boolean>('enableQuarterHourZoom');
+  const week = await getSetting<WeekStartDay>('weekStartDay');
+  const smooth = await getSetting<boolean>('smoothZoom');
+  if (wheel === 'zoom' || wheel === 'scroll') result.mouseWheelMode = wheel;
+  if (typeof qh === 'boolean') result.enableQuarterHourZoom = qh;
+  if (week === 'monday' || week === 'sunday') result.weekStartDay = week;
+  if (typeof smooth === 'boolean') result.smoothZoom = smooth;
+  return result;
+}
+
+export async function saveZoomSettings(settings: Partial<PersistedZoomSettings>): Promise<void> {
+  if (settings.mouseWheelMode !== undefined) await setSetting('mouseWheelMode', settings.mouseWheelMode);
+  if (settings.enableQuarterHourZoom !== undefined) await setSetting('enableQuarterHourZoom', settings.enableQuarterHourZoom);
+  if (settings.weekStartDay !== undefined) await setSetting('weekStartDay', settings.weekStartDay);
+  if (settings.smoothZoom !== undefined) await setSetting('smoothZoom', settings.smoothZoom);
 }

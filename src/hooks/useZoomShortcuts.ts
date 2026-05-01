@@ -16,10 +16,11 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
   const setViewStartDate = useAppStore(s => s.setViewStartDate);
   const tasks = useAppStore(s => s.tasks);
   const view = useAppStore(s => s.view);
+  const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
 
   // Latest values in a ref so the keydown handler doesn't re-attach on every zoom/scroll change
-  const latest = useRef({ view, tasks });
-  latest.current = { view, tasks };
+  const latest = useRef({ view, tasks, enableQuarterHourZoom });
+  latest.current = { view, tasks, enableQuarterHourZoom };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -32,7 +33,7 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
       const rect = container.getBoundingClientRect();
       const centerX = rect.width / 2;
 
-      const { view: v, tasks: t } = latest.current;
+      const { view: v, tasks: t, enableQuarterHourZoom: enableQH } = latest.current;
 
       if ((e.key === '+' || e.key === '=') && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -64,7 +65,8 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
         const span = Math.max(1, diffCalendarDays(parseDate(minStart), parseDate(maxFinish)) + 1);
         const usable = rect.width - taskTableWidth;
         if (usable <= 0) return;
-        const newZoom = Math.max(0.5, Math.min(400, usable / span));
+        const max = enableQH ? 1000 : 400;
+        const newZoom = Math.max(0.5, Math.min(max, usable / span));
         setZoom(newZoom);
         setViewStartDate(minStart);
         setScroll(0, v.scrollY);

@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
 import { UITheme, UI_THEMES } from '@/state/slices/types';
-import { saveLocale, saveTheme } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings } from '@/utils/settingsStore';
 import './SettingsDialog.css';
 
 type SettingsTab = 'general' | 'language' | 'timeline';
@@ -178,7 +178,11 @@ export function SettingsDialog() {
                     <select
                       className="settings-select"
                       value={mouseWheelMode}
-                      onChange={e => setUI({ mouseWheelMode: e.target.value as 'zoom' | 'scroll' })}
+                      onChange={e => {
+                        const value = e.target.value as 'zoom' | 'scroll';
+                        setUI({ mouseWheelMode: value });
+                        void saveZoomSettings({ mouseWheelMode: value });
+                      }}
                     >
                       <option value="zoom">{t('settings.mouseWheelModeZoom')}</option>
                       <option value="scroll">{t('settings.mouseWheelModeScroll')}</option>
@@ -189,7 +193,11 @@ export function SettingsDialog() {
                     <select
                       className="settings-select"
                       value={weekStartDay}
-                      onChange={e => setUI({ weekStartDay: e.target.value as 'monday' | 'sunday' })}
+                      onChange={e => {
+                        const value = e.target.value as 'monday' | 'sunday';
+                        setUI({ weekStartDay: value });
+                        void saveZoomSettings({ weekStartDay: value });
+                      }}
                     >
                       <option value="monday">{t('settings.weekStartMonday')}</option>
                       <option value="sunday">{t('settings.weekStartSunday')}</option>
@@ -200,7 +208,11 @@ export function SettingsDialog() {
                       <input
                         type="checkbox"
                         checked={enableQuarterHourZoom}
-                        onChange={e => setUI({ enableQuarterHourZoom: e.target.checked })}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setUI({ enableQuarterHourZoom: checked });
+                          void saveZoomSettings({ enableQuarterHourZoom: checked });
+                        }}
                       />
                       <span>{t('settings.enableQuarterHourZoom')}</span>
                     </label>
@@ -210,7 +222,11 @@ export function SettingsDialog() {
                       <input
                         type="checkbox"
                         checked={smoothZoom}
-                        onChange={e => setUI({ smoothZoom: e.target.checked })}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setUI({ smoothZoom: checked });
+                          void saveZoomSettings({ smoothZoom: checked });
+                        }}
                       />
                       <span>{t('settings.smoothZoom')}</span>
                     </label>
