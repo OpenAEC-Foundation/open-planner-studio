@@ -7,6 +7,7 @@ import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
+import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
 
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
@@ -75,8 +76,8 @@ export function GanttCanvas() {
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
   const cpmResult = useAppStore(s => s.cpmResult);
 
-  // will be used by Task 8
-  const { zoomAt: _zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
+  const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
+  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth: TASK_TABLE_WIDTH });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
