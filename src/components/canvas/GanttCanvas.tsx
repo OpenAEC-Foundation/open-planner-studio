@@ -181,15 +181,15 @@ export function GanttCanvas() {
     return () => observer.disconnect();
   }, [render]);
 
-  // Sync horizontal scrollbar with canvas scrollX
+  // Sync horizontal scrollbar with canvas scrollX (also re-sync after zoom changes)
   useEffect(() => {
     const hScroll = hScrollRef.current;
     if (!hScroll) return;
-    const scrollLeft = view.scrollX;
-    if (Math.abs(hScroll.scrollLeft - scrollLeft) > 1) {
-      hScroll.scrollLeft = scrollLeft;
+    const desired = view.scrollX;
+    if (Math.abs(hScroll.scrollLeft - desired) > 1) {
+      hScroll.scrollLeft = desired;
     }
-  }, [view.scrollX]);
+  }, [view.scrollX, view.zoom]);
 
   const defaultTaskName = tTask('defaultTask');
   const defaultMilestoneName = tTask('defaultMilestone');
