@@ -6,6 +6,7 @@ import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } fr
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
+import { useGanttZoom } from '@/hooks/useGanttZoom';
 
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
@@ -73,6 +74,9 @@ export function GanttCanvas() {
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
   const cpmResult = useAppStore(s => s.cpmResult);
+
+  // will be used by Task 8
+  const { zoomAt: _zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
