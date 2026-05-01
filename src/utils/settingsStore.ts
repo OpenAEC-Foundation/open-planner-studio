@@ -1,3 +1,5 @@
+import type { WeekStartDay } from '@/state/slices/types';
+
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
   if (raw === null) return undefined;
@@ -26,4 +28,23 @@ export async function saveTheme(theme: string): Promise<void> {
 export async function initTheme(): Promise<string> {
   const saved = localStorage.getItem('ops-theme');
   return saved || 'default';
+}
+
+export interface PersistedZoomSettings {
+  enableQuarterHourZoom: boolean;
+  weekStartDay: WeekStartDay;
+}
+
+export async function loadZoomSettings(): Promise<Partial<PersistedZoomSettings>> {
+  const result: Partial<PersistedZoomSettings> = {};
+  const qh = await getSetting<boolean>('enableQuarterHourZoom');
+  const week = await getSetting<WeekStartDay>('weekStartDay');
+  if (typeof qh === 'boolean') result.enableQuarterHourZoom = qh;
+  if (week === 'monday' || week === 'sunday') result.weekStartDay = week;
+  return result;
+}
+
+export async function saveZoomSettings(settings: Partial<PersistedZoomSettings>): Promise<void> {
+  if (settings.enableQuarterHourZoom !== undefined) await setSetting('enableQuarterHourZoom', settings.enableQuarterHourZoom);
+  if (settings.weekStartDay !== undefined) await setSetting('weekStartDay', settings.weekStartDay);
 }

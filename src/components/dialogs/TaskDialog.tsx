@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { TaskType } from '@/types/task';
@@ -28,8 +28,11 @@ export function TaskDialog() {
   const [duration, setDuration] = useState(5);
   const [startDate, setStartDate] = useState('');
   const [parentId, setParentId] = useState<string>('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!showTaskDialog) return;
+
     if (editingTask) {
       setName(editingTask.name);
       setDescription(editingTask.description);
@@ -49,7 +52,19 @@ export function TaskDialog() {
       setStartDate(project.startDate);
       setParentId('');
     }
-  }, [editingTask, project.startDate]);
+
+  }, [showTaskDialog, editingTaskId, editingTask, project.startDate]);
+
+  useEffect(() => {
+    if (!showTaskDialog) return;
+    const id = setTimeout(() => {
+      const el = nameInputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(0, el.value.length);
+    }, 30);
+    return () => clearTimeout(id);
+  }, [showTaskDialog, editingTaskId]);
 
   if (!showTaskDialog) return null;
 
@@ -120,10 +135,10 @@ export function TaskDialog() {
           <div className="flex flex-col gap-1">
             <label className="text-text-secondary">{t('dialog.nameRequired')}</label>
             <input
+              ref={nameInputRef}
               value={name}
               onChange={e => setName(e.target.value)}
               className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
-              autoFocus
             />
           </div>
 

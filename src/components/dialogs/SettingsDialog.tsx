@@ -3,16 +3,18 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
 import { UITheme, UI_THEMES } from '@/state/slices/types';
-import { saveLocale, saveTheme } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings } from '@/utils/settingsStore';
 import './SettingsDialog.css';
 
-type SettingsTab = 'general' | 'language';
+type SettingsTab = 'general' | 'language' | 'timeline';
 
 
 export function SettingsDialog() {
   const { t, i18n } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const currentTheme = useAppStore(s => s.ui.uiTheme);
+  const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
+  const weekStartDay = useAppStore(s => s.ui.weekStartDay);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [pendingLocale, setPendingLocale] = useState<Locale>(i18n.language as Locale);
@@ -96,6 +98,12 @@ export function SettingsDialog() {
               >
                 {t('settings.language')}
               </button>
+              <button
+                className={`settings-tab ${activeTab === 'timeline' ? 'active' : ''}`}
+                onClick={() => setActiveTab('timeline')}
+              >
+                {t('settings.timeline')}
+              </button>
             </div>
 
             {/* Right content */}
@@ -157,6 +165,40 @@ export function SettingsDialog() {
                           );
                         })}
                     </select>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'timeline' && (
+                <div className="settings-section-list">
+                  <div className="settings-section">
+                    <h3>{t('settings.weekStartDay')}</h3>
+                    <select
+                      className="settings-select"
+                      value={weekStartDay}
+                      onChange={e => {
+                        const value = e.target.value as 'monday' | 'sunday';
+                        setUI({ weekStartDay: value });
+                        void saveZoomSettings({ weekStartDay: value });
+                      }}
+                    >
+                      <option value="monday">{t('settings.weekStartMonday')}</option>
+                      <option value="sunday">{t('settings.weekStartSunday')}</option>
+                    </select>
+                  </div>
+                  <div className="settings-section">
+                    <label className="settings-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={enableQuarterHourZoom}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setUI({ enableQuarterHourZoom: checked });
+                          void saveZoomSettings({ enableQuarterHourZoom: checked });
+                        }}
+                      />
+                      <span>{t('settings.enableQuarterHourZoom')}</span>
+                    </label>
                   </div>
                 </div>
               )}

@@ -1,8 +1,9 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { ViewState } from '@/state/slices/types';
-import { parseDate, formatDate, addCalendarDays, getWeekNumber, diffCalendarDays, isoDayOfWeek } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
 import { WorkCalendar } from '@/types/calendar';
+import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 
 export interface GanttRenderOptions {
   tasks: Task[];
@@ -18,6 +19,8 @@ export interface GanttRenderOptions {
   headerHeight: number;
   localizedMonths?: string[];
   columnHeaders?: { wbs: string; taskName: string; duration: string };
+  weekStartDay?: 'monday' | 'sunday';        // default 'monday'
+  enableQuarterHourZoom?: boolean;            // default false
 }
 
 // Read theme colors from CSS variables on the document element
@@ -115,10 +118,11 @@ export class GanttRenderer {
     return result;
   }
 
-  /** Convert a date to X position on canvas */
+  /** Convert a date (with optional sub-day precision) to X position on canvas */
   dateToX(date: Date): number {
-    const daysDiff = diffCalendarDays(this.viewStart, date);
-    return this.opts.taskTableWidth + daysDiff * this.opts.view.zoom - this.opts.view.scrollX;
+    const msPerDay = 86400000;
+    const daysFromStart = (date.getTime() - this.viewStart.getTime()) / msPerDay;
+    return this.opts.taskTableWidth + daysFromStart * this.opts.view.zoom - this.opts.view.scrollX;
   }
 
   /** Convert task row index to Y position */
@@ -165,7 +169,7 @@ export class GanttRenderer {
 
       // Vertical grid line
       ctx.strokeStyle = this.colors.grid;
-      ctx.lineWidth = dayOfWeek === 1 ? 1 : 0.5; // Thicker on Monday
+      ctx.lineWidth = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1) ? 1 : 0.5;
       ctx.beginPath();
       ctx.moveTo(x, headerHeight);
       ctx.lineTo(x, canvasHeight);
@@ -203,14 +207,12 @@ export class GanttRenderer {
   }
 
   private drawTimelineHeader(): void {
-    const { canvasWidth, headerHeight, taskTableWidth, view } = this.opts;
+    const { canvasWidth, headerHeight, view, enableQuarterHourZoom } = this.opts;
     const ctx = this.ctx;
 
-    // Header background
+    // Header background + bottom border
     ctx.fillStyle = this.colors.headerBg;
     ctx.fillRect(0, 0, canvasWidth, headerHeight);
-
-    // Bottom border
     ctx.strokeStyle = this.colors.border;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -218,52 +220,85 @@ export class GanttRenderer {
     ctx.lineTo(canvasWidth, headerHeight);
     ctx.stroke();
 
-    const visibleDays = Math.ceil(canvasWidth / view.zoom) + 2;
-    const startOffset = Math.floor(view.scrollX / view.zoom);
+    const enableQH = enableQuarterHourZoom ?? false;
+    const { major, minor } = pickTiers(view.zoom, enableQH);
 
-    // Draw month/week labels (top row)
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    // Visible date range
+    const startDate = addCalendarDays(this.viewStart, Math.floor(view.scrollX / view.zoom) - 1);
+    const endDate = addCalendarDays(this.viewStart, Math.ceil((view.scrollX + canvasWidth) / view.zoom) + 1);
+
+    // --- Top row: major tier ---
+    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.fillStyle = this.colors.text;
     ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    this.drawTierLabels(major, startDate, endDate, headerHeight / 4);
 
-    let lastMonth = -1;
-    let lastWeek = -1;
+    // --- Bottom row: minor tier ---
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = this.colors.textSecondary;
+    this.drawTierLabels(minor, startDate, endDate, headerHeight * 3 / 4);
+  }
 
-    for (let i = -1; i < visibleDays; i++) {
-      const date = addCalendarDays(this.viewStart, startOffset + i);
-      const x = this.dateToX(date);
+  private drawTierLabels(
+    tier: TimelineTier,
+    startDate: Date,
+    endDate: Date,
+    yCenter: number,
+  ): void {
+    const { canvasWidth, taskTableWidth, weekStartDay, localizedMonths } = this.opts;
+    const wsd = weekStartDay ?? 'monday';
+    const ctx = this.ctx;
+    const cfg = TIER_CONFIG[tier];
 
-      if (x < taskTableWidth) continue;
+    // Snap to the tick boundary at-or-before startDate
+    let cursor = snapToTickStart(startDate, tier, wsd);
+    let lastDrawnRight = -Infinity;
 
-      const month = date.getUTCMonth();
-      const weekNum = getWeekNumber(date);
-      const dayOfWeek = isoDayOfWeek(date);
+    while (cursor.getTime() <= endDate.getTime()) {
+      const next = nextTickBoundary(cursor, tier);
+      const x1 = this.dateToX(cursor);
+      const x2 = this.dateToX(next);
+      const labelText = this.formatTierLabel(tier, cursor, wsd, localizedMonths);
 
-      // Month label (top row)
-      if (month !== lastMonth) {
-        lastMonth = month;
-        const months = this.opts.localizedMonths || ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
-        ctx.fillStyle = this.colors.text;
-        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.fillText(`${months[month]} ${date.getUTCFullYear()}`, x + 4, headerHeight / 4);
+      // Skip tick entirely if it doesn't reach the visible task area
+      if (x2 <= taskTableWidth) {
+        cursor = next;
+        continue;
+      }
+      // Stop once we're past the right edge
+      if (x1 >= canvasWidth) break;
+
+      const labelX = Math.max(x1 + 4, taskTableWidth + 4);
+      const slotWidth = x2 - Math.max(x1, taskTableWidth);
+
+      // Defensive skip: if slot is too narrow OR we'd overlap the previous label
+      if (slotWidth >= cfg.minLabelWidth && labelX > lastDrawnRight + 4) {
+        ctx.fillText(labelText, labelX, yCenter);
+        const measured = ctx.measureText(labelText).width;
+        lastDrawnRight = labelX + measured;
       }
 
-      // Week label (bottom row)
-      if (dayOfWeek === 1 && weekNum !== lastWeek) {
-        lastWeek = weekNum;
-        ctx.fillStyle = this.colors.textSecondary;
-        ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.fillText(`W${weekNum}`, x + 2, headerHeight * 3 / 4);
-      }
+      cursor = next;
+    }
+  }
 
-      // Day number if zoom is large enough
-      if (view.zoom >= 20) {
-        ctx.fillStyle = this.colors.textSecondary;
-        ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${date.getUTCDate()}`, x + view.zoom / 2, headerHeight / 2);
-        ctx.textAlign = 'left';
-      }
+  private formatTierLabel(
+    tier: TimelineTier,
+    d: Date,
+    weekStartDay: 'monday' | 'sunday',
+    localizedMonths?: string[]
+  ): string {
+    const months = localizedMonths || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    switch (tier) {
+      case 'year':        return `${d.getUTCFullYear()}`;
+      case 'quarter':     return `Q${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`;
+      case 'month':       return `${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+      case 'week':        return `W${getWeekNumberFor(d, weekStartDay)}`;
+      case 'day':         return `${d.getUTCDate()}`;
+      case 'hour':        return `${pad(d.getUTCHours())}:00`;
+      case 'quarterHour': return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
     }
   }
 

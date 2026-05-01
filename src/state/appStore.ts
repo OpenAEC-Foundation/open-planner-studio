@@ -195,6 +195,8 @@ function createDefaultUI(): UIState {
     inlineEditTaskId: null,
     showSettingsDialog: false,
     uiTheme: 'default',
+    enableQuarterHourZoom: false,
+    weekStartDay: 'monday',
   };
 }
 
@@ -534,7 +536,8 @@ export const useAppStore = create<AppState>()(
     // --- View ---
     setZoom: (zoom) =>
       set((s) => {
-        s.view.zoom = Math.max(1, Math.min(200, zoom));
+        const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+        s.view.zoom = Math.max(0.5, Math.min(max, zoom));
       }),
 
     setTimeScale: (scale) =>
@@ -557,6 +560,8 @@ export const useAppStore = create<AppState>()(
     setUI: (updates) =>
       set((s) => {
         Object.assign(s.ui, updates);
+        const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+        if (s.view.zoom > max) s.view.zoom = max;
       }),
 
     // --- Collapse/expand ---

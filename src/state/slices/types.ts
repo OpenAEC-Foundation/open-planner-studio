@@ -1,5 +1,7 @@
 export type TimeScale = 'day' | 'week' | 'month' | 'quarter';
 
+export type WeekStartDay = 'monday' | 'sunday';
+
 export type UITheme = 'default' | 'light' | 'dark' | 'blue' | 'amber-navy' | 'warm-ember' | 'highContrast';
 
 export const UI_THEMES: { id: UITheme; label: string }[] = [
@@ -38,4 +40,6 @@ export interface UIState {
   inlineEditTaskId: string | null;
   showSettingsDialog: boolean;
   uiTheme: UITheme;
+  enableQuarterHourZoom: boolean;
+  weekStartDay: WeekStartDay;
 }

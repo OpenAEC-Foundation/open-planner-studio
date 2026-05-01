@@ -6,6 +6,8 @@ import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } fr
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
+import { useGanttZoom } from '@/hooks/useGanttZoom';
+import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
 
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
@@ -67,11 +69,15 @@ export function GanttCanvas() {
   const updateTask = useAppStore(s => s.updateTask);
   const deleteTask = useAppStore(s => s.deleteTask);
   const setScroll = useAppStore(s => s.setScroll);
-  const setZoom = useAppStore(s => s.setZoom);
   const setUI = useAppStore(s => s.setUI);
   const project = useAppStore(s => s.project);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
+  const weekStartDay = useAppStore(s => s.ui.weekStartDay);
+  const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
   const cpmResult = useAppStore(s => s.cpmResult);
+
+  const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
+  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth: TASK_TABLE_WIDTH });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -149,12 +155,14 @@ export function GanttCanvas() {
       headerHeight: HEADER_HEIGHT,
       localizedMonths,
       columnHeaders,
+      weekStartDay,
+      enableQuarterHourZoom,
     };
 
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, view, selectedTaskIds, collapsedTaskIds, localizedMonths, columnHeaders, uiTheme]);
+  }, [tasks, sequences, calendar, view, selectedTaskIds, collapsedTaskIds, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
 
   // Render on changes
   useEffect(() => {
@@ -174,37 +182,15 @@ export function GanttCanvas() {
     return () => observer.disconnect();
   }, [render]);
 
-  // Native wheel handler to prevent browser zoom on ctrl+scroll
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-
-      if (e.ctrlKey || e.metaKey) {
-        const delta = e.deltaY > 0 ? -5 : 5;
-        setZoom(view.zoom + delta);
-      } else if (e.shiftKey) {
-        setScroll(view.scrollX + e.deltaY, view.scrollY);
-      } else {
-        setScroll(view.scrollX + e.deltaX, view.scrollY + e.deltaY);
-      }
-    };
-
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [view.zoom, view.scrollX, view.scrollY, setZoom, setScroll]);
-
-  // Sync horizontal scrollbar with canvas scrollX
+  // Sync horizontal scrollbar with canvas scrollX (also re-sync after zoom changes)
   useEffect(() => {
     const hScroll = hScrollRef.current;
     if (!hScroll) return;
-    const scrollLeft = view.scrollX;
-    if (Math.abs(hScroll.scrollLeft - scrollLeft) > 1) {
-      hScroll.scrollLeft = scrollLeft;
+    const desired = view.scrollX;
+    if (Math.abs(hScroll.scrollLeft - desired) > 1) {
+      hScroll.scrollLeft = desired;
     }
-  }, [view.scrollX]);
+  }, [view.scrollX, view.zoom]);
 
   const defaultTaskName = tTask('defaultTask');
   const defaultMilestoneName = tTask('defaultMilestone');
