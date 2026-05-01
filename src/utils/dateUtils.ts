@@ -41,6 +41,19 @@ export function getWeekStart(d: Date): Date {
   return result;
 }
 
+/** Get the Sunday of the week containing the given date (used when weekStartDay='sunday') */
+export function getWeekStartSunday(d: Date): Date {
+  const result = new Date(d.getTime());
+  const dow = result.getUTCDay(); // 0=Sun..6=Sat
+  result.setUTCDate(result.getUTCDate() - dow);
+  return result;
+}
+
+/** Get the start of the week respecting the week-start-day preference */
+export function getWeekStartFor(d: Date, startDay: 'monday' | 'sunday'): Date {
+  return startDay === 'sunday' ? getWeekStartSunday(d) : getWeekStart(d);
+}
+
 /** Get the first day of the month */
 export function getMonthStart(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -67,4 +80,14 @@ export function getWeekNumber(d: Date): number {
   target.setUTCDate(target.getUTCDate() + 3 - ((target.getUTCDay() + 6) % 7));
   const jan4 = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
   return 1 + Math.round(((target.getTime() - jan4.getTime()) / 86400000 - 3 + ((jan4.getUTCDay() + 6) % 7)) / 7);
+}
+
+/** Get week number with configurable week start. ISO 8601 when 'monday', US-style when 'sunday'. */
+export function getWeekNumberFor(d: Date, startDay: 'monday' | 'sunday' = 'monday'): number {
+  if (startDay === 'monday') return getWeekNumber(d);
+  // US-style: week 1 contains Jan 1; weeks start Sunday.
+  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const jan1 = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  const dayOfYear = Math.floor((target.getTime() - jan1.getTime()) / 86400000);
+  return Math.floor((dayOfYear + jan1.getUTCDay()) / 7) + 1;
 }
