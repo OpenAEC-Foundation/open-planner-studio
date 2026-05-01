@@ -118,10 +118,11 @@ export class GanttRenderer {
     return result;
   }
 
-  /** Convert a date to X position on canvas */
+  /** Convert a date (with optional sub-day precision) to X position on canvas */
   dateToX(date: Date): number {
-    const daysDiff = diffCalendarDays(this.viewStart, date);
-    return this.opts.taskTableWidth + daysDiff * this.opts.view.zoom - this.opts.view.scrollX;
+    const msPerDay = 86400000;
+    const daysFromStart = (date.getTime() - this.viewStart.getTime()) / msPerDay;
+    return this.opts.taskTableWidth + daysFromStart * this.opts.view.zoom - this.opts.view.scrollX;
   }
 
   /** Convert task row index to Y position */
@@ -206,7 +207,7 @@ export class GanttRenderer {
   }
 
   private drawTimelineHeader(): void {
-    const { canvasWidth, headerHeight, taskTableWidth, view, weekStartDay, enableQuarterHourZoom, localizedMonths } = this.opts;
+    const { canvasWidth, headerHeight, view, enableQuarterHourZoom } = this.opts;
     const ctx = this.ctx;
 
     // Header background + bottom border
@@ -219,7 +220,6 @@ export class GanttRenderer {
     ctx.lineTo(canvasWidth, headerHeight);
     ctx.stroke();
 
-    const wsd = weekStartDay ?? 'monday';
     const enableQH = enableQuarterHourZoom ?? false;
     const { major, minor } = pickTiers(view.zoom, enableQH);
 
@@ -232,36 +232,34 @@ export class GanttRenderer {
     ctx.fillStyle = this.colors.text;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    this.drawTierLabels(major, startDate, endDate, taskTableWidth, headerHeight / 4, wsd, localizedMonths);
+    this.drawTierLabels(major, startDate, endDate, headerHeight / 4);
 
     // --- Bottom row: minor tier ---
     ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.fillStyle = this.colors.textSecondary;
-    this.drawTierLabels(minor, startDate, endDate, taskTableWidth, headerHeight * 3 / 4, wsd, localizedMonths);
+    this.drawTierLabels(minor, startDate, endDate, headerHeight * 3 / 4);
   }
 
   private drawTierLabels(
     tier: TimelineTier,
     startDate: Date,
     endDate: Date,
-    taskTableWidth: number,
     yCenter: number,
-    weekStartDay: 'monday' | 'sunday',
-    localizedMonths?: string[]
   ): void {
-    const { canvasWidth } = this.opts;
+    const { canvasWidth, taskTableWidth, weekStartDay, localizedMonths } = this.opts;
+    const wsd = weekStartDay ?? 'monday';
     const ctx = this.ctx;
     const cfg = TIER_CONFIG[tier];
 
     // Snap to the tick boundary at-or-before startDate
-    let cursor = snapToTickStart(startDate, tier, weekStartDay);
+    let cursor = snapToTickStart(startDate, tier, wsd);
     let lastDrawnRight = -Infinity;
 
     while (cursor.getTime() <= endDate.getTime()) {
       const next = nextTickBoundary(cursor, tier);
-      const x1 = this.dateToXMs(cursor);
-      const x2 = this.dateToXMs(next);
-      const labelText = this.formatTierLabel(tier, cursor, weekStartDay, localizedMonths);
+      const x1 = this.dateToX(cursor);
+      const x2 = this.dateToX(next);
+      const labelText = this.formatTierLabel(tier, cursor, wsd, localizedMonths);
 
       // Skip tick entirely if it doesn't reach the visible task area
       if (x2 <= taskTableWidth) {
@@ -302,13 +300,6 @@ export class GanttRenderer {
       case 'hour':        return `${pad(d.getUTCHours())}:00`;
       case 'quarterHour': return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
     }
-  }
-
-  /** Convert a Date (with possible sub-day precision) to canvas X. */
-  private dateToXMs(date: Date): number {
-    const msPerDay = 86400000;
-    const daysFromStart = (date.getTime() - this.viewStart.getTime()) / msPerDay;
-    return this.opts.taskTableWidth + daysFromStart * this.opts.view.zoom - this.opts.view.scrollX;
   }
 
   private drawTaskBars(): void {
