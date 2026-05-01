@@ -1,6 +1,5 @@
 export type TimeScale = 'day' | 'week' | 'month' | 'quarter';
 
-export type MouseWheelMode = 'zoom' | 'scroll';
 export type WeekStartDay = 'monday' | 'sunday';
 
 export type UITheme = 'default' | 'light' | 'dark' | 'blue' | 'amber-navy' | 'warm-ember' | 'highContrast';
@@ -41,8 +40,6 @@ export interface UIState {
   inlineEditTaskId: string | null;
   showSettingsDialog: boolean;
   uiTheme: UITheme;
-  mouseWheelMode: MouseWheelMode;
   enableQuarterHourZoom: boolean;
   weekStartDay: WeekStartDay;
-  smoothZoom: boolean;
 }

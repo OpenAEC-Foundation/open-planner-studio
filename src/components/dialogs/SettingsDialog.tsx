@@ -13,10 +13,8 @@ export function SettingsDialog() {
   const { t, i18n } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const currentTheme = useAppStore(s => s.ui.uiTheme);
-  const mouseWheelMode = useAppStore(s => s.ui.mouseWheelMode);
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
-  const smoothZoom = useAppStore(s => s.ui.smoothZoom);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [pendingLocale, setPendingLocale] = useState<Locale>(i18n.language as Locale);
@@ -174,21 +172,6 @@ export function SettingsDialog() {
               {activeTab === 'timeline' && (
                 <div className="settings-section-list">
                   <div className="settings-section">
-                    <h3>{t('settings.mouseWheelMode')}</h3>
-                    <select
-                      className="settings-select"
-                      value={mouseWheelMode}
-                      onChange={e => {
-                        const value = e.target.value as 'zoom' | 'scroll';
-                        setUI({ mouseWheelMode: value });
-                        void saveZoomSettings({ mouseWheelMode: value });
-                      }}
-                    >
-                      <option value="zoom">{t('settings.mouseWheelModeZoom')}</option>
-                      <option value="scroll">{t('settings.mouseWheelModeScroll')}</option>
-                    </select>
-                  </div>
-                  <div className="settings-section">
                     <h3>{t('settings.weekStartDay')}</h3>
                     <select
                       className="settings-select"
@@ -215,20 +198,6 @@ export function SettingsDialog() {
                         }}
                       />
                       <span>{t('settings.enableQuarterHourZoom')}</span>
-                    </label>
-                  </div>
-                  <div className="settings-section">
-                    <label className="settings-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={smoothZoom}
-                        onChange={e => {
-                          const checked = e.target.checked;
-                          setUI({ smoothZoom: checked });
-                          void saveZoomSettings({ smoothZoom: checked });
-                        }}
-                      />
-                      <span>{t('settings.smoothZoom')}</span>
                     </label>
                   </div>
                 </div>

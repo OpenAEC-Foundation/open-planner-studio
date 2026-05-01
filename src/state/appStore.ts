@@ -195,10 +195,8 @@ function createDefaultUI(): UIState {
     inlineEditTaskId: null,
     showSettingsDialog: false,
     uiTheme: 'default',
-    mouseWheelMode: 'zoom',
     enableQuarterHourZoom: false,
     weekStartDay: 'monday',
-    smoothZoom: false,
   };
 }
 
