@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { parseDate, diffCalendarDays } from '@/utils/dateUtils';
 
@@ -17,6 +17,10 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
   const tasks = useAppStore(s => s.tasks);
   const view = useAppStore(s => s.view);
 
+  // Latest values in a ref so the keydown handler doesn't re-attach on every zoom/scroll change
+  const latest = useRef({ view, tasks });
+  latest.current = { view, tasks };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Don't intercept while typing in an input/textarea
@@ -28,29 +32,31 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
       const rect = container.getBoundingClientRect();
       const centerX = rect.width / 2;
 
+      const { view: v, tasks: t } = latest.current;
+
       if ((e.key === '+' || e.key === '=') && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        zoomAt(view.zoom * 1.1, centerX);
+        zoomAt(v.zoom * 1.1, centerX);
       } else if (e.key === '-' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        zoomAt(view.zoom / 1.1, centerX);
+        zoomAt(v.zoom / 1.1, centerX);
       } else if (e.key === '0' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setZoom(DEFAULT_ZOOM);
-        setScroll(0, view.scrollY);
+        setScroll(0, v.scrollY);
       } else if (e.key === '0' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         // Fit to project
-        if (tasks.length === 0) {
+        if (t.length === 0) {
           setZoom(DEFAULT_ZOOM);
-          setScroll(0, view.scrollY);
+          setScroll(0, v.scrollY);
           return;
         }
         let minStart: string | null = null;
         let maxFinish: string | null = null;
-        for (const t of tasks) {
-          const s = t.time.earlyStart || t.time.scheduleStart;
-          const f = t.time.earlyFinish || t.time.scheduleFinish || s;
+        for (const task of t) {
+          const s = task.time.earlyStart || task.time.scheduleStart;
+          const f = task.time.earlyFinish || task.time.scheduleFinish || s;
           if (s && (!minStart || s < minStart)) minStart = s;
           if (f && (!maxFinish || f > maxFinish)) maxFinish = f;
         }
@@ -61,11 +67,11 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
         const newZoom = Math.max(0.5, Math.min(400, usable / span));
         setZoom(newZoom);
         setViewStartDate(minStart);
-        setScroll(0, view.scrollY);
+        setScroll(0, v.scrollY);
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [zoomAt, containerRef, taskTableWidth, setZoom, setScroll, setViewStartDate, view.zoom, view.scrollY, tasks]);
+  }, [zoomAt, containerRef, taskTableWidth, setZoom, setScroll, setViewStartDate]);
 }
