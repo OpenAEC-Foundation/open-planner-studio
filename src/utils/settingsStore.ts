@@ -48,3 +48,12 @@ export async function saveZoomSettings(settings: Partial<PersistedZoomSettings>)
   if (settings.enableQuarterHourZoom !== undefined) await setSetting('enableQuarterHourZoom', settings.enableQuarterHourZoom);
   if (settings.weekStartDay !== undefined) await setSetting('weekStartDay', settings.weekStartDay);
 }
+
+export async function loadDebugTerminalEnabled(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('debugTerminalEnabled');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveDebugTerminalEnabled(value: boolean): Promise<void> {
+  await setSetting('debugTerminalEnabled', value);
+}

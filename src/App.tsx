@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled } from '@/utils/settingsStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 const isTauri = () => '__TAURI_INTERNALS__' in window;
@@ -14,6 +14,7 @@ import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { TableEditor } from '@/components/panels/TableEditor';
 import { IFCPanel } from '@/components/panels/IFCPanel';
 import { ReportPanel } from '@/components/panels/ReportPanel';
+import { DebugTerminal } from '@/components/panels/DebugTerminal';
 import { TaskDialog } from '@/components/dialogs/TaskDialog';
 import { ProjectInfoDialog } from '@/components/dialogs/ProjectInfoDialog';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
@@ -35,6 +36,8 @@ function AppContent() {
   const setUI = useAppStore(s => s.setUI);
   const isDirty = useAppStore(s => s.isDirty);
   const filePath = useAppStore(s => s.filePath);
+  const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
+  const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
 
   useEffect(() => {
     initLocale();
@@ -43,6 +46,9 @@ function AppContent() {
     });
     loadZoomSettings().then(zs => {
       if (Object.keys(zs).length > 0) setUI(zs);
+    });
+    loadDebugTerminalEnabled().then(v => {
+      if (typeof v === 'boolean') setUI({ debugTerminalEnabled: v });
     });
   }, []);
 
@@ -65,13 +71,13 @@ function AppContent() {
       if (!state.isDirty) return;
       try {
         const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-        const { appDataDir } = await import('@tauri-apps/api/path');
+        const { appDataDir, join } = await import('@tauri-apps/api/path');
         const content = writeIFC(
           state.project, state.calendar, state.tasks,
           state.sequences, state.resources, state.assignments,
         );
         const dir = await appDataDir();
-        await writeTextFile(`${dir}recovery.ifc`, content);
+        await writeTextFile(await join(dir, 'recovery.ifc'), content);
       } catch (err) {
         console.error('Auto-save failed:', err);
       }
@@ -90,9 +96,9 @@ function AppContent() {
       if (!isTauri()) return;
       try {
         const { readTextFile, exists, remove } = await import('@tauri-apps/plugin-fs');
-        const { appDataDir } = await import('@tauri-apps/api/path');
+        const { appDataDir, join } = await import('@tauri-apps/api/path');
         const dir = await appDataDir();
-        const recoveryPath = `${dir}recovery.ifc`;
+        const recoveryPath = await join(dir, 'recovery.ifc');
         const hasRecovery = await exists(recoveryPath);
         if (hasRecovery) {
           const content = await readTextFile(recoveryPath);
@@ -155,7 +161,7 @@ function AppContent() {
             </div>
           ) : (
             <div
-              className="border-l border-border bg-surface-alt overflow-y-auto flex flex-col"
+              className="border-l border-border bg-surface-alt flex flex-col"
               style={{ width: rightPanelWidth, minWidth: 200 }}
             >
               <div className="flex items-center justify-between h-8 px-3 border-b border-border flex-shrink-0">
@@ -172,6 +178,7 @@ function AppContent() {
               <div className="flex-1 overflow-y-auto">
                 <TaskPropertiesPanel />
               </div>
+              {debugTerminalEnabled && debugTerminalOpen && <DebugTerminal />}
             </div>
           )
         )}

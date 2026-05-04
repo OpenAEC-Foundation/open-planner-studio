@@ -197,6 +197,8 @@ function createDefaultUI(): UIState {
     uiTheme: 'default',
     enableQuarterHourZoom: false,
     weekStartDay: 'monday',
+    debugTerminalEnabled: false,
+    debugTerminalOpen: false,
   };
 }
 
@@ -559,6 +561,10 @@ export const useAppStore = create<AppState>()(
     // --- UI ---
     setUI: (updates) =>
       set((s) => {
+        // If debugTerminalEnabled is being turned off, force-close the terminal.
+        if (updates.debugTerminalEnabled === false) {
+          (updates as Partial<UIState>).debugTerminalOpen = false;
+        }
         Object.assign(s.ui, updates);
         const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
         if (s.view.zoom > max) s.view.zoom = max;
