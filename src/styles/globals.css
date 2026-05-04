@@ -329,15 +329,16 @@ html, body, #root {
 .gantt-tooltip {
   position: absolute;
   pointer-events: none;
-  z-index: 1000;
-  background: var(--theme-surface-elevated, #2e2e42);
-  border: 1px solid var(--theme-border, #3e3e55);
-  border-radius: 6px;
-  padding: 8px 12px;
+  z-index: var(--z-tooltip);
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+  font-family: var(--font-body);
   font-size: 12px;
   line-height: 1.5;
-  color: var(--theme-text, #e0e0e8);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: var(--theme-text);
+  box-shadow: var(--shadow-lg);
   max-width: 280px;
   white-space: nowrap;
 }
@@ -346,7 +347,7 @@ html, body, #root {
   font-weight: 600;
   font-size: 13px;
   margin-bottom: 4px;
-  color: var(--theme-text, #e0e0e8);
+  color: var(--theme-text);
 }
 
 .gantt-tooltip .tooltip-row {
@@ -356,43 +357,44 @@ html, body, #root {
 }
 
 .gantt-tooltip .tooltip-label {
-  color: var(--theme-text-dim, #9090a8);
+  color: var(--theme-text-dim);
 }
 
 .gantt-tooltip .tooltip-value {
-  color: var(--theme-text, #e0e0e8);
+  color: var(--theme-text);
   font-weight: 500;
 }
 
 .gantt-tooltip .tooltip-critical-yes {
-  color: #DC2626;
+  color: var(--error);
   font-weight: 600;
 }
 
 /* Toast notification */
 .gantt-toast {
   position: fixed;
-  bottom: 24px;
+  bottom: var(--sp-6);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2000;
-  background: #DC2626;
+  z-index: var(--z-toast);
+  background: var(--error);
   color: #ffffff;
-  padding: 12px 24px;
-  border-radius: 8px;
+  padding: var(--sp-3) var(--sp-6);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
   font-size: 13px;
   line-height: 1.4;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-lg);
   animation: toast-in 0.3s ease-out;
   max-width: 500px;
 }
 
 .gantt-toast.toast-info {
-  background: var(--theme-accent, #2563eb);
+  background: var(--info);
 }
 
 .gantt-toast.toast-error {
-  background: #DC2626;
+  background: var(--error);
 }
 
 @keyframes toast-in {

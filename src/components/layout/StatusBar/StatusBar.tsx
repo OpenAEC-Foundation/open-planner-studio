@@ -33,7 +33,7 @@ export function StatusBar() {
       <div className="flex-1" />
       <span>{t('status.scale')} {view.timeScale}</span>
       <span>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
-      {isDirty && <span className="text-yellow-500">{t('status.unsaved')}</span>}
+      {isDirty && <span style={{ color: 'var(--warm-gold)' }}>{t('status.unsaved')}</span>}
       {debugTerminalEnabled && (
         <button
           onClick={() => setUI({ debugTerminalOpen: !debugTerminalOpen })}

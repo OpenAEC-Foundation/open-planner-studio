@@ -5,12 +5,15 @@ import { useAppStore } from '@/state/appStore';
 
 const ALL_LEVELS: LogLevel[] = ['log', 'info', 'warn', 'error', 'event'];
 
+// Functional log-level colors — readable on the dashboard-bg.
+// Tokens for the brand-bound levels (log/warn/error); event keeps cyan
+// since the stylebook has no equivalent semantic for "event".
 const LEVEL_COLOR: Record<LogLevel, string> = {
-  log:   '#9ca3af', // gray-400
-  info:  '#60a5fa', // blue-400
-  warn:  '#fbbf24', // amber-400
-  error: '#f87171', // red-400
-  event: '#22d3ee', // cyan-400
+  log:   'var(--scaffold-gray)',  // #A1A1AA
+  info:  '#60a5fa',               // blue-400, readable on dark
+  warn:  'var(--warm-gold)',      // #F59E0B
+  error: '#f87171',               // red-400, lighter than --error for legibility on dark bg
+  event: '#22d3ee',               // cyan-400, no stylebook equivalent
 };
 
 function formatTime(ts: number): string {
@@ -98,14 +101,17 @@ export function DebugTerminal() {
       className="flex-shrink-0 flex flex-col border-t border-border"
       style={{
         height: 200,
-        background: '#0b0b0d',
-        color: '#e5e7eb',
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+        background: 'var(--dashboard-bg)',
+        color: 'var(--dashboard-text)',
+        fontFamily: 'var(--font-code)',
         fontSize: 11,
       }}
     >
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 h-6 border-b" style={{ borderColor: '#1f2937', background: '#111827' }}>
+      <div
+        className="flex items-center gap-1 px-2 h-6 border-b"
+        style={{ borderColor: 'var(--dashboard-border-light)', background: 'var(--dashboard-surface)' }}
+      >
         {ALL_LEVELS.map(lvl => {
           const on = enabledLevels.has(lvl);
           return (
@@ -117,8 +123,8 @@ export function DebugTerminal() {
                 fontSize: 10,
                 padding: '1px 6px',
                 borderRadius: 3,
-                border: `1px solid ${on ? LEVEL_COLOR[lvl] : '#374151'}`,
-                color: on ? LEVEL_COLOR[lvl] : '#6b7280',
+                border: `1px solid ${on ? LEVEL_COLOR[lvl] : 'var(--dashboard-border)'}`,
+                color: on ? LEVEL_COLOR[lvl] : 'var(--dashboard-text-dim)',
                 background: 'transparent',
                 cursor: 'pointer',
                 textTransform: 'uppercase',
@@ -133,21 +139,21 @@ export function DebugTerminal() {
         <button
           onClick={() => setPaused(p => !p)}
           title={paused ? 'Resume' : 'Pause'}
-          style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer', padding: 2 }}
+          style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
         >
           {paused ? <Play size={12} /> : <Pause size={12} />}
         </button>
         <button
           onClick={() => appLog.clear()}
           title="Clear"
-          style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer', padding: 2 }}
+          style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
         >
           <Trash2 size={12} />
         </button>
         <button
           onClick={() => setUI({ debugTerminalOpen: false })}
           title="Close"
-          style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer', padding: 2 }}
+          style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
         >
           <X size={12} />
         </button>
@@ -167,9 +173,9 @@ export function DebugTerminal() {
               top: 4,
               left: '50%',
               transform: 'translateX(-50%)',
-              background: '#1f2937',
-              color: '#e5e7eb',
-              border: '1px solid #374151',
+              background: 'var(--dashboard-surface-hover)',
+              color: 'var(--dashboard-text)',
+              border: '1px solid var(--dashboard-border)',
               borderRadius: 10,
               padding: '1px 8px',
               fontSize: 10,
@@ -182,7 +188,7 @@ export function DebugTerminal() {
         )}
         {visibleEntries.map(e => (
           <div key={e.id} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4 }}>
-            <span style={{ color: '#6b7280' }}>{formatTime(e.ts)}</span>{' '}
+            <span style={{ color: 'var(--dashboard-text-dim)' }}>{formatTime(e.ts)}</span>{' '}
             <span style={{ color: LEVEL_COLOR[e.level] }}>
               [{e.level}{e.channel ? `/${e.channel}` : ''}]
             </span>{' '}

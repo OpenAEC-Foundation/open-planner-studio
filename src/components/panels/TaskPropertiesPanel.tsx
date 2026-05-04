@@ -86,7 +86,8 @@ export function TaskPropertiesPanel() {
         <span className="font-bold text-sm">{t('properties.task')}</span>
         <button
           onClick={() => deleteTask(task.id)}
-          className="p-1 hover:bg-red-500/20 rounded text-red-400"
+          className="p-1 rounded"
+          style={{ color: 'var(--error)' }}
           title={t('properties.deleteTask')}
         >
           <Trash2 size={14} />
@@ -211,7 +212,7 @@ export function TaskPropertiesPanel() {
                 {seq.lagDays > 0 && <span>+{seq.lagDays}d</span>}
                 <button
                   onClick={() => removeSequence(seq.id)}
-                  className="text-red-400 hover:text-red-300"
+                  style={{ color: 'var(--error)' }}
                 >
                   <Trash2 size={10} />
                 </button>
