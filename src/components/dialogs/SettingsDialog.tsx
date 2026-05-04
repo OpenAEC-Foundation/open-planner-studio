@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
 import { UITheme, UI_THEMES } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled } from '@/utils/settingsStore';
 import './SettingsDialog.css';
 
 type SettingsTab = 'general' | 'language' | 'timeline';
@@ -15,6 +15,7 @@ export function SettingsDialog() {
   const currentTheme = useAppStore(s => s.ui.uiTheme);
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
+  const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [pendingLocale, setPendingLocale] = useState<Locale>(i18n.language as Locale);
@@ -133,6 +134,21 @@ export function SettingsDialog() {
                     <div className="settings-row">
                       <span>30 px/day</span>
                     </div>
+                  </div>
+                  <div className="settings-section">
+                    <h3>Debug terminal</h3>
+                    <label className="settings-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={debugTerminalEnabled}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setUI({ debugTerminalEnabled: checked });
+                          void saveDebugTerminalEnabled(checked);
+                        }}
+                      />
+                      <span>Enable debug terminal</span>
+                    </label>
                   </div>
                   <div className="settings-section">
                     <button
