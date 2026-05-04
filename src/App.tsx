@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled } from '@/utils/settingsStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 const isTauri = () => '__TAURI_INTERNALS__' in window;
@@ -43,6 +43,9 @@ function AppContent() {
     });
     loadZoomSettings().then(zs => {
       if (Object.keys(zs).length > 0) setUI(zs);
+    });
+    loadDebugTerminalEnabled().then(v => {
+      if (typeof v === 'boolean') setUI({ debugTerminalEnabled: v });
     });
   }, []);
 
