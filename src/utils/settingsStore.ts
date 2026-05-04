@@ -1,4 +1,4 @@
-import type { WeekStartDay } from '@/state/slices/types';
+import type { WeekStartDay, UITheme } from '@/state/slices/types';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
@@ -21,13 +21,36 @@ export async function saveLocale(code: string): Promise<void> {
   localStorage.setItem('ops-locale', code);
 }
 
-export async function saveTheme(theme: string): Promise<void> {
+export async function saveTheme(theme: UITheme): Promise<void> {
   localStorage.setItem('ops-theme', theme);
 }
 
-export async function initTheme(): Promise<string> {
+// Migration map: 7 oude thema's → 3 nieuwe (post stylebook alignment)
+// 'default' was de warme bruine + amber dark theme; nu de canonical 'dark'
+// 'light' blijft 'light' (light kleuren krijgen OpenAEC token-update in globals.css)
+// 'highContrast' wordt 'high-contrast' (consistente naamgeving)
+// Alle andere oude thema's vallen terug op 'dark'
+const THEME_MIGRATION: Record<string, UITheme> = {
+  'default': 'dark',
+  'light': 'light',
+  'dark': 'dark',
+  'blue': 'dark',
+  'amber-navy': 'dark',
+  'warm-ember': 'dark',
+  'highContrast': 'high-contrast',
+  'high-contrast': 'high-contrast',
+};
+
+export async function initTheme(): Promise<UITheme> {
   const saved = localStorage.getItem('ops-theme');
-  return saved || 'default';
+  if (!saved) return 'dark';
+
+  const migrated = THEME_MIGRATION[saved] ?? 'dark';
+  if (migrated !== saved) {
+    // Persisteer de migratie zodat dit een eenmalige conversie is
+    localStorage.setItem('ops-theme', migrated);
+  }
+  return migrated;
 }
 
 export interface PersistedZoomSettings {

@@ -42,7 +42,7 @@ function AppContent() {
   useEffect(() => {
     initLocale();
     initTheme().then(theme => {
-      setUI({ uiTheme: theme as any });
+      setUI({ uiTheme: theme });
     });
     loadZoomSettings().then(zs => {
       if (Object.keys(zs).length > 0) setUI(zs);

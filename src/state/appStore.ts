@@ -194,7 +194,7 @@ function createDefaultUI(): UIState {
     collapsedTaskIds: [],
     inlineEditTaskId: null,
     showSettingsDialog: false,
-    uiTheme: 'default',
+    uiTheme: 'dark',
     enableQuarterHourZoom: false,
     weekStartDay: 'monday',
     debugTerminalEnabled: false,
