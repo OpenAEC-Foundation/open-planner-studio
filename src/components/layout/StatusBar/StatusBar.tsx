@@ -1,5 +1,6 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import { Terminal } from 'lucide-react';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -8,6 +9,9 @@ export function StatusBar() {
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const view = useAppStore(s => s.view);
   const isDirty = useAppStore(s => s.isDirty);
+  const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
+  const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
+  const setUI = useAppStore(s => s.setUI);
 
   const leafTasks = tasks.filter(t => t.childIds.length === 0);
   const milestones = tasks.filter(t => t.isMilestone);
@@ -30,6 +34,15 @@ export function StatusBar() {
       <span>{t('status.scale')} {view.timeScale}</span>
       <span>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
       {isDirty && <span className="text-yellow-500">{t('status.unsaved')}</span>}
+      {debugTerminalEnabled && (
+        <button
+          onClick={() => setUI({ debugTerminalOpen: !debugTerminalOpen })}
+          title={debugTerminalOpen ? 'Hide debug terminal' : 'Show debug terminal'}
+          className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover ${debugTerminalOpen ? 'text-text-primary' : 'text-text-secondary'}`}
+        >
+          <Terminal size={12} />
+        </button>
+      )}
     </div>
   );
 }
