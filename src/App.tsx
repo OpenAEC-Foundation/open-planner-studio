@@ -14,6 +14,7 @@ import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { TableEditor } from '@/components/panels/TableEditor';
 import { IFCPanel } from '@/components/panels/IFCPanel';
 import { ReportPanel } from '@/components/panels/ReportPanel';
+import { DebugTerminal } from '@/components/panels/DebugTerminal';
 import { TaskDialog } from '@/components/dialogs/TaskDialog';
 import { ProjectInfoDialog } from '@/components/dialogs/ProjectInfoDialog';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
@@ -35,6 +36,8 @@ function AppContent() {
   const setUI = useAppStore(s => s.setUI);
   const isDirty = useAppStore(s => s.isDirty);
   const filePath = useAppStore(s => s.filePath);
+  const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
+  const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
 
   useEffect(() => {
     initLocale();
@@ -158,7 +161,7 @@ function AppContent() {
             </div>
           ) : (
             <div
-              className="border-l border-border bg-surface-alt overflow-y-auto flex flex-col"
+              className="border-l border-border bg-surface-alt flex flex-col"
               style={{ width: rightPanelWidth, minWidth: 200 }}
             >
               <div className="flex items-center justify-between h-8 px-3 border-b border-border flex-shrink-0">
@@ -175,6 +178,7 @@ function AppContent() {
               <div className="flex-1 overflow-y-auto">
                 <TaskPropertiesPanel />
               </div>
+              {debugTerminalEnabled && debugTerminalOpen && <DebugTerminal />}
             </div>
           )
         )}
