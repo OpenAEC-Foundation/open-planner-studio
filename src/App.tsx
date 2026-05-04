@@ -130,6 +130,16 @@ function AppContent() {
       {/* Ribbon Toolbar */}
       <Ribbon />
 
+      {/* OpenAEC merk-accent strip — gradient amber → gold → orange (DESIGN-SYSTEM.md §2.1) */}
+      <div
+        aria-hidden
+        style={{
+          height: 2,
+          background: 'linear-gradient(90deg, #D97706 0%, #F59E0B 40%, #EA580C 100%)',
+          flexShrink: 0,
+        }}
+      />
+
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {isFullPanel ? (

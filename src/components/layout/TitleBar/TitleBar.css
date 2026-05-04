@@ -1,4 +1,4 @@
-/* Title Bar - Theme-aware */
+/* Title Bar — height per LAYOUTS.md §3.1 (32px) */
 .title-bar {
   background: var(--theme-titlebar-bg);
   border-bottom: 1px solid var(--theme-border);
@@ -6,13 +6,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 30px;
+  height: var(--titlebar-height);
   flex-shrink: 0;
   -webkit-app-region: drag;
   user-select: none;
   cursor: default;
   position: relative;
-  z-index: 1001;
+  z-index: var(--z-navbar);
 }
 
 .title-bar-left {

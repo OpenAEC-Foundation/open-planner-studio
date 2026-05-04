@@ -18,7 +18,10 @@ export function StatusBar() {
   const criticalCount = cpmResult?.criticalPath.length || 0;
 
   return (
-    <div className="flex items-center h-7 bg-surface-alt border-t border-border px-3 text-[11px] text-text-secondary select-none gap-4">
+    <div
+      className="flex items-center bg-surface-alt border-t border-border px-3 text-[11px] text-text-secondary select-none gap-4"
+      style={{ height: 'var(--statusbar-height)' }}
+    >
       <span>{t('status.tasks')} {leafTasks.length}</span>
       <span>{t('status.milestones')} {milestones.length}</span>
       {cpmResult && (
