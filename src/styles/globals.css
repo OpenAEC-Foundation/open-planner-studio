@@ -161,7 +161,7 @@
   --theme-accent-hover: #EA580C;
   --theme-text: #36363E;
   --theme-text-dim: #57534E;
-  --theme-text-muted: #A1A1AA;
+  --theme-text-muted: #767676; /* WCAG AA — minimum 4.5:1 op blueprint-white */
   --theme-hover: rgba(217, 119, 6, 0.08);
   --theme-active: #D97706;
   --theme-active-border: #EA580C;

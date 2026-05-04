@@ -63,6 +63,12 @@
 .backstage-nav-item.active .backstage-nav-icon {
   color: #FFFFFF;
 }
+
+/* High contrast: gele achtergrond → zwarte tekst voor leesbaarheid */
+[data-theme="high-contrast"] .backstage-nav-item.active,
+[data-theme="high-contrast"] .backstage-nav-item.active .backstage-nav-icon {
+  color: #000000;
+}
 .backstage-nav-icon {
   display: inline-flex;
   width: 16px;
