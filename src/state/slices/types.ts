@@ -10,7 +10,15 @@ export const UI_THEMES: { id: UITheme; label: string }[] = [
   { id: 'high-contrast', label: 'High Contrast' },
 ];
 
-export type RibbonTab = 'start' | 'planning' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report';
+export type RibbonTab = 'file' | 'start' | 'planning' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report';
+
+// Backstage view (Office-style File tab full-screen) — sub-section selectie
+export type BackstageSection =
+  | 'recent'
+  | 'export'
+  | 'print'
+  | 'project-info'
+  | 'settings';
 
 export interface ViewState {
   scrollX: number;
@@ -32,6 +40,7 @@ export interface UIState {
   rightPanelVisible: boolean;
   rightPanelCollapsed: boolean;
   activeRibbonTab: RibbonTab;
+  backstageSection: BackstageSection; // huidige sub-sectie wanneer File-tab actief is
   collapsedTaskIds: string[];   // summary tasks that are collapsed
   inlineEditTaskId: string | null;
   showSettingsDialog: boolean;

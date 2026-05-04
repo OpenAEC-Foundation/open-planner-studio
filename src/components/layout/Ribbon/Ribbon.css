@@ -202,6 +202,20 @@
   -webkit-line-clamp: unset;
 }
 
+/* File tab (backstage trigger) — altijd amber, opvallend links */
+.ribbon-tab--file {
+  background: var(--theme-file-tab-bg);
+  color: #FFFFFF;
+  font-weight: 700;
+  padding: 6px 18px;
+}
+.ribbon-tab--file:hover,
+.ribbon-tab--file.active {
+  background: var(--theme-file-tab-hover);
+  color: #FFFFFF;
+  border-bottom: none;
+}
+
 /* Primary button — OpenAEC amber per stylebook §3.1 */
 .ribbon-btn.primary {
   background: var(--amber);

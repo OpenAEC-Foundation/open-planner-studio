@@ -191,6 +191,7 @@ function createDefaultUI(): UIState {
     rightPanelVisible: true,
     rightPanelCollapsed: false,
     activeRibbonTab: 'start',
+    backstageSection: 'recent',
     collapsedTaskIds: [],
     inlineEditTaskId: null,
     showSettingsDialog: false,

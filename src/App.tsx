@@ -18,6 +18,7 @@ import { DebugTerminal } from '@/components/panels/DebugTerminal';
 import { TaskDialog } from '@/components/dialogs/TaskDialog';
 import { ProjectInfoDialog } from '@/components/dialogs/ProjectInfoDialog';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
+import { Backstage } from '@/components/backstage/Backstage';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useAppStore } from '@/state/appStore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -130,6 +131,12 @@ function AppContent() {
       {/* Ribbon Toolbar */}
       <Ribbon />
 
+      {/* Backstage view (File-tab actief) — neemt de volledige body over.
+          Anders: gradient strip + main content. */}
+      {activeTab === 'file' ? (
+        <Backstage />
+      ) : (
+        <>
       {/* OpenAEC merk-accent strip — gradient amber → gold → orange (DESIGN-SYSTEM.md §2.1) */}
       <div
         aria-hidden
@@ -193,6 +200,8 @@ function AppContent() {
           )
         )}
       </div>
+        </>
+      )}
 
       {/* Status Bar */}
       <StatusBar />
