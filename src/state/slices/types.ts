@@ -42,4 +42,6 @@ export interface UIState {
   uiTheme: UITheme;
   enableQuarterHourZoom: boolean;
   weekStartDay: WeekStartDay;
+  debugTerminalEnabled: boolean;  // persisted
+  debugTerminalOpen: boolean;     // session
 }
