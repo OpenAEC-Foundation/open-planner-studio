@@ -343,8 +343,15 @@ export function Ribbon() {
 
   return (
     <div className="ribbon-container">
-      {/* Tabs */}
+      {/* Tabs — 'file' is de speciale amber backstage-tab links */}
       <div className="ribbon-tabs">
+        <button
+          key="file"
+          className={`ribbon-tab ribbon-tab--file ${activeTab === 'file' ? 'active' : ''}`}
+          onClick={() => setActiveTab('file')}
+        >
+          {tMenu('ribbon.file')}
+        </button>
         {(['start', 'planning', 'beeld', 'instellingen', 'table', 'ifc', 'report'] as RibbonTab[]).map(tab => (
           <button
             key={tab}
@@ -356,7 +363,8 @@ export function Ribbon() {
         ))}
       </div>
 
-      {/* Content */}
+      {/* Content — verborgen wanneer File-tab actief is (Backstage neemt de hele body over) */}
+      {activeTab !== 'file' && (
       <div className="ribbon-content">
         {activeTab === 'start' && (
           <>
@@ -510,6 +518,7 @@ export function Ribbon() {
           </RibbonGroup>
         )}
       </div>
+      )}
     </div>
   );
 }

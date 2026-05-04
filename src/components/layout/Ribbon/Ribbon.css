@@ -202,10 +202,24 @@
   -webkit-line-clamp: unset;
 }
 
-/* Primary button */
+/* File tab (backstage trigger) — altijd amber, opvallend links */
+.ribbon-tab--file {
+  background: var(--theme-file-tab-bg);
+  color: #FFFFFF;
+  font-weight: 700;
+  padding: 6px 18px;
+}
+.ribbon-tab--file:hover,
+.ribbon-tab--file.active {
+  background: var(--theme-file-tab-hover);
+  color: #FFFFFF;
+  border-bottom: none;
+}
+
+/* Primary button — OpenAEC amber per stylebook §3.1 */
 .ribbon-btn.primary {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: var(--amber);
+  border-color: var(--amber);
 }
 
 .ribbon-btn.primary .ribbon-btn-icon,
@@ -214,14 +228,14 @@
 }
 
 .ribbon-btn.primary:hover {
-  background: #16a34a;
-  border-color: #16a34a;
+  background: var(--signal-orange);
+  border-color: var(--signal-orange);
 }
 
-/* Danger button */
+/* Danger button — semantic error token */
 .ribbon-btn.danger:hover {
-  background: #ef4444;
-  border-color: #ef4444;
+  background: var(--error);
+  border-color: var(--error);
 }
 
 .ribbon-btn.danger:hover .ribbon-btn-icon,

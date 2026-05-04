@@ -141,8 +141,8 @@ export function TableEditor() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-surface">
-      {/* Header */}
-      <div className="flex border-b border-border bg-surface-alt text-[10px] font-bold uppercase tracking-wider text-text-secondary select-none" style={{ minHeight: 28 }}>
+      {/* Header — sticky thead per LAYOUTS.md §3.2 */}
+      <div className="sticky top-0 z-10 flex border-b border-border bg-surface-alt text-[10px] font-bold uppercase tracking-wider text-text-secondary select-none" style={{ minHeight: 28 }}>
         <div className="w-[60px] px-2 flex items-center">{t('table.wbs')}</div>
         <div className="flex-1 min-w-[200px] px-2 flex items-center">{t('table.name')}</div>
         <div className="w-[60px] px-1 flex items-center justify-end">{t('table.duration')}</div>
@@ -199,7 +199,7 @@ export function TableEditor() {
               </div>
               <div className="w-[50px] px-1 flex items-center justify-center">
                 {task.time.isCritical ? (
-                  <span className="text-red-400 font-bold">{tCommon('yes')}</span>
+                  <span className="text-critical font-bold">{tCommon('yes')}</span>
                 ) : (
                   <span className="text-text-secondary">{tCommon('no')}</span>
                 )}
