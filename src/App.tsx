@@ -71,13 +71,13 @@ function AppContent() {
       if (!state.isDirty) return;
       try {
         const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-        const { appDataDir } = await import('@tauri-apps/api/path');
+        const { appDataDir, join } = await import('@tauri-apps/api/path');
         const content = writeIFC(
           state.project, state.calendar, state.tasks,
           state.sequences, state.resources, state.assignments,
         );
         const dir = await appDataDir();
-        await writeTextFile(`${dir}recovery.ifc`, content);
+        await writeTextFile(await join(dir, 'recovery.ifc'), content);
       } catch (err) {
         console.error('Auto-save failed:', err);
       }
@@ -96,9 +96,9 @@ function AppContent() {
       if (!isTauri()) return;
       try {
         const { readTextFile, exists, remove } = await import('@tauri-apps/plugin-fs');
-        const { appDataDir } = await import('@tauri-apps/api/path');
+        const { appDataDir, join } = await import('@tauri-apps/api/path');
         const dir = await appDataDir();
-        const recoveryPath = `${dir}recovery.ifc`;
+        const recoveryPath = await join(dir, 'recovery.ifc');
         const hasRecovery = await exists(recoveryPath);
         if (hasRecovery) {
           const content = await readTextFile(recoveryPath);
