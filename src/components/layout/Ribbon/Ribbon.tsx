@@ -64,7 +64,7 @@ function RibbonDropdown<T extends string>({ value, options, onChange }: {
           left: 0,
           marginTop: 2,
           minWidth: '100%',
-          background: 'var(--theme-input-bg)',
+          background: 'var(--theme-dropdown-bg)',
           border: '1px solid var(--theme-border-light)',
           borderRadius: 3,
           zIndex: 9999,
@@ -78,7 +78,7 @@ function RibbonDropdown<T extends string>({ value, options, onChange }: {
                 display: 'block',
                 width: '100%',
                 padding: '5px 8px',
-                background: o.value === value ? 'var(--theme-active)' : 'transparent',
+                background: o.value === value ? 'var(--theme-active)' : 'var(--theme-dropdown-bg)',
                 color: 'var(--theme-text)',
                 border: 'none',
                 textAlign: 'left',
@@ -86,7 +86,7 @@ function RibbonDropdown<T extends string>({ value, options, onChange }: {
                 cursor: 'pointer',
               }}
               onMouseEnter={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'var(--theme-hover)'; }}
-              onMouseLeave={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'transparent'; }}
+              onMouseLeave={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'var(--theme-dropdown-bg)'; }}
             >
               {o.label}
             </button>
