@@ -61,6 +61,16 @@ Alle tokens uit `OpenAEC-style-book/brandbook/DESIGN-SYSTEM.md` §2 worden in `s
 
 **Schaduwen:** `--shadow-sm`, `--shadow-md`, `--shadow-lg` per stylebook §2.6.
 
+**Layout-grootte tokens** (per LAYOUTS.md §4.1) — om referentie consistent te houden en ad-hoc pixel-waardes te vermijden:
+
+```
+--titlebar-height:   32px
+--toolbar-height:    40px
+--statusbar-height:  24px
+--sidebar-width:     260px
+--inspector-width:   280px (default; resizable 220–400px)
+```
+
 ### 4.2 Lettertypen
 
 Drie open-source families in `public/fonts/`:
@@ -116,7 +126,25 @@ Maten: small (8/16px padding), default (12/24px), large (16/32px). Alle: `border
 - Featured: border 2px `--amber`.
 - Dark: bg `--deep-forge`, border 1px `#27272A`, text `--blueprint-white`.
 
-Modal-maten: 400px (klein), 560px (default), 720px (groot). TaskDialog 500→**560px**. SettingsDialog (520×420) verhuist naar Backstage > Instellingen.
+**Modal-maten:** 400px (klein), 560px (default), 720px (groot). TaskDialog 500→**560px**. SettingsDialog (520×420) verhuist naar Backstage > Instellingen.
+
+**Modal-animaties** (per LAYOUTS.md §3.3):
+- Backdrop: `fade-in 0.15s ease` van opacity 0 → 1, achtergrond `rgba(0,0,0,0.5)`.
+- Modal-content: `scale-in 0.15s ease` vanaf 95% scale + opacity 0 → 100% scale + opacity 1.
+
+**Modal-toetsenbord:**
+- **Esc** sluit de modal (tenzij een input een eigen Esc-handler heeft).
+- **Enter** activeert de primaire actie (alleen als de focus niet op een tekstveld ligt).
+- **Tab** blijft binnen de modal (focus-trap; sluit niet via Tab door ander UI).
+
+**Confirm-dialog variant** (klein modal, 400px breed) — voor ja/nee bevestigingen zoals "Niet-opgeslagen wijzigingen verloren laten gaan?":
+- Cirkel-icoon 48px gecentreerd boven titel:
+  - info → `--info` tint (`#EFF6FF`) + `--info` icoon
+  - warning → `--amber` tint (`#FEF3C7`) + `--amber` icoon
+  - danger → `--error` tint (`#FEE2E2`) + `--error` icoon
+- Titel: gecentreerd, Space Grotesk 700, 1.25rem.
+- Boodschap: gecentreerd, Inter 400, 0.875rem, `--scaffold-gray`.
+- Knoppen: gecentreerd, gap `--sp-3`. Bij destructieve actie: primary knop in `--error` kleurschema.
 
 ### 5.4 Tabel (TableEditor)
 
@@ -174,6 +202,40 @@ Structuur blijft (icon-boven-label voor groot, horizontaal voor klein). Aanpassi
 - Hoek-radii consistent op 4px.
 - Hover/active gebruiken dashboard-tokens (`--dashboard-surface-hover`, `--dashboard-accent`).
 
+### 5.12 Inspector panel (TaskPropertiesPanel)
+
+Volgt LAYOUTS.md §3.2 — meer detail dan een gewone card.
+
+- **Breedte:** 280px default, resizable 220–400px (`--inspector-width` token).
+- **Achtergrond:** `--concrete` (light) of `--deep-forge` (dark).
+- **Linker rand:** 1px solid `#E7E5E4` / `#27272A` (overgang naar canvas).
+- **Resize-handle:** zie §6.6.
+
+**Tab-bar bovenin** (tabs zoals "Eigenschappen", "Stijlen"):
+- Padding `--sp-2 --sp-4`, font Inter 500, 0.75rem.
+- Inactief: kleur `--scaffold-gray`, border-bottom 2px transparant.
+- Hover: kleur `--deep-forge` (light) / wit (dark).
+- Actief: kleur `--amber`, border-bottom 2px solid `--amber`.
+
+**Sectie binnen panel** (bv. "Algemeen", "Tijd", "Resources"):
+- Sectie-header: Inter 600, 0.75rem, uppercase, `--scaffold-gray`, letter-spacing 0.05em. Click-toggleable met 12px pijl.
+- Padding `--sp-4`.
+
+**Property-rij** (label + waarde):
+- Layout: `grid-template-columns: 90px 1fr`, gap `--sp-2`, align-items center.
+- Label: Inter 400, 0.75rem, `--scaffold-gray`, ellipsis bij overlopen.
+- Waarde-input: Inter 400, 0.75rem, padding `--sp-1 --sp-2`, transparant bg + border, hover border-color `#E7E5E4`, focus border-color `--amber` + bg wit.
+
+**Speciale input-types:**
+- **Getalveld (compact):** breedte 56px, text-align right. **Scrub-gebaar:** sleep horizontaal over het veld om waarde te wijzigen, cursor wordt `ew-resize`.
+- **Kleurveld:** 16px×16px swatch + hex-tekst. Klik opent kleurkiezer-popover (z-index `--z-dropdown`).
+- **Gekoppelde inputs** (x/y, w/h): ketting-icoon tussen velden — klik om proportioneel bewerken in/uit te schakelen.
+
+**Lege staat** (geen taak geselecteerd):
+- Gecentreerd, padding `--sp-8`.
+- Icoon 32px, `--scaffold-gray` op 30% opacity.
+- Tekst Inter 400, 0.8rem, `--scaffold-gray`: "Selecteer een taak om eigenschappen te zien."
+
 ## 6. Layout
 
 ### 6.1 File-tab
@@ -229,6 +291,15 @@ Een 2px-hoge horizontale streep direct onder de Ribbon-content (tussen Ribbon en
 - TitleBar quick-access toolbar met New/Open/Save/Undo/Redo/Settings.
 - TableEditor / IFCPanel / ReportPanel waar ze zijn.
 - TaskDialog blijft een modal (hoort bij canvas-workflow).
+
+### 6.6 Resize-handle
+
+Tussen het canvas en de Inspector-panel (en eventuele andere resizable boundaries):
+- Breedte: 4px.
+- Cursor: `col-resize`.
+- Standaard: transparant.
+- Hover: 2px-brede `--amber` strook gecentreerd in het 4px-gebied (subtiele indicatie).
+- Active drag: dezelfde 2px amber-strook + body cursor blijft `col-resize`.
 
 ## 7. Thema's
 
