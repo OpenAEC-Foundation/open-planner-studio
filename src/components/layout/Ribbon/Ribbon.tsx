@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect, useId } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,6 +13,89 @@ import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
 import { RibbonTab } from '@/state/slices/types';
 import './Ribbon.css';
+
+function RibbonDropdown<T extends string>({ value, options, onChange }: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const current = options.find(o => o.value === value);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', minWidth: 100 }}>
+      <button
+        id={id}
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%',
+          padding: '4px 8px',
+          background: 'var(--theme-input-bg)',
+          border: '1px solid var(--theme-border-light)',
+          borderRadius: 3,
+          color: 'var(--theme-text)',
+          fontSize: 11,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 4,
+        }}
+      >
+        <span>{current?.label ?? value}</span>
+        <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          marginTop: 2,
+          minWidth: '100%',
+          background: 'var(--theme-input-bg)',
+          border: '1px solid var(--theme-border-light)',
+          borderRadius: 3,
+          zIndex: 9999,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        }}>
+          {options.map(o => (
+            <button
+              key={o.value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '5px 8px',
+                background: o.value === value ? 'var(--theme-active)' : 'transparent',
+                color: 'var(--theme-text)',
+                border: 'none',
+                textAlign: 'left',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'var(--theme-hover)'; }}
+              onMouseLeave={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'transparent'; }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function RibbonButton({ icon, label, onClick, active, disabled, primary, danger }: {
   icon: React.ReactNode;
@@ -361,11 +444,15 @@ export function Ribbon() {
 
             <RibbonGroup label={tMenu('ribbon.timeScale')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
-                <select className="ribbon-select" value={timeScale} onChange={e => setTimeScale(e.target.value as 'day' | 'week' | 'month')}>
-                  <option value="day">{tMenu('ribbon.day')}</option>
-                  <option value="week">{tMenu('ribbon.week')}</option>
-                  <option value="month">{tMenu('ribbon.month')}</option>
-                </select>
+                <RibbonDropdown
+                  value={timeScale}
+                  options={[
+                    { value: 'day', label: tMenu('ribbon.day') },
+                    { value: 'week', label: tMenu('ribbon.week') },
+                    { value: 'month', label: tMenu('ribbon.month') },
+                  ]}
+                  onChange={v => setTimeScale(v as 'day' | 'week' | 'month')}
+                />
                 <span className="ribbon-info">{tMenu('ribbon.zoomLevel', { level: Math.round(zoom) })}</span>
               </div>
             </RibbonGroup>
