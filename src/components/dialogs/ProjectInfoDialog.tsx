@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
@@ -26,10 +26,19 @@ export function ProjectInfoDialog() {
     setUI({ showProjectInfoDialog: false });
   };
 
+  // Esc sluit dialog (LAYOUTS.md §3.3)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUI({ showProjectInfoDialog: false });
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [setUI]);
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={handleClose}>
       <div
-        className="bg-surface-alt border border-border rounded-lg shadow-xl w-[480px] max-h-[90vh] flex flex-col"
+        className="bg-surface-alt border border-border rounded-lg shadow-xl w-[560px] max-h-[90vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
@@ -101,17 +110,11 @@ export function ProjectInfoDialog() {
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
-          <button
-            onClick={handleClose}
-            className="px-4 py-1.5 border border-border rounded hover:bg-surface-hover text-xs"
-          >
+        <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
+          <button onClick={handleClose} className="btn btn--sm btn--secondary">
             {tCommon('cancel')}
           </button>
-          <button
-            onClick={handleApply}
-            className="px-4 py-1.5 bg-accent text-white rounded hover:bg-accent-hover text-xs"
-          >
+          <button onClick={handleApply} className="btn btn--sm btn--primary">
             {tCommon('apply')}
           </button>
         </div>

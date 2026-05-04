@@ -66,6 +66,18 @@ export function TaskDialog() {
     return () => clearTimeout(id);
   }, [showTaskDialog, editingTaskId]);
 
+  // Esc sluit dialog (LAYOUTS.md §3.3 keyboard support)
+  useEffect(() => {
+    if (!showTaskDialog) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setUI({ showTaskDialog: false, editingTaskId: null });
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showTaskDialog, setUI]);
+
   if (!showTaskDialog) return null;
 
   const handleSave = () => {
@@ -119,7 +131,7 @@ export function TaskDialog() {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleClose}>
       <div
-        className="bg-surface-alt border border-border rounded-lg shadow-xl w-[440px] max-h-[80vh] overflow-y-auto"
+        className="bg-surface-alt border border-border rounded-lg shadow-xl w-[560px] max-h-[80vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -227,17 +239,14 @@ export function TaskDialog() {
           </label>
         </div>
 
-        <div className="flex justify-end gap-2 p-4 border-t border-border">
-          <button
-            onClick={handleClose}
-            className="px-4 py-1.5 border border-border rounded hover:bg-surface-hover text-xs"
-          >
+        <div className="flex justify-end gap-3 p-4 border-t border-border">
+          <button onClick={handleClose} className="btn btn--sm btn--secondary">
             {tCommon('cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim()}
-            className="px-4 py-1.5 bg-accent text-white rounded hover:bg-accent-hover text-xs disabled:opacity-50"
+            className="btn btn--sm btn--primary"
           >
             {editingTask ? tCommon('save') : tCommon('add')}
           </button>

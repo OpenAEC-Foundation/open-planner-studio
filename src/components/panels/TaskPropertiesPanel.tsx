@@ -222,10 +222,7 @@ export function TaskPropertiesPanel() {
         </>
       )}
 
-      <button
-        onClick={runCPM}
-        className="mt-2 px-3 py-1.5 bg-accent text-white rounded hover:bg-accent-hover text-xs"
-      >
+      <button onClick={runCPM} className="btn btn--sm btn--primary mt-2">
         {t('properties.recalculate')}
       </button>
     </div>
