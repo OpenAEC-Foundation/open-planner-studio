@@ -58,16 +58,10 @@
 }
 .backstage-nav-item.active {
   background: var(--theme-active);
-  color: #FFFFFF;
+  color: var(--theme-accent-on);
 }
 .backstage-nav-item.active .backstage-nav-icon {
-  color: #FFFFFF;
-}
-
-/* High contrast: gele achtergrond → zwarte tekst voor leesbaarheid */
-[data-theme="high-contrast"] .backstage-nav-item.active,
-[data-theme="high-contrast"] .backstage-nav-item.active .backstage-nav-icon {
-  color: #000000;
+  color: var(--theme-accent-on);
 }
 .backstage-nav-icon {
   display: inline-flex;

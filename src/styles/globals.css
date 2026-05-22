@@ -125,6 +125,7 @@
   --theme-border-light: rgba(217, 119, 6, 0.15);
   --theme-accent: #D97706;
   --theme-accent-hover: #EA580C;
+  --theme-accent-on: #ffffff;
   --theme-text: #FAFAF9;
   --theme-text-dim: rgba(250, 250, 249, 0.6);
   --theme-text-muted: rgba(250, 250, 249, 0.4);
@@ -159,6 +160,7 @@
   --theme-border-light: #F5F5F4;
   --theme-accent: #D97706;
   --theme-accent-hover: #EA580C;
+  --theme-accent-on: #ffffff;
   --theme-text: #36363E;
   --theme-text-dim: #57534E;
   --theme-text-muted: #767676; /* WCAG AA — minimum 4.5:1 op blueprint-white */
@@ -191,6 +193,7 @@
   --theme-border-light: #cccccc;
   --theme-accent: #ffff00;
   --theme-accent-hover: #ffcc00;
+  --theme-accent-on: #000000;
   --theme-text: #ffffff;
   --theme-text-dim: #cccccc;
   --theme-text-muted: #999999;
@@ -276,7 +279,7 @@ html, body, #root {
 /* Selection */
 ::selection {
   background: var(--theme-accent);
-  color: white;
+  color: var(--theme-accent-on);
 }
 
 /* RTL support (Arabic) */
@@ -439,7 +442,7 @@ html, body, #root {
 
 .btn--primary {
   background: var(--amber);
-  color: #ffffff;
+  color: var(--theme-accent-on);
 }
 .btn--primary:hover:not(:disabled) {
   background: var(--signal-orange);
@@ -462,7 +465,7 @@ html, body, #root {
 }
 .btn--ghost:hover:not(:disabled) {
   background: var(--amber);
-  color: #ffffff;
+  color: var(--theme-accent-on);
 }
 
 .btn--dark {

@@ -205,14 +205,14 @@
 /* File tab (backstage trigger) — altijd amber, opvallend links */
 .ribbon-tab--file {
   background: var(--theme-file-tab-bg);
-  color: #FFFFFF;
+  color: var(--theme-accent-on);
   font-weight: 700;
   padding: 6px 18px;
 }
 .ribbon-tab--file:hover,
 .ribbon-tab--file.active {
   background: var(--theme-file-tab-hover);
-  color: #FFFFFF;
+  color: var(--theme-accent-on);
   border-bottom: none;
 }
 
@@ -224,7 +224,7 @@
 
 .ribbon-btn.primary .ribbon-btn-icon,
 .ribbon-btn.primary .ribbon-btn-label {
-  color: #ffffff;
+  color: var(--theme-accent-on);
 }
 
 .ribbon-btn.primary:hover {
