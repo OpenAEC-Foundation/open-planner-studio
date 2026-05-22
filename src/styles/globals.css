@@ -125,6 +125,10 @@
   --theme-border-light: rgba(217, 119, 6, 0.15);
   --theme-accent: #D97706;
   --theme-accent-hover: #EA580C;
+  /* Tekstkleur op accent-achtergronden. Wit in light/dark, zwart in
+     high-contrast (waar --theme-accent geel wordt). --theme-active en
+     --theme-file-tab-bg moeten gelijk blijven aan --theme-accent zodat
+     dezelfde voorgrondkleur correct contrasteert. */
   --theme-accent-on: #ffffff;
   --theme-text: #FAFAF9;
   --theme-text-dim: rgba(250, 250, 249, 0.6);
@@ -218,10 +222,6 @@
 
 /* High Contrast special styles — geel accent vereist zwarte tekst */
 [data-theme="high-contrast"] .ribbon-tab.active {
-  color: #000000;
-}
-
-[data-theme="high-contrast"] .ribbon-button.active {
   color: #000000;
 }
 
