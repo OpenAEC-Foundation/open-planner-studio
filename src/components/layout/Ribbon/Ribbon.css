@@ -152,7 +152,7 @@
 }
 
 .ribbon-btn.active .ribbon-btn-icon {
-  color: #ffffff;
+  color: var(--theme-accent-on);
 }
 
 .ribbon-btn-label {
@@ -174,7 +174,7 @@
 }
 
 .ribbon-btn.active .ribbon-btn-label {
-  color: #ffffff;
+  color: var(--theme-accent-on);
 }
 
 /* Small ribbon buttons - horizontal layout, 3 fit vertically */
