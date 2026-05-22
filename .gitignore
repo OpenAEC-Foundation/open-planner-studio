@@ -3,7 +3,6 @@ dist/
 .vite/
 *.local
 .DS_Store
-CLAUDE.md
 .claude/
 temp/
 
