@@ -109,7 +109,7 @@ export function MenuBar() {
                 ) : (
                   <button
                     key={i}
-                    className="flex items-center justify-between w-full px-4 py-1.5 hover:bg-accent hover:text-white text-left"
+                    className="flex items-center justify-between w-full px-4 py-1.5 hover:bg-accent hover:text-accent-on text-left"
                     onClick={item.action}
                   >
                     <span>{item.label}</span>

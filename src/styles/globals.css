@@ -105,6 +105,7 @@
   --color-text-secondary: var(--theme-text-dim);
   --color-accent: var(--theme-accent);
   --color-accent-hover: var(--theme-accent-hover);
+  --color-accent-on: var(--theme-accent-on);
   --color-critical: #DC2626;
   --color-task-normal: #2563EB;
   --color-task-milestone: #7C3AED;
