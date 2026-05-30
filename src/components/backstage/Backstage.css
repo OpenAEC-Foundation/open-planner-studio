@@ -246,7 +246,7 @@
 .backstage-form-row input:focus,
 .backstage-form-row textarea:focus,
 .backstage-form-row select:focus {
-  border-color: var(--amber);
+  border-color: var(--theme-accent);
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
 }
 .backstage-form-row textarea {

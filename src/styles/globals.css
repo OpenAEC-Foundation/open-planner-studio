@@ -434,14 +434,14 @@ html, body, #root {
   white-space: nowrap;
 }
 .btn:focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--theme-accent);
   outline-offset: 2px;
 }
 .btn--sm  { padding: var(--sp-2) var(--sp-4); font-size: 0.75rem; }
 .btn--lg  { padding: var(--sp-4) var(--sp-8); font-size: 1rem; }
 
 .btn--primary {
-  background: var(--amber);
+  background: var(--theme-accent);
   color: var(--theme-accent-on);
 }
 .btn--primary:hover:not(:disabled) {
@@ -460,11 +460,11 @@ html, body, #root {
 
 .btn--ghost {
   background: transparent;
-  color: var(--amber);
-  border: 2px solid var(--amber);
+  color: var(--theme-accent);
+  border: 2px solid var(--theme-accent);
 }
 .btn--ghost:hover:not(:disabled) {
-  background: var(--amber);
+  background: var(--theme-accent);
   color: var(--theme-accent-on);
 }
 
@@ -505,7 +505,7 @@ html, body, #root {
 .input:focus,
 .input:focus-visible {
   outline: none;
-  border-color: var(--amber);
+  border-color: var(--theme-accent);
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
 }
 .input--error {
@@ -588,7 +588,7 @@ html, body, #root {
 }
 .progress__fill {
   height: 100%;
-  background: var(--amber);
+  background: var(--theme-accent);
   border-radius: var(--radius-full);
   transition: width 0.3s ease;
 }

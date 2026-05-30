@@ -218,8 +218,8 @@
 
 /* Primary button — OpenAEC amber per stylebook §3.1 */
 .ribbon-btn.primary {
-  background: var(--amber);
-  border-color: var(--amber);
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
 }
 
 .ribbon-btn.primary .ribbon-btn-icon,
