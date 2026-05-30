@@ -220,11 +220,6 @@
   color-scheme: dark;
 }
 
-/* High Contrast special styles — geel accent vereist zwarte tekst */
-[data-theme="high-contrast"] .ribbon-tab.active {
-  color: #000000;
-}
-
 @layer base {
   * {
     margin: 0;
