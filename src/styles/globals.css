@@ -8,7 +8,6 @@
    ============================================================================ */
 :root {
   /* Brand — primary */
-  --amber:           #D97706;
   --deep-forge:      #36363E;
 
   /* Brand — secondary */
@@ -544,7 +543,7 @@ html, body, #root {
 }
 .alert--info    { background: #EFF6FF; border-left-color: var(--info);    color: #1E40AF; }
 .alert--success { background: #F0FDF4; border-left-color: var(--success); color: #166534; }
-.alert--warning { background: #FFFBEB; border-left-color: var(--amber);   color: #92400E; }
+.alert--warning { background: #FFFBEB; border-left-color: #D97706;       color: #92400E; }
 .alert--error   { background: #FEF2F2; border-left-color: var(--error);   color: #991B1B; }
 
 /* Badges (DESIGN-SYSTEM.md §3.6) */
