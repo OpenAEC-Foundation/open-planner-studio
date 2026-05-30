@@ -595,3 +595,14 @@ html, body, #root {
 }
 .progress__fill--success { background: var(--success); }
 .progress__fill--danger  { background: var(--error); }
+
+/* OpenAEC merk-accent strip — DESIGN-SYSTEM.md §2.1 */
+.brand-accent-strip {
+  height: 2px;
+  background: linear-gradient(90deg, #D97706 0%, #F59E0B 40%, #EA580C 100%);
+  flex-shrink: 0;
+}
+
+[data-theme="high-contrast"] .brand-accent-strip {
+  display: none;
+}
