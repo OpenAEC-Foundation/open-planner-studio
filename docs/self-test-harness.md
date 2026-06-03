@@ -11,7 +11,9 @@ in het project.
 
 ### Onderdelen
 - **`.mcp.json`** (repo-root) — koppelt de officiële Playwright MCP-server
-  (`@playwright/mcp`, engine `webkit` om dicht bij de echte WebKitGTK-desktopruntime te zitten).
+  (`@playwright/mcp`, engine `chromium --headless` — draait dep-schoon op Linux zonder extra
+  systeem-libs. `webkit` zou visueel dichter bij de echte WebKitGTK-desktopruntime zitten, maar
+  vereist extra apt-libs via `sudo` (`libwoff1`, `libavif16`, …); daarom optioneel, niet de default.)
   Claude Code vraagt eenmalig om deze server te vertrouwen; herstart/reload de sessie als hij nog
   niet geladen is.
 - **`window.__OPS__`** (`src/utils/devBridge.ts`) — dev-only haak met:

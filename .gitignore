@@ -9,3 +9,6 @@ temp/
 # Tauri
 src-tauri/target/
 src-tauri/gen/
+
+# Playwright MCP self-test artifacts
+.playwright-mcp/

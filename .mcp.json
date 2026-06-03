@@ -2,7 +2,7 @@
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest", "--browser", "webkit"]
+      "args": ["-y", "@playwright/mcp@latest", "--browser", "chromium", "--headless"]
     }
   }
 }
