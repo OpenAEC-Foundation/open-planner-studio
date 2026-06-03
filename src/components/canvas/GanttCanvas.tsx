@@ -392,7 +392,8 @@ export function GanttCanvas() {
       const endX = depDragState.currentX - canvasRect.left;
       const endY = depDragState.currentY - canvasRect.top;
 
-      ctx.strokeStyle = '#F59E0B';
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#F59E0B';
+      ctx.strokeStyle = accent;
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
@@ -403,7 +404,7 @@ export function GanttCanvas() {
       // Arrowhead
       const angle = Math.atan2(endY - startY, endX - startX);
       ctx.setLineDash([]);
-      ctx.fillStyle = '#F59E0B';
+      ctx.fillStyle = accent;
       ctx.beginPath();
       ctx.moveTo(endX, endY);
       ctx.lineTo(endX - 10 * Math.cos(angle - Math.PI / 6), endY - 10 * Math.sin(angle - Math.PI / 6));

@@ -218,7 +218,7 @@
 
 .settings-lang-item.active {
   background: var(--theme-accent);
-  color: white;
+  color: var(--theme-accent-on);
 }
 
 .settings-lang-code {
@@ -262,7 +262,7 @@
 
 .settings-btn-primary:hover {
   background: var(--theme-accent);
-  color: white;
+  color: var(--theme-accent-on);
 }
 
 .settings-btn-secondary {

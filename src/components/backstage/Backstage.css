@@ -58,16 +58,10 @@
 }
 .backstage-nav-item.active {
   background: var(--theme-active);
-  color: #FFFFFF;
+  color: var(--theme-accent-on);
 }
 .backstage-nav-item.active .backstage-nav-icon {
-  color: #FFFFFF;
-}
-
-/* High contrast: gele achtergrond → zwarte tekst voor leesbaarheid */
-[data-theme="high-contrast"] .backstage-nav-item.active,
-[data-theme="high-contrast"] .backstage-nav-item.active .backstage-nav-icon {
-  color: #000000;
+  color: var(--theme-accent-on);
 }
 .backstage-nav-icon {
   display: inline-flex;
@@ -252,7 +246,7 @@
 .backstage-form-row input:focus,
 .backstage-form-row textarea:focus,
 .backstage-form-row select:focus {
-  border-color: var(--amber);
+  border-color: var(--theme-accent);
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
 }
 .backstage-form-row textarea {

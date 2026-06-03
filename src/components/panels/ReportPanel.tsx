@@ -253,7 +253,7 @@ export function ReportPanel() {
         <div className="flex flex-col gap-2">
           <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover text-xs font-medium"
+            className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-xs font-medium"
           >
             {t('print')}
           </button>

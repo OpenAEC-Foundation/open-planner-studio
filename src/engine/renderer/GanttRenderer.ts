@@ -43,9 +43,9 @@ function getThemeColors() {
     float: '#10B981',
     baseline: '#6B7280',
     complete: '#1D4ED8',
-    selected: '#F59E0B',
+    selected: v('--theme-accent', '#F59E0B'),
     dependency: '#6B7280',
-    today: '#F59E0B',
+    today: v('--theme-accent', '#F59E0B'),
     headerBg: v('--theme-surface-alt', '#252536'),
     summary: '#8B5CF6',
   };

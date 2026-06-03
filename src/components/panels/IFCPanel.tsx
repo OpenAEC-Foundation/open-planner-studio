@@ -55,7 +55,7 @@ export function IFCPanel() {
         <div className="flex-1" />
         <button
           onClick={handleGenerate}
-          className="px-3 py-1 text-xs bg-accent text-white rounded hover:bg-accent-hover"
+          className="px-3 py-1 text-xs bg-accent text-accent-on rounded hover:bg-accent-hover"
         >
           {t('ifc.generate')}
         </button>

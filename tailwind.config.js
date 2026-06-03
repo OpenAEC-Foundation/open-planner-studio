@@ -19,6 +19,7 @@ export default {
         accent: {
           DEFAULT: 'var(--color-accent)',
           hover: 'var(--color-accent-hover)',
+          on: 'var(--color-accent-on)',
         },
         // Functional colors via tokens — definitions in globals.css :root
         critical: 'var(--color-critical)',
