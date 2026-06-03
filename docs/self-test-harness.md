@@ -38,6 +38,20 @@ in het project.
      () => window.__OPS__.log.snapshot().filter(e => e.level === 'error')
      ```
 
+### Headed aan/uit (live meekijken)
+
+Standaard draait de browser **headless** (onzichtbaar) — snel en licht. Wil je live meekijken hoe
+Claude klikt? Vraag het gewoon in de chat ("doe het headed"):
+
+1. Claude haalt `--headless` weg uit de `args` in `.mcp.json`.
+2. Jij typt **`/mcp`** in de chat (reconnect — Claude Code leest `.mcp.json` dan opnieuw in).
+3. De volgende `browser_navigate` opent een **zichtbaar** Chromium-venster (op `DISPLAY`).
+
+Terug naar headless: zeg "headless" → Claude zet `--headless` terug → jij typt `/mcp`.
+
+De commit-default in `.mcp.json` blijft `--headless`. Headed gebruikt de volledige `chromium`-binary
+(staat al in `~/.cache/ms-playwright/`); headless gebruikt de kleinere `chromium_headless_shell`.
+
 ### Waarom state uitlezen i.p.v. pixels
 De Gantt is een `<canvas>`: een taakbalk "aanklikken" gaat op pixelcoördinaten en een screenshot
 zegt niets hard over correctheid. De betrouwbare check is de echte store-state (datums, kritiek pad,
