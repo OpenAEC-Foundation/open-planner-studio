@@ -1,7 +1,17 @@
 # Self-test harness — Claude test functies zelf
 
-Doel: Claude Code kan UI-functies zelf uittesten (rondklikken, screenshots, gedrag verifiëren)
-voordat een mens erbij hoeft. Twee tiers — begin altijd bij Tier 1.
+Doel: Claude Code kan functies zelf uittesten voordat een mens erbij hoeft.
+
+**De twee tiers en hun rol t.o.v. elkaar:**
+- **Tier 1 — browser-dev-build (Playwright MCP).** De snelle, lichte standaard. Rondklikken in de UI,
+  screenshots, en state/logs asserten via `window.__OPS__`. Dekt het leeuwendeel: álle UI-interactie en
+  álle TypeScript-logica (scheduler, IFC-serialisatie, import/export) die in de browser draait.
+- **Tier 2 — échte Tauri-runtime (ops-test controlekanaal).** Voor wat alléén in de desktop-shell kan:
+  écht bestanden opslaan/openen naar schijf en willekeurige store-acties aansturen — via een
+  bestandssysteem-kanaal. **Geen WebDriver, geen sudo.**
+
+Begin altijd bij Tier 1; pak Tier 2 wanneer je de échte Tauri-runtime of schijf-I/O nodig hebt.
+De round-trip-check (`roundTrip()`: serialiseer→parse, meet dataverlies) werkt in beide tiers.
 
 ## Tier 1 — Licht (standaard): Playwright MCP → browser-dev-build
 
@@ -58,19 +68,51 @@ zegt niets hard over correctheid. De betrouwbare check is de echte store-state (
 `totalFloat`, `isCritical`) via `window.__OPS__`.
 
 ### Wat Tier 1 niet dekt
-Tauri-only gedrag: bestand open/opslaan-dialogen en de recovery-autosave. Daarvoor → Tier 2.
+De échte Tauri-runtime: fysiek bestanden naar schijf schrijven/lezen (plugin-fs werkt alleen in Tauri)
+en `isTauri()`-gated paden. Daarvoor → Tier 2. (De *native* OS bestand-picker zelf automatiseert geen
+enkele tier — die omzeil je altijd met een expliciet pad.)
 
-## Tier 2 — Zwaar (opt-in): tauri-driver → echt desktopvenster
+## Tier 2 — Échte Tauri-runtime: ops-test controlekanaal
 
-Alleen opzetten wanneer een Tauri-specifieke functie écht end-to-end getest moet worden. Dit is een
-**ander mechanisme dan Playwright** en is broos/per-platform — daarom niet de standaard.
+Voor gedrag dat de echte Tauri-shell nodig heeft (plugin-fs/-dialog, `isTauri()`-paden): écht opslaan/
+openen naar schijf en elke store-actie aansturen. **Geen WebDriver, geen sudo** — Playwright kan de
+WebKitGTK-webview op Linux niet aansturen, dus gebruiken we het bestandssysteem als kanaal (zowel de app
+via plugin-fs als de aansturende kant via bash kunnen erbij).
 
-- `tauri-driver` (Rust-crate: `cargo install tauri-driver --locked`), als proxy boven de native
-  WebDriver-server.
-- Linux: `WebKitWebDriver` (Debian-pakket `webkit2gtk-driver`). Windows: Edge WebDriver (versie matchen
-  met geïnstalleerde Edge). **macOS: niet ondersteund.**
-- Aansturen via WebdriverIO of Selenium.
-- Referentie: https://v2.tauri.app/develop/tests/webdriver/
+### Hoe het werkt
+`src/utils/devBridge.ts` installeert (alleen `DEV && isTauri()`) een poller die elke ~400 ms
+`<appDataDir>/ops-test/cmd.json` leest, de opdracht uitvoert en `res.json` schrijft; bij start schrijft
+hij `ready.json`. Op Linux is `appDataDir` = `~/.local/share/org.openaec.planner/`.
 
-Implementatie volgt pas bij de eerste concrete behoefte; tot die tijd bestaat Tier 2 alleen als deze
-notitie.
+### Gebruik
+1. Maak de map aan vóór de app boot (zodat de poller z'n `ready.json` kwijt kan), en start de échte app:
+   ```bash
+   mkdir -p ~/.local/share/org.openaec.planner/ops-test
+   npm run tauri:dev
+   ```
+2. Stuur opdrachten via `cmd.json` (atomisch: schrijf naar `cmd.tmp` en `mv` naar `cmd.json`), lees
+   `res.json`. Elk commando krijgt een `id`; `res.json` echoot die terug. Ops:
+   - `ping` — `{ pong, appDataDir }`
+   - `getState` — project + counts + isDirty + cpm
+   - `roundTrip` — Niveau 1: `writeIFC`→`readIFC`, meet dataverlies (`lossless`)
+   - `save` `{path}` — schrijf de state als IFC naar schijf (picker omzeild met vast pad)
+   - `open` `{path}` — lees van schijf + `loadState`
+   - `dispatch` `{action, args}` — roep een willekeurige store-actie aan, bv. `addTask`, `runCPM`, `newProject`
+3. Paden moeten binnen de fs-scope vallen (appData of home; zie `src-tauri/capabilities/default.json`).
+
+Voorbeeld:
+```json
+{"id":"c1","op":"dispatch","args":{"action":"addTask","args":[{"name":"Test"}]}}
+{"id":"c2","op":"save","args":{"path":"/home/<user>/.local/share/org.openaec.planner/ops-test/x.ifc"}}
+```
+
+De helpers `window.__OPS__.roundTrip()` / `.saveToPath(path)` / `.openFromPath(path)` zijn ook direct
+beschikbaar (`roundTrip` werkt ook in Tier 1; `saveToPath`/`openFromPath` alleen in de Tauri-runtime).
+
+### Wat het bewust niet doet
+De native OS-picker aanklikken — die zit buiten de webview. Standaardpraktijk: omzeilen met een vast pad.
+
+### (Toekomst) echte desktop-UI-automatisering
+Moet ooit gerenderd webview-gedrag in de echte shell geautomatiseerd worden (géén native dialoog), dan is
+`tauri-driver` + `WebKitWebDriver` (Linux, `webkit2gtk-driver`, sudo) + WebdriverIO de route — broos,
+per-platform, geen macOS. Bewust niet gebouwd; zie https://v2.tauri.app/develop/tests/webdriver/.
