@@ -54,7 +54,8 @@ function ref(ctx: WriteContext, key: string): string {
 function addLine(ctx: WriteContext, key: string, line: string): number {
   const id = ctx.nextId++;
   ctx.idMap.set(key, id);
-  ctx.lines.push(`#${id}=${line}`);
+  // STEP vereist dat elke entity met ';' eindigt — anders parst de reader (ifcReader regex `\)\s*;`) niets.
+  ctx.lines.push(`#${id}=${line};`);
   return id;
 }
 
