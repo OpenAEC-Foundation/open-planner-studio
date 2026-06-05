@@ -38,6 +38,9 @@ in het project.
    ```bash
    npm run dev      # Vite op http://localhost:3007
    ```
+   > Draait er al een Vite op 3007 (bv. een tweede worktree)? `npm run dev` faalt nu bewust
+   > (`strictPort`) i.p.v. stil naar 3008 te driften. Kies in die worktree een andere poort met
+   > `OPS_DEV_PORT=3010 npm run dev` en navigeer Playwright naar die poort.
 2. Via Playwright MCP-tools:
    - `browser_navigate` → `http://localhost:3007`
    - `browser_click` / `browser_type` op de DOM-chrome (ribbon, panelen, knoppen, dialogen)

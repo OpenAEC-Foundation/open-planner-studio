@@ -5,6 +5,12 @@ import { initTheme, loadZoomSettings, loadDebugTerminalEnabled } from '@/utils/s
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 const isTauri = () => '__TAURI_INTERNALS__' in window;
+
+// The recovery file lives in the shared appDataDir (app-id org.openaec.planner),
+// so concurrent dev builds from different worktrees would clobber each other.
+// In a dev build the worktree slug (set by scripts/tauri-dev.mjs) isolates it;
+// a plain/production build keeps the canonical name.
+const recoveryFileName = __OPS_DEV_INSTANCE__ ? `recovery.${__OPS_DEV_INSTANCE__}.ifc` : 'recovery.ifc';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -78,7 +84,7 @@ function AppContent() {
           state.sequences, state.resources, state.assignments,
         );
         const dir = await appDataDir();
-        await writeTextFile(await join(dir, 'recovery.ifc'), content);
+        await writeTextFile(await join(dir, recoveryFileName), content);
       } catch (err) {
         console.error('Auto-save failed:', err);
       }
@@ -99,7 +105,7 @@ function AppContent() {
         const { readTextFile, exists, remove } = await import('@tauri-apps/plugin-fs');
         const { appDataDir, join } = await import('@tauri-apps/api/path');
         const dir = await appDataDir();
-        const recoveryPath = await join(dir, 'recovery.ifc');
+        const recoveryPath = await join(dir, recoveryFileName);
         const hasRecovery = await exists(recoveryPath);
         if (hasRecovery) {
           const content = await readTextFile(recoveryPath);
