@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { renderPrintCanvas, PrintOptions } from '@/services/print/printPreview';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
+import { ensureExtension } from '@/utils/filePath';
 const isTauri = () => '__TAURI_INTERNALS__' in window;
 
 export function ReportPanel() {
@@ -107,11 +108,12 @@ export function ReportPanel() {
     if (isTauri()) {
       const { save } = await import('@tauri-apps/plugin-dialog');
       const { writeFile } = await import('@tauri-apps/plugin-fs');
-      const savedPath = await save({
+      const picked = await save({
         defaultPath: defaultName,
         filters: [{ name: 'PNG Image', extensions: ['png'] }],
       });
-      if (!savedPath) return;
+      if (!picked) return;
+      const savedPath = ensureExtension(picked, 'png');
 
       canvas.toBlob(async (blob) => {
         if (!blob) return;

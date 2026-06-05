@@ -11,6 +11,7 @@ import { CPMSolver, CPMResult } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { ensureExtension } from '@/utils/filePath';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeCSV } from '@/services/csv/csvWriter';
@@ -697,10 +698,12 @@ export const useAppStore = create<AppState>()(
         await writeTextFile(state.filePath, content);
         set((s) => { s.isDirty = false; });
       } else {
-        const savedPath = await save({
+        const picked = await save({
+          defaultPath: `${state.project.name || 'project'}.ifc`,
           filters: [{ name: 'IFC Files', extensions: ['ifc'] }],
         });
-        if (savedPath) {
+        if (picked) {
+          const savedPath = ensureExtension(picked, 'ifc');
           await writeTextFile(savedPath, content);
           set((s) => {
             s.filePath = savedPath;
@@ -722,10 +725,12 @@ export const useAppStore = create<AppState>()(
         state.sequences, state.resources, state.assignments,
       );
 
-      const savedPath = await save({
+      const picked = await save({
+        defaultPath: state.filePath ?? `${state.project.name || 'project'}.ifc`,
         filters: [{ name: 'IFC Files', extensions: ['ifc'] }],
       });
-      if (savedPath) {
+      if (picked) {
+        const savedPath = ensureExtension(picked, 'ifc');
         await writeTextFile(savedPath, content);
         set((s) => {
           s.filePath = savedPath;
@@ -742,6 +747,7 @@ export const useAppStore = create<AppState>()(
       const state = get();
 
       let content: string;
+      let ext: string;
       let filters: { name: string; extensions: string[] }[];
 
       switch (format) {
@@ -750,6 +756,7 @@ export const useAppStore = create<AppState>()(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments,
           );
+          ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
           break;
         case 'mspdi':
@@ -757,6 +764,7 @@ export const useAppStore = create<AppState>()(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments,
           );
+          ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
         case 'p6':
@@ -764,6 +772,7 @@ export const useAppStore = create<AppState>()(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments,
           );
+          ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
         case 'ifc':
@@ -772,12 +781,17 @@ export const useAppStore = create<AppState>()(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments,
           );
+          ext = 'ifc';
           filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
           break;
       }
 
-      const savedPath = await save({ filters });
-      if (savedPath) {
+      const picked = await save({
+        defaultPath: `${state.project.name || 'project'}.${ext}`,
+        filters,
+      });
+      if (picked) {
+        const savedPath = ensureExtension(picked, ext);
         await writeTextFile(savedPath, content);
         addRecentFile(savedPath);
       }
