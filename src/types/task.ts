@@ -1,3 +1,5 @@
+import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
+
 export type TaskType =
   | 'CONSTRUCTION'
   | 'INSTALLATION'
@@ -56,15 +58,20 @@ export function createDefaultTaskTime(
   start: string,
   durationDays: number,
 ): TaskTime {
+  // Derive a finish consistent with the duration so the Gantt bar spans the
+  // right number of days before CPM runs. Matches CalendarEngine.addWorkDays
+  // (inclusive, weekends skipped); runCPM later refines it with the full calendar.
+  const finish =
+    durationDays > 0 ? formatDate(addBusinessDays(parseDate(start), durationDays)) : start;
   return {
     durationType: 'WORKTIME',
     scheduleDuration: durationDays,
     scheduleStart: start,
-    scheduleFinish: start,
+    scheduleFinish: finish,
     earlyStart: start,
-    earlyFinish: start,
+    earlyFinish: finish,
     lateStart: start,
-    lateFinish: start,
+    lateFinish: finish,
     freeFloat: 0,
     totalFloat: 0,
     isCritical: false,

@@ -82,6 +82,25 @@ export function getWeekNumber(d: Date): number {
   return 1 + Math.round(((target.getTime() - jan4.getTime()) / 86400000 - 3 + ((jan4.getUTCDay() + 6) % 7)) / 7);
 }
 
+/**
+ * Add work days to a date counting only weekends as non-working (Mon–Fri),
+ * with the start day counting as day 1. Mirrors CalendarEngine.addWorkDays but
+ * without holiday awareness — used for placeholder/default finish dates before
+ * CPM runs. The real, calendar-aware schedule is computed by runCPM (F5).
+ */
+export function addBusinessDays(start: Date, workDays: number): Date {
+  if (workDays <= 0) return new Date(start.getTime());
+  let current = new Date(start.getTime());
+  // Ensure we start on a weekday
+  while (isoDayOfWeek(current) > 5) current = addCalendarDays(current, 1);
+  let remaining = workDays - 1; // the start day counts as day 1
+  while (remaining > 0) {
+    current = addCalendarDays(current, 1);
+    if (isoDayOfWeek(current) <= 5) remaining--;
+  }
+  return current;
+}
+
 /** Get week number with configurable week start. ISO 8601 when 'monday', US-style when 'sunday'. */
 export function getWeekNumberFor(d: Date, startDay: 'monday' | 'sunday' = 'monday'): number {
   if (startDay === 'monday') return getWeekNumber(d);
