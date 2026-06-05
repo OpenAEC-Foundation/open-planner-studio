@@ -5,9 +5,8 @@ import {
   Printer, Info, Settings, X, FileType,
 } from 'lucide-react';
 import { useAppStore, ExportFormat } from '@/state/appStore';
-import { BackstageSection, UITheme, UI_THEMES } from '@/state/slices/types';
-import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
-import { saveLocale, saveTheme } from '@/utils/settingsStore';
+import { BackstageSection } from '@/state/slices/types';
+import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import './Backstage.css';
 
 export function Backstage() {
@@ -288,68 +287,15 @@ function ProjectInfoSection({ onApply }: { onApply: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
-// Settings section
+// Settings section — gedeelde settings-UI (zelfde als gear-dialog/ribbon)
 // ---------------------------------------------------------------------------
 
-const THEME_SWATCHES: Record<UITheme, string[]> = {
-  'dark':          ['#2A2A32', '#36363E', '#D97706', '#FAFAF9'],
-  'light':         ['#FAFAF9', '#F5F5F4', '#D97706', '#36363E'],
-  'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
-};
-
 function SettingsSection() {
-  const { i18n } = useTranslation();
-  const setUI = useAppStore(s => s.setUI);
-  const currentTheme = useAppStore(s => s.ui.uiTheme);
-
-  const handleThemeChange = (theme: UITheme) => {
-    setUI({ uiTheme: theme });
-    void saveTheme(theme);
-  };
-
-  const handleLocaleChange = (locale: Locale) => {
-    void i18n.changeLanguage(locale);
-    void saveLocale(locale);
-  };
-
+  const { t: tMenu } = useTranslation('menu');
   return (
     <>
-      <h2 className="backstage-title">Instellingen</h2>
-      <p className="backstage-subtitle">Thema, taal en weergave-instellingen.</p>
-
-      <div className="backstage-form">
-        <div className="backstage-form-row">
-          <label>Thema</label>
-          <div className="backstage-theme-grid">
-            {UI_THEMES.map(({ id, label }) => (
-              <button
-                key={id}
-                className={`backstage-theme-card ${currentTheme === id ? 'active' : ''}`}
-                onClick={() => handleThemeChange(id)}
-              >
-                <h4>{label}</h4>
-                <div className="backstage-theme-swatches">
-                  {THEME_SWATCHES[id].map((hex, i) => (
-                    <span key={i} className="backstage-theme-swatch" style={{ background: hex }} />
-                  ))}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="backstage-form-row">
-          <label>Taal</label>
-          <select value={i18n.language} onChange={e => handleLocaleChange(e.target.value as Locale)}>
-            {[...supportedLanguages]
-              .sort((a, b) => LANGUAGE_LABELS[a][0].localeCompare(LANGUAGE_LABELS[b][0]))
-              .map(code => {
-                const [short, label] = LANGUAGE_LABELS[code];
-                return <option key={code} value={code}>{short} — {label}</option>;
-              })}
-          </select>
-        </div>
-      </div>
+      <h2 className="backstage-title">{tMenu('ribbon.projectSettings')}</h2>
+      <SettingsPanelContent />
     </>
   );
 }

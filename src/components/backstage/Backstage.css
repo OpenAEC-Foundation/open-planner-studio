@@ -231,8 +231,7 @@
   color: var(--theme-text);
 }
 .backstage-form-row input,
-.backstage-form-row textarea,
-.backstage-form-row select {
+.backstage-form-row textarea {
   font-family: var(--font-body);
   font-size: 0.875rem;
   padding: var(--sp-3) var(--sp-4);
@@ -244,8 +243,7 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .backstage-form-row input:focus,
-.backstage-form-row textarea:focus,
-.backstage-form-row select:focus {
+.backstage-form-row textarea:focus {
   border-color: var(--theme-accent);
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
 }
@@ -263,40 +261,4 @@
   margin-top: var(--sp-6);
   display: flex;
   gap: var(--sp-3);
-}
-
-/* Theme picker — drie kaarten naast elkaar */
-.backstage-theme-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-3);
-  max-width: 560px;
-}
-.backstage-theme-card {
-  border: 2px solid var(--theme-border-light);
-  border-radius: var(--radius-lg);
-  padding: var(--sp-4);
-  cursor: pointer;
-  background: var(--theme-input-bg);
-  text-align: left;
-  font-family: inherit;
-  color: inherit;
-  transition: border-color 0.15s ease;
-}
-.backstage-theme-card:hover { border-color: var(--theme-accent); }
-.backstage-theme-card.active { border-color: var(--theme-accent); }
-.backstage-theme-card h4 {
-  margin: 0 0 var(--sp-2) 0;
-  font-family: var(--font-heading);
-  font-size: 0.9375rem;
-}
-.backstage-theme-swatches {
-  display: flex;
-  gap: var(--sp-1);
-}
-.backstage-theme-swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(0, 0, 0, 0.1);
 }

@@ -488,7 +488,7 @@ export function Ribbon() {
           <>
             <RibbonGroup label={tMenu('ribbon.project')}>
               <RibbonButton icon={<Info size={20} />} label={tMenu('ribbon.projectInfo')} onClick={() => setUI({ showProjectInfoDialog: true })} />
-              <RibbonButton icon={<Settings size={20} />} label={tMenu('ribbon.projectSettings')} />
+              <RibbonButton icon={<Settings size={20} />} label={tMenu('ribbon.projectSettings')} onClick={() => setUI({ showSettingsDialog: true })} />
             </RibbonGroup>
 
             <div className="ribbon-separator" />

@@ -1,0 +1,64 @@
+/* Shared settings panel — used by the gear dialog, the ribbon (via dialog),
+   and the File → Backstage section. Reuses the .settings-* classes from
+   SettingsDialog.css and adds the theme-picker + checkbox styling. */
+
+/* In the Backstage there is no fixed-height shell, so give the panel a
+   sensible working height; inside the dialog the flex shell already
+   stretches it to 100%. */
+.settings-content {
+  min-height: 360px;
+}
+
+/* Checkbox rows */
+.settings-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--theme-text);
+  cursor: pointer;
+}
+
+/* Theme picker — visual swatch cards */
+.settings-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.settings-theme-card {
+  border: 2px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  cursor: pointer;
+  background: var(--theme-surface);
+  text-align: left;
+  font-family: inherit;
+  color: var(--theme-text);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.settings-theme-card:hover { border-color: var(--theme-accent); }
+.settings-theme-card.active {
+  border-color: var(--theme-accent);
+  background: var(--theme-hover);
+}
+
+.settings-theme-card h4 {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--theme-text);
+}
+
+.settings-theme-swatches {
+  display: flex;
+  gap: 4px;
+}
+
+.settings-theme-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--theme-border);
+}
