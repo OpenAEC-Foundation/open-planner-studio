@@ -12,6 +12,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "deb", "rpm", "appimage", "dmg"],
+    "category": "Productivity",
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",
@@ -21,6 +22,11 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
+    "linux": {
+      "deb": {
+        "section": "science"
+      }
+    },
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico"
