@@ -18,6 +18,13 @@ const THEME_SWATCHES: Record<UITheme, string[]> = {
   'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
 };
 
+// i18n-sleutels voor de thema-namen (UI_THEMES.label is alleen een Engelse fallback).
+const THEME_LABEL_KEYS = {
+  'dark':          'settings.themeDark',
+  'light':         'settings.themeLight',
+  'high-contrast': 'settings.themeHighContrast',
+} as const;
+
 /**
  * Eén gedeelde settings-UI die in alle drie de toegangspunten draait
  * (gear-dialog, Instellingen-ribbon → dialog, en File → Backstage).
@@ -75,7 +82,7 @@ export function SettingsPanelContent() {
             <div className="settings-section">
               <h3>{t('settings.theme')}</h3>
               <div className="settings-theme-grid">
-                {UI_THEMES.map(({ id, label }) => (
+                {UI_THEMES.map(({ id }) => (
                   <button
                     key={id}
                     type="button"
@@ -83,7 +90,7 @@ export function SettingsPanelContent() {
                     aria-pressed={currentTheme === id}
                     onClick={() => applyTheme(id)}
                   >
-                    <h4>{label}</h4>
+                    <h4>{t(THEME_LABEL_KEYS[id])}</h4>
                     <div className="settings-theme-swatches">
                       {THEME_SWATCHES[id].map((hex, i) => (
                         <span key={i} className="settings-theme-swatch" style={{ background: hex }} />
