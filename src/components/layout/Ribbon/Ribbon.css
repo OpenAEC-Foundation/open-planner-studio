@@ -243,23 +243,6 @@
   color: #ffffff;
 }
 
-/* Select control in ribbon */
-.ribbon-select {
-  padding: 4px 8px;
-  background: var(--theme-input-bg);
-  border: 1px solid var(--theme-border-light);
-  border-radius: 3px;
-  color: var(--theme-text);
-  font-size: 11px;
-  min-width: 100px;
-  cursor: default;
-}
-
-.ribbon-select:focus {
-  outline: none;
-  border-color: var(--theme-accent);
-}
-
 .ribbon-info {
   font-size: 10px;
   color: var(--theme-text-dim);

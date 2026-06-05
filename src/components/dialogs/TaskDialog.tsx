@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { TaskType } from '@/types/task';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
+import { Select } from '@/components/common/Select';
 import { X } from 'lucide-react';
 
 export function TaskDialog() {
@@ -176,15 +177,12 @@ export function TaskDialog() {
 
             <div className="flex flex-col gap-1">
               <label className="text-text-secondary">{t('dialog.type')}</label>
-              <select
+              <Select
+                aria-label={t('dialog.type')}
                 value={taskType}
-                onChange={e => setTaskType(e.target.value as TaskType)}
-                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
-              >
-                {taskTypeOptions.map(tt => (
-                  <option key={tt.value} value={tt.value}>{tt.label}</option>
-                ))}
-              </select>
+                onChange={v => setTaskType(v as TaskType)}
+                options={taskTypeOptions.map(tt => ({ value: tt.value, label: tt.label }))}
+              />
             </div>
           </div>
 
@@ -214,18 +212,20 @@ export function TaskDialog() {
 
           <div className="flex flex-col gap-1">
             <label className="text-text-secondary">{t('dialog.parentTask')}</label>
-            <select
+            <Select
+              aria-label={t('dialog.parentTask')}
               value={parentId}
-              onChange={e => setParentId(e.target.value)}
-              className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
-            >
-              <option value="">{t('dialog.noParent')}</option>
-              {tasks
-                .filter(t => t.id !== editingTaskId)
-                .map(t => (
-                  <option key={t.id} value={t.id}>{t.wbsCode ? `${t.wbsCode} — ` : ''}{t.name}</option>
-                ))}
-            </select>
+              onChange={setParentId}
+              options={[
+                { value: '', label: t('dialog.noParent') },
+                ...tasks
+                  .filter(t => t.id !== editingTaskId)
+                  .map(t => ({
+                    value: t.id,
+                    label: `${t.wbsCode ? `${t.wbsCode} — ` : ''}${t.name}`,
+                  })),
+              ]}
+            />
           </div>
 
           <label className="flex items-center gap-2 mt-1">

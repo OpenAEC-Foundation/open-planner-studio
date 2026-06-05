@@ -2,6 +2,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task, TaskType } from '@/types/task';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
+import { Select } from '@/components/common/Select';
 import { Trash2 } from 'lucide-react';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -111,15 +112,12 @@ export function TaskPropertiesPanel() {
       </Field>
 
       <Field label={t('properties.type')}>
-        <select
+        <Select
+          aria-label={t('properties.type')}
           value={task.taskType}
-          onChange={e => update({ taskType: e.target.value as TaskType })}
-          className="w-full px-2 py-1 text-xs bg-surface border border-border rounded focus:border-accent focus:outline-none"
-        >
-          {taskTypeOptions.map(tt => (
-            <option key={tt.value} value={tt.value}>{tt.label}</option>
-          ))}
-        </select>
+          onChange={v => update({ taskType: v as TaskType })}
+          options={taskTypeOptions.map(tt => ({ value: tt.value, label: tt.label }))}
+        />
       </Field>
 
       <div className="flex gap-2">

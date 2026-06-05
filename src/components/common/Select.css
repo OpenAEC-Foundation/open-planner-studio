@@ -1,0 +1,109 @@
+/* ============================================================================
+   Reusable themed Select (replaces native <select>)
+   Trigger mirrors the .input form-control language; the open menu portals to
+   document.body so it can never be clipped by dialog/panel overflow.
+   ============================================================================ */
+
+.ops-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1.5px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background: var(--theme-input-bg);
+  color: var(--theme-text);
+  cursor: pointer;
+  text-align: start;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ops-select__trigger:focus,
+.ops-select__trigger:focus-visible {
+  outline: none;
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
+}
+
+.ops-select__trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ops-select__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-select__value.is-placeholder {
+  color: var(--theme-text-muted);
+}
+
+.ops-select__chevron {
+  flex-shrink: 0;
+  color: var(--theme-text-dim);
+}
+
+/* Open menu (portaled, fixed positioning) */
+.ops-select__menu {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: var(--sp-1);
+  background: var(--theme-dropdown-bg);
+  border: 1.5px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+}
+
+.ops-select__option {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--theme-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ops-select__option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-select__option.is-highlighted {
+  background: var(--theme-hover);
+}
+
+.ops-select__option.is-selected {
+  background: var(--theme-accent);
+  color: var(--theme-accent-on);
+}
+
+.ops-select__option.is-selected.is-highlighted {
+  background: var(--theme-accent-hover);
+  color: var(--theme-accent-on);
+}
+
+.ops-select__option.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* RTL: flip the chevron so it sits on the leading edge naturally; logical
+   properties above handle padding/text alignment. */
+[dir="rtl"] .ops-select__trigger {
+  text-align: start;
+}

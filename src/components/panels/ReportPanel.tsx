@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { renderPrintCanvas, PrintOptions } from '@/services/print/printPreview';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
+import { Select } from '@/components/common/Select';
 const isTauri = () => '__TAURI_INTERNALS__' in window;
 
 export function ReportPanel() {
@@ -176,26 +177,30 @@ export function ReportPanel() {
 
             <div className="flex items-center gap-2">
               <label className="text-text-secondary w-20">{t('paper')}</label>
-              <select
+              <Select
+                className="flex-1"
+                aria-label={t('paper')}
                 value={paperSize}
-                onChange={e => setPaperSize(e.target.value as 'A3' | 'A4' | 'A1')}
-                className="flex-1 px-2 py-1 bg-surface border border-border rounded text-xs focus:border-accent focus:outline-none"
-              >
-                <option value="A4">A4</option>
-                <option value="A3">A3</option>
-                <option value="A1">A1</option>
-              </select>
+                onChange={v => setPaperSize(v as 'A3' | 'A4' | 'A1')}
+                options={[
+                  { value: 'A4', label: 'A4' },
+                  { value: 'A3', label: 'A3' },
+                  { value: 'A1', label: 'A1' },
+                ]}
+              />
             </div>
             <div className="flex items-center gap-2">
               <label className="text-text-secondary w-20">{t('orientation')}</label>
-              <select
+              <Select
+                className="flex-1"
+                aria-label={t('orientation')}
                 value={orientation}
-                onChange={e => setOrientation(e.target.value as 'landscape' | 'portrait')}
-                className="flex-1 px-2 py-1 bg-surface border border-border rounded text-xs focus:border-accent focus:outline-none"
-              >
-                <option value="landscape">{t('landscape')}</option>
-                <option value="portrait">{t('portrait')}</option>
-              </select>
+                onChange={v => setOrientation(v as 'landscape' | 'portrait')}
+                options={[
+                  { value: 'landscape', label: t('landscape') },
+                  { value: 'portrait', label: t('portrait') },
+                ]}
+              />
             </div>
 
             {/* Auto-fit checkbox */}
