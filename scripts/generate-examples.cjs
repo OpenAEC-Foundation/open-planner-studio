@@ -53,7 +53,10 @@ function writeIFC(project, calendar, tasks, sequences) {
   function addLine(key, line) {
     const id = nextId++;
     idMap.set(key, id);
-    lines.push(`#${id}=${line}`);
+    // STEP-entiteiten MOETEN met ';' eindigen (ISO 10303-21); readIFC's
+    // entity-regex vereist het, anders parst hij 0 entiteiten -> leeg project.
+    // (Spiegelt de fix in ifcWriter.ts, commit 8b302ad.)
+    lines.push(`#${id}=${line};`);
     return id;
   }
 
