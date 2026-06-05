@@ -5,12 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev          # Vite dev server (port 3007, falls back if taken)
+npm run dev          # Vite dev server (port 3007, strictPort — fails if taken; override with OPS_DEV_PORT)
 npm run build        # tsc --noEmit + vite build → dist/
 npm run preview      # Serve the built bundle
-npm run tauri:dev    # Run the desktop app (Tauri 2)
+npm run tauri:dev    # Run the desktop app (Tauri 2) via scripts/tauri-dev.mjs
 npm run tauri:build  # Produce desktop installers
 ```
+
+`tauri:dev` goes through `scripts/tauri-dev.mjs`, which picks the first free port ≥3007, derives a per-worktree instance slug from the directory name, and starts `tauri dev` with a matching `--config` `devUrl` plus `OPS_DEV_PORT`/`OPS_DEV_INSTANCE` in the env. This lets **multiple worktrees run their desktop builds at once** — each gets its own port (so the window never loads another worktree's Vite) and its own `recovery.<slug>.ifc` auto-save file (so concurrent instances don't clobber each other in the shared `appDataDir`). `vite.config.ts` reads `OPS_DEV_PORT` with `strictPort`; `App.tsx` reads the slug via the `__OPS_DEV_INSTANCE__` define.
 
 There is no test runner and no lint script. `tsc` (invoked via `npm run build`) is the only static check; TypeScript is in `strict` mode with `noUnusedLocals`/`noUnusedParameters`, so build failures often surface dead code. CI (`.github/workflows/ci.yml`) only runs `tauri build --no-bundle` on Ubuntu/Windows/macOS.
 
@@ -38,9 +40,11 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 
 The Gantt chart is drawn imperatively to a `<canvas>` via `src/engine/renderer/` (`GanttRenderer`). Bars, dependencies, the timescale, and hit-testing all live in renderer code — not React components. When changing visual behavior of the Gantt, edit the renderer; React only owns the surrounding chrome (ribbon, panels, dialogs, status bar). The table view (`TableEditor`) is a separate DOM-based editor over the same store.
 
-### State: Zustand + Immer with sliced store
+### State: one Zustand + Immer store
 
-`src/state/appStore.ts` is the single store; it composes slices from `src/state/slices/`. State is mutated through Immer producers. Domain types live in `src/types/`. The scheduler (`src/engine/scheduler/CPMSolver`, `CalendarEngine`) reads from the store and writes computed fields (early/late dates, total float, critical-path flag) back via slice actions; the renderer reads only.
+`src/state/appStore.ts` is a single ~840-line `create<AppState>()(immer(...))` store — all actions are inline, it is **not** composed from slices. Despite the name, `src/state/slices/` holds only `types.ts`: shared type/enum definitions (`ViewState`, `UIState`, `TimeScale`, `RibbonTab`, `UITheme`, `BackstageSection`, `WeekStartDay`) imported across the app, no `StateCreator` slices. State is mutated through Immer producers; domain types live in `src/types/`. The renderer reads from the store only.
+
+Scheduling is **manual, not reactive**: the `runCPM` action instantiates `CalendarEngine` + `CPMSolver` (`src/engine/scheduler/`) inline and writes computed fields (early/late dates, total float, critical-path flag) straight back via Immer — it does not re-run on every edit. It is triggered explicitly by F5, the ribbon **Calculate** button, the menu, and after an IFC load. Editing tasks without calling `runCPM` leaves the schedule stale, so call it after mutating tasks/sequences/calendar. Undo/redo is snapshot-based: mutating actions push a full `Snapshot` onto `undoStack` before mutating.
 
 ### Ribbon-driven UI
 
