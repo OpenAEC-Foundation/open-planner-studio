@@ -199,6 +199,9 @@ function createDefaultUI(): UIState {
     uiTheme: 'dark',
     enableQuarterHourZoom: false,
     weekStartDay: 'monday',
+    scrollMode: 'modifier',
+    positionDivision: 'left-right',
+    modifierMap: { plain: 'vertical', ctrl: 'zoom', shift: 'horizontal' },
     debugTerminalEnabled: false,
     debugTerminalOpen: false,
   };

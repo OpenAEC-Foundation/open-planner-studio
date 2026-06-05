@@ -2,6 +2,27 @@ export type TimeScale = 'day' | 'week' | 'month' | 'quarter';
 
 export type WeekStartDay = 'monday' | 'sunday';
 
+// --- Scroll & zoom over the Gantt (configurable wheel behavior) ---
+// The wheel can do one of three things; in "modifier" mode the mapping is a
+// strict bijection (each function used exactly once).
+export type WheelFunction = 'vertical' | 'horizontal' | 'zoom';
+
+export type ScrollMode = 'position' | 'modifier';
+
+export type PositionDivision = 'left-right' | 'top-bottom' | 'corner';
+
+export interface ModifierMap {
+  plain: WheelFunction;
+  ctrl: WheelFunction;
+  shift: WheelFunction;
+}
+
+export const DEFAULT_MODIFIER_MAP: ModifierMap = {
+  plain: 'vertical',
+  ctrl: 'zoom',
+  shift: 'horizontal',
+};
+
 export type UITheme = 'dark' | 'light' | 'high-contrast';
 
 export const UI_THEMES: { id: UITheme; label: string }[] = [
@@ -47,6 +68,9 @@ export interface UIState {
   uiTheme: UITheme;
   enableQuarterHourZoom: boolean;
   weekStartDay: WeekStartDay;
+  scrollMode: ScrollMode;             // persisted — wheel behavior mode
+  positionDivision: PositionDivision; // persisted — split used in position mode
+  modifierMap: ModifierMap;           // persisted — wheel→function map for modifier mode
   debugTerminalEnabled: boolean;  // persisted
   debugTerminalOpen: boolean;     // session
 }

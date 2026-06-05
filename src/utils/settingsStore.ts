@@ -1,4 +1,11 @@
-import type { WeekStartDay, UITheme } from '@/state/slices/types';
+import type {
+  WeekStartDay,
+  UITheme,
+  ScrollMode,
+  PositionDivision,
+  ModifierMap,
+  WheelFunction,
+} from '@/state/slices/types';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
@@ -56,20 +63,49 @@ export async function initTheme(): Promise<UITheme> {
 export interface PersistedZoomSettings {
   enableQuarterHourZoom: boolean;
   weekStartDay: WeekStartDay;
+  scrollMode: ScrollMode;
+  positionDivision: PositionDivision;
+  modifierMap: ModifierMap;
+}
+
+const WHEEL_FUNCTIONS: WheelFunction[] = ['vertical', 'horizontal', 'zoom'];
+
+// A ModifierMap is only valid if it is a strict bijection over the three
+// wheel functions (each used exactly once). Reject anything else so a
+// corrupted localStorage value can't desync the wheel handler.
+function isValidModifierMap(m: unknown): m is ModifierMap {
+  if (!m || typeof m !== 'object') return false;
+  const map = m as Record<string, unknown>;
+  const values = [map.plain, map.ctrl, map.shift];
+  if (!values.every(v => typeof v === 'string' && WHEEL_FUNCTIONS.includes(v as WheelFunction))) {
+    return false;
+  }
+  return new Set(values).size === 3;
 }
 
 export async function loadZoomSettings(): Promise<Partial<PersistedZoomSettings>> {
   const result: Partial<PersistedZoomSettings> = {};
   const qh = await getSetting<boolean>('enableQuarterHourZoom');
   const week = await getSetting<WeekStartDay>('weekStartDay');
+  const mode = await getSetting<ScrollMode>('scrollMode');
+  const division = await getSetting<PositionDivision>('positionDivision');
+  const modMap = await getSetting<ModifierMap>('modifierMap');
   if (typeof qh === 'boolean') result.enableQuarterHourZoom = qh;
   if (week === 'monday' || week === 'sunday') result.weekStartDay = week;
+  if (mode === 'position' || mode === 'modifier') result.scrollMode = mode;
+  if (division === 'left-right' || division === 'top-bottom' || division === 'corner') {
+    result.positionDivision = division;
+  }
+  if (isValidModifierMap(modMap)) result.modifierMap = modMap;
   return result;
 }
 
 export async function saveZoomSettings(settings: Partial<PersistedZoomSettings>): Promise<void> {
   if (settings.enableQuarterHourZoom !== undefined) await setSetting('enableQuarterHourZoom', settings.enableQuarterHourZoom);
   if (settings.weekStartDay !== undefined) await setSetting('weekStartDay', settings.weekStartDay);
+  if (settings.scrollMode !== undefined) await setSetting('scrollMode', settings.scrollMode);
+  if (settings.positionDivision !== undefined) await setSetting('positionDivision', settings.positionDivision);
+  if (settings.modifierMap !== undefined) await setSetting('modifierMap', settings.modifierMap);
 }
 
 export async function loadDebugTerminalEnabled(): Promise<boolean | undefined> {
