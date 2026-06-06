@@ -65,6 +65,7 @@ export interface UIState {
   collapsedTaskIds: string[];   // summary tasks that are collapsed
   inlineEditTaskId: string | null;
   showSettingsDialog: boolean;
+  showCalendarDialog: boolean;
   uiTheme: UITheme;
   enableQuarterHourZoom: boolean;
   weekStartDay: WeekStartDay;

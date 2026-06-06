@@ -432,8 +432,8 @@ export function Ribbon() {
             <div className="ribbon-separator" />
 
             <RibbonGroup label={tMenu('ribbon.calendar')}>
-              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} />
-              <RibbonButton icon={<Clock size={20} />} label={tMenu('ribbon.holidays')} />
+              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} onClick={() => setUI({ showCalendarDialog: true })} />
+              <RibbonButton icon={<Clock size={20} />} label={tMenu('ribbon.holidays')} onClick={() => setUI({ showCalendarDialog: true })} />
             </RibbonGroup>
           </>
         )}
@@ -494,7 +494,7 @@ export function Ribbon() {
             <div className="ribbon-separator" />
 
             <RibbonGroup label={tMenu('ribbon.calendar')}>
-              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} />
+              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} onClick={() => setUI({ showCalendarDialog: true })} />
             </RibbonGroup>
           </>
         )}
