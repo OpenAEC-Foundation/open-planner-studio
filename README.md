@@ -11,7 +11,7 @@ Open-source bouwplanningapplicatie voor de bouwsector. Native IFC-bestandsformaa
 - **Work Breakdown Structure (WBS)** — hierarchische taakstructuur met inklapbare hoofdstukken
 - **IFC-native** — opslaan en openen in IFC 4.3 (buildingSMART standaard)
 - **Ribbon toolbar** — Microsoft Office-achtige ribbon met tabbladen
-- **Meertalig** — Nederlands, English, Francais, Deutsch, Espanol, Zhongwen
+- **Meertalig** — 14 talen: Nederlands, English, Français, Deutsch, Español, 中文, Italiano, Português, Polski, Türkçe, العربية, 日本語, 한국어, فارسی (incl. RTL voor Arabisch en Perzisch)
 - **Tabelweergave** — Excel-achtige editor met dubbelklik-bewerking
 - **Rapportage** — live afdrukvoorbeeld in de ribbon met instelbare opties
 - **Context menu** — rechtermuisknop voor snelle acties op taken
@@ -33,40 +33,49 @@ npm install
 npm run dev
 
 # Open in browser
-open http://localhost:5173
+open http://localhost:3007
 ```
 
 ## Technologiestack
 
 | Laag | Technologie |
 |------|-------------|
-| Desktop | Tauri 2.0 |
-| Frontend | React 18 + TypeScript |
+| Desktop | Tauri 2 |
+| Frontend | React 19 + TypeScript |
 | Rendering | HTML5 Canvas 2D |
 | State | Zustand + Immer |
-| Styling | TailwindCSS |
-| i18n | Custom React Context (6 talen) |
-| Build | Vite 5 |
+| Styling | TailwindCSS 4 + component-CSS |
+| i18n | react-i18next (14 talen) |
+| Build | Vite 7 |
 
 ## Projectstructuur
 
 ```
 src/
   components/
+    backstage/       # Backstage (Office-achtig File-menu)
     canvas/          # GanttCanvas, ContextMenu
-    dialogs/         # TaskDialog, ProjectInfoDialog
-    layout/          # Ribbon, StatusBar
-    panels/          # TableEditor, IFCPanel, ReportPanel, TaskPropertiesPanel
+    common/          # Herbruikbare UI-componenten (Select)
+    dialogs/         # TaskDialog, ProjectInfoDialog, SettingsDialog
+    layout/          # Ribbon, MenuBar, StatusBar, TitleBar
+    panels/          # TableEditor, IFCPanel, ReportPanel, TaskPropertiesPanel, DebugTerminal
+    settings/        # Instellingen-paneelinhoud
   engine/
     renderer/        # GanttRenderer (Canvas 2D)
     scheduler/       # CPMSolver, CalendarEngine
-  i18n/              # Vertalingen (nl, en, fr, de, es, zh)
+  hooks/             # Toetsenbord- en zoom-hooks
+  i18n/              # Vertalingen (14 talen)
   services/
-    ifc/             # IFC 4.3 lezen/schrijven
-    print/           # Print preview
-  state/             # Zustand store, slices
-  types/             # TypeScript types (Task, Sequence, Resource, Calendar)
-  utils/             # Date utilities, ID generator
+    ifc/             # IFC 4.3 lezen/schrijven (native formaat)
+    csv/             # CSV import/export
+    msproject/       # MS Project (.xml) import/export
+    p6/              # Primavera P6 (.xml) import/export
+    print/           # Afdrukvoorbeeld
+    debug/           # Logbus (debug terminal)
+  state/             # Zustand store (+ slices/types.ts)
+  styles/            # Globale CSS + Tailwind
+  types/             # TypeScript types (Task, Sequence, Resource, Calendar, Project)
+  utils/             # Datum-utils, ID-generator, instellingen-opslag
 examples/            # Voorbeeld IFC-planningen
 ```
 
