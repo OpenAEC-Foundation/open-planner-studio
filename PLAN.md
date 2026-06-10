@@ -499,12 +499,12 @@ De architectuur volgt het patroon van **Open 2D Studio** en **OpenFEM2D Studio**
 | Laag | Technologie | Toelichting |
 |------|-------------|-------------|
 | **Desktop shell** | **Tauri 2.0** | Lichtgewicht (~10 MB), native performance, cross-platform (Windows/Linux/macOS) |
-| **Frontend** | **React 18 + TypeScript** | Strict mode, functionele componenten met hooks |
+| **Frontend** | **React 19 + TypeScript** | Strict mode, functionele componenten met hooks |
 | **Rendering** | **HTML5 Canvas 2D** | Gantt-chart rendering, interactieve tijdlijn, drag & drop |
 | **State management** | **Zustand + Immer** | Per-document store met slices, undo/redo via Immer patches |
 | **Styling** | **TailwindCSS** | Theming via CSS-variabelen, dark/light mode |
 | **Iconen** | **lucide-react** | Consistent met Open 2D Studio |
-| **Build** | **Vite 5** | Dev server + bundler, TypeScript compilatie |
+| **Build** | **Vite 7** | Dev server + bundler, TypeScript compilatie |
 | **Backend** | **Rust** (Tauri) | IFC parsing/schrijven, zware berekeningen (CPM-solver) |
 | **IFC-bibliotheek** | **web-ifc** (frontend) + **ifc-rs** (Rust) | Lezen/schrijven van IFC-bestanden |
 | **MCP-server** | **Python 3.10+** | AI-integratie via Model Context Protocol |
@@ -524,7 +524,7 @@ De architectuur volgt het patroon van **Open 2D Studio** en **OpenFEM2D Studio**
 ┌─────────────────────────────────────────────────────────┐
 │                    Tauri 2.0 Shell                       │
 │  ┌───────────────────────────────────────────────────┐  │
-│  │              React 18 Frontend                     │  │
+│  │              React 19 Frontend                     │  │
 │  │                                                    │  │
 │  │  ┌──────────┐ ┌──────────┐ ┌───────────────────┐ │  │
 │  │  │ MenuBar  │ │  Ribbon  │ │   FileTabBar      │ │  │
@@ -902,7 +902,7 @@ interface TaskTime {
 **Tijdsinschatting**: 8-12 weken
 
 #### 1.1 Project Setup & Infrastructuur
-- [ ] Tauri 2.0 + React 18 + TypeScript + Vite project opzet
+- [ ] Tauri 2.0 + React 19 + TypeScript + Vite project opzet
 - [ ] Zustand store met project, task, sequence slices
 - [ ] Undo/redo systeem (Immer patches)
 - [ ] Dark mode / Light mode theming
