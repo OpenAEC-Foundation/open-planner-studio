@@ -90,7 +90,7 @@ export function GanttCanvas() {
   const cpmResult = useAppStore(s => s.cpmResult);
 
   const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
-  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth: TASK_TABLE_WIDTH });
+  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth: TASK_TABLE_WIDTH, originPaddingDays: ORIGIN_PADDING_DAYS });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);

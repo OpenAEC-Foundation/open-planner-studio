@@ -27,7 +27,7 @@ export function StatusBar() {
       <span>{t('status.milestones')} {milestones.length}</span>
       {cpmResult && (
         <>
-          <span className="text-critical">{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
+          <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
           <span>{t('status.end')} {cpmResult.projectEnd}</span>
         </>
       )}
@@ -37,7 +37,7 @@ export function StatusBar() {
       <div className="flex-1" />
       <span>{t('status.scale')} {view.timeScale}</span>
       <span>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
-      {isDirty && <span style={{ color: 'var(--warm-gold)' }}>{t('status.unsaved')}</span>}
+      {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
       {debugTerminalEnabled && (
         <button
           onClick={() => setUI({ debugTerminalOpen: !debugTerminalOpen })}

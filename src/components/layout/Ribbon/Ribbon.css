@@ -228,8 +228,9 @@
 }
 
 .ribbon-btn.primary:hover {
-  background: var(--signal-orange);
-  border-color: var(--signal-orange);
+  /* theme-aware hover (zie .btn--primary:hover): light #9A3412 ⇒ wit-op 7.3:1 */
+  background: var(--theme-accent-hover);
+  border-color: var(--theme-accent-hover);
 }
 
 /* Danger button — semantic error token */

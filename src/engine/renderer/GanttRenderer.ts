@@ -31,7 +31,7 @@ function getThemeColors() {
     bg: v('--theme-bg', '#1e1e2e'),
     surface: v('--theme-surface-alt', '#252536'),
     grid: v('--theme-surface-elevated', '#2e2e42'),
-    gridWeekend: v('--theme-input-bg', '#1a1a28'),
+    gridWeekend: v('--theme-grid-weekend', '#1a1a28'),
     border: v('--theme-border', '#3e3e55'),
     text: v('--theme-text', '#e0e0e8'),
     textSecondary: v('--theme-text-dim', '#9090a8'),
@@ -40,7 +40,7 @@ function getThemeColors() {
     normal: '#2563EB',
     normalLight: '#1D4ED8',
     milestone: '#7C3AED',
-    float: '#10B981',
+    float: v('--theme-bar-float', '#10B981'),
     baseline: '#6B7280',
     complete: '#1D4ED8',
     selected: v('--theme-accent', '#F59E0B'),
@@ -354,7 +354,7 @@ export class GanttRenderer {
     // Float indicator
     if (task.time.totalFloat > 0 && !task.time.isCritical) {
       const floatWidth = task.time.totalFloat * this.opts.view.zoom;
-      ctx.fillStyle = this.colors.float + '40'; // 25% opacity
+      ctx.fillStyle = this.colors.float + 'E6'; // ~90% opacity — float band needs ≥3:1 vs light bg
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
     }
 
