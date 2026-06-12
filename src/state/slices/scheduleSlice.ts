@@ -1,5 +1,5 @@
 import type { Task } from '@/types/task';
-import { CPMSolver, CPMResult } from '@/engine/scheduler/CPMSolver';
+import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { AppSlice } from './types';
 
