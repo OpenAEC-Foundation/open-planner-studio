@@ -64,6 +64,13 @@ export const createExtensionSlice: AppSlice<ExtensionSlice> = (set) => ({
   unregisterExtension: (id) =>
     set((s) => {
       delete s.installedExtensions[id];
+      // Ruim ook alle UI-registraties van deze extensie op (voorkomt orphans).
+      s.extensionRibbonButtons = s.extensionRibbonButtons.filter(
+        b => b.extensionId !== id
+      );
+      s.extensionImporters = s.extensionImporters.filter(
+        i => i.extensionId !== id
+      );
     }),
 
   setExtensionStatus: (id, status, error) =>
