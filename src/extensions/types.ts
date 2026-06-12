@@ -9,6 +9,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { RibbonTab } from '@/state/slices/types';
 
 // ── Categorieën & permissies ──
 
@@ -88,7 +89,7 @@ export interface ImporterDefinition {
 // ── Ribbon-registratie ──
 
 export interface RibbonButtonRegistration {
-  tab: string;                // RibbonTab-waarde, bv. 'start' of 'planning'
+  tab: RibbonTab;             // bv. 'start' of 'planning'
   group: string;              // groepslabel in de ribbon
   label: string;
   icon?: string;              // inline SVG-string
