@@ -15,20 +15,34 @@
   "showDependencies": "Dépendances",
   "showWeekends": "Week-ends",
   "showLegend": "Légende",
+  "showTaskNames": "Noms des tâches sur les barres",
+  "showCompletion": "Afficher l'avancement",
+  "autoFit": "Ajustement automatique au papier",
+  "zoom": "Zoom :",
+  "company": "Entreprise :",
+  "companyPlaceholder": "Nom de l'entreprise",
+  "author": "Auteur :",
   "print": "Imprimer...",
+  "exportPDF": "Exporter en PDF",
   "noTasks": "Aucune tâche à afficher",
   "printed": "Imprimé :",
+  "page": "Page",
+  "of": "sur",
   "legend": {
     "criticalPath": "Chemin critique",
     "normal": "Normal",
     "milestone": "Jalon",
-    "summary": "Résumé"
+    "summary": "Résumé",
+    "float": "Marge",
+    "completion": "Avancement"
   },
   "tableHeaders": {
+    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Nom de la tâche",
     "start": "Début",
     "end": "Fin",
-    "duration": "Durée"
+    "duration": "Durée",
+    "completion": "Avanc."
   }
 }

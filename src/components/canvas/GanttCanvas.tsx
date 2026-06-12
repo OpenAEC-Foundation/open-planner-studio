@@ -12,6 +12,9 @@ import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
 const TASK_TABLE_WIDTH = 350;
+// Days of empty padding kept to the left of the earliest task / today so the
+// timeline origin never sits exactly on a task bar.
+const ORIGIN_PADDING_DAYS = 14;
 
 interface ContextMenuState {
   x: number;
@@ -47,6 +50,15 @@ interface ToastState {
   type: 'error' | 'info';
 }
 
+// Map-style drag-to-pan (Optie 3 / 'drag' scroll mode). Captures the pointer
+// origin and the scroll offsets at grab time; movement is applied as a delta.
+interface PanState {
+  startClientX: number;
+  startClientY: number;
+  originScrollX: number;
+  originScrollY: number;
+}
+
 export function GanttCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,14 +86,16 @@ export function GanttCanvas() {
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
+  const scrollMode = useAppStore(s => s.ui.scrollMode);
   const cpmResult = useAppStore(s => s.cpmResult);
 
   const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
-  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth: TASK_TABLE_WIDTH });
+  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth: TASK_TABLE_WIDTH, originPaddingDays: ORIGIN_PADDING_DAYS });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
+  const [panState, setPanState] = useState<PanState | null>(null);
   const [cursor, setCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -109,10 +123,35 @@ export function GanttCanvas() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  // Effective timeline origin (the date mapped to scrollX = 0). The stored
+  // viewStartDate defaults to "today" and never accounts for tasks that start
+  // earlier; since the horizontal scrollbar (and the setScroll clamp) only
+  // allow scrollX >= 0, anything left of the origin is unreachable. Pin the
+  // origin to the earliest task start (or today, whichever is earlier) minus a
+  // small padding so past tasks become scrollable into view.
+  const effectiveViewStart = useMemo(() => {
+    let earliest = parseDate(view.viewStartDate);
+    for (const task of tasks) {
+      const start = task.time.earlyStart || task.time.scheduleStart || task.time.lateStart;
+      if (start) {
+        const d = parseDate(start);
+        if (d.getTime() < earliest.getTime()) earliest = d;
+      }
+    }
+    return formatDate(addCalendarDays(earliest, -ORIGIN_PADDING_DAYS));
+  }, [tasks, view.viewStartDate]);
+
+  // The view handed to the renderer/content-width uses the effective origin so
+  // the date<->x mapping stays consistent across canvas, scrollbar and zoom.
+  const effectiveView = useMemo(
+    () => ({ ...view, viewStartDate: effectiveViewStart }),
+    [view, effectiveViewStart],
+  );
+
   // Calculate total content width based on task date range
   const totalContentWidth = useMemo(() => {
     if (tasks.length === 0) return 2000;
-    const viewStart = view.viewStartDate;
+    const viewStart = effectiveViewStart;
     let maxDays = 365;
     for (const task of tasks) {
       const end = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish;
@@ -122,7 +161,7 @@ export function GanttCanvas() {
       }
     }
     return Math.max(2000, (maxDays * 1.2) * view.zoom + TASK_TABLE_WIDTH);
-  }, [tasks, view.viewStartDate, view.zoom]);
+  }, [tasks, effectiveViewStart, view.zoom]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -145,7 +184,7 @@ export function GanttCanvas() {
       tasks,
       sequences,
       calendar,
-      view,
+      view: effectiveView,
       selectedTaskIds,
       collapsedTaskIds,
       canvasWidth: rect.width,
@@ -162,7 +201,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, view, selectedTaskIds, collapsedTaskIds, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
+  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
 
   // Render on changes
   useEffect(() => {
@@ -325,8 +364,44 @@ export function GanttCanvas() {
         originalDuration: hit.task.time.scheduleDuration,
       });
       selectTask(hit.task.id, false);
+      return;
     }
-  }, [selectTask]);
+
+    // No bar hit: in 'drag' scroll mode, grabbing the empty chart background
+    // pans the view (map-style). Only in the gantt area, never the task table
+    // (the table has no horizontal pan and stays interactive).
+    if (scrollMode === 'drag' && x >= TASK_TABLE_WIDTH) {
+      e.preventDefault();
+      const v = useAppStore.getState().view;
+      setPanState({
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        originScrollX: v.scrollX,
+        originScrollY: v.scrollY,
+      });
+    }
+  }, [selectTask, scrollMode]);
+
+  // Map-style pan: translate pointer movement into scroll offsets. Dragging the
+  // canvas content to the right reveals earlier content, so scrollX decreases.
+  useEffect(() => {
+    if (!panState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - panState.startClientX;
+      const dy = e.clientY - panState.startClientY;
+      setScroll(panState.originScrollX - dx, panState.originScrollY - dy);
+    };
+
+    const handleMouseUp = () => setPanState(null);
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [panState, setScroll]);
 
   // Dependency drag: draw temporary line and handle release
   useEffect(() => {
@@ -480,7 +555,7 @@ export function GanttCanvas() {
 
   // Cursor changes on hover + tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (dragState || depDragState) {
+    if (dragState || depDragState || panState) {
       setTooltip(null);
       return;
     }
@@ -530,8 +605,15 @@ export function GanttCanvas() {
       }
     }
 
+    // In 'drag' scroll mode, show a grab affordance over the pannable chart
+    // background so panning is discoverable.
+    if (scrollMode === 'drag' && x >= TASK_TABLE_WIDTH) {
+      setCursor('grab');
+      return;
+    }
+
     setCursor('default');
-  }, [dragState, depDragState]);
+  }, [dragState, depDragState, panState, scrollMode]);
 
   // Hide tooltip on mouse leave
   const handleMouseLeave = useCallback(() => {
@@ -563,11 +645,13 @@ export function GanttCanvas() {
           ref={canvasRef}
           className="absolute inset-0"
           style={{
-            cursor: dragState
-              ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
-              : depDragState
-                ? 'crosshair'
-                : cursor,
+            cursor: panState
+              ? 'grabbing'
+              : dragState
+                ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
+                : depDragState
+                  ? 'crosshair'
+                  : cursor,
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}

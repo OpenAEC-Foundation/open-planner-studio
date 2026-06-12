@@ -18,7 +18,7 @@ export type WeekStartDay = 'monday' | 'sunday';
 // strict bijection (each function used exactly once).
 export type WheelFunction = 'vertical' | 'horizontal' | 'zoom';
 
-export type ScrollMode = 'position' | 'modifier';
+export type ScrollMode = 'position' | 'modifier' | 'drag';
 
 export type PositionDivision = 'left-right' | 'top-bottom' | 'corner';
 
@@ -78,6 +78,7 @@ export interface UIState {
   collapsedTaskIds: string[];   // summary tasks that are collapsed
   inlineEditTaskId: string | null;
   showSettingsDialog: boolean;
+  showCalendarDialog: boolean;
   uiTheme: UITheme;
   enableQuarterHourZoom: boolean;
   weekStartDay: WeekStartDay;

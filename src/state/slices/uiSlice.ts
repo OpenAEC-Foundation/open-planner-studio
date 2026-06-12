@@ -23,6 +23,7 @@ export function createDefaultUI(): UIState {
     collapsedTaskIds: [],
     inlineEditTaskId: null,
     showSettingsDialog: false,
+    showCalendarDialog: false,
     uiTheme: 'dark',
     enableQuarterHourZoom: false,
     weekStartDay: 'monday',

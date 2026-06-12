@@ -9,6 +9,7 @@
   "ok": "OK",
   "apply": "Anwenden",
   "cancel": "Abbrechen",
+  "close": "Schließen",
   "save": "Speichern",
   "add": "Hinzufügen",
   "delete": "Löschen",
@@ -34,11 +35,54 @@
     "version": "Version",
     "defaultZoom": "Standard-Zoom",
     "projectInfo": "Projektinformationen...",
-    "theme": "Design"
+    "theme": "Design",
+    "themeDark": "Dunkel",
+    "themeLight": "Hell",
+    "themeHighContrast": "Hoher Kontrast",
+    "timeline": "Zeitachse / Zoom",
+    "enableQuarterHourZoom": "Viertelstunden bei starker Vergrößerung anzeigen",
+    "weekStartDay": "Woche beginnt am",
+    "weekStartMonday": "Montag",
+    "weekStartSunday": "Sonntag",
+    "scrollZoom": "Scrollen & Zoomen",
+    "scrollMode": "Modus",
+    "scrollModePosition": "Position",
+    "scrollModeModifier": "Tasten",
+    "scrollModeDrag": "Zoom + Ziehen",
+    "dragModeHint": "Mausrad = zoomen (zentriert auf den Cursor) · Planhintergrund ziehen, um die Ansicht zu verschieben. Eine Aufgabenleiste ziehen verschiebt diese wie gewohnt.",
+    "screenDivision": "Bildschirmaufteilung",
+    "screenDivisionLeftRight": "Links/rechts",
+    "screenDivisionTopBottom": "Oben/unten",
+    "screenDivisionCorner": "Oben-rechts-Ecke",
+    "positionModeHint": "Strg+Scrollen = zoomen · Umschalt+Scrollen = horizontal scrollen.",
+    "modifierMapHint": "Steuerelement auf eine Funktion ziehen. Auf einen belegten Slot ziehen tauscht die Steuerelemente.",
+    "wheelFnVertical": "Vertikal",
+    "wheelFnHorizontal": "Horizontal",
+    "wheelFnZoom": "Zoom",
+    "wheelCtrlPlain": "Scrollen",
+    "wheelCtrlCtrl": "Strg + Scrollen",
+    "wheelCtrlShift": "Umschalt + Scrollen",
+    "debugTerminal": "Debug-Terminal",
+    "debugTerminalEnable": "Debug-Terminal aktivieren"
   },
   "confirm": {
     "newProject": "Neues Projekt erstellen? Nicht gespeicherte Änderungen gehen verloren.",
     "deleteTask": "Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?",
-    "unsavedChanges": "Nicht gespeicherte Änderungen gehen verloren. Fortfahren?"
+    "unsavedChanges": "Nicht gespeicherte Änderungen gehen verloren. Fortfahren?",
+    "restoreRecovery": "Eine Wiederherstellungsdatei wurde gefunden. Möchten Sie Ihre vorherige Arbeit wiederherstellen?"
+  },
+  "window": {
+    "minimize": "Minimieren",
+    "maximize": "Maximieren",
+    "restore": "Wiederherstellen"
+  },
+  "debugTerminal": {
+    "resume": "Fortsetzen",
+    "pause": "Anhalten",
+    "clear": "Löschen",
+    "toggleLevel": "{{level}} ein/aus",
+    "newEntries": "↓ {{count}} neu",
+    "show": "Debug-Terminal anzeigen",
+    "hide": "Debug-Terminal ausblenden"
   }
 }

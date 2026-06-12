@@ -9,6 +9,7 @@
   "ok": "OK",
   "apply": "Zastosuj",
   "cancel": "Anuluj",
+  "close": "Zamknij",
   "save": "Zapisz",
   "add": "Dodaj",
   "delete": "Usuń",
@@ -34,11 +35,54 @@
     "version": "Wersja",
     "defaultZoom": "Domyślne powiększenie",
     "projectInfo": "Informacje o projekcie...",
-    "theme": "Motyw"
+    "theme": "Motyw",
+    "themeDark": "Ciemny",
+    "themeLight": "Jasny",
+    "themeHighContrast": "Wysoki kontrast",
+    "timeline": "Oś czasu / Powiększenie",
+    "enableQuarterHourZoom": "Pokazuj ćwierćgodziny przy dużym powiększeniu",
+    "weekStartDay": "Tydzień zaczyna się w",
+    "weekStartMonday": "Poniedziałek",
+    "weekStartSunday": "Niedziela",
+    "scrollZoom": "Przewijanie i powiększenie",
+    "scrollMode": "Tryb",
+    "scrollModePosition": "Pozycja",
+    "scrollModeModifier": "Klawisze",
+    "scrollModeDrag": "Zoom + przeciąganie",
+    "dragModeHint": "Kółko myszy = powiększenie (kotwica na kursorze) · Przeciągnij tło wykresu, aby przesunąć widok. Przeciąganie paska zadania nadal go przesuwa.",
+    "screenDivision": "Podział ekranu",
+    "screenDivisionLeftRight": "Lewo/prawo",
+    "screenDivisionTopBottom": "Góra/dół",
+    "screenDivisionCorner": "Prawy górny róg",
+    "positionModeHint": "Ctrl+scroll = powiększenie · Shift+scroll = przewijanie poziome.",
+    "modifierMapHint": "Przeciągnij element sterowania na funkcję. Upuszczenie na zajęte miejsce zamienia elementy.",
+    "wheelFnVertical": "Pionowo",
+    "wheelFnHorizontal": "Poziomo",
+    "wheelFnZoom": "Powiększenie",
+    "wheelCtrlPlain": "Przewijanie",
+    "wheelCtrlCtrl": "Ctrl + przewijanie",
+    "wheelCtrlShift": "Shift + przewijanie",
+    "debugTerminal": "Terminal debugowania",
+    "debugTerminalEnable": "Włącz terminal debugowania"
   },
   "confirm": {
     "newProject": "Utworzyć nowy projekt? Niezapisane zmiany zostaną utracone.",
     "deleteTask": "Czy na pewno chcesz usunąć to zadanie?",
-    "unsavedChanges": "Niezapisane zmiany zostaną utracone. Kontynuować?"
+    "unsavedChanges": "Niezapisane zmiany zostaną utracone. Kontynuować?",
+    "restoreRecovery": "Znaleziono plik odzyskiwania. Czy chcesz przywrócić poprzednią pracę?"
+  },
+  "window": {
+    "minimize": "Minimalizuj",
+    "maximize": "Maksymalizuj",
+    "restore": "Przywróć"
+  },
+  "debugTerminal": {
+    "resume": "Wznów",
+    "pause": "Wstrzymaj",
+    "clear": "Wyczyść",
+    "toggleLevel": "Przełącz {{level}}",
+    "newEntries": "↓ {{count}} nowych",
+    "show": "Pokaż terminal debugowania",
+    "hide": "Ukryj terminal debugowania"
   }
 }

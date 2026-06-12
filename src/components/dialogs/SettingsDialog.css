@@ -249,7 +249,7 @@
 }
 
 .settings-btn-secondary:hover {
-  background: var(--theme-border);
+  background: var(--theme-hover);
 }
 
 /* RTL support */

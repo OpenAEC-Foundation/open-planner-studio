@@ -9,6 +9,7 @@
   "ok": "موافق",
   "apply": "تطبيق",
   "cancel": "إلغاء",
+  "close": "إغلاق",
   "save": "حفظ",
   "add": "إضافة",
   "delete": "حذف",
@@ -34,11 +35,54 @@
     "version": "الإصدار",
     "defaultZoom": "التكبير الافتراضي",
     "projectInfo": "معلومات المشروع...",
-    "theme": "السمة"
+    "theme": "السمة",
+    "themeDark": "داكن",
+    "themeLight": "فاتح",
+    "themeHighContrast": "تباين عالٍ",
+    "timeline": "الجدول الزمني / التكبير",
+    "enableQuarterHourZoom": "إظهار ربع الساعة عند التكبير الشديد",
+    "weekStartDay": "يبدأ الأسبوع في",
+    "weekStartMonday": "الإثنين",
+    "weekStartSunday": "الأحد",
+    "scrollZoom": "التمرير والتكبير",
+    "scrollMode": "الوضع",
+    "scrollModePosition": "الموضع",
+    "scrollModeModifier": "المفاتيح",
+    "scrollModeDrag": "تكبير + سحب",
+    "dragModeHint": "عجلة التمرير = تكبير (محوري على المؤشر) · اسحب خلفية المخطط لتحريك العرض. سحب شريط المهمة ينقل ذلك الشريط كالمعتاد.",
+    "screenDivision": "تقسيم الشاشة",
+    "screenDivisionLeftRight": "يسار/يمين",
+    "screenDivisionTopBottom": "أعلى/أسفل",
+    "screenDivisionCorner": "الزاوية العلوية اليمنى",
+    "positionModeHint": "Ctrl+تمرير = تكبير · Shift+تمرير = تمرير أفقي.",
+    "modifierMapHint": "اسحب عنصر تحكم إلى دالة. الإفلات على خانة مشغولة يبادل العنصرين.",
+    "wheelFnVertical": "رأسي",
+    "wheelFnHorizontal": "أفقي",
+    "wheelFnZoom": "تكبير",
+    "wheelCtrlPlain": "تمرير",
+    "wheelCtrlCtrl": "Ctrl + تمرير",
+    "wheelCtrlShift": "Shift + تمرير",
+    "debugTerminal": "طرفية التصحيح",
+    "debugTerminalEnable": "تفعيل طرفية التصحيح"
   },
   "confirm": {
     "newProject": "إنشاء مشروع جديد؟ ستفقد التغييرات غير المحفوظة.",
     "deleteTask": "هل أنت متأكد من حذف هذه المهمة؟",
-    "unsavedChanges": "ستفقد التغييرات غير المحفوظة. هل تريد المتابعة؟"
+    "unsavedChanges": "ستفقد التغييرات غير المحفوظة. هل تريد المتابعة؟",
+    "restoreRecovery": "تم العثور على ملف استرداد. هل تريد استعادة عملك السابق؟"
+  },
+  "window": {
+    "minimize": "تصغير",
+    "maximize": "تكبير",
+    "restore": "استعادة"
+  },
+  "debugTerminal": {
+    "resume": "استئناف",
+    "pause": "إيقاف مؤقت",
+    "clear": "مسح",
+    "toggleLevel": "تبديل {{level}}",
+    "newEntries": "↓ {{count}} جديد",
+    "show": "إظهار طرفية التصحيح",
+    "hide": "إخفاء طرفية التصحيح"
   }
 }

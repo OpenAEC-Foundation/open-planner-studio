@@ -9,6 +9,7 @@
   "ok": "OK",
   "apply": "Appliquer",
   "cancel": "Annuler",
+  "close": "Fermer",
   "save": "Enregistrer",
   "add": "Ajouter",
   "delete": "Supprimer",
@@ -34,11 +35,54 @@
     "version": "Version",
     "defaultZoom": "Zoom par défaut",
     "projectInfo": "Informations du projet...",
-    "theme": "Thème"
+    "theme": "Thème",
+    "themeDark": "Sombre",
+    "themeLight": "Clair",
+    "themeHighContrast": "Contraste élevé",
+    "timeline": "Chronologie / Zoom",
+    "enableQuarterHourZoom": "Afficher les quarts d'heure au zoom maximal",
+    "weekStartDay": "La semaine commence le",
+    "weekStartMonday": "Lundi",
+    "weekStartSunday": "Dimanche",
+    "scrollZoom": "Défilement & zoom",
+    "scrollMode": "Mode",
+    "scrollModePosition": "Position",
+    "scrollModeModifier": "Touches",
+    "scrollModeDrag": "Zoom + glisser",
+    "dragModeHint": "Molette = zoom (centré sur le curseur) · Glissez l'arrière-plan du diagramme pour déplacer la vue. Glisser une barre de tâche la déplace comme d'habitude.",
+    "screenDivision": "Division de l'écran",
+    "screenDivisionLeftRight": "Gauche/droite",
+    "screenDivisionTopBottom": "Haut/bas",
+    "screenDivisionCorner": "Coin supérieur droit",
+    "positionModeHint": "Ctrl+molette = zoom · Maj+molette = défilement horizontal.",
+    "modifierMapHint": "Faites glisser une commande vers une fonction. Déposer sur un emplacement occupé permute les commandes.",
+    "wheelFnVertical": "Vertical",
+    "wheelFnHorizontal": "Horizontal",
+    "wheelFnZoom": "Zoom",
+    "wheelCtrlPlain": "Défiler",
+    "wheelCtrlCtrl": "Ctrl + molette",
+    "wheelCtrlShift": "Maj + molette",
+    "debugTerminal": "Terminal de débogage",
+    "debugTerminalEnable": "Activer le terminal de débogage"
   },
   "confirm": {
     "newProject": "Créer un nouveau projet ? Les modifications non enregistrées seront perdues.",
     "deleteTask": "Êtes-vous sûr de vouloir supprimer cette tâche ?",
-    "unsavedChanges": "Les modifications non enregistrées seront perdues. Continuer ?"
+    "unsavedChanges": "Les modifications non enregistrées seront perdues. Continuer ?",
+    "restoreRecovery": "Un fichier de récupération a été trouvé. Souhaitez-vous restaurer votre travail précédent ?"
+  },
+  "window": {
+    "minimize": "Réduire",
+    "maximize": "Agrandir",
+    "restore": "Restaurer"
+  },
+  "debugTerminal": {
+    "resume": "Reprendre",
+    "pause": "Suspendre",
+    "clear": "Effacer",
+    "toggleLevel": "Basculer {{level}}",
+    "newEntries": "↓ {{count}} nouveau(x)",
+    "show": "Afficher le terminal de débogage",
+    "hide": "Masquer le terminal de débogage"
   }
 }

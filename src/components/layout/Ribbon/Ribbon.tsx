@@ -153,6 +153,7 @@ function RibbonButtonStack({ children }: { children: React.ReactNode }) {
 }
 
 function RecentFilesDropdown() {
+  const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
   const recentFiles = useAppStore(s => s.getRecentFiles)();
   const openRecentFile = useAppStore(s => s.openRecentFile);
@@ -176,7 +177,7 @@ function RecentFilesDropdown() {
         onClick={() => setOpen(!open)}
       >
         <span className="ribbon-btn-icon"><History size={14} /></span>
-        <span className="ribbon-btn-label">Recent</span>
+        <span className="ribbon-btn-label">{tMenu('backstage.recent')}</span>
       </button>
       {open && (
         <div style={{
@@ -187,7 +188,7 @@ function RecentFilesDropdown() {
         }}>
           {recentFiles.length === 0 ? (
             <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--color-text-secondary)' }}>
-              No recent files
+              {tMenu('ribbon.noRecentFiles')}
             </div>
           ) : (
             recentFiles.map((fp, i) => (
@@ -218,6 +219,7 @@ function RecentFilesDropdown() {
 }
 
 function ExportDropdown() {
+  const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
   const exportAs = useAppStore(s => s.exportAs);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -234,10 +236,10 @@ function ExportDropdown() {
   }, [open]);
 
   const formats: { label: string; format: ExportFormat }[] = [
-    { label: 'CSV (;)', format: 'csv' },
-    { label: 'MS Project XML', format: 'mspdi' },
-    { label: 'Primavera P6 XML', format: 'p6' },
-    { label: 'IFC 4x3', format: 'ifc' },
+    { label: tMenu('export.csvShort'), format: 'csv' },
+    { label: tMenu('export.mspdiLabel'), format: 'mspdi' },
+    { label: tMenu('export.p6Label'), format: 'p6' },
+    { label: tMenu('export.ifcLabel'), format: 'ifc' },
   ];
 
   return (
@@ -247,7 +249,7 @@ function ExportDropdown() {
         onClick={() => setOpen(!open)}
       >
         <span className="ribbon-btn-icon"><Download size={14} /></span>
-        <span className="ribbon-btn-label">Export</span>
+        <span className="ribbon-btn-label">{tMenu('backstage.export')}</span>
       </button>
       {open && (
         <div style={{
@@ -416,7 +418,7 @@ export function Ribbon() {
                 <RibbonSmallButton icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => openFileAction()} />
               </RibbonButtonStack>
               <RibbonButtonStack>
-                <RibbonSmallButton icon={<SaveAll size={14} />} label="Save As" onClick={() => saveFileAs()} />
+                <RibbonSmallButton icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => saveFileAs()} />
                 <RecentFilesDropdown />
                 <ExportDropdown />
               </RibbonButtonStack>
@@ -460,7 +462,7 @@ export function Ribbon() {
         {activeTab === 'planning' && (
           <>
             <RibbonGroup label={tMenu('ribbon.schedule')}>
-              <RibbonButton icon={<Play size={20} />} label="CPM" onClick={runCPM} primary />
+              <RibbonButton icon={<Play size={20} />} label={tMenu('ribbon.cpm')} onClick={runCPM} primary />
             </RibbonGroup>
 
             <div className="ribbon-separator" />
@@ -473,8 +475,8 @@ export function Ribbon() {
             <div className="ribbon-separator" />
 
             <RibbonGroup label={tMenu('ribbon.calendar')}>
-              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} />
-              <RibbonButton icon={<Clock size={20} />} label={tMenu('ribbon.holidays')} />
+              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} onClick={() => setUI({ showCalendarDialog: true })} />
+              <RibbonButton icon={<Clock size={20} />} label={tMenu('ribbon.holidays')} onClick={() => setUI({ showCalendarDialog: true })} />
             </RibbonGroup>
           </>
         )}
@@ -535,7 +537,7 @@ export function Ribbon() {
             <div className="ribbon-separator" />
 
             <RibbonGroup label={tMenu('ribbon.calendar')}>
-              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} />
+              <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} onClick={() => setUI({ showCalendarDialog: true })} />
             </RibbonGroup>
           </>
         )}
@@ -548,7 +550,7 @@ export function Ribbon() {
         )}
 
         {activeTab === 'ifc' && (
-          <RibbonGroup label="IFC">
+          <RibbonGroup label={tMenu('ribbon.ifc')}>
             <span className="ribbon-info">{tMenu('ribbon.ifcInfo')}</span>
           </RibbonGroup>
         )}

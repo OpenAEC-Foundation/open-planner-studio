@@ -66,7 +66,7 @@ export function TitleBar() {
           <button className="quick-access-btn" title={tMenu('ribbon.newProjectTitle')} onClick={() => { if (confirm(tCommon('confirm.newProject'))) newProject(); }}>
             <FileText size={16} />
           </button>
-          <button className="quick-access-btn" title="Open" onClick={() => openFile()}>
+          <button className="quick-access-btn" title={tMenu('ribbon.open')} onClick={() => openFile()}>
             <FolderOpen size={16} />
           </button>
           <button className="quick-access-btn" title={tMenu('ribbon.saveTitle')} onClick={() => saveFile()}>
@@ -114,13 +114,13 @@ export function TitleBar() {
       </div>
 
       <div className="window-controls">
-        <button className="window-btn" title="Minimize" onClick={handleMinimize}>
+        <button className="window-btn" title={tCommon('window.minimize')} onClick={handleMinimize}>
           <Minus size={14} />
         </button>
-        <button className="window-btn" title={maximized ? 'Restore' : 'Maximize'} onClick={handleMaximize}>
+        <button className="window-btn" title={maximized ? tCommon('window.restore') : tCommon('window.maximize')} onClick={handleMaximize}>
           {maximized ? <Copy size={11} /> : <Square size={11} />}
         </button>
-        <button className="window-btn window-btn-close" title="Close" onClick={handleClose}>
+        <button className="window-btn window-btn-close" title={tCommon('close')} onClick={handleClose}>
           <X size={14} />
         </button>
       </div>

@@ -136,6 +136,15 @@
   --theme-hover: rgba(217, 119, 6, 0.1);
   --theme-active: #D97706;
   --theme-active-border: #EA580C;
+  /* Leesbare waarschuwingskleur als TEKST op een themasurface (bv. "niet
+     opgeslagen" in de statusbalk). Dark behoudt de huidige warm-gold. */
+  --theme-warning-text: #F59E0B;
+  /* Gantt weekend-kolomband. Dark houdt het bestaande input-bg-uiterlijk. */
+  --theme-grid-weekend: rgba(217, 119, 6, 0.05);
+  /* Gantt float-balk (overlay achter de taakbalk). Dark: emerald-500. */
+  --theme-bar-float: #10B981;
+  /* Kritieke-pad-tekst in de statusbalk. Dark behoudt huidige red-600. */
+  --theme-critical-text: #DC2626;
   --theme-input-bg: rgba(217, 119, 6, 0.05);
   --theme-dropdown-bg: #44444C;
   --theme-scrollbar-track: #36363E;
@@ -160,26 +169,52 @@
   --theme-surface: #FFFFFF;
   --theme-surface-alt: #F5F5F4;
   --theme-surface-elevated: #FFFFFF;
-  --theme-border: #E7E5E4;
-  --theme-border-light: #F5F5F4;
-  --theme-accent: #D97706;
-  --theme-accent-hover: #EA580C;
+  /* --theme-border = control boundaries (input/select/button/dropdown):
+     darkened to #8E8882 to reach WCAG 1.4.11 (>=3:1 on all three light
+     surfaces: #FFFFFF 3.50, #FAFAF9 3.35, #F5F5F4 3.21 — #959088 fell to
+     2.91 on surface-alt). --theme-border-light = decorative dividers; #D6D3D1
+     stays soft but visible. */
+  --theme-border: #8E8882;
+  --theme-border-light: #D6D3D1;
+  /* Accent darkened from #D97706 (amber-600) to #B45309 (amber-700): the single
+     mid-amber that meets AA BOTH as text on white (~5.0:1) AND as background
+     under white --theme-accent-on (~5.0:1) — fixes .btn--primary, active ribbon
+     tab, ::selection, file-tab and every "accent-as-text" site at once. Hover is
+     darker (#9A3412 ~7.3:1) so the state change stays perceptible. Still clearly
+     the OpenAEC orange; dark/HC accents are unchanged. */
+  --theme-accent: #B45309;
+  --theme-accent-hover: #9A3412;
   --theme-accent-on: #ffffff;
   --theme-text: #36363E;
   --theme-text-dim: #57534E;
-  --theme-text-muted: #767676; /* WCAG AA — minimum 4.5:1 op blueprint-white */
-  --theme-hover: rgba(217, 119, 6, 0.08);
-  --theme-active: #D97706;
-  --theme-active-border: #EA580C;
+  --theme-text-muted: #6B6B6B; /* WCAG AA — ~4.9–5.3:1 op light surfaces; blijft onder dim */
+  --theme-hover: rgba(217, 119, 6, 0.14);
+  --theme-active: #B45309;
+  --theme-active-border: #9A3412;
+  /* Donker amber dat als tekst ~4.8:1 haalt op de licht-surfaces (was
+     --warm-gold #F59E0B ≈ 2.0:1, onleesbaar). */
+  --theme-warning-text: #946200;
+  /* Gantt weekend-kolomband: warme grijstint duidelijk donkerder dan de
+     bg #FAFAF9 (1.15:1 — subtiele decoratieve band, geen 3:1 nodig). Loste
+     de onzichtbaarheid op toen de band uit input-bg #FFFFFF (witter dan bg)
+     werd getekend. */
+  --theme-grid-weekend: #EDEAE5;
+  /* Gantt float-balk: emerald-600 (donkerder dan dark's #10B981). De overlay
+     wordt op ~90% opacity getekend → 3.17:1 op de licht-bg (WCAG grafisch >=3). */
+  --theme-bar-float: #059669;
+  /* Kritieke-pad-tekst in de statusbalk: #D12020 haalt >=4.5:1 op alle licht-
+     surfaces (#F5F5F4 4.89, #FAFAF9 5.11, #FFFFFF 5.33); --color-critical
+     #DC2626 viel naar 4.43 op surface-alt. */
+  --theme-critical-text: #D12020;
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;
   --theme-scrollbar-track: #F5F5F4;
-  --theme-scrollbar-thumb: #D6D3D1;
+  --theme-scrollbar-thumb: #8E8983;
   --theme-ribbon-bg: linear-gradient(to bottom, #FFFFFF 0%, #F5F5F4 100%);
   --theme-ribbon-tab-bg: linear-gradient(to bottom, #F5F5F4 0%, #EBEBE9 100%);
   --theme-ribbon-content-bg: #FFFFFF;
-  --theme-file-tab-bg: #D97706;
-  --theme-file-tab-hover: #EA580C;
+  --theme-file-tab-bg: #B45309;
+  --theme-file-tab-hover: #9A3412;
   --theme-titlebar-bg: linear-gradient(to bottom, #FFFFFF 0%, #F5F5F4 100%);
   --theme-titlebar-btn-hover: rgba(0, 0, 0, 0.05);
   --theme-titlebar-btn-active: rgba(0, 0, 0, 0.1);
@@ -204,6 +239,15 @@
   --theme-hover: #333333;
   --theme-active: #ffff00;
   --theme-active-border: #ffff00;
+  --theme-warning-text: #ffff00;
+  /* Gantt weekend-kolomband: zwakke maar zichtbare band op zwart
+     (1.23:1 vs #000, 1.16:1 vs #0a0a0a) — was onzichtbaar toen hij uit
+     input-bg #000000 (= bg) werd getekend. */
+  --theme-grid-weekend: #1c1c1c;
+  /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
+  --theme-bar-float: #34D399;
+  /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
+  --theme-critical-text: #FF6B6B;
   --theme-input-bg: #000000;
   --theme-dropdown-bg: #0a0a0a;
   --theme-scrollbar-track: #0a0a0a;
@@ -440,7 +484,10 @@ html, body, #root {
   color: var(--theme-accent-on);
 }
 .btn--primary:hover:not(:disabled) {
-  background: var(--signal-orange);
+  /* theme-aware hover: light = #9A3412 (white text 7.3:1), dark = #EA580C
+     (unchanged from --signal-orange). Avoids the 3.56:1 fail white-on-#EA580C
+     gave in light mode. */
+  background: var(--theme-accent-hover);
 }
 
 .btn--secondary {
@@ -520,7 +567,9 @@ html, body, #root {
 }
 .input-hint {
   font-size: 0.75rem;
-  color: var(--scaffold-gray);
+  /* was --scaffold-gray #A1A1AA (~2.5:1 op licht, onleesbaar); text-muted is
+     AA in elk thema (light 5.3:1, HC 7:1, dark gelijk aan oude scaffold-gray). */
+  color: var(--theme-text-muted);
   margin-top: var(--sp-1);
 }
 .input-hint--error {

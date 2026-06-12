@@ -69,7 +69,11 @@ export function useGanttZoom({ containerRef, taskTableWidth }: UseGanttZoomOpts)
 
       // Decide which function this wheel event performs.
       let fn: WheelFunction;
-      if (mode === 'modifier') {
+      if (mode === 'drag') {
+        // Drag mode: the wheel always zooms (cursor-anchored), no modifier
+        // needed. Panning is done by dragging the canvas (see GanttCanvas).
+        fn = 'zoom';
+      } else if (mode === 'modifier') {
         if (e.ctrlKey || e.metaKey) fn = map.ctrl;
         else if (e.shiftKey) fn = map.shift;
         else fn = map.plain;

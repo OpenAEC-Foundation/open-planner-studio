@@ -9,6 +9,7 @@
   "ok": "تایید",
   "apply": "اعمال",
   "cancel": "لغو",
+  "close": "بستن",
   "save": "ذخیره",
   "add": "افزودن",
   "delete": "حذف",
@@ -34,11 +35,54 @@
     "version": "نسخه",
     "defaultZoom": "بزرگنمایی پیش‌فرض",
     "projectInfo": "اطلاعات پروژه...",
-    "theme": "پوسته"
+    "theme": "پوسته",
+    "themeDark": "تیره",
+    "themeLight": "روشن",
+    "themeHighContrast": "کنتراست بالا",
+    "timeline": "خط زمانی / بزرگنمایی",
+    "enableQuarterHourZoom": "نمایش ربع ساعت هنگام بزرگنمایی زیاد",
+    "weekStartDay": "هفته از",
+    "weekStartMonday": "دوشنبه",
+    "weekStartSunday": "یکشنبه",
+    "scrollZoom": "پیمایش و بزرگنمایی",
+    "scrollMode": "حالت",
+    "scrollModePosition": "موقعیت",
+    "scrollModeModifier": "کلیدها",
+    "scrollModeDrag": "بزرگنمایی + کشیدن",
+    "dragModeHint": "چرخ ماوس = بزرگنمایی (محور روی مکان‌نما) · کشیدن پس‌زمینه نمودار برای جابجایی نما. کشیدن نوار وظیفه همچنان آن نوار را جابجا می‌کند.",
+    "screenDivision": "تقسیم صفحه",
+    "screenDivisionLeftRight": "چپ/راست",
+    "screenDivisionTopBottom": "بالا/پایین",
+    "screenDivisionCorner": "گوشه بالا-راست",
+    "positionModeHint": "Ctrl+چرخ = بزرگنمایی · Shift+چرخ = پیمایش افقی.",
+    "modifierMapHint": "یک کنترل را روی یک تابع بکشید. رها کردن روی یک جایگاه پُر، کنترل‌ها را جابجا می‌کند.",
+    "wheelFnVertical": "عمودی",
+    "wheelFnHorizontal": "افقی",
+    "wheelFnZoom": "بزرگنمایی",
+    "wheelCtrlPlain": "پیمایش",
+    "wheelCtrlCtrl": "Ctrl + پیمایش",
+    "wheelCtrlShift": "Shift + پیمایش",
+    "debugTerminal": "ترمینال اشکال‌زدایی",
+    "debugTerminalEnable": "فعال‌سازی ترمینال اشکال‌زدایی"
   },
   "confirm": {
     "newProject": "پروژه جدید ایجاد شود؟ تغییرات ذخیره‌نشده از بین خواهند رفت.",
     "deleteTask": "آیا مطمئن هستید که می‌خواهید این وظیفه را حذف کنید؟",
-    "unsavedChanges": "تغییرات ذخیره‌نشده از بین خواهند رفت. ادامه می‌دهید؟"
+    "unsavedChanges": "تغییرات ذخیره‌نشده از بین خواهند رفت. ادامه می‌دهید؟",
+    "restoreRecovery": "یک فایل بازیابی پیدا شد. آیا می‌خواهید کار قبلی خود را بازیابی کنید؟"
+  },
+  "window": {
+    "minimize": "کوچک‌سازی",
+    "maximize": "بزرگ‌سازی",
+    "restore": "بازگردانی"
+  },
+  "debugTerminal": {
+    "resume": "ادامه",
+    "pause": "مکث",
+    "clear": "پاک‌سازی",
+    "toggleLevel": "روشن/خاموش {{level}}",
+    "newEntries": "↓ {{count}} جدید",
+    "show": "نمایش ترمینال اشکال‌زدایی",
+    "hide": "پنهان‌کردن ترمینال اشکال‌زدایی"
   }
 }

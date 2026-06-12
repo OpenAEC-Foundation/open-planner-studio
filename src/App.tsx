@@ -25,6 +25,7 @@ import { DebugTerminal } from '@/components/panels/DebugTerminal';
 import { TaskDialog } from '@/components/dialogs/TaskDialog';
 import { ProjectInfoDialog } from '@/components/dialogs/ProjectInfoDialog';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
+import { CalendarDialog } from '@/components/dialogs/CalendarDialog';
 import { Backstage } from '@/components/backstage/Backstage';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useAppStore } from '@/state/appStore';
@@ -40,6 +41,7 @@ function AppContent() {
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const showProjectInfoDialog = useAppStore(s => s.ui.showProjectInfoDialog);
   const showSettingsDialog = useAppStore(s => s.ui.showSettingsDialog);
+  const showCalendarDialog = useAppStore(s => s.ui.showCalendarDialog);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
   const isDirty = useAppStore(s => s.isDirty);
@@ -111,7 +113,7 @@ function AppContent() {
         const hasRecovery = await exists(recoveryPath);
         if (hasRecovery) {
           const content = await readTextFile(recoveryPath);
-          const shouldRecover = confirm('A recovery file was found. Would you like to restore your previous work?');
+          const shouldRecover = confirm(t('confirm.restoreRecovery'));
           if (shouldRecover) {
             try {
               const parsed = readIFC(content);
@@ -211,6 +213,7 @@ function AppContent() {
       <TaskDialog />
       {showProjectInfoDialog && <ProjectInfoDialog />}
       {showSettingsDialog && <SettingsDialog />}
+      {showCalendarDialog && <CalendarDialog />}
     </div>
   );
 }
