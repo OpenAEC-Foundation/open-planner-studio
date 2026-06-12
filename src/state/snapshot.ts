@@ -1,6 +1,6 @@
-import { Task } from '@/types/task';
-import { Sequence } from '@/types/sequence';
-import { Resource, ResourceAssignment } from '@/types/resource';
+import type { Task } from '@/types/task';
+import type { Sequence } from '@/types/sequence';
+import type { Resource, ResourceAssignment } from '@/types/resource';
 
 // Undo/redo werkt met diepe JSON-kopieën van de muteerbare projectdata.
 export interface Snapshot {
