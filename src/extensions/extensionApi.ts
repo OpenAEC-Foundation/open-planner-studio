@@ -18,7 +18,13 @@ type ExtEventListener = (data: unknown) => void;
 const eventListeners = new Map<string, Set<ExtEventListener>>();
 
 export function emitExtensionEvent(event: string, data?: unknown) {
-  eventListeners.get(event)?.forEach((fn) => fn(data));
+  eventListeners.get(event)?.forEach((fn) => {
+    try {
+      fn(data);
+    } catch (err) {
+      console.error(`[extensies] listener voor "${event}" gooide een fout:`, err);
+    }
+  });
 }
 
 export function createExtensionApi(
@@ -50,6 +56,9 @@ export function createExtensionApi(
       },
     },
 
+    /** Lees-/schrijftoegang tot planningsdata. LET OP: teruggegeven objecten zijn
+     *  Immer-frozen — directe mutatie gooit een TypeError. Wijzig via addTask/
+     *  updateTask/addSequence en roep daarna recalculate() aan. */
     data: {
       getProject: () => useAppStore.getState().project,
       getCalendar: () => useAppStore.getState().calendar,
@@ -80,6 +89,7 @@ export function createExtensionApi(
         return unsub;
       },
       off(event: string, listener: ExtEventListener) {
+        requirePermission('events');
         eventListeners.get(event)?.delete(listener);
       },
       emit(event: string, data?: unknown) {
@@ -97,12 +107,11 @@ export function createExtensionApi(
         });
       },
       showNotification(message: string, type: 'info' | 'warning' | 'error' = 'info') {
-        // Zichtbaar in de debug-terminal én de console.
+        // Zichtbaar in de debug-terminal via de app-log-bus.
         // LogLevel: 'log' | 'info' | 'warn' | 'error' | 'event'
         // 'warning' is geen geldige LogLevel; map naar 'warn'.
         const level = type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'info';
         appLog.emit(level, `ext:${extensionId}`, message);
-        console.log(`[${extensionId}] ${message}`);
       },
     },
 
