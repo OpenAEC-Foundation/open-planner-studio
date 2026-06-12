@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
 import { initTheme, loadZoomSettings, loadDebugTerminalEnabled } from '@/utils/settingsStore';
+import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 const isTauri = () => '__TAURI_INTERNALS__' in window;
@@ -57,6 +58,7 @@ function AppContent() {
     loadDebugTerminalEnabled().then(v => {
       if (typeof v === 'boolean') setUI({ debugTerminalEnabled: v });
     });
+    void loadAllExtensions();
   }, []);
 
   // Apply theme to document

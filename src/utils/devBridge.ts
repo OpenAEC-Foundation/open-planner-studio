@@ -3,6 +3,8 @@ import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { readCSV } from '@/services/csv/csvReader';
+import { enableExtension, disableExtension, removeExtension, saveExtensionToDb } from '@/extensions';
+import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
 
 /**
  * Dev-only inspectie- en controle-haak voor geautomatiseerd zelf-testen.
@@ -76,6 +78,17 @@ async function openFromPath(path: string) {
   const parsed = ext === 'csv' ? readCSV(content) : readIFC(content);
   useAppStore.getState().loadState(parsed);
   return { path, ...counts(useAppStore.getState()) };
+}
+
+/** Dev-only: installeer een extensie direct vanuit een code-string (voor zelftests). */
+async function installExtensionFromCode(
+  manifest: ExtensionManifest,
+  mainCode: string,
+): Promise<InstalledExtension | undefined> {
+  await saveExtensionToDb({ id: manifest.id, manifest, mainCode, enabled: true });
+  useAppStore.getState().registerExtension({ id: manifest.id, manifest, status: 'disabled' });
+  await enableExtension(manifest.id);
+  return useAppStore.getState().installedExtensions[manifest.id];
 }
 
 interface OpsCommand {
@@ -168,6 +181,13 @@ export interface OpsDevBridge {
   saveToPath: typeof saveToPath;
   /** Niveau 2 (Tauri): lees een bestand van schijf en laad het in de store. */
   openFromPath: typeof openFromPath;
+  /** Dev-only extensie-haken voor zelftests. */
+  extensions: {
+    installFromCode: typeof installExtensionFromCode;
+    enable: typeof enableExtension;
+    disable: typeof disableExtension;
+    remove: typeof removeExtension;
+  };
 }
 
 declare global {
@@ -178,7 +198,19 @@ declare global {
 
 export function installDevBridge(): void {
   if (typeof window === 'undefined') return;
-  window.__OPS__ = { store: useAppStore, log: appLog, roundTrip, saveToPath, openFromPath };
+  window.__OPS__ = {
+    store: useAppStore,
+    log: appLog,
+    roundTrip,
+    saveToPath,
+    openFromPath,
+    extensions: {
+      installFromCode: installExtensionFromCode,
+      enable: enableExtension,
+      disable: disableExtension,
+      remove: removeExtension,
+    },
+  };
   appLog.emit('event', 'devBridge', 'window.__OPS__ klaar (dev-only self-test haak)');
   if (isTauri()) void startOpsTestPoller();
 }
