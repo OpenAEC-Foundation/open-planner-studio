@@ -240,12 +240,9 @@ function CatalogCard({ entry, isInstalled }: { entry: CatalogEntry; isInstalled:
 
   return (
     <div className="ext-card">
+      {/* Catalogus-iconen bewust niet als HTML renderen vóór installatie (injectie via externe JSON). */}
       <div className="ext-card-icon">
-        {entry.icon ? (
-          <span dangerouslySetInnerHTML={{ __html: entry.icon }} />
-        ) : (
-          <Plus size={24} />
-        )}
+        <Plus size={24} />
       </div>
 
       <div className="ext-card-body">

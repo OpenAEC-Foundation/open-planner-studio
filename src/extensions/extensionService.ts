@@ -3,7 +3,7 @@
  * ZIP-parsing gebeurt met een minimale eigen parser op basis van
  * DecompressionStream — geen JSZip-dependency (zelfde aanpak als Open Calc Studio).
  */
-import type { ExtensionManifest, InstalledExtension, CatalogEntry } from './types';
+import type { ExtensionManifest, InstalledExtension, CatalogEntry, ExtensionCatalog } from './types';
 import {
   saveExtensionToDb,
   removeExtensionFromDb,
@@ -31,7 +31,7 @@ export async function fetchCatalog(): Promise<void> {
   try {
     const res = await fetch(CATALOG_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const catalog = await res.json();
+    const catalog: ExtensionCatalog = await res.json();
     store.setCatalog(catalog.extensions || [], now);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Catalogus ophalen mislukt';

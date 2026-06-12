@@ -11,6 +11,9 @@ Lijst met dingen die we nog willen doen. Voeg nieuwe items onderaan toe.
 - [ ] `removeResource`/`unassignResource` laten verwijderde resource-ids achter in `task.resourceIds` (pre-existing; opruimen bij een resources-iteratie).
 - [ ] XML-detectie in `openFile` heeft een onlogische fallback-tak (bestand zonder MS Project- én zonder Primavera-markers valt terug op MSPDI) — robuuster maken.
 - [ ] ZIP-parser: data descriptors zónder signatuur (zeldzaam) geven een 12-byte overshoot en falen veilig — CRC-validatie via central directory zou dit oplossen.
+- [ ] `minAppVersion` afdwingen bij installeren/activeren van extensies (nu declaratief, wordt niet gecheckt).
+- [ ] Host-lifecycle-events emitten op de extensie-event-bus (project geladen, CPM gedraaid) zodat `api.events.on` ook host-events kan volgen.
+- [ ] `installFromCatalog`-fouten tonen in de CatalogCard (nu alleen console.error).
 
 ## Afgerond
 

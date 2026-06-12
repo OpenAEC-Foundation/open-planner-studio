@@ -133,12 +133,14 @@ export async function enableExtension(id: string): Promise<void> {
 
   store.setExtensionStatus(id, 'loading');
 
+  let api: ReturnType<typeof createExtensionApi> | undefined;
+
   try {
     const stored = await getExtensionFromDb(id);
     if (!stored) throw new Error(`Extensie "${id}" niet gevonden in opslag`);
 
     const plugin = executeExtensionCode(stored.mainCode);
-    const api = createExtensionApi(id, stored.manifest.permissions);
+    api = createExtensionApi(id, stored.manifest.permissions);
 
     await plugin.onLoad(api);
 
@@ -152,6 +154,12 @@ export async function enableExtension(id: string): Promise<void> {
       console.warn(`[Extensies] Kon enabled-status van "${id}" niet opslaan (extensie draait wel):`, persistErr);
     }
   } catch (err) {
+    // Draai eventuele al-gedane registraties terug (onLoad kan halverwege gefaald zijn).
+    try {
+      api?._cleanup();
+    } catch (cleanupErr) {
+      console.error(`[Extensies] Cleanup na mislukte activatie van "${id}" faalde:`, cleanupErr);
+    }
     const message = err instanceof Error ? err.message : String(err);
     store.setExtensionStatus(id, 'error', message);
     console.error(`[Extensies] Activeren van "${id}" mislukt:`, err);

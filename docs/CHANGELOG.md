@@ -4,11 +4,6 @@ Alle noemenswaardige wijzigingen aan Open Planner Studio worden hier vastgelegd.
 Nieuwe wijzigingen komen bovenaan onder **Ongepubliceerd**; houd ze gegroepeerd
 per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
-## 2026-06-12
-
-- **Store-architectuur**: de monolithische Zustand-store is opgesplitst in tien slices (`src/state/slices/`); `appStore.ts` is nu een compositie-root. Geen gedragswijziging.
-- **Extensiesysteem**: extensies (manifest + main.js, als ZIP/JS of uit de catalogus) kunnen importers en ribbon-knoppen registreren. Beheer via Bestand → Extensies; importeren via Bestand → Importeren. Naar het model van Open Calc Studio.
-
 ## Ongepubliceerd
 
 ### Documentatie
@@ -19,6 +14,9 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   bijgewerkt en verwijzing naar de self-test harness toegevoegd.
 
 ### Toegevoegd
+- **Extensiesysteem** — extensies (manifest + main.js, als ZIP/JS of uit de catalogus) kunnen
+  importers en ribbon-knoppen registreren. Beheer via Bestand → Extensies; importeren via
+  Bestand → Importeren. Naar het model van Open Calc Studio.
 - **Settings unificatie** — instellingen gedeeld over tandwiel ⚙, Settings-ribbon-tab en
   File-backstage via één gedeelde settings-component.
 - **Gantt** — instelbaar scrollen en zoomen over de Gantt-weergave.
@@ -29,6 +27,8 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 - **Devtools** — Tier 2 `ops-test` controlekanaal (echte Tauri save/open + dispatch).
 
 ### Gewijzigd
+- **Store-architectuur** — de monolithische Zustand-store is opgesplitst in tien slices
+  (`src/state/slices/`); `appStore.ts` is nu een compositie-root. Geen gedragswijziging.
 - CODEOWNERS bijgewerkt naar de nieuwe product owner.
 
 ### Opgelost
