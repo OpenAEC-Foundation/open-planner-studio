@@ -11,8 +11,14 @@ import { useAppStore } from '@/state/appStore';
 // Actieve plugin-instanties (voor opruimen bij disable)
 const activePlugins = new Map<string, { plugin: ExtensionPlugin; api: ReturnType<typeof createExtensionApi> }>();
 
+// Voorkomt dubbele activatie terwijl onLoad nog loopt (race bij dubbelklik/parallel laden)
+const enablingExtensions = new Set<string>();
+
+let dbPromise: Promise<IDBDatabase> | null = null;
+
 function openExtensionDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open('ops-extensions', 1);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -20,9 +26,21 @@ function openExtensionDb(): Promise<IDBDatabase> {
         db.createObjectStore('extensions', { keyPath: 'id' });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      // Sluit de verbinding als een andere instantie een versie-upgrade wil doen.
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
+    req.onerror = () => {
+      dbPromise = null;
+      reject(req.error);
+    };
   });
+  return dbPromise;
 }
 
 export interface StoredExtension {
@@ -72,14 +90,20 @@ export async function getExtensionFromDb(id: string): Promise<StoredExtension | 
   });
 }
 
-/** Voer extensie-code uit in een minimale CommonJS-sandbox. */
+/** Voer extensie-code uit in een minimale CommonJS-sandbox.
+ *  Let op: dit is GEEN echte isolatie — extensie-code heeft gewoon toegang tot
+ *  window, document, fetch e.d.; permissies zijn een conventie, geen harde grens. */
 function executeExtensionCode(mainCode: string): ExtensionPlugin {
   const moduleExports: Record<string, unknown> = {};
   const moduleObj = { exports: moduleExports as Record<string, unknown> };
 
   const requireFn = (moduleName: string) => {
     if (moduleName === 'open-planner-studio') {
-      return (window as unknown as Record<string, unknown>).__openPlannerStudioSdk || {};
+      const sdk = (window as unknown as Record<string, unknown>).__openPlannerStudioSdk;
+      if (!sdk) {
+        console.warn('[Extensies] require("open-planner-studio"): SDK is nog niet beschikbaar; leeg object teruggegeven');
+      }
+      return sdk || {};
     }
     throw new Error(`Module "${moduleName}" is niet beschikbaar in de extensie-sandbox`);
   };
@@ -104,6 +128,8 @@ export async function enableExtension(id: string): Promise<void> {
   const store = useAppStore.getState();
 
   if (activePlugins.has(id)) return;
+  if (enablingExtensions.has(id)) return;
+  enablingExtensions.add(id);
 
   store.setExtensionStatus(id, 'loading');
 
@@ -120,11 +146,17 @@ export async function enableExtension(id: string): Promise<void> {
     store.setExtensionStatus(id, 'enabled');
 
     stored.enabled = true;
-    await saveExtensionToDb(stored);
+    try {
+      await saveExtensionToDb(stored);
+    } catch (persistErr) {
+      console.warn(`[Extensies] Kon enabled-status van "${id}" niet opslaan (extensie draait wel):`, persistErr);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     store.setExtensionStatus(id, 'error', message);
     console.error(`[Extensies] Activeren van "${id}" mislukt:`, err);
+  } finally {
+    enablingExtensions.delete(id);
   }
 }
 
@@ -156,6 +188,9 @@ export async function loadAllExtensions(): Promise<void> {
     const allExtensions = await getAllExtensionsFromDb();
 
     for (const ext of allExtensions) {
+      // Idempotent: een al-geregistreerde extensie niet overschrijven (kan al actief zijn)
+      if (useAppStore.getState().installedExtensions[ext.id]) continue;
+
       const installed: InstalledExtension = {
         id: ext.id,
         manifest: ext.manifest,
