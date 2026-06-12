@@ -3,5 +3,31 @@
   "ifc": { "title": "IFC エディタ", "generate": "IFC を生成", "apply": "適用", "copy": "コピー", "lines": "行" },
   "projectInfo": { "title": "プロジェクト情報", "name": "プロジェクト名", "number": "プロジェクト番号", "description": "説明", "author": "エンジニア", "company": "会社", "startDate": "開始日", "endDate": "終了日" },
   "status": { "tasks": "タスク：", "milestones": "マイルストーン：", "criticalPath": "クリティカルパス：{{count}} タスク、{{duration}} 稼働日", "end": "終了：", "selection": "選択：{{count}} タスク", "scale": "スケール：", "zoom": "ズーム：{{level}}px/日", "unsaved": "未保存" },
-  "menuBar": { "file": "ファイル", "newProject": "新しいプロジェクト", "open": "開く...", "saveAs": "IFC として保存...", "printPreview": "印刷プレビュー...", "edit": "編集", "undo": "元に戻す", "redo": "やり直し", "view": "表示", "zoomIn": "拡大", "zoomOut": "縮小", "planning": "計画", "calculateCPM": "CPM を計算", "version": "Open Planner Studio v0.1" }
+  "menuBar": { "file": "ファイル", "newProject": "新しいプロジェクト", "open": "開く...", "saveAs": "IFC として保存...", "printPreview": "印刷プレビュー...", "edit": "編集", "undo": "元に戻す", "redo": "やり直し", "view": "表示", "zoomIn": "拡大", "zoomOut": "縮小", "planning": "計画", "calculateCPM": "CPM を計算", "version": "Open Planner Studio v0.1" },
+  "extensions": {
+    "title": "拡張機能",
+    "subtitle": "インストール済みの拡張機能を管理、または新規インストール。",
+    "installedTab": "インストール済み",
+    "browseTab": "参照",
+    "installFromZip": "ZIP ファイルからインストール",
+    "installFromJs": "JS ファイルからインストール",
+    "searchPlaceholder": "拡張機能を検索...",
+    "noExtensions": "拡張機能はまだインストールされていません。",
+    "noExtensionsHint": "ZIP/JS から拡張機能をインストールするか、カタログを参照してください。",
+    "enable": "有効化",
+    "disable": "無効化",
+    "remove": "削除",
+    "confirm": "確認",
+    "confirmRemoveHint": "もう一度クリックすると完全に削除されます",
+    "catalogLoading": "カタログを読み込み中...",
+    "catalogError": "カタログを読み込めませんでした: ",
+    "retry": "再試行",
+    "noCatalogResults": "拡張機能が見つかりません。",
+    "install": "インストール",
+    "installing": "インストール中...",
+    "installedBadge": "インストール済み",
+    "import": "インポート",
+    "importSubtitle": "インストール済みの拡張機能でプロジェクトデータをインポート。",
+    "importEmpty": "インポート用拡張機能がありません。拡張機能から追加してください。"
+  }
 }

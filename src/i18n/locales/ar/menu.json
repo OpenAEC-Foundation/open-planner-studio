@@ -3,5 +3,31 @@
   "ifc": { "title": "محرر IFC", "generate": "إنشاء IFC", "apply": "تطبيق", "copy": "نسخ", "lines": "سطور" },
   "projectInfo": { "title": "معلومات المشروع", "name": "اسم المشروع", "number": "رقم المشروع", "description": "الوصف", "author": "المهندس", "company": "الشركة", "startDate": "تاريخ البداية", "endDate": "تاريخ النهاية" },
   "status": { "tasks": "المهام:", "milestones": "المعالم:", "criticalPath": "المسار الحرج: {{count}} مهمة، {{duration}} يوم عمل", "end": "النهاية:", "selection": "التحديد: {{count}} مهمة", "scale": "المقياس:", "zoom": "تكبير: {{level}}بكسل/يوم", "unsaved": "غير محفوظ" },
-  "menuBar": { "file": "ملف", "newProject": "مشروع جديد", "open": "فتح...", "saveAs": "حفظ كـ IFC...", "printPreview": "معاينة الطباعة...", "edit": "تعديل", "undo": "تراجع", "redo": "إعادة", "view": "العرض", "zoomIn": "تكبير", "zoomOut": "تصغير", "planning": "التخطيط", "calculateCPM": "حساب CPM", "version": "Open Planner Studio v0.1" }
+  "menuBar": { "file": "ملف", "newProject": "مشروع جديد", "open": "فتح...", "saveAs": "حفظ كـ IFC...", "printPreview": "معاينة الطباعة...", "edit": "تعديل", "undo": "تراجع", "redo": "إعادة", "view": "العرض", "zoomIn": "تكبير", "zoomOut": "تصغير", "planning": "التخطيط", "calculateCPM": "حساب CPM", "version": "Open Planner Studio v0.1" },
+  "extensions": {
+    "title": "الإضافات",
+    "subtitle": "إدارة الإضافات المثبّتة أو تثبيت إضافات جديدة.",
+    "installedTab": "مثبّتة",
+    "browseTab": "تصفّح",
+    "installFromZip": "تثبيت من ملف ZIP",
+    "installFromJs": "تثبيت من ملف JS",
+    "searchPlaceholder": "البحث عن إضافات...",
+    "noExtensions": "لا توجد إضافات مثبّتة بعد.",
+    "noExtensionsHint": "ثبّت إضافة من ملف ZIP/JS أو تصفّح الكتالوج.",
+    "enable": "تفعيل",
+    "disable": "تعطيل",
+    "remove": "إزالة",
+    "confirm": "تأكيد",
+    "confirmRemoveHint": "انقر مرة أخرى للإزالة نهائيًا",
+    "catalogLoading": "جارٍ تحميل الكتالوج...",
+    "catalogError": "تعذّر تحميل الكتالوج: ",
+    "retry": "إعادة المحاولة",
+    "noCatalogResults": "لم يتم العثور على إضافات.",
+    "install": "تثبيت",
+    "installing": "جارٍ التثبيت...",
+    "installedBadge": "مثبّتة",
+    "import": "استيراد",
+    "importSubtitle": "استيراد بيانات المشروع عبر الإضافات المثبّتة.",
+    "importEmpty": "لا توجد إضافات استيراد مثبّتة. أضف واحدة عبر الإضافات."
+  }
 }

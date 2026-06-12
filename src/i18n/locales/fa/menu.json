@@ -3,5 +3,31 @@
   "ifc": { "title": "ویرایشگر IFC", "generate": "تولید IFC", "apply": "اعمال", "copy": "کپی", "lines": "خط" },
   "projectInfo": { "title": "اطلاعات پروژه", "name": "نام پروژه", "number": "شماره پروژه", "description": "توضیحات", "author": "مهندس", "company": "شرکت", "startDate": "تاریخ شروع", "endDate": "تاریخ پایان" },
   "status": { "tasks": "وظایف:", "milestones": "نقاط عطف:", "criticalPath": "مسیر بحرانی: {{count}} وظیفه، {{duration}} روز کاری", "end": "پایان:", "selection": "انتخاب: {{count}} وظیفه", "scale": "مقیاس:", "zoom": "بزرگ‌نمایی: {{level}}پیکسل/روز", "unsaved": "ذخیره‌نشده" },
-  "menuBar": { "file": "فایل", "newProject": "پروژه جدید", "open": "باز کردن...", "saveAs": "ذخیره به عنوان IFC...", "printPreview": "پیش‌نمایش چاپ...", "edit": "ویرایش", "undo": "واگرد", "redo": "باز‌گرد", "view": "نما", "zoomIn": "بزرگ‌نمایی", "zoomOut": "کوچک‌نمایی", "planning": "برنامه‌ریزی", "calculateCPM": "محاسبه CPM", "version": "Open Planner Studio v0.1" }
+  "menuBar": { "file": "فایل", "newProject": "پروژه جدید", "open": "باز کردن...", "saveAs": "ذخیره به عنوان IFC...", "printPreview": "پیش‌نمایش چاپ...", "edit": "ویرایش", "undo": "واگرد", "redo": "باز‌گرد", "view": "نما", "zoomIn": "بزرگ‌نمایی", "zoomOut": "کوچک‌نمایی", "planning": "برنامه‌ریزی", "calculateCPM": "محاسبه CPM", "version": "Open Planner Studio v0.1" },
+  "extensions": {
+    "title": "افزونه‌ها",
+    "subtitle": "مدیریت افزونه‌های نصب‌شده یا نصب افزونه‌های جدید.",
+    "installedTab": "نصب‌شده",
+    "browseTab": "مرور",
+    "installFromZip": "نصب از فایل ZIP",
+    "installFromJs": "نصب از فایل JS",
+    "searchPlaceholder": "جستجوی افزونه‌ها...",
+    "noExtensions": "هنوز افزونه‌ای نصب نشده است.",
+    "noExtensionsHint": "افزونه‌ای را از ZIP/JS نصب کنید یا کاتالوگ را مرور کنید.",
+    "enable": "فعال‌سازی",
+    "disable": "غیرفعال‌سازی",
+    "remove": "حذف",
+    "confirm": "تأیید",
+    "confirmRemoveHint": "برای حذف دائمی دوباره کلیک کنید",
+    "catalogLoading": "در حال بارگیری کاتالوگ...",
+    "catalogError": "کاتالوگ بارگیری نشد: ",
+    "retry": "تلاش دوباره",
+    "noCatalogResults": "افزونه‌ای یافت نشد.",
+    "install": "نصب",
+    "installing": "در حال نصب...",
+    "installedBadge": "نصب‌شده",
+    "import": "درون‌ریزی",
+    "importSubtitle": "درون‌ریزی داده‌های پروژه از طریق افزونه‌های نصب‌شده.",
+    "importEmpty": "افزونه درون‌ریزی نصب نشده است. از بخش افزونه‌ها اضافه کنید."
+  }
 }

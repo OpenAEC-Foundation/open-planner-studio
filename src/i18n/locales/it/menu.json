@@ -3,5 +3,31 @@
   "ifc": { "title": "Editor IFC", "generate": "Genera IFC", "apply": "Applica", "copy": "Copia", "lines": "righe" },
   "projectInfo": { "title": "Informazioni sul progetto", "name": "Nome del progetto", "number": "Numero del progetto", "description": "Descrizione", "author": "Ingegnere", "company": "Azienda", "startDate": "Data di inizio", "endDate": "Data di fine" },
   "status": { "tasks": "Attività:", "milestones": "Traguardi:", "criticalPath": "Percorso critico: {{count}} attività, {{duration}} giorni lavorativi", "end": "Fine:", "selection": "Selezione: {{count}} attività", "scale": "Scala:", "zoom": "Zoom: {{level}}px/giorno", "unsaved": "Non salvato" },
-  "menuBar": { "file": "File", "newProject": "Nuovo progetto", "open": "Apri...", "saveAs": "Salva come IFC...", "printPreview": "Anteprima di stampa...", "edit": "Modifica", "undo": "Annulla", "redo": "Ripeti", "view": "Vista", "zoomIn": "Ingrandisci", "zoomOut": "Riduci", "planning": "Pianificazione", "calculateCPM": "Calcola CPM", "version": "Open Planner Studio v0.1" }
+  "menuBar": { "file": "File", "newProject": "Nuovo progetto", "open": "Apri...", "saveAs": "Salva come IFC...", "printPreview": "Anteprima di stampa...", "edit": "Modifica", "undo": "Annulla", "redo": "Ripeti", "view": "Vista", "zoomIn": "Ingrandisci", "zoomOut": "Riduci", "planning": "Pianificazione", "calculateCPM": "Calcola CPM", "version": "Open Planner Studio v0.1" },
+  "extensions": {
+    "title": "Estensioni",
+    "subtitle": "Gestisci le estensioni installate o installane di nuove.",
+    "installedTab": "Installate",
+    "browseTab": "Sfoglia",
+    "installFromZip": "Installa da file ZIP",
+    "installFromJs": "Installa da file JS",
+    "searchPlaceholder": "Cerca estensioni...",
+    "noExtensions": "Nessuna estensione installata.",
+    "noExtensionsHint": "Installa un'estensione da ZIP/JS o sfoglia il catalogo.",
+    "enable": "Attiva",
+    "disable": "Disattiva",
+    "remove": "Rimuovi",
+    "confirm": "Conferma",
+    "confirmRemoveHint": "Fai clic di nuovo per rimuovere definitivamente",
+    "catalogLoading": "Caricamento catalogo...",
+    "catalogError": "Impossibile caricare il catalogo: ",
+    "retry": "Riprova",
+    "noCatalogResults": "Nessuna estensione trovata.",
+    "install": "Installa",
+    "installing": "Installazione...",
+    "installedBadge": "Installata",
+    "import": "Importa",
+    "importSubtitle": "Importa dati di progetto tramite le estensioni installate.",
+    "importEmpty": "Nessuna estensione di importazione installata. Aggiungine una tramite Estensioni."
+  }
 }

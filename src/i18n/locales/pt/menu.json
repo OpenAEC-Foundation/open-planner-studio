@@ -3,5 +3,31 @@
   "ifc": { "title": "Editor IFC", "generate": "Gerar IFC", "apply": "Aplicar", "copy": "Copiar", "lines": "linhas" },
   "projectInfo": { "title": "Informações do projeto", "name": "Nome do projeto", "number": "Número do projeto", "description": "Descrição", "author": "Engenheiro", "company": "Empresa", "startDate": "Data de início", "endDate": "Data de fim" },
   "status": { "tasks": "Tarefas:", "milestones": "Marcos:", "criticalPath": "Caminho crítico: {{count}} tarefas, {{duration}} dias úteis", "end": "Fim:", "selection": "Seleção: {{count}} tarefa(s)", "scale": "Escala:", "zoom": "Zoom: {{level}}px/dia", "unsaved": "Não guardado" },
-  "menuBar": { "file": "Ficheiro", "newProject": "Novo projeto", "open": "Abrir...", "saveAs": "Guardar como IFC...", "printPreview": "Pré-visualização de impressão...", "edit": "Editar", "undo": "Desfazer", "redo": "Refazer", "view": "Visualização", "zoomIn": "Aproximar", "zoomOut": "Afastar", "planning": "Planeamento", "calculateCPM": "Calcular CPM", "version": "Open Planner Studio v0.1" }
+  "menuBar": { "file": "Ficheiro", "newProject": "Novo projeto", "open": "Abrir...", "saveAs": "Guardar como IFC...", "printPreview": "Pré-visualização de impressão...", "edit": "Editar", "undo": "Desfazer", "redo": "Refazer", "view": "Visualização", "zoomIn": "Aproximar", "zoomOut": "Afastar", "planning": "Planeamento", "calculateCPM": "Calcular CPM", "version": "Open Planner Studio v0.1" },
+  "extensions": {
+    "title": "Extensões",
+    "subtitle": "Gerencie as extensões instaladas ou instale novas.",
+    "installedTab": "Instaladas",
+    "browseTab": "Explorar",
+    "installFromZip": "Instalar de arquivo ZIP",
+    "installFromJs": "Instalar de arquivo JS",
+    "searchPlaceholder": "Pesquisar extensões...",
+    "noExtensions": "Nenhuma extensão instalada ainda.",
+    "noExtensionsHint": "Instale uma extensão via ZIP/JS ou explore o catálogo.",
+    "enable": "Ativar",
+    "disable": "Desativar",
+    "remove": "Remover",
+    "confirm": "Confirmar",
+    "confirmRemoveHint": "Clique novamente para remover definitivamente",
+    "catalogLoading": "Carregando catálogo...",
+    "catalogError": "Não foi possível carregar o catálogo: ",
+    "retry": "Tentar novamente",
+    "noCatalogResults": "Nenhuma extensão encontrada.",
+    "install": "Instalar",
+    "installing": "Instalando...",
+    "installedBadge": "Instalada",
+    "import": "Importar",
+    "importSubtitle": "Importe dados de projeto por meio das extensões instaladas.",
+    "importEmpty": "Nenhuma extensão de importação instalada. Adicione uma em Extensões."
+  }
 }

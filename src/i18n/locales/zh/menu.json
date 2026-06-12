@@ -3,5 +3,31 @@
   "ifc": { "title": "IFC 编辑器", "generate": "生成 IFC", "apply": "应用", "copy": "复制", "lines": "行" },
   "projectInfo": { "title": "项目信息", "name": "项目名称", "number": "项目编号", "description": "描述", "author": "工程师", "company": "公司", "startDate": "开始日期", "endDate": "结束日期" },
   "status": { "tasks": "任务：", "milestones": "里程碑：", "criticalPath": "关键路径：{{count}} 个任务，{{duration}} 个工作日", "end": "结束：", "selection": "选择：{{count}} 个任务", "scale": "刻度：", "zoom": "缩放：{{level}}像素/天", "unsaved": "未保存" },
-  "menuBar": { "file": "文件", "newProject": "新建项目", "open": "打开...", "saveAs": "另存为 IFC...", "printPreview": "打印预览...", "edit": "编辑", "undo": "撤销", "redo": "重做", "view": "视图", "zoomIn": "放大", "zoomOut": "缩小", "planning": "计划", "calculateCPM": "计算 CPM", "version": "Open Planner Studio v0.1" }
+  "menuBar": { "file": "文件", "newProject": "新建项目", "open": "打开...", "saveAs": "另存为 IFC...", "printPreview": "打印预览...", "edit": "编辑", "undo": "撤销", "redo": "重做", "view": "视图", "zoomIn": "放大", "zoomOut": "缩小", "planning": "计划", "calculateCPM": "计算 CPM", "version": "Open Planner Studio v0.1" },
+  "extensions": {
+    "title": "扩展",
+    "subtitle": "管理已安装的扩展或安装新扩展。",
+    "installedTab": "已安装",
+    "browseTab": "浏览",
+    "installFromZip": "从 ZIP 文件安装",
+    "installFromJs": "从 JS 文件安装",
+    "searchPlaceholder": "搜索扩展...",
+    "noExtensions": "尚未安装任何扩展。",
+    "noExtensionsHint": "通过 ZIP/JS 安装扩展，或浏览扩展目录。",
+    "enable": "启用",
+    "disable": "禁用",
+    "remove": "移除",
+    "confirm": "确认",
+    "confirmRemoveHint": "再次点击以永久移除",
+    "catalogLoading": "正在加载目录...",
+    "catalogError": "无法加载目录：",
+    "retry": "重试",
+    "noCatalogResults": "未找到扩展。",
+    "install": "安装",
+    "installing": "正在安装...",
+    "installedBadge": "已安装",
+    "import": "导入",
+    "importSubtitle": "通过已安装的扩展导入项目数据。",
+    "importEmpty": "未安装导入扩展。请通过“扩展”添加。"
+  }
 }

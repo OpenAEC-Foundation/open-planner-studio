@@ -3,5 +3,31 @@
   "ifc": { "title": "IFC Düzenleyici", "generate": "IFC Oluştur", "apply": "Uygula", "copy": "Kopyala", "lines": "satır" },
   "projectInfo": { "title": "Proje Bilgileri", "name": "Proje adı", "number": "Proje numarası", "description": "Açıklama", "author": "Mühendis", "company": "Şirket", "startDate": "Başlangıç tarihi", "endDate": "Bitiş tarihi" },
   "status": { "tasks": "Görevler:", "milestones": "Kilometre taşları:", "criticalPath": "Kritik yol: {{count}} görev, {{duration}} iş günü", "end": "Bitiş:", "selection": "Seçim: {{count}} görev", "scale": "Ölçek:", "zoom": "Yakınlaştırma: {{level}}px/gün", "unsaved": "Kaydedilmedi" },
-  "menuBar": { "file": "Dosya", "newProject": "Yeni proje", "open": "Aç...", "saveAs": "IFC olarak kaydet...", "printPreview": "Baskı önizleme...", "edit": "Düzenle", "undo": "Geri al", "redo": "Yinele", "view": "Görünüm", "zoomIn": "Yakınlaştır", "zoomOut": "Uzaklaştır", "planning": "Planlama", "calculateCPM": "CPM hesapla", "version": "Open Planner Studio v0.1" }
+  "menuBar": { "file": "Dosya", "newProject": "Yeni proje", "open": "Aç...", "saveAs": "IFC olarak kaydet...", "printPreview": "Baskı önizleme...", "edit": "Düzenle", "undo": "Geri al", "redo": "Yinele", "view": "Görünüm", "zoomIn": "Yakınlaştır", "zoomOut": "Uzaklaştır", "planning": "Planlama", "calculateCPM": "CPM hesapla", "version": "Open Planner Studio v0.1" },
+  "extensions": {
+    "title": "Uzantılar",
+    "subtitle": "Yüklü uzantıları yönetin veya yenilerini yükleyin.",
+    "installedTab": "Yüklü",
+    "browseTab": "Gözat",
+    "installFromZip": "ZIP dosyasından yükle",
+    "installFromJs": "JS dosyasından yükle",
+    "searchPlaceholder": "Uzantı ara...",
+    "noExtensions": "Henüz yüklü uzantı yok.",
+    "noExtensionsHint": "ZIP/JS ile bir uzantı yükleyin veya kataloğa göz atın.",
+    "enable": "Etkinleştir",
+    "disable": "Devre dışı bırak",
+    "remove": "Kaldır",
+    "confirm": "Onayla",
+    "confirmRemoveHint": "Kalıcı olarak kaldırmak için tekrar tıklayın",
+    "catalogLoading": "Katalog yükleniyor...",
+    "catalogError": "Katalog yüklenemedi: ",
+    "retry": "Tekrar dene",
+    "noCatalogResults": "Uzantı bulunamadı.",
+    "install": "Yükle",
+    "installing": "Yükleniyor...",
+    "installedBadge": "Yüklü",
+    "import": "İçe aktar",
+    "importSubtitle": "Yüklü uzantılar aracılığıyla proje verilerini içe aktarın.",
+    "importEmpty": "İçe aktarma uzantısı yüklü değil. Uzantılar bölümünden ekleyin."
+  }
 }

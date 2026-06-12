@@ -113,5 +113,31 @@
     "planning": "Planning",
     "calculateCPM": "Calculate CPM",
     "version": "Open Planner Studio v0.1"
+  },
+  "extensions": {
+    "title": "Extensions",
+    "subtitle": "Manage installed extensions or install new ones.",
+    "installedTab": "Installed",
+    "browseTab": "Browse",
+    "installFromZip": "Install from ZIP file",
+    "installFromJs": "Install from JS file",
+    "searchPlaceholder": "Search extensions...",
+    "noExtensions": "No extensions installed yet.",
+    "noExtensionsHint": "Install an extension from ZIP/JS or browse the catalog.",
+    "enable": "Enable",
+    "disable": "Disable",
+    "remove": "Remove",
+    "confirm": "Confirm",
+    "confirmRemoveHint": "Click again to remove permanently",
+    "catalogLoading": "Loading catalog...",
+    "catalogError": "Could not load catalog: ",
+    "retry": "Retry",
+    "noCatalogResults": "No extensions found.",
+    "install": "Install",
+    "installing": "Installing...",
+    "installedBadge": "Installed",
+    "import": "Import",
+    "importSubtitle": "Import project data through installed extensions.",
+    "importEmpty": "No import extensions installed. Add one via Extensions."
   }
 }

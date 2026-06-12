@@ -3,5 +3,31 @@
   "ifc": { "title": "Edytor IFC", "generate": "Generuj IFC", "apply": "Zastosuj", "copy": "Kopiuj", "lines": "linie" },
   "projectInfo": { "title": "Informacje o projekcie", "name": "Nazwa projektu", "number": "Numer projektu", "description": "Opis", "author": "Inżynier", "company": "Firma", "startDate": "Data rozpoczęcia", "endDate": "Data zakończenia" },
   "status": { "tasks": "Zadania:", "milestones": "Kamienie milowe:", "criticalPath": "Ścieżka krytyczna: {{count}} zadań, {{duration}} dni roboczych", "end": "Koniec:", "selection": "Zaznaczenie: {{count}} zadanie/zadań", "scale": "Skala:", "zoom": "Zoom: {{level}}px/dzień", "unsaved": "Niezapisane" },
-  "menuBar": { "file": "Plik", "newProject": "Nowy projekt", "open": "Otwórz...", "saveAs": "Zapisz jako IFC...", "printPreview": "Podgląd wydruku...", "edit": "Edycja", "undo": "Cofnij", "redo": "Ponów", "view": "Widok", "zoomIn": "Powiększ", "zoomOut": "Pomniejsz", "planning": "Planowanie", "calculateCPM": "Oblicz CPM", "version": "Open Planner Studio v0.1" }
+  "menuBar": { "file": "Plik", "newProject": "Nowy projekt", "open": "Otwórz...", "saveAs": "Zapisz jako IFC...", "printPreview": "Podgląd wydruku...", "edit": "Edycja", "undo": "Cofnij", "redo": "Ponów", "view": "Widok", "zoomIn": "Powiększ", "zoomOut": "Pomniejsz", "planning": "Planowanie", "calculateCPM": "Oblicz CPM", "version": "Open Planner Studio v0.1" },
+  "extensions": {
+    "title": "Rozszerzenia",
+    "subtitle": "Zarządzaj zainstalowanymi rozszerzeniami lub instaluj nowe.",
+    "installedTab": "Zainstalowane",
+    "browseTab": "Przeglądaj",
+    "installFromZip": "Zainstaluj z pliku ZIP",
+    "installFromJs": "Zainstaluj z pliku JS",
+    "searchPlaceholder": "Szukaj rozszerzeń...",
+    "noExtensions": "Nie zainstalowano jeszcze żadnych rozszerzeń.",
+    "noExtensionsHint": "Zainstaluj rozszerzenie z pliku ZIP/JS lub przeglądaj katalog.",
+    "enable": "Włącz",
+    "disable": "Wyłącz",
+    "remove": "Usuń",
+    "confirm": "Potwierdź",
+    "confirmRemoveHint": "Kliknij ponownie, aby trwale usunąć",
+    "catalogLoading": "Ładowanie katalogu...",
+    "catalogError": "Nie można załadować katalogu: ",
+    "retry": "Spróbuj ponownie",
+    "noCatalogResults": "Nie znaleziono rozszerzeń.",
+    "install": "Zainstaluj",
+    "installing": "Instalowanie...",
+    "installedBadge": "Zainstalowane",
+    "import": "Importuj",
+    "importSubtitle": "Importuj dane projektu za pomocą zainstalowanych rozszerzeń.",
+    "importEmpty": "Brak rozszerzeń importu. Dodaj je w sekcji Rozszerzenia."
+  }
 }
