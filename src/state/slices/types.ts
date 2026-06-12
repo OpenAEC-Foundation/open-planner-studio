@@ -48,9 +48,11 @@ export type RibbonTab = 'file' | 'start' | 'planning' | 'beeld' | 'instellingen'
 export type BackstageSection =
   | 'recent'
   | 'export'
+  | 'import'
   | 'print'
   | 'project-info'
-  | 'settings';
+  | 'settings'
+  | 'extensions';
 
 export interface ViewState {
   scrollX: number;
