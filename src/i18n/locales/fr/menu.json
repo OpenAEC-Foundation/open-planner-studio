@@ -31,6 +31,7 @@
     "milestoneTitle": "Nouveau jalon",
     "relationTitle": "Ajouter une dépendance",
     "schedule": "Planification",
+    "cpm": "CPM",
     "calculate": "Calculer",
     "calculateTitle": "Exécuter CPM (F5)",
     "zoom": "Zoom",
@@ -47,6 +48,29 @@
     "calendarTitle": "Modifier le calendrier de travail",
     "holidays": "Congés",
     "holidaysTitle": "Congés",
+    "calendarDialog": {
+      "name": "Nom",
+      "workDays": "Jours ouvrés",
+      "workHours": "Heures de travail",
+      "startHour": "Début (heure)",
+      "endHour": "Fin (heure)",
+      "hoursPerDay": "Heures par jour",
+      "holidaysSection": "Jours fériés",
+      "holidayName": "Description",
+      "from": "Du",
+      "until": "Au",
+      "addHoliday": "Ajouter un jour férié",
+      "noHolidays": "Aucun jour férié.",
+      "days": {
+        "1": "Lun",
+        "2": "Mar",
+        "3": "Mer",
+        "4": "Jeu",
+        "5": "Ven",
+        "6": "Sam",
+        "7": "Dim"
+      }
+    },
     "display": "Affichage",
     "criticalPath": "Chemin critique",
     "criticalPathInfo": "Affiché en rouge",
@@ -69,7 +93,8 @@
     "language": "Langue",
     "appearance": "Apparence",
     "ifcInfo": "IFC 4x3 - Industry Foundation Classes",
-    "reporting": "Rapport"
+    "reporting": "Rapport",
+    "noRecentFiles": "Aucun fichier récent"
   },
   "ifc": {
     "title": "Éditeur IFC",
@@ -113,5 +138,42 @@
     "planning": "Planification",
     "calculateCPM": "Calculer CPM",
     "version": "Open Planner Studio v0.1"
+  },
+  "backstage": {
+    "back": "Retour",
+    "recent": "Récents",
+    "saveAs": "Enregistrer sous",
+    "export": "Exporter",
+    "settings": "Paramètres",
+    "closeProject": "Fermer le projet",
+    "fileMenu": "Menu fichier",
+    "fileNav": "Navigation fichier",
+    "recentTitle": "Projets récents",
+    "recentSubtitle": "Cliquez pour ouvrir.",
+    "recentEmpty": "Aucun projet récemment ouvert.",
+    "exportTitle": "Exporter",
+    "exportSubtitle": "Choisissez un format. Le projet sera converti et enregistré.",
+    "printTitle": "Imprimer",
+    "printSubtitle": "Ouvrez l'écran de rapport pour l'aperçu avant impression et les paramètres.",
+    "openPrintPreview": "Ouvrir l'aperçu avant impression",
+    "projectInfoTitle": "Info projet",
+    "projectInfoSubtitle": "Métadonnées de ce projet.",
+    "name": "Nom",
+    "description": "Description",
+    "author": "Auteur",
+    "company": "Entreprise",
+    "startDate": "Date de début",
+    "endDate": "Date de fin"
+  },
+  "export": {
+    "csvLabel": "CSV (séparé par des points-virgules)",
+    "csvDesc": "Export tableau universel. Toutes les tâches avec dates et durées.",
+    "mspdiLabel": "MS Project XML",
+    "mspdiDesc": "À ouvrir dans Microsoft Project. Structure WBS complète.",
+    "p6Label": "Primavera P6 XML",
+    "p6Desc": "Pour Oracle Primavera P6.",
+    "ifcLabel": "IFC 4x3",
+    "ifcDesc": "Standard buildingSMART. Lien 4D avec les modèles BIM.",
+    "csvShort": "CSV (;)"
   }
 }

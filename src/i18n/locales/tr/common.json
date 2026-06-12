@@ -9,6 +9,7 @@
   "ok": "Tamam",
   "apply": "Uygula",
   "cancel": "İptal",
+  "close": "Kapat",
   "save": "Kaydet",
   "add": "Ekle",
   "delete": "Sil",
@@ -34,11 +35,54 @@
     "version": "Sürüm",
     "defaultZoom": "Varsayılan yakınlaştırma",
     "projectInfo": "Proje bilgileri...",
-    "theme": "Tema"
+    "theme": "Tema",
+    "themeDark": "Koyu",
+    "themeLight": "Açık",
+    "themeHighContrast": "Yüksek Kontrast",
+    "timeline": "Zaman çizelgesi / Yakınlaştırma",
+    "enableQuarterHourZoom": "Çok yakınlaştırıldığında çeyrek saatleri göster",
+    "weekStartDay": "Hafta başlangıcı",
+    "weekStartMonday": "Pazartesi",
+    "weekStartSunday": "Pazar",
+    "scrollZoom": "Kaydırma ve yakınlaştırma",
+    "scrollMode": "Mod",
+    "scrollModePosition": "Konum",
+    "scrollModeModifier": "Tuşlar",
+    "scrollModeDrag": "Yakınlaştır + sürükle",
+    "dragModeHint": "Kaydırma tekerleği = yakınlaştırma (imleç üzerinde sabitlenmiş) · Görünümü kaydırmak için plan arka planını sürükleyin. Görev çubuğunu sürüklemek her zamanki gibi o çubuğu taşır.",
+    "screenDivision": "Ekran bölümü",
+    "screenDivisionLeftRight": "Sol/sağ",
+    "screenDivisionTopBottom": "Üst/alt",
+    "screenDivisionCorner": "Sağ üst köşe",
+    "positionModeHint": "Ctrl+kaydırma = yakınlaştırma · Shift+kaydırma = yatay kaydırma.",
+    "modifierMapHint": "Bir denetimi bir işleve sürükleyin. Dolu bir yere bırakmak denetimleri değiştirir.",
+    "wheelFnVertical": "Dikey",
+    "wheelFnHorizontal": "Yatay",
+    "wheelFnZoom": "Yakınlaştırma",
+    "wheelCtrlPlain": "Kaydırma",
+    "wheelCtrlCtrl": "Ctrl + kaydırma",
+    "wheelCtrlShift": "Shift + kaydırma",
+    "debugTerminal": "Hata ayıklama terminali",
+    "debugTerminalEnable": "Hata ayıklama terminalini etkinleştir"
   },
   "confirm": {
     "newProject": "Yeni proje oluşturulsun mu? Kaydedilmemiş değişiklikler kaybolacak.",
     "deleteTask": "Bu görevi silmek istediğinizden emin misiniz?",
-    "unsavedChanges": "Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?"
+    "unsavedChanges": "Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?",
+    "restoreRecovery": "Bir kurtarma dosyası bulundu. Önceki çalışmanızı geri yüklemek ister misiniz?"
+  },
+  "window": {
+    "minimize": "Küçült",
+    "maximize": "Büyüt",
+    "restore": "Geri yükle"
+  },
+  "debugTerminal": {
+    "resume": "Devam et",
+    "pause": "Duraklat",
+    "clear": "Temizle",
+    "toggleLevel": "{{level}} aç/kapat",
+    "newEntries": "↓ {{count}} yeni",
+    "show": "Hata ayıklama terminalini göster",
+    "hide": "Hata ayıklama terminalini gizle"
   }
 }

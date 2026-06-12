@@ -1,7 +1,7 @@
 {
   "table": {
     "title": "Tabelle",
-    "wbs": "PSP",
+    "wbs": "WBS",
     "name": "Aufgabenname",
     "duration": "Dauer",
     "start": "Anfang",
@@ -28,7 +28,7 @@
     "name": "Name",
     "nameRequired": "Name *",
     "description": "Beschreibung",
-    "wbsCode": "PSP-Code",
+    "wbsCode": "WBS-Code",
     "type": "Typ",
     "startDate": "Startdatum",
     "duration": "Dauer (Arbeitstage)",
@@ -43,7 +43,7 @@
     "selectPrompt": "Wählen Sie eine Aufgabe aus, um Eigenschaften anzuzeigen.",
     "multiSelect": "{{count}} Aufgaben ausgewählt",
     "name": "Name",
-    "wbsCode": "PSP-Code",
+    "wbsCode": "WBS-Code",
     "description": "Beschreibung",
     "type": "Typ",
     "milestone": "Meilenstein",

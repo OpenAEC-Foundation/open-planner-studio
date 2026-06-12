@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n/config';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
   Printer, Info, Settings, X, FileType,
@@ -31,32 +32,32 @@ export function Backstage() {
   const goTo = (s: BackstageSection) => setUI({ backstageSection: s });
 
   return (
-    <div className="backstage" role="region" aria-label="File menu">
-      <aside className="backstage-sidebar" aria-label="File navigation">
+    <div className="backstage" role="region" aria-label={tMenu('backstage.fileMenu')}>
+      <aside className="backstage-sidebar" aria-label={tMenu('backstage.fileNav')}>
         <button className="backstage-back" onClick={closeBackstage}>
-          <ArrowLeft size={16} /> Terug
+          <ArrowLeft size={16} /> {tMenu('backstage.back')}
         </button>
 
         {/* Actie-items: triggeren actie en sluiten backstage */}
         <ActionItem icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => { handleNewProject(); closeBackstage(); }} />
         <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => { handleOpen(); closeBackstage(); }} />
-        <NavItem icon={<Clock size={14} />} label="Recent" active={section === 'recent'} onClick={() => goTo('recent')} />
+        <NavItem icon={<Clock size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
         <ActionItem icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => { handleSave(); closeBackstage(); }} />
-        <ActionItem icon={<SaveAll size={14} />} label="Opslaan als" onClick={() => { handleSaveAs(); closeBackstage(); }} />
+        <ActionItem icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => { handleSaveAs(); closeBackstage(); }} />
 
         <div className="backstage-nav-divider" />
 
-        <NavItem icon={<Download size={14} />} label="Exporteren" active={section === 'export'} onClick={() => goTo('export')} />
+        <NavItem icon={<Download size={14} />} label={tMenu('backstage.export')} active={section === 'export'} onClick={() => goTo('export')} />
         <NavItem icon={<Printer size={14} />} label={tMenu('ribbon.printPreview')} active={section === 'print'} onClick={() => goTo('print')} />
 
         <div className="backstage-nav-divider" />
 
         <NavItem icon={<Info size={14} />} label={tMenu('ribbon.projectInfo')} active={section === 'project-info'} onClick={() => goTo('project-info')} />
-        <NavItem icon={<Settings size={14} />} label="Instellingen" active={section === 'settings'} onClick={() => goTo('settings')} />
+        <NavItem icon={<Settings size={14} />} label={tMenu('backstage.settings')} active={section === 'settings'} onClick={() => goTo('settings')} />
 
         <div className="backstage-nav-divider" />
 
-        <ActionItem icon={<X size={14} />} label="Sluit project" onClick={() => { handleNewProject(); closeBackstage(); }} />
+        <ActionItem icon={<X size={14} />} label={tMenu('backstage.closeProject')} onClick={() => { handleNewProject(); closeBackstage(); }} />
       </aside>
 
       <main className="backstage-main">
@@ -101,7 +102,7 @@ function ActionItem({ icon, label, onClick }: {
 // ---------------------------------------------------------------------------
 
 function handleNewProject() {
-  if (confirm('Niet-opgeslagen wijzigingen gaan verloren. Doorgaan?')) {
+  if (confirm(i18n.t('common:confirm.unsavedChanges'))) {
     useAppStore.getState().newProject();
   }
 }
@@ -123,16 +124,17 @@ function handleSaveAs() {
 // ---------------------------------------------------------------------------
 
 function RecentSection() {
+  const { t: tMenu } = useTranslation('menu');
   const recentFiles = useAppStore(s => s.getRecentFiles)();
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const setUI = useAppStore(s => s.setUI);
 
   return (
     <>
-      <h2 className="backstage-title">Recente projecten</h2>
-      <p className="backstage-subtitle">Klik om te openen.</p>
+      <h2 className="backstage-title">{tMenu('backstage.recentTitle')}</h2>
+      <p className="backstage-subtitle">{tMenu('backstage.recentSubtitle')}</p>
       {recentFiles.length === 0 ? (
-        <div className="backstage-empty">Nog geen recent geopende projecten.</div>
+        <div className="backstage-empty">{tMenu('backstage.recentEmpty')}</div>
       ) : (
         <div className="backstage-recent-list">
           {recentFiles.map(fp => (
@@ -162,14 +164,15 @@ function RecentSection() {
 // ---------------------------------------------------------------------------
 
 function ExportSection() {
+  const { t: tMenu } = useTranslation('menu');
   const exportAs = useAppStore(s => s.exportAs);
   const setUI = useAppStore(s => s.setUI);
 
   const formats: { format: ExportFormat; label: string; desc: string; icon: string }[] = [
-    { format: 'csv',   label: 'CSV (puntkomma-gescheiden)', desc: 'Universele tabel-export. Alle taken met datums en duur.', icon: 'CSV' },
-    { format: 'mspdi', label: 'MS Project XML',             desc: 'Te openen in Microsoft Project. Volledige WBS-structuur.', icon: 'XML' },
-    { format: 'p6',    label: 'Primavera P6 XML',           desc: 'Voor Oracle Primavera P6.', icon: 'P6' },
-    { format: 'ifc',   label: 'IFC 4x3',                    desc: 'BuildingSMART standaard. 4D-koppeling met BIM-modellen.', icon: 'IFC' },
+    { format: 'csv',   label: tMenu('export.csvLabel'),   desc: tMenu('export.csvDesc'),   icon: 'CSV' },
+    { format: 'mspdi', label: tMenu('export.mspdiLabel'), desc: tMenu('export.mspdiDesc'), icon: 'XML' },
+    { format: 'p6',    label: tMenu('export.p6Label'),    desc: tMenu('export.p6Desc'),    icon: 'P6' },
+    { format: 'ifc',   label: tMenu('export.ifcLabel'),   desc: tMenu('export.ifcDesc'),   icon: 'IFC' },
   ];
 
   const handleExport = (format: ExportFormat) => {
@@ -179,8 +182,8 @@ function ExportSection() {
 
   return (
     <>
-      <h2 className="backstage-title">Exporteren</h2>
-      <p className="backstage-subtitle">Kies een formaat. Het project wordt geconverteerd en opgeslagen.</p>
+      <h2 className="backstage-title">{tMenu('backstage.exportTitle')}</h2>
+      <p className="backstage-subtitle">{tMenu('backstage.exportSubtitle')}</p>
       <div className="backstage-export-grid">
         {formats.map(f => (
           <button key={f.format} className="backstage-export-card" onClick={() => handleExport(f.format)}>
@@ -201,12 +204,13 @@ function ExportSection() {
 // ---------------------------------------------------------------------------
 
 function PrintSection({ onClose }: { onClose: () => void }) {
+  const { t: tMenu } = useTranslation('menu');
   const setUI = useAppStore(s => s.setUI);
 
   return (
     <>
-      <h2 className="backstage-title">Printen</h2>
-      <p className="backstage-subtitle">Open het rapportscherm voor afdrukvoorbeeld en instellingen.</p>
+      <h2 className="backstage-title">{tMenu('backstage.printTitle')}</h2>
+      <p className="backstage-subtitle">{tMenu('backstage.printSubtitle')}</p>
       <button
         className="btn btn--primary"
         onClick={() => {
@@ -214,7 +218,7 @@ function PrintSection({ onClose }: { onClose: () => void }) {
           onClose();
         }}
       >
-        Open afdrukvoorbeeld
+        {tMenu('backstage.openPrintPreview')}
       </button>
     </>
   );
@@ -225,6 +229,8 @@ function PrintSection({ onClose }: { onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 function ProjectInfoSection({ onApply }: { onApply: () => void }) {
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
   const project = useAppStore(s => s.project);
   const setProject = useAppStore(s => s.setProject);
 
@@ -242,44 +248,44 @@ function ProjectInfoSection({ onApply }: { onApply: () => void }) {
 
   return (
     <>
-      <h2 className="backstage-title">Project info</h2>
-      <p className="backstage-subtitle">Metadata van dit project.</p>
+      <h2 className="backstage-title">{tMenu('backstage.projectInfoTitle')}</h2>
+      <p className="backstage-subtitle">{tMenu('backstage.projectInfoSubtitle')}</p>
 
       <div className="backstage-form">
         <div className="backstage-form-row">
-          <label>Naam</label>
+          <label>{tMenu('backstage.name')}</label>
           <input value={name} onChange={e => setName(e.target.value)} />
         </div>
 
         <div className="backstage-form-row">
-          <label>Beschrijving</label>
+          <label>{tMenu('backstage.description')}</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)} />
         </div>
 
         <div className="backstage-form-grid-2">
           <div className="backstage-form-row">
-            <label>Auteur</label>
+            <label>{tMenu('backstage.author')}</label>
             <input value={author} onChange={e => setAuthor(e.target.value)} />
           </div>
           <div className="backstage-form-row">
-            <label>Bedrijf</label>
+            <label>{tMenu('backstage.company')}</label>
             <input value={company} onChange={e => setCompany(e.target.value)} />
           </div>
         </div>
 
         <div className="backstage-form-grid-2">
           <div className="backstage-form-row">
-            <label>Startdatum</label>
+            <label>{tMenu('backstage.startDate')}</label>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
           </div>
           <div className="backstage-form-row">
-            <label>Einddatum</label>
+            <label>{tMenu('backstage.endDate')}</label>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
           </div>
         </div>
 
         <div className="backstage-actions">
-          <button className="btn btn--primary" onClick={apply}>Toepassen</button>
+          <button className="btn btn--primary" onClick={apply}>{tCommon('apply')}</button>
         </div>
       </div>
     </>

@@ -9,6 +9,7 @@
   "ok": "OK",
   "apply": "Aplicar",
   "cancel": "Cancelar",
+  "close": "Cerrar",
   "save": "Guardar",
   "add": "Añadir",
   "delete": "Eliminar",
@@ -34,11 +35,54 @@
     "version": "Versión",
     "defaultZoom": "Zoom predeterminado",
     "projectInfo": "Información del proyecto...",
-    "theme": "Tema"
+    "theme": "Tema",
+    "themeDark": "Oscuro",
+    "themeLight": "Claro",
+    "themeHighContrast": "Alto contraste",
+    "timeline": "Línea de tiempo / Zoom",
+    "enableQuarterHourZoom": "Mostrar cuartos de hora al ampliar al máximo",
+    "weekStartDay": "La semana empieza el",
+    "weekStartMonday": "Lunes",
+    "weekStartSunday": "Domingo",
+    "scrollZoom": "Desplazamiento y zoom",
+    "scrollMode": "Modo",
+    "scrollModePosition": "Posición",
+    "scrollModeModifier": "Teclas",
+    "scrollModeDrag": "Zoom + arrastrar",
+    "dragModeHint": "Rueda del ratón = zoom (anclado en el cursor) · Arrastre el fondo del diagrama para desplazar la vista. Arrastrar una barra de tarea sigue moviendo esa barra como de costumbre.",
+    "screenDivision": "División de pantalla",
+    "screenDivisionLeftRight": "Izquierda/derecha",
+    "screenDivisionTopBottom": "Arriba/abajo",
+    "screenDivisionCorner": "Esquina superior derecha",
+    "positionModeHint": "Ctrl+rueda = zoom · Shift+rueda = desplazamiento horizontal.",
+    "modifierMapHint": "Arrastre un control a una función. Soltarlo en una ranura ocupada intercambia los controles.",
+    "wheelFnVertical": "Vertical",
+    "wheelFnHorizontal": "Horizontal",
+    "wheelFnZoom": "Zoom",
+    "wheelCtrlPlain": "Desplazar",
+    "wheelCtrlCtrl": "Ctrl + rueda",
+    "wheelCtrlShift": "Shift + rueda",
+    "debugTerminal": "Terminal de depuración",
+    "debugTerminalEnable": "Activar terminal de depuración"
   },
   "confirm": {
     "newProject": "¿Crear nuevo proyecto? Los cambios no guardados se perderán.",
     "deleteTask": "¿Está seguro de que desea eliminar esta tarea?",
-    "unsavedChanges": "Los cambios no guardados se perderán. ¿Continuar?"
+    "unsavedChanges": "Los cambios no guardados se perderán. ¿Continuar?",
+    "restoreRecovery": "Se encontró un archivo de recuperación. ¿Desea restaurar su trabajo anterior?"
+  },
+  "window": {
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "restore": "Restaurar"
+  },
+  "debugTerminal": {
+    "resume": "Reanudar",
+    "pause": "Pausar",
+    "clear": "Limpiar",
+    "toggleLevel": "Activar/desactivar {{level}}",
+    "newEntries": "↓ {{count}} nuevas",
+    "show": "Mostrar terminal de depuración",
+    "hide": "Ocultar terminal de depuración"
   }
 }

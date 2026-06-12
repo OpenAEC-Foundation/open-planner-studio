@@ -9,6 +9,7 @@
   "ok": "OK",
   "apply": "適用",
   "cancel": "キャンセル",
+  "close": "閉じる",
   "save": "保存",
   "add": "追加",
   "delete": "削除",
@@ -23,7 +24,7 @@
     "addSubtask": "サブタスクを追加",
     "addMilestone": "マイルストーンを追加",
     "addRelation": "関係を追加",
-    "toggleCollapse": "折りたたむ/展開",
+    "toggleCollapse": "折りたたむ／展開",
     "delete": "削除",
     "newTask": "新しいタスク"
   },
@@ -32,13 +33,56 @@
     "general": "一般",
     "language": "言語",
     "version": "バージョン",
-    "defaultZoom": "デフォルトズーム",
+    "defaultZoom": "既定のズーム",
     "projectInfo": "プロジェクト情報...",
-    "theme": "テーマ"
+    "theme": "テーマ",
+    "themeDark": "ダーク",
+    "themeLight": "ライト",
+    "themeHighContrast": "ハイコントラスト",
+    "timeline": "タイムライン／ズーム",
+    "enableQuarterHourZoom": "拡大時に15分単位を表示する",
+    "weekStartDay": "週の開始日",
+    "weekStartMonday": "月曜日",
+    "weekStartSunday": "日曜日",
+    "scrollZoom": "スクロールとズーム",
+    "scrollMode": "モード",
+    "scrollModePosition": "位置",
+    "scrollModeModifier": "キー",
+    "scrollModeDrag": "ズーム＋ドラッグ",
+    "dragModeHint": "スクロールホイール＝ズーム（カーソル基点）・チャート背景をドラッグして表示をスクロール。タスクバーのドラッグは通常どおりバーを移動します。",
+    "screenDivision": "画面分割",
+    "screenDivisionLeftRight": "左右",
+    "screenDivisionTopBottom": "上下",
+    "screenDivisionCorner": "右上隅",
+    "positionModeHint": "Ctrl＋スクロール＝ズーム・Shift＋スクロール＝水平スクロール。",
+    "modifierMapHint": "コントロールを機能にドラッグしてください。占有済みのスロットにドロップするとコントロールが入れ替わります。",
+    "wheelFnVertical": "垂直",
+    "wheelFnHorizontal": "水平",
+    "wheelFnZoom": "ズーム",
+    "wheelCtrlPlain": "スクロール",
+    "wheelCtrlCtrl": "Ctrl＋スクロール",
+    "wheelCtrlShift": "Shift＋スクロール",
+    "debugTerminal": "デバッグターミナル",
+    "debugTerminalEnable": "デバッグターミナルを有効にする"
   },
   "confirm": {
     "newProject": "新しいプロジェクトを作成しますか？保存されていない変更は失われます。",
     "deleteTask": "このタスクを削除してもよろしいですか？",
-    "unsavedChanges": "保存されていない変更は失われます。続行しますか？"
+    "unsavedChanges": "保存されていない変更は失われます。続行しますか？",
+    "restoreRecovery": "復元ファイルが見つかりました。前回の作業を復元しますか？"
+  },
+  "window": {
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "元に戻す"
+  },
+  "debugTerminal": {
+    "resume": "再開",
+    "pause": "一時停止",
+    "clear": "クリア",
+    "toggleLevel": "{{level}} の切り替え",
+    "newEntries": "↓ {{count}} 件の新着",
+    "show": "デバッグターミナルを表示",
+    "hide": "デバッグターミナルを非表示"
   }
 }

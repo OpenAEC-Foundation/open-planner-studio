@@ -4,6 +4,7 @@ import { Terminal } from 'lucide-react';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
@@ -40,7 +41,7 @@ export function StatusBar() {
       {debugTerminalEnabled && (
         <button
           onClick={() => setUI({ debugTerminalOpen: !debugTerminalOpen })}
-          title={debugTerminalOpen ? 'Hide debug terminal' : 'Show debug terminal'}
+          title={debugTerminalOpen ? tCommon('debugTerminal.hide') : tCommon('debugTerminal.show')}
           className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover ${debugTerminalOpen ? 'text-text-primary' : 'text-text-secondary'}`}
         >
           <Terminal size={12} />

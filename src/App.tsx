@@ -111,7 +111,7 @@ function AppContent() {
         const hasRecovery = await exists(recoveryPath);
         if (hasRecovery) {
           const content = await readTextFile(recoveryPath);
-          const shouldRecover = confirm('A recovery file was found. Would you like to restore your previous work?');
+          const shouldRecover = confirm(t('confirm.restoreRecovery'));
           if (shouldRecover) {
             try {
               const parsed = readIFC(content);

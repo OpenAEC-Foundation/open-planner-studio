@@ -68,6 +68,21 @@
   "confirm": {
     "newProject": "Create new project? Unsaved changes will be lost.",
     "deleteTask": "Are you sure you want to delete this task?",
-    "unsavedChanges": "Unsaved changes will be lost. Continue?"
+    "unsavedChanges": "Unsaved changes will be lost. Continue?",
+    "restoreRecovery": "A recovery file was found. Would you like to restore your previous work?"
+  },
+  "window": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore"
+  },
+  "debugTerminal": {
+    "resume": "Resume",
+    "pause": "Pause",
+    "clear": "Clear",
+    "toggleLevel": "Toggle {{level}}",
+    "newEntries": "↓ {{count}} new",
+    "show": "Show debug terminal",
+    "hide": "Hide debug terminal"
   }
 }

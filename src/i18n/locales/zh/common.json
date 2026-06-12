@@ -9,6 +9,7 @@
   "ok": "确定",
   "apply": "应用",
   "cancel": "取消",
+  "close": "关闭",
   "save": "保存",
   "add": "添加",
   "delete": "删除",
@@ -34,11 +35,54 @@
     "version": "版本",
     "defaultZoom": "默认缩放",
     "projectInfo": "项目信息...",
-    "theme": "主题"
+    "theme": "主题",
+    "themeDark": "深色",
+    "themeLight": "浅色",
+    "themeHighContrast": "高对比度",
+    "timeline": "时间轴 / 缩放",
+    "enableQuarterHourZoom": "深度放大时显示刻钟",
+    "weekStartDay": "一周起始日",
+    "weekStartMonday": "星期一",
+    "weekStartSunday": "星期日",
+    "scrollZoom": "滚动与缩放",
+    "scrollMode": "模式",
+    "scrollModePosition": "位置",
+    "scrollModeModifier": "按键",
+    "scrollModeDrag": "缩放 + 拖动",
+    "dragModeHint": "滚轮 = 缩放（以光标为中心）· 拖动图表背景以平移视图。拖动任务条仍可正常移动该任务条。",
+    "screenDivision": "屏幕分割",
+    "screenDivisionLeftRight": "左/右",
+    "screenDivisionTopBottom": "上/下",
+    "screenDivisionCorner": "右上角",
+    "positionModeHint": "Ctrl+滚轮 = 缩放 · Shift+滚轮 = 水平滚动。",
+    "modifierMapHint": "将控件拖到功能上。拖到已占用的位置时两者互换。",
+    "wheelFnVertical": "垂直",
+    "wheelFnHorizontal": "水平",
+    "wheelFnZoom": "缩放",
+    "wheelCtrlPlain": "滚动",
+    "wheelCtrlCtrl": "Ctrl + 滚轮",
+    "wheelCtrlShift": "Shift + 滚轮",
+    "debugTerminal": "调试终端",
+    "debugTerminalEnable": "启用调试终端"
   },
   "confirm": {
     "newProject": "创建新项目？未保存的更改将丢失。",
     "deleteTask": "确定要删除此任务吗？",
-    "unsavedChanges": "未保存的更改将丢失。是否继续？"
+    "unsavedChanges": "未保存的更改将丢失。是否继续？",
+    "restoreRecovery": "发现恢复文件。是否恢复上次的工作？"
+  },
+  "window": {
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "还原"
+  },
+  "debugTerminal": {
+    "resume": "继续",
+    "pause": "暂停",
+    "clear": "清空",
+    "toggleLevel": "切换 {{level}}",
+    "newEntries": "↓ {{count}} 条新消息",
+    "show": "显示调试终端",
+    "hide": "隐藏调试终端"
   }
 }

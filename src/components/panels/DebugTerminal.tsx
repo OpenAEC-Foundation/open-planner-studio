@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pause, Play, Trash2, X } from 'lucide-react';
 import { appLog, LogEntry, LogLevel } from '@/services/debug/appLog';
 import { useAppStore } from '@/state/appStore';
@@ -35,6 +36,7 @@ function getSnapshot(): LogEntry[] {
 }
 
 export function DebugTerminal() {
+  const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const entries = useSyncExternalStore(subscribe, getSnapshot);
 
@@ -118,7 +120,7 @@ export function DebugTerminal() {
             <button
               key={lvl}
               onClick={() => toggleLevel(lvl)}
-              title={`Toggle ${lvl}`}
+              title={t('debugTerminal.toggleLevel', { level: lvl })}
               style={{
                 fontSize: 10,
                 padding: '1px 6px',
@@ -138,21 +140,21 @@ export function DebugTerminal() {
         <div className="flex-1" />
         <button
           onClick={() => setPaused(p => !p)}
-          title={paused ? 'Resume' : 'Pause'}
+          title={paused ? t('debugTerminal.resume') : t('debugTerminal.pause')}
           style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
         >
           {paused ? <Play size={12} /> : <Pause size={12} />}
         </button>
         <button
           onClick={() => appLog.clear()}
-          title="Clear"
+          title={t('debugTerminal.clear')}
           style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
         >
           <Trash2 size={12} />
         </button>
         <button
           onClick={() => setUI({ debugTerminalOpen: false })}
-          title="Close"
+          title={t('close')}
           style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
         >
           <X size={12} />
@@ -183,7 +185,7 @@ export function DebugTerminal() {
               zIndex: 1,
             }}
           >
-            ↓ {newCount} new
+            {t('debugTerminal.newEntries', { count: newCount })}
           </button>
         )}
         {visibleEntries.map(e => (

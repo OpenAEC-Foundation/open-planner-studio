@@ -9,6 +9,7 @@
   "ok": "OK",
   "apply": "Aplicar",
   "cancel": "Cancelar",
+  "close": "Fechar",
   "save": "Guardar",
   "add": "Adicionar",
   "delete": "Eliminar",
@@ -32,13 +33,56 @@
     "general": "Geral",
     "language": "Idioma",
     "version": "Versão",
-    "defaultZoom": "Zoom padrão",
+    "defaultZoom": "Zoom predefinido",
     "projectInfo": "Informações do projeto...",
-    "theme": "Tema"
+    "theme": "Tema",
+    "themeDark": "Escuro",
+    "themeLight": "Claro",
+    "themeHighContrast": "Alto contraste",
+    "timeline": "Linha de tempo / Zoom",
+    "enableQuarterHourZoom": "Mostrar quartos de hora ao ampliar bastante",
+    "weekStartDay": "A semana começa em",
+    "weekStartMonday": "Segunda-feira",
+    "weekStartSunday": "Domingo",
+    "scrollZoom": "Deslocação e zoom",
+    "scrollMode": "Modo",
+    "scrollModePosition": "Posição",
+    "scrollModeModifier": "Teclas",
+    "scrollModeDrag": "Zoom + arrastar",
+    "dragModeHint": "Roda do rato = zoom (centrado no cursor) · Arraste o fundo do gráfico para deslocar a vista. Arrastar uma barra de tarefa move essa barra normalmente.",
+    "screenDivision": "Divisão do ecrã",
+    "screenDivisionLeftRight": "Esquerda/direita",
+    "screenDivisionTopBottom": "Cima/baixo",
+    "screenDivisionCorner": "Canto superior direito",
+    "positionModeHint": "Ctrl+roda = zoom · Shift+roda = deslocação horizontal.",
+    "modifierMapHint": "Arraste um controlo para uma função. Largar num slot ocupado troca os controlos.",
+    "wheelFnVertical": "Vertical",
+    "wheelFnHorizontal": "Horizontal",
+    "wheelFnZoom": "Zoom",
+    "wheelCtrlPlain": "Deslocar",
+    "wheelCtrlCtrl": "Ctrl + roda",
+    "wheelCtrlShift": "Shift + roda",
+    "debugTerminal": "Terminal de depuração",
+    "debugTerminalEnable": "Activar terminal de depuração"
   },
   "confirm": {
     "newProject": "Criar novo projeto? As alterações não guardadas serão perdidas.",
     "deleteTask": "Tem a certeza de que deseja eliminar esta tarefa?",
-    "unsavedChanges": "As alterações não guardadas serão perdidas. Continuar?"
+    "unsavedChanges": "As alterações não guardadas serão perdidas. Continuar?",
+    "restoreRecovery": "Foi encontrado um ficheiro de recuperação. Deseja restaurar o trabalho anterior?"
+  },
+  "window": {
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "restore": "Restaurar"
+  },
+  "debugTerminal": {
+    "resume": "Retomar",
+    "pause": "Pausar",
+    "clear": "Limpar",
+    "toggleLevel": "Alternar {{level}}",
+    "newEntries": "↓ {{count}} novos",
+    "show": "Mostrar terminal de depuração",
+    "hide": "Ocultar terminal de depuração"
   }
 }

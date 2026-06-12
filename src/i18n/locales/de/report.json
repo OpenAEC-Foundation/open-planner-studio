@@ -15,20 +15,34 @@
   "showDependencies": "Abhängigkeiten",
   "showWeekends": "Wochenenden",
   "showLegend": "Legende",
+  "showTaskNames": "Aufgabennamen auf Balken",
+  "showCompletion": "Fertigstellung anzeigen",
+  "autoFit": "Automatisch an Papier anpassen",
+  "zoom": "Zoom:",
+  "company": "Unternehmen:",
+  "companyPlaceholder": "Unternehmensname",
+  "author": "Autor:",
   "print": "Drucken...",
+  "exportPDF": "PDF exportieren",
   "noTasks": "Keine Aufgaben vorhanden",
   "printed": "Gedruckt:",
+  "page": "Seite",
+  "of": "von",
   "legend": {
     "criticalPath": "Kritischer Pfad",
     "normal": "Normal",
     "milestone": "Meilenstein",
-    "summary": "Zusammenfassung"
+    "summary": "Zusammenfassung",
+    "float": "Puffer",
+    "completion": "Fertigstellung"
   },
   "tableHeaders": {
-    "wbs": "PSP",
+    "rowNum": "#",
+    "wbs": "WBS",
     "taskName": "Aufgabenname",
     "start": "Anfang",
     "end": "Ende",
-    "duration": "Dauer"
+    "duration": "Dauer",
+    "completion": "Fertigst."
   }
 }
