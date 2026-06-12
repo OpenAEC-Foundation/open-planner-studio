@@ -43,6 +43,9 @@ export async function fetchCatalog(): Promise<void> {
 
 // ── Installeren vanuit de catalogus ──
 
+// Let op: dit downloadt en activeert externe code na een gebruikersklik.
+// Er is geen echte sandbox (zie executeExtensionCode in extensionLoader.ts);
+// de catalogus is een door de Foundation beheerde lijst.
 export async function installFromCatalog(entry: CatalogEntry): Promise<boolean> {
   try {
     const res = await fetch(entry.downloadUrl);
@@ -63,10 +66,14 @@ export async function installFromFile(): Promise<boolean> {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.zip';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('cancel', () => { input.remove(); resolve(false); });
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) { resolve(false); return; }
+      if (!file) { input.remove(); resolve(false); return; }
       const result = await installFromZipBlob(file);
+      input.remove();
       resolve(result);
     };
     input.click();
@@ -80,9 +87,12 @@ export async function installFromJsFile(): Promise<boolean> {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.js';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('cancel', () => { input.remove(); resolve(false); });
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) { resolve(false); return; }
+      if (!file) { input.remove(); resolve(false); return; }
 
       try {
         const mainCode = await file.text();
@@ -103,9 +113,11 @@ export async function installFromJsFile(): Promise<boolean> {
         useAppStore.getState().registerExtension(installed);
         await enableExtension(manifest.id);
 
+        input.remove();
         resolve(true);
       } catch (err) {
         console.error('[Extensies] Installeren vanuit JS mislukt:', err);
+        input.remove();
         resolve(false);
       }
     };
@@ -115,6 +127,8 @@ export async function installFromJsFile(): Promise<boolean> {
 
 function extractManifestFromCode(code: string, fileName: string): ExtensionManifest {
   // Zoek een @manifest-JSON-blok in het commentaar
+  // Beperking: de non-greedy match stopt bij de eerste '}', dus het manifest
+  // moet een plat JSON-object zijn (geen geneste objecten; arrays van strings zijn OK).
   const match = code.match(/@manifest\s*(\{[\s\S]*?\})\s*\*/);
   if (match) {
     try {
@@ -213,7 +227,7 @@ async function parseZipEntries(buffer: ArrayBuffer): Promise<ZipEntry[]> {
     // Bit 3 (0x08): grootte/CRC staan in een data descriptor ná de data, niet in
     // de local header (compSize is dan 0). Zoek het volgende signatuur om het einde
     // van de gecomprimeerde data te bepalen.
-    if (flags & 0x08 && compSize === 0) {
+    if ((flags & 0x08) && compSize === 0) {
       compSize = findDataDescriptorEnd(view, buffer.byteLength, dataOffset);
     }
 
@@ -261,7 +275,7 @@ async function parseZipEntries(buffer: ArrayBuffer): Promise<ZipEntry[]> {
     // Bij een data descriptor (bit 3) volgt na de data een optioneel signatuur
     // (0x08074b50) + CRC32 (4) + compSize (4) + uncompSize (4). Sla die over.
     let next = dataOffset + compSize;
-    if (flags & 0x08) {
+    if ((flags & 0x08) !== 0) {
       if (next + 4 <= buffer.byteLength && view.getUint32(next, true) === 0x08074b50) {
         next += 4;
       }
