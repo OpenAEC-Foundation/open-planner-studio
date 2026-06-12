@@ -6,7 +6,7 @@ import {
   FileText, FolderOpen, Save, Printer, Trash2,
   Calendar, Settings, Info, Clock,
   ArrowRightLeft, Eye, EyeOff, History, SaveAll,
-  Download,
+  Download, Puzzle,
 } from 'lucide-react';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
@@ -280,6 +280,47 @@ function ExportDropdown() {
   );
 }
 
+/**
+ * Extensie-knoppen: door extensies geregistreerde ribbon-knoppen, gegroepeerd
+ * per groepslabel, achteraan de actieve tab gerenderd.
+ */
+function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
+  const buttons = useAppStore(s => s.extensionRibbonButtons);
+  const forTab = buttons.filter(b => b.tab === tab);
+  if (forTab.length === 0) return null;
+
+  const groups = new Map<string, typeof forTab>();
+  for (const b of forTab) {
+    const list = groups.get(b.group) ?? [];
+    list.push(b);
+    groups.set(b.group, list);
+  }
+
+  return (
+    <>
+      {[...groups.entries()].map(([group, btns]) => (
+        <span key={group} style={{ display: 'contents' }}>
+          <div className="ribbon-separator" />
+          <RibbonGroup label={group}>
+            {btns.map(b => (
+              <RibbonButton
+                key={`${b.extensionId}:${b.label}`}
+                label={b.label}
+                icon={
+                  b.icon
+                    ? <span style={{ display: 'inline-flex', width: 20, height: 20 }} dangerouslySetInnerHTML={{ __html: b.icon }} />
+                    : <Puzzle size={20} />
+                }
+                onClick={b.onClick}
+              />
+            ))}
+          </RibbonGroup>
+        </span>
+      ))}
+    </>
+  );
+}
+
 export function Ribbon() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -519,6 +560,7 @@ export function Ribbon() {
             <RibbonButton icon={<Printer size={20} />} label={tMenu('ribbon.printPreview')} onClick={handlePrint} />
           </RibbonGroup>
         )}
+        <ExtensionRibbonGroups tab={activeTab} />
       </div>
       )}
     </div>

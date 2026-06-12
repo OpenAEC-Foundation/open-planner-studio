@@ -175,5 +175,31 @@
     "ifcLabel": "IFC 4x3",
     "ifcDesc": "BuildingSMART standaard. 4D-koppeling met BIM-modellen.",
     "csvShort": "CSV (;)"
+  },
+  "extensions": {
+    "title": "Extensies",
+    "subtitle": "Beheer geïnstalleerde extensies of installeer nieuwe.",
+    "installedTab": "Geïnstalleerd",
+    "browseTab": "Bladeren",
+    "installFromZip": "Installeren vanuit ZIP-bestand",
+    "installFromJs": "Installeren vanuit JS-bestand",
+    "searchPlaceholder": "Zoek extensies...",
+    "noExtensions": "Nog geen extensies geïnstalleerd.",
+    "noExtensionsHint": "Installeer een extensie via ZIP/JS of blader door de catalogus.",
+    "enable": "Inschakelen",
+    "disable": "Uitschakelen",
+    "remove": "Verwijderen",
+    "confirm": "Bevestig",
+    "confirmRemoveHint": "Klik nogmaals om definitief te verwijderen",
+    "catalogLoading": "Catalogus laden...",
+    "catalogError": "Catalogus kon niet geladen worden: ",
+    "retry": "Opnieuw proberen",
+    "noCatalogResults": "Geen extensies gevonden.",
+    "install": "Installeren",
+    "installing": "Bezig...",
+    "installedBadge": "Geïnstalleerd",
+    "import": "Importeren",
+    "importSubtitle": "Importeer projectdata via geïnstalleerde extensies.",
+    "importEmpty": "Geen import-extensies geïnstalleerd. Voeg er een toe via Extensies."
   }
 }

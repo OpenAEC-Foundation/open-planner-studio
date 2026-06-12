@@ -175,5 +175,31 @@
     "ifcLabel": "IFC 4x3",
     "ifcDesc": "BuildingSMART 標準。BIM モデルとの 4D 連携。",
     "csvShort": "CSV (;)"
+  },
+  "extensions": {
+    "title": "拡張機能",
+    "subtitle": "インストール済みの拡張機能を管理、または新規インストール。",
+    "installedTab": "インストール済み",
+    "browseTab": "参照",
+    "installFromZip": "ZIP ファイルからインストール",
+    "installFromJs": "JS ファイルからインストール",
+    "searchPlaceholder": "拡張機能を検索...",
+    "noExtensions": "拡張機能はまだインストールされていません。",
+    "noExtensionsHint": "ZIP/JS から拡張機能をインストールするか、カタログを参照してください。",
+    "enable": "有効化",
+    "disable": "無効化",
+    "remove": "削除",
+    "confirm": "確認",
+    "confirmRemoveHint": "もう一度クリックすると完全に削除されます",
+    "catalogLoading": "カタログを読み込み中...",
+    "catalogError": "カタログを読み込めませんでした: ",
+    "retry": "再試行",
+    "noCatalogResults": "拡張機能が見つかりません。",
+    "install": "インストール",
+    "installing": "インストール中...",
+    "installedBadge": "インストール済み",
+    "import": "インポート",
+    "importSubtitle": "インストール済みの拡張機能でプロジェクトデータをインポート。",
+    "importEmpty": "インポート用拡張機能がありません。拡張機能から追加してください。"
   }
 }

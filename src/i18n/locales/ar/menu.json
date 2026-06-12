@@ -175,5 +175,31 @@
     "ifcLabel": "IFC 4x3",
     "ifcDesc": "معيار BuildingSMART. ربط رباعي الأبعاد مع نماذج BIM.",
     "csvShort": "CSV (;)"
+  },
+  "extensions": {
+    "title": "الإضافات",
+    "subtitle": "إدارة الإضافات المثبّتة أو تثبيت إضافات جديدة.",
+    "installedTab": "مثبّتة",
+    "browseTab": "تصفّح",
+    "installFromZip": "تثبيت من ملف ZIP",
+    "installFromJs": "تثبيت من ملف JS",
+    "searchPlaceholder": "البحث عن إضافات...",
+    "noExtensions": "لا توجد إضافات مثبّتة بعد.",
+    "noExtensionsHint": "ثبّت إضافة من ملف ZIP/JS أو تصفّح الكتالوج.",
+    "enable": "تفعيل",
+    "disable": "تعطيل",
+    "remove": "إزالة",
+    "confirm": "تأكيد",
+    "confirmRemoveHint": "انقر مرة أخرى للإزالة نهائيًا",
+    "catalogLoading": "جارٍ تحميل الكتالوج...",
+    "catalogError": "تعذّر تحميل الكتالوج: ",
+    "retry": "إعادة المحاولة",
+    "noCatalogResults": "لم يتم العثور على إضافات.",
+    "install": "تثبيت",
+    "installing": "جارٍ التثبيت...",
+    "installedBadge": "مثبّتة",
+    "import": "استيراد",
+    "importSubtitle": "استيراد بيانات المشروع عبر الإضافات المثبّتة.",
+    "importEmpty": "لا توجد إضافات استيراد مثبّتة. أضف واحدة عبر الإضافات."
   }
 }

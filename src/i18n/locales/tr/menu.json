@@ -175,5 +175,31 @@
     "ifcLabel": "IFC 4x3",
     "ifcDesc": "BuildingSMART standardı. BIM modelleriyle 4D bağlantısı.",
     "csvShort": "CSV (;)"
+  },
+  "extensions": {
+    "title": "Uzantılar",
+    "subtitle": "Yüklü uzantıları yönetin veya yenilerini yükleyin.",
+    "installedTab": "Yüklü",
+    "browseTab": "Gözat",
+    "installFromZip": "ZIP dosyasından yükle",
+    "installFromJs": "JS dosyasından yükle",
+    "searchPlaceholder": "Uzantı ara...",
+    "noExtensions": "Henüz yüklü uzantı yok.",
+    "noExtensionsHint": "ZIP/JS ile bir uzantı yükleyin veya kataloğa göz atın.",
+    "enable": "Etkinleştir",
+    "disable": "Devre dışı bırak",
+    "remove": "Kaldır",
+    "confirm": "Onayla",
+    "confirmRemoveHint": "Kalıcı olarak kaldırmak için tekrar tıklayın",
+    "catalogLoading": "Katalog yükleniyor...",
+    "catalogError": "Katalog yüklenemedi: ",
+    "retry": "Tekrar dene",
+    "noCatalogResults": "Uzantı bulunamadı.",
+    "install": "Yükle",
+    "installing": "Yükleniyor...",
+    "installedBadge": "Yüklü",
+    "import": "İçe aktar",
+    "importSubtitle": "Yüklü uzantılar aracılığıyla proje verilerini içe aktarın.",
+    "importEmpty": "İçe aktarma uzantısı yüklü değil. Uzantılar bölümünden ekleyin."
   }
 }

@@ -1,0 +1,38 @@
+import { createSnapshot, type Snapshot } from '../snapshot';
+import type { AppSlice } from './types';
+
+export interface HistorySlice {
+  undoStack: Snapshot[];
+  redoStack: Snapshot[];
+  undo: () => void;
+  redo: () => void;
+}
+
+export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
+  undoStack: [],
+  redoStack: [],
+
+  undo: () =>
+    set((s) => {
+      if (s.undoStack.length === 0) return;
+      s.redoStack.push(createSnapshot(s));
+      const snapshot = s.undoStack.pop()!;
+      s.tasks = snapshot.tasks;
+      s.sequences = snapshot.sequences;
+      s.resources = snapshot.resources;
+      s.assignments = snapshot.assignments;
+      s.isDirty = true;
+    }),
+
+  redo: () =>
+    set((s) => {
+      if (s.redoStack.length === 0) return;
+      s.undoStack.push(createSnapshot(s));
+      const snapshot = s.redoStack.pop()!;
+      s.tasks = snapshot.tasks;
+      s.sequences = snapshot.sequences;
+      s.resources = snapshot.resources;
+      s.assignments = snapshot.assignments;
+      s.isDirty = true;
+    }),
+});

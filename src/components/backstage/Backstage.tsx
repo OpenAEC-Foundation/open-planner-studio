@@ -3,11 +3,13 @@ import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n/config';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
-  Printer, Info, Settings, X, FileType,
+  Printer, Info, Settings, X, FileType, Puzzle, Upload,
 } from 'lucide-react';
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { BackstageSection } from '@/state/slices/types';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
+import { ExtensionManagerPanel } from '@/components/backstage/ExtensionManagerPanel';
+import type { ExtensionImporter } from '@/state/slices/extensionSlice';
 import './Backstage.css';
 
 export function Backstage() {
@@ -48,12 +50,14 @@ export function Backstage() {
         <div className="backstage-nav-divider" />
 
         <NavItem icon={<Download size={14} />} label={tMenu('backstage.export')} active={section === 'export'} onClick={() => goTo('export')} />
+        <NavItem icon={<Upload size={14} />} label={tMenu('extensions.import')} active={section === 'import'} onClick={() => goTo('import')} />
         <NavItem icon={<Printer size={14} />} label={tMenu('ribbon.printPreview')} active={section === 'print'} onClick={() => goTo('print')} />
 
         <div className="backstage-nav-divider" />
 
         <NavItem icon={<Info size={14} />} label={tMenu('ribbon.projectInfo')} active={section === 'project-info'} onClick={() => goTo('project-info')} />
         <NavItem icon={<Settings size={14} />} label={tMenu('backstage.settings')} active={section === 'settings'} onClick={() => goTo('settings')} />
+        <NavItem icon={<Puzzle size={14} />} label={tMenu('extensions.title')} active={section === 'extensions'} onClick={() => goTo('extensions')} />
 
         <div className="backstage-nav-divider" />
 
@@ -63,9 +67,11 @@ export function Backstage() {
       <main className="backstage-main">
         {section === 'recent' && <RecentSection />}
         {section === 'export' && <ExportSection />}
+        {section === 'import' && <ImportSection />}
         {section === 'print' && <PrintSection onClose={closeBackstage} />}
         {section === 'project-info' && <ProjectInfoSection onApply={closeBackstage} />}
         {section === 'settings' && <SettingsSection />}
+        {section === 'extensions' && <ExtensionsSection />}
       </main>
     </div>
   );
@@ -302,6 +308,79 @@ function SettingsSection() {
     <>
       <h2 className="backstage-title">{tMenu('ribbon.projectSettings')}</h2>
       <SettingsPanelContent />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Import section — importers geregistreerd door extensies
+// ---------------------------------------------------------------------------
+
+function ImportSection() {
+  const { t: tMenu } = useTranslation('menu');
+  const importers = useAppStore(s => s.extensionImporters);
+  const loadState = useAppStore(s => s.loadState);
+  const runCPM = useAppStore(s => s.runCPM);
+  const setUI = useAppStore(s => s.setUI);
+
+  const handleImport = (imp: ExtensionImporter) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = imp.fileExtensions.join(',');
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('cancel', () => input.remove());
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) { input.remove(); return; }
+      try {
+        const result = await imp.handler(file);
+        loadState(result);
+        runCPM();
+        setUI({ activeRibbonTab: 'start' });
+      } catch (err) {
+        console.error('[Extensies] Import mislukt:', err);
+      } finally {
+        input.remove();
+      }
+    };
+    input.click();
+  };
+
+  return (
+    <>
+      <h2 className="backstage-title">{tMenu('extensions.import')}</h2>
+      <p className="backstage-subtitle">{tMenu('extensions.importSubtitle')}</p>
+      {importers.length === 0 ? (
+        <div className="backstage-empty">{tMenu('extensions.importEmpty')}</div>
+      ) : (
+        <div className="backstage-export-grid">
+          {importers.map(imp => (
+            <button key={`${imp.extensionId}:${imp.id}`} className="backstage-export-card" onClick={() => handleImport(imp)}>
+              <span className="backstage-export-icon">{imp.icon ? <span dangerouslySetInnerHTML={{ __html: imp.icon }} /> : <Upload size={20} />}</span>
+              <span className="backstage-export-info">
+                <h4>{imp.name}</h4>
+                <p>{imp.description} ({imp.fileExtensions.join(', ')})</p>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Extensies section
+// ---------------------------------------------------------------------------
+
+function ExtensionsSection() {
+  const { t: tMenu } = useTranslation('menu');
+  return (
+    <>
+      <h2 className="backstage-title">{tMenu('extensions.title')}</h2>
+      <p className="backstage-subtitle">{tMenu('extensions.subtitle')}</p>
+      <ExtensionManagerPanel />
     </>
   );
 }

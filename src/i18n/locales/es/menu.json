@@ -175,5 +175,31 @@
     "ifcLabel": "IFC 4x3",
     "ifcDesc": "Estándar BuildingSMART. Enlace 4D con modelos BIM.",
     "csvShort": "CSV (;)"
+  },
+  "extensions": {
+    "title": "Extensiones",
+    "subtitle": "Gestiona las extensiones instaladas o instala nuevas.",
+    "installedTab": "Instaladas",
+    "browseTab": "Explorar",
+    "installFromZip": "Instalar desde archivo ZIP",
+    "installFromJs": "Instalar desde archivo JS",
+    "searchPlaceholder": "Buscar extensiones...",
+    "noExtensions": "Aún no hay extensiones instaladas.",
+    "noExtensionsHint": "Instala una extensión desde ZIP/JS o explora el catálogo.",
+    "enable": "Activar",
+    "disable": "Desactivar",
+    "remove": "Eliminar",
+    "confirm": "Confirmar",
+    "confirmRemoveHint": "Haz clic de nuevo para eliminar definitivamente",
+    "catalogLoading": "Cargando catálogo...",
+    "catalogError": "No se pudo cargar el catálogo: ",
+    "retry": "Reintentar",
+    "noCatalogResults": "No se encontraron extensiones.",
+    "install": "Instalar",
+    "installing": "Instalando...",
+    "installedBadge": "Instalada",
+    "import": "Importar",
+    "importSubtitle": "Importa datos de proyecto mediante extensiones instaladas.",
+    "importEmpty": "No hay extensiones de importación instaladas. Añade una en Extensiones."
   }
 }

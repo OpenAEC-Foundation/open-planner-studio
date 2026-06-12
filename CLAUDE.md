@@ -40,9 +40,9 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 
 The Gantt chart is drawn imperatively to a `<canvas>` via `src/engine/renderer/` (`GanttRenderer`). Bars, dependencies, the timescale, and hit-testing all live in renderer code — not React components. When changing visual behavior of the Gantt, edit the renderer; React only owns the surrounding chrome (ribbon, panels, dialogs, status bar). The table view (`TableEditor`) is a separate DOM-based editor over the same store.
 
-### State: one Zustand + Immer store
+### State: één Zustand + Immer store, samengesteld uit slices
 
-`src/state/appStore.ts` is a single ~840-line `create<AppState>()(immer(...))` store — all actions are inline, it is **not** composed from slices. Despite the name, `src/state/slices/` holds only `types.ts`: shared type/enum definitions (`ViewState`, `UIState`, `TimeScale`, `RibbonTab`, `UITheme`, `BackstageSection`, `WeekStartDay`) imported across the app, no `StateCreator` slices. State is mutated through Immer producers; domain types live in `src/types/`. The renderer reads from the store only.
+`src/state/appStore.ts` is een compositie-root: `create<AppState>()(immer(...))` spreidt tien slice-creators uit `src/state/slices/` (project, task, sequence, resource, schedule, history, view, ui, file, extension). Elke slice is getypeerd als `AppSlice<XSlice>` (zie `slices/types.ts`) tegen de **volledige** `AppState`, zodat cross-slice acties (runCPM, undo/redo, newProject, file-I/O) gewoon de hele Immer-draft muteren. Nieuwe state/acties horen in de passende slice; `slices/types.ts` bevat daarnaast gedeelde type/enum-definities (`ViewState`, `UIState`, …). Domain-types staan in `src/types/`. De renderer leest alleen uit de store.
 
 Scheduling is **manual, not reactive**: the `runCPM` action instantiates `CalendarEngine` + `CPMSolver` (`src/engine/scheduler/`) inline and writes computed fields (early/late dates, total float, critical-path flag) straight back via Immer — it does not re-run on every edit. It is triggered explicitly by F5, the ribbon **Calculate** button, the menu, and after an IFC load. Editing tasks without calling `runCPM` leaves the schedule stale, so call it after mutating tasks/sequences/calendar. Undo/redo is snapshot-based: mutating actions push a full `Snapshot` onto `undoStack` before mutating.
 
@@ -58,6 +58,10 @@ Fourteen locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa`) via 
 
 `src/utils/settingsStore.ts` persists settings to `localStorage` only, under `ops-`-prefixed keys — it does **not** use `@tauri-apps/plugin-store` (that package is a dependency but unused here). Theme, locale, zoom defaults, and the debug-terminal toggle load on mount in `App.tsx`; `initTheme()` migrates legacy theme names (7 → 3). Separately, project **auto-save** (60s interval) is Tauri-only and writes a `recovery.ifc` to `appDataDir`, restored on next launch.
 
+### Extensiesysteem
+
+Naar het model van Open Calc Studio (`OpenAEC-Foundation/open-calc-studio`): een extensie is een ZIP (of los `.js`) met `manifest.json` + `main.js` (CommonJS, exporteert `onLoad(api)`/`onUnload()`). Volledig frontend — geen Rust. Code in `src/extensions/` (types, api, loader, service), state in `extensionSlice`. Opslag: IndexedDB `ops-extensions`; uitvoering: `new Function(...)`-sandbox waarvan `require()` alleen `'open-planner-studio'` teruggeeft; permissies (`ribbon`, `events`, …) worden per API-call afgedwongen. UI: Backstage → Extensies (beheer/installeren/catalogus) en Backstage → Importeren (extensie-importers); extensie-ribbon-knoppen renderen via `ExtensionRibbonGroups`. Catalogus: `open-planner-studio-extensions/catalog.json` op GitHub raw (30 min cache). Extensies zijn app-niveau data (geen projectdata) — geen IFC-round-trip-impact; importer-resultaten (`ImportResult`) zijn gewone store-data. Zelftest-haken: `window.__OPS__.extensions.*` (dev-only). Auteurshandleiding: `docs/extensions.md`.
+
 ## Docs
 
 - [PLAN.md](PLAN.md) — large project plan, source of truth for roadmap.
@@ -65,3 +69,4 @@ Fourteen locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa`) via 
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — changelog met alle noemenswaardige wijzigingen.
 - [docs/self-test-harness.md](docs/self-test-harness.md) — how Claude drives the app to self-test changes. Tier 1 (default): Playwright MCP (`.mcp.json`) + the dev-only `window.__OPS__` hook against the **browser** dev build (`npm run dev`, port 3007) — assert via store state, not canvas pixels. Tier 2 (opt-in): `tauri-driver` for the real desktop window.
 - [docs/archive/superpowers/](docs/archive/superpowers/) — historical design docs and implementation plans for shipped features (zoom, debug terminal, stylebook). Archived; useful for context on *why* something was built, not *what* exists now — verify against current code.
+- [docs/extensions.md](docs/extensions.md) — handleiding voor extensie-auteurs (manifest, API, installeren).

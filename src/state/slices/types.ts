@@ -1,3 +1,14 @@
+import type { StateCreator } from 'zustand';
+import type { AppState } from '../appStore';
+
+/**
+ * StateCreator-alias voor alle slices: eerste generic is de VOLLEDIGE store
+ * zodat cross-slice acties (runCPM, undo, newProject) de hele draft zien;
+ * immer-middleware zit in de mutator-keten.
+ * Type-only import van AppState → de import-cyclus is compile-time-only en veilig.
+ */
+export type AppSlice<T> = StateCreator<AppState, [['zustand/immer', never]], [], T>;
+
 export type TimeScale = 'day' | 'week' | 'month' | 'quarter';
 
 export type WeekStartDay = 'monday' | 'sunday';
@@ -37,9 +48,11 @@ export type RibbonTab = 'file' | 'start' | 'planning' | 'beeld' | 'instellingen'
 export type BackstageSection =
   | 'recent'
   | 'export'
+  | 'import'
   | 'print'
   | 'project-info'
-  | 'settings';
+  | 'settings'
+  | 'extensions';
 
 export interface ViewState {
   scrollX: number;
