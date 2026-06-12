@@ -86,9 +86,14 @@ export function ScrollZoomSettings() {
           options={[
             { value: 'position', label: t('settings.scrollModePosition') },
             { value: 'modifier', label: t('settings.scrollModeModifier') },
+            { value: 'drag', label: t('settings.scrollModeDrag') },
           ]}
         />
       </div>
+
+      {scrollMode === 'drag' && (
+        <p className="scrollzoom-hint">{t('settings.dragModeHint')}</p>
+      )}
 
       {scrollMode === 'position' && (
         <>

@@ -47,6 +47,15 @@ interface ToastState {
   type: 'error' | 'info';
 }
 
+// Map-style drag-to-pan (Optie 3 / 'drag' scroll mode). Captures the pointer
+// origin and the scroll offsets at grab time; movement is applied as a delta.
+interface PanState {
+  startClientX: number;
+  startClientY: number;
+  originScrollX: number;
+  originScrollY: number;
+}
+
 export function GanttCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,6 +83,7 @@ export function GanttCanvas() {
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
+  const scrollMode = useAppStore(s => s.ui.scrollMode);
   const cpmResult = useAppStore(s => s.cpmResult);
 
   const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
@@ -82,6 +92,7 @@ export function GanttCanvas() {
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
+  const [panState, setPanState] = useState<PanState | null>(null);
   const [cursor, setCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -325,8 +336,44 @@ export function GanttCanvas() {
         originalDuration: hit.task.time.scheduleDuration,
       });
       selectTask(hit.task.id, false);
+      return;
     }
-  }, [selectTask]);
+
+    // No bar hit: in 'drag' scroll mode, grabbing the empty chart background
+    // pans the view (map-style). Only in the gantt area, never the task table
+    // (the table has no horizontal pan and stays interactive).
+    if (scrollMode === 'drag' && x >= TASK_TABLE_WIDTH) {
+      e.preventDefault();
+      const v = useAppStore.getState().view;
+      setPanState({
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        originScrollX: v.scrollX,
+        originScrollY: v.scrollY,
+      });
+    }
+  }, [selectTask, scrollMode]);
+
+  // Map-style pan: translate pointer movement into scroll offsets. Dragging the
+  // canvas content to the right reveals earlier content, so scrollX decreases.
+  useEffect(() => {
+    if (!panState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - panState.startClientX;
+      const dy = e.clientY - panState.startClientY;
+      setScroll(panState.originScrollX - dx, panState.originScrollY - dy);
+    };
+
+    const handleMouseUp = () => setPanState(null);
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [panState, setScroll]);
 
   // Dependency drag: draw temporary line and handle release
   useEffect(() => {
@@ -480,7 +527,7 @@ export function GanttCanvas() {
 
   // Cursor changes on hover + tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (dragState || depDragState) {
+    if (dragState || depDragState || panState) {
       setTooltip(null);
       return;
     }
@@ -530,8 +577,15 @@ export function GanttCanvas() {
       }
     }
 
+    // In 'drag' scroll mode, show a grab affordance over the pannable chart
+    // background so panning is discoverable.
+    if (scrollMode === 'drag' && x >= TASK_TABLE_WIDTH) {
+      setCursor('grab');
+      return;
+    }
+
     setCursor('default');
-  }, [dragState, depDragState]);
+  }, [dragState, depDragState, panState, scrollMode]);
 
   // Hide tooltip on mouse leave
   const handleMouseLeave = useCallback(() => {
@@ -563,11 +617,13 @@ export function GanttCanvas() {
           ref={canvasRef}
           className="absolute inset-0"
           style={{
-            cursor: dragState
-              ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
-              : depDragState
-                ? 'crosshair'
-                : cursor,
+            cursor: panState
+              ? 'grabbing'
+              : dragState
+                ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
+                : depDragState
+                  ? 'crosshair'
+                  : cursor,
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}

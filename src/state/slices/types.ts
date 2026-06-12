@@ -7,7 +7,7 @@ export type WeekStartDay = 'monday' | 'sunday';
 // strict bijection (each function used exactly once).
 export type WheelFunction = 'vertical' | 'horizontal' | 'zoom';
 
-export type ScrollMode = 'position' | 'modifier';
+export type ScrollMode = 'position' | 'modifier' | 'drag';
 
 export type PositionDivision = 'left-right' | 'top-bottom' | 'corner';
 

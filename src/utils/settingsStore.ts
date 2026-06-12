@@ -92,7 +92,7 @@ export async function loadZoomSettings(): Promise<Partial<PersistedZoomSettings>
   const modMap = await getSetting<ModifierMap>('modifierMap');
   if (typeof qh === 'boolean') result.enableQuarterHourZoom = qh;
   if (week === 'monday' || week === 'sunday') result.weekStartDay = week;
-  if (mode === 'position' || mode === 'modifier') result.scrollMode = mode;
+  if (mode === 'position' || mode === 'modifier' || mode === 'drag') result.scrollMode = mode;
   if (division === 'left-right' || division === 'top-bottom' || division === 'corner') {
     result.positionDivision = division;
   }
