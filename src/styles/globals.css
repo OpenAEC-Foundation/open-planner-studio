@@ -176,8 +176,8 @@
   --theme-surface-alt: #EAEEF4;
   --theme-surface-elevated: #FFFFFF;
   /* Contrast-optie A: zichtbare kaart-/scheidingsrand (opgevoerd) … */
-  --theme-border: #CFD6E1;
-  --theme-border-light: #DDE3EB;
+  --theme-border: #C7CFDB;
+  --theme-border-light: #D2D9E4;
   /* … en een stevigere control-rand (#8C94A2 ≈ 3:1 op wit, WCAG 1.4.11 AA) voor
      inputs/selects/knoppen, zodat de zachte look toegankelijk blijft. */
   --theme-control-border: #8C94A2;
