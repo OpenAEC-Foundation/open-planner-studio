@@ -1,0 +1,11 @@
+# Voorbeeld-takenlijst — één taak per regel: "Naam | duur" (duur in werkdagen)
+# Regels die leeg zijn of met '#' beginnen worden genegeerd.
+Grondwerk en bouwput | 10
+Fundering storten | 5
+Begane grondvloer | 4
+Ruwbouw verdiepingen | 20
+Dak en waterdicht maken | 8
+Gevel en kozijnen | 12
+Installaties (W & E) | 15
+Afbouw en afwerking | 18
+Oplevering | 1

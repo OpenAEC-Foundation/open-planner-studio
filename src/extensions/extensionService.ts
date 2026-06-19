@@ -29,7 +29,9 @@ export async function fetchCatalog(): Promise<void> {
   store.setCatalogError(null);
 
   try {
-    const res = await fetch(CATALOG_URL);
+    // no-store: omzeil de browser/CDN-HTTP-cache zodat een net-bijgewerkte catalogus
+    // niet stale wordt geserveerd (de store-cache hierboven beperkt de frequentie al).
+    const res = await fetch(CATALOG_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const catalog: ExtensionCatalog = await res.json();
     store.setCatalog(catalog.extensions || [], now);
@@ -205,100 +207,173 @@ interface ZipEntry {
   data: Uint8Array;
 }
 
+const SIG_LOCAL = 0x04034b50;       // local file header
+const SIG_CENTRAL = 0x02014b50;     // central directory file header
+const SIG_EOCD = 0x06054b50;        // end of central directory
+const SIG_DATA_DESC = 0x08074b50;   // optional data descriptor
+
+/** Inflate ruwe deflate-data via de browser-native DecompressionStream. */
+async function inflateRaw(compressed: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
+  const ds = new DecompressionStream('deflate-raw');
+  const writer = ds.writable.getWriter();
+  const reader = ds.readable.getReader();
+  void writer.write(compressed);
+  void writer.close();
+
+  const chunks: Uint8Array[] = [];
+  let totalLen = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLen += value.length;
+  }
+  const out = new Uint8Array(totalLen);
+  let pos = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, pos);
+    pos += chunk.length;
+  }
+  return out;
+}
+
+async function decompressEntry(method: number, compressed: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
+  if (method === 0) return compressed;       // stored
+  if (method === 8) return inflateRaw(compressed); // deflate
+  throw new Error(`Niet-ondersteunde compressiemethode: ${method}`);
+}
+
+/** Strip de gemeenschappelijke topmap-prefix (bv. "my-ext/manifest.json" → "manifest.json"). */
+function stripTopDir(name: string): string {
+  return name.replace(/^[^/]+\//, '');
+}
+
+/**
+ * Parse ZIP-entries. Primair via de CENTRAL DIRECTORY (betrouwbare maten, lost het
+ * data-descriptor-overshoot-probleem op); valt terug op een local-header-scan als de
+ * EOCD ontbreekt of de central-directory-lezing faalt.
+ */
 async function parseZipEntries(buffer: ArrayBuffer): Promise<ZipEntry[]> {
+  try {
+    const viaCentral = await parseViaCentralDirectory(buffer);
+    if (viaCentral) return viaCentral;
+  } catch (err) {
+    console.warn('[Extensies] Central-directory-lezing faalde, val terug op local-scan:', err);
+  }
+  return parseViaLocalHeaders(buffer);
+}
+
+/** Zoek de End Of Central Directory-record (scan achterwaarts; comment is meestal leeg). */
+function findEocdOffset(view: DataView, byteLength: number): number {
+  const minOffset = Math.max(0, byteLength - 0xffff - 22);
+  for (let p = byteLength - 22; p >= minOffset; p--) {
+    if (view.getUint32(p, true) === SIG_EOCD) return p;
+  }
+  return -1;
+}
+
+async function parseViaCentralDirectory(buffer: ArrayBuffer): Promise<ZipEntry[] | null> {
+  const view = new DataView(buffer);
+  const eocd = findEocdOffset(view, buffer.byteLength);
+  if (eocd < 0) return null;
+
+  const total = view.getUint16(eocd + 10, true);
+  let cd = view.getUint32(eocd + 16, true); // offset van central directory
+
+  const entries: ZipEntry[] = [];
+  for (let i = 0; i < total; i++) {
+    if (cd + 4 > buffer.byteLength || view.getUint32(cd, true) !== SIG_CENTRAL) break;
+
+    const method = view.getUint16(cd + 10, true);
+    const compSize = view.getUint32(cd + 20, true);
+    const nameLen = view.getUint16(cd + 28, true);
+    const extraLen = view.getUint16(cd + 30, true);
+    const commentLen = view.getUint16(cd + 32, true);
+    const localOffset = view.getUint32(cd + 42, true);
+
+    const name = new TextDecoder().decode(new Uint8Array(buffer, cd + 46, nameLen));
+    cd += 46 + nameLen + extraLen + commentLen;
+
+    if (name.endsWith('/')) continue; // map
+
+    // Lees het local file header om de exacte datastart te vinden (extra-veld kan afwijken).
+    if (view.getUint32(localOffset, true) !== SIG_LOCAL) continue;
+    const localNameLen = view.getUint16(localOffset + 26, true);
+    const localExtraLen = view.getUint16(localOffset + 28, true);
+    const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+
+    const compressed = new Uint8Array(buffer, dataStart, compSize);
+    const data = await decompressEntry(method, compressed);
+
+    const cleanName = stripTopDir(name);
+    if (cleanName) entries.push({ name: cleanName, data });
+  }
+
+  return entries;
+}
+
+/** Fallback: lineaire scan over local file headers (voor ZIP's zonder bruikbare EOCD). */
+async function parseViaLocalHeaders(buffer: ArrayBuffer): Promise<ZipEntry[]> {
   const view = new DataView(buffer);
   const entries: ZipEntry[] = [];
   let offset = 0;
 
-  while (offset < buffer.byteLength - 4) {
+  while (offset + 4 <= buffer.byteLength) {
     const sig = view.getUint32(offset, true);
-    if (sig !== 0x04034b50) break; // local file header signature
+    if (sig !== SIG_LOCAL) break;
 
     const flags = view.getUint16(offset + 6, true);
     const method = view.getUint16(offset + 8, true);
     let compSize = view.getUint32(offset + 18, true);
     const nameLen = view.getUint16(offset + 26, true);
     const extraLen = view.getUint16(offset + 28, true);
-
-    const nameBytes = new Uint8Array(buffer, offset + 30, nameLen);
-    const name = new TextDecoder().decode(nameBytes);
+    const name = new TextDecoder().decode(new Uint8Array(buffer, offset + 30, nameLen));
     const dataOffset = offset + 30 + nameLen + extraLen;
 
-    // Bit 3 (0x08): grootte/CRC staan in een data descriptor ná de data, niet in
-    // de local header (compSize is dan 0). Zoek het volgende signatuur om het einde
-    // van de gecomprimeerde data te bepalen.
+    // Bit 3 (0x08): grootte staat in een data descriptor ná de data. dataDescLen = het
+    // aantal bytes vanaf de data tot (en met) de descriptor; compSize = data ervóór.
+    let dataDescLen = 0;
     if ((flags & 0x08) && compSize === 0) {
-      compSize = findDataDescriptorEnd(view, buffer.byteLength, dataOffset);
+      const { dataLen, descLen } = scanDataDescriptor(view, buffer.byteLength, dataOffset);
+      compSize = dataLen;
+      dataDescLen = descLen;
     }
 
-    const compressedData = new Uint8Array(buffer, dataOffset, compSize);
-
-    // Mappen overslaan
     if (!name.endsWith('/')) {
-      let data: Uint8Array;
-      if (method === 0) {
-        // ongecomprimeerd
-        data = compressedData;
-      } else if (method === 8) {
-        // deflate — via DecompressionStream
-        const ds = new DecompressionStream('deflate-raw');
-        const writer = ds.writable.getWriter();
-        const reader = ds.readable.getReader();
-        void writer.write(compressedData);
-        void writer.close();
-
-        const chunks: Uint8Array[] = [];
-        let totalLen = 0;
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          totalLen += value.length;
-        }
-        data = new Uint8Array(totalLen);
-        let pos = 0;
-        for (const chunk of chunks) {
-          data.set(chunk, pos);
-          pos += chunk.length;
-        }
-      } else {
-        throw new Error(`Niet-ondersteunde compressiemethode: ${method}`);
-      }
-
-      // Gemeenschappelijke mapprefix strippen
-      const cleanName = name.replace(/^[^/]+\//, '');
-      if (cleanName) {
-        entries.push({ name: cleanName, data });
-      }
+      const compressed = new Uint8Array(buffer, dataOffset, compSize);
+      const data = await decompressEntry(method, compressed);
+      const cleanName = stripTopDir(name);
+      if (cleanName) entries.push({ name: cleanName, data });
     }
 
-    // Bij een data descriptor (bit 3) volgt na de data een optioneel signatuur
-    // (0x08074b50) + CRC32 (4) + compSize (4) + uncompSize (4). Sla die over.
-    let next = dataOffset + compSize;
-    if ((flags & 0x08) !== 0) {
-      if (next + 4 <= buffer.byteLength && view.getUint32(next, true) === 0x08074b50) {
-        next += 4;
-      }
-      next += 12;
-    }
-    offset = next;
+    offset = dataOffset + compSize + dataDescLen;
   }
 
   return entries;
 }
 
-/** Zoek bij een data descriptor (bit 3) het einde van de gecomprimeerde data:
- *  het eerstvolgende data-descriptor- of local-file-header-signatuur. Geeft de
- *  lengte van de gecomprimeerde data terug (vanaf dataOffset). */
-function findDataDescriptorEnd(view: DataView, byteLength: number, dataOffset: number): number {
+/** Voor een bit-3-entry: vind het einde van de data en de lengte van de descriptor.
+ *  Lost de eerdere 12-byte-overshoot op door de descriptor mee te bepalen i.p.v.
+ *  altijd 12 bytes op te tellen. */
+function scanDataDescriptor(
+  view: DataView,
+  byteLength: number,
+  dataOffset: number,
+): { dataLen: number; descLen: number } {
   for (let p = dataOffset; p + 4 <= byteLength; p++) {
     const sig = view.getUint32(p, true);
-    // Data descriptor met expliciet signatuur, óf de volgende local/central header.
-    if (sig === 0x08074b50 || sig === 0x04034b50 || sig === 0x02014b50) {
-      return p - dataOffset;
+    if (sig === SIG_DATA_DESC) {
+      // Descriptor mét signatuur: sig(4) + crc(4) + comp(4) + uncomp(4) = 16 bytes.
+      return { dataLen: p - dataOffset, descLen: 16 };
+    }
+    if (sig === SIG_LOCAL || sig === SIG_CENTRAL) {
+      // Volgende header bereikt: de descriptor zónder signatuur (12 bytes) zit
+      // vóór deze header, dus die hoort nog bij de huidige entry.
+      const dataLen = Math.max(0, p - dataOffset - 12);
+      return { dataLen, descLen: 12 };
     }
   }
-  return byteLength - dataOffset;
+  return { dataLen: byteLength - dataOffset, descLen: 0 };
 }
 
 // ── Extensie verwijderen ──

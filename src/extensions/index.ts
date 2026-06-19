@@ -1,5 +1,13 @@
 export * from './types';
-export { createExtensionApi, emitExtensionEvent } from './extensionApi';
+export { createExtensionApi } from './extensionApi';
+export {
+  emitExtensionEvent,
+  subscribeExtensionEvent,
+  unsubscribeExtensionEvent,
+  HOST_EVENTS,
+  type HostEventName,
+} from './eventBus';
+export { getExtensionSdk, installExtensionSdk, type PlannerStudioSdk } from './sdk';
 export {
   enableExtension,
   disableExtension,

@@ -9,6 +9,9 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_os::init())
+        // Bewuste native IPC-escape-hatch — deze commands zijn vandaag ongebruikt
+        // door de frontend (die gebruikt de JS-fs/dialog-plugins). Zie
+        // commands/mod.rs voordat je ze verwijdert.
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
             commands::write_file,

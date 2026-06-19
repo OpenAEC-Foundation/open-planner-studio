@@ -325,16 +325,18 @@ Fase 1 is grotendeels af; dit zijn de laatste gaten.
 
 Voortgekomen uit de bouw van het extensiesysteem en de store-refactor (2026-06-12).
 
-- [ ] GitHub-repo `OpenAEC-Foundation/open-planner-studio-extensions` aanmaken met `catalog.json` (zelfde formaat als `open-calc-studio-extensions`); tot die tijd toont Bladeren een nette foutmelding.
-- [ ] Voorbeeld-extensie publiceren (bv. een XER- of Excel-importer) als referentie voor extensie-auteurs.
-- [ ] `window.__openPlannerStudioSdk` vullen met een echte SDK-API (nu leeg object in de sandbox-require).
-- [ ] `catalogError`-melding via i18n-interpolatie (`{{error}}`) i.p.v. string-concatenatie — nettere volgorde in RTL-talen (ar/fa).
-- [ ] `removeResource`/`unassignResource` laten verwijderde resource-ids achter in `task.resourceIds` (pre-existing; opruimen bij een resources-iteratie).
-- [ ] XML-detectie in `openFile` heeft een onlogische fallback-tak (bestand zonder MS Project- én zonder Primavera-markers valt terug op MSPDI) — robuuster maken.
-- [ ] ZIP-parser: data descriptors zónder signatuur (zeldzaam) geven een 12-byte overshoot en falen veilig — CRC-validatie via central directory zou dit oplossen.
-- [ ] `minAppVersion` afdwingen bij installeren/activeren van extensies (nu declaratief, wordt niet gecheckt).
-- [ ] Host-lifecycle-events emitten op de extensie-event-bus (project geladen, CPM gedraaid) zodat `api.events.on` ook host-events kan volgen.
-- [ ] `installFromCatalog`-fouten tonen in de CatalogCard (nu alleen console.error).
+_(geen openstaande punten meer — zie Afgerond)_
 
 ## Afgerond
+
+- [x] (2026-06-19) Catalogus-repo `OpenAEC-Foundation/open-planner-studio-extensions` (publiek) aangemaakt met `catalog.json`; de voorbeeld-extensie is de eerste entry. **Hosting via `raw`, niet via Releases**: browser-`fetch` van release-assets wordt door CORS geblokkeerd (geen `Access-Control-Allow-Origin`), `raw.githubusercontent.com` stuurt `*`. De ZIP staat daarom in de repo en `downloadUrl` wijst naar de raw-URL. `fetchCatalog` gebruikt `cache:'no-store'` tegen stale catalogus. End-to-end geverifieerd: Bladeren → Install werkt (download, central-directory-parse, activeren, importer functioneel).
+- [x] (2026-06-19) `window.__openPlannerStudioSdk` gevuld met een echte SDK (`src/extensions/sdk.ts`): versie, categorieën/permissies, `hostEvents`, `utils` en `factory`-helpers; `require('open-planner-studio')` geeft 'm terug.
+- [x] (2026-06-19) Voorbeeld-extensie gemaakt: `examples/extensions/voorbeeld-takenlijst-importer/` (importer + ribbon-knop + host-event, met README en voorbeeld-invoer).
+- [x] (2026-06-19) `minAppVersion` wordt afgedwongen bij activeren (extensie gaat naar status `error` als de app te oud is).
+- [x] (2026-06-19) Host-lifecycle-events op de extensie-event-bus: `host:project-loaded`, `host:project-new`, `host:schedule-calculated` (event-bus verhuisd naar `src/extensions/eventBus.ts`).
+- [x] (2026-06-19) `catalogError` via i18n-interpolatie (`{{error}}`) in alle 14 locales; component gebruikt `t(..., { error })`.
+- [x] (2026-06-19) `installFromCatalog`-fouten tonen in de CatalogCard (nieuwe i18n-key `installError`).
+- [x] (2026-06-19) `removeResource`/`unassignResource` ruimen nu verweesde ids in `task.resourceIds` op.
+- [x] (2026-06-19) `openFile`/`openRecentFile` XML-detectie robuuster: P6 vóór MS Project, en een onbekend formaat gooit i.p.v. stil als MSPDI te parsen.
+- [x] (2026-06-19) ZIP-parser leest maten uit de central directory (lost de data-descriptor-overshoot op); local-header-scan als fallback.
 

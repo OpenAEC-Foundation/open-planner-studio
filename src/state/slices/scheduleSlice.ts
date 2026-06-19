@@ -1,6 +1,7 @@
 import type { Task } from '@/types/task';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 
 export interface ScheduleSlice {
@@ -8,10 +9,10 @@ export interface ScheduleSlice {
   runCPM: () => void;
 }
 
-export const createScheduleSlice: AppSlice<ScheduleSlice> = (set) => ({
+export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
   cpmResult: null,
 
-  runCPM: () =>
+  runCPM: () => {
     set((s) => {
       const calEngine = new CalendarEngine(s.calendar);
       // Only run CPM on leaf tasks (non-summary)
@@ -71,5 +72,13 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set) => ({
       }
 
       s.cpmResult = result;
-    }),
+    });
+
+    const cpm = get().cpmResult;
+    emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
+      hasError: !!cpm?.error,
+      error: cpm?.error ?? null,
+      criticalTasks: get().tasks.filter((t) => t.time.isCritical).length,
+    });
+  },
 });

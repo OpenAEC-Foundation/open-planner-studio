@@ -63,6 +63,7 @@ export class GanttRenderer {
   // Computed
   private viewStart: Date;
   private flatTasks: Task[]; // flattened task list in display order
+  private flatTaskIndex: Map<string, number>; // task id -> row index in flatTasks
   private taskDepths: Map<string, number>; // task id -> nesting depth
   private holidaySet: Set<string>;
 
@@ -74,6 +75,7 @@ export class GanttRenderer {
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.taskDepths = new Map();
     this.flatTasks = this.flattenTasks(opts.tasks);
+    this.flatTaskIndex = new Map(this.flatTasks.map((t, i) => [t.id, i]));
     this.holidaySet = new Set<string>();
     this.buildHolidaySet();
   }
@@ -460,8 +462,8 @@ export class GanttRenderer {
     ctx.lineWidth = 1;
 
     for (const seq of this.opts.sequences) {
-      const predIdx = this.flatTasks.findIndex(t => t.id === seq.predecessorId);
-      const succIdx = this.flatTasks.findIndex(t => t.id === seq.successorId);
+      const predIdx = this.flatTaskIndex.get(seq.predecessorId) ?? -1;
+      const succIdx = this.flatTaskIndex.get(seq.successorId) ?? -1;
       if (predIdx < 0 || succIdx < 0) continue;
 
       const pred = this.flatTasks[predIdx];

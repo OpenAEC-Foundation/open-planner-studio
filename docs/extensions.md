@@ -21,6 +21,7 @@ Een extensie is een ZIP-bestand met twee bestanden — of een los `.js`-bestand 
 
 Categorieën: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Other`.
 Permissies: `ribbon` en `events` worden afgedwongen; de overige (`commands`, `backstage`, `filesystem`, `network`) zijn declaratief.
+`minAppVersion` wordt **wel** afgedwongen: is de app ouder, dan weigert de extensie te activeren (status `error`).
 
 ## main.js
 
@@ -65,6 +66,69 @@ module.exports = {
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
 
 Belangrijk: na het muteren van taken/relaties zelf `api.data.recalculate()` aanroepen — het schema wordt niet reactief herberekend. `loadProject()` doet dat automatisch.
+
+## Host-SDK: `require('open-planner-studio')`
+
+Naast de scoped `api` (die `onLoad(api)` binnenkrijgt) kun je de **host-SDK** ophalen. Die is
+globaal en stateloos — alleen versie-info, constanten en pure helpers om geldige
+domeinobjecten te bouwen. Muteren doe je nooit via de SDK, maar via `api.data.*`.
+
+````js
+const sdk = require('open-planner-studio');
+
+sdk.version;            // app-versie, bv. "2026.4.0"
+sdk.categories;         // geldige manifest-categorieën
+sdk.permissions;        // geldige manifest-permissies
+sdk.hostEvents;         // { projectLoaded, projectNew, scheduleCalculated }
+
+sdk.utils.generateId('seq');                 // id volgens de app-conventie
+sdk.utils.formatDate(new Date());            // "YYYY-MM-DD"
+sdk.utils.parseDate('2026-06-19');           // Date (UTC-middernacht)
+sdk.utils.addBusinessDays(date, 5);          // werkdagen optellen
+
+sdk.factory.createProject({ name: '…' });    // volledig Project
+sdk.factory.createCalendar();                // standaard WorkCalendar
+sdk.factory.createTask({ name: 'Taak' });    // volledige Task met defaults
+sdk.factory.createTaskTime(start, 10);       // TaskTime met duur in werkdagen
+sdk.factory.emptyImportResult();             // { project, calendar, tasks: [], … }
+````
+
+Een importer wordt zo veel korter:
+
+````js
+function parse(text) {
+  const result = sdk.factory.emptyImportResult();
+  result.project = sdk.factory.createProject({ name: 'Import' });
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    result.tasks.push(sdk.factory.createTask({ name: line.trim() }));
+  }
+  return result;
+}
+````
+
+## Host-events
+
+De app zendt lifecycle-events op dezelfde bus als `api.events`. Abonneer met
+`api.events.on(...)` (permissie `events`); de namen staan in `sdk.hostEvents`:
+
+| Event (`sdk.hostEvents.…`) | Naam | Data |
+|---|---|---|
+| `projectLoaded` | `host:project-loaded` | `{ tasks, sequences, resources }` |
+| `projectNew` | `host:project-new` | — |
+| `scheduleCalculated` | `host:schedule-calculated` | `{ hasError, error, criticalTasks }` |
+
+````js
+api.events.on(sdk.hostEvents.scheduleCalculated, (d) => {
+  api.ui.showNotification(`Schema berekend — kritiek: ${d.criticalTasks}`);
+});
+````
+
+## Compleet voorbeeld
+
+Zie [`examples/extensions/voorbeeld-takenlijst-importer/`](../examples/extensions/voorbeeld-takenlijst-importer/) —
+een werkende referentie-extensie (importer + ribbon-knop + host-event) met `manifest.json`,
+`main.js`, een voorbeeld-invoerbestand en een README.
 
 ## Installeren
 

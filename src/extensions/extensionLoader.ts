@@ -6,7 +6,22 @@
  */
 import type { ExtensionManifest, ExtensionPlugin, InstalledExtension } from './types';
 import { createExtensionApi } from './extensionApi';
+import { getExtensionSdk, installExtensionSdk } from './sdk';
 import { useAppStore } from '@/state/appStore';
+
+const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
+
+/** Vergelijk twee puntgescheiden versies numeriek. <0 als a ouder is dan b. */
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = b.split('.').map((n) => parseInt(n, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff < 0 ? -1 : 1;
+  }
+  return 0;
+}
 
 // Actieve plugin-instanties (voor opruimen bij disable)
 const activePlugins = new Map<string, { plugin: ExtensionPlugin; api: ReturnType<typeof createExtensionApi> }>();
@@ -99,11 +114,9 @@ function executeExtensionCode(mainCode: string): ExtensionPlugin {
 
   const requireFn = (moduleName: string) => {
     if (moduleName === 'open-planner-studio') {
-      const sdk = (window as unknown as Record<string, unknown>).__openPlannerStudioSdk;
-      if (!sdk) {
-        console.warn('[Extensies] require("open-planner-studio"): SDK is nog niet beschikbaar; leeg object teruggegeven');
-      }
-      return sdk || {};
+      // De SDK is altijd beschikbaar (lazy gebouwd); installExtensionSdk() hangt 'm
+      // ook op window voor devtools-inspectie.
+      return getExtensionSdk();
     }
     throw new Error(`Module "${moduleName}" is niet beschikbaar in de extensie-sandbox`);
   };
@@ -138,6 +151,17 @@ export async function enableExtension(id: string): Promise<void> {
   try {
     const stored = await getExtensionFromDb(id);
     if (!stored) throw new Error(`Extensie "${id}" niet gevonden in opslag`);
+
+    // Versie-gate: weiger te activeren als de app ouder is dan minAppVersion.
+    const minVersion = stored.manifest.minAppVersion;
+    if (minVersion && compareVersions(APP_VERSION, minVersion) < 0) {
+      throw new Error(
+        `Vereist Open Planner Studio ≥ ${minVersion} (huidige versie: ${APP_VERSION})`,
+      );
+    }
+
+    // Zorg dat de host-SDK op window staat vóór extensie-code draait.
+    installExtensionSdk();
 
     const plugin = executeExtensionCode(stored.mainCode);
     api = createExtensionApi(id, stored.manifest.permissions);
@@ -193,6 +217,7 @@ export async function disableExtension(id: string): Promise<void> {
 /** Laad alle geïnstalleerde extensies bij het opstarten (auto-enable wat aan stond). */
 export async function loadAllExtensions(): Promise<void> {
   try {
+    installExtensionSdk();
     const allExtensions = await getAllExtensionsFromDb();
 
     for (const ext of allExtensions) {

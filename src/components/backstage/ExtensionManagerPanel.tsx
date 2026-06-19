@@ -203,7 +203,7 @@ function BrowseTab({ search }: { search: string }) {
   if (catalogError) {
     return (
       <div className="ext-empty">
-        <p>{t('extensions.catalogError')}{catalogError}</p>
+        <p>{t('extensions.catalogError', { error: catalogError })}</p>
         <button
           className="ext-install-btn"
           onClick={() => void fetchCatalog()}
@@ -231,11 +231,14 @@ function BrowseTab({ search }: { search: string }) {
 function CatalogCard({ entry, isInstalled }: { entry: CatalogEntry; isInstalled: boolean }) {
   const { t } = useTranslation('menu');
   const [installing, setInstalling] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const handleInstall = useCallback(async () => {
     setInstalling(true);
-    await installFromCatalog(entry);
+    setFailed(false);
+    const ok = await installFromCatalog(entry);
     setInstalling(false);
+    if (!ok) setFailed(true);
   }, [entry]);
 
   return (
@@ -258,6 +261,7 @@ function CatalogCard({ entry, isInstalled }: { entry: CatalogEntry; isInstalled:
         </div>
         <p className="ext-card-desc">{entry.description}</p>
         <span className="ext-card-author">{entry.author}</span>
+        {failed && <p className="ext-card-error-msg">{t('extensions.installError')}</p>}
       </div>
 
       <div className="ext-card-actions">

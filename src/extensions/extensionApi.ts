@@ -11,21 +11,15 @@ import type {
 } from './types';
 import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
+import {
+  subscribeExtensionEvent,
+  unsubscribeExtensionEvent,
+  emitExtensionEvent,
+  type ExtEventListener,
+} from './eventBus';
 
-type ExtEventListener = (data: unknown) => void;
-
-// Globale event-bus voor extensies
-const eventListeners = new Map<string, Set<ExtEventListener>>();
-
-export function emitExtensionEvent(event: string, data?: unknown) {
-  eventListeners.get(event)?.forEach((fn) => {
-    try {
-      fn(data);
-    } catch (err) {
-      console.error(`[extensies] listener voor "${event}" gooide een fout:`, err);
-    }
-  });
-}
+// Re-export zodat bestaande importers (index.ts) ongewijzigd blijven werken.
+export { emitExtensionEvent };
 
 export function createExtensionApi(
   extensionId: string,
@@ -80,17 +74,13 @@ export function createExtensionApi(
     events: {
       on(event: string, listener: ExtEventListener) {
         requirePermission('events');
-        if (!eventListeners.has(event)) {
-          eventListeners.set(event, new Set());
-        }
-        eventListeners.get(event)!.add(listener);
-        const unsub = () => eventListeners.get(event)?.delete(listener);
+        const unsub = subscribeExtensionEvent(event, listener);
         cleanupFns.push(unsub);
         return unsub;
       },
       off(event: string, listener: ExtEventListener) {
         requirePermission('events');
-        eventListeners.get(event)?.delete(listener);
+        unsubscribeExtensionEvent(event, listener);
       },
       emit(event: string, data?: unknown) {
         requirePermission('events');
