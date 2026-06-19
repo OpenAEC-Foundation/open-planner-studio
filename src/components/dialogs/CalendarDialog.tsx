@@ -64,17 +64,17 @@ export function CalendarDialog() {
   };
 
   const inputCls =
-    'px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none';
+    'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
       <div
-        className="bg-surface-alt border border-border rounded-lg shadow-xl w-[600px] max-h-[90vh] flex flex-col"
+        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold">{tMenu('ribbon.calendarTitle')}</span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded">
+          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>{tMenu('ribbon.calendarTitle')}</span>
+          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
             <X size={16} />
           </button>
         </div>
@@ -106,10 +106,10 @@ export function CalendarDialog() {
                     key={day}
                     onClick={() => toggleWorkDay(day)}
                     className={
-                      'px-2.5 py-1.5 rounded border ' +
+                      'px-2.5 py-1.5 rounded-[8px] border-[1.5px] transition-colors ' +
                       (active
-                        ? 'bg-accent text-white border-accent'
-                        : 'bg-surface border-border text-text-secondary hover:bg-surface-hover')
+                        ? 'bg-accent text-white border-accent shadow-[var(--shadow-glow)]'
+                        : 'bg-surface border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover')
                     }
                   >
                     {tMenu(`ribbon.calendarDialog.days.${day}` as 'ribbon.calendarDialog.days.1')}
@@ -208,7 +208,7 @@ export function CalendarDialog() {
                     />
                     <button
                       onClick={() => removeHoliday(i)}
-                      className="p-1.5 hover:bg-surface-hover rounded text-text-secondary"
+                      className="p-1.5 hover:bg-surface-hover rounded-[8px] text-text-secondary"
                       title={tCommon('delete')}
                     >
                       <Trash2 size={14} />
@@ -224,7 +224,7 @@ export function CalendarDialog() {
           <button onClick={close} className="btn btn--sm btn--secondary">
             {tCommon('cancel')}
           </button>
-          <button onClick={handleApply} className="btn btn--sm btn--primary">
+          <button onClick={handleApply} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">
             {tCommon('apply')}
           </button>
         </div>

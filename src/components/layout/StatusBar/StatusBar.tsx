@@ -35,8 +35,8 @@ export function StatusBar() {
         <span>{t('status.selection', { count: selectedTaskIds.length })}</span>
       )}
       <div className="flex-1" />
-      <span>{t('status.scale')} {view.timeScale}</span>
-      <span>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
+      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {view.timeScale}</span>
+      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
       {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
       {debugTerminalEnabled && (
         <button

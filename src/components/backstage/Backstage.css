@@ -111,23 +111,24 @@
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.1s ease;
-  background: transparent;
-  border: 1px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  box-shadow: var(--shadow-card);
   text-align: left;
   font-family: inherit;
   color: inherit;
   width: 100%;
 }
 .backstage-recent-item:hover {
-  background: var(--theme-hover);
-  border-color: var(--theme-border-light);
+  background: var(--theme-surface-alt);
+  border-color: var(--theme-accent);
 }
 .backstage-recent-thumb {
   width: 40px;
   height: 40px;
-  background: var(--theme-bg);
-  border: 1px solid var(--theme-border-light);
+  background: var(--theme-surface-alt);
+  border: 1px solid var(--theme-border);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -172,18 +173,20 @@
   align-items: center;
   gap: var(--sp-4);
   padding: var(--sp-5);
-  border: 1px solid var(--theme-border-light);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
-  background: transparent;
+  background: var(--theme-surface);
   text-align: left;
   font-family: inherit;
   color: inherit;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .backstage-export-card:hover {
-  background: var(--theme-hover);
+  background: var(--theme-surface-alt);
   border-color: var(--theme-accent);
+  box-shadow: var(--shadow-pop);
 }
 .backstage-export-icon {
   width: 48px;
@@ -235,7 +238,7 @@
   font-family: var(--font-body);
   font-size: 0.875rem;
   padding: var(--sp-3) var(--sp-4);
-  border: 1.5px solid var(--theme-border);
+  border: 1.5px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   background: var(--theme-input-bg);
   color: var(--theme-text);

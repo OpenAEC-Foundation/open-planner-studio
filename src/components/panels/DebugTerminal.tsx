@@ -98,6 +98,27 @@ export function DebugTerminal() {
     setStickyBottom(true);
   };
 
+  // Shared chrome for the toolbar icon buttons (pause/clear/close):
+  // rounded, transparent, with a cool hover lift toward dashboard-surface-hover.
+  const iconBtnStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--dashboard-text-muted)',
+    cursor: 'pointer',
+    padding: 2,
+    transition: 'background 0.12s ease, color 0.12s ease',
+  };
+  const onIconEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.background = 'var(--dashboard-surface-hover)';
+    e.currentTarget.style.color = 'var(--dashboard-text)';
+  };
+  const onIconLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.background = 'transparent';
+    e.currentTarget.style.color = 'var(--dashboard-text-muted)';
+  };
+
   return (
     <div
       className="flex-shrink-0 flex flex-col border-t border-border"
@@ -124,10 +145,10 @@ export function DebugTerminal() {
               style={{
                 fontSize: 10,
                 padding: '1px 6px',
-                borderRadius: 3,
+                borderRadius: 'var(--radius-sm)',
                 border: `1px solid ${on ? LEVEL_COLOR[lvl] : 'var(--dashboard-border)'}`,
                 color: on ? LEVEL_COLOR[lvl] : 'var(--dashboard-text-dim)',
-                background: 'transparent',
+                background: on ? 'var(--dashboard-surface-hover)' : 'transparent',
                 cursor: 'pointer',
                 textTransform: 'uppercase',
                 letterSpacing: 0.4,
@@ -141,21 +162,27 @@ export function DebugTerminal() {
         <button
           onClick={() => setPaused(p => !p)}
           title={paused ? t('debugTerminal.resume') : t('debugTerminal.pause')}
-          style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
+          style={iconBtnStyle}
+          onMouseEnter={onIconEnter}
+          onMouseLeave={onIconLeave}
         >
           {paused ? <Play size={12} /> : <Pause size={12} />}
         </button>
         <button
           onClick={() => appLog.clear()}
           title={t('debugTerminal.clear')}
-          style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
+          style={iconBtnStyle}
+          onMouseEnter={onIconEnter}
+          onMouseLeave={onIconLeave}
         >
           <Trash2 size={12} />
         </button>
         <button
           onClick={() => setUI({ debugTerminalOpen: false })}
           title={t('close')}
-          style={{ background: 'transparent', border: 'none', color: 'var(--dashboard-text-muted)', cursor: 'pointer', padding: 2 }}
+          style={iconBtnStyle}
+          onMouseEnter={onIconEnter}
+          onMouseLeave={onIconLeave}
         >
           <X size={12} />
         </button>
@@ -178,7 +205,7 @@ export function DebugTerminal() {
               background: 'var(--dashboard-surface-hover)',
               color: 'var(--dashboard-text)',
               border: '1px solid var(--dashboard-border)',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-full)',
               padding: '1px 8px',
               fontSize: 10,
               cursor: 'pointer',

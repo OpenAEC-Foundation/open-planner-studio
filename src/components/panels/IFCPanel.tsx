@@ -50,29 +50,37 @@ export function IFCPanel() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-surface">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-surface-alt">
-        <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">{t('ifc.title')}</span>
+      <div className="flex items-center gap-2 px-3 py-2 bg-surface-alt" style={{ borderBottom: '1px solid var(--theme-border)' }}>
+        <span
+          className="text-xs font-bold uppercase"
+          style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', color: 'var(--theme-text-muted)' }}
+        >
+          {t('ifc.title')}
+        </span>
         <div className="flex-1" />
         <button
           onClick={handleGenerate}
-          className="px-3 py-1 text-xs bg-accent text-accent-on rounded hover:bg-accent-hover"
+          className="px-3 py-1 text-xs bg-accent text-accent-on hover:bg-accent-hover"
+          style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-glow)' }}
         >
           {t('ifc.generate')}
         </button>
         <button
           onClick={handleApply}
           disabled={!dirty}
-          className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40"
+          className="px-3 py-1 text-xs bg-green-600 text-white hover:bg-green-700 disabled:opacity-40"
+          style={{ borderRadius: 'var(--radius-md)' }}
         >
           {t('ifc.apply')}
         </button>
         <button
           onClick={handleCopy}
-          className="px-3 py-1 text-xs border border-border rounded hover:bg-surface-hover"
+          className="px-3 py-1 text-xs hover:bg-surface-hover"
+          style={{ border: '1px solid var(--theme-control-border)', borderRadius: 'var(--radius-md)' }}
         >
           {t('ifc.copy')}
         </button>
-        <span className="text-[10px] text-text-secondary">{lineCount} {t('ifc.lines')}</span>
+        <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{lineCount} {t('ifc.lines')}</span>
       </div>
 
       {/* Editor */}

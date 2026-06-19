@@ -123,8 +123,15 @@ export function TableEditor() {
           onChange={e => setEditValue(e.target.value)}
           onBlur={commitEdit}
           onKeyDown={e => handleCellKeyDown(e, taskId, field)}
-          className="w-full bg-surface border border-accent px-1 py-0.5 text-xs outline-none"
-          style={{ textAlign: align as 'left' | 'right' | 'center' }}
+          className="w-full px-1 py-0.5 text-xs outline-none"
+          style={{
+            textAlign: align as 'left' | 'right' | 'center',
+            background: 'var(--theme-input-bg)',
+            color: 'var(--theme-text)',
+            border: '1px solid var(--theme-accent)',
+            borderRadius: 'var(--radius-sm)',
+            boxShadow: '0 0 0 3px rgba(217, 119, 6, 0.20)',
+          }}
         />
       );
     }
@@ -142,7 +149,16 @@ export function TableEditor() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-surface">
       {/* Header — sticky thead per LAYOUTS.md §3.2 */}
-      <div className="sticky top-0 z-10 flex border-b border-border bg-surface-alt text-[10px] font-bold uppercase tracking-wider text-text-secondary select-none" style={{ minHeight: 28 }}>
+      <div
+        className="sticky top-0 z-10 flex bg-surface-alt text-[10px] font-bold uppercase tracking-wider select-none"
+        style={{
+          minHeight: 28,
+          fontFamily: 'var(--font-heading)',
+          letterSpacing: '0.08em',
+          color: 'var(--theme-text-muted)',
+          borderBottom: '1px solid var(--theme-border)',
+        }}
+      >
         <div className="w-[60px] px-2 flex items-center">{t('table.wbs')}</div>
         <div className="flex-1 min-w-[200px] px-2 flex items-center">{t('table.name')}</div>
         <div className="w-[60px] px-1 flex items-center justify-end">{t('table.duration')}</div>
@@ -164,8 +180,17 @@ export function TableEditor() {
           return (
             <div
               key={task.id}
-              className={`flex border-b border-border text-xs hover:bg-surface-hover cursor-default ${isSelected ? 'bg-accent/20' : ''} ${isSummary ? 'font-semibold' : ''}`}
-              style={{ minHeight: 26 }}
+              className={`flex text-xs hover:bg-surface-hover cursor-default ${isSummary ? 'font-semibold' : ''}`}
+              style={{
+                minHeight: 26,
+                borderBottom: '1px solid var(--theme-border-light)',
+                ...(isSelected
+                  ? {
+                      background: 'var(--theme-accent-soft, rgba(217,119,6,.10))',
+                      boxShadow: 'inset 2px 0 0 var(--theme-accent)',
+                    }
+                  : {}),
+              }}
               onClick={() => selectTask(task.id)}
             >
               <div className="w-[60px] px-2 flex items-center text-text-secondary">

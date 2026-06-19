@@ -150,25 +150,30 @@ function AppContent() {
       {/* OpenAEC merk-accent strip — gradient amber → gold → orange (DESIGN-SYSTEM.md §2.1) */}
       <div aria-hidden className="brand-accent-strip" />
 
-      {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Main Content — getinte werkruimte met zwevende kaarten (spec §4) */}
+      <div
+        className="flex flex-1 overflow-hidden ui-workspace"
+        style={{ padding: 12, gap: 12 }}
+      >
         {isFullPanel ? (
-          // Full panel views (Table, IFC, Report)
-          <>
+          // Full panel views (Table, IFC, Report) — eigen kaart
+          <div className="ui-card flex-1 flex overflow-hidden">
             {activeTab === 'table' && <TableEditor />}
             {activeTab === 'ifc' && <IFCPanel />}
             {activeTab === 'report' && <ReportPanel />}
-          </>
+          </div>
         ) : (
-          // Gantt Chart view
-          <GanttCanvas />
+          // Gantt Chart view — zwevende kaart (Gantt + tabel samen)
+          <div className="ui-card flex-1 flex overflow-hidden">
+            <GanttCanvas />
+          </div>
         )}
 
         {/* Right Panel: Properties (collapsible) */}
         {!isFullPanel && (
           rightPanelCollapsed ? (
             <div
-              className="border-l border-border bg-surface-alt cursor-pointer flex flex-col items-center justify-center gap-2 py-4 hover:bg-surface-hover"
+              className="ui-card cursor-pointer flex flex-col items-center justify-center gap-2 py-4 hover:bg-surface-hover overflow-hidden"
               style={{ width: 28 }}
               onClick={() => setUI({ rightPanelCollapsed: false })}
             >
@@ -181,7 +186,7 @@ function AppContent() {
             </div>
           ) : (
             <div
-              className="border-l border-border bg-surface-alt flex flex-col"
+              className="ui-card flex flex-col overflow-hidden"
               style={{ width: rightPanelWidth, minWidth: 200 }}
             >
               <div className="flex items-center justify-between h-8 px-3 border-b border-border flex-shrink-0">

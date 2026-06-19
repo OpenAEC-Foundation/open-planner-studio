@@ -40,17 +40,18 @@
 }
 
 .quick-access-btn {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  border-radius: 2px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--theme-text-dim);
   padding: 0;
+  transition: background 0.1s, color 0.1s;
 }
 
 .quick-access-btn:hover {

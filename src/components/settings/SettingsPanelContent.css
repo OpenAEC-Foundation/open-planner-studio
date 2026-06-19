@@ -27,7 +27,7 @@
 }
 
 .settings-theme-card {
-  border: 2px solid var(--theme-border);
+  border: 1.5px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   padding: 8px;
   cursor: pointer;
@@ -35,13 +35,19 @@
   text-align: left;
   font-family: inherit;
   color: var(--theme-text);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .settings-theme-card:hover { border-color: var(--theme-accent); }
+.settings-theme-card:focus-visible {
+  outline: none;
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
+}
 .settings-theme-card.active {
   border-color: var(--theme-accent);
-  background: var(--theme-hover);
+  background: rgba(217, 119, 6, 0.10);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.10);
 }
 
 .settings-theme-card h4 {

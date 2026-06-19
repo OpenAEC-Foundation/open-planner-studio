@@ -62,7 +62,7 @@ export function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-surface-alt border border-border rounded-lg shadow-lg py-1 min-w-[180px]"
+      className="fixed z-50 bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[180px]"
       style={{ left: adjustedX, top: adjustedY }}
     >
       {task ? (

@@ -135,12 +135,17 @@ export function ReportPanel() {
   return (
     <div className="flex-1 flex overflow-hidden bg-surface">
       {/* Left: Settings panel */}
-      <div className="w-64 flex-shrink-0 border-r border-border overflow-y-auto p-3 flex flex-col gap-3">
-        <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">{t('title')}</span>
+      <div className="w-64 flex-shrink-0 overflow-y-auto p-3 flex flex-col gap-3" style={{ borderRight: '1px solid var(--theme-border)' }}>
+        <span
+          className="text-xs font-bold uppercase"
+          style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', color: 'var(--theme-text-muted)' }}
+        >
+          {t('title')}
+        </span>
 
         {/* Project summary */}
-        <div className="bg-surface-alt border border-border rounded-lg p-3">
-          <h3 className="text-xs font-bold mb-2">{t('summary')}</h3>
+        <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
+          <h3 className="ui-card-header !text-xs mb-2">{t('summary')}</h3>
           <div className="grid grid-cols-2 gap-1 text-xs">
             <span className="text-text-secondary">{t('tasks')}</span>
             <span>{tasks.length}</span>
@@ -154,8 +159,8 @@ export function ReportPanel() {
         </div>
 
         {/* Report options */}
-        <div className="bg-surface-alt border border-border rounded-lg p-3">
-          <h3 className="text-xs font-bold mb-2">{t('settings')}</h3>
+        <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
+          <h3 className="ui-card-header !text-xs mb-2">{t('settings')}</h3>
           <div className="flex flex-col gap-2 text-xs">
             {/* Company name */}
             <div className="flex items-center gap-2">
@@ -165,7 +170,7 @@ export function ReportPanel() {
                 value={companyName}
                 onChange={e => setCompanyName(e.target.value)}
                 placeholder={t('companyPlaceholder', { defaultValue: 'Bedrijfsnaam' })}
-                className="flex-1 px-2 py-1 bg-surface border border-border rounded text-xs focus:border-accent focus:outline-none"
+                className="input flex-1 !w-auto !text-xs !px-2 !py-1"
               />
             </div>
 
@@ -261,6 +266,7 @@ export function ReportPanel() {
           <button
             onClick={handlePrint}
             className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-xs font-medium"
+            style={{ boxShadow: 'var(--shadow-glow)' }}
           >
             {t('print')}
           </button>
@@ -274,8 +280,11 @@ export function ReportPanel() {
       </div>
 
       {/* Right: Live preview */}
-      <div className="flex-1 overflow-auto bg-neutral-200 p-4">
-        <div className="inline-block shadow-lg rounded bg-white">
+      <div className="flex-1 overflow-auto p-4" style={{ background: 'var(--theme-bg)' }}>
+        <div
+          className="inline-block bg-white"
+          style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}
+        >
           <canvas ref={canvasRef} />
         </div>
       </div>

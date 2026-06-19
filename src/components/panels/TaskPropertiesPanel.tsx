@@ -7,8 +7,13 @@ import { Trash2 } from 'lucide-react';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <label className="text-[10px] text-text-secondary uppercase tracking-wide">{label}</label>
+    <div className="flex flex-col gap-1">
+      <label
+        className="text-[10px] uppercase tracking-wide"
+        style={{ color: 'var(--theme-text-muted)' }}
+      >
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -30,7 +35,7 @@ function Input({ value, onChange, type = 'text', min, max, step }: {
       min={min}
       max={max}
       step={step}
-      className="w-full px-2 py-1 text-xs bg-surface border border-border rounded focus:border-accent focus:outline-none"
+      className="input !text-xs !px-2.5 !py-1.5"
     />
   );
 }
@@ -84,7 +89,7 @@ export function TaskPropertiesPanel() {
   return (
     <div className="flex flex-col gap-3 p-3 text-xs overflow-y-auto">
       <div className="flex items-center justify-between">
-        <span className="font-bold text-sm">{t('properties.task')}</span>
+        <span className="ui-card-header !text-xs">{t('properties.task')}</span>
         <button
           onClick={() => deleteTask(task.id)}
           className="p-1 rounded"
@@ -107,7 +112,7 @@ export function TaskPropertiesPanel() {
         <textarea
           value={task.description}
           onChange={e => update({ description: e.target.value })}
-          className="w-full px-2 py-1 text-xs bg-surface border border-border rounded focus:border-accent focus:outline-none h-16 resize-none"
+          className="input !text-xs !px-2.5 !py-1.5 h-16 resize-none"
         />
       </Field>
 
@@ -132,9 +137,9 @@ export function TaskPropertiesPanel() {
         </label>
       </div>
 
-      <div className="h-px bg-border" />
+      <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
 
-      <span className="font-bold">{t('properties.time')}</span>
+      <span className="ui-card-header !text-xs">{t('properties.time')}</span>
 
       <div className="grid grid-cols-2 gap-2">
         <Field label={t('properties.start')}>
@@ -170,8 +175,8 @@ export function TaskPropertiesPanel() {
 
       {task.time.isCritical !== undefined && (
         <>
-          <div className="h-px bg-border" />
-          <span className="font-bold">{t('properties.cpmResult')}</span>
+          <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
+          <span className="ui-card-header !text-xs">{t('properties.cpmResult')}</span>
           <div className="grid grid-cols-2 gap-1 text-[10px]">
             <span className="text-text-secondary">{t('properties.earlyStart')}</span>
             <span>{task.time.earlyStart}</span>
@@ -195,8 +200,8 @@ export function TaskPropertiesPanel() {
 
       {taskSequences.length > 0 && (
         <>
-          <div className="h-px bg-border" />
-          <span className="font-bold">{t('properties.dependencies')}</span>
+          <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
+          <span className="ui-card-header !text-xs">{t('properties.dependencies')}</span>
           {taskSequences.map(seq => {
             const other = seq.predecessorId === task.id
               ? tasks.find(t => t.id === seq.successorId)
@@ -220,7 +225,11 @@ export function TaskPropertiesPanel() {
         </>
       )}
 
-      <button onClick={runCPM} className="btn btn--sm btn--primary mt-2">
+      <button
+        onClick={runCPM}
+        className="btn btn--sm btn--primary mt-2"
+        style={{ boxShadow: 'var(--shadow-glow)' }}
+      >
         {t('properties.recalculate')}
       </button>
     </div>

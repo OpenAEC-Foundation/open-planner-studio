@@ -35,15 +35,18 @@ export function ProjectInfoDialog() {
     return () => document.removeEventListener('keydown', onKey);
   }, [setUI]);
 
+  const inputCls =
+    'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={handleClose}>
       <div
-        className="bg-surface-alt border border-border rounded-lg shadow-xl w-[560px] max-h-[90vh] flex flex-col"
+        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold">{tMenu('projectInfo.title')}</span>
-          <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded">
+          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>{tMenu('projectInfo.title')}</span>
+          <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded-[8px]">
             <X size={16} />
           </button>
         </div>
@@ -54,7 +57,7 @@ export function ProjectInfoDialog() {
             <input
               value={name}
               onChange={e => setName(e.target.value)}
-              className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+              className={inputCls}
               autoFocus
             />
           </div>
@@ -65,7 +68,7 @@ export function ProjectInfoDialog() {
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
-              className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none resize-none"
+              className={`${inputCls} resize-none`}
             />
           </div>
 
@@ -75,7 +78,7 @@ export function ProjectInfoDialog() {
               <input
                 value={author}
                 onChange={e => setAuthor(e.target.value)}
-                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+                className={inputCls}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -83,7 +86,7 @@ export function ProjectInfoDialog() {
               <input
                 value={company}
                 onChange={e => setCompany(e.target.value)}
-                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+                className={inputCls}
               />
             </div>
           </div>
@@ -95,7 +98,7 @@ export function ProjectInfoDialog() {
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+                className={inputCls}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -104,7 +107,7 @@ export function ProjectInfoDialog() {
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+                className={inputCls}
               />
             </div>
           </div>
@@ -114,7 +117,7 @@ export function ProjectInfoDialog() {
           <button onClick={handleClose} className="btn btn--sm btn--secondary">
             {tCommon('cancel')}
           </button>
-          <button onClick={handleApply} className="btn btn--sm btn--primary">
+          <button onClick={handleApply} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">
             {tCommon('apply')}
           </button>
         </div>

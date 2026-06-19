@@ -43,8 +43,8 @@ function RibbonDropdown<T extends string>({ value, options, onChange }: {
           width: '100%',
           padding: '4px 8px',
           background: 'var(--theme-input-bg)',
-          border: '1px solid var(--theme-border-light)',
-          borderRadius: 3,
+          border: '1px solid var(--theme-control-border)',
+          borderRadius: 'var(--radius-sm)',
           color: 'var(--theme-text)',
           fontSize: 11,
           cursor: 'pointer',
@@ -65,10 +65,10 @@ function RibbonDropdown<T extends string>({ value, options, onChange }: {
           marginTop: 2,
           minWidth: '100%',
           background: 'var(--theme-dropdown-bg)',
-          border: '1px solid var(--theme-border-light)',
-          borderRadius: 3,
+          border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)',
           zIndex: 9999,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          boxShadow: 'var(--shadow-pop)',
         }}>
           {options.map(o => (
             <button
@@ -183,11 +183,11 @@ function RecentFilesDropdown() {
         <div style={{
           position: 'absolute', top: '100%', left: 0, zIndex: 1000,
           minWidth: 280, maxWidth: 400,
-          background: 'var(--color-surface-alt)', border: '1px solid var(--color-border)',
-          borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '4px 0',
+          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
         }}>
           {recentFiles.length === 0 ? (
-            <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--color-text-secondary)' }}>
+            <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--theme-text-dim)' }}>
               {tMenu('ribbon.noRecentFiles')}
             </div>
           ) : (
@@ -197,16 +197,16 @@ function RecentFilesDropdown() {
                 style={{
                   display: 'block', width: '100%', textAlign: 'left',
                   padding: '6px 12px', fontSize: 11, border: 'none',
-                  background: 'transparent', color: 'var(--color-text-primary)',
+                  background: 'transparent', color: 'var(--theme-text)',
                   cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}
                 title={fp}
-                onMouseOver={e => (e.currentTarget.style.background = 'var(--color-surface-hover)')}
+                onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
                 onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
                 onClick={() => { openRecentFile(fp); setOpen(false); }}
               >
                 {fp.split(/[/\\]/).pop()}
-                <span style={{ display: 'block', fontSize: 9, color: 'var(--color-text-secondary)', marginTop: 1 }}>
+                <span style={{ display: 'block', fontSize: 9, color: 'var(--theme-text-dim)', marginTop: 1 }}>
                   {fp}
                 </span>
               </button>
@@ -255,8 +255,8 @@ function ExportDropdown() {
         <div style={{
           position: 'absolute', top: '100%', left: 0, zIndex: 1000,
           minWidth: 180,
-          background: 'var(--color-surface-alt)', border: '1px solid var(--color-border)',
-          borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '4px 0',
+          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
         }}>
           {formats.map((f) => (
             <button
@@ -264,10 +264,10 @@ function ExportDropdown() {
               style={{
                 display: 'block', width: '100%', textAlign: 'left',
                 padding: '6px 12px', fontSize: 11, border: 'none',
-                background: 'transparent', color: 'var(--color-text-primary)',
+                background: 'transparent', color: 'var(--theme-text)',
                 cursor: 'pointer',
               }}
-              onMouseOver={e => (e.currentTarget.style.background = 'var(--color-surface-hover)')}
+              onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
               onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
               onClick={() => { exportAs(f.format); setOpen(false); }}
             >

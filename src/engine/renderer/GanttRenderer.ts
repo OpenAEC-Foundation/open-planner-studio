@@ -28,26 +28,28 @@ function getThemeColors() {
   const s = getComputedStyle(document.documentElement);
   const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
   return {
-    bg: v('--theme-bg', '#1e1e2e'),
-    surface: v('--theme-surface-alt', '#252536'),
-    grid: v('--theme-surface-elevated', '#2e2e42'),
-    gridWeekend: v('--theme-grid-weekend', '#1a1a28'),
-    border: v('--theme-border', '#3e3e55'),
-    text: v('--theme-text', '#e0e0e8'),
-    textSecondary: v('--theme-text-dim', '#9090a8'),
-    critical: '#DC2626',
-    criticalLight: '#991B1B',
-    normal: '#2563EB',
-    normalLight: '#1D4ED8',
-    milestone: '#7C3AED',
-    float: v('--theme-bar-float', '#10B981'),
+    // The Gantt now lives inside a white floating card, so the canvas background
+    // must read the card surface (white in light), NOT the workspace tint (--theme-bg).
+    bg: v('--theme-surface', '#ffffff'),
+    surface: v('--theme-surface-alt', '#F6F8FB'),
+    grid: v('--theme-border-light', '#EDF0F5'),
+    gridWeekend: v('--theme-grid-weekend', '#EFF2F7'),
+    border: v('--theme-border', '#E2E7EE'),
+    text: v('--theme-text', '#333845'),
+    textSecondary: v('--theme-text-dim', '#5B6472'),
+    critical: '#DC2626',       // kritiek (rood)
+    criticalLight: '#991B1B',  // voortgangsvulling kritiek
+    normal: '#2563EB',         // normale taak (blauw)
+    normalLight: '#1D4ED8',    // voortgangsvulling / voltooid (blauw)
+    milestone: '#7C3AED',      // mijlpaal (paars, ruit)
+    float: v('--theme-bar-float', '#059669'),
     baseline: '#6B7280',
     complete: '#1D4ED8',
-    selected: v('--theme-accent', '#F59E0B'),
+    selected: v('--theme-accent', '#B45309'),
     dependency: '#6B7280',
-    today: v('--theme-accent', '#F59E0B'),
-    headerBg: v('--theme-surface-alt', '#252536'),
-    summary: '#8B5CF6',
+    today: v('--theme-accent', '#B45309'),
+    headerBg: v('--theme-surface-alt', '#F6F8FB'),
+    summary: '#475569',        // samenvattingsbalk (slate)
   };
 }
 
@@ -394,9 +396,11 @@ export class GanttRenderer {
     const barY = y + height * 0.3;
     const barH = height * 0.4;
 
-    // Summary bar
+    // Summary bar (afgeronde hoeken voor de moderne look; ruit-eindkappen blijven)
     ctx.fillStyle = this.colors.summary;
-    ctx.fillRect(x1, barY, width, barH);
+    ctx.beginPath();
+    ctx.roundRect(x1, barY, width, barH, 2);
+    ctx.fill();
 
     // Triangles at start and end
     ctx.beginPath();

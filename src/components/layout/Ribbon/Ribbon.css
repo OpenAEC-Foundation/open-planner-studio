@@ -1,16 +1,16 @@
-/* Ribbon Container - Theme-aware */
+/* Ribbon Container - Theme-aware (flat surface, soft divider) */
 .ribbon-container {
   background: var(--theme-ribbon-bg);
-  border-bottom: 1px solid var(--theme-border-light);
+  border-bottom: 1px solid var(--theme-border);
   flex-shrink: 0;
   user-select: none;
   cursor: default;
 }
 
-/* Ribbon Tabs */
+/* Ribbon Tabs (flat tabstrip surface, soft divider) */
 .ribbon-tabs {
   background: var(--theme-ribbon-tab-bg);
-  border-bottom: 1px solid var(--theme-border-light);
+  border-bottom: 1px solid var(--theme-border);
   display: flex;
   padding: 0 8px;
   gap: 2px;
@@ -26,7 +26,7 @@
   border-bottom: none;
   color: var(--theme-text-dim);
   font-weight: 500;
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   transition: all 0.15s ease;
   cursor: default;
   position: relative;
@@ -44,7 +44,7 @@
 .ribbon-tab.active {
   background: var(--theme-ribbon-content-bg);
   color: var(--theme-text);
-  border-color: var(--theme-border-light);
+  border-color: var(--theme-border);
   border-bottom: 1px solid var(--theme-ribbon-content-bg);
   margin-bottom: -1px;
 }
@@ -68,15 +68,17 @@
 }
 
 .ribbon-group-label {
+  font-family: var(--font-heading);
   font-size: 9px;
   color: var(--theme-text-muted);
   text-align: center;
-  font-weight: 500;
+  font-weight: 600;
   padding: 2px 0;
   margin-top: auto;
   white-space: nowrap;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.12em;
+  font-variant: small-caps;
 }
 
 .ribbon-group-content {
@@ -105,7 +107,7 @@
   padding: 4px 6px 2px 6px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   cursor: default;
   transition: all 0.15s ease;
   min-width: 54px;
@@ -119,7 +121,7 @@
 
 .ribbon-btn:hover {
   background: var(--theme-hover);
-  border-color: var(--theme-border-light);
+  border-color: transparent;
 }
 
 .ribbon-btn.active {
@@ -185,7 +187,7 @@
   padding: 2px 8px 2px 4px;
   gap: 6px;
   justify-content: flex-start;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .ribbon-btn.small .ribbon-btn-icon {
@@ -255,6 +257,6 @@
 .ribbon-separator {
   width: 1px;
   background: var(--theme-border-light);
-  margin: 4px 2px;
+  margin: 8px 2px;
   align-self: stretch;
 }

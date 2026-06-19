@@ -129,29 +129,32 @@ export function TaskDialog() {
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
+  const inputCls =
+    'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleClose}>
       <div
-        className="bg-surface-alt border border-border rounded-lg shadow-xl w-[560px] max-h-[80vh] overflow-y-auto"
+        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[80vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-sm font-bold">
+          <h2 className="text-sm font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             {editingTask ? t('dialog.editTitle') : t('dialog.newTitle')}
           </h2>
-          <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded">
+          <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded-[8px]">
             <X size={16} />
           </button>
         </div>
 
-        <div className="p-4 flex flex-col gap-3 text-xs">
+        <div className="p-4 flex flex-col gap-3 text-xs overflow-y-auto">
           <div className="flex flex-col gap-1">
             <label className="text-text-secondary">{t('dialog.nameRequired')}</label>
             <input
               ref={nameInputRef}
               value={name}
               onChange={e => setName(e.target.value)}
-              className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+              className={inputCls}
             />
           </div>
 
@@ -160,7 +163,7 @@ export function TaskDialog() {
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none h-16 resize-none"
+              className={`${inputCls} h-16 resize-none`}
             />
           </div>
 
@@ -170,7 +173,7 @@ export function TaskDialog() {
               <input
                 value={wbsCode}
                 onChange={e => setWbsCode(e.target.value)}
-                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+                className={inputCls}
                 placeholder={t('dialog.wbsPlaceholder')}
               />
             </div>
@@ -193,7 +196,7 @@ export function TaskDialog() {
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none"
+                className={inputCls}
               />
             </div>
 
@@ -205,7 +208,7 @@ export function TaskDialog() {
                 onChange={e => setDuration(parseInt(e.target.value) || 0)}
                 disabled={isMilestone}
                 min={0}
-                className="px-2 py-1.5 bg-surface border border-border rounded focus:border-accent focus:outline-none disabled:opacity-50"
+                className={`${inputCls} disabled:opacity-50`}
               />
             </div>
           </div>
@@ -246,7 +249,7 @@ export function TaskDialog() {
           <button
             onClick={handleSave}
             disabled={!name.trim()}
-            className="btn btn--sm btn--primary"
+            className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]"
           >
             {editingTask ? tCommon('save') : tCommon('add')}
           </button>
