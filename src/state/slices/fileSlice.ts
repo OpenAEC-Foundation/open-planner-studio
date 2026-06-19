@@ -7,9 +7,21 @@ import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { ensureExtension } from '@/utils/filePath';
+import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 
 const isTauri = () => '__TAURI_INTERNALS__' in window;
+
+/** Kies de juiste XML-reader op basis van inhoudsmarkers (P6 vóór MS Project).
+ *  Gooit bij een onbekend formaat i.p.v. stil als MSPDI te parsen. */
+function parseProjectXml(content: string) {
+  const isP6 = content.includes('APIBusinessObjects') || content.includes('Primavera');
+  const isMsProject =
+    content.includes('schemas.microsoft.com/project') || content.includes('<Project');
+  if (isP6) return readP6XML(content);
+  if (isMsProject) return readMSPDI(content);
+  throw new Error('Onbekend XML-formaat: geen MS Project- of Primavera-markers gevonden');
+}
 
 export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
 
@@ -66,17 +78,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       if (ext === 'csv') {
         parsed = readCSV(content);
       } else if (ext === 'xml') {
-        if (content.includes('schemas.microsoft.com/project') || content.includes('<Project')) {
-          if (content.includes('APIBusinessObjects') || content.includes('Primavera')) {
-            parsed = readP6XML(content);
-          } else {
-            parsed = readMSPDI(content);
-          }
-        } else if (content.includes('APIBusinessObjects') || content.includes('Primavera')) {
-          parsed = readP6XML(content);
-        } else {
-          parsed = readMSPDI(content);
-        }
+        parsed = parseProjectXml(content);
       } else {
         parsed = readIFC(content);
       }
@@ -94,6 +96,11 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.redoStack = [];
         s.isDirty = false;
         s.filePath = filePath;
+      });
+      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+        tasks: parsed.tasks.length,
+        sequences: parsed.sequences.length,
+        resources: parsed.resources.length,
       });
       addRecentFile(filePath);
     } catch (err) {
@@ -228,11 +235,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       if (ext === 'csv') {
         parsed = readCSV(content);
       } else if (ext === 'xml') {
-        if (content.includes('APIBusinessObjects') || content.includes('Primavera')) {
-          parsed = readP6XML(content);
-        } else {
-          parsed = readMSPDI(content);
-        }
+        parsed = parseProjectXml(content);
       } else {
         parsed = readIFC(content);
       }
@@ -250,6 +253,11 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.redoStack = [];
         s.isDirty = false;
         s.filePath = filePath;
+      });
+      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+        tasks: parsed.tasks.length,
+        sequences: parsed.sequences.length,
+        resources: parsed.resources.length,
       });
       addRecentFile(filePath);
     } catch (err) {

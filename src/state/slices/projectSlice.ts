@@ -6,6 +6,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultView } from './viewSlice';
+import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 
 export interface ProjectSlice {
@@ -61,7 +62,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set) => ({
       s.isDirty = true;
     }),
 
-  newProject: () =>
+  newProject: () => {
     set((s) => {
       s.project = createDefaultProject();
       s.calendar = createDefaultCalendar();
@@ -76,14 +77,16 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set) => ({
       s.redoStack = [];
       s.isDirty = false;
       s.filePath = null;
-    }),
+    });
+    emitExtensionEvent(HOST_EVENTS.projectNew);
+  },
 
   setFilePath: (path) =>
     set((s) => {
       s.filePath = path;
     }),
 
-  loadState: (loaded) =>
+  loadState: (loaded) => {
     set((s) => {
       s.project = loaded.project;
       s.calendar = loaded.calendar;
@@ -96,5 +99,11 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set) => ({
       s.undoStack = [];
       s.redoStack = [];
       s.isDirty = false;
-    }),
+    });
+    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+      tasks: loaded.tasks.length,
+      sequences: loaded.sequences.length,
+      resources: loaded.resources.length,
+    });
+  },
 });
