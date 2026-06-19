@@ -23,7 +23,10 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   `host:schedule-calculated` op de extensie-event-bus; extensies kunnen erop abonneren via
   `api.events.on`.
 - **Voorbeeld-extensie** — `examples/extensions/voorbeeld-takenlijst-importer/` als werkende
-  referentie (importer + ribbon-knop + host-event).
+  referentie (importer + ribbon-knop + host-event); ook gepubliceerd in de catalogus.
+- **Extensie-catalogus** — publieke repo `OpenAEC-Foundation/open-planner-studio-extensions`
+  met `catalog.json`; Bladeren toont en installeert er extensies uit. ZIP's via `raw` gehost
+  (release-assets falen op browser-CORS); `fetchCatalog` met `cache:'no-store'` tegen stale data.
 - **Settings unificatie** — instellingen gedeeld over tandwiel ⚙, Settings-ribbon-tab en
   File-backstage via één gedeelde settings-component.
 - **Gantt** — instelbaar scrollen en zoomen over de Gantt-weergave.

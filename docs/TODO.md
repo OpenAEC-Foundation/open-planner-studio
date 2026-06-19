@@ -325,11 +325,11 @@ Fase 1 is grotendeels af; dit zijn de laatste gaten.
 
 Voortgekomen uit de bouw van het extensiesysteem en de store-refactor (2026-06-12).
 
-- [ ] GitHub-repo `OpenAEC-Foundation/open-planner-studio-extensions` aanmaken met `catalog.json` (zelfde formaat als `open-calc-studio-extensions`); tot die tijd toont Bladeren een nette foutmelding.
-- [ ] De voorbeeld-extensie publiceren als release-ZIP in die catalogus-repo (de extensie zelf staat al in `examples/extensions/voorbeeld-takenlijst-importer/`).
+_(geen openstaande punten meer — zie Afgerond)_
 
 ## Afgerond
 
+- [x] (2026-06-19) Catalogus-repo `OpenAEC-Foundation/open-planner-studio-extensions` (publiek) aangemaakt met `catalog.json`; de voorbeeld-extensie is de eerste entry. **Hosting via `raw`, niet via Releases**: browser-`fetch` van release-assets wordt door CORS geblokkeerd (geen `Access-Control-Allow-Origin`), `raw.githubusercontent.com` stuurt `*`. De ZIP staat daarom in de repo en `downloadUrl` wijst naar de raw-URL. `fetchCatalog` gebruikt `cache:'no-store'` tegen stale catalogus. End-to-end geverifieerd: Bladeren → Install werkt (download, central-directory-parse, activeren, importer functioneel).
 - [x] (2026-06-19) `window.__openPlannerStudioSdk` gevuld met een echte SDK (`src/extensions/sdk.ts`): versie, categorieën/permissies, `hostEvents`, `utils` en `factory`-helpers; `require('open-planner-studio')` geeft 'm terug.
 - [x] (2026-06-19) Voorbeeld-extensie gemaakt: `examples/extensions/voorbeeld-takenlijst-importer/` (importer + ribbon-knop + host-event, met README en voorbeeld-invoer).
 - [x] (2026-06-19) `minAppVersion` wordt afgedwongen bij activeren (extensie gaat naar status `error` als de app te oud is).
