@@ -5,6 +5,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { readCSV } from '@/services/csv/csvReader';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb } from '@/extensions';
 import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
+import { isTauri } from '@/utils/platform';
 
 /**
  * Dev-only inspectie- en controle-haak voor geautomatiseerd zelf-testen.
@@ -23,8 +24,6 @@ import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
  * STRIKT dev-only: aangeroepen achter `import.meta.env.DEV` (main.tsx) via dynamische import,
  * dus dit verdwijnt volledig uit productie-builds. De poller start alleen in de Tauri-runtime.
  */
-
-const isTauri = () => '__TAURI_INTERNALS__' in window;
 
 type AppState = ReturnType<typeof useAppStore.getState>;
 

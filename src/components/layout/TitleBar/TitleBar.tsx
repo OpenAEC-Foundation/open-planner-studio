@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-const isTauri = () => '__TAURI_INTERNALS__' in window;
+import { isTauri } from '@/utils/platform';
 import {
   FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings,
 } from 'lucide-react';
