@@ -301,12 +301,14 @@ export class CPMSolver {
       }
       case 'FINISH_START':
       default: {
-        // Eind-Start: predecessor moet klaar zijn vóór successor start - lag.
-        // Onbekende/ongeldige types vallen hier terug (i.p.v. `undefined`), zodat
-        // de late-finish niet op de sentinel blijft en CPM niet vastloopt.
+        // Eind-Start: predecessor moet klaar zijn de werkdag vóór successor start
+        // (- lag). Spiegelt de forward-pass (nextWorkDayAfter). prevWorkDayBefore
+        // verschuift wél echt één werkdag terug — subtractWorkDays(target, 1) deed
+        // dat niet ("dag 1 telt mee"), waardoor predecessors een spook-float van 1
+        // kregen en niet kritiek werden. Onbekende types vallen hier ook terug.
         let target = succResult.ls;
         if (lag > 0) target = this.calendar.subtractWorkDays(target, lag);
-        return this.calendar.subtractWorkDays(target, 1);
+        return this.calendar.prevWorkDayBefore(target);
       }
     }
   }

@@ -111,6 +111,21 @@ export class CalendarEngine {
   }
 
   /**
+   * Get the next working day strictly before the given date.
+   * Spiegel van nextWorkDayAfter — gebruikt door de backward-pass zodat de
+   * "successor start de werkdag ná de predecessor"-relatie symmetrisch terugloopt.
+   */
+  prevWorkDayBefore(date: Date): Date {
+    let current = addCalendarDays(date, -1);
+    let scan = 0;
+    while (!this.isWorkDay(current)) {
+      current = addCalendarDays(current, -1);
+      if (++scan > CalendarEngine.MAX_SCAN) return current;
+    }
+    return current;
+  }
+
+  /**
    * Subtract working days from an end date.
    * Returns the start date.
    */
