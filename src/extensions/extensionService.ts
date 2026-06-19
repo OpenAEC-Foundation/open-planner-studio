@@ -29,7 +29,9 @@ export async function fetchCatalog(): Promise<void> {
   store.setCatalogError(null);
 
   try {
-    const res = await fetch(CATALOG_URL);
+    // no-store: omzeil de browser/CDN-HTTP-cache zodat een net-bijgewerkte catalogus
+    // niet stale wordt geserveerd (de store-cache hierboven beperkt de frequentie al).
+    const res = await fetch(CATALOG_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const catalog: ExtensionCatalog = await res.json();
     store.setCatalog(catalog.extensions || [], now);
