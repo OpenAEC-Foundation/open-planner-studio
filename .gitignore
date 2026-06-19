@@ -15,3 +15,6 @@ src-tauri/gen/
 
 # Visual brainstorm companion mockups
 .superpowers/
+
+# Lokale QA-screenshots (niet committen)
+qa/
