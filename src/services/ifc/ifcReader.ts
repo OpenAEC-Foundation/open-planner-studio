@@ -311,25 +311,27 @@ function extractNesting(
   taskStepIdMap: Map<string, string>,
 ): void {
   const nestEntities = entities.filter(e => e.type === 'IFCRELNESTS');
+  // Index tasks by id once. Voorheen werd elke parent/child via tasks.find()
+  // in de lus opgezocht, waardoor nesting O(nestings × children × tasks) was.
+  const taskById = new Map<string, Task>(tasks.map(t => [t.id, t]));
 
   for (const ne of nestEntities) {
     const parentRef = parseRef(ne.args[4] || '');
     if (!parentRef) continue;
     const parentId = taskStepIdMap.get(parentRef);
     if (!parentId) continue; // Could be WorkSchedule, skip
+    const parent = taskById.get(parentId);
+    if (!parent) continue;
 
     const childRefs = parseRefs(ne.args[5] || '');
     for (const childRef of childRefs) {
       const childId = taskStepIdMap.get(childRef);
-      if (childId) {
-        const child = tasks.find(t => t.id === childId);
-        const parent = tasks.find(t => t.id === parentId);
-        if (child && parent) {
-          child.parentId = parentId;
-          if (!parent.childIds.includes(childId)) {
-            parent.childIds.push(childId);
-          }
-        }
+      if (!childId) continue;
+      const child = taskById.get(childId);
+      if (!child) continue;
+      child.parentId = parentId;
+      if (!parent.childIds.includes(childId)) {
+        parent.childIds.push(childId);
       }
     }
   }
