@@ -61,6 +61,21 @@ export class CPMSolver {
       };
     }
 
+    // Guard: een taak met een onparseerbare startdatum zou anders Invalid Dates
+    // opleveren die het formatteren laten crashen (en vóór de lus-grenzen: hangen).
+    // Degradeer netjes met een foutmelding i.p.v. te crashen.
+    for (const task of this.tasks.values()) {
+      if (isNaN(parseDate(task.time.scheduleStart).getTime())) {
+        return {
+          tasks: new Map(),
+          criticalPath: [],
+          projectEnd: '',
+          projectDuration: 0,
+          error: `Ongeldige startdatum voor taak "${task.name}"`,
+        };
+      }
+    }
+
     const order = this.topologicalSort();
     const earlyDates = this.forwardPass(order);
     const lateDates = this.backwardPass(order, earlyDates);
@@ -195,30 +210,26 @@ export class CPMSolver {
     seq: Sequence,
     _successor: Task,
   ): Date {
-    const lag = seq.lagDays;
+    const lag = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
 
     switch (seq.type) {
-      case 'FINISH_START': {
-        // Successor starts after predecessor finishes + lag
-        const base = this.calendar.nextWorkDayAfter(predResult.ef);
-        return lag > 0 ? this.calendar.addWorkDays(base, lag) : base;
-      }
       case 'START_START': {
         // Successor starts when predecessor starts + lag
         const base = predResult.es;
         return lag > 0 ? this.calendar.addWorkDays(base, lag) : base;
       }
-      case 'FINISH_FINISH': {
-        // This constrains finish, not start. We handle via ef.
-        // For forward pass, we approximate: successor ES = pred EF + lag - successor duration
-        // This will be handled more precisely in constraint checking
+      case 'START_FINISH': {
+        // Successor finishes when predecessor starts + lag (very rare, approximate)
+        return predResult.es;
+      }
+      case 'FINISH_START':
+      case 'FINISH_FINISH':
+      default: {
+        // Eind-Start (en Eind-Eind, die we hier benaderen). Onbekende/ongeldige
+        // types vallen hier terug i.p.v. `undefined` te retourneren — anders blijft
+        // een late-finish op de sentinel-datum staan en loopt CPM vast.
         const base = this.calendar.nextWorkDayAfter(predResult.ef);
         return lag > 0 ? this.calendar.addWorkDays(base, lag) : base;
-      }
-      case 'START_FINISH': {
-        // Successor finishes when predecessor starts + lag
-        // Very rare, approximate
-        return predResult.es;
       }
     }
   }
@@ -271,16 +282,9 @@ export class CPMSolver {
     succResult: { ls: Date; lf: Date },
     seq: Sequence,
   ): Date {
-    const lag = seq.lagDays;
+    const lag = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
 
     switch (seq.type) {
-      case 'FINISH_START': {
-        // Predecessor must finish before successor starts - lag
-        let target = succResult.ls;
-        if (lag > 0) target = this.calendar.subtractWorkDays(target, lag);
-        // Go back one day from successor's late start
-        return this.calendar.subtractWorkDays(target, 1);
-      }
       case 'START_START': {
         // Predecessor must start before successor starts - lag
         let target = succResult.ls;
@@ -294,6 +298,15 @@ export class CPMSolver {
       }
       case 'START_FINISH': {
         return succResult.lf;
+      }
+      case 'FINISH_START':
+      default: {
+        // Eind-Start: predecessor moet klaar zijn vóór successor start - lag.
+        // Onbekende/ongeldige types vallen hier terug (i.p.v. `undefined`), zodat
+        // de late-finish niet op de sentinel blijft en CPM niet vastloopt.
+        let target = succResult.ls;
+        if (lag > 0) target = this.calendar.subtractWorkDays(target, lag);
+        return this.calendar.subtractWorkDays(target, 1);
       }
     }
   }
@@ -322,7 +335,8 @@ export class CPMSolver {
         for (const seq of succs) {
           const succEarly = earlyDates.get(seq.successorId);
           if (!succEarly) continue;
-          const ff = this.calendar.workDaysBetween(early.ef, succEarly.es) - 1 - seq.lagDays;
+          const lag = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+          const ff = this.calendar.workDaysBetween(early.ef, succEarly.es) - 1 - lag;
           if (ff < freeFloat) freeFloat = ff;
         }
       }

@@ -4,6 +4,11 @@ import { parseDate, isoDayOfWeek, addCalendarDays, formatDate, diffCalendarDays 
 export class CalendarEngine {
   private calendar: WorkCalendar;
   private holidaySet: Set<string>;
+  // Veiligheidsgrenzen tegen vastlopen bij een kapotte kalender (geen werkdagen)
+  // of een ongeldige/sentinel-datum: MAX_SCAN = max dagen zoeken naar een werkdag;
+  // MAX_DAYS = absolute iteratielimiet (~547 jaar) voor de tel-lussen.
+  private static readonly MAX_SCAN = 366;
+  private static readonly MAX_DAYS = 200_000;
 
   constructor(calendar: WorkCalendar) {
     this.calendar = calendar;
@@ -46,16 +51,20 @@ export class CalendarEngine {
 
     let current = new Date(startDate.getTime());
     // Ensure we start on a work day
+    let scan = 0;
     while (!this.isWorkDay(current)) {
       current = addCalendarDays(current, 1);
+      if (++scan > CalendarEngine.MAX_SCAN) return current; // geen werkdag — niet vastlopen
     }
 
     let remaining = workDays - 1; // first work day counts as day 1
+    let steps = 0;
     while (remaining > 0) {
       current = addCalendarDays(current, 1);
       if (this.isWorkDay(current)) {
         remaining--;
       }
+      if (++steps > CalendarEngine.MAX_DAYS) break;
     }
     return current;
   }
@@ -66,9 +75,11 @@ export class CalendarEngine {
   workDaysBetween(start: Date, end: Date): number {
     let count = 0;
     let current = new Date(start.getTime());
+    let steps = 0;
     while (current <= end) {
       if (this.isWorkDay(current)) count++;
       current = addCalendarDays(current, 1);
+      if (++steps > CalendarEngine.MAX_DAYS) break; // absurde spanne (sentinel/ongeldige datum)
     }
     return count;
   }
@@ -78,8 +89,10 @@ export class CalendarEngine {
    */
   nextWorkDay(date: Date): Date {
     let current = new Date(date.getTime());
+    let scan = 0;
     while (!this.isWorkDay(current)) {
       current = addCalendarDays(current, 1);
+      if (++scan > CalendarEngine.MAX_SCAN) return current;
     }
     return current;
   }
@@ -89,8 +102,10 @@ export class CalendarEngine {
    */
   nextWorkDayAfter(date: Date): Date {
     let current = addCalendarDays(date, 1);
+    let scan = 0;
     while (!this.isWorkDay(current)) {
       current = addCalendarDays(current, 1);
+      if (++scan > CalendarEngine.MAX_SCAN) return current;
     }
     return current;
   }
@@ -103,16 +118,20 @@ export class CalendarEngine {
     if (workDays <= 0) return new Date(endDate.getTime());
 
     let current = new Date(endDate.getTime());
+    let scan = 0;
     while (!this.isWorkDay(current)) {
       current = addCalendarDays(current, -1);
+      if (++scan > CalendarEngine.MAX_SCAN) return current;
     }
 
     let remaining = workDays - 1;
+    let steps = 0;
     while (remaining > 0) {
       current = addCalendarDays(current, -1);
       if (this.isWorkDay(current)) {
         remaining--;
       }
+      if (++steps > CalendarEngine.MAX_DAYS) break;
     }
     return current;
   }
