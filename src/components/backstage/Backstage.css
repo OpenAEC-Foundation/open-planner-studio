@@ -16,7 +16,7 @@
 /* Sidebar (linker navigatie) */
 .backstage-sidebar {
   background: var(--theme-surface-alt);
-  border-right: 1px solid var(--theme-border-light);
+  border-right: 1px solid var(--theme-border);
   padding: var(--sp-3) 0;
   overflow-y: auto;
 }

@@ -169,40 +169,44 @@
 [data-theme="light"] {
   /* Koele neutralen + Soft Depth. --theme-bg is de getinte werkruimte (achter de
      kaarten); --theme-surface (#FFFFFF) zijn de zwevende kaarten/chrome. */
-  --theme-bg: #E6EAF0;
+  /* Tint dieper + surfaces/randen opgevoerd zodat witte kaarten "zweven" en
+     niet versmelten tot één witte massa. */
+  --theme-bg: #DCE2EB;
   --theme-surface: #FFFFFF;
-  --theme-surface-alt: #F6F8FB;
+  --theme-surface-alt: #EAEEF4;
   --theme-surface-elevated: #FFFFFF;
-  /* Contrast-optie A: zachte kaart-/scheidingsrand … */
-  --theme-border: #E2E7EE;
-  --theme-border-light: #EDF0F5;
+  /* Contrast-optie A: zichtbare kaart-/scheidingsrand (opgevoerd) … */
+  --theme-border: #CFD6E1;
+  --theme-border-light: #DDE3EB;
   /* … en een stevigere control-rand (#8C94A2 ≈ 3:1 op wit, WCAG 1.4.11 AA) voor
      inputs/selects/knoppen, zodat de zachte look toegankelijk blijft. */
   --theme-control-border: #8C94A2;
-  /* Amber-700: AA als tekst op wit (~5:1) én als bg onder witte tekst (~4.8:1). */
-  --theme-accent: #B45309;
-  --theme-accent-hover: #9A3412;
+  /* Construction Amber (gelijk aan dark + prototype) — levendiger dan amber-700,
+     zodat de oranje knoppen niet "donkerder" ogen in light. Wit op amber ~3.3:1
+     (voldoet aan 3:1 voor UI-componenten/grote tekst; amber-700 was strikt 4.5:1). */
+  --theme-accent: #D97706;
+  --theme-accent-hover: #C2410C;
   --theme-accent-on: #ffffff;
   --theme-text: #333845;
   --theme-text-dim: #5B6472;
   --theme-text-muted: #6B7280; /* labels — AA ~4.6:1 op light surfaces */
   --theme-hover: rgba(99, 110, 130, 0.10);
-  --theme-active: #B45309;
-  --theme-active-border: #9A3412;
+  --theme-active: #D97706;
+  --theme-active-border: #C2410C;
   --theme-warning-text: #946200;
-  --theme-grid-weekend: #EFF2F7;
+  --theme-grid-weekend: #E6EBF2;
   --theme-bar-float: #059669;
   --theme-critical-text: #D12020;
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;
-  --theme-scrollbar-track: #E6EAF0;
-  --theme-scrollbar-thumb: #C2CAD6;
+  --theme-scrollbar-track: #DCE2EB;
+  --theme-scrollbar-thumb: #B6BFCD;
   /* Effen vlakken i.p.v. gradients ("geen rare gradients"); titelbalk licht. */
   --theme-ribbon-bg: #FFFFFF;
   --theme-ribbon-tab-bg: #F6F8FB;
   --theme-ribbon-content-bg: #FFFFFF;
-  --theme-file-tab-bg: #B45309;
-  --theme-file-tab-hover: #9A3412;
+  --theme-file-tab-bg: #D97706;
+  --theme-file-tab-hover: #C2410C;
   --theme-titlebar-bg: #FFFFFF;
   --theme-titlebar-btn-hover: rgba(99, 110, 130, 0.10);
   --theme-titlebar-btn-active: rgba(99, 110, 130, 0.16);
