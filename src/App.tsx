@@ -5,7 +5,7 @@ import { initTheme, loadZoomSettings, loadDebugTerminalEnabled } from '@/utils/s
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
-const isTauri = () => '__TAURI_INTERNALS__' in window;
+import { isTauri } from '@/utils/platform';
 
 // The recovery file lives in the shared appDataDir (app-id org.openaec.planner),
 // so concurrent dev builds from different worktrees would clobber each other.

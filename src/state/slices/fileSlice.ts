@@ -9,8 +9,7 @@ import { readP6XML } from '@/services/p6/p6xmlReader';
 import { ensureExtension } from '@/utils/filePath';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
-
-const isTauri = () => '__TAURI_INTERNALS__' in window;
+import { isTauri } from '@/utils/platform';
 
 /** Kies de juiste XML-reader op basis van inhoudsmarkers (P6 vóór MS Project).
  *  Gooit bij een onbekend formaat i.p.v. stil als MSPDI te parsen. */

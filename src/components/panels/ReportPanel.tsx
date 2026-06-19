@@ -5,7 +5,7 @@ import { renderPrintCanvas, PrintOptions } from '@/services/print/printPreview';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { Select } from '@/components/common/Select';
-const isTauri = () => '__TAURI_INTERNALS__' in window;
+import { isTauri } from '@/utils/platform';
 
 export function ReportPanel() {
   const { t } = useTranslation('report');
