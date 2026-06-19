@@ -62,9 +62,10 @@
   --sp-24: 6rem;      /* 96px */
 
   /* Border radius */
-  --radius-sm:   4px;
+  --radius-sm:   6px;
   --radius-md:   8px;
   --radius-lg:   12px;
+  --radius-xl:   14px;
   --radius-full: 9999px;
 
   /* Shadows */
@@ -117,46 +118,47 @@
    Construction Amber on Deep Forge. Dashboard tokens uit DESIGN-SYSTEM.md §2.5. */
 :root,
 [data-theme="dark"] {
-  --theme-bg: #36363E;
-  --theme-surface: #44444C;
-  --theme-surface-alt: #44444C;
-  --theme-surface-elevated: #4E4E56;
-  --theme-border: rgba(217, 119, 6, 0.25);
-  --theme-border-light: rgba(217, 119, 6, 0.15);
+  /* Koeler charcoal + Soft Depth. Werkruimte-tint (--theme-bg) is donkerder dan
+     de kaarten (--theme-surface) zodat panelen "zweven". */
+  --theme-bg: #1B1D22;
+  --theme-surface: #2E3239;
+  --theme-surface-alt: #23262D;
+  --theme-surface-elevated: #363B43;
+  --theme-border: #3A3F48;
+  --theme-border-light: #33373F;
+  /* Rand van inputs/selects/knoppen — zichtbaarder dan kaartrand (~3:1 op de card). */
+  --theme-control-border: #4A515C;
   --theme-accent: #D97706;
   --theme-accent-hover: #EA580C;
-  /* Tekstkleur op accent-achtergronden. Wit in light/dark, zwart in
-     high-contrast (waar --theme-accent geel wordt). --theme-active en
-     --theme-file-tab-bg moeten gelijk blijven aan --theme-accent zodat
-     dezelfde voorgrondkleur correct contrasteert. */
+  /* Tekstkleur op accent-achtergronden (wit in light/dark, zwart in high-contrast). */
   --theme-accent-on: #ffffff;
-  --theme-text: #FAFAF9;
-  --theme-text-dim: rgba(250, 250, 249, 0.6);
-  --theme-text-muted: rgba(250, 250, 249, 0.4);
-  --theme-hover: rgba(217, 119, 6, 0.1);
+  --theme-text: #F1F3F5;
+  --theme-text-dim: #B6BCC6;
+  --theme-text-muted: #7C8492;
+  --theme-hover: rgba(255, 255, 255, 0.06);
   --theme-active: #D97706;
   --theme-active-border: #EA580C;
-  /* Leesbare waarschuwingskleur als TEKST op een themasurface (bv. "niet
-     opgeslagen" in de statusbalk). Dark behoudt de huidige warm-gold. */
   --theme-warning-text: #F59E0B;
-  /* Gantt weekend-kolomband. Dark houdt het bestaande input-bg-uiterlijk. */
-  --theme-grid-weekend: rgba(217, 119, 6, 0.05);
-  /* Gantt float-balk (overlay achter de taakbalk). Dark: emerald-500. */
+  --theme-grid-weekend: rgba(255, 255, 255, 0.035);
   --theme-bar-float: #10B981;
-  /* Kritieke-pad-tekst in de statusbalk. Dark behoudt huidige red-600. */
-  --theme-critical-text: #DC2626;
-  --theme-input-bg: rgba(217, 119, 6, 0.05);
-  --theme-dropdown-bg: #44444C;
-  --theme-scrollbar-track: #36363E;
-  --theme-scrollbar-thumb: rgba(217, 119, 6, 0.25);
-  --theme-ribbon-bg: linear-gradient(to bottom, #44444C 0%, #36363E 100%);
-  --theme-ribbon-tab-bg: linear-gradient(to bottom, #44444C 0%, #3E3E46 100%);
-  --theme-ribbon-content-bg: #36363E;
+  --theme-critical-text: #F87171;
+  --theme-input-bg: #23262D;
+  --theme-dropdown-bg: #2E3239;
+  --theme-scrollbar-track: #23262D;
+  --theme-scrollbar-thumb: #454B55;
+  /* Effen vlakken i.p.v. gradients ("geen rare gradients"). */
+  --theme-ribbon-bg: #2A2D34;
+  --theme-ribbon-tab-bg: #23262D;
+  --theme-ribbon-content-bg: #2A2D34;
   --theme-file-tab-bg: #D97706;
   --theme-file-tab-hover: #EA580C;
-  --theme-titlebar-bg: linear-gradient(to bottom, #44444C 0%, #36363E 100%);
-  --theme-titlebar-btn-hover: rgba(217, 119, 6, 0.15);
-  --theme-titlebar-btn-active: rgba(217, 119, 6, 0.25);
+  --theme-titlebar-bg: #2A2D34;
+  --theme-titlebar-btn-hover: rgba(255, 255, 255, 0.07);
+  --theme-titlebar-btn-active: rgba(255, 255, 255, 0.12);
+  /* Soft Depth — schaduw-tokens. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.30), 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.50);
+  --shadow-glow: 0 2px 10px rgba(217, 119, 6, 0.40);
 
   color-scheme: dark;
 }
@@ -165,59 +167,49 @@
    Blueprint White (#FAFAF9) bg, Concrete (#F5F5F4) surfaces, Deep Forge (#36363E) text,
    Amber accent (zelfde als dark — accent kleuren wisselen niet tussen modes). */
 [data-theme="light"] {
-  --theme-bg: #FAFAF9;
+  /* Koele neutralen + Soft Depth. --theme-bg is de getinte werkruimte (achter de
+     kaarten); --theme-surface (#FFFFFF) zijn de zwevende kaarten/chrome. */
+  --theme-bg: #E6EAF0;
   --theme-surface: #FFFFFF;
-  --theme-surface-alt: #F5F5F4;
+  --theme-surface-alt: #F6F8FB;
   --theme-surface-elevated: #FFFFFF;
-  /* --theme-border = control boundaries (input/select/button/dropdown):
-     darkened to #8E8882 to reach WCAG 1.4.11 (>=3:1 on all three light
-     surfaces: #FFFFFF 3.50, #FAFAF9 3.35, #F5F5F4 3.21 — #959088 fell to
-     2.91 on surface-alt). --theme-border-light = decorative dividers; #D6D3D1
-     stays soft but visible. */
-  --theme-border: #8E8882;
-  --theme-border-light: #D6D3D1;
-  /* Accent darkened from #D97706 (amber-600) to #B45309 (amber-700): the single
-     mid-amber that meets AA BOTH as text on white (~5.0:1) AND as background
-     under white --theme-accent-on (~5.0:1) — fixes .btn--primary, active ribbon
-     tab, ::selection, file-tab and every "accent-as-text" site at once. Hover is
-     darker (#9A3412 ~7.3:1) so the state change stays perceptible. Still clearly
-     the OpenAEC orange; dark/HC accents are unchanged. */
+  /* Contrast-optie A: zachte kaart-/scheidingsrand … */
+  --theme-border: #E2E7EE;
+  --theme-border-light: #EDF0F5;
+  /* … en een stevigere control-rand (#8C94A2 ≈ 3:1 op wit, WCAG 1.4.11 AA) voor
+     inputs/selects/knoppen, zodat de zachte look toegankelijk blijft. */
+  --theme-control-border: #8C94A2;
+  /* Amber-700: AA als tekst op wit (~5:1) én als bg onder witte tekst (~4.8:1). */
   --theme-accent: #B45309;
   --theme-accent-hover: #9A3412;
   --theme-accent-on: #ffffff;
-  --theme-text: #36363E;
-  --theme-text-dim: #57534E;
-  --theme-text-muted: #6B6B6B; /* WCAG AA — ~4.9–5.3:1 op light surfaces; blijft onder dim */
-  --theme-hover: rgba(217, 119, 6, 0.14);
+  --theme-text: #333845;
+  --theme-text-dim: #5B6472;
+  --theme-text-muted: #6B7280; /* labels — AA ~4.6:1 op light surfaces */
+  --theme-hover: rgba(99, 110, 130, 0.10);
   --theme-active: #B45309;
   --theme-active-border: #9A3412;
-  /* Donker amber dat als tekst ~4.8:1 haalt op de licht-surfaces (was
-     --warm-gold #F59E0B ≈ 2.0:1, onleesbaar). */
   --theme-warning-text: #946200;
-  /* Gantt weekend-kolomband: warme grijstint duidelijk donkerder dan de
-     bg #FAFAF9 (1.15:1 — subtiele decoratieve band, geen 3:1 nodig). Loste
-     de onzichtbaarheid op toen de band uit input-bg #FFFFFF (witter dan bg)
-     werd getekend. */
-  --theme-grid-weekend: #EDEAE5;
-  /* Gantt float-balk: emerald-600 (donkerder dan dark's #10B981). De overlay
-     wordt op ~90% opacity getekend → 3.17:1 op de licht-bg (WCAG grafisch >=3). */
+  --theme-grid-weekend: #EFF2F7;
   --theme-bar-float: #059669;
-  /* Kritieke-pad-tekst in de statusbalk: #D12020 haalt >=4.5:1 op alle licht-
-     surfaces (#F5F5F4 4.89, #FAFAF9 5.11, #FFFFFF 5.33); --color-critical
-     #DC2626 viel naar 4.43 op surface-alt. */
   --theme-critical-text: #D12020;
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;
-  --theme-scrollbar-track: #F5F5F4;
-  --theme-scrollbar-thumb: #8E8983;
-  --theme-ribbon-bg: linear-gradient(to bottom, #FFFFFF 0%, #F5F5F4 100%);
-  --theme-ribbon-tab-bg: linear-gradient(to bottom, #F5F5F4 0%, #EBEBE9 100%);
+  --theme-scrollbar-track: #E6EAF0;
+  --theme-scrollbar-thumb: #C2CAD6;
+  /* Effen vlakken i.p.v. gradients ("geen rare gradients"); titelbalk licht. */
+  --theme-ribbon-bg: #FFFFFF;
+  --theme-ribbon-tab-bg: #F6F8FB;
   --theme-ribbon-content-bg: #FFFFFF;
   --theme-file-tab-bg: #B45309;
   --theme-file-tab-hover: #9A3412;
-  --theme-titlebar-bg: linear-gradient(to bottom, #FFFFFF 0%, #F5F5F4 100%);
-  --theme-titlebar-btn-hover: rgba(0, 0, 0, 0.05);
-  --theme-titlebar-btn-active: rgba(0, 0, 0, 0.1);
+  --theme-titlebar-bg: #FFFFFF;
+  --theme-titlebar-btn-hover: rgba(99, 110, 130, 0.10);
+  --theme-titlebar-btn-active: rgba(99, 110, 130, 0.16);
+  /* Soft Depth — schaduw-tokens. */
+  --shadow-card: 0 1px 2px rgba(40, 48, 64, 0.06), 0 6px 18px rgba(40, 48, 64, 0.08);
+  --shadow-pop: 0 8px 28px rgba(40, 48, 64, 0.18);
+  --shadow-glow: 0 2px 10px rgba(217, 119, 6, 0.40);
 
   color-scheme: light;
 }
@@ -230,6 +222,7 @@
   --theme-surface-elevated: #141414;
   --theme-border: #ffffff;
   --theme-border-light: #cccccc;
+  --theme-control-border: #ffffff;
   --theme-accent: #ffff00;
   --theme-accent-hover: #ffcc00;
   --theme-accent-on: #000000;
@@ -260,6 +253,10 @@
   --theme-titlebar-bg: linear-gradient(to bottom, #141414 0%, #0a0a0a 100%);
   --theme-titlebar-btn-hover: rgba(255, 255, 255, 0.15);
   --theme-titlebar-btn-active: rgba(255, 255, 255, 0.2);
+  /* Geen schaduw op zwart; randen dragen de scheiding. */
+  --shadow-card: none;
+  --shadow-pop: none;
+  --shadow-glow: none;
 
   color-scheme: dark;
 }
@@ -537,7 +534,7 @@ html, body, #root {
   font-family: var(--font-body);
   font-size: 0.875rem;
   padding: var(--sp-3) var(--sp-4);
-  border: 1.5px solid var(--theme-border);
+  border: 1.5px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   background: var(--theme-input-bg);
   color: var(--theme-text);
@@ -648,4 +645,31 @@ html, body, #root {
 
 [data-theme="high-contrast"] .brand-accent-strip {
   display: none;
+}
+
+/* ============================================================================
+   UI Overhaul — Soft Depth helpers (2026-06-19 spec)
+   Gedeelde "zwevende kaart" + werkruimte-tint zodat alle panelen consistent zijn.
+   ============================================================================ */
+.ui-workspace {
+  background: var(--theme-bg);
+}
+.ui-card {
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+/* Kaart-koptekst (Space Grotesk small-caps), bv. paneel-headers. */
+.ui-card-header {
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--theme-text);
+}
+/* Dialogen/popovers: sterkere schaduw. */
+.ui-pop {
+  box-shadow: var(--shadow-pop);
 }
