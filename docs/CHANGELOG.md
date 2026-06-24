@@ -18,6 +18,9 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 - `read_file`/`write_file` in de Rust-backend gedocumenteerd als bewuste escape-hatch.
 
 ### Toegevoegd
+- **Taken kopiëren/plakken** — Ctrl+C / Ctrl+V dupliceren de geselecteerde takken inclusief
+  subtaken, interne relaties en resource-toewijzingen. Geplakt als sibling van de selectie (of op
+  rootniveau) met verse ids; één undo maakt het ongedaan.
 - **Extensiesysteem** — extensies (manifest + main.js, als ZIP/JS of uit de catalogus) kunnen
   importers en ribbon-knoppen registreren. Beheer via Bestand → Extensies; importeren via
   Bestand → Importeren. Naar het model van Open Calc Studio.
