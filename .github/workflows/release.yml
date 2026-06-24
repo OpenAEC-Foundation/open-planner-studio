@@ -129,6 +129,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          # latest.json wordt uitsluitend door de re-sign-stap hieronder beheerd
+          # (na Authenticode); voorkomt dat deze run de linux/macos-entries raakt.
+          includeUpdaterJson: false
 
       - name: Sign Windows executables
         uses: azure/trusted-signing-action@v0.5.0
@@ -153,52 +156,78 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $VERSION = "${{ needs.create-release.outputs.version }}"
+          $REPO = "${{ github.repository }}"
           $NSIS_DIR = "$env:GITHUB_WORKSPACE/src-tauri/target/release/bundle/nsis"
 
+          # --- Diagnostics: dump the nsis bundle dir so a future failure shows
+          # exactly what Tauri produced (the v2026.6.0 build had NO .nsis.zip here,
+          # which is why the old `Get-ChildItem *.nsis.zip` returned $null and
+          # `Remove-Item $ZIP.FullName` crashed on a null Path argument).
+          Write-Host "=== Contents of $NSIS_DIR ==="
+          Get-ChildItem $NSIS_DIR | Select-Object Name | Format-Table -AutoSize | Out-String | Write-Host
+
+          # --- Find the Authenticode-signed installer. This MUST exist; the zip
+          # does not have to.
           $EXE = Get-ChildItem "$NSIS_DIR/*-setup.exe" | Select-Object -First 1
-          $ZIP = Get-ChildItem "$NSIS_DIR/*.nsis.zip" | Select-Object -First 1
-
+          if ($null -eq $EXE) {
+            throw "No *-setup.exe found in $NSIS_DIR — cannot build the updater artifact."
+          }
           Write-Host "Signed exe: $($EXE.Name)"
-          Write-Host "Old zip: $($ZIP.Name)"
 
-          # The Windows updater artifact is the .nsis.zip — Tauri's updater
-          # downloads that archive, unzips it, and runs the contained setup.exe.
-          # No latest.json key ever points at a raw .exe, so we only need a fresh
-          # updater signature for the zip. The signed setup.exe is still uploaded
-          # below for humans who download the installer directly.
+          # --- Derive the zip name FROM THE EXE instead of searching for it, so we
+          # never depend on a pre-existing .nsis.zip. (e.g. "...x64-setup.exe" ->
+          # "...x64-setup.nsis.zip".)
+          $ZIP_NAME = $EXE.Name -replace '\.exe$', '.nsis.zip'
+          $ZIP_PATH = Join-Path $NSIS_DIR $ZIP_NAME
+          if (Test-Path $ZIP_PATH) {
+            Remove-Item $ZIP_PATH -Force
+          }
+          Write-Host "Zip name: $ZIP_NAME"
 
-          # Re-create .nsis.zip around the Authenticode-signed exe.
-          # Use the ZipFile API with Deflate/Optimal compression: Compress-Archive
-          # can emit Deflate64, which Tauri's updater cannot decompress.
-          $ZIP_PATH = $ZIP.FullName
-          Remove-Item $ZIP_PATH
+          # --- Build the .nsis.zip around the signed exe. Use the ZipFile API with
+          # CompressionLevel.Optimal (Deflate): Compress-Archive can emit Deflate64,
+          # which Tauri's updater cannot decompress. Entry name MUST be the exe's
+          # bare filename — that's what the updater extracts and runs.
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $archive = [System.IO.Compression.ZipFile]::Open($ZIP_PATH, 'Create')
           [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $EXE.FullName, $EXE.Name, [System.IO.Compression.CompressionLevel]::Optimal)
           $archive.Dispose()
+          Write-Host "Built zip: $ZIP_PATH"
 
-          # Re-generate the updater signature for the rebuilt zip.
+          # --- Generate the updater signature for the rebuilt zip.
           # tauri signer sign writes a .sig file next to the input file.
-          npx tauri signer sign "$($ZIP.FullName)" --private-key "$env:TAURI_SIGNING_PRIVATE_KEY" --password "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+          npx tauri signer sign "$ZIP_PATH" --private-key "$env:TAURI_SIGNING_PRIVATE_KEY" --password "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
 
           # Read the freshly generated .sig file (the updater `signature` field is
           # the *contents* of the .sig, not a path or URL).
-          $ZIP_SIG = (Get-Content "$($ZIP.FullName).sig" -Raw).Trim()
+          $ZIP_SIG = (Get-Content "$ZIP_PATH.sig" -Raw).Trim()
+          Write-Host "New zip signature: $($ZIP_SIG.Substring(0, [Math]::Min(50, $ZIP_SIG.Length)))..."
 
-          Write-Host "New zip signature: $($ZIP_SIG.Substring(0, 50))..."
+          # --- Upload the rebuilt updater artifacts plus the signed installer.
+          # (The signed setup.exe is uploaded for humans who download directly.)
+          gh release upload $VERSION "$ZIP_PATH" "$ZIP_PATH.sig" "$($EXE.FullName)" --clobber --repo "$REPO"
 
-          # Build the .nsis.zip download URL for this release.
-          $REPO = "${{ github.repository }}"
-          $ZIP_URL = "https://github.com/$REPO/releases/download/$([uri]::EscapeDataString($VERSION))/$($ZIP.Name)"
+          # --- Resolve the REAL download URL via the API. GitHub rewrites spaces in
+          # asset names to dots (e.g. "Open Planner Studio_..." -> "Open.Planner.Studio_..."),
+          # so hand-building the URL from $ZIP_NAME would 404. The `url` field of
+          # `gh release view --json assets` is the browser download URL with the
+          # already-rewritten name.
+          $assets = (gh release view $VERSION --repo "$REPO" --json assets | ConvertFrom-Json).assets
+          $zipAsset = $assets | Where-Object { $_.name -like '*.nsis.zip' } | Select-Object -First 1
+          $ZIP_URL = $zipAsset.url
+          if ([string]::IsNullOrEmpty($ZIP_URL)) {
+            # Fallback: mimic GitHub's space->dot rewrite manually if the API lookup
+            # somehow came back empty.
+            $rewritten = $ZIP_NAME -replace ' ', '.'
+            $ZIP_URL = "https://github.com/$REPO/releases/download/$([uri]::EscapeDataString($VERSION))/$rewritten"
+            Write-Host "API lookup empty — using fallback URL"
+          }
           Write-Host "Zip URL: $ZIP_URL"
 
-          # Download the latest.json that build-linux-mac already uploaded
-          # (contains the linux + macos entries). build-windows's own tauri-action
-          # run also writes a latest.json (includeUpdaterJson defaults to true in
-          # action-v0.6.1) and merges into this same file, but its Windows
-          # signatures were generated BEFORE Authenticode re-signing, so they are
-          # stale. We therefore SET both Windows keys authoritatively here rather
-          # than relying on that merge.
+          # --- Patch latest.json. build-linux-mac already uploaded one with the
+          # linux + macos entries; build-windows's own tauri-action run also merged
+          # a latest.json, but its Windows signatures predate the Authenticode
+          # re-signing and are stale. We SET both Windows keys authoritatively here.
           gh release download $VERSION --pattern "latest.json" --output latest.json --clobber --repo "$REPO"
 
           $latest = Get-Content latest.json -Raw | ConvertFrom-Json
@@ -206,10 +235,8 @@ jobs:
             $latest | Add-Member -NotePropertyName platforms -NotePropertyValue ([pscustomobject]@{}) -Force
           }
 
-          # Add-or-overwrite both Windows updater keys with the rebuilt zip's
-          # url + signature. Tauri's runtime resolves "windows-x86_64-nsis" first
-          # and falls back to "windows-x86_64", so both must carry the zip.
-          # Linux/macOS entries are left untouched.
+          # Tauri's runtime resolves "windows-x86_64-nsis" first and falls back to
+          # "windows-x86_64", so both must carry the zip. Linux/macOS untouched.
           $winEntry = [pscustomobject]@{ signature = $ZIP_SIG; url = $ZIP_URL }
           foreach ($key in @('windows-x86_64', 'windows-x86_64-nsis')) {
             $latest.platforms | Add-Member -NotePropertyName $key -NotePropertyValue $winEntry -Force
@@ -217,13 +244,6 @@ jobs:
           }
 
           $latest | ConvertTo-Json -Depth 10 | Set-Content latest.json -NoNewline
-
-          # Re-upload the rebuilt updater artifacts plus the patched latest.json.
-          # The signed setup.exe is uploaded for direct downloads; it has no
-          # updater .sig (it is not an updater artifact).
-          gh release upload $VERSION "$($EXE.FullName)" --clobber --repo "$REPO"
-          gh release upload $VERSION "$($ZIP.FullName)" --clobber --repo "$REPO"
-          gh release upload $VERSION "$($ZIP.FullName).sig" --clobber --repo "$REPO"
           gh release upload $VERSION latest.json --clobber --repo "$REPO"
 
           Write-Host "Windows updater entries set to the .nsis.zip with matching signature"
