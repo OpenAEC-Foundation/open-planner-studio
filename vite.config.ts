@@ -26,5 +26,43 @@ export default defineConfig({
   build: {
     target: 'es2020',
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        // Split large, stable code out of the main entry chunk into separate
+        // vendor/data chunks. This is pure output partitioning — no module is
+        // made async, so runtime load order/timing is unchanged. The benefit is
+        // a smaller main chunk and better browser caching: a vendor bump (or an
+        // app-code edit) only invalidates the chunk it touches, not everything.
+        manualChunks(id) {
+          // Translation JSON (~350 kB of source, eagerly imported in
+          // src/i18n/config.ts). Stays eager — only relocated to its own file.
+          if (id.includes('/src/i18n/locales/')) {
+            return 'locales';
+          }
+          if (id.includes('/node_modules/')) {
+            // React runtime (react, react-dom, its scheduler dep).
+            if (
+              /\/node_modules\/(react|react-dom|scheduler)\//.test(id) ||
+              /\/node_modules\/react@/.test(id)
+            ) {
+              return 'react-vendor';
+            }
+            // i18n stack (i18next + react-i18next).
+            if (/\/node_modules\/(i18next|react-i18next)\//.test(id)) {
+              return 'i18n-vendor';
+            }
+            // Icon set (lucide-react) — large and tree-shaken but worth isolating.
+            if (/\/node_modules\/lucide-react\//.test(id)) {
+              return 'icons-vendor';
+            }
+            // State management (zustand + immer).
+            if (/\/node_modules\/(zustand|immer)\//.test(id)) {
+              return 'state-vendor';
+            }
+          }
+          return undefined;
+        },
+      },
+    },
   },
 });
