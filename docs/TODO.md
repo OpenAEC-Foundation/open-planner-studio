@@ -6,16 +6,10 @@ Hieronder staan **alleen items die nog niet in de code zitten** — wat al af is
 (zie Gantt/CPM-engine, IFC/CSV/MSP/P6 I/O, thema's, undo/redo, 14 talen) is
 weggelaten. Per fase gegroepeerd zodat het terug te koppelen is naar PLAN.md.
 
-Werkwijze: voeg nieuwe items toe in de juiste fase. Vink af door het item naar
-**Afgerond** onderaan te verplaatsen (met datum).
+Werkwijze: voeg nieuwe items toe in de juiste fase. Afgeronde items worden uit
+deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
-
-### Fase 1 — Fundament (MVP) — restpunten
-Fase 1 is af.
-
-- [x] Multi-document: FileTabBar-UI — drie wisselstijlen (horizontale tabbladen / verticale tabbladen / pil) kiesbaar in Instellingen + gedeeld projectoverzicht; openen opent een nieuw tabblad, `⌘/Ctrl 1–9` wisselt. Back-end via `documentSlice`.
-- [x] Nieuw-project wizard — `ProjectInfoDialog` is nu dubbel-modus (info bewerken + nieuw project); kiest metadata, kalender-preset en een fasering-template (Leeg / Woningbouw / Utiliteitsbouw). Alle 'Nieuw'-acties + `Ctrl/⌘ N` openen de wizard via `createNewProject`.
 
 ### Fase 2 — Professionele Planning (v0.5)
 
@@ -66,7 +60,7 @@ Fase 1 is af.
 - [ ] Progress override opties (Retained Logic / Progress Override)
 
 #### 2.7 Weergaven
-- [ ] Extra tijdschalen: uur, kwartaal, jaar (nu dag/week/maand)
+- [ ] Extra tijdschalen: uur en jaar als directe keuze (kwartaal bestaat al)
 - [ ] Kolom-aanpassing in tabel (kies zichtbare velden)
 - [ ] Groeperen op elk veld (WBS, fase, resource)
 - [ ] Sorteren op elk veld
@@ -169,7 +163,7 @@ Fase 1 is af.
 - [ ] MS Project MPP import (readonly)
 - [ ] Primavera XML (PMXML) import/export
 - [ ] Asta Powerproject PP import
-- [ ] PNG/SVG-export van Gantt
+- [ ] SVG-export van Gantt (PNG bestaat al)
 - [ ] iCalendar (.ics) export
 - [ ] Clipboard-ondersteuning (kopieer taken naar Excel)
 
@@ -319,24 +313,3 @@ Fase 1 is af.
 - [ ] Weekrapport automatisch genereren en versturen
 - [ ] Slack/Teams integratie
 - [ ] Agenda-integratie (Outlook, Google Calendar)
-
-## Extensiesysteem & store — vervolgpunten
-
-Voortgekomen uit de bouw van het extensiesysteem en de store-refactor (2026-06-12).
-
-_(geen openstaande punten meer — zie Afgerond)_
-
-## Afgerond
-
-- [x] (2026-06-24) Taken kopiëren/plakken (Ctrl+C / Ctrl+V). Intern klembord in de task-slice (`taskClipboard`, app-state — geen IFC-round-trip, geen undo-snapshot). `copyTasks` neemt de selectie incl. subtaken mee plus interne relaties en resource-toewijzingen (deep-cloned, overleeft verwijderen van het origineel); `pasteTasks` maakt verse ids, plakt als sibling van de selectie (of root), herstelt boomstructuur + interne relaties + toewijzingen, en selecteert de geplakte takken. Eén undo maakt een plak-actie ongedaan.
-- [x] (2026-06-19) Catalogus-repo `OpenAEC-Foundation/open-planner-studio-extensions` (publiek) aangemaakt met `catalog.json`; de voorbeeld-extensie is de eerste entry. **Hosting via `raw`, niet via Releases**: browser-`fetch` van release-assets wordt door CORS geblokkeerd (geen `Access-Control-Allow-Origin`), `raw.githubusercontent.com` stuurt `*`. De ZIP staat daarom in de repo en `downloadUrl` wijst naar de raw-URL. `fetchCatalog` gebruikt `cache:'no-store'` tegen stale catalogus. End-to-end geverifieerd: Bladeren → Install werkt (download, central-directory-parse, activeren, importer functioneel).
-- [x] (2026-06-19) `window.__openPlannerStudioSdk` gevuld met een echte SDK (`src/extensions/sdk.ts`): versie, categorieën/permissies, `hostEvents`, `utils` en `factory`-helpers; `require('open-planner-studio')` geeft 'm terug.
-- [x] (2026-06-19) Voorbeeld-extensie gemaakt: `examples/extensions/voorbeeld-takenlijst-importer/` (importer + ribbon-knop + host-event, met README en voorbeeld-invoer).
-- [x] (2026-06-19) `minAppVersion` wordt afgedwongen bij activeren (extensie gaat naar status `error` als de app te oud is).
-- [x] (2026-06-19) Host-lifecycle-events op de extensie-event-bus: `host:project-loaded`, `host:project-new`, `host:schedule-calculated` (event-bus verhuisd naar `src/extensions/eventBus.ts`).
-- [x] (2026-06-19) `catalogError` via i18n-interpolatie (`{{error}}`) in alle 14 locales; component gebruikt `t(..., { error })`.
-- [x] (2026-06-19) `installFromCatalog`-fouten tonen in de CatalogCard (nieuwe i18n-key `installError`).
-- [x] (2026-06-19) `removeResource`/`unassignResource` ruimen nu verweesde ids in `task.resourceIds` op.
-- [x] (2026-06-19) `openFile`/`openRecentFile` XML-detectie robuuster: P6 vóór MS Project, en een onbekend formaat gooit i.p.v. stil als MSPDI te parsen.
-- [x] (2026-06-19) ZIP-parser leest maten uit de central directory (lost de data-descriptor-overshoot op); local-header-scan als fallback.
-
