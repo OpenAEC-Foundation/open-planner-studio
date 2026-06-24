@@ -76,7 +76,7 @@ domeinobjecten te bouwen. Muteren doe je nooit via de SDK, maar via `api.data.*`
 ````js
 const sdk = require('open-planner-studio');
 
-sdk.version;            // app-versie, bv. "2026.4.0"
+sdk.version;            // app-versie, bv. "2026.6.0"
 sdk.categories;         // geldige manifest-categorieën
 sdk.permissions;        // geldige manifest-permissies
 sdk.hostEvents;         // { projectLoaded, projectNew, scheduleCalculated }
