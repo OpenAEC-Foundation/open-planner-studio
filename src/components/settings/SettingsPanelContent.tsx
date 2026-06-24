@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
-import { UITheme, UI_THEMES } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled } from '@/utils/settingsStore';
+import { UITheme, UI_THEMES, DocumentChromeStyle } from '@/state/slices/types';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
@@ -37,6 +37,7 @@ export function SettingsPanelContent() {
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
+  const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
@@ -49,6 +50,11 @@ export function SettingsPanelContent() {
   const applyLocale = (locale: Locale) => {
     void i18n.changeLanguage(locale);
     void saveLocale(locale);
+  };
+
+  const applyDocumentChrome = (style: DocumentChromeStyle) => {
+    setUI({ documentChromeStyle: style });
+    void saveDocumentChromeStyle(style);
   };
 
   return (
@@ -99,6 +105,20 @@ export function SettingsPanelContent() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.documentChrome')}</h3>
+              <Select
+                aria-label={t('settings.documentChrome')}
+                value={documentChromeStyle}
+                onChange={v => applyDocumentChrome(v as DocumentChromeStyle)}
+                options={[
+                  { value: 'tabs', label: t('settings.documentChromeTabs') },
+                  { value: 'rail', label: t('settings.documentChromeRail') },
+                  { value: 'switcher', label: t('settings.documentChromeSwitcher') },
+                ]}
+              />
             </div>
 
             <div className="settings-section">

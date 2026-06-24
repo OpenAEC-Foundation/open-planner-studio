@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + rotella",
     "wheelCtrlShift": "Shift + rotella",
     "debugTerminal": "Terminale di debug",
-    "debugTerminalEnable": "Abilita il terminale di debug"
+    "debugTerminalEnable": "Abilita il terminale di debug",
+    "documentChrome": "Stile di cambio documento",
+    "documentChromeTabs": "Schede",
+    "documentChromeRail": "Barra progetti",
+    "documentChromeSwitcher": "Selettore"
   },
   "confirm": {
     "newProject": "Creare un nuovo progetto? Le modifiche non salvate andranno perse.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} nuovi",
     "show": "Mostra terminale di debug",
     "hide": "Nascondi terminale di debug"
+  },
+  "documents": {
+    "untitled": "Senza titolo",
+    "overviewTitle": "Progetti aperti",
+    "openBadge": "{{count}} aperti",
+    "switchHint": "⌘1–9 per cambiare",
+    "openProject": "Apri progetto",
+    "allProjects": "Tutti i progetti",
+    "active": "Attivo",
+    "tasksWord": "attività",
+    "criticalWord": "critico",
+    "confirmClose": "Questo documento contiene modifiche non salvate. Chiudere comunque?"
   }
 }

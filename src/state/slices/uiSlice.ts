@@ -32,6 +32,8 @@ export function createDefaultUI(): UIState {
     modifierMap: { plain: 'vertical', ctrl: 'zoom', shift: 'horizontal' },
     debugTerminalEnabled: false,
     debugTerminalOpen: false,
+    documentChromeStyle: 'tabs',
+    showProjectOverview: false,
   };
 }
 

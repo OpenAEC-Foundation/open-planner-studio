@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + 스크롤",
     "wheelCtrlShift": "Shift + 스크롤",
     "debugTerminal": "디버그 터미널",
-    "debugTerminalEnable": "디버그 터미널 활성화"
+    "debugTerminalEnable": "디버그 터미널 활성화",
+    "documentChrome": "문서 전환 스타일",
+    "documentChromeTabs": "탭",
+    "documentChromeRail": "프로젝트 막대",
+    "documentChromeSwitcher": "전환기"
   },
   "confirm": {
     "newProject": "새 프로젝트를 만드시겠습니까? 저장되지 않은 변경 사항이 손실됩니다.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}}개 새 항목",
     "show": "디버그 터미널 표시",
     "hide": "디버그 터미널 숨기기"
+  },
+  "documents": {
+    "untitled": "제목 없음",
+    "overviewTitle": "열린 프로젝트",
+    "openBadge": "{{count}}개 열림",
+    "switchHint": "⌘1–9 로 전환",
+    "openProject": "프로젝트 열기",
+    "allProjects": "모든 프로젝트",
+    "active": "활성",
+    "tasksWord": "작업",
+    "criticalWord": "임계",
+    "confirmClose": "이 문서에 저장되지 않은 변경 사항이 있습니다. 그래도 닫으시겠습니까?"
   }
 }

@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + roda",
     "wheelCtrlShift": "Shift + roda",
     "debugTerminal": "Terminal de depuração",
-    "debugTerminalEnable": "Activar terminal de depuração"
+    "debugTerminalEnable": "Activar terminal de depuração",
+    "documentChrome": "Estilo de mudança de documento",
+    "documentChromeTabs": "Separadores",
+    "documentChromeRail": "Barra de projetos",
+    "documentChromeSwitcher": "Seletor"
   },
   "confirm": {
     "newProject": "Criar novo projeto? As alterações não guardadas serão perdidas.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} novos",
     "show": "Mostrar terminal de depuração",
     "hide": "Ocultar terminal de depuração"
+  },
+  "documents": {
+    "untitled": "Sem título",
+    "overviewTitle": "Projetos abertos",
+    "openBadge": "{{count}} abertos",
+    "switchHint": "⌘1–9 para alternar",
+    "openProject": "Abrir projeto",
+    "allProjects": "Todos os projetos",
+    "active": "Ativo",
+    "tasksWord": "tarefas",
+    "criticalWord": "crítico",
+    "confirmClose": "Este documento tem alterações não guardadas. Fechar mesmo assim?"
   }
 }

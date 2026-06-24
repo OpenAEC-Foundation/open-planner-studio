@@ -45,7 +45,9 @@ export function useKeyboardShortcuts() {
   const saveFile = useAppStore(s => s.saveFile);
   const saveFileAs = useAppStore(s => s.saveFileAs);
   const openFile = useAppStore(s => s.openFile);
-  const newProject = useAppStore(s => s.newProject);
+  const newDocument = useAppStore(s => s.newDocument);
+  const documents = useAppStore(s => s.documents);
+  const switchDocument = useAppStore(s => s.switchDocument);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -57,7 +59,7 @@ export function useKeyboardShortcuts() {
         else if (ctrlB && e.shiftKey && e.key.toLowerCase() === 's') saveFileAs();
         else if (ctrlB && e.key.toLowerCase() === 's') saveFile();
         else if (ctrlB && e.key.toLowerCase() === 'o') openFile();
-        else if (ctrlB && e.key.toLowerCase() === 'n') newProject();
+        else if (ctrlB && e.key.toLowerCase() === 'n') newDocument();
         return;
       }
 
@@ -101,7 +103,12 @@ export function useKeyboardShortcuts() {
         }
       } else if (e.key === 'Escape') {
         deselectAll();
-        setUI({ showTaskDialog: false, editingTaskId: null, showDependencyMode: false });
+        setUI({ showTaskDialog: false, editingTaskId: null, showDependencyMode: false, showProjectOverview: false });
+      } else if (ctrl && /^[1-9]$/.test(e.key)) {
+        // Multi-document: ⌘/Ctrl 1–9 springt naar het n-de open document.
+        e.preventDefault();
+        const doc = documents[Number(e.key) - 1];
+        if (doc) switchDocument(doc.id);
       } else if (ctrl && e.key === '=') {
         e.preventDefault();
         setZoom(zoom + 10);
@@ -113,7 +120,7 @@ export function useKeyboardShortcuts() {
         setUI({ activeRibbonTab: 'report' });
       } else if (ctrl && e.key === 'n') {
         e.preventDefault();
-        newProject();
+        newDocument();
       }
     };
 
@@ -128,5 +135,5 @@ export function useKeyboardShortcuts() {
       window.removeEventListener('keydown', handler);
       window.removeEventListener('contextmenu', contextHandler);
     };
-  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, newProject]);
+  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, newDocument, documents, switchDocument]);
 }

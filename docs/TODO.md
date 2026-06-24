@@ -14,7 +14,7 @@ Werkwijze: voeg nieuwe items toe in de juiste fase. Vink af door het item naar
 ### Fase 1 — Fundament (MVP) — restpunten
 Fase 1 is grotendeels af; dit zijn de laatste gaten.
 
-- [ ] Multi-document: FileTabBar-UI (back-end is af — `documentSlice` met `newDocument`/`switchDocument`/`closeDocument`/`getOpenDocuments`; alleen de tabbalk en het koppelen van openen/opslaan aan tabs ontbreekt nog)
+- [x] Multi-document: FileTabBar-UI — drie wisselstijlen (tabstrip / projectbalk / wisselaar-pil) kiesbaar in Instellingen + gedeeld projectoverzicht; openen opent een nieuw tabblad, `⌘/Ctrl 1–9` wisselt. Back-end via `documentSlice`.
 - [ ] Nieuw-project wizard (nu alleen reset naar leeg project)
 
 ### Fase 2 — Professionele Planning (v0.5)

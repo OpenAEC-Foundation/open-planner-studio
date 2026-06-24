@@ -13,15 +13,14 @@ interface MenuItem {
 export function MenuBar() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const { t } = useTranslation('menu');
-  const { t: tCommon } = useTranslation('common');
 
   const store = useAppStore();
 
   const handleNew = useCallback(() => {
-    if (store.isDirty && !confirm(tCommon('confirm.unsavedChanges'))) return;
-    store.newProject();
+    // Multi-document: 'Nieuw' opent een nieuw tabblad (niet-destructief).
+    store.newDocument();
     setActiveMenu(null);
-  }, [store, tCommon]);
+  }, [store]);
 
   const handleOpen = useCallback(async () => {
     try {

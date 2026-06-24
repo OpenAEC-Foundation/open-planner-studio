@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import i18n from '@/i18n/config';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
   Printer, Info, Settings, X, FileType, Puzzle, Upload,
@@ -108,9 +107,8 @@ function ActionItem({ icon, label, onClick }: {
 // ---------------------------------------------------------------------------
 
 function handleNewProject() {
-  if (confirm(i18n.t('common:confirm.unsavedChanges'))) {
-    useAppStore.getState().newProject();
-  }
+  // Multi-document: 'Nieuw' opent een nieuw tabblad (niet-destructief).
+  useAppStore.getState().newDocument();
 }
 
 function handleOpen() {

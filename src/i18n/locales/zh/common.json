@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + 滚轮",
     "wheelCtrlShift": "Shift + 滚轮",
     "debugTerminal": "调试终端",
-    "debugTerminalEnable": "启用调试终端"
+    "debugTerminalEnable": "启用调试终端",
+    "documentChrome": "文档切换样式",
+    "documentChromeTabs": "标签页",
+    "documentChromeRail": "项目栏",
+    "documentChromeSwitcher": "切换器"
   },
   "confirm": {
     "newProject": "创建新项目？未保存的更改将丢失。",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} 条新消息",
     "show": "显示调试终端",
     "hide": "隐藏调试终端"
+  },
+  "documents": {
+    "untitled": "未命名",
+    "overviewTitle": "打开的项目",
+    "openBadge": "已打开 {{count}} 个",
+    "switchHint": "⌘1–9 切换",
+    "openProject": "打开项目",
+    "allProjects": "所有项目",
+    "active": "活动",
+    "tasksWord": "任务",
+    "criticalWord": "关键",
+    "confirmClose": "此文档有未保存的更改。仍要关闭吗？"
   }
 }

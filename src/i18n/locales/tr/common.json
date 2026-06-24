@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + kaydırma",
     "wheelCtrlShift": "Shift + kaydırma",
     "debugTerminal": "Hata ayıklama terminali",
-    "debugTerminalEnable": "Hata ayıklama terminalini etkinleştir"
+    "debugTerminalEnable": "Hata ayıklama terminalini etkinleştir",
+    "documentChrome": "Belge değiştirme stili",
+    "documentChromeTabs": "Sekmeler",
+    "documentChromeRail": "Proje çubuğu",
+    "documentChromeSwitcher": "Değiştirici"
   },
   "confirm": {
     "newProject": "Yeni proje oluşturulsun mu? Kaydedilmemiş değişiklikler kaybolacak.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} yeni",
     "show": "Hata ayıklama terminalini göster",
     "hide": "Hata ayıklama terminalini gizle"
+  },
+  "documents": {
+    "untitled": "Adsız",
+    "overviewTitle": "Açık projeler",
+    "openBadge": "{{count}} açık",
+    "switchHint": "Geçiş için ⌘1–9",
+    "openProject": "Proje aç",
+    "allProjects": "Tüm projeler",
+    "active": "Etkin",
+    "tasksWord": "görev",
+    "criticalWord": "kritik",
+    "confirmClose": "Bu belgede kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?"
   }
 }

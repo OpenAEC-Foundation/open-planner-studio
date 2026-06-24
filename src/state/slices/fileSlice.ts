@@ -9,7 +9,20 @@ import { readP6XML } from '@/services/p6/p6xmlReader';
 import { ensureExtension } from '@/utils/filePath';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
+import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
+
+/** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
+ *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad). */
+function isActivePristine(s: AppState): boolean {
+  return (
+    s.tasks.length === 0 &&
+    s.sequences.length === 0 &&
+    s.resources.length === 0 &&
+    s.filePath === null &&
+    !s.isDirty
+  );
+}
 
 /** Kies de juiste XML-reader op basis van inhoudsmarkers (P6 vóór MS Project).
  *  Gooit bij een onbekend formaat i.p.v. stil als MSPDI te parsen. */
@@ -81,6 +94,10 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       } else {
         parsed = readIFC(content);
       }
+
+      // Multi-document: open het bestand in een eigen tabblad. Hergebruik het
+      // actieve tabblad alleen als dat nog leeg en ongewijzigd is.
+      if (!isActivePristine(get())) get().newDocument();
 
       set((s) => {
         s.project = parsed.project;
@@ -238,6 +255,8 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       } else {
         parsed = readIFC(content);
       }
+
+      if (!isActivePristine(get())) get().newDocument();
 
       set((s) => {
         s.project = parsed.project;

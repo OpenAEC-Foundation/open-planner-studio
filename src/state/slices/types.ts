@@ -42,6 +42,14 @@ export const UI_THEMES: { id: UITheme; label: string }[] = [
   { id: 'high-contrast', label: 'High Contrast' },
 ];
 
+// Hoe de gebruiker tussen meerdere geopende documenten wisselt (multi-document).
+// 'tabs'     — horizontale tabstrip onder het lint (default, browser/Excel-stijl)
+// 'rail'     — verticale projectbalk links (VS Code activity-bar-stijl)
+// 'switcher' — minimale projectpil in de titelbalk
+export type DocumentChromeStyle = 'tabs' | 'rail' | 'switcher';
+
+export const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
+
 export type RibbonTab = 'file' | 'start' | 'planning' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report';
 
 // Backstage view (Office-style File tab full-screen) — sub-section selectie
@@ -87,4 +95,6 @@ export interface UIState {
   modifierMap: ModifierMap;           // persisted — wheel→function map for modifier mode
   debugTerminalEnabled: boolean;  // persisted
   debugTerminalOpen: boolean;     // session
+  documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
+  showProjectOverview: boolean;             // session — projectoverzicht-overlay open
 }

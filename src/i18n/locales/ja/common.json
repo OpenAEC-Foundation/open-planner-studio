@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl＋スクロール",
     "wheelCtrlShift": "Shift＋スクロール",
     "debugTerminal": "デバッグターミナル",
-    "debugTerminalEnable": "デバッグターミナルを有効にする"
+    "debugTerminalEnable": "デバッグターミナルを有効にする",
+    "documentChrome": "ドキュメント切り替えスタイル",
+    "documentChromeTabs": "タブ",
+    "documentChromeRail": "プロジェクトバー",
+    "documentChromeSwitcher": "スイッチャー"
   },
   "confirm": {
     "newProject": "新しいプロジェクトを作成しますか？保存されていない変更は失われます。",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} 件の新着",
     "show": "デバッグターミナルを表示",
     "hide": "デバッグターミナルを非表示"
+  },
+  "documents": {
+    "untitled": "無題",
+    "overviewTitle": "開いているプロジェクト",
+    "openBadge": "{{count}} 件開いています",
+    "switchHint": "⌘1–9 で切り替え",
+    "openProject": "プロジェクトを開く",
+    "allProjects": "すべてのプロジェクト",
+    "active": "アクティブ",
+    "tasksWord": "タスク",
+    "criticalWord": "クリティカル",
+    "confirmClose": "このドキュメントには保存されていない変更があります。閉じてもよろしいですか？"
   }
 }

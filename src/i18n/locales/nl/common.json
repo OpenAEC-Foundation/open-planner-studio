@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + scrollen",
     "wheelCtrlShift": "Shift + scrollen",
     "debugTerminal": "Debug-terminal",
-    "debugTerminalEnable": "Debug-terminal inschakelen"
+    "debugTerminalEnable": "Debug-terminal inschakelen",
+    "documentChrome": "Documentwissel-stijl",
+    "documentChromeTabs": "Tabbladen",
+    "documentChromeRail": "Projectbalk",
+    "documentChromeSwitcher": "Wisselaar"
   },
   "confirm": {
     "newProject": "Nieuw project aanmaken? Niet-opgeslagen wijzigingen gaan verloren.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} nieuw",
     "show": "Debug-terminal tonen",
     "hide": "Debug-terminal verbergen"
+  },
+  "documents": {
+    "untitled": "Naamloos",
+    "overviewTitle": "Open projecten",
+    "openBadge": "{{count}} open",
+    "switchHint": "⌘1–9 om te wisselen",
+    "openProject": "Project openen",
+    "allProjects": "Alle projecten",
+    "active": "Actief",
+    "tasksWord": "taken",
+    "criticalWord": "kritiek",
+    "confirmClose": "Dit document heeft niet-opgeslagen wijzigingen. Toch sluiten?"
   }
 }

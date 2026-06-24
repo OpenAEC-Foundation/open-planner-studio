@@ -5,6 +5,7 @@ import { isTauri } from '@/utils/platform';
 import {
   FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings,
 } from 'lucide-react';
+import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 
 export function TitleBar() {
   const { t: tMenu } = useTranslation('menu');
@@ -14,11 +15,12 @@ export function TitleBar() {
   const redo = useAppStore(s => s.redo);
   const undoStack = useAppStore(s => s.undoStack);
   const redoStack = useAppStore(s => s.redoStack);
-  const newProject = useAppStore(s => s.newProject);
+  const newDocument = useAppStore(s => s.newDocument);
   const isDirty = useAppStore(s => s.isDirty);
   const setUI = useAppStore(s => s.setUI);
   const saveFile = useAppStore(s => s.saveFile);
   const openFile = useAppStore(s => s.openFile);
+  const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
 
   const [maximized, setMaximized] = useState(false);
 
@@ -63,7 +65,7 @@ export function TitleBar() {
           <img src="/icon.png" className="title-bar-app-icon" alt="Open Planner Studio" />
           <div className="quick-access-separator" />
 
-          <button className="quick-access-btn" title={tMenu('ribbon.newProjectTitle')} onClick={() => { if (confirm(tCommon('confirm.newProject'))) newProject(); }}>
+          <button className="quick-access-btn" title={tMenu('ribbon.newProjectTitle')} onClick={() => newDocument()}>
             <FileText size={16} />
           </button>
           <button className="quick-access-btn" title={tMenu('ribbon.open')} onClick={() => openFile()}>
@@ -105,11 +107,17 @@ export function TitleBar() {
       </div>
 
       <div className="title-bar-center" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-        <span className="title-bar-app-name">Open Planner Studio v{__APP_VERSION__}</span>
-        {project.name && (
-          <span className="title-bar-file-name">
-            {isDirty ? '* ' : ''}{project.name}
-          </span>
+        {documentChromeStyle === 'switcher' ? (
+          <SwitcherPill />
+        ) : (
+          <>
+            <span className="title-bar-app-name">Open Planner Studio v{__APP_VERSION__}</span>
+            {project.name && (
+              <span className="title-bar-file-name">
+                {isDirty ? '* ' : ''}{project.name}
+              </span>
+            )}
+          </>
         )}
       </div>
 

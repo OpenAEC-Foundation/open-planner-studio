@@ -22,7 +22,15 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   actieve document leeft op top-level (alle bestaande slices/renderer ongewijzigd), inactieve als
   payload-snapshot. Acties `newDocument`/`switchDocument`/`closeDocument` + `getOpenDocuments`.
   View (zoom/scroll), undo-historie, selectie en dirty-status zijn per document; het klembord is
-  gedeeld zodat takken tussen documenten te kopiëren zijn. UI (FileTabBar) volgt nog.
+  gedeeld zodat takken tussen documenten te kopiëren zijn.
+- **Multi-document (UI)** — drie wisselstijlen, kiesbaar in Instellingen (verschijnt in alle drie
+  de settings-oppervlakken) met default *Tabbladen*: een **tabstrip** onder het lint (A), een
+  verticale **projectbalk** met hover-flyout (B) en een **wisselaar-pil** in de titelbalk (C).
+  Alle drie delen één **projectoverzicht-overlay** (kaarten met mini-Gantt + taken/kritiek/einde
+  per document). Per project een stabiele identiteitskleur (afgeleid uit de project-id) en
+  2-letter-code. Bestand openen opent voortaan een nieuw tabblad (hergebruikt het lege
+  beginscherm); 'Nieuw' opent een nieuw tabblad i.p.v. het actieve te wissen; `⌘/Ctrl 1–9`
+  springt naar het n-de open document. Front-end-only, UI-state in de `ui`-slice.
 - **Taken kopiëren/plakken** — Ctrl+C / Ctrl+V dupliceren de geselecteerde takken inclusief
   subtaken, interne relaties en resource-toewijzingen. Geplakt als sibling van de selectie (of op
   rootniveau) met verse ids; één undo maakt het ongedaan.

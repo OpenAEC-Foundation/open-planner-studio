@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + przewijanie",
     "wheelCtrlShift": "Shift + przewijanie",
     "debugTerminal": "Terminal debugowania",
-    "debugTerminalEnable": "Włącz terminal debugowania"
+    "debugTerminalEnable": "Włącz terminal debugowania",
+    "documentChrome": "Styl przełączania dokumentów",
+    "documentChromeTabs": "Karty",
+    "documentChromeRail": "Pasek projektów",
+    "documentChromeSwitcher": "Przełącznik"
   },
   "confirm": {
     "newProject": "Utworzyć nowy projekt? Niezapisane zmiany zostaną utracone.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} nowych",
     "show": "Pokaż terminal debugowania",
     "hide": "Ukryj terminal debugowania"
+  },
+  "documents": {
+    "untitled": "Bez nazwy",
+    "overviewTitle": "Otwarte projekty",
+    "openBadge": "Otwarte: {{count}}",
+    "switchHint": "⌘1–9 aby przełączyć",
+    "openProject": "Otwórz projekt",
+    "allProjects": "Wszystkie projekty",
+    "active": "Aktywny",
+    "tasksWord": "zadania",
+    "criticalWord": "krytyczne",
+    "confirmClose": "Ten dokument ma niezapisane zmiany. Zamknąć mimo to?"
   }
 }

@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Strg + Scrollen",
     "wheelCtrlShift": "Umschalt + Scrollen",
     "debugTerminal": "Debug-Terminal",
-    "debugTerminalEnable": "Debug-Terminal aktivieren"
+    "debugTerminalEnable": "Debug-Terminal aktivieren",
+    "documentChrome": "Dokumentwechsel-Stil",
+    "documentChromeTabs": "Registerkarten",
+    "documentChromeRail": "Projektleiste",
+    "documentChromeSwitcher": "Umschalter"
   },
   "confirm": {
     "newProject": "Neues Projekt erstellen? Nicht gespeicherte Änderungen gehen verloren.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} neu",
     "show": "Debug-Terminal anzeigen",
     "hide": "Debug-Terminal ausblenden"
+  },
+  "documents": {
+    "untitled": "Unbenannt",
+    "overviewTitle": "Offene Projekte",
+    "openBadge": "{{count}} offen",
+    "switchHint": "⌘1–9 zum Wechseln",
+    "openProject": "Projekt öffnen",
+    "allProjects": "Alle Projekte",
+    "active": "Aktiv",
+    "tasksWord": "Aufgaben",
+    "criticalWord": "kritisch",
+    "confirmClose": "Dieses Dokument enthält nicht gespeicherte Änderungen. Trotzdem schließen?"
   }
 }

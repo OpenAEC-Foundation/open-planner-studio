@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + تمرير",
     "wheelCtrlShift": "Shift + تمرير",
     "debugTerminal": "طرفية التصحيح",
-    "debugTerminalEnable": "تفعيل طرفية التصحيح"
+    "debugTerminalEnable": "تفعيل طرفية التصحيح",
+    "documentChrome": "نمط تبديل المستندات",
+    "documentChromeTabs": "علامات تبويب",
+    "documentChromeRail": "شريط المشاريع",
+    "documentChromeSwitcher": "المبدّل"
   },
   "confirm": {
     "newProject": "إنشاء مشروع جديد؟ ستفقد التغييرات غير المحفوظة.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} جديد",
     "show": "إظهار طرفية التصحيح",
     "hide": "إخفاء طرفية التصحيح"
+  },
+  "documents": {
+    "untitled": "بدون عنوان",
+    "overviewTitle": "المشاريع المفتوحة",
+    "openBadge": "{{count}} مفتوح",
+    "switchHint": "⌘1–9 للتبديل",
+    "openProject": "فتح مشروع",
+    "allProjects": "كل المشاريع",
+    "active": "نشط",
+    "tasksWord": "مهام",
+    "criticalWord": "حرج",
+    "confirmClose": "يحتوي هذا المستند على تغييرات غير محفوظة. هل تريد الإغلاق على أي حال؟"
   }
 }

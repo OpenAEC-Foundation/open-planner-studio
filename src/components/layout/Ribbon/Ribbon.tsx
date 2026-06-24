@@ -323,7 +323,6 @@ function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
 
 export function Ribbon() {
   const { t: tMenu } = useTranslation('menu');
-  const { t: tCommon } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
 
   const addTask = useAppStore(s => s.addTask);
@@ -342,7 +341,7 @@ export function Ribbon() {
   const timeScale = useAppStore(s => s.view.timeScale);
   const undoStack = useAppStore(s => s.undoStack);
   const redoStack = useAppStore(s => s.redoStack);
-  const newProject = useAppStore(s => s.newProject);
+  const newDocument = useAppStore(s => s.newDocument);
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const saveFile = useAppStore(s => s.saveFile);
   const saveFileAs = useAppStore(s => s.saveFileAs);
@@ -381,8 +380,9 @@ export function Ribbon() {
   }, [setUI]);
 
   const handleNewProject = useCallback(() => {
-    if (confirm(tCommon('confirm.newProject'))) newProject();
-  }, [newProject, tCommon]);
+    // Multi-document: open een nieuw tabblad (niet-destructief).
+    newDocument();
+  }, [newDocument]);
 
   return (
     <div className="ribbon-container">

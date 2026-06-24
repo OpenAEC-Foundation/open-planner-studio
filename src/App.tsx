@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle } from '@/utils/settingsStore';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -27,6 +27,9 @@ import { ProjectInfoDialog } from '@/components/dialogs/ProjectInfoDialog';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
 import { CalendarDialog } from '@/components/dialogs/CalendarDialog';
 import { Backstage } from '@/components/backstage/Backstage';
+import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
+import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
+import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useAppStore } from '@/state/appStore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -48,6 +51,7 @@ function AppContent() {
   const filePath = useAppStore(s => s.filePath);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
+  const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
 
   useEffect(() => {
     initLocale();
@@ -59,6 +63,9 @@ function AppContent() {
     });
     loadDebugTerminalEnabled().then(v => {
       if (typeof v === 'boolean') setUI({ debugTerminalEnabled: v });
+    });
+    loadDocumentChromeStyle().then(style => {
+      if (style) setUI({ documentChromeStyle: style });
     });
     void loadAllExtensions();
   }, []);
@@ -147,6 +154,13 @@ function AppContent() {
         <Backstage />
       ) : (
         <>
+      {/* A · Documenttabs — tabstrip onder het lint (multi-document) */}
+      {documentChromeStyle === 'tabs' && <DocumentTabBar />}
+
+      {/* Body-rij: optionele projectbalk (B) links + de werkruimte-kolom */}
+      <div className="flex flex-1 overflow-hidden">
+        {documentChromeStyle === 'rail' && <ProjectRail />}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
       {/* OpenAEC merk-accent strip — gradient amber → gold → orange (DESIGN-SYSTEM.md §2.1) */}
       <div aria-hidden className="brand-accent-strip" />
 
@@ -208,11 +222,16 @@ function AppContent() {
           )
         )}
       </div>
+        </div>{/* /werkruimte-kolom */}
+      </div>{/* /body-rij */}
         </>
       )}
 
       {/* Status Bar */}
       <StatusBar />
+
+      {/* Projectoverzicht-overlay (gedeeld door alle multi-document-stijlen) */}
+      <ProjectOverview />
 
       {/* Dialogs */}
       <TaskDialog />

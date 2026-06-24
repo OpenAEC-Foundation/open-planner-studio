@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + scroll",
     "wheelCtrlShift": "Shift + scroll",
     "debugTerminal": "Debug terminal",
-    "debugTerminalEnable": "Enable debug terminal"
+    "debugTerminalEnable": "Enable debug terminal",
+    "documentChrome": "Document switch style",
+    "documentChromeTabs": "Tabs",
+    "documentChromeRail": "Project rail",
+    "documentChromeSwitcher": "Switcher"
   },
   "confirm": {
     "newProject": "Create new project? Unsaved changes will be lost.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} new",
     "show": "Show debug terminal",
     "hide": "Hide debug terminal"
+  },
+  "documents": {
+    "untitled": "Untitled",
+    "overviewTitle": "Open projects",
+    "openBadge": "{{count}} open",
+    "switchHint": "⌘1–9 to switch",
+    "openProject": "Open project",
+    "allProjects": "All projects",
+    "active": "Active",
+    "tasksWord": "tasks",
+    "criticalWord": "critical",
+    "confirmClose": "This document has unsaved changes. Close anyway?"
   }
 }

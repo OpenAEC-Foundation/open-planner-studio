@@ -5,6 +5,7 @@ import type {
   PositionDivision,
   ModifierMap,
   WheelFunction,
+  DocumentChromeStyle,
 } from '@/state/slices/types';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
@@ -115,4 +116,15 @@ export async function loadDebugTerminalEnabled(): Promise<boolean | undefined> {
 
 export async function saveDebugTerminalEnabled(value: boolean): Promise<void> {
   await setSetting('debugTerminalEnabled', value);
+}
+
+const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
+
+export async function loadDocumentChromeStyle(): Promise<DocumentChromeStyle | undefined> {
+  const v = await getSetting<DocumentChromeStyle>('documentChromeStyle');
+  return v && DOCUMENT_CHROME_STYLES.includes(v) ? v : undefined;
+}
+
+export async function saveDocumentChromeStyle(value: DocumentChromeStyle): Promise<void> {
+  await setSetting('documentChromeStyle', value);
 }

@@ -63,7 +63,11 @@
     "wheelCtrlCtrl": "Ctrl + پیمایش",
     "wheelCtrlShift": "Shift + پیمایش",
     "debugTerminal": "ترمینال اشکال‌زدایی",
-    "debugTerminalEnable": "فعال‌سازی ترمینال اشکال‌زدایی"
+    "debugTerminalEnable": "فعال‌سازی ترمینال اشکال‌زدایی",
+    "documentChrome": "سبک تعویض سند",
+    "documentChromeTabs": "زبانه‌ها",
+    "documentChromeRail": "نوار پروژه‌ها",
+    "documentChromeSwitcher": "جابجا‌کننده"
   },
   "confirm": {
     "newProject": "پروژه جدید ایجاد شود؟ تغییرات ذخیره‌نشده از بین خواهند رفت.",
@@ -84,5 +88,17 @@
     "newEntries": "↓ {{count}} جدید",
     "show": "نمایش ترمینال اشکال‌زدایی",
     "hide": "پنهان‌کردن ترمینال اشکال‌زدایی"
+  },
+  "documents": {
+    "untitled": "بدون عنوان",
+    "overviewTitle": "پروژه‌های باز",
+    "openBadge": "{{count}} باز",
+    "switchHint": "⌘1–9 برای جابجایی",
+    "openProject": "باز کردن پروژه",
+    "allProjects": "همه پروژه‌ها",
+    "active": "فعال",
+    "tasksWord": "وظایف",
+    "criticalWord": "بحرانی",
+    "confirmClose": "این سند تغییرات ذخیره‌نشده دارد. به هر حال بسته شود؟"
   }
 }
