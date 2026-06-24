@@ -113,6 +113,17 @@
     "startDate": "Data rozpoczęcia",
     "endDate": "Data zakończenia"
   },
+  "newProject": {
+    "title": "Nowy projekt",
+    "calendar": "Kalendarz",
+    "template": "Szablon faz",
+    "calNlBouw": "Kalendarz budowlany NL (z urlopem budowlanym)",
+    "calNlFeest": "Święta NL (bez urlopu budowlanego)",
+    "calGeen": "5 dni, bez świąt",
+    "tmplEmpty": "Pusty",
+    "tmplWoningbouw": "Budownictwo mieszkaniowe",
+    "tmplUtiliteit": "Budownictwo użytkowe / remont"
+  },
   "status": {
     "tasks": "Zadania:",
     "milestones": "Kamienie milowe:",

@@ -113,6 +113,17 @@
     "startDate": "Start Date",
     "endDate": "End Date"
   },
+  "newProject": {
+    "title": "New project",
+    "calendar": "Calendar",
+    "template": "Phasing template",
+    "calNlBouw": "NL construction calendar (incl. builders' holiday)",
+    "calNlFeest": "NL public holidays (no builders' holiday)",
+    "calGeen": "5-day, no holidays",
+    "tmplEmpty": "Empty",
+    "tmplWoningbouw": "Residential construction",
+    "tmplUtiliteit": "Commercial / renovation"
+  },
   "status": {
     "tasks": "Tasks:",
     "milestones": "Milestones:",

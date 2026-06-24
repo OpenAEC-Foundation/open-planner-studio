@@ -113,6 +113,17 @@
     "startDate": "Data di inizio",
     "endDate": "Data di fine"
   },
+  "newProject": {
+    "title": "Nuovo progetto",
+    "calendar": "Calendario",
+    "template": "Modello di fasi",
+    "calNlBouw": "Calendario edile NL (con ferie edili)",
+    "calNlFeest": "Festività NL (senza ferie edili)",
+    "calGeen": "5 giorni, senza festività",
+    "tmplEmpty": "Vuoto",
+    "tmplWoningbouw": "Edilizia residenziale",
+    "tmplUtiliteit": "Edilizia non residenziale / ristrutturazione"
+  },
   "status": {
     "tasks": "Attività:",
     "milestones": "Traguardi:",

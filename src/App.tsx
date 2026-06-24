@@ -58,6 +58,7 @@ function AppContent() {
   const project = useAppStore(s => s.project);
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const showProjectInfoDialog = useAppStore(s => s.ui.showProjectInfoDialog);
+  const showNewProjectDialog = useAppStore(s => s.ui.showNewProjectDialog);
   const showSettingsDialog = useAppStore(s => s.ui.showSettingsDialog);
   const showCalendarDialog = useAppStore(s => s.ui.showCalendarDialog);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
@@ -310,7 +311,7 @@ function AppContent() {
 
       {/* Dialogs */}
       <TaskDialog />
-      {showProjectInfoDialog && <ProjectInfoDialog />}
+      {(showProjectInfoDialog || showNewProjectDialog) && <ProjectInfoDialog />}
       {showSettingsDialog && <SettingsDialog />}
       {showCalendarDialog && <CalendarDialog />}
     </div>

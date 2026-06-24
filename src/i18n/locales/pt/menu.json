@@ -113,6 +113,17 @@
     "startDate": "Data de início",
     "endDate": "Data de fim"
   },
+  "newProject": {
+    "title": "Novo projeto",
+    "calendar": "Calendário",
+    "template": "Modelo de fases",
+    "calNlBouw": "Calendário de obra NL (com férias da construção)",
+    "calNlFeest": "Feriados NL (sem férias da construção)",
+    "calGeen": "5 dias, sem feriados",
+    "tmplEmpty": "Vazio",
+    "tmplWoningbouw": "Construção residencial",
+    "tmplUtiliteit": "Construção comercial / renovação"
+  },
   "status": {
     "tasks": "Tarefas:",
     "milestones": "Marcos:",

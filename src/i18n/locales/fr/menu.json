@@ -113,6 +113,17 @@
     "startDate": "Date de début",
     "endDate": "Date de fin"
   },
+  "newProject": {
+    "title": "Nouveau projet",
+    "calendar": "Calendrier",
+    "template": "Modèle de phasage",
+    "calNlBouw": "Calendrier construction NL (avec congés du bâtiment)",
+    "calNlFeest": "Jours fériés NL (sans congés du bâtiment)",
+    "calGeen": "5 jours, sans jours fériés",
+    "tmplEmpty": "Vide",
+    "tmplWoningbouw": "Construction résidentielle",
+    "tmplUtiliteit": "Tertiaire / rénovation"
+  },
   "status": {
     "tasks": "Tâches :",
     "milestones": "Jalons :",

@@ -113,6 +113,17 @@
     "startDate": "開始日",
     "endDate": "終了日"
   },
+  "newProject": {
+    "title": "新規プロジェクト",
+    "calendar": "カレンダー",
+    "template": "フェーズテンプレート",
+    "calNlBouw": "オランダ建設カレンダー（建設業休暇を含む）",
+    "calNlFeest": "オランダ祝日（建設業休暇なし）",
+    "calGeen": "週5日、祝日なし",
+    "tmplEmpty": "空",
+    "tmplWoningbouw": "住宅建築",
+    "tmplUtiliteit": "非住宅建築 / 改修"
+  },
   "status": {
     "tasks": "タスク：",
     "milestones": "マイルストーン：",

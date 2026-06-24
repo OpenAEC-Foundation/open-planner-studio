@@ -12,10 +12,10 @@ Werkwijze: voeg nieuwe items toe in de juiste fase. Vink af door het item naar
 ## Openstaand
 
 ### Fase 1 — Fundament (MVP) — restpunten
-Fase 1 is grotendeels af; dit zijn de laatste gaten.
+Fase 1 is af.
 
-- [x] Multi-document: FileTabBar-UI — drie wisselstijlen (tabstrip / projectbalk / wisselaar-pil) kiesbaar in Instellingen + gedeeld projectoverzicht; openen opent een nieuw tabblad, `⌘/Ctrl 1–9` wisselt. Back-end via `documentSlice`.
-- [ ] Nieuw-project wizard (nu alleen reset naar leeg project)
+- [x] Multi-document: FileTabBar-UI — drie wisselstijlen (horizontale tabbladen / verticale tabbladen / pil) kiesbaar in Instellingen + gedeeld projectoverzicht; openen opent een nieuw tabblad, `⌘/Ctrl 1–9` wisselt. Back-end via `documentSlice`.
+- [x] Nieuw-project wizard — `ProjectInfoDialog` is nu dubbel-modus (info bewerken + nieuw project); kiest metadata, kalender-preset en een fasering-template (Leeg / Woningbouw / Utiliteitsbouw). Alle 'Nieuw'-acties + `Ctrl/⌘ N` openen de wizard via `createNewProject`.
 
 ### Fase 2 — Professionele Planning (v0.5)
 

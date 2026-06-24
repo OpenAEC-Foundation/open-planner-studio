@@ -113,6 +113,17 @@
     "startDate": "Startdatum",
     "endDate": "Enddatum"
   },
+  "newProject": {
+    "title": "Neues Projekt",
+    "calendar": "Kalender",
+    "template": "Phasen-Vorlage",
+    "calNlBouw": "NL-Baukalender (inkl. Bauferien)",
+    "calNlFeest": "NL-Feiertage (ohne Bauferien)",
+    "calGeen": "5-Tage, ohne Feiertage",
+    "tmplEmpty": "Leer",
+    "tmplWoningbouw": "Wohnungsbau",
+    "tmplUtiliteit": "Gewerbebau / Sanierung"
+  },
   "status": {
     "tasks": "Aufgaben:",
     "milestones": "Meilensteine:",

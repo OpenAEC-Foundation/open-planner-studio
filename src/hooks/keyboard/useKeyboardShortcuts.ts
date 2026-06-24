@@ -45,7 +45,6 @@ export function useKeyboardShortcuts() {
   const saveFile = useAppStore(s => s.saveFile);
   const saveFileAs = useAppStore(s => s.saveFileAs);
   const openFile = useAppStore(s => s.openFile);
-  const newDocument = useAppStore(s => s.newDocument);
   const documents = useAppStore(s => s.documents);
   const switchDocument = useAppStore(s => s.switchDocument);
 
@@ -59,7 +58,7 @@ export function useKeyboardShortcuts() {
         else if (ctrlB && e.shiftKey && e.key.toLowerCase() === 's') saveFileAs();
         else if (ctrlB && e.key.toLowerCase() === 's') saveFile();
         else if (ctrlB && e.key.toLowerCase() === 'o') openFile();
-        else if (ctrlB && e.key.toLowerCase() === 'n') newDocument();
+        else if (ctrlB && e.key.toLowerCase() === 'n') setUI({ showNewProjectDialog: true });
         return;
       }
 
@@ -120,7 +119,7 @@ export function useKeyboardShortcuts() {
         setUI({ activeRibbonTab: 'report' });
       } else if (ctrl && e.key === 'n') {
         e.preventDefault();
-        newDocument();
+        setUI({ showNewProjectDialog: true });
       }
     };
 
@@ -135,5 +134,5 @@ export function useKeyboardShortcuts() {
       window.removeEventListener('keydown', handler);
       window.removeEventListener('contextmenu', contextHandler);
     };
-  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, newDocument, documents, switchDocument]);
+  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, documents, switchDocument]);
 }

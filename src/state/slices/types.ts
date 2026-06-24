@@ -98,4 +98,5 @@ export interface UIState {
   documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
+  showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
 }

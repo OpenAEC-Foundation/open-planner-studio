@@ -113,6 +113,17 @@
     "startDate": "Startdatum",
     "endDate": "Einddatum"
   },
+  "newProject": {
+    "title": "Nieuw project",
+    "calendar": "Kalender",
+    "template": "Fasering-template",
+    "calNlBouw": "Bouwkalender NL (incl. bouwvak)",
+    "calNlFeest": "NL-feestdagen (zonder bouwvak)",
+    "calGeen": "5-daags, geen feestdagen",
+    "tmplEmpty": "Leeg",
+    "tmplWoningbouw": "Woningbouw",
+    "tmplUtiliteit": "Utiliteitsbouw / renovatie"
+  },
   "status": {
     "tasks": "Taken:",
     "milestones": "Mijlpalen:",

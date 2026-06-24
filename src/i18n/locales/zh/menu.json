@@ -113,6 +113,17 @@
     "startDate": "开始日期",
     "endDate": "结束日期"
   },
+  "newProject": {
+    "title": "新建项目",
+    "calendar": "日历",
+    "template": "阶段模板",
+    "calNlBouw": "荷兰施工日历（含建筑业假期）",
+    "calNlFeest": "荷兰公共假日（不含建筑业假期）",
+    "calGeen": "5 天工作制，无假日",
+    "tmplEmpty": "空白",
+    "tmplWoningbouw": "住宅建筑",
+    "tmplUtiliteit": "公共建筑 / 改造"
+  },
   "status": {
     "tasks": "任务：",
     "milestones": "里程碑：",

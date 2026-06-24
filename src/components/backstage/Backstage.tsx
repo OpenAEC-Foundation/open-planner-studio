@@ -107,8 +107,8 @@ function ActionItem({ icon, label, onClick }: {
 // ---------------------------------------------------------------------------
 
 function handleNewProject() {
-  // Multi-document: 'Nieuw' opent een nieuw tabblad (niet-destructief).
-  useAppStore.getState().newDocument();
+  // Nieuw-project-wizard (metadata + kalender + fasering-template).
+  useAppStore.getState().setUI({ showNewProjectDialog: true });
 }
 
 function handleOpen() {

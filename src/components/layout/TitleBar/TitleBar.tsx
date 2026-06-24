@@ -15,7 +15,6 @@ export function TitleBar() {
   const redo = useAppStore(s => s.redo);
   const undoStack = useAppStore(s => s.undoStack);
   const redoStack = useAppStore(s => s.redoStack);
-  const newDocument = useAppStore(s => s.newDocument);
   const isDirty = useAppStore(s => s.isDirty);
   const setUI = useAppStore(s => s.setUI);
   const saveFile = useAppStore(s => s.saveFile);
@@ -65,7 +64,7 @@ export function TitleBar() {
           <img src="/icon.png" className="title-bar-app-icon" alt="Open Planner Studio" />
           <div className="quick-access-separator" />
 
-          <button className="quick-access-btn" title={tMenu('ribbon.newProjectTitle')} onClick={() => newDocument()}>
+          <button className="quick-access-btn" title={tMenu('ribbon.newProjectTitle')} onClick={() => setUI({ showNewProjectDialog: true })}>
             <FileText size={16} />
           </button>
           <button className="quick-access-btn" title={tMenu('ribbon.open')} onClick={() => openFile()}>

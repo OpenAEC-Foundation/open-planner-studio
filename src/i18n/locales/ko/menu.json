@@ -113,6 +113,17 @@
     "startDate": "시작일",
     "endDate": "종료일"
   },
+  "newProject": {
+    "title": "새 프로젝트",
+    "calendar": "달력",
+    "template": "공정 단계 템플릿",
+    "calNlBouw": "네덜란드 건설 달력 (건설 휴가 포함)",
+    "calNlFeest": "네덜란드 공휴일 (건설 휴가 제외)",
+    "calGeen": "주 5일, 공휴일 없음",
+    "tmplEmpty": "비어 있음",
+    "tmplWoningbouw": "주택 건설",
+    "tmplUtiliteit": "비주거용 건축 / 리노베이션"
+  },
   "status": {
     "tasks": "작업:",
     "milestones": "마일스톤:",

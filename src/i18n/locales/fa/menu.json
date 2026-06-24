@@ -113,6 +113,17 @@
     "startDate": "تاریخ شروع",
     "endDate": "تاریخ پایان"
   },
+  "newProject": {
+    "title": "پروژه جدید",
+    "calendar": "تقویم",
+    "template": "الگوی فازبندی",
+    "calNlBouw": "تقویم ساخت‌وساز هلند (با تعطیلات ساخت‌وساز)",
+    "calNlFeest": "تعطیلات رسمی هلند (بدون تعطیلات ساخت‌وساز)",
+    "calGeen": "۵ روزه، بدون تعطیلات",
+    "tmplEmpty": "خالی",
+    "tmplWoningbouw": "ساخت مسکونی",
+    "tmplUtiliteit": "ساختمان تجاری / بازسازی"
+  },
   "status": {
     "tasks": "وظایف:",
     "milestones": "نقاط عطف:",

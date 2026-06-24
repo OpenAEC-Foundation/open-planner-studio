@@ -35,6 +35,7 @@ export function createDefaultUI(): UIState {
     documentChromeStyle: 'tabs',
     showProjectOverview: false,
     pendingCloseDocId: null,
+    showNewProjectDialog: false,
   };
 }
 

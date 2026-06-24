@@ -113,6 +113,17 @@
     "startDate": "Fecha de inicio",
     "endDate": "Fecha de fin"
   },
+  "newProject": {
+    "title": "Nuevo proyecto",
+    "calendar": "Calendario",
+    "template": "Plantilla de fases",
+    "calNlBouw": "Calendario de obra NL (con vacaciones de construcción)",
+    "calNlFeest": "Festivos NL (sin vacaciones de construcción)",
+    "calGeen": "5 días, sin festivos",
+    "tmplEmpty": "Vacío",
+    "tmplWoningbouw": "Construcción residencial",
+    "tmplUtiliteit": "Edificación / renovación"
+  },
   "status": {
     "tasks": "Tareas:",
     "milestones": "Hitos:",

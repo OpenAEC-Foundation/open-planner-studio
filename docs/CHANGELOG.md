@@ -40,6 +40,13 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   een dialoog met *Opslaan* / *Niet opslaan* / *Annuleren* i.p.v. een simpele bevestiging.
   *Opslaan* bewaart het document (maakt het zo nodig eerst actief, evt. via 'Opslaan als…') en
   sluit het daarna; bij een geannuleerd opslaan blijft het document open.
+- **Nieuw-project wizard** — `ProjectInfoDialog` is nu dubbel-modus: naast 'projectinfo bewerken'
+  ook een wizard die bij *Nieuw* een project opzet met naam/opdrachtgever/startdatum, een
+  **kalender-preset** (bouwkalender NL incl. bouwvak / NL-feestdagen zonder bouwvak / 5-daags) en
+  een **fasering-template** (Leeg / Woningbouw / Utiliteitsbouw) die de WBS met hoofdfasen vult.
+  Alle 'Nieuw'-acties (titelbalk, lint, menubalk, Backstage) en `Ctrl/⌘ N` openen de wizard;
+  `createNewProject` maakt het project atomair (geen undo-ruis) in een eigen tabblad (hergebruikt
+  een leeg, ongewijzigd tabblad). Hiermee is Fase 1 compleet.
 - **Taken kopiëren/plakken** — Ctrl+C / Ctrl+V dupliceren de geselecteerde takken inclusief
   subtaken, interne relaties en resource-toewijzingen. Geplakt als sibling van de selectie (of op
   rootniveau) met verse ids; één undo maakt het ongedaan.

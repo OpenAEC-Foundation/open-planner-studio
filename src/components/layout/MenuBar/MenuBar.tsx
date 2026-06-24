@@ -17,8 +17,8 @@ export function MenuBar() {
   const store = useAppStore();
 
   const handleNew = useCallback(() => {
-    // Multi-document: 'Nieuw' opent een nieuw tabblad (niet-destructief).
-    store.newDocument();
+    // Nieuw-project-wizard (metadata + kalender + fasering-template).
+    store.setUI({ showNewProjectDialog: true });
     setActiveMenu(null);
   }, [store]);
 

@@ -113,6 +113,17 @@
     "startDate": "تاريخ البداية",
     "endDate": "تاريخ النهاية"
   },
+  "newProject": {
+    "title": "مشروع جديد",
+    "calendar": "التقويم",
+    "template": "قالب المراحل",
+    "calNlBouw": "تقويم البناء الهولندي (يشمل عطلة البناء)",
+    "calNlFeest": "العطل الرسمية الهولندية (بدون عطلة البناء)",
+    "calGeen": "5 أيام، بدون عطل",
+    "tmplEmpty": "فارغ",
+    "tmplWoningbouw": "بناء سكني",
+    "tmplUtiliteit": "بناء تجاري / تجديد"
+  },
   "status": {
     "tasks": "المهام:",
     "milestones": "المعالم:",

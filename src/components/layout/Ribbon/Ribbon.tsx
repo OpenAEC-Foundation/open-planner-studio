@@ -341,7 +341,6 @@ export function Ribbon() {
   const timeScale = useAppStore(s => s.view.timeScale);
   const undoStack = useAppStore(s => s.undoStack);
   const redoStack = useAppStore(s => s.redoStack);
-  const newDocument = useAppStore(s => s.newDocument);
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const saveFile = useAppStore(s => s.saveFile);
   const saveFileAs = useAppStore(s => s.saveFileAs);
@@ -380,9 +379,9 @@ export function Ribbon() {
   }, [setUI]);
 
   const handleNewProject = useCallback(() => {
-    // Multi-document: open een nieuw tabblad (niet-destructief).
-    newDocument();
-  }, [newDocument]);
+    // Nieuw-project-wizard (kies metadata, kalender en fasering-template).
+    setUI({ showNewProjectDialog: true });
+  }, [setUI]);
 
   return (
     <div className="ribbon-container">
