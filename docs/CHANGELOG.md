@@ -18,6 +18,11 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 - `read_file`/`write_file` in de Rust-backend gedocumenteerd als bewuste escape-hatch.
 
 ### Toegevoegd
+- **Multi-document (back-end)** — `documentSlice` houdt meerdere geopende projecten bij; het
+  actieve document leeft op top-level (alle bestaande slices/renderer ongewijzigd), inactieve als
+  payload-snapshot. Acties `newDocument`/`switchDocument`/`closeDocument` + `getOpenDocuments`.
+  View (zoom/scroll), undo-historie, selectie en dirty-status zijn per document; het klembord is
+  gedeeld zodat takken tussen documenten te kopiëren zijn. UI (FileTabBar) volgt nog.
 - **Taken kopiëren/plakken** — Ctrl+C / Ctrl+V dupliceren de geselecteerde takken inclusief
   subtaken, interne relaties en resource-toewijzingen. Geplakt als sibling van de selectie (of op
   rootniveau) met verse ids; één undo maakt het ongedaan.
