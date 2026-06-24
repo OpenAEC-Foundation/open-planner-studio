@@ -103,7 +103,7 @@ export function useKeyboardShortcuts() {
         }
       } else if (e.key === 'Escape') {
         deselectAll();
-        setUI({ showTaskDialog: false, editingTaskId: null, showDependencyMode: false, showProjectOverview: false });
+        setUI({ showTaskDialog: false, editingTaskId: null, showDependencyMode: false, showProjectOverview: false, pendingCloseDocId: null });
       } else if (ctrl && /^[1-9]$/.test(e.key)) {
         // Multi-document: ⌘/Ctrl 1–9 springt naar het n-de open document.
         e.preventDefault();

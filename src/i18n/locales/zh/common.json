@@ -65,9 +65,9 @@
     "debugTerminal": "调试终端",
     "debugTerminalEnable": "启用调试终端",
     "documentChrome": "文档切换样式",
-    "documentChromeTabs": "标签页",
-    "documentChromeRail": "项目栏",
-    "documentChromeSwitcher": "切换器"
+    "documentChromeTabs": "横向标签页",
+    "documentChromeRail": "纵向标签页",
+    "documentChromeSwitcher": "胶囊"
   },
   "confirm": {
     "newProject": "创建新项目？未保存的更改将丢失。",
@@ -99,6 +99,9 @@
     "active": "活动",
     "tasksWord": "任务",
     "criticalWord": "关键",
-    "confirmClose": "此文档有未保存的更改。仍要关闭吗？"
+    "confirmClose": "此文档有未保存的更改。仍要关闭吗？",
+    "closeTitle": "未保存的更改",
+    "closeBody": "“{{name}}”有尚未保存的更改。",
+    "dontSave": "不保存"
   }
 }

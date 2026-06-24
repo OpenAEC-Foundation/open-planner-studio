@@ -95,6 +95,10 @@
   border: 1px solid var(--theme-border); border-radius: 9999px; padding: 3px 5px 3px 12px;
   cursor: pointer; color: var(--theme-text); box-shadow: 0 1px 2px rgba(0,0,0,0.3);
   font-family: 'Inter', system-ui, sans-serif;
+  /* De titelbalk-center heeft pointer-events:none (sleepzone) + -webkit-app-region:drag;
+     de pil moet die expliciet terugzetten, anders vangt de titelbalk de klik. */
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
 }
 .ops-pill:hover { border-color: var(--theme-control-border); }
 .ops-pill-name { font-size: 12px; font-weight: 600; white-space: nowrap; }

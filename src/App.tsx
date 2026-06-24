@@ -7,11 +7,24 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { isTauri } from '@/utils/platform';
 
-// The recovery file lives in the shared appDataDir (app-id org.openaec.planner),
-// so concurrent dev builds from different worktrees would clobber each other.
-// In a dev build the worktree slug (set by scripts/tauri-dev.mjs) isolates it;
-// a plain/production build keeps the canonical name.
-const recoveryFileName = __OPS_DEV_INSTANCE__ ? `recovery.${__OPS_DEV_INSTANCE__}.ifc` : 'recovery.ifc';
+// Recovery-bestanden leven in de gedeelde appDataDir (app-id org.openaec.planner),
+// dus concurrent dev-builds van verschillende worktrees zouden elkaar overschrijven.
+// In een dev-build isoleert de worktree-slug (gezet door scripts/tauri-dev.mjs) ze;
+// een plain/productie-build houdt de canonieke naam.
+//
+// Multi-document: er is één manifest (<base>.documents.json) dat alle open documenten
+// opsomt, elk met een eigen IFC-snapshot (<base>.<docId>.ifc). De oude losse
+// <base>.ifc wordt bij het opstarten nog herkend (terugval) en daarna opgeruimd.
+const recoveryBase = __OPS_DEV_INSTANCE__ ? `recovery.${__OPS_DEV_INSTANCE__}` : 'recovery';
+const recoveryManifestName = `${recoveryBase}.documents.json`;
+const legacyRecoveryFile = `${recoveryBase}.ifc`;
+const recoveryIfcName = (docId: string) => `${recoveryBase}.${docId}.ifc`;
+
+interface RecoveryManifest {
+  version: number;
+  activeDocumentId: string | null;
+  documents: { id: string; ifc: string; filePath: string | null; isDirty: boolean }[];
+}
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -30,8 +43,10 @@ import { Backstage } from '@/components/backstage/Backstage';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
 import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
+import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useAppStore } from '@/state/appStore';
+import type { RecoveryDocInput } from '@/state/slices/documentSlice';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function AppContent() {
@@ -81,21 +96,46 @@ function AppContent() {
     document.title = `${dirtyMark}${project.name}${fileInfo} — Open Planner Studio`;
   }, [project.name, isDirty, filePath]);
 
-  // Auto-save every 60 seconds if dirty
+  // Auto-save every 60 seconds — alle open documenten zodra er íéts ongewijzigd-
+  // dirty is. Elk document krijgt een eigen IFC-snapshot + een manifest dat de set
+  // beschrijft; snapshots van inmiddels gesloten documenten worden opgeruimd.
   useEffect(() => {
     if (!isTauri()) return;
     const interval = setInterval(async () => {
       const state = useAppStore.getState();
-      if (!state.isDirty) return;
+      const docs = state.getOpenDocumentPayloads();
+      if (!docs.some((d) => d.payload.isDirty)) return;
       try {
-        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+        const { writeTextFile, readDir, remove } = await import('@tauri-apps/plugin-fs');
         const { appDataDir, join } = await import('@tauri-apps/api/path');
-        const content = writeIFC(
-          state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments,
-        );
         const dir = await appDataDir();
-        await writeTextFile(await join(dir, recoveryFileName), content);
+
+        for (const { id, payload } of docs) {
+          const content = writeIFC(
+            payload.project, payload.calendar, payload.tasks,
+            payload.sequences, payload.resources, payload.assignments,
+          );
+          await writeTextFile(await join(dir, recoveryIfcName(id)), content);
+        }
+
+        const manifest: RecoveryManifest = {
+          version: 1,
+          activeDocumentId: state.activeDocumentId,
+          documents: docs.map(({ id, payload }) => ({
+            id, ifc: recoveryIfcName(id), filePath: payload.filePath, isDirty: payload.isDirty,
+          })),
+        };
+        await writeTextFile(await join(dir, recoveryManifestName), JSON.stringify(manifest));
+
+        // Ruim snapshots op van documenten die niet meer open zijn (zelfde slug).
+        const keep = new Set(docs.map((d) => recoveryIfcName(d.id)));
+        const prefix = `${recoveryBase}.`;
+        for (const entry of await readDir(dir)) {
+          const name = entry.name;
+          if (name && name.startsWith(prefix) && name.endsWith('.ifc') && !keep.has(name)) {
+            await remove(await join(dir, name));
+          }
+        }
       } catch (err) {
         console.error('Auto-save failed:', err);
       }
@@ -116,20 +156,52 @@ function AppContent() {
         const { readTextFile, exists, remove } = await import('@tauri-apps/plugin-fs');
         const { appDataDir, join } = await import('@tauri-apps/api/path');
         const dir = await appDataDir();
-        const recoveryPath = await join(dir, recoveryFileName);
-        const hasRecovery = await exists(recoveryPath);
-        if (hasRecovery) {
-          const content = await readTextFile(recoveryPath);
+        const manifestPath = await join(dir, recoveryManifestName);
+
+        // Nieuw pad: multi-document manifest.
+        if (await exists(manifestPath)) {
+          const manifest = JSON.parse(await readTextFile(manifestPath)) as RecoveryManifest;
+          const shouldRecover = confirm(t('confirm.restoreRecovery'));
+          if (shouldRecover) {
+            const restored: RecoveryDocInput[] = [];
+            for (const d of manifest.documents) {
+              try {
+                const parsed = readIFC(await readTextFile(await join(dir, d.ifc)));
+                restored.push({
+                  id: d.id,
+                  project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
+                  sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
+                  filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
+                });
+              } catch (err) {
+                console.error('Failed to restore recovery document:', d.id, err);
+              }
+            }
+            if (restored.length > 0) {
+              useAppStore.getState().restoreDocuments(restored, manifest.activeDocumentId ?? null);
+            }
+          }
+          // Opruimen: alle gerefereerde snapshots + het manifest.
+          for (const d of manifest.documents) {
+            try { await remove(await join(dir, d.ifc)); } catch { /* al weg */ }
+          }
+          try { await remove(manifestPath); } catch { /* al weg */ }
+          return;
+        }
+
+        // Terugval: oude losse <base>.ifc (één document).
+        const legacyPath = await join(dir, legacyRecoveryFile);
+        if (await exists(legacyPath)) {
+          const content = await readTextFile(legacyPath);
           const shouldRecover = confirm(t('confirm.restoreRecovery'));
           if (shouldRecover) {
             try {
-              const parsed = readIFC(content);
-              useAppStore.getState().loadState(parsed);
+              useAppStore.getState().loadState(readIFC(content));
             } catch (err) {
               console.error('Failed to restore recovery file:', err);
             }
           }
-          await remove(recoveryPath);
+          await remove(legacyPath);
         }
       } catch (err) {
         console.error('Recovery check failed:', err);
@@ -232,6 +304,9 @@ function AppContent() {
 
       {/* Projectoverzicht-overlay (gedeeld door alle multi-document-stijlen) */}
       <ProjectOverview />
+
+      {/* Sluit-bevestiging bij niet-opgeslagen wijzigingen (3-weg) */}
+      <CloseDocumentDialog />
 
       {/* Dialogs */}
       <TaskDialog />

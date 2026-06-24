@@ -65,9 +65,9 @@
     "debugTerminal": "طرفية التصحيح",
     "debugTerminalEnable": "تفعيل طرفية التصحيح",
     "documentChrome": "نمط تبديل المستندات",
-    "documentChromeTabs": "علامات تبويب",
-    "documentChromeRail": "شريط المشاريع",
-    "documentChromeSwitcher": "المبدّل"
+    "documentChromeTabs": "علامات تبويب أفقية",
+    "documentChromeRail": "علامات تبويب رأسية",
+    "documentChromeSwitcher": "حبة"
   },
   "confirm": {
     "newProject": "إنشاء مشروع جديد؟ ستفقد التغييرات غير المحفوظة.",
@@ -99,6 +99,9 @@
     "active": "نشط",
     "tasksWord": "مهام",
     "criticalWord": "حرج",
-    "confirmClose": "يحتوي هذا المستند على تغييرات غير محفوظة. هل تريد الإغلاق على أي حال؟"
+    "confirmClose": "يحتوي هذا المستند على تغييرات غير محفوظة. هل تريد الإغلاق على أي حال؟",
+    "closeTitle": "تغييرات غير محفوظة",
+    "closeBody": "يحتوي '{{name}}' على تغييرات لم تُحفظ بعد.",
+    "dontSave": "عدم الحفظ"
   }
 }

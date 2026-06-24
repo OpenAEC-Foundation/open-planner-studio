@@ -73,7 +73,6 @@ export function useDocumentCards(): DocumentCard[] {
 
 /** Gedeelde acties voor alle drie de chrome-stijlen + het overzicht. */
 export function useDocumentActions() {
-  const { t } = useTranslation('common');
   const switchDocument = useAppStore((s) => s.switchDocument);
   const closeDocument = useAppStore((s) => s.closeDocument);
   const openFile = useAppStore((s) => s.openFile);
@@ -81,12 +80,14 @@ export function useDocumentActions() {
 
   const switchTo = useCallback((id: string) => switchDocument(id), [switchDocument]);
 
+  // Dirty document → open de sluit-bevestiging (Opslaan/Niet opslaan/Annuleren);
+  // schoon document sluit meteen.
   const closeWithGuard = useCallback(
     (doc: { id: string; isDirty: boolean }) => {
-      if (doc.isDirty && !window.confirm(t('documents.confirmClose'))) return;
+      if (doc.isDirty) { setUI({ pendingCloseDocId: doc.id }); return; }
       closeDocument(doc.id);
     },
-    [closeDocument, t],
+    [closeDocument, setUI],
   );
 
   const openOverview = useCallback(() => setUI({ showProjectOverview: true }), [setUI]);

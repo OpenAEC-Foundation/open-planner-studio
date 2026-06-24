@@ -65,9 +65,9 @@
     "debugTerminal": "Debug-Terminal",
     "debugTerminalEnable": "Debug-Terminal aktivieren",
     "documentChrome": "Dokumentwechsel-Stil",
-    "documentChromeTabs": "Registerkarten",
-    "documentChromeRail": "Projektleiste",
-    "documentChromeSwitcher": "Umschalter"
+    "documentChromeTabs": "Horizontale Registerkarten",
+    "documentChromeRail": "Vertikale Registerkarten",
+    "documentChromeSwitcher": "Pille"
   },
   "confirm": {
     "newProject": "Neues Projekt erstellen? Nicht gespeicherte Änderungen gehen verloren.",
@@ -99,6 +99,9 @@
     "active": "Aktiv",
     "tasksWord": "Aufgaben",
     "criticalWord": "kritisch",
-    "confirmClose": "Dieses Dokument enthält nicht gespeicherte Änderungen. Trotzdem schließen?"
+    "confirmClose": "Dieses Dokument enthält nicht gespeicherte Änderungen. Trotzdem schließen?",
+    "closeTitle": "Nicht gespeicherte Änderungen",
+    "closeBody": "„{{name}}“ enthält Änderungen, die noch nicht gespeichert wurden.",
+    "dontSave": "Nicht speichern"
   }
 }

@@ -24,13 +24,22 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   View (zoom/scroll), undo-historie, selectie en dirty-status zijn per document; het klembord is
   gedeeld zodat takken tussen documenten te kopiëren zijn.
 - **Multi-document (UI)** — drie wisselstijlen, kiesbaar in Instellingen (verschijnt in alle drie
-  de settings-oppervlakken) met default *Tabbladen*: een **tabstrip** onder het lint (A), een
-  verticale **projectbalk** met hover-flyout (B) en een **wisselaar-pil** in de titelbalk (C).
-  Alle drie delen één **projectoverzicht-overlay** (kaarten met mini-Gantt + taken/kritiek/einde
-  per document). Per project een stabiele identiteitskleur (afgeleid uit de project-id) en
-  2-letter-code. Bestand openen opent voortaan een nieuw tabblad (hergebruikt het lege
-  beginscherm); 'Nieuw' opent een nieuw tabblad i.p.v. het actieve te wissen; `⌘/Ctrl 1–9`
+  de settings-oppervlakken) met default *Horizontale tabbladen*: **horizontale tabbladen** onder
+  het lint (A), **verticale tabbladen** (projectbalk) links met hover-flyout (B) en een **pil** in
+  de titelbalk (C). Alle drie delen één **projectoverzicht-overlay** (kaarten met mini-Gantt +
+  taken/kritiek/einde per document). Per project een stabiele identiteitskleur (afgeleid uit de
+  project-id) en 2-letter-code. Bestand openen opent voortaan een nieuw tabblad (hergebruikt het
+  lege beginscherm); 'Nieuw' opent een nieuw tabblad i.p.v. het actieve te wissen; `⌘/Ctrl 1–9`
   springt naar het n-de open document. Front-end-only, UI-state in de `ui`-slice.
+- **Multi-document recovery** — auto-save bewaart nu *alle* open documenten: één manifest
+  (`recovery[.<slug>].documents.json`) + per document een IFC-snapshot, met opruimen van
+  snapshots van gesloten documenten. Bij het opstarten worden alle documenten hersteld (id's,
+  actief document en dirty-status blijven behouden); de oude losse `recovery.ifc` wordt nog
+  herkend als terugval. Tauri-only.
+- **Sluit-bevestiging (3-weg)** — een document met niet-opgeslagen wijzigingen sluiten toont nu
+  een dialoog met *Opslaan* / *Niet opslaan* / *Annuleren* i.p.v. een simpele bevestiging.
+  *Opslaan* bewaart het document (maakt het zo nodig eerst actief, evt. via 'Opslaan als…') en
+  sluit het daarna; bij een geannuleerd opslaan blijft het document open.
 - **Taken kopiëren/plakken** — Ctrl+C / Ctrl+V dupliceren de geselecteerde takken inclusief
   subtaken, interne relaties en resource-toewijzingen. Geplakt als sibling van de selectie (of op
   rootniveau) met verse ids; één undo maakt het ongedaan.

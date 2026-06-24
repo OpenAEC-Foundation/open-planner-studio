@@ -65,9 +65,9 @@
     "debugTerminal": "Terminal debugowania",
     "debugTerminalEnable": "Włącz terminal debugowania",
     "documentChrome": "Styl przełączania dokumentów",
-    "documentChromeTabs": "Karty",
-    "documentChromeRail": "Pasek projektów",
-    "documentChromeSwitcher": "Przełącznik"
+    "documentChromeTabs": "Karty poziome",
+    "documentChromeRail": "Karty pionowe",
+    "documentChromeSwitcher": "Pigułka"
   },
   "confirm": {
     "newProject": "Utworzyć nowy projekt? Niezapisane zmiany zostaną utracone.",
@@ -99,6 +99,9 @@
     "active": "Aktywny",
     "tasksWord": "zadania",
     "criticalWord": "krytyczne",
-    "confirmClose": "Ten dokument ma niezapisane zmiany. Zamknąć mimo to?"
+    "confirmClose": "Ten dokument ma niezapisane zmiany. Zamknąć mimo to?",
+    "closeTitle": "Niezapisane zmiany",
+    "closeBody": "„{{name}}” ma zmiany, które nie zostały jeszcze zapisane.",
+    "dontSave": "Nie zapisuj"
   }
 }

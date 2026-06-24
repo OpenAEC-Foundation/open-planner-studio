@@ -65,9 +65,9 @@
     "debugTerminal": "Terminal de depuración",
     "debugTerminalEnable": "Activar terminal de depuración",
     "documentChrome": "Estilo de cambio de documento",
-    "documentChromeTabs": "Pestañas",
-    "documentChromeRail": "Barra de proyectos",
-    "documentChromeSwitcher": "Selector"
+    "documentChromeTabs": "Pestañas horizontales",
+    "documentChromeRail": "Pestañas verticales",
+    "documentChromeSwitcher": "Píldora"
   },
   "confirm": {
     "newProject": "¿Crear nuevo proyecto? Los cambios no guardados se perderán.",
@@ -99,6 +99,9 @@
     "active": "Activo",
     "tasksWord": "tareas",
     "criticalWord": "crítico",
-    "confirmClose": "Este documento tiene cambios sin guardar. ¿Cerrar de todos modos?"
+    "confirmClose": "Este documento tiene cambios sin guardar. ¿Cerrar de todos modos?",
+    "closeTitle": "Cambios sin guardar",
+    "closeBody": "«{{name}}» tiene cambios que aún no se han guardado.",
+    "dontSave": "No guardar"
   }
 }

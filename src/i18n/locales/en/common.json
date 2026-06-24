@@ -65,9 +65,9 @@
     "debugTerminal": "Debug terminal",
     "debugTerminalEnable": "Enable debug terminal",
     "documentChrome": "Document switch style",
-    "documentChromeTabs": "Tabs",
-    "documentChromeRail": "Project rail",
-    "documentChromeSwitcher": "Switcher"
+    "documentChromeTabs": "Horizontal tabs",
+    "documentChromeRail": "Vertical tabs",
+    "documentChromeSwitcher": "Pill"
   },
   "confirm": {
     "newProject": "Create new project? Unsaved changes will be lost.",
@@ -99,6 +99,9 @@
     "active": "Active",
     "tasksWord": "tasks",
     "criticalWord": "critical",
-    "confirmClose": "This document has unsaved changes. Close anyway?"
+    "confirmClose": "This document has unsaved changes. Close anyway?",
+    "closeTitle": "Unsaved changes",
+    "closeBody": "'{{name}}' has changes that haven't been saved yet.",
+    "dontSave": "Don't save"
   }
 }

@@ -65,9 +65,9 @@
     "debugTerminal": "ترمینال اشکال‌زدایی",
     "debugTerminalEnable": "فعال‌سازی ترمینال اشکال‌زدایی",
     "documentChrome": "سبک تعویض سند",
-    "documentChromeTabs": "زبانه‌ها",
-    "documentChromeRail": "نوار پروژه‌ها",
-    "documentChromeSwitcher": "جابجا‌کننده"
+    "documentChromeTabs": "زبانه‌های افقی",
+    "documentChromeRail": "زبانه‌های عمودی",
+    "documentChromeSwitcher": "قرص"
   },
   "confirm": {
     "newProject": "پروژه جدید ایجاد شود؟ تغییرات ذخیره‌نشده از بین خواهند رفت.",
@@ -99,6 +99,9 @@
     "active": "فعال",
     "tasksWord": "وظایف",
     "criticalWord": "بحرانی",
-    "confirmClose": "این سند تغییرات ذخیره‌نشده دارد. به هر حال بسته شود؟"
+    "confirmClose": "این سند تغییرات ذخیره‌نشده دارد. به هر حال بسته شود؟",
+    "closeTitle": "تغییرات ذخیره‌نشده",
+    "closeBody": "«{{name}}» تغییراتی دارد که هنوز ذخیره نشده‌اند.",
+    "dontSave": "ذخیره نکن"
   }
 }

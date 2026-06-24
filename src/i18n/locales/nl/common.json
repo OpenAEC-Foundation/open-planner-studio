@@ -65,9 +65,9 @@
     "debugTerminal": "Debug-terminal",
     "debugTerminalEnable": "Debug-terminal inschakelen",
     "documentChrome": "Documentwissel-stijl",
-    "documentChromeTabs": "Tabbladen",
-    "documentChromeRail": "Projectbalk",
-    "documentChromeSwitcher": "Wisselaar"
+    "documentChromeTabs": "Horizontale tabbladen",
+    "documentChromeRail": "Verticale tabbladen",
+    "documentChromeSwitcher": "Pil"
   },
   "confirm": {
     "newProject": "Nieuw project aanmaken? Niet-opgeslagen wijzigingen gaan verloren.",
@@ -99,6 +99,9 @@
     "active": "Actief",
     "tasksWord": "taken",
     "criticalWord": "kritiek",
-    "confirmClose": "Dit document heeft niet-opgeslagen wijzigingen. Toch sluiten?"
+    "confirmClose": "Dit document heeft niet-opgeslagen wijzigingen. Toch sluiten?",
+    "closeTitle": "Niet-opgeslagen wijzigingen",
+    "closeBody": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen.",
+    "dontSave": "Niet opslaan"
   }
 }

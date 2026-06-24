@@ -65,9 +65,9 @@
     "debugTerminal": "Terminal de débogage",
     "debugTerminalEnable": "Activer le terminal de débogage",
     "documentChrome": "Style de changement de document",
-    "documentChromeTabs": "Onglets",
-    "documentChromeRail": "Barre de projets",
-    "documentChromeSwitcher": "Sélecteur"
+    "documentChromeTabs": "Onglets horizontaux",
+    "documentChromeRail": "Onglets verticaux",
+    "documentChromeSwitcher": "Pastille"
   },
   "confirm": {
     "newProject": "Créer un nouveau projet ? Les modifications non enregistrées seront perdues.",
@@ -99,6 +99,9 @@
     "active": "Actif",
     "tasksWord": "tâches",
     "criticalWord": "critique",
-    "confirmClose": "Ce document contient des modifications non enregistrées. Fermer quand même ?"
+    "confirmClose": "Ce document contient des modifications non enregistrées. Fermer quand même ?",
+    "closeTitle": "Modifications non enregistrées",
+    "closeBody": "« {{name}} » contient des modifications qui n'ont pas encore été enregistrées.",
+    "dontSave": "Ne pas enregistrer"
   }
 }

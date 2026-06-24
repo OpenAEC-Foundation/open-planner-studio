@@ -65,9 +65,9 @@
     "debugTerminal": "Hata ayıklama terminali",
     "debugTerminalEnable": "Hata ayıklama terminalini etkinleştir",
     "documentChrome": "Belge değiştirme stili",
-    "documentChromeTabs": "Sekmeler",
-    "documentChromeRail": "Proje çubuğu",
-    "documentChromeSwitcher": "Değiştirici"
+    "documentChromeTabs": "Yatay sekmeler",
+    "documentChromeRail": "Dikey sekmeler",
+    "documentChromeSwitcher": "Hap"
   },
   "confirm": {
     "newProject": "Yeni proje oluşturulsun mu? Kaydedilmemiş değişiklikler kaybolacak.",
@@ -99,6 +99,9 @@
     "active": "Etkin",
     "tasksWord": "görev",
     "criticalWord": "kritik",
-    "confirmClose": "Bu belgede kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?"
+    "confirmClose": "Bu belgede kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?",
+    "closeTitle": "Kaydedilmemiş değişiklikler",
+    "closeBody": "'{{name}}' belgesinde henüz kaydedilmemiş değişiklikler var.",
+    "dontSave": "Kaydetme"
   }
 }

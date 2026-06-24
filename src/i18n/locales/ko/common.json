@@ -65,9 +65,9 @@
     "debugTerminal": "디버그 터미널",
     "debugTerminalEnable": "디버그 터미널 활성화",
     "documentChrome": "문서 전환 스타일",
-    "documentChromeTabs": "탭",
-    "documentChromeRail": "프로젝트 막대",
-    "documentChromeSwitcher": "전환기"
+    "documentChromeTabs": "가로 탭",
+    "documentChromeRail": "세로 탭",
+    "documentChromeSwitcher": "알약"
   },
   "confirm": {
     "newProject": "새 프로젝트를 만드시겠습니까? 저장되지 않은 변경 사항이 손실됩니다.",
@@ -99,6 +99,9 @@
     "active": "활성",
     "tasksWord": "작업",
     "criticalWord": "임계",
-    "confirmClose": "이 문서에 저장되지 않은 변경 사항이 있습니다. 그래도 닫으시겠습니까?"
+    "confirmClose": "이 문서에 저장되지 않은 변경 사항이 있습니다. 그래도 닫으시겠습니까?",
+    "closeTitle": "저장되지 않은 변경 사항",
+    "closeBody": "'{{name}}'에 아직 저장되지 않은 변경 사항이 있습니다.",
+    "dontSave": "저장 안 함"
   }
 }

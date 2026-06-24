@@ -97,4 +97,5 @@ export interface UIState {
   debugTerminalOpen: boolean;     // session
   documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
+  pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
 }

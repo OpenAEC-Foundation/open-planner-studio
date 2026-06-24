@@ -58,6 +58,21 @@ export interface DocumentInfo {
   isActive: boolean;
 }
 
+/** Per-document projectdata + metadata om bij crash-recovery te herstellen.
+ *  Alleen de IFC-round-trip-velden + identiteit; view/undo/cpm worden vers
+ *  opgebouwd (zijn niet kritiek na een crash). */
+export interface RecoveryDocInput {
+  id: string;
+  project: Project;
+  calendar: WorkCalendar;
+  tasks: Task[];
+  sequences: Sequence[];
+  resources: Resource[];
+  assignments: ResourceAssignment[];
+  filePath: string | null;
+  isDirty: boolean;
+}
+
 export interface DocumentSlice {
   documents: DocumentEntry[];
   activeDocumentId: string;
@@ -69,6 +84,11 @@ export interface DocumentSlice {
   closeDocument: (id: string) => void;
   /** Lijst van geopende documenten met afgeleide titel + dirty/active-status. */
   getOpenDocuments: () => DocumentInfo[];
+  /** Alle geopende documenten als payload (actief live, rest uit de registry) —
+   *  voor crash-recovery-serialisatie. */
+  getOpenDocumentPayloads: () => { id: string; payload: DocumentPayload }[];
+  /** Herstel meerdere documenten na een crash; vervangt de huidige set volledig. */
+  restoreDocuments: (docs: RecoveryDocInput[], activeId: string | null) => void;
 }
 
 /** Lees de actieve (top-level) projectdata uit als losstaande payload. */
@@ -126,6 +146,26 @@ function freshPayload(): DocumentPayload {
     redoStack: [],
     filePath: null,
     isDirty: false,
+  };
+}
+
+/** Verse payload uit herstelde projectdata (view/undo/cpm worden vers opgebouwd). */
+function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
+  return {
+    project: d.project,
+    calendar: d.calendar,
+    tasks: d.tasks,
+    sequences: d.sequences,
+    resources: d.resources,
+    assignments: d.assignments,
+    selectedTaskIds: [],
+    cpmResult: null,
+    view: createDefaultView(),
+    collapsedTaskIds: [],
+    undoStack: [],
+    redoStack: [],
+    filePath: d.filePath,
+    isDirty: d.isDirty,
   };
 }
 
@@ -229,6 +269,32 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       const project = active ? s.project : d.payload!.project;
       const isDirty = active ? s.isDirty : d.payload!.isDirty;
       return { id: d.id, title: documentTitle(filePath, project), isDirty, isActive: active };
+    });
+  },
+
+  getOpenDocumentPayloads: () => {
+    const s = get();
+    return s.documents.map((d) => ({
+      id: d.id,
+      payload: d.id === s.activeDocumentId ? capturePayload(s) : d.payload!,
+    }));
+  },
+
+  restoreDocuments: (docs, activeId) => {
+    if (docs.length === 0) return;
+    const active = docs.find((d) => d.id === activeId) ?? docs[0];
+    set((s) => {
+      s.documents = docs.map((d) => ({
+        id: d.id,
+        payload: d.id === active.id ? null : payloadFromInput(d),
+      }));
+      s.activeDocumentId = active.id;
+      hydratePayload(s, payloadFromInput(active));
+    });
+    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+      tasks: active.tasks.length,
+      sequences: active.sequences.length,
+      resources: active.resources.length,
     });
   },
 });

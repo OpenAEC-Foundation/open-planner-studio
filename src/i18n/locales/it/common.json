@@ -65,9 +65,9 @@
     "debugTerminal": "Terminale di debug",
     "debugTerminalEnable": "Abilita il terminale di debug",
     "documentChrome": "Stile di cambio documento",
-    "documentChromeTabs": "Schede",
-    "documentChromeRail": "Barra progetti",
-    "documentChromeSwitcher": "Selettore"
+    "documentChromeTabs": "Schede orizzontali",
+    "documentChromeRail": "Schede verticali",
+    "documentChromeSwitcher": "Pillola"
   },
   "confirm": {
     "newProject": "Creare un nuovo progetto? Le modifiche non salvate andranno perse.",
@@ -99,6 +99,9 @@
     "active": "Attivo",
     "tasksWord": "attività",
     "criticalWord": "critico",
-    "confirmClose": "Questo documento contiene modifiche non salvate. Chiudere comunque?"
+    "confirmClose": "Questo documento contiene modifiche non salvate. Chiudere comunque?",
+    "closeTitle": "Modifiche non salvate",
+    "closeBody": "«{{name}}» contiene modifiche non ancora salvate.",
+    "dontSave": "Non salvare"
   }
 }
