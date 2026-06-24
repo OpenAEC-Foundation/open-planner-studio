@@ -11,6 +11,7 @@ import { createViewSlice, type ViewSlice } from './slices/viewSlice';
 import { createUiSlice, type UiSlice } from './slices/uiSlice';
 import { createFileSlice, type FileSlice } from './slices/fileSlice';
 import { createExtensionSlice, type ExtensionSlice } from './slices/extensionSlice';
+import { createDocumentSlice, type DocumentSlice } from './slices/documentSlice';
 
 // Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
 export type { ExportFormat } from './slices/fileSlice';
@@ -31,7 +32,8 @@ export type AppState = ProjectSlice &
   ViewSlice &
   UiSlice &
   FileSlice &
-  ExtensionSlice;
+  ExtensionSlice &
+  DocumentSlice;
 
 export const useAppStore = create<AppState>()(
   immer((...a) => ({
@@ -45,5 +47,6 @@ export const useAppStore = create<AppState>()(
     ...createUiSlice(...a),
     ...createFileSlice(...a),
     ...createExtensionSlice(...a),
+    ...createDocumentSlice(...a),
   }))
 );

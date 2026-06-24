@@ -14,8 +14,7 @@ Werkwijze: voeg nieuwe items toe in de juiste fase. Vink af door het item naar
 ### Fase 1 — Fundament (MVP) — restpunten
 Fase 1 is grotendeels af; dit zijn de laatste gaten.
 
-- [ ] Taken kopiëren/plakken (Ctrl+C / Ctrl+V)
-- [ ] Multi-document: meerdere projecten tegelijk open (FileTabBar)
+- [ ] Multi-document: FileTabBar-UI (back-end is af — `documentSlice` met `newDocument`/`switchDocument`/`closeDocument`/`getOpenDocuments`; alleen de tabbalk en het koppelen van openen/opslaan aan tabs ontbreekt nog)
 - [ ] Nieuw-project wizard (nu alleen reset naar leeg project)
 
 ### Fase 2 — Professionele Planning (v0.5)
@@ -329,6 +328,7 @@ _(geen openstaande punten meer — zie Afgerond)_
 
 ## Afgerond
 
+- [x] (2026-06-24) Taken kopiëren/plakken (Ctrl+C / Ctrl+V). Intern klembord in de task-slice (`taskClipboard`, app-state — geen IFC-round-trip, geen undo-snapshot). `copyTasks` neemt de selectie incl. subtaken mee plus interne relaties en resource-toewijzingen (deep-cloned, overleeft verwijderen van het origineel); `pasteTasks` maakt verse ids, plakt als sibling van de selectie (of root), herstelt boomstructuur + interne relaties + toewijzingen, en selecteert de geplakte takken. Eén undo maakt een plak-actie ongedaan.
 - [x] (2026-06-19) Catalogus-repo `OpenAEC-Foundation/open-planner-studio-extensions` (publiek) aangemaakt met `catalog.json`; de voorbeeld-extensie is de eerste entry. **Hosting via `raw`, niet via Releases**: browser-`fetch` van release-assets wordt door CORS geblokkeerd (geen `Access-Control-Allow-Origin`), `raw.githubusercontent.com` stuurt `*`. De ZIP staat daarom in de repo en `downloadUrl` wijst naar de raw-URL. `fetchCatalog` gebruikt `cache:'no-store'` tegen stale catalogus. End-to-end geverifieerd: Bladeren → Install werkt (download, central-directory-parse, activeren, importer functioneel).
 - [x] (2026-06-19) `window.__openPlannerStudioSdk` gevuld met een echte SDK (`src/extensions/sdk.ts`): versie, categorieën/permissies, `hostEvents`, `utils` en `factory`-helpers; `require('open-planner-studio')` geeft 'm terug.
 - [x] (2026-06-19) Voorbeeld-extensie gemaakt: `examples/extensions/voorbeeld-takenlijst-importer/` (importer + ribbon-knop + host-event, met README en voorbeeld-invoer).

@@ -36,6 +36,8 @@ export function useKeyboardShortcuts() {
   const runCPM = useAppStore(s => s.runCPM);
   const deleteTask = useAppStore(s => s.deleteTask);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
+  const copyTasks = useAppStore(s => s.copyTasks);
+  const pasteTasks = useAppStore(s => s.pasteTasks);
   const deselectAll = useAppStore(s => s.deselectAll);
   const setUI = useAppStore(s => s.setUI);
   const setZoom = useAppStore(s => s.setZoom);
@@ -73,6 +75,14 @@ export function useKeyboardShortcuts() {
       } else if (ctrl && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         openFile();
+      } else if (ctrl && e.key.toLowerCase() === 'c') {
+        if (selectedTaskIds.length > 0) {
+          e.preventDefault();
+          copyTasks();
+        }
+      } else if (ctrl && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        pasteTasks();
       } else if (ctrl && e.key === 'z') {
         e.preventDefault();
         undo();
@@ -118,5 +128,5 @@ export function useKeyboardShortcuts() {
       window.removeEventListener('keydown', handler);
       window.removeEventListener('contextmenu', contextHandler);
     };
-  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, newProject]);
+  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, newProject]);
 }

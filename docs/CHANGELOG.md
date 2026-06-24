@@ -12,8 +12,20 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 - README-screenshots aangevuld en documentatie gelijkgetrokken met de actuele code.
 - `CLAUDE.md`: State-sectie gecorrigeerd, multi-worktree dev-setup, i18n/settings/Rust-feiten
   bijgewerkt en verwijzing naar de self-test harness toegevoegd.
+- README-architectuur gecorrigeerd: app-shell volgt Open 2D Studio / OpenFEM2D Studio, terwijl
+  het extensiesysteem en de styling naar Open Calc Studio gemodelleerd zijn.
+- Spec voor de moderne UI-overhaul (Polished Forge + Soft Depth) toegevoegd.
+- `read_file`/`write_file` in de Rust-backend gedocumenteerd als bewuste escape-hatch.
 
 ### Toegevoegd
+- **Multi-document (back-end)** — `documentSlice` houdt meerdere geopende projecten bij; het
+  actieve document leeft op top-level (alle bestaande slices/renderer ongewijzigd), inactieve als
+  payload-snapshot. Acties `newDocument`/`switchDocument`/`closeDocument` + `getOpenDocuments`.
+  View (zoom/scroll), undo-historie, selectie en dirty-status zijn per document; het klembord is
+  gedeeld zodat takken tussen documenten te kopiëren zijn. UI (FileTabBar) volgt nog.
+- **Taken kopiëren/plakken** — Ctrl+C / Ctrl+V dupliceren de geselecteerde takken inclusief
+  subtaken, interne relaties en resource-toewijzingen. Geplakt als sibling van de selectie (of op
+  rootniveau) met verse ids; één undo maakt het ongedaan.
 - **Extensiesysteem** — extensies (manifest + main.js, als ZIP/JS of uit de catalogus) kunnen
   importers en ribbon-knoppen registreren. Beheer via Bestand → Extensies; importeren via
   Bestand → Importeren. Naar het model van Open Calc Studio.
@@ -37,11 +49,20 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 - **Devtools** — Tier 2 `ops-test` controlekanaal (echte Tauri save/open + dispatch).
 
 ### Gewijzigd
+- **UI moderne overhaul** — koele "Soft-Depth"-look over alle oppervlakken (Fase 1 koele tokens,
+  schaduw/radius, AA-control-rand en fonts; Fase 2 doorgevoerd over de hele app).
 - **Store-architectuur** — de monolithische Zustand-store is opgesplitst in tien slices
   (`src/state/slices/`); `appStore.ts` is nu een compositie-root. Geen gedragswijziging.
+- **Performance** — O(n³)/O(n²) lookups in IFC-nesting en het tekenen van Gantt-pijlen weggewerkt.
+- `isTauri()` gecentraliseerd in `src/utils/platform.ts`.
+- CI naar Node 24-compatibele GitHub Actions-versies gebracht.
 - CODEOWNERS bijgewerkt naar de nieuwe product owner.
 
 ### Opgelost
+- **Scheduler** — kritiek pad klopt nu; geen spook-float meer op predecessors.
+- **Scheduler** — `runCPM` kan niet meer bevriezen of crashen op rare/ongeldige data.
+- **UI** — light-mode contrast verbeterd (diepere tint, zichtbare randen/lijnen, helder amber,
+  extra contrast op canvas-lijnen).
 - **Extensies** — `minAppVersion` wordt nu afgedwongen; een te oude app weigert te activeren.
 - **Extensies** — catalogus-foutmelding via i18n-interpolatie (`{{error}}`) i.p.v. string-plakken
   (alle 14 locales); catalogus-installfouten worden in de kaart getoond.

@@ -1,12 +1,28 @@
 import { Task, createDefaultTaskTime } from '@/types/task';
+import type { Sequence } from '@/types/sequence';
+import type { ResourceAssignment } from '@/types/resource';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { createSnapshot } from '../snapshot';
 import type { AppSlice } from './types';
 
+/**
+ * Zelfstandige kopie van een takenselectie (incl. subtaken), de interne
+ * relaties en resource-toewijzingen. Deep-cloned bij het kopiëren, zodat
+ * plakken ook werkt nadat de originelen gewijzigd of verwijderd zijn.
+ * App-state, géén projectdata: rondt niet door de IFC-laag en zit niet in
+ * de undo/redo-snapshots.
+ */
+export interface TaskClipboard {
+  tasks: Task[];
+  sequences: Sequence[];
+  assignments: ResourceAssignment[];
+}
+
 export interface TaskSlice {
   tasks: Task[];
   selectedTaskIds: string[];
+  taskClipboard: TaskClipboard | null;
   addTask: (task: Partial<Task> & { name: string }) => string;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
@@ -14,11 +30,16 @@ export interface TaskSlice {
   selectTask: (id: string, multi?: boolean, range?: boolean) => void;
   selectTaskRange: (fromId: string, toId: string) => void;
   deselectAll: () => void;
+  /** Kopieer de opgegeven takken (default: de huidige selectie) incl. subtaken naar het klembord. */
+  copyTasks: (ids?: string[]) => void;
+  /** Plak het klembord als nieuwe takken; geeft de nieuwe root-ids terug (leeg als er niets te plakken viel). */
+  pasteTasks: () => string[];
 }
 
 export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
   tasks: [],
   selectedTaskIds: [],
+  taskClipboard: null,
 
   addTask: (partial) => {
     const id = generateId('task');
@@ -172,4 +193,105 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
     set((s) => {
       s.selectedTaskIds = [];
     }),
+
+  copyTasks: (ids) =>
+    set((s) => {
+      const sourceIds = ids ?? s.selectedTaskIds;
+      if (sourceIds.length === 0) return;
+
+      // Selectie uitbreiden met alle (klein)kinderen, net als bij verwijderen.
+      const idSet = new Set<string>();
+      const collect = (taskId: string) => {
+        if (idSet.has(taskId)) return;
+        idSet.add(taskId);
+        const t = s.tasks.find(tt => tt.id === taskId);
+        if (t) t.childIds.forEach(collect);
+      };
+      sourceIds.forEach(collect);
+
+      const tasks = s.tasks.filter(t => idSet.has(t.id));
+      if (tasks.length === 0) return;
+
+      // Alleen relaties waarvan beide uiteinden mee gekopieerd worden.
+      const sequences = s.sequences.filter(
+        seq => idSet.has(seq.predecessorId) && idSet.has(seq.successorId),
+      );
+      const assignments = s.assignments.filter(a => idSet.has(a.taskId));
+
+      // Deep-clone: het klembord blijft geldig na latere edits/undo van de bron.
+      s.taskClipboard = JSON.parse(JSON.stringify({ tasks, sequences, assignments }));
+    }),
+
+  pasteTasks: () => {
+    const newRootIds: string[] = [];
+    set((s) => {
+      const clip = s.taskClipboard;
+      if (!clip || clip.tasks.length === 0) return;
+
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+
+      const copiedIds = new Set(clip.tasks.map(t => t.id));
+      const resourceExists = new Set(s.resources.map(r => r.id));
+
+      // Geplakte roots komen als sibling van de (eerst) geselecteerde taak;
+      // zonder selectie op rootniveau.
+      const anchor = s.selectedTaskIds.length > 0
+        ? s.tasks.find(t => t.id === s.selectedTaskIds[0])
+        : undefined;
+      const targetParentId = anchor ? anchor.parentId : null;
+
+      // Verse id voor elke gekopieerde taak.
+      const idMap = new Map<string, string>();
+      for (const t of clip.tasks) idMap.set(t.id, generateId('task'));
+
+      for (const src of clip.tasks) {
+        const newId = idMap.get(src.id)!;
+        const parentInClip = !!src.parentId && copiedIds.has(src.parentId);
+        if (!parentInClip) newRootIds.push(newId);
+
+        const task: Task = {
+          ...JSON.parse(JSON.stringify(src)),
+          id: newId,
+          parentId: parentInClip ? idMap.get(src.parentId!)! : targetParentId,
+          childIds: src.childIds.filter(c => copiedIds.has(c)).map(c => idMap.get(c)!),
+          // Verweesde resourceverwijzingen overslaan.
+          resourceIds: src.resourceIds.filter(r => resourceExists.has(r)),
+        };
+        s.tasks.push(task);
+      }
+
+      // Nieuwe roots aan de doelouder hangen.
+      if (targetParentId) {
+        const parent = s.tasks.find(t => t.id === targetParentId);
+        if (parent) parent.childIds.push(...newRootIds);
+      }
+
+      // Interne relaties opnieuw aanmaken met de nieuwe ids.
+      for (const seq of clip.sequences) {
+        s.sequences.push({
+          id: generateId('seq'),
+          predecessorId: idMap.get(seq.predecessorId)!,
+          successorId: idMap.get(seq.successorId)!,
+          type: seq.type,
+          lagDays: seq.lagDays,
+        });
+      }
+
+      // Resource-toewijzingen opnieuw aanmaken (resources die niet meer bestaan overslaan).
+      for (const a of clip.assignments) {
+        if (!resourceExists.has(a.resourceId)) continue;
+        s.assignments.push({
+          id: generateId('asgn'),
+          taskId: idMap.get(a.taskId)!,
+          resourceId: a.resourceId,
+          units: a.units,
+        });
+      }
+
+      s.selectedTaskIds = newRootIds;
+      s.isDirty = true;
+    });
+    return newRootIds;
+  },
 });
