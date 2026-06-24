@@ -12,7 +12,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": ["nsis", "deb", "rpm", "appimage", "dmg"],
+    "targets": ["nsis", "deb", "rpm", "appimage", "dmg", "app"],
     "category": "Productivity",
     "icon": [
       "icons/32x32.png",
