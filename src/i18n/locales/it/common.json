@@ -104,5 +104,28 @@
     "closeTitle": "Modifiche non salvate",
     "closeBody": "«{{name}}» contiene modifiche non ancora salvate.",
     "dontSave": "Non salvare"
+  },
+  "updates": {
+    "section": "Aggiornamenti",
+    "checkButton": "Controlla aggiornamenti",
+    "dialogTitle": "Aggiornamento software",
+    "currentVersion": "Versione attuale",
+    "newVersion": "Nuova versione",
+    "available": "È disponibile una nuova versione",
+    "upToDate": "Stai usando la versione più recente",
+    "releaseNotes": "Novità",
+    "downloadInstall": "Scarica e installa",
+    "downloading": "Download in corso…",
+    "installing": "Installazione in corso…",
+    "restarting": "Riavvio…",
+    "retry": "Riprova",
+    "error": "Si è verificato un problema durante l'aggiornamento",
+    "checking": "Controllo in corso…",
+    "snapNotice": "Questa versione viene aggiornata automaticamente tramite lo Snap Store — non devi fare nulla.",
+    "debExplanation": "Aggiorna manualmente eseguendo questo comando in un terminale, oppure scarica l'ultimo pacchetto.",
+    "debCommandLabel": "Comando di installazione",
+    "copyCommand": "Copia comando",
+    "copied": "Copiato",
+    "openDownloads": "Apri pagina di download"
   }
 }

@@ -129,6 +129,19 @@ export function SettingsPanelContent() {
             </div>
 
             <div className="settings-section">
+              <h3>{t('updates.section')}</h3>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
+                  setUI({ showSettingsDialog: false, showUpdateDialog: true });
+                }}
+              >
+                {t('updates.checkButton')}
+              </button>
+            </div>
+
+            <div className="settings-section">
               <h3>{t('settings.defaultZoom')}</h3>
               <div className="settings-row">
                 <span>30 px/day</span>

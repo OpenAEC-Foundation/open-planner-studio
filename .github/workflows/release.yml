@@ -63,6 +63,9 @@ jobs:
             args: '--target universal-apple-darwin'
 
     runs-on: ${{ matrix.platform }}
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v5
@@ -95,12 +98,16 @@ jobs:
         with:
           args: ${{ matrix.args }}
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          includeUpdaterJson: true
 
   build-windows:
-    needs: create-release
+    needs: [create-release, build-linux-mac]
     permissions:
       contents: write
     runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v5
@@ -139,15 +146,87 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
-      - name: Upload signed installer to release
-        shell: bash
+      - name: Re-sign updater artifacts after Authenticode signing
+        shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ needs.create-release.outputs.version }}"
-          for file in src-tauri/target/release/bundle/nsis/*-setup.exe; do
-            gh release upload "$VERSION" "$file" --clobber --repo "${{ github.repository }}"
-          done
+          $ErrorActionPreference = 'Stop'
+          $VERSION = "${{ needs.create-release.outputs.version }}"
+          $NSIS_DIR = "$env:GITHUB_WORKSPACE/src-tauri/target/release/bundle/nsis"
+
+          $EXE = Get-ChildItem "$NSIS_DIR/*-setup.exe" | Select-Object -First 1
+          $ZIP = Get-ChildItem "$NSIS_DIR/*.nsis.zip" | Select-Object -First 1
+
+          Write-Host "Signed exe: $($EXE.Name)"
+          Write-Host "Old zip: $($ZIP.Name)"
+
+          # The Windows updater artifact is the .nsis.zip — Tauri's updater
+          # downloads that archive, unzips it, and runs the contained setup.exe.
+          # No latest.json key ever points at a raw .exe, so we only need a fresh
+          # updater signature for the zip. The signed setup.exe is still uploaded
+          # below for humans who download the installer directly.
+
+          # Re-create .nsis.zip around the Authenticode-signed exe.
+          # Use the ZipFile API with Deflate/Optimal compression: Compress-Archive
+          # can emit Deflate64, which Tauri's updater cannot decompress.
+          $ZIP_PATH = $ZIP.FullName
+          Remove-Item $ZIP_PATH
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::Open($ZIP_PATH, 'Create')
+          [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $EXE.FullName, $EXE.Name, [System.IO.Compression.CompressionLevel]::Optimal)
+          $archive.Dispose()
+
+          # Re-generate the updater signature for the rebuilt zip.
+          # tauri signer sign writes a .sig file next to the input file.
+          npx tauri signer sign "$($ZIP.FullName)" --private-key "$env:TAURI_SIGNING_PRIVATE_KEY" --password "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+
+          # Read the freshly generated .sig file (the updater `signature` field is
+          # the *contents* of the .sig, not a path or URL).
+          $ZIP_SIG = (Get-Content "$($ZIP.FullName).sig" -Raw).Trim()
+
+          Write-Host "New zip signature: $($ZIP_SIG.Substring(0, 50))..."
+
+          # Build the .nsis.zip download URL for this release.
+          $REPO = "${{ github.repository }}"
+          $ZIP_URL = "https://github.com/$REPO/releases/download/$([uri]::EscapeDataString($VERSION))/$($ZIP.Name)"
+          Write-Host "Zip URL: $ZIP_URL"
+
+          # Download the latest.json that build-linux-mac already uploaded
+          # (contains the linux + macos entries). build-windows's own tauri-action
+          # run also writes a latest.json (includeUpdaterJson defaults to true in
+          # action-v0.6.1) and merges into this same file, but its Windows
+          # signatures were generated BEFORE Authenticode re-signing, so they are
+          # stale. We therefore SET both Windows keys authoritatively here rather
+          # than relying on that merge.
+          gh release download $VERSION --pattern "latest.json" --output latest.json --clobber --repo "$REPO"
+
+          $latest = Get-Content latest.json -Raw | ConvertFrom-Json
+          if ($null -eq $latest.platforms) {
+            $latest | Add-Member -NotePropertyName platforms -NotePropertyValue ([pscustomobject]@{}) -Force
+          }
+
+          # Add-or-overwrite both Windows updater keys with the rebuilt zip's
+          # url + signature. Tauri's runtime resolves "windows-x86_64-nsis" first
+          # and falls back to "windows-x86_64", so both must carry the zip.
+          # Linux/macOS entries are left untouched.
+          $winEntry = [pscustomobject]@{ signature = $ZIP_SIG; url = $ZIP_URL }
+          foreach ($key in @('windows-x86_64', 'windows-x86_64-nsis')) {
+            $latest.platforms | Add-Member -NotePropertyName $key -NotePropertyValue $winEntry -Force
+            Write-Host "Set $key -> $ZIP_URL (zip signature)"
+          }
+
+          $latest | ConvertTo-Json -Depth 10 | Set-Content latest.json -NoNewline
+
+          # Re-upload the rebuilt updater artifacts plus the patched latest.json.
+          # The signed setup.exe is uploaded for direct downloads; it has no
+          # updater .sig (it is not an updater artifact).
+          gh release upload $VERSION "$($EXE.FullName)" --clobber --repo "$REPO"
+          gh release upload $VERSION "$($ZIP.FullName)" --clobber --repo "$REPO"
+          gh release upload $VERSION "$($ZIP.FullName).sig" --clobber --repo "$REPO"
+          gh release upload $VERSION latest.json --clobber --repo "$REPO"
+
+          Write-Host "Windows updater entries set to the .nsis.zip with matching signature"
 
   publish-release:
     permissions:

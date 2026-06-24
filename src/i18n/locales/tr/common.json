@@ -104,5 +104,28 @@
     "closeTitle": "Kaydedilmemiş değişiklikler",
     "closeBody": "'{{name}}' belgesinde henüz kaydedilmemiş değişiklikler var.",
     "dontSave": "Kaydetme"
+  },
+  "updates": {
+    "section": "Güncellemeler",
+    "checkButton": "Güncellemeleri denetle",
+    "dialogTitle": "Yazılım güncellemesi",
+    "currentVersion": "Mevcut sürüm",
+    "newVersion": "Yeni sürüm",
+    "available": "Yeni bir sürüm mevcut",
+    "upToDate": "En son sürümü kullanıyorsunuz",
+    "releaseNotes": "Yenilikler",
+    "downloadInstall": "İndir ve kur",
+    "downloading": "İndiriliyor…",
+    "installing": "Kuruluyor…",
+    "restarting": "Yeniden başlatılıyor…",
+    "retry": "Tekrar dene",
+    "error": "Güncelleme sırasında bir sorun oluştu",
+    "checking": "Denetleniyor…",
+    "snapNotice": "Bu sürüm Snap Store üzerinden otomatik olarak güncellenir — hiçbir şey yapmanıza gerek yok.",
+    "debExplanation": "Bir terminalde bu komutu çalıştırarak elle güncelleyin veya en son paketi indirin.",
+    "debCommandLabel": "Kurulum komutu",
+    "copyCommand": "Komutu kopyala",
+    "copied": "Kopyalandı",
+    "openDownloads": "İndirme sayfasını aç"
   }
 }

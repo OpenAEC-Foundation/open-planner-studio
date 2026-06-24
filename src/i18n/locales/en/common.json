@@ -104,5 +104,28 @@
     "closeTitle": "Unsaved changes",
     "closeBody": "'{{name}}' has changes that haven't been saved yet.",
     "dontSave": "Don't save"
+  },
+  "updates": {
+    "section": "Updates",
+    "checkButton": "Check for updates",
+    "dialogTitle": "Software update",
+    "currentVersion": "Current version",
+    "newVersion": "New version",
+    "available": "A new version is available",
+    "upToDate": "You're running the latest version",
+    "releaseNotes": "What's new",
+    "downloadInstall": "Download & install",
+    "downloading": "Downloading…",
+    "installing": "Installing…",
+    "restarting": "Restarting…",
+    "retry": "Try again",
+    "error": "Something went wrong while updating",
+    "checking": "Checking…",
+    "snapNotice": "This version is updated automatically via the Snap Store — you don't need to do anything.",
+    "debExplanation": "Update manually by running this command in a terminal, or download the latest package.",
+    "debCommandLabel": "Installation command",
+    "copyCommand": "Copy command",
+    "copied": "Copied",
+    "openDownloads": "Open downloads page"
   }
 }

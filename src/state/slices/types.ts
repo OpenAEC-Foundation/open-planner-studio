@@ -87,6 +87,7 @@ export interface UIState {
   inlineEditTaskId: string | null;
   showSettingsDialog: boolean;
   showCalendarDialog: boolean;
+  showUpdateDialog: boolean;
   uiTheme: UITheme;
   enableQuarterHourZoom: boolean;
   weekStartDay: WeekStartDay;

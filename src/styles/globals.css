@@ -451,6 +451,16 @@ html, body, #root {
   }
 }
 
+/* Onbepaalde voortgangsbalk (update-download zonder bekende totale grootte).
+   Een smal segment dat heen en weer loopt over de track. */
+@keyframes ops-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.ops-indeterminate-bar {
+  animation: ops-indeterminate 1.2s ease-in-out infinite;
+}
+
 /* ============================================================================
    OpenAEC Component Utility Classes
    Source: DESIGN-SYSTEM.md §3 — herbruikbare patterns voor knoppen, inputs,

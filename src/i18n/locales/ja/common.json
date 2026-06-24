@@ -104,5 +104,28 @@
     "closeTitle": "保存されていない変更",
     "closeBody": "「{{name}}」にはまだ保存されていない変更があります。",
     "dontSave": "保存しない"
+  },
+  "updates": {
+    "section": "アップデート",
+    "checkButton": "アップデートを確認",
+    "dialogTitle": "ソフトウェア更新",
+    "currentVersion": "現在のバージョン",
+    "newVersion": "新しいバージョン",
+    "available": "新しいバージョンが利用できます",
+    "upToDate": "最新バージョンを使用しています",
+    "releaseNotes": "更新内容",
+    "downloadInstall": "ダウンロードしてインストール",
+    "downloading": "ダウンロード中…",
+    "installing": "インストール中…",
+    "restarting": "再起動中…",
+    "retry": "再試行",
+    "error": "更新中に問題が発生しました",
+    "checking": "確認中…",
+    "snapNotice": "このバージョンは Snap Store を通じて自動的に更新されます — 操作は不要です。",
+    "debExplanation": "ターミナルでこのコマンドを実行して手動で更新するか、最新のパッケージをダウンロードしてください。",
+    "debCommandLabel": "インストールコマンド",
+    "copyCommand": "コマンドをコピー",
+    "copied": "コピーしました",
+    "openDownloads": "ダウンロードページを開く"
   }
 }

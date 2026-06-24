@@ -104,5 +104,28 @@
     "closeTitle": "Nicht gespeicherte Änderungen",
     "closeBody": "„{{name}}“ enthält Änderungen, die noch nicht gespeichert wurden.",
     "dontSave": "Nicht speichern"
+  },
+  "updates": {
+    "section": "Updates",
+    "checkButton": "Nach Updates suchen",
+    "dialogTitle": "Software-Update",
+    "currentVersion": "Aktuelle Version",
+    "newVersion": "Neue Version",
+    "available": "Eine neue Version ist verfügbar",
+    "upToDate": "Sie verwenden die neueste Version",
+    "releaseNotes": "Neuerungen",
+    "downloadInstall": "Herunterladen & installieren",
+    "downloading": "Wird heruntergeladen…",
+    "installing": "Wird installiert…",
+    "restarting": "Neustart…",
+    "retry": "Erneut versuchen",
+    "error": "Beim Aktualisieren ist etwas schiefgelaufen",
+    "checking": "Wird geprüft…",
+    "snapNotice": "Diese Version wird automatisch über den Snap Store aktualisiert — Sie müssen nichts tun.",
+    "debExplanation": "Aktualisieren Sie manuell, indem Sie diesen Befehl im Terminal ausführen, oder laden Sie das neueste Paket herunter.",
+    "debCommandLabel": "Installationsbefehl",
+    "copyCommand": "Befehl kopieren",
+    "copied": "Kopiert",
+    "openDownloads": "Download-Seite öffnen"
   }
 }

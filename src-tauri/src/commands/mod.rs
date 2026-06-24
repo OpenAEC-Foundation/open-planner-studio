@@ -22,3 +22,33 @@ pub fn read_file(path: String) -> Result<String, String> {
 pub fn write_file(path: String, contents: String) -> Result<(), String> {
     fs::write(&path, &contents).map_err(|e| format!("Failed to write {}: {}", path, e))
 }
+
+/// Detecteer hoe de app op deze machine geïnstalleerd is, zodat de frontend kan
+/// beslissen óf en hoe de in-app updater mag werken.
+///
+/// Gerechtvaardigde minimale uitzondering op "geen `invoke()` in de frontend":
+/// dit is pure platform-introspectie (env-read), géén domeinlogica. De frontend
+/// kan zelf geen process-env lezen, vandaar deze piepkleine command.
+///
+/// Teruggegeven waarden:
+/// - `"appimage"` — gestart vanuit een AppImage (env `APPIMAGE` gezet); updater
+///   kan in-place vervangen → auto-install OK.
+/// - `"snap"` — gestart binnen een Snap (env `SNAP` gezet); read-only, snapd
+///   updatet zelf → in-app updater overslaan.
+/// - `"deb"` — Linux zonder AppImage/Snap (vermoedelijk .deb/systeempakket);
+///   Tauri-updater kan niet in-place vervangen → toon handmatige instructies.
+/// - `"native"` — Windows/macOS (en overige niet-Linux): de normale updater-flow.
+#[tauri::command]
+pub fn install_kind() -> String {
+    if cfg!(target_os = "linux") {
+        if std::env::var_os("APPIMAGE").is_some() {
+            "appimage".to_string()
+        } else if std::env::var_os("SNAP").is_some() {
+            "snap".to_string()
+        } else {
+            "deb".to_string()
+        }
+    } else {
+        "native".to_string()
+    }
+}

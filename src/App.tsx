@@ -39,6 +39,8 @@ import { TaskDialog } from '@/components/dialogs/TaskDialog';
 import { ProjectInfoDialog } from '@/components/dialogs/ProjectInfoDialog';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
 import { CalendarDialog } from '@/components/dialogs/CalendarDialog';
+import { UpdateDialog } from '@/components/dialogs/UpdateDialog';
+import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
 import { Backstage } from '@/components/backstage/Backstage';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
 import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
@@ -211,6 +213,27 @@ function AppContent() {
     })();
   }, []);
 
+  // Stille opstart-update-check (Tauri-only) — spiegelt het auto-save-patroon:
+  // dynamische import binnen de service, niet-blokkerend. Is er een update, dan
+  // openen we de update-dialog zodat de gebruiker het ziet. Fouten worden in
+  // stille modus genegeerd.
+  const updateChecked = useRef(false);
+  useEffect(() => {
+    if (updateChecked.current) return;
+    updateChecked.current = true;
+    if (!isTauri()) return;
+    // Snap-builds worden door de Snap Store/snapd zelf bijgewerkt — de in-app
+    // auto-check overslaan zodat we de gebruiker niet lastigvallen.
+    getInstallKind()
+      .then(kind => {
+        if (kind === 'snap') return;
+        return checkForUpdates(true).then(info => {
+          if (info) useAppStore.getState().setUI({ showUpdateDialog: true });
+        });
+      })
+      .catch(() => { /* stille check — fouten negeren */ });
+  }, []);
+
   // Determine if we should show the gantt canvas or a full-panel view
   const isFullPanel = activeTab === 'table' || activeTab === 'ifc' || activeTab === 'report';
 
@@ -315,6 +338,7 @@ function AppContent() {
       {(showProjectInfoDialog || showNewProjectDialog) && <ProjectInfoDialog />}
       {showSettingsDialog && <SettingsDialog />}
       {showCalendarDialog && <CalendarDialog />}
+      <UpdateDialog />
     </div>
   );
 }

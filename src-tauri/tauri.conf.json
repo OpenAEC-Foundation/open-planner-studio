@@ -11,6 +11,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["nsis", "deb", "rpm", "appimage", "dmg"],
     "category": "Productivity",
     "icon": [
@@ -54,6 +55,10 @@
   },
   "plugins": {
     "shell": { "open": true },
-    "fs": {}
+    "fs": {},
+    "updater": {
+      "endpoints": ["https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI4QUM4RjA4QTg3QzkwQ0QKUldUTmtIeW9DSStzS0RyRytOY0VQNVBqREY2cm5NakpIMlBnb2ZIVm8rWE12YmI0aTYyUlI0MnMK"
+    }
   }
 }

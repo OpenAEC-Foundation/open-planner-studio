@@ -104,5 +104,28 @@
     "closeTitle": "Modifications non enregistrées",
     "closeBody": "« {{name}} » contient des modifications qui n'ont pas encore été enregistrées.",
     "dontSave": "Ne pas enregistrer"
+  },
+  "updates": {
+    "section": "Mises à jour",
+    "checkButton": "Rechercher des mises à jour",
+    "dialogTitle": "Mise à jour du logiciel",
+    "currentVersion": "Version actuelle",
+    "newVersion": "Nouvelle version",
+    "available": "Une nouvelle version est disponible",
+    "upToDate": "Vous utilisez la dernière version",
+    "releaseNotes": "Nouveautés",
+    "downloadInstall": "Télécharger et installer",
+    "downloading": "Téléchargement…",
+    "installing": "Installation…",
+    "restarting": "Redémarrage…",
+    "retry": "Réessayer",
+    "error": "Une erreur s'est produite lors de la mise à jour",
+    "checking": "Vérification…",
+    "snapNotice": "Cette version est mise à jour automatiquement via le Snap Store — vous n'avez rien à faire.",
+    "debExplanation": "Mettez à jour manuellement en exécutant cette commande dans un terminal, ou téléchargez le dernier paquet.",
+    "debCommandLabel": "Commande d'installation",
+    "copyCommand": "Copier la commande",
+    "copied": "Copié",
+    "openDownloads": "Ouvrir la page de téléchargement"
   }
 }

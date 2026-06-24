@@ -104,5 +104,28 @@
     "closeTitle": "未保存的更改",
     "closeBody": "“{{name}}”有尚未保存的更改。",
     "dontSave": "不保存"
+  },
+  "updates": {
+    "section": "更新",
+    "checkButton": "检查更新",
+    "dialogTitle": "软件更新",
+    "currentVersion": "当前版本",
+    "newVersion": "新版本",
+    "available": "有新版本可用",
+    "upToDate": "您正在使用最新版本",
+    "releaseNotes": "更新内容",
+    "downloadInstall": "下载并安装",
+    "downloading": "正在下载…",
+    "installing": "正在安装…",
+    "restarting": "正在重启…",
+    "retry": "重试",
+    "error": "更新时出现问题",
+    "checking": "正在检查…",
+    "snapNotice": "此版本通过 Snap Store 自动更新 — 您无需执行任何操作。",
+    "debExplanation": "在终端中运行此命令以手动更新，或下载最新的软件包。",
+    "debCommandLabel": "安装命令",
+    "copyCommand": "复制命令",
+    "copied": "已复制",
+    "openDownloads": "打开下载页面"
   }
 }

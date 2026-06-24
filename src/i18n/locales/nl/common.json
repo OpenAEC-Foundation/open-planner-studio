@@ -104,5 +104,28 @@
     "closeTitle": "Niet-opgeslagen wijzigingen",
     "closeBody": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen.",
     "dontSave": "Niet opslaan"
+  },
+  "updates": {
+    "section": "Updates",
+    "checkButton": "Controleren op updates",
+    "dialogTitle": "Software-update",
+    "currentVersion": "Huidige versie",
+    "newVersion": "Nieuwe versie",
+    "available": "Er is een nieuwe versie beschikbaar",
+    "upToDate": "Je gebruikt de nieuwste versie",
+    "releaseNotes": "Wat is er nieuw",
+    "downloadInstall": "Downloaden & installeren",
+    "downloading": "Bezig met downloaden…",
+    "installing": "Bezig met installeren…",
+    "restarting": "Herstarten…",
+    "retry": "Opnieuw proberen",
+    "error": "Er ging iets mis bij het bijwerken",
+    "checking": "Bezig met controleren…",
+    "snapNotice": "Deze versie wordt automatisch via de Snap Store bijgewerkt — je hoeft niets te doen.",
+    "debExplanation": "Werk handmatig bij door dit commando in een terminal uit te voeren, of download het nieuwste pakket.",
+    "debCommandLabel": "Installatiecommando",
+    "copyCommand": "Commando kopiëren",
+    "copied": "Gekopieerd",
+    "openDownloads": "Open downloadpagina"
   }
 }

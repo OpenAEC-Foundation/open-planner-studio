@@ -104,5 +104,28 @@
     "closeTitle": "تغييرات غير محفوظة",
     "closeBody": "يحتوي '{{name}}' على تغييرات لم تُحفظ بعد.",
     "dontSave": "عدم الحفظ"
+  },
+  "updates": {
+    "section": "التحديثات",
+    "checkButton": "التحقق من التحديثات",
+    "dialogTitle": "تحديث البرنامج",
+    "currentVersion": "الإصدار الحالي",
+    "newVersion": "الإصدار الجديد",
+    "available": "يتوفر إصدار جديد",
+    "upToDate": "أنت تستخدم أحدث إصدار",
+    "releaseNotes": "الجديد",
+    "downloadInstall": "تنزيل وتثبيت",
+    "downloading": "جارٍ التنزيل…",
+    "installing": "جارٍ التثبيت…",
+    "restarting": "جارٍ إعادة التشغيل…",
+    "retry": "المحاولة مرة أخرى",
+    "error": "حدث خطأ ما أثناء التحديث",
+    "checking": "جارٍ التحقق…",
+    "snapNotice": "يتم تحديث هذا الإصدار تلقائيًا عبر متجر Snap — لا تحتاج إلى فعل أي شيء.",
+    "debExplanation": "حدّث يدويًا بتشغيل هذا الأمر في الطرفية، أو نزّل أحدث حزمة.",
+    "debCommandLabel": "أمر التثبيت",
+    "copyCommand": "نسخ الأمر",
+    "copied": "تم النسخ",
+    "openDownloads": "فتح صفحة التنزيلات"
   }
 }

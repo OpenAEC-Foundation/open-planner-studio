@@ -24,6 +24,7 @@ export function createDefaultUI(): UIState {
     inlineEditTaskId: null,
     showSettingsDialog: false,
     showCalendarDialog: false,
+    showUpdateDialog: false,
     uiTheme: 'dark',
     enableQuarterHourZoom: false,
     weekStartDay: 'monday',
