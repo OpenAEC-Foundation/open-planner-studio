@@ -155,6 +155,7 @@ function AppContent() {
       if (!isTauri()) return;
       try {
         const { readTextFile, exists, remove } = await import('@tauri-apps/plugin-fs');
+        const { ask } = await import('@tauri-apps/plugin-dialog');
         const { appDataDir, join } = await import('@tauri-apps/api/path');
         const dir = await appDataDir();
         const manifestPath = await join(dir, recoveryManifestName);
@@ -162,7 +163,7 @@ function AppContent() {
         // Nieuw pad: multi-document manifest.
         if (await exists(manifestPath)) {
           const manifest = JSON.parse(await readTextFile(manifestPath)) as RecoveryManifest;
-          const shouldRecover = confirm(t('confirm.restoreRecovery'));
+          const shouldRecover = await ask(t('confirm.restoreRecovery'), { kind: 'warning' });
           if (shouldRecover) {
             const restored: RecoveryDocInput[] = [];
             for (const d of manifest.documents) {
@@ -194,7 +195,7 @@ function AppContent() {
         const legacyPath = await join(dir, legacyRecoveryFile);
         if (await exists(legacyPath)) {
           const content = await readTextFile(legacyPath);
-          const shouldRecover = confirm(t('confirm.restoreRecovery'));
+          const shouldRecover = await ask(t('confirm.restoreRecovery'), { kind: 'warning' });
           if (shouldRecover) {
             try {
               useAppStore.getState().loadState(readIFC(content));
