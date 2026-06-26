@@ -128,11 +128,15 @@
       "clear": "Alles wissen"
     },
     "instructionTitle": "Bijna klaar — je screenshot staat op het klembord.",
-    "instructionStep1": "GitHub opent nu in je browser (log in als dat nog niet zo is).",
+    "instructionStep1": "Klik hieronder op 'OK, ga naar GitHub' — de issue-pagina opent in je browser (log in als dat nog niet zo is).",
     "instructionStep2": "Klik in het grote tekstvak van het issue.",
     "instructionStep3": "Druk op Ctrl + V (Cmd + V op Mac) — je screenshot wordt geüpload en verschijnt in de tekst.",
     "instructionStep4": "Klik onderaan op 'Submit new issue'.",
-    "instructionFallback": "Lukt plakken niet? We hebben de screenshot ook opgeslagen op {{path}} — sleep dat bestand in het tekstvak."
+    "instructionFallback": "Lukt plakken niet? We hebben de screenshot ook opgeslagen op {{path}} — sleep dat bestand in het tekstvak.",
+    "openButton": "Geef feedback",
+    "openGithub": "OK, ga naar GitHub",
+    "annotate": "Annoteren",
+    "editorDone": "Klaar"
   },
   "updates": {
     "section": "Updates",

@@ -128,11 +128,15 @@
       "clear": "Clear all"
     },
     "instructionTitle": "Almost done — your screenshot is on the clipboard.",
-    "instructionStep1": "GitHub is now opening in your browser (sign in if you haven't already).",
+    "instructionStep1": "Click 'OK, go to GitHub' below — the issue page opens in your browser (sign in if you haven't already).",
     "instructionStep2": "Click inside the large text area of the issue.",
     "instructionStep3": "Press Ctrl + V (Cmd + V on Mac) — your screenshot will be uploaded and appear in the text.",
     "instructionStep4": "Click 'Submit new issue' at the bottom.",
-    "instructionFallback": "Can't paste? We also saved the screenshot to {{path}} — drag that file into the text area."
+    "instructionFallback": "Can't paste? We also saved the screenshot to {{path}} — drag that file into the text area.",
+    "openButton": "Give feedback",
+    "openGithub": "OK, go to GitHub",
+    "annotate": "Annotate",
+    "editorDone": "Done"
   },
   "updates": {
     "section": "Updates",

@@ -1,0 +1,209 @@
+/* ScreenshotAnnotator — thumbnail + bijna-schermvullende editor */
+
+/* ── Thumbnail in de dialoog ──────────────────────────────────────────────── */
+.screenshot-annotator-thumbnail {
+  position: relative;
+  overflow: hidden;
+  max-height: 260px;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background: #111;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.screenshot-annotator-thumb-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* "Annoteren"-overlay-knop op de thumbnail */
+.screenshot-annotator-open-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(20, 20, 20, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+
+.screenshot-annotator-open-btn:hover {
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
+  transform: translateY(-1px);
+}
+
+/* ── Bijna-schermvullende editor-overlay ──────────────────────────────────── */
+.annotator-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.annotator-editor {
+  width: 92vw;
+  height: 90vh;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-pop);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Toolbar */
+.annotator-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--theme-surface-alt);
+  border-bottom: 1px solid var(--theme-border);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.annotator-toolbar-spacer {
+  flex: 1;
+}
+
+/* Canvas-ruimte */
+.annotator-canvas-area {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  padding: 12px;
+}
+
+/*
+  De inner-wrapper krimpt naar de natuurlijke grootte van de img
+  (width: auto via max-width/height). position:relative laat het canvas
+  en het tekst-invoerveld er exact overheen liggen.
+*/
+.annotator-canvas-inner {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  max-height: 100%;
+  line-height: 0;
+}
+
+.annotator-editor-img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(90vh - 120px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.annotator-editor-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+/* Inline tekst-invoer */
+.annotator-text-input {
+  position: absolute;
+  z-index: 2;
+  min-width: 80px;
+  padding: 0 2px;
+  margin: 0;
+  font-family: sans-serif;
+  font-weight: bold;
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px dashed rgba(255, 255, 255, 0.7);
+  border-radius: 2px;
+  outline: none;
+}
+
+/* ── Gedeelde annotatie-knoppen (toolbar) ─────────────────────────────────── */
+.feedback-ann-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--theme-text);
+  padding: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.feedback-ann-btn:hover {
+  background: var(--theme-hover);
+  border-color: var(--theme-border);
+}
+
+.feedback-ann-btn.active {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: var(--theme-accent);
+  color: var(--theme-accent);
+}
+
+.feedback-ann-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.feedback-ann-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--theme-border);
+  margin: 0 3px;
+}
+
+.feedback-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  /* Neutrale ring: houdt de witte swatch zichtbaar in het lichte thema én de
+     zwarte swatch in het donkere thema (contrast op zowel wit als zwart). */
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.6);
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+  padding: 0;
+}
+
+.feedback-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.feedback-color-swatch.active {
+  border-color: var(--theme-text);
+  transform: scale(1.2);
+}

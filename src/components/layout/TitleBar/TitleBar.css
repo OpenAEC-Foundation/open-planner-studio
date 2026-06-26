@@ -104,6 +104,35 @@
   color: var(--theme-text-dim);
 }
 
+/* Feedback-tekstknop (rechts, vlak vóór de vensterknoppen) */
+.title-bar-feedback-btn {
+  -webkit-app-region: no-drag;
+  height: 24px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--theme-text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.title-bar-feedback-btn:hover {
+  background: var(--theme-titlebar-btn-hover);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+.title-bar-feedback-btn:active {
+  background: var(--theme-titlebar-btn-active);
+}
+
 /* Window Controls */
 .window-controls {
   display: flex;

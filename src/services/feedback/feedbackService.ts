@@ -28,6 +28,9 @@ export interface FeedbackPayload {
 export interface SendResult {
   /** Pad naar het opgeslagen bestand (alleen Tauri-build), of null. */
   savedPath: string | null;
+  /** Vooraf-ingevulde GitHub new-issue-URL. Door de UI geopend: pad A meteen,
+   *  pad B pas nadat de gebruiker in de plak-instructie op "OK" klikt. */
+  githubUrl: string;
 }
 
 /**
@@ -199,8 +202,11 @@ async function saveScreenshot(dataUrl: string): Promise<string | null> {
  * Open een URL in de standaardbrowser.
  * - Tauri: @tauri-apps/plugin-shell → open().
  * - Web: window.open().
+ *
+ * Geëxporteerd zodat de dialoog de GitHub-pagina pas opent op het juiste moment
+ * (pad A meteen na versturen, pad B nadat de gebruiker op "OK" klikt).
  */
-async function openUrl(url: string): Promise<void> {
+export async function openFeedbackUrl(url: string): Promise<void> {
   if (isTauri()) {
     try {
       const { open } = await import('@tauri-apps/plugin-shell');
@@ -214,23 +220,24 @@ async function openUrl(url: string): Promise<void> {
 }
 
 /**
- * Stuur feedback naar GitHub.
+ * Bereid de feedback-verzending voor en geef het resultaat terug.
+ * Opent ZELF de GitHub-URL NIET — dat doet de dialoog op het juiste moment
+ * (pad A meteen, pad B pas na "OK"), via openFeedbackUrl().
  *
- * PAD A (geen screenshot): bouw URL, open in browser, klaar.
+ * PAD A (geen screenshot): bouw alleen de URL.
  * PAD B (met screenshot):
- *   1. Kopieer naar klembord (Tauri: RGBA; web: ClipboardItem).
+ *   1. Kopieer naar klembord (Tauri: RGBA via Image.new; web: ClipboardItem).
  *   2. Sla op als bestand (Tauri: appDataDir/feedback/; web: download).
- *   3. Open GitHub-URL in browser.
- *   4. Retourneer savedPath zodat de UI de plak-instructie kan tonen.
+ *   3. Retourneer savedPath + githubUrl zodat de UI de plak-instructie kan tonen
+ *      en de URL pas na "OK" opent.
  */
 export async function sendFeedback(payload: FeedbackPayload): Promise<SendResult> {
   const os = await getPlatform();
   const url = buildGitHubUrl(payload, os);
 
   if (!payload.screenshotDataUrl) {
-    // PAD A: geen screenshot
-    await openUrl(url);
-    return { savedPath: null };
+    // PAD A: geen screenshot — niets klaarzetten; de dialoog opent de URL meteen.
+    return { savedPath: null, githubUrl: url };
   }
 
   // PAD B: met screenshot
@@ -238,14 +245,11 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<SendResult
   try {
     await copyScreenshotToClipboard(payload.screenshotDataUrl);
   } catch {
-    /* Klembord mislukt — doorgaan met opslaan + openen */
+    /* Klembord mislukt — doorgaan met opslaan */
   }
 
-  // b) Opslaan als bestand
+  // b) Opslaan als bestand (vangnet als plakken faalt)
   const savedPath = await saveScreenshot(payload.screenshotDataUrl);
 
-  // c) URL openen
-  await openUrl(url);
-
-  return { savedPath };
+  return { savedPath, githubUrl: url };
 }
