@@ -157,8 +157,8 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<ID>${uid}</ID>`);
     lines.push(`${indent(3)}<Name>${escapeXML(task.name)}</Name>`);
     lines.push(`${indent(3)}<Duration>${durationToISO8601(task.time.scheduleDuration, calendar.hoursPerDay)}</Duration>`);
-    lines.push(`${indent(3)}<Start>${formatMSPDateTime(task.time.scheduleStart)}</Start>`);
-    lines.push(`${indent(3)}<Finish>${formatMSPDateTime(task.time.scheduleFinish)}</Finish>`);
+    lines.push(`${indent(3)}<Start>${formatMSPDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
+    lines.push(`${indent(3)}<Finish>${formatMSPDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
     lines.push(`${indent(3)}<WBS>${escapeXML(task.wbsCode)}</WBS>`);
     lines.push(`${indent(3)}<OutlineLevel>${getOutlineLevel(task.wbsCode)}</OutlineLevel>`);
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);

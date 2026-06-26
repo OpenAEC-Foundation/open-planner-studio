@@ -73,11 +73,11 @@ export function buildThumbnail(tasks: Task[], identityColor: string, maxBars = 9
   const points: { start: number; end: number; ms: boolean; crit: boolean }[] = [];
   for (const t of tasks) {
     if (t.childIds.length > 0) continue; // alleen bladtaken/mijlpalen
-    const startStr = t.time.scheduleStart || t.time.earlyStart;
+    const startStr = t.time.earlyStart || t.time.scheduleStart;
     if (!startStr) continue;
     const start = Date.parse(startStr);
     if (Number.isNaN(start)) continue;
-    const finStr = t.time.scheduleFinish || t.time.earlyFinish;
+    const finStr = t.time.earlyFinish || t.time.scheduleFinish;
     const endRaw = finStr ? Date.parse(finStr) : start;
     const end = Number.isNaN(endRaw) ? start : Math.max(endRaw, start);
     points.push({ start, end, ms: t.isMilestone, crit: t.time.isCritical });

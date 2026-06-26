@@ -37,8 +37,12 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
           task.time.totalFloat = r.totalFloat;
           task.time.freeFloat = r.freeFloat;
           task.time.isCritical = r.isCritical;
-          task.time.scheduleStart = r.earlyStart;
-          task.time.scheduleFinish = r.earlyFinish;
+          // BEWUST GEEN scheduleStart/scheduleFinish meer terugschrijven: scheduleStart is de
+          // GEPLANDE anker (waarop de forward-pass voortbouwt) en moet stabiel blijven. Schreven
+          // we de berekende earlyStart erin terug, dan bleef een taak na het verwijderen van een
+          // relatie op z'n oude (gedrifte) datum hangen i.p.v. terug naar het anker te gaan.
+          // De berekende planning leeft in earlyStart/earlyFinish; alle weergave/export gebruikt
+          // `earlyStart || scheduleStart`.
         }
       }
 
@@ -59,9 +63,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
           const starts = children.map(c => c.time.earlyStart).sort();
           const finishes = children.map(c => c.time.earlyFinish).sort();
           task.time.earlyStart = starts[0];
-          task.time.scheduleStart = starts[0];
           task.time.earlyFinish = finishes[finishes.length - 1];
-          task.time.scheduleFinish = finishes[finishes.length - 1];
           task.time.isCritical = children.some(c => c.time.isCritical);
 
           // Ook de LATE datums en speling oprollen — anders bleven die op de

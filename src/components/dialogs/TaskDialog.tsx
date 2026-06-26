@@ -41,7 +41,8 @@ export function TaskDialog() {
       setTaskType(editingTask.taskType);
       setIsMilestone(editingTask.isMilestone);
       setDuration(editingTask.time.scheduleDuration);
-      setStartDate(editingTask.time.scheduleStart);
+      // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
+      setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
       setParentId(editingTask.parentId || '');
     } else {
       setName('');
@@ -85,17 +86,22 @@ export function TaskDialog() {
     if (!name.trim()) return;
 
     if (editingTask) {
+      // scheduleStart (de geplande anker) alléén bijwerken als de gebruiker de startdatum
+      // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
+      // en de drift na herberekenen herintroduceren.
+      const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
+      const time = {
+        ...editingTask.time,
+        scheduleDuration: isMilestone ? 0 : duration,
+        ...(startDate !== shownStart ? { scheduleStart: startDate } : {}),
+      };
       updateTask(editingTask.id, {
         name,
         description,
         wbsCode,
         taskType,
         isMilestone,
-        time: {
-          ...editingTask.time,
-          scheduleDuration: isMilestone ? 0 : duration,
-          scheduleStart: startDate,
-        },
+        time,
       });
     } else {
       addTask({

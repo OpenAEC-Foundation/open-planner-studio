@@ -128,8 +128,8 @@ export function writeP6XML(
     lines.push(`${indent(2)}<Type>${taskTypeToP6(task)}</Type>`);
     lines.push(`${indent(2)}<Status>${taskStatusToP6(task)}</Status>`);
     lines.push(`${indent(2)}<PlannedDuration>${durationToP6Hours(task.time.scheduleDuration, calendar.hoursPerDay)}</PlannedDuration>`);
-    lines.push(`${indent(2)}<PlannedStartDate>${formatP6DateTime(task.time.scheduleStart)}</PlannedStartDate>`);
-    lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(task.time.scheduleFinish)}</PlannedFinishDate>`);
+    lines.push(`${indent(2)}<PlannedStartDate>${formatP6DateTime(task.time.earlyStart || task.time.scheduleStart)}</PlannedStartDate>`);
+    lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(task.time.earlyFinish || task.time.scheduleFinish)}</PlannedFinishDate>`);
     if (task.time.completion > 0) {
       lines.push(`${indent(2)}<PhysicalPercentComplete>${Math.round(task.time.completion * 100)}</PhysicalPercentComplete>`);
     }

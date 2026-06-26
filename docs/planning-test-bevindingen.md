@@ -142,14 +142,16 @@ zijn FS/SS/FF/SF **ondergrenzen** ("niet eerder dan…"), geen gelijkheden — e
 dus terug naar de anker. De oorspronkelijke (geklemde) berekening was correct; die is behouden, met een
 expliciet regressiegeval (`bnd-sf-lowerbound-at-anchor`).
 
-### Eén open punt (vereist een productbeslissing, niet blind gefixt)
+### `scheduleStart`-drift bij herberekenen — opgelost
 
-- **`scheduleStart`-drift bij herberekenen** (pre-existing, commit b0188a9). `runCPM` schrijft de
-  berekende start terug in `scheduleStart`; verwijder je daarna een relatie en herbereken je, dan blijft
-  de taak op de oude (gedrifte) datum hangen i.p.v. terug naar het anker te gaan. De zuivere fix vereist
-  dat `scheduleStart` de *geplande* anker blijft en alle exporters (CSV/MS Project/P6) naar de berekende
-  `earlyStart` overschakelen — een bredere wijziging met export-semantiek-impact. Bewust niet blind
-  doorgevoerd; staat los van de rekencorrectheid en wordt apart afgestemd.
+(pre-existing, commit b0188a9.) `runCPM` schreef de berekende start terug in `scheduleStart`; verwijder
+je daarna een relatie en herbereken je, dan bleef de taak op de oude (gedrifte) datum hangen i.p.v. terug
+naar het anker te gaan. **Fix:** `scheduleStart` is nu de *stabiele geplande anker* (niet meer
+overschreven door `runCPM`); de berekende planning leeft in `earlyStart/earlyFinish`. Weergave gebruikt
+al `earlyStart || scheduleStart`; exporters (CSV/MS Project/P6) en de recovery-helper zijn meegeschakeld,
+en de `TaskDialog` werkt `scheduleStart` alléén bij als de gebruiker de start daadwerkelijk wijzigt.
+Geverifieerd in de echte app: na het verwijderen van een relatie en herberekenen schuift de taak terug
+naar het anker; herhaald berekenen is idempotent.
 
 ---
 
