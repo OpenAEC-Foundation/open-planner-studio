@@ -25,6 +25,7 @@
     "os:default",
     "updater:default",
     "process:allow-restart",
-    "process:allow-exit"
+    "process:allow-exit",
+    "clipboard-manager:allow-write-image"
   ]
 }

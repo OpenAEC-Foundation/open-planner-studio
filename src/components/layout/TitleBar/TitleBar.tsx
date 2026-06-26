@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
 import {
-  FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings,
+  FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings, MessageSquarePlus,
 } from 'lucide-react';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 
@@ -101,6 +101,13 @@ export function TitleBar() {
             onClick={() => setUI({ showSettingsDialog: true })}
           >
             <Settings size={16} />
+          </button>
+          <button
+            className="quick-access-btn"
+            title={tCommon('feedback.buttonTooltip')}
+            onClick={() => setUI({ showFeedbackDialog: true })}
+          >
+            <MessageSquarePlus size={16} />
           </button>
         </div>
       </div>

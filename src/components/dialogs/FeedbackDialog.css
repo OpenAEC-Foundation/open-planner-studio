@@ -1,0 +1,341 @@
+/* FeedbackDialog — overlay + paneel */
+
+.feedback-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.feedback-dialog {
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-pop);
+  display: flex;
+  flex-direction: column;
+  width: 580px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+/* Header */
+.feedback-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-surface);
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.feedback-dialog-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text);
+}
+
+.feedback-dialog-header .modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--theme-text-dim);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: background 0.12s, color 0.12s;
+}
+
+.feedback-dialog-header .modal-close-btn:hover {
+  background: #e81123;
+  color: white;
+}
+
+.feedback-dialog-header .modal-close-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Body */
+.feedback-dialog-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Type-schakelaar */
+.feedback-type-row {
+  display: flex;
+  gap: 8px;
+}
+
+.feedback-type-btn {
+  flex: 1;
+  padding: 7px 12px;
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--theme-text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.feedback-type-btn:hover {
+  background: var(--theme-hover);
+}
+
+.feedback-type-btn.active {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: var(--theme-accent);
+  color: var(--theme-accent);
+  font-weight: 600;
+}
+
+/* Veldlabels + inputs */
+.feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feedback-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.feedback-input,
+.feedback-textarea {
+  background: var(--theme-surface-hover, var(--theme-surface-alt));
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+  color: var(--theme-text);
+  font-size: 12px;
+  padding: 7px 10px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.12s;
+}
+
+.feedback-input:focus,
+.feedback-textarea:focus {
+  outline: none;
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.15);
+}
+
+.feedback-textarea {
+  min-height: 80px;
+}
+
+/* Screenshot-schakelaar */
+.feedback-screenshot-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.feedback-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--theme-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.feedback-toggle-label input[type="checkbox"] {
+  accent-color: var(--theme-accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* Status-meldingen */
+.feedback-capturing {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  font-style: italic;
+}
+
+.feedback-error {
+  font-size: 11px;
+  color: var(--theme-danger, #e81123);
+  padding: 6px 10px;
+  background: rgba(232, 17, 35, 0.08);
+  border: 1px solid rgba(232, 17, 35, 0.25);
+  border-radius: var(--radius-md);
+}
+
+/* Screenshot-sectie */
+.feedback-screenshot-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+/* Annotatiebalk */
+.feedback-annotation-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: var(--theme-surface-alt);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.feedback-ann-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--theme-text);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.feedback-ann-btn:hover {
+  background: var(--theme-hover);
+  border-color: var(--theme-border);
+}
+
+.feedback-ann-btn.active {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: var(--theme-accent);
+  color: var(--theme-accent);
+}
+
+.feedback-ann-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.feedback-ann-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--theme-border);
+  margin: 0 3px;
+}
+
+.feedback-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  /* Neutrale ring: houdt de witte swatch zichtbaar in het lichte thema én de
+     zwarte swatch in het donkere thema (contrast op zowel wit als zwart). */
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.6);
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+  padding: 0;
+}
+
+.feedback-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.feedback-color-swatch.active {
+  border-color: var(--theme-text);
+  transform: scale(1.2);
+}
+
+/* Preview + annotatie-canvas overlay */
+.feedback-preview-container {
+  position: relative;
+  overflow: auto;
+  max-height: 260px;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background: #111;
+  flex-shrink: 0;
+}
+
+.feedback-preview-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.feedback-annotation-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+/* Bevestigingsstap */
+.feedback-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.feedback-confirm-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text);
+  margin: 0;
+}
+
+.feedback-confirm-steps {
+  margin: 0;
+  /* Native <ol>-nummering tonen: GEEN display:flex (dat verwijdert de
+     lijstmarkers) — de gebruiker wil duidelijke, genummerde stappen. */
+  padding-left: 20px;
+  list-style: decimal;
+  font-size: 12px;
+  color: var(--theme-text);
+  line-height: 1.5;
+}
+
+.feedback-confirm-steps li {
+  margin-bottom: 6px;
+}
+
+.feedback-confirm-fallback {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--theme-surface-alt);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  line-height: 1.5;
+}
+
+/* Footer */
+.feedback-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--theme-border);
+  flex-shrink: 0;
+}

@@ -105,6 +105,35 @@
     "closeBody": "'{{name}}' heeft wijzigingen die nog niet zijn opgeslagen.",
     "dontSave": "Niet opslaan"
   },
+  "feedback": {
+    "buttonTooltip": "Feedback geven",
+    "title": "Feedback geven",
+    "typeBug": "🐞 Bug",
+    "typeFeature": "✨ Feature request",
+    "fieldTitle": "Titel",
+    "fieldDescription": "Omschrijving",
+    "attachScreenshot": "📷 Screenshot bijvoegen",
+    "capturing": "Screenshot maken…",
+    "captureFailed": "Screenshot maken mislukt. Feedback kan nog steeds zonder screenshot worden verstuurd.",
+    "submit": "Verstuur naar GitHub",
+    "cancel": "Annuleren",
+    "close": "Sluiten",
+    "tools": {
+      "arrow": "Pijl",
+      "rectangle": "Rechthoek",
+      "pen": "Pen",
+      "text": "Tekst",
+      "color": "Kleur",
+      "undo": "Ongedaan maken",
+      "clear": "Alles wissen"
+    },
+    "instructionTitle": "Bijna klaar — je screenshot staat op het klembord.",
+    "instructionStep1": "GitHub opent nu in je browser (log in als dat nog niet zo is).",
+    "instructionStep2": "Klik in het grote tekstvak van het issue.",
+    "instructionStep3": "Druk op Ctrl + V (Cmd + V op Mac) — je screenshot wordt geüpload en verschijnt in de tekst.",
+    "instructionStep4": "Klik onderaan op 'Submit new issue'.",
+    "instructionFallback": "Lukt plakken niet? We hebben de screenshot ook opgeslagen op {{path}} — sleep dat bestand in het tekstvak."
+  },
   "updates": {
     "section": "Updates",
     "checkButton": "Controleren op updates",

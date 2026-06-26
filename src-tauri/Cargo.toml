@@ -12,6 +12,7 @@ tauri-plugin-store = "2"
 tauri-plugin-os = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-clipboard-manager = "2"
 # Behouden voor de native command-escape-hatch (src/commands/mod.rs): payload-
 # (de)serialisatie zodra die commands gestructureerde data gaan dragen.
 serde = { version = "1", features = ["derive"] }

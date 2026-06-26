@@ -100,4 +100,5 @@ export interface UIState {
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
+  showFeedbackDialog: boolean;              // session — feedback-dialoog open
 }

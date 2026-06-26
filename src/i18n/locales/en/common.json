@@ -105,6 +105,35 @@
     "closeBody": "'{{name}}' has changes that haven't been saved yet.",
     "dontSave": "Don't save"
   },
+  "feedback": {
+    "buttonTooltip": "Send feedback",
+    "title": "Send feedback",
+    "typeBug": "🐞 Bug",
+    "typeFeature": "✨ Feature request",
+    "fieldTitle": "Title",
+    "fieldDescription": "Description",
+    "attachScreenshot": "📷 Attach screenshot",
+    "capturing": "Capturing screenshot…",
+    "captureFailed": "Screenshot capture failed. You can still send feedback without a screenshot.",
+    "submit": "Send to GitHub",
+    "cancel": "Cancel",
+    "close": "Close",
+    "tools": {
+      "arrow": "Arrow",
+      "rectangle": "Rectangle",
+      "pen": "Pen",
+      "text": "Text",
+      "color": "Color",
+      "undo": "Undo",
+      "clear": "Clear all"
+    },
+    "instructionTitle": "Almost done — your screenshot is on the clipboard.",
+    "instructionStep1": "GitHub is now opening in your browser (sign in if you haven't already).",
+    "instructionStep2": "Click inside the large text area of the issue.",
+    "instructionStep3": "Press Ctrl + V (Cmd + V on Mac) — your screenshot will be uploaded and appear in the text.",
+    "instructionStep4": "Click 'Submit new issue' at the bottom.",
+    "instructionFallback": "Can't paste? We also saved the screenshot to {{path}} — drag that file into the text area."
+  },
   "updates": {
     "section": "Updates",
     "checkButton": "Check for updates",

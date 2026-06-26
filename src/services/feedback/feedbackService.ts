@@ -1,0 +1,243 @@
+/**
+ * Feedback-service — niet-UI-logica voor het feedback-systeem.
+ *
+ * Verantwoordelijkheden:
+ * - GitHub-issue-URL bouwen (title, labels, body)
+ * - Screenshot naar klembord kopiëren (web: ClipboardItem PNG; Tauri: raw-RGBA-weg)
+ * - Screenshot opslaan als bestand (Tauri: appDataDir/feedback/; web: download-anchor)
+ * - URL openen in de browser (Tauri: shell-open; web: window.open)
+ *
+ * KRITIEK: alle @tauri-apps/*-imports zijn DYNAMISCH en gated achter isTauri().
+ */
+
+import { isTauri } from '@/utils/platform';
+import i18n from '@/i18n/config';
+
+export const FEEDBACK_REPO = 'OpenAEC-Foundation/open-planner-studio';
+
+export type FeedbackType = 'bug' | 'feature';
+
+export interface FeedbackPayload {
+  type: FeedbackType;
+  title: string;
+  description: string;
+  /** Volledig geflattende PNG als dataURL (screenshot + annotaties), of null. */
+  screenshotDataUrl: string | null;
+}
+
+export interface SendResult {
+  /** Pad naar het opgeslagen bestand (alleen Tauri-build), of null. */
+  savedPath: string | null;
+}
+
+/**
+ * Bouw de GitHub new-issue-URL.
+ * De body verschilt naargelang er een screenshot is (PAD A vs PAD B).
+ */
+function buildGitHubUrl(payload: FeedbackPayload, os: string): string {
+  const label = payload.type === 'bug' ? 'bug' : 'enhancement';
+  const typeLabel = payload.type === 'bug' ? 'Bug' : 'Feature request';
+  const locale = i18n.language;
+
+  let body: string;
+  if (payload.screenshotDataUrl) {
+    // PAD B — met screenshot-plak-instructie in de body
+    body =
+      `### Omschrijving\n${payload.description}\n\n` +
+      `### 📎 Screenshot\n> Plak hier je screenshot met **Ctrl + V** (Cmd + V op Mac).\n\n` +
+      `---\nType: ${typeLabel} · Open Planner Studio v${__APP_VERSION__} · ${os} · ${locale}`;
+  } else {
+    // PAD A — zonder screenshot-blok
+    body =
+      `### Omschrijving\n${payload.description}\n\n` +
+      `---\nType: ${typeLabel} · Open Planner Studio v${__APP_VERSION__} · ${os} · ${locale}`;
+  }
+
+  const enc = encodeURIComponent;
+  return `https://github.com/${FEEDBACK_REPO}/issues/new?title=${enc(payload.title)}&labels=${enc(label)}&body=${enc(body)}`;
+}
+
+/**
+ * Haal het OS-platform op.
+ * Tauri: @tauri-apps/plugin-os → platform().
+ * Web: navigator.platform (beperkt, maar voldoende als fallback).
+ */
+async function getPlatform(): Promise<string> {
+  if (isTauri()) {
+    try {
+      const { platform } = await import('@tauri-apps/plugin-os');
+      return platform();
+    } catch {
+      /* terugval */
+    }
+  }
+  return navigator.platform || 'unknown';
+}
+
+/**
+ * Maak een PNG Blob van een dataURL.
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, b64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/png';
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
+/**
+ * Haal raw RGBA-bytes op uit een dataURL via een offscreen canvas.
+ * Dit is het formaat dat writeImage() van plugin-clipboard-manager verwacht:
+ * aaneengesloten Uint8Array met [R, G, B, A, R, G, B, A, ...] in row-major
+ * volgorde van boven naar beneden (= wat canvas.getImageData() levert).
+ *
+ * CLIPBOARD-FORMAAT: we geven RAW RGBA-bytes door aan Tauri writeImage(),
+ * NIET een PNG-blob/dataURL. Reden: de Tauri plugin-clipboard-manager API
+ * accepteert Uint8Array als RGBA-pixeldata (zie de typedef-example met
+ * `[255, 0, 0, 255, ...]`), geen PNG-binair. Een Image-object van
+ * @tauri-apps/api/image zou ook RGBA-data intern gebruiken.
+ */
+async function getRgbaFromDataUrl(dataUrl: string): Promise<{ data: Uint8Array; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('No 2D context')); return; }
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+      resolve({ data: imageData.data as unknown as Uint8Array, width: img.width, height: img.height });
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Kopieer de screenshot naar het klembord.
+ * - Tauri: writeImage() met raw RGBA-bytes (niet PNG-blob).
+ * - Web: navigator.clipboard.write() met ClipboardItem PNG.
+ */
+async function copyToClipboard(dataUrl: string): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { writeImage } = await import('@tauri-apps/plugin-clipboard-manager');
+      // CLIPBOARD-FORMAAT: RAW RGBA Uint8Array (geen PNG). Zie getRgbaFromDataUrl.
+      const { data } = await getRgbaFromDataUrl(dataUrl);
+      await writeImage(data);
+    } catch (err) {
+      console.warn('Tauri clipboard write failed:', err);
+      throw err;
+    }
+  } else {
+    // Web-build: ClipboardItem met PNG blob.
+    const blob = dataUrlToBlob(dataUrl);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+  }
+}
+
+/**
+ * Sla de screenshot op als bestand.
+ * - Tauri: schrijf naar appDataDir/feedback/feedback-<timestamp>.png.
+ * - Web: trigger een download van de PNG via een anchor.
+ * @returns Het opgeslagen pad (Tauri) of null (web).
+ */
+async function saveScreenshot(dataUrl: string): Promise<string | null> {
+  if (isTauri()) {
+    try {
+      const { writeFile, mkdir } = await import('@tauri-apps/plugin-fs');
+      const { appDataDir, join } = await import('@tauri-apps/api/path');
+      const dir = await appDataDir();
+      const feedbackDir = await join(dir, 'feedback');
+
+      try {
+        await mkdir(feedbackDir, { recursive: true });
+      } catch {
+        /* map bestaat al — negeren */
+      }
+
+      const filename = `feedback-${Date.now()}.png`;
+      const filepath = await join(feedbackDir, filename);
+
+      // Converteer dataURL naar Uint8Array voor binair schrijven.
+      const [, b64] = dataUrl.split(',');
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      await writeFile(filepath, bytes);
+      return filepath;
+    } catch (err) {
+      console.warn('Screenshot opslaan mislukt:', err);
+      return null;
+    }
+  } else {
+    // Web-build: browser-download.
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `feedback-${Date.now()}.png`;
+    a.click();
+    return null;
+  }
+}
+
+/**
+ * Open een URL in de standaardbrowser.
+ * - Tauri: @tauri-apps/plugin-shell → open().
+ * - Web: window.open().
+ */
+async function openUrl(url: string): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { open } = await import('@tauri-apps/plugin-shell');
+      await open(url);
+    } catch {
+      window.open(url, '_blank', 'noopener');
+    }
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+
+/**
+ * Stuur feedback naar GitHub.
+ *
+ * PAD A (geen screenshot): bouw URL, open in browser, klaar.
+ * PAD B (met screenshot):
+ *   1. Kopieer naar klembord (Tauri: RGBA; web: ClipboardItem).
+ *   2. Sla op als bestand (Tauri: appDataDir/feedback/; web: download).
+ *   3. Open GitHub-URL in browser.
+ *   4. Retourneer savedPath zodat de UI de plak-instructie kan tonen.
+ */
+export async function sendFeedback(payload: FeedbackPayload): Promise<SendResult> {
+  const os = await getPlatform();
+  const url = buildGitHubUrl(payload, os);
+
+  if (!payload.screenshotDataUrl) {
+    // PAD A: geen screenshot
+    await openUrl(url);
+    return { savedPath: null };
+  }
+
+  // PAD B: met screenshot
+  // a) Klembord
+  try {
+    await copyToClipboard(payload.screenshotDataUrl);
+  } catch {
+    /* Klembord mislukt — doorgaan met opslaan + openen */
+  }
+
+  // b) Opslaan als bestand
+  const savedPath = await saveScreenshot(payload.screenshotDataUrl);
+
+  // c) URL openen
+  await openUrl(url);
+
+  return { savedPath };
+}

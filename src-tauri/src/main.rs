@@ -11,6 +11,7 @@ fn main() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         // Bewuste native IPC-escape-hatch — `read_file`/`write_file` zijn vandaag
         // ongebruikt door de frontend (die gebruikt de JS-fs/dialog-plugins). Zie
         // commands/mod.rs voordat je ze verwijdert. `install_kind` is wél in
