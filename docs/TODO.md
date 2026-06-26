@@ -13,18 +13,27 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ### Distributie & Release
 
-#### Snap-packaging (worktree `snapzooi`)
-Zie [ontwerp](superpowers/specs/2026-06-26-snap-packaging-design.md). Snap werkt nu
-niet: `snap.yml` is `workflow_dispatch`-only, niet aan de release gekoppeld, en `sed`-t
-een `snap/snapcraft.yaml` die niet bestaat → nooit groen, geen `.snap` op `v2026.6.0`.
-- [ ] `snap/snapcraft.yaml` aanmaken (core22, strict, gnome-extensie, deb herverpakken)
-- [ ] `snap.yml` herschrijven: trigger op tag-push + dispatch, deb downloaden i.p.v.
-      herbouwen, `.snap` als release-asset, Store-publish gated op secret
-- [ ] **Verificatie:** `workflow_dispatch`-run tegen `v2026.6.0` → groene build +
-      downloadbaar `.snap`-artifact (zonder nieuwe tag/release)
-- [ ] Follow-up: in-app updater overslaan binnen de snap (env `SNAP`)
-- [ ] Follow-up (eigenaar): `snapcraft register open-planner-studio` + secret
-      `SNAPCRAFT_STORE_CREDENTIALS` toevoegen om live te gaan
+#### Snap-packaging — follow-ups
+Snap-packaging is werkend en zit op `main` (zie changelog +
+[ontwerp](superpowers/specs/2026-06-26-snap-packaging-design.md)): `snap/snapcraft.yaml`
+(core22, strict, gnome-extensie) herverpakt de release-deb, en `snap.yml` bouwt op
+tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-run tegen
+`v2026.6.0` (groene build, geldig `.snap`, WebKitGTK uit de gnome-runtime). Wat rest:
+
+- [ ] **In-app updater overslaan binnen de snap.** In een read-only strict snap kan de
+      Tauri-updater de binary niet vervangen — de Snap Store doet de refresh. Zonder dit
+      krijgen snap-gebruikers een "update beschikbaar"-melding die niets kan uitvoeren.
+      *Aanpak:* detecteer de snap-runtime via de door snapd gezette env `SNAP`
+      (Rust-zijde, dun gehouden conform "keep Rust thin"), geef dat door aan de frontend
+      en sla de updater-check over wanneer actief (updater-logica zit in `App.tsx`).
+- [ ] **Live gaan in de Snap Store — eigenaar-stappen.** Daarna publiceert de al
+      bestaande gated stap in `snap.yml` (`snapcore/action-publish`, kanaal `stable`)
+      automatisch bij elke release-tag:
+      1. `snapcraft register open-planner-studio` (eenmalig; vereist een Snap Store-account
+         en claimt de naam).
+      2. Genereer credentials met `snapcraft export-login --snaps open-planner-studio
+         --channels stable -` en voeg de output toe als GitHub-repo-secret
+         `SNAPCRAFT_STORE_CREDENTIALS`.
 
 ### Fase 2 — Professionele Planning (v0.5)
 
