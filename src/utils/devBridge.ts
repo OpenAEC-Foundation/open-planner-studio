@@ -5,6 +5,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { readCSV } from '@/services/csv/csvReader';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb } from '@/extensions';
 import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
+import { copyScreenshotToClipboard } from '@/services/feedback/feedbackService';
 import { isTauri } from '@/utils/platform';
 
 /**
@@ -92,7 +93,7 @@ async function installExtensionFromCode(
 
 interface OpsCommand {
   id?: string;
-  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch';
+  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest';
   args?: Record<string, unknown>;
 }
 
@@ -125,6 +126,33 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       if (typeof fn !== 'function') return { ok: false, error: `no such action: ${action}` };
       const ret = await (fn as (...a: unknown[]) => unknown)(...actionArgs);
       return { ok: true, result: { ret, state: stateSnapshot(useAppStore.getState()) } };
+    }
+    case 'feedbackTest': {
+      // Dev-only desktop-verificatie van de feedback-feature: toetst (1) of
+      // modern-screenshot's domToPng het Gantt-<canvas> meepakt in de echte
+      // WebKitGTK-webview, en (2) of de klembord-weg (Image.new → writeImage)
+      // werkt op de desktop. De PNG wordt naar schijf geschreven zodat de
+      // aansturende kant 'm visueel kan inspecteren.
+      const { domToPng } = await import('modern-screenshot');
+      const root = document.getElementById('root') ?? document.body;
+      const dataUrl = await domToPng(root);
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+      const { appDataDir, join } = await import('@tauri-apps/api/path');
+      const outPath = await join(await appDataDir(), 'ops-test', 'feedback-capture.png');
+      const [, b64] = dataUrl.split(',');
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      await writeFile(outPath, bytes);
+      let clipboardOk = false;
+      let clipboardError: string | null = null;
+      try {
+        await copyScreenshotToClipboard(dataUrl);
+        clipboardOk = true;
+      } catch (e) {
+        clipboardError = String(e);
+      }
+      return { ok: true, result: { pngPath: outPath, pngBytes: bytes.length, clipboardOk, clipboardError } };
     }
     default:
       return { ok: false, error: `unknown op: ${(cmd as OpsCommand).op}` };

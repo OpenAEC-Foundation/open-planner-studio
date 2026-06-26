@@ -111,7 +111,9 @@ async function getRgbaFromDataUrl(dataUrl: string): Promise<{ data: Uint8Array; 
       if (!ctx) { reject(new Error('No 2D context')); return; }
       ctx.drawImage(img, 0, 0);
       const imageData = ctx.getImageData(0, 0, img.width, img.height);
-      resolve({ data: imageData.data as unknown as Uint8Array, width: img.width, height: img.height });
+      // Echte Uint8Array over dezelfde buffer (getImageData levert Uint8ClampedArray);
+      // Image.new() verwacht Uint8Array | number[] | ArrayBuffer.
+      resolve({ data: new Uint8Array(imageData.data.buffer), width: img.width, height: img.height });
     };
     img.onerror = reject;
     img.src = dataUrl;
@@ -120,16 +122,22 @@ async function getRgbaFromDataUrl(dataUrl: string): Promise<{ data: Uint8Array; 
 
 /**
  * Kopieer de screenshot naar het klembord.
- * - Tauri: writeImage() met raw RGBA-bytes (niet PNG-blob).
+ * - Tauri: Image.new(rgba, w, h) → writeImage(image).
  * - Web: navigator.clipboard.write() met ClipboardItem PNG.
+ *
+ * Geëxporteerd zodat de dev-only self-test (devBridge) exact deze weg toetst.
  */
-async function copyToClipboard(dataUrl: string): Promise<void> {
+export async function copyScreenshotToClipboard(dataUrl: string): Promise<void> {
   if (isTauri()) {
     try {
       const { writeImage } = await import('@tauri-apps/plugin-clipboard-manager');
-      // CLIPBOARD-FORMAAT: RAW RGBA Uint8Array (geen PNG). Zie getRgbaFromDataUrl.
-      const { data } = await getRgbaFromDataUrl(dataUrl);
-      await writeImage(data);
+      const { Image } = await import('@tauri-apps/api/image');
+      // KLEMBORD-FORMAAT: rauwe RGBA + afmetingen via Image.new(). Een kale
+      // Uint8Array aan writeImage() wordt als ENCODED (png/ico) geïnterpreteerd
+      // en kan rauwe RGBA niet decoderen — daarom een echte Image-resource.
+      const { data, width, height } = await getRgbaFromDataUrl(dataUrl);
+      const image = await Image.new(data, width, height);
+      await writeImage(image);
     } catch (err) {
       console.warn('Tauri clipboard write failed:', err);
       throw err;
@@ -228,7 +236,7 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<SendResult
   // PAD B: met screenshot
   // a) Klembord
   try {
-    await copyToClipboard(payload.screenshotDataUrl);
+    await copyScreenshotToClipboard(payload.screenshotDataUrl);
   } catch {
     /* Klembord mislukt — doorgaan met opslaan + openen */
   }
