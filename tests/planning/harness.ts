@@ -47,6 +47,13 @@ function buildAndSolve(c: Case) {
 
   const ids: Record<string, string> = {};
   for (const t of c.tasks) {
+    // Luide fouten i.p.v. stille maskering: dubbele namen (de naam is de enige sleutel in
+    // ids/expect/criticalPathSet), en een ouder die nog niet bestaat (anders wordt het kind
+    // stil een root, met een heel andere topologie maar zonder waarschuwing).
+    if (ids[t.name]) throw new Error(`dubbele taaknaam "${t.name}"`);
+    if (t.parent && !ids[t.parent]) {
+      throw new Error(`taak "${t.name}": ouder "${t.parent}" nog niet gedefinieerd — zet de ouder eerder in de tasks-lijst`);
+    }
     const start = t.start ?? anchor;
     const dur = t.milestone ? 0 : (t.dur ?? 1);
     const id = S().addTask({
@@ -58,6 +65,8 @@ function buildAndSolve(c: Case) {
     ids[t.name] = id;
   }
   for (const l of c.links ?? []) {
+    if (!ids[l.pred]) throw new Error(`relatie: onbekende voorganger "${l.pred}"`);
+    if (!ids[l.succ]) throw new Error(`relatie: onbekende opvolger "${l.succ}"`);
     S().addSequence({ predecessorId: ids[l.pred], successorId: ids[l.succ], type: l.type as any, lagDays: l.lag ?? 0 });
   }
   S().runCPM();
@@ -133,11 +142,17 @@ let anyFail = false;
 for (const file of files) {
   const data = JSON.parse(readFileSync(file, 'utf8'));
   const cases: Case[] = data.cases ?? [];
+  const name = file.replace(/^.*\/cases-/, '').replace(/\.json$/, '');
+  // Een leeg/sleutelloos casusbestand mag niet stil als "0/0 groen" passeren.
+  if (cases.length === 0) {
+    console.log(`XX ${name}: GEEN cases (leeg of ontbrekende "cases"-sleutel)`);
+    anyFail = true;
+    continue;
+  }
   const results = cases.map(runCase);
   const passed = results.filter((r) => r.pass).length;
   grandPass += passed;
   grandTotal += results.length;
-  const name = file.replace(/^.*\/cases-/, '').replace(/\.json$/, '');
   const ok = passed === results.length;
   if (!ok) anyFail = true;
   console.log(`${ok ? 'OK ' : 'XX '} ${name}: ${passed}/${results.length}`);

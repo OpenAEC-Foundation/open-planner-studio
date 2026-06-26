@@ -212,7 +212,7 @@ export function TaskPropertiesPanel() {
                 <span>{role}</span>
                 <span className="flex-1 truncate">{other?.name || '?'}</span>
                 <span className="text-text-secondary">{seq.type.replace('_', '-')}</span>
-                {seq.lagDays > 0 && <span>+{seq.lagDays}d</span>}
+                {seq.lagDays !== 0 && <span>{seq.lagDays > 0 ? '+' : ''}{seq.lagDays}d</span>}
                 <button
                   onClick={() => removeSequence(seq.id)}
                   style={{ color: 'var(--error)' }}

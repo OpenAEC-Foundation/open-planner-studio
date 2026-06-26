@@ -63,6 +63,17 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
           task.time.earlyFinish = finishes[finishes.length - 1];
           task.time.scheduleFinish = finishes[finishes.length - 1];
           task.time.isCritical = children.some(c => c.time.isCritical);
+
+          // Ook de LATE datums en speling oprollen — anders bleven die op de
+          // createDefaultTaskTime-defaults staan (lf=es, tf=0) en schreef o.a. ifcWriter
+          // misleidende fase-speling weg (een niet-kritieke fase met "tf=0").
+          const lateStarts = children.map(c => c.time.lateStart).sort();
+          const lateFinishes = children.map(c => c.time.lateFinish).sort();
+          task.time.lateStart = lateStarts[0];
+          task.time.lateFinish = lateFinishes[lateFinishes.length - 1];
+          // Een verzameltaak kan maar zo veel opschuiven als zijn krapste kind: min over de kinderen.
+          task.time.totalFloat = Math.min(...children.map(c => c.time.totalFloat));
+          task.time.freeFloat = Math.min(...children.map(c => c.time.freeFloat));
         }
       };
 

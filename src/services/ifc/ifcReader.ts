@@ -135,11 +135,15 @@ function parseDateFromIFC(s: string): string {
 function parseDurationDays(s: string): number {
   if (!s || s === '$') return 0;
   const clean = stripQuotes(s);
-  // Parse ISO 8601 duration: P0Y0M5D or P5D or PT8H
-  const dayMatch = clean.match(/(\d+)D/);
+  // Parse ISO 8601 duration: P0Y0M5D of P5D of PT8H. Het optionele minteken vangt een
+  // negatieve lag (lead) op — anders zou die als positief teruggelezen worden.
+  const dayMatch = clean.match(/(-?\d+)D/);
   if (dayMatch) return parseInt(dayMatch[1]);
-  const hourMatch = clean.match(/(\d+)H/);
-  if (hourMatch) return Math.ceil(parseInt(hourMatch[1]) / 8);
+  const hourMatch = clean.match(/(-?\d+)H/);
+  if (hourMatch) {
+    const h = parseInt(hourMatch[1]);
+    return h < 0 ? -Math.ceil(-h / 8) : Math.ceil(h / 8);
+  }
   return 0;
 }
 

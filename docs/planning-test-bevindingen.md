@@ -112,6 +112,47 @@ vast, zodat een terugval meteen rood wordt.
 
 ---
 
+## Tweede ronde — na superkritische review (4 onafhankelijke reviewers)
+
+Vier reviewers (CPM-algoritme, test-integriteit, neveneffecten/dekking, harnas-internals) hebben alles
+nagelopen. Ze bevestigden dat de 7 motor-fixes correct zijn en het harnas betrouwbaar, en vonden extra
+issues — die zijn nu **ook gefixt en geverifieerd** (suite uitgebreid naar **129/129 groen**, build groen):
+
+- **IFC: negatieve lag (lead) overleeft nu een opslaan/herladen-rondje.** `ifcWriter` gooide het teken
+  weg (`Math.abs`) en `ifcReader` kon geen negatief lezen → een lead klapte om naar uitlooptijd. Beide
+  gefixt; round-trip geverifieerd (FF −2 en FS +3 blijven behouden). *(ISO-8601-duur kent geen negatief;
+  dit is app-interne notatie — externe IFC-tools negeren het teken.)*
+- **WBS-/fase-oprol van LATE datums en speling.** Verzameltaken kregen alleen `earlyStart/earlyFinish`
+  opgerold; `lateStart/lateFinish/totalFloat/freeFloat` bleven op de defaults (`lf=es`, `tf=0`) en
+  persisteerden zo misleidende fase-speling naar IFC. Nu rollen die mee (min/max over kinderen).
+- **Hang bij ongeldige startdatum + duur>0** (`addBusinessDays` zonder iteratiegrens) → guard toegevoegd
+  + `createDefaultTaskTime` degradeert netjes; de solver meldt nu *"Ongeldige startdatum…"* i.p.v. vast te lopen.
+- **Lege kalender (geen werkdagen)** geeft nu de fout *"Kalender heeft geen werkdagen ingesteld"* i.p.v.
+  stil datums ver in de toekomst.
+- **Lead zichtbaar in het relatie-paneel** (toonde alleen positieve lag).
+- **Harnas gehard**: faalt nu luid bij dubbele taaknamen, een kind vóór z'n ouder, onbekende relatie-namen,
+  of een leeg casusbestand (stille-maskering-zwaktes gedicht).
+- **Nieuwe regressie-/dekkingsgevallen** toegevoegd (`cases-boundary.json` + WBS-late + ongeldige datum):
+  SF/FF als ondergrens aan de anker, lege kalender, onafhankelijke deelnetten, feestdag-op-overgang,
+  afwijkende werkweek.
+
+**Eén reviewer-bevinding bleek een mís-diagnose** (en is door het harnas zelf betrapt): het voorstel om
+FF/SF aan de projectgrens "niet te klemmen" gaat uit van een *gelijkheid*-interpretatie. In standaard CPM
+zijn FS/SS/FF/SF **ondergrenzen** ("niet eerder dan…"), geen gelijkheden — een niet-bindende FF/SF zakt
+dus terug naar de anker. De oorspronkelijke (geklemde) berekening was correct; die is behouden, met een
+expliciet regressiegeval (`bnd-sf-lowerbound-at-anchor`).
+
+### Eén open punt (vereist een productbeslissing, niet blind gefixt)
+
+- **`scheduleStart`-drift bij herberekenen** (pre-existing, commit b0188a9). `runCPM` schrijft de
+  berekende start terug in `scheduleStart`; verwijder je daarna een relatie en herbereken je, dan blijft
+  de taak op de oude (gedrifte) datum hangen i.p.v. terug naar het anker te gaan. De zuivere fix vereist
+  dat `scheduleStart` de *geplande* anker blijft en alle exporters (CSV/MS Project/P6) naar de berekende
+  `earlyStart` overschakelen — een bredere wijziging met export-semantiek-impact. Bewust niet blind
+  doorgevoerd; staat los van de rekencorrectheid en wordt apart afgestemd.
+
+---
+
 ## Over resources (ongewijzigd, buiten scope)
 
 Je kunt resources aanmaken en aan taken koppelen, maar de planning rekent er (nog) niet mee — de

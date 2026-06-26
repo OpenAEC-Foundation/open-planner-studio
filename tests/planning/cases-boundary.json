@@ -1,0 +1,251 @@
+{
+  "cases": [
+    {
+      "id": "bnd-sf-lowerbound-at-anchor",
+      "title": "SF lag0 is een ONDERGRENS ('B eindigt niet eerder dan A start'), geen gelijkheid. B(3) op de anker eindigt 06-03 (>= A.start 06-01), dus de SF is niet bindend: B blijft op de anker, NIET vóór dag 1. Geen projectduur-inflatie.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 2
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02"
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          }
+        },
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "bnd-ff-lead-lowerbound-at-anchor",
+      "title": "FF lag-2 (lead) is een ondergrens: B eindigt niet eerder dan A.finish-2wd (06-01). B(2) op de anker eindigt 06-02 (>= 06-01), dus niet bindend -> B blijft op de anker (06-01..06-02), niet vóór dag 1.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_FINISH",
+          "lag": -2
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02"
+          }
+        },
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "bnd-empty-calendar",
+      "title": "Kalender zonder werkdagen moet een FOUT geven i.p.v. stil datums ver in de toekomst (reviewer-3 E3).",
+      "calendar": {
+        "workDays": [],
+        "holidays": []
+      },
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        }
+      ],
+      "expect": {
+        "error": true
+      }
+    },
+    {
+      "id": "bnd-two-independent-subnets",
+      "title": "Twee losse deelnetten: lange keten A(5)->B(3) kritiek; korte keten C(2)->D(1) heeft speling 5 (reviewer-3 E5).",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 3
+        },
+        {
+          "name": "C",
+          "dur": 2
+        },
+        {
+          "name": "D",
+          "dur": 1
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START"
+        },
+        {
+          "pred": "C",
+          "succ": "D",
+          "type": "FINISH_START"
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-08",
+            "ef": "2026-06-10",
+            "crit": true
+          },
+          "C": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "tf": 5,
+            "crit": false
+          },
+          "D": {
+            "es": "2026-06-03",
+            "ef": "2026-06-03",
+            "tf": 5,
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-10",
+        "error": false
+      }
+    },
+    {
+      "id": "bnd-holiday-on-fs-transition",
+      "title": "Feestdag precies op de FS-overgangsdag: A(3, 06-01..06-03) -> B(2); B zou 06-04 starten maar dat is feestdag -> schuift naar 06-05 (reviewer-3 E5).",
+      "calendar": {
+        "workDays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "holidays": [
+          {
+            "name": "Feest",
+            "startDate": "2026-06-04",
+            "endDate": "2026-06-04"
+          }
+        ]
+      },
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START"
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          },
+          "B": {
+            "es": "2026-06-05",
+            "ef": "2026-06-08"
+          }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "bnd-custom-workweek-wed-fri",
+      "title": "Afwijkende werkweek wo-vr ([3,4,5]): A(4) vanaf ma-anker schuift naar wo 06-03 en beslaat 06-03,04,05,10 -> eindigt 06-10 (reviewer-3 E5).",
+      "calendar": {
+        "workDays": [
+          3,
+          4,
+          5
+        ],
+        "holidays": []
+      },
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-03",
+            "ef": "2026-06-10"
+          }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "bnd-invalid-start",
+      "title": "Taak met onparseerbare startdatum + duur>0 mag NIET hangen (addBusinessDays-guard) en moet een FOUT geven (reviewer-1 BUG1).",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 2,
+          "start": "niet-een-datum"
+        }
+      ],
+      "expect": {
+        "error": true
+      }
+    }
+  ]
+}

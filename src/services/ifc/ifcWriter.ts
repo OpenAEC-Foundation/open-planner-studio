@@ -214,7 +214,10 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): v
   let lagRef = '$';
   if (seq.lagDays !== 0) {
     const lagId = addLine(ctx, `lag_${seq.id}`,
-      `IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,${ifcDuration(Math.abs(seq.lagDays))})`);
+      // Teken behouden: een negatieve lag (lead/overlap) moet een round-trip overleven, anders
+      // klapt hij bij opslaan/herladen om naar een positieve uitlooptijd. (Let op: ISO-8601-duur
+      // kent geen negatief; dit is app-interne notatie — externe IFC-tools negeren het teken.)
+      `IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,${ifcDuration(seq.lagDays)})`);
     lagRef = `#${lagId}`;
   }
 

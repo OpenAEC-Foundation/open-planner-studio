@@ -673,7 +673,7 @@
     },
     {
       "id": "edge-isolated-with-milestone-01",
-      "title": "Mix: een echte taak (dur 4) en een losse mijlpaal (dur 0), geen relatie. ProjectEnd door taak (wd4=06-04). Taak kritiek; mijlpaal niet (tf = 4).",
+      "title": "Echte taak A(4) + losse ongekoppelde mijlpaal M (duur 0). Projecteind 06-04 (door A). M niet-kritiek; tf = 3 (M kan van 06-01 tot 06-04 schuiven = 3 werkdag-stappen).",
       "tasks": [
         {
           "name": "A",
@@ -1195,6 +1195,56 @@
         ],
         "projectEnd": "2026-06-09",
         "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-late-rollup",
+      "title": "WBS-fase F1 (kinderen C1·3, C2·2, parallel) naast een lange taak LONG·8. F1 is niet-kritiek; de LATE datums en speling moeten oprollen (ls=06-08, lf=06-10, tf=5), niet op de defaults (tf=0) blijven.",
+      "tasks": [
+        {
+          "name": "LONG",
+          "dur": 8
+        },
+        {
+          "name": "F1"
+        },
+        {
+          "name": "C1",
+          "dur": 3,
+          "parent": "F1"
+        },
+        {
+          "name": "C2",
+          "dur": 2,
+          "parent": "F1"
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "LONG": {
+            "es": "2026-06-01",
+            "ef": "2026-06-10",
+            "crit": true
+          },
+          "F1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "ls": "2026-06-08",
+            "lf": "2026-06-10",
+            "tf": 5,
+            "crit": false
+          },
+          "C1": {
+            "tf": 5,
+            "crit": false
+          },
+          "C2": {
+            "tf": 6,
+            "crit": false
+          }
+        },
+        "projectEnd": "2026-06-10",
         "error": false
       }
     }

@@ -61,6 +61,18 @@ export class CPMSolver {
       };
     }
 
+    // Guard: een kalender zonder werkdagen zou anders (via de MAX_SCAN-fallback) stil
+    // datums ver in de toekomst opleveren zonder enige waarschuwing. Degradeer met een fout.
+    if (!this.calendar.hasWorkingDays()) {
+      return {
+        tasks: new Map(),
+        criticalPath: [],
+        projectEnd: '',
+        projectDuration: 0,
+        error: 'Kalender heeft geen werkdagen ingesteld',
+      };
+    }
+
     // Guard: een taak met een onparseerbare startdatum zou anders Invalid Dates
     // opleveren die het formatteren laten crashen (en vóór de lus-grenzen: hangen).
     // Degradeer netjes met een foutmelding i.p.v. te crashen.
@@ -192,7 +204,11 @@ export class CPMSolver {
         // No predecessors: use scheduled start
         earlyStart = this.calendar.nextWorkDay(parseDate(task.time.scheduleStart));
       } else {
-        // Early start = max of all predecessor constraints, met de projectstart als ondergrens.
+        // Early start = max van alle voorganger-constraints, met de projectstart als ondergrens.
+        // Die ondergrens is correct vóór ÉLKE relatie: relatie-constraints (FS/SS/FF/SF) zijn
+        // ondergrenzen ("niet eerder dan…"), nooit gelijkheden — een taak start dus op z'n
+        // vroegst bij het projectbegin. Zo blijft een niet-bindende FF/SF gewoon op de anker
+        // (de opvolger haalt de eis vanzelf) en wordt een lead niet vóór dag 1 getrokken.
         earlyStart = projectStart ? new Date(projectStart.getTime()) : new Date(0);
         for (const seq of preds) {
           const predResult = results.get(seq.predecessorId);
@@ -222,6 +238,10 @@ export class CPMSolver {
     successor: Task,
   ): Date {
     // Lag in werkdagen; positief = uitloop, negatief = lead (overlap), 0 = direct aansluitend.
+    // Elke tak geeft de door de relatie geëiste vroegste start van de opvolger terug; de
+    // projectstart-ondergrens en de max-over-voorgangers worden in forwardPass toegepast
+    // (relaties zijn ondergrenzen, geen gelijkheden — een niet-bindende FF/SF zakt zo terug
+    // naar de anker i.p.v. de opvolger vóór het projectbegin te trekken).
     const lag = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
     const cal = this.calendar;
     const predIsMilestone = predTask.isMilestone || predTask.time.scheduleDuration <= 0;
@@ -236,14 +256,12 @@ export class CPMSolver {
       }
       case 'FINISH_FINISH': {
         // Opvolger EINDIGT `lag` werkdagen na de finish van de voorganger → leid de bijbehorende
-        // start af (finish − (duur−1)). Niet op de voorganger-start klemmen: een lange FF-opvolger
-        // mág eerder beginnen. De projectstart-ondergrens in forwardPass voorkomt starts vóór dag 1.
+        // start af (finish − (duur−1)).
         const reqFinish = cal.addWorkingDaysSigned(predResult.ef, lag);
         return cal.addWorkingDaysSigned(reqFinish, -succBack);
       }
       case 'START_FINISH': {
-        // Opvolger EINDIGT `lag` werkdagen na de START van de voorganger (zeldzaam). Idem: niet
-        // op de voorganger-start klemmen — een SF-opvolger mag vóór de voorganger eindigen/starten.
+        // Opvolger EINDIGT `lag` werkdagen na de START van de voorganger (zeldzaam).
         const reqFinish = cal.addWorkingDaysSigned(predResult.es, lag);
         return cal.addWorkingDaysSigned(reqFinish, -succBack);
       }

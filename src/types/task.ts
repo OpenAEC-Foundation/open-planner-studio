@@ -61,8 +61,14 @@ export function createDefaultTaskTime(
   // Derive a finish consistent with the duration so the Gantt bar spans the
   // right number of days before CPM runs. Matches CalendarEngine.addWorkDays
   // (inclusive, weekends skipped); runCPM later refines it with the full calendar.
+  // Bij een onparseerbare start (bv. corrupte import) NIET formatteren — formatDate
+  // (toISOString) gooit dan. Val terug op `start`; de CPM-solver vangt de ongeldige
+  // datum verderop af met een nette foutmelding i.p.v. een crash.
+  const startDate = parseDate(start);
   const finish =
-    durationDays > 0 ? formatDate(addBusinessDays(parseDate(start), durationDays)) : start;
+    durationDays > 0 && !isNaN(startDate.getTime())
+      ? formatDate(addBusinessDays(startDate, durationDays))
+      : start;
   return {
     durationType: 'WORKTIME',
     scheduleDuration: durationDays,

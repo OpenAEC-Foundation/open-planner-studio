@@ -1022,7 +1022,7 @@
     },
     {
       "id": "rel-fs-chain-tf",
-      "title": "FS-keten met parallelle korte tak voor speling (tf/ff). A(3wd, wd1-wd3=06-03) -> B(4wd, FS) start wd4 (06-04), ef wd9 (06-11). A -> S(1wd, FS) start wd4 (06-04), ef wd4 (06-04). S->END niet, dus S heeft speling tot projecteinde 06-11. tf(S)= van ef 06-04 tot late finish 06-11 = 5 werkdagen.",
+      "title": "FS-keten A(3)->B(4) plus zijtak A->S(1). B: 06-04..06-09 (4wd). Projecteind 06-09. Zijtak S heeft totale speling 3 t.o.v. het projecteinde.",
       "tasks": [
         {
           "name": "A",
@@ -1173,7 +1173,7 @@
     },
     {
       "id": "rel-fs-lag-spanweekend",
-      "title": "FS lag +3 in WERKDAGEN (niet kalenderdagen) over een weekend. A(3wd): wd1-wd3 (06-03). Standaard FS lag L: B.es = pred.ef + L werkdagen (eerstvolgende werkdag). ef=wd3 -> +3wd telt door het weekend: wd4(06-04), wd5(06-05), wd6(06-08) = wd6 (06-08). B(2wd): es 06-08, ef wd7 (06-09). KANDIDAAT a) lag als kalenderdagen (06-03+3=06-06 za -> ma 06-08; toevallig gelijk hier). KANDIDAAT b) lag-telling vanaf de FS-basis wd4 i.p.v. ef wd3 -> dan wd7 (06-09); gekozen waarde volgt de ef+L-lezing.",
+      "title": "FS lag +3 WERKDAGEN: lag = aantal werkdagen tussen finish en start. A(3, ef 06-03) -> FS-basis 06-04 + 3 werkdagen = B start 06-09 (06-09..06-10).",
       "tasks": [
         {
           "name": "A",

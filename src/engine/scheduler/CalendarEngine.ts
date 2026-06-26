@@ -28,6 +28,11 @@ export class CalendarEngine {
     }
   }
 
+  /** Heeft de kalender überhaupt werkdagen? Een lege werkweek levert anders stil onzin-datums. */
+  hasWorkingDays(): boolean {
+    return Array.isArray(this.calendar.workDays) && this.calendar.workDays.length > 0;
+  }
+
   /** Check if a given date is a working day */
   isWorkDay(date: Date): boolean {
     const dayOfWeek = isoDayOfWeek(date);

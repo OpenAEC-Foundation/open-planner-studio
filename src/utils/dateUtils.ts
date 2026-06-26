@@ -89,14 +89,23 @@ export function getWeekNumber(d: Date): number {
  * CPM runs. The real, calendar-aware schedule is computed by runCPM (F5).
  */
 export function addBusinessDays(start: Date, workDays: number): Date {
-  if (workDays <= 0) return new Date(start.getTime());
+  // Guard tegen een ongeldige datum (bv. uit een corrupte import): isoDayOfWeek(Invalid)=NaN,
+  // NaN<=5 is altijd false → `remaining` daalt nooit → oneindige lus. Geef de (ongeldige) datum
+  // gewoon terug; de CPM-solver vangt de ongeldige startdatum verderop netjes af.
+  if (workDays <= 0 || isNaN(start.getTime())) return new Date(start.getTime());
   let current = new Date(start.getTime());
-  // Ensure we start on a weekday
-  while (isoDayOfWeek(current) > 5) current = addCalendarDays(current, 1);
+  // Ensure we start on a weekday (met scan-grens tegen vastlopen)
+  let scan = 0;
+  while (isoDayOfWeek(current) > 5) {
+    current = addCalendarDays(current, 1);
+    if (++scan > 366) break;
+  }
   let remaining = workDays - 1; // the start day counts as day 1
+  let steps = 0;
   while (remaining > 0) {
     current = addCalendarDays(current, 1);
     if (isoDayOfWeek(current) <= 5) remaining--;
+    if (++steps > 200_000) break;
   }
   return current;
 }
