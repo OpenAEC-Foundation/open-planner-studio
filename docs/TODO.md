@@ -11,6 +11,21 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
+### Distributie & Release
+
+#### Snap-packaging (worktree `snapzooi`)
+Zie [ontwerp](superpowers/specs/2026-06-26-snap-packaging-design.md). Snap werkt nu
+niet: `snap.yml` is `workflow_dispatch`-only, niet aan de release gekoppeld, en `sed`-t
+een `snap/snapcraft.yaml` die niet bestaat → nooit groen, geen `.snap` op `v2026.6.0`.
+- [ ] `snap/snapcraft.yaml` aanmaken (core22, strict, gnome-extensie, deb herverpakken)
+- [ ] `snap.yml` herschrijven: trigger op tag-push + dispatch, deb downloaden i.p.v.
+      herbouwen, `.snap` als release-asset, Store-publish gated op secret
+- [ ] **Verificatie:** `workflow_dispatch`-run tegen `v2026.6.0` → groene build +
+      downloadbaar `.snap`-artifact (zonder nieuwe tag/release)
+- [ ] Follow-up: in-app updater overslaan binnen de snap (env `SNAP`)
+- [ ] Follow-up (eigenaar): `snapcraft register open-planner-studio` + secret
+      `SNAPCRAFT_STORE_CREDENTIALS` toevoegen om live te gaan
+
 ### Fase 2 — Professionele Planning (v0.5)
 
 #### 2.1 Volledige dependencies
