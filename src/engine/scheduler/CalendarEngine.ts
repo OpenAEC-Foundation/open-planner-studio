@@ -151,6 +151,26 @@ export class CalendarEngine {
     return current;
   }
 
+  /**
+   * Verschuif `n` werkdagen vanaf een datum: n=0 => dezelfde (werk)dag, n>0 vooruit, n<0 achteruit.
+   * Anders dan addWorkDays/subtractWorkDays telt de begindag hier NIET als "dag 1" — dit is een
+   * zuivere offset over werkdagen. Nodig voor correcte lag/lead (positief, negatief én 0) en voor
+   * de relatie-logica (FF/SF) in de CPM-solver, waar "N werkdagen verderop/eerder" exact N moet zijn.
+   */
+  addWorkingDaysSigned(date: Date, n: number): Date {
+    let current = this.nextWorkDay(new Date(date.getTime()));
+    if (n === 0) return current;
+    const step = n > 0 ? 1 : -1;
+    let remaining = Math.abs(n);
+    let guard = 0;
+    while (remaining > 0) {
+      current = addCalendarDays(current, step);
+      if (this.isWorkDay(current)) remaining--;
+      if (++guard > CalendarEngine.MAX_DAYS) break;
+    }
+    return current;
+  }
+
   get hoursPerDay(): number {
     return this.calendar.hoursPerDay;
   }

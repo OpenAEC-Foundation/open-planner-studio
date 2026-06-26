@@ -1,0 +1,1202 @@
+{
+  "cases": [
+    {
+      "id": "edge-cycle-01",
+      "title": "Kringverwijzing A->B->A (FS). CPM heeft geen topologische volgorde; verwacht een fout en geen datums.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "B",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "error": true
+      }
+    },
+    {
+      "id": "edge-cycle-02",
+      "title": "Langere cyclus A->B->C->A (FS). Onoplosbaar in CPM; verwacht een fout.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "B",
+          "dur": 3
+        },
+        {
+          "name": "C",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "B",
+          "succ": "C",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "error": true
+      }
+    },
+    {
+      "id": "edge-cycle-03",
+      "title": "Cyclus verstopt in een groter netwerk: D->E gezond, maar E->F->E vormt een lus. Verwacht een fout.",
+      "tasks": [
+        {
+          "name": "D",
+          "dur": 2
+        },
+        {
+          "name": "E",
+          "dur": 2
+        },
+        {
+          "name": "F",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "D",
+          "succ": "E",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "E",
+          "succ": "F",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "F",
+          "succ": "E",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "error": true
+      }
+    },
+    {
+      "id": "edge-selfloop-01",
+      "title": "Zelf-lus: taak A wijst (FS) naar zichzelf. Onoplosbaar / degenererend; verwacht een fout, in elk geval geen crash.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "error": true
+      }
+    },
+    {
+      "id": "edge-empty-01",
+      "title": "Leeg project: geen taken. Verwacht geen fout, geen crash, lege taakset.",
+      "tasks": [],
+      "links": [],
+      "expect": {
+        "tasks": {},
+        "error": false
+      }
+    },
+    {
+      "id": "edge-single-01",
+      "title": "Een enkele taak zonder relaties (dur 4). Start op anker, kritiek (enige pad), tf=0.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A"
+        ],
+        "projectEnd": "2026-06-04",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "edge-single-milestone-01",
+      "title": "Eén enkele mijlpaal (dur 0). es==ef op het anker; projectduur 0.",
+      "tasks": [
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "M"
+        ],
+        "projectEnd": "2026-06-01",
+        "projectDuration": 0,
+        "error": false
+      }
+    },
+    {
+      "id": "edge-isolated-equal-01",
+      "title": "Twee geisoleerde taken, GELIJKE duur (3). Beide starten op anker, beide eindigen wd3=06-03. Beide vormen hun eigen pad => beide kritiek, projectEnd=06-03.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-03",
+        "projectDuration": 3,
+        "error": false
+      }
+    },
+    {
+      "id": "edge-isolated-unequal-01",
+      "title": "Drie geisoleerde taken, ONGELIJKE duur (2/5/3). Allen starten op anker. ProjectEnd bepaald door langste (B, 5wd => wd5=06-05). Alleen B is kritiek (tf=0); A en B... assert vooral es/ef/projectEnd. A: ef wd2; C: ef wd3.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 2
+        },
+        {
+          "name": "B",
+          "dur": 5
+        },
+        {
+          "name": "C",
+          "dur": 3
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02"
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "C": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          }
+        },
+        "criticalPathSet": [
+          "B"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "edge-isolated-floats-01",
+      "title": "Geisoleerde taken met ongelijke duur: speling van de kortere. ProjectEnd=06-05 (B,5wd). A(2wd) heeft tf = 5-2 = 3 werkdagen (mag opschuiven tot ef=wd5). ff van A = tf (geen opvolger => speling t.o.v. projecteinde). C(3wd) tf = 5-3 = 2.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 2
+        },
+        {
+          "name": "B",
+          "dur": 5
+        },
+        {
+          "name": "C",
+          "dur": 3
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "tf": 3,
+            "crit": false
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "C": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 2,
+            "crit": false
+          }
+        },
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "edge-longchain-12",
+      "title": "Lange keten van 12 taken in serie (FS, lag 0), elk dur 2. Totaal 24 werkdagen. wd24=07-02. Alles kritiek.",
+      "tasks": [
+        {
+          "name": "T01",
+          "dur": 2
+        },
+        {
+          "name": "T02",
+          "dur": 2
+        },
+        {
+          "name": "T03",
+          "dur": 2
+        },
+        {
+          "name": "T04",
+          "dur": 2
+        },
+        {
+          "name": "T05",
+          "dur": 2
+        },
+        {
+          "name": "T06",
+          "dur": 2
+        },
+        {
+          "name": "T07",
+          "dur": 2
+        },
+        {
+          "name": "T08",
+          "dur": 2
+        },
+        {
+          "name": "T09",
+          "dur": 2
+        },
+        {
+          "name": "T10",
+          "dur": 2
+        },
+        {
+          "name": "T11",
+          "dur": 2
+        },
+        {
+          "name": "T12",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "T01",
+          "succ": "T02",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T02",
+          "succ": "T03",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T03",
+          "succ": "T04",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T04",
+          "succ": "T05",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T05",
+          "succ": "T06",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T06",
+          "succ": "T07",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T07",
+          "succ": "T08",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T08",
+          "succ": "T09",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T09",
+          "succ": "T10",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T10",
+          "succ": "T11",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "T11",
+          "succ": "T12",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "T01": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "tf": 0,
+            "crit": true
+          },
+          "T06": {
+            "es": "2026-06-15",
+            "ef": "2026-06-16",
+            "tf": 0,
+            "crit": true
+          },
+          "T12": {
+            "es": "2026-07-01",
+            "ef": "2026-07-02",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "T01",
+          "T02",
+          "T03",
+          "T04",
+          "T05",
+          "T06",
+          "T07",
+          "T08",
+          "T09",
+          "T10",
+          "T11",
+          "T12"
+        ],
+        "projectEnd": "2026-07-02",
+        "projectDuration": 24,
+        "error": false
+      }
+    },
+    {
+      "id": "edge-longchain-15-dur1",
+      "title": "Lange keten van 15 taken in serie (FS), elk dur 1 (mijlpaal-achtig maar dur 1). Totaal 15 werkdagen. wd15=06-19. Alles kritiek.",
+      "tasks": [
+        {
+          "name": "C01",
+          "dur": 1
+        },
+        {
+          "name": "C02",
+          "dur": 1
+        },
+        {
+          "name": "C03",
+          "dur": 1
+        },
+        {
+          "name": "C04",
+          "dur": 1
+        },
+        {
+          "name": "C05",
+          "dur": 1
+        },
+        {
+          "name": "C06",
+          "dur": 1
+        },
+        {
+          "name": "C07",
+          "dur": 1
+        },
+        {
+          "name": "C08",
+          "dur": 1
+        },
+        {
+          "name": "C09",
+          "dur": 1
+        },
+        {
+          "name": "C10",
+          "dur": 1
+        },
+        {
+          "name": "C11",
+          "dur": 1
+        },
+        {
+          "name": "C12",
+          "dur": 1
+        },
+        {
+          "name": "C13",
+          "dur": 1
+        },
+        {
+          "name": "C14",
+          "dur": 1
+        },
+        {
+          "name": "C15",
+          "dur": 1
+        }
+      ],
+      "links": [
+        {
+          "pred": "C01",
+          "succ": "C02",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C02",
+          "succ": "C03",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C03",
+          "succ": "C04",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C04",
+          "succ": "C05",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C05",
+          "succ": "C06",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C06",
+          "succ": "C07",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C07",
+          "succ": "C08",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C08",
+          "succ": "C09",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C09",
+          "succ": "C10",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C10",
+          "succ": "C11",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C11",
+          "succ": "C12",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C12",
+          "succ": "C13",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C13",
+          "succ": "C14",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "C14",
+          "succ": "C15",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "C01": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 0,
+            "crit": true
+          },
+          "C15": {
+            "es": "2026-06-19",
+            "ef": "2026-06-19",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "C01",
+          "C02",
+          "C03",
+          "C04",
+          "C05",
+          "C06",
+          "C07",
+          "C08",
+          "C09",
+          "C10",
+          "C11",
+          "C12",
+          "C13",
+          "C14",
+          "C15"
+        ],
+        "projectEnd": "2026-06-19",
+        "projectDuration": 15,
+        "error": false
+      }
+    },
+    {
+      "id": "edge-isolated-with-milestone-01",
+      "title": "Mix: een echte taak (dur 4) en een losse mijlpaal (dur 0), geen relatie. ProjectEnd door taak (wd4=06-04). Taak kritiek; mijlpaal niet (tf = 4).",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 3,
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "A"
+        ],
+        "projectEnd": "2026-06-04",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-parallel-01",
+      "title": "WBS-rollup: een fase-ouder P met twee parallelle kinderen (geen relatie tussen kinderen). K1 dur 3 (ef wd3=06-03), K2 dur 5 (ef wd5=06-05). Beide starten op anker. Ouder rolt op: es=06-01 (vroegste kind-start), ef=06-05 (laatste kind-finish). K2 kritiek => ouder crit=true. projectEnd=06-05.",
+      "tasks": [
+        {
+          "name": "P",
+          "dur": 0
+        },
+        {
+          "name": "K1",
+          "dur": 3,
+          "parent": "P"
+        },
+        {
+          "name": "K2",
+          "dur": 5,
+          "parent": "P"
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "K1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "crit": false
+          },
+          "K2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "P": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "K2"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-serial-01",
+      "title": "WBS-rollup: fase-ouder P met twee kinderen in serie (FS). K1 dur 3 (wd1-3, 06-01..06-03), K2 dur 2 start eerstvolgende werkdag na K1 = wd4 (06-04), ef wd5 (06-05). Ouder: es=06-01, ef=06-05. Beide kinderen op het enige pad => kritiek; ouder crit=true. projectEnd=06-05, duur 5.",
+      "tasks": [
+        {
+          "name": "P",
+          "dur": 0
+        },
+        {
+          "name": "K1",
+          "dur": 3,
+          "parent": "P"
+        },
+        {
+          "name": "K2",
+          "dur": 2,
+          "parent": "P"
+        }
+      ],
+      "links": [
+        {
+          "pred": "K1",
+          "succ": "K2",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "K1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 0,
+            "crit": true
+          },
+          "K2": {
+            "es": "2026-06-04",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "P": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "K1",
+          "K2"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-two-phases-cross-01",
+      "title": "Twee fases na elkaar, elk met kinderen, met een FS-relatie tussen een kind van fase 1 en een kind van fase 2. Fase F1: A1 dur 2 (wd1-2, 06-01..06-02), A2 dur 4 (wd1-4, 06-01..06-04). Fase F2: B1 dur 3, B2 dur 2. Link: A2(FS)->B1. B1 start wd5 (06-05), ef wd7 (06-09). B2 zonder voorganger => start op anker wd1 (06-01), ef wd2 (06-02). Kritiek pad: A2->B1. F1: es=06-01, ef=06-04 (A2 laatst, crit) => crit=true. F2: es=06-01 (B2), ef=06-09 (B1, crit) => crit=true. projectEnd=06-09 (wd7), duur 7.",
+      "tasks": [
+        {
+          "name": "F1",
+          "dur": 0
+        },
+        {
+          "name": "A1",
+          "dur": 2,
+          "parent": "F1"
+        },
+        {
+          "name": "A2",
+          "dur": 4,
+          "parent": "F1"
+        },
+        {
+          "name": "F2",
+          "dur": 0
+        },
+        {
+          "name": "B1",
+          "dur": 3,
+          "parent": "F2"
+        },
+        {
+          "name": "B2",
+          "dur": 2,
+          "parent": "F2"
+        }
+      ],
+      "links": [
+        {
+          "pred": "A2",
+          "succ": "B1",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "crit": false
+          },
+          "A2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "B1": {
+            "es": "2026-06-05",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          },
+          "B2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "crit": false
+          },
+          "F1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "crit": true
+          },
+          "F2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-09",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A2",
+          "B1"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-two-phases-fully-serial-01",
+      "title": "Twee fases volledig in serie via een kind-relatie. F1 met X1 dur 5 (wd1-5, 06-01..06-05). F2 met Y1 dur 3. Link X1(FS)->Y1. Y1 start wd6 (06-08), ef wd8 (06-10). Pad X1->Y1 kritiek. F1: es=06-01, ef=06-05, crit=true. F2: es=06-08, ef=06-10, crit=true. projectEnd=06-10 (wd8), duur 8.",
+      "tasks": [
+        {
+          "name": "F1",
+          "dur": 0
+        },
+        {
+          "name": "X1",
+          "dur": 5,
+          "parent": "F1"
+        },
+        {
+          "name": "F2",
+          "dur": 0
+        },
+        {
+          "name": "Y1",
+          "dur": 3,
+          "parent": "F2"
+        }
+      ],
+      "links": [
+        {
+          "pred": "X1",
+          "succ": "Y1",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "X1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "Y1": {
+            "es": "2026-06-08",
+            "ef": "2026-06-10",
+            "tf": 0,
+            "crit": true
+          },
+          "F1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "crit": true
+          },
+          "F2": {
+            "es": "2026-06-08",
+            "ef": "2026-06-10",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "X1",
+          "Y1"
+        ],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-nested-01",
+      "title": "Geneste WBS: grootouder G -> ouder P -> kind K (K is enige bladtaak, dur 4, geen relatie). K: es=06-01, ef=06-04 (wd4), kritiek. P rolt op uit K: es=06-01, ef=06-04, crit=true. G rolt op uit P (lees: uit zijn bladnakomeling K): es=06-01, ef=06-04, crit=true. projectEnd=06-04, duur 4.",
+      "tasks": [
+        {
+          "name": "G",
+          "dur": 0
+        },
+        {
+          "name": "P",
+          "dur": 0,
+          "parent": "G"
+        },
+        {
+          "name": "K",
+          "dur": 4,
+          "parent": "P"
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "K": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "P": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "crit": true
+          },
+          "G": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "K"
+        ],
+        "projectEnd": "2026-06-04",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-nested-multi-01",
+      "title": "Geneste WBS met meerdere bladeren. G -> P met twee kinderen K1 (dur 2, wd1-2 06-01..06-02) en K2 (dur 6, wd1-6 06-01..06-08, want wd6=06-08). Geen kind-relaties => beide starten op anker. P rolt op: es=06-01 (vroegste), ef=06-08 (laatste). K2 kritiek => P crit=true; G rolt op uit P: es=06-01, ef=06-08, crit=true. projectEnd=06-08 (wd6), duur 6.",
+      "tasks": [
+        {
+          "name": "G",
+          "dur": 0
+        },
+        {
+          "name": "P",
+          "dur": 0,
+          "parent": "G"
+        },
+        {
+          "name": "K1",
+          "dur": 2,
+          "parent": "P"
+        },
+        {
+          "name": "K2",
+          "dur": 6,
+          "parent": "P"
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "K1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "crit": false
+          },
+          "K2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "P": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "crit": true
+          },
+          "G": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "K2"
+        ],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-phase-noncritical-01",
+      "title": "Fase die NIET kritiek is. Twee parallelle fases (geen relatie tussen hun kinderen). F1: enige kind L1 dur 6 (wd1-6 => 06-08). F2: enige kind L2 dur 3 (wd1-3 => 06-03). projectEnd=06-08 (F1-tak). F2/L2 niet kritiek: ouder F2 crit=false (geen kind kritiek). F1 crit=true.",
+      "tasks": [
+        {
+          "name": "F1",
+          "dur": 0
+        },
+        {
+          "name": "L1",
+          "dur": 6,
+          "parent": "F1"
+        },
+        {
+          "name": "F2",
+          "dur": 0
+        },
+        {
+          "name": "L2",
+          "dur": 3,
+          "parent": "F2"
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "L1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "L2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "crit": false
+          },
+          "F1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "crit": true
+          },
+          "F2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "L1"
+        ],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "edge-multi-root-converge-01",
+      "title": "Robuustheid: meerdere wortels die samenkomen op een gemeenschappelijke opvolger (geen WBS). R1 dur 2 (ef wd2=06-02), R2 dur 5 (ef wd5=06-05), R3 dur 3 (ef wd3=06-03). Allen FS->M (dur 2). M start eerstvolgende werkdag na laatste voorganger (R2 ef wd5) => wd6=06-08, ef wd7=06-09. Kritiek pad R2->M. projectEnd=06-09 (wd7), duur 7. R1 tf = 5-2 = 3; R3 tf = 5-3 = 2.",
+      "tasks": [
+        {
+          "name": "R1",
+          "dur": 2
+        },
+        {
+          "name": "R2",
+          "dur": 5
+        },
+        {
+          "name": "R3",
+          "dur": 3
+        },
+        {
+          "name": "M",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "R1",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "R2",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "R3",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "R1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "tf": 3,
+            "crit": false
+          },
+          "R2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "R3": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 2,
+            "crit": false
+          },
+          "M": {
+            "es": "2026-06-08",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "R2",
+          "M"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    }
+  ]
+}

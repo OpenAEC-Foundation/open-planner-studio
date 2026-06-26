@@ -1,0 +1,81 @@
+{
+  "cases": [
+    {
+      "id": "cal-1",
+      "title": "Enkele taak van 5 werkdagen (inclusief einddag)",
+      "tasks": [{ "name": "A", "dur": 5 }],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true } },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5
+      }
+    },
+    {
+      "id": "cal-2",
+      "title": "FS-keten A(5)->B(3): B start de werkdag na A's finish",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true },
+          "B": { "es": "2026-06-08", "ef": "2026-06-10", "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8
+      }
+    },
+    {
+      "id": "cal-3",
+      "title": "Mijlpaal (duur 0): ES==EF, na A(5) via FS",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "M", "milestone": true }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true },
+          "M": { "es": "2026-06-08", "ef": "2026-06-08", "crit": true }
+        },
+        "criticalPathSet": ["A", "M"],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6
+      }
+    },
+    {
+      "id": "cal-4",
+      "title": "Parallelle ketens A(8) en B(5) naar mijlpaal J: A kritiek, B float=3",
+      "tasks": [
+        { "name": "A", "dur": 8 },
+        { "name": "B", "dur": 5 },
+        { "name": "J", "milestone": true }
+      ],
+      "links": [
+        { "pred": "A", "succ": "J", "type": "FINISH_START" },
+        { "pred": "B", "succ": "J", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-10", "crit": true },
+          "B": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 3, "crit": false },
+          "J": { "es": "2026-06-11", "ef": "2026-06-11", "crit": true }
+        },
+        "criticalPathSet": ["A", "J"],
+        "projectEnd": "2026-06-11",
+        "projectDuration": 9
+      }
+    },
+    {
+      "id": "cal-5",
+      "title": "Start-Start A(5)->B(3): B start tegelijk met A",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05" },
+          "B": { "es": "2026-06-01", "ef": "2026-06-03" }
+        },
+        "projectEnd": "2026-06-05"
+      }
+    }
+  ]
+}

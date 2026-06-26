@@ -1,0 +1,837 @@
+{
+  "cases": [
+    {
+      "id": "ms-01-lone",
+      "title": "Losse mijlpaal zonder relaties: es==ef op het anker, dur 0, kritiek (enige knoop), projectduur 0.",
+      "tasks": [
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "M"
+        ],
+        "projectEnd": "2026-06-01",
+        "projectDuration": 0,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-02-lone-vs-task",
+      "title": "Differentieel: losse mijlpaal (dur 0) naast losse taak (dur 3) zonder relatie. Mijlpaal beslaat geen tijd en zit op anker 06-01; de taak van 3 dagen (06-01..06-03) bepaalt het projecteinde. De mijlpaal mag opschuiven tot het projecteinde: M.ef wd1, LF wd3 -> tf = wd3 - wd1 = 2 werkdagen, niet kritiek.",
+      "tasks": [
+        {
+          "name": "M",
+          "milestone": true
+        },
+        {
+          "name": "T",
+          "dur": 3
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 2,
+            "crit": false
+          },
+          "T": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "T"
+        ],
+        "projectEnd": "2026-06-03",
+        "projectDuration": 3,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-03-start-milestone-fs",
+      "title": "Start-mijlpaal als allereerste knoop, FS naar taak A. M op anker (es==ef=06-01); A start eerstvolgende werkdag NA M.ef = 06-02, dur 3 -> ef 06-04. Hele keten kritiek.",
+      "tasks": [
+        {
+          "name": "M",
+          "milestone": true
+        },
+        {
+          "name": "A",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "M",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 0,
+            "crit": true
+          },
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "M",
+          "A"
+        ],
+        "projectEnd": "2026-06-03",
+        "projectDuration": 3,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-04-start-milestone-ss",
+      "title": "Start-mijlpaal met SS naar taak A (project-kickoff die samen met A start). SS lag 0 -> A start dezelfde werkdag als M (06-01). A dur 4 -> ef 06-04.",
+      "tasks": [
+        {
+          "name": "M",
+          "milestone": true
+        },
+        {
+          "name": "A",
+          "dur": 4
+        }
+      ],
+      "links": [
+        {
+          "pred": "M",
+          "succ": "A",
+          "type": "START_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "crit": true
+          },
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "M",
+          "A"
+        ],
+        "projectEnd": "2026-06-04",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-05-end-milestone-fs",
+      "title": "Eind-mijlpaal als laatste knoop, FS van taak A. A dur 5 (06-01..06-05). M (dur 0) als opvolger via FS lag 0 -> M.es==M.ef = eerstvolgende werkdag NA 06-05 = 06-08. M valt op projecteinddatum en is kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "M": {
+            "es": "2026-06-08",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "M"
+        ],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-06-end-milestone-ff",
+      "title": "Eind-mijlpaal met FF van taak A (de mijlpaal markeert het MOMENT dat A af is, niet de dag erna). FF lag 0 -> M.ef gelijk aan A.ef = 06-05, M dur 0 -> M.es=06-05. M kritiek, valt exact op de finish van A, voegt geen kalenderdag toe.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "M",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "M": {
+            "es": "2026-06-05",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "M"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-07-mid-chain-no-extra-day",
+      "title": "Mijlpaal tussen twee taken in een keten A -> M -> B (beide FS). A dur 5 (06-01..06-05). M = eerstvolgende werkdag na A.ef = 06-08 (es==ef). B = eerstvolgende werkdag na M.ef = 06-09, dur 3 -> ef 06-11. KERN-TEST: of de tussenliggende mijlpaal een extra werkdag toevoegt of niet. Verwachting volgens briefing: B start alsof direct na A's finish (06-08), dus de mijlpaal voegt GEEN dag toe.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "M",
+          "milestone": true
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "M",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "M": {
+            "es": "2026-06-08",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-08",
+            "ef": "2026-06-10",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "M",
+          "B"
+        ],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-08-mid-chain-baseline-no-milestone",
+      "title": "BASELINE / differentieel paar bij ms-07: dezelfde keten zonder de mijlpaal, A -> B direct (FS). A dur 5 (06-01..06-05), B = 06-08, dur 3 -> 06-10. Dit is wat ms-07 MOET opleveren als de mijlpaal niets toevoegt. Vergelijk B.ef en projectDuration met ms-07.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-08",
+            "ef": "2026-06-10",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-09-two-milestones-in-row",
+      "title": "Twee mijlpalen achter elkaar M1 -> M2 (FS). Geen van beide beslaat tijd. Volgens briefing voegt een mijlpaal-overgang geen werkdag toe: M1 op anker 06-01 (es==ef), M2 valt samen op 06-01 (es==ef). Beide kritiek, projectduur 0.",
+      "tasks": [
+        {
+          "name": "M1",
+          "milestone": true
+        },
+        {
+          "name": "M2",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "M1",
+          "succ": "M2",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "M1": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 0,
+            "crit": true
+          },
+          "M2": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "M1",
+          "M2"
+        ],
+        "projectEnd": "2026-06-01",
+        "projectDuration": 0,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-10-task-then-two-milestones",
+      "title": "Taak gevolgd door twee mijlpalen A -> M1 -> M2 (beide FS). A dur 4 (06-01..06-04). M1 = eerstvolgende werkdag na 06-04 = 06-05 (es==ef). M2 valt samen met M1 op 06-05 (mijlpaal voegt geen dag toe). Alles kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "M1",
+          "milestone": true
+        },
+        {
+          "name": "M2",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "M1",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "M1",
+          "succ": "M2",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "M1": {
+            "es": "2026-06-05",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "M2": {
+            "es": "2026-06-05",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "M1",
+          "M2"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-11-join-two-chains-float-on-short",
+      "title": "Mijlpaal als samenkomst (join) van twee parallelle ketens via FS. A dur 6 (06-01..06-08), B dur 3 (06-01..06-03). M = max(eerstvolgende werkdag na A.ef, na B.ef). A.ef 06-08 -> 06-09; B.ef 06-03 -> 06-04; M = 06-09 (es==ef). Lange tak A kritiek (tf 0). Korte tak B heeft speling: B mag verschuiven tot zijn LF = werkdag voor M.LS(06-09) = 06-08 (wd6); B.ef wd3 -> wd6 = tf 3. M kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 6
+        },
+        {
+          "name": "B",
+          "dur": 3
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "B",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 3,
+            "crit": false
+          },
+          "M": {
+            "es": "2026-06-09",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "M"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-12-join-ff-aligned-finish",
+      "title": "Join-mijlpaal via FF van twee ketens (de mijlpaal markeert het moment dat de LAATSTE klaar is). A dur 6 (06-01..06-08), B dur 3 (06-01..06-03). FF lag 0 -> M.ef = max(A.ef, B.ef) = 06-08 (es==ef, dur 0). A kritiek. B float: bij FF is B.LF = M.LF = 06-08 (wd6); B.ef wd3 -> wd6 = tf 3 werkdagen. M valt op projecteinde 06-08, kritiek, voegt geen kalenderdag toe.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 6
+        },
+        {
+          "name": "B",
+          "dur": 3
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "M",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        },
+        {
+          "pred": "B",
+          "succ": "M",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 3,
+            "crit": false
+          },
+          "M": {
+            "es": "2026-06-08",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "M"
+        ],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-13-milestone-fork-two-successors",
+      "title": "Mijlpaal als startpunt (fork) met FS naar twee opvolgers van ongelijke duur. M op anker 06-01 (es==ef). A start 06-02 (na M.ef), dur 5 -> 06-08. B start 06-02, dur 2 -> 06-03. A is langer -> kritiek; B heeft speling (tf 3). M kritiek.",
+      "tasks": [
+        {
+          "name": "M",
+          "milestone": true
+        },
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "M",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "M",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 0,
+            "crit": true
+          },
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "tf": 3,
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "M",
+          "A"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-14-start-milestone-ss-vs-fs-diff",
+      "title": "Differentieel paar t.o.v. ms-03: start-mijlpaal met SS i.p.v. FS naar A. Bij SS lag 0 start A dezelfde dag als M (06-01) i.p.v. de dag erna (06-02 bij FS). A dur 3 -> ef 06-03 (i.p.v. 06-04). Laat zien dat het relatietype op een mijlpaal-bron correct verschilt.",
+      "tasks": [
+        {
+          "name": "M",
+          "milestone": true
+        },
+        {
+          "name": "A",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "M",
+          "succ": "A",
+          "type": "START_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "crit": true
+          },
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "M",
+          "A"
+        ],
+        "projectEnd": "2026-06-03",
+        "projectDuration": 3,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-15-milestone-no-artificial-stretch",
+      "title": "Controle dat een mijlpaal de projectduur NIET kunstmatig oprekt. Taak A dur 5 (06-01..06-05) is het langste pad. Losse, ongekoppelde mijlpaal M ernaast op 06-01. Het project moet eindigen op A.ef = 06-05 (door A), niet later; M voegt niets toe en heeft speling tot het projecteinde: M.ef wd1, LF wd5 -> tf = wd5-wd1 = 4 werkdagen, niet kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01",
+            "tf": 4,
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "A"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-16-end-milestone-after-short-branch-not-critical-stretch",
+      "title": "Eind-mijlpaal (FS) hangt aan de KORTE tak van een diamant en mag het project niet oprekken. A dur 6 (06-01..06-08) lange tak. B dur 2 (06-01..06-02) korte tak. M via FS van B -> M.es==M.ef = werkdag na B.ef 06-02 = 06-03. Project eindigt op A.ef 06-08 (A kritiek). M en B hebben speling; M is NIET kritiek en rekt niets op.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 6
+        },
+        {
+          "name": "B",
+          "dur": 2
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "B",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "crit": false
+          },
+          "M": {
+            "es": "2026-06-03",
+            "ef": "2026-06-03",
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "A"
+        ],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "ms-17-milestone-ss-from-task-midstart",
+      "title": "Mijlpaal die het MOMENT markeert waarop een taak start, via SS van een taak die zelf later begint. A dur 4 -> es 06-01. Voeg een voorganger toe: P dur 2 (06-01..06-02) -> A via FS start 06-03, dur 4 -> 06-08. M via SS van A -> M start gelijk met A = 06-03 (es==ef). M ligt op de keten; niet-kritiek pad eindigt op M=06-03 < project 06-08, dus M heeft speling.",
+      "tasks": [
+        {
+          "name": "P",
+          "dur": 2
+        },
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "P",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "A",
+          "succ": "M",
+          "type": "START_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "P": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "tf": 0,
+            "crit": true
+          },
+          "A": {
+            "es": "2026-06-03",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "M": {
+            "es": "2026-06-03",
+            "ef": "2026-06-03",
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "P",
+          "A"
+        ],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    }
+  ]
+}

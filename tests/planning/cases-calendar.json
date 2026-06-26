@@ -1,0 +1,290 @@
+{
+  "cases": [
+    {
+      "id": "cal-01",
+      "title": "Lange taak (duur 10) vanaf ma 2026-06-01 over twee weekenden; werkdagen wd1..wd10 = 06-01..06-12, weekenden 06-06/07 en 06-13/14 overgeslagen -> eindigt vr 06-12",
+      "tasks": [ { "name": "A", "dur": 10 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-12", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-12",
+        "projectDuration": 10,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-02",
+      "title": "Differentieel BASIS (geen feestdag): taak duur 5 vanaf ma 06-01; werkdagen 06-01..06-05 -> eindigt vr 06-05",
+      "tasks": [ { "name": "A", "dur": 5 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-03",
+      "title": "Differentieel VERGELIJK: zelfde taak duur 5 vanaf 06-01 maar feestdag wo 06-03 midden in looptijd; werkdagen 06-01,06-02,06-04,06-05,06-08 -> finish schuift 1 werkdag naar ma 06-08",
+      "calendar": { "workDays": [1,2,3,4,5], "holidays": [ { "name": "Feestdag", "startDate": "2026-06-03", "endDate": "2026-06-03" } ] },
+      "tasks": [ { "name": "A", "dur": 5 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-04",
+      "title": "Feestdag op de startdag (anker ma 06-01 = feestdag); taak duur 3 schuift naar eerstvolgende werkdag di 06-02; werkdagen 06-02,06-03,06-04 -> es 06-02, ef 06-04",
+      "calendar": { "workDays": [1,2,3,4,5], "holidays": [ { "name": "Feestdag op start", "startDate": "2026-06-01", "endDate": "2026-06-01" } ] },
+      "tasks": [ { "name": "A", "dur": 3 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-02", "ef": "2026-06-04", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-04",
+        "error": false
+      }
+    },
+    {
+      "id": "cal-05",
+      "title": "Start op weekend: anchor za 06-06 schuift naar eerstvolgende werkdag ma 06-08; taak duur 4 -> werkdagen 06-08..06-11 -> es 06-08, ef 06-11",
+      "anchor": "2026-06-06",
+      "tasks": [ { "name": "A", "dur": 4 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-11", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-11",
+        "error": false
+      }
+    },
+    {
+      "id": "cal-06",
+      "title": "Start op zondag: anchor zo 06-07 schuift naar ma 06-08; taak duur 1 -> es 06-08, ef 06-08",
+      "anchor": "2026-06-07",
+      "tasks": [ { "name": "A", "dur": 1 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "cal-07",
+      "title": "Meerdaagse feestdag (2 dagen wo-do 06-17/06-18) midden in lange taak duur 10 vanaf ma 06-15; zonder feestdag zou ef 06-26 zijn, twee feestdagen schuiven finish 2 werkdagen naar di 06-30",
+      "anchor": "2026-06-15",
+      "calendar": { "workDays": [1,2,3,4,5], "holidays": [ { "name": "Brug", "startDate": "2026-06-17", "endDate": "2026-06-18" } ] },
+      "tasks": [ { "name": "A", "dur": 10 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-15", "ef": "2026-06-30", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-30",
+        "projectDuration": 10,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-08",
+      "title": "Meerdaagse feestdag (~1 week: ma-vr 06-15..06-19) midden in lange taak duur 10 vanaf ma 06-08; werkdagen 06-08..06-12 (5), hele week 06-15..06-19 vrij, 06-22..06-26 (6..10) -> ef vr 06-26",
+      "anchor": "2026-06-08",
+      "calendar": { "workDays": [1,2,3,4,5], "holidays": [ { "name": "Bouwvak", "startDate": "2026-06-15", "endDate": "2026-06-19" } ] },
+      "tasks": [ { "name": "A", "dur": 10 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-26", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-26",
+        "projectDuration": 10,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-09",
+      "title": "FS-keten over weekend (default kalender): A duur 5 -> ef vr 06-05; B FS lag 0 start eerstvolgende werkdag NA 06-05 = ma 06-08 (weekend 06-06/07 over); B duur 3 -> ef wo 06-10; projectDuration 8 werkdagen",
+      "tasks": [ { "name": "A", "dur": 5 }, { "name": "B", "dur": 3 } ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 0 } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-08", "ef": "2026-06-10", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-10",
+      "title": "FS-keten over feestdag: A duur 5 -> ef vr 06-05; feestdag ma 06-08; B FS lag 0 -> eerstvolgende werkdag na weekend, 06-08 feestdag, dus start di 06-09; B duur 2 -> ef wo 06-10; projectDuration 7 werkdagen",
+      "calendar": { "workDays": [1,2,3,4,5], "holidays": [ { "name": "Feestdag", "startDate": "2026-06-08", "endDate": "2026-06-08" } ] },
+      "tasks": [ { "name": "A", "dur": 5 }, { "name": "B", "dur": 2 } ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 0 } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-11",
+      "title": "Afwijkende werkweek met zaterdag [1..6]: taak duur 6 vanaf ma 06-01; werkdagen 06-01..06-06 (za is nu werkdag) -> ef za 06-06; alleen zondag overgeslagen",
+      "calendar": { "workDays": [1,2,3,4,5,6], "holidays": [] },
+      "tasks": [ { "name": "A", "dur": 6 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-06", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-06",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-12",
+      "title": "6-daagse werkweek [1..6] over een zondag: taak duur 8 vanaf ma 06-01; werkdagen 06-01..06-06 (1..6), 06-07 zo over, 06-08 (7), 06-09 (8) -> ef di 06-09",
+      "calendar": { "workDays": [1,2,3,4,5,6], "holidays": [] },
+      "tasks": [ { "name": "A", "dur": 8 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-09", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-13",
+      "title": "4-daagse werkweek [1..4] (vr/za/zo vrij): taak duur 4 vanaf ma 06-01; werkdagen ma-do 06-01..06-04 -> ef do 06-04",
+      "calendar": { "workDays": [1,2,3,4], "holidays": [] },
+      "tasks": [ { "name": "A", "dur": 4 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-04", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-04",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-14",
+      "title": "4-daagse werkweek [1..4] over een lang weekend: taak duur 8 vanaf ma 06-01; werkdagen 06-01..06-04 (1..4), vr 06-05 + za/zo over, 06-08..06-11 (5..8) -> ef do 06-11",
+      "calendar": { "workDays": [1,2,3,4], "holidays": [] },
+      "tasks": [ { "name": "A", "dur": 8 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-11", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-11",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-15",
+      "title": "Combinatie 4-daagse werkweek [1..4] + feestdag wo 06-03: taak duur 4 vanaf ma 06-01; werkdagen 06-01,06-02,06-04 (1,2,3 - 06-03 feestdag over), vr+we over, 06-08 (4) -> ef ma 06-08",
+      "calendar": { "workDays": [1,2,3,4], "holidays": [ { "name": "Feestdag", "startDate": "2026-06-03", "endDate": "2026-06-03" } ] },
+      "tasks": [ { "name": "A", "dur": 4 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-16",
+      "title": "Combinatie 6-daagse werkweek [1..6] + feestdag op zaterdag 06-06: taak duur 6 vanaf ma 06-01; werkdagen 06-01..06-05 (1..5), 06-06 feestdag (ondanks za=werkdag), 06-07 zo over, 06-08 (6) -> ef ma 06-08",
+      "calendar": { "workDays": [1,2,3,4,5,6], "holidays": [ { "name": "Feestdag", "startDate": "2026-06-06", "endDate": "2026-06-06" } ] },
+      "tasks": [ { "name": "A", "dur": 6 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "cal-17",
+      "title": "Feestdag op start MET 4-daagse werkweek [1..4]: anker ma 06-01 = feestdag, schuift naar di 06-02; taak duur 2 -> werkdagen 06-02,06-03 -> es 06-02, ef 06-03",
+      "calendar": { "workDays": [1,2,3,4], "holidays": [ { "name": "Feestdag op start", "startDate": "2026-06-01", "endDate": "2026-06-01" } ] },
+      "tasks": [ { "name": "A", "dur": 2 } ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-02", "ef": "2026-06-03", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "cal-18",
+      "title": "FS-keten met 6-daagse werkweek [1..6] - opvolger start op ZATERDAG (differentieel met cal-09): A duur 5 -> ef vr 06-05; B FS lag 0 -> eerstvolgende werkdag = za 06-06 (want za is werkdag); B duur 1 -> es/ef 06-06",
+      "calendar": { "workDays": [1,2,3,4,5,6], "holidays": [] },
+      "tasks": [ { "name": "A", "dur": 5 }, { "name": "B", "dur": 1 } ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 0 } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-06", "ef": "2026-06-06", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-06-06",
+        "projectDuration": 6,
+        "error": false
+      }
+    }
+  ]
+}

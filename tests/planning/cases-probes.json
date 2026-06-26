@@ -1,0 +1,78 @@
+{
+  "cases": [
+    {
+      "id": "pb-fs-lag0-baseline",
+      "title": "CONTROLE (moet slagen): FS A(5)->B(3) lag0. B start de werkdag na A's finish.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 0 }],
+      "expect": { "tasks": { "A": { "es": "2026-06-01", "ef": "2026-06-05" }, "B": { "es": "2026-06-08", "ef": "2026-06-10" } } }
+    },
+    {
+      "id": "pb-ff-forward",
+      "title": "FF A(5)->B(2): theorie finishes uitlijnen, B.ef=A.ef=06-05, B.es=06-04, beide kritiek.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 0 }],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true }, "B": { "es": "2026-06-04", "ef": "2026-06-05", "crit": true } },
+        "criticalPathSet": ["A", "B"], "projectEnd": "2026-06-05", "projectDuration": 5
+      }
+    },
+    {
+      "id": "pb-fs-lag1",
+      "title": "FS A(5)->B(3) lag+1: theorie 1 werkdag gat -> B.es=06-09.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 1 }],
+      "expect": { "tasks": { "B": { "es": "2026-06-09", "ef": "2026-06-11" } } }
+    },
+    {
+      "id": "pb-fs-lag2",
+      "title": "FS A(5)->B(3) lag+2: theorie 2 werkdagen gat -> B.es=06-10.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 2 }],
+      "expect": { "tasks": { "B": { "es": "2026-06-10", "ef": "2026-06-12" } } }
+    },
+    {
+      "id": "pb-ss-lag2",
+      "title": "SS A(5)->B(3) lag+2: theorie B start 2 werkdagen na A.start(06-01) -> 06-03.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": 2 }],
+      "expect": { "tasks": { "B": { "es": "2026-06-03", "ef": "2026-06-05" } } }
+    },
+    {
+      "id": "pb-fs-lead",
+      "title": "FS A(5)->B(3) lag-2 (lead): theorie B start 2 werkdagen voor lag0-start(06-08) -> 06-04.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": -2 }],
+      "expect": { "tasks": { "B": { "es": "2026-06-04", "ef": "2026-06-08" } } }
+    },
+    {
+      "id": "pb-freefloat-single",
+      "title": "Vrije speling van een enkele eindtaak (geen opvolger) moet 0 zijn.",
+      "tasks": [{ "name": "A", "dur": 4 }],
+      "expect": { "tasks": { "A": { "ff": 0, "tf": 0, "crit": true } } }
+    },
+    {
+      "id": "pb-freefloat-chain",
+      "title": "Vrije speling in een kritieke FS-keten: A.ff=0 (B start direct na A), B.ff=0 (eindtaak).",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 0 }],
+      "expect": { "tasks": { "A": { "ff": 0 }, "B": { "ff": 0 } } }
+    },
+    {
+      "id": "pb-milestone-no-extra-day",
+      "title": "Mijlpaal A(5)->M->B(3) (FS) mag B niet verschuiven t.o.v. directe A->B: B.es moet 06-08 blijven.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "M", "milestone": true }, { "name": "B", "dur": 3 }],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START", "lag": 0 },
+        { "pred": "M", "succ": "B", "type": "FINISH_START", "lag": 0 }
+      ],
+      "expect": { "tasks": { "B": { "es": "2026-06-08", "ef": "2026-06-10" } } }
+    },
+    {
+      "id": "pb-projduration-milestone-only",
+      "title": "Mijlpaal-only project: projectduur hoort 0 te zijn (nul tijdsbeslag).",
+      "tasks": [{ "name": "M", "milestone": true }],
+      "expect": { "projectDuration": 0 }
+    }
+  ]
+}

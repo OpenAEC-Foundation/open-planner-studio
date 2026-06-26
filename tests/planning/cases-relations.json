@@ -1,0 +1,1269 @@
+{
+  "cases": [
+    {
+      "id": "rel-fs-01-longshort",
+      "title": "FS lag0, lange voorganger A(5wd)->korte opvolger B(2wd). Theorie: B start eerstvolgende werkdag NA finish A. A: wd1-wd5 (06-01..06-05). B start wd6 (06-08), dur2 -> wd7 (06-09). Keten kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-08",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-fs-02-shortlong",
+      "title": "FS lag0, korte voorganger A(2wd)->lange opvolger B(5wd). A: wd1-wd2 (06-01..06-02). B start wd3 (06-03), dur5 -> wd7 (06-09). Spiegelbeeld van fs-01; keten kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 2
+        },
+        {
+          "name": "B",
+          "dur": 5
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-03",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ss-01-longshort",
+      "title": "SS lag0, A(5wd)->B(2wd). Theorie: B start dezelfde werkdag als A. A: wd1-wd5 (06-01..06-05). B start wd1 (06-01), dur2 -> wd2 (06-02). B eindigt ruim voor A; B niet-kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "A"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ss-02-shortlong",
+      "title": "SS lag0, A(2wd)->B(5wd). B start dezelfde werkdag als A (wd1=06-01), dur5 -> wd5 (06-05). B loopt door tot na A; B is kritiek (bepaalt projecteinde).",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 2
+        },
+        {
+          "name": "B",
+          "dur": 5
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02",
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ff-01-longshort",
+      "title": "FF lag0, lange A(5wd)->korte B(2wd). Theorie: finishes uitgelijnd. A: wd1-wd5 (06-05). B moet eindigen op 06-05 -> B start zo dat dur2 eindigt wd5: B start wd4 (06-04), ef wd5 (06-05). Korte FF-opvolger start later.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-04",
+            "ef": "2026-06-05",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ff-02-shortlong",
+      "title": "FF lag0, korte A(2wd)->lange B(4wd). Finishes uitgelijnd. A: wd1-wd2 (06-02). B moet eindigen op 06-02, maar B(4wd) kan niet eerder dan anker wd1 starten -> B: wd1-wd4 (06-01..06-04). B eindigt LATER dan A; FF-constraint niet bindend want B is langer. B bepaalt projecteinde.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 2
+        },
+        {
+          "name": "B",
+          "dur": 4
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02"
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "B"
+        ],
+        "projectEnd": "2026-06-04",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-sf-01-basic",
+      "title": "SF lag0 (zeldzaam): opvolger B eindigt wanneer voorganger A START. A wortel: start wd1 (06-01). B moet eindigen op A.start = 06-01. B(1wd) eindigt wd1 -> B: es=ef=06-01. Theorie: SF lijnt B.finish uit met A.start.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 1
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-01"
+          }
+        },
+        "projectEnd": "2026-06-03",
+        "projectDuration": 3,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-sf-02-delayedpred",
+      "title": "SF lag0 met een voorganger A die zelf later start. X(3wd) wortel: wd1-wd3 (06-03). A na X via FS: A start wd4 (06-04). B via SF op A: B eindigt wanneer A start = 06-04. B(2wd) eindigt wd4 -> start wd3 (06-03), ef wd4 (06-04). Theorie: SF.finish = pred.start.",
+      "tasks": [
+        {
+          "name": "X",
+          "dur": 3
+        },
+        {
+          "name": "A",
+          "dur": 2
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "X",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "X": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          },
+          "A": {
+            "es": "2026-06-04",
+            "ef": "2026-06-05"
+          },
+          "B": {
+            "es": "2026-06-03",
+            "ef": "2026-06-04"
+          }
+        },
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "rel-fs-lag0",
+      "title": "DIFFERENTIEEL FS-trio (basis lag0). A(4wd): wd1-wd4 (06-04). B(3wd) FS lag0: start wd5 (06-05), ef wd7 (06-09). Vergelijk met fs-lagp2 en fs-lagm2.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-05",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-fs-lagp2",
+      "title": "DIFFERENTIEEL FS-trio (lag +2). Identiek aan fs-lag0 maar lag=+2: B start 2 werkdagen later dan wd5 -> wd7 (06-09), ef wd9 (06-11). Toetst dat +lag uitgesteld wordt (uitloop).",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 2
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-09",
+            "ef": "2026-06-11",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-11",
+        "projectDuration": 9,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-fs-lagm2",
+      "title": "DIFFERENTIEEL FS-trio (lag -2 = lead). Identiek aan fs-lag0 maar lag=-2: B start 2 werkdagen vroeger dan wd5 -> wd3 (06-03), ef wd5 (06-05). B overlapt A (aanloop). Keten kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": -2
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-03",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ss-lag0",
+      "title": "DIFFERENTIEEL SS-trio (basis lag0). A(4wd): wd1-wd4 (06-04). B(3wd) SS lag0: start wd1 (06-01), ef wd3 (06-03). B eindigt voor A; A kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "A"
+        ],
+        "projectEnd": "2026-06-04",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ss-lagp2",
+      "title": "DIFFERENTIEEL SS-trio (lag +2). Identiek aan ss-lag0 maar lag=+2: B start 2 werkdagen na A.start -> wd3 (06-03), ef wd5 (06-05). B eindigt nu NA A -> B kritiek, projecteinde 06-05.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_START",
+          "lag": 2
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-03",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ss-lagm2",
+      "title": "DIFFERENTIEEL SS-trio (lag -2 = lead). A(4wd) wortel start wd1. SS lag -2: B zou 2 werkdagen voor A.start moeten starten, maar B kan niet voor het anker wd1 -> B start wd1 (06-01), ef wd3 (06-03). KANDIDAAT: theorie zegt 'A.start - 2wd' maar dat valt voor het anker; verwacht clamp naar anker.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_START",
+          "lag": -2
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          }
+        },
+        "criticalPathSet": [
+          "A"
+        ],
+        "projectEnd": "2026-06-04",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ss-lagm2-offset",
+      "title": "DIFFERENTIEEL SS lag -2 zonder anker-clamp. X(3wd) wortel: wd1-wd3 (06-03). A na X via FS: A start wd4 (06-04). B SS lag -2 op A: B start 2 werkdagen voor A.start (wd4) -> wd2 (06-02), B(3wd) ef wd4 (06-04). Zo is de lead echt zichtbaar (geen clamp).",
+      "tasks": [
+        {
+          "name": "X",
+          "dur": 3
+        },
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "B",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "X",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_START",
+          "lag": -2
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "X": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          },
+          "A": {
+            "es": "2026-06-04",
+            "ef": "2026-06-09"
+          },
+          "B": {
+            "es": "2026-06-02",
+            "ef": "2026-06-04"
+          }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ff-lag0",
+      "title": "DIFFERENTIEEL FF-trio (basis lag0). A(5wd): wd1-wd5 (06-05). B(2wd) FF lag0: eindigt 06-05 -> start wd4 (06-04). Vergelijk met ff-lagp2/ff-lagm2.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-04",
+            "ef": "2026-06-05",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ff-lagp2",
+      "title": "DIFFERENTIEEL FF-trio (lag +2). Identiek aan ff-lag0 maar lag=+2: B eindigt 2 werkdagen NA A.finish (wd5) -> wd7 (06-09). B(2wd) start wd6 (06-08). B verlengt project tot 06-09; B kritiek.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_FINISH",
+          "lag": 2
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-08",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ff-lagm2",
+      "title": "DIFFERENTIEEL FF-trio (lag -2 = lead). Identiek aan ff-lag0 maar lag=-2: B eindigt 2 werkdagen VOOR A.finish (wd5) -> wd3 (06-03). B(2wd) start wd2 (06-02). B eindigt vroeger; A blijft kritiek pad/projecteinde.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 5
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_FINISH",
+          "lag": -2
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-02",
+            "ef": "2026-06-03",
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "A"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-multi-fs-ss",
+      "title": "Meerdere voorgangers, meest beperkend wint. C heeft P(2wd, wd1-wd2=06-02) via FS lag0 -> wil wd3 (06-03); en Q(6wd, wd1-wd6=06-08) via SS lag0 -> wil wd1 (06-01). Max-constraint = 06-03 (FS van P). C(2wd): es wd3 (06-03), ef wd4 (06-04).",
+      "tasks": [
+        {
+          "name": "P",
+          "dur": 2
+        },
+        {
+          "name": "Q",
+          "dur": 6
+        },
+        {
+          "name": "C",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "P",
+          "succ": "C",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "Q",
+          "succ": "C",
+          "type": "START_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "P": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02"
+          },
+          "Q": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "C": {
+            "es": "2026-06-03",
+            "ef": "2026-06-04"
+          }
+        },
+        "criticalPathSet": [
+          "Q"
+        ],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-multi-fs-ff",
+      "title": "Meerdere voorgangers met FS en FF tegelijk. C heeft P(3wd, wd1-wd3=06-03) via FS lag0 -> start wd4 (06-04); en R(7wd, wd1-wd7=06-09) via FF lag0 -> C.finish=06-09. C(4wd). FS wil start 06-04 (ef wd7=06-09). FF wil finish 06-09 (start wd4=06-04). Beide leveren start wd4 (06-04), ef wd7 (06-09). Consistent; C kritiek.",
+      "tasks": [
+        {
+          "name": "P",
+          "dur": 3
+        },
+        {
+          "name": "R",
+          "dur": 7
+        },
+        {
+          "name": "C",
+          "dur": 4
+        }
+      ],
+      "links": [
+        {
+          "pred": "P",
+          "succ": "C",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "R",
+          "succ": "C",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "P": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          },
+          "R": {
+            "es": "2026-06-01",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          },
+          "C": {
+            "es": "2026-06-04",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "P",
+          "R",
+          "C"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-multi-ff-binds",
+      "title": "Meerdere voorgangers: FF is meest beperkend. C heeft P(2wd, wd1-wd2=06-02) via FS lag0 -> wil start wd3 (06-03); en R(8wd, wd1-wd8=06-10) via FF lag0 -> C.finish=06-10. C(3wd). FS: start 06-03 -> ef wd5 (06-05). FF: finish 06-10 -> start wd6 (06-08). FF bindt later (start wd6=06-08), ef wd8 (06-10). C kritiek met R.",
+      "tasks": [
+        {
+          "name": "P",
+          "dur": 2
+        },
+        {
+          "name": "R",
+          "dur": 8
+        },
+        {
+          "name": "C",
+          "dur": 3
+        }
+      ],
+      "links": [
+        {
+          "pred": "P",
+          "succ": "C",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "R",
+          "succ": "C",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "P": {
+            "es": "2026-06-01",
+            "ef": "2026-06-02"
+          },
+          "R": {
+            "es": "2026-06-01",
+            "ef": "2026-06-10",
+            "tf": 0,
+            "crit": true
+          },
+          "C": {
+            "es": "2026-06-08",
+            "ef": "2026-06-10",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "R",
+          "C"
+        ],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ss-ff-pair",
+      "title": "SS+FF tussen hetzelfde paar (klassieke overlap-koppeling). A(6wd): wd1-wd6 (06-08). B(4wd) heeft SS lag0 (start>=A.start=06-01) EN FF lag0 (finish>=A.finish=06-08). FF bindt: B.finish=06-08 -> start = wd6-4+1 = wd3 (06-03). SS toelaatbaar (06-03>=06-01, niet bindend). B: es wd3 (06-03), ef wd6 (06-08). B kritiek met A.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 6
+        },
+        {
+          "name": "B",
+          "dur": 4
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_START",
+          "lag": 0
+        },
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_FINISH",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-08",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-03",
+            "ef": "2026-06-08",
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-fs-chain-tf",
+      "title": "FS-keten met parallelle korte tak voor speling (tf/ff). A(3wd, wd1-wd3=06-03) -> B(4wd, FS) start wd4 (06-04), ef wd9 (06-11). A -> S(1wd, FS) start wd4 (06-04), ef wd4 (06-04). S->END niet, dus S heeft speling tot projecteinde 06-11. tf(S)= van ef 06-04 tot late finish 06-11 = 5 werkdagen.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 4
+        },
+        {
+          "name": "S",
+          "dur": 1
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "A",
+          "succ": "S",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-04",
+            "ef": "2026-06-09",
+            "tf": 0,
+            "crit": true
+          },
+          "S": {
+            "es": "2026-06-04",
+            "ef": "2026-06-04",
+            "tf": 3,
+            "crit": false
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-fs-milestone-succ",
+      "title": "FS naar mijlpaal. A(4wd): wd1-wd4 (06-04). M (milestone, dur0) FS lag0: start = eerstvolgende werkdag na 06-04 = wd5 (06-05), es=ef=06-05. Mijlpaal heeft geen tijdsbeslag; projecteinde 06-05.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "M",
+          "type": "FINISH_START",
+          "lag": 0
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "M": {
+            "es": "2026-06-05",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "M"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-ff-milestone-lag",
+      "title": "FF naar mijlpaal met lag +1. A(4wd): wd1-wd4 (06-04). M (dur0) FF lag +1: M.finish = A.finish + 1wd = wd5 (06-05). Mijlpaal dur0 -> es=ef=06-05. Toetst FF+lag op nul-duur taak.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 4
+        },
+        {
+          "name": "M",
+          "milestone": true
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "M",
+          "type": "FINISH_FINISH",
+          "lag": 1
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-04",
+            "tf": 0,
+            "crit": true
+          },
+          "M": {
+            "es": "2026-06-05",
+            "ef": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "M"
+        ],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-fs-lag-spanweekend",
+      "title": "FS lag +3 in WERKDAGEN (niet kalenderdagen) over een weekend. A(3wd): wd1-wd3 (06-03). Standaard FS lag L: B.es = pred.ef + L werkdagen (eerstvolgende werkdag). ef=wd3 -> +3wd telt door het weekend: wd4(06-04), wd5(06-05), wd6(06-08) = wd6 (06-08). B(2wd): es 06-08, ef wd7 (06-09). KANDIDAAT a) lag als kalenderdagen (06-03+3=06-06 za -> ma 06-08; toevallig gelijk hier). KANDIDAAT b) lag-telling vanaf de FS-basis wd4 i.p.v. ef wd3 -> dan wd7 (06-09); gekozen waarde volgt de ef+L-lezing.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START",
+          "lag": 3
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-09",
+            "ef": "2026-06-10",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "rel-sf-lag-p1",
+      "title": "SF met lag +1. X(3wd) wortel: wd1-wd3 (06-03). A FS na X: start wd4 (06-04). B SF lag +1 op A: B.finish = A.start + 1wd = wd5 (06-05). B(2wd): start wd4 (06-04), ef wd5 (06-05). Toetst SF + positieve lag.",
+      "tasks": [
+        {
+          "name": "X",
+          "dur": 3
+        },
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "X",
+          "succ": "A",
+          "type": "FINISH_START",
+          "lag": 0
+        },
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "START_FINISH",
+          "lag": 1
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "X": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03"
+          },
+          "A": {
+            "es": "2026-06-04",
+            "ef": "2026-06-08"
+          },
+          "B": {
+            "es": "2026-06-04",
+            "ef": "2026-06-05"
+          }
+        },
+        "error": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,643 @@
+{
+  "cases": [
+    {
+      "id": "float-serial-allcrit-01",
+      "title": "Volledig serieel netwerk A->B->C->D (FS): alle taken kritiek, tf=0, criticalPathSet = alle taken.",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2 },
+        { "name": "C", "dur": 4 },
+        { "name": "D", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-06-08", "ef": "2026-06-11", "tf": 0, "ff": 0, "crit": true },
+          "D": { "es": "2026-06-12", "ef": "2026-06-15", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "C", "D"],
+        "projectEnd": "2026-06-15",
+        "projectDuration": 11,
+        "error": false
+      }
+    },
+    {
+      "id": "float-diamond-diff1-02",
+      "title": "Diamant met lengteverschil 1 werkdag (near-critical): lange tak kritiek tf=0, korte tak tf=1, ff=1.",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 4 },
+        { "name": "C", "dur": 3 },
+        { "name": "D", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-09", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-06-04", "ef": "2026-06-08", "tf": 1, "ff": 1, "crit": false },
+          "D": { "es": "2026-06-10", "ef": "2026-06-11", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "D"],
+        "projectEnd": "2026-06-11",
+        "projectDuration": 9,
+        "error": false
+      }
+    },
+    {
+      "id": "float-diamond-diff3-03",
+      "title": "Diamant met lengteverschil 3 werkdagen: korte tak tf=3, ff=3 (laatste taak voor samenkomst).",
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "B", "dur": 5 },
+        { "name": "C", "dur": 2 },
+        { "name": "D", "dur": 3 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-08", "ef": "2026-06-12", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-06-08", "ef": "2026-06-09", "tf": 3, "ff": 3, "crit": false },
+          "D": { "es": "2026-06-15", "ef": "2026-06-17", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "D"],
+        "projectEnd": "2026-06-17",
+        "projectDuration": 13,
+        "error": false
+      }
+    },
+    {
+      "id": "float-diamond-diff5-04",
+      "title": "Diamant met lengteverschil 5 werkdagen: korte tak tf=5, ff=5.",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 8 },
+        { "name": "C", "dur": 3 },
+        { "name": "D", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-12", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-06-03", "ef": "2026-06-05", "tf": 5, "ff": 5, "crit": false },
+          "D": { "es": "2026-06-15", "ef": "2026-06-16", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "D"],
+        "projectEnd": "2026-06-16",
+        "projectDuration": 12,
+        "error": false
+      }
+    },
+    {
+      "id": "float-ff-lt-tf-05",
+      "title": "Onderscheid vrije vs totale speling: zijketen X->Y->M waarbij X ff=0 maar tf=6 (vrije speling < totale speling). Hoofdpad A->M is kritiek.",
+      "tasks": [
+        { "name": "A", "dur": 10 },
+        { "name": "X", "dur": 2 },
+        { "name": "Y", "dur": 2 },
+        { "name": "M", "milestone": true }
+      ],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START" },
+        { "pred": "X", "succ": "Y", "type": "FINISH_START" },
+        { "pred": "Y", "succ": "M", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-12", "tf": 0, "crit": true },
+          "X": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 6, "ff": 0, "crit": false },
+          "Y": { "es": "2026-06-03", "ef": "2026-06-04", "tf": 6, "ff": 6, "crit": false },
+          "M": { "es": "2026-06-15", "ef": "2026-06-15", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "M"],
+        "projectEnd": "2026-06-15",
+        "projectDuration": 11,
+        "error": false
+      }
+    },
+    {
+      "id": "float-ff-lt-tf-deeper-06",
+      "title": "Diepere variant: zijketen P->Q->R voedt R die op MAIN wacht. P ff=0 tf=7; Q ff=7 tf=7; R kritiek. Eerste schakel P heeft vrije speling 0 ondanks totale speling 7 (ff<tf vooraan de keten).",
+      "tasks": [
+        { "name": "MAIN", "dur": 12 },
+        { "name": "P", "dur": 2 },
+        { "name": "Q", "dur": 3 },
+        { "name": "R", "dur": 3 }
+      ],
+      "links": [
+        { "pred": "P", "succ": "Q", "type": "FINISH_START" },
+        { "pred": "Q", "succ": "R", "type": "FINISH_START" },
+        { "pred": "MAIN", "succ": "R", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "MAIN": { "es": "2026-06-01", "ef": "2026-06-16", "tf": 0, "crit": true },
+          "P": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 7, "ff": 0, "crit": false },
+          "Q": { "es": "2026-06-03", "ef": "2026-06-05", "tf": 7, "ff": 7, "crit": false },
+          "R": { "es": "2026-06-17", "ef": "2026-06-19", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["MAIN", "R"],
+        "projectEnd": "2026-06-19",
+        "projectDuration": 15,
+        "error": false
+      }
+    },
+    {
+      "id": "float-multi-succ-07",
+      "title": "Taak met meerdere opvolgers: vrije speling beperkt door de vroegste opvolger. A heeft opvolgers B (start direct) en C; A's ff=0 omdat B start meteen na A.",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 6 },
+        { "name": "C", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-11", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-06-04", "ef": "2026-06-05", "tf": 4, "ff": 4, "crit": false }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-06-11",
+        "projectDuration": 9,
+        "error": false
+      }
+    },
+    {
+      "id": "float-multi-succ-ff-by-earliest-08",
+      "title": "Niet-kritieke taak A met meerdere opvolgers: A's ff=0 (bepaald door de VROEGSTE opvolger die direct na A start) terwijl A's tf=6. Een onafhankelijke DRIVER-keten bepaalt het projecteinde, zodat de A->{B,C}-tak speling houdt.",
+      "tasks": [
+        { "name": "ROOT", "dur": 4 },
+        { "name": "DRIVER", "dur": 10 },
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 2 },
+        { "name": "C", "dur": 2 },
+        { "name": "END", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "ROOT", "succ": "DRIVER", "type": "FINISH_START" },
+        { "pred": "ROOT", "succ": "A", "type": "FINISH_START" },
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "DRIVER", "succ": "END", "type": "FINISH_START" },
+        { "pred": "B", "succ": "END", "type": "FINISH_START" },
+        { "pred": "C", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "ROOT": { "es": "2026-06-01", "ef": "2026-06-04", "tf": 0, "crit": true },
+          "DRIVER": { "es": "2026-06-05", "ef": "2026-06-18", "tf": 0, "ff": 0, "crit": true },
+          "A": { "es": "2026-06-05", "ef": "2026-06-08", "tf": 6, "ff": 0, "crit": false },
+          "B": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 6, "ff": 6, "crit": false },
+          "C": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 6, "ff": 6, "crit": false },
+          "END": { "es": "2026-06-19", "ef": "2026-06-22", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["ROOT", "DRIVER", "END"],
+        "projectEnd": "2026-06-22",
+        "projectDuration": 16,
+        "error": false
+      }
+    },
+    {
+      "id": "float-multi-pred-09",
+      "title": "Taak met meerdere voorgangers: D start eerstvolgende werkdag na de LAATSTE voorganger. De vroege voorgangers hebben speling.",
+      "tasks": [
+        { "name": "A", "dur": 6 },
+        { "name": "B", "dur": 3 },
+        { "name": "C", "dur": 1 },
+        { "name": "D", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "D", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-08", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 3, "ff": 3, "crit": false },
+          "C": { "es": "2026-06-01", "ef": "2026-06-01", "tf": 5, "ff": 5, "crit": false },
+          "D": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "D"],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "float-single-sidebranch-10",
+      "title": "Eén duidelijke niet-kritieke zijtak: hoofdketen A->B->C->E, zijtak D hangt aan B en voedt E. criticalPathSet exact = {A,B,C,E}.",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 3 },
+        { "name": "C", "dur": 4 },
+        { "name": "D", "dur": 2 },
+        { "name": "E", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "E", "type": "FINISH_START" },
+        { "pred": "D", "succ": "E", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-08", "tf": 0, "crit": true },
+          "C": { "es": "2026-06-09", "ef": "2026-06-12", "tf": 0, "crit": true },
+          "D": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 2, "ff": 2, "crit": false },
+          "E": { "es": "2026-06-15", "ef": "2026-06-16", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "C", "E"],
+        "projectEnd": "2026-06-16",
+        "projectDuration": 12,
+        "error": false
+      }
+    },
+    {
+      "id": "float-two-parallel-chains-11",
+      "title": "Twee parallelle ketens van ongelijke lengte naar één eind-mijlpaal. Lange keten kritiek; korte keten tf=lengteverschil. Gedeelde root.",
+      "tasks": [
+        { "name": "ROOT", "dur": 2 },
+        { "name": "L1", "dur": 4 },
+        { "name": "L2", "dur": 4 },
+        { "name": "S1", "dur": 3 },
+        { "name": "S2", "dur": 2 },
+        { "name": "FIN", "milestone": true }
+      ],
+      "links": [
+        { "pred": "ROOT", "succ": "L1", "type": "FINISH_START" },
+        { "pred": "L1", "succ": "L2", "type": "FINISH_START" },
+        { "pred": "ROOT", "succ": "S1", "type": "FINISH_START" },
+        { "pred": "S1", "succ": "S2", "type": "FINISH_START" },
+        { "pred": "L2", "succ": "FIN", "type": "FINISH_START" },
+        { "pred": "S2", "succ": "FIN", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "ROOT": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0, "crit": true },
+          "L1": { "es": "2026-06-03", "ef": "2026-06-08", "tf": 0, "crit": true },
+          "L2": { "es": "2026-06-09", "ef": "2026-06-12", "tf": 0, "crit": true },
+          "S1": { "es": "2026-06-03", "ef": "2026-06-05", "tf": 3, "ff": 0, "crit": false },
+          "S2": { "es": "2026-06-08", "ef": "2026-06-09", "tf": 3, "ff": 3, "crit": false },
+          "FIN": { "es": "2026-06-15", "ef": "2026-06-15", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["ROOT", "L1", "L2", "FIN"],
+        "projectEnd": "2026-06-15",
+        "projectDuration": 11,
+        "error": false
+      }
+    },
+    {
+      "id": "float-three-parallel-12",
+      "title": "Drie parallelle takken van ongelijke lengte naar D (diamant met 3 takken). Kritieke tak tf=0; tf van overige = verschil met langste.",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 7 },
+        { "name": "C", "dur": 4 },
+        { "name": "E", "dur": 6 },
+        { "name": "D", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "A", "succ": "E", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" },
+        { "pred": "E", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-11", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-06-03", "ef": "2026-06-08", "tf": 3, "ff": 3, "crit": false },
+          "E": { "es": "2026-06-03", "ef": "2026-06-10", "tf": 1, "ff": 1, "crit": false },
+          "D": { "es": "2026-06-12", "ef": "2026-06-15", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "D"],
+        "projectEnd": "2026-06-15",
+        "projectDuration": 11,
+        "error": false
+      }
+    },
+    {
+      "id": "float-milestone-end-13",
+      "title": "Eind-mijlpaal samenkomst van twee ketens. Mijlpaal duur 0 (es==ef). Kortere keten tf=2.",
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "B", "dur": 3 },
+        { "name": "END", "milestone": true }
+      ],
+      "links": [
+        { "pred": "A", "succ": "END", "type": "FINISH_START" },
+        { "pred": "B", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 2, "ff": 2, "crit": false },
+          "END": { "es": "2026-06-08", "ef": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "END"],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "float-two-independent-roots-14",
+      "title": "Twee onafhankelijke ketens zonder samenkomst (verschillende eindtaken). De langste keten bepaalt projecteinde; de kortere keten-eindtaak heeft tf=verschil. Eindtaken: ff=tf.",
+      "tasks": [
+        { "name": "A1", "dur": 3 },
+        { "name": "A2", "dur": 4 },
+        { "name": "B1", "dur": 2 },
+        { "name": "B2", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "A2", "type": "FINISH_START" },
+        { "pred": "B1", "succ": "B2", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "A2": { "es": "2026-06-04", "ef": "2026-06-09", "tf": 0, "ff": 0, "crit": true },
+          "B1": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 3, "ff": 0, "crit": false },
+          "B2": { "es": "2026-06-03", "ef": "2026-06-04", "tf": 3, "ff": 3, "crit": false }
+        },
+        "criticalPathSet": ["A1", "A2"],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "float-near-critical-tf1-15",
+      "title": "Near-critical opvolger tf=1: diamant waar de korte tak precies 1 werkdag korter is. Specifieke focus op tf=1 detectie.",
+      "tasks": [
+        { "name": "A", "dur": 4 },
+        { "name": "B", "dur": 6 },
+        { "name": "C", "dur": 5 },
+        { "name": "D", "dur": 3 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-04", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-05", "ef": "2026-06-12", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-06-05", "ef": "2026-06-11", "tf": 1, "ff": 1, "crit": false },
+          "D": { "es": "2026-06-15", "ef": "2026-06-17", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "D"],
+        "projectEnd": "2026-06-17",
+        "projectDuration": 13,
+        "error": false
+      }
+    },
+    {
+      "id": "float-single-task-16",
+      "title": "Eén enkele taak zonder relaties: kritiek, tf=0, ff=0 (eindtaak). Degeneraat geval.",
+      "tasks": [
+        { "name": "SOLO", "dur": 5 }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "SOLO": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["SOLO"],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "float-two-parallel-no-join-17",
+      "title": "Twee losse taken parallel, geen relaties. Langste kritiek (ff=tf=0); kortere tf=ff=verschil (eindtaak).",
+      "tasks": [
+        { "name": "LONG", "dur": 6 },
+        { "name": "SHORT", "dur": 2 }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "LONG": { "es": "2026-06-01", "ef": "2026-06-08", "tf": 0, "ff": 0, "crit": true },
+          "SHORT": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 4, "ff": 4, "crit": false }
+        },
+        "criticalPathSet": ["LONG"],
+        "projectEnd": "2026-06-08",
+        "projectDuration": 6,
+        "error": false
+      }
+    },
+    {
+      "id": "float-long-side-chain-ladders-18",
+      "title": "Ladder-zijketen: hoofdpad lang, twee zijtaken in serie waarbij de eerste ff=0 (direct gevolgd) en de tweede ff>0 (gat naar samenkomst). Onderscheidt ff per positie in keten.",
+      "tasks": [
+        { "name": "M1", "dur": 4 },
+        { "name": "M2", "dur": 6 },
+        { "name": "S1", "dur": 2 },
+        { "name": "S2", "dur": 1 },
+        { "name": "J", "milestone": true }
+      ],
+      "links": [
+        { "pred": "M1", "succ": "M2", "type": "FINISH_START" },
+        { "pred": "S1", "succ": "S2", "type": "FINISH_START" },
+        { "pred": "M2", "succ": "J", "type": "FINISH_START" },
+        { "pred": "S2", "succ": "J", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "M1": { "es": "2026-06-01", "ef": "2026-06-04", "tf": 0, "crit": true },
+          "M2": { "es": "2026-06-05", "ef": "2026-06-12", "tf": 0, "ff": 0, "crit": true },
+          "S1": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 7, "ff": 0, "crit": false },
+          "S2": { "es": "2026-06-03", "ef": "2026-06-03", "tf": 7, "ff": 7, "crit": false },
+          "J": { "es": "2026-06-15", "ef": "2026-06-15", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["M1", "M2", "J"],
+        "projectEnd": "2026-06-15",
+        "projectDuration": 11,
+        "error": false
+      }
+    },
+    {
+      "id": "float-multi-pred-mixed-float-19",
+      "title": "Samenkomst met meerdere voorgangers van wisselende float. Eindtaak FIN. Voorgangers P1 (kritiek), P2 (tf=2), P3 (tf=5).",
+      "tasks": [
+        { "name": "P1", "dur": 7 },
+        { "name": "P2", "dur": 5 },
+        { "name": "P3", "dur": 2 },
+        { "name": "FIN", "dur": 3 }
+      ],
+      "links": [
+        { "pred": "P1", "succ": "FIN", "type": "FINISH_START" },
+        { "pred": "P2", "succ": "FIN", "type": "FINISH_START" },
+        { "pred": "P3", "succ": "FIN", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "P1": { "es": "2026-06-01", "ef": "2026-06-09", "tf": 0, "ff": 0, "crit": true },
+          "P2": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 2, "ff": 2, "crit": false },
+          "P3": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 5, "ff": 5, "crit": false },
+          "FIN": { "es": "2026-06-10", "ef": "2026-06-12", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["P1", "FIN"],
+        "projectEnd": "2026-06-12",
+        "projectDuration": 10,
+        "error": false
+      }
+    },
+    {
+      "id": "float-double-diamond-20",
+      "title": "Dubbele diamant in serie. Test propagatie van float over twee samenkomsten. Kritiek pad loopt door beide lange takken.",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 5 },
+        { "name": "C", "dur": 2 },
+        { "name": "D", "dur": 1 },
+        { "name": "E", "dur": 4 },
+        { "name": "F", "dur": 2 },
+        { "name": "G", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" },
+        { "pred": "D", "succ": "E", "type": "FINISH_START" },
+        { "pred": "D", "succ": "F", "type": "FINISH_START" },
+        { "pred": "E", "succ": "G", "type": "FINISH_START" },
+        { "pred": "F", "succ": "G", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-09", "tf": 0, "crit": true },
+          "C": { "es": "2026-06-03", "ef": "2026-06-04", "tf": 3, "ff": 3, "crit": false },
+          "D": { "es": "2026-06-10", "ef": "2026-06-10", "tf": 0, "crit": true },
+          "E": { "es": "2026-06-11", "ef": "2026-06-16", "tf": 0, "ff": 0, "crit": true },
+          "F": { "es": "2026-06-11", "ef": "2026-06-12", "tf": 2, "ff": 2, "crit": false },
+          "G": { "es": "2026-06-17", "ef": "2026-06-18", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "D", "E", "G"],
+        "projectEnd": "2026-06-18",
+        "projectDuration": 14,
+        "error": false
+      }
+    },
+    {
+      "id": "float-tied-parallel-both-critical-21",
+      "title": "Twee parallelle takken van GELIJKE lengte: beide kritiek (tf=0). criticalPathSet bevat beide takken.",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 4 },
+        { "name": "C", "dur": 4 },
+        { "name": "D", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" },
+        { "pred": "C", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-08", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-06-03", "ef": "2026-06-08", "tf": 0, "ff": 0, "crit": true },
+          "D": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "C", "D"],
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "error": false
+      }
+    },
+    {
+      "id": "float-ff-zero-shared-successor-22",
+      "title": "Twee niet-kritieke voorgangers delen één opvolger die meteen na de laatste start. De latere voorganger heeft ff=0; de vroegere ff>0. Onderscheid ff binnen samenkomst.",
+      "tasks": [
+        { "name": "MAIN", "dur": 9 },
+        { "name": "E1", "dur": 2 },
+        { "name": "E2", "dur": 4 },
+        { "name": "J", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "E1", "succ": "J", "type": "FINISH_START" },
+        { "pred": "E2", "succ": "J", "type": "FINISH_START" },
+        { "pred": "MAIN", "succ": "J", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "MAIN": { "es": "2026-06-01", "ef": "2026-06-11", "tf": 0, "ff": 0, "crit": true },
+          "E1": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 7, "ff": 7, "crit": false },
+          "E2": { "es": "2026-06-01", "ef": "2026-06-04", "tf": 5, "ff": 5, "crit": false },
+          "J": { "es": "2026-06-12", "ef": "2026-06-15", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["MAIN", "J"],
+        "projectEnd": "2026-06-15",
+        "projectDuration": 11,
+        "error": false
+      }
+    },
+    {
+      "id": "float-asymmetric-merge-ff-distinct-23",
+      "title": "Zijketen W->Z waar W direct gevolgd wordt door Z (W ff=0) terwijl Z een gat heeft tot het einde (Z ff>0). tf gelijk over de keten, ff verschilt per positie.",
+      "tasks": [
+        { "name": "CORE", "dur": 11 },
+        { "name": "W", "dur": 3 },
+        { "name": "Z", "dur": 4 },
+        { "name": "TERM", "milestone": true }
+      ],
+      "links": [
+        { "pred": "W", "succ": "Z", "type": "FINISH_START" },
+        { "pred": "CORE", "succ": "TERM", "type": "FINISH_START" },
+        { "pred": "Z", "succ": "TERM", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "CORE": { "es": "2026-06-01", "ef": "2026-06-15", "tf": 0, "crit": true },
+          "W": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 4, "ff": 0, "crit": false },
+          "Z": { "es": "2026-06-04", "ef": "2026-06-09", "tf": 4, "ff": 4, "crit": false },
+          "TERM": { "es": "2026-06-16", "ef": "2026-06-16", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["CORE", "TERM"],
+        "projectEnd": "2026-06-16",
+        "projectDuration": 12,
+        "error": false
+      }
+    }
+  ]
+}
