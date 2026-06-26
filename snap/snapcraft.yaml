@@ -1,0 +1,44 @@
+name: open-planner-studio
+base: core22
+# Versie wordt in CI overschreven met het release-versienummer (zie .github/workflows/snap.yml).
+version: '0.0.0'
+summary: Bouwplanning (Gantt/CPM) met IFC 4.3 als native bestandsformaat
+description: |
+  Open Planner Studio is een desktop-app voor bouwplanning: Gantt-weergave,
+  CPM-scheduling, resources en kalenders, met IFC 4.3 (buildingSMART) als native
+  bestandsformaat. Bevat import/export voor CSV, Microsoft Project en Primavera P6.
+
+grade: stable
+confinement: strict
+
+apps:
+  open-planner-studio:
+    # Snapnaam == appnaam, dus het commando is gewoon `open-planner-studio`.
+    command: usr/bin/open-planner-studio
+    # De gnome-extensie wired GTK3 + WebKitGTK uit het GNOME-platform-snap en voegt
+    # zelf de desktop/wayland/x11/opengl/gsettings-plugs toe (auto-connected).
+    extensions: [gnome]
+    desktop: usr/share/applications/open-planner-studio.desktop
+    plugs:
+      # Alleen de plugs die de gnome-extensie niet al levert:
+      - home            # IFC openen/opslaan/exporteren in de home-map
+      - removable-media # idem op externe schijven/USB
+      - network         # update-check, extensie-catalogus
+      - browser-support # WebKit-rendering/sandbox
+      - audio-playback
+
+parts:
+  open-planner-studio:
+    plugin: nil
+    # De CI-stap kopieert de gepubliceerde release-deb naar de project-root als
+    # `open-planner-studio.deb`; we herverpakken die i.p.v. opnieuw te bouwen.
+    override-build: |
+      set -eu
+      dpkg-deb -x "${CRAFT_PROJECT_DIR}/open-planner-studio.deb" "${CRAFT_PART_INSTALL}"
+      # Tauri's desktop-file heeft spaties in de bestandsnaam; hernoem naar een
+      # stabiel pad zodat de `desktop:`-sleutel hierboven klopt.
+      mv "${CRAFT_PART_INSTALL}/usr/share/applications/Open Planner Studio.desktop" \
+         "${CRAFT_PART_INSTALL}/usr/share/applications/open-planner-studio.desktop"
+    # stage-packages bewust leeg: GTK3 + WebKitGTK komen uit de gnome-runtime.
+    # Ontbreekt er bij de verificatie-run toch een lib, dan voegen we 'm hier toe
+    # (itereren via de workflow_dispatch-route, niet gokken).

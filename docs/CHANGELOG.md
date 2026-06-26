@@ -18,6 +18,12 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 - `read_file`/`write_file` in de Rust-backend gedocumenteerd als bewuste escape-hatch.
 
 ### Toegevoegd
+- **Snap-packaging werkend gemaakt** — `snap/snapcraft.yaml` toegevoegd (core22, strict
+  confinement, gnome-extensie) die de release-deb herverpakt. `snap.yml` herschreven:
+  triggert nu op tag-push én `workflow_dispatch`, downloadt de release-deb i.p.v. de
+  Tauri-app opnieuw te bouwen, hangt de `.snap` als release-asset, en publiceert naar de
+  Snap Store zodra het `SNAPCRAFT_STORE_CREDENTIALS`-secret bestaat. Follow-ups:
+  in-app updater overslaan binnen de snap, en Store-registratie van de naam.
 - **Multi-document (back-end)** — `documentSlice` houdt meerdere geopende projecten bij; het
   actieve document leeft op top-level (alle bestaande slices/renderer ongewijzigd), inactieve als
   payload-snapshot. Acties `newDocument`/`switchDocument`/`closeDocument` + `getOpenDocuments`.

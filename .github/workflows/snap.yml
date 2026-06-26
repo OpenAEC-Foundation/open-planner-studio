@@ -1,18 +1,24 @@
 name: Build Snap Package
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., v0.1.0)'
+        description: 'Bestaande release-tag om tegen te bouwen (test)'
         required: true
-        default: 'v0.1.0'
+        default: 'v2026.6.0'
 
 jobs:
   build-snap:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+    env:
+      # Job-level zodat de gated publish-stap er in `if:` naar kan verwijzen.
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
 
     steps:
       - uses: actions/checkout@v5
@@ -25,70 +31,70 @@ jobs:
           else
             VERSION="${GITHUB_REF#refs/tags/}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_number=${VERSION#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Build Tauri app
-        run: npx tauri build
+      # We bouwen de Tauri-app NIET opnieuw: de snap herverpakt de deb van de
+      # gepubliceerde GitHub-release (zelfde artifact als de overige Linux-downloads).
+      # Bij een tag-push draait release.yml gelijktijdig, dus wachten we tot de
+      # deb-asset bestaat.
+      - name: Wait for release deb and download it
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-      - name: Prepare snap build
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Find the built deb
-          DEB_FILE=$(find src-tauri/target/release/bundle/deb -name "*.deb" | head -1)
-          echo "Found deb: $DEB_FILE"
+          VERSION="${{ steps.get-version.outputs.version }}"
+          echo "Wachten op deb-asset van release $VERSION..."
+          found=""
+          for i in $(seq 1 60); do
+            if gh release view "$VERSION" --json assets --jq '.assets[].name' 2>/dev/null | grep -q '_amd64\.deb$'; then
+              found=1
+              echo "deb-asset gevonden"
+              break
+            fi
+            echo "nog geen deb-asset... (poging $i/60)"
+            sleep 30
+          done
+          if [ -z "$found" ]; then
+            echo "::error::deb-asset voor $VERSION verscheen niet op tijd"
+            exit 1
+          fi
+          gh release download "$VERSION" -p '*_amd64.deb' --clobber --dir .
+          deb=$(ls *_amd64.deb | head -1)
+          cp "$deb" open-planner-studio.deb
+          echo "Gebruik $deb -> open-planner-studio.deb"
 
-          # Copy deb to repo root for snapcraft
-          cp "$DEB_FILE" open-planner-studio.deb
-
-          # Update version in snapcraft.yaml
+      - name: Set version in snapcraft.yaml
+        run: |
           sed -i "s/^version: .*/version: '${{ steps.get-version.outputs.version_number }}'/" snap/snapcraft.yaml
+          grep '^version:' snap/snapcraft.yaml
 
       - name: Build snap
         uses: snapcore/action-build@v1
         id: snapcraft
 
+      # Tag-push: snap als asset aan de echte release hangen.
       - name: Upload snap to GitHub release
-        run: |
-          SNAP_FILE="${{ steps.snapcraft.outputs.snap }}"
-          echo "Uploading $SNAP_FILE to release ${{ steps.get-version.outputs.version }}"
-
-          # Wait for the release to be created by the main release workflow
-          for i in $(seq 1 30); do
-            if gh release view "${{ steps.get-version.outputs.version }}" > /dev/null 2>&1; then
-              echo "Release found"
-              break
-            fi
-            echo "Waiting for release... (attempt $i/30)"
-            sleep 30
-          done
-
-          gh release upload "${{ steps.get-version.outputs.version }}" "$SNAP_FILE" --clobber
+        if: github.event_name == 'push'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.get-version.outputs.version }}" \
+            "${{ steps.snapcraft.outputs.snap }}" --clobber
 
+      # Handmatige test: snap als CI-artifact (de release NIET aanraken).
+      - name: Upload snap as workflow artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-planner-studio-snap
+          path: ${{ steps.snapcraft.outputs.snap }}
+          if-no-files-found: error
+
+      # Live publiceren naar de Snap Store: alleen op een echte release én pas
+      # zodra het store-credentials-secret bestaat (eigenaar-stap).
       - name: Publish to Snap Store
-        if: env.SNAPCRAFT_STORE_CREDENTIALS != ''
-        run: |
-          SNAP_FILE="${{ steps.snapcraft.outputs.snap }}"
-          snapcraft upload "$SNAP_FILE" --release=stable
-        env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        if: github.event_name == 'push' && env.SNAPCRAFT_STORE_CREDENTIALS != ''
+        uses: snapcore/action-publish@v1
+        with:
+          snap: ${{ steps.snapcraft.outputs.snap }}
+          release: stable
