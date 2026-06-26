@@ -24,26 +24,36 @@ export function ContextMenu({
   const { t } = useTranslation('common');
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close on click outside or Escape (delay to avoid immediate close from the triggering right-click)
+  // onClose is in de parent een nieuwe arrow per render; via een ref blijft het
+  // actueel zónder dat het effect (en z'n timer) bij elke parent-render reset.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Sluit bij klik-buiten, rechtsklik-buiten of Escape.
+  // KRITIEK: lege deps → het effect draait één keer (mount), zodat de
+  // setTimeout daadwerkelijk afloopt en de mousedown-listener aangehangen
+  // blijft. Met [onClose] werd de timer bij elke GanttCanvas-render (o.a. bij
+  // muisbeweging/hover) gereset, waardoor klik-buiten nooit werkte — alleen
+  // Escape (die buiten de timer wordt toegevoegd) deed het.
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
+        onCloseRef.current();
       }
     };
     const handleContext = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
+        onCloseRef.current();
       }
     };
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
-    // Delay attaching mousedown to skip the event that opened the menu
+    // Kleine defer zodat de openende rechtsklik-event-reeks niet meteen sluit.
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClick);
       document.addEventListener('contextmenu', handleContext);
-    }, 50);
+    }, 0);
     document.addEventListener('keydown', handleKey);
     return () => {
       clearTimeout(timer);
@@ -51,7 +61,7 @@ export function ContextMenu({
       document.removeEventListener('contextmenu', handleContext);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [onClose]);
+  }, []);
 
   // Adjust position to stay within viewport
   const adjustedX = Math.min(x, window.innerWidth - 200);
