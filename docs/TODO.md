@@ -11,6 +11,16 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
+### UX & Desktop-shell
+
+- [ ] **Native recovery-dialog vervangen door een echte in-app dialog.** Bij het
+      opstarten vraagt de herstel-flow nu via een *native* OS-dialog
+      (`ask()` uit `@tauri-apps/plugin-dialog`, tekst `confirm.restoreRecovery`,
+      twee aanroepen in `App.tsx`) of een niet-opgeslagen sessie hersteld moet
+      worden. Vervang dit door een eigen, gestylede React-dialog (zoals de
+      overige dialogen) — consistente look-and-feel en ruimte om meer context te
+      tonen (welk(e) document(en), bestandspad, tijdstip van de snapshot).
+
 ### Distributie & Release
 
 #### Snap-packaging — follow-ups
