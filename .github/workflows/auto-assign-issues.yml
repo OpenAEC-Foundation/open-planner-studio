@@ -2,6 +2,8 @@ name: Auto-assign issues to product owner
 on:
   issues:
     types: [opened]
+permissions:
+  issues: write
 jobs:
   assign:
     runs-on: ubuntu-latest
