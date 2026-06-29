@@ -47,7 +47,7 @@ function buildGitHubUrl(payload: FeedbackPayload, os: string): string {
     // PAD B — met screenshot-plak-instructie in de body
     body =
       `### Omschrijving\n${payload.description}\n\n` +
-      `### 📎 Screenshot\n> Plak hier je screenshot met **Ctrl + V** (Cmd + V op Mac).\n\n` +
+      `### Screenshot\n> Plak hier je screenshot met **Ctrl + V** (Cmd + V op Mac).\n\n` +
       `---\nType: ${typeLabel} · Open Planner Studio v${__APP_VERSION__} · ${os} · ${locale}`;
   } else {
     // PAD A — zonder screenshot-blok

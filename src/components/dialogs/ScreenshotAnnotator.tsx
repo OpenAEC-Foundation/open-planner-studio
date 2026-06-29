@@ -247,6 +247,12 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
     const pos = canvasPos(canvasRef.current, e);
 
     if (activeTool === 'text') {
+      // KRITIEK: voorkom de standaard mousedown-focus-actie. Zonder dit
+      // verspringt de focus na deze handler naar het niet-focusbare canvas/body,
+      // wat het zojuist via autoFocus gefocuste invoerveld meteen blurt → onBlur
+      // commit (leeg) → het veld verdwijnt direct. preventDefault houdt de focus
+      // op het invoerveld.
+      e.preventDefault();
       // Inline tekst-invoer: positie t.o.v. canvas-element in CSS-pixels.
       // De weergaveschaal (rect.width / canvas.width) bepaalt de lettergrootte
       // zodat het invoerveld even groot oogt als de uiteindelijk getekende tekst.
