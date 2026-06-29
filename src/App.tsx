@@ -101,15 +101,26 @@ function AppContent() {
     document.title = `${dirtyMark}${project.name}${fileInfo} — Open Planner Studio`;
   }, [project.name, isDirty, filePath]);
 
-  // Auto-save every 60 seconds — alle open documenten zodra er íéts ongewijzigd-
-  // dirty is. Elk document krijgt een eigen IFC-snapshot + een manifest dat de set
-  // beschrijft; snapshots van inmiddels gesloten documenten worden opgeruimd.
+  // Auto-save bij ELKE wijziging (gedebounced) i.p.v. op een vaste interval:
+  // we abonneren op de store en schrijven een recovery-snapshot kort nadat de
+  // wijzigingen tot rust komen (de debounce coalesceert snelle bursts zoals
+  // slepen/typen tot één schrijfactie). Alle open documenten krijgen een eigen
+  // IFC-snapshot + een manifest; snapshots van gesloten documenten worden
+  // opgeruimd.
   useEffect(() => {
     if (!isTauri()) return;
-    const interval = setInterval(async () => {
+
+    let saving = false;
+    let pending = false;
+
+    const runAutoSave = async () => {
+      // Voorkom overlappende schrijfacties; vraag een herhaling aan als er
+      // tijdens het schrijven nieuwe wijzigingen binnenkwamen.
+      if (saving) { pending = true; return; }
       const state = useAppStore.getState();
       const docs = state.getOpenDocumentPayloads();
       if (!docs.some((d) => d.payload.isDirty)) return;
+      saving = true;
       try {
         const { writeTextFile, readDir, remove } = await import('@tauri-apps/plugin-fs');
         const { appDataDir, join } = await import('@tauri-apps/api/path');
@@ -143,10 +154,22 @@ function AppContent() {
         }
       } catch (err) {
         console.error('Auto-save failed:', err);
+      } finally {
+        saving = false;
+        if (pending) { pending = false; void runAutoSave(); }
       }
-    }, 60000);
+    };
 
-    return () => clearInterval(interval);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = useAppStore.subscribe(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { void runAutoSave(); }, 800);
+    });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+    };
   }, []);
 
   // Check for recovery file on startup

@@ -7,6 +7,10 @@ import {
 } from 'lucide-react';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 
+// Het label van de feedback-knop roteert elke 10 minuten door deze drie.
+const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
+const FEEDBACK_ROTATE_MS = 10 * 60 * 1000;
+
 export function TitleBar() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -22,6 +26,16 @@ export function TitleBar() {
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
 
   const [maximized, setMaximized] = useState(false);
+
+  // Roteer het feedback-knoplabel elke 10 minuten.
+  const [feedbackLabelIdx, setFeedbackLabelIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(
+      () => setFeedbackLabelIdx(i => (i + 1) % FEEDBACK_LABEL_KEYS.length),
+      FEEDBACK_ROTATE_MS,
+    );
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -109,7 +123,7 @@ export function TitleBar() {
             className="title-bar-feedback-btn"
             onClick={() => setUI({ showFeedbackDialog: true })}
           >
-            {tCommon('feedback.openButton')}
+            {tCommon(FEEDBACK_LABEL_KEYS[feedbackLabelIdx])}
           </button>
         </div>
       </div>

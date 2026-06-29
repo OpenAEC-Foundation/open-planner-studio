@@ -136,7 +136,10 @@
     "openButton": "Give feedback",
     "openGithub": "OK, go to GitHub",
     "annotate": "Annotate",
-    "editorDone": "Done"
+    "editorDone": "Done",
+    "rotateFeedback": "Give feedback",
+    "rotateBug": "Report a bug",
+    "rotateFeature": "Add a new feature"
   },
   "updates": {
     "section": "Updates",

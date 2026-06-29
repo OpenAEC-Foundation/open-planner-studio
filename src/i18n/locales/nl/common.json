@@ -136,7 +136,10 @@
     "openButton": "Geef feedback",
     "openGithub": "OK, ga naar GitHub",
     "annotate": "Annoteren",
-    "editorDone": "Klaar"
+    "editorDone": "Klaar",
+    "rotateFeedback": "Feedback geven",
+    "rotateBug": "Meld een bug",
+    "rotateFeature": "Voeg een nieuwe feature toe"
   },
   "updates": {
     "section": "Updates",
