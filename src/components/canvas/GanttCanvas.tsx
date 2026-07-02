@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
+import { groupTasksByCode } from '@/utils/grouping';
 import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
@@ -90,6 +91,8 @@ export function GanttCanvas() {
   const scrollMode = useAppStore(s => s.ui.scrollMode);
   const traceMode = useAppStore(s => s.ui.traceMode);
   const cpmResult = useAppStore(s => s.cpmResult);
+  const groupBy = useAppStore(s => s.view.groupBy);
+  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
 
   const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
   useZoomShortcuts({ zoomAt, containerRef, taskTableWidth: TASK_TABLE_WIDTH, originPaddingDays: ORIGIN_PADDING_DAYS });
@@ -110,6 +113,14 @@ export function GanttCanvas() {
     taskName: tTask('table.name'),
     duration: tTask('table.duration'),
   }), [tTask]);
+
+  // Groeperingsweergave: banden per activity-code-waarde (gedeelde util met TableEditor).
+  const grouping = useMemo(() => {
+    if (!groupBy) return undefined;
+    const type = activityCodeTypes.find(t => t.id === groupBy);
+    if (!type) return undefined;
+    return groupTasksByCode(tasks, type, tTask('structure.none'));
+  }, [groupBy, activityCodeTypes, tasks, tTask]);
 
   // Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
   // driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
@@ -209,6 +220,7 @@ export function GanttCanvas() {
       collapsedTaskIds,
       drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
       trace,
+      grouping,
       canvasWidth: rect.width,
       canvasHeight: rect.height,
       taskTableWidth: TASK_TABLE_WIDTH,
@@ -223,7 +235,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
+  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, grouping, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
 
   // Render on changes
   useEffect(() => {

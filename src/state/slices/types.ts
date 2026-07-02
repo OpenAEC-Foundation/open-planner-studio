@@ -104,6 +104,7 @@ export interface UIState {
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
   showFeedbackDialog: boolean;              // session — feedback-dialoog open
+  showStructureDialog: boolean;             // session — codes & velden-beheer open
   traceMode: TraceMode;                     // session — path tracing rond de geselecteerde taak
 }
 

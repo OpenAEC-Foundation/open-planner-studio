@@ -97,7 +97,13 @@
     "noRecentFiles": "No recent files",
     "trace": "Path tracing",
     "tracePredecessors": "Predecessors",
-    "traceSuccessors": "Successors"
+    "traceSuccessors": "Successors",
+    "structure": "Structure",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "Renumber WBS",
+    "codesFields": "Codes & fields",
+    "groupBy": "Group by",
+    "groupByWbs": "WBS (tree)"
   },
   "ifc": {
     "title": "IFC Editor",

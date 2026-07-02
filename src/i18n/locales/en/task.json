@@ -44,6 +44,7 @@
     "multiSelect": "{{count}} tasks selected",
     "name": "Name",
     "wbsCode": "WBS Code",
+    "wbsAutoHint": "WBS codes are numbered automatically (Planning → Structure)",
     "description": "Description",
     "type": "Type",
     "milestone": "Milestone",
@@ -79,6 +80,32 @@
     "notCalculated": "Recalculate (F5) to see driving and float",
     "warnTruncatedLead": "Lead truncated at the project start — the overlap is not fully used",
     "warnLeadExceedsDuration": "Lead is larger than the predecessor's duration"
+  },
+  "structure": {
+    "title": "Codes & fields",
+    "activityCodes": "Activity codes",
+    "activityCodesHint": "Freely definable dimensions (e.g. Location, Discipline) for grouping and filtering — at most one value per type per task.",
+    "customFields": "Custom fields",
+    "customFieldsHint": "Typed user fields shown as columns in the table and editable per task.",
+    "addType": "Add code type",
+    "removeType": "Remove code type",
+    "addValue": "Add value",
+    "valueCode": "Code",
+    "valueDescription": "Description",
+    "valueColor": "Colour",
+    "newValuePrefix": "V",
+    "newTypePlaceholder": "New code type (e.g. Location)",
+    "addField": "Add field",
+    "newFieldPlaceholder": "New field (e.g. Contractor)",
+    "fieldType": {
+      "text": "Text",
+      "number": "Number",
+      "integer": "Integer",
+      "cost": "Cost",
+      "date": "Date",
+      "boolean": "Yes/no"
+    },
+    "none": "(none)"
   },
   "defaultTask": "New task",
   "defaultMilestone": "New milestone"

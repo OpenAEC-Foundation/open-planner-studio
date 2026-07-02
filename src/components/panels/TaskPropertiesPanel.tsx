@@ -2,10 +2,64 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task, TaskType } from '@/types/task';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
+import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { Select } from '@/components/common/Select';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { Trash2, Zap } from 'lucide-react';
+
+/** Getypeerd invoerveld voor één custom field op een taak. */
+function CustomFieldInput({ def, value, onCommit }: {
+  def: CustomFieldDef;
+  value: CustomFieldValue | undefined;
+  onCommit: (value: CustomFieldValue | null) => void;
+}) {
+  const cls = 'input !text-xs !px-2.5 !py-1.5';
+  if (def.type === 'boolean') {
+    return (
+      <input
+        type="checkbox"
+        checked={value === true}
+        onChange={e => onCommit(e.target.checked ? true : null)}
+        className="w-4 h-4 accent-[var(--theme-accent)]"
+      />
+    );
+  }
+  if (def.type === 'date') {
+    return (
+      <input
+        type="date"
+        value={typeof value === 'string' ? value : ''}
+        onChange={e => onCommit(e.target.value || null)}
+        className={cls}
+      />
+    );
+  }
+  if (def.type === 'text') {
+    return (
+      <input
+        value={typeof value === 'string' ? value : ''}
+        onChange={e => onCommit(e.target.value || null)}
+        className={cls}
+      />
+    );
+  }
+  // number / integer / cost
+  return (
+    <input
+      type="number"
+      step={def.type === 'integer' ? 1 : 'any'}
+      value={typeof value === 'number' ? value : ''}
+      onChange={e => {
+        const raw = e.target.value;
+        if (raw === '') { onCommit(null); return; }
+        const n = def.type === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
+        if (Number.isFinite(n)) onCommit(n);
+      }}
+      className={cls}
+    />
+  );
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -51,6 +105,11 @@ export function TaskPropertiesPanel() {
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const cpmResult = useAppStore(s => s.cpmResult);
+  const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
+  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
+  const customFieldDefs = useAppStore(s => s.customFieldDefs);
+  const setTaskActivityCode = useAppStore(s => s.setTaskActivityCode);
+  const setTaskCustomField = useAppStore(s => s.setTaskCustomField);
   const updateTask = useAppStore(s => s.updateTask);
   const deleteTask = useAppStore(s => s.deleteTask);
   const updateSequence = useAppStore(s => s.updateSequence);
@@ -109,7 +168,14 @@ export function TaskPropertiesPanel() {
       </Field>
 
       <Field label={t('properties.wbsCode')}>
-        <Input value={task.wbsCode} onChange={v => update({ wbsCode: v })} />
+        {/* Bij auto-nummering bezit de app de codes — handmatige invoer zou bij de
+            eerstvolgende structuurmutatie toch overschreven worden. */}
+        {wbsAutoNumber ? (
+          <input value={task.wbsCode} disabled title={t('properties.wbsAutoHint')}
+            className="input !text-xs !px-2.5 !py-1.5 opacity-60 cursor-not-allowed" />
+        ) : (
+          <Input value={task.wbsCode} onChange={v => update({ wbsCode: v })} />
+        )}
       </Field>
 
       <Field label={t('properties.description')}>
@@ -245,6 +311,38 @@ export function TaskPropertiesPanel() {
               </div>
             );
           })}
+        </>
+      )}
+
+      {(activityCodeTypes.length > 0 || customFieldDefs.length > 0) && (
+        <>
+          <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
+          <span className="ui-card-header !text-xs">{t('structure.title')}</span>
+          {activityCodeTypes.map(type => (
+            <Field key={type.id} label={type.name}>
+              <select
+                value={task.activityCodes?.[type.id] ?? ''}
+                onChange={e => setTaskActivityCode(task.id, type.id, e.target.value || null)}
+                className="input !text-xs !px-2.5 !py-1.5"
+              >
+                <option value="">{t('structure.none')}</option>
+                {type.values.map(v => (
+                  <option key={v.id} value={v.id}>
+                    {v.code}{v.description ? ` — ${v.description}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ))}
+          {customFieldDefs.map(def => (
+            <Field key={def.id} label={def.name}>
+              <CustomFieldInput
+                def={def}
+                value={task.customFields?.[def.id]}
+                onCommit={value => setTaskCustomField(task.id, def.id, value)}
+              />
+            </Field>
+          ))}
         </>
       )}
 

@@ -7,6 +7,7 @@ import {
   Calendar, Settings, Info, Clock,
   ArrowRightLeft, Eye, EyeOff, History, SaveAll,
   Download, Puzzle, ArrowLeftToLine, ArrowRightToLine,
+  Tags, ListOrdered, Hash,
 } from 'lucide-react';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
@@ -335,6 +336,12 @@ export function Ribbon() {
   const setUI = useAppStore(s => s.setUI);
   const showDependencyMode = useAppStore(s => s.ui.showDependencyMode);
   const traceMode = useAppStore(s => s.ui.traceMode);
+  const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
+  const groupBy = useAppStore(s => s.view.groupBy);
+  const setGroupBy = useAppStore(s => s.setGroupBy);
+  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
+  const setWbsAutoNumber = useAppStore(s => s.setWbsAutoNumber);
+  const renumberWbs = useAppStore(s => s.renumberWbs);
   const project = useAppStore(s => s.project);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
@@ -513,6 +520,16 @@ export function Ribbon() {
               <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} onClick={() => setUI({ showCalendarDialog: true })} />
               <RibbonButton icon={<Clock size={20} />} label={tMenu('ribbon.holidays')} onClick={() => setUI({ showCalendarDialog: true })} />
             </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            <RibbonGroup label={tMenu('ribbon.structure')}>
+              <RibbonButton icon={<Tags size={20} />} label={tMenu('ribbon.codesFields')} onClick={() => setUI({ showStructureDialog: true })} />
+              <RibbonButtonStack>
+                <RibbonSmallButton icon={<Hash size={14} />} label={tMenu('ribbon.wbsAuto')} onClick={() => setWbsAutoNumber(!wbsAutoNumber)} active={wbsAutoNumber} />
+                <RibbonSmallButton icon={<ListOrdered size={14} />} label={tMenu('ribbon.renumberWbs')} onClick={renumberWbs} disabled={wbsAutoNumber} />
+              </RibbonButtonStack>
+            </RibbonGroup>
           </>
         )}
 
@@ -558,6 +575,22 @@ export function Ribbon() {
                   onChange={v => setTimeScale(v as 'day' | 'week' | 'month')}
                 />
                 <span className="ribbon-info">{tMenu('ribbon.zoomLevel', { level: Math.round(zoom) })}</span>
+              </div>
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            {/* Groeperen op activity-code-type ("meerdere WBS-indelingen", fase 2.2) */}
+            <RibbonGroup label={tMenu('ribbon.groupBy')}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '2px 4px' }}>
+                <RibbonDropdown
+                  value={groupBy ?? '__wbs'}
+                  options={[
+                    { value: '__wbs', label: tMenu('ribbon.groupByWbs') },
+                    ...activityCodeTypes.map(t2 => ({ value: t2.id, label: t2.name })),
+                  ]}
+                  onChange={v => setGroupBy(v === '__wbs' ? undefined : v)}
+                />
               </div>
             </RibbonGroup>
 

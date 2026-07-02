@@ -24,6 +24,10 @@ export interface GanttRenderOptions {
     successors: string[];
     drivenSuccessors: string[];
   } | null;
+  /** Groeperingsweergave (fase 2.2): banden per activity-code-waarde vervangen de
+   *  WBS-boom — bandrij (label + kleur) gevolgd door de bladtaken van die groep.
+   *  Berekend in GanttCanvas via utils/grouping (gedeeld met TableEditor). */
+  grouping?: { label: string; color?: string; taskIds: string[] }[];
   canvasWidth: number;
   canvasHeight: number;
   taskTableWidth: number;
@@ -79,9 +83,13 @@ export class GanttRenderer {
 
   // Computed
   private viewStart: Date;
-  private flatTasks: Task[]; // flattened task list in display order
+  // Rijmodel: een rij is een taak of (bij groeperingsweergave) een band-kop (null in
+  // flatTasks + entry in bandAt). Alle hit-tests lopen via getTaskAtY en geven op een
+  // bandrij gewoon null terug, zodat canvas-interacties vanzelf degraderen.
+  private flatTasks: (Task | null)[]; // flattened rows in display order (null = bandrij)
   private flatTaskIndex: Map<string, number>; // task id -> row index in flatTasks
   private taskDepths: Map<string, number>; // task id -> nesting depth
+  private bandAt: Map<number, { label: string; color?: string }>; // rij-index -> band-kop
   private holidaySet: Set<string>;
 
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
@@ -91,10 +99,34 @@ export class GanttRenderer {
 
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.taskDepths = new Map();
-    this.flatTasks = this.flattenTasks(opts.tasks);
-    this.flatTaskIndex = new Map(this.flatTasks.map((t, i) => [t.id, i]));
+    this.bandAt = new Map();
+    this.flatTasks = opts.grouping
+      ? this.flattenGrouped(opts.tasks, opts.grouping)
+      : this.flattenTasks(opts.tasks);
+    this.flatTaskIndex = new Map();
+    this.flatTasks.forEach((t, i) => { if (t) this.flatTaskIndex.set(t.id, i); });
     this.holidaySet = new Set<string>();
     this.buildHolidaySet();
+  }
+
+  /** Groeperingsweergave: per band een kop-rij gevolgd door de bladtaken (vlak, diepte 0). */
+  private flattenGrouped(
+    tasks: Task[],
+    grouping: NonNullable<GanttRenderOptions['grouping']>,
+  ): (Task | null)[] {
+    const byId = new Map(tasks.map(t => [t.id, t]));
+    const rows: (Task | null)[] = [];
+    for (const group of grouping) {
+      this.bandAt.set(rows.length, { label: group.label, color: group.color });
+      rows.push(null);
+      for (const id of group.taskIds) {
+        const task = byId.get(id);
+        if (!task) continue;
+        this.taskDepths.set(task.id, 0);
+        rows.push(task);
+      }
+    }
+    return rows;
   }
 
   private buildHolidaySet(): void {
@@ -339,9 +371,17 @@ export class GanttRenderer {
     for (let i = 0; i < this.flatTasks.length; i++) {
       const task = this.flatTasks[i];
       const y = this.rowToY(i) + barOffset;
-      const isSelected = this.opts.selectedTaskIds.includes(task.id);
-
       if (y + barHeight < this.opts.headerHeight || y > this.opts.canvasHeight) continue;
+
+      if (!task) {
+        // Bandrij (groeperingsweergave): subtiele strook over het chart-gedeelte.
+        const band = this.bandAt.get(i);
+        const rowY = this.rowToY(i);
+        this.ctx.fillStyle = (band?.color ?? this.colors.summary) + '14';
+        this.ctx.fillRect(this.opts.taskTableWidth, rowY, this.opts.canvasWidth - this.opts.taskTableWidth, this.opts.rowHeight);
+        continue;
+      }
+      const isSelected = this.opts.selectedTaskIds.includes(task.id);
 
       let overrideColor: string | undefined;
       let dimmed = false;
@@ -515,6 +555,7 @@ export class GanttRenderer {
 
       const pred = this.flatTasks[predIdx];
       const succ = this.flatTasks[succIdx];
+      if (!pred || !succ) continue;
 
       const isDriving = drivingSet ? drivingSet.has(seq.id) : true;
       const isCriticalLink = drivingSet !== null && isDriving
@@ -612,12 +653,33 @@ export class GanttRenderer {
     for (let i = 0; i < this.flatTasks.length; i++) {
       const task = this.flatTasks[i];
       const y = this.rowToY(i);
+      if (y + rowHeight < headerHeight || y > canvasHeight) continue;
+
+      if (!task) {
+        // Bandrij (groeperingsweergave): getinte rij met kleurblokje + vet label.
+        const band = this.bandAt.get(i);
+        ctx.fillStyle = (band?.color ?? this.colors.summary) + '1A';
+        ctx.fillRect(0, y, taskTableWidth, rowHeight);
+        if (band?.color) {
+          ctx.fillStyle = band.color;
+          ctx.fillRect(8, y + rowHeight / 2 - 5, 10, 10);
+        }
+        ctx.fillStyle = this.colors.text;
+        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText(band?.label ?? '', band?.color ? 24 : 8, y + rowHeight / 2);
+        ctx.strokeStyle = this.colors.grid;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, y + rowHeight);
+        ctx.lineTo(taskTableWidth, y + rowHeight);
+        ctx.stroke();
+        continue;
+      }
+
       const depth = this.taskDepths.get(task.id) || 0;
       const isSelected = this.opts.selectedTaskIds.includes(task.id);
       const isSummary = task.childIds.length > 0;
       const isCollapsed = collapsed.has(task.id);
-
-      if (y + rowHeight < headerHeight || y > canvasHeight) continue;
 
       // Selection highlight
       if (isSelected) {
@@ -773,8 +835,8 @@ export class GanttRenderer {
     return null;
   }
 
-  /** Get the flat tasks list (for external reference) */
+  /** Get the flat tasks list (for external reference); bandrijen uitgefilterd. */
   getFlatTasks(): Task[] {
-    return this.flatTasks;
+    return this.flatTasks.filter((t): t is Task => t !== null);
   }
 }

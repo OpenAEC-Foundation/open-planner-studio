@@ -7,6 +7,8 @@ export interface ViewSlice {
   setTimeScale: (scale: TimeScale) => void;
   setScroll: (x: number, y: number) => void;
   setViewStartDate: (date: string) => void;
+  /** Groepeer tabel + Gantt op een activity-code-type (undefined = WBS-boomweergave). */
+  setGroupBy: (codeTypeId?: string) => void;
 }
 
 export function createDefaultView(): ViewState {
@@ -42,5 +44,10 @@ export const createViewSlice: AppSlice<ViewSlice> = (set) => ({
   setViewStartDate: (date) =>
     set((s) => {
       s.view.viewStartDate = date;
+    }),
+
+  setGroupBy: (codeTypeId) =>
+    set((s) => {
+      s.view.groupBy = codeTypeId;
     }),
 });

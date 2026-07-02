@@ -44,6 +44,7 @@
     "multiSelect": "{{count}} taken geselecteerd",
     "name": "Naam",
     "wbsCode": "WBS Code",
+    "wbsAutoHint": "WBS-codes worden automatisch genummerd (Planning → Structuur)",
     "description": "Beschrijving",
     "type": "Type",
     "milestone": "Mijlpaal",
@@ -79,6 +80,32 @@
     "notCalculated": "Herbereken (F5) om bepalende relaties en speling te zien",
     "warnTruncatedLead": "Lead afgekapt op de projectstart — de overlap wordt niet volledig benut",
     "warnLeadExceedsDuration": "Lead is groter dan de duur van de voorganger"
+  },
+  "structure": {
+    "title": "Codes & velden",
+    "activityCodes": "Activity codes",
+    "activityCodesHint": "Vrij definieerbare dimensies (bv. Locatie, Discipline) voor groeperen en filteren — maximaal één waarde per type per taak.",
+    "customFields": "Gebruikersvelden",
+    "customFieldsHint": "Getypeerde eigen velden, zichtbaar als kolommen in de tabel en per taak in te vullen.",
+    "addType": "Codetype toevoegen",
+    "removeType": "Codetype verwijderen",
+    "addValue": "Waarde toevoegen",
+    "valueCode": "Code",
+    "valueDescription": "Omschrijving",
+    "valueColor": "Kleur",
+    "newValuePrefix": "W",
+    "newTypePlaceholder": "Nieuw codetype (bv. Locatie)",
+    "addField": "Veld toevoegen",
+    "newFieldPlaceholder": "Nieuw veld (bv. Aannemer)",
+    "fieldType": {
+      "text": "Tekst",
+      "number": "Getal",
+      "integer": "Geheel getal",
+      "cost": "Kosten",
+      "date": "Datum",
+      "boolean": "Ja/nee"
+    },
+    "none": "(geen)"
   },
   "defaultTask": "Nieuwe taak",
   "defaultMilestone": "Nieuwe mijlpaal"

@@ -40,6 +40,7 @@ import { TaskDialog } from '@/components/dialogs/TaskDialog';
 import { ProjectInfoDialog } from '@/components/dialogs/ProjectInfoDialog';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
 import { CalendarDialog } from '@/components/dialogs/CalendarDialog';
+import { StructureDialog } from '@/components/dialogs/StructureDialog';
 import { UpdateDialog } from '@/components/dialogs/UpdateDialog';
 import { FeedbackDialog } from '@/components/dialogs/FeedbackDialog';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
@@ -65,6 +66,7 @@ function AppContent() {
   const showNewProjectDialog = useAppStore(s => s.ui.showNewProjectDialog);
   const showSettingsDialog = useAppStore(s => s.ui.showSettingsDialog);
   const showCalendarDialog = useAppStore(s => s.ui.showCalendarDialog);
+  const showStructureDialog = useAppStore(s => s.ui.showStructureDialog);
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
@@ -367,6 +369,7 @@ function AppContent() {
       {(showProjectInfoDialog || showNewProjectDialog) && <ProjectInfoDialog />}
       {showSettingsDialog && <SettingsDialog />}
       {showCalendarDialog && <CalendarDialog />}
+      {showStructureDialog && <StructureDialog />}
       {showFeedbackDialog && <FeedbackDialog />}
       <UpdateDialog />
     </div>

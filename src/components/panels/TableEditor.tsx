@@ -2,7 +2,51 @@ import { useState, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
+import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
+import { groupTasksByCode } from '@/utils/grouping';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
+
+/** Compacte, altijd-bewerkbare celvariant voor een custom field (tabelrij). */
+function FieldCell({ def, value, onCommit }: {
+  def: CustomFieldDef;
+  value: CustomFieldValue | undefined;
+  onCommit: (value: CustomFieldValue | null) => void;
+}) {
+  const cls = 'input !text-[10px] !px-1 !py-0.5 w-full';
+  if (def.type === 'boolean') {
+    return (
+      <input type="checkbox" checked={value === true}
+        onChange={e => onCommit(e.target.checked ? true : null)}
+        onClick={e => e.stopPropagation()}
+        className="w-3.5 h-3.5 accent-[var(--theme-accent)]" />
+    );
+  }
+  if (def.type === 'date') {
+    return (
+      <input type="date" value={typeof value === 'string' ? value : ''}
+        onChange={e => onCommit(e.target.value || null)}
+        onClick={e => e.stopPropagation()} className={cls} />
+    );
+  }
+  if (def.type === 'text') {
+    return (
+      <input value={typeof value === 'string' ? value : ''}
+        onChange={e => onCommit(e.target.value || null)}
+        onClick={e => e.stopPropagation()} className={cls} />
+    );
+  }
+  return (
+    <input type="number" step={def.type === 'integer' ? 1 : 'any'}
+      value={typeof value === 'number' ? value : ''}
+      onChange={e => {
+        const raw = e.target.value;
+        if (raw === '') { onCommit(null); return; }
+        const n = def.type === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
+        if (Number.isFinite(n)) onCommit(n);
+      }}
+      onClick={e => e.stopPropagation()} className={cls + ' text-right'} />
+  );
+}
 
 export function TableEditor() {
   const { t } = useTranslation('task');
@@ -14,6 +58,12 @@ export function TableEditor() {
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const toggleCollapse = useAppStore(s => s.toggleCollapse);
+  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
+  const customFieldDefs = useAppStore(s => s.customFieldDefs);
+  const groupBy = useAppStore(s => s.view.groupBy);
+  const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
+  const setTaskActivityCode = useAppStore(s => s.setTaskActivityCode);
+  const setTaskCustomField = useAppStore(s => s.setTaskCustomField);
 
   const [editCell, setEditCell] = useState<{ taskId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -34,6 +84,24 @@ export function TableEditor() {
     if (!flatTasks.find(ft => ft.task.id === task.id)) {
       flatTasks.push({ task, depth: 0 });
     }
+  }
+
+  // Groeperingsweergave (fase 2.2): banden per codewaarde vervangen de boom;
+  // zelfde util als de Gantt-renderer zodat beide weergaven identiek groeperen.
+  type Row = { band: { label: string; color?: string } } | { task: Task; depth: number };
+  const groupType = groupBy ? activityCodeTypes.find(ct => ct.id === groupBy) : undefined;
+  const rows: Row[] = [];
+  if (groupType) {
+    const byId = new Map(tasks.map(t2 => [t2.id, t2]));
+    for (const g of groupTasksByCode(tasks, groupType, t('structure.none'))) {
+      rows.push({ band: { label: g.label, color: g.color } });
+      for (const id of g.taskIds) {
+        const task = byId.get(id);
+        if (task) rows.push({ task, depth: 0 });
+      }
+    }
+  } else {
+    rows.push(...flatTasks);
   }
 
   const startEdit = useCallback((taskId: string, field: string, value: string) => {
@@ -168,11 +236,36 @@ export function TableEditor() {
         <div className="w-[50px] px-1 flex items-center justify-center">{t('table.critical')}</div>
         <div className="w-[50px] px-1 flex items-center justify-end">{t('table.totalFloat')}</div>
         <div className="w-[60px] px-1 flex items-center justify-end">{t('table.completion')}</div>
+        {activityCodeTypes.map(ct => (
+          <div key={ct.id} className="w-[90px] px-1 flex items-center">{ct.name}</div>
+        ))}
+        {customFieldDefs.map(def => (
+          <div key={def.id} className="w-[90px] px-1 flex items-center">{def.name}</div>
+        ))}
       </div>
 
       {/* Rows */}
       <div className="flex-1 overflow-y-auto">
-        {flatTasks.map(({ task, depth }) => {
+        {rows.map((row, rowIdx) => {
+          if ('band' in row) {
+            return (
+              <div
+                key={`band-${rowIdx}`}
+                className="flex items-center gap-2 text-xs font-semibold px-2"
+                style={{
+                  minHeight: 26,
+                  background: (row.band.color ?? 'var(--theme-border)') + '1A',
+                  borderBottom: '1px solid var(--theme-border-light)',
+                }}
+              >
+                {row.band.color && (
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: row.band.color }} />
+                )}
+                {row.band.label}
+              </div>
+            );
+          }
+          const { task, depth } = row;
           const isSummary = task.childIds.length > 0;
           const isCollapsed = collapsedTaskIds.includes(task.id);
           const isSelected = selectedTaskIds.includes(task.id);
@@ -194,7 +287,9 @@ export function TableEditor() {
               onClick={() => selectTask(task.id)}
             >
               <div className="w-[60px] px-2 flex items-center text-text-secondary">
-                {renderCell(task.id, 'wbsCode', task.wbsCode, '60px')}
+                {wbsAutoNumber
+                  ? <span className="px-1 truncate">{task.wbsCode}</span>
+                  : renderCell(task.id, 'wbsCode', task.wbsCode, '60px')}
               </div>
               <div className="flex-1 min-w-[200px] px-2 flex items-center gap-1" style={{ paddingLeft: 8 + depth * 16 }}>
                 {isSummary && (
@@ -236,6 +331,34 @@ export function TableEditor() {
                 {renderCell(task.id, 'completion', `${Math.round(task.time.completion * 100)}`, '60px', 'right')}
                 <span className="text-text-secondary ml-0.5">%</span>
               </div>
+              {activityCodeTypes.map(ct => (
+                <div key={ct.id} className="w-[90px] px-1 flex items-center">
+                  {!isSummary && (
+                    <select
+                      value={task.activityCodes?.[ct.id] ?? ''}
+                      onChange={e => setTaskActivityCode(task.id, ct.id, e.target.value || null)}
+                      onClick={e => e.stopPropagation()}
+                      className="input !text-[10px] !px-1 !py-0.5 w-full"
+                    >
+                      <option value=""></option>
+                      {ct.values.map(v => (
+                        <option key={v.id} value={v.id}>{v.code}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              ))}
+              {customFieldDefs.map(def => (
+                <div key={def.id} className="w-[90px] px-1 flex items-center">
+                  {!isSummary && (
+                    <FieldCell
+                      def={def}
+                      value={task.customFields?.[def.id]}
+                      onCommit={value => setTaskCustomField(task.id, def.id, value)}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           );
         })}
