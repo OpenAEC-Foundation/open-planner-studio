@@ -40,6 +40,20 @@ function lagToTenthsOfMinutes(lagDays: number, hoursPerDay: number): number {
   return lagDays * hoursPerDay * 60 * 10;
 }
 
+// MSPDI LagFormat (subset van DurationFormat): 7 = dagen, 8 = elapsed dagen (24/7),
+// 19 = procent, 20 = elapsed procent. Bij procent staat LinkLag in tienden van een procent.
+function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFormat: number } {
+  const elapsed = seq.lagUnit === 'ELAPSEDTIME';
+  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+    return { linkLag: Math.round(seq.lagPercent * 10), lagFormat: elapsed ? 20 : 19 };
+  }
+  if (elapsed) {
+    // Elapsed dagen tellen 24 uur, onafhankelijk van de werkkalender.
+    return { linkLag: seq.lagDays * 24 * 60 * 10, lagFormat: 8 };
+  }
+  return { linkLag: lagToTenthsOfMinutes(seq.lagDays, hoursPerDay), lagFormat: 7 };
+}
+
 function getOutlineLevel(wbs: string): number {
   if (!wbs) return 1;
   return wbs.split('.').length;
@@ -176,11 +190,12 @@ export function writeMSPDI(
       for (const seq of taskSeqs) {
         const predUid = taskUidMap.get(seq.predecessorId);
         if (predUid === undefined) continue;
+        const { linkLag, lagFormat } = lagFields(seq, calendar.hoursPerDay);
         lines.push(`${indent(3)}<PredecessorLink>`);
         lines.push(`${indent(4)}<PredecessorUID>${predUid}</PredecessorUID>`);
         lines.push(`${indent(4)}<Type>${sequenceTypeToMSP(seq.type)}</Type>`);
-        lines.push(`${indent(4)}<LinkLag>${lagToTenthsOfMinutes(seq.lagDays, calendar.hoursPerDay)}</LinkLag>`);
-        lines.push(`${indent(4)}<LagFormat>7</LagFormat>`);
+        lines.push(`${indent(4)}<LinkLag>${linkLag}</LinkLag>`);
+        lines.push(`${indent(4)}<LagFormat>${lagFormat}</LagFormat>`);
         lines.push(`${indent(3)}</PredecessorLink>`);
       }
     }

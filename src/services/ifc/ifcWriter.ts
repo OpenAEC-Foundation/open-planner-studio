@@ -210,14 +210,28 @@ function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number):
   }
 }
 
+// IfcLagTime.LagValue is een IfcTimeOrRatioSelect: een getypte IFCDURATION voor vaste lag of
+// IFCRATIOMEASURE voor procent-lag (IFC 4.3 zelf: ratio 0.5 = "start wanneer de voorganger 50%
+// gereed is"). Een lead (negatieve lag) krijgt het ISO-8601-voorloopteken ('-P2D') — dat is de
+// standaardnotatie; niet elke externe tool leest het teken, maar onze round-trip behoudt het.
+function ifcLagValue(seq: Sequence): string {
+  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+    return `IFCRATIOMEASURE(${seq.lagPercent / 100})`;
+  }
+  const d = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+  return d < 0 ? `IFCDURATION('-P${-d}D')` : `IFCDURATION('P${d}D')`;
+}
+
 function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): void {
   let lagRef = '$';
-  if (seq.lagDays !== 0) {
+  const hasPercent = typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent);
+  if (seq.lagDays !== 0 || hasPercent) {
+    // Conform IFC 4.3: IFCLAGTIME(Name, DataOrigin, UserDefinedDataOrigin, LagValue, DurationType)
+    // — LagValue als getypte select in arg 4, DurationType (.WORKTIME./.ELAPSEDTIME.) in arg 5.
+    // (Oudere app-versies hadden die twee omgewisseld; de reader kent beide lay-outs.)
+    const durationType = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
     const lagId = addLine(ctx, `lag_${seq.id}`,
-      // Teken behouden: een negatieve lag (lead/overlap) moet een round-trip overleven, anders
-      // klapt hij bij opslaan/herladen om naar een positieve uitlooptijd. (Let op: ISO-8601-duur
-      // kent geen negatief; dit is app-interne notatie — externe IFC-tools negeren het teken.)
-      `IFCLAGTIME('Lag',.PREDICTED.,$,.WORKTIME.,${ifcDuration(seq.lagDays)})`);
+      `IFCLAGTIME('Lag',.PREDICTED.,$,${ifcLagValue(seq)},.${durationType}.)`);
     lagRef = `#${lagId}`;
   }
 

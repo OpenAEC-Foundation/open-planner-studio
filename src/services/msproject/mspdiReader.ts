@@ -81,7 +81,7 @@ export function readMSPDI(content: string): {
   const tasks: Task[] = [];
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
-  const pendingLinks: { successorId: string; predUid: number; type: number; lag: number }[] = [];
+  const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
 
   for (let i = 0; i < taskElements.length; i++) {
     const te = taskElements[i];
@@ -149,12 +149,14 @@ export function readMSPDI(content: string): {
       const predUid = getElementInt(pl, 'PredecessorUID', -1);
       const linkType = getElementInt(pl, 'Type', 1);
       const linkLag = getElementInt(pl, 'LinkLag', 0);
+      const lagFormat = getElementInt(pl, 'LagFormat', 7);
       if (predUid >= 0) {
         pendingLinks.push({
           successorId: id,
           predUid,
           type: linkType,
           lag: linkLag,
+          lagFormat,
         });
       }
     }
@@ -181,18 +183,31 @@ export function readMSPDI(content: string): {
     }
   }
 
-  // Resolve sequences
+  // Resolve sequences. LagFormat (subset van MSPDI DurationFormat): 19/20 = (elapsed) procent
+  // met LinkLag in tienden van een procent; 4/6/8/10/12 = elapsed duren (24/7); rest = werktijd
+  // in tienden van minuten (bestaand pad).
+  const ELAPSED_DURATION_FORMATS = new Set([4, 6, 8, 10, 12]);
   const sequences: Sequence[] = [];
   for (const link of pendingLinks) {
     const predId = uidToId.get(link.predUid);
     if (!predId) continue;
-    sequences.push({
+    const seq: Sequence = {
       id: generateId('seq'),
       predecessorId: predId,
       successorId: link.successorId,
       type: mspTypeToSequenceType(link.type),
-      lagDays: tenthsOfMinutesToDays(link.lag, hoursPerDay),
-    });
+      lagDays: 0,
+    };
+    if (link.lagFormat === 19 || link.lagFormat === 20) {
+      seq.lagPercent = link.lag / 10;
+      if (link.lagFormat === 20) seq.lagUnit = 'ELAPSEDTIME';
+    } else if (ELAPSED_DURATION_FORMATS.has(link.lagFormat)) {
+      seq.lagDays = Math.round(link.lag / 10 / 60 / 24);
+      seq.lagUnit = 'ELAPSEDTIME';
+    } else {
+      seq.lagDays = tenthsOfMinutesToDays(link.lag, hoursPerDay);
+    }
+    sequences.push(seq);
   }
 
   return {

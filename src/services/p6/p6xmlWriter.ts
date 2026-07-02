@@ -140,19 +140,34 @@ export function writeP6XML(
     lines.push(`${indent(1)}</Activity>`);
   }
 
-  // Relationships (sequences)
+  // Relationships (sequences). P6 kent geen procent-lag en geen lag-eenheid per relatie
+  // (de lag-kalender is in P6 een projectbrede scheduling-optie): procent-lag wordt hier
+  // uitgebakken naar vaste uren op basis van de huidige voorgangerduur, en kalenderdag-lag
+  // exporteert als gewone uren — beide met een waarschuwing in de log.
+  const taskById = new Map(tasks.map(t => [t.id, t]));
   let relObjId = 1;
   for (const seq of sequences) {
     const predObjId = taskObjMap.get(seq.predecessorId);
     const succObjId = taskObjMap.get(seq.successorId);
     if (predObjId === undefined || succObjId === undefined) continue;
 
+    let lagDays = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+    if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+      const pred = taskById.get(seq.predecessorId);
+      const predDur = pred && !pred.isMilestone ? pred.time.scheduleDuration : 0;
+      lagDays = Math.round((predDur * seq.lagPercent) / 100);
+      console.warn(`P6-export: procent-lag (${seq.lagPercent}%) uitgebakken naar ${lagDays} dagen — P6 kent geen procent-lag.`);
+    }
+    if (seq.lagUnit === 'ELAPSEDTIME') {
+      console.warn('P6-export: kalenderdag-lag geëxporteerd als gewone lag-uren — P6 heeft geen lag-eenheid per relatie.');
+    }
+
     lines.push(`${indent(1)}<Relationship>`);
     lines.push(`${indent(2)}<ObjectId>${relObjId++}</ObjectId>`);
     lines.push(`${indent(2)}<PredecessorActivityObjectId>${predObjId}</PredecessorActivityObjectId>`);
     lines.push(`${indent(2)}<SuccessorActivityObjectId>${succObjId}</SuccessorActivityObjectId>`);
     lines.push(`${indent(2)}<Type>${sequenceTypeToP6(seq.type)}</Type>`);
-    lines.push(`${indent(2)}<Lag>${durationToP6Hours(seq.lagDays, calendar.hoursPerDay)}</Lag>`);
+    lines.push(`${indent(2)}<Lag>${durationToP6Hours(lagDays, calendar.hoursPerDay)}</Lag>`);
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
     lines.push(`${indent(1)}</Relationship>`);
   }

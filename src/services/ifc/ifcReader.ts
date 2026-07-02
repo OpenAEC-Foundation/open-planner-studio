@@ -135,14 +135,17 @@ function parseDateFromIFC(s: string): string {
 function parseDurationDays(s: string): number {
   if (!s || s === '$') return 0;
   const clean = stripQuotes(s);
-  // Parse ISO 8601 duration: P0Y0M5D of P5D of PT8H. Het optionele minteken vangt een
-  // negatieve lag (lead) op — anders zou die als positief teruggelezen worden.
+  // Parse ISO 8601 duration: P0Y0M5D of P5D of PT8H. Negatief kan op twee manieren voorkomen:
+  // standaardconform met voorloopteken vóór de P ('-P2D', zo schrijven wij een lead) of als
+  // app-interne legacy-notatie met het teken bij het getal ('P0Y0M-2D'). Beide lezen.
+  const leadingNeg = clean.startsWith('-');
+  const applySign = (n: number) => (leadingNeg && n > 0 ? -n : n);
   const dayMatch = clean.match(/(-?\d+)D/);
-  if (dayMatch) return parseInt(dayMatch[1]);
+  if (dayMatch) return applySign(parseInt(dayMatch[1]));
   const hourMatch = clean.match(/(-?\d+)H/);
   if (hourMatch) {
     const h = parseInt(hourMatch[1]);
-    return h < 0 ? -Math.ceil(-h / 8) : Math.ceil(h / 8);
+    return applySign(h < 0 ? -Math.ceil(-h / 8) : Math.ceil(h / 8));
   }
   return 0;
 }
@@ -286,23 +289,47 @@ function extractSequences(
     const succId = taskStepIdMap.get(succRef);
     if (!predId || !succId) continue;
 
-    // Lag
+    // Lag. Twee lay-outs van IFCLAGTIME ondersteunen:
+    //  - conform IFC 4.3 (huidige writer): arg 4 = LagValue als getypte select
+    //    (IFCDURATION('P2D') / IFCRATIOMEASURE(0.5)), arg 5 = DurationType (.WORKTIME./.ELAPSEDTIME.);
+    //  - legacy (oudere app-versies, omgewisseld): arg 4 = .WORKTIME., arg 5 = 'P0Y0M2D'.
     let lagDays = 0;
+    let lagUnit: Sequence['lagUnit'];
+    let lagPercent: number | undefined;
     const lagRef = parseRef(se.args[6] || '');
     if (lagRef) {
       const lagEntity = entityMap.get(lagRef);
       if (lagEntity && lagEntity.type === 'IFCLAGTIME') {
-        lagDays = parseDurationDays(lagEntity.args[4] || '');
+        const lagValue = (lagEntity.args[3] || '').trim();
+        const durType = (lagEntity.args[4] || '').trim();
+        const ratioMatch = lagValue.match(/^IFCRATIOMEASURE\s*\(\s*(-?[\d.]+)\s*\)$/i);
+        const durMatch = lagValue.match(/^IFCDURATION\s*\(\s*(.+?)\s*\)$/i);
+        if (ratioMatch) {
+          // Ratio → procent; afronden tegen floating-point-ruis (0.33*100 = 33.000000000000004).
+          lagPercent = Math.round(parseFloat(ratioMatch[1]) * 100 * 1e6) / 1e6;
+        } else if (durMatch) {
+          lagDays = parseDurationDays(durMatch[1]);
+        } else if (lagValue.startsWith("'")) {
+          // Ongetypte duur-string (soepel lezen van andermans bestanden).
+          lagDays = parseDurationDays(lagValue);
+        } else {
+          // Legacy-lay-out: de duur staat in arg 5.
+          lagDays = parseDurationDays(lagEntity.args[4] || '');
+        }
+        if (/ELAPSEDTIME/i.test(durType)) lagUnit = 'ELAPSEDTIME';
       }
     }
 
-    sequences.push({
+    const seq: Sequence = {
       id: generateId('seq'),
       predecessorId: predId,
       successorId: succId,
       type: parseSequenceType(se.args[7] || ''),
       lagDays,
-    });
+    };
+    if (lagUnit) seq.lagUnit = lagUnit;
+    if (lagPercent !== undefined) seq.lagPercent = lagPercent;
+    sequences.push(seq);
   }
 
   return sequences;

@@ -23,9 +23,15 @@ function sequenceTypeToAbbrev(type: SequenceType): string {
   }
 }
 
-function formatLag(lagDays: number): string {
-  if (lagDays === 0) return '';
-  return lagDays > 0 ? `+${lagDays}d` : `${lagDays}d`;
+// MS Project-notatie, symmetrisch met parsePredecessorString in csvReader:
+// d = werkdagen, ed = kalenderdagen (elapsed), % = procent van voorgangerduur, e% = elapsed-procent.
+function formatLag(seq: Sequence): string {
+  const e = seq.lagUnit === 'ELAPSEDTIME' ? 'e' : '';
+  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+    return `${seq.lagPercent >= 0 ? '+' : ''}${seq.lagPercent}${e}%`;
+  }
+  if (seq.lagDays === 0) return '';
+  return `${seq.lagDays > 0 ? '+' : ''}${seq.lagDays}${e}d`;
 }
 
 export function writeCSV(
@@ -47,7 +53,7 @@ export function writeCSV(
     const predTask = taskByIdMap.get(seq.predecessorId);
     if (!predTask) continue;
     const abbrev = sequenceTypeToAbbrev(seq.type);
-    const lag = formatLag(seq.lagDays);
+    const lag = formatLag(seq);
     const predStr = `${predTask.wbsCode}${abbrev}${lag}`;
     if (!predMap.has(seq.successorId)) {
       predMap.set(seq.successorId, []);

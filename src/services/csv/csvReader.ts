@@ -87,9 +87,15 @@ function parseDate(s: string): string {
   return formatDate(new Date());
 }
 
-function parsePredecessorString(predStr: string): { wbs: string; type: SequenceType; lag: number }[] {
+function parsePredecessorString(predStr: string): {
+  wbs: string; type: SequenceType; lag: number;
+  lagUnit?: 'ELAPSEDTIME'; lagPercent?: number;
+}[] {
   if (!predStr.trim()) return [];
-  const results: { wbs: string; type: SequenceType; lag: number }[] = [];
+  const results: {
+    wbs: string; type: SequenceType; lag: number;
+    lagUnit?: 'ELAPSEDTIME'; lagPercent?: number;
+  }[] = [];
   // Split by comma or semicolon (within predecessor field)
   const parts = predStr.split(/[,]/);
 
@@ -97,9 +103,10 @@ function parsePredecessorString(predStr: string): { wbs: string; type: SequenceT
     const trimmed = part.trim();
     if (!trimmed) continue;
 
-    // Pattern: WBS_CODE + TYPE + optional LAG
-    // e.g. "1.1FS+2d", "1.2FF", "1.3SS-1d", "1.4"
-    const match = trimmed.match(/^([\d.]+)\s*(FS|FF|SS|SF)?\s*([+-]\d+d?)?$/i);
+    // Pattern: WBS_CODE + TYPE + optional LAG (MS Project-notatie)
+    // e.g. "1.1FS+2d" (werkdagen), "1.3SS-1d", "1.2FF+3ed" (kalenderdagen/elapsed),
+    //      "1.5SS+50%" (procent van voorgangerduur), "1.6FS-25e%" (elapsed-procent), "1.4"
+    const match = trimmed.match(/^([\d.]+)\s*(FS|FF|SS|SF)?\s*([+-]\d+(?:\.\d+)?(?:ed|e%|d|%)?)?$/i);
     if (match) {
       const wbs = match[1];
       const typeStr = (match[2] || 'FS').toUpperCase();
@@ -113,12 +120,22 @@ function parsePredecessorString(predStr: string): { wbs: string; type: SequenceT
       };
 
       let lag = 0;
+      let lagUnit: 'ELAPSEDTIME' | undefined;
+      let lagPercent: number | undefined;
       if (lagStr) {
-        lag = parseInt(lagStr.replace('d', ''));
-        if (isNaN(lag)) lag = 0;
+        const lagMatch = lagStr.match(/^([+-]\d+(?:\.\d+)?)(ed|e%|d|%)?$/i);
+        if (lagMatch) {
+          const num = parseFloat(lagMatch[1]);
+          const suffix = (lagMatch[2] || 'd').toLowerCase();
+          if (!isNaN(num)) {
+            if (suffix === '%' || suffix === 'e%') lagPercent = num;
+            else lag = Math.round(num);
+            if (suffix === 'ed' || suffix === 'e%') lagUnit = 'ELAPSEDTIME';
+          }
+        }
       }
 
-      results.push({ wbs, type: typeMap[typeStr] || 'FINISH_START', lag });
+      results.push({ wbs, type: typeMap[typeStr] || 'FINISH_START', lag, lagUnit, lagPercent });
     }
   }
 
@@ -265,13 +282,16 @@ export function readCSV(content: string): {
     for (const pred of preds) {
       const predId = wbsToId.get(pred.wbs);
       if (predId) {
-        sequences.push({
+        const seq: Sequence = {
           id: generateId('seq'),
           predecessorId: predId,
           successorId: task.id,
           type: pred.type,
           lagDays: pred.lag,
-        });
+        };
+        if (pred.lagUnit) seq.lagUnit = pred.lagUnit;
+        if (pred.lagPercent !== undefined) seq.lagPercent = pred.lagPercent;
+        sequences.push(seq);
       }
     }
   }
