@@ -16,6 +16,7 @@
 //   expect: {
 //     tasks?: { [name]: { es?,ef?,ls?,lf?,tf?,ff?,crit? } },   // datums "YYYY-MM-DD"; tf/ff getallen; crit boolean
 //     criticalPathSet?: [names],   // vergeleken als verzameling (volgorde-onafhankelijk)
+//     drivingSet?: [[pred,succ,type]],  // welke relaties driving zijn (verzameling van triples)
 //     projectEnd?, projectDuration?,
 //     error?: boolean | string     // true => verwacht een fout; string => substring in de foutmelding
 //   }
@@ -123,6 +124,22 @@ function runCase(c: Case) {
         if (gv !== wv) diffs.push(`${name}.${k}: verwacht ${JSON.stringify(wv)}, kreeg ${JSON.stringify(gv)}`);
       }
     }
+  }
+
+  // Driving relaties als verzameling van [voorganger, opvolger, type]-triples
+  if (exp.drivingSet) {
+    const idToName: Record<string, string> = {};
+    for (const [n, i] of Object.entries(ids)) idToName[i] = n;
+    const seqById = new Map(S().sequences.map(q => [q.id, q]));
+    const got = ((cpm as any)?.drivingSequenceIds ?? [])
+      .map((sid: string) => {
+        const q = seqById.get(sid);
+        return q ? `${idToName[q.predecessorId] ?? q.predecessorId}|${idToName[q.successorId] ?? q.successorId}|${q.type}` : '?';
+      })
+      .sort();
+    const want = [...exp.drivingSet].map((t: string[]) => t.join('|')).sort();
+    if (JSON.stringify(got) !== JSON.stringify(want))
+      diffs.push(`drivingSet: verwacht {${want.join(', ')}}, kreeg {${got.join(', ')}}`);
   }
 
   // Kritiek pad als verzameling (namen)

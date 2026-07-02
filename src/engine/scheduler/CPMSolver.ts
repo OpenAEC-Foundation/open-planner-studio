@@ -6,6 +6,13 @@ import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 export interface CPMResult {
   tasks: Map<string, CPMTaskResult>;
   criticalPath: string[];
+  /**
+   * Ids van driving relaties (P6-definitie): de door de relatie gegenereerde grens ís de
+   * aangenomen early-datum van de opvolger (relationship free float = 0). Gelijkspel is
+   * toegestaan — een opvolger kan meerdere driving voorgangers hebben. Rekenresultaat,
+   * wordt bewust niet gepersisteerd (ook niet in IFC).
+   */
+  drivingSequenceIds: string[];
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
@@ -60,6 +67,7 @@ export class CPMSolver {
       return {
         tasks: new Map(),
         criticalPath: [],
+        drivingSequenceIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: `Circular dependency detected: ${cycleNames}`,
@@ -72,6 +80,7 @@ export class CPMSolver {
       return {
         tasks: new Map(),
         criticalPath: [],
+        drivingSequenceIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: 'Kalender heeft geen werkdagen ingesteld',
@@ -86,6 +95,7 @@ export class CPMSolver {
         return {
           tasks: new Map(),
           criticalPath: [],
+          drivingSequenceIds: [],
           projectEnd: '',
           projectDuration: 0,
           error: `Ongeldige startdatum voor taak "${task.name}"`,
@@ -465,6 +475,21 @@ export class CPMSolver {
       });
     }
 
+    // Driving relaties: een relatie is driving wanneer haar (gesnapte) geëiste start exact de
+    // aangenomen vroegste start van de opvolger is — de bindende term in de max() van de forward
+    // pass (P6: relationship free float = 0). Gelijkspel ⇒ meerdere driving relaties. Wordt de
+    // opvolger door de projectstart-vloer bepaald (volledig geklemde lead), dan bindt geen enkele
+    // relatie en is er dus ook geen driving relatie.
+    const drivingSequenceIds: string[] = [];
+    for (const seq of this.sequences) {
+      const cRaw = this.seqConstraint.get(seq.id);
+      const succEarly = earlyDates.get(seq.successorId);
+      if (!cRaw || !succEarly) continue;
+      if (formatDate(this.calendar.nextWorkDay(cRaw)) === formatDate(succEarly.es)) {
+        drivingSequenceIds.push(seq.id);
+      }
+    }
+
     // Projectduur = werkdag-spanne van de vroegste start tot de laatste finish. Een project dat
     // op één moment valt (uitsluitend mijlpalen, geen echt werk) heeft duur 0 i.p.v. de 1 die de
     // inclusieve telling anders zou geven.
@@ -484,6 +509,7 @@ export class CPMSolver {
     return {
       tasks: taskResults,
       criticalPath,
+      drivingSequenceIds,
       projectEnd: formatDate(projectEnd),
       projectDuration,
     };

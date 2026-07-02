@@ -187,6 +187,7 @@ export function GanttCanvas() {
       view: effectiveView,
       selectedTaskIds,
       collapsedTaskIds,
+      drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
       canvasWidth: rect.width,
       canvasHeight: rect.height,
       taskTableWidth: TASK_TABLE_WIDTH,
@@ -201,7 +202,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
+  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
 
   // Render on changes
   useEffect(() => {

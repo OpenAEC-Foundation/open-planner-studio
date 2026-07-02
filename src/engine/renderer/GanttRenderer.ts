@@ -12,6 +12,9 @@ export interface GanttRenderOptions {
   view: ViewState;
   selectedTaskIds: string[];
   collapsedTaskIds: string[];
+  /** Ids van driving relaties uit de laatste CPM-berekening; undefined = nog niet berekend
+   *  (dan tekenen alle pijlen in de neutrale stijl, zoals voorheen). */
+  drivingSequenceIds?: string[];
   canvasWidth: number;
   canvasHeight: number;
   taskTableWidth: number;
@@ -457,9 +460,12 @@ export class GanttRenderer {
 
   private drawDependencyArrows(): void {
     const ctx = this.ctx;
-    ctx.strokeStyle = this.colors.dependency;
-    ctx.fillStyle = this.colors.dependency;
     ctx.lineWidth = 1;
+
+    // P6-conventie die elke planner direct leest: doorgetrokken = driving (bindt de opvolger),
+    // gestreept = non-driving; rood wanneer de driving relatie twee kritieke taken verbindt.
+    // Zonder berekening (drivingSet undefined) tekent alles neutraal doorgetrokken.
+    const drivingSet = this.opts.drivingSequenceIds ? new Set(this.opts.drivingSequenceIds) : null;
 
     for (const seq of this.opts.sequences) {
       const predIdx = this.flatTaskIndex.get(seq.predecessorId) ?? -1;
@@ -468,6 +474,14 @@ export class GanttRenderer {
 
       const pred = this.flatTasks[predIdx];
       const succ = this.flatTasks[succIdx];
+
+      const isDriving = drivingSet ? drivingSet.has(seq.id) : true;
+      const isCriticalLink = drivingSet !== null && isDriving
+        && pred.time.isCritical && succ.time.isCritical;
+      const color = isCriticalLink ? this.colors.critical : this.colors.dependency;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.setLineDash(isDriving ? [] : [4, 3]);
 
       const rowH = this.opts.rowHeight;
       const predY = this.rowToY(predIdx) + rowH / 2;
@@ -517,6 +531,8 @@ export class GanttRenderer {
       ctx.closePath();
       ctx.fill();
     }
+
+    ctx.setLineDash([]);
   }
 
   private drawTaskTable(): void {

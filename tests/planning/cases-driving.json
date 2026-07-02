@@ -1,0 +1,126 @@
+{
+  "comment": "Fase 2.1 — driving/non-driving relaties (P6-definitie: een relatie is driving wanneer de door haar gegenereerde grens de aangenomen early-datum van de opvolger is; relationship free float = 0). Gelijkspel toegestaan (meerdere driving voorgangers). Een opvolger die op de projectstart-vloer geklemd zit heeft geen driving relatie. Anker 2026-06-01 = maandag, schone ma-vr-kalender.",
+  "cases": [
+    {
+      "id": "drv-single",
+      "title": "Enkele FS-relatie is per definitie driving",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-04" } },
+        "drivingSet": [["A", "B", "FINISH_START"]]
+      }
+    },
+    {
+      "id": "drv-multi-binding",
+      "title": "Twee voorgangers: alleen de bindende (laatste) relatie is driving",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "C", "dur": 2 }, { "name": "B", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "C", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-08" } },
+        "drivingSet": [["A", "B", "FINISH_START"]]
+      }
+    },
+    {
+      "id": "drv-tie",
+      "title": "Gelijkspel: twee voorgangers eindigen samen, beide relaties driving",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "C", "dur": 3 }, { "name": "B", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "C", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-04" } },
+        "drivingSet": [["A", "B", "FINISH_START"], ["C", "B", "FINISH_START"]]
+      }
+    },
+    {
+      "id": "drv-lag-binding",
+      "title": "Lag telt mee in de binding: kortere voorganger met +2 lag wint van langere zonder lag",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "C", "dur": 4 }, { "name": "B", "dur": 1 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 2 },
+        { "pred": "C", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-08" } },
+        "drivingSet": [["A", "B", "FINISH_START"]]
+      }
+    },
+    {
+      "id": "drv-ladder-ssff",
+      "title": "SS+FF-ladder tussen hetzelfde paar: alleen de bindende poot (FF) is driving — triples onderscheiden op type",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "START_START", "lag": 2 },
+        { "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 2 }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-08", "ef": "2026-06-09" } },
+        "drivingSet": [["A", "B", "FINISH_FINISH"]]
+      }
+    },
+    {
+      "id": "drv-clamp-none",
+      "title": "Lead volledig op het anker geklemd: de vloer bepaalt de start, geen enkele relatie is driving",
+      "tasks": [{ "name": "A", "dur": 2 }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": -5 }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-01" } },
+        "drivingSet": []
+      }
+    },
+    {
+      "id": "drv-elapsed-snap",
+      "title": "Kalenderdag-lead die via weekend-snap alsnog bindt is driving (raw zondag -> snap maandag == es)",
+      "tasks": [{ "name": "A", "dur": 6 }, { "name": "D", "dur": 1 }, { "name": "B", "dur": 3 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START", "lag": -2, "lagUnit": "ELAPSEDTIME" },
+        { "pred": "D", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-08" } },
+        "drivingSet": [["A", "B", "FINISH_START"]]
+      }
+    },
+    {
+      "id": "drv-percent",
+      "title": "Procent-lag-relatie kan driving zijn: FS+50% van duur 6 bindt boven een kale FS van een korte voorganger",
+      "tasks": [{ "name": "A", "dur": 6 }, { "name": "X", "dur": 2 }, { "name": "B", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 50 },
+        { "pred": "X", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-12" } },
+        "drivingSet": [["A", "B", "FINISH_START"]]
+      }
+    },
+    {
+      "id": "drv-two-successors",
+      "title": "Eén voorganger drijft twee opvolgers: beide relaties driving",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "B", "dur": 2 }, { "name": "C", "dur": 1 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-04" }, "C": { "es": "2026-06-04" } },
+        "drivingSet": [["A", "B", "FINISH_START"], ["A", "C", "FINISH_START"]]
+      }
+    },
+    {
+      "id": "drv-milestone-pred",
+      "title": "Mijlpaal-voorganger (FS zonder dag-overgang) is driving voor de opvolger op dezelfde dag",
+      "tasks": [{ "name": "M", "milestone": true }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-01" } },
+        "drivingSet": [["M", "B", "FINISH_START"]]
+      }
+    }
+  ]
+}
