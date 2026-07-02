@@ -32,6 +32,7 @@ import { StatusBar } from '@/components/layout/StatusBar/StatusBar';
 import { GanttCanvas } from '@/components/canvas/GanttCanvas';
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { TableEditor } from '@/components/panels/TableEditor';
+import { RelationsPanel } from '@/components/panels/RelationsPanel';
 import { IFCPanel } from '@/components/panels/IFCPanel';
 import { ReportPanel } from '@/components/panels/ReportPanel';
 import { DebugTerminal } from '@/components/panels/DebugTerminal';
@@ -260,7 +261,7 @@ function AppContent() {
   }, []);
 
   // Determine if we should show the gantt canvas or a full-panel view
-  const isFullPanel = activeTab === 'table' || activeTab === 'ifc' || activeTab === 'report';
+  const isFullPanel = activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
@@ -295,6 +296,7 @@ function AppContent() {
           // Full panel views (Table, IFC, Report) — eigen kaart
           <div className="ui-card flex-1 flex overflow-hidden">
             {activeTab === 'table' && <TableEditor />}
+            {activeTab === 'relations' && <RelationsPanel />}
             {activeTab === 'ifc' && <IFCPanel />}
             {activeTab === 'report' && <ReportPanel />}
           </div>

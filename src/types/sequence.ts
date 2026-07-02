@@ -34,3 +34,11 @@ export const SEQUENCE_LABELS: Record<SequenceType, string> = {
   START_START: 'SS (Start-Start)',
   START_FINISH: 'SE (Start-Eind)',
 };
+
+/** Korte internationale afkortingen (FS/SS/FF/SF) voor dropdowns in relatie-editors. */
+export const SEQUENCE_TYPE_OPTIONS: { value: SequenceType; label: string }[] = [
+  { value: 'FINISH_START', label: 'FS' },
+  { value: 'START_START', label: 'SS' },
+  { value: 'FINISH_FINISH', label: 'FF' },
+  { value: 'START_FINISH', label: 'SF' },
+];

@@ -50,7 +50,7 @@ export type DocumentChromeStyle = 'tabs' | 'rail' | 'switcher';
 
 export const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
 
-export type RibbonTab = 'file' | 'start' | 'planning' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report';
+export type RibbonTab = 'file' | 'start' | 'planning' | 'relations' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report';
 
 // Backstage view (Office-style File tab full-screen) — sub-section selectie
 export type BackstageSection =

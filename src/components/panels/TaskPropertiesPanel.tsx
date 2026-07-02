@@ -1,51 +1,11 @@
-import { useEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task, TaskType } from '@/types/task';
-import { Sequence, SequenceType } from '@/types/sequence';
+import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
-import { formatLagShort, parseLagInput } from '@/utils/lagFormat';
 import { Select } from '@/components/common/Select';
+import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { Trash2, Zap } from 'lucide-react';
-
-const SEQUENCE_TYPE_OPTIONS: { value: SequenceType; label: string }[] = [
-  { value: 'FINISH_START', label: 'FS' },
-  { value: 'START_START', label: 'SS' },
-  { value: 'FINISH_FINISH', label: 'FF' },
-  { value: 'START_FINISH', label: 'SF' },
-];
-
-/** Klein lag-invoerveld met MSP-notatie (2d/3ed/50%/-25e%); commit op blur/Enter, herstel bij onzin. */
-function SequenceLagInput({ seq, title, onCommit }: {
-  seq: Sequence;
-  title: string;
-  onCommit: (patch: Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent'>) => void;
-}) {
-  const [val, setVal] = useState(formatLagShort(seq));
-  useEffect(() => {
-    setVal(formatLagShort(seq));
-  }, [seq.lagDays, seq.lagUnit, seq.lagPercent]);
-  const commit = () => {
-    const parsed = parseLagInput(val);
-    if (parsed) {
-      onCommit(parsed);
-      setVal(formatLagShort(parsed as Sequence));
-    } else {
-      setVal(formatLagShort(seq));
-    }
-  };
-  return (
-    <input
-      value={val}
-      title={title}
-      placeholder="0d"
-      onChange={e => setVal(e.target.value)}
-      onBlur={commit}
-      onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-      className="input !text-[10px] !px-1 !py-0.5 w-14 text-right"
-    />
-  );
-}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

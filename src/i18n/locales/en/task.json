@@ -64,6 +64,22 @@
     "lag": "Lag (e.g. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Recalculate CPM"
   },
+  "relations": {
+    "title": "Relations",
+    "predecessor": "Predecessor",
+    "successor": "Successor",
+    "type": "Type",
+    "lag": "Lag",
+    "driving": "Driving",
+    "freeFloat": "Free float",
+    "warnings": "Warnings",
+    "addFromSelection": "New relation from selection",
+    "addFromSelectionHint": "Select exactly two tasks (predecessor first, then successor)",
+    "empty": "No relations yet. Shift-drag between bars in the Gantt, or select two tasks and use the button above.",
+    "notCalculated": "Recalculate (F5) to see driving and float",
+    "warnTruncatedLead": "Lead truncated at the project start — the overlap is not fully used",
+    "warnLeadExceedsDuration": "Lead is larger than the predecessor's duration"
+  },
   "defaultTask": "New task",
   "defaultMilestone": "New milestone"
 }

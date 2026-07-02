@@ -126,21 +126,24 @@ function runCase(c: Case) {
     }
   }
 
-  // Driving relaties als verzameling van [voorganger, opvolger, type]-triples
-  if (exp.drivingSet) {
+  // Relatie-verzamelingen ([voorganger, opvolger, type]-triples): driving en afgekapte leads
+  const seqSetCheck = (label: string, wantTriples: string[][] | undefined, gotIds: string[]) => {
+    if (!wantTriples) return;
     const idToName: Record<string, string> = {};
     for (const [n, i] of Object.entries(ids)) idToName[i] = n;
     const seqById = new Map(S().sequences.map(q => [q.id, q]));
-    const got = ((cpm as any)?.drivingSequenceIds ?? [])
+    const got = gotIds
       .map((sid: string) => {
         const q = seqById.get(sid);
         return q ? `${idToName[q.predecessorId] ?? q.predecessorId}|${idToName[q.successorId] ?? q.successorId}|${q.type}` : '?';
       })
       .sort();
-    const want = [...exp.drivingSet].map((t: string[]) => t.join('|')).sort();
+    const want = [...wantTriples].map((t: string[]) => t.join('|')).sort();
     if (JSON.stringify(got) !== JSON.stringify(want))
-      diffs.push(`drivingSet: verwacht {${want.join(', ')}}, kreeg {${got.join(', ')}}`);
-  }
+      diffs.push(`${label}: verwacht {${want.join(', ')}}, kreeg {${got.join(', ')}}`);
+  };
+  seqSetCheck('drivingSet', exp.drivingSet, (cpm as any)?.drivingSequenceIds ?? []);
+  seqSetCheck('truncatedLeadSet', exp.truncatedLeadSet, (cpm as any)?.truncatedLeadSequenceIds ?? []);
 
   // Kritiek pad als verzameling (namen)
   if (exp.criticalPathSet) {

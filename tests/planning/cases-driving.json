@@ -65,12 +65,38 @@
     },
     {
       "id": "drv-clamp-none",
-      "title": "Lead volledig op het anker geklemd: de vloer bepaalt de start, geen enkele relatie is driving",
+      "title": "Lead volledig op het anker geklemd: de vloer bepaalt de start, geen enkele relatie is driving; de lead is gemarkeerd als afgekapt",
       "tasks": [{ "name": "A", "dur": 2 }, { "name": "B", "dur": 2 }],
       "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": -5 }],
       "expect": {
         "tasks": { "B": { "es": "2026-06-01" } },
-        "drivingSet": []
+        "drivingSet": [],
+        "truncatedLeadSet": [["A", "B", "START_START"]]
+      }
+    },
+    {
+      "id": "drv-lead-not-truncated",
+      "title": "Lead die binnen het project blijft is NIET afgekapt (en gewoon driving)",
+      "tasks": [{ "name": "A", "dur": 4 }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": -2 }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-03" } },
+        "drivingSet": [["A", "B", "FINISH_START"]],
+        "truncatedLeadSet": []
+      }
+    },
+    {
+      "id": "drv-lead-dominated-not-truncated",
+      "title": "Geklemde lead die door een andere relatie gedomineerd wordt is niet afgekapt (gewoon non-driving)",
+      "tasks": [{ "name": "A", "dur": 2 }, { "name": "C", "dur": 3 }, { "name": "B", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "START_START", "lag": -5 },
+        { "pred": "C", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-04" } },
+        "drivingSet": [["C", "B", "FINISH_START"]],
+        "truncatedLeadSet": []
       }
     },
     {

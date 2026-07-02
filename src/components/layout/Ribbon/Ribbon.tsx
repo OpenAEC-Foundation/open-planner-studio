@@ -394,7 +394,7 @@ export function Ribbon() {
         >
           {tMenu('ribbon.file')}
         </button>
-        {(['start', 'planning', 'beeld', 'instellingen', 'table', 'ifc', 'report'] as RibbonTab[]).map(tab => (
+        {(['start', 'planning', 'relations', 'beeld', 'instellingen', 'table', 'ifc', 'report'] as RibbonTab[]).map(tab => (
           <button
             key={tab}
             className={`ribbon-tab ${activeTab === tab ? 'active' : ''}`}
@@ -468,7 +468,7 @@ export function Ribbon() {
 
             <RibbonGroup label={tMenu('ribbon.relations')}>
               <RibbonButton icon={<Link size={20} />} label={tMenu('ribbon.relation')} onClick={handleToggleDependency} active={showDependencyMode} />
-              <RibbonButton icon={<ArrowRightLeft size={20} />} label={tMenu('ribbon.manage')} />
+              <RibbonButton icon={<ArrowRightLeft size={20} />} label={tMenu('ribbon.manage')} onClick={() => setActiveTab('relations')} />
             </RibbonGroup>
 
             <div className="ribbon-separator" />
@@ -476,6 +476,20 @@ export function Ribbon() {
             <RibbonGroup label={tMenu('ribbon.calendar')}>
               <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} onClick={() => setUI({ showCalendarDialog: true })} />
               <RibbonButton icon={<Clock size={20} />} label={tMenu('ribbon.holidays')} onClick={() => setUI({ showCalendarDialog: true })} />
+            </RibbonGroup>
+          </>
+        )}
+
+        {activeTab === 'relations' && (
+          <>
+            <RibbonGroup label={tMenu('ribbon.relations')}>
+              <RibbonButton icon={<Link size={20} />} label={tMenu('ribbon.relation')} onClick={handleToggleDependency} active={showDependencyMode} />
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            <RibbonGroup label={tMenu('ribbon.schedule')}>
+              <RibbonButton icon={<Play size={20} />} label={tMenu('ribbon.cpm')} onClick={runCPM} primary />
             </RibbonGroup>
           </>
         )}

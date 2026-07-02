@@ -13,9 +13,28 @@ export interface CPMResult {
    * wordt bewust niet gepersisteerd (ook niet in IFC).
    */
   drivingSequenceIds: string[];
+  /** Vrije speling per relatie (werkdagen tussen de geëiste en de werkelijke vroegste datum
+   *  van de opvolger). 0 = driving. Basis voor de relatietabel. */
+  sequenceFreeFloat: Record<string, number>;
+  /** Relaties met een lead (negatieve lag) die door de projectstart-vloer is afgekapt: de lead
+   *  wilde de opvolger vóór het projectbegin trekken en is dus niet volledig benut. */
+  truncatedLeadSequenceIds: string[];
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
+}
+
+/**
+ * Effectieve lag in dagen van een relatie: procent-lag wordt uit de ACTUELE voorgangerduur
+ * opgelost (MSP-semantiek, afgerond op hele dagen), anders geldt lagDays. Gedeeld met de UI
+ * (relatietabel-waarschuwingen) zodat er één definitie bestaat.
+ */
+export function resolveEffectiveLagDays(seq: Sequence, predTask: Task): number {
+  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+    const predDur = predTask.isMilestone ? 0 : predTask.time.scheduleDuration;
+    return Math.round((predDur * seq.lagPercent) / 100);
+  }
+  return Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
 }
 
 export interface CPMTaskResult {
@@ -39,8 +58,10 @@ export class CPMSolver {
 
   // Per relatie de in de forward-pass gegenereerde (ruwe) vroegst-toegestane start van de
   // opvolger, vóór de projectstart-vloer en de werkdag-snap. Eén bron van waarheid voor
-  // vrije speling én (later) driving-markering, ongeacht lag-eenheid.
+  // vrije speling én driving-markering, ongeacht lag-eenheid.
   private seqConstraint: Map<string, Date> = new Map();
+  // Relaties waarvan de lead in de forward-pass door de projectstart-vloer is afgekapt.
+  private truncatedLeadIds: string[] = [];
 
   constructor(tasks: Task[], sequences: Sequence[], calendar: CalendarEngine) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
@@ -68,6 +89,8 @@ export class CPMSolver {
         tasks: new Map(),
         criticalPath: [],
         drivingSequenceIds: [],
+        sequenceFreeFloat: {},
+        truncatedLeadSequenceIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: `Circular dependency detected: ${cycleNames}`,
@@ -81,6 +104,8 @@ export class CPMSolver {
         tasks: new Map(),
         criticalPath: [],
         drivingSequenceIds: [],
+        sequenceFreeFloat: {},
+        truncatedLeadSequenceIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: 'Kalender heeft geen werkdagen ingesteld',
@@ -96,6 +121,8 @@ export class CPMSolver {
           tasks: new Map(),
           criticalPath: [],
           drivingSequenceIds: [],
+          sequenceFreeFloat: {},
+          truncatedLeadSequenceIds: [],
           projectEnd: '',
           projectDuration: 0,
           error: `Ongeldige startdatum voor taak "${task.name}"`,
@@ -225,14 +252,29 @@ export class CPMSolver {
         // vroegst bij het projectbegin. Zo blijft een niet-bindende FF/SF gewoon op de anker
         // (de opvolger haalt de eis vanzelf) en wordt een lead niet vóór dag 1 getrokken.
         earlyStart = projectStart ? new Date(projectStart.getTime()) : new Date(0);
+        let rawMax: Date | null = null;
         for (const seq of preds) {
           const predResult = results.get(seq.predecessorId);
           const predTask = this.tasks.get(seq.predecessorId);
           if (!predResult || !predTask) continue;
           const constraintDate = this.getForwardConstraint(predResult, predTask, seq, task);
           this.seqConstraint.set(seq.id, constraintDate);
+          if (!rawMax || constraintDate > rawMax) rawMax = constraintDate;
           if (constraintDate > earlyStart) {
             earlyStart = constraintDate;
+          }
+        }
+        // Vloer-afkap: wilde óók de strengste relatie de taak nog vóór het projectbegin trekken,
+        // markeer dan de bindende lead(s) als afgekapt — de gebruiker moet kunnen zien dat een
+        // lead niet volledig benut wordt. Gedomineerde leads zijn gewoon non-driving, geen afkap.
+        if (rawMax && projectStart && rawMax < projectStart) {
+          for (const seq of preds) {
+            const c = this.seqConstraint.get(seq.id);
+            const predTask = this.tasks.get(seq.predecessorId);
+            if (!c || !predTask) continue;
+            if (formatDate(c) === formatDate(rawMax) && resolveEffectiveLagDays(seq, predTask) < 0) {
+              this.truncatedLeadIds.push(seq.id);
+            }
           }
         }
         earlyStart = this.calendar.nextWorkDay(earlyStart);
@@ -247,18 +289,10 @@ export class CPMSolver {
     return results;
   }
 
-  /**
-   * Effectieve lag van een relatie: dagen + eenheid. Procent-lag (MSP-semantiek) wordt hier
-   * per run uit de ACTUELE voorgangerduur berekend — wijzigt de duur, dan schuift de lag mee.
-   * Afronding op hele dagen via Math.round (de engine is dag-granulair; halven naar +∞).
-   */
+  /** Effectieve lag van een relatie: dagen (via resolveEffectiveLagDays) + eenheid. */
   private resolveLag(seq: Sequence, predTask: Task): { days: number; unit: LagUnit } {
     const unit: LagUnit = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
-    if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
-      const predDur = predTask.isMilestone ? 0 : predTask.time.scheduleDuration;
-      return { days: Math.round((predDur * seq.lagPercent) / 100), unit };
-    }
-    return { days: Number.isFinite(seq.lagDays) ? seq.lagDays : 0, unit };
+    return { days: resolveEffectiveLagDays(seq, predTask), unit };
   }
 
   private getForwardConstraint(
@@ -424,6 +458,22 @@ export class CPMSolver {
     const taskResults = new Map<string, CPMTaskResult>();
     const criticalPath: string[] = [];
 
+    // Vrije speling per relatie: werkdag-stappen tussen de (gesnapte) geëiste start en de
+    // werkelijke vroegste start van de opvolger. 0 = de relatie bindt = driving (P6:
+    // relationship free float = 0; gelijkspel ⇒ meerdere driving relaties). Wordt de opvolger
+    // door de projectstart-vloer bepaald (volledig geklemde lead), dan bindt geen relatie.
+    const sequenceFreeFloat: Record<string, number> = {};
+    const drivingSequenceIds: string[] = [];
+    for (const seq of this.sequences) {
+      const cRaw = this.seqConstraint.get(seq.id);
+      const succEarly = earlyDates.get(seq.successorId);
+      if (!cRaw || !succEarly) continue;
+      const reqStart = this.calendar.nextWorkDay(cRaw);
+      const relFloat = this.calendar.workDaysBetween(reqStart, succEarly.es) - 1;
+      sequenceFreeFloat[seq.id] = relFloat;
+      if (relFloat === 0) drivingSequenceIds.push(seq.id);
+    }
+
     let projectEnd = new Date(0);
 
     for (const taskId of order) {
@@ -431,14 +481,11 @@ export class CPMSolver {
       const late = lateDates.get(taskId)!;
 
 
-      // Vrije speling: hoeveel werkdagen deze taak kan uitlopen zonder de vroegste datum van
-      // een opvolger te raken. Gemeten via de in de forward-pass gecachte relatie-constraint:
-      // per uitgaande relatie is de speling het aantal werkdag-stappen tussen de (gesnapte)
-      // geëiste start en de werkelijke vroegste start van de opvolger. Voor werkdag-lag is dit
-      // exact gelijk aan de klassieke per-type formules (gap − lag, met de FS-finishdag-correctie);
-      // voor kalenderdag- en procent-lag volgt de juiste waarde automatisch uit dezelfde bron
-      // als de planningsberekening zelf. `gap(a,b)` = werkdag-stappen (workDaysBetween is
-      // inclusief, dus −1).
+      // Vrije speling van een taak: hoeveel werkdagen hij kan uitlopen zonder de vroegste datum
+      // van een opvolger te raken = min van de relatie-vrije-spelingen hierboven. Voor werkdag-lag
+      // is dat exact gelijk aan de klassieke per-type formules (gap − lag, met de
+      // FS-finishdag-correctie); voor kalenderdag- en procent-lag volgt de juiste waarde
+      // automatisch uit dezelfde bron als de planningsberekening zelf.
       const gap = (a: Date, b: Date) => this.calendar.workDaysBetween(a, b) - 1;
       let freeFloat = Infinity;
       const succs = this.successors.get(taskId) || [];
@@ -447,12 +494,8 @@ export class CPMSolver {
         freeFloat = gap(early.ef, late.lf);
       } else {
         for (const seq of succs) {
-          const succEarly = earlyDates.get(seq.successorId);
-          const cRaw = this.seqConstraint.get(seq.id);
-          if (!succEarly || !cRaw) continue;
-          const reqStart = this.calendar.nextWorkDay(cRaw);
-          const ff = gap(reqStart, succEarly.es);
-          if (ff < freeFloat) freeFloat = ff;
+          const ff = sequenceFreeFloat[seq.id];
+          if (ff !== undefined && ff < freeFloat) freeFloat = ff;
         }
       }
       if (freeFloat === Infinity) freeFloat = 0;
@@ -475,21 +518,6 @@ export class CPMSolver {
       });
     }
 
-    // Driving relaties: een relatie is driving wanneer haar (gesnapte) geëiste start exact de
-    // aangenomen vroegste start van de opvolger is — de bindende term in de max() van de forward
-    // pass (P6: relationship free float = 0). Gelijkspel ⇒ meerdere driving relaties. Wordt de
-    // opvolger door de projectstart-vloer bepaald (volledig geklemde lead), dan bindt geen enkele
-    // relatie en is er dus ook geen driving relatie.
-    const drivingSequenceIds: string[] = [];
-    for (const seq of this.sequences) {
-      const cRaw = this.seqConstraint.get(seq.id);
-      const succEarly = earlyDates.get(seq.successorId);
-      if (!cRaw || !succEarly) continue;
-      if (formatDate(this.calendar.nextWorkDay(cRaw)) === formatDate(succEarly.es)) {
-        drivingSequenceIds.push(seq.id);
-      }
-    }
-
     // Projectduur = werkdag-spanne van de vroegste start tot de laatste finish. Een project dat
     // op één moment valt (uitsluitend mijlpalen, geen echt werk) heeft duur 0 i.p.v. de 1 die de
     // inclusieve telling anders zou geven.
@@ -510,6 +538,8 @@ export class CPMSolver {
       tasks: taskResults,
       criticalPath,
       drivingSequenceIds,
+      sequenceFreeFloat,
+      truncatedLeadSequenceIds: [...this.truncatedLeadIds],
       projectEnd: formatDate(projectEnd),
       projectDuration,
     };
