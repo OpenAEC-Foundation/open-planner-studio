@@ -166,5 +166,9 @@
     "copyCommand": "Copy command",
     "copied": "Copied",
     "openDownloads": "Open downloads page"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "{{count}} deadline(s) missed",
+    "violatedConstraints": "{{count}} constraint(s) violated"
   }
 }

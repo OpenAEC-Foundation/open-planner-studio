@@ -51,6 +51,11 @@
     "time": "Tijd",
     "start": "Start",
     "duration": "Duur (dagen)",
+    "constraint": "Constraint",
+    "constraintDate": "Constraint-datum",
+    "deadline": "Deadline",
+    "hasConstraint": "Heeft een datum-constraint",
+    "deadlineMissed": "Deadline overschreden",
     "completion": "Voortgang (%)",
     "cpmResult": "CPM Resultaat",
     "earlyStart": "Vroegste start:",
@@ -107,6 +112,16 @@
     },
     "none": "(geen)",
     "templateSaved": "Tak bewaard als sjabloon '{{name}}'"
+  },
+  "constraintType": {
+    "ASAP": "Zo vroeg mogelijk (ASAP)",
+    "ALAP": "Zo laat mogelijk (ALAP)",
+    "SNET": "Start niet eerder dan (SNET)",
+    "SNLT": "Start niet later dan (SNLT)",
+    "FNET": "Eindig niet eerder dan (FNET)",
+    "FNLT": "Eindig niet later dan (FNLT)",
+    "MSO": "Moet starten op (MSO)",
+    "MFO": "Moet eindigen op (MFO)"
   },
   "defaultTask": "Nieuwe taak",
   "defaultMilestone": "Nieuwe mijlpaal"

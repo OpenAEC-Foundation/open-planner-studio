@@ -1,6 +1,6 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Task, TaskType } from '@/types/task';
+import { Task, TaskType, ConstraintType } from '@/types/task';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
@@ -228,6 +228,43 @@ export function TaskPropertiesPanel() {
           />
         </Field>
       </div>
+
+      {/* Constraint & deadline (fase 2.3) — P6-soft: schendingen worden negatieve float */}
+      <div className="grid grid-cols-2 gap-2">
+        <Field label={t('properties.constraint')}>
+          <select
+            value={task.constraint?.type ?? 'ASAP'}
+            onChange={e => {
+              const type = e.target.value as ConstraintType;
+              if (type === 'ASAP') update({ constraint: undefined });
+              else if (type === 'ALAP') update({ constraint: { type } });
+              else update({ constraint: { type, date: task.constraint?.date ?? task.time.scheduleStart } });
+            }}
+            className="input !text-xs !px-2.5 !py-1.5"
+          >
+            {(['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'] as ConstraintType[]).map(ct => (
+              <option key={ct} value={ct}>{t(`constraintType.${ct}`)}</option>
+            ))}
+          </select>
+        </Field>
+        {task.constraint && task.constraint.type !== 'ALAP' && (
+          <Field label={t('properties.constraintDate')}>
+            <Input
+              type="date"
+              value={task.constraint.date ?? ''}
+              onChange={v => update({ constraint: { type: task.constraint!.type, date: v } })}
+            />
+          </Field>
+        )}
+      </div>
+
+      <Field label={t('properties.deadline')}>
+        <Input
+          type="date"
+          value={task.deadline ?? ''}
+          onChange={v => update({ deadline: v || undefined })}
+        />
+      </Field>
 
       <Field label={t('properties.completion')}>
         <div className="flex items-center gap-2">

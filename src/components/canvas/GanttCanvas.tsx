@@ -220,6 +220,8 @@ export function GanttCanvas() {
       selectedTaskIds,
       collapsedTaskIds,
       drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
+      violatedConstraintTaskIds: cpmResult && !cpmResult.error ? cpmResult.violatedConstraintTaskIds : undefined,
+      missedDeadlineTaskIds: cpmResult && !cpmResult.error ? cpmResult.missedDeadlineTaskIds : undefined,
       trace,
       grouping,
       canvasWidth: rect.width,

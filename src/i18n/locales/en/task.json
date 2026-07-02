@@ -51,6 +51,11 @@
     "time": "Time",
     "start": "Start",
     "duration": "Duration (days)",
+    "constraint": "Constraint",
+    "constraintDate": "Constraint date",
+    "deadline": "Deadline",
+    "hasConstraint": "Has a date constraint",
+    "deadlineMissed": "Deadline missed",
     "completion": "Progress (%)",
     "cpmResult": "CPM Result",
     "earlyStart": "Early start:",
@@ -107,6 +112,16 @@
     },
     "none": "(none)",
     "templateSaved": "Branch saved as template '{{name}}'"
+  },
+  "constraintType": {
+    "ASAP": "As soon as possible (ASAP)",
+    "ALAP": "As late as possible (ALAP)",
+    "SNET": "Start no earlier than (SNET)",
+    "SNLT": "Start no later than (SNLT)",
+    "FNET": "Finish no earlier than (FNET)",
+    "FNLT": "Finish no later than (FNLT)",
+    "MSO": "Must start on (MSO)",
+    "MFO": "Must finish on (MFO)"
   },
   "defaultTask": "New task",
   "defaultMilestone": "New milestone"

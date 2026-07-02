@@ -28,6 +28,10 @@ export interface GanttRenderOptions {
    *  WBS-boom — bandrij (label + kleur) gevolgd door de bladtaken van die groep.
    *  Berekend in GanttCanvas via utils/grouping (gedeeld met TableEditor). */
   grouping?: { label: string; color?: string; taskIds: string[] }[];
+  /** Fase 2.3: taken met geschonden late-zijde-constraint resp. gemiste deadline
+   *  (uit cpmResult) — kleurt de markers rood. */
+  violatedConstraintTaskIds?: string[];
+  missedDeadlineTaskIds?: string[];
   canvasWidth: number;
   canvasHeight: number;
   taskTableWidth: number;
@@ -66,6 +70,10 @@ function getThemeColors() {
     today: v('--theme-accent', '#B45309'),
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
     summary: '#475569',        // samenvattingsbalk (slate)
+    // Constraints & deadlines (fase 2.3; constraint-kleur uit PLAN §8.2)
+    constraintEarly: '#3B82F6',   // vroege-zijde (SNET/FNET): blauw
+    constraintLate: '#8B5CF6',    // late-zijde/pinnend (SNLT/FNLT/MSO/MFO): violet
+    deadlineOk: '#10B981',        // deadline-marker (groen; rood bij overschrijding)
     // Path tracing (MSP Task Path-conventie: voorgangers goud, opvolgers paars; driving sterker)
     tracePred: '#F59E0B',
     tracePredDriving: '#D97706',
@@ -91,6 +99,8 @@ export class GanttRenderer {
   private taskDepths: Map<string, number>; // task id -> nesting depth
   private bandAt: Map<number, { label: string; color?: string }>; // rij-index -> band-kop
   private holidaySet: Set<string>;
+  private violatedSet: Set<string>;
+  private missedDeadlineSet: Set<string>;
 
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
@@ -107,6 +117,8 @@ export class GanttRenderer {
     this.flatTasks.forEach((t, i) => { if (t) this.flatTaskIndex.set(t.id, i); });
     this.holidaySet = new Set<string>();
     this.buildHolidaySet();
+    this.violatedSet = new Set(opts.violatedConstraintTaskIds ?? []);
+    this.missedDeadlineSet = new Set(opts.missedDeadlineTaskIds ?? []);
   }
 
   /** Groeperingsweergave: per band een kop-rij gevolgd door de bladtaken (vlak, diepte 0). */
@@ -401,6 +413,7 @@ export class GanttRenderer {
       } else {
         this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
       }
+      this.drawConstraintMarkers(task, y);
       if (dimmed) this.ctx.globalAlpha = 1;
     }
   }
@@ -530,6 +543,60 @@ export class GanttRenderer {
     ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textBaseline = 'middle';
     ctx.fillText(task.name, x + size + 6, cy);
+  }
+
+  /**
+   * Fase 2.3 — constraint-pins en deadline-markers (F10/F11):
+   *  - constraint: klein pin-ruitje boven de balkrand — blauw aan de startkant voor
+   *    vroege-zijde types (SNET/FNET), violet aan de betreffende kant voor late-zijde/
+   *    pinnende types (SNLT/FNLT/MSO/MFO), rood wanneer de constraint geschonden is;
+   *  - deadline: pijl-omlaag op de deadline-datum (MSP-conventie) — groen, rood bij
+   *    overschrijding.
+   */
+  private drawConstraintMarkers(task: Task, y: number): void {
+    const ctx = this.ctx;
+    const chartLeft = this.opts.taskTableWidth;
+
+    const c = task.constraint;
+    if (c && c.type !== 'ASAP' && c.type !== 'ALAP') {
+      const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
+      const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+      const startSide = c.type === 'SNET' || c.type === 'SNLT' || c.type === 'MSO';
+      const px = startSide ? this.dateToX(start) : this.dateToX(end) + this.opts.view.zoom;
+      if (px >= chartLeft && px <= this.opts.canvasWidth) {
+        const earlySide = c.type === 'SNET' || c.type === 'FNET';
+        const violated = this.violatedSet.has(task.id);
+        ctx.fillStyle = violated
+          ? this.colors.critical
+          : earlySide ? this.colors.constraintEarly : this.colors.constraintLate;
+        const cy = y - 1;
+        ctx.beginPath();
+        ctx.moveTo(px, cy - 4);
+        ctx.lineTo(px + 4, cy);
+        ctx.lineTo(px, cy + 4);
+        ctx.lineTo(px - 4, cy);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    if (task.deadline) {
+      const d = parseDate(task.deadline);
+      if (!isNaN(d.getTime())) {
+        // Einde van de deadline-dag, consistent met de balk-finishkant.
+        const dx = this.dateToX(d) + this.opts.view.zoom;
+        if (dx >= chartLeft && dx <= this.opts.canvasWidth) {
+          const missed = this.missedDeadlineSet.has(task.id);
+          ctx.fillStyle = missed ? this.colors.critical : this.colors.deadlineOk;
+          ctx.beginPath();
+          ctx.moveTo(dx - 5, y - 2);
+          ctx.lineTo(dx + 5, y - 2);
+          ctx.lineTo(dx, y + 5);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    }
   }
 
   private drawDependencyArrows(): void {

@@ -166,5 +166,9 @@
     "copyCommand": "Commando kopiëren",
     "copied": "Gekopieerd",
     "openDownloads": "Open downloadpagina"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "{{count}} deadline(s) overschreden",
+    "violatedConstraints": "{{count}} constraint(s) geschonden"
   }
 }

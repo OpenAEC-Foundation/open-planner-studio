@@ -1,4 +1,4 @@
-import { Task, TaskTime, TaskType, createDefaultTaskTime } from '@/types/task';
+import { Task, TaskTime, TaskType, ConstraintType, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceType, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -441,6 +441,31 @@ function extractStructure(
         if (stripQuotes(prop.args[0] || '') === 'wbsAutoNumber') {
           const v = parseTypedValue(prop.args[2] || '');
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
+        }
+      }
+      continue;
+    }
+
+    if (psetName === 'OPS_Constraints') {
+      // Fase 2.3: datum-constraint + deadline per taak (spiegel van writeConstraints).
+      for (const objRef of objectRefs) {
+        const taskId = taskStepIdMap.get(objRef);
+        const task = taskId ? taskById.get(taskId) : undefined;
+        if (!task) continue;
+        let ctype: string | undefined;
+        let cdate: string | undefined;
+        for (const prop of props) {
+          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+          const name = stripQuotes(prop.args[0] || '');
+          const value = parseTypedValue(prop.args[2] || '');
+          if (typeof value !== 'string') continue;
+          if (name === 'ConstraintType') ctype = value;
+          else if (name === 'ConstraintDate') cdate = value;
+          else if (name === 'Deadline') task.deadline = value;
+        }
+        const valid = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
+        if (ctype && valid.includes(ctype)) {
+          task.constraint = { type: ctype as ConstraintType, ...(cdate ? { date: cdate } : {}) };
         }
       }
       continue;

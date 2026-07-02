@@ -163,6 +163,9 @@ export function writeIFC(
   // Structuurdefinities (activity codes / custom fields) + waarden per taak + projectsettings
   writeStructure(ctx, project, tasks, activityCodeTypes, customFieldDefs, ownerHistId);
 
+  // Datum-constraints + deadlines (fase 2.3) als OPS_Constraints-pset per taak
+  writeConstraints(ctx, tasks, ownerHistId);
+
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
@@ -298,6 +301,39 @@ function writeStructure(
         `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_ac_' + task.id))},#${ownerHistId},'OPS_ActivityCodes',$,(${propRefs.join(',')}))`);
       relDefines(`_rel_ac_${task.id}`, ref(ctx, `task_${task.id}`), setId);
     }
+  }
+}
+
+/**
+ * Fase 2.3 — datum-constraint + deadline per taak als eigen OPS_Constraints-pset
+ * (IfcTaskTime heeft geen constraint-/deadline-slots; de standaardconforme
+ * IfcRelAssociatesConstraint/IfcMetric-graf is gedocumenteerd alternatief voor later).
+ * ASAP (default) wordt niet geschreven.
+ */
+function writeConstraints(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    const props: string[] = [];
+    const c = task.constraint;
+    if (c && c.type !== 'ASAP') {
+      const typeId = addLine(ctx, `_cstt_${task.id}`,
+        `IFCPROPERTYSINGLEVALUE('ConstraintType',$,IFCLABEL(${ifcStr(c.type)}),$)`);
+      props.push(`#${typeId}`);
+      if (c.date) {
+        const dateId = addLine(ctx, `_cstd_${task.id}`,
+          `IFCPROPERTYSINGLEVALUE('ConstraintDate',$,IFCDATE(${ifcStr(c.date)}),$)`);
+        props.push(`#${dateId}`);
+      }
+    }
+    if (task.deadline) {
+      const dlId = addLine(ctx, `_dl_${task.id}`,
+        `IFCPROPERTYSINGLEVALUE('Deadline',$,IFCDATE(${ifcStr(task.deadline)}),$)`);
+      props.push(`#${dlId}`);
+    }
+    if (props.length === 0) continue;
+    const setId = addLine(ctx, `_pset_cst_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_cst_' + task.id))},#${ownerHistId},'OPS_Constraints',$,(${props.join(',')}))`);
+    addLine(ctx, `_rel_cst_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_cst_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }
 

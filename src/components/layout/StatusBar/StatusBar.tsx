@@ -29,6 +29,16 @@ export function StatusBar() {
         <>
           <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
           <span>{t('status.end')} {cpmResult.projectEnd}</span>
+          {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && (
+            <span style={{ color: 'var(--theme-warning-text)' }}>
+              ⚠ {tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length })}
+            </span>
+          )}
+          {(cpmResult.violatedConstraintTaskIds?.length ?? 0) > 0 && (
+            <span style={{ color: 'var(--theme-warning-text)' }}>
+              ⚠ {tCommon('statusWarnings.violatedConstraints', { count: cpmResult.violatedConstraintTaskIds.length })}
+            </span>
+          )}
         </>
       )}
       {selectedTaskIds.length > 0 && (

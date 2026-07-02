@@ -310,9 +310,15 @@ export function TableEditor() {
               </div>
               <div className="w-[100px] px-1 flex items-center text-text-secondary">
                 {renderCell(task.id, 'start', task.time.earlyStart || task.time.scheduleStart, '100px')}
+                {task.constraint && ['SNET', 'SNLT', 'MSO'].includes(task.constraint.type) && (
+                  <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
+                )}
               </div>
               <div className="w-[100px] px-1 flex items-center text-text-secondary">
                 {renderCell(task.id, 'finish', task.time.earlyFinish || task.time.scheduleFinish, '100px')}
+                {task.constraint && ['FNET', 'FNLT', 'MFO'].includes(task.constraint.type) && (
+                  <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
+                )}
               </div>
               <div className="w-[80px] px-1 flex items-center text-text-secondary text-[10px]">
                 {taskTypeLabels[task.taskType] || task.taskType}
@@ -324,8 +330,13 @@ export function TableEditor() {
                   <span className="text-text-secondary">{tCommon('no')}</span>
                 )}
               </div>
-              <div className="w-[50px] px-1 flex items-center justify-end text-text-secondary">
-                {task.time.totalFloat}{tCommon('days')}
+              <div
+                className="w-[50px] px-1 flex items-center justify-end"
+                style={task.time.totalFloat < 0 ? { color: 'var(--error)', fontWeight: 600 } : undefined}
+              >
+                <span className={task.time.totalFloat < 0 ? '' : 'text-text-secondary'}>
+                  {task.time.totalFloat}{tCommon('days')}
+                </span>
               </div>
               <div className="w-[60px] px-1 flex items-center justify-end">
                 {renderCell(task.id, 'completion', `${Math.round(task.time.completion * 100)}`, '60px', 'right')}
