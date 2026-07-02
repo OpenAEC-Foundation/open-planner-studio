@@ -4,6 +4,7 @@ import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
+import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 
 /** Generate a 22-character IFC GlobalId (simplified) */
 function ifcGuid(seed: string): string {
@@ -66,6 +67,8 @@ export function writeIFC(
   sequences: Sequence[],
   resources: Resource[],
   assignments: ResourceAssignment[],
+  activityCodeTypes: ActivityCodeType[] = [],
+  customFieldDefs: CustomFieldDef[] = [],
 ): string {
   const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map() };
   const now = new Date().toISOString().split('.')[0];
@@ -157,10 +160,145 @@ export function writeIFC(
       `IFCRELASSIGNSTOCONTROL(${ifcStr(ifcGuid('ctrl'))},#${ownerHistId},$,$,(${allTaskRefs}),$,#${workSchedId})`);
   }
 
+  // Structuurdefinities (activity codes / custom fields) + waarden per taak + projectsettings
+  writeStructure(ctx, project, tasks, activityCodeTypes, customFieldDefs, ownerHistId);
+
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
   return header + ctx.lines.join('\n') + footer;
+}
+
+// IFC-measure-type per custom-field-type (IfcSimplePropertyTemplate.PrimaryMeasureType
+// en het getypeerde NominalValue van IfcPropertySingleValue).
+const FIELD_MEASURE: Record<CustomFieldType, string> = {
+  text: 'IfcText',
+  number: 'IfcReal',
+  integer: 'IfcInteger',
+  cost: 'IfcMonetaryMeasure',
+  date: 'IfcDate',
+  boolean: 'IfcBoolean',
+};
+
+function ifcTypedValue(type: CustomFieldType, value: CustomFieldValue): string {
+  switch (type) {
+    case 'text': return `IFCTEXT(${ifcStr(String(value))})`;
+    case 'number': return `IFCREAL(${Number(value)})`;
+    case 'integer': return `IFCINTEGER(${Math.round(Number(value))})`;
+    case 'cost': return `IFCMONETARYMEASURE(${Number(value)})`;
+    case 'date': return `IFCDATE(${ifcStr(String(value))})`;
+    case 'boolean': return `IFCBOOLEAN(${value ? '.T.' : '.F.'})`;
+  }
+}
+
+/**
+ * Fase 2.2 — structuur naar IFC 4.3 (zie ontwerpdoc §2):
+ *  - definities als IFCPROPERTYSETTEMPLATE + IFCSIMPLEPROPERTYTEMPLATE (P_SINGLEVALUE voor
+ *    custom fields met PrimaryMeasureType; P_ENUMERATEDVALUE + IFCPROPERTYENUMERATION voor
+ *    activity-code-types), gedeclareerd aan het project via IFCRELDECLARES — leesbaar voor
+ *    conformante IFC-tools;
+ *  - daarnaast één OPS_StructureMeta-pset met de volledige definitie-JSON (autoritair voor
+ *    onze eigen reader: behoudt ids/kleuren/omschrijvingen verliesloos);
+ *  - waarden per taak als eigen psets OPS_CustomFields (IFCPROPERTYSINGLEVALUE, getypeerd)
+ *    en OPS_ActivityCodes (IFCPROPERTYENUMERATEDVALUE), via IFCRELDEFINESBYPROPERTIES;
+ *  - OPS_ProjectSettings-pset op het project (wbsAutoNumber).
+ * Identiteit in de psets is de NAAM (type-/veldnaam); de reader mapt namen terug naar ids
+ * via de meta-JSON (of mint verse ids bij bestanden van derden).
+ */
+function writeStructure(
+  ctx: WriteContext,
+  project: Project,
+  tasks: Task[],
+  activityCodeTypes: ActivityCodeType[],
+  customFieldDefs: CustomFieldDef[],
+  ownerHistId: number,
+): void {
+  const projRef = ref(ctx, '_project');
+  const relDefines = (key: string, objRef: string, setId: number) =>
+    addLine(ctx, key,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid(key))},#${ownerHistId},$,$,(${objRef}),#${setId})`);
+
+  // Projectsettings (wbsAutoNumber) — alleen schrijven wanneer de vlag bestaat.
+  if (project.wbsAutoNumber !== undefined) {
+    const propId = addLine(ctx, '_ps_wbsauto',
+      `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`);
+    const setId = addLine(ctx, '_pset_projset',
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_projset'))},#${ownerHistId},'OPS_ProjectSettings',$,(#${propId}))`);
+    relDefines('_rel_projset', projRef, setId);
+  }
+
+  if (activityCodeTypes.length === 0 && customFieldDefs.length === 0) return;
+
+  // Autoritaire meta-JSON (verliesloos: ids, kleuren, omschrijvingen).
+  const metaJson = JSON.stringify({ activityCodeTypes, customFieldDefs });
+  const metaPropId = addLine(ctx, '_ps_structmeta',
+    `IFCPROPERTYSINGLEVALUE('structure',$,IFCTEXT(${ifcStr(metaJson)}),$)`);
+  const metaSetId = addLine(ctx, '_pset_structmeta',
+    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_structmeta'))},#${ownerHistId},'OPS_StructureMeta',$,(#${metaPropId}))`);
+  relDefines('_rel_structmeta', projRef, metaSetId);
+
+  // Conformante templates + declaratie aan het project.
+  const templateIds: number[] = [];
+  if (customFieldDefs.length > 0) {
+    const fieldTmplRefs = customFieldDefs.map(def => {
+      const id = addLine(ctx, `_cft_${def.id}`,
+        `IFCSIMPLEPROPERTYTEMPLATE(${ifcStr(ifcGuid('cft_' + def.id))},#${ownerHistId},${ifcStr(def.name)},$,.P_SINGLEVALUE.,${ifcStr(FIELD_MEASURE[def.type])},$,$,$,$,$,$)`);
+      return `#${id}`;
+    });
+    templateIds.push(addLine(ctx, '_psett_fields',
+      `IFCPROPERTYSETTEMPLATE(${ifcStr(ifcGuid('psett_fields'))},#${ownerHistId},'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(${fieldTmplRefs.join(',')}))`));
+  }
+  if (activityCodeTypes.length > 0) {
+    const codeTmplRefs = activityCodeTypes.map(t => {
+      const labels = t.values.map(v => `IFCLABEL(${ifcStr(v.code)})`).join(',');
+      const enumId = addLine(ctx, `_acte_${t.id}`,
+        `IFCPROPERTYENUMERATION(${ifcStr(t.name)},(${labels}),$)`);
+      const id = addLine(ctx, `_actt_${t.id}`,
+        `IFCSIMPLEPROPERTYTEMPLATE(${ifcStr(ifcGuid('actt_' + t.id))},#${ownerHistId},${ifcStr(t.name)},$,.P_ENUMERATEDVALUE.,$,$,#${enumId},$,$,$,$)`);
+      return `#${id}`;
+    });
+    templateIds.push(addLine(ctx, '_psett_codes',
+      `IFCPROPERTYSETTEMPLATE(${ifcStr(ifcGuid('psett_codes'))},#${ownerHistId},'OPS_ActivityCodes',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(${codeTmplRefs.join(',')}))`));
+  }
+  if (templateIds.length > 0) {
+    addLine(ctx, '_decl_templates',
+      `IFCRELDECLARES(${ifcStr(ifcGuid('decl_templates'))},#${ownerHistId},$,$,${projRef},(${templateIds.map(i => `#${i}`).join(',')}))`);
+  }
+
+  // Waarden per taak.
+  const typeById = new Map(activityCodeTypes.map(t => [t.id, t]));
+  const defById = new Map(customFieldDefs.map(d => [d.id, d]));
+  for (const task of tasks) {
+    const fieldEntries = Object.entries(task.customFields ?? {}).filter(([defId]) => defById.has(defId));
+    if (fieldEntries.length > 0) {
+      const propRefs = fieldEntries.map(([defId, value]) => {
+        const def = defById.get(defId)!;
+        const id = addLine(ctx, `_cfv_${task.id}_${defId}`,
+          `IFCPROPERTYSINGLEVALUE(${ifcStr(def.name)},$,${ifcTypedValue(def.type, value)},$)`);
+        return `#${id}`;
+      });
+      const setId = addLine(ctx, `_pset_cf_${task.id}`,
+        `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_cf_' + task.id))},#${ownerHistId},'OPS_CustomFields',$,(${propRefs.join(',')}))`);
+      relDefines(`_rel_cf_${task.id}`, ref(ctx, `task_${task.id}`), setId);
+    }
+
+    const codeEntries = Object.entries(task.activityCodes ?? {}).filter(([typeId, valueId]) => {
+      const t = typeById.get(typeId);
+      return !!t && t.values.some(v => v.id === valueId);
+    });
+    if (codeEntries.length > 0) {
+      const propRefs = codeEntries.map(([typeId, valueId]) => {
+        const t = typeById.get(typeId)!;
+        const v = t.values.find(x => x.id === valueId)!;
+        const id = addLine(ctx, `_acv_${task.id}_${typeId}`,
+          `IFCPROPERTYENUMERATEDVALUE(${ifcStr(t.name)},$,(IFCLABEL(${ifcStr(v.code)})),$)`);
+        return `#${id}`;
+      });
+      const setId = addLine(ctx, `_pset_ac_${task.id}`,
+        `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_ac_' + task.id))},#${ownerHistId},'OPS_ActivityCodes',$,(${propRefs.join(',')}))`);
+      relDefines(`_rel_ac_${task.id}`, ref(ctx, `task_${task.id}`), setId);
+    }
+  }
 }
 
 function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number): number {

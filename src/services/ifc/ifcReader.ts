@@ -3,6 +3,7 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceType, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
+import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 
@@ -21,6 +22,8 @@ export function readIFC(content: string): {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
+  activityCodeTypes: ActivityCodeType[];
+  customFieldDefs: CustomFieldDef[];
 } {
   const entities = parseSTEP(content);
   const entityMap = new Map<string, StepEntity>();
@@ -36,8 +39,11 @@ export function readIFC(content: string): {
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   const { resources, resourceStepIdMap } = extractResources(entities, entityMap);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
+  const { activityCodeTypes, customFieldDefs } = extractStructure(
+    entities, entityMap, project, tasks, taskStepIdMap,
+  );
 
-  return { project, calendar, tasks, sequences, resources, assignments };
+  return { project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs };
 }
 
 function parseSTEP(content: string): StepEntity[] {
@@ -333,6 +339,141 @@ function extractSequences(
   }
 
   return sequences;
+}
+
+/** Parse een getypeerd NominalValue zoals IFCTEXT('x'), IFCREAL(1.5), IFCBOOLEAN(.T.),
+ *  IFCDATE('2026-01-01'), IFCINTEGER(2), IFCMONETARYMEASURE(3.5). */
+function parseTypedValue(s: string): CustomFieldValue | undefined {
+  const m = (s || '').trim().match(/^IFC\w+\s*\(([\s\S]*)\)$/i);
+  if (!m) return undefined;
+  const inner = m[1].trim();
+  if (inner === '.T.') return true;
+  if (inner === '.F.') return false;
+  if (inner.startsWith("'")) return stripQuotes(inner);
+  const n = parseFloat(inner);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+const MEASURE_TO_FIELD: Record<string, CustomFieldType> = {
+  ifctext: 'text', ifclabel: 'text', ifcreal: 'number', ifcinteger: 'integer',
+  ifcmonetarymeasure: 'cost', ifcdate: 'date', ifcboolean: 'boolean',
+};
+
+/**
+ * Fase 2.2 — structuurdefinities en taakwaarden teruglezen (spiegel van writeStructure):
+ * de OPS_StructureMeta-JSON is autoritair (verliesloos, behoudt ids/kleuren); ontbreekt die
+ * (bestand van een andere tool), dan reconstrueren we de definities uit de conformante
+ * IFCPROPERTYSETTEMPLATE-declaraties met verse ids. Taakwaarden (OPS_CustomFields /
+ * OPS_ActivityCodes-psets) worden per NAAM teruggemapt naar de definities; het
+ * OPS_ProjectSettings-pset zet project.wbsAutoNumber.
+ */
+function extractStructure(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  project: Project,
+  tasks: Task[],
+  taskStepIdMap: Map<string, string>,
+): { activityCodeTypes: ActivityCodeType[]; customFieldDefs: CustomFieldDef[] } {
+  let activityCodeTypes: ActivityCodeType[] = [];
+  let customFieldDefs: CustomFieldDef[] = [];
+
+  // 1. Autoritaire meta-JSON.
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_StructureMeta') continue;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      const raw = parseTypedValue(prop.args[2] || '');
+      if (typeof raw !== 'string') continue;
+      try {
+        const meta = JSON.parse(raw);
+        if (Array.isArray(meta.activityCodeTypes)) activityCodeTypes = meta.activityCodeTypes;
+        if (Array.isArray(meta.customFieldDefs)) customFieldDefs = meta.customFieldDefs;
+      } catch { /* corrupte meta — val terug op templates */ }
+    }
+  }
+
+  // 2. Terugval: reconstrueer definities uit de conformante templates (verse ids).
+  if (activityCodeTypes.length === 0 && customFieldDefs.length === 0) {
+    for (const e of entities) {
+      if (e.type !== 'IFCPROPERTYSETTEMPLATE') continue;
+      const setName = stripQuotes(e.args[2] || '');
+      for (const tmplRef of parseRefs(e.args[6] || '')) {
+        const tmpl = entityMap.get(tmplRef);
+        if (!tmpl || tmpl.type !== 'IFCSIMPLEPROPERTYTEMPLATE') continue;
+        const name = stripQuotes(tmpl.args[2] || '');
+        const templateType = (tmpl.args[4] || '').replace(/\./g, '').trim();
+        if (setName === 'OPS_CustomFields' && templateType === 'P_SINGLEVALUE') {
+          const measure = stripQuotes(tmpl.args[5] || '').toLowerCase();
+          customFieldDefs.push({ id: generateId('cfd'), name, type: MEASURE_TO_FIELD[measure] ?? 'text' });
+        } else if (setName === 'OPS_ActivityCodes' && templateType === 'P_ENUMERATEDVALUE') {
+          const enumEntity = entityMap.get(parseRef(tmpl.args[7] || '') || '');
+          const values = enumEntity && enumEntity.type === 'IFCPROPERTYENUMERATION'
+            ? splitArgs((enumEntity.args[1] || '').replace(/^\(|\)$/g, ''))
+                .map(v => parseTypedValue(v))
+                .filter((v): v is string => typeof v === 'string')
+                .map(code => ({ id: generateId('acv'), code }))
+            : [];
+          activityCodeTypes.push({ id: generateId('act'), name, values });
+        }
+      }
+    }
+  }
+
+  const typeByName = new Map(activityCodeTypes.map(t => [t.name, t]));
+  const defByName = new Map(customFieldDefs.map(d => [d.name, d]));
+  const taskById = new Map(tasks.map(t => [t.id, t]));
+
+  // 3. Waarden per object via IFCRELDEFINESBYPROPERTIES.
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
+    const psetName = stripQuotes(pset.args[2] || '');
+    const objectRefs = parseRefs(rel.args[4] || '');
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p);
+
+    if (psetName === 'OPS_ProjectSettings') {
+      for (const prop of props) {
+        if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+        if (stripQuotes(prop.args[0] || '') === 'wbsAutoNumber') {
+          const v = parseTypedValue(prop.args[2] || '');
+          if (typeof v === 'boolean') project.wbsAutoNumber = v;
+        }
+      }
+      continue;
+    }
+
+    if (psetName !== 'OPS_CustomFields' && psetName !== 'OPS_ActivityCodes') continue;
+    for (const objRef of objectRefs) {
+      const taskId = taskStepIdMap.get(objRef);
+      const task = taskId ? taskById.get(taskId) : undefined;
+      if (!task) continue;
+      for (const prop of props) {
+        const name = stripQuotes(prop.args[0] || '');
+        if (psetName === 'OPS_CustomFields' && prop.type === 'IFCPROPERTYSINGLEVALUE') {
+          const def = defByName.get(name);
+          const value = parseTypedValue(prop.args[2] || '');
+          if (def && value !== undefined) {
+            task.customFields = { ...(task.customFields ?? {}), [def.id]: value };
+          }
+        } else if (psetName === 'OPS_ActivityCodes' && prop.type === 'IFCPROPERTYENUMERATEDVALUE') {
+          const type = typeByName.get(name);
+          const codes = splitArgs((prop.args[2] || '').replace(/^\(|\)$/g, ''))
+            .map(v => parseTypedValue(v))
+            .filter((v): v is string => typeof v === 'string');
+          const value = type?.values.find(v => v.code === codes[0]);
+          if (type && value) {
+            task.activityCodes = { ...(task.activityCodes ?? {}), [type.id]: value.id };
+          }
+        }
+      }
+    }
+  }
+
+  return { activityCodeTypes, customFieldDefs };
 }
 
 function extractNesting(

@@ -4,6 +4,7 @@ import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
@@ -46,6 +47,8 @@ export interface ProjectSlice {
     sequences: Sequence[];
     resources: Resource[];
     assignments: ResourceAssignment[];
+    activityCodeTypes?: ActivityCodeType[];
+    customFieldDefs?: CustomFieldDef[];
   }) => void;
 }
 
@@ -104,6 +107,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.sequences = [];
       s.resources = [];
       s.assignments = [];
+      s.activityCodeTypes = [];
+      s.customFieldDefs = [];
       s.selectedTaskIds = [];
       s.cpmResult = null;
       s.view = createDefaultView();
@@ -177,6 +182,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.sequences = loaded.sequences;
       s.resources = loaded.resources;
       s.assignments = loaded.assignments;
+      s.activityCodeTypes = loaded.activityCodeTypes ?? [];
+      s.customFieldDefs = loaded.customFieldDefs ?? [];
       s.selectedTaskIds = [];
       s.cpmResult = null;
       s.undoStack = [];

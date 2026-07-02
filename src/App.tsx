@@ -131,6 +131,7 @@ function AppContent() {
           const content = writeIFC(
             payload.project, payload.calendar, payload.tasks,
             payload.sequences, payload.resources, payload.assignments,
+            payload.activityCodeTypes, payload.customFieldDefs,
           );
           await writeTextFile(await join(dir, recoveryIfcName(id)), content);
         }
@@ -201,6 +202,7 @@ function AppContent() {
                   id: d.id,
                   project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
                   sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
+                  activityCodeTypes: parsed.activityCodeTypes, customFieldDefs: parsed.customFieldDefs,
                   filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
                 });
               } catch (err) {

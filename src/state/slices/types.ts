@@ -68,6 +68,9 @@ export interface ViewState {
   zoom: number; // pixels per day
   timeScale: TimeScale;
   viewStartDate: string; // leftmost visible date
+  /** Groeperingsweergave (fase 2.2): id van een activity-code-type — tabel en Gantt tonen
+   *  dan codewaarde-banden i.p.v. de WBS-boom; undefined = normale boomweergave. */
+  groupBy?: string;
 }
 
 export interface UIState {

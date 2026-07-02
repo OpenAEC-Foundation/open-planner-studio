@@ -1,4 +1,5 @@
 import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
+import type { CustomFieldValue } from '@/types/structure';
 
 export type TaskType =
   | 'CONSTRUCTION'
@@ -52,6 +53,10 @@ export interface Task {
   time: TaskTime;
   resourceIds: string[];
   color?: string;
+  /** Activity-code-toewijzingen: codetype-id → waarde-id (max één waarde per type, P6-invariant). */
+  activityCodes?: Record<string, string>;
+  /** Custom-field-waarden: velddefinitie-id → waarde (getypeerd volgens CustomFieldDef.type). */
+  customFields?: Record<string, CustomFieldValue>;
 }
 
 export function createDefaultTaskTime(

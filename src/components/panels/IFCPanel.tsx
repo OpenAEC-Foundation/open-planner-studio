@@ -12,22 +12,24 @@ export function IFCPanel() {
   const sequences = useAppStore(s => s.sequences);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
+  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
+  const customFieldDefs = useAppStore(s => s.customFieldDefs);
   const loadState = useAppStore(s => s.loadState);
   const setViewStartDate = useAppStore(s => s.setViewStartDate);
   const runCPM = useAppStore(s => s.runCPM);
 
   const generated = useMemo(() => {
-    return writeIFC(project, calendar, tasks, sequences, resources, assignments);
-  }, [project, calendar, tasks, sequences, resources, assignments]);
+    return writeIFC(project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
 
   const handleGenerate = useCallback(() => {
-    const ifc = writeIFC(project, calendar, tasks, sequences, resources, assignments);
+    const ifc = writeIFC(project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs);
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs]);
 
   const handleApply = useCallback(() => {
     try {

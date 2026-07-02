@@ -133,6 +133,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const content = writeIFC(
       state.project, state.calendar, state.tasks,
       state.sequences, state.resources, state.assignments,
+      state.activityCodeTypes, state.customFieldDefs,
     );
 
     if (state.filePath) {
@@ -164,6 +165,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const content = writeIFC(
       state.project, state.calendar, state.tasks,
       state.sequences, state.resources, state.assignments,
+      state.activityCodeTypes, state.customFieldDefs,
     );
 
     const picked = await save({
@@ -221,6 +223,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         content = writeIFC(
           state.project, state.calendar, state.tasks,
           state.sequences, state.resources, state.assignments,
+          state.activityCodeTypes, state.customFieldDefs,
         );
         ext = 'ifc';
         filters = [{ name: 'IFC Files', extensions: ['ifc'] }];

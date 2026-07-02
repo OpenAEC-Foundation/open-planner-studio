@@ -4,6 +4,7 @@ import { createDefaultCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Snapshot } from '../snapshot';
 import type { ViewState, AppSlice } from './types';
@@ -34,6 +35,8 @@ export interface DocumentPayload {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
+  activityCodeTypes: ActivityCodeType[];
+  customFieldDefs: CustomFieldDef[];
   selectedTaskIds: string[];
   cpmResult: CPMResult | null;
   view: ViewState;
@@ -69,6 +72,8 @@ export interface RecoveryDocInput {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
+  activityCodeTypes?: ActivityCodeType[];
+  customFieldDefs?: CustomFieldDef[];
   filePath: string | null;
   isDirty: boolean;
 }
@@ -100,6 +105,8 @@ function capturePayload(s: AppState): DocumentPayload {
     sequences: s.sequences,
     resources: s.resources,
     assignments: s.assignments,
+    activityCodeTypes: s.activityCodeTypes,
+    customFieldDefs: s.customFieldDefs,
     selectedTaskIds: s.selectedTaskIds,
     cpmResult: s.cpmResult,
     view: s.view,
@@ -119,6 +126,8 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.sequences = p.sequences;
   s.resources = p.resources;
   s.assignments = p.assignments;
+  s.activityCodeTypes = p.activityCodeTypes ?? [];
+  s.customFieldDefs = p.customFieldDefs ?? [];
   s.selectedTaskIds = p.selectedTaskIds;
   s.cpmResult = p.cpmResult;
   s.view = p.view;
@@ -138,6 +147,8 @@ function freshPayload(): DocumentPayload {
     sequences: [],
     resources: [],
     assignments: [],
+    activityCodeTypes: [],
+    customFieldDefs: [],
     selectedTaskIds: [],
     cpmResult: null,
     view: createDefaultView(),
@@ -158,6 +169,8 @@ function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     sequences: d.sequences,
     resources: d.resources,
     assignments: d.assignments,
+    activityCodeTypes: d.activityCodeTypes ?? [],
+    customFieldDefs: d.customFieldDefs ?? [],
     selectedTaskIds: [],
     cpmResult: null,
     view: createDefaultView(),
