@@ -21,6 +21,15 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       overige dialogen) — consistente look-and-feel en ruimte om meer context te
       tonen (welk(e) document(en), bestandspad, tijdstip van de snapshot).
 
+- [ ] **Relatietype kiezen bij het slepen van een afhankelijkheid.** Nu maakt de
+      sleep-actie op het Gantt-canvas altijd een `FINISH_START`-relatie aan
+      (hardcoded in `GanttCanvas.tsx`, bij het loslaten van de dependency-drag).
+      Het type en de lag zijn inmiddels wél achteraf te wijzigen (eigenschappen-
+      paneel en relatietabel, via `updateSequence`), maar tijdens het slepen kun
+      je ze nog niet kiezen. *Aanpak:* toon bij het loslaten een klein
+      contextmenu/popover om het relatietype (FS/SS/FF/SF) en eventueel de lag
+      te kiezen in plaats van meteen FS aan te maken.
+
 ### Distributie & Release
 
 #### Snap-packaging — follow-ups

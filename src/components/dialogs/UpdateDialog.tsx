@@ -14,8 +14,11 @@ import {
 
 // Copy-paste-commando voor handmatige .deb-installatie: zoekt zelf de juiste
 // amd64.deb-asset op via de GitHub-release-API en installeert die.
+// NB: de grep matcht op de afsluitende quote (amd64.deb") zodat het bijhorende
+// amd64.deb.sig-asset niet óók matcht — anders bevat $url twee URL's en faalt
+// curl met "URL rejected: Malformed input to a URL function".
 const DEB_INSTALL_COMMAND =
-  "url=$(curl -s https://api.github.com/repos/OpenAEC-Foundation/open-planner-studio/releases/latest | grep browser_download_url | grep amd64.deb | cut -d '\"' -f4); curl -L -o /tmp/ops.deb \"$url\" && sudo apt install -y /tmp/ops.deb";
+  "url=$(curl -s https://api.github.com/repos/OpenAEC-Foundation/open-planner-studio/releases/latest | grep browser_download_url | grep 'amd64\\.deb\"' | cut -d '\"' -f4); curl -L -o /tmp/ops.deb \"$url\" && sudo apt install -y /tmp/ops.deb";
 
 /**
  * Software-update-dialog.
