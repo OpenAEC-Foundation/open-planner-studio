@@ -6,6 +6,10 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
+*(nog niets)*
+
+## v2026.7.1 — 2026-07-02
+
 ### Toegevoegd
 - **Constraints & deadlines (fase 2.3)** — datum-constraints, deadlines en negatieve float
   (ontwerp: `docs/superpowers/specs/2026-07-02-constraints-deadlines-design.md`):
