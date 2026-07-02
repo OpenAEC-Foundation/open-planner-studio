@@ -4,6 +4,7 @@ import type { ResourceAssignment } from '@/types/resource';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
+import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { createSnapshot } from '../snapshot';
 import type { AppSlice } from './types';
 
@@ -37,6 +38,8 @@ export interface TaskSlice {
   pasteTasks: () => string[];
   /** Hernummer alle WBS-codes uit de boompositie (1.2.3.4) — de expliciete variant van wbsAutoNumber. */
   renumberWbs: () => void;
+  /** Voeg een WBS-sjabloon in onder een ouder (null = rootniveau); geeft de nieuwe root-id terug. */
+  insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
 }
 
 export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
@@ -329,4 +332,65 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       applyWbsNumbering(s.tasks);
       s.isDirty = true;
     }),
+
+  insertWbsTemplate: (template, parentId) => {
+    if (template.tasks.length === 0) return null;
+    let newRootId: string | null = null;
+    set((s) => {
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+
+      const startDate = s.project.startDate || formatDate(new Date());
+      const idMap = new Map<string, string>();
+      for (const tt of template.tasks) idMap.set(tt.id, generateId('task'));
+
+      for (const tt of template.tasks) {
+        const id = idMap.get(tt.id)!;
+        const parent = tt.parentId ? idMap.get(tt.parentId)! : parentId;
+        if (tt.parentId === null) newRootId = id;
+        s.tasks.push({
+          id,
+          name: tt.name,
+          description: tt.description,
+          wbsCode: '',
+          taskType: tt.taskType,
+          status: 'NOT_STARTED',
+          isMilestone: tt.isMilestone,
+          priority: 0,
+          parentId: parent ?? null,
+          childIds: template.tasks.filter(c => c.parentId === tt.id).map(c => idMap.get(c.id)!),
+          time: createDefaultTaskTime(startDate, tt.isMilestone ? 0 : tt.durationDays),
+          resourceIds: [],
+        });
+      }
+      if (parentId && newRootId) {
+        const parent = s.tasks.find(t => t.id === parentId);
+        if (parent) parent.childIds.push(newRootId);
+      }
+      for (const q of template.sequences) {
+        s.sequences.push({
+          ...q,
+          id: generateId('seq'),
+          predecessorId: idMap.get(q.predecessorId)!,
+          successorId: idMap.get(q.successorId)!,
+        });
+      }
+
+      // WBS-codes: auto ⇒ hele boom; anders alleen de ingevoegde tak afleiden.
+      if (s.project.wbsAutoNumber) {
+        applyWbsNumbering(s.tasks);
+      } else {
+        const codes = deriveWbsCodes(s.tasks);
+        for (const id of idMap.values()) {
+          const task = s.tasks.find(t2 => t2.id === id);
+          const code = codes.get(id);
+          if (task && code !== undefined) task.wbsCode = code;
+        }
+      }
+
+      if (newRootId) s.selectedTaskIds = [newRootId];
+      s.isDirty = true;
+    });
+    return newRootId;
+  },
 });

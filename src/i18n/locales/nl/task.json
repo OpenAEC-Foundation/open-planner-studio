@@ -105,7 +105,8 @@
       "date": "Datum",
       "boolean": "Ja/nee"
     },
-    "none": "(geen)"
+    "none": "(geen)",
+    "templateSaved": "Tak bewaard als sjabloon '{{name}}'"
   },
   "defaultTask": "Nieuwe taak",
   "defaultMilestone": "Nieuwe mijlpaal"

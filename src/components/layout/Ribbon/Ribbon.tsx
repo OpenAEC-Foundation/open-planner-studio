@@ -7,8 +7,9 @@ import {
   Calendar, Settings, Info, Clock,
   ArrowRightLeft, Eye, EyeOff, History, SaveAll,
   Download, Puzzle, ArrowLeftToLine, ArrowRightToLine,
-  Tags, ListOrdered, Hash,
+  Tags, ListOrdered, Hash, LayoutTemplate,
 } from 'lucide-react';
+import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
@@ -151,6 +152,80 @@ function RibbonGroup({ label, children }: { label: string; children: React.React
 
 function RibbonButtonStack({ children }: { children: React.ReactNode }) {
   return <div className="ribbon-btn-stack">{children}</div>;
+}
+
+/** Sjablonen (fase 2.2): lijst uit localStorage; klik = invoegen onder de selectie (of root). */
+function TemplatesDropdown() {
+  const { t: tMenu } = useTranslation('menu');
+  const [open, setOpen] = useState(false);
+  const [templates, setTemplates] = useState<WbsTemplate[]>([]);
+  const insertWbsTemplate = useAppStore(s => s.insertWbsTemplate);
+  const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setTemplates(listWbsTemplates());
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative' }}>
+      <button className="ribbon-btn small" onClick={() => setOpen(!open)}>
+        <span className="ribbon-btn-icon"><LayoutTemplate size={14} /></span>
+        <span className="ribbon-btn-label">{tMenu('ribbon.templates')}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 1000,
+          minWidth: 240, maxWidth: 360,
+          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
+        }}>
+          {templates.length === 0 ? (
+            <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--theme-text-dim)' }}>
+              {tMenu('ribbon.noTemplates')}
+            </div>
+          ) : (
+            templates.map(tpl => (
+              <div key={tpl.id} style={{ display: 'flex', alignItems: 'center' }}>
+                <button
+                  style={{
+                    flex: 1, textAlign: 'left', padding: '6px 12px', fontSize: 11, border: 'none',
+                    background: 'transparent', color: 'var(--theme-text)', cursor: 'pointer',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}
+                  title={tMenu('ribbon.insertTemplateHint')}
+                  onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+                  onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                  onClick={() => {
+                    insertWbsTemplate(tpl, selectedTaskIds[0] ?? null);
+                    setOpen(false);
+                  }}
+                >
+                  {tpl.name}
+                  <span style={{ display: 'block', fontSize: 9, color: 'var(--theme-text-dim)', marginTop: 1 }}>
+                    {tMenu('ribbon.templateMeta', { tasks: tpl.tasks.length, relations: tpl.sequences.length })}
+                  </span>
+                </button>
+                <button
+                  style={{ padding: '0 10px', background: 'transparent', border: 'none', color: 'var(--error)', cursor: 'pointer' }}
+                  title={tMenu('ribbon.deleteTemplate')}
+                  onClick={() => { deleteWbsTemplate(tpl.id); setTemplates(listWbsTemplates()); }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function RecentFilesDropdown() {
@@ -528,6 +603,7 @@ export function Ribbon() {
               <RibbonButtonStack>
                 <RibbonSmallButton icon={<Hash size={14} />} label={tMenu('ribbon.wbsAuto')} onClick={() => setWbsAutoNumber(!wbsAutoNumber)} active={wbsAutoNumber} />
                 <RibbonSmallButton icon={<ListOrdered size={14} />} label={tMenu('ribbon.renumberWbs')} onClick={renumberWbs} disabled={wbsAutoNumber} />
+                <TemplatesDropdown />
               </RibbonButtonStack>
             </RibbonGroup>
           </>

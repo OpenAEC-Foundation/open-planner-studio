@@ -13,6 +13,7 @@ export interface ContextMenuProps {
   onAddMilestone: () => void;
   onAddRelation: () => void;
   onTracePath: () => void;
+  onSaveTemplate: () => void;
   onToggleCollapse: () => void;
   onDelete: () => void;
   onAddTask: () => void;
@@ -20,7 +21,7 @@ export interface ContextMenuProps {
 
 export function ContextMenu({
   x, y, task, traceActive, onClose,
-  onEdit, onAddSubtask, onAddMilestone, onAddRelation, onTracePath,
+  onEdit, onAddSubtask, onAddMilestone, onAddRelation, onTracePath, onSaveTemplate,
   onToggleCollapse, onDelete, onAddTask,
 }: ContextMenuProps) {
   const { t } = useTranslation('common');
@@ -92,6 +93,7 @@ export function ContextMenu({
             <>
               <Separator />
               <MenuItem label={t('context.toggleCollapse')} onClick={() => { onToggleCollapse(); onClose(); }} />
+              <MenuItem label={t('context.saveTemplate')} onClick={() => { onSaveTemplate(); onClose(); }} />
             </>
           )}
           <Separator />

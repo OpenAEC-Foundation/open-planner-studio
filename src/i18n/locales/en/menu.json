@@ -103,7 +103,12 @@
     "renumberWbs": "Renumber WBS",
     "codesFields": "Codes & fields",
     "groupBy": "Group by",
-    "groupByWbs": "WBS (tree)"
+    "groupByWbs": "WBS (tree)",
+    "templates": "Templates",
+    "noTemplates": "No saved templates yet — right-click a summary task → 'Save branch as template'",
+    "insertTemplateHint": "Insert under the selected task (or at root level)",
+    "templateMeta": "{{tasks}} tasks, {{relations}} relations",
+    "deleteTemplate": "Delete template"
   },
   "ifc": {
     "title": "IFC Editor",

@@ -29,7 +29,8 @@
     "delete": "Verwijderen",
     "newTask": "Nieuwe taak",
     "tracePath": "Pad traceren",
-    "traceOff": "Traceren stoppen"
+    "traceOff": "Traceren stoppen",
+    "saveTemplate": "Bewaar tak als sjabloon"
   },
   "settings": {
     "title": "Instellingen",

@@ -29,7 +29,8 @@
     "delete": "Delete",
     "newTask": "New task",
     "tracePath": "Trace path",
-    "traceOff": "Stop path tracing"
+    "traceOff": "Stop path tracing",
+    "saveTemplate": "Save branch as template"
   },
   "settings": {
     "title": "Settings",

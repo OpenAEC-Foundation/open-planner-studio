@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { groupTasksByCode } from '@/utils/grouping';
+import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
@@ -786,6 +787,12 @@ export function GanttCanvas() {
             if (contextMenu.task) {
               setUI({ showDependencyMode: true, dependencySourceId: contextMenu.task.id });
             }
+          }}
+          onSaveTemplate={() => {
+            if (!contextMenu.task) return;
+            const st = useAppStore.getState();
+            const tpl = saveBranchAsWbsTemplate(contextMenu.task.name, contextMenu.task.id, st.tasks, st.sequences);
+            setToast({ message: tTask('structure.templateSaved', { name: tpl.name }), type: 'info' });
           }}
           onTracePath={() => {
             if (traceMode !== 'off') {

@@ -105,7 +105,8 @@
       "date": "Date",
       "boolean": "Yes/no"
     },
-    "none": "(none)"
+    "none": "(none)",
+    "templateSaved": "Branch saved as template '{{name}}'"
   },
   "defaultTask": "New task",
   "defaultMilestone": "New milestone"

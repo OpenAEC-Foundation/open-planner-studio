@@ -103,7 +103,12 @@
     "renumberWbs": "Hernummer WBS",
     "codesFields": "Codes & velden",
     "groupBy": "Groeperen op",
-    "groupByWbs": "WBS (boom)"
+    "groupByWbs": "WBS (boom)",
+    "templates": "Sjablonen",
+    "noTemplates": "Nog geen sjablonen — rechtsklik op een samenvattingstaak → 'Bewaar tak als sjabloon'",
+    "insertTemplateHint": "Invoegen onder de geselecteerde taak (of op rootniveau)",
+    "templateMeta": "{{tasks}} taken, {{relations}} relaties",
+    "deleteTemplate": "Sjabloon verwijderen"
   },
   "ifc": {
     "title": "IFC-editor",
