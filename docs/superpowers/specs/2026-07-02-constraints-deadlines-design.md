@@ -1,6 +1,6 @@
 # Ontwerp: Fase 2.3 — Constraints & deadlines
 
-*Datum: 2026-07-02 · Status: in uitvoering · Bron: [docs/TODO.md](../../TODO.md) §2.3, [PLAN.md](../../../PLAN.md) A12/A15/A16 + F10/F11*
+*Datum: 2026-07-02 · Status: **geïmplementeerd** (zelfde dag; zie changelog) · Bron: [docs/TODO.md](../../TODO.md) §2.3, [PLAN.md](../../../PLAN.md) A12/A15/A16 + F10/F11*
 
 Gebaseerd op twee onderzoekssporen: PLAN.md-intentie/codetouchpoints en
 vakstandaard-semantiek (Oracle P6-help, MSP-documentatie, DCMA 14-punts, IFC 4.3).

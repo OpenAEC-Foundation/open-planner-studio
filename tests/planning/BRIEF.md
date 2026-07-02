@@ -75,6 +75,10 @@ Velden:
 - `expect.criticalPathSet`: lijst namen (volgorde-onafhankelijk vergeleken).
 - `expect.drivingSet` / `expect.truncatedLeadSet`: lijst `[voorganger, opvolger, type]`-triples —
   welke relaties driving zijn (relatie-vrije-speling 0) resp. welke leads op de projectstart zijn afgekapt.
+- `tasks[].constraint` optioneel: `{ type: ASAP|ALAP|SNET|SNLT|FNET|FNLT|MSO|MFO, date? }` (P6-soft:
+  logica wint; late-zijde-schending = negatieve float; MSO/MFO = Start/Finish On). `tasks[].deadline`
+  optioneel (zacht: alleen late datums). `expect.violatedConstraintsSet` / `expect.missedDeadlinesSet`:
+  taaknaam-verzamelingen. Totale float kan negatief zijn (kritiek = tf ≤ 0).
 - `expect.error`: `true` (verwacht fout), `false` (verwacht géén fout), of een substring van de foutmelding.
 
 ## Eisen aan je batterij

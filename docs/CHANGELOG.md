@@ -6,7 +6,29 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
-*(nog niets)*
+### Toegevoegd
+- **Constraints & deadlines (fase 2.3)** — datum-constraints, deadlines en negatieve float
+  (ontwerp: `docs/superpowers/specs/2026-07-02-constraints-deadlines-design.md`):
+  - **Alle 8 datum-constraints in CPM** (ASAP, ALAP, SNET, SNLT, FNET, FNLT, MSO, MFO) met
+    **P6-soft-semantiek**: constraints breken nooit de netwerklogica — vroege-zijde types zijn
+    ondergrenzen in de forward pass, late-zijde types bovengrenzen in de backward pass;
+    MSO/MFO werken als P6's *Start On*/*Finish On* (beide grenzen tegelijk); ALAP schuift naar
+    zero-free-float (P6-model, en de relatie wordt daarna correct driving). Constraint-datums
+    snappen naar werkdagen. De logica-brekende Mandatory-pin is bewust §2.9.
+  - **Deadline per taak** (MSP-model, zacht): begrenst alleen de late finish — balken bewegen
+    nooit; float wordt gemeten tot de deadline en negatief bij overschrijding.
+  - **Negatieve float**: totale speling is nu getekend (min van start- en finish-float,
+    MSP-veilig) en `kritiek = float ≤ 0`; gemiste deadlines en geschonden constraints
+    propageren negatieve float door de voorgangerketen (DCMA-checks 5/7 als kader).
+  - **Indicatoren**: constraint-pin op de balkrand (blauw = vroege-zijde, violet = late-zijde,
+    rood = geschonden), deadline-pijl op de deadline-datum (groen/rood), P6-asterisk achter
+    de datum in de tabel, negatieve float rood in de spelingkolom en warning-tellers in de
+    statusbar.
+  - Round-trip via `OPS_Constraints`-pset (IfcTaskTime heeft geen constraint-slots);
+    testsuite 159 → **176 handberekende cases**.
+- Dependabot-alert #12 (glib `VariantStrIter`, RUSTSEC-2024-0429) beoordeeld en gedismisst
+  als *not used*: de API wordt door app noch Tauri's gtk3-pad gebruikt en de fix (glib 0.20)
+  vereist GTK4-bindings die Tauri 2 niet gebruikt — herzien bij een Tauri-migratie.
 
 ## v2026.7.0 — 2026-07-02
 

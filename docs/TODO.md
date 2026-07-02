@@ -66,11 +66,12 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > prefixen, hiërarchische codewaarden, indicator-velden/formules, adapter-export van
 > codes/velden (CSV/MSPDI/P6), N×N-matrix.
 
-#### 2.3 Constraints & deadlines
-- [ ] Datum-constraints (ASAP, ALAP, SNET, SNLT, FNET, FNLT, MFO, MSO) in CPM
-- [ ] Deadline-datum per taak met waarschuwing bij overschrijding
-- [ ] Negatieve float detectie
-- [ ] Constraint-indicatoren in Gantt
+> §2.3 Constraints & deadlines is afgerond (alle 8 datum-constraints in CPM met
+> P6-soft-semantiek, deadline per taak, negatieve float, Gantt-indicatoren +
+> statusbar-waarschuwingen) — zie changelog en
+> [ontwerp](superpowers/specs/2026-07-02-constraints-deadlines-design.md).
+> Bewust 2.9: logica-brekende Mandatory-pins, secundaire constraints,
+> scheduling-options (float-berekeningswijze, honor-toggle, retained logic).
 
 #### 2.4 Mijlpalen
 - [ ] Onderscheid start-mijlpalen en eind-mijlpalen
