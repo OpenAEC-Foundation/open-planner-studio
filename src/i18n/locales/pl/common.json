@@ -29,7 +29,8 @@
     "delete": "Usuń",
     "newTask": "Nowe zadanie",
     "tracePath": "Śledź ścieżkę",
-    "traceOff": "Zatrzymaj śledzenie ścieżki"
+    "traceOff": "Zatrzymaj śledzenie ścieżki",
+    "saveTemplate": "Zapisz gałąź jako szablon"
   },
   "settings": {
     "title": "Ustawienia",

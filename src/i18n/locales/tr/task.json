@@ -44,6 +44,7 @@
     "multiSelect": "{{count}} görev seçildi",
     "name": "Ad",
     "wbsCode": "WBS Kodu",
+    "wbsAutoHint": "WBS kodları otomatik olarak numaralandırılır (Planlama → Yapı)",
     "description": "Açıklama",
     "type": "Tür",
     "milestone": "Kilometre taşı",
@@ -79,6 +80,33 @@
     "notCalculated": "Belirleyici ilişkileri ve bollukları görmek için yeniden hesaplayın (F5)",
     "warnTruncatedLead": "Öne alma proje başlangıcında kesildi — örtüşme tam kullanılmıyor",
     "warnLeadExceedsDuration": "Öne alma, öncülün süresinden daha büyük"
+  },
+  "structure": {
+    "title": "Kodlar ve alanlar",
+    "activityCodes": "Aktivite kodları",
+    "activityCodesHint": "Gruplama ve filtreleme için serbestçe tanımlanabilen boyutlar (örn. Lokasyon, Disiplin) — her görevde tür başına en fazla bir değer.",
+    "customFields": "Kullanıcı alanları",
+    "customFieldsHint": "Türü tanımlı kullanıcı alanları; tabloda sütun olarak görünür ve her görev için doldurulabilir.",
+    "addType": "Kod türü ekle",
+    "removeType": "Kod türünü kaldır",
+    "addValue": "Değer ekle",
+    "valueCode": "Kod",
+    "valueDescription": "Açıklama",
+    "valueColor": "Renk",
+    "newValuePrefix": "D",
+    "newTypePlaceholder": "Yeni kod türü (örn. Lokasyon)",
+    "addField": "Alan ekle",
+    "newFieldPlaceholder": "Yeni alan (örn. Yüklenici)",
+    "fieldType": {
+      "text": "Metin",
+      "number": "Sayı",
+      "integer": "Tam sayı",
+      "cost": "Maliyet",
+      "date": "Tarih",
+      "boolean": "Evet/hayır"
+    },
+    "none": "(yok)",
+    "templateSaved": "Dal, '{{name}}' şablonu olarak kaydedildi"
   },
   "defaultTask": "Yeni görev",
   "defaultMilestone": "Yeni kilometre taşı"

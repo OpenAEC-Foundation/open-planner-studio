@@ -44,6 +44,7 @@
     "multiSelect": "تم تحديد {{count}} مهمة",
     "name": "الاسم",
     "wbsCode": "رمز WBS",
+    "wbsAutoHint": "يتم ترقيم رموز WBS تلقائيًا (التخطيط → الهيكل)",
     "description": "الوصف",
     "type": "النوع",
     "milestone": "معلم",
@@ -79,6 +80,33 @@
     "notCalculated": "أعد الحساب (F5) لعرض العلاقات الحاكمة والفوائض",
     "warnTruncatedLead": "تم قطع التقديم عند بداية المشروع — لا يُستفاد من التداخل بالكامل",
     "warnLeadExceedsDuration": "التقديم أكبر من مدة المهمة السابقة"
+  },
+  "structure": {
+    "title": "الرموز والحقول",
+    "activityCodes": "رموز الأنشطة",
+    "activityCodesHint": "أبعاد قابلة للتعريف بحرية (مثل الموقع، التخصص) للتجميع والتصفية — قيمة واحدة كحد أقصى لكل نوع لكل مهمة.",
+    "customFields": "الحقول المخصصة",
+    "customFieldsHint": "حقول مستخدم بأنواع محددة تُعرض كأعمدة في الجدول ويمكن تحريرها لكل مهمة.",
+    "addType": "إضافة نوع رمز",
+    "removeType": "إزالة نوع الرمز",
+    "addValue": "إضافة قيمة",
+    "valueCode": "الرمز",
+    "valueDescription": "الوصف",
+    "valueColor": "اللون",
+    "newValuePrefix": "V",
+    "newTypePlaceholder": "نوع رمز جديد (مثل الموقع)",
+    "addField": "إضافة حقل",
+    "newFieldPlaceholder": "حقل جديد (مثل المقاول)",
+    "fieldType": {
+      "text": "نص",
+      "number": "رقم",
+      "integer": "عدد صحيح",
+      "cost": "تكلفة",
+      "date": "تاريخ",
+      "boolean": "نعم/لا"
+    },
+    "none": "(لا شيء)",
+    "templateSaved": "تم حفظ الفرع كقالب '{{name}}'"
   },
   "defaultTask": "مهمة جديدة",
   "defaultMilestone": "معلم جديد"

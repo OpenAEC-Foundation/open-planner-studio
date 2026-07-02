@@ -29,7 +29,8 @@
     "delete": "Elimina",
     "newTask": "Nuova attività",
     "tracePath": "Traccia percorso",
-    "traceOff": "Interrompi tracciamento"
+    "traceOff": "Interrompi tracciamento",
+    "saveTemplate": "Salva ramo come modello"
   },
   "settings": {
     "title": "Impostazioni",

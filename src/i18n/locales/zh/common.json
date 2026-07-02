@@ -29,7 +29,8 @@
     "delete": "删除",
     "newTask": "新建任务",
     "tracePath": "追踪路径",
-    "traceOff": "停止路径追踪"
+    "traceOff": "停止路径追踪",
+    "saveTemplate": "将分支保存为模板"
   },
   "settings": {
     "title": "设置",

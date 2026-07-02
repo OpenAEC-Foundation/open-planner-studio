@@ -97,7 +97,18 @@
     "noRecentFiles": "Brak ostatnich plików",
     "trace": "Śledzenie ścieżki",
     "tracePredecessors": "Poprzedniki",
-    "traceSuccessors": "Następniki"
+    "traceSuccessors": "Następniki",
+    "structure": "Struktura",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "Przenumeruj WBS",
+    "codesFields": "Kody i pola",
+    "groupBy": "Grupuj według",
+    "groupByWbs": "WBS (drzewo)",
+    "templates": "Szablony",
+    "noTemplates": "Brak zapisanych szablonów — kliknij prawym przyciskiem zadanie sumaryczne → 'Zapisz gałąź jako szablon'",
+    "insertTemplateHint": "Wstaw pod zaznaczonym zadaniem (lub na poziomie głównym)",
+    "templateMeta": "Zadania: {{tasks}}, relacje: {{relations}}",
+    "deleteTemplate": "Usuń szablon"
   },
   "ifc": {
     "title": "Edytor IFC",

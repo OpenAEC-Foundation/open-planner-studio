@@ -97,7 +97,18 @@
     "noRecentFiles": "No hay archivos recientes",
     "trace": "Trazado de ruta",
     "tracePredecessors": "Predecesoras",
-    "traceSuccessors": "Sucesoras"
+    "traceSuccessors": "Sucesoras",
+    "structure": "Estructura",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "Renumerar WBS",
+    "codesFields": "Códigos y campos",
+    "groupBy": "Agrupar por",
+    "groupByWbs": "WBS (árbol)",
+    "templates": "Plantillas",
+    "noTemplates": "Aún no hay plantillas guardadas — clic derecho en una tarea de resumen → 'Guardar rama como plantilla'",
+    "insertTemplateHint": "Insertar bajo la tarea seleccionada (o en el nivel raíz)",
+    "templateMeta": "{{tasks}} tareas, {{relations}} relaciones",
+    "deleteTemplate": "Eliminar plantilla"
   },
   "ifc": {
     "title": "Editor IFC",

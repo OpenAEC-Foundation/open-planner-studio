@@ -97,7 +97,18 @@
     "noRecentFiles": "최근 파일 없음",
     "trace": "경로 추적",
     "tracePredecessors": "선행 작업",
-    "traceSuccessors": "후속 작업"
+    "traceSuccessors": "후속 작업",
+    "structure": "구조",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "WBS 번호 다시 매기기",
+    "codesFields": "코드 및 필드",
+    "groupBy": "그룹화 기준",
+    "groupByWbs": "WBS (트리)",
+    "templates": "템플릿",
+    "noTemplates": "저장된 템플릿이 아직 없습니다 — 요약 작업을 마우스 오른쪽 버튼으로 클릭 → '분기를 템플릿으로 저장'",
+    "insertTemplateHint": "선택한 작업 아래에 삽입합니다 (또는 루트 수준에)",
+    "templateMeta": "{{tasks}}개 작업, {{relations}}개 관계",
+    "deleteTemplate": "템플릿 삭제"
   },
   "ifc": {
     "title": "IFC 편집기",

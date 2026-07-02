@@ -29,7 +29,8 @@
     "delete": "Löschen",
     "newTask": "Neue Aufgabe",
     "tracePath": "Pfad verfolgen",
-    "traceOff": "Pfadverfolgung beenden"
+    "traceOff": "Pfadverfolgung beenden",
+    "saveTemplate": "Zweig als Vorlage speichern"
   },
   "settings": {
     "title": "Einstellungen",

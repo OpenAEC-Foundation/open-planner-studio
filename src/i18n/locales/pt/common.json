@@ -29,7 +29,8 @@
     "delete": "Eliminar",
     "newTask": "Nova tarefa",
     "tracePath": "Rastrear caminho",
-    "traceOff": "Parar rastreamento"
+    "traceOff": "Parar rastreamento",
+    "saveTemplate": "Guardar ramo como modelo"
   },
   "settings": {
     "title": "Definições",

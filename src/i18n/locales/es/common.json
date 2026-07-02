@@ -29,7 +29,8 @@
     "delete": "Eliminar",
     "newTask": "Nueva tarea",
     "tracePath": "Trazar ruta",
-    "traceOff": "Detener trazado de ruta"
+    "traceOff": "Detener trazado de ruta",
+    "saveTemplate": "Guardar rama como plantilla"
   },
   "settings": {
     "title": "Configuración",

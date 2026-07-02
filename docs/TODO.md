@@ -51,13 +51,11 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > relatietabel, path tracing) — zie changelog en
 > [ontwerp](superpowers/specs/2026-07-02-volledige-dependencies-design.md).
 
-#### 2.2 WBS & structuur
-- [ ] WBS-codes automatisch genereren (gestructureerd 1.2.3.4)
-- [ ] Activity codes (vrij definieerbare categorisering)
-- [ ] Custom fields (gebruikersvelden)
-- [ ] Kopieer/plak WBS-takken
-- [ ] WBS-templates (herbruikbare structuren)
-- [ ] Meerdere WBS-indelingen (per locatie EN per discipline)
+> §2.2 WBS & structuur is afgerond (auto-nummering, activity codes, custom fields,
+> groeperingsweergave, WBS-templates; kopieer/plak bestond al) — zie changelog en
+> [ontwerp](superpowers/specs/2026-07-02-wbs-structuur-design.md). Bewust v2: WBS-maskers/
+> prefixen, hiërarchische codewaarden, indicator-velden/formules, adapter-export van
+> codes/velden (CSV/MSPDI/P6), N×N-matrix.
 
 #### 2.3 Constraints & deadlines
 - [ ] Datum-constraints (ASAP, ALAP, SNET, SNLT, FNET, FNLT, MFO, MSO) in CPM

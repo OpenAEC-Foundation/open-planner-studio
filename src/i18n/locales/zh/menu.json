@@ -97,7 +97,18 @@
     "noRecentFiles": "没有最近文件",
     "trace": "路径追踪",
     "tracePredecessors": "前置任务",
-    "traceSuccessors": "后续任务"
+    "traceSuccessors": "后续任务",
+    "structure": "结构",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "重新编号 WBS",
+    "codesFields": "代码与字段",
+    "groupBy": "分组方式",
+    "groupByWbs": "WBS（树形）",
+    "templates": "模板",
+    "noTemplates": "尚无已保存的模板——右键点击摘要任务 → “将分支保存为模板”",
+    "insertTemplateHint": "插入到所选任务之下（或根级）",
+    "templateMeta": "{{tasks}} 个任务，{{relations}} 条关系",
+    "deleteTemplate": "删除模板"
   },
   "ifc": {
     "title": "IFC 编辑器",

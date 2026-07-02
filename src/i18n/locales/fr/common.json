@@ -29,7 +29,8 @@
     "delete": "Supprimer",
     "newTask": "Nouvelle tâche",
     "tracePath": "Tracer le chemin",
-    "traceOff": "Arrêter le traçage du chemin"
+    "traceOff": "Arrêter le traçage du chemin",
+    "saveTemplate": "Enregistrer la branche comme modèle"
   },
   "settings": {
     "title": "Paramètres",

@@ -97,7 +97,18 @@
     "noRecentFiles": "Keine aktuellen Dateien",
     "trace": "Pfadverfolgung",
     "tracePredecessors": "Vorgänger",
-    "traceSuccessors": "Nachfolger"
+    "traceSuccessors": "Nachfolger",
+    "structure": "Struktur",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "WBS neu nummerieren",
+    "codesFields": "Codes & Felder",
+    "groupBy": "Gruppieren nach",
+    "groupByWbs": "WBS (Baum)",
+    "templates": "Vorlagen",
+    "noTemplates": "Noch keine Vorlagen — Rechtsklick auf eine Sammelaufgabe → 'Zweig als Vorlage speichern'",
+    "insertTemplateHint": "Unter der ausgewählten Aufgabe einfügen (oder auf Wurzelebene)",
+    "templateMeta": "{{tasks}} Aufgaben, {{relations}} Beziehungen",
+    "deleteTemplate": "Vorlage löschen"
   },
   "ifc": {
     "title": "IFC-Editor",

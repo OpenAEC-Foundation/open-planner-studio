@@ -44,6 +44,7 @@
     "multiSelect": "{{count}} وظیفه انتخاب شده",
     "name": "نام",
     "wbsCode": "کد WBS",
+    "wbsAutoHint": "کدهای WBS به‌صورت خودکار شماره‌گذاری می‌شوند (برنامه‌ریزی → ساختار)",
     "description": "توضیحات",
     "type": "نوع",
     "milestone": "نقطه عطف",
@@ -79,6 +80,33 @@
     "notCalculated": "برای دیدن روابط تعیین‌کننده و شناوری‌ها دوباره محاسبه کنید (F5)",
     "warnTruncatedLead": "پیش‌افت در شروع پروژه بریده شد — از هم‌پوشانی به‌طور کامل استفاده نمی‌شود",
     "warnLeadExceedsDuration": "پیش‌افت از مدت پیش‌نیاز بزرگ‌تر است"
+  },
+  "structure": {
+    "title": "کدها و فیلدها",
+    "activityCodes": "کدهای فعالیت",
+    "activityCodesHint": "ابعادی با تعریف آزاد (مثلاً موقعیت، رشته) برای گروه‌بندی و فیلتر کردن — حداکثر یک مقدار از هر نوع برای هر وظیفه.",
+    "customFields": "فیلدهای سفارشی",
+    "customFieldsHint": "فیلدهای کاربری نوع‌دار که به‌صورت ستون در جدول نمایش داده می‌شوند و برای هر وظیفه قابل ویرایش‌اند.",
+    "addType": "افزودن نوع کد",
+    "removeType": "حذف نوع کد",
+    "addValue": "افزودن مقدار",
+    "valueCode": "کد",
+    "valueDescription": "توضیحات",
+    "valueColor": "رنگ",
+    "newValuePrefix": "V",
+    "newTypePlaceholder": "نوع کد جدید (مثلاً موقعیت)",
+    "addField": "افزودن فیلد",
+    "newFieldPlaceholder": "فیلد جدید (مثلاً پیمانکار)",
+    "fieldType": {
+      "text": "متن",
+      "number": "عدد",
+      "integer": "عدد صحیح",
+      "cost": "هزینه",
+      "date": "تاریخ",
+      "boolean": "بله/خیر"
+    },
+    "none": "(هیچ)",
+    "templateSaved": "شاخه به عنوان الگوی «{{name}}» ذخیره شد"
   },
   "defaultTask": "وظیفه جدید",
   "defaultMilestone": "نقطه عطف جدید"

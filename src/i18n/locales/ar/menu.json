@@ -97,7 +97,18 @@
     "noRecentFiles": "لا توجد ملفات حديثة",
     "trace": "تتبُّع المسار",
     "tracePredecessors": "السوابق",
-    "traceSuccessors": "اللواحق"
+    "traceSuccessors": "اللواحق",
+    "structure": "الهيكل",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "إعادة ترقيم WBS",
+    "codesFields": "الرموز والحقول",
+    "groupBy": "تجميع حسب",
+    "groupByWbs": "WBS (شجرة)",
+    "templates": "القوالب",
+    "noTemplates": "لا توجد قوالب محفوظة بعد — انقر بزر الفأرة الأيمن على مهمة موجزة → 'حفظ الفرع كقالب'",
+    "insertTemplateHint": "إدراج تحت المهمة المحددة (أو في مستوى الجذر)",
+    "templateMeta": "{{tasks}} مهمة، {{relations}} علاقة",
+    "deleteTemplate": "حذف القالب"
   },
   "ifc": {
     "title": "محرر IFC",

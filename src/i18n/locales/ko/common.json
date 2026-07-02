@@ -29,7 +29,8 @@
     "delete": "삭제",
     "newTask": "새 작업",
     "tracePath": "경로 추적",
-    "traceOff": "경로 추적 중지"
+    "traceOff": "경로 추적 중지",
+    "saveTemplate": "분기를 템플릿으로 저장"
   },
   "settings": {
     "title": "설정",

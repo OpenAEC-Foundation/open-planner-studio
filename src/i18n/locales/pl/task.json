@@ -44,6 +44,7 @@
     "multiSelect": "Wybrano {{count}} zadań",
     "name": "Nazwa",
     "wbsCode": "Kod WBS",
+    "wbsAutoHint": "Kody WBS są numerowane automatycznie (Planowanie → Struktura)",
     "description": "Opis",
     "type": "Typ",
     "milestone": "Kamień milowy",
@@ -79,6 +80,33 @@
     "notCalculated": "Przelicz (F5), aby zobaczyć relacje wiodące i zapasy",
     "warnTruncatedLead": "Wyprzedzenie ucięte na starcie projektu — nakładanie nie jest w pełni wykorzystane",
     "warnLeadExceedsDuration": "Wyprzedzenie jest większe niż czas trwania poprzednika"
+  },
+  "structure": {
+    "title": "Kody i pola",
+    "activityCodes": "Kody zadań",
+    "activityCodesHint": "Swobodnie definiowane wymiary (np. Lokalizacja, Branża) do grupowania i filtrowania — maksymalnie jedna wartość każdego typu na zadanie.",
+    "customFields": "Pola użytkownika",
+    "customFieldsHint": "Typowane pola użytkownika, widoczne jako kolumny w tabeli i wypełniane dla każdego zadania.",
+    "addType": "Dodaj typ kodu",
+    "removeType": "Usuń typ kodu",
+    "addValue": "Dodaj wartość",
+    "valueCode": "Kod",
+    "valueDescription": "Opis",
+    "valueColor": "Kolor",
+    "newValuePrefix": "W",
+    "newTypePlaceholder": "Nowy typ kodu (np. Lokalizacja)",
+    "addField": "Dodaj pole",
+    "newFieldPlaceholder": "Nowe pole (np. Wykonawca)",
+    "fieldType": {
+      "text": "Tekst",
+      "number": "Liczba",
+      "integer": "Liczba całkowita",
+      "cost": "Koszt",
+      "date": "Data",
+      "boolean": "Tak/nie"
+    },
+    "none": "(brak)",
+    "templateSaved": "Gałąź zapisana jako szablon '{{name}}'"
   },
   "defaultTask": "Nowe zadanie",
   "defaultMilestone": "Nowy kamień milowy"

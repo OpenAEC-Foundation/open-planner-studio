@@ -29,7 +29,8 @@
     "delete": "Sil",
     "newTask": "Yeni görev",
     "tracePath": "Yolu izle",
-    "traceOff": "Yol izlemeyi durdur"
+    "traceOff": "Yol izlemeyi durdur",
+    "saveTemplate": "Dalı şablon olarak kaydet"
   },
   "settings": {
     "title": "Ayarlar",

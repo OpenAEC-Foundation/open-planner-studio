@@ -44,6 +44,7 @@
     "multiSelect": "{{count}} attività selezionate",
     "name": "Nome",
     "wbsCode": "Codice WBS",
+    "wbsAutoHint": "I codici WBS vengono numerati automaticamente (Pianificazione → Struttura)",
     "description": "Descrizione",
     "type": "Tipo",
     "milestone": "Traguardo",
@@ -79,6 +80,33 @@
     "notCalculated": "Ricalcola (F5) per vedere relazioni determinanti e margini",
     "warnTruncatedLead": "Anticipo troncato all'inizio del progetto — la sovrapposizione non è sfruttata del tutto",
     "warnLeadExceedsDuration": "L'anticipo è maggiore della durata del predecessore"
+  },
+  "structure": {
+    "title": "Codici e campi",
+    "activityCodes": "Codici attività",
+    "activityCodesHint": "Dimensioni definibili liberamente (es. Ubicazione, Disciplina) per raggruppare e filtrare — al massimo un valore per tipo per attività.",
+    "customFields": "Campi personalizzati",
+    "customFieldsHint": "Campi utente tipizzati, visibili come colonne nella tabella e modificabili per attività.",
+    "addType": "Aggiungi tipo di codice",
+    "removeType": "Rimuovi tipo di codice",
+    "addValue": "Aggiungi valore",
+    "valueCode": "Codice",
+    "valueDescription": "Descrizione",
+    "valueColor": "Colore",
+    "newValuePrefix": "V",
+    "newTypePlaceholder": "Nuovo tipo di codice (es. Ubicazione)",
+    "addField": "Aggiungi campo",
+    "newFieldPlaceholder": "Nuovo campo (es. Appaltatore)",
+    "fieldType": {
+      "text": "Testo",
+      "number": "Numero",
+      "integer": "Numero intero",
+      "cost": "Costo",
+      "date": "Data",
+      "boolean": "Sì/no"
+    },
+    "none": "(nessuno)",
+    "templateSaved": "Ramo salvato come modello '{{name}}'"
   },
   "defaultTask": "Nuova attività",
   "defaultMilestone": "Nuovo traguardo"

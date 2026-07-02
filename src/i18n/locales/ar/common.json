@@ -29,7 +29,8 @@
     "delete": "حذف",
     "newTask": "مهمة جديدة",
     "tracePath": "تتبُّع المسار",
-    "traceOff": "إيقاف تتبُّع المسار"
+    "traceOff": "إيقاف تتبُّع المسار",
+    "saveTemplate": "حفظ الفرع كقالب"
   },
   "settings": {
     "title": "الإعدادات",

@@ -29,7 +29,8 @@
     "delete": "削除",
     "newTask": "新しいタスク",
     "tracePath": "パスをトレース",
-    "traceOff": "パスのトレースを停止"
+    "traceOff": "パスのトレースを停止",
+    "saveTemplate": "ブランチをテンプレートとして保存"
   },
   "settings": {
     "title": "設定",

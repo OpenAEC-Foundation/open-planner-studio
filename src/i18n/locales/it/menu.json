@@ -97,7 +97,18 @@
     "noRecentFiles": "Nessun file recente",
     "trace": "Tracciamento percorso",
     "tracePredecessors": "Predecessori",
-    "traceSuccessors": "Successori"
+    "traceSuccessors": "Successori",
+    "structure": "Struttura",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "Rinumera WBS",
+    "codesFields": "Codici e campi",
+    "groupBy": "Raggruppa per",
+    "groupByWbs": "WBS (albero)",
+    "templates": "Modelli",
+    "noTemplates": "Nessun modello salvato finora — clic destro su un'attività di riepilogo → 'Salva ramo come modello'",
+    "insertTemplateHint": "Inserisci sotto l'attività selezionata (o al livello radice)",
+    "templateMeta": "{{tasks}} attività, {{relations}} relazioni",
+    "deleteTemplate": "Elimina modello"
   },
   "ifc": {
     "title": "Editor IFC",

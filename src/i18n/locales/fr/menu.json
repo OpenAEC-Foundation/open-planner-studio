@@ -97,7 +97,18 @@
     "noRecentFiles": "Aucun fichier récent",
     "trace": "Traçage du chemin",
     "tracePredecessors": "Prédécesseurs",
-    "traceSuccessors": "Successeurs"
+    "traceSuccessors": "Successeurs",
+    "structure": "Structure",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "Renuméroter WBS",
+    "codesFields": "Codes et champs",
+    "groupBy": "Grouper par",
+    "groupByWbs": "WBS (arborescence)",
+    "templates": "Modèles",
+    "noTemplates": "Aucun modèle enregistré pour l'instant — clic droit sur une tâche récapitulative → 'Enregistrer la branche comme modèle'",
+    "insertTemplateHint": "Insérer sous la tâche sélectionnée (ou au niveau racine)",
+    "templateMeta": "{{tasks}} tâches, {{relations}} relations",
+    "deleteTemplate": "Supprimer le modèle"
   },
   "ifc": {
     "title": "Éditeur IFC",

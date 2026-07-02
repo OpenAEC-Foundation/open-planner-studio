@@ -97,7 +97,18 @@
     "noRecentFiles": "Son açılan dosya yok",
     "trace": "Yol izleme",
     "tracePredecessors": "Öncüller",
-    "traceSuccessors": "Ardıllar"
+    "traceSuccessors": "Ardıllar",
+    "structure": "Yapı",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "WBS'yi yeniden numaralandır",
+    "codesFields": "Kodlar ve alanlar",
+    "groupBy": "Gruplama ölçütü",
+    "groupByWbs": "WBS (ağaç)",
+    "templates": "Şablonlar",
+    "noTemplates": "Henüz kayıtlı şablon yok — bir özet göreve sağ tıklayın → 'Dalı şablon olarak kaydet'",
+    "insertTemplateHint": "Seçili görevin altına ekle (veya kök düzeyinde)",
+    "templateMeta": "{{tasks}} görev, {{relations}} ilişki",
+    "deleteTemplate": "Şablonu sil"
   },
   "ifc": {
     "title": "IFC Düzenleyici",

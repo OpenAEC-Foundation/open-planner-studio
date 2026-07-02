@@ -44,6 +44,7 @@
     "multiSelect": "{{count}} tâches sélectionnées",
     "name": "Nom",
     "wbsCode": "Code WBS",
+    "wbsAutoHint": "Les codes WBS sont numérotés automatiquement (Planification → Structure)",
     "description": "Description",
     "type": "Type",
     "milestone": "Jalon",
@@ -79,6 +80,33 @@
     "notCalculated": "Recalculez (F5) pour voir les relations déterminantes et les marges",
     "warnTruncatedLead": "Avance tronquée au début du projet — le chevauchement n'est pas entièrement utilisé",
     "warnLeadExceedsDuration": "L'avance est supérieure à la durée du prédécesseur"
+  },
+  "structure": {
+    "title": "Codes et champs",
+    "activityCodes": "Codes d'activité",
+    "activityCodesHint": "Dimensions librement définissables (p. ex. Localisation, Discipline) pour grouper et filtrer — au plus une valeur par type et par tâche.",
+    "customFields": "Champs personnalisés",
+    "customFieldsHint": "Champs utilisateur typés, affichés comme colonnes dans le tableau et modifiables par tâche.",
+    "addType": "Ajouter un type de code",
+    "removeType": "Supprimer le type de code",
+    "addValue": "Ajouter une valeur",
+    "valueCode": "Code",
+    "valueDescription": "Description",
+    "valueColor": "Couleur",
+    "newValuePrefix": "V",
+    "newTypePlaceholder": "Nouveau type de code (p. ex. Localisation)",
+    "addField": "Ajouter un champ",
+    "newFieldPlaceholder": "Nouveau champ (p. ex. Entrepreneur)",
+    "fieldType": {
+      "text": "Texte",
+      "number": "Nombre",
+      "integer": "Nombre entier",
+      "cost": "Coût",
+      "date": "Date",
+      "boolean": "Oui/non"
+    },
+    "none": "(aucun)",
+    "templateSaved": "Branche enregistrée comme modèle '{{name}}'"
   },
   "defaultTask": "Nouvelle tâche",
   "defaultMilestone": "Nouveau jalon"

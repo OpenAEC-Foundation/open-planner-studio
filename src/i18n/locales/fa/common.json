@@ -29,7 +29,8 @@
     "delete": "حذف",
     "newTask": "وظیفه جدید",
     "tracePath": "ردیابی مسیر",
-    "traceOff": "توقف ردیابی مسیر"
+    "traceOff": "توقف ردیابی مسیر",
+    "saveTemplate": "ذخیره شاخه به عنوان الگو"
   },
   "settings": {
     "title": "تنظیمات",

@@ -44,6 +44,7 @@
     "multiSelect": "{{count}} 件のタスクを選択中",
     "name": "名前",
     "wbsCode": "WBS コード",
+    "wbsAutoHint": "WBS コードは自動的に番号付けされます（計画 → 構造）",
     "description": "説明",
     "type": "種別",
     "milestone": "マイルストーン",
@@ -79,6 +80,33 @@
     "notCalculated": "再計算（F5）すると駆動関係とフロートが表示されます",
     "warnTruncatedLead": "リードがプロジェクト開始で打ち切られました — 重複は完全には活用されません",
     "warnLeadExceedsDuration": "リードが先行タスクの期間より大きくなっています"
+  },
+  "structure": {
+    "title": "コードとフィールド",
+    "activityCodes": "アクティビティコード",
+    "activityCodesHint": "自由に定義できる分類軸（例：場所、工種）。グループ化とフィルタリングに使用でき、タスクごと・タイプごとに値は最大 1 つです。",
+    "customFields": "カスタムフィールド",
+    "customFieldsHint": "型付きのユーザー定義フィールドで、テーブルに列として表示され、タスクごとに編集できます。",
+    "addType": "コードタイプを追加",
+    "removeType": "コードタイプを削除",
+    "addValue": "値を追加",
+    "valueCode": "コード",
+    "valueDescription": "説明",
+    "valueColor": "色",
+    "newValuePrefix": "V",
+    "newTypePlaceholder": "新しいコードタイプ（例：場所）",
+    "addField": "フィールドを追加",
+    "newFieldPlaceholder": "新しいフィールド（例：施工業者）",
+    "fieldType": {
+      "text": "テキスト",
+      "number": "数値",
+      "integer": "整数",
+      "cost": "コスト",
+      "date": "日付",
+      "boolean": "はい/いいえ"
+    },
+    "none": "（なし）",
+    "templateSaved": "ブランチをテンプレート「{{name}}」として保存しました"
   },
   "defaultTask": "新しいタスク",
   "defaultMilestone": "新しいマイルストーン"

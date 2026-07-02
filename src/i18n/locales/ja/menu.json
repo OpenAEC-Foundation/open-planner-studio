@@ -97,7 +97,18 @@
     "noRecentFiles": "最近のファイルはありません",
     "trace": "パストレース",
     "tracePredecessors": "先行タスク",
-    "traceSuccessors": "後続タスク"
+    "traceSuccessors": "後続タスク",
+    "structure": "構造",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "WBS を再採番",
+    "codesFields": "コードとフィールド",
+    "groupBy": "グループ化",
+    "groupByWbs": "WBS（ツリー）",
+    "templates": "テンプレート",
+    "noTemplates": "保存されたテンプレートはまだありません — サマリータスクを右クリック →「ブランチをテンプレートとして保存」",
+    "insertTemplateHint": "選択したタスクの下に挿入します（またはルートレベルに）",
+    "templateMeta": "{{tasks}} タスク、{{relations}} 関係",
+    "deleteTemplate": "テンプレートを削除"
   },
   "ifc": {
     "title": "IFC エディタ",

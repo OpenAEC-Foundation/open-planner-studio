@@ -7,6 +7,32 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Toegevoegd
+- **WBS & structuur (fase 2.2)** — de structuurlaag op professioneel niveau
+  (ontwerp: `docs/superpowers/specs/2026-07-02-wbs-structuur-design.md`):
+  - **Automatische WBS-nummering** (1.2.3.4 uit de boompositie): nieuwe projecten
+    nummeren live bij elke structuurmutatie (aan/uit via Planning → Structuur);
+    bestaande bestanden behouden hun vrije codes (MSP-model) met een expliciete
+    **Hernummer WBS**-actie. Nieuwe taken krijgen ook zonder auto een afgeleide
+    code, en plakken hernummert de geplakte tak (geen code-duplicaten meer).
+  - **Activity codes** (P6-model): projectgebonden codetypes (bv. Locatie,
+    Discipline) met waarden (code + omschrijving + kleur), max één waarde per
+    type per taak; beheer via de nieuwe dialoog *Codes & velden*, toewijzing in
+    het eigenschappen-paneel en als tabelkolommen.
+  - **Custom fields**: getypeerde gebruikersvelden (tekst/getal/geheel getal/
+    kosten/datum/ja-nee) per taak, zichtbaar als tabelkolommen.
+  - **Meerdere WBS-indelingen**: Beeld → *Groeperen op* toont tabel én Gantt als
+    banden per codewaarde (kleurstrook + label, P6 Group & Sort-stijl) — de
+    vakstandaard voor locatie × discipline zonder tweede opgeslagen boom.
+  - **WBS-templates** (Asta task-pools-stijl): rechtsklik op een samenvattingstaak
+    → *Bewaar tak als sjabloon* (taken + interne relaties incl. lag); invoegen en
+    beheren via Planning → Structuur → *Sjablonen*. App-niveau (localStorage).
+  - **IFC 4.3-round-trip** voor dit alles: definities als `IfcPropertySetTemplate`
+    (+ `IfcPropertyEnumeration` voor codetypes, gedeclareerd via `IfcRelDeclares`),
+    waarden per taak als `OPS_CustomFields`/`OPS_ActivityCodes`-psets met
+    getypeerde waarden, projectvlag in `OPS_ProjectSettings`; verliesloze
+    meta-JSON voor eigen bestanden en template-terugval voor bestanden van derden.
+  - Kopiëren/plakken van WBS-takken bestond al; de nieuwe velden liften mee en
+    plakken behoudt nu ook `lagUnit`/`lagPercent` van interne relaties (fix).
 - **Volledige dependencies (fase 2.1)** — het relatiemodel is op het niveau van professionele
   planners gebracht (ontwerp: `docs/superpowers/specs/2026-07-02-volledige-dependencies-design.md`):
   - **Lag-eenheid per relatie**: werkdagen (default) of **kalenderdagen** (24/7, bv. uitharden

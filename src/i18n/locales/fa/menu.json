@@ -97,7 +97,18 @@
     "noRecentFiles": "فایل اخیری وجود ندارد",
     "trace": "ردیابی مسیر",
     "tracePredecessors": "پیش‌نیازها",
-    "traceSuccessors": "پس‌نیازها"
+    "traceSuccessors": "پس‌نیازها",
+    "structure": "ساختار",
+    "wbsAuto": "WBS auto",
+    "renumberWbs": "شماره‌گذاری مجدد WBS",
+    "codesFields": "کدها و فیلدها",
+    "groupBy": "گروه‌بندی بر اساس",
+    "groupByWbs": "WBS (درختی)",
+    "templates": "الگوها",
+    "noTemplates": "هنوز الگوی ذخیره‌شده‌ای وجود ندارد — روی یک وظیفه خلاصه راست‌کلیک کنید → «ذخیره شاخه به عنوان الگو»",
+    "insertTemplateHint": "درج زیر وظیفه انتخاب‌شده (یا در سطح ریشه)",
+    "templateMeta": "{{tasks}} وظیفه، {{relations}} رابطه",
+    "deleteTemplate": "حذف الگو"
   },
   "ifc": {
     "title": "ویرایشگر IFC",

@@ -44,6 +44,7 @@
     "multiSelect": "{{count}} Aufgaben ausgewählt",
     "name": "Name",
     "wbsCode": "WBS-Code",
+    "wbsAutoHint": "WBS-Codes werden automatisch nummeriert (Planung → Struktur)",
     "description": "Beschreibung",
     "type": "Typ",
     "milestone": "Meilenstein",
@@ -79,6 +80,33 @@
     "notCalculated": "Neu berechnen (F5), um maßgebende Beziehungen und Puffer zu sehen",
     "warnTruncatedLead": "Vorlauf am Projektstart gekappt — die Überlappung wird nicht vollständig genutzt",
     "warnLeadExceedsDuration": "Der Vorlauf ist größer als die Dauer des Vorgängers"
+  },
+  "structure": {
+    "title": "Codes & Felder",
+    "activityCodes": "Aufgabencodes",
+    "activityCodesHint": "Frei definierbare Dimensionen (z.B. Standort, Disziplin) zum Gruppieren und Filtern — höchstens ein Wert pro Typ und Aufgabe.",
+    "customFields": "Benutzerdefinierte Felder",
+    "customFieldsHint": "Typisierte benutzerdefinierte Felder, die als Spalten in der Tabelle erscheinen und pro Aufgabe ausgefüllt werden können.",
+    "addType": "Codetyp hinzufügen",
+    "removeType": "Codetyp entfernen",
+    "addValue": "Wert hinzufügen",
+    "valueCode": "Code",
+    "valueDescription": "Beschreibung",
+    "valueColor": "Farbe",
+    "newValuePrefix": "W",
+    "newTypePlaceholder": "Neuer Codetyp (z.B. Standort)",
+    "addField": "Feld hinzufügen",
+    "newFieldPlaceholder": "Neues Feld (z.B. Auftragnehmer)",
+    "fieldType": {
+      "text": "Text",
+      "number": "Zahl",
+      "integer": "Ganze Zahl",
+      "cost": "Kosten",
+      "date": "Datum",
+      "boolean": "Ja/Nein"
+    },
+    "none": "(keine)",
+    "templateSaved": "Zweig als Vorlage '{{name}}' gespeichert"
   },
   "defaultTask": "Neue Aufgabe",
   "defaultMilestone": "Neuer Meilenstein"

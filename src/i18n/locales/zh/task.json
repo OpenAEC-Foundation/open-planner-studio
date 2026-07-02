@@ -44,6 +44,7 @@
     "multiSelect": "已选择 {{count}} 个任务",
     "name": "名称",
     "wbsCode": "WBS 编码",
+    "wbsAutoHint": "WBS 编码会自动编号（计划 → 结构）",
     "description": "描述",
     "type": "类型",
     "milestone": "里程碑",
@@ -79,6 +80,33 @@
     "notCalculated": "重新计算（F5）以查看驱动关系和浮动",
     "warnTruncatedLead": "提前量在项目开始处被截断——重叠未被完全利用",
     "warnLeadExceedsDuration": "提前量大于前置任务的工期"
+  },
+  "structure": {
+    "title": "代码与字段",
+    "activityCodes": "活动代码",
+    "activityCodesHint": "可自由定义的分类维度（例如位置、专业），用于分组和筛选——每个任务在每种类型下最多一个值。",
+    "customFields": "自定义字段",
+    "customFieldsHint": "带类型的用户字段，在表格中显示为列，并可按任务编辑。",
+    "addType": "添加代码类型",
+    "removeType": "移除代码类型",
+    "addValue": "添加值",
+    "valueCode": "代码",
+    "valueDescription": "描述",
+    "valueColor": "颜色",
+    "newValuePrefix": "V",
+    "newTypePlaceholder": "新代码类型（例如位置）",
+    "addField": "添加字段",
+    "newFieldPlaceholder": "新字段（例如承包商）",
+    "fieldType": {
+      "text": "文本",
+      "number": "数字",
+      "integer": "整数",
+      "cost": "成本",
+      "date": "日期",
+      "boolean": "是/否"
+    },
+    "none": "（无）",
+    "templateSaved": "分支已保存为模板“{{name}}”"
   },
   "defaultTask": "新建任务",
   "defaultMilestone": "新建里程碑"

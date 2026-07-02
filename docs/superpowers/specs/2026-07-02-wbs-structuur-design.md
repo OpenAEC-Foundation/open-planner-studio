@@ -1,6 +1,16 @@
 # Ontwerp: Fase 2.2 — WBS & structuur
 
-*Datum: 2026-07-02 · Status: in uitvoering · Bron: [docs/TODO.md](../../TODO.md) §2.2, [PLAN.md](../../../PLAN.md) §2.2.C + §6 Fase 2.2*
+*Datum: 2026-07-02 · Status: **geïmplementeerd** (zelfde dag; zie changelog "WBS & structuur (fase 2.2)") · Bron: [docs/TODO.md](../../TODO.md) §2.2, [PLAN.md](../../../PLAN.md) §2.2.C + §6 Fase 2.2*
+
+> Implementatienotities t.o.v. dit ontwerp: WBS-templates bevatten bewust GEEN
+> activity-code-/custom-field-waarden — die verwijzen naar projectgebonden
+> definities die in een ander project niet bestaan (sjablonen zijn app-globaal).
+> De groeperingsweergave gebruikt in de renderer een (Task|null)-rijmodel
+> (null = bandrij); hit-tests lopen via getTaskAtY en degraderen op bandrijen
+> vanzelf. Naast de conformante pset-templates schrijft de IFC-writer een
+> autoritaire OPS_StructureMeta-JSON zodat ids/kleuren/omschrijvingen de eigen
+> round-trip verliesloos overleven; de reader valt voor bestanden van derden
+> terug op de templates.
 
 Gebaseerd op drie onderzoekssporen: code-audit, PLAN.md-intentie (C-blok van de
 concurrentiematrix) en vakstandaard-semantiek (P6 / MS Project / Asta / IFC 4.3).
