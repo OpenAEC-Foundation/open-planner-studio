@@ -89,6 +89,9 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 - CODEOWNERS bijgewerkt naar de nieuwe product owner.
 
 ### Opgelost
+- **Updates** — het handmatige `.deb`-installeercommando in de update-dialog matchte per ongeluk
+  óók het `amd64.deb.sig`-asset, waardoor `$url` twee URL's bevatte en `curl` faalde met
+  "URL rejected: Malformed input to a URL function". De grep matcht nu op de afsluitende quote.
 - **Scheduler** — kritiek pad klopt nu; geen spook-float meer op predecessors.
 - **Scheduler** — `runCPM` kan niet meer bevriezen of crashen op rare/ongeldige data.
 - **UI** — light-mode contrast verbeterd (diepere tint, zichtbare randen/lijnen, helder amber,
