@@ -120,7 +120,11 @@ export function TableEditor() {
     } else if (field === 'wbsCode') {
       updateTask(taskId, { wbsCode: editValue });
     } else if (field === 'duration') {
-      updateTask(taskId, { time: { ...task.time, scheduleDuration: parseInt(editValue) || 0 } });
+      // Mijlpalen hebben per definitie duur 0 — een ingevoerde duur zou stil
+      // divergeren van wat CPM en de canvas-tabel tonen.
+      if (!task.isMilestone) {
+        updateTask(taskId, { time: { ...task.time, scheduleDuration: parseInt(editValue) || 0 } });
+      }
     } else if (field === 'start') {
       updateTask(taskId, { time: { ...task.time, scheduleStart: editValue } });
     } else if (field === 'finish') {
@@ -159,7 +163,7 @@ export function TableEditor() {
   const getCellValue = (task: Task, field: string): string => {
     if (field === 'name') return task.name;
     if (field === 'wbsCode') return task.wbsCode;
-    if (field === 'duration') return `${task.time.scheduleDuration}`;
+    if (field === 'duration') return `${task.isMilestone ? 0 : task.time.scheduleDuration}`;
     if (field === 'start') return task.time.earlyStart || task.time.scheduleStart;
     if (field === 'finish') return task.time.earlyFinish || task.time.scheduleFinish;
     if (field === 'completion') return `${Math.round(task.time.completion * 100)}`;
@@ -306,7 +310,7 @@ export function TableEditor() {
                 </span>
               </div>
               <div className="w-[60px] px-1 flex items-center justify-end">
-                {renderCell(task.id, 'duration', `${task.time.scheduleDuration}`, '60px', 'right')}
+                {renderCell(task.id, 'duration', `${task.isMilestone ? 0 : task.time.scheduleDuration}`, '60px', 'right')}
               </div>
               <div className="w-[100px] px-1 flex items-center text-text-secondary">
                 {renderCell(task.id, 'start', task.time.earlyStart || task.time.scheduleStart, '100px')}

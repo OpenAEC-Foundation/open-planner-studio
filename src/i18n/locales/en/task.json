@@ -48,6 +48,8 @@
     "description": "Description",
     "type": "Type",
     "milestone": "Milestone",
+    "milestoneKind": "Milestone kind",
+    "mandatory": "Mandatory (contractual)",
     "time": "Time",
     "start": "Start",
     "duration": "Duration (days)",
@@ -123,6 +125,12 @@
     "MSO": "Must start on (MSO)",
     "MFO": "Must finish on (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Automatic",
+    "START": "Start milestone",
+    "FINISH": "Finish milestone"
+  },
   "defaultTask": "New task",
-  "defaultMilestone": "New milestone"
+  "defaultMilestone": "New milestone",
+  "defaultInspection": "New inspection point"
 }

@@ -44,5 +44,32 @@
     "end": "End",
     "duration": "Duration",
     "completion": "Compl."
+  },
+  "reportType": {
+    "label": "Report type",
+    "gantt": "Gantt chart",
+    "milestones": "Milestone overview"
+  },
+  "milestoneReport": {
+    "title": "Milestone overview",
+    "wbs": "WBS",
+    "name": "Name",
+    "kind": "Kind",
+    "date": "Date",
+    "guardDate": "Constraint/deadline",
+    "float": "Float",
+    "mandatory": "Mandatory",
+    "status": "Status",
+    "kind_AUTO": "Automatic",
+    "kind_START": "Start",
+    "kind_FINISH": "Finish",
+    "yes": "Yes",
+    "status_late": "Late",
+    "status_critical": "Critical",
+    "status_onSchedule": "On schedule",
+    "empty": "No milestones in this project.",
+    "total": "Milestones",
+    "mandatoryCount": "Mandatory",
+    "lateCount": "Late"
   }
 }

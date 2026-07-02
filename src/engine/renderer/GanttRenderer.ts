@@ -519,22 +519,39 @@ export class GanttRenderer {
   private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
     const date = parseDate(task.time.earlyStart || task.time.scheduleStart);
-    const x = this.dateToX(date) + this.opts.view.zoom / 2;
+    // Grens-model (fase 2.4): een startmijlpaal ankert op het dagBEGIN (linkerrand van de
+    // dagcel), een eindmijlpaal op het dagEINDE (rechterrand); automatisch blijft
+    // dag-gecentreerd zoals voorheen.
+    const zoom = this.opts.view.zoom;
+    const anchor = task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
+    const x = this.dateToX(date) + anchor;
     const cy = y + height / 2;
     const size = height * 0.4;
 
+    const diamond = (s: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x, cy - s);
+      ctx.lineTo(x + s, cy);
+      ctx.lineTo(x, cy + s);
+      ctx.lineTo(x - s, cy);
+      ctx.closePath();
+    };
+
     ctx.fillStyle = overrideColor ?? this.colors.milestone;
-    ctx.beginPath();
-    ctx.moveTo(x, cy - size);
-    ctx.lineTo(x + size, cy);
-    ctx.lineTo(x, cy + size);
-    ctx.lineTo(x - size, cy);
-    ctx.closePath();
+    diamond(size);
     ctx.fill();
+
+    // Verplichte (contractuele) mijlpaal: dubbel-ruit-effect — witte kern in de ruit.
+    if (task.mandatory) {
+      ctx.fillStyle = this.colors.bg;
+      diamond(size * 0.45);
+      ctx.fill();
+    }
 
     if (isSelected) {
       ctx.strokeStyle = this.colors.selected;
       ctx.lineWidth = 2;
+      diamond(size);
       ctx.stroke();
     }
 

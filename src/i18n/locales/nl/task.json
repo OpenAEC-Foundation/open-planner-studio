@@ -48,6 +48,8 @@
     "description": "Beschrijving",
     "type": "Type",
     "milestone": "Mijlpaal",
+    "milestoneKind": "Soort mijlpaal",
+    "mandatory": "Verplicht (contractueel)",
     "time": "Tijd",
     "start": "Start",
     "duration": "Duur (dagen)",
@@ -123,6 +125,12 @@
     "MSO": "Moet starten op (MSO)",
     "MFO": "Moet eindigen op (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Automatisch",
+    "START": "Startmijlpaal",
+    "FINISH": "Eindmijlpaal"
+  },
   "defaultTask": "Nieuwe taak",
-  "defaultMilestone": "Nieuwe mijlpaal"
+  "defaultMilestone": "Nieuwe mijlpaal",
+  "defaultInspection": "Nieuw inspectiemoment"
 }

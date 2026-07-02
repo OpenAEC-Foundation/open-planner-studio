@@ -44,5 +44,32 @@
     "end": "Einde",
     "duration": "Duur",
     "completion": "Volt."
+  },
+  "reportType": {
+    "label": "Rapporttype",
+    "gantt": "Gantt-afdruk",
+    "milestones": "Mijlpalen-overzicht"
+  },
+  "milestoneReport": {
+    "title": "Mijlpalen-overzicht",
+    "wbs": "WBS",
+    "name": "Naam",
+    "kind": "Soort",
+    "date": "Datum",
+    "guardDate": "Constraint/deadline",
+    "float": "Speling",
+    "mandatory": "Verplicht",
+    "status": "Status",
+    "kind_AUTO": "Automatisch",
+    "kind_START": "Start",
+    "kind_FINISH": "Eind",
+    "yes": "Ja",
+    "status_late": "Te laat",
+    "status_critical": "Kritiek",
+    "status_onSchedule": "Op schema",
+    "empty": "Geen mijlpalen in dit project.",
+    "total": "Mijlpalen",
+    "mandatoryCount": "Verplicht",
+    "lateCount": "Te laat"
   }
 }

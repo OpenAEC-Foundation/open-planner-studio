@@ -155,6 +155,78 @@ function RibbonButtonStack({ children }: { children: React.ReactNode }) {
 }
 
 /** Sjablonen (fase 2.2): lijst uit localStorage; klik = invoegen onder de selectie (of root). */
+/**
+ * Mijlpaal-knop met keuzemenu (fase 2.4): startmijlpaal, eindmijlpaal of
+ * inspectiemoment (eindmijlpaal + taaktype Keuring/Inspectie + verplicht).
+ */
+function MilestoneDropdown() {
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tTask } = useTranslation('task');
+  const [open, setOpen] = useState(false);
+  const addTask = useAppStore(s => s.addTask);
+  const project = useAppStore(s => s.project);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const add = (kind: 'START' | 'FINISH', inspection: boolean) => {
+    addTask({
+      name: tTask(inspection ? 'defaultInspection' : 'defaultMilestone'),
+      isMilestone: true,
+      milestoneKind: kind,
+      taskType: inspection ? 'ATTENDANCE' : 'USERDEFINED',
+      ...(inspection ? { mandatory: true } : {}),
+      time: createDefaultTaskTime(project.startDate || formatDate(new Date()), 0),
+    });
+    setOpen(false);
+  };
+
+  const items: { key: string; label: string; onClick: () => void }[] = [
+    { key: 'start', label: tMenu('ribbon.startMilestone'), onClick: () => add('START', false) },
+    { key: 'finish', label: tMenu('ribbon.finishMilestone'), onClick: () => add('FINISH', false) },
+    { key: 'inspection', label: tMenu('ribbon.inspectionMilestone'), onClick: () => add('FINISH', true) },
+  ];
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative' }}>
+      <button className="ribbon-btn" onClick={() => setOpen(!open)}>
+        <span className="ribbon-btn-icon"><Diamond size={20} /></span>
+        <span className="ribbon-btn-label">{tMenu('ribbon.milestone')} ▾</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 1000, minWidth: 200,
+          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
+        }}>
+          {items.map(item => (
+            <button
+              key={item.key}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
+                fontSize: 11, border: 'none', background: 'transparent',
+                color: 'var(--theme-text)', cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+              onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+              onClick={item.onClick}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TemplatesDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
@@ -440,15 +512,6 @@ export function Ribbon() {
     });
   }, [addTask, project.startDate, tTask]);
 
-  const handleAddMilestone = useCallback(() => {
-    addTask({
-      name: tTask('defaultMilestone'),
-      isMilestone: true,
-      taskType: 'ATTENDANCE',
-      time: createDefaultTaskTime(project.startDate || formatDate(new Date()), 0),
-    });
-  }, [addTask, project.startDate, tTask]);
-
   const handleToggleDependency = useCallback(() => {
     setUI({ showDependencyMode: !showDependencyMode, dependencySourceId: null });
   }, [setUI, showDependencyMode]);
@@ -551,7 +614,7 @@ export function Ribbon() {
 
             <RibbonGroup label={tMenu('ribbon.tasks')}>
               <RibbonButton icon={<Plus size={20} />} label={tMenu('ribbon.task')} onClick={handleAddTask} />
-              <RibbonButton icon={<Diamond size={20} />} label={tMenu('ribbon.milestone')} onClick={handleAddMilestone} />
+              <MilestoneDropdown />
               <RibbonButton icon={<Link size={20} />} label={tMenu('ribbon.relation')} onClick={handleToggleDependency} active={showDependencyMode} />
             </RibbonGroup>
 

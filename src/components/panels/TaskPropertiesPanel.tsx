@@ -1,6 +1,6 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Task, TaskType, ConstraintType } from '@/types/task';
+import { Task, TaskType, ConstraintType, MilestoneKind } from '@/types/task';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
@@ -75,13 +75,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Input({ value, onChange, type = 'text', min, max, step }: {
+function Input({ value, onChange, type = 'text', min, max, step, disabled }: {
   value: string | number;
   onChange: (v: string) => void;
   type?: string;
   min?: number;
   max?: number;
   step?: number;
+  disabled?: boolean;
 }) {
   return (
     <input
@@ -91,7 +92,8 @@ function Input({ value, onChange, type = 'text', min, max, step }: {
       min={min}
       max={max}
       step={step}
-      className="input !text-xs !px-2.5 !py-1.5"
+      disabled={disabled}
+      className="input !text-xs !px-2.5 !py-1.5 disabled:opacity-50"
     />
   );
 }
@@ -200,12 +202,49 @@ export function TaskPropertiesPanel() {
           <input
             type="checkbox"
             checked={task.isMilestone}
-            onChange={e => update({ isMilestone: e.target.checked })}
+            onChange={e => {
+              // Mijlpaal = duur 0 (paritair met TaskDialog); uitvinken geeft de
+              // standaardduur terug zodat de balk niet onzichtbaar blijft.
+              const on = e.target.checked;
+              update({
+                isMilestone: on,
+                ...(on ? {} : { milestoneKind: undefined, mandatory: undefined }),
+                time: { ...task.time, scheduleDuration: on ? 0 : (task.time.scheduleDuration || 5) },
+              });
+            }}
             className="accent-accent"
           />
           {t('properties.milestone')}
         </label>
       </div>
+
+      {task.isMilestone && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t('properties.milestoneKind')}>
+            <select
+              value={task.milestoneKind ?? 'AUTO'}
+              onChange={e => {
+                const v = e.target.value;
+                update({ milestoneKind: v === 'AUTO' ? undefined : (v as MilestoneKind) });
+              }}
+              className="input !text-xs !px-2.5 !py-1.5"
+            >
+              <option value="AUTO">{t('milestoneKind.AUTO')}</option>
+              <option value="START">{t('milestoneKind.START')}</option>
+              <option value="FINISH">{t('milestoneKind.FINISH')}</option>
+            </select>
+          </Field>
+          <label className="flex items-center gap-1.5 self-end pb-1.5">
+            <input
+              type="checkbox"
+              checked={!!task.mandatory}
+              onChange={e => update({ mandatory: e.target.checked || undefined })}
+              className="accent-accent"
+            />
+            {t('properties.mandatory')}
+          </label>
+        </div>
+      )}
 
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
 
@@ -222,9 +261,10 @@ export function TaskPropertiesPanel() {
         <Field label={t('properties.duration')}>
           <Input
             type="number"
-            value={task.time.scheduleDuration}
+            value={task.isMilestone ? 0 : task.time.scheduleDuration}
             onChange={v => updateTime('scheduleDuration', parseInt(v) || 0)}
             min={0}
+            disabled={task.isMilestone}
           />
         </Field>
       </div>

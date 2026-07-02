@@ -6,6 +6,7 @@ import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { Select } from '@/components/common/Select';
 import { isTauri } from '@/utils/platform';
+import { MilestoneReport, useMilestoneRows, useMilestoneReportPrint } from './MilestoneReport';
 
 export function ReportPanel() {
   const { t } = useTranslation('report');
@@ -16,6 +17,7 @@ export function ReportPanel() {
   const project = useAppStore(s => s.project);
   const projectName = project.name;
 
+  const [reportType, setReportType] = useState<'gantt' | 'milestones'>('gantt');
   const [showCritical, setShowCritical] = useState(true);
   const [showFloat, setShowFloat] = useState(true);
   const [showDeps, setShowDeps] = useState(true);
@@ -74,10 +76,14 @@ export function ReportPanel() {
 
   // Re-render the canvas whenever data or options change
   useEffect(() => {
+    if (reportType !== 'gantt') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     renderPrintCanvas(canvas, tasks, sequences, calendar, projectName, options);
-  }, [tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation, companyName, locale]);
+  }, [reportType, tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation, companyName, locale]);
+
+  const milestoneRows = useMilestoneRows();
+  const printMilestoneReport = useMilestoneReportPrint(projectName);
 
   const handlePrint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -143,22 +149,47 @@ export function ReportPanel() {
           {t('title')}
         </span>
 
+        {/* Rapporttype (fase 2.4): Gantt-afdruk of mijlpalen-overzicht */}
+        <Select
+          aria-label={t('reportType.label')}
+          value={reportType}
+          onChange={v => setReportType(v as 'gantt' | 'milestones')}
+          options={[
+            { value: 'gantt', label: t('reportType.gantt') },
+            { value: 'milestones', label: t('reportType.milestones') },
+          ]}
+        />
+
         {/* Project summary */}
         <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
           <h3 className="ui-card-header !text-xs mb-2">{t('summary')}</h3>
           <div className="grid grid-cols-2 gap-1 text-xs">
-            <span className="text-text-secondary">{t('tasks')}</span>
-            <span>{tasks.length}</span>
-            <span className="text-text-secondary">{t('leafTasks')}</span>
-            <span>{leafCount}</span>
-            <span className="text-text-secondary">{t('critical')}</span>
-            <span className="text-red-400 font-bold">{criticalCount}</span>
-            <span className="text-text-secondary">{t('relations')}</span>
-            <span>{sequences.length}</span>
+            {reportType === 'gantt' ? (
+              <>
+                <span className="text-text-secondary">{t('tasks')}</span>
+                <span>{tasks.length}</span>
+                <span className="text-text-secondary">{t('leafTasks')}</span>
+                <span>{leafCount}</span>
+                <span className="text-text-secondary">{t('critical')}</span>
+                <span className="text-red-400 font-bold">{criticalCount}</span>
+                <span className="text-text-secondary">{t('relations')}</span>
+                <span>{sequences.length}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-text-secondary">{t('milestoneReport.total')}</span>
+                <span>{milestoneRows.length}</span>
+                <span className="text-text-secondary">{t('milestoneReport.mandatoryCount')}</span>
+                <span>{milestoneRows.filter(r => r.mandatory).length}</span>
+                <span className="text-text-secondary">{t('milestoneReport.lateCount')}</span>
+                <span className="text-red-400 font-bold">{milestoneRows.filter(r => r.status === 'late').length}</span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Report options */}
+        {reportType === 'gantt' && (
         <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
           <h3 className="ui-card-header !text-xs mb-2">{t('settings')}</h3>
           <div className="flex flex-col gap-2 text-xs">
@@ -260,33 +291,46 @@ export function ReportPanel() {
             </label>
           </div>
         </div>
+        )}
 
         {/* Action buttons */}
         <div className="flex flex-col gap-2">
           <button
-            onClick={handlePrint}
+            onClick={reportType === 'gantt' ? handlePrint : printMilestoneReport}
             className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-xs font-medium"
             style={{ boxShadow: 'var(--shadow-glow)' }}
           >
             {t('print')}
           </button>
-          <button
-            onClick={handleExportPDF}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium"
-          >
-            {t('exportPDF', { defaultValue: 'Exporteer PDF' })}
-          </button>
+          {reportType === 'gantt' && (
+            <button
+              onClick={handleExportPDF}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium"
+            >
+              {t('exportPDF', { defaultValue: 'Exporteer PDF' })}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Right: Live preview */}
       <div className="flex-1 overflow-auto p-4" style={{ background: 'var(--theme-bg)' }}>
-        <div
-          className="inline-block bg-white"
-          style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}
-        >
-          <canvas ref={canvasRef} />
-        </div>
+        {reportType === 'gantt' ? (
+          <div
+            className="inline-block bg-white"
+            style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}
+          >
+            <canvas ref={canvasRef} />
+          </div>
+        ) : (
+          <div
+            className="bg-surface p-4"
+            style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960 }}
+          >
+            <h3 className="ui-card-header !text-xs mb-3">{t('milestoneReport.title')}</h3>
+            <MilestoneReport />
+          </div>
+        )}
       </div>
     </div>
   );
