@@ -143,17 +143,30 @@ async function generateIcons() {
   await sharp(Buffer.from(svg)).png().toFile(masterPng);
   console.log('Created app-icon.png (1024x1024)');
 
-  // Generate PNG icons at various sizes
+  // Generate PNG icons at various sizes.
+  // 256x256/512x512 vullen de standaard-dpi hicolor-slots op Linux (dock/app-grid);
+  // icon.png (512) staat vooraan in bundle.icon en is daardoor het runtime-venstericoon
+  // (Tauri-codegen pakt op Linux de eerste .png uit de lijst — 32px gaf een wazig dock-icoon).
   const pngSizes = [
     { size: 32, name: '32x32.png' },
+    { size: 64, name: '64x64.png' },
     { size: 128, name: '128x128.png' },
     { size: 256, name: '128x128@2x.png' },
+    { size: 256, name: '256x256.png' },
+    { size: 512, name: '512x512.png' },
+    { size: 512, name: 'icon.png' },
   ];
 
   for (const { size, name } of pngSizes) {
     await sharp(Buffer.from(svg)).resize(size, size).png().toFile(path.join(iconsDir, name));
     console.log(`Created ${name} (${size}x${size})`);
   }
+
+  // Snap-store/desktop-icoon (snapcraft pakt snap/gui/icon.png automatisch op)
+  const snapGui = path.resolve('snap/gui');
+  if (!fs.existsSync(snapGui)) fs.mkdirSync(snapGui, { recursive: true });
+  await sharp(Buffer.from(svg)).resize(512, 512).png().toFile(path.join(snapGui, 'icon.png'));
+  console.log('Created snap/gui/icon.png (512x512)');
 
   // Generate ICO (multi-size: 16, 24, 32, 48, 64, 128, 256)
   const icoSizes = [16, 24, 32, 48, 64, 128, 256];
