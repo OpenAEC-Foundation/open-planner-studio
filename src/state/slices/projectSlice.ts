@@ -6,6 +6,8 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { applyWbsNumbering } from '@/utils/wbs';
+import { createSnapshot } from '../snapshot';
 import { createDefaultView } from './viewSlice';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
@@ -28,6 +30,8 @@ export interface ProjectSlice {
   isDirty: boolean;
   filePath: string | null;
   setProject: (project: Partial<Project>) => void;
+  /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
+  setWbsAutoNumber: (on: boolean) => void;
   setCalendar: (calendar: WorkCalendar) => void;
   newProject: () => void;
   /** Nieuw-project-wizard: maak een project met metadata, kalender en een
@@ -57,6 +61,9 @@ export function createDefaultProject(): Project {
     modifiedAt: new Date().toISOString(),
     author: '',
     company: '',
+    // Nieuwe projecten nummeren de WBS automatisch; geladen bestanden zonder
+    // vlag blijven op vrije tekst (zie Project.wbsAutoNumber).
+    wbsAutoNumber: true,
   };
 }
 
@@ -70,6 +77,16 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     set((s) => {
       Object.assign(s.project, updates);
       s.project.modifiedAt = new Date().toISOString();
+      s.isDirty = true;
+    }),
+
+  setWbsAutoNumber: (on) =>
+    set((s) => {
+      if (!!s.project.wbsAutoNumber === on) return;
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      s.project.wbsAutoNumber = on;
+      if (on) applyWbsNumbering(s.tasks);
       s.isDirty = true;
     }),
 

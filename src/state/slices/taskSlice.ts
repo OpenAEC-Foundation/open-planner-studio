@@ -3,6 +3,7 @@ import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { createSnapshot } from '../snapshot';
 import type { AppSlice } from './types';
 
@@ -34,6 +35,8 @@ export interface TaskSlice {
   copyTasks: (ids?: string[]) => void;
   /** Plak het klembord als nieuwe takken; geeft de nieuwe root-ids terug (leeg als er niets te plakken viel). */
   pasteTasks: () => string[];
+  /** Hernummer alle WBS-codes uit de boompositie (1.2.3.4) — de expliciete variant van wbsAutoNumber. */
+  renumberWbs: () => void;
 }
 
 export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
@@ -70,6 +73,15 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       if (task.parentId) {
         const parent = s.tasks.find(t => t.id === task.parentId);
         if (parent) parent.childIds.push(id);
+      }
+
+      // WBS-code: bij auto-nummering de hele boom bijwerken; anders alleen deze taak een
+      // afgeleide code geven wanneer de aanroeper er geen meegaf (lege codes breken de
+      // CSV/MSP-export en -herimport, die op dotted codes koppelen).
+      if (s.project.wbsAutoNumber) {
+        applyWbsNumbering(s.tasks);
+      } else if (!partial.wbsCode) {
+        task.wbsCode = deriveWbsCodes(s.tasks).get(id) ?? '';
       }
 
       s.isDirty = true;
@@ -118,6 +130,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       );
       s.assignments = s.assignments.filter(a => !removeIds.has(a.taskId));
       s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
     }),
 
@@ -144,6 +157,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
         if (newParent) newParent.childIds.push(id);
       }
 
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
     }),
 
@@ -267,14 +281,14 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
         if (parent) parent.childIds.push(...newRootIds);
       }
 
-      // Interne relaties opnieuw aanmaken met de nieuwe ids.
+      // Interne relaties opnieuw aanmaken met de nieuwe ids. Spread behoudt óók de
+      // optionele lag-velden (lagUnit/lagPercent) — die vielen hier eerder stil weg.
       for (const seq of clip.sequences) {
         s.sequences.push({
+          ...seq,
           id: generateId('seq'),
           predecessorId: idMap.get(seq.predecessorId)!,
           successorId: idMap.get(seq.successorId)!,
-          type: seq.type,
-          lagDays: seq.lagDays,
         });
       }
 
@@ -289,9 +303,30 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
         });
       }
 
+      // WBS: geplakte takken zouden anders de codes van hun bron letterlijk dupliceren.
+      // Auto-nummering ⇒ hele boom; anders alleen de geplakte tak een afgeleide code geven.
+      if (s.project.wbsAutoNumber) {
+        applyWbsNumbering(s.tasks);
+      } else {
+        const codes = deriveWbsCodes(s.tasks);
+        for (const newId of idMap.values()) {
+          const t = s.tasks.find(x => x.id === newId);
+          const code = codes.get(newId);
+          if (t && code !== undefined) t.wbsCode = code;
+        }
+      }
+
       s.selectedTaskIds = newRootIds;
       s.isDirty = true;
     });
     return newRootIds;
   },
+
+  renumberWbs: () =>
+    set((s) => {
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      applyWbsNumbering(s.tasks);
+      s.isDirty = true;
+    }),
 });

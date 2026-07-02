@@ -9,6 +9,14 @@ export interface Project {
   modifiedAt: string;
   author: string;
   company: string;
+  /**
+   * WBS-codes automatisch nummeren (1.2.3.4, afgeleid uit de boompositie): aan ⇒ live
+   * hernummeren bij elke structuurmutatie; uit/ontbreekt ⇒ vrije tekst (bestaand gedrag),
+   * met een expliciete "Hernummer WBS"-actie. Nieuwe projecten krijgen true; geladen
+   * bestanden zonder vlag blijven op vrije tekst (MSP-stabiliteitsmodel: codes in
+   * omloop worden niet stilzwijgend herschreven).
+   */
+  wbsAutoNumber?: boolean;
 }
 
 export interface ProjectStats {
