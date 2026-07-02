@@ -27,7 +27,9 @@
     "addRelation": "Relatie toevoegen",
     "toggleCollapse": "In-/uitklappen",
     "delete": "Verwijderen",
-    "newTask": "Nieuwe taak"
+    "newTask": "Nieuwe taak",
+    "tracePath": "Pad traceren",
+    "traceOff": "Traceren stoppen"
   },
   "settings": {
     "title": "Instellingen",

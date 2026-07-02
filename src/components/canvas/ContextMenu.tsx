@@ -6,19 +6,21 @@ export interface ContextMenuProps {
   x: number;
   y: number;
   task: Task | null;
+  traceActive: boolean;
   onClose: () => void;
   onEdit: () => void;
   onAddSubtask: () => void;
   onAddMilestone: () => void;
   onAddRelation: () => void;
+  onTracePath: () => void;
   onToggleCollapse: () => void;
   onDelete: () => void;
   onAddTask: () => void;
 }
 
 export function ContextMenu({
-  x, y, task, onClose,
-  onEdit, onAddSubtask, onAddMilestone, onAddRelation,
+  x, y, task, traceActive, onClose,
+  onEdit, onAddSubtask, onAddMilestone, onAddRelation, onTracePath,
   onToggleCollapse, onDelete, onAddTask,
 }: ContextMenuProps) {
   const { t } = useTranslation('common');
@@ -82,6 +84,10 @@ export function ContextMenu({
           <MenuItem label={t('context.addSubtask')} onClick={() => { onAddSubtask(); onClose(); }} />
           <MenuItem label={t('context.addMilestone')} onClick={() => { onAddMilestone(); onClose(); }} />
           <MenuItem label={t('context.addRelation')} onClick={() => { onAddRelation(); onClose(); }} />
+          <MenuItem
+            label={traceActive ? t('context.traceOff') : t('context.tracePath')}
+            onClick={() => { onTracePath(); onClose(); }}
+          />
           {isSummary && (
             <>
               <Separator />

@@ -38,6 +38,7 @@ export function createDefaultUI(): UIState {
     pendingCloseDocId: null,
     showNewProjectDialog: false,
     showFeedbackDialog: false,
+    traceMode: 'off',
   };
 }
 

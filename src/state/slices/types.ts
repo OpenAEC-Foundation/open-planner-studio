@@ -101,4 +101,9 @@ export interface UIState {
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
   showFeedbackDialog: boolean;              // session — feedback-dialoog open
+  traceMode: TraceMode;                     // session — path tracing rond de geselecteerde taak
 }
+
+// Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk
+// rond de geselecteerde taak gemarkeerd wordt in de Gantt.
+export type TraceMode = 'off' | 'predecessors' | 'successors' | 'both';

@@ -94,7 +94,10 @@
     "appearance": "Weergave",
     "ifcInfo": "IFC 4x3 - Industry Foundation Classes",
     "reporting": "Rapportage",
-    "noRecentFiles": "Geen recente bestanden"
+    "noRecentFiles": "Geen recente bestanden",
+    "trace": "Pad traceren",
+    "tracePredecessors": "Voorgangers",
+    "traceSuccessors": "Opvolgers"
   },
   "ifc": {
     "title": "IFC-editor",

@@ -15,6 +15,15 @@ export interface GanttRenderOptions {
   /** Ids van driving relaties uit de laatste CPM-berekening; undefined = nog niet berekend
    *  (dan tekenen alle pijlen in de neutrale stijl, zoals voorheen). */
   drivingSequenceIds?: string[];
+  /** Path tracing (MSP Task Path-stijl): focus-taak + de te markeren voorgangers/opvolgers.
+   *  Actief ⇒ niet-betrokken taken dimmen; driving-ketens in een sterkere tint. */
+  trace?: {
+    focusId: string;
+    predecessors: string[];
+    drivingPredecessors: string[];
+    successors: string[];
+    drivenSuccessors: string[];
+  } | null;
   canvasWidth: number;
   canvasHeight: number;
   taskTableWidth: number;
@@ -53,6 +62,11 @@ function getThemeColors() {
     today: v('--theme-accent', '#B45309'),
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
     summary: '#475569',        // samenvattingsbalk (slate)
+    // Path tracing (MSP Task Path-conventie: voorgangers goud, opvolgers paars; driving sterker)
+    tracePred: '#F59E0B',
+    tracePredDriving: '#D97706',
+    traceSucc: '#A78BFA',
+    traceSuccDriving: '#7C3AED',
   };
 }
 
@@ -314,6 +328,14 @@ export class GanttRenderer {
     const barHeight = rowHeight * 0.5;
     const barOffset = (rowHeight - barHeight) / 2;
 
+    // Path tracing: betrokken taken krijgen de trace-tint (driving-keten sterker), de rest dimt.
+    // De focus-taak behoudt z'n eigen kleur — de selectiering markeert hem al.
+    const trace = this.opts.trace;
+    const tDPred = trace ? new Set(trace.drivingPredecessors) : null;
+    const tPred = trace ? new Set(trace.predecessors) : null;
+    const tDSucc = trace ? new Set(trace.drivenSuccessors) : null;
+    const tSucc = trace ? new Set(trace.successors) : null;
+
     for (let i = 0; i < this.flatTasks.length; i++) {
       const task = this.flatTasks[i];
       const y = this.rowToY(i) + barOffset;
@@ -321,17 +343,29 @@ export class GanttRenderer {
 
       if (y + barHeight < this.opts.headerHeight || y > this.opts.canvasHeight) continue;
 
-      if (task.isMilestone) {
-        this.drawMilestone(task, y, barHeight, isSelected);
-      } else if (task.childIds.length > 0) {
-        this.drawSummaryBar(task, y, barHeight, isSelected);
-      } else {
-        this.drawTaskBar(task, y, barHeight, isSelected);
+      let overrideColor: string | undefined;
+      let dimmed = false;
+      if (trace && task.id !== trace.focusId) {
+        if (tDPred!.has(task.id)) overrideColor = this.colors.tracePredDriving;
+        else if (tPred!.has(task.id)) overrideColor = this.colors.tracePred;
+        else if (tDSucc!.has(task.id)) overrideColor = this.colors.traceSuccDriving;
+        else if (tSucc!.has(task.id)) overrideColor = this.colors.traceSucc;
+        else dimmed = true;
       }
+
+      if (dimmed) this.ctx.globalAlpha = 0.25;
+      if (task.isMilestone) {
+        this.drawMilestone(task, y, barHeight, isSelected, overrideColor);
+      } else if (task.childIds.length > 0) {
+        this.drawSummaryBar(task, y, barHeight, isSelected, overrideColor);
+      } else {
+        this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
+      }
+      if (dimmed) this.ctx.globalAlpha = 1;
     }
   }
 
-  private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean): void {
+  private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
     const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
     const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
@@ -341,7 +375,7 @@ export class GanttRenderer {
     if (x2 < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
 
     const width = Math.max(x2 - x1, 4);
-    const color = task.time.isCritical ? this.colors.critical : (task.color || this.colors.normal);
+    const color = overrideColor ?? (task.time.isCritical ? this.colors.critical : (task.color || this.colors.normal));
 
     // Bar background
     ctx.fillStyle = color;
@@ -388,7 +422,7 @@ export class GanttRenderer {
     }
   }
 
-  private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean): void {
+  private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
     const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
     const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
@@ -402,7 +436,7 @@ export class GanttRenderer {
     const barH = height * 0.4;
 
     // Summary bar (afgeronde hoeken voor de moderne look; ruit-eindkappen blijven)
-    ctx.fillStyle = this.colors.summary;
+    ctx.fillStyle = overrideColor ?? this.colors.summary;
     ctx.beginPath();
     ctx.roundRect(x1, barY, width, barH, 2);
     ctx.fill();
@@ -429,14 +463,14 @@ export class GanttRenderer {
     }
   }
 
-  private drawMilestone(task: Task, y: number, height: number, isSelected: boolean): void {
+  private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
     const date = parseDate(task.time.earlyStart || task.time.scheduleStart);
     const x = this.dateToX(date) + this.opts.view.zoom / 2;
     const cy = y + height / 2;
     const size = height * 0.4;
 
-    ctx.fillStyle = this.colors.milestone;
+    ctx.fillStyle = overrideColor ?? this.colors.milestone;
     ctx.beginPath();
     ctx.moveTo(x, cy - size);
     ctx.lineTo(x + size, cy);
@@ -467,6 +501,13 @@ export class GanttRenderer {
     // Zonder berekening (drivingSet undefined) tekent alles neutraal doorgetrokken.
     const drivingSet = this.opts.drivingSequenceIds ? new Set(this.opts.drivingSequenceIds) : null;
 
+    // Bij actieve path tracing dimmen pijlen waarvan een van beide taken buiten de trace valt,
+    // in lijn met de gedimde balken.
+    const trace = this.opts.trace;
+    const traced = trace
+      ? new Set([trace.focusId, ...trace.predecessors, ...trace.successors])
+      : null;
+
     for (const seq of this.opts.sequences) {
       const predIdx = this.flatTaskIndex.get(seq.predecessorId) ?? -1;
       const succIdx = this.flatTaskIndex.get(seq.successorId) ?? -1;
@@ -482,6 +523,7 @@ export class GanttRenderer {
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
       ctx.setLineDash(isDriving ? [] : [4, 3]);
+      ctx.globalAlpha = traced && !(traced.has(seq.predecessorId) && traced.has(seq.successorId)) ? 0.15 : 1;
 
       const rowH = this.opts.rowHeight;
       const predY = this.rowToY(predIdx) + rowH / 2;
@@ -533,6 +575,7 @@ export class GanttRenderer {
     }
 
     ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
   }
 
   private drawTaskTable(): void {

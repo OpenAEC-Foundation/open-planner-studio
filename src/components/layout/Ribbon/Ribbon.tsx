@@ -6,7 +6,7 @@ import {
   FileText, FolderOpen, Save, Printer, Trash2,
   Calendar, Settings, Info, Clock,
   ArrowRightLeft, Eye, EyeOff, History, SaveAll,
-  Download, Puzzle,
+  Download, Puzzle, ArrowLeftToLine, ArrowRightToLine,
 } from 'lucide-react';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
@@ -334,6 +334,7 @@ export function Ribbon() {
   const zoom = useAppStore(s => s.view.zoom);
   const setUI = useAppStore(s => s.setUI);
   const showDependencyMode = useAppStore(s => s.ui.showDependencyMode);
+  const traceMode = useAppStore(s => s.ui.traceMode);
   const project = useAppStore(s => s.project);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
@@ -382,6 +383,37 @@ export function Ribbon() {
     // Nieuw-project-wizard (kies metadata, kalender en fasering-template).
     setUI({ showNewProjectDialog: true });
   }, [setUI]);
+
+  // Path tracing (MSP Task Path): beide knoppen aan = 'both'; werkt op de geselecteerde taak.
+  // Gedeeld door de Planning- en Relaties-tab (op de Planning-tab is de Gantt zichtbaar).
+  const traceGroup = (
+    <RibbonGroup label={tMenu('ribbon.trace')}>
+      <RibbonButton
+        icon={<ArrowLeftToLine size={20} />}
+        label={tMenu('ribbon.tracePredecessors')}
+        active={traceMode === 'predecessors' || traceMode === 'both'}
+        onClick={() => setUI({
+          traceMode:
+            traceMode === 'off' ? 'predecessors'
+            : traceMode === 'predecessors' ? 'off'
+            : traceMode === 'successors' ? 'both'
+            : 'successors',
+        })}
+      />
+      <RibbonButton
+        icon={<ArrowRightToLine size={20} />}
+        label={tMenu('ribbon.traceSuccessors')}
+        active={traceMode === 'successors' || traceMode === 'both'}
+        onClick={() => setUI({
+          traceMode:
+            traceMode === 'off' ? 'successors'
+            : traceMode === 'successors' ? 'off'
+            : traceMode === 'predecessors' ? 'both'
+            : 'predecessors',
+        })}
+      />
+    </RibbonGroup>
+  );
 
   return (
     <div className="ribbon-container">
@@ -473,6 +505,10 @@ export function Ribbon() {
 
             <div className="ribbon-separator" />
 
+            {traceGroup}
+
+            <div className="ribbon-separator" />
+
             <RibbonGroup label={tMenu('ribbon.calendar')}>
               <RibbonButton icon={<Calendar size={20} />} label={tMenu('ribbon.calendar')} onClick={() => setUI({ showCalendarDialog: true })} />
               <RibbonButton icon={<Clock size={20} />} label={tMenu('ribbon.holidays')} onClick={() => setUI({ showCalendarDialog: true })} />
@@ -485,6 +521,10 @@ export function Ribbon() {
             <RibbonGroup label={tMenu('ribbon.relations')}>
               <RibbonButton icon={<Link size={20} />} label={tMenu('ribbon.relation')} onClick={handleToggleDependency} active={showDependencyMode} />
             </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            {traceGroup}
 
             <div className="ribbon-separator" />
 

@@ -27,7 +27,9 @@
     "addRelation": "Add relation",
     "toggleCollapse": "Collapse/expand",
     "delete": "Delete",
-    "newTask": "New task"
+    "newTask": "New task",
+    "tracePath": "Trace path",
+    "traceOff": "Stop path tracing"
   },
   "settings": {
     "title": "Settings",

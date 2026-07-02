@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
+import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
@@ -87,6 +88,7 @@ export function GanttCanvas() {
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
   const scrollMode = useAppStore(s => s.ui.scrollMode);
+  const traceMode = useAppStore(s => s.ui.traceMode);
   const cpmResult = useAppStore(s => s.cpmResult);
 
   const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
@@ -108,6 +110,24 @@ export function GanttCanvas() {
     taskName: tTask('table.name'),
     duration: tTask('table.duration'),
   }), [tTask]);
+
+  // Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
+  // driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
+  const trace = useMemo(() => {
+    if (traceMode === 'off' || selectedTaskIds.length === 0) return undefined;
+    const focusId = selectedTaskIds[0];
+    const drivingIds = cpmResult && !cpmResult.error
+      ? new Set(cpmResult.drivingSequenceIds)
+      : undefined;
+    const tr = traceFrom(focusId, sequences, drivingIds);
+    return {
+      focusId,
+      predecessors: traceMode !== 'successors' ? [...tr.predecessors] : [],
+      drivingPredecessors: traceMode !== 'successors' ? [...tr.drivingPredecessors] : [],
+      successors: traceMode !== 'predecessors' ? [...tr.successors] : [],
+      drivenSuccessors: traceMode !== 'predecessors' ? [...tr.drivenSuccessors] : [],
+    };
+  }, [traceMode, selectedTaskIds, sequences, cpmResult]);
 
   // Show toast when CPM detects circular dependency
   useEffect(() => {
@@ -188,6 +208,7 @@ export function GanttCanvas() {
       selectedTaskIds,
       collapsedTaskIds,
       drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
+      trace,
       canvasWidth: rect.width,
       canvasHeight: rect.height,
       taskTableWidth: TASK_TABLE_WIDTH,
@@ -202,7 +223,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
+  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
 
   // Render on changes
   useEffect(() => {
@@ -727,6 +748,7 @@ export function GanttCanvas() {
           x={contextMenu.x}
           y={contextMenu.y}
           task={contextMenu.task}
+          traceActive={traceMode !== 'off'}
           onClose={() => setContextMenu(null)}
           onEdit={() => {
             if (contextMenu.task) setUI({ showTaskDialog: true, editingTaskId: contextMenu.task.id });
@@ -751,6 +773,14 @@ export function GanttCanvas() {
           onAddRelation={() => {
             if (contextMenu.task) {
               setUI({ showDependencyMode: true, dependencySourceId: contextMenu.task.id });
+            }
+          }}
+          onTracePath={() => {
+            if (traceMode !== 'off') {
+              setUI({ traceMode: 'off' });
+            } else if (contextMenu.task) {
+              selectTask(contextMenu.task.id);
+              setUI({ traceMode: 'both' });
             }
           }}
           onToggleCollapse={() => {
