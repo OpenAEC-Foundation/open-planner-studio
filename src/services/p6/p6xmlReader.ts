@@ -160,6 +160,10 @@ export function readP6XML(content: string): {
 
     const durationDays = p6HoursToDays(plannedDuration, hoursPerDay);
     const isMilestone = p6Type.includes('Milestone');
+    // Fase 2.4: P6 onderscheidt Start/Finish Milestone — bewaar de soort expliciet.
+    const milestoneKind = !isMilestone ? undefined
+      : p6Type.includes('Finish') ? 'FINISH' as const
+      : 'START' as const;
 
     let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
     if (p6Status === 'Completed' || percentComplete >= 100) status = 'COMPLETED';
@@ -175,6 +179,7 @@ export function readP6XML(content: string): {
       taskType: 'CONSTRUCTION',
       status,
       isMilestone,
+      ...(milestoneKind ? { milestoneKind } : {}),
       priority: 0,
       parentId,
       childIds: [],

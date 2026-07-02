@@ -165,6 +165,7 @@ export function writeIFC(
 
   // Datum-constraints + deadlines (fase 2.3) als OPS_Constraints-pset per taak
   writeConstraints(ctx, tasks, ownerHistId);
+  writeMilestoneMeta(ctx, tasks, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -334,6 +335,34 @@ function writeConstraints(ctx: WriteContext, tasks: Task[], ownerHistId: number)
       `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_cst_' + task.id))},#${ownerHistId},'OPS_Constraints',$,(${props.join(',')}))`);
     addLine(ctx, `_rel_cst_${task.id}`,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_cst_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Fase 2.4 — mijlpaal-metadata als OPS_Milestone-pset per taak. IfcTask.IsMilestone
+ * bestaat als attribuut, maar IfcTaskTypeEnum kent geen start/finish-onderscheid en
+ * geen verplicht-vlag. Automatisch (kind undefined) en niet-verplicht schrijven niets,
+ * zodat oude bestanden bit-gelijk round-trippen.
+ */
+function writeMilestoneMeta(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    if (!task.isMilestone) continue;
+    const props: string[] = [];
+    if (task.milestoneKind === 'START' || task.milestoneKind === 'FINISH') {
+      const kindId = addLine(ctx, `_msk_${task.id}`,
+        `IFCPROPERTYSINGLEVALUE('MilestoneKind',$,IFCLABEL(${ifcStr(task.milestoneKind)}),$)`);
+      props.push(`#${kindId}`);
+    }
+    if (task.mandatory) {
+      const mId = addLine(ctx, `_msm_${task.id}`,
+        `IFCPROPERTYSINGLEVALUE('Mandatory',$,IFCBOOLEAN(.T.),$)`);
+      props.push(`#${mId}`);
+    }
+    if (props.length === 0) continue;
+    const setId = addLine(ctx, `_pset_ms_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_ms_' + task.id))},#${ownerHistId},'OPS_Milestone',$,(${props.join(',')}))`);
+    addLine(ctx, `_rel_ms_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_ms_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }
 

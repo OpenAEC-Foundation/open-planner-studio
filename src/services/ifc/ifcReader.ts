@@ -471,6 +471,26 @@ function extractStructure(
       continue;
     }
 
+    if (psetName === 'OPS_Milestone') {
+      // Fase 2.4: mijlpaalsoort + verplicht-vlag (spiegel van writeMilestoneMeta).
+      for (const objRef of objectRefs) {
+        const taskId = taskStepIdMap.get(objRef);
+        const task = taskId ? taskById.get(taskId) : undefined;
+        if (!task) continue;
+        for (const prop of props) {
+          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+          const name = stripQuotes(prop.args[0] || '');
+          const value = parseTypedValue(prop.args[2] || '');
+          if (name === 'MilestoneKind' && (value === 'START' || value === 'FINISH')) {
+            task.milestoneKind = value;
+          } else if (name === 'Mandatory' && value === true) {
+            task.mandatory = true;
+          }
+        }
+      }
+      continue;
+    }
+
     if (psetName !== 'OPS_CustomFields' && psetName !== 'OPS_ActivityCodes') continue;
     for (const objRef of objectRefs) {
       const taskId = taskStepIdMap.get(objRef);

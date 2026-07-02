@@ -37,8 +37,10 @@ function taskStatusToP6(task: Task): string {
 
 function taskTypeToP6(task: Task): string {
   if (task.isMilestone) {
-    if (task.time.scheduleDuration === 0) return 'Start Milestone';
-    return 'Finish Milestone';
+    // Fase 2.4: de expliciete soort bepaalt het P6-activitytype; automatisch =>
+    // Start Milestone (P6's eigen default bij import). De oude duur-check was
+    // dode code: mijlpalen hebben altijd duur 0.
+    return task.milestoneKind === 'FINISH' ? 'Finish Milestone' : 'Start Milestone';
   }
   if (task.childIds.length > 0) return 'WBS Summary';
   return 'Task Dependent';
