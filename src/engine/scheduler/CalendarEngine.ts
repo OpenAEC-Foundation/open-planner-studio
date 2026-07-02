@@ -116,6 +116,21 @@ export class CalendarEngine {
   }
 
   /**
+   * Eerste werkdag op of vóór de datum (spiegel van nextWorkDay). Gebruikt om een
+   * kalenderdag-lag in de backward-pass richtingbewust op een werkdag te snappen:
+   * een bovengrens ("niet later dan…") die op een weekend valt, hoort terug naar vrijdag.
+   */
+  prevWorkDay(date: Date): Date {
+    let current = new Date(date.getTime());
+    let scan = 0;
+    while (!this.isWorkDay(current)) {
+      current = addCalendarDays(current, -1);
+      if (++scan > CalendarEngine.MAX_SCAN) return current;
+    }
+    return current;
+  }
+
+  /**
    * Get the next working day strictly before the given date.
    * Spiegel van nextWorkDayAfter — gebruikt door de backward-pass zodat de
    * "successor start de werkdag ná de predecessor"-relatie symmetrisch terugloopt.
@@ -161,6 +176,11 @@ export class CalendarEngine {
    * Anders dan addWorkDays/subtractWorkDays telt de begindag hier NIET als "dag 1" — dit is een
    * zuivere offset over werkdagen. Nodig voor correcte lag/lead (positief, negatief én 0) en voor
    * de relatie-logica (FF/SF) in de CPM-solver, waar "N werkdagen verderop/eerder" exact N moet zijn.
+   *
+   * INVARIANT: de aanroeper voert een wérkdag aan. Alle CPM-paden garanderen dat (early/late-datums
+   * zijn altijd werkdagen); een kalenderdag-lag die op een weekend landt wordt op de gebruiksplek
+   * eerst richtingbewust gesnapt (forward: nextWorkDay, backward: prevWorkDay) vóór hij hier
+   * binnenkomt. Een niet-werkdag zou hier vooruit normaliseren, wat voor n<0 een dag zou schelen.
    */
   addWorkingDaysSigned(date: Date, n: number): Date {
     let current = this.nextWorkDay(new Date(date.getTime()));

@@ -9,7 +9,10 @@
 //   calendar?: { workDays?: number[], holidays?: {name,startDate,endDate}[] }  // default: SCHOON (ma-vr, geen feestdagen)
 //   anchor?: "YYYY-MM-DD"   // startdatum voor wortel-taken (default 2026-06-01)
 //   tasks: [{ name, dur?, start?, milestone? }]      // dur in werkdagen (default 1); milestone => duur 0
-//   links: [{ pred, succ, type, lag? }]              // type: FINISH_START|START_START|FINISH_FINISH|START_FINISH
+//   links: [{ pred, succ, type, lag?, lagUnit?, lagPercent? }]
+//     type: FINISH_START|START_START|FINISH_FINISH|START_FINISH
+//     lag in dagen (default 0, negatief = lead); lagUnit: WORKTIME (default) | ELAPSEDTIME (kalenderdagen);
+//     lagPercent: % van de voorgangerduur (overstemt lag)
 //   expect: {
 //     tasks?: { [name]: { es?,ef?,ls?,lf?,tf?,ff?,crit? } },   // datums "YYYY-MM-DD"; tf/ff getallen; crit boolean
 //     criticalPathSet?: [names],   // vergeleken als verzameling (volgorde-onafhankelijk)
@@ -29,7 +32,7 @@ interface Case {
   id: string; title: string;
   calendar?: Cal; anchor?: string;
   tasks: { name: string; dur?: number; start?: string; milestone?: boolean; parent?: string }[];
-  links?: { pred: string; succ: string; type: string; lag?: number }[];
+  links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
   expect: any;
 }
 
@@ -67,7 +70,12 @@ function buildAndSolve(c: Case) {
   for (const l of c.links ?? []) {
     if (!ids[l.pred]) throw new Error(`relatie: onbekende voorganger "${l.pred}"`);
     if (!ids[l.succ]) throw new Error(`relatie: onbekende opvolger "${l.succ}"`);
-    S().addSequence({ predecessorId: ids[l.pred], successorId: ids[l.succ], type: l.type as any, lagDays: l.lag ?? 0 });
+    S().addSequence({
+      predecessorId: ids[l.pred], successorId: ids[l.succ], type: l.type as any,
+      lagDays: l.lag ?? 0,
+      ...(l.lagUnit !== undefined ? { lagUnit: l.lagUnit as any } : {}),
+      ...(l.lagPercent !== undefined ? { lagPercent: l.lagPercent } : {}),
+    });
   }
   S().runCPM();
   return ids;

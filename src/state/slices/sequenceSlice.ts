@@ -6,6 +6,9 @@ import type { AppSlice } from './types';
 export interface SequenceSlice {
   sequences: Sequence[];
   addSequence: (seq: Omit<Sequence, 'id'>) => string;
+  /** Wijzig type/lag van een bestaande relatie. Geeft false terug wanneer de wijziging een
+   *  duplicaat (zelfde voorganger+opvolger+type) zou opleveren en daarom genegeerd is. */
+  updateSequence: (id: string, patch: Partial<Omit<Sequence, 'id' | 'predecessorId' | 'successorId'>>) => boolean;
   removeSequence: (id: string) => void;
 }
 
@@ -29,6 +32,31 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
       }
     });
     return id;
+  },
+
+  updateSequence: (id, patch) => {
+    let applied = false;
+    set((s) => {
+      const seq = s.sequences.find(e => e.id === id);
+      if (!seq) return;
+      const nextType = patch.type ?? seq.type;
+      // Zelfde duplicaat-regel als addSequence: één relatie per (voorganger, opvolger, type).
+      const collides = nextType !== seq.type && s.sequences.some(
+        e => e.id !== id && e.predecessorId === seq.predecessorId
+          && e.successorId === seq.successorId && e.type === nextType
+      );
+      if (collides) return;
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      if (patch.type !== undefined) seq.type = patch.type;
+      if ('lagDays' in patch) seq.lagDays = Number.isFinite(patch.lagDays) ? (patch.lagDays as number) : 0;
+      // lagUnit/lagPercent expliciet op undefined zetten = terug naar default (werkdagen / vaste lag).
+      if ('lagUnit' in patch) seq.lagUnit = patch.lagUnit;
+      if ('lagPercent' in patch) seq.lagPercent = patch.lagPercent;
+      s.isDirty = true;
+      applied = true;
+    });
+    return applied;
   },
 
   removeSequence: (id) =>

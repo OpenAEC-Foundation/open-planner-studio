@@ -1,0 +1,255 @@
+{
+  "comment": "Fase 2.1 — lag-eenheid (WORKTIME/ELAPSEDTIME) en procentuele lag. Anker 2026-06-01 = maandag; schone ma-vr-kalender. Verwachtingen met de hand afgeleid uit CPM-theorie: werkdag-lag stapt over werkdagen; kalenderdag-lag (ELAPSEDTIME) telt 24/7 en snapt daarna richtingbewust naar een werkdag (forward vooruit, backward achteruit); FS vanaf een echte taak telt de finishdag als bezet (+1), vanaf een mijlpaal niet; procent-lag = Math.round(voorgangerduur x pct/100) in de opgegeven eenheid, per run opnieuw geevalueerd.",
+  "cases": [
+    {
+      "id": "lagadv-fs-ed-weekend",
+      "title": "FS+2 werkdagen vs FS+2 kalenderdagen over een weekend: elapsed lag wordt door het weekend geabsorbeerd",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 2 }, { "name": "C", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 2 },
+        { "pred": "A", "succ": "C", "type": "FINISH_START", "lag": 2, "lagUnit": "ELAPSEDTIME" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "lf": "2026-06-05", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-06-10", "ef": "2026-06-11", "tf": 0, "crit": true },
+          "C": { "es": "2026-06-08", "ef": "2026-06-09", "ls": "2026-06-10", "lf": "2026-06-11", "tf": 2, "ff": 2, "crit": false }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-06-11"
+      }
+    },
+    {
+      "id": "lagadv-fs-lead-ed-weekend",
+      "title": "FS-2 lead: werkdagen trekt over het weekend terug naar vrijdag, kalenderdagen komt op zondag uit en snapt naar maandag (lead deels geabsorbeerd; voorganger krijgt echte float)",
+      "tasks": [{ "name": "A", "dur": 6 }, { "name": "B", "dur": 3 }, { "name": "C", "dur": 3 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START", "lag": -2 },
+        { "pred": "A", "succ": "C", "type": "FINISH_START", "lag": -2, "lagUnit": "ELAPSEDTIME" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-08", "ls": "2026-06-02", "lf": "2026-06-09", "tf": 1, "crit": false },
+          "B": { "es": "2026-06-05", "ef": "2026-06-09", "tf": 1, "crit": false },
+          "C": { "es": "2026-06-08", "ef": "2026-06-10", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["C"],
+        "projectEnd": "2026-06-10"
+      }
+    },
+    {
+      "id": "lagadv-ss-ed-weekend",
+      "title": "SS+6: werkdagen geeft di 09-06, kalenderdagen landt op zo 07-06 en snapt naar ma 08-06",
+      "tasks": [{ "name": "A", "dur": 10 }, { "name": "B", "dur": 2 }, { "name": "C", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "START_START", "lag": 6 },
+        { "pred": "A", "succ": "C", "type": "START_START", "lag": 6, "lagUnit": "ELAPSEDTIME" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-12", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 2 },
+          "C": { "es": "2026-06-08", "ef": "2026-06-09", "tf": 3 }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-06-12"
+      }
+    },
+    {
+      "id": "lagadv-ff-ed-weekend",
+      "title": "FF+3 vanaf vrijdag-finish: kalenderdagen eindigt ma 08-06 (weekend telt mee), werkdagen eindigt wo 10-06",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 2 }, { "name": "C", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 3, "lagUnit": "ELAPSEDTIME" },
+        { "pred": "A", "succ": "C", "type": "FINISH_FINISH", "lag": 3 }
+      ],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-05", "ef": "2026-06-08" },
+          "C": { "es": "2026-06-09", "ef": "2026-06-10" }
+        },
+        "projectEnd": "2026-06-10"
+      }
+    },
+    {
+      "id": "lagadv-ff-lead-ed",
+      "title": "FF-2 lead vanaf maandag-finish: kalenderdagen komt op za uit en snapt vooruit naar ma (ondergrens), werkdagen trekt naar do 04-06",
+      "tasks": [{ "name": "A", "dur": 6 }, { "name": "B", "dur": 4 }, { "name": "C", "dur": 4 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": -2, "lagUnit": "ELAPSEDTIME" },
+        { "pred": "A", "succ": "C", "type": "FINISH_FINISH", "lag": -2 }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-08" },
+          "B": { "es": "2026-06-03", "ef": "2026-06-08" },
+          "C": { "es": "2026-06-01", "ef": "2026-06-04" }
+        }
+      }
+    },
+    {
+      "id": "lagadv-sf-ed",
+      "title": "SF+6 vanaf start ma 01-06: kalenderdagen landt op zo en snapt naar ma 08-06, werkdagen eist finish di 09-06",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "B", "dur": 2 }, { "name": "C", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "START_FINISH", "lag": 6, "lagUnit": "ELAPSEDTIME" },
+        { "pred": "A", "succ": "C", "type": "START_FINISH", "lag": 6 }
+      ],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-05", "ef": "2026-06-08" },
+          "C": { "es": "2026-06-08", "ef": "2026-06-09" }
+        }
+      }
+    },
+    {
+      "id": "lagadv-fs-ed-midweek-equal",
+      "title": "DIFFERENTIEEL-NUL: FS+1 midweek zonder weekendkruising — werkdagen en kalenderdagen geven dezelfde uitkomst",
+      "tasks": [{ "name": "A", "dur": 2 }, { "name": "B", "dur": 1 }, { "name": "C", "dur": 1 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 1 },
+        { "pred": "A", "succ": "C", "type": "FINISH_START", "lag": 1, "lagUnit": "ELAPSEDTIME" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "ef": "2026-06-02" },
+          "B": { "es": "2026-06-04" },
+          "C": { "es": "2026-06-04" }
+        }
+      }
+    },
+    {
+      "id": "lagadv-fs-ed-milestone",
+      "title": "FS+2 vanaf een mijlpaal op vrijdag: mijlpaal bezet geen dag; kalenderdagen landt op zo en snapt naar ma 08-06, werkdagen geeft di 09-06",
+      "tasks": [
+        { "name": "M", "milestone": true, "start": "2026-06-05" },
+        { "name": "B", "dur": 2 },
+        { "name": "D", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "M", "succ": "B", "type": "FINISH_START", "lag": 2, "lagUnit": "ELAPSEDTIME" },
+        { "pred": "M", "succ": "D", "type": "FINISH_START", "lag": 2 }
+      ],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-05", "ef": "2026-06-05" },
+          "B": { "es": "2026-06-08", "ef": "2026-06-09" },
+          "D": { "es": "2026-06-09", "ef": "2026-06-10" }
+        }
+      }
+    },
+    {
+      "id": "lagadv-ss-lead-ed-clamp",
+      "title": "SS-5 kalenderdagen: lead valt voor het projectbegin en wordt op het anker geklemd (bestaande ondergrens-semantiek geldt ook voor elapsed)",
+      "tasks": [{ "name": "A", "dur": 2 }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": -5, "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-01", "ef": "2026-06-02" } }
+      }
+    },
+    {
+      "id": "lagadv-pct-fs50-even",
+      "title": "FS+50% van duur 6 = 3 werkdagen lag, dynamisch uit de voorgangerduur",
+      "tasks": [{ "name": "A", "dur": 6 }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 50 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-08", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-12", "ef": "2026-06-15", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-06-15"
+      }
+    },
+    {
+      "id": "lagadv-pct-fs50-odd-roundup",
+      "title": "FS+50% van duur 5 = 2,5 dag, afgerond naar 3 (Math.round, halven omhoog)",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 1 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 50 }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-11", "ef": "2026-06-11" } }
+      }
+    },
+    {
+      "id": "lagadv-pct-ss50",
+      "title": "SS+50% (het letterlijke TODO-voorbeeld): 50% van duur 8 = 4 werkdagen na de start van de voorganger",
+      "tasks": [{ "name": "A", "dur": 8 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lagPercent": 50 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-10" },
+          "B": { "es": "2026-06-05", "ef": "2026-06-09" }
+        }
+      }
+    },
+    {
+      "id": "lagadv-pct-fs-lead",
+      "title": "FS-50% van duur 4 = lead van 2 werkdagen (procent-lead)",
+      "tasks": [{ "name": "A", "dur": 4 }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": -50 }],
+      "expect": {
+        "tasks": {
+          "A": { "ef": "2026-06-04" },
+          "B": { "es": "2026-06-03", "ef": "2026-06-04" }
+        }
+      }
+    },
+    {
+      "id": "lagadv-pct-lead-halftie",
+      "title": "KANDIDAAT afrondingsconventie: FS-50% van duur 5 = -2,5 -> Math.round rondt halven naar +oneindig, dus lead 2 (niet 3)",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 1 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": -50 }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-04" } }
+      }
+    },
+    {
+      "id": "lagadv-pct-zero-and-full",
+      "title": "FS+0% gedraagt zich als kale FS; FS+100% = volledige voorgangerduur als lag",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "B", "dur": 1 }, { "name": "C", "dur": 1 }],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 0 },
+        { "pred": "A", "succ": "C", "type": "FINISH_START", "lagPercent": 100 }
+      ],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-04" },
+          "C": { "es": "2026-06-09" }
+        }
+      }
+    },
+    {
+      "id": "lagadv-pct-ed",
+      "title": "FS+50% in kalenderdagen (elapsed-percent, MSP 'e%'): 50% van duur 6 = 3 kalenderdagen vanaf de finish-grens",
+      "tasks": [{ "name": "A", "dur": 6 }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 50, "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "A": { "ef": "2026-06-08" },
+          "B": { "es": "2026-06-12", "ef": "2026-06-15" }
+        }
+      }
+    },
+    {
+      "id": "lagadv-pct-overrides-lagdays",
+      "title": "lagPercent overstemt lagDays: lag 10 + 25% van duur 4 -> effectieve lag 1",
+      "tasks": [{ "name": "A", "dur": 4 }, { "name": "B", "dur": 1 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 10, "lagPercent": 25 }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-08" } }
+      }
+    },
+    {
+      "id": "lagadv-pct-milestone-pred",
+      "title": "Procent-lag vanaf een mijlpaal (duur 0) = lag 0: opvolger start op de mijlpaaldag",
+      "tasks": [{ "name": "M", "milestone": true }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START", "lagPercent": 50 }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-01" },
+          "B": { "es": "2026-06-01", "ef": "2026-06-02" }
+        }
+      }
+    }
+  ]
+}

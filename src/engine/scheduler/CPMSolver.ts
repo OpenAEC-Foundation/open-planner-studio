@@ -1,7 +1,7 @@
 import { Task } from '@/types/task';
-import { Sequence } from '@/types/sequence';
+import { Sequence, LagUnit } from '@/types/sequence';
 import { CalendarEngine } from './CalendarEngine';
-import { parseDate, formatDate } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 
 export interface CPMResult {
   tasks: Map<string, CPMTaskResult>;
@@ -29,6 +29,11 @@ export class CPMSolver {
   // Adjacency lists
   private successors: Map<string, Sequence[]>; // taskId -> outgoing sequences
   private predecessors: Map<string, Sequence[]>; // taskId -> incoming sequences
+
+  // Per relatie de in de forward-pass gegenereerde (ruwe) vroegst-toegestane start van de
+  // opvolger, vóór de projectstart-vloer en de werkdag-snap. Eén bron van waarheid voor
+  // vrije speling én (later) driving-markering, ongeacht lag-eenheid.
+  private seqConstraint: Map<string, Date> = new Map();
 
   constructor(tasks: Task[], sequences: Sequence[], calendar: CalendarEngine) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
@@ -215,6 +220,7 @@ export class CPMSolver {
           const predTask = this.tasks.get(seq.predecessorId);
           if (!predResult || !predTask) continue;
           const constraintDate = this.getForwardConstraint(predResult, predTask, seq, task);
+          this.seqConstraint.set(seq.id, constraintDate);
           if (constraintDate > earlyStart) {
             earlyStart = constraintDate;
           }
@@ -231,18 +237,36 @@ export class CPMSolver {
     return results;
   }
 
+  /**
+   * Effectieve lag van een relatie: dagen + eenheid. Procent-lag (MSP-semantiek) wordt hier
+   * per run uit de ACTUELE voorgangerduur berekend — wijzigt de duur, dan schuift de lag mee.
+   * Afronding op hele dagen via Math.round (de engine is dag-granulair; halven naar +∞).
+   */
+  private resolveLag(seq: Sequence, predTask: Task): { days: number; unit: LagUnit } {
+    const unit: LagUnit = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
+    if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+      const predDur = predTask.isMilestone ? 0 : predTask.time.scheduleDuration;
+      return { days: Math.round((predDur * seq.lagPercent) / 100), unit };
+    }
+    return { days: Number.isFinite(seq.lagDays) ? seq.lagDays : 0, unit };
+  }
+
   private getForwardConstraint(
     predResult: { es: Date; ef: Date },
     predTask: Task,
     seq: Sequence,
     successor: Task,
   ): Date {
-    // Lag in werkdagen; positief = uitloop, negatief = lead (overlap), 0 = direct aansluitend.
+    // Lag in dagen; positief = uitloop, negatief = lead (overlap), 0 = direct aansluitend.
+    // Werkdag-lag (WORKTIME, default) stapt over werkdagen; kalenderdag-lag (ELAPSEDTIME)
+    // telt 24/7 en snapt daarna vooruit naar een werkdag (het is een ondergrens: "niet
+    // eerder dan…", dus de eerstvolgende werkdag op of na de ruwe datum voldoet als eerste).
     // Elke tak geeft de door de relatie geëiste vroegste start van de opvolger terug; de
     // projectstart-ondergrens en de max-over-voorgangers worden in forwardPass toegepast
     // (relaties zijn ondergrenzen, geen gelijkheden — een niet-bindende FF/SF zakt zo terug
     // naar de anker i.p.v. de opvolger vóór het projectbegin te trekken).
-    const lag = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+    const { days: lag, unit } = this.resolveLag(seq, predTask);
+    const elapsed = unit === 'ELAPSEDTIME';
     const cal = this.calendar;
     const predIsMilestone = predTask.isMilestone || predTask.time.scheduleDuration <= 0;
     const succDur = successor.isMilestone ? 0 : successor.time.scheduleDuration;
@@ -251,25 +275,38 @@ export class CPMSolver {
 
     switch (seq.type) {
       case 'START_START': {
-        // Opvolger start `lag` werkdagen na de start van de voorganger.
-        return cal.addWorkingDaysSigned(predResult.es, lag);
+        // Opvolger start `lag` dagen na de start van de voorganger. Een ruwe elapsed-datum op
+        // een weekend hoeft hier niet gesnapt: forwardPass eindigt met nextWorkDay op de max.
+        return elapsed
+          ? addCalendarDays(predResult.es, lag)
+          : cal.addWorkingDaysSigned(predResult.es, lag);
       }
       case 'FINISH_FINISH': {
-        // Opvolger EINDIGT `lag` werkdagen na de finish van de voorganger → leid de bijbehorende
-        // start af (finish − (duur−1)).
-        const reqFinish = cal.addWorkingDaysSigned(predResult.ef, lag);
+        // Opvolger EINDIGT `lag` dagen na de finish van de voorganger → leid de bijbehorende
+        // start af (finish − (duur−1)). De geëiste finish moet een werkdag zijn vóór de
+        // werkdag-aftrek, dus elapsed snapt hier wél (vooruit — ondergrens op de finish).
+        const reqFinish = elapsed
+          ? cal.nextWorkDay(addCalendarDays(predResult.ef, lag))
+          : cal.addWorkingDaysSigned(predResult.ef, lag);
         return cal.addWorkingDaysSigned(reqFinish, -succBack);
       }
       case 'START_FINISH': {
-        // Opvolger EINDIGT `lag` werkdagen na de START van de voorganger (zeldzaam).
-        const reqFinish = cal.addWorkingDaysSigned(predResult.es, lag);
+        // Opvolger EINDIGT `lag` dagen na de START van de voorganger (zeldzaam).
+        const reqFinish = elapsed
+          ? cal.nextWorkDay(addCalendarDays(predResult.es, lag))
+          : cal.addWorkingDaysSigned(predResult.es, lag);
         return cal.addWorkingDaysSigned(reqFinish, -succBack);
       }
       case 'FINISH_START':
       default: {
         // Eind-Start: opvolger start de werkdag ná de finish van de voorganger, plus `lag`.
-        // Een nul-duur-mijlpaal bezet geen dag, dus die "+1 werkdag"-overgang geldt dan niet
+        // Een nul-duur-mijlpaal bezet geen dag, dus die "+1"-overgang geldt dan niet
         // (anders schuift een tussengevoegde mijlpaal de hele keten een dag op).
+        // Elapsed telt vanaf de finish-grens: finishdag bezet ⇒ +1 kalenderdag, mijlpaal niet —
+        // zo valt FS+0 in beide eenheden samen (eerstvolgende werkdag na de finish).
+        if (elapsed) {
+          return addCalendarDays(predResult.ef, predIsMilestone ? lag : lag + 1);
+        }
         const base = predIsMilestone ? predResult.ef : cal.nextWorkDayAfter(predResult.ef);
         return cal.addWorkingDaysSigned(base, lag);
       }
@@ -324,7 +361,11 @@ export class CPMSolver {
     predTask: Task,
   ): Date {
     // Spiegel van getForwardConstraint: geef de laatst toegestane FINISH van de voorganger.
-    const lag = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+    // Kalenderdag-lag snapt hier áchteruit (het is een bovengrens: "niet later dan…", dus de
+    // laatste werkdag op of vóór de ruwe datum voldoet als laatste) — exact symmetrisch met
+    // de vooruit-snap in de forward-pass, zodat een lead geen fantoomfloat oplevert.
+    const { days: lag, unit } = this.resolveLag(seq, predTask);
+    const elapsed = unit === 'ELAPSEDTIME';
     const cal = this.calendar;
     const predIsMilestone = predTask.isMilestone || predTask.time.scheduleDuration <= 0;
     const predDur = predTask.isMilestone ? 0 : predTask.time.scheduleDuration;
@@ -333,22 +374,32 @@ export class CPMSolver {
     switch (seq.type) {
       case 'START_START': {
         // Forward: succ.start = pred.start + lag ⇒ pred.start ≤ succ.lateStart − lag.
-        const predLS = cal.addWorkingDaysSigned(succResult.ls, -lag);
+        const predLS = elapsed
+          ? cal.prevWorkDay(addCalendarDays(succResult.ls, -lag))
+          : cal.addWorkingDaysSigned(succResult.ls, -lag);
         return cal.addWorkingDaysSigned(predLS, predBack); // pred.lateFinish
       }
       case 'FINISH_FINISH': {
         // Forward: succ.finish = pred.finish + lag ⇒ pred.finish ≤ succ.lateFinish − lag.
-        return cal.addWorkingDaysSigned(succResult.lf, -lag);
+        return elapsed
+          ? cal.prevWorkDay(addCalendarDays(succResult.lf, -lag))
+          : cal.addWorkingDaysSigned(succResult.lf, -lag);
       }
       case 'START_FINISH': {
         // Forward: succ.finish = pred.start + lag ⇒ pred.start ≤ succ.lateFinish − lag.
-        const predLS = cal.addWorkingDaysSigned(succResult.lf, -lag);
+        const predLS = elapsed
+          ? cal.prevWorkDay(addCalendarDays(succResult.lf, -lag))
+          : cal.addWorkingDaysSigned(succResult.lf, -lag);
         return cal.addWorkingDaysSigned(predLS, predBack);
       }
       case 'FINISH_START':
       default: {
-        // Eind-Start: opvolger start `lag` werkdagen na de finish (de werkdag erná voor een
-        // echte taak; bij een mijlpaal-voorganger géén extra dag). Terug-inverteren.
+        // Eind-Start: opvolger start `lag` dagen na de finish (de werkdag erná voor een echte
+        // taak; bij een mijlpaal-voorganger géén extra dag). Terug-inverteren; elapsed spiegelt
+        // de +1-kalenderdag van de forward-pass.
+        if (elapsed) {
+          return cal.prevWorkDay(addCalendarDays(succResult.ls, -(predIsMilestone ? lag : lag + 1)));
+        }
         const target = cal.addWorkingDaysSigned(succResult.ls, -lag);
         return predIsMilestone ? target : cal.prevWorkDayBefore(target);
       }
@@ -371,9 +422,13 @@ export class CPMSolver {
 
 
       // Vrije speling: hoeveel werkdagen deze taak kan uitlopen zonder de vroegste datum van
-      // een opvolger te raken. `gap(a,b)` = aantal werkdag-stappen tussen twee werkdagen
-      // (workDaysBetween is inclusief, dus −1). Per relatietype wordt de juiste datum-koppeling
-      // gebruikt; bij FS bezet een echte taak z'n finishdag (vandaar de extra −1), een mijlpaal niet.
+      // een opvolger te raken. Gemeten via de in de forward-pass gecachte relatie-constraint:
+      // per uitgaande relatie is de speling het aantal werkdag-stappen tussen de (gesnapte)
+      // geëiste start en de werkelijke vroegste start van de opvolger. Voor werkdag-lag is dit
+      // exact gelijk aan de klassieke per-type formules (gap − lag, met de FS-finishdag-correctie);
+      // voor kalenderdag- en procent-lag volgt de juiste waarde automatisch uit dezelfde bron
+      // als de planningsberekening zelf. `gap(a,b)` = werkdag-stappen (workDaysBetween is
+      // inclusief, dus −1).
       const gap = (a: Date, b: Date) => this.calendar.workDaysBetween(a, b) - 1;
       let freeFloat = Infinity;
       const succs = this.successors.get(taskId) || [];
@@ -381,28 +436,12 @@ export class CPMSolver {
         // Eindtaak: vrije speling = totale-speling-equivalent (finish kan opschuiven tot lateFinish).
         freeFloat = gap(early.ef, late.lf);
       } else {
-        const thisTask = this.tasks.get(taskId);
-        const thisIsMilestone = !thisTask || thisTask.isMilestone || thisTask.time.scheduleDuration <= 0;
         for (const seq of succs) {
           const succEarly = earlyDates.get(seq.successorId);
-          if (!succEarly) continue;
-          const lag = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
-          let ff: number;
-          switch (seq.type) {
-            case 'START_START':
-              ff = gap(early.es, succEarly.es) - lag;
-              break;
-            case 'FINISH_FINISH':
-              ff = gap(early.ef, succEarly.ef) - lag;
-              break;
-            case 'START_FINISH':
-              ff = gap(early.es, succEarly.ef) - lag;
-              break;
-            case 'FINISH_START':
-            default:
-              ff = gap(early.ef, succEarly.es) - lag - (thisIsMilestone ? 0 : 1);
-              break;
-          }
+          const cRaw = this.seqConstraint.get(seq.id);
+          if (!succEarly || !cRaw) continue;
+          const reqStart = this.calendar.nextWorkDay(cRaw);
+          const ff = gap(reqStart, succEarly.es);
           if (ff < freeFloat) freeFloat = ff;
         }
       }
