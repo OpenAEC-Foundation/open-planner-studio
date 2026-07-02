@@ -130,5 +130,9 @@
     "copyCommand": "نسخ الأمر",
     "copied": "تم النسخ",
     "openDownloads": "فتح صفحة التنزيلات"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "المواعيد النهائية المتجاوزة: {{count}}",
+    "violatedConstraints": "القيود المخالفة: {{count}}"
   }
 }

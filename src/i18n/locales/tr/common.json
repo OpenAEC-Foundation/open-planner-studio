@@ -130,5 +130,9 @@
     "copyCommand": "Komutu kopyala",
     "copied": "Kopyalandı",
     "openDownloads": "İndirme sayfasını aç"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "{{count}} son tarih aşıldı",
+    "violatedConstraints": "{{count}} kısıtlama ihlal edildi"
   }
 }

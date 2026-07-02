@@ -51,6 +51,11 @@
     "time": "Tiempo",
     "start": "Inicio",
     "duration": "Duración (días)",
+    "constraint": "Restricción",
+    "constraintDate": "Fecha de restricción",
+    "deadline": "Fecha límite",
+    "hasConstraint": "Tiene una restricción de fecha",
+    "deadlineMissed": "Fecha límite superada",
     "completion": "Progreso (%)",
     "cpmResult": "Resultado CPM",
     "earlyStart": "Inicio temprano:",
@@ -107,6 +112,16 @@
     },
     "none": "(ninguno)",
     "templateSaved": "Rama guardada como plantilla '{{name}}'"
+  },
+  "constraintType": {
+    "ASAP": "Lo antes posible (ASAP)",
+    "ALAP": "Lo más tarde posible (ALAP)",
+    "SNET": "No comenzar antes del (SNET)",
+    "SNLT": "No comenzar después del (SNLT)",
+    "FNET": "No finalizar antes del (FNET)",
+    "FNLT": "No finalizar después del (FNLT)",
+    "MSO": "Debe comenzar el (MSO)",
+    "MFO": "Debe finalizar el (MFO)"
   },
   "defaultTask": "Nueva tarea",
   "defaultMilestone": "Nuevo hito"

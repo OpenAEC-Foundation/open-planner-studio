@@ -130,5 +130,9 @@
     "copyCommand": "复制命令",
     "copied": "已复制",
     "openDownloads": "打开下载页面"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "已超过 {{count}} 个期限",
+    "violatedConstraints": "{{count}} 个限制被违反"
   }
 }

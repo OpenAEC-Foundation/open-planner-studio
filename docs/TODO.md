@@ -21,6 +21,34 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       overige dialogen) — consistente look-and-feel en ruimte om meer context te
       tonen (welk(e) document(en), bestandspad, tijdstip van de snapshot).
 
+- [ ] **Indent/outdent van taken (subtaken onder hoofdtaken).** Er is geen
+      snelle manier om een taak een niveau dieper/ondieper te hangen: alleen de
+      programmatische `moveTask(id, newParentId)` bestaat (geen UI, geen
+      sneltoets). *Aanpak:* `indentTask`/`outdentTask`-acties (indent = kind
+      worden van de dichtstbijzijnde zichtbare sibling erboven; outdent =
+      sibling worden van de huidige ouder), Tab/Shift+Tab in de tabel en
+      knoppen in het lint, met WBS-hernummering (bestaat al) en undo.
+
+- [ ] **Takentabel in de Gantt resizen.** De linkerkolom met taken op het
+      Gantt-canvas heeft een vaste breedte (`TASK_TABLE_WIDTH = 350` in
+      `GanttCanvas.tsx`, ook in de renderer-opties). Maak hem versleepbaar
+      (drag-handle op de scheidingslijn, persistent bewaren zoals
+      `ui.rightPanelWidth`), zodat lange taaknamen én kleine schermen allebei
+      werken.
+
+- [ ] **Compacte modus voor het lint (ribbon).** Op kleine schermen neemt het
+      lint te veel verticale ruimte in. *Aanpak:* een compacte stand (alleen
+      kleine knoppen/iconen, lagere groepen) plus eventueel auto-inklappen zoals
+      Office (dubbelklik op de tab / pijltje rechtsonder); als instelling
+      beschikbaar in alle drie de settings-oppervlakken.
+
+- [ ] **App-icoon op Linux in hogere resolutie.** Het programmicoontje oogt
+      onscherp op Linux (taakbalk/dock/app-grid). Controleer welke maten
+      `src-tauri/icons/` en de `.deb`/snap-verpakking meeleveren (hicolor-theme
+      verwacht o.a. 128×128, 256×256, 512×512 PNG's) en genereer scherpe
+      varianten uit de bron (zie `scripts/generate-icon.mjs`); ook de
+      `.desktop`-entry/snapcraft-icon meenemen.
+
 - [ ] **Relatietype kiezen bij het slepen van een afhankelijkheid.** Nu maakt de
       sleep-actie op het Gantt-canvas altijd een `FINISH_START`-relatie aan
       (hardcoded in `GanttCanvas.tsx`, bij het loslaten van de dependency-drag).

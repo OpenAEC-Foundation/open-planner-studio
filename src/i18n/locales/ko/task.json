@@ -51,6 +51,11 @@
     "time": "시간",
     "start": "시작",
     "duration": "기간 (일)",
+    "constraint": "제약 조건",
+    "constraintDate": "제약 날짜",
+    "deadline": "기한",
+    "hasConstraint": "날짜 제약 조건이 있음",
+    "deadlineMissed": "기한 초과",
     "completion": "진행률 (%)",
     "cpmResult": "CPM 결과",
     "earlyStart": "빠른 시작:",
@@ -107,6 +112,16 @@
     },
     "none": "(없음)",
     "templateSaved": "분기가 '{{name}}' 템플릿으로 저장되었습니다"
+  },
+  "constraintType": {
+    "ASAP": "가능한 한 빨리 (ASAP)",
+    "ALAP": "가능한 한 늦게 (ALAP)",
+    "SNET": "지정일 이후 시작 (SNET)",
+    "SNLT": "지정일 이전 시작 (SNLT)",
+    "FNET": "지정일 이후 완료 (FNET)",
+    "FNLT": "지정일 이전 완료 (FNLT)",
+    "MSO": "지정일에 시작 (MSO)",
+    "MFO": "지정일에 완료 (MFO)"
   },
   "defaultTask": "새 작업",
   "defaultMilestone": "새 마일스톤"

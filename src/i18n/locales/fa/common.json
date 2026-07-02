@@ -130,5 +130,9 @@
     "copyCommand": "کپی دستور",
     "copied": "کپی شد",
     "openDownloads": "باز کردن صفحه دانلود"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "مهلت‌های گذشته: {{count}}",
+    "violatedConstraints": "محدودیت‌های نقض‌شده: {{count}}"
   }
 }

@@ -51,6 +51,11 @@
     "time": "时间",
     "start": "开始",
     "duration": "工期（天）",
+    "constraint": "限制",
+    "constraintDate": "限制日期",
+    "deadline": "期限",
+    "hasConstraint": "有日期限制",
+    "deadlineMissed": "已超过期限",
     "completion": "进度（%）",
     "cpmResult": "CPM 结果",
     "earlyStart": "最早开始：",
@@ -107,6 +112,16 @@
     },
     "none": "（无）",
     "templateSaved": "分支已保存为模板“{{name}}”"
+  },
+  "constraintType": {
+    "ASAP": "越早越好 (ASAP)",
+    "ALAP": "越晚越好 (ALAP)",
+    "SNET": "不得早于…开始 (SNET)",
+    "SNLT": "不得晚于…开始 (SNLT)",
+    "FNET": "不得早于…完成 (FNET)",
+    "FNLT": "不得晚于…完成 (FNLT)",
+    "MSO": "必须开始于 (MSO)",
+    "MFO": "必须完成于 (MFO)"
   },
   "defaultTask": "新建任务",
   "defaultMilestone": "新建里程碑"

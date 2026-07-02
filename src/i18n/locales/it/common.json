@@ -130,5 +130,9 @@
     "copyCommand": "Copia comando",
     "copied": "Copiato",
     "openDownloads": "Apri pagina di download"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "Scadenze superate: {{count}}",
+    "violatedConstraints": "Vincoli violati: {{count}}"
   }
 }

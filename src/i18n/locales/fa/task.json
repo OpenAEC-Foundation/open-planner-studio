@@ -51,6 +51,11 @@
     "time": "زمان",
     "start": "شروع",
     "duration": "مدت (روز)",
+    "constraint": "محدودیت",
+    "constraintDate": "تاریخ محدودیت",
+    "deadline": "مهلت",
+    "hasConstraint": "دارای محدودیت تاریخ",
+    "deadlineMissed": "مهلت گذشته است",
     "completion": "پیشرفت (%)",
     "cpmResult": "نتیجه CPM",
     "earlyStart": "شروع زودهنگام:",
@@ -107,6 +112,16 @@
     },
     "none": "(هیچ)",
     "templateSaved": "شاخه به عنوان الگوی «{{name}}» ذخیره شد"
+  },
+  "constraintType": {
+    "ASAP": "در اسرع وقت (ASAP)",
+    "ALAP": "تا حد ممکن دیر (ALAP)",
+    "SNET": "شروع نه زودتر از (SNET)",
+    "SNLT": "شروع نه دیرتر از (SNLT)",
+    "FNET": "پایان نه زودتر از (FNET)",
+    "FNLT": "پایان نه دیرتر از (FNLT)",
+    "MSO": "باید شروع شود در (MSO)",
+    "MFO": "باید پایان یابد در (MFO)"
   },
   "defaultTask": "وظیفه جدید",
   "defaultMilestone": "نقطه عطف جدید"

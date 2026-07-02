@@ -51,6 +51,11 @@
     "time": "Tempo",
     "start": "Inizio",
     "duration": "Durata (giorni)",
+    "constraint": "Vincolo",
+    "constraintDate": "Data del vincolo",
+    "deadline": "Scadenza",
+    "hasConstraint": "Ha un vincolo di data",
+    "deadlineMissed": "Scadenza superata",
     "completion": "Progresso (%)",
     "cpmResult": "Risultato CPM",
     "earlyStart": "Inizio anticipato:",
@@ -107,6 +112,16 @@
     },
     "none": "(nessuno)",
     "templateSaved": "Ramo salvato come modello '{{name}}'"
+  },
+  "constraintType": {
+    "ASAP": "Il più presto possibile (ASAP)",
+    "ALAP": "Il più tardi possibile (ALAP)",
+    "SNET": "Iniziare non prima del (SNET)",
+    "SNLT": "Iniziare non oltre il (SNLT)",
+    "FNET": "Finire non prima del (FNET)",
+    "FNLT": "Finire non oltre il (FNLT)",
+    "MSO": "Deve iniziare il (MSO)",
+    "MFO": "Deve finire il (MFO)"
   },
   "defaultTask": "Nuova attività",
   "defaultMilestone": "Nuovo traguardo"

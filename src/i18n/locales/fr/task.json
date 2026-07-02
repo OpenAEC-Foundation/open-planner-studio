@@ -51,6 +51,11 @@
     "time": "Temps",
     "start": "Début",
     "duration": "Durée (jours)",
+    "constraint": "Contrainte",
+    "constraintDate": "Date de contrainte",
+    "deadline": "Échéance",
+    "hasConstraint": "A une contrainte de date",
+    "deadlineMissed": "Échéance dépassée",
     "completion": "Avancement (%)",
     "cpmResult": "Résultat CPM",
     "earlyStart": "Début au plus tôt :",
@@ -107,6 +112,16 @@
     },
     "none": "(aucun)",
     "templateSaved": "Branche enregistrée comme modèle '{{name}}'"
+  },
+  "constraintType": {
+    "ASAP": "Dès que possible (ASAP)",
+    "ALAP": "Le plus tard possible (ALAP)",
+    "SNET": "Début au plus tôt le (SNET)",
+    "SNLT": "Début au plus tard le (SNLT)",
+    "FNET": "Fin au plus tôt le (FNET)",
+    "FNLT": "Fin au plus tard le (FNLT)",
+    "MSO": "Doit commencer le (MSO)",
+    "MFO": "Doit finir le (MFO)"
   },
   "defaultTask": "Nouvelle tâche",
   "defaultMilestone": "Nouveau jalon"

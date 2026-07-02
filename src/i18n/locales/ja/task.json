@@ -51,6 +51,11 @@
     "time": "時間",
     "start": "開始",
     "duration": "期間（日）",
+    "constraint": "制約",
+    "constraintDate": "制約日",
+    "deadline": "期限",
+    "hasConstraint": "日付制約があります",
+    "deadlineMissed": "期限超過",
     "completion": "進捗（%）",
     "cpmResult": "CPM 結果",
     "earlyStart": "最早開始：",
@@ -107,6 +112,16 @@
     },
     "none": "（なし）",
     "templateSaved": "ブランチをテンプレート「{{name}}」として保存しました"
+  },
+  "constraintType": {
+    "ASAP": "できるだけ早く (ASAP)",
+    "ALAP": "できるだけ遅く (ALAP)",
+    "SNET": "指定日以降に開始 (SNET)",
+    "SNLT": "指定日以前に開始 (SNLT)",
+    "FNET": "指定日以降に終了 (FNET)",
+    "FNLT": "指定日以前に終了 (FNLT)",
+    "MSO": "指定日に開始 (MSO)",
+    "MFO": "指定日に終了 (MFO)"
   },
   "defaultTask": "新しいタスク",
   "defaultMilestone": "新しいマイルストーン"

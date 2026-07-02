@@ -130,5 +130,9 @@
     "copyCommand": "명령 복사",
     "copied": "복사됨",
     "openDownloads": "다운로드 페이지 열기"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "기한 초과: {{count}}건",
+    "violatedConstraints": "제약 조건 위반: {{count}}건"
   }
 }

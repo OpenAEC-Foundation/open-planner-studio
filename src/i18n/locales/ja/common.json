@@ -130,5 +130,9 @@
     "copyCommand": "コマンドをコピー",
     "copied": "コピーしました",
     "openDownloads": "ダウンロードページを開く"
+  },
+  "statusWarnings": {
+    "missedDeadlines": "期限超過: {{count}} 件",
+    "violatedConstraints": "制約違反: {{count}} 件"
   }
 }

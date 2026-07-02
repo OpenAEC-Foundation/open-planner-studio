@@ -51,6 +51,11 @@
     "time": "Zeit",
     "start": "Anfang",
     "duration": "Dauer (Tage)",
+    "constraint": "Einschränkung",
+    "constraintDate": "Einschränkungstermin",
+    "deadline": "Stichtag",
+    "hasConstraint": "Hat eine Termineinschränkung",
+    "deadlineMissed": "Stichtag überschritten",
     "completion": "Fortschritt (%)",
     "cpmResult": "CPM-Ergebnis",
     "earlyStart": "Frühester Anfang:",
@@ -107,6 +112,16 @@
     },
     "none": "(keine)",
     "templateSaved": "Zweig als Vorlage '{{name}}' gespeichert"
+  },
+  "constraintType": {
+    "ASAP": "So früh wie möglich (ASAP)",
+    "ALAP": "So spät wie möglich (ALAP)",
+    "SNET": "Anfang nicht früher als (SNET)",
+    "SNLT": "Anfang nicht später als (SNLT)",
+    "FNET": "Ende nicht früher als (FNET)",
+    "FNLT": "Ende nicht später als (FNLT)",
+    "MSO": "Muss anfangen am (MSO)",
+    "MFO": "Muss enden am (MFO)"
   },
   "defaultTask": "Neue Aufgabe",
   "defaultMilestone": "Neuer Meilenstein"

@@ -51,6 +51,11 @@
     "time": "Zaman",
     "start": "Başlangıç",
     "duration": "Süre (gün)",
+    "constraint": "Kısıtlama",
+    "constraintDate": "Kısıtlama tarihi",
+    "deadline": "Son tarih",
+    "hasConstraint": "Tarih kısıtlaması var",
+    "deadlineMissed": "Son tarih aşıldı",
     "completion": "İlerleme (%)",
     "cpmResult": "CPM Sonucu",
     "earlyStart": "Erken başlangıç:",
@@ -107,6 +112,16 @@
     },
     "none": "(yok)",
     "templateSaved": "Dal, '{{name}}' şablonu olarak kaydedildi"
+  },
+  "constraintType": {
+    "ASAP": "Mümkün olduğunca erken (ASAP)",
+    "ALAP": "Mümkün olduğunca geç (ALAP)",
+    "SNET": "Şu tarihten önce başlamaz (SNET)",
+    "SNLT": "Şu tarihten sonra başlamaz (SNLT)",
+    "FNET": "Şu tarihten önce bitmez (FNET)",
+    "FNLT": "Şu tarihten sonra bitmez (FNLT)",
+    "MSO": "Şu tarihte başlamalı (MSO)",
+    "MFO": "Şu tarihte bitmeli (MFO)"
   },
   "defaultTask": "Yeni görev",
   "defaultMilestone": "Yeni kilometre taşı"
