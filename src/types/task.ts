@@ -33,6 +33,14 @@ export interface TaskConstraint {
 
 export type DurationType = 'WORKTIME' | 'ELAPSEDTIME';
 
+/**
+ * Soort mijlpaal (fase 2.4, P6 Start/Finish Milestone). Dag-granulair grens-model:
+ * START ankert op een dagbegin, FINISH op een dageinde (einde werkdag F = begin
+ * eerstvolgende werkdag). undefined = automatisch: het anker volgt de bindende
+ * relatiezijde (FS/SS → start, FF/SF → finish) — het gedrag van vóór fase 2.4.
+ */
+export type MilestoneKind = 'START' | 'FINISH';
+
 export interface TaskTime {
   durationType: DurationType;
   scheduleDuration: number; // in work days
@@ -64,6 +72,11 @@ export interface Task {
   taskType: TaskType;
   status: TaskStatus;
   isMilestone: boolean;
+  /** Alleen relevant bij isMilestone; undefined = automatisch (zie MilestoneKind). */
+  milestoneKind?: MilestoneKind;
+  /** Verplichte (contractuele) mijlpaal — inspectie-/keurings-/opleverpunt. Markering
+   *  voor rapportage & Gantt; datumbewaking loopt via constraint/deadline (fase 2.3). */
+  mandatory?: boolean;
   priority: number;
   parentId: string | null; // WBS parent
   childIds: string[];      // WBS children

@@ -439,14 +439,27 @@ export class CPMSolver {
     const succDur = successor.isMilestone ? 0 : successor.time.scheduleDuration;
     // Aantal werkdagen tussen start en finish van de opvolger (duur 0/1 => 0).
     const succBack = succDur > 0 ? succDur - 1 : 0;
+    // Grens-model mijlpaalsoorten (fase 2.4): een startmijlpaal (en het automatische
+    // legacy-anker) ligt op een dagBEGIN — zijn "finish" bezet geen dag, dus opvolgers
+    // op de startzijde beginnen dezelfde dag. Een eindmijlpaal ligt op een dagEINDE:
+    // zijn finish-grens valt samen met die van een echte taak (opvolger start de werkdag
+    // erna) en zijn "start"-moment is diezelfde dag-eindgrens.
+    const predKind = predTask.isMilestone ? predTask.milestoneKind : undefined;
+    const predEndsBeginOfDay = predIsMilestone && predKind !== 'FINISH';
+    const predStartsNextDay = predIsMilestone && predKind === 'FINISH';
+    const succIsFinishMs = successor.isMilestone && successor.milestoneKind === 'FINISH';
+    const succIsStartMs = successor.isMilestone && successor.milestoneKind === 'START';
 
     switch (seq.type) {
       case 'START_START': {
         // Opvolger start `lag` dagen na de start van de voorganger. Een ruwe elapsed-datum op
         // een weekend hoeft hier niet gesnapt: forwardPass eindigt met nextWorkDay op de max.
-        return elapsed
-          ? addCalendarDays(predResult.es, lag)
-          : cal.addWorkingDaysSigned(predResult.es, lag);
+        // Het "start"-moment van een eindmijlpaal is zijn dag-eindgrens ⇒ werkdag erna.
+        if (elapsed) {
+          return addCalendarDays(predResult.es, predStartsNextDay ? lag + 1 : lag);
+        }
+        const base = predStartsNextDay ? cal.nextWorkDayAfter(predResult.es) : predResult.es;
+        return cal.addWorkingDaysSigned(base, lag);
       }
       case 'FINISH_FINISH': {
         // Opvolger EINDIGT `lag` dagen na de finish van de voorganger → leid de bijbehorende
@@ -455,26 +468,36 @@ export class CPMSolver {
         const reqFinish = elapsed
           ? cal.nextWorkDay(addCalendarDays(predResult.ef, lag))
           : cal.addWorkingDaysSigned(predResult.ef, lag);
+        // Een startmijlpaal-opvolger (dagbegin-anker) kan pas op de werkdag ná een
+        // dag-eindgrens liggen; na een dagbegin-voorganger (start-/auto-mijlpaal) niet.
+        if (succIsStartMs && !predEndsBeginOfDay) return cal.nextWorkDayAfter(reqFinish);
         return cal.addWorkingDaysSigned(reqFinish, -succBack);
       }
       case 'START_FINISH': {
         // Opvolger EINDIGT `lag` dagen na de START van de voorganger (zeldzaam).
         const reqFinish = elapsed
-          ? cal.nextWorkDay(addCalendarDays(predResult.es, lag))
-          : cal.addWorkingDaysSigned(predResult.es, lag);
+          ? cal.nextWorkDay(addCalendarDays(predResult.es, predStartsNextDay ? lag + 1 : lag))
+          : cal.addWorkingDaysSigned(
+              predStartsNextDay ? cal.nextWorkDayAfter(predResult.es) : predResult.es,
+              lag,
+            );
         return cal.addWorkingDaysSigned(reqFinish, -succBack);
       }
       case 'FINISH_START':
       default: {
         // Eind-Start: opvolger start de werkdag ná de finish van de voorganger, plus `lag`.
-        // Een nul-duur-mijlpaal bezet geen dag, dus die "+1"-overgang geldt dan niet
-        // (anders schuift een tussengevoegde mijlpaal de hele keten een dag op).
-        // Elapsed telt vanaf de finish-grens: finishdag bezet ⇒ +1 kalenderdag, mijlpaal niet —
+        // Een dagbegin-mijlpaal bezet geen dag, dus die "+1"-overgang geldt dan niet
+        // (anders schuift een tussengevoegde mijlpaal de hele keten een dag op). Een
+        // eindmijlpaal-opvolger ankert juist op de finish-grens zelf (zelfde daglabel).
+        // Elapsed telt vanaf de finish-grens: finishdag bezet ⇒ +1 kalenderdag —
         // zo valt FS+0 in beide eenheden samen (eerstvolgende werkdag na de finish).
         if (elapsed) {
-          return addCalendarDays(predResult.ef, predIsMilestone ? lag : lag + 1);
+          const plus = succIsFinishMs || predEndsBeginOfDay ? lag : lag + 1;
+          return addCalendarDays(predResult.ef, plus);
         }
-        const base = predIsMilestone ? predResult.ef : cal.nextWorkDayAfter(predResult.ef);
+        const base = succIsFinishMs || predEndsBeginOfDay
+          ? predResult.ef
+          : cal.nextWorkDayAfter(predResult.ef);
         return cal.addWorkingDaysSigned(base, lag);
       }
     }
@@ -506,8 +529,9 @@ export class CPMSolver {
       let lateFinish = projectEnd;
       for (const seq of succs) {
         const succResult = results.get(seq.successorId);
-        if (!succResult) continue;
-        const constraintDate = this.getBackwardConstraint(succResult, seq, task);
+        const succTask = this.tasks.get(seq.successorId);
+        if (!succResult || !succTask) continue;
+        const constraintDate = this.getBackwardConstraint(succResult, seq, task, succTask);
         if (constraintDate < lateFinish) {
           lateFinish = constraintDate;
         }
@@ -529,6 +553,7 @@ export class CPMSolver {
     succResult: { ls: Date; lf: Date },
     seq: Sequence,
     predTask: Task,
+    succTask: Task,
   ): Date {
     // Spiegel van getForwardConstraint: geef de laatst toegestane FINISH van de voorganger.
     // Kalenderdag-lag snapt hier áchteruit (het is een bovengrens: "niet later dan…", dus de
@@ -540,38 +565,54 @@ export class CPMSolver {
     const predIsMilestone = predTask.isMilestone || predTask.time.scheduleDuration <= 0;
     const predDur = predTask.isMilestone ? 0 : predTask.time.scheduleDuration;
     const predBack = predDur > 0 ? predDur - 1 : 0;
+    // Zelfde grens-model-vlaggen als in getForwardConstraint (fase 2.4).
+    const predKind = predTask.isMilestone ? predTask.milestoneKind : undefined;
+    const predEndsBeginOfDay = predIsMilestone && predKind !== 'FINISH';
+    const predStartsNextDay = predIsMilestone && predKind === 'FINISH';
+    const succIsFinishMs = succTask.isMilestone && succTask.milestoneKind === 'FINISH';
+    const succIsStartMs = succTask.isMilestone && succTask.milestoneKind === 'START';
 
     switch (seq.type) {
       case 'START_START': {
-        // Forward: succ.start = pred.start + lag ⇒ pred.start ≤ succ.lateStart − lag.
+        // Forward: succ.start = pred.start(-moment) + lag ⇒ pred.start ≤ succ.lateStart − lag;
+        // het startmoment van een eindmijlpaal-voorganger ligt een werkdag vóór die grens.
         const predLS = elapsed
-          ? cal.prevWorkDay(addCalendarDays(succResult.ls, -lag))
-          : cal.addWorkingDaysSigned(succResult.ls, -lag);
+          ? cal.prevWorkDay(addCalendarDays(succResult.ls, -(predStartsNextDay ? lag + 1 : lag)))
+          : predStartsNextDay
+            ? cal.prevWorkDayBefore(cal.addWorkingDaysSigned(succResult.ls, -lag))
+            : cal.addWorkingDaysSigned(succResult.ls, -lag);
         return cal.addWorkingDaysSigned(predLS, predBack); // pred.lateFinish
       }
       case 'FINISH_FINISH': {
         // Forward: succ.finish = pred.finish + lag ⇒ pred.finish ≤ succ.lateFinish − lag.
+        // Een startmijlpaal-opvolger lag een werkdag ná de finish-grens (zie forward).
+        const succLf = succIsStartMs && !predEndsBeginOfDay
+          ? cal.prevWorkDayBefore(succResult.lf)
+          : succResult.lf;
         return elapsed
-          ? cal.prevWorkDay(addCalendarDays(succResult.lf, -lag))
-          : cal.addWorkingDaysSigned(succResult.lf, -lag);
+          ? cal.prevWorkDay(addCalendarDays(succLf, -lag))
+          : cal.addWorkingDaysSigned(succLf, -lag);
       }
       case 'START_FINISH': {
-        // Forward: succ.finish = pred.start + lag ⇒ pred.start ≤ succ.lateFinish − lag.
+        // Forward: succ.finish = pred.start(-moment) + lag ⇒ pred.start ≤ succ.lateFinish − lag.
         const predLS = elapsed
-          ? cal.prevWorkDay(addCalendarDays(succResult.lf, -lag))
-          : cal.addWorkingDaysSigned(succResult.lf, -lag);
+          ? cal.prevWorkDay(addCalendarDays(succResult.lf, -(predStartsNextDay ? lag + 1 : lag)))
+          : predStartsNextDay
+            ? cal.prevWorkDayBefore(cal.addWorkingDaysSigned(succResult.lf, -lag))
+            : cal.addWorkingDaysSigned(succResult.lf, -lag);
         return cal.addWorkingDaysSigned(predLS, predBack);
       }
       case 'FINISH_START':
       default: {
         // Eind-Start: opvolger start `lag` dagen na de finish (de werkdag erná voor een echte
-        // taak; bij een mijlpaal-voorganger géén extra dag). Terug-inverteren; elapsed spiegelt
-        // de +1-kalenderdag van de forward-pass.
+        // taak; bij een dagbegin-mijlpaal-voorganger of eindmijlpaal-opvolger géén extra dag).
+        // Terug-inverteren; elapsed spiegelt de +1-kalenderdag van de forward-pass.
         if (elapsed) {
-          return cal.prevWorkDay(addCalendarDays(succResult.ls, -(predIsMilestone ? lag : lag + 1)));
+          const plus = succIsFinishMs || predEndsBeginOfDay ? lag : lag + 1;
+          return cal.prevWorkDay(addCalendarDays(succResult.ls, -plus));
         }
         const target = cal.addWorkingDaysSigned(succResult.ls, -lag);
-        return predIsMilestone ? target : cal.prevWorkDayBefore(target);
+        return succIsFinishMs || predEndsBeginOfDay ? target : cal.prevWorkDayBefore(target);
       }
     }
   }

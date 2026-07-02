@@ -36,7 +36,7 @@ type Cal = { workDays?: number[]; holidays?: { name: string; startDate: string; 
 interface Case {
   id: string; title: string;
   calendar?: Cal; anchor?: string;
-  tasks: { name: string; dur?: number; start?: string; milestone?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string }[];
+  tasks: { name: string; dur?: number; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH'; mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string }[];
   links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
   expect: any;
 }
@@ -69,6 +69,8 @@ function buildAndSolve(c: Case) {
       isMilestone: !!t.milestone,
       parentId: t.parent ? ids[t.parent] : null,
       time: createDefaultTaskTime(start, dur),
+      ...(t.milestoneKind ? { milestoneKind: t.milestoneKind } : {}),
+      ...(t.mandatory !== undefined ? { mandatory: t.mandatory } : {}),
       ...(t.constraint ? { constraint: t.constraint as any } : {}),
       ...(t.deadline ? { deadline: t.deadline } : {}),
     });

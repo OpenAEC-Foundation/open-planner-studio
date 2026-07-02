@@ -62,6 +62,8 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
         taskType: partial.taskType || 'CONSTRUCTION',
         status: partial.status || 'NOT_STARTED',
         isMilestone: partial.isMilestone || false,
+        milestoneKind: partial.milestoneKind,
+        mandatory: partial.mandatory,
         priority: partial.priority || 0,
         parentId: partial.parentId || null,
         childIds: [],

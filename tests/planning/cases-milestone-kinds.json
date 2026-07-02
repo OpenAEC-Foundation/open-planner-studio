@@ -1,0 +1,426 @@
+{
+  "cases": [
+    {
+      "id": "mk-01a",
+      "title": "FS naar mijlpaal, automatisch (legacy): landt op de werkdag na de voorganger-finish",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "M", "milestone": true }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "M": { "es": "2026-06-04", "ef": "2026-06-04", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-04",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-01b",
+      "title": "FS naar startmijlpaal: identiek aan automatisch (werkdag na finish)",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "M", "milestone": true, "milestoneKind": "START" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "M": { "es": "2026-06-04", "ef": "2026-06-04", "tf": 0, "crit": true } },
+        "error": false
+      }
+    },
+    {
+      "id": "mk-01c",
+      "title": "FS naar eindmijlpaal: markeert het einde van de finishdag zelf (geen dag erbij)",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "M", "milestone": true, "milestoneKind": "FINISH" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "M": { "es": "2026-06-03", "ef": "2026-06-03", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-02a",
+      "title": "FS vanaf startmijlpaal: opvolger start op de mijlpaaldag zelf (dagbegin-anker)",
+      "tasks": [{ "name": "M", "milestone": true, "milestoneKind": "START" }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-01", "ef": "2026-06-01", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-02",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-02b",
+      "title": "FS vanaf eindmijlpaal: opvolger start de werkdag ná de mijlpaaldag (dageinde-anker)",
+      "tasks": [{ "name": "M", "milestone": true, "milestoneKind": "FINISH" }, { "name": "B", "dur": 2 }],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-01", "ef": "2026-06-01", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-02", "ef": "2026-06-03", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-03",
+      "title": "Gouden invariant eindmijlpaal: A—FS→M(eind)—FS→B geeft B dezelfde datums als A—FS→B",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "M", "milestone": true, "milestoneKind": "FINISH" }, { "name": "B", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START" },
+        { "pred": "M", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "M": { "es": "2026-06-03", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "M", "B"],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "mk-04",
+      "title": "Gouden invariant startmijlpaal: A—FS→M(start)—FS→B geeft B dezelfde datums als A—FS→B",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "M", "milestone": true, "milestoneKind": "START" }, { "name": "B", "dur": 2 }],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START" },
+        { "pred": "M", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-04", "ef": "2026-06-04", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "M", "B"],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "mk-05a",
+      "title": "FF naar startmijlpaal: dagbegin-anker kan pas op de werkdag ná de voorganger-finish",
+      "tasks": [{ "name": "A", "dur": 4 }, { "name": "M", "milestone": true, "milestoneKind": "START" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-04", "lf": "2026-06-04", "tf": 0, "crit": true },
+          "M": { "es": "2026-06-05", "ef": "2026-06-05", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-05b",
+      "title": "FF naar eindmijlpaal: finishes uitgelijnd, zelfde dag als de voorganger-finish (= legacy)",
+      "tasks": [{ "name": "A", "dur": 4 }, { "name": "M", "milestone": true, "milestoneKind": "FINISH" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": { "M": { "es": "2026-06-04", "ef": "2026-06-04", "tf": 0, "crit": true } },
+        "projectEnd": "2026-06-04",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-06",
+      "title": "SS vanaf eindmijlpaal: opvolger start de werkdag ná de mijlpaaldag",
+      "tasks": [{ "name": "M", "milestone": true, "milestoneKind": "FINISH" }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "M", "succ": "B", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-01", "ef": "2026-06-01" },
+          "B": { "es": "2026-06-02", "ef": "2026-06-04", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-04",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-07",
+      "title": "SS naar eindmijlpaal: daglabel geklemd op de dag van het sturende moment (startdag voorganger)",
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "M", "milestone": true, "milestoneKind": "FINISH" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "M": { "es": "2026-06-01", "ef": "2026-06-01" }
+        },
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-08a",
+      "title": "FS+2 naar eindmijlpaal: lag telt door op de finish-grens (06-02 einde + 2wd = einde 06-04)",
+      "tasks": [{ "name": "A", "dur": 2 }, { "name": "M", "milestone": true, "milestoneKind": "FINISH" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lag": 2 }],
+      "expect": {
+        "tasks": { "M": { "es": "2026-06-04", "ef": "2026-06-04", "tf": 0, "crit": true } },
+        "projectEnd": "2026-06-04",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-08b",
+      "title": "FS+2 naar startmijlpaal (differentieel met mk-08a): een werkdag later",
+      "tasks": [{ "name": "A", "dur": 2 }, { "name": "M", "milestone": true, "milestoneKind": "START" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lag": 2 }],
+      "expect": {
+        "tasks": { "M": { "es": "2026-06-05", "ef": "2026-06-05", "tf": 0, "crit": true } },
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-09",
+      "title": "Weekend: eindmijlpaal op vrijdag, startmijlpaal pas op maandag",
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "Mf", "milestone": true, "milestoneKind": "FINISH" },
+        { "name": "Ms", "milestone": true, "milestoneKind": "START" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "Mf", "type": "FINISH_START" },
+        { "pred": "A", "succ": "Ms", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05" },
+          "Mf": { "es": "2026-06-05", "ef": "2026-06-05" },
+          "Ms": { "es": "2026-06-08", "ef": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-10",
+      "title": "Backward/float: eindmijlpaal zonder opvolgers krijgt speling tot het projecteinde; voorganger erft die",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" },
+        { "name": "B", "dur": 5 }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "lf": "2026-06-05", "tf": 2, "crit": false },
+          "M": { "es": "2026-06-03", "ef": "2026-06-03", "lf": "2026-06-05", "tf": 2, "crit": false },
+          "B": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["B"],
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-11",
+      "title": "Driving door een eindmijlpaal: FS-tak bindt (ff 0), FF-tak heeft relatie-speling 1",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2 },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START" },
+        { "pred": "B", "succ": "M", "type": "FINISH_FINISH" }
+      ],
+      "expect": {
+        "tasks": { "M": { "es": "2026-06-03", "ef": "2026-06-03" } },
+        "drivingSet": [["A", "M", "FINISH_START"]],
+        "error": false
+      }
+    },
+    {
+      "id": "mk-12",
+      "title": "Verplichte eindmijlpaal met FNLT die de logica niet haalt: negatieve float + geschonden constraint (vlag rekent niet mee)",
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "mandatory": true, "constraint": { "type": "FNLT", "date": "2026-06-04" } }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "tf": -1, "crit": true },
+          "M": { "es": "2026-06-05", "ef": "2026-06-05", "lf": "2026-06-04", "tf": -1, "crit": true }
+        },
+        "violatedConstraintsSet": ["M"],
+        "error": false
+      }
+    },
+    {
+      "id": "mk-13a",
+      "title": "Keten van eindmijlpalen: zelfde dag (einde van dag F blijft einde van dag F)",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "M1", "milestone": true, "milestoneKind": "FINISH" },
+        { "name": "M2", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "M1", "type": "FINISH_START" },
+        { "pred": "M1", "succ": "M2", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "M1": { "es": "2026-06-02", "ef": "2026-06-02", "tf": 0, "crit": true },
+          "M2": { "es": "2026-06-02", "ef": "2026-06-02", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-02",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-13b",
+      "title": "Eindmijlpaal gevolgd door startmijlpaal: de start valt op de werkdag erna",
+      "tasks": [
+        { "name": "M1", "milestone": true, "milestoneKind": "FINISH" },
+        { "name": "M2", "milestone": true, "milestoneKind": "START" }
+      ],
+      "links": [{ "pred": "M1", "succ": "M2", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "M1": { "es": "2026-06-01", "ef": "2026-06-01" },
+          "M2": { "es": "2026-06-02", "ef": "2026-06-02", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-02",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-13c",
+      "title": "Startmijlpaal gevolgd door eindmijlpaal (FS): daglabel geklemd op dezelfde dag",
+      "tasks": [
+        { "name": "M1", "milestone": true, "milestoneKind": "START" },
+        { "name": "M2", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "M1", "succ": "M2", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "M1": { "es": "2026-06-01", "ef": "2026-06-01" },
+          "M2": { "es": "2026-06-01", "ef": "2026-06-01" }
+        },
+        "projectEnd": "2026-06-01",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-14",
+      "title": "SF vanaf eindmijlpaal: opvolger-finish op de werkdag ná de mijlpaaldag",
+      "tasks": [
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" },
+        { "name": "B", "dur": 2 }
+      ],
+      "links": [{ "pred": "M", "succ": "B", "type": "START_FINISH" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-01", "ef": "2026-06-01" },
+          "B": { "es": "2026-06-01", "ef": "2026-06-02" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "mk-15a",
+      "title": "Elapsed lag naar eindmijlpaal: 3 kalenderdagen vanaf de finish-grens, geen bezette-dag-plus-één",
+      "tasks": [{ "name": "A", "dur": 2 }, { "name": "M", "milestone": true, "milestoneKind": "FINISH" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lag": 3, "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": { "M": { "es": "2026-06-05", "ef": "2026-06-05", "tf": 0, "crit": true } },
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-15b",
+      "title": "Elapsed lag naar startmijlpaal (differentieel met mk-15a): +1 kalenderdag voor de bezette finishdag, weekend-snap naar maandag",
+      "tasks": [{ "name": "A", "dur": 2 }, { "name": "M", "milestone": true, "milestoneKind": "START" }],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lag": 3, "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": { "M": { "es": "2026-06-08", "ef": "2026-06-08", "tf": 0, "crit": true } },
+        "projectEnd": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-16",
+      "title": "Startmijlpaal als join: twee voorgangers, de langste bindt (max over relaties blijft gelden)",
+      "tasks": [
+        { "name": "A", "dur": 4 },
+        { "name": "B", "dur": 2 },
+        { "name": "M", "milestone": true, "milestoneKind": "START" },
+        { "name": "C", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START" },
+        { "pred": "B", "succ": "M", "type": "FINISH_START" },
+        { "pred": "M", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-05", "ef": "2026-06-05" },
+          "C": { "es": "2026-06-05", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 2, "crit": false }
+        },
+        "drivingSet": [["A", "M", "FINISH_START"], ["M", "C", "FINISH_START"]],
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-17",
+      "title": "Eindmijlpaal als join: FS-voorganger bindt op dezelfde dag als zijn finish",
+      "tasks": [
+        { "name": "A", "dur": 4 },
+        { "name": "B", "dur": 2 },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" },
+        { "name": "C", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START" },
+        { "pred": "B", "succ": "M", "type": "FINISH_START" },
+        { "pred": "M", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-06-04", "ef": "2026-06-04" },
+          "C": { "es": "2026-06-05", "ef": "2026-06-05", "tf": 0, "crit": true }
+        },
+        "drivingSet": [["A", "M", "FINISH_START"], ["M", "C", "FINISH_START"]],
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "mk-18",
+      "title": "Backward door eindmijlpaal-voorganger: B kritiek, M en A erven tf 0 door de keten",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" },
+        { "name": "B", "dur": 3 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START" },
+        { "pred": "M", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "ls": "2026-06-01", "lf": "2026-06-02", "tf": 0, "crit": true },
+          "M": { "es": "2026-06-02", "ef": "2026-06-02", "lf": "2026-06-02", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-05", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "M", "B"],
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    }
+  ]
+}
