@@ -14,6 +14,23 @@ export type TaskType =
 
 export type TaskStatus = 'NOT_STARTED' | 'STARTED' | 'COMPLETED';
 
+/**
+ * Datum-constraints (fase 2.3), P6-soft-semantiek: een constraint breekt nooit de
+ * netwerklogica — vroege-zijde types (SNET/FNET) zijn ondergrenzen in de forward pass,
+ * late-zijde types (SNLT/FNLT) bovengrenzen in de backward pass; overtreding uit zich
+ * als negatieve float, niet als verschoven balken. MSO/MFO werken als P6's "Start On"/
+ * "Finish On": onder- én bovengrens tegelijk (de logica-brekende harde pin is bewust
+ * niet geïmplementeerd; zie docs/superpowers/specs/2026-07-02-constraints-deadlines-design.md).
+ * ALAP schuift de vroege datums op tot de vrije speling 0 is (P6-model).
+ */
+export type ConstraintType = 'ASAP' | 'ALAP' | 'SNET' | 'SNLT' | 'FNET' | 'FNLT' | 'MSO' | 'MFO';
+
+export interface TaskConstraint {
+  type: ConstraintType;
+  /** Vereist voor alle types behalve ASAP/ALAP; wordt bij toepassing op een werkdag gesnapt. */
+  date?: string;
+}
+
 export type DurationType = 'WORKTIME' | 'ELAPSEDTIME';
 
 export interface TaskTime {
@@ -57,6 +74,11 @@ export interface Task {
   activityCodes?: Record<string, string>;
   /** Custom-field-waarden: velddefinitie-id → waarde (getypeerd volgens CustomFieldDef.type). */
   customFields?: Record<string, CustomFieldValue>;
+  /** Datum-constraint (fase 2.3); afwezig = ASAP. */
+  constraint?: TaskConstraint;
+  /** Zachte deadline (MSP-model): begrenst alleen de late finish — balken bewegen nooit;
+   *  overschrijding (earlyFinish > deadline) geeft negatieve float + waarschuwing. */
+  deadline?: string;
 }
 
 export function createDefaultTaskTime(

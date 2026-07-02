@@ -68,6 +68,8 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
         time: partial.time || createDefaultTaskTime(now, partial.isMilestone ? 0 : 5),
         resourceIds: partial.resourceIds || [],
         color: partial.color,
+        constraint: partial.constraint,
+        deadline: partial.deadline,
       };
 
       s.tasks.push(task);

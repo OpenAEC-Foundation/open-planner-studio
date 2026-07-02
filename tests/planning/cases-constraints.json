@@ -1,0 +1,243 @@
+{
+  "comment": "Fase 2.3 — datum-constraints (P6-soft: logica wint altijd; overtreding = negatieve float), deadlines (zacht: alleen late datums) en negatieve float. MSO/MFO = P6 Start On/Finish On (onder- en bovengrens, geen logica-brekende pin). ALAP = zero free float (P6). Anker 2026-06-01 = maandag, schone ma-vr-kalender. Alle verwachtingen handberekend.",
+  "cases": [
+    {
+      "id": "cst-snet-binding",
+      "title": "SNET bindt: opvolger start op de constraint-datum; voorganger krijgt float door het gat",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "constraint": { "type": "SNET", "date": "2026-06-08" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "ls": "2026-06-03", "lf": "2026-06-05", "tf": 2, "ff": 2, "crit": false },
+          "B": { "es": "2026-06-08", "ef": "2026-06-09", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["B"],
+        "violatedConstraintsSet": [],
+        "projectEnd": "2026-06-09"
+      }
+    },
+    {
+      "id": "cst-snet-nonbinding",
+      "title": "SNET voor de logica-datum doet niets (max met relaties)",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "constraint": { "type": "SNET", "date": "2026-06-02" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-04", "tf": 0, "crit": true } },
+        "criticalPathSet": ["A", "B"]
+      }
+    },
+    {
+      "id": "cst-snet-root",
+      "title": "SNET op een worteltaak zonder relaties verschuift de start",
+      "tasks": [{ "name": "B", "dur": 2, "constraint": { "type": "SNET", "date": "2026-06-10" } }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-10", "ef": "2026-06-11", "tf": 0 } },
+        "projectEnd": "2026-06-11"
+      }
+    },
+    {
+      "id": "cst-snet-weekend-snap",
+      "title": "Constraint-datum op zaterdag snapt naar de eerstvolgende werkdag",
+      "tasks": [{ "name": "B", "dur": 1, "constraint": { "type": "SNET", "date": "2026-06-06" } }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-08" } }
+      }
+    },
+    {
+      "id": "cst-fnet",
+      "title": "FNET: finish-ondergrens vertaalt naar startverschuiving; op een mijlpaal pint hij de datum als ondergrens",
+      "tasks": [
+        { "name": "B", "dur": 3, "constraint": { "type": "FNET", "date": "2026-06-10" } },
+        { "name": "M", "milestone": true, "constraint": { "type": "FNET", "date": "2026-06-10" } }
+      ],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-08", "ef": "2026-06-10" },
+          "M": { "es": "2026-06-10", "ef": "2026-06-10" }
+        }
+      }
+    },
+    {
+      "id": "cst-snlt-float-cap",
+      "title": "SNLT (niet geschonden) beperkt de float: late start wordt op de constraint gekapt, vroege datums ongemoeid",
+      "tasks": [
+        { "name": "A", "dur": 2, "constraint": { "type": "SNLT", "date": "2026-06-08" } },
+        { "name": "P", "dur": 10 }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "ls": "2026-06-08", "lf": "2026-06-09", "tf": 5, "crit": false },
+          "P": { "tf": 0, "crit": true }
+        },
+        "violatedConstraintsSet": []
+      }
+    },
+    {
+      "id": "cst-snlt-violated",
+      "title": "SNLT geschonden: balken bewegen NIET, float wordt negatief en propageert naar de voorganger",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "constraint": { "type": "SNLT", "date": "2026-06-02" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": -2, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "ls": "2026-06-02", "lf": "2026-06-03", "tf": -2, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "violatedConstraintsSet": ["B"],
+        "projectEnd": "2026-06-05"
+      }
+    },
+    {
+      "id": "cst-fnlt-violated",
+      "title": "FNLT geschonden op een worteltaak: negatieve float, vroege datums blijven staan",
+      "tasks": [
+        { "name": "A", "dur": 5, "constraint": { "type": "FNLT", "date": "2026-06-03" } },
+        { "name": "P", "dur": 8 }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "lf": "2026-06-03", "tf": -2, "crit": true },
+          "P": { "tf": 0 }
+        },
+        "violatedConstraintsSet": ["A"]
+      }
+    },
+    {
+      "id": "cst-deadline-cap",
+      "title": "Deadline (niet gemist) begrenst alleen de late finish — float gemeten tot de deadline i.p.v. het projecteinde (MSP)",
+      "tasks": [
+        { "name": "A", "dur": 3, "deadline": "2026-06-05" },
+        { "name": "P", "dur": 10 }
+      ],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-01", "ef": "2026-06-03", "lf": "2026-06-05", "tf": 2, "crit": false } },
+        "missedDeadlinesSet": []
+      }
+    },
+    {
+      "id": "cst-deadline-missed",
+      "title": "Deadline gemist: balk beweegt niet, totale float wordt negatief (deadline-overschrijding = negatieve float, PLAN A12)",
+      "tasks": [{ "name": "A", "dur": 5, "deadline": "2026-06-03" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "lf": "2026-06-03", "tf": -2, "crit": true }
+        },
+        "missedDeadlinesSet": ["A"],
+        "criticalPathSet": ["A"]
+      }
+    },
+    {
+      "id": "cst-deadline-chain",
+      "title": "Gemiste deadline propageert negatieve float naar de voorgangerketen",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 3, "deadline": "2026-06-04" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "tf": -1, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-05", "lf": "2026-06-04", "tf": -1, "crit": true }
+        },
+        "missedDeadlinesSet": ["B"],
+        "criticalPathSet": ["A", "B"]
+      }
+    },
+    {
+      "id": "cst-mso",
+      "title": "MSO (Start On, soft): pint de start als onder- en bovengrens — taak krijgt float 0",
+      "tasks": [
+        { "name": "A", "dur": 3, "constraint": { "type": "MSO", "date": "2026-06-08" } },
+        { "name": "P", "dur": 12 }
+      ],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-08", "ef": "2026-06-10", "ls": "2026-06-08", "tf": 0, "crit": true } },
+        "violatedConstraintsSet": []
+      }
+    },
+    {
+      "id": "cst-mfo",
+      "title": "MFO (Finish On, soft): trekt de finish naar de datum en kapt de late finish erop",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 3, "constraint": { "type": "MFO", "date": "2026-06-10" } },
+        { "name": "P", "dur": 12 }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "lf": "2026-06-05", "tf": 3, "crit": false },
+          "B": { "es": "2026-06-08", "ef": "2026-06-10", "lf": "2026-06-10", "tf": 0, "crit": true }
+        }
+      }
+    },
+    {
+      "id": "cst-mso-violated",
+      "title": "MSO tegen de logica in: soft — de logica wint in de forward pass, de overtreding wordt negatieve float",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "constraint": { "type": "MSO", "date": "2026-06-02" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "ls": "2026-06-02", "tf": -2, "crit": true }
+        },
+        "violatedConstraintsSet": ["B"]
+      }
+    },
+    {
+      "id": "cst-alap-endtask",
+      "title": "ALAP-eindtaak schuift naar z'n late datums (vrije speling 0; per definitie daarna tf 0 — bekend P6-effect)",
+      "tasks": [
+        { "name": "A", "dur": 2, "constraint": { "type": "ALAP" } },
+        { "name": "P", "dur": 5 }
+      ],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-04", "ef": "2026-06-05", "tf": 0, "ff": 0 } },
+        "projectEnd": "2026-06-05"
+      }
+    },
+    {
+      "id": "cst-alap-with-succ",
+      "title": "ALAP met opvolger: schuift op tot de eigen vrije speling 0 is; de opvolger beweegt niet en de relatie wordt driving",
+      "tasks": [
+        { "name": "X", "dur": 6 },
+        { "name": "A", "dur": 2, "constraint": { "type": "ALAP" } },
+        { "name": "B", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "X", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-05", "ef": "2026-06-08", "ff": 0, "tf": 0 },
+          "B": { "es": "2026-06-09", "ef": "2026-06-10" }
+        },
+        "drivingSet": [["A", "B", "FINISH_START"], ["X", "B", "FINISH_START"]]
+      }
+    },
+    {
+      "id": "cst-asap-explicit",
+      "title": "Expliciete ASAP-constraint gedraagt zich exact als de default",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "constraint": { "type": "ASAP" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-04", "ef": "2026-06-05", "tf": 0 } }
+      }
+    }
+  ]
+}

@@ -8,7 +8,10 @@
 //   id, title,
 //   calendar?: { workDays?: number[], holidays?: {name,startDate,endDate}[] }  // default: SCHOON (ma-vr, geen feestdagen)
 //   anchor?: "YYYY-MM-DD"   // startdatum voor wortel-taken (default 2026-06-01)
-//   tasks: [{ name, dur?, start?, milestone? }]      // dur in werkdagen (default 1); milestone => duur 0
+//   tasks: [{ name, dur?, start?, milestone?, constraint?, deadline? }]
+//     dur in werkdagen (default 1); milestone => duur 0
+//     constraint: { type: ASAP|ALAP|SNET|SNLT|FNET|FNLT|MSO|MFO, date? } (P6-soft; MSO/MFO = Start/Finish On)
+//     deadline: "YYYY-MM-DD" (zacht: alleen late datums/float)
 //   links: [{ pred, succ, type, lag?, lagUnit?, lagPercent? }]
 //     type: FINISH_START|START_START|FINISH_FINISH|START_FINISH
 //     lag in dagen (default 0, negatief = lead); lagUnit: WORKTIME (default) | ELAPSEDTIME (kalenderdagen);
@@ -17,6 +20,7 @@
 //     tasks?: { [name]: { es?,ef?,ls?,lf?,tf?,ff?,crit? } },   // datums "YYYY-MM-DD"; tf/ff getallen; crit boolean
 //     criticalPathSet?: [names],   // vergeleken als verzameling (volgorde-onafhankelijk)
 //     drivingSet?: [[pred,succ,type]],  // welke relaties driving zijn (verzameling van triples)
+//     violatedConstraintsSet?: [names], missedDeadlinesSet?: [names],  // taak-namen (verzameling)
 //     projectEnd?, projectDuration?,
 //     error?: boolean | string     // true => verwacht een fout; string => substring in de foutmelding
 //   }
@@ -32,7 +36,7 @@ type Cal = { workDays?: number[]; holidays?: { name: string; startDate: string; 
 interface Case {
   id: string; title: string;
   calendar?: Cal; anchor?: string;
-  tasks: { name: string; dur?: number; start?: string; milestone?: boolean; parent?: string }[];
+  tasks: { name: string; dur?: number; start?: string; milestone?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string }[];
   links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
   expect: any;
 }
@@ -65,6 +69,8 @@ function buildAndSolve(c: Case) {
       isMilestone: !!t.milestone,
       parentId: t.parent ? ids[t.parent] : null,
       time: createDefaultTaskTime(start, dur),
+      ...(t.constraint ? { constraint: t.constraint as any } : {}),
+      ...(t.deadline ? { deadline: t.deadline } : {}),
     });
     ids[t.name] = id;
   }
@@ -144,6 +150,19 @@ function runCase(c: Case) {
   };
   seqSetCheck('drivingSet', exp.drivingSet, (cpm as any)?.drivingSequenceIds ?? []);
   seqSetCheck('truncatedLeadSet', exp.truncatedLeadSet, (cpm as any)?.truncatedLeadSequenceIds ?? []);
+
+  // Taak-naam-verzamelingen: geschonden constraints en gemiste deadlines
+  const taskSetCheck = (label: string, wantNames: string[] | undefined, gotIds: string[]) => {
+    if (!wantNames) return;
+    const idToName: Record<string, string> = {};
+    for (const [n, i] of Object.entries(ids)) idToName[i] = n;
+    const got = gotIds.map(tid => idToName[tid] ?? tid).sort();
+    const want = [...wantNames].sort();
+    if (JSON.stringify(got) !== JSON.stringify(want))
+      diffs.push(`${label}: verwacht {${want.join(',')}}, kreeg {${got.join(',')}}`);
+  };
+  taskSetCheck('violatedConstraintsSet', exp.violatedConstraintsSet, (cpm as any)?.violatedConstraintTaskIds ?? []);
+  taskSetCheck('missedDeadlinesSet', exp.missedDeadlinesSet, (cpm as any)?.missedDeadlineTaskIds ?? []);
 
   // Kritiek pad als verzameling (namen)
   if (exp.criticalPathSet) {

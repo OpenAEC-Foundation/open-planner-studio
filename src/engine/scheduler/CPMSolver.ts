@@ -19,6 +19,11 @@ export interface CPMResult {
   /** Relaties met een lead (negatieve lag) die door de projectstart-vloer is afgekapt: de lead
    *  wilde de opvolger vóór het projectbegin trekken en is dus niet volledig benut. */
   truncatedLeadSequenceIds: string[];
+  /** Taken waarvan de late-zijde-constraint (SNLT/FNLT/MSO/MFO) door de logica wordt
+   *  overschreden — de bron van hun negatieve float. */
+  violatedConstraintTaskIds: string[];
+  /** Taken waarvan de vroege finish voorbij de (zachte) deadline valt. */
+  missedDeadlineTaskIds: string[];
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
@@ -91,6 +96,8 @@ export class CPMSolver {
         drivingSequenceIds: [],
         sequenceFreeFloat: {},
         truncatedLeadSequenceIds: [],
+        violatedConstraintTaskIds: [],
+        missedDeadlineTaskIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: `Circular dependency detected: ${cycleNames}`,
@@ -106,6 +113,8 @@ export class CPMSolver {
         drivingSequenceIds: [],
         sequenceFreeFloat: {},
         truncatedLeadSequenceIds: [],
+        violatedConstraintTaskIds: [],
+        missedDeadlineTaskIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: 'Kalender heeft geen werkdagen ingesteld',
@@ -123,6 +132,8 @@ export class CPMSolver {
           drivingSequenceIds: [],
           sequenceFreeFloat: {},
           truncatedLeadSequenceIds: [],
+          violatedConstraintTaskIds: [],
+          missedDeadlineTaskIds: [],
           projectEnd: '',
           projectDuration: 0,
           error: `Ongeldige startdatum voor taak "${task.name}"`,
@@ -133,6 +144,7 @@ export class CPMSolver {
     const order = this.topologicalSort();
     const earlyDates = this.forwardPass(order);
     const lateDates = this.backwardPass(order, earlyDates);
+    this.applyAlap(order, earlyDates, lateDates);
     return this.computeResults(order, earlyDates, lateDates);
   }
 
@@ -245,6 +257,7 @@ export class CPMSolver {
       if (preds.length === 0) {
         // No predecessors: use scheduled start
         earlyStart = this.calendar.nextWorkDay(parseDate(task.time.scheduleStart));
+        earlyStart = this.applyForwardConstraint(task, earlyStart);
       } else {
         // Early start = max van alle voorganger-constraints, met de projectstart als ondergrens.
         // Die ondergrens is correct vóór ÉLKE relatie: relatie-constraints (FS/SS/FF/SF) zijn
@@ -277,6 +290,7 @@ export class CPMSolver {
             }
           }
         }
+        earlyStart = this.applyForwardConstraint(task, earlyStart);
         earlyStart = this.calendar.nextWorkDay(earlyStart);
       }
 
@@ -287,6 +301,115 @@ export class CPMSolver {
     }
 
     return results;
+  }
+
+  /** Getekend werkdag-verschil: a≤b ⇒ +stappen, a>b ⇒ −stappen (negatieve float mogelijk). */
+  private signedWorkDays(a: Date, b: Date): number {
+    return a <= b
+      ? this.calendar.workDaysBetween(a, b) - 1
+      : -(this.calendar.workDaysBetween(b, a) - 1);
+  }
+
+  /** Werkdag-gesnapte constraint-datum, of null bij afwezig/onparseerbaar (soft: negeren). */
+  private constraintDate(task: Task): Date | null {
+    const raw = task.constraint?.date;
+    if (!raw) return null;
+    const d = parseDate(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  /**
+   * Vroege-zijde constraints (fase 2.3): SNET/MSO als start-ondergrens, FNET/MFO als
+   * finish-ondergrens (vertaald naar de start). Ondergrenzen — de max met de logica,
+   * dus een constraint vóór de logica-datum doet niets (P6-soft).
+   */
+  private applyForwardConstraint(task: Task, earlyStart: Date): Date {
+    const c = task.constraint;
+    const d = this.constraintDate(task);
+    if (!c || !d) return earlyStart;
+    const dur = task.isMilestone ? 0 : task.time.scheduleDuration;
+    const back = dur > 0 ? dur - 1 : 0;
+    let bound: Date | null = null;
+    if (c.type === 'SNET' || c.type === 'MSO') {
+      bound = this.calendar.nextWorkDay(d);
+    } else if (c.type === 'FNET' || c.type === 'MFO') {
+      bound = this.calendar.addWorkingDaysSigned(this.calendar.nextWorkDay(d), -back);
+    }
+    return bound && bound > earlyStart ? bound : earlyStart;
+  }
+
+  /**
+   * Late-zijde grenzen (fase 2.3): SNLT/MSO kappen de late start (⇒ late finish op
+   * datum ⊕ (duur−1)), FNLT/MFO en de zachte deadline kappen de late finish direct.
+   * Bovengrenzen in de backward pass — vroege datums bewegen nooit; overschrijding
+   * door de logica wordt negatieve float.
+   */
+  private applyBackwardBound(task: Task, lateFinish: Date): Date {
+    let lf = lateFinish;
+    const c = task.constraint;
+    const d = this.constraintDate(task);
+    if (c && d) {
+      const dur = task.isMilestone ? 0 : task.time.scheduleDuration;
+      const back = dur > 0 ? dur - 1 : 0;
+      const dW = this.calendar.prevWorkDay(d);
+      if (c.type === 'FNLT' || c.type === 'MFO') {
+        if (dW < lf) lf = dW;
+      } else if (c.type === 'SNLT' || c.type === 'MSO') {
+        const bound = this.calendar.addWorkingDaysSigned(dW, back);
+        if (bound < lf) lf = bound;
+      }
+    }
+    if (task.deadline) {
+      const dl = parseDate(task.deadline);
+      if (!isNaN(dl.getTime())) {
+        const dlW = this.calendar.prevWorkDay(dl);
+        if (dlW < lf) lf = dlW;
+      }
+    }
+    return lf;
+  }
+
+  /**
+   * ALAP (P6-semantiek, zero free float): schuif de vroege datums van ALAP-taken op met
+   * hun eigen vrije speling — opvolgers bewegen per definitie niet. Draait ná de backward
+   * pass; de constraint-cache van uitgaande relaties wordt geactualiseerd zodat de
+   * relatie-floats en driving-markering daarna kloppen (de relatie wordt precies bindend).
+   */
+  private applyAlap(
+    order: string[],
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+    lateDates: Map<string, { ls: Date; lf: Date }>,
+  ): void {
+    for (const taskId of order) {
+      const task = this.tasks.get(taskId);
+      if (task?.constraint?.type !== 'ALAP') continue;
+      const early = earlyDates.get(taskId);
+      const late = lateDates.get(taskId);
+      if (!early || !late) continue;
+
+      const succs = this.successors.get(taskId) || [];
+      let ff = Infinity;
+      if (succs.length === 0) {
+        ff = this.signedWorkDays(early.ef, late.lf);
+      } else {
+        for (const seq of succs) {
+          const cRaw = this.seqConstraint.get(seq.id);
+          const succEarly = earlyDates.get(seq.successorId);
+          if (!cRaw || !succEarly) continue;
+          const f = this.calendar.workDaysBetween(this.calendar.nextWorkDay(cRaw), succEarly.es) - 1;
+          if (f < ff) ff = f;
+        }
+      }
+      if (!Number.isFinite(ff) || ff <= 0) continue;
+
+      early.es = this.calendar.addWorkingDaysSigned(early.es, ff);
+      early.ef = this.calendar.addWorkingDaysSigned(early.ef, ff);
+      for (const seq of succs) {
+        const succTask = this.tasks.get(seq.successorId);
+        if (!succTask) continue;
+        this.seqConstraint.set(seq.id, this.getForwardConstraint(early, task, seq, succTask));
+      }
+    }
   }
 
   /** Effectieve lag van een relatie: dagen (via resolveEffectiveLagDays) + eenheid. */
@@ -390,6 +513,9 @@ export class CPMSolver {
         }
       }
 
+      // Late-zijde datum-constraints + deadline (fase 2.3) als extra bovengrens.
+      lateFinish = this.applyBackwardBound(task, lateFinish);
+
       const duration = task.isMilestone ? 0 : task.time.scheduleDuration;
       const lateStart = this.calendar.subtractWorkDays(lateFinish, duration);
 
@@ -464,6 +590,8 @@ export class CPMSolver {
     // door de projectstart-vloer bepaald (volledig geklemde lead), dan bindt geen relatie.
     const sequenceFreeFloat: Record<string, number> = {};
     const drivingSequenceIds: string[] = [];
+    const violatedConstraintTaskIds: string[] = [];
+    const missedDeadlineTaskIds: string[] = [];
     for (const seq of this.sequences) {
       const cRaw = this.seqConstraint.get(seq.id);
       const succEarly = earlyDates.get(seq.successorId);
@@ -486,12 +614,12 @@ export class CPMSolver {
       // is dat exact gelijk aan de klassieke per-type formules (gap − lag, met de
       // FS-finishdag-correctie); voor kalenderdag- en procent-lag volgt de juiste waarde
       // automatisch uit dezelfde bron als de planningsberekening zelf.
-      const gap = (a: Date, b: Date) => this.calendar.workDaysBetween(a, b) - 1;
       let freeFloat = Infinity;
       const succs = this.successors.get(taskId) || [];
       if (succs.length === 0) {
-        // Eindtaak: vrije speling = totale-speling-equivalent (finish kan opschuiven tot lateFinish).
-        freeFloat = gap(early.ef, late.lf);
+        // Eindtaak: vrije speling = totale-speling-equivalent (finish kan opschuiven tot
+        // lateFinish) — getekend: een deadline/late-zijde-constraint kan hem negatief maken.
+        freeFloat = this.signedWorkDays(early.ef, late.lf);
       } else {
         for (const seq of succs) {
           const ff = sequenceFreeFloat[seq.id];
@@ -499,13 +627,38 @@ export class CPMSolver {
         }
       }
       if (freeFloat === Infinity) freeFloat = 0;
-      if (freeFloat < 0) freeFloat = 0;
 
-      const tf = Math.max(0, this.calendar.workDaysBetween(early.es, late.ls) - 1);
-      const isCritical = tf === 0;
+      // Totale speling: getekend (fase 2.3 — negatieve float bij geschonden late-zijde-
+      // constraints/deadlines), MSP-veilig als min van finish- en start-float (die kunnen
+      // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
+      const tf = Math.min(
+        this.signedWorkDays(early.ef, late.lf),
+        this.signedWorkDays(early.es, late.ls),
+      );
+      const isCritical = tf <= 0;
 
       if (isCritical) criticalPath.push(taskId);
       if (early.ef > projectEnd) projectEnd = early.ef;
+
+      // Geschonden constraints / gemiste deadlines (bron van de negatieve float).
+      const task = this.tasks.get(taskId);
+      if (task) {
+        const cd = this.constraintDate(task);
+        if (task.constraint && cd) {
+          const dW = this.calendar.prevWorkDay(cd);
+          const ct = task.constraint.type;
+          if (((ct === 'SNLT' || ct === 'MSO') && early.es > dW)
+            || ((ct === 'FNLT' || ct === 'MFO') && early.ef > dW)) {
+            violatedConstraintTaskIds.push(taskId);
+          }
+        }
+        if (task.deadline) {
+          const dl = parseDate(task.deadline);
+          if (!isNaN(dl.getTime()) && early.ef > this.calendar.prevWorkDay(dl)) {
+            missedDeadlineTaskIds.push(taskId);
+          }
+        }
+      }
 
       taskResults.set(taskId, {
         earlyStart: formatDate(early.es),
@@ -513,7 +666,7 @@ export class CPMSolver {
         lateStart: formatDate(late.ls),
         lateFinish: formatDate(late.lf),
         totalFloat: tf,
-        freeFloat: Math.max(0, freeFloat),
+        freeFloat,
         isCritical,
       });
     }
@@ -540,6 +693,8 @@ export class CPMSolver {
       drivingSequenceIds,
       sequenceFreeFloat,
       truncatedLeadSequenceIds: [...this.truncatedLeadIds],
+      violatedConstraintTaskIds,
+      missedDeadlineTaskIds,
       projectEnd: formatDate(projectEnd),
       projectDuration,
     };
