@@ -27,7 +27,9 @@
     "addRelation": "İlişki ekle",
     "toggleCollapse": "Daralt/genişlet",
     "delete": "Sil",
-    "newTask": "Yeni görev"
+    "newTask": "Yeni görev",
+    "tracePath": "Yolu izle",
+    "traceOff": "Yol izlemeyi durdur"
   },
   "settings": {
     "title": "Ayarlar",

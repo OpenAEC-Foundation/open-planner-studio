@@ -67,8 +67,14 @@ Velden:
 - `calendar` en `anchor` zijn optioneel (default: schone kalender + 2026-06-01). Laat weg tenzij je cluster ze nodig heeft.
 - `tasks[].dur` in werkdagen (default 1); `milestone:true` ⇒ duur 0. `tasks[].start` optioneel (default = anchor) voor wortel-taken.
 - `links[].type` ∈ `FINISH_START | START_START | FINISH_FINISH | START_FINISH`. `lag` optioneel (default 0; mag negatief).
+- `links[].lagUnit` optioneel: `WORKTIME` (default, werkdagen) of `ELAPSEDTIME` (kalenderdagen, 24/7 —
+  snapt richtingbewust naar een werkdag: forward vooruit, backward achteruit).
+- `links[].lagPercent` optioneel: procent-lag (MSP-semantiek) — `Math.round(voorgangerduur × pct / 100)`
+  dagen in de opgegeven eenheid, per run geëvalueerd; overstemt `lag`.
 - `expect.tasks[name]`: geef alléén de velden die je wilt asserten (`es,ef,ls,lf,tf,ff,crit`). Datums "YYYY-MM-DD".
 - `expect.criticalPathSet`: lijst namen (volgorde-onafhankelijk vergeleken).
+- `expect.drivingSet` / `expect.truncatedLeadSet`: lijst `[voorganger, opvolger, type]`-triples —
+  welke relaties driving zijn (relatie-vrije-speling 0) resp. welke leads op de projectstart zijn afgekapt.
 - `expect.error`: `true` (verwacht fout), `false` (verwacht géén fout), of een substring van de foutmelding.
 
 ## Eisen aan je batterij

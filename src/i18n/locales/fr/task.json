@@ -60,7 +60,25 @@
     "freeFloat": "Marge libre :",
     "criticalPath": "Chemin critique :",
     "dependencies": "Dépendances",
+    "driving": "Relation déterminante (driving)",
+    "lag": "Décalage (p. ex. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Recalculer CPM"
+  },
+  "relations": {
+    "title": "Relations",
+    "predecessor": "Prédécesseur",
+    "successor": "Successeur",
+    "type": "Type",
+    "lag": "Décalage",
+    "driving": "Déterminante",
+    "freeFloat": "Marge libre",
+    "warnings": "Avertissements",
+    "addFromSelection": "Nouvelle relation à partir de la sélection",
+    "addFromSelectionHint": "Sélectionnez exactement deux tâches (d'abord le prédécesseur, puis le successeur)",
+    "empty": "Aucune relation pour l'instant. Faites glisser avec Shift entre les barres du Gantt, ou sélectionnez deux tâches et utilisez le bouton ci-dessus.",
+    "notCalculated": "Recalculez (F5) pour voir les relations déterminantes et les marges",
+    "warnTruncatedLead": "Avance tronquée au début du projet — le chevauchement n'est pas entièrement utilisé",
+    "warnLeadExceedsDuration": "L'avance est supérieure à la durée du prédécesseur"
   },
   "defaultTask": "Nouvelle tâche",
   "defaultMilestone": "Nouveau jalon"

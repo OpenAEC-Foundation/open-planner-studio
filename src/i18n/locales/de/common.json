@@ -27,7 +27,9 @@
     "addRelation": "Beziehung hinzufügen",
     "toggleCollapse": "Ein-/ausklappen",
     "delete": "Löschen",
-    "newTask": "Neue Aufgabe"
+    "newTask": "Neue Aufgabe",
+    "tracePath": "Pfad verfolgen",
+    "traceOff": "Pfadverfolgung beenden"
   },
   "settings": {
     "title": "Einstellungen",

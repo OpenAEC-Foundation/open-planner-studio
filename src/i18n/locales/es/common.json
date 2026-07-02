@@ -27,7 +27,9 @@
     "addRelation": "Añadir relación",
     "toggleCollapse": "Contraer/expandir",
     "delete": "Eliminar",
-    "newTask": "Nueva tarea"
+    "newTask": "Nueva tarea",
+    "tracePath": "Trazar ruta",
+    "traceOff": "Detener trazado de ruta"
   },
   "settings": {
     "title": "Configuración",

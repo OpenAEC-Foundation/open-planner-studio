@@ -94,7 +94,10 @@
     "appearance": "Wygląd",
     "ifcInfo": "IFC 4x3 - Industry Foundation Classes",
     "reporting": "Raport",
-    "noRecentFiles": "Brak ostatnich plików"
+    "noRecentFiles": "Brak ostatnich plików",
+    "trace": "Śledzenie ścieżki",
+    "tracePredecessors": "Poprzedniki",
+    "traceSuccessors": "Następniki"
   },
   "ifc": {
     "title": "Edytor IFC",

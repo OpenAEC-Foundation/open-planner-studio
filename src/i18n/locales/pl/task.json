@@ -60,7 +60,25 @@
     "freeFloat": "Zapas swobodny:",
     "criticalPath": "Ścieżka krytyczna:",
     "dependencies": "Zależności",
+    "driving": "Relacja wiodąca (driving)",
+    "lag": "Zwłoka (np. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Przelicz CPM"
+  },
+  "relations": {
+    "title": "Relacje",
+    "predecessor": "Poprzednik",
+    "successor": "Następnik",
+    "type": "Typ",
+    "lag": "Zwłoka",
+    "driving": "Wiodąca",
+    "freeFloat": "Zapas swobodny",
+    "warnings": "Ostrzeżenia",
+    "addFromSelection": "Nowa relacja z zaznaczenia",
+    "addFromSelectionHint": "Zaznacz dokładnie dwa zadania (najpierw poprzednik, potem następnik)",
+    "empty": "Brak relacji. Przeciągnij z Shift między paskami na wykresie Gantta lub zaznacz dwa zadania i użyj przycisku powyżej.",
+    "notCalculated": "Przelicz (F5), aby zobaczyć relacje wiodące i zapasy",
+    "warnTruncatedLead": "Wyprzedzenie ucięte na starcie projektu — nakładanie nie jest w pełni wykorzystane",
+    "warnLeadExceedsDuration": "Wyprzedzenie jest większe niż czas trwania poprzednika"
   },
   "defaultTask": "Nowe zadanie",
   "defaultMilestone": "Nowy kamień milowy"

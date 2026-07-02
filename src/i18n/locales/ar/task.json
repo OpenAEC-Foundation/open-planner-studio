@@ -60,7 +60,25 @@
     "freeFloat": "الفائض الحر:",
     "criticalPath": "المسار الحرج:",
     "dependencies": "التبعيات",
+    "driving": "علاقة حاكمة (driving)",
+    "lag": "التأخير (مثل 2d، 3ed، 50%، -25e%)",
     "recalculate": "إعادة حساب CPM"
+  },
+  "relations": {
+    "title": "العلاقات",
+    "predecessor": "السابق",
+    "successor": "اللاحق",
+    "type": "النوع",
+    "lag": "التأخير",
+    "driving": "حاكمة",
+    "freeFloat": "الفائض الحر",
+    "warnings": "تحذيرات",
+    "addFromSelection": "علاقة جديدة من التحديد",
+    "addFromSelectionHint": "حدد مهمتين بالضبط (السابق أولاً ثم اللاحق)",
+    "empty": "لا توجد علاقات بعد. اسحب مع الضغط على Shift بين الأشرطة في مخطط جانت، أو حدد مهمتين واستخدم الزر أعلاه.",
+    "notCalculated": "أعد الحساب (F5) لعرض العلاقات الحاكمة والفوائض",
+    "warnTruncatedLead": "تم قطع التقديم عند بداية المشروع — لا يُستفاد من التداخل بالكامل",
+    "warnLeadExceedsDuration": "التقديم أكبر من مدة المهمة السابقة"
   },
   "defaultTask": "مهمة جديدة",
   "defaultMilestone": "معلم جديد"

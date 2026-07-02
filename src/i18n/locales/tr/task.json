@@ -60,7 +60,25 @@
     "freeFloat": "Serbest bolluk:",
     "criticalPath": "Kritik yol:",
     "dependencies": "Bağımlılıklar",
+    "driving": "Belirleyici ilişki (driving)",
+    "lag": "Gecikme (örn. 2d, 3ed, 50%, -25e%)",
     "recalculate": "CPM'yi yeniden hesapla"
+  },
+  "relations": {
+    "title": "İlişkiler",
+    "predecessor": "Öncül",
+    "successor": "Ardıl",
+    "type": "Tür",
+    "lag": "Gecikme",
+    "driving": "Belirleyici",
+    "freeFloat": "Serbest bolluk",
+    "warnings": "Uyarılar",
+    "addFromSelection": "Seçimden yeni ilişki",
+    "addFromSelectionHint": "Tam olarak iki görev seçin (önce öncül, sonra ardıl)",
+    "empty": "Henüz ilişki yok. Gantt'ta çubuklar arasında Shift ile sürükleyin veya iki görev seçip yukarıdaki düğmeyi kullanın.",
+    "notCalculated": "Belirleyici ilişkileri ve bollukları görmek için yeniden hesaplayın (F5)",
+    "warnTruncatedLead": "Öne alma proje başlangıcında kesildi — örtüşme tam kullanılmıyor",
+    "warnLeadExceedsDuration": "Öne alma, öncülün süresinden daha büyük"
   },
   "defaultTask": "Yeni görev",
   "defaultMilestone": "Yeni kilometre taşı"

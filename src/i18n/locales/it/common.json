@@ -27,7 +27,9 @@
     "addRelation": "Aggiungi relazione",
     "toggleCollapse": "Comprimi/espandi",
     "delete": "Elimina",
-    "newTask": "Nuova attività"
+    "newTask": "Nuova attività",
+    "tracePath": "Traccia percorso",
+    "traceOff": "Interrompi tracciamento"
   },
   "settings": {
     "title": "Impostazioni",

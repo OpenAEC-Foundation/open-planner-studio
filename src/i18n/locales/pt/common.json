@@ -27,7 +27,9 @@
     "addRelation": "Adicionar relação",
     "toggleCollapse": "Recolher/expandir",
     "delete": "Eliminar",
-    "newTask": "Nova tarefa"
+    "newTask": "Nova tarefa",
+    "tracePath": "Rastrear caminho",
+    "traceOff": "Parar rastreamento"
   },
   "settings": {
     "title": "Definições",

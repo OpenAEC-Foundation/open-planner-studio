@@ -6,6 +6,33 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
+### Toegevoegd
+- **Volledige dependencies (fase 2.1)** — het relatiemodel is op het niveau van professionele
+  planners gebracht (ontwerp: `docs/superpowers/specs/2026-07-02-volledige-dependencies-design.md`):
+  - **Lag-eenheid per relatie**: werkdagen (default) of **kalenderdagen** (24/7, bv. uitharden
+    van beton) — IFC-conform als `IfcTaskDurationEnum` (`WORKTIME`/`ELAPSEDTIME`); notatie `2d`
+    vs. `3ed` in editors, CSV en MSPDI (LagFormat 8).
+  - **Procentuele lag** (bv. `SS+50%`, MS Project-semantiek): percentage van de duur van de
+    voorganger, bij elke CPM-run opnieuw geëvalueerd; round-tript via IFC (`IfcRatioMeasure`)
+    en MSPDI (LagFormat 19/20); P6-export bakt uit naar vaste uren (met logmelding).
+  - **Negatieve lag (lead) afgerond**: klem op de projectstart blijft (P6/MSP-conform) maar een
+    **afgekapte lead** wordt nu gemarkeerd, net als een lead groter dan de voorgangerduur;
+    leads serialiseren ISO-8601-conform (`-P2D`) en de omgewisselde `IfcLagTime`-attributen
+    (LagValue ↔ DurationType) zijn rechtgezet — oude bestanden blijven leesbaar.
+  - **Driving/non-driving relaties** (P6-definitie: relationship free float = 0, gelijkspel
+    toegestaan): doorgetrokken vs. gestreepte pijlen in de Gantt (rood = kritieke driving-lijn),
+    ⚡-indicator in het eigenschappen-paneel en de relatietabel.
+  - **Relatietabel** — nieuwe ribbon-tab *Relaties*: alle relaties in één sorteerbare, inline
+    bewerkbare tabel (voorganger, type, lag, opvolger, driving, vrije speling per relatie,
+    waarschuwingen) + "nieuwe relatie uit selectie"; de Beheer-knop op de Planning-tab opent hem.
+  - **Path tracing** (MSP Task Path-stijl): trace-knoppen (voorgangers/opvolgers) op de
+    Planning- en Relaties-tab + contextmenu "Pad traceren" — transitieve voorgangers goud,
+    opvolgers paars (driving-ketens donkerder), de rest gedimd; Escape stopt.
+  - Relaties zijn nu ook **bewerkbaar** in het eigenschappen-paneel (type + lag-notatie
+    `2d/3ed/50%/-25e%`); nieuwe store-actie `updateSequence` met undo.
+  - Testsuite uitgebreid: 129 → **159 cases** (nieuwe batterijen `cases-lag-advanced.json` en
+    `cases-driving.json`; harness kent `lagUnit`/`lagPercent`/`drivingSet`/`truncatedLeadSet`).
+
 ### Documentatie
 - To-do-lijst (`docs/TODO.md`) toegevoegd en vanuit `CLAUDE.md` verwezen.
 - Dit changelog-document toegevoegd en vanuit `CLAUDE.md` verwezen.

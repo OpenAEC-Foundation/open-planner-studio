@@ -27,7 +27,9 @@
     "addRelation": "افزودن رابطه",
     "toggleCollapse": "جمع/باز",
     "delete": "حذف",
-    "newTask": "وظیفه جدید"
+    "newTask": "وظیفه جدید",
+    "tracePath": "ردیابی مسیر",
+    "traceOff": "توقف ردیابی مسیر"
   },
   "settings": {
     "title": "تنظیمات",

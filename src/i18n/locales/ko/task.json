@@ -60,7 +60,25 @@
     "freeFloat": "자유 여유:",
     "criticalPath": "크리티컬 패스:",
     "dependencies": "종속성",
+    "driving": "주도 관계(드라이빙)",
+    "lag": "지연(예: 2d, 3ed, 50%, -25e%)",
     "recalculate": "CPM 재계산"
+  },
+  "relations": {
+    "title": "관계",
+    "predecessor": "선행 작업",
+    "successor": "후속 작업",
+    "type": "유형",
+    "lag": "지연",
+    "driving": "주도",
+    "freeFloat": "자유 여유",
+    "warnings": "경고",
+    "addFromSelection": "선택 항목으로 새 관계 만들기",
+    "addFromSelectionHint": "정확히 두 개의 작업을 선택하세요(선행 작업 먼저, 그다음 후속 작업)",
+    "empty": "아직 관계가 없습니다. 간트 차트에서 Shift를 누른 채 막대 사이를 드래그하거나, 두 작업을 선택한 뒤 위의 버튼을 사용하세요.",
+    "notCalculated": "주도 관계와 여유를 보려면 다시 계산(F5)하세요",
+    "warnTruncatedLead": "선행 시간이 프로젝트 시작에서 잘렸습니다 — 겹침이 완전히 활용되지 않습니다",
+    "warnLeadExceedsDuration": "선행 시간이 선행 작업의 기간보다 큽니다"
   },
   "defaultTask": "새 작업",
   "defaultMilestone": "새 마일스톤"

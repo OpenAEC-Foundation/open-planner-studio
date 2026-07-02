@@ -94,7 +94,10 @@
     "appearance": "Görünüm",
     "ifcInfo": "IFC 4x3 - Industry Foundation Classes",
     "reporting": "Rapor",
-    "noRecentFiles": "Son açılan dosya yok"
+    "noRecentFiles": "Son açılan dosya yok",
+    "trace": "Yol izleme",
+    "tracePredecessors": "Öncüller",
+    "traceSuccessors": "Ardıllar"
   },
   "ifc": {
     "title": "IFC Düzenleyici",

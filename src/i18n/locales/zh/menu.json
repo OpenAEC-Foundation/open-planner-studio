@@ -94,7 +94,10 @@
     "appearance": "外观",
     "ifcInfo": "IFC 4x3 - Industry Foundation Classes",
     "reporting": "报告",
-    "noRecentFiles": "没有最近文件"
+    "noRecentFiles": "没有最近文件",
+    "trace": "路径追踪",
+    "tracePredecessors": "前置任务",
+    "traceSuccessors": "后续任务"
   },
   "ifc": {
     "title": "IFC 编辑器",

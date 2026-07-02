@@ -1,6 +1,15 @@
 # Ontwerp: Fase 2.1 — Volledige dependencies
 
-*Datum: 2026-07-02 · Status: in uitvoering · Bron: [docs/TODO.md](../../TODO.md) §2.1, [PLAN.md](../../../PLAN.md) §2.2.B + §6 Fase 2.1*
+*Datum: 2026-07-02 · Status: **geïmplementeerd** (zelfde dag; zie changelog "Volledige dependencies (fase 2.1)") · Bron: [docs/TODO.md](../../TODO.md) §2.1, [PLAN.md](../../../PLAN.md) §2.2.B + §6 Fase 2.1*
+
+> Implementatienotities t.o.v. dit ontwerp: `addWorkingDaysSigned` is ongewijzigd gebleven —
+> alle CPM-paden voeren gegarandeerd werkdagen aan (gedocumenteerde invariant); kalenderdag-lag
+> snapt in plaats daarvan richtingbewust op de gebruiksplek (forward `nextWorkDay`, backward
+> nieuwe `prevWorkDay`). Vrije speling en driving komen uit één per-relatie constraint-cache in
+> de forward pass (`sequenceFreeFloat`; 0 = driving), bewezen equivalent aan de oude per-type
+> formules. De relatietabel is een platte tabel (P6-Relationships-stijl) — de N×N-matrix blijft
+> bewust buiten scope (§9). Truncatie-detectie markeert alleen de bíndende afgekapte lead
+> (gedomineerde leads zijn gewoon non-driving).
 
 Dit document legt de ontwerpbeslissingen vast voor de zes TODO-items van fase 2.1,
 op basis van drie onderzoekssporen: (1) audit van de huidige implementatie,

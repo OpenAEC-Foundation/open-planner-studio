@@ -94,7 +94,10 @@
     "appearance": "ظاهر",
     "ifcInfo": "IFC 4x3 - Industry Foundation Classes",
     "reporting": "گزارش",
-    "noRecentFiles": "فایل اخیری وجود ندارد"
+    "noRecentFiles": "فایل اخیری وجود ندارد",
+    "trace": "ردیابی مسیر",
+    "tracePredecessors": "پیش‌نیازها",
+    "traceSuccessors": "پس‌نیازها"
   },
   "ifc": {
     "title": "ویرایشگر IFC",

@@ -60,7 +60,25 @@
     "freeFloat": "自由浮动：",
     "criticalPath": "关键路径：",
     "dependencies": "依赖关系",
+    "driving": "驱动关系 (driving)",
+    "lag": "延时（例如 2d、3ed、50%、-25e%）",
     "recalculate": "重新计算 CPM"
+  },
+  "relations": {
+    "title": "关系",
+    "predecessor": "前置任务",
+    "successor": "后续任务",
+    "type": "类型",
+    "lag": "延时",
+    "driving": "驱动",
+    "freeFloat": "自由浮动",
+    "warnings": "警告",
+    "addFromSelection": "从所选任务新建关系",
+    "addFromSelectionHint": "请恰好选择两个任务（先前置任务，后后续任务）",
+    "empty": "尚无关系。在甘特图中按住 Shift 在任务条之间拖动，或选择两个任务后使用上方按钮。",
+    "notCalculated": "重新计算（F5）以查看驱动关系和浮动",
+    "warnTruncatedLead": "提前量在项目开始处被截断——重叠未被完全利用",
+    "warnLeadExceedsDuration": "提前量大于前置任务的工期"
   },
   "defaultTask": "新建任务",
   "defaultMilestone": "新建里程碑"

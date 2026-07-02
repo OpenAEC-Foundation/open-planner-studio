@@ -60,7 +60,25 @@
     "freeFloat": "Folga livre:",
     "criticalPath": "Caminho crítico:",
     "dependencies": "Dependências",
+    "driving": "Relação determinante (driving)",
+    "lag": "Atraso (ex.: 2d, 3ed, 50%, -25e%)",
     "recalculate": "Recalcular CPM"
+  },
+  "relations": {
+    "title": "Relações",
+    "predecessor": "Predecessora",
+    "successor": "Sucessora",
+    "type": "Tipo",
+    "lag": "Atraso",
+    "driving": "Determinante",
+    "freeFloat": "Folga livre",
+    "warnings": "Avisos",
+    "addFromSelection": "Nova relação a partir da seleção",
+    "addFromSelectionHint": "Selecione exatamente duas tarefas (primeiro a predecessora, depois a sucessora)",
+    "empty": "Ainda não há relações. Arraste com Shift entre as barras no Gantt, ou selecione duas tarefas e use o botão acima.",
+    "notCalculated": "Recalcule (F5) para ver relações determinantes e folgas",
+    "warnTruncatedLead": "Avanço truncado no início do projeto — a sobreposição não é totalmente aproveitada",
+    "warnLeadExceedsDuration": "O avanço é maior do que a duração da predecessora"
   },
   "defaultTask": "Nova tarefa",
   "defaultMilestone": "Novo marco"

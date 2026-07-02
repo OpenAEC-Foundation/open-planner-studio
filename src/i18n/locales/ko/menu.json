@@ -94,7 +94,10 @@
     "appearance": "외관",
     "ifcInfo": "IFC 4x3 - Industry Foundation Classes",
     "reporting": "보고서",
-    "noRecentFiles": "최근 파일 없음"
+    "noRecentFiles": "최근 파일 없음",
+    "trace": "경로 추적",
+    "tracePredecessors": "선행 작업",
+    "traceSuccessors": "후속 작업"
   },
   "ifc": {
     "title": "IFC 편집기",

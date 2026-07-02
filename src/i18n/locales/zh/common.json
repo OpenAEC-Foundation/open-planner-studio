@@ -27,7 +27,9 @@
     "addRelation": "添加关系",
     "toggleCollapse": "折叠/展开",
     "delete": "删除",
-    "newTask": "新建任务"
+    "newTask": "新建任务",
+    "tracePath": "追踪路径",
+    "traceOff": "停止路径追踪"
   },
   "settings": {
     "title": "设置",

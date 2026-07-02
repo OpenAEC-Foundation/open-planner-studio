@@ -27,7 +27,9 @@
     "addRelation": "関係を追加",
     "toggleCollapse": "折りたたむ／展開",
     "delete": "削除",
-    "newTask": "新しいタスク"
+    "newTask": "新しいタスク",
+    "tracePath": "パスをトレース",
+    "traceOff": "パスのトレースを停止"
   },
   "settings": {
     "title": "設定",

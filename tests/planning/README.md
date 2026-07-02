@@ -37,6 +37,8 @@ ná de finish, lag in werkdagen, lead = negatieve lag, FF = finishes uitlijnen, 
 | `cases-milestones.json` | mijlpalen (duur 0): start/eind/tussen/fork/join |
 | `cases-calendar.json` | weekenden, feestdagen, afwijkende werkweek |
 | `cases-edge.json` | cyclus, leeg, lange keten, WBS-/fase-oprol |
+| `cases-lag-advanced.json` | lag-eenheid (werkdagen vs. kalenderdagen/elapsed) + procent-lag (fase 2.1) |
+| `cases-driving.json` | driving/non-driving relaties + afgekapte leads (fase 2.1) |
 
 ## Een geval toevoegen
 

@@ -27,7 +27,9 @@
     "addRelation": "إضافة علاقة",
     "toggleCollapse": "طي/توسيع",
     "delete": "حذف",
-    "newTask": "مهمة جديدة"
+    "newTask": "مهمة جديدة",
+    "tracePath": "تتبُّع المسار",
+    "traceOff": "إيقاف تتبُّع المسار"
   },
   "settings": {
     "title": "الإعدادات",

@@ -47,13 +47,9 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 
 ### Fase 2 — Professionele Planning (v0.5)
 
-#### 2.1 Volledige dependencies
-- [ ] Negatieve lag (lead/overlap) volledig correct in CPM (nu deels)
-- [ ] Lag in werkdagen vs. kalenderdagen
-- [ ] Procentuele lag (bijv. SS+50%)
-- [ ] Driving/non-driving relationship markering
-- [ ] Dependency-matrix/tabel weergave
-- [ ] Path tracing (trace alle voorgangers/opvolgers)
+> §2.1 Volledige dependencies is afgerond (lag-eenheid, procent-lag, leads, driving-markering,
+> relatietabel, path tracing) — zie changelog en
+> [ontwerp](superpowers/specs/2026-07-02-volledige-dependencies-design.md).
 
 #### 2.2 WBS & structuur
 - [ ] WBS-codes automatisch genereren (gestructureerd 1.2.3.4)

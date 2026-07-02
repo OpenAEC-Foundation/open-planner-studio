@@ -27,7 +27,9 @@
     "addRelation": "Dodaj relację",
     "toggleCollapse": "Zwiń/rozwiń",
     "delete": "Usuń",
-    "newTask": "Nowe zadanie"
+    "newTask": "Nowe zadanie",
+    "tracePath": "Śledź ścieżkę",
+    "traceOff": "Zatrzymaj śledzenie ścieżki"
   },
   "settings": {
     "title": "Ustawienia",

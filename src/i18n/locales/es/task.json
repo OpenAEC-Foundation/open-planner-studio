@@ -60,7 +60,25 @@
     "freeFloat": "Holgura libre:",
     "criticalPath": "Ruta crítica:",
     "dependencies": "Dependencias",
+    "driving": "Relación determinante (driving)",
+    "lag": "Desfase (ej. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Recalcular CPM"
+  },
+  "relations": {
+    "title": "Relaciones",
+    "predecessor": "Predecesora",
+    "successor": "Sucesora",
+    "type": "Tipo",
+    "lag": "Desfase",
+    "driving": "Determinante",
+    "freeFloat": "Holgura libre",
+    "warnings": "Advertencias",
+    "addFromSelection": "Nueva relación a partir de la selección",
+    "addFromSelectionHint": "Seleccione exactamente dos tareas (primero la predecesora, luego la sucesora)",
+    "empty": "Aún no hay relaciones. Arrastre con Shift entre las barras del Gantt, o seleccione dos tareas y use el botón de arriba.",
+    "notCalculated": "Recalcule (F5) para ver las relaciones determinantes y las holguras",
+    "warnTruncatedLead": "Adelanto truncado en el inicio del proyecto — la superposición no se aprovecha por completo",
+    "warnLeadExceedsDuration": "El adelanto es mayor que la duración de la predecesora"
   },
   "defaultTask": "Nueva tarea",
   "defaultMilestone": "Nuevo hito"

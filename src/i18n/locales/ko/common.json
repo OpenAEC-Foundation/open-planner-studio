@@ -27,7 +27,9 @@
     "addRelation": "관계 추가",
     "toggleCollapse": "접기/펼치기",
     "delete": "삭제",
-    "newTask": "새 작업"
+    "newTask": "새 작업",
+    "tracePath": "경로 추적",
+    "traceOff": "경로 추적 중지"
   },
   "settings": {
     "title": "설정",
