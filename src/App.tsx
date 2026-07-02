@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact } from '@/utils/settingsStore';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -92,6 +92,9 @@ function AppContent() {
     });
     loadLeftPanelWidth().then(w => {
       if (typeof w === 'number') setUI({ leftPanelWidth: w });
+    });
+    loadRibbonCompact().then(v => {
+      if (typeof v === 'boolean') setUI({ ribbonCompact: v });
     });
     void loadAllExtensions();
   }, []);

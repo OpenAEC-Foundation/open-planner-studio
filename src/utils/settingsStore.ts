@@ -133,6 +133,15 @@ export async function saveLeftPanelWidth(value: number): Promise<void> {
   await setSetting('leftPanelWidth', Math.round(value));
 }
 
+export async function loadRibbonCompact(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('ribbonCompact');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveRibbonCompact(value: boolean): Promise<void> {
+  await setSetting('ribbonCompact', value);
+}
+
 const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
 
 export async function loadDocumentChromeStyle(): Promise<DocumentChromeStyle | undefined> {

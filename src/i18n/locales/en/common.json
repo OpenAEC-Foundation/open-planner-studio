@@ -71,7 +71,9 @@
     "documentChrome": "Document switch style",
     "documentChromeTabs": "Horizontal tabs",
     "documentChromeRail": "Vertical tabs",
-    "documentChromeSwitcher": "Pill"
+    "documentChromeSwitcher": "Pill",
+    "ribbonCompact": "Compact ribbon",
+    "ribbonCompactHint": "Lower toolbar for small screens"
   },
   "confirm": {
     "newProject": "Create new project? Unsaved changes will be lost.",

@@ -492,6 +492,7 @@ export function Ribbon() {
   const renumberWbs = useAppStore(s => s.renumberWbs);
   const indentTasks = useAppStore(s => s.indentTasks);
   const outdentTasks = useAppStore(s => s.outdentTasks);
+  const ribbonCompact = useAppStore(s => s.ui.ribbonCompact);
   const project = useAppStore(s => s.project);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
@@ -564,7 +565,7 @@ export function Ribbon() {
   );
 
   return (
-    <div className="ribbon-container">
+    <div className={`ribbon-container${ribbonCompact ? ' compact' : ''}`}>
       {/* Tabs — 'file' is de speciale amber backstage-tab links */}
       <div className="ribbon-tabs">
         <button

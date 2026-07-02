@@ -34,6 +34,7 @@ export function createDefaultUI(): UIState {
     debugTerminalEnabled: false,
     debugTerminalOpen: false,
     documentChromeStyle: 'tabs',
+    ribbonCompact: false,
     showProjectOverview: false,
     pendingCloseDocId: null,
     showNewProjectDialog: false,

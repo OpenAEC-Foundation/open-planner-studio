@@ -204,6 +204,59 @@
   -webkit-line-clamp: unset;
 }
 
+/* Compacte modus (instelling, kleine schermen): lagere content-strip, groepslabels
+   weg, grote knoppen worden horizontale kleine knoppen en stacks klappen om naar
+   een rij — alles past in één regel van ~40px i.p.v. 94px. */
+.ribbon-container.compact .ribbon-content {
+  height: 40px;
+  padding: 3px 8px;
+  align-items: center;
+}
+.ribbon-container.compact .ribbon-group {
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+  height: auto;
+}
+.ribbon-container.compact .ribbon-group-label { display: none; }
+.ribbon-container.compact .ribbon-group-content {
+  align-items: center;
+  padding: 0;
+  flex: none;
+}
+.ribbon-container.compact .ribbon-btn {
+  flex-direction: row;
+  height: 28px;
+  min-width: 0;
+  padding: 2px 8px 2px 5px;
+  gap: 5px;
+  justify-content: flex-start;
+  border-radius: var(--radius-sm);
+}
+.ribbon-container.compact .ribbon-btn-icon {
+  width: 18px;
+  height: 18px;
+}
+.ribbon-container.compact .ribbon-btn-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.ribbon-container.compact .ribbon-btn-label {
+  font-size: 11px;
+  text-align: left;
+  max-width: none;
+  white-space: nowrap;
+  display: block;
+  -webkit-line-clamp: unset;
+}
+.ribbon-container.compact .ribbon-btn-stack {
+  flex-direction: row;
+  height: auto;
+  gap: 1px;
+  align-items: center;
+}
+.ribbon-container.compact .ribbon-btn.small { height: 28px; min-width: 0; }
+
 /* File tab (backstage trigger) — altijd amber, opvallend links */
 .ribbon-tab--file {
   background: var(--theme-file-tab-bg);

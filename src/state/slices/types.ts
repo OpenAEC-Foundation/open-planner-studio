@@ -100,6 +100,7 @@ export interface UIState {
   debugTerminalEnabled: boolean;  // persisted
   debugTerminalOpen: boolean;     // session
   documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
+  ribbonCompact: boolean; // persisted — compacte ribbon voor kleine schermen
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
