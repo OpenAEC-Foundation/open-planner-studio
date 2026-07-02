@@ -48,6 +48,8 @@
     "description": "Açıklama",
     "type": "Tür",
     "milestone": "Kilometre taşı",
+    "milestoneKind": "Kilometre taşı türü",
+    "mandatory": "Zorunlu (sözleşmesel)",
     "time": "Zaman",
     "start": "Başlangıç",
     "duration": "Süre (gün)",
@@ -123,6 +125,12 @@
     "MSO": "Şu tarihte başlamalı (MSO)",
     "MFO": "Şu tarihte bitmeli (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Otomatik",
+    "START": "Başlangıç kilometre taşı",
+    "FINISH": "Bitiş kilometre taşı"
+  },
   "defaultTask": "Yeni görev",
-  "defaultMilestone": "Yeni kilometre taşı"
+  "defaultMilestone": "Yeni kilometre taşı",
+  "defaultInspection": "Yeni denetim noktası"
 }

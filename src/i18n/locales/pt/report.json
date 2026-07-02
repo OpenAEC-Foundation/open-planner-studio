@@ -44,5 +44,32 @@
     "end": "Fim",
     "duration": "Duração",
     "completion": "Concl."
+  },
+  "reportType": {
+    "label": "Tipo de relatório",
+    "gantt": "Gráfico de Gantt",
+    "milestones": "Visão geral de marcos"
+  },
+  "milestoneReport": {
+    "title": "Visão geral de marcos",
+    "wbs": "EAP",
+    "name": "Nome",
+    "kind": "Tipo",
+    "date": "Data",
+    "guardDate": "Restrição/prazo",
+    "float": "Folga",
+    "mandatory": "Obrigatório",
+    "status": "Estado",
+    "kind_AUTO": "Automático",
+    "kind_START": "Início",
+    "kind_FINISH": "Fim",
+    "yes": "Sim",
+    "status_late": "Atrasado",
+    "status_critical": "Crítico",
+    "status_onSchedule": "No prazo",
+    "empty": "Sem marcos neste projeto.",
+    "total": "Marcos",
+    "mandatoryCount": "Obrigatórios",
+    "lateCount": "Atrasados"
   }
 }

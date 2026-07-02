@@ -44,5 +44,32 @@
     "end": "Bitiş",
     "duration": "Süre",
     "completion": "Tamam."
+  },
+  "reportType": {
+    "label": "Rapor türü",
+    "gantt": "Gantt şeması",
+    "milestones": "Kilometre taşı özeti"
+  },
+  "milestoneReport": {
+    "title": "Kilometre taşı özeti",
+    "wbs": "İKY",
+    "name": "Ad",
+    "kind": "Tür",
+    "date": "Tarih",
+    "guardDate": "Kısıtlama/son tarih",
+    "float": "Bolluk",
+    "mandatory": "Zorunlu",
+    "status": "Durum",
+    "kind_AUTO": "Otomatik",
+    "kind_START": "Başlangıç",
+    "kind_FINISH": "Bitiş",
+    "yes": "Evet",
+    "status_late": "Gecikmiş",
+    "status_critical": "Kritik",
+    "status_onSchedule": "Planında",
+    "empty": "Bu projede kilometre taşı yok.",
+    "total": "Kilometre taşları",
+    "mandatoryCount": "Zorunlu",
+    "lateCount": "Gecikmiş"
   }
 }

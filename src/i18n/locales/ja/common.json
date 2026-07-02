@@ -71,7 +71,9 @@
     "documentChrome": "ドキュメント切り替えスタイル",
     "documentChromeTabs": "横タブ",
     "documentChromeRail": "縦タブ",
-    "documentChromeSwitcher": "ピル"
+    "documentChromeSwitcher": "ピル",
+    "ribbonCompact": "コンパクトなリボン",
+    "ribbonCompactHint": "小さい画面向けの低いツールバー"
   },
   "confirm": {
     "newProject": "新しいプロジェクトを作成しますか？保存されていない変更は失われます。",

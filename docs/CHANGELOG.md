@@ -6,7 +6,48 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
-*(nog niets)*
+### Toegevoegd
+- **Mijlpalen (fase 2.4)** — start-/eindmijlpalen, verplichte mijlpalen en een
+  mijlpalen-overzicht (ontwerp: `docs/superpowers/specs/2026-07-02-mijlpalen-design.md`):
+  - **Start- en eindmijlpalen** (P6 *Start/Finish Milestone*) via een dag-granulair
+    grens-model: een startmijlpaal ankert op een dagbegin, een eindmijlpaal op een
+    dageinde (einde werkdag F = begin volgende werkdag). FS naar een eindmijlpaal landt
+    op de finishdag zelf; een FS/SS-opvolger van een eindmijlpaal start de werkdag erna.
+    `undefined` = automatisch (het anker volgt de bindende relatiezijde) — bestaande
+    bestanden rekenen bit-gelijk. Gouden invariant: een tussengevoegde mijlpaal
+    verschuift de keten nooit.
+  - **Verplichte (contractuele) mijlpalen**: `mandatory`-vlag met dubbel-ruit in de
+    Gantt; datumbewaking via de bestaande 2.3-constraints (FNLT/MFO → negatieve float).
+    Ribbon-mijlpaalknop is een keuzemenu: startmijlpaal, eindmijlpaal of
+    **inspectiemoment** (eindmijlpaal + taaktype Keuring/Inspectie + verplicht).
+  - **Mijlpalen-overzicht** als tweede rapporttype in het Rapport-paneel: tabel met
+    soort, datum, constraint-/deadline-datum, float, verplicht en status
+    (op schema / kritiek / te laat, kleurgecodeerd), afdrukbaar; samenvatting met
+    verplicht- en te-laat-tellers.
+  - Round-trip door IFC 4.3 (`OPS_Milestone`-pset; automatisch schrijft niets) en
+    P6-XML (activitytype `Start`/`Finish Milestone`, soort blijft behouden bij import).
+  - Testsuite gegroeid van 176 naar **202 handberekende cases** (batterij
+    `cases-milestone-kinds.json`), alle bestaande cases ongewijzigd groen.
+- **Indent/outdent van taken** (MSP-conventie): Alt+Shift+→/← en knoppen in
+  Planning → Structuur; inspringen maakt een taak kind van zijn voorgaande sibling,
+  uitspringen maakt hem sibling ná zijn ouder — subbomen liften mee, WBS-autonummering
+  hernummert en het is één undo-stap.
+- **Resizebare takentabel** in de Gantt: sleep de scheidingslijn (150–800 px,
+  persistent); vervangt de vaste breedte van 350 px.
+- **Compacte ribbon-modus** (instelling op alle drie de settings-oppervlakken):
+  één rij van 40 px in plaats van 94 px — voor kleine schermen.
+
+### Gewijzigd
+- Het mijlpaal-vinkje in het eigenschappen-paneel zet de duur nu op 0 en disabled het
+  duurveld; de tabellen tonen consequent duur 0 voor mijlpalen (was: stille divergentie).
+- Nieuwe mijlpalen krijgen niet langer standaard het taaktype Keuring/Inspectie
+  (dat is nu voorbehouden aan het inspectiemoment).
+
+### Opgelost
+- **Scherp app-icoon op Linux**: het runtime-venstericoon was 32×32 (eerste PNG in
+  `bundle.icon`), waardoor docks een opgeschaald wazig icoon toonden. `icon.png` (512 px)
+  staat nu vooraan, 256×256/512×512 vullen de hicolor-slots in de `.deb`/snap en alle
+  maten zijn opnieuw uit de 1024px-vectorbron gegenereerd (incl. `snap/gui/icon.png`).
 
 ## v2026.7.1 — 2026-07-02
 

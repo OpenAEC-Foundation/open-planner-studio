@@ -71,7 +71,9 @@
     "documentChrome": "Styl przełączania dokumentów",
     "documentChromeTabs": "Karty poziome",
     "documentChromeRail": "Karty pionowe",
-    "documentChromeSwitcher": "Pigułka"
+    "documentChromeSwitcher": "Pigułka",
+    "ribbonCompact": "Kompaktowa wstążka",
+    "ribbonCompactHint": "Niższy pasek narzędzi na małe ekrany"
   },
   "confirm": {
     "newProject": "Utworzyć nowy projekt? Niezapisane zmiany zostaną utracone.",

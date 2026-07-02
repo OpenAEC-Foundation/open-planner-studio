@@ -1,6 +1,6 @@
 # Ontwerp: Fase 2.4 — Mijlpalen
 
-*Datum: 2026-07-02 · Status: **in uitvoering** · Bron: [docs/TODO.md](../../TODO.md) §2.4, PLAN.md §2.4 (regels 1002-1006) + §8.2 (mijlpaalkleur `#7C3AED`, diamant)*
+*Datum: 2026-07-02 · Status: **geïmplementeerd** (zelfde dag; zie changelog) · Bron: [docs/TODO.md](../../TODO.md) §2.4, PLAN.md §2.4 (regels 1002-1006) + §8.2 (mijlpaalkleur `#7C3AED`, diamant)*
 
 Gebaseerd op twee onderzoekssporen: code-audit (huidige milestone-implementatie
 end-to-end) en vakstandaard-research (Oracle P6 start/finish-milestones, MSP

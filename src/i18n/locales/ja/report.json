@@ -44,5 +44,32 @@
     "end": "終了",
     "duration": "期間",
     "completion": "進捗"
+  },
+  "reportType": {
+    "label": "レポートの種類",
+    "gantt": "ガントチャート",
+    "milestones": "マイルストーン一覧"
+  },
+  "milestoneReport": {
+    "title": "マイルストーン一覧",
+    "wbs": "WBS",
+    "name": "名前",
+    "kind": "種類",
+    "date": "日付",
+    "guardDate": "制約/期限",
+    "float": "余裕",
+    "mandatory": "必須",
+    "status": "状態",
+    "kind_AUTO": "自動",
+    "kind_START": "開始",
+    "kind_FINISH": "完了",
+    "yes": "はい",
+    "status_late": "遅延",
+    "status_critical": "クリティカル",
+    "status_onSchedule": "予定どおり",
+    "empty": "このプロジェクトにマイルストーンはありません。",
+    "total": "マイルストーン",
+    "mandatoryCount": "必須",
+    "lateCount": "遅延"
   }
 }

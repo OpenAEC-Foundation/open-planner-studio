@@ -48,6 +48,8 @@
     "description": "Descrição",
     "type": "Tipo",
     "milestone": "Marco",
+    "milestoneKind": "Tipo de marco",
+    "mandatory": "Obrigatório (contratual)",
     "time": "Tempo",
     "start": "Início",
     "duration": "Duração (dias)",
@@ -123,6 +125,12 @@
     "MSO": "Deve começar em (MSO)",
     "MFO": "Deve terminar em (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Automático",
+    "START": "Marco de início",
+    "FINISH": "Marco de fim"
+  },
   "defaultTask": "Nova tarefa",
-  "defaultMilestone": "Novo marco"
+  "defaultMilestone": "Novo marco",
+  "defaultInspection": "Novo ponto de inspeção"
 }

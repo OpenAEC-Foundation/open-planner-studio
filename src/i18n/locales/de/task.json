@@ -48,6 +48,8 @@
     "description": "Beschreibung",
     "type": "Typ",
     "milestone": "Meilenstein",
+    "milestoneKind": "Meilensteinart",
+    "mandatory": "Verbindlich (vertraglich)",
     "time": "Zeit",
     "start": "Anfang",
     "duration": "Dauer (Tage)",
@@ -123,6 +125,12 @@
     "MSO": "Muss anfangen am (MSO)",
     "MFO": "Muss enden am (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Automatisch",
+    "START": "Anfangsmeilenstein",
+    "FINISH": "Endmeilenstein"
+  },
   "defaultTask": "Neue Aufgabe",
-  "defaultMilestone": "Neuer Meilenstein"
+  "defaultMilestone": "Neuer Meilenstein",
+  "defaultInspection": "Neuer Prüfpunkt"
 }

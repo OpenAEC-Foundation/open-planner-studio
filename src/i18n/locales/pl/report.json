@@ -44,5 +44,32 @@
     "end": "Koniec",
     "duration": "Czas trwania",
     "completion": "Post."
+  },
+  "reportType": {
+    "label": "Typ raportu",
+    "gantt": "Wykres Gantta",
+    "milestones": "Przegląd punktów kontrolnych"
+  },
+  "milestoneReport": {
+    "title": "Przegląd punktów kontrolnych",
+    "wbs": "WBS",
+    "name": "Nazwa",
+    "kind": "Rodzaj",
+    "date": "Data",
+    "guardDate": "Ograniczenie/termin",
+    "float": "Zapas",
+    "mandatory": "Obowiązkowy",
+    "status": "Stan",
+    "kind_AUTO": "Automatycznie",
+    "kind_START": "Początek",
+    "kind_FINISH": "Koniec",
+    "yes": "Tak",
+    "status_late": "Opóźniony",
+    "status_critical": "Krytyczny",
+    "status_onSchedule": "Zgodnie z planem",
+    "empty": "Brak punktów kontrolnych w tym projekcie.",
+    "total": "Punkty kontrolne",
+    "mandatoryCount": "Obowiązkowe",
+    "lateCount": "Opóźnione"
   }
 }

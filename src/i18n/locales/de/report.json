@@ -44,5 +44,32 @@
     "end": "Ende",
     "duration": "Dauer",
     "completion": "Fertigst."
+  },
+  "reportType": {
+    "label": "Berichtstyp",
+    "gantt": "Gantt-Diagramm",
+    "milestones": "Meilensteinübersicht"
+  },
+  "milestoneReport": {
+    "title": "Meilensteinübersicht",
+    "wbs": "PSP",
+    "name": "Name",
+    "kind": "Art",
+    "date": "Datum",
+    "guardDate": "Einschränkung/Stichtag",
+    "float": "Puffer",
+    "mandatory": "Verbindlich",
+    "status": "Status",
+    "kind_AUTO": "Automatisch",
+    "kind_START": "Anfang",
+    "kind_FINISH": "Ende",
+    "yes": "Ja",
+    "status_late": "Verspätet",
+    "status_critical": "Kritisch",
+    "status_onSchedule": "Im Plan",
+    "empty": "Keine Meilensteine in diesem Projekt.",
+    "total": "Meilensteine",
+    "mandatoryCount": "Verbindlich",
+    "lateCount": "Verspätet"
   }
 }

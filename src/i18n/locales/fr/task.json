@@ -48,6 +48,8 @@
     "description": "Description",
     "type": "Type",
     "milestone": "Jalon",
+    "milestoneKind": "Type de jalon",
+    "mandatory": "Obligatoire (contractuel)",
     "time": "Temps",
     "start": "Début",
     "duration": "Durée (jours)",
@@ -123,6 +125,12 @@
     "MSO": "Doit commencer le (MSO)",
     "MFO": "Doit finir le (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Automatique",
+    "START": "Jalon de début",
+    "FINISH": "Jalon de fin"
+  },
   "defaultTask": "Nouvelle tâche",
-  "defaultMilestone": "Nouveau jalon"
+  "defaultMilestone": "Nouveau jalon",
+  "defaultInspection": "Nouveau point d’inspection"
 }

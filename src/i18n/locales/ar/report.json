@@ -44,5 +44,32 @@
     "end": "النهاية",
     "duration": "المدة",
     "completion": "الإنجاز"
+  },
+  "reportType": {
+    "label": "نوع التقرير",
+    "gantt": "مخطط جانت",
+    "milestones": "نظرة عامة على المعالم"
+  },
+  "milestoneReport": {
+    "title": "نظرة عامة على المعالم",
+    "wbs": "WBS",
+    "name": "الاسم",
+    "kind": "النوع",
+    "date": "التاريخ",
+    "guardDate": "القيد/الموعد النهائي",
+    "float": "الفائض",
+    "mandatory": "إلزامي",
+    "status": "الحالة",
+    "kind_AUTO": "تلقائي",
+    "kind_START": "بداية",
+    "kind_FINISH": "نهاية",
+    "yes": "نعم",
+    "status_late": "متأخر",
+    "status_critical": "حرج",
+    "status_onSchedule": "في الموعد",
+    "empty": "لا توجد معالم في هذا المشروع.",
+    "total": "المعالم",
+    "mandatoryCount": "إلزامية",
+    "lateCount": "متأخرة"
   }
 }

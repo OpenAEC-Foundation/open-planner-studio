@@ -48,6 +48,8 @@
     "description": "Opis",
     "type": "Typ",
     "milestone": "Kamień milowy",
+    "milestoneKind": "Rodzaj punktu kontrolnego",
+    "mandatory": "Obowiązkowy (umowny)",
     "time": "Czas",
     "start": "Początek",
     "duration": "Czas trwania (dni)",
@@ -123,6 +125,12 @@
     "MSO": "Musi rozpocząć się (MSO)",
     "MFO": "Musi zakończyć się (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Automatycznie",
+    "START": "Punkt kontrolny początkowy",
+    "FINISH": "Punkt kontrolny końcowy"
+  },
   "defaultTask": "Nowe zadanie",
-  "defaultMilestone": "Nowy kamień milowy"
+  "defaultMilestone": "Nowy kamień milowy",
+  "defaultInspection": "Nowy punkt inspekcji"
 }

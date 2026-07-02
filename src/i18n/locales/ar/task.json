@@ -48,6 +48,8 @@
     "description": "الوصف",
     "type": "النوع",
     "milestone": "معلم",
+    "milestoneKind": "نوع المعلم",
+    "mandatory": "إلزامي (تعاقدي)",
     "time": "الوقت",
     "start": "البداية",
     "duration": "المدة (أيام)",
@@ -123,6 +125,12 @@
     "MSO": "يجب أن يبدأ في (MSO)",
     "MFO": "يجب أن ينتهي في (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "تلقائي",
+    "START": "معلم بداية",
+    "FINISH": "معلم نهاية"
+  },
   "defaultTask": "مهمة جديدة",
-  "defaultMilestone": "معلم جديد"
+  "defaultMilestone": "معلم جديد",
+  "defaultInspection": "نقطة فحص جديدة"
 }

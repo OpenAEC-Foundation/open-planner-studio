@@ -48,6 +48,8 @@
     "description": "설명",
     "type": "유형",
     "milestone": "마일스톤",
+    "milestoneKind": "마일스톤 종류",
+    "mandatory": "필수(계약상)",
     "time": "시간",
     "start": "시작",
     "duration": "기간 (일)",
@@ -123,6 +125,12 @@
     "MSO": "지정일에 시작 (MSO)",
     "MFO": "지정일에 완료 (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "자동",
+    "START": "시작 마일스톤",
+    "FINISH": "완료 마일스톤"
+  },
   "defaultTask": "새 작업",
-  "defaultMilestone": "새 마일스톤"
+  "defaultMilestone": "새 마일스톤",
+  "defaultInspection": "새 검사 지점"
 }

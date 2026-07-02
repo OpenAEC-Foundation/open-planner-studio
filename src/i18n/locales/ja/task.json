@@ -48,6 +48,8 @@
     "description": "説明",
     "type": "種別",
     "milestone": "マイルストーン",
+    "milestoneKind": "マイルストーンの種類",
+    "mandatory": "必須（契約上）",
     "time": "時間",
     "start": "開始",
     "duration": "期間（日）",
@@ -123,6 +125,12 @@
     "MSO": "指定日に開始 (MSO)",
     "MFO": "指定日に終了 (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "自動",
+    "START": "開始マイルストーン",
+    "FINISH": "完了マイルストーン"
+  },
   "defaultTask": "新しいタスク",
-  "defaultMilestone": "新しいマイルストーン"
+  "defaultMilestone": "新しいマイルストーン",
+  "defaultInspection": "新しい検査ポイント"
 }

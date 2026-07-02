@@ -48,6 +48,8 @@
     "description": "Descripción",
     "type": "Tipo",
     "milestone": "Hito",
+    "milestoneKind": "Tipo de hito",
+    "mandatory": "Obligatorio (contractual)",
     "time": "Tiempo",
     "start": "Inicio",
     "duration": "Duración (días)",
@@ -123,6 +125,12 @@
     "MSO": "Debe comenzar el (MSO)",
     "MFO": "Debe finalizar el (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Automático",
+    "START": "Hito de comienzo",
+    "FINISH": "Hito de fin"
+  },
   "defaultTask": "Nueva tarea",
-  "defaultMilestone": "Nuevo hito"
+  "defaultMilestone": "Nuevo hito",
+  "defaultInspection": "Nuevo punto de inspección"
 }

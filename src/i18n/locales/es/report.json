@@ -44,5 +44,32 @@
     "end": "Fin",
     "duration": "Duración",
     "completion": "Av."
+  },
+  "reportType": {
+    "label": "Tipo de informe",
+    "gantt": "Diagrama de Gantt",
+    "milestones": "Resumen de hitos"
+  },
+  "milestoneReport": {
+    "title": "Resumen de hitos",
+    "wbs": "EDT",
+    "name": "Nombre",
+    "kind": "Tipo",
+    "date": "Fecha",
+    "guardDate": "Restricción/fecha límite",
+    "float": "Margen",
+    "mandatory": "Obligatorio",
+    "status": "Estado",
+    "kind_AUTO": "Automático",
+    "kind_START": "Comienzo",
+    "kind_FINISH": "Fin",
+    "yes": "Sí",
+    "status_late": "Retrasado",
+    "status_critical": "Crítico",
+    "status_onSchedule": "En plazo",
+    "empty": "No hay hitos en este proyecto.",
+    "total": "Hitos",
+    "mandatoryCount": "Obligatorios",
+    "lateCount": "Retrasados"
   }
 }

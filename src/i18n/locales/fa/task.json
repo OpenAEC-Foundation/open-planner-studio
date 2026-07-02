@@ -48,6 +48,8 @@
     "description": "توضیحات",
     "type": "نوع",
     "milestone": "نقطه عطف",
+    "milestoneKind": "نوع نقطه عطف",
+    "mandatory": "الزامی (قراردادی)",
     "time": "زمان",
     "start": "شروع",
     "duration": "مدت (روز)",
@@ -123,6 +125,12 @@
     "MSO": "باید شروع شود در (MSO)",
     "MFO": "باید پایان یابد در (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "خودکار",
+    "START": "نقطه عطف شروع",
+    "FINISH": "نقطه عطف پایان"
+  },
   "defaultTask": "وظیفه جدید",
-  "defaultMilestone": "نقطه عطف جدید"
+  "defaultMilestone": "نقطه عطف جدید",
+  "defaultInspection": "نقطه بازرسی جدید"
 }

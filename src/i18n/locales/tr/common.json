@@ -71,7 +71,9 @@
     "documentChrome": "Belge değiştirme stili",
     "documentChromeTabs": "Yatay sekmeler",
     "documentChromeRail": "Dikey sekmeler",
-    "documentChromeSwitcher": "Hap"
+    "documentChromeSwitcher": "Hap",
+    "ribbonCompact": "Kompakt şerit",
+    "ribbonCompactHint": "Küçük ekranlar için alçak araç çubuğu"
   },
   "confirm": {
     "newProject": "Yeni proje oluşturulsun mu? Kaydedilmemiş değişiklikler kaybolacak.",

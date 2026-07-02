@@ -71,7 +71,9 @@
     "documentChrome": "Estilo de mudança de documento",
     "documentChromeTabs": "Separadores horizontais",
     "documentChromeRail": "Separadores verticais",
-    "documentChromeSwitcher": "Pílula"
+    "documentChromeSwitcher": "Pílula",
+    "ribbonCompact": "Faixa de opções compacta",
+    "ribbonCompactHint": "Barra de ferramentas reduzida para ecrãs pequenos"
   },
   "confirm": {
     "newProject": "Criar novo projeto? As alterações não guardadas serão perdidas.",

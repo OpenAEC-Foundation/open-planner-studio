@@ -48,6 +48,8 @@
     "description": "Descrizione",
     "type": "Tipo",
     "milestone": "Traguardo",
+    "milestoneKind": "Tipo di cardine",
+    "mandatory": "Obbligatoria (contrattuale)",
     "time": "Tempo",
     "start": "Inizio",
     "duration": "Durata (giorni)",
@@ -123,6 +125,12 @@
     "MSO": "Deve iniziare il (MSO)",
     "MFO": "Deve finire il (MFO)"
   },
+  "milestoneKind": {
+    "AUTO": "Automatico",
+    "START": "Attività cardine di inizio",
+    "FINISH": "Attività cardine di fine"
+  },
   "defaultTask": "Nuova attività",
-  "defaultMilestone": "Nuovo traguardo"
+  "defaultMilestone": "Nuovo traguardo",
+  "defaultInspection": "Nuovo punto di ispezione"
 }

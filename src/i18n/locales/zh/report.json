@@ -44,5 +44,32 @@
     "end": "结束",
     "duration": "工期",
     "completion": "完成"
+  },
+  "reportType": {
+    "label": "报表类型",
+    "gantt": "甘特图",
+    "milestones": "里程碑一览"
+  },
+  "milestoneReport": {
+    "title": "里程碑一览",
+    "wbs": "WBS",
+    "name": "名称",
+    "kind": "类型",
+    "date": "日期",
+    "guardDate": "限制/期限",
+    "float": "浮时",
+    "mandatory": "强制",
+    "status": "状态",
+    "kind_AUTO": "自动",
+    "kind_START": "开始",
+    "kind_FINISH": "完成",
+    "yes": "是",
+    "status_late": "延迟",
+    "status_critical": "关键",
+    "status_onSchedule": "按计划",
+    "empty": "此项目中没有里程碑。",
+    "total": "里程碑",
+    "mandatoryCount": "强制",
+    "lateCount": "延迟"
   }
 }

@@ -44,5 +44,32 @@
     "end": "پایان",
     "duration": "مدت",
     "completion": "پیشرفت"
+  },
+  "reportType": {
+    "label": "نوع گزارش",
+    "gantt": "نمودار گانت",
+    "milestones": "نمای کلی نقاط عطف"
+  },
+  "milestoneReport": {
+    "title": "نمای کلی نقاط عطف",
+    "wbs": "WBS",
+    "name": "نام",
+    "kind": "نوع",
+    "date": "تاریخ",
+    "guardDate": "محدودیت/مهلت",
+    "float": "شناوری",
+    "mandatory": "الزامی",
+    "status": "وضعیت",
+    "kind_AUTO": "خودکار",
+    "kind_START": "شروع",
+    "kind_FINISH": "پایان",
+    "yes": "بله",
+    "status_late": "با تأخیر",
+    "status_critical": "بحرانی",
+    "status_onSchedule": "طبق برنامه",
+    "empty": "در این پروژه نقطه عطفی وجود ندارد.",
+    "total": "نقاط عطف",
+    "mandatoryCount": "الزامی",
+    "lateCount": "با تأخیر"
   }
 }

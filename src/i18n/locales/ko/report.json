@@ -44,5 +44,32 @@
     "end": "종료",
     "duration": "기간",
     "completion": "진행률"
+  },
+  "reportType": {
+    "label": "보고서 유형",
+    "gantt": "간트 차트",
+    "milestones": "마일스톤 개요"
+  },
+  "milestoneReport": {
+    "title": "마일스톤 개요",
+    "wbs": "WBS",
+    "name": "이름",
+    "kind": "종류",
+    "date": "날짜",
+    "guardDate": "제약/기한",
+    "float": "여유",
+    "mandatory": "필수",
+    "status": "상태",
+    "kind_AUTO": "자동",
+    "kind_START": "시작",
+    "kind_FINISH": "완료",
+    "yes": "예",
+    "status_late": "지연",
+    "status_critical": "임계",
+    "status_onSchedule": "일정대로",
+    "empty": "이 프로젝트에 마일스톤이 없습니다.",
+    "total": "마일스톤",
+    "mandatoryCount": "필수",
+    "lateCount": "지연"
   }
 }

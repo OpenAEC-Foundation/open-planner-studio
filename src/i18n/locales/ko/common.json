@@ -71,7 +71,9 @@
     "documentChrome": "문서 전환 스타일",
     "documentChromeTabs": "가로 탭",
     "documentChromeRail": "세로 탭",
-    "documentChromeSwitcher": "알약"
+    "documentChromeSwitcher": "알약",
+    "ribbonCompact": "컴팩트 리본",
+    "ribbonCompactHint": "작은 화면용 낮은 도구 모음"
   },
   "confirm": {
     "newProject": "새 프로젝트를 만드시겠습니까? 저장되지 않은 변경 사항이 손실됩니다.",

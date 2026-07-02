@@ -44,5 +44,32 @@
     "end": "Fine",
     "duration": "Durata",
     "completion": "Avanz."
+  },
+  "reportType": {
+    "label": "Tipo di report",
+    "gantt": "Diagramma di Gantt",
+    "milestones": "Panoramica attività cardine"
+  },
+  "milestoneReport": {
+    "title": "Panoramica attività cardine",
+    "wbs": "WBS",
+    "name": "Nome",
+    "kind": "Tipo",
+    "date": "Data",
+    "guardDate": "Vincolo/scadenza",
+    "float": "Margine",
+    "mandatory": "Obbligatoria",
+    "status": "Stato",
+    "kind_AUTO": "Automatico",
+    "kind_START": "Inizio",
+    "kind_FINISH": "Fine",
+    "yes": "Sì",
+    "status_late": "In ritardo",
+    "status_critical": "Critica",
+    "status_onSchedule": "Nei tempi",
+    "empty": "Nessuna attività cardine in questo progetto.",
+    "total": "Attività cardine",
+    "mandatoryCount": "Obbligatorie",
+    "lateCount": "In ritardo"
   }
 }

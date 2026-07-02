@@ -44,5 +44,32 @@
     "end": "Fin",
     "duration": "Durée",
     "completion": "Avanc."
+  },
+  "reportType": {
+    "label": "Type de rapport",
+    "gantt": "Diagramme de Gantt",
+    "milestones": "Aperçu des jalons"
+  },
+  "milestoneReport": {
+    "title": "Aperçu des jalons",
+    "wbs": "WBS",
+    "name": "Nom",
+    "kind": "Type",
+    "date": "Date",
+    "guardDate": "Contrainte/échéance",
+    "float": "Marge",
+    "mandatory": "Obligatoire",
+    "status": "Statut",
+    "kind_AUTO": "Automatique",
+    "kind_START": "Début",
+    "kind_FINISH": "Fin",
+    "yes": "Oui",
+    "status_late": "En retard",
+    "status_critical": "Critique",
+    "status_onSchedule": "Dans les délais",
+    "empty": "Aucun jalon dans ce projet.",
+    "total": "Jalons",
+    "mandatoryCount": "Obligatoires",
+    "lateCount": "En retard"
   }
 }
