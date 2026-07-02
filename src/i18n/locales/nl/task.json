@@ -22,6 +22,12 @@
     "MAINTENANCE": "Onderhoud",
     "USERDEFINED": "Overig"
   },
+  "sequenceType": {
+    "FINISH_START": "Eind-Start",
+    "START_START": "Start-Start",
+    "FINISH_FINISH": "Eind-Eind",
+    "START_FINISH": "Start-Eind"
+  },
   "dialog": {
     "editTitle": "Taak bewerken",
     "newTitle": "Nieuwe taak",
@@ -60,6 +66,10 @@
     "freeFloat": "Vrije speling:",
     "criticalPath": "Kritiek pad:",
     "dependencies": "Afhankelijkheden",
+    "dependencyType": "Relatietype",
+    "lag": "Verschuiving",
+    "predecessor": "Voorganger",
+    "successor": "Opvolger",
     "recalculate": "CPM Herberekenen"
   },
   "defaultTask": "Nieuwe taak",

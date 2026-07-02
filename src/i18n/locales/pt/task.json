@@ -22,6 +22,12 @@
     "MAINTENANCE": "Manutenção",
     "USERDEFINED": "Outro"
   },
+  "sequenceType": {
+    "FINISH_START": "Fim-Início",
+    "START_START": "Início-Início",
+    "FINISH_FINISH": "Fim-Fim",
+    "START_FINISH": "Início-Fim"
+  },
   "dialog": {
     "editTitle": "Editar tarefa",
     "newTitle": "Nova tarefa",
@@ -60,6 +66,10 @@
     "freeFloat": "Folga livre:",
     "criticalPath": "Caminho crítico:",
     "dependencies": "Dependências",
+    "dependencyType": "Tipo de relação",
+    "lag": "Defasagem",
+    "predecessor": "Predecessor",
+    "successor": "Sucessor",
     "recalculate": "Recalcular CPM"
   },
   "defaultTask": "Nova tarefa",

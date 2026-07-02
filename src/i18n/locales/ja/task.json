@@ -22,6 +22,12 @@
     "MAINTENANCE": "保守",
     "USERDEFINED": "その他"
   },
+  "sequenceType": {
+    "FINISH_START": "終了-開始",
+    "START_START": "開始-開始",
+    "FINISH_FINISH": "終了-終了",
+    "START_FINISH": "開始-終了"
+  },
   "dialog": {
     "editTitle": "タスクの編集",
     "newTitle": "新しいタスク",
@@ -60,6 +66,10 @@
     "freeFloat": "フリーフロート：",
     "criticalPath": "クリティカルパス：",
     "dependencies": "依存関係",
+    "dependencyType": "関係タイプ",
+    "lag": "ラグ",
+    "predecessor": "先行タスク",
+    "successor": "後続タスク",
     "recalculate": "CPM を再計算"
   },
   "defaultTask": "新しいタスク",

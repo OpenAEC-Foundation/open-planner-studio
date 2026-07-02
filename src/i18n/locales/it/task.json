@@ -22,6 +22,12 @@
     "MAINTENANCE": "Manutenzione",
     "USERDEFINED": "Altro"
   },
+  "sequenceType": {
+    "FINISH_START": "Fine-Inizio",
+    "START_START": "Inizio-Inizio",
+    "FINISH_FINISH": "Fine-Fine",
+    "START_FINISH": "Inizio-Fine"
+  },
   "dialog": {
     "editTitle": "Modifica attività",
     "newTitle": "Nuova attività",
@@ -60,6 +66,10 @@
     "freeFloat": "Margine libero:",
     "criticalPath": "Percorso critico:",
     "dependencies": "Dipendenze",
+    "dependencyType": "Tipo di relazione",
+    "lag": "Ritardo",
+    "predecessor": "Predecessore",
+    "successor": "Successore",
     "recalculate": "Ricalcola CPM"
   },
   "defaultTask": "Nuova attività",

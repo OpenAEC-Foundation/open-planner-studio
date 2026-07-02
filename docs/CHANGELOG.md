@@ -18,6 +18,12 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 - `read_file`/`write_file` in de Rust-backend gedocumenteerd als bewuste escape-hatch.
 
 ### Toegevoegd
+- **Relatietype achteraf bewerken** — in het eigenschappen-paneel is elke afhankelijkheid nu een
+  bewerkbare mini-kaart: een dropdown kiest het relatietype (ES/SS/EE/SE, in conventionele
+  PM-volgorde) en een veld stelt de verschuiving (lag/lead) in, via de nieuwe `updateSequence`-actie
+  (met undo-snapshot en dedup-guard tegen dubbele relaties per paar+type). Voorheen was het type
+  alleen read-only zichtbaar en vastgelegd op `FINISH_START`. Nieuwe i18n-labels `sequenceType.*`
+  in alle 14 talen. Kiezen tijdens het slepen op het Gantt-canvas volgt later (zie `docs/TODO.md`).
 - **Snap-packaging werkend gemaakt** — `snap/snapcraft.yaml` toegevoegd (core22, strict
   confinement, gnome-extensie) die de release-deb herverpakt. `snap.yml` herschreven:
   triggert nu op tag-push én `workflow_dispatch`, downloadt de release-deb i.p.v. de

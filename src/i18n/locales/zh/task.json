@@ -22,6 +22,12 @@
     "MAINTENANCE": "维护",
     "USERDEFINED": "其他"
   },
+  "sequenceType": {
+    "FINISH_START": "完成-开始",
+    "START_START": "开始-开始",
+    "FINISH_FINISH": "完成-完成",
+    "START_FINISH": "开始-完成"
+  },
   "dialog": {
     "editTitle": "编辑任务",
     "newTitle": "新建任务",
@@ -60,6 +66,10 @@
     "freeFloat": "自由浮动：",
     "criticalPath": "关键路径：",
     "dependencies": "依赖关系",
+    "dependencyType": "关系类型",
+    "lag": "延隔",
+    "predecessor": "前置任务",
+    "successor": "后续任务",
     "recalculate": "重新计算 CPM"
   },
   "defaultTask": "新建任务",

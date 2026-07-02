@@ -22,6 +22,12 @@
     "MAINTENANCE": "Konserwacja",
     "USERDEFINED": "Inne"
   },
+  "sequenceType": {
+    "FINISH_START": "Koniec-Początek",
+    "START_START": "Początek-Początek",
+    "FINISH_FINISH": "Koniec-Koniec",
+    "START_FINISH": "Początek-Koniec"
+  },
   "dialog": {
     "editTitle": "Edytuj zadanie",
     "newTitle": "Nowe zadanie",
@@ -60,6 +66,10 @@
     "freeFloat": "Zapas swobodny:",
     "criticalPath": "Ścieżka krytyczna:",
     "dependencies": "Zależności",
+    "dependencyType": "Typ relacji",
+    "lag": "Zwłoka",
+    "predecessor": "Poprzednik",
+    "successor": "Następnik",
     "recalculate": "Przelicz CPM"
   },
   "defaultTask": "Nowe zadanie",

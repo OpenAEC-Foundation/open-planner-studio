@@ -22,6 +22,12 @@
     "MAINTENANCE": "صيانة",
     "USERDEFINED": "أخرى"
   },
+  "sequenceType": {
+    "FINISH_START": "نهاية-بداية",
+    "START_START": "بداية-بداية",
+    "FINISH_FINISH": "نهاية-نهاية",
+    "START_FINISH": "بداية-نهاية"
+  },
   "dialog": {
     "editTitle": "تعديل المهمة",
     "newTitle": "مهمة جديدة",
@@ -60,6 +66,10 @@
     "freeFloat": "الفائض الحر:",
     "criticalPath": "المسار الحرج:",
     "dependencies": "التبعيات",
+    "dependencyType": "نوع العلاقة",
+    "lag": "فارق",
+    "predecessor": "سابق",
+    "successor": "لاحق",
     "recalculate": "إعادة حساب CPM"
   },
   "defaultTask": "مهمة جديدة",

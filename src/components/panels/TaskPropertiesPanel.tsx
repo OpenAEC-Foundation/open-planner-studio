@@ -1,7 +1,9 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task, TaskType } from '@/types/task';
+import { SequenceType } from '@/types/sequence';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
+import { useSequenceTypeLabels } from '@/i18n/sequenceTypes';
 import { Select } from '@/components/common/Select';
 import { Trash2 } from 'lucide-react';
 
@@ -44,12 +46,14 @@ export function TaskPropertiesPanel() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const { options: taskTypeOptions } = useTaskTypeLabels();
+  const { options: sequenceTypeOptions } = useSequenceTypeLabels();
 
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const updateTask = useAppStore(s => s.updateTask);
   const deleteTask = useAppStore(s => s.deleteTask);
+  const updateSequence = useAppStore(s => s.updateSequence);
   const removeSequence = useAppStore(s => s.removeSequence);
   const runCPM = useAppStore(s => s.runCPM);
 
@@ -203,22 +207,53 @@ export function TaskPropertiesPanel() {
           <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
           <span className="ui-card-header !text-xs">{t('properties.dependencies')}</span>
           {taskSequences.map(seq => {
-            const other = seq.predecessorId === task.id
+            const isOutgoing = seq.predecessorId === task.id;
+            const other = isOutgoing
               ? tasks.find(t => t.id === seq.successorId)
               : tasks.find(t => t.id === seq.predecessorId);
-            const role = seq.predecessorId === task.id ? '→' : '←';
+            const role = isOutgoing ? '→' : '←';
             return (
-              <div key={seq.id} className="flex items-center gap-1 text-[10px]">
-                <span>{role}</span>
-                <span className="flex-1 truncate">{other?.name || '?'}</span>
-                <span className="text-text-secondary">{seq.type.replace('_', '-')}</span>
-                {seq.lagDays !== 0 && <span>{seq.lagDays > 0 ? '+' : ''}{seq.lagDays}d</span>}
-                <button
-                  onClick={() => removeSequence(seq.id)}
-                  style={{ color: 'var(--error)' }}
-                >
-                  <Trash2 size={10} />
-                </button>
+              <div
+                key={seq.id}
+                className="flex flex-col gap-1.5 rounded p-2"
+                style={{ background: 'var(--theme-surface-2, var(--theme-border-light))' }}
+              >
+                <div className="flex items-center gap-1 text-[10px]">
+                  <span title={isOutgoing ? t('properties.successor') : t('properties.predecessor')}>
+                    {role}
+                  </span>
+                  <span className="flex-1 truncate" title={other?.name}>{other?.name || '?'}</span>
+                  <button
+                    onClick={() => removeSequence(seq.id)}
+                    style={{ color: 'var(--error)' }}
+                    title={tCommon('delete')}
+                  >
+                    <Trash2 size={10} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <Select
+                      aria-label={t('properties.dependencyType')}
+                      value={seq.type}
+                      onChange={v => updateSequence(seq.id, { type: v as SequenceType })}
+                      options={sequenceTypeOptions}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      type="number"
+                      aria-label={t('properties.lag')}
+                      title={t('properties.lag')}
+                      value={seq.lagDays}
+                      onChange={e => updateSequence(seq.id, { lagDays: parseInt(e.target.value) || 0 })}
+                      className="input !text-xs !px-2 !py-1 !w-14"
+                    />
+                    <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
+                      {tCommon('days')}
+                    </span>
+                  </div>
+                </div>
               </div>
             );
           })}

@@ -22,6 +22,12 @@
     "MAINTENANCE": "Bakım",
     "USERDEFINED": "Diğer"
   },
+  "sequenceType": {
+    "FINISH_START": "Bitiş-Başlangıç",
+    "START_START": "Başlangıç-Başlangıç",
+    "FINISH_FINISH": "Bitiş-Bitiş",
+    "START_FINISH": "Başlangıç-Bitiş"
+  },
   "dialog": {
     "editTitle": "Görevi düzenle",
     "newTitle": "Yeni görev",
@@ -60,6 +66,10 @@
     "freeFloat": "Serbest bolluk:",
     "criticalPath": "Kritik yol:",
     "dependencies": "Bağımlılıklar",
+    "dependencyType": "İlişki türü",
+    "lag": "Gecikme",
+    "predecessor": "Öncül",
+    "successor": "Ardıl",
     "recalculate": "CPM'yi yeniden hesapla"
   },
   "defaultTask": "Yeni görev",

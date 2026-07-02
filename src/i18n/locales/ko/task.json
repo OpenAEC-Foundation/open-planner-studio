@@ -22,6 +22,12 @@
     "MAINTENANCE": "유지보수",
     "USERDEFINED": "기타"
   },
+  "sequenceType": {
+    "FINISH_START": "종료-시작",
+    "START_START": "시작-시작",
+    "FINISH_FINISH": "종료-종료",
+    "START_FINISH": "시작-종료"
+  },
   "dialog": {
     "editTitle": "작업 편집",
     "newTitle": "새 작업",
@@ -60,6 +66,10 @@
     "freeFloat": "자유 여유:",
     "criticalPath": "크리티컬 패스:",
     "dependencies": "종속성",
+    "dependencyType": "관계 유형",
+    "lag": "지연",
+    "predecessor": "선행 작업",
+    "successor": "후행 작업",
     "recalculate": "CPM 재계산"
   },
   "defaultTask": "새 작업",

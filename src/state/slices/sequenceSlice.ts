@@ -6,6 +6,7 @@ import type { AppSlice } from './types';
 export interface SequenceSlice {
   sequences: Sequence[];
   addSequence: (seq: Omit<Sequence, 'id'>) => string;
+  updateSequence: (id: string, updates: Partial<Pick<Sequence, 'type' | 'lagDays'>>) => void;
   removeSequence: (id: string) => void;
 }
 
@@ -30,6 +31,29 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
     });
     return id;
   },
+
+  updateSequence: (id, updates) =>
+    set((s) => {
+      const seq = s.sequences.find((e) => e.id === id);
+      if (!seq) return;
+
+      // Zou de wijziging een exact duplicaat maken van een andere relatie tussen
+      // hetzelfde paar? Dan negeren — spiegelt de dedup-regel in addSequence.
+      const next = { ...seq, ...updates };
+      const clash = s.sequences.some(
+        (e) =>
+          e.id !== id &&
+          e.predecessorId === next.predecessorId &&
+          e.successorId === next.successorId &&
+          e.type === next.type
+      );
+      if (clash) return;
+
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      Object.assign(seq, updates);
+      s.isDirty = true;
+    }),
 
   removeSequence: (id) =>
     set((s) => {
