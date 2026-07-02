@@ -11,10 +11,12 @@ import { ContextMenu } from './ContextMenu';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
 import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
+import { saveLeftPanelWidth, TASK_TABLE_MIN_WIDTH, TASK_TABLE_MAX_WIDTH } from '@/utils/settingsStore';
 
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
-const TASK_TABLE_WIDTH = 350;
+// Halve breedte van de grijpzone rond de tabel/chart-scheiding (splitter).
+const SPLITTER_GRAB_MARGIN = 4;
 // Days of empty padding kept to the left of the earliest task / today so the
 // timeline origin never sits exactly on a task bar.
 const ORIGIN_PADDING_DAYS = 14;
@@ -94,12 +96,14 @@ export function GanttCanvas() {
   const cpmResult = useAppStore(s => s.cpmResult);
   const groupBy = useAppStore(s => s.view.groupBy);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
+  const taskTableWidth = useAppStore(s => s.ui.leftPanelWidth);
 
-  const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth: TASK_TABLE_WIDTH });
-  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth: TASK_TABLE_WIDTH, originPaddingDays: ORIGIN_PADDING_DAYS });
+  const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth });
+  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth, originPaddingDays: ORIGIN_PADDING_DAYS });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [isResizingTable, setIsResizingTable] = useState(false);
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
   const [panState, setPanState] = useState<PanState | null>(null);
   const [cursor, setCursor] = useState('default');
@@ -192,8 +196,8 @@ export function GanttCanvas() {
         if (days > maxDays) maxDays = days;
       }
     }
-    return Math.max(2000, (maxDays * 1.2) * view.zoom + TASK_TABLE_WIDTH);
-  }, [tasks, effectiveViewStart, view.zoom]);
+    return Math.max(2000, (maxDays * 1.2) * view.zoom + taskTableWidth);
+  }, [tasks, effectiveViewStart, view.zoom, taskTableWidth]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -226,7 +230,7 @@ export function GanttCanvas() {
       grouping,
       canvasWidth: rect.width,
       canvasHeight: rect.height,
-      taskTableWidth: TASK_TABLE_WIDTH,
+      taskTableWidth,
       rowHeight: ROW_HEIGHT,
       headerHeight: HEADER_HEIGHT,
       localizedMonths,
@@ -238,7 +242,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, grouping, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom]);
+  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, grouping, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth]);
 
   // Render on changes
   useEffect(() => {
@@ -374,6 +378,14 @@ export function GanttCanvas() {
     const renderer = rendererRef.current;
     if (!renderer) return;
 
+    // Splitter tussen takentabel en chart: heeft voorrang op alle andere
+    // interacties (ook in de header, zodat de hele lijn grijpbaar is).
+    if (Math.abs(x - taskTableWidth) <= SPLITTER_GRAB_MARGIN) {
+      e.preventDefault();
+      setIsResizingTable(true);
+      return;
+    }
+
     if (y < HEADER_HEIGHT) return;
 
     const hit = renderer.getTaskBarBounds(x, y);
@@ -407,7 +419,7 @@ export function GanttCanvas() {
     // No bar hit: in 'drag' scroll mode, grabbing the empty chart background
     // pans the view (map-style). Only in the gantt area, never the task table
     // (the table has no horizontal pan and stays interactive).
-    if (scrollMode === 'drag' && x >= TASK_TABLE_WIDTH) {
+    if (scrollMode === 'drag' && x >= taskTableWidth) {
       e.preventDefault();
       const v = useAppStore.getState().view;
       setPanState({
@@ -417,7 +429,32 @@ export function GanttCanvas() {
         originScrollY: v.scrollY,
       });
     }
-  }, [selectTask, scrollMode]);
+  }, [selectTask, scrollMode, taskTableWidth]);
+
+  // Splitter-drag: breedte volgt de muis (geklemd), opslaan bij loslaten.
+  useEffect(() => {
+    if (!isResizingTable) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const x = e.clientX - canvas.getBoundingClientRect().left;
+      const w = Math.min(TASK_TABLE_MAX_WIDTH, Math.max(TASK_TABLE_MIN_WIDTH, Math.round(x)));
+      setUI({ leftPanelWidth: w });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingTable(false);
+      void saveLeftPanelWidth(useAppStore.getState().ui.leftPanelWidth);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingTable, setUI]);
 
   // Map-style pan: translate pointer movement into scroll offsets. Dragging the
   // canvas content to the right reveals earlier content, so scrollX decreases.
@@ -457,7 +494,7 @@ export function GanttCanvas() {
         const y = e.clientY - rect.top;
 
         const targetTask = renderer.getTaskAtY(y);
-        if (targetTask && targetTask.id !== depDragState.sourceTaskId && x >= TASK_TABLE_WIDTH) {
+        if (targetTask && targetTask.id !== depDragState.sourceTaskId && x >= useAppStore.getState().ui.leftPanelWidth) {
           // Create Finish-to-Start dependency
           addSequence({
             predecessorId: depDragState.sourceTaskId,
@@ -606,6 +643,13 @@ export function GanttCanvas() {
     const renderer = rendererRef.current;
     if (!renderer) return;
 
+    // Splitter-affordance: col-resize-cursor rond de tabel/chart-grens.
+    if (Math.abs(x - taskTableWidth) <= SPLITTER_GRAB_MARGIN) {
+      setCursor('col-resize');
+      setTooltip(null);
+      return;
+    }
+
     if (y < HEADER_HEIGHT) {
       setCursor('default');
       setTooltip(null);
@@ -627,7 +671,7 @@ export function GanttCanvas() {
 
     // Check if hovering task row in gantt area (not just bar)
     const hoveredTask = renderer.getTaskAtY(y);
-    if (hoveredTask && x >= TASK_TABLE_WIDTH) {
+    if (hoveredTask && x >= taskTableWidth) {
       setTooltip({ x: e.clientX, y: e.clientY, task: hoveredTask });
     } else {
       setTooltip(null);
@@ -644,13 +688,13 @@ export function GanttCanvas() {
 
     // In 'drag' scroll mode, show a grab affordance over the pannable chart
     // background so panning is discoverable.
-    if (scrollMode === 'drag' && x >= TASK_TABLE_WIDTH) {
+    if (scrollMode === 'drag' && x >= taskTableWidth) {
       setCursor('grab');
       return;
     }
 
     setCursor('default');
-  }, [dragState, depDragState, panState, scrollMode]);
+  }, [dragState, depDragState, panState, scrollMode, taskTableWidth]);
 
   // Hide tooltip on mouse leave
   const handleMouseLeave = useCallback(() => {
@@ -682,13 +726,15 @@ export function GanttCanvas() {
           ref={canvasRef}
           className="absolute inset-0"
           style={{
-            cursor: panState
-              ? 'grabbing'
-              : dragState
-                ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
-                : depDragState
-                  ? 'crosshair'
-                  : cursor,
+            cursor: isResizingTable
+              ? 'col-resize'
+              : panState
+                ? 'grabbing'
+                : dragState
+                  ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
+                  : depDragState
+                    ? 'crosshair'
+                    : cursor,
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}

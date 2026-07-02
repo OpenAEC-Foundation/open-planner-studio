@@ -118,6 +118,21 @@ export async function saveDebugTerminalEnabled(value: boolean): Promise<void> {
   await setSetting('debugTerminalEnabled', value);
 }
 
+// Breedte van de takentabel links in de Gantt (ui.leftPanelWidth); begrensd
+// zodat een corrupte localStorage-waarde de chart niet onbruikbaar maakt.
+export const TASK_TABLE_MIN_WIDTH = 150;
+export const TASK_TABLE_MAX_WIDTH = 800;
+
+export async function loadLeftPanelWidth(): Promise<number | undefined> {
+  const v = await getSetting<number>('leftPanelWidth');
+  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
+  return Math.min(TASK_TABLE_MAX_WIDTH, Math.max(TASK_TABLE_MIN_WIDTH, Math.round(v)));
+}
+
+export async function saveLeftPanelWidth(value: number): Promise<void> {
+  await setSetting('leftPanelWidth', Math.round(value));
+}
+
 const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
 
 export async function loadDocumentChromeStyle(): Promise<DocumentChromeStyle | undefined> {
