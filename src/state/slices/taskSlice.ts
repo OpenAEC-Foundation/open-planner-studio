@@ -3,7 +3,7 @@ import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
-import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
+import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { createSnapshot } from '../snapshot';
 import type { AppSlice } from './types';
@@ -38,6 +38,10 @@ export interface TaskSlice {
   pasteTasks: () => string[];
   /** Hernummer alle WBS-codes uit de boompositie (1.2.3.4) — de expliciete variant van wbsAutoNumber. */
   renumberWbs: () => void;
+  /** Inspringen (MSP Alt+Shift+→): elke taak wordt kind van zijn voorgaande zichtbare sibling. */
+  indentTasks: (ids: string[]) => void;
+  /** Uitspringen (MSP Alt+Shift+←): elke taak wordt sibling ná zijn huidige ouder. */
+  outdentTasks: (ids: string[]) => void;
   /** Voeg een WBS-sjabloon in onder een ouder (null = rootniveau); geeft de nieuwe root-id terug. */
   insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
 }
@@ -164,6 +168,83 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
         if (newParent) newParent.childIds.push(id);
       }
 
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      s.isDirty = true;
+    }),
+
+  indentTasks: (ids) =>
+    set((s) => {
+      // Kandidaat-ouder = de voorgaande sibling in de weergavevolgorde (flattenOrder).
+      // Geen voorgaande sibling => no-op voor die taak. De subboom lift mee via parentId.
+      // Binnen een meervoudige selectie springt een aaneengesloten blok als geheel in:
+      // geselecteerde voorgaande siblings worden overgeslagen als kandidaat-ouder,
+      // anders nest het blok trapsgewijs in elkaar.
+      const selected = new Set(ids);
+      let changed = false;
+      let snapshotPushed = false;
+      const order = flattenOrder(s.tasks).map(t => t.id);
+      for (const id of order) {
+        if (!selected.has(id)) continue;
+        const task = s.tasks.find(t => t.id === id);
+        if (!task) continue;
+        const idx = order.indexOf(id);
+        let newParentId: string | null = null;
+        for (let i = idx - 1; i >= 0; i--) {
+          const cand = s.tasks.find(t => t.id === order[i]);
+          if (!cand) continue;
+          if (cand.parentId === task.parentId && !selected.has(cand.id)) {
+            newParentId = cand.id;
+            break;
+          }
+          // Voorbij het bereik van dezelfde ouder (omhoog de boom uit): stoppen.
+          if (cand.id === task.parentId) break;
+        }
+        if (!newParentId) continue;
+        if (!snapshotPushed) {
+          s.undoStack.push(createSnapshot(s));
+          s.redoStack = [];
+          snapshotPushed = true;
+        }
+        if (task.parentId) {
+          const oldParent = s.tasks.find(t => t.id === task.parentId);
+          if (oldParent) oldParent.childIds = oldParent.childIds.filter(c => c !== id);
+        }
+        task.parentId = newParentId;
+        const newParent = s.tasks.find(t => t.id === newParentId);
+        if (newParent) newParent.childIds.push(id);
+        changed = true;
+      }
+      if (!changed) return;
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      s.isDirty = true;
+    }),
+
+  outdentTasks: (ids) =>
+    set((s) => {
+      // Diepste taken eerst zodat een geselecteerde ouder+kind-combinatie niet dubbelt.
+      const order = flattenOrder(s.tasks).map(t => t.id);
+      const sorted = [...ids].sort((a, b) => order.indexOf(b) - order.indexOf(a));
+      let changed = false;
+      let snapshotPushed = false;
+      for (const id of sorted) {
+        const task = s.tasks.find(t => t.id === id);
+        if (!task || !task.parentId) continue;
+        const parent = s.tasks.find(t => t.id === task.parentId);
+        if (!parent) continue;
+        if (!snapshotPushed) {
+          s.undoStack.push(createSnapshot(s));
+          s.redoStack = [];
+          snapshotPushed = true;
+        }
+        parent.childIds = parent.childIds.filter(c => c !== id);
+        task.parentId = parent.parentId;
+        if (parent.parentId) {
+          const grandParent = s.tasks.find(t => t.id === parent.parentId);
+          if (grandParent) grandParent.childIds.push(id);
+        }
+        changed = true;
+      }
+      if (!changed) return;
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
     }),

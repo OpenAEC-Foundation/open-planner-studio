@@ -8,6 +8,7 @@ import {
   ArrowRightLeft, Eye, EyeOff, History, SaveAll,
   Download, Puzzle, ArrowLeftToLine, ArrowRightToLine,
   Tags, ListOrdered, Hash, LayoutTemplate,
+  IndentIncrease, IndentDecrease,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { ExportFormat } from '@/state/appStore';
@@ -489,6 +490,8 @@ export function Ribbon() {
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const setWbsAutoNumber = useAppStore(s => s.setWbsAutoNumber);
   const renumberWbs = useAppStore(s => s.renumberWbs);
+  const indentTasks = useAppStore(s => s.indentTasks);
+  const outdentTasks = useAppStore(s => s.outdentTasks);
   const project = useAppStore(s => s.project);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
@@ -667,6 +670,10 @@ export function Ribbon() {
                 <RibbonSmallButton icon={<Hash size={14} />} label={tMenu('ribbon.wbsAuto')} onClick={() => setWbsAutoNumber(!wbsAutoNumber)} active={wbsAutoNumber} />
                 <RibbonSmallButton icon={<ListOrdered size={14} />} label={tMenu('ribbon.renumberWbs')} onClick={renumberWbs} disabled={wbsAutoNumber} />
                 <TemplatesDropdown />
+              </RibbonButtonStack>
+              <RibbonButtonStack>
+                <RibbonSmallButton icon={<IndentIncrease size={14} />} label={tMenu('ribbon.indent')} onClick={() => indentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0} />
+                <RibbonSmallButton icon={<IndentDecrease size={14} />} label={tMenu('ribbon.outdent')} onClick={() => outdentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0} />
               </RibbonButtonStack>
             </RibbonGroup>
           </>

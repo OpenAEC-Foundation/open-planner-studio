@@ -104,6 +104,8 @@
     "structure": "Structuur",
     "wbsAuto": "WBS auto",
     "renumberWbs": "Hernummer WBS",
+    "indent": "Inspringen",
+    "outdent": "Uitspringen",
     "codesFields": "Codes & velden",
     "groupBy": "Groeperen op",
     "groupByWbs": "WBS (boom)",

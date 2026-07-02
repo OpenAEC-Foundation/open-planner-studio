@@ -47,6 +47,8 @@ export function useKeyboardShortcuts() {
   const openFile = useAppStore(s => s.openFile);
   const documents = useAppStore(s => s.documents);
   const switchDocument = useAppStore(s => s.switchDocument);
+  const indentTasks = useAppStore(s => s.indentTasks);
+  const outdentTasks = useAppStore(s => s.outdentTasks);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -93,6 +95,18 @@ export function useKeyboardShortcuts() {
       } else if (e.key === 'F5') {
         e.preventDefault();
         runCPM();
+      } else if (e.altKey && e.shiftKey && e.key === 'ArrowRight') {
+        // MSP-conventie: Alt+Shift+→ = inspringen (subtaak van voorgaande sibling).
+        if (selectedTaskIds.length > 0) {
+          e.preventDefault();
+          indentTasks(selectedTaskIds);
+        }
+      } else if (e.altKey && e.shiftKey && e.key === 'ArrowLeft') {
+        // MSP-conventie: Alt+Shift+← = uitspringen (sibling ná de huidige ouder).
+        if (selectedTaskIds.length > 0) {
+          e.preventDefault();
+          outdentTasks(selectedTaskIds);
+        }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedTaskIds.length > 0) {
           e.preventDefault();
@@ -134,5 +148,5 @@ export function useKeyboardShortcuts() {
       window.removeEventListener('keydown', handler);
       window.removeEventListener('contextmenu', contextHandler);
     };
-  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, documents, switchDocument]);
+  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, documents, switchDocument, indentTasks, outdentTasks]);
 }

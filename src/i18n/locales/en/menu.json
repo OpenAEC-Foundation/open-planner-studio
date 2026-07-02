@@ -104,6 +104,8 @@
     "structure": "Structure",
     "wbsAuto": "WBS auto",
     "renumberWbs": "Renumber WBS",
+    "indent": "Indent",
+    "outdent": "Outdent",
     "codesFields": "Codes & fields",
     "groupBy": "Group by",
     "groupByWbs": "WBS (tree)",
