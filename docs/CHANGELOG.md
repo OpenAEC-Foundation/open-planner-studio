@@ -6,6 +6,10 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
+*(nog niets)*
+
+## v2026.7.0 — 2026-07-02
+
 ### Toegevoegd
 - **WBS & structuur (fase 2.2)** — de structuurlaag op professioneel niveau
   (ontwerp: `docs/superpowers/specs/2026-07-02-wbs-structuur-design.md`):
