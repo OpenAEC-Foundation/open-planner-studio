@@ -219,23 +219,27 @@ export function TaskDialog() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-text-secondary">{t('dialog.parentTask')}</label>
-            <Select
-              aria-label={t('dialog.parentTask')}
-              value={parentId}
-              onChange={setParentId}
-              options={[
-                { value: '', label: t('dialog.noParent') },
-                ...tasks
-                  .filter(t => t.id !== editingTaskId)
-                  .map(t => ({
-                    value: t.id,
-                    label: `${t.wbsCode ? `${t.wbsCode} — ` : ''}${t.name}`,
-                  })),
-              ]}
-            />
-          </div>
+          {/* Bovenliggende taak alleen bij aanmaken: bij bewerken schreef de dialoog parentId
+              toch al niet weg (structuur wijzigen gaat via inspringen/uitspringen). */}
+          {!editingTask && (
+            <div className="flex flex-col gap-1">
+              <label className="text-text-secondary">{t('dialog.parentTask')}</label>
+              <Select
+                aria-label={t('dialog.parentTask')}
+                value={parentId}
+                onChange={setParentId}
+                options={[
+                  { value: '', label: t('dialog.noParent') },
+                  ...tasks
+                    .filter(t => t.id !== editingTaskId)
+                    .map(t => ({
+                      value: t.id,
+                      label: `${t.wbsCode ? `${t.wbsCode} — ` : ''}${t.name}`,
+                    })),
+                ]}
+              />
+            </div>
+          )}
 
           <label className="flex items-center gap-2 mt-1">
             <input
