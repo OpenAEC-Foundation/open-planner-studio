@@ -7,6 +7,7 @@ export function StatusBar() {
   const { t: tCommon } = useTranslation('common');
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
+  const scheduleStale = useAppStore(s => s.scheduleStale);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const view = useAppStore(s => s.view);
   const isDirty = useAppStore(s => s.isDirty);
@@ -40,6 +41,11 @@ export function StatusBar() {
             </span>
           )}
         </>
+      )}
+      {scheduleStale && (
+        <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
+          ⚠ {t('status.scheduleStale')}
+        </span>
       )}
       {selectedTaskIds.length > 0 && (
         <span>{t('status.selection', { count: selectedTaskIds.length })}</span>

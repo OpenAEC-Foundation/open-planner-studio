@@ -29,6 +29,7 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
       if (!exists) {
         s.sequences.push({ ...seq, id });
         s.isDirty = true;
+        s.scheduleStale = true; // nieuwe relatie (A6): planning verouderd tot F5.
       }
     });
     return id;
@@ -54,6 +55,7 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
       if ('lagUnit' in patch) seq.lagUnit = patch.lagUnit;
       if ('lagPercent' in patch) seq.lagPercent = patch.lagPercent;
       s.isDirty = true;
+      s.scheduleStale = true; // relatie-wijziging (A6): planning verouderd tot F5.
       applied = true;
     });
     return applied;
@@ -65,5 +67,6 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
       s.redoStack = [];
       s.sequences = s.sequences.filter(seq => seq.id !== id);
       s.isDirty = true;
+      s.scheduleStale = true; // verwijderde relatie (A6): planning verouderd tot F5.
     }),
 });

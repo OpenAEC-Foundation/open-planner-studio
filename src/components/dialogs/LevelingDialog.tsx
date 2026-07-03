@@ -3,9 +3,8 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
-import { parseDate, formatDate } from '@/utils/dateUtils';
+import { parseDate } from '@/utils/dateUtils';
 
 function fmt(iso: string): string {
   if (!iso) return '—';
@@ -27,7 +26,6 @@ export function LevelingDialog() {
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
   const tasks = useAppStore(s => s.tasks);
-  const calendar = useAppStore(s => s.calendar);
   const cpmResult = useAppStore(s => s.cpmResult);
   const levelResources = useAppStore(s => s.levelResources);
   const applyLeveling = useAppStore(s => s.applyLeveling);
@@ -70,17 +68,15 @@ export function LevelingDialog() {
     close();
   };
 
-  // Preview-rijen: alleen daadwerkelijk verschoven taken (delays bevat enkel die).
-  const engine = useMemo(() => new CalendarEngine(calendar), [calendar]);
+  // Preview-rijen uit `result.shifts` (A1): ELKE taak wiens start wijzigt — ook niet-geresourcete
+  // FS-opvolgers die alleen via de forward pass meeschuiven (die zaten niet in `delays`).
   const rows = useMemo(() => {
     if (!result) return [];
-    return Object.entries(result.delays).map(([taskId, delay]) => {
+    return Object.entries(result.shifts).map(([taskId, shift]) => {
       const task = tasks.find(t => t.id === taskId);
-      const oldStart = task?.time.earlyStart || task?.time.scheduleStart || '';
-      const newStart = oldStart ? formatDate(engine.addWorkingDaysSigned(parseDate(oldStart), delay)) : '';
-      return { taskId, name: task?.name || taskId, oldStart, newStart, delay };
+      return { taskId, name: task?.name || taskId, oldStart: shift.oldStart, newStart: shift.newStart, delay: shift.delta };
     }).sort((a, b) => a.oldStart.localeCompare(b.oldStart));
-  }, [result, tasks, engine]);
+  }, [result, tasks]);
 
   const conflicts = result ? Object.entries(result.unresolved) : [];
   const endChanged = result ? result.projectEndBefore !== result.projectEndAfter : false;
@@ -226,21 +222,37 @@ export function LevelingDialog() {
                   <span className="text-[10px] text-text-secondary">{t('resource.leveling.remainingConflictsHint')}</span>
                   {conflicts.map(([taskId, days]) => {
                     const task = tasks.find(t => t.id === taskId);
+                    const reason = result?.unresolvedReasons[taskId];
                     const intrinsic = intrinsicByTask[taskId];
+                    // Reden-specifieke uitleg (A3), gededupliceerd met de leveler-classificatie: de
+                    // leveler kiest de reden, de dialoog vult alleen de weergavedetails in.
+                    let explain: string | null = null;
+                    if (reason === 'INTRINSIC_OVERRUN' && intrinsic) {
+                      explain = t('resource.leveling.intrinsicOverrun', {
+                        resource: intrinsic.resource,
+                        peak: numberFmt.format(intrinsic.peak),
+                        capacity: numberFmt.format(intrinsic.capacity),
+                      });
+                    } else if (reason === 'CALENDAR_MISMATCH') {
+                      explain = t('resource.leveling.reason.calendarMismatch');
+                    } else if (reason === 'INSUFFICIENT_CAPACITY') {
+                      explain = t('resource.leveling.reason.insufficientCapacity');
+                    } else if (intrinsic) {
+                      // Vangnet (geen reden meegegeven, maar intrinsiek gedetecteerd).
+                      explain = t('resource.leveling.intrinsicOverrun', {
+                        resource: intrinsic.resource,
+                        peak: numberFmt.format(intrinsic.peak),
+                        capacity: numberFmt.format(intrinsic.capacity),
+                      });
+                    }
                     return (
                       <div key={taskId} className="flex flex-col gap-0.5">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="truncate" style={{ maxWidth: 360 }}>{task?.name || taskId}</span>
                           <span style={{ color: 'var(--error)' }}>{t('resource.leveling.conflictDays', { count: days.length })}</span>
                         </div>
-                        {intrinsic && (
-                          <span className="text-[10px] pl-3" style={{ color: 'var(--error)' }}>
-                            {t('resource.leveling.intrinsicOverrun', {
-                              resource: intrinsic.resource,
-                              peak: numberFmt.format(intrinsic.peak),
-                              capacity: numberFmt.format(intrinsic.capacity),
-                            })}
-                          </span>
+                        {explain && (
+                          <span className="text-[10px] pl-3" style={{ color: 'var(--error)' }}>{explain}</span>
                         )}
                       </div>
                     );

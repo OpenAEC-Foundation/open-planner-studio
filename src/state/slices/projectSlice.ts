@@ -82,6 +82,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       Object.assign(s.project, updates);
       s.project.modifiedAt = new Date().toISOString();
       s.isDirty = true;
+      // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet (A6).
+      if ('startDate' in updates) s.scheduleStale = true;
     }),
 
   setWbsAutoNumber: (on) =>
@@ -98,6 +100,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     set((s) => {
       s.calendar = calendar;
       s.isDirty = true;
+      s.scheduleStale = true; // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
   newProject: () => {
@@ -113,6 +116,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.customFieldDefs = [];
       s.selectedTaskIds = [];
       s.cpmResult = null;
+      // Afgeleide belasting ook resetten (A5); de ribbon-guard van de UX-golf blijft defensief.
+      s.resourceLoadResult = null;
+      s.scheduleStale = false;
       s.view = createDefaultView();
       s.undoStack = [];
       s.redoStack = [];
@@ -162,6 +168,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.resourceCalendars = [];
       s.selectedTaskIds = [];
       s.cpmResult = null;
+      s.resourceLoadResult = null;
+      s.scheduleStale = false;
       s.view = createDefaultView();
       s.undoStack = [];
       s.redoStack = [];
@@ -191,6 +199,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.customFieldDefs = loaded.customFieldDefs ?? [];
       s.selectedTaskIds = [];
       s.cpmResult = null;
+      s.resourceLoadResult = null;
+      s.scheduleStale = false;
       s.undoStack = [];
       s.redoStack = [];
       s.isDirty = false;

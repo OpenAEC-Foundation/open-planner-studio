@@ -16,7 +16,15 @@ export interface ScheduleSlice {
   /** Belasting/capaciteit/overallocatie per resource, herberekend bij elke `runCPM` (fase 2.5,
    *  resources-ontwerp §4.2) — "manual, not reactive", net als `cpmResult` zelf. */
   resourceLoadResult: ResourceLoadResult | null;
+  /** "Verouderd"-vlag (A6): gezet door datum-rakende mutaties (taak-/relatie-/projectkalender-
+   *  wijzigingen), gewist door `runCPM`. Voedt een subtiele "herbereken (F5)"-hint. */
+  scheduleStale: boolean;
   runCPM: () => void;
+  /** Herbereken ALLEEN de resource-belasting op de bestaande CPM-datums (A6): pure resource-
+   *  mutaties (toewijzen, capaciteit, kalender) verversen zo het histogram direct, ZONDER runCPM en
+   *  ZONDER de datums aan te raken — past binnen "manual, not reactive". Datum-rakende mutaties
+   *  blijven handmatig (F5) en zetten in plaats hiervan `scheduleStale`. */
+  recomputeResourceLoad: () => void;
   /** Nivelleer-preview (fase 2.5, §5): berekent de resource-nivellering tegen de laatst gedraaide
    *  CPM-run en geeft het resultaat terug ZONDER de store te muteren (UI toont eerst een diff,
    *  commit gaat via `applyLeveling`). Vereist een geldige `cpmResult`. */
@@ -32,9 +40,19 @@ export interface ScheduleSlice {
 export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
   cpmResult: null,
   resourceLoadResult: null,
+  scheduleStale: false,
+
+  recomputeResourceLoad: () => {
+    set((s) => {
+      s.resourceLoadResult = computeResourceLoad(
+        s.resources, s.assignments, s.tasks, s.calendar, s.resourceCalendars,
+      );
+    });
+  },
 
   runCPM: () => {
     set((s) => {
+      s.scheduleStale = false; // F5/Bereken gedraaid — schema is (voor deze taken/relaties) vers.
       const calEngine = new CalendarEngine(s.calendar);
       // Only run CPM on leaf tasks (non-summary)
       const leafTasks = s.tasks.filter(t => t.childIds.length === 0);
@@ -129,7 +147,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
     if (!cpm || cpm.error) {
       // Geen (geldige) CPM-run: niets te nivelleren — lege, veilige uitkomst.
       const end = cpm?.projectEnd ?? '';
-      return { delays: {}, unresolved: {}, projectEndBefore: end, projectEndAfter: end };
+      return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end };
     }
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
     const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);

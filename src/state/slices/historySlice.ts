@@ -25,6 +25,12 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
       s.resourceCalendars = snapshot.resourceCalendars ?? s.resourceCalendars;
       s.activityCodeTypes = snapshot.activityCodeTypes ?? s.activityCodeTypes;
       s.customFieldDefs = snapshot.customFieldDefs ?? s.customFieldDefs;
+      // Afgeleide resultaten mee terugdraaien (A5) — anders bleef bv. na undo van applyLeveling de
+      // statusbalk/het histogram op het genivelleerde schema staan. `?? null`/`?? false` houdt oude,
+      // veldloze snapshots veilig.
+      s.cpmResult = snapshot.cpmResult ?? null;
+      s.resourceLoadResult = snapshot.resourceLoadResult ?? null;
+      s.scheduleStale = snapshot.scheduleStale ?? false;
       s.isDirty = true;
     }),
 
@@ -40,6 +46,9 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
       s.resourceCalendars = snapshot.resourceCalendars ?? s.resourceCalendars;
       s.activityCodeTypes = snapshot.activityCodeTypes ?? s.activityCodeTypes;
       s.customFieldDefs = snapshot.customFieldDefs ?? s.customFieldDefs;
+      s.cpmResult = snapshot.cpmResult ?? null;
+      s.resourceLoadResult = snapshot.resourceLoadResult ?? null;
+      s.scheduleStale = snapshot.scheduleStale ?? false;
       s.isDirty = true;
     }),
 });

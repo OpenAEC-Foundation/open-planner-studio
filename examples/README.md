@@ -1,13 +1,43 @@
 # Voorbeeldplanningen
 
-Deze map bevat **22 voorbeeldplanningen** in IFC 4.3-formaat (buildingSMART) — het
+Deze map bevat **23 voorbeeldplanningen** in IFC 4.3-formaat (buildingSMART) — het
 native bestandsformaat van Open Planner Studio. Open ze via **Bestand → Openen**.
-Ze bestrijken uiteenlopende sectoren: woningbouw, utiliteit, infra, renovatie en industrie.
 
-> **Tip:** een selectie van deze voorbeelden is ook rechtstreeks in de app te vinden
-> onder **Bestand → Voorbeelden** (Backstage). Die sectie is data-gedreven via
-> `public/examples/manifest.json`; voeg daar een voorbeeld aan toe om het in de app
-> te tonen (het IFC-bestand moet in `public/examples/` staan).
+De voorbeelden worden **volledig gegenereerd door de app zelf**: `npm run gen:examples`
+bouwt elke planning declaratief op via de échte Zustand-store (`addTask`, `addSequence`,
+`addResource`, `assignResource`, `setCalendar`, …), draait de échte `runCPM()` voor
+kalender-correcte datums en serialiseert met de échte `writeIFC`. Er is dus **geen tweede,
+met de hand nagebouwde IFC-writer meer** — drift tussen de voorbeelden en de app is
+structureel onmogelijk. `npm run verify:examples` haalt elk bestand daarna door de échte
+`readIFC` en controleert tellingen, round-trip-stabiliteit en de aanwezige functies.
+
+> **Jaar-onafhankelijk:** projecten ankeren relatief ("eerste maandag van maart, volgend
+> jaar"); NL-feestdagen (incl. Pasen-afgeleiden) en de bouwvak worden per jaar berekend.
+> Elke regeneratie levert dus actuele, plausibele datums — de voorbeelden verouderen niet.
+
+## Drie showcase-planningen
+
+Drie planningen benutten **samen alle app-functies**: WBS-hiërarchie, alle vier
+relatietypes (FS/SS/FF/SF) met lags, leads, %-lags en ELAPSEDTIME-lags, datum-constraints +
+deadlines (incl. een bewust conflict met negatieve float), start-/eind-/verplichte mijlpalen,
+activity codes + custom fields, alle vijf resourcetypes met ploeg-hiërarchie, resource-
+kalenders, availabilitySteps, toewijzingen met alle zes curves, zichtbare overallocatie
+(oplosbaar met nivellering) en taak-prioriteiten incl. een vastgepinde 1000.
+
+| Bestand | Project | Taken | Demonstreert |
+|---------|---------|-------|--------------|
+| `showcase-woonblok-de-hoven.ifc` | Nieuwbouw Woonblok De Hoven | 36 | Twee parallelle bouwblokken; alle 5 resourcetypes + ploeg-hiërarchie; torenkraan met eigen kalender + capaciteitsstappen; alle 6 curves; overallocatie op metselaars én kraan; vastgepinde kraandemontage (prioriteit 1000); contractuele opleverdeadline met negatieve float; activity codes + custom fields. |
+| `showcase-fietstunnel-n225.ifc` | Aanleg Fietstunnel N225 | 19 | 6-daagse civiele kalender; betonuitharding als ELAPSEDTIME-lag (24/7); MSO-verkeersvenster + FNLT-constraint; keuring wapening als verplichte mijlpaal; asfaltploeg op eigen kalender; overallocatie op de mobiele kraan. |
+| `showcase-renovatie-willemskade.ifc` | Renovatie & Verduurzaming Willemskade | 19 | Bewoond kantoorpand; START_FINISH-relatie (tijdelijke voorziening); MFO-datum + krappe FNLT-huurdeadline met negatieve float; asbestsanering, isolatie, sloopploeg (hiërarchie) en hoogwerker; vastgepinde verhuisdag. |
+
+## Twintig sectorvoorbeelden
+
+Twintig kortere planningen over uiteenlopende sectoren (woningbouw, utiliteit, infra,
+renovatie, industrie). Ze tonen **échte fase-overlap** — SS/FF-relaties, leads en %-lags
+op de fasegrenzen — zodat een realistisch kritiek pad **mét float** ontstaat (55–86 % van de
+taken kritiek, niet bijna alles). Infra-/waterprojecten draaien op een 6-daagse kalender.
+Deze voorbeelden bevatten taken, relaties, mijlpalen en een kalender, maar **geen resources**
+(daarvoor zijn de showcases hierboven).
 
 | Bestand | Project | Taken* |
 |---------|---------|--------|
@@ -31,70 +61,24 @@ Ze bestrijken uiteenlopende sectoren: woningbouw, utiliteit, infra, renovatie en
 | `18-station-uitbreiding-breda.ifc` | Treinstation Uitbreiding Breda | 45 |
 | `19-basisschool-ikc.ifc` | Basisschool Nieuwbouw IKC | 42 |
 | `20-woonwijk-almere.ifc` | Woonwijk 60 Woningen Almere | 68 |
-| `oosterhoutse-baai-drijvende-woningen.ifc` | Ontwikkeling 30 drijvende woningen Oosterhoutseplas | 125 |
-| `woongebouw-nieuwbouw.ifc` ⭐ | Nieuwbouw Woongebouw Parkzicht | 40 |
 
 <sub>* Aantal `IfcTask`-entiteiten, inclusief fasen (WBS) en mijlpalen.</sub>
 
-> **Resources:** alleen `woongebouw-nieuwbouw.ifc` (⭐) bevat resource-toewijzingen
-> (arbeid, materieel, onderaannemers). De overige bestanden bevatten taken, relaties
-> en een kalender, maar geen resources. Dat bestand staat hieronder uitgelicht.
+## In de app
 
----
+Een selectie staat rechtstreeks in de app onder **Bestand → Voorbeelden** (Backstage),
+data-gedreven via `public/examples/manifest.json`: de drie showcases bovenaan (met badge
+"Alle functies"), daaronder een representatieve set eenvoudige voorbeelden. De publieke
+selectie blijft samen onder ~600 kB. Voeg een voorbeeld toe door het in de generator op te
+nemen en de `PUBLIC`-set in `scripts/generate-examples.ts` uit te breiden.
 
-## woongebouw-nieuwbouw.ifc
+## Regenereren
 
-Een complete bouwplanning voor een nieuwbouw woongebouw met 24 appartementen over 6 verdiepingen.
+```bash
+npm run gen:examples      # regenereert examples/ + kopieert de publieke selectie + manifest
+npm run verify:examples   # leest elk bestand terug via readIFC en assert tellingen/features
+```
 
-### Projectgegevens
-
-| Gegeven | Waarde |
-|---------|--------|
-| **Projectnaam** | Nieuwbouw Woongebouw Parkzicht |
-| **Startdatum** | 2 maart 2026 |
-| **Einddatum** | 30 oktober 2026 |
-| **Doorlooptijd** | ~8 maanden |
-| **Aantal taken** | 36 activiteiten + 4 mijlpalen |
-| **Aantal fasen** | 6 |
-
-### Fasen
-
-| Fase | Naam | Duur | Periode |
-|------|------|------|---------|
-| 1 | Bouwplaatsinrichting & Grondwerk | 25 werkdagen | mrt 2026 |
-| 2 | Fundering | 25 werkdagen | mrt - apr 2026 |
-| 3 | Ruwbouw / Casco | 45 werkdagen | apr - jun 2026 |
-| 4 | Installaties (MEP) | 40 werkdagen | jun - aug 2026 |
-| 5 | Afbouw | 40 werkdagen | aug - okt 2026 |
-| 6 | Oplevering | 12 werkdagen | okt 2026 |
-
-### Mijlpalen
-
-- **1.5** Inspectie bouwput (gemeente)
-- **2.6** Inspectie fundering (constructeur)
-- **3.7** Casco waterdicht
-- **4.5** Inspectie installaties
-- **6.4** Definitieve oplevering (sleuteloverdracht)
-
-### IFC-entiteiten gebruikt
-
-- `IfcProject` — Projectcontainer
-- `IfcWorkPlan` — Hoofdplanning
-- `IfcWorkSchedule` — Bouwplanning v1.0
-- `IfcWorkCalendar` — Bouwkalender NL (ma-vr 07:00-16:00)
-- `IfcTask` — 36 taken + 4 mijlpalen
-- `IfcTaskTime` — Tijddata per taak (duur, start, eind, float, critical)
-- `IfcRelNests` — WBS-hiërarchie (6 fasen)
-- `IfcRelSequence` — 32 dependencies (FS, SS met lag)
-- `IfcLaborResource` — 8 ambachten (timmerman, metselaar, etc.)
-- `IfcConstructionEquipmentResource` — 4 machines (kraan, heimachine, etc.)
-- `IfcSubContractResource` — 4 onderaannemers
-- `IfcRelAssignsToProcess` — Resource-toewijzingen
-- `IfcRelAssignsToControl` — Taken gekoppeld aan werkschema
-
-### Kalender
-
-- **Werkdagen**: maandag t/m vrijdag
-- **Werktijden**: 07:00 - 16:00 (8 netto uren)
-- **Feestdagen 2026**: Nieuwjaar, Goede Vrijdag, Pasen, Koningsdag, Bevrijdingsdag, Hemelvaart, Pinksteren
-- **Bouwvak**: 20 juli - 7 augustus 2026 (regio Noord)
+De projectdefinities staan in `scripts/showcases.ts` (de drie showcases) en
+`scripts/example-topologies.json` (de topologie van de twintig sectorvoorbeelden, verrijkt
+met fase-overlap in `scripts/gen-core.ts`). Het schema staat in `scripts/spec.ts`.

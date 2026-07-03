@@ -106,6 +106,7 @@ export function GanttCanvas() {
   const histogramHeight = useAppStore(s => s.ui.histogramHeight);
   const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
   const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
+  const scheduleStale = useAppStore(s => s.scheduleStale);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
   const setHistogramResource = useAppStore(s => s.setHistogramResource);
@@ -990,6 +991,16 @@ export function GanttCanvas() {
               style={{ cursor: 'pointer' }}
               onClick={handleHistogramClick}
             />
+            {/* Verouderd-hint (A6): het histogram volgt de belasting direct, maar de CPM-datums
+                eronder kunnen na een datum-mutatie verouderd zijn — subtiel melden. */}
+            {scheduleStale && (
+              <div
+                className="absolute top-1 right-2 text-[10px] px-1.5 py-0.5 rounded pointer-events-none"
+                style={{ background: 'var(--theme-surface)', color: 'var(--theme-warning-text)', opacity: 0.9 }}
+              >
+                ⚠ {tCommon('resource.histogram.staleHint')}
+              </div>
+            )}
             {histoTooltip && (
               <div
                 className="gantt-tooltip"

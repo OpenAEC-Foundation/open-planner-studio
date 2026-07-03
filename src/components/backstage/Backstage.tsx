@@ -173,6 +173,7 @@ interface ExampleEntry {
   file: string;
   name: string;
   description: string;
+  category?: 'showcase' | 'basic';
   tags?: string[];
 }
 
@@ -227,29 +228,56 @@ function ExamplesSection() {
       ) : examples.length === 0 ? (
         <div className="backstage-empty">{tMenu('backstage.examplesEmpty')}</div>
       ) : (
-        <div className="backstage-export-grid">
-          {examples.map(ex => (
-            <button
-              key={ex.file}
-              className="backstage-export-card"
-              disabled={loading !== null}
-              onClick={() => void handleOpen(ex)}
-            >
-              <span className="backstage-export-icon"><BookOpen size={20} /></span>
-              <span className="backstage-export-info">
-                <h4>{ex.name}</h4>
-                <p>{ex.description}</p>
-                {ex.tags && ex.tags.length > 0 && (
-                  <span className="backstage-example-tags">
-                    {ex.tags.map(tag => (
-                      <span key={tag} className="backstage-example-tag">{tag}</span>
-                    ))}
-                  </span>
+        <>
+          {(() => {
+            const showcases = examples.filter(e => e.category === 'showcase');
+            const basics = examples.filter(e => e.category !== 'showcase');
+            const card = (ex: ExampleEntry, showcase: boolean) => (
+              <button
+                key={ex.file}
+                className={`backstage-export-card${showcase ? ' backstage-example-card-showcase' : ''}`}
+                disabled={loading !== null}
+                onClick={() => void handleOpen(ex)}
+              >
+                <span className="backstage-export-icon"><BookOpen size={20} /></span>
+                <span className="backstage-export-info">
+                  <h4>
+                    {ex.name}
+                    {showcase && <span className="backstage-example-badge">{tMenu('backstage.examplesShowcaseBadge')}</span>}
+                  </h4>
+                  <p>{ex.description}</p>
+                  {ex.tags && ex.tags.length > 0 && (
+                    <span className="backstage-example-tags">
+                      {ex.tags.map(tag => (
+                        <span key={tag} className="backstage-example-tag">{tag}</span>
+                      ))}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+            return (
+              <>
+                {showcases.length > 0 && (
+                  <>
+                    <h3 className="backstage-example-heading">{tMenu('backstage.examplesShowcaseHeading')}</h3>
+                    <div className="backstage-export-grid backstage-example-grid-showcase">
+                      {showcases.map(ex => card(ex, true))}
+                    </div>
+                  </>
                 )}
-              </span>
-            </button>
-          ))}
-        </div>
+                {basics.length > 0 && (
+                  <>
+                    <h3 className="backstage-example-heading">{tMenu('backstage.examplesBasicHeading')}</h3>
+                    <div className="backstage-export-grid">
+                      {basics.map(ex => card(ex, false))}
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
+        </>
       )}
     </>
   );

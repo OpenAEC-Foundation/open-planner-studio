@@ -98,6 +98,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       }
 
       s.isDirty = true;
+      s.scheduleStale = true; // nieuwe taak (A6): planning verouderd tot F5.
     });
     return id;
   },
@@ -111,6 +112,8 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       if (idx >= 0) {
         Object.assign(s.tasks[idx], updates);
         s.isDirty = true;
+        // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
+        s.scheduleStale = true;
       }
     }),
 
@@ -145,6 +148,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
+      s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
     }),
 
   moveTask: (id, newParentId) =>
@@ -172,6 +176,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
 
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
+      s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
     }),
 
   indentTasks: (ids) =>
@@ -219,6 +224,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       if (!changed) return;
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
+      s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
     }),
 
   outdentTasks: (ids) =>
@@ -249,6 +255,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       if (!changed) return;
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
+      s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
     }),
 
   selectTask: (id, multi = false, range = false) =>
@@ -408,6 +415,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
 
       s.selectedTaskIds = newRootIds;
       s.isDirty = true;
+      s.scheduleStale = true; // geplakte taken (A6): planning verouderd tot F5.
     });
     return newRootIds;
   },
@@ -477,6 +485,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
 
       if (newRootId) s.selectedTaskIds = [newRootId];
       s.isDirty = true;
+      s.scheduleStale = true; // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
     return newRootId;
   },

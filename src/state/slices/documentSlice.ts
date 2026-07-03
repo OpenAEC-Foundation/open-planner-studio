@@ -6,6 +6,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Snapshot } from '../snapshot';
 import type { ViewState, AppSlice } from './types';
 import type { AppState } from '../appStore';
@@ -40,6 +41,11 @@ export interface DocumentPayload {
   customFieldDefs: CustomFieldDef[];
   selectedTaskIds: string[];
   cpmResult: CPMResult | null;
+  /** Afgeleide belasting per document (A5): anders toont het histogram na een tabwissel dat van het
+   *  vórige document. */
+  resourceLoadResult: ResourceLoadResult | null;
+  /** "Verouderd"-vlag per document (A6) — leekt anders tussen documenten. */
+  scheduleStale: boolean;
   view: ViewState;
   collapsedTaskIds: string[];
   undoStack: Snapshot[];
@@ -112,6 +118,8 @@ function capturePayload(s: AppState): DocumentPayload {
     customFieldDefs: s.customFieldDefs,
     selectedTaskIds: s.selectedTaskIds,
     cpmResult: s.cpmResult,
+    resourceLoadResult: s.resourceLoadResult,
+    scheduleStale: s.scheduleStale,
     view: s.view,
     collapsedTaskIds: s.ui.collapsedTaskIds,
     undoStack: s.undoStack,
@@ -134,6 +142,8 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.customFieldDefs = p.customFieldDefs ?? [];
   s.selectedTaskIds = p.selectedTaskIds;
   s.cpmResult = p.cpmResult;
+  s.resourceLoadResult = p.resourceLoadResult ?? null;
+  s.scheduleStale = p.scheduleStale ?? false;
   s.view = p.view;
   s.ui.collapsedTaskIds = p.collapsedTaskIds;
   s.undoStack = p.undoStack;
@@ -156,6 +166,8 @@ function freshPayload(): DocumentPayload {
     customFieldDefs: [],
     selectedTaskIds: [],
     cpmResult: null,
+    resourceLoadResult: null,
+    scheduleStale: false,
     view: createDefaultView(),
     collapsedTaskIds: [],
     undoStack: [],
@@ -179,6 +191,8 @@ function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     customFieldDefs: d.customFieldDefs ?? [],
     selectedTaskIds: [],
     cpmResult: null,
+    resourceLoadResult: null,
+    scheduleStale: false,
     view: createDefaultView(),
     collapsedTaskIds: [],
     undoStack: [],

@@ -1,53 +1,83 @@
 {
-  "version": 1,
+  "version": 2,
   "examples": [
     {
-      "file": "woongebouw-nieuwbouw.ifc",
-      "name": "Nieuwbouw Woongebouw Parkzicht",
-      "description": "Complete bouwplanning voor een woongebouw met 24 appartementen, inclusief resource-toewijzingen.",
-      "tags": ["woningbouw", "resources", "mijlpalen", "kalender"]
+      "file": "showcase-woonblok-de-hoven.ifc",
+      "name": "Nieuwbouw Woonblok De Hoven",
+      "description": "Woningbouw-showcase: twee parallelle bouwblokken met WBS, alle vier relatietypes (incl. %-lag en lead), alle vijf resourcetypes met ploeg-hiërarchie, torenkraan met eigen kalender + capaciteitsstappen, alle zes toewijzingscurves, zichtbare overallocatie op metselaars én kraan (oplosbaar met nivellering), een vastgepinde taak (prioriteit 1000) en een contractuele opleverdeadline met negatieve float.",
+      "category": "showcase",
+      "tags": [
+        "woningbouw",
+        "resources",
+        "overallocatie",
+        "nivellering",
+        "mijlpalen",
+        "constraints",
+        "activity-codes"
+      ]
     },
     {
-      "file": "oosterhoutse-baai-drijvende-woningen.ifc",
-      "name": "Drijvende Woningen Oosterhoutseplas",
-      "description": "Grootschalige ontwikkeling van 30 drijvende woningen met 125 taken.",
-      "tags": ["woningbouw", "water", "groot", "mijlpalen"]
+      "file": "showcase-fietstunnel-n225.ifc",
+      "name": "Aanleg Fietstunnel N225",
+      "description": "Infra-showcase: fietstunnel met 6-daagse civiele kalender, betonuitharding als ELAPSEDTIME-lag (24/7, loopt door in het weekend), een verplicht MSO-verkeersvenster en een FNLT-constraint, keuring wapening als verplichte mijlpaal, materieel/materiaal/onderaannemer-resources met een asfaltploeg op eigen kalender en zichtbare overallocatie op de mobiele kraan.",
+      "category": "showcase",
+      "tags": [
+        "infra",
+        "civiel",
+        "elapsedtime",
+        "constraints",
+        "verkeersfasering",
+        "resources"
+      ]
+    },
+    {
+      "file": "showcase-renovatie-willemskade.ifc",
+      "name": "Renovatie & Verduurzaming Willemskade",
+      "description": "Renovatie-showcase: bewoond kantoorpand met een START_FINISH-relatie (tijdelijke huisvesting eindigt als de sloop start), een MFO-inhuizingsdatum en een krappe FNLT-huurdeadline die negatieve float oplevert, asbestsanering (onderaannemer), isolatie (materiaal), sloopploeg (ploeg-hiërarchie) en hoogwerker (materieel), plus een vastgepinde verhuisdag (prioriteit 1000).",
+      "category": "showcase",
+      "tags": [
+        "renovatie",
+        "verduurzaming",
+        "start-finish",
+        "constraints",
+        "deadline",
+        "resources"
+      ]
     },
     {
       "file": "03-kantoorgebouw-zuidas.ifc",
       "name": "Kantoorgebouw Zuidas",
-      "description": "Utiliteitsbouw van een kantoortoren op de Amsterdamse Zuidas.",
-      "tags": ["utiliteit", "kantoor", "mijlpalen"]
+      "description": "8-laags kantoorgebouw met parkeerkelder BREEAM Excellent",
+      "category": "basic",
+      "tags": []
     },
     {
       "file": "05-brugvervanging-n279.ifc",
       "name": "Brugvervanging N279",
-      "description": "Infraproject voor de vervanging van een brug over de N279.",
-      "tags": ["infra", "kunstwerk", "mijlpalen"]
+      "description": "Vervanging bestaande brug door nieuwe betonnen brug",
+      "category": "basic",
+      "tags": []
     },
     {
       "file": "08-zorgcentrum-de-linde.ifc",
       "name": "Zorgcentrum De Linde",
-      "description": "Nieuwbouwplanning voor een zorgcentrum in de gezondheidszorg.",
-      "tags": ["utiliteit", "zorg", "mijlpalen"]
+      "description": "Nieuwbouw zorgcentrum 60 kamers met behandelruimten",
+      "category": "basic",
+      "tags": []
     },
     {
       "file": "10-villa-wassenaar.ifc",
       "name": "Villa Nieuwbouw Wassenaar",
-      "description": "Vrijstaande villa-nieuwbouw met een gedetailleerde afbouwfase.",
-      "tags": ["woningbouw", "villa", "mijlpalen"]
+      "description": "Vrijstaande luxe villa met zwembad en gastenverblijf",
+      "category": "basic",
+      "tags": []
     },
     {
       "file": "15-datacentrum-agriport.ifc",
       "name": "Datacentrum Agriport A7",
-      "description": "Industriebouw van een datacentrum met zware technische installaties.",
-      "tags": ["industrie", "datacentrum", "installaties"]
-    },
-    {
-      "file": "20-woonwijk-almere.ifc",
-      "name": "Woonwijk 60 Woningen Almere",
-      "description": "Gefaseerde bouw van een woonwijk met 60 woningen (68 taken).",
-      "tags": ["woningbouw", "gebiedsontwikkeling", "groot"]
+      "description": "Datacenter 5000m2 met eigen energievoorziening",
+      "category": "basic",
+      "tags": []
     }
   ]
 }

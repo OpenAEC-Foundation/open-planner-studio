@@ -237,6 +237,38 @@
   cursor: default;
 }
 
+/* Voorbeelden: showcase- vs. eenvoudig-groep */
+.backstage-example-heading {
+  margin: var(--sp-6) 0 var(--sp-3) 0;
+  font-family: var(--font-heading);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--theme-text-dim);
+}
+.backstage-example-heading:first-child { margin-top: 0; }
+.backstage-example-grid-showcase { max-width: 640px; }
+.backstage-example-card-showcase {
+  border-color: var(--theme-accent);
+  border-left-width: 3px;
+  background: var(--theme-surface-alt);
+}
+.backstage-example-badge {
+  display: inline-block;
+  margin-left: var(--sp-2);
+  font-family: var(--font-heading);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--theme-accent);
+  color: var(--theme-accent-contrast, #fff);
+}
+
 /* Form sections (project info, settings) */
 .backstage-form {
   max-width: 560px;

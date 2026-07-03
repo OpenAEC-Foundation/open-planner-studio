@@ -28,6 +28,13 @@ const CURVE_POINTS: Record<ResourceCurve, [number, number][]> = {
  * Deze ENE functie voedt zowel het histogram (`computeResourceLoad`) als, in een volgende
  * bouwstap, de nivelleerder — nooit een tweede, "simpelere" verdeelfunctie voor de leveler
  * (zie resources-ontwerp §5.7/§10-P12).
+ *
+ * LET OP — curve-vervlakking op korte taken (A7, deze golf): de piek-curves (BELL, EARLY_PEAK,
+ * LATE_PEAK) worden bemonsterd op t = i/(D−1). Bij D=2 zijn de enige monsterpunten t=0 en t=1;
+ * die vallen precies op de dal-controlepunten (0.2) van BELL/EARLY_PEAK/LATE_PEAK, dus beide dagen
+ * krijgen gelijk gewicht en de "piek" verdwijnt — de verdeling is voor D≤2 dan de facto UNIFORM.
+ * Dit is inherent aan lineaire interpolatie op zo weinig punten en bewust niet "gerepareerd": een
+ * bult in het midden van een 2-daagse taak is niet zinvol te representeren.
  */
 export function distributeUnits(unitsPerDay: number, durationDays: number, curve: ResourceCurve = 'UNIFORM'): number[] {
   const total = unitsPerDay * durationDays;

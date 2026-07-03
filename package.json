@@ -10,7 +10,9 @@
     "tauri": "tauri",
     "tauri:dev": "node scripts/tauri-dev.mjs",
     "tauri:build": "tauri build",
-    "bump": "node scripts/bump-version.js"
+    "bump": "node scripts/bump-version.js",
+    "gen:examples": "node scripts/run-ts.mjs scripts/generate-examples.ts",
+    "verify:examples": "node scripts/run-ts.mjs scripts/verify-examples.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

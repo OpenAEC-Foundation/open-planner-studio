@@ -33,7 +33,7 @@ export interface ResourceSlice {
 const isValidUnits = (n: unknown): n is number =>
   typeof n === 'number' && Number.isFinite(n) && n > 0;
 
-export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
+export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   resources: [],
   assignments: [],
   resourceCalendars: [],
@@ -46,10 +46,12 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
       s.resources.push({ ...res, id });
       s.isDirty = true;
     });
+    // A6: pure resource-mutatie → histogram direct verversen (geen runCPM, datums onaangeroerd).
+    get().recomputeResourceLoad();
     return id;
   },
 
-  updateResource: (id, updates) =>
+  updateResource: (id, updates) => {
     set((s) => {
       const idx = s.resources.findIndex(r => r.id === id);
       if (idx < 0) return;
@@ -65,9 +67,11 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
       s.redoStack = [];
       Object.assign(s.resources[idx], patch);
       s.isDirty = true;
-    }),
+    });
+    get().recomputeResourceLoad();
+  },
 
-  removeResource: (id) =>
+  removeResource: (id) => {
     set((s) => {
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
@@ -83,9 +87,11 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
         if (r.parentId === id) r.parentId = undefined;
       }
       s.isDirty = true;
-    }),
+    });
+    get().recomputeResourceLoad();
+  },
 
-  assignResource: (taskId, resourceId, unitsPerDay, curve) =>
+  assignResource: (taskId, resourceId, unitsPerDay, curve) => {
     set((s) => {
       // Leaf-only, geen-milestone-assignment-regel (§2.4): vroege return, geen snapshot.
       const task = s.tasks.find(t => t.id === taskId);
@@ -102,9 +108,11 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
         task.resourceIds.push(resourceId);
       }
       s.isDirty = true;
-    }),
+    });
+    get().recomputeResourceLoad();
+  },
 
-  updateAssignment: (assignmentId, updates) =>
+  updateAssignment: (assignmentId, updates) => {
     set((s) => {
       const idx = s.assignments.findIndex(a => a.id === assignmentId);
       if (idx < 0) return;
@@ -120,9 +128,11 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
       s.redoStack = [];
       Object.assign(s.assignments[idx], patch);
       s.isDirty = true;
-    }),
+    });
+    get().recomputeResourceLoad();
+  },
 
-  unassignResource: (assignmentId) =>
+  unassignResource: (assignmentId) => {
     set((s) => {
       const removed = s.assignments.find(a => a.id === assignmentId);
       if (!removed) return;
@@ -142,7 +152,9 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
         if (task && idx >= 0) task.resourceIds.splice(idx, 1);
       }
       s.isDirty = true;
-    }),
+    });
+    get().recomputeResourceLoad();
+  },
 
   addResourceCalendar: (cal) => {
     const id = generateId('rescal');
@@ -152,10 +164,11 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
       s.resourceCalendars.push({ ...cal, id });
       s.isDirty = true;
     });
+    get().recomputeResourceLoad();
     return id;
   },
 
-  updateResourceCalendar: (id, updates) =>
+  updateResourceCalendar: (id, updates) => {
     set((s) => {
       const idx = s.resourceCalendars.findIndex(c => c.id === id);
       if (idx < 0) return;
@@ -163,9 +176,11 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
       s.redoStack = [];
       Object.assign(s.resourceCalendars[idx], updates);
       s.isDirty = true;
-    }),
+    });
+    get().recomputeResourceLoad();
+  },
 
-  removeResourceCalendar: (id) =>
+  removeResourceCalendar: (id) => {
     set((s) => {
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
@@ -175,5 +190,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
         if (r.calendarId === id) r.calendarId = undefined;
       }
       s.isDirty = true;
-    }),
+    });
+    get().recomputeResourceLoad();
+  },
 });

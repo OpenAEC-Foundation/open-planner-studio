@@ -114,11 +114,16 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         s.selectedTaskIds = [];
         s.cpmResult = null;
+        s.resourceLoadResult = null;
+        s.scheduleStale = false;
         s.undoStack = [];
         s.redoStack = [];
         s.isDirty = false;
         s.filePath = filePath;
       });
+      // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
+      // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
+      get().runCPM();
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
@@ -277,11 +282,14 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         s.selectedTaskIds = [];
         s.cpmResult = null;
+        s.resourceLoadResult = null;
+        s.scheduleStale = false;
         s.undoStack = [];
         s.redoStack = [];
         s.isDirty = false;
         s.filePath = filePath;
       });
+      get().runCPM(); // consistent met openFile (A5): direct doorrekenen na load.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
@@ -311,12 +319,15 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         s.selectedTaskIds = [];
         s.cpmResult = null;
+        s.resourceLoadResult = null;
+        s.scheduleStale = false;
         s.undoStack = [];
         s.redoStack = [];
         s.isDirty = false;
         // Voorbeeld = geen bronbestand: opslaan wordt opslaan-als.
         s.filePath = null;
       });
+      get().runCPM(); // consistent met openFile (A5): voorbeeld direct doorrekenen na load.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,

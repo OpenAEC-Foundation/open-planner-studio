@@ -12,7 +12,30 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   tags). Klikken opent het voorbeeld in een nieuw tabblad (geen bronbestand, dus
   opslaan wordt opslaan-als). De lijst is data-gedreven via
   `public/examples/manifest.json`, zodat nieuwe voorbeelden er zonder codewijziging
-  in komen. Werkt in de web- én desktopbuild.
+  in komen. Werkt in de web- én desktopbuild. De sectie toont nu twee groepen: de
+  drie **showcase-planningen** bovenaan (badge "Alle functies"), daaronder de
+  **eenvoudige voorbeelden** (manifest-veld `category`).
+- **Voorbeeld-generator herbouwd (`npm run gen:examples`)** — de voorbeelden worden nu
+  volledig door de app zelf opgebouwd via de échte store + `runCPM()` + `writeIFC`
+  (i.p.v. een met de hand nagebouwde IFC-writer, die was gedrift). Drift tussen de
+  voorbeelden en de app is daarmee structureel onmogelijk. Nieuw:
+  - **Drie showcase-planningen** (woningbouw / infra / renovatie) die samen álle
+    app-functies benutten: alle vier relatietypes + lags/leads/%-lag/ELAPSEDTIME,
+    datum-constraints + deadlines incl. een bewust conflict met negatieve float,
+    start-/eind-/verplichte mijlpalen, activity codes + custom fields, alle vijf
+    resourcetypes met ploeg-hiërarchie, resource-kalenders, availabilitySteps, alle
+    zes toewijzingscurves, een met nivellering oplosbare overallocatie en een
+    vastgepinde taak (prioriteit 1000).
+  - **Jaar-onafhankelijke datums**: projecten ankeren relatief ("eerste maandag van
+    maart, volgend jaar"); NL-feestdagen (incl. Pasen-afgeleiden) en de bouwvak
+    worden per jaar berekend, zodat regenereren altijd actuele datums oplevert.
+  - **Twintig sectorvoorbeelden verrijkt** met échte fase-overlap (SS/FF-relaties,
+    leads en %-lags op de fasegrenzen) en gevarieerde kalenders, zodat er een
+    realistisch kritiek pad **mét float** ontstaat (55–86 % kritiek i.p.v. bijna
+    alles). De twee oude, met de hand gebouwde "grote" voorbeelden zijn vervangen
+    door de showcases.
+  - **Verificatie** (`npm run verify:examples`): elk bestand gaat door de échte
+    `readIFC` met asserts op tellingen, round-trip-stabiliteit en aanwezige functies.
 - **Resources (fase 2.5)** — resourcebeheer, belasting, overallocatie en
   automatische nivellering (ontwerp: `docs/superpowers/specs/2026-07-03-resources-design.md`):
   - **Vijf resourcetypes**: arbeid (mensen), materieel (kranen, machines,
