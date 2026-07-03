@@ -2,11 +2,25 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task, TaskType, ConstraintType, MilestoneKind } from '@/types/task';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
+import type { ResourceCurve } from '@/types/resource';
 import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { Select } from '@/components/common/Select';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { Trash2, Zap } from 'lucide-react';
+
+export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+
+/** ResourceCurve → i18n-key in de common-namespace (resource.curve.*). `as const` houdt de
+ *  literal-keytypes zodat de getypeerde `t(...)` ze accepteert. */
+export const CURVE_KEY = {
+  UNIFORM: 'resource.curve.uniform',
+  FRONT_LOADED: 'resource.curve.frontLoaded',
+  BACK_LOADED: 'resource.curve.backLoaded',
+  BELL: 'resource.curve.bell',
+  EARLY_PEAK: 'resource.curve.earlyPeak',
+  LATE_PEAK: 'resource.curve.latePeak',
+} as const satisfies Record<ResourceCurve, string>;
 
 /** Getypeerd invoerveld voor één custom field op een taak. */
 function CustomFieldInput({ def, value, onCommit }: {
@@ -117,6 +131,11 @@ export function TaskPropertiesPanel() {
   const updateSequence = useAppStore(s => s.updateSequence);
   const removeSequence = useAppStore(s => s.removeSequence);
   const runCPM = useAppStore(s => s.runCPM);
+  const resources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
+  const assignResource = useAppStore(s => s.assignResource);
+  const updateAssignment = useAppStore(s => s.updateAssignment);
+  const unassignResource = useAppStore(s => s.unassignResource);
 
   if (selectedTaskIds.length === 0) {
     return (
@@ -140,6 +159,12 @@ export function TaskPropertiesPanel() {
   const taskSequences = sequences.filter(
     s => s.predecessorId === task.id || s.successorId === task.id
   );
+
+  // Toewijzingen (fase 2.5, §6.3) — leaf-only, geen mijlpalen/samenvattingstaken.
+  const taskAssignments = assignments.filter(a => a.taskId === task.id);
+  const assignmentsDisabled = task.isMilestone || task.childIds.length > 0;
+  const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
+  const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
 
   const update = (updates: Partial<Task>) => {
     updateTask(task.id, updates);
@@ -388,6 +413,74 @@ export function TaskPropertiesPanel() {
               </div>
             );
           })}
+        </>
+      )}
+
+      {/* Toewijzingen (fase 2.5, §6.3) */}
+      <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
+      <span className="ui-card-header !text-xs">{t('properties.assignments.title')}</span>
+      {assignmentsDisabled ? (
+        <span className="text-[10px] text-text-secondary italic">
+          {task.isMilestone
+            ? t('properties.assignments.disabledMilestone')
+            : t('properties.assignments.disabledSummary')}
+        </span>
+      ) : (
+        <>
+          {taskAssignments.length === 0 && (
+            <span className="text-[10px] text-text-secondary">{t('properties.assignments.empty')}</span>
+          )}
+          {taskAssignments.map(a => {
+            const res = resources.find(r => r.id === a.resourceId);
+            return (
+              <div key={a.id} className="flex items-center gap-1 text-[10px]">
+                <span className="flex-1 truncate" title={res?.name}>{res?.name || '?'}</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={a.unitsPerDay}
+                  title={t('properties.assignments.unitsPerDay')}
+                  onChange={e => {
+                    const n = parseFloat(e.target.value);
+                    if (Number.isFinite(n)) updateAssignment(a.id, { unitsPerDay: n });
+                  }}
+                  className="input !text-[10px] !px-1 !py-0.5 w-14 text-right"
+                />
+                <select
+                  value={a.curve ?? 'UNIFORM'}
+                  title={t('properties.assignments.curve')}
+                  onChange={e => updateAssignment(a.id, { curve: e.target.value as ResourceCurve })}
+                  className="input !text-[10px] !px-1 !py-0.5"
+                >
+                  {RESOURCE_CURVES.map(c => (
+                    <option key={c} value={c}>{tCommon(CURVE_KEY[c])}</option>
+                  ))}
+                </select>
+                <button onClick={() => unassignResource(a.id)} style={{ color: 'var(--error)' }} title={t('properties.assignments.remove')}>
+                  <Trash2 size={10} />
+                </button>
+              </div>
+            );
+          })}
+          {availableResources.length > 0 ? (
+            <select
+              value=""
+              onChange={e => { if (e.target.value) assignResource(task.id, e.target.value, 1); }}
+              className="input !text-xs !px-2.5 !py-1.5"
+            >
+              <option value="">{t('properties.assignments.add')}</option>
+              {availableResources.map(r => (
+                <option key={r.id} value={r.id}>{r.name || r.id}</option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-[10px] text-text-secondary">
+              {resources.length === 0
+                ? t('properties.assignments.noResources')
+                : t('properties.assignments.allAssigned')}
+            </span>
+          )}
         </>
       )}
 

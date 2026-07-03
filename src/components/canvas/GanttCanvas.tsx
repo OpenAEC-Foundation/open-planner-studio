@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
+import { HistogramRenderer, HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { groupTasksByCode } from '@/utils/grouping';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
@@ -11,7 +12,7 @@ import { ContextMenu } from './ContextMenu';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
 import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
-import { saveLeftPanelWidth, TASK_TABLE_MIN_WIDTH, TASK_TABLE_MAX_WIDTH } from '@/utils/settingsStore';
+import { saveLeftPanelWidth, saveHistogramHeight, TASK_TABLE_MIN_WIDTH, TASK_TABLE_MAX_WIDTH, HISTOGRAM_MIN_HEIGHT, HISTOGRAM_MAX_HEIGHT } from '@/utils/settingsStore';
 
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
@@ -69,8 +70,12 @@ export function GanttCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const hScrollRef = useRef<HTMLDivElement>(null);
   const depLineCanvasRef = useRef<HTMLCanvasElement>(null);
+  const histogramContainerRef = useRef<HTMLDivElement>(null);
+  const histogramCanvasRef = useRef<HTMLCanvasElement>(null);
+  const histogramRendererRef = useRef<HistogramRenderer | null>(null);
 
   const { t: tTask, i18n } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
 
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
@@ -97,6 +102,13 @@ export function GanttCanvas() {
   const groupBy = useAppStore(s => s.view.groupBy);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const taskTableWidth = useAppStore(s => s.ui.leftPanelWidth);
+  const showHistogram = useAppStore(s => s.ui.showHistogram);
+  const histogramHeight = useAppStore(s => s.ui.histogramHeight);
+  const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
+  const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
+  const resources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
+  const setHistogramResource = useAppStore(s => s.setHistogramResource);
 
   const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth });
   useZoomShortcuts({ zoomAt, containerRef, taskTableWidth, originPaddingDays: ORIGIN_PADDING_DAYS });
@@ -110,6 +122,8 @@ export function GanttCanvas() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [isResizingHistogram, setIsResizingHistogram] = useState(false);
+  const [histoTooltip, setHistoTooltip] = useState<{ x: number; y: number; lines: string[] } | null>(null);
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
 
@@ -199,6 +213,169 @@ export function GanttCanvas() {
     return Math.max(2000, (maxDays * 1.2) * view.zoom + taskTableWidth);
   }, [tasks, effectiveViewStart, view.zoom, taskTableWidth]);
 
+  // --- Histogram (fase 2.5, §6.4) ---
+  const histogramPicker = useMemo<HistogramPickerItem[]>(() => {
+    const over = resourceLoadResult?.overallocatedDays ?? {};
+    const anyRenewableOver = resources.some(
+      r => r.type !== 'MATERIAL' && (over[r.id]?.length ?? 0) > 0,
+    );
+    const items: HistogramPickerItem[] = [
+      { id: undefined, label: tCommon('resource.histogram.allResources'), overallocated: anyRenewableOver },
+    ];
+    for (const r of resources) {
+      items.push({ id: r.id, label: r.name || r.id, overallocated: (over[r.id]?.length ?? 0) > 0 });
+    }
+    return items;
+  }, [resources, resourceLoadResult, tCommon]);
+
+  const histogramSeries = useMemo<HistogramSeries>(() => {
+    if (!resourceLoadResult) return { load: {}, capacity: {}, overSet: new Set<string>() };
+    const { load, capacity, overallocatedDays } = resourceLoadResult;
+    if (histogramResourceId) {
+      return {
+        load: load[histogramResourceId] ?? {},
+        capacity: capacity[histogramResourceId] ?? {},
+        overSet: new Set(overallocatedDays[histogramResourceId] ?? []),
+      };
+    }
+    // "Alle resources": som over alle renewables (materiaal telt niet mee, §6.4).
+    const aggLoad: Record<string, number> = {};
+    const aggCap: Record<string, number> = {};
+    for (const r of resources) {
+      if (r.type === 'MATERIAL') continue;
+      const l = load[r.id];
+      const cp = capacity[r.id];
+      if (l) for (const iso in l) aggLoad[iso] = (aggLoad[iso] ?? 0) + l[iso];
+      if (cp) for (const iso in cp) aggCap[iso] = (aggCap[iso] ?? 0) + cp[iso];
+    }
+    const overSet = new Set<string>();
+    for (const iso in aggLoad) if (aggLoad[iso] > (aggCap[iso] ?? 0) + 1e-9) overSet.add(iso);
+    return { load: aggLoad, capacity: aggCap, overSet };
+  }, [resourceLoadResult, histogramResourceId, resources]);
+
+  const renderHistogram = useCallback(() => {
+    const canvas = histogramCanvasRef.current;
+    const container = histogramContainerRef.current;
+    if (!canvas || !container) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    const renderer = new HistogramRenderer(ctx, {
+      series: histogramSeries,
+      picker: histogramPicker,
+      selectedResourceId: histogramResourceId,
+      view: effectiveView,
+      canvasWidth: rect.width,
+      canvasHeight: rect.height,
+      taskTableWidth,
+      labels: { unitsSuffix: tCommon('resource.histogram.units') },
+      emptyHint: !resourceLoadResult
+        ? tCommon('resource.histogram.noData')
+        : resources.length === 0
+          ? tCommon('resource.histogram.noResources')
+          : undefined,
+    });
+    histogramRendererRef.current = renderer;
+    renderer.render();
+  }, [histogramSeries, histogramPicker, histogramResourceId, effectiveView, taskTableWidth, resourceLoadResult, resources.length, tCommon, uiTheme]);
+
+  useEffect(() => {
+    if (!showHistogram) return;
+    const frame = requestAnimationFrame(renderHistogram);
+    return () => cancelAnimationFrame(frame);
+  }, [showHistogram, histogramHeight, renderHistogram]);
+
+  useEffect(() => {
+    if (!showHistogram) return;
+    const container = histogramContainerRef.current;
+    if (!container) return;
+    const obs = new ResizeObserver(() => requestAnimationFrame(renderHistogram));
+    obs.observe(container);
+    return () => obs.disconnect();
+  }, [showHistogram, renderHistogram]);
+
+  // Histogram-splitter: hoogte volgt de muis (geklemd), opslaan bij loslaten.
+  useEffect(() => {
+    if (!isResizingHistogram) return;
+    const handleMove = (e: MouseEvent) => {
+      const container = histogramContainerRef.current;
+      if (!container) return;
+      const bottom = container.getBoundingClientRect().bottom;
+      const h = Math.min(HISTOGRAM_MAX_HEIGHT, Math.max(HISTOGRAM_MIN_HEIGHT, Math.round(bottom - e.clientY)));
+      setUI({ histogramHeight: h });
+    };
+    const handleUp = () => {
+      setIsResizingHistogram(false);
+      void saveHistogramHeight(useAppStore.getState().ui.histogramHeight);
+    };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isResizingHistogram, setUI]);
+
+  // Auto-dismiss van de drill-down-tooltip.
+  useEffect(() => {
+    if (!histoTooltip) return;
+    const timer = setTimeout(() => setHistoTooltip(null), 6000);
+    return () => clearTimeout(timer);
+  }, [histoTooltip]);
+
+  const contributingTaskNames = useCallback((iso: string): string[] => {
+    const names = new Set<string>();
+    for (const a of assignments) {
+      if (histogramResourceId && a.resourceId !== histogramResourceId) continue;
+      if (!histogramResourceId) {
+        const res = resources.find(r => r.id === a.resourceId);
+        if (!res || res.type === 'MATERIAL') continue;
+      }
+      const task = tasks.find(t => t.id === a.taskId);
+      if (!task) continue;
+      const es = task.time.earlyStart || task.time.scheduleStart;
+      const ef = task.time.earlyFinish || task.time.scheduleFinish;
+      if (es && ef && iso >= es && iso <= ef) names.add(task.name || task.id);
+    }
+    return [...names];
+  }, [assignments, resources, tasks, histogramResourceId]);
+
+  const handleHistogramClick = useCallback((e: React.MouseEvent) => {
+    const canvas = histogramCanvasRef.current;
+    const renderer = histogramRendererRef.current;
+    if (!canvas || !renderer) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const pick = renderer.pickerAt(x, y);
+    if (pick) {
+      setHistogramResource(pick.id);
+      setHistoTooltip(null);
+      return;
+    }
+    const iso = renderer.dayAt(x, y);
+    if (iso) {
+      const names = contributingTaskNames(iso);
+      setHistoTooltip({
+        x: e.clientX,
+        y: e.clientY,
+        lines: [tCommon('resource.histogram.overallocatedTooltip', { count: names.length, date: iso }), ...names.slice(0, 8)],
+      });
+    } else {
+      setHistoTooltip(null);
+    }
+  }, [setHistogramResource, contributingTaskNames, tCommon]);
+
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -277,6 +454,7 @@ export function GanttCanvas() {
 
   // Click handler with collapse/expand, '+' button support, and multi-selection
   const handleClick = useCallback((e: React.MouseEvent) => {
+    setHistoTooltip(null);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -793,6 +971,42 @@ export function GanttCanvas() {
           </div>
         )}
       </div>
+      {/* Histogramstrook (fase 2.5, §6.4) — derde canvas met gedeelde X-as */}
+      {showHistogram && (
+        <>
+          <div
+            className="histogram-splitter"
+            onMouseDown={e => { e.preventDefault(); setIsResizingHistogram(true); }}
+            style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
+          />
+          <div
+            ref={histogramContainerRef}
+            className="relative overflow-hidden"
+            style={{ height: histogramHeight, flexShrink: 0 }}
+          >
+            <canvas
+              ref={histogramCanvasRef}
+              className="absolute inset-0"
+              style={{ cursor: 'pointer' }}
+              onClick={handleHistogramClick}
+            />
+            {histoTooltip && (
+              <div
+                className="gantt-tooltip"
+                style={{
+                  left: histoTooltip.x - (histogramContainerRef.current?.getBoundingClientRect().left || 0) + 14,
+                  top: histoTooltip.y - (histogramContainerRef.current?.getBoundingClientRect().top || 0) - 10,
+                }}
+              >
+                {histoTooltip.lines.map((l, i) => (
+                  <div key={i} className={i === 0 ? 'tooltip-title' : 'tooltip-row'}>{l}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {/* Horizontal scrollbar */}
       <div
         ref={hScrollRef}

@@ -9,9 +9,10 @@ import {
   Download, Puzzle, ArrowLeftToLine, ArrowRightToLine,
   Tags, ListOrdered, Hash, LayoutTemplate,
   IndentIncrease, IndentDecrease, ChevronUp, ChevronDown,
+  Users, UserPlus, BarChart3, Scale, Eraser, AlertTriangle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
-import { saveRibbonCompact } from '@/utils/settingsStore';
+import { saveRibbonCompact, saveShowHistogram } from '@/utils/settingsStore';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
@@ -471,6 +472,78 @@ function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
   );
 }
 
+/**
+ * Toewijs-popover (fase 2.5, §6.1): alleen actief bij precies één geselecteerde leaf-, niet-
+ * milestone-taak; toont de nog-niet-toegewezen resources en roept `assignResource` direct aan.
+ */
+function ResourceAssignDropdown() {
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tTask } = useTranslation('task');
+  const [open, setOpen] = useState(false);
+  const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
+  const tasks = useAppStore(s => s.tasks);
+  const resources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
+  const assignResource = useAppStore(s => s.assignResource);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const task = selectedTaskIds.length === 1 ? tasks.find(t => t.id === selectedTaskIds[0]) : undefined;
+  const valid = !!task && !task.isMilestone && task.childIds.length === 0;
+  const assignedIds = new Set(assignments.filter(a => a.taskId === task?.id).map(a => a.resourceId));
+  const available = resources.filter(r => !assignedIds.has(r.id));
+
+  if (!valid) {
+    return <RibbonButton icon={<UserPlus size={20} />} label={tMenu('ribbon.assignResource')} disabled />;
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button className={`ribbon-btn${open ? ' active' : ''}`} onClick={() => setOpen(!open)}>
+        <span className="ribbon-btn-icon"><UserPlus size={20} /></span>
+        <span className="ribbon-btn-label">{tMenu('ribbon.assignResource')} ▾</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 1000, minWidth: 200, maxHeight: 300, overflowY: 'auto',
+          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
+        }}>
+          {available.length === 0 ? (
+            <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--theme-text-dim)' }}>
+              {resources.length === 0 ? tTask('properties.assignments.noResources') : tTask('properties.assignments.allAssigned')}
+            </div>
+          ) : (
+            available.map(r => (
+              <button
+                key={r.id}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
+                  fontSize: 11, border: 'none', background: 'transparent', color: 'var(--theme-text)',
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => { assignResource(task!.id, r.id, 1); setOpen(false); }}
+              >
+                {r.name || r.id}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Ribbon() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tTask } = useTranslation('task');
@@ -505,6 +578,16 @@ export function Ribbon() {
   const saveFile = useAppStore(s => s.saveFile);
   const saveFileAs = useAppStore(s => s.saveFileAs);
   const openFileAction = useAppStore(s => s.openFile);
+  // Resources (fase 2.5)
+  const tasks = useAppStore(s => s.tasks);
+  const addResource = useAppStore(s => s.addResource);
+  const resources = useAppStore(s => s.resources);
+  const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
+  const showHistogram = useAppStore(s => s.ui.showHistogram);
+  const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
+  const setHistogramResource = useAppStore(s => s.setHistogramResource);
+  const clearLeveling = useAppStore(s => s.clearLeveling);
+  const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
 
   const setActiveTab = useCallback((tab: RibbonTab) => {
     setUI({ activeRibbonTab: tab });
@@ -533,6 +616,26 @@ export function Ribbon() {
     // Nieuw-project-wizard (kies metadata, kalender en fasering-template).
     setUI({ showNewProjectDialog: true });
   }, [setUI]);
+
+  // Resources-tab afgeleide waarden (fase 2.5)
+  const overallocatedCount = Object.values(resourceLoadResult?.overallocatedDays ?? {})
+    .filter(d => (d?.length ?? 0) > 0).length;
+  const hasLeveling = tasks.some(t => t.levelingDelay !== undefined);
+  const cycleHistogramResource = (dir: 1 | -1) => {
+    const ids: (string | undefined)[] = [undefined, ...resources.map(r => r.id)];
+    const cur = ids.findIndex(id => id === histogramResourceId);
+    const next = (cur + dir + ids.length) % ids.length;
+    setHistogramResource(ids[next]);
+  };
+  const toggleHistogram = () => {
+    const next = !showHistogram;
+    setUI({ showHistogram: next });
+    void saveShowHistogram(next);
+  };
+  const newResource = () => {
+    addResource({ name: '', type: 'LABOR', description: '', maxUnits: 1 });
+    setUI({ showResourcePanel: true });
+  };
 
   // Path tracing (MSP Task Path): beide knoppen aan = 'both'; werkt op de geselecteerde taak.
   // Gedeeld door de Planning- en Relaties-tab (op de Planning-tab is de Gantt zichtbaar).
@@ -576,7 +679,7 @@ export function Ribbon() {
         >
           {tMenu('ribbon.file')}
         </button>
-        {(['start', 'planning', 'relations', 'beeld', 'instellingen', 'table', 'ifc', 'report'] as RibbonTab[]).map(tab => (
+        {(['start', 'planning', 'resources', 'relations', 'beeld', 'instellingen', 'table', 'ifc', 'report'] as RibbonTab[]).map(tab => (
           <button
             key={tab}
             className={`ribbon-tab ${activeTab === tab ? 'active' : ''}`}
@@ -677,6 +780,54 @@ export function Ribbon() {
                 <RibbonSmallButton icon={<IndentIncrease size={14} />} label={tMenu('ribbon.indent')} onClick={() => indentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0} />
                 <RibbonSmallButton icon={<IndentDecrease size={14} />} label={tMenu('ribbon.outdent')} onClick={() => outdentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0} />
               </RibbonButtonStack>
+            </RibbonGroup>
+          </>
+        )}
+
+        {activeTab === 'resources' && (
+          <>
+            <RibbonGroup label={tMenu('ribbon.resourceManagement')}>
+              <RibbonButton icon={<Users size={20} />} label={tMenu('ribbon.openResourcePanel')} onClick={() => setUI({ showResourcePanel: true })} active={showResourcePanel} />
+              <RibbonButton icon={<Plus size={20} />} label={tMenu('ribbon.newResource')} onClick={newResource} />
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            <RibbonGroup label={tMenu('ribbon.resourceAssignment')}>
+              <ResourceAssignDropdown />
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            <RibbonGroup label={tMenu('ribbon.histogram')}>
+              <RibbonButton icon={<BarChart3 size={20} />} label={tMenu('ribbon.toggleHistogram')} onClick={toggleHistogram} active={showHistogram} />
+              <RibbonButtonStack>
+                <RibbonSmallButton icon={<ChevronLeft size={14} />} label={tMenu('ribbon.prevResource')} onClick={() => cycleHistogramResource(-1)} disabled={!showHistogram || resources.length === 0} />
+                <RibbonSmallButton icon={<ChevronRight size={14} />} label={tMenu('ribbon.nextResource')} onClick={() => cycleHistogramResource(1)} disabled={!showHistogram || resources.length === 0} />
+              </RibbonButtonStack>
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            <RibbonGroup label={tMenu('ribbon.leveling')}>
+              <RibbonButton icon={<Scale size={20} />} label={tMenu('ribbon.levelResourcesDialog')} onClick={() => setUI({ showLevelingDialog: true })} />
+              <RibbonButton icon={<Eraser size={20} />} label={tMenu('ribbon.clearLeveling')} onClick={clearLeveling} disabled={!hasLeveling} />
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            <RibbonGroup label={tMenu('ribbon.overallocationIndicator')}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px', fontSize: 12,
+                color: overallocatedCount > 0 ? 'var(--error)' : 'var(--theme-text-dim)',
+              }}>
+                {overallocatedCount > 0 && <AlertTriangle size={16} />}
+                <span>
+                  {overallocatedCount > 0
+                    ? tMenu('ribbon.overallocationCount', { count: overallocatedCount })
+                    : tMenu('ribbon.overallocationNone')}
+                </span>
+              </div>
             </RibbonGroup>
           </>
         )}

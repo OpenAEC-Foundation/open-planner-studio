@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight } from '@/utils/settingsStore';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -32,6 +32,7 @@ import { StatusBar } from '@/components/layout/StatusBar/StatusBar';
 import { GanttCanvas } from '@/components/canvas/GanttCanvas';
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { TableEditor } from '@/components/panels/TableEditor';
+import { ResourcePanel } from '@/components/panels/ResourcePanel';
 import { RelationsPanel } from '@/components/panels/RelationsPanel';
 import { IFCPanel } from '@/components/panels/IFCPanel';
 import { ReportPanel } from '@/components/panels/ReportPanel';
@@ -43,6 +44,7 @@ import { CalendarDialog } from '@/components/dialogs/CalendarDialog';
 import { StructureDialog } from '@/components/dialogs/StructureDialog';
 import { UpdateDialog } from '@/components/dialogs/UpdateDialog';
 import { FeedbackDialog } from '@/components/dialogs/FeedbackDialog';
+import { LevelingDialog } from '@/components/dialogs/LevelingDialog';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
 import { Backstage } from '@/components/backstage/Backstage';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
@@ -68,6 +70,8 @@ function AppContent() {
   const showCalendarDialog = useAppStore(s => s.ui.showCalendarDialog);
   const showStructureDialog = useAppStore(s => s.ui.showStructureDialog);
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
+  const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
+  const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
   const isDirty = useAppStore(s => s.isDirty);
@@ -95,6 +99,12 @@ function AppContent() {
     });
     loadRibbonCompact().then(v => {
       if (typeof v === 'boolean') setUI({ ribbonCompact: v });
+    });
+    loadShowHistogram().then(v => {
+      if (typeof v === 'boolean') setUI({ showHistogram: v });
+    });
+    loadHistogramHeight().then(h => {
+      if (typeof h === 'number') setUI({ histogramHeight: h });
     });
     void loadAllExtensions();
   }, []);
@@ -272,7 +282,7 @@ function AppContent() {
   }, []);
 
   // Determine if we should show the gantt canvas or a full-panel view
-  const isFullPanel = activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
+  const isFullPanel = showResourcePanel || activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
@@ -306,10 +316,16 @@ function AppContent() {
         {isFullPanel ? (
           // Full panel views (Table, IFC, Report) — eigen kaart
           <div className="ui-card flex-1 flex overflow-hidden">
-            {activeTab === 'table' && <TableEditor />}
-            {activeTab === 'relations' && <RelationsPanel />}
-            {activeTab === 'ifc' && <IFCPanel />}
-            {activeTab === 'report' && <ReportPanel />}
+            {showResourcePanel ? (
+              <ResourcePanel />
+            ) : (
+              <>
+                {activeTab === 'table' && <TableEditor />}
+                {activeTab === 'relations' && <RelationsPanel />}
+                {activeTab === 'ifc' && <IFCPanel />}
+                {activeTab === 'report' && <ReportPanel />}
+              </>
+            )}
           </div>
         ) : (
           // Gantt Chart view — zwevende kaart (Gantt + tabel samen)
@@ -378,6 +394,7 @@ function AppContent() {
       {showCalendarDialog && <CalendarDialog />}
       {showStructureDialog && <StructureDialog />}
       {showFeedbackDialog && <FeedbackDialog />}
+      {showLevelingDialog && <LevelingDialog />}
       <UpdateDialog />
     </div>
   );

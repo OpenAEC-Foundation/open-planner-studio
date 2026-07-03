@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "Start",
     "planning": "Planning",
+    "resources": "Resources",
     "view": "Beeld",
     "settings": "Instellingen",
     "table": "Tabel",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} taken, {{relations}} relaties",
     "deleteTemplate": "Sjabloon verwijderen",
     "collapseRibbon": "Lint inklappen",
-    "expandRibbon": "Lint uitklappen"
+    "expandRibbon": "Lint uitklappen",
+    "resourceManagement": "Beheer",
+    "openResourcePanel": "Resources",
+    "newResource": "Nieuwe resource",
+    "resourceAssignment": "Toewijzing",
+    "assignResource": "Toewijzen",
+    "histogram": "Histogram",
+    "toggleHistogram": "Histogram",
+    "prevResource": "Vorige",
+    "nextResource": "Volgende",
+    "leveling": "Nivellering",
+    "levelResourcesDialog": "Nivelleren…",
+    "clearLeveling": "Nivellering wissen",
+    "overallocationIndicator": "Overallocatie",
+    "overallocationCount": "{{count}} resources",
+    "overallocationNone": "Geen"
   },
   "ifc": {
     "title": "IFC-editor",

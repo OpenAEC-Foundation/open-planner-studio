@@ -170,5 +170,77 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) overschreden",
     "violatedConstraints": "{{count}} constraint(s) geschonden"
+  },
+  "resource": {
+    "type": {
+      "labor": "Arbeid",
+      "equipment": "Materieel",
+      "material": "Materiaal",
+      "subcontractor": "Onderaannemer",
+      "crew": "Ploeg"
+    },
+    "name": "Naam",
+    "typeLabel": "Type",
+    "maxUnits": "Max. eenheden",
+    "calendarId": "Kalender",
+    "costPerHour": "Tarief/uur",
+    "unitOfMeasure": "Eenheid",
+    "parent": "Ploeg",
+    "projectCalendar": "Projectkalender",
+    "editCalendar": "Bewerken…",
+    "noParent": "Geen",
+    "availabilityStepsEditor": {
+      "title": "Tijd-gefaseerde capaciteit",
+      "addStep": "Stap toevoegen",
+      "from": "Vanaf",
+      "maxUnits": "Max. eenheden",
+      "empty": "Geen stappen — vlakke max. eenheden geldt altijd."
+    },
+    "panel": {
+      "title": "Resources",
+      "addRow": "Nieuwe resource",
+      "deleteRow": "Verwijderen",
+      "empty": "Nog geen resources. Voeg er een toe om te beginnen.",
+      "steps": "Stappen"
+    },
+    "calendarDialog": {
+      "title": "Resourcekalender"
+    },
+    "histogram": {
+      "allResources": "Alle resources",
+      "overallocatedTooltip": "{{count}} taken dragen bij op {{date}}",
+      "noData": "Herbereken (F5) om de belasting te tonen",
+      "noResources": "Nog geen resources",
+      "units": "eenheden"
+    },
+    "leveling": {
+      "dialogTitle": "Resources nivelleren",
+      "constrainToFloat": "Alleen binnen speling nivelleren (smoothing) — projecteinddatum blijft vast",
+      "resourceSelect": "Resources",
+      "calculate": "Berekenen",
+      "apply": "Toepassen",
+      "cancel": "Annuleren",
+      "projectEndUnchanged": "Projecteinddatum: ongewijzigd ({{date}})",
+      "projectEndChanged": "Projecteinddatum: {{before}} → {{after}}",
+      "remainingConflicts": "Resterende conflicten",
+      "remainingConflictsHint": "Deze taken passen niet binnen hun speling — vaak omdat een resource op die dagen niet werkt of onvoldoende capaciteit heeft.",
+      "noChanges": "Geen taken hoeven te verschuiven — de planning is al conflictvrij.",
+      "notCalculated": "Klik op Berekenen om een nivelleervoorstel te maken.",
+      "needsCPM": "Bereken eerst de planning (F5) voordat je nivelleert.",
+      "colTask": "Taak",
+      "colOldStart": "Oude start",
+      "colNewStart": "Nieuwe start",
+      "colShift": "Dagen verschoven",
+      "shiftDays": "{{count}} d",
+      "conflictDays": "{{count}} dag(en)"
+    },
+    "curve": {
+      "uniform": "Uniform",
+      "frontLoaded": "Vooraan belast",
+      "backLoaded": "Achteraan belast",
+      "bell": "Klokvorm",
+      "earlyPeak": "Vroege piek",
+      "latePeak": "Late piek"
+    }
   }
 }

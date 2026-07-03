@@ -18,6 +18,8 @@ export interface ResourceSlice {
   removeResource: (id: string) => void;
   /** Leaf-only (§2.4): geen-op op mijlpalen/samenvattingstaken — geen assignment, geen snapshot. */
   assignResource: (taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve) => void;
+  /** Wijzig eenheden/curve van een bestaande toewijzing (inline-bewerken in de UI, §6.3). */
+  updateAssignment: (assignmentId: string, updates: Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>) => void;
   unassignResource: (assignmentId: string) => void;
   addResourceCalendar: (cal: Omit<WorkCalendar, 'id'>) => string;
   updateResourceCalendar: (id: string, updates: Partial<WorkCalendar>) => void;
@@ -83,6 +85,16 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
       if (!task.resourceIds.includes(resourceId)) {
         task.resourceIds.push(resourceId);
       }
+      s.isDirty = true;
+    }),
+
+  updateAssignment: (assignmentId, updates) =>
+    set((s) => {
+      const idx = s.assignments.findIndex(a => a.id === assignmentId);
+      if (idx < 0) return;
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      Object.assign(s.assignments[idx], updates);
       s.isDirty = true;
     }),
 

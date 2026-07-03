@@ -70,7 +70,21 @@
     "dependencies": "Afhankelijkheden",
     "driving": "Bepalende relatie (driving)",
     "lag": "Lag (bv. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "CPM Herberekenen"
+    "recalculate": "CPM Herberekenen",
+    "assignments": {
+      "title": "Toewijzingen",
+      "add": "Resource toewijzen",
+      "remove": "Verwijderen",
+      "unitsPerDay": "Eenh./dag",
+      "curve": "Curve",
+      "empty": "Nog geen toewijzingen.",
+      "noResources": "Maak eerst resources aan (Resources-tab).",
+      "allAssigned": "Alle resources zijn al toegewezen.",
+      "disabledMilestone": "Toewijzingen zijn niet mogelijk op mijlpalen.",
+      "disabledSummary": "Toewijzingen zijn niet mogelijk op samenvattingstaken."
+    },
+    "priority": "Nivelleer-prioriteit",
+    "levelingDelay": "Nivelleer-vertraging"
   },
   "relations": {
     "title": "Relaties",

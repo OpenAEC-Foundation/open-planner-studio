@@ -170,5 +170,77 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) missed",
     "violatedConstraints": "{{count}} constraint(s) violated"
+  },
+  "resource": {
+    "type": {
+      "labor": "Labor",
+      "equipment": "Equipment",
+      "material": "Material",
+      "subcontractor": "Subcontractor",
+      "crew": "Crew"
+    },
+    "name": "Name",
+    "typeLabel": "Type",
+    "maxUnits": "Max units",
+    "calendarId": "Calendar",
+    "costPerHour": "Rate/hour",
+    "unitOfMeasure": "Unit",
+    "parent": "Crew",
+    "projectCalendar": "Project calendar",
+    "editCalendar": "Edit…",
+    "noParent": "None",
+    "availabilityStepsEditor": {
+      "title": "Time-phased capacity",
+      "addStep": "Add step",
+      "from": "From",
+      "maxUnits": "Max units",
+      "empty": "No steps — the flat max units always applies."
+    },
+    "panel": {
+      "title": "Resources",
+      "addRow": "New resource",
+      "deleteRow": "Delete",
+      "empty": "No resources yet. Add one to get started.",
+      "steps": "Steps"
+    },
+    "calendarDialog": {
+      "title": "Resource calendar"
+    },
+    "histogram": {
+      "allResources": "All resources",
+      "overallocatedTooltip": "{{count}} tasks contribute on {{date}}",
+      "noData": "Recalculate (F5) to show the load",
+      "noResources": "No resources yet",
+      "units": "units"
+    },
+    "leveling": {
+      "dialogTitle": "Level resources",
+      "constrainToFloat": "Level only within slack (smoothing) — project end date stays fixed",
+      "resourceSelect": "Resources",
+      "calculate": "Calculate",
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "projectEndUnchanged": "Project end date: unchanged ({{date}})",
+      "projectEndChanged": "Project end date: {{before}} → {{after}}",
+      "remainingConflicts": "Remaining conflicts",
+      "remainingConflictsHint": "These tasks do not fit within their slack — often because a resource does not work on those days or lacks capacity.",
+      "noChanges": "No tasks need to move — the schedule is already conflict-free.",
+      "notCalculated": "Click Calculate to build a leveling proposal.",
+      "needsCPM": "Calculate the schedule (F5) before leveling.",
+      "colTask": "Task",
+      "colOldStart": "Old start",
+      "colNewStart": "New start",
+      "colShift": "Days shifted",
+      "shiftDays": "{{count}} d",
+      "conflictDays": "{{count}} day(s)"
+    },
+    "curve": {
+      "uniform": "Uniform",
+      "frontLoaded": "Front loaded",
+      "backLoaded": "Back loaded",
+      "bell": "Bell shaped",
+      "earlyPeak": "Early peak",
+      "latePeak": "Late peak"
+    }
   }
 }

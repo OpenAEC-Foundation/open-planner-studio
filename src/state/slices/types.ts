@@ -50,7 +50,7 @@ export type DocumentChromeStyle = 'tabs' | 'rail' | 'switcher';
 
 export const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
 
-export type RibbonTab = 'file' | 'start' | 'planning' | 'relations' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report';
+export type RibbonTab = 'file' | 'start' | 'planning' | 'resources' | 'relations' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report';
 
 // Backstage view (Office-style File tab full-screen) — sub-section selectie
 export type BackstageSection =
@@ -71,6 +71,9 @@ export interface ViewState {
   /** Groeperingsweergave (fase 2.2): id van een activity-code-type — tabel en Gantt tonen
    *  dan codewaarde-banden i.p.v. de WBS-boom; undefined = normale boomweergave. */
   groupBy?: string;
+  /** Histogram-selectie (fase 2.5, §6.4): id van de resource die de histogramstrook toont;
+   *  undefined = alle renewables samengeteld. Per-document (zit in ViewState → DocumentPayload). */
+  histogramResourceId?: string;
 }
 
 export interface UIState {
@@ -107,6 +110,10 @@ export interface UIState {
   showFeedbackDialog: boolean;              // session — feedback-dialoog open
   showStructureDialog: boolean;             // session — codes & velden-beheer open
   traceMode: TraceMode;                     // session — path tracing rond de geselecteerde taak
+  showResourcePanel: boolean;               // session — resource-beheerpaneel (full-panel) open (fase 2.5)
+  showHistogram: boolean;                   // persisted — histogramstrook onder de Gantt zichtbaar (fase 2.5)
+  histogramHeight: number;                  // persisted — hoogte van de histogramstrook in px (fase 2.5)
+  showLevelingDialog: boolean;              // session — nivelleer-dialoog open (fase 2.5)
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

@@ -9,6 +9,8 @@ export interface ViewSlice {
   setViewStartDate: (date: string) => void;
   /** Groepeer tabel + Gantt op een activity-code-type (undefined = WBS-boomweergave). */
   setGroupBy: (codeTypeId?: string) => void;
+  /** Kies de resource die de histogramstrook toont (undefined = alle renewables samen). */
+  setHistogramResource: (resourceId?: string) => void;
 }
 
 export function createDefaultView(): ViewState {
@@ -49,5 +51,10 @@ export const createViewSlice: AppSlice<ViewSlice> = (set) => ({
   setGroupBy: (codeTypeId) =>
     set((s) => {
       s.view.groupBy = codeTypeId;
+    }),
+
+  setHistogramResource: (resourceId) =>
+    set((s) => {
+      s.view.histogramResourceId = resourceId;
     }),
 });

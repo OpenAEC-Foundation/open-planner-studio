@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "Home",
     "planning": "Planning",
+    "resources": "Resources",
     "view": "View",
     "settings": "Settings",
     "table": "Table",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} tasks, {{relations}} relations",
     "deleteTemplate": "Delete template",
     "collapseRibbon": "Collapse the ribbon",
-    "expandRibbon": "Expand the ribbon"
+    "expandRibbon": "Expand the ribbon",
+    "resourceManagement": "Manage",
+    "openResourcePanel": "Resources",
+    "newResource": "New resource",
+    "resourceAssignment": "Assignment",
+    "assignResource": "Assign",
+    "histogram": "Histogram",
+    "toggleHistogram": "Histogram",
+    "prevResource": "Previous",
+    "nextResource": "Next",
+    "leveling": "Leveling",
+    "levelResourcesDialog": "Level…",
+    "clearLeveling": "Clear leveling",
+    "overallocationIndicator": "Overallocation",
+    "overallocationCount": "{{count}} resources",
+    "overallocationNone": "None"
   },
   "ifc": {
     "title": "IFC Editor",

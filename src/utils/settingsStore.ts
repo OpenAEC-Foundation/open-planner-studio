@@ -142,6 +142,30 @@ export async function saveRibbonCompact(value: boolean): Promise<void> {
   await setSetting('ribbonCompact', value);
 }
 
+// Histogramstrook (fase 2.5, §6.5): zichtbaarheid + hoogte zijn view-state (net als
+// leftPanelWidth), geen instellingen — persist via dezelfde ops-prefix, geen 3-plekken-regel.
+export async function loadShowHistogram(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('showHistogram');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveShowHistogram(value: boolean): Promise<void> {
+  await setSetting('showHistogram', value);
+}
+
+export const HISTOGRAM_MIN_HEIGHT = 80;
+export const HISTOGRAM_MAX_HEIGHT = 480;
+
+export async function loadHistogramHeight(): Promise<number | undefined> {
+  const v = await getSetting<number>('histogramHeight');
+  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
+  return Math.min(HISTOGRAM_MAX_HEIGHT, Math.max(HISTOGRAM_MIN_HEIGHT, Math.round(v)));
+}
+
+export async function saveHistogramHeight(value: number): Promise<void> {
+  await setSetting('histogramHeight', Math.round(value));
+}
+
 const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
 
 export async function loadDocumentChromeStyle(): Promise<DocumentChromeStyle | undefined> {

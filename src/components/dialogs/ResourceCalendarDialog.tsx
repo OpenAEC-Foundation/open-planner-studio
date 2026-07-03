@@ -66,10 +66,8 @@ export function ResourceCalendarDialog({
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          {/* Nieuwe i18n-key (resource.calendarDialog.title) volgt in de i18n-stap van
-              deze fase — hier bewust nog een letterlijke NL-string, geen ongeldige t()-cast. */}
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            Resourcekalender
+            {tCommon('resource.calendarDialog.title')}
           </span>
           <button onClick={onClose} className="p-1 hover:bg-surface-hover rounded-[8px]">
             <X size={16} />

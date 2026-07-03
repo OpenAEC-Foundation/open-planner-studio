@@ -41,6 +41,10 @@ export function createDefaultUI(): UIState {
     showFeedbackDialog: false,
     showStructureDialog: false,
     traceMode: 'off',
+    showResourcePanel: false,
+    showHistogram: false,
+    histogramHeight: 160,
+    showLevelingDialog: false,
   };
 }
 
