@@ -71,9 +71,7 @@
     "documentChrome": "Style de changement de document",
     "documentChromeTabs": "Onglets horizontaux",
     "documentChromeRail": "Onglets verticaux",
-    "documentChromeSwitcher": "Pastille",
-    "ribbonCompact": "Ruban compact",
-    "ribbonCompactHint": "Barre d’outils réduite pour petits écrans"
+    "documentChromeSwitcher": "Pastille"
   },
   "confirm": {
     "newProject": "Créer un nouveau projet ? Les modifications non enregistrées seront perdues.",

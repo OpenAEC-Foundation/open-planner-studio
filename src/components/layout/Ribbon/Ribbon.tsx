@@ -8,9 +8,10 @@ import {
   ArrowRightLeft, Eye, EyeOff, History, SaveAll,
   Download, Puzzle, ArrowLeftToLine, ArrowRightToLine,
   Tags, ListOrdered, Hash, LayoutTemplate,
-  IndentIncrease, IndentDecrease,
+  IndentIncrease, IndentDecrease, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
+import { saveRibbonCompact } from '@/utils/settingsStore';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
@@ -794,6 +795,19 @@ export function Ribbon() {
           </RibbonGroup>
         )}
         <ExtensionRibbonGroups tab={activeTab} />
+        {/* Compacte-modus-toggle rechtsonder (Word-web-stijl): ↑ = inklappen, ↓ = uitklappen. */}
+        <button
+          className="ribbon-collapse-toggle"
+          title={tMenu(ribbonCompact ? 'ribbon.expandRibbon' : 'ribbon.collapseRibbon')}
+          aria-label={tMenu(ribbonCompact ? 'ribbon.expandRibbon' : 'ribbon.collapseRibbon')}
+          onClick={() => {
+            const next = !ribbonCompact;
+            setUI({ ribbonCompact: next });
+            void saveRibbonCompact(next);
+          }}
+        >
+          {ribbonCompact ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+        </button>
       </div>
       )}
     </div>

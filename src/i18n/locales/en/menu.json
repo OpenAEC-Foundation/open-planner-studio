@@ -113,7 +113,9 @@
     "noTemplates": "No saved templates yet — right-click a summary task → 'Save branch as template'",
     "insertTemplateHint": "Insert under the selected task (or at root level)",
     "templateMeta": "{{tasks}} tasks, {{relations}} relations",
-    "deleteTemplate": "Delete template"
+    "deleteTemplate": "Delete template",
+    "collapseRibbon": "Collapse the ribbon",
+    "expandRibbon": "Expand the ribbon"
   },
   "ifc": {
     "title": "IFC Editor",

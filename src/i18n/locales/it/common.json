@@ -71,9 +71,7 @@
     "documentChrome": "Stile di cambio documento",
     "documentChromeTabs": "Schede orizzontali",
     "documentChromeRail": "Schede verticali",
-    "documentChromeSwitcher": "Pillola",
-    "ribbonCompact": "Barra multifunzione compatta",
-    "ribbonCompactHint": "Barra degli strumenti ridotta per schermi piccoli"
+    "documentChromeSwitcher": "Pillola"
   },
   "confirm": {
     "newProject": "Creare un nuovo progetto? Le modifiche non salvate andranno perse.",

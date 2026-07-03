@@ -113,7 +113,9 @@
     "noTemplates": "لا توجد قوالب محفوظة بعد — انقر بزر الفأرة الأيمن على مهمة موجزة → 'حفظ الفرع كقالب'",
     "insertTemplateHint": "إدراج تحت المهمة المحددة (أو في مستوى الجذر)",
     "templateMeta": "{{tasks}} مهمة، {{relations}} علاقة",
-    "deleteTemplate": "حذف القالب"
+    "deleteTemplate": "حذف القالب",
+    "collapseRibbon": "طي الشريط",
+    "expandRibbon": "توسيع الشريط"
   },
   "ifc": {
     "title": "محرر IFC",

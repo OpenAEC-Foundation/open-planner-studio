@@ -113,7 +113,9 @@
     "noTemplates": "Ainda não há modelos guardados — clique com o botão direito numa tarefa de resumo → 'Guardar ramo como modelo'",
     "insertTemplateHint": "Inserir sob a tarefa selecionada (ou no nível de raiz)",
     "templateMeta": "{{tasks}} tarefas, {{relations}} relações",
-    "deleteTemplate": "Eliminar modelo"
+    "deleteTemplate": "Eliminar modelo",
+    "collapseRibbon": "Recolher a faixa de opções",
+    "expandRibbon": "Expandir a faixa de opções"
   },
   "ifc": {
     "title": "Editor IFC",

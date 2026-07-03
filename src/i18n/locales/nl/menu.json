@@ -113,7 +113,9 @@
     "noTemplates": "Nog geen sjablonen — rechtsklik op een samenvattingstaak → 'Bewaar tak als sjabloon'",
     "insertTemplateHint": "Invoegen onder de geselecteerde taak (of op rootniveau)",
     "templateMeta": "{{tasks}} taken, {{relations}} relaties",
-    "deleteTemplate": "Sjabloon verwijderen"
+    "deleteTemplate": "Sjabloon verwijderen",
+    "collapseRibbon": "Lint inklappen",
+    "expandRibbon": "Lint uitklappen"
   },
   "ifc": {
     "title": "IFC-editor",

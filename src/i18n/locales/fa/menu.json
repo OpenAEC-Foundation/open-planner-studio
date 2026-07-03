@@ -113,7 +113,9 @@
     "noTemplates": "هنوز الگوی ذخیره‌شده‌ای وجود ندارد — روی یک وظیفه خلاصه راست‌کلیک کنید → «ذخیره شاخه به عنوان الگو»",
     "insertTemplateHint": "درج زیر وظیفه انتخاب‌شده (یا در سطح ریشه)",
     "templateMeta": "{{tasks}} وظیفه، {{relations}} رابطه",
-    "deleteTemplate": "حذف الگو"
+    "deleteTemplate": "حذف الگو",
+    "collapseRibbon": "جمع کردن نوار",
+    "expandRibbon": "باز کردن نوار"
   },
   "ifc": {
     "title": "ویرایشگر IFC",

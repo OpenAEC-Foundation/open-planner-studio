@@ -71,9 +71,7 @@
     "documentChrome": "نمط تبديل المستندات",
     "documentChromeTabs": "علامات تبويب أفقية",
     "documentChromeRail": "علامات تبويب رأسية",
-    "documentChromeSwitcher": "حبة",
-    "ribbonCompact": "شريط مضغوط",
-    "ribbonCompactHint": "شريط أدوات أقل ارتفاعًا للشاشات الصغيرة"
+    "documentChromeSwitcher": "حبة"
   },
   "confirm": {
     "newProject": "إنشاء مشروع جديد؟ ستفقد التغييرات غير المحفوظة.",

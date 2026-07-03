@@ -113,7 +113,9 @@
     "noTemplates": "尚无已保存的模板——右键点击摘要任务 → “将分支保存为模板”",
     "insertTemplateHint": "插入到所选任务之下（或根级）",
     "templateMeta": "{{tasks}} 个任务，{{relations}} 条关系",
-    "deleteTemplate": "删除模板"
+    "deleteTemplate": "删除模板",
+    "collapseRibbon": "折叠功能区",
+    "expandRibbon": "展开功能区"
   },
   "ifc": {
     "title": "IFC 编辑器",

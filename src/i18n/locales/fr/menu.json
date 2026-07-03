@@ -113,7 +113,9 @@
     "noTemplates": "Aucun modèle enregistré pour l'instant — clic droit sur une tâche récapitulative → 'Enregistrer la branche comme modèle'",
     "insertTemplateHint": "Insérer sous la tâche sélectionnée (ou au niveau racine)",
     "templateMeta": "{{tasks}} tâches, {{relations}} relations",
-    "deleteTemplate": "Supprimer le modèle"
+    "deleteTemplate": "Supprimer le modèle",
+    "collapseRibbon": "Réduire le ruban",
+    "expandRibbon": "Développer le ruban"
   },
   "ifc": {
     "title": "Éditeur IFC",

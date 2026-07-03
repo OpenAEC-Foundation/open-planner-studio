@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
 import { UITheme, UI_THEMES, DocumentChromeStyle } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveRibbonCompact } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
@@ -38,7 +38,6 @@ export function SettingsPanelContent() {
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
-  const ribbonCompact = useAppStore(s => s.ui.ribbonCompact);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
@@ -56,11 +55,6 @@ export function SettingsPanelContent() {
   const applyDocumentChrome = (style: DocumentChromeStyle) => {
     setUI({ documentChromeStyle: style });
     void saveDocumentChromeStyle(style);
-  };
-
-  const applyRibbonCompact = (value: boolean) => {
-    setUI({ ribbonCompact: value });
-    void saveRibbonCompact(value);
   };
 
   return (
@@ -125,18 +119,6 @@ export function SettingsPanelContent() {
                   { value: 'switcher', label: t('settings.documentChromeSwitcher') },
                 ]}
               />
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.ribbonCompact')}</h3>
-              <label className="settings-row" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={ribbonCompact}
-                  onChange={e => applyRibbonCompact(e.target.checked)}
-                />
-                <span>{t('settings.ribbonCompactHint')}</span>
-              </label>
             </div>
 
             <div className="settings-section">

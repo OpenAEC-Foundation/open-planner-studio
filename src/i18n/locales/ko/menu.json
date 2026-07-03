@@ -113,7 +113,9 @@
     "noTemplates": "저장된 템플릿이 아직 없습니다 — 요약 작업을 마우스 오른쪽 버튼으로 클릭 → '분기를 템플릿으로 저장'",
     "insertTemplateHint": "선택한 작업 아래에 삽입합니다 (또는 루트 수준에)",
     "templateMeta": "{{tasks}}개 작업, {{relations}}개 관계",
-    "deleteTemplate": "템플릿 삭제"
+    "deleteTemplate": "템플릿 삭제",
+    "collapseRibbon": "리본 접기",
+    "expandRibbon": "리본 펼치기"
   },
   "ifc": {
     "title": "IFC 편집기",

@@ -71,9 +71,7 @@
     "documentChrome": "Dokumentwechsel-Stil",
     "documentChromeTabs": "Horizontale Registerkarten",
     "documentChromeRail": "Vertikale Registerkarten",
-    "documentChromeSwitcher": "Pille",
-    "ribbonCompact": "Kompaktes Menüband",
-    "ribbonCompactHint": "Niedrigere Symbolleiste für kleine Bildschirme"
+    "documentChromeSwitcher": "Pille"
   },
   "confirm": {
     "newProject": "Neues Projekt erstellen? Nicht gespeicherte Änderungen gehen verloren.",

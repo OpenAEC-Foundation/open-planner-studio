@@ -113,7 +113,9 @@
     "noTemplates": "Brak zapisanych szablonów — kliknij prawym przyciskiem zadanie sumaryczne → 'Zapisz gałąź jako szablon'",
     "insertTemplateHint": "Wstaw pod zaznaczonym zadaniem (lub na poziomie głównym)",
     "templateMeta": "Zadania: {{tasks}}, relacje: {{relations}}",
-    "deleteTemplate": "Usuń szablon"
+    "deleteTemplate": "Usuń szablon",
+    "collapseRibbon": "Zwiń wstążkę",
+    "expandRibbon": "Rozwiń wstążkę"
   },
   "ifc": {
     "title": "Edytor IFC",

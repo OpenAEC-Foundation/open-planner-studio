@@ -113,7 +113,9 @@
     "noTemplates": "Noch keine Vorlagen — Rechtsklick auf eine Sammelaufgabe → 'Zweig als Vorlage speichern'",
     "insertTemplateHint": "Unter der ausgewählten Aufgabe einfügen (oder auf Wurzelebene)",
     "templateMeta": "{{tasks}} Aufgaben, {{relations}} Beziehungen",
-    "deleteTemplate": "Vorlage löschen"
+    "deleteTemplate": "Vorlage löschen",
+    "collapseRibbon": "Menüband einklappen",
+    "expandRibbon": "Menüband ausklappen"
   },
   "ifc": {
     "title": "IFC-Editor",

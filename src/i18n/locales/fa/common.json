@@ -71,9 +71,7 @@
     "documentChrome": "سبک تعویض سند",
     "documentChromeTabs": "زبانه‌های افقی",
     "documentChromeRail": "زبانه‌های عمودی",
-    "documentChromeSwitcher": "قرص",
-    "ribbonCompact": "نوار فشرده",
-    "ribbonCompactHint": "نوار ابزار کوتاه‌تر برای صفحه‌های کوچک"
+    "documentChromeSwitcher": "قرص"
   },
   "confirm": {
     "newProject": "پروژه جدید ایجاد شود؟ تغییرات ذخیره‌نشده از بین خواهند رفت.",

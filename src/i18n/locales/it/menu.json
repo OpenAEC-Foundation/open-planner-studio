@@ -113,7 +113,9 @@
     "noTemplates": "Nessun modello salvato finora — clic destro su un'attività di riepilogo → 'Salva ramo come modello'",
     "insertTemplateHint": "Inserisci sotto l'attività selezionata (o al livello radice)",
     "templateMeta": "{{tasks}} attività, {{relations}} relazioni",
-    "deleteTemplate": "Elimina modello"
+    "deleteTemplate": "Elimina modello",
+    "collapseRibbon": "Comprimi la barra multifunzione",
+    "expandRibbon": "Espandi la barra multifunzione"
   },
   "ifc": {
     "title": "Editor IFC",

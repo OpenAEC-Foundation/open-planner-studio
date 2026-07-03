@@ -34,8 +34,9 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   hernummert en het is één undo-stap.
 - **Resizebare takentabel** in de Gantt: sleep de scheidingslijn (150–800 px,
   persistent); vervangt de vaste breedte van 350 px.
-- **Compacte ribbon-modus** (instelling op alle drie de settings-oppervlakken):
-  één rij van 40 px in plaats van 94 px — voor kleine schermen.
+- **Compacte ribbon-modus**: een klein pijltje rechtsonder in het lint
+  (Word-web-stijl) klapt het lint in naar één rij van 40 px in plaats van 94 px —
+  voor kleine schermen; de stand wordt onthouden.
 
 ### Gewijzigd
 - Het mijlpaal-vinkje in het eigenschappen-paneel zet de duur nu op 0 en disabled het

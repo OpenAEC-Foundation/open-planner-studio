@@ -113,7 +113,9 @@
     "noTemplates": "Henüz kayıtlı şablon yok — bir özet göreve sağ tıklayın → 'Dalı şablon olarak kaydet'",
     "insertTemplateHint": "Seçili görevin altına ekle (veya kök düzeyinde)",
     "templateMeta": "{{tasks}} görev, {{relations}} ilişki",
-    "deleteTemplate": "Şablonu sil"
+    "deleteTemplate": "Şablonu sil",
+    "collapseRibbon": "Şeridi daralt",
+    "expandRibbon": "Şeridi genişlet"
   },
   "ifc": {
     "title": "IFC Düzenleyici",

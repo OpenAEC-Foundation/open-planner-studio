@@ -71,9 +71,7 @@
     "documentChrome": "文档切换样式",
     "documentChromeTabs": "横向标签页",
     "documentChromeRail": "纵向标签页",
-    "documentChromeSwitcher": "胶囊",
-    "ribbonCompact": "紧凑功能区",
-    "ribbonCompactHint": "小屏幕上更低的工具栏"
+    "documentChromeSwitcher": "胶囊"
   },
   "confirm": {
     "newProject": "创建新项目？未保存的更改将丢失。",

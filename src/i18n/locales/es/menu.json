@@ -113,7 +113,9 @@
     "noTemplates": "Aún no hay plantillas guardadas — clic derecho en una tarea de resumen → 'Guardar rama como plantilla'",
     "insertTemplateHint": "Insertar bajo la tarea seleccionada (o en el nivel raíz)",
     "templateMeta": "{{tasks}} tareas, {{relations}} relaciones",
-    "deleteTemplate": "Eliminar plantilla"
+    "deleteTemplate": "Eliminar plantilla",
+    "collapseRibbon": "Contraer la cinta",
+    "expandRibbon": "Expandir la cinta"
   },
   "ifc": {
     "title": "Editor IFC",

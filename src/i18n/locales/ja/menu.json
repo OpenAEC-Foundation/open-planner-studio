@@ -113,7 +113,9 @@
     "noTemplates": "保存されたテンプレートはまだありません — サマリータスクを右クリック →「ブランチをテンプレートとして保存」",
     "insertTemplateHint": "選択したタスクの下に挿入します（またはルートレベルに）",
     "templateMeta": "{{tasks}} タスク、{{relations}} 関係",
-    "deleteTemplate": "テンプレートを削除"
+    "deleteTemplate": "テンプレートを削除",
+    "collapseRibbon": "リボンを折りたたむ",
+    "expandRibbon": "リボンを展開する"
   },
   "ifc": {
     "title": "IFC エディタ",

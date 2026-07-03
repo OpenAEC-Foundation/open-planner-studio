@@ -71,9 +71,7 @@
     "documentChrome": "Estilo de cambio de documento",
     "documentChromeTabs": "Pestañas horizontales",
     "documentChromeRail": "Pestañas verticales",
-    "documentChromeSwitcher": "Píldora",
-    "ribbonCompact": "Cinta compacta",
-    "ribbonCompactHint": "Barra de herramientas reducida para pantallas pequeñas"
+    "documentChromeSwitcher": "Píldora"
   },
   "confirm": {
     "newProject": "¿Crear nuevo proyecto? Los cambios no guardados se perderán.",
