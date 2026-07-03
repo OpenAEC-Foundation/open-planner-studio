@@ -2,6 +2,12 @@ import type { Task } from '@/types/task';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import {
+  levelResources as computeLeveling,
+  type LevelingOptions,
+  type LevelingResult,
+} from '@/engine/scheduler/ResourceLeveler';
+import { createSnapshot } from '../snapshot';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 
@@ -11,6 +17,16 @@ export interface ScheduleSlice {
    *  resources-ontwerp §4.2) — "manual, not reactive", net als `cpmResult` zelf. */
   resourceLoadResult: ResourceLoadResult | null;
   runCPM: () => void;
+  /** Nivelleer-preview (fase 2.5, §5): berekent de resource-nivellering tegen de laatst gedraaide
+   *  CPM-run en geeft het resultaat terug ZONDER de store te muteren (UI toont eerst een diff,
+   *  commit gaat via `applyLeveling`). Vereist een geldige `cpmResult`. */
+  levelResources: (options: LevelingOptions) => LevelingResult;
+  /** Commit een nivelleerresultaat: één undo-snapshot, schrijf alle `levelingDelay`-waarden
+   *  (idempotent — reset eerst álles, dan de nieuwe delays) en her-draai CPM (§5.6). */
+  applyLeveling: (result: LevelingResult) => void;
+  /** "Nivellering wissen": één undo-snapshot, zet alle `levelingDelay` terug op undefined,
+   *  her-draai CPM. */
+  clearLeveling: () => void;
 }
 
 export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
@@ -105,5 +121,49 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       error: cpm?.error ?? null,
       criticalTasks: get().tasks.filter((t) => t.time.isCritical).length,
     });
+  },
+
+  levelResources: (options) => {
+    const s = get();
+    const cpm = s.cpmResult;
+    if (!cpm || cpm.error) {
+      // Geen (geldige) CPM-run: niets te nivelleren — lege, veilige uitkomst.
+      const end = cpm?.projectEnd ?? '';
+      return { delays: {}, unresolved: {}, projectEndBefore: end, projectEndAfter: end };
+    }
+    // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
+    const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);
+    return computeLeveling(
+      leafTasks, s.sequences, s.resources, s.assignments, s.calendar, s.resourceCalendars, cpm, options,
+    );
+  },
+
+  applyLeveling: (result) => {
+    set((s) => {
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      // Idempotent: eerst álle levelingDelays wissen, dan de nieuwe zetten — zo levert een
+      // her-nivellering (of een leveling na een eerdere) exact het resultaat van `result`,
+      // niet een optelsom.
+      for (const task of s.tasks) {
+        const d = result.delays[task.id];
+        task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
+      }
+      s.isDirty = true;
+    });
+    get().runCPM();
+  },
+
+  clearLeveling: () => {
+    let changed = false;
+    set((s) => {
+      if (!s.tasks.some((t) => t.levelingDelay !== undefined)) return; // niets te wissen, geen snapshot
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      for (const task of s.tasks) task.levelingDelay = undefined;
+      s.isDirty = true;
+      changed = true;
+    });
+    if (changed) get().runCPM();
   },
 });

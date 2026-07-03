@@ -55,6 +55,7 @@ interface Case {
   tasks: {
     name: string; dur?: number; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
     mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string;
+    priority?: number;
     assign?: { res: string; units: number; curve?: ResourceCurve }[];
   }[];
   links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
@@ -121,6 +122,7 @@ function buildAndSolve(c: Case): { ids: Record<string, string>; resIds: Record<s
       parentId: t.parent ? ids[t.parent] : null,
       time: createDefaultTaskTime(start, dur),
       ...(t.milestoneKind ? { milestoneKind: t.milestoneKind } : {}),
+      ...(t.priority !== undefined ? { priority: t.priority } : {}),
       ...(t.mandatory !== undefined ? { mandatory: t.mandatory } : {}),
       ...(t.constraint ? { constraint: t.constraint as any } : {}),
       ...(t.deadline ? { deadline: t.deadline } : {}),
@@ -147,14 +149,22 @@ function buildAndSolve(c: Case): { ids: Record<string, string>; resIds: Record<s
   }
   S().runCPM();
 
-  // Nivellering (fase 2.5, nog niet gebouwd): een case met `level` moet luid falen i.p.v.
-  // stil een oude/lege cpmResult te asserten — zo activeert de volgende bouwstap dit blok
-  // i.p.v. per ongeluk een no-op te laten passeren.
+  // Nivellering (fase 2.5): draai de leveler ná runCPM en pas het resultaat toe via
+  // applyLeveling (dat één undo-snapshot pusht en zelf runCPM heraanroept, §5.6) — zodat
+  // alle expect-checks (es/ef/float/projectEnd/load/overallocatedDays) tegen het
+  // GENIVELLEERDE schema lopen.
   if (c.level) {
-    throw new Error(
-      `case "${c.id}" gebruikt "level", maar resourceSlice.levelResources()/applyLeveling() ` +
-      `bestaat nog niet (nivellering is een latere bouwstap) — verwijder "level" of implementeer de leveler eerst.`,
-    );
+    const resourceIds = c.level.resources
+      ? c.level.resources.map(n => {
+          if (!resIds[n]) throw new Error(`level.resources: onbekende resource "${n}"`);
+          return resIds[n];
+        })
+      : undefined;
+    const result = S().levelResources({
+      constrainToFloat: !!c.level.constrainToFloat,
+      ...(resourceIds ? { resourceIds } : {}),
+    });
+    S().applyLeveling(result);
   }
 
   return { ids, resIds };

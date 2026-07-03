@@ -173,8 +173,10 @@ export function computeResourceLoad(
 }
 
 /** Vlakke `maxUnits`, tenzij `availabilitySteps` een latere stap ≤ `iso` heeft — dan geldt de
- *  laatste zo'n stap (effective-dated, P6 Units-and-Prices-model). */
-function maxUnitsOn(resource: Resource, iso: string): number {
+ *  laatste zo'n stap (effective-dated, P6 Units-and-Prices-model). Geëxporteerd zodat de
+ *  nivelleerder (`ResourceLeveler.ts`) exact dezelfde capaciteitsdefinitie hergebruikt — één
+ *  bron van waarheid voor histogram én leveler. */
+export function maxUnitsOn(resource: Resource, iso: string): number {
   const steps = resource.availabilitySteps;
   if (!steps || steps.length === 0) return resource.maxUnits;
   let applicable = resource.maxUnits;
@@ -184,8 +186,9 @@ function maxUnitsOn(resource: Resource, iso: string): number {
   return applicable;
 }
 
-/** Alle werkdagen (volgens `engine`) tussen `startIso` en `finishIso`, inclusief. */
-function enumerateWorkDays(engine: CalendarEngine, startIso: string, finishIso: string): string[] {
+/** Alle werkdagen (volgens `engine`) tussen `startIso` en `finishIso`, inclusief. Geëxporteerd
+ *  voor hergebruik door de nivelleerder (dag-mapping van een taak op de projectkalender). */
+export function enumerateWorkDays(engine: CalendarEngine, startIso: string, finishIso: string): string[] {
   const start = parseDate(startIso);
   const finish = parseDate(finishIso);
   const isos: string[] = [];

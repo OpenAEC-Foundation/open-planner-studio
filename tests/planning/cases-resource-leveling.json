@@ -1,0 +1,292 @@
+{
+  "cases": [
+    {
+      "id": "lvl-basic-conflict",
+      "title": "Basisconflict: 2 gelijke taken, 1 gedeelde resource -> tweede schuift op; float eerlijk herrekend (geen phantom float, §10-P2)",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 3, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 3, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 3, "crit": false },
+          "B": { "es": "2026-06-04", "ef": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-08",
+        "overallocatedDays": { "R": [] },
+        "load": { "R": { "2026-06-01": 1, "2026-06-04": 1, "2026-06-08": 1 } }
+      }
+    },
+    {
+      "id": "lvl-smoothing-no-float",
+      "title": "Smoothing (constrainToFloat=true), zelfde input als basisconflict maar zonder float -> conflict blijft, einddatum vast (contrast met leveling)",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 3, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 3, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": true },
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-03",
+        "overallocatedDays": { "R": ["2026-06-01", "2026-06-02", "2026-06-03"] },
+        "load": { "R": { "2026-06-01": 2, "2026-06-02": 2, "2026-06-03": 2 } }
+      }
+    },
+    {
+      "id": "lvl-smoothing-within-float",
+      "title": "Smoothing lost conflict op BINNEN de speling (lange pool L geeft B float) -> einddatum ongewijzigd",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "L", "dur": 10 },
+        { "name": "A", "dur": 2, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 2, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": true },
+      "expect": {
+        "tasks": {
+          "L": { "ef": "2026-06-12" },
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 8 },
+          "B": { "es": "2026-06-03", "ef": "2026-06-04", "tf": 6 }
+        },
+        "projectEnd": "2026-06-12",
+        "overallocatedDays": { "R": [] },
+        "load": { "R": { "2026-06-01": 1, "2026-06-02": 1, "2026-06-03": 1, "2026-06-04": 1 } }
+      }
+    },
+    {
+      "id": "lvl-priority-order",
+      "title": "Priority-volgorde (MSP-semantiek): hogere priority eerst geplaatst -> lagere schuift op",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 3, "priority": 500, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 3, "priority": 800, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "A": { "es": "2026-06-04", "ef": "2026-06-08" }
+        },
+        "projectEnd": "2026-06-08",
+        "overallocatedDays": { "R": [] }
+      }
+    },
+    {
+      "id": "lvl-pinned-1000",
+      "title": "priority 1000 = vastgepind: blijft staan ondanks conflict, ook al heeft de andere taak lagere priority",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 3, "priority": 900, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 3, "priority": 1000, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "A": { "es": "2026-06-04", "ef": "2026-06-08" }
+        },
+        "projectEnd": "2026-06-08",
+        "overallocatedDays": { "R": [] }
+      }
+    },
+    {
+      "id": "lvl-determinism-tiebreak",
+      "title": "Determinisme-tiebreak: identieke priority/float/ES -> stabiele aanmaakvolgorde beslist (Beta eerst aangemaakt blijft staan, Alpha schuift)",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "Beta", "dur": 3, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "Alpha", "dur": 3, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "Beta": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "Alpha": { "es": "2026-06-04", "ef": "2026-06-08" }
+        },
+        "projectEnd": "2026-06-08",
+        "overallocatedDays": { "R": [] }
+      }
+    },
+    {
+      "id": "lvl-curve-aware",
+      "title": "Curve-bewust nivelleren: twee back-loaded taken conflicteren alleen op hun piek-dagen; een vlakke aanname zou het conflict missen",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "P", "dur": 3, "priority": 1000, "assign": [{ "res": "R", "units": 0.5, "curve": "BACK_LOADED" }] },
+        { "name": "M", "dur": 3, "priority": 500, "assign": [{ "res": "R", "units": 0.5, "curve": "BACK_LOADED" }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "M": { "es": "2026-06-03", "ef": "2026-06-05" }
+        },
+        "projectEnd": "2026-06-05",
+        "overallocatedDays": { "R": [] },
+        "load": { "R": { "2026-06-01": 0.17, "2026-06-02": 0.5, "2026-06-03": 1.0, "2026-06-04": 0.5, "2026-06-05": 0.83 } }
+      }
+    },
+    {
+      "id": "lvl-material-ignored",
+      "title": "Materiaal genegeerd: MATERIAL-overallocatie blijft staan (leveler raakt het niet aan), LABOR-conflict wordt wel opgelost",
+      "resources": [
+        { "name": "L", "maxUnits": 1 },
+        { "name": "Mat", "type": "MATERIAL", "maxUnits": 1 }
+      ],
+      "tasks": [
+        { "name": "X", "dur": 2, "assign": [{ "res": "Mat", "units": 1 }] },
+        { "name": "Y", "dur": 2, "assign": [{ "res": "Mat", "units": 1 }] },
+        { "name": "A", "dur": 2, "assign": [{ "res": "L", "units": 1 }] },
+        { "name": "B", "dur": 2, "assign": [{ "res": "L", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-06-01" },
+          "Y": { "es": "2026-06-01" },
+          "A": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "B": { "es": "2026-06-03", "ef": "2026-06-04" }
+        },
+        "projectEnd": "2026-06-04",
+        "overallocatedDays": { "Mat": ["2026-06-01", "2026-06-02"], "L": [] },
+        "load": { "Mat": { "2026-06-01": 2, "2026-06-02": 2 }, "L": { "2026-06-01": 1, "2026-06-02": 1, "2026-06-03": 1, "2026-06-04": 1 } }
+      }
+    },
+    {
+      "id": "lvl-chain-propagation-pf",
+      "title": "Ketting-propagatie/PF-semantiek: A schuift; opvolger B (FS) deelt R2 met lange Y -> B's delay is t.o.v. zijn precedence-feasible start, geen dubbeltelling van A's verschuiving",
+      "resources": [
+        { "name": "R1", "maxUnits": 1 },
+        { "name": "R2", "maxUnits": 1 }
+      ],
+      "tasks": [
+        { "name": "X", "dur": 2, "priority": 800, "assign": [{ "res": "R1", "units": 1 }] },
+        { "name": "Y", "dur": 5, "priority": 800, "assign": [{ "res": "R2", "units": 1 }] },
+        { "name": "A", "dur": 2, "priority": 500, "assign": [{ "res": "R1", "units": 1 }] },
+        { "name": "B", "dur": 2, "priority": 500, "assign": [{ "res": "R2", "units": 1 }] }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-06-01" },
+          "Y": { "es": "2026-06-01", "ef": "2026-06-05" },
+          "A": { "es": "2026-06-03", "ef": "2026-06-04" },
+          "B": { "es": "2026-06-08", "ef": "2026-06-09" }
+        },
+        "projectEnd": "2026-06-09",
+        "overallocatedDays": { "R1": [], "R2": [] }
+      }
+    },
+    {
+      "id": "lvl-unresolvable-within-float",
+      "title": "Onoplosbaar binnen float (constrainToFloat=true, geen slot in [ES,LS]) -> taak blijft, overallocatie blijft gemarkeerd",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "L", "dur": 4 },
+        { "name": "A", "dur": 3, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 3, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": true },
+      "expect": {
+        "tasks": {
+          "L": { "ef": "2026-06-04" },
+          "A": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "B": { "es": "2026-06-01", "ef": "2026-06-03" }
+        },
+        "projectEnd": "2026-06-04",
+        "overallocatedDays": { "R": ["2026-06-01", "2026-06-02", "2026-06-03"] },
+        "load": { "R": { "2026-06-01": 2, "2026-06-02": 2, "2026-06-03": 2 } }
+      }
+    },
+    {
+      "id": "lvl-lag-relation",
+      "title": "Nivelleren met lag-relatie: A schuift door conflict, B (FS+2) volgt met zijn lag t.o.v. A's verschoven finish",
+      "resources": [
+        { "name": "R1", "maxUnits": 1 },
+        { "name": "R2", "maxUnits": 1 }
+      ],
+      "tasks": [
+        { "name": "X", "dur": 2, "priority": 800, "assign": [{ "res": "R1", "units": 1 }] },
+        { "name": "A", "dur": 2, "priority": 500, "assign": [{ "res": "R1", "units": 1 }] },
+        { "name": "B", "dur": 2, "priority": 500, "assign": [{ "res": "R2", "units": 1 }] }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": 2 }],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-06-01" },
+          "A": { "es": "2026-06-03", "ef": "2026-06-04" },
+          "B": { "es": "2026-06-09", "ef": "2026-06-10" }
+        },
+        "projectEnd": "2026-06-10",
+        "overallocatedDays": { "R1": [], "R2": [] }
+      }
+    },
+    {
+      "id": "lvl-constraint-plus-conflict",
+      "title": "Constraint (SNET) + conflict: beide taken kunnen niet vóór 08-06 starten; PF respecteert de constraint, tweede taak schuift dáárna verder",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 2, "priority": 800, "constraint": { "type": "SNET", "date": "2026-06-08" }, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 2, "priority": 500, "constraint": { "type": "SNET", "date": "2026-06-08" }, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-09" },
+          "B": { "es": "2026-06-10", "ef": "2026-06-11" }
+        },
+        "projectEnd": "2026-06-11",
+        "overallocatedDays": { "R": [] }
+      }
+    },
+    {
+      "id": "lvl-multi-resource-task",
+      "title": "Multi-resource-taak: A heeft twee renewable-assignments; één (R1) conflicteert -> de HELE taak schuift, ook zijn niet-conflicterende R2-vraag verhuist mee",
+      "resources": [
+        { "name": "R1", "maxUnits": 1 },
+        { "name": "R2", "maxUnits": 1 }
+      ],
+      "tasks": [
+        { "name": "B", "dur": 2, "priority": 800, "assign": [{ "res": "R1", "units": 1 }] },
+        { "name": "A", "dur": 2, "priority": 500, "assign": [{ "res": "R1", "units": 1 }, { "res": "R2", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "A": { "es": "2026-06-03", "ef": "2026-06-04" }
+        },
+        "projectEnd": "2026-06-04",
+        "overallocatedDays": { "R1": [], "R2": [] },
+        "load": { "R1": { "2026-06-01": 1, "2026-06-02": 1, "2026-06-03": 1, "2026-06-04": 1 }, "R2": { "2026-06-01": 0, "2026-06-03": 1, "2026-06-04": 1 } }
+      }
+    },
+    {
+      "id": "lvl-no-conflict-noop",
+      "title": "Voldoende capaciteit (maxUnits=2) -> geen verschuiving, nivelleren is een no-op",
+      "resources": [{ "name": "R", "maxUnits": 2 }],
+      "tasks": [
+        { "name": "A", "dur": 2, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 2, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "B": { "es": "2026-06-01", "ef": "2026-06-02" }
+        },
+        "projectEnd": "2026-06-02",
+        "overallocatedDays": { "R": [] },
+        "load": { "R": { "2026-06-01": 2, "2026-06-02": 2 } }
+      }
+    }
+  ]
+}

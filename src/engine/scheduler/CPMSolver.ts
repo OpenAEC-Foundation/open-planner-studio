@@ -294,6 +294,17 @@ export class CPMSolver {
         earlyStart = this.calendar.nextWorkDay(earlyStart);
       }
 
+      // Nivelleer-vertraging (fase 2.5, §5.6): schuif de zojuist bepaalde — al werkdag-gesnapte,
+      // constraint-toegepaste — early start met de door de leveler gezette `levelingDelay` op.
+      // Beide takken hierboven (geen-voorgangers én met-voorgangers) eindigen met een werkdag,
+      // dus addWorkingDaysSigned krijgt gegarandeerd een werkdag (invariant). Zo lopen de
+      // verschoven datums gewoon door de backward pass -> float wordt eerlijk herrekend (geen
+      // phantom float, §10-P2). `levelingDelay` undefined of 0 => exacte no-op (alle bestaande
+      // cases blijven ongewijzigd).
+      if (task.levelingDelay) {
+        earlyStart = this.calendar.addWorkingDaysSigned(earlyStart, task.levelingDelay);
+      }
+
       const duration = task.isMilestone ? 0 : task.time.scheduleDuration;
       const earlyFinish = this.calendar.addWorkDays(earlyStart, duration);
 
