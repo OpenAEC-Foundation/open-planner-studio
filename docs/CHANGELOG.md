@@ -6,7 +6,50 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
-*(nog niets)*
+### Toegevoegd
+- **Resources (fase 2.5)** — resourcebeheer, belasting, overallocatie en
+  automatische nivellering (ontwerp: `docs/superpowers/specs/2026-07-03-resources-design.md`):
+  - **Vijf resourcetypes**: arbeid (mensen), materieel (kranen, machines,
+    steigers), materiaal (beton, staal, hout), onderaannemer en ploeg. Ploegen
+    bundelen andere resources; elke resource heeft een maximale capaciteit,
+    eenheid en optioneel een eigen kalender.
+  - **Tijd-gefaseerde capaciteit**: de beschikbaarheid van een resource kan per
+    periode wijzigen (availability-stappen) — bijv. drie timmerlieden tot week 10,
+    daarna vijf.
+  - **Resource-toewijzing aan taken** met units per dag en zes verdeelcurves
+    (gelijkmatig, front-loaded, back-loaded, klok/bell, en op- en aflopend), zodat
+    de inzet realistisch over de taakduur wordt uitgesmeerd. Toewijzen kan alleen
+    op werkbare (leaf-)taken.
+  - **Belasting- en overallocatie-engine** in de berekening (F5 / Berekenen): per
+    resource wordt de dagelijkse belasting opgeteld en vergeleken met de capaciteit;
+    overbelasting wordt gemarkeerd.
+  - **Resource-histogram** als strook onder de Gantt, met een gedeelde tijd-as,
+    capaciteitslijn, rode pieken boven de lijn, een resourcekiezer met
+    overallocatie-badges en drill-down-tooltip; de hoogte is instelbaar en
+    persistent.
+  - **Automatische resource-nivellering én smoothing**: een serieel plaatsings-
+    algoritme (SGS) verschuift taken binnen hun speling om overallocatie op te
+    lossen, gesorteerd op prioriteit/speling/startdatum. Nivelleren gaat via een
+    dialoog met vooraf-preview (verschuivingen, nieuwe einddatum, resterende
+    conflicten) en is met één klik toe te passen of te annuleren.
+  - **Taak-prioriteit** (0–1000; 1000 = niet nivelleren) stuurt welke taken bij
+    schaarste voorrang krijgen.
+  - **Resources-ribbontab** met beheerpaneel (resources + capaciteitsstappen +
+    kalenderkoppeling), een toewijzingensectie in het taak-eigenschappenpaneel, de
+    histogramstrook en de nivelleer-dialoog.
+  - Round-trip door **IFC 4.3** (o.a. `IfcCrewResource`, `OPS_Resource`/
+    `OPS_Assignments`/`OPS_Leveling`-psets, een `IfcWorkCalendar` per resource en
+    `IfcTask.Priority`) en import/export via **Primavera P6-XML** en **MS Project
+    MSPDI** — resources, toewijzingen, curves en resource-kalenders reizen mee.
+    Gouden regel: bestanden zónder resources blijven bit-identiek.
+  - Volledig vertaald in alle 14 talen; de CPM-regressiesuite groeide van 202 naar
+    **231 handberekende cases** (incl. nivelleer- en smoothing-scenario's), alle
+    bestaande cases ongewijzigd groen.
+
+### Gewijzigd
+- De standaard taak-prioriteit is nu een expliciete waarde (500) i.p.v. leeg,
+  zodat prioriteit voorspelbaar meeweegt bij nivellering; een expliciet ingevulde
+  0 blijft behouden (werd voorheen in de MSPDI-export stil naar 500 gecorrigeerd).
 
 ## v2026.7.2 — 2026-07-03
 

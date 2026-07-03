@@ -1,6 +1,6 @@
 # Ontwerp: Fase 2.5 — Resources
 
-*Status: **vastgesteld na architect-review (2026-07-03)** — alle "invulling, te bevestigen bij
+*Status: **geïmplementeerd (2026-07-03)** — alle "invulling, te bevestigen bij
 review"-punten zijn bevestigd; de review corrigeerde daarnaast §5.5 (levelingDelay t.o.v.
 precedence-feasible start i.p.v. CPM-ES; capaciteitsgrootboek begint leeg; eligibility-lus),
 §7.6 (veilige priority-parse) en voegde de ketting-propagatie-testcase toe in §9.1.*

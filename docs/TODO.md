@@ -80,14 +80,14 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > Bewust later: MTA/baseline-variance (vereist 2.6-snapshots),
 > checklijsten bij inspectiemomenten (fase 3.2).
 
-#### 2.5 Resources
-- [ ] Resource-kalenders afdwingen in scheduling (beschikbaarheid per resource)
-- [ ] Resource-histogram onder Gantt
-- [ ] Resource overallocatie-detectie (markering)
-- [ ] Resource-nivellering (automatisch, met opties)
-- [ ] Resource-smoothing (minimaliseer pieken)
-- [ ] Team/ploeg-toewijzing
-- [ ] Resource-curves (front-loaded, back-loaded, bell)
+> §2.5 Resources is afgerond (vijf resourcetypes incl. ploeg, tijd-gefaseerde
+> capaciteit, toewijzingen met units/dag + zes verdeelcurves, belasting- en
+> overallocatie-engine in runCPM, resource-nivellering én smoothing via serieel
+> SGS met float-constraint, Resources-ribbontab + beheerpaneel + histogramstrook
+> + nivelleer-dialoog, IFC/P6/MSPDI-round-trip, taak-prioriteit) — zie changelog
+> en [ontwerp](superpowers/specs/2026-07-03-resources-design.md). Bewust later:
+> resource-kalenders zijn nu informatief (registry), nog niet hard afgedwongen in
+> de scheduling; kostenkoppeling van resources hoort bij fase 3.5.
 
 #### 2.6 Baselines & voortgang
 - [ ] Baseline opslaan (snapshot van huidige planning)

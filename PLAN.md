@@ -1006,18 +1006,18 @@ interface TaskTime {
 - [ ] Mijlpalen-overzicht/rapport
 
 #### 2.5 Resources
-- [ ] Arbeid-resources (mensen, ploegen)
-- [ ] Materieel-resources (kranen, machines, steigers)
-- [ ] Materiaal-resources (beton, staal, hout)
-- [ ] Onderaannemers als resource-type
-- [ ] Resource-kalenders (beschikbaarheid per resource)
-- [ ] Resource-toewijzing aan taken (% / uren)
-- [ ] Resource-histogram onder Gantt
-- [ ] Resource overallocatie-detectie (markering)
-- [ ] Resource-nivellering (automatisch, met opties)
-- [ ] Resource-smoothing (minimaliseer pieken)
-- [ ] Team/ploeg-toewijzing
-- [ ] Resource-curves (front-loaded, back-loaded, bell)
+- [x] Arbeid-resources (mensen, ploegen)
+- [x] Materieel-resources (kranen, machines, steigers)
+- [x] Materiaal-resources (beton, staal, hout)
+- [x] Onderaannemers als resource-type
+- [x] Resource-kalenders (beschikbaarheid per resource)
+- [x] Resource-toewijzing aan taken (% / uren)
+- [x] Resource-histogram onder Gantt
+- [x] Resource overallocatie-detectie (markering)
+- [x] Resource-nivellering (automatisch, met opties)
+- [x] Resource-smoothing (minimaliseer pieken)
+- [x] Team/ploeg-toewijzing
+- [x] Resource-curves (front-loaded, back-loaded, bell)
 
 #### 2.6 Baselines & Voortgang
 - [ ] Baseline opslaan (snapshot van huidige planning)
