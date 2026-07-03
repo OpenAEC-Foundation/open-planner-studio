@@ -445,13 +445,13 @@ export function TaskPropertiesPanel() {
                     const n = parseFloat(e.target.value);
                     if (Number.isFinite(n)) updateAssignment(a.id, { unitsPerDay: n });
                   }}
-                  className="input !text-[10px] !px-1 !py-0.5 w-14 text-right"
+                  className="input !text-[10px] !px-1 !py-0.5 !w-14 text-right"
                 />
                 <select
                   value={a.curve ?? 'UNIFORM'}
                   title={t('properties.assignments.curve')}
                   onChange={e => updateAssignment(a.id, { curve: e.target.value as ResourceCurve })}
-                  className="input !text-[10px] !px-1 !py-0.5"
+                  className="input !text-[10px] !px-1 !py-0.5 !w-24"
                 >
                   {RESOURCE_CURVES.map(c => (
                     <option key={c} value={c}>{tCommon(CURVE_KEY[c])}</option>
