@@ -55,6 +55,7 @@ export type RibbonTab = 'file' | 'start' | 'planning' | 'resources' | 'relations
 // Backstage view (Office-style File tab full-screen) — sub-section selectie
 export type BackstageSection =
   | 'recent'
+  | 'examples'
   | 'export'
   | 'import'
   | 'print'

@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "examples": [
+    {
+      "file": "woongebouw-nieuwbouw.ifc",
+      "name": "Nieuwbouw Woongebouw Parkzicht",
+      "description": "Complete bouwplanning voor een woongebouw met 24 appartementen, inclusief resource-toewijzingen.",
+      "tags": ["woningbouw", "resources", "mijlpalen", "kalender"]
+    },
+    {
+      "file": "oosterhoutse-baai-drijvende-woningen.ifc",
+      "name": "Drijvende Woningen Oosterhoutseplas",
+      "description": "Grootschalige ontwikkeling van 30 drijvende woningen met 125 taken.",
+      "tags": ["woningbouw", "water", "groot", "mijlpalen"]
+    },
+    {
+      "file": "03-kantoorgebouw-zuidas.ifc",
+      "name": "Kantoorgebouw Zuidas",
+      "description": "Utiliteitsbouw van een kantoortoren op de Amsterdamse Zuidas.",
+      "tags": ["utiliteit", "kantoor", "mijlpalen"]
+    },
+    {
+      "file": "05-brugvervanging-n279.ifc",
+      "name": "Brugvervanging N279",
+      "description": "Infraproject voor de vervanging van een brug over de N279.",
+      "tags": ["infra", "kunstwerk", "mijlpalen"]
+    },
+    {
+      "file": "08-zorgcentrum-de-linde.ifc",
+      "name": "Zorgcentrum De Linde",
+      "description": "Nieuwbouwplanning voor een zorgcentrum in de gezondheidszorg.",
+      "tags": ["utiliteit", "zorg", "mijlpalen"]
+    },
+    {
+      "file": "10-villa-wassenaar.ifc",
+      "name": "Villa Nieuwbouw Wassenaar",
+      "description": "Vrijstaande villa-nieuwbouw met een gedetailleerde afbouwfase.",
+      "tags": ["woningbouw", "villa", "mijlpalen"]
+    },
+    {
+      "file": "15-datacentrum-agriport.ifc",
+      "name": "Datacentrum Agriport A7",
+      "description": "Industriebouw van een datacentrum met zware technische installaties.",
+      "tags": ["industrie", "datacentrum", "installaties"]
+    },
+    {
+      "file": "20-woonwijk-almere.ifc",
+      "name": "Woonwijk 60 Woningen Almere",
+      "description": "Gefaseerde bouw van een woonwijk met 60 woningen (68 taken).",
+      "tags": ["woningbouw", "gebiedsontwikkeling", "groot"]
+    }
+  ]
+}

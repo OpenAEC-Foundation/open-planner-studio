@@ -216,6 +216,27 @@
   color: var(--theme-text-dim);
 }
 
+/* Voorbeeld-tags */
+.backstage-example-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.backstage-example-tag {
+  font-size: 0.6875rem;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-alt);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text-dim);
+}
+.backstage-export-card:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Form sections (project info, settings) */
 .backstage-form {
   max-width: 560px;

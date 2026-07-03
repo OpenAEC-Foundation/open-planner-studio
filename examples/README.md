@@ -4,6 +4,11 @@ Deze map bevat **22 voorbeeldplanningen** in IFC 4.3-formaat (buildingSMART) —
 native bestandsformaat van Open Planner Studio. Open ze via **Bestand → Openen**.
 Ze bestrijken uiteenlopende sectoren: woningbouw, utiliteit, infra, renovatie en industrie.
 
+> **Tip:** een selectie van deze voorbeelden is ook rechtstreeks in de app te vinden
+> onder **Bestand → Voorbeelden** (Backstage). Die sectie is data-gedreven via
+> `public/examples/manifest.json`; voeg daar een voorbeeld aan toe om het in de app
+> te tonen (het IFC-bestand moet in `public/examples/` staan).
+
 | Bestand | Project | Taken* |
 |---------|---------|--------|
 | `01-grachtenpand-amsterdam.ifc` | Nieuwbouw Grachtenpand Amsterdam | 51 |

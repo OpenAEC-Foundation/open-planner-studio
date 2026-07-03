@@ -7,6 +7,12 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Toegevoegd
+- **Voorbeeldprojecten in Backstage** — een nieuwe sectie **Bestand → Voorbeelden**
+  ontsluit de meegeleverde voorbeeldplanningen (kaartjes met naam, omschrijving en
+  tags). Klikken opent het voorbeeld in een nieuw tabblad (geen bronbestand, dus
+  opslaan wordt opslaan-als). De lijst is data-gedreven via
+  `public/examples/manifest.json`, zodat nieuwe voorbeelden er zonder codewijziging
+  in komen. Werkt in de web- én desktopbuild.
 - **Resources (fase 2.5)** — resourcebeheer, belasting, overallocatie en
   automatische nivellering (ontwerp: `docs/superpowers/specs/2026-07-03-resources-design.md`):
   - **Vijf resourcetypes**: arbeid (mensen), materieel (kranen, machines,

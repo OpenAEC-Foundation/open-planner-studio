@@ -65,6 +65,10 @@ export interface FileSlice {
   exportAs: (format: ExportFormat) => Promise<void>;
   getRecentFiles: () => string[];
   openRecentFile: (path: string) => Promise<void>;
+  /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
+   *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
+   *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
+  openExampleFromString: (content: string, name: string) => void;
 }
 
 export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
@@ -286,6 +290,40 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       addRecentFile(filePath);
     } catch (err) {
       console.error('Failed to open recent file:', err);
+    }
+  },
+
+  openExampleFromString: (content: string, name: string) => {
+    try {
+      const parsed = readIFC(content);
+
+      // Zelfde multi-document-gedrag als openFile: hergebruik het actieve
+      // tabblad alleen als dat nog leeg en ongewijzigd is, anders nieuw tabblad.
+      if (!isActivePristine(get())) get().newDocument();
+
+      set((s) => {
+        s.project = parsed.project;
+        s.calendar = parsed.calendar;
+        s.tasks = parsed.tasks;
+        s.sequences = parsed.sequences;
+        s.resources = parsed.resources;
+        s.assignments = parsed.assignments;
+        s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        s.selectedTaskIds = [];
+        s.cpmResult = null;
+        s.undoStack = [];
+        s.redoStack = [];
+        s.isDirty = false;
+        // Voorbeeld = geen bronbestand: opslaan wordt opslaan-als.
+        s.filePath = null;
+      });
+      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+        tasks: parsed.tasks.length,
+        sequences: parsed.sequences.length,
+        resources: parsed.resources.length,
+      });
+    } catch (err) {
+      console.error(`Failed to open example "${name}":`, err);
     }
   },
 });

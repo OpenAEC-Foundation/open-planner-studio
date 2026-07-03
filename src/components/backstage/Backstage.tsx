@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
-  Printer, Info, Settings, X, FileType, Puzzle, Upload,
+  Printer, Info, Settings, X, FileType, Puzzle, Upload, BookOpen,
 } from 'lucide-react';
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { BackstageSection } from '@/state/slices/types';
@@ -43,6 +43,7 @@ export function Backstage() {
         <ActionItem icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => { handleNewProject(); closeBackstage(); }} />
         <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => { handleOpen(); closeBackstage(); }} />
         <NavItem icon={<Clock size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
+        <NavItem icon={<BookOpen size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} />
         <ActionItem icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => { handleSave(); closeBackstage(); }} />
         <ActionItem icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => { handleSaveAs(); closeBackstage(); }} />
 
@@ -65,6 +66,7 @@ export function Backstage() {
 
       <main className="backstage-main">
         {section === 'recent' && <RecentSection />}
+        {section === 'examples' && <ExamplesSection />}
         {section === 'export' && <ExportSection />}
         {section === 'import' && <ImportSection />}
         {section === 'print' && <PrintSection onClose={closeBackstage} />}
@@ -154,6 +156,96 @@ function RecentSection() {
               <span className="backstage-recent-info">
                 <span className="backstage-recent-name">{fp.split(/[/\\]/).pop()}</span>
                 <span className="backstage-recent-path">{fp}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Examples section — meegeleverde voorbeeldprojecten (data-gedreven via manifest)
+// ---------------------------------------------------------------------------
+
+interface ExampleEntry {
+  file: string;
+  name: string;
+  description: string;
+  tags?: string[];
+}
+
+function ExamplesSection() {
+  const { t: tMenu } = useTranslation('menu');
+  const openExampleFromString = useAppStore(s => s.openExampleFromString);
+  const runCPM = useAppStore(s => s.runCPM);
+  const setUI = useAppStore(s => s.setUI);
+
+  const [examples, setExamples] = useState<ExampleEntry[] | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${import.meta.env.BASE_URL}examples/manifest.json`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((data: { examples?: ExampleEntry[] }) => {
+        if (!cancelled) setExamples(Array.isArray(data.examples) ? data.examples : []);
+      })
+      .catch(err => {
+        console.error('[Voorbeelden] Manifest laden mislukt:', err);
+        if (!cancelled) setError(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleOpen = async (ex: ExampleEntry) => {
+    setLoading(ex.file);
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}examples/${ex.file}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const content = await res.text();
+      openExampleFromString(content, ex.name);
+      runCPM();
+      setUI({ activeRibbonTab: 'start' });
+    } catch (err) {
+      console.error(`[Voorbeelden] Openen van "${ex.file}" mislukt:`, err);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <>
+      <h2 className="backstage-title">{tMenu('backstage.examplesTitle')}</h2>
+      <p className="backstage-subtitle">{tMenu('backstage.examplesSubtitle')}</p>
+      {error ? (
+        <div className="backstage-empty">{tMenu('backstage.examplesError')}</div>
+      ) : examples === null ? (
+        <div className="backstage-empty">{tMenu('backstage.examplesLoading')}</div>
+      ) : examples.length === 0 ? (
+        <div className="backstage-empty">{tMenu('backstage.examplesEmpty')}</div>
+      ) : (
+        <div className="backstage-export-grid">
+          {examples.map(ex => (
+            <button
+              key={ex.file}
+              className="backstage-export-card"
+              disabled={loading !== null}
+              onClick={() => void handleOpen(ex)}
+            >
+              <span className="backstage-export-icon"><BookOpen size={20} /></span>
+              <span className="backstage-export-info">
+                <h4>{ex.name}</h4>
+                <p>{ex.description}</p>
+                {ex.tags && ex.tags.length > 0 && (
+                  <span className="backstage-example-tags">
+                    {ex.tags.map(tag => (
+                      <span key={tag} className="backstage-example-tag">{tag}</span>
+                    ))}
+                  </span>
+                )}
               </span>
             </button>
           ))}
