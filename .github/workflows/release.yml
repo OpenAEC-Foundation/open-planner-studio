@@ -207,21 +207,24 @@ jobs:
           # (The signed setup.exe is uploaded for humans who download directly.)
           gh release upload $VERSION "$ZIP_PATH" "$ZIP_PATH.sig" "$($EXE.FullName)" --clobber --repo "$REPO"
 
-          # --- Resolve the REAL download URL via the API. GitHub rewrites spaces in
+          # --- Resolve the asset NAME via the API. GitHub rewrites spaces in
           # asset names to dots (e.g. "Open Planner Studio_..." -> "Open.Planner.Studio_..."),
-          # so hand-building the URL from $ZIP_NAME would 404. The `url` field of
-          # `gh release view --json assets` is the browser download URL with the
-          # already-rewritten name.
+          # so hand-building the name from $ZIP_NAME could mismatch.
+          # KRITIEK: gebruik NIET $zipAsset.url — de release is op dit punt nog een
+          # DRAFT en de API geeft dan een tijdelijke `releases/download/untagged-…`-
+          # URL terug die na publicatie 404't (dit brak Windows-auto-update in
+          # v2026.7.1). Bouw daarom zelf de stabiele `releases/latest/download/`-URL,
+          # consistent met de linux/macos-entries die tauri-action schrijft.
           $assets = (gh release view $VERSION --repo "$REPO" --json assets | ConvertFrom-Json).assets
           $zipAsset = $assets | Where-Object { $_.name -like '*.nsis.zip' } | Select-Object -First 1
-          $ZIP_URL = $zipAsset.url
-          if ([string]::IsNullOrEmpty($ZIP_URL)) {
+          $ZIP_ASSET_NAME = $zipAsset.name
+          if ([string]::IsNullOrEmpty($ZIP_ASSET_NAME)) {
             # Fallback: mimic GitHub's space->dot rewrite manually if the API lookup
             # somehow came back empty.
-            $rewritten = $ZIP_NAME -replace ' ', '.'
-            $ZIP_URL = "https://github.com/$REPO/releases/download/$([uri]::EscapeDataString($VERSION))/$rewritten"
-            Write-Host "API lookup empty — using fallback URL"
+            $ZIP_ASSET_NAME = $ZIP_NAME -replace ' ', '.'
+            Write-Host "API lookup empty — using space->dot rewrite of the local zip name"
           }
+          $ZIP_URL = "https://github.com/$REPO/releases/latest/download/$ZIP_ASSET_NAME"
           Write-Host "Zip URL: $ZIP_URL"
 
           # --- Patch latest.json. build-linux-mac already uploaded one with the
