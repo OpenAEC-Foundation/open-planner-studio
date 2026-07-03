@@ -13,14 +13,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ### UX & Desktop-shell
 
-- [ ] **Native recovery-dialog vervangen door een echte in-app dialog.** Bij het
-      opstarten vraagt de herstel-flow nu via een *native* OS-dialog
-      (`ask()` uit `@tauri-apps/plugin-dialog`, tekst `confirm.restoreRecovery`,
-      twee aanroepen in `App.tsx`) of een niet-opgeslagen sessie hersteld moet
-      worden. Vervang dit door een eigen, gestylede React-dialog (zoals de
-      overige dialogen) — consistente look-and-feel en ruimte om meer context te
-      tonen (welk(e) document(en), bestandspad, tijdstip van de snapshot).
-
 - [ ] **Taakdialoog (dubbelklik) gelijktrekken met het eigenschappenpaneel.** Dubbelklik op een
   taak opent `TaskDialog` (`src/components/dialogs/TaskDialog.tsx`), maar die biedt alleen de
   fase-1-velden (naam, WBS, omschrijving, type, mijlpaal-vinkje, start, duur, oudertaak). Alles

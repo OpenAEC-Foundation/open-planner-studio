@@ -53,6 +53,14 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
     bestaande cases ongewijzigd groen.
 
 ### Gewijzigd
+- **Herstel-dialoog in de app zelf** — bij het opstarten na een onverwachte
+  afsluiting verschijnt de herstelvraag nu als een eigen, gestylede React-dialog
+  (`RecoveryDialog`) in plaats van een native OS-dialog. De dialoog toont per te
+  herstellen document de projectnaam, het bestandspad (indien bekend), het aantal
+  taken en het tijdstip van de laatste auto-save-snapshot. Escape stelt de keuze
+  uit zonder de recovery-bestanden op te ruimen; de auto-save wordt uitgesteld tot
+  de keuze gemaakt is, zodat de snapshots niet vroegtijdig worden overschreven.
+  (Alleen desktop; de web-build heeft geen recovery.)
 - De standaard taak-prioriteit is nu een expliciete waarde (500) i.p.v. leeg,
   zodat prioriteit voorspelbaar meeweegt bij nivellering; een expliciet ingevulde
   0 blijft behouden (werd voorheen in de MSPDI-export stil naar 500 gecorrigeerd).

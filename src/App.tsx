@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
 import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight } from '@/utils/settingsStore';
@@ -45,6 +45,8 @@ import { StructureDialog } from '@/components/dialogs/StructureDialog';
 import { UpdateDialog } from '@/components/dialogs/UpdateDialog';
 import { FeedbackDialog } from '@/components/dialogs/FeedbackDialog';
 import { LevelingDialog } from '@/components/dialogs/LevelingDialog';
+import { RecoveryDialog, type RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
+import { documentTitle } from '@/utils/documents';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
 import { Backstage } from '@/components/backstage/Backstage';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
@@ -79,6 +81,23 @@ function AppContent() {
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
+
+  // In-app herstel-dialoog (vervangt de native OS-`ask()`): de gedetecteerde
+  // recovery-payload + de callbacks om te herstellen/verwerpen/uitstellen. Lokale
+  // state i.p.v. een ui.show*-flag houdt de detectie-logica (paden, geparste IFC,
+  // opruim-closures) bij elkaar en vermijdt slice-wijzigingen.
+  const [recovery, setRecovery] = useState<{
+    entries: RecoveryEntry[];
+    onRestore: () => void;
+    onDiscard: () => void;
+    onClose: () => void;
+  } | null>(null);
+
+  // Auto-save-poort: blijft dicht tot de recovery-keuze is gemaakt, zodat de
+  // debounced auto-save de recovery-snapshots niet overschrijft vóórdat de
+  // gebruiker heeft gekozen. Gaat open bij: geen recovery-data, een fout tijdens
+  // detectie, of nadat de gebruiker herstelt/verwerpt/uitstelt.
+  const autoSaveEnabled = useRef(false);
 
   useEffect(() => {
     initLocale();
@@ -133,6 +152,9 @@ function AppContent() {
     let pending = false;
 
     const runAutoSave = async () => {
+      // Wacht tot de recovery-keuze gemaakt is: anders zou deze schrijfactie de
+      // recovery-snapshots overschrijven vóórdat de gebruiker heeft gekozen.
+      if (!autoSaveEnabled.current) return;
       // Voorkom overlappende schrijfacties; vraag een herhaling aan als er
       // tijdens het schrijven nieuwe wijzigingen binnenkwamen.
       if (saving) { pending = true; return; }
@@ -199,44 +221,75 @@ function AppContent() {
     recoveryChecked.current = true;
 
     (async () => {
-      if (!isTauri()) return;
+      // Buiten Tauri is er geen recovery/auto-save: poort meteen open.
+      if (!isTauri()) { autoSaveEnabled.current = true; return; }
+      // Poort opent zodra de keuze is gemaakt (of er niets te herstellen valt);
+      // pas dan mag de auto-save de snapshots overschrijven.
+      const finish = () => { autoSaveEnabled.current = true; };
       try {
-        const { readTextFile, exists, remove } = await import('@tauri-apps/plugin-fs');
-        const { ask } = await import('@tauri-apps/plugin-dialog');
+        const { readTextFile, exists, remove, stat } = await import('@tauri-apps/plugin-fs');
         const { appDataDir, join } = await import('@tauri-apps/api/path');
         const dir = await appDataDir();
         const manifestPath = await join(dir, recoveryManifestName);
 
-        // Nieuw pad: multi-document manifest.
+        // Nieuw pad: multi-document manifest. Parse elke snapshot vooraf zodat de
+        // dialoog projectnaam + taakaantal kan tonen, en hergebruik dat resultaat
+        // bij het daadwerkelijke herstellen.
         if (await exists(manifestPath)) {
           const manifest = JSON.parse(await readTextFile(manifestPath)) as RecoveryManifest;
-          const shouldRecover = await ask(t('confirm.restoreRecovery'), { kind: 'warning' });
-          if (shouldRecover) {
-            const restored: RecoveryDocInput[] = [];
-            for (const d of manifest.documents) {
-              try {
-                const parsed = readIFC(await readTextFile(await join(dir, d.ifc)));
-                restored.push({
-                  id: d.id,
-                  project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
-                  sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
-                  activityCodeTypes: parsed.activityCodeTypes, customFieldDefs: parsed.customFieldDefs,
-                  resourceCalendars: parsed.resourceCalendars,
-                  filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
-                });
-              } catch (err) {
-                console.error('Failed to restore recovery document:', d.id, err);
-              }
-            }
-            if (restored.length > 0) {
-              useAppStore.getState().restoreDocuments(restored, manifest.activeDocumentId ?? null);
-            }
-          }
-          // Opruimen: alle gerefereerde snapshots + het manifest.
+          const restored: RecoveryDocInput[] = [];
+          const entries: RecoveryEntry[] = [];
           for (const d of manifest.documents) {
-            try { await remove(await join(dir, d.ifc)); } catch { /* al weg */ }
+            try {
+              const ifcPath = await join(dir, d.ifc);
+              const parsed = readIFC(await readTextFile(ifcPath));
+              restored.push({
+                id: d.id,
+                project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
+                sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
+                activityCodeTypes: parsed.activityCodeTypes, customFieldDefs: parsed.customFieldDefs,
+                resourceCalendars: parsed.resourceCalendars,
+                filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
+              });
+              let mtime: Date | null = null;
+              try { mtime = (await stat(ifcPath)).mtime; } catch { /* geen mtime — laat null */ }
+              entries.push({
+                id: d.id,
+                name: documentTitle(d.filePath ?? null, parsed.project.name),
+                filePath: d.filePath ?? null,
+                taskCount: parsed.tasks.length,
+                mtime,
+              });
+            } catch (err) {
+              console.error('Failed to read recovery document:', d.id, err);
+            }
           }
-          try { await remove(manifestPath); } catch { /* al weg */ }
+
+          // Opruimen: alle gerefereerde snapshots + het manifest.
+          const cleanup = async () => {
+            for (const d of manifest.documents) {
+              try { await remove(await join(dir, d.ifc)); } catch { /* al weg */ }
+            }
+            try { await remove(manifestPath); } catch { /* al weg */ }
+          };
+
+          // Niets bruikbaars geparst → stil opruimen, geen dialoog.
+          if (entries.length === 0) { await cleanup(); finish(); return; }
+
+          setRecovery({
+            entries,
+            onRestore: () => {
+              if (restored.length > 0) {
+                useAppStore.getState().restoreDocuments(restored, manifest.activeDocumentId ?? null);
+              }
+              void cleanup();
+              setRecovery(null);
+              finish();
+            },
+            onDiscard: () => { void cleanup(); setRecovery(null); finish(); },
+            // Uitstellen: bestanden laten staan, niet herstellen (zie RecoveryDialog).
+            onClose: () => { setRecovery(null); finish(); },
+          });
           return;
         }
 
@@ -244,18 +297,45 @@ function AppContent() {
         const legacyPath = await join(dir, legacyRecoveryFile);
         if (await exists(legacyPath)) {
           const content = await readTextFile(legacyPath);
-          const shouldRecover = await ask(t('confirm.restoreRecovery'), { kind: 'warning' });
-          if (shouldRecover) {
-            try {
-              useAppStore.getState().loadState(readIFC(content));
-            } catch (err) {
-              console.error('Failed to restore recovery file:', err);
-            }
+          let parsed: ReturnType<typeof readIFC>;
+          try {
+            parsed = readIFC(content);
+          } catch (err) {
+            console.error('Failed to parse legacy recovery file:', err);
+            try { await remove(legacyPath); } catch { /* al weg */ }
+            finish();
+            return;
           }
-          await remove(legacyPath);
+          let mtime: Date | null = null;
+          try { mtime = (await stat(legacyPath)).mtime; } catch { /* geen mtime — laat null */ }
+          const cleanup = async () => { try { await remove(legacyPath); } catch { /* al weg */ } };
+          setRecovery({
+            entries: [{
+              id: 'legacy',
+              name: parsed.project.name,
+              filePath: null,
+              taskCount: parsed.tasks.length,
+              mtime,
+            }],
+            onRestore: () => {
+              try { useAppStore.getState().loadState(parsed); } catch (err) {
+                console.error('Failed to restore recovery file:', err);
+              }
+              void cleanup();
+              setRecovery(null);
+              finish();
+            },
+            onDiscard: () => { void cleanup(); setRecovery(null); finish(); },
+            onClose: () => { setRecovery(null); finish(); },
+          });
+          return;
         }
+
+        // Geen recovery-data gevonden.
+        finish();
       } catch (err) {
         console.error('Recovery check failed:', err);
+        finish();
       }
     })();
   }, []);
@@ -396,6 +476,14 @@ function AppContent() {
       {showFeedbackDialog && <FeedbackDialog />}
       {showLevelingDialog && <LevelingDialog />}
       <UpdateDialog />
+      {recovery && (
+        <RecoveryDialog
+          entries={recovery.entries}
+          onRestore={recovery.onRestore}
+          onDiscard={recovery.onDiscard}
+          onClose={recovery.onClose}
+        />
+      )}
     </div>
   );
 }
