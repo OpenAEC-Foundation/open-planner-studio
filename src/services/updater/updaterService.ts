@@ -20,7 +20,10 @@ export interface UpdateInfo {
  * Hoe de app op deze machine geïnstalleerd is — bepaalt óf en hoe de updater werkt.
  * - `appimage` / `native` (Windows/macOS): normale auto-install-flow.
  * - `snap`: read-only, snapd updatet zelf → in-app updater overslaan.
- * - `deb`: Tauri-updater kan niet in-place vervangen → handmatige instructies.
+ * - `deb`: normale auto-install-flow — de updater-plugin (≥2.6) matcht de
+ *   `linux-x86_64-deb`-entry in latest.json (via de bundle-type-stempel in het
+ *   binary) en installeert in-place via pkexec/sudo + `dpkg -i`. Alleen als dát
+ *   faalt toont de dialog nog handmatige instructies als fallback.
  */
 export type InstallKind = 'appimage' | 'snap' | 'deb' | 'native';
 

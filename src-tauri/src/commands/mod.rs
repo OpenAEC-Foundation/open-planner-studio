@@ -36,7 +36,9 @@ pub fn write_file(path: String, contents: String) -> Result<(), String> {
 /// - `"snap"` — gestart binnen een Snap (env `SNAP` gezet); read-only, snapd
 ///   updatet zelf → in-app updater overslaan.
 /// - `"deb"` — Linux zonder AppImage/Snap (vermoedelijk .deb/systeempakket);
-///   Tauri-updater kan niet in-place vervangen → toon handmatige instructies.
+///   de updater-plugin (≥2.6) installeert .deb gewoon in-place via pkexec/sudo
+///   + `dpkg -i` → normale auto-install-flow, handmatige instructies alleen
+///   nog als fallback bij een fout.
 /// - `"native"` — Windows/macOS (en overige niet-Linux): de normale updater-flow.
 #[tauri::command]
 pub fn install_kind() -> String {

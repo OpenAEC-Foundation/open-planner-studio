@@ -12,8 +12,10 @@ import {
   type UpdateStatus,
 } from '@/services/updater/updaterService';
 
-// Copy-paste-commando voor handmatige .deb-installatie: zoekt zelf de juiste
-// amd64.deb-asset op via de GitHub-release-API en installeert die.
+// Copy-paste-commando voor handmatige .deb-installatie — alléén nog een
+// FALLBACK wanneer de in-app installatie op een .deb-systeem faalt (bijv.
+// pkexec/sudo geweigerd of niet beschikbaar). De normale flow is auto-install:
+// de updater-plugin (≥2.6) installeert .deb in-place via pkexec + `dpkg -i`.
 // NB: de grep matcht op de afsluitende quote (amd64.deb") zodat het bijhorende
 // amd64.deb.sig-asset niet óók matcht — anders bevat $url twee URL's en faalt
 // curl met "URL rejected: Malformed input to a URL function".
@@ -138,10 +140,13 @@ export function UpdateDialog() {
   const progress = isDownloading ? status.progress : 0;
   const indeterminate = isDownloading && status.indeterminate;
   const isReadyToInstall = status?.kind === 'readyToInstall';
-  // Toon de installeer-/handmatige-flow alleen op platforms waar dat zin heeft.
+  // Snap is het enige install-type zonder in-app installatie (snapd werkt zelf
+  // bij). .deb installeert de updater-plugin gewoon in-place (pkexec + dpkg -i),
+  // dus deb krijgt de normale installeerknop; het handmatige commando is enkel
+  // nog een fallback als die installatie faalt.
   const isSnap = installKind === 'snap';
   const isDeb = installKind === 'deb';
-  const canAutoInstall = !isSnap && !isDeb;
+  const canAutoInstall = !isSnap;
 
   return (
     <div
@@ -221,28 +226,6 @@ export function UpdateDialog() {
                 </div>
               )}
 
-              {/* .deb: handmatig — copy-paste-commando + downloadpagina. */}
-              {isDeb && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-text-secondary">{t('updates.debExplanation')}</span>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-text-secondary font-medium">{t('updates.debCommandLabel')}</span>
-                      <button
-                        type="button"
-                        onClick={handleCopyCommand}
-                        className="btn btn--sm btn--secondary flex items-center gap-1.5"
-                      >
-                        {copied ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
-                        {copied ? t('updates.copied') : t('updates.copyCommand')}
-                      </button>
-                    </div>
-                    <pre className="whitespace-pre-wrap break-all bg-surface-hover border border-border rounded-[8px] p-3 text-text-primary max-h-[140px] overflow-y-auto font-mono text-[11px] select-all">
-                      {DEB_INSTALL_COMMAND}
-                    </pre>
-                  </div>
-                </div>
-              )}
             </>
           )}
 
@@ -282,6 +265,30 @@ export function UpdateDialog() {
               <span className="text-text-secondary break-words">{status.message}</span>
             </div>
           )}
+
+          {/* .deb-fallback: faalt de in-app installatie (pkexec/sudo geweigerd of
+              afwezig), bied dan het handmatige copy-paste-commando aan. */}
+          {status?.kind === 'error' && isDeb && (
+            <div className="flex flex-col gap-2">
+              <span className="text-text-secondary">{t('updates.debExplanation')}</span>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-text-secondary font-medium">{t('updates.debCommandLabel')}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyCommand}
+                    className="btn btn--sm btn--secondary flex items-center gap-1.5"
+                  >
+                    {copied ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
+                    {copied ? t('updates.copied') : t('updates.copyCommand')}
+                  </button>
+                </div>
+                <pre className="whitespace-pre-wrap break-all bg-surface-hover border border-border rounded-[8px] p-3 text-text-primary max-h-[140px] overflow-y-auto font-mono text-[11px] select-all">
+                  {DEB_INSTALL_COMMAND}
+                </pre>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -305,7 +312,7 @@ export function UpdateDialog() {
             </button>
           )}
 
-          {status?.kind === 'available' && isDeb && (
+          {status?.kind === 'error' && isDeb && (
             <button
               onClick={handleOpenDownloads}
               className="btn btn--sm btn--secondary flex items-center gap-1.5"
