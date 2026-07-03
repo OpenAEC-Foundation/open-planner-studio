@@ -156,25 +156,30 @@ export class GanttRenderer {
     const result: Task[] = [];
     const roots = tasks.filter(t => !t.parentId);
     const collapsed = new Set(this.opts.collapsedTaskIds);
+    // Ook verborgen (ingeklapte) nakomelingen als "gezien" markeren, anders
+    // vist het orphan-vangnet ze op en belanden ze onderaan de lijst.
+    const seen = new Set<string>();
 
-    const addRecursive = (task: Task, depth: number) => {
-      this.taskDepths.set(task.id, depth);
-      result.push(task);
-      // Skip children if collapsed
-      if (collapsed.has(task.id)) return;
+    const addRecursive = (task: Task, depth: number, hidden: boolean) => {
+      seen.add(task.id);
+      if (!hidden) {
+        this.taskDepths.set(task.id, depth);
+        result.push(task);
+      }
+      const hideChildren = hidden || collapsed.has(task.id);
       const children = tasks.filter(t => t.parentId === task.id);
       for (const child of children) {
-        addRecursive(child, depth + 1);
+        addRecursive(child, depth + 1, hideChildren);
       }
     };
 
     for (const root of roots) {
-      addRecursive(root, 0);
+      addRecursive(root, 0, false);
     }
 
-    // Add orphans
+    // Vangnet: alleen échte wezen (ouder bestaat niet meer), geen ingeklapte kinderen
     for (const task of tasks) {
-      if (!result.find(t => t.id === task.id)) {
+      if (!seen.has(task.id)) {
         this.taskDepths.set(task.id, 0);
         result.push(task);
       }

@@ -68,20 +68,23 @@ export function TableEditor() {
   const [editCell, setEditCell] = useState<{ taskId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  // Flatten tasks respecting collapse state
+  // Flatten tasks respecting collapse state. Verborgen (ingeklapte) nakomelingen
+  // tellen als "gezien" — anders vist het orphan-vangnet ze op en komen ze onderaan.
   const flatTasks: { task: Task; depth: number }[] = [];
-  const addRecursive = (task: Task, depth: number) => {
-    flatTasks.push({ task, depth });
-    if (collapsedTaskIds.includes(task.id)) return;
+  const seenIds = new Set<string>();
+  const addRecursive = (task: Task, depth: number, hidden: boolean) => {
+    seenIds.add(task.id);
+    if (!hidden) flatTasks.push({ task, depth });
+    const hideChildren = hidden || collapsedTaskIds.includes(task.id);
     const children = tasks.filter(t => t.parentId === task.id);
     for (const child of children) {
-      addRecursive(child, depth + 1);
+      addRecursive(child, depth + 1, hideChildren);
     }
   };
   const roots = tasks.filter(t => !t.parentId);
-  for (const root of roots) addRecursive(root, 0);
+  for (const root of roots) addRecursive(root, 0, false);
   for (const task of tasks) {
-    if (!flatTasks.find(ft => ft.task.id === task.id)) {
+    if (!seenIds.has(task.id)) {
       flatTasks.push({ task, depth: 0 });
     }
   }
