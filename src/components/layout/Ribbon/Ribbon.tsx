@@ -17,6 +17,9 @@ import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
 import { RibbonTab } from '@/state/slices/types';
+import type { ResourceCurve } from '@/types/resource';
+import { RESOURCE_CURVES, CURVE_KEY } from '@/components/panels/TaskPropertiesPanel';
+import { UnitsInput } from '@/components/common/UnitsInput';
 import './Ribbon.css';
 
 function RibbonDropdown<T extends string>({ value, options, onChange }: {
@@ -479,7 +482,12 @@ function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
 function ResourceAssignDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tTask } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
   const [open, setOpen] = useState(false);
+  // Toewijzingsparameters in de popover (bevinding 2): eenheden/dag + verdeelcurve, zodat een
+  // toewijzing in één beweging compleet is (voorheen hardgecodeerd op 1 / UNIFORM).
+  const [units, setUnits] = useState(1);
+  const [curve, setCurve] = useState<ResourceCurve>('UNIFORM');
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const tasks = useAppStore(s => s.tasks);
   const resources = useAppStore(s => s.resources);
@@ -522,21 +530,47 @@ function ResourceAssignDropdown() {
               {resources.length === 0 ? tTask('properties.assignments.noResources') : tTask('properties.assignments.allAssigned')}
             </div>
           ) : (
-            available.map(r => (
-              <button
-                key={r.id}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
-                  fontSize: 11, border: 'none', background: 'transparent', color: 'var(--theme-text)',
-                  cursor: 'pointer', whiteSpace: 'nowrap',
-                }}
-                onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                onClick={() => { assignResource(task!.id, r.id, 1); setOpen(false); }}
-              >
-                {r.name || r.id}
-              </button>
-            ))
+            <>
+              {/* Eenheden/dag + curve gelden voor de volgende toewijzing die je aanklikt. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px' }}>
+                <label style={{ fontSize: 10, color: 'var(--theme-text-dim)' }}>{tTask('properties.assignments.unitsPerDay')}</label>
+                <UnitsInput
+                  value={units}
+                  ariaLabel={tTask('properties.assignments.unitsPerDay')}
+                  onCommit={setUnits}
+                  className="input !text-[11px] !px-1.5 !py-1 !w-16 text-right"
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 6px' }}>
+                <label style={{ fontSize: 10, color: 'var(--theme-text-dim)' }}>{tTask('properties.assignments.curve')}</label>
+                <select
+                  value={curve}
+                  aria-label={tTask('properties.assignments.curve')}
+                  onChange={e => setCurve(e.target.value as ResourceCurve)}
+                  className="input !text-[11px] !px-1.5 !py-1 flex-1"
+                >
+                  {RESOURCE_CURVES.map(c => (
+                    <option key={c} value={c}>{tCommon(CURVE_KEY[c])}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ height: 1, background: 'var(--theme-border)', margin: '2px 0' }} />
+              {available.map(r => (
+                <button
+                  key={r.id}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
+                    fontSize: 11, border: 'none', background: 'transparent', color: 'var(--theme-text)',
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                  onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+                  onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                  onClick={() => { assignResource(task!.id, r.id, units, curve); setOpen(false); }}
+                >
+                  {r.name || r.id}
+                </button>
+              ))}
+            </>
           )}
         </div>
       )}
@@ -617,9 +651,13 @@ export function Ribbon() {
     setUI({ showNewProjectDialog: true });
   }, [setUI]);
 
-  // Resources-tab afgeleide waarden (fase 2.5)
-  const overallocatedCount = Object.values(resourceLoadResult?.overallocatedDays ?? {})
-    .filter(d => (d?.length ?? 0) > 0).length;
+  // Resources-tab afgeleide waarden (fase 2.5). Defensieve guard (bevinding 3): zonder resources
+  // kan er geen overallocatie zijn — voorkomt een fantoomvlag als een oud resourceLoadResult nog
+  // in de store staat na een document-swap/leegmaken (de diepere reset zit in de scheduler-slices).
+  const overallocatedCount = resources.length === 0
+    ? 0
+    : Object.values(resourceLoadResult?.overallocatedDays ?? {})
+        .filter(d => (d?.length ?? 0) > 0).length;
   const hasLeveling = tasks.some(t => t.levelingDelay !== undefined);
   const cycleHistogramResource = (dir: 1 | -1) => {
     const ids: (string | undefined)[] = [undefined, ...resources.map(r => r.id)];

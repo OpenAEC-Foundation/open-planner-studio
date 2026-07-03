@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
 import { parseDate, formatDate } from '@/utils/dateUtils';
 
 function fmt(iso: string): string {
@@ -22,8 +23,9 @@ function fmt(iso: string): string {
  * resterende-conflicten-sectie → Toepassen (`applyLeveling`) / Annuleren.
  */
 export function LevelingDialog() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const resources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
   const tasks = useAppStore(s => s.tasks);
   const calendar = useAppStore(s => s.calendar);
   const cpmResult = useAppStore(s => s.cpmResult);
@@ -82,6 +84,39 @@ export function LevelingDialog() {
 
   const conflicts = result ? Object.entries(result.unresolved) : [];
   const endChanged = result ? result.projectEndBefore !== result.projectEndAfter : false;
+
+  const numberFmt = useMemo(
+    () => new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }),
+    [i18n.language],
+  );
+
+  // Intrinsieke overvraag (bevinding 5): een taak waarvan één toewijzing op zijn curve-piek méér
+  // eenheden/dag vraagt dan de resource-capaciteit kan nooit door schuiven opgelost worden — de
+  // dag zelf is al overbelast. Detecteer per onopgeloste taak de zwaarst overvragende toewijzing.
+  const intrinsicByTask = useMemo(() => {
+    const map: Record<string, { resource: string; peak: number; capacity: number } | null> = {};
+    if (!result) return map;
+    for (const taskId of Object.keys(result.unresolved)) {
+      const task = tasks.find(t => t.id === taskId);
+      let worst: { resource: string; peak: number; capacity: number } | null = null;
+      if (task) {
+        for (const a of assignments.filter(x => x.taskId === taskId)) {
+          const res = resources.find(r => r.id === a.resourceId);
+          if (!res) continue;
+          const days = distributeUnits(a.unitsPerDay, task.time.scheduleDuration, a.curve ?? 'UNIFORM');
+          const peak = days.length > 0 ? Math.max(...days) : 0;
+          if (peak > res.maxUnits + 1e-9) {
+            const gap = peak - res.maxUnits;
+            if (!worst || gap > worst.peak - worst.capacity) {
+              worst = { resource: res.name || res.id, peak, capacity: res.maxUnits };
+            }
+          }
+        }
+      }
+      map[taskId] = worst;
+    }
+    return map;
+  }, [result, tasks, assignments, resources]);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
@@ -191,10 +226,22 @@ export function LevelingDialog() {
                   <span className="text-[10px] text-text-secondary">{t('resource.leveling.remainingConflictsHint')}</span>
                   {conflicts.map(([taskId, days]) => {
                     const task = tasks.find(t => t.id === taskId);
+                    const intrinsic = intrinsicByTask[taskId];
                     return (
-                      <div key={taskId} className="flex items-center justify-between text-[11px]">
-                        <span className="truncate" style={{ maxWidth: 360 }}>{task?.name || taskId}</span>
-                        <span style={{ color: 'var(--error)' }}>{t('resource.leveling.conflictDays', { count: days.length })}</span>
+                      <div key={taskId} className="flex flex-col gap-0.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="truncate" style={{ maxWidth: 360 }}>{task?.name || taskId}</span>
+                          <span style={{ color: 'var(--error)' }}>{t('resource.leveling.conflictDays', { count: days.length })}</span>
+                        </div>
+                        {intrinsic && (
+                          <span className="text-[10px] pl-3" style={{ color: 'var(--error)' }}>
+                            {t('resource.leveling.intrinsicOverrun', {
+                              resource: intrinsic.resource,
+                              peak: numberFmt.format(intrinsic.peak),
+                              capacity: numberFmt.format(intrinsic.capacity),
+                            })}
+                          </span>
+                        )}
                       </div>
                     );
                   })}

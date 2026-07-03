@@ -7,6 +7,7 @@ import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { Select } from '@/components/common/Select';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
+import { UnitsInput } from '@/components/common/UnitsInput';
 import { Trash2, Zap } from 'lucide-react';
 
 export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
@@ -435,16 +436,11 @@ export function TaskPropertiesPanel() {
             return (
               <div key={a.id} className="flex items-center gap-1 text-[10px]">
                 <span className="flex-1 truncate" title={res?.name}>{res?.name || '?'}</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="any"
+                <UnitsInput
                   value={a.unitsPerDay}
                   title={t('properties.assignments.unitsPerDay')}
-                  onChange={e => {
-                    const n = parseFloat(e.target.value);
-                    if (Number.isFinite(n)) updateAssignment(a.id, { unitsPerDay: n });
-                  }}
+                  ariaLabel={t('properties.assignments.unitsPerDay')}
+                  onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
                   className="input !text-[10px] !px-1 !py-0.5 !w-14 text-right"
                 />
                 <select

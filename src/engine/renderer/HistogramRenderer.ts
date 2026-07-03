@@ -196,19 +196,24 @@ export class HistogramRenderer {
     const isos = Object.keys(series.load);
     if (isos.length === 0) return;
 
-    // Y-schaal: top = max(load, capacity) in de dataset, zodat overallocatie-staven zichtbaar
-    // boven de capaciteitslijn uitsteken (afwijking van "Y=maxCapacity" om rood zichtbaar te
-    // houden — zie eindrapport). Minimaal 1 om deling door 0 te vermijden.
-    let yMax = 1;
+    const dayW = Math.max(1, view.zoom);
+    const barInset = dayW > 6 ? 1 : 0;
+
+    // Y-schaal op wat ZICHTBAAR is (ontwerp §6.4, bevinding 4): top = max(load, capacity) binnen
+    // het huidige datumbereik, zodat een enkele projectpiek elders normale periodes niet
+    // platdrukt. +5% marge zodat de hoogste staaf niet tegen de bovenrand plakt. Minimaal 1 om
+    // deling door 0 te vermijden. Overallocatie-staven blijven boven de capaciteitslijn zichtbaar.
+    let yMaxData = 1;
     for (const iso of isos) {
-      yMax = Math.max(yMax, series.load[iso] ?? 0, series.capacity[iso] ?? 0);
+      const x = this.dateToX(parseDate(iso));
+      if (x + dayW < this.opts.taskTableWidth || x > this.opts.canvasWidth) continue;
+      yMaxData = Math.max(yMaxData, series.load[iso] ?? 0, series.capacity[iso] ?? 0);
     }
+    const yMax = yMaxData * 1.05;
 
     const plotBottom = canvasHeight - BOTTOM_PAD;
     const plotHeight = canvasHeight - TOP_PAD - BOTTOM_PAD;
     const unitToY = (u: number) => plotBottom - (u / yMax) * plotHeight;
-    const dayW = Math.max(1, view.zoom);
-    const barInset = dayW > 6 ? 1 : 0;
 
     // Nullijn
     ctx.strokeStyle = c.grid;
@@ -260,7 +265,7 @@ export class HistogramRenderer {
     ctx.font = '9px system-ui, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`${this.formatUnits(yMax)} ${this.opts.labels.unitsSuffix}`, this.opts.taskTableWidth + 4, 2);
+    ctx.fillText(`${this.formatUnits(yMaxData)} ${this.opts.labels.unitsSuffix}`, this.opts.taskTableWidth + 4, 2);
   }
 
   private formatUnits(n: number): string {

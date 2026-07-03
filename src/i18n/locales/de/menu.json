@@ -128,7 +128,7 @@
     "nextResource": "Nächste",
     "leveling": "Ressourcenabgleich",
     "levelResourcesDialog": "Abgleichen…",
-    "clearLeveling": "Abgleich zurücksetzen",
+    "clearLeveling": "Zurücksetzen",
     "overallocationIndicator": "Überlastung",
     "overallocationCount": "{{count}} Ressourcen",
     "overallocationNone": "Keine"

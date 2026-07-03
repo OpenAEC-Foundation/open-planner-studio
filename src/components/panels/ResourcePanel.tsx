@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check } from 'lucide-react';
 import type { Resource, ResourceType, AvailabilityStep } from '@/types/resource';
 import { createDefaultCalendar } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
 import { ResourceCalendarDialog } from '@/components/dialogs/ResourceCalendarDialog';
+import { UnitsInput } from '@/components/common/UnitsInput';
 
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
 
@@ -29,9 +30,12 @@ const cellInput = 'input !text-[11px] !px-1.5 !py-1 w-full';
  * `ResourceCalendarDialog`.
  */
 export function ResourcePanel() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const resources = useAppStore(s => s.resources);
   const resourceCalendars = useAppStore(s => s.resourceCalendars);
+  const assignments = useAppStore(s => s.assignments);
+  const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
+  const hoursPerDay = useAppStore(s => s.calendar.hoursPerDay);
   const addResource = useAppStore(s => s.addResource);
   const updateResource = useAppStore(s => s.updateResource);
   const removeResource = useAppStore(s => s.removeResource);
@@ -42,8 +46,44 @@ export function ResourcePanel() {
   const [calDialog, setCalDialog] = useState<string | null>(null);
   // Uitgeklapte availabilitySteps-subrij (één tegelijk).
   const [expandedSteps, setExpandedSteps] = useState<string | null>(null);
+  // Resource die op verwijder-bevestiging wacht (bevinding 6, cascade-waarschuwing).
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const crews = resources.filter(r => r.type === 'CREW');
+
+  const numberFmt = useMemo(
+    () => new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    [i18n.language],
+  );
+
+  // Kosten-totaal per resource (bevinding 8): Σ belaste eenheden × uren/dag × tarief.
+  // uren = eenheden × hoursPerDay van de projectkalender; undefined = "—" (geen tarief of belasting).
+  const costByResource = useMemo(() => {
+    const map: Record<string, number | undefined> = {};
+    for (const r of resources) {
+      const load = resourceLoadResult?.load[r.id];
+      if (!load || r.costPerHour == null) { map[r.id] = undefined; continue; }
+      const totalUnits = Object.values(load).reduce((a, b) => a + b, 0);
+      map[r.id] = totalUnits * hoursPerDay * r.costPerHour;
+    }
+    return map;
+  }, [resources, resourceLoadResult, hoursPerDay]);
+
+  const grandTotal = useMemo(() => {
+    const vals = Object.values(costByResource).filter((v): v is number => v !== undefined);
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) : undefined;
+  }, [costByResource]);
+
+  const assignmentCount = (resourceId: string) =>
+    assignments.filter(a => a.resourceId === resourceId).length;
+
+  const requestRemove = (resourceId: string) => {
+    if (assignmentCount(resourceId) > 0) {
+      setConfirmDelete(resourceId);
+    } else {
+      removeResource(resourceId);
+    }
+  };
 
   const addRow = () => {
     addResource({ name: '', type: 'LABOR', description: '', maxUnits: 1 });
@@ -98,6 +138,7 @@ export function ResourcePanel() {
                 <th className="text-right px-2 py-1.5 font-semibold border-b border-border" style={{ width: 110 }}>{t('resource.maxUnits')}</th>
                 <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 160 }}>{t('resource.calendarId')}</th>
                 <th className="text-right px-2 py-1.5 font-semibold border-b border-border" style={{ width: 90 }}>{t('resource.costPerHour')}</th>
+                <th className="text-right px-2 py-1.5 font-semibold border-b border-border" style={{ width: 100 }} title={t('resource.totalHint')}>{t('resource.total')}</th>
                 <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>
                 <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 120 }}>{t('resource.parent')}</th>
                 <th className="border-b border-border" style={{ width: 34 }} />
@@ -107,6 +148,7 @@ export function ResourcePanel() {
               {resources.map(r => {
                 const stepsOpen = expandedSteps === r.id;
                 const stepCount = r.availabilitySteps?.length ?? 0;
+                const cost = costByResource[r.id];
                 return (
                   <ResourceRow
                     key={r.id}
@@ -115,15 +157,30 @@ export function ResourcePanel() {
                     resourceCalendars={resourceCalendars}
                     stepsOpen={stepsOpen}
                     stepCount={stepCount}
+                    costLabel={cost === undefined ? '—' : numberFmt.format(cost)}
+                    confirmingDelete={confirmDelete === r.id}
+                    deleteCount={assignmentCount(r.id)}
                     onToggleSteps={() => setExpandedSteps(stepsOpen ? null : r.id)}
                     onPatch={updates => patch(r.id, updates)}
-                    onRemove={() => removeResource(r.id)}
+                    onRequestRemove={() => requestRemove(r.id)}
+                    onConfirmRemove={() => { removeResource(r.id); setConfirmDelete(null); }}
+                    onCancelRemove={() => setConfirmDelete(null)}
                     onCalendarChange={value => onCalendarChange(r, value)}
                     onEditCalendar={() => r.calendarId && setCalDialog(r.calendarId)}
                   />
                 );
               })}
             </tbody>
+            {grandTotal !== undefined && (
+              <tfoot>
+                <tr className="border-t border-border font-semibold">
+                  <td className="px-2 py-1.5 text-text-secondary" colSpan={4}>{t('resource.total')}</td>
+                  <td className="px-2 py-1.5 text-right" />
+                  <td className="px-2 py-1.5 text-right">{numberFmt.format(grandTotal)}</td>
+                  <td colSpan={3} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         )}
       </div>
@@ -136,17 +193,24 @@ export function ResourcePanel() {
 }
 
 function ResourceRow({
-  resource, crews, resourceCalendars, stepsOpen, stepCount,
-  onToggleSteps, onPatch, onRemove, onCalendarChange, onEditCalendar,
+  resource, crews, resourceCalendars, stepsOpen, stepCount, costLabel,
+  confirmingDelete, deleteCount,
+  onToggleSteps, onPatch, onRequestRemove, onConfirmRemove, onCancelRemove,
+  onCalendarChange, onEditCalendar,
 }: {
   resource: Resource;
   crews: Resource[];
   resourceCalendars: { id: string; name: string }[];
   stepsOpen: boolean;
   stepCount: number;
+  costLabel: string;
+  confirmingDelete: boolean;
+  deleteCount: number;
   onToggleSteps: () => void;
   onPatch: (updates: Partial<Resource>) => void;
-  onRemove: () => void;
+  onRequestRemove: () => void;
+  onConfirmRemove: () => void;
+  onCancelRemove: () => void;
   onCalendarChange: (value: string) => void;
   onEditCalendar: () => void;
 }) {
@@ -177,15 +241,10 @@ function ResourceRow({
         </td>
         <td className="px-2 py-1">
           <div className="flex items-center gap-1 justify-end">
-            <input
-              type="number"
-              min={0}
-              step="any"
+            <UnitsInput
               value={resource.maxUnits}
-              onChange={e => {
-                const n = parseFloat(e.target.value);
-                onPatch({ maxUnits: Number.isFinite(n) ? n : 0 });
-              }}
+              ariaLabel={t('resource.maxUnits')}
+              onCommit={n => onPatch({ maxUnits: n })}
               className={cellInput + ' text-right'}
             />
             <button
@@ -236,6 +295,9 @@ function ResourceRow({
             className={cellInput + ' text-right'}
           />
         </td>
+        <td className="px-2 py-1 text-right tabular-nums" title={t('resource.totalHint')}>
+          {costLabel}
+        </td>
         <td className="px-2 py-1">
           <input
             value={resource.unitOfMeasure ?? ''}
@@ -257,19 +319,46 @@ function ResourceRow({
           </select>
         </td>
         <td className="px-1 py-1 text-center">
-          <button
-            onClick={onRemove}
-            title={t('resource.panel.deleteRow')}
-            className="p-1 rounded hover:bg-surface-hover"
-            style={{ color: 'var(--error)' }}
-          >
-            <Trash2 size={13} />
-          </button>
+          {confirmingDelete ? (
+            <div className="flex items-center gap-0.5 justify-center">
+              <button
+                onClick={onConfirmRemove}
+                title={t('resource.panel.confirmDeleteYes')}
+                className="p-1 rounded hover:bg-surface-hover"
+                style={{ color: 'var(--error)' }}
+              >
+                <Check size={13} />
+              </button>
+              <button
+                onClick={onCancelRemove}
+                title={t('resource.panel.confirmDeleteNo')}
+                className="p-1 rounded hover:bg-surface-hover text-text-secondary"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onRequestRemove}
+              title={t('resource.panel.deleteRow')}
+              className="p-1 rounded hover:bg-surface-hover"
+              style={{ color: 'var(--error)' }}
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
         </td>
       </tr>
+      {confirmingDelete && (
+        <tr style={{ background: 'var(--theme-surface-alt)' }}>
+          <td colSpan={9} className="px-3 py-1.5 text-[11px]" style={{ color: 'var(--error)' }}>
+            {t('resource.panel.confirmDelete', { name: resource.name || resource.id, count: deleteCount })}
+          </td>
+        </tr>
+      )}
       {stepsOpen && (
         <tr style={{ background: 'var(--theme-surface-alt)' }}>
-          <td colSpan={8} className="px-3 py-2">
+          <td colSpan={9} className="px-3 py-2">
             <AvailabilityStepsEditor
               steps={resource.availabilitySteps ?? []}
               onChange={steps => onPatch({ availabilitySteps: steps.length > 0 ? steps : undefined })}
@@ -311,15 +400,10 @@ function AvailabilityStepsEditor({ steps, onChange }: {
             className="input !text-[11px] !px-1.5 !py-1"
           />
           <label className="text-[10px] text-text-secondary">{t('resource.availabilityStepsEditor.maxUnits')}</label>
-          <input
-            type="number"
-            min={0}
-            step="any"
+          <UnitsInput
             value={s.maxUnits}
-            onChange={e => {
-              const n = parseFloat(e.target.value);
-              update(i, { maxUnits: Number.isFinite(n) ? n : 0 });
-            }}
+            ariaLabel={t('resource.availabilityStepsEditor.maxUnits')}
+            onCommit={n => update(i, { maxUnits: n })}
             className="input !text-[11px] !px-1.5 !py-1 w-20 text-right"
           />
           <button onClick={() => remove(i)} className="p-0.5 rounded hover:bg-surface-hover" style={{ color: 'var(--error)' }}>

@@ -27,6 +27,12 @@ export interface ResourceSlice {
   removeResourceCalendar: (id: string) => void;
 }
 
+/** Geldige capaciteit/eenheden (fase 2.5 UX-fix, bevinding 1): strikt positief en eindig. 0 is
+ *  nooit zinvol (een resource die 0 eenheden kan leveren, of een toewijzing van 0/dag). Fracties
+ *  blijven toegestaan (materiaal-max.eenheden, halve-dag-toewijzingen). */
+const isValidUnits = (n: unknown): n is number =>
+  typeof n === 'number' && Number.isFinite(n) && n > 0;
+
 export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
   resources: [],
   assignments: [],
@@ -47,9 +53,17 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
     set((s) => {
       const idx = s.resources.findIndex(r => r.id === id);
       if (idx < 0) return;
+      // Weigeren-met-behoud (bevinding 1): een ongeldige max.eenheden-invoer wordt genegeerd,
+      // de rest van de update gaat gewoon door (de oude maxUnits blijft staan).
+      let patch = updates;
+      if ('maxUnits' in patch && !isValidUnits(patch.maxUnits)) {
+        patch = { ...patch };
+        delete patch.maxUnits;
+      }
+      if (Object.keys(patch).length === 0) return;
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
-      Object.assign(s.resources[idx], updates);
+      Object.assign(s.resources[idx], patch);
       s.isDirty = true;
     }),
 
@@ -76,6 +90,8 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
       // Leaf-only, geen-milestone-assignment-regel (§2.4): vroege return, geen snapshot.
       const task = s.tasks.find(t => t.id === taskId);
       if (!task || task.isMilestone || task.childIds.length > 0) return;
+      // Weigeren (bevinding 1): 0/negatieve eenheden/dag is geen geldige toewijzing.
+      if (!isValidUnits(unitsPerDay)) return;
 
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
@@ -92,9 +108,17 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set) => ({
     set((s) => {
       const idx = s.assignments.findIndex(a => a.id === assignmentId);
       if (idx < 0) return;
+      // Weigeren-met-behoud (bevinding 1): een ongeldige eenheden/dag-invoer wordt genegeerd,
+      // een gelijktijdige curve-wijziging gaat wel door.
+      let patch = updates;
+      if ('unitsPerDay' in patch && !isValidUnits(patch.unitsPerDay)) {
+        patch = { ...patch };
+        delete patch.unitsPerDay;
+      }
+      if (Object.keys(patch).length === 0) return;
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
-      Object.assign(s.assignments[idx], updates);
+      Object.assign(s.assignments[idx], patch);
       s.isDirty = true;
     }),
 

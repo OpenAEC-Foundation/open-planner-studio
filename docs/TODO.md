@@ -38,6 +38,20 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       contextmenu/popover om het relatietype (FS/SS/FF/SF) en eventueel de lag
       te kiezen in plaats van meteen FS aan te maken.
 
+- [ ] **Resource-kolom(men) in de taaktabel (`TableEditor`).** Uit de fase-2.5-review: toewijzingen
+      zijn nu alleen zichtbaar in het eigenschappenpaneel en de assign-popover. Voeg een
+      toegewezen-resources-kolom toe aan de taaktabel (zoals P6/MSP "Resource Names"), eventueel met
+      inline bewerken van eenheden/dag, zodat je toewijzingen per rij overziet zonder taak-voor-taak
+      te klikken.
+- [ ] **Toewijzing verplaatsen tussen taken.** Nu kun je een toewijzing alleen verwijderen en
+      opnieuw aanmaken. Uit de review: maak het mogelijk een bestaande toewijzing (met eenheden +
+      curve) naar een andere taak te verplaatsen (drag of "verplaats naar…"), zodat herplannen niet
+      betekent dat je eenheden/curve opnieuw moet intikken.
+- [ ] **Resource-paneel als niet-fullscreen variant naast het histogram.** Het `ResourcePanel` neemt
+      nu het volledige rechterpaneel over. Uit de review: bied een compacte/gedockte variant zodat
+      je resources kunt bewerken terwijl de Gantt + histogramstrook zichtbaar blijven (het effect
+      van een wijziging op de belasting is dan meteen te zien).
+
 ### Distributie & Release
 
 #### Snap-packaging — follow-ups
@@ -209,6 +223,10 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] EVM-dashboard
 
 #### 3.5 Kosten & budget
+- [ ] **Man-uren/kosten-totalen en budget-rollup als volwaardige feature.** De ResourcePanel-kolom
+      "Totaal" (fase-2.5-review) toont nu enkel Σ eenheden × uren/dag × tarief per resource — een
+      eerste, eerlijke stap. Bouw dit uit tot echte man-uren- en kostentotalen per taak/WBS-tak met
+      rollup naar projectniveau (budget), inclusief materiaal en een baseline-vergelijking.
 - [ ] Kostenberekening per taak (uren × tarief + materiaal)
 - [ ] Budget vs. actual kosten tracking
 - [ ] Cost loading (kosten verspreid over taakduur)
