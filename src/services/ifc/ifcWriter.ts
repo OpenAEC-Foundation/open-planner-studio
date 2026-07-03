@@ -449,17 +449,20 @@ function writeTask(ctx: WriteContext, task: Task, ownerHistId: number): void {
     `IFCTASKTIME(${ifcStr(task.name + ' Time')},.PREDICTED.,$,.${t.durationType}.,${ifcDuration(t.scheduleDuration)},${ifcDateTime(t.scheduleStart)},${ifcDateTime(t.scheduleFinish)},${ifcDateTime(t.earlyStart)},${ifcDateTime(t.earlyFinish)},${ifcDateTime(t.lateStart)},${ifcDateTime(t.lateFinish)},${ifcDuration(t.freeFloat)},${ifcDuration(t.totalFloat)},${ifcBool(t.isCritical)},$,$,$,$,$,${t.completion.toFixed(1)})`);
 
   const ifcTaskType = `.${task.taskType}.`;
-  // IfcTask.Priority (IFCINTEGER, native attribuut, 0-based STEP-arg-index 9 — geverifieerd
-  // tegen de IFC4.3-attribuuttabel: GlobalId,OwnerHistory,Name,Description,ObjectType,
-  // Identification,LongDescription,Status,WorkMethod,IsMilestone,Priority,TaskTime,
-  // PredefinedType. Deze schrijver is een pragmatische subset (ObjectType/LongDescription/
-  // Status/WorkMethod blijven altijd `$`, zie de bestaande arg4/6/7-lay-out hieronder) — de
-  // slot vlak vóór TaskTime en ná IsMilestone (hier al aanwezig als lege `$`) is precies de
-  // Priority-positie, dus alleen dát argument krijgt een waarde (golden rule §7.7: `$` bij
-  // de default 500).
+  // Spec-conforme 13-args-IFCTASK (L1-fix). IFC 4.3-attribuutvolgorde (0-based STEP-index,
+  // geverifieerd tegen ifc43-docs.standards.buildingsmart.org, IfcTask-attribuuttabel):
+  //   0 GlobalId, 1 OwnerHistory, 2 Name, 3 Description, 4 ObjectType, 5 Identification,
+  //   6 LongDescription, 7 Status, 8 WorkMethod, 9 IsMilestone, 10 Priority, 11 TaskTime,
+  //   12 PredefinedType.
+  // Oudere OPS-versies schreven 12 args (WorkMethod op index 8 ontbrak, waardoor
+  // IsMilestone/Priority/TaskTime/PredefinedType één positie te vroeg zaten) — de reader
+  // (extractTasks) detecteert de arg-count en leest beide varianten. Deze schrijver blijft
+  // een pragmatische subset: ObjectType/LongDescription/Status/WorkMethod blijven `$`;
+  // Priority (IFCINTEGER, native attribuut) alleen bij afwijking van de default 500
+  // (golden rule §7.7, anders `$`).
   const priorityArg = task.priority !== DEFAULT_PRIORITY ? String(Math.round(task.priority)) : '$';
   addLine(ctx, `task_${task.id}`,
-    `IFCTASK(${ifcStr(ifcGuid(task.id))},#${ownerHistId},${ifcStr(task.name)},${ifcStr(task.description)},$,${ifcStr(task.wbsCode)},$,$,${ifcBool(task.isMilestone)},${priorityArg},#${taskTimeId},${ifcTaskType})`);
+    `IFCTASK(${ifcStr(ifcGuid(task.id))},#${ownerHistId},${ifcStr(task.name)},${ifcStr(task.description)},$,${ifcStr(task.wbsCode)},$,$,$,${ifcBool(task.isMilestone)},${priorityArg},#${taskTimeId},${ifcTaskType})`);
 }
 
 function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
@@ -616,9 +619,16 @@ function writeAssignments(ctx: WriteContext, assignments: ResourceAssignment[], 
  * geen eigen pset dragen (het is een `IfcRelationship`, geen `IfcObjectDefinition` —
  * `IfcRelDefinesByProperties.RelatedObjects` accepteert dat type niet). Per-assignment
  * `unitsPerDay`+`curve` gaat daarom in een pset op de taak zelf: één
- * `IFCPROPERTYSINGLEVALUE` per assignment, property-naam = de resource-GUID (dezelfde
- * `ifcGuid(...)` als `writeResource` voor die resource schreef), waarde = `"unitsPerDay|curve"`.
- * Alleen geschreven wanneer de taak minstens één assignment heeft (golden rule §7.7).
+ * `IFCPROPERTYSINGLEVALUE` per assignment, waarde = `"unitsPerDay|curve"`.
+ *
+ * Property-naam = `"<resource-GUID>#<volgnummer>"` (M3-fix): de kale resource-GUID als
+ * propertynaam corrumpeerde meerdere assignments van DEZELFDE resource op één taak (bv.
+ * R×1(UNIFORM) + R×0.5(BELL)) — de reader dedupte op propertynaam → last-wins. Het
+ * `#<volgnummer>`-achtervoegsel (0-based positie binnen de assignmentlijst van de taak) maakt
+ * elke property uniek. `ifcGuid(...)` produceert nooit een `#`, dus het scheidingsteken is
+ * eenduidig. De reader leest ZOWEL dit nieuwe formaat (`GUID#N`) als het oude kale-GUID-formaat
+ * (legacy bestanden, §7.4). Alleen geschreven wanneer de taak minstens één assignment heeft
+ * (golden rule §7.7).
  */
 function writeAssignmentMeta(
   ctx: WriteContext,
@@ -634,11 +644,12 @@ function writeAssignmentMeta(
   for (const task of tasks) {
     const list = byTask.get(task.id);
     if (!list || list.length === 0) continue;
-    const props = list.map(a => {
+    const props = list.map((a, index) => {
       const resGuid = ifcGuid(a.resourceId); // zelfde GUID als writeResource gebruikte
+      const propName = `${resGuid}#${index}`; // uniek per assignment (M3)
       const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
       const propId = addLine(ctx, `_asgn_${task.id}_${a.id}`,
-        `IFCPROPERTYSINGLEVALUE(${ifcStr(resGuid)},$,IFCTEXT(${ifcStr(val)}),$)`);
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(propName)},$,IFCTEXT(${ifcStr(val)}),$)`);
       return `#${propId}`;
     });
     const setId = addLine(ctx, `_pset_asgn_${task.id}`,

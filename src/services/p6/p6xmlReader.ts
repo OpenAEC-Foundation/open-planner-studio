@@ -142,7 +142,9 @@ export function readP6XML(content: string): {
       name,
       type: resourceTypeFromP6(p6Type),
       description: '',
-      maxUnits: maxUnitsPerTime > 0 ? maxUnitsPerTime / hoursPerDay : 1,
+      // MaxUnitsPerTime is in P6-XML een dimensieloze fractie (1.0 = 100%), geen uren/dag
+      // (L2-fix — spiegel van p6xmlWriter, MPXJ-bron aldaar), dus 1:1 overnemen.
+      maxUnits: maxUnitsPerTime > 0 ? maxUnitsPerTime : 1,
     };
     if (unitOfMeasure) resource.unitOfMeasure = unitOfMeasure;
     if (calObjId >= 0 && calObjIdToId.has(calObjId)) resource.calendarId = calObjIdToId.get(calObjId);
@@ -154,6 +156,30 @@ export function readP6XML(content: string): {
     if (!parentId) continue;
     const resource = resources.find(r => r.id === resId);
     if (resource) resource.parentId = parentId;
+  }
+
+  // ResourceRates (fase 2.5, M4-fix): top-level <ResourceRate>-elementen (siblings van
+  // <Resource>, spiegel van p6xmlWriter) — PricePerUnit is het uurtarief. Meerdere rijen
+  // per resource (effective-dated staffel, P6-native): de rij met de vroegste EffectiveDate
+  // wint als ons ene vlakke `costPerHour` (staffels zijn buiten scope, §1/§8.4).
+  const rateElements = getAllByLocalName(doc, 'ResourceRate');
+  const earliestRate = new Map<string, { effective: string; price: number }>();
+  for (const rateEl of rateElements) {
+    const rateResObjId = getElementInt(rateEl, 'ResourceObjectId', -1);
+    const resId = resObjIdToId.get(rateResObjId);
+    if (!resId) continue;
+    const priceText = getElementText(rateEl, 'PricePerUnit');
+    const price = parseFloat(priceText);
+    if (!priceText || !Number.isFinite(price)) continue;
+    const effective = getElementText(rateEl, 'EffectiveDate'); // '' sorteert vóór elke datum
+    const current = earliestRate.get(resId);
+    if (!current || effective < current.effective) {
+      earliestRate.set(resId, { effective, price });
+    }
+  }
+  for (const [resId, rate] of earliestRate) {
+    const resource = resources.find(r => r.id === resId);
+    if (resource) resource.costPerHour = rate.price;
   }
 
   // Parse project
@@ -333,7 +359,9 @@ export function readP6XML(content: string): {
       id: generateId('asgn'),
       taskId,
       resourceId,
-      unitsPerDay: plannedUnitsPerTime > 0 ? plannedUnitsPerTime / hoursPerDay : 1,
+      // PlannedUnitsPerTime is een fractie (1.0 = 100%), geen uren/dag (L2-fix,
+      // spiegel van p6xmlWriter) — 1:1 overnemen.
+      unitsPerDay: plannedUnitsPerTime > 0 ? plannedUnitsPerTime : 1,
       ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
     });
   }

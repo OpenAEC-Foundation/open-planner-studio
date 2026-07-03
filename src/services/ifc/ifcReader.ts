@@ -221,8 +221,20 @@ function extractTasks(
     const id = generateId('task');
     taskStepIdMap.set(te.id, id);
 
+    // Twee IFCTASK-lay-outs (L1-fix, zie writeTask): spec-conform IFC 4.3 telt 13 args
+    // (WorkMethod op index 8; IsMilestone/Priority/TaskTime/PredefinedType op 9/10/11/12) —
+    // dat schrijven wij nu zelf en dat schrijven ook bestanden van derden. Oudere
+    // OPS-bestanden tellen 12 args (WorkMethod ontbrak; dezelfde vier attributen één
+    // positie eerder op 8/9/10/11). Detectie op arg-count: exact 12 = legacy-OPS-lay-out,
+    // al het andere = spec-lay-out.
+    const legacy12 = te.args.length === 12;
+    const isMilestoneIdx = legacy12 ? 8 : 9;
+    const priorityIdx = legacy12 ? 9 : 10;
+    const taskTimeIdx = legacy12 ? 10 : 11;
+    const predefinedTypeIdx = legacy12 ? 11 : 12;
+
     // Parse IfcTaskTime reference
-    const taskTimeRef = parseRef(te.args[10] || '');
+    const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
     let time: TaskTime;
     if (taskTimeRef) {
       const ttEntity = entityMap.get(taskTimeRef);
@@ -231,12 +243,12 @@ function extractTasks(
       time = createDefaultTaskTime(formatDate(new Date()), 5);
     }
 
-    const isMilestone = te.args[8]?.includes('T') || false;
+    const isMilestone = te.args[isMilestoneIdx]?.includes('T') || false;
     if (isMilestone) time.scheduleDuration = 0;
 
-    // IfcTask.Priority (arg9, zie writeTask voor de index-verificatie). Veilige parse
+    // IfcTask.Priority (zie writeTask voor de index-verificatie). Veilige parse
     // zonder `||`-valkuil (§7.6): `0 || 500` zou een legitieme prioriteit 0 corrumperen.
-    const priorityRaw = (te.args[9] || '').trim();
+    const priorityRaw = (te.args[priorityIdx] || '').trim();
     let priority = DEFAULT_PRIORITY;
     if (priorityRaw && priorityRaw !== '$') {
       const p = parseInt(priorityRaw, 10);
@@ -248,7 +260,7 @@ function extractTasks(
       name: stripQuotes(te.args[2] || '') || 'Naamloze taak',
       description: stripQuotes(te.args[3] || '') || '',
       wbsCode: stripQuotes(te.args[5] || '') || '',
-      taskType: te.args[11] ? parseTaskType(te.args[11]) : 'CONSTRUCTION',
+      taskType: te.args[predefinedTypeIdx] ? parseTaskType(te.args[predefinedTypeIdx]) : 'CONSTRUCTION',
       status: 'NOT_STARTED',
       isMilestone,
       priority,
@@ -749,11 +761,32 @@ function extractResourceCalendars(
   return resourceCalendars;
 }
 
+interface AssignmentMeta {
+  unitsPerDay: number;
+  curve?: ResourceCurve;
+}
+
+/** Per-taak verzamelde OPS_Assignments-meta: nieuw formaat (`GUID#N`-propnamen) als
+ *  geordende wachtrij per resource-GUID, oud formaat (kale GUID) als één meta per GUID. */
+interface TaskAssignmentMeta {
+  /** Nieuw formaat (M3): resource-GUID -> metas gesorteerd op `#N`-volgnummer. Meerdere
+   *  assignments van dezelfde resource op één taak consumeren de wachtrij in volgorde —
+   *  de `IFCRELASSIGNSTOPROCESS.RelatedObjects`-volgorde en de `#N`-volgorde komen uit
+   *  dezelfde bron (de assignments-array, zie writeAssignments/writeAssignmentMeta), dus
+   *  ze lopen per resource synchroon. */
+  queues: Map<string, AssignmentMeta[]>;
+  /** Legacy formaat (pre-M3-bestanden): kale resource-GUID als propnaam, max één meta
+   *  per GUID (het oude last-wins-gedrag — meer valt uit zo'n bestand niet te herstellen). */
+  legacy: Map<string, AssignmentMeta>;
+}
+
 /**
  * Fase 2.5 — `OPS_Assignments`-pset teruglezen (§7.4, spiegel van `writeAssignmentMeta`):
- * property-naam = resource-GUID (dezelfde GlobalId-string als de resource-entiteit zelf),
- * waarde = `"unitsPerDay|curve"`. Ontbreekt de pset-entry (legacy bestand) dan geldt de
- * bestaande fallback `unitsPerDay: 1, curve: undefined`.
+ * property-naam = `"<resource-GUID>#<volgnummer>"` (nieuw formaat, M3-fix: uniek per
+ * assignment, zodat dubbele assignments van dezelfde resource op één taak niet meer
+ * last-wins-dedupen) óf de kale resource-GUID (legacy, pre-M3-bestanden); waarde =
+ * `"unitsPerDay|curve"`. Ontbreekt de pset-entry (legacy bestand) dan geldt de bestaande
+ * fallback `unitsPerDay: 1, curve: undefined`.
  */
 function extractAssignments(
   entities: StepEntity[],
@@ -761,8 +794,8 @@ function extractAssignments(
   taskStepIdMap: Map<string, string>,
   resourceStepIdMap: Map<string, string>,
 ): ResourceAssignment[] {
-  // 1. OPS_Assignments-psets per taak verzamelen: taskStepRef -> (resourceGuid -> meta).
-  const metaByTask = new Map<string, Map<string, { unitsPerDay: number; curve?: ResourceCurve }>>();
+  // 1. OPS_Assignments-psets per taak verzamelen: taskStepRef -> TaskAssignmentMeta.
+  const metaByTask = new Map<string, TaskAssignmentMeta>();
   for (const rel of entities) {
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
@@ -775,15 +808,36 @@ function extractAssignments(
 
     for (const objRef of parseRefs(rel.args[4] || '')) {
       let taskMeta = metaByTask.get(objRef);
-      if (!taskMeta) { taskMeta = new Map(); metaByTask.set(objRef, taskMeta); }
+      if (!taskMeta) {
+        taskMeta = { queues: new Map(), legacy: new Map() };
+        metaByTask.set(objRef, taskMeta);
+      }
+      // Nieuw formaat eerst indexeren zodat de wachtrij op volgnummer gesorteerd wordt
+      // (de STEP-property-volgorde in de pset is in de praktijk al de schrijfvolgorde,
+      // maar de expliciete `#N` is de autoritaire volgorde).
+      const indexed: { guid: string; index: number; meta: AssignmentMeta }[] = [];
       for (const prop of props) {
-        const resGuid = stripQuotes(prop.args[0] || '');
+        const propName = stripQuotes(prop.args[0] || '');
         const value = parseTypedValue(prop.args[2] || '');
         if (typeof value !== 'string') continue;
         const [unitsRaw, curveRaw] = value.split('|');
         const unitsPerDay = parseFloat(unitsRaw);
         const curve = VALID_CURVES.includes(curveRaw as ResourceCurve) ? (curveRaw as ResourceCurve) : undefined;
-        taskMeta.set(resGuid, { unitsPerDay: Number.isFinite(unitsPerDay) ? unitsPerDay : 1, curve });
+        const meta: AssignmentMeta = { unitsPerDay: Number.isFinite(unitsPerDay) ? unitsPerDay : 1, curve };
+        // `#` komt nooit voor in een IFC-GlobalId (charset [0-9A-Za-z_$]), dus een
+        // `GUID#N`-match is eenduidig nieuw formaat; al het andere is legacy kale-GUID.
+        const m = propName.match(/^(.+)#(\d+)$/);
+        if (m) {
+          indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
+        } else {
+          taskMeta.legacy.set(propName, meta);
+        }
+      }
+      indexed.sort((a, b) => a.index - b.index);
+      for (const { guid, meta } of indexed) {
+        let queue = taskMeta.queues.get(guid);
+        if (!queue) { queue = []; taskMeta.queues.set(guid, queue); }
+        queue.push(meta);
       }
     }
   }
@@ -806,7 +860,10 @@ function extractAssignments(
 
       const resEntity = entityMap.get(resRef);
       const resGuid = resEntity ? stripQuotes(resEntity.args[0] || '') : '';
-      const meta = taskMeta?.get(resGuid);
+      // Nieuw formaat: consumeer de volgende meta uit de wachtrij voor deze resource
+      // (elke herhaling van dezelfde resource in RelatedObjects is een eigen assignment);
+      // val terug op de legacy kale-GUID-meta voor pre-M3-bestanden.
+      const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
 
       // 'UNIFORM' is de writer-default (a.curve ?? 'UNIFORM') — canonicaliseer terug naar
       // undefined zodat undefined en 'UNIFORM' round-trippen naar dezelfde waarde

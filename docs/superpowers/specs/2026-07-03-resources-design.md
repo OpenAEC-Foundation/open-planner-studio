@@ -339,6 +339,12 @@ function largestRemainderRound(values: number[], targetSum: number): number[] {
 }
 ```
 
+**Bekend randgeval (L3, gedocumenteerd gedrag — geen bug):** op een 2-daagse taak samplet
+`distributeUnits` alleen `t=0` en `t=1`; de piek-controlepunten van `BELL`/`EARLY_PEAK`/`LATE_PEAK`
+(op ½, ⅓ resp. ⅔) worden dan nooit gesampled, waardoor die drie curves stil vervlakken tot dezelfde
+50/50-verdeling als `UNIFORM`. Dit is inherent aan 2-punts-sampling van een gepiekte curve; vanaf
+D=3 is de piek wél zichtbaar.
+
 Named presets zijn exact de vijf uit het domeinrapport (`front-loaded [(0,1.0),(1,0.2)]`,
 `back-loaded [(0,0.2),(1,1.0)]`, `bell [(0,0.2),(0.5,1.0),(1,0.2)]`, `early/late-peak` piek op ⅓/⅔).
 *Invulling, te bevestigen bij review*: een power-user-optie om een eigen controlepunt-array op te
@@ -756,9 +762,16 @@ per taak tot één `IFCRELASSIGNSTOPROCESS` (task = `RelatingProcess` in arg 6, 
 `RelatedObjects` arg 4 — bevestigd correcte richting, `extractAssignments` leest dit al goed terug,
 `ifcReader.ts:600,605`). De per-assignment-payload gaat in een **nieuwe** `OPS_Assignments`-pset **op
 de `IFCTASK`-entiteit** (niet op de relatie): één `IFCPROPERTYSINGLEVALUE` per assignment, met
-**property-naam = de resource-GUID** en **waarde = `"unitsPerDay|curve"`** (bv.
-`'2h7K...9x': IFCTEXT('1.5|BACK_LOADED')`), zoals B8 voorschrijft. Alleen geschreven wanneer de taak
-minstens één assignment heeft.
+**property-naam = `"<resource-GUID>#<volgnummer>"`** en **waarde = `"unitsPerDay|curve"`** (bv.
+`'2h7K...9x#0': IFCTEXT('1.5|BACK_LOADED')`). Alleen geschreven wanneer de taak minstens één
+assignment heeft.
+
+> **Review-correctie (M3):** B8 schreef oorspronkelijk de kale resource-GUID als property-naam voor;
+> dat dedupte meerdere assignments van dezelfde resource op één taak (reader-Map op GUID →
+> last-wins, bv. R×1(UNIFORM)+R×0.5(BELL) kwam terug als 2×0.5(BELL)). Het `#<volgnummer>`
+> (0-based positie in de assignmentlijst van de taak) maakt elke property uniek; `#` komt nooit in
+> een IFC-GlobalId voor. De reader leest het nieuwe formaat exact (wachtrij per GUID, op volgnummer)
+> en valt voor pre-M3-bestanden terug op de kale-GUID-lezing (legacy, max één meta per resource).
 
 ```ts
 function writeAssignmentMeta(ctx: WriteContext, tasks: Task[], assignments: ResourceAssignment[], ownerHistId: number): void {
@@ -883,15 +896,24 @@ genegeerde `_resources`/`_assignments`, regel 67-68) en `src/services/msproject/
 `Labor|Nonlabor|Material` (`LABOR`→`Labor`, `EQUIPMENT`/`SUBCONTRACTOR`→`Nonlabor`, `CREW`→`Labor`
 + `ParentObjectId` gezet op het eigen id zodat leden ernaar kunnen verwijzen, `MATERIAL`→`Material`
 + verplichte `UnitOfMeasureAbbreviation` = `resource.unitOfMeasure`), `MaxUnitsPerTime` =
-`maxUnits × calendar.hoursPerDay` (uren/dag — P6 slaat dit in tijdseenheden op, domeinrapport §9),
-`CalendarObjectId` (verwijst naar de nieuw geschreven `<Calendar Type="Resource">`-entry wanneer
+`maxUnits` **als dimensieloze fractie (1.0 = 100%)** — *review-correctie L2: het ontwerp schreef
+hier eerst `× hoursPerDay` (uren/dag), maar echt P6-XML slaat Units/Time op als fractie; geverifieerd
+tegen MPXJ (`XmlContextWriter.writeResource` schrijft `DefaultUnits/100.0`, `PmxmlUnitsHelper`
+schaalt percentages /100 naar het bestand — github.com/joniles/mpxj)*, `CalendarObjectId` (verwijst naar de nieuw geschreven `<Calendar Type="Resource">`-entry wanneer
 `calendarId` gezet is; anders naar de bestaande projectkalender-entry — huidige writer hardcodeert
 `<CalendarObjectId>1</CalendarObjectId>` op regel 141, dat wordt de echte referentie), `ParentObjectId`
 voor ploeg-leden (`resource.parentId` → het P6-`ObjectId` van de parent-CREW-resource).
 
 **`<ResourceAssignment>`** (nieuw, per assignment): `ActivityObjectId`/`ResourceObjectId`,
-`PlannedUnitsPerTime` = `unitsPerDay × calendar.hoursPerDay`, `PlannedCurve` = curve-naam-mapping
-(zie tabel §8.3).
+`PlannedUnitsPerTime` = `unitsPerDay` **als fractie (1.0 = 100%** — zelfde L2-correctie en
+MPXJ-bron als `MaxUnitsPerTime` hierboven; de oorspronkelijke `× hoursPerDay` is geschrapt**)**,
+`PlannedCurve` = curve-naam-mapping (zie tabel §8.3).
+
+**`<ResourceRate>`** (nieuw, M4): het tarief zit in P6-XML niet op `<Resource>` maar in aparte
+top-level `<ResourceRate>`-elementen (siblings van `<Resource>`, MPXJ
+`XmlContextWriter.writeResourceRates`): `ObjectId`, `ResourceObjectId`, `EffectiveDate`
+(projectstart), `PricePerUnit` = `costPerHour` (uurtarief). Reader: vroegste `EffectiveDate` wint
+als ons ene vlakke tarief.
 
 **Reader**: omgekeerd — `Nonlabor`→`EQUIPMENT` als default (SUBCONTRACTOR is niet onderscheidbaar uit
 alleen `ResourceType`; *invulling, te bevestigen bij review*: als P6 een `RoleObjectId`/naam-heuristiek

@@ -164,8 +164,13 @@ export function writeP6XML(
     lines.push(`${indent(2)}<ResourceType>${resourceTypeToP6(res.type)}</ResourceType>`);
     const calObjId = (res.calendarId && calObjMap.get(res.calendarId)) || 1;
     lines.push(`${indent(2)}<CalendarObjectId>${calObjId}</CalendarObjectId>`);
-    // MaxUnitsPerTime: P6 slaat capaciteit op in tijdseenheden (uren/dag), niet als factor.
-    lines.push(`${indent(2)}<MaxUnitsPerTime>${res.maxUnits * calendar.hoursPerDay}</MaxUnitsPerTime>`);
+    // MaxUnitsPerTime: in P6-XML een dimensieloze FRACTIE (1.0 = 100% = één volle eenheid),
+    // GEEN uren/dag (L2-fix — geverifieerd tegen MPXJ: XmlContextWriter.writeResource schrijft
+    // `getDefaultUnits() / 100.0`, en MPXJ-intern is 100 = 100%, dus 1.0 in het bestand = 100%;
+    // bron: github.com/joniles/mpxj — org/mpxj/primavera/XmlContextWriter.java,
+    // PmxmlUnitsHelper.java + AbstractUnitsHelper.getPercentage). Ons `maxUnits` is al een
+    // fractie (1 = één persoon/stuk), dus 1:1 wegschrijven.
+    lines.push(`${indent(2)}<MaxUnitsPerTime>${res.maxUnits}</MaxUnitsPerTime>`);
     if (res.type === 'MATERIAL' && res.unitOfMeasure) {
       lines.push(`${indent(2)}<UnitOfMeasureAbbreviation>${escapeXML(res.unitOfMeasure)}</UnitOfMeasureAbbreviation>`);
     }
@@ -173,6 +178,25 @@ export function writeP6XML(
       lines.push(`${indent(2)}<ParentObjectId>${resObjMap.get(res.parentId)}</ParentObjectId>`);
     }
     lines.push(`${indent(1)}</Resource>`);
+  }
+
+  // ResourceRates (fase 2.5, M4-fix): P6-XML draagt het tarief NIET op <Resource> zelf maar
+  // in aparte top-level <ResourceRate>-elementen (siblings van <Resource> onder
+  // APIBusinessObjects), met ResourceObjectId + PricePerUnit (tarief per uur) + EffectiveDate
+  // — zo schrijft MPXJ het ook (XmlContextWriter.writeResourceRates: EffectiveDate,
+  // MaxUnitsPerTime, ObjectId, PricePerUnit(1-5), ResourceObjectId; bron:
+  // github.com/joniles/mpxj). OPS heeft één vlak tarief (§8.4), dus één rate-rij per
+  // resource, effectief vanaf de projectstart.
+  let rateObjId = 1;
+  for (const res of resources) {
+    if (res.costPerHour === undefined) continue;
+    const rateResObjId = resObjMap.get(res.id)!;
+    lines.push(`${indent(1)}<ResourceRate>`);
+    lines.push(`${indent(2)}<ObjectId>${rateObjId++}</ObjectId>`);
+    lines.push(`${indent(2)}<ResourceObjectId>${rateResObjId}</ResourceObjectId>`);
+    lines.push(`${indent(2)}<EffectiveDate>${formatP6DateTime(project.startDate)}</EffectiveDate>`);
+    lines.push(`${indent(2)}<PricePerUnit>${res.costPerHour}</PricePerUnit>`);
+    lines.push(`${indent(1)}</ResourceRate>`);
   }
 
   // WBS elements
@@ -263,7 +287,10 @@ export function writeP6XML(
     lines.push(`${indent(2)}<ObjectId>${asgnObjId++}</ObjectId>`);
     lines.push(`${indent(2)}<ActivityObjectId>${actObjId}</ActivityObjectId>`);
     lines.push(`${indent(2)}<ResourceObjectId>${resObjId}</ResourceObjectId>`);
-    lines.push(`${indent(2)}<PlannedUnitsPerTime>${a.unitsPerDay * calendar.hoursPerDay}</PlannedUnitsPerTime>`);
+    // PlannedUnitsPerTime: fractie, 1.0 = 100% (L2-fix — zelfde semantiek en MPXJ-bron als
+    // MaxUnitsPerTime hierboven; PmxmlUnitsHelper schaalt MPXJ-percentages /100 naar het
+    // bestand). Ons `unitsPerDay` is al een fractie, dus 1:1.
+    lines.push(`${indent(2)}<PlannedUnitsPerTime>${a.unitsPerDay}</PlannedUnitsPerTime>`);
     const curveName = a.curve ? P6_CURVE_TO_NAME[a.curve] : undefined;
     if (curveName) {
       if (a.curve === 'LATE_PEAK') {
