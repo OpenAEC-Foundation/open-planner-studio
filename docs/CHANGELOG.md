@@ -45,6 +45,19 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   (dat is nu voorbehouden aan het inspectiemoment).
 
 ### Opgelost
+- **In-app updater op .deb-installaties (Ubuntu/Debian)**: .deb-installs kregen alleen
+  handmatige update-instructies, op de verouderde aanname dat de Tauri-updater .deb niet
+  in-place kan vervangen. De updater-plugin (≥2.6; wij draaien 2.10.1) doet dat wél —
+  hij matcht de `linux-x86_64-deb`-entry in `latest.json` via de bundle-type-stempel in
+  het binary en installeert via pkexec/sudo + `dpkg -i`. De update-dialog toont op .deb
+  nu de normale "Downloaden en installeren"-knop; het handmatige copy-paste-commando en
+  de downloadpagina-knop blijven als fallback wanneer de installatie faalt.
+- **Windows-auto-update brak door draft-URL in `latest.json`**: de re-sign-stap in
+  `release.yml` nam de download-URL over uit de GitHub-API terwijl de release nog draft
+  was, waardoor de `windows-x86_64(-nsis)`-entries naar een `untagged-…`-URL wezen die
+  na publicatie 404't (zo geschied in v2026.7.1). De workflow bouwt nu zelf de stabiele
+  `releases/latest/download/`-URL uit de assetnaam; de `latest.json` van release
+  v2026.7.1 is ter plekke gerepareerd (alle URL's geverifieerd 200, signatures ongewijzigd).
 - **Scherp app-icoon op Linux**: het runtime-venstericoon was 32×32 (eerste PNG in
   `bundle.icon`), waardoor docks een opgeschaald wazig icoon toonden. `icon.png` (512 px)
   staat nu vooraan, 256×256/512×512 vullen de hicolor-slots in de `.deb`/snap en alle

@@ -105,3 +105,29 @@ macOS universal). `open-calc-studio` zelf heeft géén updater — niet als refe
 - Een test-tag `vX.Y.Z` produceert een release met installers **én** `latest.json` + `.sig` voor alle 3 OS'en.
 - Een geïnstalleerde oudere versie detecteert de nieuwe via de in-app check en update + herstart succesvol
   (minimaal Windows + Linux; macOS unsigned handmatig te testen).
+
+## Aanvulling (2026-07-03) — .deb-auto-update + stabiele latest.json-URL's
+
+Twee lessen uit het onderzoek "updater werkt niet op .deb (Ubuntu)":
+
+1. **.deb is een volwaardig auto-update-platform.** `tauri-plugin-updater` ≥2.6 (wij: 2.10.1)
+   detecteert het install-type via een bundle-type-stempel die de bundler in het binary patcht
+   (`__TAURI_BUNDLE_TYPE_VAR_DEB` — geverifieerd aanwezig in de gepubliceerde v2026.7.1-deb).
+   Daardoor zoekt de plugin éérst `linux-x86_64-deb` in `latest.json` (fallback `linux-x86_64`)
+   en installeert hij via pkexec → zenity/kdialog+sudo → sudo met `dpkg -i`. De oude gating
+   in `UpdateDialog` (deb → alleen handmatige instructies) was gebaseerd op een achterhaalde
+   aanname en is vervangen: deb krijgt de normale installeerknop; het copy-paste-commando en
+   de downloadpagina-knop blijven enkel als fallback bij een fout. Alleen **snap** slaat de
+   in-app updater nog over (snapd werkt zelf bij).
+2. **Schrijf in `latest.json` nooit asset-URL's over uit de API zolang de release draft is.**
+   `gh release view --json assets` geeft tijdens de draft-fase `releases/download/untagged-…`-
+   URL's terug die na publicatie 404'en (zo brak Windows-auto-update in v2026.7.1). De
+   re-sign-stap in `release.yml` gebruikt nu alleen de asset-*naam* uit de API (vanwege
+   GitHub's spatie→punt-herschrijving) en bouwt zelf de stabiele
+   `releases/latest/download/<naam>`-URL — consistent met wat tauri-action voor linux/macos
+   schrijft. De `latest.json` van v2026.7.1 is achteraf op de release gerepareerd
+   (alleen URL's; signatures ongewijzigd geldig).
+
+Kanttekening voor de eerstvolgende release: bestaande .deb-installaties draaien nog de oude
+dialog en moeten dus **éénmalig handmatig** naar de eerste versie mét deze fix; daarna updaten
+ze in-app.
