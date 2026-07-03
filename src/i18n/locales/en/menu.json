@@ -169,7 +169,8 @@
     "selection": "Selection: {{count}} task(s)",
     "scale": "Scale:",
     "zoom": "Zoom: {{level}}px/day",
-    "unsaved": "Unsaved"
+    "unsaved": "Unsaved",
+    "scheduleStale": "Out of date — recalculate (F5)"
   },
   "menuBar": {
     "file": "File",

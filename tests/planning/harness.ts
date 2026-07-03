@@ -36,6 +36,7 @@
 import { useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/types/task';
 import type { ResourceType, ResourceCurve } from '@/types/resource';
+import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { readFileSync } from 'node:fs';
 
 const S = () => useAppStore.getState();
@@ -64,10 +65,43 @@ interface Case {
    *  her-draai daarna CPM. `levelResources` hoort puur te zijn (geen state-mutatie), dus de
    *  assertions moeten identiek zijn aan een kale runCPM. Wederzijds exclusief met `level`. */
   levelPreview?: { constrainToFloat?: boolean; resources?: string[] };
+  /** Ops ná de eerste runCPM (deze golf), in volgorde uitgevoerd — voor A5/A6-scenario's die een
+   *  mutatie ZONDER F5, een assign-verse-load, een undo of een nivellering testen. De gewone
+   *  `expect`-assertions lopen tegen de EINDstaat. */
+  afterCPM?: AfterOp[];
+  /** Nivelleer-PREVIEW-assertions (deze golf, A1/A3/A4): draait `levelResources` (puur, geen apply)
+   *  en checkt de teruggegeven `LevelingResult`. */
+  previewExpect?: {
+    constrainToFloat?: boolean; resources?: string[];
+    projectEndAfter?: string;
+    shiftedTasks?: string[];      // namen aanwezig in result.shifts (verzameling)
+    unresolvedTasks?: string[];   // namen aanwezig in result.unresolved (verzameling)
+    reasons?: Record<string, string>; // taaknaam → verwachte reden
+  };
   expect: any;
 }
 
-function buildAndSolve(c: Case): { ids: Record<string, string>; resIds: Record<string, string> } {
+type AfterOp =
+  | { setDuration: { task: string; dur: number } }
+  | { assign: { task: string; res: string; units: number; curve?: ResourceCurve } }
+  | { runCPM: true }
+  | { undo: true }
+  | { applyLevel: { constrainToFloat?: boolean; resources?: string[] } };
+
+function resolveResourceIds(names: string[] | undefined, resIds: Record<string, string>, ctx: string): string[] | undefined {
+  return names
+    ? names.map(n => {
+        if (!resIds[n]) throw new Error(`${ctx}: onbekende resource "${n}"`);
+        return resIds[n];
+      })
+    : undefined;
+}
+
+function buildAndSolve(c: Case): {
+  ids: Record<string, string>;
+  resIds: Record<string, string>;
+  previewResult: LevelingResult | null;
+} {
   S().newProject();
   // Kalender: schoon tenzij expliciet opgegeven.
   const base = S().calendar;
@@ -177,12 +211,7 @@ function buildAndSolve(c: Case): { ids: Record<string, string>; resIds: Record<s
   // (referentie-delen met de store), dan zou deze her-runCPM de datums opschuiven — precies het
   // scenario dat we willen bewaken.
   if (c.levelPreview) {
-    const resourceIds = c.levelPreview.resources
-      ? c.levelPreview.resources.map(n => {
-          if (!resIds[n]) throw new Error(`levelPreview.resources: onbekende resource "${n}"`);
-          return resIds[n];
-        })
-      : undefined;
+    const resourceIds = resolveResourceIds(c.levelPreview.resources, resIds, 'levelPreview.resources');
     S().levelResources({
       constrainToFloat: !!c.levelPreview.constrainToFloat,
       ...(resourceIds ? { resourceIds } : {}),
@@ -190,7 +219,43 @@ function buildAndSolve(c: Case): { ids: Record<string, string>; resIds: Record<s
     S().runCPM();
   }
 
-  return { ids, resIds };
+  // Ops ná de eerste runCPM (A5/A6): mutaties zonder F5, assign-verse-load, undo, nivellering.
+  for (const op of c.afterCPM ?? []) {
+    if ('setDuration' in op) {
+      const tid = ids[op.setDuration.task];
+      if (!tid) throw new Error(`afterCPM.setDuration: onbekende taak "${op.setDuration.task}"`);
+      const task = S().tasks.find(t => t.id === tid)!;
+      S().updateTask(tid, { time: { ...task.time, scheduleDuration: op.setDuration.dur } });
+    } else if ('assign' in op) {
+      const tid = ids[op.assign.task];
+      if (!tid) throw new Error(`afterCPM.assign: onbekende taak "${op.assign.task}"`);
+      if (!resIds[op.assign.res]) throw new Error(`afterCPM.assign: onbekende resource "${op.assign.res}"`);
+      S().assignResource(tid, resIds[op.assign.res], op.assign.units, op.assign.curve);
+    } else if ('runCPM' in op) {
+      S().runCPM();
+    } else if ('undo' in op) {
+      S().undo();
+    } else if ('applyLevel' in op) {
+      const resourceIds = resolveResourceIds(op.applyLevel.resources, resIds, 'afterCPM.applyLevel.resources');
+      const r = S().levelResources({
+        constrainToFloat: !!op.applyLevel.constrainToFloat,
+        ...(resourceIds ? { resourceIds } : {}),
+      });
+      S().applyLeveling(r);
+    }
+  }
+
+  // Nivelleer-PREVIEW-assertions (A1/A3/A4): puur, geen apply.
+  let previewResult: LevelingResult | null = null;
+  if (c.previewExpect) {
+    const resourceIds = resolveResourceIds(c.previewExpect.resources, resIds, 'previewExpect.resources');
+    previewResult = S().levelResources({
+      constrainToFloat: !!c.previewExpect.constrainToFloat,
+      ...(resourceIds ? { resourceIds } : {}),
+    });
+  }
+
+  return { ids, resIds, previewResult };
 }
 
 function readTask(name: string, ids: Record<string, string>) {
@@ -205,12 +270,19 @@ function readTask(name: string, ids: Record<string, string>) {
 
 const KEYMAP: Record<string, string> = { es: 'es', ef: 'ef', ls: 'ls', lf: 'lf', tf: 'tf', ff: 'ff', crit: 'crit' };
 
+/** taskId → naam (omgekeerde van de ids-map), voor de preview-assertions. */
+function nameOf(tid: string, ids: Record<string, string>): string {
+  for (const [n, i] of Object.entries(ids)) if (i === tid) return n;
+  return tid;
+}
+
 function runCase(c: Case) {
   const diffs: string[] = [];
   let ids: Record<string, string> = {};
   let resIds: Record<string, string> = {};
+  let previewResult: LevelingResult | null = null;
   try {
-    ({ ids, resIds } = buildAndSolve(c));
+    ({ ids, resIds, previewResult } = buildAndSolve(c));
   } catch (e) {
     return { id: c.id, title: c.title, pass: false, diffs: [`THREW: ${String(e)}`] };
   }
@@ -284,6 +356,41 @@ function runCase(c: Case) {
     diffs.push(`projectEnd: verwacht ${exp.projectEnd}, kreeg ${cpm?.projectEnd}`);
   if (exp.projectDuration !== undefined && cpm?.projectDuration !== exp.projectDuration)
     diffs.push(`projectDuration: verwacht ${exp.projectDuration}, kreeg ${cpm?.projectDuration}`);
+
+  // "Verouderd"-vlag (A6): staat de planning-stale-vlag op de verwachte waarde na de afterCPM-ops?
+  if (exp.scheduleStale !== undefined && S().scheduleStale !== exp.scheduleStale)
+    diffs.push(`scheduleStale: verwacht ${exp.scheduleStale}, kreeg ${S().scheduleStale}`);
+
+  // Nivelleer-PREVIEW-assertions (A1/A3/A4) tegen het teruggegeven LevelingResult.
+  if (c.previewExpect) {
+    const pr = previewResult;
+    if (!pr) {
+      diffs.push('previewExpect: geen LevelingResult (levelResources gaf niets terug)');
+    } else {
+      const pe = c.previewExpect;
+      if (pe.projectEndAfter !== undefined && pr.projectEndAfter !== pe.projectEndAfter)
+        diffs.push(`preview.projectEndAfter: verwacht ${pe.projectEndAfter}, kreeg ${pr.projectEndAfter}`);
+      if (pe.shiftedTasks) {
+        const got = Object.keys(pr.shifts).map(tid => nameOf(tid, ids)).sort();
+        const want = [...pe.shiftedTasks].sort();
+        if (JSON.stringify(got) !== JSON.stringify(want))
+          diffs.push(`preview.shiftedTasks: verwacht {${want.join(',')}}, kreeg {${got.join(',')}}`);
+      }
+      if (pe.unresolvedTasks) {
+        const got = Object.keys(pr.unresolved).map(tid => nameOf(tid, ids)).sort();
+        const want = [...pe.unresolvedTasks].sort();
+        if (JSON.stringify(got) !== JSON.stringify(want))
+          diffs.push(`preview.unresolvedTasks: verwacht {${want.join(',')}}, kreeg {${got.join(',')}}`);
+      }
+      if (pe.reasons) {
+        for (const [name, want] of Object.entries(pe.reasons)) {
+          const tid = ids[name];
+          const got = tid ? pr.unresolvedReasons[tid] : undefined;
+          if (got !== want) diffs.push(`preview.reasons.${name}: verwacht ${want}, kreeg ${got}`);
+        }
+      }
+    }
+  }
 
   // Resource-belasting spot-checks (fase 2.5): S().resourceLoadResult?.load[resId]?.[iso].
   if (exp.load) {

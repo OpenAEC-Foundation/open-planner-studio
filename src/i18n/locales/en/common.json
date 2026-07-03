@@ -79,6 +79,15 @@
     "unsavedChanges": "Unsaved changes will be lost. Continue?",
     "restoreRecovery": "A recovery file was found. Would you like to restore your previous work?"
   },
+  "recovery": {
+    "dialogTitle": "Restore unsaved work",
+    "explanation": "Open Planner Studio did not close normally. The following documents had unsaved changes that can be restored:",
+    "timeLabel": "Saved",
+    "taskCount": "{{count}} tasks",
+    "untitled": "Untitled project",
+    "restore": "Restore",
+    "dontRestore": "Don't restore"
+  },
   "window": {
     "minimize": "Minimize",
     "maximize": "Maximize",
@@ -216,7 +225,8 @@
       "overallocatedTooltip": "{{count}} tasks contribute on {{date}}",
       "noData": "Recalculate (F5) to show the load",
       "noResources": "No resources yet",
-      "units": "units"
+      "units": "units",
+      "staleHint": "Schedule out of date — recalculate (F5)"
     },
     "leveling": {
       "dialogTitle": "Level resources",
@@ -238,7 +248,11 @@
       "colNewStart": "New start",
       "colShift": "Days shifted",
       "shiftDays": "{{count}} d",
-      "conflictDays": "{{count}} day(s)"
+      "conflictDays": "{{count}} day(s)",
+      "reason": {
+        "calendarMismatch": "The resource does not work on all days this task needs — shifting cannot resolve this.",
+        "insufficientCapacity": "Not enough free capacity within the slack to resolve this conflict."
+      }
     },
     "curve": {
       "uniform": "Uniform",

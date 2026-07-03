@@ -556,6 +556,50 @@ einddatum: 12-08-2026 → 19-08-2026" of "ongewijzigd"; sectie "Resterende confl
 `unresolved` niet leeg is) → **Toepassen** (committeert, zie §5.6) / **Annuleren** (gooit het
 `LevelingResult` weg, geen store-mutatie).
 
+### 5.9 Correctheids-nazorg (fix-golf 2026-07-03)
+
+Na twee onafhankelijke kritische reviews (beide met headless repro) zijn zeven scheduler-/state-
+bevindingen gerepareerd. De structurele beslissingen die het ontwerp aanscherpen:
+
+- **Verse interne CPM-solve (A2/A4).** `levelResources` leest de sorteersleutels (`totalFloat`/
+  `earlyStart`), de PF-basis, de vastgepinde-boekingspositie én de smoothing-vensters (`lateStart`)
+  niet meer uit de meegegeven `cpmResult` (die na een taakwijziging zonder F5 verouderd kan zijn),
+  maar uit één VERSE `CPMSolver.solve()` op werkkopieën **zonder** `levelingDelay`. `applyLeveling`
+  reset de delays toch vóór herplaatsing, dus die no-delay-baseline is precies het schema waartegen
+  genivelleerd wordt.
+- **Preview = één echte proef-solve (A1).** `projectEndAfter` én de verzameling verschoven taken
+  (`LevelingResult.shifts`) komen uit één proef-`CPMSolver.solve()` op de werkkopieën mét alle nieuwe
+  delays — exact de route die `applyLeveling`→`runCPM` neemt. Zo bevat de preview óók
+  niet-geresourcete FS-opvolgers die pas via de forward pass meeschuiven (de oude heuristiek telde
+  alleen geplaatste taken op en loog dus over de einddatum). `shifts` is een apart preview-veld naast
+  `delays`; `delays` blijft de bron voor wat `applyLeveling` schrijft.
+- **Vastgepind = niet-geleveld, maar volgt voorgangers (A4).** MSP "Do Not Level"-semantiek: een
+  `priority===1000`-taak schuift niet voor capaciteit, maar volgt wél zijn (mogelijk verschoven)
+  voorgangers. Daarom lopen pinned taken nu gewoon door de eligibility-lus (zónder capaciteitsscan):
+  ze worden op hun PF geplaatst en geboekt, zodat de boeking samenvalt met de finale CPM-positie —
+  niet meer voorgeboekt op de stale oorspronkelijke `earlyStart`.
+- **Resource-kalender-haalbaarheid + begrensde scan (A3).** `LevelingResult.unresolvedReasons` geeft
+  per onopgelost item een reden: `INTRINSIC_OVERRUN` (piekvraag > max. capaciteit, ongeacht
+  plaatsing), `CALENDAR_MISMATCH` (geen venster waar alle vraagdagen ook resource-werkdagen zijn) of
+  `INSUFFICIENT_CAPACITY` (wél kalender-haalbaar, maar geen vrije capaciteit binnen de speling). De
+  vaste 5000-dagen-scan is vervangen door een data-gedreven horizon (`Σduur + marge`); de dialoog
+  toont de reden-specifieke uitleg (de intrinsiek-overvraag-uitleg is hergebruikt/gededupliceerd).
+- **Afgeleide resultaten zijn first-class state (A5).** `cpmResult` én `resourceLoadResult` zitten nu
+  in `Snapshot` (per referentie — ze bevatten een `Map` en worden altijd als geheel vervangen) en
+  worden door undo/redo hersteld; `resourceLoadResult` swapt mee per document; `openFile`/
+  `openExampleFromString` draaien na de load `runCPM` (consistent met "after an IFC load").
+- **Belasting reactief, planning handmatig (A6).** Pure resource-mutaties (toewijzen, capaciteit,
+  kalender) roepen `recomputeResourceLoad()` aan — enkel `computeResourceLoad` op de bestaande
+  CPM-datums, geen `runCPM`, datums onaangeroerd (binnen "manual, not reactive"). Datum-rakende
+  mutaties (taak/relatie/projectkalender) zetten in plaats daarvan `scheduleStale` (gewist door
+  `runCPM`), zichtbaar als een subtiele "verouderd — herbereken (F5)"-hint op de statusbalk en de
+  histogramstrook.
+- **Bewuste beperkingen (A7).** (1) Onopgeloste taken boeken hun vraag op PF; dat kan de belasting
+  op die dagen overrapporteren, maar houdt het grootboek reëel voor de volgende plaatsingen — een
+  bewuste keuze. (2) De piek-curves (BELL/EARLY_PEAK/LATE_PEAK) vervlakken op taken van ≤2 dagen naar
+  UNIFORM: de enige monsterpunten (t=0, t=1) vallen op de dal-controlepunten. Inherent aan lineaire
+  interpolatie op zo weinig punten; niet "gerepareerd" (zie codecommentaar bij `distributeUnits`).
+
 ---
 
 ## 6. UI

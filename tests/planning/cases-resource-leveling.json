@@ -340,6 +340,167 @@
         "overallocatedDays": { "R": [] },
         "load": { "R": { "2026-06-01": 2, "2026-06-02": 2 } }
       }
+    },
+    {
+      "id": "lvl-A1-successor-in-preview",
+      "title": "A1: niet-geresourcete FS-opvolger (C) telt mee in de preview-projectEnd én in de verschoven-taken. A (prio 800) blijft, B schuift naar 04-06, C volgt naar 09-06 -> projectEndAfter 10-06 (de oude heuristiek, die alleen geplaatste taken optelde, zou 08-06 zeggen).",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 3, "priority": 800, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 3, "priority": 500, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "C", "dur": 2 }
+      ],
+      "links": [{ "pred": "B", "succ": "C", "type": "FINISH_START" }],
+      "previewExpect": {
+        "constrainToFloat": false,
+        "projectEndAfter": "2026-06-10",
+        "shiftedTasks": ["B", "C"]
+      }
+    },
+    {
+      "id": "lvl-A2-stale-floats-smoothing",
+      "title": "A2: nivelleren (smoothing) NA een duurwijziging zonder F5 gebruikt de VERSE float/venster. L wordt van 10 naar 3 dagen verkort (float van B krimpt 8->1); B past dan niet meer binnen zijn speling en blijft op 01-06 met conflict. Met stale (dur-10) floats zou B ten onrechte naar 03-06 schuiven.",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "L", "dur": 10 },
+        { "name": "A", "dur": 2, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 2, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "afterCPM": [
+        { "setDuration": { "task": "L", "dur": 3 } },
+        { "applyLevel": { "constrainToFloat": true } }
+      ],
+      "expect": {
+        "tasks": {
+          "L": { "ef": "2026-06-03" },
+          "A": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "B": { "es": "2026-06-01", "ef": "2026-06-02" }
+        },
+        "projectEnd": "2026-06-03",
+        "overallocatedDays": { "R": ["2026-06-01", "2026-06-02"] }
+      }
+    },
+    {
+      "id": "lvl-A3-calendar-fit-positive",
+      "title": "A3 positief: R heeft een eigen kalender (ma-do). Taakdagen vallen volledig binnen R's werkdagen (A ma-di, B wo-do) -> B schuift netjes en plaatst zonder conflict.",
+      "resources": [{ "name": "R", "maxUnits": 1, "calendar": { "workDays": [1, 2, 3, 4] } }],
+      "tasks": [
+        { "name": "A", "dur": 2, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 2, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "B": { "es": "2026-06-03", "ef": "2026-06-04" }
+        },
+        "projectEnd": "2026-06-04",
+        "overallocatedDays": { "R": [] }
+      }
+    },
+    {
+      "id": "lvl-A3-calendar-mismatch-negative",
+      "title": "A3 negatief: R werkt alleen ma-wo, taak A duurt 4 projectwerkdagen -> geen enkel venster van 4 opeenvolgende projectwerkdagen valt volledig binnen R's werkdagen. Onoplosbaar met reden CALENDAR_MISMATCH; A blijft op PF, do 04-06 overbelast.",
+      "resources": [{ "name": "R", "maxUnits": 1, "calendar": { "workDays": [1, 2, 3] } }],
+      "tasks": [
+        { "name": "A", "dur": 4, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "previewExpect": {
+        "constrainToFloat": false,
+        "projectEndAfter": "2026-06-04",
+        "unresolvedTasks": ["A"],
+        "reasons": { "A": "CALENDAR_MISMATCH" }
+      },
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-01", "ef": "2026-06-04" } },
+        "overallocatedDays": { "R": ["2026-06-04"] }
+      }
+    },
+    {
+      "id": "lvl-A4-pinned-follows-shifted-pred",
+      "title": "A4: vastgepinde P (prio 1000, FS na A) volgt A's verschuiving en wordt op 05-06 GEBOEKT (niet op zijn oude earlyStart 03-06; P dur 2 op vr 05-06 overspant het weekend tot ma 08-06 en bezet R2 op 05+08). Een concurrent op R2 (C, dur 5) plant daardoor tegen het JUISTE grootboek -> C start 09-06. Met de oude pre-boeking op 03-04 zou C ten onrechte op 05-06 starten.",
+      "resources": [
+        { "name": "R1", "maxUnits": 1 },
+        { "name": "R2", "maxUnits": 1 }
+      ],
+      "tasks": [
+        { "name": "X", "dur": 2, "priority": 800, "assign": [{ "res": "R1", "units": 1 }] },
+        { "name": "A", "dur": 2, "priority": 500, "assign": [{ "res": "R1", "units": 1 }] },
+        { "name": "P", "dur": 2, "priority": 1000, "assign": [{ "res": "R2", "units": 1 }] },
+        { "name": "C", "dur": 5, "priority": 300, "assign": [{ "res": "R2", "units": 1 }] }
+      ],
+      "links": [{ "pred": "A", "succ": "P", "type": "FINISH_START" }],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "A": { "es": "2026-06-03", "ef": "2026-06-04" },
+          "P": { "es": "2026-06-05", "ef": "2026-06-08" },
+          "C": { "es": "2026-06-09", "ef": "2026-06-15" }
+        },
+        "projectEnd": "2026-06-15",
+        "overallocatedDays": { "R1": [], "R2": [] }
+      }
+    },
+    {
+      "id": "lvl-A5-undo-restores-derived",
+      "title": "A5: applyLeveling (B schuift naar 04-06, projectEnd 08-06, geen overallocatie) -> undo herstelt NIET alleen de taken maar ook cpmResult (projectEnd 03-06) én resourceLoadResult (overallocatie 01..03-06). Zonder de afgeleide-in-snapshot-fix bleef de statusbalk/het histogram op het genivelleerde schema staan.",
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 3, "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "B", "dur": 3, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "afterCPM": [
+        { "applyLevel": { "constrainToFloat": false } },
+        { "undo": true }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "B": { "es": "2026-06-01", "ef": "2026-06-03" }
+        },
+        "projectEnd": "2026-06-03",
+        "overallocatedDays": { "R": ["2026-06-01", "2026-06-02", "2026-06-03"] },
+        "load": { "R": { "2026-06-01": 2, "2026-06-02": 2, "2026-06-03": 2 } }
+      }
+    },
+    {
+      "id": "lvl-A6-assign-refreshes-load",
+      "title": "A6: een assign NA runCPM (zonder nieuwe F5) ververst de belasting direct (recomputeResourceLoad) -> histogram toont meteen R 1/dag. scheduleStale blijft false (pure resource-mutatie raakt de datums niet).",
+      "resources": [{ "name": "R", "maxUnits": 2 }],
+      "tasks": [
+        { "name": "A", "dur": 2 }
+      ],
+      "afterCPM": [
+        { "assign": { "task": "A", "res": "R", "units": 1 } }
+      ],
+      "expect": {
+        "load": { "R": { "2026-06-01": 1, "2026-06-02": 1 } },
+        "scheduleStale": false
+      }
+    },
+    {
+      "id": "lvl-A6-duration-marks-stale",
+      "title": "A6: een duurwijziging (datum-rakende mutatie) zet scheduleStale=true, zichtbaar als 'verouderd (F5)'-hint.",
+      "tasks": [
+        { "name": "A", "dur": 2 }
+      ],
+      "afterCPM": [
+        { "setDuration": { "task": "A", "dur": 4 } }
+      ],
+      "expect": { "scheduleStale": true }
+    },
+    {
+      "id": "lvl-A6-runcpm-clears-stale",
+      "title": "A6: runCPM (F5) wist de verouderd-vlag weer.",
+      "tasks": [
+        { "name": "A", "dur": 2 }
+      ],
+      "afterCPM": [
+        { "setDuration": { "task": "A", "dur": 4 } },
+        { "runCPM": true }
+      ],
+      "expect": { "scheduleStale": false }
     }
   ]
 }

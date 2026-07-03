@@ -169,7 +169,8 @@
     "selection": "Selectie: {{count}} taak/taken",
     "scale": "Schaal:",
     "zoom": "Zoom: {{level}}px/dag",
-    "unsaved": "Niet opgeslagen"
+    "unsaved": "Niet opgeslagen",
+    "scheduleStale": "Verouderd — herbereken (F5)"
   },
   "menuBar": {
     "file": "Bestand",

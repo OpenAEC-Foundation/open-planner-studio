@@ -79,6 +79,15 @@
     "unsavedChanges": "Niet-opgeslagen wijzigingen gaan verloren. Doorgaan?",
     "restoreRecovery": "Er is een herstelbestand gevonden. Wilt u uw vorige werk herstellen?"
   },
+  "recovery": {
+    "dialogTitle": "Niet-opgeslagen werk herstellen",
+    "explanation": "Open Planner Studio is niet normaal afgesloten. De volgende documenten hadden niet-opgeslagen wijzigingen die hersteld kunnen worden:",
+    "timeLabel": "Opgeslagen",
+    "taskCount": "{{count}} taken",
+    "untitled": "Naamloos project",
+    "restore": "Herstellen",
+    "dontRestore": "Niet herstellen"
+  },
   "window": {
     "minimize": "Minimaliseren",
     "maximize": "Maximaliseren",
@@ -216,7 +225,8 @@
       "overallocatedTooltip": "{{count}} taken dragen bij op {{date}}",
       "noData": "Herbereken (F5) om de belasting te tonen",
       "noResources": "Nog geen resources",
-      "units": "eenheden"
+      "units": "eenheden",
+      "staleHint": "Planning verouderd — herbereken (F5)"
     },
     "leveling": {
       "dialogTitle": "Resources nivelleren",
@@ -238,7 +248,11 @@
       "colNewStart": "Nieuwe start",
       "colShift": "Dagen verschoven",
       "shiftDays": "{{count}} d",
-      "conflictDays": "{{count}} dag(en)"
+      "conflictDays": "{{count}} dag(en)",
+      "reason": {
+        "calendarMismatch": "De resource werkt niet op alle dagen die deze taak nodig heeft — verschuiven lost dit niet op.",
+        "insufficientCapacity": "Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen."
+      }
     },
     "curve": {
       "uniform": "Uniform",
