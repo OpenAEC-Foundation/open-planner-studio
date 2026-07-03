@@ -169,7 +169,8 @@
     "selection": "Zaznaczenie: {{count}} zadanie/zadań",
     "scale": "Skala:",
     "zoom": "Zoom: {{level}}px/dzień",
-    "unsaved": "Niezapisane"
+    "unsaved": "Niezapisane",
+    "scheduleStale": "Nieaktualne — przelicz (F5)"
   },
   "menuBar": {
     "file": "Plik",
@@ -199,6 +200,15 @@
     "recentTitle": "Ostatnie projekty",
     "recentSubtitle": "Kliknij, aby otworzyć.",
     "recentEmpty": "Brak ostatnio otwieranych projektów.",
+    "examples": "Przykłady",
+    "examplesTitle": "Przykładowe projekty",
+    "examplesSubtitle": "Dołączone harmonogramy budowy. Kliknij, aby otworzyć w nowej karcie.",
+    "examplesLoading": "Ładowanie przykładów…",
+    "examplesEmpty": "Brak dostępnych przykładów.",
+    "examplesError": "Nie udało się załadować przykładów.",
+    "examplesShowcaseHeading": "Pełne przykładowe harmonogramy",
+    "examplesBasicHeading": "Proste przykłady",
+    "examplesShowcaseBadge": "Wszystkie funkcje",
     "exportTitle": "Eksport",
     "exportSubtitle": "Wybierz format. Projekt zostanie przekonwertowany i zapisany.",
     "printTitle": "Drukowanie",

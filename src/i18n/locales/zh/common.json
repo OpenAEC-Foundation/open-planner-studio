@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "创建新项目？未保存的更改将丢失。",
     "deleteTask": "确定要删除此任务吗？",
-    "unsavedChanges": "未保存的更改将丢失。是否继续？",
-    "restoreRecovery": "发现恢复文件。是否恢复上次的工作？"
+    "unsavedChanges": "未保存的更改将丢失。是否继续？"
+  },
+  "recovery": {
+    "dialogTitle": "恢复未保存的工作",
+    "explanation": "Open Planner Studio 未正常关闭。以下文档存在可恢复的未保存更改：",
+    "timeLabel": "保存时间",
+    "taskCount": "{{count}} 个任务",
+    "untitled": "未命名项目",
+    "restore": "恢复",
+    "dontRestore": "不恢复"
   },
   "window": {
     "minimize": "最小化",
@@ -107,6 +115,42 @@
     "closeTitle": "未保存的更改",
     "closeBody": "“{{name}}”有尚未保存的更改。",
     "dontSave": "不保存"
+  },
+  "feedback": {
+    "buttonTooltip": "发送反馈",
+    "title": "发送反馈",
+    "typeBug": "缺陷",
+    "typeFeature": "功能请求",
+    "fieldTitle": "标题",
+    "fieldDescription": "描述",
+    "attachScreenshot": "附加截图",
+    "capturing": "正在截图…",
+    "captureFailed": "截图失败。您仍然可以在没有截图的情况下发送反馈。",
+    "submit": "发送到 GitHub",
+    "cancel": "取消",
+    "close": "关闭",
+    "tools": {
+      "arrow": "箭头",
+      "rectangle": "矩形",
+      "pen": "画笔",
+      "text": "文本",
+      "color": "颜色",
+      "undo": "撤销",
+      "clear": "清除全部"
+    },
+    "instructionTitle": "即将完成 — 截图已复制到剪贴板。",
+    "instructionStep1": "点击下方的“确定，前往 GitHub”— 问题页面将在浏览器中打开（如尚未登录，请先登录）。",
+    "instructionStep2": "点击问题的大文本框内部。",
+    "instructionStep3": "按 Ctrl + V（Mac 上为 Cmd + V）— 截图将被上传并显示在文本中。",
+    "instructionStep4": "点击底部的“Submit new issue”。",
+    "instructionFallback": "无法粘贴？我们也已将截图保存到 {{path}} — 将该文件拖到文本框中即可。",
+    "openButton": "发送反馈",
+    "openGithub": "确定，前往 GitHub",
+    "annotate": "标注",
+    "editorDone": "完成",
+    "rotateFeedback": "发送反馈",
+    "rotateBug": "报告缺陷",
+    "rotateFeature": "提出新功能"
   },
   "updates": {
     "section": "更新",
@@ -148,6 +192,8 @@
     "maxUnits": "最大单位数",
     "calendarId": "日历",
     "costPerHour": "费率/小时",
+    "total": "总计",
+    "totalHint": "负荷单位 × 小时/天 × 费率（按 F5 重新计算）",
     "unitOfMeasure": "单位",
     "parent": "班组",
     "projectCalendar": "项目日历",
@@ -164,6 +210,9 @@
       "title": "资源",
       "addRow": "新建资源",
       "deleteRow": "删除",
+      "confirmDelete": "“{{name}}”有 {{count}} 项分配 — 是否删除？",
+      "confirmDeleteYes": "删除",
+      "confirmDeleteNo": "取消",
       "empty": "尚无资源。添加一个开始使用。",
       "steps": "阶段"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{count}} 个任务在 {{date}} 有负荷",
       "noData": "重新计算 (F5) 以显示负荷",
       "noResources": "尚无资源",
-      "units": "单位"
+      "units": "单位",
+      "staleHint": "计划已过期 — 请重新计算（F5）"
     },
     "leveling": {
       "dialogTitle": "资源平衡",
@@ -188,6 +238,7 @@
       "projectEndChanged": "项目结束日期：{{before}} → {{after}}",
       "remainingConflicts": "剩余冲突",
       "remainingConflictsHint": "这些任务无法在其浮动范围内安排 — 通常是因为资源在这些天不工作，或产能不足。",
+      "intrinsicOverrun": "{{resource}} 峰值需求为 {{peak}} 单位/天，而产能为 {{capacity}} — 无法通过移动解决。",
       "noChanges": "没有任务需要移动 — 计划已无冲突。",
       "notCalculated": "点击计算以生成平衡方案。",
       "needsCPM": "请先计算计划 (F5)，再进行平衡。",
@@ -196,7 +247,11 @@
       "colNewStart": "新开始",
       "colShift": "移动天数",
       "shiftDays": "{{count}} 天",
-      "conflictDays": "{{count}} 天"
+      "conflictDays": "{{count}} 天",
+      "reason": {
+        "calendarMismatch": "该资源并非在此任务所需的所有天数中都工作 — 移动无法解决此问题。",
+        "insufficientCapacity": "浮动范围内的空闲产能不足，无法解决此冲突。"
+      }
     },
     "curve": {
       "uniform": "均匀",

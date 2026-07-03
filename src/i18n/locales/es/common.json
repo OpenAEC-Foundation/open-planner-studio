@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "¿Crear nuevo proyecto? Los cambios no guardados se perderán.",
     "deleteTask": "¿Está seguro de que desea eliminar esta tarea?",
-    "unsavedChanges": "Los cambios no guardados se perderán. ¿Continuar?",
-    "restoreRecovery": "Se encontró un archivo de recuperación. ¿Desea restaurar su trabajo anterior?"
+    "unsavedChanges": "Los cambios no guardados se perderán. ¿Continuar?"
+  },
+  "recovery": {
+    "dialogTitle": "Restaurar trabajo no guardado",
+    "explanation": "Open Planner Studio no se cerró correctamente. Los siguientes documentos tenían cambios sin guardar que se pueden restaurar:",
+    "timeLabel": "Guardado",
+    "taskCount": "{{count}} tareas",
+    "untitled": "Proyecto sin título",
+    "restore": "Restaurar",
+    "dontRestore": "No restaurar"
   },
   "window": {
     "minimize": "Minimizar",
@@ -107,6 +115,42 @@
     "closeTitle": "Cambios sin guardar",
     "closeBody": "«{{name}}» tiene cambios que aún no se han guardado.",
     "dontSave": "No guardar"
+  },
+  "feedback": {
+    "buttonTooltip": "Enviar comentarios",
+    "title": "Enviar comentarios",
+    "typeBug": "Error",
+    "typeFeature": "Solicitud de función",
+    "fieldTitle": "Título",
+    "fieldDescription": "Descripción",
+    "attachScreenshot": "Adjuntar captura de pantalla",
+    "capturing": "Capturando pantalla…",
+    "captureFailed": "No se pudo capturar la pantalla. Aún puedes enviar comentarios sin captura.",
+    "submit": "Enviar a GitHub",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "tools": {
+      "arrow": "Flecha",
+      "rectangle": "Rectángulo",
+      "pen": "Lápiz",
+      "text": "Texto",
+      "color": "Color",
+      "undo": "Deshacer",
+      "clear": "Borrar todo"
+    },
+    "instructionTitle": "Casi listo — tu captura de pantalla está en el portapapeles.",
+    "instructionStep1": "Haz clic abajo en 'OK, ir a GitHub' — la página del issue se abrirá en tu navegador (inicia sesión si aún no lo has hecho).",
+    "instructionStep2": "Haz clic dentro del área de texto grande del issue.",
+    "instructionStep3": "Pulsa Ctrl + V (Cmd + V en Mac) — tu captura de pantalla se subirá y aparecerá en el texto.",
+    "instructionStep4": "Haz clic en 'Submit new issue' al final.",
+    "instructionFallback": "¿No puedes pegar? También hemos guardado la captura en {{path}} — arrastra ese archivo al área de texto.",
+    "openButton": "Enviar comentarios",
+    "openGithub": "OK, ir a GitHub",
+    "annotate": "Anotar",
+    "editorDone": "Listo",
+    "rotateFeedback": "Enviar comentarios",
+    "rotateBug": "Reportar un error",
+    "rotateFeature": "Sugerir una nueva función"
   },
   "updates": {
     "section": "Actualizaciones",
@@ -148,6 +192,8 @@
     "maxUnits": "Unidades máx.",
     "calendarId": "Calendario",
     "costPerHour": "Tarifa/hora",
+    "total": "Total",
+    "totalHint": "Unidades asignadas × horas/día × tarifa (recalcula con F5)",
     "unitOfMeasure": "Unidad",
     "parent": "Cuadrilla",
     "projectCalendar": "Calendario del proyecto",
@@ -164,6 +210,9 @@
       "title": "Recursos",
       "addRow": "Nuevo recurso",
       "deleteRow": "Eliminar",
+      "confirmDelete": "'{{name}}' tiene {{count}} asignación(es) — ¿eliminar?",
+      "confirmDeleteYes": "Eliminar",
+      "confirmDeleteNo": "Cancelar",
       "empty": "Aún no hay recursos. Añade uno para empezar.",
       "steps": "Pasos"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{count}} tareas contribuyen el {{date}}",
       "noData": "Recalcula (F5) para mostrar la carga",
       "noResources": "Aún no hay recursos",
-      "units": "unidades"
+      "units": "unidades",
+      "staleHint": "Planificación desactualizada — recalcula (F5)"
     },
     "leveling": {
       "dialogTitle": "Nivelar recursos",
@@ -188,6 +238,7 @@
       "projectEndChanged": "Fecha de fin del proyecto: {{before}} → {{after}}",
       "remainingConflicts": "Conflictos restantes",
       "remainingConflictsHint": "Estas tareas no caben dentro de su holgura — a menudo porque un recurso no trabaja esos días o no tiene capacidad suficiente.",
+      "intrinsicOverrun": "{{resource}} alcanza un pico de {{peak}} unidades/día, la capacidad es {{capacity}} — no se puede resolver desplazando.",
       "noChanges": "Ninguna tarea necesita moverse — la planificación ya está libre de conflictos.",
       "notCalculated": "Haz clic en Calcular para generar una propuesta de nivelación.",
       "needsCPM": "Calcula primero la planificación (F5) antes de nivelar.",
@@ -196,7 +247,11 @@
       "colNewStart": "Nuevo inicio",
       "colShift": "Días desplazados",
       "shiftDays": "{{count}} d",
-      "conflictDays": "{{count}} día(s)"
+      "conflictDays": "{{count}} día(s)",
+      "reason": {
+        "calendarMismatch": "El recurso no trabaja todos los días que necesita esta tarea — desplazarla no resuelve esto.",
+        "insufficientCapacity": "No hay suficiente capacidad libre dentro de la holgura para resolver este conflicto."
+      }
     },
     "curve": {
       "uniform": "Uniforme",

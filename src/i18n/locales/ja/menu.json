@@ -169,7 +169,8 @@
     "selection": "選択：{{count}} タスク",
     "scale": "スケール：",
     "zoom": "ズーム：{{level}}px/日",
-    "unsaved": "未保存"
+    "unsaved": "未保存",
+    "scheduleStale": "古くなっています — 再計算してください（F5）"
   },
   "menuBar": {
     "file": "ファイル",
@@ -199,6 +200,15 @@
     "recentTitle": "最近のプロジェクト",
     "recentSubtitle": "クリックして開きます。",
     "recentEmpty": "最近開いたプロジェクトはありません。",
+    "examples": "サンプル",
+    "examplesTitle": "サンプルプロジェクト",
+    "examplesSubtitle": "同梱の建設工程表です。クリックすると新しいタブで開きます。",
+    "examplesLoading": "サンプルを読み込み中…",
+    "examplesEmpty": "利用可能なサンプルがありません。",
+    "examplesError": "サンプルを読み込めませんでした。",
+    "examplesShowcaseHeading": "フルショーケース工程表",
+    "examplesBasicHeading": "シンプルなサンプル",
+    "examplesShowcaseBadge": "全機能",
     "exportTitle": "エクスポート",
     "exportSubtitle": "形式を選択してください。プロジェクトが変換されて保存されます。",
     "printTitle": "印刷",

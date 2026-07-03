@@ -169,7 +169,8 @@
     "selection": "Selección: {{count}} tarea(s)",
     "scale": "Escala:",
     "zoom": "Zoom: {{level}}px/día",
-    "unsaved": "Sin guardar"
+    "unsaved": "Sin guardar",
+    "scheduleStale": "Desactualizado — recalcula (F5)"
   },
   "menuBar": {
     "file": "Archivo",
@@ -199,6 +200,15 @@
     "recentTitle": "Proyectos recientes",
     "recentSubtitle": "Haga clic para abrir.",
     "recentEmpty": "Aún no hay proyectos abiertos recientemente.",
+    "examples": "Ejemplos",
+    "examplesTitle": "Proyectos de ejemplo",
+    "examplesSubtitle": "Planificaciones de obra incluidas. Haga clic para abrir en una pestaña nueva.",
+    "examplesLoading": "Cargando ejemplos…",
+    "examplesEmpty": "No hay ejemplos disponibles.",
+    "examplesError": "No se pudieron cargar los ejemplos.",
+    "examplesShowcaseHeading": "Planificaciones de muestra completas",
+    "examplesBasicHeading": "Ejemplos sencillos",
+    "examplesShowcaseBadge": "Todas las funciones",
     "exportTitle": "Exportar",
     "exportSubtitle": "Elija un formato. El proyecto se convertirá y guardará.",
     "printTitle": "Imprimir",

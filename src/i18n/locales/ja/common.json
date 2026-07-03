@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "新しいプロジェクトを作成しますか？保存されていない変更は失われます。",
     "deleteTask": "このタスクを削除してもよろしいですか？",
-    "unsavedChanges": "保存されていない変更は失われます。続行しますか？",
-    "restoreRecovery": "復元ファイルが見つかりました。前回の作業を復元しますか？"
+    "unsavedChanges": "保存されていない変更は失われます。続行しますか？"
+  },
+  "recovery": {
+    "dialogTitle": "未保存の作業を復元",
+    "explanation": "Open Planner Studio が正常に終了しませんでした。以下のドキュメントには復元可能な未保存の変更があります：",
+    "timeLabel": "保存日時",
+    "taskCount": "{{count}} 件のタスク",
+    "untitled": "無題のプロジェクト",
+    "restore": "復元",
+    "dontRestore": "復元しない"
   },
   "window": {
     "minimize": "最小化",
@@ -107,6 +115,42 @@
     "closeTitle": "保存されていない変更",
     "closeBody": "「{{name}}」にはまだ保存されていない変更があります。",
     "dontSave": "保存しない"
+  },
+  "feedback": {
+    "buttonTooltip": "フィードバックを送信",
+    "title": "フィードバックを送信",
+    "typeBug": "バグ",
+    "typeFeature": "機能リクエスト",
+    "fieldTitle": "タイトル",
+    "fieldDescription": "説明",
+    "attachScreenshot": "スクリーンショットを添付",
+    "capturing": "スクリーンショットを撮影中…",
+    "captureFailed": "スクリーンショットの撮影に失敗しました。スクリーンショットなしでもフィードバックを送信できます。",
+    "submit": "GitHub に送信",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "tools": {
+      "arrow": "矢印",
+      "rectangle": "四角形",
+      "pen": "ペン",
+      "text": "テキスト",
+      "color": "色",
+      "undo": "元に戻す",
+      "clear": "すべてクリア"
+    },
+    "instructionTitle": "もう少しで完了です — スクリーンショットはクリップボードにコピーされています。",
+    "instructionStep1": "下の「OK、GitHub へ移動」をクリックしてください — ブラウザで issue ページが開きます（未ログインの場合はログインしてください）。",
+    "instructionStep2": "issue の大きなテキストエリア内をクリックしてください。",
+    "instructionStep3": "Ctrl + V（Mac は Cmd + V）を押してください — スクリーンショットがアップロードされ、テキスト内に表示されます。",
+    "instructionStep4": "下部の「Submit new issue」をクリックしてください。",
+    "instructionFallback": "貼り付けがうまくいきませんか？スクリーンショットは {{path}} にも保存されています — そのファイルをテキストエリアにドラッグしてください。",
+    "openButton": "フィードバックを送る",
+    "openGithub": "OK、GitHub へ移動",
+    "annotate": "注釈を付ける",
+    "editorDone": "完了",
+    "rotateFeedback": "フィードバックを送る",
+    "rotateBug": "バグを報告",
+    "rotateFeature": "新機能を提案"
   },
   "updates": {
     "section": "アップデート",
@@ -148,6 +192,8 @@
     "maxUnits": "最大単位数",
     "calendarId": "カレンダー",
     "costPerHour": "単価/時間",
+    "total": "合計",
+    "totalHint": "負荷単位数 × 時間/日 × 単価（F5 で再計算）",
     "unitOfMeasure": "単位",
     "parent": "班",
     "projectCalendar": "プロジェクトカレンダー",
@@ -164,6 +210,9 @@
       "title": "リソース",
       "addRow": "新規リソース",
       "deleteRow": "削除",
+      "confirmDelete": "「{{name}}」には {{count}} 件の割り当てがあります — 削除しますか？",
+      "confirmDeleteYes": "削除",
+      "confirmDeleteNo": "キャンセル",
       "empty": "リソースがまだありません。追加して始めましょう。",
       "steps": "ステップ"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{date}} に {{count}} 件のタスクが関与",
       "noData": "再計算 (F5) して負荷を表示",
       "noResources": "リソースがまだありません",
-      "units": "単位"
+      "units": "単位",
+      "staleHint": "スケジュールが古くなっています — 再計算してください（F5）"
     },
     "leveling": {
       "dialogTitle": "リソースの山崩し",
@@ -188,6 +238,7 @@
       "projectEndChanged": "プロジェクト終了日：{{before}} → {{after}}",
       "remainingConflicts": "残っている競合",
       "remainingConflictsHint": "これらのタスクはフロート内に収まりません — 多くの場合、リソースがその日に稼働しないか、キャパシティが不足しているためです。",
+      "intrinsicOverrun": "{{resource}} はピーク時に {{peak}} 単位/日必要ですが、キャパシティは {{capacity}} です — 移動では解決できません。",
       "noChanges": "移動が必要なタスクはありません — スケジュールはすでに競合がありません。",
       "notCalculated": "「計算」をクリックして山崩しの提案を作成してください。",
       "needsCPM": "山崩しの前にスケジュールを計算してください（F5）。",
@@ -196,7 +247,11 @@
       "colNewStart": "新開始日",
       "colShift": "移動日数",
       "shiftDays": "{{count}} 日",
-      "conflictDays": "{{count}} 日"
+      "conflictDays": "{{count}} 日",
+      "reason": {
+        "calendarMismatch": "このリソースはこのタスクが必要とするすべての日に稼働していません — 移動では解決できません。",
+        "insufficientCapacity": "フロート内の空きキャパシティが不足しているため、この競合を解決できません。"
+      }
     },
     "curve": {
       "uniform": "均等",

@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "Yeni proje oluşturulsun mu? Kaydedilmemiş değişiklikler kaybolacak.",
     "deleteTask": "Bu görevi silmek istediğinizden emin misiniz?",
-    "unsavedChanges": "Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?",
-    "restoreRecovery": "Bir kurtarma dosyası bulundu. Önceki çalışmanızı geri yüklemek ister misiniz?"
+    "unsavedChanges": "Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?"
+  },
+  "recovery": {
+    "dialogTitle": "Kaydedilmemiş çalışmayı geri yükle",
+    "explanation": "Open Planner Studio normal şekilde kapanmadı. Aşağıdaki belgelerde geri yüklenebilecek kaydedilmemiş değişiklikler vardı:",
+    "timeLabel": "Kaydedildi",
+    "taskCount": "{{count}} görev",
+    "untitled": "Adsız proje",
+    "restore": "Geri yükle",
+    "dontRestore": "Geri yükleme"
   },
   "window": {
     "minimize": "Küçült",
@@ -107,6 +115,42 @@
     "closeTitle": "Kaydedilmemiş değişiklikler",
     "closeBody": "'{{name}}' belgesinde henüz kaydedilmemiş değişiklikler var.",
     "dontSave": "Kaydetme"
+  },
+  "feedback": {
+    "buttonTooltip": "Geri bildirim gönder",
+    "title": "Geri bildirim gönder",
+    "typeBug": "Hata",
+    "typeFeature": "Özellik isteği",
+    "fieldTitle": "Başlık",
+    "fieldDescription": "Açıklama",
+    "attachScreenshot": "Ekran görüntüsü ekle",
+    "capturing": "Ekran görüntüsü alınıyor…",
+    "captureFailed": "Ekran görüntüsü alınamadı. Ekran görüntüsü olmadan da geri bildirim gönderebilirsiniz.",
+    "submit": "GitHub'a gönder",
+    "cancel": "İptal",
+    "close": "Kapat",
+    "tools": {
+      "arrow": "Ok",
+      "rectangle": "Dikdörtgen",
+      "pen": "Kalem",
+      "text": "Metin",
+      "color": "Renk",
+      "undo": "Geri al",
+      "clear": "Tümünü temizle"
+    },
+    "instructionTitle": "Neredeyse bitti — ekran görüntünüz panoya kopyalandı.",
+    "instructionStep1": "Aşağıdan 'Tamam, GitHub'a git'e tıklayın — sorun sayfası tarayıcınızda açılır (giriş yapmadıysanız yapın).",
+    "instructionStep2": "Sorunun büyük metin alanının içine tıklayın.",
+    "instructionStep3": "Ctrl + V (Mac'te Cmd + V) tuşlarına basın — ekran görüntünüz yüklenir ve metinde görünür.",
+    "instructionStep4": "Altta 'Submit new issue'a tıklayın.",
+    "instructionFallback": "Yapıştıramıyor musunuz? Ekran görüntüsünü {{path}} konumuna da kaydettik — o dosyayı metin alanına sürükleyin.",
+    "openButton": "Geri bildirim ver",
+    "openGithub": "Tamam, GitHub'a git",
+    "annotate": "Not ekle",
+    "editorDone": "Bitti",
+    "rotateFeedback": "Geri bildirim ver",
+    "rotateBug": "Hata bildir",
+    "rotateFeature": "Yeni bir özellik ekle"
   },
   "updates": {
     "section": "Güncellemeler",
@@ -148,6 +192,8 @@
     "maxUnits": "Maks. birim",
     "calendarId": "Takvim",
     "costPerHour": "Ücret/saat",
+    "total": "Toplam",
+    "totalHint": "Yüklenen birim × saat/gün × ücret (F5 ile yeniden hesaplayın)",
     "unitOfMeasure": "Birim",
     "parent": "Ekip",
     "projectCalendar": "Proje takvimi",
@@ -164,6 +210,9 @@
       "title": "Kaynaklar",
       "addRow": "Yeni kaynak",
       "deleteRow": "Sil",
+      "confirmDelete": "'{{name}}' için {{count}} atama var — silinsin mi?",
+      "confirmDeleteYes": "Sil",
+      "confirmDeleteNo": "İptal",
       "empty": "Henüz kaynak yok. Başlamak için bir tane ekleyin.",
       "steps": "Adımlar"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
       "noData": "Yükü göstermek için yeniden hesaplayın (F5)",
       "noResources": "Henüz kaynak yok",
-      "units": "birim"
+      "units": "birim",
+      "staleHint": "Plan güncel değil — yeniden hesaplayın (F5)"
     },
     "leveling": {
       "dialogTitle": "Kaynakları dengele",
@@ -188,6 +238,7 @@
       "projectEndChanged": "Proje bitiş tarihi: {{before}} → {{after}}",
       "remainingConflicts": "Kalan çakışmalar",
       "remainingConflictsHint": "Bu görevler bolluklarına sığmıyor — genellikle bir kaynağın o günlerde çalışmaması veya yeterli kapasiteye sahip olmamasından kaynaklanır.",
+      "intrinsicOverrun": "{{resource}} zirvede {{peak}} birim/gün istiyor, kapasite {{capacity}} — kaydırarak çözülemez.",
       "noChanges": "Hiçbir görevin taşınması gerekmiyor — plan zaten çakışmasız.",
       "notCalculated": "Bir dengeleme önerisi oluşturmak için Hesapla'ya tıklayın.",
       "needsCPM": "Dengelemeden önce planı hesaplayın (F5).",
@@ -196,7 +247,11 @@
       "colNewStart": "Yeni başlangıç",
       "colShift": "Kaydırılan gün",
       "shiftDays": "{{count}} g",
-      "conflictDays": "{{count}} gün"
+      "conflictDays": "{{count}} gün",
+      "reason": {
+        "calendarMismatch": "Kaynak bu görevin ihtiyaç duyduğu tüm günlerde çalışmıyor — kaydırma bunu çözmez.",
+        "insufficientCapacity": "Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok."
+      }
     },
     "curve": {
       "uniform": "Tekdüze",

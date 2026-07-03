@@ -76,8 +76,7 @@
   "confirm": {
     "newProject": "Nieuw project aanmaken? Niet-opgeslagen wijzigingen gaan verloren.",
     "deleteTask": "Weet u zeker dat u deze taak wilt verwijderen?",
-    "unsavedChanges": "Niet-opgeslagen wijzigingen gaan verloren. Doorgaan?",
-    "restoreRecovery": "Er is een herstelbestand gevonden. Wilt u uw vorige werk herstellen?"
+    "unsavedChanges": "Niet-opgeslagen wijzigingen gaan verloren. Doorgaan?"
   },
   "recovery": {
     "dialogTitle": "Niet-opgeslagen werk herstellen",

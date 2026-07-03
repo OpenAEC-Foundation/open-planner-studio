@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "إنشاء مشروع جديد؟ ستفقد التغييرات غير المحفوظة.",
     "deleteTask": "هل أنت متأكد من حذف هذه المهمة؟",
-    "unsavedChanges": "ستفقد التغييرات غير المحفوظة. هل تريد المتابعة؟",
-    "restoreRecovery": "تم العثور على ملف استرداد. هل تريد استعادة عملك السابق؟"
+    "unsavedChanges": "ستفقد التغييرات غير المحفوظة. هل تريد المتابعة؟"
+  },
+  "recovery": {
+    "dialogTitle": "استعادة العمل غير المحفوظ",
+    "explanation": "لم يتم إغلاق Open Planner Studio بشكل طبيعي. المستندات التالية بها تغييرات غير محفوظة يمكن استعادتها:",
+    "timeLabel": "تم الحفظ",
+    "taskCount": "{{count}} مهمة",
+    "untitled": "مشروع بدون عنوان",
+    "restore": "استعادة",
+    "dontRestore": "عدم الاستعادة"
   },
   "window": {
     "minimize": "تصغير",
@@ -107,6 +115,42 @@
     "closeTitle": "تغييرات غير محفوظة",
     "closeBody": "يحتوي '{{name}}' على تغييرات لم تُحفظ بعد.",
     "dontSave": "عدم الحفظ"
+  },
+  "feedback": {
+    "buttonTooltip": "إرسال ملاحظات",
+    "title": "إرسال ملاحظات",
+    "typeBug": "خطأ",
+    "typeFeature": "طلب ميزة",
+    "fieldTitle": "العنوان",
+    "fieldDescription": "الوصف",
+    "attachScreenshot": "إرفاق لقطة شاشة",
+    "capturing": "جارٍ التقاط لقطة الشاشة…",
+    "captureFailed": "فشل التقاط لقطة الشاشة. يمكنك إرسال الملاحظات دون لقطة شاشة.",
+    "submit": "إرسال إلى GitHub",
+    "cancel": "إلغاء",
+    "close": "إغلاق",
+    "tools": {
+      "arrow": "سهم",
+      "rectangle": "مستطيل",
+      "pen": "قلم",
+      "text": "نص",
+      "color": "لون",
+      "undo": "تراجع",
+      "clear": "مسح الكل"
+    },
+    "instructionTitle": "على وشك الانتهاء — لقطة الشاشة موجودة على الحافظة.",
+    "instructionStep1": "انقر على 'موافق، الانتقال إلى GitHub' أدناه — ستُفتح صفحة المشكلة في متصفحك (سجّل الدخول إن لم تكن قد فعلت).",
+    "instructionStep2": "انقر داخل مربع النص الكبير في صفحة المشكلة.",
+    "instructionStep3": "اضغط Ctrl + V (أو Cmd + V على Mac) — سيتم رفع لقطة الشاشة وستظهر في النص.",
+    "instructionStep4": "انقر على 'Submit new issue' في الأسفل.",
+    "instructionFallback": "تعذّر اللصق؟ لقد حفظنا لقطة الشاشة أيضًا في {{path}} — اسحب هذا الملف إلى مربع النص.",
+    "openButton": "إرسال ملاحظات",
+    "openGithub": "موافق، الانتقال إلى GitHub",
+    "annotate": "إضافة تعليق",
+    "editorDone": "تم",
+    "rotateFeedback": "إرسال ملاحظات",
+    "rotateBug": "الإبلاغ عن خطأ",
+    "rotateFeature": "اقتراح ميزة جديدة"
   },
   "updates": {
     "section": "التحديثات",
@@ -148,6 +192,8 @@
     "maxUnits": "الحد الأقصى للوحدات",
     "calendarId": "التقويم",
     "costPerHour": "السعر/ساعة",
+    "total": "الإجمالي",
+    "totalHint": "الوحدات المحمّلة × ساعات/يوم × السعر (أعد الحساب بالضغط على F5)",
     "unitOfMeasure": "الوحدة",
     "parent": "الطاقم",
     "projectCalendar": "تقويم المشروع",
@@ -164,6 +210,9 @@
       "title": "الموارد",
       "addRow": "مورد جديد",
       "deleteRow": "حذف",
+      "confirmDelete": "لدى '{{name}}' {{count}} تعيين(ات) — هل تريد الحذف؟",
+      "confirmDeleteYes": "حذف",
+      "confirmDeleteNo": "إلغاء",
       "empty": "لا توجد موارد بعد. أضف واحدًا للبدء.",
       "steps": "المراحل"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{count}} مهام تساهم في {{date}}",
       "noData": "أعد الحساب (F5) لإظهار الحمل",
       "noResources": "لا توجد موارد بعد",
-      "units": "وحدات"
+      "units": "وحدات",
+      "staleHint": "الجدول قديم — أعد الحساب (F5)"
     },
     "leveling": {
       "dialogTitle": "موازنة الموارد",
@@ -188,6 +238,7 @@
       "projectEndChanged": "تاريخ نهاية المشروع: {{before}} ← {{after}}",
       "remainingConflicts": "التعارضات المتبقية",
       "remainingConflictsHint": "هذه المهام لا تتسع ضمن فائضها — غالبًا لأن موردًا لا يعمل في تلك الأيام أو لا يملك سعة كافية.",
+      "intrinsicOverrun": "{{resource}} يبلغ ذروته عند {{peak}} وحدة/يوم، والسعة {{capacity}} — لا يمكن حل ذلك بالإزاحة.",
       "noChanges": "لا حاجة لنقل أي مهمة — الجدول خالٍ من التعارضات بالفعل.",
       "notCalculated": "انقر على حساب لإنشاء اقتراح موازنة.",
       "needsCPM": "احسب الجدول أولاً (F5) قبل الموازنة.",
@@ -196,7 +247,11 @@
       "colNewStart": "البداية الجديدة",
       "colShift": "أيام الإزاحة",
       "shiftDays": "{{count}} يوم",
-      "conflictDays": "{{count}} يوم"
+      "conflictDays": "{{count}} يوم",
+      "reason": {
+        "calendarMismatch": "المورد لا يعمل في جميع الأيام التي تحتاجها هذه المهمة — الإزاحة لا تحل هذا.",
+        "insufficientCapacity": "لا توجد سعة حرة كافية ضمن الفائض لحل هذا التعارض."
+      }
     },
     "curve": {
       "uniform": "منتظم",

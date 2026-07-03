@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "새 프로젝트를 만드시겠습니까? 저장되지 않은 변경 사항이 손실됩니다.",
     "deleteTask": "이 작업을 삭제하시겠습니까?",
-    "unsavedChanges": "저장되지 않은 변경 사항이 손실됩니다. 계속하시겠습니까?",
-    "restoreRecovery": "복구 파일이 발견되었습니다. 이전 작업을 복원하시겠습니까?"
+    "unsavedChanges": "저장되지 않은 변경 사항이 손실됩니다. 계속하시겠습니까?"
+  },
+  "recovery": {
+    "dialogTitle": "저장되지 않은 작업 복원",
+    "explanation": "Open Planner Studio가 정상적으로 종료되지 않았습니다. 다음 문서에는 복원할 수 있는 저장되지 않은 변경 사항이 있습니다:",
+    "timeLabel": "저장 시각",
+    "taskCount": "{{count}}개 작업",
+    "untitled": "제목 없는 프로젝트",
+    "restore": "복원",
+    "dontRestore": "복원 안 함"
   },
   "window": {
     "minimize": "최소화",
@@ -107,6 +115,42 @@
     "closeTitle": "저장되지 않은 변경 사항",
     "closeBody": "'{{name}}'에 아직 저장되지 않은 변경 사항이 있습니다.",
     "dontSave": "저장 안 함"
+  },
+  "feedback": {
+    "buttonTooltip": "피드백 보내기",
+    "title": "피드백 보내기",
+    "typeBug": "버그",
+    "typeFeature": "기능 요청",
+    "fieldTitle": "제목",
+    "fieldDescription": "설명",
+    "attachScreenshot": "스크린샷 첨부",
+    "capturing": "스크린샷 캡처 중…",
+    "captureFailed": "스크린샷 캡처에 실패했습니다. 스크린샷 없이도 피드백을 보낼 수 있습니다.",
+    "submit": "GitHub로 보내기",
+    "cancel": "취소",
+    "close": "닫기",
+    "tools": {
+      "arrow": "화살표",
+      "rectangle": "사각형",
+      "pen": "펜",
+      "text": "텍스트",
+      "color": "색상",
+      "undo": "실행 취소",
+      "clear": "모두 지우기"
+    },
+    "instructionTitle": "거의 다 됐습니다 — 스크린샷이 클립보드에 복사되었습니다.",
+    "instructionStep1": "아래 'OK, GitHub로 이동'을 클릭하세요 — 브라우저에서 이슈 페이지가 열립니다(아직 로그인하지 않았다면 로그인하세요).",
+    "instructionStep2": "이슈의 큰 텍스트 영역을 클릭하세요.",
+    "instructionStep3": "Ctrl + V(Mac에서는 Cmd + V)를 누르세요 — 스크린샷이 업로드되어 텍스트에 표시됩니다.",
+    "instructionStep4": "하단의 'Submit new issue'를 클릭하세요.",
+    "instructionFallback": "붙여넣기가 안 되나요? 스크린샷을 {{path}}에도 저장해 두었습니다 — 해당 파일을 텍스트 영역으로 드래그하세요.",
+    "openButton": "피드백 보내기",
+    "openGithub": "OK, GitHub로 이동",
+    "annotate": "주석 달기",
+    "editorDone": "완료",
+    "rotateFeedback": "피드백 보내기",
+    "rotateBug": "버그 신고",
+    "rotateFeature": "새 기능 제안"
   },
   "updates": {
     "section": "업데이트",
@@ -148,6 +192,8 @@
     "maxUnits": "최대 단위",
     "calendarId": "달력",
     "costPerHour": "단가/시간",
+    "total": "합계",
+    "totalHint": "부하 단위 × 시간/일 × 단가(F5로 다시 계산)",
     "unitOfMeasure": "단위",
     "parent": "팀",
     "projectCalendar": "프로젝트 달력",
@@ -164,6 +210,9 @@
       "title": "자원",
       "addRow": "새 자원",
       "deleteRow": "삭제",
+      "confirmDelete": "'{{name}}'에 {{count}}개의 할당이 있습니다 — 삭제하시겠습니까?",
+      "confirmDeleteYes": "삭제",
+      "confirmDeleteNo": "취소",
       "empty": "아직 자원이 없습니다. 시작하려면 하나를 추가하세요.",
       "steps": "단계"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{date}}에 {{count}}개의 작업이 기여함",
       "noData": "부하를 표시하려면 다시 계산하세요 (F5)",
       "noResources": "아직 자원이 없습니다",
-      "units": "단위"
+      "units": "단위",
+      "staleHint": "일정이 오래되었습니다 — 다시 계산하세요 (F5)"
     },
     "leveling": {
       "dialogTitle": "자원 평준화",
@@ -188,6 +238,7 @@
       "projectEndChanged": "프로젝트 종료일: {{before}} → {{after}}",
       "remainingConflicts": "남은 충돌",
       "remainingConflictsHint": "이 작업들은 여유 내에 맞지 않습니다 — 대개 자원이 해당 일자에 근무하지 않거나 용량이 부족하기 때문입니다.",
+      "intrinsicOverrun": "{{resource}}은(는) 최대 {{peak}} 단위/일이 필요하지만 용량은 {{capacity}}입니다 — 이동으로는 해결할 수 없습니다.",
       "noChanges": "이동해야 할 작업이 없습니다 — 일정이 이미 충돌 없는 상태입니다.",
       "notCalculated": "평준화 제안을 만들려면 계산을 클릭하세요.",
       "needsCPM": "평준화하기 전에 먼저 일정을 계산하세요 (F5).",
@@ -196,7 +247,11 @@
       "colNewStart": "새 시작일",
       "colShift": "이동된 일수",
       "shiftDays": "{{count}}일",
-      "conflictDays": "{{count}}일"
+      "conflictDays": "{{count}}일",
+      "reason": {
+        "calendarMismatch": "이 자원은 이 작업이 필요로 하는 모든 날짜에 근무하지 않습니다 — 이동으로는 해결할 수 없습니다.",
+        "insufficientCapacity": "여유 내 가용 용량이 부족하여 이 충돌을 해결할 수 없습니다."
+      }
     },
     "curve": {
       "uniform": "균등",

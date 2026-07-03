@@ -169,7 +169,8 @@
     "selection": "التحديد: {{count}} مهمة",
     "scale": "المقياس:",
     "zoom": "تكبير: {{level}}بكسل/يوم",
-    "unsaved": "غير محفوظ"
+    "unsaved": "غير محفوظ",
+    "scheduleStale": "قديم — أعد الحساب (F5)"
   },
   "menuBar": {
     "file": "ملف",
@@ -199,6 +200,15 @@
     "recentTitle": "المشاريع الأخيرة",
     "recentSubtitle": "انقر للفتح.",
     "recentEmpty": "لا توجد مشاريع مفتوحة مؤخراً.",
+    "examples": "أمثلة",
+    "examplesTitle": "مشاريع نموذجية",
+    "examplesSubtitle": "جداول بناء مرفقة. انقر للفتح في علامة تبويب جديدة.",
+    "examplesLoading": "جارٍ تحميل الأمثلة…",
+    "examplesEmpty": "لا توجد أمثلة متاحة.",
+    "examplesError": "تعذّر تحميل الأمثلة.",
+    "examplesShowcaseHeading": "جداول العرض الكاملة",
+    "examplesBasicHeading": "أمثلة بسيطة",
+    "examplesShowcaseBadge": "جميع الميزات",
     "exportTitle": "تصدير",
     "exportSubtitle": "اختر صيغة. سيتم تحويل المشروع وحفظه.",
     "printTitle": "طباعة",

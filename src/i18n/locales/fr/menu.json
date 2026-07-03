@@ -169,7 +169,8 @@
     "selection": "Sélection : {{count}} tâche(s)",
     "scale": "Échelle :",
     "zoom": "Zoom : {{level}}px/jour",
-    "unsaved": "Non enregistré"
+    "unsaved": "Non enregistré",
+    "scheduleStale": "Obsolète — recalculer (F5)"
   },
   "menuBar": {
     "file": "Fichier",
@@ -199,6 +200,15 @@
     "recentTitle": "Projets récents",
     "recentSubtitle": "Cliquez pour ouvrir.",
     "recentEmpty": "Aucun projet récemment ouvert.",
+    "examples": "Exemples",
+    "examplesTitle": "Projets d'exemple",
+    "examplesSubtitle": "Plannings de construction fournis. Cliquez pour ouvrir dans un nouvel onglet.",
+    "examplesLoading": "Chargement des exemples…",
+    "examplesEmpty": "Aucun exemple disponible.",
+    "examplesError": "Impossible de charger les exemples.",
+    "examplesShowcaseHeading": "Plannings de démonstration complets",
+    "examplesBasicHeading": "Exemples simples",
+    "examplesShowcaseBadge": "Toutes les fonctionnalités",
     "exportTitle": "Exporter",
     "exportSubtitle": "Choisissez un format. Le projet sera converti et enregistré.",
     "printTitle": "Imprimer",

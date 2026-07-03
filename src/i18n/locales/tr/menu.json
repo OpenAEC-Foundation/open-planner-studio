@@ -169,7 +169,8 @@
     "selection": "Seçim: {{count}} görev",
     "scale": "Ölçek:",
     "zoom": "Yakınlaştırma: {{level}}px/gün",
-    "unsaved": "Kaydedilmedi"
+    "unsaved": "Kaydedilmedi",
+    "scheduleStale": "Güncel değil — yeniden hesaplayın (F5)"
   },
   "menuBar": {
     "file": "Dosya",
@@ -199,6 +200,15 @@
     "recentTitle": "Son açılan projeler",
     "recentSubtitle": "Açmak için tıklayın.",
     "recentEmpty": "Henüz son açılan proje yok.",
+    "examples": "Örnekler",
+    "examplesTitle": "Örnek projeler",
+    "examplesSubtitle": "Birlikte gelen inşaat planları. Yeni bir sekmede açmak için tıklayın.",
+    "examplesLoading": "Örnekler yükleniyor…",
+    "examplesEmpty": "Kullanılabilir örnek yok.",
+    "examplesError": "Örnekler yüklenemedi.",
+    "examplesShowcaseHeading": "Tam kapsamlı örnek planlar",
+    "examplesBasicHeading": "Basit örnekler",
+    "examplesShowcaseBadge": "Tüm özellikler",
     "exportTitle": "Dışa aktarma",
     "exportSubtitle": "Bir biçim seçin. Proje dönüştürülerek kaydedilecek.",
     "printTitle": "Yazdır",

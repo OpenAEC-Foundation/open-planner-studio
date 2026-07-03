@@ -169,7 +169,8 @@
     "selection": "Auswahl: {{count}} Aufgabe(n)",
     "scale": "Maßstab:",
     "zoom": "Zoom: {{level}}px/Tag",
-    "unsaved": "Nicht gespeichert"
+    "unsaved": "Nicht gespeichert",
+    "scheduleStale": "Veraltet — neu berechnen (F5)"
   },
   "menuBar": {
     "file": "Datei",
@@ -199,6 +200,15 @@
     "recentTitle": "Zuletzt verwendete Projekte",
     "recentSubtitle": "Klicken zum Öffnen.",
     "recentEmpty": "Noch keine kürzlich geöffneten Projekte.",
+    "examples": "Beispiele",
+    "examplesTitle": "Beispielprojekte",
+    "examplesSubtitle": "Mitgelieferte Bauzeitpläne. Klicken zum Öffnen in einem neuen Tab.",
+    "examplesLoading": "Beispiele werden geladen…",
+    "examplesEmpty": "Keine Beispiele verfügbar.",
+    "examplesError": "Beispiele konnten nicht geladen werden.",
+    "examplesShowcaseHeading": "Vollständige Showcase-Zeitpläne",
+    "examplesBasicHeading": "Einfache Beispiele",
+    "examplesShowcaseBadge": "Alle Funktionen",
     "exportTitle": "Exportieren",
     "exportSubtitle": "Format auswählen. Das Projekt wird konvertiert und gespeichert.",
     "printTitle": "Drucken",

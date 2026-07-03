@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "Neues Projekt erstellen? Nicht gespeicherte Änderungen gehen verloren.",
     "deleteTask": "Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?",
-    "unsavedChanges": "Nicht gespeicherte Änderungen gehen verloren. Fortfahren?",
-    "restoreRecovery": "Eine Wiederherstellungsdatei wurde gefunden. Möchten Sie Ihre vorherige Arbeit wiederherstellen?"
+    "unsavedChanges": "Nicht gespeicherte Änderungen gehen verloren. Fortfahren?"
+  },
+  "recovery": {
+    "dialogTitle": "Nicht gespeicherte Arbeit wiederherstellen",
+    "explanation": "Open Planner Studio wurde nicht normal beendet. Die folgenden Dokumente enthielten nicht gespeicherte Änderungen, die wiederhergestellt werden können:",
+    "timeLabel": "Gespeichert",
+    "taskCount": "{{count}} Aufgaben",
+    "untitled": "Unbenanntes Projekt",
+    "restore": "Wiederherstellen",
+    "dontRestore": "Nicht wiederherstellen"
   },
   "window": {
     "minimize": "Minimieren",
@@ -107,6 +115,42 @@
     "closeTitle": "Nicht gespeicherte Änderungen",
     "closeBody": "„{{name}}“ enthält Änderungen, die noch nicht gespeichert wurden.",
     "dontSave": "Nicht speichern"
+  },
+  "feedback": {
+    "buttonTooltip": "Feedback geben",
+    "title": "Feedback geben",
+    "typeBug": "Fehler",
+    "typeFeature": "Funktionswunsch",
+    "fieldTitle": "Titel",
+    "fieldDescription": "Beschreibung",
+    "attachScreenshot": "Screenshot anhängen",
+    "capturing": "Screenshot wird erstellt…",
+    "captureFailed": "Screenshot-Erstellung fehlgeschlagen. Sie können Feedback trotzdem ohne Screenshot senden.",
+    "submit": "An GitHub senden",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "tools": {
+      "arrow": "Pfeil",
+      "rectangle": "Rechteck",
+      "pen": "Stift",
+      "text": "Text",
+      "color": "Farbe",
+      "undo": "Rückgängig",
+      "clear": "Alles löschen"
+    },
+    "instructionTitle": "Fast fertig — Ihr Screenshot ist in der Zwischenablage.",
+    "instructionStep1": "Klicken Sie unten auf „OK, zu GitHub“ — die Issue-Seite öffnet sich in Ihrem Browser (melden Sie sich an, falls noch nicht geschehen).",
+    "instructionStep2": "Klicken Sie in das große Textfeld des Issues.",
+    "instructionStep3": "Drücken Sie Strg + V (Cmd + V auf dem Mac) — Ihr Screenshot wird hochgeladen und erscheint im Text.",
+    "instructionStep4": "Klicken Sie unten auf „Submit new issue“.",
+    "instructionFallback": "Einfügen klappt nicht? Wir haben den Screenshot auch unter {{path}} gespeichert — ziehen Sie diese Datei in das Textfeld.",
+    "openButton": "Feedback geben",
+    "openGithub": "OK, zu GitHub",
+    "annotate": "Anmerken",
+    "editorDone": "Fertig",
+    "rotateFeedback": "Feedback geben",
+    "rotateBug": "Einen Fehler melden",
+    "rotateFeature": "Neue Funktion vorschlagen"
   },
   "updates": {
     "section": "Updates",
@@ -148,6 +192,8 @@
     "maxUnits": "Max. Einheiten",
     "calendarId": "Kalender",
     "costPerHour": "Tarif/Stunde",
+    "total": "Gesamt",
+    "totalHint": "Belastete Einheiten × Std./Tag × Tarif (mit F5 neu berechnen)",
     "unitOfMeasure": "Einheit",
     "parent": "Kolonne",
     "projectCalendar": "Projektkalender",
@@ -164,6 +210,9 @@
       "title": "Ressourcen",
       "addRow": "Neue Ressource",
       "deleteRow": "Löschen",
+      "confirmDelete": "„{{name}}“ hat {{count}} Zuweisung(en) — löschen?",
+      "confirmDeleteYes": "Löschen",
+      "confirmDeleteNo": "Abbrechen",
       "empty": "Noch keine Ressourcen. Fügen Sie eine hinzu, um zu beginnen.",
       "steps": "Schritte"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{count}} Aufgaben tragen bei am {{date}}",
       "noData": "Neu berechnen (F5), um die Auslastung anzuzeigen",
       "noResources": "Noch keine Ressourcen",
-      "units": "Einheiten"
+      "units": "Einheiten",
+      "staleHint": "Terminplan veraltet — neu berechnen (F5)"
     },
     "leveling": {
       "dialogTitle": "Ressourcen abgleichen",
@@ -188,6 +238,7 @@
       "projectEndChanged": "Projektende: {{before}} → {{after}}",
       "remainingConflicts": "Verbleibende Konflikte",
       "remainingConflictsHint": "Diese Aufgaben passen nicht in ihren Puffer — oft weil eine Ressource an diesen Tagen nicht arbeitet oder nicht genug Kapazität hat.",
+      "intrinsicOverrun": "{{resource}} erreicht einen Spitzenwert von {{peak}} Einh./Tag, Kapazität ist {{capacity}} — durch Verschieben nicht lösbar.",
       "noChanges": "Keine Aufgaben müssen verschoben werden — der Terminplan ist bereits konfliktfrei.",
       "notCalculated": "Klicken Sie auf Berechnen, um einen Abgleichsvorschlag zu erstellen.",
       "needsCPM": "Berechnen Sie zuerst den Terminplan (F5), bevor Sie den Abgleich durchführen.",
@@ -196,7 +247,11 @@
       "colNewStart": "Neuer Start",
       "colShift": "Verschobene Tage",
       "shiftDays": "{{count}} T",
-      "conflictDays": "{{count}} Tag(e)"
+      "conflictDays": "{{count}} Tag(e)",
+      "reason": {
+        "calendarMismatch": "Die Ressource arbeitet nicht an allen Tagen, die diese Aufgabe benötigt — Verschieben löst dies nicht.",
+        "insufficientCapacity": "Nicht genug freie Kapazität innerhalb des Puffers, um diesen Konflikt zu lösen."
+      }
     },
     "curve": {
       "uniform": "Gleichmäßig",

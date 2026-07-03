@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "Créer un nouveau projet ? Les modifications non enregistrées seront perdues.",
     "deleteTask": "Êtes-vous sûr de vouloir supprimer cette tâche ?",
-    "unsavedChanges": "Les modifications non enregistrées seront perdues. Continuer ?",
-    "restoreRecovery": "Un fichier de récupération a été trouvé. Souhaitez-vous restaurer votre travail précédent ?"
+    "unsavedChanges": "Les modifications non enregistrées seront perdues. Continuer ?"
+  },
+  "recovery": {
+    "dialogTitle": "Restaurer le travail non enregistré",
+    "explanation": "Open Planner Studio ne s'est pas fermé normalement. Les documents suivants comportaient des modifications non enregistrées qui peuvent être restaurées :",
+    "timeLabel": "Enregistré",
+    "taskCount": "{{count}} tâches",
+    "untitled": "Projet sans titre",
+    "restore": "Restaurer",
+    "dontRestore": "Ne pas restaurer"
   },
   "window": {
     "minimize": "Réduire",
@@ -107,6 +115,42 @@
     "closeTitle": "Modifications non enregistrées",
     "closeBody": "« {{name}} » contient des modifications qui n'ont pas encore été enregistrées.",
     "dontSave": "Ne pas enregistrer"
+  },
+  "feedback": {
+    "buttonTooltip": "Envoyer un commentaire",
+    "title": "Envoyer un commentaire",
+    "typeBug": "Bug",
+    "typeFeature": "Demande de fonctionnalité",
+    "fieldTitle": "Titre",
+    "fieldDescription": "Description",
+    "attachScreenshot": "Joindre une capture d'écran",
+    "capturing": "Capture d'écran en cours…",
+    "captureFailed": "La capture d'écran a échoué. Vous pouvez toujours envoyer un commentaire sans capture d'écran.",
+    "submit": "Envoyer à GitHub",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "tools": {
+      "arrow": "Flèche",
+      "rectangle": "Rectangle",
+      "pen": "Stylo",
+      "text": "Texte",
+      "color": "Couleur",
+      "undo": "Annuler",
+      "clear": "Tout effacer"
+    },
+    "instructionTitle": "Presque terminé — votre capture d'écran est dans le presse-papiers.",
+    "instructionStep1": "Cliquez sur « OK, aller sur GitHub » ci-dessous — la page de l'issue s'ouvre dans votre navigateur (connectez-vous si ce n'est pas déjà fait).",
+    "instructionStep2": "Cliquez dans la grande zone de texte de l'issue.",
+    "instructionStep3": "Appuyez sur Ctrl + V (Cmd + V sur Mac) — votre capture d'écran sera téléchargée et apparaîtra dans le texte.",
+    "instructionStep4": "Cliquez sur « Submit new issue » en bas.",
+    "instructionFallback": "Le collage ne fonctionne pas ? Nous avons aussi enregistré la capture d'écran dans {{path}} — glissez ce fichier dans la zone de texte.",
+    "openButton": "Donner mon avis",
+    "openGithub": "OK, aller sur GitHub",
+    "annotate": "Annoter",
+    "editorDone": "Terminé",
+    "rotateFeedback": "Envoyer un commentaire",
+    "rotateBug": "Signaler un bug",
+    "rotateFeature": "Proposer une nouvelle fonctionnalité"
   },
   "updates": {
     "section": "Mises à jour",
@@ -148,6 +192,8 @@
     "maxUnits": "Unités max.",
     "calendarId": "Calendrier",
     "costPerHour": "Tarif/heure",
+    "total": "Total",
+    "totalHint": "Unités chargées × heures/jour × tarif (recalculer avec F5)",
     "unitOfMeasure": "Unité",
     "parent": "Équipe",
     "projectCalendar": "Calendrier du projet",
@@ -164,6 +210,9 @@
       "title": "Ressources",
       "addRow": "Nouvelle ressource",
       "deleteRow": "Supprimer",
+      "confirmDelete": "« {{name}} » a {{count}} affectation(s) — supprimer ?",
+      "confirmDeleteYes": "Supprimer",
+      "confirmDeleteNo": "Annuler",
       "empty": "Aucune ressource pour l’instant. Ajoutez-en une pour commencer.",
       "steps": "Étapes"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{count}} tâches contribuent le {{date}}",
       "noData": "Recalculer (F5) pour afficher la charge",
       "noResources": "Aucune ressource pour l’instant",
-      "units": "unités"
+      "units": "unités",
+      "staleHint": "Planification obsolète — recalculer (F5)"
     },
     "leveling": {
       "dialogTitle": "Niveler les ressources",
@@ -188,6 +238,7 @@
       "projectEndChanged": "Date de fin de projet : {{before}} → {{after}}",
       "remainingConflicts": "Conflits restants",
       "remainingConflictsHint": "Ces tâches ne tiennent pas dans leur marge — souvent parce qu'une ressource ne travaille pas ces jours-là ou manque de capacité.",
+      "intrinsicOverrun": "{{resource}} atteint un pic de {{peak}} unités/jour, la capacité est de {{capacity}} — ne peut pas être résolu en décalant.",
       "noChanges": "Aucune tâche ne doit être déplacée — la planification est déjà sans conflit.",
       "notCalculated": "Cliquez sur Calculer pour créer une proposition de nivellement.",
       "needsCPM": "Calculez d'abord la planification (F5) avant de niveler.",
@@ -196,7 +247,11 @@
       "colNewStart": "Nouveau début",
       "colShift": "Jours de décalage",
       "shiftDays": "{{count}} j",
-      "conflictDays": "{{count}} jour(s)"
+      "conflictDays": "{{count}} jour(s)",
+      "reason": {
+        "calendarMismatch": "La ressource ne travaille pas tous les jours nécessaires à cette tâche — le décalage ne résout pas ce problème.",
+        "insufficientCapacity": "Capacité libre insuffisante dans la marge pour résoudre ce conflit."
+      }
     },
     "curve": {
       "uniform": "Uniforme",

@@ -169,7 +169,8 @@
     "selection": "انتخاب: {{count}} وظیفه",
     "scale": "مقیاس:",
     "zoom": "بزرگ‌نمایی: {{level}}پیکسل/روز",
-    "unsaved": "ذخیره‌نشده"
+    "unsaved": "ذخیره‌نشده",
+    "scheduleStale": "قدیمی — دوباره محاسبه کنید (F5)"
   },
   "menuBar": {
     "file": "فایل",
@@ -199,6 +200,15 @@
     "recentTitle": "پروژه‌های اخیر",
     "recentSubtitle": "برای باز کردن کلیک کنید.",
     "recentEmpty": "هنوز پروژه‌ای باز نشده است.",
+    "examples": "نمونه‌ها",
+    "examplesTitle": "پروژه‌های نمونه",
+    "examplesSubtitle": "برنامه‌های ساختمانی همراه. برای باز کردن در برگه جدید کلیک کنید.",
+    "examplesLoading": "در حال بارگذاری نمونه‌ها…",
+    "examplesEmpty": "نمونه‌ای در دسترس نیست.",
+    "examplesError": "بارگذاری نمونه‌ها ممکن نشد.",
+    "examplesShowcaseHeading": "برنامه‌های نمایشی کامل",
+    "examplesBasicHeading": "نمونه‌های ساده",
+    "examplesShowcaseBadge": "همه ویژگی‌ها",
     "exportTitle": "خروجی",
     "exportSubtitle": "یک قالب انتخاب کنید. پروژه تبدیل و ذخیره می‌شود.",
     "printTitle": "چاپ",

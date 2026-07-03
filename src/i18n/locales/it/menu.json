@@ -169,7 +169,8 @@
     "selection": "Selezione: {{count}} attività",
     "scale": "Scala:",
     "zoom": "Zoom: {{level}}px/giorno",
-    "unsaved": "Non salvato"
+    "unsaved": "Non salvato",
+    "scheduleStale": "Non aggiornato — ricalcola (F5)"
   },
   "menuBar": {
     "file": "File",
@@ -199,6 +200,15 @@
     "recentTitle": "Progetti recenti",
     "recentSubtitle": "Fai clic per aprire.",
     "recentEmpty": "Nessun progetto aperto di recente.",
+    "examples": "Esempi",
+    "examplesTitle": "Progetti di esempio",
+    "examplesSubtitle": "Pianificazioni edilizie incluse. Fai clic per aprire in una nuova scheda.",
+    "examplesLoading": "Caricamento esempi…",
+    "examplesEmpty": "Nessun esempio disponibile.",
+    "examplesError": "Impossibile caricare gli esempi.",
+    "examplesShowcaseHeading": "Pianificazioni showcase complete",
+    "examplesBasicHeading": "Esempi semplici",
+    "examplesShowcaseBadge": "Tutte le funzionalità",
     "exportTitle": "Esporta",
     "exportSubtitle": "Scegli un formato. Il progetto verrà convertito e salvato.",
     "printTitle": "Stampa",

@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "Creare un nuovo progetto? Le modifiche non salvate andranno perse.",
     "deleteTask": "Sei sicuro di voler eliminare questa attività?",
-    "unsavedChanges": "Le modifiche non salvate andranno perse. Continuare?",
-    "restoreRecovery": "È stato trovato un file di recupero. Vuoi ripristinare il lavoro precedente?"
+    "unsavedChanges": "Le modifiche non salvate andranno perse. Continuare?"
+  },
+  "recovery": {
+    "dialogTitle": "Ripristina lavoro non salvato",
+    "explanation": "Open Planner Studio non si è chiuso normalmente. I seguenti documenti presentavano modifiche non salvate che possono essere ripristinate:",
+    "timeLabel": "Salvato",
+    "taskCount": "{{count}} attività",
+    "untitled": "Progetto senza titolo",
+    "restore": "Ripristina",
+    "dontRestore": "Non ripristinare"
   },
   "window": {
     "minimize": "Riduci a icona",
@@ -107,6 +115,42 @@
     "closeTitle": "Modifiche non salvate",
     "closeBody": "«{{name}}» contiene modifiche non ancora salvate.",
     "dontSave": "Non salvare"
+  },
+  "feedback": {
+    "buttonTooltip": "Invia feedback",
+    "title": "Invia feedback",
+    "typeBug": "Bug",
+    "typeFeature": "Richiesta di funzionalità",
+    "fieldTitle": "Titolo",
+    "fieldDescription": "Descrizione",
+    "attachScreenshot": "Allega screenshot",
+    "capturing": "Acquisizione screenshot…",
+    "captureFailed": "Acquisizione screenshot non riuscita. Puoi comunque inviare il feedback senza screenshot.",
+    "submit": "Invia a GitHub",
+    "cancel": "Annulla",
+    "close": "Chiudi",
+    "tools": {
+      "arrow": "Freccia",
+      "rectangle": "Rettangolo",
+      "pen": "Penna",
+      "text": "Testo",
+      "color": "Colore",
+      "undo": "Annulla",
+      "clear": "Cancella tutto"
+    },
+    "instructionTitle": "Quasi fatto — il tuo screenshot è negli appunti.",
+    "instructionStep1": "Fai clic su \"OK, vai su GitHub\" qui sotto — la pagina dell'issue si apre nel browser (accedi se non l'hai già fatto).",
+    "instructionStep2": "Fai clic all'interno dell'area di testo grande dell'issue.",
+    "instructionStep3": "Premi Ctrl + V (Cmd + V su Mac) — il tuo screenshot verrà caricato e comparirà nel testo.",
+    "instructionStep4": "Fai clic su \"Submit new issue\" in fondo.",
+    "instructionFallback": "L'incolla non funziona? Abbiamo salvato lo screenshot anche in {{path}} — trascina quel file nell'area di testo.",
+    "openButton": "Invia feedback",
+    "openGithub": "OK, vai su GitHub",
+    "annotate": "Annota",
+    "editorDone": "Fatto",
+    "rotateFeedback": "Invia feedback",
+    "rotateBug": "Segnala un bug",
+    "rotateFeature": "Proponi una nuova funzionalità"
   },
   "updates": {
     "section": "Aggiornamenti",
@@ -148,6 +192,8 @@
     "maxUnits": "Unità max.",
     "calendarId": "Calendario",
     "costPerHour": "Tariffa/ora",
+    "total": "Totale",
+    "totalHint": "Unità caricate × ore/giorno × tariffa (ricalcola con F5)",
     "unitOfMeasure": "Unità",
     "parent": "Squadra",
     "projectCalendar": "Calendario di progetto",
@@ -164,6 +210,9 @@
       "title": "Risorse",
       "addRow": "Nuova risorsa",
       "deleteRow": "Elimina",
+      "confirmDelete": "'{{name}}' ha {{count}} assegnazione/i — eliminare?",
+      "confirmDeleteYes": "Elimina",
+      "confirmDeleteNo": "Annulla",
       "empty": "Ancora nessuna risorsa. Aggiungine una per iniziare.",
       "steps": "Fasi"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{count}} attività contribuiscono il {{date}}",
       "noData": "Ricalcola (F5) per mostrare il carico",
       "noResources": "Ancora nessuna risorsa",
-      "units": "unità"
+      "units": "unità",
+      "staleHint": "Pianificazione non aggiornata — ricalcola (F5)"
     },
     "leveling": {
       "dialogTitle": "Livella risorse",
@@ -188,6 +238,7 @@
       "projectEndChanged": "Data di fine progetto: {{before}} → {{after}}",
       "remainingConflicts": "Conflitti rimanenti",
       "remainingConflictsHint": "Queste attività non rientrano nel loro margine — spesso perché una risorsa non lavora in quei giorni o non ha capacità sufficiente.",
+      "intrinsicOverrun": "{{resource}} raggiunge un picco di {{peak}} unità/giorno, la capacità è {{capacity}} — non risolvibile spostando.",
       "noChanges": "Nessuna attività deve essere spostata — la pianificazione è già priva di conflitti.",
       "notCalculated": "Fai clic su Calcola per creare una proposta di livellamento.",
       "needsCPM": "Calcola la pianificazione (F5) prima di livellare.",
@@ -196,7 +247,11 @@
       "colNewStart": "Nuovo inizio",
       "colShift": "Giorni spostati",
       "shiftDays": "{{count}} g",
-      "conflictDays": "{{count}} giorno/i"
+      "conflictDays": "{{count}} giorno/i",
+      "reason": {
+        "calendarMismatch": "La risorsa non lavora in tutti i giorni richiesti da questa attività — lo spostamento non risolve il problema.",
+        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto."
+      }
     },
     "curve": {
       "uniform": "Uniforme",

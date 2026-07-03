@@ -169,7 +169,8 @@
     "selection": "选择：{{count}} 个任务",
     "scale": "刻度：",
     "zoom": "缩放：{{level}}像素/天",
-    "unsaved": "未保存"
+    "unsaved": "未保存",
+    "scheduleStale": "已过期 — 请重新计算（F5）"
   },
   "menuBar": {
     "file": "文件",
@@ -199,6 +200,15 @@
     "recentTitle": "最近项目",
     "recentSubtitle": "点击打开。",
     "recentEmpty": "暂无最近打开的项目。",
+    "examples": "示例",
+    "examplesTitle": "示例项目",
+    "examplesSubtitle": "内置的建筑计划。点击可在新标签页中打开。",
+    "examplesLoading": "正在加载示例…",
+    "examplesEmpty": "暂无可用示例。",
+    "examplesError": "无法加载示例。",
+    "examplesShowcaseHeading": "完整展示计划",
+    "examplesBasicHeading": "简单示例",
+    "examplesShowcaseBadge": "全部功能",
     "exportTitle": "导出",
     "exportSubtitle": "选择格式，项目将被转换并保存。",
     "printTitle": "打印",

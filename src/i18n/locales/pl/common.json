@@ -76,8 +76,16 @@
   "confirm": {
     "newProject": "Utworzyć nowy projekt? Niezapisane zmiany zostaną utracone.",
     "deleteTask": "Czy na pewno chcesz usunąć to zadanie?",
-    "unsavedChanges": "Niezapisane zmiany zostaną utracone. Kontynuować?",
-    "restoreRecovery": "Znaleziono plik odzyskiwania. Czy chcesz przywrócić poprzednią pracę?"
+    "unsavedChanges": "Niezapisane zmiany zostaną utracone. Kontynuować?"
+  },
+  "recovery": {
+    "dialogTitle": "Przywróć niezapisaną pracę",
+    "explanation": "Open Planner Studio nie zostało zamknięte poprawnie. Poniższe dokumenty miały niezapisane zmiany, które można przywrócić:",
+    "timeLabel": "Zapisano",
+    "taskCount": "Zadania: {{count}}",
+    "untitled": "Projekt bez nazwy",
+    "restore": "Przywróć",
+    "dontRestore": "Nie przywracaj"
   },
   "window": {
     "minimize": "Minimalizuj",
@@ -107,6 +115,42 @@
     "closeTitle": "Niezapisane zmiany",
     "closeBody": "„{{name}}” ma zmiany, które nie zostały jeszcze zapisane.",
     "dontSave": "Nie zapisuj"
+  },
+  "feedback": {
+    "buttonTooltip": "Wyślij opinię",
+    "title": "Wyślij opinię",
+    "typeBug": "Błąd",
+    "typeFeature": "Propozycja funkcji",
+    "fieldTitle": "Tytuł",
+    "fieldDescription": "Opis",
+    "attachScreenshot": "Dołącz zrzut ekranu",
+    "capturing": "Przechwytywanie zrzutu ekranu…",
+    "captureFailed": "Nie udało się przechwycić zrzutu ekranu. Nadal możesz wysłać opinię bez zrzutu ekranu.",
+    "submit": "Wyślij do GitHub",
+    "cancel": "Anuluj",
+    "close": "Zamknij",
+    "tools": {
+      "arrow": "Strzałka",
+      "rectangle": "Prostokąt",
+      "pen": "Pióro",
+      "text": "Tekst",
+      "color": "Kolor",
+      "undo": "Cofnij",
+      "clear": "Wyczyść wszystko"
+    },
+    "instructionTitle": "Prawie gotowe — zrzut ekranu jest w schowku.",
+    "instructionStep1": "Kliknij poniżej „OK, przejdź do GitHub” — strona zgłoszenia otworzy się w przeglądarce (zaloguj się, jeśli jeszcze tego nie zrobiłeś).",
+    "instructionStep2": "Kliknij w duże pole tekstowe zgłoszenia.",
+    "instructionStep3": "Naciśnij Ctrl + V (Cmd + V na Mac) — zrzut ekranu zostanie przesłany i pojawi się w tekście.",
+    "instructionStep4": "Kliknij „Submit new issue” na dole.",
+    "instructionFallback": "Wklejanie nie działa? Zrzut ekranu zapisaliśmy również w {{path}} — przeciągnij ten plik do pola tekstowego.",
+    "openButton": "Wyślij opinię",
+    "openGithub": "OK, przejdź do GitHub",
+    "annotate": "Zaznacz",
+    "editorDone": "Gotowe",
+    "rotateFeedback": "Wyślij opinię",
+    "rotateBug": "Zgłoś błąd",
+    "rotateFeature": "Zaproponuj nową funkcję"
   },
   "updates": {
     "section": "Aktualizacje",
@@ -148,6 +192,8 @@
     "maxUnits": "Maks. jednostki",
     "calendarId": "Kalendarz",
     "costPerHour": "Stawka/godz.",
+    "total": "Razem",
+    "totalHint": "Przydzielone jednostki × godziny/dzień × stawka (przelicz za pomocą F5)",
     "unitOfMeasure": "Jednostka",
     "parent": "Brygada",
     "projectCalendar": "Kalendarz projektu",
@@ -164,6 +210,9 @@
       "title": "Zasoby",
       "addRow": "Nowy zasób",
       "deleteRow": "Usuń",
+      "confirmDelete": "„{{name}}” ma przypisań: {{count}} — usunąć?",
+      "confirmDeleteYes": "Usuń",
+      "confirmDeleteNo": "Anuluj",
       "empty": "Brak zasobów. Dodaj jeden, aby zacząć.",
       "steps": "Kroki"
     },
@@ -175,7 +224,8 @@
       "overallocatedTooltip": "{{count}} zadań ma udział w dniu {{date}}",
       "noData": "Przelicz (F5), aby pokazać obciążenie",
       "noResources": "Brak zasobów",
-      "units": "jednostki"
+      "units": "jednostki",
+      "staleHint": "Harmonogram nieaktualny — przelicz (F5)"
     },
     "leveling": {
       "dialogTitle": "Bilansuj zasoby",
@@ -188,6 +238,7 @@
       "projectEndChanged": "Data zakończenia projektu: {{before}} → {{after}}",
       "remainingConflicts": "Pozostałe konflikty",
       "remainingConflictsHint": "Te zadania nie mieszczą się w swoim zapasie — często dlatego, że zasób nie pracuje w te dni lub ma zbyt małą zdolność.",
+      "intrinsicOverrun": "{{resource}}: szczyt {{peak}} jedn./dzień, zdolność to {{capacity}} — nie da się tego rozwiązać przesunięciem.",
       "noChanges": "Żadne zadania nie wymagają przesunięcia — harmonogram jest już wolny od konfliktów.",
       "notCalculated": "Kliknij Oblicz, aby utworzyć propozycję bilansowania.",
       "needsCPM": "Najpierw przelicz harmonogram (F5), zanim zbilansujesz zasoby.",
@@ -196,7 +247,11 @@
       "colNewStart": "Nowy start",
       "colShift": "Dni przesunięcia",
       "shiftDays": "{{count}} dni",
-      "conflictDays": "{{count}} dzień/dni"
+      "conflictDays": "{{count}} dzień/dni",
+      "reason": {
+        "calendarMismatch": "Zasób nie pracuje we wszystkie dni potrzebne temu zadaniu — przesunięcie tego nie rozwiąże.",
+        "insufficientCapacity": "Za mało wolnej zdolności w ramach zapasu, aby rozwiązać ten konflikt."
+      }
     },
     "curve": {
       "uniform": "Jednolity",
