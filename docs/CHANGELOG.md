@@ -6,6 +6,10 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
+*(nog niets)*
+
+## v2026.7.2 — 2026-07-03
+
 ### Toegevoegd
 - **Mijlpalen (fase 2.4)** — start-/eindmijlpalen, verplichte mijlpalen en een
   mijlpalen-overzicht (ontwerp: `docs/superpowers/specs/2026-07-02-mijlpalen-design.md`):
