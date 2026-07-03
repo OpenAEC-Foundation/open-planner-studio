@@ -147,6 +147,19 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] Interfering float
 - [ ] Scheduling options (keuze berekeningsmethoden)
 
+#### 2.10 Gebruikersdocumentatie (afsluiter van fase 2)
+- [ ] **Volledige gebruikersdocumentatie schrijven** — aan het einde van fase 2, als alle
+  planningsfeatures er zijn. Gebruikers moeten nu nog gokken hoe alles werkt; er is geen
+  handleiding. Dekking: projecten aanmaken (wizard, kalender-presets), taken/WBS/inspringen,
+  relaties + lags, constraints + deadlines, mijlpalen (soorten, verplicht), resources
+  (types, kalenders, capaciteitsstappen, toewijzen, curves), histogram lezen, nivelleren vs.
+  smoothing (en wanneer welke), rapporten/printen, import/export (IFC/P6/MSP/CSV, incl. wat
+  wél/niet meereist per formaat), multi-document, sneltoetsen, instellingen en de updater.
+  Vorm: gebruikersgericht (taakgericht "hoe doe ik X", niet feature-opsomming), NL als brontaal,
+  vindbaar vanuit de app (Backstage → Help of vergelijkbaar), met screenshots. Bestaande
+  vindplaats voor auteurs: alleen `docs/extensions.md` (extensie-auteurs) — eindgebruikers
+  hebben nu niets.
+
 ### Fase 3 — Bouwsector & Nederlandse Features (v1.0)
 
 #### 3.1 Lean Construction & Last Planner System
