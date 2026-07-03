@@ -270,6 +270,59 @@
       }
     },
     {
+      "id": "lvl-parallel-shared-agnostic-noconflict",
+      "title": "CPM is resource-agnostisch: A->B FS, B->C en B->D FS, C+D delen EQUIPMENT maxUnits=1 -> ZONDER nivelleren staat de planning gelijk aan de resourceloze planning (gedeelde resource verschuift NIETS; overallocatie wordt alleen gemarkeerd). Regressiebewaking: een 5-daagse taak mag nooit een opgerekte span krijgen door louter een gedeelde resource.",
+      "resources": [{ "name": "K", "type": "EQUIPMENT", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "B", "dur": 5 },
+        { "name": "C", "dur": 5, "assign": [{ "res": "K", "units": 1 }] },
+        { "name": "D", "dur": 5, "assign": [{ "res": "K", "units": 1 }] }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05" },
+          "B": { "es": "2026-06-08", "ef": "2026-06-12" },
+          "C": { "es": "2026-06-15", "ef": "2026-06-19" },
+          "D": { "es": "2026-06-15", "ef": "2026-06-19" }
+        },
+        "projectEnd": "2026-06-19",
+        "overallocatedDays": { "K": ["2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19"] },
+        "load": { "K": { "2026-06-15": 2, "2026-06-16": 2, "2026-06-17": 2, "2026-06-18": 2, "2026-06-19": 2 } }
+      }
+    },
+    {
+      "id": "lvl-preview-is-pure",
+      "title": "Nivelleer-PREVIEW (Berekenen zonder Toepassen) muteert de store NIET: zelfde parallelle-opvolgers+gedeelde-resource-opzet, alleen `levelResources` aangeroepen en daarna opnieuw runCPM -> datums identiek aan de kale planning (geen levelingDelay lekt naar de echte task-objecten). Dit is de exacte regressie die de QA-agent vermoedde.",
+      "resources": [{ "name": "K", "type": "EQUIPMENT", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "B", "dur": 5 },
+        { "name": "C", "dur": 5, "assign": [{ "res": "K", "units": 1 }] },
+        { "name": "D", "dur": 5, "assign": [{ "res": "K", "units": 1 }] }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "D", "type": "FINISH_START" }
+      ],
+      "levelPreview": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05" },
+          "B": { "es": "2026-06-08", "ef": "2026-06-12" },
+          "C": { "es": "2026-06-15", "ef": "2026-06-19" },
+          "D": { "es": "2026-06-15", "ef": "2026-06-19" }
+        },
+        "projectEnd": "2026-06-19"
+      }
+    },
+    {
       "id": "lvl-no-conflict-noop",
       "title": "Voldoende capaciteit (maxUnits=2) -> geen verschuiving, nivelleren is een no-op",
       "resources": [{ "name": "R", "maxUnits": 2 }],

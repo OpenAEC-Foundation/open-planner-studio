@@ -60,6 +60,10 @@ interface Case {
   }[];
   links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
   level?: { constrainToFloat?: boolean; resources?: string[] };
+  /** Zuiverheids-guard: draai de leveler-PREVIEW (levelResources) ZONDER applyLeveling en
+   *  her-draai daarna CPM. `levelResources` hoort puur te zijn (geen state-mutatie), dus de
+   *  assertions moeten identiek zijn aan een kale runCPM. Wederzijds exclusief met `level`. */
+  levelPreview?: { constrainToFloat?: boolean; resources?: string[] };
   expect: any;
 }
 
@@ -165,6 +169,25 @@ function buildAndSolve(c: Case): { ids: Record<string, string>; resIds: Record<s
       ...(resourceIds ? { resourceIds } : {}),
     });
     S().applyLeveling(result);
+  }
+
+  // Preview-zuiverheids-guard (fase 2.5, §5.6): `levelResources` moet puur zijn. We draaien de
+  // preview (GEEN applyLeveling) en her-draaien CPM; de assertions horen exact gelijk te blijven
+  // aan een kale runCPM. Zou de leveler stiekem `levelingDelay` op de echte task-objecten zetten
+  // (referentie-delen met de store), dan zou deze her-runCPM de datums opschuiven — precies het
+  // scenario dat we willen bewaken.
+  if (c.levelPreview) {
+    const resourceIds = c.levelPreview.resources
+      ? c.levelPreview.resources.map(n => {
+          if (!resIds[n]) throw new Error(`levelPreview.resources: onbekende resource "${n}"`);
+          return resIds[n];
+        })
+      : undefined;
+    S().levelResources({
+      constrainToFloat: !!c.levelPreview.constrainToFloat,
+      ...(resourceIds ? { resourceIds } : {}),
+    });
+    S().runCPM();
   }
 
   return { ids, resIds };
