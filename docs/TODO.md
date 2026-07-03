@@ -21,6 +21,14 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       overige dialogen) — consistente look-and-feel en ruimte om meer context te
       tonen (welk(e) document(en), bestandspad, tijdstip van de snapshot).
 
+- [ ] **Taakdialoog (dubbelklik) gelijktrekken met het eigenschappenpaneel.** Dubbelklik op een
+  taak opent `TaskDialog` (`src/components/dialogs/TaskDialog.tsx`), maar die biedt alleen de
+  fase-1-velden (naam, WBS, omschrijving, type, mijlpaal-vinkje, start, duur, oudertaak). Alles
+  wat het `TaskPropertiesPanel` sindsdien kreeg ontbreekt: mijlpaal-soort (start/eind) en
+  verplicht-vlag (2.4), datumconstraints + deadline (2.3), voortgang, prioriteit en de
+  toewijzingen-sectie (2.5). De dialoog moet dezelfde opties bieden als het paneel — bij
+  voorkeur door de secties als gedeelde componenten te delen i.p.v. te dupliceren (zelfde
+  patroon als `SettingsPanelContent`/`CalendarForm`), zodat dit niet opnieuw kan divergeren.
 - [ ] **Relatietype kiezen bij het slepen van een afhankelijkheid.** Nu maakt de
       sleep-actie op het Gantt-canvas altijd een `FINISH_START`-relatie aan
       (hardcoded in `GanttCanvas.tsx`, bij het loslaten van de dependency-drag).
