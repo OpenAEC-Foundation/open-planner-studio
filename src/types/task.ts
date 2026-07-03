@@ -77,7 +77,16 @@ export interface Task {
   /** Verplichte (contractuele) mijlpaal — inspectie-/keurings-/opleverpunt. Markering
    *  voor rapportage & Gantt; datumbewaking loopt via constraint/deadline (fase 2.3). */
   mandatory?: boolean;
+  /** Leveling-prioriteit (MSP-conventie, P6 "Activity Priority" analoog): 0–1000, default 500.
+   *  1000 = "Do Not Level" (vastgepind, wordt door de nivelleerder nooit verschoven). Ongebruikt
+   *  vóór fase 2.5 (was hardcoded 0 overal); vanaf 2.5 stuurt dit de nivelleervolgorde. */
   priority: number;
+  /** Vertraging in werkdagen t.o.v. de precedence-feasible early start (de ES die de forward
+   *  pass berekent nadat óók de voorgangers hun levelingDelay hebben gekregen — NIET t.o.v. de
+   *  oorspronkelijke CPM-ES, dat zou voorgangersverschuivingen dubbel tellen). Gezet door de
+   *  nivelleerder (fase 2.5, nog niet gebouwd). undefined = geen nivellering toegepast.
+   *  "Nivellering wissen" zet dit overal terug naar undefined. */
+  levelingDelay?: number;
   parentId: string | null; // WBS parent
   childIds: string[];      // WBS children
   time: TaskTime;

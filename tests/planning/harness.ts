@@ -16,32 +16,53 @@
 //     type: FINISH_START|START_START|FINISH_FINISH|START_FINISH
 //     lag in dagen (default 0, negatief = lead); lagUnit: WORKTIME (default) | ELAPSEDTIME (kalenderdagen);
 //     lagPercent: % van de voorgangerduur (overstemt lag)
+//   resources?: [{ name, type?, maxUnits?, calendar?: Cal, steps?: {from,maxUnits}[] }]   (fase 2.5)
+//     type: LABOR|EQUIPMENT|MATERIAL|SUBCONTRACTOR|CREW (default LABOR); maxUnits default 1
+//     calendar: eigen resource-kalender (default: geen, dus projectkalender geldt)
+//     steps: availabilitySteps (effective-dated capaciteit)
+//   tasks[].assign?: [{ res, units, curve? }]   // res = naam uit resources[]; curve default UNIFORM
+//   level?: { constrainToFloat?: boolean; resources?: string[] }   // leveler bestaat nog niet — zie buildAndSolve
 //   expect: {
 //     tasks?: { [name]: { es?,ef?,ls?,lf?,tf?,ff?,crit? } },   // datums "YYYY-MM-DD"; tf/ff getallen; crit boolean
 //     criticalPathSet?: [names],   // vergeleken als verzameling (volgorde-onafhankelijk)
 //     drivingSet?: [[pred,succ,type]],  // welke relaties driving zijn (verzameling van triples)
 //     violatedConstraintsSet?: [names], missedDeadlinesSet?: [names],  // taak-namen (verzameling)
 //     projectEnd?, projectDuration?,
+//     load?: { [resName]: { [isoDate]: number } },              // spot-checks op resourceLoadResult.load
+//     overallocatedDays?: { [resName]: string[] },              // vergeleken als verzameling
 //     error?: boolean | string     // true => verwacht een fout; string => substring in de foutmelding
 //   }
 // }
 import { useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/types/task';
+import type { ResourceType, ResourceCurve } from '@/types/resource';
 import { readFileSync } from 'node:fs';
 
 const S = () => useAppStore.getState();
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
 
 type Cal = { workDays?: number[]; holidays?: { name: string; startDate: string; endDate: string }[] };
+interface CaseResource {
+  name: string; type?: ResourceType; maxUnits?: number;
+  calendar?: Cal; steps?: { from: string; maxUnits: number }[];
+  /** Naam van een eerder gedefinieerde CREW-resource (ploeg-lidmaatschap, puur weergave — §2.1). */
+  parent?: string;
+}
 interface Case {
   id: string; title: string;
   calendar?: Cal; anchor?: string;
-  tasks: { name: string; dur?: number; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH'; mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string }[];
+  resources?: CaseResource[];
+  tasks: {
+    name: string; dur?: number; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
+    mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string;
+    assign?: { res: string; units: number; curve?: ResourceCurve }[];
+  }[];
   links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
+  level?: { constrainToFloat?: boolean; resources?: string[] };
   expect: any;
 }
 
-function buildAndSolve(c: Case) {
+function buildAndSolve(c: Case): { ids: Record<string, string>; resIds: Record<string, string> } {
   S().newProject();
   // Kalender: schoon tenzij expliciet opgegeven.
   const base = S().calendar;
@@ -52,6 +73,36 @@ function buildAndSolve(c: Case) {
   } as any);
   const anchor = c.anchor ?? '2026-06-01';
   S().setProject({ startDate: anchor });
+
+  // Resources (fase 2.5) — vóór de taken irrelevant qua volgorde, maar vóór assign[] nodig.
+  const resIds: Record<string, string> = {};
+  for (const r of c.resources ?? []) {
+    if (resIds[r.name]) throw new Error(`dubbele resourcenaam "${r.name}"`);
+    if (r.parent && !resIds[r.parent]) {
+      throw new Error(`resource "${r.name}": parent "${r.parent}" nog niet gedefinieerd — zet die eerder in de resources-lijst`);
+    }
+    let calendarId: string | undefined;
+    if (r.calendar) {
+      const { id: _calBaseId, ...calBase } = S().calendar;
+      void _calBaseId;
+      calendarId = S().addResourceCalendar({
+        ...calBase,
+        name: `${r.name} kalender`,
+        workDays: r.calendar.workDays ?? CLEAN_WORKDAYS,
+        holidays: r.calendar.holidays ?? [],
+      });
+    }
+    const resId = S().addResource({
+      name: r.name,
+      type: r.type ?? 'LABOR',
+      description: '',
+      maxUnits: r.maxUnits ?? 1,
+      ...(calendarId ? { calendarId } : {}),
+      ...(r.steps ? { availabilitySteps: r.steps } : {}),
+      ...(r.parent ? { parentId: resIds[r.parent] } : {}),
+    });
+    resIds[r.name] = resId;
+  }
 
   const ids: Record<string, string> = {};
   for (const t of c.tasks) {
@@ -86,8 +137,27 @@ function buildAndSolve(c: Case) {
       ...(l.lagPercent !== undefined ? { lagPercent: l.lagPercent } : {}),
     });
   }
+  // Toewijzingen — ná addTask (assignResource is leaf/mijlpaal-bewust, §2.4) en vóór runCPM
+  // (de belasting wordt binnen runCPM herberekend, zie scheduleSlice.runCPM).
+  for (const t of c.tasks) {
+    for (const a of t.assign ?? []) {
+      if (!resIds[a.res]) throw new Error(`taak "${t.name}": onbekende resource "${a.res}"`);
+      S().assignResource(ids[t.name], resIds[a.res], a.units, a.curve);
+    }
+  }
   S().runCPM();
-  return ids;
+
+  // Nivellering (fase 2.5, nog niet gebouwd): een case met `level` moet luid falen i.p.v.
+  // stil een oude/lege cpmResult te asserten — zo activeert de volgende bouwstap dit blok
+  // i.p.v. per ongeluk een no-op te laten passeren.
+  if (c.level) {
+    throw new Error(
+      `case "${c.id}" gebruikt "level", maar resourceSlice.levelResources()/applyLeveling() ` +
+      `bestaat nog niet (nivellering is een latere bouwstap) — verwijder "level" of implementeer de leveler eerst.`,
+    );
+  }
+
+  return { ids, resIds };
 }
 
 function readTask(name: string, ids: Record<string, string>) {
@@ -105,8 +175,9 @@ const KEYMAP: Record<string, string> = { es: 'es', ef: 'ef', ls: 'ls', lf: 'lf',
 function runCase(c: Case) {
   const diffs: string[] = [];
   let ids: Record<string, string> = {};
+  let resIds: Record<string, string> = {};
   try {
-    ids = buildAndSolve(c);
+    ({ ids, resIds } = buildAndSolve(c));
   } catch (e) {
     return { id: c.id, title: c.title, pass: false, diffs: [`THREW: ${String(e)}`] };
   }
@@ -180,6 +251,35 @@ function runCase(c: Case) {
     diffs.push(`projectEnd: verwacht ${exp.projectEnd}, kreeg ${cpm?.projectEnd}`);
   if (exp.projectDuration !== undefined && cpm?.projectDuration !== exp.projectDuration)
     diffs.push(`projectDuration: verwacht ${exp.projectDuration}, kreeg ${cpm?.projectDuration}`);
+
+  // Resource-belasting spot-checks (fase 2.5): S().resourceLoadResult?.load[resId]?.[iso].
+  if (exp.load) {
+    const rlr = S().resourceLoadResult;
+    for (const [resName, days] of Object.entries<Record<string, number>>(exp.load)) {
+      const resId = resIds[resName];
+      if (!resId) { diffs.push(`load: onbekende resource "${resName}"`); continue; }
+      for (const [iso, want] of Object.entries(days)) {
+        // Ontbrekende dag => 0 (het engine schrijft nooit een expliciete 0-entry, alleen
+        // dagen met daadwerkelijke belasting) — zo kan een case "geen belasting op dag X"
+        // testen (bv. CREW-geen-rollup) zonder een aparte "afwezig"-sentinel nodig te hebben.
+        const got = rlr?.load[resId]?.[iso] ?? 0;
+        if (got !== want) diffs.push(`load.${resName}.${iso}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
+      }
+    }
+  }
+
+  // Overallocatie-dagen per resource, vergeleken als verzameling (volgorde-onafhankelijk).
+  if (exp.overallocatedDays) {
+    const rlr = S().resourceLoadResult;
+    for (const [resName, wantDays] of Object.entries<string[]>(exp.overallocatedDays)) {
+      const resId = resIds[resName];
+      if (!resId) { diffs.push(`overallocatedDays: onbekende resource "${resName}"`); continue; }
+      const got = [...(rlr?.overallocatedDays[resId] ?? [])].sort();
+      const want = [...wantDays].sort();
+      if (JSON.stringify(got) !== JSON.stringify(want))
+        diffs.push(`overallocatedDays.${resName}: verwacht {${want.join(',')}}, kreeg {${got.join(',')}}`);
+    }
+  }
 
   return { id: c.id, title: c.title, pass: diffs.length === 0, diffs };
 }

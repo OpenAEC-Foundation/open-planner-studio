@@ -40,6 +40,7 @@ ná de finish, lag in werkdagen, lead = negatieve lag, FF = finishes uitlijnen, 
 | `cases-lag-advanced.json` | lag-eenheid (werkdagen vs. kalenderdagen/elapsed) + procent-lag (fase 2.1) |
 | `cases-driving.json` | driving/non-driving relaties + afgekapte leads (fase 2.1) |
 | `cases-constraints.json` | datum-constraints, deadlines, negatieve float (fase 2.3) |
+| `cases-resource-load.json` | resources/toewijzingen/curves/kalenders/availabilitySteps → `resourceLoadResult` (belasting/capaciteit/overallocatie, fase 2.5) |
 
 ## Een geval toevoegen
 

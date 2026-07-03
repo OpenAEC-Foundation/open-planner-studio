@@ -1,0 +1,195 @@
+{
+  "cases": [
+    {
+      "id": "res-curve-uniform",
+      "title": "UNIFORM-curve op 5-dagen-taak, unitsPerDay=2: vlakke verdeling, som exact 10",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "UNIFORM" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 2, "2026-06-02": 2, "2026-06-03": 2, "2026-06-04": 2, "2026-06-05": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "res-curve-front-loaded",
+      "title": "FRONT_LOADED-curve op 5-dagen-taak, unitsPerDay=2: aflopend, grootste-rest-afronding, som exact 10",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "FRONT_LOADED" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 3.33, "2026-06-02": 2.67, "2026-06-03": 2, "2026-06-04": 1.33, "2026-06-05": 0.67
+          }
+        }
+      }
+    },
+    {
+      "id": "res-curve-back-loaded",
+      "title": "BACK_LOADED-curve op 5-dagen-taak, unitsPerDay=2: oplopend (spiegel van front-loaded), som exact 10",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "BACK_LOADED" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 0.67, "2026-06-02": 1.33, "2026-06-03": 2, "2026-06-04": 2.67, "2026-06-05": 3.33
+          }
+        }
+      }
+    },
+    {
+      "id": "res-curve-bell",
+      "title": "BELL-curve op 5-dagen-taak, unitsPerDay=2: piek in het midden, som exact 10",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "BELL" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 0.77, "2026-06-02": 2.31, "2026-06-03": 3.84, "2026-06-04": 2.31, "2026-06-05": 0.77
+          }
+        }
+      }
+    },
+    {
+      "id": "res-curve-early-peak",
+      "title": "EARLY_PEAK-curve op 5-dagen-taak, unitsPerDay=2: piek op 1/3 van de duur, som exact 10",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "EARLY_PEAK" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 0.8, "2026-06-02": 3.2, "2026-06-03": 3.2, "2026-06-04": 2, "2026-06-05": 0.8
+          }
+        }
+      }
+    },
+    {
+      "id": "res-curve-late-peak",
+      "title": "LATE_PEAK-curve op 5-dagen-taak, unitsPerDay=2: piek op 2/3 van de duur, som exact 10",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "LATE_PEAK" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 0.8, "2026-06-02": 2, "2026-06-03": 3.2, "2026-06-04": 3.2, "2026-06-05": 0.8
+          }
+        }
+      }
+    },
+    {
+      "id": "res-duration-one",
+      "title": "D=1: alle curves geven [unitsPerDay] op de enige dag (curve-parameter is een no-op)",
+      "resources": [{ "name": "RU", "maxUnits": 5 }, { "name": "RB", "maxUnits": 5 }],
+      "tasks": [
+        {
+          "name": "T1", "dur": 1,
+          "assign": [
+            { "res": "RU", "units": 3, "curve": "UNIFORM" },
+            { "res": "RB", "units": 2.5, "curve": "BELL" }
+          ]
+        }
+      ],
+      "expect": {
+        "load": {
+          "RU": { "2026-06-01": 3 },
+          "RB": { "2026-06-01": 2.5 }
+        }
+      }
+    },
+    {
+      "id": "res-calendar-capacity-zero",
+      "title": "Resource-kalender met andere werkweek dan de projectkalender: capaciteit 0 op een dag die wél een projectwerkdag is",
+      "resources": [{ "name": "RCal", "maxUnits": 1, "calendar": { "workDays": [2, 3, 4, 5, 6] } }],
+      "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "RCal", "units": 1, "curve": "UNIFORM" }] }],
+      "expect": {
+        "load": {
+          "RCal": {
+            "2026-06-01": 1, "2026-06-02": 1, "2026-06-03": 1, "2026-06-04": 1, "2026-06-05": 1
+          }
+        },
+        "overallocatedDays": {
+          "RCal": ["2026-06-01"]
+        }
+      }
+    },
+    {
+      "id": "res-availability-steps",
+      "title": "availabilitySteps: twee stappen, capaciteit vóór/na de ingangsdatum verschilt (effective-dated)",
+      "resources": [
+        {
+          "name": "RSteps", "maxUnits": 1,
+          "steps": [
+            { "from": "2026-06-01", "maxUnits": 1 },
+            { "from": "2026-06-04", "maxUnits": 5 }
+          ]
+        }
+      ],
+      "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "RSteps", "units": 2, "curve": "UNIFORM" }] }],
+      "expect": {
+        "load": {
+          "RSteps": {
+            "2026-06-01": 2, "2026-06-02": 2, "2026-06-03": 2, "2026-06-04": 2, "2026-06-05": 2
+          }
+        },
+        "overallocatedDays": {
+          "RSteps": ["2026-06-01", "2026-06-02", "2026-06-03"]
+        }
+      }
+    },
+    {
+      "id": "res-crew-no-rollup",
+      "title": "CREW-resource: belasting telt alleen op via een eigen assignment, geen automatische rollup van een lid (parentId is puur weergave)",
+      "resources": [
+        { "name": "CrewA", "type": "CREW", "maxUnits": 1 },
+        { "name": "WorkerA", "type": "LABOR", "maxUnits": 1, "parent": "CrewA" }
+      ],
+      "tasks": [
+        { "name": "T1", "dur": 3, "assign": [{ "res": "WorkerA", "units": 1, "curve": "UNIFORM" }] },
+        { "name": "T2", "dur": 2, "start": "2026-06-04", "assign": [{ "res": "CrewA", "units": 1, "curve": "UNIFORM" }] }
+      ],
+      "expect": {
+        "load": {
+          "WorkerA": { "2026-06-01": 1, "2026-06-02": 1, "2026-06-03": 1 },
+          "CrewA": { "2026-06-01": 0, "2026-06-04": 1, "2026-06-05": 1 }
+        }
+      }
+    },
+    {
+      "id": "res-material-overallocation",
+      "title": "Materiaal: overallocatie-vlag werkt net als bij renewables (verbruik > maxUnits = 'leverbaar per dag')",
+      "resources": [{ "name": "MatX", "type": "MATERIAL", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 3, "assign": [{ "res": "MatX", "units": 8, "curve": "UNIFORM" }] }],
+      "expect": {
+        "load": {
+          "MatX": { "2026-06-01": 8, "2026-06-02": 8, "2026-06-03": 8 }
+        },
+        "overallocatedDays": {
+          "MatX": ["2026-06-01", "2026-06-02", "2026-06-03"]
+        }
+      }
+    },
+    {
+      "id": "res-leaf-only-milestone",
+      "title": "Leaf-only-regel: assignResource op een mijlpaal levert GEEN assignment op (regressie §2.4)",
+      "resources": [{ "name": "RM", "maxUnits": 5 }],
+      "tasks": [{ "name": "M1", "milestone": true, "assign": [{ "res": "RM", "units": 2 }] }],
+      "expect": {
+        "load": { "RM": { "2026-06-01": 0 } }
+      }
+    },
+    {
+      "id": "res-leaf-only-summary",
+      "title": "Leaf-only-regel: assignResource op een samenvattingstaak (heeft kinderen) levert GEEN assignment op (regressie §2.4)",
+      "resources": [{ "name": "RS", "maxUnits": 5 }],
+      "tasks": [
+        { "name": "P", "dur": 5, "assign": [{ "res": "RS", "units": 2 }] },
+        { "name": "C", "dur": 5, "parent": "P" }
+      ],
+      "expect": {
+        "load": { "RS": { "2026-06-01": 0 } }
+      }
+    }
+  ]
+}

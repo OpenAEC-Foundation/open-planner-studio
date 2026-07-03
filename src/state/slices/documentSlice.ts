@@ -35,6 +35,7 @@ export interface DocumentPayload {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
+  resourceCalendars: WorkCalendar[];
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   selectedTaskIds: string[];
@@ -72,6 +73,7 @@ export interface RecoveryDocInput {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
+  resourceCalendars?: WorkCalendar[];
   activityCodeTypes?: ActivityCodeType[];
   customFieldDefs?: CustomFieldDef[];
   filePath: string | null;
@@ -105,6 +107,7 @@ function capturePayload(s: AppState): DocumentPayload {
     sequences: s.sequences,
     resources: s.resources,
     assignments: s.assignments,
+    resourceCalendars: s.resourceCalendars,
     activityCodeTypes: s.activityCodeTypes,
     customFieldDefs: s.customFieldDefs,
     selectedTaskIds: s.selectedTaskIds,
@@ -126,6 +129,7 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.sequences = p.sequences;
   s.resources = p.resources;
   s.assignments = p.assignments;
+  s.resourceCalendars = p.resourceCalendars ?? [];
   s.activityCodeTypes = p.activityCodeTypes ?? [];
   s.customFieldDefs = p.customFieldDefs ?? [];
   s.selectedTaskIds = p.selectedTaskIds;
@@ -147,6 +151,7 @@ function freshPayload(): DocumentPayload {
     sequences: [],
     resources: [],
     assignments: [],
+    resourceCalendars: [],
     activityCodeTypes: [],
     customFieldDefs: [],
     selectedTaskIds: [],
@@ -169,6 +174,7 @@ function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     sequences: d.sequences,
     resources: d.resources,
     assignments: d.assignments,
+    resourceCalendars: d.resourceCalendars ?? [],
     activityCodeTypes: d.activityCodeTypes ?? [],
     customFieldDefs: d.customFieldDefs ?? [],
     selectedTaskIds: [],

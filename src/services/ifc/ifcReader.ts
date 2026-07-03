@@ -250,7 +250,9 @@ function extractTasks(
       taskType: te.args[11] ? parseTaskType(te.args[11]) : 'CONSTRUCTION',
       status: 'NOT_STARTED',
       isMilestone,
-      priority: 0,
+      // TODO(fase 2.5-IFC-stap): IfcTask.Priority native lezen; tot dan default 500
+      // (was 0, zie src/types/task.ts).
+      priority: 500,
       parentId: null,
       childIds: [],
       time,
@@ -580,7 +582,7 @@ function extractResources(
       name: stripQuotes(e.args[2] || '') || 'Resource',
       type: resType,
       description: stripQuotes(e.args[3] || '') || '',
-      availability: 1,
+      maxUnits: 1,
     });
   }
 
@@ -610,7 +612,7 @@ function extractAssignments(
           id: generateId('asgn'),
           taskId,
           resourceId: resId,
-          units: 1,
+          unitsPerDay: 1,
         });
       }
     }

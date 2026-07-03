@@ -21,7 +21,8 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
       s.sequences = snapshot.sequences;
       s.resources = snapshot.resources;
       s.assignments = snapshot.assignments;
-      // Oudere snapshots (van vóór fase 2.2) kunnen deze velden missen.
+      // Oudere snapshots (van vóór fase 2.2/2.5) kunnen deze velden missen.
+      s.resourceCalendars = snapshot.resourceCalendars ?? s.resourceCalendars;
       s.activityCodeTypes = snapshot.activityCodeTypes ?? s.activityCodeTypes;
       s.customFieldDefs = snapshot.customFieldDefs ?? s.customFieldDefs;
       s.isDirty = true;
@@ -36,6 +37,7 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
       s.sequences = snapshot.sequences;
       s.resources = snapshot.resources;
       s.assignments = snapshot.assignments;
+      s.resourceCalendars = snapshot.resourceCalendars ?? s.resourceCalendars;
       s.activityCodeTypes = snapshot.activityCodeTypes ?? s.activityCodeTypes;
       s.customFieldDefs = snapshot.customFieldDefs ?? s.customFieldDefs;
       s.isDirty = true;

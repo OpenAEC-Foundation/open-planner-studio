@@ -1,16 +1,21 @@
 import type { Task } from '@/types/task';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 
 export interface ScheduleSlice {
   cpmResult: CPMResult | null;
+  /** Belasting/capaciteit/overallocatie per resource, herberekend bij elke `runCPM` (fase 2.5,
+   *  resources-ontwerp §4.2) — "manual, not reactive", net als `cpmResult` zelf. */
+  resourceLoadResult: ResourceLoadResult | null;
   runCPM: () => void;
 }
 
 export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
   cpmResult: null,
+  resourceLoadResult: null,
 
   runCPM: () => {
     set((s) => {
@@ -23,6 +28,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       // If circular dependency detected, store the result (with error) and bail
       if (result.error) {
         s.cpmResult = result;
+        s.resourceLoadResult = null;
         return;
       }
 
@@ -85,6 +91,12 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       }
 
       s.cpmResult = result;
+
+      // Belasting/overallocatie herberekenen ná de CPM-pass + samenvattingstaak-rollup hierboven
+      // (de resource-belasting mapt op de zojuist bijgewerkte earlyStart/earlyFinish).
+      s.resourceLoadResult = computeResourceLoad(
+        s.resources, s.assignments, s.tasks, s.calendar, s.resourceCalendars,
+      );
     });
 
     const cpm = get().cpmResult;

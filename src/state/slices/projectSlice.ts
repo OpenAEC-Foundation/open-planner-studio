@@ -47,6 +47,7 @@ export interface ProjectSlice {
     sequences: Sequence[];
     resources: Resource[];
     assignments: ResourceAssignment[];
+    resourceCalendars?: WorkCalendar[];
     activityCodeTypes?: ActivityCodeType[];
     customFieldDefs?: CustomFieldDef[];
   }) => void;
@@ -107,6 +108,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.sequences = [];
       s.resources = [];
       s.assignments = [];
+      s.resourceCalendars = [];
       s.activityCodeTypes = [];
       s.customFieldDefs = [];
       s.selectedTaskIds = [];
@@ -148,7 +150,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
         taskType: 'CONSTRUCTION',
         status: 'NOT_STARTED',
         isMilestone: false,
-        priority: 0,
+        priority: 500,
         parentId: null,
         childIds: [],
         time: createDefaultTaskTime(proj.startDate, 5),
@@ -157,6 +159,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.sequences = [];
       s.resources = [];
       s.assignments = [];
+      s.resourceCalendars = [];
       s.selectedTaskIds = [];
       s.cpmResult = null;
       s.view = createDefaultView();
@@ -182,6 +185,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.sequences = loaded.sequences;
       s.resources = loaded.resources;
       s.assignments = loaded.assignments;
+      // resourceCalendars is nog geen IFC-round-trip-veld (fase 2.5-IFC-stap); default leeg.
+      s.resourceCalendars = loaded.resourceCalendars ?? [];
       s.activityCodeTypes = loaded.activityCodeTypes ?? [];
       s.customFieldDefs = loaded.customFieldDefs ?? [];
       s.selectedTaskIds = [];

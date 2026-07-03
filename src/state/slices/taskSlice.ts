@@ -68,7 +68,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
         isMilestone: partial.isMilestone || false,
         milestoneKind: partial.milestoneKind,
         mandatory: partial.mandatory,
-        priority: partial.priority || 0,
+        // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg) en
+        // mag niet stilzwijgend naar de default 500 vallen.
+        priority: partial.priority ?? 500,
         parentId: partial.parentId || null,
         childIds: [],
         time: partial.time || createDefaultTaskTime(now, partial.isMilestone ? 0 : 5),
@@ -381,13 +383,13 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       }
 
       // Resource-toewijzingen opnieuw aanmaken (resources die niet meer bestaan overslaan).
+      // Spread behoudt óók het optionele curve-veld — net als bij sequences hierboven.
       for (const a of clip.assignments) {
         if (!resourceExists.has(a.resourceId)) continue;
         s.assignments.push({
+          ...a,
           id: generateId('asgn'),
           taskId: idMap.get(a.taskId)!,
-          resourceId: a.resourceId,
-          units: a.units,
         });
       }
 
@@ -441,7 +443,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
           taskType: tt.taskType,
           status: 'NOT_STARTED',
           isMilestone: tt.isMilestone,
-          priority: 0,
+          priority: 500,
           parentId: parent ?? null,
           childIds: template.tasks.filter(c => c.parentId === tt.id).map(c => idMap.get(c.id)!),
           time: createDefaultTaskTime(startDate, tt.isMilestone ? 0 : tt.durationDays),
