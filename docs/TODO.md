@@ -161,7 +161,18 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] Interfering float
 - [ ] Scheduling options (keuze berekeningsmethoden)
 
-#### 2.10 Gebruikersdocumentatie (afsluiter van fase 2)
+#### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
+- [ ] **Drie voorbeeld-planningen die écht alle functies van de app benutten.** De huidige
+  voorbeelden demonstreren vooral taken+relaties; maak drie rijk uitgewerkte, realistische
+  projecten (bv. woningbouw, infra, renovatie) die samen alle features raken: WBS-hiërarchie
+  met inspringen, alle vier relatietypes + lags/leads (incl. %-lag), datumconstraints +
+  deadlines (incl. een bewust conflict met negatieve float), start-/eindmijlpalen +
+  verplichte/inspectiemijlpalen, activity codes + custom fields + groepering, alle vijf
+  resourcetypes met ploeg-hiërarchie, resource-kalenders, capaciteitsstappen, toewijzingen
+  met verschillende curves, zichtbare overallocatie die met nivellering/smoothing oplosbaar
+  is, taak-prioriteiten (incl. een vastgepinde), en meerdere kalender-eigenaardigheden
+  (feestdagen/bouwvak). In het Voorbeelden-manifest opnemen met passende tags, zodat ze ook
+  als interactieve documentatie dienen naast de handleiding hieronder.
 - [ ] **Volledige gebruikersdocumentatie schrijven** — aan het einde van fase 2, als alle
   planningsfeatures er zijn. Gebruikers moeten nu nog gokken hoe alles werkt; er is geen
   handleiding. Dekking: projecten aanmaken (wizard, kalender-presets), taken/WBS/inspringen,
