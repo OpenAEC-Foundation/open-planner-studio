@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "首页",
     "planning": "计划",
+    "resources": "资源",
     "view": "视图",
     "settings": "设置",
     "table": "表格",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} 个任务，{{relations}} 条关系",
     "deleteTemplate": "删除模板",
     "collapseRibbon": "折叠功能区",
-    "expandRibbon": "展开功能区"
+    "expandRibbon": "展开功能区",
+    "resourceManagement": "管理",
+    "openResourcePanel": "资源",
+    "newResource": "新建资源",
+    "resourceAssignment": "分配",
+    "assignResource": "分配",
+    "histogram": "直方图",
+    "toggleHistogram": "直方图",
+    "prevResource": "上一个",
+    "nextResource": "下一个",
+    "leveling": "资源平衡",
+    "levelResourcesDialog": "平衡…",
+    "clearLeveling": "清除平衡",
+    "overallocationIndicator": "超额分配",
+    "overallocationCount": "{{count}} 个资源",
+    "overallocationNone": "无"
   },
   "ifc": {
     "title": "IFC 编辑器",

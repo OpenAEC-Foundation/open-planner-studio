@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "已超过 {{count}} 个期限",
     "violatedConstraints": "{{count}} 个限制被违反"
+  },
+  "resource": {
+    "type": {
+      "labor": "劳务",
+      "equipment": "设备",
+      "material": "材料",
+      "subcontractor": "分包商",
+      "crew": "班组"
+    },
+    "name": "名称",
+    "typeLabel": "类型",
+    "maxUnits": "最大单位数",
+    "calendarId": "日历",
+    "costPerHour": "费率/小时",
+    "unitOfMeasure": "单位",
+    "parent": "班组",
+    "projectCalendar": "项目日历",
+    "editCalendar": "编辑…",
+    "noParent": "无",
+    "availabilityStepsEditor": {
+      "title": "分时段产能",
+      "addStep": "添加阶段",
+      "from": "起始于",
+      "maxUnits": "最大单位数",
+      "empty": "尚无阶段 — 始终应用固定的最大单位数。"
+    },
+    "panel": {
+      "title": "资源",
+      "addRow": "新建资源",
+      "deleteRow": "删除",
+      "empty": "尚无资源。添加一个开始使用。",
+      "steps": "阶段"
+    },
+    "calendarDialog": {
+      "title": "资源日历"
+    },
+    "histogram": {
+      "allResources": "所有资源",
+      "overallocatedTooltip": "{{count}} 个任务在 {{date}} 有负荷",
+      "noData": "重新计算 (F5) 以显示负荷",
+      "noResources": "尚无资源",
+      "units": "单位"
+    },
+    "leveling": {
+      "dialogTitle": "资源平衡",
+      "constrainToFloat": "仅在浮动范围内平衡（平滑）— 项目结束日期保持不变",
+      "resourceSelect": "资源",
+      "calculate": "计算",
+      "apply": "应用",
+      "cancel": "取消",
+      "projectEndUnchanged": "项目结束日期：不变（{{date}}）",
+      "projectEndChanged": "项目结束日期：{{before}} → {{after}}",
+      "remainingConflicts": "剩余冲突",
+      "remainingConflictsHint": "这些任务无法在其浮动范围内安排 — 通常是因为资源在这些天不工作，或产能不足。",
+      "noChanges": "没有任务需要移动 — 计划已无冲突。",
+      "notCalculated": "点击计算以生成平衡方案。",
+      "needsCPM": "请先计算计划 (F5)，再进行平衡。",
+      "colTask": "任务",
+      "colOldStart": "原开始",
+      "colNewStart": "新开始",
+      "colShift": "移动天数",
+      "shiftDays": "{{count}} 天",
+      "conflictDays": "{{count}} 天"
+    },
+    "curve": {
+      "uniform": "均匀",
+      "frontLoaded": "前置加载",
+      "backLoaded": "后置加载",
+      "bell": "钟形",
+      "earlyPeak": "前期高峰",
+      "latePeak": "后期高峰"
+    }
   }
 }

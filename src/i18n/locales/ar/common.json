@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "المواعيد النهائية المتجاوزة: {{count}}",
     "violatedConstraints": "القيود المخالفة: {{count}}"
+  },
+  "resource": {
+    "type": {
+      "labor": "العمالة",
+      "equipment": "المعدات",
+      "material": "المواد",
+      "subcontractor": "مقاول من الباطن",
+      "crew": "الطاقم"
+    },
+    "name": "الاسم",
+    "typeLabel": "النوع",
+    "maxUnits": "الحد الأقصى للوحدات",
+    "calendarId": "التقويم",
+    "costPerHour": "السعر/ساعة",
+    "unitOfMeasure": "الوحدة",
+    "parent": "الطاقم",
+    "projectCalendar": "تقويم المشروع",
+    "editCalendar": "تعديل…",
+    "noParent": "لا شيء",
+    "availabilityStepsEditor": {
+      "title": "السعة المتدرجة زمنياً",
+      "addStep": "إضافة مرحلة",
+      "from": "من",
+      "maxUnits": "الحد الأقصى للوحدات",
+      "empty": "لا توجد مراحل — يُطبَّق دائمًا الحد الأقصى الثابت للوحدات."
+    },
+    "panel": {
+      "title": "الموارد",
+      "addRow": "مورد جديد",
+      "deleteRow": "حذف",
+      "empty": "لا توجد موارد بعد. أضف واحدًا للبدء.",
+      "steps": "المراحل"
+    },
+    "calendarDialog": {
+      "title": "تقويم المورد"
+    },
+    "histogram": {
+      "allResources": "جميع الموارد",
+      "overallocatedTooltip": "{{count}} مهام تساهم في {{date}}",
+      "noData": "أعد الحساب (F5) لإظهار الحمل",
+      "noResources": "لا توجد موارد بعد",
+      "units": "وحدات"
+    },
+    "leveling": {
+      "dialogTitle": "موازنة الموارد",
+      "constrainToFloat": "الموازنة ضمن الفائض فقط (تنعيم) — يبقى تاريخ نهاية المشروع دون تغيير",
+      "resourceSelect": "الموارد",
+      "calculate": "حساب",
+      "apply": "تطبيق",
+      "cancel": "إلغاء",
+      "projectEndUnchanged": "تاريخ نهاية المشروع: دون تغيير ({{date}})",
+      "projectEndChanged": "تاريخ نهاية المشروع: {{before}} ← {{after}}",
+      "remainingConflicts": "التعارضات المتبقية",
+      "remainingConflictsHint": "هذه المهام لا تتسع ضمن فائضها — غالبًا لأن موردًا لا يعمل في تلك الأيام أو لا يملك سعة كافية.",
+      "noChanges": "لا حاجة لنقل أي مهمة — الجدول خالٍ من التعارضات بالفعل.",
+      "notCalculated": "انقر على حساب لإنشاء اقتراح موازنة.",
+      "needsCPM": "احسب الجدول أولاً (F5) قبل الموازنة.",
+      "colTask": "المهمة",
+      "colOldStart": "البداية القديمة",
+      "colNewStart": "البداية الجديدة",
+      "colShift": "أيام الإزاحة",
+      "shiftDays": "{{count}} يوم",
+      "conflictDays": "{{count}} يوم"
+    },
+    "curve": {
+      "uniform": "منتظم",
+      "frontLoaded": "محمل في البداية",
+      "backLoaded": "محمل في النهاية",
+      "bell": "جرسي الشكل",
+      "earlyPeak": "ذروة مبكرة",
+      "latePeak": "ذروة متأخرة"
+    }
   }
 }

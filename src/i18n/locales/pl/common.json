@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "Przekroczone terminy: {{count}}",
     "violatedConstraints": "Naruszone ograniczenia: {{count}}"
+  },
+  "resource": {
+    "type": {
+      "labor": "Robocizna",
+      "equipment": "Sprzęt",
+      "material": "Materiał",
+      "subcontractor": "Podwykonawca",
+      "crew": "Brygada"
+    },
+    "name": "Nazwa",
+    "typeLabel": "Typ",
+    "maxUnits": "Maks. jednostki",
+    "calendarId": "Kalendarz",
+    "costPerHour": "Stawka/godz.",
+    "unitOfMeasure": "Jednostka",
+    "parent": "Brygada",
+    "projectCalendar": "Kalendarz projektu",
+    "editCalendar": "Edytuj…",
+    "noParent": "Brak",
+    "availabilityStepsEditor": {
+      "title": "Zdolność rozłożona w czasie",
+      "addStep": "Dodaj krok",
+      "from": "Od",
+      "maxUnits": "Maks. jednostki",
+      "empty": "Brak kroków — zawsze obowiązuje stałe maks. jednostek."
+    },
+    "panel": {
+      "title": "Zasoby",
+      "addRow": "Nowy zasób",
+      "deleteRow": "Usuń",
+      "empty": "Brak zasobów. Dodaj jeden, aby zacząć.",
+      "steps": "Kroki"
+    },
+    "calendarDialog": {
+      "title": "Kalendarz zasobu"
+    },
+    "histogram": {
+      "allResources": "Wszystkie zasoby",
+      "overallocatedTooltip": "{{count}} zadań ma udział w dniu {{date}}",
+      "noData": "Przelicz (F5), aby pokazać obciążenie",
+      "noResources": "Brak zasobów",
+      "units": "jednostki"
+    },
+    "leveling": {
+      "dialogTitle": "Bilansuj zasoby",
+      "constrainToFloat": "Bilansuj tylko w ramach zapasu (wygładzanie) — data zakończenia projektu pozostaje bez zmian",
+      "resourceSelect": "Zasoby",
+      "calculate": "Oblicz",
+      "apply": "Zastosuj",
+      "cancel": "Anuluj",
+      "projectEndUnchanged": "Data zakończenia projektu: bez zmian ({{date}})",
+      "projectEndChanged": "Data zakończenia projektu: {{before}} → {{after}}",
+      "remainingConflicts": "Pozostałe konflikty",
+      "remainingConflictsHint": "Te zadania nie mieszczą się w swoim zapasie — często dlatego, że zasób nie pracuje w te dni lub ma zbyt małą zdolność.",
+      "noChanges": "Żadne zadania nie wymagają przesunięcia — harmonogram jest już wolny od konfliktów.",
+      "notCalculated": "Kliknij Oblicz, aby utworzyć propozycję bilansowania.",
+      "needsCPM": "Najpierw przelicz harmonogram (F5), zanim zbilansujesz zasoby.",
+      "colTask": "Zadanie",
+      "colOldStart": "Poprzedni start",
+      "colNewStart": "Nowy start",
+      "colShift": "Dni przesunięcia",
+      "shiftDays": "{{count}} dni",
+      "conflictDays": "{{count}} dzień/dni"
+    },
+    "curve": {
+      "uniform": "Jednolity",
+      "frontLoaded": "Obciążony na początku",
+      "backLoaded": "Obciążony na końcu",
+      "bell": "Dzwonowy",
+      "earlyPeak": "Wczesny szczyt",
+      "latePeak": "Późny szczyt"
+    }
   }
 }

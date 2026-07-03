@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} son tarih aşıldı",
     "violatedConstraints": "{{count}} kısıtlama ihlal edildi"
+  },
+  "resource": {
+    "type": {
+      "labor": "İşçilik",
+      "equipment": "Ekipman",
+      "material": "Malzeme",
+      "subcontractor": "Taşeron",
+      "crew": "Ekip"
+    },
+    "name": "Ad",
+    "typeLabel": "Tür",
+    "maxUnits": "Maks. birim",
+    "calendarId": "Takvim",
+    "costPerHour": "Ücret/saat",
+    "unitOfMeasure": "Birim",
+    "parent": "Ekip",
+    "projectCalendar": "Proje takvimi",
+    "editCalendar": "Düzenle…",
+    "noParent": "Yok",
+    "availabilityStepsEditor": {
+      "title": "Zamana bağlı kapasite",
+      "addStep": "Adım ekle",
+      "from": "Başlangıç",
+      "maxUnits": "Maks. birim",
+      "empty": "Adım yok — sabit maks. birim her zaman geçerlidir."
+    },
+    "panel": {
+      "title": "Kaynaklar",
+      "addRow": "Yeni kaynak",
+      "deleteRow": "Sil",
+      "empty": "Henüz kaynak yok. Başlamak için bir tane ekleyin.",
+      "steps": "Adımlar"
+    },
+    "calendarDialog": {
+      "title": "Kaynak takvimi"
+    },
+    "histogram": {
+      "allResources": "Tüm kaynaklar",
+      "overallocatedTooltip": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
+      "noData": "Yükü göstermek için yeniden hesaplayın (F5)",
+      "noResources": "Henüz kaynak yok",
+      "units": "birim"
+    },
+    "leveling": {
+      "dialogTitle": "Kaynakları dengele",
+      "constrainToFloat": "Yalnızca bolluk içinde dengele (yumuşatma) — proje bitiş tarihi sabit kalır",
+      "resourceSelect": "Kaynaklar",
+      "calculate": "Hesapla",
+      "apply": "Uygula",
+      "cancel": "İptal",
+      "projectEndUnchanged": "Proje bitiş tarihi: değişmedi ({{date}})",
+      "projectEndChanged": "Proje bitiş tarihi: {{before}} → {{after}}",
+      "remainingConflicts": "Kalan çakışmalar",
+      "remainingConflictsHint": "Bu görevler bolluklarına sığmıyor — genellikle bir kaynağın o günlerde çalışmaması veya yeterli kapasiteye sahip olmamasından kaynaklanır.",
+      "noChanges": "Hiçbir görevin taşınması gerekmiyor — plan zaten çakışmasız.",
+      "notCalculated": "Bir dengeleme önerisi oluşturmak için Hesapla'ya tıklayın.",
+      "needsCPM": "Dengelemeden önce planı hesaplayın (F5).",
+      "colTask": "Görev",
+      "colOldStart": "Eski başlangıç",
+      "colNewStart": "Yeni başlangıç",
+      "colShift": "Kaydırılan gün",
+      "shiftDays": "{{count}} g",
+      "conflictDays": "{{count}} gün"
+    },
+    "curve": {
+      "uniform": "Tekdüze",
+      "frontLoaded": "Başta yüklü",
+      "backLoaded": "Sonda yüklü",
+      "bell": "Çan eğrisi",
+      "earlyPeak": "Erken zirve",
+      "latePeak": "Geç zirve"
+    }
   }
 }

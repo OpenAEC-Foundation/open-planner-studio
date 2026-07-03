@@ -70,7 +70,21 @@
     "dependencies": "Dipendenze",
     "driving": "Relazione determinante (driving)",
     "lag": "Ritardo (es. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "Ricalcola CPM"
+    "recalculate": "Ricalcola CPM",
+    "assignments": {
+      "title": "Assegnazioni",
+      "add": "Assegna risorsa",
+      "remove": "Rimuovi",
+      "unitsPerDay": "Unità/giorno",
+      "curve": "Curva",
+      "empty": "Ancora nessuna assegnazione.",
+      "noResources": "Crea prima le risorse (scheda Risorse).",
+      "allAssigned": "Tutte le risorse sono già assegnate.",
+      "disabledMilestone": "Le assegnazioni non sono possibili sui traguardi.",
+      "disabledSummary": "Le assegnazioni non sono possibili sulle attività di riepilogo."
+    },
+    "priority": "Priorità di livellamento",
+    "levelingDelay": "Ritardo di livellamento"
   },
   "relations": {
     "title": "Relazioni",

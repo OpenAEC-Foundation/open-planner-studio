@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "الرئيسية",
     "planning": "التخطيط",
+    "resources": "الموارد",
     "view": "العرض",
     "settings": "الإعدادات",
     "table": "الجدول",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} مهمة، {{relations}} علاقة",
     "deleteTemplate": "حذف القالب",
     "collapseRibbon": "طي الشريط",
-    "expandRibbon": "توسيع الشريط"
+    "expandRibbon": "توسيع الشريط",
+    "resourceManagement": "الإدارة",
+    "openResourcePanel": "الموارد",
+    "newResource": "مورد جديد",
+    "resourceAssignment": "التخصيص",
+    "assignResource": "تخصيص",
+    "histogram": "المدرج التكراري",
+    "toggleHistogram": "المدرج التكراري",
+    "prevResource": "السابق",
+    "nextResource": "التالي",
+    "leveling": "موازنة الموارد",
+    "levelResourcesDialog": "موازنة…",
+    "clearLeveling": "مسح الموازنة",
+    "overallocationIndicator": "التخصيص الزائد",
+    "overallocationCount": "{{count}} موارد",
+    "overallocationNone": "لا شيء"
   },
   "ifc": {
     "title": "محرر IFC",

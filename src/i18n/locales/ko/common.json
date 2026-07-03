@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "기한 초과: {{count}}건",
     "violatedConstraints": "제약 조건 위반: {{count}}건"
+  },
+  "resource": {
+    "type": {
+      "labor": "인력",
+      "equipment": "장비",
+      "material": "자재",
+      "subcontractor": "하도급업체",
+      "crew": "팀"
+    },
+    "name": "이름",
+    "typeLabel": "유형",
+    "maxUnits": "최대 단위",
+    "calendarId": "달력",
+    "costPerHour": "단가/시간",
+    "unitOfMeasure": "단위",
+    "parent": "팀",
+    "projectCalendar": "프로젝트 달력",
+    "editCalendar": "편집…",
+    "noParent": "없음",
+    "availabilityStepsEditor": {
+      "title": "기간별 가용 용량",
+      "addStep": "단계 추가",
+      "from": "시작일",
+      "maxUnits": "최대 단위",
+      "empty": "단계가 없습니다 — 고정된 최대 단위가 항상 적용됩니다."
+    },
+    "panel": {
+      "title": "자원",
+      "addRow": "새 자원",
+      "deleteRow": "삭제",
+      "empty": "아직 자원이 없습니다. 시작하려면 하나를 추가하세요.",
+      "steps": "단계"
+    },
+    "calendarDialog": {
+      "title": "자원 달력"
+    },
+    "histogram": {
+      "allResources": "모든 자원",
+      "overallocatedTooltip": "{{date}}에 {{count}}개의 작업이 기여함",
+      "noData": "부하를 표시하려면 다시 계산하세요 (F5)",
+      "noResources": "아직 자원이 없습니다",
+      "units": "단위"
+    },
+    "leveling": {
+      "dialogTitle": "자원 평준화",
+      "constrainToFloat": "여유 내에서만 평준화(완화) — 프로젝트 종료일은 그대로 유지됩니다",
+      "resourceSelect": "자원",
+      "calculate": "계산",
+      "apply": "적용",
+      "cancel": "취소",
+      "projectEndUnchanged": "프로젝트 종료일: 변경 없음 ({{date}})",
+      "projectEndChanged": "프로젝트 종료일: {{before}} → {{after}}",
+      "remainingConflicts": "남은 충돌",
+      "remainingConflictsHint": "이 작업들은 여유 내에 맞지 않습니다 — 대개 자원이 해당 일자에 근무하지 않거나 용량이 부족하기 때문입니다.",
+      "noChanges": "이동해야 할 작업이 없습니다 — 일정이 이미 충돌 없는 상태입니다.",
+      "notCalculated": "평준화 제안을 만들려면 계산을 클릭하세요.",
+      "needsCPM": "평준화하기 전에 먼저 일정을 계산하세요 (F5).",
+      "colTask": "작업",
+      "colOldStart": "이전 시작일",
+      "colNewStart": "새 시작일",
+      "colShift": "이동된 일수",
+      "shiftDays": "{{count}}일",
+      "conflictDays": "{{count}}일"
+    },
+    "curve": {
+      "uniform": "균등",
+      "frontLoaded": "초반 집중",
+      "backLoaded": "후반 집중",
+      "bell": "종형",
+      "earlyPeak": "초기 피크",
+      "latePeak": "후기 피크"
+    }
   }
 }

@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} fecha(s) límite superada(s)",
     "violatedConstraints": "{{count}} restricción(es) incumplida(s)"
+  },
+  "resource": {
+    "type": {
+      "labor": "Mano de obra",
+      "equipment": "Equipo",
+      "material": "Material",
+      "subcontractor": "Subcontratista",
+      "crew": "Cuadrilla"
+    },
+    "name": "Nombre",
+    "typeLabel": "Tipo",
+    "maxUnits": "Unidades máx.",
+    "calendarId": "Calendario",
+    "costPerHour": "Tarifa/hora",
+    "unitOfMeasure": "Unidad",
+    "parent": "Cuadrilla",
+    "projectCalendar": "Calendario del proyecto",
+    "editCalendar": "Editar…",
+    "noParent": "Ninguna",
+    "availabilityStepsEditor": {
+      "title": "Capacidad escalonada en el tiempo",
+      "addStep": "Añadir paso",
+      "from": "Desde",
+      "maxUnits": "Unidades máx.",
+      "empty": "Sin pasos — siempre se aplica el máximo de unidades fijo."
+    },
+    "panel": {
+      "title": "Recursos",
+      "addRow": "Nuevo recurso",
+      "deleteRow": "Eliminar",
+      "empty": "Aún no hay recursos. Añade uno para empezar.",
+      "steps": "Pasos"
+    },
+    "calendarDialog": {
+      "title": "Calendario del recurso"
+    },
+    "histogram": {
+      "allResources": "Todos los recursos",
+      "overallocatedTooltip": "{{count}} tareas contribuyen el {{date}}",
+      "noData": "Recalcula (F5) para mostrar la carga",
+      "noResources": "Aún no hay recursos",
+      "units": "unidades"
+    },
+    "leveling": {
+      "dialogTitle": "Nivelar recursos",
+      "constrainToFloat": "Nivelar solo dentro de la holgura (suavizado) — la fecha de fin del proyecto no cambia",
+      "resourceSelect": "Recursos",
+      "calculate": "Calcular",
+      "apply": "Aplicar",
+      "cancel": "Cancelar",
+      "projectEndUnchanged": "Fecha de fin del proyecto: sin cambios ({{date}})",
+      "projectEndChanged": "Fecha de fin del proyecto: {{before}} → {{after}}",
+      "remainingConflicts": "Conflictos restantes",
+      "remainingConflictsHint": "Estas tareas no caben dentro de su holgura — a menudo porque un recurso no trabaja esos días o no tiene capacidad suficiente.",
+      "noChanges": "Ninguna tarea necesita moverse — la planificación ya está libre de conflictos.",
+      "notCalculated": "Haz clic en Calcular para generar una propuesta de nivelación.",
+      "needsCPM": "Calcula primero la planificación (F5) antes de nivelar.",
+      "colTask": "Tarea",
+      "colOldStart": "Inicio anterior",
+      "colNewStart": "Nuevo inicio",
+      "colShift": "Días desplazados",
+      "shiftDays": "{{count}} d",
+      "conflictDays": "{{count}} día(s)"
+    },
+    "curve": {
+      "uniform": "Uniforme",
+      "frontLoaded": "Cargado al inicio",
+      "backLoaded": "Cargado al final",
+      "bell": "Forma de campana",
+      "earlyPeak": "Pico temprano",
+      "latePeak": "Pico tardío"
+    }
   }
 }

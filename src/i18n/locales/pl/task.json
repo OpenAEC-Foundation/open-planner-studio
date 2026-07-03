@@ -70,7 +70,21 @@
     "dependencies": "Zależności",
     "driving": "Relacja wiodąca (driving)",
     "lag": "Zwłoka (np. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "Przelicz CPM"
+    "recalculate": "Przelicz CPM",
+    "assignments": {
+      "title": "Przydziały",
+      "add": "Przydziel zasób",
+      "remove": "Usuń",
+      "unitsPerDay": "Jedn./dzień",
+      "curve": "Krzywa",
+      "empty": "Brak przydziałów.",
+      "noResources": "Najpierw utwórz zasoby (karta Zasoby).",
+      "allAssigned": "Wszystkie zasoby są już przydzielone.",
+      "disabledMilestone": "Przydziały nie są możliwe dla kamieni milowych.",
+      "disabledSummary": "Przydziały nie są możliwe dla zadań sumarycznych."
+    },
+    "priority": "Priorytet bilansowania",
+    "levelingDelay": "Opóźnienie bilansowania"
   },
   "relations": {
     "title": "Relacje",

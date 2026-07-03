@@ -70,7 +70,21 @@
     "dependencies": "Abhängigkeiten",
     "driving": "Maßgebende Beziehung (driving)",
     "lag": "Verzögerung (z.B. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "CPM neu berechnen"
+    "recalculate": "CPM neu berechnen",
+    "assignments": {
+      "title": "Zuweisungen",
+      "add": "Ressource zuweisen",
+      "remove": "Entfernen",
+      "unitsPerDay": "Einh./Tag",
+      "curve": "Kurve",
+      "empty": "Noch keine Zuweisungen.",
+      "noResources": "Legen Sie zuerst Ressourcen an (Registerkarte Ressourcen).",
+      "allAssigned": "Alle Ressourcen sind bereits zugewiesen.",
+      "disabledMilestone": "Zuweisungen sind bei Meilensteinen nicht möglich.",
+      "disabledSummary": "Zuweisungen sind bei Sammelaufgaben nicht möglich."
+    },
+    "priority": "Abgleich-Priorität",
+    "levelingDelay": "Abgleich-Verzögerung"
   },
   "relations": {
     "title": "Beziehungen",

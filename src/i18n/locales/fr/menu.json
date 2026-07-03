@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "Accueil",
     "planning": "Planification",
+    "resources": "Ressources",
     "view": "Affichage",
     "settings": "Paramètres",
     "table": "Tableau",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} tâches, {{relations}} relations",
     "deleteTemplate": "Supprimer le modèle",
     "collapseRibbon": "Réduire le ruban",
-    "expandRibbon": "Développer le ruban"
+    "expandRibbon": "Développer le ruban",
+    "resourceManagement": "Gérer",
+    "openResourcePanel": "Ressources",
+    "newResource": "Nouvelle ressource",
+    "resourceAssignment": "Affectation",
+    "assignResource": "Affecter",
+    "histogram": "Histogramme",
+    "toggleHistogram": "Histogramme",
+    "prevResource": "Précédente",
+    "nextResource": "Suivante",
+    "leveling": "Nivellement",
+    "levelResourcesDialog": "Niveler…",
+    "clearLeveling": "Effacer le nivellement",
+    "overallocationIndicator": "Surallocation",
+    "overallocationCount": "{{count}} ressources",
+    "overallocationNone": "Aucune"
   },
   "ifc": {
     "title": "Éditeur IFC",

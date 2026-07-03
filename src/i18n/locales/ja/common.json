@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "期限超過: {{count}} 件",
     "violatedConstraints": "制約違反: {{count}} 件"
+  },
+  "resource": {
+    "type": {
+      "labor": "労務",
+      "equipment": "機材",
+      "material": "資材",
+      "subcontractor": "下請業者",
+      "crew": "班"
+    },
+    "name": "名前",
+    "typeLabel": "種類",
+    "maxUnits": "最大単位数",
+    "calendarId": "カレンダー",
+    "costPerHour": "単価/時間",
+    "unitOfMeasure": "単位",
+    "parent": "班",
+    "projectCalendar": "プロジェクトカレンダー",
+    "editCalendar": "編集…",
+    "noParent": "なし",
+    "availabilityStepsEditor": {
+      "title": "時期別キャパシティ",
+      "addStep": "ステップを追加",
+      "from": "開始日",
+      "maxUnits": "最大単位数",
+      "empty": "ステップがありません — 常に固定の最大単位数が適用されます。"
+    },
+    "panel": {
+      "title": "リソース",
+      "addRow": "新規リソース",
+      "deleteRow": "削除",
+      "empty": "リソースがまだありません。追加して始めましょう。",
+      "steps": "ステップ"
+    },
+    "calendarDialog": {
+      "title": "リソースカレンダー"
+    },
+    "histogram": {
+      "allResources": "すべてのリソース",
+      "overallocatedTooltip": "{{date}} に {{count}} 件のタスクが関与",
+      "noData": "再計算 (F5) して負荷を表示",
+      "noResources": "リソースがまだありません",
+      "units": "単位"
+    },
+    "leveling": {
+      "dialogTitle": "リソースの山崩し",
+      "constrainToFloat": "フロート内でのみ山崩しする（平滑化）— プロジェクト終了日は変わりません",
+      "resourceSelect": "リソース",
+      "calculate": "計算",
+      "apply": "適用",
+      "cancel": "キャンセル",
+      "projectEndUnchanged": "プロジェクト終了日：変更なし（{{date}}）",
+      "projectEndChanged": "プロジェクト終了日：{{before}} → {{after}}",
+      "remainingConflicts": "残っている競合",
+      "remainingConflictsHint": "これらのタスクはフロート内に収まりません — 多くの場合、リソースがその日に稼働しないか、キャパシティが不足しているためです。",
+      "noChanges": "移動が必要なタスクはありません — スケジュールはすでに競合がありません。",
+      "notCalculated": "「計算」をクリックして山崩しの提案を作成してください。",
+      "needsCPM": "山崩しの前にスケジュールを計算してください（F5）。",
+      "colTask": "タスク",
+      "colOldStart": "旧開始日",
+      "colNewStart": "新開始日",
+      "colShift": "移動日数",
+      "shiftDays": "{{count}} 日",
+      "conflictDays": "{{count}} 日"
+    },
+    "curve": {
+      "uniform": "均等",
+      "frontLoaded": "前倒し",
+      "backLoaded": "後ろ倒し",
+      "bell": "山型（ベル型）",
+      "earlyPeak": "早期ピーク",
+      "latePeak": "後期ピーク"
+    }
   }
 }

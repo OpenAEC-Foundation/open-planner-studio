@@ -70,7 +70,21 @@
     "dependencies": "依存関係",
     "driving": "駆動関係（ドライビング）",
     "lag": "ラグ（例: 2d、3ed、50%、-25e%）",
-    "recalculate": "CPM を再計算"
+    "recalculate": "CPM を再計算",
+    "assignments": {
+      "title": "割り当て",
+      "add": "リソースを割り当てる",
+      "remove": "削除",
+      "unitsPerDay": "単位/日",
+      "curve": "曲線",
+      "empty": "まだ割り当てがありません。",
+      "noResources": "先にリソースを作成してください（リソースタブ）。",
+      "allAssigned": "すべてのリソースはすでに割り当てられています。",
+      "disabledMilestone": "マイルストーンには割り当てできません。",
+      "disabledSummary": "サマリータスクには割り当てできません。"
+    },
+    "priority": "山崩し優先度",
+    "levelingDelay": "山崩し遅延"
   },
   "relations": {
     "title": "関係",

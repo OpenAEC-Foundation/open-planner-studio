@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "홈",
     "planning": "계획",
+    "resources": "자원",
     "view": "보기",
     "settings": "설정",
     "table": "테이블",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}}개 작업, {{relations}}개 관계",
     "deleteTemplate": "템플릿 삭제",
     "collapseRibbon": "리본 접기",
-    "expandRibbon": "리본 펼치기"
+    "expandRibbon": "리본 펼치기",
+    "resourceManagement": "관리",
+    "openResourcePanel": "자원",
+    "newResource": "새 자원",
+    "resourceAssignment": "할당",
+    "assignResource": "할당",
+    "histogram": "히스토그램",
+    "toggleHistogram": "히스토그램",
+    "prevResource": "이전",
+    "nextResource": "다음",
+    "leveling": "평준화",
+    "levelResourcesDialog": "평준화…",
+    "clearLeveling": "평준화 지우기",
+    "overallocationIndicator": "과다 할당",
+    "overallocationCount": "자원 {{count}}개",
+    "overallocationNone": "없음"
   },
   "ifc": {
     "title": "IFC 편집기",

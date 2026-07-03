@@ -70,7 +70,21 @@
     "dependencies": "Dépendances",
     "driving": "Relation déterminante (driving)",
     "lag": "Décalage (p. ex. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "Recalculer CPM"
+    "recalculate": "Recalculer CPM",
+    "assignments": {
+      "title": "Affectations",
+      "add": "Affecter une ressource",
+      "remove": "Supprimer",
+      "unitsPerDay": "Unités/j",
+      "curve": "Courbe",
+      "empty": "Aucune affectation pour l'instant.",
+      "noResources": "Créez d'abord des ressources (onglet Ressources).",
+      "allAssigned": "Toutes les ressources sont déjà affectées.",
+      "disabledMilestone": "Les affectations ne sont pas possibles sur les jalons.",
+      "disabledSummary": "Les affectations ne sont pas possibles sur les tâches récapitulatives."
+    },
+    "priority": "Priorité de nivellement",
+    "levelingDelay": "Retard de nivellement"
   },
   "relations": {
     "title": "Relations",

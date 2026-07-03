@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "Ana sayfa",
     "planning": "Planlama",
+    "resources": "Kaynaklar",
     "view": "Görünüm",
     "settings": "Ayarlar",
     "table": "Tablo",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} görev, {{relations}} ilişki",
     "deleteTemplate": "Şablonu sil",
     "collapseRibbon": "Şeridi daralt",
-    "expandRibbon": "Şeridi genişlet"
+    "expandRibbon": "Şeridi genişlet",
+    "resourceManagement": "Yönet",
+    "openResourcePanel": "Kaynaklar",
+    "newResource": "Yeni kaynak",
+    "resourceAssignment": "Atama",
+    "assignResource": "Ata",
+    "histogram": "Histogram",
+    "toggleHistogram": "Histogram",
+    "prevResource": "Önceki",
+    "nextResource": "Sonraki",
+    "leveling": "Kaynak Dengeleme",
+    "levelResourcesDialog": "Dengele…",
+    "clearLeveling": "Dengelemeyi temizle",
+    "overallocationIndicator": "Aşırı atama",
+    "overallocationCount": "{{count}} kaynak",
+    "overallocationNone": "Yok"
   },
   "ifc": {
     "title": "IFC Düzenleyici",

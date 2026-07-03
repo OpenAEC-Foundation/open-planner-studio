@@ -70,7 +70,21 @@
     "dependencies": "依赖关系",
     "driving": "驱动关系 (driving)",
     "lag": "延时（例如 2d、3ed、50%、-25e%）",
-    "recalculate": "重新计算 CPM"
+    "recalculate": "重新计算 CPM",
+    "assignments": {
+      "title": "分配",
+      "add": "分配资源",
+      "remove": "移除",
+      "unitsPerDay": "单位/天",
+      "curve": "曲线",
+      "empty": "尚无分配。",
+      "noResources": "请先创建资源（资源标签页）。",
+      "allAssigned": "所有资源均已分配。",
+      "disabledMilestone": "里程碑不支持分配。",
+      "disabledSummary": "摘要任务不支持分配。"
+    },
+    "priority": "平衡优先级",
+    "levelingDelay": "平衡延迟"
   },
   "relations": {
     "title": "关系",

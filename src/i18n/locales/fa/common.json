@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "مهلت‌های گذشته: {{count}}",
     "violatedConstraints": "محدودیت‌های نقض‌شده: {{count}}"
+  },
+  "resource": {
+    "type": {
+      "labor": "نیروی کار",
+      "equipment": "تجهیزات",
+      "material": "مواد",
+      "subcontractor": "پیمانکار فرعی",
+      "crew": "گروه کاری"
+    },
+    "name": "نام",
+    "typeLabel": "نوع",
+    "maxUnits": "حداکثر واحد",
+    "calendarId": "تقویم",
+    "costPerHour": "نرخ/ساعت",
+    "unitOfMeasure": "واحد",
+    "parent": "گروه کاری",
+    "projectCalendar": "تقویم پروژه",
+    "editCalendar": "ویرایش…",
+    "noParent": "هیچ",
+    "availabilityStepsEditor": {
+      "title": "ظرفیت زمان‌بندی‌شده",
+      "addStep": "افزودن مرحله",
+      "from": "از",
+      "maxUnits": "حداکثر واحد",
+      "empty": "هیچ مرحله‌ای وجود ندارد — حداکثر واحد ثابت همیشه اعمال می‌شود."
+    },
+    "panel": {
+      "title": "منابع",
+      "addRow": "منبع جدید",
+      "deleteRow": "حذف",
+      "empty": "هنوز منبعی وجود ندارد. برای شروع یکی اضافه کنید.",
+      "steps": "مراحل"
+    },
+    "calendarDialog": {
+      "title": "تقویم منبع"
+    },
+    "histogram": {
+      "allResources": "همه منابع",
+      "overallocatedTooltip": "{{count}} وظیفه در {{date}} مشارکت دارند",
+      "noData": "برای نمایش بار کاری، دوباره محاسبه کنید (F5)",
+      "noResources": "هنوز منبعی وجود ندارد",
+      "units": "واحد"
+    },
+    "leveling": {
+      "dialogTitle": "تسطیح منابع",
+      "constrainToFloat": "فقط در محدوده شناوری تسطیح شود (هموارسازی) — تاریخ پایان پروژه ثابت می‌ماند",
+      "resourceSelect": "منابع",
+      "calculate": "محاسبه",
+      "apply": "اعمال",
+      "cancel": "لغو",
+      "projectEndUnchanged": "تاریخ پایان پروژه: بدون تغییر ({{date}})",
+      "projectEndChanged": "تاریخ پایان پروژه: {{before}} ← {{after}}",
+      "remainingConflicts": "تعارض‌های باقی‌مانده",
+      "remainingConflictsHint": "این وظایف در محدوده شناوری خود جا نمی‌شوند — اغلب به این دلیل که منبعی در آن روزها کار نمی‌کند یا ظرفیت کافی ندارد.",
+      "noChanges": "هیچ وظیفه‌ای نیاز به جابجایی ندارد — برنامه از قبل بدون تعارض است.",
+      "notCalculated": "برای ساخت یک پیشنهاد تسطیح، روی محاسبه کلیک کنید.",
+      "needsCPM": "پیش از تسطیح، ابتدا برنامه را محاسبه کنید (F5).",
+      "colTask": "وظیفه",
+      "colOldStart": "شروع قبلی",
+      "colNewStart": "شروع جدید",
+      "colShift": "روزهای جابجایی",
+      "shiftDays": "{{count}} روز",
+      "conflictDays": "{{count}} روز"
+    },
+    "curve": {
+      "uniform": "یکنواخت",
+      "frontLoaded": "بارگذاری اولیه",
+      "backLoaded": "بارگذاری پایانی",
+      "bell": "زنگی‌شکل",
+      "earlyPeak": "اوج زودهنگام",
+      "latePeak": "اوج دیرهنگام"
+    }
   }
 }

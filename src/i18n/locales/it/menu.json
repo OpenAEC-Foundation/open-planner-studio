@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "Home",
     "planning": "Pianificazione",
+    "resources": "Risorse",
     "view": "Vista",
     "settings": "Impostazioni",
     "table": "Tabella",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} attività, {{relations}} relazioni",
     "deleteTemplate": "Elimina modello",
     "collapseRibbon": "Comprimi la barra multifunzione",
-    "expandRibbon": "Espandi la barra multifunzione"
+    "expandRibbon": "Espandi la barra multifunzione",
+    "resourceManagement": "Gestisci",
+    "openResourcePanel": "Risorse",
+    "newResource": "Nuova risorsa",
+    "resourceAssignment": "Assegnazione",
+    "assignResource": "Assegna",
+    "histogram": "Istogramma",
+    "toggleHistogram": "Istogramma",
+    "prevResource": "Precedente",
+    "nextResource": "Successiva",
+    "leveling": "Livellamento",
+    "levelResourcesDialog": "Livella…",
+    "clearLeveling": "Cancella livellamento",
+    "overallocationIndicator": "Sovrallocazione",
+    "overallocationCount": "{{count}} risorse",
+    "overallocationNone": "Nessuna"
   },
   "ifc": {
     "title": "Editor IFC",

@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "Start",
     "planning": "Planowanie",
+    "resources": "Zasoby",
     "view": "Widok",
     "settings": "Ustawienia",
     "table": "Tabela",
@@ -115,7 +116,22 @@
     "templateMeta": "Zadania: {{tasks}}, relacje: {{relations}}",
     "deleteTemplate": "Usuń szablon",
     "collapseRibbon": "Zwiń wstążkę",
-    "expandRibbon": "Rozwiń wstążkę"
+    "expandRibbon": "Rozwiń wstążkę",
+    "resourceManagement": "Zarządzaj",
+    "openResourcePanel": "Zasoby",
+    "newResource": "Nowy zasób",
+    "resourceAssignment": "Przydział",
+    "assignResource": "Przydziel",
+    "histogram": "Histogram",
+    "toggleHistogram": "Histogram",
+    "prevResource": "Poprzedni",
+    "nextResource": "Następny",
+    "leveling": "Bilansowanie",
+    "levelResourcesDialog": "Bilansuj…",
+    "clearLeveling": "Wyczyść bilansowanie",
+    "overallocationIndicator": "Nadmierne przydzielenie",
+    "overallocationCount": "{{count}} zasobów",
+    "overallocationNone": "Brak"
   },
   "ifc": {
     "title": "Edytor IFC",

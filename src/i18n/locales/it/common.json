@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "Scadenze superate: {{count}}",
     "violatedConstraints": "Vincoli violati: {{count}}"
+  },
+  "resource": {
+    "type": {
+      "labor": "Manodopera",
+      "equipment": "Attrezzatura",
+      "material": "Materiale",
+      "subcontractor": "Subappaltatore",
+      "crew": "Squadra"
+    },
+    "name": "Nome",
+    "typeLabel": "Tipo",
+    "maxUnits": "Unità max.",
+    "calendarId": "Calendario",
+    "costPerHour": "Tariffa/ora",
+    "unitOfMeasure": "Unità",
+    "parent": "Squadra",
+    "projectCalendar": "Calendario di progetto",
+    "editCalendar": "Modifica…",
+    "noParent": "Nessuna",
+    "availabilityStepsEditor": {
+      "title": "Capacità scaglionata nel tempo",
+      "addStep": "Aggiungi fase",
+      "from": "Da",
+      "maxUnits": "Unità max.",
+      "empty": "Nessuna fase — si applica sempre l'unità max. fissa."
+    },
+    "panel": {
+      "title": "Risorse",
+      "addRow": "Nuova risorsa",
+      "deleteRow": "Elimina",
+      "empty": "Ancora nessuna risorsa. Aggiungine una per iniziare.",
+      "steps": "Fasi"
+    },
+    "calendarDialog": {
+      "title": "Calendario risorsa"
+    },
+    "histogram": {
+      "allResources": "Tutte le risorse",
+      "overallocatedTooltip": "{{count}} attività contribuiscono il {{date}}",
+      "noData": "Ricalcola (F5) per mostrare il carico",
+      "noResources": "Ancora nessuna risorsa",
+      "units": "unità"
+    },
+    "leveling": {
+      "dialogTitle": "Livella risorse",
+      "constrainToFloat": "Livella solo entro il margine (attenuazione) — la data di fine progetto resta invariata",
+      "resourceSelect": "Risorse",
+      "calculate": "Calcola",
+      "apply": "Applica",
+      "cancel": "Annulla",
+      "projectEndUnchanged": "Data di fine progetto: invariata ({{date}})",
+      "projectEndChanged": "Data di fine progetto: {{before}} → {{after}}",
+      "remainingConflicts": "Conflitti rimanenti",
+      "remainingConflictsHint": "Queste attività non rientrano nel loro margine — spesso perché una risorsa non lavora in quei giorni o non ha capacità sufficiente.",
+      "noChanges": "Nessuna attività deve essere spostata — la pianificazione è già priva di conflitti.",
+      "notCalculated": "Fai clic su Calcola per creare una proposta di livellamento.",
+      "needsCPM": "Calcola la pianificazione (F5) prima di livellare.",
+      "colTask": "Attività",
+      "colOldStart": "Inizio precedente",
+      "colNewStart": "Nuovo inizio",
+      "colShift": "Giorni spostati",
+      "shiftDays": "{{count}} g",
+      "conflictDays": "{{count}} giorno/i"
+    },
+    "curve": {
+      "uniform": "Uniforme",
+      "frontLoaded": "Caricato all'inizio",
+      "backLoaded": "Caricato alla fine",
+      "bell": "A campana",
+      "earlyPeak": "Picco anticipato",
+      "latePeak": "Picco tardivo"
+    }
   }
 }

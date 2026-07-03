@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "Start",
     "planning": "Planung",
+    "resources": "Ressourcen",
     "view": "Ansicht",
     "settings": "Einstellungen",
     "table": "Tabelle",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} Aufgaben, {{relations}} Beziehungen",
     "deleteTemplate": "Vorlage löschen",
     "collapseRibbon": "Menüband einklappen",
-    "expandRibbon": "Menüband ausklappen"
+    "expandRibbon": "Menüband ausklappen",
+    "resourceManagement": "Verwalten",
+    "openResourcePanel": "Ressourcen",
+    "newResource": "Neue Ressource",
+    "resourceAssignment": "Zuweisung",
+    "assignResource": "Zuweisen",
+    "histogram": "Histogramm",
+    "toggleHistogram": "Histogramm",
+    "prevResource": "Vorherige",
+    "nextResource": "Nächste",
+    "leveling": "Ressourcenabgleich",
+    "levelResourcesDialog": "Abgleichen…",
+    "clearLeveling": "Abgleich zurücksetzen",
+    "overallocationIndicator": "Überlastung",
+    "overallocationCount": "{{count}} Ressourcen",
+    "overallocationNone": "Keine"
   },
   "ifc": {
     "title": "IFC-Editor",

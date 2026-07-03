@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "خانه",
     "planning": "برنامه‌ریزی",
+    "resources": "منابع",
     "view": "نما",
     "settings": "تنظیمات",
     "table": "جدول",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} وظیفه، {{relations}} رابطه",
     "deleteTemplate": "حذف الگو",
     "collapseRibbon": "جمع کردن نوار",
-    "expandRibbon": "باز کردن نوار"
+    "expandRibbon": "باز کردن نوار",
+    "resourceManagement": "مدیریت",
+    "openResourcePanel": "منابع",
+    "newResource": "منبع جدید",
+    "resourceAssignment": "تخصیص",
+    "assignResource": "تخصیص دادن",
+    "histogram": "هیستوگرام",
+    "toggleHistogram": "هیستوگرام",
+    "prevResource": "قبلی",
+    "nextResource": "بعدی",
+    "leveling": "تسطیح",
+    "levelResourcesDialog": "تسطیح…",
+    "clearLeveling": "پاک کردن تسطیح",
+    "overallocationIndicator": "تخصیص بیش از حد",
+    "overallocationCount": "{{count}} منبع",
+    "overallocationNone": "هیچ"
   },
   "ifc": {
     "title": "ویرایشگر IFC",

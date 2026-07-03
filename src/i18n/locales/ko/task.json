@@ -70,7 +70,21 @@
     "dependencies": "종속성",
     "driving": "주도 관계(드라이빙)",
     "lag": "지연(예: 2d, 3ed, 50%, -25e%)",
-    "recalculate": "CPM 재계산"
+    "recalculate": "CPM 재계산",
+    "assignments": {
+      "title": "할당",
+      "add": "자원 할당",
+      "remove": "제거",
+      "unitsPerDay": "단위/일",
+      "curve": "곡선",
+      "empty": "아직 할당이 없습니다.",
+      "noResources": "먼저 자원을 만드세요 (자원 탭).",
+      "allAssigned": "모든 자원이 이미 할당되었습니다.",
+      "disabledMilestone": "마일스톤에는 할당할 수 없습니다.",
+      "disabledSummary": "요약 작업에는 할당할 수 없습니다."
+    },
+    "priority": "평준화 우선순위",
+    "levelingDelay": "평준화 지연"
   },
   "relations": {
     "title": "관계",

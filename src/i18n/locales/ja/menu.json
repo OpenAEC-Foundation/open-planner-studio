@@ -2,6 +2,7 @@
   "ribbon": {
     "start": "ホーム",
     "planning": "計画",
+    "resources": "リソース",
     "view": "表示",
     "settings": "設定",
     "table": "テーブル",
@@ -115,7 +116,22 @@
     "templateMeta": "{{tasks}} タスク、{{relations}} 関係",
     "deleteTemplate": "テンプレートを削除",
     "collapseRibbon": "リボンを折りたたむ",
-    "expandRibbon": "リボンを展開する"
+    "expandRibbon": "リボンを展開する",
+    "resourceManagement": "管理",
+    "openResourcePanel": "リソース",
+    "newResource": "新規リソース",
+    "resourceAssignment": "割り当て",
+    "assignResource": "割り当てる",
+    "histogram": "ヒストグラム",
+    "toggleHistogram": "ヒストグラム",
+    "prevResource": "前へ",
+    "nextResource": "次へ",
+    "leveling": "山崩し",
+    "levelResourcesDialog": "山崩し…",
+    "clearLeveling": "山崩しを解除",
+    "overallocationIndicator": "山積み（超過割り当て）",
+    "overallocationCount": "{{count}} 件のリソース",
+    "overallocationNone": "なし"
   },
   "ifc": {
     "title": "IFC エディタ",

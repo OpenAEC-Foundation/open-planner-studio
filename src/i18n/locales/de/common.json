@@ -134,5 +134,77 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} Stichtag(e) überschritten",
     "violatedConstraints": "{{count}} Einschränkung(en) verletzt"
+  },
+  "resource": {
+    "type": {
+      "labor": "Personal",
+      "equipment": "Gerät",
+      "material": "Material",
+      "subcontractor": "Subunternehmer",
+      "crew": "Kolonne"
+    },
+    "name": "Name",
+    "typeLabel": "Typ",
+    "maxUnits": "Max. Einheiten",
+    "calendarId": "Kalender",
+    "costPerHour": "Tarif/Stunde",
+    "unitOfMeasure": "Einheit",
+    "parent": "Kolonne",
+    "projectCalendar": "Projektkalender",
+    "editCalendar": "Bearbeiten…",
+    "noParent": "Keine",
+    "availabilityStepsEditor": {
+      "title": "Zeitlich gestaffelte Kapazität",
+      "addStep": "Schritt hinzufügen",
+      "from": "Ab",
+      "maxUnits": "Max. Einheiten",
+      "empty": "Keine Schritte — die feste Max.-Einheitenzahl gilt immer."
+    },
+    "panel": {
+      "title": "Ressourcen",
+      "addRow": "Neue Ressource",
+      "deleteRow": "Löschen",
+      "empty": "Noch keine Ressourcen. Fügen Sie eine hinzu, um zu beginnen.",
+      "steps": "Schritte"
+    },
+    "calendarDialog": {
+      "title": "Ressourcenkalender"
+    },
+    "histogram": {
+      "allResources": "Alle Ressourcen",
+      "overallocatedTooltip": "{{count}} Aufgaben tragen bei am {{date}}",
+      "noData": "Neu berechnen (F5), um die Auslastung anzuzeigen",
+      "noResources": "Noch keine Ressourcen",
+      "units": "Einheiten"
+    },
+    "leveling": {
+      "dialogTitle": "Ressourcen abgleichen",
+      "constrainToFloat": "Nur innerhalb des Puffers abgleichen (Glättung) — Projektende bleibt unverändert",
+      "resourceSelect": "Ressourcen",
+      "calculate": "Berechnen",
+      "apply": "Anwenden",
+      "cancel": "Abbrechen",
+      "projectEndUnchanged": "Projektende: unverändert ({{date}})",
+      "projectEndChanged": "Projektende: {{before}} → {{after}}",
+      "remainingConflicts": "Verbleibende Konflikte",
+      "remainingConflictsHint": "Diese Aufgaben passen nicht in ihren Puffer — oft weil eine Ressource an diesen Tagen nicht arbeitet oder nicht genug Kapazität hat.",
+      "noChanges": "Keine Aufgaben müssen verschoben werden — der Terminplan ist bereits konfliktfrei.",
+      "notCalculated": "Klicken Sie auf Berechnen, um einen Abgleichsvorschlag zu erstellen.",
+      "needsCPM": "Berechnen Sie zuerst den Terminplan (F5), bevor Sie den Abgleich durchführen.",
+      "colTask": "Aufgabe",
+      "colOldStart": "Alter Start",
+      "colNewStart": "Neuer Start",
+      "colShift": "Verschobene Tage",
+      "shiftDays": "{{count}} T",
+      "conflictDays": "{{count}} Tag(e)"
+    },
+    "curve": {
+      "uniform": "Gleichmäßig",
+      "frontLoaded": "Vorne belastet",
+      "backLoaded": "Hinten belastet",
+      "bell": "Glockenform",
+      "earlyPeak": "Frühe Spitze",
+      "latePeak": "Späte Spitze"
+    }
   }
 }

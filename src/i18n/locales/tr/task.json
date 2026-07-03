@@ -70,7 +70,21 @@
     "dependencies": "Bağımlılıklar",
     "driving": "Belirleyici ilişki (driving)",
     "lag": "Gecikme (örn. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "CPM'yi yeniden hesapla"
+    "recalculate": "CPM'yi yeniden hesapla",
+    "assignments": {
+      "title": "Atamalar",
+      "add": "Kaynak ata",
+      "remove": "Kaldır",
+      "unitsPerDay": "Birim/gün",
+      "curve": "Eğri",
+      "empty": "Henüz atama yok.",
+      "noResources": "Önce kaynak oluşturun (Kaynaklar sekmesi).",
+      "allAssigned": "Tüm kaynaklar zaten atanmış.",
+      "disabledMilestone": "Kilometre taşlarında atama yapılamaz.",
+      "disabledSummary": "Özet görevlerde atama yapılamaz."
+    },
+    "priority": "Dengeleme önceliği",
+    "levelingDelay": "Dengeleme gecikmesi"
   },
   "relations": {
     "title": "İlişkiler",

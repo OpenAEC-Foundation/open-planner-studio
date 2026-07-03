@@ -70,7 +70,21 @@
     "dependencies": "التبعيات",
     "driving": "علاقة حاكمة (driving)",
     "lag": "التأخير (مثل 2d، 3ed، 50%، -25e%)",
-    "recalculate": "إعادة حساب CPM"
+    "recalculate": "إعادة حساب CPM",
+    "assignments": {
+      "title": "التخصيصات",
+      "add": "تخصيص مورد",
+      "remove": "إزالة",
+      "unitsPerDay": "وحدات/يوم",
+      "curve": "المنحنى",
+      "empty": "لا توجد تخصيصات بعد.",
+      "noResources": "أنشئ الموارد أولاً (علامة تبويب الموارد).",
+      "allAssigned": "جميع الموارد مخصصة بالفعل.",
+      "disabledMilestone": "لا يمكن التخصيص على المعالم.",
+      "disabledSummary": "لا يمكن التخصيص على المهام الموجزة."
+    },
+    "priority": "أولوية الموازنة",
+    "levelingDelay": "تأخير الموازنة"
   },
   "relations": {
     "title": "العلاقات",
