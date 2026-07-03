@@ -1,10 +1,20 @@
 import { Task } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment } from '@/types/resource';
+import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+
+// Omgekeerde WorkContour-mapping (spiegel van mspdiWriter's CURVE_TO_WORKCONTOUR, §8.3).
+const WORKCONTOUR_TO_CURVE: Record<number, ResourceCurve> = {
+  0: 'UNIFORM',
+  1: 'BACK_LOADED',
+  2: 'FRONT_LOADED',
+  4: 'EARLY_PEAK',
+  5: 'LATE_PEAK',
+  6: 'BELL',
+};
 
 function getElementText(parent: Element, tagName: string): string {
   const el = parent.getElementsByTagName(tagName)[0];
@@ -14,6 +24,12 @@ function getElementText(parent: Element, tagName: string): string {
 function getElementInt(parent: Element, tagName: string, fallback = 0): number {
   const text = getElementText(parent, tagName);
   const n = parseInt(text);
+  return isNaN(n) ? fallback : n;
+}
+
+function getElementFloat(parent: Element, tagName: string, fallback = 0): number {
+  const text = getElementText(parent, tagName);
+  const n = parseFloat(text);
   return isNaN(n) ? fallback : n;
 }
 
@@ -60,6 +76,7 @@ export function readMSPDI(content: string): {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
+  resourceCalendars: WorkCalendar[];
 } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, 'application/xml');
@@ -75,6 +92,64 @@ export function readMSPDI(content: string): {
   const project = parseProject(root);
   const calendar = parseCalendar(root);
   const hoursPerDay = calendar.hoursPerDay;
+
+  // Resource-kalenders (fase 2.5, §8.2): elk <Calendar>-element in <Calendars> behalve UID 1
+  // (de projectkalender, altijd als eerste geschreven/gelezen — zelfde aanname als parseCalendar).
+  const calendarsRoot = root.getElementsByTagName('Calendars')[0];
+  const calUidToId = new Map<number, string>();
+  const resourceCalendars: WorkCalendar[] = [];
+  if (calendarsRoot) {
+    const calElements = calendarsRoot.getElementsByTagName('Calendar');
+    for (let i = 0; i < calElements.length; i++) {
+      const calEl = calElements[i];
+      if (calEl.parentElement !== calendarsRoot) continue;
+      const uid = getElementInt(calEl, 'UID', -1);
+      if (uid <= 1) continue; // UID 1 = projectkalender, al gelezen door parseCalendar
+      const cal = createDefaultCalendar();
+      cal.id = generateId('rescal');
+      cal.name = getElementText(calEl, 'Name') || cal.name;
+      calUidToId.set(uid, cal.id);
+      resourceCalendars.push(cal);
+    }
+  }
+
+  // Resources (fase 2.5, §8.2)
+  const resourcesRoot = root.getElementsByTagName('Resources')[0];
+  const resources: Resource[] = [];
+  const resUidToId = new Map<number, string>();
+  if (resourcesRoot) {
+    const resElements = resourcesRoot.getElementsByTagName('Resource');
+    for (let i = 0; i < resElements.length; i++) {
+      const resEl = resElements[i];
+      if (resEl.parentElement !== resourcesRoot) continue;
+      const uid = getElementInt(resEl, 'UID', -1);
+      if (uid < 0) continue;
+      const id = generateId('res');
+      resUidToId.set(uid, id);
+
+      const name = getElementText(resEl, 'Name') || 'Resource';
+      const type = getElementInt(resEl, 'Type', 1);
+      const maxUnits = getElementFloat(resEl, 'MaxUnits', 1);
+      const materialLabel = getElementText(resEl, 'MaterialLabel');
+      const calUid = getElementInt(resEl, 'CalendarUID', -1);
+      const standardRate = getElementText(resEl, 'StandardRate');
+
+      // MSP maakt geen onderscheid tussen LABOR/EQUIPMENT/CREW/SUBCONTRACTOR (Type=1 =
+      // "Work") — zonder verdere hint komt dat terug als LABOR (geaccepteerd verlies, §8.4).
+      const resource: Resource = {
+        id,
+        name,
+        type: type === 0 ? 'MATERIAL' : 'LABOR',
+        description: '',
+        maxUnits,
+      };
+      if (materialLabel) resource.unitOfMeasure = materialLabel;
+      if (calUid >= 0 && calUidToId.has(calUid)) resource.calendarId = calUidToId.get(calUid);
+      const rate = parseFloat(standardRate);
+      if (Number.isFinite(rate) && standardRate) resource.costPerHour = rate;
+      resources.push(resource);
+    }
+  }
 
   // Parse tasks
   const taskElements = root.getElementsByTagName('Task');
@@ -210,13 +285,44 @@ export function readMSPDI(content: string): {
     sequences.push(seq);
   }
 
+  // Assignments (fase 2.5, §8.2)
+  const assignmentsRoot = root.getElementsByTagName('Assignments')[0];
+  const assignments: ResourceAssignment[] = [];
+  if (assignmentsRoot) {
+    const asgnElements = assignmentsRoot.getElementsByTagName('Assignment');
+    for (let i = 0; i < asgnElements.length; i++) {
+      const asgnEl = asgnElements[i];
+      if (asgnEl.parentElement !== assignmentsRoot) continue;
+      const taskUid = getElementInt(asgnEl, 'TaskUID', -1);
+      const resourceUid = getElementInt(asgnEl, 'ResourceUID', -1);
+      if (taskUid < 0 || resourceUid < 0) continue;
+      const taskId = uidToId.get(taskUid);
+      const resourceId = resUidToId.get(resourceUid);
+      if (!taskId || !resourceId) continue;
+
+      const unitsText = getElementText(asgnEl, 'Units');
+      const units = parseFloat(unitsText);
+      const contour = getElementInt(asgnEl, 'WorkContour', 0);
+      const curve = WORKCONTOUR_TO_CURVE[contour];
+
+      assignments.push({
+        id: generateId('asgn'),
+        taskId,
+        resourceId,
+        unitsPerDay: Number.isFinite(units) && unitsText ? units : 1,
+        ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
+      });
+    }
+  }
+
   return {
     project,
     calendar,
     tasks,
     sequences,
-    resources: [],
-    assignments: [],
+    resources,
+    assignments,
+    resourceCalendars,
   };
 }
 

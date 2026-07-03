@@ -6,6 +6,10 @@ import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 
+/** Fase 2.5-default: `Task.priority` (0-1000, default 500) en `Task.levelingDelay` (undefined/0
+ *  = geen nivellering) — golden-rule-guards hieronder schrijven alleen bij afwijking. */
+const DEFAULT_PRIORITY = 500;
+
 /** Generate a 22-character IFC GlobalId (simplified) */
 function ifcGuid(seed: string): string {
   const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
@@ -69,6 +73,7 @@ export function writeIFC(
   assignments: ResourceAssignment[],
   activityCodeTypes: ActivityCodeType[] = [],
   customFieldDefs: CustomFieldDef[] = [],
+  resourceCalendars: WorkCalendar[] = [],
 ): string {
   const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map() };
   const now = new Date().toISOString().split('.')[0];
@@ -149,9 +154,13 @@ export function writeIFC(
   for (const res of resources) {
     writeResource(ctx, res, ownerHistId);
   }
+  writeResourceMeta(ctx, resources, ownerHistId);
+  writeCrewNesting(ctx, resources, ownerHistId);
+  writeResourceCalendars(ctx, resources, resourceCalendars, ownerHistId);
 
   // Resource assignments
   writeAssignments(ctx, assignments, ownerHistId);
+  writeAssignmentMeta(ctx, tasks, assignments, ownerHistId);
 
   // Tasks -> WorkSchedule control
   if (tasks.length > 0) {
@@ -166,6 +175,8 @@ export function writeIFC(
   // Datum-constraints + deadlines (fase 2.3) als OPS_Constraints-pset per taak
   writeConstraints(ctx, tasks, ownerHistId);
   writeMilestoneMeta(ctx, tasks, ownerHistId);
+  // Nivellering (fase 2.5): levelingDelay als OPS_Leveling-pset per taak
+  writeLevelingMeta(ctx, tasks, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -366,7 +377,25 @@ function writeMilestoneMeta(ctx: WriteContext, tasks: Task[], ownerHistId: numbe
   }
 }
 
-function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number): number {
+/**
+ * Fase 2.5 — nivelleer-vertraging als OPS_Leveling-pset per taak (spiegel van
+ * writeConstraints/writeMilestoneMeta). `IfcTask` heeft geen native slot voor een
+ * per-taak levelingdelay (§7.6) — alleen geschreven wanneer de nivelleerder een
+ * niet-nul delay heeft gezet (golden rule §7.7: undefined/0 schrijft niets).
+ */
+function writeLevelingMeta(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    if (!task.levelingDelay) continue;
+    const delayId = addLine(ctx, `_lvld_${task.id}`,
+      `IFCPROPERTYSINGLEVALUE('LevelingDelay',$,IFCINTEGER(${Math.round(task.levelingDelay)}),$)`);
+    const setId = addLine(ctx, `_pset_lvl_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_lvl_' + task.id))},#${ownerHistId},'OPS_Leveling',$,(#${delayId}))`);
+    addLine(ctx, `_rel_lvl_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_lvl_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number, key: string = '_calendar'): number {
   // Work time recurrence (weekdays)
   const dayNums = cal.workDays.join(',');
   const startTime = `${String(cal.workStartHour).padStart(2, '0')}:00:00`;
@@ -385,8 +414,33 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
   }
 
   const exceptStr = holidayRefs.length > 0 ? `(${holidayRefs.join(',')})` : '$';
-  return addLine(ctx, '_calendar',
+  return addLine(ctx, key,
     `IFCWORKCALENDAR(${ifcStr(ifcGuid(cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},$,(#${workTimeId}),${exceptStr},.FIRSTSHIFT.)`);
+}
+
+/**
+ * Fase 2.5 — resource-kalenders (§7.5): elke `resourceCalendars[]`-entry krijgt een eigen
+ * IFCWORKCALENDAR (dezelfde `writeCalendar`, parametrische key i.p.v. de hardcoded
+ * `_calendar` van de projectkalender) + één IFCRELASSIGNSTOCONTROL naar alle resources die
+ * ernaar verwijzen (`resource.calendarId === cal.id`). Golden rule: lege `resourceCalendars`
+ * schrijft niets extra (de for-lus doet dan simpelweg niets).
+ */
+function writeResourceCalendars(
+  ctx: WriteContext,
+  resources: Resource[],
+  resourceCalendars: WorkCalendar[],
+  ownerHistId: number,
+): void {
+  for (const cal of resourceCalendars) {
+    const calStepId = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`);
+    const resRefs = resources
+      .filter(r => r.calendarId === cal.id)
+      .map(r => ref(ctx, `res_${r.id}`))
+      .filter(r => r !== '#0');
+    if (resRefs.length === 0) continue; // kalender bestaat in de registry, maar (nog) niemand gebruikt hem
+    addLine(ctx, `resctrl_${cal.id}`,
+      `IFCRELASSIGNSTOCONTROL(${ifcStr(ifcGuid('resctrl_' + cal.id))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,#${calStepId})`);
+  }
 }
 
 function writeTask(ctx: WriteContext, task: Task, ownerHistId: number): void {
@@ -395,8 +449,17 @@ function writeTask(ctx: WriteContext, task: Task, ownerHistId: number): void {
     `IFCTASKTIME(${ifcStr(task.name + ' Time')},.PREDICTED.,$,.${t.durationType}.,${ifcDuration(t.scheduleDuration)},${ifcDateTime(t.scheduleStart)},${ifcDateTime(t.scheduleFinish)},${ifcDateTime(t.earlyStart)},${ifcDateTime(t.earlyFinish)},${ifcDateTime(t.lateStart)},${ifcDateTime(t.lateFinish)},${ifcDuration(t.freeFloat)},${ifcDuration(t.totalFloat)},${ifcBool(t.isCritical)},$,$,$,$,$,${t.completion.toFixed(1)})`);
 
   const ifcTaskType = `.${task.taskType}.`;
+  // IfcTask.Priority (IFCINTEGER, native attribuut, 0-based STEP-arg-index 9 — geverifieerd
+  // tegen de IFC4.3-attribuuttabel: GlobalId,OwnerHistory,Name,Description,ObjectType,
+  // Identification,LongDescription,Status,WorkMethod,IsMilestone,Priority,TaskTime,
+  // PredefinedType. Deze schrijver is een pragmatische subset (ObjectType/LongDescription/
+  // Status/WorkMethod blijven altijd `$`, zie de bestaande arg4/6/7-lay-out hieronder) — de
+  // slot vlak vóór TaskTime en ná IsMilestone (hier al aanwezig als lege `$`) is precies de
+  // Priority-positie, dus alleen dát argument krijgt een waarde (golden rule §7.7: `$` bij
+  // de default 500).
+  const priorityArg = task.priority !== DEFAULT_PRIORITY ? String(Math.round(task.priority)) : '$';
   addLine(ctx, `task_${task.id}`,
-    `IFCTASK(${ifcStr(ifcGuid(task.id))},#${ownerHistId},${ifcStr(task.name)},${ifcStr(task.description)},$,${ifcStr(task.wbsCode)},$,$,${ifcBool(task.isMilestone)},$,#${taskTimeId},${ifcTaskType})`);
+    `IFCTASK(${ifcStr(ifcGuid(task.id))},#${ownerHistId},${ifcStr(task.name)},${ifcStr(task.description)},$,${ifcStr(task.wbsCode)},$,$,${ifcBool(task.isMilestone)},${priorityArg},#${taskTimeId},${ifcTaskType})`);
 }
 
 function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
@@ -454,10 +517,80 @@ function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): v
     case 'SUBCONTRACTOR':
       entity = `IFCSUBCONTRACTRESOURCE(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
       break;
+    case 'CREW':
+      entity = `IFCCREWRESOURCE(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
+      break;
     default:
       entity = `IFCCONSTRUCTIONMATERIALRESOURCE(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
   }
   addLine(ctx, `res_${res.id}`, entity);
+}
+
+/**
+ * Fase 2.5 — `OPS_Resource`-pset (§7.2): capaciteit/tarief/eenheid/tijd-gefaseerde-capaciteit
+ * + de `ParentGuid`-vangnetproperty (§7.3) voor ploeg-lidmaatschap. Exact het
+ * OPS_Constraints/OPS_Milestone-patroon: alleen schrijven wanneer minstens één veld van de
+ * default afwijkt (golden rule §7.7).
+ */
+function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId: number): void {
+  for (const res of resources) {
+    const props: string[] = [];
+    if (res.maxUnits !== 1) {
+      const id = addLine(ctx, `_resmu_${res.id}`,
+        `IFCPROPERTYSINGLEVALUE('MaxUnits',$,IFCREAL(${res.maxUnits}),$)`);
+      props.push(`#${id}`);
+    }
+    if (res.costPerHour !== undefined) {
+      const id = addLine(ctx, `_resch_${res.id}`,
+        `IFCPROPERTYSINGLEVALUE('CostPerHour',$,IFCMONETARYMEASURE(${res.costPerHour}),$)`);
+      props.push(`#${id}`);
+    }
+    if (res.unitOfMeasure) {
+      const id = addLine(ctx, `_resuom_${res.id}`,
+        `IFCPROPERTYSINGLEVALUE('UnitOfMeasure',$,IFCLABEL(${ifcStr(res.unitOfMeasure)}),$)`);
+      props.push(`#${id}`);
+    }
+    if (res.availabilitySteps && res.availabilitySteps.length > 0) {
+      // Compacte encoding "from:maxUnits;from:maxUnits", chronologisch (B8).
+      const encoded = [...res.availabilitySteps]
+        .sort((a, b) => a.from.localeCompare(b.from))
+        .map(s => `${s.from}:${s.maxUnits}`)
+        .join(';');
+      const id = addLine(ctx, `_resas_${res.id}`,
+        `IFCPROPERTYSINGLEVALUE('AvailabilitySteps',$,IFCTEXT(${ifcStr(encoded)}),$)`);
+      props.push(`#${id}`);
+    }
+    if (res.parentId) {
+      // Vangnet naast IFCRELNESTS (writeCrewNesting): de eigen reader hoeft nooit
+      // afhankelijk te zijn van relatie-richting-interpretatie door andere IFC-tools.
+      const id = addLine(ctx, `_respg_${res.id}`,
+        `IFCPROPERTYSINGLEVALUE('ParentGuid',$,IFCTEXT(${ifcStr(ifcGuid(res.parentId))}),$)`);
+      props.push(`#${id}`);
+    }
+    if (props.length === 0) continue;
+    const setId = addLine(ctx, `_pset_res_${res.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_res_' + res.id))},#${ownerHistId},'OPS_Resource',$,(${props.join(',')}))`);
+    addLine(ctx, `_rel_res_${res.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_res_' + res.id))},#${ownerHistId},$,$,(${ref(ctx, `res_${res.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Fase 2.5 — ploeg-hiërarchie (§7.3, B8): `IFCRELNESTS` (niet `IFCRELAGGREGATES`), consistent
+ * met hoe OPS al WBS-taakhiërarchie modelleert (`writeWBSNesting`) — RelatingObject = de
+ * CREW-resource, RelatedObjects = de leden. Alleen geschreven wanneer de ploeg leden heeft.
+ */
+function writeCrewNesting(ctx: WriteContext, resources: Resource[], ownerHistId: number): void {
+  const crews = resources.filter(r => r.type === 'CREW');
+  for (const crew of crews) {
+    const memberRefs = resources
+      .filter(r => r.parentId === crew.id)
+      .map(r => ref(ctx, `res_${r.id}`))
+      .filter(r => r !== '#0');
+    if (memberRefs.length === 0) continue;
+    addLine(ctx, `nest_res_${crew.id}`,
+      `IFCRELNESTS(${ifcStr(ifcGuid('nest_res_' + crew.id))},#${ownerHistId},${ifcStr('Ploeg ' + crew.name)},$,${ref(ctx, `res_${crew.id}`)},(${memberRefs.join(',')}))`);
+  }
 }
 
 function writeAssignments(ctx: WriteContext, assignments: ResourceAssignment[], ownerHistId: number): void {
@@ -475,5 +608,42 @@ function writeAssignments(ctx: WriteContext, assignments: ResourceAssignment[], 
     if (taskRef === '#0') continue;
     addLine(ctx, `assign_${taskId}`,
       `IFCRELASSIGNSTOPROCESS(${ifcStr(ifcGuid('assign_' + taskId))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,${taskRef},$)`);
+  }
+}
+
+/**
+ * Fase 2.5 — `OPS_Assignments`-pset op de `IFCTASK` (§7.4, B8): `IFCRELASSIGNSTOPROCESS` kan
+ * geen eigen pset dragen (het is een `IfcRelationship`, geen `IfcObjectDefinition` —
+ * `IfcRelDefinesByProperties.RelatedObjects` accepteert dat type niet). Per-assignment
+ * `unitsPerDay`+`curve` gaat daarom in een pset op de taak zelf: één
+ * `IFCPROPERTYSINGLEVALUE` per assignment, property-naam = de resource-GUID (dezelfde
+ * `ifcGuid(...)` als `writeResource` voor die resource schreef), waarde = `"unitsPerDay|curve"`.
+ * Alleen geschreven wanneer de taak minstens één assignment heeft (golden rule §7.7).
+ */
+function writeAssignmentMeta(
+  ctx: WriteContext,
+  tasks: Task[],
+  assignments: ResourceAssignment[],
+  ownerHistId: number,
+): void {
+  const byTask = new Map<string, ResourceAssignment[]>();
+  for (const a of assignments) {
+    if (!byTask.has(a.taskId)) byTask.set(a.taskId, []);
+    byTask.get(a.taskId)!.push(a);
+  }
+  for (const task of tasks) {
+    const list = byTask.get(task.id);
+    if (!list || list.length === 0) continue;
+    const props = list.map(a => {
+      const resGuid = ifcGuid(a.resourceId); // zelfde GUID als writeResource gebruikte
+      const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
+      const propId = addLine(ctx, `_asgn_${task.id}_${a.id}`,
+        `IFCPROPERTYSINGLEVALUE(${ifcStr(resGuid)},$,IFCTEXT(${ifcStr(val)}),$)`);
+      return `#${propId}`;
+    });
+    const setId = addLine(ctx, `_pset_asgn_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_asgn_' + task.id))},#${ownerHistId},'OPS_Assignments',$,(${props.join(',')}))`);
+    addLine(ctx, `_rel_asgn_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_asgn_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }

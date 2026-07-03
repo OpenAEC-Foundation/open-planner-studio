@@ -1,10 +1,27 @@
 import { Task, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment } from '@/types/resource';
+import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar, createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+
+// Omgekeerde curve-/contour-naammapping (spiegel van p6xmlWriter's P6_CURVE_TO_NAME, §8.3).
+const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
+  'Linear': 'UNIFORM',
+  'Front Loaded': 'FRONT_LOADED',
+  'Back Loaded': 'BACK_LOADED',
+  'Bell Shaped': 'BELL',
+  'Early Peak': 'EARLY_PEAK',
+};
+
+// P6 onderscheidt Nonlabor niet verder in Equipment/Subcontractor — invulling §8.1:
+// zonder verdere hint komt Nonlabor terug als EQUIPMENT (geaccepteerd verlies, §8.4).
+function resourceTypeFromP6(p6Type: string): ResourceType {
+  if (p6Type === 'Material') return 'MATERIAL';
+  if (p6Type === 'Nonlabor') return 'EQUIPMENT';
+  return 'LABOR';
+}
 
 function getElementText(parent: Element, tagName: string): string {
   // Look for direct children only to avoid picking up nested elements
@@ -68,6 +85,7 @@ export function readP6XML(content: string): {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
+  resourceCalendars: WorkCalendar[];
 } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, 'application/xml');
@@ -80,6 +98,63 @@ export function readP6XML(content: string): {
   // Parse calendar first for hoursPerDay
   const calendar = parseCalendar(doc);
   const hoursPerDay = calendar.hoursPerDay;
+
+  // Resource-kalenders (fase 2.5, §8.1): elke <Calendar> met Type=Resource, behalve de eerste
+  // (die is altijd de projectkalender, zelfde aanname als de bestaande parseCalendar).
+  const calElements = getAllByLocalName(doc, 'Calendar');
+  const calObjIdToId = new Map<number, string>();
+  const resourceCalendars: WorkCalendar[] = [];
+  for (let i = 1; i < calElements.length; i++) {
+    const calEl = calElements[i];
+    if (getElementText(calEl, 'Type') !== 'Resource') continue;
+    const objId = getElementInt(calEl, 'ObjectId', -1);
+    if (objId < 0) continue;
+    const cal = createDefaultCalendar();
+    cal.id = generateId('rescal');
+    cal.name = getElementText(calEl, 'Name') || cal.name;
+    const hpd = getElementFloat(calEl, 'HoursPerDay');
+    if (hpd > 0) cal.hoursPerDay = hpd;
+    calObjIdToId.set(objId, cal.id);
+    resourceCalendars.push(cal);
+  }
+
+  // Resources (fase 2.5, §8.1)
+  const resourceElements = getAllByLocalName(doc, 'Resource');
+  const resources: Resource[] = [];
+  const resObjIdToId = new Map<number, string>();
+  const pendingParents: { resId: string; parentObjId: number }[] = [];
+
+  for (const resEl of resourceElements) {
+    const objId = getElementInt(resEl, 'ObjectId', -1);
+    if (objId < 0) continue;
+    const id = generateId('res');
+    resObjIdToId.set(objId, id);
+
+    const name = getElementText(resEl, 'Name') || 'Resource';
+    const p6Type = getElementText(resEl, 'ResourceType');
+    const maxUnitsPerTime = getElementFloat(resEl, 'MaxUnitsPerTime');
+    const calObjId = getElementInt(resEl, 'CalendarObjectId', -1);
+    const unitOfMeasure = getElementText(resEl, 'UnitOfMeasureAbbreviation');
+    const parentObjId = getElementInt(resEl, 'ParentObjectId', -1);
+
+    const resource: Resource = {
+      id,
+      name,
+      type: resourceTypeFromP6(p6Type),
+      description: '',
+      maxUnits: maxUnitsPerTime > 0 ? maxUnitsPerTime / hoursPerDay : 1,
+    };
+    if (unitOfMeasure) resource.unitOfMeasure = unitOfMeasure;
+    if (calObjId >= 0 && calObjIdToId.has(calObjId)) resource.calendarId = calObjIdToId.get(calObjId);
+    resources.push(resource);
+    if (parentObjId >= 0) pendingParents.push({ resId: id, parentObjId });
+  }
+  for (const { resId, parentObjId } of pendingParents) {
+    const parentId = resObjIdToId.get(parentObjId);
+    if (!parentId) continue;
+    const resource = resources.find(r => r.id === resId);
+    if (resource) resource.parentId = parentId;
+  }
 
   // Parse project
   const project = parseProject(doc);
@@ -107,7 +182,7 @@ export function readP6XML(content: string): {
       taskType: 'CONSTRUCTION',
       status: 'NOT_STARTED',
       isMilestone: false,
-      priority: 0,
+      priority: 500,
       parentId: null, // resolved later
       childIds: [],
       time: createDefaultTaskTime(project.startDate, 0),
@@ -180,7 +255,7 @@ export function readP6XML(content: string): {
       status,
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
-      priority: 0,
+      priority: 500,
       parentId,
       childIds: [],
       time: {
@@ -239,13 +314,38 @@ export function readP6XML(content: string): {
     });
   }
 
+  // ResourceAssignments (fase 2.5, §8.1)
+  const asgnElements = getAllByLocalName(doc, 'ResourceAssignment');
+  const assignments: ResourceAssignment[] = [];
+  for (const asgnEl of asgnElements) {
+    const actObjId = getElementInt(asgnEl, 'ActivityObjectId', -1);
+    const resObjId = getElementInt(asgnEl, 'ResourceObjectId', -1);
+    if (actObjId < 0 || resObjId < 0) continue;
+    const taskId = actObjIdToId.get(actObjId);
+    const resourceId = resObjIdToId.get(resObjId);
+    if (!taskId || !resourceId) continue;
+
+    const plannedUnitsPerTime = getElementFloat(asgnEl, 'PlannedUnitsPerTime');
+    const curveName = getElementText(asgnEl, 'PlannedCurve');
+    const curve = P6_NAME_TO_CURVE[curveName];
+
+    assignments.push({
+      id: generateId('asgn'),
+      taskId,
+      resourceId,
+      unitsPerDay: plannedUnitsPerTime > 0 ? plannedUnitsPerTime / hoursPerDay : 1,
+      ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
+    });
+  }
+
   return {
     project,
     calendar,
     tasks,
     sequences,
-    resources: [],
-    assignments: [],
+    resources,
+    assignments,
+    resourceCalendars,
   };
 }
 

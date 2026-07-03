@@ -11,6 +11,7 @@ import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
+import type { WorkCalendar } from '@/types/calendar';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad). */
@@ -106,6 +107,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.sequences = parsed.sequences;
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
+        s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         s.selectedTaskIds = [];
         s.cpmResult = null;
         s.undoStack = [];
@@ -133,7 +135,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const content = writeIFC(
       state.project, state.calendar, state.tasks,
       state.sequences, state.resources, state.assignments,
-      state.activityCodeTypes, state.customFieldDefs,
+      state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
     );
 
     if (state.filePath) {
@@ -165,7 +167,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const content = writeIFC(
       state.project, state.calendar, state.tasks,
       state.sequences, state.resources, state.assignments,
-      state.activityCodeTypes, state.customFieldDefs,
+      state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
     );
 
     const picked = await save({
@@ -205,7 +207,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       case 'mspdi':
         content = writeMSPDI(
           state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments,
+          state.sequences, state.resources, state.assignments, state.resourceCalendars,
         );
         ext = 'xml';
         filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -213,7 +215,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       case 'p6':
         content = writeP6XML(
           state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments,
+          state.sequences, state.resources, state.assignments, state.resourceCalendars,
         );
         ext = 'xml';
         filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -223,7 +225,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         content = writeIFC(
           state.project, state.calendar, state.tasks,
           state.sequences, state.resources, state.assignments,
-          state.activityCodeTypes, state.customFieldDefs,
+          state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
         );
         ext = 'ifc';
         filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
@@ -268,6 +270,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.sequences = parsed.sequences;
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
+        s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         s.selectedTaskIds = [];
         s.cpmResult = null;
         s.undoStack = [];

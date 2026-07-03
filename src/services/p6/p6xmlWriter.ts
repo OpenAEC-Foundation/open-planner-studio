@@ -1,8 +1,33 @@
 import { Task } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment } from '@/types/resource';
+import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
+
+// Curve-/contour-naammapping (fase 2.5, §8.3): P6 kent geen `LATE_PEAK`-curve — beste
+// benadering is 'Early Peak' (gedocumenteerd verlies, zie verliesmatrix §8.4). UNIFORM wordt
+// nooit geschreven als expliciet `<PlannedCurve>`-element: 'Linear' is P6's eigen default.
+const P6_CURVE_TO_NAME: Record<ResourceCurve, string | undefined> = {
+  UNIFORM: undefined,
+  FRONT_LOADED: 'Front Loaded',
+  BACK_LOADED: 'Back Loaded',
+  BELL: 'Bell Shaped',
+  EARLY_PEAK: 'Early Peak',
+  LATE_PEAK: 'Early Peak',
+};
+
+function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material' {
+  switch (type) {
+    case 'LABOR':
+    case 'CREW':
+      return 'Labor';
+    case 'MATERIAL':
+      return 'Material';
+    case 'EQUIPMENT':
+    case 'SUBCONTRACTOR':
+      return 'Nonlabor';
+  }
+}
 
 function escapeXML(s: string): string {
   return s
@@ -55,8 +80,9 @@ export function writeP6XML(
   calendar: WorkCalendar,
   tasks: Task[],
   sequences: Sequence[],
-  _resources: Resource[],
-  _assignments: ResourceAssignment[],
+  resources: Resource[],
+  assignments: ResourceAssignment[],
+  resourceCalendars: WorkCalendar[] = [],
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
@@ -69,6 +95,21 @@ export function writeP6XML(
   let nextObjId = 1;
   for (const task of tasks) {
     taskObjMap.set(task.id, nextObjId++);
+  }
+
+  // Resource- en resource-kalender-ObjectIds: eigen, aparte teller-ruimtes (net als
+  // Relationship hieronder al een eigen `relObjId`-teller heeft — ObjectId-uniciteit is in
+  // echte P6-XML per entiteitstype, niet globaal over het bestand).
+  const resObjMap = new Map<string, number>();
+  let nextResObjId = 1;
+  for (const res of resources) {
+    resObjMap.set(res.id, nextResObjId++);
+  }
+  const calObjMap = new Map<string, number>();
+  calObjMap.set(calendar.id, 1); // projectkalender, zie hieronder <Calendar><ObjectId>1</ObjectId>
+  let nextCalObjId = 2;
+  for (const cal of resourceCalendars) {
+    calObjMap.set(cal.id, nextCalObjId++);
   }
 
   // WBS elements (parent tasks)
@@ -97,6 +138,42 @@ export function writeP6XML(
   lines.push(`${indent(2)}<HoursPerWeek>${calendar.hoursPerDay * calendar.workDays.length}</HoursPerWeek>`);
   lines.push(`${indent(2)}<HoursPerMonth>${calendar.hoursPerDay * 20}</HoursPerMonth>`);
   lines.push(`${indent(1)}</Calendar>`);
+
+  // Resource-kalenders (fase 2.5, §8.1) — zelfde element als de projectkalender maar met
+  // Type="Resource" en een eigen ObjectId; komen ná de projectkalender zodat de eerste
+  // <Calendar> in het bestand altijd de projectkalender blijft (bestaande reader-aanname).
+  for (const cal of resourceCalendars) {
+    const objId = calObjMap.get(cal.id)!;
+    lines.push(`${indent(1)}<Calendar>`);
+    lines.push(`${indent(2)}<ObjectId>${objId}</ObjectId>`);
+    lines.push(`${indent(2)}<Name>${escapeXML(cal.name)}</Name>`);
+    lines.push(`${indent(2)}<Type>Resource</Type>`);
+    lines.push(`${indent(2)}<HoursPerDay>${cal.hoursPerDay}</HoursPerDay>`);
+    lines.push(`${indent(2)}<HoursPerWeek>${cal.hoursPerDay * cal.workDays.length}</HoursPerWeek>`);
+    lines.push(`${indent(2)}<HoursPerMonth>${cal.hoursPerDay * 20}</HoursPerMonth>`);
+    lines.push(`${indent(1)}</Calendar>`);
+  }
+
+  // Resources (fase 2.5, §8.1)
+  for (const res of resources) {
+    const objId = resObjMap.get(res.id)!;
+    lines.push(`${indent(1)}<Resource>`);
+    lines.push(`${indent(2)}<ObjectId>${objId}</ObjectId>`);
+    lines.push(`${indent(2)}<Id>${escapeXML(res.id)}</Id>`);
+    lines.push(`${indent(2)}<Name>${escapeXML(res.name)}</Name>`);
+    lines.push(`${indent(2)}<ResourceType>${resourceTypeToP6(res.type)}</ResourceType>`);
+    const calObjId = (res.calendarId && calObjMap.get(res.calendarId)) || 1;
+    lines.push(`${indent(2)}<CalendarObjectId>${calObjId}</CalendarObjectId>`);
+    // MaxUnitsPerTime: P6 slaat capaciteit op in tijdseenheden (uren/dag), niet als factor.
+    lines.push(`${indent(2)}<MaxUnitsPerTime>${res.maxUnits * calendar.hoursPerDay}</MaxUnitsPerTime>`);
+    if (res.type === 'MATERIAL' && res.unitOfMeasure) {
+      lines.push(`${indent(2)}<UnitOfMeasureAbbreviation>${escapeXML(res.unitOfMeasure)}</UnitOfMeasureAbbreviation>`);
+    }
+    if (res.parentId && resObjMap.has(res.parentId)) {
+      lines.push(`${indent(2)}<ParentObjectId>${resObjMap.get(res.parentId)}</ParentObjectId>`);
+    }
+    lines.push(`${indent(1)}</Resource>`);
+  }
 
   // WBS elements
   for (const wbsTask of wbsTasks) {
@@ -172,6 +249,29 @@ export function writeP6XML(
     lines.push(`${indent(2)}<Lag>${durationToP6Hours(lagDays, calendar.hoursPerDay)}</Lag>`);
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
     lines.push(`${indent(1)}</Relationship>`);
+  }
+
+  // ResourceAssignments (fase 2.5, §8.1): alleen leaf-taken kunnen assignments dragen
+  // (§2.4), dus taskObjMap/leafTasks dekt alle mogelijke ActivityObjectId's.
+  let asgnObjId = 1;
+  for (const a of assignments) {
+    const actObjId = taskObjMap.get(a.taskId);
+    const resObjId = resObjMap.get(a.resourceId);
+    if (actObjId === undefined || resObjId === undefined) continue;
+
+    lines.push(`${indent(1)}<ResourceAssignment>`);
+    lines.push(`${indent(2)}<ObjectId>${asgnObjId++}</ObjectId>`);
+    lines.push(`${indent(2)}<ActivityObjectId>${actObjId}</ActivityObjectId>`);
+    lines.push(`${indent(2)}<ResourceObjectId>${resObjId}</ResourceObjectId>`);
+    lines.push(`${indent(2)}<PlannedUnitsPerTime>${a.unitsPerDay * calendar.hoursPerDay}</PlannedUnitsPerTime>`);
+    const curveName = a.curve ? P6_CURVE_TO_NAME[a.curve] : undefined;
+    if (curveName) {
+      if (a.curve === 'LATE_PEAK') {
+        console.warn("P6-export: LATE_PEAK-curve heeft geen P6-equivalent — geëxporteerd als 'Early Peak' (beste benadering).");
+      }
+      lines.push(`${indent(2)}<PlannedCurve>${escapeXML(curveName)}</PlannedCurve>`);
+    }
+    lines.push(`${indent(1)}</ResourceAssignment>`);
   }
 
   lines.push('</APIBusinessObjects>');

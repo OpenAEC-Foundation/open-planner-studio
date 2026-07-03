@@ -1,11 +1,15 @@
 import { Task, TaskTime, TaskType, ConstraintType, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceType, ResourceAssignment } from '@/types/resource';
+import { Resource, ResourceType, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+
+/** Fase 2.5-defaults — zie ifcWriter.ts (golden-rule-guards). */
+const DEFAULT_PRIORITY = 500;
+const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
 
 interface StepEntity {
   id: string; // STEP entity ID (may include letters, e.g. "300T")
@@ -24,6 +28,7 @@ export function readIFC(content: string): {
   assignments: ResourceAssignment[];
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
+  resourceCalendars: WorkCalendar[];
 } {
   const entities = parseSTEP(content);
   const entityMap = new Map<string, StepEntity>();
@@ -37,13 +42,20 @@ export function readIFC(content: string): {
   const { tasks, taskStepIdMap } = extractTasks(entities, entityMap);
   const sequences = extractSequences(entities, entityMap, taskStepIdMap);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
-  const { resources, resourceStepIdMap } = extractResources(entities, entityMap);
+  const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
+  extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
+  extractCrewNesting(entities, resources, resourceStepIdMap);
+  const resourceCalendars = extractResourceCalendars(entities, entityMap, resources, resourceStepIdMap);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap,
   );
+  extractLevelingMeta(entities, entityMap, tasks, taskStepIdMap);
 
-  return { project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs };
+  return {
+    project, calendar, tasks, sequences, resources, assignments,
+    activityCodeTypes, customFieldDefs, resourceCalendars,
+  };
 }
 
 function parseSTEP(content: string): StepEntity[] {
@@ -194,27 +206,7 @@ function extractProject(entities: StepEntity[], _entityMap: Map<string, StepEnti
 function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEntity>): WorkCalendar {
   const cal = entities.find(e => e.type === 'IFCWORKCALENDAR');
   if (!cal) return createDefaultCalendar();
-
-  const calendar = createDefaultCalendar();
-  calendar.name = stripQuotes(cal.args[2] || '') || calendar.name;
-  calendar.description = stripQuotes(cal.args[3] || '') || calendar.description;
-
-  // Parse exception times (holidays)
-  const exceptionRefs = parseRefs(cal.args[6] || '');
-  const holidays: Holiday[] = [];
-  for (const ref of exceptionRefs) {
-    const wt = entityMap.get(ref);
-    if (wt && wt.type === 'IFCWORKTIME') {
-      holidays.push({
-        name: stripQuotes(wt.args[0] || '') || 'Feestdag',
-        startDate: parseDateFromIFC(wt.args[4] || ''),
-        endDate: parseDateFromIFC(wt.args[5] || ''),
-      });
-    }
-  }
-  if (holidays.length > 0) calendar.holidays = holidays;
-
-  return calendar;
+  return buildCalendarFromEntity(cal, entityMap);
 }
 
 function extractTasks(
@@ -242,6 +234,15 @@ function extractTasks(
     const isMilestone = te.args[8]?.includes('T') || false;
     if (isMilestone) time.scheduleDuration = 0;
 
+    // IfcTask.Priority (arg9, zie writeTask voor de index-verificatie). Veilige parse
+    // zonder `||`-valkuil (§7.6): `0 || 500` zou een legitieme prioriteit 0 corrumperen.
+    const priorityRaw = (te.args[9] || '').trim();
+    let priority = DEFAULT_PRIORITY;
+    if (priorityRaw && priorityRaw !== '$') {
+      const p = parseInt(priorityRaw, 10);
+      priority = Number.isFinite(p) ? p : DEFAULT_PRIORITY;
+    }
+
     tasks.push({
       id,
       name: stripQuotes(te.args[2] || '') || 'Naamloze taak',
@@ -250,9 +251,7 @@ function extractTasks(
       taskType: te.args[11] ? parseTaskType(te.args[11]) : 'CONSTRUCTION',
       status: 'NOT_STARTED',
       isMilestone,
-      // TODO(fase 2.5-IFC-stap): IfcTask.Priority native lezen; tot dan default 500
-      // (was 0, zie src/types/task.ts).
-      priority: 500,
+      priority,
       parentId: null,
       childIds: [],
       time,
@@ -559,16 +558,21 @@ function extractNesting(
 function extractResources(
   entities: StepEntity[],
   _entityMap: Map<string, StepEntity>,
-): { resources: Resource[]; resourceStepIdMap: Map<string, string> } {
+): { resources: Resource[]; resourceStepIdMap: Map<string, string>; resourceGuidMap: Map<string, string> } {
   const resTypes: Record<string, ResourceType> = {
     IFCLABORRESOURCE: 'LABOR',
     IFCCONSTRUCTIONEQUIPMENTRESOURCE: 'EQUIPMENT',
     IFCCONSTRUCTIONMATERIALRESOURCE: 'MATERIAL',
     IFCSUBCONTRACTRESOURCE: 'SUBCONTRACTOR',
+    IFCCREWRESOURCE: 'CREW',
+    // Herbruikbaar bekisting e.d. (domeinrapport §8.A) — nooit geschreven door OPS zelf,
+    // maar acceptabel binnenkomend als EQUIPMENT.
+    IFCCONSTRUCTIONPRODUCTRESOURCE: 'EQUIPMENT',
   };
 
   const resources: Resource[] = [];
   const resourceStepIdMap = new Map<string, string>();
+  const resourceGuidMap = new Map<string, string>(); // IFC GlobalId-string -> ons resource-id
 
   for (const e of entities) {
     const resType = resTypes[e.type];
@@ -576,6 +580,7 @@ function extractResources(
 
     const id = generateId('res');
     resourceStepIdMap.set(e.id, id);
+    resourceGuidMap.set(stripQuotes(e.args[0] || ''), id);
 
     resources.push({
       id,
@@ -586,15 +591,204 @@ function extractResources(
     });
   }
 
-  return { resources, resourceStepIdMap };
+  return { resources, resourceStepIdMap, resourceGuidMap };
 }
 
+/**
+ * Fase 2.5 — `OPS_Resource`-pset teruglezen (§7.2, spiegel van `writeResourceMeta`):
+ * MaxUnits/CostPerHour/UnitOfMeasure/AvailabilitySteps + de `ParentGuid`-vangnetproperty
+ * (§7.3) — die laatste wordt alleen toegepast als `extractCrewNesting` de relatie nog niet
+ * had gelegd (IFCRELNESTS is de primaire bron, ParentGuid is het vangnet voor bestanden van
+ * andere tools die de nest-relatie anders lezen).
+ */
+function extractResourceMeta(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  resources: Resource[],
+  resourceStepIdMap: Map<string, string>,
+  resourceGuidMap: Map<string, string>,
+): void {
+  const resourceById = new Map(resources.map(r => [r.id, r]));
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
+    if (stripQuotes(pset.args[2] || '') !== 'OPS_Resource') continue;
+
+    const objectRefs = parseRefs(rel.args[4] || '');
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+
+    for (const objRef of objectRefs) {
+      const resId = resourceStepIdMap.get(objRef);
+      const res = resId ? resourceById.get(resId) : undefined;
+      if (!res) continue;
+
+      for (const prop of props) {
+        const name = stripQuotes(prop.args[0] || '');
+        const value = parseTypedValue(prop.args[2] || '');
+        if (name === 'MaxUnits' && typeof value === 'number') {
+          res.maxUnits = value;
+        } else if (name === 'CostPerHour' && typeof value === 'number') {
+          res.costPerHour = value;
+        } else if (name === 'UnitOfMeasure' && typeof value === 'string') {
+          res.unitOfMeasure = value;
+        } else if (name === 'AvailabilitySteps' && typeof value === 'string') {
+          const steps: AvailabilityStep[] = value
+            .split(';')
+            .map(pair => {
+              const [from, maxUnitsStr] = pair.split(':');
+              return { from: (from || '').trim(), maxUnits: parseFloat(maxUnitsStr) };
+            })
+            .filter(s => s.from && Number.isFinite(s.maxUnits));
+          if (steps.length > 0) res.availabilitySteps = steps;
+        } else if (name === 'ParentGuid' && typeof value === 'string' && !res.parentId) {
+          const parentId = resourceGuidMap.get(value);
+          if (parentId) res.parentId = parentId;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Fase 2.5 — ploeg-hiërarchie teruglezen (§7.3, spiegel van `writeCrewNesting`): dezelfde
+ * `IFCRELNESTS`-entiteiten als de WBS-taakhiërarchie (`extractNesting`), maar dan met
+ * `RelatingObject`/`RelatedObjects` die via `resourceStepIdMap` resolven i.p.v.
+ * `taskStepIdMap` — relaties voor taken resolven hier simpelweg niet (`continue`).
+ */
+function extractCrewNesting(
+  entities: StepEntity[],
+  resources: Resource[],
+  resourceStepIdMap: Map<string, string>,
+): void {
+  const resourceById = new Map(resources.map(r => [r.id, r]));
+  for (const ne of entities) {
+    if (ne.type !== 'IFCRELNESTS') continue;
+    const parentRef = parseRef(ne.args[4] || '');
+    if (!parentRef) continue;
+    const parentId = resourceStepIdMap.get(parentRef);
+    if (!parentId) continue; // geen resource-nest (WBS/workschedule) — niet onze zaak
+
+    const childRefs = parseRefs(ne.args[5] || '');
+    for (const childRef of childRefs) {
+      const childId = resourceStepIdMap.get(childRef);
+      const child = childId ? resourceById.get(childId) : undefined;
+      if (child) child.parentId = parentId;
+    }
+  }
+}
+
+/** Bouwt een `WorkCalendar` uit een `IFCWORKCALENDAR`-entiteit (naam/omschrijving/feestdagen —
+ *  zelfde beperkte lezing als de bestaande `extractCalendar`: werkdagen/uren komen uit de
+ *  default-kalender, niet uit `IFCRECURRENCEPATTERN`/`IFCTIMEPERIOD`, dat is een bestaande
+ *  reader-beperking, hier bewust niet uitgebreid om regressierisico te vermijden). */
+function buildCalendarFromEntity(cal: StepEntity, entityMap: Map<string, StepEntity>): WorkCalendar {
+  const calendar = createDefaultCalendar();
+  calendar.name = stripQuotes(cal.args[2] || '') || calendar.name;
+  calendar.description = stripQuotes(cal.args[3] || '') || calendar.description;
+
+  const exceptionRefs = parseRefs(cal.args[6] || '');
+  const holidays: Holiday[] = [];
+  for (const ref of exceptionRefs) {
+    const wt = entityMap.get(ref);
+    if (wt && wt.type === 'IFCWORKTIME') {
+      holidays.push({
+        name: stripQuotes(wt.args[0] || '') || 'Feestdag',
+        startDate: parseDateFromIFC(wt.args[4] || ''),
+        endDate: parseDateFromIFC(wt.args[5] || ''),
+      });
+    }
+  }
+  if (holidays.length > 0) calendar.holidays = holidays;
+
+  return calendar;
+}
+
+/**
+ * Fase 2.5 — resource-kalenders teruglezen (§7.5): alle `IFCWORKCALENDAR`-entiteiten
+ * behalve degene die `extractCalendar` al als projectkalender heeft gepakt (de eerste in
+ * het bestand — zelfde, bewust ongewijzigde regel als `extractCalendar` zelf hanteert).
+ * Onderscheid taken-vs-resources via `IFCRELASSIGNSTOCONTROL.RelatedObjects`: alleen
+ * relaties waarvan de objecten via `resourceStepIdMap` resolven tellen mee (de
+ * projectkalender/workschedule-koppeling target taken, niet een `IFCWORKCALENDAR`, en
+ * resolvet dus sowieso niet hier).
+ */
+function extractResourceCalendars(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  resources: Resource[],
+  resourceStepIdMap: Map<string, string>,
+): WorkCalendar[] {
+  const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
+  const resourceById = new Map(resources.map(r => [r.id, r]));
+  const resourceCalendars: WorkCalendar[] = [];
+
+  for (const ce of entities) {
+    if (ce.type !== 'IFCRELASSIGNSTOCONTROL') continue;
+    const controlRef = parseRef(ce.args[6] || '');
+    if (!controlRef) continue;
+    const controlEntity = entityMap.get(controlRef);
+    if (!controlEntity || controlEntity.type !== 'IFCWORKCALENDAR') continue;
+    if (projectCalendarEntity && controlRef === projectCalendarEntity.id) continue;
+
+    const relatedRefs = parseRefs(ce.args[4] || '');
+    const resIds = relatedRefs.map(r => resourceStepIdMap.get(r)).filter((id): id is string => !!id);
+    if (resIds.length === 0) continue; // target waren taken, geen resources
+
+    const cal = buildCalendarFromEntity(controlEntity, entityMap);
+    cal.id = generateId('rescal');
+    resourceCalendars.push(cal);
+    for (const resId of resIds) {
+      const res = resourceById.get(resId);
+      if (res) res.calendarId = cal.id;
+    }
+  }
+
+  return resourceCalendars;
+}
+
+/**
+ * Fase 2.5 — `OPS_Assignments`-pset teruglezen (§7.4, spiegel van `writeAssignmentMeta`):
+ * property-naam = resource-GUID (dezelfde GlobalId-string als de resource-entiteit zelf),
+ * waarde = `"unitsPerDay|curve"`. Ontbreekt de pset-entry (legacy bestand) dan geldt de
+ * bestaande fallback `unitsPerDay: 1, curve: undefined`.
+ */
 function extractAssignments(
   entities: StepEntity[],
-  _entityMap: Map<string, StepEntity>,
+  entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
   resourceStepIdMap: Map<string, string>,
 ): ResourceAssignment[] {
+  // 1. OPS_Assignments-psets per taak verzamelen: taskStepRef -> (resourceGuid -> meta).
+  const metaByTask = new Map<string, Map<string, { unitsPerDay: number; curve?: ResourceCurve }>>();
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
+    if (stripQuotes(pset.args[2] || '') !== 'OPS_Assignments') continue;
+
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+
+    for (const objRef of parseRefs(rel.args[4] || '')) {
+      let taskMeta = metaByTask.get(objRef);
+      if (!taskMeta) { taskMeta = new Map(); metaByTask.set(objRef, taskMeta); }
+      for (const prop of props) {
+        const resGuid = stripQuotes(prop.args[0] || '');
+        const value = parseTypedValue(prop.args[2] || '');
+        if (typeof value !== 'string') continue;
+        const [unitsRaw, curveRaw] = value.split('|');
+        const unitsPerDay = parseFloat(unitsRaw);
+        const curve = VALID_CURVES.includes(curveRaw as ResourceCurve) ? (curveRaw as ResourceCurve) : undefined;
+        taskMeta.set(resGuid, { unitsPerDay: Number.isFinite(unitsPerDay) ? unitsPerDay : 1, curve });
+      }
+    }
+  }
+
+  // 2. IFCRELASSIGNSTOPROCESS: task <-> resources, met de meta uit stap 1 erbij.
   const assignEntities = entities.filter(e => e.type === 'IFCRELASSIGNSTOPROCESS');
   const assignments: ResourceAssignment[] = [];
 
@@ -603,20 +797,66 @@ function extractAssignments(
     if (!taskRef) continue;
     const taskId = taskStepIdMap.get(taskRef);
     if (!taskId) continue;
+    const taskMeta = metaByTask.get(taskRef);
 
     const resRefs = parseRefs(ae.args[4] || '');
     for (const resRef of resRefs) {
       const resId = resourceStepIdMap.get(resRef);
-      if (resId) {
-        assignments.push({
-          id: generateId('asgn'),
-          taskId,
-          resourceId: resId,
-          unitsPerDay: 1,
-        });
-      }
+      if (!resId) continue;
+
+      const resEntity = entityMap.get(resRef);
+      const resGuid = resEntity ? stripQuotes(resEntity.args[0] || '') : '';
+      const meta = taskMeta?.get(resGuid);
+
+      // 'UNIFORM' is de writer-default (a.curve ?? 'UNIFORM') — canonicaliseer terug naar
+      // undefined zodat undefined en 'UNIFORM' round-trippen naar dezelfde waarde
+      // (Resource-Assignment.curve: "undefined = UNIFORM", zie src/types/resource.ts).
+      assignments.push({
+        id: generateId('asgn'),
+        taskId,
+        resourceId: resId,
+        unitsPerDay: meta?.unitsPerDay ?? 1,
+        ...(meta?.curve && meta.curve !== 'UNIFORM' ? { curve: meta.curve } : {}),
+      });
     }
   }
 
   return assignments;
+}
+
+/**
+ * Fase 2.5 — `OPS_Leveling`-pset teruglezen (§7.6, spiegel van `writeLevelingMeta`):
+ * `LevelingDelay` (werkdagen) per taak; ontbreekt de pset dan blijft `levelingDelay`
+ * `undefined` (default, `extractTasks` zet het veld niet).
+ */
+function extractLevelingMeta(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  tasks: Task[],
+  taskStepIdMap: Map<string, string>,
+): void {
+  const taskById = new Map(tasks.map(t => [t.id, t]));
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
+    if (stripQuotes(pset.args[2] || '') !== 'OPS_Leveling') continue;
+
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+
+    for (const objRef of parseRefs(rel.args[4] || '')) {
+      const taskId = taskStepIdMap.get(objRef);
+      const task = taskId ? taskById.get(taskId) : undefined;
+      if (!task) continue;
+      for (const prop of props) {
+        if (stripQuotes(prop.args[0] || '') !== 'LevelingDelay') continue;
+        const value = parseTypedValue(prop.args[2] || '');
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          task.levelingDelay = Math.round(value);
+        }
+      }
+    }
+  }
 }

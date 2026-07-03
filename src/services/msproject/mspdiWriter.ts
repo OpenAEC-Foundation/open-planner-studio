@@ -1,8 +1,20 @@
 import { Task } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment } from '@/types/resource';
+import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
+
+// WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
+// 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
+// (Contoured/varianten) worden niet gebruikt.
+const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
+  UNIFORM: 0,
+  BACK_LOADED: 1,
+  FRONT_LOADED: 2,
+  EARLY_PEAK: 4,
+  LATE_PEAK: 5,
+  BELL: 6,
+};
 
 function escapeXML(s: string): string {
   return s
@@ -59,13 +71,69 @@ function getOutlineLevel(wbs: string): number {
   return wbs.split('.').length;
 }
 
+/** Schrijft één `<Calendar>`-blok (WeekDays + Exceptions) — hergebruikt voor de
+ *  projectkalender (UID 1, `IsBaseCalendar`) én voor resource-kalenders (fase 2.5, §8.2). */
+function writeCalendarBlock(
+  lines: string[],
+  indent: (level: number) => string,
+  cal: WorkCalendar,
+  uid: number,
+  isBaseCalendar: boolean,
+): void {
+  lines.push(`${indent(2)}<Calendar>`);
+  lines.push(`${indent(3)}<UID>${uid}</UID>`);
+  lines.push(`${indent(3)}<Name>${escapeXML(cal.name)}</Name>`);
+  lines.push(`${indent(3)}<IsBaseCalendar>${isBaseCalendar ? 1 : 0}</IsBaseCalendar>`);
+  lines.push(`${indent(3)}<WeekDays>`);
+
+  for (let day = 1; day <= 7; day++) {
+    const isWorkDay = cal.workDays.includes(day);
+    const mspDay = day === 7 ? 1 : day + 1;
+
+    lines.push(`${indent(4)}<WeekDay>`);
+    lines.push(`${indent(5)}<DayType>${mspDay}</DayType>`);
+    lines.push(`${indent(5)}<DayWorking>${isWorkDay ? 1 : 0}</DayWorking>`);
+    if (isWorkDay) {
+      lines.push(`${indent(5)}<WorkingTimes>`);
+      lines.push(`${indent(6)}<WorkingTime>`);
+      lines.push(`${indent(7)}<FromTime>${String(cal.workStartHour).padStart(2, '0')}:00:00</FromTime>`);
+      lines.push(`${indent(7)}<ToTime>${String(cal.workEndHour).padStart(2, '0')}:00:00</ToTime>`);
+      lines.push(`${indent(6)}</WorkingTime>`);
+      lines.push(`${indent(5)}</WorkingTimes>`);
+    }
+    lines.push(`${indent(4)}</WeekDay>`);
+  }
+
+  lines.push(`${indent(3)}</WeekDays>`);
+
+  if (cal.holidays.length > 0) {
+    lines.push(`${indent(3)}<Exceptions>`);
+    for (const h of cal.holidays) {
+      lines.push(`${indent(4)}<Exception>`);
+      lines.push(`${indent(5)}<EnteredByOccurrences>0</EnteredByOccurrences>`);
+      lines.push(`${indent(5)}<TimePeriod>`);
+      lines.push(`${indent(6)}<FromDate>${formatMSPDateTime(h.startDate)}</FromDate>`);
+      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(h.endDate)}</ToDate>`);
+      lines.push(`${indent(5)}</TimePeriod>`);
+      lines.push(`${indent(5)}<Name>${escapeXML(h.name)}</Name>`);
+      lines.push(`${indent(5)}<Type>1</Type>`);
+      lines.push(`${indent(5)}<DayWorking>0</DayWorking>`);
+      lines.push(`${indent(4)}</Exception>`);
+    }
+    lines.push(`${indent(3)}</Exceptions>`);
+  }
+
+  lines.push(`${indent(2)}</Calendar>`);
+}
+
 export function writeMSPDI(
   project: Project,
   calendar: WorkCalendar,
   tasks: Task[],
   sequences: Sequence[],
-  _resources: Resource[],
-  _assignments: ResourceAssignment[],
+  resources: Resource[],
+  assignments: ResourceAssignment[],
+  resourceCalendars: WorkCalendar[] = [],
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
@@ -88,57 +156,20 @@ export function writeMSPDI(
   lines.push(`${indent(1)}<MinutesPerWeek>${calendar.hoursPerDay * calendar.workDays.length * 60}</MinutesPerWeek>`);
   lines.push(`${indent(1)}<DaysPerMonth>20</DaysPerMonth>`);
 
-  // Calendars
+  // Calendars: UID 1 = projectkalender (basiskalender); resource-kalenders (fase 2.5, §8.2)
+  // krijgen UID 2, 3, ... — dezelfde `writeCalendarBlock` parametrisch hergebruikt.
+  const calUidMap = new Map<string, number>();
+  calUidMap.set(calendar.id, 1);
+  let nextCalUid = 2;
+  for (const cal of resourceCalendars) {
+    calUidMap.set(cal.id, nextCalUid++);
+  }
+
   lines.push(`${indent(1)}<Calendars>`);
-  lines.push(`${indent(2)}<Calendar>`);
-  lines.push(`${indent(3)}<UID>1</UID>`);
-  lines.push(`${indent(3)}<Name>${escapeXML(calendar.name)}</Name>`);
-  lines.push(`${indent(3)}<IsBaseCalendar>1</IsBaseCalendar>`);
-  lines.push(`${indent(3)}<WeekDays>`);
-
-  for (let day = 1; day <= 7; day++) {
-    const isWorkDay = calendar.workDays.includes(day);
-    // MS Project uses 1=Sunday, 2=Monday, ..., 7=Saturday
-    // Our format: 1=Monday, ..., 7=Sunday (ISO)
-    // Convert: ISO 1(Mon)->MSP 2, ISO 7(Sun)->MSP 1
-    const mspDay = day === 7 ? 1 : day + 1;
-
-    lines.push(`${indent(4)}<WeekDay>`);
-    lines.push(`${indent(5)}<DayType>${mspDay}</DayType>`);
-    lines.push(`${indent(5)}<DayWorking>${isWorkDay ? 1 : 0}</DayWorking>`);
-    if (isWorkDay) {
-      lines.push(`${indent(5)}<WorkingTimes>`);
-      lines.push(`${indent(6)}<WorkingTime>`);
-      lines.push(`${indent(7)}<FromTime>${String(calendar.workStartHour).padStart(2, '0')}:00:00</FromTime>`);
-      lines.push(`${indent(7)}<ToTime>${String(calendar.workEndHour).padStart(2, '0')}:00:00</ToTime>`);
-      lines.push(`${indent(6)}</WorkingTime>`);
-      lines.push(`${indent(5)}</WorkingTimes>`);
-    }
-    lines.push(`${indent(4)}</WeekDay>`);
+  writeCalendarBlock(lines, indent, calendar, 1, true);
+  for (const cal of resourceCalendars) {
+    writeCalendarBlock(lines, indent, cal, calUidMap.get(cal.id)!, false);
   }
-
-  lines.push(`${indent(3)}</WeekDays>`);
-
-  // Holidays as exceptions
-  if (calendar.holidays.length > 0) {
-    lines.push(`${indent(3)}<Exceptions>`);
-    for (let i = 0; i < calendar.holidays.length; i++) {
-      const h = calendar.holidays[i];
-      lines.push(`${indent(4)}<Exception>`);
-      lines.push(`${indent(5)}<EnteredByOccurrences>0</EnteredByOccurrences>`);
-      lines.push(`${indent(5)}<TimePeriod>`);
-      lines.push(`${indent(6)}<FromDate>${formatMSPDateTime(h.startDate)}</FromDate>`);
-      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(h.endDate)}</ToDate>`);
-      lines.push(`${indent(5)}</TimePeriod>`);
-      lines.push(`${indent(5)}<Name>${escapeXML(h.name)}</Name>`);
-      lines.push(`${indent(5)}<Type>1</Type>`);
-      lines.push(`${indent(5)}<DayWorking>0</DayWorking>`);
-      lines.push(`${indent(4)}</Exception>`);
-    }
-    lines.push(`${indent(3)}</Exceptions>`);
-  }
-
-  lines.push(`${indent(2)}</Calendar>`);
   lines.push(`${indent(1)}</Calendars>`);
 
   // Build task UID map
@@ -178,7 +209,8 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);
     lines.push(`${indent(3)}<Milestone>${isMilestone ? 1 : 0}</Milestone>`);
     lines.push(`${indent(3)}<PercentComplete>${Math.round(task.time.completion * 100)}</PercentComplete>`);
-    lines.push(`${indent(3)}<Priority>${task.priority || 500}</Priority>`);
+    // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
+    lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
     lines.push(`${indent(3)}<CalendarUID>1</CalendarUID>`);
     if (task.description) {
       lines.push(`${indent(3)}<Notes>${escapeXML(task.description)}</Notes>`);
@@ -204,6 +236,61 @@ export function writeMSPDI(
   }
 
   lines.push(`${indent(1)}</Tasks>`);
+
+  // Resources (fase 2.5, §8.2)
+  const resUidMap = new Map<string, number>();
+  let nextResUid = 1;
+  for (const res of resources) {
+    resUidMap.set(res.id, nextResUid++);
+  }
+
+  lines.push(`${indent(1)}<Resources>`);
+  for (const res of resources) {
+    const uid = resUidMap.get(res.id)!;
+    const calUid = (res.calendarId && calUidMap.get(res.calendarId)) || 1;
+    lines.push(`${indent(2)}<Resource>`);
+    lines.push(`${indent(3)}<UID>${uid}</UID>`);
+    lines.push(`${indent(3)}<Name>${escapeXML(res.name)}</Name>`);
+    // Type: 1=Work (LABOR/EQUIPMENT/CREW/SUBCONTRACTOR), 0=Material.
+    lines.push(`${indent(3)}<Type>${res.type === 'MATERIAL' ? 0 : 1}</Type>`);
+    lines.push(`${indent(3)}<MaxUnits>${res.maxUnits}</MaxUnits>`);
+    if (res.type === 'MATERIAL' && res.unitOfMeasure) {
+      lines.push(`${indent(3)}<MaterialLabel>${escapeXML(res.unitOfMeasure)}</MaterialLabel>`);
+    }
+    lines.push(`${indent(3)}<CalendarUID>${calUid}</CalendarUID>`);
+    if (res.costPerHour !== undefined) {
+      lines.push(`${indent(3)}<StandardRate>${res.costPerHour}</StandardRate>`);
+    }
+    lines.push(`${indent(2)}</Resource>`);
+  }
+  lines.push(`${indent(1)}</Resources>`);
+
+  // Assignments (fase 2.5, §8.2): Work = duur x unitsPerDay x hoursPerDay, PT-formaat
+  // (hergebruik van dezelfde durationToISO8601-helper als taakduur).
+  if (assignments.length > 0) {
+    lines.push(`${indent(1)}<Assignments>`);
+    let asgnUid = 1;
+    for (const a of assignments) {
+      const taskUid = taskUidMap.get(a.taskId);
+      const resUid = resUidMap.get(a.resourceId);
+      if (taskUid === undefined || resUid === undefined) continue;
+      const task = tasks.find(t => t.id === a.taskId);
+      const workDays = (task?.time.scheduleDuration ?? 0) * a.unitsPerDay;
+
+      lines.push(`${indent(2)}<Assignment>`);
+      lines.push(`${indent(3)}<UID>${asgnUid++}</UID>`);
+      lines.push(`${indent(3)}<TaskUID>${taskUid}</TaskUID>`);
+      lines.push(`${indent(3)}<ResourceUID>${resUid}</ResourceUID>`);
+      lines.push(`${indent(3)}<Units>${a.unitsPerDay}</Units>`);
+      lines.push(`${indent(3)}<Work>${durationToISO8601(workDays, calendar.hoursPerDay)}</Work>`);
+      const contour = CURVE_TO_WORKCONTOUR[a.curve ?? 'UNIFORM'];
+      if (contour !== 0) {
+        lines.push(`${indent(3)}<WorkContour>${contour}</WorkContour>`);
+      }
+      lines.push(`${indent(2)}</Assignment>`);
+    }
+    lines.push(`${indent(1)}</Assignments>`);
+  }
 
   lines.push('</Project>');
 
