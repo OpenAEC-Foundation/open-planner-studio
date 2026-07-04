@@ -152,5 +152,8 @@
   },
   "defaultTask": "Nuova attività",
   "defaultMilestone": "Nuovo traguardo",
-  "defaultInspection": "Nuovo punto di ispezione"
+  "defaultInspection": "Nuovo punto di ispezione",
+  "column": {
+    "resource": "Risorse"
+  }
 }

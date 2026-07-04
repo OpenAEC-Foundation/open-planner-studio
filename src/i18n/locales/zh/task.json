@@ -152,5 +152,8 @@
   },
   "defaultTask": "新建任务",
   "defaultMilestone": "新建里程碑",
-  "defaultInspection": "新检查点"
+  "defaultInspection": "新检查点",
+  "column": {
+    "resource": "资源"
+  }
 }

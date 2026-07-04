@@ -152,5 +152,8 @@
   },
   "defaultTask": "Nueva tarea",
   "defaultMilestone": "Nuevo hito",
-  "defaultInspection": "Nuevo punto de inspección"
+  "defaultInspection": "Nuevo punto de inspección",
+  "column": {
+    "resource": "Recursos"
+  }
 }

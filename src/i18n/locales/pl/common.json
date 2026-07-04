@@ -282,5 +282,77 @@
       "earlyPeak": "Wczesny szczyt",
       "latePeak": "Późny szczyt"
     }
+  },
+  "view": {
+    "structureLockedHint": "Niedostępne podczas filtrowania/grupowania/sortowania",
+    "columns": {
+      "title": "Kolumny",
+      "visible": "Widoczna",
+      "width": "Szerokość",
+      "resetDefault": "Przywróć domyślne"
+    },
+    "filter": {
+      "title": "Filtr",
+      "addRule": "+ reguła",
+      "addGroup": "+ grupa",
+      "all": "Wszystkie poniższe (AND)",
+      "any": "Dowolne z poniższych (OR)",
+      "clear": "Wyczyść",
+      "noRules": "Brak reguł — ten filtr dopasowuje wszystko.",
+      "value": "Wartość",
+      "valueFrom": "Od",
+      "valueTo": "Do",
+      "field": "Pole",
+      "operator": "Operator",
+      "op": {
+        "eq": "równa się",
+        "neq": "różne od",
+        "lt": "mniejsze niż",
+        "lte": "mniejsze lub równe",
+        "gt": "większe niż",
+        "gte": "większe lub równe",
+        "contains": "zawiera",
+        "startsWith": "zaczyna się od",
+        "between": "pomiędzy",
+        "isEmpty": "jest puste",
+        "in": "jest jednym z"
+      }
+    },
+    "group": {
+      "title": "Grupuj",
+      "addLevel": "+ poziom",
+      "level": "Poziom {{n}}",
+      "direction": "Kierunek",
+      "noLevels": "Brak grupowania — drzewo WBS",
+      "maxLevels": "Maksymalnie 2 poziomy grupowania"
+    },
+    "sort": {
+      "title": "Sortuj",
+      "addLevel": "+ poziom",
+      "ascending": "Rosnąco",
+      "descending": "Malejąco",
+      "noLevels": "Brak sortowania — kolejność drzewa/pasm"
+    },
+    "layout": {
+      "saveTitle": "Zapisz layout jako…",
+      "manageTitle": "Zarządzaj layoutami",
+      "name": "Nazwa",
+      "rename": "Zmień nazwę",
+      "delete": "Usuń",
+      "apply": "Zastosuj",
+      "update": "Aktualizuj",
+      "applyConfirm": "Zastosować layout „{{name}}”? Spowoduje to zastąpienie bieżących kolumn/grupowania/sortowania/filtra/skali.",
+      "missingRefs": "Niektóre pola nie istnieją w tym dokumencie i zostaną pominięte.",
+      "noLayouts": "Brak zapisanych layoutów.",
+      "activeLayout": "Layout",
+      "none": "(brak)"
+    },
+    "presentation": {
+      "hint": "Naciśnij F11, aby wyjść z trybu prezentacji"
+    },
+    "splitView": {
+      "primary": "Główny",
+      "secondary": "Dodatkowy"
+    }
   }
 }

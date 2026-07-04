@@ -152,5 +152,8 @@
   },
   "defaultTask": "Nowe zadanie",
   "defaultMilestone": "Nowy kamień milowy",
-  "defaultInspection": "Nowy punkt inspekcji"
+  "defaultInspection": "Nowy punkt inspekcji",
+  "column": {
+    "resource": "Zasoby"
+  }
 }

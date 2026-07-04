@@ -152,5 +152,8 @@
   },
   "defaultTask": "새 작업",
   "defaultMilestone": "새 마일스톤",
-  "defaultInspection": "새 검사 지점"
+  "defaultInspection": "새 검사 지점",
+  "column": {
+    "resource": "자원"
+  }
 }

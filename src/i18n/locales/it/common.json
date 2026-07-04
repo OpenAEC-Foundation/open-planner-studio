@@ -282,5 +282,77 @@
       "earlyPeak": "Picco anticipato",
       "latePeak": "Picco tardivo"
     }
+  },
+  "view": {
+    "structureLockedHint": "Non disponibile durante filtro/raggruppamento/ordinamento",
+    "columns": {
+      "title": "Colonne",
+      "visible": "Visibile",
+      "width": "Larghezza",
+      "resetDefault": "Ripristina predefiniti"
+    },
+    "filter": {
+      "title": "Filtro",
+      "addRule": "+ regola",
+      "addGroup": "+ gruppo",
+      "all": "Tutte le seguenti (AND)",
+      "any": "Una qualsiasi delle seguenti (OR)",
+      "clear": "Cancella",
+      "noRules": "Ancora nessuna regola — questo filtro corrisponde a tutto.",
+      "value": "Valore",
+      "valueFrom": "Da",
+      "valueTo": "A",
+      "field": "Campo",
+      "operator": "Operatore",
+      "op": {
+        "eq": "uguale a",
+        "neq": "diverso da",
+        "lt": "minore di",
+        "lte": "minore o uguale a",
+        "gt": "maggiore di",
+        "gte": "maggiore o uguale a",
+        "contains": "contiene",
+        "startsWith": "inizia con",
+        "between": "tra",
+        "isEmpty": "è vuoto",
+        "in": "è uno tra"
+      }
+    },
+    "group": {
+      "title": "Raggruppa",
+      "addLevel": "+ livello",
+      "level": "Livello {{n}}",
+      "direction": "Direzione",
+      "noLevels": "Nessun raggruppamento — albero WBS",
+      "maxLevels": "Massimo 2 livelli di raggruppamento"
+    },
+    "sort": {
+      "title": "Ordina",
+      "addLevel": "+ livello",
+      "ascending": "Crescente",
+      "descending": "Decrescente",
+      "noLevels": "Nessun ordinamento — ordine albero/banda"
+    },
+    "layout": {
+      "saveTitle": "Salva layout come…",
+      "manageTitle": "Gestisci layout",
+      "name": "Nome",
+      "rename": "Rinomina",
+      "delete": "Elimina",
+      "apply": "Applica",
+      "update": "Aggiorna",
+      "applyConfirm": "Applicare il layout «{{name}}»? Questo sostituisce le colonne/raggruppamento/ordinamento/filtro/scala attuali.",
+      "missingRefs": "Alcuni campi non esistono in questo documento e verranno ignorati.",
+      "noLayouts": "Ancora nessun layout salvato.",
+      "activeLayout": "Layout",
+      "none": "(nessuno)"
+    },
+    "presentation": {
+      "hint": "Premi F11 per uscire dalla modalità presentazione"
+    },
+    "splitView": {
+      "primary": "Principale",
+      "secondary": "Secondaria"
+    }
   }
 }

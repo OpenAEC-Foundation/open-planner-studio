@@ -141,7 +141,20 @@
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "تراكب خط الأساس",
     "toggleProgressLine": "خط التقدم",
-    "toggleStatusDateLine": "خط تاريخ الحالة"
+    "toggleStatusDateLine": "خط تاريخ الحالة",
+    "year": "سنة",
+    "quarter": "ربع سنة",
+    "columns": "الأعمدة…",
+    "filter": "تصفية…",
+    "group": "تجميع…",
+    "sort": "فرز…",
+    "layout": "التخطيط",
+    "saveLayoutAs": "حفظ باسم…",
+    "updateLayout": "تحديث",
+    "manageLayouts": "إدارة…",
+    "presentationMode": "العرض التقديمي",
+    "splitView": "عرض مقسم",
+    "miniMap": "خريطة مصغرة"
   },
   "ifc": {
     "title": "محرر IFC",

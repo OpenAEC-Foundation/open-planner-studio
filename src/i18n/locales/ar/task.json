@@ -152,5 +152,8 @@
   },
   "defaultTask": "مهمة جديدة",
   "defaultMilestone": "معلم جديد",
-  "defaultInspection": "نقطة فحص جديدة"
+  "defaultInspection": "نقطة فحص جديدة",
+  "column": {
+    "resource": "الموارد"
+  }
 }

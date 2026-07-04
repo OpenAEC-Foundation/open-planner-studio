@@ -141,7 +141,20 @@
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "基线叠加",
     "toggleProgressLine": "进度线",
-    "toggleStatusDateLine": "状态日期线"
+    "toggleStatusDateLine": "状态日期线",
+    "year": "年",
+    "quarter": "季度",
+    "columns": "列…",
+    "filter": "筛选…",
+    "group": "分组…",
+    "sort": "排序…",
+    "layout": "布局",
+    "saveLayoutAs": "另存为…",
+    "updateLayout": "更新",
+    "manageLayouts": "管理…",
+    "presentationMode": "演示",
+    "splitView": "拆分视图",
+    "miniMap": "小地图"
   },
   "ifc": {
     "title": "IFC 编辑器",

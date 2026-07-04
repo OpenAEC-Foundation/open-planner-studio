@@ -152,5 +152,8 @@
   },
   "defaultTask": "新しいタスク",
   "defaultMilestone": "新しいマイルストーン",
-  "defaultInspection": "新しい検査ポイント"
+  "defaultInspection": "新しい検査ポイント",
+  "column": {
+    "resource": "リソース"
+  }
 }

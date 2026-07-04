@@ -282,5 +282,77 @@
       "earlyPeak": "Pic précoce",
       "latePeak": "Pic tardif"
     }
+  },
+  "view": {
+    "structureLockedHint": "Non disponible pendant le filtrage/regroupement/tri",
+    "columns": {
+      "title": "Colonnes",
+      "visible": "Visible",
+      "width": "Largeur",
+      "resetDefault": "Réinitialiser par défaut"
+    },
+    "filter": {
+      "title": "Filtre",
+      "addRule": "+ règle",
+      "addGroup": "+ groupe",
+      "all": "Toutes les conditions suivantes (AND)",
+      "any": "Une des conditions suivantes (OR)",
+      "clear": "Effacer",
+      "noRules": "Aucune règle pour l'instant — ce filtre correspond à tout.",
+      "value": "Valeur",
+      "valueFrom": "De",
+      "valueTo": "À",
+      "field": "Champ",
+      "operator": "Opérateur",
+      "op": {
+        "eq": "égal à",
+        "neq": "différent de",
+        "lt": "inférieur à",
+        "lte": "inférieur ou égal à",
+        "gt": "supérieur à",
+        "gte": "supérieur ou égal à",
+        "contains": "contient",
+        "startsWith": "commence par",
+        "between": "entre",
+        "isEmpty": "est vide",
+        "in": "est l'un des"
+      }
+    },
+    "group": {
+      "title": "Grouper",
+      "addLevel": "+ niveau",
+      "level": "Niveau {{n}}",
+      "direction": "Direction",
+      "noLevels": "Aucun regroupement — arborescence WBS",
+      "maxLevels": "Maximum 2 niveaux de regroupement"
+    },
+    "sort": {
+      "title": "Trier",
+      "addLevel": "+ niveau",
+      "ascending": "Croissant",
+      "descending": "Décroissant",
+      "noLevels": "Aucun tri — ordre arborescence/bande"
+    },
+    "layout": {
+      "saveTitle": "Enregistrer le layout sous…",
+      "manageTitle": "Gérer les layouts",
+      "name": "Nom",
+      "rename": "Renommer",
+      "delete": "Supprimer",
+      "apply": "Appliquer",
+      "update": "Mettre à jour",
+      "applyConfirm": "Appliquer le layout « {{name}} » ? Cela remplace les colonnes/regroupement/tri/filtre/échelle actuels.",
+      "missingRefs": "Certains champs n'existent pas dans ce document et seront ignorés.",
+      "noLayouts": "Aucun layout enregistré pour l'instant.",
+      "activeLayout": "Layout",
+      "none": "(aucun)"
+    },
+    "presentation": {
+      "hint": "Appuyez sur F11 pour quitter le mode présentation"
+    },
+    "splitView": {
+      "primary": "Principal",
+      "secondary": "Secondaire"
+    }
   }
 }

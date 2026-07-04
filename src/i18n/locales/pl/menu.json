@@ -141,7 +141,20 @@
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Nakładka baseline",
     "toggleProgressLine": "Linia postępu",
-    "toggleStatusDateLine": "Linia daty statusu"
+    "toggleStatusDateLine": "Linia daty statusu",
+    "year": "Rok",
+    "quarter": "Kwartał",
+    "columns": "Kolumny…",
+    "filter": "Filtr…",
+    "group": "Grupuj…",
+    "sort": "Sortuj…",
+    "layout": "Layout",
+    "saveLayoutAs": "Zapisz jako…",
+    "updateLayout": "Aktualizuj",
+    "manageLayouts": "Zarządzaj…",
+    "presentationMode": "Prezentacja",
+    "splitView": "Widok podzielony",
+    "miniMap": "Minimapa"
   },
   "ifc": {
     "title": "Edytor IFC",

@@ -152,5 +152,8 @@
   },
   "defaultTask": "Neue Aufgabe",
   "defaultMilestone": "Neuer Meilenstein",
-  "defaultInspection": "Neuer Prüfpunkt"
+  "defaultInspection": "Neuer Prüfpunkt",
+  "column": {
+    "resource": "Ressourcen"
+  }
 }

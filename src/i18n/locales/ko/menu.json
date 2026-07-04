@@ -141,7 +141,20 @@
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "기준선 오버레이",
     "toggleProgressLine": "진행선",
-    "toggleStatusDateLine": "상태 날짜선"
+    "toggleStatusDateLine": "상태 날짜선",
+    "year": "연도",
+    "quarter": "분기",
+    "columns": "열…",
+    "filter": "필터…",
+    "group": "그룹화…",
+    "sort": "정렬…",
+    "layout": "레이아웃",
+    "saveLayoutAs": "다른 이름으로 저장…",
+    "updateLayout": "업데이트",
+    "manageLayouts": "관리…",
+    "presentationMode": "프레젠테이션",
+    "splitView": "분할 보기",
+    "miniMap": "미니맵"
   },
   "ifc": {
     "title": "IFC 편집기",

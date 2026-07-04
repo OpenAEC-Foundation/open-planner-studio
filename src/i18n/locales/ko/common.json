@@ -282,5 +282,77 @@
       "earlyPeak": "초기 피크",
       "latePeak": "후기 피크"
     }
+  },
+  "view": {
+    "structureLockedHint": "필터링/그룹화/정렬 중에는 사용할 수 없습니다",
+    "columns": {
+      "title": "열",
+      "visible": "표시",
+      "width": "너비",
+      "resetDefault": "기본값으로 재설정"
+    },
+    "filter": {
+      "title": "필터",
+      "addRule": "+ 규칙",
+      "addGroup": "+ 그룹",
+      "all": "다음 모두 (AND)",
+      "any": "다음 중 하나 (OR)",
+      "clear": "지우기",
+      "noRules": "아직 규칙이 없습니다 — 이 필터는 모든 항목과 일치합니다.",
+      "value": "값",
+      "valueFrom": "시작",
+      "valueTo": "종료",
+      "field": "필드",
+      "operator": "연산자",
+      "op": {
+        "eq": "같음",
+        "neq": "같지 않음",
+        "lt": "보다 작음",
+        "lte": "이하",
+        "gt": "보다 큼",
+        "gte": "이상",
+        "contains": "포함",
+        "startsWith": "다음으로 시작",
+        "between": "사이",
+        "isEmpty": "비어 있음",
+        "in": "다음 중 하나"
+      }
+    },
+    "group": {
+      "title": "그룹화",
+      "addLevel": "+ 레벨",
+      "level": "레벨 {{n}}",
+      "direction": "방향",
+      "noLevels": "그룹화 없음 — WBS 트리",
+      "maxLevels": "최대 2개 그룹화 레벨"
+    },
+    "sort": {
+      "title": "정렬",
+      "addLevel": "+ 레벨",
+      "ascending": "오름차순",
+      "descending": "내림차순",
+      "noLevels": "정렬 없음 — 트리/밴드 순서"
+    },
+    "layout": {
+      "saveTitle": "레이아웃을 다른 이름으로 저장…",
+      "manageTitle": "레이아웃 관리",
+      "name": "이름",
+      "rename": "이름 바꾸기",
+      "delete": "삭제",
+      "apply": "적용",
+      "update": "업데이트",
+      "applyConfirm": "'{{name}}' 레이아웃을 적용하시겠습니까? 현재 열/그룹화/정렬/필터/스케일이 대체됩니다.",
+      "missingRefs": "일부 필드가 이 문서에 없으며 건너뜁니다.",
+      "noLayouts": "아직 저장된 레이아웃이 없습니다.",
+      "activeLayout": "레이아웃",
+      "none": "(없음)"
+    },
+    "presentation": {
+      "hint": "F11 키를 눌러 프레젠테이션 모드를 종료하세요"
+    },
+    "splitView": {
+      "primary": "기본",
+      "secondary": "보조"
+    }
   }
 }

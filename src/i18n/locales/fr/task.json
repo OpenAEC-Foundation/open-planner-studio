@@ -152,5 +152,8 @@
   },
   "defaultTask": "Nouvelle tâche",
   "defaultMilestone": "Nouveau jalon",
-  "defaultInspection": "Nouveau point d’inspection"
+  "defaultInspection": "Nouveau point d’inspection",
+  "column": {
+    "resource": "Ressources"
+  }
 }

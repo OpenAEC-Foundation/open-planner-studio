@@ -141,7 +141,20 @@
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "هم‌پوشانی خط مبنا",
     "toggleProgressLine": "خط پیشرفت",
-    "toggleStatusDateLine": "خط تاریخ وضعیت"
+    "toggleStatusDateLine": "خط تاریخ وضعیت",
+    "year": "سال",
+    "quarter": "فصل",
+    "columns": "ستون‌ها…",
+    "filter": "فیلتر…",
+    "group": "گروه‌بندی…",
+    "sort": "مرتب‌سازی…",
+    "layout": "چیدمان",
+    "saveLayoutAs": "ذخیره به‌عنوان…",
+    "updateLayout": "به‌روزرسانی",
+    "manageLayouts": "مدیریت…",
+    "presentationMode": "ارائه",
+    "splitView": "نمای تقسیم‌شده",
+    "miniMap": "نقشه کوچک"
   },
   "ifc": {
     "title": "ویرایشگر IFC",

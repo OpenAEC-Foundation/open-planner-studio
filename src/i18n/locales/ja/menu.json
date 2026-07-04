@@ -141,7 +141,20 @@
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "ベースラインオーバーレイ",
     "toggleProgressLine": "進捗ライン",
-    "toggleStatusDateLine": "状態日ライン"
+    "toggleStatusDateLine": "状態日ライン",
+    "year": "年",
+    "quarter": "四半期",
+    "columns": "列…",
+    "filter": "フィルター…",
+    "group": "グループ化…",
+    "sort": "並べ替え…",
+    "layout": "レイアウト",
+    "saveLayoutAs": "名前を付けて保存…",
+    "updateLayout": "更新",
+    "manageLayouts": "管理…",
+    "presentationMode": "プレゼンテーション",
+    "splitView": "分割ビュー",
+    "miniMap": "ミニマップ"
   },
   "ifc": {
     "title": "IFC エディタ",

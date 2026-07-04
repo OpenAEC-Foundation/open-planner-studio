@@ -152,5 +152,8 @@
   },
   "defaultTask": "Nova tarefa",
   "defaultMilestone": "Novo marco",
-  "defaultInspection": "Novo ponto de inspeção"
+  "defaultInspection": "Novo ponto de inspeção",
+  "column": {
+    "resource": "Recursos"
+  }
 }

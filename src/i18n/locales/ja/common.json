@@ -282,5 +282,77 @@
       "earlyPeak": "早期ピーク",
       "latePeak": "後期ピーク"
     }
+  },
+  "view": {
+    "structureLockedHint": "フィルター/グループ化/並べ替え中は使用できません",
+    "columns": {
+      "title": "列",
+      "visible": "表示",
+      "width": "幅",
+      "resetDefault": "既定値に戻す"
+    },
+    "filter": {
+      "title": "フィルター",
+      "addRule": "+ ルール",
+      "addGroup": "+ グループ",
+      "all": "すべて一致 (AND)",
+      "any": "いずれかに一致 (OR)",
+      "clear": "クリア",
+      "noRules": "まだルールがありません — このフィルターはすべてに一致します。",
+      "value": "値",
+      "valueFrom": "開始",
+      "valueTo": "終了",
+      "field": "フィールド",
+      "operator": "演算子",
+      "op": {
+        "eq": "次と等しい",
+        "neq": "次と等しくない",
+        "lt": "次より小さい",
+        "lte": "次以下",
+        "gt": "次より大きい",
+        "gte": "次以上",
+        "contains": "次を含む",
+        "startsWith": "次で始まる",
+        "between": "次の範囲内",
+        "isEmpty": "空である",
+        "in": "次のいずれか"
+      }
+    },
+    "group": {
+      "title": "グループ化",
+      "addLevel": "+ レベル",
+      "level": "レベル {{n}}",
+      "direction": "方向",
+      "noLevels": "グループ化なし — WBS ツリー",
+      "maxLevels": "グループ化は最大2レベルまで"
+    },
+    "sort": {
+      "title": "並べ替え",
+      "addLevel": "+ レベル",
+      "ascending": "昇順",
+      "descending": "降順",
+      "noLevels": "並べ替えなし — ツリー/バンドの順序"
+    },
+    "layout": {
+      "saveTitle": "レイアウトを名前を付けて保存…",
+      "manageTitle": "レイアウトの管理",
+      "name": "名前",
+      "rename": "名前の変更",
+      "delete": "削除",
+      "apply": "適用",
+      "update": "更新",
+      "applyConfirm": "レイアウト「{{name}}」を適用しますか? 現在の列/グループ化/並べ替え/フィルター/スケールが置き換えられます。",
+      "missingRefs": "一部のフィールドはこのドキュメントに存在しないため、スキップされます。",
+      "noLayouts": "保存されたレイアウトはまだありません。",
+      "activeLayout": "レイアウト",
+      "none": "(なし)"
+    },
+    "presentation": {
+      "hint": "F11キーを押すとプレゼンテーションモードを終了します"
+    },
+    "splitView": {
+      "primary": "プライマリ",
+      "secondary": "セカンダリ"
+    }
   }
 }

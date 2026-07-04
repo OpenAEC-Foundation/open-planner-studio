@@ -282,5 +282,77 @@
       "earlyPeak": "Frühe Spitze",
       "latePeak": "Späte Spitze"
     }
+  },
+  "view": {
+    "structureLockedHint": "Nicht verfügbar während des Filterns/Gruppierens/Sortierens",
+    "columns": {
+      "title": "Spalten",
+      "visible": "Sichtbar",
+      "width": "Breite",
+      "resetDefault": "Auf Standard zurücksetzen"
+    },
+    "filter": {
+      "title": "Filter",
+      "addRule": "+ Regel",
+      "addGroup": "+ Gruppe",
+      "all": "Alle folgenden (AND)",
+      "any": "Eine der folgenden (OR)",
+      "clear": "Löschen",
+      "noRules": "Noch keine Regeln — dieser Filter zeigt alles.",
+      "value": "Wert",
+      "valueFrom": "Von",
+      "valueTo": "Bis",
+      "field": "Feld",
+      "operator": "Operator",
+      "op": {
+        "eq": "gleich",
+        "neq": "ungleich",
+        "lt": "kleiner als",
+        "lte": "kleiner oder gleich",
+        "gt": "größer als",
+        "gte": "größer oder gleich",
+        "contains": "enthält",
+        "startsWith": "beginnt mit",
+        "between": "zwischen",
+        "isEmpty": "ist leer",
+        "in": "ist eines von"
+      }
+    },
+    "group": {
+      "title": "Gruppieren",
+      "addLevel": "+ Ebene",
+      "level": "Ebene {{n}}",
+      "direction": "Richtung",
+      "noLevels": "Keine Gruppierung — WBS-Baum",
+      "maxLevels": "Maximal 2 Gruppierungsebenen"
+    },
+    "sort": {
+      "title": "Sortieren",
+      "addLevel": "+ Ebene",
+      "ascending": "Aufsteigend",
+      "descending": "Absteigend",
+      "noLevels": "Keine Sortierung — Baum-/Bandreihenfolge"
+    },
+    "layout": {
+      "saveTitle": "Layout speichern als…",
+      "manageTitle": "Layouts verwalten",
+      "name": "Name",
+      "rename": "Umbenennen",
+      "delete": "Löschen",
+      "apply": "Übernehmen",
+      "update": "Aktualisieren",
+      "applyConfirm": "Layout „{{name}}“ übernehmen? Dies ersetzt die aktuellen Spalten/Gruppierung/Sortierung/Filter/Skala.",
+      "missingRefs": "Einige Felder sind in diesem Dokument nicht vorhanden und werden übersprungen.",
+      "noLayouts": "Noch keine gespeicherten Layouts.",
+      "activeLayout": "Layout",
+      "none": "(keins)"
+    },
+    "presentation": {
+      "hint": "F11 drücken, um den Präsentationsmodus zu beenden"
+    },
+    "splitView": {
+      "primary": "Primär",
+      "secondary": "Sekundär"
+    }
   }
 }

@@ -282,5 +282,77 @@
       "earlyPeak": "前期高峰",
       "latePeak": "后期高峰"
     }
+  },
+  "view": {
+    "structureLockedHint": "筛选/分组/排序时不可用",
+    "columns": {
+      "title": "列",
+      "visible": "可见",
+      "width": "宽度",
+      "resetDefault": "恢复默认"
+    },
+    "filter": {
+      "title": "筛选",
+      "addRule": "+ 规则",
+      "addGroup": "+ 组",
+      "all": "满足以下所有条件 (AND)",
+      "any": "满足以下任一条件 (OR)",
+      "clear": "清除",
+      "noRules": "尚无规则 — 此筛选器匹配所有内容。",
+      "value": "值",
+      "valueFrom": "从",
+      "valueTo": "到",
+      "field": "字段",
+      "operator": "运算符",
+      "op": {
+        "eq": "等于",
+        "neq": "不等于",
+        "lt": "小于",
+        "lte": "小于或等于",
+        "gt": "大于",
+        "gte": "大于或等于",
+        "contains": "包含",
+        "startsWith": "开头是",
+        "between": "介于",
+        "isEmpty": "为空",
+        "in": "属于以下之一"
+      }
+    },
+    "group": {
+      "title": "分组",
+      "addLevel": "+ 级别",
+      "level": "级别 {{n}}",
+      "direction": "方向",
+      "noLevels": "未分组 — WBS 树",
+      "maxLevels": "最多 2 个分组级别"
+    },
+    "sort": {
+      "title": "排序",
+      "addLevel": "+ 级别",
+      "ascending": "升序",
+      "descending": "降序",
+      "noLevels": "未排序 — 树/带状顺序"
+    },
+    "layout": {
+      "saveTitle": "另存布局为…",
+      "manageTitle": "管理布局",
+      "name": "名称",
+      "rename": "重命名",
+      "delete": "删除",
+      "apply": "应用",
+      "update": "更新",
+      "applyConfirm": "应用布局“{{name}}”？这将替换当前的列/分组/排序/筛选/比例。",
+      "missingRefs": "此文档中不存在某些字段，将被跳过。",
+      "noLayouts": "尚无已保存的布局。",
+      "activeLayout": "布局",
+      "none": "(无)"
+    },
+    "presentation": {
+      "hint": "按 F11 退出演示模式"
+    },
+    "splitView": {
+      "primary": "主要",
+      "secondary": "次要"
+    }
   }
 }

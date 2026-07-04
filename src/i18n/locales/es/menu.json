@@ -141,7 +141,20 @@
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Superposición de la baseline",
     "toggleProgressLine": "Línea de progreso",
-    "toggleStatusDateLine": "Línea de fecha de estado"
+    "toggleStatusDateLine": "Línea de fecha de estado",
+    "year": "Año",
+    "quarter": "Trimestre",
+    "columns": "Columnas…",
+    "filter": "Filtro…",
+    "group": "Agrupar…",
+    "sort": "Ordenar…",
+    "layout": "Layout",
+    "saveLayoutAs": "Guardar como…",
+    "updateLayout": "Actualizar",
+    "manageLayouts": "Gestionar…",
+    "presentationMode": "Presentación",
+    "splitView": "Vista dividida",
+    "miniMap": "Minimapa"
   },
   "ifc": {
     "title": "Editor IFC",

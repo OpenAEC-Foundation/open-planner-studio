@@ -282,5 +282,77 @@
       "earlyPeak": "Erken zirve",
       "latePeak": "Geç zirve"
     }
+  },
+  "view": {
+    "structureLockedHint": "Filtreleme/gruplama/sıralama sırasında kullanılamaz",
+    "columns": {
+      "title": "Sütunlar",
+      "visible": "Görünür",
+      "width": "Genişlik",
+      "resetDefault": "Varsayılana sıfırla"
+    },
+    "filter": {
+      "title": "Filtre",
+      "addRule": "+ kural",
+      "addGroup": "+ grup",
+      "all": "Aşağıdakilerin tümü (AND)",
+      "any": "Aşağıdakilerden herhangi biri (OR)",
+      "clear": "Temizle",
+      "noRules": "Henüz kural yok — bu filtre her şeyle eşleşir.",
+      "value": "Değer",
+      "valueFrom": "Başlangıç",
+      "valueTo": "Bitiş",
+      "field": "Alan",
+      "operator": "Operatör",
+      "op": {
+        "eq": "eşittir",
+        "neq": "eşit değildir",
+        "lt": "küçüktür",
+        "lte": "küçük veya eşittir",
+        "gt": "büyüktür",
+        "gte": "büyük veya eşittir",
+        "contains": "içerir",
+        "startsWith": "ile başlar",
+        "between": "arasında",
+        "isEmpty": "boş",
+        "in": "şunlardan biri"
+      }
+    },
+    "group": {
+      "title": "Grupla",
+      "addLevel": "+ düzey",
+      "level": "Düzey {{n}}",
+      "direction": "Yön",
+      "noLevels": "Gruplama yok — WBS ağacı",
+      "maxLevels": "En fazla 2 gruplama düzeyi"
+    },
+    "sort": {
+      "title": "Sırala",
+      "addLevel": "+ düzey",
+      "ascending": "Artan",
+      "descending": "Azalan",
+      "noLevels": "Sıralama yok — ağaç/bant sırası"
+    },
+    "layout": {
+      "saveTitle": "Layout'u farklı kaydet…",
+      "manageTitle": "Layoutları yönet",
+      "name": "Ad",
+      "rename": "Yeniden adlandır",
+      "delete": "Sil",
+      "apply": "Uygula",
+      "update": "Güncelle",
+      "applyConfirm": "'{{name}}' layoutu uygulansın mı? Bu, mevcut sütunları/gruplamayı/sıralamayı/filtreyi/ölçeği değiştirir.",
+      "missingRefs": "Bazı alanlar bu belgede yok ve atlanacak.",
+      "noLayouts": "Henüz kaydedilmiş layout yok.",
+      "activeLayout": "Layout",
+      "none": "(yok)"
+    },
+    "presentation": {
+      "hint": "Sunum modundan çıkmak için F11'e basın"
+    },
+    "splitView": {
+      "primary": "Birincil",
+      "secondary": "İkincil"
+    }
   }
 }

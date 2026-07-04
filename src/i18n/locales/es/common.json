@@ -282,5 +282,77 @@
       "earlyPeak": "Pico temprano",
       "latePeak": "Pico tardío"
     }
+  },
+  "view": {
+    "structureLockedHint": "No disponible mientras se filtra/agrupa/ordena",
+    "columns": {
+      "title": "Columnas",
+      "visible": "Visible",
+      "width": "Ancho",
+      "resetDefault": "Restablecer valores predeterminados"
+    },
+    "filter": {
+      "title": "Filtro",
+      "addRule": "+ regla",
+      "addGroup": "+ grupo",
+      "all": "Todo lo siguiente (AND)",
+      "any": "Cualquiera de lo siguiente (OR)",
+      "clear": "Borrar",
+      "noRules": "Aún no hay reglas — este filtro coincide con todo.",
+      "value": "Valor",
+      "valueFrom": "Desde",
+      "valueTo": "Hasta",
+      "field": "Campo",
+      "operator": "Operador",
+      "op": {
+        "eq": "es igual a",
+        "neq": "no es igual a",
+        "lt": "menor que",
+        "lte": "menor o igual que",
+        "gt": "mayor que",
+        "gte": "mayor o igual que",
+        "contains": "contiene",
+        "startsWith": "empieza por",
+        "between": "entre",
+        "isEmpty": "está vacío",
+        "in": "es uno de"
+      }
+    },
+    "group": {
+      "title": "Agrupar",
+      "addLevel": "+ nivel",
+      "level": "Nivel {{n}}",
+      "direction": "Dirección",
+      "noLevels": "Sin agrupación — árbol WBS",
+      "maxLevels": "Máximo 2 niveles de agrupación"
+    },
+    "sort": {
+      "title": "Ordenar",
+      "addLevel": "+ nivel",
+      "ascending": "Ascendente",
+      "descending": "Descendente",
+      "noLevels": "Sin ordenación — orden de árbol/banda"
+    },
+    "layout": {
+      "saveTitle": "Guardar layout como…",
+      "manageTitle": "Gestionar layouts",
+      "name": "Nombre",
+      "rename": "Cambiar nombre",
+      "delete": "Eliminar",
+      "apply": "Aplicar",
+      "update": "Actualizar",
+      "applyConfirm": "¿Aplicar el layout «{{name}}»? Esto reemplaza las columnas/agrupación/orden/filtro/escala actuales.",
+      "missingRefs": "Algunos campos no existen en este documento y se omitirán.",
+      "noLayouts": "Aún no hay layouts guardados.",
+      "activeLayout": "Layout",
+      "none": "(ninguno)"
+    },
+    "presentation": {
+      "hint": "Pulse F11 para salir del modo presentación"
+    },
+    "splitView": {
+      "primary": "Principal",
+      "secondary": "Secundario"
+    }
   }
 }

@@ -152,5 +152,8 @@
   },
   "defaultTask": "وظیفه جدید",
   "defaultMilestone": "نقطه عطف جدید",
-  "defaultInspection": "نقطه بازرسی جدید"
+  "defaultInspection": "نقطه بازرسی جدید",
+  "column": {
+    "resource": "منابع"
+  }
 }

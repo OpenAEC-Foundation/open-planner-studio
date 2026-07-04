@@ -152,5 +152,8 @@
   },
   "defaultTask": "Yeni görev",
   "defaultMilestone": "Yeni kilometre taşı",
-  "defaultInspection": "Yeni denetim noktası"
+  "defaultInspection": "Yeni denetim noktası",
+  "column": {
+    "resource": "Kaynaklar"
+  }
 }
