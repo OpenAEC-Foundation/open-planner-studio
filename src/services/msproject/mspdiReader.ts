@@ -112,6 +112,11 @@ export function readMSPDI(content: string): {
       const cal = createDefaultCalendar();
       cal.id = generateId('rescal');
       cal.name = getElementText(calEl, 'Name') || cal.name;
+      // §8.3: werkweek/uren/feestdagen ook voor bibliotheek-kalenders teruglezen (voorheen alleen
+      // naam/id — dezelfde beperking die de projectkalender vóór 2.8a had). MSPDI kent geen
+      // regelset-herkomst (verliesmatrix §8.4) — generation blijft altijd undefined.
+      applyCalendarBody(calEl, cal);
+      delete cal.generation;
       calUidToId.set(uid, cal.id);
       resourceCalendars.push(cal);
     }
@@ -190,6 +195,10 @@ export function readMSPDI(content: string): {
     const percentComplete = getElementInt(te, 'PercentComplete');
     const priority = getElementInt(te, 'Priority', 500);
     const description = getElementText(te, 'Notes');
+    // Taak-kalender (fase 2.8a, §8.3): effectieve <CalendarUID> → task.calendarId. UID 1 (of
+    // ontbrekend, legacy-bestanden) = projectkalender ⇒ undefined (bestaande conventie).
+    const taskCalUid = getElementInt(te, 'CalendarUID', 1);
+    const taskCalendarId = taskCalUid > 1 ? calUidToId.get(taskCalUid) : undefined;
 
     // Actuals (fase 2.6, §9.1) — leeg ⇒ undefined (invarianten volgen bij normalizeImportedProgress).
     const actualStartRaw = getElementText(te, 'ActualStart');
@@ -248,6 +257,7 @@ export function readMSPDI(content: string): {
         completion: percentComplete / 100,
       },
       resourceIds: [],
+      ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
     });
 
     // Parse predecessor links within task element
@@ -400,17 +410,17 @@ function parseProject(root: Element): Project {
   return project;
 }
 
-function parseCalendar(root: Element): WorkCalendar {
-  const calElements = root.getElementsByTagName('Calendar');
-  if (calElements.length === 0) return createDefaultCalendar();
-
-  const cal = calElements[0];
-  const calName = getElementText(cal, 'Name') || 'Imported Calendar';
-  const calendar = createDefaultCalendar();
-  calendar.name = calName;
-
+/**
+ * Werkdagen/uren/feestdagen uit een `<Calendar>`-element in `calendar` toepassen (spiegel van
+ * `writeCalendarBlock`) — gedeeld tussen de projectkalender (`parseCalendar`) en elke
+ * bibliotheek-kalender (fase 2.8a, §8.3: voorheen kregen resource-kalenders alleen naam/id, nooit
+ * hun eigen werkweek/uren/feestdagen terug — dezelfde beperkte lezing als de projectkalender vóór
+ * 2.8a). Golden rule: ontbrekende WeekDay/WorkingTime/Exception-elementen laten de
+ * `createDefaultCalendar()`-defaults ongemoeid.
+ */
+function applyCalendarBody(calEl: Element, calendar: WorkCalendar): void {
   // Parse work days from WeekDay elements
-  const weekDays = cal.getElementsByTagName('WeekDay');
+  const weekDays = calEl.getElementsByTagName('WeekDay');
   const workDays: number[] = [];
 
   for (let i = 0; i < weekDays.length; i++) {
@@ -433,7 +443,7 @@ function parseCalendar(root: Element): WorkCalendar {
   }
 
   // Parse working times for start/end hours
-  const workingTimes = cal.getElementsByTagName('WorkingTime');
+  const workingTimes = calEl.getElementsByTagName('WorkingTime');
   if (workingTimes.length > 0) {
     const fromTime = getElementText(workingTimes[0], 'FromTime');
     const toTime = getElementText(workingTimes[0], 'ToTime');
@@ -450,7 +460,7 @@ function parseCalendar(root: Element): WorkCalendar {
   }
 
   // Parse exceptions (holidays)
-  const exceptions = cal.getElementsByTagName('Exception');
+  const exceptions = calEl.getElementsByTagName('Exception');
   const holidays: Holiday[] = [];
   for (let i = 0; i < exceptions.length; i++) {
     const exc = exceptions[i];
@@ -468,8 +478,24 @@ function parseCalendar(root: Element): WorkCalendar {
   if (holidays.length > 0) {
     calendar.holidays = holidays;
   }
+}
 
-  // Parse minutes per day from project level
+function parseCalendar(root: Element): WorkCalendar {
+  const calElements = root.getElementsByTagName('Calendar');
+  if (calElements.length === 0) return createDefaultCalendar();
+
+  const cal = calElements[0];
+  const calName = getElementText(cal, 'Name') || 'Imported Calendar';
+  const calendar = createDefaultCalendar();
+  calendar.name = calName;
+  // MSPDI kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd
+  // (nieuwe projecten zijn per definitie gegenereerd); een uit MSPDI gelezen kalender is dat niet.
+  delete calendar.generation;
+
+  applyCalendarBody(cal, calendar);
+
+  // Parse minutes per day from project level — authoritatief, overschrijft de
+  // WorkingTime-afgeleide waarde uit applyCalendarBody (bestaand gedrag).
   const minutesPerDay = getElementInt(root, 'MinutesPerDay');
   if (minutesPerDay > 0) {
     calendar.hoursPerDay = minutesPerDay / 60;

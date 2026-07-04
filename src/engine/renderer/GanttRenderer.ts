@@ -165,6 +165,10 @@ export class GanttRenderer {
     this.drawStatusDateLine();
     this.drawDependencyArrows();
     this.drawTaskBars();
+    // Ná de taakbalken (niet direct na de grid): een balk die een feestdagblok overspant zou het
+    // naamlabel anders overschilderen — juist het scenario dat §6.2 zichtbaar moet maken (2.5-QA:
+    // "opgerekte balk van vier weken" zonder duiding).
+    this.drawHolidayLabels();
     this.drawProgressLine();
     this.drawTimelineHeader();
     this.drawTaskTable();
@@ -210,6 +214,63 @@ export class GanttRenderer {
       ctx.lineTo(canvasWidth, y);
       ctx.stroke();
     }
+  }
+
+  /**
+   * Naamlabel bij meerdaagse feestdagblokken (fase 2.8a, §6.2 — 2.5-QA-verhaal: een 5-daagse
+   * taak leek een "opgerekte balk van vier weken" zonder dat de bouwvak-arcering zich verklaarde).
+   * De arcering zelf blijft uitsluitend de projectkalender (§6.1); deze pass tekent alleen een
+   * naam bovenop bestaande feestdagblokken die breder zijn dan ~3× de dagbreedte (te smal ⇒ geen
+   * label, voorkomt onleesbare rommel bij losse enkele-dag-feestdagen). Horizontaal gecentreerd
+   * bij voldoende breedte, anders verticaal (90°) langs de linkerrand van het blok.
+   */
+  private drawHolidayLabels(): void {
+    const { canvasWidth, canvasHeight, headerHeight, taskTableWidth, view } = this.opts;
+    const zoom = view.zoom;
+    const minWidthPx = zoom * 3;
+    const ctx = this.ctx;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(taskTableWidth, headerHeight, Math.max(0, canvasWidth - taskTableWidth), Math.max(0, canvasHeight - headerHeight));
+    ctx.clip();
+    ctx.fillStyle = this.colors.textSecondary;
+
+    for (const h of this.opts.calendar.holidays) {
+      const start = parseDate(h.startDate);
+      const end = parseDate(h.endDate);
+      const days = diffCalendarDays(start, end) + 1;
+      const widthPx = days * zoom;
+      if (widthPx < minWidthPx) continue; // te smal voor een leesbaar label
+
+      const x1 = this.dateToX(start);
+      const x2 = x1 + widthPx;
+      if (x2 < taskTableWidth || x1 > canvasWidth) continue; // volledig buiten beeld
+
+      const clipX1 = Math.max(x1, taskTableWidth);
+      const clipX2 = Math.min(x2, canvasWidth);
+      const visibleWidth = clipX2 - clipX1;
+      if (visibleWidth < zoom) continue;
+
+      if (widthPx >= 70) {
+        // Breed genoeg: horizontaal, gecentreerd in het zichtbare deel van het blok, bovenaan.
+        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(h.name, (clipX1 + clipX2) / 2, headerHeight + 6, visibleWidth - 8);
+      } else {
+        // Smal blok: verticale tekst langs de linkerrand.
+        ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.save();
+        ctx.translate(clipX1 + zoom / 2, headerHeight + 8);
+        ctx.rotate(Math.PI / 2);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(h.name, 0, 0, Math.max(0, canvasHeight - headerHeight - 16));
+        ctx.restore();
+      }
+    }
+    ctx.restore();
   }
 
   private drawTodayLine(): void {

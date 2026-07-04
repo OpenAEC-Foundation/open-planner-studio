@@ -170,18 +170,21 @@ export function writeMSPDI(
   lines.push(`${indent(1)}<MinutesPerWeek>${calendar.hoursPerDay * calendar.workDays.length * 60}</MinutesPerWeek>`);
   lines.push(`${indent(1)}<DaysPerMonth>20</DaysPerMonth>`);
 
-  // Calendars: UID 1 = projectkalender (basiskalender); resource-kalenders (fase 2.5, §8.2)
-  // krijgen UID 2, 3, ... — dezelfde `writeCalendarBlock` parametrisch hergebruikt.
+  // Calendars: UID 1 = projectkalender (basiskalender); overige bibliotheek-kalenders (fase 2.5,
+  // §8.2) krijgen UID 2, 3, ... — dezelfde `writeCalendarBlock` parametrisch hergebruikt.
+  // `resourceCalendars` is sinds 2.8a de VOLLE bibliotheek (incl. de §4.3-gemigreerde
+  // projectkalender-entry) — die entry uitsluiten voorkomt een dubbele UID-1-kalender.
+  const libraryCalendars = resourceCalendars.filter(c => c.id !== calendar.id);
   const calUidMap = new Map<string, number>();
   calUidMap.set(calendar.id, 1);
   let nextCalUid = 2;
-  for (const cal of resourceCalendars) {
+  for (const cal of libraryCalendars) {
     calUidMap.set(cal.id, nextCalUid++);
   }
 
   lines.push(`${indent(1)}<Calendars>`);
   writeCalendarBlock(lines, indent, calendar, 1, true);
-  for (const cal of resourceCalendars) {
+  for (const cal of libraryCalendars) {
     writeCalendarBlock(lines, indent, cal, calUidMap.get(cal.id)!, false);
   }
   lines.push(`${indent(1)}</Calendars>`);
@@ -235,7 +238,12 @@ export function writeMSPDI(
     }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
-    lines.push(`${indent(3)}<CalendarUID>1</CalendarUID>`);
+    // Taak-kalender (fase 2.8a, §8.3): MSPDI ondersteunt taak-kalenders native via dit element —
+    // effectieve UID i.p.v. het oude hardcoded 1 (projectkalender). Onbekende/verwijderde
+    // calendarId valt terug op 1 (golden rule: geen eigen kalender ⇒ projectkalender-UID, zelfde
+    // patroon als de resource-CalendarUID hieronder).
+    const taskCalUid = (task.calendarId && calUidMap.get(task.calendarId)) || 1;
+    lines.push(`${indent(3)}<CalendarUID>${taskCalUid}</CalendarUID>`);
     if (task.description) {
       lines.push(`${indent(3)}<Notes>${escapeXML(task.description)}</Notes>`);
     }

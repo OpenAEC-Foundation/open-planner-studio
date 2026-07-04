@@ -21,3 +21,19 @@ export function syncProjectCalendar(s: CalendarCacheState): void {
   const entry = s.calendars.find((c) => c.id === s.project.calendarId);
   if (entry) s.calendar = entry;
 }
+
+/**
+ * §4.3-migratie: promoveer de geladen/actieve projectkalender-cache (`s.calendar`) tot een
+ * bibliotheek-entry als er nog geen entry met `project.calendarId` bestaat — zo wordt de tot nu
+ * toe inline projectkalender van een pre-2.8a-document de eerste zichtbare bibliotheek-entry.
+ * Idempotent en puur additief: bestaande bibliotheken blijven ongemoeid (no-op als de entry al
+ * bestaat), `s.calendar` zelf wordt niet aangeraakt (geen stille hergeneratie van
+ * holidays/generation, §4.3) — er komt alleen een kopie bij in `s.calendars`. Zelfde naamgevings-
+ * semantiek als de `ensureProjectCalendarInLibrary`-store-actie (projectSlice.ts, de lazy
+ * dialoog-variant voor al-open documenten): bestaande kalendernaam blijft, `'Projectkalender'`
+ * alleen als fallback voor een leeg/ontbrekend naamveld.
+ */
+export function promoteProjectCalendarToLibrary(s: CalendarCacheState): void {
+  if (s.calendars.some((c) => c.id === s.project.calendarId)) return;
+  s.calendars.push({ ...s.calendar, name: s.calendar.name || 'Projectkalender' });
+}

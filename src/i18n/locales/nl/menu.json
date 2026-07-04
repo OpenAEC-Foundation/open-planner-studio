@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "Nieuw project",
-    "calendar": "Kalender",
     "template": "Fasering-template",
-    "calNlBouw": "Bouwkalender NL (incl. bouwvak)",
-    "calNlFeest": "NL-feestdagen (zonder bouwvak)",
-    "calGeen": "5-daags, geen feestdagen",
     "tmplEmpty": "Leeg",
     "tmplWoningbouw": "Woningbouw",
     "tmplUtiliteit": "Utiliteitsbouw / renovatie"
@@ -283,5 +279,12 @@
     "import": "Importeren",
     "importSubtitle": "Importeer projectdata via geïnstalleerde extensies.",
     "importEmpty": "Geen import-extensies geïnstalleerd. Voeg er een toe via Extensies."
+  },
+  "wizard": {
+    "calendar": {
+      "country": "Feestdagenset",
+      "custom": "Aangepast…",
+      "none": "Geen feestdagen"
+    }
   }
 }

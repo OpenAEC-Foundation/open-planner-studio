@@ -283,6 +283,48 @@
       "latePeak": "Late piek"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "Kalenders",
+      "project": "Projectkalender",
+      "new": "Nieuwe kalender",
+      "duplicate": "Dupliceren",
+      "setDefault": "Als projectdefault"
+    },
+    "generate": {
+      "button": "Feestdagen genereren…",
+      "country": "Land",
+      "region": "Regio",
+      "regionNone": "Landelijk",
+      "bouwvakLabel": "Bouwvak",
+      "bouwvak": {
+        "none": "Geen",
+        "noord": "Noord",
+        "midden": "Midden",
+        "zuid": "Zuid"
+      },
+      "winterStop": "Vaste winterstop",
+      "winterHint": "Vaste winterstop; werkelijk vorstverlet volgt later uit weerdata",
+      "preview": "{{n}} feestdagen, {{from}}–{{to}}",
+      "bouwvakHint": "Adviesdatums — controleer bij Bouwend Nederland",
+      "apply": "Genereren",
+      "cancel": "Annuleren"
+    },
+    "regen": {
+      "hint": "Feestdagen dekken {{from}}–{{to}}; project loopt tot {{year}}. Opnieuw genereren?",
+      "button": "Opnieuw genereren"
+    },
+    "countryName": {
+      "NL": "Nederland",
+      "DE": "Duitsland",
+      "BE": "België",
+      "FR": "Frankrijk",
+      "UK": "Verenigd Koninkrijk",
+      "AT": "Oostenrijk",
+      "CH": "Zwitserland",
+      "none": "Geen feestdagen"
+    }
+  },
   "view": {
     "structureLockedHint": "Niet beschikbaar tijdens filteren/groeperen/sorteren",
     "columns": {

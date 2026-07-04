@@ -90,6 +90,8 @@
       "disabledMilestone": "Assignments are not possible on milestones.",
       "disabledSummary": "Assignments are not possible on summary tasks."
     },
+    "calendar": "Calendar",
+    "calendarProject": "Project calendar",
     "priority": "Leveling priority",
     "levelingDelay": "Leveling delay"
   },

@@ -10,6 +10,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { createSnapshot } from '../snapshot';
+import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { createDefaultView } from './viewSlice';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
@@ -35,6 +36,14 @@ export interface ProjectSlice {
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
   setCalendar: (calendar: WorkCalendar) => void;
+  /** Kies een bestaande bibliotheek-kalender (`s.calendars`) als projectdefault (ontwerp §7.1/§9.3).
+   *  setCalendar-precedent: isDirty + scheduleStale, GÉÉN undo-snapshot (bewuste asymmetrie —
+   *  bibliotheek-CRUD zelf blijft wél undoable). No-op op een onbekende id. */
+  setProjectCalendar: (id: string) => void;
+  /** Promoveer de huidige gedenormaliseerde projectkalender (`s.calendar`) tot een zichtbare
+   *  bibliotheek-entry als die er nog niet in staat (ontwerp §4.3-migratie, lazy variant voor de
+   *  kalenderdialoog). Puur additief/niet-destructief — geen undo-snapshot nodig. */
+  ensureProjectCalendarInLibrary: () => void;
   /** Statusdatum (P6 data date, fase 2.6). undefined = wissen. setCalendar-patroon: isDirty +
    *  scheduleStale, géén undo-snapshot (zie §10.3). */
   setStatusDate: (date: string | undefined) => void;
@@ -112,6 +121,20 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       if (idx >= 0) s.calendars[idx] = calendar;
       s.isDirty = true;
       s.scheduleStale = true; // projectkalender-wijziging (A6): planning verouderd tot F5.
+    }),
+
+  setProjectCalendar: (id) =>
+    set((s) => {
+      if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
+      s.project.calendarId = id;
+      s.isDirty = true;
+      s.scheduleStale = true; // projectdefault-wissel is datum-beïnvloedend (§5.4).
+      syncProjectCalendar(s); // §9.1: cache gelijkzetten (géén undo-snapshot, §9.3).
+    }),
+
+  ensureProjectCalendarInLibrary: () =>
+    set((s) => {
+      promoteProjectCalendarToLibrary(s); // §4.3-migratie, lazy variant (idempotent, geen undo nodig).
     }),
 
   setStatusDate: (date) =>
@@ -227,6 +250,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.assignments = loaded.assignments;
       // Kalender-bibliotheek (fase 2.8a; readers leveren nog het veld `resourceCalendars`).
       s.calendars = loaded.resourceCalendars ?? [];
+      // §4.3-migratie: een bestand zonder bibliotheek-entry voor zijn projectkalender (elk
+      // bestand van vóór 2.8a, of van CSV/P6/MSPDI) krijgt hier de eerste entry.
+      promoteProjectCalendarToLibrary(s);
       s.activityCodeTypes = loaded.activityCodeTypes ?? [];
       s.customFieldDefs = loaded.customFieldDefs ?? [];
       s.selectedTaskIds = [];

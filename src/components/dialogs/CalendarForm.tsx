@@ -1,6 +1,11 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import type { WorkCalendar, Holiday } from '@/types/calendar';
+import { CalendarGeneratorFields } from './CalendarGeneratorFields';
+import {
+  materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
+} from '@/engine/calendar/generateCalendarHolidays';
 
 const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
@@ -9,16 +14,61 @@ const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
  * Hergebruikt door `CalendarDialog` (projectkalender) én `ResourceCalendarDialog`
  * (fase 2.5, §3.4); de aanroeper beslist wat er met `onChange`-patches gebeurt en wanneer
  * er gecommit wordt (Apply-knop leeft in de aanroeper, niet hier).
+ *
+ * `projectYearSpan` (fase 2.8a, §4.4/§7.1): optionele projectperiode (in jaren) van de aanroeper.
+ * Stuurt de default generatie-spanne én de hergeneratie-hint wanneer de kalender al
+ * `generation`-metadata draagt die de projectperiode niet meer dekt.
  */
 export function CalendarForm({
   draft,
   onChange,
+  projectYearSpan,
 }: {
   draft: WorkCalendar;
   onChange: (patch: Partial<WorkCalendar>) => void;
+  projectYearSpan?: { from: number; to: number };
 }) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
+
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [genParams, setGenParams] = useState<HolidayGenParams>(() =>
+    draft.generation
+      ? {
+          country: draft.generation.ruleSetId,
+          region: draft.generation.region,
+          bouwvak: draft.generation.breakChoice ?? 'geen',
+          winterStop: !!draft.generation.winterStop,
+        }
+      : DEFAULT_GEN_PARAMS,
+  );
+
+  const defaultSpan = projectYearSpan
+    ?? (draft.generation
+      ? { from: draft.generation.generatedFromYear, to: draft.generation.generatedToYear }
+      : computeGenerateSpan(new Date().toISOString().slice(0, 10), undefined));
+
+  const needsRegen = !!draft.generation && !!projectYearSpan
+    && (projectYearSpan.from < draft.generation.generatedFromYear
+      || projectYearSpan.to > draft.generation.generatedToYear);
+
+  const applyGenerator = () => {
+    const { holidays, generation } = materializeHolidays(genParams, defaultSpan.from, defaultSpan.to);
+    onChange({ holidays, generation });
+    setShowGenerator(false);
+  };
+
+  const regenerate = () => {
+    if (!draft.generation || !projectYearSpan) return;
+    const params: HolidayGenParams = {
+      country: draft.generation.ruleSetId,
+      region: draft.generation.region,
+      bouwvak: draft.generation.breakChoice ?? 'geen',
+      winterStop: !!draft.generation.winterStop,
+    };
+    const { holidays, generation } = materializeHolidays(params, projectYearSpan.from, projectYearSpan.to);
+    onChange({ holidays, generation });
+  };
 
   const toggleWorkDay = (day: number) => {
     const has = draft.workDays.includes(day);
@@ -128,6 +178,52 @@ export function CalendarForm({
             className={inputCls}
           />
         </div>
+      </div>
+
+      {/* Feestdagen genereren (fase 2.8a, §7.1) — regelgebaseerd, óók voor bestaande kalenders. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowGenerator(v => !v)}
+            className="btn btn--sm btn--secondary self-start"
+          >
+            {tCommon('calendar.generate.button')}
+          </button>
+          {needsRegen && (
+            <div className="flex items-center gap-2 text-[11px] text-text-secondary">
+              <span>
+                {tCommon('calendar.regen.hint', {
+                  from: draft.generation!.generatedFromYear,
+                  to: draft.generation!.generatedToYear,
+                  year: projectYearSpan!.to,
+                })}
+              </span>
+              <button onClick={regenerate} className="btn btn--sm btn--secondary">
+                {tCommon('calendar.regen.button')}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {showGenerator && (
+          <div className="border border-border rounded-[10px] p-3 flex flex-col gap-3 bg-surface-alt">
+            <CalendarGeneratorFields
+              value={genParams}
+              onChange={patch => setGenParams(p => ({ ...p, ...patch }))}
+              fromYear={defaultSpan.from}
+              toYear={defaultSpan.to}
+              allowNone={false}
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowGenerator(false)} className="btn btn--sm btn--secondary">
+                {tCommon('calendar.generate.cancel')}
+              </button>
+              <button onClick={applyGenerator} className="btn btn--sm btn--primary">
+                {tCommon('calendar.generate.apply')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Holidays */}

@@ -90,6 +90,8 @@
       "disabledMilestone": "Toewijzingen zijn niet mogelijk op mijlpalen.",
       "disabledSummary": "Toewijzingen zijn niet mogelijk op samenvattingstaken."
     },
+    "calendar": "Kalender",
+    "calendarProject": "Projectkalender",
     "priority": "Nivelleer-prioriteit",
     "levelingDelay": "Nivelleer-vertraging"
   },

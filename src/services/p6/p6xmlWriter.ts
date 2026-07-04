@@ -75,6 +75,45 @@ function durationToP6Hours(days: number, hoursPerDay: number): number {
   return days * hoursPerDay;
 }
 
+// ISO-dagnummer (1=maandag..7=zondag) -> P6/Engelse dagnaam. Geëxporteerd zodat de reader
+// (spiegel-mapping, fase 2.8a §8.3) de naam terug naar een ISO-dagnummer kan resolven.
+export const P6_DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** Werkweek (fase 2.8a, §8.3): `<StandardWorkWeek>` met per dag een `<StandardWorkHour>` — alleen
+ *  werkdagen (`cal.workDays`) krijgen een `<WorkTime>`-blok, niet-werkdagen blijven leeg (P6 leest
+ *  afwezigheid van `WorkTime` als niet-werkend). Altijd geschreven (geen golden-rule-gate: er
+ *  zijn geen bestaande P6-golden-bestanden om te breken, en dit was tot nu toe een gat, §8.4). */
+function writeStandardWorkWeek(lines: string[], indent: (level: number) => string, cal: WorkCalendar): void {
+  lines.push(`${indent(2)}<StandardWorkWeek>`);
+  for (let day = 1; day <= 7; day++) {
+    lines.push(`${indent(3)}<StandardWorkHour>`);
+    lines.push(`${indent(4)}<DayOfWeek>${P6_DAY_NAMES[day]}</DayOfWeek>`);
+    if (cal.workDays.includes(day)) {
+      lines.push(`${indent(4)}<WorkTime>`);
+      lines.push(`${indent(5)}<Start>${String(cal.workStartHour).padStart(2, '0')}:00:00</Start>`);
+      lines.push(`${indent(5)}<Finish>${String(cal.workEndHour).padStart(2, '0')}:00:00</Finish>`);
+      lines.push(`${indent(4)}</WorkTime>`);
+    }
+    lines.push(`${indent(3)}</StandardWorkHour>`);
+  }
+  lines.push(`${indent(2)}</StandardWorkWeek>`);
+}
+
+/** Feestdagen/exceptions (fase 2.8a, §8.3): `<HolidayOrExceptions>` — golden rule: geen
+ *  feestdagen ⇒ geen element. */
+function writeHolidayOrExceptions(lines: string[], indent: (level: number) => string, cal: WorkCalendar): void {
+  if (cal.holidays.length === 0) return;
+  lines.push(`${indent(2)}<HolidayOrExceptions>`);
+  for (const h of cal.holidays) {
+    lines.push(`${indent(3)}<HolidayOrException>`);
+    lines.push(`${indent(4)}<Name>${escapeXML(h.name)}</Name>`);
+    lines.push(`${indent(4)}<Date>${formatP6DateTime(h.startDate)}</Date>`);
+    lines.push(`${indent(4)}<FinishDate>${formatP6DateTime(h.endDate)}</FinishDate>`);
+    lines.push(`${indent(3)}</HolidayOrException>`);
+  }
+  lines.push(`${indent(2)}</HolidayOrExceptions>`);
+}
+
 export function writeP6XML(
   project: Project,
   calendar: WorkCalendar,
@@ -105,10 +144,13 @@ export function writeP6XML(
   for (const res of resources) {
     resObjMap.set(res.id, nextResObjId++);
   }
+  // `resourceCalendars` is sinds 2.8a de VOLLE bibliotheek (incl. de §4.3-gemigreerde
+  // projectkalender-entry) — die entry uitsluiten voorkomt een dubbele ObjectId-1-kalender.
+  const libraryCalendars = resourceCalendars.filter(c => c.id !== calendar.id);
   const calObjMap = new Map<string, number>();
   calObjMap.set(calendar.id, 1); // projectkalender, zie hieronder <Calendar><ObjectId>1</ObjectId>
   let nextCalObjId = 2;
-  for (const cal of resourceCalendars) {
+  for (const cal of libraryCalendars) {
     calObjMap.set(cal.id, nextCalObjId++);
   }
 
@@ -141,12 +183,14 @@ export function writeP6XML(
   lines.push(`${indent(2)}<HoursPerDay>${calendar.hoursPerDay}</HoursPerDay>`);
   lines.push(`${indent(2)}<HoursPerWeek>${calendar.hoursPerDay * calendar.workDays.length}</HoursPerWeek>`);
   lines.push(`${indent(2)}<HoursPerMonth>${calendar.hoursPerDay * 20}</HoursPerMonth>`);
+  writeStandardWorkWeek(lines, indent, calendar);
+  writeHolidayOrExceptions(lines, indent, calendar);
   lines.push(`${indent(1)}</Calendar>`);
 
-  // Resource-kalenders (fase 2.5, §8.1) — zelfde element als de projectkalender maar met
-  // Type="Resource" en een eigen ObjectId; komen ná de projectkalender zodat de eerste
+  // Bibliotheek-kalenders (fase 2.5/2.8a, §8.1/§8.3) — zelfde element als de projectkalender maar
+  // met Type="Resource" en een eigen ObjectId; komen ná de projectkalender zodat de eerste
   // <Calendar> in het bestand altijd de projectkalender blijft (bestaande reader-aanname).
-  for (const cal of resourceCalendars) {
+  for (const cal of libraryCalendars) {
     const objId = calObjMap.get(cal.id)!;
     lines.push(`${indent(1)}<Calendar>`);
     lines.push(`${indent(2)}<ObjectId>${objId}</ObjectId>`);
@@ -155,6 +199,8 @@ export function writeP6XML(
     lines.push(`${indent(2)}<HoursPerDay>${cal.hoursPerDay}</HoursPerDay>`);
     lines.push(`${indent(2)}<HoursPerWeek>${cal.hoursPerDay * cal.workDays.length}</HoursPerWeek>`);
     lines.push(`${indent(2)}<HoursPerMonth>${cal.hoursPerDay * 20}</HoursPerMonth>`);
+    writeStandardWorkWeek(lines, indent, cal);
+    writeHolidayOrExceptions(lines, indent, cal);
     lines.push(`${indent(1)}</Calendar>`);
   }
 
@@ -253,7 +299,10 @@ export function writeP6XML(
     if (task.description) {
       lines.push(`${indent(2)}<Description>${escapeXML(task.description)}</Description>`);
     }
-    lines.push(`${indent(2)}<CalendarObjectId>1</CalendarObjectId>`);
+    // Taak-kalender (fase 2.8a, §8.3): effectieve kalender-ObjectId i.p.v. het oude hardcoded 1
+    // (projectkalender). Onbekende/verwijderde calendarId valt terug op 1 (golden rule).
+    const taskCalObjId = (task.calendarId && calObjMap.get(task.calendarId)) || 1;
+    lines.push(`${indent(2)}<CalendarObjectId>${taskCalObjId}</CalendarObjectId>`);
     lines.push(`${indent(1)}</Activity>`);
   }
 

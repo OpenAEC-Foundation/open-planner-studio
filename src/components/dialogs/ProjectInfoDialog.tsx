@@ -1,13 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Select } from '@/components/common/Select';
 import { formatDate } from '@/utils/dateUtils';
-import {
-  PROJECT_TEMPLATES, templatePhases, buildPresetCalendar,
-  type TemplateKey, type CalendarPreset,
-} from '@/utils/projectTemplates';
+import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
+import { CalendarGeneratorFields } from './CalendarGeneratorFields';
+import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
+import type { HolidayCountry } from '@/engine/calendar/holidays';
+
+/** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
+ *  `'custom'` ("Aangepast…", ontwerp §7.2) — die opent na aanmaken de kalenderdialoog i.p.v.
+ *  een land-set te genereren. */
+type WizardCalendarState = Omit<HolidayGenParams, 'country'> & { country: HolidayCountry | 'none' | 'custom' };
+
+const DEFAULT_WIZARD_CALENDAR: WizardCalendarState = {
+  country: 'NL', region: undefined, bouwvak: 'geen', winterStop: false, // default GEEN bouwvak (harde eis)
+};
 
 /**
  * Dubbel-modus dialoog:
@@ -32,21 +41,30 @@ export function ProjectInfoDialog() {
   const [company, setCompany] = useState(isNew ? '' : project.company);
   const [startDate, setStartDate] = useState(isNew ? formatDate(new Date()) : project.startDate);
   const [endDate, setEndDate] = useState(isNew ? '' : project.endDate);
-  const [calendarPreset, setCalendarPreset] = useState<CalendarPreset>('nl-bouw');
+  const [calState, setCalState] = useState<WizardCalendarState>(DEFAULT_WIZARD_CALENDAR);
   const [template, setTemplate] = useState<TemplateKey>('empty');
+
+  // Generatie-spanne bij aanmaak (§4.4): nog geen projecteinde bekend ⇒ startjaar−1..+3.
+  const calSpan = useMemo(() => computeGenerateSpan(startDate, endDate || undefined), [startDate, endDate]);
 
   const close = () => setUI({ showProjectInfoDialog: false, showNewProjectDialog: false });
 
   const handlePrimary = () => {
     if (isNew) {
+      const isCustom = calState.country === 'custom';
+      const calendar = isCustom
+        ? buildGeneratedCalendar({ country: 'none', bouwvak: 'geen', winterStop: false }, calSpan)
+        : buildGeneratedCalendar(calState as HolidayGenParams, calSpan);
       createNewProject({
         name, description, author, company, startDate, endDate,
-        calendar: buildPresetCalendar(calendarPreset),
+        calendar,
         phaseNames: templatePhases(template),
       });
-      // Verlaat de Backstage zodat het nieuwe project meteen zichtbaar is.
+      // Verlaat de Backstage zodat het nieuwe project meteen zichtbaar is; "Aangepast…" opent
+      // meteen de kalenderdialoog zodat de gebruiker de kalender handmatig kan samenstellen (§7.2).
       setUI({
         showNewProjectDialog: false,
+        ...(isCustom ? { showCalendarDialog: true } : {}),
         ...(activeRibbonTab === 'file' ? { activeRibbonTab: 'start' as const } : {}),
       });
     } else {
@@ -66,11 +84,6 @@ export function ProjectInfoDialog() {
   const inputCls =
     'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
 
-  const calendarOptions = [
-    { value: 'nl-bouw', label: tMenu('newProject.calNlBouw') },
-    { value: 'nl-feestdagen', label: tMenu('newProject.calNlFeest') },
-    { value: 'geen', label: tMenu('newProject.calGeen') },
-  ];
   const templateLabel: Record<TemplateKey, string> = {
     empty: tMenu('newProject.tmplEmpty'),
     woningbouw: tMenu('newProject.tmplWoningbouw'),
@@ -128,18 +141,28 @@ export function ProjectInfoDialog() {
           </div>
 
           {isNew && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-text-secondary font-medium">{tMenu('newProject.calendar')}</label>
-                <Select aria-label={tMenu('newProject.calendar')} value={calendarPreset}
-                  onChange={v => setCalendarPreset(v as CalendarPreset)} options={calendarOptions} />
-              </div>
+            <>
               <div className="flex flex-col gap-1">
                 <label className="text-text-secondary font-medium">{tMenu('newProject.template')}</label>
                 <Select aria-label={tMenu('newProject.template')} value={template}
                   onChange={v => setTemplate(v as TemplateKey)} options={templateOptions} />
               </div>
-            </div>
+
+              {/* Feestdagen-generator (fase 2.8a, §7.2): land/regio, bouwvak (default GEEN — harde
+                  eis), vaste winterstop + compacte preview. "Aangepast…" (extra optie in de
+                  land-select) verbergt de rest van de generator (leeg gestart; de kalenderdialoog
+                  opent na aanmaken om handmatig te bewerken, zie `handlePrimary`). */}
+              <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
+              <span className="text-text-secondary font-medium">{tMenu('wizard.calendar.country')}</span>
+              <CalendarGeneratorFields
+                value={calState}
+                onChange={patch => setCalState(s => ({ ...s, ...patch }))}
+                fromYear={calSpan.from}
+                toYear={calSpan.to}
+                noneLabel={tMenu('wizard.calendar.none')}
+                extraCountryOptions={[{ value: 'custom', label: tMenu('wizard.calendar.custom') }]}
+              />
+            </>
           )}
         </div>
 

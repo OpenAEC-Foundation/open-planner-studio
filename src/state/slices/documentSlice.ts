@@ -14,7 +14,7 @@ import type { AppState } from '../appStore';
 import { generateId } from '@/utils/id';
 import { createDefaultProject } from './projectSlice';
 import { createDefaultView } from './viewSlice';
-import { syncProjectCalendar } from '../syncProjectCalendar';
+import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 
 /**
@@ -187,6 +187,9 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.redoStack = p.redoStack;
   s.filePath = p.filePath;
   s.isDirty = p.isDirty;
+  // §4.3: oude/verse documenten zonder bibliotheek-entry voor hun projectkalender krijgen er hier
+  // één (idempotent — no-op als de entry al bestaat, bv. bij een gewone switchDocument/undo).
+  promoteProjectCalendarToLibrary(s);
   syncProjectCalendar(s); // §9.1: gedenormaliseerde projectkalender-cache gelijkzetten ná hydrate/switch.
 }
 

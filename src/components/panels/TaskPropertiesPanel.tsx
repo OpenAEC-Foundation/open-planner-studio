@@ -143,6 +143,9 @@ export function TaskPropertiesPanel() {
   const setActualStart = useAppStore(s => s.setActualStart);
   const setActualFinish = useAppStore(s => s.setActualFinish);
   const [actualError, setActualError] = useState(false);
+  // Taak-kalender-keuze (fase 2.8a, §7.3): bibliotheek-kalenders + "Projectkalender" (undefined).
+  const calendars = useAppStore(s => s.calendars);
+  const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
 
   if (selectedTaskIds.length === 0) {
     return (
@@ -226,6 +229,18 @@ export function TaskPropertiesPanel() {
           value={task.taskType}
           onChange={v => update({ taskType: v as TaskType })}
           options={taskTypeOptions.map(tt => ({ value: tt.value, label: tt.label }))}
+        />
+      </Field>
+
+      <Field label={t('properties.calendar')}>
+        <Select
+          aria-label={t('properties.calendar')}
+          value={task.calendarId ?? ''}
+          onChange={v => setTaskCalendar(task.id, v || undefined)}
+          options={[
+            { value: '', label: t('properties.calendarProject') },
+            ...calendars.map(c => ({ value: c.id, label: c.name })),
+          ]}
         />
       </Field>
 

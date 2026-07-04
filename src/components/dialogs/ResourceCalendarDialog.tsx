@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
+import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { CalendarForm } from './CalendarForm';
 
 /**
@@ -31,6 +32,8 @@ export function ResourceCalendarDialog({
   const resourceCalendars = useAppStore(s => s.calendars);
   const addCalendar = useAppStore(s => s.addCalendar);
   const updateCalendar = useAppStore(s => s.updateCalendar);
+  const project = useAppStore(s => s.project);
+  const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
 
   const existing = calendarId ? resourceCalendars.find(c => c.id === calendarId) : undefined;
 
@@ -74,7 +77,11 @@ export function ResourceCalendarDialog({
           </button>
         </div>
 
-        <CalendarForm draft={draft} onChange={patch => setDraft(d => ({ ...d, ...patch }))} />
+        <CalendarForm
+          draft={draft}
+          onChange={patch => setDraft(d => ({ ...d, ...patch }))}
+          projectYearSpan={projectYearSpan}
+        />
 
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button onClick={onClose} className="btn btn--sm btn--secondary">

@@ -283,6 +283,48 @@
       "latePeak": "Late peak"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "Calendars",
+      "project": "Project calendar",
+      "new": "New calendar",
+      "duplicate": "Duplicate",
+      "setDefault": "Set as project default"
+    },
+    "generate": {
+      "button": "Generate holidays…",
+      "country": "Country",
+      "region": "Region",
+      "regionNone": "National",
+      "bouwvakLabel": "Construction holiday",
+      "bouwvak": {
+        "none": "None",
+        "noord": "North",
+        "midden": "Central",
+        "zuid": "South"
+      },
+      "winterStop": "Fixed winter shutdown",
+      "winterHint": "Fixed shutdown; actual frost days come later from weather data",
+      "preview": "{{n}} holidays, {{from}}–{{to}}",
+      "bouwvakHint": "Advisory dates — verify with Bouwend Nederland",
+      "apply": "Generate",
+      "cancel": "Cancel"
+    },
+    "regen": {
+      "hint": "Holidays cover {{from}}–{{to}}; project runs to {{year}}. Regenerate?",
+      "button": "Regenerate"
+    },
+    "countryName": {
+      "NL": "Netherlands",
+      "DE": "Germany",
+      "BE": "Belgium",
+      "FR": "France",
+      "UK": "United Kingdom",
+      "AT": "Austria",
+      "CH": "Switzerland",
+      "none": "No holidays"
+    }
+  },
   "view": {
     "structureLockedHint": "Not available while filtering/grouping/sorting",
     "columns": {

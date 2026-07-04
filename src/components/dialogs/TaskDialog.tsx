@@ -29,6 +29,9 @@ export function TaskDialog() {
   const [duration, setDuration] = useState(5);
   const [startDate, setStartDate] = useState('');
   const [parentId, setParentId] = useState<string>('');
+  // Taak-kalender-keuze (fase 2.8a, §7.3): '' = Projectkalender (undefined).
+  const [calendarId, setCalendarId] = useState<string>('');
+  const calendars = useAppStore(s => s.calendars);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export function TaskDialog() {
       // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
       setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
       setParentId(editingTask.parentId || '');
+      setCalendarId(editingTask.calendarId ?? '');
     } else {
       setName('');
       setDescription('');
@@ -53,6 +57,7 @@ export function TaskDialog() {
       setDuration(5);
       setStartDate(project.startDate);
       setParentId('');
+      setCalendarId('');
     }
 
   }, [showTaskDialog, editingTaskId, editingTask, project.startDate]);
@@ -102,6 +107,7 @@ export function TaskDialog() {
         taskType,
         isMilestone,
         time,
+        calendarId: calendarId || undefined,
       });
     } else {
       addTask({
@@ -111,6 +117,7 @@ export function TaskDialog() {
         taskType,
         isMilestone,
         parentId: parentId || null,
+        calendarId: calendarId || undefined,
         time: {
           durationType: 'WORKTIME',
           scheduleDuration: isMilestone ? 0 : duration,
@@ -240,6 +247,19 @@ export function TaskDialog() {
               />
             </div>
           )}
+
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary">{t('properties.calendar')}</label>
+            <Select
+              aria-label={t('properties.calendar')}
+              value={calendarId}
+              onChange={setCalendarId}
+              options={[
+                { value: '', label: t('properties.calendarProject') },
+                ...calendars.map(c => ({ value: c.id, label: c.name })),
+              ]}
+            />
+          </div>
 
           <label className="flex items-center gap-2 mt-1">
             <input

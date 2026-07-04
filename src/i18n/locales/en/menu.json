@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "New project",
-    "calendar": "Calendar",
     "template": "Phasing template",
-    "calNlBouw": "NL construction calendar (incl. builders' holiday)",
-    "calNlFeest": "NL public holidays (no builders' holiday)",
-    "calGeen": "5-day, no holidays",
     "tmplEmpty": "Empty",
     "tmplWoningbouw": "Residential construction",
     "tmplUtiliteit": "Commercial / renovation"
@@ -283,5 +279,12 @@
     "import": "Import",
     "importSubtitle": "Import project data through installed extensions.",
     "importEmpty": "No import extensions installed. Add one via Extensions."
+  },
+  "wizard": {
+    "calendar": {
+      "country": "Holiday set",
+      "custom": "Custom…",
+      "none": "No holidays"
+    }
   }
 }

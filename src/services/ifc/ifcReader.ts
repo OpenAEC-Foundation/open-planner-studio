@@ -2,7 +2,8 @@ import { Task, TaskTime, TaskType, ConstraintType, createDefaultTaskTime } from 
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceType, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
+import { WorkCalendar, Holiday, CalendarGeneration, createDefaultCalendar } from '@/types/calendar';
+import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
@@ -53,7 +54,9 @@ export function readIFC(content: string): {
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
-  const resourceCalendars = extractResourceCalendars(entities, entityMap, resources, resourceStepIdMap);
+  const resourceCalendars = extractCalendarLibrary(
+    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap,
+  );
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap,
@@ -222,7 +225,7 @@ function extractProject(entities: StepEntity[], _entityMap: Map<string, StepEnti
 function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEntity>): WorkCalendar {
   const cal = entities.find(e => e.type === 'IFCWORKCALENDAR');
   if (!cal) return createDefaultCalendar();
-  return buildCalendarFromEntity(cal, entityMap);
+  return buildCalendarFromEntity(cal, entityMap, entities);
 }
 
 function extractTasks(
@@ -732,14 +735,114 @@ function extractCrewNesting(
   }
 }
 
-/** Bouwt een `WorkCalendar` uit een `IFCWORKCALENDAR`-entiteit (naam/omschrijving/feestdagen —
- *  zelfde beperkte lezing als de bestaande `extractCalendar`: werkdagen/uren komen uit de
- *  default-kalender, niet uit `IFCRECURRENCEPATTERN`/`IFCTIMEPERIOD`, dat is een bestaande
- *  reader-beperking, hier bewust niet uitgebreid om regressierisico te vermijden). */
-function buildCalendarFromEntity(cal: StepEntity, entityMap: Map<string, StepEntity>): WorkCalendar {
+/** Parse een STEP-lijstwaarde van gehele getallen zoals `(1,2,3,4,5)` naar `[1,2,3,4,5]`. Leeg/`$`
+ *  ⇒ `[]` (golden rule bij de aanroeper: alleen toepassen als er iets uitkomt). */
+function parseIntList(s: string): number[] {
+  const inner = (s || '').trim().replace(/^\(|\)$/g, '');
+  if (!inner) return [];
+  return inner.split(',').map(x => parseInt(x.trim(), 10)).filter(Number.isFinite);
+}
+
+/**
+ * Fase 2.8a (§8.2) — `calendar.generation`-herkomst teruglezen uit het `OPS_Calendar`-pset
+ * (spiegel van `writeCalendarGenerationMeta`): zoekt de `IFCRELDEFINESBYPROPERTIES` die het
+ * `IFCWORKCALENDAR` met STEP-id `calStepId` target. Golden rule/legacy (§4.3/§8.2): geen pset
+ * gevonden, of een onvolledige/corrupte set (ontbrekende RuleSetId/jaren) ⇒ `undefined` — NOOIT
+ * een kalender laten hergenereren op basis van een gok.
+ */
+function extractCalendarGeneration(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): CalendarGeneration | undefined {
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const objectRefs = parseRefs(rel.args[4] || '');
+    if (!objectRefs.includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== 'OPS_Calendar') continue;
+
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+
+    let ruleSetId: HolidayCountry | undefined;
+    let region: string | undefined;
+    let breakChoice: CalendarGeneration['breakChoice'];
+    let winterStop = false;
+    let generatedFromYear: number | undefined;
+    let generatedToYear: number | undefined;
+    for (const prop of props) {
+      const name = stripQuotes(prop.args[0] || '');
+      const value = parseTypedValue(prop.args[2] || '');
+      if (name === 'RuleSetId' && typeof value === 'string') ruleSetId = value as HolidayCountry;
+      else if (name === 'Region' && typeof value === 'string') region = value;
+      else if (name === 'BreakChoice' && typeof value === 'string') breakChoice = value as CalendarGeneration['breakChoice'];
+      else if (name === 'WinterStop' && value === true) winterStop = true;
+      else if (name === 'GeneratedFromYear' && typeof value === 'number') generatedFromYear = value;
+      else if (name === 'GeneratedToYear' && typeof value === 'number') generatedToYear = value;
+    }
+    if (!ruleSetId || generatedFromYear === undefined || generatedToYear === undefined) continue; // onvolledig — negeer
+
+    return {
+      ruleSetId,
+      ...(region ? { region } : {}),
+      ...(breakChoice ? { breakChoice } : {}),
+      ...(winterStop ? { winterStop } : {}),
+      generatedFromYear,
+      generatedToYear,
+    };
+  }
+  return undefined;
+}
+
+/** Bouwt een `WorkCalendar` uit een `IFCWORKCALENDAR`-entiteit: naam/omschrijving/feestdagen
+ *  (bestaand), plus (fase 2.8a, §8.1) werkdagen/uren teruggelezen uit de
+ *  `WorkingTimes`-keten (args[5] → IFCWORKTIME → RecurrencePattern-ref → IFCRECURRENCEPATTERN
+ *  DayComponent (args[2]) + TimePeriods (args[7]) → IFCTIMEPERIOD start/eind-uur) — de writer
+ *  schreef dit al spec-conform (`ifcWriter.ts` `writeCalendar`), alleen de reader las het nog
+ *  niet terug. Golden rule: ontbreekt de keten (bestand van een ander tool, of geen worktime),
+ *  dan blijven de `createDefaultCalendar()`-defaults (ma-vr 07-16) staan. Tot slot (§8.2) de
+ *  `OPS_Calendar`-pset → `generation` (legacy/onvolledig ⇒ `undefined`, nooit gegokt). */
+function buildCalendarFromEntity(
+  cal: StepEntity,
+  entityMap: Map<string, StepEntity>,
+  entities: StepEntity[],
+): WorkCalendar {
   const calendar = createDefaultCalendar();
   calendar.name = stripQuotes(cal.args[2] || '') || calendar.name;
   calendar.description = stripQuotes(cal.args[3] || '') || calendar.description;
+
+  // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
+  // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes
+  // (args[6]) en hebben geen RecurrencePattern-ref (args[3] blijft `$` daar).
+  const workTimeRefs = parseRefs(cal.args[5] || '');
+  for (const wtRef of workTimeRefs) {
+    const wt = entityMap.get(wtRef);
+    if (!wt || wt.type !== 'IFCWORKTIME') continue;
+    const recurrenceRef = parseRef(wt.args[3] || '');
+    if (!recurrenceRef) continue;
+    const rec = entityMap.get(recurrenceRef);
+    if (!rec || rec.type !== 'IFCRECURRENCEPATTERN') continue;
+
+    const workDays = parseIntList(rec.args[2] || '');
+    if (workDays.length > 0) calendar.workDays = workDays;
+
+    const timePeriodRefs = parseRefs(rec.args[7] || '');
+    if (timePeriodRefs.length > 0) {
+      const tp = entityMap.get(timePeriodRefs[0]);
+      if (tp && tp.type === 'IFCTIMEPERIOD') {
+        const startHour = parseInt(stripQuotes(tp.args[0] || '').split(':')[0], 10);
+        const endHour = parseInt(stripQuotes(tp.args[1] || '').split(':')[0], 10);
+        if (Number.isFinite(startHour)) calendar.workStartHour = startHour;
+        if (Number.isFinite(endHour)) calendar.workEndHour = endHour;
+        if (Number.isFinite(startHour) && Number.isFinite(endHour) && endHour > startHour) {
+          calendar.hoursPerDay = endHour - startHour;
+        }
+      }
+    }
+    break; // writer schrijft precies één werktijdslot in WorkingTimes
+  }
 
   const exceptionRefs = parseRefs(cal.args[6] || '');
   const holidays: Holiday[] = [];
@@ -755,27 +858,41 @@ function buildCalendarFromEntity(cal: StepEntity, entityMap: Map<string, StepEnt
   }
   if (holidays.length > 0) calendar.holidays = holidays;
 
+  // §4.3/§8.2 golden rule: createDefaultCalendar() zet altijd `generation` (nieuwe projecten zijn
+  // per definitie gegenereerd) — een uit IFC gelezen kalender is dat NIET tenzij de OPS_Calendar-
+  // pset het expliciet zegt. Eerst wissen, dan (evt.) invullen uit de pset.
+  delete calendar.generation;
+  calendar.generation = extractCalendarGeneration(cal.id, entities, entityMap);
+
   return calendar;
 }
 
 /**
- * Fase 2.5 — resource-kalenders teruglezen (§7.5): alle `IFCWORKCALENDAR`-entiteiten
- * behalve degene die `extractCalendar` al als projectkalender heeft gepakt (de eerste in
- * het bestand — zelfde, bewust ongewijzigde regel als `extractCalendar` zelf hanteert).
- * Onderscheid taken-vs-resources via `IFCRELASSIGNSTOCONTROL.RelatedObjects`: alleen
- * relaties waarvan de objecten via `resourceStepIdMap` resolven tellen mee (de
- * projectkalender/workschedule-koppeling target taken, niet een `IFCWORKCALENDAR`, en
- * resolvet dus sowieso niet hier).
+ * Fase 2.8a (§8.2) — kalender-bibliotheek teruglezen (generalisatie van de oude "resource-
+ * kalenders"-route, fase 2.5 §7.5): alle `IFCWORKCALENDAR`-entiteiten behalve degene die
+ * `extractCalendar` al als projectkalender heeft gepakt (de eerste in het bestand — zelfde,
+ * bewust ongewijzigde regel als `extractCalendar` zelf hanteert, en de schrijf-conventie die
+ * `writeIFC` aanhoudt: de projectkalender staat altijd als eerste in het bestand).
+ *
+ * Onderscheid taken-vs-resources via `IFCRELASSIGNSTOCONTROL.RelatedObjects`: de writer schrijft
+ * per bibliotheek-kalender twee LOSSE rel-entiteiten (één met resource-refs, één met taak-refs),
+ * dus elke rel resolvet hier via precies één van de twee maps. Eén kalender kan zo door zowel een
+ * resource- als een taak-rel worden aangewezen — de STEP-id van het `IFCWORKCALENDAR` dedupt de
+ * kalender zelf (`calByStepId`) zodat hij maar één keer in de bibliotheek terechtkomt.
  */
-function extractResourceCalendars(
+function extractCalendarLibrary(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   resources: Resource[],
   resourceStepIdMap: Map<string, string>,
+  tasks: Task[],
+  taskStepIdMap: Map<string, string>,
 ): WorkCalendar[] {
   const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
   const resourceById = new Map(resources.map(r => [r.id, r]));
-  const resourceCalendars: WorkCalendar[] = [];
+  const taskById = new Map(tasks.map(t => [t.id, t]));
+  const calendars: WorkCalendar[] = [];
+  const calByStepId = new Map<string, WorkCalendar>(); // IFCWORKCALENDAR STEP-id -> onze kalender
 
   for (const ce of entities) {
     if (ce.type !== 'IFCRELASSIGNSTOCONTROL') continue;
@@ -783,22 +900,33 @@ function extractResourceCalendars(
     if (!controlRef) continue;
     const controlEntity = entityMap.get(controlRef);
     if (!controlEntity || controlEntity.type !== 'IFCWORKCALENDAR') continue;
-    if (projectCalendarEntity && controlRef === projectCalendarEntity.id) continue;
+    if (projectCalendarEntity && controlRef === projectCalendarEntity.id) continue; // projectkalender, geen bibliotheek-entry
+
+    let cal = calByStepId.get(controlRef);
+    if (!cal) {
+      cal = buildCalendarFromEntity(controlEntity, entityMap, entities);
+      cal.id = generateId('rescal');
+      calByStepId.set(controlRef, cal);
+      calendars.push(cal);
+    }
 
     const relatedRefs = parseRefs(ce.args[4] || '');
-    const resIds = relatedRefs.map(r => resourceStepIdMap.get(r)).filter((id): id is string => !!id);
-    if (resIds.length === 0) continue; // target waren taken, geen resources
-
-    const cal = buildCalendarFromEntity(controlEntity, entityMap);
-    cal.id = generateId('rescal');
-    resourceCalendars.push(cal);
-    for (const resId of resIds) {
-      const res = resourceById.get(resId);
-      if (res) res.calendarId = cal.id;
+    for (const r of relatedRefs) {
+      const resId = resourceStepIdMap.get(r);
+      if (resId) {
+        const res = resourceById.get(resId);
+        if (res) res.calendarId = cal.id;
+        continue;
+      }
+      const taskId = taskStepIdMap.get(r);
+      if (taskId) {
+        const task = taskById.get(taskId);
+        if (task) task.calendarId = cal.id;
+      }
     }
   }
 
-  return resourceCalendars;
+  return calendars;
 }
 
 interface AssignmentMeta {

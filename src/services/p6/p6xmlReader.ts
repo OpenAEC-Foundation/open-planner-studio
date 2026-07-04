@@ -2,10 +2,11 @@ import { Task, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar, createDefaultCalendar } from '@/types/calendar';
+import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import { P6_DAY_NAMES } from './p6xmlWriter';
 
 // Omgekeerde curve-/contour-naammapping (spiegel van p6xmlWriter's P6_CURVE_TO_NAME, §8.3).
 const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
@@ -67,6 +68,54 @@ function p6HoursToDays(hours: number, hoursPerDay: number): number {
   return Math.round(hours / hoursPerDay);
 }
 
+/** Werkweek teruglezen (fase 2.8a, §8.3, spiegel van `writeStandardWorkWeek`): per
+ *  `<StandardWorkHour>` de dagnaam terugmappen naar een ISO-dagnummer via `P6_DAY_NAMES`; een dag
+ *  telt als werkdag zodra hij een `<WorkTime>`-blok heeft. `workStartHour`/`workEndHour` komen van
+ *  het LAATST gevonden werktijdblok (één scalar per kalender, bestaande aanname). Golden rule:
+ *  geen `<StandardWorkWeek>` (ander tool / oud bestand) ⇒ lege workDays, aanroeper valt terug op
+ *  de `createDefaultCalendar()`-defaults. */
+function parseP6StandardWorkWeek(calEl: Element): { workDays: number[]; workStartHour?: number; workEndHour?: number } {
+  const wwEl = calEl.getElementsByTagName('StandardWorkWeek')[0];
+  const workDays: number[] = [];
+  let workStartHour: number | undefined;
+  let workEndHour: number | undefined;
+  if (!wwEl) return { workDays };
+
+  for (let i = 0; i < wwEl.children.length; i++) {
+    const dayEl = wwEl.children[i];
+    if (dayEl.localName !== 'StandardWorkHour' && dayEl.tagName !== 'StandardWorkHour') continue;
+    const dayName = getElementText(dayEl, 'DayOfWeek');
+    const isoDay = P6_DAY_NAMES.indexOf(dayName); // index == ISO-dagnummer (array begint met '' op 0)
+    const wt = dayEl.getElementsByTagName('WorkTime')[0];
+    if (!wt || isoDay <= 0) continue;
+    workDays.push(isoDay);
+    const start = getElementText(wt, 'Start');
+    const finish = getElementText(wt, 'Finish');
+    const startHour = parseInt(start.split(':')[0], 10);
+    const finishHour = parseInt(finish.split(':')[0], 10);
+    if (Number.isFinite(startHour)) workStartHour = startHour;
+    if (Number.isFinite(finishHour)) workEndHour = finishHour;
+  }
+  return { workDays, workStartHour, workEndHour };
+}
+
+/** Feestdagen/exceptions teruglezen (fase 2.8a, §8.3, spiegel van `writeHolidayOrExceptions`). */
+function parseP6HolidayOrExceptions(calEl: Element): Holiday[] {
+  const hoEl = calEl.getElementsByTagName('HolidayOrExceptions')[0];
+  if (!hoEl) return [];
+  const holidays: Holiday[] = [];
+  for (let i = 0; i < hoEl.children.length; i++) {
+    const hEl = hoEl.children[i];
+    if (hEl.localName !== 'HolidayOrException' && hEl.tagName !== 'HolidayOrException') continue;
+    const date = getElementText(hEl, 'Date');
+    if (!date) continue;
+    const name = getElementText(hEl, 'Name') || 'Feestdag';
+    const finishDate = getElementText(hEl, 'FinishDate') || date;
+    holidays.push({ name, startDate: parseP6Date(date), endDate: parseP6Date(finishDate) });
+  }
+  return holidays;
+}
+
 function getAllByLocalName(doc: Document, localName: string): Element[] {
   const results: Element[] = [];
   const root = doc.documentElement;
@@ -111,10 +160,19 @@ export function readP6XML(content: string): {
     const objId = getElementInt(calEl, 'ObjectId', -1);
     if (objId < 0) continue;
     const cal = createDefaultCalendar();
+    // P6 kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd;
+    // een uit P6 gelezen kalender is dat niet.
+    delete cal.generation;
     cal.id = generateId('rescal');
     cal.name = getElementText(calEl, 'Name') || cal.name;
     const hpd = getElementFloat(calEl, 'HoursPerDay');
-    if (hpd > 0) cal.hoursPerDay = hpd;
+    if (hpd > 0) cal.hoursPerDay = hpd; // authoritatief — StandardWorkWeek-uren overschrijven dit niet
+    const ww = parseP6StandardWorkWeek(calEl);
+    if (ww.workDays.length > 0) cal.workDays = ww.workDays.sort((a, b) => a - b);
+    if (ww.workStartHour !== undefined) cal.workStartHour = ww.workStartHour;
+    if (ww.workEndHour !== undefined) cal.workEndHour = ww.workEndHour;
+    const holidays = parseP6HolidayOrExceptions(calEl);
+    if (holidays.length > 0) cal.holidays = holidays;
     calObjIdToId.set(objId, cal.id);
     resourceCalendars.push(cal);
   }
@@ -259,6 +317,10 @@ export function readP6XML(content: string): {
     const percentComplete = getElementFloat(actEl, 'PhysicalPercentComplete');
     const description = getElementText(actEl, 'Description');
     const wbsObjId = getElementInt(actEl, 'WBSObjectId', -1);
+    // Taak-kalender (fase 2.8a, §8.3): effectieve <CalendarObjectId> → task.calendarId. ObjectId 1
+    // (of ontbrekend, legacy-bestanden) = projectkalender ⇒ undefined (bestaande conventie).
+    const calObjId = getElementInt(actEl, 'CalendarObjectId', 1);
+    const taskCalendarId = calObjId > 1 ? calObjIdToId.get(calObjId) : undefined;
 
     // Actuals (fase 2.6, §9.2) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
@@ -311,6 +373,7 @@ export function readP6XML(content: string): {
         completion: percentComplete / 100,
       },
       resourceIds: [],
+      ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
     };
 
     leafTasks.push(task);
@@ -436,9 +499,22 @@ function parseCalendar(doc: Document): WorkCalendar {
   const calEl = calElements[0];
   const calendar = createDefaultCalendar();
   calendar.name = getElementText(calEl, 'Name') || calendar.name;
+  // P6 kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd;
+  // een uit P6 gelezen kalender is dat niet.
+  delete calendar.generation;
 
   const hpd = getElementFloat(calEl, 'HoursPerDay');
-  if (hpd > 0) calendar.hoursPerDay = hpd;
+  if (hpd > 0) calendar.hoursPerDay = hpd; // authoritatief — StandardWorkWeek-uren overschrijven dit niet
+
+  // Werkweek + feestdagen (fase 2.8a, §8.3) — golden rule: geen <StandardWorkWeek>/
+  // <HolidayOrExceptions> (ander tool / oud bestand) ⇒ createDefaultCalendar()-defaults blijven staan.
+  const ww = parseP6StandardWorkWeek(calEl);
+  if (ww.workDays.length > 0) calendar.workDays = ww.workDays.sort((a, b) => a - b);
+  if (ww.workStartHour !== undefined) calendar.workStartHour = ww.workStartHour;
+  if (ww.workEndHour !== undefined) calendar.workEndHour = ww.workEndHour;
+
+  const holidays = parseP6HolidayOrExceptions(calEl);
+  if (holidays.length > 0) calendar.holidays = holidays;
 
   return calendar;
 }

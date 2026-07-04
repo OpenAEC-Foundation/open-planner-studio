@@ -1,5 +1,5 @@
 import type { WorkCalendar } from '@/types/calendar';
-import { createDefaultCalendar } from '@/types/calendar';
+import { materializeHolidays, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 
 /**
  * Fasering-templates voor de nieuw-project-wizard: een herbruikbaar skelet van
@@ -44,19 +44,26 @@ export function templatePhases(key: TemplateKey): string[] {
 }
 
 /**
- * Kalender-presets. Bewust eerlijk afgeleid van de bestaande standaard-
- * bouwkalender; regio-specifieke bouwvak (Midden/Zuid) ontbreekt omdat er geen
- * geverifieerde datatabel voor is — niet verzinnen.
+ * Kalender-generator-parameters voor de nieuw-project-wizard (fase 2.8a, §7.2). Vervangt de
+ * oude vaste presets (`CalendarPreset`/`buildPresetCalendar`) door de regelgebaseerde
+ * feestdagen-engine: land/regio, NL-bouwvak (default GEEN — harde eis TODO.md r192-194) en een
+ * vaste winterstop. `span` is de generatie-spanne in jaren (§4.4: bij aanmaak startjaar−1..+3).
  */
-export type CalendarPreset = 'nl-bouw' | 'nl-feestdagen' | 'geen';
-
-export function buildPresetCalendar(preset: CalendarPreset): WorkCalendar {
-  const base = createDefaultCalendar();
-  if (preset === 'nl-feestdagen') {
-    return { ...base, holidays: base.holidays.filter((h) => !h.name.toLowerCase().includes('bouwvak')) };
-  }
-  if (preset === 'geen') {
-    return { ...base, name: '5-daagse kalender', description: 'Ma-vr 07:00-16:00, geen feestdagen', holidays: [] };
-  }
-  return base; // 'nl-bouw'
+export function buildGeneratedCalendar(
+  params: HolidayGenParams,
+  span: { from: number; to: number },
+  name = 'Bouwkalender',
+): WorkCalendar {
+  const { holidays, generation } = materializeHolidays(params, span.from, span.to);
+  return {
+    id: 'cal-default',
+    name,
+    description: 'Standaard bouwkalender: ma-vr 07:00-16:00',
+    workDays: [1, 2, 3, 4, 5],
+    workStartHour: 7,
+    workEndHour: 16,
+    hoursPerDay: 8,
+    holidays,
+    generation,
+  };
 }

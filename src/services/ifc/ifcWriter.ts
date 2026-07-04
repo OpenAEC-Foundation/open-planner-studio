@@ -116,8 +116,10 @@ export function writeIFC(
   // Project
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(ifcGuid(project.id))},#${ownerHistId},${ifcStr(project.name)},$,$,$,$,(#${ctxId}),#${unitAssId})`);
 
-  // Calendar
-  writeCalendar(ctx, calendar, ownerHistId);
+  // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
+  // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
+  const projectCalStepId = writeCalendar(ctx, calendar, ownerHistId);
+  writeCalendarGenerationMeta(ctx, projectCalStepId, calendar, ownerHistId);
 
   // Work plan & schedule
   const startDates = tasks.map(t => t.time.scheduleStart).filter(Boolean).sort();
@@ -173,7 +175,14 @@ export function writeIFC(
   }
   writeResourceMeta(ctx, resources, ownerHistId);
   writeCrewNesting(ctx, resources, ownerHistId);
-  writeResourceCalendars(ctx, resources, resourceCalendars, ownerHistId);
+  // Kalender-bibliotheek (fase 2.8a, §8.2): de projectkalender-entry (id === project.calendarId)
+  // is hierboven al als eerste IFCWORKCALENDAR geschreven — uitsluiten voorkomt een duplicaat nu
+  // `resourceCalendars` de VOLLEDIGE bibliotheek is (incl. de §4.3-gemigreerde projectentry).
+  writeCalendarLibrary(
+    ctx, resources, tasks,
+    resourceCalendars.filter(c => c.id !== project.calendarId),
+    ownerHistId,
+  );
 
   // Resource assignments
   writeAssignments(ctx, assignments, ownerHistId);
@@ -481,27 +490,85 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
 }
 
 /**
- * Fase 2.5 — resource-kalenders (§7.5): elke `resourceCalendars[]`-entry krijgt een eigen
- * IFCWORKCALENDAR (dezelfde `writeCalendar`, parametrische key i.p.v. de hardcoded
- * `_calendar` van de projectkalender) + één IFCRELASSIGNSTOCONTROL naar alle resources die
- * ernaar verwijzen (`resource.calendarId === cal.id`). Golden rule: lege `resourceCalendars`
- * schrijft niets extra (de for-lus doet dan simpelweg niets).
+ * Fase 2.8a (§8.2) — regelset-herkomst van een gegenereerde kalender (`calendar.generation`) als
+ * `OPS_Calendar`-pset op de bijbehorende `IFCWORKCALENDAR` (patroon `OPS_ProjectSettings`/
+ * `OPS_StructureMeta`: `IFCPROPERTYSINGLEVALUE`s + `IFCRELDEFINESBYPROPERTIES`). Golden rule:
+ * alleen geschreven wanneer `generation` bestaat — een letterlijke/legacy kalender (geen
+ * `generation`) schrijft niets extra, dus bestaande bestanden blijven byte-identiek.
  */
-function writeResourceCalendars(
+function writeCalendarGenerationMeta(
   ctx: WriteContext,
-  resources: Resource[],
-  resourceCalendars: WorkCalendar[],
+  calStepId: number,
+  cal: WorkCalendar,
   ownerHistId: number,
 ): void {
-  for (const cal of resourceCalendars) {
+  const gen = cal.generation;
+  if (!gen) return;
+  const props: number[] = [];
+  props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
+    `IFCPROPERTYSINGLEVALUE('RuleSetId',$,IFCLABEL(${ifcStr(gen.ruleSetId)}),$)`));
+  if (gen.region) {
+    props.push(addLine(ctx, `_opscal_region_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('Region',$,IFCLABEL(${ifcStr(gen.region)}),$)`));
+  }
+  if (gen.breakChoice) {
+    props.push(addLine(ctx, `_opscal_break_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('BreakChoice',$,IFCLABEL(${ifcStr(gen.breakChoice)}),$)`));
+  }
+  if (gen.winterStop) {
+    props.push(addLine(ctx, `_opscal_winter_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('WinterStop',$,IFCBOOLEAN(.T.),$)`));
+  }
+  props.push(addLine(ctx, `_opscal_from_${cal.id}`,
+    `IFCPROPERTYSINGLEVALUE('GeneratedFromYear',$,IFCINTEGER(${gen.generatedFromYear}),$)`));
+  props.push(addLine(ctx, `_opscal_to_${cal.id}`,
+    `IFCPROPERTYSINGLEVALUE('GeneratedToYear',$,IFCINTEGER(${gen.generatedToYear}),$)`));
+  const setId = addLine(ctx, `_pset_opscal_${cal.id}`,
+    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_opscal_' + cal.id))},#${ownerHistId},'OPS_Calendar',$,(${props.map(i => `#${i}`).join(',')}))`);
+  addLine(ctx, `_rel_opscal_${cal.id}`,
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_opscal_' + cal.id))},#${ownerHistId},$,$,(#${calStepId}),#${setId})`);
+}
+
+/**
+ * Fase 2.8a (§8.2) — kalender-bibliotheek (generalisatie van de oude "resource-kalenders"-route,
+ * fase 2.5, §7.5): elke bibliotheek-entry (de projectkalender-entry is al als eerste
+ * IFCWORKCALENDAR geschreven door de aanroeper en zit hier dus NIET meer in) krijgt een eigen
+ * IFCWORKCALENDAR (dezelfde `writeCalendar`, parametrische key) + eventuele
+ * `OPS_Calendar`-generatiemeta + IFCRELASSIGNSTOCONTROL-relaties naar wie ernaar verwijst: één
+ * naar de resources (`resource.calendarId === cal.id`, bestaand) en apart één naar de taken
+ * (`task.calendarId === cal.id`, nieuw, §8.2) — twee losse rel-entiteiten omdat de reader
+ * taken/resources via `taskStepIdMap`/`resourceStepIdMap` uit elkaar houdt. Golden rule: een
+ * kalender zonder gebruikers schrijft alleen de IFCWORKCALENDAR zelf, geen rel; taken zonder
+ * eigen kalender krijgen nooit een rel.
+ */
+function writeCalendarLibrary(
+  ctx: WriteContext,
+  resources: Resource[],
+  tasks: Task[],
+  calendars: WorkCalendar[],
+  ownerHistId: number,
+): void {
+  for (const cal of calendars) {
     const calStepId = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`);
+    writeCalendarGenerationMeta(ctx, calStepId, cal, ownerHistId);
+
     const resRefs = resources
       .filter(r => r.calendarId === cal.id)
       .map(r => ref(ctx, `res_${r.id}`))
       .filter(r => r !== '#0');
-    if (resRefs.length === 0) continue; // kalender bestaat in de registry, maar (nog) niemand gebruikt hem
-    addLine(ctx, `resctrl_${cal.id}`,
-      `IFCRELASSIGNSTOCONTROL(${ifcStr(ifcGuid('resctrl_' + cal.id))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,#${calStepId})`);
+    if (resRefs.length > 0) {
+      addLine(ctx, `resctrl_${cal.id}`,
+        `IFCRELASSIGNSTOCONTROL(${ifcStr(ifcGuid('resctrl_' + cal.id))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,#${calStepId})`);
+    }
+
+    const taskRefs = tasks
+      .filter(t => t.calendarId === cal.id)
+      .map(t => ref(ctx, `task_${t.id}`))
+      .filter(r => r !== '#0');
+    if (taskRefs.length > 0) {
+      addLine(ctx, `taskctrl_${cal.id}`,
+        `IFCRELASSIGNSTOCONTROL(${ifcStr(ifcGuid('taskctrl_' + cal.id))},#${ownerHistId},$,$,(${taskRefs.join(',')}),$,#${calStepId})`);
+    }
   }
 }
 
