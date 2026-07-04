@@ -219,6 +219,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.resources = [];
       s.assignments = [];
       s.calendars = [];
+      // §4.4: de bibliotheek meteen vullen met de wizard-kalender i.p.v. leeg tot de
+      // CalendarDialog hem lazy promoveert — zo klopt de bibliotheek al vanaf het begin.
+      promoteProjectCalendarToLibrary(s);
       s.selectedTaskIds = [];
       s.cpmResult = null;
       s.resourceLoadResult = null;

@@ -1,6 +1,6 @@
 import { formatDate } from '@/utils/dateUtils';
 import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
-import { getGanttChartWidth } from '@/utils/ganttViewport';
+import { getGanttChartWidth, clampGanttScroll } from '@/utils/ganttViewport';
 import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
   computeViewRows, defaultColumns, type ViewRow, type ViewContext,
@@ -86,10 +86,16 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
     }
   },
 
+  // Fix 2 (fase 2.8a QA): boven de ondergrens (§0) ook een bovengrens klemmen op de werkelijke
+  // inhoud (GanttCanvas registreert die bij elke render, `ganttViewport.ts`) — anders kan een
+  // (per ongeluk) verticale overscroll of een horizontale scroll ná een extreme zoom-cyclus de
+  // taakbalken-laag permanent buiten beeld duwen, zonder enige render-pass die dat herstelt.
+  // Headless (geen geregistreerde grenzen): identiek aan de oude ondergrens-only-clamp.
   setScroll: (x, y) =>
     set((s) => {
-      s.view.scrollX = Math.max(0, x);
-      s.view.scrollY = Math.max(0, y);
+      const clamped = clampGanttScroll(Math.max(0, x), Math.max(0, y));
+      s.view.scrollX = clamped.x;
+      s.view.scrollY = clamped.y;
     }),
 
   setViewStartDate: (date) =>

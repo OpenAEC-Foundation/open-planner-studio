@@ -13,3 +13,29 @@ export function setGanttChartWidth(width: number): void {
 export function getGanttChartWidth(): number | null {
   return chartWidth;
 }
+
+/**
+ * Max. scrollbare grenzen (fase 2.8a QA, fix 2): `setScroll` klemde `scrollX`/`scrollY` alleen
+ * naar beneden (`>= 0`), zonder bovengrens — een taakbalk-laag die volledig verdwijnt na een
+ * (per ongeluk) verticale overscroll (bv. platte wheel-scroll in "position"-modus buiten de
+ * rechtsboven-hoek, of horizontaal scrollen na een extreme zoom-uit/-in-cyclus) kwam daardoor
+ * NOOIT meer in beeld terug — geen enkele render-pass herstelde het, want er was simpelweg geen
+ * geldige boventgrens om naar terug te klemmen. GanttCanvas registreert bij elke render de
+ * werkelijke inhoudsgrenzen (rijen×rowHeight, totale dagbreedte×zoom) zodat `setScroll` daar
+ * altijd binnen blijft. Headless (tests): beide blijven null → geen bovengrens (ongewijzigd
+ * gedrag, zelfde precedent als `chartWidth` hierboven).
+ */
+let maxScrollX: number | null = null;
+let maxScrollY: number | null = null;
+
+export function setGanttScrollBounds(bounds: { maxScrollX: number; maxScrollY: number }): void {
+  maxScrollX = Number.isFinite(bounds.maxScrollX) ? Math.max(0, bounds.maxScrollX) : null;
+  maxScrollY = Number.isFinite(bounds.maxScrollY) ? Math.max(0, bounds.maxScrollY) : null;
+}
+
+export function clampGanttScroll(x: number, y: number): { x: number; y: number } {
+  return {
+    x: maxScrollX !== null ? Math.min(x, maxScrollX) : x,
+    y: maxScrollY !== null ? Math.min(y, maxScrollY) : y,
+  };
+}

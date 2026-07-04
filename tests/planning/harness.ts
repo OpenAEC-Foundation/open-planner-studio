@@ -159,7 +159,13 @@ type AfterOp =
   | { assign: { task: string; res: string; units: number; curve?: ResourceCurve } }
   | { runCPM: true }
   | { undo: true }
-  | { applyLevel: { constrainToFloat?: boolean; resources?: string[] } };
+  | { applyLevel: { constrainToFloat?: boolean; resources?: string[] } }
+  /** Undo-orphan-regressie (fase 2.8a QA, fix 1): voeg een nieuwe bibliotheek-kalender toe EN
+   *  zet hem meteen als projectdefault (spiegelt CalendarDialog "Als projectdefault") — precies
+   *  de twee acties die de bug triggerde (addCalendar pusht een undo-snapshot, setProjectCalendar
+   *  bewust niet, §9.3), zodat een navolgende `{ undo: true }` de bibliotheek-entry wegneemt terwijl
+   *  `project.calendarId` er nog naar wijst. */
+  | { addCalendarAsDefault: { name: string } };
 
 function resolveResourceIds(names: string[] | undefined, resIds: Record<string, string>, ctx: string): string[] | undefined {
   return names
@@ -419,6 +425,11 @@ function buildAndSolve(c: Case): {
         ...(resourceIds ? { resourceIds } : {}),
       });
       S().applyLeveling(r);
+    } else if ('addCalendarAsDefault' in op) {
+      const { id: _cid, ...calBase } = S().calendar;
+      void _cid;
+      const newId = S().addCalendar({ ...calBase, name: op.addCalendarAsDefault.name });
+      S().setProjectCalendar(newId);
     }
   }
 
@@ -643,6 +654,16 @@ function runCase(c: Case) {
   // "Verouderd"-vlag (A6): staat de planning-stale-vlag op de verwachte waarde na de afterCPM-ops?
   if (exp.scheduleStale !== undefined && S().scheduleStale !== exp.scheduleStale)
     diffs.push(`scheduleStale: verwacht ${exp.scheduleStale}, kreeg ${S().scheduleStale}`);
+
+  // Kalender-cache-invariant (fase 2.8a, §9.1): `project.calendarId` moet een bestaande
+  // bibliotheek-entry raken EN die entry moet gelijk zijn aan de gedenormaliseerde `s.calendar`-
+  // cache. Regressie-guard voor de undo-orphan-bug (fix 1, QA fase 2.8a).
+  if (exp.calendarInvariant !== undefined) {
+    const entry = S().calendars.find((c) => c.id === S().project.calendarId);
+    const got = !!entry && S().calendar.id === S().project.calendarId;
+    if (got !== exp.calendarInvariant)
+      diffs.push(`calendarInvariant: verwacht ${exp.calendarInvariant}, kreeg ${got} (project.calendarId=${S().project.calendarId}, calendars=[${S().calendars.map(c => c.id).join(',')}], calendar.id=${S().calendar.id})`);
+  }
 
   // Nivelleer-PREVIEW-assertions (A1/A3/A4) tegen het teruggegeven LevelingResult.
   if (c.previewExpect) {

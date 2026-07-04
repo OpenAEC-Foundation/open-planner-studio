@@ -114,6 +114,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         color: partial.color,
         constraint: partial.constraint,
         deadline: partial.deadline,
+        calendarId: partial.calendarId,
       };
 
       s.tasks.push(task);

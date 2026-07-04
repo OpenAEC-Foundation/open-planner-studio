@@ -78,6 +78,17 @@ export function CalendarForm({
     onChange({ workDays });
   };
 
+  // Presets (fase 2.8a, §13/out-of-scope — "24/7"-kalender was al gedefinieerd in het ontwerp als
+  // workDays [1..7]-preset, maar had geen knop; alleen handmatig 7 dagen aanvinken). Echte
+  // dag/nacht-PLOEGEN (twee elkaar afwisselende kalenders) blijven fase 2.8b — dit is uitsluitend
+  // de ene-doorlopende-kalender-preset. "Ma-vr" ernaast herstelt symmetrisch de standaard.
+  const applyContinuousPreset = () => {
+    onChange({ workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24 });
+  };
+  const applyWeekdaysPreset = () => {
+    onChange({ workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8 });
+  };
+
   const updateHoliday = (index: number, patch: Partial<Holiday>) => {
     const holidays = draft.holidays.map((h, i) => (i === index ? { ...h, ...patch } : h));
     onChange({ holidays });
@@ -112,9 +123,29 @@ export function CalendarForm({
 
       {/* Work days */}
       <div className="flex flex-col gap-1">
-        <label className="text-text-secondary font-medium">
-          {tMenu('ribbon.calendarDialog.workDays')}
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-text-secondary font-medium">
+            {tMenu('ribbon.calendarDialog.workDays')}
+          </label>
+          {/* Presets (fase 2.8a §13): "Continu (24/7)" zet workDays [1..7] + 0-24u ineens;
+              "Ma-vr" herstelt symmetrisch de standaard ma-vr/07-16. */}
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={applyWeekdaysPreset}
+              className="btn btn--sm btn--secondary"
+            >
+              {tCommon('calendar.preset.weekdays')}
+            </button>
+            <button
+              type="button"
+              onClick={applyContinuousPreset}
+              className="btn btn--sm btn--secondary"
+            >
+              {tCommon('calendar.preset.continuous')}
+            </button>
+          </div>
+        </div>
         <div className="flex gap-1.5">
           {WEEK_DAYS.map(day => {
             const active = draft.workDays.includes(day);
@@ -212,7 +243,11 @@ export function CalendarForm({
               onChange={patch => setGenParams(p => ({ ...p, ...patch }))}
               fromYear={defaultSpan.from}
               toYear={defaultSpan.to}
-              allowNone={false}
+              // "Geen feestdagen" hoort er hier óók bij (fase 2.8a QA, fix 6) — pariteit met de
+              // wizard: leegt de gegenereerde holidays + generation-metadata via
+              // materializeHolidays(country:'none'). "Aangepast…" (extraCountryOptions, alleen de
+              // wizard) is hier bewust NIET toegevoegd: je bewerkt al een bestaande kalender in de
+              // editor zelf, dus een aparte "open de editor"-optie is zinledig in de editor.
             />
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowGenerator(false)} className="btn btn--sm btn--secondary">

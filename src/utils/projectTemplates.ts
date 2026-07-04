@@ -52,7 +52,7 @@ export function templatePhases(key: TemplateKey): string[] {
 export function buildGeneratedCalendar(
   params: HolidayGenParams,
   span: { from: number; to: number },
-  name = 'Bouwkalender',
+  name = 'Bouwkalender NL',
 ): WorkCalendar {
   const { holidays, generation } = materializeHolidays(params, span.from, span.to);
   return {

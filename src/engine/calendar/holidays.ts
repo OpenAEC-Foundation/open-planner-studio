@@ -303,13 +303,32 @@ export const HOLIDAY_SETS: Record<HolidayCountry, HolidaySet> = {
 
 // ── Bouwvak-datatabel (opt-in, default GEEN — harde eis TODO.md r192-194) ─────────────────────
 //
-// LET OP — ADVIESDATUMS, NIET GEVERIFIEERD PER OFFICIËLE BRON IN DEZE OMGEVING.
-// De bouwvak-adviesdatums komen van Bouwend Nederland, gekoppeld aan de OCW-zomerschoolvakantie-
-// regio's (Noord/Midden/Zuid, roulerend). De onderstaande jaren zijn beste-inschatting (3 weken,
-// ma t/m vr) en MOETEN bij gebruik geverifieerd worden bij Bouwend Nederland (UI toont die hint).
-// Verre/ontbrekende jaren vallen terug op `approx`.
+// ADVIESDATUMS (Bouwend Nederland), gekoppeld aan de OCW-zomerschoolvakantie-regio's
+// (Noord/Midden/Zuid). LET OP: de volgorde van de regio's ROTEERT elk jaar — er is GEEN vaste
+// "Noord eerst, dan Midden, dan Zuid"-stagger. Elk jaar hieronder is Mon-Fri, 3 kalenderweken
+// (18 dagen), geverifieerd tegen minstens 2 onafhankelijke bronnen (7-7-2026):
+//   2025: Zuid 21/7-8/8, Midden 28/7-15/8, Noord 4/8-22/8 (volgorde Z-M-N)
+//     bronnen: businessgids.nl/nieuws/bouwvak-2025-data-en-uitleg (alle 3 regio's, zelfconsistent),
+//     hello-office.nl/verlofregistratie/bouwvak-2025-zuid (Zuid), shiftbase.com/nl/woordenboek/bouwvak
+//     (Midden) — meerdere andere sites (vakantiedagennederland.nl, bouwvaknl.nl) verwarren Noord/Midden
+//     onderling; hierboven gekozen op meerderheid + interne consistentie (geen regio-overlap).
+//   2026: Noord 20/7-7/8, Zuid 27/7-14/8, Midden 3/8-21/8 (volgorde N-Z-M)
+//     bronnen: fnv.nl/cao-sector/bouwen-wonen/meer-informatie/bouwvak, vakantie-data.nl/bouwvak-2026
+//     (beide exact gelijk, geen conversie nodig — FNV/Bouwend Nederland is de brondata zelf).
+//   2027: Noord 26/7-13/8, Midden 2/8-20/8, Zuid 9/8-27/8 (volgorde N-M-Z)
+//     bron: vakantie-data.nl/bouwvak/ (kalenderweek-notatie za-zo; -/+2 dagen naar ma-vr geeft
+//     exact deze datums — intern consistent met de 2026-rij van dezelfde bron).
+//   2028: Midden 24/7-11/8, Noord 31/7-18/8, Zuid 7/8-25/8 (volgorde M-N-Z)
+//     bronnen: beaks.nl/bouwvak (ma-vr, met een vaste -2d-afwijking op de startdatum die ook bij
+//     hun 2026/2027-rijen optreedt — einddatum wél exact) en wanneerbouwvak.nl/bouwvak-2028-* (za-zo
+//     kalenderweek-notatie); beide geven na normalisatie dezelfde ma-vr-periodes.
+// Verre/ontbrekende jaren vallen terug op `approx` — die kent de rotatie niet en is dus grof
+// (UI-hint "adviesdatums — controleer" dekt dit al).
 function bouwvakApprox(year: number, weekOffset: number): { start: string; end: string } {
-  // 4e maandag van juli + regio-offset (weken), 3 weken lang (ma t/m vr van week 3).
+  // 4e maandag van juli + regio-offset (weken), 3 weken lang (ma t/m vr van week 3). Simplistisch:
+  // neemt GEEN rotatie mee (die wisselt elk jaar onvoorspelbaar) — alle regio's krijgen dezelfde
+  // vaste ±1-week-stagger rond dezelfde basisperiode, wat voor jaren buiten de tabel hierboven een
+  // grove benadering is, geen matched-aan-de-echte-rotatie voorspelling.
   let d = utc(year, 7, 1);
   while (dow(d) !== 1) d = addDays(d, 1);   // 1e maandag
   d = addDays(d, 21 + weekOffset * 7);      // 4e maandag (+/- regio-offset)
@@ -319,31 +338,30 @@ function bouwvakApprox(year: number, weekOffset: number): { start: string; end: 
 export const NL_BOUWVAK: RegionalBreakTable = {
   id: 'nl-bouwvak',
   byRegion: {
-    // Noord ≈ vroegste, Zuid ≈ laatste in het gangbare patroon; per jaar wisselt de rotatie.
     noord: {
       byYear: {
-        2025: { start: '2025-07-21', end: '2025-08-08' },
+        2025: { start: '2025-08-04', end: '2025-08-22' },
         2026: { start: '2026-07-20', end: '2026-08-07' },
-        2027: { start: '2027-07-19', end: '2027-08-06' },
-        2028: { start: '2028-07-24', end: '2028-08-11' },
+        2027: { start: '2027-07-26', end: '2027-08-13' },
+        2028: { start: '2028-07-31', end: '2028-08-18' },
       },
       approx: (y) => bouwvakApprox(y, 0),
     },
     midden: {
       byYear: {
         2025: { start: '2025-07-28', end: '2025-08-15' },
-        2026: { start: '2026-07-27', end: '2026-08-14' },
-        2027: { start: '2027-07-26', end: '2027-08-13' },
-        2028: { start: '2028-07-31', end: '2028-08-18' },
+        2026: { start: '2026-08-03', end: '2026-08-21' },
+        2027: { start: '2027-08-02', end: '2027-08-20' },
+        2028: { start: '2028-07-24', end: '2028-08-11' },
       },
       approx: (y) => bouwvakApprox(y, 1),
     },
     zuid: {
       byYear: {
-        2025: { start: '2025-07-14', end: '2025-08-01' },
-        2026: { start: '2026-07-13', end: '2026-07-31' },
-        2027: { start: '2027-07-12', end: '2027-07-30' },
-        2028: { start: '2028-07-17', end: '2028-08-04' },
+        2025: { start: '2025-07-21', end: '2025-08-08' },
+        2026: { start: '2026-07-27', end: '2026-08-14' },
+        2027: { start: '2027-08-09', end: '2027-08-27' },
+        2028: { start: '2028-08-07', end: '2028-08-25' },
       },
       approx: (y) => bouwvakApprox(y, -1),
     },

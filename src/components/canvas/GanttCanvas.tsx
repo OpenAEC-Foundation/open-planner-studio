@@ -5,7 +5,7 @@ import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRender
 import { HistogramRenderer, HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
-import { setGanttChartWidth } from '@/utils/ganttViewport';
+import { setGanttChartWidth, setGanttScrollBounds } from '@/utils/ganttViewport';
 import { MiniMap } from './MiniMap';
 import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { createDefaultTaskTime, Task } from '@/types/task';
@@ -423,6 +423,15 @@ export function GanttCanvas() {
     setGanttChartWidth(chartW);
     setPrimaryChartWidth(prev => (Math.abs(prev - chartW) > 1 ? chartW : prev));
 
+    // Fix 2 (fase 2.8a QA): registreer de werkelijke scrolbare grenzen bij elke render, zodat
+    // `setScroll` (viewSlice) nooit voorbij de content kan klemmen — de vorige versie klemde
+    // alleen naar 0, zonder bovengrens, waardoor een verticale overscroll (of horizontaal ná een
+    // extreme zoom-uit/-in-cyclus) de taakbalken-laag permanent buiten beeld kon duwen.
+    setGanttScrollBounds({
+      maxScrollX: Math.max(0, totalContentWidth - rect.width),
+      maxScrollY: Math.max(0, viewRows.length * ROW_HEIGHT - (rect.height - HEADER_HEIGHT)),
+    });
+
     const opts: GanttRenderOptions = {
       rows: viewRows,
       sequences,
@@ -453,7 +462,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth]);
 
   // --- Split view (fase 2.7, §10): secundair tijdvenster met eigen zoom/scrollX; gedeelde
   // rijen + scrollY; geen canvas-taaktabel (taskTableWidth 0) — die tekent alleen links. ---

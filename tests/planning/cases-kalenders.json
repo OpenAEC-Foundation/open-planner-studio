@@ -196,6 +196,19 @@
         "projectEnd": "2026-07-08",
         "error": false
       }
+    },
+    {
+      "id": "kal-undo-orphan-projectdefault",
+      "title": "Undo-orphan (fase 2.8a §9.1, QA-fix 1): nieuwe kalender toevoegen + meteen als projectdefault zetten (CalendarDialog 'Als projectdefault'), dan undo. addCalendar pusht een undo-snapshot, setProjectCalendar bewust niet (§9.3) — ná undo verdween de nieuwe entry uit `calendars` terwijl `project.calendarId` er nog naar wees. syncProjectCalendar moet dat herstellen via promoteProjectCalendarToLibrary (geen wees, geen datumwijziging).",
+      "anchor": "2026-07-06",
+      "tasks": [{ "name": "A", "dur": 3 }],
+      "afterCPM": [
+        { "addCalendarAsDefault": { "name": "Nieuwe kalender" } },
+        { "undo": true }
+      ],
+      "expect": {
+        "calendarInvariant": true
+      }
     }
   ]
 }
