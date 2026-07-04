@@ -11,19 +11,33 @@ import {
   IndentIncrease, IndentDecrease, ChevronUp, ChevronDown,
   Users, UserPlus, BarChart3, Scale, Eraser, AlertTriangle, ChevronLeft, ChevronRight,
   Flag, GitCompareArrows, CalendarClock, LayoutGrid, TrendingUp, CalendarDays, X,
+  Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Map as MapIcon,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { isTreeMode } from '@/engine/view/visibleRows';
-import { saveRibbonCompact, saveShowHistogram, saveShowBaselineOverlay, saveShowProgressLine, saveShowStatusDateLine } from '@/utils/settingsStore';
+import {
+  saveRibbonCompact, saveShowHistogram, saveShowBaselineOverlay, saveShowProgressLine,
+  saveShowStatusDateLine, saveShowMiniMap, loadLayouts, saveLayouts, loadLastLayoutId, saveLastLayoutId,
+} from '@/utils/settingsStore';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
-import { RibbonTab } from '@/state/slices/types';
+import { RibbonTab, type FieldRef, type GroupLevel, type SortLevel, type Layout } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/panels/TaskPropertiesPanel';
 import { UnitsInput } from '@/components/common/UnitsInput';
+import { groupFieldList, fullFieldList, fieldLabel } from '@/components/viewControls/fieldCatalog';
+import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
+import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import './Ribbon.css';
+
+function encodeFieldRef(f: FieldRef): string {
+  return JSON.stringify(f);
+}
+function decodeFieldRef(s: string): FieldRef {
+  return JSON.parse(s) as FieldRef;
+}
 
 function RibbonDropdown<T extends string>({ value, options, onChange }: {
   value: T;
@@ -715,6 +729,325 @@ function ResourceAssignDropdown() {
   );
 }
 
+/**
+ * Groeperen-popover (fase 2.7, §7.4): tot 2 rijen {veld ▾, richting}. Vervangt de tijdelijke
+ * één-niveau-groupdropdown uit golf 2. Live via `setGroup` (geen apart "toepassen").
+ */
+function GroupPopoverButton() {
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
+  const group = useAppStore(s => s.view.group);
+  const setGroup = useAppStore(s => s.setGroup);
+  const ctx = useFieldCatalogCtx();
+  const fields = groupFieldList(ctx);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const setLevel = (i: number, changes: Partial<GroupLevel>) => {
+    setGroup(group.map((g, gi) => (gi === i ? { ...g, ...changes } : g)));
+  };
+  const addLevel = () => {
+    if (group.length >= 2 || fields.length === 0) return;
+    setGroup([...group, { field: fields[0], dir: 'asc' }]);
+  };
+  const removeLevel = (i: number) => setGroup(group.filter((_, gi) => gi !== i));
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className={`ribbon-btn small${group.length > 0 ? ' active' : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="ribbon-btn-icon"><Layers size={14} /></span>
+        <span className="ribbon-btn-label">{tMenu('ribbon.group')}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 2, zIndex: 9999, minWidth: 260,
+          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: 8,
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.group.title')}</span>
+          {group.length === 0 && (
+            <span className="ribbon-info">{tCommon('view.group.noLevels')}</span>
+          )}
+          {group.map((lvl, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <select
+                value={encodeFieldRef(lvl.field)}
+                onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
+                className="input !text-[11px] !px-1.5 !py-1 flex-1"
+                aria-label={tCommon('view.filter.field')}
+              >
+                {fields.map(f => (
+                  <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{fieldLabel(f, ctx)}</option>
+                ))}
+              </select>
+              <select
+                value={lvl.dir}
+                onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
+                className="input !text-[11px] !px-1.5 !py-1"
+                aria-label={tCommon('view.group.direction')}
+              >
+                <option value="asc">{tCommon('view.sort.ascending')}</option>
+                <option value="desc">{tCommon('view.sort.descending')}</option>
+              </select>
+              <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+          {group.length < 2 && (
+            <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
+              {tCommon('view.group.addLevel')}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Sorteren-popover (fase 2.7, §7.4): herhaalbare rijen {veld ▾, richting}, "+ niveau" onbeperkt.
+ * Live via `setSort`.
+ */
+function SortPopoverButton() {
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
+  const sort = useAppStore(s => s.view.sort);
+  const setSort = useAppStore(s => s.setSort);
+  const ctx = useFieldCatalogCtx();
+  const fields = fullFieldList(ctx);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const setLevel = (i: number, changes: Partial<SortLevel>) => {
+    setSort(sort.map((lvl, li) => (li === i ? { ...lvl, ...changes } : lvl)));
+  };
+  const addLevel = () => {
+    if (fields.length === 0) return;
+    setSort([...sort, { field: fields[0], dir: 'asc' }]);
+  };
+  const removeLevel = (i: number) => setSort(sort.filter((_, li) => li !== i));
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className={`ribbon-btn small${sort.length > 0 ? ' active' : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="ribbon-btn-icon"><ArrowUpDown size={14} /></span>
+        <span className="ribbon-btn-label">{tMenu('ribbon.sort')}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 2, zIndex: 9999, minWidth: 260,
+          maxHeight: 320, overflowY: 'auto',
+          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: 8,
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.sort.title')}</span>
+          {sort.length === 0 && (
+            <span className="ribbon-info">{tCommon('view.sort.noLevels')}</span>
+          )}
+          {sort.map((lvl, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <select
+                value={encodeFieldRef(lvl.field)}
+                onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
+                className="input !text-[11px] !px-1.5 !py-1 flex-1"
+                aria-label={tCommon('view.filter.field')}
+              >
+                {fields.map(f => (
+                  <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{fieldLabel(f, ctx)}</option>
+                ))}
+              </select>
+              <select
+                value={lvl.dir}
+                onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
+                className="input !text-[11px] !px-1.5 !py-1"
+                aria-label={tCommon('view.group.direction')}
+              >
+                <option value="asc">{tCommon('view.sort.ascending')}</option>
+                <option value="desc">{tCommon('view.sort.descending')}</option>
+              </select>
+              <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+          <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
+            {tCommon('view.sort.addLevel')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Layout-groep (fase 2.7, §8/§13): actieve-layout-dropdown (kies + toepassen) + Opslaan als…/
+ * Bijwerken/Beheren…. Opslag app-globaal via `settingsStore` (§8.2); `ops-lastLayoutId` alleen als
+ * dropdown-voorselectie (BIJ opstart/documentwissel NIET automatisch toegepast, §8.3).
+ */
+function LayoutGroupContent() {
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
+  const setUI = useAppStore(s => s.setUI);
+  const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
+  const applyLayout = useAppStore(s => s.applyLayout);
+  const view = useAppStore(s => s.view);
+  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
+  const customFieldDefs = useAppStore(s => s.customFieldDefs);
+
+  const [layouts, setLayouts] = useState<Layout[]>([]);
+  const [selectedId, setSelectedId] = useState<string>('');
+
+  const reload = useCallback(() => {
+    void loadLayouts().then(setLayouts);
+  }, []);
+
+  useEffect(() => {
+    reload();
+    void loadLastLayoutId().then(id => { if (id) setSelectedId(id); });
+  }, [reload]);
+
+  // Ná het sluiten van de layouts-dialoog (mogelijke CRUD) de lijst verversen.
+  const prevOpenRef = useRef(showLayoutsDialog);
+  useEffect(() => {
+    if (prevOpenRef.current && !showLayoutsDialog) reload();
+    prevOpenRef.current = showLayoutsDialog;
+  }, [showLayoutsDialog, reload]);
+
+  const activeLayout = layouts.find(l => l.id === selectedId);
+
+  const pick = (id: string) => {
+    setSelectedId(id);
+    const layout = layouts.find(l => l.id === id);
+    if (layout) {
+      applyLayout(layout);
+      void saveLastLayoutId(id);
+    }
+  };
+
+  const update = () => {
+    if (!activeLayout) return;
+    const next = layouts.map(l => (l.id === activeLayout.id
+      ? snapshotLayout(view, activityCodeTypes, customFieldDefs, l.name, l.id)
+      : l));
+    setLayouts(next);
+    void saveLayouts(next);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px', minWidth: 150 }}>
+      <select
+        value={selectedId}
+        onChange={e => pick(e.target.value)}
+        className="input !text-[11px] !px-1.5 !py-1"
+        aria-label={tCommon('view.layout.activeLayout')}
+      >
+        <option value="">{tCommon('view.layout.none')}</option>
+        {layouts.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+      </select>
+      <div style={{ display: 'flex', gap: 2 }}>
+        <button
+          className="ribbon-btn small"
+          style={{ minWidth: 0, flex: 1 }}
+          onClick={() => setUI({ showLayoutsDialog: true })}
+          title={tMenu('ribbon.saveLayoutAs')}
+        >
+          <span className="ribbon-btn-label">{tMenu('ribbon.saveLayoutAs')}</span>
+        </button>
+        <button
+          className="ribbon-btn small"
+          style={{ minWidth: 0, flex: 1 }}
+          onClick={update}
+          disabled={!activeLayout}
+          title={tMenu('ribbon.updateLayout')}
+        >
+          <span className="ribbon-btn-label">{tMenu('ribbon.updateLayout')}</span>
+        </button>
+        <button
+          className="ribbon-btn small"
+          style={{ minWidth: 0, flex: 1 }}
+          onClick={() => setUI({ showLayoutsDialog: true })}
+          title={tMenu('ribbon.manageLayouts')}
+        >
+          <span className="ribbon-btn-label">{tMenu('ribbon.manageLayouts')}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Presentatie-groep (fase 2.7, §9/§10/§11): presentation-toggle (F11), split view, mini-map. */
+function PresentationGroupContent() {
+  const { t: tMenu } = useTranslation('menu');
+  const presentationMode = useAppStore(s => s.ui.presentationMode);
+  const setPresentationMode = useAppStore(s => s.setPresentationMode);
+  const splitView = useAppStore(s => s.view.splitView);
+  const setSplitView = useAppStore(s => s.setSplitView);
+  const showMiniMap = useAppStore(s => s.ui.showMiniMap);
+  const setUI = useAppStore(s => s.setUI);
+  const zoom = useAppStore(s => s.view.zoom);
+  const scrollX = useAppStore(s => s.view.scrollX);
+
+  const toggleSplitView = () => {
+    if (splitView) setSplitView(undefined);
+    else setSplitView({ ratio: 0.5, secondaryZoom: zoom, secondaryScrollX: scrollX });
+  };
+  const toggleMiniMap = () => {
+    const next = !showMiniMap;
+    setUI({ showMiniMap: next });
+    void saveShowMiniMap(next);
+  };
+
+  return (
+    <>
+      <RibbonButton
+        icon={presentationMode ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+        label={tMenu('ribbon.presentationMode')}
+        onClick={() => setPresentationMode(!presentationMode)}
+        active={presentationMode}
+      />
+      <RibbonButton
+        icon={<SplitSquareHorizontal size={20} />}
+        label={tMenu('ribbon.splitView')}
+        onClick={toggleSplitView}
+        active={!!splitView}
+      />
+      <RibbonButton
+        icon={<MapIcon size={20} />}
+        label={tMenu('ribbon.miniMap')}
+        onClick={toggleMiniMap}
+        active={showMiniMap}
+      />
+    </>
+  );
+}
+
 export function Ribbon() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tTask } = useTranslation('task');
@@ -731,10 +1064,7 @@ export function Ribbon() {
   const showDependencyMode = useAppStore(s => s.ui.showDependencyMode);
   const traceMode = useAppStore(s => s.ui.traceMode);
   const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
-  const group = useAppStore(s => s.view.group);
-  const setGroup = useAppStore(s => s.setGroup);
   const view = useAppStore(s => s.view);
-  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const setWbsAutoNumber = useAppStore(s => s.setWbsAutoNumber);
   const renumberWbs = useAppStore(s => s.renumberWbs);
   const indentTasks = useAppStore(s => s.indentTasks);
@@ -1071,50 +1401,59 @@ export function Ribbon() {
 
         {activeTab === 'beeld' && (
           <>
-            <RibbonGroup label={tMenu('ribbon.zoom')}>
-              <RibbonButtonStack>
-                <RibbonSmallButton icon={<ZoomIn size={14} />} label={tMenu('ribbon.zoomIn')} onClick={() => setZoom(zoom + 10)} />
-                <RibbonSmallButton icon={<ZoomOut size={14} />} label={tMenu('ribbon.zoomOut')} onClick={() => setZoom(zoom - 5)} />
-                <RibbonSmallButton icon={<Eye size={14} />} label={tMenu('ribbon.zoomReset')} onClick={() => setZoom(30)} />
-              </RibbonButtonStack>
-            </RibbonGroup>
-
-            <div className="ribbon-separator" />
-
-            {/* Tijdschaal (fase 2.7, §3.5): keuze mapt naar een zoom-preset; de getoonde waarde
-                wordt AFGELEID uit zoom via scaleFromZoom — kan dus nooit desyncen van de as. */}
+            {/* [Tijdschaal] (§13): zoom +/-/reset + schaal-dropdown. De keuze mapt naar een
+                zoom-preset; de getoonde waarde wordt AFGELEID uit zoom via scaleFromZoom (§3.5) —
+                kan dus nooit desyncen van de as. */}
             <RibbonGroup label={tMenu('ribbon.timeScale')}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
-                <RibbonDropdown
-                  value={scaleFromZoom(zoom)}
-                  options={[
-                    { value: 'year', label: tMenu('ribbon.year') },
-                    { value: 'quarter', label: tMenu('ribbon.quarter') },
-                    { value: 'month', label: tMenu('ribbon.month') },
-                    { value: 'week', label: tMenu('ribbon.week') },
-                    { value: 'day', label: tMenu('ribbon.day') },
-                  ]}
-                  onChange={v => setTimeScale(v)}
-                />
-                <span className="ribbon-info">{tMenu('ribbon.zoomLevel', { level: Math.round(zoom) })}</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <RibbonButtonStack>
+                  <RibbonSmallButton icon={<ZoomIn size={14} />} label={tMenu('ribbon.zoomIn')} onClick={() => setZoom(zoom + 10)} />
+                  <RibbonSmallButton icon={<ZoomOut size={14} />} label={tMenu('ribbon.zoomOut')} onClick={() => setZoom(zoom - 5)} />
+                  <RibbonSmallButton icon={<Eye size={14} />} label={tMenu('ribbon.zoomReset')} onClick={() => setZoom(30)} />
+                </RibbonButtonStack>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
+                  <RibbonDropdown
+                    value={scaleFromZoom(zoom)}
+                    options={[
+                      { value: 'year', label: tMenu('ribbon.year') },
+                      { value: 'quarter', label: tMenu('ribbon.quarter') },
+                      { value: 'month', label: tMenu('ribbon.month') },
+                      { value: 'week', label: tMenu('ribbon.week') },
+                      { value: 'day', label: tMenu('ribbon.day') },
+                    ]}
+                    onChange={v => setTimeScale(v)}
+                  />
+                  <span className="ribbon-info">{tMenu('ribbon.zoomLevel', { level: Math.round(zoom) })}</span>
+                </div>
               </div>
             </RibbonGroup>
 
             <div className="ribbon-separator" />
 
-            {/* Groeperen op activity-code-type — tijdelijk één niveau via setGroup (§7.5);
-                de volwaardige groepeer-popover (max 2 niveaus) is golf 3. */}
-            <RibbonGroup label={tMenu('ribbon.groupBy')}>
-              <div style={{ display: 'flex', alignItems: 'center', padding: '2px 4px' }}>
-                <RibbonDropdown
-                  value={group.length === 1 && group[0].field.src === 'activityCode' ? group[0].field.typeId : '__wbs'}
-                  options={[
-                    { value: '__wbs', label: tMenu('ribbon.groupByWbs') },
-                    ...activityCodeTypes.map(t2 => ({ value: t2.id, label: t2.name })),
-                  ]}
-                  onChange={v => setGroup(v === '__wbs' ? [] : [{ field: { src: 'activityCode', typeId: v }, dir: 'asc' }])}
-                />
+            {/* [Weergave] (§13/§5.5/§6/§7.4): kolommen-dialoog, filter-editor, groepeer-/
+                sorteer-popovers. Narrow "small"-knoppen (i.p.v. grote 66px-tegels) zodat de groep
+                smal blijft en in compacte modus niet overlapt (zelfde valkuil als de 2.6-fix). */}
+            <RibbonGroup label={tMenu('ribbon.display')}>
+              <div style={{ display: 'flex', gap: 2 }}>
+                <RibbonSmallButton icon={<Columns3 size={14} />} label={tMenu('ribbon.columns')} onClick={() => setUI({ showColumnsDialog: true })} />
+                <RibbonSmallButton icon={<Filter size={14} />} label={tMenu('ribbon.filter')} onClick={() => setUI({ showFilterDialog: true })} active={view.filter !== null} />
+                <GroupPopoverButton />
+                <SortPopoverButton />
               </div>
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            {/* [Layout] (§13/§8): actieve-layout-dropdown + opslaan als/bijwerken/beheren. */}
+            <RibbonGroup label={tMenu('ribbon.layout')}>
+              <LayoutGroupContent />
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            {/* [Presentatie] (§13/§9/§10/§11): presentation-toggle (F11), split view, mini-map. */}
+            <RibbonGroup label={tMenu('ribbon.presentationMode')}>
+              <PresentationGroupContent />
             </RibbonGroup>
 
             <div className="ribbon-separator" />
@@ -1130,7 +1469,8 @@ export function Ribbon() {
 
             <div className="ribbon-separator" />
 
-            {/* Baseline-/voortgang-overlays (fase 2.6, §11.1) */}
+            {/* [Overlays] — baseline-/voortgang-overlays (fase 2.6, §11.1). Gereserveerde plek
+                (B14, §1/§13): 2.6 plugt hier zijn document-toggles in, buiten het Layout-object. */}
             <RibbonGroup label={tMenu('ribbon.baselines')}>
               <RibbonButton icon={<LayoutGrid size={20} />} label={tMenu('ribbon.toggleBaselineOverlay')} onClick={toggleBaselineOverlay} active={showBaselineOverlay} />
               <RibbonButton icon={<TrendingUp size={20} />} label={tMenu('ribbon.toggleProgressLine')} onClick={toggleProgressLine} active={showProgressLine} />

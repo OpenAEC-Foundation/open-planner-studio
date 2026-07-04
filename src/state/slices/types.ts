@@ -192,6 +192,10 @@ export interface UIState {
   showStatusDateLine: boolean;              // persisted — statusdatumlijn in de Gantt (fase 2.6)
   presentationMode: boolean;                // session — presentatie-modus (fase 2.7, §9); niet gepersisteerd
   showMiniMap: boolean;                     // persisted — mini-map naast/onder de Gantt (fase 2.7, §11)
+  // --- Fase 2.7 golf 3: dialogen (§5.5/§6/§13.1/§8) ---
+  showColumnsDialog: boolean;                // session — kolommen-dialoog open
+  showFilterDialog: boolean;                 // session — filter-editor open
+  showLayoutsDialog: boolean;                // session — layouts-beheer/opslaan-als-dialoog open
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

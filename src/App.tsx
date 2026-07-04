@@ -47,6 +47,10 @@ import { UpdateDialog } from '@/components/dialogs/UpdateDialog';
 import { FeedbackDialog } from '@/components/dialogs/FeedbackDialog';
 import { LevelingDialog } from '@/components/dialogs/LevelingDialog';
 import { BaselineDialog } from '@/components/dialogs/BaselineDialog';
+import { ColumnsDialog } from '@/components/dialogs/ColumnsDialog';
+import { FilterDialog } from '@/components/dialogs/FilterDialog';
+import { LayoutsDialog } from '@/components/dialogs/LayoutsDialog';
+import { PresentationHint } from '@/components/layout/PresentationHint';
 import { RecoveryDialog, type RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
 import { documentTitle } from '@/utils/documents';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
@@ -77,6 +81,10 @@ function AppContent() {
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
+  const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
+  const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
+  const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
+  const presentationMode = useAppStore(s => s.ui.presentationMode);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
   const isDirty = useAppStore(s => s.isDirty);
@@ -155,6 +163,19 @@ function AppContent() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', uiTheme);
   }, [uiTheme]);
+
+  // Presentation mode (fase 2.7, §9.3): de fullscreenchange-listener zet de ui-flag terug op false
+  // als de gebruiker fullscreen verlaat buiten onze eigen knop/F11/Escape om (bv. OS-toets, browser-
+  // chrome), zodat de flag nooit desynct van de werkelijke fullscreen-status.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement && useAppStore.getState().ui.presentationMode) {
+        setUI({ presentationMode: false });
+      }
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, [setUI]);
 
   useEffect(() => {
     const dirtyMark = isDirty ? '* ' : '';
@@ -388,6 +409,20 @@ function AppContent() {
   // Determine if we should show the gantt canvas or a full-panel view
   const isFullPanel = showResourcePanel || activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
 
+  // Presentation mode (fase 2.7, §9.2): één wrapper-conditie i.p.v. losse `&& !presentationMode`-
+  // guards door de hele boom — alle chrome (TitleBar/Ribbon/tabbar/brand-strip/rechterpaneel/
+  // StatusBar/Backstage) valt weg; alleen de Gantt-kaart full-bleed (+ mini-map, indien aan) blijft.
+  if (presentationMode) {
+    return (
+      <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
+        <div className="flex-1 flex overflow-hidden">
+          <GanttCanvas />
+        </div>
+        <PresentationHint />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
       {/* Custom Title Bar */}
@@ -500,6 +535,9 @@ function AppContent() {
       {showFeedbackDialog && <FeedbackDialog />}
       {showLevelingDialog && <LevelingDialog />}
       {showBaselineDialog && <BaselineDialog />}
+      {showColumnsDialog && <ColumnsDialog />}
+      {showFilterDialog && <FilterDialog />}
+      {showLayoutsDialog && <LayoutsDialog />}
       <UpdateDialog />
       {recovery && (
         <RecoveryDialog

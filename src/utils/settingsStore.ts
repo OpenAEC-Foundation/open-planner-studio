@@ -6,6 +6,7 @@ import type {
   ModifierMap,
   WheelFunction,
   DocumentChromeStyle,
+  Layout,
 } from '@/state/slices/types';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
@@ -211,4 +212,41 @@ export async function loadDocumentChromeStyle(): Promise<DocumentChromeStyle | u
 
 export async function saveDocumentChromeStyle(value: DocumentChromeStyle): Promise<void> {
   await setSetting('documentChromeStyle', value);
+}
+
+// Layouts (fase 2.7, §8.2): app-globaal in localStorage, géén Tauri-store. Parse-guard: corrupte JSON
+// of een item zonder de juiste shape → weggelaten (nooit een crash op een handmatig geprutste
+// localStorage-waarde). `ops-lastLayoutId` moet naar een BESTAANDE layout wijzen, anders `null` —
+// die check gebeurt hier niet (de aanroeper kent de actuele lijst pas na `loadLayouts()`).
+function isValidLayout(v: unknown): v is Layout {
+  if (!v || typeof v !== 'object') return false;
+  const l = v as Record<string, unknown>;
+  return (
+    typeof l.id === 'string' &&
+    typeof l.name === 'string' &&
+    Array.isArray(l.columns) &&
+    Array.isArray(l.group) &&
+    Array.isArray(l.sort) &&
+    (l.filter === null || typeof l.filter === 'object') &&
+    typeof l.timeScale === 'string'
+  );
+}
+
+export async function loadLayouts(): Promise<Layout[]> {
+  const raw = await getSetting<unknown>('layouts');
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isValidLayout);
+}
+
+export async function saveLayouts(layouts: Layout[]): Promise<void> {
+  await setSetting('layouts', layouts);
+}
+
+export async function loadLastLayoutId(): Promise<string | null> {
+  const v = await getSetting<string>('lastLayoutId');
+  return typeof v === 'string' && v ? v : null;
+}
+
+export async function saveLastLayoutId(id: string | null): Promise<void> {
+  await setSetting('lastLayoutId', id);
 }

@@ -50,6 +50,7 @@ export function useKeyboardShortcuts() {
   const switchDocument = useAppStore(s => s.switchDocument);
   const indentTasks = useAppStore(s => s.indentTasks);
   const outdentTasks = useAppStore(s => s.outdentTasks);
+  const setPresentationMode = useAppStore(s => s.setPresentationMode);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -74,17 +75,35 @@ export function useKeyboardShortcuts() {
       // Ctrl+S (opslaan) conflicteren echter niet met tekstinvoer en moeten juist wél
       // werken terwijl de gebruiker in een veld staat (bv. net een actual-start ingevuld).
       // Ze staan hier expliciet op de whitelist, vóór de generieke "return" hieronder.
+      // Fase 2.7, §9.3: F11 (presentatie aan/uit) en Escape-uit-presentatie volgen hetzelfde
+      // patroon — moeten ook werken vanuit een invoerveld (presentatie verbergt sowieso alle
+      // chrome, dus een gefocust veld is zeldzaam, maar de whitelist blijft consistent).
       const isRecalculateShortcut = e.key === 'F5';
       const isSaveShortcut = ctrl && !e.shiftKey && e.key.toLowerCase() === 's';
+      const isPresentationToggle = e.key === 'F11';
+      const isPresentationExit = e.key === 'Escape' && useAppStore.getState().ui.presentationMode;
 
-      if (isTypingTarget && (isRecalculateShortcut || isSaveShortcut)) {
+      if (isTypingTarget && (isRecalculateShortcut || isSaveShortcut || isPresentationToggle || isPresentationExit)) {
         // Forceer een eventuele hangende onBlur-commit vóórdat we herberekenen/opslaan
         // (de meeste velden committen al per toetsaanslag via onChange, maar dit is een
         // goedkope, veilige garantie voor velden die pas op blur committen).
         target.blur();
         e.preventDefault();
         if (isRecalculateShortcut) runCPM();
-        else saveFile();
+        else if (isSaveShortcut) saveFile();
+        else if (isPresentationExit) setPresentationMode(false);
+        else setPresentationMode(!useAppStore.getState().ui.presentationMode);
+        return;
+      }
+
+      if (isPresentationToggle) {
+        e.preventDefault();
+        setPresentationMode(!useAppStore.getState().ui.presentationMode);
+        return;
+      }
+      if (isPresentationExit) {
+        e.preventDefault();
+        setPresentationMode(false);
         return;
       }
 
@@ -170,5 +189,5 @@ export function useKeyboardShortcuts() {
       window.removeEventListener('keydown', handler);
       window.removeEventListener('contextmenu', contextHandler);
     };
-  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, documents, switchDocument, indentTasks, outdentTasks]);
+  }, [undo, redo, runCPM, deleteTask, selectedTaskIds, copyTasks, pasteTasks, deselectAll, setUI, setZoom, zoom, saveFile, saveFileAs, openFile, documents, switchDocument, indentTasks, outdentTasks, setPresentationMode]);
 }

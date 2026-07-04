@@ -7,7 +7,7 @@ import {
 } from '@/engine/view/visibleRows';
 import type {
   ViewState, TimeScale, AppSlice, ColumnConfig, FilterNode, GroupLevel, SortLevel,
-  SplitViewState,
+  SplitViewState, Layout,
 } from './types';
 
 export interface ViewSlice {
@@ -32,6 +32,10 @@ export interface ViewSlice {
   setCollapsedGroupKey: (key: string, collapsed: boolean) => void;
   /** Herbereken de `viewRows`-cache (resourceLoadResult-patroon: "manual, not reactive", §4.3). */
   recomputeViewRows: () => void;
+  /** Layouts toepassen (§8.3): schrijft columns/group/sort/filter + de tijdschaal-zoom naar de
+   *  huidige view en herberekent viewRows. Onbekende refs zijn stille tolerantie (§8.4) — die zit al
+   *  in de evaluatie/render, niet hier. */
+  applyLayout: (layout: Layout) => void;
 }
 
 export function createDefaultView(): ViewState {
@@ -158,6 +162,17 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
       ctx,
     );
     set((st) => { st.viewRows = rows; });
+  },
+
+  applyLayout: (layout) => {
+    set((s) => {
+      s.view.columns = layout.columns;
+      s.view.group = layout.group;
+      s.view.sort = layout.sort;
+      s.view.filter = layout.filter;
+    });
+    get().setTimeScale(layout.timeScale);
+    get().recomputeViewRows();
   },
 });
 

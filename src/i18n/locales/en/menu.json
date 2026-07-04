@@ -144,7 +144,18 @@
     "toggleProgressLine": "Progress line",
     "toggleStatusDateLine": "Status date line",
     "year": "Year",
-    "quarter": "Quarter"
+    "quarter": "Quarter",
+    "columns": "Columns…",
+    "filter": "Filter…",
+    "group": "Group…",
+    "sort": "Sort…",
+    "layout": "Layout",
+    "saveLayoutAs": "Save as…",
+    "updateLayout": "Update",
+    "manageLayouts": "Manage…",
+    "presentationMode": "Presentation",
+    "splitView": "Split view",
+    "miniMap": "Mini-map"
   },
   "ifc": {
     "title": "IFC Editor",

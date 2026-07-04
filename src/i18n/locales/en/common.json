@@ -281,6 +281,75 @@
     }
   },
   "view": {
-    "structureLockedHint": "Not available while filtering/grouping/sorting"
+    "structureLockedHint": "Not available while filtering/grouping/sorting",
+    "columns": {
+      "title": "Columns",
+      "visible": "Visible",
+      "width": "Width",
+      "resetDefault": "Reset to default"
+    },
+    "filter": {
+      "title": "Filter",
+      "addRule": "+ rule",
+      "addGroup": "+ group",
+      "all": "All of the following (AND)",
+      "any": "Any of the following (OR)",
+      "clear": "Clear",
+      "noRules": "No rules yet — this filter matches everything.",
+      "value": "Value",
+      "valueFrom": "From",
+      "valueTo": "To",
+      "field": "Field",
+      "operator": "Operator",
+      "op": {
+        "eq": "equals",
+        "neq": "not equals",
+        "lt": "less than",
+        "lte": "less than or equal",
+        "gt": "greater than",
+        "gte": "greater than or equal",
+        "contains": "contains",
+        "startsWith": "starts with",
+        "between": "between",
+        "isEmpty": "is empty",
+        "in": "is one of"
+      }
+    },
+    "group": {
+      "title": "Group",
+      "addLevel": "+ level",
+      "level": "Level {{n}}",
+      "direction": "Direction",
+      "noLevels": "No grouping — WBS tree",
+      "maxLevels": "Maximum of 2 grouping levels"
+    },
+    "sort": {
+      "title": "Sort",
+      "addLevel": "+ level",
+      "ascending": "Ascending",
+      "descending": "Descending",
+      "noLevels": "No sorting — tree/band order"
+    },
+    "layout": {
+      "saveTitle": "Save layout as…",
+      "manageTitle": "Manage layouts",
+      "name": "Name",
+      "rename": "Rename",
+      "delete": "Delete",
+      "apply": "Apply",
+      "update": "Update",
+      "applyConfirm": "Apply layout \"{{name}}\"? This replaces the current columns/grouping/sorting/filter/scale.",
+      "missingRefs": "Some fields don't exist in this document and will be skipped.",
+      "noLayouts": "No saved layouts yet.",
+      "activeLayout": "Layout",
+      "none": "(none)"
+    },
+    "presentation": {
+      "hint": "Press F11 to exit presentation mode"
+    },
+    "splitView": {
+      "primary": "Primary",
+      "secondary": "Secondary"
+    }
   }
 }

@@ -4,6 +4,8 @@ export interface UiSlice {
   ui: UIState;
   setUI: (updates: Partial<UIState>) => void;
   toggleCollapse: (taskId: string) => void;
+  /** Presentatie-modus (§9): zet de flag + roept de echte Fullscreen-API aan. */
+  setPresentationMode: (on: boolean) => void;
 }
 
 export function createDefaultUI(): UIState {
@@ -51,6 +53,9 @@ export function createDefaultUI(): UIState {
     showStatusDateLine: true,
     presentationMode: false,
     showMiniMap: false,
+    showColumnsDialog: false,
+    showFilterDialog: false,
+    showLayoutsDialog: false,
   };
 }
 
@@ -67,6 +72,19 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
       if (s.view.zoom > max) s.view.zoom = max;
     }),
+
+  // Presentation mode (fase 2.7, §9): ui-flag + echte Fullscreen-API. De fullscreenchange-listener
+  // (App.tsx) zet de flag terug op false als de gebruiker fullscreen verlaat buiten onze knop/F11 om
+  // (bv. OS-toets), zodat flag en werkelijkheid nooit desyncen.
+  setPresentationMode: (on) => {
+    set((s) => { s.ui.presentationMode = on; });
+    if (typeof document === 'undefined') return;
+    if (on) {
+      document.documentElement.requestFullscreen?.().catch(() => { /* geweigerd/geen user-gesture — flag blijft, alleen chrome verbergt */ });
+    } else if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => { /* niet fataal */ });
+    }
+  },
 
   toggleCollapse: (taskId) => {
     set((s) => {

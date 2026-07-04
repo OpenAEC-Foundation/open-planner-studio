@@ -281,6 +281,75 @@
     }
   },
   "view": {
-    "structureLockedHint": "Niet beschikbaar tijdens filteren/groeperen/sorteren"
+    "structureLockedHint": "Niet beschikbaar tijdens filteren/groeperen/sorteren",
+    "columns": {
+      "title": "Kolommen",
+      "visible": "Zichtbaar",
+      "width": "Breedte",
+      "resetDefault": "Herstel standaard"
+    },
+    "filter": {
+      "title": "Filteren",
+      "addRule": "+ regel",
+      "addGroup": "+ groep",
+      "all": "Alles hieronder (AND)",
+      "any": "Iets hieronder (OR)",
+      "clear": "Wissen",
+      "noRules": "Nog geen regels — dit filter toont alles.",
+      "value": "Waarde",
+      "valueFrom": "Van",
+      "valueTo": "Tot",
+      "field": "Veld",
+      "operator": "Operator",
+      "op": {
+        "eq": "is gelijk aan",
+        "neq": "is ongelijk aan",
+        "lt": "kleiner dan",
+        "lte": "kleiner of gelijk aan",
+        "gt": "groter dan",
+        "gte": "groter of gelijk aan",
+        "contains": "bevat",
+        "startsWith": "begint met",
+        "between": "tussen",
+        "isEmpty": "is leeg",
+        "in": "is een van"
+      }
+    },
+    "group": {
+      "title": "Groeperen",
+      "addLevel": "+ niveau",
+      "level": "Niveau {{n}}",
+      "direction": "Richting",
+      "noLevels": "Geen groepering — WBS-boom",
+      "maxLevels": "Maximaal 2 groepeerniveaus"
+    },
+    "sort": {
+      "title": "Sorteren",
+      "addLevel": "+ niveau toevoegen",
+      "ascending": "Oplopend",
+      "descending": "Aflopend",
+      "noLevels": "Geen sortering — boom-/bandvolgorde"
+    },
+    "layout": {
+      "saveTitle": "Opslaan als layout…",
+      "manageTitle": "Layouts beheren",
+      "name": "Naam",
+      "rename": "Hernoemen",
+      "delete": "Verwijderen",
+      "apply": "Toepassen",
+      "update": "Bijwerken",
+      "applyConfirm": "Layout \"{{name}}\" toepassen? Dit vervangt de huidige kolommen/groepering/sortering/filter/schaal.",
+      "missingRefs": "Sommige velden bestaan niet in dit document en worden overgeslagen.",
+      "noLayouts": "Nog geen opgeslagen layouts.",
+      "activeLayout": "Layout",
+      "none": "(geen)"
+    },
+    "presentation": {
+      "hint": "Druk op F11 om de presentatiemodus te sluiten"
+    },
+    "splitView": {
+      "primary": "Primair",
+      "secondary": "Secundair"
+    }
   }
 }

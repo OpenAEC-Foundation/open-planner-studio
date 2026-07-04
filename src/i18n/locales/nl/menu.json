@@ -144,7 +144,18 @@
     "toggleProgressLine": "Voortgangslijn",
     "toggleStatusDateLine": "Statusdatumlijn",
     "year": "Jaar",
-    "quarter": "Kwartaal"
+    "quarter": "Kwartaal",
+    "columns": "Kolommen…",
+    "filter": "Filteren…",
+    "group": "Groeperen…",
+    "sort": "Sorteren…",
+    "layout": "Layout",
+    "saveLayoutAs": "Opslaan als…",
+    "updateLayout": "Bijwerken",
+    "manageLayouts": "Beheren…",
+    "presentationMode": "Presentatie",
+    "splitView": "Split view",
+    "miniMap": "Mini-map"
   },
   "ifc": {
     "title": "IFC-editor",
