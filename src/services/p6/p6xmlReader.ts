@@ -5,6 +5,7 @@ import { Project } from '@/types/project';
 import { WorkCalendar, createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { normalizeImportedProgress } from '@/services/importNormalize';
 
 // Omgekeerde curve-/contour-naammapping (spiegel van p6xmlWriter's P6_CURVE_TO_NAME, §8.3).
 const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
@@ -259,6 +260,14 @@ export function readP6XML(content: string): {
     const description = getElementText(actEl, 'Description');
     const wbsObjId = getElementInt(actEl, 'WBSObjectId', -1);
 
+    // Actuals (fase 2.6, §9.2) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
+    const actualStartRaw = getElementText(actEl, 'ActualStartDate');
+    const actualFinishRaw = getElementText(actEl, 'ActualFinishDate');
+    const remainingRaw = getElementText(actEl, 'RemainingDuration');
+    const actualStart = actualStartRaw ? parseP6Date(actualStartRaw) : undefined;
+    const actualFinish = actualFinishRaw ? parseP6Date(actualFinishRaw) : undefined;
+    const remainingTime = remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), hoursPerDay) : undefined;
+
     const durationDays = p6HoursToDays(plannedDuration, hoursPerDay);
     const isMilestone = p6Type.includes('Milestone');
     // Fase 2.4: P6 onderscheidt Start/Finish Milestone — bewaar de soort expliciet.
@@ -296,6 +305,9 @@ export function readP6XML(content: string): {
         freeFloat: 0,
         totalFloat: 0,
         isCritical: false,
+        actualStart,
+        actualFinish,
+        remainingTime,
         completion: percentComplete / 100,
       },
       resourceIds: [],
@@ -314,6 +326,9 @@ export function readP6XML(content: string): {
 
   // Combine tasks: WBS (summary) + leaf activities
   const tasks = [...wbsTasks, ...leafTasks];
+
+  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
+  normalizeImportedProgress(tasks, project.statusDate);
 
   // Parse relationships
   const relElements = getAllByLocalName(doc, 'Relationship');
@@ -396,7 +411,7 @@ function parseProject(doc: Document): Project {
     };
   }
 
-  return {
+  const project: Project = {
     id: generateId('proj'),
     name: getElementText(projEl, 'Name') || 'P6 Import',
     description: getElementText(projEl, 'Description'),
@@ -408,6 +423,10 @@ function parseProject(doc: Document): Project {
     author: '',
     company: '',
   };
+  // Data date (fase 2.6, §9.2) → project.statusDate. Alleen wanneer aanwezig.
+  const dataDateRaw = getElementText(projEl, 'DataDate');
+  if (dataDateRaw) project.statusDate = parseP6Date(dataDateRaw);
+  return project;
 }
 
 function parseCalendar(doc: Document): WorkCalendar {

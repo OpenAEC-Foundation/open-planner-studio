@@ -59,6 +59,12 @@
     "hasConstraint": "Heeft een datum-constraint",
     "deadlineMissed": "Deadline overschreden",
     "completion": "Voortgang (%)",
+    "progress": {
+      "actualStart": "Werkelijke start",
+      "actualFinish": "Werkelijke einde",
+      "actualDate": "Werkelijke datum",
+      "remaining": "Resterend (werkdagen)"
+    },
     "cpmResult": "CPM Resultaat",
     "earlyStart": "Vroegste start:",
     "earlyFinish": "Vroegste einde:",

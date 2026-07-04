@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) missed",
-    "violatedConstraints": "{{count}} constraint(s) violated"
+    "violatedConstraints": "{{count}} constraint(s) violated",
+    "outOfSequence": "{{count}} out-of-sequence relation(s)"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "Baselines",
+      "name": "Name",
+      "created": "Created",
+      "active": "Active",
+      "delete": "Delete",
+      "saveNew": "Save new baseline",
+      "defaultName": "Baseline {{n}} — {{date}}",
+      "noBaselines": "No baselines yet",
+      "staleHint": "Schedule is out of date — recalculate first (F5)",
+      "deleteActiveConfirm": "Delete the active baseline?"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "Actuals cannot be after the status date"
   },
   "resource": {
     "type": {

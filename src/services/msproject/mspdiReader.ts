@@ -3,8 +3,10 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
+import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { normalizeImportedProgress } from '@/services/importNormalize';
 
 // Omgekeerde WorkContour-mapping (spiegel van mspdiWriter's CURVE_TO_WORKCONTOUR, §8.3).
 const WORKCONTOUR_TO_CURVE: Record<number, ResourceCurve> = {
@@ -77,6 +79,8 @@ export function readMSPDI(content: string): {
   resources: Resource[];
   assignments: ResourceAssignment[];
   resourceCalendars: WorkCalendar[];
+  baselines: Baseline[];
+  activeBaselineId: string | null;
 } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, 'application/xml');
@@ -157,6 +161,8 @@ export function readMSPDI(content: string): {
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
   const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
+  // Baseline 0 (fase 2.6, §9.1): per taak de gesnapshotte Start/Finish/Duration.
+  const baselineEntries: BaselineTask[] = [];
 
   for (let i = 0; i < taskElements.length; i++) {
     const te = taskElements[i];
@@ -185,9 +191,33 @@ export function readMSPDI(content: string): {
     const priority = getElementInt(te, 'Priority', 500);
     const description = getElementText(te, 'Notes');
 
+    // Actuals (fase 2.6, §9.1) — leeg ⇒ undefined (invarianten volgen bij normalizeImportedProgress).
+    const actualStartRaw = getElementText(te, 'ActualStart');
+    const actualFinishRaw = getElementText(te, 'ActualFinish');
+    const remainingRaw = getElementText(te, 'RemainingDuration');
+    const actualStart = actualStartRaw ? parseMSPDate(actualStartRaw) : undefined;
+    const actualFinish = actualFinishRaw ? parseMSPDate(actualFinishRaw) : undefined;
+    const remainingTime = remainingRaw ? parseMSPDuration(remainingRaw) : undefined;
+
     let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
     if (percentComplete >= 100) status = 'COMPLETED';
     else if (percentComplete > 0) status = 'STARTED';
+
+    // Baseline 0: eerste direct-kind <Baseline> met <Number>0</Number>.
+    const baselineEls = te.getElementsByTagName('Baseline');
+    for (let b = 0; b < baselineEls.length; b++) {
+      const bEl = baselineEls[b];
+      if (bEl.parentElement !== te) continue;
+      if (getElementInt(bEl, 'Number', -1) !== 0) continue;
+      baselineEntries.push({
+        taskId: id,
+        start: parseMSPDate(getElementText(bEl, 'Start')),
+        finish: parseMSPDate(getElementText(bEl, 'Finish')),
+        duration: parseMSPDuration(getElementText(bEl, 'Duration')),
+        isMilestone,
+      });
+      break;
+    }
 
     tasks.push({
       id,
@@ -212,6 +242,9 @@ export function readMSPDI(content: string): {
         freeFloat: 0,
         totalFloat: 0,
         isCritical: false,
+        actualStart,
+        actualFinish,
+        remainingTime,
         completion: percentComplete / 100,
       },
       resourceIds: [],
@@ -315,6 +348,26 @@ export function readMSPDI(content: string): {
     }
   }
 
+  // Baseline 0 → één actieve OPS-baseline "Baseline (MSPDI)" (fase 2.6, §9.1).
+  const baselines: Baseline[] = [];
+  let activeBaselineId: string | null = null;
+  if (baselineEntries.length > 0) {
+    const id = generateId('baseline');
+    const finishes = baselineEntries.map(b => b.finish).filter(Boolean).sort();
+    baselines.push({
+      id,
+      name: 'Baseline (MSPDI)',
+      createdAt: new Date().toISOString(),
+      tasks: baselineEntries,
+      projectEnd: finishes[finishes.length - 1] || '',
+      projectDuration: 0,
+    });
+    activeBaselineId = id;
+  }
+
+  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
+  normalizeImportedProgress(tasks, project.statusDate);
+
   return {
     project,
     calendar,
@@ -323,11 +376,13 @@ export function readMSPDI(content: string): {
     resources,
     assignments,
     resourceCalendars,
+    baselines,
+    activeBaselineId,
   };
 }
 
 function parseProject(root: Element): Project {
-  return {
+  const project: Project = {
     id: generateId('proj'),
     name: getElementText(root, 'Name') || getElementText(root, 'Title') || 'MS Project Import',
     description: '',
@@ -339,6 +394,10 @@ function parseProject(root: Element): Project {
     author: getElementText(root, 'Author'),
     company: getElementText(root, 'Company'),
   };
+  // Statusdatum (fase 2.6, §9.1) → project.statusDate. Alleen wanneer aanwezig.
+  const statusDateRaw = getElementText(root, 'StatusDate');
+  if (statusDateRaw) project.statusDate = parseMSPDate(statusDateRaw);
+  return project;
 }
 
 function parseCalendar(root: Element): WorkCalendar {

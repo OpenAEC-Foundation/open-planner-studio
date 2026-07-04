@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Rapporttype",
     "gantt": "Gantt-afdruk",
-    "milestones": "Mijlpalen-overzicht"
+    "milestones": "Mijlpalen-overzicht",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Variance-rapport",
+    "baselineStart": "Baseline start",
+    "baselineFinish": "Baseline einde",
+    "currentStart": "Huidige start",
+    "currentFinish": "Huidig einde",
+    "deltaStart": "Δ start (wd)",
+    "deltaFinish": "Δ einde (wd)",
+    "status": "Status",
+    "status_onSchedule": "Op schema",
+    "status_late": "Later",
+    "status_early": "Eerder",
+    "status_new": "Nieuw",
+    "status_dropped": "Vervallen",
+    "noBaseline": "Geen actieve baseline — sla een baseline op of kies er een als actief.",
+    "projectEndDelta": "Projecteinde: {{delta}} werkdagen",
+    "total": "Taken",
+    "lateCount": "Later",
+    "earlyCount": "Eerder"
   },
   "milestoneReport": {
     "title": "Mijlpalen-overzicht",

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task, TaskType, ConstraintType, MilestoneKind } from '@/types/task';
@@ -137,6 +138,11 @@ export function TaskPropertiesPanel() {
   const assignResource = useAppStore(s => s.assignResource);
   const updateAssignment = useAppStore(s => s.updateAssignment);
   const unassignResource = useAppStore(s => s.unassignResource);
+  // Voortgang (fase 2.6): de acties dwingen de §3.2-invarianten af.
+  const setTaskProgress = useAppStore(s => s.setTaskProgress);
+  const setActualStart = useAppStore(s => s.setActualStart);
+  const setActualFinish = useAppStore(s => s.setActualFinish);
+  const [actualError, setActualError] = useState(false);
 
   if (selectedTaskIds.length === 0) {
     return (
@@ -339,12 +345,55 @@ export function TaskPropertiesPanel() {
             min={0}
             max={100}
             value={Math.round(task.time.completion * 100)}
-            onChange={e => updateTime('completion', parseInt(e.target.value) / 100)}
+            onChange={e => setTaskProgress(task.id, parseInt(e.target.value) / 100)}
             className="flex-1 accent-accent"
           />
           <span className="w-8 text-right">{Math.round(task.time.completion * 100)}%</span>
         </div>
       </Field>
+
+      {/* Werkelijke datums (fase 2.6, §11.3): mijlpaal ⇒ één "Werkelijke datum"; anders start+einde.
+          De acties dwingen de invarianten af en weigeren datums ná de statusdatum (toast). */}
+      {task.isMilestone ? (
+        <Field label={t('properties.progress.actualDate')}>
+          <Input
+            type="date"
+            value={task.time.actualFinish ?? ''}
+            onChange={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
+          />
+        </Field>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t('properties.progress.actualStart')}>
+              <Input
+                type="date"
+                value={task.time.actualStart ?? ''}
+                onChange={v => { setActualError(!setActualStart(task.id, v || undefined)); }}
+              />
+            </Field>
+            <Field label={t('properties.progress.actualFinish')}>
+              <Input
+                type="date"
+                value={task.time.actualFinish ?? ''}
+                onChange={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
+              />
+            </Field>
+          </div>
+          <Field label={t('properties.progress.remaining')}>
+            <input
+              value={task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion))}
+              disabled
+              className="input !text-xs !px-2.5 !py-1.5 opacity-60"
+            />
+          </Field>
+        </>
+      )}
+      {actualError && (
+        <div className="text-[11px]" style={{ color: 'var(--error)' }}>
+          {tCommon('progress.actualsAfterStatusDate')}
+        </div>
+      )}
 
       {task.time.isCritical !== undefined && (
         <>

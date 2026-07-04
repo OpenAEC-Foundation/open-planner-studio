@@ -3,6 +3,7 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
+import { Baseline, BaselineTask } from '@/types/baseline';
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
 // 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
@@ -134,9 +135,18 @@ export function writeMSPDI(
   resources: Resource[],
   assignments: ResourceAssignment[],
   resourceCalendars: WorkCalendar[] = [],
+  baselines: Baseline[] = [],
+  activeBaselineId: string | null = null,
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
+
+  // Fase 2.6 (§9.1): alleen de ACTIEVE baseline gaat naar MSPDI-slot 0 (Baseline Number 0).
+  // De overige OPS-baselines verliezen we bewust (extra slots 1-10 = latere uitbreiding).
+  const activeBaseline = baselines.find(b => b.id === activeBaselineId) ?? null;
+  const baselineByTask = new Map<string, BaselineTask>(
+    (activeBaseline?.tasks ?? []).map(bt => [bt.taskId, bt]),
+  );
 
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
   lines.push('<Project xmlns="http://schemas.microsoft.com/project">');
@@ -150,6 +160,10 @@ export function writeMSPDI(
   lines.push(`${indent(1)}<StartDate>${formatMSPDateTime(project.startDate)}</StartDate>`);
   if (project.endDate) {
     lines.push(`${indent(1)}<FinishDate>${formatMSPDateTime(project.endDate)}</FinishDate>`);
+  }
+  // Statusdatum (fase 2.6, §9.1) — P6 data date → MSPDI <StatusDate>. Alleen wanneer gezet.
+  if (project.statusDate) {
+    lines.push(`${indent(1)}<StatusDate>${formatMSPDateTime(project.statusDate)}</StatusDate>`);
   }
   lines.push(`${indent(1)}<ScheduleFromStart>1</ScheduleFromStart>`);
   lines.push(`${indent(1)}<MinutesPerDay>${calendar.hoursPerDay * 60}</MinutesPerDay>`);
@@ -209,11 +223,31 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);
     lines.push(`${indent(3)}<Milestone>${isMilestone ? 1 : 0}</Milestone>`);
     lines.push(`${indent(3)}<PercentComplete>${Math.round(task.time.completion * 100)}</PercentComplete>`);
+    // Actuals (fase 2.6, §9.1) — alleen wanneer gezet (golden rule). RemainingDuration afgeleid.
+    if (task.time.actualStart) {
+      lines.push(`${indent(3)}<ActualStart>${formatMSPDateTime(task.time.actualStart)}</ActualStart>`);
+    }
+    if (task.time.actualFinish) {
+      lines.push(`${indent(3)}<ActualFinish>${formatMSPDateTime(task.time.actualFinish)}</ActualFinish>`);
+    }
+    if (task.time.remainingTime != null) {
+      lines.push(`${indent(3)}<RemainingDuration>${durationToISO8601(task.time.remainingTime, calendar.hoursPerDay)}</RemainingDuration>`);
+    }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
     lines.push(`${indent(3)}<CalendarUID>1</CalendarUID>`);
     if (task.description) {
       lines.push(`${indent(3)}<Notes>${escapeXML(task.description)}</Notes>`);
+    }
+    // Baseline 0 (fase 2.6, §9.1) — Start/Finish/Duration uit de actieve OPS-baseline.
+    const bt = baselineByTask.get(task.id);
+    if (bt) {
+      lines.push(`${indent(3)}<Baseline>`);
+      lines.push(`${indent(4)}<Number>0</Number>`);
+      lines.push(`${indent(4)}<Start>${formatMSPDateTime(bt.start)}</Start>`);
+      lines.push(`${indent(4)}<Finish>${formatMSPDateTime(bt.finish)}</Finish>`);
+      lines.push(`${indent(4)}<Duration>${durationToISO8601(bt.duration, calendar.hoursPerDay)}</Duration>`);
+      lines.push(`${indent(3)}</Baseline>`);
     }
 
     // Predecessor links embedded in task

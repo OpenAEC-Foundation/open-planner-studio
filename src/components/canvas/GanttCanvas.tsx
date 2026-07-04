@@ -107,6 +107,13 @@ export function GanttCanvas() {
   const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
   const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
   const scheduleStale = useAppStore(s => s.scheduleStale);
+  // Voortgang & baselines (fase 2.6, §6)
+  const statusDate = useAppStore(s => s.project.statusDate);
+  const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
+  const showProgressLine = useAppStore(s => s.ui.showProgressLine);
+  const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
+  const baselines = useAppStore(s => s.baselines);
+  const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
   const setHistogramResource = useAppStore(s => s.setHistogramResource);
@@ -127,6 +134,18 @@ export function GanttCanvas() {
   const [histoTooltip, setHistoTooltip] = useState<{ x: number; y: number; lines: string[] } | null>(null);
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
+
+  // Baseline-overlay-Map uit de actieve baseline (fase 2.6, §6.2): keyed op Task.id (leaf-taken).
+  const baselineOverlay = useMemo(() => {
+    if (!activeBaselineId) return undefined;
+    const active = baselines.find(b => b.id === activeBaselineId);
+    if (!active) return undefined;
+    const map = new Map<string, { start: string; finish: string; isMilestone: boolean }>();
+    for (const bt of active.tasks) {
+      map.set(bt.taskId, { start: bt.start, finish: bt.finish, isMilestone: bt.isMilestone });
+    }
+    return map;
+  }, [baselines, activeBaselineId]);
 
   const columnHeaders = useMemo(() => ({
     wbs: tTask('table.wbs'),
@@ -404,6 +423,11 @@ export function GanttCanvas() {
       drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
       violatedConstraintTaskIds: cpmResult && !cpmResult.error ? cpmResult.violatedConstraintTaskIds : undefined,
       missedDeadlineTaskIds: cpmResult && !cpmResult.error ? cpmResult.missedDeadlineTaskIds : undefined,
+      statusDate,
+      showStatusDateLine,
+      showProgressLine,
+      showBaselineOverlay,
+      baselineOverlay,
       trace,
       grouping,
       canvasWidth: rect.width,
@@ -420,7 +444,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, grouping, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth]);
+  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, grouping, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay]);
 
   // Render on changes
   useEffect(() => {

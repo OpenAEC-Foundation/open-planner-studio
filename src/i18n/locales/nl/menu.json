@@ -131,7 +131,18 @@
     "clearLeveling": "Nivellering wissen",
     "overallocationIndicator": "Overallocatie",
     "overallocationCount": "{{count}} resources",
-    "overallocationNone": "Geen"
+    "overallocationNone": "Geen",
+    "baselines": "Baselines & voortgang",
+    "saveBaseline": "Baseline opslaan…",
+    "manageBaselines": "Baselines beheren…",
+    "statusDate": "Statusdatum",
+    "statusDateClear": "Statusdatum leegmaken",
+    "progressMode": "Voortgangsmodus",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "Baseline-overlay",
+    "toggleProgressLine": "Voortgangslijn",
+    "toggleStatusDateLine": "Statusdatumlijn"
   },
   "ifc": {
     "title": "IFC-editor",

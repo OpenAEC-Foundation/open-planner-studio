@@ -10,9 +10,10 @@ import {
   Tags, ListOrdered, Hash, LayoutTemplate,
   IndentIncrease, IndentDecrease, ChevronUp, ChevronDown,
   Users, UserPlus, BarChart3, Scale, Eraser, AlertTriangle, ChevronLeft, ChevronRight,
+  Flag, GitCompareArrows, CalendarClock, LayoutGrid, TrendingUp, CalendarDays, X,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
-import { saveRibbonCompact, saveShowHistogram } from '@/utils/settingsStore';
+import { saveRibbonCompact, saveShowHistogram, saveShowBaselineOverlay, saveShowProgressLine, saveShowStatusDateLine } from '@/utils/settingsStore';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/types/task';
@@ -622,6 +623,14 @@ export function Ribbon() {
   const setHistogramResource = useAppStore(s => s.setHistogramResource);
   const clearLeveling = useAppStore(s => s.clearLeveling);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
+  // Baselines & voortgang (fase 2.6)
+  const statusDate = useAppStore(s => s.project.statusDate);
+  const progressMode = useAppStore(s => s.project.progressMode);
+  const setStatusDate = useAppStore(s => s.setStatusDate);
+  const setProgressMode = useAppStore(s => s.setProgressMode);
+  const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
+  const showProgressLine = useAppStore(s => s.ui.showProgressLine);
+  const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
 
   const setActiveTab = useCallback((tab: RibbonTab) => {
     setUI({ activeRibbonTab: tab });
@@ -669,6 +678,21 @@ export function Ribbon() {
     const next = !showHistogram;
     setUI({ showHistogram: next });
     void saveShowHistogram(next);
+  };
+  const toggleBaselineOverlay = () => {
+    const next = !showBaselineOverlay;
+    setUI({ showBaselineOverlay: next });
+    void saveShowBaselineOverlay(next);
+  };
+  const toggleProgressLine = () => {
+    const next = !showProgressLine;
+    setUI({ showProgressLine: next });
+    void saveShowProgressLine(next);
+  };
+  const toggleStatusDateLine = () => {
+    const next = !showStatusDateLine;
+    setUI({ showStatusDateLine: next });
+    void saveShowStatusDateLine(next);
   };
   const newResource = () => {
     addResource({ name: '', type: 'LABOR', description: '', maxUnits: 1 });
@@ -819,6 +843,53 @@ export function Ribbon() {
                 <RibbonSmallButton icon={<IndentDecrease size={14} />} label={tMenu('ribbon.outdent')} onClick={() => outdentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0} />
               </RibbonButtonStack>
             </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            {/* Baselines & voortgang (fase 2.6, §11.1) */}
+            <RibbonGroup label={tMenu('ribbon.baselines')}>
+              <RibbonButton icon={<Flag size={20} />} label={tMenu('ribbon.saveBaseline')} onClick={() => setUI({ showBaselineDialog: true })} />
+              <RibbonButton icon={<GitCompareArrows size={20} />} label={tMenu('ribbon.manageBaselines')} onClick={() => setUI({ showBaselineDialog: true })} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
+                <span className="ribbon-info">{tMenu('ribbon.statusDate')}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <CalendarClock size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
+                  <input
+                    type="date"
+                    value={statusDate ?? ''}
+                    onChange={e => setStatusDate(e.target.value || undefined)}
+                    aria-label={tMenu('ribbon.statusDate')}
+                    style={{
+                      padding: '3px 6px', fontSize: 11, background: 'var(--theme-input-bg)',
+                      border: '1px solid var(--theme-control-border)', borderRadius: 'var(--radius-sm)',
+                      color: 'var(--theme-text)',
+                    }}
+                  />
+                  {statusDate && (
+                    <button
+                      className="ribbon-btn small"
+                      title={tMenu('ribbon.statusDateClear')}
+                      aria-label={tMenu('ribbon.statusDateClear')}
+                      onClick={() => setStatusDate(undefined)}
+                      style={{ padding: 2 }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
+                <span className="ribbon-info">{tMenu('ribbon.progressMode')}</span>
+                <RibbonDropdown
+                  value={progressMode ?? 'RETAINED_LOGIC'}
+                  options={[
+                    { value: 'RETAINED_LOGIC', label: tMenu('ribbon.progressModeRetained') },
+                    { value: 'PROGRESS_OVERRIDE', label: tMenu('ribbon.progressModeOverride') },
+                  ]}
+                  onChange={v => setProgressMode(v as 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE')}
+                />
+              </div>
+            </RibbonGroup>
           </>
         )}
 
@@ -940,6 +1011,15 @@ export function Ribbon() {
                 onClick={() => setUI({ rightPanelCollapsed: !rightPanelCollapsed })}
                 active={!rightPanelCollapsed}
               />
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            {/* Baseline-/voortgang-overlays (fase 2.6, §11.1) */}
+            <RibbonGroup label={tMenu('ribbon.baselines')}>
+              <RibbonButton icon={<LayoutGrid size={20} />} label={tMenu('ribbon.toggleBaselineOverlay')} onClick={toggleBaselineOverlay} active={showBaselineOverlay} />
+              <RibbonButton icon={<TrendingUp size={20} />} label={tMenu('ribbon.toggleProgressLine')} onClick={toggleProgressLine} active={showProgressLine} />
+              <RibbonButton icon={<CalendarDays size={20} />} label={tMenu('ribbon.toggleStatusDateLine')} onClick={toggleStatusDateLine} active={showStatusDateLine} />
             </RibbonGroup>
 
             <div className="ribbon-separator" />

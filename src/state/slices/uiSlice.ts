@@ -45,6 +45,10 @@ export function createDefaultUI(): UIState {
     showHistogram: false,
     histogramHeight: 160,
     showLevelingDialog: false,
+    showBaselineDialog: false,
+    showBaselineOverlay: true,
+    showProgressLine: true,
+    showStatusDateLine: true,
   };
 }
 

@@ -12,6 +12,7 @@ import type { AppSlice } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { WorkCalendar } from '@/types/calendar';
+import type { Baseline } from '@/types/baseline';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad). */
@@ -112,6 +113,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
         s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
+        s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
+        s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
         s.selectedTaskIds = [];
         s.cpmResult = null;
         s.resourceLoadResult = null;
@@ -145,6 +149,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       state.project, state.calendar, state.tasks,
       state.sequences, state.resources, state.assignments,
       state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
+      state.baselines, state.activeBaselineId,
     );
 
     if (state.filePath) {
@@ -177,6 +182,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       state.project, state.calendar, state.tasks,
       state.sequences, state.resources, state.assignments,
       state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
+      state.baselines, state.activeBaselineId,
     );
 
     const picked = await save({
@@ -235,6 +241,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
           state.project, state.calendar, state.tasks,
           state.sequences, state.resources, state.assignments,
           state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
+          state.baselines, state.activeBaselineId,
         );
         ext = 'ifc';
         filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
@@ -280,6 +287,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
         s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
+        s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
+        s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
         s.selectedTaskIds = [];
         s.cpmResult = null;
         s.resourceLoadResult = null;
@@ -317,6 +327,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
         s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
+        s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
+        s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
         s.selectedTaskIds = [];
         s.cpmResult = null;
         s.resourceLoadResult = null;

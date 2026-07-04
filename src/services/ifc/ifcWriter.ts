@@ -5,13 +5,16 @@ import { ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
+import { Baseline } from '@/types/baseline';
 
 /** Fase 2.5-default: `Task.priority` (0-1000, default 500) en `Task.levelingDelay` (undefined/0
  *  = geen nivellering) — golden-rule-guards hieronder schrijven alleen bij afwijking. */
 const DEFAULT_PRIORITY = 500;
 
-/** Generate a 22-character IFC GlobalId (simplified) */
-function ifcGuid(seed: string): string {
+/** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader (fase 2.6,
+ *  `extractBaselines`) baseline-taskId's — die als interne id in de OPS_Baselines-JSON staan —
+ *  deterministisch kan terugmappen op de her-gegenereerde taak-id's via de IFCTASK-GlobalId. */
+export function ifcGuid(seed: string): string {
   const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -74,6 +77,8 @@ export function writeIFC(
   activityCodeTypes: ActivityCodeType[] = [],
   customFieldDefs: CustomFieldDef[] = [],
   resourceCalendars: WorkCalendar[] = [],
+  baselines: Baseline[] = [],
+  activeBaselineId: string | null = null,
 ): string {
   const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map() };
   const now = new Date().toISOString().split('.')[0];
@@ -126,12 +131,24 @@ export function writeIFC(
   const workSchedId = addLine(ctx, '_worksched',
     `IFCWORKSCHEDULE(${ifcStr(ifcGuid(project.id + '_ws'))},#${ownerHistId},${ifcStr('Bouwplanning v1.0')},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
 
+  // Baselines (fase 2.6, §8.3) — per baseline één `.BASELINE.`-IfcWorkSchedule-header (Name +
+  // CreationDate, ZONDER taak-duplicatie: de datums leven verliesloos in het OPS_Baselines-JSON
+  // hieronder). Puur een interop-signaal "deze baselines bestaan" voor externe IFC-tools.
+  // Golden rule: geen baselines ⇒ geen extra IfcWorkSchedule (de lus doet niets).
+  const baselineSchedRefs: string[] = [];
+  for (const b of baselines) {
+    const bId = addLine(ctx, `_baseline_ws_${b.id}`,
+      `IFCWORKSCHEDULE(${ifcStr(ifcGuid('baseline_ws_' + b.id))},#${ownerHistId},${ifcStr(b.name)},$,$,$,${ifcDateTime(b.createdAt)},$,$,$,$,$,$,${ifcDateTime(b.projectEnd)},.BASELINE.)`);
+    baselineSchedRefs.push(`#${bId}`);
+  }
+
+  const schedRefs = [`#${workSchedId}`, ...baselineSchedRefs].join(',');
   addLine(ctx, '_agg_plan_sched',
-    `IFCRELAGGREGATES(${ifcStr(ifcGuid('agg_ps'))},#${ownerHistId},$,$,#${workPlanId},(#${workSchedId}))`);
+    `IFCRELAGGREGATES(${ifcStr(ifcGuid('agg_ps'))},#${ownerHistId},$,$,#${workPlanId},(${schedRefs}))`);
 
   // Tasks
   for (const task of tasks) {
-    writeTask(ctx, task, ownerHistId);
+    writeTask(ctx, task, ownerHistId, project.statusDate);
   }
 
   // WBS nesting
@@ -177,6 +194,8 @@ export function writeIFC(
   writeMilestoneMeta(ctx, tasks, ownerHistId);
   // Nivellering (fase 2.5): levelingDelay als OPS_Leveling-pset per taak
   writeLevelingMeta(ctx, tasks, ownerHistId);
+  // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
+  writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -233,12 +252,25 @@ function writeStructure(
     addLine(ctx, key,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid(key))},#${ownerHistId},$,$,(${objRef}),#${setId})`);
 
-  // Projectsettings (wbsAutoNumber) — alleen schrijven wanneer de vlag bestaat.
+  // Projectsettings — wbsAutoNumber (fase 2.2) + statusDate/progressMode (fase 2.6, §8.2).
+  // Golden rule: elk veld alleen wanneer gezet; geen enkel veld ⇒ geen OPS_ProjectSettings-pset.
+  const projSettingProps: number[] = [];
   if (project.wbsAutoNumber !== undefined) {
-    const propId = addLine(ctx, '_ps_wbsauto',
-      `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`);
+    projSettingProps.push(addLine(ctx, '_ps_wbsauto',
+      `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`));
+  }
+  if (project.statusDate) {
+    projSettingProps.push(addLine(ctx, '_ps_statusdate',
+      `IFCPROPERTYSINGLEVALUE('StatusDate',$,IFCDATE(${ifcStr(project.statusDate)}),$)`));
+  }
+  // ProgressMode alleen als afwijkend van de default RETAINED_LOGIC (golden rule §8.2).
+  if (project.progressMode && project.progressMode !== 'RETAINED_LOGIC') {
+    projSettingProps.push(addLine(ctx, '_ps_progressmode',
+      `IFCPROPERTYSINGLEVALUE('ProgressMode',$,IFCLABEL(${ifcStr(project.progressMode)}),$)`));
+  }
+  if (projSettingProps.length > 0) {
     const setId = addLine(ctx, '_pset_projset',
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_projset'))},#${ownerHistId},'OPS_ProjectSettings',$,(#${propId}))`);
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_projset'))},#${ownerHistId},'OPS_ProjectSettings',$,(${projSettingProps.map(i => `#${i}`).join(',')}))`);
     relDefines('_rel_projset', projRef, setId);
   }
 
@@ -395,6 +427,36 @@ function writeLevelingMeta(ctx: WriteContext, tasks: Task[], ownerHistId: number
   }
 }
 
+/**
+ * Fase 2.6 — baselines als `OPS_Baselines`-pset op de `IfcWorkSchedule` (§8.3, spiegel van het
+ * `OPS_StructureMeta`-dubbelspoor + `writeLevelingMeta`-patroon). Eén `IFCPROPERTYSINGLEVALUE`
+ * met de volledige `JSON.stringify(baselines)` (autoritair en verliesloos — dit is de bron die
+ * de reader gebruikt) + een `ActiveBaselineId`-property. Golden rule: geen baselines ⇒ geen pset.
+ * De per-baseline `.BASELINE.`-IfcWorkSchedule-headers (interop-signaal) staan al bij het
+ * werkplan/-schema hierboven; deze pset draagt de datums.
+ */
+function writeBaselineMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  baselines: Baseline[],
+  activeBaselineId: string | null,
+  ownerHistId: number,
+): void {
+  if (baselines.length === 0) return;
+  const json = JSON.stringify(baselines);
+  const props: number[] = [];
+  props.push(addLine(ctx, '_ps_baselines_json',
+    `IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT(${ifcStr(json)}),$)`));
+  if (activeBaselineId) {
+    props.push(addLine(ctx, '_ps_baselines_active',
+      `IFCPROPERTYSINGLEVALUE('ActiveBaselineId',$,IFCTEXT(${ifcStr(activeBaselineId)}),$)`));
+  }
+  const setId = addLine(ctx, '_pset_baselines',
+    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_baselines'))},#${ownerHistId},'OPS_Baselines',$,(${props.map(i => `#${i}`).join(',')}))`);
+  addLine(ctx, '_rel_baselines',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_baselines'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
+}
+
 function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number, key: string = '_calendar'): number {
   // Work time recurrence (weekdays)
   const dayNums = cal.workDays.join(',');
@@ -443,10 +505,21 @@ function writeResourceCalendars(
   }
 }
 
-function writeTask(ctx: WriteContext, task: Task, ownerHistId: number): void {
+function writeTask(ctx: WriteContext, task: Task, ownerHistId: number, statusDate?: string): void {
   const t = task.time;
+  // Voortgang (fase 2.6, §8.1) — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
+  // hieronder): 14 StatusTime, 15 ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime,
+  // 19 Completion. Golden rule: een taak zonder actuals houdt 14-18 op `$` ⇒ byte-identieke
+  // round-trip van bestaande bestanden. StatusTime = de projectbrede statusdatum (peildatum),
+  // alleen op taken die daadwerkelijk actuals dragen.
+  const hasActuals = !!(t.actualStart || t.actualFinish);
+  const statusTimeArg = hasActuals && statusDate ? ifcDateTime(statusDate) : '$';
+  const actualDurationArg = t.actualDuration != null ? ifcDuration(t.actualDuration) : '$';
+  const actualStartArg = t.actualStart ? ifcDateTime(t.actualStart) : '$';
+  const actualFinishArg = t.actualFinish ? ifcDateTime(t.actualFinish) : '$';
+  const remainingArg = t.remainingTime != null ? ifcDuration(t.remainingTime) : '$';
   const taskTimeId = addLine(ctx, `tasktime_${task.id}`,
-    `IFCTASKTIME(${ifcStr(task.name + ' Time')},.PREDICTED.,$,.${t.durationType}.,${ifcDuration(t.scheduleDuration)},${ifcDateTime(t.scheduleStart)},${ifcDateTime(t.scheduleFinish)},${ifcDateTime(t.earlyStart)},${ifcDateTime(t.earlyFinish)},${ifcDateTime(t.lateStart)},${ifcDateTime(t.lateFinish)},${ifcDuration(t.freeFloat)},${ifcDuration(t.totalFloat)},${ifcBool(t.isCritical)},$,$,$,$,$,${t.completion.toFixed(1)})`);
+    `IFCTASKTIME(${ifcStr(task.name + ' Time')},.PREDICTED.,$,.${t.durationType}.,${ifcDuration(t.scheduleDuration)},${ifcDateTime(t.scheduleStart)},${ifcDateTime(t.scheduleFinish)},${ifcDateTime(t.earlyStart)},${ifcDateTime(t.earlyFinish)},${ifcDateTime(t.lateStart)},${ifcDateTime(t.lateFinish)},${ifcDuration(t.freeFloat)},${ifcDuration(t.totalFloat)},${ifcBool(t.isCritical)},${statusTimeArg},${actualDurationArg},${actualStartArg},${actualFinishArg},${remainingArg},${t.completion.toFixed(1)})`);
 
   const ifcTaskType = `.${task.taskType}.`;
   // Spec-conforme 13-args-IFCTASK (L1-fix). IFC 4.3-attribuutvolgorde (0-based STEP-index,

@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Report type",
     "gantt": "Gantt chart",
-    "milestones": "Milestone overview"
+    "milestones": "Milestone overview",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Variance report",
+    "baselineStart": "Baseline start",
+    "baselineFinish": "Baseline finish",
+    "currentStart": "Current start",
+    "currentFinish": "Current finish",
+    "deltaStart": "Δ start (wd)",
+    "deltaFinish": "Δ finish (wd)",
+    "status": "Status",
+    "status_onSchedule": "On schedule",
+    "status_late": "Later",
+    "status_early": "Earlier",
+    "status_new": "New",
+    "status_dropped": "Dropped",
+    "noBaseline": "No active baseline — save a baseline or set one active.",
+    "projectEndDelta": "Project end: {{delta}} work days",
+    "total": "Tasks",
+    "lateCount": "Later",
+    "earlyCount": "Earlier"
   },
   "milestoneReport": {
     "title": "Milestone overview",

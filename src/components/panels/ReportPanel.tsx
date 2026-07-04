@@ -7,6 +7,7 @@ import { ensureExtension } from '@/utils/filePath';
 import { Select } from '@/components/common/Select';
 import { isTauri } from '@/utils/platform';
 import { MilestoneReport, useMilestoneRows, useMilestoneReportPrint } from './MilestoneReport';
+import { VarianceReport, useVarianceResult, useVarianceReportPrint } from './VarianceReport';
 
 export function ReportPanel() {
   const { t } = useTranslation('report');
@@ -17,7 +18,7 @@ export function ReportPanel() {
   const project = useAppStore(s => s.project);
   const projectName = project.name;
 
-  const [reportType, setReportType] = useState<'gantt' | 'milestones'>('gantt');
+  const [reportType, setReportType] = useState<'gantt' | 'milestones' | 'variance'>('gantt');
   const [showCritical, setShowCritical] = useState(true);
   const [showFloat, setShowFloat] = useState(true);
   const [showDeps, setShowDeps] = useState(true);
@@ -84,6 +85,8 @@ export function ReportPanel() {
 
   const milestoneRows = useMilestoneRows();
   const printMilestoneReport = useMilestoneReportPrint(projectName);
+  const varianceResult = useVarianceResult();
+  const printVarianceReport = useVarianceReportPrint(projectName);
 
   const handlePrint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -153,10 +156,11 @@ export function ReportPanel() {
         <Select
           aria-label={t('reportType.label')}
           value={reportType}
-          onChange={v => setReportType(v as 'gantt' | 'milestones')}
+          onChange={v => setReportType(v as 'gantt' | 'milestones' | 'variance')}
           options={[
             { value: 'gantt', label: t('reportType.gantt') },
             { value: 'milestones', label: t('reportType.milestones') },
+            { value: 'variance', label: t('reportType.variance') },
           ]}
         />
 
@@ -175,7 +179,7 @@ export function ReportPanel() {
                 <span className="text-text-secondary">{t('relations')}</span>
                 <span>{sequences.length}</span>
               </>
-            ) : (
+            ) : reportType === 'milestones' ? (
               <>
                 <span className="text-text-secondary">{t('milestoneReport.total')}</span>
                 <span>{milestoneRows.length}</span>
@@ -183,6 +187,22 @@ export function ReportPanel() {
                 <span>{milestoneRows.filter(r => r.mandatory).length}</span>
                 <span className="text-text-secondary">{t('milestoneReport.lateCount')}</span>
                 <span className="text-red-400 font-bold">{milestoneRows.filter(r => r.status === 'late').length}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-text-secondary">{t('variance.total')}</span>
+                <span>{varianceResult.rows.length}</span>
+                <span className="text-text-secondary">{t('variance.lateCount')}</span>
+                <span className="text-red-400 font-bold">{varianceResult.rows.filter(r => r.status === 'late').length}</span>
+                <span className="text-text-secondary">{t('variance.earlyCount')}</span>
+                <span>{varianceResult.rows.filter(r => r.status === 'early').length}</span>
+                {varianceResult.projectEndDelta !== undefined && (
+                  <>
+                    <span className="text-text-secondary col-span-2 mt-1" style={{ color: varianceResult.projectEndDelta > 0 ? '#DC2626' : 'var(--theme-text-dim)' }}>
+                      {t('variance.projectEndDelta', { delta: varianceResult.projectEndDelta > 0 ? `+${varianceResult.projectEndDelta}` : `${varianceResult.projectEndDelta}` })}
+                    </span>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -296,7 +316,7 @@ export function ReportPanel() {
         {/* Action buttons */}
         <div className="flex flex-col gap-2">
           <button
-            onClick={reportType === 'gantt' ? handlePrint : printMilestoneReport}
+            onClick={reportType === 'gantt' ? handlePrint : reportType === 'milestones' ? printMilestoneReport : printVarianceReport}
             className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-xs font-medium"
             style={{ boxShadow: 'var(--shadow-glow)' }}
           >
@@ -322,13 +342,21 @@ export function ReportPanel() {
           >
             <canvas ref={canvasRef} />
           </div>
-        ) : (
+        ) : reportType === 'milestones' ? (
           <div
             className="bg-surface p-4"
             style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960 }}
           >
             <h3 className="ui-card-header !text-xs mb-3">{t('milestoneReport.title')}</h3>
             <MilestoneReport />
+          </div>
+        ) : (
+          <div
+            className="bg-surface p-4"
+            style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100 }}
+          >
+            <h3 className="ui-card-header !text-xs mb-3">{t('variance.title')}</h3>
+            <VarianceReport />
           </div>
         )}
       </div>

@@ -59,6 +59,12 @@
     "hasConstraint": "Has a date constraint",
     "deadlineMissed": "Deadline missed",
     "completion": "Progress (%)",
+    "progress": {
+      "actualStart": "Actual start",
+      "actualFinish": "Actual finish",
+      "actualDate": "Actual date",
+      "remaining": "Remaining (work days)"
+    },
     "cpmResult": "CPM Result",
     "earlyStart": "Early start:",
     "earlyFinish": "Early finish:",

@@ -5,6 +5,7 @@ import { Project } from '@/types/project';
 import { WorkCalendar, createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { normalizeImportedProgress } from '@/services/importNormalize';
 
 interface ParsedRow {
   wbs: string;
@@ -16,6 +17,8 @@ interface ParsedRow {
   taskType: string;
   status: string;
   completion: number;
+  actualStart?: string;
+  actualFinish?: string;
   critical: boolean;
   totalFloat: number;
   description: string;
@@ -154,6 +157,8 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
     taskType: ['task type', 'type', 'tasktype', 'taaktype'],
     status: ['status'],
     completion: ['completion', 'completion (%)', '% complete', 'percent', 'voltooiing'],
+    actualStart: ['actual start', 'actualstart', 'werkelijke start'],
+    actualFinish: ['actual finish', 'actualfinish', 'werkelijke einde', 'werkelijk einde'],
     critical: ['critical', 'kritiek'],
     totalFloat: ['total float', 'float', 'slack', 'speling'],
     description: ['description', 'beschrijving', 'notes', 'opmerkingen'],
@@ -203,6 +208,10 @@ export function readCSV(content: string): {
     // If > 1, treat as percentage
     if (completion > 1) completion = completion / 100;
 
+    // Actuals (fase 2.6, §9.3) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
+    const actualStartRaw = get('actualStart').trim();
+    const actualFinishRaw = get('actualFinish').trim();
+
     rows.push({
       wbs: get('wbs'),
       name: get('name', 'Task'),
@@ -213,6 +222,8 @@ export function readCSV(content: string): {
       taskType: get('taskType', 'CONSTRUCTION'),
       status: get('status', 'NOT_STARTED'),
       completion,
+      actualStart: actualStartRaw ? parseDate(actualStartRaw) : undefined,
+      actualFinish: actualFinishRaw ? parseDate(actualFinishRaw) : undefined,
       critical: get('critical', 'No').toLowerCase() === 'yes',
       totalFloat: parseFloat(get('totalFloat', '0')) || 0,
       description: get('description'),
@@ -250,11 +261,16 @@ export function readCSV(content: string): {
         freeFloat: 0,
         totalFloat: row.totalFloat,
         isCritical: row.critical,
+        actualStart: row.actualStart,
+        actualFinish: row.actualFinish,
         completion: row.completion,
       },
       resourceIds: [],
     });
   }
+
+  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6). CSV kent geen statusdatum.
+  normalizeImportedProgress(tasks, undefined);
 
   // Rebuild parent-child hierarchy from WBS codes
   for (const task of tasks) {

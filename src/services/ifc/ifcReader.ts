@@ -4,8 +4,11 @@ import { Resource, ResourceType, ResourceAssignment, AvailabilityStep, ResourceC
 import { Project } from '@/types/project';
 import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
+import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { ifcGuid } from './ifcWriter';
+import { normalizeImportedProgress } from '@/services/importNormalize';
 
 /** Fase 2.5-defaults — zie ifcWriter.ts (golden-rule-guards). */
 const DEFAULT_PRIORITY = 500;
@@ -29,6 +32,8 @@ export function readIFC(content: string): {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   resourceCalendars: WorkCalendar[];
+  baselines: Baseline[];
+  activeBaselineId: string | null;
 } {
   const entities = parseSTEP(content);
   const entityMap = new Map<string, StepEntity>();
@@ -39,7 +44,10 @@ export function readIFC(content: string): {
   // Extract project
   const project = extractProject(entities, entityMap);
   const calendar = extractCalendar(entities, entityMap);
-  const { tasks, taskStepIdMap } = extractTasks(entities, entityMap);
+  // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
+  // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
+  const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
+  const { tasks, taskStepIdMap } = extractTasks(entities, entityMap, baselineTaskStepIds);
   const sequences = extractSequences(entities, entityMap, taskStepIdMap);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
@@ -52,9 +60,17 @@ export function readIFC(content: string): {
   );
   extractLevelingMeta(entities, entityMap, tasks, taskStepIdMap);
 
+  // Baselines (fase 2.6, §8.3): autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
+  const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
+
+  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
+  // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
+  normalizeImportedProgress(tasks, project.statusDate);
+
   return {
     project, calendar, tasks, sequences, resources, assignments,
     activityCodeTypes, customFieldDefs, resourceCalendars,
+    baselines, activeBaselineId,
   };
 }
 
@@ -212,8 +228,9 @@ function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEnti
 function extractTasks(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
+  baselineTaskStepIds: Set<string> = new Set(),
 ): { tasks: Task[]; taskStepIdMap: Map<string, string> } {
-  const taskEntities = entities.filter(e => e.type === 'IFCTASK');
+  const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
   const taskStepIdMap = new Map<string, string>(); // STEP #id -> our task id
 
@@ -274,7 +291,19 @@ function extractTasks(
   return { tasks, taskStepIdMap };
 }
 
+/** Optionele datum/duur uit een IfcTaskTime-slot: `$`/leeg ⇒ undefined (geen "vandaag"-fallback,
+ *  anders zou een legacy-bestand met lege actuals-slots ze als gezet inlezen). */
+function optDate(s: string | undefined): string | undefined {
+  return s && s !== '$' ? parseDateFromIFC(s) : undefined;
+}
+function optDuration(s: string | undefined): number | undefined {
+  return s && s !== '$' ? parseDurationDays(s) : undefined;
+}
+
 function parseTaskTime(e: StepEntity): TaskTime {
+  // Voortgang (fase 2.6, §8.1): slots 15 ActualDuration, 16 ActualStart, 17 ActualFinish,
+  // 18 RemainingTime (StatusTime slot 14 wordt genegeerd — we lezen de projectbrede statusdatum
+  // uit OPS_ProjectSettings, §15.3). `$` ⇒ undefined zodat legacy-bestanden ongewijzigd laden.
   return {
     durationType: e.args[3]?.includes('ELAPSED') ? 'ELAPSEDTIME' : 'WORKTIME',
     scheduleDuration: parseDurationDays(e.args[4] || ''),
@@ -287,6 +316,10 @@ function parseTaskTime(e: StepEntity): TaskTime {
     freeFloat: parseDurationDays(e.args[11] || ''),
     totalFloat: parseDurationDays(e.args[12] || ''),
     isCritical: e.args[13]?.includes('T') || false,
+    actualDuration: optDuration(e.args[15]),
+    actualStart: optDate(e.args[16]),
+    actualFinish: optDate(e.args[17]),
+    remainingTime: optDuration(e.args[18]),
     completion: parseFloat(e.args[19] || '0') || 0,
   };
 }
@@ -451,9 +484,16 @@ function extractStructure(
     if (psetName === 'OPS_ProjectSettings') {
       for (const prop of props) {
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-        if (stripQuotes(prop.args[0] || '') === 'wbsAutoNumber') {
-          const v = parseTypedValue(prop.args[2] || '');
+        const name = stripQuotes(prop.args[0] || '');
+        const v = parseTypedValue(prop.args[2] || '');
+        if (name === 'wbsAutoNumber') {
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
+        } else if (name === 'StatusDate') {
+          // Fase 2.6 (§8.2): P6 data date → project.statusDate.
+          if (typeof v === 'string' && v) project.statusDate = v.substring(0, 10);
+        } else if (name === 'ProgressMode') {
+          // Fase 2.6 (§8.2): alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
+          if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
         }
       }
       continue;
@@ -916,4 +956,95 @@ function extractLevelingMeta(
       }
     }
   }
+}
+
+/**
+ * Fase 2.6 — verzamel de STEP-#id's van taken die onder een `.BASELINE.`-IfcWorkSchedule hangen
+ * (§8.3). OPS zelf hangt géén taken onder baseline-schema's (de datums leven in de OPS_Baselines-
+ * JSON), maar externe tools kunnen dat wél doen; die taken zijn baseline-snapshots, geen live
+ * taken, en mogen niet als echte taak worden ingeladen. Koppeling via IFCRELNESTS (RelatingObject
+ * = het schema) of IFCRELASSIGNSTOCONTROL (control = het schema). PredefinedType `.BASELINE.` staat
+ * op arg-index 14 van IFCWORKSCHEDULE.
+ */
+function collectBaselineTaskStepIds(entities: StepEntity[]): Set<string> {
+  const baselineSchedIds = new Set(
+    entities
+      .filter(e => e.type === 'IFCWORKSCHEDULE' && (e.args[14] || '').includes('BASELINE'))
+      .map(e => e.id),
+  );
+  const taskStepIds = new Set<string>();
+  if (baselineSchedIds.size === 0) return taskStepIds;
+  for (const e of entities) {
+    if (e.type === 'IFCRELNESTS') {
+      const relating = parseRef(e.args[4] || '');
+      if (relating && baselineSchedIds.has(relating)) {
+        for (const r of parseRefs(e.args[5] || '')) taskStepIds.add(r);
+      }
+    } else if (e.type === 'IFCRELASSIGNSTOCONTROL') {
+      const control = parseRef(e.args[6] || '');
+      if (control && baselineSchedIds.has(control)) {
+        for (const r of parseRefs(e.args[4] || '')) taskStepIds.add(r);
+      }
+    }
+  }
+  return taskStepIds;
+}
+
+/**
+ * Fase 2.6 — baselines teruglezen uit het autoritatieve `OPS_Baselines`-JSON (§8.3, spiegel van
+ * `writeBaselineMeta`). De JSON bewaart per baseline-taak de INTERNE `taskId` van t.t.v. opslaan;
+ * bij het inlezen zijn de taak-id's her-gegenereerd, dus we mappen elke `taskId` deterministisch
+ * terug via `ifcGuid(taskId)` → de IFCTASK-GlobalId → de nieuwe id. Baseline-taken zonder match
+ * (taak sindsdien verwijderd) behouden hun oude id en tonen later als "vervallen" in de variance.
+ */
+function extractBaselines(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  taskStepIdMap: Map<string, string>,
+): { baselines: Baseline[]; activeBaselineId: string | null } {
+  // GlobalId → nieuwe taak-id (voor de taskId-remap).
+  const guidToTaskId = new Map<string, string>();
+  for (const e of entities) {
+    if (e.type !== 'IFCTASK') continue;
+    const newId = taskStepIdMap.get(e.id);
+    if (newId) guidToTaskId.set(stripQuotes(e.args[0] || ''), newId);
+  }
+
+  let baselines: Baseline[] = [];
+  let activeBaselineId: string | null = null;
+
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_Baselines') continue;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      const name = stripQuotes(prop.args[0] || '');
+      const raw = parseTypedValue(prop.args[2] || '');
+      if (typeof raw !== 'string') continue;
+      if (name === 'Baselines') {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) baselines = parsed as Baseline[];
+        } catch { /* corrupte JSON — negeer, baselines blijft leeg */ }
+      } else if (name === 'ActiveBaselineId') {
+        activeBaselineId = raw;
+      }
+    }
+  }
+
+  // taskId-remap via GlobalId.
+  for (const b of baselines) {
+    if (!Array.isArray(b.tasks)) { b.tasks = []; continue; }
+    for (const bt of b.tasks as BaselineTask[]) {
+      const remapped = guidToTaskId.get(ifcGuid(bt.taskId));
+      if (remapped) bt.taskId = remapped;
+    }
+  }
+
+  // Actieve id valideren tegen de geladen set; anders op de nieuwste (of null) terugvallen.
+  if (activeBaselineId && !baselines.some(b => b.id === activeBaselineId)) {
+    activeBaselineId = baselines.length ? baselines[baselines.length - 1].id : null;
+  }
+
+  return { baselines, activeBaselineId };
 }

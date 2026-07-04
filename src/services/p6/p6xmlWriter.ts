@@ -127,6 +127,10 @@ export function writeP6XML(
     lines.push(`${indent(2)}<MustFinishByDate>${formatP6DateTime(project.endDate)}</MustFinishByDate>`);
   }
   lines.push(`${indent(2)}<Status>${project.endDate ? 'Active' : 'Planned'}</Status>`);
+  // Data date (fase 2.6, §9.2) — P6's peildatum. Alleen wanneer gezet (golden rule).
+  if (project.statusDate) {
+    lines.push(`${indent(2)}<DataDate>${formatP6DateTime(project.statusDate)}</DataDate>`);
+  }
   lines.push(`${indent(1)}</Project>`);
 
   // Calendar
@@ -235,6 +239,16 @@ export function writeP6XML(
     lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(task.time.earlyFinish || task.time.scheduleFinish)}</PlannedFinishDate>`);
     if (task.time.completion > 0) {
       lines.push(`${indent(2)}<PhysicalPercentComplete>${Math.round(task.time.completion * 100)}</PhysicalPercentComplete>`);
+    }
+    // Actuals (fase 2.6, §9.2) — alleen wanneer gezet (golden rule). RemainingDuration in uren.
+    if (task.time.actualStart) {
+      lines.push(`${indent(2)}<ActualStartDate>${formatP6DateTime(task.time.actualStart)}</ActualStartDate>`);
+    }
+    if (task.time.actualFinish) {
+      lines.push(`${indent(2)}<ActualFinishDate>${formatP6DateTime(task.time.actualFinish)}</ActualFinishDate>`);
+    }
+    if (task.time.remainingTime != null) {
+      lines.push(`${indent(2)}<RemainingDuration>${durationToP6Hours(task.time.remainingTime, calendar.hoursPerDay)}</RemainingDuration>`);
     }
     if (task.description) {
       lines.push(`${indent(2)}<Description>${escapeXML(task.description)}</Description>`);

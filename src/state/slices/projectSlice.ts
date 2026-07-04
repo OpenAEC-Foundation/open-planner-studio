@@ -5,6 +5,7 @@ import { createDefaultTaskTime } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
@@ -55,6 +56,8 @@ export interface ProjectSlice {
     resourceCalendars?: WorkCalendar[];
     activityCodeTypes?: ActivityCodeType[];
     customFieldDefs?: CustomFieldDef[];
+    baselines?: Baseline[];
+    activeBaselineId?: string | null;
   }) => void;
 }
 
@@ -227,9 +230,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.cpmResult = null;
       s.resourceLoadResult = null;
       s.scheduleStale = false;
-      // Baselines komen (golf 2) uit de IFC-lezer; tot dan reset de load ze naar leeg.
-      s.baselines = [];
-      s.activeBaselineId = null;
+      // Baselines uit de IFC-lezer (fase 2.6, §8.3); ontbreken ze (CSV/P6 of extern bestand) → leeg.
+      s.baselines = loaded.baselines ?? [];
+      s.activeBaselineId = loaded.activeBaselineId ?? null;
       s.undoStack = [];
       s.redoStack = [];
       s.isDirty = false;

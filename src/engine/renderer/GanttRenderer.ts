@@ -32,6 +32,14 @@ export interface GanttRenderOptions {
    *  (uit cpmResult) — kleurt de markers rood. */
   violatedConstraintTaskIds?: string[];
   missedDeadlineTaskIds?: string[];
+  /** Voortgang & baselines (fase 2.6, §6). Alle optioneel ⇒ zonder statusdatum/baseline
+   *  tekent de renderer exact als voorheen (backwards-compat). */
+  statusDate?: string;                                   // project.statusDate (ISO)
+  showStatusDateLine?: boolean;                          // UI-toggle
+  showProgressLine?: boolean;                            // UI-toggle
+  showBaselineOverlay?: boolean;                         // UI-toggle
+  /** Overlay-datums uit de actieve baseline, keyed op Task.id (alleen leaf-taken). */
+  baselineOverlay?: Map<string, { start: string; finish: string; isMilestone: boolean }>;
   canvasWidth: number;
   canvasHeight: number;
   taskTableWidth: number;
@@ -68,6 +76,7 @@ function getThemeColors() {
     selected: v('--theme-accent', '#B45309'),
     dependency: '#6B7280',
     today: v('--theme-accent', '#B45309'),
+    statusDate: '#7C3AED',     // statusdatum-/voortgangslijn (paars, fase 2.6)
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
     summary: '#475569',        // samenvattingsbalk (slate)
     // Constraints & deadlines (fase 2.3; constraint-kleur uit PLAN §8.2)
@@ -211,8 +220,10 @@ export class GanttRenderer {
     // Draw layers
     this.drawGridBackground();
     this.drawTodayLine();
+    this.drawStatusDateLine();
     this.drawDependencyArrows();
     this.drawTaskBars();
+    this.drawProgressLine();
     this.drawTimelineHeader();
     this.drawTaskTable();
   }
@@ -274,6 +285,111 @@ export class GanttRenderer {
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  }
+
+  /** Statusdatumlijn (fase 2.6, §6.1): kopie van drawTodayLine met de statusdatum + eigen kleur.
+   *  Getekend ná de vandaag-lijn zodat beide zichtbaar zijn (statusdatum bovenop). */
+  private drawStatusDateLine(): void {
+    if (!this.opts.statusDate || this.opts.showStatusDateLine === false) return;
+    const ctx = this.ctx;
+    const x = this.dateToX(parseDate(this.opts.statusDate));
+    if (x > this.opts.taskTableWidth && x < this.opts.canvasWidth) {
+      ctx.strokeStyle = this.colors.statusDate;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, this.opts.headerHeight);
+      ctx.lineTo(x, this.opts.canvasHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  /** Voortgangslijn (fase 2.6, §6.3): één verticale lijn op de statusdatum die per zichtbare
+   *  leaf-rij naar de voortgangspositie uitstulpt (MSP-zigzag). Hidden rijen worden overgeslagen
+   *  (drawTaskBars-filter is impliciet: flatTasks bevat geen hidden rijen). Summary-/band-/mijlpaal-
+   *  rijen volgen de statusdatumlijn recht. */
+  private drawProgressLine(): void {
+    if (!this.opts.statusDate || this.opts.showProgressLine === false) return;
+    const ctx = this.ctx;
+    const zoom = this.opts.view.zoom;
+    const statusX = this.dateToX(parseDate(this.opts.statusDate));
+    const { headerHeight, canvasHeight, canvasWidth, taskTableWidth, rowHeight } = this.opts;
+
+    ctx.save();
+    // Nooit over de takentabel tekenen.
+    ctx.beginPath();
+    ctx.rect(taskTableWidth, headerHeight, canvasWidth - taskTableWidth, canvasHeight - headerHeight);
+    ctx.clip();
+
+    ctx.strokeStyle = this.colors.statusDate;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(statusX, headerHeight);
+
+    for (let i = 0; i < this.flatTasks.length; i++) {
+      const rowTop = this.rowToY(i);
+      const rowBottom = rowTop + rowHeight;
+      if (rowBottom < headerHeight || rowTop > canvasHeight) continue;
+      const rowMid = rowTop + rowHeight / 2;
+      const task = this.flatTasks[i];
+
+      let progressX = statusX;
+      // Alleen echte leaf-taken (geen samenvatting/mijlpaal/band) stulpen uit.
+      if (task && !task.isMilestone && task.childIds.length === 0) {
+        const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
+        const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+        const x1 = this.dateToX(start);
+        const x2 = this.dateToX(end) + zoom;
+        const c = Math.max(0, Math.min(1, task.time.completion || 0));
+        progressX = x1 + (x2 - x1) * c;
+      }
+
+      ctx.lineTo(statusX, rowTop);
+      ctx.lineTo(progressX, rowMid);
+      ctx.lineTo(statusX, rowBottom);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Baseline-onderbalk (fase 2.6, §6.2): dunne balk (of ruit voor mijlpalen) in de baseline-kleur
+   *  onder de hoofdbalk, uit de actieve-baseline-overlay. Alleen als de taak een baseline-entry heeft. */
+  private drawBaselineOverlay(task: Task, y: number, height: number): void {
+    const overlay = this.opts.baselineOverlay;
+    if (!overlay || this.opts.showBaselineOverlay === false) return;
+    const entry = overlay.get(task.id);
+    if (!entry) return;
+
+    const ctx = this.ctx;
+    const zoom = this.opts.view.zoom;
+    const baseHeight = Math.max(2, height * 0.28);
+    const baseY = y + height + 1;
+    ctx.fillStyle = this.colors.baseline;
+
+    if (entry.isMilestone) {
+      // Kleine ruit in baseline-kleur op de baseline-datum.
+      const x = this.dateToX(parseDate(entry.start)) + zoom / 2;
+      if (x < this.opts.taskTableWidth || x > this.opts.canvasWidth) return;
+      const cy = baseY + baseHeight / 2;
+      const s = baseHeight;
+      ctx.beginPath();
+      ctx.moveTo(x, cy - s);
+      ctx.lineTo(x + s, cy);
+      ctx.lineTo(x, cy + s);
+      ctx.lineTo(x - s, cy);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+
+    const x1 = this.dateToX(parseDate(entry.start));
+    const x2 = this.dateToX(parseDate(entry.finish)) + zoom;
+    if (x2 < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
+    const width = Math.max(x2 - x1, 2);
+    ctx.beginPath();
+    ctx.roundRect(x1, baseY, width, baseHeight, 1);
+    ctx.fill();
   }
 
   private drawTimelineHeader(): void {
@@ -420,6 +536,8 @@ export class GanttRenderer {
       }
       this.drawConstraintMarkers(task, y);
       if (dimmed) this.ctx.globalAlpha = 1;
+      // Baseline-onderbalk (fase 2.6): op volle dekking, ná het eventuele dim-herstel.
+      this.drawBaselineOverlay(task, y, barHeight);
     }
   }
 

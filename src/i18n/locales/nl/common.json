@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) overschreden",
-    "violatedConstraints": "{{count}} constraint(s) geschonden"
+    "violatedConstraints": "{{count}} constraint(s) geschonden",
+    "outOfSequence": "{{count}} out-of-sequence-relatie(s)"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "Baselines",
+      "name": "Naam",
+      "created": "Aangemaakt",
+      "active": "Actief",
+      "delete": "Verwijderen",
+      "saveNew": "Nieuwe baseline opslaan",
+      "defaultName": "Baseline {{n}} — {{date}}",
+      "noBaselines": "Nog geen baselines",
+      "staleHint": "Planning is verouderd — herbereken eerst (F5)",
+      "deleteActiveConfirm": "De actieve baseline verwijderen?"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "Actuals kunnen niet ná de statusdatum liggen"
   },
   "resource": {
     "type": {

@@ -166,6 +166,32 @@ export async function saveHistogramHeight(value: number): Promise<void> {
   await setSetting('histogramHeight', Math.round(value));
 }
 
+// Baseline-/voortgang-overlays (fase 2.6, §11.1): view-state zoals showHistogram — geen
+// instellingen, persist via dezelfde ops-prefix, buiten de 3-plekken-regel.
+export async function loadShowBaselineOverlay(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('showBaselineOverlay');
+  return typeof v === 'boolean' ? v : undefined;
+}
+export async function saveShowBaselineOverlay(value: boolean): Promise<void> {
+  await setSetting('showBaselineOverlay', value);
+}
+
+export async function loadShowProgressLine(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('showProgressLine');
+  return typeof v === 'boolean' ? v : undefined;
+}
+export async function saveShowProgressLine(value: boolean): Promise<void> {
+  await setSetting('showProgressLine', value);
+}
+
+export async function loadShowStatusDateLine(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('showStatusDateLine');
+  return typeof v === 'boolean' ? v : undefined;
+}
+export async function saveShowStatusDateLine(value: boolean): Promise<void> {
+  await setSetting('showStatusDateLine', value);
+}
+
 const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
 
 export async function loadDocumentChromeStyle(): Promise<DocumentChromeStyle | undefined> {

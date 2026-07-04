@@ -40,6 +40,14 @@ export function StatusBar() {
               ⚠ {tCommon('statusWarnings.violatedConstraints', { count: cpmResult.violatedConstraintTaskIds.length })}
             </span>
           )}
+          {(cpmResult.outOfSequenceSequenceIds?.length ?? 0) > 0 && (
+            <span
+              style={{ color: 'var(--theme-warning-text)' }}
+              title={tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length })}
+            >
+              ⚠ {tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length })}
+            </span>
+          )}
         </>
       )}
       {scheduleStale && (

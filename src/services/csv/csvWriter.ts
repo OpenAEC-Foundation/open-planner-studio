@@ -64,6 +64,9 @@ export function writeCSV(
   const headers = [
     'WBS', 'Name', 'Duration (days)', 'Start', 'Finish',
     'Predecessors', 'Task Type', 'Status', 'Completion (%)',
+    // Actuals (fase 2.6, §9.3): achter Completion. Kolomkoppen altijd aanwezig (CSV-conventie);
+    // een taak zonder actuals levert lege cellen. Geen baselines/statusdatum in CSV (bewust).
+    'Actual Start', 'Actual Finish',
     'Critical', 'Total Float', 'Description',
   ];
 
@@ -84,6 +87,8 @@ export function writeCSV(
       task.taskType,
       task.status,
       completion.toString(),
+      task.time.actualStart || '',
+      task.time.actualFinish || '',
       task.time.isCritical ? 'Yes' : 'No',
       task.time.totalFloat.toString(),
       escapeCSV(task.description),

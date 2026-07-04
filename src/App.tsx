@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine } from '@/utils/settingsStore';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -45,6 +45,7 @@ import { StructureDialog } from '@/components/dialogs/StructureDialog';
 import { UpdateDialog } from '@/components/dialogs/UpdateDialog';
 import { FeedbackDialog } from '@/components/dialogs/FeedbackDialog';
 import { LevelingDialog } from '@/components/dialogs/LevelingDialog';
+import { BaselineDialog } from '@/components/dialogs/BaselineDialog';
 import { RecoveryDialog, type RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
 import { documentTitle } from '@/utils/documents';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
@@ -74,6 +75,7 @@ function AppContent() {
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
+  const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
   const isDirty = useAppStore(s => s.isDirty);
@@ -125,6 +127,15 @@ function AppContent() {
     loadHistogramHeight().then(h => {
       if (typeof h === 'number') setUI({ histogramHeight: h });
     });
+    loadShowBaselineOverlay().then(v => {
+      if (typeof v === 'boolean') setUI({ showBaselineOverlay: v });
+    });
+    loadShowProgressLine().then(v => {
+      if (typeof v === 'boolean') setUI({ showProgressLine: v });
+    });
+    loadShowStatusDateLine().then(v => {
+      if (typeof v === 'boolean') setUI({ showStatusDateLine: v });
+    });
     void loadAllExtensions();
   }, []);
 
@@ -172,6 +183,7 @@ function AppContent() {
             payload.project, payload.calendar, payload.tasks,
             payload.sequences, payload.resources, payload.assignments,
             payload.activityCodeTypes, payload.customFieldDefs, payload.resourceCalendars,
+            payload.baselines, payload.activeBaselineId,
           );
           await writeTextFile(await join(dir, recoveryIfcName(id)), content);
         }
@@ -475,6 +487,7 @@ function AppContent() {
       {showStructureDialog && <StructureDialog />}
       {showFeedbackDialog && <FeedbackDialog />}
       {showLevelingDialog && <LevelingDialog />}
+      {showBaselineDialog && <BaselineDialog />}
       <UpdateDialog />
       {recovery && (
         <RecoveryDialog
