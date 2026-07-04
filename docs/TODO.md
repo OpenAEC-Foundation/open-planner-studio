@@ -215,6 +215,23 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] Scheduling options (keuze berekeningsmethoden)
 
 #### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
+- [ ] **Keyboard-shortcuts + rechtermuisklik-menu uitbreiden — VÓÓR de documentatie (user-verzoek
+  2026-07-04).** Voordat de gebruikersdocumentatie geschreven wordt (die legt sneltoetsen en
+  menu's immers vast) moet de bediening op peil: (a) **sneltoetsen voor zoveel mogelijk
+  acties** — inventariseer wat `useKeyboardShortcuts.ts` al heeft (F5/Ctrl+S/Ctrl+Z/F11/
+  indent-outdent/zoom…) en vul aan naar het niveau van MSP/P6: o.a. taak invoegen/verwijderen,
+  relatie leggen op selectie, mijlpaal maken, omhoog/omlaag verplaatsen, inklappen/uitklappen
+  (alles/niveau), naar vandaag/statusdatum springen, dialoog-openers (kalenders, baselines,
+  filter, kolommen), rapportweergave, tabwissel tussen documenten. Conflictvrij per platform
+  (let op browser-gereserveerde combinaties in de web-build) en tonen in tooltips; overweeg
+  een "sneltoetsen"-overzichtsdialoog (Ctrl+/?) als onderdeel van dit werk. (b) **Het
+  rechtermuisklik-contextmenu verrijken** — het bestaande `ContextMenu` op taakrij/canvas is
+  minimaal; voeg contextuele acties toe per plek: taakrij (bewerken, invoegen boven/onder,
+  verwijderen, indent/outdent, mijlpaal-toggle, kalender toewijzen, voortgang zetten,
+  resource toewijzen, naar relaties), Gantt-balk (relatie leggen vanaf hier, pin/prioriteit,
+  constraint zetten), lege canvas (taak toevoegen, plakken, zoom-presets), bandkop
+  (in-/uitklappen, alles), histogram (drill-down). Elke context-actie hergebruikt bestaande
+  store-acties — geen nieuwe logica, alleen ontsluiting. i18n 14 talen.
 - [ ] **First-startup-ervaring: welkomstmenu + rondleiding (user-verzoek 2026-07-04).** Bij de
   allereerste start van het programma verschijnt een welkomstscherm met (a) een aantal basale
   instellingen om direct te kiezen (denk: taal, thema licht/donker, en relevante voorkeuren
