@@ -63,6 +63,18 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
          --channels stable -` en voeg de output toe als GitHub-repo-secret
          `SNAPCRAFT_STORE_CREDENTIALS`.
 
+### Distributie & Release — release notes in de in-app updater
+
+- [ ] **Release-notes-vulling van `latest.json` automatiseren.** De update-dialoog
+  (`UpdateDialog.tsx`) toont `update.body` al, maar het `notes`-veld in `latest.json` blijft
+  leeg omdat de release notes pas ná de CI-build handmatig op de GitHub-release worden gezet.
+  Sinds v2026.7.5 is de workaround een vaste release-procedure-stap: na `gh release edit
+  --notes-file` ook `latest.json` downloaden, `notes` vullen (platte-tekst-versie van de
+  notes) en met `--clobber` terug-uploaden. Automatiseren kan door in `release.yml` een
+  gated slotstap toe te voegen die na het publiceren de release-body in `latest.json` patcht
+  (of door de notes vóór het taggen in een bestand in de repo te leggen dat de workflow
+  leest). Tot die tijd: procedure-stap niet vergeten.
+
 ### Kwaliteit & verificatie
 
 - [ ] **Driedubbele eindverificatie van fase 2 (uitgesteld op 2026-07-04).** Na afronding van
