@@ -7,6 +7,62 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Toegevoegd
+- **Kalender-uitbreidingen (fase 2.8a)** — de kalender wordt een eersteklas, meervoudig,
+  jaar-onafhankelijk concept (ontwerp:
+  `docs/superpowers/specs/2026-07-04-kalenders-design.md`):
+  - **Jaar-onafhankelijke feestdagen-engine** (`src/engine/calendar/holidays.ts`): regelgebaseerd
+    i.p.v. een hardgecodeerde 2026-lijst, met een Pasen-algoritme en substitutieregels (bv.
+    Koningsdag op zondag → 26 april, VK-feestdagen die in het weekend vallen → eerstvolgende
+    maandag). **Zeven landensets**: NL, **Duitsland incl. alle 16 Bundesländer**, België,
+    Frankrijk (+ Alsace-Moselle), Verenigd Koninkrijk (EN-WLS/SCT/NIR), Oostenrijk en Zwitserland.
+    Bevrijdingsdag (5 mei) volgt de **lustrum-regel**: alleen in jaren deelbaar door 5 wordt hij
+    als feestdag gegenereerd (overige jaren optioneel te kiezen).
+  - **Bouwvak is nu opt-in via de wizardkeuze** (geen/Noord/Midden/Zuid), met **default geen** —
+    de oude standaardkalender bakte stilzwijgend drie weken bouwvak (regio Noord) in elk nieuw
+    project, wat in de fase-2.5-QA een 5-daagse taak liet ogen als een "opgerekte balk van vier
+    weken". De regionale bouwvak-datums komen uit een geverifieerde datatabel per jaar met een
+    benaderings-fallback voor jaren buiten de tabel.
+  - **Kalender-bibliotheek**: de resource-kalenderregistry (fase 2.5) is gepromoveerd tot dé
+    projectbrede bibliotheek (`calendars: WorkCalendar[]`) waar project, taken én resources
+    allemaal naar verwijzen — één centrale plek i.p.v. een impliciete projectkalender plus een
+    losse resource-registry. Bestaande documenten migreren automatisch (inline projectkalender
+    wordt bibliotheek-entry "Projectkalender").
+  - **Taak-specifieke kalenders in de CPM**: elke taak kan een eigen kalender krijgen
+    (`Task.calendarId`, fallback projectkalender); de solver rekent duur, float en
+    constraint-snaps per taak in diens eigen kalender via een engine-cache. **Voorganger-
+    kalender-lagregel**: de lag tussen twee taken telt in de kalender van de *voorganger*
+    (P6-default), terwijl de opvolger-afgeleide starttijd in de kalender van de *opvolger* snapt
+    — forward en backward pass spiegelen deze verdeling exact, zodat float symmetrisch blijft.
+  - **Wizard** (`ProjectInfoDialog`): land/regio-dropdown (Bundesland bij Duitsland, landsdeel bij
+    VK, kanton bij Zwitserland), de bouwvak-keuze, een vaste-winterstop-checkbox (default uit) en
+    een compacte feestdagen-preview met uitklapbare lijst — vervangt de oude, jaargebonden
+    3-presets-dropdown.
+  - **Kalenderdialoog als bibliotheekbeheer**: lijst van alle bibliotheekkalenders met
+    actief/projectdefault-markering, nieuw/dupliceren/verwijderen, en een nieuwe **"Feestdagen
+    genereren…"**-knop die dezelfde land/regio/bouwvak-generator als de wizard opent — ook voor
+    bestaande projecten, niet alleen bij het aanmaken.
+  - **Gantt-naamlabel op meerdaagse feestdagblokken**: blokken breder dan een paar zoom-pixels
+    tonen nu hun naam (bv. "Bouwvak (Noord)") in de arceringszone, zodat direct zichtbaar is
+    wélke feestdag of vakantieperiode in de planning zit.
+  - **IFC-reader-gat gedicht**: werkweek en werkuren lezen nu ook daadwerkelijk terug uit
+    `IFCRECURRENCEPATTERN`/`IFCTIMEPERIOD` (voorheen viel een 6- of 7-daagse kalender bij het
+    herladen stilzwijgend terug op de ma-vr-default). Meerdere benoemde kalenders en de
+    taak-kalender-koppeling round-trippen via `IfcRelAssignsToControl` en een nieuwe
+    OPS-pset (regelset-id/bouwvak-keuze).
+  - **Multi-kalender- en taak-kalender-round-trip** ook in **MSPDI** (`Calendars` +
+    `Task CalendarUID`, effectief gemaakt) en **P6-XML** (`StandardWorkWeek`/
+    `HolidayOrExceptions`, `CalendarObjectId` per activity). Verliesmatrix in het ontwerpdoc §8.4.
+  - Volledig vertaald in alle 14 talen; de test-suite groeide van 280 naar **289 handberekende
+    cases**, alle bestaande cases ongewijzigd groen, `verify:examples` byte-identiek.
+  - **Bewuste beperkingen**: uren-/minuten-based scheduling en dag/nacht-ploegenkalenders zijn
+    **fase 2.8b** (het datamodel blijft dag-granulair — een uur-kalender heeft nu geen effect op
+    de solver); per-rij Gantt-arcering op afwijkende taak-kalenders volgt **later** (de globale
+    kolom-arcering blijft op de projectkalender, MSP-gedrag); een instelbare lag-kalender-optie
+    (P6's "Calendar for scheduling Relationship Lag") is **fase 2.9** — 2.8a legt
+    voorganger-kalender vast als interne constante; weer-/vorstafhankelijk winterverlet is
+    **fase 4** (2.8a kent alleen een vaste, jaarlijks terugkerende winterstop-periode); de
+    bouwvak-tabeldatums zijn **adviesdata** (Bouwend Nederland) die met een benaderingsfallback
+    verder in de toekomst minder precies worden.
 - **Weergaven (fase 2.7)** — echte, opslaanbare weergaven op de Beeld-ribbontab (ontwerp:
   `docs/superpowers/specs/2026-07-04-weergaven-design.md`):
   - **Tijdschaal-reparatie**: de tot dusver dode tijdschaal-keuze is vervangen door een

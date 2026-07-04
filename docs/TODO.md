@@ -175,29 +175,27 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 
 #### 2.8 Kalender-uitbreidingen
 
+> §2.8a is afgerond (jaar-onafhankelijke feestdagen-engine met 7 landensets incl. Duitse
+> Bundesländer, Pasen-algoritme, substitutieregels en de lustrum-regel voor Bevrijdingsdag;
+> bouwvak nu opt-in via de wizardkeuze met default geen; de resource-kalenderregistry
+> gepromoveerd tot een gedeelde kalender-bibliotheek voor project, taken én resources;
+> taak-specifieke kalenders in de CPM met de voorganger-kalender-lagregel; wizard
+> land/regio/bouwvak/winterstop + preview; kalenderdialoog als bibliotheekbeheer met
+> feestdagen-genereren; Gantt-naamlabel op meerdaagse feestdagblokken; IFC-reader-gat gedicht
+> (werkweek/uren round-trippen nu); multi-kalender + taak-kalender round-trip in IFC/MSPDI/P6)
+> — zie changelog en
+> [ontwerp](superpowers/specs/2026-07-04-kalenders-design.md). Bewust later: uren-/
+> minuten-scheduling en dag/nacht-ploegenkalenders zijn 2.8b (hieronder); per-rij
+> Gantt-arcering op afwijkende taak-kalenders volgt later; een instelbare
+> lag-kalender-scheduling-option (P6's "Calendar for scheduling Relationship Lag") is fase 2.9;
+> weer-/vorstafhankelijk winterverlet is fase 4 (2.8a kent alleen een vaste winterstop-periode);
+> de bouwvak-tabeldatums zijn adviesdata (Bouwend Nederland).
+
 > **Fase-splitsing (besluit user 2026-07-04):** 2.8 wordt in twee delen uitgevoerd.
-> **2.8a** = alles hieronder behálve uren-scheduling (dag-granulair, direct waardevol);
+> **2.8a** = feestdagen/bouwvak/kalender-bibliotheek/taak-kalenders (afgerond, hierboven);
 > **2.8b** = uren-/minuten-based scheduling + de uur-tijdschaal, als apart ontworpen
 > vervolgfase (raakt solver, alle adapters, renderer én IFC — te groot om mee te liften).
 
-- [ ] **Hardgecodeerde bouwvak/feestdagen in de standaardkalender opknappen.** `createDefaultCalendar()`
-  (`src/types/calendar.ts`) bakt een vaste 2026-feestdagenlijst in, inclusief drie weken
-  "Bouwvak (regio Noord)" (20 jul – 7 aug 2026). Drie problemen: (1) de regiokeuze is willekeurig
-  (Noord/Midden/Zuid hebben verschoven weken); (2) alle datums zijn jaargebonden — projecten in 2027
-  hebben stilzwijgend géén feestdagen meer; (3) gebruikers zien niet dat er drie weken vakantie in hun
-  planning zit tot een taak eroverheen valt (kwam uit de fase-2.5-QA: een 5-daagse taak leek een
-  "opgerekte balk van vier weken"). Richting: feestdagen jaar-onafhankelijk genereren voor de
-  projectperiode, feestdagenoverzicht + kalender-presets in de projectwizard (`ProjectInfoDialog`),
-  en evt. een naamlabel in de Gantt-arcering bij meerdaagse feestdagen.
-  **HARD (besluit user 2026-07-04): de bouwvak zit NIET standaard in de kalender** — hij wordt
-  opt-in via een wizardkeuze (geen/Noord/Midden/Zuid), default *geen*; bestaande bestanden met een
-  ingebakken bouwvak-uitzondering blijven uiteraard ongewijzigd laden.
-- [ ] Meerdere kalenders per project
-- [ ] Taak-specifieke kalender
-- [ ] Duitse feestdagen (per Bundesland)
-- [ ] Europese feestdagensets (BE, FR, VK, AT, CH)
-- [ ] Seizoensgebonden kalenders
-- [ ] Winterstop/vorstperiode
 - [ ] 24-uurs kalender
 - [ ] Dag/nacht ploegen-kalender
 - [ ] Uren-based en minuten-based scheduling

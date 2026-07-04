@@ -1,8 +1,8 @@
 # Ontwerp: Fase 2.8a — Kalender-uitbreidingen
 
-*Status: **ontwerp** — architectuurbeslissingen door de hoofdarchitect vastgelegd (overgenomen en
-uitgewerkt hieronder). Dag-granulair; uren-/minuten-scheduling en de uur-tijdschaal zijn expliciet
-**2.8b** (§13).*
+*Status: **geïmplementeerd (2026-07-04)** — architectuurbeslissingen door de hoofdarchitect vastgelegd
+(overgenomen en uitgewerkt hieronder) zijn ongewijzigd geïmplementeerd. Dag-granulair; uren-/
+minuten-scheduling en de uur-tijdschaal zijn expliciet **2.8b** (§1, "Expliciet buiten scope").*
 *Datum: 2026-07-04 · Bron: [docs/TODO.md](../../TODO.md) §2.8 (incl. de fase-splitsings-blockquote en de
 harde bouwvak-eis r192-194), research-rapport 2.8a
 (`/home/nozzit/.claude/jobs/fd7f4482/tmp/research-2.8a-kalenders.md`) + firsthand codebase-verificatie
