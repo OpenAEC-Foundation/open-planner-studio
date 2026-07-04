@@ -35,7 +35,6 @@
     "milestoneTitle": "Neuer Meilenstein",
     "relationTitle": "Abhängigkeit hinzufügen",
     "schedule": "Terminplanung",
-    "cpm": "CPM",
     "calculate": "Berechnen",
     "calculateTitle": "CPM ausführen (F5)",
     "zoom": "Zoom",
@@ -196,7 +195,7 @@
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern",
     "planning": "Planung",
-    "calculateCPM": "CPM berechnen",
+    "calculateCPM": "Berechnen",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

@@ -76,7 +76,7 @@
     "dependencies": "Abhängigkeiten",
     "driving": "Maßgebende Beziehung (driving)",
     "lag": "Verzögerung (z.B. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "CPM neu berechnen",
+    "recalculate": "Berechnen",
     "assignments": {
       "title": "Zuweisungen",
       "add": "Ressource zuweisen",

@@ -35,7 +35,6 @@
     "milestoneTitle": "Yeni kilometre taşı",
     "relationTitle": "Bağımlılık ekle",
     "schedule": "Zamanlama",
-    "cpm": "CPM",
     "calculate": "Hesapla",
     "calculateTitle": "CPM çalıştır (F5)",
     "zoom": "Yakınlaştır",
@@ -196,7 +195,7 @@
     "zoomIn": "Yakınlaştır",
     "zoomOut": "Uzaklaştır",
     "planning": "Planlama",
-    "calculateCPM": "CPM hesapla",
+    "calculateCPM": "Hesapla",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

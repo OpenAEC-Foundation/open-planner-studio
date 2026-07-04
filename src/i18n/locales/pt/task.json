@@ -76,7 +76,7 @@
     "dependencies": "Dependências",
     "driving": "Relação determinante (driving)",
     "lag": "Atraso (ex.: 2d, 3ed, 50%, -25e%)",
-    "recalculate": "Recalcular CPM",
+    "recalculate": "Calcular",
     "assignments": {
       "title": "Atribuições",
       "add": "Atribuir recurso",

@@ -76,7 +76,7 @@
     "dependencies": "التبعيات",
     "driving": "علاقة حاكمة (driving)",
     "lag": "التأخير (مثل 2d، 3ed، 50%، -25e%)",
-    "recalculate": "إعادة حساب CPM",
+    "recalculate": "حساب",
     "assignments": {
       "title": "التخصيصات",
       "add": "تخصيص مورد",

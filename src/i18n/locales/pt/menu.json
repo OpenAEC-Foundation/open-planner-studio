@@ -35,7 +35,6 @@
     "milestoneTitle": "Novo marco",
     "relationTitle": "Adicionar dependência",
     "schedule": "Agendamento",
-    "cpm": "CPM",
     "calculate": "Calcular",
     "calculateTitle": "Executar CPM (F5)",
     "zoom": "Zoom",
@@ -196,7 +195,7 @@
     "zoomIn": "Aproximar",
     "zoomOut": "Afastar",
     "planning": "Planeamento",
-    "calculateCPM": "Calcular CPM",
+    "calculateCPM": "Calcular",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

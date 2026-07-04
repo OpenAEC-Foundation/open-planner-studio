@@ -76,7 +76,7 @@
     "dependencies": "종속성",
     "driving": "주도 관계(드라이빙)",
     "lag": "지연(예: 2d, 3ed, 50%, -25e%)",
-    "recalculate": "CPM 재계산",
+    "recalculate": "계산",
     "assignments": {
       "title": "할당",
       "add": "자원 할당",

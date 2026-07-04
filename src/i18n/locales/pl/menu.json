@@ -35,7 +35,6 @@
     "milestoneTitle": "Nowy kamień milowy",
     "relationTitle": "Dodaj zależność",
     "schedule": "Harmonogram",
-    "cpm": "CPM",
     "calculate": "Oblicz",
     "calculateTitle": "Uruchom CPM (F5)",
     "zoom": "Zoom",
@@ -196,7 +195,7 @@
     "zoomIn": "Powiększ",
     "zoomOut": "Pomniejsz",
     "planning": "Planowanie",
-    "calculateCPM": "Oblicz CPM",
+    "calculateCPM": "Oblicz",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

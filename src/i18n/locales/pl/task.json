@@ -76,7 +76,7 @@
     "dependencies": "Zależności",
     "driving": "Relacja wiodąca (driving)",
     "lag": "Zwłoka (np. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "Przelicz CPM",
+    "recalculate": "Oblicz",
     "assignments": {
       "title": "Przydziały",
       "add": "Przydziel zasób",

@@ -56,6 +56,7 @@ export function createDefaultUI(): UIState {
     showColumnsDialog: false,
     showFilterDialog: false,
     showLayoutsDialog: false,
+    autoCalcCPM: false,
   };
 }
 

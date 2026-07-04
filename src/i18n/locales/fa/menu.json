@@ -35,7 +35,6 @@
     "milestoneTitle": "نقطه عطف جدید",
     "relationTitle": "افزودن وابستگی",
     "schedule": "زمان‌بندی",
-    "cpm": "CPM",
     "calculate": "محاسبه",
     "calculateTitle": "اجرای CPM (F5)",
     "zoom": "بزرگ‌نمایی",
@@ -196,7 +195,7 @@
     "zoomIn": "بزرگ‌نمایی",
     "zoomOut": "کوچک‌نمایی",
     "planning": "برنامه‌ریزی",
-    "calculateCPM": "محاسبه CPM",
+    "calculateCPM": "محاسبه",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

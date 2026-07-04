@@ -35,7 +35,6 @@
     "milestoneTitle": "新建里程碑",
     "relationTitle": "添加依赖",
     "schedule": "进度",
-    "cpm": "CPM",
     "calculate": "计算",
     "calculateTitle": "运行 CPM (F5)",
     "zoom": "缩放",
@@ -196,7 +195,7 @@
     "zoomIn": "放大",
     "zoomOut": "缩小",
     "planning": "计划",
-    "calculateCPM": "计算 CPM",
+    "calculateCPM": "计算",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

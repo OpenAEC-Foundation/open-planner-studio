@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
 import { UITheme, UI_THEMES, DocumentChromeStyle } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
@@ -38,6 +38,7 @@ export function SettingsPanelContent() {
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
+  const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
@@ -227,6 +228,22 @@ export function SettingsPanelContent() {
                 />
                 <span>{t('settings.enableQuarterHourZoom')}</span>
               </label>
+            </div>
+            <div className="settings-section">
+              <h3>{t('settings.calculationSection')}</h3>
+              <label className="settings-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={autoCalcCPM}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setUI({ autoCalcCPM: checked });
+                    void saveAutoCalcCPM(checked);
+                  }}
+                />
+                <span>{t('settings.autoCalcCPM')}</span>
+              </label>
+              <p className="scrollzoom-hint">{t('settings.autoCalcCPMHint')}</p>
             </div>
             <ScrollZoomSettings />
           </div>

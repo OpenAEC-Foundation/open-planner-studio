@@ -35,7 +35,6 @@
     "milestoneTitle": "새 마일스톤",
     "relationTitle": "종속성 추가",
     "schedule": "일정",
-    "cpm": "CPM",
     "calculate": "계산",
     "calculateTitle": "CPM 실행 (F5)",
     "zoom": "확대/축소",
@@ -196,7 +195,7 @@
     "zoomIn": "확대",
     "zoomOut": "축소",
     "planning": "계획",
-    "calculateCPM": "CPM 계산",
+    "calculateCPM": "계산",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -148,7 +148,35 @@ function AppContent() {
     loadShowMiniMap().then(v => {
       if (typeof v === 'boolean') setUI({ showMiniMap: v });
     });
+    loadAutoCalcCPM().then(v => {
+      if (typeof v === 'boolean') setUI({ autoCalcCPM: v });
+    });
     void loadAllExtensions();
+  }, []);
+
+  // Automatisch berekenen: als de instelling aanstaat, draai runCPM zodra de planning
+  // verouderd raakt (scheduleStale), i.p.v. te wachten op de gebruiker (F5). Eén centrale
+  // plek i.p.v. bij elke callsite die scheduleStale zet — hetzelfde patroon als de auto-save
+  // hierboven: een globale store-subscribe + debounce (~100ms) om snelle opeenvolgende
+  // mutaties tot één run te coalescen. Geen oneindige lus: runCPM zet scheduleStale zelf
+  // weer op false, dus de volgende subscribe-tick vindt de guard-conditie niet meer waar.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const maybeScheduleRun = () => {
+      const state = useAppStore.getState();
+      if (!state.ui.autoCalcCPM || !state.scheduleStale) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        const s = useAppStore.getState();
+        if (s.ui.autoCalcCPM && s.scheduleStale) s.runCPM();
+      }, 100);
+    };
+    const unsub = useAppStore.subscribe(maybeScheduleRun);
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+    };
   }, []);
 
   // "(geen)"-bandlabel voor de gedeelde viewRows-pijplijn (fase 2.7, §4.1): de vertaalde

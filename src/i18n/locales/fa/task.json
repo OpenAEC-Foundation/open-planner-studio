@@ -76,7 +76,7 @@
     "dependencies": "وابستگی‌ها",
     "driving": "رابطهٔ تعیین‌کننده (driving)",
     "lag": "تأخیر (مثلاً 2d، 3ed، 50%، -25e%)",
-    "recalculate": "محاسبه مجدد CPM",
+    "recalculate": "محاسبه",
     "assignments": {
       "title": "تخصیص‌ها",
       "add": "تخصیص منبع",

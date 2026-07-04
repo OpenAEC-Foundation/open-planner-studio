@@ -196,6 +196,7 @@ export interface UIState {
   showColumnsDialog: boolean;                // session — kolommen-dialoog open
   showFilterDialog: boolean;                 // session — filter-editor open
   showLayoutsDialog: boolean;                // session — layouts-beheer/opslaan-als-dialoog open
+  autoCalcCPM: boolean;                      // persisted — runCPM automatisch bij scheduleStale i.p.v. handmatig (F5)
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

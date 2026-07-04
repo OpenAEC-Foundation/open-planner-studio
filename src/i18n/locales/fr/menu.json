@@ -35,7 +35,6 @@
     "milestoneTitle": "Nouveau jalon",
     "relationTitle": "Ajouter une dépendance",
     "schedule": "Planification",
-    "cpm": "CPM",
     "calculate": "Calculer",
     "calculateTitle": "Exécuter CPM (F5)",
     "zoom": "Zoom",
@@ -196,7 +195,7 @@
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
     "planning": "Planification",
-    "calculateCPM": "Calculer CPM",
+    "calculateCPM": "Calculer",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

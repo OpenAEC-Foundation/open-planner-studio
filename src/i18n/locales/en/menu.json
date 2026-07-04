@@ -35,7 +35,6 @@
     "milestoneTitle": "New milestone",
     "relationTitle": "Add dependency",
     "schedule": "Schedule",
-    "cpm": "CPM",
     "calculate": "Calculate",
     "calculateTitle": "Run CPM (F5)",
     "zoom": "Zoom",
@@ -209,7 +208,7 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "planning": "Planning",
-    "calculateCPM": "Calculate CPM",
+    "calculateCPM": "Calculate",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

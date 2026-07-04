@@ -35,7 +35,6 @@
     "milestoneTitle": "新しいマイルストーン",
     "relationTitle": "依存関係を追加",
     "schedule": "スケジュール",
-    "cpm": "CPM",
     "calculate": "計算",
     "calculateTitle": "CPM を実行 (F5)",
     "zoom": "ズーム",
@@ -196,7 +195,7 @@
     "zoomIn": "拡大",
     "zoomOut": "縮小",
     "planning": "計画",
-    "calculateCPM": "CPM を計算",
+    "calculateCPM": "計算",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

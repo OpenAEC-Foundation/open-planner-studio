@@ -242,6 +242,18 @@ export async function saveLayouts(layouts: Layout[]): Promise<void> {
   await setSetting('layouts', layouts);
 }
 
+// Automatisch berekenen (fase 2.7 vervolg): app-instelling, dus WEL onder de 3-plekken-regel
+// (tandwiel, Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Default
+// UIT — huidig handmatige (F5) gedrag blijft ongewijzigd tenzij de gebruiker 'm expliciet aanzet.
+export async function loadAutoCalcCPM(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('autoCalcCPM');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveAutoCalcCPM(value: boolean): Promise<void> {
+  await setSetting('autoCalcCPM', value);
+}
+
 export async function loadLastLayoutId(): Promise<string | null> {
   const v = await getSetting<string>('lastLayoutId');
   return typeof v === 'string' && v ? v : null;

@@ -35,7 +35,6 @@
     "milestoneTitle": "Nieuwe mijlpaal",
     "relationTitle": "Afhankelijkheid toevoegen",
     "schedule": "Planning",
-    "cpm": "CPM",
     "calculate": "Bereken",
     "calculateTitle": "CPM berekenen (F5)",
     "zoom": "Zoomen",
@@ -209,7 +208,7 @@
     "zoomIn": "Inzoomen",
     "zoomOut": "Uitzoomen",
     "planning": "Planning",
-    "calculateCPM": "CPM berekenen",
+    "calculateCPM": "Bereken",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

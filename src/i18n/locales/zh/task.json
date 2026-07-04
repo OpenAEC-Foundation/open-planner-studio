@@ -76,7 +76,7 @@
     "dependencies": "依赖关系",
     "driving": "驱动关系 (driving)",
     "lag": "延时（例如 2d、3ed、50%、-25e%）",
-    "recalculate": "重新计算 CPM",
+    "recalculate": "计算",
     "assignments": {
       "title": "分配",
       "add": "分配资源",

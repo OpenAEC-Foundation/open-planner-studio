@@ -76,7 +76,7 @@
     "dependencies": "Dépendances",
     "driving": "Relation déterminante (driving)",
     "lag": "Décalage (p. ex. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "Recalculer CPM",
+    "recalculate": "Calculer",
     "assignments": {
       "title": "Affectations",
       "add": "Affecter une ressource",

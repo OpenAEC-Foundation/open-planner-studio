@@ -35,7 +35,6 @@
     "milestoneTitle": "معلم جديد",
     "relationTitle": "إضافة تبعية",
     "schedule": "الجدولة",
-    "cpm": "CPM",
     "calculate": "حساب",
     "calculateTitle": "تشغيل CPM (F5)",
     "zoom": "تكبير",
@@ -196,7 +195,7 @@
     "zoomIn": "تكبير",
     "zoomOut": "تصغير",
     "planning": "التخطيط",
-    "calculateCPM": "حساب CPM",
+    "calculateCPM": "حساب",
     "version": "Open Planner Studio v0.1"
   },
   "backstage": {

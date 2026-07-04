@@ -76,7 +76,7 @@
     "dependencies": "Bağımlılıklar",
     "driving": "Belirleyici ilişki (driving)",
     "lag": "Gecikme (örn. 2d, 3ed, 50%, -25e%)",
-    "recalculate": "CPM'yi yeniden hesapla",
+    "recalculate": "Hesapla",
     "assignments": {
       "title": "Atamalar",
       "add": "Kaynak ata",

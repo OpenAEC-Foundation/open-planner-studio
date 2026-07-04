@@ -76,7 +76,7 @@
     "dependencies": "依存関係",
     "driving": "駆動関係（ドライビング）",
     "lag": "ラグ（例: 2d、3ed、50%、-25e%）",
-    "recalculate": "CPM を再計算",
+    "recalculate": "計算",
     "assignments": {
       "title": "割り当て",
       "add": "リソースを割り当てる",

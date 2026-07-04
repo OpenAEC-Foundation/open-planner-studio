@@ -1280,7 +1280,7 @@ export function Ribbon() {
         {activeTab === 'planning' && (
           <>
             <RibbonGroup label={tMenu('ribbon.schedule')}>
-              <RibbonButton icon={<Play size={20} />} label={tMenu('ribbon.cpm')} onClick={runCPM} primary />
+              <RibbonButton icon={<Play size={20} />} label={tMenu('ribbon.calculate')} onClick={runCPM} primary />
             </RibbonGroup>
 
             <div className="ribbon-separator" />
@@ -1394,7 +1394,7 @@ export function Ribbon() {
             <div className="ribbon-separator" />
 
             <RibbonGroup label={tMenu('ribbon.schedule')}>
-              <RibbonButton icon={<Play size={20} />} label={tMenu('ribbon.cpm')} onClick={runCPM} primary />
+              <RibbonButton icon={<Play size={20} />} label={tMenu('ribbon.calculate')} onClick={runCPM} primary />
             </RibbonGroup>
           </>
         )}
