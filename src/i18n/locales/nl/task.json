@@ -152,5 +152,8 @@
   },
   "defaultTask": "Nieuwe taak",
   "defaultMilestone": "Nieuwe mijlpaal",
-  "defaultInspection": "Nieuw inspectiemoment"
+  "defaultInspection": "Nieuw inspectiemoment",
+  "column": {
+    "resource": "Resources"
+  }
 }

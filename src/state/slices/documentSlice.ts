@@ -143,18 +143,22 @@ function capturePayload(s: AppState): DocumentPayload {
  * guards houden ze veilig. Migratie: een `groupBy`-string zonder `group` → één activity-code-niveau.
  */
 function normalizeView(v: ViewState): ViewState {
+  // `groupBy` bestaat niet meer op ViewState (golf 2) maar kan nog in oude payloads/recovery zitten.
+  const legacyGroupBy = (v as ViewState & { groupBy?: string }).groupBy;
   const group = v.group && v.group.length > 0
     ? v.group
-    : v.groupBy
-      ? [{ field: { src: 'activityCode' as const, typeId: v.groupBy }, dir: 'asc' as const }]
+    : legacyGroupBy
+      ? [{ field: { src: 'activityCode' as const, typeId: legacyGroupBy }, dir: 'asc' as const }]
       : [];
-  return {
+  const out: ViewState & { groupBy?: string } = {
     ...v,
     filter: v.filter ?? null,
     group,
     sort: v.sort ?? [],
     collapsedGroupKeys: v.collapsedGroupKeys ?? [],
   };
+  delete out.groupBy; // gemigreerd — niet opnieuw laten meereizen in payloads
+  return out;
 }
 
 /** Schrijf een payload terug naar de top-level (actieve) state. */

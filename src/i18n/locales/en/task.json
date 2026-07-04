@@ -152,5 +152,8 @@
   },
   "defaultTask": "New task",
   "defaultMilestone": "New milestone",
-  "defaultInspection": "New inspection point"
+  "defaultInspection": "New inspection point",
+  "column": {
+    "resource": "Resources"
+  }
 }

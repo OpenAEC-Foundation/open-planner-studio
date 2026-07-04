@@ -47,6 +47,8 @@ import type { FieldRef, FilterNode, GroupLevel, SortLevel } from '@/state/slices
 import { scaleFromZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 import type { CustomFieldType } from '@/types/structure';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 const S = () => useAppStore.getState();
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
@@ -103,6 +105,9 @@ interface Case {
   customFields?: { name: string; type: CustomFieldType }[];
   /** Headless view-pijplijn-assertie (fase 2.7, §14.1). */
   view?: ViewCaseSpec;
+  /** Tabel↔Gantt-pariteitscheck (§14.1): statische bron-assert dat beide consumenten hetzelfde
+   *  store-veld `viewRows` lezen en er géén tweede flatten-pad meer bestaat. */
+  sourceParity?: boolean;
   /** Statusdatum (P6 data date, fase 2.6) — stuurt de CPM-voortgangstakken. */
   statusDate?: string;
   scheduleOptions?: { progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE' };
@@ -492,7 +497,42 @@ function nameOf(tid: string, ids: Record<string, string>): string {
   return tid;
 }
 
+/**
+ * Tabel↔Gantt-pariteit (§14.1/§17-risico 1): de structurele garantie tegen divergentie is dat
+ * beide consumenten HETZELFDE store-veld `viewRows` lezen en nergens meer zelf flattenen.
+ * Statische bron-assert: (a) beide lezen `s.viewRows`, (b) de oude eigen flatten-paden
+ * (flattenTasks/flattenGrouped/groupTasksByCode) komen niet meer voor in de consumenten.
+ */
+function runSourceParity(): string[] {
+  const diffs: string[] = [];
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const read = (p: string) => readFileSync(join(root, p), 'utf8');
+  const sources: [string, string][] = [
+    ['src/components/panels/TableEditor.tsx', read('src/components/panels/TableEditor.tsx')],
+    ['src/components/canvas/GanttCanvas.tsx', read('src/components/canvas/GanttCanvas.tsx')],
+    ['src/engine/renderer/GanttRenderer.ts', read('src/engine/renderer/GanttRenderer.ts')],
+  ];
+  // (a) beide consumenten lezen dezelfde store-cache.
+  for (const name of ['TableEditor.tsx', 'GanttCanvas.tsx']) {
+    const [, src] = sources.find(([p]) => p.endsWith(name))!;
+    if (!/useAppStore\(s => s\.viewRows\)/.test(src)) {
+      diffs.push(`${name}: leest niet uit de gedeelde store-cache (useAppStore(s => s.viewRows))`);
+    }
+  }
+  // (b) geen tweede flatten-pad meer.
+  for (const [path, src] of sources) {
+    for (const banned of ['groupTasksByCode', 'flattenTasks', 'flattenGrouped']) {
+      if (src.includes(banned)) diffs.push(`${path}: bevat nog een eigen flatten-pad ("${banned}")`);
+    }
+  }
+  return diffs;
+}
+
 function runCase(c: Case) {
+  if (c.sourceParity) {
+    const diffs = runSourceParity();
+    return { id: c.id, title: c.title, pass: diffs.length === 0, diffs };
+  }
   const diffs: string[] = [];
   let ids: Record<string, string> = {};
   let resIds: Record<string, string> = {};

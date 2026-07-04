@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap } from '@/utils/settingsStore';
+import { setNoneLabelValue } from '@/utils/noneLabel';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -136,8 +137,19 @@ function AppContent() {
     loadShowStatusDateLine().then(v => {
       if (typeof v === 'boolean') setUI({ showStatusDateLine: v });
     });
+    loadShowMiniMap().then(v => {
+      if (typeof v === 'boolean') setUI({ showMiniMap: v });
+    });
     void loadAllExtensions();
   }, []);
+
+  // "(geen)"-bandlabel voor de gedeelde viewRows-pijplijn (fase 2.7, §4.1): de vertaalde
+  // string wordt vanuit deze consument doorgegeven — de engine/store blijft i18n-vrij.
+  const noneLabel = t('structure.none', { ns: 'task' });
+  useEffect(() => {
+    setNoneLabelValue(noneLabel);
+    useAppStore.getState().recomputeViewRows();
+  }, [noneLabel]);
 
   // Apply theme to document
   useEffect(() => {

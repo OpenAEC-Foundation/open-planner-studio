@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { isTreeMode } from '@/engine/view/visibleRows';
 
 const isProduction = import.meta.env.PROD;
 
@@ -117,15 +118,16 @@ export function useKeyboardShortcuts() {
         runCPM();
       } else if (e.altKey && e.shiftKey && e.key === 'ArrowRight') {
         // MSP-conventie: Alt+Shift+→ = inspringen (subtaak van voorgaande sibling).
+        // Structuur-mutaties alleen in pure boommodus (fase 2.7, §4.5).
         if (selectedTaskIds.length > 0) {
           e.preventDefault();
-          indentTasks(selectedTaskIds);
+          if (isTreeMode(useAppStore.getState().view)) indentTasks(selectedTaskIds);
         }
       } else if (e.altKey && e.shiftKey && e.key === 'ArrowLeft') {
         // MSP-conventie: Alt+Shift+← = uitspringen (sibling ná de huidige ouder).
         if (selectedTaskIds.length > 0) {
           e.preventDefault();
-          outdentTasks(selectedTaskIds);
+          if (isTreeMode(useAppStore.getState().view)) outdentTasks(selectedTaskIds);
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedTaskIds.length > 0) {

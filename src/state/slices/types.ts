@@ -130,9 +130,6 @@ export interface ViewState {
   zoom: number; // pixels per day
   timeScale: TimeScale;
   viewStartDate: string; // leftmost visible date
-  /** @deprecated fase 2.7 (§7.5) — vervangen door `group: GroupLevel[]`. Blijft bestaan tot golf 2
-   *  de oude consumenten (TableEditor/GanttCanvas/Ribbon) omhangt; wordt gemigreerd naar `group`. */
-  groupBy?: string;
   /** Histogram-selectie (fase 2.5, §6.4): id van de resource die de histogramstrook toont;
    *  undefined = alle renewables samengeteld. Per-document (zit in ViewState → DocumentPayload). */
   histogramResourceId?: string;

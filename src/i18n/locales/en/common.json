@@ -279,5 +279,8 @@
       "earlyPeak": "Early peak",
       "latePeak": "Late peak"
     }
+  },
+  "view": {
+    "structureLockedHint": "Not available while filtering/grouping/sorting"
   }
 }

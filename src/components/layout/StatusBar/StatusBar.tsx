@@ -1,6 +1,7 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Terminal } from 'lucide-react';
+import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -59,7 +60,8 @@ export function StatusBar() {
         <span>{t('status.selection', { count: selectedTaskIds.length })}</span>
       )}
       <div className="flex-1" />
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {view.timeScale}</span>
+      {/* Afgeleid uit zoom (fase 2.7, §3.5) — kan niet desyncen van de getekende as. */}
+      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(view.zoom)}`)}</span>
       <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
       {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
       {debugTerminalEnabled && (

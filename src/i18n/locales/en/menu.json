@@ -142,7 +142,9 @@
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Baseline overlay",
     "toggleProgressLine": "Progress line",
-    "toggleStatusDateLine": "Status date line"
+    "toggleStatusDateLine": "Status date line",
+    "year": "Year",
+    "quarter": "Quarter"
   },
   "ifc": {
     "title": "IFC Editor",

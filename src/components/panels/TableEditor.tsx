@@ -1,10 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
-import { groupTasksByCode } from '@/utils/grouping';
+import { defaultColumns } from '@/engine/view/visibleRows';
+import { resourceCellValue, type ViewContext } from '@/engine/view/filterEval';
+import type { ColumnConfig, FieldRef, BuiltinFieldKey } from '@/state/slices/types';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
+
+const MIN_COLUMN_WIDTH = 40;
 
 /** Compacte, altijd-bewerkbare celvariant voor een custom field (tabelrij). */
 function FieldCell({ def, value, onCommit }: {
@@ -48,6 +52,27 @@ function FieldCell({ def, value, onCommit }: {
   );
 }
 
+/** Uitlijning per builtin-veld (reproduceert de oude vaste kolommen). */
+const BUILTIN_ALIGN: Partial<Record<BuiltinFieldKey, 'right' | 'center'>> = {
+  duration: 'right',
+  totalFloat: 'right',
+  completion: 'right',
+  isCritical: 'center',
+};
+
+const BUILTIN_LABEL_KEY = {
+  wbsCode: 'table.wbs',
+  name: 'table.name',
+  duration: 'table.duration',
+  start: 'table.start',
+  finish: 'table.finish',
+  taskType: 'table.type',
+  isCritical: 'table.critical',
+  totalFloat: 'table.totalFloat',
+  completion: 'table.completion',
+  isMilestone: 'table.type',
+} as const satisfies Record<BuiltinFieldKey, string>;
+
 export function TableEditor() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
@@ -60,52 +85,74 @@ export function TableEditor() {
   const toggleCollapse = useAppStore(s => s.toggleCollapse);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
-  const groupBy = useAppStore(s => s.view.groupBy);
   const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
   const setTaskActivityCode = useAppStore(s => s.setTaskActivityCode);
   const setTaskCustomField = useAppStore(s => s.setTaskCustomField);
+  // Fase 2.7 (§4/§5): DE gedeelde zichtbare-rijenlijst + kolom-config.
+  const viewRows = useAppStore(s => s.viewRows);
+  const viewColumns = useAppStore(s => s.view.columns);
+  const setCollapsedGroupKey = useAppStore(s => s.setCollapsedGroupKey);
+  const resources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
 
   const [editCell, setEditCell] = useState<{ taskId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [resizing, setResizing] = useState<{ index: number; startX: number; startWidth: number } | null>(null);
 
-  // Flatten tasks respecting collapse state. Verborgen (ingeklapte) nakomelingen
-  // tellen als "gezien" — anders vist het orphan-vangnet ze op en komen ze onderaan.
-  const flatTasks: { task: Task; depth: number }[] = [];
-  const seenIds = new Set<string>();
-  const addRecursive = (task: Task, depth: number, hidden: boolean) => {
-    seenIds.add(task.id);
-    if (!hidden) flatTasks.push({ task, depth });
-    const hideChildren = hidden || collapsedTaskIds.includes(task.id);
-    const children = tasks.filter(t => t.parentId === task.id);
-    for (const child of children) {
-      addRecursive(child, depth + 1, hideChildren);
-    }
-  };
-  const roots = tasks.filter(t => !t.parentId);
-  for (const root of roots) addRecursive(root, 0, false);
-  for (const task of tasks) {
-    if (!seenIds.has(task.id)) {
-      flatTasks.push({ task, depth: 0 });
-    }
-  }
+  // Kolom-config (§5.2): view.columns of de defaults; onbekende refs worden overgeslagen bij
+  // render maar blijven in de config bewaard (§8.4 — geldig in een ander document).
+  const columns = useMemo<ColumnConfig[]>(
+    () => viewColumns ?? defaultColumns(activityCodeTypes, customFieldDefs),
+    [viewColumns, activityCodeTypes, customFieldDefs],
+  );
+  const knownRef = useCallback((f: FieldRef): boolean => {
+    if (f.src === 'activityCode') return activityCodeTypes.some(ct => ct.id === f.typeId);
+    if (f.src === 'customField') return customFieldDefs.some(d => d.id === f.defId);
+    return true;
+  }, [activityCodeTypes, customFieldDefs]);
+  const visibleColumns = useMemo(
+    () => columns
+      .map((col, index) => ({ col, index }))
+      .filter(({ col }) => col.visible && knownRef(col.field)),
+    [columns, knownRef],
+  );
+  const totalWidth = visibleColumns.reduce((acc, { col }) => acc + col.width, 0);
 
-  // Groeperingsweergave (fase 2.2): banden per codewaarde vervangen de boom;
-  // zelfde util als de Gantt-renderer zodat beide weergaven identiek groeperen.
-  type Row = { band: { label: string; color?: string } } | { task: Task; depth: number };
-  const groupType = groupBy ? activityCodeTypes.find(ct => ct.id === groupBy) : undefined;
-  const rows: Row[] = [];
-  if (groupType) {
-    const byId = new Map(tasks.map(t2 => [t2.id, t2]));
-    for (const g of groupTasksByCode(tasks, groupType, t('structure.none'))) {
-      rows.push({ band: { label: g.label, color: g.color } });
-      for (const id of g.taskIds) {
-        const task = byId.get(id);
-        if (task) rows.push({ task, depth: 0 });
-      }
-    }
-  } else {
-    rows.push(...flatTasks);
-  }
+  // Resolver-context voor de read-only resource-kolom (§5.3, één join-implementatie).
+  const viewCtx = useMemo<ViewContext>(() => ({
+    activityCodeTypes, customFieldDefs, resources, assignments,
+    noneLabel: t('structure.none'),
+  }), [activityCodeTypes, customFieldDefs, resources, assignments, t]);
+
+  // Kolombreedte sleepbaar in de header (§5.5): schrijft width terug via setColumns.
+  const startColumnResize = useCallback((e: React.MouseEvent, index: number, width: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizing({ index, startX: e.clientX, startWidth: width });
+  }, []);
+  useEffect(() => {
+    if (!resizing) return;
+    const handleMove = (e: MouseEvent) => {
+      const s = useAppStore.getState();
+      const all = s.view.columns ?? defaultColumns(s.activityCodeTypes, s.customFieldDefs);
+      const w = Math.max(MIN_COLUMN_WIDTH, Math.round(resizing.startWidth + e.clientX - resizing.startX));
+      if (all[resizing.index]?.width === w) return;
+      s.setColumns(all.map((c, i) => (i === resizing.index ? { ...c, width: w } : c)));
+    };
+    const handleUp = () => setResizing(null);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [resizing]);
+
+  // Alleen taakrijen (voor celnavigatie); de gedeelde lijst zelf blijft leidend voor de render.
+  const taskRows = useMemo(
+    () => viewRows.filter((r): r is Extract<typeof r, { kind: 'task' }> => r.kind === 'task'),
+    [viewRows],
+  );
 
   const startEdit = useCallback((taskId: string, field: string, value: string) => {
     setEditCell({ taskId, field });
@@ -115,7 +162,7 @@ export function TableEditor() {
   const commitEdit = useCallback(() => {
     if (!editCell) return;
     const { taskId, field } = editCell;
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find(t2 => t2.id === taskId);
     if (!task) { setEditCell(null); return; }
 
     if (field === 'name') {
@@ -138,30 +185,16 @@ export function TableEditor() {
     setEditCell(null);
   }, [editCell, editValue, tasks, updateTask]);
 
-  const editableFields = ['wbsCode', 'name', 'duration', 'start', 'finish', 'completion'];
-
-  const navigateCell = useCallback((taskId: string, field: string, direction: 'up' | 'down' | 'left' | 'right') => {
-    commitEdit();
-    const rowIndex = flatTasks.findIndex(ft => ft.task.id === taskId);
-    const colIndex = editableFields.indexOf(field);
-    if (rowIndex === -1 || colIndex === -1) return;
-
-    let newRow = rowIndex;
-    let newCol = colIndex;
-
-    if (direction === 'up') newRow = Math.max(0, rowIndex - 1);
-    else if (direction === 'down') newRow = Math.min(flatTasks.length - 1, rowIndex + 1);
-    else if (direction === 'left') newCol = Math.max(0, colIndex - 1);
-    else if (direction === 'right') newCol = Math.min(editableFields.length - 1, colIndex + 1);
-
-    if (newRow === rowIndex && newCol === colIndex) return;
-
-    const nextTask = flatTasks[newRow].task;
-    const nextField = editableFields[newCol];
-    const nextValue = getCellValue(nextTask, nextField);
-    selectTask(nextTask.id);
-    startEdit(nextTask.id, nextField, nextValue);
-  }, [flatTasks, commitEdit, selectTask, startEdit]);
+  // Navigeerbare (bewerkbare) velden, in de volgorde van de zichtbare kolommen.
+  const editableFields = useMemo(() => {
+    const editable = new Set(['wbsCode', 'name', 'duration', 'start', 'finish', 'completion']);
+    if (wbsAutoNumber) editable.delete('wbsCode');
+    const keys: string[] = [];
+    for (const { col } of visibleColumns) {
+      if (col.field.src === 'builtin' && editable.has(col.field.key)) keys.push(col.field.key);
+    }
+    return keys;
+  }, [visibleColumns, wbsAutoNumber]);
 
   const getCellValue = (task: Task, field: string): string => {
     if (field === 'name') return task.name;
@@ -172,6 +205,29 @@ export function TableEditor() {
     if (field === 'completion') return `${Math.round(task.time.completion * 100)}`;
     return '';
   };
+
+  const navigateCell = useCallback((taskId: string, field: string, direction: 'up' | 'down' | 'left' | 'right') => {
+    commitEdit();
+    const rowIndex = taskRows.findIndex(r => r.task.id === taskId);
+    const colIndex = editableFields.indexOf(field);
+    if (rowIndex === -1 || colIndex === -1) return;
+
+    let newRow = rowIndex;
+    let newCol = colIndex;
+
+    if (direction === 'up') newRow = Math.max(0, rowIndex - 1);
+    else if (direction === 'down') newRow = Math.min(taskRows.length - 1, rowIndex + 1);
+    else if (direction === 'left') newCol = Math.max(0, colIndex - 1);
+    else if (direction === 'right') newCol = Math.min(editableFields.length - 1, colIndex + 1);
+
+    if (newRow === rowIndex && newCol === colIndex) return;
+
+    const nextTask = taskRows[newRow].task;
+    const nextField = editableFields[newCol];
+    const nextValue = getCellValue(nextTask, nextField);
+    selectTask(nextTask.id);
+    startEdit(nextTask.id, nextField, nextValue);
+  }, [taskRows, editableFields, commitEdit, selectTask, startEdit]);
 
   const handleCellKeyDown = useCallback((e: React.KeyboardEvent, taskId: string, field: string) => {
     if (e.key === 'Enter' || e.key === 'ArrowDown') {
@@ -188,7 +244,7 @@ export function TableEditor() {
     }
   }, [navigateCell]);
 
-  const renderCell = (taskId: string, field: string, value: string, _width: string, align = 'left') => {
+  const renderCell = (taskId: string, field: string, value: string, align = 'left') => {
     const isEditing = editCell?.taskId === taskId && editCell?.field === field;
     if (isEditing) {
       return (
@@ -221,69 +277,183 @@ export function TableEditor() {
     );
   };
 
+  const columnLabel = (field: FieldRef): string => {
+    if (field.src === 'builtin') return t(BUILTIN_LABEL_KEY[field.key]);
+    if (field.src === 'activityCode') return activityCodeTypes.find(ct => ct.id === field.typeId)?.name ?? '';
+    if (field.src === 'customField') return customFieldDefs.find(d => d.id === field.defId)?.name ?? '';
+    return t('column.resource');
+  };
+
+  /** Cel-inhoud voor één kolom van één taakrij (naamkolom heeft een eigen tak in de rij-render). */
+  const renderColumnCell = (col: ColumnConfig, task: Task, isSummary: boolean) => {
+    const f = col.field;
+    if (f.src === 'builtin') {
+      switch (f.key) {
+        case 'wbsCode':
+          return wbsAutoNumber
+            ? <span className="px-1 truncate">{task.wbsCode}</span>
+            : renderCell(task.id, 'wbsCode', task.wbsCode);
+        case 'duration':
+          return renderCell(task.id, 'duration', `${task.isMilestone ? 0 : task.time.scheduleDuration}`, 'right');
+        case 'start':
+          return (
+            <>
+              {renderCell(task.id, 'start', task.time.earlyStart || task.time.scheduleStart)}
+              {task.constraint && ['SNET', 'SNLT', 'MSO'].includes(task.constraint.type) && (
+                <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
+              )}
+            </>
+          );
+        case 'finish':
+          return (
+            <>
+              {renderCell(task.id, 'finish', task.time.earlyFinish || task.time.scheduleFinish)}
+              {task.constraint && ['FNET', 'FNLT', 'MFO'].includes(task.constraint.type) && (
+                <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
+              )}
+            </>
+          );
+        case 'taskType':
+          return <span className="text-[10px]">{taskTypeLabels[task.taskType] || task.taskType}</span>;
+        case 'isCritical':
+          return task.time.isCritical
+            ? <span className="text-critical font-bold">{tCommon('yes')}</span>
+            : <span className="text-text-secondary">{tCommon('no')}</span>;
+        case 'totalFloat':
+          return (
+            <span
+              className={task.time.totalFloat < 0 ? '' : 'text-text-secondary'}
+              style={task.time.totalFloat < 0 ? { color: 'var(--error)', fontWeight: 600 } : undefined}
+            >
+              {task.time.totalFloat}{tCommon('days')}
+            </span>
+          );
+        case 'completion':
+          return (
+            <>
+              {renderCell(task.id, 'completion', `${Math.round(task.time.completion * 100)}`, 'right')}
+              <span className="text-text-secondary ml-0.5">%</span>
+            </>
+          );
+        case 'isMilestone':
+          return <span>{task.isMilestone ? tCommon('yes') : tCommon('no')}</span>;
+        default:
+          return null;
+      }
+    }
+    if (f.src === 'activityCode') {
+      const ct = activityCodeTypes.find(x => x.id === f.typeId);
+      if (!ct || isSummary) return null;
+      return (
+        <select
+          value={task.activityCodes?.[ct.id] ?? ''}
+          onChange={e => setTaskActivityCode(task.id, ct.id, e.target.value || null)}
+          onClick={e => e.stopPropagation()}
+          className="input !text-[10px] !px-1 !py-0.5 w-full"
+        >
+          <option value=""></option>
+          {ct.values.map(v => (
+            <option key={v.id} value={v.id}>{v.code}</option>
+          ))}
+        </select>
+      );
+    }
+    if (f.src === 'customField') {
+      const def = customFieldDefs.find(d => d.id === f.defId);
+      if (!def || isSummary) return null;
+      return (
+        <FieldCell
+          def={def}
+          value={task.customFields?.[def.id]}
+          onCommit={value => setTaskCustomField(task.id, def.id, value)}
+        />
+      );
+    }
+    // Resource-kolom (§5.3): read-only join via de gedeelde resolver.
+    return <span className="truncate text-text-secondary">{resourceCellValue(task, viewCtx)}</span>;
+  };
+
+  const cellAlign = (f: FieldRef): 'left' | 'right' | 'center' =>
+    (f.src === 'builtin' && BUILTIN_ALIGN[f.key]) || 'left';
+
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-surface">
-      {/* Header — sticky thead per LAYOUTS.md §3.2 */}
+    <div className="flex-1 flex flex-col overflow-auto bg-surface">
+      {/* Header — sticky thead per LAYOUTS.md §3.2; kolombreedtes sleepbaar (§5.5) */}
       <div
         className="sticky top-0 z-10 flex bg-surface-alt text-[10px] font-bold uppercase tracking-wider select-none"
         style={{
           minHeight: 28,
+          minWidth: totalWidth,
           fontFamily: 'var(--font-heading)',
           letterSpacing: '0.08em',
           color: 'var(--theme-text-muted)',
           borderBottom: '1px solid var(--theme-border)',
         }}
       >
-        <div className="w-[60px] px-2 flex items-center">{t('table.wbs')}</div>
-        <div className="flex-1 min-w-[200px] px-2 flex items-center">{t('table.name')}</div>
-        <div className="w-[60px] px-1 flex items-center justify-end">{t('table.duration')}</div>
-        <div className="w-[100px] px-1 flex items-center">{t('table.start')}</div>
-        <div className="w-[100px] px-1 flex items-center">{t('table.finish')}</div>
-        <div className="w-[80px] px-1 flex items-center">{t('table.type')}</div>
-        <div className="w-[50px] px-1 flex items-center justify-center">{t('table.critical')}</div>
-        <div className="w-[50px] px-1 flex items-center justify-end">{t('table.totalFloat')}</div>
-        <div className="w-[60px] px-1 flex items-center justify-end">{t('table.completion')}</div>
-        {activityCodeTypes.map(ct => (
-          <div key={ct.id} className="w-[90px] px-1 flex items-center">{ct.name}</div>
-        ))}
-        {customFieldDefs.map(def => (
-          <div key={def.id} className="w-[90px] px-1 flex items-center">{def.name}</div>
-        ))}
+        {visibleColumns.map(({ col, index }) => {
+          const isName = col.field.src === 'builtin' && col.field.key === 'name';
+          const align = cellAlign(col.field);
+          return (
+            <div
+              key={index}
+              className="relative flex items-center px-2"
+              style={{
+                width: col.width,
+                flex: isName ? `1 0 ${col.width}px` : `0 0 ${col.width}px`,
+                justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
+              }}
+            >
+              <span className="truncate">{columnLabel(col.field)}</span>
+              {/* Sleep-handle op de rechterrand (schrijft width terug via setColumns) */}
+              <div
+                onMouseDown={e => startColumnResize(e, index, col.width)}
+                className="absolute top-0 right-0 h-full"
+                style={{ width: 5, cursor: 'col-resize' }}
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Rows */}
-      <div className="flex-1 overflow-y-auto">
-        {rows.map((row, rowIdx) => {
-          if ('band' in row) {
+      {/* Rows — exact dezelfde gedeelde viewRows als de Gantt (§4) */}
+      <div className="flex-1" style={{ minWidth: totalWidth }}>
+        {viewRows.map((row, rowIdx) => {
+          if (row.kind === 'group') {
+            // Bandkop-rij (§4.4/§7.3): label + count, inklapbaar op de pad-gecodeerde sleutel.
             return (
               <div
-                key={`band-${rowIdx}`}
-                className="flex items-center gap-2 text-xs font-semibold px-2"
+                key={`band-${row.key}-${rowIdx}`}
+                className="flex items-center gap-1.5 text-xs font-semibold px-2 cursor-pointer select-none"
                 style={{
                   minHeight: 26,
-                  background: (row.band.color ?? 'var(--theme-border)') + '1A',
+                  paddingLeft: 8 + row.levelIndex * 14,
+                  background: 'var(--theme-border)' + '1A',
                   borderBottom: '1px solid var(--theme-border-light)',
                 }}
+                onClick={() => setCollapsedGroupKey(row.key, !row.collapsed)}
               >
-                {row.band.color && (
-                  <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: row.band.color }} />
-                )}
-                {row.band.label}
+                <span className="w-4 flex items-center justify-center text-text-secondary flex-shrink-0">
+                  {row.collapsed ? '▶' : '▼'}
+                </span>
+                <span className="truncate">{row.label}</span>
+                <span className="text-text-secondary font-normal">({row.count})</span>
               </div>
             );
           }
-          const { task, depth } = row;
+          const { task, depth, dimmed } = row;
           const isSummary = task.childIds.length > 0;
           const isCollapsed = collapsedTaskIds.includes(task.id);
           const isSelected = selectedTaskIds.includes(task.id);
 
           return (
             <div
-              key={task.id}
+              key={`${task.id}-${rowIdx}`}
               className={`flex text-xs hover:bg-surface-hover cursor-default ${isSummary ? 'font-semibold' : ''}`}
               style={{
                 minHeight: 26,
                 borderBottom: '1px solid var(--theme-border-light)',
+                // Gedimde rij (filter-ouderketen, §4.2): visueel dimmen.
+                ...(dimmed ? { opacity: 0.5 } : {}),
                 ...(isSelected
                   ? {
                       background: 'var(--theme-accent-soft, rgba(217,119,6,.10))',
@@ -293,90 +463,48 @@ export function TableEditor() {
               }}
               onClick={() => selectTask(task.id)}
             >
-              <div className="w-[60px] px-2 flex items-center text-text-secondary">
-                {wbsAutoNumber
-                  ? <span className="px-1 truncate">{task.wbsCode}</span>
-                  : renderCell(task.id, 'wbsCode', task.wbsCode, '60px')}
-              </div>
-              <div className="flex-1 min-w-[200px] px-2 flex items-center gap-1" style={{ paddingLeft: 8 + depth * 16 }}>
-                {isSummary && (
-                  <button
-                    onClick={e => { e.stopPropagation(); toggleCollapse(task.id); }}
-                    className="w-4 h-4 flex items-center justify-center text-text-secondary hover:text-text-primary flex-shrink-0"
-                  >
-                    {isCollapsed ? '\u25B6' : '\u25BC'}
-                  </button>
-                )}
-                {!isSummary && <span className="w-4" />}
-                <span className="flex-1 min-w-0">
-                  {renderCell(task.id, 'name', task.name, 'auto')}
-                </span>
-              </div>
-              <div className="w-[60px] px-1 flex items-center justify-end">
-                {renderCell(task.id, 'duration', `${task.isMilestone ? 0 : task.time.scheduleDuration}`, '60px', 'right')}
-              </div>
-              <div className="w-[100px] px-1 flex items-center text-text-secondary">
-                {renderCell(task.id, 'start', task.time.earlyStart || task.time.scheduleStart, '100px')}
-                {task.constraint && ['SNET', 'SNLT', 'MSO'].includes(task.constraint.type) && (
-                  <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
-                )}
-              </div>
-              <div className="w-[100px] px-1 flex items-center text-text-secondary">
-                {renderCell(task.id, 'finish', task.time.earlyFinish || task.time.scheduleFinish, '100px')}
-                {task.constraint && ['FNET', 'FNLT', 'MFO'].includes(task.constraint.type) && (
-                  <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
-                )}
-              </div>
-              <div className="w-[80px] px-1 flex items-center text-text-secondary text-[10px]">
-                {taskTypeLabels[task.taskType] || task.taskType}
-              </div>
-              <div className="w-[50px] px-1 flex items-center justify-center">
-                {task.time.isCritical ? (
-                  <span className="text-critical font-bold">{tCommon('yes')}</span>
-                ) : (
-                  <span className="text-text-secondary">{tCommon('no')}</span>
-                )}
-              </div>
-              <div
-                className="w-[50px] px-1 flex items-center justify-end"
-                style={task.time.totalFloat < 0 ? { color: 'var(--error)', fontWeight: 600 } : undefined}
-              >
-                <span className={task.time.totalFloat < 0 ? '' : 'text-text-secondary'}>
-                  {task.time.totalFloat}{tCommon('days')}
-                </span>
-              </div>
-              <div className="w-[60px] px-1 flex items-center justify-end">
-                {renderCell(task.id, 'completion', `${Math.round(task.time.completion * 100)}`, '60px', 'right')}
-                <span className="text-text-secondary ml-0.5">%</span>
-              </div>
-              {activityCodeTypes.map(ct => (
-                <div key={ct.id} className="w-[90px] px-1 flex items-center">
-                  {!isSummary && (
-                    <select
-                      value={task.activityCodes?.[ct.id] ?? ''}
-                      onChange={e => setTaskActivityCode(task.id, ct.id, e.target.value || null)}
-                      onClick={e => e.stopPropagation()}
-                      className="input !text-[10px] !px-1 !py-0.5 w-full"
+              {visibleColumns.map(({ col, index }) => {
+                const isName = col.field.src === 'builtin' && col.field.key === 'name';
+                if (isName) {
+                  return (
+                    <div
+                      key={index}
+                      className="px-2 flex items-center gap-1 min-w-0"
+                      style={{ flex: `1 0 ${col.width}px`, width: col.width, paddingLeft: 8 + depth * 16 }}
                     >
-                      <option value=""></option>
-                      {ct.values.map(v => (
-                        <option key={v.id} value={v.id}>{v.code}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              ))}
-              {customFieldDefs.map(def => (
-                <div key={def.id} className="w-[90px] px-1 flex items-center">
-                  {!isSummary && (
-                    <FieldCell
-                      def={def}
-                      value={task.customFields?.[def.id]}
-                      onCommit={value => setTaskCustomField(task.id, def.id, value)}
-                    />
-                  )}
-                </div>
-              ))}
+                      {isSummary && (
+                        <button
+                          onClick={e => { e.stopPropagation(); toggleCollapse(task.id); }}
+                          className="w-4 h-4 flex items-center justify-center text-text-secondary hover:text-text-primary flex-shrink-0"
+                        >
+                          {isCollapsed ? '▶' : '▼'}
+                        </button>
+                      )}
+                      {!isSummary && <span className="w-4" />}
+                      <span className="flex-1 min-w-0">
+                        {renderCell(task.id, 'name', task.name)}
+                      </span>
+                    </div>
+                  );
+                }
+                const align = cellAlign(col.field);
+                return (
+                  <div
+                    key={index}
+                    className="px-1 flex items-center min-w-0"
+                    style={{
+                      flex: `0 0 ${col.width}px`,
+                      width: col.width,
+                      justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
+                      ...(col.field.src === 'builtin' && ['wbsCode', 'start', 'finish', 'taskType'].includes(col.field.key)
+                        ? { color: 'var(--theme-text-dim)' }
+                        : {}),
+                    }}
+                  >
+                    {renderColumnCell(col, task, isSummary)}
+                  </div>
+                );
+              })}
             </div>
           );
         })}

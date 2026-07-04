@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import { HistogramRenderer, HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
-import { groupTasksByCode } from '@/utils/grouping';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
+import { setGanttChartWidth } from '@/utils/ganttViewport';
+import { MiniMap } from './MiniMap';
 import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
@@ -99,8 +100,12 @@ export function GanttCanvas() {
   const scrollMode = useAppStore(s => s.ui.scrollMode);
   const traceMode = useAppStore(s => s.ui.traceMode);
   const cpmResult = useAppStore(s => s.cpmResult);
-  const groupBy = useAppStore(s => s.view.groupBy);
-  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
+  // DE gedeelde zichtbare-rijenlijst (fase 2.7, §4.3): zelfde store-veld als TableEditor.
+  const viewRows = useAppStore(s => s.viewRows);
+  const setCollapsedGroupKey = useAppStore(s => s.setCollapsedGroupKey);
+  const splitView = useAppStore(s => s.view.splitView);
+  const setSplitView = useAppStore(s => s.setSplitView);
+  const showMiniMap = useAppStore(s => s.ui.showMiniMap);
   const taskTableWidth = useAppStore(s => s.ui.leftPanelWidth);
   const showHistogram = useAppStore(s => s.ui.showHistogram);
   const histogramHeight = useAppStore(s => s.ui.histogramHeight);
@@ -122,6 +127,13 @@ export function GanttCanvas() {
   useZoomShortcuts({ zoomAt, containerRef, taskTableWidth, originPaddingDays: ORIGIN_PADDING_DAYS });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
+  // Split view (fase 2.7, §10): secundair tijdvenster + sleepbare ratio-balk.
+  const paneRowRef = useRef<HTMLDivElement>(null);
+  const secondaryContainerRef = useRef<HTMLDivElement>(null);
+  const secondaryCanvasRef = useRef<HTMLCanvasElement>(null);
+  const secondaryRendererRef = useRef<GanttRenderer | null>(null);
+  const [isResizingSplit, setIsResizingSplit] = useState(false);
+  const [primaryChartWidth, setPrimaryChartWidth] = useState(0);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [isResizingTable, setIsResizingTable] = useState(false);
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
@@ -152,14 +164,6 @@ export function GanttCanvas() {
     taskName: tTask('table.name'),
     duration: tTask('table.duration'),
   }), [tTask]);
-
-  // Groeperingsweergave: banden per activity-code-waarde (gedeelde util met TableEditor).
-  const grouping = useMemo(() => {
-    if (!groupBy) return undefined;
-    const type = activityCodeTypes.find(t => t.id === groupBy);
-    if (!type) return undefined;
-    return groupTasksByCode(tasks, type, tTask('structure.none'));
-  }, [groupBy, activityCodeTypes, tasks, tTask]);
 
   // Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
   // driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
@@ -413,8 +417,14 @@ export function GanttCanvas() {
 
     ctx.scale(dpr, dpr);
 
+    // Registreer het zichtbare tijdvenster (primaire pane) voor de recenter-formule van
+    // setTimeScale (§3.3) en voor het mini-map-viewportkader (§11).
+    const chartW = Math.max(0, rect.width - taskTableWidth);
+    setGanttChartWidth(chartW);
+    setPrimaryChartWidth(prev => (Math.abs(prev - chartW) > 1 ? chartW : prev));
+
     const opts: GanttRenderOptions = {
-      tasks,
+      rows: viewRows,
       sequences,
       calendar,
       view: effectiveView,
@@ -429,7 +439,6 @@ export function GanttCanvas() {
       showBaselineOverlay,
       baselineOverlay,
       trace,
-      grouping,
       canvasWidth: rect.width,
       canvasHeight: rect.height,
       taskTableWidth,
@@ -444,7 +453,150 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [tasks, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, grouping, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay]);
+
+  // --- Split view (fase 2.7, §10): secundair tijdvenster met eigen zoom/scrollX; gedeelde
+  // rijen + scrollY; geen canvas-taaktabel (taskTableWidth 0) — die tekent alleen links. ---
+  const renderSecondary = useCallback(() => {
+    if (!splitView) return;
+    const canvas = secondaryCanvasRef.current;
+    const container = secondaryContainerRef.current;
+    if (!canvas || !container) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    const renderer = new GanttRenderer(ctx, {
+      rows: viewRows,
+      sequences,
+      calendar,
+      view: {
+        ...effectiveView,
+        zoom: splitView.secondaryZoom,
+        scrollX: splitView.secondaryScrollX,
+      },
+      selectedTaskIds,
+      collapsedTaskIds,
+      drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
+      violatedConstraintTaskIds: cpmResult && !cpmResult.error ? cpmResult.violatedConstraintTaskIds : undefined,
+      missedDeadlineTaskIds: cpmResult && !cpmResult.error ? cpmResult.missedDeadlineTaskIds : undefined,
+      statusDate,
+      showStatusDateLine,
+      showProgressLine,
+      showBaselineOverlay,
+      baselineOverlay,
+      trace,
+      canvasWidth: rect.width,
+      canvasHeight: rect.height,
+      taskTableWidth: 0,
+      rowHeight: ROW_HEIGHT,
+      headerHeight: HEADER_HEIGHT,
+      localizedMonths,
+      columnHeaders,
+      weekStartDay,
+      enableQuarterHourZoom,
+    });
+    secondaryRendererRef.current = renderer;
+    renderer.render();
+  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay]);
+
+  useEffect(() => {
+    if (!splitView) { secondaryRendererRef.current = null; return; }
+    const frameId = requestAnimationFrame(renderSecondary);
+    return () => cancelAnimationFrame(frameId);
+  }, [splitView, renderSecondary]);
+
+  useEffect(() => {
+    if (!splitView) return;
+    const container = secondaryContainerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => requestAnimationFrame(renderSecondary));
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [splitView, renderSecondary]);
+
+  // Ctrl+scroll boven het secundaire pane past de EIGEN zoom aan (cursor-verankerd, §10.3);
+  // shift = eigen horizontale scroll; gewoon scrollen = gedeelde verticale scroll.
+  useEffect(() => {
+    if (!splitView) return;
+    const container = secondaryContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const sv = useAppStore.getState().view.splitView;
+      if (!sv) return;
+      const st = useAppStore.getState();
+      const rect = container.getBoundingClientRect();
+      const anchorX = e.clientX - rect.left;
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+
+      if (e.ctrlKey || e.metaKey) {
+        const max = st.ui.enableQuarterHourZoom ? 1000 : 400;
+        const factor = delta > 0 ? 1 / 1.1 : 1.1;
+        const clamped = Math.max(0.5, Math.min(max, sv.secondaryZoom * factor));
+        if (clamped === sv.secondaryZoom) return;
+        // Zelfde ankerformule als useGanttZoom.zoomAt, met taskTableWidth 0.
+        const daysUnderCursor = (anchorX + sv.secondaryScrollX) / sv.secondaryZoom;
+        const newScrollX = Math.max(0, daysUnderCursor * clamped - anchorX);
+        st.setSplitView({ ...sv, secondaryZoom: clamped, secondaryScrollX: newScrollX });
+      } else if (e.shiftKey) {
+        st.setSplitView({ ...sv, secondaryScrollX: Math.max(0, sv.secondaryScrollX + delta) });
+      } else {
+        st.setScroll(st.view.scrollX, st.view.scrollY + delta);
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+    // Alleen her-attachen bij aan/uit; de handler leest de actuele splitView uit de store.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!splitView]);
+
+  // Sleepbare ratio-balk tussen de panes (§10.3).
+  useEffect(() => {
+    if (!isResizingSplit) return;
+    const handleMove = (e: MouseEvent) => {
+      const row = paneRowRef.current;
+      const sv = useAppStore.getState().view.splitView;
+      if (!row || !sv) return;
+      const rect = row.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const ratio = Math.min(0.85, Math.max(0.15, (e.clientX - rect.left) / rect.width));
+      setSplitView({ ...sv, ratio });
+    };
+    const handleUp = () => setIsResizingSplit(false);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isResizingSplit, setSplitView]);
+
+  // Selectie-klik in het secundaire pane (bandkop → collapse-toggle, net als links).
+  const handleSecondaryClick = useCallback((e: React.MouseEvent) => {
+    const canvas = secondaryCanvasRef.current;
+    const renderer = secondaryRendererRef.current;
+    if (!canvas || !renderer) return;
+    const rect = canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    if (y < HEADER_HEIGHT) return;
+    const row = renderer.getRowAtY(y);
+    if (row?.kind === 'group') {
+      setCollapsedGroupKey(row.key, !row.collapsed);
+      return;
+    }
+    if (row?.kind === 'task') selectTask(row.task.id, e.ctrlKey || e.metaKey, e.shiftKey);
+    else deselectAll();
+  }, [selectTask, deselectAll, setCollapsedGroupKey]);
 
   // Render on changes
   useEffect(() => {
@@ -492,6 +644,13 @@ export function GanttCanvas() {
 
     if (y < HEADER_HEIGHT) return;
 
+    // Bandkop-rij (§4.5): alleen collapse-toggle, geen taak-interactie.
+    const hitRow = renderer.getRowAtY(y);
+    if (hitRow?.kind === 'group') {
+      setCollapsedGroupKey(hitRow.key, !hitRow.collapsed);
+      return;
+    }
+
     // Check collapse/expand toggle
     if (renderer.isInTaskTable(x)) {
       const collapseTask = renderer.isCollapseToggle(x, y);
@@ -529,7 +688,7 @@ export function GanttCanvas() {
     } else {
       deselectAll();
     }
-  }, [selectTask, deselectAll, toggleCollapse, addTask, project.startDate, defaultTaskName]);
+  }, [selectTask, deselectAll, toggleCollapse, addTask, project.startDate, defaultTaskName, setCollapsedGroupKey]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     const canvas = canvasRef.current;
@@ -924,7 +1083,13 @@ export function GanttCanvas() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div ref={containerRef} className="flex-1 overflow-hidden relative">
+      {/* Pane-rij (§10): primair pane (met canvas-taaktabel) + optioneel secundair tijdvenster */}
+      <div ref={paneRowRef} className="flex-1 flex overflow-hidden">
+      <div
+        ref={containerRef}
+        className="overflow-hidden relative"
+        style={{ width: splitView ? `${splitView.ratio * 100}%` : '100%', flexShrink: 0 }}
+      >
         <canvas
           ref={canvasRef}
           className="absolute inset-0"
@@ -996,6 +1161,28 @@ export function GanttCanvas() {
           </div>
         )}
       </div>
+      {/* Secundair pane (§10): eigen tijdvenster, gedeelde rijen + verticale scroll */}
+      {splitView && (
+        <>
+          <div
+            data-testid="split-ratio-bar"
+            onMouseDown={e => { e.preventDefault(); setIsResizingSplit(true); }}
+            style={{ width: 5, flexShrink: 0, cursor: 'col-resize', background: 'var(--theme-border)' }}
+          />
+          <div
+            ref={secondaryContainerRef}
+            data-testid="split-secondary-pane"
+            className="flex-1 overflow-hidden relative"
+          >
+            <canvas
+              ref={secondaryCanvasRef}
+              className="absolute inset-0"
+              onClick={handleSecondaryClick}
+            />
+          </div>
+        </>
+      )}
+      </div>
       {/* Histogramstrook (fase 2.5, §6.4) — derde canvas met gedeelde X-as */}
       {showHistogram && (
         <>
@@ -1040,6 +1227,12 @@ export function GanttCanvas() {
             )}
           </div>
         </>
+      )}
+
+      {/* Mini-map (fase 2.7, §11): thumbnail van de hele projectperiode + viewport-kader
+          (toont het primaire pane bij split view, §10.3) */}
+      {showMiniMap && (
+        <MiniMap originDate={effectiveViewStart} chartWidth={primaryChartWidth} />
       )}
 
       {/* Horizontal scrollbar */}

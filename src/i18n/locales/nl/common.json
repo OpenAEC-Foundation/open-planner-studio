@@ -279,5 +279,8 @@
       "earlyPeak": "Vroege piek",
       "latePeak": "Late piek"
     }
+  },
+  "view": {
+    "structureLockedHint": "Niet beschikbaar tijdens filteren/groeperen/sorteren"
   }
 }

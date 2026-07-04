@@ -69,7 +69,6 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
       for (const task of s.tasks) {
         if (task.activityCodes && id in task.activityCodes) delete task.activityCodes[id];
       }
-      if (s.view.groupBy === id) s.view.groupBy = undefined;
       // Groep-/sort-niveaus die naar dit type verwezen laten vallen (§4.3, code-mutatie).
       s.view.group = s.view.group.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
       s.view.sort = s.view.sort.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));

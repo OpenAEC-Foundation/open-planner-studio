@@ -1,10 +1,13 @@
 import { formatDate } from '@/utils/dateUtils';
 import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+import { getGanttChartWidth } from '@/utils/ganttViewport';
+import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
   computeViewRows, defaultColumns, type ViewRow, type ViewContext,
 } from '@/engine/view/visibleRows';
 import type {
   ViewState, TimeScale, AppSlice, ColumnConfig, FilterNode, GroupLevel, SortLevel,
+  SplitViewState,
 } from './types';
 
 export interface ViewSlice {
@@ -16,11 +19,10 @@ export interface ViewSlice {
   setTimeScale: (scale: TimeScale) => void;
   setScroll: (x: number, y: number) => void;
   setViewStartDate: (date: string) => void;
-  /** @deprecated fase 2.7 (§7.5) — houdt de oude groupBy-consumenten (golf 2 hangt ze om) werkend;
-   *  spiegelt de keuze óók naar `group` zodat de nieuwe `viewRows`-cache klopt. */
-  setGroupBy: (codeTypeId?: string) => void;
   /** Kies de resource die de histogramstrook toont (undefined = alle renewables samen). */
   setHistogramResource: (resourceId?: string) => void;
+  /** Split view (§10): twee tijdvensters binnen één document; undefined = uit. */
+  setSplitView: (splitView: SplitViewState | undefined) => void;
   // --- Fase 2.7 view-mutaties (§4.3) ---
   setColumns: (columns: ColumnConfig[] | undefined) => void;
   setFilter: (filter: FilterNode | null) => void;
@@ -57,8 +59,28 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
     }),
 
   // §3.2/3.3: de schaalkeuze mapt naar een zoom-preset; `view.timeScale` is geen bron van waarheid
-  // meer (de getoonde schaal wordt afgeleid via `scaleFromZoom`). setZoom klemt zelf op de max.
-  setTimeScale: (scale) => get().setZoom(TIMESCALE_ZOOM[scale]),
+  // meer (de getoonde schaal wordt afgeleid via `scaleFromZoom`). Recenter (BESLIST §3.3): de datum
+  // onder het viewportmidden blijft onder het midden — dezelfde ankerformule als Ctrl+= /−
+  // (useGanttZoom.zoomAt) met anchorX = midden van het chart-gedeelte. Headless (geen
+  // geregistreerde viewport-breedte) valt terug op alleen zoomen.
+  setTimeScale: (scale) => {
+    const s = get();
+    const oldZoom = s.view.zoom;
+    const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+    const newZoom = Math.max(0.5, Math.min(max, TIMESCALE_ZOOM[scale]));
+    const chartW = getGanttChartWidth();
+    if (chartW !== null && newZoom !== oldZoom) {
+      // localX op het viewportmidden = chartW/2; dagen onder het anker blijven gelijk.
+      const daysUnderCenter = (s.view.scrollX + chartW / 2) / oldZoom;
+      const newScrollX = Math.max(0, daysUnderCenter * newZoom - chartW / 2);
+      set((st) => {
+        st.view.zoom = newZoom;
+        st.view.scrollX = newScrollX;
+      });
+    } else {
+      get().setZoom(newZoom);
+    }
+  },
 
   setScroll: (x, y) =>
     set((s) => {
@@ -71,20 +93,14 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
       s.view.viewStartDate = date;
     }),
 
-  setGroupBy: (codeTypeId) => {
-    set((s) => {
-      s.view.groupBy = codeTypeId;
-      // Spiegel naar het nieuwe `group`-model zodat de parallelle viewRows-cache klopt (§7.5).
-      s.view.group = codeTypeId
-        ? [{ field: { src: 'activityCode', typeId: codeTypeId }, dir: 'asc' }]
-        : [];
-    });
-    get().recomputeViewRows();
-  },
-
   setHistogramResource: (resourceId) =>
     set((s) => {
       s.view.histogramResourceId = resourceId;
+    }),
+
+  setSplitView: (splitView) =>
+    set((s) => {
+      s.view.splitView = splitView;
     }),
 
   setColumns: (columns) => {
@@ -100,11 +116,6 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   setGroup: (group) => {
     set((s) => {
       s.view.group = group;
-      // Compat: houd `groupBy` in sync met een enkel activity-code-niveau (golf 2 verwijdert dit).
-      const first = group[0];
-      s.view.groupBy = group.length === 1 && first.field.src === 'activityCode'
-        ? first.field.typeId
-        : undefined;
     });
     get().recomputeViewRows();
   },
@@ -132,8 +143,8 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
       customFieldDefs: s.customFieldDefs,
       resources: s.resources,
       assignments: s.assignments,
-      // Golf 2 hangt hier de echte i18n-label t('structure.none') aan; parallelle cache in golf 1.
-      noneLabel: '(geen)',
+      // Vertaalde "(geen)"-label, door de consument (App) gezet — engine blijft i18n-vrij (§4.1).
+      noneLabel: getNoneLabelValue(),
     };
     const rows = computeViewRows(
       s.tasks,

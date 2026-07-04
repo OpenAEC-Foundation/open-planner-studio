@@ -3,10 +3,14 @@ import { Sequence } from '@/types/sequence';
 import { ViewState } from '@/state/slices/types';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
 import { WorkCalendar } from '@/types/calendar';
+import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 
 export interface GanttRenderOptions {
-  tasks: Task[];
+  /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
+   *  tabel en Gantt consumeren exact dezelfde `viewRows` uit de store, zodat rij i in beide
+   *  hetzelfde is (bandkoppen incluis). */
+  rows: ViewRow[];
   sequences: Sequence[];
   calendar: WorkCalendar;
   view: ViewState;
@@ -24,10 +28,6 @@ export interface GanttRenderOptions {
     successors: string[];
     drivenSuccessors: string[];
   } | null;
-  /** Groeperingsweergave (fase 2.2): banden per activity-code-waarde vervangen de
-   *  WBS-boom — bandrij (label + kleur) gevolgd door de bladtaken van die groep.
-   *  Berekend in GanttCanvas via utils/grouping (gedeeld met TableEditor). */
-  grouping?: { label: string; color?: string; taskIds: string[] }[];
   /** Fase 2.3: taken met geschonden late-zijde-constraint resp. gemiste deadline
    *  (uit cpmResult) — kleurt de markers rood. */
   violatedConstraintTaskIds?: string[];
@@ -100,16 +100,18 @@ export class GanttRenderer {
 
   // Computed
   private viewStart: Date;
-  // Rijmodel: een rij is een taak of (bij groeperingsweergave) een band-kop (null in
-  // flatTasks + entry in bandAt). Alle hit-tests lopen via getTaskAtY en geven op een
-  // bandrij gewoon null terug, zodat canvas-interacties vanzelf degraderen.
-  private flatTasks: (Task | null)[]; // flattened rows in display order (null = bandrij)
-  private flatTaskIndex: Map<string, number>; // task id -> row index in flatTasks
-  private taskDepths: Map<string, number>; // task id -> nesting depth
-  private bandAt: Map<number, { label: string; color?: string }>; // rij-index -> band-kop
+  // Rijmodel (fase 2.7, §4): de meegegeven gedeelde `viewRows`. Een rij is een taak-rij
+  // (met depth/dimmed) of een bandkop-rij (`kind:'group'`). Alle hit-tests lopen via
+  // getTaskAtY/getRowAtY en geven op een bandrij null/de bandrij terug, zodat
+  // canvas-interacties vanzelf degraderen.
+  private rows: ViewRow[];
+  private rowIndexByTask: Map<string, number>; // task id -> EERSTE rij-index (§7.1, pijlen)
   private holidaySet: Set<string>;
   private violatedSet: Set<string>;
   private missedDeadlineSet: Set<string>;
+
+  /** Alpha voor gedimde rijen (filter-ouderketen, §4.2). */
+  private static readonly DIM_ALPHA = 0.45;
 
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
@@ -117,37 +119,13 @@ export class GanttRenderer {
     this.colors = getThemeColors();
 
     this.viewStart = parseDate(opts.view.viewStartDate);
-    this.taskDepths = new Map();
-    this.bandAt = new Map();
-    this.flatTasks = opts.grouping
-      ? this.flattenGrouped(opts.tasks, opts.grouping)
-      : this.flattenTasks(opts.tasks);
-    this.flatTaskIndex = new Map();
-    this.flatTasks.forEach((t, i) => { if (t) this.flatTaskIndex.set(t.id, i); });
+    this.rows = opts.rows;
+    // "Eerste index wint" (§7.1): bij multi-band-duplicaten verbinden pijlen de eerste occurrence.
+    this.rowIndexByTask = firstRowIndexByTask(opts.rows);
     this.holidaySet = new Set<string>();
     this.buildHolidaySet();
     this.violatedSet = new Set(opts.violatedConstraintTaskIds ?? []);
     this.missedDeadlineSet = new Set(opts.missedDeadlineTaskIds ?? []);
-  }
-
-  /** Groeperingsweergave: per band een kop-rij gevolgd door de bladtaken (vlak, diepte 0). */
-  private flattenGrouped(
-    tasks: Task[],
-    grouping: NonNullable<GanttRenderOptions['grouping']>,
-  ): (Task | null)[] {
-    const byId = new Map(tasks.map(t => [t.id, t]));
-    const rows: (Task | null)[] = [];
-    for (const group of grouping) {
-      this.bandAt.set(rows.length, { label: group.label, color: group.color });
-      rows.push(null);
-      for (const id of group.taskIds) {
-        const task = byId.get(id);
-        if (!task) continue;
-        this.taskDepths.set(task.id, 0);
-        rows.push(task);
-      }
-    }
-    return rows;
   }
 
   private buildHolidaySet(): void {
@@ -159,42 +137,6 @@ export class GanttRenderer {
         this.holidaySet.add(formatDate(addCalendarDays(start, i)));
       }
     }
-  }
-
-  private flattenTasks(tasks: Task[]): Task[] {
-    const result: Task[] = [];
-    const roots = tasks.filter(t => !t.parentId);
-    const collapsed = new Set(this.opts.collapsedTaskIds);
-    // Ook verborgen (ingeklapte) nakomelingen als "gezien" markeren, anders
-    // vist het orphan-vangnet ze op en belanden ze onderaan de lijst.
-    const seen = new Set<string>();
-
-    const addRecursive = (task: Task, depth: number, hidden: boolean) => {
-      seen.add(task.id);
-      if (!hidden) {
-        this.taskDepths.set(task.id, depth);
-        result.push(task);
-      }
-      const hideChildren = hidden || collapsed.has(task.id);
-      const children = tasks.filter(t => t.parentId === task.id);
-      for (const child of children) {
-        addRecursive(child, depth + 1, hideChildren);
-      }
-    };
-
-    for (const root of roots) {
-      addRecursive(root, 0, false);
-    }
-
-    // Vangnet: alleen échte wezen (ouder bestaat niet meer), geen ingeklapte kinderen
-    for (const task of tasks) {
-      if (!seen.has(task.id)) {
-        this.taskDepths.set(task.id, 0);
-        result.push(task);
-      }
-    }
-
-    return result;
   }
 
   /** Convert a date (with optional sub-day precision) to X position on canvas */
@@ -258,7 +200,7 @@ export class GanttRenderer {
     }
 
     // Horizontal grid lines (per row)
-    for (let i = 0; i < this.flatTasks.length + 1; i++) {
+    for (let i = 0; i < this.rows.length + 1; i++) {
       const y = this.rowToY(i);
       if (y < headerHeight || y > canvasHeight) continue;
       ctx.strokeStyle = this.colors.grid;
@@ -307,7 +249,7 @@ export class GanttRenderer {
 
   /** Voortgangslijn (fase 2.6, §6.3): één verticale lijn op de statusdatum die per zichtbare
    *  leaf-rij naar de voortgangspositie uitstulpt (MSP-zigzag). Hidden rijen worden overgeslagen
-   *  (drawTaskBars-filter is impliciet: flatTasks bevat geen hidden rijen). Summary-/band-/mijlpaal-
+   *  (drawTaskBars-filter is impliciet: `rows` bevat geen hidden rijen). Summary-/band-/mijlpaal-
    *  rijen volgen de statusdatumlijn recht. */
   private drawProgressLine(): void {
     if (!this.opts.statusDate || this.opts.showProgressLine === false) return;
@@ -327,12 +269,13 @@ export class GanttRenderer {
     ctx.beginPath();
     ctx.moveTo(statusX, headerHeight);
 
-    for (let i = 0; i < this.flatTasks.length; i++) {
+    for (let i = 0; i < this.rows.length; i++) {
       const rowTop = this.rowToY(i);
       const rowBottom = rowTop + rowHeight;
       if (rowBottom < headerHeight || rowTop > canvasHeight) continue;
       const rowMid = rowTop + rowHeight / 2;
-      const task = this.flatTasks[i];
+      const row = this.rows[i];
+      const task = row.kind === 'task' ? row.task : null;
 
       let progressX = statusX;
       // Alleen echte leaf-taken (geen samenvatting/mijlpaal/band) stulpen uit.
@@ -501,19 +444,20 @@ export class GanttRenderer {
     const tDSucc = trace ? new Set(trace.drivenSuccessors) : null;
     const tSucc = trace ? new Set(trace.successors) : null;
 
-    for (let i = 0; i < this.flatTasks.length; i++) {
-      const task = this.flatTasks[i];
+    for (let i = 0; i < this.rows.length; i++) {
+      const row = this.rows[i];
       const y = this.rowToY(i) + barOffset;
       if (y + barHeight < this.opts.headerHeight || y > this.opts.canvasHeight) continue;
 
-      if (!task) {
-        // Bandrij (groeperingsweergave): subtiele strook over het chart-gedeelte.
-        const band = this.bandAt.get(i);
+      if (row.kind === 'group') {
+        // Bandkop-rij (§4.4): volle-breedte strook over het chart-gedeelte, op exact
+        // dezelfde rij-index als de tabel-bandkop.
         const rowY = this.rowToY(i);
-        this.ctx.fillStyle = (band?.color ?? this.colors.summary) + '14';
+        this.ctx.fillStyle = this.colors.summary + '14';
         this.ctx.fillRect(this.opts.taskTableWidth, rowY, this.opts.canvasWidth - this.opts.taskTableWidth, this.opts.rowHeight);
         continue;
       }
+      const task = row.task;
       const isSelected = this.opts.selectedTaskIds.includes(task.id);
 
       let overrideColor: string | undefined;
@@ -527,6 +471,7 @@ export class GanttRenderer {
       }
 
       if (dimmed) this.ctx.globalAlpha = 0.25;
+      else if (row.dimmed) this.ctx.globalAlpha = GanttRenderer.DIM_ALPHA; // filter-ouderketen (§4.2)
       if (task.isMilestone) {
         this.drawMilestone(task, y, barHeight, isSelected, overrideColor);
       } else if (task.childIds.length > 0) {
@@ -535,7 +480,7 @@ export class GanttRenderer {
         this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
       }
       this.drawConstraintMarkers(task, y);
-      if (dimmed) this.ctx.globalAlpha = 1;
+      if (dimmed || row.dimmed) this.ctx.globalAlpha = 1;
       // Baseline-onderbalk (fase 2.6): op volle dekking, ná het eventuele dim-herstel.
       this.drawBaselineOverlay(task, y, barHeight);
     }
@@ -756,13 +701,17 @@ export class GanttRenderer {
       : null;
 
     for (const seq of this.opts.sequences) {
-      const predIdx = this.flatTaskIndex.get(seq.predecessorId) ?? -1;
-      const succIdx = this.flatTaskIndex.get(seq.successorId) ?? -1;
+      // §7.1: taskId→rij-index-map is "eerste occurrence wint" — bij multi-band-duplicaten
+      // verbindt de pijl één keer, latere occurrences krijgen geen pijlen.
+      const predIdx = this.rowIndexByTask.get(seq.predecessorId) ?? -1;
+      const succIdx = this.rowIndexByTask.get(seq.successorId) ?? -1;
       if (predIdx < 0 || succIdx < 0) continue;
 
-      const pred = this.flatTasks[predIdx];
-      const succ = this.flatTasks[succIdx];
-      if (!pred || !succ) continue;
+      const predRow = this.rows[predIdx];
+      const succRow = this.rows[succIdx];
+      if (predRow?.kind !== 'task' || succRow?.kind !== 'task') continue;
+      const pred = predRow.task;
+      const succ = succRow.task;
 
       const isDriving = drivingSet ? drivingSet.has(seq.id) : true;
       const isCriticalLink = drivingSet !== null && isDriving
@@ -828,6 +777,9 @@ export class GanttRenderer {
 
   private drawTaskTable(): void {
     const { taskTableWidth, canvasHeight, headerHeight, rowHeight } = this.opts;
+    // Split view (§10.2): het secundaire pane heeft taskTableWidth 0 — dan géén tabel
+    // tekenen (anders lekken headerteksten/WBS-codes over de balken heen).
+    if (taskTableWidth <= 0) return;
     const ctx = this.ctx;
     const collapsed = new Set(this.opts.collapsedTaskIds);
 
@@ -857,23 +809,38 @@ export class GanttRenderer {
     ctx.stroke();
 
     // Task rows
-    for (let i = 0; i < this.flatTasks.length; i++) {
-      const task = this.flatTasks[i];
+    for (let i = 0; i < this.rows.length; i++) {
+      const row = this.rows[i];
       const y = this.rowToY(i);
       if (y + rowHeight < headerHeight || y > canvasHeight) continue;
 
-      if (!task) {
-        // Bandrij (groeperingsweergave): getinte rij met kleurblokje + vet label.
-        const band = this.bandAt.get(i);
-        ctx.fillStyle = (band?.color ?? this.colors.summary) + '1A';
+      if (row.kind === 'group') {
+        // Bandkop-rij (§4.4): getinte rij + collapse-driehoek + vet label met count.
+        ctx.fillStyle = this.colors.summary + '1A';
         ctx.fillRect(0, y, taskTableWidth, rowHeight);
-        if (band?.color) {
-          ctx.fillStyle = band.color;
-          ctx.fillRect(8, y + rowHeight / 2 - 5, 10, 10);
+        const midY = y + rowHeight / 2;
+        const triX = 10 + row.levelIndex * 14;
+        ctx.fillStyle = this.colors.textSecondary;
+        ctx.beginPath();
+        if (row.collapsed) {
+          ctx.moveTo(triX, midY - 4);
+          ctx.lineTo(triX, midY + 4);
+          ctx.lineTo(triX + 6, midY);
+        } else {
+          ctx.moveTo(triX - 1, midY - 3);
+          ctx.lineTo(triX + 7, midY - 3);
+          ctx.lineTo(triX + 3, midY + 3);
         }
+        ctx.closePath();
+        ctx.fill();
         ctx.fillStyle = this.colors.text;
         ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.fillText(band?.label ?? '', band?.color ? 24 : 8, y + rowHeight / 2);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, y, taskTableWidth - 4, rowHeight);
+        ctx.clip();
+        ctx.fillText(`${row.label} (${row.count})`, triX + 12, midY);
+        ctx.restore();
         ctx.strokeStyle = this.colors.grid;
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -883,7 +850,8 @@ export class GanttRenderer {
         continue;
       }
 
-      const depth = this.taskDepths.get(task.id) || 0;
+      const task = row.task;
+      const depth = row.depth;
       const isSelected = this.opts.selectedTaskIds.includes(task.id);
       const isSummary = task.childIds.length > 0;
       const isCollapsed = collapsed.has(task.id);
@@ -910,6 +878,9 @@ export class GanttRenderer {
 
       const textY = y + rowHeight / 2;
       const indent = 55 + depth * 16;
+
+      // Gedimde rij (filter-ouderketen, §4.2): tekst op verlaagde dekking.
+      if (row.dimmed) ctx.globalAlpha = GanttRenderer.DIM_ALPHA;
 
       // WBS code
       ctx.fillStyle = this.colors.textSecondary;
@@ -971,6 +942,7 @@ export class GanttRenderer {
       const durText = task.isMilestone ? '0d' : `${task.time.scheduleDuration}d`;
       ctx.fillText(durText, taskTableWidth - 8, textY);
       ctx.textAlign = 'left';
+      if (row.dimmed) ctx.globalAlpha = 1;
     }
 
     // Right border of table
@@ -982,10 +954,15 @@ export class GanttRenderer {
     ctx.stroke();
   }
 
-  /** Hit test: which task row is at the given canvas Y? */
+  /** Hit test (§4.5): welke gedeelde ViewRow ligt op deze canvas-Y? */
+  getRowAtY(canvasY: number): ViewRow | null {
+    return this.rows[this.getRowIndex(canvasY)] ?? null;
+  }
+
+  /** Hit test: which task row is at the given canvas Y? Bandrijen geven null (§4.5). */
   getTaskAtY(canvasY: number): Task | null {
-    const rowIndex = Math.floor((canvasY - this.opts.headerHeight + this.opts.view.scrollY) / this.opts.rowHeight);
-    return this.flatTasks[rowIndex] || null;
+    const row = this.getRowAtY(canvasY);
+    return row?.kind === 'task' ? row.task : null;
   }
 
   /** Hit test: get the row index for a Y position */
@@ -1000,13 +977,12 @@ export class GanttRenderer {
 
   /** Hit test: did the click land on the collapse/expand triangle of a summary task? */
   isCollapseToggle(canvasX: number, canvasY: number): Task | null {
-    const task = this.getTaskAtY(canvasY);
-    if (!task || task.childIds.length === 0) return null;
-    const depth = this.taskDepths.get(task.id) || 0;
-    const indent = 55 + depth * 16;
+    const row = this.getRowAtY(canvasY);
+    if (row?.kind !== 'task' || row.task.childIds.length === 0) return null;
+    const indent = 55 + row.depth * 16;
     // Triangle area is roughly indent-12 to indent
     if (canvasX >= indent - 14 && canvasX <= indent + 2) {
-      return task;
+      return row.task;
     }
     return null;
   }
@@ -1040,10 +1016,5 @@ export class GanttRenderer {
       return { task, edge: 'body' };
     }
     return null;
-  }
-
-  /** Get the flat tasks list (for external reference); bandrijen uitgefilterd. */
-  getFlatTasks(): Task[] {
-    return this.flatTasks.filter((t): t is Task => t !== null);
   }
 }

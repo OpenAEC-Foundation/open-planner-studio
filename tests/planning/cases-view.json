@@ -389,6 +389,13 @@
       "tasks": [{ "name": "A" }],
       "expect": {},
       "view": { "timescaleRoundtrip": true }
+    },
+    {
+      "id": "table-gantt-parity",
+      "title": "Tabel↔Gantt-pariteit — beide consumenten lezen s.viewRows, geen tweede flatten-pad (§14.1)",
+      "sourceParity": true,
+      "tasks": [],
+      "expect": {}
     }
   ]
 }

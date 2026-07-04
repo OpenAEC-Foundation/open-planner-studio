@@ -13,6 +13,8 @@ import {
   Flag, GitCompareArrows, CalendarClock, LayoutGrid, TrendingUp, CalendarDays, X,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
+import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
+import { isTreeMode } from '@/engine/view/visibleRows';
 import { saveRibbonCompact, saveShowHistogram, saveShowBaselineOverlay, saveShowProgressLine, saveShowStatusDateLine } from '@/utils/settingsStore';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
@@ -128,20 +130,21 @@ function RibbonButton({ icon, label, onClick, active, disabled, primary, danger 
   );
 }
 
-function RibbonSmallButton({ icon, label, onClick, active, disabled, danger }: {
+function RibbonSmallButton({ icon, label, onClick, active, disabled, danger, title }: {
   icon: React.ReactNode;
   label: string;
   onClick?: () => void;
   active?: boolean;
   disabled?: boolean;
   danger?: boolean;
+  title?: string;
 }) {
   const cls = ['ribbon-btn', 'small'];
   if (active) cls.push('active');
   if (disabled) cls.push('disabled');
   if (danger) cls.push('danger');
   return (
-    <button className={cls.join(' ')} onClick={disabled ? undefined : onClick}>
+    <button className={cls.join(' ')} onClick={disabled ? undefined : onClick} title={title}>
       <span className="ribbon-btn-icon">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>
     </button>
@@ -715,6 +718,7 @@ function ResourceAssignDropdown() {
 export function Ribbon() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tTask } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
 
   const addTask = useAppStore(s => s.addTask);
   const deleteTask = useAppStore(s => s.deleteTask);
@@ -727,8 +731,9 @@ export function Ribbon() {
   const showDependencyMode = useAppStore(s => s.ui.showDependencyMode);
   const traceMode = useAppStore(s => s.ui.traceMode);
   const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
-  const groupBy = useAppStore(s => s.view.groupBy);
-  const setGroupBy = useAppStore(s => s.setGroupBy);
+  const group = useAppStore(s => s.view.group);
+  const setGroup = useAppStore(s => s.setGroup);
+  const view = useAppStore(s => s.view);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const setWbsAutoNumber = useAppStore(s => s.setWbsAutoNumber);
   const renumberWbs = useAppStore(s => s.renumberWbs);
@@ -739,7 +744,6 @@ export function Ribbon() {
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
   const setTimeScale = useAppStore(s => s.setTimeScale);
-  const timeScale = useAppStore(s => s.view.timeScale);
   const undoStack = useAppStore(s => s.undoStack);
   const redoStack = useAppStore(s => s.redoStack);
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
@@ -787,6 +791,11 @@ export function Ribbon() {
   const handlePrint = useCallback(() => {
     setUI({ activeRibbonTab: 'report' });
   }, [setUI]);
+
+  // Structuur-mutaties alleen in pure boommodus (§4.5): dezelfde gedeelde selector als
+  // tabel en Gantt, met een tooltip-hint wanneer vergrendeld.
+  const treeMode = isTreeMode(view);
+  const structureLockedHint = !treeMode ? tCommon('view.structureLockedHint') : undefined;
 
   const handleNewProject = useCallback(() => {
     // Nieuw-project-wizard (kies metadata, kalender en fasering-template).
@@ -972,8 +981,8 @@ export function Ribbon() {
                 <TemplatesDropdown />
               </RibbonButtonStack>
               <RibbonButtonStack>
-                <RibbonSmallButton icon={<IndentIncrease size={14} />} label={tMenu('ribbon.indent')} onClick={() => indentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0} />
-                <RibbonSmallButton icon={<IndentDecrease size={14} />} label={tMenu('ribbon.outdent')} onClick={() => outdentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0} />
+                <RibbonSmallButton icon={<IndentIncrease size={14} />} label={tMenu('ribbon.indent')} onClick={() => indentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0 || !treeMode} title={structureLockedHint} />
+                <RibbonSmallButton icon={<IndentDecrease size={14} />} label={tMenu('ribbon.outdent')} onClick={() => outdentTasks(selectedTaskIds)} disabled={selectedTaskIds.length === 0 || !treeMode} title={structureLockedHint} />
               </RibbonButtonStack>
             </RibbonGroup>
 
@@ -1072,16 +1081,20 @@ export function Ribbon() {
 
             <div className="ribbon-separator" />
 
+            {/* Tijdschaal (fase 2.7, §3.5): keuze mapt naar een zoom-preset; de getoonde waarde
+                wordt AFGELEID uit zoom via scaleFromZoom — kan dus nooit desyncen van de as. */}
             <RibbonGroup label={tMenu('ribbon.timeScale')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
                 <RibbonDropdown
-                  value={timeScale}
+                  value={scaleFromZoom(zoom)}
                   options={[
-                    { value: 'day', label: tMenu('ribbon.day') },
-                    { value: 'week', label: tMenu('ribbon.week') },
+                    { value: 'year', label: tMenu('ribbon.year') },
+                    { value: 'quarter', label: tMenu('ribbon.quarter') },
                     { value: 'month', label: tMenu('ribbon.month') },
+                    { value: 'week', label: tMenu('ribbon.week') },
+                    { value: 'day', label: tMenu('ribbon.day') },
                   ]}
-                  onChange={v => setTimeScale(v as 'day' | 'week' | 'month')}
+                  onChange={v => setTimeScale(v)}
                 />
                 <span className="ribbon-info">{tMenu('ribbon.zoomLevel', { level: Math.round(zoom) })}</span>
               </div>
@@ -1089,16 +1102,17 @@ export function Ribbon() {
 
             <div className="ribbon-separator" />
 
-            {/* Groeperen op activity-code-type ("meerdere WBS-indelingen", fase 2.2) */}
+            {/* Groeperen op activity-code-type — tijdelijk één niveau via setGroup (§7.5);
+                de volwaardige groepeer-popover (max 2 niveaus) is golf 3. */}
             <RibbonGroup label={tMenu('ribbon.groupBy')}>
               <div style={{ display: 'flex', alignItems: 'center', padding: '2px 4px' }}>
                 <RibbonDropdown
-                  value={groupBy ?? '__wbs'}
+                  value={group.length === 1 && group[0].field.src === 'activityCode' ? group[0].field.typeId : '__wbs'}
                   options={[
                     { value: '__wbs', label: tMenu('ribbon.groupByWbs') },
                     ...activityCodeTypes.map(t2 => ({ value: t2.id, label: t2.name })),
                   ]}
-                  onChange={v => setGroupBy(v === '__wbs' ? undefined : v)}
+                  onChange={v => setGroup(v === '__wbs' ? [] : [{ field: { src: 'activityCode', typeId: v }, dir: 'asc' }])}
                 />
               </div>
             </RibbonGroup>
