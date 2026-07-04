@@ -39,6 +39,13 @@ import type { ResourceType, ResourceCurve } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeVariance } from '@/engine/variance';
+import {
+  computeViewRows, isTreeMode, encodeBandKey, firstRowIndexByTask, NONE_RAWKEY,
+  type ViewRow, type ViewContext,
+} from '@/engine/view/visibleRows';
+import type { FieldRef, FilterNode, GroupLevel, SortLevel } from '@/state/slices/types';
+import { scaleFromZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+import type { CustomFieldType } from '@/types/structure';
 import { readFileSync } from 'node:fs';
 
 const S = () => useAppStore.getState();
@@ -58,10 +65,44 @@ type VarOp =
   | { addTask: { name: string; dur?: number; start?: string; milestone?: boolean;
       links?: { pred: string; succ: string; type: string; lag?: number }[] } };
 
+// --- Fase 2.7 weergaven (§14.1): headless view-cases ---
+// Een FieldRef wordt in cases met NAMEN geschreven (typenaam/veldnaam), de harness vertaalt naar ids.
+//   builtin: "name"|"wbsCode"|"duration"|"start"|"finish"|"totalFloat"|"isCritical"|"completion"|"taskType"|"isMilestone"
+//   resource: "resource"
+//   activity code: { code: <typenaam> }     custom field: { field: <veldnaam> }
+type FieldRefSpec =
+  | string
+  | { code: string }
+  | { field: string };
+type FilterSpec =
+  | { op: 'AND' | 'OR'; children: FilterSpec[] }
+  | { field: FieldRefSpec; operator: string; value?: unknown; value2?: unknown };
+interface GroupSpec { field: FieldRefSpec; dir?: 'asc' | 'desc'; }
+interface ViewCaseSpec {
+  filter?: FilterSpec | null;
+  group?: GroupSpec[];
+  sort?: GroupSpec[];
+  collapsedTasks?: string[];             // taaknamen
+  collapsedGroups?: (string | number | boolean)[][]; // pad van humane bandwaarden per niveau
+  expectRows?: ExpectRow[];
+  expectTreeMode?: boolean;
+  expectFirstIndex?: Record<string, number>;
+  timescaleRoundtrip?: boolean;
+}
+type ExpectRow =
+  | { t: string; dim?: boolean; depth?: number }
+  | { g: string; count?: number; collapsed?: boolean; level?: number };
+
 interface Case {
   id: string; title: string;
   calendar?: Cal; anchor?: string;
   resources?: CaseResource[];
+  /** Activity-code-types + waarden (fase 2.7 view-cases). */
+  codes?: { name: string; values: { code: string; description?: string }[] }[];
+  /** Custom-field-definities (fase 2.7 view-cases). */
+  customFields?: { name: string; type: CustomFieldType }[];
+  /** Headless view-pijplijn-assertie (fase 2.7, §14.1). */
+  view?: ViewCaseSpec;
   /** Statusdatum (P6 data date, fase 2.6) — stuurt de CPM-voortgangstakken. */
   statusDate?: string;
   scheduleOptions?: { progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE' };
@@ -74,6 +115,10 @@ interface Case {
     // actualStart/actualFinish via de dedicated acties; rawCompletion zet time.completion
     // RAUW (import-simulatie, geen invarianten) om het solver-vangnet (§4.2 tak 2b) te testen.
     completion?: number; actualStart?: string; actualFinish?: string; rawCompletion?: number;
+    /** Activity-code-toewijzing: typenaam → code (fase 2.7 view-cases). */
+    code?: Record<string, string>;
+    /** Custom-field-waarde: veldnaam → waarde (fase 2.7 view-cases). */
+    field?: Record<string, string | number | boolean>;
   }[];
   links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
   level?: { constrainToFloat?: boolean; resources?: string[] };
@@ -119,6 +164,9 @@ function resolveResourceIds(names: string[] | undefined, resIds: Record<string, 
 function buildAndSolve(c: Case): {
   ids: Record<string, string>;
   resIds: Record<string, string>;
+  codeTypeIds: Record<string, string>;
+  codeValueIds: Record<string, Record<string, string>>;
+  fieldDefIds: Record<string, string>;
   previewResult: LevelingResult | null;
 } {
   S().newProject();
@@ -162,6 +210,25 @@ function buildAndSolve(c: Case): {
     resIds[r.name] = resId;
   }
 
+  // Activity-code-types + waarden (fase 2.7 view-cases) — vóór de taken zodat code-toewijzing kan.
+  const codeTypeIds: Record<string, string> = {};
+  const codeValueIds: Record<string, Record<string, string>> = {};
+  for (const ct of c.codes ?? []) {
+    if (codeTypeIds[ct.name]) throw new Error(`dubbel codetype "${ct.name}"`);
+    const typeId = S().addActivityCodeType(ct.name);
+    codeTypeIds[ct.name] = typeId;
+    codeValueIds[ct.name] = {};
+    for (const v of ct.values) {
+      codeValueIds[ct.name][v.code] = S().addActivityCodeValue(typeId, { code: v.code, description: v.description });
+    }
+  }
+  // Custom-field-definities (fase 2.7 view-cases).
+  const fieldDefIds: Record<string, string> = {};
+  for (const f of c.customFields ?? []) {
+    if (fieldDefIds[f.name]) throw new Error(`dubbel custom field "${f.name}"`);
+    fieldDefIds[f.name] = S().addCustomField(f.name, f.type);
+  }
+
   const ids: Record<string, string> = {};
   for (const t of c.tasks) {
     // Luide fouten i.p.v. stille maskering: dubbele namen (de naam is de enige sleutel in
@@ -202,6 +269,19 @@ function buildAndSolve(c: Case): {
     for (const a of t.assign ?? []) {
       if (!resIds[a.res]) throw new Error(`taak "${t.name}": onbekende resource "${a.res}"`);
       S().assignResource(ids[t.name], resIds[a.res], a.units, a.curve);
+    }
+    // Activity-code- + custom-field-toewijzingen (fase 2.7 view-cases).
+    for (const [typeName, code] of Object.entries(t.code ?? {})) {
+      const typeId = codeTypeIds[typeName];
+      if (!typeId) throw new Error(`taak "${t.name}": onbekend codetype "${typeName}"`);
+      const valueId = codeValueIds[typeName]?.[code];
+      if (!valueId) throw new Error(`taak "${t.name}": onbekende codewaarde "${code}" van "${typeName}"`);
+      S().setTaskActivityCode(ids[t.name], typeId, valueId);
+    }
+    for (const [fieldName, value] of Object.entries(t.field ?? {})) {
+      const defId = fieldDefIds[fieldName];
+      if (!defId) throw new Error(`taak "${t.name}": onbekend custom field "${fieldName}"`);
+      S().setTaskCustomField(ids[t.name], defId, value);
     }
   }
 
@@ -324,7 +404,74 @@ function buildAndSolve(c: Case): {
     });
   }
 
-  return { ids, resIds, previewResult };
+  return { ids, resIds, codeTypeIds, codeValueIds, fieldDefIds, previewResult };
+}
+
+// --- Vertaling van naam-gebaseerde view-specs naar echte FieldRef/FilterNode (fase 2.7) ---
+const BUILTIN_KEYS = new Set([
+  'name', 'wbsCode', 'duration', 'start', 'finish',
+  'totalFloat', 'isCritical', 'completion', 'taskType', 'isMilestone',
+]);
+
+interface ViewMaps {
+  ids: Record<string, string>;
+  codeTypeIds: Record<string, string>;
+  codeValueIds: Record<string, Record<string, string>>;
+  fieldDefIds: Record<string, string>;
+}
+
+/** Naam-spec → FieldRef. Onbekende code/veld-namen worden bewust NIET afgekapt (missing-ref-test §8.4):
+ *  de rauwe naam gaat als id door en resolveField levert dan `undefined`. */
+function toFieldRef(spec: FieldRefSpec, m: ViewMaps): FieldRef {
+  if (typeof spec === 'string') {
+    if (spec === 'resource') return { src: 'resource' };
+    if (BUILTIN_KEYS.has(spec)) return { src: 'builtin', key: spec as any };
+    throw new Error(`onbekende builtin-veldsleutel "${spec}"`);
+  }
+  if ('code' in spec) return { src: 'activityCode', typeId: m.codeTypeIds[spec.code] ?? spec.code };
+  return { src: 'customField', defId: m.fieldDefIds[spec.field] ?? spec.field };
+}
+
+/** Vertaal een filter-waarde: activity-code-labels → valueId (onbekend blijft rauw). */
+function toFilterValue(spec: { field: FieldRefSpec; value?: unknown }, m: ViewMaps): unknown {
+  const f = spec.field;
+  if (typeof f === 'object' && 'code' in f) {
+    const map = m.codeValueIds[f.code] ?? {};
+    const tr = (v: unknown) => (typeof v === 'string' ? (map[v] ?? v) : v);
+    return Array.isArray(spec.value) ? spec.value.map(tr) : tr(spec.value);
+  }
+  return spec.value;
+}
+
+function toFilterNode(spec: FilterSpec, m: ViewMaps): FilterNode {
+  if ('op' in spec) {
+    return { kind: 'group', op: spec.op, children: spec.children.map(c => toFilterNode(c, m)) };
+  }
+  return {
+    kind: 'rule',
+    field: toFieldRef(spec.field, m),
+    operator: spec.operator as any,
+    value: toFilterValue(spec, m) as any,
+    ...(spec.value2 !== undefined ? { value2: spec.value2 as any } : {}),
+  };
+}
+
+function toGroupLevels(specs: GroupSpec[] | undefined, m: ViewMaps): GroupLevel[] {
+  return (specs ?? []).map(g => ({ field: toFieldRef(g.field, m), dir: g.dir ?? 'asc' }));
+}
+function toSortLevels(specs: GroupSpec[] | undefined, m: ViewMaps): SortLevel[] {
+  return (specs ?? []).map(g => ({ field: toFieldRef(g.field, m), dir: g.dir ?? 'asc' }));
+}
+
+const NONE_LABEL = '(geen)';
+
+/** Humane bandwaarde → rauwe bandsleutel voor één groepniveau (spiegelt bucketsForLeaf). */
+function bandRawKey(fieldSpec: FieldRefSpec, human: string | number | boolean, m: ViewMaps): string {
+  if (human === NONE_LABEL) return NONE_RAWKEY;
+  if (typeof fieldSpec === 'object' && 'code' in fieldSpec) {
+    return m.codeValueIds[fieldSpec.code]?.[String(human)] ?? String(human);
+  }
+  return String(human);
 }
 
 function readTask(name: string, ids: Record<string, string>) {
@@ -349,9 +496,12 @@ function runCase(c: Case) {
   const diffs: string[] = [];
   let ids: Record<string, string> = {};
   let resIds: Record<string, string> = {};
+  let codeTypeIds: Record<string, string> = {};
+  let codeValueIds: Record<string, Record<string, string>> = {};
+  let fieldDefIds: Record<string, string> = {};
   let previewResult: LevelingResult | null = null;
   try {
-    ({ ids, resIds, previewResult } = buildAndSolve(c));
+    ({ ids, resIds, codeTypeIds, codeValueIds, fieldDefIds, previewResult } = buildAndSolve(c));
   } catch (e) {
     return { id: c.id, title: c.title, pass: false, diffs: [`THREW: ${String(e)}`] };
   }
@@ -511,6 +661,89 @@ function runCase(c: Case) {
     }
     if (exp.variance.projectEndDelta !== undefined && vres.projectEndDelta !== exp.variance.projectEndDelta)
       diffs.push(`variance.projectEndDelta: verwacht ${exp.variance.projectEndDelta}, kreeg ${vres.projectEndDelta}`);
+  }
+
+  // Headless view-pijplijn (fase 2.7, §14.1): filter→groep→sorteer→flatten(collapse).
+  if (c.view) {
+    const v = c.view;
+    const m: ViewMaps = { ids, codeTypeIds, codeValueIds, fieldDefIds };
+    const idToName: Record<string, string> = {};
+    for (const [n, i] of Object.entries(ids)) idToName[i] = n;
+
+    // Round-trip-stabiliteit van de timescale-presets (§3.3).
+    if (v.timescaleRoundtrip) {
+      for (const s of ['year', 'quarter', 'month', 'week', 'day'] as const) {
+        const got = scaleFromZoom(TIMESCALE_ZOOM[s]);
+        if (got !== s) diffs.push(`timescale: scaleFromZoom(${TIMESCALE_ZOOM[s]})=${got}, verwacht ${s}`);
+      }
+    }
+
+    const groupSpecs = v.group ?? [];
+    const opts = {
+      filter: v.filter ? toFilterNode(v.filter, m) : null,
+      group: toGroupLevels(groupSpecs, m),
+      sort: toSortLevels(v.sort, m),
+      collapsedTaskIds: new Set((v.collapsedTasks ?? []).map(n => ids[n]).filter(Boolean)),
+      collapsedGroupKeys: new Set(
+        (v.collapsedGroups ?? []).map(path =>
+          encodeBandKey(path.map((val, i) => bandRawKey(groupSpecs[i].field, val, m))),
+        ),
+      ),
+    };
+    const ctx: ViewContext = {
+      activityCodeTypes: S().activityCodeTypes,
+      customFieldDefs: S().customFieldDefs,
+      resources: S().resources,
+      assignments: S().assignments,
+      noneLabel: NONE_LABEL,
+    };
+    let rows: ViewRow[] = [];
+    try {
+      rows = computeViewRows(S().tasks, opts, ctx);
+    } catch (e) {
+      diffs.push(`computeViewRows THREW: ${String(e)}`);
+    }
+
+    if (v.expectTreeMode !== undefined) {
+      const got = isTreeMode({ filter: opts.filter, group: opts.group, sort: opts.sort });
+      if (got !== v.expectTreeMode) diffs.push(`treeMode: verwacht ${v.expectTreeMode}, kreeg ${got}`);
+    }
+
+    if (v.expectRows) {
+      const actual = rows.map(r =>
+        r.kind === 'task'
+          ? { kind: 'task' as const, name: idToName[r.task.id] ?? r.task.id, dim: r.dimmed, depth: r.depth }
+          : { kind: 'group' as const, label: r.label, count: r.count, collapsed: r.collapsed, level: r.levelIndex },
+      );
+      const fmt = (x: any) => x.kind === 'task' ? `T:${x.name}` : `G:${x.label}`;
+      if (actual.length !== v.expectRows.length) {
+        diffs.push(`rows: verwacht ${v.expectRows.length} rijen [${v.expectRows.map((e: any) => e.t ? 'T:' + e.t : 'G:' + e.g).join(', ')}], kreeg ${actual.length} [${actual.map(fmt).join(', ')}]`);
+      } else {
+        v.expectRows.forEach((want: any, i) => {
+          const got: any = actual[i];
+          if ('t' in want) {
+            if (got.kind !== 'task') { diffs.push(`rows[${i}]: verwacht taak "${want.t}", kreeg band "${got.label}"`); return; }
+            if (got.name !== want.t) diffs.push(`rows[${i}].t: verwacht ${want.t}, kreeg ${got.name}`);
+            if (want.dim !== undefined && got.dim !== want.dim) diffs.push(`rows[${i}](${got.name}).dim: verwacht ${want.dim}, kreeg ${got.dim}`);
+            if (want.depth !== undefined && got.depth !== want.depth) diffs.push(`rows[${i}](${got.name}).depth: verwacht ${want.depth}, kreeg ${got.depth}`);
+          } else {
+            if (got.kind !== 'group') { diffs.push(`rows[${i}]: verwacht band "${want.g}", kreeg taak "${got.name}"`); return; }
+            if (got.label !== want.g) diffs.push(`rows[${i}].g: verwacht ${want.g}, kreeg ${got.label}`);
+            if (want.count !== undefined && got.count !== want.count) diffs.push(`rows[${i}](${got.label}).count: verwacht ${want.count}, kreeg ${got.count}`);
+            if (want.collapsed !== undefined && got.collapsed !== want.collapsed) diffs.push(`rows[${i}](${got.label}).collapsed: verwacht ${want.collapsed}, kreeg ${got.collapsed}`);
+            if (want.level !== undefined && got.level !== want.level) diffs.push(`rows[${i}](${got.label}).level: verwacht ${want.level}, kreeg ${got.level}`);
+          }
+        });
+      }
+    }
+
+    if (v.expectFirstIndex) {
+      const map = firstRowIndexByTask(rows);
+      for (const [name, want] of Object.entries(v.expectFirstIndex)) {
+        const got = map.get(ids[name]);
+        if (got !== want) diffs.push(`firstIndex.${name}: verwacht ${want}, kreeg ${got}`);
+      }
+    }
   }
 
   return { id: c.id, title: c.title, pass: diffs.length === 0, diffs };

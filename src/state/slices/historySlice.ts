@@ -8,11 +8,11 @@ export interface HistorySlice {
   redo: () => void;
 }
 
-export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
+export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
   undoStack: [],
   redoStack: [],
 
-  undo: () =>
+  undo: () => {
     set((s) => {
       if (s.undoStack.length === 0) return;
       s.redoStack.push(createSnapshot(s));
@@ -37,9 +37,11 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
       s.baselines = snapshot.baselines ?? s.baselines;
       s.activeBaselineId = snapshot.activeBaselineId !== undefined ? snapshot.activeBaselineId : s.activeBaselineId;
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  redo: () =>
+  redo: () => {
     set((s) => {
       if (s.redoStack.length === 0) return;
       s.undoStack.push(createSnapshot(s));
@@ -57,5 +59,7 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
       s.baselines = snapshot.baselines ?? s.baselines;
       s.activeBaselineId = snapshot.activeBaselineId !== undefined ? snapshot.activeBaselineId : s.activeBaselineId;
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 });

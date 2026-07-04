@@ -136,6 +136,9 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       );
     });
 
+    // Filter/sort kunnen op de zojuist bijgewerkte totalFloat/isCritical/earlyStart keyen (§4.3).
+    get().recomputeViewRows();
+
     const cpm = get().cpmResult;
     emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
       hasError: !!cpm?.error,

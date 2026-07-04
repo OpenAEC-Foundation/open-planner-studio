@@ -1,4 +1,28 @@
 import { addCalendarDays } from '@/utils/dateUtils';
+import type { TimeScale } from '@/state/slices/types';
+
+/**
+ * Tijdschaal-presets (fase 2.7, §3.3): een dropdown-keuze mapt naar een zoom (px/dag). De presets
+ * landen midden in de bijbehorende `pickTiers`-band, zodat `scaleFromZoom` round-trip-stabiel de
+ * gekozen schaal teruggeeft. `view.timeScale` is GEEN bron van waarheid meer — `pickTiers`/`zoom`
+ * blijven dat; de getoonde schaal wordt afgeleid via `scaleFromZoom`.
+ */
+export const TIMESCALE_ZOOM: Record<TimeScale, number> = {
+  year: 3,
+  quarter: 8,
+  month: 18,
+  week: 45,
+  day: 100,
+};
+
+/** Leidt de getoonde tijdschaal af uit de zoom (§3.2). Leest dezelfde banden als `pickTiers`. */
+export function scaleFromZoom(zoom: number): TimeScale {
+  if (zoom < 4) return 'year';
+  if (zoom < 10) return 'quarter';
+  if (zoom < 25) return 'month';
+  if (zoom < 80) return 'week';
+  return 'day'; // >=80: dag/uur-tiers; label 'day' (uur is 2.8, §3.4)
+}
 
 export type TimelineTier =
   | 'year'

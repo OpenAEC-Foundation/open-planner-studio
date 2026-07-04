@@ -1,0 +1,394 @@
+{
+  "_comment": "Fase 2.7 headless view-engine tests (§14.1). De drie §6.3-filtervoorbeelden delen één mini-dataset (T0..T5); T2 krijgt dur 10 i.p.v. 5 zodat de CPM T2 als enige kritieke blad markeert (de illustratieve TF/kritiek-cijfers in het doc komen niet uit een letterlijk netwerk). De zichtbare-rijen-uitkomsten (dimming, ouderketen) zijn wél letterlijk uit §6.3.",
+  "cases": [
+    {
+      "id": "filter-a-isCritical",
+      "title": "§6.3 A — isCritical eq true → T0,T1,T2 (T2 helder, T0/T1 gedimd)",
+      "codes": [{ "name": "Fase", "values": [{ "code": "Ruwbouw" }, { "code": "Afbouw" }] }],
+      "resources": [{ "name": "Kraan", "type": "EQUIPMENT" }, { "name": "Ploeg A" }, { "name": "Ploeg B" }],
+      "tasks": [
+        { "name": "T0" },
+        { "name": "T1", "parent": "T0" },
+        { "name": "T2", "parent": "T1", "dur": 10, "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Kraan", "units": 1 }, { "res": "Ploeg A", "units": 1 }] },
+        { "name": "T3", "parent": "T1", "dur": 4, "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "T4", "parent": "T0" },
+        { "name": "T5", "parent": "T4", "dur": 6, "code": { "Fase": "Afbouw" }, "assign": [{ "res": "Ploeg B", "units": 1 }] }
+      ],
+      "expect": { "tasks": { "T2": { "crit": true }, "T3": { "crit": false }, "T5": { "crit": false } } },
+      "view": {
+        "filter": { "field": "isCritical", "operator": "eq", "value": true },
+        "expectRows": [
+          { "t": "T0", "dim": true, "depth": 0 },
+          { "t": "T1", "dim": true, "depth": 1 },
+          { "t": "T2", "dim": false, "depth": 2 }
+        ]
+      }
+    },
+    {
+      "id": "filter-b-fase-and-tf",
+      "title": "§6.3 B — Fase=Ruwbouw AND TF<3 → T0,T1,T2",
+      "codes": [{ "name": "Fase", "values": [{ "code": "Ruwbouw" }, { "code": "Afbouw" }] }],
+      "resources": [{ "name": "Ploeg A" }, { "name": "Ploeg B" }],
+      "tasks": [
+        { "name": "T0" },
+        { "name": "T1", "parent": "T0" },
+        { "name": "T2", "parent": "T1", "dur": 10, "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "T3", "parent": "T1", "dur": 4, "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "T4", "parent": "T0" },
+        { "name": "T5", "parent": "T4", "dur": 6, "code": { "Fase": "Afbouw" }, "assign": [{ "res": "Ploeg B", "units": 1 }] }
+      ],
+      "expect": { "tasks": { "T2": { "tf": 0 }, "T3": { "tf": 6 } } },
+      "view": {
+        "filter": {
+          "op": "AND",
+          "children": [
+            { "field": { "code": "Fase" }, "operator": "eq", "value": "Ruwbouw" },
+            { "field": "totalFloat", "operator": "lt", "value": 3 }
+          ]
+        },
+        "expectRows": [
+          { "t": "T0", "dim": true },
+          { "t": "T1", "dim": true },
+          { "t": "T2", "dim": false }
+        ]
+      }
+    },
+    {
+      "id": "filter-c-resource-or-duration",
+      "title": "§6.3 C — Res in [Ploeg A] OR duur>5 → alle bladeren (T3/T4 niet, alle bladeren wel)",
+      "codes": [{ "name": "Fase", "values": [{ "code": "Ruwbouw" }, { "code": "Afbouw" }] }],
+      "resources": [{ "name": "Kraan", "type": "EQUIPMENT" }, { "name": "Ploeg A" }, { "name": "Ploeg B" }],
+      "tasks": [
+        { "name": "T0" },
+        { "name": "T1", "parent": "T0" },
+        { "name": "T2", "parent": "T1", "dur": 5, "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Kraan", "units": 1 }, { "res": "Ploeg A", "units": 1 }] },
+        { "name": "T3", "parent": "T1", "dur": 4, "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "T4", "parent": "T0" },
+        { "name": "T5", "parent": "T4", "dur": 6, "code": { "Fase": "Afbouw" }, "assign": [{ "res": "Ploeg B", "units": 1 }] }
+      ],
+      "expect": {},
+      "view": {
+        "filter": {
+          "op": "OR",
+          "children": [
+            { "field": "resource", "operator": "in", "value": ["Ploeg A"] },
+            { "field": "duration", "operator": "gt", "value": 5 }
+          ]
+        },
+        "expectRows": [
+          { "t": "T0", "dim": true },
+          { "t": "T1", "dim": true },
+          { "t": "T2", "dim": false },
+          { "t": "T3", "dim": false },
+          { "t": "T4", "dim": true },
+          { "t": "T5", "dim": false }
+        ]
+      }
+    },
+    {
+      "id": "filter-isEmpty",
+      "title": "Filter-rand — isEmpty op een leeg custom field",
+      "customFields": [{ "name": "Zone", "type": "text" }],
+      "tasks": [
+        { "name": "A", "field": { "Zone": "X" } },
+        { "name": "B" }
+      ],
+      "expect": {},
+      "view": {
+        "filter": { "field": { "field": "Zone" }, "operator": "isEmpty" },
+        "expectRows": [{ "t": "B", "dim": false }]
+      }
+    },
+    {
+      "id": "filter-between-dates",
+      "title": "Filter-rand — between op start-datums",
+      "tasks": [
+        { "name": "A", "start": "2026-06-01" },
+        { "name": "B", "start": "2026-07-01" }
+      ],
+      "expect": {},
+      "view": {
+        "filter": { "field": "start", "operator": "between", "value": "2026-06-01", "value2": "2026-06-30" },
+        "expectRows": [{ "t": "A" }]
+      }
+    },
+    {
+      "id": "filter-empty-group-all",
+      "title": "Filter-rand — lege AND-groep matcht alles",
+      "tasks": [{ "name": "A" }, { "name": "B" }],
+      "expect": {},
+      "view": {
+        "filter": { "op": "AND", "children": [] },
+        "expectRows": [{ "t": "A" }, { "t": "B" }]
+      }
+    },
+    {
+      "id": "filter-null-all",
+      "title": "Filter-rand — geen filter = alle taken; boommodus",
+      "tasks": [{ "name": "A" }, { "name": "B" }],
+      "expect": {},
+      "view": {
+        "expectTreeMode": true,
+        "expectRows": [{ "t": "A", "dim": false }, { "t": "B", "dim": false }]
+      }
+    },
+    {
+      "id": "group-1level-fase",
+      "title": "Groeperen 1 niveau — reproduceert groupTasksByCode (banden + (geen))",
+      "codes": [{ "name": "Fase", "values": [{ "code": "Ruwbouw" }, { "code": "Afbouw" }] }],
+      "tasks": [
+        { "name": "Heien", "code": { "Fase": "Ruwbouw" } },
+        { "name": "Wapening", "code": { "Fase": "Ruwbouw" } },
+        { "name": "Schilderwerk", "code": { "Fase": "Afbouw" } },
+        { "name": "Sloop" }
+      ],
+      "expect": {},
+      "view": {
+        "group": [{ "field": { "code": "Fase" } }],
+        "expectRows": [
+          { "g": "Ruwbouw", "count": 2, "level": 0 },
+          { "t": "Heien" },
+          { "t": "Wapening" },
+          { "g": "Afbouw", "count": 1, "level": 0 },
+          { "t": "Schilderwerk" },
+          { "g": "(geen)", "count": 1, "level": 0 },
+          { "t": "Sloop" }
+        ]
+      }
+    },
+    {
+      "id": "group-2level-fase-resource",
+      "title": "Groeperen 2 niveaus — geneste banden Fase→resource",
+      "codes": [{ "name": "Fase", "values": [{ "code": "Ruwbouw" }, { "code": "Afbouw" }] }],
+      "resources": [{ "name": "Kraan", "type": "EQUIPMENT" }, { "name": "Ploeg A" }, { "name": "Ploeg B" }],
+      "tasks": [
+        { "name": "Heien", "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Kraan", "units": 1 }, { "res": "Ploeg A", "units": 1 }] },
+        { "name": "Wapening", "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "Schilderwerk", "code": { "Fase": "Afbouw" }, "assign": [{ "res": "Ploeg B", "units": 1 }] }
+      ],
+      "expect": {},
+      "view": {
+        "group": [{ "field": { "code": "Fase" } }, { "field": "resource" }],
+        "expectRows": [
+          { "g": "Ruwbouw", "count": 2, "level": 0 },
+          { "g": "Kraan", "count": 1, "level": 1 },
+          { "t": "Heien" },
+          { "g": "Ploeg A", "count": 2, "level": 1 },
+          { "t": "Heien" },
+          { "t": "Wapening" },
+          { "g": "Afbouw", "count": 1, "level": 0 },
+          { "g": "Ploeg B", "count": 1, "level": 1 },
+          { "t": "Schilderwerk" }
+        ]
+      }
+    },
+    {
+      "id": "group-resource-multiband",
+      "title": "Groeperen resource — multi-band (taak in 2 banden) + pijl-map naar eerste occurrence",
+      "resources": [{ "name": "Kraan", "type": "EQUIPMENT" }, { "name": "Ploeg A" }, { "name": "Ploeg B" }],
+      "tasks": [
+        { "name": "Heien", "assign": [{ "res": "Kraan", "units": 1 }, { "res": "Ploeg A", "units": 1 }] },
+        { "name": "Wapening", "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "Schilderwerk", "assign": [{ "res": "Ploeg B", "units": 1 }] }
+      ],
+      "expect": {},
+      "view": {
+        "group": [{ "field": "resource" }],
+        "expectRows": [
+          { "g": "Kraan", "count": 1 },
+          { "t": "Heien" },
+          { "g": "Ploeg A", "count": 2 },
+          { "t": "Heien" },
+          { "t": "Wapening" },
+          { "g": "Ploeg B", "count": 1 },
+          { "t": "Schilderwerk" }
+        ],
+        "expectFirstIndex": { "Heien": 1 }
+      }
+    },
+    {
+      "id": "sort-duration-asc",
+      "title": "Sorteren — enkel veld duur asc",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 1 },
+        { "name": "C", "dur": 2 }
+      ],
+      "expect": {},
+      "view": {
+        "sort": [{ "field": "duration", "dir": "asc" }],
+        "expectTreeMode": false,
+        "expectRows": [{ "t": "B" }, { "t": "C" }, { "t": "A" }]
+      }
+    },
+    {
+      "id": "sort-duration-desc",
+      "title": "Sorteren — enkel veld duur desc",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 1 },
+        { "name": "C", "dur": 2 }
+      ],
+      "expect": {},
+      "view": {
+        "sort": [{ "field": "duration", "dir": "desc" }],
+        "expectRows": [{ "t": "A" }, { "t": "C" }, { "t": "B" }]
+      }
+    },
+    {
+      "id": "sort-multikey",
+      "title": "Sorteren — multi-key (Zone asc, dan duur desc)",
+      "customFields": [{ "name": "Zone", "type": "text" }],
+      "tasks": [
+        { "name": "P", "dur": 5, "field": { "Zone": "A" } },
+        { "name": "Q", "dur": 8, "field": { "Zone": "A" } },
+        { "name": "R", "dur": 2, "field": { "Zone": "B" } }
+      ],
+      "expect": {},
+      "view": {
+        "sort": [{ "field": { "field": "Zone" }, "dir": "asc" }, { "field": "duration", "dir": "desc" }],
+        "expectRows": [{ "t": "Q" }, { "t": "P" }, { "t": "R" }]
+      }
+    },
+    {
+      "id": "sort-stability",
+      "title": "Sorteren — stabiliteit (gelijke sleutels behouden invoervolgorde)",
+      "customFields": [{ "name": "Zone", "type": "text" }],
+      "tasks": [
+        { "name": "M1", "dur": 9, "field": { "Zone": "A" } },
+        { "name": "M2", "dur": 1, "field": { "Zone": "A" } },
+        { "name": "M3", "dur": 5, "field": { "Zone": "A" } }
+      ],
+      "expect": {},
+      "view": {
+        "sort": [{ "field": { "field": "Zone" }, "dir": "asc" }],
+        "expectRows": [{ "t": "M1" }, { "t": "M2" }, { "t": "M3" }]
+      }
+    },
+    {
+      "id": "sort-tree-sibling",
+      "title": "Sorteren — binnen boom (kinderen onder ouder, hiërarchie intact)",
+      "tasks": [
+        { "name": "Root" },
+        { "name": "child1", "parent": "Root", "dur": 3 },
+        { "name": "child2", "parent": "Root", "dur": 1 }
+      ],
+      "expect": {},
+      "view": {
+        "sort": [{ "field": "duration", "dir": "asc" }],
+        "expectRows": [
+          { "t": "Root", "depth": 0 },
+          { "t": "child2", "depth": 1 },
+          { "t": "child1", "depth": 1 }
+        ]
+      }
+    },
+    {
+      "id": "collapse-task",
+      "title": "Collapse — ingeklapte taak verbergt kinderen (boommodus)",
+      "tasks": [
+        { "name": "Root" },
+        { "name": "A", "parent": "Root" },
+        { "name": "B", "parent": "Root" }
+      ],
+      "expect": {},
+      "view": {
+        "collapsedTasks": ["Root"],
+        "expectRows": [{ "t": "Root", "depth": 0 }]
+      }
+    },
+    {
+      "id": "collapse-band-key-uniqueness",
+      "title": "Collapse — gelijknamige subbanden onder verschillende bovenbanden (pad-sleutel, §14.1)",
+      "codes": [{ "name": "Fase", "values": [{ "code": "Ruwbouw" }, { "code": "Afbouw" }] }],
+      "resources": [{ "name": "Ploeg A" }],
+      "tasks": [
+        { "name": "Heien", "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "Wapening", "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "Schilderwerk", "code": { "Fase": "Afbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "Stucwerk", "code": { "Fase": "Afbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] }
+      ],
+      "expect": {},
+      "view": {
+        "group": [{ "field": { "code": "Fase" } }, { "field": "resource" }],
+        "collapsedGroups": [["Ruwbouw", "Ploeg A"]],
+        "expectRows": [
+          { "g": "Ruwbouw", "level": 0 },
+          { "g": "Ploeg A", "level": 1, "collapsed": true },
+          { "g": "Afbouw", "level": 0 },
+          { "g": "Ploeg A", "level": 1, "collapsed": false },
+          { "t": "Schilderwerk" },
+          { "t": "Stucwerk" }
+        ]
+      }
+    },
+    {
+      "id": "treemode-true",
+      "title": "Structuur-lock — isTreeMode true bij filter/groep/sort alle leeg",
+      "tasks": [{ "name": "A" }],
+      "expect": {},
+      "view": { "expectTreeMode": true }
+    },
+    {
+      "id": "treemode-false-group",
+      "title": "Structuur-lock — isTreeMode false zodra groeperen actief",
+      "codes": [{ "name": "Fase", "values": [{ "code": "Ruwbouw" }] }],
+      "tasks": [{ "name": "A", "code": { "Fase": "Ruwbouw" } }],
+      "expect": {},
+      "view": { "group": [{ "field": { "code": "Fase" } }], "expectTreeMode": false }
+    },
+    {
+      "id": "pipeline-interaction",
+      "title": "Pijplijn — filter + groep + sort samen",
+      "codes": [{ "name": "Fase", "values": [{ "code": "Ruwbouw" }, { "code": "Afbouw" }] }],
+      "resources": [{ "name": "Ploeg A" }, { "name": "Ploeg B" }],
+      "tasks": [
+        { "name": "Heien", "dur": 5, "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "Wapening", "dur": 4, "code": { "Fase": "Ruwbouw" }, "assign": [{ "res": "Ploeg A", "units": 1 }] },
+        { "name": "Schilderwerk", "dur": 6, "code": { "Fase": "Afbouw" }, "assign": [{ "res": "Ploeg B", "units": 1 }] }
+      ],
+      "expect": {},
+      "view": {
+        "filter": { "field": { "code": "Fase" }, "operator": "eq", "value": "Ruwbouw" },
+        "group": [{ "field": "resource" }],
+        "sort": [{ "field": "duration", "dir": "desc" }],
+        "expectRows": [
+          { "g": "Ploeg A", "count": 2 },
+          { "t": "Heien" },
+          { "t": "Wapening" }
+        ]
+      }
+    },
+    {
+      "id": "missing-ref-group",
+      "title": "Ontbrekende referenties — groep-niveau met onbekend type → (geen)-band, geen crash",
+      "tasks": [{ "name": "A" }, { "name": "B" }],
+      "expect": {},
+      "view": {
+        "group": [{ "field": { "code": "Ghost" } }],
+        "expectRows": [
+          { "g": "(geen)", "count": 2, "level": 0 },
+          { "t": "A" },
+          { "t": "B" }
+        ]
+      }
+    },
+    {
+      "id": "missing-ref-filter",
+      "title": "Ontbrekende referenties — filterregel met onbekend veld → geen match, geen crash",
+      "tasks": [{ "name": "A" }, { "name": "B" }],
+      "expect": {},
+      "view": {
+        "filter": { "field": { "code": "Ghost" }, "operator": "eq", "value": "x" },
+        "expectRows": []
+      }
+    },
+    {
+      "id": "timescale-roundtrip",
+      "title": "Timescale — scaleFromZoom(TIMESCALE_ZOOM[s]) === s voor alle presets (§3.3)",
+      "tasks": [{ "name": "A" }],
+      "expect": {},
+      "view": { "timescaleRoundtrip": true }
+    }
+  ]
+}

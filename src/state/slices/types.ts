@@ -9,7 +9,8 @@ import type { AppState } from '../appStore';
  */
 export type AppSlice<T> = StateCreator<AppState, [['zustand/immer', never]], [], T>;
 
-export type TimeScale = 'day' | 'week' | 'month' | 'quarter';
+// Fase 2.7 (§3): 'year' toegevoegd als directe keuze; 'quarter' aan de dropdown. 'hour' → §2.8.
+export type TimeScale = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 export type WeekStartDay = 'monday' | 'sunday';
 
@@ -63,18 +64,91 @@ export type BackstageSection =
   | 'settings'
   | 'extensions';
 
+// --- Fase 2.7 weergaven: één veld-referentie voor filter, groep én sort (§2.1) ---
+export type BuiltinFieldKey =
+  | 'name' | 'wbsCode' | 'duration' | 'start' | 'finish'
+  | 'totalFloat' | 'isCritical' | 'completion' | 'taskType' | 'isMilestone';
+
+export type FieldRef =
+  | { src: 'builtin'; key: BuiltinFieldKey }
+  | { src: 'activityCode'; typeId: string }   // waarde = valueId (uit task.activityCodes)
+  | { src: 'customField'; defId: string }      // waarde = task.customFields[defId]
+  | { src: 'resource' };                        // afgeleide waarde = namen van toegewezen resources
+
+/** Kolomconfiguratie op de HTML-TableEditor (§2.2). Volgorde = arrayvolgorde. */
+export interface ColumnConfig {
+  field: FieldRef;
+  visible: boolean;
+  width: number; // px
+}
+
+export type FilterOperator =
+  | 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte'
+  | 'contains' | 'startsWith' | 'between' | 'isEmpty' | 'in';
+
+export type FilterNode =
+  | { kind: 'group'; op: 'AND' | 'OR'; children: FilterNode[] }
+  | {
+      kind: 'rule';
+      field: FieldRef;
+      operator: FilterOperator;
+      value?: string | number | boolean | string[];
+      value2?: string | number; // alleen 'between'
+    };
+
+export interface GroupLevel {
+  field: FieldRef;
+  dir: 'asc' | 'desc'; // volgorde waarin de banden zelf verschijnen
+}
+
+export interface SortLevel {
+  field: FieldRef;
+  dir: 'asc' | 'desc';
+}
+
+/** App-globale presentatie-preset (§2.5). Bewust GEEN scroll/zoom-positie of sessie-flags. */
+export interface Layout {
+  id: string;
+  name: string;
+  columns: ColumnConfig[];
+  group: GroupLevel[];
+  sort: SortLevel[];
+  filter: FilterNode | null;
+  timeScale: TimeScale; // preset-naam; toepassen → setZoom(TIMESCALE_ZOOM[timeScale])
+}
+
+/** Split view binnen één document (§10) — undefined = uit. */
+export interface SplitViewState {
+  ratio: number;          // 0..1 breedteverdeling linker pane
+  secondaryZoom: number;  // eigen zoom rechter pane
+  secondaryScrollX: number;
+}
+
 export interface ViewState {
   scrollX: number;
   scrollY: number;
   zoom: number; // pixels per day
   timeScale: TimeScale;
   viewStartDate: string; // leftmost visible date
-  /** Groeperingsweergave (fase 2.2): id van een activity-code-type — tabel en Gantt tonen
-   *  dan codewaarde-banden i.p.v. de WBS-boom; undefined = normale boomweergave. */
+  /** @deprecated fase 2.7 (§7.5) — vervangen door `group: GroupLevel[]`. Blijft bestaan tot golf 2
+   *  de oude consumenten (TableEditor/GanttCanvas/Ribbon) omhangt; wordt gemigreerd naar `group`. */
   groupBy?: string;
   /** Histogram-selectie (fase 2.5, §6.4): id van de resource die de histogramstrook toont;
    *  undefined = alle renewables samengeteld. Per-document (zit in ViewState → DocumentPayload). */
   histogramResourceId?: string;
+  // --- Fase 2.7 (§2.6) — per-document view-state ---
+  /** Kolom-config; undefined = defaultColumns(). */
+  columns?: ColumnConfig[];
+  /** Geneste AND/OR-filter; null = geen filter (short-circuit). */
+  filter: FilterNode | null;
+  /** Groepeer-niveaus; [] = WBS-boom (huidig gedrag). */
+  group: GroupLevel[];
+  /** Sorteer-niveaus (multi-key, stabiel); [] = boom-/bandvolgorde. */
+  sort: SortLevel[];
+  /** Ingeklapte groepsbanden (pad-gecodeerde JSON-sleutels). */
+  collapsedGroupKeys: string[];
+  /** Split view binnen dit document; undefined = uit. */
+  splitView?: SplitViewState;
 }
 
 export interface UIState {
@@ -119,6 +193,8 @@ export interface UIState {
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt (fase 2.6)
   showProgressLine: boolean;                // persisted — voortgangslijn in de Gantt (fase 2.6)
   showStatusDateLine: boolean;              // persisted — statusdatumlijn in de Gantt (fase 2.6)
+  presentationMode: boolean;                // session — presentatie-modus (fase 2.7, §9); niet gepersisteerd
+  showMiniMap: boolean;                     // persisted — mini-map naast/onder de Gantt (fase 2.7, §11)
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

@@ -49,10 +49,12 @@ export function createDefaultUI(): UIState {
     showBaselineOverlay: true,
     showProgressLine: true,
     showStatusDateLine: true,
+    presentationMode: false,
+    showMiniMap: false,
   };
 }
 
-export const createUiSlice: AppSlice<UiSlice> = (set) => ({
+export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
   ui: createDefaultUI(),
 
   setUI: (updates) =>
@@ -66,7 +68,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set) => ({
       if (s.view.zoom > max) s.view.zoom = max;
     }),
 
-  toggleCollapse: (taskId) =>
+  toggleCollapse: (taskId) => {
     set((s) => {
       const idx = s.ui.collapsedTaskIds.indexOf(taskId);
       if (idx >= 0) {
@@ -74,5 +76,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set) => ({
       } else {
         s.ui.collapsedTaskIds.push(taskId);
       }
-    }),
+    });
+    get().recomputeViewRows(); // taak-collapse verandert de zichtbaarheid van kinderen (§4.3).
+  },
 });

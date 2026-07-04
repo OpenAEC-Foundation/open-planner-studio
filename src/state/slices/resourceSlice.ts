@@ -48,6 +48,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
     });
     // A6: pure resource-mutatie → histogram direct verversen (geen runCPM, datums onaangeroerd).
     get().recomputeResourceLoad();
+    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
     return id;
   },
 
@@ -69,6 +70,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       s.isDirty = true;
     });
     get().recomputeResourceLoad();
+    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
 
   removeResource: (id) => {
@@ -89,6 +91,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       s.isDirty = true;
     });
     get().recomputeResourceLoad();
+    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
 
   assignResource: (taskId, resourceId, unitsPerDay, curve) => {
@@ -110,6 +113,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       s.isDirty = true;
     });
     get().recomputeResourceLoad();
+    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
 
   updateAssignment: (assignmentId, updates) => {
@@ -130,6 +134,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       s.isDirty = true;
     });
     get().recomputeResourceLoad();
+    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
 
   unassignResource: (assignmentId) => {
@@ -154,6 +159,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       s.isDirty = true;
     });
     get().recomputeResourceLoad();
+    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
 
   addResourceCalendar: (cal) => {

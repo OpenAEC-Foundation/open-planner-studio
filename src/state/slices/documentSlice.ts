@@ -137,6 +137,26 @@ function capturePayload(s: AppState): DocumentPayload {
   };
 }
 
+/**
+ * Vul ontbrekende fase-2.7-view-velden aan en migreer het oude `groupBy` naar `group` (§12.2/§7.5).
+ * Oude payloads/recovery (van vóór 2.7) missen filter/group/sort/collapsedGroupKeys; `?? default`-
+ * guards houden ze veilig. Migratie: een `groupBy`-string zonder `group` → één activity-code-niveau.
+ */
+function normalizeView(v: ViewState): ViewState {
+  const group = v.group && v.group.length > 0
+    ? v.group
+    : v.groupBy
+      ? [{ field: { src: 'activityCode' as const, typeId: v.groupBy }, dir: 'asc' as const }]
+      : [];
+  return {
+    ...v,
+    filter: v.filter ?? null,
+    group,
+    sort: v.sort ?? [],
+    collapsedGroupKeys: v.collapsedGroupKeys ?? [],
+  };
+}
+
 /** Schrijf een payload terug naar de top-level (actieve) state. */
 function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.project = p.project;
@@ -154,7 +174,7 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.scheduleStale = p.scheduleStale ?? false;
   s.baselines = p.baselines ?? [];
   s.activeBaselineId = p.activeBaselineId ?? null;
-  s.view = p.view;
+  s.view = normalizeView(p.view);
   s.ui.collapsedTaskIds = p.collapsedTaskIds;
   s.undoStack = p.undoStack;
   s.redoStack = p.redoStack;
@@ -240,6 +260,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       s.activeDocumentId = newId;
       hydratePayload(s, freshPayload());
     });
+    get().recomputeViewRows();
     emitExtensionEvent(HOST_EVENTS.projectNew);
     return newId;
   },
@@ -259,6 +280,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       if (inc) inc.payload = null;
       s.activeDocumentId = id;
     });
+    get().recomputeViewRows();
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
@@ -278,6 +300,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
         s.activeDocumentId = newId;
         hydratePayload(s, freshPayload());
       });
+      get().recomputeViewRows();
       emitExtensionEvent(HOST_EVENTS.projectNew);
       return;
     }
@@ -301,6 +324,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       if (n) n.payload = null;
       s.activeDocumentId = neighbor.id;
     });
+    get().recomputeViewRows();
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
@@ -338,6 +362,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       s.activeDocumentId = active.id;
       hydratePayload(s, payloadFromInput(active));
     });
+    get().recomputeViewRows();
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
       tasks: active.tasks.length,
       sequences: active.sequences.length,

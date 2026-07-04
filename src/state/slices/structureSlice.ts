@@ -32,7 +32,7 @@ export interface StructureSlice {
   setTaskCustomField: (taskId: string, defId: string, value: CustomFieldValue | null) => void;
 }
 
-export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
+export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
   activityCodeTypes: [],
   customFieldDefs: [],
 
@@ -44,10 +44,11 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
       s.activityCodeTypes.push({ id, name, values: [] });
       s.isDirty = true;
     });
+    get().recomputeViewRows();
     return id;
   },
 
-  renameActivityCodeType: (id, name) =>
+  renameActivityCodeType: (id, name) => {
     set((s) => {
       const t = s.activityCodeTypes.find(x => x.id === id);
       if (!t || t.name === name) return;
@@ -55,9 +56,11 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
       s.redoStack = [];
       t.name = name;
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  removeActivityCodeType: (id) =>
+  removeActivityCodeType: (id) => {
     set((s) => {
       if (!s.activityCodeTypes.some(x => x.id === id)) return;
       s.undoStack.push(createSnapshot(s));
@@ -67,8 +70,13 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
         if (task.activityCodes && id in task.activityCodes) delete task.activityCodes[id];
       }
       if (s.view.groupBy === id) s.view.groupBy = undefined;
+      // Groep-/sort-niveaus die naar dit type verwezen laten vallen (§4.3, code-mutatie).
+      s.view.group = s.view.group.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
+      s.view.sort = s.view.sort.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
   addActivityCodeValue: (typeId, value) => {
     const id = generateId('acv');
@@ -80,10 +88,11 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
       t.values.push({ ...value, id });
       s.isDirty = true;
     });
+    get().recomputeViewRows();
     return id;
   },
 
-  updateActivityCodeValue: (typeId, valueId, patch) =>
+  updateActivityCodeValue: (typeId, valueId, patch) => {
     set((s) => {
       const v = s.activityCodeTypes.find(x => x.id === typeId)?.values.find(x => x.id === valueId);
       if (!v) return;
@@ -91,9 +100,11 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
       s.redoStack = [];
       Object.assign(v, patch);
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  removeActivityCodeValue: (typeId, valueId) =>
+  removeActivityCodeValue: (typeId, valueId) => {
     set((s) => {
       const t = s.activityCodeTypes.find(x => x.id === typeId);
       if (!t || !t.values.some(v => v.id === valueId)) return;
@@ -104,9 +115,11 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
         if (task.activityCodes?.[typeId] === valueId) delete task.activityCodes[typeId];
       }
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  setTaskActivityCode: (taskId, typeId, valueId) =>
+  setTaskActivityCode: (taskId, typeId, valueId) => {
     set((s) => {
       const task = s.tasks.find(t => t.id === taskId);
       if (!task) return;
@@ -120,7 +133,9 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
         task.activityCodes = { ...(task.activityCodes ?? {}), [typeId]: valueId };
       }
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
   addCustomField: (name, type) => {
     const id = generateId('cfd');
@@ -130,10 +145,11 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
       s.customFieldDefs.push({ id, name, type });
       s.isDirty = true;
     });
+    get().recomputeViewRows();
     return id;
   },
 
-  renameCustomField: (id, name) =>
+  renameCustomField: (id, name) => {
     set((s) => {
       const d = s.customFieldDefs.find(x => x.id === id);
       if (!d || d.name === name) return;
@@ -141,9 +157,11 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
       s.redoStack = [];
       d.name = name;
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  removeCustomField: (id) =>
+  removeCustomField: (id) => {
     set((s) => {
       if (!s.customFieldDefs.some(x => x.id === id)) return;
       s.undoStack.push(createSnapshot(s));
@@ -152,10 +170,14 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
       for (const task of s.tasks) {
         if (task.customFields && id in task.customFields) delete task.customFields[id];
       }
+      s.view.group = s.view.group.filter(g => !(g.field.src === 'customField' && g.field.defId === id));
+      s.view.sort = s.view.sort.filter(g => !(g.field.src === 'customField' && g.field.defId === id));
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  setTaskCustomField: (taskId, defId, value) =>
+  setTaskCustomField: (taskId, defId, value) => {
     set((s) => {
       const task = s.tasks.find(t => t.id === taskId);
       if (!task) return;
@@ -169,5 +191,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set) => ({
         task.customFields = { ...(task.customFields ?? {}), [defId]: value };
       }
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 });

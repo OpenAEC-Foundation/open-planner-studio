@@ -79,7 +79,7 @@ function applyProgressInvariants(task: Task, statusDate: string | undefined): vo
   time.remainingTime = Math.round(time.scheduleDuration * (1 - time.completion));
 }
 
-export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
+export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
   tasks: [],
   selectedTaskIds: [],
   taskClipboard: null,
@@ -133,10 +133,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       s.isDirty = true;
       s.scheduleStale = true; // nieuwe taak (A6): planning verouderd tot F5.
     });
+    get().recomputeViewRows();
     return id;
   },
 
-  updateTask: (id, updates) =>
+  updateTask: (id, updates) => {
     set((s) => {
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
@@ -148,9 +149,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
         // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
         s.scheduleStale = true;
       }
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  deleteTask: (id) =>
+  deleteTask: (id) => {
     set((s) => {
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
@@ -182,9 +185,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
       s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  moveTask: (id, newParentId) =>
+  moveTask: (id, newParentId) => {
     set((s) => {
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
@@ -210,9 +215,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
       s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  indentTasks: (ids) =>
+  indentTasks: (ids) => {
     set((s) => {
       // Kandidaat-ouder = de voorgaande sibling in de weergavevolgorde (flattenOrder).
       // Geen voorgaande sibling => no-op voor die taak. De subboom lift mee via parentId.
@@ -258,9 +265,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
       s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
-  outdentTasks: (ids) =>
+  outdentTasks: (ids) => {
     set((s) => {
       // Diepste taken eerst zodat een geselecteerde ouder+kind-combinatie niet dubbelt.
       const order = flattenOrder(s.tasks).map(t => t.id);
@@ -289,7 +298,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
       s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
   selectTask: (id, multi = false, range = false) =>
     set((s) => {
@@ -450,16 +461,19 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       s.isDirty = true;
       s.scheduleStale = true; // geplakte taken (A6): planning verouderd tot F5.
     });
+    get().recomputeViewRows();
     return newRootIds;
   },
 
-  renumberWbs: () =>
+  renumberWbs: () => {
     set((s) => {
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
       applyWbsNumbering(s.tasks);
       s.isDirty = true;
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
   insertWbsTemplate: (template, parentId) => {
     if (template.tasks.length === 0) return null;
@@ -520,10 +534,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       s.isDirty = true;
       s.scheduleStale = true; // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
+    get().recomputeViewRows();
     return newRootId;
   },
 
-  setTaskProgress: (taskId, raw) =>
+  setTaskProgress: (taskId, raw) => {
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
@@ -540,7 +555,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       applyProgressInvariants(task, s.project.statusDate);
       s.isDirty = true;
       if (s.project.statusDate) s.scheduleStale = true; // alleen datum-beïnvloedend mét statusdatum.
-    }),
+    });
+    get().recomputeViewRows();
+  },
 
   setActualStart: (taskId, date) => {
     let accepted = true;
@@ -556,6 +573,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       s.isDirty = true;
       if (s.project.statusDate) s.scheduleStale = true;
     });
+    get().recomputeViewRows();
     return accepted;
   },
 
@@ -575,6 +593,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       s.isDirty = true;
       if (s.project.statusDate) s.scheduleStale = true;
     });
+    get().recomputeViewRows();
     return accepted;
   },
 });
