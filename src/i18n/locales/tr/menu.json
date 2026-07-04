@@ -131,7 +131,18 @@
     "clearLeveling": "Dengelemeyi temizle",
     "overallocationIndicator": "Aşırı atama",
     "overallocationCount": "{{count}} kaynak",
-    "overallocationNone": "Yok"
+    "overallocationNone": "Yok",
+    "baselines": "Baseline ve ilerleme",
+    "saveBaseline": "Baseline kaydet…",
+    "manageBaselines": "Baseline'ları yönet…",
+    "statusDate": "Durum tarihi",
+    "statusDateClear": "Durum tarihini temizle",
+    "progressMode": "İlerleme modu",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "Baseline bindirmesi",
+    "toggleProgressLine": "İlerleme çizgisi",
+    "toggleStatusDateLine": "Durum tarihi çizgisi"
   },
   "ifc": {
     "title": "IFC Düzenleyici",

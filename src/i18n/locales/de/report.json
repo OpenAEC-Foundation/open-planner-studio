@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Berichtstyp",
     "gantt": "Gantt-Diagramm",
-    "milestones": "Meilensteinübersicht"
+    "milestones": "Meilensteinübersicht",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Variance-Bericht",
+    "baselineStart": "Baseline-Anfang",
+    "baselineFinish": "Baseline-Ende",
+    "currentStart": "Aktueller Anfang",
+    "currentFinish": "Aktuelles Ende",
+    "deltaStart": "Δ Anfang (AT)",
+    "deltaFinish": "Δ Ende (AT)",
+    "status": "Status",
+    "status_onSchedule": "Im Plan",
+    "status_late": "Später",
+    "status_early": "Früher",
+    "status_new": "Neu",
+    "status_dropped": "Entfallen",
+    "noBaseline": "Keine aktive Baseline — speichern Sie eine Baseline oder legen Sie eine als aktiv fest.",
+    "projectEndDelta": "Projektende: {{delta}} Arbeitstage",
+    "total": "Aufgaben",
+    "lateCount": "Später",
+    "earlyCount": "Früher"
   },
   "milestoneReport": {
     "title": "Meilensteinübersicht",

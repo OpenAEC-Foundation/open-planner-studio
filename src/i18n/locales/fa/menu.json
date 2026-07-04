@@ -131,7 +131,18 @@
     "clearLeveling": "پاک کردن تسطیح",
     "overallocationIndicator": "تخصیص بیش از حد",
     "overallocationCount": "{{count}} منبع",
-    "overallocationNone": "هیچ"
+    "overallocationNone": "هیچ",
+    "baselines": "خطوط مبنا و پیشرفت",
+    "saveBaseline": "ذخیره خط مبنا…",
+    "manageBaselines": "مدیریت خطوط مبنا…",
+    "statusDate": "تاریخ وضعیت",
+    "statusDateClear": "پاک کردن تاریخ وضعیت",
+    "progressMode": "حالت پیشرفت",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "هم‌پوشانی خط مبنا",
+    "toggleProgressLine": "خط پیشرفت",
+    "toggleStatusDateLine": "خط تاریخ وضعیت"
   },
   "ifc": {
     "title": "ویرایشگر IFC",

@@ -48,7 +48,28 @@
   "reportType": {
     "label": "نوع گزارش",
     "gantt": "نمودار گانت",
-    "milestones": "نمای کلی نقاط عطف"
+    "milestones": "نمای کلی نقاط عطف",
+    "variance": "انحراف"
+  },
+  "variance": {
+    "title": "گزارش انحراف",
+    "baselineStart": "شروع خط مبنا",
+    "baselineFinish": "پایان خط مبنا",
+    "currentStart": "شروع کنونی",
+    "currentFinish": "پایان کنونی",
+    "deltaStart": "Δ شروع (روز کاری)",
+    "deltaFinish": "Δ پایان (روز کاری)",
+    "status": "وضعیت",
+    "status_onSchedule": "طبق برنامه",
+    "status_late": "دیرتر",
+    "status_early": "زودتر",
+    "status_new": "جدید",
+    "status_dropped": "حذف‌شده",
+    "noBaseline": "خط مبنای فعالی وجود ندارد — یک خط مبنا ذخیره کنید یا یکی را فعال کنید.",
+    "projectEndDelta": "پایان پروژه: {{delta}} روز کاری",
+    "total": "وظایف",
+    "lateCount": "دیرتر",
+    "earlyCount": "زودتر"
   },
   "milestoneReport": {
     "title": "نمای کلی نقاط عطف",

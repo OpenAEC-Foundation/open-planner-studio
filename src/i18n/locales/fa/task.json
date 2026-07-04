@@ -59,6 +59,12 @@
     "hasConstraint": "دارای محدودیت تاریخ",
     "deadlineMissed": "مهلت گذشته است",
     "completion": "پیشرفت (%)",
+    "progress": {
+      "actualStart": "شروع واقعی",
+      "actualFinish": "پایان واقعی",
+      "actualDate": "تاریخ واقعی",
+      "remaining": "باقی‌مانده (روزهای کاری)"
+    },
     "cpmResult": "نتیجه CPM",
     "earlyStart": "شروع زودهنگام:",
     "earlyFinish": "پایان زودهنگام:",

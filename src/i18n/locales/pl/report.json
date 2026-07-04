@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Typ raportu",
     "gantt": "Wykres Gantta",
-    "milestones": "Przegląd punktów kontrolnych"
+    "milestones": "Przegląd punktów kontrolnych",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Raport Variance",
+    "baselineStart": "Początek baseline",
+    "baselineFinish": "Koniec baseline",
+    "currentStart": "Bieżący początek",
+    "currentFinish": "Bieżący koniec",
+    "deltaStart": "Δ początek (dr)",
+    "deltaFinish": "Δ koniec (dr)",
+    "status": "Stan",
+    "status_onSchedule": "Zgodnie z planem",
+    "status_late": "Później",
+    "status_early": "Wcześniej",
+    "status_new": "Nowe",
+    "status_dropped": "Usunięte",
+    "noBaseline": "Brak aktywnej baseline — zapisz baseline lub ustaw jedną jako aktywną.",
+    "projectEndDelta": "Koniec projektu: {{delta}} dni robocze",
+    "total": "Zadania",
+    "lateCount": "Później",
+    "earlyCount": "Wcześniej"
   },
   "milestoneReport": {
     "title": "Przegląd punktów kontrolnych",

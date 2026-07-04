@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} son tarih aşıldı",
-    "violatedConstraints": "{{count}} kısıtlama ihlal edildi"
+    "violatedConstraints": "{{count}} kısıtlama ihlal edildi",
+    "outOfSequence": "{{count}} sıra dışı ilişki"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "Baseline'lar",
+      "name": "Ad",
+      "created": "Oluşturulma",
+      "active": "Etkin",
+      "delete": "Sil",
+      "saveNew": "Yeni baseline kaydet",
+      "defaultName": "Baseline {{n}} — {{date}}",
+      "noBaselines": "Henüz baseline yok",
+      "staleHint": "Plan güncel değil — önce yeniden hesaplayın (F5)",
+      "deleteActiveConfirm": "Etkin baseline silinsin mi?"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "Gerçekleşen tarihler durum tarihinden sonra olamaz"
   },
   "resource": {
     "type": {

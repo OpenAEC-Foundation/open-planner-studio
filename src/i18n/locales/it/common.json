@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "Scadenze superate: {{count}}",
-    "violatedConstraints": "Vincoli violati: {{count}}"
+    "violatedConstraints": "Vincoli violati: {{count}}",
+    "outOfSequence": "Relazioni fuori sequenza: {{count}}"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "Baseline",
+      "name": "Nome",
+      "created": "Creata",
+      "active": "Attiva",
+      "delete": "Elimina",
+      "saveNew": "Salva nuova baseline",
+      "defaultName": "Baseline {{n}} — {{date}}",
+      "noBaselines": "Nessuna baseline ancora",
+      "staleHint": "La pianificazione non è aggiornata — ricalcola prima (F5)",
+      "deleteActiveConfirm": "Eliminare la baseline attiva?"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "Le date effettive non possono essere successive alla data di stato"
   },
   "resource": {
     "type": {

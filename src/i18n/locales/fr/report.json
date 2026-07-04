@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Type de rapport",
     "gantt": "Diagramme de Gantt",
-    "milestones": "Aperçu des jalons"
+    "milestones": "Aperçu des jalons",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Rapport de Variance",
+    "baselineStart": "Début de la baseline",
+    "baselineFinish": "Fin de la baseline",
+    "currentStart": "Début actuel",
+    "currentFinish": "Fin actuelle",
+    "deltaStart": "Δ début (jo)",
+    "deltaFinish": "Δ fin (jo)",
+    "status": "Statut",
+    "status_onSchedule": "Dans les délais",
+    "status_late": "Plus tard",
+    "status_early": "Plus tôt",
+    "status_new": "Nouvelle",
+    "status_dropped": "Supprimée",
+    "noBaseline": "Aucune baseline active — enregistrez une baseline ou définissez-en une comme active.",
+    "projectEndDelta": "Fin de projet : {{delta}} jours ouvrés",
+    "total": "Tâches",
+    "lateCount": "Plus tard",
+    "earlyCount": "Plus tôt"
   },
   "milestoneReport": {
     "title": "Aperçu des jalons",

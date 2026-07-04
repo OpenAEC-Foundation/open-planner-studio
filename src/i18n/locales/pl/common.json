@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "Przekroczone terminy: {{count}}",
-    "violatedConstraints": "Naruszone ograniczenia: {{count}}"
+    "violatedConstraints": "Naruszone ograniczenia: {{count}}",
+    "outOfSequence": "Relacje poza kolejnością: {{count}}"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "Baseline",
+      "name": "Nazwa",
+      "created": "Utworzono",
+      "active": "Aktywna",
+      "delete": "Usuń",
+      "saveNew": "Zapisz nową baseline",
+      "defaultName": "Baseline {{n}} — {{date}}",
+      "noBaselines": "Brak zapisanych baseline",
+      "staleHint": "Harmonogram jest nieaktualny — najpierw przelicz (F5)",
+      "deleteActiveConfirm": "Usunąć aktywną baseline?"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "Rzeczywiste daty nie mogą wypadać po dacie statusu"
   },
   "resource": {
     "type": {

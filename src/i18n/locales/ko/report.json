@@ -48,7 +48,28 @@
   "reportType": {
     "label": "보고서 유형",
     "gantt": "간트 차트",
-    "milestones": "마일스톤 개요"
+    "milestones": "마일스톤 개요",
+    "variance": "차이"
+  },
+  "variance": {
+    "title": "차이 보고서",
+    "baselineStart": "기준선 시작",
+    "baselineFinish": "기준선 종료",
+    "currentStart": "현재 시작",
+    "currentFinish": "현재 종료",
+    "deltaStart": "Δ 시작(근무일)",
+    "deltaFinish": "Δ 종료(근무일)",
+    "status": "상태",
+    "status_onSchedule": "일정대로",
+    "status_late": "지연",
+    "status_early": "조기",
+    "status_new": "신규",
+    "status_dropped": "삭제됨",
+    "noBaseline": "활성 기준선이 없습니다 — 기준선을 저장하거나 하나를 활성으로 설정하세요.",
+    "projectEndDelta": "프로젝트 종료: {{delta}} 근무일",
+    "total": "작업",
+    "lateCount": "지연",
+    "earlyCount": "조기"
   },
   "milestoneReport": {
     "title": "마일스톤 개요",

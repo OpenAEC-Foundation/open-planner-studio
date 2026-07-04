@@ -59,6 +59,12 @@
     "hasConstraint": "有日期限制",
     "deadlineMissed": "已超过期限",
     "completion": "进度（%）",
+    "progress": {
+      "actualStart": "实际开始",
+      "actualFinish": "实际完成",
+      "actualDate": "实际日期",
+      "remaining": "剩余（工作日）"
+    },
     "cpmResult": "CPM 结果",
     "earlyStart": "最早开始：",
     "earlyFinish": "最早完成：",

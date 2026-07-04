@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "مهلت‌های گذشته: {{count}}",
-    "violatedConstraints": "محدودیت‌های نقض‌شده: {{count}}"
+    "violatedConstraints": "محدودیت‌های نقض‌شده: {{count}}",
+    "outOfSequence": "روابط خارج از توالی: {{count}}"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "خطوط مبنا",
+      "name": "نام",
+      "created": "تاریخ ایجاد",
+      "active": "فعال",
+      "delete": "حذف",
+      "saveNew": "ذخیره خط مبنای جدید",
+      "defaultName": "خط مبنا {{n}} — {{date}}",
+      "noBaselines": "هنوز خط مبنایی وجود ندارد",
+      "staleHint": "برنامه قدیمی است — ابتدا دوباره محاسبه کنید (F5)",
+      "deleteActiveConfirm": "خط مبنای فعال حذف شود؟"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "تاریخ‌های واقعی نمی‌توانند بعد از تاریخ وضعیت باشند"
   },
   "resource": {
     "type": {

@@ -59,6 +59,12 @@
     "hasConstraint": "Tarih kısıtlaması var",
     "deadlineMissed": "Son tarih aşıldı",
     "completion": "İlerleme (%)",
+    "progress": {
+      "actualStart": "Gerçek başlangıç",
+      "actualFinish": "Gerçek bitiş",
+      "actualDate": "Gerçek tarih",
+      "remaining": "Kalan (iş günü)"
+    },
     "cpmResult": "CPM Sonucu",
     "earlyStart": "Erken başlangıç:",
     "earlyFinish": "Erken bitiş:",

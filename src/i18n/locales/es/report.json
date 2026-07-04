@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Tipo de informe",
     "gantt": "Diagrama de Gantt",
-    "milestones": "Resumen de hitos"
+    "milestones": "Resumen de hitos",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Informe de Variance",
+    "baselineStart": "Inicio de la baseline",
+    "baselineFinish": "Fin de la baseline",
+    "currentStart": "Inicio actual",
+    "currentFinish": "Fin actual",
+    "deltaStart": "Δ inicio (dl)",
+    "deltaFinish": "Δ fin (dl)",
+    "status": "Estado",
+    "status_onSchedule": "En plazo",
+    "status_late": "Más tarde",
+    "status_early": "Más pronto",
+    "status_new": "Nueva",
+    "status_dropped": "Eliminada",
+    "noBaseline": "No hay ninguna baseline activa — guarda una baseline o marca una como activa.",
+    "projectEndDelta": "Fin del proyecto: {{delta}} días laborables",
+    "total": "Tareas",
+    "lateCount": "Más tarde",
+    "earlyCount": "Más pronto"
   },
   "milestoneReport": {
     "title": "Resumen de hitos",

@@ -59,6 +59,12 @@
     "hasConstraint": "날짜 제약 조건이 있음",
     "deadlineMissed": "기한 초과",
     "completion": "진행률 (%)",
+    "progress": {
+      "actualStart": "실제 시작",
+      "actualFinish": "실제 종료",
+      "actualDate": "실제 날짜",
+      "remaining": "남은 기간 (근무일)"
+    },
     "cpmResult": "CPM 결과",
     "earlyStart": "빠른 시작:",
     "earlyFinish": "빠른 종료:",

@@ -59,6 +59,12 @@
     "hasConstraint": "Ha un vincolo di data",
     "deadlineMissed": "Scadenza superata",
     "completion": "Progresso (%)",
+    "progress": {
+      "actualStart": "Inizio effettivo",
+      "actualFinish": "Fine effettiva",
+      "actualDate": "Data effettiva",
+      "remaining": "Rimanente (giorni lavorativi)"
+    },
     "cpmResult": "Risultato CPM",
     "earlyStart": "Inizio anticipato:",
     "earlyFinish": "Fine anticipata:",

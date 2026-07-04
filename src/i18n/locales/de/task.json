@@ -59,6 +59,12 @@
     "hasConstraint": "Hat eine Termineinschränkung",
     "deadlineMissed": "Stichtag überschritten",
     "completion": "Fortschritt (%)",
+    "progress": {
+      "actualStart": "Ist-Anfang",
+      "actualFinish": "Ist-Ende",
+      "actualDate": "Ist-Datum",
+      "remaining": "Restdauer (Arbeitstage)"
+    },
     "cpmResult": "CPM-Ergebnis",
     "earlyStart": "Frühester Anfang:",
     "earlyFinish": "Frühestes Ende:",

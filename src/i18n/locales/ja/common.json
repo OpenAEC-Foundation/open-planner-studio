@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "期限超過: {{count}} 件",
-    "violatedConstraints": "制約違反: {{count}} 件"
+    "violatedConstraints": "制約違反: {{count}} 件",
+    "outOfSequence": "順序違反の関係: {{count}} 件"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "ベースライン",
+      "name": "名前",
+      "created": "作成日",
+      "active": "アクティブ",
+      "delete": "削除",
+      "saveNew": "新しいベースラインを保存",
+      "defaultName": "ベースライン {{n}} — {{date}}",
+      "noBaselines": "ベースラインはまだありません",
+      "staleHint": "スケジュールが古くなっています — 先に再計算してください（F5）",
+      "deleteActiveConfirm": "アクティブなベースラインを削除しますか？"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "実績日は状態日より後にできません"
   },
   "resource": {
     "type": {

@@ -131,7 +131,18 @@
     "clearLeveling": "مسح الموازنة",
     "overallocationIndicator": "التخصيص الزائد",
     "overallocationCount": "{{count}} موارد",
-    "overallocationNone": "لا شيء"
+    "overallocationNone": "لا شيء",
+    "baselines": "خطوط الأساس والتقدم",
+    "saveBaseline": "حفظ خط أساس…",
+    "manageBaselines": "إدارة خطوط الأساس…",
+    "statusDate": "تاريخ الحالة",
+    "statusDateClear": "مسح تاريخ الحالة",
+    "progressMode": "وضع التقدم",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "تراكب خط الأساس",
+    "toggleProgressLine": "خط التقدم",
+    "toggleStatusDateLine": "خط تاريخ الحالة"
   },
   "ifc": {
     "title": "محرر IFC",

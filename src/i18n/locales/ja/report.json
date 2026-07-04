@@ -48,7 +48,28 @@
   "reportType": {
     "label": "レポートの種類",
     "gantt": "ガントチャート",
-    "milestones": "マイルストーン一覧"
+    "milestones": "マイルストーン一覧",
+    "variance": "差異"
+  },
+  "variance": {
+    "title": "差異レポート",
+    "baselineStart": "ベースライン開始",
+    "baselineFinish": "ベースライン終了",
+    "currentStart": "現在の開始",
+    "currentFinish": "現在の終了",
+    "deltaStart": "Δ 開始（稼働日）",
+    "deltaFinish": "Δ 終了（稼働日）",
+    "status": "状態",
+    "status_onSchedule": "予定どおり",
+    "status_late": "遅延",
+    "status_early": "前倒し",
+    "status_new": "新規",
+    "status_dropped": "削除",
+    "noBaseline": "アクティブなベースラインがありません — ベースラインを保存するか、いずれかをアクティブに設定してください。",
+    "projectEndDelta": "プロジェクト終了：{{delta}} 稼働日",
+    "total": "タスク",
+    "lateCount": "遅延",
+    "earlyCount": "前倒し"
   },
   "milestoneReport": {
     "title": "マイルストーン一覧",

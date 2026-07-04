@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "已超过 {{count}} 个期限",
-    "violatedConstraints": "{{count}} 个限制被违反"
+    "violatedConstraints": "{{count}} 个限制被违反",
+    "outOfSequence": "{{count}} 个乱序关系"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "基线",
+      "name": "名称",
+      "created": "创建日期",
+      "active": "活动",
+      "delete": "删除",
+      "saveNew": "保存新基线",
+      "defaultName": "基线 {{n}} — {{date}}",
+      "noBaselines": "暂无基线",
+      "staleHint": "计划已过期 — 请先重新计算（F5）",
+      "deleteActiveConfirm": "确定要删除当前基线吗？"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "实际日期不能晚于状态日期"
   },
   "resource": {
     "type": {

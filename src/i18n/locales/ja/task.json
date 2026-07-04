@@ -59,6 +59,12 @@
     "hasConstraint": "日付制約があります",
     "deadlineMissed": "期限超過",
     "completion": "進捗（%）",
+    "progress": {
+      "actualStart": "実績開始",
+      "actualFinish": "実績終了",
+      "actualDate": "実績日",
+      "remaining": "残り（稼働日）"
+    },
     "cpmResult": "CPM 結果",
     "earlyStart": "最早開始：",
     "earlyFinish": "最早終了：",

@@ -48,7 +48,28 @@
   "reportType": {
     "label": "نوع التقرير",
     "gantt": "مخطط جانت",
-    "milestones": "نظرة عامة على المعالم"
+    "milestones": "نظرة عامة على المعالم",
+    "variance": "الانحراف"
+  },
+  "variance": {
+    "title": "تقرير الانحراف",
+    "baselineStart": "بداية خط الأساس",
+    "baselineFinish": "نهاية خط الأساس",
+    "currentStart": "البداية الحالية",
+    "currentFinish": "النهاية الحالية",
+    "deltaStart": "Δ البداية (يوم عمل)",
+    "deltaFinish": "Δ النهاية (يوم عمل)",
+    "status": "الحالة",
+    "status_onSchedule": "في الموعد",
+    "status_late": "متأخر",
+    "status_early": "مبكر",
+    "status_new": "جديد",
+    "status_dropped": "محذوف",
+    "noBaseline": "لا يوجد خط أساس نشط — احفظ خط أساس أو اجعل أحدها نشطًا.",
+    "projectEndDelta": "نهاية المشروع: {{delta}} يوم عمل",
+    "total": "المهام",
+    "lateCount": "متأخر",
+    "earlyCount": "مبكر"
   },
   "milestoneReport": {
     "title": "نظرة عامة على المعالم",

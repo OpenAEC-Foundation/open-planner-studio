@@ -131,7 +131,18 @@
     "clearLeveling": "山崩しを解除",
     "overallocationIndicator": "山積み（超過割り当て）",
     "overallocationCount": "{{count}} 件のリソース",
-    "overallocationNone": "なし"
+    "overallocationNone": "なし",
+    "baselines": "ベースラインと進捗",
+    "saveBaseline": "ベースラインを保存…",
+    "manageBaselines": "ベースラインを管理…",
+    "statusDate": "状態日",
+    "statusDateClear": "状態日を解除",
+    "progressMode": "進捗モード",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "ベースラインオーバーレイ",
+    "toggleProgressLine": "進捗ライン",
+    "toggleStatusDateLine": "状態日ライン"
   },
   "ifc": {
     "title": "IFC エディタ",

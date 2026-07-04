@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "المواعيد النهائية المتجاوزة: {{count}}",
-    "violatedConstraints": "القيود المخالفة: {{count}}"
+    "violatedConstraints": "القيود المخالفة: {{count}}",
+    "outOfSequence": "العلاقات خارج التسلسل: {{count}}"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "خطوط الأساس",
+      "name": "الاسم",
+      "created": "تاريخ الإنشاء",
+      "active": "نشط",
+      "delete": "حذف",
+      "saveNew": "حفظ خط أساس جديد",
+      "defaultName": "خط الأساس {{n}} — {{date}}",
+      "noBaselines": "لا توجد خطوط أساس بعد",
+      "staleHint": "الجدول قديم — أعد الحساب أولاً (F5)",
+      "deleteActiveConfirm": "هل تريد حذف خط الأساس النشط؟"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "لا يمكن أن تكون التواريخ الفعلية بعد تاريخ الحالة"
   },
   "resource": {
     "type": {

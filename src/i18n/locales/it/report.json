@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Tipo di report",
     "gantt": "Diagramma di Gantt",
-    "milestones": "Panoramica attività cardine"
+    "milestones": "Panoramica attività cardine",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Rapporto Variance",
+    "baselineStart": "Inizio baseline",
+    "baselineFinish": "Fine baseline",
+    "currentStart": "Inizio attuale",
+    "currentFinish": "Fine attuale",
+    "deltaStart": "Δ inizio (gl)",
+    "deltaFinish": "Δ fine (gl)",
+    "status": "Stato",
+    "status_onSchedule": "Nei tempi",
+    "status_late": "Più tardi",
+    "status_early": "Più presto",
+    "status_new": "Nuova",
+    "status_dropped": "Eliminata",
+    "noBaseline": "Nessuna baseline attiva — salva una baseline o impostane una come attiva.",
+    "projectEndDelta": "Fine progetto: {{delta}} giorni lavorativi",
+    "total": "Attività",
+    "lateCount": "Più tardi",
+    "earlyCount": "Più presto"
   },
   "milestoneReport": {
     "title": "Panoramica attività cardine",

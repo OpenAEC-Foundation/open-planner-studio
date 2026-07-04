@@ -131,7 +131,18 @@
     "clearLeveling": "清除平衡",
     "overallocationIndicator": "超额分配",
     "overallocationCount": "{{count}} 个资源",
-    "overallocationNone": "无"
+    "overallocationNone": "无",
+    "baselines": "基线与进度",
+    "saveBaseline": "保存基线…",
+    "manageBaselines": "管理基线…",
+    "statusDate": "状态日期",
+    "statusDateClear": "清除状态日期",
+    "progressMode": "进度模式",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "基线叠加",
+    "toggleProgressLine": "进度线",
+    "toggleStatusDateLine": "状态日期线"
   },
   "ifc": {
     "title": "IFC 编辑器",

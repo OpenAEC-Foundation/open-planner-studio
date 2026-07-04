@@ -131,7 +131,18 @@
     "clearLeveling": "Wyczyść bilansowanie",
     "overallocationIndicator": "Nadmierne przydzielenie",
     "overallocationCount": "{{count}} zasobów",
-    "overallocationNone": "Brak"
+    "overallocationNone": "Brak",
+    "baselines": "Baseline i postęp",
+    "saveBaseline": "Zapisz baseline…",
+    "manageBaselines": "Zarządzaj baseline…",
+    "statusDate": "Data statusu",
+    "statusDateClear": "Wyczyść datę statusu",
+    "progressMode": "Tryb postępu",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "Nakładka baseline",
+    "toggleProgressLine": "Linia postępu",
+    "toggleStatusDateLine": "Linia daty statusu"
   },
   "ifc": {
     "title": "Edytor IFC",

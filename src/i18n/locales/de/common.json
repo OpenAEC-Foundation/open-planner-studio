@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} Stichtag(e) überschritten",
-    "violatedConstraints": "{{count}} Einschränkung(en) verletzt"
+    "violatedConstraints": "{{count}} Einschränkung(en) verletzt",
+    "outOfSequence": "{{count}} Beziehung(en) außerhalb der Reihenfolge"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "Baselines",
+      "name": "Name",
+      "created": "Erstellt",
+      "active": "Aktiv",
+      "delete": "Löschen",
+      "saveNew": "Neue Baseline speichern",
+      "defaultName": "Baseline {{n}} — {{date}}",
+      "noBaselines": "Noch keine Baselines",
+      "staleHint": "Terminplan ist veraltet — zuerst neu berechnen (F5)",
+      "deleteActiveConfirm": "Aktive Baseline löschen?"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "Ist-Werte dürfen nicht nach dem Statusdatum liegen"
   },
   "resource": {
     "type": {

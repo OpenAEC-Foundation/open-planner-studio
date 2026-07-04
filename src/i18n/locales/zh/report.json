@@ -48,7 +48,28 @@
   "reportType": {
     "label": "报表类型",
     "gantt": "甘特图",
-    "milestones": "里程碑一览"
+    "milestones": "里程碑一览",
+    "variance": "差异"
+  },
+  "variance": {
+    "title": "差异报告",
+    "baselineStart": "基线开始",
+    "baselineFinish": "基线完成",
+    "currentStart": "当前开始",
+    "currentFinish": "当前完成",
+    "deltaStart": "Δ 开始（工作日）",
+    "deltaFinish": "Δ 完成（工作日）",
+    "status": "状态",
+    "status_onSchedule": "按计划",
+    "status_late": "延后",
+    "status_early": "提前",
+    "status_new": "新增",
+    "status_dropped": "已删除",
+    "noBaseline": "没有活动基线 — 请保存一个基线，或将某个基线设为活动。",
+    "projectEndDelta": "项目结束：{{delta}} 个工作日",
+    "total": "任务",
+    "lateCount": "延后",
+    "earlyCount": "提前"
   },
   "milestoneReport": {
     "title": "里程碑一览",

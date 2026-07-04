@@ -131,7 +131,18 @@
     "clearLeveling": "Aufheben",
     "overallocationIndicator": "Überlastung",
     "overallocationCount": "{{count}} Ressourcen",
-    "overallocationNone": "Keine"
+    "overallocationNone": "Keine",
+    "baselines": "Baselines & Fortschritt",
+    "saveBaseline": "Baseline speichern…",
+    "manageBaselines": "Baselines verwalten…",
+    "statusDate": "Statusdatum",
+    "statusDateClear": "Statusdatum leeren",
+    "progressMode": "Fortschrittsmodus",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "Baseline-Overlay",
+    "toggleProgressLine": "Fortschrittslinie",
+    "toggleStatusDateLine": "Statusdatumlinie"
   },
   "ifc": {
     "title": "IFC-Editor",

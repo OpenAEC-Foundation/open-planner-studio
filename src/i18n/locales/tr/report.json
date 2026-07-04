@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Rapor türü",
     "gantt": "Gantt şeması",
-    "milestones": "Kilometre taşı özeti"
+    "milestones": "Kilometre taşı özeti",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Variance raporu",
+    "baselineStart": "Baseline başlangıcı",
+    "baselineFinish": "Baseline bitişi",
+    "currentStart": "Mevcut başlangıç",
+    "currentFinish": "Mevcut bitiş",
+    "deltaStart": "Δ başlangıç (ig)",
+    "deltaFinish": "Δ bitiş (ig)",
+    "status": "Durum",
+    "status_onSchedule": "Planında",
+    "status_late": "Daha geç",
+    "status_early": "Daha erken",
+    "status_new": "Yeni",
+    "status_dropped": "Kaldırıldı",
+    "noBaseline": "Etkin baseline yok — bir baseline kaydedin veya birini etkin olarak ayarlayın.",
+    "projectEndDelta": "Proje bitişi: {{delta}} iş günü",
+    "total": "Görevler",
+    "lateCount": "Daha geç",
+    "earlyCount": "Daha erken"
   },
   "milestoneReport": {
     "title": "Kilometre taşı özeti",

@@ -59,6 +59,12 @@
     "hasConstraint": "Ma ograniczenie daty",
     "deadlineMissed": "Termin ostateczny przekroczony",
     "completion": "Postęp (%)",
+    "progress": {
+      "actualStart": "Rzeczywisty początek",
+      "actualFinish": "Rzeczywisty koniec",
+      "actualDate": "Rzeczywista data",
+      "remaining": "Pozostało (dni robocze)"
+    },
     "cpmResult": "Wynik CPM",
     "earlyStart": "Wczesny początek:",
     "earlyFinish": "Wczesny koniec:",

@@ -177,7 +177,25 @@
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} échéance(s) dépassée(s)",
-    "violatedConstraints": "{{count}} contrainte(s) non respectée(s)"
+    "violatedConstraints": "{{count}} contrainte(s) non respectée(s)",
+    "outOfSequence": "{{count}} relation(s) hors séquence"
+  },
+  "baseline": {
+    "dialog": {
+      "title": "Baselines",
+      "name": "Nom",
+      "created": "Créée le",
+      "active": "Active",
+      "delete": "Supprimer",
+      "saveNew": "Enregistrer une nouvelle baseline",
+      "defaultName": "Baseline {{n}} — {{date}}",
+      "noBaselines": "Aucune baseline pour l'instant",
+      "staleHint": "La planification est obsolète — recalculez d'abord (F5)",
+      "deleteActiveConfirm": "Supprimer la baseline active ?"
+    }
+  },
+  "progress": {
+    "actualsAfterStatusDate": "Les dates réelles ne peuvent pas être postérieures à la date de statut"
   },
   "resource": {
     "type": {

@@ -131,7 +131,18 @@
     "clearLeveling": "평준화 지우기",
     "overallocationIndicator": "과다 할당",
     "overallocationCount": "자원 {{count}}개",
-    "overallocationNone": "없음"
+    "overallocationNone": "없음",
+    "baselines": "기준선 및 진행",
+    "saveBaseline": "기준선 저장…",
+    "manageBaselines": "기준선 관리…",
+    "statusDate": "상태 날짜",
+    "statusDateClear": "상태 날짜 지우기",
+    "progressMode": "진행 모드",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "기준선 오버레이",
+    "toggleProgressLine": "진행선",
+    "toggleStatusDateLine": "상태 날짜선"
   },
   "ifc": {
     "title": "IFC 편집기",

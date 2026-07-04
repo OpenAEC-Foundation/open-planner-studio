@@ -131,7 +131,18 @@
     "clearLeveling": "Cancella livellamento",
     "overallocationIndicator": "Sovrallocazione",
     "overallocationCount": "{{count}} risorse",
-    "overallocationNone": "Nessuna"
+    "overallocationNone": "Nessuna",
+    "baselines": "Baseline e progresso",
+    "saveBaseline": "Salva baseline…",
+    "manageBaselines": "Gestisci baseline…",
+    "statusDate": "Data di stato",
+    "statusDateClear": "Cancella data di stato",
+    "progressMode": "Modalità di progresso",
+    "progressModeRetained": "Retained Logic",
+    "progressModeOverride": "Progress Override",
+    "toggleBaselineOverlay": "Sovrapposizione della baseline",
+    "toggleProgressLine": "Linea di avanzamento",
+    "toggleStatusDateLine": "Linea della data di stato"
   },
   "ifc": {
     "title": "Editor IFC",

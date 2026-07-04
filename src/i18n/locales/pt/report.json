@@ -48,7 +48,28 @@
   "reportType": {
     "label": "Tipo de relatório",
     "gantt": "Gráfico de Gantt",
-    "milestones": "Visão geral de marcos"
+    "milestones": "Visão geral de marcos",
+    "variance": "Variance"
+  },
+  "variance": {
+    "title": "Relatório de Variance",
+    "baselineStart": "Início da baseline",
+    "baselineFinish": "Fim da baseline",
+    "currentStart": "Início atual",
+    "currentFinish": "Fim atual",
+    "deltaStart": "Δ início (du)",
+    "deltaFinish": "Δ fim (du)",
+    "status": "Estado",
+    "status_onSchedule": "No prazo",
+    "status_late": "Mais tarde",
+    "status_early": "Mais cedo",
+    "status_new": "Nova",
+    "status_dropped": "Eliminada",
+    "noBaseline": "Sem baseline ativa — guarde uma baseline ou defina uma como ativa.",
+    "projectEndDelta": "Fim do projeto: {{delta}} dias úteis",
+    "total": "Tarefas",
+    "lateCount": "Mais tarde",
+    "earlyCount": "Mais cedo"
   },
   "milestoneReport": {
     "title": "Visão geral de marcos",
