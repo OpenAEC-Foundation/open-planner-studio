@@ -9,7 +9,8 @@
     "type": "Type",
     "critical": "Kritiek",
     "totalFloat": "Totale speling",
-    "completion": "Voortgang"
+    "completion": "Voortgang",
+    "milestone": "Mijlpaal"
   },
   "taskType": {
     "CONSTRUCTION": "Bouw",
@@ -154,6 +155,11 @@
   "defaultMilestone": "Nieuwe mijlpaal",
   "defaultInspection": "Nieuw inspectiemoment",
   "column": {
-    "resource": "Resources"
+    "resource": "Resources",
+    "activityCodeSuffix": "activiteitcode",
+    "customFieldSuffix": "eigen veld"
+  },
+  "tooltip": {
+    "status": "Status"
   }
 }

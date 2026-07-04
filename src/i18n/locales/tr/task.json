@@ -9,7 +9,8 @@
     "type": "Tür",
     "critical": "Kritik",
     "totalFloat": "Toplam bolluk",
-    "completion": "İlerleme"
+    "completion": "İlerleme",
+    "milestone": "Kilometre taşı"
   },
   "taskType": {
     "CONSTRUCTION": "İnşaat",
@@ -154,6 +155,11 @@
   "defaultMilestone": "Yeni kilometre taşı",
   "defaultInspection": "Yeni denetim noktası",
   "column": {
-    "resource": "Kaynaklar"
+    "resource": "Kaynaklar",
+    "activityCodeSuffix": "aktivite kodu",
+    "customFieldSuffix": "kullanıcı alanı"
+  },
+  "tooltip": {
+    "status": "Durum"
   }
 }

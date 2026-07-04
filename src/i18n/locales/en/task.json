@@ -9,7 +9,8 @@
     "type": "Type",
     "critical": "Critical",
     "totalFloat": "Total Float",
-    "completion": "Progress"
+    "completion": "Progress",
+    "milestone": "Milestone"
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -154,6 +155,11 @@
   "defaultMilestone": "New milestone",
   "defaultInspection": "New inspection point",
   "column": {
-    "resource": "Resources"
+    "resource": "Resources",
+    "activityCodeSuffix": "activity code",
+    "customFieldSuffix": "custom field"
+  },
+  "tooltip": {
+    "status": "Status"
   }
 }

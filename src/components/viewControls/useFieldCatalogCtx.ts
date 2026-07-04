@@ -19,9 +19,11 @@ export function useFieldCatalogCtx(): FieldCatalogCtx {
       wbsCode: tTask('table.wbs'), name: tTask('table.name'), duration: tTask('table.duration'),
       start: tTask('table.start'), finish: tTask('table.finish'), taskType: tTask('table.type'),
       isCritical: tTask('table.critical'), totalFloat: tTask('table.totalFloat'),
-      completion: tTask('table.completion'), isMilestone: tTask('table.type'),
+      completion: tTask('table.completion'), isMilestone: tTask('table.milestone'),
     },
     taskTypeLabels,
     resourceLabel: tTask('column.resource'),
+    activityCodeSuffix: tTask('column.activityCodeSuffix'),
+    customFieldSuffix: tTask('column.customFieldSuffix'),
   }), [activityCodeTypes, customFieldDefs, resources, taskTypeLabels, tTask]);
 }

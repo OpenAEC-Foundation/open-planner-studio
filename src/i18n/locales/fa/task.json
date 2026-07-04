@@ -9,7 +9,8 @@
     "type": "نوع",
     "critical": "بحرانی",
     "totalFloat": "شناوری کل",
-    "completion": "پیشرفت"
+    "completion": "پیشرفت",
+    "milestone": "نقطه عطف"
   },
   "taskType": {
     "CONSTRUCTION": "ساخت",
@@ -154,6 +155,11 @@
   "defaultMilestone": "نقطه عطف جدید",
   "defaultInspection": "نقطه بازرسی جدید",
   "column": {
-    "resource": "منابع"
+    "resource": "منابع",
+    "activityCodeSuffix": "کد فعالیت",
+    "customFieldSuffix": "فیلد سفارشی"
+  },
+  "tooltip": {
+    "status": "وضعیت"
   }
 }

@@ -9,7 +9,8 @@
     "type": "種別",
     "critical": "クリティカル",
     "totalFloat": "トータルフロート",
-    "completion": "進捗"
+    "completion": "進捗",
+    "milestone": "マイルストーン"
   },
   "taskType": {
     "CONSTRUCTION": "建設",
@@ -154,6 +155,11 @@
   "defaultMilestone": "新しいマイルストーン",
   "defaultInspection": "新しい検査ポイント",
   "column": {
-    "resource": "リソース"
+    "resource": "リソース",
+    "activityCodeSuffix": "アクティビティコード",
+    "customFieldSuffix": "カスタムフィールド"
+  },
+  "tooltip": {
+    "status": "ステータス"
   }
 }

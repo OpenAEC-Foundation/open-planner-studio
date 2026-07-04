@@ -9,7 +9,8 @@
     "type": "Type",
     "critical": "Critique",
     "totalFloat": "Marge totale",
-    "completion": "Avancement"
+    "completion": "Avancement",
+    "milestone": "Jalon"
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -154,6 +155,11 @@
   "defaultMilestone": "Nouveau jalon",
   "defaultInspection": "Nouveau point d’inspection",
   "column": {
-    "resource": "Ressources"
+    "resource": "Ressources",
+    "activityCodeSuffix": "code d'activité",
+    "customFieldSuffix": "champ personnalisé"
+  },
+  "tooltip": {
+    "status": "Statut"
   }
 }

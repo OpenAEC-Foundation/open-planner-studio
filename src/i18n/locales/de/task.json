@@ -9,7 +9,8 @@
     "type": "Typ",
     "critical": "Kritisch",
     "totalFloat": "Gesamtpuffer",
-    "completion": "Fortschritt"
+    "completion": "Fortschritt",
+    "milestone": "Meilenstein"
   },
   "taskType": {
     "CONSTRUCTION": "Bau",
@@ -154,6 +155,11 @@
   "defaultMilestone": "Neuer Meilenstein",
   "defaultInspection": "Neuer Prüfpunkt",
   "column": {
-    "resource": "Ressourcen"
+    "resource": "Ressourcen",
+    "activityCodeSuffix": "Aufgabencode",
+    "customFieldSuffix": "Benutzerdefiniertes Feld"
+  },
+  "tooltip": {
+    "status": "Status"
   }
 }

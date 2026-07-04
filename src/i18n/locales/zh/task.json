@@ -9,7 +9,8 @@
     "type": "类型",
     "critical": "关键",
     "totalFloat": "总浮动",
-    "completion": "进度"
+    "completion": "进度",
+    "milestone": "里程碑"
   },
   "taskType": {
     "CONSTRUCTION": "施工",
@@ -154,6 +155,11 @@
   "defaultMilestone": "新建里程碑",
   "defaultInspection": "新检查点",
   "column": {
-    "resource": "资源"
+    "resource": "资源",
+    "activityCodeSuffix": "活动代码",
+    "customFieldSuffix": "自定义字段"
+  },
+  "tooltip": {
+    "status": "状态"
   }
 }

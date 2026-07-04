@@ -9,7 +9,8 @@
     "type": "유형",
     "critical": "크리티컬",
     "totalFloat": "총 여유",
-    "completion": "진행률"
+    "completion": "진행률",
+    "milestone": "마일스톤"
   },
   "taskType": {
     "CONSTRUCTION": "건설",
@@ -154,6 +155,11 @@
   "defaultMilestone": "새 마일스톤",
   "defaultInspection": "새 검사 지점",
   "column": {
-    "resource": "자원"
+    "resource": "자원",
+    "activityCodeSuffix": "작업 코드",
+    "customFieldSuffix": "사용자 정의 필드"
+  },
+  "tooltip": {
+    "status": "상태"
   }
 }

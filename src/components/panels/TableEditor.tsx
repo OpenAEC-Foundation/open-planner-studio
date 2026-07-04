@@ -70,7 +70,7 @@ const BUILTIN_LABEL_KEY = {
   isCritical: 'table.critical',
   totalFloat: 'table.totalFloat',
   completion: 'table.completion',
-  isMilestone: 'table.type',
+  isMilestone: 'table.milestone',
 } as const satisfies Record<BuiltinFieldKey, string>;
 
 export function TableEditor() {

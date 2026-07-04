@@ -9,7 +9,8 @@
     "type": "Tipo",
     "critical": "Crítica",
     "totalFloat": "Holgura total",
-    "completion": "Progreso"
+    "completion": "Progreso",
+    "milestone": "Hito"
   },
   "taskType": {
     "CONSTRUCTION": "Construcción",
@@ -154,6 +155,11 @@
   "defaultMilestone": "Nuevo hito",
   "defaultInspection": "Nuevo punto de inspección",
   "column": {
-    "resource": "Recursos"
+    "resource": "Recursos",
+    "activityCodeSuffix": "código de actividad",
+    "customFieldSuffix": "campo personalizado"
+  },
+  "tooltip": {
+    "status": "Estado"
   }
 }

@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Trash2 } from 'lucide-react';
 import {
-  fullFieldList, fieldLabel, fieldKind, operatorsForKind, selectOptions,
+  fullFieldList, fieldOptions, fieldKind, operatorsForKind, selectOptions,
   type FieldCatalogCtx,
 } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
@@ -151,6 +151,7 @@ function RuleEditor({
   const { t } = useTranslation('common');
   const kind = fieldKind(rule.field, ctx);
   const ops = operatorsForKind(kind);
+  const options = useMemo(() => fieldOptions(fields, ctx), [fields, ctx]);
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
@@ -166,7 +167,7 @@ function RuleEditor({
         style={{ width: 150, flexShrink: 0 }}
         aria-label={t('view.filter.field')}
       >
-        {fields.map(f => <option key={encodeField(f)} value={encodeField(f)}>{fieldLabel(f, ctx)}</option>)}
+        {options.map(({ field: f, label }) => <option key={encodeField(f)} value={encodeField(f)}>{label}</option>)}
       </select>
       <select
         value={rule.operator}

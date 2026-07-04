@@ -9,7 +9,8 @@
     "type": "النوع",
     "critical": "حرج",
     "totalFloat": "الفائض الكلي",
-    "completion": "التقدم"
+    "completion": "التقدم",
+    "milestone": "معلم"
   },
   "taskType": {
     "CONSTRUCTION": "بناء",
@@ -154,6 +155,11 @@
   "defaultMilestone": "معلم جديد",
   "defaultInspection": "نقطة فحص جديدة",
   "column": {
-    "resource": "الموارد"
+    "resource": "الموارد",
+    "activityCodeSuffix": "رمز النشاط",
+    "customFieldSuffix": "حقل مخصص"
+  },
+  "tooltip": {
+    "status": "الحالة"
   }
 }

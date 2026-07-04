@@ -19,6 +19,10 @@ export interface FieldCatalogCtx {
   /** Vertaalde taskType-labels (uit task:taskType.*), voor het taskType-select-veld. */
   taskTypeLabels: Record<string, string>;
   resourceLabel: string; // t('column.resource')
+  /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata (§6.2), bv. "activiteitcode". */
+  activityCodeSuffix: string; // t('column.activityCodeSuffix')
+  /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata (§6.2), bv. "eigen veld". */
+  customFieldSuffix: string; // t('column.customFieldSuffix')
 }
 
 /** Alle builtin-velden die in filter/sort zinvol zijn (§6.2 dekt ze allemaal). */
@@ -70,6 +74,30 @@ export function fieldLabel(field: FieldRef, ctx: FieldCatalogCtx): string {
     case 'customField': return ctx.customFieldDefs.find(d => d.id === field.defId)?.name ?? field.defId;
     case 'resource': return ctx.resourceLabel;
   }
+}
+
+/**
+ * Labelt een veldenlijst voor gebruik in een dropdown en disambigueert botsende labels
+ * (§6.2/§7.4): builtin-velden hebben altijd al unieke label-keys, maar een activity-code-type
+ * of custom field kan door de gebruiker een naam krijgen die toevallig samenvalt met een ander
+ * veld (builtin of user-defined). Alleen bij een daadwerkelijke botsing krijgt zo'n
+ * gebruikersgedefinieerd veld een bron-suffix, bv. "Type (activiteitcode)".
+ */
+export function fieldOptions(
+  fields: FieldRef[], ctx: FieldCatalogCtx,
+): { field: FieldRef; label: string }[] {
+  const rawLabels = fields.map(f => fieldLabel(f, ctx));
+  const counts = new Map<string, number>();
+  for (const label of rawLabels) counts.set(label, (counts.get(label) ?? 0) + 1);
+
+  return fields.map((field, i) => {
+    const label = rawLabels[i];
+    if ((counts.get(label) ?? 0) <= 1) return { field, label };
+    const suffix = field.src === 'activityCode' ? ctx.activityCodeSuffix
+      : field.src === 'customField' ? ctx.customFieldSuffix
+      : undefined;
+    return { field, label: suffix ? `${label} (${suffix})` : label };
+  });
 }
 
 export type FieldKind = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'multiselect';

@@ -43,7 +43,7 @@ export function ColumnsDialog() {
         case 'isCritical': return tTask('table.critical');
         case 'totalFloat': return tTask('table.totalFloat');
         case 'completion': return tTask('table.completion');
-        case 'isMilestone': return tTask('table.type');
+        case 'isMilestone': return tTask('table.milestone');
         default: return field.key;
       }
     }

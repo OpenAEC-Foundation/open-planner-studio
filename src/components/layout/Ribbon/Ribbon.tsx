@@ -27,7 +27,7 @@ import { RibbonTab, type FieldRef, type GroupLevel, type SortLevel, type Layout 
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/panels/TaskPropertiesPanel';
 import { UnitsInput } from '@/components/common/UnitsInput';
-import { groupFieldList, fullFieldList, fieldLabel } from '@/components/viewControls/fieldCatalog';
+import { groupFieldList, fullFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import './Ribbon.css';
@@ -740,6 +740,7 @@ function GroupPopoverButton() {
   const setGroup = useAppStore(s => s.setGroup);
   const ctx = useFieldCatalogCtx();
   const fields = groupFieldList(ctx);
+  const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -789,8 +790,8 @@ function GroupPopoverButton() {
                 className="input !text-[11px] !px-1.5 !py-1 flex-1"
                 aria-label={tCommon('view.filter.field')}
               >
-                {fields.map(f => (
-                  <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{fieldLabel(f, ctx)}</option>
+                {options.map(({ field: f, label }) => (
+                  <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
                 ))}
               </select>
               <select
@@ -829,6 +830,7 @@ function SortPopoverButton() {
   const setSort = useAppStore(s => s.setSort);
   const ctx = useFieldCatalogCtx();
   const fields = fullFieldList(ctx);
+  const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -879,8 +881,8 @@ function SortPopoverButton() {
                 className="input !text-[11px] !px-1.5 !py-1 flex-1"
                 aria-label={tCommon('view.filter.field')}
               >
-                {fields.map(f => (
-                  <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{fieldLabel(f, ctx)}</option>
+                {options.map(({ field: f, label }) => (
+                  <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
                 ))}
               </select>
               <select

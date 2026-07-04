@@ -9,7 +9,8 @@
     "type": "Typ",
     "critical": "Krytyczne",
     "totalFloat": "Zapas całkowity",
-    "completion": "Postęp"
+    "completion": "Postęp",
+    "milestone": "Kamień milowy"
   },
   "taskType": {
     "CONSTRUCTION": "Budowa",
@@ -154,6 +155,11 @@
   "defaultMilestone": "Nowy kamień milowy",
   "defaultInspection": "Nowy punkt inspekcji",
   "column": {
-    "resource": "Zasoby"
+    "resource": "Zasoby",
+    "activityCodeSuffix": "kod zadania",
+    "customFieldSuffix": "pole użytkownika"
+  },
+  "tooltip": {
+    "status": "Status"
   }
 }

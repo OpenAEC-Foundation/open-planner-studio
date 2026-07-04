@@ -1129,33 +1129,33 @@ export function GanttCanvas() {
           >
             <div className="tooltip-title">{tooltip.task.name}</div>
             <div className="tooltip-row">
-              <span className="tooltip-label">WBS:</span>
+              <span className="tooltip-label">{tTask('table.wbs')}:</span>
               <span className="tooltip-value">{tooltip.task.wbsCode || '-'}</span>
             </div>
             <div className="tooltip-row">
-              <span className="tooltip-label">Duration:</span>
+              <span className="tooltip-label">{tTask('table.duration')}:</span>
               <span className="tooltip-value">{tooltip.task.time.scheduleDuration}d</span>
             </div>
             <div className="tooltip-row">
-              <span className="tooltip-label">Start:</span>
+              <span className="tooltip-label">{tTask('table.start')}:</span>
               <span className="tooltip-value">{formatTooltipDate(tooltip.task.time.earlyStart || tooltip.task.time.scheduleStart)}</span>
             </div>
             <div className="tooltip-row">
-              <span className="tooltip-label">End:</span>
+              <span className="tooltip-label">{tTask('table.finish')}:</span>
               <span className="tooltip-value">{formatTooltipDate(tooltip.task.time.earlyFinish || tooltip.task.time.scheduleFinish)}</span>
             </div>
             <div className="tooltip-row">
-              <span className="tooltip-label">Status:</span>
+              <span className="tooltip-label">{tTask('tooltip.status')}:</span>
               <span className="tooltip-value">{tooltip.task.status}</span>
             </div>
             <div className="tooltip-row">
-              <span className="tooltip-label">Critical:</span>
+              <span className="tooltip-label">{tTask('table.critical')}:</span>
               <span className={tooltip.task.time.isCritical ? 'tooltip-critical-yes' : 'tooltip-value'}>
-                {tooltip.task.time.isCritical ? 'Yes' : 'No'}
+                {tooltip.task.time.isCritical ? tCommon('yes') : tCommon('no')}
               </span>
             </div>
             <div className="tooltip-row">
-              <span className="tooltip-label">Total float:</span>
+              <span className="tooltip-label">{tTask('properties.totalFloat')}</span>
               <span className="tooltip-value">{tooltip.task.time.totalFloat}d</span>
             </div>
           </div>

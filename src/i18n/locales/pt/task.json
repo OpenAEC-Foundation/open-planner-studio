@@ -9,7 +9,8 @@
     "type": "Tipo",
     "critical": "Crítica",
     "totalFloat": "Folga total",
-    "completion": "Progresso"
+    "completion": "Progresso",
+    "milestone": "Marco"
   },
   "taskType": {
     "CONSTRUCTION": "Construção",
@@ -154,6 +155,11 @@
   "defaultMilestone": "Novo marco",
   "defaultInspection": "Novo ponto de inspeção",
   "column": {
-    "resource": "Recursos"
+    "resource": "Recursos",
+    "activityCodeSuffix": "código de atividade",
+    "customFieldSuffix": "campo personalizado"
+  },
+  "tooltip": {
+    "status": "Estado"
   }
 }
