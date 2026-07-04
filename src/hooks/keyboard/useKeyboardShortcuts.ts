@@ -65,9 +65,29 @@ export function useKeyboardShortcuts() {
       }
 
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
-
       const ctrl = e.ctrlKey || e.metaKey;
+      const isTypingTarget = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+
+      // QA-bevinding 2.6b: de invoerveld-guard hieronder negeert normaal ALLE sneltoetsen
+      // zodat tekstbewerking (Ctrl+Z/X/C/V, typen) niet wordt gekaapt. F5 (herbereken) en
+      // Ctrl+S (opslaan) conflicteren echter niet met tekstinvoer en moeten juist wél
+      // werken terwijl de gebruiker in een veld staat (bv. net een actual-start ingevuld).
+      // Ze staan hier expliciet op de whitelist, vóór de generieke "return" hieronder.
+      const isRecalculateShortcut = e.key === 'F5';
+      const isSaveShortcut = ctrl && !e.shiftKey && e.key.toLowerCase() === 's';
+
+      if (isTypingTarget && (isRecalculateShortcut || isSaveShortcut)) {
+        // Forceer een eventuele hangende onBlur-commit vóórdat we herberekenen/opslaan
+        // (de meeste velden committen al per toetsaanslag via onChange, maar dit is een
+        // goedkope, veilige garantie voor velden die pas op blur committen).
+        target.blur();
+        e.preventDefault();
+        if (isRecalculateShortcut) runCPM();
+        else saveFile();
+        return;
+      }
+
+      if (isTypingTarget) return;
 
       if (ctrl && e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault();

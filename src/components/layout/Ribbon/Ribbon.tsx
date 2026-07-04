@@ -161,6 +161,139 @@ function RibbonButtonStack({ children }: { children: React.ReactNode }) {
   return <div className="ribbon-btn-stack">{children}</div>;
 }
 
+/**
+ * Baselines & voortgang-groep (fase 2.6, §11.1): Save/Manage baseline-knoppen +
+ * statusdatum + voortgangsmodus. In de normale lint-modus staan alle vier altijd
+ * zichtbaar naast elkaar; in compacte modus (QA-bevinding 2.6a) is dat samen te
+ * breed voor de Planning-tab (die met de bestaande groepen al bijna de volledige
+ * 1280px in beslag neemt) — de vier controls overlapten buren en de inklap-pijl.
+ * Daarom gaat de hele groep in compacte modus achter één knop met popover (zelfde
+ * patroon als MilestoneDropdown/TemplatesDropdown hierboven).
+ */
+function BaselinesProgressGroupContent({
+  compact, onSaveBaseline, onManageBaselines,
+  statusDate, setStatusDate, progressMode, setProgressMode,
+}: {
+  compact: boolean;
+  onSaveBaseline: () => void;
+  onManageBaselines: () => void;
+  statusDate: string | undefined;
+  setStatusDate: (v: string | undefined) => void;
+  progressMode: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE' | undefined;
+  setProgressMode: (v: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE') => void;
+}) {
+  const { t: tMenu } = useTranslation('menu');
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const statusDateControl = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
+      <span className="ribbon-info">{tMenu('ribbon.statusDate')}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <CalendarClock size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
+        <input
+          type="date"
+          value={statusDate ?? ''}
+          onChange={e => setStatusDate(e.target.value || undefined)}
+          aria-label={tMenu('ribbon.statusDate')}
+          style={{
+            padding: '3px 6px', fontSize: 11, background: 'var(--theme-input-bg)',
+            border: '1px solid var(--theme-control-border)', borderRadius: 'var(--radius-sm)',
+            color: 'var(--theme-text)',
+          }}
+        />
+        {statusDate && (
+          <button
+            className="ribbon-btn small"
+            title={tMenu('ribbon.statusDateClear')}
+            aria-label={tMenu('ribbon.statusDateClear')}
+            onClick={() => setStatusDate(undefined)}
+            style={{ padding: 2 }}
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const progressModeControl = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
+      <span className="ribbon-info">{tMenu('ribbon.progressMode')}</span>
+      <RibbonDropdown
+        value={progressMode ?? 'RETAINED_LOGIC'}
+        options={[
+          { value: 'RETAINED_LOGIC', label: tMenu('ribbon.progressModeRetained') },
+          { value: 'PROGRESS_OVERRIDE', label: tMenu('ribbon.progressModeOverride') },
+        ]}
+        onChange={v => setProgressMode(v as 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE')}
+      />
+    </div>
+  );
+
+  if (!compact) {
+    return (
+      <>
+        <RibbonButton icon={<Flag size={20} />} label={tMenu('ribbon.saveBaseline')} onClick={onSaveBaseline} />
+        <RibbonButton icon={<GitCompareArrows size={20} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
+        {statusDateControl}
+        {progressModeControl}
+      </>
+    );
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className="ribbon-btn small"
+        onClick={() => setOpen(o => !o)}
+        title={tMenu('ribbon.baselines')}
+        aria-label={tMenu('ribbon.baselines')}
+        style={{ minWidth: 0, padding: '2px 5px', gap: 0 }}
+      >
+        <span className="ribbon-btn-icon" style={{ width: 16, height: 16 }}><Flag size={14} /></span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', right: 0, marginTop: 2, zIndex: 9999,
+          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
+          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)',
+          padding: 8, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200,
+        }}>
+          <button
+            className="ribbon-btn small"
+            style={{ width: '100%' }}
+            onClick={() => { onSaveBaseline(); setOpen(false); }}
+          >
+            <span className="ribbon-btn-icon"><Flag size={14} /></span>
+            <span className="ribbon-btn-label">{tMenu('ribbon.saveBaseline')}</span>
+          </button>
+          <button
+            className="ribbon-btn small"
+            style={{ width: '100%' }}
+            onClick={() => { onManageBaselines(); setOpen(false); }}
+          >
+            <span className="ribbon-btn-icon"><GitCompareArrows size={14} /></span>
+            <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
+          </button>
+          <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
+          {statusDateControl}
+          {progressModeControl}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Sjablonen (fase 2.2): lijst uit localStorage; klik = invoegen onder de selectie (of root). */
 /**
  * Mijlpaal-knop met keuzemenu (fase 2.4): startmijlpaal, eindmijlpaal of
@@ -848,47 +981,15 @@ export function Ribbon() {
 
             {/* Baselines & voortgang (fase 2.6, §11.1) */}
             <RibbonGroup label={tMenu('ribbon.baselines')}>
-              <RibbonButton icon={<Flag size={20} />} label={tMenu('ribbon.saveBaseline')} onClick={() => setUI({ showBaselineDialog: true })} />
-              <RibbonButton icon={<GitCompareArrows size={20} />} label={tMenu('ribbon.manageBaselines')} onClick={() => setUI({ showBaselineDialog: true })} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
-                <span className="ribbon-info">{tMenu('ribbon.statusDate')}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <CalendarClock size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
-                  <input
-                    type="date"
-                    value={statusDate ?? ''}
-                    onChange={e => setStatusDate(e.target.value || undefined)}
-                    aria-label={tMenu('ribbon.statusDate')}
-                    style={{
-                      padding: '3px 6px', fontSize: 11, background: 'var(--theme-input-bg)',
-                      border: '1px solid var(--theme-control-border)', borderRadius: 'var(--radius-sm)',
-                      color: 'var(--theme-text)',
-                    }}
-                  />
-                  {statusDate && (
-                    <button
-                      className="ribbon-btn small"
-                      title={tMenu('ribbon.statusDateClear')}
-                      aria-label={tMenu('ribbon.statusDateClear')}
-                      onClick={() => setStatusDate(undefined)}
-                      style={{ padding: 2 }}
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
-                <span className="ribbon-info">{tMenu('ribbon.progressMode')}</span>
-                <RibbonDropdown
-                  value={progressMode ?? 'RETAINED_LOGIC'}
-                  options={[
-                    { value: 'RETAINED_LOGIC', label: tMenu('ribbon.progressModeRetained') },
-                    { value: 'PROGRESS_OVERRIDE', label: tMenu('ribbon.progressModeOverride') },
-                  ]}
-                  onChange={v => setProgressMode(v as 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE')}
-                />
-              </div>
+              <BaselinesProgressGroupContent
+                compact={ribbonCompact}
+                onSaveBaseline={() => setUI({ showBaselineDialog: true })}
+                onManageBaselines={() => setUI({ showBaselineDialog: true })}
+                statusDate={statusDate}
+                setStatusDate={setStatusDate}
+                progressMode={progressMode}
+                setProgressMode={setProgressMode}
+              />
             </RibbonGroup>
           </>
         )}
@@ -1064,7 +1165,10 @@ export function Ribbon() {
           </RibbonGroup>
         )}
         <ExtensionRibbonGroups tab={activeTab} />
-        {/* Compacte-modus-toggle rechtsonder (Word-web-stijl): ↑ = inklappen, ↓ = uitklappen. */}
+        {/* Compacte-modus-toggle rechtsonder (Word-web-stijl): ↑ = inklappen, ↓ = uitklappen.
+            position:absolute (zie CSS) zodat de pijl een vaste plek in de hoek houdt en
+            nooit kan worden dichtgeschoven/onklikbaar gemaakt door drukke tab-inhoud
+            (QA-bevinding 2.6a) — onafhankelijk van de flex-flow van de groepen ernaast. */}
         <button
           className="ribbon-collapse-toggle"
           title={tMenu(ribbonCompact ? 'ribbon.expandRibbon' : 'ribbon.collapseRibbon')}

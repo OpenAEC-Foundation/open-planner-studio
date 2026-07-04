@@ -56,6 +56,7 @@
   display: flex;
   align-items: stretch;
   height: 94px;
+  position: relative; /* containing block voor .ribbon-collapse-toggle */
 }
 
 /* Ribbon Groups */
@@ -205,23 +206,27 @@
 }
 
 /* Compacte-modus-toggle (Word-web-stijl): klein pijltje rechtsonder in het lint.
-   ↑ klapt in naar één rij van 40px, ↓ klapt weer uit. */
+   ↑ klapt in naar één rij van 40px, ↓ klapt weer uit.
+   position:absolute (i.p.v. een flex-child met margin-left:auto) zodat de pijl een
+   vaste plek in de hoek van .ribbon-content houdt, volledig los van hoe druk/breed
+   de actieve tab's groepen zijn. Zo kan een brede groep (bv. Baselines & voortgang,
+   fase 2.6) 'm nooit meer verdringen of onklikbaar maken — QA-bevinding 2.6a. */
 .ribbon-collapse-toggle {
-  margin-left: auto;
-  align-self: flex-end;
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
-  margin-bottom: 2px;
   padding: 0;
-  background: transparent;
+  background: var(--theme-ribbon-content-bg);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--theme-text-dim);
   cursor: default;
-  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 .ribbon-collapse-toggle:hover {
@@ -232,8 +237,9 @@
   outline: none;
 }
 .ribbon-container.compact .ribbon-collapse-toggle {
-  align-self: center;
-  margin-bottom: 0;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
 }
 
 /* Compacte modus (instelling, kleine schermen): lagere content-strip, groepslabels
@@ -249,6 +255,7 @@
   align-items: center;
   min-width: 0;
   height: auto;
+  flex-shrink: 0;
 }
 .ribbon-container.compact .ribbon-group-label { display: none; }
 .ribbon-container.compact .ribbon-group-content {
@@ -256,10 +263,18 @@
   padding: 0;
   flex: none;
 }
+/* flex-shrink:0 op knoppen/groepen is bewust: zonder dit kon flexbox een knop
+   smaller maken dan zijn (white-space: nowrap) tekstlabel zodra alle compacte
+   groepen samen niet meer in de beschikbare breedte pasten, waardoor die tekst
+   zichtbaar over de volgende knop heen liep — QA-bevinding 2.6a (Outdent/Save
+   baseline-overlap). Nu groeit de rij desnoods voorbij de rand i.p.v. te
+   overlappen; de inklap-pijl zelf staat los hiervan altijd vast in de hoek
+   (position:absolute, zie .ribbon-collapse-toggle). */
 .ribbon-container.compact .ribbon-btn {
   flex-direction: row;
   height: 28px;
   min-width: 0;
+  flex-shrink: 0;
   padding: 2px 8px 2px 5px;
   gap: 5px;
   justify-content: flex-start;
@@ -286,8 +301,9 @@
   height: auto;
   gap: 1px;
   align-items: center;
+  flex-shrink: 0;
 }
-.ribbon-container.compact .ribbon-btn.small { height: 28px; min-width: 0; }
+.ribbon-container.compact .ribbon-btn.small { height: 28px; min-width: 0; flex-shrink: 0; }
 
 /* File tab (backstage trigger) — altijd amber, opvallend links */
 .ribbon-tab--file {
