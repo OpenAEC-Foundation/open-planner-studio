@@ -34,6 +34,11 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       opnieuw aanmaken. Uit de review: maak het mogelijk een bestaande toewijzing (met eenheden +
       curve) naar een andere taak te verplaatsen (drag of "verplaats naar…"), zodat herplannen niet
       betekent dat je eenheden/curve opnieuw moet intikken.
+- [ ] **Native `confirm()`-dialogen vervangen door één in-app bevestigingsdialoog.** Uit de
+      fase-2.7-eind-QA: layout-verwijderen/toepassen en baseline-verwijderen gebruiken
+      `window.confirm()` — functioneel prima maar systeemgestyled (geen donker thema, geen
+      RTL, geen i18n-knoppen). Maak één herbruikbaar `ConfirmDialog`-component (patroon
+      RecoveryDialog) en vervang alle `window.confirm`-aanroepen (grep) in één keer.
 - [ ] **Resource-paneel als niet-fullscreen variant naast het histogram.** Het `ResourcePanel` neemt
       nu het volledige rechterpaneel over. Uit de review: bied een compacte/gedockte variant zodat
       je resources kunt bewerken terwijl de Gantt + histogramstrook zichtbaar blijven (het effect
