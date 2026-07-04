@@ -1,0 +1,241 @@
+{
+  "cases": [
+    {
+      "id": "prog-A-three-states",
+      "title": "Scenario A (§3.3): drie voortgangsstaten + data-date-vloer op losse taak D, retained.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-07" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.4, "actualStart": "2026-07-08" },
+        { "name": "C", "dur": 5, "start": "2026-07-06" },
+        { "name": "D", "dur": 3, "start": "2026-07-06" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-07" },
+          "B": { "es": "2026-07-08", "ef": "2026-07-10" },
+          "C": { "es": "2026-07-13", "ef": "2026-07-17" },
+          "D": { "es": "2026-07-08", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-17",
+        "outOfSequenceSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-B-oos-retained",
+      "title": "Scenario B (§3.3): out-of-sequence, RETAINED_LOGIC ⇒ B-rest achter A (projectEnd do 16).",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.4, "actualStart": "2026-07-06" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-13" },
+          "B": { "es": "2026-07-06", "ef": "2026-07-16" }
+        },
+        "projectEnd": "2026-07-16",
+        "outOfSequenceSet": [ ["A", "B", "FINISH_START"] ],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-B-oos-override",
+      "title": "Scenario B (§3.3): out-of-sequence, PROGRESS_OVERRIDE ⇒ B-rest vanaf statusdatum (projectEnd ma 13).",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "scheduleOptions": { "progressMode": "PROGRESS_OVERRIDE" },
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.4, "actualStart": "2026-07-06" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-13" },
+          "B": { "es": "2026-07-06", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-13",
+        "outOfSequenceSet": [ ["A", "B", "FINISH_START"] ],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-C-completed-pin-merge",
+      "title": "Scenario C (§3.3): voltooide-pin + merge over twee voorgangers + data-date-vloer (retained).",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-09",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "tasks": [
+        { "name": "A", "dur": 4, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-09" },
+        { "name": "B", "dur": 6, "start": "2026-07-06", "completion": 0.5, "actualStart": "2026-07-06" },
+        { "name": "C", "dur": 3, "start": "2026-07-06" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-09" },
+          "B": { "es": "2026-07-06", "ef": "2026-07-13" },
+          "C": { "es": "2026-07-14", "ef": "2026-07-16" }
+        },
+        "projectEnd": "2026-07-16",
+        "outOfSequenceSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-datadate-floor",
+      "title": "Data-date-vloer geïsoleerd: niet-gestart, scheduleStart in verleden, statusdatum in toekomst ⇒ es op statusdatum.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "tasks": [ { "name": "X", "dur": 3, "start": "2026-07-06" } ],
+      "expect": {
+        "tasks": { "X": { "es": "2026-07-08", "ef": "2026-07-10" } },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-completed-pins-successor",
+      "title": "Voltooide taak pint volledig: opvolger start ná de actualFinish (di 7), niet ná een verschoven plan-datum.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-07" },
+        { "name": "B", "dur": 3, "start": "2026-07-06" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-07" },
+          "B": { "es": "2026-07-08", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-no-statusdate-noop",
+      "title": "Geen statusdatum = no-op: dezelfde completion/actuals maar zonder statusdatum ⇒ es/ef exact als plan (regressie-vangnet).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-07" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.4, "actualStart": "2026-07-08" },
+        { "name": "C", "dur": 5, "start": "2026-07-06" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
+          "B": { "es": "2026-07-13", "ef": "2026-07-17" },
+          "C": { "es": "2026-07-20", "ef": "2026-07-24" }
+        },
+        "projectEnd": "2026-07-24",
+        "outOfSequenceSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-oos-fs",
+      "title": "Out-of-sequence FS: opvolger gestart terwijl voorganger niet voltooid ⇒ relatie in outOfSequenceSet.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": { "outOfSequenceSet": [ ["A", "B", "FINISH_START"] ], "error": false }
+    },
+    {
+      "id": "prog-oos-ss",
+      "title": "Out-of-sequence SS: opvolger vóór voorganger gestart ⇒ relatie in outOfSequenceSet.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-07" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "START_START" } ],
+      "expect": { "outOfSequenceSet": [ ["A", "B", "START_START"] ], "error": false }
+    },
+    {
+      "id": "prog-oos-ff",
+      "title": "Out-of-sequence FF: opvolger voltooid terwijl voorganger niet voltooid ⇒ relatie in outOfSequenceSet.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-10",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.5, "actualStart": "2026-07-06" },
+        { "name": "B", "dur": 3, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-09" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_FINISH" } ],
+      "expect": { "outOfSequenceSet": [ ["A", "B", "FINISH_FINISH"] ], "error": false }
+    },
+    {
+      "id": "prog-oos-sf",
+      "title": "Out-of-sequence SF: opvolger voltooid terwijl voorganger niet voltooid ⇒ relatie in outOfSequenceSet.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-10",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.5, "actualStart": "2026-07-06" },
+        { "name": "B", "dur": 3, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-09" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "START_FINISH" } ],
+      "expect": { "outOfSequenceSet": [ ["A", "B", "START_FINISH"] ], "error": false }
+    },
+    {
+      "id": "prog-raw-completion-safetynet",
+      "title": "Rauwe completion zonder actuals (§4.2 tak 2b): impliciete actualStart = forward-pass-earlyStart; remaining vanaf max(dataDate, druk).",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "tasks": [ { "name": "V", "dur": 4, "start": "2026-07-06", "rawCompletion": 0.5 } ],
+      "expect": {
+        "tasks": { "V": { "es": "2026-07-06", "ef": "2026-07-09" } },
+        "projectEnd": "2026-07-09",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-completed-not-critical",
+      "title": "Voltooide taak niet kritiek (§4.5): A(voltooid)→B→C zonder float ⇒ A crit=false, B/C crit=true; B.tf=LF−EF=0.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-07" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.4, "actualStart": "2026-07-08" },
+        { "name": "C", "dur": 5, "start": "2026-07-06" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "crit": false },
+          "B": { "crit": true, "tf": 0, "es": "2026-07-08", "ef": "2026-07-10" },
+          "C": { "crit": true, "es": "2026-07-13", "ef": "2026-07-17" }
+        },
+        "projectEnd": "2026-07-17",
+        "error": false
+      }
+    }
+  ]
+}

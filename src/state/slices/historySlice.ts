@@ -31,6 +31,11 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
       s.cpmResult = snapshot.cpmResult ?? null;
       s.resourceLoadResult = snapshot.resourceLoadResult ?? null;
       s.scheduleStale = snapshot.scheduleStale ?? false;
+      // Baselines (fase 2.6): `?? s.baselines` voor pre-2.6-snapshots; activeBaselineId met een
+      // expliciete `!== undefined`-guard — `null` ("geen actieve baseline") is een legitieme waarde
+      // die een undo moet kunnen terugzetten (?? zou die null wegslikken).
+      s.baselines = snapshot.baselines ?? s.baselines;
+      s.activeBaselineId = snapshot.activeBaselineId !== undefined ? snapshot.activeBaselineId : s.activeBaselineId;
       s.isDirty = true;
     }),
 
@@ -49,6 +54,8 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set) => ({
       s.cpmResult = snapshot.cpmResult ?? null;
       s.resourceLoadResult = snapshot.resourceLoadResult ?? null;
       s.scheduleStale = snapshot.scheduleStale ?? false;
+      s.baselines = snapshot.baselines ?? s.baselines;
+      s.activeBaselineId = snapshot.activeBaselineId !== undefined ? snapshot.activeBaselineId : s.activeBaselineId;
       s.isDirty = true;
     }),
 });

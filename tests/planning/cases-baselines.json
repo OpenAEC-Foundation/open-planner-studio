@@ -1,0 +1,71 @@
+{
+  "cases": [
+    {
+      "id": "bl-01-late-early-onschedule",
+      "title": "Variance (§12.2): onSchedule + late + early + projecteinde-delta in werkdagen.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "Same", "dur": 3, "start": "2026-07-06" },
+        { "name": "Late", "dur": 3, "start": "2026-07-06" },
+        { "name": "Early", "dur": 5, "start": "2026-07-06" }
+      ],
+      "baseline": true,
+      "varianceMutations": [
+        { "setDuration": { "task": "Late", "dur": 6 } },
+        { "setDuration": { "task": "Early", "dur": 3 } }
+      ],
+      "expect": {
+        "variance": {
+          "rows": {
+            "Same": { "status": "onSchedule", "deltaStart": 0, "deltaFinish": 0 },
+            "Late": { "status": "late", "deltaStart": 0, "deltaFinish": 3 },
+            "Early": { "status": "early", "deltaStart": 0, "deltaFinish": -2 }
+          },
+          "projectEndDelta": 1
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "bl-02-new-task",
+      "title": "Variance (§12.2): nieuwe taak na baseline ⇒ status 'new'.",
+      "anchor": "2026-07-06",
+      "tasks": [ { "name": "A", "dur": 3, "start": "2026-07-06" } ],
+      "baseline": true,
+      "varianceMutations": [
+        { "addTask": { "name": "N", "dur": 2, "start": "2026-07-06" } }
+      ],
+      "expect": {
+        "variance": {
+          "rows": {
+            "A": { "status": "onSchedule", "deltaFinish": 0 },
+            "N": { "status": "new" }
+          },
+          "projectEndDelta": 0
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "bl-03-dropped-task",
+      "title": "Variance (§12.2): verwijderde taak na baseline ⇒ status 'dropped' met baselinedatums.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 3, "start": "2026-07-06" },
+        { "name": "B", "dur": 2, "start": "2026-07-06" }
+      ],
+      "baseline": true,
+      "varianceMutations": [ { "deleteTask": { "task": "B" } } ],
+      "expect": {
+        "variance": {
+          "rows": {
+            "A": { "status": "onSchedule", "deltaFinish": 0 },
+            "B": { "status": "dropped", "baselineStart": "2026-07-06", "baselineFinish": "2026-07-07" }
+          },
+          "projectEndDelta": 0
+        },
+        "error": false
+      }
+    }
+  ]
+}

@@ -24,9 +24,18 @@ export interface CPMResult {
   violatedConstraintTaskIds: string[];
   /** Taken waarvan de vroege finish voorbij de (zachte) deadline valt. */
   missedDeadlineTaskIds: string[];
+  /** Relaties waarvan de opvolger progress/actuals heeft die de voorganger-logica tegenspreekt
+   *  (out-of-sequence, fase 2.6). Waarschuwing, geen fout — het gedrag volgt uit de progressMode. */
+  outOfSequenceSequenceIds: string[];
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
+}
+
+/** Voortgangs-opties (fase 2.6). Leeg ⇒ geen statusdatum-gedrag (byte-identiek aan vóór 2.6). */
+export interface CPMOptions {
+  dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
+  progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; // default RETAINED_LOGIC
 }
 
 /**
@@ -68,10 +77,15 @@ export class CPMSolver {
   // Relaties waarvan de lead in de forward-pass door de projectstart-vloer is afgekapt.
   private truncatedLeadIds: string[] = [];
 
-  constructor(tasks: Task[], sequences: Sequence[], calendar: CalendarEngine) {
+  private options: CPMOptions;
+  // Werkdag-gesnapte statusdatum (fase 2.6), of null ⇒ geen statusdatum-gedrag. Gezet in solve().
+  private dataDate: Date | null = null;
+
+  constructor(tasks: Task[], sequences: Sequence[], calendar: CalendarEngine, options: CPMOptions = {}) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
     this.sequences = sequences;
     this.calendar = calendar;
+    this.options = options;
     this.successors = new Map();
     this.predecessors = new Map();
 
@@ -98,6 +112,7 @@ export class CPMSolver {
         truncatedLeadSequenceIds: [],
         violatedConstraintTaskIds: [],
         missedDeadlineTaskIds: [],
+        outOfSequenceSequenceIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: `Circular dependency detected: ${cycleNames}`,
@@ -115,6 +130,7 @@ export class CPMSolver {
         truncatedLeadSequenceIds: [],
         violatedConstraintTaskIds: [],
         missedDeadlineTaskIds: [],
+        outOfSequenceSequenceIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: 'Kalender heeft geen werkdagen ingesteld',
@@ -134,6 +150,7 @@ export class CPMSolver {
           truncatedLeadSequenceIds: [],
           violatedConstraintTaskIds: [],
           missedDeadlineTaskIds: [],
+          outOfSequenceSequenceIds: [],
           projectEnd: '',
           projectDuration: 0,
           error: `Ongeldige startdatum voor taak "${task.name}"`,
@@ -141,11 +158,16 @@ export class CPMSolver {
       }
     }
 
+    // Werkdag-gesnapte statusdatum (fase 2.6). Ongeldig/afwezig ⇒ null (alle voortgangstakken no-op).
+    const dd = this.options.dataDate ? parseDate(this.options.dataDate) : null;
+    this.dataDate = dd && !isNaN(dd.getTime()) ? this.calendar.nextWorkDay(dd) : null;
+
     const order = this.topologicalSort();
     const earlyDates = this.forwardPass(order);
     const lateDates = this.backwardPass(order, earlyDates);
     this.applyAlap(order, earlyDates, lateDates);
-    return this.computeResults(order, earlyDates, lateDates);
+    const outOfSequenceSequenceIds = this.detectOutOfSequence(earlyDates);
+    return this.computeResults(order, earlyDates, lateDates, outOfSequenceSequenceIds);
   }
 
   /** Detect cycles using DFS. Returns array of task IDs in the cycle, or null. */
@@ -305,6 +327,44 @@ export class CPMSolver {
         earlyStart = this.calendar.addWorkingDaysSigned(earlyStart, task.levelingDelay);
       }
 
+      // Voortgang (fase 2.6): actual-pinning + data-date-vloer. dataDate === null ⇒ elke tak is
+      // een no-op (backwards-compat). `earlyStart` is hier al de retained-logic voorganger-druk.
+      const dataDate = this.dataDate;
+      if (dataDate) {
+        const t = task.time;
+        if (t.actualFinish && t.completion >= 1) {
+          // (1) VOLTOOID: volledig gepind op actuals — geen forward-drift voorbij actualFinish.
+          const es = this.calendar.nextWorkDay(parseDate(t.actualStart ?? t.actualFinish));
+          // Milestone: start én finish landen op dezelfde werkdag-grens (nextWorkDay, niet prevWorkDay).
+          let ef = task.isMilestone
+            ? this.calendar.nextWorkDay(parseDate(t.actualFinish))
+            : this.calendar.prevWorkDay(parseDate(t.actualFinish));
+          if (ef < es) ef = es;   // weekend-randgeval (rauwe imports)
+          results.set(taskId, { es, ef });
+          continue;
+        }
+        if ((t.actualStart || t.completion > 0) && t.completion < 1) {
+          // (2) IN PROGRESS — actualStart (store-route) óf impliciete actualStart = de gewone
+          //     forward-pass-earlyStart (2b, vangnet voor rauwe legacy/externe data).
+          const actualES = t.actualStart
+            ? this.calendar.nextWorkDay(parseDate(t.actualStart))
+            : earlyStart;
+          const remaining = Math.max(0, t.remainingTime ?? Math.round(t.scheduleDuration * (1 - t.completion)));
+          let remStart = dataDate;                                  // ondergrens: statusdatum
+          if (this.options.progressMode !== 'PROGRESS_OVERRIDE') {
+            // RETAINED_LOGIC: remaining respecteert óók de voorganger-druk (earlyStart).
+            if (earlyStart > remStart) remStart = earlyStart;
+          }
+          const ef = this.calendar.addWorkDays(remStart, remaining);
+          results.set(taskId, { es: actualES, ef });
+          continue;
+        }
+        if (t.completion === 0 && earlyStart < dataDate) {
+          // (3) NIET GESTART: statusdatum als ondergrens (remaining werk nooit in het verleden).
+          earlyStart = dataDate;
+        }
+      }
+
       const duration = task.isMilestone ? 0 : task.time.scheduleDuration;
       const earlyFinish = this.calendar.addWorkDays(earlyStart, duration);
 
@@ -312,6 +372,52 @@ export class CPMSolver {
     }
 
     return results;
+  }
+
+  /**
+   * Out-of-sequence-detectie (fase 2.6, §4.4): relaties waarvan de opvolger progress/actuals heeft
+   * die de voorganger-logica tegenspreekt. Waarschuwing, geen correctie — het gedrag volgt uit de
+   * gekozen progressMode. Zonder statusdatum: geen detectie (no-op, backwards-compat).
+   */
+  private detectOutOfSequence(earlyDates: Map<string, { es: Date; ef: Date }>): string[] {
+    if (!this.dataDate) return [];
+    const out: string[] = [];
+    for (const seq of this.sequences) {
+      const pred = this.tasks.get(seq.predecessorId);
+      const succ = this.tasks.get(seq.successorId);
+      if (!pred || !succ) continue;
+      const succAS = succ.time.actualStart ? parseDate(succ.time.actualStart) : null;
+      const succAF = succ.time.actualFinish ? parseDate(succ.time.actualFinish) : null;
+      const predAS = pred.time.actualStart ? parseDate(pred.time.actualStart) : null;
+      const predAF = pred.time.actualFinish ? parseDate(pred.time.actualFinish) : null;
+      const predEF = earlyDates.get(seq.predecessorId)?.ef ?? null;
+      switch (seq.type) {
+        case 'START_START': {
+          // Opvolger gestart vóór de voorganger.
+          if (succAS && predAS && succAS < predAS) out.push(seq.id);
+          break;
+        }
+        case 'FINISH_FINISH':
+        case 'START_FINISH': {
+          // Finish-zijde: opvolger voltooid terwijl de voorganger nog niet voltooid is (of eerder).
+          if (succAF) {
+            const predFin = predAF ?? predEF;
+            if (!predAF || (predFin && succAF < predFin)) out.push(seq.id);
+          }
+          break;
+        }
+        case 'FINISH_START':
+        default: {
+          // Opvolger gestart terwijl de voorganger nog niet voltooid is (of vóór diens finish).
+          if (succAS) {
+            const prefEF = predAF ?? predEF;
+            if (!predAF || (prefEF && succAS < prefEF)) out.push(seq.id);
+          }
+          break;
+        }
+      }
+    }
+    return out;
   }
 
   /** Getekend werkdag-verschil: a≤b ⇒ +stappen, a>b ⇒ −stappen (negatieve float mogelijk). */
@@ -632,6 +738,7 @@ export class CPMSolver {
     order: string[],
     earlyDates: Map<string, { es: Date; ef: Date }>,
     lateDates: Map<string, { ls: Date; lf: Date }>,
+    outOfSequenceSequenceIds: string[],
   ): CPMResult {
     const taskResults = new Map<string, CPMTaskResult>();
     const criticalPath: string[] = [];
@@ -683,11 +790,18 @@ export class CPMSolver {
       // Totale speling: getekend (fase 2.3 — negatieve float bij geschonden late-zijde-
       // constraints/deadlines), MSP-veilig als min van finish- en start-float (die kunnen
       // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
-      const tf = Math.min(
-        this.signedWorkDays(early.ef, late.lf),
-        this.signedWorkDays(early.es, late.ls),
-      );
-      const isCritical = tf <= 0;
+      const tt = this.tasks.get(taskId)?.time;
+      // Voortgang (fase 2.6, §4.5): voor in-progress/voltooide taken is de start-zijde-float
+      // betekenisloos (de ES is een actual in het verleden) ⇒ alleen finish-zijde (LF−EF).
+      const hasProgress = !!this.dataDate && !!tt && (!!tt.actualStart || tt.completion > 0);
+      const tf = hasProgress
+        ? this.signedWorkDays(early.ef, late.lf)
+        : Math.min(
+            this.signedWorkDays(early.ef, late.lf),
+            this.signedWorkDays(early.es, late.ls),
+          );
+      // Voltooide taken zijn per definitie niet kritiek (P6-conventie); hun opvolgers wél.
+      const isCritical = (!!this.dataDate && !!tt && tt.completion >= 1) ? false : tf <= 0;
 
       if (isCritical) criticalPath.push(taskId);
       if (early.ef > projectEnd) projectEnd = early.ef;
@@ -747,6 +861,7 @@ export class CPMSolver {
       truncatedLeadSequenceIds: [...this.truncatedLeadIds],
       violatedConstraintTaskIds,
       missedDeadlineTaskIds,
+      outOfSequenceSequenceIds,
       projectEnd: formatDate(projectEnd),
       projectDuration,
     };

@@ -44,6 +44,39 @@ export interface TaskSlice {
   outdentTasks: (ids: string[]) => void;
   /** Voeg een WBS-sjabloon in onder een ouder (null = rootniveau); geeft de nieuwe root-id terug. */
   insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
+  /** Voortgang (fase 2.6): zet completion (0..1), dwingt de §3.2-invarianten af (auto-actualStart bij
+   *  completion>0, remainingTime afgeleid, status). scheduleStale alleen als er een statusdatum is. */
+  setTaskProgress: (taskId: string, completion: number) => void;
+  /** Werkelijke start (fase 2.6). undefined = wissen. Retourneert false als de datum ná de
+   *  statusdatum ligt (geweigerd, geen mutatie — de UI toont een toast). */
+  setActualStart: (taskId: string, date: string | undefined) => boolean;
+  /** Werkelijke einde (fase 2.6): zet completion=1 + status COMPLETED. undefined = wissen.
+   *  Retourneert false als de datum ná de statusdatum ligt (geweigerd). */
+  setActualFinish: (taskId: string, date: string | undefined) => boolean;
+}
+
+/**
+ * Voortgang-invarianten (§3.2), toegepast op een task-draft ná elke progress-mutatie:
+ * actualFinish ⇒ completion 1 + actualStart + COMPLETED; completion 1 ⇒ actualFinish (default =
+ * statusdatum of vandaag); actualStart zonder finish ⇒ STARTED; niets ⇒ NOT_STARTED;
+ * remainingTime = round(scheduleDuration × (1 − completion)).
+ */
+function applyProgressInvariants(task: Task, statusDate: string | undefined): void {
+  const time = task.time;
+  if (time.actualFinish) {
+    time.completion = 1;
+    if (!time.actualStart) time.actualStart = time.actualFinish;
+    task.status = 'COMPLETED';
+  } else if (time.completion >= 1) {
+    time.actualFinish = statusDate || formatDate(new Date());
+    if (!time.actualStart) time.actualStart = time.actualFinish;
+    task.status = 'COMPLETED';
+  } else if (time.actualStart) {
+    task.status = 'STARTED';
+  } else {
+    task.status = 'NOT_STARTED';
+  }
+  time.remainingTime = Math.round(time.scheduleDuration * (1 - time.completion));
 }
 
 export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
@@ -488,5 +521,60 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set) => ({
       s.scheduleStale = true; // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
     return newRootId;
+  },
+
+  setTaskProgress: (taskId, raw) =>
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      const completion = Math.max(0, Math.min(1, raw));
+      task.time.completion = completion;
+      // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
+      if (completion > 0 && !task.time.actualStart) {
+        task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+      }
+      // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
+      if (completion < 1) task.time.actualFinish = undefined;
+      applyProgressInvariants(task, s.project.statusDate);
+      s.isDirty = true;
+      if (s.project.statusDate) s.scheduleStale = true; // alleen datum-beïnvloedend mét statusdatum.
+    }),
+
+  setActualStart: (taskId, date) => {
+    let accepted = true;
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      // Actuals liggen nooit ná de statusdatum: weigeren i.p.v. stil klemmen (§3.2, BESLIST).
+      if (date && s.project.statusDate && date > s.project.statusDate) { accepted = false; return; }
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      task.time.actualStart = date || undefined;
+      applyProgressInvariants(task, s.project.statusDate);
+      s.isDirty = true;
+      if (s.project.statusDate) s.scheduleStale = true;
+    });
+    return accepted;
+  },
+
+  setActualFinish: (taskId, date) => {
+    let accepted = true;
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      if (date && s.project.statusDate && date > s.project.statusDate) { accepted = false; return; }
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      task.time.actualFinish = date || undefined;
+      // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default
+      // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
+      if (!date && task.time.completion >= 1) task.time.completion = 0;
+      applyProgressInvariants(task, s.project.statusDate);
+      s.isDirty = true;
+      if (s.project.statusDate) s.scheduleStale = true;
+    });
+    return accepted;
   },
 });

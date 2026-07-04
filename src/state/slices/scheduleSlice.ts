@@ -56,7 +56,10 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       const calEngine = new CalendarEngine(s.calendar);
       // Only run CPM on leaf tasks (non-summary)
       const leafTasks = s.tasks.filter(t => t.childIds.length === 0);
-      const solver = new CPMSolver(leafTasks, s.sequences, calEngine);
+      const solver = new CPMSolver(leafTasks, s.sequences, calEngine, {
+        dataDate: s.project.statusDate,
+        progressMode: s.project.progressMode,
+      });
       const result = solver.solve();
 
       // If circular dependency detected, store the result (with error) and bail

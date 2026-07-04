@@ -37,6 +37,8 @@ import { useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/types/task';
 import type { ResourceType, ResourceCurve } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { computeVariance } from '@/engine/variance';
 import { readFileSync } from 'node:fs';
 
 const S = () => useAppStore.getState();
@@ -49,18 +51,35 @@ interface CaseResource {
   /** Naam van een eerder gedefinieerde CREW-resource (ploeg-lidmaatschap, puur weergave — §2.1). */
   parent?: string;
 }
+/** Baseline-mutaties (fase 2.6, variance-cases): toegepast NÁ saveBaseline, vóór de tweede runCPM. */
+type VarOp =
+  | { setDuration: { task: string; dur: number } }
+  | { deleteTask: { task: string } }
+  | { addTask: { name: string; dur?: number; start?: string; milestone?: boolean;
+      links?: { pred: string; succ: string; type: string; lag?: number }[] } };
+
 interface Case {
   id: string; title: string;
   calendar?: Cal; anchor?: string;
   resources?: CaseResource[];
+  /** Statusdatum (P6 data date, fase 2.6) — stuurt de CPM-voortgangstakken. */
+  statusDate?: string;
+  scheduleOptions?: { progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE' };
   tasks: {
     name: string; dur?: number; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
     mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string;
     priority?: number;
     assign?: { res: string; units: number; curve?: ResourceCurve }[];
+    // Voortgang (fase 2.6): completion via de store-actie (dwingt de invarianten af);
+    // actualStart/actualFinish via de dedicated acties; rawCompletion zet time.completion
+    // RAUW (import-simulatie, geen invarianten) om het solver-vangnet (§4.2 tak 2b) te testen.
+    completion?: number; actualStart?: string; actualFinish?: string; rawCompletion?: number;
   }[];
   links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
   level?: { constrainToFloat?: boolean; resources?: string[] };
+  /** Baseline opslaan ná de eerste runCPM (fase 2.6, variance-cases). */
+  baseline?: boolean | { name?: string };
+  varianceMutations?: VarOp[];
   /** Zuiverheids-guard: draai de leveler-PREVIEW (levelResources) ZONDER applyLeveling en
    *  her-draai daarna CPM. `levelResources` hoort puur te zijn (geen state-mutatie), dus de
    *  assertions moeten identiek zijn aan een kale runCPM. Wederzijds exclusief met `level`. */
@@ -185,7 +204,57 @@ function buildAndSolve(c: Case): {
       S().assignResource(ids[t.name], resIds[a.res], a.units, a.curve);
     }
   }
+
+  // Voortgang + statusdatum (fase 2.6) — vóór runCPM zodat de solver-voortgangstakken meelopen.
+  if (c.statusDate) S().setStatusDate(c.statusDate);
+  if (c.scheduleOptions?.progressMode) S().setProgressMode(c.scheduleOptions.progressMode);
+  for (const t of c.tasks) {
+    const id = ids[t.name];
+    if (t.rawCompletion !== undefined) {
+      const task = S().tasks.find((x) => x.id === id)!;
+      S().updateTask(id, { time: { ...task.time, completion: t.rawCompletion } });
+    }
+    if (t.actualStart !== undefined) S().setActualStart(id, t.actualStart);
+    if (t.actualFinish !== undefined) S().setActualFinish(id, t.actualFinish);
+    if (t.completion !== undefined) S().setTaskProgress(id, t.completion);
+  }
+
   S().runCPM();
+
+  // Baselines & variance (fase 2.6 golf 1): baseline vastleggen, muteren, herberekenen.
+  if (c.baseline) {
+    S().saveBaseline(typeof c.baseline === 'object' ? (c.baseline.name ?? 'Baseline 1') : 'Baseline 1');
+    for (const m of c.varianceMutations ?? []) {
+      if ('setDuration' in m) {
+        const tid = ids[m.setDuration.task];
+        if (!tid) throw new Error(`varianceMutations.setDuration: onbekende taak "${m.setDuration.task}"`);
+        const task = S().tasks.find((t) => t.id === tid)!;
+        S().updateTask(tid, { time: { ...task.time, scheduleDuration: m.setDuration.dur } });
+      } else if ('deleteTask' in m) {
+        const tid = ids[m.deleteTask.task];
+        if (!tid) throw new Error(`varianceMutations.deleteTask: onbekende taak "${m.deleteTask.task}"`);
+        S().deleteTask(tid);
+      } else if ('addTask' in m) {
+        const a = m.addTask;
+        if (ids[a.name]) throw new Error(`varianceMutations.addTask: dubbele taaknaam "${a.name}"`);
+        const start = a.start ?? (c.anchor ?? '2026-06-01');
+        const dur = a.milestone ? 0 : (a.dur ?? 1);
+        const nid = S().addTask({
+          name: a.name, isMilestone: !!a.milestone, parentId: null,
+          time: createDefaultTaskTime(start, dur),
+        });
+        ids[a.name] = nid;
+        for (const l of a.links ?? []) {
+          if (!ids[l.pred]) throw new Error(`varianceMutations.addTask.links: onbekende voorganger "${l.pred}"`);
+          if (!ids[l.succ]) throw new Error(`varianceMutations.addTask.links: onbekende opvolger "${l.succ}"`);
+          S().addSequence({
+            predecessorId: ids[l.pred], successorId: ids[l.succ], type: l.type as any, lagDays: l.lag ?? 0,
+          });
+        }
+      }
+    }
+    S().runCPM();
+  }
 
   // Nivellering (fase 2.5): draai de leveler ná runCPM en pas het resultaat toe via
   // applyLeveling (dat één undo-snapshot pusht en zelf runCPM heraanroept, §5.6) — zodat
@@ -328,6 +397,7 @@ function runCase(c: Case) {
   };
   seqSetCheck('drivingSet', exp.drivingSet, (cpm as any)?.drivingSequenceIds ?? []);
   seqSetCheck('truncatedLeadSet', exp.truncatedLeadSet, (cpm as any)?.truncatedLeadSequenceIds ?? []);
+  seqSetCheck('outOfSequenceSet', exp.outOfSequenceSet, (cpm as any)?.outOfSequenceSequenceIds ?? []);
 
   // Taak-naam-verzamelingen: geschonden constraints en gemiste deadlines
   const taskSetCheck = (label: string, wantNames: string[] | undefined, gotIds: string[]) => {
@@ -419,6 +489,28 @@ function runCase(c: Case) {
       if (JSON.stringify(got) !== JSON.stringify(want))
         diffs.push(`overallocatedDays.${resName}: verwacht {${want.join(',')}}, kreeg {${got.join(',')}}`);
     }
+  }
+
+  // Variance (fase 2.6 golf 1): computeVariance tegen de actieve baseline.
+  if (exp.variance) {
+    const cal = new CalendarEngine(S().calendar);
+    const active = S().baselines.find((b) => b.id === S().activeBaselineId) ?? null;
+    const vres = computeVariance(S().tasks, active, cal, S().cpmResult?.projectEnd);
+    const idToName: Record<string, string> = {};
+    for (const [n, i] of Object.entries(ids)) idToName[i] = n;
+    const rowByName: Record<string, any> = {};
+    for (const r of vres.rows) rowByName[idToName[r.taskId] ?? r.taskId] = r;
+    if (exp.variance.rows) {
+      for (const [name, want] of Object.entries<any>(exp.variance.rows)) {
+        const got = rowByName[name];
+        if (!got) { diffs.push(`variance-rij "${name}" niet gevonden`); continue; }
+        for (const [k, wv] of Object.entries<any>(want)) {
+          if (got[k] !== wv) diffs.push(`variance.${name}.${k}: verwacht ${JSON.stringify(wv)}, kreeg ${JSON.stringify(got[k])}`);
+        }
+      }
+    }
+    if (exp.variance.projectEndDelta !== undefined && vres.projectEndDelta !== exp.variance.projectEndDelta)
+      diffs.push(`variance.projectEndDelta: verwacht ${exp.variance.projectEndDelta}, kreeg ${vres.projectEndDelta}`);
   }
 
   return { id: c.id, title: c.title, pass: diffs.length === 0, diffs };

@@ -1,3 +1,6 @@
+/** Voortgangs-scheduling-modus (P6, fase 2.6). undefined ⇒ RETAINED_LOGIC (de default). */
+export type ProgressMode = 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
+
 export interface Project {
   id: string;
   name: string;
@@ -17,6 +20,11 @@ export interface Project {
    * omloop worden niet stilzwijgend herschreven).
    */
   wbsAutoNumber?: boolean;
+  /** P6 "data date" (fase 2.6): de grens verleden/toekomst (dag-granulair). undefined = geen
+   *  statusdatum ⇒ gedrag exact als vóór 2.6. Gezet ⇒ remaining werk kan niet vóór deze dag starten. */
+  statusDate?: string;    // ISO date (dag-granulair)
+  /** Voortgangs-scheduling-modus (fase 2.6). undefined ⇒ RETAINED_LOGIC. Documentinstelling. */
+  progressMode?: ProgressMode;
 }
 
 export interface ProjectStats {

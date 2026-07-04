@@ -1,4 +1,4 @@
-import type { Project } from '@/types/project';
+import type { Project, ProgressMode } from '@/types/project';
 import { createDefaultCalendar, type WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/types/task';
@@ -34,6 +34,11 @@ export interface ProjectSlice {
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
   setCalendar: (calendar: WorkCalendar) => void;
+  /** Statusdatum (P6 data date, fase 2.6). undefined = wissen. setCalendar-patroon: isDirty +
+   *  scheduleStale, géén undo-snapshot (zie §10.3). */
+  setStatusDate: (date: string | undefined) => void;
+  /** Voortgangsmodus (fase 2.6). setCalendar-patroon (isDirty + scheduleStale, géén undo-snapshot). */
+  setProgressMode: (mode: ProgressMode) => void;
   newProject: () => void;
   /** Nieuw-project-wizard: maak een project met metadata, kalender en een
    *  fasering-skelet in een eigen tabblad (hergebruikt het actieve tabblad als
@@ -103,6 +108,23 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.scheduleStale = true; // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
+  setStatusDate: (date) =>
+    set((s) => {
+      if (date) s.project.statusDate = date;
+      else delete s.project.statusDate;
+      s.project.modifiedAt = new Date().toISOString();
+      s.isDirty = true;
+      s.scheduleStale = true; // datum-beïnvloedend (A6): planning verouderd tot F5.
+    }),
+
+  setProgressMode: (mode) =>
+    set((s) => {
+      s.project.progressMode = mode;
+      s.project.modifiedAt = new Date().toISOString();
+      s.isDirty = true;
+      s.scheduleStale = true;
+    }),
+
   newProject: () => {
     set((s) => {
       s.project = createDefaultProject();
@@ -119,6 +141,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       // Afgeleide belasting ook resetten (A5); de ribbon-guard van de UX-golf blijft defensief.
       s.resourceLoadResult = null;
       s.scheduleStale = false;
+      s.baselines = [];
+      s.activeBaselineId = null;
       s.view = createDefaultView();
       s.undoStack = [];
       s.redoStack = [];
@@ -170,6 +194,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.cpmResult = null;
       s.resourceLoadResult = null;
       s.scheduleStale = false;
+      s.baselines = [];
+      s.activeBaselineId = null;
       s.view = createDefaultView();
       s.undoStack = [];
       s.redoStack = [];
@@ -201,6 +227,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.cpmResult = null;
       s.resourceLoadResult = null;
       s.scheduleStale = false;
+      // Baselines komen (golf 2) uit de IFC-lezer; tot dan reset de load ze naar leeg.
+      s.baselines = [];
+      s.activeBaselineId = null;
       s.undoStack = [];
       s.redoStack = [];
       s.isDirty = false;

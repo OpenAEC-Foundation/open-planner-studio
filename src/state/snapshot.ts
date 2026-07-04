@@ -5,6 +5,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import type { Baseline } from '@/types/baseline';
 
 // Undo/redo werkt met diepe JSON-kopieën van de muteerbare projectdata + de afgeleide
 // rekenresultaten. De afgeleide resultaten (`cpmResult`/`resourceLoadResult`) zijn FIRST-CLASS
@@ -25,6 +26,10 @@ export interface Snapshot {
   resourceLoadResult: ResourceLoadResult | null;
   /** Was de planning "verouderd" (datum-mutatie zonder F5) op het moment van de snapshot? */
   scheduleStale: boolean;
+  /** Baselines (fase 2.6): plain data, JSON-kloonbaar. */
+  baselines: Baseline[];
+  /** Actieve baseline (fase 2.6): scalar; `null` is een legitieme waarde (geen actieve baseline). */
+  activeBaselineId: string | null;
 }
 
 /** Alleen de projectdata-arrays worden diep gekloond; de afgeleide resultaten worden per referentie
@@ -41,5 +46,7 @@ export function createSnapshot(state: Snapshot): Snapshot {
     cpmResult: state.cpmResult,
     resourceLoadResult: state.resourceLoadResult,
     scheduleStale: state.scheduleStale,
+    baselines: JSON.parse(JSON.stringify(state.baselines)),
+    activeBaselineId: state.activeBaselineId,
   };
 }

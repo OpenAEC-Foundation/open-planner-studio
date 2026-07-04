@@ -7,6 +7,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import type { Baseline } from '@/types/baseline';
 import type { Snapshot } from '../snapshot';
 import type { ViewState, AppSlice } from './types';
 import type { AppState } from '../appStore';
@@ -46,6 +47,9 @@ export interface DocumentPayload {
   resourceLoadResult: ResourceLoadResult | null;
   /** "Verouderd"-vlag per document (A6) — leekt anders tussen documenten. */
   scheduleStale: boolean;
+  /** Baselines per document (fase 2.6). `statusDate`/`progressMode` rijden mee in `project`. */
+  baselines: Baseline[];
+  activeBaselineId: string | null;
   view: ViewState;
   collapsedTaskIds: string[];
   undoStack: Snapshot[];
@@ -82,6 +86,8 @@ export interface RecoveryDocInput {
   resourceCalendars?: WorkCalendar[];
   activityCodeTypes?: ActivityCodeType[];
   customFieldDefs?: CustomFieldDef[];
+  baselines?: Baseline[];
+  activeBaselineId?: string | null;
   filePath: string | null;
   isDirty: boolean;
 }
@@ -120,6 +126,8 @@ function capturePayload(s: AppState): DocumentPayload {
     cpmResult: s.cpmResult,
     resourceLoadResult: s.resourceLoadResult,
     scheduleStale: s.scheduleStale,
+    baselines: s.baselines,
+    activeBaselineId: s.activeBaselineId,
     view: s.view,
     collapsedTaskIds: s.ui.collapsedTaskIds,
     undoStack: s.undoStack,
@@ -144,6 +152,8 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.cpmResult = p.cpmResult;
   s.resourceLoadResult = p.resourceLoadResult ?? null;
   s.scheduleStale = p.scheduleStale ?? false;
+  s.baselines = p.baselines ?? [];
+  s.activeBaselineId = p.activeBaselineId ?? null;
   s.view = p.view;
   s.ui.collapsedTaskIds = p.collapsedTaskIds;
   s.undoStack = p.undoStack;
@@ -168,6 +178,8 @@ function freshPayload(): DocumentPayload {
     cpmResult: null,
     resourceLoadResult: null,
     scheduleStale: false,
+    baselines: [],
+    activeBaselineId: null,
     view: createDefaultView(),
     collapsedTaskIds: [],
     undoStack: [],
@@ -193,6 +205,8 @@ function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     cpmResult: null,
     resourceLoadResult: null,
     scheduleStale: false,
+    baselines: d.baselines ?? [],
+    activeBaselineId: d.activeBaselineId ?? null,
     view: createDefaultView(),
     collapsedTaskIds: [],
     undoStack: [],
