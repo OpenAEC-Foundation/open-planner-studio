@@ -190,6 +190,18 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] Scheduling options (keuze berekeningsmethoden)
 
 #### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
+- [ ] **First-startup-ervaring: welkomstmenu + rondleiding (user-verzoek 2026-07-04).** Bij de
+  allereerste start van het programma verschijnt een welkomstscherm met (a) een aantal basale
+  instellingen om direct te kiezen (denk: taal, thema licht/donker, en relevante voorkeuren
+  zoals de auto-bereken-toggle zodra die bestaat) en (b) een "show around": een korte
+  rondleiding door het programma (lint-tabs, taaktabel + Gantt, eigenschappenpaneel,
+  histogram/rapporten, voorbeelden openen) — overslaanbaar, en achteraf opnieuw te starten
+  vanuit Help/backstage. **Harde eis: het menu mag NIET terugkomen na een update** — de
+  gezien-vlag dus persistent opslaan onafhankelijk van de appversie (settingsStore/localStorage
+  zonder versie-sleutel; in Tauri overleven zowel localStorage als de settings een in-app
+  update, verifiëren bij implementatie). De gekozen instellingen landen gewoon in de bestaande
+  settings (3-surfaces-regel blijft gelden — het welkomstscherm is een vierde *invoerpunt*,
+  geen aparte opslag).
 - [ ] **Drie voorbeeld-planningen die écht alle functies van de app benutten.** De huidige
   voorbeelden demonstreren vooral taken+relaties; maak drie rijk uitgewerkte, realistische
   projecten (bv. woningbouw, infra, renovatie) die samen alle features raken: WBS-hiërarchie
