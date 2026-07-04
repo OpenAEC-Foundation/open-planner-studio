@@ -7,6 +7,51 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Toegevoegd
+- **Weergaven (fase 2.7)** — echte, opslaanbare weergaven op de Beeld-ribbontab (ontwerp:
+  `docs/superpowers/specs/2026-07-04-weergaven-design.md`):
+  - **Tijdschaal-reparatie**: de tot dusver dode tijdschaal-keuze is vervangen door een
+    werkende dropdown (Jaar/Kwartaal/Maand/Week/Dag) die naar zoom-presets mapt; het
+    getoonde label wordt **afgeleid** uit de daadwerkelijke zoomstand (kan dus nooit meer
+    desyncen van de getekende as) en de viewport recentert op het middelpunt van het
+    huidige venster bij het wisselen van schaal.
+  - **Eén gedeelde zichtbare-rijenlijst** (`computeViewRows`) voor tabel én Gantt: filter,
+    groepering en sortering worden voortaan op precies één plek berekend, zodat tabel en
+    Gantt-canvas structureel niet meer uit elkaar kunnen lopen (structurele pariteit).
+  - **Kolom-configuratie** in de taaktabel: zichtbaarheid, volgorde en breedte per kolom,
+    over builtin-velden, activity codes, custom fields en een nieuwe **resource-kolom**
+    (comma-gescheiden join via toewijzingen, read-only in 2.7).
+  - **Geneste AND/OR-filters** met een P6-achtige editor (All/Any-groepen, veldtype-bewuste
+    waarde-invoer: tekst/getal/datum/dropdown voor codes/resources), inclusief
+    "show summaries"-gedrag (niet-matchende ouders van een match blijven zichtbaar, gedimd).
+  - **Groeperen tot 2 niveaus** over elk veld (WBS, activity code, custom field, resource,
+    taaktype) met bandkop + count, en onbeperkt **multi-key-sorteren** (stabiele sort,
+    respecteert de WBS-hiërarchie binnen boommodus).
+  - **Structuur-vergrendeling buiten boommodus**: indent/outdent en taak-verslepen zijn
+    uitgeschakeld zodra filter/groep/sort actief is (structuur-mutaties zijn alleen
+    welgedefinieerd in de pure boommodus); waarde-mutaties (cel-edits, toevoegen,
+    verwijderen) blijven altijd mogelijk.
+  - **Custom layouts**: opslaan/toepassen/hernoemen/verwijderen/beheren, app-globaal
+    (localStorage, niet per document), met stille tolerantie voor velden die in het
+    huidige document niet (meer) bestaan.
+  - **Presentation mode** (F11) via de echte Fullscreen-API: alle chrome (titelbalk, lint,
+    documenttabs, statusbalk, eigenschappenpaneel) verdwijnt, alleen de Gantt full-bleed
+    blijft over; Escape of de browser/OS-fullscreen sluit af.
+  - **Split view** binnen één document: twee onafhankelijke tijdvensters naast elkaar op
+    dezelfde gedeelde rijen en verticale scroll — bijvoorbeeld een detailweek naast een
+    ver weg liggende mijlpaal.
+  - **Mini-map**: een lichte thumbnail-strook van de hele planning met een sleepbaar
+    viewport-kader.
+  - **Auto-bereken-instelling** (drie surfaces: tandwiel ⚙, Settings-ribbon-tab en
+    backstage) plus de "Bereken"-naamgeving geconsolideerd tot één i18n-sleutel overal
+    (ribbon, menu, eigenschappenpaneel).
+  - Volledig vertaald in alle 14 talen; de test-suite groeide van 256 naar **280
+    handberekende cases**, alle bestaande cases ongewijzigd groen.
+  - **Bewuste beperkingen**: uur-tijdschaal wacht op uren-/minuten-scheduling (fase 2.8) —
+    het datamodel is dag-granulair, een uur-as zou nu misleiden; rollup-totalen per
+    groepsband (som duur/kosten/units) volgen later (fase 3.5/3.9); een split view met
+    **twee verschillende documenten** vergt een store-singleton-refactor en is bewust
+    later; layouts zijn app-globaal en round-trippen niet mee in het IFC-bestand
+    (per-bestand-layouts zijn bewust later).
 - **Baselines & voortgang (fase 2.6)** — statusdatum-gestuurde CPM, echte
   voortgangsregistratie en onbeperkte baselines (ontwerp:
   `docs/superpowers/specs/2026-07-04-baselines-voortgang-design.md`):

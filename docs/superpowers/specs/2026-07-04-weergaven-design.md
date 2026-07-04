@@ -1,6 +1,6 @@
 # Ontwerp: Fase 2.7 — Weergaven
 
-*Status: **ontwerp, gereviewd (2026-07-04)** — architectuurbeslissingen (B1–B14) genomen door de
+*Status: **geïmplementeerd (2026-07-04)** — architectuurbeslissingen (B1–B14) genomen door de
 architect en niet heropend. De hoofdarchitect-review bevestigde de kern (gedeelde `viewRows`-selector,
 presets-round-trip, tolerantie-regels, filtervoorbeelden nagerekend) en voegde toe: §4.5
 (structuur-mutaties disabled buiten pure boommodus), pijl-gedrag bij multi-band-duplicaten (§7.1),

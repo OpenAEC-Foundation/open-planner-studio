@@ -30,11 +30,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       contextmenu/popover om het relatietype (FS/SS/FF/SF) en eventueel de lag
       te kiezen in plaats van meteen FS aan te maken.
 
-- [ ] **Resource-kolom(men) in de taaktabel (`TableEditor`).** Uit de fase-2.5-review: toewijzingen
-      zijn nu alleen zichtbaar in het eigenschappenpaneel en de assign-popover. Voeg een
-      toegewezen-resources-kolom toe aan de taaktabel (zoals P6/MSP "Resource Names"), eventueel met
-      inline bewerken van eenheden/dag, zodat je toewijzingen per rij overziet zonder taak-voor-taak
-      te klikken.
 - [ ] **Toewijzing verplaatsen tussen taken.** Nu kun je een toewijzing alleen verwijderen en
       opnieuw aanmaken. Uit de review: maak het mogelijk een bestaande toewijzing (met eenheden +
       curve) naar een andere taak te verplaatsen (drag of "verplaats naar…"), zodat herplannen niet
@@ -149,16 +144,17 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > P6-baseline-round-trip, per-relatie out-of-sequence-override; physical-%/
 > work-% als aparte dimensie hoort bij fase 3.5.
 
-#### 2.7 Weergaven
-- [ ] Extra tijdschalen: uur en jaar als directe keuze (kwartaal bestaat al)
-- [ ] Kolom-aanpassing in tabel (kies zichtbare velden)
-- [ ] Groeperen op elk veld (WBS, fase, resource)
-- [ ] Sorteren op elk veld
-- [ ] Filteren met AND/OR-logica
-- [ ] Custom layouts opslaan/laden
-- [ ] Presentation mode (full screen Gantt)
-- [ ] Split view (meerdere planningen naast elkaar)
-- [ ] Mini-map (thumbnail overzicht)
+> §2.7 Weergaven is afgerond (werkende tijdschaal-keuze jaar t/m dag met afgeleid label
+> + recenter, kolom-configuratie incl. resource-kolom, geneste AND/OR-filters met
+> veldtype-bewuste editor, groeperen tot 2 niveaus + multi-key-sorteren, één gedeelde
+> zichtbare-rijenlijst voor tabel én Gantt, structuur-vergrendeling buiten boommodus,
+> custom layouts, presentation mode (F11), split view binnen één document, mini-map,
+> auto-bereken-instelling op de 3 surfaces) — zie changelog en
+> [ontwerp](superpowers/specs/2026-07-04-weergaven-design.md). Bewust later:
+> rollup-totalen per groepsband (fase 3.5/3.9), split view met twee verschillende
+> documenten (vergt store-singleton-refactor), per-bestand-layouts (IFC-pset), en
+> inline bewerken van de resource-kolom (blijft read-only; toewijzen via het
+> eigenschappenpaneel).
 
 #### 2.8 Kalender-uitbreidingen
 - [ ] **Hardgecodeerde bouwvak/feestdagen in de standaardkalender opknappen.** `createDefaultCalendar()`
@@ -179,6 +175,11 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] 24-uurs kalender
 - [ ] Dag/nacht ploegen-kalender
 - [ ] Uren-based en minuten-based scheduling
+- [ ] **Uur-tijdschaal in de Gantt.** Bewust uitgesteld vanuit fase 2.7 (Weergaven): het
+      datamodel is dag-granulair (`scheduleDuration` in werkdagen, CPM rekent in hele
+      dagen), dus een uur-as zou nu misleiden — elke balk snapt alsnog op daggrenzen. Hoort
+      hier thuis zodra uren-/minuten-based scheduling bestaat. Zie het uitstel-besluit in
+      [het 2.7-ontwerp §3.4](superpowers/specs/2026-07-04-weergaven-design.md#34-uur-schaal-uitgesteld-naar-28--reden).
 
 #### 2.9 Geavanceerde CPM
 - [ ] Alle constraint-types meenemen in CPM-berekening
