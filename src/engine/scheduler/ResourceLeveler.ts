@@ -136,7 +136,7 @@ export function levelResources(
 
   // A2/A4: VERSE baseline — de enige bron voor sorteersleutels (totalFloat/earlyStart), PF-basis en
   // smoothing-vensters (lateStart). Nooit de (mogelijk stale) meegegeven cpmResult.
-  const baseline = new CPMSolver(workTasks, sequences, projEngine).solve();
+  const baseline = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars).solve();
   if (baseline.error) {
     const end = cpmResult.projectEnd;
     return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end };
@@ -250,7 +250,7 @@ export function levelResources(
     if (!pick) break; // zou niet mogen (CPM is acyclisch); voorkom oneindige lus
 
     // PF: draai de CPMSolver op de werkkopie (geplaatste taken hebben hun delay; `pick` niet).
-    const pf = computePF(pick, workTasks, sequences, projEngine);
+    const pf = computePF(pick, workTasks, sequences, projectCalendar, resourceCalendars);
 
     let startDate: Date;
     let slotUnresolved: string[] = [];
@@ -285,7 +285,7 @@ export function levelResources(
 
   // A1: preview uit één echte proef-solve op de werkkopieën (nu mét alle gezette delays) — exact wat
   // applyLeveling→runCPM straks doet. Bevat óók niet-geresourcete opvolgers die enkel meeschuiven.
-  const trial = new CPMSolver(workTasks, sequences, projEngine).solve();
+  const trial = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars).solve();
   const projectEndAfter = trial.error ? cpmResult.projectEnd : trial.projectEnd;
 
   const shifts: Record<string, LevelingShift> = {};
@@ -409,9 +409,10 @@ function computePF(
   taskId: string,
   workTasks: Task[],
   sequences: Sequence[],
-  projEngine: CalendarEngine,
+  projectCalendar: WorkCalendar,
+  registry: WorkCalendar[],
 ): Date {
-  const solver = new CPMSolver(workTasks, sequences, projEngine);
+  const solver = new CPMSolver(workTasks, sequences, projectCalendar, registry);
   const res = solver.solve();
   const r = res.tasks.get(taskId);
   return r ? parseDate(r.earlyStart) : parseDate(workTasks.find(t => t.id === taskId)!.time.earlyStart);

@@ -1,0 +1,201 @@
+{
+  "cases": [
+    {
+      "id": "kal-scenario-1",
+      "title": "Scenario 1 (§5.3): 5d-taak op ma-vr → opvolger 7-daags met FS+2. Lag telt in voorganger-kalender (weekend overgeslagen); duur opvolger loopt door het weekend. Forward + backward-spiegel (beide kritiek).",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "Cal-MF", "workDays": [1, 2, 3, 4, 5] },
+        { "name": "Cal-7", "workDays": [1, 2, 3, 4, 5, 6, 7] }
+      ],
+      "tasks": [
+        { "name": "P", "dur": 5, "calendar": "Cal-MF" },
+        { "name": "S", "dur": 4, "calendar": "Cal-7" }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "FINISH_START", "lag": 2 }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06", "ef": "2026-07-10", "ls": "2026-07-06", "lf": "2026-07-10", "tf": 0, "crit": true },
+          "S": { "es": "2026-07-15", "ef": "2026-07-18", "ls": "2026-07-15", "lf": "2026-07-18", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["P", "S"],
+        "projectEnd": "2026-07-18",
+        "error": false
+      }
+    },
+    {
+      "id": "kal-scenario-2",
+      "title": "Scenario 2 (§5.3): predecessor 7-daags eindigt op vrijdag, FS+2, opvolger ma-vr. LAG_CALENDAR=predecessor ⇒ S.es ma 13. COUNTERFACTUAL: bij successor-kalender-lag zou S.es wo 15 (2026-07-15) zijn — die tak legt 2.9 later vast.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "Cal-MF", "workDays": [1, 2, 3, 4, 5] },
+        { "name": "Cal-7", "workDays": [1, 2, 3, 4, 5, 6, 7] }
+      ],
+      "tasks": [
+        { "name": "P", "dur": 5, "calendar": "Cal-7" },
+        { "name": "S", "dur": 3, "calendar": "Cal-MF" }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "FINISH_START", "lag": 2 }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06", "ef": "2026-07-10", "tf": 0, "crit": true },
+          "S": { "es": "2026-07-13", "ef": "2026-07-15", "ls": "2026-07-13", "lf": "2026-07-15", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["P", "S"],
+        "projectEnd": "2026-07-15",
+        "error": false
+      }
+    },
+    {
+      "id": "kal-scenario-3",
+      "title": "Scenario 3 (§5.3): merge van twee voorgangers op verschillende kalenders (A ma-vr, B 7-daags) → C 7-daags, beide FS+0. B drijft de merge; A heeft 1 MF-werkdag speling. Volledige forward + backward-tabel incl. FS-gap-spiegel per voorganger-kalender.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "Cal-MF", "workDays": [1, 2, 3, 4, 5] },
+        { "name": "Cal-7", "workDays": [1, 2, 3, 4, 5, 6, 7] }
+      ],
+      "tasks": [
+        { "name": "A", "dur": 4, "calendar": "Cal-MF" },
+        { "name": "B", "dur": 7, "calendar": "Cal-7" },
+        { "name": "C", "dur": 3, "calendar": "Cal-7" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "C", "type": "FINISH_START", "lag": 0 },
+        { "pred": "B", "succ": "C", "type": "FINISH_START", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-09", "ls": "2026-07-07", "lf": "2026-07-10", "tf": 1, "crit": false },
+          "B": { "es": "2026-07-06", "ef": "2026-07-12", "ls": "2026-07-06", "lf": "2026-07-12", "tf": 0, "crit": true },
+          "C": { "es": "2026-07-13", "ef": "2026-07-15", "ls": "2026-07-13", "lf": "2026-07-15", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["B", "C"],
+        "projectEnd": "2026-07-15",
+        "error": false
+      }
+    },
+    {
+      "id": "kal-noop-regressie",
+      "title": "Geen taak-kalender = no-op (backwards-compat): scenario-1-netwerk ZONDER task.calendarId rekent volledig in de projectkalender (ma-vr) — S loopt niet door het weekend (ef ma 20).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "P", "dur": 5 },
+        { "name": "S", "dur": 4 }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "FINISH_START", "lag": 2 }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06", "ef": "2026-07-10", "tf": 0, "crit": true },
+          "S": { "es": "2026-07-15", "ef": "2026-07-20", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["P", "S"],
+        "projectEnd": "2026-07-20",
+        "error": false
+      }
+    },
+    {
+      "id": "kal-ss-multi",
+      "title": "SS met verschillende kalenders: voorganger 7-daags, opvolger ma-vr, SS+0. Opvolger start dezelfde dag (gesnapt op successor-kalender).",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "Cal-MF", "workDays": [1, 2, 3, 4, 5] },
+        { "name": "Cal-7", "workDays": [1, 2, 3, 4, 5, 6, 7] }
+      ],
+      "tasks": [
+        { "name": "P", "dur": 3, "calendar": "Cal-7" },
+        { "name": "S", "dur": 2, "calendar": "Cal-MF" }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "START_START", "lag": 0 }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06", "ef": "2026-07-08" },
+          "S": { "es": "2026-07-06", "ef": "2026-07-07" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "kal-ff-multi",
+      "title": "FF met verschillende kalenders: voorganger ma-vr (dur 6 → ef ma 13), opvolger 7-daags (dur 3), FF+0. succBack (duur−1=2) telt in de OPVOLGER-kalender ⇒ S.es za 11 (weekend), finishes uitgelijnd op ma 13.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "Cal-MF", "workDays": [1, 2, 3, 4, 5] },
+        { "name": "Cal-7", "workDays": [1, 2, 3, 4, 5, 6, 7] }
+      ],
+      "tasks": [
+        { "name": "P", "dur": 6, "calendar": "Cal-MF" },
+        { "name": "S", "dur": 3, "calendar": "Cal-7" }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "FINISH_FINISH", "lag": 0 }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06", "ef": "2026-07-13" },
+          "S": { "es": "2026-07-11", "ef": "2026-07-13" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "kal-sf-multi",
+      "title": "SF met verschillende kalenders: voorganger 7-daags, opvolger ma-vr, SF+2. Lag telt in voorganger-kalender (S.finish = P.start + 2 Cal-7-dagen = wo 8), succBack in successor-kalender.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "Cal-MF", "workDays": [1, 2, 3, 4, 5] },
+        { "name": "Cal-7", "workDays": [1, 2, 3, 4, 5, 6, 7] }
+      ],
+      "tasks": [
+        { "name": "P", "dur": 3, "calendar": "Cal-7" },
+        { "name": "S", "dur": 2, "calendar": "Cal-MF" }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "START_FINISH", "lag": 2 }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06" },
+          "S": { "es": "2026-07-07", "ef": "2026-07-08" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "kal-leveler-apply",
+      "title": "Leveler-multi-kalender (apply): taak X op 7-daagse kalender + taak Y op projectkalender delen resource R (max 1). X plaatst eerst (aanmaakvolgorde), Y schuift → identieke datums als de echte apply-solve. Bewaakt de registry in alle CPMSolver-plekken.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "Cal-7", "workDays": [1, 2, 3, 4, 5, 6, 7] }],
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "X", "dur": 3, "calendar": "Cal-7", "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "Y", "dur": 3, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "level": { "constrainToFloat": false },
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-07-06", "ef": "2026-07-08" },
+          "Y": { "es": "2026-07-09", "ef": "2026-07-13" }
+        },
+        "projectEnd": "2026-07-13",
+        "error": false
+      }
+    },
+    {
+      "id": "kal-leveler-preview-puur",
+      "title": "Leveler-preview-zuiverheid met taak-kalender: levelResources (preview, geen apply) mag de echte task-objecten niet muteren, ook niet via de trial-solve met registry. Ná de preview + kale runCPM staan de datums nog op het ongenivelleerde (overlappende) schema.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "Cal-7", "workDays": [1, 2, 3, 4, 5, 6, 7] }],
+      "resources": [{ "name": "R", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "X", "dur": 3, "calendar": "Cal-7", "assign": [{ "res": "R", "units": 1 }] },
+        { "name": "Y", "dur": 3, "assign": [{ "res": "R", "units": 1 }] }
+      ],
+      "levelPreview": { "constrainToFloat": false },
+      "previewExpect": { "constrainToFloat": false, "projectEndAfter": "2026-07-13", "shiftedTasks": ["Y"] },
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-07-06", "ef": "2026-07-08" },
+          "Y": { "es": "2026-07-06", "ef": "2026-07-08" }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    }
+  ]
+}

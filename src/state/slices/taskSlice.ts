@@ -53,6 +53,9 @@ export interface TaskSlice {
   /** Werkelijke einde (fase 2.6): zet completion=1 + status COMPLETED. undefined = wissen.
    *  Retourneert false als de datum ná de statusdatum ligt (geweigerd). */
   setActualFinish: (taskId: string, date: string | undefined) => boolean;
+  /** Taak-kalender (fase 2.8a, §7.3): wijs een bibliotheek-kalender toe (undefined = projectkalender).
+   *  Dwingt niets af — zet alleen `calendarId` + undo-snapshot + scheduleStale (datum-beïnvloedend). */
+  setTaskCalendar: (taskId: string, calendarId: string | undefined) => void;
 }
 
 /**
@@ -149,6 +152,20 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
         s.scheduleStale = true;
       }
+    });
+    get().recomputeViewRows();
+  },
+
+  setTaskCalendar: (taskId, calendarId) => {
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      task.calendarId = calendarId; // undefined = projectkalender
+      s.isDirty = true;
+      s.scheduleStale = true; // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });
     get().recomputeViewRows();
   },

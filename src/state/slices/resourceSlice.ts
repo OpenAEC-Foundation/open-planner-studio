@@ -2,6 +2,7 @@ import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resour
 import type { WorkCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { createSnapshot } from '../snapshot';
+import { syncProjectCalendar } from '../syncProjectCalendar';
 import type { AppSlice } from './types';
 
 /** Puur leesbaarheids-alias: `WorkCalendar` heeft al `id`/`name`, dus geen aparte intersectie
@@ -11,8 +12,9 @@ export type NamedCalendar = WorkCalendar;
 export interface ResourceSlice {
   resources: Resource[];
   assignments: ResourceAssignment[];
-  /** Resource-kalenders (fase 2.5). Informatief: raakt CPM niet aan, voedt alleen belasting. */
-  resourceCalendars: WorkCalendar[];
+  /** Gedeelde kalender-bibliotheek (fase 2.8a, §4.1): project, taken én resources wijzen hierin.
+   *  Hernoemd uit `resourceCalendars` (fase 2.5). undefined calendarId = projectkalender. */
+  calendars: WorkCalendar[];
   addResource: (res: Omit<Resource, 'id'>) => string;
   updateResource: (id: string, updates: Partial<Resource>) => void;
   removeResource: (id: string) => void;
@@ -21,10 +23,12 @@ export interface ResourceSlice {
   /** Wijzig eenheden/curve van een bestaande toewijzing (inline-bewerken in de UI, §6.3). */
   updateAssignment: (assignmentId: string, updates: Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>) => void;
   unassignResource: (assignmentId: string) => void;
-  addResourceCalendar: (cal: Omit<WorkCalendar, 'id'>) => string;
-  updateResourceCalendar: (id: string, updates: Partial<WorkCalendar>) => void;
-  /** Resources met calendarId===id vallen terug op undefined (projectkalender). */
-  removeResourceCalendar: (id: string) => void;
+  /** Bibliotheek-CRUD (fase 2.8a, §4.1) — hernoemd uit add/update/removeCalendar. */
+  addCalendar: (cal: Omit<WorkCalendar, 'id'>) => string;
+  updateCalendar: (id: string, updates: Partial<WorkCalendar>) => void;
+  /** Verwijder een bibliotheek-kalender: task/resource-verwijzingen én (indien de projectdefault)
+   *  de projectkalender vallen terug op een fallback (§4.3/§9.2). */
+  removeCalendar: (id: string) => void;
 }
 
 /** Geldige capaciteit/eenheden (fase 2.5 UX-fix, bevinding 1): strikt positief en eindig. 0 is
@@ -36,7 +40,7 @@ const isValidUnits = (n: unknown): n is number =>
 export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   resources: [],
   assignments: [],
-  resourceCalendars: [],
+  calendars: [],
 
   addResource: (res) => {
     const id = generateId('res');
@@ -162,40 +166,60 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
 
-  addResourceCalendar: (cal) => {
-    const id = generateId('rescal');
+  addCalendar: (cal) => {
+    const id = generateId('cal');
     set((s) => {
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
-      s.resourceCalendars.push({ ...cal, id });
+      s.calendars.push({ ...cal, id });
+      syncProjectCalendar(s); // houd de gedenormaliseerde projectkalender-cache in sync (§9.1).
       s.isDirty = true;
+      s.scheduleStale = true; // conservatief datum-beïnvloedend (§5.4).
     });
     get().recomputeResourceLoad();
-    return id;
+  return id;
   },
 
-  updateResourceCalendar: (id, updates) => {
+  updateCalendar: (id, updates) => {
     set((s) => {
-      const idx = s.resourceCalendars.findIndex(c => c.id === id);
+      const idx = s.calendars.findIndex(c => c.id === id);
       if (idx < 0) return;
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
-      Object.assign(s.resourceCalendars[idx], updates);
+      Object.assign(s.calendars[idx], updates);
+      syncProjectCalendar(s);
       s.isDirty = true;
+      // Pure naamswijziging raakt geen datums (§5.4); elke andere mutatie wél.
+      const onlyName = Object.keys(updates).length === 1 && 'name' in updates;
+      if (!onlyName) s.scheduleStale = true;
     });
     get().recomputeResourceLoad();
   },
 
-  removeResourceCalendar: (id) => {
+  removeCalendar: (id) => {
     set((s) => {
       s.undoStack.push(createSnapshot(s));
       s.redoStack = [];
-      s.resourceCalendars = s.resourceCalendars.filter(c => c.id !== id);
-      // Resources die naar deze kalender verwezen vallen terug op de projectkalender.
+      s.calendars = s.calendars.filter(c => c.id !== id);
+      // Verweesde verwijzingen opruimen: resources én taken vallen terug op de projectkalender.
       for (const r of s.resources) {
         if (r.calendarId === id) r.calendarId = undefined;
       }
+      for (const t of s.tasks) {
+        if (t.calendarId === id) t.calendarId = undefined;
+      }
+      // Was dit de projectdefault, dan de projectkalender op een fallback zetten (§9.2).
+      if (s.project.calendarId === id) {
+        const fallback = s.calendars[0];
+        if (fallback) {
+          s.project.calendarId = fallback.id;
+          s.calendar = fallback;
+        }
+        // Geen enkele bibliotheek-entry meer: `s.calendar` blijft de laatst-bekende cache staan.
+      }
+      syncProjectCalendar(s);
       s.isDirty = true;
+      s.scheduleStale = true;
     });
     get().recomputeResourceLoad();
   },

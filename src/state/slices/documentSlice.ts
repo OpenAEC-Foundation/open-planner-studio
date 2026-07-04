@@ -14,6 +14,7 @@ import type { AppState } from '../appStore';
 import { generateId } from '@/utils/id';
 import { createDefaultProject } from './projectSlice';
 import { createDefaultView } from './viewSlice';
+import { syncProjectCalendar } from '../syncProjectCalendar';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 
 /**
@@ -37,7 +38,8 @@ export interface DocumentPayload {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
-  resourceCalendars: WorkCalendar[];
+  /** Gedeelde kalender-bibliotheek (fase 2.8a; hernoemd uit `resourceCalendars`). */
+  calendars: WorkCalendar[];
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   selectedTaskIds: string[];
@@ -119,7 +121,7 @@ function capturePayload(s: AppState): DocumentPayload {
     sequences: s.sequences,
     resources: s.resources,
     assignments: s.assignments,
-    resourceCalendars: s.resourceCalendars,
+    calendars: s.calendars,
     activityCodeTypes: s.activityCodeTypes,
     customFieldDefs: s.customFieldDefs,
     selectedTaskIds: s.selectedTaskIds,
@@ -169,7 +171,8 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.sequences = p.sequences;
   s.resources = p.resources;
   s.assignments = p.assignments;
-  s.resourceCalendars = p.resourceCalendars ?? [];
+  // Lees-alias (§4.2): oude payloads dragen `resourceCalendars`; nieuwe `calendars`.
+  s.calendars = p.calendars ?? (p as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
   s.activityCodeTypes = p.activityCodeTypes ?? [];
   s.customFieldDefs = p.customFieldDefs ?? [];
   s.selectedTaskIds = p.selectedTaskIds;
@@ -184,6 +187,7 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.redoStack = p.redoStack;
   s.filePath = p.filePath;
   s.isDirty = p.isDirty;
+  syncProjectCalendar(s); // §9.1: gedenormaliseerde projectkalender-cache gelijkzetten ná hydrate/switch.
 }
 
 /** Verse, lege document-payload (nieuw project). */
@@ -195,7 +199,7 @@ function freshPayload(): DocumentPayload {
     sequences: [],
     resources: [],
     assignments: [],
-    resourceCalendars: [],
+    calendars: [],
     activityCodeTypes: [],
     customFieldDefs: [],
     selectedTaskIds: [],
@@ -222,7 +226,8 @@ function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     sequences: d.sequences,
     resources: d.resources,
     assignments: d.assignments,
-    resourceCalendars: d.resourceCalendars ?? [],
+    // RecoveryDocInput draagt de pre-2.8a-naam `resourceCalendars` (recovery-contract).
+    calendars: d.resourceCalendars ?? [],
     activityCodeTypes: d.activityCodeTypes ?? [],
     customFieldDefs: d.customFieldDefs ?? [],
     selectedTaskIds: [],

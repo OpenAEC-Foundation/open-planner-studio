@@ -10,7 +10,7 @@ import { CalendarForm } from './CalendarForm';
 /**
  * Resource-kalender-editor (fase 2.5, §3.4) — hergebruikt `CalendarForm`, net als de
  * projectkalender-`CalendarDialog`, maar schrijft naar `s.resourceCalendars` via
- * `addResourceCalendar`/`updateResourceCalendar` i.p.v. `s.calendar`/`setCalendar`.
+ * `addCalendar`/`updateCalendar` i.p.v. `s.calendar`/`setCalendar`.
  *
  * Bewust GEEN `runCPM()`-aanroep na Apply: resource-kalenders zijn informatief en raken de
  * CPM-datums niet aan (§3.2) — alleen belasting/nivellering lezen ze, en dat gebeurt pas als
@@ -28,9 +28,9 @@ export function ResourceCalendarDialog({
   onClose: () => void;
 }) {
   const { t: tCommon } = useTranslation('common');
-  const resourceCalendars = useAppStore(s => s.resourceCalendars);
-  const addResourceCalendar = useAppStore(s => s.addResourceCalendar);
-  const updateResourceCalendar = useAppStore(s => s.updateResourceCalendar);
+  const resourceCalendars = useAppStore(s => s.calendars);
+  const addCalendar = useAppStore(s => s.addCalendar);
+  const updateCalendar = useAppStore(s => s.updateCalendar);
 
   const existing = calendarId ? resourceCalendars.find(c => c.id === calendarId) : undefined;
 
@@ -41,11 +41,11 @@ export function ResourceCalendarDialog({
 
   const handleApply = () => {
     if (existing) {
-      updateResourceCalendar(existing.id, draft);
+      updateCalendar(existing.id, draft);
     } else {
       const { id: _unused, ...rest } = draft;
       void _unused;
-      addResourceCalendar(rest);
+      addCalendar(rest);
     }
     onClose();
   };

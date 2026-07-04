@@ -101,6 +101,10 @@ export interface Task {
   /** Zachte deadline (MSP-model): begrenst alleen de late finish — balken bewegen nooit;
    *  overschrijding (earlyFinish > deadline) geeft negatieve float + waarschuwing. */
   deadline?: string;
+  /** OPTIONEEL — id in de kalender-bibliotheek (fase 2.8a, §4). undefined = projectkalender
+   *  (project.calendarId). Symmetrisch met Resource.calendarId. Bepaalt de kalender waarin de DUUR
+   *  en de constraints van deze taak rekenen (§5). */
+  calendarId?: string;
 }
 
 export function createDefaultTaskTime(

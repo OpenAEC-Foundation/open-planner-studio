@@ -1,4 +1,5 @@
 import { createSnapshot, type Snapshot } from '../snapshot';
+import { syncProjectCalendar } from '../syncProjectCalendar';
 import type { AppSlice } from './types';
 
 export interface HistorySlice {
@@ -21,8 +22,9 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
       s.sequences = snapshot.sequences;
       s.resources = snapshot.resources;
       s.assignments = snapshot.assignments;
-      // Oudere snapshots (van vóór fase 2.2/2.5) kunnen deze velden missen.
-      s.resourceCalendars = snapshot.resourceCalendars ?? s.resourceCalendars;
+      // Oudere snapshots (van vóór fase 2.2/2.5/2.8a) kunnen deze velden missen; `resourceCalendars`
+      // is de pre-2.8a-naam van `calendars` (lees-alias).
+      s.calendars = snapshot.calendars ?? (snapshot as { resourceCalendars?: typeof s.calendars }).resourceCalendars ?? s.calendars;
       s.activityCodeTypes = snapshot.activityCodeTypes ?? s.activityCodeTypes;
       s.customFieldDefs = snapshot.customFieldDefs ?? s.customFieldDefs;
       // Afgeleide resultaten mee terugdraaien (A5) — anders bleef bv. na undo van applyLeveling de
@@ -36,6 +38,7 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
       // die een undo moet kunnen terugzetten (?? zou die null wegslikken).
       s.baselines = snapshot.baselines ?? s.baselines;
       s.activeBaselineId = snapshot.activeBaselineId !== undefined ? snapshot.activeBaselineId : s.activeBaselineId;
+      syncProjectCalendar(s); // §9.1: cache gelijkzetten ná restore.
       s.isDirty = true;
     });
     get().recomputeViewRows();
@@ -50,7 +53,7 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
       s.sequences = snapshot.sequences;
       s.resources = snapshot.resources;
       s.assignments = snapshot.assignments;
-      s.resourceCalendars = snapshot.resourceCalendars ?? s.resourceCalendars;
+      s.calendars = snapshot.calendars ?? (snapshot as { resourceCalendars?: typeof s.calendars }).resourceCalendars ?? s.calendars;
       s.activityCodeTypes = snapshot.activityCodeTypes ?? s.activityCodeTypes;
       s.customFieldDefs = snapshot.customFieldDefs ?? s.customFieldDefs;
       s.cpmResult = snapshot.cpmResult ?? null;
@@ -58,6 +61,7 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
       s.scheduleStale = snapshot.scheduleStale ?? false;
       s.baselines = snapshot.baselines ?? s.baselines;
       s.activeBaselineId = snapshot.activeBaselineId !== undefined ? snapshot.activeBaselineId : s.activeBaselineId;
+      syncProjectCalendar(s); // §9.1: cache gelijkzetten ná restore.
       s.isDirty = true;
     });
     get().recomputeViewRows();

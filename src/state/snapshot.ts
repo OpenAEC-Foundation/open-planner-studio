@@ -16,7 +16,8 @@ export interface Snapshot {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
-  resourceCalendars: WorkCalendar[];
+  /** Gedeelde kalender-bibliotheek (fase 2.8a; hernoemd uit `resourceCalendars`). */
+  calendars: WorkCalendar[];
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   /** Afgeleide CPM-uitkomst — bevat een `Map`, dus NIET JSON-kloonbaar; bewaard per referentie
@@ -40,7 +41,7 @@ export function createSnapshot(state: Snapshot): Snapshot {
     sequences: JSON.parse(JSON.stringify(state.sequences)),
     resources: JSON.parse(JSON.stringify(state.resources)),
     assignments: JSON.parse(JSON.stringify(state.assignments)),
-    resourceCalendars: JSON.parse(JSON.stringify(state.resourceCalendars)),
+    calendars: JSON.parse(JSON.stringify(state.calendars)),
     activityCodeTypes: JSON.parse(JSON.stringify(state.activityCodeTypes)),
     customFieldDefs: JSON.parse(JSON.stringify(state.customFieldDefs)),
     cpmResult: state.cpmResult,

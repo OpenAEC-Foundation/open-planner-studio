@@ -107,6 +107,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
   setCalendar: (calendar) =>
     set((s) => {
       s.calendar = calendar;
+      // Houd de bibliotheek-entry (indien aanwezig) in sync met de gedenormaliseerde cache (§4.1).
+      const idx = s.calendars.findIndex((c) => c.id === calendar.id);
+      if (idx >= 0) s.calendars[idx] = calendar;
       s.isDirty = true;
       s.scheduleStale = true; // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
@@ -136,7 +139,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.sequences = [];
       s.resources = [];
       s.assignments = [];
-      s.resourceCalendars = [];
+      s.calendars = [];
       s.activityCodeTypes = [];
       s.customFieldDefs = [];
       s.selectedTaskIds = [];
@@ -192,7 +195,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.sequences = [];
       s.resources = [];
       s.assignments = [];
-      s.resourceCalendars = [];
+      s.calendars = [];
       s.selectedTaskIds = [];
       s.cpmResult = null;
       s.resourceLoadResult = null;
@@ -222,8 +225,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.sequences = loaded.sequences;
       s.resources = loaded.resources;
       s.assignments = loaded.assignments;
-      // resourceCalendars is nog geen IFC-round-trip-veld (fase 2.5-IFC-stap); default leeg.
-      s.resourceCalendars = loaded.resourceCalendars ?? [];
+      // Kalender-bibliotheek (fase 2.8a; readers leveren nog het veld `resourceCalendars`).
+      s.calendars = loaded.resourceCalendars ?? [];
       s.activityCodeTypes = loaded.activityCodeTypes ?? [];
       s.customFieldDefs = loaded.customFieldDefs ?? [];
       s.selectedTaskIds = [];

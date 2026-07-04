@@ -1,6 +1,5 @@
 import type { Task } from '@/types/task';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import {
   levelResources as computeLeveling,
@@ -45,7 +44,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
   recomputeResourceLoad: () => {
     set((s) => {
       s.resourceLoadResult = computeResourceLoad(
-        s.resources, s.assignments, s.tasks, s.calendar, s.resourceCalendars,
+        s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
     });
   },
@@ -53,10 +52,10 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
   runCPM: () => {
     set((s) => {
       s.scheduleStale = false; // F5/Bereken gedraaid — schema is (voor deze taken/relaties) vers.
-      const calEngine = new CalendarEngine(s.calendar);
-      // Only run CPM on leaf tasks (non-summary)
+      // Per-taak-kalender (fase 2.8a, §5.1): de solver krijgt de projectdefault + de bibliotheek en
+      // bouwt zelf een engine-cache; taken zonder eigen calendarId rekenen in de projectkalender.
       const leafTasks = s.tasks.filter(t => t.childIds.length === 0);
-      const solver = new CPMSolver(leafTasks, s.sequences, calEngine, {
+      const solver = new CPMSolver(leafTasks, s.sequences, s.calendar, s.calendars, {
         dataDate: s.project.statusDate,
         progressMode: s.project.progressMode,
       });
@@ -132,7 +131,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       // Belasting/overallocatie herberekenen ná de CPM-pass + samenvattingstaak-rollup hierboven
       // (de resource-belasting mapt op de zojuist bijgewerkte earlyStart/earlyFinish).
       s.resourceLoadResult = computeResourceLoad(
-        s.resources, s.assignments, s.tasks, s.calendar, s.resourceCalendars,
+        s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
     });
 
@@ -158,7 +157,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
     const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);
     return computeLeveling(
-      leafTasks, s.sequences, s.resources, s.assignments, s.calendar, s.resourceCalendars, cpm, options,
+      leafTasks, s.sequences, s.resources, s.assignments, s.calendar, s.calendars, cpm, options,
     );
   },
 

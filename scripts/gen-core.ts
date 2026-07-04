@@ -10,6 +10,11 @@ import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { createDefaultTaskTime } from '@/types/task';
 import { addBusinessDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
+// `easterSunday` verhuisde naar de gedeelde feestdagen-engine (fase 2.8a, §3.1); één bron voor
+// app én voorbeeld-generator. De NL-feestdagen-set hieronder blijft bewust lokaal: de examples
+// bevatten Bevrijdingsdag ELK jaar (niet lustrum-only) en een vaste bouwvak, precies zoals de
+// bestaande gouden voorbeelden — herbedraden naar generateHolidays zou die byte-identiek breken.
+import { easterSunday } from '@/engine/calendar/holidays';
 import type { Holiday, WorkCalendar } from '@/types/calendar';
 import type { CustomFieldType } from '@/types/structure';
 import topologies from './example-topologies.json';
@@ -19,19 +24,6 @@ import type { ProjectSpec, CalSpec } from './spec';
 const S = () => useAppStore.getState();
 
 // ── Kalender & feestdagen (per jaar berekend) ──────────────────────────────────────────────
-/** Paaszondag (Meeus/Jones/Butcher, Gregoriaans). */
-function easterSunday(y: number): Date {
-  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(Date.UTC(y, month - 1, day));
-}
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86400000);
 const iso = (d: Date) => formatDate(d);
 const oneDay = (name: string, d: Date): Holiday => ({ name, startDate: iso(d), endDate: iso(d) });
@@ -144,7 +136,7 @@ export function build(spec: ProjectSpec): BuildResult {
       const base = buildCalendar(anchor, r.calendar);
       const { id: _id, ...rest } = base;
       void _id;
-      calendarId = S().addResourceCalendar({ ...rest, name: r.calendar.name ?? `${r.name} kalender` });
+      calendarId = S().addCalendar({ ...rest, name: r.calendar.name ?? `${r.name} kalender` });
     }
     const steps = r.steps?.map(s => ({ from: offset(anchor, s.fromDay), maxUnits: s.maxUnits }));
     resIds[r.name] = S().addResource({
@@ -221,7 +213,7 @@ export function build(spec: ProjectSpec): BuildResult {
   const critical = leaves.filter(t => t.time.isCritical).length;
   const ifcContent = writeIFC(
     st.project, st.calendar, st.tasks, st.sequences, st.resources, st.assignments,
-    st.activityCodeTypes, st.customFieldDefs, st.resourceCalendars,
+    st.activityCodeTypes, st.customFieldDefs, st.calendars,
   );
   return {
     ifc: ifcContent,

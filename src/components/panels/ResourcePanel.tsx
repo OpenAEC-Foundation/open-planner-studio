@@ -32,14 +32,14 @@ const cellInput = 'input !text-[11px] !px-1.5 !py-1 w-full';
 export function ResourcePanel() {
   const { t, i18n } = useTranslation('common');
   const resources = useAppStore(s => s.resources);
-  const resourceCalendars = useAppStore(s => s.resourceCalendars);
+  const resourceCalendars = useAppStore(s => s.calendars);
   const assignments = useAppStore(s => s.assignments);
   const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
   const hoursPerDay = useAppStore(s => s.calendar.hoursPerDay);
   const addResource = useAppStore(s => s.addResource);
   const updateResource = useAppStore(s => s.updateResource);
   const removeResource = useAppStore(s => s.removeResource);
-  const addResourceCalendar = useAppStore(s => s.addResourceCalendar);
+  const addCalendar = useAppStore(s => s.addCalendar);
   const setUI = useAppStore(s => s.setUI);
 
   // Kalender-editor: null = dicht, string = bewerk die id.
@@ -95,7 +95,7 @@ export function ResourcePanel() {
   const createAndEditCalendar = (resourceId: string) => {
     const { id: _drop, ...base } = createDefaultCalendar();
     void _drop;
-    const id = addResourceCalendar({ ...base, name: t('resource.calendarDialog.title') });
+    const id = addCalendar({ ...base, name: t('resource.calendarDialog.title') });
     updateResource(resourceId, { calendarId: id });
     setCalDialog(id);
   };

@@ -112,7 +112,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.sequences = parsed.sequences;
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
-        s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
         s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
         s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
@@ -148,7 +148,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const content = writeIFC(
       state.project, state.calendar, state.tasks,
       state.sequences, state.resources, state.assignments,
-      state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
+      state.activityCodeTypes, state.customFieldDefs, state.calendars,
       state.baselines, state.activeBaselineId,
     );
 
@@ -181,7 +181,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const content = writeIFC(
       state.project, state.calendar, state.tasks,
       state.sequences, state.resources, state.assignments,
-      state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
+      state.activityCodeTypes, state.customFieldDefs, state.calendars,
       state.baselines, state.activeBaselineId,
     );
 
@@ -222,7 +222,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       case 'mspdi':
         content = writeMSPDI(
           state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments, state.resourceCalendars,
+          state.sequences, state.resources, state.assignments, state.calendars,
         );
         ext = 'xml';
         filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -230,7 +230,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       case 'p6':
         content = writeP6XML(
           state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments, state.resourceCalendars,
+          state.sequences, state.resources, state.assignments, state.calendars,
         );
         ext = 'xml';
         filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -240,7 +240,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         content = writeIFC(
           state.project, state.calendar, state.tasks,
           state.sequences, state.resources, state.assignments,
-          state.activityCodeTypes, state.customFieldDefs, state.resourceCalendars,
+          state.activityCodeTypes, state.customFieldDefs, state.calendars,
           state.baselines, state.activeBaselineId,
         );
         ext = 'ifc';
@@ -286,7 +286,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.sequences = parsed.sequences;
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
-        s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
         s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
         s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
@@ -326,7 +326,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.sequences = parsed.sequences;
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
-        s.resourceCalendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
         s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
         s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;

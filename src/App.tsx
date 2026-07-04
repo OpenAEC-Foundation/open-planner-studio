@@ -243,7 +243,7 @@ function AppContent() {
           const content = writeIFC(
             payload.project, payload.calendar, payload.tasks,
             payload.sequences, payload.resources, payload.assignments,
-            payload.activityCodeTypes, payload.customFieldDefs, payload.resourceCalendars,
+            payload.activityCodeTypes, payload.customFieldDefs, payload.calendars,
             payload.baselines, payload.activeBaselineId,
           );
           await writeTextFile(await join(dir, recoveryIfcName(id)), content);

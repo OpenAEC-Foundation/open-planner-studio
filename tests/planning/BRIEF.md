@@ -28,6 +28,15 @@ dát zijn de kandidaat-bevindingen. Wees streng en correct volgens de theorie.
   **Kritiek** = tf 0.
 - **Vrije speling (ff):** aantal werkdagen dat een taak kan opschuiven zonder de vroegste start van zijn
   **eerstvolgende opvolger** te verlaten. Altijd geldt **ff ≤ tf**.
+- **Per-taak-kalender (fase 2.8a):** elke taak rekent zijn **duur, constraints én float** in zíjn eigen
+  kalender (`tasks[].calendar` → een naam uit `Case.calendars`; ontbreekt = projectkalender). De
+  **relatie-lag telt in de kalender van de VOORGANGER** (`LAG_CALENDAR = 'predecessor'`, P6-default): een
+  FS+2 vanuit een ma-vr-voorganger stapt de 2 lag-dagen over ma-vr, óók als de opvolger 7-daags is. De
+  **FS-gap** (opvolger start de werkdag ná de voorganger-finish) rekent eveneens in de **voorganger**-
+  kalender; de **succBack-aftrek** (finish→start van de opvolger) en de **successor-start-snap** in de
+  **opvolger**-kalender. `ELAPSEDTIME`-lag blijft 24/7 (kalender-onafhankelijk). De backward-pass spiegelt
+  dit exact (lag terug in voorganger-kalender, FS-gap-spiegel in voorganger-kalender, duur-aftrek in de
+  taak-eigen kalender) — zo tellen forward en backward hetzelfde raster en is float symmetrisch.
 
 ## Werkdag-tabel (schone kalender, vanaf het anker — gebruik dit om datums op te zoeken)
 wd1 2026-06-01 ma · wd2 06-02 di · wd3 06-03 wo · wd4 06-04 do · wd5 06-05 vr

@@ -1,3 +1,6 @@
+import type { HolidayCountry } from '@/engine/calendar/holidays';
+import { generateHolidays, NL_SET } from '@/engine/calendar/holidays';
+
 export interface WorkCalendar {
   id: string;
   name: string;
@@ -6,7 +9,22 @@ export interface WorkCalendar {
   workStartHour: number; // e.g., 7
   workEndHour: number;   // e.g., 16
   hoursPerDay: number;   // net working hours (e.g., 8)
-  holidays: Holiday[];
+  holidays: Holiday[];   // GEMATERIALISEERDE exception-ranges (bron van waarheid voor de engine)
+  /** OPTIONEEL — generatie-herkomst (fase 2.8a). Aanwezig ⇒ de feestdagen in `holidays` zijn door de
+   *  engine gegenereerd en kunnen opnieuw worden gematerialiseerd bij projectperiode-wijziging.
+   *  Afwezig ⇒ letterlijke/handmatige kalender (bestaande bestanden); nooit stil hergenereren. */
+  generation?: CalendarGeneration;
+}
+
+/** Herkomst-metadata van een gegenereerde kalender (§2.1). Puur informatief — solver/renderer/IFC
+ *  lezen alleen `holidays`. */
+export interface CalendarGeneration {
+  ruleSetId: HolidayCountry;                 // welke landenset de datums voortbracht
+  region?: string;                           // Bundesland/landsdeel/kanton; undefined = landelijk
+  breakChoice?: 'noord' | 'midden' | 'zuid'; // NL-bouwvak; undefined = geen (default)
+  winterStop?: boolean;                      // vaste collectieve winterstop meegenomen
+  generatedFromYear: number;                 // gematerialiseerde spanne (incl.)
+  generatedToYear: number;
 }
 
 export interface Holiday {
@@ -15,7 +33,14 @@ export interface Holiday {
   endDate: string;   // ISO 8601 date
 }
 
-export function createDefaultCalendar(): WorkCalendar {
+/**
+ * Standaard bouwkalender (NL, ma-vr). Jaar-onafhankelijk (fase 2.8a, §3.4): de feestdagen worden
+ * regelgebaseerd gegenereerd voor `anchorYear-1 t/m anchorYear+2` — GEEN bouwvak (harde eis), MÉT
+ * Kerst (die de oude hardgecodeerde 2026-lijst miste).
+ */
+export function createDefaultCalendar(anchorYear: number = new Date().getFullYear()): WorkCalendar {
+  const from = anchorYear - 1;
+  const to = anchorYear + 2;
   return {
     id: 'cal-default',
     name: 'Bouwkalender NL',
@@ -24,15 +49,7 @@ export function createDefaultCalendar(): WorkCalendar {
     workStartHour: 7,
     workEndHour: 16,
     hoursPerDay: 8,
-    holidays: [
-      { name: 'Nieuwjaar', startDate: '2026-01-01', endDate: '2026-01-01' },
-      { name: 'Goede Vrijdag', startDate: '2026-04-03', endDate: '2026-04-03' },
-      { name: 'Pasen', startDate: '2026-04-05', endDate: '2026-04-06' },
-      { name: 'Koningsdag', startDate: '2026-04-27', endDate: '2026-04-27' },
-      { name: 'Bevrijdingsdag', startDate: '2026-05-05', endDate: '2026-05-05' },
-      { name: 'Hemelvaart', startDate: '2026-05-14', endDate: '2026-05-15' },
-      { name: 'Pinksteren', startDate: '2026-05-24', endDate: '2026-05-25' },
-      { name: 'Bouwvak (regio Noord)', startDate: '2026-07-20', endDate: '2026-08-07' },
-    ],
+    holidays: generateHolidays(NL_SET, undefined, from, to),
+    generation: { ruleSetId: 'NL', generatedFromYear: from, generatedToYear: to },
   };
 }

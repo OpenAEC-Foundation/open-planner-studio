@@ -23,8 +23,26 @@ OUT="$DIR/.harness.mjs"
 if [ "$#" -gt 0 ]; then
   FILES=()
   for f in "$@"; do FILES+=("$DIR/$f"); done
+  RUN_HOLIDAYS=0
 else
   FILES=("$DIR"/cases-*.json)
+  RUN_HOLIDAYS=1   # volledige run: ook de holiday-generator-checks (fase 2.8a, §10.2)
 fi
 
-node "$OUT" "${FILES[@]}"
+STATUS=0
+
+# Holiday-generator-checks (feestdagen-engine, los van de CPM-cases).
+if [ "$RUN_HOLIDAYS" -eq 1 ]; then
+  CHECK="$DIR/.holidays-check.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-holidays.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$CHECK" >/dev/null 2>&1
+  node "$CHECK" || STATUS=1
+fi
+
+node "$OUT" "${FILES[@]}" || STATUS=1
+exit "$STATUS"

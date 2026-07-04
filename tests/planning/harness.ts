@@ -98,6 +98,8 @@ type ExpectRow =
 interface Case {
   id: string; title: string;
   calendar?: Cal; anchor?: string;
+  /** Benoemde bibliotheek-kalenders (fase 2.8a, §10.1): taken verwijzen ernaar via tasks[].calendar. */
+  calendars?: { name: string; workDays?: number[]; holidays?: Cal['holidays'] }[];
   resources?: CaseResource[];
   /** Activity-code-types + waarden (fase 2.7 view-cases). */
   codes?: { name: string; values: { code: string; description?: string }[] }[];
@@ -115,6 +117,8 @@ interface Case {
     name: string; dur?: number; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
     mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string;
     priority?: number;
+    /** Naam van een bibliotheek-kalender uit Case.calendars (fase 2.8a). undefined = projectkalender. */
+    calendar?: string;
     assign?: { res: string; units: number; curve?: ResourceCurve }[];
     // Voortgang (fase 2.6): completion via de store-actie (dwingt de invarianten af);
     // actualStart/actualFinish via de dedicated acties; rawCompletion zet time.completion
@@ -185,6 +189,20 @@ function buildAndSolve(c: Case): {
   const anchor = c.anchor ?? '2026-06-01';
   S().setProject({ startDate: anchor });
 
+  // Benoemde bibliotheek-kalenders (fase 2.8a, §10.1) — vóór de taken zodat setTaskCalendar kan verwijzen.
+  const calByName: Record<string, string> = {};
+  for (const cal of c.calendars ?? []) {
+    if (calByName[cal.name]) throw new Error(`dubbele kalendernaam "${cal.name}"`);
+    const { id: _cid, ...calBase } = S().calendar;
+    void _cid;
+    calByName[cal.name] = S().addCalendar({
+      ...calBase,
+      name: cal.name,
+      workDays: cal.workDays ?? CLEAN_WORKDAYS,
+      holidays: cal.holidays ?? [],
+    });
+  }
+
   // Resources (fase 2.5) — vóór de taken irrelevant qua volgorde, maar vóór assign[] nodig.
   const resIds: Record<string, string> = {};
   for (const r of c.resources ?? []) {
@@ -196,7 +214,7 @@ function buildAndSolve(c: Case): {
     if (r.calendar) {
       const { id: _calBaseId, ...calBase } = S().calendar;
       void _calBaseId;
-      calendarId = S().addResourceCalendar({
+      calendarId = S().addCalendar({
         ...calBase,
         name: `${r.name} kalender`,
         workDays: r.calendar.workDays ?? CLEAN_WORKDAYS,
@@ -257,6 +275,11 @@ function buildAndSolve(c: Case): {
       ...(t.deadline ? { deadline: t.deadline } : {}),
     });
     ids[t.name] = id;
+    if (t.calendar !== undefined) {
+      const calId = calByName[t.calendar];
+      if (!calId) throw new Error(`taak "${t.name}": onbekende kalender "${t.calendar}" (niet in Case.calendars)`);
+      S().setTaskCalendar(id, calId);
+    }
   }
   for (const l of c.links ?? []) {
     if (!ids[l.pred]) throw new Error(`relatie: onbekende voorganger "${l.pred}"`);

@@ -14,7 +14,7 @@ export function IFCPanel() {
   const assignments = useAppStore(s => s.assignments);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
-  const resourceCalendars = useAppStore(s => s.resourceCalendars);
+  const resourceCalendars = useAppStore(s => s.calendars);
   const loadState = useAppStore(s => s.loadState);
   const setViewStartDate = useAppStore(s => s.setViewStartDate);
   const runCPM = useAppStore(s => s.runCPM);
