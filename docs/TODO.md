@@ -68,6 +68,41 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
          --channels stable -` en voeg de output toe als GitHub-repo-secret
          `SNAPCRAFT_STORE_CREDENTIALS`.
 
+### Kwaliteit & verificatie
+
+- [ ] **Driedubbele eindverificatie van fase 2 (uitgesteld op 2026-07-04).** Na afronding van
+  fase 2.5 was een uiterst grondige verificatie gepland maar die is doorgeschoven; uitvoeren
+  zodra fase 2 verder gevorderd is (bv. na 2.7 of als afsluiter samen met §2.10). De volledige
+  werkwijze ligt klaar als workflow-script:
+  [`docs/superpowers/workflows/triple-verify.js`](superpowers/workflows/triple-verify.js)
+  (vóór gebruik `ROOT`/`TMP` en de prompts actualiseren — zie de kopcommentaar).
+
+  **Werkwijze in het kort — per onderdeel 1 Opus + 2 Sonnet die exact hetzelfde doen, plus een
+  Opus-rechter:**
+  1. *Onderdelen.* De app wordt opgeknipt in 8 gebieden die samen alles dekken: CPM-kern &
+     kalenders, resource-belasting & curves, nivellering & smoothing, state-management &
+     documenten, IFC-round-trip, P6/MSPDI/CSV-adapters, UI in de browser, en voorbeelden &
+     generator. Bij uitvoering ná 2.6/2.7 uitbreiden met die featuresets (baselines/voortgang
+     resp. weergaven) — de prompts in het script per gebied bijwerken.
+  2. *Drie onafhankelijke controleurs per onderdeel* (1× Opus, 2× Sonnet) krijgen een
+     **identieke**, zeer gedetailleerde audit-opdracht: alles checken wat met dat onderdeel te
+     maken heeft. Harde regels: strikt read-only in de repo, eigen tmp-map per agent,
+     verwachtingen éérst met de hand uitrekenen en dan pas headless probes draaien tegen de
+     echte store/solver (esbuild-patroon van `tests/planning/run.sh`), suite + `tsc` draaien;
+     het UI-onderdeel gebruikt een al draaiende dev-server + eigen playwright-core-instantie
+     met screenshots als bewijs. "Alles OK" mag alleen na aantoonbaar uitgevoerde checks.
+  3. *Gestructureerde rapporten.* Elke controleur levert via een afgedwongen schema: verdict
+     (OK/ISSUES_FOUND), de volledige lijst daadwerkelijk uitgevoerde checks, en bevindingen
+     met ernst (BLOKKEREND/HOOG/MIDDEL/LAAG), faalscenario + bestand:regel en bewijs.
+  4. *Per onderdeel een Opus-rechter* die de drie rapporten adversarieel weegt: elke bevinding
+     zélf verifiëren in de code of met een eigen probe vóór bevestiging (een bevinding die maar
+     één van de drie zag is verdacht maar kan juist de echte zijn), tegenspraken zelf
+     beslechten, OK-verdicts toetsen op dekking van de opdracht en de belangrijkste ontbrekende
+     check zelf alsnog doen, en bevindingen zonder reproduceerbaar bewijs verwerpen. Output:
+     bevestigd/verworpen/dekkingsgaten + één eindoordeel-zin per onderdeel.
+  5. *Afronding.* Bevestigde bevindingen gewogen per ernst rapporteren; fixes zijn een aparte
+     vervolgronde (zelfde fix-golf-aanpak als na de fase-2.5-reviews).
+
 ### Fase 2 — Professionele Planning (v0.5)
 
 > §2.1 Volledige dependencies is afgerond (lag-eenheid, procent-lag, leads, driving-markering,
