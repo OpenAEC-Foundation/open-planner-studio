@@ -138,15 +138,16 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > resource-kalenders zijn nu informatief (registry), nog niet hard afgedwongen in
 > de scheduling; kostenkoppeling van resources hoort bij fase 3.5.
 
-#### 2.6 Baselines & voortgang
-- [ ] Baseline opslaan (snapshot van huidige planning)
-- [ ] Meerdere baselines (onbeperkt)
-- [ ] Baseline vergelijking (visueel overlay in Gantt)
-- [ ] Baseline-variance rapport
-- [ ] Statusdatum instellen
-- [ ] Voortgangslijnen in Gantt
-- [ ] Out-of-sequence progress detectie
-- [ ] Progress override opties (Retained Logic / Progress Override)
+> §2.6 Baselines & voortgang is afgerond (statusdatum-gestuurde CPM met
+> actual-pinning en data-date-vloer, voortgangsregistratie met afgedwongen
+> invarianten, Retained Logic/Progress Override, out-of-sequence-detectie,
+> onbeperkte benoemde baselines met precies één actieve, baseline-overlay +
+> statusdatumlijn + voortgangslijn in de Gantt, variance-rapport als derde
+> rapporttype, IFC/MSPDI/P6/CSV-round-trip) — zie changelog en
+> [ontwerp](superpowers/specs/2026-07-04-baselines-voortgang-design.md). Bewust
+> later: meerdere voortgangslijnen/statuslijnen, MSPDI-baselineslots 1-10,
+> P6-baseline-round-trip, per-relatie out-of-sequence-override; physical-%/
+> work-% als aparte dimensie hoort bij fase 3.5.
 
 #### 2.7 Weergaven
 - [ ] Extra tijdschalen: uur en jaar als directe keuze (kwartaal bestaat al)

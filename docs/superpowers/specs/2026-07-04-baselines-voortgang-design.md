@@ -1,6 +1,6 @@
 # Ontwerp: Fase 2.6 — Baselines & voortgang
 
-*Status: **ontwerp, architect-review verwerkt (2026-07-04)** — kernbeslissingen vastliggend; de
+*Status: **geïmplementeerd (2026-07-04)** — kernbeslissingen vastliggend; de
 review corrigeerde §2.1/§5.1/§6.2 (baseline snapshot de **early**-datums, niet schedule), voegde het
 solver-vangnet voor rauwe completion toe (§3.2/§4.2 tak 2b), §4.5 (float/kritiek bij voortgang), de
 `activeBaselineId`-undo-guard (§10.1) en besliste de open punten (gemarkeerd **BESLIST**). Resterende

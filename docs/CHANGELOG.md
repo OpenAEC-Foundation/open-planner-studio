@@ -7,6 +7,51 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Toegevoegd
+- **Baselines & voortgang (fase 2.6)** — statusdatum-gestuurde CPM, echte
+  voortgangsregistratie en onbeperkte baselines (ontwerp:
+  `docs/superpowers/specs/2026-07-04-baselines-voortgang-design.md`):
+  - **Statusdatum** (P6 *data date*) op het project: stuurt de CPM-forward-pass —
+    voltooide taken worden op hun actuals vastgeklonken, gestarte-niet-voltooide
+    taken plaatsen hun resterende werk vanaf de statusdatum, en niet-gestarte taken
+    kunnen niet vóór de statusdatum starten. Geen statusdatum gezet ⇒ het gedrag is
+    byte-voor-byte gelijk aan vóór 2.6.
+  - **Echte voortgangsregistratie**: percentage-voltooid, werkelijke start en
+    werkelijke einde (de tot dusver dode `TaskTime`-velden) met afgedwongen
+    invarianten (een werkelijk einde impliceert 100 %, 100 % impliceert een
+    werkelijk einde, invullen van een percentage zet automatisch een werkelijke
+    start, actuals mogen nooit ná de statusdatum liggen). `remainingTime` is altijd
+    afgeleid uit het percentage.
+  - **Retained Logic / Progress Override** als projectbrede voortgangsmodus: bepaalt
+    hoe het resterende werk van een taak die vóór zijn voorganger is afgerond
+    zich verhoudt tot de netwerklogica.
+  - **Out-of-sequence-detectie**: taken die voortgang tonen terwijl hun voorganger-
+    relatie (FS/SS/FF/SF) dat logisch tegenspreekt, worden gemarkeerd en gemeld als
+    waarschuwing — blokkeert niets, volgt de gekozen voortgangsmodus.
+  - **Onbeperkte, benoemde baselines** (P6-stijl snapshots) met precies één actieve;
+    beheer via een baseline-dialoog (opslaan/hernoemen/verwijderen/activeren) in de
+    Planning-tab.
+  - **In de Gantt**: een statusdatumlijn, een baseline-overlay (dunne onderbalk per
+    taak tegen de vastgelegde baselinedatums) en een voortgangslijn (MSP-zigzag die
+    per rij naar de voortgangspositie uitstulpt) — alle drie los in-/uit te
+    schakelen.
+  - **Variance-rapport** als derde rapporttype in het Rapport-paneel: baseline- vs.
+    huidige start/einde per taak, delta in werkdagen, status (op schema/later/
+    eerder/nieuw/vervallen) en een projecteinde-samenvatting.
+  - Round-trip door **IFC 4.3** (actuals in de al bestaande maar tot dusver
+    ongebruikte `IfcTaskTime`-slots 14-18 — spec-conform; statusdatum/
+    voortgangsmodus in `OPS_ProjectSettings`; baselines dubbelspoor via een
+    verliesloze `OPS_Baselines`-JSON plus `.BASELINE.`-scheduleheaders voor
+    interop), **MSPDI** (volwaardig: Baseline0, `<StatusDate>`, actuals), **P6-XML**
+    (best-effort: actuals + data date; P6-baselines zijn een gedocumenteerd
+    verlies) en **CSV** (nieuwe actual-start/-einde-kolommen, bewust zonder
+    baselines/statusdatum). Gouden regel bewaard: bestanden zonder 2.6-data
+    round-trippen bit-identiek.
+  - Volledig vertaald in alle 14 talen; de CPM-regressiesuite groeide van 240 naar
+    **256 handberekende cases**, alle bestaande cases ongewijzigd groen.
+  - **Bewuste beperkingen**: geen kosten/werk/Earned Value (SPI/CPI/BCWP) — dat is
+    fase 3.5; P6-baselines worden niet geëxporteerd (best-effort, gedocumenteerd
+    verlies); het instellen van statusdatum/voortgangsmodus is niet undo-baar
+    (zelfde precedent als de projectkalender — undo via leegmaken + herberekenen).
 - **Voorbeeldprojecten in Backstage** — een nieuwe sectie **Bestand → Voorbeelden**
   ontsluit de meegeleverde voorbeeldplanningen (kaartjes met naam, omschrijving en
   tags). Klikken opent het voorbeeld in een nieuw tabblad (geen bronbestand, dus
