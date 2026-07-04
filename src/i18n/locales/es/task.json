@@ -90,6 +90,8 @@
       "disabledMilestone": "No es posible asignar en hitos.",
       "disabledSummary": "No es posible asignar en tareas de resumen."
     },
+    "calendar": "Calendario",
+    "calendarProject": "Calendario del proyecto",
     "priority": "Prioridad de nivelación",
     "levelingDelay": "Retraso de nivelación"
   },

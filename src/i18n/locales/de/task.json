@@ -90,6 +90,8 @@
       "disabledMilestone": "Zuweisungen sind bei Meilensteinen nicht möglich.",
       "disabledSummary": "Zuweisungen sind bei Sammelaufgaben nicht möglich."
     },
+    "calendar": "Kalender",
+    "calendarProject": "Projektkalender",
     "priority": "Abgleich-Priorität",
     "levelingDelay": "Abgleich-Verzögerung"
   },

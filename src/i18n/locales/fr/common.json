@@ -283,6 +283,48 @@
       "latePeak": "Pic tardif"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "Calendriers",
+      "project": "Calendrier du projet",
+      "new": "Nouveau calendrier",
+      "duplicate": "Dupliquer",
+      "setDefault": "Définir comme calendrier par défaut du projet"
+    },
+    "generate": {
+      "button": "Générer les jours fériés…",
+      "country": "Pays",
+      "region": "Région",
+      "regionNone": "National",
+      "bouwvakLabel": "Congés du bâtiment",
+      "bouwvak": {
+        "none": "Aucun",
+        "noord": "Nord",
+        "midden": "Centre",
+        "zuid": "Sud"
+      },
+      "winterStop": "Arrêt hivernal fixe",
+      "winterHint": "Arrêt fixe ; les jours de gel réels viendront plus tard des données météo",
+      "preview": "{{n}} jours fériés, {{from}}–{{to}}",
+      "bouwvakHint": "Dates indicatives — à vérifier auprès de Bouwend Nederland",
+      "apply": "Générer",
+      "cancel": "Annuler"
+    },
+    "regen": {
+      "hint": "Les jours fériés couvrent {{from}}–{{to}} ; le projet va jusqu'à {{year}}. Régénérer ?",
+      "button": "Régénérer"
+    },
+    "countryName": {
+      "NL": "Pays-Bas",
+      "DE": "Allemagne",
+      "BE": "Belgique",
+      "FR": "France",
+      "UK": "Royaume-Uni",
+      "AT": "Autriche",
+      "CH": "Suisse",
+      "none": "Aucun jour férié"
+    }
+  },
   "view": {
     "structureLockedHint": "Non disponible pendant le filtrage/regroupement/tri",
     "columns": {

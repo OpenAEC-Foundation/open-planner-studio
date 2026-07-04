@@ -283,6 +283,48 @@
       "latePeak": "Pico tardío"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "Calendarios",
+      "project": "Calendario del proyecto",
+      "new": "Nuevo calendario",
+      "duplicate": "Duplicar",
+      "setDefault": "Establecer como predeterminado del proyecto"
+    },
+    "generate": {
+      "button": "Generar festivos…",
+      "country": "País",
+      "region": "Región",
+      "regionNone": "Nacional",
+      "bouwvakLabel": "Vacaciones de construcción",
+      "bouwvak": {
+        "none": "Ninguna",
+        "noord": "Norte",
+        "midden": "Centro",
+        "zuid": "Sur"
+      },
+      "winterStop": "Cierre de invierno fijo",
+      "winterHint": "Cierre fijo; los días reales de helada llegarán después según datos meteorológicos",
+      "preview": "{{n}} festivos, {{from}}–{{to}}",
+      "bouwvakHint": "Fechas orientativas — verificar con Bouwend Nederland",
+      "apply": "Generar",
+      "cancel": "Cancelar"
+    },
+    "regen": {
+      "hint": "Los festivos cubren {{from}}–{{to}}; el proyecto llega hasta {{year}}. ¿Regenerar?",
+      "button": "Regenerar"
+    },
+    "countryName": {
+      "NL": "Países Bajos",
+      "DE": "Alemania",
+      "BE": "Bélgica",
+      "FR": "Francia",
+      "UK": "Reino Unido",
+      "AT": "Austria",
+      "CH": "Suiza",
+      "none": "Sin festivos"
+    }
+  },
   "view": {
     "structureLockedHint": "No disponible mientras se filtra/agrupa/ordena",
     "columns": {

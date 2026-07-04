@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "Nowy projekt",
-    "calendar": "Kalendarz",
     "template": "Szablon faz",
-    "calNlBouw": "Kalendarz budowlany NL (z urlopem budowlanym)",
-    "calNlFeest": "Święta NL (bez urlopu budowlanego)",
-    "calGeen": "5 dni, bez świąt",
     "tmplEmpty": "Pusty",
     "tmplWoningbouw": "Budownictwo mieszkaniowe",
     "tmplUtiliteit": "Budownictwo użytkowe / remont"
@@ -283,5 +279,12 @@
     "import": "Importuj",
     "importSubtitle": "Importuj dane projektu za pomocą zainstalowanych rozszerzeń.",
     "importEmpty": "Brak rozszerzeń importu. Dodaj je w sekcji Rozszerzenia."
+  },
+  "wizard": {
+    "calendar": {
+      "country": "Zestaw świąt",
+      "custom": "Niestandardowy…",
+      "none": "Bez świąt"
+    }
   }
 }

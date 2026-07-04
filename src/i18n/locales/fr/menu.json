@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "Nouveau projet",
-    "calendar": "Calendrier",
     "template": "Modèle de phasage",
-    "calNlBouw": "Calendrier construction NL (avec congés du bâtiment)",
-    "calNlFeest": "Jours fériés NL (sans congés du bâtiment)",
-    "calGeen": "5 jours, sans jours fériés",
     "tmplEmpty": "Vide",
     "tmplWoningbouw": "Construction résidentielle",
     "tmplUtiliteit": "Tertiaire / rénovation"
@@ -283,5 +279,12 @@
     "import": "Importer",
     "importSubtitle": "Importez des données de projet via les extensions installées.",
     "importEmpty": "Aucune extension d'import installée. Ajoutez-en une via Extensions."
+  },
+  "wizard": {
+    "calendar": {
+      "country": "Jeu de jours fériés",
+      "custom": "Personnalisé…",
+      "none": "Aucun jour férié"
+    }
   }
 }

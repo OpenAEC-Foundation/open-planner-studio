@@ -90,6 +90,8 @@
       "disabledMilestone": "Kilometre taşlarında atama yapılamaz.",
       "disabledSummary": "Özet görevlerde atama yapılamaz."
     },
+    "calendar": "Takvim",
+    "calendarProject": "Proje takvimi",
     "priority": "Dengeleme önceliği",
     "levelingDelay": "Dengeleme gecikmesi"
   },

@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "Yeni proje",
-    "calendar": "Takvim",
     "template": "Faz şablonu",
-    "calNlBouw": "NL inşaat takvimi (inşaat tatili dahil)",
-    "calNlFeest": "NL resmi tatilleri (inşaat tatili hariç)",
-    "calGeen": "5 gün, tatilsiz",
     "tmplEmpty": "Boş",
     "tmplWoningbouw": "Konut inşaatı",
     "tmplUtiliteit": "Ticari yapı / yenileme"
@@ -283,5 +279,12 @@
     "import": "İçe aktar",
     "importSubtitle": "Yüklü uzantılar aracılığıyla proje verilerini içe aktarın.",
     "importEmpty": "İçe aktarma uzantısı yüklü değil. Uzantılar bölümünden ekleyin."
+  },
+  "wizard": {
+    "calendar": {
+      "country": "Tatil seti",
+      "custom": "Özel…",
+      "none": "Tatil yok"
+    }
   }
 }

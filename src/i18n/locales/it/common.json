@@ -283,6 +283,48 @@
       "latePeak": "Picco tardivo"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "Calendari",
+      "project": "Calendario del progetto",
+      "new": "Nuovo calendario",
+      "duplicate": "Duplica",
+      "setDefault": "Imposta come predefinito del progetto"
+    },
+    "generate": {
+      "button": "Genera festività…",
+      "country": "Paese",
+      "region": "Regione",
+      "regionNone": "Nazionale",
+      "bouwvakLabel": "Ferie edili",
+      "bouwvak": {
+        "none": "Nessuna",
+        "noord": "Nord",
+        "midden": "Centro",
+        "zuid": "Sud"
+      },
+      "winterStop": "Fermo invernale fisso",
+      "winterHint": "Fermo fisso; i giorni di gelo effettivi arriveranno in seguito dai dati meteo",
+      "preview": "{{n}} festività, {{from}}–{{to}}",
+      "bouwvakHint": "Date indicative — verificare con Bouwend Nederland",
+      "apply": "Genera",
+      "cancel": "Annulla"
+    },
+    "regen": {
+      "hint": "Le festività coprono {{from}}–{{to}}; il progetto arriva fino al {{year}}. Rigenerare?",
+      "button": "Rigenera"
+    },
+    "countryName": {
+      "NL": "Paesi Bassi",
+      "DE": "Germania",
+      "BE": "Belgio",
+      "FR": "Francia",
+      "UK": "Regno Unito",
+      "AT": "Austria",
+      "CH": "Svizzera",
+      "none": "Nessuna festività"
+    }
+  },
   "view": {
     "structureLockedHint": "Non disponibile durante filtro/raggruppamento/ordinamento",
     "columns": {

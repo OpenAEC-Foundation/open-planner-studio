@@ -283,6 +283,48 @@
       "latePeak": "後期ピーク"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "カレンダー",
+      "project": "プロジェクトカレンダー",
+      "new": "新規カレンダー",
+      "duplicate": "複製",
+      "setDefault": "プロジェクトの既定に設定"
+    },
+    "generate": {
+      "button": "祝日を生成…",
+      "country": "国",
+      "region": "地域",
+      "regionNone": "全国",
+      "bouwvakLabel": "建設業休暇",
+      "bouwvak": {
+        "none": "なし",
+        "noord": "北部",
+        "midden": "中部",
+        "zuid": "南部"
+      },
+      "winterStop": "固定冬季休業",
+      "winterHint": "固定の休業期間。実際の凍結日は後で気象データから決定されます",
+      "preview": "{{n}} 件の祝日、{{from}}〜{{to}}",
+      "bouwvakHint": "目安の日付です — Bouwend Nederlandで確認してください",
+      "apply": "生成",
+      "cancel": "キャンセル"
+    },
+    "regen": {
+      "hint": "祝日は{{from}}〜{{to}}をカバーしています。プロジェクトは{{year}}まで続きます。再生成しますか？",
+      "button": "再生成"
+    },
+    "countryName": {
+      "NL": "オランダ",
+      "DE": "ドイツ",
+      "BE": "ベルギー",
+      "FR": "フランス",
+      "UK": "イギリス",
+      "AT": "オーストリア",
+      "CH": "スイス",
+      "none": "祝日なし"
+    }
+  },
   "view": {
     "structureLockedHint": "フィルター/グループ化/並べ替え中は使用できません",
     "columns": {

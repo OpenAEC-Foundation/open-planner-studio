@@ -90,6 +90,8 @@
       "disabledMilestone": "Les affectations ne sont pas possibles sur les jalons.",
       "disabledSummary": "Les affectations ne sont pas possibles sur les tâches récapitulatives."
     },
+    "calendar": "Calendrier",
+    "calendarProject": "Calendrier du projet",
     "priority": "Priorité de nivellement",
     "levelingDelay": "Retard de nivellement"
   },

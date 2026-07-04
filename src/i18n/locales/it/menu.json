@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "Nuovo progetto",
-    "calendar": "Calendario",
     "template": "Modello di fasi",
-    "calNlBouw": "Calendario edile NL (con ferie edili)",
-    "calNlFeest": "Festività NL (senza ferie edili)",
-    "calGeen": "5 giorni, senza festività",
     "tmplEmpty": "Vuoto",
     "tmplWoningbouw": "Edilizia residenziale",
     "tmplUtiliteit": "Edilizia non residenziale / ristrutturazione"
@@ -283,5 +279,12 @@
     "import": "Importa",
     "importSubtitle": "Importa dati di progetto tramite le estensioni installate.",
     "importEmpty": "Nessuna estensione di importazione installata. Aggiungine una tramite Estensioni."
+  },
+  "wizard": {
+    "calendar": {
+      "country": "Set di festività",
+      "custom": "Personalizzato…",
+      "none": "Nessuna festività"
+    }
   }
 }

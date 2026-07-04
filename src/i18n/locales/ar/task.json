@@ -90,6 +90,8 @@
       "disabledMilestone": "لا يمكن التخصيص على المعالم.",
       "disabledSummary": "لا يمكن التخصيص على المهام الموجزة."
     },
+    "calendar": "التقويم",
+    "calendarProject": "تقويم المشروع",
     "priority": "أولوية الموازنة",
     "levelingDelay": "تأخير الموازنة"
   },

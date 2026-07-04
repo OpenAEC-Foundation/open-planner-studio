@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "Neues Projekt",
-    "calendar": "Kalender",
     "template": "Phasen-Vorlage",
-    "calNlBouw": "NL-Baukalender (inkl. Bauferien)",
-    "calNlFeest": "NL-Feiertage (ohne Bauferien)",
-    "calGeen": "5-Tage, ohne Feiertage",
     "tmplEmpty": "Leer",
     "tmplWoningbouw": "Wohnungsbau",
     "tmplUtiliteit": "Gewerbebau / Sanierung"
@@ -283,5 +279,12 @@
     "import": "Importieren",
     "importSubtitle": "Projektdaten über installierte Erweiterungen importieren.",
     "importEmpty": "Keine Import-Erweiterungen installiert. Fügen Sie eine über Erweiterungen hinzu."
+  },
+  "wizard": {
+    "calendar": {
+      "country": "Feiertagsset",
+      "custom": "Benutzerdefiniert…",
+      "none": "Keine Feiertage"
+    }
   }
 }

@@ -90,6 +90,8 @@
       "disabledMilestone": "تخصیص روی نقاط عطف امکان‌پذیر نیست.",
       "disabledSummary": "تخصیص روی وظایف خلاصه امکان‌پذیر نیست."
     },
+    "calendar": "تقویم",
+    "calendarProject": "تقویم پروژه",
     "priority": "اولویت تسطیح",
     "levelingDelay": "تأخیر تسطیح"
   },

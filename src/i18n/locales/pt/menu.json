@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "Novo projeto",
-    "calendar": "Calendário",
     "template": "Modelo de fases",
-    "calNlBouw": "Calendário de obra NL (com férias da construção)",
-    "calNlFeest": "Feriados NL (sem férias da construção)",
-    "calGeen": "5 dias, sem feriados",
     "tmplEmpty": "Vazio",
     "tmplWoningbouw": "Construção residencial",
     "tmplUtiliteit": "Construção comercial / renovação"
@@ -283,5 +279,12 @@
     "import": "Importar",
     "importSubtitle": "Importe dados de projeto por meio das extensões instaladas.",
     "importEmpty": "Nenhuma extensão de importação instalada. Adicione uma em Extensões."
+  },
+  "wizard": {
+    "calendar": {
+      "country": "Conjunto de feriados",
+      "custom": "Personalizado…",
+      "none": "Sem feriados"
+    }
   }
 }

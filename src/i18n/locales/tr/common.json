@@ -283,6 +283,48 @@
       "latePeak": "Geç zirve"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "Takvimler",
+      "project": "Proje takvimi",
+      "new": "Yeni takvim",
+      "duplicate": "Çoğalt",
+      "setDefault": "Proje varsayılanı olarak ayarla"
+    },
+    "generate": {
+      "button": "Tatilleri oluştur…",
+      "country": "Ülke",
+      "region": "Bölge",
+      "regionNone": "Ulusal",
+      "bouwvakLabel": "İnşaat tatili",
+      "bouwvak": {
+        "none": "Yok",
+        "noord": "Kuzey",
+        "midden": "Orta",
+        "zuid": "Güney"
+      },
+      "winterStop": "Sabit kış tatili",
+      "winterHint": "Sabit kapanış; gerçek don günleri daha sonra hava durumu verilerinden belirlenir",
+      "preview": "{{n}} tatil, {{from}}–{{to}}",
+      "bouwvakHint": "Bilgilendirme amaçlı tarihler — Bouwend Nederland ile doğrulayın",
+      "apply": "Oluştur",
+      "cancel": "İptal"
+    },
+    "regen": {
+      "hint": "Tatiller {{from}}–{{to}} aralığını kapsıyor; proje {{year}} yılına kadar sürüyor. Yeniden oluşturulsun mu?",
+      "button": "Yeniden oluştur"
+    },
+    "countryName": {
+      "NL": "Hollanda",
+      "DE": "Almanya",
+      "BE": "Belçika",
+      "FR": "Fransa",
+      "UK": "Birleşik Krallık",
+      "AT": "Avusturya",
+      "CH": "İsviçre",
+      "none": "Tatil yok"
+    }
+  },
   "view": {
     "structureLockedHint": "Filtreleme/gruplama/sıralama sırasında kullanılamaz",
     "columns": {

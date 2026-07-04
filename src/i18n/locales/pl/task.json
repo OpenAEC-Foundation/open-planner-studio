@@ -90,6 +90,8 @@
       "disabledMilestone": "Przydziały nie są możliwe dla kamieni milowych.",
       "disabledSummary": "Przydziały nie są możliwe dla zadań sumarycznych."
     },
+    "calendar": "Kalendarz",
+    "calendarProject": "Kalendarz projektu",
     "priority": "Priorytet bilansowania",
     "levelingDelay": "Opóźnienie bilansowania"
   },

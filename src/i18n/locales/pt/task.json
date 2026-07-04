@@ -90,6 +90,8 @@
       "disabledMilestone": "Não é possível atribuir em marcos.",
       "disabledSummary": "Não é possível atribuir em tarefas de resumo."
     },
+    "calendar": "Calendário",
+    "calendarProject": "Calendário do projeto",
     "priority": "Prioridade de nivelamento",
     "levelingDelay": "Atraso de nivelamento"
   },

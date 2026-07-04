@@ -90,6 +90,8 @@
       "disabledMilestone": "マイルストーンには割り当てできません。",
       "disabledSummary": "サマリータスクには割り当てできません。"
     },
+    "calendar": "カレンダー",
+    "calendarProject": "プロジェクトカレンダー",
     "priority": "山崩し優先度",
     "levelingDelay": "山崩し遅延"
   },

@@ -90,6 +90,8 @@
       "disabledMilestone": "里程碑不支持分配。",
       "disabledSummary": "摘要任务不支持分配。"
     },
+    "calendar": "日历",
+    "calendarProject": "项目日历",
     "priority": "平衡优先级",
     "levelingDelay": "平衡延迟"
   },

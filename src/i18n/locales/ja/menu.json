@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "新規プロジェクト",
-    "calendar": "カレンダー",
     "template": "フェーズテンプレート",
-    "calNlBouw": "オランダ建設カレンダー（建設業休暇を含む）",
-    "calNlFeest": "オランダ祝日（建設業休暇なし）",
-    "calGeen": "週5日、祝日なし",
     "tmplEmpty": "空",
     "tmplWoningbouw": "住宅建築",
     "tmplUtiliteit": "非住宅建築 / 改修"
@@ -283,5 +279,12 @@
     "import": "インポート",
     "importSubtitle": "インストール済みの拡張機能でプロジェクトデータをインポート。",
     "importEmpty": "インポート用拡張機能がありません。拡張機能から追加してください。"
+  },
+  "wizard": {
+    "calendar": {
+      "country": "祝日セット",
+      "custom": "カスタム…",
+      "none": "祝日なし"
+    }
   }
 }

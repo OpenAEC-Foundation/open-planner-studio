@@ -90,6 +90,8 @@
       "disabledMilestone": "Le assegnazioni non sono possibili sui traguardi.",
       "disabledSummary": "Le assegnazioni non sono possibili sulle attività di riepilogo."
     },
+    "calendar": "Calendario",
+    "calendarProject": "Calendario del progetto",
     "priority": "Priorità di livellamento",
     "levelingDelay": "Ritardo di livellamento"
   },

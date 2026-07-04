@@ -283,6 +283,48 @@
       "latePeak": "后期高峰"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "日历",
+      "project": "项目日历",
+      "new": "新建日历",
+      "duplicate": "复制",
+      "setDefault": "设为项目默认"
+    },
+    "generate": {
+      "button": "生成假日…",
+      "country": "国家",
+      "region": "地区",
+      "regionNone": "全国",
+      "bouwvakLabel": "建筑业假期",
+      "bouwvak": {
+        "none": "无",
+        "noord": "北部",
+        "midden": "中部",
+        "zuid": "南部"
+      },
+      "winterStop": "固定冬歇期",
+      "winterHint": "固定停工期；实际霜冻天数将根据天气数据在后续确定",
+      "preview": "{{n}} 个假日，{{from}}–{{to}}",
+      "bouwvakHint": "仅供参考的日期 — 请与 Bouwend Nederland 核实",
+      "apply": "生成",
+      "cancel": "取消"
+    },
+    "regen": {
+      "hint": "假日覆盖 {{from}}–{{to}}；项目持续至 {{year}}。是否重新生成？",
+      "button": "重新生成"
+    },
+    "countryName": {
+      "NL": "荷兰",
+      "DE": "德国",
+      "BE": "比利时",
+      "FR": "法国",
+      "UK": "英国",
+      "AT": "奥地利",
+      "CH": "瑞士",
+      "none": "无假日"
+    }
+  },
   "view": {
     "structureLockedHint": "筛选/分组/排序时不可用",
     "columns": {

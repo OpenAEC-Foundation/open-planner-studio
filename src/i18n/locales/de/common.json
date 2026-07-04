@@ -283,6 +283,48 @@
       "latePeak": "Späte Spitze"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "Kalender",
+      "project": "Projektkalender",
+      "new": "Neuer Kalender",
+      "duplicate": "Duplizieren",
+      "setDefault": "Als Projektstandard festlegen"
+    },
+    "generate": {
+      "button": "Feiertage generieren…",
+      "country": "Land",
+      "region": "Region",
+      "regionNone": "Landesweit",
+      "bouwvakLabel": "Bauferien",
+      "bouwvak": {
+        "none": "Keine",
+        "noord": "Nord",
+        "midden": "Mitte",
+        "zuid": "Süd"
+      },
+      "winterStop": "Feste Winterpause",
+      "winterHint": "Feste Pause; tatsächliche Frosttage folgen später aus Wetterdaten",
+      "preview": "{{n}} Feiertage, {{from}}–{{to}}",
+      "bouwvakHint": "Richtwerte — bitte bei Bouwend Nederland prüfen",
+      "apply": "Generieren",
+      "cancel": "Abbrechen"
+    },
+    "regen": {
+      "hint": "Feiertage decken {{from}}–{{to}} ab; Projekt läuft bis {{year}}. Neu generieren?",
+      "button": "Neu generieren"
+    },
+    "countryName": {
+      "NL": "Niederlande",
+      "DE": "Deutschland",
+      "BE": "Belgien",
+      "FR": "Frankreich",
+      "UK": "Vereinigtes Königreich",
+      "AT": "Österreich",
+      "CH": "Schweiz",
+      "none": "Keine Feiertage"
+    }
+  },
   "view": {
     "structureLockedHint": "Nicht verfügbar während des Filterns/Gruppierens/Sortierens",
     "columns": {

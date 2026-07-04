@@ -283,6 +283,48 @@
       "latePeak": "Późny szczyt"
     }
   },
+  "calendar": {
+    "library": {
+      "title": "Kalendarze",
+      "project": "Kalendarz projektu",
+      "new": "Nowy kalendarz",
+      "duplicate": "Duplikuj",
+      "setDefault": "Ustaw jako domyślny dla projektu"
+    },
+    "generate": {
+      "button": "Generuj święta…",
+      "country": "Kraj",
+      "region": "Region",
+      "regionNone": "Krajowe",
+      "bouwvakLabel": "Urlop budowlany",
+      "bouwvak": {
+        "none": "Brak",
+        "noord": "Północ",
+        "midden": "Środek",
+        "zuid": "Południe"
+      },
+      "winterStop": "Stały przestój zimowy",
+      "winterHint": "Stały przestój; rzeczywiste dni mrozowe zostaną ustalone później na podstawie danych pogodowych",
+      "preview": "{{n}} świąt, {{from}}–{{to}}",
+      "bouwvakHint": "Daty orientacyjne — zweryfikuj w Bouwend Nederland",
+      "apply": "Generuj",
+      "cancel": "Anuluj"
+    },
+    "regen": {
+      "hint": "Święta obejmują {{from}}–{{to}}; projekt trwa do {{year}}. Wygenerować ponownie?",
+      "button": "Generuj ponownie"
+    },
+    "countryName": {
+      "NL": "Holandia",
+      "DE": "Niemcy",
+      "BE": "Belgia",
+      "FR": "Francja",
+      "UK": "Wielka Brytania",
+      "AT": "Austria",
+      "CH": "Szwajcaria",
+      "none": "Bez świąt"
+    }
+  },
   "view": {
     "structureLockedHint": "Niedostępne podczas filtrowania/grupowania/sortowania",
     "columns": {

@@ -175,11 +175,7 @@
   },
   "newProject": {
     "title": "新建项目",
-    "calendar": "日历",
     "template": "阶段模板",
-    "calNlBouw": "荷兰施工日历（含建筑业假期）",
-    "calNlFeest": "荷兰公共假日（不含建筑业假期）",
-    "calGeen": "5 天工作制，无假日",
     "tmplEmpty": "空白",
     "tmplWoningbouw": "住宅建筑",
     "tmplUtiliteit": "公共建筑 / 改造"
@@ -283,5 +279,12 @@
     "import": "导入",
     "importSubtitle": "通过已安装的扩展导入项目数据。",
     "importEmpty": "未安装导入扩展。请通过“扩展”添加。"
+  },
+  "wizard": {
+    "calendar": {
+      "country": "假日集",
+      "custom": "自定义…",
+      "none": "无假日"
+    }
   }
 }
