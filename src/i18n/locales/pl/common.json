@@ -323,6 +323,10 @@
       "AT": "Austria",
       "CH": "Szwajcaria",
       "none": "Bez świąt"
+    },
+    "preset": {
+      "continuous": "Ciągły (24/7)",
+      "weekdays": "Pon–pt"
     }
   },
   "view": {

@@ -323,6 +323,10 @@
       "AT": "Österreich",
       "CH": "Schweiz",
       "none": "Keine Feiertage"
+    },
+    "preset": {
+      "continuous": "Durchgehend (24/7)",
+      "weekdays": "Mo–Fr"
     }
   },
   "view": {

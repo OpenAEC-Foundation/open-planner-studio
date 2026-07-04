@@ -323,6 +323,10 @@
       "AT": "Áustria",
       "CH": "Suíça",
       "none": "Sem feriados"
+    },
+    "preset": {
+      "continuous": "Contínuo (24/7)",
+      "weekdays": "Seg–sex"
     }
   },
   "view": {

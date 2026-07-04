@@ -323,6 +323,10 @@
       "AT": "Avusturya",
       "CH": "İsviçre",
       "none": "Tatil yok"
+    },
+    "preset": {
+      "continuous": "Sürekli (24/7)",
+      "weekdays": "Pzt–Cum"
     }
   },
   "view": {
