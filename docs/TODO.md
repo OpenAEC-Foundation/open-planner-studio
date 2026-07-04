@@ -169,6 +169,12 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > eigenschappenpaneel).
 
 #### 2.8 Kalender-uitbreidingen
+
+> **Fase-splitsing (besluit user 2026-07-04):** 2.8 wordt in twee delen uitgevoerd.
+> **2.8a** = alles hieronder behálve uren-scheduling (dag-granulair, direct waardevol);
+> **2.8b** = uren-/minuten-based scheduling + de uur-tijdschaal, als apart ontworpen
+> vervolgfase (raakt solver, alle adapters, renderer én IFC — te groot om mee te liften).
+
 - [ ] **Hardgecodeerde bouwvak/feestdagen in de standaardkalender opknappen.** `createDefaultCalendar()`
   (`src/types/calendar.ts`) bakt een vaste 2026-feestdagenlijst in, inclusief drie weken
   "Bouwvak (regio Noord)" (20 jul – 7 aug 2026). Drie problemen: (1) de regiokeuze is willekeurig
@@ -176,8 +182,11 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   hebben stilzwijgend géén feestdagen meer; (3) gebruikers zien niet dat er drie weken vakantie in hun
   planning zit tot een taak eroverheen valt (kwam uit de fase-2.5-QA: een 5-daagse taak leek een
   "opgerekte balk van vier weken"). Richting: feestdagen jaar-onafhankelijk genereren voor de
-  projectperiode, bouwvak-regiokeuze + feestdagenoverzicht in de projectwizard (kalender-presets in
-  `ProjectInfoDialog`), en evt. een naamlabel in de Gantt-arcering bij meerdaagse feestdagen.
+  projectperiode, feestdagenoverzicht + kalender-presets in de projectwizard (`ProjectInfoDialog`),
+  en evt. een naamlabel in de Gantt-arcering bij meerdaagse feestdagen.
+  **HARD (besluit user 2026-07-04): de bouwvak zit NIET standaard in de kalender** — hij wordt
+  opt-in via een wizardkeuze (geen/Noord/Midden/Zuid), default *geen*; bestaande bestanden met een
+  ingebakken bouwvak-uitzondering blijven uiteraard ongewijzigd laden.
 - [ ] Meerdere kalenders per project
 - [ ] Taak-specifieke kalender
 - [ ] Duitse feestdagen (per Bundesland)
