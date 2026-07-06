@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import type { WorkCalendar, Holiday } from '@/types/calendar';
 import { CalendarGeneratorFields } from './CalendarGeneratorFields';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
@@ -290,17 +291,17 @@ export function CalendarForm({
                   onChange={e => updateHoliday(i, { name: e.target.value })}
                   className={inputCls}
                 />
-                <input
-                  type="date"
+                <DateTextInput
                   value={h.startDate}
-                  onChange={e => updateHoliday(i, { startDate: e.target.value })}
+                  onCommit={v => updateHoliday(i, { startDate: v })}
                   className={inputCls}
+                  ariaLabel={tMenu('ribbon.calendarDialog.from')}
                 />
-                <input
-                  type="date"
+                <DateTextInput
                   value={h.endDate}
-                  onChange={e => updateHoliday(i, { endDate: e.target.value })}
+                  onCommit={v => updateHoliday(i, { endDate: v })}
                   className={inputCls}
+                  ariaLabel={tMenu('ribbon.calendarDialog.until')}
                 />
                 <button
                   onClick={() => removeHoliday(i)}

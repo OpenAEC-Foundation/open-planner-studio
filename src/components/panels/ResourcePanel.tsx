@@ -7,6 +7,7 @@ import { createDefaultCalendar } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
 import { ResourceCalendarDialog } from '@/components/dialogs/ResourceCalendarDialog';
 import { UnitsInput } from '@/components/common/UnitsInput';
+import { DateTextInput } from '@/components/common/DateTextInput';
 
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
 
@@ -393,11 +394,11 @@ function AvailabilityStepsEditor({ steps, onChange }: {
       {steps.map((s, i) => (
         <div key={i} className="flex items-center gap-2">
           <label className="text-[10px] text-text-secondary">{t('resource.availabilityStepsEditor.from')}</label>
-          <input
-            type="date"
+          <DateTextInput
             value={s.from}
-            onChange={e => update(i, { from: e.target.value })}
+            onCommit={v => update(i, { from: v })}
             className="input !text-[11px] !px-1.5 !py-1"
+            ariaLabel={t('resource.availabilityStepsEditor.from')}
           />
           <label className="text-[10px] text-text-secondary">{t('resource.availabilityStepsEditor.maxUnits')}</label>
           <UnitsInput

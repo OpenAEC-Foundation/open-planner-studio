@@ -398,5 +398,9 @@
       "primary": "Principale",
       "secondary": "Secondaria"
     }
+  },
+  "dateInput": {
+    "placeholder": "gg-mm-aaaa",
+    "invalid": "Data non valida — es. 6-7-2026"
   }
 }

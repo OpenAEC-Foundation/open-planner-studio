@@ -22,6 +22,7 @@ import {
 } from '@/utils/settingsStore';
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { createDefaultTaskTime } from '@/types/task';
 import { RibbonTab, type FieldRef, type GroupLevel, type SortLevel, type Layout } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
@@ -217,11 +218,10 @@ function BaselinesProgressGroupContent({
       <span className="ribbon-info">{tMenu('ribbon.statusDate')}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <CalendarClock size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
-        <input
-          type="date"
+        <DateTextInput
           value={statusDate ?? ''}
-          onChange={e => setStatusDate(e.target.value || undefined)}
-          aria-label={tMenu('ribbon.statusDate')}
+          onCommit={v => setStatusDate(v || undefined)}
+          ariaLabel={tMenu('ribbon.statusDate')}
           style={{
             padding: '3px 6px', fontSize: 11, background: 'var(--theme-input-bg)',
             border: '1px solid var(--theme-control-border)', borderRadius: 'var(--radius-sm)',

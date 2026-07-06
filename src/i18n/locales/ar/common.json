@@ -398,5 +398,9 @@
       "primary": "أساسي",
       "secondary": "ثانوي"
     }
+  },
+  "dateInput": {
+    "placeholder": "يوم-شهر-سنة",
+    "invalid": "تاريخ غير صالح — مثال: 6-7-2026"
   }
 }

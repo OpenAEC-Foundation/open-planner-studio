@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Select } from '@/components/common/Select';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { formatDate } from '@/utils/dateUtils';
 import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
 import { CalendarGeneratorFields } from './CalendarGeneratorFields';
@@ -129,11 +130,11 @@ export function ProjectInfoDialog() {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-text-secondary font-medium">{tMenu('projectInfo.startDate')}</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
+              <DateTextInput value={startDate} onCommit={setStartDate} className={inputCls} ariaLabel={tMenu('projectInfo.startDate')} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-text-secondary font-medium">{tMenu('projectInfo.endDate')}</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
+              <DateTextInput value={endDate} onCommit={setEndDate} className={inputCls} ariaLabel={tMenu('projectInfo.endDate')} />
             </div>
           </div>
 

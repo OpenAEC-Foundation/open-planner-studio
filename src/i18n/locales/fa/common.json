@@ -398,5 +398,9 @@
       "primary": "اصلی",
       "secondary": "فرعی"
     }
+  },
+  "dateInput": {
+    "placeholder": "روز-ماه-سال",
+    "invalid": "تاریخ نامعتبر — مثلاً 6-7-2026"
   }
 }

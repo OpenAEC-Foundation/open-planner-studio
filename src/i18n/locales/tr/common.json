@@ -398,5 +398,9 @@
       "primary": "Birincil",
       "secondary": "İkincil"
     }
+  },
+  "dateInput": {
+    "placeholder": "gg-aa-yyyy",
+    "invalid": "Geçersiz tarih — örn. 6-7-2026"
   }
 }

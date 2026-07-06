@@ -398,5 +398,9 @@
       "primary": "プライマリ",
       "secondary": "セカンダリ"
     }
+  },
+  "dateInput": {
+    "placeholder": "日-月-年",
+    "invalid": "無効な日付 — 例: 6-7-2026"
   }
 }

@@ -9,6 +9,7 @@ import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { Select } from '@/components/common/Select';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { UnitsInput } from '@/components/common/UnitsInput';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { Trash2, Zap } from 'lucide-react';
 
 export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
@@ -43,10 +44,9 @@ function CustomFieldInput({ def, value, onCommit }: {
   }
   if (def.type === 'date') {
     return (
-      <input
-        type="date"
+      <DateTextInput
         value={typeof value === 'string' ? value : ''}
-        onChange={e => onCommit(e.target.value || null)}
+        onCommit={v => onCommit(v || null)}
         className={cls}
       />
     );
@@ -299,10 +299,11 @@ export function TaskPropertiesPanel() {
 
       <div className="grid grid-cols-2 gap-2">
         <Field label={t('properties.start')}>
-          <Input
-            type="date"
+          <DateTextInput
+            className="input !text-xs !px-2.5 !py-1.5"
+            ariaLabel={t('properties.start')}
             value={task.time.scheduleStart}
-            onChange={v => updateTime('scheduleStart', v)}
+            onCommit={v => updateTime('scheduleStart', v)}
           />
         </Field>
         <Field label={t('properties.duration')}>
@@ -336,20 +337,22 @@ export function TaskPropertiesPanel() {
         </Field>
         {task.constraint && task.constraint.type !== 'ALAP' && (
           <Field label={t('properties.constraintDate')}>
-            <Input
-              type="date"
+            <DateTextInput
+              className="input !text-xs !px-2.5 !py-1.5"
+              ariaLabel={t('properties.constraintDate')}
               value={task.constraint.date ?? ''}
-              onChange={v => update({ constraint: { type: task.constraint!.type, date: v } })}
+              onCommit={v => update({ constraint: { type: task.constraint!.type, date: v } })}
             />
           </Field>
         )}
       </div>
 
       <Field label={t('properties.deadline')}>
-        <Input
-          type="date"
+        <DateTextInput
+          className="input !text-xs !px-2.5 !py-1.5"
+          ariaLabel={t('properties.deadline')}
           value={task.deadline ?? ''}
-          onChange={v => update({ deadline: v || undefined })}
+          onCommit={v => update({ deadline: v || undefined })}
         />
       </Field>
 
@@ -371,27 +374,30 @@ export function TaskPropertiesPanel() {
           De acties dwingen de invarianten af en weigeren datums ná de statusdatum (toast). */}
       {task.isMilestone ? (
         <Field label={t('properties.progress.actualDate')}>
-          <Input
-            type="date"
+          <DateTextInput
+            className="input !text-xs !px-2.5 !py-1.5"
+            ariaLabel={t('properties.progress.actualDate')}
             value={task.time.actualFinish ?? ''}
-            onChange={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
+            onCommit={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
           />
         </Field>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2">
             <Field label={t('properties.progress.actualStart')}>
-              <Input
-                type="date"
+              <DateTextInput
+                className="input !text-xs !px-2.5 !py-1.5"
+                ariaLabel={t('properties.progress.actualStart')}
                 value={task.time.actualStart ?? ''}
-                onChange={v => { setActualError(!setActualStart(task.id, v || undefined)); }}
+                onCommit={v => { setActualError(!setActualStart(task.id, v || undefined)); }}
               />
             </Field>
             <Field label={t('properties.progress.actualFinish')}>
-              <Input
-                type="date"
+              <DateTextInput
+                className="input !text-xs !px-2.5 !py-1.5"
+                ariaLabel={t('properties.progress.actualFinish')}
                 value={task.time.actualFinish ?? ''}
-                onChange={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
+                onCommit={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
               />
             </Field>
           </div>

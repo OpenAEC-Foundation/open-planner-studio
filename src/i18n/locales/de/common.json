@@ -398,5 +398,9 @@
       "primary": "Primär",
       "secondary": "Sekundär"
     }
+  },
+  "dateInput": {
+    "placeholder": "TT-MM-JJJJ",
+    "invalid": "Ungültiges Datum — z. B. 6-7-2026"
   }
 }

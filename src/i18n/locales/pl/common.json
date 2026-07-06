@@ -398,5 +398,9 @@
       "primary": "Główny",
       "secondary": "Dodatkowy"
     }
+  },
+  "dateInput": {
+    "placeholder": "dd-mm-rrrr",
+    "invalid": "Nieprawidłowa data — np. 6-7-2026"
   }
 }

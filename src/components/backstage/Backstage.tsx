@@ -7,6 +7,7 @@ import {
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { BackstageSection } from '@/state/slices/types';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { ExtensionManagerPanel } from '@/components/backstage/ExtensionManagerPanel';
 import type { ExtensionImporter } from '@/state/slices/extensionSlice';
 import './Backstage.css';
@@ -400,11 +401,11 @@ function ProjectInfoSection({ onApply }: { onApply: () => void }) {
         <div className="backstage-form-grid-2">
           <div className="backstage-form-row">
             <label>{tMenu('backstage.startDate')}</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+            <DateTextInput value={startDate} onCommit={setStartDate} ariaLabel={tMenu('backstage.startDate')} />
           </div>
           <div className="backstage-form-row">
             <label>{tMenu('backstage.endDate')}</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            <DateTextInput value={endDate} onCommit={setEndDate} ariaLabel={tMenu('backstage.endDate')} />
           </div>
         </div>
 

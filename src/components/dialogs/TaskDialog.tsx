@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { TaskType } from '@/types/task';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { Select } from '@/components/common/Select';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
 
 export function TaskDialog() {
@@ -205,11 +206,11 @@ export function TaskDialog() {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-text-secondary">{t('dialog.startDate')}</label>
-              <input
-                type="date"
+              <DateTextInput
                 value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                onCommit={setStartDate}
                 className={inputCls}
+                ariaLabel={t('dialog.startDate')}
               />
             </div>
 

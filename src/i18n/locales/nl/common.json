@@ -398,5 +398,9 @@
       "primary": "Primair",
       "secondary": "Secundair"
     }
+  },
+  "dateInput": {
+    "placeholder": "dd-mm-jjjj",
+    "invalid": "Ongeldige datum — bijv. 6-7-2026"
   }
 }

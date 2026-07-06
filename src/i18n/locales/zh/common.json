@@ -398,5 +398,9 @@
       "primary": "主要",
       "secondary": "次要"
     }
+  },
+  "dateInput": {
+    "placeholder": "日-月-年",
+    "invalid": "日期无效 — 例如 6-7-2026"
   }
 }

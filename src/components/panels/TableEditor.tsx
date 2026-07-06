@@ -7,6 +7,7 @@ import { defaultColumns } from '@/engine/view/visibleRows';
 import { resourceCellValue, type ViewContext } from '@/engine/view/filterEval';
 import type { ColumnConfig, FieldRef, BuiltinFieldKey } from '@/state/slices/types';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
+import { DateTextInput } from '@/components/common/DateTextInput';
 
 const MIN_COLUMN_WIDTH = 40;
 
@@ -27,9 +28,10 @@ function FieldCell({ def, value, onCommit }: {
   }
   if (def.type === 'date') {
     return (
-      <input type="date" value={typeof value === 'string' ? value : ''}
-        onChange={e => onCommit(e.target.value || null)}
-        onClick={e => e.stopPropagation()} className={cls} />
+      <span onClick={e => e.stopPropagation()} className="block w-full">
+        <DateTextInput value={typeof value === 'string' ? value : ''}
+          onCommit={v => onCommit(v || null)} className={cls} />
+      </span>
     );
   }
   if (def.type === 'text') {

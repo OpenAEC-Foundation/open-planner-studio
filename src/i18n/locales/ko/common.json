@@ -398,5 +398,9 @@
       "primary": "기본",
       "secondary": "보조"
     }
+  },
+  "dateInput": {
+    "placeholder": "일-월-년",
+    "invalid": "잘못된 날짜 — 예: 6-7-2026"
   }
 }
