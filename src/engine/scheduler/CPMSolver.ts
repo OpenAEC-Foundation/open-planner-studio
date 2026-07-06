@@ -428,6 +428,14 @@ export class CPMSolver {
         // No predecessors: use scheduled start
         earlyStart = this.snapOnOrAfter(cal, this.parseIn(cal, task.time.scheduleStart));
         earlyStart = this.applyForwardConstraint(task, earlyStart, cal);
+        // Fase 2.8b (golf 3): her-snap ná de constraint — spiegelt de voorganger-tak (regel 466).
+        // `applyForwardConstraint` levert een DAG-conceptuele grens (`nextWorkDay`/
+        // `addWorkingDaysSigned`, §5.2), in uur-modus een middernacht-instant die NIET op een
+        // werk-instant valt; zonder her-snap rapporteert een constrained root-taak zijn ES op 00:00
+        // i.p.v. de bandstart (de `earlyFinish` rekent al vanaf de bandstart ⇒ interne inconsistentie).
+        // Idempotent in dag-modus (`nextWorkDay` van een werkdag = diezelfde werkdag) en bij een
+        // niet-bindende constraint (ES al gesnapt op regel 429) ⇒ byte-identiek voor de 290.
+        earlyStart = this.snapOnOrAfter(cal, earlyStart);
       } else {
         // Early start = max van alle voorganger-constraints, met de projectstart als ondergrens.
         // Die ondergrens is correct vóór ÉLKE relatie: relatie-constraints (FS/SS/FF/SF) zijn

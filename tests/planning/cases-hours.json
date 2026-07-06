@@ -1,0 +1,560 @@
+{
+  "_readme": "Fase 2.8b golf 3 — handberekende UUR-batterij (ontwerpdoc §8/§9). Elke verwachting is met de hand stap-voor-stap uitgerekend tegen de referentiekalenders (zie BRIEF.md 'Minuut-tabel per referentiekalender'). Anker = ma 6 juli 2026. Conventie: band=[start,end); FS-opvolger=nextWorkInstant(exclusieve pred-finish)+lag; addWorkMinutes telt vanaf de startinstant; LAG_CALENDAR='predecessor'. Uur-taken ⇒ datetime-verwachtingen 'YYYY-MM-DDTHH:mm'; dag-taken ⇒ date-only. tf/ff in eigen-kalender-werkdagen (fractioneel in uur-modus, §5.5).",
+  "cases": [
+    {
+      "id": "s1-h8-fs-chain",
+      "title": "Scenario 1 — H8, FS+0 binnen-dag-koppeling (fwd+bwd). A(12u) di12:00, B(4u) di16:00; geen +1 dag.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-07T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T12:00", "ef": "2026-07-07T16:00", "ls": "2026-07-07T12:00", "lf": "2026-07-07T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T16:00",
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "s2-h8-merge-float",
+      "title": "Scenario 2 — H8 merge, float in minuten. P(4u) niet-kritiek tf=ff=1d(480m); Q(12u) drijft; R(4u).",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "P", "dur": "4u" },
+        { "name": "Q", "dur": "12u" },
+        { "name": "R", "dur": "4u" }
+      ],
+      "links": [
+        { "pred": "P", "succ": "R", "type": "FINISH_START" },
+        { "pred": "Q", "succ": "R", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T12:00", "tf": 1, "ff": 1, "crit": false },
+          "Q": { "es": "2026-07-06T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-07T12:00", "tf": 0, "crit": true },
+          "R": { "es": "2026-07-07T12:00", "ef": "2026-07-07T16:00", "ls": "2026-07-07T12:00", "lf": "2026-07-07T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T16:00",
+        "criticalPathSet": ["Q", "R"],
+        "error": false
+      }
+    },
+    {
+      "id": "s3-hbreak-lunch",
+      "title": "Scenario 3 — H-break lunchpauze (fwd+bwd). A(6u) eindigt ma14:30 (lunch 12:00-12:30 overgeslagen); B(4u) di10:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "2": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "3": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "4": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "5": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "6u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T14:30", "ls": "2026-07-06T08:00", "lf": "2026-07-06T14:30", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T14:30", "ef": "2026-07-07T10:00", "ls": "2026-07-06T14:30", "lf": "2026-07-07T10:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T10:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s4-night-wrap",
+      "title": "Scenario 4 — Night ploeg over middernacht (fwd+bwd). A(8u) ma22:00→di06:00; B(4u) kan pas di22:00 door, →wo02:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 1320, "end": 1800 }], "2": [{ "start": 1320, "end": 1800 }], "3": [{ "start": 1320, "end": 1800 }], "4": [{ "start": 1320, "end": 1800 }], "5": [{ "start": 1320, "end": 1800 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T22:00", "ef": "2026-07-07T06:00", "ls": "2026-07-06T22:00", "lf": "2026-07-07T06:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T22:00", "ef": "2026-07-08T02:00", "ls": "2026-07-07T22:00", "lf": "2026-07-08T02:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T02:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s5-247",
+      "title": "Scenario 5 — 24/7 echt 24-uurs (fwd+bwd). A(30u) ma00:00→di06:00; B(12u) →di18:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workDays": [1, 2, 3, 4, 5, 6, 7], "workTime": { "byWeekday": { "1": [{ "start": 0, "end": 1440 }], "2": [{ "start": 0, "end": 1440 }], "3": [{ "start": 0, "end": 1440 }], "4": [{ "start": 0, "end": 1440 }], "5": [{ "start": 0, "end": 1440 }], "6": [{ "start": 0, "end": 1440 }], "7": [{ "start": 0, "end": 1440 }] } } },
+      "tasks": [
+        { "name": "A", "dur": "30u" },
+        { "name": "B", "dur": "12u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T00:00", "ef": "2026-07-07T06:00", "ls": "2026-07-06T00:00", "lf": "2026-07-07T06:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T06:00", "ef": "2026-07-07T18:00", "ls": "2026-07-07T06:00", "lf": "2026-07-07T18:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T18:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s5-elapsed-eq-worktime",
+      "title": "Scenario 5 — 24/7: WORKTIME FS+12u ≡ ELAPSED FS+12u (tweeling a). A(12u)→B(12u): B di00:00→di12:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workDays": [1, 2, 3, 4, 5, 6, 7], "workTime": { "byWeekday": { "1": [{ "start": 0, "end": 1440 }], "2": [{ "start": 0, "end": 1440 }], "3": [{ "start": 0, "end": 1440 }], "4": [{ "start": 0, "end": 1440 }], "5": [{ "start": 0, "end": 1440 }], "6": [{ "start": 0, "end": 1440 }], "7": [{ "start": 0, "end": 1440 }] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u" },
+        { "name": "B", "dur": "12u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": "12u", "lagUnit": "WORKTIME" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T00:00", "ef": "2026-07-06T12:00" },
+          "B": { "es": "2026-07-07T00:00", "ef": "2026-07-07T12:00" }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s5-elapsed-eq-elapsed",
+      "title": "Scenario 5 — 24/7: ELAPSED FS+12u tweeling b (identiek aan worktime). B di00:00→di12:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workDays": [1, 2, 3, 4, 5, 6, 7], "workTime": { "byWeekday": { "1": [{ "start": 0, "end": 1440 }], "2": [{ "start": 0, "end": 1440 }], "3": [{ "start": 0, "end": 1440 }], "4": [{ "start": 0, "end": 1440 }], "5": [{ "start": 0, "end": 1440 }], "6": [{ "start": 0, "end": 1440 }], "7": [{ "start": 0, "end": 1440 }] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u" },
+        { "name": "B", "dur": "12u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lag": "12u", "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T00:00", "ef": "2026-07-06T12:00" },
+          "B": { "es": "2026-07-07T00:00", "ef": "2026-07-07T12:00" }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s6a-worktime-fs4h",
+      "title": "Scenario 6a — H8 WORKTIME FS+4u. P(4u) EF ma12:00; +4u pred = ma16:00; snap → S.ES di08:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "P", "dur": "4u" },
+        { "name": "S", "dur": "4u" }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "FINISH_START", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "S": { "es": "2026-07-07T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s6b-elapsed-fs24h",
+      "title": "Scenario 6b — H8 ELAPSED FS+24u (uithardtijd, telt de nacht mee). P EF ma12:00; +24u klok = di12:00 → S.ES di12:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "P", "dur": "4u" },
+        { "name": "S", "dur": "4u" }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "FINISH_START", "lag": "24u", "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "S": { "es": "2026-07-07T12:00", "ef": "2026-07-07T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s6c-worktime-fs24h-contrast",
+      "title": "Scenario 6 contrast — H8 WORKTIME FS+24u = 3 werkdagen → S.ES do12:00 (vs elapsed di12:00).",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "P", "dur": "4u" },
+        { "name": "S", "dur": "4u" }
+      ],
+      "links": [{ "pred": "P", "succ": "S", "type": "FINISH_START", "lag": "24u", "lagUnit": "WORKTIME" }],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00" },
+          "S": { "es": "2026-07-09T12:00", "ef": "2026-07-09T16:00" }
+        },
+        "projectEnd": "2026-07-09T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s7a-day-to-hour",
+      "title": "Scenario 7 — cross-modus dag→uur (fwd+bwd). D(DagMV,2d) ma→di; predDoneAt=wo00:00; H(H8,4u) wo08:00→wo12:00. projectkalender=dag.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "D", "dur": 2 },
+        { "name": "H", "dur": "4u", "calendar": "H8" }
+      ],
+      "links": [{ "pred": "D", "succ": "H", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
+          "H": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "s7b-hour-to-day",
+      "title": "Scenario 7 — cross-modus uur→dag (fwd+bwd). H2(H8,4u) ma08:00→ma12:00; ceilToWorkDay→di; D2(DagMV,1d) di. H2 heeft 0,5d float.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "H2", "dur": "4u", "calendar": "H8" },
+        { "name": "D2", "dur": 1 }
+      ],
+      "links": [{ "pred": "H2", "succ": "D2", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "H2": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T12:00", "lf": "2026-07-06T16:00", "tf": 0.5, "crit": false },
+          "D2": { "es": "2026-07-07", "ef": "2026-07-07", "ls": "2026-07-07", "lf": "2026-07-07", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07",
+        "error": false
+      }
+    },
+    {
+      "id": "s8-statusdate-completion",
+      "title": "Scenario 8 — H8 statusdatum ma12:00. A(8u,50%) → EF ma16:00 (rest 240m); B(4u,0%) gevloerd naar ma12:00 → ma16:00.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-06T12:00",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u", "completion": 0.5 },
+        { "name": "B", "dur": "4u", "completion": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00" },
+          "B": { "es": "2026-07-06T12:00", "ef": "2026-07-06T16:00" }
+        },
+        "projectEnd": "2026-07-06T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s8b-statusdate-remainingminutes",
+      "title": "Scenario 8b — H8 statusdatum ma12:00, remainingMinutes=120 overstemt completion-afleiding. A(8u) → EF ma14:00.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-06T12:00",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u", "completion": 0.5, "remainingMinutes": 120 }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T14:00" }
+        },
+        "projectEnd": "2026-07-06T14:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s9-hpd-conversion",
+      "title": "Scenario 9 — verschillende hoursPerDay. T('1d'@H8=480m) ma16:00; U('1d'@H10=600m) ma18:00; V('10u'@H8=600m) di10:00; W('8u'@H10=480m) ma16:00. Zelfde minuten, andere kalender ⇒ andere klok-span.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "calendars": [{ "name": "H10", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1080 }], "2": [{ "start": 480, "end": 1080 }], "3": [{ "start": 480, "end": 1080 }], "4": [{ "start": 480, "end": 1080 }], "5": [{ "start": 480, "end": 1080 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "T", "dur": "1d" },
+        { "name": "U", "dur": "1d", "calendar": "H10" },
+        { "name": "V", "dur": "10u" },
+        { "name": "W", "dur": "8u", "calendar": "H10" }
+      ],
+      "expect": {
+        "tasks": {
+          "T": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00" },
+          "U": { "es": "2026-07-06T08:00", "ef": "2026-07-06T18:00" },
+          "V": { "es": "2026-07-06T08:00", "ef": "2026-07-07T10:00" },
+          "W": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00" }
+        },
+        "projectEnd": "2026-07-07T10:00",
+        "error": false
+      }
+    },
+    {
+      "id": "ss-hour",
+      "title": "Golf-2-gat — SS+0 in uur-modus (fwd+bwd). A(12u)→SS+0 B(4u): B start ma08:00; A drijft di12:00; B tf=1d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "tf": 1, "crit": false }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "ff-hour",
+      "title": "Golf-2-gat — FF+0 in uur-modus (fwd+bwd). A(12u)→FF+0 B(4u): B eindigt gelijk (di12:00), start di08:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "sf-hour",
+      "title": "Golf-2-gat — SF+0 in uur-modus. A(4u,SNET wo) wo08:00; A→SF+0 B(8u): B eindigt op A.start ⇒ B di08:00→di16:00; B tf=0,5d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u", "constraint": { "type": "SNET", "date": "2026-07-08" } },
+        { "name": "B", "dur": "8u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T16:00", "tf": 0.5, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "ms-hour-midband",
+      "title": "Golf-2-gat — mijlpaal op uur-kalender, mid-band. A(4u)→FS M→FS B(4u): M op ma12:00 (duur 0), B ma12:00→ma16:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u" },
+        { "name": "M", "milestone": true },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "M", "type": "FINISH_START" },
+        { "pred": "M", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-06T12:00", "ef": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T12:00", "ef": "2026-07-06T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-06T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "ms-hour-bandend",
+      "title": "Golf-2-gat — mijlpaal op uur-kalender, grens-gedrag. A(8u) eindigt op band-eind ma16:00; M snapt naar volgende band di08:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u" },
+        { "name": "M", "milestone": true }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-07T08:00", "ef": "2026-07-07T08:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T08:00",
+        "error": false
+      }
+    },
+    {
+      "id": "elapsed-day-to-hour",
+      "title": "Golf-2-gat — ELAPSED-lag met DAG-voorganger + UUR-opvolger. D(DagMV,2d) EF di(00:00); +24u klok = wo00:00; H(H8,4u) wo08:00→wo12:00.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "D", "dur": 2 },
+        { "name": "H", "dur": "4u", "calendar": "H8" }
+      ],
+      "links": [{ "pred": "D", "succ": "H", "type": "FINISH_START", "lag": "24u", "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-07-06", "ef": "2026-07-07" },
+          "H": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "neglag-fs0",
+      "title": "Golf-2-gat — differentiaal FS+0 (baseline voor de lead). A(8u) ma16:00; B(4u) start di08:00 (band-eind-snap) →di12:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00" },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T12:00" }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "neglag-fs-2h",
+      "title": "Golf-2-gat — negatieve lag (lead) in uur-modus, FS-2u (lagMinutes -120). A(8u) ma16:00; B start ma14:00 (2u overlap) →di10:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagMinutes": -120 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T14:00", "ef": "2026-07-07T10:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T10:00",
+        "error": false
+      }
+    },
+    {
+      "id": "constraint-snet-hour",
+      "title": "Golf-2-gat — constraint in uur-modus. A(4u) root met SNET wo ⇒ start wo08:00 (band-gesnapt), niet wo00:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u", "constraint": { "type": "SNET", "date": "2026-07-08" } }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "holiday-after-wrap",
+      "title": "§8.3 randgeval — holiday na wrap-shift (Bevinding 9). Night, holiday di: ma-nacht loopt door tot di06:00, di-shift vervalt, opvolger start wo22:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "holidays": [{ "name": "HL", "startDate": "2026-07-07", "endDate": "2026-07-07" }], "workTime": { "byWeekday": { "1": [{ "start": 1320, "end": 1800 }], "2": [{ "start": 1320, "end": 1800 }], "3": [{ "start": 1320, "end": 1800 }], "4": [{ "start": 1320, "end": 1800 }], "5": [{ "start": 1320, "end": 1800 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T22:00", "ef": "2026-07-07T06:00", "ls": "2026-07-06T22:00", "lf": "2026-07-07T06:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-08T22:00", "ef": "2026-07-09T02:00", "ls": "2026-07-08T22:00", "lf": "2026-07-09T02:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-09T02:00",
+        "error": false
+      }
+    },
+    {
+      "id": "twin-hour",
+      "title": "§8.2 tweeling (uur). H8 met hele-dag-minuten. A(2d=960m) di16:00; B(1d=480m) FS+0 → wo16:00. Zelfde DAGEN als de dag-tweeling.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "2d" },
+        { "name": "B", "dur": "1d" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T16:00" },
+          "B": { "es": "2026-07-08T08:00", "ef": "2026-07-08T16:00" }
+        },
+        "projectEnd": "2026-07-08T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "twin-day",
+      "title": "§8.2 tweeling (dag). DagMV zonder uur-velden. A(2d) ma→di; B(1d) FS+0 → wo. Exact de dag-datums van de uur-tweeling.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 1 }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-07" },
+          "B": { "es": "2026-07-08", "ef": "2026-07-08" }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "durmin-on-daycal-nodm",
+      "title": "§8.3 invariant (tweeling zonder durationMinutes). DagMV, A(3d) → ma..wo (2026-07-08).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 3 }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-08" }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "durmin-on-daycal-withdm",
+      "title": "§8.3 invariant (durationMinutes op DAG-kalender wordt GENEGEERD, scheduleDuration wint, Bevinding 2). A(3d) + durationMinutesRaw=90 ⇒ nog steeds ma..wo, NIET 90 minuten.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 3, "durationMinutesRaw": 90 }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-08" }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    }
+  ]
+}

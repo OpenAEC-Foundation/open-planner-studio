@@ -101,8 +101,22 @@ eq('45 durDagen A @dag is integer (geen fractie)', Number.isInteger(durationDays
 eq('46 durDagen C @H10-uur ⇒ 600/600 = 1', durationDaysOf(C, HOUR10), 1);
 eq('47 durMin C @H10-uur ⇒ durationMinutes 600', durationMinutesOf(C, HOUR10), 600);
 
+// ── 6) Drie-vakjes sync-rekenregel (§6.4/§8.4) — pure check ────────────────────
+// De taakdialoog synct de vakjes Dagen/Uren/Totaal via de effectieve hoursPerDay; de interne
+// bron blijft MINUTEN. Forward: totaalMinuten = (dagen × effHpd + uren) × 60 ≡ parseDuration("Nd Mu").
+// Reverse (Totaal-invoer): dagen = ⌊totaalUren / effHpd⌋, uren = totaalUren mod effHpd — moet naar
+// dezelfde minuten terugvertalen. Getest op H8 (2d + 4u = 20u) en H10 (20u = 2d 0u).
+eq('48 sync fwd H8: dagen×hpd+uren ⇒ minuten', parseDuration('2d 4u', 8), (2 * 8 + 4) * 60);
+eq('49 sync H8: "2d 4u" ≡ "20u" (20u totaal)', parseDuration('2d 4u', 8), parseDuration('20u', 8));
+eq('50 sync fwd H10: dagen×hpd+uren ⇒ minuten', parseDuration('2d 0u', 10), (2 * 10 + 0) * 60);
+eq('51 sync H10: "20u" ≡ "2d 0u" (2d 0u split)', parseDuration('20u', 10), parseDuration('2d 0u', 10));
+eq('52 sync rev H8: ⌊20/8⌋d + (20 mod 8)u ≡ 20u', parseDuration(`${Math.floor(20 / 8)}d ${20 % 8}u`, 8), parseDuration('20u', 8));
+eq('53 sync rev H10: ⌊20/10⌋d + (20 mod 10)u ≡ 20u', parseDuration(`${Math.floor(20 / 10)}d ${20 % 10}u`, 10), parseDuration('20u', 10));
+eq('54 sync fmt: 1200m @H10 auto ⇒ "2d"', formatDuration(1200, 10, 'auto'), '2d');
+eq('55 sync fmt: 1200m @H8 hours ⇒ "20u"', formatDuration(1200, 8, 'hours'), '20u');
+
 if (diffs.length === 0) {
-  console.log('OK  datetime-check: alle checks groen (47)');
+  console.log('OK  datetime-check: alle checks groen (55)');
   process.exit(0);
 } else {
   console.log(`XX  datetime-check: ${diffs.length} afwijking(en)`);
