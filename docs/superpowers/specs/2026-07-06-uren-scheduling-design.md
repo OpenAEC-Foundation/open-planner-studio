@@ -29,8 +29,9 @@ scheduling **uur-/minuut-bewust**: een uur-tijdschaal in de Gantt, dag/nacht-plo
   *fysiek ongewijzigd*; uur-kalenders krijgen een minuut-native pad (§4). `CPMSolver` rekent forward +
   backward op minuut-granulariteit voor uur-taken, float in eigen-kalender-eenheden (§5).
 - **Gantt/UI**: bestaande uur/kwartier-tiers activeren (`timelineTiers.ts:54-72`), sub-dag-balkpositie
-  (`dateToX` kan het al — `GanttRenderer.ts:143-146`), uur-bewuste drag/snap, duur-weergave d/h met
-  mixed-kalender-waarschuwing, kalenderdialoog-banden-editor, ploeg-wizard (§6).
+  (`dateToX` kan het al — `GanttRenderer.ts:143-146`), uur-bewuste drag/snap (min. 1 uur), duur-weergave via
+  de Duurweergave-instelling met mixed-kalender-waarschuwing, werktijden-presets + banden-editor, balk-
+  opsplitsing, ploeg-wizard, en de hoofdschakelaar Urenplanning + sub-instellingen (§6).
 - **Adapters**: IFC `PnDTnHnMnS` + echte tijden + `TimePeriods`-lijst + echte ploeg-`PredefinedType`; P6 en
   MSPDI op minuut-precisie (afronding weg) met round-trip-garanties (§7).
 - **Testplan**: harness-uitbreiding (uur-cases, datetime-comparator, afwezig-uur-veld = dag-gedrag), NIEUWE
@@ -248,8 +249,9 @@ Rapport A §6 is geverifieerd: strings transporteren triviaal. Delta 2.8b:
 - **Snapshot/payload** (`snapshot.ts:38-53`, `documentSlice.ts:34-61`): de nieuwe optionele velden rijden
   mee in `tasks`/`calendars`/`sequences`/`project` — geen plumbing-wijziging. Een oud snapshot mist ze →
   dag-modus bij restore.
-- **localStorage/settings**: nieuw is een uur-`timeScale`-preset (§6.2) en mogelijk een
-  duur-eenheid-voorkeur (d/h, §6.5). Migratie: ontbrekende sleutel ⇒ bestaande default (geen reset;
+- **localStorage/settings**: nieuw is een uur-`timeScale`-preset (§6.2) plus de vier 2.8b-instellingen
+  (Urenplanning, Gemengde dag/uur-planning toestaan, Duurweergave, Taakbalken bij onderbrekingen — §6.8) en
+  de eigen werktijd-presets (§6.6). Migratie: ontbrekende sleutel ⇒ bestaande default (geen reset;
   patroon `settingsStore.ts:66,90,106`).
 - **Undo**: `createSnapshot` (`snapshot.ts:38-53`) kloont via JSON — nieuwe velden zijn plain data → werkt.
 
@@ -463,7 +465,8 @@ msPerDay` — **fractioneel** — en `× zoom`. Sub-dag-posities werken dus **gr
 dag dragen; de enige reden dat balken nu dag-uitgelijnd zijn is dat alle datums middernacht zijn
 (`parseDate`). Wijziging: de renderer parst uur-taak-datums via `parseInstant`. **Balkbreedte**
 (`GanttRenderer.ts:554-555` `dateToX(end) + zoom`, voegt één hele dag toe) wordt modus-bewust: uur-taak =
-`dateToX(finishInstant) − dateToX(startInstant)` (geen +dag-pad); dag-taak houdt `+zoom`.
+`dateToX(finishInstant) − dateToX(startInstant)` (geen +dag-pad); dag-taak houdt `+zoom`. Het opsplitsen van
+die uur-balk in zijn echte werkblokken bij pauzes/nachten (bar-necking) staat in §6.9.
 
 ### 6.2 Uur-tijdschaal-tiers activeren
 
@@ -475,24 +478,50 @@ correct (`:98-108,135-144`). Wat ontbreekt: een **uur-schaal-label**. `scaleFrom
 timescale-roundtrip (`harness.ts:758-762`) wordt uitgebreid met `'hour'`. Zoom-koppeling: de bestaande
 `enableQuarterHourZoom`-setting (`settingsStore.ts:66`) blijft de kwartier-gate.
 
+De uur-schaal (`hour`-preset/-label) én de kwartier-tier verschijnen **alleen wanneer de hoofdschakelaar
+"Urenplanning" aan staat** (§6.8, default uit); staat hij uit, dan blijft de zoom/preset-reeks dag-granulair
+zoals vóór 2.8b. De kwartier-tier blijft bovendien puur **visueel** (labels/rasterlijnen) achter
+`enableQuarterHourZoom`; hij stuurt géén fijnere sleep-snap meer aan — het snap-quantum is minimaal een heel
+uur (§6.3).
+
 ### 6.3 Drag / snap
 
 `GanttCanvas.tsx:943` `daysDelta = Math.round(pixelDelta / zoom)` (hele dagen) en `:962-985`
-`Math.max(1, diffCalendarDays(...))` (min 1 dag) worden **snap-quantum-bewust**: het snap-quantum is de
-actieve **minor-tier** (`hour`/`quarterHour` via `pickTiers`) voor uur-taken, `day` voor dag-taken.
+`Math.max(1, diffCalendarDays(...))` (min 1 dag) worden **snap-quantum-bewust**. Voor **dag-taken** blijft
+het quantum een hele dag (ongewijzigd). Voor **uur-taken** is het snap-quantum de actieve minor-tier — maar
+**nooit fijner dan een heel uur** (minimaal 60 min). **Kwartier-snapping vervalt** (besluit 2026-07-06): de
+kwartier-tier mag visueel bestaan (§6.2) maar snapt niet op kwartieren; het minimale snap-quantum is 60 min.
 `Math.max(1, ...)` wordt `Math.max(één quantum, ...)`. Slepen/rekken past dan `durationMinutes` aan i.p.v.
-`scheduleDuration`. Snap-doel: het quantum-raster (kwartier/uur), **niet** de banden — een gebruiker mag een
-balk in een pauze laten beginnen; de engine snapt bij de eerstvolgende `runCPM` naar de eerstvolgende
-werk-instant.
+`scheduleDuration`, altijd in **hele uren** (hele-eenheden-besluit, §6.4). **Fijnere waarden (losse minuten)
+kunnen uitsluitend via typen** (de duur-vakjes §6.4 of tabel-invoer), niet via sleep-snap. Snap-doel: het
+uur-raster, **niet** de banden — een gebruiker mag een balk in een pauze laten beginnen; de engine snapt bij
+de eerstvolgende `runCPM` naar de eerstvolgende werk-instant.
 
-### 6.4 Taakdialoog + duur-parser
+### 6.4 Taakdialoog — duur-invoer (drie gesyncte vakjes) + duur-parser
+
+**Invoer = hele eenheden (besluit 2026-07-06).** Duur is altijd een **geheel** aantal dagen en/of uren (elk
+geheel); **geen decimalen in de invoer**. Interne minuten blijven de grondslag, en afgeleide fractionele
+dagen (bv. float, of "0,8d" bij een afwijkende `hoursPerDay`, scenario 9) blijven toegestaan als
+**weergave** — maar nooit als invoer.
+
+**Duur-invoer = drie gesyncte vakjes** (variant 1): **Dagen**, **Uren**, **Totaal uren**. Ze syncen live via
+de effectieve kalender-`hoursPerDay`: 2d + 4u op een 8u-kalender = totaal 20u; totaal 20u op een 10u-kalender
+= 2d 0u. Sync-rekenregel (unit-testbaar, §8.4): `totaalUren = dagen × effHoursPerDay + uren`; bij invoer via
+Totaal uren geldt `dagen = ⌊totaal / effHoursPerDay⌋`, `uren = totaal mod effHoursPerDay`. Alle drie de
+velden accepteren uitsluitend **niet-negatieve gehele getallen**; de taak krijgt `durationMinutes =
+totaalUren × 60`. De drie vakjes zijn **alleen zichtbaar** wanneer de hoofdschakelaar "Urenplanning" (§6.8)
+aan staat **én** de taak op een uur-kalender staat óf het project gemengde planning toestaat (§6.8); anders
+toont de dialoog uitsluitend het huidige **Dagen**-vakje (byte-identiek dag-gedrag).
 
 Er is géén centrale duur-parser; de enige unit-parser is lag (`lagFormat.ts:22-35` `parseLagInput`,
-`Math.round` → hele dagen). Nieuw: `src/utils/durationFormat.ts` analoog — `parseDuration("2d4h", effCal):
+`Math.round` → hele dagen). Nieuw: `src/utils/durationFormat.ts` analoog — `parseDuration(input, effCal):
 minutes` (suffixes `d`/`h`/`m`, `hoursPerDay` uit de effectieve kalender) en `formatDuration(minutes,
-effCal, unit)`. `TaskDialog.tsx:29,221` (`useState(5)`, `parseInt`) en de andere `scheduleDuration`-
-consumenten (`TableEditor`, `TaskPropertiesPanel`, `RelationsPanel`, `LevelingDialog`, `printPreview`,
-`wbsTemplates` — Rapport A §3.1) roepen de gedeelde formatter aan.
+effCal, unit)`. De parser bedient de **niet-dialoog-invoer** (tabel-inline-edit, harness-cases §8.1) en de
+weergave; de taakdialoog zelf gebruikt de drie vakjes. **De parser accepteert alleen gehele
+d/h/m-hoeveelheden** (`"2d4h"`/`"4h"`/`"90m"` mogen; `"1.5d"`/`"0.25h"` wordt afgewezen) — de invoerkant van
+het hele-eenheden-besluit. `TaskDialog.tsx:29,221` (`useState(5)`, `parseInt`) en de andere
+`scheduleDuration`-consumenten (`TableEditor`, `TaskPropertiesPanel`, `RelationsPanel`, `LevelingDialog`,
+`printPreview`, `wbsTemplates` — Rapport A §3.1) roepen de gedeelde formatter aan.
 
 - **`h`/`m`-suffix vereist een uur-kalender (Bevinding 2).** Sub-dag-suffixen zijn alleen geldig op een taak
   waarvan de effectieve kalender uur-modus is; op een dag-kalender-taak levert `parseDuration` een
@@ -504,29 +533,98 @@ consumenten (`TableEditor`, `TaskPropertiesPanel`, `RelationsPanel`, `LevelingDi
   `durationMinutes = n × effHoursPerDay × 60` (dus "3" op H8 = 1440 min) met afgeleid `scheduleDuration = n`.
   Zo betekent hetzelfde naakte getal consistent "n werkdagen", ongeacht de modus.
 
-### 6.5 Duur-weergave-conventie (d/h) + mixed-kalender-val
+### 6.5 Duur-weergave (Duurweergave-instelling) + mixed-kalender-val
 
-Default weergave: **werkdagen** (via `effHoursPerDay`), met een **d/h-toggle** (P6/MSP-conventie, Rapport B
-§6.3). Omdat "1d" dubbelzinnig is bij verschillende kalender-`hoursPerDay` (Rapport B §5, de P6-val — een
-480-min-taak is "1d" op een 8u-kalender en "0.8d" op een 10u-kalender, scenario 9), toont de UI de
-kalender-`hoursPerDay` in een kolom/tooltip zodra een project kalenders met verschillende daglengtes mengt,
-en waarschuwt (net als de adapter-`console.warn`s) wanneer een dag-project en een uur-project samenkomen.
+Tabellen en balk-tooltips tonen per taak de **eigen eenheid**: een dag-taak toont "3d", een uur-taak "20u".
+Dit stuurt de **Duurweergave**-instelling (§6.8): **automatisch** (default — eigen eenheid per taak),
+**altijd dagen** of **altijd uren**. Deze instelling **vervangt de eerder overwogen d/h-toggle** (P6/MSP-
+conventie, Rapport B §6.3): het is één app-brede voorkeur op de drie ingangen (§6.8), geen per-veld-knop.
 
-### 6.6 Kalenderdialoog — banden-editor
+Afgeleide fractionele dagen blijven als **weergave** toegestaan (hele-eenheden-besluit §6.4): "1d" is
+dubbelzinnig bij verschillende kalender-`hoursPerDay` (Rapport B §5, de P6-val — een 480-min-taak is "1d" op
+een 8u-kalender en "0,8d" op een 10u-kalender, scenario 9). Daarom toont de UI de kalender-`hoursPerDay` in
+een kolom/tooltip zodra een project kalenders met verschillende daglengtes mengt, en **waarschuwt** (net als
+de adapter-`console.warn`s) wanneer een dag-project en een uur-project samenkomen. Deze mixed-kalender-
+waarschuwing/tooltip blijft óók bestaan wanneer "Gemengde dag/uur-planning toestaan" (§6.8) uit staat: die
+poort beperkt alleen wat de UI aan *invoer* aanbiedt, niet het correct tonen van bestaande gemengde data.
 
-`CalendarDialog.tsx`/`CalendarForm.tsx` (2.8a) krijgen een **banden-editor**: per werkdag een lijst
-`{start,end}`-banden (tijd-pickers), met "kopieer naar alle werkdagen", een **nachtploeg-toggle** (band die
-middernacht kruist) en een **24/7-preset**. `hoursPerDay` wordt afgeleid getoond (som van banden). Ontbreekt
-`workTime`, dan blijft het de huidige `workStartHour`/`workEndHour`/`hoursPerDay`-scalar-UI (dag-kalender).
-*Let op:* een parallel-draaiende bugfix-agent raakt deze dialoog (Annuleren/Enter/vriesvrij) — dit ontwerp
-bouwt bovenop wat er staat; geen aanname over stabiliteit tijdens implementatie.
+### 6.6 Kalenderdialoog — werktijden: presets + eigen presets + editor
+
+`CalendarDialog.tsx`/`CalendarForm.tsx` (2.8a) krijgen een werktijden-UI met **presets als standaardbeeld en
+de banden-editor als opt-in** (expliciete kwaliteitseis van de user: niet clunky). Drie lagen:
+
+**(a) Preset-knoppen** — een rij: **Dagdienst** (dag-kalender, geen `workTime`), **2 ploegen**,
+**Nachtploeg** (wrap over middernacht) en **24/7**. Eén klik materialiseert de bijbehorende `workTime`-banden
+(+ `shift`-classificatie, §7.1); Dagdienst wist `workTime` weer (terug naar dag-kalender). Presets zijn het
+standaardbeeld.
+
+**(b) Eigen presets** — na het aanpassen van tijden verschijnt een knop **"Bewaar als preset…"**; opgeslagen
+eigen presets komen in **dezelfde rij** te staan, met een **verwijder-kruisje**. Eigen presets leven op
+**app-niveau** (localStorage, settings-patroon §6.8), **niet** in het projectbestand — ze reizen dus niet mee
+met een project maar zijn op elke machine van de gebruiker beschikbaar.
+
+**(c) Banden-editor** — achter een knop **"Per weekdag instellen…"** (opt-in): per werkdag een lijst
+`{start,end}`-banden (tijd-pickers), "kopieer naar alle werkdagen", een **nachtploeg-toggle** (band die
+middernacht kruist), **meerdere banden per dag** (pauze) en de **per-weekdag-som + afgeleide `hoursPerDay`**
+als controlegetal (Bevinding 8). Zo zijn ook onregelmatige weken (bv. ma-do 9u, vr 4u) instelbaar.
+
+Ontbreekt `workTime`, dan blijft het de huidige `workStartHour`/`workEndHour`/`hoursPerDay`-scalar-UI
+(dag-kalender). De volledige werktijden-UI (presets, eigen presets, editor) verschijnt **alleen wanneer de
+hoofdschakelaar "Urenplanning" (§6.8) aan staat**; staat hij uit, dan toont de dialoog exact de
+2.8a-scalar-UI (byte-identiek gedrag). *Let op:* een parallel-draaiende bugfix-agent raakt deze dialoog
+(Annuleren/Enter/vriesvrij) — dit ontwerp bouwt bovenop wat er staat; geen aanname over stabiliteit tijdens
+implementatie.
 
 ### 6.7 Wizard — ploeg-presets
 
 De wizard (`ProjectInfoDialog`, 2.8a) krijgt optionele **ploeg-presets**: "Dagdienst" (default, dag-
 kalender, geen `workTime`), "2-ploegen", "3-ploegen (dag/avond/nacht)", "24/7". Elke niet-default preset
 materialiseert de bijbehorende `workTime`-banden + `shift`-classificatie op nieuwe kalender-entries. Default
-blijft de dag-kalender ⇒ nieuwe projecten zijn dag-modus tenzij expliciet gekozen.
+blijft de dag-kalender ⇒ nieuwe projecten zijn dag-modus tenzij expliciet gekozen. De ploeg-presets delen
+dezelfde definities als de kalenderdialoog-presets (§6.6, inclusief de eigen presets) en verschijnen
+**alleen wanneer "Urenplanning" (§6.8) aan staat**; staat de schakelaar uit, dan biedt de wizard uitsluitend
+de dag-kalender aan (byte-identiek met vóór 2.8b).
+
+### 6.8 Instellingen
+
+2.8b introduceert vier instellingen. Ze verschijnen — conform de bestaande harde projectregel — op **alle
+drie de ingangen tegelijk** (tandwiel ⚙, Instellingen-linttab, File-backstage) via de **gedeelde
+settings-content-component**; nooit op één ingang los.
+
+| Instelling | Default | Effect |
+|---|---|---|
+| **Urenplanning** (hoofdschakelaar) | **uit** | Uit ⇒ geen uur-tijdschaal in zoom/presets (§6.2), geen uren-vakjes in de taakdialoog (§6.4), geen banden/ploegen-UI in kalenderdialoog (§6.6) en wizard (§6.7) — de app gedraagt zich exact als vóór 2.8b. Aan ⇒ de volledige 2.8b-UI. |
+| **Gemengde dag/uur-planning toestaan** (sub-instelling) | **aan** | Puur een **UI-poort** (de engine kan altijd gemengd, §5.4). Uit ⇒ binnen een project biedt de UI alleen de eenheid van de projectkalender aan; bestaande gemengde data blijft correct rekenen en tonen, en de mixed-kalender-waarschuwing (§6.5) blijft. |
+| **Duurweergave** | **automatisch** | `automatisch` (eigen eenheid per taak: "3d"/"20u") \| `altijd dagen` \| `altijd uren` (§6.5). Vervangt de d/h-toggle. |
+| **Taakbalken bij onderbrekingen** | **bij selectie** | `nooit opsplitsen` \| `opsplitsen bij selectie` (doorlopende balk; werkblokken zichtbaar zodra de taak geselecteerd is) \| `altijd opsplitsen` (§6.9). |
+
+**Engine blijft uur-bewust ongeacht de schakelaar.** "Urenplanning" uit betekent níét dat de engine dag-only
+wordt: een bestand met uur-data (`workTime`/`durationMinutes`) **rekent correct** en de app **stelt bij het
+openen voor** de schakelaar aan te zetten — nooit stil wegronden naar dagen. De schakelaar poort uitsluitend
+de UI-oppervlakken, niet de rekenkern.
+
+**localStorage-migratiepatroon** (settings-patroon `settingsStore.ts:66,90,106`): een **ontbrekende sleutel
+⇒ de default** (Urenplanning uit, Gemengd aan, Duurweergave automatisch, Taakbalken bij selectie), **geen
+reset** van andere voorkeuren. Zo laadt een oude localStorage-staat zonder de 2.8b-sleutels probleemloos met
+de defaults. De eigen werktijd-presets (§6.6b) staan in dezelfde localStorage-laag — óók app-niveau, niet in
+het projectbestand.
+
+### 6.9 Balk-opsplitsing bij onderbrekingen (bar-necking)
+
+Uur-taakbalken kunnen worden **opgesplitst in hun echte werkblokken**: pauzes en nachten vallen als **gaten**
+uit de balk (het bar-necking-concept, user-idee 2026-07-06, bindend). De instelling **"Taakbalken bij
+onderbrekingen"** (§6.8) heeft drie standen:
+
+- **nooit opsplitsen** — altijd één doorlopende balk van start tot finish.
+- **opsplitsen bij selectie** (default) — doorlopende balk; de werkblok-segmenten worden zichtbaar zodra de
+  taak **geselecteerd** is.
+- **altijd opsplitsen** — de werkblok-segmenten zijn altijd zichtbaar.
+
+**Renderer-impact.** `GanttRenderer` tekent voor **uur-taken** de **gematerialiseerde band-segmenten** binnen
+`[start, finish]` — de banden-materialisatie uit §4.2 is er al en is **gememoized op het kalender-object**,
+dus het opsplitsen hergebruikt die uitrol en kost geen extra solve. Elk segment wordt met `dateToX` op zijn
+sub-dag-positie getekend (§6.1). **Dag-taken blijven altijd een doorlopende balk** (geen sub-dag-banden). Het
+opsplitsen is puur **weergave**: het raakt `durationMinutes`, de datums noch de solve.
 
 ---
 
@@ -653,6 +751,19 @@ Aanvullende randgeval-cases:
 - **`durationMinutes` op een dag-kalender (Bevinding 2).** Een taak met een gezet `durationMinutes` op een
   dag-kalender ⇒ het veld wordt genegeerd (fallback `scheduleDuration`), dag-datums bit-identiek aan de
   tweeling zonder het veld.
+
+### 8.4 UI-/parser-/settings-unittests (besluiten 2026-07-06)
+
+Naast de CPM-batterij drie unit-testbare regels die rechtstreeks uit de UI-besluiten volgen:
+
+- **Hele-eenheden-parser** (`durationFormat.ts`, §6.4): `"2d4h"`/`"4h"`/`"90m"` parsen naar de juiste
+  minuten; `"1.5d"`/`"0.25h"`/een negatieve waarde ⇒ **afgewezen** (geen decimalen in de invoer).
+- **Sync-rekenregel van de drie vakjes** (§6.4): `totaalUren = dagen × effHoursPerDay + uren`, en
+  `totaal → (⌊totaal/effHoursPerDay⌋ dagen, totaal mod effHoursPerDay uren)` — getest op H8 (2d + 4u = 20u)
+  en H10 (20u = 2d 0u).
+- **Afwezige settings-sleutels = defaults** (§6.8): een localStorage-staat zonder de 2.8b-sleutels laadt met
+  Urenplanning uit / Gemengd aan / Duurweergave automatisch / Taakbalken bij selectie, zónder reset van
+  andere voorkeuren.
 
 ---
 
@@ -858,11 +969,16 @@ vertalingen/mechanische wiring **Sonnet**.
 | **2 — CPMSolver minuut-bewust** | duur-resolutie per taak, FS-gap geünificeerd, lag in minuten, forward+backward, float in minuten, statusDate/actuals/out-of-sequence, projectDuration | `engine/scheduler/CPMSolver.ts`, `scheduleSlice.ts` | G1 | Opus |
 | **3 — Harness + uur-batterij** | `dur`-string/`lagMinutes`/`workTime` in cases, datetime-comparator, **afwezig-veld=dag-regressie**, `cases-hours.json` (§9), 290+examples-poort | `tests/planning/harness.ts`, `cases-hours.json` (nieuw), BRIEF.md | G1,G2 | Opus |
 | **4 — Adapters** | IFC (`PnDTnHnMnS`, echte tijden, `TimePeriods`-lijst, `PredefinedType`), P6 (afronding weg, multi-band, minuut-lag), MSPDI (`/8`-fix, alle banden, minuut-duur/lag) | `services/ifc/{ifcWriter,ifcReader}.ts`, `services/p6/*`, `services/msproject/*` | G0,G1 | Opus |
-| **5 — Gantt/UI** | uur-tier-label (`scaleFromZoom`/`TIMESCALE_ZOOM`), balkbreedte uur-modus, drag/snap-quantum, duur-parser-wiring, d/h-toggle + mixed-warning, kalender-banden-editor, ploeg-wizard | `engine/renderer/{GanttRenderer,timelineTiers}.ts`, `components/canvas/GanttCanvas.tsx`, `components/dialogs/{TaskDialog,CalendarDialog,CalendarForm}.tsx`, `ProjectInfoDialog.tsx`, panels | G0,G2 | Opus (wiring/i18n-keys Sonnet) |
+| **5 — Gantt/UI + instellingen** | uur-tier-label (`scaleFromZoom`/`TIMESCALE_ZOOM`, gated op Urenplanning), balkbreedte uur-modus, drag/snap-quantum (**min 1 uur, geen kwartier-snap**), **drie gesyncte duur-vakjes** (Dagen/Uren/Totaal), duur-parser-wiring (**hele eenheden**), **Duurweergave-instelling** + mixed-warning, **balk-opsplitsing** (3 standen), werktijden-UI (**presets + eigen presets + banden-editor**), ploeg-wizard, **hoofdschakelaar "Urenplanning" + sub-instellingen op de 3 ingangen** | `engine/renderer/{GanttRenderer,timelineTiers}.ts`, `components/canvas/GanttCanvas.tsx`, `components/dialogs/{TaskDialog,CalendarDialog,CalendarForm}.tsx`, `ProjectInfoDialog.tsx`, gedeelde settings-component, panels | G0,G2 | Opus; **settings-plumbing (3 ingangen + localStorage-sleutels) mechanisch ⇒ Sonnet** |
 | **6 — i18n + docs** | 12 talen voor nieuwe sleutels, changelog, TODO/ontwerpdoc-status | `i18n/*`, `CHANGELOG`, `TODO.md` | G5 | **Sonnet** (Opus-review) |
 
 **Kritieke padvolgorde:** G0→G1→G2→G3 (de bit-identiteits-poort staat in G3). G4 en G5 kunnen deels
 parallel ná G1 (banden-model) en G2 (resultaten). G6 laatst.
+
+**Model-splitsing binnen G5:** de **instellingen-plumbing** — de vier sleutels op de drie ingangen bedraden
+via de gedeelde settings-component, plus de localStorage-defaults (§6.8) — is **mechanisch werk dat naar
+Sonnet kan**. De correctheids-gevoelige UI (snap-quantum, drie-vakjes-sync-rekenregel, balk-opsplitsing-
+renderer) blijft **Opus**.
 
 ---
 
