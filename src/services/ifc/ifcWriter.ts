@@ -515,10 +515,6 @@ function writeCalendarGenerationMeta(
     props.push(addLine(ctx, `_opscal_break_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('BreakChoice',$,IFCLABEL(${ifcStr(gen.breakChoice)}),$)`));
   }
-  if (gen.winterStop) {
-    props.push(addLine(ctx, `_opscal_winter_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('WinterStop',$,IFCBOOLEAN(.T.),$)`));
-  }
   props.push(addLine(ctx, `_opscal_from_${cal.id}`,
     `IFCPROPERTYSINGLEVALUE('GeneratedFromYear',$,IFCINTEGER(${gen.generatedFromYear}),$)`));
   props.push(addLine(ctx, `_opscal_to_${cal.id}`,

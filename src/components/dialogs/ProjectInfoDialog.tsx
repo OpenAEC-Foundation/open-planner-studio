@@ -16,7 +16,7 @@ import { useDialogKeys } from '@/hooks/useDialogKeys';
 type WizardCalendarState = Omit<HolidayGenParams, 'country'> & { country: HolidayCountry | 'none' | 'custom' };
 
 const DEFAULT_WIZARD_CALENDAR: WizardCalendarState = {
-  country: 'NL', region: undefined, bouwvak: 'geen', winterStop: false, // default GEEN bouwvak (harde eis)
+  country: 'NL', region: undefined, bouwvak: 'geen', // default GEEN bouwvak (harde eis)
 };
 
 /**
@@ -54,7 +54,7 @@ export function ProjectInfoDialog() {
     if (isNew) {
       const isCustom = calState.country === 'custom';
       const calendar = isCustom
-        ? buildGeneratedCalendar({ country: 'none', bouwvak: 'geen', winterStop: false }, calSpan)
+        ? buildGeneratedCalendar({ country: 'none', bouwvak: 'geen' }, calSpan)
         : buildGeneratedCalendar(calState as HolidayGenParams, calSpan);
       createNewProject({
         name, description, author, company, startDate, endDate,
@@ -146,9 +146,9 @@ export function ProjectInfoDialog() {
               </div>
 
               {/* Feestdagen-generator (fase 2.8a, §7.2): land/regio, bouwvak (default GEEN — harde
-                  eis), vaste winterstop + compacte preview. "Aangepast…" (extra optie in de
-                  land-select) verbergt de rest van de generator (leeg gestart; de kalenderdialoog
-                  opent na aanmaken om handmatig te bewerken, zie `handlePrimary`). */}
+                  eis) + compacte preview. "Aangepast…" (extra optie in de land-select) verbergt de
+                  rest van de generator (leeg gestart; de kalenderdialoog opent na aanmaken om
+                  handmatig te bewerken, zie `handlePrimary`). */}
               <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
               <span className="text-text-secondary font-medium">{tMenu('wizard.calendar.country')}</span>
               <CalendarGeneratorFields

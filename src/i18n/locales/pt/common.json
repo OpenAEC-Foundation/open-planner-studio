@@ -303,8 +303,6 @@
         "midden": "Centro",
         "zuid": "Sul"
       },
-      "winterStop": "Paralisação de inverno fixa",
-      "winterHint": "Paralisação fixa; os dias reais de gelo virão depois, a partir de dados meteorológicos",
       "preview": "{{n}} feriados, {{from}}–{{to}}",
       "bouwvakHint": "Datas indicativas — verifique junto à Bouwend Nederland",
       "apply": "Gerar",

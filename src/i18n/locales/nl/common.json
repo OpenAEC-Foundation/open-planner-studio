@@ -303,8 +303,6 @@
         "midden": "Midden",
         "zuid": "Zuid"
       },
-      "winterStop": "Vaste winterstop",
-      "winterHint": "Vaste winterstop; werkelijk vorstverlet volgt later uit weerdata",
       "preview": "{{n}} feestdagen, {{from}}–{{to}}",
       "bouwvakHint": "Adviesdatums — controleer bij Bouwend Nederland",
       "apply": "Genereren",

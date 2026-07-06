@@ -383,20 +383,3 @@ export function generateRegionalBreak(
   return out;
 }
 
-/**
- * Vaste collectieve winterstop (advies, cao-afhankelijk): zaterdag vóór Kerst t/m de eerste maandag
- * na 1 januari, per jaargrens. Werkelijk vorstverlet volgt later uit weerdata (fase 4).
- */
-export function generateWinterStop(fromYear: number, toYear: number): Holiday[] {
-  const out: Holiday[] = [];
-  for (let y = fromYear; y <= toYear; y++) {
-    // Zaterdag op of vóór 24 dec van jaar y.
-    let start = utc(y, 12, 24);
-    while (dow(start) !== 6) start = addDays(start, -1);
-    // Eerste maandag op of ná 2 jan van jaar y+1.
-    let end = utc(y + 1, 1, 2);
-    while (dow(end) !== 1) end = addDays(end, 1);
-    out.push({ name: 'Winterstop', startDate: iso(start), endDate: iso(end) });
-  }
-  return out;
-}

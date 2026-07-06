@@ -1,6 +1,6 @@
 import type { Holiday, CalendarGeneration } from '@/types/calendar';
 import {
-  HOLIDAY_SETS, generateHolidays, generateRegionalBreak, generateWinterStop,
+  HOLIDAY_SETS, generateHolidays, generateRegionalBreak,
   type HolidayCountry,
 } from './holidays';
 
@@ -16,14 +16,12 @@ export interface HolidayGenParams {
   region?: string;
   /** Alleen relevant bij `country === 'NL'`; default `'geen'`. */
   bouwvak: BouwvakChoice;
-  winterStop: boolean;
 }
 
 export const DEFAULT_GEN_PARAMS: HolidayGenParams = {
   country: 'NL',
   region: undefined,
   bouwvak: 'geen', // harde eis: default GEEN bouwvak
-  winterStop: false,
 };
 
 /**
@@ -45,15 +43,11 @@ export function materializeHolidays(
   if (bouwvakActive) {
     holidays.push(...generateRegionalBreak(params.bouwvak as 'noord' | 'midden' | 'zuid', fromYear, toYear));
   }
-  if (params.winterStop) {
-    holidays.push(...generateWinterStop(fromYear, toYear));
-  }
   holidays.sort((a, b) => a.startDate.localeCompare(b.startDate));
   const generation: CalendarGeneration = {
     ruleSetId: params.country,
     region: params.region,
     breakChoice: bouwvakActive ? (params.bouwvak as 'noord' | 'midden' | 'zuid') : undefined,
-    winterStop: params.winterStop || undefined,
     generatedFromYear: fromYear,
     generatedToYear: toYear,
   };

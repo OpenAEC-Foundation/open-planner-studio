@@ -22,7 +22,6 @@ export interface CalendarGeneration {
   ruleSetId: HolidayCountry;                 // welke landenset de datums voortbracht
   region?: string;                           // Bundesland/landsdeel/kanton; undefined = landelijk
   breakChoice?: 'noord' | 'midden' | 'zuid'; // NL-bouwvak; undefined = geen (default)
-  winterStop?: boolean;                      // vaste collectieve winterstop meegenomen
   generatedFromYear: number;                 // gematerialiseerde spanne (incl.)
   generatedToYear: number;
 }

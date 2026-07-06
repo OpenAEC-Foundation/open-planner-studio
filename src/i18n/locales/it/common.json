@@ -303,8 +303,6 @@
         "midden": "Centro",
         "zuid": "Sud"
       },
-      "winterStop": "Fermo invernale fisso",
-      "winterHint": "Fermo fisso; i giorni di gelo effettivi arriveranno in seguito dai dati meteo",
       "preview": "{{n}} festività, {{from}}–{{to}}",
       "bouwvakHint": "Date indicative — verificare con Bouwend Nederland",
       "apply": "Genera",

@@ -303,8 +303,6 @@
         "midden": "中部",
         "zuid": "南部"
       },
-      "winterStop": "固定冬季休業",
-      "winterHint": "固定の休業期間。実際の凍結日は後で気象データから決定されます",
       "preview": "{{n}} 件の祝日、{{from}}〜{{to}}",
       "bouwvakHint": "目安の日付です — Bouwend Nederlandで確認してください",
       "apply": "生成",

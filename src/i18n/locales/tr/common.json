@@ -303,8 +303,6 @@
         "midden": "Orta",
         "zuid": "Güney"
       },
-      "winterStop": "Sabit kış tatili",
-      "winterHint": "Sabit kapanış; gerçek don günleri daha sonra hava durumu verilerinden belirlenir",
       "preview": "{{n}} tatil, {{from}}–{{to}}",
       "bouwvakHint": "Bilgilendirme amaçlı tarihler — Bouwend Nederland ile doğrulayın",
       "apply": "Oluştur",

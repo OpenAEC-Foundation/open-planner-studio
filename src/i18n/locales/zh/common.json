@@ -303,8 +303,6 @@
         "midden": "中部",
         "zuid": "南部"
       },
-      "winterStop": "固定冬歇期",
-      "winterHint": "固定停工期；实际霜冻天数将根据天气数据在后续确定",
       "preview": "{{n}} 个假日，{{from}}–{{to}}",
       "bouwvakHint": "仅供参考的日期 — 请与 Bouwend Nederland 核实",
       "apply": "生成",

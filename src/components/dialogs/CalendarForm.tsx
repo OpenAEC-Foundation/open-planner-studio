@@ -38,7 +38,6 @@ export function CalendarForm({
           country: draft.generation.ruleSetId,
           region: draft.generation.region,
           bouwvak: draft.generation.breakChoice ?? 'geen',
-          winterStop: !!draft.generation.winterStop,
         }
       : DEFAULT_GEN_PARAMS,
   );
@@ -64,7 +63,6 @@ export function CalendarForm({
       country: draft.generation.ruleSetId,
       region: draft.generation.region,
       bouwvak: draft.generation.breakChoice ?? 'geen',
-      winterStop: !!draft.generation.winterStop,
     };
     const { holidays, generation } = materializeHolidays(params, projectYearSpan.from, projectYearSpan.to);
     onChange({ holidays, generation });

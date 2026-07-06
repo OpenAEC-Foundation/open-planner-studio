@@ -303,8 +303,6 @@
         "midden": "Centre",
         "zuid": "Sud"
       },
-      "winterStop": "Arrêt hivernal fixe",
-      "winterHint": "Arrêt fixe ; les jours de gel réels viendront plus tard des données météo",
       "preview": "{{n}} jours fériés, {{from}}–{{to}}",
       "bouwvakHint": "Dates indicatives — à vérifier auprès de Bouwend Nederland",
       "apply": "Générer",

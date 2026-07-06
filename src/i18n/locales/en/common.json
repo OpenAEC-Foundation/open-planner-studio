@@ -303,8 +303,6 @@
         "midden": "Central",
         "zuid": "South"
       },
-      "winterStop": "Fixed winter shutdown",
-      "winterHint": "Fixed shutdown; actual frost days come later from weather data",
       "preview": "{{n}} holidays, {{from}}–{{to}}",
       "bouwvakHint": "Advisory dates — verify with Bouwend Nederland",
       "apply": "Generate",

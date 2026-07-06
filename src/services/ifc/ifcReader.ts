@@ -769,7 +769,6 @@ function extractCalendarGeneration(
     let ruleSetId: HolidayCountry | undefined;
     let region: string | undefined;
     let breakChoice: CalendarGeneration['breakChoice'];
-    let winterStop = false;
     let generatedFromYear: number | undefined;
     let generatedToYear: number | undefined;
     for (const prop of props) {
@@ -778,7 +777,8 @@ function extractCalendarGeneration(
       if (name === 'RuleSetId' && typeof value === 'string') ruleSetId = value as HolidayCountry;
       else if (name === 'Region' && typeof value === 'string') region = value;
       else if (name === 'BreakChoice' && typeof value === 'string') breakChoice = value as CalendarGeneration['breakChoice'];
-      else if (name === 'WinterStop' && value === true) winterStop = true;
+      // 'WinterStop' (verwijderde feature, fase 2.8b) wordt in oude bestanden genegeerd; de
+      // gematerialiseerde feestdagen zelf staan los in de kalender en blijven behouden.
       else if (name === 'GeneratedFromYear' && typeof value === 'number') generatedFromYear = value;
       else if (name === 'GeneratedToYear' && typeof value === 'number') generatedToYear = value;
     }
@@ -788,7 +788,6 @@ function extractCalendarGeneration(
       ruleSetId,
       ...(region ? { region } : {}),
       ...(breakChoice ? { breakChoice } : {}),
-      ...(winterStop ? { winterStop } : {}),
       generatedFromYear,
       generatedToYear,
     };

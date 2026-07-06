@@ -303,8 +303,6 @@
         "midden": "Centro",
         "zuid": "Sur"
       },
-      "winterStop": "Cierre de invierno fijo",
-      "winterHint": "Cierre fijo; los días reales de helada llegarán después según datos meteorológicos",
       "preview": "{{n}} festivos, {{from}}–{{to}}",
       "bouwvakHint": "Fechas orientativas — verificar con Bouwend Nederland",
       "apply": "Generar",

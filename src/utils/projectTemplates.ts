@@ -46,8 +46,8 @@ export function templatePhases(key: TemplateKey): string[] {
 /**
  * Kalender-generator-parameters voor de nieuw-project-wizard (fase 2.8a, §7.2). Vervangt de
  * oude vaste presets (`CalendarPreset`/`buildPresetCalendar`) door de regelgebaseerde
- * feestdagen-engine: land/regio, NL-bouwvak (default GEEN — harde eis TODO.md r192-194) en een
- * vaste winterstop. `span` is de generatie-spanne in jaren (§4.4: bij aanmaak startjaar−1..+3).
+ * feestdagen-engine: land/regio en NL-bouwvak (default GEEN — harde eis TODO.md r192-194).
+ * `span` is de generatie-spanne in jaren (§4.4: bij aanmaak startjaar−1..+3).
  */
 export function buildGeneratedCalendar(
   params: HolidayGenParams,

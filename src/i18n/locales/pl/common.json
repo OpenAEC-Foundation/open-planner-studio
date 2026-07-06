@@ -303,8 +303,6 @@
         "midden": "Środek",
         "zuid": "Południe"
       },
-      "winterStop": "Stały przestój zimowy",
-      "winterHint": "Stały przestój; rzeczywiste dni mrozowe zostaną ustalone później na podstawie danych pogodowych",
       "preview": "{{n}} świąt, {{from}}–{{to}}",
       "bouwvakHint": "Daty orientacyjne — zweryfikuj w Bouwend Nederland",
       "apply": "Generuj",

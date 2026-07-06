@@ -303,8 +303,6 @@
         "midden": "Mitte",
         "zuid": "Süd"
       },
-      "winterStop": "Feste Winterpause",
-      "winterHint": "Feste Pause; tatsächliche Frosttage folgen später aus Wetterdaten",
       "preview": "{{n}} Feiertage, {{from}}–{{to}}",
       "bouwvakHint": "Richtwerte — bitte bei Bouwend Nederland prüfen",
       "apply": "Generieren",

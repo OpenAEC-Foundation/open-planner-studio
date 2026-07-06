@@ -303,8 +303,6 @@
         "midden": "중부",
         "zuid": "남부"
       },
-      "winterStop": "고정 동절기 휴업",
-      "winterHint": "고정 휴업 기간이며, 실제 결빙일은 이후 기상 데이터로 결정됩니다",
       "preview": "공휴일 {{n}}개, {{from}}–{{to}}",
       "bouwvakHint": "참고용 날짜입니다 — Bouwend Nederland에서 확인하세요",
       "apply": "생성",
