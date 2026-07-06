@@ -53,6 +53,17 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --define:__OPS_DEV_INSTANCE__='"test"' \
     --outfile="$DTCHECK" >/dev/null 2>&1
   node "$DTCHECK" || STATUS=1
+
+  # CalendarEngine uur-modus-checks (fase 2.8b golf 1, §4/§9 — engine-primitieven, los van de CPM-cases).
+  CHCHECK="$DIR/.calendar-hours-check.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-calendar-hours.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$CHCHECK" >/dev/null 2>&1
+  node "$CHCHECK" || STATUS=1
 fi
 
 node "$OUT" "${FILES[@]}" || STATUS=1
