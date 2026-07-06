@@ -236,12 +236,16 @@ export function DateTextInput({
     return order.map(d => byKind[d.kind]);
   }, [placeholder, t, order]);
 
-  const focusSeg = (i: number, pos: 'start' | 'end') => {
+  const focusSeg = (i: number, pos: 'start' | 'end' | 'all') => {
     const el = refs.current[order[i].kind];
     if (!el) return;
     el.focus();
-    const p = pos === 'end' ? el.value.length : 0;
-    try { el.setSelectionRange(p, p); } catch { /* niet-tekst-selecteerbaar */ }
+    try {
+      // `'all'` selecteert de volledige inhoud (zodat typen VERVANGT i.p.v. door `maxLength` geblokkeerd
+      // te worden op een reeds-gevuld segment); `'start'`/`'end'` plaatsen een lege cursor.
+      if (pos === 'all') el.select();
+      else { const p = pos === 'end' ? el.value.length : 0; el.setSelectionRange(p, p); }
+    } catch { /* niet-tekst-selecteerbaar */ }
   };
 
   const focusEntry = () => {
@@ -265,7 +269,11 @@ export function DateTextInput({
     setSeg(next);
     setShowError(false); // typen wist elke eerder getoonde fout
     commitFrom(next);
-    if (digits.length >= def.maxLen && i < order.length - 1) focusSeg(i + 1, 'start');
+    // Auto-doorspringen: land op het volgende segment. Is dat al GEVULD, selecteer dan de inhoud (typen
+    // vervangt) i.p.v. een lege cursor die door `maxLength` niets meer accepteert (QA-fix).
+    if (digits.length >= def.maxLen && i < order.length - 1) {
+      focusSeg(i + 1, next[order[i + 1].kind] ? 'all' : 'start');
+    }
   };
 
   const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -386,6 +394,13 @@ export function DateTextInput({
               // (`dd`/`mm`/`jjjj` — bredere glyphs dan cijfers) volledig passen.
               style={{ ...SEG_STYLE, width: `${def.maxLen === 4 ? 4.9 : 2.9}ch` }}
               onFocus={() => setActiveKind(def.kind)}
+              onMouseUp={e => {
+                // Klik in een GEVULD segment (geen sleep-selectie) ⇒ selecteer de volledige inhoud, zodat
+                // typen vervangt i.p.v. door `maxLength` geblokkeerd te worden (QA-fix). Leeg segment: laat
+                // de cursor met rust (aan het begin). Een echte sleep-selectie (start≠end) blijft behouden.
+                const el = e.currentTarget;
+                if (el.value.length > 0 && el.selectionStart === el.selectionEnd) el.select();
+              }}
               onChange={e => handleChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(i, e)}
               onPaste={handlePaste}
