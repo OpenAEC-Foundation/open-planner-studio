@@ -339,6 +339,25 @@
     "preset": {
       "continuous": "Continu (24/7)",
       "weekdays": "Ma–vr"
+    },
+    "shift": {
+      "day": "Dagdienst",
+      "twoShift": "2 ploegen",
+      "threeShift": "3 ploegen",
+      "night": "Nachtploeg",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Werktijden",
+      "derivedHpd": "Afgeleide uren/dag:",
+      "saveAsPreset": "Bewaar als preset…",
+      "perWeekday": "Per weekdag instellen…",
+      "presetNamePlaceholder": "Presetnaam",
+      "addBand": "Band toevoegen",
+      "copyToAll": "Kopieer naar alle werkdagen",
+      "noBands": "Niet-werkend",
+      "nextDay": "volgende dag",
+      "shiftPreset": "Ploeg"
     }
   },
   "view": {
@@ -420,5 +439,9 @@
     "day": "dag",
     "month": "maand",
     "year": "jaar"
+  },
+  "hourData": {
+    "notice": "Dit bestand bevat urenplanning.",
+    "enable": "Urenplanning aanzetten"
   }
 }

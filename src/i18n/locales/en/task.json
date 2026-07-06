@@ -10,7 +10,9 @@
     "critical": "Critical",
     "totalFloat": "Total Float",
     "completion": "Progress",
-    "milestone": "Milestone"
+    "milestone": "Milestone",
+    "hoursPerDayTip": "h/day",
+    "mixedWarning": "Mixed calendars ({{hpds}} h/day). Duration is shown per task in its own unit."
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -36,7 +38,11 @@
     "parentTask": "Parent task",
     "noParent": "- None (root) -",
     "milestone": "Milestone (zero duration)",
-    "wbsPlaceholder": "e.g. RB-301"
+    "wbsPlaceholder": "e.g. RB-301",
+    "durationDays": "Days",
+    "durationHours": "Hours",
+    "durationTotalHours": "Total hours",
+    "hourCalendarHint": "Hour input requires an hour calendar (working times)."
   },
   "properties": {
     "task": "Task",

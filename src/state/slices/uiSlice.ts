@@ -64,6 +64,7 @@ export function createDefaultUI(): UIState {
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
+    hourDataNotice: false,
   };
 }
 

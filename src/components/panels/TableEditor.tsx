@@ -9,6 +9,10 @@ import type { ColumnConfig, FieldRef, BuiltinFieldKey } from '@/state/slices/typ
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { useDisplayDate } from '@/utils/displayDate';
+import { effectiveCalendarOf, effHoursPerDay, formatTaskDurationDisplay, detectMixedCalendars } from '@/utils/taskDuration';
+import { isHourCalendar } from '@/services/subdayIo';
+import { parseDuration, formatDuration } from '@/utils/durationFormat';
+import { AlertTriangle } from 'lucide-react';
 
 const MIN_COLUMN_WIDTH = 40;
 
@@ -98,10 +102,39 @@ export function TableEditor() {
   const setCollapsedGroupKey = useAppStore(s => s.setCollapsedGroupKey);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
+  // Duurweergave (§6.5): effectieve kalender per taak → geformatteerde duur + mixed-detectie.
+  const projectCal = useAppStore(s => s.calendar);
+  const calendars = useAppStore(s => s.calendars);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
 
   const [editCell, setEditCell] = useState<{ taskId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [resizing, setResizing] = useState<{ index: number; startX: number; startWidth: number } | null>(null);
+
+  // Mixed-kalender-detectie (§6.5): alleen relevant als Urenplanning aan staat (anders byte-identiek).
+  const mixed = useMemo(
+    () => detectMixedCalendars(tasks, projectCal, calendars),
+    [tasks, projectCal, calendars],
+  );
+  const showMixedWarning = enableHourPlanning && mixed.mixed;
+
+  // Geformatteerde duurweergave (§6.5) + parseerbare edit-seed (uur-taak ⇒ uur-vorm via parseDuration).
+  const durationDisplayValue = (task: Task): string =>
+    formatTaskDurationDisplay(task, effectiveCalendarOf(task, projectCal, calendars), durationDisplay, enableHourPlanning);
+  const durationEditSeed = (task: Task): string => {
+    const cal = effectiveCalendarOf(task, projectCal, calendars);
+    if (enableHourPlanning && isHourCalendar(cal) && !task.isMilestone) {
+      const hpd = effHoursPerDay(cal);
+      const min = task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60;
+      return formatDuration(min, hpd, 'hours');
+    }
+    return `${task.isMilestone ? 0 : task.time.scheduleDuration}`;
+  };
+  const durationCellTitle = (task: Task): string | undefined => {
+    if (!enableHourPlanning) return undefined;
+    return `${effHoursPerDay(effectiveCalendarOf(task, projectCal, calendars))} ${t('table.hoursPerDayTip')}`;
+  };
 
   // Kolom-config (§5.2): view.columns of de defaults; onbekende refs worden overgeslagen bij
   // render maar blijven in de config bewaard (§8.4 — geldig in een ander document).
@@ -177,7 +210,18 @@ export function TableEditor() {
       // Mijlpalen hebben per definitie duur 0 — een ingevoerde duur zou stil
       // divergeren van wat CPM en de canvas-tabel tonen.
       if (!task.isMilestone) {
-        updateTask(taskId, { time: { ...task.time, scheduleDuration: parseInt(editValue) || 0 } });
+        const cal = effectiveCalendarOf(task, projectCal, calendars);
+        if (enableHourPlanning && isHourCalendar(cal)) {
+          // Uur-taak (§6.4): accepteert "20u"/"2d 4u"/"90m" via parseDuration (hele eenheden).
+          // Een parse-fout (o.a. decimalen) laat de duur onveranderd.
+          const hpd = effHoursPerDay(cal);
+          const min = parseDuration(editValue, hpd);
+          if (min != null) {
+            updateTask(taskId, { time: { ...task.time, durationMinutes: min, scheduleDuration: hpd > 0 ? min / (hpd * 60) : task.time.scheduleDuration } });
+          }
+        } else {
+          updateTask(taskId, { time: { ...task.time, scheduleDuration: parseInt(editValue) || 0 } });
+        }
       }
     } else if (field === 'start') {
       updateTask(taskId, { time: { ...task.time, scheduleStart: editValue } });
@@ -187,7 +231,7 @@ export function TableEditor() {
       updateTask(taskId, { time: { ...task.time, completion: (parseInt(editValue) || 0) / 100 } });
     }
     setEditCell(null);
-  }, [editCell, editValue, tasks, updateTask]);
+  }, [editCell, editValue, tasks, updateTask, projectCal, calendars, enableHourPlanning]);
 
   // Navigeerbare (bewerkbare) velden, in de volgorde van de zichtbare kolommen.
   const editableFields = useMemo(() => {
@@ -203,7 +247,7 @@ export function TableEditor() {
   const getCellValue = (task: Task, field: string): string => {
     if (field === 'name') return task.name;
     if (field === 'wbsCode') return task.wbsCode;
-    if (field === 'duration') return `${task.isMilestone ? 0 : task.time.scheduleDuration}`;
+    if (field === 'duration') return durationEditSeed(task);
     if (field === 'start') return task.time.earlyStart || task.time.scheduleStart;
     if (field === 'finish') return task.time.earlyFinish || task.time.scheduleFinish;
     if (field === 'completion') return `${Math.round(task.time.completion * 100)}`;
@@ -301,7 +345,11 @@ export function TableEditor() {
             ? <span className="px-1 truncate">{task.wbsCode}</span>
             : renderCell(task.id, 'wbsCode', task.wbsCode);
         case 'duration':
-          return renderCell(task.id, 'duration', `${task.isMilestone ? 0 : task.time.scheduleDuration}`, 'right');
+          return (
+            <span title={durationCellTitle(task)} className="block" data-ops-dur-cell={task.id}>
+              {renderCell(task.id, 'duration', durationEditSeed(task), 'right', durationDisplayValue(task))}
+            </span>
+          );
         case 'start': {
           const startIso = task.time.earlyStart || task.time.scheduleStart;
           return (
@@ -415,6 +463,17 @@ export function TableEditor() {
               }}
             >
               <span className="truncate">{columnLabel(col.field)}</span>
+              {/* Mixed-kalender-waarschuwing (§6.5): discrete indicatie + hoursPerDay-hint bij de
+                  duurkolomkop wanneer het project duur-eenheden mengt. Geen blokkerende dialoog. */}
+              {showMixedWarning && col.field.src === 'builtin' && col.field.key === 'duration' && (
+                <span
+                  className="ml-1 shrink-0 inline-flex text-amber-500"
+                  data-ops-mixed-warning
+                  title={t('table.mixedWarning', { hpds: mixed.hpds.join(', ') })}
+                >
+                  <AlertTriangle size={12} />
+                </span>
+              )}
               {/* Sleep-handle op de rechterrand (schrijft width terug via setColumns) */}
               <div
                 onMouseDown={e => startColumnResize(e, index, col.width)}

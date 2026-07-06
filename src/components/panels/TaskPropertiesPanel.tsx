@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import type { WorkCalendar } from '@/types/calendar';
+import { isHourCalendar } from '@/services/subdayIo';
+import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
+import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { Task, TaskType, ConstraintType, MilestoneKind } from '@/types/task';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import type { ResourceCurve } from '@/types/resource';
@@ -115,6 +119,36 @@ function Input({ value, onChange, type = 'text', min, max, step, disabled }: {
   );
 }
 
+/**
+ * Duurveld voor een uur-taak (§6.4): tekstinvoer die "20u"/"2d 4u"/"90m" via `parseDuration`
+ * accepteert (hele eenheden) en pas op blur/Enter commit — een parse-fout (o.a. decimalen) draait
+ * terug naar de vorige waarde. Gekeyd op de taak zodat het bij taakwissel vers seedt.
+ */
+function HourDurationField({ minutes, hpd, onCommitMinutes }: {
+  minutes: number;
+  hpd: number;
+  onCommitMinutes: (m: number) => void;
+}) {
+  const seed = formatDuration(minutes, hpd, 'hours');
+  const [val, setVal] = useState(seed);
+  useEffect(() => { setVal(seed); }, [seed]);
+  const commit = () => {
+    const m = parseDuration(val, hpd);
+    if (m != null) onCommitMinutes(m); else setVal(seed);
+  };
+  return (
+    <input
+      type="text"
+      value={val}
+      onChange={e => setVal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+      className="input !text-xs !px-2.5 !py-1.5"
+      data-ops-panel-duration
+    />
+  );
+}
+
 export function TaskPropertiesPanel() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
@@ -148,6 +182,8 @@ export function TaskPropertiesPanel() {
   // Taak-kalender-keuze (fase 2.8a, §7.3): bibliotheek-kalenders + "Projectkalender" (undefined).
   const calendars = useAppStore(s => s.calendars);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
+  const projectCal = useAppStore(s => s.calendar);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
 
   if (selectedTaskIds.length === 0) {
     return (
@@ -309,13 +345,33 @@ export function TaskPropertiesPanel() {
           />
         </Field>
         <Field label={t('properties.duration')}>
-          <Input
-            type="number"
-            value={task.isMilestone ? 0 : task.time.scheduleDuration}
-            onChange={v => updateTime('scheduleDuration', parseInt(v) || 0)}
-            min={0}
-            disabled={task.isMilestone}
-          />
+          {(() => {
+            const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
+            const hourTask = enableHourPlanning && isHourCalendar(cal) && !task.isMilestone;
+            if (!hourTask) {
+              return (
+                <Input
+                  type="number"
+                  value={task.isMilestone ? 0 : task.time.scheduleDuration}
+                  onChange={v => updateTime('scheduleDuration', parseInt(v) || 0)}
+                  min={0}
+                  disabled={task.isMilestone}
+                />
+              );
+            }
+            const hpd = effHoursPerDay(cal);
+            const minutes = task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60;
+            return (
+              <HourDurationField
+                key={task.id}
+                minutes={minutes}
+                hpd={hpd}
+                onCommitMinutes={m => updateTask(task.id, {
+                  time: { ...task.time, durationMinutes: m, scheduleDuration: hpd > 0 ? m / (hpd * 60) : task.time.scheduleDuration },
+                })}
+              />
+            );
+          })()}
         </Field>
       </div>
 

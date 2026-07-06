@@ -10,6 +10,7 @@ import { CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
 
 /** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
  *  `'custom'` ("Aangepast…", ontwerp §7.2) — die opent na aanmaken de kalenderdialoog i.p.v.
@@ -45,6 +46,10 @@ export function ProjectInfoDialog() {
   const [endDate, setEndDate] = useState(isNew ? '' : project.endDate);
   const [calState, setCalState] = useState<WizardCalendarState>(DEFAULT_WIZARD_CALENDAR);
   const [template, setTemplate] = useState<TemplateKey>('empty');
+  // Ploeg-preset (§6.7): default 'day' = dag-kalender (byte-identiek). Alleen zichtbaar met
+  // Urenplanning aan; een niet-default preset materialiseert workTime + shift op de nieuwe kalender.
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const [shiftPreset, setShiftPreset] = useState<ShiftPresetKey>('day');
 
   // Generatie-spanne bij aanmaak (§4.4): nog geen projecteinde bekend ⇒ startjaar−1..+3.
   const calSpan = useMemo(() => computeGenerateSpan(startDate, endDate || undefined), [startDate, endDate]);
@@ -57,6 +62,17 @@ export function ProjectInfoDialog() {
       const calendar = isCustom
         ? buildGeneratedCalendar({ country: 'none', bouwvak: 'geen' }, calSpan)
         : buildGeneratedCalendar(calState as HolidayGenParams, calSpan);
+      // Ploeg-preset materialiseren (§6.7): default 'day' laat de kalender een dag-kalender (geen
+      // workTime); een niet-default preset zet workTime + shift + scalar-fallback op nieuwe entries.
+      if (enableHourPlanning && shiftPreset !== 'day') {
+        const patch = shiftPresetPatch(shiftPreset);
+        calendar.workTime = patch.workTime;
+        calendar.shift = patch.shift;
+        calendar.workDays = patch.workDays;
+        calendar.workStartHour = patch.workStartHour;
+        calendar.workEndHour = patch.workEndHour;
+        calendar.hoursPerDay = patch.hoursPerDay;
+      }
       createNewProject({
         name, description, author, company, startDate, endDate,
         calendar,
@@ -146,6 +162,16 @@ export function ProjectInfoDialog() {
                   onChange={v => setTemplate(v as TemplateKey)} options={templateOptions} />
               </div>
 
+              {/* Ploeg-preset (§6.7) — alleen met Urenplanning aan; default 'Dagdienst' = dag-kalender. */}
+              {enableHourPlanning && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.shiftPreset')}</label>
+                  <Select aria-label={tCommon('calendar.worktime.shiftPreset')} value={shiftPreset}
+                    onChange={v => setShiftPreset(v as ShiftPresetKey)}
+                    options={WIZARD_PRESETS.map(k => ({ value: k, label: tCommon(SHIFT_PRESET_LABEL[k] as 'calendar.shift.day') }))} />
+                </div>
+              )}
+
               {/* Feestdagen-generator (fase 2.8a, §7.2): land/regio, bouwvak (default GEEN — harde
                   eis) + compacte preview. "Aangepast…" (extra optie in de land-select) verbergt de
                   rest van de generator (leeg gestart; de kalenderdialoog opent na aanmaken om
@@ -165,8 +191,8 @@ export function ProjectInfoDialog() {
         </div>
 
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
-          <button onClick={close} className="btn btn--sm btn--secondary">{tCommon('cancel')}</button>
-          <button onClick={handlePrimary} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">
+          <button onClick={close} className="btn btn--sm btn--secondary" data-ops-project-cancel>{tCommon('cancel')}</button>
+          <button onClick={handlePrimary} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]" data-ops-project-primary>
             {isNew ? tCommon('create') : tCommon('apply')}
           </button>
         </div>

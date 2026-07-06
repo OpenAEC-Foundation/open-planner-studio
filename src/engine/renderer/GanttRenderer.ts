@@ -1,9 +1,11 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
-import { ViewState, BarSplitMode } from '@/state/slices/types';
+import { ViewState, BarSplitMode, DurationDisplay } from '@/state/slices/types';
 import { parseDate, parseInstant, formatDate, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
 import { WorkCalendar } from '@/types/calendar';
 import { isHourCalendar } from '@/services/subdayIo';
+import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
+import { formatDuration } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
@@ -57,6 +59,10 @@ export interface GanttRenderOptions {
   effectiveCalById?: Map<string, WorkCalendar>;
   /** Fase 2.8b (§6.9): stand van "Taakbalken bij onderbrekingen". Default 'selection'. */
   barSplitMode?: BarSplitMode;
+  /** Fase 2.8b (§6.5): hoofdschakelaar Urenplanning. UIT ⇒ duurkolom byte-identiek (`Nd`). */
+  enableHourPlanning?: boolean;
+  /** Fase 2.8b (§6.5): Duurweergave-instelling voor de duurkolom (auto/dagen/uren). */
+  durationDisplay?: DurationDisplay;
 }
 
 // Read theme colors from CSS variables on the document element
@@ -150,6 +156,17 @@ export class GanttRenderer {
         this.holidaySet.add(formatDate(addCalendarDays(start, i)));
       }
     }
+  }
+
+  /**
+   * Duurkolom-tekst (§6.5). Urenplanning UIT ⇒ byte-identiek het huidige `${scheduleDuration}d`.
+   * AAN ⇒ de eigen eenheid per taak via de Duurweergave-instelling (dag-taak "3d", uur-taak "20u").
+   */
+  private durationText(task: Task): string {
+    if (task.isMilestone) return '0d';
+    if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}d`;
+    const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
+    return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto');
   }
 
   /** Convert a date (with optional sub-day precision) to X position on canvas */
@@ -1084,7 +1101,7 @@ export class GanttRenderer {
       ctx.fillStyle = this.colors.textSecondary;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.textAlign = 'right';
-      const durText = task.isMilestone ? '0d' : `${task.time.scheduleDuration}d`;
+      const durText = this.durationText(task);
       ctx.fillText(durText, taskTableWidth - 8, textY);
       ctx.textAlign = 'left';
       if (row.dimmed) ctx.globalAlpha = 1;

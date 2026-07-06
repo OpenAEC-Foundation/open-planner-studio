@@ -310,6 +310,35 @@ export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
   await setSetting('barSplitMode', value);
 }
 
+// Eigen werktijd-presets (§6.6b): app-niveau localStorage, NIET in het projectbestand — ze reizen
+// niet mee met een project maar zijn op elke machine van de gebruiker beschikbaar. Parse-guard:
+// corrupte JSON of een item zonder de juiste shape ⇒ weggelaten (nooit een crash op een handmatig
+// geprutste localStorage-waarde), analoog aan `loadLayouts`.
+import type { WorkTimePreset } from '@/utils/shiftPresets';
+
+function isValidWorkTimePreset(v: unknown): v is WorkTimePreset {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Record<string, unknown>;
+  return (
+    typeof p.id === 'string' &&
+    typeof p.name === 'string' &&
+    Array.isArray(p.workDays) &&
+    typeof p.workStartHour === 'number' &&
+    typeof p.workEndHour === 'number' &&
+    typeof p.hoursPerDay === 'number'
+  );
+}
+
+export async function loadWorkTimePresets(): Promise<WorkTimePreset[]> {
+  const raw = await getSetting<unknown>('workTimePresets');
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isValidWorkTimePreset);
+}
+
+export async function saveWorkTimePresets(presets: WorkTimePreset[]): Promise<void> {
+  await setSetting('workTimePresets', presets);
+}
+
 export async function loadLastLayoutId(): Promise<string | null> {
   const v = await getSetting<string>('lastLayoutId');
   return typeof v === 'string' && v ? v : null;

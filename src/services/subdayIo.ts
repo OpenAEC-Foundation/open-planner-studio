@@ -180,6 +180,17 @@ export function isHourCalendar(cal: WorkCalendar | undefined): boolean {
 }
 
 /**
+ * True als een geladen project urenplanning-data draagt (§6.8): minstens één kalender met
+ * `workTime` (uur-kalender) of minstens één taak met `durationMinutes`. Gebruikt om de
+ * niet-blokkerende uur-data-melding te tonen wanneer de hoofdschakelaar Urenplanning uit staat —
+ * nooit stil wegronden.
+ */
+export function fileHasHourData(tasks: Task[], calendars: WorkCalendar[]): boolean {
+  if (calendars.some(isHourCalendar)) return true;
+  return tasks.some((t) => t.time.durationMinutes != null);
+}
+
+/**
  * Duur van een taak in minuten voor de SCHRIJVERS (uur-modus): `durationMinutes` als bron van
  * waarheid, anders afgeleid uit de dag-duur (`scheduleDuration × hpd × 60`). Analoog aan
  * `durationMinutesOf` in de engine, maar zonder de engine-afhankelijkheid.

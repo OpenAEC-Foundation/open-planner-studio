@@ -1,9 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
-import type { WorkCalendar, Holiday } from '@/types/calendar';
+import { Plus, Trash2, X } from 'lucide-react';
+import type { WorkCalendar, Holiday, WorkTimeBands } from '@/types/calendar';
 import { CalendarGeneratorFields } from './CalendarGeneratorFields';
+import { WorkTimeEditor } from './WorkTimeEditor';
 import { DateTextInput } from '@/components/common/DateTextInput';
+import { useAppStore } from '@/state/appStore';
+import { isHourCalendar, deriveHoursPerDay, workDaysFromBands } from '@/services/subdayIo';
+import { generateId } from '@/utils/id';
+import { loadWorkTimePresets, saveWorkTimePresets } from '@/utils/settingsStore';
+import {
+  CALENDAR_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, patchFromPreset, presetFromCalendar,
+  makeBands, type WorkTimePreset,
+} from '@/utils/shiftPresets';
 import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
@@ -31,8 +40,61 @@ export function CalendarForm({
 }) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
 
   const [showGenerator, setShowGenerator] = useState(false);
+  // Werktijden-UI (§6.6): eigen presets (app-niveau localStorage), banden-editor achter een knop,
+  // en een inline naam-invoer voor "Bewaar als preset…".
+  const [ownPresets, setOwnPresets] = useState<WorkTimePreset[]>([]);
+  const [showBandEditor, setShowBandEditor] = useState(false);
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [presetName, setPresetName] = useState('');
+  const hourMode = isHourCalendar(draft);
+
+  useEffect(() => { void loadWorkTimePresets().then(setOwnPresets); }, []);
+
+  // Preset toepassen ⇒ workTime + shift + scalar-fallback in één patch (buffer-model).
+  const applyPreset = (patch: ReturnType<typeof shiftPresetPatch>) => {
+    onChange({
+      workTime: patch.workTime,
+      shift: patch.shift,
+      workDays: patch.workDays,
+      workStartHour: patch.workStartHour,
+      workEndHour: patch.workEndHour,
+      hoursPerDay: patch.hoursPerDay,
+    });
+    if (!patch.workTime) setShowBandEditor(false); // dag-preset ⇒ editor dicht
+  };
+
+  const persistOwnPresets = (list: WorkTimePreset[]) => {
+    setOwnPresets(list);
+    void saveWorkTimePresets(list);
+  };
+  const confirmSavePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    persistOwnPresets([...ownPresets, presetFromCalendar(generateId('wtp'), name, draft)]);
+    setPresetName('');
+    setSavingPreset(false);
+  };
+  const deleteOwnPreset = (id: string) => persistOwnPresets(ownPresets.filter(p => p.id !== id));
+
+  // Banden-editor openen ⇒ ontbreekt workTime, seed dan uit de scalar (één band per werkdag), zodat
+  // een dag-kalender via de editor een uur-kalender kan worden.
+  const openBandEditor = () => {
+    if (!draft.workTime) {
+      const seed = makeBands(draft.workDays, [{ start: draft.workStartHour * 60, end: draft.workEndHour * 60 }]);
+      applyBands(seed);
+    }
+    setShowBandEditor(true);
+  };
+  const applyBands = (bands: WorkTimeBands) => {
+    onChange({
+      workTime: bands,
+      hoursPerDay: deriveHoursPerDay(bands, draft.hoursPerDay),
+      workDays: workDaysFromBands(bands),
+    });
+  };
   const [genParams, setGenParams] = useState<HolidayGenParams>(() =>
     draft.generation
       ? {
@@ -166,49 +228,117 @@ export function CalendarForm({
         </div>
       </div>
 
-      {/* Work hours */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-text-secondary font-medium">
-            {tMenu('ribbon.calendarDialog.startHour')}
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={23}
-            value={draft.workStartHour}
-            onChange={e => onChange({ workStartHour: Number(e.target.value) })}
-            className={inputCls}
-          />
+      {/* Work hours — scalar-UI (dag-kalender). Verborgen in uur-modus mét Urenplanning aan; dan
+          stuurt de banden-editor de tijden en toont de sectie hieronder de afgeleide hoursPerDay. */}
+      {!(enableHourPlanning && hourMode) && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium">
+              {tMenu('ribbon.calendarDialog.startHour')}
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={23}
+              value={draft.workStartHour}
+              onChange={e => onChange({ workStartHour: Number(e.target.value) })}
+              className={inputCls}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium">
+              {tMenu('ribbon.calendarDialog.endHour')}
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={24}
+              value={draft.workEndHour}
+              onChange={e => onChange({ workEndHour: Number(e.target.value) })}
+              className={inputCls}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium">
+              {tMenu('ribbon.calendarDialog.hoursPerDay')}
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={24}
+              step={0.5}
+              value={draft.hoursPerDay}
+              onChange={e => onChange({ hoursPerDay: Number(e.target.value) })}
+              className={inputCls}
+            />
+          </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-text-secondary font-medium">
-            {tMenu('ribbon.calendarDialog.endHour')}
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={24}
-            value={draft.workEndHour}
-            onChange={e => onChange({ workEndHour: Number(e.target.value) })}
-            className={inputCls}
-          />
+      )}
+
+      {/* Werktijden / ploegen (§6.6) — alleen met Urenplanning aan; anders exact de 2.8a scalar-UI. */}
+      {enableHourPlanning && (
+        <div className="flex flex-col gap-2" data-ops-worktime-section>
+          <div className="flex items-center justify-between">
+            <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.section')}</label>
+            {hourMode && (
+              <span className="text-[11px] text-text-secondary">
+                {tCommon('calendar.worktime.derivedHpd')}{' '}
+                <span className="font-semibold text-accent tabular-nums">{draft.hoursPerDay}u</span>
+              </span>
+            )}
+          </div>
+
+          {/* Preset-rij: ingebouwde presets + eigen presets (met verwijder-kruisje). */}
+          <div className="flex flex-wrap gap-1.5">
+            {CALENDAR_PRESETS.map(key => (
+              <button key={key} type="button" onClick={() => applyPreset(shiftPresetPatch(key))}
+                className="btn btn--sm btn--secondary" data-ops-preset={key}>
+                {tCommon(SHIFT_PRESET_LABEL[key] as 'calendar.shift.day')}
+              </button>
+            ))}
+            {ownPresets.map(p => (
+              <span key={p.id} className="inline-flex items-center rounded-[8px] border-[1.5px] border-[var(--theme-control-border)] overflow-hidden"
+                data-ops-own-preset={p.id}>
+                <button type="button" onClick={() => applyPreset(patchFromPreset(p))}
+                  className="px-2.5 py-1.5 text-text-secondary hover:bg-surface-hover">
+                  {p.name}
+                </button>
+                <button type="button" onClick={() => deleteOwnPreset(p.id)}
+                  className="px-1.5 py-1.5 text-text-secondary hover:bg-surface-hover hover:text-red-500"
+                  title={tCommon('delete')} data-ops-own-preset-del={p.id}>
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setSavingPreset(v => !v)} className="btn btn--sm btn--secondary" data-ops-preset-saveas>
+              {tCommon('calendar.worktime.saveAsPreset')}
+            </button>
+            <button type="button" onClick={() => (showBandEditor ? setShowBandEditor(false) : openBandEditor())}
+              className="btn btn--sm btn--secondary" data-ops-band-editor-toggle>
+              {tCommon('calendar.worktime.perWeekday')}
+            </button>
+          </div>
+
+          {savingPreset && (
+            <div className="flex items-center gap-2">
+              <input value={presetName} onChange={e => setPresetName(e.target.value)} autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmSavePreset(); } }}
+                placeholder={tCommon('calendar.worktime.presetNamePlaceholder')} className={inputCls + ' flex-1'} />
+              <button type="button" onClick={confirmSavePreset} disabled={!presetName.trim()}
+                className="btn btn--sm btn--primary disabled:opacity-40" data-ops-preset-save>{tCommon('save')}</button>
+              <button type="button" onClick={() => { setSavingPreset(false); setPresetName(''); }}
+                className="btn btn--sm btn--secondary">{tCommon('cancel')}</button>
+            </div>
+          )}
+
+          {showBandEditor && draft.workTime && (
+            <WorkTimeEditor bands={draft.workTime} onChange={applyBands} />
+          )}
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-text-secondary font-medium">
-            {tMenu('ribbon.calendarDialog.hoursPerDay')}
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={24}
-            step={0.5}
-            value={draft.hoursPerDay}
-            onChange={e => onChange({ hoursPerDay: Number(e.target.value) })}
-            className={inputCls}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Feestdagen genereren (fase 2.8a, §7.1) — regelgebaseerd, óók voor bestaande kalenders. */}
       <div className="flex flex-col gap-2">

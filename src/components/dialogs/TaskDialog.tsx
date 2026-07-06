@@ -6,6 +6,8 @@ import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
+import { isHourCalendar } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 
 export function TaskDialog() {
   const { t } = useTranslation('task');
@@ -27,13 +29,27 @@ export function TaskDialog() {
   const [wbsCode, setWbsCode] = useState('');
   const [taskType, setTaskType] = useState<TaskType>('CONSTRUCTION');
   const [isMilestone, setIsMilestone] = useState(false);
-  const [duration, setDuration] = useState(5);
+  // Duur-invoer (fase 2.8b, §6.4): dag-modus toont één Dagen-vakje (`durDays`); uur-modus toont drie
+  // gesyncte vakjes (Dagen/Uren/Totaal uren) — alle drie HELE getallen. `durHours` blijft 0 in dag-modus.
+  const [durDays, setDurDays] = useState(5);
+  const [durHours, setDurHours] = useState(0);
   const [startDate, setStartDate] = useState('');
   const [parentId, setParentId] = useState<string>('');
   // Taak-kalender-keuze (fase 2.8a, §7.3): '' = Projectkalender (undefined).
   const [calendarId, setCalendarId] = useState<string>('');
   const calendars = useAppStore(s => s.calendars);
+  const projectCal = useAppStore(s => s.calendar);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Effectieve kalender van de (bewerkte) taak volgt de kalender-dropdown live (§6.4): de drie
+  // uur-vakjes verschijnen zodra Urenplanning aan staat én de gekozen kalender uur-modus is.
+  const effCal = (calendarId ? calendars.find(c => c.id === calendarId) : undefined) || projectCal;
+  const hourMode = isHourCalendar(effCal);
+  const hpd = effHoursPerDay(effCal);
+  const showHourBoxes = enableHourPlanning && hourMode && !isMilestone;
+  const totalHours = durDays * hpd + durHours;
 
   useEffect(() => {
     if (!showTaskDialog) return;
@@ -44,7 +60,18 @@ export function TaskDialog() {
       setWbsCode(editingTask.wbsCode);
       setTaskType(editingTask.taskType);
       setIsMilestone(editingTask.isMilestone);
-      setDuration(editingTask.time.scheduleDuration);
+      // Duur-init (§6.4): uur-kalender-taak met `durationMinutes` ⇒ splits in dagen/uren via de
+      // effectieve hpd; anders het naakte aantal werkdagen (dag-modus, byte-identiek).
+      const eff = (editingTask.calendarId ? calendars.find(c => c.id === editingTask.calendarId) : undefined) || projectCal;
+      const ehpd = effHoursPerDay(eff);
+      if (isHourCalendar(eff) && editingTask.time.durationMinutes != null && ehpd > 0) {
+        const dm = editingTask.time.durationMinutes;
+        setDurDays(Math.floor(dm / (ehpd * 60)));
+        setDurHours(Math.floor((dm % (ehpd * 60)) / 60));
+      } else {
+        setDurDays(Math.round(editingTask.time.scheduleDuration));
+        setDurHours(0);
+      }
       // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
       setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
       setParentId(editingTask.parentId || '');
@@ -55,13 +82,14 @@ export function TaskDialog() {
       setWbsCode('');
       setTaskType('CONSTRUCTION');
       setIsMilestone(false);
-      setDuration(5);
+      setDurDays(5);
+      setDurHours(0);
       setStartDate(project.startDate);
       setParentId('');
       setCalendarId('');
     }
 
-  }, [showTaskDialog, editingTaskId, editingTask, project.startDate]);
+  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, calendars, projectCal]);
 
   useEffect(() => {
     if (!showTaskDialog) return;
@@ -91,16 +119,42 @@ export function TaskDialog() {
   const handleSave = () => {
     if (!name.trim()) return;
 
+    // Duur-schrijfregel (§6.4): uur-taak ⇒ `durationMinutes = totaalUren × 60` + afgeleide
+    // `scheduleDuration` (dagen). Dag-taak/mijlpaal ⇒ het naakte aantal werkdagen, GEEN
+    // `durationMinutes` (invariant Bevinding 2: sub-dag-duur alleen op een uur-kalender).
+    const useHour = enableHourPlanning && hourMode && !isMilestone;
+    const total = durDays * hpd + durHours;
+    const durationMinutes = total * 60;
+    const derivedDays = hpd > 0 ? total / hpd : durDays;
+
     if (editingTask) {
       // scheduleStart (de geplande anker) alléén bijwerken als de gebruiker de startdatum
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
       const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
-      const time = {
-        ...editingTask.time,
-        scheduleDuration: isMilestone ? 0 : duration,
-        ...(startDate !== shownStart ? { scheduleStart: startDate } : {}),
-      };
+      const time = { ...editingTask.time };
+      if (startDate !== shownStart) time.scheduleStart = startDate;
+      if (isMilestone) {
+        time.scheduleDuration = 0;
+        delete time.durationMinutes;
+      } else if (useHour) {
+        time.scheduleDuration = derivedDays;
+        time.durationMinutes = durationMinutes;
+      } else {
+        // Dag-modus-tak (Urenplanning uit of dag-kalender). Speciaal geval: staat de schakelaar UIT
+        // terwijl de effectieve kalender tóch uur-modus is (bv. net geladen uur-bestand), dan toont
+        // het enkele Dagen-vakje slechts de hele-dagen-benadering; laat de minuut-bron ONGEMOEID
+        // zolang de gebruiker die waarde niet wijzigde — anders zou opslaan 2,5d stil truncaten.
+        const initWholeDays = hourMode && editingTask.time.durationMinutes != null && hpd > 0
+          ? Math.floor(editingTask.time.durationMinutes / (hpd * 60))
+          : Math.round(editingTask.time.scheduleDuration);
+        if (hourMode && editingTask.time.durationMinutes != null && durDays === initWholeDays) {
+          // bron behouden: durationMinutes + scheduleDuration blijven staan
+        } else {
+          time.scheduleDuration = durDays;
+          delete time.durationMinutes;
+        }
+      }
       updateTask(editingTask.id, {
         name,
         description,
@@ -121,7 +175,8 @@ export function TaskDialog() {
         calendarId: calendarId || undefined,
         time: {
           durationType: 'WORKTIME',
-          scheduleDuration: isMilestone ? 0 : duration,
+          scheduleDuration: isMilestone ? 0 : (useHour ? derivedDays : durDays),
+          ...(useHour ? { durationMinutes } : {}),
           scheduleStart: startDate,
           scheduleFinish: startDate,
           earlyStart: startDate,
@@ -145,6 +200,30 @@ export function TaskDialog() {
 
   const inputCls =
     'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
+
+  // Alleen niet-negatieve HELE getallen (§6.4): een lege string ⇒ 0; decimalen/tekst worden geweigerd
+  // (de invoer verandert niet). Zo kan geen "2.5"/"1,5" de drie synchrone vakjes binnenkomen.
+  const onIntChange = (setter: (n: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.currentTarget.value;
+    if (v === '') { setter(0); return; }
+    if (!/^\d+$/.test(v)) return;
+    setter(parseInt(v, 10));
+  };
+  const onTotalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.currentTarget.value;
+    if (v === '') { setDurDays(0); setDurHours(0); return; }
+    if (!/^\d+$/.test(v)) return;
+    const total = parseInt(v, 10);
+    setDurDays(hpd > 0 ? Math.floor(total / hpd) : total);
+    setDurHours(hpd > 0 ? total % hpd : 0);
+  };
+
+  // Kalender-poort (§6.8): gemengd-toestaan UIT ⇒ binnen het project alleen kalenders met dezelfde
+  // modus (dag/uur) als de projectkalender; de al-gekozen kalender blijft altijd zichtbaar.
+  const projectIsHour = isHourCalendar(projectCal);
+  const calOptions = (enableHourPlanning && !allowMixedDayHour)
+    ? calendars.filter(c => c.id === calendarId || isHourCalendar(c) === projectIsHour)
+    : calendars;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleClose}>
@@ -214,18 +293,52 @@ export function TaskDialog() {
               />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">{t('dialog.duration')}</label>
-              <input
-                type="number"
-                value={isMilestone ? 0 : duration}
-                onChange={e => setDuration(parseInt(e.target.value) || 0)}
-                disabled={isMilestone}
-                min={0}
-                className={`${inputCls} disabled:opacity-50`}
-              />
-            </div>
+            {/* Dag-modus: één Dagen-vakje (byte-identiek). Uur-modus: de drie vakjes staan
+                full-width hieronder, dus deze kolom blijft leeg. */}
+            {!showHourBoxes && (
+              <div className="flex flex-col gap-1">
+                <label className="text-text-secondary">{t('dialog.duration')}</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={isMilestone ? 0 : durDays}
+                  onChange={onIntChange(setDurDays)}
+                  disabled={isMilestone}
+                  className={`${inputCls} disabled:opacity-50`}
+                  aria-label={t('dialog.duration')}
+                  data-ops-duration-days
+                />
+                {/* Invariant Bevinding 2: uren vereisen een uur-kalender. */}
+                {enableHourPlanning && !hourMode && !isMilestone && (
+                  <span className="text-[10px] text-text-secondary italic" data-ops-hour-hint>{t('dialog.hourCalendarHint')}</span>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Drie gesyncte duur-vakjes (§6.4): totaalUren = dagen × effHpd + uren. Alle HELE getallen. */}
+          {showHourBoxes && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-text-secondary">{t('dialog.durationDays')}</label>
+                <input type="text" inputMode="numeric" value={durDays}
+                  onChange={onIntChange(setDurDays)} className={inputCls}
+                  aria-label={t('dialog.durationDays')} data-ops-dur-days />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-text-secondary">{t('dialog.durationHours')}</label>
+                <input type="text" inputMode="numeric" value={durHours}
+                  onChange={onIntChange(setDurHours)} className={inputCls}
+                  aria-label={t('dialog.durationHours')} data-ops-dur-hours />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-text-secondary">{t('dialog.durationTotalHours')}</label>
+                <input type="text" inputMode="numeric" value={totalHours}
+                  onChange={onTotalChange} className={inputCls}
+                  aria-label={t('dialog.durationTotalHours')} data-ops-dur-total />
+              </div>
+            </div>
+          )}
 
           {/* Bovenliggende taak alleen bij aanmaken: bij bewerken schreef de dialoog parentId
               toch al niet weg (structuur wijzigen gaat via inspringen/uitspringen). */}
@@ -257,7 +370,7 @@ export function TaskDialog() {
               onChange={setCalendarId}
               options={[
                 { value: '', label: t('properties.calendarProject') },
-                ...calendars.map(c => ({ value: c.id, label: c.name })),
+                ...calOptions.map(c => ({ value: c.id, label: c.name })),
               ]}
             />
           </div>
@@ -274,13 +387,14 @@ export function TaskDialog() {
         </div>
 
         <div className="flex justify-end gap-3 p-4 border-t border-border">
-          <button onClick={handleClose} className="btn btn--sm btn--secondary">
+          <button onClick={handleClose} className="btn btn--sm btn--secondary" data-ops-task-cancel>
             {tCommon('cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim()}
             className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]"
+            data-ops-task-save
           >
             {editingTask ? tCommon('save') : tCommon('add')}
           </button>

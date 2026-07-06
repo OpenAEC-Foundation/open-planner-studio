@@ -202,10 +202,10 @@ export function CalendarDialog() {
         {/* Dialoog-footer: Annuleren draait alle in de dialoog gemaakte wijzigingen terug (niets is
             gecommit) en sluit; Toepassen commit de hele buffer in één keer + herberekent. */}
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
-          <button onClick={cancel} className="btn btn--sm btn--secondary">
+          <button onClick={cancel} className="btn btn--sm btn--secondary" data-ops-cal-cancel>
             {tCommon('cancel')}
           </button>
-          <button onClick={confirm} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">
+          <button onClick={confirm} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]" data-ops-cal-apply>
             {tCommon('apply')}
           </button>
         </div>

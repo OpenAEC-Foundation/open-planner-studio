@@ -339,6 +339,25 @@
     "preset": {
       "continuous": "Continuous (24/7)",
       "weekdays": "Mon–Fri"
+    },
+    "shift": {
+      "day": "Day shift",
+      "twoShift": "2 shifts",
+      "threeShift": "3 shifts",
+      "night": "Night shift",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Working times",
+      "derivedHpd": "Derived hours/day:",
+      "saveAsPreset": "Save as preset…",
+      "perWeekday": "Set per weekday…",
+      "presetNamePlaceholder": "Preset name",
+      "addBand": "Add band",
+      "copyToAll": "Copy to all workdays",
+      "noBands": "Non-working",
+      "nextDay": "next day",
+      "shiftPreset": "Shift"
     }
   },
   "view": {
@@ -420,5 +439,9 @@
     "day": "day",
     "month": "month",
     "year": "year"
+  },
+  "hourData": {
+    "notice": "This file contains hour-based planning.",
+    "enable": "Enable hour planning"
   }
 }

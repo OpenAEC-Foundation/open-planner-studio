@@ -63,6 +63,7 @@ import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useAppStore } from '@/state/appStore';
 import type { RecoveryDocInput } from '@/state/slices/documentSlice';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { HourDataNotice } from '@/components/layout/HourDataNotice';
 
 function AppContent() {
   useKeyboardShortcuts();
@@ -474,6 +475,10 @@ function AppContent() {
 
       {/* Ribbon Toolbar */}
       <Ribbon />
+
+      {/* Uur-data-melding (§6.8): niet-blokkerende strook onder het lint wanneer een geladen
+          bestand urenplanning bevat terwijl de hoofdschakelaar uit staat. */}
+      <HourDataNotice />
 
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
           Anders: gradient strip + main content. */}
