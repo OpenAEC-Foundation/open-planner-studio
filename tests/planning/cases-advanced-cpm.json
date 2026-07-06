@@ -1,5 +1,5 @@
 {
-  "_readme": "Fase 2.9 golf 1 — geavanceerde constraints (Mandatory-pin §4.2, secundaire constraint §4.3, uur-modus-constraints §4.1). Handberekend tegen het ontwerpdoc §9 (S1-S9 dag + S13 uur), elke tussenstap zelf nagerekend tegen de bevroren primitieven (addWorkDays/subtractWorkDays inclusief; nextWorkDayAfter voor de FS-gap; signedWorkDays=wdB-1). Dag-scenario's: schone ma-vr, anker ma 2026-06-01. Uur-scenario's: H8-kalender (ma-vr band [480,960]=08:00-16:00, hoursPerDay=8), anker ma 2026-07-06. Byte-identiteits-tweelingen: 's8-twin-soft' (hard=false ⇒ exacte soft-MSO-tak) en 's8-hour-pin' (dezelfde pin op H8, handbereken).",
+  "_readme": "Fase 2.9 golf 1+2 — geavanceerde constraints (golf 1: Mandatory-pin §4.2, secundaire constraint §4.3, uur-modus-constraints §4.1) + analyse-laag (golf 2 §4.6: interfering float, near-critical, kritiek-definitie-opties). Handberekend tegen het ontwerpdoc §9 (S1-S14), elke tussenstap zelf nagerekend tegen de bevroren primitieven (addWorkDays/subtractWorkDays inclusief; nextWorkDayAfter voor de FS-gap; signedWorkDays=wdB-1; relFloat=wdB(seqConstraint,succES)-1). Dag-scenario's: schone ma-vr, anker ma 2026-06-01. Uur-scenario's: H8-kalender (ma-vr band [480,960]=08:00-16:00, hoursPerDay=8), anker ma 2026-07-06. Golf 2 cases: 's12-interfering' (X ff=2 tf=5 intf=3), 's14-near-thr1/thr3' (near-critical randgevallen: tf=0 niet, tf=thr wel), 's11-crit-threshold1' (drempel 1 ⇒ A2 kritiek), 's11-longest-path' (alleen A1+END kritiek; A2 krijgt tf=0 via deadline maar blijft NIET kritiek — tf-onafhankelijk), en de geen-options-tweeling 's11-twin-none'/'s11-twin-defaults' (byte-identiek). Byte-identiteits-tweelingen golf 1: 's8-twin-soft' + 's8-hour-pin'.",
   "cases": [
     {
       "id": "s1-snet-binding",
@@ -246,6 +246,195 @@
         "violatedConstraintsSet": ["B"],
         "projectEnd": "2026-07-07T16:00",
         "error": false
+      }
+    },
+    {
+      "id": "s12-interfering",
+      "title": "S12 (gecorrigeerd) — Interfering float. A(2)→FS X(2); W(6)→FS Y(2); X→FS Y; P(11)→FS END(1); Y→FS END. X: ff=2 (2 dagen vrij), tf=5, intf=tf-ff=3 (dag 3-5 schuift de niet-kritieke Y).",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "X", "dur": 2 },
+        { "name": "W", "dur": 6 },
+        { "name": "Y", "dur": 2 },
+        { "name": "P", "dur": 11 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "X", "type": "FINISH_START" },
+        { "pred": "W", "succ": "Y", "type": "FINISH_START" },
+        { "pred": "X", "succ": "Y", "type": "FINISH_START" },
+        { "pred": "P", "succ": "END", "type": "FINISH_START" },
+        { "pred": "Y", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-06-03", "ef": "2026-06-04", "ls": "2026-06-10", "lf": "2026-06-11", "tf": 5, "ff": 2, "intf": 3, "crit": false },
+          "A": { "tf": 5, "ff": 0, "intf": 5 },
+          "W": { "es": "2026-06-01", "ef": "2026-06-08", "tf": 3, "ff": 0, "intf": 3 },
+          "Y": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 3, "ff": 3, "intf": 0 },
+          "P": { "ef": "2026-06-15", "tf": 0, "intf": 0, "crit": true },
+          "END": { "es": "2026-06-16", "ef": "2026-06-16", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["P", "END"],
+        "violatedConstraintsSet": [],
+        "projectEnd": "2026-06-16"
+      }
+    },
+    {
+      "id": "s14-near-thr1",
+      "title": "S14 — near-critical drempel 1 op het S11-net. A1 tf0 (kritiek, NIET near); A2 tf1 (0<1<=1 ⇒ near); A3 tf3 (niet). tf=0 telt niet, tf=drempel wel.",
+      "schedulingOptions": { "nearCriticalThreshold": 1 },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "crit": true, "nearCrit": false },
+          "A2": { "tf": 1, "crit": false, "nearCrit": true, "intf": 0 },
+          "A3": { "tf": 3, "crit": false, "nearCrit": false },
+          "END": { "tf": 0, "crit": true, "nearCrit": false }
+        },
+        "criticalPathSet": ["A1", "END"],
+        "nearCriticalSet": ["A2"],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s14-near-thr3",
+      "title": "S14-variant — near-critical drempel 3 op het S11-net. A2 tf1 én A3 tf3 (tf=drempel-randgeval) ⇒ beide near; A1/END tf0 niet.",
+      "schedulingOptions": { "nearCriticalThreshold": 3 },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "nearCrit": false },
+          "A2": { "tf": 1, "nearCrit": true },
+          "A3": { "tf": 3, "nearCrit": true },
+          "END": { "tf": 0, "nearCrit": false }
+        },
+        "nearCriticalSet": ["A2", "A3"],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s11-crit-threshold1",
+      "title": "Kritiek-definitie totalFloat drempel 1 op het S11-net ⇒ A2 (tf1) telt óók als kritiek; A3 (tf3) niet.",
+      "schedulingOptions": { "criticalDefinition": { "mode": "totalFloat", "threshold": 1 } },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "crit": true },
+          "A2": { "tf": 1, "crit": true },
+          "A3": { "tf": 3, "crit": false },
+          "END": { "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A1", "A2", "END"],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s11-longest-path",
+      "title": "Kritiek-definitie longestPath op het S11-net: alleen de driving-keten A1→END is kritiek. A2 krijgt via een deadline 06-04 tf=0 maar blijft NIET kritiek — longestPath is tf-onafhankelijk (ongeacht tf).",
+      "schedulingOptions": { "criticalDefinition": { "mode": "longestPath" } },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4, "deadline": "2026-06-04" },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "crit": true },
+          "A2": { "tf": 0, "crit": false },
+          "A3": { "tf": 3, "crit": false },
+          "END": { "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A1", "END"],
+        "missedDeadlinesSet": [],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s11-twin-none",
+      "title": "Geen-options-tweeling A — S11-net ZONDER schedulingOptions: exact het huidige gedrag (kritiek {A1,END}).",
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "crit": true },
+          "A2": { "tf": 1, "crit": false, "intf": 0 },
+          "A3": { "tf": 3, "crit": false, "intf": 0 },
+          "END": { "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A1", "END"],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s11-twin-defaults",
+      "title": "Geen-options-tweeling B — hetzelfde S11-net MÉT expliciete default-opties (totalFloat threshold 0, totalFloatMode smallest): byte-identiek aan de tweeling zonder opties.",
+      "schedulingOptions": { "criticalDefinition": { "mode": "totalFloat", "threshold": 0 }, "totalFloatMode": "smallest" },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "crit": true },
+          "A2": { "tf": 1, "crit": false, "intf": 0 },
+          "A3": { "tf": 3, "crit": false, "intf": 0 },
+          "END": { "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A1", "END"],
+        "projectEnd": "2026-06-08"
       }
     }
   ]

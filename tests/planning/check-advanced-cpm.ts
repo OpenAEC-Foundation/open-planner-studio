@@ -1,7 +1,8 @@
-// Geavanceerde-CPM golf-0-checks (fase 2.9). Bewijzen dat de datamodel-uitbreiding + plumbing
-// DEFAULT-INERT is: een 2.8b-document (geen 2.9-velden) solvet byte-identiek, de nieuwe
-// CPMResult-velden dragen hun inerte defaults, de nieuwe per-taak-velden blijven ongeschreven, en
-// de velden-catalogus kent de vier nieuwe keys. GEEN gedragswijziging in golf 0.
+// Geavanceerde-CPM checks (fase 2.9, golf 0 + 1 + 2). Golf 0/1: datamodel + plumbing default-inert,
+// validateConstraintPair, harde-pin-idempotentie. Golf 2 (§4.6): de analyse-laag — interfering float
+// (ALTIJD tf−ff), near-critical-drempel (0<tf≤thr; tf=0 niet, tf=thr wél), kritiek-definitie-opties
+// (totalFloat-drempel, longestPath tf-onafhankelijk incl. discriminator), open-ended-kritiek, en de
+// TF-berekeningswijze (in de huidige symmetrische backward-pass observationeel identiek).
 //
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
@@ -42,8 +43,9 @@ function solve(tasks: Task[], seqs: Sequence[], opts: CPMOptions = {}): CPMResul
 }
 
 /** Stabiele vergelijkbare fingerprint van álle gedragswijzigende uitvoer (Map → gesorteerde
- *  entries), zodat "byte-identiek" hard te vergelijken is. De 2.9-analyse-velden zitten er BEWUST
- *  NIET in — die horen in golf 0 ongeschreven te blijven (apart gecheckt). */
+ *  entries), zodat "byte-identiek" hard te vergelijken is. De 2.9-analyse-velden (interfering/near/
+ *  floatPath) zitten er BEWUST NIET in — interfering wordt sinds golf 2 altijd geschreven maar raakt
+ *  de planning niet, dus de byte-identiteit-vergelijkingen blijven zuiver op es/ef/ls/lf/tf/ff/crit. */
 function digest(r: CPMResult): string {
   const tasks = [...r.tasks.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([id, t]) => [
     id, t.earlyStart, t.earlyFinish, t.lateStart, t.lateFinish, t.totalFloat, t.freeFloat, t.isCritical,
@@ -80,11 +82,12 @@ eq('12 floatPathByTask leeg (floatPaths uit)', Object.keys(rA.floatPathByTask).l
 // Sanity: het net is niet-triviaal (A1 kritiek, END kritiek) — anders zeggen de checks weinig.
 eq('13 net A niet-triviaal (criticalPath bevat A1)', rA.criticalPath.includes('A1'), true);
 
-// ── 3) Per-taak-analyse-velden ONGESCHREVEN bij default (§3.5) ────────────────
+// ── 3) Per-taak-analyse-velden (§3.5/§4.6): interfering ALTIJD, near/floatPath default-ongeschreven ─
 const all = [...rA.tasks.values()];
-eq('14 elke taak interferingFloat === undefined', all.every(t => t.interferingFloat === undefined), true);
-eq('15 elke taak isNearCritical === undefined', all.every(t => t.isNearCritical === undefined), true);
-eq('16 elke taak floatPath === undefined', all.every(t => t.floatPath === undefined), true);
+eq('14 elke taak interferingFloat === tf−ff (golf 2: altijd berekend)',
+  all.every(t => t.interferingFloat === t.totalFloat - t.freeFloat), true);
+eq('15 elke taak isNearCritical === undefined (geen drempel)', all.every(t => t.isNearCritical === undefined), true);
+eq('16 elke taak floatPath === undefined (floatPaths uit)', all.every(t => t.floatPath === undefined), true);
 
 // ── 4) Plumbing byte-identiek: met vs zonder (leeg) schedulingOptions (§2) ─────
 const rNone = solve(netA, seqA);                              // opties-object leeg
@@ -159,6 +162,53 @@ eq('33 harde pin: B start vóór A klaar (logica gebroken)', rp1.tasks.get('B')!
 eq('34 harde pin: B tf=0 (pin kritiek-neutraal)', rp1.tasks.get('B')!.totalFloat, 0);
 eq('35 harde pin: A negatieve float upstream', rp1.tasks.get('A')!.totalFloat, -3);
 eq('36 harde pin: B in violatedConstraintTaskIds (rawMax > pin)', rp1.violatedConstraintTaskIds.includes('B'), true);
+
+// ── 9) Golf 2 — near-critical-drempel (§4.6) op net A (A1 tf0, A2 tf1, A3 tf3, END tf0) ─
+const rNear1 = solve(netA, seqA, { schedulingOptions: { nearCriticalThreshold: 1 } });
+eq('37 near thr1: nearCriticalTaskIds == [A2]', JSON.stringify([...rNear1.nearCriticalTaskIds].sort()), JSON.stringify(['A2']));
+eq('38 near thr1: A1 tf=0 NIET near (randgeval)', rNear1.tasks.get('A1')!.isNearCritical, false);
+eq('39 near thr1: A2 tf=thr WÉL near (randgeval)', rNear1.tasks.get('A2')!.isNearCritical, true);
+eq('40 near thr1: A3 tf=3 niet near', rNear1.tasks.get('A3')!.isNearCritical, false);
+eq('41 near: criticalPath ongewijzigd (A1,END)', JSON.stringify([...rNear1.criticalPath].sort()), JSON.stringify(['A1', 'END']));
+const rNear3 = solve(netA, seqA, { schedulingOptions: { nearCriticalThreshold: 3 } });
+eq('42 near thr3: {A2,A3}', JSON.stringify([...rNear3.nearCriticalTaskIds].sort()), JSON.stringify(['A2', 'A3']));
+eq('43 near thr3: A3 tf=thr WÉL near', rNear3.tasks.get('A3')!.isNearCritical, true);
+
+// ── 10) Golf 2 — kritiek-definitie: totalFloat-drempel (§4.6) ──────────────────
+const rThr1 = solve(netA, seqA, { schedulingOptions: { criticalDefinition: { mode: 'totalFloat', threshold: 1 } } });
+eq('44 crit thr1: criticalPath = {A1,A2,END}', JSON.stringify([...rThr1.criticalPath].sort()), JSON.stringify(['A1', 'A2', 'END']));
+eq('45 crit thr1: A2 kritiek (tf1≤1)', rThr1.tasks.get('A2')!.isCritical, true);
+eq('46 crit thr1: A3 niet kritiek (tf3)', rThr1.tasks.get('A3')!.isCritical, false);
+
+// ── 11) Golf 2 — kritiek-definitie: longestPath (§4.6, tf-onafhankelijk) ───────
+const rLP = solve(netA, seqA, { schedulingOptions: { criticalDefinition: { mode: 'longestPath' } } });
+eq('47 longestPath: criticalPath = {A1,END}', JSON.stringify([...rLP.criticalPath].sort()), JSON.stringify(['A1', 'END']));
+eq('48 longestPath: A2 niet kritiek', rLP.tasks.get('A2')!.isCritical, false);
+// Discriminator: A2 krijgt tf=0 via een deadline, tóch NIET kritiek in longestPath (ongeacht tf).
+const netAdl: Task[] = [mkTask('A1', 5), mkTask('A2', 4, { deadline: '2026-06-04' }), mkTask('A3', 2), mkTask('END', 1)];
+const rDlDefault = solve(netAdl, seqA);
+const rDlLP = solve(netAdl, seqA, { schedulingOptions: { criticalDefinition: { mode: 'longestPath' } } });
+eq('49 deadline: A2 tf=0', rDlDefault.tasks.get('A2')!.totalFloat, 0);
+eq('50 deadline+totalFloat: A2 kritiek (tf≤0)', rDlDefault.tasks.get('A2')!.isCritical, true);
+eq('51 deadline+longestPath: A2 NIET kritiek (ongeacht tf=0)', rDlLP.tasks.get('A2')!.isCritical, false);
+eq('52 deadline+longestPath: criticalPath = {A1,END}', JSON.stringify([...rDlLP.criticalPath].sort()), JSON.stringify(['A1', 'END']));
+
+// ── 12) Golf 2 — makeOpenEndedCritical (§3.4): OA(1)→FS OB(2); OA→FS OC(5) ─────
+const netO: Task[] = [mkTask('OA', 1), mkTask('OB', 2), mkTask('OC', 5)];
+const seqO: Sequence[] = [fs('o1', 'OA', 'OB'), fs('o2', 'OA', 'OC')];
+const rODefault = solve(netO, seqO);
+const rOForce = solve(netO, seqO, { schedulingOptions: { makeOpenEndedCritical: true } });
+eq('53 open-ended default: OB niet kritiek', rODefault.tasks.get('OB')!.isCritical, false);
+eq('54 open-ended default: OB tf=3', rODefault.tasks.get('OB')!.totalFloat, 3);
+eq('55 makeOpenEndedCritical: OB kritiek', rOForce.tasks.get('OB')!.isCritical, true);
+eq('56 makeOpenEndedCritical: OB tf geforceerd 0', rOForce.tasks.get('OB')!.totalFloat, 0);
+eq('57 makeOpenEndedCritical: OC blijft kritiek', rOForce.tasks.get('OC')!.isCritical, true);
+eq('58 makeOpenEndedCritical: OB intf=tf−ff invariant', rOForce.tasks.get('OB')!.interferingFloat, 0);
+
+// ── 13) Golf 2 — TF-berekeningswijze (§3.4): observationeel identiek in de symmetrische ─
+//        backward-pass (LS=LF−dur ⇒ start-float == finish-float). Byte-inert bewezen via digest.
+eq('59 totalFloatMode finish ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: { totalFloatMode: 'finish' } })), digest(rA));
+eq('60 totalFloatMode start ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: { totalFloatMode: 'start' } })), digest(rA));
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

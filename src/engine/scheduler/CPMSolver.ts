@@ -9,6 +9,7 @@ import {
   parseDate, formatDate, addCalendarDays, parseInstant, formatInstant, type DateMode,
 } from '@/utils/dateUtils';
 import { durationMinutesOf, durationDaysOf } from './duration';
+import { traceFrom } from './graphWalk';
 
 export interface CPMResult {
   tasks: Map<string, CPMTaskResult>;
@@ -1179,6 +1180,7 @@ export class CPMSolver {
     const drivingSequenceIds: string[] = [];
     const violatedConstraintTaskIds: string[] = [];
     const missedDeadlineTaskIds: string[] = [];
+    const nearCriticalTaskIds: string[] = [];
     for (const seq of this.sequences) {
       const cRaw = this.seqConstraint.get(seq.id);
       const succEarly = earlyDates.get(seq.successorId);
@@ -1193,6 +1195,36 @@ export class CPMSolver {
         : succCal.workDaysBetween(reqStart, succEarly.es) - 1;
       sequenceFreeFloat[seq.id] = relFloat;
       if (relFloat === 0) drivingSequenceIds.push(seq.id);
+    }
+
+    // Fase 2.9 golf 2 (§3.4/§4.6) — project-scoped reken-opties + longest-path-kritiek-set. Elke
+    // tak staat strak achter zijn optie-conditie; afwezig ⇒ exact de bestaande expressie (byte-
+    // identiek: de 333 cases kennen `schedulingOptions` nergens).
+    const so = this.options.schedulingOptions;
+    const tfMode = so?.totalFloatMode ?? 'smallest';
+    const makeOpenEndedCritical = so?.makeOpenEndedCritical === true;
+    const nearCriticalThreshold = so?.nearCriticalThreshold;
+    const critDef = so?.criticalDefinition;
+    const critThreshold = critDef?.threshold ?? 0;
+    const useLongestPath = critDef?.mode === 'longestPath';
+    // Longest-path-kritiek (§4.6, normatief): de Free-Float-peel van pad 1 — de driving-keten(s)
+    // vanaf de taak/taken met de grootste EF; bij ties (meerdere eindtaken met dezelfde grootste EF)
+    // is de UNIE van alle peels kritiek. tf speelt in deze modus geen rol. Alleen opgebouwd in
+    // longestPath-modus (anders leeg ⇒ geen effect). Hammocks worden pas in golf 4 speciaal behandeld.
+    const longestPathCritical = new Set<string>();
+    if (useLongestPath) {
+      let maxEf = -Infinity;
+      for (const { ef } of earlyDates.values()) {
+        if (ef.getTime() > maxEf) maxEf = ef.getTime();
+      }
+      const drivingSet = new Set(drivingSequenceIds);
+      for (const [id, { ef }] of earlyDates) {
+        if (ef.getTime() !== maxEf) continue;
+        longestPathCritical.add(id);
+        for (const p of traceFrom(id, this.sequences, drivingSet).drivingPredecessors) {
+          longestPathCritical.add(p);
+        }
+      }
     }
 
     let projectEnd = new Date(0);
@@ -1231,16 +1263,41 @@ export class CPMSolver {
       // Voortgang (fase 2.6, §4.5): voor in-progress/voltooide taken is de start-zijde-float
       // betekenisloos (de ES is een actual in het verleden) ⇒ alleen finish-zijde (LF−EF).
       const hasProgress = !!this.dataDate && (!!tt.actualStart || tt.completion > 0);
-      const tf = hasProgress
-        ? this.signedFloat(early.ef, late.lf, cal)
-        : Math.min(
-            this.signedFloat(early.ef, late.lf, cal),
-            this.signedFloat(early.es, late.ls, cal),
-          );
-      // Voltooide taken zijn per definitie niet kritiek (P6-conventie); hun opvolgers wél.
-      const isCritical = (!!this.dataDate && !!tt && tt.completion >= 1) ? false : tf <= 0;
+      const completed = !!this.dataDate && tt.completion >= 1;
+      const finishFloat = this.signedFloat(early.ef, late.lf, cal);
+      const startFloat = this.signedFloat(early.es, late.ls, cal);
+      // TF-berekeningswijze (§3.4): default 'smallest' = min(finish,start) ⇒ byte-identiek. Een taak
+      // met voortgang houdt zijn finish-zijde-float (bestaande invariant, §4.5), ongeacht de modus.
+      let tf = hasProgress
+        ? finishFloat
+        : tfMode === 'finish' ? finishFloat
+        : tfMode === 'start' ? startFloat
+        : Math.min(finishFloat, startFloat);
+      // Open-ended kritiek (§3.4): alleen bij `makeOpenEndedCritical` krijgt een taak zonder opvolger
+      // tf=ff=0 (P6: LF=EF ⇒ kritiek). Default (optie afwezig) ⇒ ongewijzigd.
+      if (makeOpenEndedCritical && succs.length === 0 && !completed) {
+        tf = 0;
+        freeFloat = 0;
+      }
+      // Kritiek-definitie (§4.6): voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een
+      // driving-keten naar de laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het
+      // huidige tf≤0).
+      const isCritical = completed
+        ? false
+        : useLongestPath
+          ? longestPathCritical.has(taskId)
+          : tf <= critThreshold;
 
       if (isCritical) criticalPath.push(taskId);
+      // Interfererende speling (§4.6): ALTIJD berekend, getekend (fractioneel in uur-modus, erft
+      // `signedFloat` via tf/ff). Byte-veilig: niet geserialiseerd (§6), niet in de digest.
+      const interferingFloat = tf - freeFloat;
+      // Near-critical (§4.6): 0 < tf ≤ drempel; alleen wanneer de drempel gezet is (anders undefined
+      // ⇒ ongeschreven veld). tf=0 is NIET near; tf=drempel wél.
+      const isNear = nearCriticalThreshold !== undefined && nearCriticalThreshold !== null
+        ? tf > 0 && tf <= nearCriticalThreshold
+        : undefined;
+      if (isNear) nearCriticalTaskIds.push(taskId);
       if (early.ef > projectEnd) projectEnd = early.ef;
 
       // Geschonden constraints / gemiste deadlines (bron van de negatieve float). Beide constraints
@@ -1279,6 +1336,8 @@ export class CPMSolver {
         totalFloat: tf,
         freeFloat,
         isCritical,
+        interferingFloat,
+        ...(isNear !== undefined ? { isNearCritical: isNear } : {}),
       });
     }
 
@@ -1313,11 +1372,10 @@ export class CPMSolver {
       violatedConstraintTaskIds,
       missedDeadlineTaskIds,
       outOfSequenceSequenceIds,
-      // Fase 2.9 golf 0 — inerte defaults: de analyse-golven (near-critical, float-paths) draaien nog
-      // niet, dus geen near-critical-taken, en `criticalPaths` is de bestaande enkele keten in een
-      // array gewikkeld (§4.6). De per-taak-velden (interferingFloat/isNearCritical/floatPath) blijven
-      // ongeschreven ⇒ byte-identiek default-document.
-      nearCriticalTaskIds: [],
+      // Fase 2.9 golf 2 — analyse-laag: near-critical-set gevuld bij ingestelde drempel (§4.6);
+      // `interferingFloat` altijd per taak geschreven. `criticalPaths` blijft de enkele keten in een
+      // array gewikkeld en `floatPathByTask` leeg tot golf 3 (multiple float paths) die aanzet.
+      nearCriticalTaskIds,
       criticalPaths: [criticalPath],
       floatPathByTask: {},
       // Projecteinde in de projectkalendermodus (§5.4): dag-project ⇒ `formatDate` (byte-identiek).

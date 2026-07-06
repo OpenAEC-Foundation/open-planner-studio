@@ -22,9 +22,13 @@
 //     steps: availabilitySteps (effective-dated capaciteit)
 //   tasks[].assign?: [{ res, units, curve? }]   // res = naam uit resources[]; curve default UNIFORM
 //   level?: { constrainToFloat?: boolean; resources?: string[] }   // leveler bestaat nog niet — zie buildAndSolve
+//   schedulingOptions?: {…}   // fase 2.9 (§3.4): nearCriticalThreshold, criticalDefinition
+//     {mode:'totalFloat'|'longestPath', threshold?}, totalFloatMode, makeOpenEndedCritical
 //   expect: {
-//     tasks?: { [name]: { es?,ef?,ls?,lf?,tf?,ff?,crit? } },   // datums "YYYY-MM-DD"; tf/ff getallen; crit boolean
+//     tasks?: { [name]: { es?,ef?,ls?,lf?,tf?,ff?,crit?,intf?,nearCrit?,floatPath? } },
+//        // datums "YYYY-MM-DD"; tf/ff/intf getallen; crit/nearCrit boolean; intf=interfering (tf−ff)
 //     criticalPathSet?: [names],   // vergeleken als verzameling (volgorde-onafhankelijk)
+//     nearCriticalSet?: [names],   // near-critical-taken (0<tf≤drempel), verzameling (fase 2.9 §4.6)
 //     drivingSet?: [[pred,succ,type]],  // welke relaties driving zijn (verzameling van triples)
 //     violatedConstraintsSet?: [names], missedDeadlinesSet?: [names],  // taak-namen (verzameling)
 //     projectEnd?, projectDuration?,
@@ -35,6 +39,7 @@
 // }
 import { useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/types/task';
+import type { SchedulingOptions } from '@/types/project';
 import type { ResourceType, ResourceCurve } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -121,6 +126,10 @@ interface Case {
   /** Statusdatum (P6 data date, fase 2.6) — stuurt de CPM-voortgangstakken. */
   statusDate?: string;
   scheduleOptions?: { progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE' };
+  /** Project-scoped reken-opties (fase 2.9, §3.4/§4.6): near-critical-drempel, kritiek-definitie
+   *  (totalFloat/longestPath + drempel), TF-berekeningswijze, open-ended-kritiek. Afwezig ⇒ elke
+   *  default ⇒ byte-identiek. Gaat via `setProject({schedulingOptions})` naar `runCPM`. */
+  schedulingOptions?: SchedulingOptions;
   tasks: {
     /** Fase 2.8b (§8.1): `dur` mag een string zijn — "2d 4u"/"4h"/"90m"/"12u" (hele eenheden, via
      *  `parseDuration`) ⇒ `durationMinutes` op de taak; een getal ⇒ werkdagen (dag-modus, ongewijzigd). */
@@ -394,6 +403,8 @@ function buildAndSolve(c: Case): {
   // Voortgang + statusdatum (fase 2.6) — vóór runCPM zodat de solver-voortgangstakken meelopen.
   if (c.statusDate) S().setStatusDate(c.statusDate);
   if (c.scheduleOptions?.progressMode) S().setProgressMode(c.scheduleOptions.progressMode);
+  // Reken-opties (fase 2.9, §3.4) op het project — vóór runCPM zodat de solver ze meeneemt.
+  if (c.schedulingOptions) S().setProject({ schedulingOptions: c.schedulingOptions });
   for (const t of c.tasks) {
     const id = ids[t.name];
     if (t.rawCompletion !== undefined) {
@@ -598,10 +609,15 @@ function readTask(name: string, ids: Record<string, string>) {
     es: t.time.earlyStart, ef: t.time.earlyFinish,
     ls: t.time.lateStart, lf: t.time.lateFinish,
     tf: t.time.totalFloat, ff: t.time.freeFloat, crit: t.time.isCritical,
+    // Fase 2.9 golf 2 (§4.6): interfererende speling (altijd), near-critical + float-path (optie-gated).
+    intf: t.time.interferingFloat, nearCrit: t.time.isNearCritical, floatPath: t.time.floatPath,
   };
 }
 
-const KEYMAP: Record<string, string> = { es: 'es', ef: 'ef', ls: 'ls', lf: 'lf', tf: 'tf', ff: 'ff', crit: 'crit' };
+const KEYMAP: Record<string, string> = {
+  es: 'es', ef: 'ef', ls: 'ls', lf: 'lf', tf: 'tf', ff: 'ff', crit: 'crit',
+  intf: 'intf', nearCrit: 'nearCrit', floatPath: 'floatPath',
+};
 
 /** taskId → naam (omgekeerde van de ids-map), voor de preview-assertions. */
 function nameOf(tid: string, ids: Record<string, string>): string {
@@ -713,6 +729,8 @@ function runCase(c: Case) {
   };
   taskSetCheck('violatedConstraintsSet', exp.violatedConstraintsSet, (cpm as any)?.violatedConstraintTaskIds ?? []);
   taskSetCheck('missedDeadlinesSet', exp.missedDeadlinesSet, (cpm as any)?.missedDeadlineTaskIds ?? []);
+  // Near-critical-verzameling (fase 2.9 golf 2, §4.6): taak-namen met 0 < tf ≤ drempel.
+  taskSetCheck('nearCriticalSet', exp.nearCriticalSet, (cpm as any)?.nearCriticalTaskIds ?? []);
 
   // Kritiek pad als verzameling (namen)
   if (exp.criticalPathSet) {
@@ -722,6 +740,22 @@ function runCase(c: Case) {
     const wantNames = [...exp.criticalPathSet].sort();
     if (JSON.stringify(gotNames) !== JSON.stringify(wantNames))
       diffs.push(`criticalPath: verwacht {${wantNames.join(',')}}, kreeg {${gotNames.join(',')}}`);
+  }
+
+  // Universele invariant (fase 2.9 golf 2, §8.4-b): interferingFloat == totalFloat − freeFloat over
+  // ÁLLE cases, voor elke leaf-taak (die zit gegarandeerd in het solver-resultaat). Loopt automatisch
+  // mee op alle bestaande batterijen; mag geen bestaande float breken. Alleen bij een geslaagde solve.
+  if (cpm && !cpm.error) {
+    for (const t of S().tasks) {
+      if (t.childIds.length > 0) continue; // samenvattingstaken: aparte rollup, geen solver-resultaat
+      const it = t.time;
+      const name = Object.entries(ids).find(([, i]) => i === t.id)?.[0] ?? t.name;
+      if (it.interferingFloat === undefined) {
+        diffs.push(`intf-invariant: leaf "${name}" mist interferingFloat`);
+      } else if (Math.abs(it.interferingFloat - (it.totalFloat - it.freeFloat)) > 1e-9) {
+        diffs.push(`intf-invariant: "${name}" intf=${it.interferingFloat} ≠ tf−ff=${it.totalFloat - it.freeFloat}`);
+      }
+    }
   }
 
   if (exp.projectEnd !== undefined && cpm?.projectEnd !== exp.projectEnd)
