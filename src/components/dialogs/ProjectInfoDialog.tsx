@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
@@ -8,6 +8,7 @@ import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type Templat
 import { CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
+import { useDialogKeys } from '@/hooks/useDialogKeys';
 
 /** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
  *  `'custom'` ("Aangepast…", ontwerp §7.2) — die opent na aanmaken de kalenderdialoog i.p.v.
@@ -73,13 +74,9 @@ export function ProjectInfoDialog() {
     }
   };
 
-  // Esc sluit dialog (LAYOUTS.md §3.3)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Esc sluit (LAYOUTS.md §3.3), Enter = primaire actie (Aanmaken/Toepassen), met de standaard
+  // textarea/dropdown/IME-uitzonderingen (o.a. de omschrijving-textarea en de land/template-Selects).
+  useDialogKeys({ onConfirm: handlePrimary, onCancel: close });
 
   const inputCls =
     'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';

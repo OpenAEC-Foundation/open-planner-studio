@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Copy, Trash2, Star } from 'lucide-react';
@@ -6,6 +6,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
+import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { CalendarForm } from './CalendarForm';
 
 /**
@@ -106,15 +107,9 @@ export function CalendarDialog() {
     setLocalCalendars(cs => cs.map(c => (c.id === selectedId ? { ...c, ...patch } : c)));
   };
 
-  // Esc = Annuleren (LAYOUTS.md §3.3): sluit zonder committen.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Esc = Annuleren (LAYOUTS.md §3.3), Enter = Toepassen (primaire actie), met de standaard
+  // textarea/dropdown/IME-uitzonderingen.
+  useDialogKeys({ onConfirm: confirm, onCancel: cancel });
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={cancel}>
