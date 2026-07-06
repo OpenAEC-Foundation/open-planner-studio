@@ -13,15 +13,26 @@ export const TIMESCALE_ZOOM: Record<TimeScale, number> = {
   month: 18,
   week: 45,
   day: 100,
+  // Fase 2.8b (§6.2): uur-preset, midden in de 'hour'-band (zoom≥300 in `scaleFromZoom`), zodat
+  // de keuze round-trip-stabiel 'hour' teruggeeft. Ligt onder de dag-max (400) ⇒ altijd bereikbaar,
+  // ook zonder kwartier-zoom.
+  hour: 350,
 };
 
-/** Leidt de getoonde tijdschaal af uit de zoom (§3.2). Leest dezelfde banden als `pickTiers`. */
-export function scaleFromZoom(zoom: number): TimeScale {
+/**
+ * Leidt de getoonde tijdschaal af uit de zoom (§3.2). Leest dezelfde banden als `pickTiers`.
+ * Fase 2.8b (§6.2): de 'hour'-schaal verschijnt ALLEEN als `hourPlanningEnabled` (de hoofdschakelaar
+ * Urenplanning) aan staat; anders blijft de reeks dag-granulair zoals vóór 2.8b (label 'day' bij
+ * ver inzoomen). De uur/kwartier-tiers zelf worden nog steeds door `pickTiers` getekend — dit raakt
+ * alleen het schaal-LABEL (dropdown + statusbalk).
+ */
+export function scaleFromZoom(zoom: number, hourPlanningEnabled = false): TimeScale {
   if (zoom < 4) return 'year';
   if (zoom < 10) return 'quarter';
   if (zoom < 25) return 'month';
   if (zoom < 80) return 'week';
-  return 'day'; // >=80: dag/uur-tiers; label 'day' (uur is 2.8, §3.4)
+  if (hourPlanningEnabled && zoom >= 300) return 'hour';
+  return 'day'; // >=80: dag/uur-tiers; label 'day' tenzij urenplanning aan én ver ingezoomd
 }
 
 export type TimelineTier =

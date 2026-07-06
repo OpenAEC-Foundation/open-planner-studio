@@ -78,6 +78,7 @@
     "criticalPath": "Critical path",
     "criticalPathInfo": "Shown in red",
     "timeScale": "Time Scale",
+    "hour": "Hour",
     "day": "Day",
     "week": "Week",
     "month": "Month",

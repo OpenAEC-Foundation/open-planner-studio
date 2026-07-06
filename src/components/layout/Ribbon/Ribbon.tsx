@@ -24,7 +24,7 @@ import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { createDefaultTaskTime } from '@/types/task';
-import { RibbonTab, type FieldRef, type GroupLevel, type SortLevel, type Layout } from '@/state/slices/types';
+import { RibbonTab, type FieldRef, type GroupLevel, type SortLevel, type Layout, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/panels/TaskPropertiesPanel';
 import { UnitsInput } from '@/components/common/UnitsInput';
@@ -1062,6 +1062,7 @@ export function Ribbon() {
   const redo = useAppStore(s => s.redo);
   const setZoom = useAppStore(s => s.setZoom);
   const zoom = useAppStore(s => s.view.zoom);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const setUI = useAppStore(s => s.setUI);
   const showDependencyMode = useAppStore(s => s.ui.showDependencyMode);
   const traceMode = useAppStore(s => s.ui.traceMode);
@@ -1415,15 +1416,17 @@ export function Ribbon() {
                 </RibbonButtonStack>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
                   <RibbonDropdown
-                    value={scaleFromZoom(zoom)}
+                    value={scaleFromZoom(zoom, enableHourPlanning)}
                     options={[
                       { value: 'year', label: tMenu('ribbon.year') },
                       { value: 'quarter', label: tMenu('ribbon.quarter') },
                       { value: 'month', label: tMenu('ribbon.month') },
                       { value: 'week', label: tMenu('ribbon.week') },
                       { value: 'day', label: tMenu('ribbon.day') },
+                      // Fase 2.8b (§6.2): de uur-schaal is alleen bereikbaar met Urenplanning aan.
+                      ...(enableHourPlanning ? [{ value: 'hour' as TimeScale, label: tMenu('ribbon.hour') }] : []),
                     ]}
-                    onChange={v => setTimeScale(v)}
+                    onChange={v => setTimeScale(v as TimeScale)}
                   />
                   <span className="ribbon-info">{tMenu('ribbon.zoomLevel', { level: Math.round(zoom) })}</span>
                 </div>

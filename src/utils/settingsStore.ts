@@ -8,8 +8,10 @@ import type {
   DocumentChromeStyle,
   Layout,
   DateNotation,
+  DurationDisplay,
+  BarSplitMode,
 } from '@/state/slices/types';
-import { DATE_NOTATIONS } from '@/state/slices/types';
+import { DATE_NOTATIONS, DURATION_DISPLAYS, BAR_SPLIT_MODES } from '@/state/slices/types';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
@@ -266,6 +268,46 @@ export async function loadDateNotation(): Promise<DateNotation | undefined> {
 
 export async function saveDateNotation(value: DateNotation): Promise<void> {
   await setSetting('dateNotation', value);
+}
+
+// --- Fase 2.8b: urenplanning-instellingen (§6.8). App-instellingen, dus onder de 3-plekken-regel
+//     (tandwiel/ribbontab/backstage delen SettingsPanelContent). Ontbrekende/corrupte sleutel ⇒
+//     undefined → de store houdt zijn default (§6.8: hoofdschakelaar uit, gemengd aan, duurweergave
+//     automatisch, balk-opsplitsing bij selectie), zonder reset van andere voorkeuren.
+export async function loadEnableHourPlanning(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('enableHourPlanning');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveEnableHourPlanning(value: boolean): Promise<void> {
+  await setSetting('enableHourPlanning', value);
+}
+
+export async function loadAllowMixedDayHour(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('allowMixedDayHour');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveAllowMixedDayHour(value: boolean): Promise<void> {
+  await setSetting('allowMixedDayHour', value);
+}
+
+export async function loadDurationDisplay(): Promise<DurationDisplay | undefined> {
+  const v = await getSetting<DurationDisplay>('durationDisplay');
+  return v && DURATION_DISPLAYS.includes(v) ? v : undefined;
+}
+
+export async function saveDurationDisplay(value: DurationDisplay): Promise<void> {
+  await setSetting('durationDisplay', value);
+}
+
+export async function loadBarSplitMode(): Promise<BarSplitMode | undefined> {
+  const v = await getSetting<BarSplitMode>('barSplitMode');
+  return v && BAR_SPLIT_MODES.includes(v) ? v : undefined;
+}
+
+export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
+  await setSetting('barSplitMode', value);
 }
 
 export async function loadLastLayoutId(): Promise<string | null> {

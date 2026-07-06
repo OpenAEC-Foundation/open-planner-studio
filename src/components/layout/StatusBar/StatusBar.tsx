@@ -15,6 +15,7 @@ export function StatusBar() {
   const isDirty = useAppStore(s => s.isDirty);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const setUI = useAppStore(s => s.setUI);
   const dd = useDisplayDate();
 
@@ -63,7 +64,7 @@ export function StatusBar() {
       )}
       <div className="flex-1" />
       {/* Afgeleid uit zoom (fase 2.7, §3.5) — kan niet desyncen van de getekende as. */}
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(view.zoom)}`)}</span>
+      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(view.zoom, enableHourPlanning)}`)}</span>
       <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
       {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
       {debugTerminalEnabled && (

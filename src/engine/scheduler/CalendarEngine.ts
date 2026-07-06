@@ -504,6 +504,36 @@ export class CalendarEngine {
     return this.nextWorkDay(this.ceilToWorkDay(predDoneAt));
   }
 
+  /**
+   * Werk-intervallen (absolute UTC-`Date`-paren, half-open `[start,end)`) die het venster
+   * `[from, to]` snijden — voor de balk-opsplitsing/bar-necking in de Gantt (§6.9). Hergebruikt de
+   * op het kalender-object GEMEMOIZEDE band-materialisatie (`bandsStartingOn`), dus geen extra
+   * uitrol per frame. Alleen zinvol in uur-modus; een dag-kalender geeft `[]` (dag-taken renderen
+   * altijd doorlopend). Scant vanaf de dag vóór `from` om de na-middernacht-staart van een
+   * wrap-band (nachtploeg) mee te nemen.
+   */
+  workIntervalsBetween(from: Date, to: Date): { start: Date; end: Date }[] {
+    if (this.mode !== 'hour') return [];
+    const fromMs = from.getTime();
+    const toMs = to.getTime();
+    if (!(toMs > fromMs)) return [];
+    const out: { start: Date; end: Date }[] = [];
+    const lastDay = this.dayStartMsOf(toMs);
+    let dayMs = this.dayStartMsOf(fromMs) - CalendarEngine.MS_PER_DAY; // vang wrap-staart vorige dag
+    let scan = 0;
+    while (dayMs <= lastDay && scan <= CalendarEngine.MAX_SCAN + 2) {
+      for (const band of this.bandsStartingOn(dayMs)) {
+        const s = Math.max(band.start, fromMs);
+        const e = Math.min(band.end, toMs);
+        if (e > s) out.push({ start: new Date(s), end: new Date(e) });
+      }
+      dayMs += CalendarEngine.MS_PER_DAY;
+      scan++;
+    }
+    out.sort((a, b) => a.start.getTime() - b.start.getTime());
+    return out;
+  }
+
   // ── Introspectie voor de memoization-test (§5.6). Twee engines op hetzelfde kalender-object
   //    delen deze cache-identiteit en teller. In dag-modus is er geen cache (0 / undefined). ──
   /** Aantal dag-materialisaties (cache-misses) op de GEDEELDE kalender-object-cache. */

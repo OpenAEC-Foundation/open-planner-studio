@@ -826,12 +826,15 @@ function runCase(c: Case) {
     const idToName: Record<string, string> = {};
     for (const [n, i] of Object.entries(ids)) idToName[i] = n;
 
-    // Round-trip-stabiliteit van de timescale-presets (§3.3).
+    // Round-trip-stabiliteit van de timescale-presets (§3.3). Fase 2.8b (§6.2): 'hour' round-trippt
+    // alleen met de urenplanning-vlag; de vijf dag-granulaire presets zonder vlag (byte-identiek).
     if (v.timescaleRoundtrip) {
       for (const s of ['year', 'quarter', 'month', 'week', 'day'] as const) {
         const got = scaleFromZoom(TIMESCALE_ZOOM[s]);
         if (got !== s) diffs.push(`timescale: scaleFromZoom(${TIMESCALE_ZOOM[s]})=${got}, verwacht ${s}`);
       }
+      const gotHour = scaleFromZoom(TIMESCALE_ZOOM.hour, true);
+      if (gotHour !== 'hour') diffs.push(`timescale: scaleFromZoom(${TIMESCALE_ZOOM.hour}, true)=${gotHour}, verwacht hour`);
     }
 
     const groupSpecs = v.group ?? [];
