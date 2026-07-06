@@ -344,7 +344,14 @@ export function TaskPropertiesPanel() {
             onCommit={v => updateTime('scheduleStart', v)}
           />
         </Field>
-        <Field label={t('properties.duration')}>
+        {/* Label modus-bewust (FIX golf, §6.4): een uur-taak toont uur-waarden, dus het label moet
+            "(uren)" tonen i.p.v. het misleidende "(dagen)". Dag-taken houden het dagen-label (dag-taken
+            kunnen per invariant Bevinding 2 geen sub-dag-duur dragen, dus het veld blijft dagen). */}
+        <Field label={
+          (enableHourPlanning && isHourCalendar(effectiveCalendarOf(task, projectCal, calendars)) && !task.isMilestone)
+            ? t('properties.durationHours')
+            : t('properties.duration')
+        }>
           {(() => {
             const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
             const hourTask = enableHourPlanning && isHourCalendar(cal) && !task.isMilestone;
