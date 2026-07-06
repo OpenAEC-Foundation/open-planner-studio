@@ -357,7 +357,8 @@
       "copyToAll": "모든 근무일에 복사",
       "noBands": "비근무",
       "nextDay": "다음 날",
-      "shiftPreset": "교대"
+      "shiftPreset": "교대",
+      "breakHint": "두 구간 사이의 간격은 휴식 시간입니다. 필요에 따라 시간을 조정하세요."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "이 파일에는 시간 단위 계획이 포함되어 있습니다.",
     "enable": "시간 단위 계획 사용"
+  },
+  "duration": {
+    "suffixDay": "일",
+    "suffixHour": "시",
+    "suffixMinute": "분"
   }
 }

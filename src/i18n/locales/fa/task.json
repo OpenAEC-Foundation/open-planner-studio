@@ -12,7 +12,7 @@
     "completion": "پیشرفت",
     "milestone": "نقطه عطف",
     "hoursPerDayTip": "ساعت/روز",
-    "mixedWarning": "تقویم‌های ترکیبی ({{hpds}} ساعت/روز). مدت هر وظیفه در واحد خودش نمایش داده می‌شود."
+    "mixedWarning": "تقویم‌های ترکیبی — ساعت/روز برای هر تقویم: {{list}}. مدت‌زمان برای هر وظیفه با واحد خودش نمایش داده می‌شود."
   },
   "taskType": {
     "CONSTRUCTION": "ساخت",
@@ -99,7 +99,8 @@
     "calendar": "تقویم",
     "calendarProject": "تقویم پروژه",
     "priority": "اولویت تسطیح",
-    "levelingDelay": "تأخیر تسطیح"
+    "levelingDelay": "تأخیر تسطیح",
+    "durationHours": "مدت (ساعت)"
   },
   "relations": {
     "title": "روابط",

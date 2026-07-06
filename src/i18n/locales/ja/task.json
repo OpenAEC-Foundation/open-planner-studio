@@ -12,7 +12,7 @@
     "completion": "進捗",
     "milestone": "マイルストーン",
     "hoursPerDayTip": "時間/日",
-    "mixedWarning": "混在カレンダー（{{hpds}} 時間/日）。期間はタスクごとに固有の単位で表示されます。"
+    "mixedWarning": "混在カレンダー — カレンダーごとの時間/日：{{list}}。期間はタスクごとに固有の単位で表示されます。"
   },
   "taskType": {
     "CONSTRUCTION": "建設",
@@ -99,7 +99,8 @@
     "calendar": "カレンダー",
     "calendarProject": "プロジェクトカレンダー",
     "priority": "山崩し優先度",
-    "levelingDelay": "山崩し遅延"
+    "levelingDelay": "山崩し遅延",
+    "durationHours": "期間（時間）"
   },
   "relations": {
     "title": "関係",

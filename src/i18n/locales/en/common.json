@@ -357,7 +357,8 @@
       "copyToAll": "Copy to all workdays",
       "noBands": "Non-working",
       "nextDay": "next day",
-      "shiftPreset": "Shift"
+      "shiftPreset": "Shift",
+      "breakHint": "A gap between two bands is a break — adjust the times as needed."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "This file contains hour-based planning.",
     "enable": "Enable hour planning"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "h",
+    "suffixMinute": "m"
   }
 }

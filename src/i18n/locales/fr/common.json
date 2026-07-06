@@ -357,7 +357,8 @@
       "copyToAll": "Copier sur tous les jours ouvrés",
       "noBands": "Non travaillé",
       "nextDay": "jour suivant",
-      "shiftPreset": "Équipe"
+      "shiftPreset": "Équipe",
+      "breakHint": "Un intervalle entre deux plages est une pause — ajustez les horaires selon vos besoins."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "Ce fichier contient une planification horaire.",
     "enable": "Activer la planification horaire"
+  },
+  "duration": {
+    "suffixDay": "j",
+    "suffixHour": "h",
+    "suffixMinute": "min"
   }
 }

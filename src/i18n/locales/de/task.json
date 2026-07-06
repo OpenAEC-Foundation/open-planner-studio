@@ -12,7 +12,7 @@
     "completion": "Fortschritt",
     "milestone": "Meilenstein",
     "hoursPerDayTip": "Std/Tag",
-    "mixedWarning": "Gemischte Kalender ({{hpds}} Std/Tag). Die Dauer wird je Vorgang in ihrer eigenen Einheit angezeigt."
+    "mixedWarning": "Gemischte Kalender – Stunden/Tag je Kalender: {{list}}. Die Dauer wird je Vorgang in eigener Einheit angezeigt."
   },
   "taskType": {
     "CONSTRUCTION": "Bau",
@@ -99,7 +99,8 @@
     "calendar": "Kalender",
     "calendarProject": "Projektkalender",
     "priority": "Abgleich-Priorität",
-    "levelingDelay": "Abgleich-Verzögerung"
+    "levelingDelay": "Abgleich-Verzögerung",
+    "durationHours": "Dauer (Stunden)"
   },
   "relations": {
     "title": "Beziehungen",

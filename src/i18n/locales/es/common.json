@@ -357,7 +357,8 @@
       "copyToAll": "Copiar a todos los días laborables",
       "noBands": "No laborable",
       "nextDay": "día siguiente",
-      "shiftPreset": "Turno"
+      "shiftPreset": "Turno",
+      "breakHint": "Un hueco entre dos franjas es una pausa: ajuste los horarios según sea necesario."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "Este archivo contiene planificación por horas.",
     "enable": "Activar planificación por horas"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "h",
+    "suffixMinute": "m"
   }
 }

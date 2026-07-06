@@ -357,7 +357,8 @@
       "copyToAll": "Copia su tutti i giorni lavorativi",
       "noBands": "Non lavorativo",
       "nextDay": "giorno successivo",
-      "shiftPreset": "Turno"
+      "shiftPreset": "Turno",
+      "breakHint": "Un intervallo tra due fasce è una pausa: regola gli orari secondo necessità."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "Questo file contiene una pianificazione oraria.",
     "enable": "Attiva pianificazione oraria"
+  },
+  "duration": {
+    "suffixDay": "g",
+    "suffixHour": "h",
+    "suffixMinute": "m"
   }
 }

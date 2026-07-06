@@ -357,7 +357,8 @@
       "copyToAll": "Copiar para todos os dias úteis",
       "noBands": "Não útil",
       "nextDay": "dia seguinte",
-      "shiftPreset": "Turno"
+      "shiftPreset": "Turno",
+      "breakHint": "Um intervalo entre duas faixas é uma pausa — ajuste os horários conforme necessário."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "Este ficheiro contém planeamento por horas.",
     "enable": "Ativar planeamento por horas"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "h",
+    "suffixMinute": "m"
   }
 }

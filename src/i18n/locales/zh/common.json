@@ -357,7 +357,8 @@
       "copyToAll": "复制到所有工作日",
       "noBands": "非工作",
       "nextDay": "次日",
-      "shiftPreset": "班次"
+      "shiftPreset": "班次",
+      "breakHint": "两个时段之间的间隔即为休息——可按需调整时间。"
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "此文件包含按小时的计划。",
     "enable": "启用小时计划"
+  },
+  "duration": {
+    "suffixDay": "天",
+    "suffixHour": "时",
+    "suffixMinute": "分"
   }
 }

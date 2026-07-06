@@ -12,7 +12,7 @@
     "completion": "Avancement",
     "milestone": "Jalon",
     "hoursPerDayTip": "h/j",
-    "mixedWarning": "Calendriers mixtes ({{hpds}} h/j). La durée est affichée par tâche dans sa propre unité."
+    "mixedWarning": "Calendriers mixtes — heures/jour par calendrier : {{list}}. La durée est affichée par tâche dans sa propre unité."
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -99,7 +99,8 @@
     "calendar": "Calendrier",
     "calendarProject": "Calendrier du projet",
     "priority": "Priorité de nivellement",
-    "levelingDelay": "Retard de nivellement"
+    "levelingDelay": "Retard de nivellement",
+    "durationHours": "Durée (heures)"
   },
   "relations": {
     "title": "Relations",

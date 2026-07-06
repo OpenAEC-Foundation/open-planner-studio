@@ -357,7 +357,8 @@
       "copyToAll": "Tüm iş günlerine kopyala",
       "noBands": "Çalışılmayan",
       "nextDay": "sonraki gün",
-      "shiftPreset": "Vardiya"
+      "shiftPreset": "Vardiya",
+      "breakHint": "İki bant arasındaki boşluk bir moladır — saatleri gerektiği gibi ayarlayın."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "Bu dosya saat bazlı planlama içeriyor.",
     "enable": "Saat planlamasını aç"
+  },
+  "duration": {
+    "suffixDay": "g",
+    "suffixHour": "s",
+    "suffixMinute": "dk"
   }
 }

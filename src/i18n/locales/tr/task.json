@@ -12,7 +12,7 @@
     "completion": "İlerleme",
     "milestone": "Kilometre taşı",
     "hoursPerDayTip": "sa/gün",
-    "mixedWarning": "Karma takvimler ({{hpds}} sa/gün). Süre her görev için kendi biriminde gösterilir."
+    "mixedWarning": "Karışık takvimler — takvim başına saat/gün: {{list}}. Süre her görevde kendi biriminde gösterilir."
   },
   "taskType": {
     "CONSTRUCTION": "İnşaat",
@@ -99,7 +99,8 @@
     "calendar": "Takvim",
     "calendarProject": "Proje takvimi",
     "priority": "Dengeleme önceliği",
-    "levelingDelay": "Dengeleme gecikmesi"
+    "levelingDelay": "Dengeleme gecikmesi",
+    "durationHours": "Süre (saat)"
   },
   "relations": {
     "title": "İlişkiler",

@@ -12,7 +12,7 @@
     "completion": "Postęp",
     "milestone": "Kamień milowy",
     "hoursPerDayTip": "godz./dzień",
-    "mixedWarning": "Mieszane kalendarze ({{hpds}} godz./dzień). Czas trwania jest pokazywany dla każdego zadania w jego własnej jednostce."
+    "mixedWarning": "Mieszane kalendarze — godziny/dzień na kalendarz: {{list}}. Czas trwania jest pokazywany dla każdego zadania we własnej jednostce."
   },
   "taskType": {
     "CONSTRUCTION": "Budowa",
@@ -99,7 +99,8 @@
     "calendar": "Kalendarz",
     "calendarProject": "Kalendarz projektu",
     "priority": "Priorytet bilansowania",
-    "levelingDelay": "Opóźnienie bilansowania"
+    "levelingDelay": "Opóźnienie bilansowania",
+    "durationHours": "Czas trwania (godziny)"
   },
   "relations": {
     "title": "Relacje",

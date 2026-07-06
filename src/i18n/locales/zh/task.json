@@ -12,7 +12,7 @@
     "completion": "进度",
     "milestone": "里程碑",
     "hoursPerDayTip": "小时/天",
-    "mixedWarning": "混合日历（{{hpds}} 小时/天）。工期按各任务自身单位显示。"
+    "mixedWarning": "混合日历 — 各日历每日工时：{{list}}。工期按各任务以其自身单位显示。"
   },
   "taskType": {
     "CONSTRUCTION": "施工",
@@ -99,7 +99,8 @@
     "calendar": "日历",
     "calendarProject": "项目日历",
     "priority": "平衡优先级",
-    "levelingDelay": "平衡延迟"
+    "levelingDelay": "平衡延迟",
+    "durationHours": "工期（小时）"
   },
   "relations": {
     "title": "关系",

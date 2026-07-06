@@ -357,7 +357,8 @@
       "copyToAll": "Auf alle Arbeitstage kopieren",
       "noBands": "Arbeitsfrei",
       "nextDay": "nächster Tag",
-      "shiftPreset": "Schicht"
+      "shiftPreset": "Schicht",
+      "breakHint": "Eine Lücke zwischen zwei Bändern ist eine Pause – passen Sie die Zeiten nach Bedarf an."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "Diese Datei enthält stundenbasierte Planung.",
     "enable": "Stundenplanung aktivieren"
+  },
+  "duration": {
+    "suffixDay": "T",
+    "suffixHour": "Std",
+    "suffixMinute": "Min"
   }
 }

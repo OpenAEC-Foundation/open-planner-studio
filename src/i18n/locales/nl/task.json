@@ -12,7 +12,7 @@
     "completion": "Voortgang",
     "milestone": "Mijlpaal",
     "hoursPerDayTip": "u/dag",
-    "mixedWarning": "Gemengde kalenders ({{hpds}} u/dag). Duur wordt per taak in de eigen eenheid getoond."
+    "mixedWarning": "Gemengde kalenders — uren/dag per kalender: {{list}}. Duur wordt per taak in de eigen eenheid getoond."
   },
   "taskType": {
     "CONSTRUCTION": "Bouw",
@@ -99,7 +99,8 @@
     "calendar": "Kalender",
     "calendarProject": "Projectkalender",
     "priority": "Nivelleer-prioriteit",
-    "levelingDelay": "Nivelleer-vertraging"
+    "levelingDelay": "Nivelleer-vertraging",
+    "durationHours": "Duur (uren)"
   },
   "relations": {
     "title": "Relaties",

@@ -12,7 +12,7 @@
     "completion": "التقدم",
     "milestone": "معلم",
     "hoursPerDayTip": "س/يوم",
-    "mixedWarning": "تقاويم مختلطة ({{hpds}} س/يوم). تُعرض المدة لكل مهمة بوحدتها الخاصة."
+    "mixedWarning": "تقاويم مختلطة — ساعات/يوم لكل تقويم: {{list}}. تُعرض المدة لكل مهمة بوحدتها الخاصة."
   },
   "taskType": {
     "CONSTRUCTION": "بناء",
@@ -99,7 +99,8 @@
     "calendar": "التقويم",
     "calendarProject": "تقويم المشروع",
     "priority": "أولوية الموازنة",
-    "levelingDelay": "تأخير الموازنة"
+    "levelingDelay": "تأخير الموازنة",
+    "durationHours": "المدة (ساعات)"
   },
   "relations": {
     "title": "العلاقات",

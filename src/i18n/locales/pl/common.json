@@ -357,7 +357,8 @@
       "copyToAll": "Kopiuj do wszystkich dni roboczych",
       "noBands": "Niepracujący",
       "nextDay": "następny dzień",
-      "shiftPreset": "Zmiana"
+      "shiftPreset": "Zmiana",
+      "breakHint": "Przerwa między dwoma pasmami to pauza — dostosuj godziny według potrzeb."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "Ten plik zawiera planowanie godzinowe.",
     "enable": "Włącz planowanie godzinowe"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "g",
+    "suffixMinute": "min"
   }
 }

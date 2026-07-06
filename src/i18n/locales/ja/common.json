@@ -357,7 +357,8 @@
       "copyToAll": "すべての稼働日にコピー",
       "noBands": "非稼働",
       "nextDay": "翌日",
-      "shiftPreset": "シフト"
+      "shiftPreset": "シフト",
+      "breakHint": "2つの時間帯の間の空きは休憩です。必要に応じて時刻を調整してください。"
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "このファイルには時間単位の計画が含まれています。",
     "enable": "時間計画を有効にする"
+  },
+  "duration": {
+    "suffixDay": "日",
+    "suffixHour": "時",
+    "suffixMinute": "分"
   }
 }

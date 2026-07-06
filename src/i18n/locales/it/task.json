@@ -12,7 +12,7 @@
     "completion": "Progresso",
     "milestone": "Traguardo",
     "hoursPerDayTip": "h/giorno",
-    "mixedWarning": "Calendari misti ({{hpds}} h/giorno). La durata viene mostrata per attività nella propria unità."
+    "mixedWarning": "Calendari misti — ore/giorno per calendario: {{list}}. La durata è mostrata per attività nella propria unità."
   },
   "taskType": {
     "CONSTRUCTION": "Costruzione",
@@ -99,7 +99,8 @@
     "calendar": "Calendario",
     "calendarProject": "Calendario del progetto",
     "priority": "Priorità di livellamento",
-    "levelingDelay": "Ritardo di livellamento"
+    "levelingDelay": "Ritardo di livellamento",
+    "durationHours": "Durata (ore)"
   },
   "relations": {
     "title": "Relazioni",

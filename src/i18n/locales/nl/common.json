@@ -357,7 +357,8 @@
       "copyToAll": "Kopieer naar alle werkdagen",
       "noBands": "Niet-werkend",
       "nextDay": "volgende dag",
-      "shiftPreset": "Ploeg"
+      "shiftPreset": "Ploeg",
+      "breakHint": "Een gat tussen twee banden is een pauze — pas de tijden naar wens aan."
     }
   },
   "view": {
@@ -443,5 +444,10 @@
   "hourData": {
     "notice": "Dit bestand bevat urenplanning.",
     "enable": "Urenplanning aanzetten"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "u",
+    "suffixMinute": "m"
   }
 }
