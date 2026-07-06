@@ -373,6 +373,11 @@ is een nieuw optioneel veld dat de harness alleen vergelijkt als een case het in
   (`GanttRenderer.ts:626`, Rapport A §6) krijgt een derde geval: `isNearCritical ? nearCriticalColor : …`
   (oranje-band tussen kritiek rood en float groen). Near-critical staat **default uit**; aangezet is de
   **default-drempel 2 werkdagen** en de drempel-weergave **volgt de Duurweergave-instelling** (dagen of uren).
+  **BINDEND user-besluit (2026-07-06): in het high-contrast-thema is kleur alléén onvoldoende — de
+  near-critical-balk krijgt daar een geblokt/gearceerd vulpatroon** (canvas-pattern, bv. diagonale blokjes)
+  bovenop de themakleur, zodat het onderscheid met kritiek en normaal zonder kleurwaarneming leesbaar is;
+  in licht/donker blijft de amber-kleur het primaire signaal (patroon daar niet nodig). Het patroon rendert
+  via een gememoized `CanvasPattern` in `GanttRenderer` (geen per-frame-creatie).
   Float-path-nummer als optionele kolom + optionele tint per pad (**default `FREE_FLOAT`, `maxPaths 10`**).
 - **§5.5 Externe dependency** (besluit B7) — een **"Externe koppeling…"**-actie in het relatiepaneel: kies een
   taak uit een recent bestand (`fileSlice.ts:69` `getRecentFiles`) — we openen dat bestand **read-only** en
