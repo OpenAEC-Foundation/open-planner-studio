@@ -14,6 +14,26 @@ export interface WorkCalendar {
    *  engine gegenereerd en kunnen opnieuw worden gematerialiseerd bij projectperiode-wijziging.
    *  Afwezig ⇒ letterlijke/handmatige kalender (bestaande bestanden); nooit stil hergenereren. */
   generation?: CalendarGeneration;
+  /** OPTIONEEL — per-weekdag werktijd-banden (fase 2.8b, §3.2). Aanwezig ⇒ UUR-kalender
+   *  (minuut-native scheduling). Afwezig ⇒ DAG-kalender (bevroren dag-lussen, byte-identiek). */
+  workTime?: WorkTimeBands;
+  /** OPTIONEEL — ploeg-classificatie voor IFC-`PredefinedType` (fase 2.8b, §7.1). Afwezig ⇒
+   *  `.FIRSTSHIFT.` (byte-identiek met bestaande bestanden). */
+  shift?: 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
+}
+
+/**
+ * Werktijd-banden per ISO-weekdag (1=ma..7=zo), fase 2.8b §3.2. Een weekdag zonder banden =
+ * niet-werkend. Een band is `[start, end)` in MINUTEN-VANAF-MIDDERNACHT van de STARTdag.
+ *
+ * CANONIEK: `end > start` (Bevinding 7). Een wrap-band (over middernacht) heeft
+ * `end ∈ (1440, 2880]` en telt bij de STARTdag (P6/Asta-conventie: een shift begint op zijn
+ * weekdag en mag 24u overspannen). De alternatieve encoding met een niet-oplopende grens is
+ * ONGELDIG en wordt bij inlezen genormaliseerd (`end += 1440`), zodat er precies één
+ * representatie in omloop is. Banden per dag zijn gesorteerd, niet-overlappend en canoniek.
+ */
+export interface WorkTimeBands {
+  byWeekday: Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>;
 }
 
 /** Herkomst-metadata van een gegenereerde kalender (§2.1). Puur informatief — solver/renderer/IFC

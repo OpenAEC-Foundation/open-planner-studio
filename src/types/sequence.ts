@@ -18,6 +18,9 @@ export interface Sequence {
   type: SequenceType;
   /** Vaste lag in dagen (positief = uitloop, negatief = lead). Genegeerd wanneer lagPercent gezet is. */
   lagDays: number;
+  /** OPTIONEEL — vaste lag in integer MINUTEN (fase 2.8b, §3.3). Aanwezig ⇒ bron van waarheid;
+   *  afwezig ⇒ `lagDays` (dagen) is de bron (byte-identiek). */
+  lagMinutes?: number;
   /** Lag-eenheid; ontbreekt = WORKTIME (werkdagen) — bestaand gedrag, migratieloos. */
   lagUnit?: LagUnit;
   /**
