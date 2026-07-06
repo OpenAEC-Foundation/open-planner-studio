@@ -29,6 +29,10 @@ export interface ResourceSlice {
   /** Verwijder een bibliotheek-kalender: task/resource-verwijzingen én (indien de projectdefault)
    *  de projectkalender vallen terug op een fallback (§4.3/§9.2). */
   removeCalendar: (id: string) => void;
+  /** Commit de complete kalender-bibliotheek + projectdefault in één keer (kalenderdialoog-buffer,
+   *  fase 2.8b): vervangt `calendars`, ruimt verweesde task/resource-verwijzingen op en zet de
+   *  projectkalender. Eén undo-snapshot voor de hele dialoogsessie. */
+  commitCalendarLibrary: (calendars: WorkCalendar[], projectCalendarId: string) => void;
 }
 
 /** Geldige capaciteit/eenheden (fase 2.5 UX-fix, bevinding 1): strikt positief en eindig. 0 is
@@ -216,6 +220,33 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
           s.calendar = fallback;
         }
         // Geen enkele bibliotheek-entry meer: `s.calendar` blijft de laatst-bekende cache staan.
+      }
+      syncProjectCalendar(s);
+      s.isDirty = true;
+      s.scheduleStale = true;
+    });
+    get().recomputeResourceLoad();
+  },
+
+  commitCalendarLibrary: (calendars, projectCalendarId) => {
+    set((s) => {
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      s.calendars = calendars;
+      const ids = new Set(calendars.map(c => c.id));
+      // Verweesde verwijzingen opruimen (spiegelt removeCalendar, §4.3/§9.2): resources én taken
+      // die naar een niet-langer-bestaande kalender wijzen vallen terug op de projectkalender.
+      for (const r of s.resources) {
+        if (r.calendarId && !ids.has(r.calendarId)) r.calendarId = undefined;
+      }
+      for (const t of s.tasks) {
+        if (t.calendarId && !ids.has(t.calendarId)) t.calendarId = undefined;
+      }
+      // Projectdefault: het meegegeven id als het (nog) bestaat, anders de eerste entry (§9.2).
+      if (ids.has(projectCalendarId)) {
+        s.project.calendarId = projectCalendarId;
+      } else if (calendars[0]) {
+        s.project.calendarId = calendars[0].id;
       }
       syncProjectCalendar(s);
       s.isDirty = true;
