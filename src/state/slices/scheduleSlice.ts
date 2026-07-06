@@ -61,6 +61,9 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       const solver = new CPMSolver(leafTasks, s.sequences, s.calendar, s.calendars, {
         dataDate: s.project.statusDate,
         progressMode: s.project.progressMode,
+        // Fase 2.9 golf 0: project-scoped reken-opties doorgeven. De solver leest ze nog nergens
+        // gedragswijzigend (afwezig/leeg ⇒ byte-identiek); de latere golven activeren ze.
+        schedulingOptions: s.project.schedulingOptions,
       });
       const result = solver.solve();
 

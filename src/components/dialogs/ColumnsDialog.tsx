@@ -44,6 +44,10 @@ export function ColumnsDialog() {
         case 'totalFloat': return tTask('table.totalFloat');
         case 'completion': return tTask('table.completion');
         case 'isMilestone': return tTask('table.milestone');
+        case 'freeFloat': return tTask('table.freeFloat');                 // fase 2.9 (§3.5)
+        case 'interferingFloat': return tTask('table.interferingFloat');   // fase 2.9 (§3.5)
+        case 'isNearCritical': return tTask('table.isNearCritical');       // fase 2.9 (§3.5)
+        case 'floatPath': return tTask('table.floatPath');                 // fase 2.9 (§3.5)
         default: return field.key;
       }
     }

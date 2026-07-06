@@ -52,6 +52,12 @@ export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): Fie
         case 'completion': return task.time.completion;
         case 'taskType': return task.taskType;
         case 'isMilestone': return task.isMilestone;
+        // Fase 2.9 (§3.5): additieve analyse-velden. freeFloat is altijd aanwezig; de andere drie
+        // zijn optioneel (undefined tot de bijbehorende analyse-golf draait) — undefined-tolerant.
+        case 'freeFloat': return task.time.freeFloat;
+        case 'interferingFloat': return task.time.interferingFloat;
+        case 'isNearCritical': return task.time.isNearCritical;
+        case 'floatPath': return task.time.floatPath;
       }
       return undefined;
     case 'activityCode':

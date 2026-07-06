@@ -1,4 +1,5 @@
 import { Task } from '@/types/task';
+import type { SchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
@@ -33,6 +34,14 @@ export interface CPMResult {
   /** Relaties waarvan de opvolger progress/actuals heeft die de voorganger-logica tegenspreekt
    *  (out-of-sequence, fase 2.6). Waarschuwing, geen fout — het gedrag volgt uit de progressMode. */
   outOfSequenceSequenceIds: string[];
+  /** Near-critical-taken (fase 2.9, §4.6): 0 < tf ≤ drempel. Leeg als de drempel ongezet is. */
+  nearCriticalTaskIds: string[];
+  /** Alle kritieke ketens (fase 2.9, §4.6). ALTIJD aanwezig, lengte ≥1; `criticalPaths[0] ==
+   *  criticalPath`. Staat `floatPaths` uit, dan is dit precies `[criticalPath]` — zo hoeven
+   *  consumenten nooit op `undefined` te checken (byte-compat: één keten in een array gewikkeld). */
+  criticalPaths: string[][];
+  /** Float-path-nummer per taak (fase 2.9, §4.6): 1 = meest kritiek. Leeg als `floatPaths` uit. */
+  floatPathByTask: Record<string, number>;
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
@@ -42,6 +51,9 @@ export interface CPMResult {
 export interface CPMOptions {
   dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; // default RETAINED_LOGIC
+  /** Project-scoped reken-opties (fase 2.9, §3.4). Afwezig ⇒ elke default ⇒ byte-identiek. In golf 0
+   *  wordt dit blok alleen doorgegeven; de solver leest het nog nergens gedragswijzigend. */
+  schedulingOptions?: SchedulingOptions;
 }
 
 /**
@@ -65,6 +77,13 @@ export interface CPMTaskResult {
   totalFloat: number;
   freeFloat: number;
   isCritical: boolean;
+  /** OPTIONEEL — interfererende speling = totalFloat − freeFloat (fase 2.9, §4.6). Alleen
+   *  geschreven wanneer de analyse-laag draait; ongeschreven ⇒ byte-identiek default. */
+  interferingFloat?: number;
+  /** OPTIONEEL — near-critical (fase 2.9, §4.6). Alleen geschreven bij ingestelde drempel. */
+  isNearCritical?: boolean;
+  /** OPTIONEEL — float-path-nummer (fase 2.9, §4.6). Alleen geschreven bij floatPaths. */
+  floatPath?: number;
 }
 
 export class CPMSolver {
@@ -258,6 +277,9 @@ export class CPMSolver {
         violatedConstraintTaskIds: [],
         missedDeadlineTaskIds: [],
         outOfSequenceSequenceIds: [],
+        nearCriticalTaskIds: [],
+        criticalPaths: [[]],
+        floatPathByTask: {},
         projectEnd: '',
         projectDuration: 0,
         error: `Circular dependency detected: ${cycleNames}`,
@@ -276,6 +298,9 @@ export class CPMSolver {
         violatedConstraintTaskIds: [],
         missedDeadlineTaskIds: [],
         outOfSequenceSequenceIds: [],
+        nearCriticalTaskIds: [],
+        criticalPaths: [[]],
+        floatPathByTask: {},
         projectEnd: '',
         projectDuration: 0,
         error: 'Kalender heeft geen werkdagen ingesteld',
@@ -296,6 +321,9 @@ export class CPMSolver {
           violatedConstraintTaskIds: [],
           missedDeadlineTaskIds: [],
           outOfSequenceSequenceIds: [],
+          nearCriticalTaskIds: [],
+          criticalPaths: [[]],
+          floatPathByTask: {},
           projectEnd: '',
           projectDuration: 0,
           error: `Ongeldige startdatum voor taak "${task.name}"`,
@@ -1218,6 +1246,13 @@ export class CPMSolver {
       violatedConstraintTaskIds,
       missedDeadlineTaskIds,
       outOfSequenceSequenceIds,
+      // Fase 2.9 golf 0 — inerte defaults: de analyse-golven (near-critical, float-paths) draaien nog
+      // niet, dus geen near-critical-taken, en `criticalPaths` is de bestaande enkele keten in een
+      // array gewikkeld (§4.6). De per-taak-velden (interferingFloat/isNearCritical/floatPath) blijven
+      // ongeschreven ⇒ byte-identiek default-document.
+      nearCriticalTaskIds: [],
+      criticalPaths: [criticalPath],
+      floatPathByTask: {},
       // Projecteinde in de projectkalendermodus (§5.4): dag-project ⇒ `formatDate` (byte-identiek).
       projectEnd: formatInstant(projectEnd, this.modeOf(this.projectEngine)),
       projectDuration,

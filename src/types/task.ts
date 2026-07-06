@@ -29,6 +29,29 @@ export interface TaskConstraint {
   type: ConstraintType;
   /** Vereist voor alle types behalve ASAP/ALAP; wordt bij toepassing op een werkdag gesnapt. */
   date?: string;
+  /** OPTIONEEL — logica-brekende Mandatory-pin (fase 2.9). Alleen zinvol voor MSO/MFO.
+   *  Afwezig/false ⇒ P6-soft "Start On"/"Finish On" (het huidige gedrag, byte-identiek).
+   *  true ⇒ P6 Mandatory Start/Finish: pint ES én LF (MSO) resp. EF én LS (MFO) op de datum,
+   *  overschrijft de logica, houdt TF=0 op de pin en drijft negatieve float upstream (§4.2). */
+  hard?: boolean;
+}
+
+/**
+ * Externe (cross-project) dependency (fase 2.9, §3.3). GEEN live multi-document-solve: de link
+ * rekent altijd op de bevroren `anchorDate` (P6 External Dates). `sourceMissing` is puur een
+ * UI-/versheids-signaal (§4.5/§5.5) — het gedrag hangt er niet van af.
+ */
+export interface ExternalLink {
+  id: string;
+  direction: 'predecessor' | 'successor';   // is de externe taak mijn voorganger of opvolger?
+  relType: 'FS' | 'SS' | 'FF' | 'SF';
+  lagDays?: number;
+  lagMinutes?: number;                       // zelfde eenheid-conventie als Sequence (2.8b §3.3)
+  /** Bevroren driving-datum van de andere kant (P6 External Dates, Rapport B §3.1). */
+  anchorDate: string;                        // date-only (dag) of datetime (uur)
+  sourceRef: { projectId: string; projectName?: string; taskId: string; taskName?: string; filePath?: string };
+  /** true ⇒ bronproject niet beschikbaar; de link rekent op de gecachte anchorDate (ghost, §5.5). */
+  sourceMissing: boolean;
 }
 
 export type DurationType = 'WORKTIME' | 'ELAPSEDTIME';
@@ -63,6 +86,14 @@ export interface TaskTime {
   freeFloat: number;   // work days (fractioneel in uur-modus, §5.5)
   totalFloat: number;  // work days (fractioneel in uur-modus, §5.5)
   isCritical: boolean;
+  /** OPTIONEEL — interfererende speling = totalFloat − freeFloat (getekend, fractioneel in
+   *  uur-modus; fase 2.9, §4.6). Alleen geschreven wanneer de analyse-laag draait; afwezig ⇒
+   *  byte-identiek default-document. */
+  interferingFloat?: number;
+  /** OPTIONEEL — near-critical-markering (fase 2.9, §4.6). Alleen geschreven bij ingestelde drempel. */
+  isNearCritical?: boolean;
+  /** OPTIONEEL — float-path-nummer (1 = meest kritiek; fase 2.9, §4.6). Alleen geschreven bij floatPaths. */
+  floatPath?: number;
 
   // Tracking
   actualStart?: string;
@@ -106,8 +137,20 @@ export interface Task {
   activityCodes?: Record<string, string>;
   /** Custom-field-waarden: velddefinitie-id → waarde (getypeerd volgens CustomFieldDef.type). */
   customFields?: Record<string, CustomFieldValue>;
-  /** Datum-constraint (fase 2.3); afwezig = ASAP. */
+  /** Datum-constraint (fase 2.3); afwezig = ASAP. PRIMAIR. */
   constraint?: TaskConstraint;
+  /** OPTIONEEL — SECUNDAIRE constraint (fase 2.9, P6). Altijd soft (hard verboden op secundair).
+   *  Combinatie-regel (P6, Rapport B §1.3): secundair NIET toegestaan als primair Start On/Finish On/
+   *  Mandatory is; verder één forward-type + één backward-type die elkaar niet tegenspreken.
+   *  Afwezig ⇒ geen tweede grens (byte-identiek). */
+  constraint2?: TaskConstraint;
+  /** OPTIONEEL — hammock/LOE (fase 2.9, §3.2/§4.4). Afwezig/false ⇒ gewone taak (byte-identiek).
+   *  true ⇒ duur wordt AFGELEID (span tussen start-driver en finish-driver);
+   *  scheduleDuration/durationMinutes worden genegeerd als invoer en overschreven met de span.
+   *  Uitgesloten van het kritieke pad (isCritical altijd false). */
+  isHammock?: boolean;
+  /** OPTIONEEL — externe (cross-project) dependencies (fase 2.9, §3.3). Afwezig ⇒ geen (byte-identiek). */
+  externalLinks?: ExternalLink[];
   /** Zachte deadline (MSP-model): begrenst alleen de late finish — balken bewegen nooit;
    *  overschrijding (earlyFinish > deadline) geeft negatieve float + waarschuwing. */
   deadline?: string;

@@ -90,7 +90,9 @@ export type BackstageSection =
 // --- Fase 2.7 weergaven: één veld-referentie voor filter, groep én sort (§2.1) ---
 export type BuiltinFieldKey =
   | 'name' | 'wbsCode' | 'duration' | 'start' | 'finish'
-  | 'totalFloat' | 'isCritical' | 'completion' | 'taskType' | 'isMilestone';
+  | 'totalFloat' | 'isCritical' | 'completion' | 'taskType' | 'isMilestone'
+  // Fase 2.9 (§3.5): additieve analyse-velden — raken geen bestaand veld.
+  | 'freeFloat' | 'interferingFloat' | 'isNearCritical' | 'floatPath';
 
 export type FieldRef =
   | { src: 'builtin'; key: BuiltinFieldKey }

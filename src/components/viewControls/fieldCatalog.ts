@@ -29,6 +29,8 @@ export interface FieldCatalogCtx {
 export const FILTER_SORT_BUILTIN_KEYS: BuiltinFieldKey[] = [
   'wbsCode', 'name', 'duration', 'start', 'finish',
   'taskType', 'isCritical', 'totalFloat', 'completion', 'isMilestone',
+  // Fase 2.9 (§3.5): additieve analyse-velden.
+  'freeFloat', 'interferingFloat', 'isNearCritical', 'floatPath',
 ];
 
 /** Groepeerbare builtin-velden (§7.4): alleen discrete velden, geen continue getallen/datums. */
@@ -112,12 +114,16 @@ export function fieldKind(field: FieldRef, ctx: FieldCatalogCtx): FieldKind {
       case 'duration':
       case 'totalFloat':
       case 'completion':
+      case 'freeFloat':          // fase 2.9 (§3.5)
+      case 'interferingFloat':   // fase 2.9 (§3.5)
+      case 'floatPath':          // fase 2.9 (§3.5)
         return 'number';
       case 'start':
       case 'finish':
         return 'date';
       case 'isCritical':
       case 'isMilestone':
+      case 'isNearCritical':     // fase 2.9 (§3.5)
         return 'boolean';
       case 'taskType':
         return 'select';

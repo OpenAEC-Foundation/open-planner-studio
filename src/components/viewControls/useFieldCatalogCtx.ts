@@ -20,6 +20,9 @@ export function useFieldCatalogCtx(): FieldCatalogCtx {
       start: tTask('table.start'), finish: tTask('table.finish'), taskType: tTask('table.type'),
       isCritical: tTask('table.critical'), totalFloat: tTask('table.totalFloat'),
       completion: tTask('table.completion'), isMilestone: tTask('table.milestone'),
+      // Fase 2.9 (§3.5): additieve analyse-velden.
+      freeFloat: tTask('table.freeFloat'), interferingFloat: tTask('table.interferingFloat'),
+      isNearCritical: tTask('table.isNearCritical'), floatPath: tTask('table.floatPath'),
     },
     taskTypeLabels,
     resourceLabel: tTask('column.resource'),
