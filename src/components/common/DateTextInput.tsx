@@ -50,6 +50,18 @@ export function parseFlexibleDate(raw: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/**
+ * Zet een interne ISO-datum (`YYYY-MM-DD`) om naar het weergaveformaat `dd-mm-jjjj`.
+ * `''` blijft `''` (geen datum). Onverwachte/niet-ISO invoer wordt ongewijzigd teruggegeven
+ * (defensief — dit pad hoort in de praktijk alleen geldige ISO-strings of `''` te zien).
+ */
+function isoToDisplay(iso: string): string {
+  if (!iso) return '';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
 interface DateTextInputProps {
   /** Huidige waarde als ISO-datum (`YYYY-MM-DD`) of `''` voor "geen datum". */
   value: string;
@@ -70,17 +82,16 @@ interface DateTextInputProps {
  * De gebruiker heeft expliciet géén eigen kalender-widget gevraagd: dit is een gewoon tekstveld
  * dat datums soepel parst (zie {@link parseFlexibleDate}).
  *
- * WEERGAVEFORMAAT — ISO `YYYY-MM-DD`. Bewuste keuze: de tabelkolommen (`TableEditor` start/finish)
- * en de eigenschappen/CPM-panelen (`TaskPropertiesPanel`) tonen de opgeslagen datum al als kale
- * ISO-string. Door dat formaat ook hier te tonen blijft de waarde in het veld identiek aan de
- * waarde in de aangrenzende tabel/panel. De gebruiker mág dag-eerst typen (`6-7-2026`); bij blur
- * normaliseert het veld naar ISO.
+ * WEERGAVEFORMAAT — `dd-mm-jjjj` (bv. `06-07-2026`), consistent met de placeholder-hint. De
+ * opgeslagen/gecommitte waarde (`value`/`onCommit`) blijft intern altijd ISO `YYYY-MM-DD` — dit
+ * is puur de weergave in het invoerveld zelf. De gebruiker mag ook ISO typen (`2026-07-06`); bij
+ * blur normaliseert het veld naar `dd-mm-jjjj`.
  *
  * GEDRAG:
  *  - Tijdens typen wordt élke geldige datum meteen gecommit (zoals `UnitsInput`).
  *  - Onparseerbare invoer: rode rand + inline hint, waarde wordt NIET doorgezet.
- *  - Bij blur op onzin valt het veld terug op de laatst geldige waarde; bij een geldige
- *    dag-eerst-invoer normaliseert het naar ISO.
+ *  - Bij blur op onzin valt het veld terug op de laatst geldige waarde; bij geldige invoer
+ *    (dag-eerst of ISO) normaliseert het veld naar `dd-mm-jjjj`.
  *  - Leeg veld = "geen datum" (commit `''`) — voor optionele datums (deadline, werkelijke datums).
  *
  * ENTER (samenwerking met `useDialogKeys`): het veld roept bij Enter GEEN `preventDefault`/
@@ -98,12 +109,12 @@ export function DateTextInput({
   value, onCommit, className = '', style, ariaLabel, title, disabled, placeholder, id,
 }: DateTextInputProps) {
   const { t } = useTranslation('common');
-  const [draft, setDraft] = useState<string>(value);
+  const [draft, setDraft] = useState<string>(() => isoToDisplay(value));
   const [focused, setFocused] = useState(false);
 
-  // Zolang het veld niet in bewerking is, blijft de draft gelijk aan de opgeslagen waarde.
+  // Zolang het veld niet in bewerking is, toont de draft de opgeslagen (ISO-)waarde als dd-mm-jjjj.
   useEffect(() => {
-    if (!focused) setDraft(value);
+    if (!focused) setDraft(isoToDisplay(value));
   }, [value, focused]);
 
   const trimmed = draft.trim();
@@ -136,9 +147,9 @@ export function DateTextInput({
           if (trimmed === '') { onCommit(''); return; }
           const p = parseFlexibleDate(trimmed);
           if (p === null) {
-            setDraft(value); // terug naar laatst geldige waarde
+            setDraft(isoToDisplay(value)); // terug naar laatst geldige waarde
           } else {
-            setDraft(p);     // normaliseer naar ISO
+            setDraft(isoToDisplay(p));      // normaliseer naar dd-mm-jjjj
             if (p !== value) onCommit(p);
           }
         }}
