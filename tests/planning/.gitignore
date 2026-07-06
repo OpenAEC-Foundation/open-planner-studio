@@ -1,3 +1,4 @@
 .harness.mjs
 .datetime-check.mjs
 .calendar-hours-check.mjs
+.adapters-hours-check.mjs
