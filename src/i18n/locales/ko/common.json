@@ -44,6 +44,18 @@
     "themeLight": "밝은 테마",
     "themeHighContrast": "고대비",
     "timeline": "타임라인 / 확대/축소",
+    "hourPlanningSection": "시간 단위 계획",
+    "enableHourPlanning": "시간 단위 계획 사용",
+    "enableHourPlanningHint": "시간/분 단위 스케줄링을 켭니다: 시간 단위 시간축, 근무 시간대가 있는 교대, 시간 단위로 정확한 작업 막대. 끄면 ⇒ 앱은 이전처럼 완전히 일 단위로 유지됩니다.",
+    "allowMixedDayHour": "일/시간 혼합 계획 허용",
+    "durationDisplay": "기간 표시",
+    "durationDisplayAuto": "자동 (작업별 고유 단위)",
+    "durationDisplayDays": "항상 일",
+    "durationDisplayHours": "항상 시간",
+    "barSplitMode": "중단 시 작업 막대",
+    "barSplitNever": "분할 안 함",
+    "barSplitSelection": "선택 시 분할",
+    "barSplitAlways": "항상 분할",
     "enableQuarterHourZoom": "최대 확대 시 15분 단위 표시",
     "weekStartDay": "주 시작 요일",
     "weekStartMonday": "월요일",
@@ -74,7 +86,9 @@
     "documentChrome": "문서 전환 스타일",
     "documentChromeTabs": "가로 탭",
     "documentChromeRail": "세로 탭",
-    "documentChromeSwitcher": "알약"
+    "documentChromeSwitcher": "알약",
+    "dateNotation": "날짜 형식",
+    "dateNotationHint": "앱 전체에서 날짜가 표시되는 방식을 결정합니다. 파일과 계산에는 영향을 주지 않습니다."
   },
   "confirm": {
     "newProject": "새 프로젝트를 만드시겠습니까? 저장되지 않은 변경 사항이 손실됩니다.",
@@ -303,8 +317,6 @@
         "midden": "중부",
         "zuid": "남부"
       },
-      "winterStop": "고정 동절기 휴업",
-      "winterHint": "고정 휴업 기간이며, 실제 결빙일은 이후 기상 데이터로 결정됩니다",
       "preview": "공휴일 {{n}}개, {{from}}–{{to}}",
       "bouwvakHint": "참고용 날짜입니다 — Bouwend Nederland에서 확인하세요",
       "apply": "생성",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "연속 (24/7)",
       "weekdays": "월–금"
+    },
+    "shift": {
+      "day": "주간 근무",
+      "twoShift": "2교대",
+      "threeShift": "3교대",
+      "night": "야간 근무",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "근무 시간",
+      "derivedHpd": "산출된 시간/일:",
+      "saveAsPreset": "프리셋으로 저장…",
+      "perWeekday": "요일별로 설정…",
+      "presetNamePlaceholder": "프리셋 이름",
+      "addBand": "구간 추가",
+      "copyToAll": "모든 근무일에 복사",
+      "noBands": "비근무",
+      "nextDay": "다음 날",
+      "shiftPreset": "교대",
+      "breakHint": "두 구간 사이의 간격은 휴식 시간입니다. 필요에 따라 시간을 조정하세요."
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "기본",
       "secondary": "보조"
     }
+  },
+  "dateInput": {
+    "placeholder": "일-월-년",
+    "invalid": "잘못된 날짜 — 예: 6-7-2026",
+    "group": "날짜",
+    "day": "일",
+    "month": "월",
+    "year": "년"
+  },
+  "hourData": {
+    "notice": "이 파일에는 시간 단위 계획이 포함되어 있습니다.",
+    "enable": "시간 단위 계획 사용"
+  },
+  "duration": {
+    "suffixDay": "일",
+    "suffixHour": "시",
+    "suffixMinute": "분"
   }
 }

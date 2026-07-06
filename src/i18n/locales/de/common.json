@@ -44,6 +44,18 @@
     "themeLight": "Hell",
     "themeHighContrast": "Hoher Kontrast",
     "timeline": "Zeitachse / Zoom",
+    "hourPlanningSection": "Stundenplanung",
+    "enableHourPlanning": "Stundenplanung aktivieren",
+    "enableHourPlanningHint": "Aktiviert Stunden-/Minuten-Scheduling: eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken. Aus ⇒ die App bleibt wie bisher vollständig tagesgenau.",
+    "allowMixedDayHour": "Gemischte Tages-/Stundenplanung zulassen",
+    "durationDisplay": "Daueranzeige",
+    "durationDisplayAuto": "Automatisch (eigene Einheit je Vorgang)",
+    "durationDisplayDays": "Immer Tage",
+    "durationDisplayHours": "Immer Stunden",
+    "barSplitMode": "Vorgangsbalken bei Unterbrechungen",
+    "barSplitNever": "Nie aufteilen",
+    "barSplitSelection": "Bei Auswahl aufteilen",
+    "barSplitAlways": "Immer aufteilen",
     "enableQuarterHourZoom": "Viertelstunden bei starker Vergrößerung anzeigen",
     "weekStartDay": "Woche beginnt am",
     "weekStartMonday": "Montag",
@@ -74,7 +86,9 @@
     "documentChrome": "Dokumentwechsel-Stil",
     "documentChromeTabs": "Horizontale Registerkarten",
     "documentChromeRail": "Vertikale Registerkarten",
-    "documentChromeSwitcher": "Pille"
+    "documentChromeSwitcher": "Pille",
+    "dateNotation": "Datumsformat",
+    "dateNotationHint": "Legt fest, wie Datumsangaben überall in der App angezeigt werden. Dateien und Berechnungen bleiben unverändert."
   },
   "confirm": {
     "newProject": "Neues Projekt erstellen? Nicht gespeicherte Änderungen gehen verloren.",
@@ -303,8 +317,6 @@
         "midden": "Mitte",
         "zuid": "Süd"
       },
-      "winterStop": "Feste Winterpause",
-      "winterHint": "Feste Pause; tatsächliche Frosttage folgen später aus Wetterdaten",
       "preview": "{{n}} Feiertage, {{from}}–{{to}}",
       "bouwvakHint": "Richtwerte — bitte bei Bouwend Nederland prüfen",
       "apply": "Generieren",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "Durchgehend (24/7)",
       "weekdays": "Mo–Fr"
+    },
+    "shift": {
+      "day": "Tagschicht",
+      "twoShift": "2 Schichten",
+      "threeShift": "3 Schichten",
+      "night": "Nachtschicht",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Arbeitszeiten",
+      "derivedHpd": "Abgeleitete Stunden/Tag:",
+      "saveAsPreset": "Als Voreinstellung speichern…",
+      "perWeekday": "Pro Wochentag festlegen…",
+      "presetNamePlaceholder": "Name der Voreinstellung",
+      "addBand": "Band hinzufügen",
+      "copyToAll": "Auf alle Arbeitstage kopieren",
+      "noBands": "Arbeitsfrei",
+      "nextDay": "nächster Tag",
+      "shiftPreset": "Schicht",
+      "breakHint": "Eine Lücke zwischen zwei Bändern ist eine Pause – passen Sie die Zeiten nach Bedarf an."
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "Primär",
       "secondary": "Sekundär"
     }
+  },
+  "dateInput": {
+    "placeholder": "TT-MM-JJJJ",
+    "invalid": "Ungültiges Datum — z. B. 6-7-2026",
+    "group": "Datum",
+    "day": "Tag",
+    "month": "Monat",
+    "year": "Jahr"
+  },
+  "hourData": {
+    "notice": "Diese Datei enthält stundenbasierte Planung.",
+    "enable": "Stundenplanung aktivieren"
+  },
+  "duration": {
+    "suffixDay": "T",
+    "suffixHour": "Std",
+    "suffixMinute": "Min"
   }
 }

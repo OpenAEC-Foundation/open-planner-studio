@@ -9,8 +9,10 @@ import type { AppState } from '../appStore';
  */
 export type AppSlice<T> = StateCreator<AppState, [['zustand/immer', never]], [], T>;
 
-// Fase 2.7 (§3): 'year' toegevoegd als directe keuze; 'quarter' aan de dropdown. 'hour' → §2.8.
-export type TimeScale = 'day' | 'week' | 'month' | 'quarter' | 'year';
+// Fase 2.7 (§3): 'year' toegevoegd als directe keuze; 'quarter' aan de dropdown.
+// Fase 2.8b (§6.2): 'hour' toegevoegd — alleen bereikbaar/zichtbaar als de hoofdschakelaar
+// Urenplanning aan staat; `scaleFromZoom` levert 'hour' uitsluitend met die vlag.
+export type TimeScale = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'hour';
 
 export type WeekStartDay = 'monday' | 'sunday';
 
@@ -34,6 +36,27 @@ export const DEFAULT_MODIFIER_MAP: ModifierMap = {
   ctrl: 'zoom',
   shift: 'horizontal',
 };
+
+// Datumnotatie (taak #53): bepaalt ALLEEN hoe datums aan de gebruiker getoond worden
+// (tabel, panelen, rapporten, print, tooltips) én de segmentvolgorde van het datumveld.
+// Interne opslag/serialisatie blijft ALTIJD ISO (YYYY-MM-DD) — deze waarde raakt bestanden,
+// engine of import/export nooit. Ontbrekende localStorage-sleutel ⇒ 'dmy' (dd-mm-jjjj).
+export type DateNotation = 'dmy' | 'mdy' | 'ymd';
+
+export const DATE_NOTATIONS: DateNotation[] = ['dmy', 'mdy', 'ymd'];
+
+// Fase 2.8b (§6.8): Duurweergave — hoe duur in tabellen/tooltips getoond wordt.
+// 'auto' = eigen eenheid per taak ("3d"/"20u"); 'days'/'hours' = altijd forceren.
+export type DurationDisplay = 'auto' | 'days' | 'hours';
+
+export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
+
+// Fase 2.8b (§6.9): Taakbalken bij onderbrekingen — of uur-taakbalken in hun echte
+// werkblokken (bar-necking) worden opgesplitst. 'never' = altijd doorlopend;
+// 'selection' = segmenten zichtbaar zodra de taak geselecteerd is; 'always' = altijd.
+export type BarSplitMode = 'never' | 'selection' | 'always';
+
+export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
 
 export type UITheme = 'dark' | 'light' | 'high-contrast';
 
@@ -197,6 +220,13 @@ export interface UIState {
   showFilterDialog: boolean;                 // session — filter-editor open
   showLayoutsDialog: boolean;                // session — layouts-beheer/opslaan-als-dialoog open
   autoCalcCPM: boolean;                      // persisted — runCPM automatisch bij scheduleStale i.p.v. handmatig (F5)
+  dateNotation: DateNotation;                // persisted — weergavenotatie voor datums (taak #53); opslag blijft ISO
+  // --- Fase 2.8b: urenplanning-instellingen (§6.8); ontbrekende sleutel ⇒ default (geen reset) ---
+  enableHourPlanning: boolean;               // persisted — hoofdschakelaar Urenplanning (default UIT)
+  allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
+  durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
+  barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
+  hourDataNotice: boolean;                   // session — geladen bestand bevat uur-data terwijl Urenplanning uit staat (§6.8)
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

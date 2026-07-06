@@ -1,13 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Select } from '@/components/common/Select';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { formatDate } from '@/utils/dateUtils';
 import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
 import { CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
+import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
 
 /** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
  *  `'custom'` ("Aangepast…", ontwerp §7.2) — die opent na aanmaken de kalenderdialoog i.p.v.
@@ -15,7 +18,7 @@ import type { HolidayCountry } from '@/engine/calendar/holidays';
 type WizardCalendarState = Omit<HolidayGenParams, 'country'> & { country: HolidayCountry | 'none' | 'custom' };
 
 const DEFAULT_WIZARD_CALENDAR: WizardCalendarState = {
-  country: 'NL', region: undefined, bouwvak: 'geen', winterStop: false, // default GEEN bouwvak (harde eis)
+  country: 'NL', region: undefined, bouwvak: 'geen', // default GEEN bouwvak (harde eis)
 };
 
 /**
@@ -43,6 +46,10 @@ export function ProjectInfoDialog() {
   const [endDate, setEndDate] = useState(isNew ? '' : project.endDate);
   const [calState, setCalState] = useState<WizardCalendarState>(DEFAULT_WIZARD_CALENDAR);
   const [template, setTemplate] = useState<TemplateKey>('empty');
+  // Ploeg-preset (§6.7): default 'day' = dag-kalender (byte-identiek). Alleen zichtbaar met
+  // Urenplanning aan; een niet-default preset materialiseert workTime + shift op de nieuwe kalender.
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const [shiftPreset, setShiftPreset] = useState<ShiftPresetKey>('day');
 
   // Generatie-spanne bij aanmaak (§4.4): nog geen projecteinde bekend ⇒ startjaar−1..+3.
   const calSpan = useMemo(() => computeGenerateSpan(startDate, endDate || undefined), [startDate, endDate]);
@@ -53,8 +60,19 @@ export function ProjectInfoDialog() {
     if (isNew) {
       const isCustom = calState.country === 'custom';
       const calendar = isCustom
-        ? buildGeneratedCalendar({ country: 'none', bouwvak: 'geen', winterStop: false }, calSpan)
+        ? buildGeneratedCalendar({ country: 'none', bouwvak: 'geen' }, calSpan)
         : buildGeneratedCalendar(calState as HolidayGenParams, calSpan);
+      // Ploeg-preset materialiseren (§6.7): default 'day' laat de kalender een dag-kalender (geen
+      // workTime); een niet-default preset zet workTime + shift + scalar-fallback op nieuwe entries.
+      if (enableHourPlanning && shiftPreset !== 'day') {
+        const patch = shiftPresetPatch(shiftPreset);
+        calendar.workTime = patch.workTime;
+        calendar.shift = patch.shift;
+        calendar.workDays = patch.workDays;
+        calendar.workStartHour = patch.workStartHour;
+        calendar.workEndHour = patch.workEndHour;
+        calendar.hoursPerDay = patch.hoursPerDay;
+      }
       createNewProject({
         name, description, author, company, startDate, endDate,
         calendar,
@@ -73,13 +91,9 @@ export function ProjectInfoDialog() {
     }
   };
 
-  // Esc sluit dialog (LAYOUTS.md §3.3)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Esc sluit (LAYOUTS.md §3.3), Enter = primaire actie (Aanmaken/Toepassen), met de standaard
+  // textarea/dropdown/IME-uitzonderingen (o.a. de omschrijving-textarea en de land/template-Selects).
+  useDialogKeys({ onConfirm: handlePrimary, onCancel: close });
 
   const inputCls =
     'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
@@ -132,11 +146,11 @@ export function ProjectInfoDialog() {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-text-secondary font-medium">{tMenu('projectInfo.startDate')}</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
+              <DateTextInput value={startDate} onCommit={setStartDate} className={inputCls} ariaLabel={tMenu('projectInfo.startDate')} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-text-secondary font-medium">{tMenu('projectInfo.endDate')}</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
+              <DateTextInput value={endDate} onCommit={setEndDate} className={inputCls} ariaLabel={tMenu('projectInfo.endDate')} />
             </div>
           </div>
 
@@ -148,10 +162,20 @@ export function ProjectInfoDialog() {
                   onChange={v => setTemplate(v as TemplateKey)} options={templateOptions} />
               </div>
 
+              {/* Ploeg-preset (§6.7) — alleen met Urenplanning aan; default 'Dagdienst' = dag-kalender. */}
+              {enableHourPlanning && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.shiftPreset')}</label>
+                  <Select aria-label={tCommon('calendar.worktime.shiftPreset')} value={shiftPreset}
+                    onChange={v => setShiftPreset(v as ShiftPresetKey)}
+                    options={WIZARD_PRESETS.map(k => ({ value: k, label: tCommon(SHIFT_PRESET_LABEL[k] as 'calendar.shift.day') }))} />
+                </div>
+              )}
+
               {/* Feestdagen-generator (fase 2.8a, §7.2): land/regio, bouwvak (default GEEN — harde
-                  eis), vaste winterstop + compacte preview. "Aangepast…" (extra optie in de
-                  land-select) verbergt de rest van de generator (leeg gestart; de kalenderdialoog
-                  opent na aanmaken om handmatig te bewerken, zie `handlePrimary`). */}
+                  eis) + compacte preview. "Aangepast…" (extra optie in de land-select) verbergt de
+                  rest van de generator (leeg gestart; de kalenderdialoog opent na aanmaken om
+                  handmatig te bewerken, zie `handlePrimary`). */}
               <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
               <span className="text-text-secondary font-medium">{tMenu('wizard.calendar.country')}</span>
               <CalendarGeneratorFields
@@ -167,8 +191,8 @@ export function ProjectInfoDialog() {
         </div>
 
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
-          <button onClick={close} className="btn btn--sm btn--secondary">{tCommon('cancel')}</button>
-          <button onClick={handlePrimary} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">
+          <button onClick={close} className="btn btn--sm btn--secondary" data-ops-project-cancel>{tCommon('cancel')}</button>
+          <button onClick={handlePrimary} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]" data-ops-project-primary>
             {isNew ? tCommon('create') : tCommon('apply')}
           </button>
         </div>

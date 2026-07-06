@@ -17,9 +17,9 @@ const BOUWVAK_I18N_KEY: Record<BouwvakChoice, 'none' | 'noord' | 'midden' | 'zui
 
 /**
  * Gedeelde feestdagen-generator-velden (ontwerp §7.1/§7.2): land/regio, NL-bouwvak
- * (default GEEN — harde eis TODO.md r192-194), vaste winterstop, en een compacte
- * preview met uitklapbare lijst. Hergebruikt door de wizard (`ProjectInfoDialog`) en
- * `CalendarForm` ("Feestdagen genereren…"). Store-loos, puur presentational.
+ * (default GEEN — harde eis TODO.md r192-194) en een compacte preview met uitklapbare
+ * lijst. Hergebruikt door de wizard (`ProjectInfoDialog`) en `CalendarForm`
+ * ("Feestdagen genereren…"). Store-loos, puur presentational.
  */
 export function CalendarGeneratorFields({
   value,
@@ -122,23 +122,6 @@ export function CalendarGeneratorFields({
               {tCommon('calendar.generate.bouwvakHint')}
             </span>
           )}
-        </div>
-      )}
-
-      {isKnownCountry && value.country !== 'none' && (
-        <div className="flex flex-col gap-1">
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={value.winterStop}
-              onChange={e => onChange({ winterStop: e.target.checked })}
-              className="accent-accent"
-            />
-            {tCommon('calendar.generate.winterStop')}
-          </label>
-          <span className="text-[11px] italic text-text-secondary pl-5">
-            {tCommon('calendar.generate.winterHint')}
-          </span>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Terminal } from 'lucide-react';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
+import { useDisplayDate } from '@/utils/displayDate';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -14,7 +15,9 @@ export function StatusBar() {
   const isDirty = useAppStore(s => s.isDirty);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const setUI = useAppStore(s => s.setUI);
+  const dd = useDisplayDate();
 
   const leafTasks = tasks.filter(t => t.childIds.length === 0);
   const milestones = tasks.filter(t => t.isMilestone);
@@ -30,7 +33,7 @@ export function StatusBar() {
       {cpmResult && (
         <>
           <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
-          <span>{t('status.end')} {cpmResult.projectEnd}</span>
+          <span>{t('status.end')} {dd.date(cpmResult.projectEnd)}</span>
           {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && (
             <span style={{ color: 'var(--theme-warning-text)' }}>
               ⚠ {tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length })}
@@ -61,7 +64,7 @@ export function StatusBar() {
       )}
       <div className="flex-1" />
       {/* Afgeleid uit zoom (fase 2.7, §3.5) — kan niet desyncen van de getekende as. */}
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(view.zoom)}`)}</span>
+      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(view.zoom, enableHourPlanning)}`)}</span>
       <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
       {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
       {debugTerminalEnabled && (

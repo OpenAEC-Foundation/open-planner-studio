@@ -4,6 +4,9 @@ import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
+import {
+  effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
+} from '@/services/subdayIo';
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
 // 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
@@ -30,6 +33,8 @@ function formatMSPDateTime(iso: string): string {
   if (!iso) return '';
   // MS Project expects: 2026-03-09T08:00:00
   if (iso.length === 10) return `${iso}T08:00:00`;
+  // Fase 2.8b (§7.3): uur-instant `YYYY-MM-DDTHH:mm` (16 tekens) → vul aan tot seconden.
+  if (iso.length === 16) return `${iso}:00`;
   return iso;
 }
 
@@ -64,6 +69,11 @@ function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFo
     // Elapsed dagen tellen 24 uur, onafhankelijk van de werkkalender.
     return { linkLag: seq.lagDays * 24 * 60 * 10, lagFormat: 8 };
   }
+  // Fase 2.8b (§7.3): uur-lag (`lagMinutes`, bron van waarheid) → tienden-van-minuten (`minuten × 10`,
+  // minuut-precies); LagFormat 7 (werktijd-minuten), dezelfde encoding als het dag-pad.
+  if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
+    return { linkLag: Math.round(seq.lagMinutes * 10), lagFormat: 7 };
+  }
   return { linkLag: lagToTenthsOfMinutes(seq.lagDays, hoursPerDay), lagFormat: 7 };
 }
 
@@ -91,10 +101,25 @@ function writeCalendarBlock(
     const isWorkDay = cal.workDays.includes(day);
     const mspDay = day === 7 ? 1 : day + 1;
 
+    // Fase 2.8b (§7.3): UUR-kalender ⇒ ALLE banden van deze weekdag als aparte <WorkingTime>-blokken;
+    // een wrap-band emitteert het eind als tijd-van-de-dag (`end % 1440`).
+    const hourBands = cal.workTime ? (cal.workTime.byWeekday[day as 1] ?? []) : null;
+    const dayWorking = hourBands ? hourBands.length > 0 : isWorkDay;
     lines.push(`${indent(4)}<WeekDay>`);
     lines.push(`${indent(5)}<DayType>${mspDay}</DayType>`);
-    lines.push(`${indent(5)}<DayWorking>${isWorkDay ? 1 : 0}</DayWorking>`);
-    if (isWorkDay) {
+    lines.push(`${indent(5)}<DayWorking>${dayWorking ? 1 : 0}</DayWorking>`);
+    if (hourBands) {
+      if (hourBands.length > 0) {
+        lines.push(`${indent(5)}<WorkingTimes>`);
+        for (const b of hourBands) {
+          lines.push(`${indent(6)}<WorkingTime>`);
+          lines.push(`${indent(7)}<FromTime>${minutesToClock(b.start)}</FromTime>`);
+          lines.push(`${indent(7)}<ToTime>${minutesToClock(b.end)}</ToTime>`);
+          lines.push(`${indent(6)}</WorkingTime>`);
+        }
+        lines.push(`${indent(5)}</WorkingTimes>`);
+      }
+    } else if (isWorkDay) {
       lines.push(`${indent(5)}<WorkingTimes>`);
       lines.push(`${indent(6)}<WorkingTime>`);
       lines.push(`${indent(7)}<FromTime>${String(cal.workStartHour).padStart(2, '0')}:00:00</FromTime>`);
@@ -182,6 +207,9 @@ export function writeMSPDI(
     calUidMap.set(cal.id, nextCalUid++);
   }
 
+  // Fase 2.8b (§7.3): effectieve kalender per taak → uur- vs dag-modus.
+  const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
+
   lines.push(`${indent(1)}<Calendars>`);
   writeCalendarBlock(lines, indent, calendar, 1, true);
   for (const cal of libraryCalendars) {
@@ -214,11 +242,20 @@ export function writeMSPDI(
     const isSummary = task.childIds.length > 0;
     const isMilestone = task.isMilestone || task.time.scheduleDuration === 0;
 
+    // Fase 2.8b (§7.3): uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒ het
+    // bestaande `PT{dagen×hpd}H0M0S`-pad (byte-identiek).
+    const effCal = effCalByTask.get(task.id);
+    const isHour = isHourCalendar(effCal);
+    const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
+    const durationTag = isHour
+      ? minutesToIsoDuration(taskMinutesForWrite(task, effHpd))
+      : durationToISO8601(task.time.scheduleDuration, calendar.hoursPerDay);
+
     lines.push(`${indent(2)}<Task>`);
     lines.push(`${indent(3)}<UID>${uid}</UID>`);
     lines.push(`${indent(3)}<ID>${uid}</ID>`);
     lines.push(`${indent(3)}<Name>${escapeXML(task.name)}</Name>`);
-    lines.push(`${indent(3)}<Duration>${durationToISO8601(task.time.scheduleDuration, calendar.hoursPerDay)}</Duration>`);
+    lines.push(`${indent(3)}<Duration>${durationTag}</Duration>`);
     lines.push(`${indent(3)}<Start>${formatMSPDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
     lines.push(`${indent(3)}<Finish>${formatMSPDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
     lines.push(`${indent(3)}<WBS>${escapeXML(task.wbsCode)}</WBS>`);
@@ -233,7 +270,9 @@ export function writeMSPDI(
     if (task.time.actualFinish) {
       lines.push(`${indent(3)}<ActualFinish>${formatMSPDateTime(task.time.actualFinish)}</ActualFinish>`);
     }
-    if (task.time.remainingTime != null) {
+    if (isHour && task.time.remainingMinutes != null) {
+      lines.push(`${indent(3)}<RemainingDuration>${minutesToIsoDuration(task.time.remainingMinutes)}</RemainingDuration>`);
+    } else if (task.time.remainingTime != null) {
       lines.push(`${indent(3)}<RemainingDuration>${durationToISO8601(task.time.remainingTime, calendar.hoursPerDay)}</RemainingDuration>`);
     }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).

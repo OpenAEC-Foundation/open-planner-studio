@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import type { WorkCalendar } from '@/types/calendar';
+import { isHourCalendar } from '@/services/subdayIo';
+import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
+import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { Task, TaskType, ConstraintType, MilestoneKind } from '@/types/task';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import type { ResourceCurve } from '@/types/resource';
@@ -9,6 +13,8 @@ import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { Select } from '@/components/common/Select';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { UnitsInput } from '@/components/common/UnitsInput';
+import { DateTextInput } from '@/components/common/DateTextInput';
+import { useDisplayDate } from '@/utils/displayDate';
 import { Trash2, Zap } from 'lucide-react';
 
 export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
@@ -43,10 +49,9 @@ function CustomFieldInput({ def, value, onCommit }: {
   }
   if (def.type === 'date') {
     return (
-      <input
-        type="date"
+      <DateTextInput
         value={typeof value === 'string' ? value : ''}
-        onChange={e => onCommit(e.target.value || null)}
+        onCommit={v => onCommit(v || null)}
         className={cls}
       />
     );
@@ -114,9 +119,40 @@ function Input({ value, onChange, type = 'text', min, max, step, disabled }: {
   );
 }
 
+/**
+ * Duurveld voor een uur-taak (§6.4): tekstinvoer die "20u"/"2d 4u"/"90m" via `parseDuration`
+ * accepteert (hele eenheden) en pas op blur/Enter commit — een parse-fout (o.a. decimalen) draait
+ * terug naar de vorige waarde. Gekeyd op de taak zodat het bij taakwissel vers seedt.
+ */
+function HourDurationField({ minutes, hpd, onCommitMinutes }: {
+  minutes: number;
+  hpd: number;
+  onCommitMinutes: (m: number) => void;
+}) {
+  const seed = formatDuration(minutes, hpd, 'hours');
+  const [val, setVal] = useState(seed);
+  useEffect(() => { setVal(seed); }, [seed]);
+  const commit = () => {
+    const m = parseDuration(val, hpd);
+    if (m != null) onCommitMinutes(m); else setVal(seed);
+  };
+  return (
+    <input
+      type="text"
+      value={val}
+      onChange={e => setVal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+      className="input !text-xs !px-2.5 !py-1.5"
+      data-ops-panel-duration
+    />
+  );
+}
+
 export function TaskPropertiesPanel() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const dd = useDisplayDate();
   const { options: taskTypeOptions } = useTaskTypeLabels();
 
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
@@ -146,6 +182,8 @@ export function TaskPropertiesPanel() {
   // Taak-kalender-keuze (fase 2.8a, §7.3): bibliotheek-kalenders + "Projectkalender" (undefined).
   const calendars = useAppStore(s => s.calendars);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
+  const projectCal = useAppStore(s => s.calendar);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
 
   if (selectedTaskIds.length === 0) {
     return (
@@ -299,20 +337,48 @@ export function TaskPropertiesPanel() {
 
       <div className="grid grid-cols-2 gap-2">
         <Field label={t('properties.start')}>
-          <Input
-            type="date"
+          <DateTextInput
+            className="input !text-xs !px-2.5 !py-1.5"
+            ariaLabel={t('properties.start')}
             value={task.time.scheduleStart}
-            onChange={v => updateTime('scheduleStart', v)}
+            onCommit={v => updateTime('scheduleStart', v)}
           />
         </Field>
-        <Field label={t('properties.duration')}>
-          <Input
-            type="number"
-            value={task.isMilestone ? 0 : task.time.scheduleDuration}
-            onChange={v => updateTime('scheduleDuration', parseInt(v) || 0)}
-            min={0}
-            disabled={task.isMilestone}
-          />
+        {/* Label modus-bewust (FIX golf, §6.4): een uur-taak toont uur-waarden, dus het label moet
+            "(uren)" tonen i.p.v. het misleidende "(dagen)". Dag-taken houden het dagen-label (dag-taken
+            kunnen per invariant Bevinding 2 geen sub-dag-duur dragen, dus het veld blijft dagen). */}
+        <Field label={
+          (enableHourPlanning && isHourCalendar(effectiveCalendarOf(task, projectCal, calendars)) && !task.isMilestone)
+            ? t('properties.durationHours')
+            : t('properties.duration')
+        }>
+          {(() => {
+            const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
+            const hourTask = enableHourPlanning && isHourCalendar(cal) && !task.isMilestone;
+            if (!hourTask) {
+              return (
+                <Input
+                  type="number"
+                  value={task.isMilestone ? 0 : task.time.scheduleDuration}
+                  onChange={v => updateTime('scheduleDuration', parseInt(v) || 0)}
+                  min={0}
+                  disabled={task.isMilestone}
+                />
+              );
+            }
+            const hpd = effHoursPerDay(cal);
+            const minutes = task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60;
+            return (
+              <HourDurationField
+                key={task.id}
+                minutes={minutes}
+                hpd={hpd}
+                onCommitMinutes={m => updateTask(task.id, {
+                  time: { ...task.time, durationMinutes: m, scheduleDuration: hpd > 0 ? m / (hpd * 60) : task.time.scheduleDuration },
+                })}
+              />
+            );
+          })()}
         </Field>
       </div>
 
@@ -336,20 +402,22 @@ export function TaskPropertiesPanel() {
         </Field>
         {task.constraint && task.constraint.type !== 'ALAP' && (
           <Field label={t('properties.constraintDate')}>
-            <Input
-              type="date"
+            <DateTextInput
+              className="input !text-xs !px-2.5 !py-1.5"
+              ariaLabel={t('properties.constraintDate')}
               value={task.constraint.date ?? ''}
-              onChange={v => update({ constraint: { type: task.constraint!.type, date: v } })}
+              onCommit={v => update({ constraint: { type: task.constraint!.type, date: v } })}
             />
           </Field>
         )}
       </div>
 
       <Field label={t('properties.deadline')}>
-        <Input
-          type="date"
+        <DateTextInput
+          className="input !text-xs !px-2.5 !py-1.5"
+          ariaLabel={t('properties.deadline')}
           value={task.deadline ?? ''}
-          onChange={v => update({ deadline: v || undefined })}
+          onCommit={v => update({ deadline: v || undefined })}
         />
       </Field>
 
@@ -371,27 +439,30 @@ export function TaskPropertiesPanel() {
           De acties dwingen de invarianten af en weigeren datums ná de statusdatum (toast). */}
       {task.isMilestone ? (
         <Field label={t('properties.progress.actualDate')}>
-          <Input
-            type="date"
+          <DateTextInput
+            className="input !text-xs !px-2.5 !py-1.5"
+            ariaLabel={t('properties.progress.actualDate')}
             value={task.time.actualFinish ?? ''}
-            onChange={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
+            onCommit={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
           />
         </Field>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2">
             <Field label={t('properties.progress.actualStart')}>
-              <Input
-                type="date"
+              <DateTextInput
+                className="input !text-xs !px-2.5 !py-1.5"
+                ariaLabel={t('properties.progress.actualStart')}
                 value={task.time.actualStart ?? ''}
-                onChange={v => { setActualError(!setActualStart(task.id, v || undefined)); }}
+                onCommit={v => { setActualError(!setActualStart(task.id, v || undefined)); }}
               />
             </Field>
             <Field label={t('properties.progress.actualFinish')}>
-              <Input
-                type="date"
+              <DateTextInput
+                className="input !text-xs !px-2.5 !py-1.5"
+                ariaLabel={t('properties.progress.actualFinish')}
                 value={task.time.actualFinish ?? ''}
-                onChange={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
+                onCommit={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
               />
             </Field>
           </div>
@@ -416,13 +487,13 @@ export function TaskPropertiesPanel() {
           <span className="ui-card-header !text-xs">{t('properties.cpmResult')}</span>
           <div className="grid grid-cols-2 gap-1 text-[10px]">
             <span className="text-text-secondary">{t('properties.earlyStart')}</span>
-            <span>{task.time.earlyStart}</span>
+            <span>{dd.date(task.time.earlyStart)}</span>
             <span className="text-text-secondary">{t('properties.earlyFinish')}</span>
-            <span>{task.time.earlyFinish}</span>
+            <span>{dd.date(task.time.earlyFinish)}</span>
             <span className="text-text-secondary">{t('properties.lateStart')}</span>
-            <span>{task.time.lateStart}</span>
+            <span>{dd.date(task.time.lateStart)}</span>
             <span className="text-text-secondary">{t('properties.lateFinish')}</span>
-            <span>{task.time.lateFinish}</span>
+            <span>{dd.date(task.time.lateFinish)}</span>
             <span className="text-text-secondary">{t('properties.totalFloat')}</span>
             <span>{task.time.totalFloat} {tCommon('daysLong')}</span>
             <span className="text-text-secondary">{t('properties.freeFloat')}</span>

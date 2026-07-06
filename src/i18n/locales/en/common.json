@@ -44,6 +44,18 @@
     "themeLight": "Light",
     "themeHighContrast": "High Contrast",
     "timeline": "Timeline / Zoom",
+    "hourPlanningSection": "Hour planning",
+    "enableHourPlanning": "Enable hour planning",
+    "enableHourPlanningHint": "Turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular as before.",
+    "allowMixedDayHour": "Allow mixed day/hour planning",
+    "durationDisplay": "Duration display",
+    "durationDisplayAuto": "Automatic (native unit per task)",
+    "durationDisplayDays": "Always days",
+    "durationDisplayHours": "Always hours",
+    "barSplitMode": "Task bars at interruptions",
+    "barSplitNever": "Never split",
+    "barSplitSelection": "Split when selected",
+    "barSplitAlways": "Always split",
     "enableQuarterHourZoom": "Show quarter-hours when zoomed in far",
     "weekStartDay": "Week starts on",
     "weekStartMonday": "Monday",
@@ -74,7 +86,9 @@
     "documentChrome": "Document switch style",
     "documentChromeTabs": "Horizontal tabs",
     "documentChromeRail": "Vertical tabs",
-    "documentChromeSwitcher": "Pill"
+    "documentChromeSwitcher": "Pill",
+    "dateNotation": "Date format",
+    "dateNotationHint": "Determines how dates are displayed everywhere in the app. Files and calculations are unaffected."
   },
   "confirm": {
     "newProject": "Create new project? Unsaved changes will be lost.",
@@ -303,8 +317,6 @@
         "midden": "Central",
         "zuid": "South"
       },
-      "winterStop": "Fixed winter shutdown",
-      "winterHint": "Fixed shutdown; actual frost days come later from weather data",
       "preview": "{{n}} holidays, {{from}}–{{to}}",
       "bouwvakHint": "Advisory dates — verify with Bouwend Nederland",
       "apply": "Generate",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "Continuous (24/7)",
       "weekdays": "Mon–Fri"
+    },
+    "shift": {
+      "day": "Day shift",
+      "twoShift": "2 shifts",
+      "threeShift": "3 shifts",
+      "night": "Night shift",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Working times",
+      "derivedHpd": "Derived hours/day:",
+      "saveAsPreset": "Save as preset…",
+      "perWeekday": "Set per weekday…",
+      "presetNamePlaceholder": "Preset name",
+      "addBand": "Add band",
+      "copyToAll": "Copy to all workdays",
+      "noBands": "Non-working",
+      "nextDay": "next day",
+      "shiftPreset": "Shift",
+      "breakHint": "A gap between two bands is a break — adjust the times as needed."
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "Primary",
       "secondary": "Secondary"
     }
+  },
+  "dateInput": {
+    "placeholder": "dd-mm-yyyy",
+    "invalid": "Invalid date — e.g. 6-7-2026",
+    "group": "Date",
+    "day": "day",
+    "month": "month",
+    "year": "year"
+  },
+  "hourData": {
+    "notice": "This file contains hour-based planning.",
+    "enable": "Enable hour planning"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "h",
+    "suffixMinute": "m"
   }
 }

@@ -44,6 +44,18 @@
     "themeLight": "Claro",
     "themeHighContrast": "Alto contraste",
     "timeline": "Línea de tiempo / Zoom",
+    "hourPlanningSection": "Planificación por horas",
+    "enableHourPlanning": "Activar planificación por horas",
+    "enableHourPlanningHint": "Activa la programación por horas/minutos: una escala de tiempo horaria, turnos con bandas de horario laboral y barras de tarea con precisión de hora. Desactivado ⇒ la aplicación sigue siendo totalmente granular por días, como antes.",
+    "allowMixedDayHour": "Permitir planificación mixta de días/horas",
+    "durationDisplay": "Visualización de la duración",
+    "durationDisplayAuto": "Automática (unidad propia por tarea)",
+    "durationDisplayDays": "Siempre días",
+    "durationDisplayHours": "Siempre horas",
+    "barSplitMode": "Barras de tarea en las interrupciones",
+    "barSplitNever": "No dividir nunca",
+    "barSplitSelection": "Dividir al seleccionar",
+    "barSplitAlways": "Dividir siempre",
     "enableQuarterHourZoom": "Mostrar cuartos de hora al ampliar al máximo",
     "weekStartDay": "La semana empieza el",
     "weekStartMonday": "Lunes",
@@ -74,7 +86,9 @@
     "documentChrome": "Estilo de cambio de documento",
     "documentChromeTabs": "Pestañas horizontales",
     "documentChromeRail": "Pestañas verticales",
-    "documentChromeSwitcher": "Píldora"
+    "documentChromeSwitcher": "Píldora",
+    "dateNotation": "Formato de fecha",
+    "dateNotationHint": "Determina cómo se muestran las fechas en toda la aplicación. Los archivos y los cálculos no se ven afectados."
   },
   "confirm": {
     "newProject": "¿Crear nuevo proyecto? Los cambios no guardados se perderán.",
@@ -303,8 +317,6 @@
         "midden": "Centro",
         "zuid": "Sur"
       },
-      "winterStop": "Cierre de invierno fijo",
-      "winterHint": "Cierre fijo; los días reales de helada llegarán después según datos meteorológicos",
       "preview": "{{n}} festivos, {{from}}–{{to}}",
       "bouwvakHint": "Fechas orientativas — verificar con Bouwend Nederland",
       "apply": "Generar",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "Continuo (24/7)",
       "weekdays": "Lun–vie"
+    },
+    "shift": {
+      "day": "Turno de día",
+      "twoShift": "2 turnos",
+      "threeShift": "3 turnos",
+      "night": "Turno de noche",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Horarios de trabajo",
+      "derivedHpd": "Horas/día derivadas:",
+      "saveAsPreset": "Guardar como preajuste…",
+      "perWeekday": "Definir por día de la semana…",
+      "presetNamePlaceholder": "Nombre del preajuste",
+      "addBand": "Añadir banda",
+      "copyToAll": "Copiar a todos los días laborables",
+      "noBands": "No laborable",
+      "nextDay": "día siguiente",
+      "shiftPreset": "Turno",
+      "breakHint": "Un hueco entre dos franjas es una pausa: ajuste los horarios según sea necesario."
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "Principal",
       "secondary": "Secundario"
     }
+  },
+  "dateInput": {
+    "placeholder": "dd-mm-aaaa",
+    "invalid": "Fecha no válida — p. ej. 6-7-2026",
+    "group": "Fecha",
+    "day": "día",
+    "month": "mes",
+    "year": "año"
+  },
+  "hourData": {
+    "notice": "Este archivo contiene planificación por horas.",
+    "enable": "Activar planificación por horas"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "h",
+    "suffixMinute": "m"
   }
 }

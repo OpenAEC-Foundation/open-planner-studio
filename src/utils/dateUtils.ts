@@ -14,6 +14,41 @@ export function formatDateTime(d: Date): string {
   return d.toISOString().replace('Z', '');
 }
 
+/**
+ * Serialisatie-modus van een datum-instant (fase 2.8b, §2.4). De MODUS is de enige
+ * discriminator voor de output-vorm — niet de waarde van de instant.
+ */
+export type DateMode = 'day' | 'hour';
+
+/**
+ * Parse een ISO-string naar een Date die de TIJD-VAN-DE-DAG behoudt (fase 2.8b, §2.4).
+ * Tegenhanger van `parseInstant` t.o.v. `parseDate`: `parseDate` kapt altijd naar
+ * middernacht (dag-substraat, ongewijzigd); `parseInstant` houdt uren/minuten vast.
+ *
+ * - Date-only ("YYYY-MM-DD") ⇒ delegeer aan `parseDate` (byte-identiek dag-substraat,
+ *   middernacht UTC).
+ * - Datetime ("...THH:mm") zonder tijdzone ⇒ interpreteer als UTC (de engine rekent in
+ *   UTC-instants zonder DST, §1); een expliciete Z/offset wordt gerespecteerd.
+ */
+export function parseInstant(iso: string): Date {
+  if (iso.includes('T')) {
+    const hasTz = /(Z|[+-]\d{2}:?\d{2})$/.test(iso);
+    return new Date(hasTz ? iso : `${iso}Z`);
+  }
+  return parseDate(iso);
+}
+
+/**
+ * Formatteer een instant volgens de MODUS (fase 2.8b, §2.4). De modus is de ENIGE
+ * discriminator; er is geen middernacht-uitzondering:
+ * - `'day'`  ⇒ altijd `YYYY-MM-DD` via het bestaande `formatDate` (byte-identiek).
+ * - `'hour'` ⇒ altijd `YYYY-MM-DDTHH:mm` (minuut-precisie), óók op een rond uur en óók
+ *   om middernacht (een uur-taak die op `T00:00` landt behoudt zijn tijd-component).
+ */
+export function formatInstant(d: Date, mode: DateMode): string {
+  return mode === 'hour' ? d.toISOString().slice(0, 16) : formatDate(d);
+}
+
 /** Get the ISO day of week (1=Monday, 7=Sunday) */
 export function isoDayOfWeek(d: Date): number {
   const day = d.getUTCDay();

@@ -44,6 +44,18 @@
     "themeLight": "Jasny",
     "themeHighContrast": "Wysoki kontrast",
     "timeline": "Oś czasu / Powiększenie",
+    "hourPlanningSection": "Planowanie godzinowe",
+    "enableHourPlanning": "Włącz planowanie godzinowe",
+    "enableHourPlanningHint": "Włącza planowanie godzinowo-minutowe: skalę czasu w godzinach, zmiany z pasmami czasu pracy i paski zadań z dokładnością do godziny. Wyłączone ⇒ aplikacja pozostaje w pełni dniowa, tak jak wcześniej.",
+    "allowMixedDayHour": "Zezwól na mieszane planowanie dniowo-godzinowe",
+    "durationDisplay": "Wyświetlanie czasu trwania",
+    "durationDisplayAuto": "Automatycznie (własna jednostka dla zadania)",
+    "durationDisplayDays": "Zawsze w dniach",
+    "durationDisplayHours": "Zawsze w godzinach",
+    "barSplitMode": "Paski zadań przy przerwach",
+    "barSplitNever": "Nigdy nie dziel",
+    "barSplitSelection": "Dziel przy zaznaczeniu",
+    "barSplitAlways": "Zawsze dziel",
     "enableQuarterHourZoom": "Pokazuj ćwierćgodziny przy dużym powiększeniu",
     "weekStartDay": "Tydzień zaczyna się w",
     "weekStartMonday": "Poniedziałek",
@@ -74,7 +86,9 @@
     "documentChrome": "Styl przełączania dokumentów",
     "documentChromeTabs": "Karty poziome",
     "documentChromeRail": "Karty pionowe",
-    "documentChromeSwitcher": "Pigułka"
+    "documentChromeSwitcher": "Pigułka",
+    "dateNotation": "Format daty",
+    "dateNotationHint": "Określa sposób wyświetlania dat w całej aplikacji. Pliki i obliczenia pozostają bez zmian."
   },
   "confirm": {
     "newProject": "Utworzyć nowy projekt? Niezapisane zmiany zostaną utracone.",
@@ -303,8 +317,6 @@
         "midden": "Środek",
         "zuid": "Południe"
       },
-      "winterStop": "Stały przestój zimowy",
-      "winterHint": "Stały przestój; rzeczywiste dni mrozowe zostaną ustalone później na podstawie danych pogodowych",
       "preview": "{{n}} świąt, {{from}}–{{to}}",
       "bouwvakHint": "Daty orientacyjne — zweryfikuj w Bouwend Nederland",
       "apply": "Generuj",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "Ciągły (24/7)",
       "weekdays": "Pon–pt"
+    },
+    "shift": {
+      "day": "Zmiana dzienna",
+      "twoShift": "2 zmiany",
+      "threeShift": "3 zmiany",
+      "night": "Zmiana nocna",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Godziny pracy",
+      "derivedHpd": "Wyliczone godziny/dzień:",
+      "saveAsPreset": "Zapisz jako profil…",
+      "perWeekday": "Ustaw dla każdego dnia tygodnia…",
+      "presetNamePlaceholder": "Nazwa profilu",
+      "addBand": "Dodaj pasmo",
+      "copyToAll": "Kopiuj do wszystkich dni roboczych",
+      "noBands": "Niepracujący",
+      "nextDay": "następny dzień",
+      "shiftPreset": "Zmiana",
+      "breakHint": "Przerwa między dwoma pasmami to pauza — dostosuj godziny według potrzeb."
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "Główny",
       "secondary": "Dodatkowy"
     }
+  },
+  "dateInput": {
+    "placeholder": "dd-mm-rrrr",
+    "invalid": "Nieprawidłowa data — np. 6-7-2026",
+    "group": "Data",
+    "day": "dzień",
+    "month": "miesiąc",
+    "year": "rok"
+  },
+  "hourData": {
+    "notice": "Ten plik zawiera planowanie godzinowe.",
+    "enable": "Włącz planowanie godzinowe"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "g",
+    "suffixMinute": "min"
   }
 }

@@ -1,8 +1,12 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
-import { ViewState } from '@/state/slices/types';
-import { parseDate, formatDate, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
+import { ViewState, BarSplitMode, DurationDisplay } from '@/state/slices/types';
+import { parseDate, parseInstant, formatDate, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
 import { WorkCalendar } from '@/types/calendar';
+import { isHourCalendar } from '@/services/subdayIo';
+import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
+import { formatDuration, type DurationSuffixes } from '@/utils/durationFormat';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 
@@ -49,6 +53,18 @@ export interface GanttRenderOptions {
   columnHeaders?: { wbs: string; taskName: string; duration: string };
   weekStartDay?: 'monday' | 'sunday';        // default 'monday'
   enableQuarterHourZoom?: boolean;            // default false
+  /** Fase 2.8b (§6.1/§6.9): effectieve kalender per taak-id (`task.calendarId` → bibliotheek, anders
+   *  projectkalender). Bepaalt per taak of hij uur-modus is (sub-dag-balkpositie) en levert de
+   *  banden voor de balk-opsplitsing. Afwezig ⇒ alle taken vallen terug op de projectkalender. */
+  effectiveCalById?: Map<string, WorkCalendar>;
+  /** Fase 2.8b (§6.9): stand van "Taakbalken bij onderbrekingen". Default 'selection'. */
+  barSplitMode?: BarSplitMode;
+  /** Fase 2.8b (§6.5): hoofdschakelaar Urenplanning. UIT ⇒ duurkolom byte-identiek (`Nd`). */
+  enableHourPlanning?: boolean;
+  /** Fase 2.8b (§6.5): Duurweergave-instelling voor de duurkolom (auto/dagen/uren). */
+  durationDisplay?: DurationDisplay;
+  /** Fase 2.8b (§6.4/§11): vertaalde eenheid-afkortingen voor de duurkolom-WEERGAVE. Afwezig ⇒ NL d/u/m. */
+  durationSuffixes?: DurationSuffixes;
 }
 
 // Read theme colors from CSS variables on the document element
@@ -113,6 +129,11 @@ export class GanttRenderer {
   /** Alpha voor gedimde rijen (filter-ouderketen, §4.2). */
   private static readonly DIM_ALPHA = 0.45;
 
+  /** Fase 2.8b: per-kalender-id gecachete `CalendarEngine` voor de balk-opsplitsing (§6.9). De
+   *  band-materialisatie zelf is gememoized op het kalender-OBJECT (WeakMap), dus deze cache
+   *  voorkomt alleen herhaalde engine-constructie binnen één render. */
+  private engineCache = new Map<string, CalendarEngine>();
+
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
@@ -139,6 +160,17 @@ export class GanttRenderer {
     }
   }
 
+  /**
+   * Duurkolom-tekst (§6.5). Urenplanning UIT ⇒ byte-identiek het huidige `${scheduleDuration}d`.
+   * AAN ⇒ de eigen eenheid per taak via de Duurweergave-instelling (dag-taak "3d", uur-taak "20u").
+   */
+  private durationText(task: Task): string {
+    if (task.isMilestone) return '0d';
+    if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}d`;
+    const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
+    return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', this.opts.durationSuffixes);
+  }
+
   /** Convert a date (with optional sub-day precision) to X position on canvas */
   dateToX(date: Date): number {
     const msPerDay = 86400000;
@@ -149,6 +181,44 @@ export class GanttRenderer {
   /** Convert task row index to Y position */
   rowToY(rowIndex: number): number {
     return this.opts.headerHeight + rowIndex * this.opts.rowHeight - this.opts.view.scrollY;
+  }
+
+  // ── Fase 2.8b: uur-bewuste balkgeometrie (§6.1) ────────────────────────────
+  // Discriminator: een taak is UUR-modus zodra zijn (early/schedule-)datumstring een tijdcomponent
+  // ('T') draagt — precies wat `formatInstant('hour')` emitteert (§2.4). Dag-taken (YYYY-MM-DD)
+  // vallen dus ALTIJD op het bestaande dag-pad (`parseDate` + één dag breedte) ⇒ bit-identiek.
+
+  /** Balk-uiteinden voor een taak. Uur-taak: `[dateToX(start), dateToX(finish))` (geen +dag, §6.1).
+   *  Dag-taak: `[dateToX(start), dateToX(finish)+zoom)` (inclusieve eind-dag, ongewijzigd). */
+  private barGeometry(task: Task): { x1: number; x2: number; hourMode: boolean; start: Date; end: Date } {
+    const startStr = task.time.earlyStart || task.time.scheduleStart;
+    const endStr = task.time.earlyFinish || task.time.scheduleFinish;
+    const hourMode = startStr.includes('T') || endStr.includes('T');
+    const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
+    const end = hourMode ? parseInstant(endStr) : parseDate(endStr);
+    const x1 = this.dateToX(start);
+    const x2 = hourMode ? this.dateToX(end) : this.dateToX(end) + this.opts.view.zoom;
+    return { x1, x2, hourMode, start, end };
+  }
+
+  /** De effectieve `CalendarEngine` voor een taak (uur-modus), of null als de taak op een
+   *  dag-kalender staat / geen kalendermap is meegegeven — dan wordt er niet opgesplitst. */
+  private engineFor(task: Task): CalendarEngine | null {
+    const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
+    if (!isHourCalendar(cal)) return null;
+    let eng = this.engineCache.get(cal.id);
+    if (!eng) {
+      eng = new CalendarEngine(cal);
+      this.engineCache.set(cal.id, eng);
+    }
+    return eng;
+  }
+
+  /** Of een uur-taakbalk in werkblok-segmenten wordt getekend (§6.9): 'always' ⇒ altijd,
+   *  'selection' ⇒ alleen als de taak geselecteerd is, 'never' ⇒ nooit. */
+  private shouldSplit(isSelected: boolean): boolean {
+    const mode = this.opts.barSplitMode ?? 'selection';
+    return mode === 'always' || (mode === 'selection' && isSelected);
   }
 
   render(): void {
@@ -549,39 +619,70 @@ export class GanttRenderer {
 
   private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
-    const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-    const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
-    const x1 = this.dateToX(start);
-    const x2 = this.dateToX(end) + this.opts.view.zoom; // Include the end day
+    const geo = this.barGeometry(task);
+    const { x1, x2 } = geo;
 
     if (x2 < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
 
     const width = Math.max(x2 - x1, 4);
     const color = overrideColor ?? (task.time.isCritical ? this.colors.critical : (task.color || this.colors.normal));
+    const progressColor = task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
 
-    // Bar background
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(x1, y, width, height, 3);
-    ctx.fill();
-
-    // Progress fill
-    if (task.time.completion > 0) {
-      const progressWidth = width * task.time.completion;
-      ctx.fillStyle = task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
-      ctx.beginPath();
-      ctx.roundRect(x1, y, progressWidth, height, 3);
-      ctx.fill();
+    // Fase 2.8b (§6.9): een uur-taak splitst in werkblok-segmenten (pauzes/nachten vallen als gaten
+    // weg) volgens de instelling; dag-taken en niet-gesplitste uur-taken zijn één doorlopend segment.
+    // Segmenten komen uit de op het kalender-object gememoizede banden-materialisatie (geen extra solve).
+    let segs: { x1: number; x2: number }[] = [{ x1, x2 }];
+    let split = false;
+    if (geo.hourMode && this.shouldSplit(isSelected)) {
+      const eng = this.engineFor(task);
+      const intervals = eng ? eng.workIntervalsBetween(geo.start, geo.end) : [];
+      if (intervals.length > 0) {
+        segs = intervals.map(iv => ({ x1: this.dateToX(iv.start), x2: this.dateToX(iv.end) }));
+        split = true;
+      }
     }
 
-    // Float indicator
+    // Necking-connector door de gaten (dunne lijn op halve hoogte) — puur weergave.
+    if (split && segs.length > 1) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = ctx.globalAlpha * 0.5;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(segs[0].x2, y + height / 2);
+      ctx.lineTo(segs[segs.length - 1].x1, y + height / 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const progressEnd = x1 + width * task.time.completion;
+    for (const s of segs) {
+      const sw = Math.max(s.x2 - s.x1, split ? 2 : 4);
+      // Segment-achtergrond
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(s.x1, y, sw, height, 3);
+      ctx.fill();
+      // Voortgangsvulling: het deel van dit segment links van de globale voortgangsgrens.
+      if (task.time.completion > 0 && progressEnd > s.x1) {
+        const pw = Math.min(s.x1 + sw, progressEnd) - s.x1;
+        if (pw > 0) {
+          ctx.fillStyle = progressColor;
+          ctx.beginPath();
+          ctx.roundRect(s.x1, y, pw, height, 3);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Float indicator (ná de exclusieve balk-finish x2)
     if (task.time.totalFloat > 0 && !task.time.isCritical) {
       const floatWidth = task.time.totalFloat * this.opts.view.zoom;
       ctx.fillStyle = this.colors.float + 'E6'; // ~90% opacity — float band needs ≥3:1 vs light bg
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
     }
 
-    // Selection highlight
+    // Selection highlight — omvat de volle balk-extent [x1,x2], ook bij gesplitste segmenten.
     if (isSelected) {
       ctx.strokeStyle = this.colors.selected;
       ctx.lineWidth = 2;
@@ -606,10 +707,9 @@ export class GanttRenderer {
 
   private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
-    const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-    const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
-    const x1 = this.dateToX(start);
-    const x2 = this.dateToX(end) + this.opts.view.zoom;
+    // Samenvattingsbalken zijn ALTIJD doorlopend (§6.9), maar wel uur-bewust gepositioneerd
+    // wanneer hun rollup-datums een tijdcomponent dragen.
+    const { x1, x2 } = this.barGeometry(task);
 
     if (x2 < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
 
@@ -647,12 +747,15 @@ export class GanttRenderer {
 
   private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
-    const date = parseDate(task.time.earlyStart || task.time.scheduleStart);
+    const startStr = task.time.earlyStart || task.time.scheduleStart;
+    const hourMode = startStr.includes('T');
+    const date = hourMode ? parseInstant(startStr) : parseDate(startStr);
     // Grens-model (fase 2.4): een startmijlpaal ankert op het dagBEGIN (linkerrand van de
     // dagcel), een eindmijlpaal op het dagEINDE (rechterrand); automatisch blijft
-    // dag-gecentreerd zoals voorheen.
+    // dag-gecentreerd zoals voorheen. Fase 2.8b: een UUR-mijlpaal draagt de exacte instant al,
+    // dus die ankert op de instant zelf (anchor 0) zonder dag-cel-verschuiving.
     const zoom = this.opts.view.zoom;
-    const anchor = task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
+    const anchor = hourMode ? 0 : task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
     const x = this.dateToX(date) + anchor;
     const cy = y + height / 2;
     const size = height * 0.4;
@@ -1000,7 +1103,7 @@ export class GanttRenderer {
       ctx.fillStyle = this.colors.textSecondary;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.textAlign = 'right';
-      const durText = task.isMilestone ? '0d' : `${task.time.scheduleDuration}d`;
+      const durText = this.durationText(task);
       ctx.fillText(durText, taskTableWidth - 8, textY);
       ctx.textAlign = 'left';
       if (row.dimmed) ctx.globalAlpha = 1;
@@ -1065,10 +1168,8 @@ export class GanttRenderer {
     const task = this.getTaskAtY(canvasY);
     if (!task || task.childIds.length > 0 || task.isMilestone) return null;
 
-    const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-    const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
-    const x1 = this.dateToX(start);
-    const x2 = this.dateToX(end) + this.opts.view.zoom;
+    // Uur-bewuste balk-uiteinden, zodat de resize-grepen op een sub-dag-balk kloppen (§6.1/§6.3).
+    const { x1, x2 } = this.barGeometry(task);
     const edgeZone = 6; // pixels for edge detection
 
     if (canvasX >= x1 - edgeZone && canvasX <= x2 + edgeZone) {

@@ -2,6 +2,7 @@ import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { WorkCalendar } from '@/types/calendar';
 import { parseDate, formatDate, addCalendarDays, getWeekNumber, diffCalendarDays, isoDayOfWeek } from '@/utils/dateUtils';
+import type { DateNotation } from '@/state/slices/types';
 
 /** Print-friendly color scheme */
 const PRINT_COLORS = {
@@ -102,18 +103,29 @@ export interface PrintOptions {
   projectStartDate?: string;
   projectEndDate?: string;
   projectAuthor?: string;
+  /** Datumnotatie (taak #53) voor de header- en tabel-datums; ontbreekt ⇒ dd-mm-jjjj. */
+  dateNotation?: DateNotation;
 }
 
 interface PrintTask extends Task {
   _depth?: number;
 }
 
-/** Format date as dd-mm-yyyy */
-function formatDutchDate(d: Date): string {
+/**
+ * Format een datum volgens de datumnotatie-instelling (taak #53). Zelfde reorder-semantiek als
+ * `displayDate` in @/utils/displayDate, maar bewust een kleine lokale kopie zodat deze pure
+ * print-service niet de React/zustand-store-hook hoeft te importeren. Ontbreekt de notatie ⇒
+ * dd-mm-jjjj (ongewijzigd oud gedrag).
+ */
+function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
   const day = String(d.getUTCDate()).padStart(2, '0');
   const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const year = d.getUTCFullYear();
-  return `${day}-${month}-${year}`;
+  const year = String(d.getUTCFullYear());
+  switch (notation) {
+    case 'mdy': return `${month}-${day}-${year}`;
+    case 'ymd': return `${year}-${month}-${day}`;
+    default:    return `${day}-${month}-${year}`;
+  }
 }
 
 /** Format duration as "15d" */
@@ -522,11 +534,11 @@ function drawProjectHeader(
   let row3Text = '';
   if (options.projectStartDate) {
     const sd = parseDate(options.projectStartDate);
-    row3Text += `Start: ${formatDutchDate(sd)}`;
+    row3Text += `Start: ${formatDutchDate(sd, options.dateNotation)}`;
   }
   if (options.projectEndDate) {
     const ed = parseDate(options.projectEndDate);
-    row3Text += (row3Text ? '  |  ' : '') + `Eind: ${formatDutchDate(ed)}`;
+    row3Text += (row3Text ? '  |  ' : '') + `Eind: ${formatDutchDate(ed, options.dateNotation)}`;
   }
   if (options.projectStartDate && options.projectEndDate) {
     const sd = parseDate(options.projectStartDate);
@@ -769,14 +781,14 @@ function drawTaskTable(
     const startStr = task.time.earlyStart || task.time.scheduleStart;
     if (startStr) {
       const sd = parseDate(startStr);
-      ctx.fillText(formatDutchDate(sd), cols.start.x + cols.start.w - 4, textY);
+      ctx.fillText(formatDutchDate(sd, options.dateNotation), cols.start.x + cols.start.w - 4, textY);
     }
 
     // End date
     const endStr = task.time.earlyFinish || task.time.scheduleFinish;
     if (endStr) {
       const ed = parseDate(endStr);
-      ctx.fillText(formatDutchDate(ed), cols.end.x + cols.end.w - 4, textY);
+      ctx.fillText(formatDutchDate(ed, options.dateNotation), cols.end.x + cols.end.w - 4, textY);
     }
 
     // Completion

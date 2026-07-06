@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -63,6 +63,7 @@ import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useAppStore } from '@/state/appStore';
 import type { RecoveryDocInput } from '@/state/slices/documentSlice';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { HourDataNotice } from '@/components/layout/HourDataNotice';
 
 function AppContent() {
   useKeyboardShortcuts();
@@ -150,6 +151,22 @@ function AppContent() {
     });
     loadAutoCalcCPM().then(v => {
       if (typeof v === 'boolean') setUI({ autoCalcCPM: v });
+    });
+    loadDateNotation().then(v => {
+      if (v) setUI({ dateNotation: v });
+    });
+    // Fase 2.8b (§6.8): urenplanning-instellingen — ontbrekende sleutel ⇒ default (undefined → geen setUI).
+    loadEnableHourPlanning().then(v => {
+      if (typeof v === 'boolean') setUI({ enableHourPlanning: v });
+    });
+    loadAllowMixedDayHour().then(v => {
+      if (typeof v === 'boolean') setUI({ allowMixedDayHour: v });
+    });
+    loadDurationDisplay().then(v => {
+      if (v) setUI({ durationDisplay: v });
+    });
+    loadBarSplitMode().then(v => {
+      if (v) setUI({ barSplitMode: v });
     });
     void loadAllExtensions();
   }, []);
@@ -458,6 +475,10 @@ function AppContent() {
 
       {/* Ribbon Toolbar */}
       <Ribbon />
+
+      {/* Uur-data-melding (§6.8): niet-blokkerende strook onder het lint wanneer een geladen
+          bestand urenplanning bevat terwijl de hoofdschakelaar uit staat. */}
+      <HourDataNotice />
 
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
           Anders: gradient strip + main content. */}

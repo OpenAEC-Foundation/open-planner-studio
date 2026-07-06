@@ -3,6 +3,7 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
+import { effectiveCalendarByTask, isHourCalendar, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 
 // Curve-/contour-naammapping (fase 2.5, §8.3): P6 kent geen `LATE_PEAK`-curve — beste
 // benadering is 'Early Peak' (gedocumenteerd verlies, zie verliesmatrix §8.4). UNIFORM wordt
@@ -42,6 +43,8 @@ function formatP6DateTime(iso: string): string {
   if (!iso) return '';
   // P6 expects: 2026-03-09T08:00:00
   if (iso.length === 10) return `${iso}T08:00:00`;
+  // Fase 2.8b (§7.3): uur-instant `YYYY-MM-DDTHH:mm` (16 tekens) → vul aan tot seconden.
+  if (iso.length === 16) return `${iso}:00`;
   return iso;
 }
 
@@ -88,7 +91,17 @@ function writeStandardWorkWeek(lines: string[], indent: (level: number) => strin
   for (let day = 1; day <= 7; day++) {
     lines.push(`${indent(3)}<StandardWorkHour>`);
     lines.push(`${indent(4)}<DayOfWeek>${P6_DAY_NAMES[day]}</DayOfWeek>`);
-    if (cal.workDays.includes(day)) {
+    if (cal.workTime) {
+      // Fase 2.8b (§7.2): UUR-kalender ⇒ ALLE banden van deze weekdag als aparte <WorkTime>-blokken
+      // (pauze/split-shift/nachtploeg). Een wrap-band (`end > 1440`) emitteert het eind als
+      // tijd-van-de-dag (`end % 1440`, via `minutesToClock`), waaruit de reader de wrap herkent.
+      for (const b of cal.workTime.byWeekday[day as 1] ?? []) {
+        lines.push(`${indent(4)}<WorkTime>`);
+        lines.push(`${indent(5)}<Start>${minutesToClock(b.start)}</Start>`);
+        lines.push(`${indent(5)}<Finish>${minutesToClock(b.end)}</Finish>`);
+        lines.push(`${indent(4)}</WorkTime>`);
+      }
+    } else if (cal.workDays.includes(day)) {
       lines.push(`${indent(4)}<WorkTime>`);
       lines.push(`${indent(5)}<Start>${String(cal.workStartHour).padStart(2, '0')}:00:00</Start>`);
       lines.push(`${indent(5)}<Finish>${String(cal.workEndHour).padStart(2, '0')}:00:00</Finish>`);
@@ -153,6 +166,9 @@ export function writeP6XML(
   for (const cal of libraryCalendars) {
     calObjMap.set(cal.id, nextCalObjId++);
   }
+
+  // Fase 2.8b (§7.2): effectieve kalender per taak → uur- vs dag-modus.
+  const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
 
   // WBS elements (parent tasks)
   const wbsTasks = tasks.filter(t => t.childIds.length > 0);
@@ -280,7 +296,13 @@ export function writeP6XML(
     }
     lines.push(`${indent(2)}<Type>${taskTypeToP6(task)}</Type>`);
     lines.push(`${indent(2)}<Status>${taskStatusToP6(task)}</Status>`);
-    lines.push(`${indent(2)}<PlannedDuration>${durationToP6Hours(task.time.scheduleDuration, calendar.hoursPerDay)}</PlannedDuration>`);
+    // Fase 2.8b (§7.2): uur-taak ⇒ PlannedDuration in fractionele uren uit de minuten (geen
+    // dag-afronding); dag-taak ⇒ het bestaande `dagen × hpd`-pad (byte-identiek).
+    const effCal = effCalByTask.get(task.id);
+    const isHour = isHourCalendar(effCal);
+    const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
+    const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, calendar.hoursPerDay);
+    lines.push(`${indent(2)}<PlannedDuration>${plannedDur}</PlannedDuration>`);
     lines.push(`${indent(2)}<PlannedStartDate>${formatP6DateTime(task.time.earlyStart || task.time.scheduleStart)}</PlannedStartDate>`);
     lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(task.time.earlyFinish || task.time.scheduleFinish)}</PlannedFinishDate>`);
     if (task.time.completion > 0) {
@@ -293,7 +315,9 @@ export function writeP6XML(
     if (task.time.actualFinish) {
       lines.push(`${indent(2)}<ActualFinishDate>${formatP6DateTime(task.time.actualFinish)}</ActualFinishDate>`);
     }
-    if (task.time.remainingTime != null) {
+    if (isHour && task.time.remainingMinutes != null) {
+      lines.push(`${indent(2)}<RemainingDuration>${task.time.remainingMinutes / 60}</RemainingDuration>`);
+    } else if (task.time.remainingTime != null) {
       lines.push(`${indent(2)}<RemainingDuration>${durationToP6Hours(task.time.remainingTime, calendar.hoursPerDay)}</RemainingDuration>`);
     }
     if (task.description) {
@@ -328,12 +352,18 @@ export function writeP6XML(
       console.warn('P6-export: kalenderdag-lag geëxporteerd als gewone lag-uren — P6 heeft geen lag-eenheid per relatie.');
     }
 
+    // Fase 2.8b (§7.2): uur-lag (`lagMinutes`, bron van waarheid) als fractionele uren, mits geen
+    // procent-lag (die is al uitgebakken). Anders het bestaande `lagDays × hpd`-uren-pad.
+    const hourLag = typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)
+      && !(typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent));
+    const lagHours = hourLag ? seq.lagMinutes! / 60 : durationToP6Hours(lagDays, calendar.hoursPerDay);
+
     lines.push(`${indent(1)}<Relationship>`);
     lines.push(`${indent(2)}<ObjectId>${relObjId++}</ObjectId>`);
     lines.push(`${indent(2)}<PredecessorActivityObjectId>${predObjId}</PredecessorActivityObjectId>`);
     lines.push(`${indent(2)}<SuccessorActivityObjectId>${succObjId}</SuccessorActivityObjectId>`);
     lines.push(`${indent(2)}<Type>${sequenceTypeToP6(seq.type)}</Type>`);
-    lines.push(`${indent(2)}<Lag>${durationToP6Hours(lagDays, calendar.hoursPerDay)}</Lag>`);
+    lines.push(`${indent(2)}<Lag>${lagHours}</Lag>`);
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
     lines.push(`${indent(1)}</Relationship>`);
   }

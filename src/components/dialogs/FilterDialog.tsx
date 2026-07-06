@@ -7,6 +7,7 @@ import {
   type FieldCatalogCtx,
 } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import type { FieldRef, FilterNode, FilterOperator } from '@/state/slices/types';
 
 type GroupNode = Extract<FilterNode, { kind: 'group' }>;
@@ -115,19 +116,19 @@ function RuleValueEditor({
     if (rule.operator === 'between') {
       return (
         <div className="flex items-center gap-1">
-          <input type="date" value={typeof rule.value === 'string' ? rule.value : ''}
-            onChange={e => onChange({ value: e.target.value })}
+          <DateTextInput value={typeof rule.value === 'string' ? rule.value : ''}
+            onCommit={v => onChange({ value: v })}
             className="input !text-xs !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} />
-          <input type="date" value={typeof rule.value2 === 'string' ? rule.value2 : ''}
-            onChange={e => onChange({ value2: e.target.value })}
+          <DateTextInput value={typeof rule.value2 === 'string' ? rule.value2 : ''}
+            onCommit={v => onChange({ value2: v })}
             className="input !text-xs !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} />
         </div>
       );
     }
     return (
-      <input type="date" value={typeof rule.value === 'string' ? rule.value : ''}
-        onChange={e => onChange({ value: e.target.value })}
-        className="input !text-xs !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} aria-label={t('view.filter.value')} />
+      <DateTextInput value={typeof rule.value === 'string' ? rule.value : ''}
+        onCommit={v => onChange({ value: v })}
+        className="input !text-xs !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} ariaLabel={t('view.filter.value')} />
     );
   }
 

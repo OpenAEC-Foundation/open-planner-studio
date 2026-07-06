@@ -44,6 +44,18 @@
     "themeLight": "Licht",
     "themeHighContrast": "Hoog contrast",
     "timeline": "Tijdlijn / Zoomen",
+    "hourPlanningSection": "Urenplanning",
+    "enableHourPlanning": "Urenplanning inschakelen",
+    "enableHourPlanningHint": "Zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair zoals voorheen.",
+    "allowMixedDayHour": "Gemengde dag/uur-planning toestaan",
+    "durationDisplay": "Duurweergave",
+    "durationDisplayAuto": "Automatisch (eigen eenheid per taak)",
+    "durationDisplayDays": "Altijd dagen",
+    "durationDisplayHours": "Altijd uren",
+    "barSplitMode": "Taakbalken bij onderbrekingen",
+    "barSplitNever": "Nooit opsplitsen",
+    "barSplitSelection": "Opsplitsen bij selectie",
+    "barSplitAlways": "Altijd opsplitsen",
     "enableQuarterHourZoom": "Kwartieren tonen bij ver inzoomen",
     "weekStartDay": "Week begint op",
     "weekStartMonday": "Maandag",
@@ -74,7 +86,9 @@
     "documentChrome": "Documentwissel-stijl",
     "documentChromeTabs": "Horizontale tabbladen",
     "documentChromeRail": "Verticale tabbladen",
-    "documentChromeSwitcher": "Pil"
+    "documentChromeSwitcher": "Pil",
+    "dateNotation": "Datumnotatie",
+    "dateNotationHint": "Bepaalt hoe datums overal in de app worden getoond. Bestanden en berekeningen blijven ongewijzigd."
   },
   "confirm": {
     "newProject": "Nieuw project aanmaken? Niet-opgeslagen wijzigingen gaan verloren.",
@@ -303,8 +317,6 @@
         "midden": "Midden",
         "zuid": "Zuid"
       },
-      "winterStop": "Vaste winterstop",
-      "winterHint": "Vaste winterstop; werkelijk vorstverlet volgt later uit weerdata",
       "preview": "{{n}} feestdagen, {{from}}–{{to}}",
       "bouwvakHint": "Adviesdatums — controleer bij Bouwend Nederland",
       "apply": "Genereren",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "Continu (24/7)",
       "weekdays": "Ma–vr"
+    },
+    "shift": {
+      "day": "Dagdienst",
+      "twoShift": "2 ploegen",
+      "threeShift": "3 ploegen",
+      "night": "Nachtploeg",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Werktijden",
+      "derivedHpd": "Afgeleide uren/dag:",
+      "saveAsPreset": "Bewaar als preset…",
+      "perWeekday": "Per weekdag instellen…",
+      "presetNamePlaceholder": "Presetnaam",
+      "addBand": "Band toevoegen",
+      "copyToAll": "Kopieer naar alle werkdagen",
+      "noBands": "Niet-werkend",
+      "nextDay": "volgende dag",
+      "shiftPreset": "Ploeg",
+      "breakHint": "Een gat tussen twee banden is een pauze — pas de tijden naar wens aan."
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "Primair",
       "secondary": "Secundair"
     }
+  },
+  "dateInput": {
+    "placeholder": "dd-mm-jjjj",
+    "invalid": "Ongeldige datum — bijv. 6-7-2026",
+    "group": "Datum",
+    "day": "dag",
+    "month": "maand",
+    "year": "jaar"
+  },
+  "hourData": {
+    "notice": "Dit bestand bevat urenplanning.",
+    "enable": "Urenplanning aanzetten"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "u",
+    "suffixMinute": "m"
   }
 }

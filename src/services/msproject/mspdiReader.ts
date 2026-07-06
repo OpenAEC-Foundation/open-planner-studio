@@ -2,11 +2,20 @@ import { Task } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
+import { WorkCalendar, Holiday, WorkTimeBands, createDefaultCalendar } from '@/types/calendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import {
+  canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isSubDayMinutes, workDaysFromBands,
+} from '@/services/subdayIo';
+
+/** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
+const MSP_TIME_ANCHOR = '08:00:00';
+
+/** Gecanonicaliseerde banden per gelezen kalender + afwijking (a/b), voor de uur-modus-beslissing. */
+const mspBandRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
 
 // Omgekeerde WorkContour-mapping (spiegel van mspdiWriter's CURVE_TO_WORKCONTOUR, §8.3).
 const WORKCONTOUR_TO_CURVE: Record<number, ResourceCurve> = {
@@ -41,13 +50,31 @@ function parseMSPDate(s: string): string {
   return s.substring(0, 10);
 }
 
-function parseMSPDuration(s: string): number {
+/** Datum uit MSPDI in UUR-modus: echte tijd-van-de-dag behouden (`parseInstant`+`formatInstant`, §7.3). */
+function parseMSPInstant(s: string): string {
+  if (!s) return formatDate(new Date());
+  return formatInstant(parseInstant(s), 'hour');
+}
+
+/** ISO-8601-duur met tijdcomponent (`PT{H}H{M}M{S}S`) → minuten; `null` als er geen tijdcomponent is. */
+function mspDurationMinutes(s: string): number | null {
+  if (!s) return null;
+  const m = s.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m || (!m[1] && !m[2] && !m[3])) return null;
+  return (parseInt(m[1] || '0', 10)) * 60 + parseInt(m[2] || '0', 10) + Math.round(parseInt(m[3] || '0', 10) / 60);
+}
+
+/**
+ * Duur in DAGEN (dag-modus). Fase 2.8b (§7.3): de hardcoded `/8` is vervangen door `hoursPerDay`
+ * (latente bug bij niet-8u-kalenders), en de uren komen uit `mspDurationMinutes`. `PnD` blijft
+ * elapsed-dagen. In uur-modus gebruikt de reader `mspDurationMinutes` rechtstreeks (geen afronding).
+ */
+function parseMSPDuration(s: string, hoursPerDay: number): number {
   if (!s) return 0;
-  // Format: PT40H0M0S or PT8H0M0S
-  const hourMatch = s.match(/PT(\d+)H/);
-  if (hourMatch) {
-    const hours = parseInt(hourMatch[1]);
-    return Math.round(hours / 8); // default 8h per day
+  const mins = mspDurationMinutes(s);
+  if (mins != null) {
+    const perDay = hoursPerDay * 60;
+    return perDay > 0 ? Math.round(mins / perDay) : 0;
   }
   const dayMatch = s.match(/P(\d+)D/);
   if (dayMatch) return parseInt(dayMatch[1]);
@@ -169,6 +196,41 @@ export function readMSPDI(content: string): {
   // Baseline 0 (fase 2.6, §9.1): per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
 
+  // Fase 2.8b (§7.3): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
+  // taken. `effCalIdOfUid` geeft per taak de effectieve kalender-id (CalendarUID 1/ontbrekend =
+  // projectkalender). `taskHourById` voedt de lag-eenheid-keuze verderop.
+  const calById = new Map<string, WorkCalendar>();
+  calById.set(calendar.id, calendar);
+  for (const c of resourceCalendars) calById.set(c.id, c);
+  const effCalIdOfUid = (calUid: number): string => (calUid > 1 && calUidToId.get(calUid)) || calendar.id;
+  const taskHourById = new Map<string, boolean>();
+
+  const cSignalCalIds = new Set<string>();
+  for (let i = 0; i < taskElements.length; i++) {
+    const te = taskElements[i];
+    if (te.parentElement?.tagName !== 'Tasks') continue;
+    const calId = effCalIdOfUid(getElementInt(te, 'CalendarUID', 1));
+    const cal = calById.get(calId);
+    if (!cal) continue;
+    const durMin = mspDurationMinutes(getElementText(te, 'Duration'));
+    const durSignal = durMin != null && isSubDayMinutes(durMin, cal.hoursPerDay);
+    const dateSignal = hasNonAnchorTime(getElementText(te, 'Start'), MSP_TIME_ANCHOR)
+      || hasNonAnchorTime(getElementText(te, 'Finish'), MSP_TIME_ANCHOR);
+    if (durSignal || dateSignal) cSignalCalIds.add(calId);
+  }
+  const hourModeCalIds = new Set<string>();
+  for (const [id, cal] of calById) {
+    const info = mspBandRegistry.get(cal);
+    if (!((info?.deviates ?? false) || cSignalCalIds.has(id))) continue;
+    hourModeCalIds.add(id);
+    if (cal.workTime) continue;
+    const bands = info && workDaysFromBands(info.canonical).length > 0 ? info.canonical : synthMspBandsFromScalar(cal);
+    cal.workTime = bands;
+    const wd = workDaysFromBands(bands);
+    if (wd.length > 0) cal.workDays = wd;
+    cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
+  }
+
   for (let i = 0; i < taskElements.length; i++) {
     const te = taskElements[i];
     // Skip if this is nested inside another element (like PredecessorLink)
@@ -187,26 +249,35 @@ export function readMSPDI(content: string): {
     const name = getElementText(te, 'Name') || 'Task';
     const wbs = getElementText(te, 'WBS') || `${uid}`;
     uidToWbs.set(uid, wbs);
-    const durationStr = getElementText(te, 'Duration');
-    const duration = parseMSPDuration(durationStr);
-    const start = parseMSPDate(getElementText(te, 'Start'));
-    const finish = parseMSPDate(getElementText(te, 'Finish'));
-    const isMilestone = getElementInt(te, 'Milestone') === 1;
-    const percentComplete = getElementInt(te, 'PercentComplete');
-    const priority = getElementInt(te, 'Priority', 500);
-    const description = getElementText(te, 'Notes');
     // Taak-kalender (fase 2.8a, §8.3): effectieve <CalendarUID> → task.calendarId. UID 1 (of
     // ontbrekend, legacy-bestanden) = projectkalender ⇒ undefined (bestaande conventie).
     const taskCalUid = getElementInt(te, 'CalendarUID', 1);
     const taskCalendarId = taskCalUid > 1 ? calUidToId.get(taskCalUid) : undefined;
+    // Fase 2.8b (§7.3): uur- vs dag-modus voor deze taak.
+    const effCalId = effCalIdOfUid(taskCalUid);
+    const isHour = hourModeCalIds.has(effCalId);
+    const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
+
+    const durationStr = getElementText(te, 'Duration');
+    // Duur: uur ⇒ minuten (bron van waarheid, geen afronding, §7.3); dag ⇒ het bestaande dag-pad.
+    const durationMinutes = isHour ? (mspDurationMinutes(durationStr) ?? 0) : undefined;
+    const duration = isHour ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0) : parseMSPDuration(durationStr, hoursPerDay);
+    const start = isHour ? parseMSPInstant(getElementText(te, 'Start')) : parseMSPDate(getElementText(te, 'Start'));
+    const finish = isHour ? parseMSPInstant(getElementText(te, 'Finish')) : parseMSPDate(getElementText(te, 'Finish'));
+    const isMilestone = getElementInt(te, 'Milestone') === 1;
+    const percentComplete = getElementInt(te, 'PercentComplete');
+    const priority = getElementInt(te, 'Priority', 500);
+    const description = getElementText(te, 'Notes');
 
     // Actuals (fase 2.6, §9.1) — leeg ⇒ undefined (invarianten volgen bij normalizeImportedProgress).
     const actualStartRaw = getElementText(te, 'ActualStart');
     const actualFinishRaw = getElementText(te, 'ActualFinish');
     const remainingRaw = getElementText(te, 'RemainingDuration');
-    const actualStart = actualStartRaw ? parseMSPDate(actualStartRaw) : undefined;
-    const actualFinish = actualFinishRaw ? parseMSPDate(actualFinishRaw) : undefined;
-    const remainingTime = remainingRaw ? parseMSPDuration(remainingRaw) : undefined;
+    const actualStart = actualStartRaw ? (isHour ? parseMSPInstant(actualStartRaw) : parseMSPDate(actualStartRaw)) : undefined;
+    const actualFinish = actualFinishRaw ? (isHour ? parseMSPInstant(actualFinishRaw) : parseMSPDate(actualFinishRaw)) : undefined;
+    // RemainingDuration: uur ⇒ minuten; dag ⇒ het bestaande dag-pad.
+    const remainingMinutes = isHour && remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined;
+    const remainingTime = !isHour && remainingRaw ? parseMSPDuration(remainingRaw, hoursPerDay) : undefined;
 
     let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
     if (percentComplete >= 100) status = 'COMPLETED';
@@ -222,7 +293,7 @@ export function readMSPDI(content: string): {
         taskId: id,
         start: parseMSPDate(getElementText(bEl, 'Start')),
         finish: parseMSPDate(getElementText(bEl, 'Finish')),
-        duration: parseMSPDuration(getElementText(bEl, 'Duration')),
+        duration: parseMSPDuration(getElementText(bEl, 'Duration'), hoursPerDay),
         isMilestone,
       });
       break;
@@ -242,6 +313,7 @@ export function readMSPDI(content: string): {
       time: {
         durationType: 'WORKTIME',
         scheduleDuration: duration,
+        ...(durationMinutes != null ? { durationMinutes } : {}),
         scheduleStart: start,
         scheduleFinish: finish,
         earlyStart: start,
@@ -254,11 +326,13 @@ export function readMSPDI(content: string): {
         actualStart,
         actualFinish,
         remainingTime,
+        ...(remainingMinutes != null ? { remainingMinutes } : {}),
         completion: percentComplete / 100,
       },
       resourceIds: [],
       ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
     });
+    taskHourById.set(id, isHour);
 
     // Parse predecessor links within task element
     const predLinks = te.getElementsByTagName('PredecessorLink');
@@ -322,6 +396,10 @@ export function readMSPDI(content: string): {
     } else if (ELAPSED_DURATION_FORMATS.has(link.lagFormat)) {
       seq.lagDays = Math.round(link.lag / 10 / 60 / 24);
       seq.lagUnit = 'ELAPSEDTIME';
+    } else if (taskHourById.get(link.successorId)) {
+      // Fase 2.8b (§7.3): uur-opvolger ⇒ lag minuut-precies (tienden-van-minuten ÷ 10, geen
+      // dag-afronding). LinkLag is al in tienden van minuten.
+      seq.lagMinutes = Math.round(link.lag / 10);
     } else {
       seq.lagDays = tenthsOfMinutesToDays(link.lag, hoursPerDay);
     }
@@ -422,6 +500,9 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar): void {
   // Parse work days from WeekDay elements
   const weekDays = calEl.getElementsByTagName('WeekDay');
   const workDays: number[] = [];
+  // Fase 2.8b (§7.3): ALLE <WorkingTime>-banden per weekdag lezen (nu las de reader alleen het eerste
+  // blok als scalar) → rauwe banden voor de uur-modus-beslissing.
+  const rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
 
   for (let i = 0; i < weekDays.length; i++) {
     const wd = weekDays[i];
@@ -435,6 +516,14 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar): void {
       // Convert MSP day (1=Sun, 2=Mon, ..., 7=Sat) to ISO (1=Mon, ..., 7=Sun)
       const isoDay = dayType === 1 ? 7 : dayType - 1;
       workDays.push(isoDay);
+      const wts = wd.getElementsByTagName('WorkingTime');
+      const dayBands: { start: number; end: number }[] = [];
+      for (let k = 0; k < wts.length; k++) {
+        const s = clockToMinutes(getElementText(wts[k], 'FromTime'));
+        const e = clockToMinutes(getElementText(wts[k], 'ToTime'));
+        if (s != null && e != null) dayBands.push({ start: s, end: e });
+      }
+      if (dayBands.length > 0) rawByWeekday[isoDay as 1] = dayBands;
     }
   }
 
@@ -442,7 +531,7 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar): void {
     calendar.workDays = workDays.sort((a, b) => a - b);
   }
 
-  // Parse working times for start/end hours
+  // Parse working times for start/end hours (scalar, bestaand dag-pad)
   const workingTimes = calEl.getElementsByTagName('WorkingTime');
   if (workingTimes.length > 0) {
     const fromTime = getElementText(workingTimes[0], 'FromTime');
@@ -458,6 +547,9 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar): void {
     calendar.hoursPerDay = calendar.workEndHour - calendar.workStartHour;
     if (calendar.hoursPerDay <= 0) calendar.hoursPerDay = 8;
   }
+
+  const { bands, deviates } = canonicalizeBands(rawByWeekday);
+  mspBandRegistry.set(calendar, { canonical: bands, deviates });
 
   // Parse exceptions (holidays)
   const exceptions = calEl.getElementsByTagName('Exception');
@@ -478,6 +570,14 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar): void {
   if (holidays.length > 0) {
     calendar.holidays = holidays;
   }
+}
+
+/** Enkelband-kalender uit de scalar `workStartHour/EndHour` (fallback bij (c)-promotie zonder banden). */
+function synthMspBandsFromScalar(cal: WorkCalendar): WorkTimeBands {
+  const raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
+  const band = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
+  for (const wd of cal.workDays) if (wd >= 1 && wd <= 7) raw[wd as 1] = [{ ...band }];
+  return canonicalizeBands(raw).bands;
 }
 
 function parseCalendar(root: Element): WorkCalendar {

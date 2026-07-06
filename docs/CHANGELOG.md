@@ -7,6 +7,37 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Toegevoegd
+- **Urenplanning (fase 2.8b)** — scheduling wordt uur-/minuut-bewust, bovenop de dag-granulaire
+  kern van 2.8a (ontwerp: `docs/superpowers/specs/2026-07-06-uren-scheduling-design.md`):
+  - **Hoofdschakelaar Urenplanning** (Instellingen, **default uit**): schakelt de uur-/
+    minuten-scheduling in — een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze
+    taakbalken. Uit ⇒ de app blijft byte-voor-byte hetzelfde dag-granulaire gedrag van vóór
+    2.8b. Aparte instelling **"Gemengde dag/uur-planning toestaan"** voor documenten die
+    beide soorten taken/kalenders combineren.
+  - **Werktijd-banden per weekdag** op de kalender: meerdere banden per dag (pauzes), banden
+    die over middernacht heen lopen (nachtploeg) en een volledige **24/7**-vorm. Kant-en-klare
+    **ploegen-presets** (dagdienst, 2 ploegen, 3 ploegen, nachtploeg, 24/7) plus een
+    banden-editor (band toevoegen, bewaren als eigen preset, per weekdag instellen, kopiëren
+    naar alle werkdagen) met een live afgeleide uren/dag-indicator.
+  - **Uur-tijdschaal in de Gantt**: de al aanwezige uur-/kwartier-tiers (`timelineTiers`,
+    tot dusver dood sinds fase 2.7) worden geactiveerd zodra een kalender uur-data heeft.
+  - **Drie duurweergave-modi** in de instellingen: automatisch (eigen eenheid per taak),
+    altijd dagen, altijd uren — met een waarschuwing bij gemengde kalenders in de taaktabel
+    en drie aparte duur-invoervakjes (dagen/uren/totaal uren) in het taakdialoog.
+  - **Taakbalk-opsplitsing bij onderbrekingen**: instelbaar nooit/bij selectie/altijd, zodat
+    een taak die over een pauze of nachtblok heen loopt visueel als losse segmenten getoond
+    kan worden in plaats van als één doorlopende balk.
+  - **Minuut-precieze interop**: P6-XML, MSPDI en IFC lezen en schrijven nu sub-dag-duur en
+    -tijden verliesloos (voorheen werd alles afgerond op hele dagen); documenten zonder
+    uur-data round-trippen ongewijzigd.
+  - **Datumvelden herbouwd**: typbare dag/maand/jaar-segmenten in plaats van een enkel
+    tekstveld, met een projectbrede datumnotatie-instelling en bijbehorende
+    kalenderdialoog-fixes.
+  - Volledig vertaald in alle 14 talen.
+  - **Bewuste beperkingen**: een instelbare lag-kalender-optie (P6's "Calendar for scheduling
+    Relationship Lag") is fase 2.9; sub-dag resource-nivellering (per-uur/per-shift
+    capaciteits-emmers) blijft dag-emmer-gebaseerd; tijdzone/DST-bewuste scheduling en
+    per-rij Gantt-arcering op afwijkende taak-kalenders volgen later.
 - **Kalender-uitbreidingen (fase 2.8a)** — de kalender wordt een eersteklas, meervoudig,
   jaar-onafhankelijk concept (ontwerp:
   `docs/superpowers/specs/2026-07-04-kalenders-design.md`):

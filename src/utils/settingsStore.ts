@@ -7,7 +7,11 @@ import type {
   WheelFunction,
   DocumentChromeStyle,
   Layout,
+  DateNotation,
+  DurationDisplay,
+  BarSplitMode,
 } from '@/state/slices/types';
+import { DATE_NOTATIONS, DURATION_DISPLAYS, BAR_SPLIT_MODES } from '@/state/slices/types';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
@@ -252,6 +256,87 @@ export async function loadAutoCalcCPM(): Promise<boolean | undefined> {
 
 export async function saveAutoCalcCPM(value: boolean): Promise<void> {
   await setSetting('autoCalcCPM', value);
+}
+
+// Datumnotatie (taak #53): app-instelling, dus WEL onder de 3-plekken-regel (tandwiel,
+// Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Ontbrekende of
+// corrupte sleutel ⇒ undefined → de store houdt de default 'dmy' (dd-mm-jjjj), geen reset.
+export async function loadDateNotation(): Promise<DateNotation | undefined> {
+  const v = await getSetting<DateNotation>('dateNotation');
+  return v && DATE_NOTATIONS.includes(v) ? v : undefined;
+}
+
+export async function saveDateNotation(value: DateNotation): Promise<void> {
+  await setSetting('dateNotation', value);
+}
+
+// --- Fase 2.8b: urenplanning-instellingen (§6.8). App-instellingen, dus onder de 3-plekken-regel
+//     (tandwiel/ribbontab/backstage delen SettingsPanelContent). Ontbrekende/corrupte sleutel ⇒
+//     undefined → de store houdt zijn default (§6.8: hoofdschakelaar uit, gemengd aan, duurweergave
+//     automatisch, balk-opsplitsing bij selectie), zonder reset van andere voorkeuren.
+export async function loadEnableHourPlanning(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('enableHourPlanning');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveEnableHourPlanning(value: boolean): Promise<void> {
+  await setSetting('enableHourPlanning', value);
+}
+
+export async function loadAllowMixedDayHour(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('allowMixedDayHour');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveAllowMixedDayHour(value: boolean): Promise<void> {
+  await setSetting('allowMixedDayHour', value);
+}
+
+export async function loadDurationDisplay(): Promise<DurationDisplay | undefined> {
+  const v = await getSetting<DurationDisplay>('durationDisplay');
+  return v && DURATION_DISPLAYS.includes(v) ? v : undefined;
+}
+
+export async function saveDurationDisplay(value: DurationDisplay): Promise<void> {
+  await setSetting('durationDisplay', value);
+}
+
+export async function loadBarSplitMode(): Promise<BarSplitMode | undefined> {
+  const v = await getSetting<BarSplitMode>('barSplitMode');
+  return v && BAR_SPLIT_MODES.includes(v) ? v : undefined;
+}
+
+export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
+  await setSetting('barSplitMode', value);
+}
+
+// Eigen werktijd-presets (§6.6b): app-niveau localStorage, NIET in het projectbestand — ze reizen
+// niet mee met een project maar zijn op elke machine van de gebruiker beschikbaar. Parse-guard:
+// corrupte JSON of een item zonder de juiste shape ⇒ weggelaten (nooit een crash op een handmatig
+// geprutste localStorage-waarde), analoog aan `loadLayouts`.
+import type { WorkTimePreset } from '@/utils/shiftPresets';
+
+function isValidWorkTimePreset(v: unknown): v is WorkTimePreset {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Record<string, unknown>;
+  return (
+    typeof p.id === 'string' &&
+    typeof p.name === 'string' &&
+    Array.isArray(p.workDays) &&
+    typeof p.workStartHour === 'number' &&
+    typeof p.workEndHour === 'number' &&
+    typeof p.hoursPerDay === 'number'
+  );
+}
+
+export async function loadWorkTimePresets(): Promise<WorkTimePreset[]> {
+  const raw = await getSetting<unknown>('workTimePresets');
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isValidWorkTimePreset);
+}
+
+export async function saveWorkTimePresets(presets: WorkTimePreset[]): Promise<void> {
+  await setSetting('workTimePresets', presets);
 }
 
 export async function loadLastLayoutId(): Promise<string | null> {

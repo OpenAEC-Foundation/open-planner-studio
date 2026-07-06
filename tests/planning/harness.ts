@@ -38,6 +38,8 @@ import { createDefaultTaskTime } from '@/types/task';
 import type { ResourceType, ResourceCurve } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { parseDuration } from '@/utils/durationFormat';
+import type { WorkTimeBands } from '@/types/calendar';
 import { computeVariance } from '@/engine/variance';
 import {
   computeViewRows, isTreeMode, encodeBandKey, firstRowIndexByTask, NONE_RAWKEY,
@@ -53,7 +55,12 @@ import { dirname, join } from 'node:path';
 const S = () => useAppStore.getState();
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
 
-type Cal = { workDays?: number[]; holidays?: { name: string; startDate: string; endDate: string }[] };
+type Shift = 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
+type Cal = {
+  workDays?: number[]; holidays?: { name: string; startDate: string; endDate: string }[];
+  /** Fase 2.8b (§3.2/§8.1): werktijd-banden ⇒ UUR-kalender. Afwezig ⇒ dag-kalender (byte-identiek). */
+  workTime?: WorkTimeBands; shift?: Shift;
+};
 interface CaseResource {
   name: string; type?: ResourceType; maxUnits?: number;
   calendar?: Cal; steps?: { from: string; maxUnits: number }[];
@@ -98,8 +105,9 @@ type ExpectRow =
 interface Case {
   id: string; title: string;
   calendar?: Cal; anchor?: string;
-  /** Benoemde bibliotheek-kalenders (fase 2.8a, §10.1): taken verwijzen ernaar via tasks[].calendar. */
-  calendars?: { name: string; workDays?: number[]; holidays?: Cal['holidays'] }[];
+  /** Benoemde bibliotheek-kalenders (fase 2.8a, §10.1): taken verwijzen ernaar via tasks[].calendar.
+   *  Fase 2.8b: optioneel `workTime`/`shift` ⇒ uur-kalender (§8.1). */
+  calendars?: { name: string; workDays?: number[]; holidays?: Cal['holidays']; workTime?: WorkTimeBands; shift?: Shift }[];
   resources?: CaseResource[];
   /** Activity-code-types + waarden (fase 2.7 view-cases). */
   codes?: { name: string; values: { code: string; description?: string }[] }[];
@@ -114,9 +122,17 @@ interface Case {
   statusDate?: string;
   scheduleOptions?: { progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE' };
   tasks: {
-    name: string; dur?: number; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
+    /** Fase 2.8b (§8.1): `dur` mag een string zijn — "2d 4u"/"4h"/"90m"/"12u" (hele eenheden, via
+     *  `parseDuration`) ⇒ `durationMinutes` op de taak; een getal ⇒ werkdagen (dag-modus, ongewijzigd). */
+    name: string; dur?: number | string; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
     mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string;
     priority?: number;
+    /** Fase 2.8b (§8.3, durationMinutes-op-dag-kalender-invariant): zet `durationMinutes` RAUW op de
+     *  taak, ontkoppeld van `dur` — om te bewijzen dat het veld op een dag-kalender wordt genegeerd
+     *  (`scheduleDuration` wint) i.p.v. een fractionele dag in `addWorkDays` te stoppen (Bevinding 2). */
+    durationMinutesRaw?: number;
+    /** Fase 2.8b (§5.3, uur-voortgang): resterend werk in integer MINUTEN (overstemt completion-afleiding). */
+    remainingMinutes?: number;
     /** Naam van een bibliotheek-kalender uit Case.calendars (fase 2.8a). undefined = projectkalender. */
     calendar?: string;
     assign?: { res: string; units: number; curve?: ResourceCurve }[];
@@ -129,7 +145,10 @@ interface Case {
     /** Custom-field-waarde: veldnaam → waarde (fase 2.7 view-cases). */
     field?: Record<string, string | number | boolean>;
   }[];
-  links?: { pred: string; succ: string; type: string; lag?: number; lagUnit?: string; lagPercent?: number }[];
+  /** Fase 2.8b (§8.1): `lag` mag een string zijn — "4h"/"90m"/"2d" (via `parseDuration` in de
+   *  VOORGANGER-kalender) ⇒ `lagMinutes`; een getal ⇒ `lagDays` (dag-modus, ongewijzigd). `lagMinutes`
+   *  mag ook rechtstreeks. */
+  links?: { pred: string; succ: string; type: string; lag?: number | string; lagMinutes?: number; lagUnit?: string; lagPercent?: number }[];
   level?: { constrainToFloat?: boolean; resources?: string[] };
   /** Baseline opslaan ná de eerste runCPM (fase 2.6, variance-cases). */
   baseline?: boolean | { name?: string };
@@ -191,6 +210,10 @@ function buildAndSolve(c: Case): {
     ...base,
     workDays: c.calendar?.workDays ?? CLEAN_WORKDAYS,
     holidays: c.calendar?.holidays ?? [],
+    // Fase 2.8b: alleen wanneer expliciet gegeven ⇒ uur-projectkalender. Afwezig ⇒ géén workTime-sleutel
+    // (dag-modus, byte-identiek voor de 290).
+    ...(c.calendar?.workTime ? { workTime: c.calendar.workTime } : {}),
+    ...(c.calendar?.shift ? { shift: c.calendar.shift } : {}),
   } as any);
   const anchor = c.anchor ?? '2026-06-01';
   S().setProject({ startDate: anchor });
@@ -206,8 +229,20 @@ function buildAndSolve(c: Case): {
       name: cal.name,
       workDays: cal.workDays ?? CLEAN_WORKDAYS,
       holidays: cal.holidays ?? [],
+      ...(cal.workTime ? { workTime: cal.workTime } : {}),
+      ...(cal.shift ? { shift: cal.shift } : {}),
     });
   }
+
+  // Fase 2.8b (§8.1): effectieve `hoursPerDay` (dag↔minuut-factor) van de kalender waarin een taak
+  // rekent — de benoemde `tasks[].calendar` (uit `Case.calendars`) óf de projectkalender. Wordt
+  // ALLEEN aangeroepen voor uur-invoer (string-`dur`/string-`lag`), dus de 290 raken hem nooit.
+  // De `hoursPerDay` is de AFGELEIDE waarde (modale band-som voor uur-kalenders, §3.2) via een
+  // wegwerp-CalendarEngine — exact wat de solver intern gebruikt.
+  const effHoursPerDayFor = (calName: string | undefined): number => {
+    const wc = calName ? S().calendars.find((x) => x.id === calByName[calName]) : S().calendar;
+    return new CalendarEngine((wc ?? S().calendar) as any).hoursPerDay;
+  };
 
   // Resources (fase 2.5) — vóór de taken irrelevant qua volgorde, maar vóór assign[] nodig.
   const resIds: Record<string, string> = {};
@@ -268,12 +303,30 @@ function buildAndSolve(c: Case): {
       throw new Error(`taak "${t.name}": ouder "${t.parent}" nog niet gedefinieerd — zet de ouder eerder in de tasks-lijst`);
     }
     const start = t.start ?? anchor;
-    const dur = t.milestone ? 0 : (t.dur ?? 1);
+    // Duur-resolutie (fase 2.8b, §8.1): een string ⇒ `parseDuration` naar MINUTEN (uur-modus) met het
+    // afgeleide `scheduleDuration = minuten/(effHpd×60)`; een getal ⇒ werkdagen (dag-modus, ongewijzigd).
+    let durDays: number;
+    let durMinutes: number | undefined;
+    if (t.milestone) {
+      durDays = 0;
+    } else if (typeof t.dur === 'string') {
+      const effHpd = effHoursPerDayFor(t.calendar);
+      const mins = parseDuration(t.dur, effHpd);
+      if (mins == null) throw new Error(`taak "${t.name}": onparseerbare duur "${t.dur}"`);
+      durMinutes = mins;
+      durDays = mins / (effHpd * 60);
+    } else {
+      durDays = t.dur ?? 1;
+    }
+    const time = createDefaultTaskTime(start, durDays);
+    if (durMinutes !== undefined) time.durationMinutes = durMinutes;
+    // Rauwe override (§8.3-invariant): zet `durationMinutes` los van `scheduleDuration`.
+    if (t.durationMinutesRaw !== undefined) time.durationMinutes = t.durationMinutesRaw;
     const id = S().addTask({
       name: t.name,
       isMilestone: !!t.milestone,
       parentId: t.parent ? ids[t.parent] : null,
-      time: createDefaultTaskTime(start, dur),
+      time,
       ...(t.milestoneKind ? { milestoneKind: t.milestoneKind } : {}),
       ...(t.priority !== undefined ? { priority: t.priority } : {}),
       ...(t.mandatory !== undefined ? { mandatory: t.mandatory } : {}),
@@ -290,9 +343,22 @@ function buildAndSolve(c: Case): {
   for (const l of c.links ?? []) {
     if (!ids[l.pred]) throw new Error(`relatie: onbekende voorganger "${l.pred}"`);
     if (!ids[l.succ]) throw new Error(`relatie: onbekende opvolger "${l.succ}"`);
+    // Lag-resolutie (fase 2.8b, §8.1): een string-lag ⇒ MINUTEN via `parseDuration` in de
+    // VOORGANGER-kalender (`LAG_CALENDAR='predecessor'`), gezet als `lagMinutes`; een getal ⇒ `lagDays`
+    // (dag-modus, ongewijzigd). `lagMinutes` mag ook rechtstreeks.
+    let lagMinutes = l.lagMinutes;
+    const lagDaysVal = typeof l.lag === 'number' ? l.lag : undefined;
+    if (typeof l.lag === 'string') {
+      const predCalName = c.tasks.find((t) => t.name === l.pred)?.calendar;
+      const predHpd = effHoursPerDayFor(predCalName);
+      const mins = parseDuration(l.lag, predHpd);
+      if (mins == null) throw new Error(`relatie ${l.pred}->${l.succ}: onparseerbare lag "${l.lag}"`);
+      lagMinutes = mins;
+    }
     S().addSequence({
       predecessorId: ids[l.pred], successorId: ids[l.succ], type: l.type as any,
-      lagDays: l.lag ?? 0,
+      lagDays: lagDaysVal ?? 0,
+      ...(lagMinutes !== undefined ? { lagMinutes } : {}),
       ...(l.lagUnit !== undefined ? { lagUnit: l.lagUnit as any } : {}),
       ...(l.lagPercent !== undefined ? { lagPercent: l.lagPercent } : {}),
     });
@@ -331,6 +397,12 @@ function buildAndSolve(c: Case): {
     if (t.actualStart !== undefined) S().setActualStart(id, t.actualStart);
     if (t.actualFinish !== undefined) S().setActualFinish(id, t.actualFinish);
     if (t.completion !== undefined) S().setTaskProgress(id, t.completion);
+    // remainingMinutes RAUW ná completion (uur-voortgang, §5.3): `applyProgressInvariants` raakt alleen
+    // `remainingTime` (dagen), niet `remainingMinutes`, dus deze override overleeft `setTaskProgress`.
+    if (t.remainingMinutes !== undefined) {
+      const task = S().tasks.find((x) => x.id === id)!;
+      S().updateTask(id, { time: { ...task.time, remainingMinutes: t.remainingMinutes } });
+    }
   }
 
   S().runCPM();
@@ -754,12 +826,15 @@ function runCase(c: Case) {
     const idToName: Record<string, string> = {};
     for (const [n, i] of Object.entries(ids)) idToName[i] = n;
 
-    // Round-trip-stabiliteit van de timescale-presets (§3.3).
+    // Round-trip-stabiliteit van de timescale-presets (§3.3). Fase 2.8b (§6.2): 'hour' round-trippt
+    // alleen met de urenplanning-vlag; de vijf dag-granulaire presets zonder vlag (byte-identiek).
     if (v.timescaleRoundtrip) {
       for (const s of ['year', 'quarter', 'month', 'week', 'day'] as const) {
         const got = scaleFromZoom(TIMESCALE_ZOOM[s]);
         if (got !== s) diffs.push(`timescale: scaleFromZoom(${TIMESCALE_ZOOM[s]})=${got}, verwacht ${s}`);
       }
+      const gotHour = scaleFromZoom(TIMESCALE_ZOOM.hour, true);
+      if (gotHour !== 'hour') diffs.push(`timescale: scaleFromZoom(${TIMESCALE_ZOOM.hour}, true)=${gotHour}, verwacht hour`);
     }
 
     const groupSpecs = v.group ?? [];

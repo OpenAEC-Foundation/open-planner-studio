@@ -7,9 +7,23 @@ import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { ifcGuid } from './ifcWriter';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import type { WorkTimeBands } from '@/types/calendar';
+import {
+  canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isoDurationToMinutes,
+  isSubDayMinutes, workDaysFromBands,
+} from '@/services/subdayIo';
+
+/** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.1). Een taak-datetime met
+ *  een andere tijd-van-de-dag is sub-dag-informatie (discriminator (c)). */
+const IFC_TIME_ANCHOR = '07:00:00';
+
+/** Rauwe (gecanonicaliseerde) banden per gelezen kalender-object + of ze afwijken van het
+ *  enkelvoudige dag-patroon (discriminator (a)/(b)). Gevuld door `buildCalendarFromEntity`, gelezen
+ *  door de uur-modus-post-pass. WeakMap ⇒ per-parse, geen lek. */
+const rawBandsRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
 
 /** Fase 2.5-defaults — zie ifcWriter.ts (golden-rule-guards). */
 const DEFAULT_PRIORITY = 500;
@@ -48,7 +62,7 @@ export function readIFC(content: string): {
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
-  const { tasks, taskStepIdMap } = extractTasks(entities, entityMap, baselineTaskStepIds);
+  const { tasks, taskStepIdMap, taskTimeEntities } = extractTasks(entities, entityMap, baselineTaskStepIds);
   const sequences = extractSequences(entities, entityMap, taskStepIdMap);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
@@ -57,6 +71,11 @@ export function readIFC(content: string): {
   const resourceCalendars = extractCalendarLibrary(
     entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap,
   );
+  // Fase 2.8b (§7.1, golf 4): uur-modus-post-pass. Ná extractCalendarLibrary zodat elke
+  // `task.calendarId` (en dus de effectieve kalender) is geresolved. Zet `workTime` op kalenders
+  // die afwijken van het dag-patroon (discriminator a/b/c) en herinterpreteert de duren/datetimes
+  // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid (byte-identiek).
+  applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap,
@@ -228,14 +247,98 @@ function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEnti
   return buildCalendarFromEntity(cal, entityMap, entities);
 }
 
+/** Enkelband-kalender uit de scalar `workStartHour/EndHour` (fallback wanneer geen banden geregistreerd
+ *  zijn, bv. een default-kalender die door een sub-dag-taak alsnog uur-modus wordt). */
+function synthBandsFromScalar(cal: WorkCalendar): WorkTimeBands {
+  const raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
+  const band = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
+  for (const wd of cal.workDays) if (wd >= 1 && wd <= 7) raw[wd as 1] = [{ ...band }];
+  return canonicalizeBands(raw).bands;
+}
+
+/**
+ * Fase 2.8b (§7.1, golf 4) — uur-modus-post-pass. Draait ná het resolven van elke `task.calendarId`.
+ * Beslist per kalender (project + bibliotheek) of hij uur-modus is volgens de normatieve
+ * discriminator (7-intro): (a)/(b) uit de eigen banden, of (c) sub-dag-informatie van een taak die
+ * hem gebruikt (een duur met tijdcomponent die niet op hele dagen valt, of een datetime met een
+ * echte tijd-van-de-dag ≠ `T07:00`). Uur-kalenders krijgen `workTime` + afgeleide `hoursPerDay`;
+ * hun taken krijgen minuut-precieze `durationMinutes` en echte tijden. Geen signaal ⇒ alles blijft
+ * dag-modus (byte-identiek).
+ */
+function applyHourModeIFC(
+  tasks: Task[],
+  projectCal: WorkCalendar,
+  resourceCalendars: WorkCalendar[],
+  taskTimeEntities: Map<string, StepEntity>,
+): void {
+  const libById = new Map(resourceCalendars.map(c => [c.id, c]));
+  const effCalOf = (t: Task): WorkCalendar => (t.calendarId && libById.get(t.calendarId)) || projectCal;
+
+  // 1. Sub-dag-signaal (c) per taak, t.o.v. de HUIDIGE (scalar/afgeleide) hpd van de effectieve
+  //    kalender. Verzamel welke kalenders daardoor uur-modus moeten worden.
+  const subDayCals = new Set<WorkCalendar>();
+  for (const t of tasks) {
+    const e = taskTimeEntities.get(t.id);
+    if (!e) continue;
+    const effCal = effCalOf(t);
+    const durMin = isoDurationToMinutes(stripQuotes(e.args[4] || ''));
+    const durSignal = durMin != null && isSubDayMinutes(durMin, effCal.hoursPerDay);
+    const dateSignal = [5, 6, 7, 8, 9, 10, 16, 17]
+      .some(i => hasNonAnchorTime(stripQuotes(e.args[i] || ''), IFC_TIME_ANCHOR));
+    if (durSignal || dateSignal) subDayCals.add(effCal);
+  }
+
+  // 2. Promoveer kalenders die afwijken (a/b uit de banden) of een (c)-signaal droegen.
+  for (const cal of [projectCal, ...resourceCalendars]) {
+    if (cal.workTime) continue;
+    const info = rawBandsRegistry.get(cal);
+    if (!(info?.deviates || subDayCals.has(cal))) continue;
+    const bands = info?.canonical ?? synthBandsFromScalar(cal);
+    cal.workTime = bands;
+    const wd = workDaysFromBands(bands);
+    if (wd.length > 0) cal.workDays = wd;
+    cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
+  }
+
+  // 3. Herinterpreteer de taken op een uur-kalender: minuut-precieze duur + echte tijden.
+  for (const t of tasks) {
+    const effCal = effCalOf(t);
+    if (!effCal.workTime) continue;
+    const e = taskTimeEntities.get(t.id);
+    if (!e) continue;
+    const hpd = effCal.hoursPerDay;
+    const durMin = isoDurationToMinutes(stripQuotes(e.args[4] || ''));
+    const minutes = durMin != null ? durMin : Math.round(t.time.scheduleDuration * hpd * 60);
+    t.time.durationMinutes = minutes;
+    if (hpd > 0) t.time.scheduleDuration = minutes / (hpd * 60);
+    const toHour = (raw: string | undefined): string | undefined => {
+      const q = stripQuotes(raw || '');
+      return q && q !== '$' ? formatInstant(parseInstant(q), 'hour') : undefined;
+    };
+    const ss = toHour(e.args[5]); if (ss) t.time.scheduleStart = ss;
+    const sf = toHour(e.args[6]); if (sf) t.time.scheduleFinish = sf;
+    const es = toHour(e.args[7]); if (es) t.time.earlyStart = es;
+    const ef = toHour(e.args[8]); if (ef) t.time.earlyFinish = ef;
+    const ls = toHour(e.args[9]); if (ls) t.time.lateStart = ls;
+    const lf = toHour(e.args[10]); if (lf) t.time.lateFinish = lf;
+    const as = toHour(e.args[16]); if (as) t.time.actualStart = as;
+    const af = toHour(e.args[17]); if (af) t.time.actualFinish = af;
+    const remMin = isoDurationToMinutes(stripQuotes(e.args[18] || ''));
+    if (remMin != null) t.time.remainingMinutes = remMin;
+  }
+}
+
 function extractTasks(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   baselineTaskStepIds: Set<string> = new Set(),
-): { tasks: Task[]; taskStepIdMap: Map<string, string> } {
+): { tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity> } {
   const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
   const taskStepIdMap = new Map<string, string>(); // STEP #id -> our task id
+  // Fase 2.8b (§7.1): onze taak-id → IFCTASKTIME-entiteit, zodat de uur-modus-post-pass de rauwe
+  // duur-/datetime-strings kan herlezen zodra de effectieve kalender bekend is.
+  const taskTimeEntities = new Map<string, StepEntity>();
 
   for (const te of taskEntities) {
     const id = generateId('task');
@@ -259,6 +362,7 @@ function extractTasks(
     if (taskTimeRef) {
       const ttEntity = entityMap.get(taskTimeRef);
       time = ttEntity ? parseTaskTime(ttEntity) : createDefaultTaskTime(formatDate(new Date()), 5);
+      if (ttEntity) taskTimeEntities.set(id, ttEntity);
     } else {
       time = createDefaultTaskTime(formatDate(new Date()), 5);
     }
@@ -291,7 +395,7 @@ function extractTasks(
     });
   }
 
-  return { tasks, taskStepIdMap };
+  return { tasks, taskStepIdMap, taskTimeEntities };
 }
 
 /** Optionele datum/duur uit een IfcTaskTime-slot: `$`/leeg ⇒ undefined (geen "vandaag"-fallback,
@@ -351,6 +455,10 @@ function extractSequences(
     let lagDays = 0;
     let lagUnit: Sequence['lagUnit'];
     let lagPercent: number | undefined;
+    // Fase 2.8b (§7.1): uur-lag heeft een tijdcomponent (`IFCDURATION('PT..')`) ⇒ `lagMinutes` als
+    // bron van waarheid. Alleen de uur-schrijver emitteert die vorm; dag-bestanden (`P{d}D`) leveren
+    // `null` en houden `lagDays`.
+    let lagMinutes: number | undefined;
     const lagRef = parseRef(se.args[6] || '');
     if (lagRef) {
       const lagEntity = entityMap.get(lagRef);
@@ -364,9 +472,11 @@ function extractSequences(
           lagPercent = Math.round(parseFloat(ratioMatch[1]) * 100 * 1e6) / 1e6;
         } else if (durMatch) {
           lagDays = parseDurationDays(durMatch[1]);
+          lagMinutes = isoDurationToMinutes(stripQuotes(durMatch[1])) ?? undefined;
         } else if (lagValue.startsWith("'")) {
           // Ongetypte duur-string (soepel lezen van andermans bestanden).
           lagDays = parseDurationDays(lagValue);
+          lagMinutes = isoDurationToMinutes(stripQuotes(lagValue)) ?? undefined;
         } else {
           // Legacy-lay-out: de duur staat in arg 5.
           lagDays = parseDurationDays(lagEntity.args[4] || '');
@@ -384,6 +494,7 @@ function extractSequences(
     };
     if (lagUnit) seq.lagUnit = lagUnit;
     if (lagPercent !== undefined) seq.lagPercent = lagPercent;
+    if (lagMinutes !== undefined) seq.lagMinutes = lagMinutes;
     sequences.push(seq);
   }
 
@@ -769,7 +880,6 @@ function extractCalendarGeneration(
     let ruleSetId: HolidayCountry | undefined;
     let region: string | undefined;
     let breakChoice: CalendarGeneration['breakChoice'];
-    let winterStop = false;
     let generatedFromYear: number | undefined;
     let generatedToYear: number | undefined;
     for (const prop of props) {
@@ -778,7 +888,8 @@ function extractCalendarGeneration(
       if (name === 'RuleSetId' && typeof value === 'string') ruleSetId = value as HolidayCountry;
       else if (name === 'Region' && typeof value === 'string') region = value;
       else if (name === 'BreakChoice' && typeof value === 'string') breakChoice = value as CalendarGeneration['breakChoice'];
-      else if (name === 'WinterStop' && value === true) winterStop = true;
+      // 'WinterStop' (verwijderde feature, fase 2.8b) wordt in oude bestanden genegeerd; de
+      // gematerialiseerde feestdagen zelf staan los in de kalender en blijven behouden.
       else if (name === 'GeneratedFromYear' && typeof value === 'number') generatedFromYear = value;
       else if (name === 'GeneratedToYear' && typeof value === 'number') generatedToYear = value;
     }
@@ -788,7 +899,6 @@ function extractCalendarGeneration(
       ruleSetId,
       ...(region ? { region } : {}),
       ...(breakChoice ? { breakChoice } : {}),
-      ...(winterStop ? { winterStop } : {}),
       generatedFromYear,
       generatedToYear,
     };
@@ -817,6 +927,8 @@ function buildCalendarFromEntity(
   // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes
   // (args[6]) en hebben geen RecurrencePattern-ref (args[3] blijft `$` daar).
   const workTimeRefs = parseRefs(cal.args[5] || '');
+  let periods: { start: number; end: number }[] = []; // ALLE banden (minuten), fase 2.8b §7.1
+  let calWorkDays: number[] = [];
   for (const wtRef of workTimeRefs) {
     const wt = entityMap.get(wtRef);
     if (!wt || wt.type !== 'IFCWORKTIME') continue;
@@ -826,9 +938,19 @@ function buildCalendarFromEntity(
     if (!rec || rec.type !== 'IFCRECURRENCEPATTERN') continue;
 
     const workDays = parseIntList(rec.args[2] || '');
-    if (workDays.length > 0) calendar.workDays = workDays;
+    if (workDays.length > 0) { calendar.workDays = workDays; calWorkDays = workDays; }
 
     const timePeriodRefs = parseRefs(rec.args[7] || '');
+    // ALLE TimePeriods lezen (fase 2.8b §7.1: `TimePeriods` is native een lijst — pauze/split-shift).
+    for (const tpRef of timePeriodRefs) {
+      const tp = entityMap.get(tpRef);
+      if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
+      const s = clockToMinutes(stripQuotes(tp.args[0] || ''));
+      const e = clockToMinutes(stripQuotes(tp.args[1] || ''));
+      if (s != null && e != null) periods.push({ start: s, end: e });
+    }
+    // Scalar uit de EERSTE periode — houdt de dag-kalender byte-identiek (de post-pass promoveert
+    // pas naar uur-modus bij een echte afwijking, discriminator a/b/c).
     if (timePeriodRefs.length > 0) {
       const tp = entityMap.get(timePeriodRefs[0]);
       if (tp && tp.type === 'IFCTIMEPERIOD') {
@@ -843,6 +965,21 @@ function buildCalendarFromEntity(
     }
     break; // writer schrijft precies één werktijdslot in WorkingTimes
   }
+
+  // Rauwe banden registreren (dezelfde periodes op elke werkdag — IFC's enkele recurrence-conventie)
+  // + afwijking (a/b) bepalen, voor de uur-modus-post-pass.
+  const days = (calWorkDays.length > 0 ? calWorkDays : calendar.workDays).filter(d => d >= 1 && d <= 7);
+  const rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
+  for (const d of days) rawByWeekday[d as 1] = periods.map(p => ({ ...p }));
+  const { bands, deviates } = canonicalizeBands(rawByWeekday);
+  rawBandsRegistry.set(calendar, { canonical: bands, deviates });
+
+  // Ploeg-classificatie uit `PredefinedType` (arg 7) → `shift` (§7.1). `.FIRSTSHIFT.`/afwezig ⇒
+  // undefined (byte-identiek — de schrijver emitteert `.FIRSTSHIFT.` voor undefined).
+  const predef = (cal.args[7] || '').toUpperCase();
+  if (predef.includes('SECONDSHIFT')) calendar.shift = 'SECOND';
+  else if (predef.includes('THIRDSHIFT')) calendar.shift = 'THIRD';
+  else if (predef.includes('USERDEFINED')) calendar.shift = 'USERDEFINED';
 
   const exceptionRefs = parseRefs(cal.args[6] || '');
   const holidays: Holiday[] = [];

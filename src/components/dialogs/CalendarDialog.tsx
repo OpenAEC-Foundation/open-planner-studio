@@ -1,135 +1,118 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Copy, Trash2, Star } from 'lucide-react';
 import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/types/calendar';
+import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
+import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { CalendarForm } from './CalendarForm';
 
 /**
- * Bewerksectie voor precies één bibliotheek-kalender. Eigen lokale `draft`-state, remount per
- * `calendar.id` (via de `key` in `CalendarDialog`) zodat wisselen van selectie nooit de
- * in-progress-edits van een ándere kalender overschrijft. Apply-patroon (fase 2.5-precedent,
- * `ResourceCalendarDialog`): pas op expliciete "Toepassen" committeren.
- */
-function CalendarEditor({
-  calendar,
-  projectYearSpan,
-  onApply,
-}: {
-  calendar: WorkCalendar;
-  projectYearSpan: { from: number; to: number };
-  onApply: (draft: WorkCalendar) => void;
-}) {
-  const { t: tCommon } = useTranslation('common');
-  const [draft, setDraft] = useState<WorkCalendar>(() => structuredClone(calendar));
-
-  return (
-    <>
-      <CalendarForm
-        draft={draft}
-        onChange={patch => setDraft(d => ({ ...d, ...patch }))}
-        projectYearSpan={projectYearSpan}
-      />
-      <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
-        <button onClick={() => setDraft(structuredClone(calendar))} className="btn btn--sm btn--secondary">
-          {tCommon('cancel')}
-        </button>
-        <button onClick={() => onApply(draft)} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">
-          {tCommon('apply')}
-        </button>
-      </div>
-    </>
-  );
-}
-
-/**
- * Kalender-bibliotheek-dialoog (fase 2.8a, §7.1): links een lijst van alle bibliotheek-
- * kalenders (`s.calendars`) met de projectdefault gemarkeerd, rechts `CalendarEditor` (=
- * `CalendarForm` + Apply) voor de geselecteerde kalender. Nieuw/dupliceren/verwijderen/
- * "Als projectdefault" via de golf-1-bibliotheek-CRUD (`addCalendar`/`updateCalendar`/
- * `removeCalendar`/`setProjectCalendar`).
+ * Kalender-bibliotheek-dialoog (fase 2.8a, §7.1; buffer-herziening fase 2.8b): links een lijst van
+ * alle bibliotheek-kalenders met de projectdefault gemarkeerd, rechts `CalendarForm` voor de
+ * geselecteerde kalender.
+ *
+ * BUFFER-MODEL (fase 2.8b-bugfix): álle bewerkingen — nieuw/dupliceren/verwijderen/projectdefault
+ * én de veld-edits in het formulier — muteren UITSLUITEND een lokale kopie van de bibliotheek. De
+ * store wordt pas op "Toepassen" in één keer bijgewerkt (`commitCalendarLibrary`). Zo draaien
+ * "Annuleren"/Esc/kruisje/klik-buiten ALLE in de dialoog gemaakte wijzigingen terug door simpelweg
+ * te sluiten (er is niets naar de store gecommit). Dit vervangt het oude live-commit-gedrag, waarin
+ * "Annuleren" niets deed omdat de wijzigingen al in de store zaten.
  */
 export function CalendarDialog() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const project = useAppStore(s => s.project);
-  const calendars = useAppStore(s => s.calendars);
-  const addCalendar = useAppStore(s => s.addCalendar);
-  const updateCalendar = useAppStore(s => s.updateCalendar);
-  const removeCalendar = useAppStore(s => s.removeCalendar);
-  const setProjectCalendar = useAppStore(s => s.setProjectCalendar);
+  const commitCalendarLibrary = useAppStore(s => s.commitCalendarLibrary);
   const ensureProjectCalendarInLibrary = useAppStore(s => s.ensureProjectCalendarInLibrary);
   const runCPM = useAppStore(s => s.runCPM);
   const setUI = useAppStore(s => s.setUI);
 
-  // Golf-1 promoveert de gedenormaliseerde projectkalender niet automatisch naar de zichtbare
-  // bibliotheek (dat gebeurt pas bij het laden van oude bestanden, §4.3) — hier lazy zodat de
-  // huidige projectdefault altijd als beheerbare rij verschijnt.
-  useEffect(() => {
+  const [ready, setReady] = useState(false);
+  const [localCalendars, setLocalCalendars] = useState<WorkCalendar[]>([]);
+  const [localProjectId, setLocalProjectId] = useState<string>(project.calendarId);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente §4.3-
+  // normalisatie — geen gebruikerswijziging) de gedenormaliseerde projectkalender naar de zichtbare
+  // bibliotheek en vul dáárna de lokale buffer met een diepe kopie van de store-bibliotheek.
+  useLayoutEffect(() => {
     ensureProjectCalendarInLibrary();
+    const st = useAppStore.getState();
+    const cals = structuredClone(st.calendars) as WorkCalendar[];
+    setLocalCalendars(cals);
+    setLocalProjectId(st.project.calendarId);
+    setSelectedId(cals.find(c => c.id === st.project.calendarId)?.id ?? cals[0]?.id ?? null);
+    setReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [selectedId, setSelectedId] = useState<string | null>(project.calendarId);
-
-  // Val terug op de projectdefault (of de eerste entry) zodra de huidige selectie niet meer
-  // bestaat — inclusief de allereerste render, vóórdat de promotie-effect hierboven vuurde.
-  useEffect(() => {
-    if (!calendars.some(c => c.id === selectedId)) {
-      setSelectedId(calendars.find(c => c.id === project.calendarId)?.id ?? calendars[0]?.id ?? null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calendars, project.calendarId]);
-
-  const selected = calendars.find(c => c.id === selectedId) ?? null;
-
-  const close = () => setUI({ showCalendarDialog: false });
-
+  const selected = localCalendars.find(c => c.id === selectedId) ?? null;
   const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
 
+  // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).
+  const cancel = () => setUI({ showCalendarDialog: false });
+
+  // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
+  const confirm = () => {
+    commitCalendarLibrary(localCalendars, localProjectId);
+    runCPM();
+    setUI({ showCalendarDialog: false });
+  };
+
   const handleNew = () => {
-    const id = addCalendar({ ...createDefaultCalendar(), name: tCommon('calendar.library.new'), holidays: [], generation: undefined });
-    setSelectedId(id);
+    const cal: WorkCalendar = {
+      ...createDefaultCalendar(),
+      id: generateId('cal'),
+      name: tCommon('calendar.library.new'),
+      holidays: [],
+      generation: undefined,
+    };
+    setLocalCalendars(cs => [...cs, cal]);
+    setSelectedId(cal.id);
   };
 
   const handleDuplicate = () => {
     if (!selected) return;
-    const { id: _unused, ...rest } = selected;
-    void _unused;
-    const id = addCalendar({ ...rest, name: `${selected.name} (${tCommon('calendar.library.duplicate').toLowerCase()})` });
-    setSelectedId(id);
+    const dup: WorkCalendar = {
+      ...structuredClone(selected),
+      id: generateId('cal'),
+      name: `${selected.name} (${tCommon('calendar.library.duplicate').toLowerCase()})`,
+    };
+    setLocalCalendars(cs => [...cs, dup]);
+    setSelectedId(dup.id);
   };
 
   const handleRemove = () => {
-    if (!selected) return;
-    removeCalendar(selected.id);
+    if (!selected || localCalendars.length <= 1) return;
+    const removedId = selected.id;
+    const remaining = localCalendars.filter(c => c.id !== removedId);
+    const nextProjectId = localProjectId === removedId ? (remaining[0]?.id ?? localProjectId) : localProjectId;
+    setLocalCalendars(remaining);
+    setLocalProjectId(nextProjectId);
+    if (selectedId === removedId) {
+      setSelectedId(remaining.find(c => c.id === nextProjectId)?.id ?? remaining[0]?.id ?? null);
+    }
   };
 
   const handleSetDefault = () => {
     if (!selected) return;
-    setProjectCalendar(selected.id);
-    runCPM();
+    setLocalProjectId(selected.id);
   };
 
-  const handleApply = (draft: WorkCalendar) => {
-    if (!selected) return;
-    updateCalendar(selected.id, draft);
-    if (selected.id === project.calendarId) runCPM();
+  const patchSelected = (patch: Partial<WorkCalendar>) => {
+    if (!selectedId) return;
+    setLocalCalendars(cs => cs.map(c => (c.id === selectedId ? { ...c, ...patch } : c)));
   };
 
-  // Esc sluit dialog (LAYOUTS.md §3.3)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setUI({ showCalendarDialog: false });
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [setUI]);
+  // Esc = Annuleren (LAYOUTS.md §3.3), Enter = Toepassen (primaire actie), met de standaard
+  // textarea/dropdown/IME-uitzonderingen.
+  useDialogKeys({ onConfirm: confirm, onCancel: cancel });
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={cancel}>
       <div
         className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[860px] max-h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
@@ -139,17 +122,17 @@ export function CalendarDialog() {
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {tCommon('calendar.library.title')}
           </span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
+          <button onClick={cancel} className="p-1 hover:bg-surface-hover rounded-[8px]">
             <X size={16} />
           </button>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Links: bibliotheek-lijst */}
+          {/* Links: bibliotheek-lijst (lokale buffer) */}
           <div className="w-[220px] border-r border-border flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto py-2">
-              {calendars.map(cal => {
-                const isDefault = cal.id === project.calendarId;
+              {localCalendars.map(cal => {
+                const isDefault = cal.id === localProjectId;
                 const isSelected = cal.id === selectedId;
                 return (
                   <button
@@ -176,7 +159,7 @@ export function CalendarDialog() {
               </button>
               <button
                 onClick={handleRemove}
-                disabled={!selected || calendars.length <= 1}
+                disabled={!selected || localCalendars.length <= 1}
                 className="btn btn--sm btn--secondary flex-1 flex items-center justify-center gap-1 disabled:opacity-40"
                 title={tCommon('delete')}
               >
@@ -185,12 +168,12 @@ export function CalendarDialog() {
             </div>
           </div>
 
-          {/* Rechts: bewerkformulier voor de geselecteerde kalender */}
+          {/* Rechts: bewerkformulier — bindt direct op de geselecteerde buffer-kalender */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {selected ? (
+            {ready && selected ? (
               <>
                 <div className="flex items-center justify-between px-4 pt-3">
-                  {selected.id === project.calendarId ? (
+                  {localProjectId === selected.id ? (
                     <span className="text-[11px] font-medium text-accent flex items-center gap-1">
                       <Star size={11} fill="currentColor" />
                       {tCommon('calendar.library.project')}
@@ -201,11 +184,11 @@ export function CalendarDialog() {
                     </button>
                   )}
                 </div>
-                <CalendarEditor
+                <CalendarForm
                   key={selected.id}
-                  calendar={selected}
+                  draft={selected}
+                  onChange={patchSelected}
                   projectYearSpan={projectYearSpan}
-                  onApply={handleApply}
                 />
               </>
             ) : (
@@ -214,6 +197,17 @@ export function CalendarDialog() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Dialoog-footer: Annuleren draait alle in de dialoog gemaakte wijzigingen terug (niets is
+            gecommit) en sluit; Toepassen commit de hele buffer in één keer + herberekent. */}
+        <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
+          <button onClick={cancel} className="btn btn--sm btn--secondary" data-ops-cal-cancel>
+            {tCommon('cancel')}
+          </button>
+          <button onClick={confirm} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]" data-ops-cal-apply>
+            {tCommon('apply')}
+          </button>
         </div>
       </div>
     </div>

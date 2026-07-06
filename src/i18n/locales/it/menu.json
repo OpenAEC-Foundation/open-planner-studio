@@ -78,6 +78,7 @@
     "criticalPath": "Percorso critico",
     "criticalPathInfo": "Mostrato in rosso",
     "timeScale": "Scala temporale",
+    "hour": "Ora",
     "day": "Giorno",
     "week": "Settimana",
     "month": "Mese",

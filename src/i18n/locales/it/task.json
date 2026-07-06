@@ -10,7 +10,9 @@
     "critical": "Critica",
     "totalFloat": "Margine totale",
     "completion": "Progresso",
-    "milestone": "Traguardo"
+    "milestone": "Traguardo",
+    "hoursPerDayTip": "h/giorno",
+    "mixedWarning": "Calendari misti — ore/giorno per calendario: {{list}}. La durata è mostrata per attività nella propria unità."
   },
   "taskType": {
     "CONSTRUCTION": "Costruzione",
@@ -36,7 +38,11 @@
     "parentTask": "Attività padre",
     "noParent": "- Nessuna (radice) -",
     "milestone": "Traguardo (durata zero)",
-    "wbsPlaceholder": "es. RB-301"
+    "wbsPlaceholder": "es. RB-301",
+    "durationDays": "Giorni",
+    "durationHours": "Ore",
+    "durationTotalHours": "Ore totali",
+    "hourCalendarHint": "L'inserimento in ore richiede un calendario orario (orari di lavoro)."
   },
   "properties": {
     "task": "Attività",
@@ -93,7 +99,8 @@
     "calendar": "Calendario",
     "calendarProject": "Calendario del progetto",
     "priority": "Priorità di livellamento",
-    "levelingDelay": "Ritardo di livellamento"
+    "levelingDelay": "Ritardo di livellamento",
+    "durationHours": "Durata (ore)"
   },
   "relations": {
     "title": "Relazioni",

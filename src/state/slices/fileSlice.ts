@@ -14,6 +14,7 @@ import { isTauri } from '@/utils/platform';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
 import { promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
+import { fileHasHourData } from '@/services/subdayIo';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad). */
@@ -116,6 +117,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
         promoteProjectCalendarToLibrary(s);
+        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
+        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
+        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
         s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
         s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
@@ -292,6 +296,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
         promoteProjectCalendarToLibrary(s);
+        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
+        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
+        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
         s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
         s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
@@ -334,6 +341,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
         // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
         promoteProjectCalendarToLibrary(s);
+        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
+        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
+        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
         s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
         s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;

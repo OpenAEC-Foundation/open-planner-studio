@@ -44,6 +44,18 @@
     "themeLight": "فاتح",
     "themeHighContrast": "تباين عالٍ",
     "timeline": "الجدول الزمني / التكبير",
+    "hourPlanningSection": "التخطيط بالساعات",
+    "enableHourPlanning": "تفعيل التخطيط بالساعات",
+    "enableHourPlanningHint": "يفعّل الجدولة بالساعة/الدقيقة: مقياس زمني بالساعات، ونوبات عمل ذات نطاقات أوقات عمل، وأشرطة مهام دقيقة على مستوى الساعة. عند الإيقاف ⇐ يبقى التطبيق مبنيًا بالكامل على اليوم كما كان.",
+    "allowMixedDayHour": "السماح بالتخطيط المختلط باليوم/الساعة",
+    "durationDisplay": "عرض المدة",
+    "durationDisplayAuto": "تلقائي (وحدة خاصة بكل مهمة)",
+    "durationDisplayDays": "أيام دائمًا",
+    "durationDisplayHours": "ساعات دائمًا",
+    "barSplitMode": "أشرطة المهام عند الانقطاعات",
+    "barSplitNever": "عدم التقسيم أبدًا",
+    "barSplitSelection": "تقسيم عند التحديد",
+    "barSplitAlways": "تقسيم دائمًا",
     "enableQuarterHourZoom": "إظهار ربع الساعة عند التكبير الشديد",
     "weekStartDay": "يبدأ الأسبوع في",
     "weekStartMonday": "الإثنين",
@@ -74,7 +86,9 @@
     "documentChrome": "نمط تبديل المستندات",
     "documentChromeTabs": "علامات تبويب أفقية",
     "documentChromeRail": "علامات تبويب رأسية",
-    "documentChromeSwitcher": "حبة"
+    "documentChromeSwitcher": "حبة",
+    "dateNotation": "تنسيق التاريخ",
+    "dateNotationHint": "يحدد كيفية عرض التواريخ في جميع أنحاء التطبيق. الملفات والحسابات لا تتأثر."
   },
   "confirm": {
     "newProject": "إنشاء مشروع جديد؟ ستفقد التغييرات غير المحفوظة.",
@@ -303,8 +317,6 @@
         "midden": "الوسط",
         "zuid": "الجنوب"
       },
-      "winterStop": "توقف شتوي ثابت",
-      "winterHint": "توقف ثابت؛ أيام الصقيع الفعلية تُحدَّد لاحقًا من بيانات الطقس",
       "preview": "{{n}} عطلة رسمية، {{from}}–{{to}}",
       "bouwvakHint": "تواريخ إرشادية — تحقق منها لدى Bouwend Nederland",
       "apply": "إنشاء",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "متواصل (24/7)",
       "weekdays": "الإثنين–الجمعة"
+    },
+    "shift": {
+      "day": "وردية نهارية",
+      "twoShift": "ورديتان",
+      "threeShift": "ثلاث ورديات",
+      "night": "وردية ليلية",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "أوقات العمل",
+      "derivedHpd": "الساعات/اليوم المشتقة:",
+      "saveAsPreset": "حفظ كإعداد مسبق…",
+      "perWeekday": "تعيين لكل يوم من أيام الأسبوع…",
+      "presetNamePlaceholder": "اسم الإعداد المسبق",
+      "addBand": "إضافة نطاق",
+      "copyToAll": "نسخ إلى جميع أيام العمل",
+      "noBands": "غير عامل",
+      "nextDay": "اليوم التالي",
+      "shiftPreset": "الوردية",
+      "breakHint": "الفجوة بين نطاقين هي استراحة — عدّل الأوقات حسب الحاجة."
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "أساسي",
       "secondary": "ثانوي"
     }
+  },
+  "dateInput": {
+    "placeholder": "يوم-شهر-سنة",
+    "invalid": "تاريخ غير صالح — مثال: 6-7-2026",
+    "group": "التاريخ",
+    "day": "يوم",
+    "month": "شهر",
+    "year": "سنة"
+  },
+  "hourData": {
+    "notice": "يحتوي هذا الملف على تخطيط بالساعات.",
+    "enable": "تفعيل التخطيط بالساعات"
+  },
+  "duration": {
+    "suffixDay": "ي",
+    "suffixHour": "س",
+    "suffixMinute": "د"
   }
 }

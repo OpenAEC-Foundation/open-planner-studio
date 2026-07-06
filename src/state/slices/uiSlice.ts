@@ -57,6 +57,14 @@ export function createDefaultUI(): UIState {
     showFilterDialog: false,
     showLayoutsDialog: false,
     autoCalcCPM: false,
+    dateNotation: 'dmy',
+    // Fase 2.8b (§6.8): urenplanning-defaults — hoofdschakelaar uit, gemengd toegestaan,
+    // duurweergave automatisch, balk-opsplitsing bij selectie.
+    enableHourPlanning: false,
+    allowMixedDayHour: true,
+    durationDisplay: 'auto',
+    barSplitMode: 'selection',
+    hourDataNotice: false,
   };
 }
 

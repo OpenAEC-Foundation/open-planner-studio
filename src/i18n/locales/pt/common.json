@@ -44,6 +44,18 @@
     "themeLight": "Claro",
     "themeHighContrast": "Alto contraste",
     "timeline": "Linha de tempo / Zoom",
+    "hourPlanningSection": "Planeamento por horas",
+    "enableHourPlanning": "Ativar planeamento por horas",
+    "enableHourPlanningHint": "Ativa o escalonamento por hora/minuto: uma escala de tempo horária, turnos com faixas de horário de trabalho e barras de tarefa com precisão à hora. Desativado ⇒ a aplicação permanece totalmente granular por dias, como antes.",
+    "allowMixedDayHour": "Permitir planeamento misto de dias/horas",
+    "durationDisplay": "Exibição da duração",
+    "durationDisplayAuto": "Automática (unidade própria por tarefa)",
+    "durationDisplayDays": "Sempre dias",
+    "durationDisplayHours": "Sempre horas",
+    "barSplitMode": "Barras de tarefa nas interrupções",
+    "barSplitNever": "Nunca dividir",
+    "barSplitSelection": "Dividir ao selecionar",
+    "barSplitAlways": "Dividir sempre",
     "enableQuarterHourZoom": "Mostrar quartos de hora ao ampliar bastante",
     "weekStartDay": "A semana começa em",
     "weekStartMonday": "Segunda-feira",
@@ -74,7 +86,9 @@
     "documentChrome": "Estilo de mudança de documento",
     "documentChromeTabs": "Separadores horizontais",
     "documentChromeRail": "Separadores verticais",
-    "documentChromeSwitcher": "Pílula"
+    "documentChromeSwitcher": "Pílula",
+    "dateNotation": "Formato de data",
+    "dateNotationHint": "Determina como as datas são exibidas em todo o aplicativo. Arquivos e cálculos não são afetados."
   },
   "confirm": {
     "newProject": "Criar novo projeto? As alterações não guardadas serão perdidas.",
@@ -303,8 +317,6 @@
         "midden": "Centro",
         "zuid": "Sul"
       },
-      "winterStop": "Paralisação de inverno fixa",
-      "winterHint": "Paralisação fixa; os dias reais de gelo virão depois, a partir de dados meteorológicos",
       "preview": "{{n}} feriados, {{from}}–{{to}}",
       "bouwvakHint": "Datas indicativas — verifique junto à Bouwend Nederland",
       "apply": "Gerar",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "Contínuo (24/7)",
       "weekdays": "Seg–sex"
+    },
+    "shift": {
+      "day": "Turno diurno",
+      "twoShift": "2 turnos",
+      "threeShift": "3 turnos",
+      "night": "Turno noturno",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Horários de trabalho",
+      "derivedHpd": "Horas/dia derivadas:",
+      "saveAsPreset": "Guardar como predefinição…",
+      "perWeekday": "Definir por dia da semana…",
+      "presetNamePlaceholder": "Nome da predefinição",
+      "addBand": "Adicionar faixa",
+      "copyToAll": "Copiar para todos os dias úteis",
+      "noBands": "Não útil",
+      "nextDay": "dia seguinte",
+      "shiftPreset": "Turno",
+      "breakHint": "Um intervalo entre duas faixas é uma pausa — ajuste os horários conforme necessário."
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "Principal",
       "secondary": "Secundário"
     }
+  },
+  "dateInput": {
+    "placeholder": "dd-mm-aaaa",
+    "invalid": "Data inválida — ex.: 6-7-2026",
+    "group": "Data",
+    "day": "dia",
+    "month": "mês",
+    "year": "ano"
+  },
+  "hourData": {
+    "notice": "Este ficheiro contém planeamento por horas.",
+    "enable": "Ativar planeamento por horas"
+  },
+  "duration": {
+    "suffixDay": "d",
+    "suffixHour": "h",
+    "suffixMinute": "m"
   }
 }

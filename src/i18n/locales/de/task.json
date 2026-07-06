@@ -10,7 +10,9 @@
     "critical": "Kritisch",
     "totalFloat": "Gesamtpuffer",
     "completion": "Fortschritt",
-    "milestone": "Meilenstein"
+    "milestone": "Meilenstein",
+    "hoursPerDayTip": "Std/Tag",
+    "mixedWarning": "Gemischte Kalender – Stunden/Tag je Kalender: {{list}}. Die Dauer wird je Vorgang in eigener Einheit angezeigt."
   },
   "taskType": {
     "CONSTRUCTION": "Bau",
@@ -36,7 +38,11 @@
     "parentTask": "Übergeordnete Aufgabe",
     "noParent": "- Keine (Wurzel) -",
     "milestone": "Meilenstein (Dauer null)",
-    "wbsPlaceholder": "z.B. RB-301"
+    "wbsPlaceholder": "z.B. RB-301",
+    "durationDays": "Tage",
+    "durationHours": "Stunden",
+    "durationTotalHours": "Stunden gesamt",
+    "hourCalendarHint": "Die Stundeneingabe erfordert einen Stundenkalender (Arbeitszeiten)."
   },
   "properties": {
     "task": "Aufgabe",
@@ -93,7 +99,8 @@
     "calendar": "Kalender",
     "calendarProject": "Projektkalender",
     "priority": "Abgleich-Priorität",
-    "levelingDelay": "Abgleich-Verzögerung"
+    "levelingDelay": "Abgleich-Verzögerung",
+    "durationHours": "Dauer (Stunden)"
   },
   "relations": {
     "title": "Beziehungen",

@@ -10,7 +10,9 @@
     "critical": "Kritiek",
     "totalFloat": "Totale speling",
     "completion": "Voortgang",
-    "milestone": "Mijlpaal"
+    "milestone": "Mijlpaal",
+    "hoursPerDayTip": "u/dag",
+    "mixedWarning": "Gemengde kalenders — uren/dag per kalender: {{list}}. Duur wordt per taak in de eigen eenheid getoond."
   },
   "taskType": {
     "CONSTRUCTION": "Bouw",
@@ -36,7 +38,11 @@
     "parentTask": "Bovenliggende taak",
     "noParent": "- Geen (root) -",
     "milestone": "Mijlpaal (nul duur)",
-    "wbsPlaceholder": "bijv. RB-301"
+    "wbsPlaceholder": "bijv. RB-301",
+    "durationDays": "Dagen",
+    "durationHours": "Uren",
+    "durationTotalHours": "Totaal uren",
+    "hourCalendarHint": "Uren-invoer vereist een uur-kalender (werktijden)."
   },
   "properties": {
     "task": "Taak",
@@ -93,7 +99,8 @@
     "calendar": "Kalender",
     "calendarProject": "Projectkalender",
     "priority": "Nivelleer-prioriteit",
-    "levelingDelay": "Nivelleer-vertraging"
+    "levelingDelay": "Nivelleer-vertraging",
+    "durationHours": "Duur (uren)"
   },
   "relations": {
     "title": "Relaties",

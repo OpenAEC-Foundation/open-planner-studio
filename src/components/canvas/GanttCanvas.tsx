@@ -7,7 +7,11 @@ import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { setGanttChartWidth, setGanttScrollBounds } from '@/utils/ganttViewport';
 import { MiniMap } from './MiniMap';
-import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import { diffDays, formatDate, parseDate, parseInstant, formatInstant, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import { effectiveCalendarByTask } from '@/services/subdayIo';
+import { durationSuffixesFrom } from '@/utils/taskDuration';
+import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
+import { useDisplayDate } from '@/utils/displayDate';
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
@@ -36,6 +40,8 @@ interface DragState {
   originalStart: string;
   originalFinish: string;
   originalDuration: number;
+  /** Fase 2.8b (§6.3): originele `durationMinutes` bij drag-start (uur-taken); undefined = dag-taak. */
+  originalDurationMinutes?: number;
 }
 
 interface TooltipState {
@@ -77,10 +83,15 @@ export function GanttCanvas() {
 
   const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const dd = useDisplayDate();
 
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const calendar = useAppStore(s => s.calendar);
+  const calendars = useAppStore(s => s.calendars);
+  const barSplitMode = useAppStore(s => s.ui.barSplitMode);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const view = useAppStore(s => s.view);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
@@ -146,6 +157,17 @@ export function GanttCanvas() {
   const [histoTooltip, setHistoTooltip] = useState<{ x: number; y: number; lines: string[] } | null>(null);
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
+  // Vertaalde duur-eenheid-suffixen voor de duurkolom-weergave (§6.4/§11). Gememoized op taal zodat de
+  // renderer-opts stabiel blijven tussen renders (geen memo-bust per frame).
+  const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fase 2.8b (§6.1/§6.9): effectieve kalender per taak (task.calendarId → bibliotheek, anders de
+  // projectkalender). De renderer leest hieruit per taak uur- vs dag-modus en de banden voor de
+  // balk-opsplitsing. Gememoized zodat er niet per frame een map gebouwd wordt.
+  const effectiveCalById = useMemo(
+    () => effectiveCalendarByTask(tasks, calendar, calendars),
+    [tasks, calendar, calendars],
+  );
 
   // Baseline-overlay-Map uit de actieve baseline (fase 2.6, §6.2): keyed op Task.id (leaf-taken).
   const baselineOverlay = useMemo(() => {
@@ -457,12 +479,17 @@ export function GanttCanvas() {
       columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
+      effectiveCalById,
+      barSplitMode,
+      enableHourPlanning,
+      durationDisplay,
+      durationSuffixes,
     };
 
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes]);
 
   // --- Split view (fase 2.7, §10): secundair tijdvenster met eigen zoom/scrollX; gedeelde
   // rijen + scrollY; geen canvas-taaktabel (taskTableWidth 0) — die tekent alleen links. ---
@@ -511,10 +538,12 @@ export function GanttCanvas() {
       columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
+      effectiveCalById,
+      barSplitMode,
     });
     secondaryRendererRef.current = renderer;
     renderer.render();
-  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay]);
+  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode]);
 
   useEffect(() => {
     if (!splitView) { secondaryRendererRef.current = null; return; }
@@ -782,6 +811,7 @@ export function GanttCanvas() {
         originalStart: hit.task.time.earlyStart || hit.task.time.scheduleStart,
         originalFinish: hit.task.time.earlyFinish || hit.task.time.scheduleFinish,
         originalDuration: hit.task.time.scheduleDuration,
+        originalDurationMinutes: hit.task.time.durationMinutes,
       });
       selectTask(hit.task.id, false);
       return;
@@ -938,8 +968,78 @@ export function GanttCanvas() {
   useEffect(() => {
     if (!dragState) return;
 
+    // Fase 2.8b (§6.3): een UUR-taak (datumstring met tijdcomponent) sleept/rekt op HELE UREN — het
+    // snap-quantum is nooit fijner dan 60 min (kwartier-snap bestaat niet). Slepen muteert
+    // `durationMinutes` (hele minuten); de engine snapt bij de volgende runCPM naar de eerstvolgende
+    // werk-instant (snap op het uur-raster, niet op de banden). Dag-taken houden exact het dag-pad.
+    const isHourDrag = dragState.originalStart.includes('T');
+
+    // Snap-quantum (§6.3): de actieve minor-tier, maar NOOIT fijner dan 60 min (kwartier-snap
+    // bestaat niet). Zo is het quantum bij uur-zoom 1 uur en bij lagere zoom grover (dag/week);
+    // altijd een veelvoud van 60 min ⇒ slepen muteert de duur in HELE uren (§6.4).
+    const minorTier = pickTiers(view.zoom, enableQuarterHourZoom).minor;
+    const quantumMin = Math.max(60, Math.round(TIER_CONFIG[minorTier].stepDays * 1440));
+    const quantumMs = quantumMin * 60000;
+
+    const handleHourDrag = (pixelDelta: number) => {
+      const rawMs = (pixelDelta / view.zoom) * 86400000;
+      const snappedMs = Math.round(rawMs / quantumMs) * quantumMs;
+      if (snappedMs === 0) return;
+      const deltaMin = Math.round(snappedMs / 60000);
+      const origStart = parseInstant(dragState.originalStart);
+      const origFinish = parseInstant(dragState.originalFinish);
+      const baseTime = useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time;
+      // Originele werk-duur bij drag-start; val terug op de klok-span als het veld ontbrak.
+      const origMinutes = dragState.originalDurationMinutes
+        ?? Math.max(60, Math.round((origFinish.getTime() - origStart.getTime()) / 60000));
+
+      if (dragState.edge === 'body') {
+        // Verplaatsen: duur ongewijzigd, start+finish schuiven mee (op het quantum).
+        const newStart = new Date(origStart.getTime() + snappedMs);
+        const newFinish = new Date(origFinish.getTime() + snappedMs);
+        updateTask(dragState.taskId, {
+          time: {
+            ...baseTime,
+            scheduleStart: formatInstant(newStart, 'hour'),
+            scheduleFinish: formatInstant(newFinish, 'hour'),
+            earlyStart: formatInstant(newStart, 'hour'),
+            earlyFinish: formatInstant(newFinish, 'hour'),
+          },
+        });
+      } else if (dragState.edge === 'right') {
+        // Rekken vanaf rechts: duur ± deltaMin HELE werk-uren. De provisionele klok-finish geeft
+        // directe feedback; runCPM snapt daarna op het uur-raster naar de werk-instant.
+        const newMinutes = Math.max(60, origMinutes + deltaMin);
+        const newFinish = new Date(origFinish.getTime() + snappedMs);
+        updateTask(dragState.taskId, {
+          time: {
+            ...baseTime,
+            scheduleFinish: formatInstant(newFinish, 'hour'),
+            earlyFinish: formatInstant(newFinish, 'hour'),
+            durationMinutes: newMinutes,
+          },
+        });
+      } else if (dragState.edge === 'left') {
+        // Rekken vanaf links: start schuift, duur ∓ deltaMin HELE werk-uren (start eerder ⇒ langer).
+        const newMinutes = Math.max(60, origMinutes - deltaMin);
+        const newStart = new Date(origStart.getTime() + snappedMs);
+        updateTask(dragState.taskId, {
+          time: {
+            ...baseTime,
+            scheduleStart: formatInstant(newStart, 'hour'),
+            earlyStart: formatInstant(newStart, 'hour'),
+            durationMinutes: newMinutes,
+          },
+        });
+      }
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
       const pixelDelta = e.clientX - dragState.startX;
+      if (isHourDrag) {
+        handleHourDrag(pixelDelta);
+        return;
+      }
       const daysDelta = Math.round(pixelDelta / view.zoom);
       if (daysDelta === 0) return;
 
@@ -1080,15 +1180,8 @@ export function GanttCanvas() {
   const startDate = project.startDate || formatDate(new Date());
 
   // Format date for tooltip display
-  const formatTooltipDate = (dateStr: string) => {
-    if (!dateStr) return '-';
-    try {
-      const d = parseDate(dateStr);
-      return `${d.getUTCDate().toString().padStart(2, '0')}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}-${d.getUTCFullYear()}`;
-    } catch {
-      return dateStr;
-    }
-  };
+  // Tooltip-datums volgen de datumnotatie-instelling (taak #53); leeg → '-'.
+  const formatTooltipDate = (dateStr: string) => (dateStr ? dd.date(dateStr) : '-');
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

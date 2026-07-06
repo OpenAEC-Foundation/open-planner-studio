@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
-import { UITheme, UI_THEMES, DocumentChromeStyle } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM } from '@/utils/settingsStore';
+import { UITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode } from '@/state/slices/types';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
@@ -39,6 +39,11 @@ export function SettingsPanelContent() {
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
+  const dateNotation = useAppStore(s => s.ui.dateNotation);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
+  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
+  const barSplitMode = useAppStore(s => s.ui.barSplitMode);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
@@ -56,6 +61,32 @@ export function SettingsPanelContent() {
   const applyDocumentChrome = (style: DocumentChromeStyle) => {
     setUI({ documentChromeStyle: style });
     void saveDocumentChromeStyle(style);
+  };
+
+  const applyDateNotation = (notation: DateNotation) => {
+    setUI({ dateNotation: notation });
+    void saveDateNotation(notation);
+  };
+
+  // Fase 2.8b (§6.8): urenplanning-appliers — live toepassen + persisteren, zelfde patroon als boven.
+  const applyEnableHourPlanning = (value: boolean) => {
+    setUI({ enableHourPlanning: value });
+    void saveEnableHourPlanning(value);
+  };
+
+  const applyAllowMixedDayHour = (value: boolean) => {
+    setUI({ allowMixedDayHour: value });
+    void saveAllowMixedDayHour(value);
+  };
+
+  const applyDurationDisplay = (value: DurationDisplay) => {
+    setUI({ durationDisplay: value });
+    void saveDurationDisplay(value);
+  };
+
+  const applyBarSplitMode = (value: BarSplitMode) => {
+    setUI({ barSplitMode: value });
+    void saveBarSplitMode(value);
   };
 
   return (
@@ -120,6 +151,21 @@ export function SettingsPanelContent() {
                   { value: 'switcher', label: t('settings.documentChromeSwitcher') },
                 ]}
               />
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.dateNotation')}</h3>
+              <Select
+                aria-label={t('settings.dateNotation')}
+                value={dateNotation}
+                onChange={v => applyDateNotation(v as DateNotation)}
+                options={[
+                  { value: 'dmy', label: 'dd-mm-jjjj' },
+                  { value: 'mdy', label: 'mm-dd-jjjj' },
+                  { value: 'ymd', label: 'jjjj-mm-dd' },
+                ]}
+              />
+              <p className="scrollzoom-hint">{t('settings.dateNotationHint')}</p>
             </div>
 
             <div className="settings-section">
@@ -199,6 +245,57 @@ export function SettingsPanelContent() {
 
         {activeTab === 'timeline' && (
           <div className="settings-section-list">
+            {/* Fase 2.8b (§6.8): Urenplanning — hoofdschakelaar + 3 sub-instellingen. Alle vier
+                verschijnen op de drie ingangen tegelijk (gedeelde component). De sub-instelling
+                "Gemengd toestaan" is alleen actief als de hoofdschakelaar aan staat. */}
+            <div className="settings-section">
+              <h3>{t('settings.hourPlanningSection')}</h3>
+              <label className="settings-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={enableHourPlanning}
+                  onChange={e => applyEnableHourPlanning(e.target.checked)}
+                />
+                <span>{t('settings.enableHourPlanning')}</span>
+              </label>
+              <p className="scrollzoom-hint">{t('settings.enableHourPlanningHint')}</p>
+              {enableHourPlanning && (
+                <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={allowMixedDayHour}
+                    onChange={e => applyAllowMixedDayHour(e.target.checked)}
+                  />
+                  <span>{t('settings.allowMixedDayHour')}</span>
+                </label>
+              )}
+            </div>
+            <div className="settings-section">
+              <h3>{t('settings.durationDisplay')}</h3>
+              <Select
+                aria-label={t('settings.durationDisplay')}
+                value={durationDisplay}
+                onChange={v => applyDurationDisplay(v as DurationDisplay)}
+                options={[
+                  { value: 'auto', label: t('settings.durationDisplayAuto') },
+                  { value: 'days', label: t('settings.durationDisplayDays') },
+                  { value: 'hours', label: t('settings.durationDisplayHours') },
+                ]}
+              />
+            </div>
+            <div className="settings-section">
+              <h3>{t('settings.barSplitMode')}</h3>
+              <Select
+                aria-label={t('settings.barSplitMode')}
+                value={barSplitMode}
+                onChange={v => applyBarSplitMode(v as BarSplitMode)}
+                options={[
+                  { value: 'never', label: t('settings.barSplitNever') },
+                  { value: 'selection', label: t('settings.barSplitSelection') },
+                  { value: 'always', label: t('settings.barSplitAlways') },
+                ]}
+              />
+            </div>
             <div className="settings-section">
               <h3>{t('settings.weekStartDay')}</h3>
               <Select

@@ -44,16 +44,24 @@ export type MilestoneKind = 'START' | 'FINISH';
 export interface TaskTime {
   durationType: DurationType;
   scheduleDuration: number; // in work days
-  scheduleStart: string;    // ISO 8601
-  scheduleFinish: string;   // ISO 8601
+  /** OPTIONEEL — canonieke duur in integer MINUTEN (fase 2.8b, §3.1). Aanwezig ⇒ bron van
+   *  waarheid; het effectieve `scheduleDuration` is dan de afgeleide `minuten / (effHoursPerDay
+   *  × 60)`. Afwezig ⇒ `scheduleDuration` (werkdagen) is de bron (dag-modus, byte-identiek).
+   *  INVARIANT (Bevinding 2): `durationMinutes` wordt alleen gezet én gerespecteerd wanneer de
+   *  effectieve kalender uur-modus is; op een dag-kalender is sub-dag-duur ongedefinieerd en
+   *  valt `durationDaysOf` ALTIJD terug op `scheduleDuration` (nooit een fractionele dag in
+   *  `addWorkDays`). Zie `src/engine/scheduler/duration.ts`. */
+  durationMinutes?: number;
+  scheduleStart: string;    // ISO 8601 — date-only in dag-modus, datetime in uur-modus
+  scheduleFinish: string;   // ISO 8601 — date-only in dag-modus, datetime in uur-modus
 
   // CPM-computed
   earlyStart: string;
   earlyFinish: string;
   lateStart: string;
   lateFinish: string;
-  freeFloat: number;   // work days
-  totalFloat: number;  // work days
+  freeFloat: number;   // work days (fractioneel in uur-modus, §5.5)
+  totalFloat: number;  // work days (fractioneel in uur-modus, §5.5)
   isCritical: boolean;
 
   // Tracking
@@ -61,6 +69,8 @@ export interface TaskTime {
   actualFinish?: string;
   actualDuration?: number;
   remainingTime?: number;
+  /** OPTIONEEL — resterend werk in integer MINUTEN (uur-modus voortgang, fase 2.8b §5.3). */
+  remainingMinutes?: number;
   completion: number; // 0.0 - 1.0
 }
 

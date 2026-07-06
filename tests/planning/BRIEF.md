@@ -97,3 +97,47 @@ Velden:
 - Reken elke verwachte waarde met de hand na uit de theorie + de werkdag-tabel. Wees expliciet en correct.
 - Schrijf **geldige JSON** (geen commentaar in het bestand) naar het opgegeven pad.
 ```
+
+---
+
+## Fase 2.8b — UUR-batterij (`cases-hours.json`): minuut-tabel per referentiekalender (§8.3/§9)
+
+Uur-cases rekenen op **minuut-granulariteit**. De harness accepteert (golf 3, §8.1):
+- **`tasks[].dur`** als string met **hele eenheden**: `"12u"`/`"4h"`/`"2d 4u"`/`"90m"`/`"1d"` ⇒ `durationMinutes`
+  (via `parseDuration` in de **effectieve kalender**: een dag = `hoursPerDay × 60` min). Een getal blijft werkdagen (dag-modus).
+- **Uur-kalenders** via `calendar.workTime`/`calendars[].workTime` (banden). Afwezig ⇒ dag-kalender (byte-identiek).
+- **`links[].lag`** als string (`"4u"`/`"24u"`) ⇒ `lagMinutes` (in de **voorganger**-kalender); `lagMinutes` mag ook
+  rechtstreeks (negatief = lead, bv. `-120`). `lagUnit: "ELAPSEDTIME"` telt 24/7-klokminuten.
+- **`statusDate`** mag een datetime zijn; **`tasks[].remainingMinutes`** stuurt uur-voortgang; **`durationMinutesRaw`**
+  zet `durationMinutes` rauw (voor de dag-kalender-invariant, §8.3).
+- **Verwachtingen**: uur-taak ⇒ `"YYYY-MM-DDTHH:mm"`; dag-taak ⇒ `"YYYY-MM-DD"` (exacte string-gelijkheid).
+  `tf`/`ff` in eigen-kalender-**werkdagen** (fractioneel in uur-modus: `minuten / (hoursPerDay×60)`; bv. 240m op H8 = `0.5`).
+
+### Referentiedagen (geverifieerd met `date`)
+ma **6** juli 2026 · di 7 · wo 8 · do 9 · vr 10 · za 11 · zo 12 · ma **13** · di 14. Anker uur-cases = **2026-07-06** (ma).
+
+### Grens-conventie (§4.1)
+Band = **`[start, end)`**. `nextWorkInstant(t)` = `t` als `t ∈ [bandstart, bandeind)`, anders de eerstvolgende bandstart;
+een instant **exact op een band-eind** is *niet* werkend (werk stopt daar) ⇒ snapt naar de volgende bandstart.
+`prevWorkInstant(t)` = `t` als `t ∈ (bandstart, bandeind]`. **FS-opvolger** = `nextWorkInstant(exclusieve pred-finish) + lag`,
+lag telt in de **voorganger**-kalender. `addWorkMinutes` telt vanaf de startinstant en springt bij een bandgrens naar de
+volgende bandstart. Wrap-band (over middernacht) hoort bij de **startweekdag**; een holiday onderdrukt alleen de shift die
+op díé dag **start** (de staart van de vorige nacht loopt door — Bevinding 9).
+
+### Minuut-tabel (minuten-vanaf-middernacht)
+`00:00=0 · 02:00=120 · 06:00=360 · 08:00=480 · 10:00=600 · 12:00=720 · 12:30=750 · 14:00=840 · 14:30=870 ·`
+`16:00=960 · 16:30=990 · 18:00=1080 · 22:00=1320 · 24:00/volgende-00:00=1440 · wrap-eind 06:00=1800`
+
+| Kalender | workDays | Banden per werkdag (min) | Netto/dag | `hoursPerDay` | Werk-intervallen (voorbeeld) |
+|---|---|---|---|---|---|
+| **H8**      | ma-vr | `[480,960)` (08:00-16:00) | 480 | 8 | `[ma 08:00, ma 16:00)`, `[di 08:00, di 16:00)`, … weekend-gat … `[ma13 08:00, …)` |
+| **H-break** | ma-vr | `[480,720)`+`[750,990)` (08-12 + 12:30-16:30) | 480 | 8 | lunch 12:00-12:30 niet-werkend; 6u vanaf 08:00 ⇒ **14:30** |
+| **Night**   | ma-vr | `[1320,1800)` (22:00→**06:00** wrap) | 480 | 8 | `[ma 22:00, di 06:00)`, `[di 22:00, wo 06:00)`, … `[vr 22:00, za 06:00)`; za/zo geen shift |
+| **24/7**    | ma-zo | `[0,1440)` (00:00-24:00) alle 7 | 1440 | 24 | naadloos, geen gaten; WORKTIME-lag ≡ ELAPSEDTIME-lag |
+| **H10**     | ma-vr | `[480,1080)` (08:00-18:00) | 600 | 10 | `[ma 08:00, ma 18:00)`, … (dag = **600** min) |
+| **DagMV**   | ma-vr | — (geen `workTime`) | — | opgegeven | bevroren dag-lussen; EF = laatste werkdag (date-only) |
+
+**Cross-modus (§4.3):** dag-voorganger levert `predDoneAt = (EF-dag + 1) @ 00:00`; uur-voorganger levert `EF`-instant.
+Uur-opvolger consumeert `nextWorkInstant(predDoneAt)`; dag-opvolger `nextWorkDay(ceilToWorkDay(predDoneAt))`
+(`ceilToWorkDay` = zelfde dag op 00:00, anders de volgende). `durationMinutes` op een **dag-kalender** wordt genegeerd
+(`scheduleDuration` wint, Bevinding 2). Voorbeeld-narekening: 720m op H8 vanaf ma 08:00 = ma 480 (08-16) + di 240 (08-12) ⇒ **di 12:00**.

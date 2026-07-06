@@ -8,6 +8,9 @@ import {
 } from '@/engine/scheduler/ResourceLeveler';
 import { createSnapshot } from '../snapshot';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
+import { effectiveCalendarOf } from '@/utils/taskDuration';
+import { isHourCalendar } from '@/services/subdayIo';
+import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import type { AppSlice } from './types';
 
 export interface ScheduleSlice {
@@ -79,12 +82,23 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
           task.time.totalFloat = r.totalFloat;
           task.time.freeFloat = r.freeFloat;
           task.time.isCritical = r.isCritical;
-          // BEWUST GEEN scheduleStart/scheduleFinish meer terugschrijven: scheduleStart is de
-          // GEPLANDE anker (waarop de forward-pass voortbouwt) en moet stabiel blijven. Schreven
-          // we de berekende earlyStart erin terug, dan bleef een taak na het verwijderen van een
-          // relatie op z'n oude (gedrifte) datum hangen i.p.v. terug naar het anker te gaan.
-          // De berekende planning leeft in earlyStart/earlyFinish; alle weergave/export gebruikt
+          // BEWUST GEEN scheduleStart-ANKER-drift: scheduleStart is de GEPLANDE anker (waarop de
+          // forward-pass voortbouwt, `CPMSolver` snapt hierop) en mag NIET de berekende earlyStart
+          // worden — anders bleef een taak na het verwijderen van een relatie op z'n gedrifte datum
+          // hangen. De berekende planning leeft in earlyStart/earlyFinish; weergave/export gebruikt
           // `earlyStart || scheduleStart`.
+          //
+          // UUR-MODUS (fase 2.8b, FIX golf, §2.4): scheduleStart/scheduleFinish moeten wél een
+          // datetime-representatie dragen i.p.v. date-only/verouderd te blijven. scheduleFinish volgt
+          // de berekende finish (geen anker ⇒ veilig; nooit meer stale na een duur-wijziging);
+          // scheduleStart houdt zijn ANKER-instant maar wordt idempotent naar de datetime-vorm
+          // genormaliseerd (parseInstant→formatInstant('hour') verandert de instant niet, dus geen
+          // drift). Dag-taken blijven ONGEMOEID ⇒ byte-identiek (`formatDate`, verify:examples).
+          const effCal = effectiveCalendarOf(task, s.calendar, s.calendars);
+          if (isHourCalendar(effCal)) {
+            task.time.scheduleFinish = r.earlyFinish;
+            task.time.scheduleStart = formatInstant(parseInstant(task.time.scheduleStart), 'hour');
+          }
         }
       }
 

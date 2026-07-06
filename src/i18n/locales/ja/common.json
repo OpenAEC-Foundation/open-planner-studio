@@ -44,6 +44,18 @@
     "themeLight": "ライト",
     "themeHighContrast": "ハイコントラスト",
     "timeline": "タイムライン／ズーム",
+    "hourPlanningSection": "時間計画",
+    "enableHourPlanning": "時間計画を有効にする",
+    "enableHourPlanningHint": "時間・分単位のスケジューリングを有効にします：時間の時間軸、稼働時間帯を持つシフト、時間単位で正確なタスクバー。オフの場合 ⇒ アプリは従来どおり完全に日単位のままです。",
+    "allowMixedDayHour": "日単位と時間単位の混在計画を許可する",
+    "durationDisplay": "期間の表示",
+    "durationDisplayAuto": "自動（タスクごとの単位）",
+    "durationDisplayDays": "常に日",
+    "durationDisplayHours": "常に時間",
+    "barSplitMode": "中断時のタスクバー",
+    "barSplitNever": "分割しない",
+    "barSplitSelection": "選択時に分割",
+    "barSplitAlways": "常に分割",
     "enableQuarterHourZoom": "拡大時に15分単位を表示する",
     "weekStartDay": "週の開始日",
     "weekStartMonday": "月曜日",
@@ -74,7 +86,9 @@
     "documentChrome": "ドキュメント切り替えスタイル",
     "documentChromeTabs": "横タブ",
     "documentChromeRail": "縦タブ",
-    "documentChromeSwitcher": "ピル"
+    "documentChromeSwitcher": "ピル",
+    "dateNotation": "日付形式",
+    "dateNotationHint": "アプリ全体で日付をどのように表示するかを決定します。ファイルや計算には影響しません。"
   },
   "confirm": {
     "newProject": "新しいプロジェクトを作成しますか？保存されていない変更は失われます。",
@@ -303,8 +317,6 @@
         "midden": "中部",
         "zuid": "南部"
       },
-      "winterStop": "固定冬季休業",
-      "winterHint": "固定の休業期間。実際の凍結日は後で気象データから決定されます",
       "preview": "{{n}} 件の祝日、{{from}}〜{{to}}",
       "bouwvakHint": "目安の日付です — Bouwend Nederlandで確認してください",
       "apply": "生成",
@@ -327,6 +339,26 @@
     "preset": {
       "continuous": "常時（24/7）",
       "weekdays": "月〜金"
+    },
+    "shift": {
+      "day": "日勤",
+      "twoShift": "2交代",
+      "threeShift": "3交代",
+      "night": "夜勤",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "稼働時間",
+      "derivedHpd": "算出された時間/日：",
+      "saveAsPreset": "プリセットとして保存…",
+      "perWeekday": "曜日ごとに設定…",
+      "presetNamePlaceholder": "プリセット名",
+      "addBand": "帯を追加",
+      "copyToAll": "すべての稼働日にコピー",
+      "noBands": "非稼働",
+      "nextDay": "翌日",
+      "shiftPreset": "シフト",
+      "breakHint": "2つの時間帯の間の空きは休憩です。必要に応じて時刻を調整してください。"
     }
   },
   "view": {
@@ -400,5 +432,22 @@
       "primary": "プライマリ",
       "secondary": "セカンダリ"
     }
+  },
+  "dateInput": {
+    "placeholder": "日-月-年",
+    "invalid": "無効な日付 — 例: 6-7-2026",
+    "group": "日付",
+    "day": "日",
+    "month": "月",
+    "year": "年"
+  },
+  "hourData": {
+    "notice": "このファイルには時間単位の計画が含まれています。",
+    "enable": "時間計画を有効にする"
+  },
+  "duration": {
+    "suffixDay": "日",
+    "suffixHour": "時",
+    "suffixMinute": "分"
   }
 }

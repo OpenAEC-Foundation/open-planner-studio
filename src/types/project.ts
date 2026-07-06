@@ -20,9 +20,9 @@ export interface Project {
    * omloop worden niet stilzwijgend herschreven).
    */
   wbsAutoNumber?: boolean;
-  /** P6 "data date" (fase 2.6): de grens verleden/toekomst (dag-granulair). undefined = geen
-   *  statusdatum ⇒ gedrag exact als vóór 2.6. Gezet ⇒ remaining werk kan niet vóór deze dag starten. */
-  statusDate?: string;    // ISO date (dag-granulair)
+  /** P6 "data date" (fase 2.6): de grens verleden/toekomst. undefined = geen statusdatum ⇒ gedrag
+   *  exact als vóór 2.6. Gezet ⇒ remaining werk kan niet vóór deze dag starten. */
+  statusDate?: string;    // ISO — date-only in dag-modus; mag datetime zijn in uur-modus (fase 2.8b, §3.4)
   /** Voortgangs-scheduling-modus (fase 2.6). undefined ⇒ RETAINED_LOGIC. Documentinstelling. */
   progressMode?: ProgressMode;
 }

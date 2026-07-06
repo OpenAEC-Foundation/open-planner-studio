@@ -10,7 +10,9 @@
     "critical": "크리티컬",
     "totalFloat": "총 여유",
     "completion": "진행률",
-    "milestone": "마일스톤"
+    "milestone": "마일스톤",
+    "hoursPerDayTip": "시간/일",
+    "mixedWarning": "혼합 캘린더 — 캘린더별 시간/일: {{list}}. 기간은 작업별 고유 단위로 표시됩니다."
   },
   "taskType": {
     "CONSTRUCTION": "건설",
@@ -36,7 +38,11 @@
     "parentTask": "상위 작업",
     "noParent": "- 없음 (루트) -",
     "milestone": "마일스톤 (기간 없음)",
-    "wbsPlaceholder": "예: RB-301"
+    "wbsPlaceholder": "예: RB-301",
+    "durationDays": "일",
+    "durationHours": "시간",
+    "durationTotalHours": "총 시간",
+    "hourCalendarHint": "시간 입력에는 시간 달력(근무 시간)이 필요합니다."
   },
   "properties": {
     "task": "작업",
@@ -93,7 +99,8 @@
     "calendar": "달력",
     "calendarProject": "프로젝트 달력",
     "priority": "평준화 우선순위",
-    "levelingDelay": "평준화 지연"
+    "levelingDelay": "평준화 지연",
+    "durationHours": "기간(시간)"
   },
   "relations": {
     "title": "관계",

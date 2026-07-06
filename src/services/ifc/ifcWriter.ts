@@ -6,6 +6,9 @@ import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
+import {
+  effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
+} from '@/services/subdayIo';
 
 /** Fase 2.5-default: `Task.priority` (0-1000, default 500) en `Task.levelingDelay` (undefined/0
  *  = geen nivellering) — golden-rule-guards hieronder schrijven alleen bij afwijking. */
@@ -41,8 +44,25 @@ function ifcDateTime(iso: string): string {
   return `'${iso}'`;
 }
 
+/** Fase 2.8b (§7.1) — datetime van een UUR-taak: de echte tijd-van-de-dag blijft behouden (geen
+ *  synthetisch `T07`-anker). De store bewaart uur-instants als `YYYY-MM-DDTHH:mm` (16 tekens,
+ *  `formatInstant`); vul aan tot seconden voor een spec-conforme IfcDateTime. Een (onverwacht)
+ *  date-only bij een uur-taak = middernacht. */
+function ifcDateTimeHour(iso: string): string {
+  if (!iso) return '$';
+  if (iso.length === 10) return `'${iso}T00:00:00'`;
+  if (iso.length === 16) return `'${iso}:00'`; // YYYY-MM-DDTHH:mm → +seconden
+  return `'${iso}'`;
+}
+
 function ifcDuration(days: number): string {
   return `'P0Y0M${days}D'`;
+}
+
+/** Fase 2.8b (§7.1) — duur van een UUR-taak in minuten als ISO-8601-duur met tijdcomponent
+ *  (`PT{h}H{m}M0S`); minuut-precies en byte-stabiel terug te lezen (`isoDurationToMinutes`). */
+function ifcDurationHour(minutes: number): string {
+  return `'${minutesToIsoDuration(minutes)}'`;
 }
 
 function ifcBool(b: boolean): string {
@@ -148,9 +168,12 @@ export function writeIFC(
   addLine(ctx, '_agg_plan_sched',
     `IFCRELAGGREGATES(${ifcStr(ifcGuid('agg_ps'))},#${ownerHistId},$,$,#${workPlanId},(${schedRefs}))`);
 
-  // Tasks
+  // Tasks. Fase 2.8b (§7.1): per taak de effectieve kalender bepaalt uur- vs dag-modus
+  // (uur ⇒ echte tijden + minuut-duren; dag ⇒ byte-identiek `T07:00:00` + `P0Y0M{days}D`).
+  const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
   for (const task of tasks) {
-    writeTask(ctx, task, ownerHistId, project.statusDate);
+    const effCal = effCalByTask.get(task.id);
+    writeTask(ctx, task, ownerHistId, project.statusDate, isHourCalendar(effCal), effCal?.hoursPerDay ?? calendar.hoursPerDay);
   }
 
   // WBS nesting
@@ -466,14 +489,43 @@ function writeBaselineMeta(
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_baselines'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
+/** Fase 2.8b (§7.1) — `IfcWorkCalendar.PredefinedType` uit `calendar.shift`. CONVENTIE: buildingSMART
+ *  definieert de dag/avond/nacht-semantiek van `.FIRSTSHIFT./.SECONDSHIFT./.THIRDSHIFT.` NIET
+ *  (Rapport B §4.5, UNVERIFIED) — OPS gebruikt ze als ploeg-classificatie. Afwezig/FIRST ⇒
+ *  `.FIRSTSHIFT.` (byte-identiek met bestaande bestanden). */
+function shiftToPredefinedType(shift: WorkCalendar['shift']): string {
+  switch (shift) {
+    case 'SECOND': return '.SECONDSHIFT.';
+    case 'THIRD': return '.THIRDSHIFT.';
+    case 'USERDEFINED': return '.USERDEFINED.';
+    default: return '.FIRSTSHIFT.';
+  }
+}
+
 function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number, key: string = '_calendar'): number {
   // Work time recurrence (weekdays)
   const dayNums = cal.workDays.join(',');
-  const startTime = `${String(cal.workStartHour).padStart(2, '0')}:00:00`;
-  const endTime = `${String(cal.workEndHour).padStart(2, '0')}:00:00`;
-
-  const timePeriodId = addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${startTime}','${endTime}')`);
-  const recurrenceId = addLine(ctx, '_recurrence', `IFCRECURRENCEPATTERN(.WEEKLY.,$,(${dayNums}),$,$,$,$,(#${timePeriodId}))`);
+  let timePeriodRefs: string;
+  if (cal.workTime) {
+    // Fase 2.8b (§7.1): UUR-kalender ⇒ `TimePeriods` als LIJST van per-dag-banden
+    // (`IfcRecurrencePattern.TimePeriods` is native een lijst). Eén band ⇒ ongewijzigde output
+    // (byte-identiek). IFC's enkele recurrence draagt één set periodes voor alle DayComponent-dagen;
+    // we schrijven de banden van de eerste werkdag (uniform-over-de-week-conventie, §3.2). Een
+    // wrap-band (`end > 1440`) emitteert het eind als tijd-van-de-dag (`end % 1440`), waaruit de
+    // reader de wrap herkent (`end ≤ start`).
+    const firstDay = cal.workDays[0] as 1 | 2 | 3 | 4 | 5 | 6 | 7 | undefined;
+    const bands = (firstDay && cal.workTime.byWeekday[firstDay]) || [];
+    const ids = bands.map((b) =>
+      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end)}')`),
+    );
+    timePeriodRefs = ids.map((i) => `#${i}`).join(',');
+  } else {
+    const startTime = `${String(cal.workStartHour).padStart(2, '0')}:00:00`;
+    const endTime = `${String(cal.workEndHour).padStart(2, '0')}:00:00`;
+    const timePeriodId = addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${startTime}','${endTime}')`);
+    timePeriodRefs = `#${timePeriodId}`;
+  }
+  const recurrenceId = addLine(ctx, '_recurrence', `IFCRECURRENCEPATTERN(.WEEKLY.,$,(${dayNums}),$,$,$,$,(${timePeriodRefs}))`);
   const workTimeId = addLine(ctx, '_worktime', `IFCWORKTIME('Standaard werkweek',.PREDICTED.,$,#${recurrenceId},$,$)`);
 
   // Holidays as exception times
@@ -485,8 +537,10 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
   }
 
   const exceptStr = holidayRefs.length > 0 ? `(${holidayRefs.join(',')})` : '$';
+  // ObjectType (arg 4): alleen een label bij USERDEFINED-ploeg; anders `$` (byte-identiek).
+  const objectType = cal.shift === 'USERDEFINED' ? ifcStr('USERDEFINED') : '$';
   return addLine(ctx, key,
-    `IFCWORKCALENDAR(${ifcStr(ifcGuid(cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},$,(#${workTimeId}),${exceptStr},.FIRSTSHIFT.)`);
+    `IFCWORKCALENDAR(${ifcStr(ifcGuid(cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},${objectType},(#${workTimeId}),${exceptStr},${shiftToPredefinedType(cal.shift)})`);
 }
 
 /**
@@ -514,10 +568,6 @@ function writeCalendarGenerationMeta(
   if (gen.breakChoice) {
     props.push(addLine(ctx, `_opscal_break_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('BreakChoice',$,IFCLABEL(${ifcStr(gen.breakChoice)}),$)`));
-  }
-  if (gen.winterStop) {
-    props.push(addLine(ctx, `_opscal_winter_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('WinterStop',$,IFCBOOLEAN(.T.),$)`));
   }
   props.push(addLine(ctx, `_opscal_from_${cal.id}`,
     `IFCPROPERTYSINGLEVALUE('GeneratedFromYear',$,IFCINTEGER(${gen.generatedFromYear}),$)`));
@@ -572,21 +622,33 @@ function writeCalendarLibrary(
   }
 }
 
-function writeTask(ctx: WriteContext, task: Task, ownerHistId: number, statusDate?: string): void {
+function writeTask(
+  ctx: WriteContext, task: Task, ownerHistId: number, statusDate: string | undefined,
+  isHour: boolean, effHoursPerDay: number,
+): void {
   const t = task.time;
+  // Fase 2.8b (§7.1): in UUR-modus dragen de datetimes de echte tijd-van-de-dag en is de duur
+  // minuut-precies (`durationMinutes`, bron van waarheid; anders afgeleid uit de dag-duur). In
+  // DAG-modus valt alles terug op het bestaande `T07:00:00`/`P0Y0M{days}D`-pad ⇒ byte-identiek.
+  const dt = isHour ? ifcDateTimeHour : ifcDateTime;
+  const schedDurArg = isHour ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay)) : ifcDuration(t.scheduleDuration);
   // Voortgang (fase 2.6, §8.1) — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
   // hieronder): 14 StatusTime, 15 ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime,
   // 19 Completion. Golden rule: een taak zonder actuals houdt 14-18 op `$` ⇒ byte-identieke
   // round-trip van bestaande bestanden. StatusTime = de projectbrede statusdatum (peildatum),
   // alleen op taken die daadwerkelijk actuals dragen.
   const hasActuals = !!(t.actualStart || t.actualFinish);
-  const statusTimeArg = hasActuals && statusDate ? ifcDateTime(statusDate) : '$';
+  const statusTimeArg = hasActuals && statusDate ? dt(statusDate) : '$';
   const actualDurationArg = t.actualDuration != null ? ifcDuration(t.actualDuration) : '$';
-  const actualStartArg = t.actualStart ? ifcDateTime(t.actualStart) : '$';
-  const actualFinishArg = t.actualFinish ? ifcDateTime(t.actualFinish) : '$';
-  const remainingArg = t.remainingTime != null ? ifcDuration(t.remainingTime) : '$';
+  const actualStartArg = t.actualStart ? dt(t.actualStart) : '$';
+  const actualFinishArg = t.actualFinish ? dt(t.actualFinish) : '$';
+  // RemainingTime: uur-modus schrijft de resterende MINUTEN (`remainingMinutes`, §5.3); anders de
+  // dag-duur `remainingTime` (byte-identiek).
+  const remainingArg = isHour && t.remainingMinutes != null
+    ? ifcDurationHour(t.remainingMinutes)
+    : t.remainingTime != null ? ifcDuration(t.remainingTime) : '$';
   const taskTimeId = addLine(ctx, `tasktime_${task.id}`,
-    `IFCTASKTIME(${ifcStr(task.name + ' Time')},.PREDICTED.,$,.${t.durationType}.,${ifcDuration(t.scheduleDuration)},${ifcDateTime(t.scheduleStart)},${ifcDateTime(t.scheduleFinish)},${ifcDateTime(t.earlyStart)},${ifcDateTime(t.earlyFinish)},${ifcDateTime(t.lateStart)},${ifcDateTime(t.lateFinish)},${ifcDuration(t.freeFloat)},${ifcDuration(t.totalFloat)},${ifcBool(t.isCritical)},${statusTimeArg},${actualDurationArg},${actualStartArg},${actualFinishArg},${remainingArg},${t.completion.toFixed(1)})`);
+    `IFCTASKTIME(${ifcStr(task.name + ' Time')},.PREDICTED.,$,.${t.durationType}.,${schedDurArg},${dt(t.scheduleStart)},${dt(t.scheduleFinish)},${dt(t.earlyStart)},${dt(t.earlyFinish)},${dt(t.lateStart)},${dt(t.lateFinish)},${ifcDuration(t.freeFloat)},${ifcDuration(t.totalFloat)},${ifcBool(t.isCritical)},${statusTimeArg},${actualDurationArg},${actualStartArg},${actualFinishArg},${remainingArg},${t.completion.toFixed(1)})`);
 
   const ifcTaskType = `.${task.taskType}.`;
   // Spec-conforme 13-args-IFCTASK (L1-fix). IFC 4.3-attribuutvolgorde (0-based STEP-index,
@@ -627,6 +689,11 @@ function ifcLagValue(seq: Sequence): string {
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     return `IFCRATIOMEASURE(${seq.lagPercent / 100})`;
   }
+  // Fase 2.8b (§7.1): uur-lag (`lagMinutes`, bron van waarheid) als minuut-precieze IFCDURATION met
+  // tijdcomponent; de reader herkent de `T`-component en zet `lagMinutes` terug.
+  if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
+    return `IFCDURATION('${minutesToIsoDuration(seq.lagMinutes)}')`;
+  }
   const d = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
   return d < 0 ? `IFCDURATION('-P${-d}D')` : `IFCDURATION('P${d}D')`;
 }
@@ -634,7 +701,8 @@ function ifcLagValue(seq: Sequence): string {
 function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): void {
   let lagRef = '$';
   const hasPercent = typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent);
-  if (seq.lagDays !== 0 || hasPercent) {
+  const hasMinutes = typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes) && seq.lagMinutes !== 0;
+  if (seq.lagDays !== 0 || hasPercent || hasMinutes) {
     // Conform IFC 4.3: IFCLAGTIME(Name, DataOrigin, UserDefinedDataOrigin, LagValue, DurationType)
     // — LagValue als getypte select in arg 4, DurationType (.WORKTIME./.ELAPSEDTIME.) in arg 5.
     // (Oudere app-versies hadden die twee omgewisseld; de reader kent beide lay-outs.)

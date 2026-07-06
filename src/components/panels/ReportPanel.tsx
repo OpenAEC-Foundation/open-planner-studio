@@ -17,6 +17,7 @@ export function ReportPanel() {
   const calendar = useAppStore(s => s.calendar);
   const project = useAppStore(s => s.project);
   const projectName = project.name;
+  const dateNotation = useAppStore(s => s.ui.dateNotation);
 
   const [reportType, setReportType] = useState<'gantt' | 'milestones' | 'variance'>('gantt');
   const [showCritical, setShowCritical] = useState(true);
@@ -73,6 +74,7 @@ export function ReportPanel() {
     projectStartDate: project.startDate,
     projectEndDate: project.endDate,
     projectAuthor: project.author,
+    dateNotation,
   };
 
   // Re-render the canvas whenever data or options change
@@ -81,7 +83,7 @@ export function ReportPanel() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     renderPrintCanvas(canvas, tasks, sequences, calendar, projectName, options);
-  }, [reportType, tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation, companyName, locale]);
+  }, [reportType, tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation, companyName, locale, dateNotation]);
 
   const milestoneRows = useMilestoneRows();
   const printMilestoneReport = useMilestoneReportPrint(projectName);

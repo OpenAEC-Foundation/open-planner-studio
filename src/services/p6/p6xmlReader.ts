@@ -2,11 +2,20 @@ import { Task, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar, Holiday, createDefaultCalendar } from '@/types/calendar';
+import { WorkCalendar, Holiday, WorkTimeBands, createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import { P6_DAY_NAMES } from './p6xmlWriter';
+import {
+  canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isSubDayMinutes, workDaysFromBands,
+} from '@/services/subdayIo';
+
+/** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
+const P6_TIME_ANCHOR = '08:00:00';
+
+/** Gecanonicaliseerde banden per gelezen kalender + afwijking (a/b), voor de uur-modus-beslissing. */
+const p6BandRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
 
 // Omgekeerde curve-/contour-naammapping (spiegel van p6xmlWriter's P6_CURVE_TO_NAME, §8.3).
 const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
@@ -74,29 +83,47 @@ function p6HoursToDays(hours: number, hoursPerDay: number): number {
  *  het LAATST gevonden werktijdblok (één scalar per kalender, bestaande aanname). Golden rule:
  *  geen `<StandardWorkWeek>` (ander tool / oud bestand) ⇒ lege workDays, aanroeper valt terug op
  *  de `createDefaultCalendar()`-defaults. */
-function parseP6StandardWorkWeek(calEl: Element): { workDays: number[]; workStartHour?: number; workEndHour?: number } {
+function parseP6StandardWorkWeek(calEl: Element): {
+  workDays: number[]; workStartHour?: number; workEndHour?: number;
+  rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>;
+} {
   const wwEl = calEl.getElementsByTagName('StandardWorkWeek')[0];
   const workDays: number[] = [];
   let workStartHour: number | undefined;
   let workEndHour: number | undefined;
-  if (!wwEl) return { workDays };
+  const rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
+  if (!wwEl) return { workDays, rawByWeekday };
 
   for (let i = 0; i < wwEl.children.length; i++) {
     const dayEl = wwEl.children[i];
     if (dayEl.localName !== 'StandardWorkHour' && dayEl.tagName !== 'StandardWorkHour') continue;
     const dayName = getElementText(dayEl, 'DayOfWeek');
     const isoDay = P6_DAY_NAMES.indexOf(dayName); // index == ISO-dagnummer (array begint met '' op 0)
-    const wt = dayEl.getElementsByTagName('WorkTime')[0];
-    if (!wt || isoDay <= 0) continue;
+    // Fase 2.8b (§7.2): ALLE <WorkTime>-banden van deze dag lezen (nu las de reader alleen het
+    // láátste blok als scalar). Elke band → minuten-vanaf-middernacht.
+    const wts = dayEl.getElementsByTagName('WorkTime');
+    const dayBands: { start: number; end: number }[] = [];
+    for (let k = 0; k < wts.length; k++) {
+      const wt = wts[k];
+      const s = clockToMinutes(getElementText(wt, 'Start'));
+      const e = clockToMinutes(getElementText(wt, 'Finish'));
+      if (s == null || e == null) continue;
+      dayBands.push({ start: s, end: e });
+      // Scalar (laatst gevonden blok, bestaand gedrag) voor het dag-pad.
+      workStartHour = Math.floor(s / 60);
+      workEndHour = Math.floor(e / 60);
+    }
+    if (dayBands.length === 0 || isoDay <= 0) continue;
     workDays.push(isoDay);
-    const start = getElementText(wt, 'Start');
-    const finish = getElementText(wt, 'Finish');
-    const startHour = parseInt(start.split(':')[0], 10);
-    const finishHour = parseInt(finish.split(':')[0], 10);
-    if (Number.isFinite(startHour)) workStartHour = startHour;
-    if (Number.isFinite(finishHour)) workEndHour = finishHour;
+    rawByWeekday[isoDay as 1] = dayBands;
   }
-  return { workDays, workStartHour, workEndHour };
+  return { workDays, workStartHour, workEndHour, rawByWeekday };
+}
+
+/** Canonicaliseer de rauwe banden en registreer ze + de afwijking (a/b) op de kalender (§7.2). */
+function registerP6Bands(cal: WorkCalendar, rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>): void {
+  const { bands, deviates } = canonicalizeBands(rawByWeekday);
+  p6BandRegistry.set(cal, { canonical: bands, deviates });
 }
 
 /** Feestdagen/exceptions teruglezen (fase 2.8a, §8.3, spiegel van `writeHolidayOrExceptions`). */
@@ -171,6 +198,7 @@ export function readP6XML(content: string): {
     if (ww.workDays.length > 0) cal.workDays = ww.workDays.sort((a, b) => a - b);
     if (ww.workStartHour !== undefined) cal.workStartHour = ww.workStartHour;
     if (ww.workEndHour !== undefined) cal.workEndHour = ww.workEndHour;
+    registerP6Bands(cal, ww.rawByWeekday);
     const holidays = parseP6HolidayOrExceptions(calEl);
     if (holidays.length > 0) cal.holidays = holidays;
     calObjIdToId.set(objId, cal.id);
@@ -299,6 +327,39 @@ export function readP6XML(content: string): {
   const activityElements = getAllByLocalName(doc, 'Activity');
   const actObjIdToId = new Map<number, string>();
   const leafTasks: Task[] = [];
+  const taskHourById = new Map<string, boolean>(); // taak-id → uur-modus (voor lag-eenheid, §7.2)
+
+  // Fase 2.8b (§7.2): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
+  // taken. `calById` mapt zowel de projectkalender als de bibliotheek-kalenders; `effCalIdOf` geeft
+  // per activity de effectieve kalender-id (CalendarObjectId 1/ontbrekend = projectkalender).
+  const calById = new Map<string, WorkCalendar>();
+  calById.set(calendar.id, calendar);
+  for (const c of resourceCalendars) calById.set(c.id, c);
+  const effCalIdOf = (calObjId: number): string => (calObjId > 1 && calObjIdToId.get(calObjId)) || calendar.id;
+
+  const cSignalCalIds = new Set<string>();
+  for (const actEl of activityElements) {
+    const calId = effCalIdOf(getElementInt(actEl, 'CalendarObjectId', 1));
+    const cal = calById.get(calId);
+    if (!cal) continue;
+    const durHours = getElementFloat(actEl, 'PlannedDuration');
+    const durSignal = durHours > 0 && isSubDayMinutes(Math.round(durHours * 60), cal.hoursPerDay);
+    const dateSignal = hasNonAnchorTime(getElementText(actEl, 'PlannedStartDate'), P6_TIME_ANCHOR)
+      || hasNonAnchorTime(getElementText(actEl, 'PlannedFinishDate'), P6_TIME_ANCHOR);
+    if (durSignal || dateSignal) cSignalCalIds.add(calId);
+  }
+  const hourModeCalIds = new Set<string>();
+  for (const [id, cal] of calById) {
+    const info = p6BandRegistry.get(cal);
+    if (!((info?.deviates ?? false) || cSignalCalIds.has(id))) continue;
+    hourModeCalIds.add(id);
+    if (cal.workTime) continue;
+    const bands = info && workDaysFromBands(info.canonical).length > 0 ? info.canonical : synthP6BandsFromScalar(cal);
+    cal.workTime = bands;
+    const wd = workDaysFromBands(bands);
+    if (wd.length > 0) cal.workDays = wd;
+    cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
+  }
 
   for (const actEl of activityElements) {
     const objId = getElementInt(actEl, 'ObjectId', -1);
@@ -312,8 +373,8 @@ export function readP6XML(content: string): {
     const p6Type = getElementText(actEl, 'Type');
     const p6Status = getElementText(actEl, 'Status');
     const plannedDuration = getElementFloat(actEl, 'PlannedDuration');
-    const plannedStart = parseP6Date(getElementText(actEl, 'PlannedStartDate'));
-    const plannedFinish = parseP6Date(getElementText(actEl, 'PlannedFinishDate'));
+    const plannedStartRaw = getElementText(actEl, 'PlannedStartDate');
+    const plannedFinishRaw = getElementText(actEl, 'PlannedFinishDate');
     const percentComplete = getElementFloat(actEl, 'PhysicalPercentComplete');
     const description = getElementText(actEl, 'Description');
     const wbsObjId = getElementInt(actEl, 'WBSObjectId', -1);
@@ -322,15 +383,28 @@ export function readP6XML(content: string): {
     const calObjId = getElementInt(actEl, 'CalendarObjectId', 1);
     const taskCalendarId = calObjId > 1 ? calObjIdToId.get(calObjId) : undefined;
 
+    // Fase 2.8b (§7.2): uur- vs dag-modus voor deze taak.
+    const effCalId = effCalIdOf(calObjId);
+    const isHour = hourModeCalIds.has(effCalId);
+    const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
+    // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
+    const parseP6Instant = (raw: string): string => raw ? formatInstant(parseInstant(raw), 'hour') : parseP6Date(raw);
+    const plannedStart = isHour ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
+    const plannedFinish = isHour ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
+
     // Actuals (fase 2.6, §9.2) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
     const actualFinishRaw = getElementText(actEl, 'ActualFinishDate');
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
-    const actualStart = actualStartRaw ? parseP6Date(actualStartRaw) : undefined;
-    const actualFinish = actualFinishRaw ? parseP6Date(actualFinishRaw) : undefined;
-    const remainingTime = remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), hoursPerDay) : undefined;
+    const actualStart = actualStartRaw ? (isHour ? parseP6Instant(actualStartRaw) : parseP6Date(actualStartRaw)) : undefined;
+    const actualFinish = actualFinishRaw ? (isHour ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
+    // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding, §7.2); dag ⇒ het bestaande pad.
+    const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
+    const remainingTime = !isHour && remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), hoursPerDay) : undefined;
 
-    const durationDays = p6HoursToDays(plannedDuration, hoursPerDay);
+    // Duur: uur ⇒ minuten (`uren × 60`) als bron van waarheid; dag ⇒ `Math.round(uren/hpd)` (bestaand).
+    const durationMinutes = isHour ? Math.round(plannedDuration * 60) : undefined;
+    const durationDays = isHour ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0) : p6HoursToDays(plannedDuration, hoursPerDay);
     const isMilestone = p6Type.includes('Milestone');
     // Fase 2.4: P6 onderscheidt Start/Finish Milestone — bewaar de soort expliciet.
     const milestoneKind = !isMilestone ? undefined
@@ -358,6 +432,7 @@ export function readP6XML(content: string): {
       time: {
         durationType: 'WORKTIME',
         scheduleDuration: durationDays,
+        ...(durationMinutes != null ? { durationMinutes } : {}),
         scheduleStart: plannedStart,
         scheduleFinish: plannedFinish,
         earlyStart: plannedStart,
@@ -370,6 +445,7 @@ export function readP6XML(content: string): {
         actualStart,
         actualFinish,
         remainingTime,
+        ...(remainingMinutes != null ? { remainingMinutes } : {}),
         completion: percentComplete / 100,
       },
       resourceIds: [],
@@ -377,6 +453,7 @@ export function readP6XML(content: string): {
     };
 
     leafTasks.push(task);
+    taskHourById.set(id, isHour);
 
     // Add to parent's children
     if (parentId) {
@@ -409,13 +486,18 @@ export function readP6XML(content: string): {
     const p6Type = getElementText(relEl, 'Type');
     const lagHours = getElementFloat(relEl, 'Lag');
 
-    sequences.push({
+    // Fase 2.8b (§7.2): een uur-opvolger ⇒ lag minuut-precies (`uren × 60`, geen dag-afronding);
+    // anders het bestaande dag-pad.
+    const lagHourMode = taskHourById.get(succId) ?? false;
+    const seq: Sequence = {
       id: generateId('seq'),
       predecessorId: predId,
       successorId: succId,
       type: p6TypeToSequenceType(p6Type),
-      lagDays: p6HoursToDays(lagHours, hoursPerDay),
-    });
+      lagDays: lagHourMode ? 0 : p6HoursToDays(lagHours, hoursPerDay),
+    };
+    if (lagHourMode) seq.lagMinutes = Math.round(lagHours * 60);
+    sequences.push(seq);
   }
 
   // ResourceAssignments (fase 2.5, §8.1)
@@ -492,6 +574,14 @@ function parseProject(doc: Document): Project {
   return project;
 }
 
+/** Enkelband-kalender uit de scalar `workStartHour/EndHour` (fallback bij (c)-promotie zonder banden). */
+function synthP6BandsFromScalar(cal: WorkCalendar): WorkTimeBands {
+  const raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
+  const band = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
+  for (const wd of cal.workDays) if (wd >= 1 && wd <= 7) raw[wd as 1] = [{ ...band }];
+  return canonicalizeBands(raw).bands;
+}
+
 function parseCalendar(doc: Document): WorkCalendar {
   const calElements = getAllByLocalName(doc, 'Calendar');
   if (calElements.length === 0) return createDefaultCalendar();
@@ -512,6 +602,7 @@ function parseCalendar(doc: Document): WorkCalendar {
   if (ww.workDays.length > 0) calendar.workDays = ww.workDays.sort((a, b) => a - b);
   if (ww.workStartHour !== undefined) calendar.workStartHour = ww.workStartHour;
   if (ww.workEndHour !== undefined) calendar.workEndHour = ww.workEndHour;
+  registerP6Bands(calendar, ww.rawByWeekday);
 
   const holidays = parseP6HolidayOrExceptions(calEl);
   if (holidays.length > 0) calendar.holidays = holidays;
