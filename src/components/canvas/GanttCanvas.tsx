@@ -9,6 +9,7 @@ import { setGanttChartWidth, setGanttScrollBounds } from '@/utils/ganttViewport'
 import { MiniMap } from './MiniMap';
 import { diffDays, formatDate, parseDate, parseInstant, formatInstant, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { effectiveCalendarByTask } from '@/services/subdayIo';
+import { durationSuffixesFrom } from '@/utils/taskDuration';
 import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/utils/displayDate';
 import { createDefaultTaskTime, Task } from '@/types/task';
@@ -156,6 +157,9 @@ export function GanttCanvas() {
   const [histoTooltip, setHistoTooltip] = useState<{ x: number; y: number; lines: string[] } | null>(null);
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
+  // Vertaalde duur-eenheid-suffixen voor de duurkolom-weergave (§6.4/§11). Gememoized op taal zodat de
+  // renderer-opts stabiel blijven tussen renders (geen memo-bust per frame).
+  const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fase 2.8b (§6.1/§6.9): effectieve kalender per taak (task.calendarId → bibliotheek, anders de
   // projectkalender). De renderer leest hieruit per taak uur- vs dag-modus en de banden voor de
@@ -479,12 +483,13 @@ export function GanttCanvas() {
       barSplitMode,
       enableHourPlanning,
       durationDisplay,
+      durationSuffixes,
     };
 
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes]);
 
   // --- Split view (fase 2.7, §10): secundair tijdvenster met eigen zoom/scrollX; gedeelde
   // rijen + scrollY; geen canvas-taaktabel (taskTableWidth 0) — die tekent alleen links. ---

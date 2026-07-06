@@ -9,7 +9,7 @@ import type { ColumnConfig, FieldRef, BuiltinFieldKey } from '@/state/slices/typ
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { useDisplayDate } from '@/utils/displayDate';
-import { effectiveCalendarOf, effHoursPerDay, formatTaskDurationDisplay, detectMixedCalendars } from '@/utils/taskDuration';
+import { effectiveCalendarOf, effHoursPerDay, formatTaskDurationDisplay, detectMixedCalendars, durationSuffixesFrom } from '@/utils/taskDuration';
 import { isHourCalendar } from '@/services/subdayIo';
 import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { AlertTriangle } from 'lucide-react';
@@ -118,10 +118,16 @@ export function TableEditor() {
     [tasks, projectCal, calendars],
   );
   const showMixedWarning = enableHourPlanning && mixed.mixed;
+  // Vertaalde eenheid-suffixen voor de WEERGAVE (§6.4/§11); edit-seeds houden bewust de parsebare vorm.
+  const durationSuffixes = durationSuffixesFrom(tCommon);
+  // Per-kalender-hoursPerDay-tooltip (§6.5): "Naam: 8 u/dag, …" — toont waaróm de eenheden mengen.
+  const mixedTooltipList = mixed.calendars
+    .map(c => `${c.name}: ${c.hpd} ${t('table.hoursPerDayTip')}`)
+    .join(', ');
 
   // Geformatteerde duurweergave (§6.5) + parseerbare edit-seed (uur-taak ⇒ uur-vorm via parseDuration).
   const durationDisplayValue = (task: Task): string =>
-    formatTaskDurationDisplay(task, effectiveCalendarOf(task, projectCal, calendars), durationDisplay, enableHourPlanning);
+    formatTaskDurationDisplay(task, effectiveCalendarOf(task, projectCal, calendars), durationDisplay, enableHourPlanning, durationSuffixes);
   const durationEditSeed = (task: Task): string => {
     const cal = effectiveCalendarOf(task, projectCal, calendars);
     if (enableHourPlanning && isHourCalendar(cal) && !task.isMilestone) {
@@ -469,7 +475,7 @@ export function TableEditor() {
                 <span
                   className="ml-1 shrink-0 inline-flex text-amber-500"
                   data-ops-mixed-warning
-                  title={t('table.mixedWarning', { hpds: mixed.hpds.join(', ') })}
+                  title={t('table.mixedWarning', { list: mixedTooltipList })}
                 >
                   <AlertTriangle size={12} />
                 </span>

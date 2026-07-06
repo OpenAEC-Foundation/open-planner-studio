@@ -1,8 +1,18 @@
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import type { TFunction } from 'i18next';
 import { isHourCalendar, deriveHoursPerDay } from '@/services/subdayIo';
-import { formatDuration, type DurationUnit } from '@/utils/durationFormat';
+import { formatDuration, type DurationUnit, type DurationSuffixes } from '@/utils/durationFormat';
 import type { DurationDisplay } from '@/state/slices/types';
+
+/**
+ * Bouw de vertaalde duur-suffixen uit de i18n-`t` (common-namespace). Licht adapter-laagje zodat de PURE
+ * engine-util `durationFormat.ts` geen i18n hoeft te importeren (§6.4/§11): de UI reikt de vertaalde
+ * afkortingen als parameter aan. Uitsluitend voor de WEERGAVE; edit-seeds houden de default (parsebare) vorm.
+ */
+export function durationSuffixesFrom(t: TFunction<'common'>): DurationSuffixes {
+  return { day: t('duration.suffixDay'), hour: t('duration.suffixHour'), minute: t('duration.suffixMinute') };
+}
 
 /**
  * UI-zijde duur-helpers (fase 2.8b, §6.4/§6.5). Spiegelen de engine-helpers
@@ -52,10 +62,11 @@ export function formatTaskDurationDisplay(
   cal: WorkCalendar,
   display: DurationDisplay,
   enableHourPlanning: boolean,
+  suffixes?: DurationSuffixes,
 ): string {
   if (!enableHourPlanning) return `${task.isMilestone ? 0 : task.time.scheduleDuration}`;
   if (task.isMilestone) return '0';
-  return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), unitFor(display));
+  return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), unitFor(display), suffixes);
 }
 
 /**
@@ -67,14 +78,25 @@ export function detectMixedCalendars(
   tasks: Task[],
   projectCal: WorkCalendar,
   library: WorkCalendar[],
-): { mixed: boolean; hpds: number[]; hasDay: boolean; hasHour: boolean } {
+): {
+  mixed: boolean;
+  hpds: number[];
+  hasDay: boolean;
+  hasHour: boolean;
+  /** De feitelijk gebruikte kalenders (project + taak-kalenders), voor een per-kalender-hoursPerDay-tooltip. */
+  calendars: { id: string; name: string; hpd: number; isHour: boolean }[];
+} {
   const hpdSet = new Set<number>();
   let hasDay = false;
   let hasHour = false;
+  const seen = new Map<string, { id: string; name: string; hpd: number; isHour: boolean }>();
   const consider = (cal: WorkCalendar) => {
-    hpdSet.add(effHoursPerDay(cal));
-    if (isHourCalendar(cal)) hasHour = true;
+    const hpd = effHoursPerDay(cal);
+    hpdSet.add(hpd);
+    const hour = isHourCalendar(cal);
+    if (hour) hasHour = true;
     else hasDay = true;
+    if (!seen.has(cal.id)) seen.set(cal.id, { id: cal.id, name: cal.name, hpd, isHour: hour });
   };
   consider(projectCal);
   for (const t of tasks) {
@@ -82,6 +104,8 @@ export function detectMixedCalendars(
     consider(effectiveCalendarOf(t, projectCal, library));
   }
   const hpds = [...hpdSet].sort((a, b) => a - b);
+  // §6.5: waarschuw zodra het project duur-eenheden mengt — óf verschillende effectieve daglengtes
+  // (`hpds.length > 1`), óf dag- én uur-taken tegelijk (`hasDay && hasHour`, óók bij gelijke hoursPerDay).
   const mixed = hpds.length > 1 || (hasDay && hasHour);
-  return { mixed, hpds, hasDay, hasHour };
+  return { mixed, hpds, hasDay, hasHour, calendars: [...seen.values()] };
 }

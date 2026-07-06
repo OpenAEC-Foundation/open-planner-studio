@@ -5,7 +5,7 @@ import { parseDate, parseInstant, formatDate, addCalendarDays, diffCalendarDays,
 import { WorkCalendar } from '@/types/calendar';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
-import { formatDuration } from '@/utils/durationFormat';
+import { formatDuration, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
@@ -63,6 +63,8 @@ export interface GanttRenderOptions {
   enableHourPlanning?: boolean;
   /** Fase 2.8b (§6.5): Duurweergave-instelling voor de duurkolom (auto/dagen/uren). */
   durationDisplay?: DurationDisplay;
+  /** Fase 2.8b (§6.4/§11): vertaalde eenheid-afkortingen voor de duurkolom-WEERGAVE. Afwezig ⇒ NL d/u/m. */
+  durationSuffixes?: DurationSuffixes;
 }
 
 // Read theme colors from CSS variables on the document element
@@ -166,7 +168,7 @@ export class GanttRenderer {
     if (task.isMilestone) return '0d';
     if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}d`;
     const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto');
+    return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', this.opts.durationSuffixes);
   }
 
   /** Convert a date (with optional sub-day precision) to X position on canvas */

@@ -18,6 +18,21 @@
 export type DurationUnit = 'days' | 'hours' | 'auto';
 
 /**
+ * Vertaalde eenheid-afkortingen voor de WEERGAVE (fase 2.8b QA-golf, §6.4/§11 open punt). De engine-laag
+ * (`durationFormat.ts`) blijft PUUR — geen i18n-import; de UI geeft de vertaalde suffixen als parameter door
+ * (licht adapter-laagje, `durationSuffixesFrom(t)` in `taskDuration.ts`). Default = NL `d`/`u`/`m`, zodat
+ * bestaande aanroepers (harness-checks, edit-seeds die weer PARSEBAAR moeten zijn) byte-identiek blijven.
+ */
+export interface DurationSuffixes {
+  day: string;
+  hour: string;
+  minute: string;
+}
+
+/** Default-suffixen (NL, tevens de PARSEBARE vorm) — invoer blijft taalonafhankelijk d/u/h/m (§6.4). */
+export const DEFAULT_DURATION_SUFFIXES: DurationSuffixes = { day: 'd', hour: 'u', minute: 'm' };
+
+/**
  * Parse een duur-invoer naar integer MINUTEN, of `null` bij een parse-fout.
  *
  * Geldig:  "3d", "20u", "20h", "2d 4u", "2d4h", "90m", en een naakt geheel getal ("5" = 5
@@ -62,33 +77,35 @@ export function parseDuration(input: string, effHoursPerDay: number): number | n
  * - `'hours'` ⇒ als hele uren + resterende minuten: `"20u"`, `"1u 30m"`, `"45m"`.
  * - `'auto'`  ⇒ hele dagen ⇒ dag-vorm, anders uur-vorm.
  *
- * Suffixen zijn hier NL (`d`/`u`/`m`); UI-i18n van de eenheid gebeurt in een latere golf.
+ * De eenheid-afkortingen komen via `suffixes` binnen (default NL `d`/`u`/`m`); zo blijft deze util PUUR
+ * (geen i18n-import) terwijl de UI de vertaalde suffixen kan doorgeven (§6.4/§11).
  */
 export function formatDuration(
   minutes: number,
   effHoursPerDay: number,
   unit: DurationUnit = 'auto',
+  suffixes: DurationSuffixes = DEFAULT_DURATION_SUFFIXES,
 ): string {
   const minPerDay = effHoursPerDay * 60;
 
   if (unit === 'days') {
     const days = minPerDay > 0 ? minutes / minPerDay : 0;
-    return `${trimNumber(days)}d`;
+    return `${trimNumber(days)}${suffixes.day}`;
   }
 
   if (unit === 'hours') {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    if (m === 0) return `${h}u`;
-    if (h === 0) return `${m}m`;
-    return `${h}u ${m}m`;
+    if (m === 0) return `${h}${suffixes.hour}`;
+    if (h === 0) return `${m}${suffixes.minute}`;
+    return `${h}${suffixes.hour} ${m}${suffixes.minute}`;
   }
 
   // 'auto': hele dagen ⇒ dag-vorm; anders uur-vorm.
   if (minPerDay > 0 && minutes % minPerDay === 0) {
-    return `${minutes / minPerDay}d`;
+    return `${minutes / minPerDay}${suffixes.day}`;
   }
-  return formatDuration(minutes, effHoursPerDay, 'hours');
+  return formatDuration(minutes, effHoursPerDay, 'hours', suffixes);
 }
 
 /** Compacte getal-weergave: tot 4 decimalen, trailing nullen weg (3 → "3", 0.8 → "0.8"). */
