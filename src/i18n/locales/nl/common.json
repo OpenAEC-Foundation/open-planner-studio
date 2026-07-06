@@ -74,7 +74,9 @@
     "documentChrome": "Documentwissel-stijl",
     "documentChromeTabs": "Horizontale tabbladen",
     "documentChromeRail": "Verticale tabbladen",
-    "documentChromeSwitcher": "Pil"
+    "documentChromeSwitcher": "Pil",
+    "dateNotation": "Datumnotatie",
+    "dateNotationHint": "Bepaalt hoe datums overal in de app worden getoond. Bestanden en berekeningen blijven ongewijzigd."
   },
   "confirm": {
     "newProject": "Nieuw project aanmaken? Niet-opgeslagen wijzigingen gaan verloren.",

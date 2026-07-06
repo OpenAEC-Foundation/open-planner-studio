@@ -74,7 +74,9 @@
     "documentChrome": "Dokumentwechsel-Stil",
     "documentChromeTabs": "Horizontale Registerkarten",
     "documentChromeRail": "Vertikale Registerkarten",
-    "documentChromeSwitcher": "Pille"
+    "documentChromeSwitcher": "Pille",
+    "dateNotation": "Datumsformat",
+    "dateNotationHint": "Legt fest, wie Datumsangaben überall in der App angezeigt werden. Dateien und Berechnungen bleiben unverändert."
   },
   "confirm": {
     "newProject": "Neues Projekt erstellen? Nicht gespeicherte Änderungen gehen verloren.",

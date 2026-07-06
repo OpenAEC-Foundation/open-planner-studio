@@ -74,7 +74,9 @@
     "documentChrome": "Stile di cambio documento",
     "documentChromeTabs": "Schede orizzontali",
     "documentChromeRail": "Schede verticali",
-    "documentChromeSwitcher": "Pillola"
+    "documentChromeSwitcher": "Pillola",
+    "dateNotation": "Formato data",
+    "dateNotationHint": "Determina come vengono visualizzate le date in tutta l'app. File e calcoli non vengono modificati."
   },
   "confirm": {
     "newProject": "Creare un nuovo progetto? Le modifiche non salvate andranno perse.",

@@ -7,7 +7,9 @@ import type {
   WheelFunction,
   DocumentChromeStyle,
   Layout,
+  DateNotation,
 } from '@/state/slices/types';
+import { DATE_NOTATIONS } from '@/state/slices/types';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
@@ -252,6 +254,18 @@ export async function loadAutoCalcCPM(): Promise<boolean | undefined> {
 
 export async function saveAutoCalcCPM(value: boolean): Promise<void> {
   await setSetting('autoCalcCPM', value);
+}
+
+// Datumnotatie (taak #53): app-instelling, dus WEL onder de 3-plekken-regel (tandwiel,
+// Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Ontbrekende of
+// corrupte sleutel ⇒ undefined → de store houdt de default 'dmy' (dd-mm-jjjj), geen reset.
+export async function loadDateNotation(): Promise<DateNotation | undefined> {
+  const v = await getSetting<DateNotation>('dateNotation');
+  return v && DATE_NOTATIONS.includes(v) ? v : undefined;
+}
+
+export async function saveDateNotation(value: DateNotation): Promise<void> {
+  await setSetting('dateNotation', value);
 }
 
 export async function loadLastLayoutId(): Promise<string | null> {

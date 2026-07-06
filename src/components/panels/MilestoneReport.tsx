@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import { displayDate, useDisplayDate } from '@/utils/displayDate';
 
 /**
  * Mijlpalen-overzicht (fase 2.4): tabelrapport over alle mijlpalen — soort,
@@ -59,6 +60,7 @@ const STATUS_COLOR: Record<MilestoneRow['status'], string> = {
 export function MilestoneReport() {
   const { t } = useTranslation('report');
   const rows = useMilestoneRows();
+  const dd = useDisplayDate();
 
   return (
     <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
@@ -80,8 +82,8 @@ export function MilestoneReport() {
             <td className="px-2 py-1.5">{r.wbs}</td>
             <td className="px-2 py-1.5">{r.mandatory ? '◆ ' : ''}{r.name}</td>
             <td className="px-2 py-1.5">{t(`milestoneReport.kind_${r.kind}`)}</td>
-            <td className="px-2 py-1.5">{r.date}</td>
-            <td className="px-2 py-1.5">{r.guardDate || '—'}</td>
+            <td className="px-2 py-1.5">{dd.date(r.date)}</td>
+            <td className="px-2 py-1.5">{dd.date(r.guardDate) || '—'}</td>
             <td className="px-2 py-1.5 text-right" style={r.float !== undefined && r.float < 0 ? { color: '#DC2626', fontWeight: 600 } : undefined}>
               {r.float === undefined ? '—' : r.float}
             </td>
@@ -102,6 +104,7 @@ export function MilestoneReport() {
 export function useMilestoneReportPrint(projectName: string): () => void {
   const { t } = useTranslation('report');
   const rows = useMilestoneRows();
+  const notation = useAppStore(s => s.ui.dateNotation);
 
   return useCallback(() => {
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -111,8 +114,8 @@ export function useMilestoneReportPrint(projectName: string): () => void {
       <td>${esc(r.wbs)}</td>
       <td>${r.mandatory ? '◆ ' : ''}${esc(r.name)}</td>
       <td>${esc(t(`milestoneReport.kind_${r.kind}`))}</td>
-      <td>${esc(r.date)}</td>
-      <td>${esc(r.guardDate || '—')}</td>
+      <td>${esc(displayDate(r.date, notation))}</td>
+      <td>${esc(displayDate(r.guardDate, notation) || '—')}</td>
       <td style="text-align:right;${r.float !== undefined && r.float < 0 ? 'color:#DC2626;font-weight:600;' : ''}">${r.float === undefined ? '—' : r.float}</td>
       <td>${r.mandatory ? esc(t('milestoneReport.yes')) : ''}</td>
       <td style="color:${STATUS_COLOR[r.status]};font-weight:600;">${esc(t(`milestoneReport.status_${r.status}`))}</td>
@@ -132,10 +135,10 @@ export function useMilestoneReportPrint(projectName: string): () => void {
 </style>
 </head><body>
 <h1>${esc(t('milestoneReport.title'))}</h1>
-<p class="sub">${esc(projectName)} — ${new Date().toISOString().slice(0, 10)}</p>
+<p class="sub">${esc(projectName)} — ${esc(displayDate(new Date().toISOString().slice(0, 10), notation))}</p>
 <table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>
 <script>window.onload=function(){window.print();}</script>
 </body></html>`);
     w.document.close();
-  }, [rows, t, projectName]);
+  }, [rows, t, projectName, notation]);
 }

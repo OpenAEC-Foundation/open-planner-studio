@@ -74,7 +74,9 @@
     "documentChrome": "Document switch style",
     "documentChromeTabs": "Horizontal tabs",
     "documentChromeRail": "Vertical tabs",
-    "documentChromeSwitcher": "Pill"
+    "documentChromeSwitcher": "Pill",
+    "dateNotation": "Date format",
+    "dateNotationHint": "Determines how dates are displayed everywhere in the app. Files and calculations are unaffected."
   },
   "confirm": {
     "newProject": "Create new project? Unsaved changes will be lost.",

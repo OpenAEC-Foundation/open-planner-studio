@@ -8,6 +8,7 @@ import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { setGanttChartWidth, setGanttScrollBounds } from '@/utils/ganttViewport';
 import { MiniMap } from './MiniMap';
 import { diffDays, formatDate, parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import { useDisplayDate } from '@/utils/displayDate';
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { ContextMenu } from './ContextMenu';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
@@ -77,6 +78,7 @@ export function GanttCanvas() {
 
   const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const dd = useDisplayDate();
 
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
@@ -1080,15 +1082,8 @@ export function GanttCanvas() {
   const startDate = project.startDate || formatDate(new Date());
 
   // Format date for tooltip display
-  const formatTooltipDate = (dateStr: string) => {
-    if (!dateStr) return '-';
-    try {
-      const d = parseDate(dateStr);
-      return `${d.getUTCDate().toString().padStart(2, '0')}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}-${d.getUTCFullYear()}`;
-    } catch {
-      return dateStr;
-    }
-  };
+  // Tooltip-datums volgen de datumnotatie-instelling (taak #53); leeg → '-'.
+  const formatTooltipDate = (dateStr: string) => (dateStr ? dd.date(dateStr) : '-');
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

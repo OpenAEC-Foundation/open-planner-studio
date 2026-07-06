@@ -74,7 +74,9 @@
     "documentChrome": "سبک تعویض سند",
     "documentChromeTabs": "زبانه‌های افقی",
     "documentChromeRail": "زبانه‌های عمودی",
-    "documentChromeSwitcher": "قرص"
+    "documentChromeSwitcher": "قرص",
+    "dateNotation": "قالب تاریخ",
+    "dateNotationHint": "نحوه نمایش تاریخ‌ها را در سراسر برنامه تعیین می‌کند. فایل‌ها و محاسبات تغییر نمی‌کنند."
   },
   "confirm": {
     "newProject": "پروژه جدید ایجاد شود؟ تغییرات ذخیره‌نشده از بین خواهند رفت.",

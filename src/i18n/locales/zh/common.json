@@ -74,7 +74,9 @@
     "documentChrome": "文档切换样式",
     "documentChromeTabs": "横向标签页",
     "documentChromeRail": "纵向标签页",
-    "documentChromeSwitcher": "胶囊"
+    "documentChromeSwitcher": "胶囊",
+    "dateNotation": "日期格式",
+    "dateNotationHint": "决定日期在整个应用中的显示方式。文件和计算不受影响。"
   },
   "confirm": {
     "newProject": "创建新项目？未保存的更改将丢失。",

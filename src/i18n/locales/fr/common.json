@@ -74,7 +74,9 @@
     "documentChrome": "Style de changement de document",
     "documentChromeTabs": "Onglets horizontaux",
     "documentChromeRail": "Onglets verticaux",
-    "documentChromeSwitcher": "Pastille"
+    "documentChromeSwitcher": "Pastille",
+    "dateNotation": "Format de date",
+    "dateNotationHint": "Détermine l'affichage des dates dans toute l'application. Les fichiers et les calculs ne sont pas affectés."
   },
   "confirm": {
     "newProject": "Créer un nouveau projet ? Les modifications non enregistrées seront perdues.",

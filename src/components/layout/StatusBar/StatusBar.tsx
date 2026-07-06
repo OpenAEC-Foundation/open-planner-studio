@@ -2,6 +2,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Terminal } from 'lucide-react';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
+import { useDisplayDate } from '@/utils/displayDate';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -15,6 +16,7 @@ export function StatusBar() {
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
   const setUI = useAppStore(s => s.setUI);
+  const dd = useDisplayDate();
 
   const leafTasks = tasks.filter(t => t.childIds.length === 0);
   const milestones = tasks.filter(t => t.isMilestone);
@@ -30,7 +32,7 @@ export function StatusBar() {
       {cpmResult && (
         <>
           <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
-          <span>{t('status.end')} {cpmResult.projectEnd}</span>
+          <span>{t('status.end')} {dd.date(cpmResult.projectEnd)}</span>
           {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && (
             <span style={{ color: 'var(--theme-warning-text)' }}>
               ⚠ {tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length })}

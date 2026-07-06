@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAppStore } from '@/state/appStore';
+import type { DateNotation } from '@/state/slices/types';
 
 /**
  * Parse een datum-string soepel naar het ISO-formaat (`YYYY-MM-DD`).
@@ -74,8 +76,15 @@ interface DateFormat {
   separator: string;
 }
 
-/** Huidige (harde) notatie dd-mm-jjjj. Taak #53 vervangt dit door een instelling-gedreven object. */
-const DEFAULT_FORMAT: DateFormat = { order: [DAY_SEG, MONTH_SEG, YEAR_SEG], separator: '-' };
+const SEG_BY_KIND: Record<SegKind, SegmentDef> = { day: DAY_SEG, month: MONTH_SEG, year: YEAR_SEG };
+
+// Segmentvolgorde per notatie-instelling (taak #53). De PARSE blijft semantisch (dag/maand/jaar per
+// soort, niet per positie), dus alleen de weergave-/invoervolgorde draait mee met de instelling.
+const ORDER_BY_NOTATION: Record<DateNotation, SegKind[]> = {
+  dmy: ['day', 'month', 'year'],
+  mdy: ['month', 'day', 'year'],
+  ymd: ['year', 'month', 'day'],
+};
 
 type SegState = Record<SegKind, string>;
 
@@ -191,7 +200,12 @@ export function DateTextInput({
   value, onCommit, className = '', style, ariaLabel, title, disabled, placeholder, id,
 }: DateTextInputProps) {
   const { t } = useTranslation('common');
-  const format = DEFAULT_FORMAT;
+  // Weergave-/segmentvolgorde volgt de instelling (reactief: hertekent bij wijziging).
+  const notation = useAppStore(s => s.ui.dateNotation);
+  const format = useMemo<DateFormat>(
+    () => ({ order: ORDER_BY_NOTATION[notation].map(k => SEG_BY_KIND[k]), separator: '-' }),
+    [notation],
+  );
   const { order } = format;
 
   const [seg, setSeg] = useState<SegState>(() => isoToSegments(value));
@@ -210,12 +224,16 @@ export function DateTextInput({
     if (!groupFocused && !showError) setSeg(isoToSegments(value));
   }, [value, groupFocused, showError]);
 
-  // Per-segment placeholder: splits de (gelokaliseerde) hint `dd-mm-jjjj` op de separators. Zo
-  // blijven de segment-placeholders vertaald zonder extra i18n-sleutels.
+  // Per-segment placeholder: de (gelokaliseerde) hint `dd-mm-jjjj` is canoniek dag-maand-jaar; splits
+  // hem op de separators en map per SOORT, zodat de placeholders correct meedraaien met de gekozen
+  // notatie (bv. jjjj-mm-dd toont het jaar-segment eerst). Zo blijven ze vertaald zonder extra keys.
   const placeholders = useMemo(() => {
     const hint = placeholder ?? t('dateInput.placeholder');
     const parts = hint.split(/[-/.\s]+/).filter(Boolean);
-    return order.map((_, i) => (parts.length === order.length ? parts[i] : ''));
+    const byKind: Record<SegKind, string> = parts.length === 3
+      ? { day: parts[0], month: parts[1], year: parts[2] }
+      : { day: '', month: '', year: '' };
+    return order.map(d => byKind[d.kind]);
   }, [placeholder, t, order]);
 
   const focusSeg = (i: number, pos: 'start' | 'end') => {

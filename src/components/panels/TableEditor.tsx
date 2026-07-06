@@ -8,6 +8,7 @@ import { resourceCellValue, type ViewContext } from '@/engine/view/filterEval';
 import type { ColumnConfig, FieldRef, BuiltinFieldKey } from '@/state/slices/types';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { DateTextInput } from '@/components/common/DateTextInput';
+import { useDisplayDate } from '@/utils/displayDate';
 
 const MIN_COLUMN_WIDTH = 40;
 
@@ -78,6 +79,7 @@ const BUILTIN_LABEL_KEY = {
 export function TableEditor() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const dd = useDisplayDate();
   const { labels: taskTypeLabels } = useTaskTypeLabels();
   const tasks = useAppStore(s => s.tasks);
   const updateTask = useAppStore(s => s.updateTask);
@@ -246,7 +248,10 @@ export function TableEditor() {
     }
   }, [navigateCell]);
 
-  const renderCell = (taskId: string, field: string, value: string, align = 'left') => {
+  // `displayValue` (optioneel): wat de cel TOONT wanneer hij niet in bewerking is — voor datumcellen
+  // de notatie-geformatteerde datum. De bewerk-/navigatiewaarde blijft `value` (ISO), dus dubbelklik
+  // en commit gedragen zich onveranderd; alleen de weergave volgt de datumnotatie-instelling.
+  const renderCell = (taskId: string, field: string, value: string, align = 'left', displayValue?: string) => {
     const isEditing = editCell?.taskId === taskId && editCell?.field === field;
     if (isEditing) {
       return (
@@ -274,7 +279,7 @@ export function TableEditor() {
         style={{ textAlign: align as 'left' | 'right' | 'center' }}
         onDoubleClick={() => startEdit(taskId, field, value)}
       >
-        {value}
+        {displayValue ?? value}
       </span>
     );
   };
@@ -297,24 +302,28 @@ export function TableEditor() {
             : renderCell(task.id, 'wbsCode', task.wbsCode);
         case 'duration':
           return renderCell(task.id, 'duration', `${task.isMilestone ? 0 : task.time.scheduleDuration}`, 'right');
-        case 'start':
+        case 'start': {
+          const startIso = task.time.earlyStart || task.time.scheduleStart;
           return (
             <>
-              {renderCell(task.id, 'start', task.time.earlyStart || task.time.scheduleStart)}
+              {renderCell(task.id, 'start', startIso, 'left', dd.date(startIso))}
               {task.constraint && ['SNET', 'SNLT', 'MSO'].includes(task.constraint.type) && (
                 <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
               )}
             </>
           );
-        case 'finish':
+        }
+        case 'finish': {
+          const finishIso = task.time.earlyFinish || task.time.scheduleFinish;
           return (
             <>
-              {renderCell(task.id, 'finish', task.time.earlyFinish || task.time.scheduleFinish)}
+              {renderCell(task.id, 'finish', finishIso, 'left', dd.date(finishIso))}
               {task.constraint && ['FNET', 'FNLT', 'MFO'].includes(task.constraint.type) && (
                 <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
               )}
             </>
           );
+        }
         case 'taskType':
           return <span className="text-[10px]">{taskTypeLabels[task.taskType] || task.taskType}</span>;
         case 'isCritical':

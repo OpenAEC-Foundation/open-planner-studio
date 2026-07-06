@@ -74,7 +74,9 @@
     "documentChrome": "Estilo de mudança de documento",
     "documentChromeTabs": "Separadores horizontais",
     "documentChromeRail": "Separadores verticais",
-    "documentChromeSwitcher": "Pílula"
+    "documentChromeSwitcher": "Pílula",
+    "dateNotation": "Formato de data",
+    "dateNotationHint": "Determina como as datas são exibidas em todo o aplicativo. Arquivos e cálculos não são afetados."
   },
   "confirm": {
     "newProject": "Criar novo projeto? As alterações não guardadas serão perdidas.",

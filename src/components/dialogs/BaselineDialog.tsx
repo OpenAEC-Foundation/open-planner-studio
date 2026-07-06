@@ -2,17 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Trash2 } from 'lucide-react';
-import { parseDate } from '@/utils/dateUtils';
-
-function fmt(iso: string): string {
-  if (!iso) return '—';
-  try {
-    const d = parseDate(iso);
-    return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
-  } catch {
-    return iso;
-  }
-}
+import { displayDate } from '@/utils/displayDate';
 
 /**
  * Baseline-dialoog (fase 2.6, §11.2). Lijst met inline-hernoemen, actief-radio en verwijderen
@@ -29,13 +19,14 @@ export function BaselineDialog() {
   const setActiveBaseline = useAppStore(s => s.setActiveBaseline);
   const scheduleStale = useAppStore(s => s.scheduleStale);
   const setUI = useAppStore(s => s.setUI);
+  const notation = useAppStore(s => s.ui.dateNotation);
 
   const close = () => setUI({ showBaselineDialog: false });
 
   const defaultName = useMemo(() => {
     const n = baselines.length + 1;
-    return t('baseline.dialog.defaultName', { n, date: fmt(new Date().toISOString()) });
-  }, [baselines.length, t]);
+    return t('baseline.dialog.defaultName', { n, date: displayDate(new Date().toISOString(), notation) });
+  }, [baselines.length, t, notation]);
 
   const [newName, setNewName] = useState(defaultName);
 
@@ -108,7 +99,7 @@ export function BaselineDialog() {
                         aria-label={t('baseline.dialog.name')}
                       />
                     </td>
-                    <td className="px-2 py-1">{fmt(b.createdAt)}</td>
+                    <td className="px-2 py-1">{displayDate(b.createdAt, notation) || '—'}</td>
                     <td className="px-2 py-1 text-center">
                       <button onClick={() => remove(b.id)} style={{ color: 'var(--error)' }} title={t('baseline.dialog.delete')}>
                         <Trash2 size={12} />

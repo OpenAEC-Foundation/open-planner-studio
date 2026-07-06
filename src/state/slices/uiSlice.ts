@@ -57,6 +57,7 @@ export function createDefaultUI(): UIState {
     showFilterDialog: false,
     showLayoutsDialog: false,
     autoCalcCPM: false,
+    dateNotation: 'dmy',
   };
 }
 

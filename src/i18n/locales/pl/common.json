@@ -74,7 +74,9 @@
     "documentChrome": "Styl przełączania dokumentów",
     "documentChromeTabs": "Karty poziome",
     "documentChromeRail": "Karty pionowe",
-    "documentChromeSwitcher": "Pigułka"
+    "documentChromeSwitcher": "Pigułka",
+    "dateNotation": "Format daty",
+    "dateNotationHint": "Określa sposób wyświetlania dat w całej aplikacji. Pliki i obliczenia pozostają bez zmian."
   },
   "confirm": {
     "newProject": "Utworzyć nowy projekt? Niezapisane zmiany zostaną utracone.",

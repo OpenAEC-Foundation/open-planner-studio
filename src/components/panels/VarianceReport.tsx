@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeVariance, type VarianceResult, type VarianceStatus } from '@/engine/variance';
+import { displayDate, useDisplayDate } from '@/utils/displayDate';
 
 /**
  * Variance-rapport (fase 2.6, §7): vergelijkt de huidige (CPM-)datums met de actieve baseline.
@@ -45,6 +46,7 @@ function fmtDelta(v: number | undefined): string {
 export function VarianceReport() {
   const { t } = useTranslation('report');
   const { rows } = useVarianceResult();
+  const dd = useDisplayDate();
 
   return (
     <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
@@ -65,10 +67,10 @@ export function VarianceReport() {
           <tr key={r.taskId} style={{ borderBottom: '1px solid var(--theme-border-light)' }}>
             <td className="px-2 py-1.5">{r.wbs}</td>
             <td className="px-2 py-1.5">{r.name}</td>
-            <td className="px-2 py-1.5">{r.baselineStart || '—'}</td>
-            <td className="px-2 py-1.5">{r.baselineFinish || '—'}</td>
-            <td className="px-2 py-1.5">{r.currentStart || '—'}</td>
-            <td className="px-2 py-1.5">{r.currentFinish || '—'}</td>
+            <td className="px-2 py-1.5">{dd.date(r.baselineStart) || '—'}</td>
+            <td className="px-2 py-1.5">{dd.date(r.baselineFinish) || '—'}</td>
+            <td className="px-2 py-1.5">{dd.date(r.currentStart) || '—'}</td>
+            <td className="px-2 py-1.5">{dd.date(r.currentFinish) || '—'}</td>
             <td className="px-2 py-1.5 text-right" style={r.deltaStart !== undefined && r.deltaStart > 0 ? { color: '#DC2626', fontWeight: 600 } : undefined}>
               {fmtDelta(r.deltaStart)}
             </td>
@@ -91,18 +93,20 @@ export function VarianceReport() {
 export function useVarianceReportPrint(projectName: string): () => void {
   const { t } = useTranslation('report');
   const { rows, projectEndDelta } = useVarianceResult();
+  const notation = useAppStore(s => s.ui.dateNotation);
 
   return useCallback(() => {
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fd = (iso: string | undefined) => displayDate(iso, notation) || '—';
     const headers = COLUMNS
       .map(h => `<th>${esc(h === 'wbs' ? t('milestoneReport.wbs') : h === 'name' ? t('milestoneReport.name') : t(`variance.${h}`))}</th>`).join('');
     const body = rows.map(r => `<tr>
       <td>${esc(r.wbs)}</td>
       <td>${esc(r.name)}</td>
-      <td>${esc(r.baselineStart || '—')}</td>
-      <td>${esc(r.baselineFinish || '—')}</td>
-      <td>${esc(r.currentStart || '—')}</td>
-      <td>${esc(r.currentFinish || '—')}</td>
+      <td>${esc(fd(r.baselineStart))}</td>
+      <td>${esc(fd(r.baselineFinish))}</td>
+      <td>${esc(fd(r.currentStart))}</td>
+      <td>${esc(fd(r.currentFinish))}</td>
       <td style="text-align:right;${r.deltaStart !== undefined && r.deltaStart > 0 ? 'color:#DC2626;font-weight:600;' : ''}">${esc(fmtDelta(r.deltaStart))}</td>
       <td style="text-align:right;${r.deltaFinish !== undefined && r.deltaFinish > 0 ? 'color:#DC2626;font-weight:600;' : ''}">${esc(fmtDelta(r.deltaFinish))}</td>
       <td style="color:${STATUS_COLOR[r.status]};font-weight:600;">${esc(t(`variance.status_${r.status}`))}</td>
@@ -125,11 +129,11 @@ export function useVarianceReportPrint(projectName: string): () => void {
 </style>
 </head><body>
 <h1>${esc(t('variance.title'))}</h1>
-<p class="sub">${esc(projectName)} — ${new Date().toISOString().slice(0, 10)}</p>
+<p class="sub">${esc(projectName)} — ${esc(displayDate(new Date().toISOString().slice(0, 10), notation))}</p>
 ${summary}
 <table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>
 <script>window.onload=function(){window.print();}</script>
 </body></html>`);
     w.document.close();
-  }, [rows, projectEndDelta, t, projectName]);
+  }, [rows, projectEndDelta, t, projectName, notation]);
 }

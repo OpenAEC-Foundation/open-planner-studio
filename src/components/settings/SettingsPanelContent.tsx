@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
-import { UITheme, UI_THEMES, DocumentChromeStyle } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM } from '@/utils/settingsStore';
+import { UITheme, UI_THEMES, DocumentChromeStyle, DateNotation } from '@/state/slices/types';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveDateNotation } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
@@ -39,6 +39,7 @@ export function SettingsPanelContent() {
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
+  const dateNotation = useAppStore(s => s.ui.dateNotation);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
@@ -56,6 +57,11 @@ export function SettingsPanelContent() {
   const applyDocumentChrome = (style: DocumentChromeStyle) => {
     setUI({ documentChromeStyle: style });
     void saveDocumentChromeStyle(style);
+  };
+
+  const applyDateNotation = (notation: DateNotation) => {
+    setUI({ dateNotation: notation });
+    void saveDateNotation(notation);
   };
 
   return (
@@ -120,6 +126,21 @@ export function SettingsPanelContent() {
                   { value: 'switcher', label: t('settings.documentChromeSwitcher') },
                 ]}
               />
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.dateNotation')}</h3>
+              <Select
+                aria-label={t('settings.dateNotation')}
+                value={dateNotation}
+                onChange={v => applyDateNotation(v as DateNotation)}
+                options={[
+                  { value: 'dmy', label: 'dd-mm-jjjj' },
+                  { value: 'mdy', label: 'mm-dd-jjjj' },
+                  { value: 'ymd', label: 'jjjj-mm-dd' },
+                ]}
+              />
+              <p className="scrollzoom-hint">{t('settings.dateNotationHint')}</p>
             </div>
 
             <div className="settings-section">

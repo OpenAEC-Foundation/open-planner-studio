@@ -74,7 +74,9 @@
     "documentChrome": "문서 전환 스타일",
     "documentChromeTabs": "가로 탭",
     "documentChromeRail": "세로 탭",
-    "documentChromeSwitcher": "알약"
+    "documentChromeSwitcher": "알약",
+    "dateNotation": "날짜 형식",
+    "dateNotationHint": "앱 전체에서 날짜가 표시되는 방식을 결정합니다. 파일과 계산에는 영향을 주지 않습니다."
   },
   "confirm": {
     "newProject": "새 프로젝트를 만드시겠습니까? 저장되지 않은 변경 사항이 손실됩니다.",

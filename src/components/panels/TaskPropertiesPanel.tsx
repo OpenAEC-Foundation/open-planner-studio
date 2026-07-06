@@ -10,6 +10,7 @@ import { Select } from '@/components/common/Select';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { DateTextInput } from '@/components/common/DateTextInput';
+import { useDisplayDate } from '@/utils/displayDate';
 import { Trash2, Zap } from 'lucide-react';
 
 export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
@@ -117,6 +118,7 @@ function Input({ value, onChange, type = 'text', min, max, step, disabled }: {
 export function TaskPropertiesPanel() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const dd = useDisplayDate();
   const { options: taskTypeOptions } = useTaskTypeLabels();
 
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
@@ -422,13 +424,13 @@ export function TaskPropertiesPanel() {
           <span className="ui-card-header !text-xs">{t('properties.cpmResult')}</span>
           <div className="grid grid-cols-2 gap-1 text-[10px]">
             <span className="text-text-secondary">{t('properties.earlyStart')}</span>
-            <span>{task.time.earlyStart}</span>
+            <span>{dd.date(task.time.earlyStart)}</span>
             <span className="text-text-secondary">{t('properties.earlyFinish')}</span>
-            <span>{task.time.earlyFinish}</span>
+            <span>{dd.date(task.time.earlyFinish)}</span>
             <span className="text-text-secondary">{t('properties.lateStart')}</span>
-            <span>{task.time.lateStart}</span>
+            <span>{dd.date(task.time.lateStart)}</span>
             <span className="text-text-secondary">{t('properties.lateFinish')}</span>
-            <span>{task.time.lateFinish}</span>
+            <span>{dd.date(task.time.lateFinish)}</span>
             <span className="text-text-secondary">{t('properties.totalFloat')}</span>
             <span>{task.time.totalFloat} {tCommon('daysLong')}</span>
             <span className="text-text-secondary">{t('properties.freeFloat')}</span>

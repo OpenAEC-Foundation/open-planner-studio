@@ -74,7 +74,9 @@
     "documentChrome": "نمط تبديل المستندات",
     "documentChromeTabs": "علامات تبويب أفقية",
     "documentChromeRail": "علامات تبويب رأسية",
-    "documentChromeSwitcher": "حبة"
+    "documentChromeSwitcher": "حبة",
+    "dateNotation": "تنسيق التاريخ",
+    "dateNotationHint": "يحدد كيفية عرض التواريخ في جميع أنحاء التطبيق. الملفات والحسابات لا تتأثر."
   },
   "confirm": {
     "newProject": "إنشاء مشروع جديد؟ ستفقد التغييرات غير المحفوظة.",

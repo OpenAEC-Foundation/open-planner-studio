@@ -74,7 +74,9 @@
     "documentChrome": "Estilo de cambio de documento",
     "documentChromeTabs": "Pestañas horizontales",
     "documentChromeRail": "Pestañas verticales",
-    "documentChromeSwitcher": "Píldora"
+    "documentChromeSwitcher": "Píldora",
+    "dateNotation": "Formato de fecha",
+    "dateNotationHint": "Determina cómo se muestran las fechas en toda la aplicación. Los archivos y los cálculos no se ven afectados."
   },
   "confirm": {
     "newProject": "¿Crear nuevo proyecto? Los cambios no guardados se perderán.",

@@ -35,6 +35,14 @@ export const DEFAULT_MODIFIER_MAP: ModifierMap = {
   shift: 'horizontal',
 };
 
+// Datumnotatie (taak #53): bepaalt ALLEEN hoe datums aan de gebruiker getoond worden
+// (tabel, panelen, rapporten, print, tooltips) én de segmentvolgorde van het datumveld.
+// Interne opslag/serialisatie blijft ALTIJD ISO (YYYY-MM-DD) — deze waarde raakt bestanden,
+// engine of import/export nooit. Ontbrekende localStorage-sleutel ⇒ 'dmy' (dd-mm-jjjj).
+export type DateNotation = 'dmy' | 'mdy' | 'ymd';
+
+export const DATE_NOTATIONS: DateNotation[] = ['dmy', 'mdy', 'ymd'];
+
 export type UITheme = 'dark' | 'light' | 'high-contrast';
 
 export const UI_THEMES: { id: UITheme; label: string }[] = [
@@ -197,6 +205,7 @@ export interface UIState {
   showFilterDialog: boolean;                 // session — filter-editor open
   showLayoutsDialog: boolean;                // session — layouts-beheer/opslaan-als-dialoog open
   autoCalcCPM: boolean;                      // persisted — runCPM automatisch bij scheduleStale i.p.v. handmatig (F5)
+  dateNotation: DateNotation;                // persisted — weergavenotatie voor datums (taak #53); opslag blijft ISO
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

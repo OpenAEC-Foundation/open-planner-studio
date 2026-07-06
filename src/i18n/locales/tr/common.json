@@ -74,7 +74,9 @@
     "documentChrome": "Belge değiştirme stili",
     "documentChromeTabs": "Yatay sekmeler",
     "documentChromeRail": "Dikey sekmeler",
-    "documentChromeSwitcher": "Hap"
+    "documentChromeSwitcher": "Hap",
+    "dateNotation": "Tarih biçimi",
+    "dateNotationHint": "Tarihlerin uygulama genelinde nasıl gösterileceğini belirler. Dosyalar ve hesaplamalar etkilenmez."
   },
   "confirm": {
     "newProject": "Yeni proje oluşturulsun mu? Kaydedilmemiş değişiklikler kaybolacak.",

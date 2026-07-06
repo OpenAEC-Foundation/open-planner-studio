@@ -74,7 +74,9 @@
     "documentChrome": "ドキュメント切り替えスタイル",
     "documentChromeTabs": "横タブ",
     "documentChromeRail": "縦タブ",
-    "documentChromeSwitcher": "ピル"
+    "documentChromeSwitcher": "ピル",
+    "dateNotation": "日付形式",
+    "dateNotationHint": "アプリ全体で日付をどのように表示するかを決定します。ファイルや計算には影響しません。"
   },
   "confirm": {
     "newProject": "新しいプロジェクトを作成しますか？保存されていない変更は失われます。",

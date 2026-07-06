@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -150,6 +150,9 @@ function AppContent() {
     });
     loadAutoCalcCPM().then(v => {
       if (typeof v === 'boolean') setUI({ autoCalcCPM: v });
+    });
+    loadDateNotation().then(v => {
+      if (v) setUI({ dateNotation: v });
     });
     void loadAllExtensions();
   }, []);
