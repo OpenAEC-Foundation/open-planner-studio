@@ -1,0 +1,252 @@
+{
+  "_readme": "Fase 2.9 golf 1 — geavanceerde constraints (Mandatory-pin §4.2, secundaire constraint §4.3, uur-modus-constraints §4.1). Handberekend tegen het ontwerpdoc §9 (S1-S9 dag + S13 uur), elke tussenstap zelf nagerekend tegen de bevroren primitieven (addWorkDays/subtractWorkDays inclusief; nextWorkDayAfter voor de FS-gap; signedWorkDays=wdB-1). Dag-scenario's: schone ma-vr, anker ma 2026-06-01. Uur-scenario's: H8-kalender (ma-vr band [480,960]=08:00-16:00, hoursPerDay=8), anker ma 2026-07-06. Byte-identiteits-tweelingen: 's8-twin-soft' (hard=false ⇒ exacte soft-MSO-tak) en 's8-hour-pin' (dezelfde pin op H8, handbereken).",
+  "cases": [
+    {
+      "id": "s1-snet-binding",
+      "title": "S1 — SNET bindt (fwd+bwd). A(3)→FS B(2), B SNET 06-08; A krijgt float door het gat.",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "constraint": { "type": "SNET", "date": "2026-06-08" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "ls": "2026-06-03", "lf": "2026-06-05", "tf": 2, "ff": 2, "crit": false },
+          "B": { "es": "2026-06-08", "ef": "2026-06-09", "ls": "2026-06-08", "lf": "2026-06-09", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["B"],
+        "violatedConstraintsSet": [],
+        "projectEnd": "2026-06-09"
+      }
+    },
+    {
+      "id": "s2-snlt-negative",
+      "title": "S2 — SNLT geschonden (fwd+bwd). A(3)→FS B(2), B SNLT 06-03; negatieve float propageert upstream.",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "constraint": { "type": "SNLT", "date": "2026-06-03" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "ls": "2026-05-29", "lf": "2026-06-02", "tf": -1, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "ls": "2026-06-03", "lf": "2026-06-04", "tf": -1, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "violatedConstraintsSet": ["B"],
+        "projectEnd": "2026-06-05"
+      }
+    },
+    {
+      "id": "s3-fnet-forward",
+      "title": "S3 — FNET forward (fwd+bwd). A(2)→FS B(3), B FNET 06-10; finish precies op de datum.",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 3, "constraint": { "type": "FNET", "date": "2026-06-10" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "ls": "2026-06-04", "lf": "2026-06-05", "tf": 3, "ff": 3, "crit": false },
+          "B": { "es": "2026-06-08", "ef": "2026-06-10", "ls": "2026-06-08", "lf": "2026-06-10", "tf": 0, "crit": true }
+        },
+        "violatedConstraintsSet": [],
+        "projectEnd": "2026-06-10"
+      }
+    },
+    {
+      "id": "s4-fnlt-negative",
+      "title": "S4 — FNLT geschonden (fwd+bwd). A(2)→FS B(3), B FNLT 06-04; datum vóór de natuurlijke finish.",
+      "tasks": [
+        { "name": "A", "dur": 2 },
+        { "name": "B", "dur": 3, "constraint": { "type": "FNLT", "date": "2026-06-04" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "ls": "2026-05-29", "lf": "2026-06-01", "tf": -1, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-05", "ls": "2026-06-02", "lf": "2026-06-04", "tf": -1, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "violatedConstraintsSet": ["B"],
+        "projectEnd": "2026-06-05"
+      }
+    },
+    {
+      "id": "s5-mso-soft-double-bound",
+      "title": "S5 — MSO soft, onder- én bovengrens (fwd+bwd). A(1)→FS B(2)→FS C(1), B MSO 06-04; ES=LS=06-04.",
+      "tasks": [
+        { "name": "A", "dur": 1 },
+        { "name": "B", "dur": 2, "constraint": { "type": "MSO", "date": "2026-06-04" } },
+        { "name": "C", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-01", "ls": "2026-06-03", "lf": "2026-06-03", "tf": 2, "ff": 2, "crit": false },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "ls": "2026-06-04", "lf": "2026-06-05", "tf": 0, "crit": true },
+          "C": { "es": "2026-06-08", "ef": "2026-06-08", "ls": "2026-06-08", "lf": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "violatedConstraintsSet": [],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s6-mfo-soft",
+      "title": "S6 — MFO soft (fwd+bwd). B(2) MFO 06-05, root; finish gepind op 06-05.",
+      "tasks": [
+        { "name": "B", "dur": 2, "constraint": { "type": "MFO", "date": "2026-06-05" } }
+      ],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "ls": "2026-06-04", "lf": "2026-06-05", "tf": 0, "crit": true }
+        },
+        "violatedConstraintsSet": [],
+        "projectEnd": "2026-06-05"
+      }
+    },
+    {
+      "id": "s7-alap-zero-free-float",
+      "title": "S7 — ALAP (zero free float). A(1); A→FS B(2); A→FS C(5); B schuift +3 tot ff=0.",
+      "tasks": [
+        { "name": "A", "dur": 1 },
+        { "name": "B", "dur": 2, "constraint": { "type": "ALAP" } },
+        { "name": "C", "dur": 5 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-01" },
+          "B": { "es": "2026-06-05", "ef": "2026-06-08", "ff": 0 },
+          "C": { "es": "2026-06-02", "ef": "2026-06-08" }
+        },
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s8-mandatory-pin-day",
+      "title": "S8 — Mandatory Start (hard) breekt de logica. A(5)→FS B(2), B HARD MSO 06-03; B start vóór A klaar is, tf(B)=0, -3 upstream.",
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "B", "dur": 2, "constraint": { "type": "MSO", "date": "2026-06-03", "hard": true } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "ls": "2026-05-27", "lf": "2026-06-02", "tf": -3, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-04", "ls": "2026-06-03", "lf": "2026-06-04", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "violatedConstraintsSet": ["B"],
+        "projectEnd": "2026-06-05"
+      }
+    },
+    {
+      "id": "s8-twin-soft",
+      "title": "S8-tweeling — hard=false ⇒ exacte soft-MSO-tak. Zelfde net; nu neemt B max(06-08, 06-03)=06-08 (geen breuk), projectEnd schuift.",
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "B", "dur": 2, "constraint": { "type": "MSO", "date": "2026-06-03", "hard": false } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05", "ls": "2026-05-27", "lf": "2026-06-02", "tf": -3, "crit": true },
+          "B": { "es": "2026-06-08", "ef": "2026-06-09", "ls": "2026-06-03", "lf": "2026-06-04", "tf": -3, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "violatedConstraintsSet": ["B"],
+        "projectEnd": "2026-06-09"
+      }
+    },
+    {
+      "id": "s9-secondary-window-conflict",
+      "title": "S9 — Secundaire constraint (venster). B(3), primair SNET 06-03 + secundair FNLT 06-04, root; venster te krap ⇒ tf=-1 violated.",
+      "tasks": [
+        { "name": "B", "dur": 3, "constraint": { "type": "SNET", "date": "2026-06-03" }, "constraint2": { "type": "FNLT", "date": "2026-06-04" } }
+      ],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-03", "ef": "2026-06-05", "ls": "2026-06-02", "lf": "2026-06-04", "tf": -1, "crit": true }
+        },
+        "violatedConstraintsSet": ["B"],
+        "projectEnd": "2026-06-05"
+      }
+    },
+    {
+      "id": "s9b-secondary-window-slack",
+      "title": "S9-variant — secundair venster met speling. B(2) SNET 06-03 + FNLT 06-10; P(15) drijft projectEnd, dus de secundaire FNLT bindt de late finish (tf=4, niet-kritiek).",
+      "tasks": [
+        { "name": "B", "dur": 2, "constraint": { "type": "SNET", "date": "2026-06-03" }, "constraint2": { "type": "FNLT", "date": "2026-06-10" } },
+        { "name": "P", "dur": 15 }
+      ],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-03", "ef": "2026-06-04", "ls": "2026-06-09", "lf": "2026-06-10", "tf": 4, "crit": false },
+          "P": { "es": "2026-06-01", "ef": "2026-06-19", "tf": 0, "crit": true }
+        },
+        "violatedConstraintsSet": [],
+        "projectEnd": "2026-06-19"
+      }
+    },
+    {
+      "id": "s13-hour-constraint-datetime",
+      "title": "S13 — datetime-constraint op uur-taak, tot de minuut gehonoreerd. H8, A(8u) SNET di 07-07T10:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u", "constraint": { "type": "SNET", "date": "2026-07-07T10:00" } }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T10:00", "ef": "2026-07-08T10:00", "ls": "2026-07-07T10:00", "lf": "2026-07-08T10:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T10:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s13b-hour-constraint-dateonly",
+      "title": "S13-variant — date-only-constraint op uur-taak = dag-verankerd (snapt naar eerste werk-instant). H8, A(8u) SNET 07-07 ⇒ 08:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u", "constraint": { "type": "SNET", "date": "2026-07-07" } }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-07T16:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s8-hour-pin",
+      "title": "S8-uur — Mandatory Start (hard) op H8. A(16u)→FS B(8u), B HARD MSO di 07-07T08:00; pin overschrijft, tf(B)=0, -1 werkdag upstream.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "16u" },
+        { "name": "B", "dur": "8u", "constraint": { "type": "MSO", "date": "2026-07-07T08:00", "hard": true } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T16:00", "ls": "2026-07-03T08:00", "lf": "2026-07-06T16:00", "tf": -1, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T16:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T16:00", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "violatedConstraintsSet": ["B"],
+        "projectEnd": "2026-07-07T16:00",
+        "error": false
+      }
+    }
+  ]
+}

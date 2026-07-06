@@ -1,4 +1,4 @@
-import { Task } from '@/types/task';
+import { Task, type TaskConstraint } from '@/types/task';
 import type { SchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
@@ -108,6 +108,10 @@ export class CPMSolver {
   private seqConstraint: Map<string, Date> = new Map();
   // Relaties waarvan de lead in de forward-pass door de projectstart-vloer is afgekapt.
   private truncatedLeadIds: string[] = [];
+  // Taken met een harde MSO/MFO-pin (fase 2.9, §4.2) waarvan de voorganger-druk (`rawMax`) later
+  // valt dan de pin ⇒ de logica is gebroken (taak start vóór z'n voorganger klaar is). Verzameld in
+  // de forward pass, samengevoegd met `violatedConstraintTaskIds` in `computeResults`.
+  private hardPinViolatedIds: string[] = [];
 
   private options: CPMOptions;
   // Werkdag-gesnapte statusdatum (fase 2.6), of null ⇒ geen statusdatum-gedrag. Gezet in solve().
@@ -455,7 +459,8 @@ export class CPMSolver {
       if (preds.length === 0) {
         // No predecessors: use scheduled start
         earlyStart = this.snapOnOrAfter(cal, this.parseIn(cal, task.time.scheduleStart));
-        earlyStart = this.applyForwardConstraint(task, earlyStart, cal);
+        // Geen voorganger-druk ⇒ rawMax null ⇒ een (root-)pin kan de logica niet breken (§4.2).
+        earlyStart = this.applyForwardConstraints(task, earlyStart, null, cal);
         // Fase 2.8b (golf 3): her-snap ná de constraint — spiegelt de voorganger-tak (regel 466).
         // `applyForwardConstraint` levert een DAG-conceptuele grens (`nextWorkDay`/
         // `addWorkingDaysSigned`, §5.2), in uur-modus een middernacht-instant die NIET op een
@@ -498,7 +503,8 @@ export class CPMSolver {
             }
           }
         }
-        earlyStart = this.applyForwardConstraint(task, earlyStart, cal);
+        // `rawMax` (voorganger-druk) voedt de harde-pin-logicaschending-detectie (§4.2).
+        earlyStart = this.applyForwardConstraints(task, earlyStart, rawMax, cal);
         earlyStart = this.snapOnOrAfter(cal, earlyStart);
       }
 
@@ -621,54 +627,104 @@ export class CPMSolver {
       : -(eng.workDaysBetween(b, a) - 1);
   }
 
-  /** Werkdag-gesnapte constraint-datum, of null bij afwezig/onparseerbaar (soft: negeren). */
-  private constraintDate(task: Task): Date | null {
-    const raw = task.constraint?.date;
+  /** Constraint-instant in de kalendermodus (§4.1), of null bij afwezig/onparseerbaar (soft:
+   *  negeren). Dag ⇒ `parseDate` (middernacht, byte-identiek); uur ⇒ `parseInstant` (behoudt tijd-
+   *  van-de-dag). Een date-only-string op een uur-taak = middernacht ⇒ dag-verankerd: de instant-
+   *  vinders snappen hem naar de eerste/laatste werk-instant van die dag (S13). Een datetime-string
+   *  draagt tijd-van-de-dag en wordt tot de minuut gehonoreerd. */
+  private constraintInstant(c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    const raw = c?.date;
     if (!raw) return null;
-    const d = parseDate(raw);
+    const d = this.parseIn(eng, raw);
     return isNaN(d.getTime()) ? null : d;
   }
 
-  /**
-   * Vroege-zijde constraints (fase 2.3): SNET/MSO als start-ondergrens, FNET/MFO als
-   * finish-ondergrens (vertaald naar de start). Ondergrenzen — de max met de logica,
-   * dus een constraint vóór de logica-datum doet niets (P6-soft).
-   */
-  private applyForwardConstraint(task: Task, earlyStart: Date, eng: CalendarEngine): Date {
+  /** De harde-pin-START (§4.2), of null als de PRIMAIRE constraint geen harde MSO/MFO-pin is.
+   *  MSO pint de START op de datum; MFO pint de FINISH ⇒ start = finish ⊖ duur. Modus-neutraal
+   *  (dag: bevroren dag-primitieven; uur: instant-vinders + minuut-aftrek via `durationMinutesOf`). */
+  private hardPinStart(task: Task, eng: CalendarEngine): Date | null {
     const c = task.constraint;
-    const d = this.constraintDate(task);
-    if (!c || !d) return earlyStart;
-    const dur = task.isMilestone ? 0 : task.time.scheduleDuration;
-    const back = dur > 0 ? dur - 1 : 0;
-    let bound: Date | null = null;
-    if (c.type === 'SNET' || c.type === 'MSO') {
-      bound = eng.nextWorkDay(d);
-    } else if (c.type === 'FNET' || c.type === 'MFO') {
-      bound = eng.addWorkingDaysSigned(eng.nextWorkDay(d), -back);
+    if (!c?.hard || (c.type !== 'MSO' && c.type !== 'MFO')) return null;
+    const d = this.constraintInstant(c, eng);
+    if (!d) return null;
+    const snapped = this.snapOnOrAfter(eng, d);
+    return c.type === 'MSO' ? snapped : this.startFromFinish(eng, snapped, task);
+  }
+
+  /** De harde-pin-FINISH (§4.2), spiegel van `hardPinStart` (⇒ EF=LF én ES=LS op de pin, tf=0).
+   *  MFO: EF = snap(datum); MSO: EF = gepinde-start ⊕ duur. */
+  private hardPinFinish(task: Task, eng: CalendarEngine): Date | null {
+    const c = task.constraint;
+    if (!c?.hard || (c.type !== 'MSO' && c.type !== 'MFO')) return null;
+    const d = this.constraintInstant(c, eng);
+    if (!d) return null;
+    const snapped = this.snapOnOrAfter(eng, d);
+    return c.type === 'MFO' ? snapped : this.addDuration(eng, snapped, task);
+  }
+
+  /** Forward-ondergrens (start) van ÉÉN soft constraint (§4.1/§4.3), of null zonder forward-effect.
+   *  SNET/MSO ⇒ start-ondergrens; FNET/MFO ⇒ finish-ondergrens vertaald naar de start. Dag-modus
+   *  reduceert byte-identiek tot `nextWorkDay`/`addWorkingDaysSigned`; uur-modus gebruikt de instant-
+   *  vinders + de minuut-aftrek van `startFromFinish` (via `durationMinutesOf`). */
+  private forwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    const d = this.constraintInstant(c, eng);
+    if (!c || !d) return null;
+    if (c.type === 'SNET' || c.type === 'MSO') return this.snapOnOrAfter(eng, d);
+    if (c.type === 'FNET' || c.type === 'MFO') {
+      return this.startFromFinish(eng, this.snapOnOrAfter(eng, d), task);
     }
-    return bound && bound > earlyStart ? bound : earlyStart;
+    return null;
+  }
+
+  /** Backward-bovengrens (late finish) van ÉÉN soft constraint (§4.1/§4.3), of null zonder backward-
+   *  effect. FNLT/MFO ⇒ finish-bovengrens direct; SNLT/MSO ⇒ start-bovengrens vertaald naar de finish.
+   *  Dag-modus byte-identiek (`prevWorkDay`/`addWorkingDaysSigned`); uur-modus via de instant-vinders. */
+  private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    const d = this.constraintInstant(c, eng);
+    if (!c || !d) return null;
+    const dW = this.snapOnOrBefore(eng, d);
+    if (c.type === 'FNLT' || c.type === 'MFO') return dW;
+    if (c.type === 'SNLT' || c.type === 'MSO') return this.finishFromStart(eng, dW, task);
+    return null;
   }
 
   /**
-   * Late-zijde grenzen (fase 2.3): SNLT/MSO kappen de late start (⇒ late finish op
-   * datum ⊕ (duur−1)), FNLT/MFO en de zachte deadline kappen de late finish direct.
-   * Bovengrenzen in de backward pass — vroege datums bewegen nooit; overschrijding
-   * door de logica wordt negatieve float.
+   * Vroege-zijde constraints (fase 2.3, uitgebreid 2.9 §4.1-4.3). Een harde MSO/MFO-pin
+   * OVERSCHRIJFT de voorganger-druk onvoorwaardelijk (barrière, §4.2) en registreert een
+   * logica-schending zodra die druk (`rawMax`, of null bij een worteltaak) later valt dan de pin
+   * — dán start de taak vóór z'n voorganger klaar is. Zonder pin stapelen de PRIMAIRE en
+   * SECUNDAIRE forward-constraints (SNET/FNET/MSO/MFO) als max-ondergrenzen. `hard`/`constraint2`
+   * afwezig ⇒ exact de bestaande soft-tak (byte-identiek: de 319 cases kennen ze nergens).
+   */
+  private applyForwardConstraints(task: Task, earlyStart: Date, rawMax: Date | null, eng: CalendarEngine): Date {
+    const pin = this.hardPinStart(task, eng);
+    if (pin) {
+      if (rawMax && rawMax > pin) this.hardPinViolatedIds.push(task.id);
+      return pin;
+    }
+    let es = earlyStart;
+    for (const cc of [task.constraint, task.constraint2]) {
+      const bound = this.forwardBoundOf(task, cc, eng);
+      if (bound && bound > es) es = bound;
+    }
+    return es;
+  }
+
+  /**
+   * Late-zijde grenzen (fase 2.3, uitgebreid 2.9 §4.1-4.3). Een harde MSO/MFO-pin zet de late
+   * finish ONVOORWAARDELIJK op de gepinde waarde (override de successor-druk) ⇒ LS=ES/LF=EF ⇒
+   * tf=0 op de pin, en een strengere late-constraint verder downstream propageert zijn negatieve
+   * float NIET dóór de pin heen (P6-barrière, §4.2). Zonder pin stapelen de PRIMAIRE en SECUNDAIRE
+   * backward-constraints (SNLT/FNLT/MSO/MFO) + de zachte deadline als min-bovengrenzen; vroege
+   * datums bewegen nooit, overschrijding wordt negatieve float.
    */
   private applyBackwardBound(task: Task, lateFinish: Date, eng: CalendarEngine): Date {
+    const pinFinish = this.hardPinFinish(task, eng);
+    if (pinFinish) return pinFinish;
     let lf = lateFinish;
-    const c = task.constraint;
-    const d = this.constraintDate(task);
-    if (c && d) {
-      const dur = task.isMilestone ? 0 : task.time.scheduleDuration;
-      const back = dur > 0 ? dur - 1 : 0;
-      const dW = eng.prevWorkDay(d);
-      if (c.type === 'FNLT' || c.type === 'MFO') {
-        if (dW < lf) lf = dW;
-      } else if (c.type === 'SNLT' || c.type === 'MSO') {
-        const bound = eng.addWorkingDaysSigned(dW, back);
-        if (bound < lf) lf = bound;
-      }
+    for (const cc of [task.constraint, task.constraint2]) {
+      const bound = this.backwardBoundOf(task, cc, eng);
+      if (bound && bound < lf) lf = bound;
     }
     if (task.deadline) {
       const dl = parseDate(task.deadline);
@@ -1187,16 +1243,21 @@ export class CPMSolver {
       if (isCritical) criticalPath.push(taskId);
       if (early.ef > projectEnd) projectEnd = early.ef;
 
-      // Geschonden constraints / gemiste deadlines (bron van de negatieve float).
+      // Geschonden constraints / gemiste deadlines (bron van de negatieve float). Beide constraints
+      // worden geëvalueerd (§4.3). Een harde MSO/MFO-pin telt hier NIET mee — diens logica-schending
+      // (rawMax > pin) is al in de forward pass geregistreerd (§4.2) en wordt onderaan toegevoegd.
       const task = taskObj;
       {
-        const cd = this.constraintDate(task);
-        if (task.constraint && cd) {
-          const dW = cal.prevWorkDay(cd);
-          const ct = task.constraint.type;
+        for (const cc of [task.constraint, task.constraint2]) {
+          if (!cc) continue;
+          if (cc.hard && (cc.type === 'MSO' || cc.type === 'MFO')) continue;
+          const cd = this.constraintInstant(cc, cal);
+          if (!cd) continue;
+          const dW = this.snapOnOrBefore(cal, cd);
+          const ct = cc.type;
           if (((ct === 'SNLT' || ct === 'MSO') && early.es > dW)
             || ((ct === 'FNLT' || ct === 'MFO') && early.ef > dW)) {
-            violatedConstraintTaskIds.push(taskId);
+            if (!violatedConstraintTaskIds.includes(taskId)) violatedConstraintTaskIds.push(taskId);
           }
         }
         if (task.deadline) {
@@ -1219,6 +1280,12 @@ export class CPMSolver {
         freeFloat,
         isCritical,
       });
+    }
+
+    // Harde-pin-logicaschendingen (§4.2): de voorganger-druk viel later dan de pin ⇒ de taak start
+    // vóór z'n voorganger klaar is. Toegevoegd aan de geschonden-constraint-verzameling (deduped).
+    for (const id of this.hardPinViolatedIds) {
+      if (!violatedConstraintTaskIds.includes(id)) violatedConstraintTaskIds.push(id);
     }
 
     // Projectduur = werkdag-spanne van de vroegste start tot de laatste finish. Een project dat

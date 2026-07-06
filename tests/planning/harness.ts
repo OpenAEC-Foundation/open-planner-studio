@@ -125,7 +125,12 @@ interface Case {
     /** Fase 2.8b (§8.1): `dur` mag een string zijn — "2d 4u"/"4h"/"90m"/"12u" (hele eenheden, via
      *  `parseDuration`) ⇒ `durationMinutes` op de taak; een getal ⇒ werkdagen (dag-modus, ongewijzigd). */
     name: string; dur?: number | string; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
-    mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string;
+    mandatory?: boolean; parent?: string; deadline?: string;
+    /** Fase 2.9 (§4.1/§4.2): `hard` op de PRIMAIRE constraint ⇒ logica-brekende Mandatory-pin
+     *  (alleen zinvol op MSO/MFO). `date` mag een datetime zijn op een uur-taak (§4.1, S13). */
+    constraint?: { type: string; date?: string; hard?: boolean };
+    /** Fase 2.9 (§4.3): SECUNDAIRE constraint (altijd soft). */
+    constraint2?: { type: string; date?: string };
     priority?: number;
     /** Fase 2.8b (§8.3, durationMinutes-op-dag-kalender-invariant): zet `durationMinutes` RAUW op de
      *  taak, ontkoppeld van `dur` — om te bewijzen dat het veld op een dag-kalender wordt genegeerd
@@ -331,6 +336,7 @@ function buildAndSolve(c: Case): {
       ...(t.priority !== undefined ? { priority: t.priority } : {}),
       ...(t.mandatory !== undefined ? { mandatory: t.mandatory } : {}),
       ...(t.constraint ? { constraint: t.constraint as any } : {}),
+      ...(t.constraint2 ? { constraint2: t.constraint2 as any } : {}),
       ...(t.deadline ? { deadline: t.deadline } : {}),
     });
     ids[t.name] = id;

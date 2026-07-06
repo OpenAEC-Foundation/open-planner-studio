@@ -10,6 +10,7 @@ import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { FILTER_SORT_BUILTIN_KEYS, fieldKind, type FieldCatalogCtx } from '@/components/viewControls/fieldCatalog';
 import type { FieldRef, BuiltinFieldKey } from '@/state/slices/types';
+import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -122,6 +123,42 @@ eq('20 cyclus ⇒ error gezet', typeof rErr.error === 'string' && rErr.error.len
 eq('21 error-result: criticalPaths aanwezig, lengte 1', rErr.criticalPaths.length, 1);
 eq('22 error-result: nearCriticalTaskIds/floatPathByTask leeg',
   rErr.nearCriticalTaskIds.length === 0 && Object.keys(rErr.floatPathByTask).length === 0, true);
+
+// ── 7) Golf 1 — validateConstraintPair (§4.3), pure authoring-guard ───────────
+// De SOLVER rekent altijd gewoon door; deze helper weigert enkel nonsensicale paren voor de UI.
+const c = (type: string, extra: Partial<TaskConstraint> = {}): TaskConstraint =>
+  ({ type: type as TaskConstraint['type'], date: '2026-06-03', ...extra });
+eq('23 geen secundair ⇒ ok', validateConstraintPair(c('SNET'), undefined).ok, true);
+eq('24 SNET+FNLT (S9-venster) ⇒ ok', validateConstraintPair(c('SNET'), c('FNLT')).ok, true);
+eq('25 FNET+SNLT (finish-onder + start-boven) ⇒ ok', validateConstraintPair(c('FNET'), c('SNLT')).ok, true);
+eq('26 MSO-primair + secundair ⇒ verboden',
+  validateConstraintPair(c('MSO'), c('FNLT')).issues.includes('no-secondary-with-mandatory-or-on'), true);
+eq('27 harde primaire pin + secundair ⇒ verboden',
+  validateConstraintPair(c('MSO', { hard: true }), c('FNLT')).issues.includes('no-secondary-with-mandatory-or-on'), true);
+eq('28 secundair.hard ⇒ verboden',
+  validateConstraintPair(c('SNET'), c('FNLT', { hard: true })).issues.includes('secondary-hard-forbidden'), true);
+eq('29 twee gelijksoortige grenzen (SNET+FNET) ⇒ verboden',
+  validateConstraintPair(c('SNET'), c('FNET')).issues.includes('secondary-same-side'), true);
+eq('30 secundair type MSO ⇒ ongeldig',
+  validateConstraintPair(c('SNET'), c('MSO')).issues.includes('secondary-type-invalid'), true);
+eq('31 ASAP-primair + secundair ⇒ verboden',
+  validateConstraintPair(c('ASAP'), c('FNLT')).issues.includes('no-secondary-with-asap-alap'), true);
+
+// ── 8) Golf 1 — harde-pin-idempotentie (§8.4c): twee solves = zelfde datums ────
+// A(5)→FS B(2), B HARD MSO 06-03 (scenario S8). De pin breekt de logica; herhaald solven moet
+// bit-identiek zijn (geen accumulerende instance-state).
+const pinTasks: Task[] = [
+  mkTask('A', 5),
+  mkTask('B', 2, { constraint: { type: 'MSO', date: '2026-06-03', hard: true } }),
+];
+const pinSeq: Sequence[] = [fs('p1', 'A', 'B')];
+const rp1 = solve(pinTasks, pinSeq);
+const rp2 = solve(pinTasks, pinSeq);
+eq('32 harde pin: solve idempotent (zelfde digest)', digest(rp1), digest(rp2));
+eq('33 harde pin: B start vóór A klaar (logica gebroken)', rp1.tasks.get('B')!.earlyStart, '2026-06-03');
+eq('34 harde pin: B tf=0 (pin kritiek-neutraal)', rp1.tasks.get('B')!.totalFloat, 0);
+eq('35 harde pin: A negatieve float upstream', rp1.tasks.get('A')!.totalFloat, -3);
+eq('36 harde pin: B in violatedConstraintTaskIds (rawMax > pin)', rp1.violatedConstraintTaskIds.includes('B'), true);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

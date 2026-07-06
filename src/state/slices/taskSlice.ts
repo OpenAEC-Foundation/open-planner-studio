@@ -113,6 +113,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         resourceIds: partial.resourceIds || [],
         color: partial.color,
         constraint: partial.constraint,
+        // Fase 2.9 (§3.1/§4.3): secundaire constraint doorgeven zodat de solver hem als tweede
+        // grens meerekent. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
+        constraint2: partial.constraint2,
         deadline: partial.deadline,
         calendarId: partial.calendarId,
       };
