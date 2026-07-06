@@ -1,7 +1,7 @@
 {
   "name": "open-planner-studio",
   "private": true,
-  "version": "2026.7.6",
+  "version": "2026.7.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
