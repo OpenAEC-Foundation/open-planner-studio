@@ -44,6 +44,18 @@
     "themeLight": "Chiaro",
     "themeHighContrast": "Alto contrasto",
     "timeline": "Sequenza temporale / Zoom",
+    "hourPlanningSection": "Pianificazione oraria",
+    "enableHourPlanning": "Attiva pianificazione oraria",
+    "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
+    "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",
+    "durationDisplay": "Visualizzazione della durata",
+    "durationDisplayAuto": "Automatica (unità propria per attività)",
+    "durationDisplayDays": "Sempre giorni",
+    "durationDisplayHours": "Sempre ore",
+    "barSplitMode": "Barre attività alle interruzioni",
+    "barSplitNever": "Non dividere mai",
+    "barSplitSelection": "Dividi alla selezione",
+    "barSplitAlways": "Dividi sempre",
     "enableQuarterHourZoom": "Mostra i quarti d'ora con ingrandimento elevato",
     "weekStartDay": "La settimana inizia il",
     "weekStartMonday": "Lunedì",
@@ -327,6 +339,25 @@
     "preset": {
       "continuous": "Continuo (24/7)",
       "weekdays": "Lun–ven"
+    },
+    "shift": {
+      "day": "Turno diurno",
+      "twoShift": "2 turni",
+      "threeShift": "3 turni",
+      "night": "Turno notturno",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Orari di lavoro",
+      "derivedHpd": "Ore/giorno derivate:",
+      "saveAsPreset": "Salva come preimpostazione…",
+      "perWeekday": "Imposta per giorno della settimana…",
+      "presetNamePlaceholder": "Nome preimpostazione",
+      "addBand": "Aggiungi fascia",
+      "copyToAll": "Copia su tutti i giorni lavorativi",
+      "noBands": "Non lavorativo",
+      "nextDay": "giorno successivo",
+      "shiftPreset": "Turno"
     }
   },
   "view": {
@@ -403,6 +434,14 @@
   },
   "dateInput": {
     "placeholder": "gg-mm-aaaa",
-    "invalid": "Data non valida — es. 6-7-2026"
+    "invalid": "Data non valida — es. 6-7-2026",
+    "group": "Data",
+    "day": "giorno",
+    "month": "mese",
+    "year": "anno"
+  },
+  "hourData": {
+    "notice": "Questo file contiene una pianificazione oraria.",
+    "enable": "Attiva pianificazione oraria"
   }
 }

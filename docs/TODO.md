@@ -196,14 +196,21 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > **2.8b** = uren-/minuten-based scheduling + de uur-tijdschaal, als apart ontworpen
 > vervolgfase (raakt solver, alle adapters, renderer én IFC — te groot om mee te liften).
 
-- [ ] 24-uurs kalender
-- [ ] Dag/nacht ploegen-kalender
-- [ ] Uren-based en minuten-based scheduling
-- [ ] **Uur-tijdschaal in de Gantt.** Bewust uitgesteld vanuit fase 2.7 (Weergaven): het
-      datamodel is dag-granulair (`scheduleDuration` in werkdagen, CPM rekent in hele
-      dagen), dus een uur-as zou nu misleiden — elke balk snapt alsnog op daggrenzen. Hoort
-      hier thuis zodra uren-/minuten-based scheduling bestaat. Zie het uitstel-besluit in
-      [het 2.7-ontwerp §3.4](superpowers/specs/2026-07-04-weergaven-design.md#34-uur-schaal-uitgesteld-naar-28--reden).
+> §2.8b: hoofdschakelaar Urenplanning (instelling, default uit) + gemengde dag/uur-planning
+> toestaan; werktijd-banden per weekdag (meerdere banden, nachtploeg over middernacht) met
+> dag/2-ploegen/3-ploegen/nacht/24-7-presets en een banden-editor (opslaan als preset,
+> per-weekdag instellen, kopiëren naar alle werkdagen); uur-tijdschaal in de Gantt (bestaande
+> `timelineTiers` geactiveerd); drie duurweergave-modi (automatisch/altijd dagen/altijd uren)
+> met mixed-kalender-waarschuwing; taakbalk-opsplitsing bij onderbrekingen (nooit/bij
+> selectie/altijd); minuut-precieze round-trip in P6-XML, MSPDI en IFC; datumvelden herbouwd
+> als getypte dag/maand/jaar-segmenten met een datumnotatie-instelling; diverse
+> kalenderdialoog-fixes. Volledig vertaald in alle 14 talen — zie changelog en
+> [ontwerp](superpowers/specs/2026-07-06-uren-scheduling-design.md). Bewust later: instelbare
+> lag-kalender-optie (P6's "Calendar for scheduling Relationship Lag") is fase 2.9; sub-dag
+> resource-nivellering (per-uur/per-shift capaciteits-emmers) blijft dag-emmer-gebaseerd;
+> tijdzone/DST-bewuste scheduling; per-rij Gantt-arcering op afwijkende taak-kalenders.
+> **Status: bouw af (golven 0-6), visuele QA en fix-golf lopen nog; niets naar main tot af en
+> getest.**
 
 #### 2.9 Geavanceerde CPM
 - [ ] Alle constraint-types meenemen in CPM-berekening

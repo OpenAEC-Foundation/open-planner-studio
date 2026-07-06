@@ -44,6 +44,18 @@
     "themeLight": "Clair",
     "themeHighContrast": "Contraste élevé",
     "timeline": "Chronologie / Zoom",
+    "hourPlanningSection": "Planification horaire",
+    "enableHourPlanning": "Activer la planification horaire",
+    "enableHourPlanningHint": "Active la planification heure/minute : une échelle de temps en heures, des équipes avec des plages horaires de travail et des barres de tâche précises à l'heure près. Désactivé ⇒ l'application reste entièrement en granularité journalière, comme auparavant.",
+    "allowMixedDayHour": "Autoriser la planification mixte jour/heure",
+    "durationDisplay": "Affichage de la durée",
+    "durationDisplayAuto": "Automatique (unité propre à chaque tâche)",
+    "durationDisplayDays": "Toujours en jours",
+    "durationDisplayHours": "Toujours en heures",
+    "barSplitMode": "Barres de tâche aux interruptions",
+    "barSplitNever": "Ne jamais scinder",
+    "barSplitSelection": "Scinder à la sélection",
+    "barSplitAlways": "Toujours scinder",
     "enableQuarterHourZoom": "Afficher les quarts d'heure au zoom maximal",
     "weekStartDay": "La semaine commence le",
     "weekStartMonday": "Lundi",
@@ -327,6 +339,25 @@
     "preset": {
       "continuous": "Continu (24/7)",
       "weekdays": "Lun–ven"
+    },
+    "shift": {
+      "day": "Équipe de jour",
+      "twoShift": "2 équipes",
+      "threeShift": "3 équipes",
+      "night": "Équipe de nuit",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Horaires de travail",
+      "derivedHpd": "Heures/jour dérivées :",
+      "saveAsPreset": "Enregistrer comme préréglage…",
+      "perWeekday": "Définir par jour de la semaine…",
+      "presetNamePlaceholder": "Nom du préréglage",
+      "addBand": "Ajouter une plage",
+      "copyToAll": "Copier sur tous les jours ouvrés",
+      "noBands": "Non travaillé",
+      "nextDay": "jour suivant",
+      "shiftPreset": "Équipe"
     }
   },
   "view": {
@@ -403,6 +434,14 @@
   },
   "dateInput": {
     "placeholder": "jj-mm-aaaa",
-    "invalid": "Date invalide — p. ex. 6-7-2026"
+    "invalid": "Date invalide — p. ex. 6-7-2026",
+    "group": "Date",
+    "day": "jour",
+    "month": "mois",
+    "year": "année"
+  },
+  "hourData": {
+    "notice": "Ce fichier contient une planification horaire.",
+    "enable": "Activer la planification horaire"
   }
 }

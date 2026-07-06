@@ -1,6 +1,6 @@
 # Ontwerp: Fase 2.8b — Uren-/minuten-scheduling
 
-*Status: **bindend ontwerp** (2026-07-06) — te implementeren zonder de bronrapporten te herlezen. Elke
+*Status: **geïmplementeerd (golven 0-6; QA loopt)**. Elke
 beslissing citeert het exacte bestand:regel waar hij op steunt; alle regelnummers zijn in deze sessie
 gecontroleerd tegen de echte broncode op branch `fase-2.8b`.*
 *Bron: [Rapport A — codebase-inventory](2026-07-06-2.8b-research-codebase.md), [Rapport B —

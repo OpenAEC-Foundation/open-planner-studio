@@ -44,6 +44,18 @@
     "themeLight": "浅色",
     "themeHighContrast": "高对比度",
     "timeline": "时间轴 / 缩放",
+    "hourPlanningSection": "小时计划",
+    "enableHourPlanning": "启用小时计划",
+    "enableHourPlanningHint": "启用小时/分钟排程：小时级时间刻度、带工作时间段的班次，以及精确到小时的任务条。关闭 ⇒ 应用将保持与之前一样完全按天粒度运行。",
+    "allowMixedDayHour": "允许混合按天/按小时计划",
+    "durationDisplay": "工期显示",
+    "durationDisplayAuto": "自动（按任务自身单位）",
+    "durationDisplayDays": "始终按天",
+    "durationDisplayHours": "始终按小时",
+    "barSplitMode": "中断处的任务条",
+    "barSplitNever": "从不拆分",
+    "barSplitSelection": "选中时拆分",
+    "barSplitAlways": "始终拆分",
     "enableQuarterHourZoom": "深度放大时显示刻钟",
     "weekStartDay": "一周起始日",
     "weekStartMonday": "星期一",
@@ -327,6 +339,25 @@
     "preset": {
       "continuous": "连续（24/7）",
       "weekdays": "周一至周五"
+    },
+    "shift": {
+      "day": "白班",
+      "twoShift": "两班倒",
+      "threeShift": "三班倒",
+      "night": "夜班",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "工作时间",
+      "derivedHpd": "推算的小时/天：",
+      "saveAsPreset": "另存为预设…",
+      "perWeekday": "按星期设置…",
+      "presetNamePlaceholder": "预设名称",
+      "addBand": "添加时段",
+      "copyToAll": "复制到所有工作日",
+      "noBands": "非工作",
+      "nextDay": "次日",
+      "shiftPreset": "班次"
     }
   },
   "view": {
@@ -403,6 +434,14 @@
   },
   "dateInput": {
     "placeholder": "日-月-年",
-    "invalid": "日期无效 — 例如 6-7-2026"
+    "invalid": "日期无效 — 例如 6-7-2026",
+    "group": "日期",
+    "day": "日",
+    "month": "月",
+    "year": "年"
+  },
+  "hourData": {
+    "notice": "此文件包含按小时的计划。",
+    "enable": "启用小时计划"
   }
 }

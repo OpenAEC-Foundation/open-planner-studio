@@ -10,7 +10,9 @@
     "critical": "بحرانی",
     "totalFloat": "شناوری کل",
     "completion": "پیشرفت",
-    "milestone": "نقطه عطف"
+    "milestone": "نقطه عطف",
+    "hoursPerDayTip": "ساعت/روز",
+    "mixedWarning": "تقویم‌های ترکیبی ({{hpds}} ساعت/روز). مدت هر وظیفه در واحد خودش نمایش داده می‌شود."
   },
   "taskType": {
     "CONSTRUCTION": "ساخت",
@@ -36,7 +38,11 @@
     "parentTask": "وظیفه والد",
     "noParent": "- هیچ (ریشه) -",
     "milestone": "نقطه عطف (مدت صفر)",
-    "wbsPlaceholder": "مثلا RB-301"
+    "wbsPlaceholder": "مثلا RB-301",
+    "durationDays": "روز",
+    "durationHours": "ساعت",
+    "durationTotalHours": "مجموع ساعات",
+    "hourCalendarHint": "ورود ساعتی به یک تقویم ساعتی (ساعات کاری) نیاز دارد."
   },
   "properties": {
     "task": "وظیفه",

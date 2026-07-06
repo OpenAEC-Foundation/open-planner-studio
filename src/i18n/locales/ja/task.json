@@ -10,7 +10,9 @@
     "critical": "クリティカル",
     "totalFloat": "トータルフロート",
     "completion": "進捗",
-    "milestone": "マイルストーン"
+    "milestone": "マイルストーン",
+    "hoursPerDayTip": "時間/日",
+    "mixedWarning": "混在カレンダー（{{hpds}} 時間/日）。期間はタスクごとに固有の単位で表示されます。"
   },
   "taskType": {
     "CONSTRUCTION": "建設",
@@ -36,7 +38,11 @@
     "parentTask": "親タスク",
     "noParent": "－ なし（ルート）－",
     "milestone": "マイルストーン（ゼロ期間）",
-    "wbsPlaceholder": "例：RB-301"
+    "wbsPlaceholder": "例：RB-301",
+    "durationDays": "日数",
+    "durationHours": "時間",
+    "durationTotalHours": "合計時間",
+    "hourCalendarHint": "時間入力には時間カレンダー（稼働時間）が必要です。"
   },
   "properties": {
     "task": "タスク",

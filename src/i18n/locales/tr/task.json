@@ -10,7 +10,9 @@
     "critical": "Kritik",
     "totalFloat": "Toplam bolluk",
     "completion": "İlerleme",
-    "milestone": "Kilometre taşı"
+    "milestone": "Kilometre taşı",
+    "hoursPerDayTip": "sa/gün",
+    "mixedWarning": "Karma takvimler ({{hpds}} sa/gün). Süre her görev için kendi biriminde gösterilir."
   },
   "taskType": {
     "CONSTRUCTION": "İnşaat",
@@ -36,7 +38,11 @@
     "parentTask": "Üst görev",
     "noParent": "- Yok (kök) -",
     "milestone": "Kilometre taşı (sıfır süre)",
-    "wbsPlaceholder": "ör. RB-301"
+    "wbsPlaceholder": "ör. RB-301",
+    "durationDays": "Gün",
+    "durationHours": "Saat",
+    "durationTotalHours": "Toplam saat",
+    "hourCalendarHint": "Saat girişi bir saat takvimi (çalışma saatleri) gerektirir."
   },
   "properties": {
     "task": "Görev",

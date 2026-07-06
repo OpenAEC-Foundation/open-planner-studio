@@ -10,7 +10,9 @@
     "critical": "关键",
     "totalFloat": "总浮动",
     "completion": "进度",
-    "milestone": "里程碑"
+    "milestone": "里程碑",
+    "hoursPerDayTip": "小时/天",
+    "mixedWarning": "混合日历（{{hpds}} 小时/天）。工期按各任务自身单位显示。"
   },
   "taskType": {
     "CONSTRUCTION": "施工",
@@ -36,7 +38,11 @@
     "parentTask": "父任务",
     "noParent": "- 无（根级）-",
     "milestone": "里程碑（零工期）",
-    "wbsPlaceholder": "例如 RB-301"
+    "wbsPlaceholder": "例如 RB-301",
+    "durationDays": "天",
+    "durationHours": "小时",
+    "durationTotalHours": "总小时数",
+    "hourCalendarHint": "按小时输入需要小时日历（工作时间）。"
   },
   "properties": {
     "task": "任务",

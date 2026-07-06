@@ -44,6 +44,18 @@
     "themeLight": "Açık",
     "themeHighContrast": "Yüksek Kontrast",
     "timeline": "Zaman çizelgesi / Yakınlaştırma",
+    "hourPlanningSection": "Saat planlaması",
+    "enableHourPlanning": "Saat planlamasını etkinleştir",
+    "enableHourPlanningHint": "Saat/dakika zamanlamasını açar: saatlik zaman ölçeği, çalışma saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları. Kapalı ⇒ uygulama önceki gibi tamamen gün bazlı kalır.",
+    "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",
+    "durationDisplay": "Süre gösterimi",
+    "durationDisplayAuto": "Otomatik (göreve özgü birim)",
+    "durationDisplayDays": "Her zaman gün",
+    "durationDisplayHours": "Her zaman saat",
+    "barSplitMode": "Kesintilerde görev çubukları",
+    "barSplitNever": "Asla bölme",
+    "barSplitSelection": "Seçildiğinde böl",
+    "barSplitAlways": "Her zaman böl",
     "enableQuarterHourZoom": "Çok yakınlaştırıldığında çeyrek saatleri göster",
     "weekStartDay": "Hafta başlangıcı",
     "weekStartMonday": "Pazartesi",
@@ -327,6 +339,25 @@
     "preset": {
       "continuous": "Sürekli (24/7)",
       "weekdays": "Pzt–Cum"
+    },
+    "shift": {
+      "day": "Gündüz vardiyası",
+      "twoShift": "2 vardiya",
+      "threeShift": "3 vardiya",
+      "night": "Gece vardiyası",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "Çalışma saatleri",
+      "derivedHpd": "Türetilmiş saat/gün:",
+      "saveAsPreset": "Ön ayar olarak kaydet…",
+      "perWeekday": "Haftanın gününe göre ayarla…",
+      "presetNamePlaceholder": "Ön ayar adı",
+      "addBand": "Bant ekle",
+      "copyToAll": "Tüm iş günlerine kopyala",
+      "noBands": "Çalışılmayan",
+      "nextDay": "sonraki gün",
+      "shiftPreset": "Vardiya"
     }
   },
   "view": {
@@ -403,6 +434,14 @@
   },
   "dateInput": {
     "placeholder": "gg-aa-yyyy",
-    "invalid": "Geçersiz tarih — örn. 6-7-2026"
+    "invalid": "Geçersiz tarih — örn. 6-7-2026",
+    "group": "Tarih",
+    "day": "gün",
+    "month": "ay",
+    "year": "yıl"
+  },
+  "hourData": {
+    "notice": "Bu dosya saat bazlı planlama içeriyor.",
+    "enable": "Saat planlamasını aç"
   }
 }

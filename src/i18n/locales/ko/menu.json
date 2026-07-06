@@ -78,6 +78,7 @@
     "criticalPath": "크리티컬 패스",
     "criticalPathInfo": "빨간색으로 표시",
     "timeScale": "시간 척도",
+    "hour": "시간",
     "day": "일",
     "week": "주",
     "month": "월",

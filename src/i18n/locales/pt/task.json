@@ -10,7 +10,9 @@
     "critical": "Crítica",
     "totalFloat": "Folga total",
     "completion": "Progresso",
-    "milestone": "Marco"
+    "milestone": "Marco",
+    "hoursPerDayTip": "h/dia",
+    "mixedWarning": "Calendários mistos ({{hpds}} h/dia). A duração é mostrada por tarefa na sua própria unidade."
   },
   "taskType": {
     "CONSTRUCTION": "Construção",
@@ -36,7 +38,11 @@
     "parentTask": "Tarefa pai",
     "noParent": "- Nenhuma (raiz) -",
     "milestone": "Marco (duração zero)",
-    "wbsPlaceholder": "ex. RB-301"
+    "wbsPlaceholder": "ex. RB-301",
+    "durationDays": "Dias",
+    "durationHours": "Horas",
+    "durationTotalHours": "Total de horas",
+    "hourCalendarHint": "A introdução em horas requer um calendário horário (horários de trabalho)."
   },
   "properties": {
     "task": "Tarefa",

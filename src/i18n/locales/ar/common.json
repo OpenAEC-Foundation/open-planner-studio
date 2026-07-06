@@ -44,6 +44,18 @@
     "themeLight": "فاتح",
     "themeHighContrast": "تباين عالٍ",
     "timeline": "الجدول الزمني / التكبير",
+    "hourPlanningSection": "التخطيط بالساعات",
+    "enableHourPlanning": "تفعيل التخطيط بالساعات",
+    "enableHourPlanningHint": "يفعّل الجدولة بالساعة/الدقيقة: مقياس زمني بالساعات، ونوبات عمل ذات نطاقات أوقات عمل، وأشرطة مهام دقيقة على مستوى الساعة. عند الإيقاف ⇐ يبقى التطبيق مبنيًا بالكامل على اليوم كما كان.",
+    "allowMixedDayHour": "السماح بالتخطيط المختلط باليوم/الساعة",
+    "durationDisplay": "عرض المدة",
+    "durationDisplayAuto": "تلقائي (وحدة خاصة بكل مهمة)",
+    "durationDisplayDays": "أيام دائمًا",
+    "durationDisplayHours": "ساعات دائمًا",
+    "barSplitMode": "أشرطة المهام عند الانقطاعات",
+    "barSplitNever": "عدم التقسيم أبدًا",
+    "barSplitSelection": "تقسيم عند التحديد",
+    "barSplitAlways": "تقسيم دائمًا",
     "enableQuarterHourZoom": "إظهار ربع الساعة عند التكبير الشديد",
     "weekStartDay": "يبدأ الأسبوع في",
     "weekStartMonday": "الإثنين",
@@ -327,6 +339,25 @@
     "preset": {
       "continuous": "متواصل (24/7)",
       "weekdays": "الإثنين–الجمعة"
+    },
+    "shift": {
+      "day": "وردية نهارية",
+      "twoShift": "ورديتان",
+      "threeShift": "ثلاث ورديات",
+      "night": "وردية ليلية",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "أوقات العمل",
+      "derivedHpd": "الساعات/اليوم المشتقة:",
+      "saveAsPreset": "حفظ كإعداد مسبق…",
+      "perWeekday": "تعيين لكل يوم من أيام الأسبوع…",
+      "presetNamePlaceholder": "اسم الإعداد المسبق",
+      "addBand": "إضافة نطاق",
+      "copyToAll": "نسخ إلى جميع أيام العمل",
+      "noBands": "غير عامل",
+      "nextDay": "اليوم التالي",
+      "shiftPreset": "الوردية"
     }
   },
   "view": {
@@ -403,6 +434,14 @@
   },
   "dateInput": {
     "placeholder": "يوم-شهر-سنة",
-    "invalid": "تاريخ غير صالح — مثال: 6-7-2026"
+    "invalid": "تاريخ غير صالح — مثال: 6-7-2026",
+    "group": "التاريخ",
+    "day": "يوم",
+    "month": "شهر",
+    "year": "سنة"
+  },
+  "hourData": {
+    "notice": "يحتوي هذا الملف على تخطيط بالساعات.",
+    "enable": "تفعيل التخطيط بالساعات"
   }
 }

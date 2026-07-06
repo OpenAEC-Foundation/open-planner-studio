@@ -44,6 +44,18 @@
     "themeLight": "روشن",
     "themeHighContrast": "کنتراست بالا",
     "timeline": "خط زمانی / بزرگنمایی",
+    "hourPlanningSection": "برنامه‌ریزی ساعتی",
+    "enableHourPlanning": "فعال‌سازی برنامه‌ریزی ساعتی",
+    "enableHourPlanningHint": "زمان‌بندی ساعت/دقیقه را فعال می‌کند: یک مقیاس زمانی ساعتی، شیفت‌های دارای بازه‌های ساعت کاری و نوارهای وظیفه با دقت ساعتی. خاموش ⇐ برنامه مانند قبل کاملاً بر پایه روز باقی می‌ماند.",
+    "allowMixedDayHour": "اجازه دادن به برنامه‌ریزی ترکیبی روز/ساعت",
+    "durationDisplay": "نمایش مدت",
+    "durationDisplayAuto": "خودکار (واحد اختصاصی هر وظیفه)",
+    "durationDisplayDays": "همیشه روز",
+    "durationDisplayHours": "همیشه ساعت",
+    "barSplitMode": "نوارهای وظیفه در وقفه‌ها",
+    "barSplitNever": "هرگز تقسیم نشود",
+    "barSplitSelection": "تقسیم هنگام انتخاب",
+    "barSplitAlways": "همیشه تقسیم شود",
     "enableQuarterHourZoom": "نمایش ربع ساعت هنگام بزرگنمایی زیاد",
     "weekStartDay": "هفته از",
     "weekStartMonday": "دوشنبه",
@@ -327,6 +339,25 @@
     "preset": {
       "continuous": "پیوسته (24/7)",
       "weekdays": "دوشنبه–جمعه"
+    },
+    "shift": {
+      "day": "شیفت روز",
+      "twoShift": "دو شیفت",
+      "threeShift": "سه شیفت",
+      "night": "شیفت شب",
+      "continuous": "24/7"
+    },
+    "worktime": {
+      "section": "ساعات کاری",
+      "derivedHpd": "ساعت/روز مشتق‌شده:",
+      "saveAsPreset": "ذخیره به عنوان پیش‌تنظیم…",
+      "perWeekday": "تنظیم برای هر روز هفته…",
+      "presetNamePlaceholder": "نام پیش‌تنظیم",
+      "addBand": "افزودن بازه",
+      "copyToAll": "کپی به همه روزهای کاری",
+      "noBands": "غیرکاری",
+      "nextDay": "روز بعد",
+      "shiftPreset": "شیفت"
     }
   },
   "view": {
@@ -403,6 +434,14 @@
   },
   "dateInput": {
     "placeholder": "روز-ماه-سال",
-    "invalid": "تاریخ نامعتبر — مثلاً 6-7-2026"
+    "invalid": "تاریخ نامعتبر — مثلاً 6-7-2026",
+    "group": "تاریخ",
+    "day": "روز",
+    "month": "ماه",
+    "year": "سال"
+  },
+  "hourData": {
+    "notice": "این فایل شامل برنامه‌ریزی ساعتی است.",
+    "enable": "فعال‌سازی برنامه‌ریزی ساعتی"
   }
 }

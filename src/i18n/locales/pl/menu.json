@@ -78,6 +78,7 @@
     "criticalPath": "Ścieżka krytyczna",
     "criticalPathInfo": "Wyświetlana na czerwono",
     "timeScale": "Skala czasu",
+    "hour": "Godzina",
     "day": "Dzień",
     "week": "Tydzień",
     "month": "Miesiąc",

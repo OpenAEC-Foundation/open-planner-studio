@@ -10,7 +10,9 @@
     "critical": "Krytyczne",
     "totalFloat": "Zapas całkowity",
     "completion": "Postęp",
-    "milestone": "Kamień milowy"
+    "milestone": "Kamień milowy",
+    "hoursPerDayTip": "godz./dzień",
+    "mixedWarning": "Mieszane kalendarze ({{hpds}} godz./dzień). Czas trwania jest pokazywany dla każdego zadania w jego własnej jednostce."
   },
   "taskType": {
     "CONSTRUCTION": "Budowa",
@@ -36,7 +38,11 @@
     "parentTask": "Zadanie nadrzędne",
     "noParent": "- Brak (korzeń) -",
     "milestone": "Kamień milowy (zerowy czas trwania)",
-    "wbsPlaceholder": "np. RB-301"
+    "wbsPlaceholder": "np. RB-301",
+    "durationDays": "Dni",
+    "durationHours": "Godziny",
+    "durationTotalHours": "Suma godzin",
+    "hourCalendarHint": "Wprowadzanie w godzinach wymaga kalendarza godzinowego (godzin pracy)."
   },
   "properties": {
     "task": "Zadanie",

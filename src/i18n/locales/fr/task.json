@@ -10,7 +10,9 @@
     "critical": "Critique",
     "totalFloat": "Marge totale",
     "completion": "Avancement",
-    "milestone": "Jalon"
+    "milestone": "Jalon",
+    "hoursPerDayTip": "h/j",
+    "mixedWarning": "Calendriers mixtes ({{hpds}} h/j). La durée est affichée par tâche dans sa propre unité."
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -36,7 +38,11 @@
     "parentTask": "Tâche parente",
     "noParent": "- Aucun (racine) -",
     "milestone": "Jalon (durée zéro)",
-    "wbsPlaceholder": "ex : RB-301"
+    "wbsPlaceholder": "ex : RB-301",
+    "durationDays": "Jours",
+    "durationHours": "Heures",
+    "durationTotalHours": "Heures totales",
+    "hourCalendarHint": "La saisie en heures nécessite un calendrier horaire (horaires de travail)."
   },
   "properties": {
     "task": "Tâche",

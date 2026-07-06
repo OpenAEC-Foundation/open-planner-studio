@@ -78,6 +78,7 @@
     "criticalPath": "Chemin critique",
     "criticalPathInfo": "Affiché en rouge",
     "timeScale": "Échelle de temps",
+    "hour": "Heure",
     "day": "Jour",
     "week": "Semaine",
     "month": "Mois",
