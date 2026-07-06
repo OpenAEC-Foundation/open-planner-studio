@@ -401,6 +401,10 @@
   },
   "dateInput": {
     "placeholder": "dd-mm-jjjj",
-    "invalid": "Ongeldige datum — bijv. 6-7-2026"
+    "invalid": "Ongeldige datum — bijv. 6-7-2026",
+    "group": "Datum",
+    "day": "dag",
+    "month": "maand",
+    "year": "jaar"
   }
 }

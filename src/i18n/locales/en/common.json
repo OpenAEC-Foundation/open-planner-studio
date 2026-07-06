@@ -401,6 +401,10 @@
   },
   "dateInput": {
     "placeholder": "dd-mm-yyyy",
-    "invalid": "Invalid date — e.g. 6-7-2026"
+    "invalid": "Invalid date — e.g. 6-7-2026",
+    "group": "Date",
+    "day": "day",
+    "month": "month",
+    "year": "year"
   }
 }
