@@ -57,6 +57,9 @@ export function WorkTimeEditor({
 
   const dayMinutes = (wd: WD) => (bands.byWeekday[wd] ?? []).reduce((s, b) => s + (b.end - b.start), 0);
   const derivedHpd = deriveHoursPerDay(bands, 0);
+  // Toont de pauze-hint zodra een werkdag meer dan één band heeft (een gat = pauze). Dekt de
+  // afgeleide pauze uit de scalar-seed (QA-fix §2.3) én handmatig toegevoegde pauzes.
+  const hasBreak = WEEK_DAYS.some((wd) => (bands.byWeekday[wd] ?? []).length > 1);
 
   const timeCls =
     'px-1.5 py-1 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[6px] text-text-primary focus:outline-none focus:border-accent';
@@ -128,6 +131,11 @@ export function WorkTimeEditor({
         <span className="text-[11px] font-medium text-text-secondary">{tCommon('calendar.worktime.derivedHpd')}</span>
         <span className="text-[11px] font-semibold text-accent tabular-nums" data-ops-derived-hpd>{derivedHpd}u</span>
       </div>
+      {hasBreak && (
+        <span className="text-[10px] text-text-secondary italic" data-ops-break-hint>
+          {tCommon('calendar.worktime.breakHint')}
+        </span>
+      )}
     </div>
   );
 }

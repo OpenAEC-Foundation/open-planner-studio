@@ -34,6 +34,54 @@ export function makeBands(days: number[], bands: { start: number; end: number }[
 }
 
 /**
+ * Banden voor ÉÉN werkdag afgeleid uit het scalar-model (`workStartHour`/`workEndHour`/`hoursPerDay`),
+ * zó dat de **band-som EXACT `hoursPerDay × 60` minuten** is (QA-fix golf, ontwerpdoc §2.3, open risico 5).
+ *
+ * Het gevaar: de default-kalender is `07:00-16:00` met `hoursPerDay=8` — 9 klokuren spanne, 8 netto uur.
+ * Eén naïeve band `[07:00,16:00]` levert 9u en corrumpeert `deriveHoursPerDay` naar 9. In plaats daarvan
+ * materialiseren we het impliciete verschil (`spanne − netto`) als een **pauze-gat rond het middaguur**
+ * (12:00), zodat 9 klokuren/8 netto ⇒ `07:00-12:00 + 13:00-16:00` (som exact 480m = 8u).
+ *
+ * - `spanne ≤ netto` (bv. 08:00-16:00 op 8u, of 00:00-24:00 op 24u) ⇒ één band `[start,end)`, byte-identiek.
+ * - `spanne > netto` ⇒ twee banden met het pauze-gat; de pauze wordt zo dicht mogelijk bij 12:00 gelegd,
+ *   geklemd binnen `[start,end)`. Landt de pauze precies op een rand, dan valt de lege band weg (één band).
+ */
+export function seedScalarBands(
+  startMin: number,
+  endMin: number,
+  hoursPerDay: number,
+): { start: number; end: number }[] {
+  const target = Math.round(hoursPerDay * 60);
+  // Defensief: een niet-oplopende of ongeldige spanne ⇒ één rauwe band (canonicalisatie doet de rest).
+  if (endMin <= startMin || target <= 0) return [{ start: startMin, end: endMin }];
+  const span = endMin - startMin;
+  if (span <= target) return [{ start: startMin, end: endMin }];
+  const gap = span - target; // impliciete pauze
+  const NOON = 12 * 60;
+  // Pauze rond het middaguur, geklemd zodat beide randen binnen [start,end) blijven.
+  const gapStart = Math.min(Math.max(NOON, startMin), endMin - gap);
+  const gapEnd = gapStart + gap;
+  const bands: { start: number; end: number }[] = [];
+  if (gapStart > startMin) bands.push({ start: startMin, end: gapStart });
+  if (gapEnd < endMin) bands.push({ start: gapEnd, end: endMin });
+  return bands.length ? bands : [{ start: startMin, end: endMin }];
+}
+
+/**
+ * Seed een volledige `WorkTimeBands` uit het scalar-dag-model bij het openen van de banden-editor op een
+ * dag-kalender (QA-fix golf). Elke werkdag krijgt dezelfde {@link seedScalarBands}-banden, zodat de
+ * afgeleide `hoursPerDay` gelijk blijft aan de opgegeven scalar-waarde (regressiekern).
+ */
+export function seedScalarWorkTime(
+  workDays: number[],
+  workStartHour: number,
+  workEndHour: number,
+  hoursPerDay: number,
+): WorkTimeBands {
+  return makeBands(workDays, seedScalarBands(workStartHour * 60, workEndHour * 60, hoursPerDay));
+}
+
+/**
  * Volledige patch voor een ingebouwde ploeg-preset.
  * - `day`         — dagdienst 08:00-16:00, dag-kalender (geen `workTime`).
  * - `two-shift`   — dag+avond 06:00-22:00 (16u/dag), ma-vr.

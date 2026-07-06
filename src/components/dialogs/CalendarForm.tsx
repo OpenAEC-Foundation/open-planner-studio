@@ -11,7 +11,7 @@ import { generateId } from '@/utils/id';
 import { loadWorkTimePresets, saveWorkTimePresets } from '@/utils/settingsStore';
 import {
   CALENDAR_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, patchFromPreset, presetFromCalendar,
-  makeBands, type WorkTimePreset,
+  seedScalarWorkTime, type WorkTimePreset,
 } from '@/utils/shiftPresets';
 import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
@@ -79,12 +79,14 @@ export function CalendarForm({
   };
   const deleteOwnPreset = (id: string) => persistOwnPresets(ownPresets.filter(p => p.id !== id));
 
-  // Banden-editor openen ⇒ ontbreekt workTime, seed dan uit de scalar (één band per werkdag), zodat
-  // een dag-kalender via de editor een uur-kalender kan worden.
+  // Banden-editor openen ⇒ ontbreekt workTime, seed dan uit de scalar zodat een dag-kalender via de
+  // editor een uur-kalender kan worden. KRITISCH (QA-fix, §2.3): de band-som moet EXACT `hoursPerDay ×
+  // 60` zijn — de default 07:00-16:00/8u is 9 klokuren, 8 netto; `seedScalarWorkTime` materialiseert dat
+  // verschil als pauze-gat rond het middaguur, zodat `deriveHoursPerDay` de oorspronkelijke 8 teruggeeft
+  // en ongewijzigd openen+toepassen `hoursPerDay` niet corrumpeert.
   const openBandEditor = () => {
     if (!draft.workTime) {
-      const seed = makeBands(draft.workDays, [{ start: draft.workStartHour * 60, end: draft.workEndHour * 60 }]);
-      applyBands(seed);
+      applyBands(seedScalarWorkTime(draft.workDays, draft.workStartHour, draft.workEndHour, draft.hoursPerDay));
     }
     setShowBandEditor(true);
   };

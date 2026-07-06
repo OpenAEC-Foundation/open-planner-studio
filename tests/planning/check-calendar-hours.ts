@@ -11,6 +11,8 @@
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseInstant, formatInstant, formatDate } from '@/utils/dateUtils';
+import { seedScalarWorkTime, seedScalarBands } from '@/utils/shiftPresets';
+import { deriveHoursPerDay } from '@/services/subdayIo';
 import type { WorkCalendar, WorkTimeBands, Holiday } from '@/types/calendar';
 
 const diffs: string[] = [];
@@ -255,6 +257,30 @@ eq('I8  Day isWorkDay(za)=false', engDay.isWorkDay(I('2026-07-11')), false);
 eq('I9  Day isWorkDay(ma)=true', engDay.isWorkDay(I('2026-07-06')), true);
 // addWorkingDaysSigned(ma,3): zuivere offset ⇒ do 9.
 eq('I10 Day addWorkingDaysSigned(ma,3)=do', formatDate(engDay.addWorkingDaysSigned(I('2026-07-06'), 3)), '2026-07-09');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// L) Banden-seed uit het scalar-dag-model (QA-fix golf, §2.3) — de band-som moet EXACT
+//    `hoursPerDay × 60` zijn, zodat het openen+toepassen van de banden-editor op een dag-kalender
+//    de afgeleide hoursPerDay NIET corrumpeert (de default 07:00-16:00/8u = 9 klokuren, 8 netto).
+// ═══════════════════════════════════════════════════════════════════════════
+const seedDefault = seedScalarWorkTime([1, 2, 3, 4, 5], 7, 16, 8);
+// REGRESSIEKERN: ongewijzigd openen+toepassen houdt hoursPerDay op 8 (níét 9).
+eq('L1  seed default(7-16,8u): deriveHoursPerDay=8 (regressiekern)', deriveHoursPerDay(seedDefault, 8), 8);
+// De impliciete pauze wordt als gat rond het middaguur gematerialiseerd: 07:00-12:00 + 13:00-16:00.
+eq('L2  seed default ma = 2 banden (pauze-gat)', seedDefault.byWeekday[1].length, 2);
+eq('L3  seed default band1 = 07:00-12:00', JSON.stringify(seedDefault.byWeekday[1][0]), JSON.stringify({ start: 420, end: 720 }));
+eq('L4  seed default band2 = 13:00-16:00', JSON.stringify(seedDefault.byWeekday[1][1]), JSON.stringify({ start: 780, end: 960 }));
+// spanne == netto (08:00-16:00 op 8u) ⇒ één band, byte-identiek gedrag.
+const seed816 = seedScalarWorkTime([1, 2, 3, 4, 5], 8, 16, 8);
+eq('L5  seed(8-16,8u): één band', seed816.byWeekday[1].length, 1);
+eq('L6  seed(8-16,8u): deriveHoursPerDay=8', deriveHoursPerDay(seed816, 8), 8);
+// 24/7-scalar (0-24 op 24u) ⇒ één band [0,1440], hoursPerDay=24.
+const seed247 = seedScalarWorkTime([1, 2, 3, 4, 5, 6, 7], 0, 24, 24);
+eq('L7  seed(0-24,24u): deriveHoursPerDay=24', deriveHoursPerDay(seed247, 24), 24);
+eq('L8  seed(0-24,24u): één band [0,1440]', JSON.stringify(seed247.byWeekday[1]), JSON.stringify([{ start: 0, end: 1440 }]));
+// seedScalarBands direct: 06:00-18:00 op 10u (12 klokuren, 10 netto ⇒ 2u pauze rond 12:00) ⇒ som 600m.
+const bnd = seedScalarBands(360, 1080, 10);
+eq('L9  seedScalarBands(6-18,10u) som=600m (=10u)', bnd.reduce((s, x) => s + (x.end - x.start), 0), 600);
 
 if (diffs.length === 0) {
   console.log(`OK  calendar-hours-check: alle checks groen (${checks})`);
