@@ -4,6 +4,11 @@
 // recenter-ankerformule (viewportmidden vasthouden) kunnen toepassen zonder dat de
 // store aan React/DOM hangt. Headless (tests) blijft de breedte null → geen recenter.
 
+/** Dagen links-padding die het canvas vóór de vroegste taak toevoegt: de renderer-origin op
+ *  scrollX=0 is (effectiveViewStart − ORIGIN_PADDING_DAYS). Gedeeld door GanttCanvas (render),
+ *  useZoomShortcuts (fit-to-project) en viewSlice.focusProjectStart (openen bij projectperiode). */
+export const ORIGIN_PADDING_DAYS = 14;
+
 let chartWidth: number | null = null;
 
 export function setGanttChartWidth(width: number): void {

@@ -5,7 +5,7 @@ import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRender
 import { HistogramRenderer, HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
-import { setGanttChartWidth, setGanttScrollBounds } from '@/utils/ganttViewport';
+import { setGanttChartWidth, setGanttScrollBounds, ORIGIN_PADDING_DAYS } from '@/utils/ganttViewport';
 import { MiniMap } from './MiniMap';
 import { diffDays, formatDate, parseDate, parseInstant, formatInstant, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { effectiveCalendarByTask } from '@/services/subdayIo';
@@ -23,9 +23,6 @@ const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
 // Halve breedte van de grijpzone rond de tabel/chart-scheiding (splitter).
 const SPLITTER_GRAB_MARGIN = 4;
-// Days of empty padding kept to the left of the earliest task / today so the
-// timeline origin never sits exactly on a task bar.
-const ORIGIN_PADDING_DAYS = 14;
 
 interface ContextMenuState {
   x: number;

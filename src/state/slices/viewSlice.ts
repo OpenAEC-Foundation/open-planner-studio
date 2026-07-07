@@ -1,6 +1,6 @@
 import { formatDate } from '@/utils/dateUtils';
 import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
-import { getGanttChartWidth, clampGanttScroll } from '@/utils/ganttViewport';
+import { getGanttChartWidth, clampGanttScroll, ORIGIN_PADDING_DAYS } from '@/utils/ganttViewport';
 import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
   computeViewRows, defaultColumns, type ViewRow, type ViewContext,
@@ -19,6 +19,11 @@ export interface ViewSlice {
   setTimeScale: (scale: TimeScale) => void;
   setScroll: (x: number, y: number) => void;
   setViewStartDate: (date: string) => void;
+  /** Verschuif het venster ná het openen/laden van een document naar de projectperiode: de
+   *  vroegste taakstart komt met een kleine marge links in beeld op het huidige zoomniveau (issue
+   *  #16). Alleen aan te roepen vanaf laadpaden (openFile/openRecentFile/voorbeeld) — NIET bij
+   *  undo/redo of herberekeningen. Een leeg project is een no-op (huidige "vandaag"-gedrag blijft). */
+  focusProjectStart: () => void;
   /** Kies de resource die de histogramstrook toont (undefined = alle renewables samen). */
   setHistogramResource: (resourceId?: string) => void;
   /** Split view (§10): twee tijdvensters binnen één document; undefined = uit. */
@@ -101,6 +106,32 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   setViewStartDate: (date) =>
     set((s) => {
       s.view.viewStartDate = date;
+    }),
+
+  // Issue #16: een planning die pas in (bv.) 2027 start opende op "vandaag", ver links van de
+  // balken — die stonden dan buiten beeld. Spiegelt de fit-to-project-anker­formule
+  // (useZoomShortcuts): zet viewStartDate op de vroegste taakstart zodat de renderer-origin op
+  // scrollX=0 (effectiveViewStart = minStart − ORIGIN_PADDING_DAYS) vlak vóór het project ligt, en
+  // scroll dan tot vlak vóór minStart zodat die met een kleine, VASTE PIXEL-marge (FOCUS_MARGIN_PX)
+  // links in beeld komt op het HUIDIGE zoomniveau. Een pixel-marge (i.p.v. een dag-marge) blijft
+  // klein bij elke zoom: bij 400px/dag zou een marge van een paar dagen de balken juist voorbij de
+  // rechterrand duwen. Werkt mee met de scroll-clamp (kleine scrollX ver binnen de inhoud). Zelfde
+  // veldvolgorde als GanttCanvas.effectiveViewStart.
+  focusProjectStart: () =>
+    set((s) => {
+      if (s.tasks.length === 0) return; // leeg/nieuw project: huidige "vandaag"-gedrag behouden.
+      let minStart: string | null = null;
+      for (const t of s.tasks) {
+        const start = t.time.earlyStart || t.time.scheduleStart || t.time.lateStart;
+        if (start && (!minStart || start < minStart)) minStart = start;
+      }
+      if (!minStart) return;
+      const FOCUS_MARGIN_PX = 40;
+      s.view.viewStartDate = minStart;
+      // effectiveViewStart wordt (minStart − ORIGIN_PADDING_DAYS); scrollX = pad·zoom − marge legt
+      // minStart FOCUS_MARGIN_PX rechts van de chart-linkerrand.
+      s.view.scrollX = Math.max(0, ORIGIN_PADDING_DAYS * s.view.zoom - FOCUS_MARGIN_PX);
+      s.view.scrollY = 0;
     }),
 
   setHistogramResource: (resourceId) =>
