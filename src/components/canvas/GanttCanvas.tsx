@@ -26,6 +26,9 @@ const HEADER_HEIGHT = 50;
 const SPLITTER_GRAB_MARGIN = 4;
 // Zelfde default als de kale '0'-toets in useZoomShortcuts.ts (Zoom reset, leeg-canvas-contextmenu).
 const DEFAULT_ZOOM = 30;
+// Fase 2.10 golf 4 (box-selection): drempel in pixels vóórdat een sleep vanaf lege achtergrond
+// promoveert tot een selectie-kader — onder de drempel blijft het een gewone klik.
+const BOX_SELECT_THRESHOLD = 4;
 
 interface ContextMenuState {
   x: number;
@@ -77,6 +80,23 @@ interface PanState {
   originScrollY: number;
 }
 
+/** Fase 2.10 golf 4: sleep vanaf lege achtergrond, nog ONDER de drempel — nog geen kader, alleen
+ *  bijhouden vanaf waar we moeten meten. Wordt bij overschrijding gepromoveerd tot BoxSelectState;
+ *  blijft de sleep onder de drempel tot mouseup, dan gebeurt er niets (de normale click volgt). */
+interface BoxSelectCandidate {
+  startClientX: number;
+  startClientY: number;
+}
+
+/** Fase 2.10 golf 4: actief selectie-kader (na de drempel). Client-coördinaten, net als
+ *  DependencyDragState — omgerekend naar canvas-relatief op het moment van tekenen/meten. */
+interface BoxSelectState {
+  startClientX: number;
+  startClientY: number;
+  currentClientX: number;
+  currentClientY: number;
+}
+
 export function GanttCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,6 +122,7 @@ export function GanttCanvas() {
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const selectTask = useAppStore(s => s.selectTask);
+  const selectTasks = useAppStore(s => s.selectTasks);
   const deselectAll = useAppStore(s => s.deselectAll);
   const toggleCollapse = useAppStore(s => s.toggleCollapse);
   const addTask = useAppStore(s => s.addTask);
@@ -169,6 +190,12 @@ export function GanttCanvas() {
   const [isResizingTable, setIsResizingTable] = useState(false);
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
   const [panState, setPanState] = useState<PanState | null>(null);
+  // Fase 2.10 golf 4 (box-selection): kandidaat (onder drempel) en gepromoveerd kader (boven drempel).
+  const [boxSelectCandidate, setBoxSelectCandidate] = useState<BoxSelectCandidate | null>(null);
+  const [boxSelectState, setBoxSelectState] = useState<BoxSelectState | null>(null);
+  // Onderdrukt de eerstvolgende click-afhandeling ná een gepromoveerd kader (en na een Escape-annulering
+  // ervan) — anders deselecteert/hertekent de gewone click-logica de zojuist gezette boxselectie.
+  const justBoxSelectedRef = useRef(false);
   const [cursor, setCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -759,6 +786,13 @@ export function GanttCanvas() {
 
   // Click handler with collapse/expand, '+' button support, and multi-selection
   const handleClick = useCallback((e: React.MouseEvent) => {
+    // Fase 2.10 golf 4: een net voltooid (of met Escape geannuleerd) selectie-kader onderdrukt de
+    // eerstvolgende click — anders overschrijft/deselecteert de gewone klik-afhandeling hieronder
+    // meteen de zojuist gezette boxselectie (of doet iets onbedoelds na de Escape-annulering).
+    if (justBoxSelectedRef.current) {
+      justBoxSelectedRef.current = false;
+      return;
+    }
     setHistoTooltip(null);
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -928,10 +962,16 @@ export function GanttCanvas() {
       return;
     }
 
-    // No bar hit: in 'drag' scroll mode, grabbing the empty chart background
-    // pans the view (map-style). Only in the gantt area, never the task table
-    // (the table has no horizontal pan and stays interactive).
-    if (scrollMode === 'drag' && x >= taskTableWidth) {
+    // No bar hit, lege achtergrond. Takentabel: pant nooit → altijd box-select-kandidaat (fase 2.10
+    // golf 4). Chart: in 'drag' scroll mode wint pannen (map-style, ongewijzigd gedrag); in de
+    // overige scroll-modi is lege chart-achtergrond ook box-select-kandidaat.
+    if (renderer.isInTaskTable(x)) {
+      e.preventDefault();
+      setBoxSelectCandidate({ startClientX: e.clientX, startClientY: e.clientY });
+      return;
+    }
+
+    if (scrollMode === 'drag') {
       e.preventDefault();
       const v = useAppStore.getState().view;
       setPanState({
@@ -940,7 +980,11 @@ export function GanttCanvas() {
         originScrollX: v.scrollX,
         originScrollY: v.scrollY,
       });
+      return;
     }
+
+    e.preventDefault();
+    setBoxSelectCandidate({ startClientX: e.clientX, startClientY: e.clientY });
   }, [selectTask, scrollMode, taskTableWidth]);
 
   // Splitter-drag: breedte volgt de muis (geklemd), opslaan bij loslaten.
@@ -988,6 +1032,90 @@ export function GanttCanvas() {
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [panState, setScroll]);
+
+  // Box-selection golf 4a: kandidaatfase (nog onder de drempel). Bij overschrijding promoveren
+  // we tot een echt kader; onder de drempel bij mouseup gebeurt niets (de gewone click-afhandeling
+  // doet dan gewoon zijn normale werk, want justBoxSelectedRef staat niet).
+  useEffect(() => {
+    if (!boxSelectCandidate) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - boxSelectCandidate.startClientX;
+      const dy = e.clientY - boxSelectCandidate.startClientY;
+      if (Math.hypot(dx, dy) < BOX_SELECT_THRESHOLD) return;
+      setBoxSelectCandidate(null);
+      setBoxSelectState({
+        startClientX: boxSelectCandidate.startClientX,
+        startClientY: boxSelectCandidate.startClientY,
+        currentClientX: e.clientX,
+        currentClientY: e.clientY,
+      });
+    };
+
+    const handleMouseUp = () => setBoxSelectCandidate(null);
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [boxSelectCandidate]);
+
+  // Box-selection golf 4b: het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
+  // (GanttRenderer.getTaskIdsInYRange) — alléén de Y-band telt, de X-as (tijd-as) doet niet mee,
+  // dus takentabel en chart gedragen zich identiek. Ctrl/Cmd bij mouseup = toevoegen, anders
+  // vervangen. Escape annuleert zonder selectie-wijziging.
+  useEffect(() => {
+    if (!boxSelectState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setBoxSelectState(prev => prev ? { ...prev, currentClientX: e.clientX, currentClientY: e.clientY } : null);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      const canvas = canvasRef.current;
+      const renderer = rendererRef.current;
+      if (canvas && renderer) {
+        const rect = canvas.getBoundingClientRect();
+        const y1 = boxSelectState.startClientY - rect.top;
+        const y2 = e.clientY - rect.top;
+        const ids = renderer.getTaskIdsInYRange(Math.min(y1, y2), Math.max(y1, y2));
+        const additive = e.ctrlKey || e.metaKey;
+        if (ids.length > 0) {
+          selectTasks(ids, additive);
+        } else if (!additive) {
+          deselectAll();
+        }
+      }
+      // Onderdruk de eerstvolgende click zodat de zojuist gezette selectie niet meteen weer
+      // overschreven/gedeselecteerd wordt door de normale klik-afhandeling.
+      justBoxSelectedRef.current = true;
+      setBoxSelectState(null);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Annuleren: geen selectie-wijziging. De globale Escape-sneltoets (edit.deselect in
+      // shortcutRegistry.ts) luistert ook op window (bubble-fase) en zou anders ALSNOG
+      // deselectAll() aanroepen — capture-fase + stopImmediatePropagation wint gegarandeerd van
+      // die bubble-fase-listener (ongeacht registratievolgorde), zodat de selectie echt onaangeroerd
+      // blijft. De muis is nog ingedrukt, dus onderdruk ook de eerstvolgende click (anders verandert
+      // de selectie alsnog als gevolg van de geannuleerde sleep).
+      e.stopImmediatePropagation();
+      justBoxSelectedRef.current = true;
+      setBoxSelectState(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [boxSelectState, selectTasks, deselectAll]);
 
   // Dependency drag: draw temporary line and handle release
   useEffect(() => {
@@ -1211,7 +1339,7 @@ export function GanttCanvas() {
 
   // Cursor changes on hover + tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (dragState || depDragState || panState) {
+    if (dragState || depDragState || panState || boxSelectCandidate || boxSelectState) {
       setTooltip(null);
       return;
     }
@@ -1276,7 +1404,7 @@ export function GanttCanvas() {
     }
 
     setCursor('default');
-  }, [dragState, depDragState, panState, scrollMode, taskTableWidth]);
+  }, [dragState, depDragState, panState, boxSelectCandidate, boxSelectState, scrollMode, taskTableWidth]);
 
   // Hide tooltip on mouse leave
   const handleMouseLeave = useCallback(() => {
@@ -1315,7 +1443,9 @@ export function GanttCanvas() {
                   ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
                   : depDragState
                     ? 'crosshair'
-                    : cursor,
+                    : boxSelectState
+                      ? 'crosshair'
+                      : cursor,
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
@@ -1330,6 +1460,37 @@ export function GanttCanvas() {
           className="absolute inset-0"
           style={{ pointerEvents: 'none' }}
         />
+
+        {/* Box-selection kader (fase 2.10 golf 4): half-transparant rechthoekje tijdens de sleep,
+            in viewport-coördinaten — hoeft niet mee te scrollen (§spec), de rij-intersectie zelf
+            wordt op het actuele moment berekend (getTaskIdsInYRange). */}
+        {boxSelectState && (() => {
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          const left = (containerRect?.left ?? 0);
+          const top = (containerRect?.top ?? 0);
+          const x1 = Math.min(boxSelectState.startClientX, boxSelectState.currentClientX) - left;
+          const y1 = Math.min(boxSelectState.startClientY, boxSelectState.currentClientY) - top;
+          const w = Math.abs(boxSelectState.currentClientX - boxSelectState.startClientX);
+          const h = Math.abs(boxSelectState.currentClientY - boxSelectState.startClientY);
+          return (
+            <div
+              data-testid="box-select-rect"
+              className="absolute"
+              style={{
+                left: x1,
+                top: y1,
+                width: w,
+                height: h,
+                border: '1px solid var(--theme-accent)',
+                pointerEvents: 'none',
+                zIndex: 5,
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ position: 'absolute', inset: 0, background: 'var(--theme-accent)', opacity: 0.15 }} />
+            </div>
+          );
+        })()}
 
         {/* Tooltip */}
         {tooltip && (

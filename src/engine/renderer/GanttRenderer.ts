@@ -1382,6 +1382,20 @@ export class GanttRenderer {
     return null;
   }
 
+  /** Hit test (fase 2.10 golf 4, box-selection): welke taak-ids liggen met hun rij-band verticaal
+   *  in [y1,y2] (canvas-coördinaten, willekeurige volgorde)? Bandrijen (`kind:'group'`) doen niet
+   *  mee. Zelfde rij-index-wiskunde als getRowAtY, dus consistent met alle andere hit-tests. */
+  getTaskIdsInYRange(y1: number, y2: number): string[] {
+    const lo = Math.max(0, this.getRowIndex(Math.min(y1, y2)));
+    const hi = Math.min(this.rows.length - 1, this.getRowIndex(Math.max(y1, y2)));
+    const ids: string[] = [];
+    for (let i = lo; i <= hi; i++) {
+      const row = this.rows[i];
+      if (row?.kind === 'task') ids.push(row.task.id);
+    }
+    return ids;
+  }
+
   /** Hit test: get task bar bounds for a task at row index (for drag & drop) */
   getTaskBarBounds(canvasX: number, canvasY: number): { task: Task; edge: 'left' | 'right' | 'body' } | null {
     if (canvasX < this.opts.taskTableWidth) return null;

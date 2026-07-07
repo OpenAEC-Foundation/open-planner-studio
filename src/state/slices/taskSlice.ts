@@ -43,6 +43,10 @@ export interface TaskSlice {
    *  zichtbaarheids-afleiding als de tabel/Gantt, respecteert dus ingeklapte groepen/summaries).
    *  Geen undo: selectie is geen documentdata (zoals `selectTask`/`deselectAll` hierboven). */
   selectAllTasks: () => void;
+  /** Golf 4 (fase 2.10, box-selection): zet de selectie op precies `ids` (vervangen), of voeg ze toe
+   *  aan de bestaande selectie (`additive`, Ctrl/Cmd tijdens het slepen). Geen undo: selectie is
+   *  geen documentdata (zelfde regel als `selectAllTasks`/`deselectAll` hierboven). */
+  selectTasks: (ids: string[], additive: boolean) => void;
   /** Golf 1 (fase 2.10, Ctrl/Cmd+Alt+↑/↓): verwissel `taskId` met zijn vorige/volgende sibling
    *  binnen dezelfde ouder (top-level: de root-lijst). No-op aan de rand. Puur volgorde — raakt
    *  GEEN tijden/CPM, dus (in tegenstelling tot de meeste taak-acties) GEEN scheduleStale. */
@@ -463,6 +467,16 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       s.selectedTaskIds = s.viewRows
         .filter((row): row is Extract<typeof row, { kind: 'task' }> => row.kind === 'task')
         .map((row) => row.task.id);
+    }),
+
+  selectTasks: (ids, additive) =>
+    set((s) => {
+      if (!additive) {
+        s.selectedTaskIds = [...ids];
+        return;
+      }
+      const merged = new Set([...s.selectedTaskIds, ...ids]);
+      s.selectedTaskIds = Array.from(merged);
     }),
 
   reorderSibling: (taskId, direction) => {
