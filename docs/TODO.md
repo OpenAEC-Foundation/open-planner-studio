@@ -11,6 +11,17 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
+### Solver/presentatie (klein, uit de 2.10-showcase-triage, 2026-07-08)
+- [ ] **Hard-pin-restsignaal `TF=-4` op de GROOT-startmijlpaal.** Pre-existing interactie
+      (hard pin trekt de backward pass licht negatief door een voltooide keten); valse
+      "violated"-melding is al gefixt (74eb7b2), dit is alleen nog het float-getal.
+      Triage-repro's staan in de sessie-artefacten; opnieuw af te leiden uit
+      `showcase-groot.ts` + `check-advanced-cpm.ts` #182-186.
+- [ ] **Plan-datum vs. CPM-forecast zichtbaar verschillend.** De Gantt-balk toont
+      `scheduleStart` terwijl de CPM-diagnose de (data-date-gevloerde) forecast toont —
+      correct (P6-conform) maar verwarrend naast elkaar. Presentatie-verduidelijking
+      overwegen (bv. forecast-markering of tooltip-uitleg).
+
 ### Distributie & Release
 
 #### Snap-packaging — follow-ups
