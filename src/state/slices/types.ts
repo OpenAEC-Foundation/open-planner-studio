@@ -16,6 +16,10 @@ export type TimeScale = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'hour';
 
 export type WeekStartDay = 'monday' | 'sunday';
 
+// Fase 2.10 (golf 1, sneltoetsen-fundament §"Nieuwe store-acties"): richting voor
+// `reorderSibling` — verwissel een taak met haar vorige/volgende sibling binnen dezelfde ouder.
+export type SiblingDirection = 'up' | 'down';
+
 // --- Scroll & zoom over the Gantt (configurable wheel behavior) ---
 // The wheel can do one of three things; in "modifier" mode the mapping is a
 // strict bijection (each function used exactly once).
@@ -233,6 +237,10 @@ export interface UIState {
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
   hourDataNotice: boolean;                   // session — geladen bestand bevat uur-data terwijl Urenplanning uit staat (§6.8)
+  // --- Fase 2.10 golf 1: sneltoetsen-fundament ---
+  /** session — sneltoetsen-overzichtsdialoog (Ctrl/Cmd+/) open. De dialoog zelf komt in golf 3;
+   *  deze golf zet alleen de vlag zodat de toets al bedraad/testbaar is. */
+  showShortcutsDialog: boolean;
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

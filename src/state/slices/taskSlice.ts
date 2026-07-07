@@ -6,7 +6,7 @@ import { formatDate } from '@/utils/dateUtils';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { createSnapshot } from '../snapshot';
-import type { AppSlice } from './types';
+import type { AppSlice, SiblingDirection } from './types';
 
 /**
  * Zelfstandige kopie van een takenselectie (incl. subtaken), de interne
@@ -25,13 +25,28 @@ export interface TaskSlice {
   tasks: Task[];
   selectedTaskIds: string[];
   taskClipboard: TaskClipboard | null;
-  addTask: (task: Partial<Task> & { name: string }) => string;
+  addTask: (task: Partial<Task> & {
+    name: string;
+    /** Golf 1 (fase 2.10, Insert-sneltoets/contextmenu "invoegen boven/onder"): plaats de nieuwe
+     *  taak vlak vóór/ná `anchorId` binnen diens ouder, i.p.v. achteraan. Zonder → exact het
+     *  huidige gedrag (bestaande callers ONGEWIJZIGD: achteraan childIds/tasks). Een onbekende
+     *  `anchorId` valt stil terug op het default-gedrag (stille tolerantie, zoals elders). */
+    position?: { anchorId: string; where: 'above' | 'below' };
+  }) => string;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   moveTask: (id: string, newParentId: string | null) => void;
   selectTask: (id: string, multi?: boolean, range?: boolean) => void;
   selectTaskRange: (fromId: string, toId: string) => void;
   deselectAll: () => void;
+  /** Golf 1 (fase 2.10, Ctrl/Cmd+A): selecteer alle ZICHTBARE taken — leest `viewRows` (dezelfde
+   *  zichtbaarheids-afleiding als de tabel/Gantt, respecteert dus ingeklapte groepen/summaries).
+   *  Geen undo: selectie is geen documentdata (zoals `selectTask`/`deselectAll` hierboven). */
+  selectAllTasks: () => void;
+  /** Golf 1 (fase 2.10, Ctrl/Cmd+Alt+↑/↓): verwissel `taskId` met zijn vorige/volgende sibling
+   *  binnen dezelfde ouder (top-level: de root-lijst). No-op aan de rand. Puur volgorde — raakt
+   *  GEEN tijden/CPM, dus (in tegenstelling tot de meeste taak-acties) GEEN scheduleStale. */
+  reorderSibling: (taskId: string, direction: SiblingDirection) => void;
   /** Kopieer de opgegeven takken (default: de huidige selectie) incl. subtaken naar het klembord. */
   copyTasks: (ids?: string[]) => void;
   /** Plak het klembord als nieuwe takken; geeft de nieuwe root-ids terug (leeg als er niets te plakken viel). */
@@ -99,6 +114,16 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       s.redoStack = [];
 
       const now = s.project.startDate || formatDate(new Date());
+
+      // Golf 1 (fase 2.10, Insert/contextmenu "invoegen boven/onder"): een geldige `position`
+      // bepaalt zowel de OUDER (die van de anker) als de invoegplek — de aanroeper hoeft dan geen
+      // (of een niet-matchende) `parentId` mee te geven. Onbekende anchorId ⇒ stille tolerantie:
+      // terugval op het standaardgedrag (achteraan, partial.parentId).
+      const anchorTask = partial.position
+        ? s.tasks.find(t => t.id === partial.position!.anchorId)
+        : undefined;
+      const parentId = anchorTask ? anchorTask.parentId : (partial.parentId || null);
+
       const task: Task = {
         id,
         name: partial.name,
@@ -112,7 +137,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg) en
         // mag niet stilzwijgend naar de default 500 vallen.
         priority: partial.priority ?? 500,
-        parentId: partial.parentId || null,
+        parentId,
         childIds: [],
         time: partial.time || createDefaultTaskTime(now, partial.isMilestone ? 0 : 5),
         resourceIds: partial.resourceIds || [],
@@ -131,12 +156,33 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         calendarId: partial.calendarId,
       };
 
-      s.tasks.push(task);
+      // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
+      // Mét een geldige anker: vlak vóór/ná de anker inserten, zowel in de rauwe array (bepaalt
+      // de ROOT-siblingvolgorde, zie reorderSibling hieronder + wbs.ts/flattenOrder) als in de
+      // childIds van de ouder (bepaalt de zichtbare volgorde voor niet-root taken, zie
+      // engine/view/visibleRows.ts) — zo blijven beide consistent met de anker-positie.
+      if (anchorTask) {
+        const anchorIdx = s.tasks.findIndex(t => t.id === anchorTask.id);
+        const insertAt = partial.position!.where === 'above' ? anchorIdx : anchorIdx + 1;
+        s.tasks.splice(insertAt, 0, task);
+      } else {
+        s.tasks.push(task);
+      }
 
       // Add to parent's children
       if (task.parentId) {
         const parent = s.tasks.find(t => t.id === task.parentId);
-        if (parent) parent.childIds.push(id);
+        if (parent) {
+          if (anchorTask) {
+            const anchorChildIdx = parent.childIds.indexOf(anchorTask.id);
+            const insertAt = anchorChildIdx >= 0
+              ? (partial.position!.where === 'above' ? anchorChildIdx : anchorChildIdx + 1)
+              : parent.childIds.length;
+            parent.childIds.splice(insertAt, 0, id);
+          } else {
+            parent.childIds.push(id);
+          }
+        }
       }
 
       // WBS-code: bij auto-nummering de hele boom bijwerken; anders alleen deze taak een
@@ -411,6 +457,61 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     set((s) => {
       s.selectedTaskIds = [];
     }),
+
+  selectAllTasks: () =>
+    set((s) => {
+      s.selectedTaskIds = s.viewRows
+        .filter((row): row is Extract<typeof row, { kind: 'task' }> => row.kind === 'task')
+        .map((row) => row.task.id);
+    }),
+
+  reorderSibling: (taskId, direction) => {
+    set((s) => {
+      const task = s.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      if (task.parentId) {
+        // Niet-root: sibling-volgorde = childIds-volgorde van de ouder (zie visibleRows.ts).
+        const parent = s.tasks.find(t => t.id === task.parentId);
+        if (!parent) return;
+        const idx = parent.childIds.indexOf(taskId);
+        if (idx < 0) return;
+        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= parent.childIds.length) return; // rand: no-op
+
+        s.undoStack.push(createSnapshot(s));
+        s.redoStack = [];
+        const tmp = parent.childIds[idx];
+        parent.childIds[idx] = parent.childIds[swapIdx];
+        parent.childIds[swapIdx] = tmp;
+      } else {
+        // Root-niveau: er is geen aparte root-childIds-array — de sibling-volgorde is de
+        // relatieve positie binnen de rauwe `s.tasks`-array (zie flattenOrder in utils/wbs.ts en
+        // de `tasks.filter(t => !t.parentId)`-root-scan in visibleRows.ts/printPreview/ifcWriter).
+        // Verwissel daarom de twee betrokken taken op hun ABSOLUTE array-slot; alle andere taken
+        // (root of niet) behouden hun eigen plek.
+        const rootIds = s.tasks.filter(t => !t.parentId).map(t => t.id);
+        const idx = rootIds.indexOf(taskId);
+        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= rootIds.length) return; // rand: no-op
+
+        const otherId = rootIds[swapIdx];
+        const absA = s.tasks.findIndex(t => t.id === taskId);
+        const absB = s.tasks.findIndex(t => t.id === otherId);
+
+        s.undoStack.push(createSnapshot(s));
+        s.redoStack = [];
+        const tmp = s.tasks[absA];
+        s.tasks[absA] = s.tasks[absB];
+        s.tasks[absB] = tmp;
+      }
+
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      s.isDirty = true;
+      // Geen scheduleStale: pure volgorde-mutatie, raakt geen tijden/CPM (golf 1-spec, expliciet).
+    });
+    get().recomputeViewRows();
+  },
 
   copyTasks: (ids) =>
     set((s) => {
