@@ -272,6 +272,12 @@
       "empty": "Henüz kaynak yok. Başlamak için bir tane ekleyin.",
       "steps": "Adımlar"
     },
+    "compact": {
+      "overallocated": "Aşırı yüklü",
+      "title": "Kaynaklar",
+      "expandFull": "Tam panel",
+      "closeDock": "Sabitlemeyi kapat"
+    },
     "calendarDialog": {
       "title": "Kaynak takvimi"
     },

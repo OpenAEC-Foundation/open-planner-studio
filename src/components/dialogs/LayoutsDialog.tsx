@@ -5,6 +5,7 @@ import { X, Trash2, Check } from 'lucide-react';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import { loadLayouts, saveLayouts, saveLastLayoutId } from '@/utils/settingsStore';
 import type { Layout } from '@/state/slices/types';
+import { ConfirmDialog } from './ConfirmDialog';
 
 /**
  * Layouts-dialoog (fase 2.7, §8): combineert "Opslaan als…" en "Beheren…" in één lijst-dialoog
@@ -25,6 +26,10 @@ export function LayoutsDialog() {
   const [layouts, setLayoutsState] = useState<Layout[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [newName, setNewName] = useState('');
+  // Fase 2.10 (item 5): lokale bevestigings-state i.p.v. `window.confirm()` — geen globale
+  // singleton (architect-besluit 4). `onConfirm` draagt de vervolg-logica die voorheen NA de
+  // synchrone `window.confirm()`-return-waarde stond.
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; confirmLabel?: string; danger?: boolean; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,8 +62,14 @@ export function LayoutsDialog() {
   };
 
   const remove = (id: string) => {
-    if (!window.confirm(t('view.layout.delete') + '?')) return;
-    persist(layouts.filter(l => l.id !== id));
+    setPendingConfirm({
+      message: t('view.layout.delete') + '?',
+      danger: true,
+      onConfirm: () => {
+        persist(layouts.filter(l => l.id !== id));
+        setPendingConfirm(null);
+      },
+    });
   };
 
   const update = (id: string) => {
@@ -68,9 +79,15 @@ export function LayoutsDialog() {
   };
 
   const apply = (layout: Layout) => {
-    if (!window.confirm(t('view.layout.applyConfirm', { name: layout.name }))) return;
-    applyLayout(layout);
-    void saveLastLayoutId(layout.id);
+    setPendingConfirm({
+      message: t('view.layout.applyConfirm', { name: layout.name }),
+      confirmLabel: t('view.layout.apply'),
+      onConfirm: () => {
+        applyLayout(layout);
+        void saveLastLayoutId(layout.id);
+        setPendingConfirm(null);
+      },
+    });
   };
 
   return (
@@ -156,6 +173,16 @@ export function LayoutsDialog() {
           </button>
         </div>
       </div>
+
+      {pendingConfirm && (
+        <ConfirmDialog
+          message={pendingConfirm.message}
+          confirmLabel={pendingConfirm.confirmLabel}
+          danger={pendingConfirm.danger}
+          onConfirm={pendingConfirm.onConfirm}
+          onCancel={() => setPendingConfirm(null)}
+        />
+      )}
     </div>
   );
 }

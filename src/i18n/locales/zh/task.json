@@ -85,6 +85,7 @@
     "freeFloat": "自由浮动：",
     "criticalPath": "关键路径：",
     "dependencies": "依赖关系",
+    "relationPopoverTitle": "关系类型",
     "driving": "驱动关系 (driving)",
     "lag": "延时（例如 2d、3ed、50%、-25e%）",
     "recalculate": "计算",

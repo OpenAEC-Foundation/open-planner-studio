@@ -272,6 +272,12 @@
       "empty": "Aún no hay recursos. Añade uno para empezar.",
       "steps": "Pasos"
     },
+    "compact": {
+      "overallocated": "Sobreasignado",
+      "title": "Recursos",
+      "expandFull": "Panel completo",
+      "closeDock": "Cerrar anclaje"
+    },
     "calendarDialog": {
       "title": "Calendario del recurso"
     },

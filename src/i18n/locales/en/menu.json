@@ -119,6 +119,7 @@
     "expandRibbon": "Expand the ribbon",
     "resourceManagement": "Manage",
     "openResourcePanel": "Resources",
+    "dockResourcePanel": "Dock",
     "newResource": "New resource",
     "resourceAssignment": "Assignment",
     "assignResource": "Assign",

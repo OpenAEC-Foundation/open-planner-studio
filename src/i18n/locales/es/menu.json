@@ -119,6 +119,7 @@
     "expandRibbon": "Expandir la cinta",
     "resourceManagement": "Gestionar",
     "openResourcePanel": "Recursos",
+    "dockResourcePanel": "Anclar",
     "newResource": "Nuevo recurso",
     "resourceAssignment": "Asignación",
     "assignResource": "Asignar",

@@ -216,6 +216,10 @@ export interface UIState {
   showStructureDialog: boolean;             // session — codes & velden-beheer open
   traceMode: TraceMode;                     // session — path tracing rond de geselecteerde taak
   showResourcePanel: boolean;               // session — resource-beheerpaneel (full-panel) open (fase 2.5)
+  /** Session — fase 2.10 (item 6): resource-paneel gedockt in de rechter-rail (compacte variant,
+   *  in plaats van full-panel). Default false = byte-identiek bestaand gedrag. Alleen relevant
+   *  zolang `showResourcePanel` ook true is; mutueel exclusief met de volledige-paneel-modus. */
+  resourcePanelDocked: boolean;
   showHistogram: boolean;                   // persisted — histogramstrook onder de Gantt zichtbaar (fase 2.5)
   histogramHeight: number;                  // persisted — hoogte van de histogramstrook in px (fase 2.5)
   showLevelingDialog: boolean;              // session — nivelleer-dialoog open (fase 2.5)

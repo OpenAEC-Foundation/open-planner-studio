@@ -85,6 +85,7 @@
     "freeFloat": "Folga livre:",
     "criticalPath": "Caminho crítico:",
     "dependencies": "Dependências",
+    "relationPopoverTitle": "Tipo de relação",
     "driving": "Relação determinante (driving)",
     "lag": "Atraso (ex.: 2d, 3ed, 50%, -25e%)",
     "recalculate": "Calcular",

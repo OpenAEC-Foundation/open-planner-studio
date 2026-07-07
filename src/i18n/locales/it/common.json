@@ -272,6 +272,12 @@
       "empty": "Ancora nessuna risorsa. Aggiungine una per iniziare.",
       "steps": "Fasi"
     },
+    "compact": {
+      "overallocated": "Sovrallocato",
+      "title": "Risorse",
+      "expandFull": "Pannello completo",
+      "closeDock": "Chiudi aggancio"
+    },
     "calendarDialog": {
       "title": "Calendario risorsa"
     },

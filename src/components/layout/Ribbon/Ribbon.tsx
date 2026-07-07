@@ -12,7 +12,7 @@ import {
   Users, UserPlus, BarChart3, Scale, Eraser, AlertTriangle, ChevronLeft, ChevronRight,
   Flag, GitCompareArrows, CalendarClock, LayoutGrid, TrendingUp, CalendarDays, X,
   Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Map as MapIcon,
-  Keyboard,
+  Keyboard, Pin, PinOff,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
@@ -1094,6 +1094,7 @@ export function Ribbon() {
   const setHistogramResource = useAppStore(s => s.setHistogramResource);
   const clearLeveling = useAppStore(s => s.clearLeveling);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
+  const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   // Baselines & voortgang (fase 2.6)
   const statusDate = useAppStore(s => s.project.statusDate);
   const progressMode = useAppStore(s => s.project.progressMode);
@@ -1173,6 +1174,17 @@ export function Ribbon() {
   const newResource = () => {
     addResource({ name: '', type: 'LABOR', description: '', maxUnits: 1 });
     setUI({ showResourcePanel: true });
+  };
+
+  // Fase 2.10 (item 6): dock/undock-toggle naast de bestaande "open resource-paneel"-knop.
+  // Aan: opent (indien nodig) + dockt in de rechter-rail (Gantt + histogram blijven zichtbaar).
+  // Uit: sluit de dock volledig (spiegelt de close-knop in de gedockte rail zelf).
+  const toggleResourceDock = () => {
+    if (showResourcePanel && resourcePanelDocked) {
+      setUI({ showResourcePanel: false, resourcePanelDocked: false });
+    } else {
+      setUI({ showResourcePanel: true, resourcePanelDocked: true });
+    }
   };
 
   // Path tracing (MSP Task Path): beide knoppen aan = 'both'; werkt op de geselecteerde taak.
@@ -1340,7 +1352,13 @@ export function Ribbon() {
         {activeTab === 'resources' && (
           <>
             <RibbonGroup label={tMenu('ribbon.resourceManagement')}>
-              <RibbonButton icon={<Users size={20} />} label={tMenu('ribbon.openResourcePanel')} onClick={() => setUI({ showResourcePanel: true })} active={showResourcePanel} />
+              <RibbonButton icon={<Users size={20} />} label={tMenu('ribbon.openResourcePanel')} onClick={() => setUI({ showResourcePanel: true, resourcePanelDocked: false })} active={showResourcePanel && !resourcePanelDocked} />
+              <RibbonButton
+                icon={resourcePanelDocked ? <PinOff size={20} /> : <Pin size={20} />}
+                label={tMenu('ribbon.dockResourcePanel')}
+                onClick={toggleResourceDock}
+                active={showResourcePanel && resourcePanelDocked}
+              />
               <RibbonButton icon={<Plus size={20} />} label={tMenu('ribbon.newResource')} onClick={newResource} />
             </RibbonGroup>
 

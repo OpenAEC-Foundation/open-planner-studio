@@ -85,6 +85,7 @@
     "freeFloat": "フリーフロート：",
     "criticalPath": "クリティカルパス：",
     "dependencies": "依存関係",
+    "relationPopoverTitle": "関係の種類",
     "driving": "駆動関係（ドライビング）",
     "lag": "ラグ（例: 2d、3ed、50%、-25e%）",
     "recalculate": "計算",

@@ -119,6 +119,7 @@
     "expandRibbon": "리본 펼치기",
     "resourceManagement": "관리",
     "openResourcePanel": "자원",
+    "dockResourcePanel": "도킹",
     "newResource": "새 자원",
     "resourceAssignment": "할당",
     "assignResource": "할당",

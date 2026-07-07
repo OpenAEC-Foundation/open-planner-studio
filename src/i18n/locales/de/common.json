@@ -272,6 +272,12 @@
       "empty": "Noch keine Ressourcen. Fügen Sie eine hinzu, um zu beginnen.",
       "steps": "Schritte"
     },
+    "compact": {
+      "overallocated": "Überlastet",
+      "title": "Ressourcen",
+      "expandFull": "Vollständiges Panel",
+      "closeDock": "Andocken schließen"
+    },
     "calendarDialog": {
       "title": "Ressourcenkalender"
     },

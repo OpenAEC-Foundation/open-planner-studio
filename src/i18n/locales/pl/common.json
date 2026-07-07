@@ -272,6 +272,12 @@
       "empty": "Brak zasobów. Dodaj jeden, aby zacząć.",
       "steps": "Kroki"
     },
+    "compact": {
+      "overallocated": "Przeciążony",
+      "title": "Zasoby",
+      "expandFull": "Pełny panel",
+      "closeDock": "Zamknij dokowanie"
+    },
     "calendarDialog": {
       "title": "Kalendarz zasobu"
     },

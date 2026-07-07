@@ -272,6 +272,12 @@
       "empty": "尚无资源。添加一个开始使用。",
       "steps": "阶段"
     },
+    "compact": {
+      "overallocated": "超负荷",
+      "title": "资源",
+      "expandFull": "完整面板",
+      "closeDock": "关闭停靠"
+    },
     "calendarDialog": {
       "title": "资源日历"
     },

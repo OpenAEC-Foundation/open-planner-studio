@@ -85,6 +85,7 @@
     "freeFloat": "Serbest bolluk:",
     "criticalPath": "Kritik yol:",
     "dependencies": "Bağımlılıklar",
+    "relationPopoverTitle": "İlişki türü",
     "driving": "Belirleyici ilişki (driving)",
     "lag": "Gecikme (örn. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Hesapla",

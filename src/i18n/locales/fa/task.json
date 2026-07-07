@@ -85,6 +85,7 @@
     "freeFloat": "شناوری آزاد:",
     "criticalPath": "مسیر بحرانی:",
     "dependencies": "وابستگی‌ها",
+    "relationPopoverTitle": "نوع رابطه",
     "driving": "رابطهٔ تعیین‌کننده (driving)",
     "lag": "تأخیر (مثلاً 2d، 3ed، 50%، -25e%)",
     "recalculate": "محاسبه",

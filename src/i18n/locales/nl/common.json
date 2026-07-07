@@ -272,6 +272,12 @@
       "empty": "Nog geen resources. Voeg er een toe om te beginnen.",
       "steps": "Stappen"
     },
+    "compact": {
+      "overallocated": "Overbelast",
+      "title": "Resources",
+      "expandFull": "Volledig paneel",
+      "closeDock": "Dock sluiten"
+    },
     "calendarDialog": {
       "title": "Resourcekalender"
     },

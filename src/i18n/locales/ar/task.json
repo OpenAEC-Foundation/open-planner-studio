@@ -85,6 +85,7 @@
     "freeFloat": "الفائض الحر:",
     "criticalPath": "المسار الحرج:",
     "dependencies": "التبعيات",
+    "relationPopoverTitle": "نوع العلاقة",
     "driving": "علاقة حاكمة (driving)",
     "lag": "التأخير (مثل 2d، 3ed، 50%، -25e%)",
     "recalculate": "حساب",

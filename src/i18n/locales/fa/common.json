@@ -272,6 +272,12 @@
       "empty": "هنوز منبعی وجود ندارد. برای شروع یکی اضافه کنید.",
       "steps": "مراحل"
     },
+    "compact": {
+      "overallocated": "بیش‌بار",
+      "title": "منابع",
+      "expandFull": "پنل کامل",
+      "closeDock": "بستن پیوند"
+    },
     "calendarDialog": {
       "title": "تقویم منبع"
     },

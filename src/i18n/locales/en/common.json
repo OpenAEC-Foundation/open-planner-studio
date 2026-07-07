@@ -272,6 +272,12 @@
       "empty": "No resources yet. Add one to get started.",
       "steps": "Steps"
     },
+    "compact": {
+      "overallocated": "Overallocated",
+      "title": "Resources",
+      "expandFull": "Full panel",
+      "closeDock": "Close dock"
+    },
     "calendarDialog": {
       "title": "Resource calendar"
     },

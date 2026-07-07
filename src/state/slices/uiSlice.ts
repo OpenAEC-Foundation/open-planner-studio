@@ -51,6 +51,7 @@ export function createDefaultUI(): UIState {
     showStructureDialog: false,
     traceMode: 'off',
     showResourcePanel: false,
+    resourcePanelDocked: false,
     showHistogram: false,
     histogramHeight: 160,
     showLevelingDialog: false,

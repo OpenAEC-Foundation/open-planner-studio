@@ -15,6 +15,7 @@ import { useDisplayDate } from '@/utils/displayDate';
 import { createDefaultTaskTime, Task } from '@/types/task';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import { ContextMenu } from './ContextMenu';
+import { RelationTypePopover } from './RelationTypePopover';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
 import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
@@ -198,6 +199,10 @@ export function GanttCanvas() {
   const justBoxSelectedRef = useRef(false);
   const [cursor, setCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  // Fase 2.10 (item 3): popover die na een dependency-drag verschijnt om het relatietype/lag
+  // meteen te corrigeren — de sequence zelf bestaat al (FS+lag0, zie de dependency-drag-mouseup
+  // hieronder), dit is puur een correctie-UI.
+  const [relationPopover, setRelationPopover] = useState<{ sequenceId: string; x: number; y: number } | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isResizingHistogram, setIsResizingHistogram] = useState(false);
@@ -1151,13 +1156,16 @@ export function GanttCanvas() {
 
         const targetTask = renderer.getTaskAtY(y);
         if (targetTask && targetTask.id !== depDragState.sourceTaskId && x >= useAppStore.getState().ui.leftPanelWidth) {
-          // Create Finish-to-Start dependency
-          addSequence({
+          // Create Finish-to-Start dependency (default — ongewijzigd gedrag als de gebruiker de
+          // hieronder geopende popover negeert/wegklikt).
+          const newSequenceId = addSequence({
             predecessorId: depDragState.sourceTaskId,
             successorId: targetTask.id,
             type: 'FINISH_START',
             lagDays: 0,
           });
+          // Fase 2.10 (item 3): meteen de correctie-popover openen op de drop-positie.
+          setRelationPopover({ sequenceId: newSequenceId, x: e.clientX, y: e.clientY });
         }
       }
       setDepDragState(null);
@@ -1763,6 +1771,15 @@ export function GanttCanvas() {
           }}
           onExpandAll={() => expandAll()}
           onCollapseAll={() => collapseAll()}
+        />
+      )}
+
+      {relationPopover && (
+        <RelationTypePopover
+          sequenceId={relationPopover.sequenceId}
+          x={relationPopover.x}
+          y={relationPopover.y}
+          onClose={() => setRelationPopover(null)}
         />
       )}
 

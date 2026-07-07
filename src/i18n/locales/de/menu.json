@@ -119,6 +119,7 @@
     "expandRibbon": "Menüband ausklappen",
     "resourceManagement": "Verwalten",
     "openResourcePanel": "Ressourcen",
+    "dockResourcePanel": "Andocken",
     "newResource": "Neue Ressource",
     "resourceAssignment": "Zuweisung",
     "assignResource": "Zuweisen",

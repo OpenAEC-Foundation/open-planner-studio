@@ -272,6 +272,12 @@
       "empty": "아직 자원이 없습니다. 시작하려면 하나를 추가하세요.",
       "steps": "단계"
     },
+    "compact": {
+      "overallocated": "과부하",
+      "title": "리소스",
+      "expandFull": "전체 패널",
+      "closeDock": "도킹 닫기"
+    },
     "calendarDialog": {
       "title": "자원 달력"
     },

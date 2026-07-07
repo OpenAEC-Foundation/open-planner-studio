@@ -85,6 +85,7 @@
     "freeFloat": "자유 여유:",
     "criticalPath": "크리티컬 패스:",
     "dependencies": "종속성",
+    "relationPopoverTitle": "관계 유형",
     "driving": "주도 관계(드라이빙)",
     "lag": "지연(예: 2d, 3ed, 50%, -25e%)",
     "recalculate": "계산",

@@ -34,6 +34,7 @@ import { GanttCanvas } from '@/components/canvas/GanttCanvas';
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { TableEditor } from '@/components/panels/TableEditor';
 import { ResourcePanel } from '@/components/panels/ResourcePanel';
+import { ResourcePanelCompact } from '@/components/panels/ResourcePanelCompact';
 import { RelationsPanel } from '@/components/panels/RelationsPanel';
 import { IFCPanel } from '@/components/panels/IFCPanel';
 import { ReportPanel } from '@/components/panels/ReportPanel';
@@ -63,7 +64,7 @@ import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDoc
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useAppStore } from '@/state/appStore';
 import type { RecoveryDocInput } from '@/state/slices/documentSlice';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 import { HourDataNotice } from '@/components/layout/HourDataNotice';
 
 function AppContent() {
@@ -81,6 +82,7 @@ function AppContent() {
   const showStructureDialog = useAppStore(s => s.ui.showStructureDialog);
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
+  const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
@@ -453,8 +455,13 @@ function AppContent() {
       .catch(() => { /* stille check — fouten negeren */ });
   }, []);
 
-  // Determine if we should show the gantt canvas or a full-panel view
-  const isFullPanel = showResourcePanel || activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
+  // Determine if we should show the gantt canvas or a full-panel view.
+  // Fase 2.10 (item 6): een GEDOCKT resource-paneel (`resourcePanelDocked`) sluit `showResourcePanel`
+  // NIET meer in — de Gantt (incl. histogramstrook) blijft dan zichtbaar en de compacte
+  // resource-lijst dockt in de rechter-rail (zie het dock-blok hieronder) in plaats van de hele
+  // werkruimte te vervangen.
+  const isFullPanel = (showResourcePanel && !resourcePanelDocked) || activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
+  const resourceDocked = showResourcePanel && resourcePanelDocked;
 
   // Presentation mode (fase 2.7, §9.2): één wrapper-conditie i.p.v. losse `&& !presentationMode`-
   // guards door de hele boom — alle chrome (TitleBar/Ribbon/tabbar/brand-strip/rechterpaneel/
@@ -524,7 +531,9 @@ function AppContent() {
           </div>
         )}
 
-        {/* Right Panel: Properties (collapsible) */}
+        {/* Right Panel: Properties (collapsible) — of, gedockt (fase 2.10 item 6), de compacte
+            resource-lijst i.p.v. het eigenschappenpaneel. Mutueel exclusief (architect-besluit 5):
+            één rail, geen tweede breedte/collapsed-veld. */}
         {!isFullPanel && (
           rightPanelCollapsed ? (
             <div
@@ -536,7 +545,7 @@ function AppContent() {
               <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider"
                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
               >
-                {t('properties')}
+                {resourceDocked ? t('resource.compact.title') : t('properties')}
               </span>
             </div>
           ) : (
@@ -546,17 +555,37 @@ function AppContent() {
             >
               <div className="flex items-center justify-between h-8 px-3 border-b border-border flex-shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-                  {t('properties')}
+                  {resourceDocked ? t('resource.compact.title') : t('properties')}
                 </span>
-                <button
-                  onClick={() => setUI({ rightPanelCollapsed: true })}
-                  className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
-                >
-                  <ChevronRight size={14} />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  {resourceDocked && (
+                    <>
+                      <button
+                        onClick={() => setUI({ resourcePanelDocked: false })}
+                        title={t('resource.compact.expandFull')}
+                        className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                      >
+                        <Maximize2 size={13} />
+                      </button>
+                      <button
+                        onClick={() => setUI({ showResourcePanel: false, resourcePanelDocked: false })}
+                        title={t('resource.compact.closeDock')}
+                        className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                      >
+                        <X size={14} />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setUI({ rightPanelCollapsed: true })}
+                    className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto">
-                <TaskPropertiesPanel />
+                {resourceDocked ? <ResourcePanelCompact /> : <TaskPropertiesPanel />}
               </div>
               {debugTerminalEnabled && debugTerminalOpen && <DebugTerminal />}
             </div>

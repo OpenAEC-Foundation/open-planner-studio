@@ -272,6 +272,12 @@
       "empty": "リソースがまだありません。追加して始めましょう。",
       "steps": "ステップ"
     },
+    "compact": {
+      "overallocated": "過負荷",
+      "title": "リソース",
+      "expandFull": "フルパネル",
+      "closeDock": "ドッキングを閉じる"
+    },
     "calendarDialog": {
       "title": "リソースカレンダー"
     },

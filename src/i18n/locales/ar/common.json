@@ -272,6 +272,12 @@
       "empty": "لا توجد موارد بعد. أضف واحدًا للبدء.",
       "steps": "المراحل"
     },
+    "compact": {
+      "overallocated": "محمّل بشكل زائد",
+      "title": "الموارد",
+      "expandFull": "اللوحة الكاملة",
+      "closeDock": "إغلاق التثبيت"
+    },
     "calendarDialog": {
       "title": "تقويم المورد"
     },

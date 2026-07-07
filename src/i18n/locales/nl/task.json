@@ -105,6 +105,7 @@
     "interferingFloat": "Interfererende speling:",
     "criticalPath": "Kritiek pad:",
     "dependencies": "Afhankelijkheden",
+    "relationPopoverTitle": "Type relatie",
     "driving": "Bepalende relatie (driving)",
     "lag": "Lag (bv. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Bereken",

@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Trash2 } from 'lucide-react';
 import { displayDate } from '@/utils/displayDate';
+import { ConfirmDialog } from './ConfirmDialog';
 
 /**
  * Baseline-dialoog (fase 2.6, §11.2). Lijst met inline-hernoemen, actief-radio en verwijderen
@@ -29,6 +30,9 @@ export function BaselineDialog() {
   }, [baselines.length, t, notation]);
 
   const [newName, setNewName] = useState(defaultName);
+  // Fase 2.10 (item 5): lokale bevestigings-state i.p.v. `window.confirm()` (architect-besluit 4,
+  // geen globale singleton).
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   // Nieuwe default-naam wanneer het aantal baselines wijzigt (bv. na opslaan/verwijderen).
   useEffect(() => { setNewName(defaultName); }, [defaultName]);
@@ -45,7 +49,13 @@ export function BaselineDialog() {
   };
 
   const remove = (id: string) => {
-    if (id === activeBaselineId && !window.confirm(t('baseline.dialog.deleteActiveConfirm'))) return;
+    if (id === activeBaselineId) {
+      setPendingConfirm({
+        message: t('baseline.dialog.deleteActiveConfirm'),
+        onConfirm: () => { deleteBaseline(id); setPendingConfirm(null); },
+      });
+      return;
+    }
     deleteBaseline(id);
   };
 
@@ -139,6 +149,15 @@ export function BaselineDialog() {
           </button>
         </div>
       </div>
+
+      {pendingConfirm && (
+        <ConfirmDialog
+          message={pendingConfirm.message}
+          danger
+          onConfirm={pendingConfirm.onConfirm}
+          onCancel={() => setPendingConfirm(null)}
+        />
+      )}
     </div>
   );
 }

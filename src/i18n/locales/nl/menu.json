@@ -119,6 +119,7 @@
     "expandRibbon": "Lint uitklappen",
     "resourceManagement": "Beheer",
     "openResourcePanel": "Resources",
+    "dockResourcePanel": "Vastzetten",
     "newResource": "Nieuwe resource",
     "resourceAssignment": "Toewijzing",
     "assignResource": "Toewijzen",

@@ -272,6 +272,12 @@
       "empty": "Aucune ressource pour l’instant. Ajoutez-en une pour commencer.",
       "steps": "Étapes"
     },
+    "compact": {
+      "overallocated": "Surchargé",
+      "title": "Ressources",
+      "expandFull": "Panneau complet",
+      "closeDock": "Fermer l'ancrage"
+    },
     "calendarDialog": {
       "title": "Calendrier de la ressource"
     },
