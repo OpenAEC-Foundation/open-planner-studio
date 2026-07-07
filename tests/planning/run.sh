@@ -98,6 +98,18 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --define:__OPS_DEV_INSTANCE__='"test"' \
     --outfile="$MACHECK" >/dev/null 2>&1
   node "$MACHECK" || STATUS=1
+
+  # moveTask-cykelguard + addTask.notes-checks (fase 2.10 onderdeel 2, QA-fixes P1/4 — headless
+  # tegen de echte store, los van de CPM-cases).
+  MTCHECK="$DIR/.move-task-check.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-move-task.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$MTCHECK" >/dev/null 2>&1
+  node "$MTCHECK" || STATUS=1
 fi
 
 node "$OUT" "${FILES[@]}" || STATUS=1

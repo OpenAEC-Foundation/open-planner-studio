@@ -7,6 +7,7 @@ import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
+import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { Field } from '@/components/task-sections/shared';
 import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
 import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
@@ -40,6 +41,7 @@ export function TaskDialog() {
   const setUI = useAppStore(s => s.setUI);
   const addTask = useAppStore(s => s.addTask);
   const updateTask = useAppStore(s => s.updateTask);
+  const moveTask = useAppStore(s => s.moveTask);
   const project = useAppStore(s => s.project);
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
@@ -115,20 +117,6 @@ export function TaskDialog() {
     return () => clearTimeout(id);
   }, [showTaskDialog, editingTaskId]);
 
-  // Esc sluit dialog (LAYOUTS.md §3.3 keyboard support)
-  useEffect(() => {
-    if (!showTaskDialog) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setUI({ showTaskDialog: false, editingTaskId: null });
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [showTaskDialog, setUI]);
-
-  if (!showTaskDialog) return null;
-
   const handleSave = () => {
     if (!draft.name.trim()) return;
 
@@ -178,7 +166,6 @@ export function TaskDialog() {
         description: draft.description,
         wbsCode: draft.wbsCode,
         taskType: draft.taskType,
-        parentId: draft.parentId,
         calendarId: draft.calendarId,
         isMilestone: draft.isMilestone,
         milestoneKind: draft.milestoneKind,
@@ -190,6 +177,15 @@ export function TaskDialog() {
         notes: draft.notes,
         time,
       });
+      // QA-fix P1 (fase 2.10, onderdeel 2): een gewijzigde ouder gaat via `moveTask` — die
+      // synchroniseert childIds op ZOWEL de oude als de nieuwe ouder en weigert cykels (een
+      // summary onder zijn eigen kind hangen). `updateTask` is een kale Object.assign zonder die
+      // sync — parentId hierboven meepatchen zou de boom stil corrumperen (parentId wijst naar de
+      // nieuwe ouder, maar diens childIds weet van niets). Bij een geweigerde move (cykel) doet
+      // `moveTask` niets: parentId blijft dan ook ongewijzigd — geen halftoegepaste state.
+      if (draft.parentId !== editingTask.parentId) {
+        moveTask(editingTask.id, draft.parentId);
+      }
     } else {
       addTask({
         name: draft.name,
@@ -223,6 +219,19 @@ export function TaskDialog() {
   const handleClose = () => {
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
+
+  // Esc = Annuleren, Enter = Opslaan (primaire actie) — huisconventie (QA-fix P3, fase 2.10
+  // onderdeel 2): dezelfde hook/guards (textarea/open-dropdown/IME) als CalendarDialog/
+  // ProjectInfoDialog, i.p.v. de vorige eigen Escape-only keydown-effect. Dit component blijft
+  // altijd gemount (`showTaskDialog` togglet zichtbaarheid) — de gate zit daarom in de
+  // onConfirm/onCancel-waarden zelf (`undefined` = de hook doet niets), net als het oude effect
+  // dat deed met zijn vroege `if (!showTaskDialog) return;`.
+  useDialogKeys({
+    onConfirm: showTaskDialog ? handleSave : undefined,
+    onCancel: showTaskDialog ? handleClose : undefined,
+  });
+
+  if (!showTaskDialog) return null;
 
   const inputCls =
     'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';

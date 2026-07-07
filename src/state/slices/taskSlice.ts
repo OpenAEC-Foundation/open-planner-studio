@@ -158,6 +158,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         externalLinks: partial.externalLinks,
         deadline: partial.deadline,
         calendarId: partial.calendarId,
+        // QA-fix (fase 2.10, onderdeel 2, bevinding 4): notes werd hier vergeten — de andere
+        // optionele velden (constraint2/isHammock/externalLinks/...) volgen wél al dit patroon.
+        notes: partial.notes,
       };
 
       // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
@@ -304,11 +307,24 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
 
   moveTask: (id, newParentId) => {
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
-
       const task = s.tasks.find(t => t.id === id);
       if (!task) return;
+
+      // Cykel-preventie (QA-fix P1, fase 2.10 onderdeel 2): newParentId mag niet id zelf zijn,
+      // en niet een afstammeling van id — anders ontstaat een lus in de boom (oneindige loops in
+      // flattenOrder/viewRows). Geweigerd ⇒ GEEN snapshot, GEEN mutatie: geen halftoegepaste
+      // state. Dit is de enige plek die parentId/childIds mag muteren (zie TaskDialog.handleSave —
+      // die haalt parentId daarom uit de kale `updateTask`-patch en roept in plaats daarvan dit aan).
+      if (newParentId != null) {
+        let cur: Task | undefined = newParentId === id ? task : s.tasks.find(t => t.id === newParentId);
+        while (cur) {
+          if (cur.id === id) return; // newParentId is id zelf, of een afstammeling van id
+          cur = cur.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
+        }
+      }
+
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
 
       // Remove from old parent
       if (task.parentId) {

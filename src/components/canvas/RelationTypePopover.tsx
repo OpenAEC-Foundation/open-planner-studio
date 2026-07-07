@@ -71,11 +71,16 @@ export function RelationTypePopover({ sequenceId, x, y, onClose }: RelationTypeP
         {t('properties.relationPopoverTitle')}
       </span>
       <div className="flex items-center gap-2">
+        {/* QA-fix (fase 2.10, onderdeel 2, bevinding 2): GEEN `flex-1` op een native `<select>` in
+            een flex-rij — dat zet flex-basis op 0%, dus het vakje krimpt tot ~11.75px (tekst
+            onzichtbaar). Zelfde patroon als `TaskDependenciesSection` (properties.dependencies-
+            rij): het select-vakje krijgt zijn natuurlijke content-breedte, de lag-input ernaast
+            blijft de vaste `w-16`. */}
         <select
           autoFocus
           value={sequence.type}
           onChange={e => updateSequence(sequence.id, { type: e.target.value as SequenceType })}
-          className="input !text-[11px] !px-1.5 !py-1 flex-1"
+          className="input !text-[11px] !px-1.5 !py-1"
         >
           {SEQUENCE_TYPE_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
