@@ -351,7 +351,10 @@
       "section": "Godziny pracy",
       "derivedHpd": "Wyliczone godziny/dzień:",
       "saveAsPreset": "Zapisz jako profil…",
+      "saveAsPresetHint": "Zapisz bieżące godziny pracy jako własny profil (na tym urządzeniu), aby móc go później ponownie wykorzystać w dowolnym projekcie.",
       "perWeekday": "Ustaw dla każdego dnia tygodnia…",
+      "showBands": "Pokaż godziny pracy",
+      "hideBands": "Ukryj godziny pracy",
       "presetNamePlaceholder": "Nazwa profilu",
       "addBand": "Dodaj pasmo",
       "copyToAll": "Kopiuj do wszystkich dni roboczych",
@@ -367,7 +370,8 @@
       "title": "Kolumny",
       "visible": "Widoczna",
       "width": "Szerokość",
-      "resetDefault": "Przywróć domyślne"
+      "resetDefault": "Przywróć domyślne",
+      "available": "Dostępne pola"
     },
     "filter": {
       "title": "Filtr",

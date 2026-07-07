@@ -1,6 +1,6 @@
 # Ontwerp: Fase 2.9 — Geavanceerde CPM
 
-*Status: **BINDEND ontwerp** (implementatie nog niet gestart). Elke scharnier-beslissing citeert het
+*Status: **geïmplementeerd** (golven 0-8; QA loopt). Elke scharnier-beslissing citeert het
 exacte `bestand:regel` waar hij op steunt; die regelnummers zijn in deze sessie tegen de echte broncode op
 branch `fase-2.8b` gecontroleerd (niet blind uit research overgenomen). Wat niet zelf-geverifieerd is, staat
 expliciet als **UNVERIFIED**.*

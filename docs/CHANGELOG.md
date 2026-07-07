@@ -7,6 +7,39 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Toegevoegd
+- **Geavanceerde CPM (fase 2.9)** — de kritieke-pad-motor is compleet gemaakt ten opzichte van
+  Primavera P6 en MS Project, in zowel dag- als uurplanning (ontwerp:
+  `docs/superpowers/specs/2026-07-06-geavanceerde-cpm-design.md`):
+  - **Alle constraint-types in de berekening.** Naast de bestaande "zachte" constraints nu ook
+    **logica-brekende Mandatory Start/Finish-pins**: een vastgepinde taak wordt onvoorwaardelijk op
+    zijn datum gezet — ook als een voorganger daardoor niet op tijd klaar is — en de resulterende
+    negatieve speling wordt stroomopwaarts (naar de voorgangers) gedreven in plaats van door de pin
+    heen. Een **secundaire constraint** per taak (P6's primair + secundair), met live validatie die
+    onmogelijke combinaties weigert. Constraints werken nu **uur-precies**: een datum-met-tijd wordt
+    tot de minuut gehonoreerd op een uurkalender, een datum-zonder-tijd blijft dagverankerd.
+  - **Hammock-taken (Level of Effort).** Een hammock leidt zijn duur af uit de afstand tussen zijn
+    start-driver en finish-driver en **rekt automatisch mee** wanneer die dragers verschuiven; hij
+    telt nooit mee in het kritieke pad en legt geen speling-druk op zijn dragers.
+  - **Externe (cross-project) koppelingen.** Verwijs naar een taak in een ander bestand via een
+    **bevroren ankerdatum** (P6 External Dates), voor alle vier relatietypes en beide richtingen. De
+    externe taak toont als **ghost-balk**; ankers zijn per koppeling én projectbreed te **verversen**,
+    en een niet-geladen bron krijgt een "verouderd"-markering. Geen live twee-documenten-herberekening.
+  - **Near-critical-analyse.** Een instelbare drempel markeert taken met weinig speling (amber-band
+    tussen kritiek en normaal; in het hoog-contrastthema met een blokpatroon). Default uit; aangezet
+    is de drempel 2 werkdagen en de weergave volgt de duureenheid (dagen of uren, fractioneel).
+  - **Meerdere kritieke paden / float paths.** Parallelle ketens worden genummerd (`floatPath` per
+    taak) via driving-logic-peeling of totale-float-rangschikking, met een instelbaar maximum.
+  - **Interfering float** — de speling die een taak wél kan opnemen zonder het projecteinde te raken
+    maar die tussenliggende taken verschuift (totale float − vrije float), getekend en fractioneel.
+  - **Berekening-instellingenblok op het project.** Een nieuwe projectsectie voor de rekenkeuzes:
+    lag-kalenderkeuze, kritiek-definitie (float-drempel of langste pad), float-berekeningswijze,
+    open-einde-taken-kritiek, near-critical-drempel en float-paths. Op het project (niet app-breed),
+    zodat hetzelfde bestand overal dezelfde planning geeft.
+  - **Interop.** Taak-constraints round-trippen nu óók in **P6-XML en MSPDI** (voorheen gingen die bij
+    export verloren), inclusief de hard/secundair-uitbreiding; hammocks, externe koppelingen en het
+    Berekening-blok bewaren hun gegevens via custom IFC-property-sets.
+  - **Volledig backwards-compatible:** elke nieuwe optie heeft als default exact het bestaande gedrag;
+    documenten van vóór 2.9 rekenen en serialiseren byte-voor-byte identiek.
 - **Urenplanning (fase 2.8b)** — scheduling wordt uur-/minuut-bewust, bovenop de dag-granulaire
   kern van 2.8a (ontwerp: `docs/superpowers/specs/2026-07-06-uren-scheduling-design.md`):
   - **Hoofdschakelaar Urenplanning** (Instellingen, **default uit**): schakelt de uur-/

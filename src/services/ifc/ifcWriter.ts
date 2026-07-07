@@ -2,7 +2,7 @@ import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
-import { Project } from '@/types/project';
+import { Project, SchedulingOptions } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
@@ -223,11 +223,17 @@ export function writeIFC(
 
   // Datum-constraints + deadlines (fase 2.3) als OPS_Constraints-pset per taak
   writeConstraints(ctx, tasks, ownerHistId);
+  // Externe (cross-project) dependencies (fase 2.9, §4.5/§6) als OPS_ExternalLink-pset per taak
+  writeExternalLinks(ctx, tasks, ownerHistId);
+  // Hammock/LOE-vlag (fase 2.9, §3.2/§6) als OPS_Hammock-pset per taak
+  writeHammockMeta(ctx, tasks, ownerHistId);
   writeMilestoneMeta(ctx, tasks, ownerHistId);
   // Nivellering (fase 2.5): levelingDelay als OPS_Leveling-pset per taak
   writeLevelingMeta(ctx, tasks, ownerHistId);
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
+  // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
+  writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -399,6 +405,25 @@ function writeConstraints(ctx: WriteContext, tasks: Task[], ownerHistId: number)
           `IFCPROPERTYSINGLEVALUE('ConstraintDate',$,IFCDATE(${ifcStr(c.date)}),$)`);
         props.push(`#${dateId}`);
       }
+      // Fase 2.9 (§6): logica-brekende harde pin (Mandatory). Alleen .T. wanneer gezet — soft
+      // (afwezig/false) schrijft niets ⇒ bestaande bestanden bit-gelijk.
+      if (c.hard) {
+        const hardId = addLine(ctx, `_csth_${task.id}`,
+          `IFCPROPERTYSINGLEVALUE('Hard',$,IFCBOOLEAN(.T.),$)`);
+        props.push(`#${hardId}`);
+      }
+    }
+    // Fase 2.9 (§6): secundaire constraint (P6-native, altijd soft) als ConstraintType2/ConstraintDate2.
+    const c2 = task.constraint2;
+    if (c2 && c2.type !== 'ASAP') {
+      const type2Id = addLine(ctx, `_cstt2_${task.id}`,
+        `IFCPROPERTYSINGLEVALUE('ConstraintType2',$,IFCLABEL(${ifcStr(c2.type)}),$)`);
+      props.push(`#${type2Id}`);
+      if (c2.date) {
+        const date2Id = addLine(ctx, `_cstd2_${task.id}`,
+          `IFCPROPERTYSINGLEVALUE('ConstraintDate2',$,IFCDATE(${ifcStr(c2.date)}),$)`);
+        props.push(`#${date2Id}`);
+      }
     }
     if (task.deadline) {
       const dlId = addLine(ctx, `_dl_${task.id}`,
@@ -410,6 +435,46 @@ function writeConstraints(ctx: WriteContext, tasks: Task[], ownerHistId: number)
       `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_cst_' + task.id))},#${ownerHistId},'OPS_Constraints',$,(${props.join(',')}))`);
     addLine(ctx, `_rel_cst_${task.id}`,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_cst_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Fase 2.9 (§4.5/§6) — externe (cross-project) dependencies als eigen OPS_ExternalLink-pset per taak.
+ * IFC 4.3 kent geen native cross-project `IfcRelSequence`; net als OPS_Baselines dragen we het rijke,
+ * geneste model (id/direction/relType/lag/anchorDate/sourceRef/sourceMissing) als één autoritatief
+ * JSON-veld — zo round-trippt de volledige array 1-op-1. Afwezig/leeg ⇒ niets geschreven (bit-gelijk
+ * met bestaande bestanden). P6/MSPDI kennen dit niet uitdrukbaar (weggelaten met console-warn in hun
+ * writers).
+ */
+function writeExternalLinks(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    const links = task.externalLinks;
+    if (!links || links.length === 0) continue;
+    const json = JSON.stringify(links);
+    const propId = addLine(ctx, `_extl_${task.id}`,
+      `IFCPROPERTYSINGLEVALUE('Links',$,IFCTEXT(${ifcStr(json)}),$)`);
+    const setId = addLine(ctx, `_pset_extl_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_extl_' + task.id))},#${ownerHistId},'OPS_ExternalLink',$,(#${propId}))`);
+    addLine(ctx, `_rel_extl_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_extl_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Fase 2.9 (§3.2/§6) — hammock/LOE-vlag als eigen OPS_Hammock-pset per taak. IFC 4.3 kent geen
+ * LEVELOFEFFORT in `IfcTaskTypeEnum` (Rapport B §8.1) → custom pset, exact het writeConstraints/
+ * writeLeveling-patroon. `isHammock` afwezig/false ⇒ niets geschreven (bit-gelijk met bestaande
+ * bestanden). P6/MSPDI kennen dit niet (gewone taak + warn in hun writers).
+ */
+function writeHammockMeta(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    if (!task.isHammock) continue;
+    const propId = addLine(ctx, `_hmk_${task.id}`,
+      `IFCPROPERTYSINGLEVALUE('IsHammock',$,IFCBOOLEAN(.T.),$)`);
+    const setId = addLine(ctx, `_pset_hmk_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_hmk_' + task.id))},#${ownerHistId},'OPS_Hammock',$,(#${propId}))`);
+    addLine(ctx, `_rel_hmk_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_hmk_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }
 
@@ -487,6 +552,28 @@ function writeBaselineMeta(
     `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_baselines'))},#${ownerHistId},'OPS_Baselines',$,(${props.map(i => `#${i}`).join(',')}))`);
   addLine(ctx, '_rel_baselines',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_baselines'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
+}
+
+/**
+ * Fase 2.9 (§3.4/§6) — het volledige `schedulingOptions`-blok als één `OPS_SchedulingOptions`-pset
+ * op de `IfcWorkSchedule` (exact het OPS_Baselines-patroon: één autoritatief JSON-veld ⇒ verliesloze
+ * round-trip van álle sub-opties, ook wat P6/MSPDI niet native kunnen). Golden rule: afwezig of leeg
+ * blok ⇒ geen pset (bit-gelijk met bestaande bestanden).
+ */
+function writeSchedulingOptionsMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  options: SchedulingOptions | undefined,
+  ownerHistId: number,
+): void {
+  if (!options || Object.keys(options).length === 0) return;
+  const json = JSON.stringify(options);
+  const propId = addLine(ctx, '_ps_schedopts',
+    `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT(${ifcStr(json)}),$)`);
+  const setId = addLine(ctx, '_pset_schedopts',
+    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_schedopts'))},#${ownerHistId},'OPS_SchedulingOptions',$,(#${propId}))`);
+  addLine(ctx, '_rel_schedopts',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_schedopts'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
 /** Fase 2.8b (§7.1) — `IfcWorkCalendar.PredefinedType` uit `calendar.shift`. CONVENTIE: buildingSMART

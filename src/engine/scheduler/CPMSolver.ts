@@ -1,4 +1,5 @@
-import { Task } from '@/types/task';
+import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
+import type { SchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
@@ -8,6 +9,7 @@ import {
   parseDate, formatDate, addCalendarDays, parseInstant, formatInstant, type DateMode,
 } from '@/utils/dateUtils';
 import { durationMinutesOf, durationDaysOf } from './duration';
+import { traceFrom } from './graphWalk';
 
 export interface CPMResult {
   tasks: Map<string, CPMTaskResult>;
@@ -33,6 +35,17 @@ export interface CPMResult {
   /** Relaties waarvan de opvolger progress/actuals heeft die de voorganger-logica tegenspreekt
    *  (out-of-sequence, fase 2.6). Waarschuwing, geen fout — het gedrag volgt uit de progressMode. */
   outOfSequenceSequenceIds: string[];
+  /** Near-critical-taken (fase 2.9, §4.6): 0 < tf ≤ drempel. Leeg als de drempel ongezet is. */
+  nearCriticalTaskIds: string[];
+  /** Alle kritieke ketens (fase 2.9, §4.6). ALTIJD aanwezig, lengte ≥1; `criticalPaths[0] ==
+   *  criticalPath`. Staat `floatPaths` uit, dan is dit precies `[criticalPath]` — zo hoeven
+   *  consumenten nooit op `undefined` te checken (byte-compat: één keten in een array gewikkeld). */
+  criticalPaths: string[][];
+  /** Float-path-nummer per taak (fase 2.9, §4.6): 1 = meest kritiek. Leeg als `floatPaths` uit. */
+  floatPathByTask: Record<string, number>;
+  /** Hammocks (§4.4) zónder finish-driver (geen FF/SF-voorganger): hun EF valt terug op de ES
+   *  (nul-lengte). Waarschuwingssignaal — de span kan niet uit een finish-driver worden afgeleid. */
+  hammockNoFinishDriverTaskIds: string[];
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
@@ -42,6 +55,9 @@ export interface CPMResult {
 export interface CPMOptions {
   dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; // default RETAINED_LOGIC
+  /** Project-scoped reken-opties (fase 2.9, §3.4). Afwezig ⇒ elke default ⇒ byte-identiek. In golf 0
+   *  wordt dit blok alleen doorgegeven; de solver leest het nog nergens gedragswijzigend. */
+  schedulingOptions?: SchedulingOptions;
 }
 
 /**
@@ -65,6 +81,13 @@ export interface CPMTaskResult {
   totalFloat: number;
   freeFloat: number;
   isCritical: boolean;
+  /** OPTIONEEL — interfererende speling = totalFloat − freeFloat (fase 2.9, §4.6). Alleen
+   *  geschreven wanneer de analyse-laag draait; ongeschreven ⇒ byte-identiek default. */
+  interferingFloat?: number;
+  /** OPTIONEEL — near-critical (fase 2.9, §4.6). Alleen geschreven bij ingestelde drempel. */
+  isNearCritical?: boolean;
+  /** OPTIONEEL — float-path-nummer (fase 2.9, §4.6). Alleen geschreven bij floatPaths. */
+  floatPath?: number;
 }
 
 export class CPMSolver {
@@ -89,6 +112,13 @@ export class CPMSolver {
   private seqConstraint: Map<string, Date> = new Map();
   // Relaties waarvan de lead in de forward-pass door de projectstart-vloer is afgekapt.
   private truncatedLeadIds: string[] = [];
+  // Taken met een harde MSO/MFO-pin (fase 2.9, §4.2) waarvan de voorganger-druk (`rawMax`) later
+  // valt dan de pin ⇒ de logica is gebroken (taak start vóór z'n voorganger klaar is). Verzameld in
+  // de forward pass, samengevoegd met `violatedConstraintTaskIds` in `computeResults`.
+  private hardPinViolatedIds: string[] = [];
+  // Hammocks (fase 2.9, §4.4) zónder finish-driver: EF valt terug op ES (nul-lengte). Verzameld in de
+  // forward pass, gerapporteerd als waarschuwing in `hammockNoFinishDriverTaskIds`.
+  private hammockNoFinishDriverIds: string[] = [];
 
   private options: CPMOptions;
   // Werkdag-gesnapte statusdatum (fase 2.6), of null ⇒ geen statusdatum-gedrag. Gezet in solve().
@@ -258,6 +288,10 @@ export class CPMSolver {
         violatedConstraintTaskIds: [],
         missedDeadlineTaskIds: [],
         outOfSequenceSequenceIds: [],
+        nearCriticalTaskIds: [],
+        criticalPaths: [[]],
+        floatPathByTask: {},
+        hammockNoFinishDriverTaskIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: `Circular dependency detected: ${cycleNames}`,
@@ -276,6 +310,10 @@ export class CPMSolver {
         violatedConstraintTaskIds: [],
         missedDeadlineTaskIds: [],
         outOfSequenceSequenceIds: [],
+        nearCriticalTaskIds: [],
+        criticalPaths: [[]],
+        floatPathByTask: {},
+        hammockNoFinishDriverTaskIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: 'Kalender heeft geen werkdagen ingesteld',
@@ -296,6 +334,10 @@ export class CPMSolver {
           violatedConstraintTaskIds: [],
           missedDeadlineTaskIds: [],
           outOfSequenceSequenceIds: [],
+          nearCriticalTaskIds: [],
+          criticalPaths: [[]],
+          floatPathByTask: {},
+          hammockNoFinishDriverTaskIds: [],
           projectEnd: '',
           projectDuration: 0,
           error: `Ongeldige startdatum voor taak "${task.name}"`,
@@ -422,12 +464,34 @@ export class CPMSolver {
       const cal = this.calendarFor(task);
       const preds = this.predecessors.get(taskId) || [];
 
+      // ── Hammock / Level of Effort (§4.4) ───────────────────────────────────
+      // Een hammock loopt mee in topologische volgorde (drivers staan er per definitie vóór). ES =
+      // de gewone forward-max over SS/FS-voorganger-bounds + projectstart-vloer; EF = de max over de
+      // FF/SF-voorganger-bounds (ondergrens ES). De AFGELEIDE duur (span ES→EF) wordt naar
+      // `scheduleDuration` (+ `durationMinutes` op een uur-kalender) geschreven; eigen duur-invoer
+      // wordt genegeerd. `isHammock` afwezig ⇒ deze tak draait niet (byte-identiek).
+      if (task.isHammock) {
+        const es = this.hammockEarlyStart(task, preds, results, projectStart, cal);
+        const { ef, hasFinishDriver } = this.hammockEarlyFinish(task, preds, results, es, cal);
+        if (!hasFinishDriver) this.hammockNoFinishDriverIds.push(taskId);
+        if (cal.isHourMode) {
+          const mins = cal.workMinutesBetween(es, ef);
+          task.time.durationMinutes = mins;
+          task.time.scheduleDuration = mins / (cal.hoursPerDay * 60);
+        } else {
+          task.time.scheduleDuration = cal.workDaysBetween(es, ef);
+        }
+        results.set(taskId, { es, ef });
+        continue;
+      }
+
       let earlyStart: Date;
 
       if (preds.length === 0) {
         // No predecessors: use scheduled start
         earlyStart = this.snapOnOrAfter(cal, this.parseIn(cal, task.time.scheduleStart));
-        earlyStart = this.applyForwardConstraint(task, earlyStart, cal);
+        // Geen voorganger-druk ⇒ rawMax null ⇒ een (root-)pin kan de logica niet breken (§4.2).
+        earlyStart = this.applyForwardConstraints(task, earlyStart, null, cal);
         // Fase 2.8b (golf 3): her-snap ná de constraint — spiegelt de voorganger-tak (regel 466).
         // `applyForwardConstraint` levert een DAG-conceptuele grens (`nextWorkDay`/
         // `addWorkingDaysSigned`, §5.2), in uur-modus een middernacht-instant die NIET op een
@@ -470,7 +534,8 @@ export class CPMSolver {
             }
           }
         }
-        earlyStart = this.applyForwardConstraint(task, earlyStart, cal);
+        // `rawMax` (voorganger-druk) voedt de harde-pin-logicaschending-detectie (§4.2).
+        earlyStart = this.applyForwardConstraints(task, earlyStart, rawMax, cal);
         earlyStart = this.snapOnOrAfter(cal, earlyStart);
       }
 
@@ -536,8 +601,64 @@ export class CPMSolver {
     return results;
   }
 
+  /** Hammock-ES (§4.4): de gewone forward-`max` over de START-drivers (SS/FS-voorgangers), met de
+   *  projectstart als vloer. FF/SF-voorgangers (finish-drivers) doen hier NIET mee — die bepalen de
+   *  EF. `getForwardConstraint` levert voor SS/FS een start-grens; `seqConstraint` wordt bewust NIET
+   *  gezet, zodat de hammock-relaties buiten de driving-/float-path-analyse blijven (§4.4). */
+  private hammockEarlyStart(
+    task: Task,
+    preds: Sequence[],
+    results: Map<string, { es: Date; ef: Date }>,
+    projectStart: Date | null,
+    cal: CalendarEngine,
+  ): Date {
+    let es = projectStart ? new Date(projectStart.getTime()) : new Date(0);
+    for (const seq of preds) {
+      if (seq.type !== 'START_START' && seq.type !== 'FINISH_START') continue;
+      const predResult = results.get(seq.predecessorId);
+      const predTask = this.tasks.get(seq.predecessorId);
+      if (!predResult || !predTask) continue;
+      const c = this.getForwardConstraint(
+        predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+      );
+      if (c > es) es = c;
+    }
+    return this.snapOnOrAfter(cal, es);
+  }
+
+  /** Hammock-EF (§4.4): de `max` over de FINISH-drivers (FF/SF-voorgangers), met ondergrens `es` (een
+   *  hammock is nooit negatief lang). `getForwardConstraint` levert de start-equivalente grens; die
+   *  wordt via `finishFromStart` terug naar de finish-grens vertaald (de duur-conversie valt weg — de
+   *  finish is duur-onafhankelijk, dus idempotent ongeacht de genegeerde duur-invoer). Zonder
+   *  finish-driver valt EF terug op ES (nul-lengte, met waarschuwing bij de aanroeper). */
+  private hammockEarlyFinish(
+    task: Task,
+    preds: Sequence[],
+    results: Map<string, { es: Date; ef: Date }>,
+    es: Date,
+    cal: CalendarEngine,
+  ): { ef: Date; hasFinishDriver: boolean } {
+    let ef: Date | null = null;
+    for (const seq of preds) {
+      if (seq.type !== 'FINISH_FINISH' && seq.type !== 'START_FINISH') continue;
+      const predResult = results.get(seq.predecessorId);
+      const predTask = this.tasks.get(seq.predecessorId);
+      if (!predResult || !predTask) continue;
+      const startEquiv = this.getForwardConstraint(
+        predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+      );
+      const finishBound = this.finishFromStart(cal, startEquiv, task);
+      if (!ef || finishBound > ef) ef = finishBound;
+    }
+    const hasFinishDriver = ef !== null;
+    let earlyFinish = ef ?? new Date(es.getTime());
+    if (earlyFinish < es) earlyFinish = new Date(es.getTime());   // vloer: nooit negatief lang
+    return { ef: earlyFinish, hasFinishDriver };
+  }
+
   /**
    * Out-of-sequence-detectie (fase 2.6, §4.4): relaties waarvan de opvolger progress/actuals heeft
+   * die de voorganger-logica tegenspreekt. Waarschuwing, geen correctie — het gedrag volgt uit de
    * die de voorganger-logica tegenspreekt. Waarschuwing, geen correctie — het gedrag volgt uit de
    * gekozen progressMode. Zonder statusdatum: geen detectie (no-op, backwards-compat).
    */
@@ -593,53 +714,184 @@ export class CPMSolver {
       : -(eng.workDaysBetween(b, a) - 1);
   }
 
-  /** Werkdag-gesnapte constraint-datum, of null bij afwezig/onparseerbaar (soft: negeren). */
-  private constraintDate(task: Task): Date | null {
-    const raw = task.constraint?.date;
+  /** Constraint-instant in de kalendermodus (§4.1), of null bij afwezig/onparseerbaar (soft:
+   *  negeren). Dag ⇒ `parseDate` (middernacht, byte-identiek); uur ⇒ `parseInstant` (behoudt tijd-
+   *  van-de-dag). Een date-only-string op een uur-taak = middernacht ⇒ dag-verankerd: de instant-
+   *  vinders snappen hem naar de eerste/laatste werk-instant van die dag (S13). Een datetime-string
+   *  draagt tijd-van-de-dag en wordt tot de minuut gehonoreerd. */
+  private constraintInstant(c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    const raw = c?.date;
     if (!raw) return null;
-    const d = parseDate(raw);
+    const d = this.parseIn(eng, raw);
     return isNaN(d.getTime()) ? null : d;
   }
 
-  /**
-   * Vroege-zijde constraints (fase 2.3): SNET/MSO als start-ondergrens, FNET/MFO als
-   * finish-ondergrens (vertaald naar de start). Ondergrenzen — de max met de logica,
-   * dus een constraint vóór de logica-datum doet niets (P6-soft).
-   */
-  private applyForwardConstraint(task: Task, earlyStart: Date, eng: CalendarEngine): Date {
+  /** De harde-pin-START (§4.2), of null als de PRIMAIRE constraint geen harde MSO/MFO-pin is.
+   *  MSO pint de START op de datum; MFO pint de FINISH ⇒ start = finish ⊖ duur. Modus-neutraal
+   *  (dag: bevroren dag-primitieven; uur: instant-vinders + minuut-aftrek via `durationMinutesOf`). */
+  private hardPinStart(task: Task, eng: CalendarEngine): Date | null {
     const c = task.constraint;
-    const d = this.constraintDate(task);
-    if (!c || !d) return earlyStart;
-    const dur = task.isMilestone ? 0 : task.time.scheduleDuration;
-    const back = dur > 0 ? dur - 1 : 0;
-    let bound: Date | null = null;
-    if (c.type === 'SNET' || c.type === 'MSO') {
-      bound = eng.nextWorkDay(d);
-    } else if (c.type === 'FNET' || c.type === 'MFO') {
-      bound = eng.addWorkingDaysSigned(eng.nextWorkDay(d), -back);
+    if (!c?.hard || (c.type !== 'MSO' && c.type !== 'MFO')) return null;
+    const d = this.constraintInstant(c, eng);
+    if (!d) return null;
+    const snapped = this.snapOnOrAfter(eng, d);
+    return c.type === 'MSO' ? snapped : this.startFromFinish(eng, snapped, task);
+  }
+
+  /** De harde-pin-FINISH (§4.2), spiegel van `hardPinStart` (⇒ EF=LF én ES=LS op de pin, tf=0).
+   *  MFO: EF = snap(datum); MSO: EF = gepinde-start ⊕ duur. */
+  private hardPinFinish(task: Task, eng: CalendarEngine): Date | null {
+    const c = task.constraint;
+    if (!c?.hard || (c.type !== 'MSO' && c.type !== 'MFO')) return null;
+    const d = this.constraintInstant(c, eng);
+    if (!d) return null;
+    const snapped = this.snapOnOrAfter(eng, d);
+    return c.type === 'MFO' ? snapped : this.addDuration(eng, snapped, task);
+  }
+
+  /** Forward-ondergrens (start) van ÉÉN soft constraint (§4.1/§4.3), of null zonder forward-effect.
+   *  SNET/MSO ⇒ start-ondergrens; FNET/MFO ⇒ finish-ondergrens vertaald naar de start. Dag-modus
+   *  reduceert byte-identiek tot `nextWorkDay`/`addWorkingDaysSigned`; uur-modus gebruikt de instant-
+   *  vinders + de minuut-aftrek van `startFromFinish` (via `durationMinutesOf`). */
+  private forwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    const d = this.constraintInstant(c, eng);
+    if (!c || !d) return null;
+    if (c.type === 'SNET' || c.type === 'MSO') return this.snapOnOrAfter(eng, d);
+    if (c.type === 'FNET' || c.type === 'MFO') {
+      return this.startFromFinish(eng, this.snapOnOrAfter(eng, d), task);
     }
-    return bound && bound > earlyStart ? bound : earlyStart;
+    return null;
+  }
+
+  /** Backward-bovengrens (late finish) van ÉÉN soft constraint (§4.1/§4.3), of null zonder backward-
+   *  effect. FNLT/MFO ⇒ finish-bovengrens direct; SNLT/MSO ⇒ start-bovengrens vertaald naar de finish.
+   *  Dag-modus byte-identiek (`prevWorkDay`/`addWorkingDaysSigned`); uur-modus via de instant-vinders. */
+  private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    const d = this.constraintInstant(c, eng);
+    if (!c || !d) return null;
+    const dW = this.snapOnOrBefore(eng, d);
+    if (c.type === 'FNLT' || c.type === 'MFO') return dW;
+    if (c.type === 'SNLT' || c.type === 'MSO') return this.finishFromStart(eng, dW, task);
+    return null;
+  }
+
+  /** Externe-link-lag in MINUTEN (uur-modus, §4.5): `lagMinutes` ⇒ bron; anders `lagDays × hoursPerDay ×
+   *  60` (naakt getal = werkdagen — dezelfde conventie als de Sequence-lag, 2.8b §3.3). */
+  private externalLagMinutes(link: ExternalLink, eng: CalendarEngine): number {
+    if (typeof link.lagMinutes === 'number' && Number.isFinite(link.lagMinutes)) return link.lagMinutes;
+    const days = typeof link.lagDays === 'number' && Number.isFinite(link.lagDays) ? link.lagDays : 0;
+    return days * eng.hoursPerDay * 60;
+  }
+  /** Externe-link-lag in DAGEN (dag-modus). Afwezig ⇒ 0. */
+  private externalLagDays(link: ExternalLink): number {
+    return typeof link.lagDays === 'number' && Number.isFinite(link.lagDays) ? link.lagDays : 0;
   }
 
   /**
-   * Late-zijde grenzen (fase 2.3): SNLT/MSO kappen de late start (⇒ late finish op
-   * datum ⊕ (duur−1)), FNLT/MFO en de zachte deadline kappen de late finish direct.
-   * Bovengrenzen in de backward pass — vroege datums bewegen nooit; overschrijding
-   * door de logica wordt negatieve float.
+   * Forward-ondergrens (start-equivalent) van een externe PREDECESSOR-link (§4.5). De bevroren
+   * `anchorDate` speelt de rol van de driving-datum van de externe taak (de ververs-actie schrijft
+   * daar de source-`earlyFinish` bij FS/FF resp. `earlyStart` bij SS/SF in — §refreshExternalAnchors).
+   * Het TWEEDE relType-teken bepaalt de zijde: FS/SS ⇒ START-grens, FF/SF ⇒ FINISH-grens (via
+   * `startFromFinish` naar een start terugvertaald). Het EERSTE teken de dag-boundary-overgang:
+   * alleen FS (externe finish → mijn start) krijgt de `nextWorkDayAfter`-+1 (spiegel van
+   * `getForwardConstraint` FS); SS/FF/SF ankeren op dezelfde grens (geen +1). In uur-modus valt de
+   * +1 weg (continue tijd) ⇒ `nextWorkInstant`. `sourceMissing` speelt GEEN rol — er wordt altijd op
+   * het anker gerekend (P6 External Dates). Retourneert null voor een successor-link.
+   */
+  private externalForwardBound(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
+    if (link.direction !== 'predecessor') return null;
+    const anchor = this.parseIn(eng, link.anchorDate);
+    if (isNaN(anchor.getTime())) return null;
+    const rel = link.relType;
+    const startSide = rel === 'FS' || rel === 'SS';   // tweede teken S ⇒ mijn start; F ⇒ mijn finish
+    if (eng.isHourMode) {
+      const shifted = eng.addWorkingMinutesSigned(anchor, this.externalLagMinutes(link, eng));
+      return startSide ? shifted : this.startFromFinish(eng, shifted, task);
+    }
+    const lag = this.externalLagDays(link);
+    // FS: de werkdag ná het finish-anker (finish→start). Anders: het anker zelf (addWorkingDaysSigned
+    // snapt zelf voorwaarts naar een werkdag). Beide takken tellen daarna `lag` werkdagen bij.
+    const base = rel === 'FS' ? eng.nextWorkDayAfter(anchor) : anchor;
+    const shifted = eng.addWorkingDaysSigned(base, lag);
+    return startSide ? shifted : this.startFromFinish(eng, shifted, task);
+  }
+
+  /**
+   * Backward-bovengrens (late finish) van een externe SUCCESSOR-link (§4.5). Spiegel van
+   * `externalForwardBound`: `anchorDate` is de driving-datum van de externe opvolger. Het EERSTE
+   * relType-teken bepaalt mijn zijde: FS/FF ⇒ LF-grens direct; SS/SF ⇒ LS-grens (via `finishFromStart`
+   * naar mijn LF vertaald). De dag-boundary-overgang zit alleen op FS (mijn finish → externe start ⇒
+   * `prevWorkDayBefore`, spiegel van de forward-FS); SS/FF/SF ankeren op `prevWorkDay`. Uur-modus:
+   * continue tijd ⇒ geen −1. Retourneert null voor een predecessor-link.
+   */
+  private externalBackwardBound(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
+    if (link.direction !== 'successor') return null;
+    const anchor = this.parseIn(eng, link.anchorDate);
+    if (isNaN(anchor.getTime())) return null;
+    const rel = link.relType;
+    const finishSide = rel === 'FS' || rel === 'FF';   // eerste teken F ⇒ mijn finish; S ⇒ mijn start
+    if (eng.isHourMode) {
+      const shifted = eng.addWorkingMinutesSigned(anchor, -this.externalLagMinutes(link, eng));
+      return finishSide ? shifted : this.finishFromStart(eng, shifted, task);
+    }
+    const lag = this.externalLagDays(link);
+    const base = rel === 'FS' ? eng.prevWorkDayBefore(anchor) : eng.prevWorkDay(anchor);
+    const shifted = eng.addWorkingDaysSigned(base, -lag);
+    return finishSide ? shifted : this.finishFromStart(eng, shifted, task);
+  }
+
+  /**
+   * Vroege-zijde constraints (fase 2.3, uitgebreid 2.9 §4.1-4.3). Een harde MSO/MFO-pin
+   * OVERSCHRIJFT de voorganger-druk onvoorwaardelijk (barrière, §4.2) en registreert een
+   * logica-schending zodra die druk (`rawMax`, of null bij een worteltaak) later valt dan de pin
+   * — dán start de taak vóór z'n voorganger klaar is. Zonder pin stapelen de PRIMAIRE en
+   * SECUNDAIRE forward-constraints (SNET/FNET/MSO/MFO) als max-ondergrenzen. `hard`/`constraint2`
+   * afwezig ⇒ exact de bestaande soft-tak (byte-identiek: de 319 cases kennen ze nergens).
+   */
+  private applyForwardConstraints(task: Task, earlyStart: Date, rawMax: Date | null, eng: CalendarEngine): Date {
+    const pin = this.hardPinStart(task, eng);
+    if (pin) {
+      if (rawMax && rawMax > pin) this.hardPinViolatedIds.push(task.id);
+      return pin;
+    }
+    let es = earlyStart;
+    for (const cc of [task.constraint, task.constraint2]) {
+      const bound = this.forwardBoundOf(task, cc, eng);
+      if (bound && bound > es) es = bound;
+    }
+    // Externe predecessor-links (§4.5): bevroren forward-ondergrenzen, gestapeld als extra max-terms
+    // (net als een SNET/FNET). Afwezig ⇒ deze lus draait niet (byte-identiek).
+    if (task.externalLinks && task.externalLinks.length > 0) {
+      for (const link of task.externalLinks) {
+        const bound = this.externalForwardBound(task, link, eng);
+        if (bound && bound > es) es = bound;
+      }
+    }
+    return es;
+  }
+
+  /**
+   * Late-zijde grenzen (fase 2.3, uitgebreid 2.9 §4.1-4.3). Een harde MSO/MFO-pin zet de late
+   * finish ONVOORWAARDELIJK op de gepinde waarde (override de successor-druk) ⇒ LS=ES/LF=EF ⇒
+   * tf=0 op de pin, en een strengere late-constraint verder downstream propageert zijn negatieve
+   * float NIET dóór de pin heen (P6-barrière, §4.2). Zonder pin stapelen de PRIMAIRE en SECUNDAIRE
+   * backward-constraints (SNLT/FNLT/MSO/MFO) + de zachte deadline als min-bovengrenzen; vroege
+   * datums bewegen nooit, overschrijding wordt negatieve float.
    */
   private applyBackwardBound(task: Task, lateFinish: Date, eng: CalendarEngine): Date {
+    const pinFinish = this.hardPinFinish(task, eng);
+    if (pinFinish) return pinFinish;
     let lf = lateFinish;
-    const c = task.constraint;
-    const d = this.constraintDate(task);
-    if (c && d) {
-      const dur = task.isMilestone ? 0 : task.time.scheduleDuration;
-      const back = dur > 0 ? dur - 1 : 0;
-      const dW = eng.prevWorkDay(d);
-      if (c.type === 'FNLT' || c.type === 'MFO') {
-        if (dW < lf) lf = dW;
-      } else if (c.type === 'SNLT' || c.type === 'MSO') {
-        const bound = eng.addWorkingDaysSigned(dW, back);
-        if (bound < lf) lf = bound;
+    for (const cc of [task.constraint, task.constraint2]) {
+      const bound = this.backwardBoundOf(task, cc, eng);
+      if (bound && bound < lf) lf = bound;
+    }
+    // Externe successor-links (§4.5): bevroren backward-bovengrenzen (net als een SNLT/FNLT).
+    // Afwezig ⇒ deze lus draait niet (byte-identiek).
+    if (task.externalLinks && task.externalLinks.length > 0) {
+      for (const link of task.externalLinks) {
+        const bound = this.externalBackwardBound(task, link, eng);
+        if (bound && bound < lf) lf = bound;
       }
     }
     if (task.deadline) {
@@ -885,6 +1137,15 @@ export class CPMSolver {
       const task = this.tasks.get(taskId)!;
       const succs = this.successors.get(taskId) || [];
 
+      // Hammock (§4.4, normatief): een gevolg, geen oorzaak. GEEN backward-`min`-doorgifte; per
+      // definitie `LS = ES` en `LF = EF` (⇒ tf=ff=0, kritiek-neutraal — geforceerd in computeResults).
+      // De gewone min-combinatie wordt overgeslagen.
+      if (task.isHammock) {
+        const ed = earlyDates.get(taskId)!;
+        results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
+        continue;
+      }
+
       // Niets kan ná het projecteinde eindigen — dat is de bovengrens voor élke taak. Opvolger-
       // constraints kunnen de late finish alleen verder naar voren halen. (Voorheen kon een
       // Start-Start-opvolger een late finish ná het projecteinde opleveren, waardoor de
@@ -895,6 +1156,11 @@ export class CPMSolver {
         const succResult = results.get(seq.successorId);
         const succTask = this.tasks.get(seq.successorId);
         if (!succResult || !succTask) continue;
+        // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
+        // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
+        // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen
+        // (niet-hammock) opvolgers.
+        if (succTask.isHammock) continue;
         const constraintDate = this.getBackwardConstraint(
           succResult, seq, task, succTask, predCal, this.calendarFor(succTask),
         );
@@ -1095,6 +1361,7 @@ export class CPMSolver {
     const drivingSequenceIds: string[] = [];
     const violatedConstraintTaskIds: string[] = [];
     const missedDeadlineTaskIds: string[] = [];
+    const nearCriticalTaskIds: string[] = [];
     for (const seq of this.sequences) {
       const cRaw = this.seqConstraint.get(seq.id);
       const succEarly = earlyDates.get(seq.successorId);
@@ -1109,6 +1376,37 @@ export class CPMSolver {
         : succCal.workDaysBetween(reqStart, succEarly.es) - 1;
       sequenceFreeFloat[seq.id] = relFloat;
       if (relFloat === 0) drivingSequenceIds.push(seq.id);
+    }
+
+    // Fase 2.9 golf 2 (§3.4/§4.6) — project-scoped reken-opties + longest-path-kritiek-set. Elke
+    // tak staat strak achter zijn optie-conditie; afwezig ⇒ exact de bestaande expressie (byte-
+    // identiek: de 333 cases kennen `schedulingOptions` nergens).
+    const so = this.options.schedulingOptions;
+    const tfMode = so?.totalFloatMode ?? 'smallest';
+    const makeOpenEndedCritical = so?.makeOpenEndedCritical === true;
+    const nearCriticalThreshold = so?.nearCriticalThreshold;
+    const critDef = so?.criticalDefinition;
+    const critThreshold = critDef?.threshold ?? 0;
+    const useLongestPath = critDef?.mode === 'longestPath';
+    // Longest-path-kritiek (§4.6, normatief): de Free-Float-peel van pad 1 — de driving-keten(s)
+    // vanaf de taak/taken met de grootste EF; bij ties (meerdere eindtaken met dezelfde grootste EF)
+    // is de UNIE van alle peels kritiek. tf speelt in deze modus geen rol. Alleen opgebouwd in
+    // longestPath-modus (anders leeg ⇒ geen effect). Hammocks worden pas in golf 4 speciaal behandeld.
+    const longestPathCritical = new Set<string>();
+    if (useLongestPath) {
+      let maxEf = -Infinity;
+      for (const { ef } of earlyDates.values()) {
+        if (ef.getTime() > maxEf) maxEf = ef.getTime();
+      }
+      const drivingSet = new Set(drivingSequenceIds);
+      for (const [id, { ef }] of earlyDates) {
+        if (ef.getTime() !== maxEf) continue;
+        if (this.tasks.get(id)?.isHammock === true) continue;   // hammock nooit kritiek (§4.4)
+        longestPathCritical.add(id);
+        for (const p of traceFrom(id, this.sequences, drivingSet).drivingPredecessors) {
+          longestPathCritical.add(p);
+        }
+      }
     }
 
     let projectEnd = new Date(0);
@@ -1147,28 +1445,68 @@ export class CPMSolver {
       // Voortgang (fase 2.6, §4.5): voor in-progress/voltooide taken is de start-zijde-float
       // betekenisloos (de ES is een actual in het verleden) ⇒ alleen finish-zijde (LF−EF).
       const hasProgress = !!this.dataDate && (!!tt.actualStart || tt.completion > 0);
-      const tf = hasProgress
-        ? this.signedFloat(early.ef, late.lf, cal)
-        : Math.min(
-            this.signedFloat(early.ef, late.lf, cal),
-            this.signedFloat(early.es, late.ls, cal),
-          );
-      // Voltooide taken zijn per definitie niet kritiek (P6-conventie); hun opvolgers wél.
-      const isCritical = (!!this.dataDate && !!tt && tt.completion >= 1) ? false : tf <= 0;
+      const completed = !!this.dataDate && tt.completion >= 1;
+      const finishFloat = this.signedFloat(early.ef, late.lf, cal);
+      const startFloat = this.signedFloat(early.es, late.ls, cal);
+      // TF-berekeningswijze (§3.4): default 'smallest' = min(finish,start) ⇒ byte-identiek. Een taak
+      // met voortgang houdt zijn finish-zijde-float (bestaande invariant, §4.5), ongeacht de modus.
+      let tf = hasProgress
+        ? finishFloat
+        : tfMode === 'finish' ? finishFloat
+        : tfMode === 'start' ? startFloat
+        : Math.min(finishFloat, startFloat);
+      // Open-ended kritiek (§3.4): alleen bij `makeOpenEndedCritical` krijgt een taak zonder opvolger
+      // tf=ff=0 (P6: LF=EF ⇒ kritiek). Default (optie afwezig) ⇒ ongewijzigd.
+      if (makeOpenEndedCritical && succs.length === 0 && !completed) {
+        tf = 0;
+        freeFloat = 0;
+      }
+      // Hammock (§4.4, normatief): tf=ff=0 DEFINITORISCH (LS=ES/LF=EF uit de backward pass), maar dit
+      // is géén kritiek-signaal — het forceren houdt de invariant ook als een niet-driving opvolger
+      // anders positieve free float zou geven. `isCritical` wordt hieronder geforceerd `false`.
+      const isHammock = taskObj.isHammock === true;
+      if (isHammock) {
+        tf = 0;
+        freeFloat = 0;
+      }
+      // Kritiek-definitie (§4.6): hammock ⇒ NOOIT kritiek (P6: LOE is een gevolg, geen oorzaak);
+      // voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een driving-keten naar de
+      // laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het huidige tf≤0).
+      const isCritical = isHammock
+        ? false
+        : completed
+        ? false
+        : useLongestPath
+          ? longestPathCritical.has(taskId)
+          : tf <= critThreshold;
 
       if (isCritical) criticalPath.push(taskId);
+      // Interfererende speling (§4.6): ALTIJD berekend, getekend (fractioneel in uur-modus, erft
+      // `signedFloat` via tf/ff). Byte-veilig: niet geserialiseerd (§6), niet in de digest.
+      const interferingFloat = tf - freeFloat;
+      // Near-critical (§4.6): 0 < tf ≤ drempel; alleen wanneer de drempel gezet is (anders undefined
+      // ⇒ ongeschreven veld). tf=0 is NIET near; tf=drempel wél.
+      const isNear = nearCriticalThreshold !== undefined && nearCriticalThreshold !== null
+        ? tf > 0 && tf <= nearCriticalThreshold
+        : undefined;
+      if (isNear) nearCriticalTaskIds.push(taskId);
       if (early.ef > projectEnd) projectEnd = early.ef;
 
-      // Geschonden constraints / gemiste deadlines (bron van de negatieve float).
+      // Geschonden constraints / gemiste deadlines (bron van de negatieve float). Beide constraints
+      // worden geëvalueerd (§4.3). Een harde MSO/MFO-pin telt hier NIET mee — diens logica-schending
+      // (rawMax > pin) is al in de forward pass geregistreerd (§4.2) en wordt onderaan toegevoegd.
       const task = taskObj;
       {
-        const cd = this.constraintDate(task);
-        if (task.constraint && cd) {
-          const dW = cal.prevWorkDay(cd);
-          const ct = task.constraint.type;
+        for (const cc of [task.constraint, task.constraint2]) {
+          if (!cc) continue;
+          if (cc.hard && (cc.type === 'MSO' || cc.type === 'MFO')) continue;
+          const cd = this.constraintInstant(cc, cal);
+          if (!cd) continue;
+          const dW = this.snapOnOrBefore(cal, cd);
+          const ct = cc.type;
           if (((ct === 'SNLT' || ct === 'MSO') && early.es > dW)
             || ((ct === 'FNLT' || ct === 'MFO') && early.ef > dW)) {
-            violatedConstraintTaskIds.push(taskId);
+            if (!violatedConstraintTaskIds.includes(taskId)) violatedConstraintTaskIds.push(taskId);
           }
         }
         if (task.deadline) {
@@ -1190,7 +1528,15 @@ export class CPMSolver {
         totalFloat: tf,
         freeFloat,
         isCritical,
+        interferingFloat,
+        ...(isNear !== undefined ? { isNearCritical: isNear } : {}),
       });
+    }
+
+    // Harde-pin-logicaschendingen (§4.2): de voorganger-druk viel later dan de pin ⇒ de taak start
+    // vóór z'n voorganger klaar is. Toegevoegd aan de geschonden-constraint-verzameling (deduped).
+    for (const id of this.hardPinViolatedIds) {
+      if (!violatedConstraintTaskIds.includes(id)) violatedConstraintTaskIds.push(id);
     }
 
     // Projectduur = werkdag-spanne van de vroegste start tot de laatste finish. Een project dat
@@ -1209,6 +1555,82 @@ export class CPMSolver {
       if (!anyRealWork) projectDuration = 0;
     }
 
+    // ── Fase 2.9 golf 3 (§4.6) — multiple float paths (POST-PASS op het VASTE resultaat) ──────────
+    // De vroege datums veranderen NIET door het peelen: dit is een goedkope graaf-peel resp.
+    // TF-rangschikking, geen her-solve. Uit ⇒ `criticalPaths = [criticalPath]` en `floatPathByTask =
+    // {}` — byte-identiek aan het golf-0-gedrag (de tak wordt dan niet betreden). `criticalPaths[0]`
+    // blijft ALTIJD de bestaande `criticalPath` (byte-compat, expliciet gecheckt in de check-batterij).
+    let criticalPaths: string[][] = [criticalPath];
+    const floatPathByTask: Record<string, number> = {};
+    const fpOpt = so?.floatPaths;
+    if (fpOpt?.enabled) {
+      // Hard begrensd op `maxPaths` (ook bij grote netten); <1 ⇒ geen paden.
+      const maxPaths = Math.max(0, Math.floor(fpOpt.maxPaths));
+      // Hammocks (§4.4 — het veld bestaat al, het gedrag komt in golf 4): nooit end-kandidaat, tellen
+      // niet mee in een keten. Nu al respecteren zodat golf 4 hier niets meer hoeft te wijzigen.
+      const isHammock = (id: string) => this.tasks.get(id)?.isHammock === true;
+      const candidates = new Set<string>();
+      for (const id of order) if (!isHammock(id)) candidates.add(id);
+
+      if (fpOpt.method === 'TOTAL_FLOAT') {
+        // TF-methode: rangschik op DISTINCT tf (1 = kleinste tf); `floatPath` = rang. Een rang boven
+        // `maxPaths` krijgt géén nummer (harde begrenzing). Peelt geen ketens ⇒ criticalPaths blijft
+        // de enkele bestaande keten.
+        const tfOf = (id: string) => taskResults.get(id)!.totalFloat;
+        const distinct = [...new Set([...candidates].map(tfOf))].sort((a, b) => a - b);
+        const rankOf = new Map<number, number>();
+        distinct.forEach((tf, i) => rankOf.set(tf, i + 1));
+        for (const id of candidates) {
+          const rank = rankOf.get(tfOf(id))!;
+          if (rank <= maxPaths) floatPathByTask[id] = rank;
+        }
+      } else {
+        // FREE_FLOAT (driving-logic-peeling, default): peel ketens naar afnemende EF.
+        //   (1) end = niet-toegewezen kandidaat met de grootste EF (topo-volgorde = stabiele tie-break).
+        //   (2) keten = traceFrom(end).drivingPredecessors ∪ {end} (hammocks uitgesloten).
+        //   (3) ken het padnummer toe aan de nog NIET-toegewezen taken in de keten (een gedeelde
+        //       voorganger houdt zo het nummer van de EERSTE peel waarin hij voorkomt).
+        //   (4) verwijder de héle keten uit de kandidaten; herhaal tot `maxPaths` of leeg.
+        const drivingSet = new Set(drivingSequenceIds);
+        const efMs = (id: string) => earlyDates.get(id)!.ef.getTime();
+        // Elke gepeelde keten + of hij (volledig) kritiek is — voor de `criticalPaths`-opbouw.
+        const peeled: { ids: string[]; critical: boolean }[] = [];
+        let p = 0;
+        while (candidates.size > 0 && p < maxPaths) {
+          let end: string | null = null;
+          let bestEf = -Infinity;
+          for (const id of order) {
+            if (!candidates.has(id)) continue;
+            const e = efMs(id);
+            if (e > bestEf) { bestEf = e; end = id; }
+          }
+          if (end === null) break;
+          p += 1;
+          const chain = new Set<string>([end]);
+          for (const q of traceFrom(end, this.sequences, drivingSet).drivingPredecessors) {
+            if (!isHammock(q)) chain.add(q);
+          }
+          for (const id of chain) {
+            if (floatPathByTask[id] === undefined && candidates.has(id)) floatPathByTask[id] = p;
+          }
+          for (const id of chain) candidates.delete(id);
+          const ids = [...chain].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+          peeled.push({ ids, critical: ids.every((id) => taskResults.get(id)?.isCritical === true) });
+        }
+        // criticalPaths = alle gepeelde ketens die kritiek zijn. Pad 1 is (indien kritiek) al door
+        // `criticalPath` gerepresenteerd op index 0 (byte-compat); extra kritieke ketens (bij ties)
+        // komen erachteraan.
+        for (let i = 1; i < peeled.length; i++) {
+          if (peeled[i].critical) criticalPaths.push(peeled[i].ids);
+        }
+      }
+
+      // Per-taak `floatPath` op het resultaat (alleen bij enabled ⇒ default byte-identiek ongeschreven).
+      for (const [id, r] of taskResults) {
+        if (floatPathByTask[id] !== undefined) r.floatPath = floatPathByTask[id];
+      }
+    }
+
     return {
       tasks: taskResults,
       criticalPath,
@@ -1218,6 +1640,14 @@ export class CPMSolver {
       violatedConstraintTaskIds,
       missedDeadlineTaskIds,
       outOfSequenceSequenceIds,
+      // Fase 2.9 golf 2/3 — analyse-laag: near-critical-set gevuld bij ingestelde drempel (§4.6);
+      // `interferingFloat` altijd per taak geschreven. `criticalPaths`/`floatPathByTask` gevuld door de
+      // golf-3-post-pass hierboven (uit ⇒ `[criticalPath]` resp. `{}`, byte-identiek).
+      nearCriticalTaskIds,
+      criticalPaths,
+      floatPathByTask,
+      // Hammocks zonder finish-driver (§4.4): waarschuwing (nul-lengte-terugval).
+      hammockNoFinishDriverTaskIds: [...this.hammockNoFinishDriverIds],
       // Projecteinde in de projectkalendermodus (§5.4): dag-project ⇒ `formatDate` (byte-identiek).
       projectEnd: formatInstant(projectEnd, this.modeOf(this.projectEngine)),
       projectDuration,

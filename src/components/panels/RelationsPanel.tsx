@@ -5,7 +5,8 @@ import { Task } from '@/types/task';
 import { Sequence, SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
-import { AlertTriangle, Plus, Trash2, Zap } from 'lucide-react';
+import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
+import { AlertTriangle, Plus, Trash2, Zap, Link2, RefreshCw } from 'lucide-react';
 
 type SortKey = 'predecessor' | 'successor' | 'type' | 'lag' | 'driving' | 'freeFloat';
 
@@ -25,9 +26,21 @@ export function RelationsPanel() {
   const addSequence = useAppStore(s => s.addSequence);
   const updateSequence = useAppStore(s => s.updateSequence);
   const removeSequence = useAppStore(s => s.removeSequence);
+  const removeExternalLink = useAppStore(s => s.removeExternalLink);
+  const refreshExternalAnchorsFrom = useAppStore(s => s.refreshExternalAnchorsFrom);
+  const refreshAllExternalAnchors = useAppStore(s => s.refreshAllExternalAnchors);
 
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [extDialogTaskId, setExtDialogTaskId] = useState<string | null>(null);
+  const [extStatus, setExtStatus] = useState<string>('');
+
+  // Alle externe koppelingen over alle taken (fase 2.9, §5.5): platte lijst voor de onder-sectie.
+  const externalRows = useMemo(
+    () => tasks.flatMap(tk => (tk.externalLinks ?? []).map(link => ({ task: tk, link }))),
+    [tasks],
+  );
+  const hasExternal = externalRows.length > 0;
 
   const taskById = useMemo(() => new Map(tasks.map(t2 => [t2.id, t2])), [tasks]);
   const hasCalc = !!cpmResult && !cpmResult.error;
@@ -125,11 +138,41 @@ export function RelationsPanel() {
       >
         <span className="ui-card-header !text-xs">{t('relations.title')}</span>
         <div className="flex items-center gap-2">
+          {extStatus && (
+            <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{extStatus}</span>
+          )}
           {!hasCalc && sequences.length > 0 && (
             <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
               {t('relations.notCalculated')}
             </span>
           )}
+          {hasExternal && (
+            <button
+              onClick={async () => {
+                const r = await refreshAllExternalAnchors();
+                setExtStatus(r.sources === 0
+                  ? t('externalLinks.noSourcesToast')
+                  : t('externalLinks.refreshedToast', { refreshed: r.refreshed, missing: r.missing }));
+              }}
+              title={t('externalLinks.refreshAllHint')}
+              className="btn btn--sm flex items-center gap-1"
+            >
+              <RefreshCw size={12} />
+              {t('externalLinks.refreshAll')}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (selectedTaskIds.length !== 1) { setExtStatus(t('externalLinks.pickTaskFirst')); return; }
+              setExtDialogTaskId(selectedTaskIds[0]);
+            }}
+            title={t('externalLinks.action')}
+            className="btn btn--sm flex items-center gap-1"
+            style={selectedTaskIds.length !== 1 ? { opacity: 0.5 } : undefined}
+          >
+            <Link2 size={12} />
+            {t('externalLinks.action')}
+          </button>
           <button
             onClick={addFromSelection}
             disabled={!canAddFromSelection}
@@ -223,7 +266,60 @@ export function RelationsPanel() {
             </div>
           </div>
         ))}
+
+        {/* Externe (cross-project) koppelingen (fase 2.9, §5.5) */}
+        {hasExternal && (
+          <div style={{ borderTop: '2px solid var(--theme-border)' }}>
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+              style={{ color: 'var(--theme-text-muted)', fontFamily: 'var(--font-heading)' }}>
+              <Link2 size={11} />{t('externalLinks.existingTitle')}
+            </div>
+            {externalRows.map(({ task: extTask, link }) => (
+              <div key={link.id} className="flex items-center text-xs hover:bg-surface-hover"
+                style={{ minHeight: 28, borderBottom: '1px solid var(--theme-border-light)' }}
+                onClick={() => selectTask(extTask.id)}
+              >
+                <div className="flex-1 min-w-[140px] px-2 truncate">{label(extTask)}</div>
+                <div className="w-[150px] px-2 truncate" style={{ color: 'var(--theme-text-dim)' }}>
+                  {link.direction === 'predecessor' ? '← ' : '→ '}
+                  {link.relType}{link.lagDays ? `+${link.lagDays}` : ''} · {link.sourceRef.taskName || link.sourceRef.taskId}
+                </div>
+                <div className="w-[100px] px-2 text-right" style={{ color: 'var(--theme-text-dim)' }}>{link.anchorDate}</div>
+                <div className="w-[90px] px-1 flex justify-center">
+                  {link.sourceMissing && (
+                    <span title={t('externalLinks.sourceMissing')}
+                      className="text-[9px] px-1 rounded"
+                      style={{ background: 'var(--error)', color: '#fff' }}>
+                      {t('externalLinks.stale')}
+                    </span>
+                  )}
+                </div>
+                <div className="w-[36px] px-1 flex justify-center" onClick={e => e.stopPropagation()}>
+                  {link.sourceRef.filePath && (
+                    <button title={t('externalLinks.refresh')} style={{ color: 'var(--theme-accent)' }}
+                      onClick={async () => {
+                        const r = await refreshExternalAnchorsFrom(link.sourceRef.filePath!);
+                        if (r) setExtStatus(t('externalLinks.refreshedToast', { refreshed: r.refreshed, missing: r.missing }));
+                        else setExtStatus(t('externalLinks.notAvailableWeb'));
+                      }}>
+                      <RefreshCw size={12} />
+                    </button>
+                  )}
+                </div>
+                <div className="w-[36px] px-1 flex justify-center" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => removeExternalLink(extTask.id, link.id)} style={{ color: 'var(--error)' }}>
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {extDialogTaskId && (
+        <ExternalLinkDialog taskId={extDialogTaskId} onClose={() => setExtDialogTaskId(null)} />
+      )}
     </div>
   );
 }

@@ -351,7 +351,10 @@
       "section": "Horaires de travail",
       "derivedHpd": "Heures/jour dérivées :",
       "saveAsPreset": "Enregistrer comme préréglage…",
+      "saveAsPresetHint": "Enregistrez les horaires de travail actuels comme votre propre préréglage (sur cet appareil) afin de pouvoir les réutiliser plus tard dans n'importe quel projet.",
       "perWeekday": "Définir par jour de la semaine…",
+      "showBands": "Afficher les horaires de travail",
+      "hideBands": "Masquer les horaires de travail",
       "presetNamePlaceholder": "Nom du préréglage",
       "addBand": "Ajouter une plage",
       "copyToAll": "Copier sur tous les jours ouvrés",
@@ -367,7 +370,8 @@
       "title": "Colonnes",
       "visible": "Visible",
       "width": "Largeur",
-      "resetDefault": "Réinitialiser par défaut"
+      "resetDefault": "Réinitialiser par défaut",
+      "available": "Champs disponibles"
     },
     "filter": {
       "title": "Filtre",

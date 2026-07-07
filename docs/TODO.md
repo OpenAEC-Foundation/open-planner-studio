@@ -190,13 +190,31 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > getest.**
 
 #### 2.9 Geavanceerde CPM
-- [ ] Alle constraint-types meenemen in CPM-berekening
-- [ ] Hammock-taken
-- [ ] Externe dependencies (cross-project links)
-- [ ] Near-critical path analyse
-- [ ] Meerdere kritieke paden
-- [ ] Interfering float
-- [ ] Scheduling options (keuze berekeningsmethoden)
+
+> §2.9: de CPM-kern is "compleet" gemaakt t.o.v. P6/MSP, bovenop de 2.8b-uren-erfenis en in dag- én
+> uur-modus. Constraints compleet (logica-brekende **Mandatory Start/Finish**-pins die ES/LF resp.
+> EF/LS onvoorwaardelijk pinnen en negatieve float upstream drijven, **secundaire** P6-constraint met
+> validatie van de verboden combinaties, en constraints uur-modus-correct tot de minuut);
+> **hammock-taken** (afgeleide span tussen start-/finish-driver, her-spannend bij verschuivende
+> dragers, backward-druk loopt niet door de hammock, altijd uitgesloten van het kritieke pad);
+> **externe (cross-project) dependencies** via bevroren P6-*External-Dates*-ankers (FS/SS/FF/SF, beide
+> richtingen, ghost-weergave + per-link/projectbreed verversen, ontbrekende-bron-gedrag zonder
+> live multi-document-solve); **near-critical-analyse** met instelbare drempel (default uit; aangezet
+> default 2 werkdagen, fractioneel in uur-modus); **meerdere kritieke paden / float paths**
+> (driving-logic-peel FREE_FLOAT + TF-rangschikking, `floatPath`-nummer per taak, `criticalPaths`);
+> **interfering float** (tf−ff, getekend/fractioneel); en een project-scoped **Berekening**-blok
+> (lag-kalender-keuze, kritiek-definitie TF≤x / longest-path, TF-berekeningswijze, open-ended-kritiek,
+> near-critical-drempel, float-paths). Interop: taak-constraints round-trippen nu óók in P6-XML en
+> MSPDI (voorheen leeg), met hard/secundair-uitbreiding en custom psets
+> (`OPS_Hammock`/`OPS_ExternalLink`/`OPS_SchedulingOptions`). Testbatterij: `cases-advanced-cpm.json`
+> (dag + uur, incl. FF/SF-uur-ankers, gemengd dag/uur-net, fractionele near-critical) +
+> `check-advanced-cpm.ts` + universele harness-invarianten (interfering=tf−ff, criticalPaths[0]==
+> criticalPath, hammock nooit floatPath/near-critical) over álle cases. Zie changelog en
+> [ontwerp](superpowers/specs/2026-07-06-geavanceerde-cpm-design.md). Bewust later: live cross-project
+> solve (vergt store-singleton-refactor); Expected-Finish-constraint; independent float; de
+> spec-conforme `IfcRelAssociatesConstraint`-graf; sub-shift-nivellering van hammocks; native
+> P6/MSPDI LOE/external round-trip waar de veldcodes UNVERIFIED zijn.
+> **Status: bouw af (golven 0-8), QA loopt; niets naar main tot af en getest.**
 
 #### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
 

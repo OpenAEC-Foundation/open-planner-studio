@@ -8,8 +8,10 @@
 //   id, title,
 //   calendar?: { workDays?: number[], holidays?: {name,startDate,endDate}[] }  // default: SCHOON (ma-vr, geen feestdagen)
 //   anchor?: "YYYY-MM-DD"   // startdatum voor wortel-taken (default 2026-06-01)
-//   tasks: [{ name, dur?, start?, milestone?, constraint?, deadline? }]
+//   tasks: [{ name, dur?, start?, milestone?, constraint?, constraint2?, hammock?, deadline? }]
 //     dur in werkdagen (default 1); milestone => duur 0
+//     hammock: true => LOE/hammock (fase 2.9 §4.4); afgeleide span-duur (SS/FS=start-driver, FF/SF=finish-driver),
+//              eigen duur genegeerd, nooit kritiek, tf=ff=0
 //     constraint: { type: ASAP|ALAP|SNET|SNLT|FNET|FNLT|MSO|MFO, date? } (P6-soft; MSO/MFO = Start/Finish On)
 //     deadline: "YYYY-MM-DD" (zacht: alleen late datums/float)
 //   links: [{ pred, succ, type, lag?, lagUnit?, lagPercent? }]
@@ -22,9 +24,16 @@
 //     steps: availabilitySteps (effective-dated capaciteit)
 //   tasks[].assign?: [{ res, units, curve? }]   // res = naam uit resources[]; curve default UNIFORM
 //   level?: { constrainToFloat?: boolean; resources?: string[] }   // leveler bestaat nog niet — zie buildAndSolve
+//   schedulingOptions?: {…}   // fase 2.9 (§3.4): nearCriticalThreshold, criticalDefinition
+//     {mode:'totalFloat'|'longestPath', threshold?}, totalFloatMode, makeOpenEndedCritical
 //   expect: {
-//     tasks?: { [name]: { es?,ef?,ls?,lf?,tf?,ff?,crit? } },   // datums "YYYY-MM-DD"; tf/ff getallen; crit boolean
+//     tasks?: { [name]: { es?,ef?,ls?,lf?,tf?,ff?,crit?,intf?,nearCrit?,floatPath? } },
+//        // datums "YYYY-MM-DD"; tf/ff/intf getallen; crit/nearCrit boolean; intf=interfering (tf−ff)
 //     criticalPathSet?: [names],   // vergeleken als verzameling (volgorde-onafhankelijk)
+//     nearCriticalSet?: [names],   // near-critical-taken (0<tf≤drempel), verzameling (fase 2.9 §4.6)
+//     hammockNoFinishDriversSet?: [names],   // hammocks zonder finish-driver (nul-lengte, fase 2.9 §4.4)
+//     floatPaths?: { [name]: nr },   // float-path-nummer per taak (fase 2.9 golf 3 §4.6); ontbrekende taak = geen pad
+//     criticalPaths?: [[names]],     // kritieke ketens (fase 2.9 golf 3 §4.6), verzameling-van-verzamelingen
 //     drivingSet?: [[pred,succ,type]],  // welke relaties driving zijn (verzameling van triples)
 //     violatedConstraintsSet?: [names], missedDeadlinesSet?: [names],  // taak-namen (verzameling)
 //     projectEnd?, projectDuration?,
@@ -35,6 +44,7 @@
 // }
 import { useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/types/task';
+import type { SchedulingOptions } from '@/types/project';
 import type { ResourceType, ResourceCurve } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -121,11 +131,31 @@ interface Case {
   /** Statusdatum (P6 data date, fase 2.6) — stuurt de CPM-voortgangstakken. */
   statusDate?: string;
   scheduleOptions?: { progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE' };
+  /** Project-scoped reken-opties (fase 2.9, §3.4/§4.6): near-critical-drempel, kritiek-definitie
+   *  (totalFloat/longestPath + drempel), TF-berekeningswijze, open-ended-kritiek. Afwezig ⇒ elke
+   *  default ⇒ byte-identiek. Gaat via `setProject({schedulingOptions})` naar `runCPM`. */
+  schedulingOptions?: SchedulingOptions;
   tasks: {
     /** Fase 2.8b (§8.1): `dur` mag een string zijn — "2d 4u"/"4h"/"90m"/"12u" (hele eenheden, via
      *  `parseDuration`) ⇒ `durationMinutes` op de taak; een getal ⇒ werkdagen (dag-modus, ongewijzigd). */
     name: string; dur?: number | string; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
-    mandatory?: boolean; parent?: string; constraint?: { type: string; date?: string }; deadline?: string;
+    mandatory?: boolean; parent?: string; deadline?: string;
+    /** Fase 2.9 (§4.1/§4.2): `hard` op de PRIMAIRE constraint ⇒ logica-brekende Mandatory-pin
+     *  (alleen zinvol op MSO/MFO). `date` mag een datetime zijn op een uur-taak (§4.1, S13). */
+    constraint?: { type: string; date?: string; hard?: boolean };
+    /** Fase 2.9 (§4.3): SECUNDAIRE constraint (altijd soft). */
+    constraint2?: { type: string; date?: string };
+    /** Fase 2.9 (§4.4): hammock/LOE — afgeleide duur (span tussen start- en finish-driver); eigen
+     *  duur-invoer genegeerd; nooit kritiek. Afwezig ⇒ gewone taak (byte-identiek). */
+    hammock?: boolean;
+    /** Fase 2.9 (§4.5): externe (cross-project) dependencies — bevroren datum-grenzen. `lag` ⇒ `lagDays`,
+     *  `lagMinutes` ⇒ minuten (uur-modus). `sourceProject`/`sourceTask`/`sourceFile` vullen de `sourceRef`.
+     *  Afwezig ⇒ geen (byte-identiek). */
+    externalLinks?: {
+      direction: 'predecessor' | 'successor'; relType: 'FS' | 'SS' | 'FF' | 'SF';
+      lag?: number; lagMinutes?: number; anchorDate: string; sourceMissing?: boolean;
+      sourceProject?: string; sourceTask?: string; sourceFile?: string;
+    }[];
     priority?: number;
     /** Fase 2.8b (§8.3, durationMinutes-op-dag-kalender-invariant): zet `durationMinutes` RAUW op de
      *  taak, ontkoppeld van `dur` — om te bewijzen dat het veld op een dag-kalender wordt genegeerd
@@ -331,6 +361,24 @@ function buildAndSolve(c: Case): {
       ...(t.priority !== undefined ? { priority: t.priority } : {}),
       ...(t.mandatory !== undefined ? { mandatory: t.mandatory } : {}),
       ...(t.constraint ? { constraint: t.constraint as any } : {}),
+      ...(t.constraint2 ? { constraint2: t.constraint2 as any } : {}),
+      ...(t.hammock ? { isHammock: true } : {}),
+      ...(t.externalLinks ? {
+        externalLinks: t.externalLinks.map((e, i) => ({
+          id: `${t.name}-ext-${i}`,
+          direction: e.direction,
+          relType: e.relType,
+          ...(e.lag !== undefined ? { lagDays: e.lag } : {}),
+          ...(e.lagMinutes !== undefined ? { lagMinutes: e.lagMinutes } : {}),
+          anchorDate: e.anchorDate,
+          sourceRef: {
+            projectId: e.sourceProject ?? 'ext-project',
+            taskId: e.sourceTask ?? 'ext-task',
+            ...(e.sourceFile !== undefined ? { filePath: e.sourceFile } : {}),
+          },
+          sourceMissing: e.sourceMissing ?? false,
+        })),
+      } : {}),
       ...(t.deadline ? { deadline: t.deadline } : {}),
     });
     ids[t.name] = id;
@@ -388,6 +436,8 @@ function buildAndSolve(c: Case): {
   // Voortgang + statusdatum (fase 2.6) — vóór runCPM zodat de solver-voortgangstakken meelopen.
   if (c.statusDate) S().setStatusDate(c.statusDate);
   if (c.scheduleOptions?.progressMode) S().setProgressMode(c.scheduleOptions.progressMode);
+  // Reken-opties (fase 2.9, §3.4) op het project — vóór runCPM zodat de solver ze meeneemt.
+  if (c.schedulingOptions) S().setProject({ schedulingOptions: c.schedulingOptions });
   for (const t of c.tasks) {
     const id = ids[t.name];
     if (t.rawCompletion !== undefined) {
@@ -592,10 +642,15 @@ function readTask(name: string, ids: Record<string, string>) {
     es: t.time.earlyStart, ef: t.time.earlyFinish,
     ls: t.time.lateStart, lf: t.time.lateFinish,
     tf: t.time.totalFloat, ff: t.time.freeFloat, crit: t.time.isCritical,
+    // Fase 2.9 golf 2 (§4.6): interfererende speling (altijd), near-critical + float-path (optie-gated).
+    intf: t.time.interferingFloat, nearCrit: t.time.isNearCritical, floatPath: t.time.floatPath,
   };
 }
 
-const KEYMAP: Record<string, string> = { es: 'es', ef: 'ef', ls: 'ls', lf: 'lf', tf: 'tf', ff: 'ff', crit: 'crit' };
+const KEYMAP: Record<string, string> = {
+  es: 'es', ef: 'ef', ls: 'ls', lf: 'lf', tf: 'tf', ff: 'ff', crit: 'crit',
+  intf: 'intf', nearCrit: 'nearCrit', floatPath: 'floatPath',
+};
 
 /** taskId → naam (omgekeerde van de ids-map), voor de preview-assertions. */
 function nameOf(tid: string, ids: Record<string, string>): string {
@@ -707,6 +762,10 @@ function runCase(c: Case) {
   };
   taskSetCheck('violatedConstraintsSet', exp.violatedConstraintsSet, (cpm as any)?.violatedConstraintTaskIds ?? []);
   taskSetCheck('missedDeadlinesSet', exp.missedDeadlinesSet, (cpm as any)?.missedDeadlineTaskIds ?? []);
+  // Near-critical-verzameling (fase 2.9 golf 2, §4.6): taak-namen met 0 < tf ≤ drempel.
+  taskSetCheck('nearCriticalSet', exp.nearCriticalSet, (cpm as any)?.nearCriticalTaskIds ?? []);
+  // Hammocks zonder finish-driver (fase 2.9 golf 4, §4.4): nul-lengte-terugval + waarschuwing.
+  taskSetCheck('hammockNoFinishDriversSet', exp.hammockNoFinishDriversSet, (cpm as any)?.hammockNoFinishDriverTaskIds ?? []);
 
   // Kritiek pad als verzameling (namen)
   if (exp.criticalPathSet) {
@@ -716,6 +775,76 @@ function runCase(c: Case) {
     const wantNames = [...exp.criticalPathSet].sort();
     if (JSON.stringify(gotNames) !== JSON.stringify(wantNames))
       diffs.push(`criticalPath: verwacht {${wantNames.join(',')}}, kreeg {${gotNames.join(',')}}`);
+  }
+
+  // Float-path-nummers per taak (fase 2.9 golf 3, §4.6): {naam: nr} tegen `floatPathByTask`. Een taak
+  // die géén floatPath kreeg (bv. boven maxPaths) ontbreekt in de map ⇒ ontbreekt ook in de verwachting.
+  if (exp.floatPaths) {
+    const idToName: Record<string, string> = {};
+    for (const [n, i] of Object.entries(ids)) idToName[i] = n;
+    const got: Record<string, number> = {};
+    for (const [tid, nr] of Object.entries((cpm as any)?.floatPathByTask ?? {})) got[idToName[tid] ?? tid] = nr as number;
+    const norm = (o: Record<string, number>) => JSON.stringify(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
+    if (norm(got) !== norm(exp.floatPaths))
+      diffs.push(`floatPaths: verwacht ${norm(exp.floatPaths)}, kreeg ${norm(got)}`);
+  }
+
+  // Kritieke ketens (fase 2.9 golf 3, §4.6): lijst van paden, elk als naam-verzameling — vergeleken als
+  // verzameling-van-verzamelingen (volgorde-onafhankelijk in beide dimensies). De strikte invariant
+  // `criticalPaths[0] === criticalPath` wordt apart in check-advanced-cpm.ts bewezen.
+  if (exp.criticalPaths) {
+    const idToName: Record<string, string> = {};
+    for (const [n, i] of Object.entries(ids)) idToName[i] = n;
+    const enc = (paths: string[][], map: boolean) => JSON.stringify(
+      paths.map(p => [...p].map(x => (map ? (idToName[x] ?? x) : x)).sort())
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    );
+    const got = enc((cpm as any)?.criticalPaths ?? [], true);
+    const want = enc(exp.criticalPaths, false);
+    if (got !== want) diffs.push(`criticalPaths: verwacht ${want}, kreeg ${got}`);
+  }
+
+  // Universele invariant (fase 2.9 golf 2, §8.4-b): interferingFloat == totalFloat − freeFloat over
+  // ÁLLE cases, voor elke leaf-taak (die zit gegarandeerd in het solver-resultaat). Loopt automatisch
+  // mee op alle bestaande batterijen; mag geen bestaande float breken. Alleen bij een geslaagde solve.
+  if (cpm && !cpm.error) {
+    for (const t of S().tasks) {
+      if (t.childIds.length > 0) continue; // samenvattingstaken: aparte rollup, geen solver-resultaat
+      const it = t.time;
+      const name = Object.entries(ids).find(([, i]) => i === t.id)?.[0] ?? t.name;
+      if (it.interferingFloat === undefined) {
+        diffs.push(`intf-invariant: leaf "${name}" mist interferingFloat`);
+      } else if (Math.abs(it.interferingFloat - (it.totalFloat - it.freeFloat)) > 1e-9) {
+        diffs.push(`intf-invariant: "${name}" intf=${it.interferingFloat} ≠ tf−ff=${it.totalFloat - it.freeFloat}`);
+      }
+    }
+  }
+
+  // Universele invariant (fase 2.9 golf 8, §3.5/§4.6): `criticalPaths` is NOOIT leeg (lengte ≥ 1) en
+  // `criticalPaths[0]` is ALTIJD gelijk aan `criticalPath` — het vorm-contract dat elke consument
+  // (renderer, rapporten) mag aannemen, met én zonder de floatPaths-optie. Over álle cases.
+  if (cpm && !cpm.error) {
+    const cp = cpm.criticalPath ?? [];
+    const cps = (cpm as any).criticalPaths ?? [];
+    if (cps.length < 1) diffs.push(`critpaths-invariant: criticalPaths leeg (verwacht ≥1)`);
+    else if (JSON.stringify(cps[0]) !== JSON.stringify(cp))
+      diffs.push(`critpaths-invariant: criticalPaths[0]=${JSON.stringify(cps[0])} ≠ criticalPath=${JSON.stringify(cp)}`);
+  }
+
+  // Universele invariant (fase 2.9 golf 8, §4.4): een hammock zit NOOIT in `floatPathByTask`, is nooit
+  // near-critical (tf definitorisch 0 ⇒ valt buiten 0<tf≤drempel) en komt in geen enkele kritieke keten
+  // voor. No-op op cases zonder hammocks (byte-veilig). Over álle cases.
+  if (cpm && !cpm.error) {
+    const fpbt = (cpm as any).floatPathByTask ?? {};
+    const nearIds = new Set<string>((cpm as any).nearCriticalTaskIds ?? []);
+    const cps: string[][] = (cpm as any).criticalPaths ?? [];
+    for (const t of S().tasks) {
+      if (t.isHammock !== true) continue;
+      const name = Object.entries(ids).find(([, i]) => i === t.id)?.[0] ?? t.name;
+      if (fpbt[t.id] !== undefined) diffs.push(`hammock-invariant: "${name}" heeft floatPath ${fpbt[t.id]}`);
+      if (nearIds.has(t.id)) diffs.push(`hammock-invariant: "${name}" in nearCriticalTaskIds`);
+      if (cps.some((p) => p.includes(t.id))) diffs.push(`hammock-invariant: "${name}" in een criticalPaths-keten`);
+    }
   }
 
   if (exp.projectEnd !== undefined && cpm?.projectEnd !== exp.projectEnd)

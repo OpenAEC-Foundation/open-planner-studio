@@ -12,7 +12,11 @@
     "completion": "Avancement",
     "milestone": "Jalon",
     "hoursPerDayTip": "h/j",
-    "mixedWarning": "Calendriers mixtes — heures/jour par calendrier : {{list}}. La durée est affichée par tâche dans sa propre unité."
+    "mixedWarning": "Calendriers mixtes — heures/jour par calendrier : {{list}}. La durée est affichée par tâche dans sa propre unité.",
+    "freeFloat": "Marge libre",
+    "interferingFloat": "Marge interférente",
+    "isNearCritical": "Quasi critique",
+    "floatPath": "Chemin de marge"
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -100,7 +104,27 @@
     "calendarProject": "Calendrier du projet",
     "priority": "Priorité de nivellement",
     "levelingDelay": "Retard de nivellement",
-    "durationHours": "Durée (heures)"
+    "durationHours": "Durée (heures)",
+    "hardPin": "Obligatoire (logique de verrouillage)",
+    "hardPinTip": "Uniquement pour MSO/MFO — verrouille la date de force et outrepasse la logique des relations (P6 Mandatory).",
+    "hardPinHint": "Un verrouillage dur outrepasse les relations : la barre est fixée à la date, même avant ses prédécesseurs. Une violation devient une marge négative en amont.",
+    "constraint2": "Contrainte secondaire",
+    "constraint2Date": "Date secondaire",
+    "constraint2None": "(aucun)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "Une contrainte secondaire ne peut pas être obligatoire (dure).",
+      "no-secondary-with-mandatory-or-on": "Aucune contrainte secondaire avec un MSO/MFO ou un verrouillage dur.",
+      "no-secondary-with-asap-alap": "Aucune contrainte secondaire avec ASAP/ALAP.",
+      "secondary-type-invalid": "Le type secondaire doit être une borne (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "Les contraintes primaire et secondaire ne peuvent pas borner le même côté."
+    },
+    "hammock": "Hammock (durée dérivée)",
+    "hammockDerivedHint": "Durée dérivée — l'intervalle entre le driver de début et de fin (lecture seule).",
+    "startDriver": "Driver de début",
+    "finishDriver": "Driver de fin",
+    "hammockNoDriver": "(aucun)",
+    "hammockNoFinishDriver": "Aucun driver de fin (FF/SF) — l'intervalle revient à une longueur nulle.",
+    "interferingFloat": "Marge interférente :"
   },
   "relations": {
     "title": "Relations",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "Statut"
+  },
+  "externalLinks": {
+    "action": "Lien externe…",
+    "dialogTitle": "Lien externe (inter-projets)",
+    "sourceFile": "Fichier source",
+    "pickRecent": "Choisir un fichier récent",
+    "noRecent": "Aucun fichier récent",
+    "readOnlyNote": "Le fichier source est lu en lecture seule — il n'est pas ouvert comme document.",
+    "loadingTasks": "Chargement des tâches…",
+    "sourceTask": "Tâche source",
+    "direction": "Direction",
+    "directionPredecessor": "Prédécesseur (externe → moi)",
+    "directionSuccessor": "Successeur (moi → externe)",
+    "relType": "Type de relation",
+    "lag": "Décalage (jours ouvrés)",
+    "anchorDate": "Date d'ancrage",
+    "manualTitle": "Manuel (solution de secours)",
+    "manualHint": "Pas de fichier sous la main ? Collez l'identifiant de projet et de tâche de la tâche externe.",
+    "projectId": "Identifiant de projet",
+    "taskId": "Identifiant de tâche",
+    "taskName": "Nom de la tâche (facultatif)",
+    "add": "Ajouter le lien",
+    "cancel": "Annuler",
+    "existingTitle": "Liens externes",
+    "none": "Aucun lien externe sur cette tâche pour l'instant.",
+    "remove": "Supprimer",
+    "refresh": "Actualiser ce lien",
+    "refreshAll": "Actualiser les ancrages externes",
+    "refreshAllHint": "Relire chaque fichier source référencé et mettre à jour les ancrages + le statut obsolète.",
+    "stale": "obsolète",
+    "sourceMissing": "source non chargée — réimportez pour actualiser",
+    "pickTaskFirst": "Sélectionnez une seule tâche pour ajouter un lien externe.",
+    "refreshedToast": "{{refreshed}} ancrage(s) actualisé(s), {{missing}} obsolète(s)",
+    "noSourcesToast": "Aucune source externe actualisable (chemin de fichier manquant).",
+    "notAvailableWeb": "La lecture des fichiers source n'est possible que dans l'application de bureau ; utilisez la solution de secours manuelle."
   }
 }

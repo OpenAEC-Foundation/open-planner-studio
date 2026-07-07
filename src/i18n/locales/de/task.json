@@ -12,7 +12,11 @@
     "completion": "Fortschritt",
     "milestone": "Meilenstein",
     "hoursPerDayTip": "Std/Tag",
-    "mixedWarning": "Gemischte Kalender – Stunden/Tag je Kalender: {{list}}. Die Dauer wird je Vorgang in eigener Einheit angezeigt."
+    "mixedWarning": "Gemischte Kalender – Stunden/Tag je Kalender: {{list}}. Die Dauer wird je Vorgang in eigener Einheit angezeigt.",
+    "freeFloat": "Freier Puffer",
+    "interferingFloat": "Interferierender Puffer",
+    "isNearCritical": "Beinahe kritisch",
+    "floatPath": "Pufferpfad"
   },
   "taskType": {
     "CONSTRUCTION": "Bau",
@@ -100,7 +104,27 @@
     "calendarProject": "Projektkalender",
     "priority": "Abgleich-Priorität",
     "levelingDelay": "Abgleich-Verzögerung",
-    "durationHours": "Dauer (Stunden)"
+    "durationHours": "Dauer (Stunden)",
+    "hardPin": "Verbindlich (Pin-Logik)",
+    "hardPinTip": "Nur bei MSO/MFO — pinnt das Datum hart und überschreibt die Beziehungslogik (P6 Mandatory).",
+    "hardPinHint": "Ein harter Pin überschreibt die Beziehungen: Der Balken wird fest auf das Datum gesetzt, sogar vor seinen Vorgängern. Eine Verletzung wird stromaufwärts zu negativem Puffer.",
+    "constraint2": "Sekundäre Einschränkung",
+    "constraint2Date": "Sekundärtermin",
+    "constraint2None": "(keine)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "Eine sekundäre Einschränkung darf nicht verbindlich sein.",
+      "no-secondary-with-mandatory-or-on": "Keine sekundäre Einschränkung bei einem MSO/MFO oder harten Pin.",
+      "no-secondary-with-asap-alap": "Keine sekundäre Einschränkung bei ASAP/ALAP.",
+      "secondary-type-invalid": "Der sekundäre Typ muss eine Grenze sein (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "Primär und sekundär dürfen nicht dieselbe Seite begrenzen."
+    },
+    "hammock": "Hammock (abgeleitete Dauer)",
+    "hammockDerivedHint": "Abgeleitete Dauer — die Spanne zwischen Start- und Ende-Treiber (nur lesbar).",
+    "startDriver": "Start-Treiber",
+    "finishDriver": "Ende-Treiber",
+    "hammockNoDriver": "(keine)",
+    "hammockNoFinishDriver": "Kein Ende-Treiber (FF/SF) — die Spanne fällt auf Länge null zurück.",
+    "interferingFloat": "Interferierender Puffer:"
   },
   "relations": {
     "title": "Beziehungen",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "Status"
+  },
+  "externalLinks": {
+    "action": "Externe Verknüpfung…",
+    "dialogTitle": "Externe (projektübergreifende) Verknüpfung",
+    "sourceFile": "Quelldatei",
+    "pickRecent": "Eine zuletzt verwendete Datei wählen",
+    "noRecent": "Keine zuletzt verwendeten Dateien",
+    "readOnlyNote": "Die Quelldatei wird schreibgeschützt eingelesen — sie wird nicht als Dokument geöffnet.",
+    "loadingTasks": "Vorgänge werden geladen…",
+    "sourceTask": "Quellvorgang",
+    "direction": "Richtung",
+    "directionPredecessor": "Vorgänger (extern → ich)",
+    "directionSuccessor": "Nachfolger (ich → extern)",
+    "relType": "Beziehungstyp",
+    "lag": "Abstand (Arbeitstage)",
+    "anchorDate": "Ankertermin",
+    "manualTitle": "Manuell (Fallback)",
+    "manualHint": "Keine Datei zur Hand? Fügen Sie die Projekt-ID und Vorgangs-ID des externen Vorgangs ein.",
+    "projectId": "Projekt-ID",
+    "taskId": "Vorgangs-ID",
+    "taskName": "Vorgangsname (optional)",
+    "add": "Verknüpfung hinzufügen",
+    "cancel": "Abbrechen",
+    "existingTitle": "Externe Verknüpfungen",
+    "none": "Noch keine externen Verknüpfungen bei diesem Vorgang.",
+    "remove": "Entfernen",
+    "refresh": "Diese Verknüpfung aktualisieren",
+    "refreshAll": "Externe Anker aktualisieren",
+    "refreshAllHint": "Jede referenzierte Quelldatei erneut einlesen und Anker + Veraltet-Status aktualisieren.",
+    "stale": "veraltet",
+    "sourceMissing": "Quelle nicht geladen — zum Aktualisieren erneut importieren",
+    "pickTaskFirst": "Wählen Sie einen einzelnen Vorgang aus, um eine externe Verknüpfung hinzuzufügen.",
+    "refreshedToast": "{{refreshed}} Anker aktualisiert, {{missing}} veraltet",
+    "noSourcesToast": "Keine aktualisierbaren externen Quellen (Dateipfad fehlt).",
+    "notAvailableWeb": "Quelldateien lesen ist nur in der Desktop-App möglich; verwenden Sie den manuellen Fallback."
   }
 }

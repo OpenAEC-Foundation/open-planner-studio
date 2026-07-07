@@ -65,6 +65,11 @@ const BUILTIN_ALIGN: Partial<Record<BuiltinFieldKey, 'right' | 'center'>> = {
   totalFloat: 'right',
   completion: 'right',
   isCritical: 'center',
+  // Fase 2.9 (§3.5): additieve analyse-velden.
+  freeFloat: 'right',
+  interferingFloat: 'right',
+  floatPath: 'right',
+  isNearCritical: 'center',
 };
 
 const BUILTIN_LABEL_KEY = {
@@ -78,6 +83,11 @@ const BUILTIN_LABEL_KEY = {
   totalFloat: 'table.totalFloat',
   completion: 'table.completion',
   isMilestone: 'table.milestone',
+  // Fase 2.9 (§3.5): additieve analyse-velden.
+  freeFloat: 'table.freeFloat',
+  interferingFloat: 'table.interferingFloat',
+  isNearCritical: 'table.isNearCritical',
+  floatPath: 'table.floatPath',
 } as const satisfies Record<BuiltinFieldKey, string>;
 
 export function TableEditor() {
@@ -402,6 +412,20 @@ export function TableEditor() {
           );
         case 'isMilestone':
           return <span>{task.isMilestone ? tCommon('yes') : tCommon('no')}</span>;
+        // Fase 2.9 (§3.5): additieve, read-only analyse-velden. freeFloat is altijd aanwezig; de
+        // andere drie zijn optioneel en tonen leeg tot de bijbehorende analyse-golf ze schrijft.
+        case 'freeFloat':
+          return <span className="text-text-secondary">{task.time.freeFloat}{tCommon('days')}</span>;
+        case 'interferingFloat':
+          return task.time.interferingFloat === undefined
+            ? null
+            : <span className="text-text-secondary">{task.time.interferingFloat}{tCommon('days')}</span>;
+        case 'isNearCritical':
+          return <span>{task.time.isNearCritical ? tCommon('yes') : tCommon('no')}</span>;
+        case 'floatPath':
+          return task.time.floatPath === undefined
+            ? null
+            : <span className="text-text-secondary">{task.time.floatPath}</span>;
         default:
           return null;
       }

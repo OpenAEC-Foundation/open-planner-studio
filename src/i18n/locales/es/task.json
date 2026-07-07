@@ -12,7 +12,11 @@
     "completion": "Progreso",
     "milestone": "Hito",
     "hoursPerDayTip": "h/día",
-    "mixedWarning": "Calendarios mixtos — horas/día por calendario: {{list}}. La duración se muestra por tarea en su propia unidad."
+    "mixedWarning": "Calendarios mixtos — horas/día por calendario: {{list}}. La duración se muestra por tarea en su propia unidad.",
+    "freeFloat": "Holgura libre",
+    "interferingFloat": "Holgura interferente",
+    "isNearCritical": "Casi crítica",
+    "floatPath": "Ruta de holgura"
   },
   "taskType": {
     "CONSTRUCTION": "Construcción",
@@ -100,7 +104,27 @@
     "calendarProject": "Calendario del proyecto",
     "priority": "Prioridad de nivelación",
     "levelingDelay": "Retraso de nivelación",
-    "durationHours": "Duración (horas)"
+    "durationHours": "Duración (horas)",
+    "hardPin": "Obligatorio (fijación forzada)",
+    "hardPinTip": "Solo para MSO/MFO — fija la fecha de forma rígida y anula la lógica de relaciones (P6 Mandatory).",
+    "hardPinHint": "Una fijación forzada anula las relaciones: la barra queda fijada en la fecha, incluso antes que sus predecesoras. Una infracción se convierte en holgura negativa aguas arriba.",
+    "constraint2": "Restricción secundaria",
+    "constraint2Date": "Fecha secundaria",
+    "constraint2None": "(ninguno)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "Una restricción secundaria no puede ser obligatoria (dura).",
+      "no-secondary-with-mandatory-or-on": "Sin restricción secundaria con un MSO/MFO o fijación forzada.",
+      "no-secondary-with-asap-alap": "Sin restricción secundaria con ASAP/ALAP.",
+      "secondary-type-invalid": "El tipo secundario debe ser un límite (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "Las restricciones primaria y secundaria no pueden limitar el mismo lado."
+    },
+    "hammock": "Hammock (duración derivada)",
+    "hammockDerivedHint": "Duración derivada — el intervalo entre el driver de inicio y de fin (solo lectura).",
+    "startDriver": "Driver de inicio",
+    "finishDriver": "Driver de fin",
+    "hammockNoDriver": "(ninguno)",
+    "hammockNoFinishDriver": "Sin driver de fin (FF/SF) — el intervalo vuelve a longitud cero.",
+    "interferingFloat": "Holgura interferente:"
   },
   "relations": {
     "title": "Relaciones",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "Estado"
+  },
+  "externalLinks": {
+    "action": "Enlace externo…",
+    "dialogTitle": "Enlace externo (entre proyectos)",
+    "sourceFile": "Archivo de origen",
+    "pickRecent": "Elegir un archivo reciente",
+    "noRecent": "Sin archivos recientes",
+    "readOnlyNote": "El archivo de origen se lee solo en modo lectura — no se abre como documento.",
+    "loadingTasks": "Cargando tareas…",
+    "sourceTask": "Tarea de origen",
+    "direction": "Dirección",
+    "directionPredecessor": "Predecesora (externa → yo)",
+    "directionSuccessor": "Sucesora (yo → externa)",
+    "relType": "Tipo de relación",
+    "lag": "Retraso (días laborables)",
+    "anchorDate": "Fecha de anclaje",
+    "manualTitle": "Manual (alternativa)",
+    "manualHint": "¿No tiene el archivo a mano? Pegue el id de proyecto y el id de tarea de la tarea externa.",
+    "projectId": "Id de proyecto",
+    "taskId": "Id de tarea",
+    "taskName": "Nombre de la tarea (opcional)",
+    "add": "Añadir enlace",
+    "cancel": "Cancelar",
+    "existingTitle": "Enlaces externos",
+    "none": "Aún no hay enlaces externos en esta tarea.",
+    "remove": "Eliminar",
+    "refresh": "Actualizar este enlace",
+    "refreshAll": "Actualizar anclajes externos",
+    "refreshAllHint": "Volver a leer cada archivo de origen referenciado y actualizar los anclajes + el estado obsoleto.",
+    "stale": "obsoleto",
+    "sourceMissing": "origen no cargado — reimporte para actualizar",
+    "pickTaskFirst": "Seleccione una sola tarea para añadir un enlace externo.",
+    "refreshedToast": "{{refreshed}} anclaje(s) actualizado(s), {{missing}} obsoleto(s)",
+    "noSourcesToast": "No hay fuentes externas actualizables (falta la ruta del archivo).",
+    "notAvailableWeb": "Leer archivos de origen solo es posible en la aplicación de escritorio; use la alternativa manual."
   }
 }

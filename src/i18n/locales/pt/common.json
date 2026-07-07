@@ -351,7 +351,10 @@
       "section": "Horários de trabalho",
       "derivedHpd": "Horas/dia derivadas:",
       "saveAsPreset": "Guardar como predefinição…",
+      "saveAsPresetHint": "Guarde os horários de trabalho atuais como a sua própria predefinição (neste dispositivo), para poder reutilizá-los mais tarde em qualquer projeto.",
       "perWeekday": "Definir por dia da semana…",
+      "showBands": "Mostrar horários de trabalho",
+      "hideBands": "Ocultar horários de trabalho",
       "presetNamePlaceholder": "Nome da predefinição",
       "addBand": "Adicionar faixa",
       "copyToAll": "Copiar para todos os dias úteis",
@@ -367,7 +370,8 @@
       "title": "Colunas",
       "visible": "Visível",
       "width": "Largura",
-      "resetDefault": "Repor predefinição"
+      "resetDefault": "Repor predefinição",
+      "available": "Campos disponíveis"
     },
     "filter": {
       "title": "Filtro",

@@ -65,6 +65,34 @@ export interface GanttRenderOptions {
   durationDisplay?: DurationDisplay;
   /** Fase 2.8b (§6.4/§11): vertaalde eenheid-afkortingen voor de duurkolom-WEERGAVE. Afwezig ⇒ NL d/u/m. */
   durationSuffixes?: DurationSuffixes;
+  /** Fase 2.9 (§5.5): vertaald "verouderd"-badgelabel voor een externe ghost-balk met sourceMissing.
+   *  Afwezig ⇒ NL 'verouderd'. */
+  externalStaleLabel?: string;
+  /** Fase 2.9 (§5.4): high-contrast-thema actief. BINDEND user-besluit — in HC is kleur alléén
+   *  onvoldoende, dus near-critical-balken krijgen een geblokt/gearceerd vulpatroon (kritiek=massief,
+   *  near-critical=geblokt, normaal=omlijnd). Afwezig/false ⇒ licht/donker (amber-kleur als signaal). */
+  highContrast?: boolean;
+}
+
+// Near-critical "geblokt"-vulpatroon voor het high-contrast-thema (fase 2.9 §5.4, BINDEND besluit).
+// GEMEMOIZED op moduleniveau: de bitmap wordt één keer getekend en de `CanvasPattern` één keer
+// gemunt — nooit per frame (elke render maakt een nieuwe GanttRenderer, dus instance-caching zou
+// per-frame zijn). Diagonale zwarte blokjes (8×8-tegel, twee kwadranten gevuld) lezen als "geblokt"
+// bovenop de amber themakleur, zodat near-critical zonder kleurwaarneming te onderscheiden is.
+let nearCriticalHatch: CanvasPattern | null = null;
+function getNearCriticalHatch(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  if (nearCriticalHatch) return nearCriticalHatch;
+  const size = 8;
+  const tile = document.createElement('canvas');
+  tile.width = size;
+  tile.height = size;
+  const p = tile.getContext('2d');
+  if (!p) return null;
+  p.fillStyle = 'rgba(0,0,0,0.82)';
+  p.fillRect(0, 0, size / 2, size / 2);
+  p.fillRect(size / 2, size / 2, size / 2, size / 2);
+  nearCriticalHatch = ctx.createPattern(tile, 'repeat');
+  return nearCriticalHatch;
 }
 
 // Read theme colors from CSS variables on the document element
@@ -83,6 +111,8 @@ function getThemeColors() {
     textSecondary: v('--theme-text-dim', '#5B6472'),
     critical: '#DC2626',       // kritiek (rood)
     criticalLight: '#991B1B',  // voortgangsvulling kritiek
+    nearCritical: '#F59E0B',   // bijna-kritiek (amber, tussen kritiek-rood en float-groen, fase 2.9 §5.4)
+    hammock: '#0E7490',        // hammock/LOE-balk (teal, fase 2.9 §5.3)
     normal: '#2563EB',         // normale taak (blauw)
     normalLight: '#1D4ED8',    // voortgangsvulling / voltooid (blauw)
     milestone: '#7C3AED',      // mijlpaal (paars, ruit)
@@ -95,6 +125,7 @@ function getThemeColors() {
     statusDate: '#7C3AED',     // statusdatum-/voortgangslijn (paars, fase 2.6)
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
     summary: '#475569',        // samenvattingsbalk (slate)
+    ghost: '#94A3B8',          // externe (cross-project) ghost-balk (grijs, fase 2.9 §5.5)
     // Constraints & deadlines (fase 2.3; constraint-kleur uit PLAN §8.2)
     constraintEarly: '#3B82F6',   // vroege-zijde (SNET/FNET): blauw
     constraintLate: '#8B5CF6',    // late-zijde/pinnend (SNLT/FNLT/MSO/MFO): violet
@@ -125,6 +156,7 @@ export class GanttRenderer {
   private holidaySet: Set<string>;
   private violatedSet: Set<string>;
   private missedDeadlineSet: Set<string>;
+  private highContrast: boolean;
 
   /** Alpha voor gedimde rijen (filter-ouderketen, §4.2). */
   private static readonly DIM_ALPHA = 0.45;
@@ -147,7 +179,30 @@ export class GanttRenderer {
     this.buildHolidaySet();
     this.violatedSet = new Set(opts.violatedConstraintTaskIds ?? []);
     this.missedDeadlineSet = new Set(opts.missedDeadlineTaskIds ?? []);
+    this.highContrast = !!opts.highContrast;
   }
+
+  /** Basis-balkkleur (fase 2.9 §5.4): kritiek-rood ≻ near-critical-amber ≻ float-path-tint ≻
+   *  eigen kleur/normaal-blauw. `overrideColor` (trace-tint) wint altijd. Near-critical en de
+   *  float-path-tint zijn analyse-overlays die alleen bestaan wanneer hun optie aanstaat ⇒ default
+   *  byte-identiek (`isNearCritical`/`floatPath` afwezig). */
+  private barColor(task: Task, overrideColor?: string): string {
+    if (overrideColor) return overrideColor;
+    if (task.time.isCritical) return this.colors.critical;
+    if (task.time.isNearCritical) return this.colors.nearCritical;
+    const fp = task.time.floatPath;
+    if (fp !== undefined && fp > 1) {
+      return GanttRenderer.FLOAT_PATH_TINTS[(fp - 2) % GanttRenderer.FLOAT_PATH_TINTS.length];
+    }
+    return task.color || this.colors.normal;
+  }
+
+  /** Optionele tint per float-pad (fase 2.9 §5.4): pad 1 = kritiek (rood, hierboven), paden ≥2
+   *  krijgen elk een eigen tint. Alleen actief wanneer de floatPaths-optie draait (anders is
+   *  `floatPath` ongezet). */
+  private static readonly FLOAT_PATH_TINTS = [
+    '#2563EB', '#7C3AED', '#0891B2', '#DB2777', '#65A30D', '#EA580C', '#0D9488', '#9333EA',
+  ];
 
   private buildHolidaySet(): void {
     for (const h of this.opts.calendar.holidays) {
@@ -607,11 +662,16 @@ export class GanttRenderer {
         this.drawMilestone(task, y, barHeight, isSelected, overrideColor);
       } else if (task.childIds.length > 0) {
         this.drawSummaryBar(task, y, barHeight, isSelected, overrideColor);
+      } else if (task.isHammock) {
+        this.drawHammockBar(task, y, barHeight, isSelected, overrideColor);
       } else {
         this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
       }
       this.drawConstraintMarkers(task, y);
+      // Externe (cross-project) ghost-balken (fase 2.9, §5.5): op volle dekking (niet mee-dimmen),
+      // ná de constraint-markers zodat de badge bovenop leesbaar blijft.
       if (dimmed || row.dimmed) this.ctx.globalAlpha = 1;
+      this.drawExternalGhosts(task, y, barHeight);
       // Baseline-onderbalk (fase 2.6): op volle dekking, ná het eventuele dim-herstel.
       this.drawBaselineOverlay(task, y, barHeight);
     }
@@ -625,7 +685,7 @@ export class GanttRenderer {
     if (x2 < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
 
     const width = Math.max(x2 - x1, 4);
-    const color = overrideColor ?? (task.time.isCritical ? this.colors.critical : (task.color || this.colors.normal));
+    const color = this.barColor(task, overrideColor);
     const progressColor = task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
 
     // Fase 2.8b (§6.9): een uur-taak splitst in werkblok-segmenten (pauzes/nachten vallen als gaten
@@ -675,6 +735,34 @@ export class GanttRenderer {
       }
     }
 
+    // High-contrast-thema (fase 2.9 §5.4, BINDEND): kleur alléén is onvoldoende, dus de drie
+    // toestanden krijgen een texture-onderscheid — kritiek=massief (ongewijzigd), near-critical=
+    // GEBLOKT (gememoized diagonaal-blok-patroon bovenop de amber), normaal=OMLIJND (rand). In
+    // licht/donker blijft de amber-kleur het primaire signaal (geen texture).
+    if (this.highContrast && !task.time.isCritical) {
+      if (task.time.isNearCritical) {
+        const hatch = getNearCriticalHatch(ctx);
+        if (hatch) {
+          ctx.fillStyle = hatch;
+          for (const s of segs) {
+            const sw = Math.max(s.x2 - s.x1, split ? 2 : 4);
+            ctx.beginPath();
+            ctx.roundRect(s.x1, y, sw, height, 3);
+            ctx.fill();
+          }
+        }
+      } else {
+        ctx.strokeStyle = this.colors.text;
+        ctx.lineWidth = 1.5;
+        for (const s of segs) {
+          const sw = Math.max(s.x2 - s.x1, split ? 2 : 4);
+          ctx.beginPath();
+          ctx.roundRect(s.x1 + 0.75, y + 0.75, sw - 1.5, height - 1.5, 3);
+          ctx.stroke();
+        }
+      }
+    }
+
     // Float indicator (ná de exclusieve balk-finish x2)
     if (task.time.totalFloat > 0 && !task.time.isCritical) {
       const floatWidth = task.time.totalFloat * this.opts.view.zoom;
@@ -701,6 +789,59 @@ export class GanttRenderer {
       ctx.rect(x1 + 4, y, width - 8, height);
       ctx.clip();
       ctx.fillText(task.name, x1 + 6, y + height / 2);
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Fase 2.9 §5.3 — hammock/LOE-balk. P6-conventie: een dunne balk die tussen de start- en
+   * finish-driver spant, met haakvormige eind-caps (brackets naar beneden) i.p.v. een gevulde
+   * taakbalk. De duur is afgeleid (de solver schrijft early/late), dus geen voortgangsvulling.
+   */
+  private drawHammockBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
+    const ctx = this.ctx;
+    const { x1, x2 } = this.barGeometry(task);
+    if (x2 < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
+
+    const width = Math.max(x2 - x1, 4);
+    const color = overrideColor ?? this.colors.hammock;
+    const barY = y + height * 0.4;
+    const barH = height * 0.2;
+    const hook = height * 0.42;
+
+    // Dunne middenbalk.
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x1, barY, width, barH, 1);
+    ctx.fill();
+
+    // Haakvormige eind-caps (LOE-conventie): korte verticale stukjes omlaag aan beide uiteinden.
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1 + 1, barY);
+    ctx.lineTo(x1 + 1, barY + hook);
+    ctx.moveTo(x2 - 1, barY);
+    ctx.lineTo(x2 - 1, barY + hook);
+    ctx.stroke();
+
+    if (isSelected) {
+      ctx.strokeStyle = this.colors.selected;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x1 - 1, y - 1, width + 2, height + 2, 4);
+      ctx.stroke();
+    }
+
+    if (width > 40) {
+      ctx.fillStyle = this.colors.text;
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x1 + 4, y, width - 8, height);
+      ctx.clip();
+      ctx.fillText(task.name, x1 + 6, y + height * 0.2);
       ctx.restore();
     }
   }
@@ -795,6 +936,69 @@ export class GanttRenderer {
   }
 
   /**
+   * Fase 2.9 (§5.5) — externe (cross-project) ghost-balken. Per `ExternalLink` een grijze balk die op
+   * het bevroren anker EINDIGT (predecessor: de externe taak eindigt vóór mijn start) resp. BEGINT
+   * (successor). `sourceMissing` ⇒ gestippelde rand + een "verouderd"-badge (bron niet geladen; her-
+   * importeer om te verversen). De ghost is géén echte rij — puur weergave naast de lokale balk;
+   * afwezig/leeg `externalLinks` ⇒ deze methode is een no-op (byte-identiek). */
+  private drawExternalGhosts(task: Task, y: number, height: number): void {
+    const links = task.externalLinks;
+    if (!links || links.length === 0) return;
+    const ctx = this.ctx;
+    const ghostW = Math.max(this.opts.view.zoom * 1.5, 28);
+    const gh = height * 0.72;
+    const gy = y + (height - gh) / 2;
+    const chartLeft = this.opts.taskTableWidth;
+
+    for (const link of links) {
+      const anchorStr = link.anchorDate;
+      if (!anchorStr) continue;
+      const anchor = anchorStr.includes('T') ? parseInstant(anchorStr) : parseDate(anchorStr);
+      if (isNaN(anchor.getTime())) continue;
+      const ax = this.dateToX(anchor);
+      const gx1 = link.direction === 'predecessor' ? ax - ghostW : ax;
+      if (gx1 + ghostW < chartLeft || gx1 > this.opts.canvasWidth) continue;
+
+      ctx.save();
+      // Clip aan het chart-gebied (de ghost mag niet over de taaktabel lopen).
+      ctx.beginPath();
+      ctx.rect(chartLeft, this.opts.headerHeight, this.opts.canvasWidth - chartLeft, this.opts.canvasHeight - this.opts.headerHeight);
+      ctx.clip();
+      // Vulling — semi-transparant grijs.
+      ctx.fillStyle = this.colors.ghost + '40'; // ~25%
+      ctx.beginPath();
+      ctx.roundRect(gx1, gy, ghostW, gh, 2);
+      ctx.fill();
+      // Rand — solid (bron geladen) of gestippeld (sourceMissing = verouderd).
+      ctx.strokeStyle = this.colors.ghost;
+      ctx.lineWidth = 1;
+      if (link.sourceMissing) ctx.setLineDash([3, 2]);
+      ctx.beginPath();
+      ctx.roundRect(gx1 + 0.5, gy + 0.5, ghostW - 1, gh - 1, 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // "verouderd"-badge bij sourceMissing.
+      if (link.sourceMissing) {
+        const label = this.opts.externalStaleLabel ?? 'verouderd';
+        ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const tw = ctx.measureText(label).width + 6;
+        const bx = gx1 + Math.max((ghostW - tw) / 2, 0);
+        const by = gy - 13;
+        ctx.fillStyle = this.colors.critical;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, tw, 12, 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(label, bx + 3, by + 6.5);
+        ctx.textAlign = 'start';
+      }
+      ctx.restore();
+    }
+  }
+
+  /**
    * Fase 2.3 — constraint-pins en deadline-markers (F10/F11):
    *  - constraint: klein pin-ruitje boven de balkrand — blauw aan de startkant voor
    *    vroege-zijde types (SNET/FNET), violet aan de betreffende kant voor late-zijde/
@@ -818,14 +1022,30 @@ export class GanttRenderer {
         ctx.fillStyle = violated
           ? this.colors.critical
           : earlySide ? this.colors.constraintEarly : this.colors.constraintLate;
-        const cy = y - 1;
-        ctx.beginPath();
-        ctx.moveTo(px, cy - 4);
-        ctx.lineTo(px + 4, cy);
-        ctx.lineTo(px, cy + 4);
-        ctx.lineTo(px - 4, cy);
-        ctx.closePath();
-        ctx.fill();
+        if (c.hard && (c.type === 'MSO' || c.type === 'MFO')) {
+          // Harde Mandatory-pin (fase 2.9 §5.1, besluit B2): een pin-glyph (kopje + steel) i.p.v.
+          // het soft-ruitje; bij logica-schending in de waarschuwkleur (violatedSet, incl.
+          // hard-pin-schending) — het kopje leest als een pushpin die de balk vastzet.
+          ctx.strokeStyle = ctx.fillStyle as string;
+          ctx.lineWidth = 1.5;
+          const hy = y - 7;
+          ctx.beginPath();
+          ctx.moveTo(px, hy + 2);
+          ctx.lineTo(px, y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(px, hy, 3, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          const cy = y - 1;
+          ctx.beginPath();
+          ctx.moveTo(px, cy - 4);
+          ctx.lineTo(px + 4, cy);
+          ctx.lineTo(px, cy + 4);
+          ctx.lineTo(px - 4, cy);
+          ctx.closePath();
+          ctx.fill();
+        }
       }
     }
 

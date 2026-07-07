@@ -61,6 +61,9 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       const solver = new CPMSolver(leafTasks, s.sequences, s.calendar, s.calendars, {
         dataDate: s.project.statusDate,
         progressMode: s.project.progressMode,
+        // Fase 2.9 golf 0: project-scoped reken-opties doorgeven. De solver leest ze nog nergens
+        // gedragswijzigend (afwezig/leeg ⇒ byte-identiek); de latere golven activeren ze.
+        schedulingOptions: s.project.schedulingOptions,
       });
       const result = solver.solve();
 
@@ -82,6 +85,14 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
           task.time.totalFloat = r.totalFloat;
           task.time.freeFloat = r.freeFloat;
           task.time.isCritical = r.isCritical;
+          // Fase 2.9 golf 2 (§4.6): analyse-afleidingen. `interferingFloat` is ALTIJD aanwezig
+          // (tf−ff); `isNearCritical`/`floatPath` alleen wanneer de bijbehorende optie draait —
+          // afwezig ⇒ het veld wordt gewist (zodat een uitgezette optie geen stale markering laat).
+          task.time.interferingFloat = r.interferingFloat;
+          if (r.isNearCritical !== undefined) task.time.isNearCritical = r.isNearCritical;
+          else task.time.isNearCritical = undefined;
+          if (r.floatPath !== undefined) task.time.floatPath = r.floatPath;
+          else task.time.floatPath = undefined;
           // BEWUST GEEN scheduleStart-ANKER-drift: scheduleStart is de GEPLANDE anker (waarop de
           // forward-pass voortbouwt, `CPMSolver` snapt hierop) en mag NIET de berekende earlyStart
           // worden — anders bleef een taak na het verwijderen van een relatie op z'n gedrifte datum
@@ -132,6 +143,9 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
           // Een verzameltaak kan maar zo veel opschuiven als zijn krapste kind: min over de kinderen.
           task.time.totalFloat = Math.min(...children.map(c => c.time.totalFloat));
           task.time.freeFloat = Math.min(...children.map(c => c.time.freeFloat));
+          // Interfererende speling op de samenvatting = tf−ff (fase 2.9 golf 2, §4.6) — houdt de
+          // invariant ook op verzameltaken en vult de kolom voor WBS-rijen.
+          task.time.interferingFloat = task.time.totalFloat - task.time.freeFloat;
         }
       };
 

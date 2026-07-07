@@ -351,7 +351,10 @@
       "section": "稼働時間",
       "derivedHpd": "算出された時間/日：",
       "saveAsPreset": "プリセットとして保存…",
+      "saveAsPresetHint": "現在の稼働時間を自分専用のプリセットとして(この端末に)保存し、後で他のプロジェクトでも再利用できるようにします。",
       "perWeekday": "曜日ごとに設定…",
+      "showBands": "稼働時間を表示",
+      "hideBands": "稼働時間を非表示",
       "presetNamePlaceholder": "プリセット名",
       "addBand": "帯を追加",
       "copyToAll": "すべての稼働日にコピー",
@@ -367,7 +370,8 @@
       "title": "列",
       "visible": "表示",
       "width": "幅",
-      "resetDefault": "既定値に戻す"
+      "resetDefault": "既定値に戻す",
+      "available": "利用可能なフィールド"
     },
     "filter": {
       "title": "フィルター",

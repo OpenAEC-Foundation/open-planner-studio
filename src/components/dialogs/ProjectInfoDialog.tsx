@@ -7,10 +7,12 @@ import { DateTextInput } from '@/components/common/DateTextInput';
 import { formatDate } from '@/utils/dateUtils';
 import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
 import { CalendarGeneratorFields } from './CalendarGeneratorFields';
+import { CalcOptionsSection } from './CalcOptionsSection';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
+import type { SchedulingOptions } from '@/types/project';
 
 /** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
  *  `'custom'` ("Aangepast…", ontwerp §7.2) — die opent na aanmaken de kalenderdialoog i.p.v.
@@ -37,6 +39,7 @@ export function ProjectInfoDialog() {
   const setProject = useAppStore(s => s.setProject);
   const createNewProject = useAppStore(s => s.createNewProject);
   const setUI = useAppStore(s => s.setUI);
+  const runCPM = useAppStore(s => s.runCPM);
 
   const [name, setName] = useState(isNew ? '' : project.name);
   const [description, setDescription] = useState(isNew ? '' : project.description);
@@ -44,6 +47,12 @@ export function ProjectInfoDialog() {
   const [company, setCompany] = useState(isNew ? '' : project.company);
   const [startDate, setStartDate] = useState(isNew ? formatDate(new Date()) : project.startDate);
   const [endDate, setEndDate] = useState(isNew ? '' : project.endDate);
+  // Berekening-sectie als DRAFT (fase 2.9-fix): net als Naam/Omschrijving bewerkt de Berekening-sectie
+  // een lokale kopie; de store wijzigt pas op Toepassen (consistent Annuleren-gedrag). Vers gemount ⇒
+  // initialiseert uit het huidige project.
+  const [schedulingOptions, setSchedulingOptions] = useState<SchedulingOptions>(
+    isNew ? {} : (project.schedulingOptions ?? {}),
+  );
   const [calState, setCalState] = useState<WizardCalendarState>(DEFAULT_WIZARD_CALENDAR);
   const [template, setTemplate] = useState<TemplateKey>('empty');
   // Ploeg-preset (§6.7): default 'day' = dag-kalender (byte-identiek). Alleen zichtbaar met
@@ -86,7 +95,19 @@ export function ProjectInfoDialog() {
         ...(activeRibbonTab === 'file' ? { activeRibbonTab: 'start' as const } : {}),
       });
     } else {
-      setProject({ name, description, author, company, startDate, endDate });
+      // Committeer de metadata + de Berekening-draft in één keer. `schedulingOptions` alleen aanraken
+      // als hij daadwerkelijk wijzigde (anders geen spurious dirty / geen onnodige herberekening).
+      // Genormaliseerd via JSON-roundtrip zodat undefined-sleutels verdwijnen ⇒ leeg wordt `undefined`
+      // (byte-identiek met "geen opties").
+      const normalized = JSON.parse(JSON.stringify(schedulingOptions)) as SchedulingOptions;
+      const soChanged = JSON.stringify(normalized) !== JSON.stringify(project.schedulingOptions ?? {});
+      setProject({
+        name, description, author, company, startDate, endDate,
+        ...(soChanged
+          ? { schedulingOptions: Object.keys(normalized).length > 0 ? normalized : undefined }
+          : {}),
+      });
+      if (soChanged) runCPM();
       setUI({ showProjectInfoDialog: false });
     }
   };
@@ -188,6 +209,10 @@ export function ProjectInfoDialog() {
               />
             </>
           )}
+
+          {/* Berekening-sectie (fase 2.9 §5.7/§7, besluit B5) — alleen bij het bewerken van een
+              bestaand project (niet in de nieuw-project-wizard). */}
+          {!isNew && <CalcOptionsSection value={schedulingOptions} onChange={setSchedulingOptions} />}
         </div>
 
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">

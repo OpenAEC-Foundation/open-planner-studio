@@ -12,7 +12,11 @@
     "completion": "Postęp",
     "milestone": "Kamień milowy",
     "hoursPerDayTip": "godz./dzień",
-    "mixedWarning": "Mieszane kalendarze — godziny/dzień na kalendarz: {{list}}. Czas trwania jest pokazywany dla każdego zadania we własnej jednostce."
+    "mixedWarning": "Mieszane kalendarze — godziny/dzień na kalendarz: {{list}}. Czas trwania jest pokazywany dla każdego zadania we własnej jednostce.",
+    "freeFloat": "Zapas swobodny",
+    "interferingFloat": "Zapas interferujący",
+    "isNearCritical": "Prawie krytyczne",
+    "floatPath": "Ścieżka zapasu"
   },
   "taskType": {
     "CONSTRUCTION": "Budowa",
@@ -100,7 +104,27 @@
     "calendarProject": "Kalendarz projektu",
     "priority": "Priorytet bilansowania",
     "levelingDelay": "Opóźnienie bilansowania",
-    "durationHours": "Czas trwania (godziny)"
+    "durationHours": "Czas trwania (godziny)",
+    "hardPin": "Obowiązkowe (twarde przypięcie)",
+    "hardPinTip": "Tylko dla MSO/MFO — sztywno przypina datę i nadpisuje logikę relacji (P6 Mandatory).",
+    "hardPinHint": "Twarde przypięcie nadpisuje relacje: pasek jest ustawiony na stałe na tej dacie, nawet przed poprzednikami. Naruszenie zamienia się w ujemny zapas w górę strumienia.",
+    "constraint2": "Ograniczenie drugorzędne",
+    "constraint2Date": "Data drugorzędna",
+    "constraint2None": "(brak)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "Ograniczenie drugorzędne nie może być obowiązkowe (twarde).",
+      "no-secondary-with-mandatory-or-on": "Brak ograniczenia drugorzędnego przy MSO/MFO lub twardym przypięciu.",
+      "no-secondary-with-asap-alap": "Brak ograniczenia drugorzędnego przy ASAP/ALAP.",
+      "secondary-type-invalid": "Typ drugorzędny musi być granicą (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "Ograniczenie podstawowe i drugorzędne nie mogą ograniczać tej samej strony."
+    },
+    "hammock": "Hammock (czas trwania pochodny)",
+    "hammockDerivedHint": "Czas trwania pochodny — odstęp między driverem początku i końca (tylko do odczytu).",
+    "startDriver": "Driver początku",
+    "finishDriver": "Driver końca",
+    "hammockNoDriver": "(brak)",
+    "hammockNoFinishDriver": "Brak drivera końca (FF/SF) — odstęp wraca do zerowej długości.",
+    "interferingFloat": "Zapas interferujący:"
   },
   "relations": {
     "title": "Relacje",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "Status"
+  },
+  "externalLinks": {
+    "action": "Łącze zewnętrzne…",
+    "dialogTitle": "Łącze zewnętrzne (między projektami)",
+    "sourceFile": "Plik źródłowy",
+    "pickRecent": "Wybierz ostatni plik",
+    "noRecent": "Brak ostatnich plików",
+    "readOnlyNote": "Plik źródłowy jest wczytywany tylko do odczytu — nie jest otwierany jako dokument.",
+    "loadingTasks": "Wczytywanie zadań…",
+    "sourceTask": "Zadanie źródłowe",
+    "direction": "Kierunek",
+    "directionPredecessor": "Poprzednik (zewnętrzny → ja)",
+    "directionSuccessor": "Następnik (ja → zewnętrzny)",
+    "relType": "Typ relacji",
+    "lag": "Zwłoka (dni robocze)",
+    "anchorDate": "Data zakotwiczenia",
+    "manualTitle": "Ręcznie (rozwiązanie zastępcze)",
+    "manualHint": "Nie masz pliku pod ręką? Wklej identyfikator projektu i identyfikator zadania zadania zewnętrznego.",
+    "projectId": "Identyfikator projektu",
+    "taskId": "Identyfikator zadania",
+    "taskName": "Nazwa zadania (opcjonalnie)",
+    "add": "Dodaj łącze",
+    "cancel": "Anuluj",
+    "existingTitle": "Łącza zewnętrzne",
+    "none": "To zadanie nie ma jeszcze żadnych łączy zewnętrznych.",
+    "remove": "Usuń",
+    "refresh": "Odśwież to łącze",
+    "refreshAll": "Odśwież kotwice zewnętrzne",
+    "refreshAllHint": "Odczytaj ponownie każdy przywołany plik źródłowy i zaktualizuj kotwice oraz status nieaktualności.",
+    "stale": "nieaktualne",
+    "sourceMissing": "źródło niewczytane — zaimportuj ponownie, aby odświeżyć",
+    "pickTaskFirst": "Zaznacz jedno zadanie, aby dodać łącze zewnętrzne.",
+    "refreshedToast": "Odświeżono kotwic: {{refreshed}}, nieaktualnych: {{missing}}",
+    "noSourcesToast": "Brak źródeł zewnętrznych do odświeżenia (brak ścieżki pliku).",
+    "notAvailableWeb": "Odczyt plików źródłowych jest możliwy tylko w aplikacji desktopowej; użyj ręcznego rozwiązania zastępczego."
   }
 }

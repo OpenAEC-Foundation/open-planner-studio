@@ -12,7 +12,11 @@
     "completion": "进度",
     "milestone": "里程碑",
     "hoursPerDayTip": "小时/天",
-    "mixedWarning": "混合日历 — 各日历每日工时：{{list}}。工期按各任务以其自身单位显示。"
+    "mixedWarning": "混合日历 — 各日历每日工时：{{list}}。工期按各任务以其自身单位显示。",
+    "freeFloat": "自由浮动",
+    "interferingFloat": "干扰浮动",
+    "isNearCritical": "接近关键",
+    "floatPath": "浮动路径"
   },
   "taskType": {
     "CONSTRUCTION": "施工",
@@ -100,7 +104,27 @@
     "calendarProject": "项目日历",
     "priority": "平衡优先级",
     "levelingDelay": "平衡延迟",
-    "durationHours": "工期（小时）"
+    "durationHours": "工期（小时）",
+    "hardPin": "强制（钉住逻辑）",
+    "hardPinTip": "仅适用于 MSO/MFO — 强制固定日期并覆盖关系逻辑（P6 Mandatory）。",
+    "hardPinHint": "硬钉住会覆盖关系：任务条被固定在该日期，即使早于其前置任务。违反时会在上游产生负浮动。",
+    "constraint2": "次要限制",
+    "constraint2Date": "次要日期",
+    "constraint2None": "（无）",
+    "constraintPair": {
+      "secondary-hard-forbidden": "次要限制不能是强制性的（硬约束）。",
+      "no-secondary-with-mandatory-or-on": "存在 MSO/MFO 或硬钉住时不能有次要限制。",
+      "no-secondary-with-asap-alap": "ASAP/ALAP 时不能有次要限制。",
+      "secondary-type-invalid": "次要类型必须是边界型（SNET/FNET/SNLT/FNLT）。",
+      "secondary-same-side": "主要限制和次要限制不能约束同一侧。"
+    },
+    "hammock": "Hammock（派生工期）",
+    "hammockDerivedHint": "派生工期 — 开始驱动和结束驱动之间的跨度（只读）。",
+    "startDriver": "开始驱动",
+    "finishDriver": "结束驱动",
+    "hammockNoDriver": "（无）",
+    "hammockNoFinishDriver": "没有结束驱动（FF/SF）— 跨度将回退为零长度。",
+    "interferingFloat": "干扰浮动："
   },
   "relations": {
     "title": "关系",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "状态"
+  },
+  "externalLinks": {
+    "action": "外部链接…",
+    "dialogTitle": "外部（跨项目）链接",
+    "sourceFile": "源文件",
+    "pickRecent": "选择最近使用的文件",
+    "noRecent": "没有最近使用的文件",
+    "readOnlyNote": "源文件以只读方式读取 — 不会作为文档打开。",
+    "loadingTasks": "正在加载任务…",
+    "sourceTask": "源任务",
+    "direction": "方向",
+    "directionPredecessor": "前置任务（外部 → 我）",
+    "directionSuccessor": "后续任务（我 → 外部）",
+    "relType": "关系类型",
+    "lag": "延迟（工作日）",
+    "anchorDate": "锚点日期",
+    "manualTitle": "手动（备用方式）",
+    "manualHint": "手头没有文件？粘贴外部任务的项目 ID 和任务 ID。",
+    "projectId": "项目 ID",
+    "taskId": "任务 ID",
+    "taskName": "任务名称（可选）",
+    "add": "添加链接",
+    "cancel": "取消",
+    "existingTitle": "外部链接",
+    "none": "此任务尚无外部链接。",
+    "remove": "移除",
+    "refresh": "刷新此链接",
+    "refreshAll": "刷新外部锚点",
+    "refreshAllHint": "重新读取每个被引用的源文件，并更新锚点和过期状态。",
+    "stale": "已过期",
+    "sourceMissing": "源未加载 — 重新导入以刷新",
+    "pickTaskFirst": "请选择单个任务以添加外部链接。",
+    "refreshedToast": "已刷新 {{refreshed}} 个锚点，{{missing}} 个已过期",
+    "noSourcesToast": "没有可刷新的外部源（缺少文件路径）。",
+    "notAvailableWeb": "读取源文件仅在桌面应用中可用；请使用手动备用方式。"
   }
 }

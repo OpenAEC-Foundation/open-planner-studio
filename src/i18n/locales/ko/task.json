@@ -12,7 +12,11 @@
     "completion": "진행률",
     "milestone": "마일스톤",
     "hoursPerDayTip": "시간/일",
-    "mixedWarning": "혼합 캘린더 — 캘린더별 시간/일: {{list}}. 기간은 작업별 고유 단위로 표시됩니다."
+    "mixedWarning": "혼합 캘린더 — 캘린더별 시간/일: {{list}}. 기간은 작업별 고유 단위로 표시됩니다.",
+    "freeFloat": "자유 여유",
+    "interferingFloat": "간섭 여유",
+    "isNearCritical": "준임계",
+    "floatPath": "여유 경로"
   },
   "taskType": {
     "CONSTRUCTION": "건설",
@@ -100,7 +104,27 @@
     "calendarProject": "프로젝트 달력",
     "priority": "평준화 우선순위",
     "levelingDelay": "평준화 지연",
-    "durationHours": "기간(시간)"
+    "durationHours": "기간(시간)",
+    "hardPin": "필수(고정 로직)",
+    "hardPinTip": "MSO/MFO 전용 — 날짜를 강제로 고정하고 관계 로직을 재정의합니다(P6 Mandatory).",
+    "hardPinHint": "하드 핀은 관계를 재정의합니다: 선행 작업보다 앞서더라도 막대가 해당 날짜에 고정됩니다. 위반 시 상류 쪽에서 음의 여유가 됩니다.",
+    "constraint2": "보조 제약 조건",
+    "constraint2Date": "보조 날짜",
+    "constraint2None": "(없음)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "보조 제약 조건은 필수(하드)일 수 없습니다.",
+      "no-secondary-with-mandatory-or-on": "MSO/MFO 또는 하드 핀이 있는 경우 보조 제약 조건을 사용할 수 없습니다.",
+      "no-secondary-with-asap-alap": "ASAP/ALAP인 경우 보조 제약 조건을 사용할 수 없습니다.",
+      "secondary-type-invalid": "보조 유형은 경계형(SNET/FNET/SNLT/FNLT)이어야 합니다.",
+      "secondary-same-side": "1차와 2차 제약 조건은 같은 쪽을 제한할 수 없습니다."
+    },
+    "hammock": "Hammock(파생 기간)",
+    "hammockDerivedHint": "파생 기간 — 시작 드라이버와 종료 드라이버 사이의 간격(읽기 전용).",
+    "startDriver": "시작 드라이버",
+    "finishDriver": "종료 드라이버",
+    "hammockNoDriver": "(없음)",
+    "hammockNoFinishDriver": "종료 드라이버 없음(FF/SF) — 간격이 길이 0으로 돌아갑니다.",
+    "interferingFloat": "간섭 여유:"
   },
   "relations": {
     "title": "관계",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "상태"
+  },
+  "externalLinks": {
+    "action": "외부 링크…",
+    "dialogTitle": "외부(프로젝트 간) 링크",
+    "sourceFile": "소스 파일",
+    "pickRecent": "최근 파일 선택",
+    "noRecent": "최근 파일 없음",
+    "readOnlyNote": "소스 파일은 읽기 전용으로 읽어옵니다 — 문서로 열리지 않습니다.",
+    "loadingTasks": "작업 로드 중…",
+    "sourceTask": "소스 작업",
+    "direction": "방향",
+    "directionPredecessor": "선행(외부 → 나)",
+    "directionSuccessor": "후행(나 → 외부)",
+    "relType": "관계 유형",
+    "lag": "지연(작업일)",
+    "anchorDate": "앵커 날짜",
+    "manualTitle": "수동(대체)",
+    "manualHint": "파일이 없나요? 외부 작업의 프로젝트 ID와 작업 ID를 붙여넣으세요.",
+    "projectId": "프로젝트 ID",
+    "taskId": "작업 ID",
+    "taskName": "작업 이름(선택 사항)",
+    "add": "링크 추가",
+    "cancel": "취소",
+    "existingTitle": "외부 링크",
+    "none": "이 작업에는 아직 외부 링크가 없습니다.",
+    "remove": "제거",
+    "refresh": "이 링크 새로 고침",
+    "refreshAll": "외부 앵커 새로 고침",
+    "refreshAllHint": "참조된 각 소스 파일을 다시 읽고 앵커 + 오래됨 상태를 업데이트합니다.",
+    "stale": "오래됨",
+    "sourceMissing": "소스가 로드되지 않음 — 새로 고치려면 다시 가져오세요",
+    "pickTaskFirst": "외부 링크를 추가하려면 작업 하나를 선택하세요.",
+    "refreshedToast": "앵커 {{refreshed}}개 새로 고침, {{missing}}개 오래됨",
+    "noSourcesToast": "새로 고칠 수 있는 외부 소스가 없습니다(파일 경로 없음).",
+    "notAvailableWeb": "소스 파일 읽기는 데스크톱 앱에서만 가능합니다. 수동 대체 방법을 사용하세요."
   }
 }

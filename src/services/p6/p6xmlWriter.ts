@@ -1,4 +1,4 @@
-import { Task } from '@/types/task';
+import { Task, TaskConstraint } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -54,6 +54,28 @@ function sequenceTypeToP6(type: SequenceType): string {
     case 'FINISH_FINISH': return 'PR_FF';
     case 'START_START': return 'PR_SS';
     case 'START_FINISH': return 'PR_SF';
+  }
+}
+
+/**
+ * Fase 2.9 (§6) — OPS-constraint → P6 `CS_*`-code (Rapport B §1/§8.3). Soft-typen mappen
+ * 1-op-1 op P6's soft constraints (`CS_MSO/MSOA/MSOB/MEO/MEOA/MEOB/ALAP`); de logica-brekende
+ * harde MSO/MFO-pin op `CS_MANDSTART`/`CS_MANDFIN` (semantiek exact gescheiden, P6 kent soft én
+ * hard native). `ASAP` ⇒ geen constraint (leeg veld) ⇒ `undefined`.
+ * De P6-XML-elementnamen (`PrimaryConstraintType` etc.) volgen de MPXJ-PMXML-conventie
+ * (github.com/joniles/mpxj — PrimaveraPMFileWriter); het domeinrapport verifieerde de XER-
+ * kolomnamen (`cstr_type`), niet de PMXML-elementnamen — die zijn dus MPXJ-conventie (medium).
+ */
+function p6ConstraintCode(c: TaskConstraint): string | undefined {
+  switch (c.type) {
+    case 'ASAP': return undefined;
+    case 'ALAP': return 'CS_ALAP';
+    case 'SNET': return 'CS_MSOA';
+    case 'SNLT': return 'CS_MSOB';
+    case 'FNET': return 'CS_MEOA';
+    case 'FNLT': return 'CS_MEOB';
+    case 'MSO': return c.hard ? 'CS_MANDSTART' : 'CS_MSO';
+    case 'MFO': return c.hard ? 'CS_MANDFIN' : 'CS_MEO';
   }
 }
 
@@ -138,6 +160,28 @@ export function writeP6XML(
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
+
+  // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies zijn in P6-XML niet uitdrukbaar buiten de
+  // (uitgestelde) master/subproject-context ⇒ weggelaten (de ghost-weergave blijft in-app). Één warn.
+  const extLinkCount = tasks.reduce((n, t) => n + (t.externalLinks?.length ?? 0), 0);
+  if (extLinkCount > 0) {
+    console.warn(`P6-export: ${extLinkCount} externe (cross-project) dependency(s) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
+  }
+
+  // Fase 2.9 (§6): P6 kent native LOE-activity's, maar de exacte `task_type`-code is UNVERIFIED in
+  // het domeinrapport ⇒ NIET gokken: een hammock exporteert als gewone taak met de berekende datums
+  // (de span leeft al in early/late-start/finish). Eén warn.
+  const hammockCount = tasks.filter(t => t.isHammock).length;
+  if (hammockCount > 0) {
+    console.warn(`P6-export: ${hammockCount} hammock/LOE-taak/-taken geëxporteerd als gewone taak met berekende datums — P6 native LOE-type UNVERIFIED, niet gegokt (§6).`);
+  }
+
+  // Fase 2.9 (§6): scheduling-options native P6 SCHEDOPTIONS is aspiratie (velden UNVERIFIED) ⇒ niet
+  // geschreven; alleen een warn wanneer een niet-lege optie-set verloren gaat (de volle set round-trippt
+  // wél via IFC OPS_SchedulingOptions).
+  if (project.schedulingOptions && Object.keys(project.schedulingOptions).length > 0) {
+    console.warn('P6-export: scheduling-opties niet geëxporteerd — P6 SCHEDOPTIONS-mapping UNVERIFIED (aspiratie, §6).');
+  }
 
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
   lines.push('<APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V23.12/API/BusinessObjects" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">');
@@ -322,6 +366,26 @@ export function writeP6XML(
     }
     if (task.description) {
       lines.push(`${indent(2)}<Description>${escapeXML(task.description)}</Description>`);
+    }
+    // Datum-constraints (fase 2.9, §6): primair + secundair als P6 `CS_*`-codes. ASAP ⇒ leeg (geen
+    // element, golden rule). Secundair is altijd soft (P6 native `SecondaryConstraintType`).
+    if (task.constraint) {
+      const code = p6ConstraintCode(task.constraint);
+      if (code) {
+        lines.push(`${indent(2)}<PrimaryConstraintType>${code}</PrimaryConstraintType>`);
+        if (task.constraint.date) {
+          lines.push(`${indent(2)}<PrimaryConstraintDate>${formatP6DateTime(task.constraint.date)}</PrimaryConstraintDate>`);
+        }
+      }
+    }
+    if (task.constraint2) {
+      const code2 = p6ConstraintCode(task.constraint2);
+      if (code2) {
+        lines.push(`${indent(2)}<SecondaryConstraintType>${code2}</SecondaryConstraintType>`);
+        if (task.constraint2.date) {
+          lines.push(`${indent(2)}<SecondaryConstraintDate>${formatP6DateTime(task.constraint2.date)}</SecondaryConstraintDate>`);
+        }
+      }
     }
     // Taak-kalender (fase 2.8a, §8.3): effectieve kalender-ObjectId i.p.v. het oude hardcoded 1
     // (projectkalender). Onbekende/verwijderde calendarId valt terug op 1 (golden rule).

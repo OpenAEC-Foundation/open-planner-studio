@@ -12,7 +12,11 @@
     "completion": "التقدم",
     "milestone": "معلم",
     "hoursPerDayTip": "س/يوم",
-    "mixedWarning": "تقاويم مختلطة — ساعات/يوم لكل تقويم: {{list}}. تُعرض المدة لكل مهمة بوحدتها الخاصة."
+    "mixedWarning": "تقاويم مختلطة — ساعات/يوم لكل تقويم: {{list}}. تُعرض المدة لكل مهمة بوحدتها الخاصة.",
+    "freeFloat": "الفائض الحر",
+    "interferingFloat": "الفائض المتداخل",
+    "isNearCritical": "شبه حرج",
+    "floatPath": "مسار الفائض"
   },
   "taskType": {
     "CONSTRUCTION": "بناء",
@@ -100,7 +104,27 @@
     "calendarProject": "تقويم المشروع",
     "priority": "أولوية الموازنة",
     "levelingDelay": "تأخير الموازنة",
-    "durationHours": "المدة (ساعات)"
+    "durationHours": "المدة (ساعات)",
+    "hardPin": "إلزامي (تثبيت صارم)",
+    "hardPinTip": "فقط لـ MSO/MFO — يثبّت التاريخ بشكل صارم ويتجاوز منطق العلاقات (P6 Mandatory).",
+    "hardPinHint": "التثبيت الصارم يتجاوز العلاقات: يُثبَّت الشريط على التاريخ، حتى قبل أسلافه. المخالفة تتحول إلى فائض سالب في الاتجاه العلوي.",
+    "constraint2": "قيد ثانوي",
+    "constraint2Date": "تاريخ ثانوي",
+    "constraint2None": "(لا شيء)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "لا يجوز أن يكون القيد الثانوي صارمًا (إلزاميًا).",
+      "no-secondary-with-mandatory-or-on": "لا قيد ثانوي مع MSO/MFO أو تثبيت صارم.",
+      "no-secondary-with-asap-alap": "لا قيد ثانوي مع ASAP/ALAP.",
+      "secondary-type-invalid": "يجب أن يكون النوع الثانوي حدًا (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "لا يجوز أن يحدّ القيدان الأساسي والثانوي نفس الجانب."
+    },
+    "hammock": "Hammock (مدة مشتقة)",
+    "hammockDerivedHint": "مدة مشتقة — الفترة بين محرِّك البداية ومحرِّك النهاية (للقراءة فقط).",
+    "startDriver": "محرِّك البداية",
+    "finishDriver": "محرِّك النهاية",
+    "hammockNoDriver": "(لا شيء)",
+    "hammockNoFinishDriver": "لا يوجد محرِّك نهاية (FF/SF) — تعود الفترة إلى طول صفري.",
+    "interferingFloat": "الفائض المتداخل:"
   },
   "relations": {
     "title": "العلاقات",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "الحالة"
+  },
+  "externalLinks": {
+    "action": "رابط خارجي…",
+    "dialogTitle": "رابط خارجي (بين المشاريع)",
+    "sourceFile": "ملف المصدر",
+    "pickRecent": "اختر ملفًا حديثًا",
+    "noRecent": "لا توجد ملفات حديثة",
+    "readOnlyNote": "تتم قراءة ملف المصدر للقراءة فقط — لا يُفتح كمستند.",
+    "loadingTasks": "جارٍ تحميل المهام…",
+    "sourceTask": "مهمة المصدر",
+    "direction": "الاتجاه",
+    "directionPredecessor": "سلف (خارجي ← أنا)",
+    "directionSuccessor": "خلف (أنا ← خارجي)",
+    "relType": "نوع العلاقة",
+    "lag": "الإبطاء (أيام عمل)",
+    "anchorDate": "تاريخ المرساة",
+    "manualTitle": "يدوي (بديل)",
+    "manualHint": "لا يوجد ملف في متناول اليد؟ الصق معرّف المشروع ومعرّف المهمة للمهمة الخارجية.",
+    "projectId": "معرّف المشروع",
+    "taskId": "معرّف المهمة",
+    "taskName": "اسم المهمة (اختياري)",
+    "add": "إضافة رابط",
+    "cancel": "إلغاء",
+    "existingTitle": "الروابط الخارجية",
+    "none": "لا توجد روابط خارجية على هذه المهمة بعد.",
+    "remove": "إزالة",
+    "refresh": "تحديث هذا الرابط",
+    "refreshAll": "تحديث المراسي الخارجية",
+    "refreshAllHint": "إعادة قراءة كل ملف مصدر مُشار إليه وتحديث المراسي وحالة التقادم.",
+    "stale": "قديم",
+    "sourceMissing": "لم يتم تحميل المصدر — أعد الاستيراد للتحديث",
+    "pickTaskFirst": "حدد مهمة واحدة لإضافة رابط خارجي.",
+    "refreshedToast": "تم تحديث {{refreshed}} مرساة، {{missing}} قديمة",
+    "noSourcesToast": "لا توجد مصادر خارجية قابلة للتحديث (مسار الملف مفقود).",
+    "notAvailableWeb": "قراءة ملفات المصدر متاحة فقط في تطبيق سطح المكتب؛ استخدم البديل اليدوي."
   }
 }

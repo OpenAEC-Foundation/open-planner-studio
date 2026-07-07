@@ -13,8 +13,10 @@ import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
+import type { Task } from '@/types/task';
 import { promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { fileHasHourData } from '@/services/subdayIo';
+import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad). */
@@ -68,6 +70,15 @@ export interface FileSlice {
   exportAs: (format: ExportFormat) => Promise<void>;
   getRecentFiles: () => string[];
   openRecentFile: (path: string) => Promise<void>;
+  /** Read-only parse van een bronbestand voor externe koppelingen (fase 2.9, §5.5): geeft de
+   *  projectidentiteit + taken terug ZONDER het als document te openen (hergebruikt de bestaande
+   *  readers). null bij een leesfout/onbekend formaat/niet-Tauri. */
+  parseExternalSource: (filePath: string) => Promise<{ projectId: string; projectName: string; filePath: string; tasks: Task[] } | null>;
+  /** Ververs alle externe ankers die naar `filePath` verwijzen uit de actuele bron (fase 2.9, §4.5/§5.5).
+   *  Parset de bron read-only, herberekent de ankers + `sourceMissing`, en herrekent de planning. */
+  refreshExternalAnchorsFrom: (filePath: string) => Promise<{ refreshed: number; missing: number } | null>;
+  /** Projectbrede ververs-actie ("Ververs externe ankers"): ververs elke gerefereerde bron één keer. */
+  refreshAllExternalAnchors: () => Promise<{ refreshed: number; missing: number; sources: number }>;
   /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
@@ -135,7 +146,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
       // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
       get().runCPM();
-      get().focusProjectStart(); // Issue #16: open het canvas bij de projectperiode, niet op vandaag.
+      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
@@ -269,6 +280,62 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
 
   getRecentFiles: () => readRecentFiles(),
 
+  parseExternalSource: async (filePath: string) => {
+    if (!isTauri()) return null;
+    try {
+      const { readTextFile } = await import('@tauri-apps/plugin-fs');
+      const content = await readTextFile(filePath);
+      const ext = filePath.split('.').pop()?.toLowerCase() || '';
+      const parsed = ext === 'csv' ? readCSV(content) : ext === 'xml' ? parseProjectXml(content) : readIFC(content);
+      return {
+        projectId: parsed.project.id,
+        projectName: parsed.project.name,
+        filePath,
+        tasks: parsed.tasks,
+      };
+    } catch (err) {
+      console.error('parseExternalSource: kon bronbestand niet lezen:', err);
+      return null;
+    }
+  },
+
+  refreshExternalAnchorsFrom: async (filePath: string) => {
+    const src = await get().parseExternalSource(filePath);
+    if (!src) return null;
+    const source: ExternalSourceDoc = {
+      projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
+    };
+    const result = refreshExternalAnchors(get().tasks, source);
+    if (result.changed) {
+      set((s) => {
+        s.tasks = result.tasks;
+        s.isDirty = true;
+        s.scheduleStale = true;
+      });
+      get().recomputeViewRows();
+      get().runCPM();
+    }
+    return { refreshed: result.refreshed, missing: result.missing };
+  },
+
+  refreshAllExternalAnchors: async () => {
+    // Verzamel de distinct bron-bestandspaden uit alle links (fallback: geen pad ⇒ niet verversbaar).
+    const paths = new Set<string>();
+    for (const task of get().tasks) {
+      for (const link of task.externalLinks ?? []) {
+        if (link.sourceRef.filePath) paths.add(link.sourceRef.filePath);
+      }
+    }
+    let refreshed = 0;
+    let missing = 0;
+    let sources = 0;
+    for (const p of paths) {
+      const r = await get().refreshExternalAnchorsFrom(p);
+      if (r) { refreshed += r.refreshed; missing += r.missing; sources++; }
+    }
+    return { refreshed, missing, sources };
+  },
+
   openRecentFile: async (filePath: string) => {
     if (!isTauri()) return;
     const { readTextFile } = await import('@tauri-apps/plugin-fs');
@@ -313,7 +380,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.filePath = filePath;
       });
       get().runCPM(); // consistent met openFile (A5): direct doorrekenen na load.
-      get().focusProjectStart(); // Issue #16: open het canvas bij de projectperiode, niet op vandaag.
+      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
@@ -360,7 +427,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.filePath = null;
       });
       get().runCPM(); // consistent met openFile (A5): voorbeeld direct doorrekenen na load.
-      get().focusProjectStart(); // Issue #16: open het canvas bij de projectperiode, niet op vandaag.
+      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
