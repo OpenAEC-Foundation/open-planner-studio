@@ -8,18 +8,10 @@
 import { writeFileSync, mkdirSync, existsSync, copyFileSync, statSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { allSpecs, build } from './gen-core';
-import { SHOWCASES } from './showcases';
 
 const ROOT = process.cwd();
 const EX_DIR = join(ROOT, 'examples');
 const PUB_DIR = join(ROOT, 'public', 'examples');
-
-// Publieke selectie: 3 showcases + representatieve basis-selectie, samen < ~600 kB.
-const PUBLIC = new Set<string>([
-  ...SHOWCASES.map(s => s.slug),
-  '03-kantoorgebouw-zuidas', '05-brugvervanging-n279', '08-zorgcentrum-de-linde',
-  '10-villa-wassenaar', '15-datacentrum-agriport',
-]);
 
 function main() {
   if (!existsSync(EX_DIR)) mkdirSync(EX_DIR, { recursive: true });
@@ -27,6 +19,16 @@ function main() {
 
   const specs = allSpecs();
   const built = specs.map(spec => ({ spec, res: build(spec) }));
+
+  // Publieke selectie: alle showcases (afgeleid uit `category`, dus GROOT komt automatisch mee
+  // zodra het `category:'showcase'` heeft — fase 2.10, golf 2) + representatieve basis-selectie,
+  // samen < ~600 kB. Het externe-koppeling-bronbestand (`category:'external-source'`) hoort hier
+  // NOOIT bij (§4.2) — het staat wél in `examples/` (hierboven al weggeschreven), niet hier.
+  const PUBLIC = new Set<string>([
+    ...specs.filter(s => s.category === 'showcase').map(s => s.slug),
+    '03-kantoorgebouw-zuidas', '05-brugvervanging-n279', '08-zorgcentrum-de-linde',
+    '10-villa-wassenaar', '15-datacentrum-agriport',
+  ]);
 
   // Verouderde bronbestanden opruimen (fase 2.10, onderdeel 4: verving 3 showcases door 2 —
   // zonder deze stap bleven de oude showcase-.ifc's als wees achter in examples/, want deze loop

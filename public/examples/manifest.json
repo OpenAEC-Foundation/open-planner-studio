@@ -32,6 +32,24 @@
       ]
     },
     {
+      "file": "showcase-appartementencomplex.ifc",
+      "name": "Nieuwbouw Appartementencomplex De Vaart",
+      "description": "GROOT: appartementencomplex met 3 parallelle torens (~250 taken) — hard-pin MSO, secundaire constraint, hammock (LOE), near-critical-markering + meerdere kritieke paden (floatPaths), uren-planning voor vlechtwerk/stort, alle 5 resourcetypes incl. torenkraan (EQUIPMENT) met capaciteitsstap, alle 4 relatietypes (incl. START_FINISH), alle 6 toewijzingscurves, een externe koppeling naar een apart aangeleverd terreinbestand, twee baselines (Contract → Herbaseline na meerwerk) en voortgang + statusdatum.",
+      "category": "showcase",
+      "tags": [
+        "woningbouw",
+        "groot",
+        "geavanceerd",
+        "kitchen-sink",
+        "near-critical",
+        "float-paths",
+        "hammock",
+        "uren-planning",
+        "externe-koppeling",
+        "baseline"
+      ]
+    },
+    {
       "file": "03-kantoorgebouw-zuidas.ifc",
       "name": "Kantoorgebouw Zuidas",
       "description": "8-laags kantoorgebouw met parkeerkelder BREEAM Excellent",

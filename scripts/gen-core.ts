@@ -8,6 +8,7 @@
 // (incl. Pasen-afgeleiden + bouwvak) worden per jaar berekend.
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
 import { createDefaultTaskTime } from '@/types/task';
 import { addBusinessDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
 // `easterSunday` verhuisde naar de gedeelde feestdagen-engine (fase 2.8a, §3.1); één bron voor
@@ -20,7 +21,8 @@ import type { CustomFieldType } from '@/types/structure';
 import { generateId } from '@/utils/id';
 import topologies from './example-topologies.json';
 import { SHOWCASES } from './showcases';
-import type { ProjectSpec, CalSpec } from './spec';
+import { TERREIN_ONDERAANNEMER, ANCHOR_TASK_NAME, buildGrootSpec } from './showcase-groot';
+import type { ProjectSpec, CalSpec, TaskSpec, LinkSpec } from './spec';
 
 const S = () => useAppStore.getState();
 
@@ -90,6 +92,9 @@ function buildCalendar(anchor: Date, cal?: CalSpec): WorkCalendar {
     workEndHour: 16,
     hoursPerDay: 8,
     holidays,
+    // Uren-planning (fase 2.10, golf 2): aanwezig ⇒ UUR-kalender (`WorkCalendar.workTime`,
+    // `calendar.ts:17-19`). Afwezig ⇒ byte-identiek dag-kalender (bestaand gedrag).
+    ...(cal?.workTime ? { workTime: cal.workTime } : {}),
   };
 }
 
@@ -121,6 +126,8 @@ export function build(spec: ProjectSpec): BuildResult {
     author: spec.author ?? 'Projectleider',
     company: spec.company ?? 'Bouwbedrijf BV',
   });
+  // Reken-opties (fase 2.10, golf 2: near-critical + float paths) — vóór de eerste runCPM.
+  if (spec.schedulingOptions) S().setProject({ schedulingOptions: spec.schedulingOptions });
 
   // Activity-code-types + waarden
   const codeTypeIds: Record<string, string> = {};
@@ -163,27 +170,50 @@ export function build(spec: ProjectSpec): BuildResult {
     });
   }
 
-  // Taken (ouders vóór kinderen: spec.tasks staat al in boomvolgorde)
+  // Kalender-bibliotheek voor taak-specifieke uur-kalenders (fase 2.10, golf 2, `TaskSpec.
+  // calendarKey`) — zelfde `addCalendar`-patroon als de resource-kalenders hierboven.
+  const taskCalendarIds: Record<string, string> = {};
+  for (const [key, cal] of Object.entries(spec.calendars ?? {})) {
+    const base = buildCalendar(anchor, cal);
+    const { id: _id, ...rest } = base;
+    void _id;
+    taskCalendarIds[key] = S().addCalendar({ ...rest, name: cal.name ?? key });
+  }
+
+  // Taken (ouders vóór kinderen: spec.tasks staat al in boomvolgorde). Herbruikbaar zodat een
+  // rebaseline-mutatie (golf 2, hieronder) dezelfde opbouwlogica kan hergebruiken.
   const taskIds: Record<string, string> = {};
   let milestones = 0;
-  for (const t of spec.tasks) {
+  const addSpecTask = (t: TaskSpec): string => {
     if (t.milestone) milestones++;
     const dur = t.milestone ? 0 : (t.dur ?? 5);
+    const time = createDefaultTaskTime(anchorIso, dur);
+    if (t.durMinutes !== undefined) time.durationMinutes = t.durMinutes;
     const constraint = t.constraint
-      ? { type: t.constraint.type as any, ...(t.constraint.offsetDay !== undefined ? { date: offset(anchor, t.constraint.offsetDay) } : {}) }
+      ? {
+          type: t.constraint.type as any,
+          ...(t.constraint.offsetDay !== undefined ? { date: offset(anchor, t.constraint.offsetDay) } : {}),
+          ...(t.constraint.hard ? { hard: true } : {}),
+        }
+      : undefined;
+    const constraint2 = t.constraint2
+      ? { type: t.constraint2.type as any, ...(t.constraint2.offsetDay !== undefined ? { date: offset(anchor, t.constraint2.offsetDay) } : {}) }
       : undefined;
     const id = S().addTask({
       name: t.name,
       isMilestone: !!t.milestone,
       parentId: t.parent ? taskIds[t.parent] : null,
       taskType: (t.taskType as any) ?? 'CONSTRUCTION',
-      time: createDefaultTaskTime(anchorIso, dur),
+      time,
       ...(t.milestoneKind ? { milestoneKind: t.milestoneKind } : {}),
       ...(t.mandatory ? { mandatory: true } : {}),
       ...(t.priority !== undefined ? { priority: t.priority } : {}),
       ...(constraint ? { constraint } : {}),
+      ...(constraint2 ? { constraint2 } : {}),
+      ...(t.hammock ? { isHammock: true } : {}),
       ...(t.deadlineDay !== undefined ? { deadline: offset(anchor, t.deadlineDay) } : {}),
       ...(t.description ? { description: t.description } : {}),
+      ...(t.calendarKey ? { calendarId: taskCalendarIds[t.calendarKey] } : {}),
       // Aantekeningen (fase 2.10, item 1): de builder genereert de id's, spec geeft alleen
       // tekst + afvink-status (`scripts/spec.ts:TaskSpec.notes`).
       ...(t.notes && t.notes.length
@@ -191,6 +221,9 @@ export function build(spec: ProjectSpec): BuildResult {
         : {}),
     });
     taskIds[t.key] = id;
+    // Externe koppeling (fase 2.10, golf 2): via de ECHTE `addExternalLink`-actie, ná `addTask`
+    // — precies het app-patroon (taak eerst aanmaken, dan koppelen), niet via de addTask-partial.
+    if (t.externalLink) S().addExternalLink(id, t.externalLink);
     for (const [typeName, code] of Object.entries(t.codes ?? {})) {
       const tid = codeTypeIds[typeName]; const vid = codeValueIds[`${typeName}::${code}`];
       if (tid && vid) S().setTaskActivityCode(id, tid, vid);
@@ -199,10 +232,11 @@ export function build(spec: ProjectSpec): BuildResult {
       const fid = fieldIds[fname];
       if (fid) S().setTaskCustomField(id, fid, value as any);
     }
-  }
+    return id;
+  };
+  for (const t of spec.tasks) addSpecTask(t);
 
-  // Relaties
-  for (const l of spec.links ?? []) {
+  const addSpecLink = (l: LinkSpec) => {
     const pred = taskIds[l.pred], succ = taskIds[l.succ];
     if (!pred || !succ) throw new Error(`[${spec.slug}] onbekende relatie ${l.pred} → ${l.succ}`);
     S().addSequence({
@@ -211,7 +245,9 @@ export function build(spec: ProjectSpec): BuildResult {
       ...(l.lagUnit ? { lagUnit: l.lagUnit as any } : {}),
       ...(l.lagPercent !== undefined ? { lagPercent: l.lagPercent } : {}),
     });
-  }
+  };
+  // Relaties
+  for (const l of spec.links ?? []) addSpecLink(l);
 
   // Toewijzingen (alleen leaf/non-mijlpaal — assignResource is leaf-bewust)
   for (const t of spec.tasks) {
@@ -224,12 +260,32 @@ export function build(spec: ProjectSpec): BuildResult {
 
   S().runCPM();
 
-  // Baseline(s) (fase 2.10, item 19): opgeslagen ná de ORIGINELE CPM-run, dus vóór eventuele
-  // voortgang/statusdatum-mutaties hieronder — dat is "de baseline vóór start", en tegelijk
-  // exact het twee-fasen-patroon (opbouw → runCPM → snapshot → mutatie → runCPM) dat GOLF 2
-  // nodig heeft voor de rebaseline-stap (hier stopt de keten na één cyclus).
+  // Baseline(s) (fase 2.10, item 19 + golf 2 rebaseline): opgeslagen via de echte `saveBaseline`-
+  // actie. Een `mutationBefore` op een entry past een gescripte scope-mutatie toe (extra taken/
+  // relaties/duurverlenging) + een tussentijdse `runCPM()` vóórdat DIE baseline wordt opgeslagen
+  // — het twee-fasen-patroon (opbouw → runCPM → snapshot → mutatie → runCPM → snapshot) dat het
+  // rebaseline-scenario (Contract → meerwerk → Herbaseline) nodig heeft.
+  const baselineIds: Record<string, string> = {};
   for (const b of spec.baselines ?? []) {
-    S().saveBaseline(b.name);
+    const m = b.mutationBefore;
+    if (m) {
+      for (const t of m.addTasks ?? []) addSpecTask(t);
+      for (const l of m.addLinks ?? []) addSpecLink(l);
+      for (const e of m.extendDurations ?? []) {
+        const id = taskIds[e.key];
+        if (!id) throw new Error(`[${spec.slug}] extendDurations: onbekende taak "${e.key}"`);
+        const task = S().tasks.find(x => x.id === id);
+        if (!task) throw new Error(`[${spec.slug}] extendDurations: taak "${e.key}" niet in store`);
+        S().updateTask(id, { time: { ...task.time, scheduleDuration: e.dur } });
+      }
+      S().runCPM();
+    }
+    baselineIds[b.name] = S().saveBaseline(b.name);
+  }
+  if (spec.activeBaselineName) {
+    const id = baselineIds[spec.activeBaselineName];
+    if (!id) throw new Error(`[${spec.slug}] activeBaselineName "${spec.activeBaselineName}" komt niet voor in baselines`);
+    S().setActiveBaseline(id);
   }
 
   // Voortgang/statusdatum (fase 2.10, item 20): via de ECHTE store-acties (zelfde invarianten
@@ -242,7 +298,10 @@ export function build(spec: ProjectSpec): BuildResult {
     S().setStatusDate(offset(anchor, spec.statusDay));
     needsRecompute = true;
   }
-  for (const t of spec.tasks) {
+  // Ook meerwerk-taken uit een `mutationBefore` kunnen voortgang dragen — itereer over ALLE
+  // bekende keys (spec.tasks + eventuele baseline-mutaties), niet alleen spec.tasks.
+  const allTaskSpecs = [...spec.tasks, ...(spec.baselines ?? []).flatMap(b => b.mutationBefore?.addTasks ?? [])];
+  for (const t of allTaskSpecs) {
     if (t.completion === undefined && t.actualStartDay === undefined && t.actualFinishDay === undefined) continue;
     needsRecompute = true;
     const id = taskIds[t.key];
@@ -378,9 +437,35 @@ export function topologyToSpec(def: TopoDef, index: number): ProjectSpec {
   };
 }
 
-/** Alle specs in publicatievolgorde: eerst de drie showcases, dan de 20 basisvoorbeelden. */
+/** Bouwt het externe-koppeling-bronbestand (fase 2.10, golf 2, §4.2) ÉÉN keer, leest het
+ *  meteen terug via de ECHTE `readIFC` (exact het patroon van `ExternalLinkDialog`: bron
+ *  read-only parsen, anker bevriezen) en construeert daarmee de GROOT-spec met een vooraf-
+ *  berekend `ExternalLink`-object. Puur qua datums: `build()` is deterministisch (zelfde anker,
+ *  zelfde CPM-netwerk ⇒ zelfde vroege datums) ongeacht hoe vaak dit bronbestand hierna nog eens
+ *  gebouwd wordt door de aanroeper (bv. `generate-examples.ts` bouwt het NOGMAALS om het echt
+ *  weg te schrijven) — alleen het (niet-geverifieerde) project-/taak-id verschilt per build, dus
+ *  de consistentie-check in `verify-examples.ts` matcht bewust op TAAKNAAM, niet op id.
+ */
+function buildGrootWithExternalSource(): { groot: ProjectSpec; terrain: ProjectSpec } {
+  const terrainBuild = build(TERREIN_ONDERAANNEMER);
+  const parsed = readIFC(terrainBuild.ifc);
+  const anchorTask = parsed.tasks.find(t => t.name === ANCHOR_TASK_NAME);
+  if (!anchorTask) throw new Error(`extern bronbestand: ankertaak "${ANCHOR_TASK_NAME}" niet gevonden`);
+  const groot = buildGrootSpec({
+    anchorDate: anchorTask.time.earlyFinish || anchorTask.time.scheduleFinish,
+    sourceProjectId: parsed.project.id,
+    sourceProjectName: parsed.project.name,
+    sourceTaskId: anchorTask.id,
+    sourceTaskName: anchorTask.name,
+  });
+  return { groot, terrain: TERREIN_ONDERAANNEMER };
+}
+
+/** Alle specs in publicatievolgorde: de showcases (incl. GROOT), het NIET-PUBLIC externe-
+ *  koppeling-bronbestand, dan de 20 basisvoorbeelden. */
 export function allSpecs(): ProjectSpec[] {
   const defs: TopoDef[] = (topologies as any).defs;
   const basics = defs.map((d, i) => topologyToSpec(d, i));
-  return [...SHOWCASES, ...basics];
+  const { groot, terrain } = buildGrootWithExternalSource();
+  return [...SHOWCASES, groot, terrain, ...basics];
 }

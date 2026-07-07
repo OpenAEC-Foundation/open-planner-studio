@@ -8,30 +8,16 @@
 //  4. per showcase dat de beloofde functies aantoonbaar aanwezig zijn (constraints, START/FINISH-
 //     + verplichte mijlpaal, baseline). Ploeg-hiërarchie/curve-variatie/oplosbare overallocatie
 //     zijn alleen verplicht voor showcases die zelf resources declareren (KLEIN heeft er bewust
-//     geen — zie showcases.ts).
+//     geen — zie showcases.ts);
+//  5. (golf 2) suite-brede unie incl. de 8 geavanceerde functies (hard pin, constraint2, hammock,
+//     near-critical, float paths, uren-planning, 2 baselines+rebaseline, externe koppeling) +
+//     een aparte bronbestand-consistentiecheck voor de externe koppeling (§4.2).
 //
 //   npm run verify:examples          # exit 0 = alles groen, 1 = minstens één afwijking
-//
-// ── Fase 2.10, onderdeel 4, golf 1 — TODO voor golf 2 (GROOT) ──────────────────────────────────
-// De suite bestaat sinds golf 1 tijdelijk uit 2 showcases (KLEIN + MIDDEL) i.p.v. 3; de
-// union-checks hieronder zijn versoberd tot wat deze twee redelijkerwijs kunnen dragen. GROOT
-// (golf 2) moet de volgende, nu tijdelijk versoberde of ontbrekende union-eisen (weer) optrekken:
-//  - Resourcetypes: nu alleen LABOR+CREW+MATERIAL verplicht → golf 2 voegt EQUIPMENT +
-//    SUBCONTRACTOR toe (weer alle vijf verplicht).
-//  - Relatietypes: nu FINISH_START+START_START+FINISH_FINISH verplicht → golf 2 voegt
-//    START_FINISH toe (weer alle vier verplicht).
-//  - Curves: nu ≥3 (UNIFORM/FRONT_LOADED/BACK_LOADED) verplicht → golf 2 voegt BELL/EARLY_PEAK/
-//    LATE_PEAK toe (weer ≥6 verplicht).
-//  - `availabilitySteps` (capaciteitsstappen): GEEN union-eis meer in golf 1 (hoort thematisch bij
-//    de torenkraan-achtige grootschalige inzet) → golf 2 voegt de eis weer toe.
-//  - Golf-2-only functies die NOG GEEN check hebben en er in golf 2 bij moeten komen: hard pin
-//    (`constraint.hard`), secundaire constraint (`constraint2`), hammock, near-critical-markering,
-//    `criticalPaths.length > 1` (float paths), uren-planning (`WorkTimeBands`/`workTime`), externe
-//    koppeling (+ bronbestand-check).
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { useAppStore } from '@/state/appStore';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { allSpecs } from './gen-core';
 import type { ProjectSpec } from './spec';
@@ -90,12 +76,16 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
   // 1. parse ok
   expect(diffs, parsed.tasks.length > 0, `parse leeg (0 taken)`);
 
-  // 2. tellingen conform spec
-  const expMilestones = spec.tasks.filter(t => t.milestone).length;
-  const expAssign = spec.tasks.reduce((a, t) => a + (t.assign?.length ?? 0), 0);
-  expect(diffs, parsed.tasks.length === spec.tasks.length, `taken: ${parsed.tasks.length} ≠ ${spec.tasks.length}`);
+  // 2. tellingen conform spec — inclusief eventuele rebaseline-mutaties (golf 2, `baselines[].
+  // mutationBefore`), want die worden ook echt in de store opgebouwd (`gen-core.ts:build()`).
+  const mutations = (spec.baselines ?? []).map(b => b.mutationBefore).filter((m): m is NonNullable<typeof m> => !!m);
+  const allTasks = [...spec.tasks, ...mutations.flatMap(m => m.addTasks ?? [])];
+  const allLinks = [...(spec.links ?? []), ...mutations.flatMap(m => m.addLinks ?? [])];
+  const expMilestones = allTasks.filter(t => t.milestone).length;
+  const expAssign = allTasks.reduce((a, t) => a + (t.assign?.length ?? 0), 0);
+  expect(diffs, parsed.tasks.length === allTasks.length, `taken: ${parsed.tasks.length} ≠ ${allTasks.length}`);
   expect(diffs, parsed.tasks.filter(t => t.isMilestone).length === expMilestones, `mijlpalen: ${parsed.tasks.filter(t => t.isMilestone).length} ≠ ${expMilestones}`);
-  expect(diffs, parsed.sequences.length === (spec.links?.length ?? 0), `relaties: ${parsed.sequences.length} ≠ ${spec.links?.length ?? 0}`);
+  expect(diffs, parsed.sequences.length === allLinks.length, `relaties: ${parsed.sequences.length} ≠ ${allLinks.length}`);
   expect(diffs, parsed.resources.length === (spec.resources?.length ?? 0), `resources: ${parsed.resources.length} ≠ ${spec.resources?.length ?? 0}`);
   expect(diffs, parsed.assignments.length === expAssign, `toewijzingen: ${parsed.assignments.length} ≠ ${expAssign}`);
   expect(diffs, parsed.activityCodeTypes.length === (spec.codeTypes?.length ?? 0), `codetypes: ${parsed.activityCodeTypes.length} ≠ ${spec.codeTypes?.length ?? 0}`);
@@ -112,8 +102,13 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
   return { pass: diffs.length === 0, diffs, parsed };
 }
 
-/** Herbereken float/overallocatie autoritair door het bestand in de echte store te laden. */
-function scheduleFacts(parsed: Parsed): { negFloat: number; overalloc: string[] } {
+/** Herbereken float/overallocatie/kritieke-paden autoritair door het bestand in de echte store
+ *  te laden (fase 2.10, golf 2: ook `criticalPaths.length`/`isNearCritical` voor de golf-2-
+ *  union-checks). BELANGRIJK: `isNearCritical`/`floatPath` zijn PURE CPM-afgeleide velden die
+ *  NIET via `writeIFC`/`readIFC` round-tripen (bevestigd: op de kale eerste `readIFC`-parse staan
+ *  ze altijd leeg) — ze bestaan pas ná een verse `runCPM()`-run zoals hier. De union-check moet
+ *  dus op déze herberekende `facts`, niet op de kale `parsed.tasks`. */
+function scheduleFacts(parsed: Parsed): { negFloat: number; overalloc: string[]; criticalPaths: number; nearCritical: boolean } {
   S().loadState(parsed as any);
   S().runCPM();
   const st = S();
@@ -125,7 +120,9 @@ function scheduleFacts(parsed: Parsed): { negFloat: number; overalloc: string[] 
       if ((rlr.overallocatedDays[r.id] ?? []).length > 0) overalloc.push(r.name);
     }
   }
-  return { negFloat, overalloc };
+  const criticalPaths = st.cpmResult?.criticalPaths?.length ?? 1;
+  const nearCritical = st.tasks.some(t => t.time.isNearCritical === true);
+  return { negFloat, overalloc, criticalPaths, nearCritical };
 }
 
 /** Per-showcase: de functies die ÉLKE showcase hoort te tonen, ongeacht schaal (structuur,
@@ -134,7 +131,7 @@ function scheduleFacts(parsed: Parsed): { negFloat: number; overalloc: string[] 
  *  declareren — KLEIN heeft er bewust geen (instapniveau, zie showcases.ts). Union-brede functies
  *  (deadline, prioriteit 1000, negatieve float, alle relatietypes, %-lag/ELAPSEDTIME/lead,
  *  voortgang+statusdatum, notes, vorstverlet) worden op suite-niveau geverifieerd. */
-function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): { negFloat: number; overalloc: string[] } {
+function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): { negFloat: number; overalloc: string[]; criticalPaths: number; nearCritical: boolean } {
   const T = parsed.tasks;
   const expConstraints = spec.tasks.filter(t => t.constraint).length;
   expect(diffs, T.filter(t => t.constraint).length === expConstraints, `constraints teruggelezen: ${T.filter(t => t.constraint).length} ≠ ${expConstraints}`);
@@ -155,17 +152,53 @@ function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): { n
   return facts;
 }
 
+/** Externe-koppeling-consistentiecheck (fase 2.10, golf 2, §4.2): bronbestand moet bestaan +
+ *  het bevroren `anchorDate` op GROOT's taak moet overeenkomen met wat een verse `readIFC` van
+ *  het bronbestand daadwerkelijk oplevert voor de brontaak (gematcht op NAAM — taak-ids zijn
+ *  per leesrun nieuw, dus nooit een stabiel matchveld, ook niet binnen dit script: zie de
+ *  bestaande digest()-conventie hierboven). */
+function verifyExternalSource(specs: ProjectSpec[], diffs: string[]) {
+  const terrain = specs.find(s => s.category === 'external-source');
+  if (!terrain) { diffs.push('extern bronbestand-spec ontbreekt (category "external-source")'); return; }
+  const terrainPath = join(EX_DIR, `${terrain.slug}.ifc`);
+  if (!existsSync(terrainPath)) { diffs.push(`extern bronbestand niet op schijf: ${terrainPath}`); return; }
+  const terrainParsed = readIFC(readFileSync(terrainPath, 'utf8'));
+
+  const groot = specs.find(s => s.category === 'showcase' && (s.tags ?? []).includes('groot'));
+  if (!groot) { diffs.push('GROOT-showcase (tag "groot") niet gevonden'); return; }
+  const grootPath = join(EX_DIR, `${groot.slug}.ifc`);
+  if (!existsSync(grootPath)) { diffs.push(`GROOT-bestand niet op schijf: ${grootPath}`); return; }
+  const grootParsed = readIFC(readFileSync(grootPath, 'utf8'));
+
+  const withLink = grootParsed.tasks.filter(t => (t.externalLinks?.length ?? 0) > 0);
+  if (withLink.length === 0) { diffs.push('GROOT heeft geen taak met een externe koppeling'); return; }
+  for (const t of withLink) {
+    for (const link of t.externalLinks ?? []) {
+      const srcTask = terrainParsed.tasks.find(x => x.name === link.sourceRef.taskName);
+      if (!srcTask) { diffs.push(`extern-koppeling: brontaak "${link.sourceRef.taskName}" niet gevonden in bronbestand`); continue; }
+      const side = (link.direction === 'predecessor' ? link.relType[0] : link.relType[1]) === 'F' ? 'finish' : 'start';
+      const expected = side === 'finish'
+        ? (srcTask.time.earlyFinish || srcTask.time.scheduleFinish)
+        : (srcTask.time.earlyStart || srcTask.time.scheduleStart);
+      expect(diffs, expected === link.anchorDate, `extern-koppeling anchorDate inconsistent: opgeslagen ${link.anchorDate} ≠ herberekend ${expected}`);
+      expect(diffs, link.sourceMissing === true, `extern-koppeling: sourceMissing hoort true te zijn (bronbestand niet in PUBLIC-set, architect-besluit 4)`);
+    }
+  }
+}
+
 function main() {
   const specs = allSpecs();
   const showcases = specs.filter(s => s.category === 'showcase');
   let anyFail = false;
-  // Suite-brede (union) aggregatie — KLEIN + MIDDEL dekken SAMEN de golf-1-subset van de
-  // app-functies (zie de TODO bovenaan dit bestand voor wat naar golf 2/GROOT verhuist).
+  // Suite-brede (union) aggregatie over ALLE showcases (KLEIN + MIDDEL + GROOT sinds golf 2).
   const scResTypes = new Set<string>();
   const scRelTypes = new Set<string>();
   let scCal = false, scPct = false, scElapsed = false, scLead = false;
   let scDeadline = false, scPin = false, scNegFloat = false;
   let scProgress = false, scVorstverlet = false;
+  let scHardPin = false, scConstraint2 = false, scHammock = false, scNearCritical = false;
+  let scFloatPaths = false, scHourCalendar = false, scAvailSteps = false;
+  let scTwoBaselines = false, scActiveBaselineName: string | null = null;
   const scCurves = new Set<string>();
   const allNotes: { text: string; done: boolean }[] = [];
 
@@ -189,6 +222,19 @@ function main() {
       if (parsed.project.statusDate && parsed.tasks.some(t => t.time.completion > 0)) scProgress = true;
       if (parsed.calendar.holidays.some(h => /vorst/i.test(h.name))) scVorstverlet = true;
       parsed.tasks.forEach(t => { for (const n of t.notes ?? []) allNotes.push(n); });
+      // Golf 2 — geavanceerde functies.
+      if (parsed.tasks.some(t => t.constraint?.hard === true)) scHardPin = true;
+      if (parsed.tasks.some(t => !!t.constraint2)) scConstraint2 = true;
+      if (parsed.tasks.some(t => t.isHammock === true)) scHammock = true;
+      if (facts.nearCritical) scNearCritical = true;
+      if (facts.criticalPaths > 1) scFloatPaths = true;
+      if (parsed.resourceCalendars.some(c => !!c.workTime) || !!parsed.calendar.workTime) scHourCalendar = true;
+      if (parsed.resources.some(r => (r.availabilitySteps?.length ?? 0) > 0)) scAvailSteps = true;
+      if (parsed.baselines.length >= 2) scTwoBaselines = true;
+      if (parsed.activeBaselineId) {
+        const b = parsed.baselines.find(x => x.id === parsed.activeBaselineId);
+        if (b) scActiveBaselineName = b.name;
+      }
     }
     const all = [...diffs, ...extra];
     const ok = all.length === 0;
@@ -197,11 +243,11 @@ function main() {
     for (const d of all) console.log(`     - ${d}`);
   }
 
-  // Union-checks over de showcases samen (golf-1-subset — zie TODO bovenaan voor golf-2-uitbreiding).
+  // Union-checks over ALLE showcases samen (golf 2: volledige dekkingsmatrix-unie, §3.3/§5.2).
   const suite: [boolean, string][] = [
-    [['LABOR', 'CREW', 'MATERIAL'].every(t => scResTypes.has(t)), `resourcetypes LABOR+CREW+MATERIAL (heeft: ${[...scResTypes].sort().join(',')}) — EQUIPMENT/SUBCONTRACTOR: golf 2`],
-    [['FINISH_START', 'START_START', 'FINISH_FINISH'].every(t => scRelTypes.has(t)), `relatietypes FS+SS+FF (heeft: ${[...scRelTypes].sort().join(',')}) — START_FINISH: golf 2`],
-    [scCurves.size >= 3, `≥3 toewijzingscurves (heeft: ${scCurves.size}) — BELL/EARLY_PEAK/LATE_PEAK: golf 2`],
+    [['LABOR', 'CREW', 'MATERIAL', 'EQUIPMENT', 'SUBCONTRACTOR'].every(t => scResTypes.has(t)), `alle 5 resourcetypes (heeft: ${[...scResTypes].sort().join(',')})`],
+    [['FINISH_START', 'START_START', 'FINISH_FINISH', 'START_FINISH'].every(t => scRelTypes.has(t)), `alle 4 relatietypes (heeft: ${[...scRelTypes].sort().join(',')})`],
+    [scCurves.size >= 6, `alle 6 toewijzingscurves (heeft: ${scCurves.size})`],
     [scCal, `resource-kalender aanwezig`],
     [scPct, `%-lag aanwezig`],
     [scElapsed, `ELAPSEDTIME-lag aanwezig`],
@@ -212,14 +258,33 @@ function main() {
     [scProgress, `voortgang + statusdatum aanwezig`],
     [scVorstverlet, `extraHolidays/vorstverlet aanwezig`],
     [allNotes.some(n => !n.done) && allNotes.some(n => n.done), `aantekeningen aanwezig met ≥1 open en ≥1 afgevinkt`],
+    [scAvailSteps, `availabilitySteps (capaciteitsstappen) aanwezig`],
+    [scHardPin, `hard pin (constraint.hard) aanwezig`],
+    [scConstraint2, `secundaire constraint (constraint2) aanwezig`],
+    [scHammock, `hammock (isHammock) aanwezig`],
+    [scNearCritical, `near-critical-markering aanwezig`],
+    [scFloatPaths, `meerdere kritieke paden (criticalPaths.length > 1) aanwezig`],
+    [scHourCalendar, `uren-kalender (workTime) aanwezig`],
+    [scTwoBaselines, `≥2 baselines (rebaseline) aanwezig`],
+    [scActiveBaselineName === 'Contract', `activeBaselineId wijst naar "Contract" (heeft: ${scActiveBaselineName ?? '(geen)'})`],
   ];
-  console.log('\n── Union over de showcases (golf 1: KLEIN + MIDDEL) ──');
+  console.log('\n── Union over alle showcases (golf 2: KLEIN + MIDDEL + GROOT) ──');
   for (const [ok, label] of suite) {
     if (!ok) anyFail = true;
     console.log(`  ${ok ? 'OK ' : 'XX '} ${label}`);
   }
 
-  console.log(`\n${showcases.length} showcases + ${specs.length - showcases.length} basisvoorbeelden geverifieerd — ${anyFail ? 'FALEN' : 'alles groen'}`);
+  const extDiffs: string[] = [];
+  verifyExternalSource(specs, extDiffs);
+  console.log('\n── Externe koppeling (bronbestand-consistentie, §4.2) ──');
+  if (extDiffs.length === 0) {
+    console.log('  OK  bronbestand aanwezig + anchorDate consistent');
+  } else {
+    anyFail = true;
+    for (const d of extDiffs) console.log(`  XX  ${d}`);
+  }
+
+  console.log(`\n${showcases.length} showcases + ${specs.length - showcases.length - 1} basisvoorbeelden + 1 extern bronbestand geverifieerd — ${anyFail ? 'FALEN' : 'alles groen'}`);
   process.exit(anyFail ? 1 : 0);
 }
 
