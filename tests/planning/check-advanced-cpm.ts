@@ -605,6 +605,36 @@ eq('173 uur harde pin: solve idempotent (zelfde digest)', digest(hp1), digest(hp
 eq('174 uur harde pin: B gepind op 07-07T08:00 (logica gebroken)', hp1.tasks.get('B')!.earlyStart, '2026-07-07T08:00');
 eq('175 uur harde pin: B in violatedConstraintTaskIds', hp1.violatedConstraintTaskIds.includes('B'), true);
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  Fase 2.10, golf D (item 1) — taak-aantekeningen: IFC round-trip (VERPLICHTE architect-eis).
+//  Project met een mix open/done aantekeningen, meerdere per taak, en een taak zonder notes —
+//  schrijven → teruglezen → diep-gelijk, exact het externalLinks-round-trip-stramien hierboven.
+// ══════════════════════════════════════════════════════════════════════════════
+type TaskNote = { id: string; text: string; done: boolean };
+const notesA: TaskNote[] = [
+  { id: 'n1', text: 'Bekist controleren vóór storten', done: false },
+  { id: 'n2', text: 'Wapening gekeurd', done: true },
+];
+const notesB: TaskNote[] = [
+  { id: 'n3', text: 'Materiaal besteld', done: false },
+];
+const notesTaskA = mkTask('NotesA', 3, { notes: notesA });
+const notesTaskB = mkTask('NotesB', 2, { notes: notesB });
+const notesTaskC = mkTask('NotesC', 1); // geen notes-veld — moet byte-identiek blijven (undefined terug).
+const ifcNotes = writeIFC(rtProject, CAL, [notesTaskA, notesTaskB, notesTaskC], [], [], []);
+eq('176 IFC-write: OPS_TaskNotes-pset aanwezig', ifcNotes.includes("'OPS_TaskNotes'"), true);
+const notesBack = readIFC(ifcNotes).tasks;
+const backA = notesBack.find(t => t.name === 'NotesA');
+const backB = notesBack.find(t => t.name === 'NotesB');
+const backC = notesBack.find(t => t.name === 'NotesC');
+eq('177 IFC-round-trip: taak A teruggevonden', !!backA, true);
+eq('178 IFC-round-trip: notes A byte-gelijk (mix open/done)', JSON.stringify(backA?.notes ?? null), JSON.stringify(notesA));
+eq('179 IFC-round-trip: notes B byte-gelijk (enkele open)', JSON.stringify(backB?.notes ?? null), JSON.stringify(notesB));
+eq('180 IFC-round-trip: taak zonder notes ⇒ notes blijft undefined', backC?.notes, undefined);
+// Geen notes ⇒ geen pset (byte-identiek met bestaande bestanden — golden rule).
+const ifcNoNotes = writeIFC(rtProject, CAL, [mkTask('PlainNotes', 2)], [], [], []);
+eq('181 IFC-write: geen notes ⇒ geen OPS_TaskNotes-pset', ifcNoNotes.includes('OPS_TaskNotes'), false);
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  advanced-cpm-check: alle checks groen (${checks})`);

@@ -99,7 +99,8 @@
       "noResources": "Créez d'abord des ressources (onglet Ressources).",
       "allAssigned": "Toutes les ressources sont déjà affectées.",
       "disabledMilestone": "Les affectations ne sont pas possibles sur les jalons.",
-      "disabledSummary": "Les affectations ne sont pas possibles sur les tâches récapitulatives."
+      "disabledSummary": "Les affectations ne sont pas possibles sur les tâches récapitulatives.",
+      "moveTo": "Déplacer vers…"
     },
     "calendar": "Calendrier",
     "calendarProject": "Calendrier du projet",
@@ -125,7 +126,15 @@
     "finishDriver": "Driver de fin",
     "hammockNoDriver": "(aucun)",
     "hammockNoFinishDriver": "Aucun driver de fin (FF/SF) — l'intervalle revient à une longueur nulle.",
-    "interferingFloat": "Marge interférente :"
+    "interferingFloat": "Marge interférente :",
+    "notes": {
+      "title": "Notes",
+      "add": "+ Ajouter une note",
+      "placeholder": "Note…",
+      "remove": "Supprimer",
+      "done": "Terminé",
+      "empty": "Pas encore de notes."
+    }
   },
   "relations": {
     "title": "Relations",

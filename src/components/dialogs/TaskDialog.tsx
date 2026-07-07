@@ -1,18 +1,38 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { TaskType } from '@/types/task';
-import { useTaskTypeLabels } from '@/i18n/taskTypes';
+import { Task, createDefaultTaskTime } from '@/types/task';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
+import { Field } from '@/components/task-sections/shared';
+import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
+import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
+import { TaskMilestoneFields } from '@/components/task-sections/TaskMilestoneFields';
+import { TaskHammockFields } from '@/components/task-sections/TaskHammockFields';
+import { TaskConstraintFields } from '@/components/task-sections/TaskConstraintFields';
+import { TaskDeadlineField } from '@/components/task-sections/TaskDeadlineField';
+import { TaskProgressFields } from '@/components/task-sections/TaskProgressFields';
+import { TaskCpmResultSection } from '@/components/task-sections/TaskCpmResultSection';
+import { TaskDependenciesSection } from '@/components/task-sections/TaskDependenciesSection';
+import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
+import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
+
+/** Lege draft voor de (in de praktijk onbereikbare — zie ontwerp-doc item 2) "nieuwe taak"-tak:
+ *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
+function blankDraft(startDate: string): Task {
+  return {
+    id: '', name: '', description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, parentId: null, childIds: [],
+    time: createDefaultTaskTime(startDate, 5), resourceIds: [],
+  };
+}
 
 export function TaskDialog() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
-  const { options: taskTypeOptions } = useTaskTypeLabels();
 
   const showTaskDialog = useAppStore(s => s.ui.showTaskDialog);
   const editingTaskId = useAppStore(s => s.ui.editingTaskId);
@@ -24,42 +44,43 @@ export function TaskDialog() {
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [wbsCode, setWbsCode] = useState('');
-  const [taskType, setTaskType] = useState<TaskType>('CONSTRUCTION');
-  const [isMilestone, setIsMilestone] = useState(false);
-  // Duur-invoer (fase 2.8b, §6.4): dag-modus toont één Dagen-vakje (`durDays`); uur-modus toont drie
-  // gesyncte vakjes (Dagen/Uren/Totaal uren) — alle drie HELE getallen. `durHours` blijft 0 in dag-modus.
+  // Lokale draft (fase 2.10, item 2): alle "veld-secties" (naam/omschrijving/type/kalender,
+  // mijlpaal, hammock, constraint, deadline, voortgang, aantekeningen) muteren deze draft via
+  // `onChange(patch)` — commit pas op Save. De RELATIONELE secties (afhankelijkheden/toewijzingen/
+  // codes&velden/CPM-resultaat) werken rechtstreeks op de store via `taskId` (identiek aan het
+  // paneel, spec-akkoord) en raken de draft niet.
+  const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate));
+  const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
+
+  // Duur-invoer (fase 2.8b, §6.4) — BEWUST buiten de draft/onChange-generieke-patch-flow gehouden
+  // (KRITIEK spec-risico, item 2): dag-modus toont één Dagen-vakje (`durDays`); uur-modus toont drie
+  // gesyncte vakjes (Dagen/Uren/Totaal uren) — alle drie HELE getallen. `durHours` blijft 0 in
+  // dag-modus. `startDate` toont bewust de berekende `earlyStart` (consistent met tabel/Gantt), niet
+  // de ruwe `scheduleStart` — de subtiele "alleen scheduleStart aanpassen als de gebruiker die
+  // daadwerkelijk wijzigde"-commit-regel in `handleSave` leest daarom `editingTask.time` (vers uit de
+  // store) i.p.v. `draft.time`, zodat een eventuele CPM-herberekening tijdens het open staan van de
+  // dialoog niet wordt teruggedraaid door een verouderde draft-snapshot.
   const [durDays, setDurDays] = useState(5);
   const [durHours, setDurHours] = useState(0);
   const [startDate, setStartDate] = useState('');
-  const [parentId, setParentId] = useState<string>('');
-  // Taak-kalender-keuze (fase 2.8a, §7.3): '' = Projectkalender (undefined).
-  const [calendarId, setCalendarId] = useState<string>('');
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
-  const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Effectieve kalender van de (bewerkte) taak volgt de kalender-dropdown live (§6.4): de drie
   // uur-vakjes verschijnen zodra Urenplanning aan staat én de gekozen kalender uur-modus is.
-  const effCal = (calendarId ? calendars.find(c => c.id === calendarId) : undefined) || projectCal;
+  const effCal = (draft.calendarId ? calendars.find(c => c.id === draft.calendarId) : undefined) || projectCal;
   const hourMode = isHourCalendar(effCal);
   const hpd = effHoursPerDay(effCal);
-  const showHourBoxes = enableHourPlanning && hourMode && !isMilestone;
+  const showHourBoxes = enableHourPlanning && hourMode && !draft.isMilestone;
   const totalHours = durDays * hpd + durHours;
 
   useEffect(() => {
     if (!showTaskDialog) return;
 
     if (editingTask) {
-      setName(editingTask.name);
-      setDescription(editingTask.description);
-      setWbsCode(editingTask.wbsCode);
-      setTaskType(editingTask.taskType);
-      setIsMilestone(editingTask.isMilestone);
+      setDraft({ ...editingTask });
       // Duur-init (§6.4): uur-kalender-taak met `durationMinutes` ⇒ splits in dagen/uren via de
       // effectieve hpd; anders het naakte aantal werkdagen (dag-modus, byte-identiek).
       const eff = (editingTask.calendarId ? calendars.find(c => c.id === editingTask.calendarId) : undefined) || projectCal;
@@ -74,19 +95,11 @@ export function TaskDialog() {
       }
       // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
       setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
-      setParentId(editingTask.parentId || '');
-      setCalendarId(editingTask.calendarId ?? '');
     } else {
-      setName('');
-      setDescription('');
-      setWbsCode('');
-      setTaskType('CONSTRUCTION');
-      setIsMilestone(false);
+      setDraft(blankDraft(project.startDate));
       setDurDays(5);
       setDurHours(0);
       setStartDate(project.startDate);
-      setParentId('');
-      setCalendarId('');
     }
 
   }, [showTaskDialog, editingTaskId, editingTask, project.startDate, calendars, projectCal]);
@@ -117,24 +130,29 @@ export function TaskDialog() {
   if (!showTaskDialog) return null;
 
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!draft.name.trim()) return;
 
     // Duur-schrijfregel (§6.4): uur-taak ⇒ `durationMinutes = totaalUren × 60` + afgeleide
     // `scheduleDuration` (dagen). Dag-taak/mijlpaal ⇒ het naakte aantal werkdagen, GEEN
     // `durationMinutes` (invariant Bevinding 2: sub-dag-duur alleen op een uur-kalender).
-    const useHour = enableHourPlanning && hourMode && !isMilestone;
+    const useHour = enableHourPlanning && hourMode && !draft.isMilestone;
     const total = durDays * hpd + durHours;
     const durationMinutes = total * 60;
     const derivedDays = hpd > 0 ? total / hpd : durDays;
 
     if (editingTask) {
+      // Vers uit de store (niet de draft!) — zie de docstring bij de duur-state hierboven: een
+      // eventuele CPM-herberekening tijdens het open staan van de dialoog mag niet worden
+      // teruggedraaid. Voortgangs-velden (completion/actualStart/actualFinish) komen WEL uit de
+      // draft — dat zijn de enige `time`-subvelden die deze dialoog-sessie zelf muteert buiten de
+      // hieronder-berekende schedule-ankervelden.
+      const time = { ...editingTask.time, completion: draft.time.completion, actualStart: draft.time.actualStart, actualFinish: draft.time.actualFinish };
       // scheduleStart (de geplande anker) alléén bijwerken als de gebruiker de startdatum
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
       const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
-      const time = { ...editingTask.time };
       if (startDate !== shownStart) time.scheduleStart = startDate;
-      if (isMilestone) {
+      if (draft.isMilestone) {
         time.scheduleDuration = 0;
         delete time.durationMinutes;
       } else if (useHour) {
@@ -156,26 +174,34 @@ export function TaskDialog() {
         }
       }
       updateTask(editingTask.id, {
-        name,
-        description,
-        wbsCode,
-        taskType,
-        isMilestone,
+        name: draft.name,
+        description: draft.description,
+        wbsCode: draft.wbsCode,
+        taskType: draft.taskType,
+        parentId: draft.parentId,
+        calendarId: draft.calendarId,
+        isMilestone: draft.isMilestone,
+        milestoneKind: draft.milestoneKind,
+        mandatory: draft.mandatory,
+        isHammock: draft.isHammock,
+        constraint: draft.constraint,
+        constraint2: draft.constraint2,
+        deadline: draft.deadline,
+        notes: draft.notes,
         time,
-        calendarId: calendarId || undefined,
       });
     } else {
       addTask({
-        name,
-        description,
-        wbsCode,
-        taskType,
-        isMilestone,
-        parentId: parentId || null,
-        calendarId: calendarId || undefined,
+        name: draft.name,
+        description: draft.description,
+        wbsCode: draft.wbsCode,
+        taskType: draft.taskType,
+        isMilestone: draft.isMilestone,
+        parentId: draft.parentId || null,
+        calendarId: draft.calendarId,
         time: {
           durationType: 'WORKTIME',
-          scheduleDuration: isMilestone ? 0 : (useHour ? derivedDays : durDays),
+          scheduleDuration: draft.isMilestone ? 0 : (useHour ? derivedDays : durDays),
           ...(useHour ? { durationMinutes } : {}),
           scheduleStart: startDate,
           scheduleFinish: startDate,
@@ -218,17 +244,10 @@ export function TaskDialog() {
     setDurHours(hpd > 0 ? total % hpd : 0);
   };
 
-  // Kalender-poort (§6.8): gemengd-toestaan UIT ⇒ binnen het project alleen kalenders met dezelfde
-  // modus (dag/uur) als de projectkalender; de al-gekozen kalender blijft altijd zichtbaar.
-  const projectIsHour = isHourCalendar(projectCal);
-  const calOptions = (enableHourPlanning && !allowMixedDayHour)
-    ? calendars.filter(c => c.id === calendarId || isHourCalendar(c) === projectIsHour)
-    : calendars;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleClose} data-ops-task-dialog>
       <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[80vh] overflow-hidden flex flex-col"
+        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[620px] max-h-[85vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -241,149 +260,148 @@ export function TaskDialog() {
         </div>
 
         <div className="p-4 flex flex-col gap-3 text-xs overflow-y-auto">
+          {/* Naam wordt apart gehouden (i.p.v. binnen TaskBasicFields) omdat de dialoog er de
+              auto-focus/select-all-ref op zet bij het openen — TaskBasicFields kent die ref niet. */}
           <div className="flex flex-col gap-1">
             <label className="text-text-secondary">{t('dialog.nameRequired')}</label>
             <input
               ref={nameInputRef}
-              value={name}
-              onChange={e => setName(e.target.value)}
+              value={draft.name}
+              onChange={e => onChange({ name: e.target.value })}
               className={inputCls}
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-text-secondary">{t('dialog.description')}</label>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              className={`${inputCls} h-16 resize-none`}
+          <TaskBasicFields
+            task={draft}
+            onChange={onChange}
+            onCalendarChange={id => onChange({ calendarId: id })}
+            hideName
+          />
+
+          {/* Bovenliggende taak (item 2, besluit 2): blijft dialoog-only — bestaat niet in het
+              paneel (WBS-herstructurering gaat daar via drag/indent-outdent). */}
+          <Field label={t('dialog.parentTask')}>
+            <Select
+              aria-label={t('dialog.parentTask')}
+              value={draft.parentId ?? ''}
+              onChange={v => onChange({ parentId: v || null })}
+              options={[
+                { value: '', label: t('dialog.noParent') },
+                ...tasks
+                  .filter(tk => tk.id !== editingTaskId)
+                  .map(tk => ({
+                    value: tk.id,
+                    label: `${tk.wbsCode ? `${tk.wbsCode} — ` : ''}${tk.name}`,
+                  })),
+              ]}
             />
-          </div>
+          </Field>
 
+          <TaskNotesFields task={draft} onChange={onChange} />
+
+          <TaskMilestoneFields task={draft} onChange={onChange} />
+
+          {/* Tijd — dialoogspecifiek (KRITIEK spec-risico, item 2): NIET de gedeelde
+              `TaskTimeFields`, want de Save-commit-logica hierboven (scheduleStart-alleen-bij-
+              wijziging, duur-bron-behoud) hoort bij deze aparte dagen/uren-invoer, niet bij een
+              instant-apply patch-contract. */}
+          <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
+          <span className="ui-card-header !text-xs">{t('properties.time')}</span>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">{t('dialog.wbsCode')}</label>
-              <input
-                value={wbsCode}
-                onChange={e => setWbsCode(e.target.value)}
-                className={inputCls}
-                placeholder={t('dialog.wbsPlaceholder')}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">{t('dialog.type')}</label>
-              <Select
-                aria-label={t('dialog.type')}
-                value={taskType}
-                onChange={v => setTaskType(v as TaskType)}
-                options={taskTypeOptions.map(tt => ({ value: tt.value, label: tt.label }))}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">{t('dialog.startDate')}</label>
+            <Field label={t('dialog.startDate')}>
               <DateTextInput
                 value={startDate}
                 onCommit={setStartDate}
-                className={inputCls}
+                className="input !text-xs !px-2.5 !py-1.5"
                 ariaLabel={t('dialog.startDate')}
               />
-            </div>
+            </Field>
 
             {/* Dag-modus: één Dagen-vakje (byte-identiek). Uur-modus: de drie vakjes staan
                 full-width hieronder, dus deze kolom blijft leeg. */}
             {!showHourBoxes && (
-              <div className="flex flex-col gap-1">
-                <label className="text-text-secondary">{t('dialog.duration')}</label>
+              <Field label={t('dialog.duration')}>
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={isMilestone ? 0 : durDays}
+                  value={draft.isMilestone ? 0 : durDays}
                   onChange={onIntChange(setDurDays)}
-                  disabled={isMilestone}
-                  className={`${inputCls} disabled:opacity-50`}
+                  disabled={draft.isMilestone}
+                  className="input !text-xs !px-2.5 !py-1.5 disabled:opacity-50"
                   aria-label={t('dialog.duration')}
                   data-ops-duration-days
                 />
                 {/* Invariant Bevinding 2: uren vereisen een uur-kalender. */}
-                {enableHourPlanning && !hourMode && !isMilestone && (
+                {enableHourPlanning && !hourMode && !draft.isMilestone && (
                   <span className="text-[10px] text-text-secondary italic" data-ops-hour-hint>{t('dialog.hourCalendarHint')}</span>
                 )}
-              </div>
+              </Field>
             )}
           </div>
 
           {/* Drie gesyncte duur-vakjes (§6.4): totaalUren = dagen × effHpd + uren. Alle HELE getallen. */}
           {showHourBoxes && (
             <div className="grid grid-cols-3 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-text-secondary">{t('dialog.durationDays')}</label>
+              <Field label={t('dialog.durationDays')}>
                 <input type="text" inputMode="numeric" value={durDays}
-                  onChange={onIntChange(setDurDays)} className={inputCls}
+                  onChange={onIntChange(setDurDays)} className="input !text-xs !px-2.5 !py-1.5"
                   aria-label={t('dialog.durationDays')} data-ops-dur-days />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-text-secondary">{t('dialog.durationHours')}</label>
+              </Field>
+              <Field label={t('dialog.durationHours')}>
                 <input type="text" inputMode="numeric" value={durHours}
-                  onChange={onIntChange(setDurHours)} className={inputCls}
+                  onChange={onIntChange(setDurHours)} className="input !text-xs !px-2.5 !py-1.5"
                   aria-label={t('dialog.durationHours')} data-ops-dur-hours />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-text-secondary">{t('dialog.durationTotalHours')}</label>
+              </Field>
+              <Field label={t('dialog.durationTotalHours')}>
                 <input type="text" inputMode="numeric" value={totalHours}
-                  onChange={onTotalChange} className={inputCls}
+                  onChange={onTotalChange} className="input !text-xs !px-2.5 !py-1.5"
                   aria-label={t('dialog.durationTotalHours')} data-ops-dur-total />
-              </div>
+              </Field>
             </div>
           )}
 
-          {/* Bovenliggende taak alleen bij aanmaken: bij bewerken schreef de dialoog parentId
-              toch al niet weg (structuur wijzigen gaat via inspringen/uitspringen). */}
-          {!editingTask && (
-            <div className="flex flex-col gap-1">
-              <label className="text-text-secondary">{t('dialog.parentTask')}</label>
-              <Select
-                aria-label={t('dialog.parentTask')}
-                value={parentId}
-                onChange={setParentId}
-                options={[
-                  { value: '', label: t('dialog.noParent') },
-                  ...tasks
-                    .filter(t => t.id !== editingTaskId)
-                    .map(t => ({
-                      value: t.id,
-                      label: `${t.wbsCode ? `${t.wbsCode} — ` : ''}${t.name}`,
-                    })),
-                ]}
-              />
-            </div>
+          <TaskHammockFields task={draft} onChange={onChange} />
+
+          <TaskConstraintFields task={draft} onChange={onChange} />
+
+          <TaskDeadlineField task={draft} onChange={onChange} />
+
+          <TaskProgressFields
+            task={draft}
+            onSetProgress={raw => setDraft(d => {
+              const completion = Math.max(0, Math.min(1, raw));
+              const time = { ...d.time, completion };
+              // Spiegelt taskSlice.setTaskProgress (§3.2), maar op de draft — commit pas op Save.
+              if (completion > 0 && !time.actualStart) time.actualStart = time.earlyStart || time.scheduleStart;
+              if (completion < 1) time.actualFinish = undefined;
+              return { ...d, time };
+            })}
+            onSetActualStart={date => {
+              // Spiegelt taskSlice.setActualStart (§3.2): actuals nooit ná de statusdatum.
+              if (date && project.statusDate && date > project.statusDate) return false;
+              setDraft(d => ({ ...d, time: { ...d.time, actualStart: date } }));
+              return true;
+            }}
+            onSetActualFinish={date => {
+              if (date && project.statusDate && date > project.statusDate) return false;
+              setDraft(d => {
+                const time = { ...d.time, actualFinish: date };
+                if (!date && time.completion >= 1) time.completion = 0;
+                return { ...d, time };
+              });
+              return true;
+            }}
+          />
+
+          {editingTask && (
+            <>
+              <TaskCpmResultSection taskId={editingTask.id} />
+              <TaskDependenciesSection taskId={editingTask.id} />
+              <TaskAssignmentsSection taskId={editingTask.id} />
+              <TaskCodesFieldsSection taskId={editingTask.id} />
+            </>
           )}
-
-          <div className="flex flex-col gap-1">
-            <label className="text-text-secondary">{t('properties.calendar')}</label>
-            <Select
-              aria-label={t('properties.calendar')}
-              value={calendarId}
-              onChange={setCalendarId}
-              options={[
-                { value: '', label: t('properties.calendarProject') },
-                ...calOptions.map(c => ({ value: c.id, label: c.name })),
-              ]}
-            />
-          </div>
-
-          <label className="flex items-center gap-2 mt-1">
-            <input
-              type="checkbox"
-              checked={isMilestone}
-              onChange={e => setIsMilestone(e.target.checked)}
-              className="accent-accent"
-            />
-            <span>{t('dialog.milestone')}</span>
-          </label>
         </div>
 
         <div className="flex justify-end gap-3 p-4 border-t border-border">
@@ -392,7 +410,7 @@ export function TaskDialog() {
           </button>
           <button
             onClick={handleSave}
-            disabled={!name.trim()}
+            disabled={!draft.name.trim()}
             className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]"
             data-ops-task-save
           >

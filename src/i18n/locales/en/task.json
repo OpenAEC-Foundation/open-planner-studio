@@ -119,13 +119,22 @@
       "noResources": "Create resources first (Resources tab).",
       "allAssigned": "All resources are already assigned.",
       "disabledMilestone": "Assignments are not possible on milestones.",
-      "disabledSummary": "Assignments are not possible on summary tasks."
+      "disabledSummary": "Assignments are not possible on summary tasks.",
+      "moveTo": "Move to…"
     },
     "calendar": "Calendar",
     "calendarProject": "Project calendar",
     "priority": "Leveling priority",
     "levelingDelay": "Leveling delay",
-    "durationHours": "Duration (hours)"
+    "durationHours": "Duration (hours)",
+    "notes": {
+      "title": "Notes",
+      "add": "+ Add note",
+      "placeholder": "Note…",
+      "remove": "Remove",
+      "done": "Done",
+      "empty": "No notes yet."
+    }
   },
   "relations": {
     "title": "Relations",

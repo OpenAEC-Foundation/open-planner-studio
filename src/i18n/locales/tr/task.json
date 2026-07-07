@@ -99,7 +99,8 @@
       "noResources": "Önce kaynak oluşturun (Kaynaklar sekmesi).",
       "allAssigned": "Tüm kaynaklar zaten atanmış.",
       "disabledMilestone": "Kilometre taşlarında atama yapılamaz.",
-      "disabledSummary": "Özet görevlerde atama yapılamaz."
+      "disabledSummary": "Özet görevlerde atama yapılamaz.",
+      "moveTo": "Taşı…"
     },
     "calendar": "Takvim",
     "calendarProject": "Proje takvimi",
@@ -125,7 +126,15 @@
     "finishDriver": "Bitiş driver'ı",
     "hammockNoDriver": "(yok)",
     "hammockNoFinishDriver": "Bitiş driver'ı yok (FF/SF) — aralık sıfır uzunluğa döner.",
-    "interferingFloat": "Müdahale bolluğu:"
+    "interferingFloat": "Müdahale bolluğu:",
+    "notes": {
+      "title": "Notlar",
+      "add": "+ Not ekle",
+      "placeholder": "Not…",
+      "remove": "Kaldır",
+      "done": "Tamamlandı",
+      "empty": "Henüz not yok."
+    }
   },
   "relations": {
     "title": "İlişkiler",

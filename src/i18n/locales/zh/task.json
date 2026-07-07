@@ -99,7 +99,8 @@
       "noResources": "请先创建资源（资源标签页）。",
       "allAssigned": "所有资源均已分配。",
       "disabledMilestone": "里程碑不支持分配。",
-      "disabledSummary": "摘要任务不支持分配。"
+      "disabledSummary": "摘要任务不支持分配。",
+      "moveTo": "移动到…"
     },
     "calendar": "日历",
     "calendarProject": "项目日历",
@@ -125,7 +126,15 @@
     "finishDriver": "结束驱动",
     "hammockNoDriver": "（无）",
     "hammockNoFinishDriver": "没有结束驱动（FF/SF）— 跨度将回退为零长度。",
-    "interferingFloat": "干扰浮动："
+    "interferingFloat": "干扰浮动：",
+    "notes": {
+      "title": "备注",
+      "add": "+ 添加备注",
+      "placeholder": "备注…",
+      "remove": "删除",
+      "done": "已完成",
+      "empty": "暂无备注。"
+    }
   },
   "relations": {
     "title": "关系",

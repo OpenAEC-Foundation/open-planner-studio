@@ -99,7 +99,8 @@
       "noResources": "Crie primeiro recursos (separador Recursos).",
       "allAssigned": "Todos os recursos já estão atribuídos.",
       "disabledMilestone": "Não é possível atribuir em marcos.",
-      "disabledSummary": "Não é possível atribuir em tarefas de resumo."
+      "disabledSummary": "Não é possível atribuir em tarefas de resumo.",
+      "moveTo": "Mover para…"
     },
     "calendar": "Calendário",
     "calendarProject": "Calendário do projeto",
@@ -125,7 +126,15 @@
     "finishDriver": "Driver de fim",
     "hammockNoDriver": "(nenhum)",
     "hammockNoFinishDriver": "Sem driver de fim (FF/SF) — o intervalo volta a comprimento zero.",
-    "interferingFloat": "Folga interferente:"
+    "interferingFloat": "Folga interferente:",
+    "notes": {
+      "title": "Notas",
+      "add": "+ Adicionar nota",
+      "placeholder": "Nota…",
+      "remove": "Remover",
+      "done": "Concluído",
+      "empty": "Ainda sem notas."
+    }
   },
   "relations": {
     "title": "Relações",

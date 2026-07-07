@@ -119,7 +119,16 @@
       "noResources": "Maak eerst resources aan (Resources-tab).",
       "allAssigned": "Alle resources zijn al toegewezen.",
       "disabledMilestone": "Toewijzingen zijn niet mogelijk op mijlpalen.",
-      "disabledSummary": "Toewijzingen zijn niet mogelijk op samenvattingstaken."
+      "disabledSummary": "Toewijzingen zijn niet mogelijk op samenvattingstaken.",
+      "moveTo": "Verplaats naar…"
+    },
+    "notes": {
+      "title": "Aantekeningen",
+      "add": "+ aantekening toevoegen",
+      "placeholder": "Aantekening…",
+      "remove": "Verwijderen",
+      "done": "Afgevinkt",
+      "empty": "Nog geen aantekeningen."
     },
     "calendar": "Kalender",
     "calendarProject": "Projectkalender",

@@ -668,6 +668,7 @@ export class GanttRenderer {
         this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
       }
       this.drawConstraintMarkers(task, y);
+      this.drawNotesIndicator(task, y);
       // Externe (cross-project) ghost-balken (fase 2.9, §5.5): op volle dekking (niet mee-dimmen),
       // ná de constraint-markers zodat de badge bovenop leesbaar blijft.
       if (dimmed || row.dimmed) this.ctx.globalAlpha = 1;
@@ -1066,6 +1067,26 @@ export class GanttRenderer {
         }
       }
     }
+  }
+
+  /**
+   * Fase 2.10 (item 1) — klein, neutraal-gekleurd "aantekeningen aanwezig"-badge, rechtsboven de
+   * balk (naast `drawConstraintMarkers`, hetzelfde badge-precedent). Alleen zichtbaar bij ≥1 OPEN
+   * (`!done`) aantekening — een volledig afgevinkte lijst toont niets meer (bewust informatief,
+   * geen waarschuwingskleur).
+   */
+  private drawNotesIndicator(task: Task, y: number): void {
+    const notes = task.notes;
+    if (!notes || !notes.some(n => !n.done)) return;
+    const ctx = this.ctx;
+    const chartLeft = this.opts.taskTableWidth;
+    const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+    const px = this.dateToX(end) + this.opts.view.zoom;
+    if (px < chartLeft || px > this.opts.canvasWidth) return;
+    ctx.fillStyle = this.colors.textSecondary;
+    ctx.beginPath();
+    ctx.arc(px - 6, y - 5, 2.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawDependencyArrows(): void {

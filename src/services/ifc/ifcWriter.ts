@@ -230,6 +230,8 @@ export function writeIFC(
   writeMilestoneMeta(ctx, tasks, ownerHistId);
   // Nivellering (fase 2.5): levelingDelay als OPS_Leveling-pset per taak
   writeLevelingMeta(ctx, tasks, ownerHistId);
+  // Aantekeningen (fase 2.10, item 1) als OPS_TaskNotes-pset per taak
+  writeTaskNotes(ctx, tasks, ownerHistId);
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
@@ -457,6 +459,28 @@ function writeExternalLinks(ctx: WriteContext, tasks: Task[], ownerHistId: numbe
       `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_extl_' + task.id))},#${ownerHistId},'OPS_ExternalLink',$,(#${propId}))`);
     addLine(ctx, `_rel_extl_${task.id}`,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_extl_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Fase 2.10 (item 1) — taak-aantekeningen (checklist) als eigen OPS_TaskNotes-pset per taak.
+ * Exact het `writeExternalLinks`-stramien: de volledige `notes`-array (id/text/done) gaat als ÉÉN
+ * autoritatief JSON-veld in een `IFCPROPERTYSINGLEVALUE('Notes',$,IFCTEXT(json),$)` — geen los
+ * IFC-attribuut per aantekening. Afwezig/leeg ⇒ niets geschreven (golden rule, bit-gelijk met
+ * bestaande bestanden). P6/MSPDI kennen dit niet uitdrukbaar (weggelaten met console-warn in hun
+ * writers).
+ */
+function writeTaskNotes(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    const notes = task.notes;
+    if (!notes || notes.length === 0) continue;
+    const json = JSON.stringify(notes);
+    const propId = addLine(ctx, `_notes_${task.id}`,
+      `IFCPROPERTYSINGLEVALUE('Notes',$,IFCTEXT(${ifcStr(json)}),$)`);
+    const setId = addLine(ctx, `_pset_notes_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_notes_' + task.id))},#${ownerHistId},'OPS_TaskNotes',$,(#${propId}))`);
+    addLine(ctx, `_rel_notes_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_notes_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }
 

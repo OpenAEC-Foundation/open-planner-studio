@@ -23,6 +23,11 @@ export interface ResourceSlice {
   /** Wijzig eenheden/curve van een bestaande toewijzing (inline-bewerken in de UI, §6.3). */
   updateAssignment: (assignmentId: string, updates: Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>) => void;
   unassignResource: (assignmentId: string) => void;
+  /** Verplaats een bestaande toewijzing naar een andere taak (fase 2.10, item 4): `unitsPerDay`/
+   *  `curve` blijven ONGEWIJZIGD, alleen `taskId` + `resourceIds` op beide taken worden bijgewerkt.
+   *  Weigert (false, geen snapshot) bij een milestone/samenvattings-doeltaak of wanneer de resource
+   *  al op de doeltaak is toegewezen (P6/MSP-invariant: geen dubbele resource-op-taak). */
+  moveAssignment: (assignmentId: string, newTaskId: string) => boolean;
   /** Bibliotheek-CRUD (fase 2.8a, §4.1) — hernoemd uit add/update/removeCalendar. */
   addCalendar: (cal: Omit<WorkCalendar, 'id'>) => string;
   updateCalendar: (id: string, updates: Partial<WorkCalendar>) => void;
@@ -168,6 +173,51 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
+  },
+
+  moveAssignment: (assignmentId, newTaskId) => {
+    let moved = false;
+    set((s) => {
+      const assignment = s.assignments.find(a => a.id === assignmentId);
+      if (!assignment) return;
+      const newTask = s.tasks.find(t => t.id === newTaskId);
+      // Zelfde milestone/summary-guard als assignResource (§2.4) — geen toewijzing op zulke taken.
+      if (!newTask || newTask.isMilestone || newTask.childIds.length > 0) return;
+      // Weiger dubbele resource-op-taak (dekt ook het degenererende geval newTaskId === oude taskId:
+      // de bestaande toewijzing zelf telt al mee als "al op de doeltaak").
+      const alreadyOnTarget = s.assignments.some(
+        a => a.taskId === newTaskId && a.resourceId === assignment.resourceId
+      );
+      if (alreadyOnTarget) return;
+
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+
+      const oldTaskId = assignment.taskId;
+      assignment.taskId = newTaskId;
+
+      // task.resourceIds bijwerken op de OUDE taak (verwijderen als geen andere toewijzing van
+      // dezelfde resource meer resteert — spiegelt unassignResource) en de NIEUWE taak (toevoegen
+      // als nog niet aanwezig — spiegelt assignResource).
+      const stillOnOld = s.assignments.some(
+        a => a.taskId === oldTaskId && a.resourceId === assignment.resourceId
+      );
+      if (!stillOnOld) {
+        const oldTask = s.tasks.find(t => t.id === oldTaskId);
+        const idx = oldTask?.resourceIds.indexOf(assignment.resourceId) ?? -1;
+        if (oldTask && idx >= 0) oldTask.resourceIds.splice(idx, 1);
+      }
+      if (!newTask.resourceIds.includes(assignment.resourceId)) {
+        newTask.resourceIds.push(assignment.resourceId);
+      }
+      s.isDirty = true;
+      moved = true;
+    });
+    if (moved) {
+      get().recomputeResourceLoad();
+      get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
+    }
+    return moved;
   },
 
   addCalendar: (cal) => {
