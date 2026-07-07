@@ -474,5 +474,34 @@
     "suffixDay": "d",
     "suffixHour": "u",
     "suffixMinute": "m"
+  },
+  "shortcuts": {
+    "title": "Sneltoetsen",
+    "orJoiner": "of",
+    "category": {
+      "file": "Bestand",
+      "edit": "Bewerken",
+      "structure": "Structuur",
+      "view": "Weergave",
+      "nav": "Navigatie"
+    },
+    "view": {
+      "exitFullscreen": "Presentatie verlaten",
+      "showShortcuts": "Sneltoetsen tonen"
+    },
+    "edit": {
+      "copy": "Kopiëren",
+      "deselect": "Selectie opheffen",
+      "selectAll": "Alles selecteren"
+    },
+    "structure": {
+      "moveUp": "Taak omhoog verplaatsen",
+      "moveDown": "Taak omlaag verplaatsen"
+    },
+    "nav": {
+      "reportTab": "Naar rapport-tabblad",
+      "switchDocument": "Wissel van document",
+      "scrollToToday": "Spring naar vandaag"
+    }
   }
 }

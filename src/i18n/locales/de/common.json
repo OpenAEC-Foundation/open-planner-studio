@@ -474,5 +474,34 @@
     "suffixDay": "T",
     "suffixHour": "Std",
     "suffixMinute": "Min"
+  },
+  "shortcuts": {
+    "title": "Tastenkombinationen",
+    "orJoiner": "oder",
+    "category": {
+      "file": "Datei",
+      "edit": "Bearbeiten",
+      "structure": "Struktur",
+      "view": "Ansicht",
+      "nav": "Navigation"
+    },
+    "view": {
+      "exitFullscreen": "Präsentation verlassen",
+      "showShortcuts": "Tastenkombinationen anzeigen"
+    },
+    "edit": {
+      "copy": "Kopieren",
+      "deselect": "Auswahl aufheben",
+      "selectAll": "Alles auswählen"
+    },
+    "structure": {
+      "moveUp": "Aufgabe nach oben verschieben",
+      "moveDown": "Aufgabe nach unten verschieben"
+    },
+    "nav": {
+      "reportTab": "Zum Bericht-Tab",
+      "switchDocument": "Dokument wechseln",
+      "scrollToToday": "Zu heute springen"
+    }
   }
 }

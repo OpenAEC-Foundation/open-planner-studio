@@ -12,6 +12,7 @@ import {
   Users, UserPlus, BarChart3, Scale, Eraser, AlertTriangle, ChevronLeft, ChevronRight,
   Flag, GitCompareArrows, CalendarClock, LayoutGrid, TrendingUp, CalendarDays, X,
   Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Map as MapIcon,
+  Keyboard,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
@@ -1445,6 +1446,14 @@ export function Ribbon() {
                 <GroupPopoverButton />
                 <SortPopoverButton />
               </div>
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            {/* [Sneltoetsen] (fase 2.10, golf 3): tweede ingang naast Ctrl/Cmd+/ voor de
+                sneltoetsen-overzichtsdialoog — discoverability voor de vaste (niet-herbindbare) set. */}
+            <RibbonGroup label={tCommon('shortcuts.title')}>
+              <RibbonSmallButton icon={<Keyboard size={14} />} label={tCommon('shortcuts.title')} onClick={() => setUI({ showShortcutsDialog: true })} />
             </RibbonGroup>
 
             <div className="ribbon-separator" />

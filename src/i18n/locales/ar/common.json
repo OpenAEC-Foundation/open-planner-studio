@@ -474,5 +474,34 @@
     "suffixDay": "ي",
     "suffixHour": "س",
     "suffixMinute": "د"
+  },
+  "shortcuts": {
+    "title": "اختصارات لوحة المفاتيح",
+    "orJoiner": "أو",
+    "category": {
+      "file": "ملف",
+      "edit": "تحرير",
+      "structure": "البنية",
+      "view": "العرض",
+      "nav": "التنقل"
+    },
+    "view": {
+      "exitFullscreen": "الخروج من العرض التقديمي",
+      "showShortcuts": "إظهار الاختصارات"
+    },
+    "edit": {
+      "copy": "نسخ",
+      "deselect": "إلغاء التحديد",
+      "selectAll": "تحديد الكل"
+    },
+    "structure": {
+      "moveUp": "نقل المهمة لأعلى",
+      "moveDown": "نقل المهمة لأسفل"
+    },
+    "nav": {
+      "reportTab": "الانتقال إلى تبويب التقرير",
+      "switchDocument": "تبديل المستند",
+      "scrollToToday": "الانتقال إلى اليوم"
+    }
   }
 }

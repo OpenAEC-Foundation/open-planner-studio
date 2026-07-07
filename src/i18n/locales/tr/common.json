@@ -474,5 +474,34 @@
     "suffixDay": "g",
     "suffixHour": "s",
     "suffixMinute": "dk"
+  },
+  "shortcuts": {
+    "title": "Klavye Kısayolları",
+    "orJoiner": "veya",
+    "category": {
+      "file": "Dosya",
+      "edit": "Düzenle",
+      "structure": "Yapı",
+      "view": "Görünüm",
+      "nav": "Gezinme"
+    },
+    "view": {
+      "exitFullscreen": "Sunumdan çık",
+      "showShortcuts": "Kısayolları göster"
+    },
+    "edit": {
+      "copy": "Kopyala",
+      "deselect": "Seçimi kaldır",
+      "selectAll": "Tümünü seç"
+    },
+    "structure": {
+      "moveUp": "Görevi yukarı taşı",
+      "moveDown": "Görevi aşağı taşı"
+    },
+    "nav": {
+      "reportTab": "Rapor sekmesine git",
+      "switchDocument": "Belge değiştir",
+      "scrollToToday": "Bugüne git"
+    }
   }
 }

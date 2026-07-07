@@ -474,5 +474,34 @@
     "suffixDay": "d",
     "suffixHour": "g",
     "suffixMinute": "min"
+  },
+  "shortcuts": {
+    "title": "Skróty klawiszowe",
+    "orJoiner": "lub",
+    "category": {
+      "file": "Plik",
+      "edit": "Edycja",
+      "structure": "Struktura",
+      "view": "Widok",
+      "nav": "Nawigacja"
+    },
+    "view": {
+      "exitFullscreen": "Zamknij prezentację",
+      "showShortcuts": "Pokaż skróty"
+    },
+    "edit": {
+      "copy": "Kopiuj",
+      "deselect": "Usuń zaznaczenie",
+      "selectAll": "Zaznacz wszystko"
+    },
+    "structure": {
+      "moveUp": "Przesuń zadanie w górę",
+      "moveDown": "Przesuń zadanie w dół"
+    },
+    "nav": {
+      "reportTab": "Przejdź do karty Raport",
+      "switchDocument": "Przełącz dokument",
+      "scrollToToday": "Przejdź do dziś"
+    }
   }
 }

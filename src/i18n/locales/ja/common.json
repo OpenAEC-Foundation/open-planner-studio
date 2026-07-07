@@ -474,5 +474,34 @@
     "suffixDay": "日",
     "suffixHour": "時",
     "suffixMinute": "分"
+  },
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "orJoiner": "または",
+    "category": {
+      "file": "ファイル",
+      "edit": "編集",
+      "structure": "構造",
+      "view": "表示",
+      "nav": "ナビゲーション"
+    },
+    "view": {
+      "exitFullscreen": "プレゼンテーションを終了",
+      "showShortcuts": "ショートカットを表示"
+    },
+    "edit": {
+      "copy": "コピー",
+      "deselect": "選択を解除",
+      "selectAll": "すべて選択"
+    },
+    "structure": {
+      "moveUp": "タスクを上に移動",
+      "moveDown": "タスクを下に移動"
+    },
+    "nav": {
+      "reportTab": "レポートタブへ移動",
+      "switchDocument": "ドキュメントを切り替え",
+      "scrollToToday": "今日にジャンプ"
+    }
   }
 }

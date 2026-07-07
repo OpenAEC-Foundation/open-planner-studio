@@ -474,5 +474,34 @@
     "suffixDay": "g",
     "suffixHour": "h",
     "suffixMinute": "m"
+  },
+  "shortcuts": {
+    "title": "Scorciatoie da tastiera",
+    "orJoiner": "o",
+    "category": {
+      "file": "File",
+      "edit": "Modifica",
+      "structure": "Struttura",
+      "view": "Visualizza",
+      "nav": "Navigazione"
+    },
+    "view": {
+      "exitFullscreen": "Esci dalla presentazione",
+      "showShortcuts": "Mostra scorciatoie"
+    },
+    "edit": {
+      "copy": "Copia",
+      "deselect": "Deseleziona",
+      "selectAll": "Seleziona tutto"
+    },
+    "structure": {
+      "moveUp": "Sposta attività in alto",
+      "moveDown": "Sposta attività in basso"
+    },
+    "nav": {
+      "reportTab": "Vai alla scheda Report",
+      "switchDocument": "Cambia documento",
+      "scrollToToday": "Vai a oggi"
+    }
   }
 }

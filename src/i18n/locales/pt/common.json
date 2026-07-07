@@ -474,5 +474,34 @@
     "suffixDay": "d",
     "suffixHour": "h",
     "suffixMinute": "m"
+  },
+  "shortcuts": {
+    "title": "Atalhos de teclado",
+    "orJoiner": "ou",
+    "category": {
+      "file": "Ficheiro",
+      "edit": "Editar",
+      "structure": "Estrutura",
+      "view": "Visualização",
+      "nav": "Navegação"
+    },
+    "view": {
+      "exitFullscreen": "Sair da apresentação",
+      "showShortcuts": "Mostrar atalhos"
+    },
+    "edit": {
+      "copy": "Copiar",
+      "deselect": "Limpar seleção",
+      "selectAll": "Selecionar tudo"
+    },
+    "structure": {
+      "moveUp": "Mover tarefa para cima",
+      "moveDown": "Mover tarefa para baixo"
+    },
+    "nav": {
+      "reportTab": "Ir para o separador Relatório",
+      "switchDocument": "Mudar de documento",
+      "scrollToToday": "Saltar para hoje"
+    }
   }
 }

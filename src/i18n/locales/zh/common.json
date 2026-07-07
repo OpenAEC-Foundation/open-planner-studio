@@ -474,5 +474,34 @@
     "suffixDay": "天",
     "suffixHour": "时",
     "suffixMinute": "分"
+  },
+  "shortcuts": {
+    "title": "键盘快捷键",
+    "orJoiner": "或",
+    "category": {
+      "file": "文件",
+      "edit": "编辑",
+      "structure": "结构",
+      "view": "视图",
+      "nav": "导航"
+    },
+    "view": {
+      "exitFullscreen": "退出演示",
+      "showShortcuts": "显示快捷键"
+    },
+    "edit": {
+      "copy": "复制",
+      "deselect": "取消选择",
+      "selectAll": "全选"
+    },
+    "structure": {
+      "moveUp": "上移任务",
+      "moveDown": "下移任务"
+    },
+    "nav": {
+      "reportTab": "转到报告选项卡",
+      "switchDocument": "切换文档",
+      "scrollToToday": "跳转到今天"
+    }
   }
 }

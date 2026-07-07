@@ -50,6 +50,7 @@ import { BaselineDialog } from '@/components/dialogs/BaselineDialog';
 import { ColumnsDialog } from '@/components/dialogs/ColumnsDialog';
 import { FilterDialog } from '@/components/dialogs/FilterDialog';
 import { LayoutsDialog } from '@/components/dialogs/LayoutsDialog';
+import { ShortcutsDialog } from '@/components/dialogs/ShortcutsDialog';
 import { PresentationHint } from '@/components/layout/PresentationHint';
 import { RecoveryDialog, type RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
 import { documentTitle } from '@/utils/documents';
@@ -85,6 +86,7 @@ function AppContent() {
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
+  const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
@@ -587,6 +589,7 @@ function AppContent() {
       {showColumnsDialog && <ColumnsDialog />}
       {showFilterDialog && <FilterDialog />}
       {showLayoutsDialog && <LayoutsDialog />}
+      {showShortcutsDialog && <ShortcutsDialog />}
       <UpdateDialog />
       {recovery && (
         <RecoveryDialog

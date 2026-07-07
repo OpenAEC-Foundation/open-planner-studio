@@ -474,5 +474,34 @@
     "suffixDay": "ر",
     "suffixHour": "س",
     "suffixMinute": "د"
+  },
+  "shortcuts": {
+    "title": "میان‌برهای صفحه‌کلید",
+    "orJoiner": "یا",
+    "category": {
+      "file": "فایل",
+      "edit": "ویرایش",
+      "structure": "ساختار",
+      "view": "نما",
+      "nav": "پیمایش"
+    },
+    "view": {
+      "exitFullscreen": "خروج از حالت ارائه",
+      "showShortcuts": "نمایش میان‌برها"
+    },
+    "edit": {
+      "copy": "کپی",
+      "deselect": "لغو انتخاب",
+      "selectAll": "انتخاب همه"
+    },
+    "structure": {
+      "moveUp": "انتقال وظیفه به بالا",
+      "moveDown": "انتقال وظیفه به پایین"
+    },
+    "nav": {
+      "reportTab": "رفتن به تب گزارش",
+      "switchDocument": "تعویض سند",
+      "scrollToToday": "رفتن به امروز"
+    }
   }
 }

@@ -96,7 +96,8 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'file.recalculate',
     combo: { key: 'F5' },
     category: 'file',
-    labelKey: 'shortcuts.file.recalculate',
+    // Golf 3 (i18n-hergebruik): zelfde tekst als de "Bereken"-ribbonknop (F5 doet exact dat).
+    labelKey: 'menu:ribbon.calculate',
     allowInInput: true,
     run: (store) => store.runCPM(),
   },
@@ -104,7 +105,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'file.save',
     combo: { key: 's', mod: true },
     category: 'file',
-    labelKey: 'shortcuts.file.save',
+    labelKey: 'menu:ribbon.save',
     allowInInput: true,
     run: (store) => store.saveFile(),
   },
@@ -112,21 +113,21 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'file.saveAs',
     combo: { key: 's', mod: true, shift: true },
     category: 'file',
-    labelKey: 'shortcuts.file.saveAs',
+    labelKey: 'menu:backstage.saveAs',
     run: (store) => store.saveFileAs(),
   },
   {
     id: 'file.open',
     combo: { key: 'o', mod: true },
     category: 'file',
-    labelKey: 'shortcuts.file.open',
+    labelKey: 'menu:ribbon.open',
     run: (store) => store.openFile(),
   },
   {
     id: 'file.newProject',
     combo: { key: 'n', mod: true },
     category: 'file',
-    labelKey: 'shortcuts.file.newProject',
+    labelKey: 'menu:menuBar.newProject',
     run: (store) => store.setUI({ showNewProjectDialog: true }),
   },
 
@@ -135,7 +136,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'view.toggleFullscreen',
     combo: { key: 'F11' },
     category: 'view',
-    labelKey: 'shortcuts.view.toggleFullscreen',
+    labelKey: 'menu:ribbon.presentationMode',
     allowInInput: true,
     run: (store) => store.setPresentationMode(!store.ui.presentationMode),
   },
@@ -162,35 +163,35 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'edit.paste',
     combo: { key: 'v', mod: true },
     category: 'edit',
-    labelKey: 'shortcuts.edit.paste',
+    labelKey: 'context.paste',
     run: (store) => store.pasteTasks(),
   },
   {
     id: 'edit.undo',
     combo: { key: 'z', mod: true },
     category: 'edit',
-    labelKey: 'shortcuts.edit.undo',
+    labelKey: 'menu:menuBar.undo',
     run: (store) => store.undo(),
   },
   {
     id: 'edit.redo',
     combo: { key: 'y', mod: true },
     category: 'edit',
-    labelKey: 'shortcuts.edit.redo',
+    labelKey: 'menu:menuBar.redo',
     run: (store) => store.redo(),
   },
   {
     id: 'edit.redoShiftZ',
     combo: { key: 'z', mod: true, shift: true },
     category: 'edit',
-    labelKey: 'shortcuts.edit.redo', // zelfde actie/label als edit.redo — alternatieve combinatie
+    labelKey: 'menu:menuBar.redo', // zelfde actie/label als edit.redo — alternatieve combinatie
     run: (store) => store.redo(),
   },
   {
     id: 'edit.delete',
     combo: { key: 'Delete' },
     category: 'edit',
-    labelKey: 'shortcuts.edit.delete',
+    labelKey: 'context.delete',
     when: hasSelection,
     run: (store) => { for (const id of store.selectedTaskIds) store.deleteTask(id); },
   },
@@ -198,7 +199,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'edit.deleteBackspace',
     combo: { key: 'Backspace' },
     category: 'edit',
-    labelKey: 'shortcuts.edit.delete',
+    labelKey: 'context.delete',
     when: hasSelection,
     run: (store) => { for (const id of store.selectedTaskIds) store.deleteTask(id); },
   },
@@ -223,7 +224,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'structure.indent',
     combo: { key: 'ArrowRight', alt: true, shift: true },
     category: 'structure',
-    labelKey: 'shortcuts.structure.indent',
+    labelKey: 'context.indent',
     when: hasSelection,
     run: (store) => { if (isTreeMode(store.view)) store.indentTasks(store.selectedTaskIds); },
   },
@@ -231,18 +232,20 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'structure.outdent',
     combo: { key: 'ArrowLeft', alt: true, shift: true },
     category: 'structure',
-    labelKey: 'shortcuts.structure.outdent',
+    labelKey: 'context.outdent',
     when: hasSelection,
     run: (store) => { if (isTreeMode(store.view)) store.outdentTasks(store.selectedTaskIds); },
   },
   // Aliassen (user-besluit tijdens golf 2): Alt+→/← naast de MS Project-conventie Alt+Shift+→/←
   // hierboven (die blijft bestaan). Zelfde `run`/`when` — puur een extra combo voor dezelfde actie.
   // Exact-modifier-match in `matchesCombo` houdt deze en de Alt+Shift-variant strikt gescheiden.
+  // Zelfde `labelKey` als hierboven is BEWUST: de overzichtsdialoog (golf 3) groepeert entries met
+  // een gedeelde labelKey tot één rij met beide toetscombinaties (zie ShortcutsDialog).
   {
     id: 'structure.indentAlt',
     combo: { key: 'ArrowRight', alt: true },
     category: 'structure',
-    labelKey: 'shortcuts.structure.indent',
+    labelKey: 'context.indent',
     when: hasSelection,
     run: (store) => { if (isTreeMode(store.view)) store.indentTasks(store.selectedTaskIds); },
   },
@@ -250,7 +253,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'structure.outdentAlt',
     combo: { key: 'ArrowLeft', alt: true },
     category: 'structure',
-    labelKey: 'shortcuts.structure.outdent',
+    labelKey: 'context.outdent',
     when: hasSelection,
     run: (store) => { if (isTreeMode(store.view)) store.outdentTasks(store.selectedTaskIds); },
   },
@@ -258,7 +261,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'structure.insertAbove',
     combo: { key: 'Insert' },
     category: 'structure',
-    labelKey: 'shortcuts.structure.insertAbove',
+    labelKey: 'context.insertAbove',
     when: () => !hasBlockingDialogOpen(),
     run: (store) => {
       const startDate = store.project.startDate || formatDate(new Date());
@@ -276,7 +279,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'structure.addMilestone',
     combo: { key: 'm', mod: true },
     category: 'structure',
-    labelKey: 'shortcuts.structure.addMilestone',
+    labelKey: 'context.addMilestone',
     when: () => !hasBlockingDialogOpen(),
     run: (store) => {
       const startDate = store.project.startDate || formatDate(new Date());
@@ -314,7 +317,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'edit.editTask',
     combo: { key: 'F2' },
     category: 'edit',
-    labelKey: 'shortcuts.edit.editTask',
+    labelKey: 'context.edit',
     when: () => hasSelection() && !hasBlockingDialogOpen(),
     run: (store) => {
       const id = store.selectedTaskIds[0];
@@ -335,14 +338,14 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'view.zoomIn',
     combo: { key: '=', mod: true },
     category: 'view',
-    labelKey: 'shortcuts.view.zoomIn',
+    labelKey: 'menu:menuBar.zoomIn',
     run: (store) => store.setZoom(store.view.zoom + 10),
   },
   {
     id: 'view.zoomOut',
     combo: { key: '-', mod: true },
     category: 'view',
-    labelKey: 'shortcuts.view.zoomOut',
+    labelKey: 'menu:menuBar.zoomOut',
     run: (store) => store.setZoom(store.view.zoom - 10),
   },
   {
@@ -374,12 +377,16 @@ export const SHORTCUTS: ShortcutDef[] = [
   },
 
   // --- displayOnly: leven functioneel in useZoomShortcuts.ts, hier alleen voor de
-  //     overzichtsdialoog (golf 3) zodat die compleet is zonder een dubbele handler. ---
+  //     overzichtsdialoog (golf 3) zodat die compleet is zonder een dubbele handler.
+  //     zoomInBare/zoomOutBare delen bewust dezelfde labelKey als view.zoomIn/zoomOut hierboven —
+  //     zelfde conceptuele actie, andere combo → de dialoog groepeert ze tot één rij
+  //     ("Inzoomen" met zowel Ctrl+= als +/=). zoomResetBare/zoomFitBare zijn wél losstaande
+  //     acties (reset resp. fit-to-project) en krijgen elk hun eigen (hergebruikte) label. ---
   {
     id: 'view.zoomInBare',
     combo: { key: '=' }, // toont "+/=" — useZoomShortcuts matcht zelf zowel '+' als '='
     category: 'view',
-    labelKey: 'shortcuts.view.zoomInBare',
+    labelKey: 'menu:menuBar.zoomIn',
     displayOnly: true,
     run: () => { /* displayOnly: useZoomShortcuts.ts handelt dit af */ },
   },
@@ -387,7 +394,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'view.zoomOutBare',
     combo: { key: '-' },
     category: 'view',
-    labelKey: 'shortcuts.view.zoomOutBare',
+    labelKey: 'menu:menuBar.zoomOut',
     displayOnly: true,
     run: () => { /* displayOnly: useZoomShortcuts.ts handelt dit af */ },
   },
@@ -395,7 +402,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'view.zoomResetBare',
     combo: { key: '0' },
     category: 'view',
-    labelKey: 'shortcuts.view.zoomResetBare',
+    labelKey: 'context.zoomReset',
     displayOnly: true,
     run: () => { /* displayOnly: useZoomShortcuts.ts handelt dit af */ },
   },
@@ -403,7 +410,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     id: 'view.zoomFitBare',
     combo: { key: '0', mod: true },
     category: 'view',
-    labelKey: 'shortcuts.view.zoomFitBare',
+    labelKey: 'context.fitToProject',
     displayOnly: true,
     run: () => { /* displayOnly: useZoomShortcuts.ts handelt dit af */ },
   },
