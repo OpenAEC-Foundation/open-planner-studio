@@ -1,20 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { parseDate, diffCalendarDays } from '@/utils/dateUtils';
+import { computeFitToProject } from '@/utils/ganttViewport';
 
 interface UseZoomShortcutsOpts {
   zoomAt: (newZoom: number, anchorX: number) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
   taskTableWidth: number;
-  /** Days of left-padding the canvas adds before the earliest task (the renderer
-   *  origin at scrollX=0 is minStart − originPaddingDays). Fit-to-project must
-   *  scroll by originPaddingDays·zoom so minStart lands on the chart's left edge. */
-  originPaddingDays: number;
 }
 
 const DEFAULT_ZOOM = 30;
 
-export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth, originPaddingDays }: UseZoomShortcutsOpts) {
+export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZoomShortcutsOpts) {
   const setZoom = useAppStore(s => s.setZoom);
   const setScroll = useAppStore(s => s.setScroll);
   const setViewStartDate = useAppStore(s => s.setViewStartDate);
@@ -51,39 +47,21 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth, originP
         setScroll(0, 0);
       } else if (e.key === '0' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        // Fit to project
+        // Fit to project — gedeelde helper (zelfde berekening als de open-fit, GanttCanvas).
         if (t.length === 0) {
           setZoom(DEFAULT_ZOOM);
           setScroll(0, 0);
           return;
         }
-        // Mirror the canvas's effectiveViewStart / content-width field selection
-        // so the computed span matches exactly what GanttCanvas draws.
-        let minStart: string | null = null;
-        let maxFinish: string | null = null;
-        for (const task of t) {
-          const s = task.time.earlyStart || task.time.scheduleStart || task.time.lateStart;
-          const f = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish || s;
-          if (s && (!minStart || s < minStart)) minStart = s;
-          if (f && (!maxFinish || f > maxFinish)) maxFinish = f;
-        }
-        if (!minStart || !maxFinish) return;
-        const span = Math.max(1, diffCalendarDays(parseDate(minStart), parseDate(maxFinish)) + 1);
-        const usable = rect.width - taskTableWidth;
-        if (usable <= 0) return;
-        const max = enableQH ? 1000 : 400;
-        const newZoom = Math.max(0.5, Math.min(max, usable / span));
-        setZoom(newZoom);
-        setViewStartDate(minStart);
-        // The renderer origin at scrollX=0 is (viewStart − originPaddingDays), so
-        // scroll by originPaddingDays·newZoom to put minStart on the chart's left
-        // edge. Then dateToX(minStart)=taskTableWidth and dateToX(maxFinish)+zoom
-        // = taskTableWidth + span·newZoom = rect.width → all tasks fit edge-to-edge.
-        setScroll(originPaddingDays * newZoom, 0);
+        const fit = computeFitToProject(t, rect.width - taskTableWidth, enableQH);
+        if (!fit) return;
+        setZoom(fit.zoom);
+        setViewStartDate(fit.viewStartDate);
+        setScroll(fit.scrollX, 0);
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [zoomAt, containerRef, taskTableWidth, originPaddingDays, setZoom, setScroll, setViewStartDate]);
+  }, [zoomAt, containerRef, taskTableWidth, setZoom, setScroll, setViewStartDate]);
 }

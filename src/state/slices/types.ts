@@ -171,6 +171,10 @@ export interface ViewState {
   collapsedGroupKeys: string[];
   /** Split view binnen dit document; undefined = uit. */
   splitView?: SplitViewState;
+  /** Open-fit-signaal (issue #16): na het laden van een document zet fileSlice dit op `true`; de
+   *  GanttCanvas voert dan de fit-to-project uit (het kent de viewport-breedte, de store niet) en
+   *  wist het meteen weer. Transient — bewust GEEN undo/redo (view zit niet in de snapshot). */
+  pendingFit?: boolean;
 }
 
 export interface UIState {

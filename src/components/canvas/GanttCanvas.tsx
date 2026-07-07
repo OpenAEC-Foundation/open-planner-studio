@@ -5,7 +5,7 @@ import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRender
 import { HistogramRenderer, HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
-import { setGanttChartWidth, setGanttScrollBounds, ORIGIN_PADDING_DAYS } from '@/utils/ganttViewport';
+import { setGanttChartWidth, setGanttScrollBounds, ORIGIN_PADDING_DAYS, computeFitToProject } from '@/utils/ganttViewport';
 import { MiniMap } from './MiniMap';
 import { diffDays, formatDate, parseDate, parseInstant, formatInstant, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { effectiveCalendarByTask } from '@/services/subdayIo';
@@ -90,6 +90,7 @@ export function GanttCanvas() {
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const view = useAppStore(s => s.view);
+  const pendingFit = useAppStore(s => s.view.pendingFit);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const selectTask = useAppStore(s => s.selectTask);
@@ -132,7 +133,7 @@ export function GanttCanvas() {
   const setHistogramResource = useAppStore(s => s.setHistogramResource);
 
   const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth });
-  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth, originPaddingDays: ORIGIN_PADDING_DAYS });
+  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   // Split view (fase 2.7, §10): secundair tijdvenster + sleepbare ratio-balk.
@@ -654,6 +655,26 @@ export function GanttCanvas() {
     return () => observer.disconnect();
   }, [render]);
 
+  // Open-fit (issue #16, WENS 1): fileSlice zet `view.pendingFit` na een load; hier — waar de
+  // viewport-breedte bekend is — voeren we de gedeelde computeFitToProject uit zodat het HELE
+  // project in beeld komt (zoals Ctrl+0), en wissen het signaal meteen. Leeg project: geen fit
+  // (het "vandaag"-gedrag blijft). Alleen op de load-trigger; undo/redo raakt `view` niet.
+  useEffect(() => {
+    if (!pendingFit) return;
+    const container = containerRef.current;
+    const clearPendingFit = useAppStore.getState().clearPendingFit;
+    if (!container) return;
+    if (tasks.length === 0) { clearPendingFit(); return; }
+    const rect = container.getBoundingClientRect();
+    const fit = computeFitToProject(tasks, rect.width - taskTableWidth, enableQuarterHourZoom);
+    clearPendingFit();
+    if (!fit) return;
+    const st = useAppStore.getState();
+    st.setZoom(fit.zoom);
+    st.setViewStartDate(fit.viewStartDate);
+    st.setScroll(fit.scrollX, 0);
+  }, [pendingFit, tasks, taskTableWidth, enableQuarterHourZoom]);
+
   // Sync horizontal scrollbar with canvas scrollX (also re-sync after zoom changes)
   useEffect(() => {
     const hScroll = hScrollRef.current;
@@ -666,6 +687,53 @@ export function GanttCanvas() {
 
   const defaultTaskName = tTask('defaultTask');
   const defaultMilestoneName = tTask('defaultMilestone');
+
+  // WENS 2 (reveal-on-select): klikt de gebruiker een taak in de linker takenlijst en valt zijn
+  // balk qua TIJD volledig buiten het zichtbare venster, scroll dan horizontaal zodat hij in beeld
+  // komt (kleine marge). Al (deels) zichtbaar → niets doen (geen sprong). Alléén horizontaal
+  // scrollen; zoom onaangeroerd. Gebruikt exact dezelfde effectiveViewStart/dateToX-conventie als de
+  // renderer (effectiveViewStart = vroegste start − ORIGIN_PADDING_DAYS; content-x = tableW +
+  // dagen·zoom) zodat de positie 1-op-1 klopt. Alles vers uit de store → geen closure-deps.
+  const revealTaskIfOffscreen = useCallback((task: Task) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const startStr = task.time.earlyStart || task.time.scheduleStart;
+    const endStr = task.time.earlyFinish || task.time.scheduleFinish;
+    if (!startStr || !endStr) return; // geen datums (bv. ongeplande taak): niets te onthullen.
+
+    const st = useAppStore.getState();
+    const v = st.view;
+    const tableW = st.ui.leftPanelWidth;
+    const rect = canvas.getBoundingClientRect();
+    const usable = rect.width - tableW;
+    if (usable <= 0) return;
+
+    // effectiveViewStart: zelfde veldvolgorde + ORIGIN_PADDING_DAYS als de render-memo.
+    let earliest = parseDate(v.viewStartDate);
+    for (const tk of st.tasks) {
+      const s = tk.time.earlyStart || tk.time.scheduleStart || tk.time.lateStart;
+      if (s) { const d = parseDate(s); if (d.getTime() < earliest.getTime()) earliest = d; }
+    }
+    const evs = addCalendarDays(earliest, -ORIGIN_PADDING_DAYS);
+
+    // Balk-uiteinden in content-x (dateToX zonder de −scrollX-term), zelfde uur/dag-splitsing als
+    // GanttRenderer.barGeometry: uur-taak [start, finish), dag-taak [start, finish+1 dag].
+    const hourMode = startStr.includes('T') || endStr.includes('T');
+    const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
+    const end = hourMode ? parseInstant(endStr) : parseDate(endStr);
+    const msPerDay = 86400000;
+    const cx1 = tableW + ((start.getTime() - evs.getTime()) / msPerDay) * v.zoom;
+    const cx2 = tableW + ((end.getTime() - evs.getTime()) / msPerDay) * v.zoom + (hourMode ? 0 : v.zoom);
+
+    // Zichtbaar content-venster: canvas-x = content-x − scrollX ∈ [tableW, rect.width].
+    const visibleLeft = tableW + v.scrollX;
+    const visibleRight = visibleLeft + usable;
+    if (cx2 > visibleLeft && cx1 < visibleRight) return; // al (deels) in beeld → geen sprong.
+
+    // Lijn de START links uit met een kleine marge (dekt ook een balk breder dan het venster).
+    const REVEAL_MARGIN_PX = 40;
+    st.setScroll(Math.max(0, cx1 - tableW - REVEAL_MARGIN_PX), v.scrollY);
+  }, []);
 
   // Click handler with collapse/expand, '+' button support, and multi-selection
   const handleClick = useCallback((e: React.MouseEvent) => {
@@ -722,11 +790,14 @@ export function GanttCanvas() {
       } else {
         // Plain click: single select (deselect others)
         selectTask(task.id, false, false);
+        // WENS 2: onthul de balk als hij qua tijd buiten beeld ligt (alleen bij een enkelvoudige
+        // klik-selectie; niet bij ctrl/shift-multiselect). Geen sprong als hij al zichtbaar is.
+        revealTaskIfOffscreen(task);
       }
     } else {
       deselectAll();
     }
-  }, [selectTask, deselectAll, toggleCollapse, addTask, project.startDate, defaultTaskName, setCollapsedGroupKey]);
+  }, [selectTask, deselectAll, toggleCollapse, addTask, project.startDate, defaultTaskName, setCollapsedGroupKey, revealTaskIfOffscreen]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     const canvas = canvasRef.current;
