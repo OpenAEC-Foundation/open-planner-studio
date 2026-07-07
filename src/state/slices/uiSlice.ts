@@ -74,6 +74,11 @@ export function createDefaultUI(): UIState {
     barSplitMode: 'selection',
     hourDataNotice: false,
     showShortcutsDialog: false,
+    // Fase 2.10 onderdeel 3: first-startup — ephemeral, bootstrap-hook in App.tsx zet
+    // showWelcomeDialog o.b.v. de persistente `welcomeSeen`-vlag (settingsStore.ts).
+    showWelcomeDialog: false,
+    showTourOverlay: false,
+    tourStepIndex: 0,
   };
 }
 

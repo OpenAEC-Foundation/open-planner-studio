@@ -509,5 +509,37 @@
       "switchDocument": "Cambiar de documento",
       "scrollToToday": "Ir a hoy"
     }
+  },
+  "welcome": {
+    "title": "Bienvenido a Open Planner Studio",
+    "introBody": "Antes de empezar: algunas preferencias rápidas y un recorrido opcional por las áreas principales.",
+    "settingsSectionTitle": "Preferencias rápidas",
+    "next": "Siguiente",
+    "skip": "Omitir",
+    "tourStepTitle": "¿Iniciar el recorrido?",
+    "tourStepBody": "Un breve recorrido (7 pasos) muestra las áreas principales: tareas, planificación, informes y más. Puedes detenerte en cualquier momento.",
+    "startTour": "Iniciar recorrido"
+  },
+  "tour": {
+    "step1Title": "Pestañas de la cinta",
+    "step1Body": "Arriba encontrarás las pestañas de la cinta. Cada pestaña agrupa funciones en torno a un tema, como Inicio, Planificación y Recursos.",
+    "step2Title": "Tabla de tareas y diagrama de Gantt",
+    "step2Body": "La tabla de tareas a la izquierda, el diagrama de Gantt a la derecha. Aquí planificas y editas tareas y ves la línea de tiempo.",
+    "step3Title": "Panel de propiedades",
+    "step3Body": "Selecciona una tarea para ver y editar sus detalles en este panel.",
+    "step4Title": "Histograma",
+    "step4Body": "La franja del histograma muestra la carga de recursos debajo del Gantt — útil para detectar sobreasignaciones.",
+    "step5Title": "Informes",
+    "step5Body": "En la pestaña Informe creas resúmenes imprimibles de tu planificación.",
+    "step6Title": "Proyectos de ejemplo",
+    "step6Body": "En Archivo → Ejemplos encontrarás planificaciones listas para empezar o aprender.",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "skip": "Omitir",
+    "finish": "Cerrar",
+    "restartButton": "Recorrido",
+    "backstageRestart": "Iniciar recorrido",
+    "step7Title": "Tu opinión importa",
+    "step7Body": "¿Falta algo, algo resulta incómodo o has visto un pequeño fallo, por mínimo que sea? Cuéntanoslo con este botón. Cualquier comentario es bienvenido, de verdad, cada detalle ayuda a mejorar la aplicación."
   }
 }

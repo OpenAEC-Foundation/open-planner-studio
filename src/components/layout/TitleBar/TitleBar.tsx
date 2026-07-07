@@ -119,8 +119,12 @@ export function TitleBar() {
 
           <div className="quick-access-separator" />
 
+          {/* data-tour-anchor (fase 2.10, onderdeel 3, tourstap 7): altijd zichtbaar bovenin,
+              geen prepare() nodig — de "elk wissewasje mag"-afsluitstap van de rondleiding wijst
+              hier direct naar toe i.p.v. naar een externe GitHub-link. */}
           <button
             className="title-bar-feedback-btn"
+            data-tour-anchor="feedback-button"
             onClick={() => setUI({ showFeedbackDialog: true })}
           >
             {tCommon(FEEDBACK_LABEL_KEYS[feedbackLabelIdx])}

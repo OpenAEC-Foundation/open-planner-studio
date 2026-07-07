@@ -12,7 +12,7 @@ import {
   Users, UserPlus, BarChart3, Scale, Eraser, AlertTriangle, ChevronLeft, ChevronRight,
   Flag, GitCompareArrows, CalendarClock, LayoutGrid, TrendingUp, CalendarDays, X,
   Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Map as MapIcon,
-  Keyboard, Pin, PinOff,
+  Keyboard, Pin, PinOff, Compass,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
@@ -1220,8 +1220,10 @@ export function Ribbon() {
 
   return (
     <div className={`ribbon-container${ribbonCompact ? ' compact' : ''}`}>
-      {/* Tabs — 'file' is de speciale amber backstage-tab links */}
-      <div className="ribbon-tabs">
+      {/* Tabs — 'file' is de speciale amber backstage-tab links.
+          data-tour-anchor (fase 2.10, onderdeel 3, tourstap 1): altijd zichtbaar, ook tijdens
+          Backstage, dus geen prepare() nodig voor deze stap. */}
+      <div className="ribbon-tabs" data-tour-anchor="ribbon-tabs">
         <button
           key="file"
           className={`ribbon-tab ribbon-tab--file ${activeTab === 'file' ? 'active' : ''}`}
@@ -1472,6 +1474,19 @@ export function Ribbon() {
                 sneltoetsen-overzichtsdialoog — discoverability voor de vaste (niet-herbindbare) set. */}
             <RibbonGroup label={tCommon('shortcuts.title')}>
               <RibbonSmallButton icon={<Keyboard size={14} />} label={tCommon('shortcuts.title')} onClick={() => setUI({ showShortcutsDialog: true })} />
+            </RibbonGroup>
+
+            <div className="ribbon-separator" />
+
+            {/* [Rondleiding] (fase 2.10, onderdeel 3, herstart-ingang §5/§6 — architect-besluit 3:
+                BEIDE ingangen, ribbon + Backstage). Start de TourOverlay direct, zonder de
+                WelcomeDialog ertussen, ongeacht de `welcomeSeen`-vlag. */}
+            <RibbonGroup label={tCommon('tour.restartButton')}>
+              <RibbonSmallButton
+                icon={<Compass size={14} />}
+                label={tCommon('tour.restartButton')}
+                onClick={() => setUI({ showTourOverlay: true, tourStepIndex: 0 })}
+              />
             </RibbonGroup>
 
             <div className="ribbon-separator" />

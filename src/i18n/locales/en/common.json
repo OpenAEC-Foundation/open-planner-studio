@@ -509,5 +509,37 @@
       "switchDocument": "Switch document",
       "scrollToToday": "Jump to today"
     }
+  },
+  "welcome": {
+    "title": "Welcome to Open Planner Studio",
+    "introBody": "Before you start: a few quick preferences, and an optional tour of the main areas.",
+    "settingsSectionTitle": "Quick preferences",
+    "next": "Next",
+    "skip": "Skip",
+    "tourStepTitle": "Start the tour?",
+    "tourStepBody": "A short tour (7 steps) shows the main areas: tasks, planning, reports and more. You can stop at any time.",
+    "startTour": "Start tour"
+  },
+  "tour": {
+    "step1Title": "Ribbon tabs",
+    "step1Body": "At the top you'll find the ribbon tabs. Each tab groups features around a theme, such as Start, Planning and Resources.",
+    "step2Title": "Task table and Gantt chart",
+    "step2Body": "The task table is on the left, the Gantt chart on the right. This is where you plan and edit tasks and see the timeline.",
+    "step3Title": "Properties panel",
+    "step3Body": "Select a task to view and edit its details in this panel.",
+    "step4Title": "Histogram",
+    "step4Body": "The histogram strip shows resource load below the Gantt chart — useful for spotting overallocation.",
+    "step5Title": "Reports",
+    "step5Body": "The Report tab lets you create printable overviews of your schedule.",
+    "step6Title": "Example projects",
+    "step6Body": "Under File → Examples you'll find ready-made schedules to start from or learn from.",
+    "previous": "Previous",
+    "next": "Next",
+    "skip": "Skip",
+    "finish": "Close",
+    "restartButton": "Tour",
+    "backstageRestart": "Start tour",
+    "step7Title": "Your feedback matters",
+    "step7Body": "Missing something, found something clunky, or spotted a tiny bug — no matter how small? Let us know using this button. All feedback is welcome, truly every little thing helps make the app better."
   }
 }

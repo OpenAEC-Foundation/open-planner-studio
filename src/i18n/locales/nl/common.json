@@ -509,5 +509,37 @@
       "switchDocument": "Wissel van document",
       "scrollToToday": "Spring naar vandaag"
     }
+  },
+  "welcome": {
+    "title": "Welkom bij Open Planner Studio",
+    "introBody": "Voor je begint: een paar snelle voorkeuren, en een optionele rondleiding langs de belangrijkste onderdelen.",
+    "settingsSectionTitle": "Snelle voorkeuren",
+    "next": "Volgende",
+    "skip": "Overslaan",
+    "tourStepTitle": "Rondleiding starten?",
+    "tourStepBody": "Een korte rondleiding (7 stappen) laat de belangrijkste onderdelen zien: taken, planning, rapporten en meer. Je kunt op elk moment stoppen.",
+    "startTour": "Rondleiding starten"
+  },
+  "tour": {
+    "step1Title": "Lint-tabbladen",
+    "step1Body": "Boven vind je de lint-tabbladen. Elk tabblad groepeert functies rond een thema, zoals Start, Planning en Resources.",
+    "step2Title": "Taaktabel en Gantt-diagram",
+    "step2Body": "Links de taaktabel, rechts het Gantt-diagram. Hier plan en bewerk je taken en zie je de tijdlijn.",
+    "step3Title": "Eigenschappenpaneel",
+    "step3Body": "Selecteer een taak om details te bekijken en te bewerken in dit paneel.",
+    "step4Title": "Histogram",
+    "step4Body": "De histogramstrook toont de resourcebelasting onder de Gantt — handig om overallocatie te zien.",
+    "step5Title": "Rapporten",
+    "step5Body": "Op het tabblad Rapport maak je afdrukbare overzichten van je planning.",
+    "step6Title": "Voorbeeldprojecten",
+    "step6Body": "Bij Bestand → Voorbeelden vind je kant-en-klare planningen om mee te starten of van te leren.",
+    "previous": "Vorige",
+    "next": "Volgende",
+    "skip": "Overslaan",
+    "finish": "Sluiten",
+    "restartButton": "Rondleiding",
+    "backstageRestart": "Rondleiding starten",
+    "step7Title": "Jouw feedback telt",
+    "step7Body": "Mis je iets, werkt iets onhandig, of zie je een foutje — hoe klein ook? Laat het ons weten via deze knop. Alle feedback is welkom, echt élk wissewasje helpt om het programma beter te maken."
   }
 }

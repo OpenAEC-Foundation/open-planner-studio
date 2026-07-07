@@ -347,3 +347,16 @@ export async function loadLastLayoutId(): Promise<string | null> {
 export async function saveLastLayoutId(id: string | null): Promise<void> {
   await setSetting('lastLayoutId', id);
 }
+
+// First-startup-ervaring (fase 2.10, onderdeel 3, §1/§3): of de welkomstdialoog al gezien is.
+// Géén appversie in de sleutel (bindend architect-besluit) — eenmaal gezet, blijft de app 'm
+// nooit meer tonen, ook niet na een update. Zelfde ops-* localStorage-pad als alle andere
+// instellingen (geen Tauri plugin-store), patroon identiek aan loadShowHistogram/saveShowHistogram.
+export async function loadWelcomeSeen(): Promise<boolean | undefined> {
+  const v = await getSetting<boolean>('welcomeSeen');
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export async function saveWelcomeSeen(value: boolean): Promise<void> {
+  await setSetting('welcomeSeen', value);
+}

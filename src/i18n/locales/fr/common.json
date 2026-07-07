@@ -509,5 +509,37 @@
       "switchDocument": "Changer de document",
       "scrollToToday": "Aller à aujourd'hui"
     }
+  },
+  "welcome": {
+    "title": "Bienvenue dans Open Planner Studio",
+    "introBody": "Avant de commencer : quelques préférences rapides, et une visite guidée facultative des principales zones.",
+    "settingsSectionTitle": "Préférences rapides",
+    "next": "Suivant",
+    "skip": "Passer",
+    "tourStepTitle": "Démarrer la visite guidée ?",
+    "tourStepBody": "Une courte visite guidée (7 étapes) présente les principales zones : tâches, planification, rapports et plus. Vous pouvez arrêter à tout moment.",
+    "startTour": "Démarrer la visite"
+  },
+  "tour": {
+    "step1Title": "Onglets du ruban",
+    "step1Body": "En haut se trouvent les onglets du ruban. Chaque onglet regroupe des fonctions autour d'un thème, comme Accueil, Planification et Ressources.",
+    "step2Title": "Tableau des tâches et diagramme de Gantt",
+    "step2Body": "Le tableau des tâches à gauche, le diagramme de Gantt à droite. C'est ici que vous planifiez et modifiez les tâches et visualisez la chronologie.",
+    "step3Title": "Panneau des propriétés",
+    "step3Body": "Sélectionnez une tâche pour afficher et modifier ses détails dans ce panneau.",
+    "step4Title": "Histogramme",
+    "step4Body": "La bande d'histogramme affiche la charge des ressources sous le Gantt — utile pour repérer les surallocations.",
+    "step5Title": "Rapports",
+    "step5Body": "L'onglet Rapport permet de créer des synthèses imprimables de votre planning.",
+    "step6Title": "Projets d'exemple",
+    "step6Body": "Sous Fichier → Exemples, vous trouverez des plannings prêts à l'emploi pour démarrer ou apprendre.",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "skip": "Passer",
+    "finish": "Fermer",
+    "restartButton": "Visite guidée",
+    "backstageRestart": "Démarrer la visite guidée",
+    "step7Title": "Votre avis compte",
+    "step7Body": "Il vous manque quelque chose, un détail est peu pratique, ou vous avez repéré un petit bug — aussi minime soit-il ? Dites-le-nous via ce bouton. Tout retour est le bienvenu, vraiment le moindre détail nous aide à améliorer l'application."
   }
 }

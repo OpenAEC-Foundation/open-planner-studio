@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode, loadWelcomeSeen } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -54,6 +54,8 @@ import { LayoutsDialog } from '@/components/dialogs/LayoutsDialog';
 import { ShortcutsDialog } from '@/components/dialogs/ShortcutsDialog';
 import { PresentationHint } from '@/components/layout/PresentationHint';
 import { RecoveryDialog, type RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
+import { WelcomeDialog } from '@/components/dialogs/WelcomeDialog';
+import { TourOverlay } from '@/components/tour/TourOverlay';
 import { documentTitle } from '@/utils/documents';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
 import { Backstage } from '@/components/backstage/Backstage';
@@ -89,6 +91,8 @@ function AppContent() {
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
+  const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
+  const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
@@ -108,6 +112,14 @@ function AppContent() {
     onDiscard: () => void;
     onClose: () => void;
   } | null>(null);
+
+  // Fase 2.10 onderdeel 3 (§3): reactief signaal "recovery-flow volledig afgehandeld" — waar
+  // `autoSaveEnabled` (hieronder) een ref is (niet reactief, alleen voor de auto-save-timer),
+  // heeft de welkomstdialoog-bootstrap-check een render-triggerende state nodig om pas te
+  // vuren NADAT de recovery-detectie/-keuze echt klaar is (nooit gelijktijdig met RecoveryDialog).
+  // Gezet op exact dezelfde momenten als `autoSaveEnabled.current = true` hieronder (dezelfde
+  // `finish()`-closure + de niet-Tauri-kortsluiting).
+  const [recoveryResolved, setRecoveryResolved] = useState(false);
 
   // Auto-save-poort: blijft dicht tot de recovery-keuze is gemaakt, zodat de
   // debounced auto-save de recovery-snapshots niet overschrijft vóórdat de
@@ -316,10 +328,10 @@ function AppContent() {
 
     (async () => {
       // Buiten Tauri is er geen recovery/auto-save: poort meteen open.
-      if (!isTauri()) { autoSaveEnabled.current = true; return; }
+      if (!isTauri()) { autoSaveEnabled.current = true; setRecoveryResolved(true); return; }
       // Poort opent zodra de keuze is gemaakt (of er niets te herstellen valt);
       // pas dan mag de auto-save de snapshots overschrijven.
-      const finish = () => { autoSaveEnabled.current = true; };
+      const finish = () => { autoSaveEnabled.current = true; setRecoveryResolved(true); };
       try {
         const { readTextFile, exists, remove, stat } = await import('@tauri-apps/plugin-fs');
         const { appDataDir, join } = await import('@tauri-apps/api/path');
@@ -434,6 +446,26 @@ function AppContent() {
     })();
   }, []);
 
+  // First-startup-ervaring (fase 2.10, onderdeel 3, §3): toont de WelcomeDialog bij een verse
+  // `!loadWelcomeSeen()`. Eigen ref-guard (`welcomeChecked`) naar het recovery-/update-check-
+  // patroon hierboven, maar reageert op de REACTIEVE `recoveryResolved`-state (niet de
+  // `recoveryChecked`-ref, die synchroon al waar is vóórdat de async detectie/dialoogkeuze
+  // daadwerkelijk is afgerond) — zo vuurt dit effect pas nadat de recovery-flow ECHT klaar is
+  // (geen data gevonden, of de gebruiker heeft hersteld/verworpen/uitgesteld), nooit gelijktijdig
+  // met een zichtbare `RecoveryDialog`. Werkt zowel in Tauri als browser-build — de
+  // `welcomeSeen`-vlag leeft in localStorage, dat overal werkt.
+  const welcomeChecked = useRef(false);
+  useEffect(() => {
+    if (welcomeChecked.current) return;
+    if (!recoveryResolved) return; // wacht tot de recovery-flow (incl. eventuele keuze) echt klaar is
+    if (recovery !== null) return; // RecoveryDialog is zichtbaar — welkomstdialoog wacht
+    welcomeChecked.current = true;
+
+    loadWelcomeSeen().then(seen => {
+      if (!seen) setUI({ showWelcomeDialog: true });
+    });
+  }, [recoveryResolved, recovery, setUI]);
+
   // Stille opstart-update-check (Tauri-only) — spiegelt het auto-save-patroon:
   // dynamische import binnen de service, niet-blokkerend. Is er een update, dan
   // openen we de update-dialog zodat de gebruiker het ziet. Fouten worden in
@@ -512,7 +544,12 @@ function AppContent() {
       >
         {isFullPanel ? (
           // Full panel views (Table, IFC, Report) — eigen kaart
-          <div className="ui-card flex-1 flex overflow-hidden">
+          // data-tour-anchor (fase 2.10, onderdeel 3, tourstap 5): alleen gezet op het
+          // Rapport-tabblad — dat is het enige full-panel-anker dat de tour gebruikt.
+          <div
+            className="ui-card flex-1 flex overflow-hidden"
+            {...(activeTab === 'report' ? { 'data-tour-anchor': 'report-panel' } : {})}
+          >
             {showResourcePanel ? (
               <ResourcePanel />
             ) : (
@@ -525,8 +562,9 @@ function AppContent() {
             )}
           </div>
         ) : (
-          // Gantt Chart view — zwevende kaart (Gantt + tabel samen)
-          <div className="ui-card flex-1 flex overflow-hidden">
+          // Gantt Chart view — zwevende kaart (Gantt + tabel samen). data-tour-anchor
+          // (tourstap 2: taaktabel + Gantt).
+          <div className="ui-card flex-1 flex overflow-hidden" data-tour-anchor="gantt-panel">
             <GanttCanvas />
           </div>
         )}
@@ -552,6 +590,7 @@ function AppContent() {
             <div
               className="ui-card flex flex-col overflow-hidden"
               style={{ width: rightPanelWidth, minWidth: 200 }}
+              data-tour-anchor="properties-panel"
             >
               <div className="flex items-center justify-between h-8 px-3 border-b border-border flex-shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
@@ -619,6 +658,8 @@ function AppContent() {
       {showFilterDialog && <FilterDialog />}
       {showLayoutsDialog && <LayoutsDialog />}
       {showShortcutsDialog && <ShortcutsDialog />}
+      {showWelcomeDialog && <WelcomeDialog />}
+      {showTourOverlay && <TourOverlay />}
       <UpdateDialog />
       {recovery && (
         <RecoveryDialog

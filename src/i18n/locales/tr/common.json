@@ -509,5 +509,37 @@
       "switchDocument": "Belge değiştir",
       "scrollToToday": "Bugüne git"
     }
+  },
+  "welcome": {
+    "title": "Open Planner Studio'ya hoş geldiniz",
+    "introBody": "Başlamadan önce: birkaç hızlı tercih ve ana bölümlerde isteğe bağlı bir tur.",
+    "settingsSectionTitle": "Hızlı tercihler",
+    "next": "İleri",
+    "skip": "Atla",
+    "tourStepTitle": "Tur başlatılsın mı?",
+    "tourStepBody": "Kısa bir tur (7 adım) ana bölümleri gösterir: görevler, planlama, raporlar ve daha fazlası. İstediğiniz an durdurabilirsiniz.",
+    "startTour": "Turu başlat"
+  },
+  "tour": {
+    "step1Title": "Şerit sekmeleri",
+    "step1Body": "Üstte şerit sekmelerini bulursunuz. Her sekme, Başlangıç, Planlama ve Kaynaklar gibi bir temaya göre işlevleri gruplar.",
+    "step2Title": "Görev tablosu ve Gantt şeması",
+    "step2Body": "Solda görev tablosu, sağda Gantt şeması. Görevleri burada planlar ve düzenlersiniz, zaman çizelgesini görürsünüz.",
+    "step3Title": "Özellikler paneli",
+    "step3Body": "Ayrıntılarını görüntülemek ve düzenlemek için bu panelde bir görev seçin.",
+    "step4Title": "Histogram",
+    "step4Body": "Histogram şeridi, Gantt şemasının altında kaynak yükünü gösterir — aşırı ataması tespit etmek için kullanışlıdır.",
+    "step5Title": "Raporlar",
+    "step5Body": "Rapor sekmesinde planınızın yazdırılabilir özetlerini oluşturursunuz.",
+    "step6Title": "Örnek projeler",
+    "step6Body": "Dosya → Örnekler altında başlamak veya öğrenmek için hazır planlar bulabilirsiniz.",
+    "previous": "Geri",
+    "next": "İleri",
+    "skip": "Atla",
+    "finish": "Kapat",
+    "restartButton": "Tur",
+    "backstageRestart": "Turu başlat",
+    "step7Title": "Görüşün bizim için önemli",
+    "step7Body": "Eksik bir şey mi var, bir şey kullanışsız mı geliyor, ya da küçük bir hata mı gördün — ne kadar küçük olursa olsun? Bu düğmeyi kullanarak bize bildir. Her geri bildirim değerlidir, gerçekten her ayrıntı uygulamayı daha iyi hale getirmemize yardımcı olur."
   }
 }

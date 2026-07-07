@@ -509,5 +509,37 @@
       "switchDocument": "Mudar de documento",
       "scrollToToday": "Saltar para hoje"
     }
+  },
+  "welcome": {
+    "title": "Bem-vindo ao Open Planner Studio",
+    "introBody": "Antes de começar: algumas preferências rápidas e um tour opcional pelas principais áreas.",
+    "settingsSectionTitle": "Preferências rápidas",
+    "next": "Seguinte",
+    "skip": "Ignorar",
+    "tourStepTitle": "Iniciar o tour?",
+    "tourStepBody": "Um tour breve (7 passos) mostra as principais áreas: tarefas, planeamento, relatórios e mais. Pode parar a qualquer momento.",
+    "startTour": "Iniciar tour"
+  },
+  "tour": {
+    "step1Title": "Separadores do friso",
+    "step1Body": "No topo encontra os separadores do friso. Cada separador agrupa funcionalidades em torno de um tema, como Início, Planeamento e Recursos.",
+    "step2Title": "Tabela de tarefas e diagrama de Gantt",
+    "step2Body": "A tabela de tarefas à esquerda, o diagrama de Gantt à direita. Aqui planeia e edita tarefas e vê a linha do tempo.",
+    "step3Title": "Painel de propriedades",
+    "step3Body": "Selecione uma tarefa para ver e editar os detalhes neste painel.",
+    "step4Title": "Histograma",
+    "step4Body": "A faixa do histograma mostra a carga de recursos abaixo do Gantt — útil para detetar sobrealocações.",
+    "step5Title": "Relatórios",
+    "step5Body": "No separador Relatório cria resumos imprimíveis do seu planeamento.",
+    "step6Title": "Projetos de exemplo",
+    "step6Body": "Em Ficheiro → Exemplos encontra planeamentos prontos para começar ou aprender.",
+    "previous": "Anterior",
+    "next": "Seguinte",
+    "skip": "Ignorar",
+    "finish": "Fechar",
+    "restartButton": "Tour",
+    "backstageRestart": "Iniciar tour",
+    "step7Title": "A tua opinião conta",
+    "step7Body": "Falta alguma coisa, algo é pouco prático, ou reparaste num pequeno erro — por mais pequeno que seja? Diz-nos através deste botão. Qualquer feedback é bem-vindo, sinceramente cada detalhe ajuda a melhorar a aplicação."
   }
 }

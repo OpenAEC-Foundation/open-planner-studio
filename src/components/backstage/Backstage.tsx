@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
-  Printer, Info, Settings, X, FileType, Puzzle, Upload, BookOpen,
+  Printer, Info, Settings, X, FileType, Puzzle, Upload, BookOpen, Compass,
 } from 'lucide-react';
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { BackstageSection } from '@/state/slices/types';
@@ -14,6 +14,7 @@ import './Backstage.css';
 
 export function Backstage() {
   const { t: tMenu } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const section = useAppStore(s => s.ui.backstageSection);
 
@@ -44,7 +45,8 @@ export function Backstage() {
         <ActionItem icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => { handleNewProject(); closeBackstage(); }} />
         <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => { handleOpen(); closeBackstage(); }} />
         <NavItem icon={<Clock size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
-        <NavItem icon={<BookOpen size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} />
+        {/* data-tour-anchor (fase 2.10, onderdeel 3, tourstap 6): voorbeelden-navitem. */}
+        <NavItem icon={<BookOpen size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
         <ActionItem icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => { handleSave(); closeBackstage(); }} />
         <ActionItem icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => { handleSaveAs(); closeBackstage(); }} />
 
@@ -59,6 +61,17 @@ export function Backstage() {
         <NavItem icon={<Info size={14} />} label={tMenu('ribbon.projectInfo')} active={section === 'project-info'} onClick={() => goTo('project-info')} />
         <NavItem icon={<Settings size={14} />} label={tMenu('backstage.settings')} active={section === 'settings'} onClick={() => goTo('settings')} />
         <NavItem icon={<Puzzle size={14} />} label={tMenu('extensions.title')} active={section === 'extensions'} onClick={() => goTo('extensions')} />
+
+        <div className="backstage-nav-divider" />
+
+        {/* [Rondleiding] (fase 2.10, onderdeel 3, herstart-ingang §5/§6 — architect-besluit 3:
+            BEIDE ingangen, ribbon + Backstage). Actie-item (geen `section`): sluit Backstage en
+            start de TourOverlay direct, zonder de WelcomeDialog ertussen. */}
+        <ActionItem
+          icon={<Compass size={14} />}
+          label={tCommon('tour.backstageRestart')}
+          onClick={() => { closeBackstage(); setUI({ showTourOverlay: true, tourStepIndex: 0 }); }}
+        />
 
         <div className="backstage-nav-divider" />
 
@@ -83,11 +96,17 @@ export function Backstage() {
 // Sidebar items
 // ---------------------------------------------------------------------------
 
-function NavItem({ icon, label, active, onClick }: {
+function NavItem({ icon, label, active, onClick, tourAnchor }: {
   icon: React.ReactNode; label: string; active?: boolean; onClick: () => void;
+  /** Fase 2.10, onderdeel 3: optioneel `data-tour-anchor`-attribuut voor de TourOverlay. */
+  tourAnchor?: string;
 }) {
   return (
-    <button className={`backstage-nav-item ${active ? 'active' : ''}`} onClick={onClick}>
+    <button
+      className={`backstage-nav-item ${active ? 'active' : ''}`}
+      onClick={onClick}
+      {...(tourAnchor ? { 'data-tour-anchor': tourAnchor } : {})}
+    >
       <span className="backstage-nav-icon">{icon}</span>
       {label}
     </button>

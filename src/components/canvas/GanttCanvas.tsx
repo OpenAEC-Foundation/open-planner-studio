@@ -1596,6 +1596,7 @@ export function GanttCanvas() {
             ref={histogramContainerRef}
             className="relative overflow-hidden"
             style={{ height: histogramHeight, flexShrink: 0 }}
+            data-tour-anchor="histogram-strip"
           >
             <canvas
               ref={histogramCanvasRef}

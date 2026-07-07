@@ -509,5 +509,37 @@
       "switchDocument": "Przełącz dokument",
       "scrollToToday": "Przejdź do dziś"
     }
+  },
+  "welcome": {
+    "title": "Witamy w Open Planner Studio",
+    "introBody": "Zanim zaczniesz: kilka szybkich preferencji oraz opcjonalna wycieczka po najważniejszych obszarach.",
+    "settingsSectionTitle": "Szybkie preferencje",
+    "next": "Dalej",
+    "skip": "Pomiń",
+    "tourStepTitle": "Rozpocząć wycieczkę?",
+    "tourStepBody": "Krótka wycieczka (7 kroków) pokazuje najważniejsze obszary: zadania, planowanie, raporty i więcej. Możesz zatrzymać się w dowolnym momencie.",
+    "startTour": "Rozpocznij wycieczkę"
+  },
+  "tour": {
+    "step1Title": "Karty wstążki",
+    "step1Body": "Na górze znajdziesz karty wstążki. Każda karta grupuje funkcje wokół tematu, np. Start, Planowanie i Zasoby.",
+    "step2Title": "Tabela zadań i wykres Gantta",
+    "step2Body": "Po lewej tabela zadań, po prawej wykres Gantta. Tutaj planujesz i edytujesz zadania oraz widzisz oś czasu.",
+    "step3Title": "Panel właściwości",
+    "step3Body": "Wybierz zadanie, aby wyświetlić i edytować jego szczegóły w tym panelu.",
+    "step4Title": "Histogram",
+    "step4Body": "Pasek histogramu pokazuje obciążenie zasobów pod wykresem Gantta — przydatne do wykrywania nadmiernego przydziału.",
+    "step5Title": "Raporty",
+    "step5Body": "Na karcie Raport tworzysz gotowe do druku zestawienia harmonogramu.",
+    "step6Title": "Przykładowe projekty",
+    "step6Body": "W Plik → Przykłady znajdziesz gotowe harmonogramy do rozpoczęcia pracy lub nauki.",
+    "previous": "Wstecz",
+    "next": "Dalej",
+    "skip": "Pomiń",
+    "finish": "Zamknij",
+    "restartButton": "Wycieczka",
+    "backstageRestart": "Rozpocznij wycieczkę",
+    "step7Title": "Twoja opinia się liczy",
+    "step7Body": "Czegoś brakuje, coś jest niewygodne, albo zauważyłeś drobny błąd — nieważne jak mały? Daj nam znać za pomocą tego przycisku. Każda opinia jest mile widziana, naprawdę każdy drobiazg pomaga ulepszyć aplikację."
   }
 }
