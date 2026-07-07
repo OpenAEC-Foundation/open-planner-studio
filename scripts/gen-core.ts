@@ -17,6 +17,7 @@ import { addBusinessDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
 import { easterSunday } from '@/engine/calendar/holidays';
 import type { Holiday, WorkCalendar } from '@/types/calendar';
 import type { CustomFieldType } from '@/types/structure';
+import { generateId } from '@/utils/id';
 import topologies from './example-topologies.json';
 import { SHOWCASES } from './showcases';
 import type { ProjectSpec, CalSpec } from './spec';
@@ -67,9 +68,19 @@ function holidaysForSpan(anchor: Date): Holiday[] {
   return [...nlHolidays(y), bouwvak(y), ...nlHolidays(y + 1), bouwvak(y + 1)];
 }
 
+/** Zet een werkdag-offset + kalenderdagen-duur (CalSpec.extraHolidays) om naar een absolute
+ *  ISO-periode t.o.v. het anker — zelfde jaar-onafhankelijke conventie als `offset()` hieronder,
+ *  vervroegd gedefinieerd zodat `buildCalendar` er ook vóór de `offset`-declaratie gebruik van
+ *  kan maken (function-declaraties zijn hoisted). */
+function extraHolidayRange(anchor: Date, h: { name: string; fromDay: number; calendarDays: number }): Holiday {
+  const start = addBusinessDays(anchor, h.fromDay + 1);
+  return { name: h.name, startDate: iso(start), endDate: iso(addDays(start, h.calendarDays - 1)) };
+}
+
 function buildCalendar(anchor: Date, cal?: CalSpec): WorkCalendar {
   const workDays = cal?.workDays ?? [1, 2, 3, 4, 5];
-  const holidays = [...holidaysForSpan(anchor), ...(cal?.extraHolidays ?? [])];
+  const extraHolidays = (cal?.extraHolidays ?? []).map(h => extraHolidayRange(anchor, h));
+  const holidays = [...holidaysForSpan(anchor), ...extraHolidays];
   return {
     id: 'cal-default',
     name: cal?.name ?? 'Bouwkalender NL',
@@ -173,6 +184,11 @@ export function build(spec: ProjectSpec): BuildResult {
       ...(constraint ? { constraint } : {}),
       ...(t.deadlineDay !== undefined ? { deadline: offset(anchor, t.deadlineDay) } : {}),
       ...(t.description ? { description: t.description } : {}),
+      // Aantekeningen (fase 2.10, item 1): de builder genereert de id's, spec geeft alleen
+      // tekst + afvink-status (`scripts/spec.ts:TaskSpec.notes`).
+      ...(t.notes && t.notes.length
+        ? { notes: t.notes.map(n => ({ id: generateId('note'), text: n.text, done: n.done })) }
+        : {}),
     });
     taskIds[t.key] = id;
     for (const [typeName, code] of Object.entries(t.codes ?? {})) {
@@ -208,12 +224,47 @@ export function build(spec: ProjectSpec): BuildResult {
 
   S().runCPM();
 
+  // Baseline(s) (fase 2.10, item 19): opgeslagen ná de ORIGINELE CPM-run, dus vóór eventuele
+  // voortgang/statusdatum-mutaties hieronder — dat is "de baseline vóór start", en tegelijk
+  // exact het twee-fasen-patroon (opbouw → runCPM → snapshot → mutatie → runCPM) dat GOLF 2
+  // nodig heeft voor de rebaseline-stap (hier stopt de keten na één cyclus).
+  for (const b of spec.baselines ?? []) {
+    S().saveBaseline(b.name);
+  }
+
+  // Voortgang/statusdatum (fase 2.10, item 20): via de ECHTE store-acties (zelfde invarianten
+  // als de UI — auto-actualStart, completion-clamping, COMPLETED-status). De statusdatum moet
+  // vóór de tweede `runCPM()` gezet zijn: de solver gebruikt `project.statusDate` als data-date
+  // in de forward pass (`scheduleSlice.ts:runCPM` → `dataDate: s.project.statusDate`,
+  // `CPMSolver.ts:558-592`), dus alleen dan werkt voortgang door in de herberekende datums.
+  let needsRecompute = false;
+  if (spec.statusDay !== undefined) {
+    S().setStatusDate(offset(anchor, spec.statusDay));
+    needsRecompute = true;
+  }
+  for (const t of spec.tasks) {
+    if (t.completion === undefined && t.actualStartDay === undefined && t.actualFinishDay === undefined) continue;
+    needsRecompute = true;
+    const id = taskIds[t.key];
+    if (t.actualStartDay !== undefined) {
+      const ok = S().setActualStart(id, offset(anchor, t.actualStartDay));
+      if (!ok) throw new Error(`[${spec.slug}] taak "${t.name}": actualStartDay ligt ná statusDay (geweigerd door setActualStart)`);
+    }
+    if (t.completion !== undefined) S().setTaskProgress(id, t.completion);
+    if (t.actualFinishDay !== undefined) {
+      const ok = S().setActualFinish(id, offset(anchor, t.actualFinishDay));
+      if (!ok) throw new Error(`[${spec.slug}] taak "${t.name}": actualFinishDay ligt ná statusDay (geweigerd door setActualFinish)`);
+    }
+  }
+  if (needsRecompute) S().runCPM();
+
   const st = S();
   const leaves = st.tasks.filter(t => t.childIds.length === 0);
   const critical = leaves.filter(t => t.time.isCritical).length;
   const ifcContent = writeIFC(
     st.project, st.calendar, st.tasks, st.sequences, st.resources, st.assignments,
     st.activityCodeTypes, st.customFieldDefs, st.calendars,
+    st.baselines, st.activeBaselineId,
   );
   return {
     ifc: ifcContent,

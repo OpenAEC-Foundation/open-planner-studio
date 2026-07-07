@@ -28,6 +28,15 @@ function main() {
   const specs = allSpecs();
   const built = specs.map(spec => ({ spec, res: build(spec) }));
 
+  // Verouderde bronbestanden opruimen (fase 2.10, onderdeel 4: verving 3 showcases door 2 —
+  // zonder deze stap bleven de oude showcase-.ifc's als wees achter in examples/, want deze loop
+  // hieronder schrijft alleen bij, hij verwijdert nooit). Alleen top-level .ifc's; `extensions/`
+  // (bv. het .tasklist-referentiebestand) blijft ongemoeid.
+  const currentSlugs = new Set(specs.map(s => s.slug));
+  for (const f of readdirSync(EX_DIR)) {
+    if (f.endsWith('.ifc') && !currentSlugs.has(f.replace(/\.ifc$/, ''))) rmSync(join(EX_DIR, f));
+  }
+
   for (const { spec, res } of built) {
     writeFileSync(join(EX_DIR, `${spec.slug}.ifc`), res.ifc, 'utf8');
     const s = res.stats;

@@ -2,13 +2,16 @@
 // resources, kalender, activity codes en custom fields; de generator (generate-examples.ts)
 // vertaalt dit naar echte store-acties. Constraint-/deadline-/stap-datums zijn WERKDAG-OFFSETS
 // t.o.v. het projectanker (jaar-onafhankelijk), niet hardgecodeerde jaartallen.
-import type { Holiday } from '@/types/calendar';
 
 export interface CalSpec {
   workDays?: number[];        // 1=ma … 7=zo; default ma-vr
   name?: string;
   description?: string;
-  extraHolidays?: Holiday[];  // bovenop de per-jaar berekende NL-feestdagen + bouwvak
+  /** Ad-hoc extra vrije periode bovenop de per-jaar berekende NL-feestdagen + bouwvak (bv.
+   *  vorstverlet). WERKDAG-offset + duur in KALENDERdagen — zelfde jaar-onafhankelijke conventie
+   *  als de rest van het schema (vgl. `ResourceSpec.steps[].fromDay`); de generator zet dit om
+   *  naar een absolute ISO-periode t.o.v. het projectanker (`gen-core.ts:buildCalendar`). */
+  extraHolidays?: { name: string; fromDay: number; calendarDays: number }[];
 }
 
 export interface CodeTypeSpec {
@@ -55,6 +58,18 @@ export interface TaskSpec {
   fields?: Record<string, string | number | boolean>; // fieldName → waarde
   assign?: AssignSpec[];
   description?: string;
+  /** OPTIONEEL — vrije aantekeningen/checklist (fase 2.10, item 1: `Task.notes`). De builder
+   *  genereert de id's; hier alleen tekst + afvink-status. Afwezig ⇒ geen aantekeningen. */
+  notes?: { text: string; done: boolean }[];
+  /** OPTIONEEL — voortgang (fase 2.6, `TaskTime.completion`). 0..1. Wordt via de echte
+   *  `setTaskProgress`-actie gezet (dwingt dezelfde invarianten af als de UI). */
+  completion?: number;
+  /** OPTIONEEL — werkelijke start, WERKDAG-offset t.o.v. het anker (zelfde conventie als
+   *  `deadlineDay`/`constraint.offsetDay`). Via de echte `setActualStart`-actie. */
+  actualStartDay?: number;
+  /** OPTIONEEL — werkelijk einde, WERKDAG-offset t.o.v. het anker. Via de echte
+   *  `setActualFinish`-actie (zet completion=1 + status COMPLETED). */
+  actualFinishDay?: number;
 }
 
 export interface LinkSpec {
@@ -82,4 +97,17 @@ export interface ProjectSpec {
   resources?: ResourceSpec[];
   tasks: TaskSpec[];
   links?: LinkSpec[];
+  /** OPTIONEEL — baseline(s), opgeslagen ná de (eerste) `runCPM()` via de echte `saveBaseline`-
+   *  actie; `writeIFC` krijgt ze mee als 10e/11e argument (`baselines`/`activeBaselineId`, al
+   *  ondersteund door `ifcWriter.ts` maar tot nu toe nooit aangeroepen door de generator). Golf 1
+   *  ondersteunt een enkelvoudige baseline (één entry, opgeslagen vóór eventuele voortgang/
+   *  statusdatum-mutaties). GOLF 2 breidt dit array-patroon uit met een tussentijdse
+   *  scope-mutatie tussen twee entries (rebaseline: baseline "Contract" → meerwerk → tweede
+   *  `runCPM()` → baseline "Herbaseline") — de array-vorm is bewust gekozen zodat die stap later
+   *  natuurlijk aansluit zonder het schema opnieuw te hoeven vormgeven. */
+  baselines?: { name: string }[];
+  /** OPTIONEEL — statusdatum (P6 data date, `Project.statusDate`), WERKDAG-offset t.o.v. het
+   *  anker. Gezet via de echte `setStatusDate`-actie vóór de (tweede) `runCPM()`-run zodat
+   *  voortgang/actuals correct doorwerken in de forward pass (data-date-gedreven herplanning). */
+  statusDay?: number;
 }
