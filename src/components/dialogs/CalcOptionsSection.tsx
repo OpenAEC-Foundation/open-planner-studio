@@ -5,31 +5,38 @@ import type { SchedulingOptions } from '@/types/project';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 
+interface CalcOptionsSectionProps {
+  /** DRAFT-waarde (een lokale kopie in `ProjectInfoDialog`), NIET de store. */
+  value: SchedulingOptions;
+  /** Werkt de draft bij; de STORE wijzigt pas op Toepassen (commit-op-Toepassen, geen live-effect). */
+  onChange: (next: SchedulingOptions) => void;
+}
+
 /**
  * Fase 2.9 §5.7/§7 (besluit B5) — "Berekening"-sectie in de project-info-dialoog. PROJECT-scoped
  * reken-opties (`project.schedulingOptions`), NIET de 3 app-instellingen-ingangen: een
  * scheduling-optie verandert de BEREKENDE planning, dus hij hoort bij het bestand (reproduceerbaar
- * over machines) — motivatie §7. Elke control schrijft live naar de store en herberekent, zodat het
- * effect (near-critical amber, langste-pad-keten, …) meteen zichtbaar is. Leeg/afwezig = huidig
- * gedrag (byte-identiek).
+ * over machines) — motivatie §7. Leeg/afwezig = huidig gedrag (byte-identiek).
+ *
+ * DRAFT-model (consistent met Naam/Omschrijving/Auteur/Bedrijf in `ProjectInfoDialog`): de controls
+ * bewerken een lokale kopie (`value`/`onChange`); Toepassen committeert naar `project.schedulingOptions`
+ * + `runCPM`; Annuleren/sluiten gooit de draft weg. De store wijzigt dus NIET live tijdens het bewerken
+ * (bewust: consistent Annuleren-gedrag boven een live-preview).
  *
  * NB: `progressMode`/`statusDate` (ook project-scoped) hebben hun UI in de Ribbon, niet in deze
  * dialoog; dit blok is de natuurlijke project-scoped uitbreiding volgens B5.
  */
-export function CalcOptionsSection() {
+export function CalcOptionsSection({ value, onChange }: CalcOptionsSectionProps) {
   const { t } = useTranslation('menu');
-  const so = useAppStore(s => s.project.schedulingOptions) ?? {};
-  const setProject = useAppStore(s => s.setProject);
-  const runCPM = useAppStore(s => s.runCPM);
+  const so = value;
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const projectCal = useAppStore(s => s.calendar);
 
-  // Wijzig één sleutel en herbereken meteen (live effect). `undefined` = terug naar default ⇒
-  // JSON.stringify laat de sleutel weg ⇒ byte-identiek bij opslaan.
+  // Wijzig één sleutel in de draft. `undefined` = terug naar default ⇒ JSON.stringify laat de sleutel
+  // weg ⇒ byte-identiek bij opslaan. De herberekening gebeurt pas op Toepassen (in ProjectInfoDialog).
   const patch = (p: Partial<SchedulingOptions>) => {
-    setProject({ schedulingOptions: { ...so, ...p } });
-    runCPM();
+    onChange({ ...so, ...p });
   };
 
   // Near-critical-drempel-eenheid volgt de Duurweergave (besluit B3). De WAARDE staat altijd in
