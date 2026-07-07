@@ -54,7 +54,7 @@ export interface ShortcutDef {
   skipPreventDefault?: boolean;
 }
 
-/** Golf 1 (F2/Insert/Ctrl+A/Ctrl+Alt+↑/↓): "niet in een dialoog" — deze structuur-acties werken
+/** Golf 1 (F2/Insert/Ctrl+A/Alt+↑/↓): "niet in een dialoog" — deze structuur-acties werken
  *  alleen als de aandacht op de planning zelf ligt, niet terwijl een dialoog/overlay open staat.
  *  Puur redelijke, expliciete keuze (het ontwerp specificeert geen exacte lijst) — analoog aan de
  *  bestaande Escape-sluitlijst in `edit.deselect` hieronder, die ook met de hand is opgesomd. */
@@ -235,6 +235,25 @@ export const SHORTCUTS: ShortcutDef[] = [
     when: hasSelection,
     run: (store) => { if (isTreeMode(store.view)) store.outdentTasks(store.selectedTaskIds); },
   },
+  // Aliassen (user-besluit tijdens golf 2): Alt+→/← naast de MS Project-conventie Alt+Shift+→/←
+  // hierboven (die blijft bestaan). Zelfde `run`/`when` — puur een extra combo voor dezelfde actie.
+  // Exact-modifier-match in `matchesCombo` houdt deze en de Alt+Shift-variant strikt gescheiden.
+  {
+    id: 'structure.indentAlt',
+    combo: { key: 'ArrowRight', alt: true },
+    category: 'structure',
+    labelKey: 'shortcuts.structure.indent',
+    when: hasSelection,
+    run: (store) => { if (isTreeMode(store.view)) store.indentTasks(store.selectedTaskIds); },
+  },
+  {
+    id: 'structure.outdentAlt',
+    combo: { key: 'ArrowLeft', alt: true },
+    category: 'structure',
+    labelKey: 'shortcuts.structure.outdent',
+    when: hasSelection,
+    run: (store) => { if (isTreeMode(store.view)) store.outdentTasks(store.selectedTaskIds); },
+  },
   {
     id: 'structure.insertAbove',
     combo: { key: 'Insert' },
@@ -271,7 +290,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   },
   {
     id: 'structure.moveUp',
-    combo: { key: 'ArrowUp', mod: true, alt: true },
+    combo: { key: 'ArrowUp', alt: true },
     category: 'structure',
     labelKey: 'shortcuts.structure.moveUp',
     when: () => hasSelection() && !hasBlockingDialogOpen(),
@@ -282,7 +301,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   },
   {
     id: 'structure.moveDown',
-    combo: { key: 'ArrowDown', mod: true, alt: true },
+    combo: { key: 'ArrowDown', alt: true },
     category: 'structure',
     labelKey: 'shortcuts.structure.moveDown',
     when: () => hasSelection() && !hasBlockingDialogOpen(),

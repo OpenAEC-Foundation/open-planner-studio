@@ -13,6 +13,7 @@ import { durationSuffixesFrom } from '@/utils/taskDuration';
 import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/utils/displayDate';
 import { createDefaultTaskTime, Task } from '@/types/task';
+import { isTreeMode } from '@/engine/view/visibleRows';
 import { ContextMenu } from './ContextMenu';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
@@ -23,11 +24,18 @@ const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
 // Halve breedte van de grijpzone rond de tabel/chart-scheiding (splitter).
 const SPLITTER_GRAB_MARGIN = 4;
+// Zelfde default als de kale '0'-toets in useZoomShortcuts.ts (Zoom reset, leeg-canvas-contextmenu).
+const DEFAULT_ZOOM = 30;
 
 interface ContextMenuState {
   x: number;
   y: number;
   task: Task | null;
+  /** Fase 2.10 golf 2: rechtsklik landde op de balk zelf (i.p.v. alleen de rij) — bepaalt of de
+   *  balk-specifieke items (relatie leggen vanaf hier / constraint instellen) getoond worden. */
+  barHit: boolean;
+  /** Fase 2.10 golf 2: rechtsklik op een bandkop-rij (gegroepeerde weergave). */
+  group: { key: string; collapsed: boolean } | null;
 }
 
 interface DragState {
@@ -102,6 +110,20 @@ export function GanttCanvas() {
   const deleteTask = useAppStore(s => s.deleteTask);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
+  // Fase 2.10 golf 2 (contextmenu's): golf-1-helpers + bestaande taak-acties die het contextmenu
+  // nu ook ontsluit.
+  const indentTasks = useAppStore(s => s.indentTasks);
+  const outdentTasks = useAppStore(s => s.outdentTasks);
+  const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
+  const setTaskProgress = useAppStore(s => s.setTaskProgress);
+  const pasteTasks = useAppStore(s => s.pasteTasks);
+  const taskClipboard = useAppStore(s => s.taskClipboard);
+  // Golf 1-docstring (uiSlice.ts): expandAll/collapseAll werken op de summary-taken
+  // (collapsedTaskIds) en zijn expliciet "voor het bandkop-contextmenu" gebouwd.
+  const expandAll = useAppStore(s => s.expandAll);
+  const collapseAll = useAppStore(s => s.collapseAll);
+  const setZoom = useAppStore(s => s.setZoom);
+  const setViewStartDate = useAppStore(s => s.setViewStartDate);
   const project = useAppStore(s => s.project);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
@@ -825,6 +847,7 @@ export function GanttCanvas() {
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     const renderer = rendererRef.current;
@@ -832,11 +855,25 @@ export function GanttCanvas() {
 
     if (y < HEADER_HEIGHT) return;
 
+    // Bandkop-rij (fase 2.10 golf 2): eigen, klein contextmenu — zelfde detectie als handleClick.
+    const hitRow = renderer.getRowAtY(y);
+    if (hitRow?.kind === 'group') {
+      setContextMenu({
+        x: e.clientX, y: e.clientY, task: null, barHit: false,
+        group: { key: hitRow.key, collapsed: hitRow.collapsed },
+      });
+      return;
+    }
+
     const task = renderer.getTaskAtY(y);
     if (task) {
       selectTask(task.id, false);
     }
-    setContextMenu({ x: e.clientX, y: e.clientY, task });
+    // Balk-hit (fase 2.10 golf 2): dezelfde hit-test als drag-start; geeft null op de rij ernaast,
+    // op een mijlpaal en op een summary-balk (getTaskBarBounds sluit die bewust uit) — die krijgen
+    // dan gewoon het rij-menu zonder balk-specifieke items, zoals bedoeld.
+    const barHit = !!task && !!renderer.getTaskBarBounds(x, y);
+    setContextMenu({ x: e.clientX, y: e.clientY, task, barHit, group: null });
   }, [selectTask]);
 
   // Drag and drop: mousedown (task move/resize + dependency drawing)
@@ -1427,7 +1464,12 @@ export function GanttCanvas() {
           x={contextMenu.x}
           y={contextMenu.y}
           task={contextMenu.task}
+          barHit={contextMenu.barHit}
+          group={contextMenu.group}
           traceActive={traceMode !== 'off'}
+          isTreeMode={isTreeMode(view)}
+          calendars={calendars}
+          canPaste={!!taskClipboard}
           onClose={() => setContextMenu(null)}
           onEdit={() => {
             if (contextMenu.task) setUI({ showTaskDialog: true, editingTaskId: contextMenu.task.id });
@@ -1480,6 +1522,67 @@ export function GanttCanvas() {
               time: createDefaultTaskTime(startDate, 5),
             });
           }}
+          onInsertAbove={() => {
+            if (!contextMenu.task) return;
+            addTask({
+              name: defaultTaskName,
+              time: createDefaultTaskTime(startDate, 5),
+              position: { anchorId: contextMenu.task.id, where: 'above' },
+            });
+          }}
+          onInsertBelow={() => {
+            if (!contextMenu.task) return;
+            addTask({
+              name: defaultTaskName,
+              time: createDefaultTaskTime(startDate, 5),
+              position: { anchorId: contextMenu.task.id, where: 'below' },
+            });
+          }}
+          onIndent={() => { if (contextMenu.task) indentTasks([contextMenu.task.id]); }}
+          onOutdent={() => { if (contextMenu.task) outdentTasks([contextMenu.task.id]); }}
+          onToggleMilestone={() => {
+            if (contextMenu.task) updateTask(contextMenu.task.id, { isMilestone: !contextMenu.task.isMilestone });
+          }}
+          onSetCalendar={(calendarId) => {
+            if (contextMenu.task) setTaskCalendar(contextMenu.task.id, calendarId);
+          }}
+          onSetProgress={(completion) => {
+            if (contextMenu.task) setTaskProgress(contextMenu.task.id, completion);
+          }}
+          onSetPriority={(priority) => {
+            if (contextMenu.task) updateTask(contextMenu.task.id, { priority });
+          }}
+          onStartRelationFromBar={() => {
+            if (contextMenu.task) {
+              setUI({ showDependencyMode: true, dependencySourceId: contextMenu.task.id });
+            }
+          }}
+          onSetConstraint={() => {
+            // Er is geen aparte constraint-tab: de constraint-velden leven in het rechter
+            // eigenschappenpaneel (TaskPropertiesPanel), niet in TaskDialog. Selecteer de taak en
+            // vouw het paneel open — GEEN blinde datum/constraint-keuze vanuit het contextmenu zelf.
+            if (!contextMenu.task) return;
+            selectTask(contextMenu.task.id, false);
+            setUI({ rightPanelCollapsed: false });
+          }}
+          onPaste={() => { pasteTasks(); }}
+          onZoomReset={() => { setZoom(DEFAULT_ZOOM); setScroll(0, 0); }}
+          onFitToProject={() => {
+            const container = containerRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            if (tasks.length === 0) { setZoom(DEFAULT_ZOOM); setScroll(0, 0); return; }
+            const fit = computeFitToProject(tasks, rect.width - taskTableWidth, enableQuarterHourZoom);
+            if (!fit) return;
+            setZoom(fit.zoom);
+            setViewStartDate(fit.viewStartDate);
+            setScroll(fit.scrollX, 0);
+          }}
+          onToggleGroupCollapse={() => {
+            if (contextMenu.group) setCollapsedGroupKey(contextMenu.group.key, !contextMenu.group.collapsed);
+          }}
+          onExpandAll={() => expandAll()}
+          onCollapseAll={() => collapseAll()}
         />
       )}
 
