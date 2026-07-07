@@ -82,6 +82,16 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 
 ### Kwaliteit & verificatie
 
+- [ ] **ResourceLeveler-schaalbaarheid (gemeten 2026-07-06, benchmark tegen de echte engine).**
+  De leveler groeit ~kwadratisch met het taakaantal (dag-modus: 100 taken=0,15s, 500=6,2s,
+  2000≈100s geëxtrapoleerd; uur-modus is consequent ~4× sneller: 500=1,5s, 2000=25,3s gemeten).
+  Oorzaak: `computePF` draait `solve()` per pick in een lus. Geen 2.8b-regressie (dag-gedrag was
+  altijd zo) en de CPM-solve zelf is prima (2000 taken = 37-81 ms, ruim onder de 2s-lat), maar
+  voor projecten >500 taken met nivellering is dit merkbaar. Kandidaat-verbeteringen:
+  incrementele her-solve of PF-caching per iteratie. De banden-memoization uit 2.8b §5.6 is
+  gemeten en werkt (0 nieuwe cache-fills bij een tweede solve op dezelfde kalenders).
+  Benchmark-scripts: `/tmp/ops-perf/` (bench.ts + run.sh, herbruikbaar).
+
 - [ ] **Driedubbele eindverificatie van fase 2 (uitgesteld op 2026-07-04).** Na afronding van
   fase 2.5 was een uiterst grondige verificatie gepland maar die is doorgeschoven; uitvoeren
   zodra fase 2 verder gevorderd is (bv. na 2.7 of als afsluiter samen met §2.10). De volledige
@@ -348,11 +358,21 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] Bouwplaatsinrichting-milestones
 
 #### 3.8 Import/export
-- [ ] MS Project MPP import (readonly)
-- [ ] Primavera XML (PMXML) import/export
-- [ ] Asta Powerproject PP import
+> Zie ook GitHub-issue #17 (DutchSailor, 2026-07-06): onderbouwd formaten-voorstel met NL-marktanalyse
+> ("6+2"-lijst). Kern klopt met onze richting; prioriteiten hieronder daarop aangescherpt.
+- [ ] **Primavera XER import/export** — tekstformaat, native in TS haalbaar (geen JVM); samen met ons
+  bestaande PMXML dekt dit de P6-wereld. Hoogste interop-prioriteit na fase 2 (issue #17).
+- [ ] **iCalendar (.ics) export** — mijlpalen/deadlines naar agenda-apps; goedkoop, hoge waarde (issue #17).
+- [ ] MS Project MPP import (readonly) — realistisch alleen via MPXJ (JVM): NIET als core-dependency
+  (strijdig met lichte Tauri/web-architectuur); route = optionele externe converter (MPXJ-CLI/sidecar)
+  óf gebruikers MSPDI laten exporteren. Besluit gedocumenteerd in issue #17-triage (2026-07-07).
+- [ ] Asta Powerproject PP import — zelfde MPXJ-afweging als MPP; zelfde converter-route.
+- [ ] **KYP Project REST API-integratie (onderzoek)** — de facto NL-bouwplanningstool zonder publieke
+  export; directe API-koppeling zou een unieke NL-USP zijn. Eerst: API-toegang/partnerschap verkennen
+  (issue #17).
+- [ ] Primavera XML (PMXML) import/export — bestaat sinds fase 2 (P6 XML round-trip, sinds v2026.7.7
+  minuut-precies); dit punt is de restcontrole dat we P6's PMXML-dialectvarianten breed genoeg dekken.
 - [ ] SVG-export van Gantt (PNG bestaat al)
-- [ ] iCalendar (.ics) export
 - [ ] Clipboard-ondersteuning (kopieer taken naar Excel)
 
 #### 3.9 Rapportage

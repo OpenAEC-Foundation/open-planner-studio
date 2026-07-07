@@ -135,6 +135,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
       // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
       get().runCPM();
+      get().focusProjectStart(); // Issue #16: open het canvas bij de projectperiode, niet op vandaag.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
@@ -312,6 +313,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.filePath = filePath;
       });
       get().runCPM(); // consistent met openFile (A5): direct doorrekenen na load.
+      get().focusProjectStart(); // Issue #16: open het canvas bij de projectperiode, niet op vandaag.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
@@ -358,6 +360,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.filePath = null;
       });
       get().runCPM(); // consistent met openFile (A5): voorbeeld direct doorrekenen na load.
+      get().focusProjectStart(); // Issue #16: open het canvas bij de projectperiode, niet op vandaag.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
