@@ -7,6 +7,7 @@ import { DateTextInput } from '@/components/common/DateTextInput';
 import { formatDate } from '@/utils/dateUtils';
 import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
 import { CalendarGeneratorFields } from './CalendarGeneratorFields';
+import { CalcOptionsSection } from './CalcOptionsSection';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
@@ -188,6 +189,10 @@ export function ProjectInfoDialog() {
               />
             </>
           )}
+
+          {/* Berekening-sectie (fase 2.9 §5.7/§7, besluit B5) — alleen bij het bewerken van een
+              bestaand project (niet in de nieuw-project-wizard). */}
+          {!isNew && <CalcOptionsSection />}
         </div>
 
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">

@@ -7,6 +7,7 @@ import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { Task, TaskType, ConstraintType, MilestoneKind } from '@/types/task';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
+import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
 import type { ResourceCurve } from '@/types/resource';
 import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
@@ -179,6 +180,10 @@ export function TaskPropertiesPanel() {
   const setActualStart = useAppStore(s => s.setActualStart);
   const setActualFinish = useAppStore(s => s.setActualFinish);
   const [actualError, setActualError] = useState(false);
+  // Eenmalige, niet-blokkerende hint bij het AANZETTEN van een harde pin (besluit B2): "pin
+  // overschrijft relaties". Geen bevestigingsdialoog — gegate op een localStorage-vlag zodat hij
+  // maar één keer ooit verschijnt.
+  const [pinHint, setPinHint] = useState(false);
   // Taak-kalender-keuze (fase 2.8a, §7.3): bibliotheek-kalenders + "Projectkalender" (undefined).
   const calendars = useAppStore(s => s.calendars);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
@@ -207,6 +212,23 @@ export function TaskPropertiesPanel() {
   const taskSequences = sequences.filter(
     s => s.predecessorId === task.id || s.successorId === task.id
   );
+
+  // Hammock-drivers (fase 2.9 §5.3, besluit B6): auto-detectie volgens P6-conventie — inkomende
+  // FS/SS-relaties = start-driver (leveren de ES), FF/SF-relaties = finish-driver (leveren de EF,
+  // dus de afgeleide span). READ-ONLY getoond zodat de gebruiker de spanne ziet zonder klikwerk.
+  const incoming = sequences.filter(s => s.successorId === task.id);
+  const startDrivers = incoming.filter(s => s.type === 'FINISH_START' || s.type === 'START_START');
+  const finishDrivers = incoming.filter(s => s.type === 'FINISH_FINISH' || s.type === 'START_FINISH');
+  const SEQ_SHORT: Record<SequenceType, string> = {
+    FINISH_START: 'FS', FINISH_FINISH: 'FF', START_START: 'SS', START_FINISH: 'SF',
+  };
+  const predName = (id: string) => tasks.find(t => t.id === id)?.name || '?';
+  const hammockNoFinishDriver = !!cpmResult && !cpmResult.error
+    && cpmResult.hammockNoFinishDriverTaskIds?.includes(task.id);
+
+  // Constraint-paar-validatie (fase 2.9 §5.2): live rood + reden bij verboden combinaties.
+  const pairValidation = validateConstraintPair(task.constraint, task.constraint2);
+  const isPinnable = task.constraint?.type === 'MSO' || task.constraint?.type === 'MFO';
 
   // Toewijzingen (fase 2.5, §6.3) — leaf-only, geen mijlpalen/samenvattingstaken.
   const taskAssignments = assignments.filter(a => a.taskId === task.id);
@@ -355,6 +377,23 @@ export function TaskPropertiesPanel() {
           {(() => {
             const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
             const hourTask = enableHourPlanning && isHourCalendar(cal) && !task.isMilestone;
+            // Hammock (fase 2.9 §5.3): de duur is AFGELEID uit de span tussen start- en
+            // finish-driver — read-only weergave (invoer wordt door de solver overschreven).
+            if (task.isHammock) {
+              const hpd = effHoursPerDay(cal);
+              const text = hourTask
+                ? formatDuration(task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60, hpd, 'hours')
+                : `${task.time.scheduleDuration}`;
+              return (
+                <input
+                  value={text}
+                  disabled
+                  title={t('properties.hammockDerivedHint')}
+                  className="input !text-xs !px-2.5 !py-1.5 opacity-60 cursor-not-allowed"
+                  data-ops-hammock-duration
+                />
+              );
+            }
             if (!hourTask) {
               return (
                 <Input
@@ -382,16 +421,54 @@ export function TaskPropertiesPanel() {
         </Field>
       </div>
 
-      {/* Constraint & deadline (fase 2.3) — P6-soft: schendingen worden negatieve float */}
+      {/* Hammock / Level of Effort (fase 2.9 §5.3, besluit B6) — alleen op leaf-taken die geen
+          mijlpaal zijn. AAN ⇒ afgeleide duur (read-only), auto-gedetecteerde drivers read-only. */}
+      {!task.isMilestone && task.childIds.length === 0 && (
+        <>
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={!!task.isHammock}
+              onChange={e => update({ isHammock: e.target.checked || undefined })}
+              className="accent-accent"
+              data-ops-hammock-toggle
+            />
+            {t('properties.hammock')}
+          </label>
+          {task.isHammock && (
+            <div className="flex flex-col gap-1 pl-5 text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
+              <div>
+                <span className="text-text-secondary">{t('properties.startDriver')}: </span>
+                {startDrivers.length > 0
+                  ? startDrivers.map(s => `${predName(s.predecessorId)} (${SEQ_SHORT[s.type]})`).join(', ')
+                  : t('properties.hammockNoDriver')}
+              </div>
+              <div>
+                <span className="text-text-secondary">{t('properties.finishDriver')}: </span>
+                {finishDrivers.length > 0
+                  ? finishDrivers.map(s => `${predName(s.predecessorId)} (${SEQ_SHORT[s.type]})`).join(', ')
+                  : t('properties.hammockNoDriver')}
+              </div>
+              {hammockNoFinishDriver && (
+                <div style={{ color: 'var(--error)' }}>{t('properties.hammockNoFinishDriver')}</div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Constraint & deadline (fase 2.3) — P6-soft: schendingen worden negatieve float.
+          Fase 2.9 §5.1/§5.2: harde Mandatory-pin + secundaire constraint. */}
       <div className="grid grid-cols-2 gap-2">
         <Field label={t('properties.constraint')}>
           <select
             value={task.constraint?.type ?? 'ASAP'}
             onChange={e => {
               const type = e.target.value as ConstraintType;
-              if (type === 'ASAP') update({ constraint: undefined });
-              else if (type === 'ALAP') update({ constraint: { type } });
-              else update({ constraint: { type, date: task.constraint?.date ?? task.time.scheduleStart } });
+              if (type === 'ASAP') update({ constraint: undefined, constraint2: undefined });
+              else if (type === 'ALAP') update({ constraint: { type }, constraint2: undefined });
+              // Bij een niet-MSO/MFO-primair vervalt de harde pin (hard alleen zinvol op MSO/MFO).
+              else update({ constraint: { type, date: task.constraint?.date ?? task.time.scheduleStart, hard: (type === 'MSO' || type === 'MFO') ? task.constraint?.hard : undefined } });
             }}
             className="input !text-xs !px-2.5 !py-1.5"
           >
@@ -406,11 +483,85 @@ export function TaskPropertiesPanel() {
               className="input !text-xs !px-2.5 !py-1.5"
               ariaLabel={t('properties.constraintDate')}
               value={task.constraint.date ?? ''}
-              onCommit={v => update({ constraint: { type: task.constraint!.type, date: v } })}
+              onCommit={v => update({ constraint: { ...task.constraint!, date: v } })}
             />
           </Field>
         )}
       </div>
+
+      {/* Harde Mandatory-pin (fase 2.9 §5.1, besluit B2): alleen bij MSO/MFO. Aanzetten ⇒ eenmalige
+          niet-blokkerende hint "pin overschrijft relaties" (geen bevestigingsdialoog). */}
+      {isPinnable && (
+        <>
+          <label className="flex items-center gap-1.5" title={t('properties.hardPinTip')}>
+            <input
+              type="checkbox"
+              checked={!!task.constraint?.hard}
+              onChange={e => {
+                const on = e.target.checked;
+                update({ constraint: { ...task.constraint!, hard: on || undefined } });
+                if (on && !localStorage.getItem('ops-hardPinHintSeen')) {
+                  localStorage.setItem('ops-hardPinHintSeen', '1');
+                  setPinHint(true);
+                }
+              }}
+              className="accent-accent"
+              data-ops-hard-pin
+            />
+            {t('properties.hardPin')}
+          </label>
+          {pinHint && (
+            <div
+              className="flex items-start gap-2 text-[10px] px-2 py-1.5 rounded"
+              style={{ background: 'var(--theme-surface-alt)', color: 'var(--theme-text-muted)' }}
+              data-ops-pin-hint
+            >
+              <span className="flex-1">{t('properties.hardPinHint')}</span>
+              <button onClick={() => setPinHint(false)} style={{ color: 'var(--theme-accent)' }}>×</button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Secundaire constraint (fase 2.9 §5.2): een tweede grens (SNET/FNET/SNLT/FNLT); altijd soft.
+          Live validatie via validateConstraintPair — verboden combinaties rood + reden. */}
+      {task.constraint && task.constraint.type !== 'ASAP' && task.constraint.type !== 'ALAP' && !task.constraint.hard && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t('properties.constraint2')}>
+            <select
+              value={task.constraint2?.type ?? ''}
+              onChange={e => {
+                const type = e.target.value as ConstraintType | '';
+                if (!type) update({ constraint2: undefined });
+                else update({ constraint2: { type: type as ConstraintType, date: task.constraint2?.date ?? task.time.scheduleStart } });
+              }}
+              className={`input !text-xs !px-2.5 !py-1.5 ${!pairValidation.ok ? '!border-[var(--error)]' : ''}`}
+              title={!pairValidation.ok ? pairValidation.issues.map(i => t(`properties.constraintPair.${i}`)).join(' · ') : undefined}
+              data-ops-constraint2-type
+            >
+              <option value="">{t('properties.constraint2None')}</option>
+              {(['SNET', 'FNET', 'SNLT', 'FNLT'] as ConstraintType[]).map(ct => (
+                <option key={ct} value={ct}>{t(`constraintType.${ct}`)}</option>
+              ))}
+            </select>
+          </Field>
+          {task.constraint2 && (
+            <Field label={t('properties.constraint2Date')}>
+              <DateTextInput
+                className="input !text-xs !px-2.5 !py-1.5"
+                ariaLabel={t('properties.constraint2Date')}
+                value={task.constraint2.date ?? ''}
+                onCommit={v => update({ constraint2: { ...task.constraint2!, date: v } })}
+              />
+            </Field>
+          )}
+          {!pairValidation.ok && (
+            <div className="col-span-2 text-[10px]" style={{ color: 'var(--error)' }} data-ops-constraint2-error>
+              {pairValidation.issues.map(i => t(`properties.constraintPair.${i}`)).join(' · ')}
+            </div>
+          )}
+        </div>
+      )}
 
       <Field label={t('properties.deadline')}>
         <DateTextInput
@@ -498,6 +649,12 @@ export function TaskPropertiesPanel() {
             <span>{task.time.totalFloat} {tCommon('daysLong')}</span>
             <span className="text-text-secondary">{t('properties.freeFloat')}</span>
             <span>{task.time.freeFloat} {tCommon('daysLong')}</span>
+            {task.time.interferingFloat !== undefined && (
+              <>
+                <span className="text-text-secondary">{t('properties.interferingFloat')}</span>
+                <span>{task.time.interferingFloat} {tCommon('daysLong')}</span>
+              </>
+            )}
             <span className="text-text-secondary">{t('properties.criticalPath')}</span>
             <span className={task.time.isCritical ? 'text-critical font-bold' : ''}>
               {task.time.isCritical ? tCommon('yes') : tCommon('no')}

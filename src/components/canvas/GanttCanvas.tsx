@@ -482,6 +482,7 @@ export function GanttCanvas() {
       durationDisplay,
       durationSuffixes,
       externalStaleLabel: tTask('externalLinks.stale'),
+      highContrast: uiTheme === 'high-contrast',
     };
 
     const renderer = new GanttRenderer(ctx, opts);
@@ -538,6 +539,7 @@ export function GanttCanvas() {
       enableQuarterHourZoom,
       effectiveCalById,
       barSplitMode,
+      highContrast: uiTheme === 'high-contrast',
     });
     secondaryRendererRef.current = renderer;
     renderer.render();
