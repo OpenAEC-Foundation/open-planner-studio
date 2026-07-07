@@ -46,7 +46,10 @@ export function CalendarForm({
   // Werktijden-UI (§6.6): eigen presets (app-niveau localStorage), banden-editor achter een knop,
   // en een inline naam-invoer voor "Bewaar als preset…".
   const [ownPresets, setOwnPresets] = useState<WorkTimePreset[]>([]);
-  const [showBandEditor, setShowBandEditor] = useState(false);
+  // In uur-modus staat de banden-editor standaard OPEN (elke uur-preset toont meteen bewerkbare
+  // tijden); deze vlag laat de gebruiker hem inklappen. Voor een dag-kalender is er nog geen
+  // `workTime`, dus opent de knop de editor (seed uit scalar) i.p.v. te collapsen.
+  const [bandsCollapsed, setBandsCollapsed] = useState(false);
   const [savingPreset, setSavingPreset] = useState(false);
   const [presetName, setPresetName] = useState('');
   const hourMode = isHourCalendar(draft);
@@ -63,7 +66,8 @@ export function CalendarForm({
       workEndHour: patch.workEndHour,
       hoursPerDay: patch.hoursPerDay,
     });
-    if (!patch.workTime) setShowBandEditor(false); // dag-preset ⇒ editor dicht
+    // Elke uur-preset ⇒ editor meteen open/zichtbaar (uitgeklapt); dag-preset heeft geen editor.
+    setBandsCollapsed(false);
   };
 
   const persistOwnPresets = (list: WorkTimePreset[]) => {
@@ -84,11 +88,14 @@ export function CalendarForm({
   // 60` zijn — de default 07:00-16:00/8u is 9 klokuren, 8 netto; `seedScalarWorkTime` materialiseert dat
   // verschil als pauze-gat rond het middaguur, zodat `deriveHoursPerDay` de oorspronkelijke 8 teruggeeft
   // en ongewijzigd openen+toepassen `hoursPerDay` niet corrumpeert.
-  const openBandEditor = () => {
+  const toggleBandEditor = () => {
     if (!draft.workTime) {
+      // Dag-kalender ⇒ seed uit de scalar (wordt uur-kalender) en toon de editor uitgeklapt.
       applyBands(seedScalarWorkTime(draft.workDays, draft.workStartHour, draft.workEndHour, draft.hoursPerDay));
+      setBandsCollapsed(false);
+      return;
     }
-    setShowBandEditor(true);
+    setBandsCollapsed(c => !c); // uur-kalender ⇒ in-/uitklappen.
   };
   const applyBands = (bands: WorkTimeBands) => {
     onChange({
@@ -315,28 +322,41 @@ export function CalendarForm({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setSavingPreset(v => !v)} className="btn btn--sm btn--secondary" data-ops-preset-saveas>
+            <button type="button" onClick={() => setSavingPreset(v => !v)} className="btn btn--sm btn--secondary"
+              title={tCommon('calendar.worktime.saveAsPresetHint')} data-ops-preset-saveas>
               {tCommon('calendar.worktime.saveAsPreset')}
             </button>
-            <button type="button" onClick={() => (showBandEditor ? setShowBandEditor(false) : openBandEditor())}
+            {/* Uur-kalender ⇒ de editor staat standaard open; deze knop klapt hem in/uit. Dag-kalender ⇒
+                de knop seedt de banden uit de scalar en toont de editor ("Per weekdag instellen…"). */}
+            <button type="button" onClick={toggleBandEditor}
               className="btn btn--sm btn--secondary" data-ops-band-editor-toggle>
-              {tCommon('calendar.worktime.perWeekday')}
+              {!draft.workTime
+                ? tCommon('calendar.worktime.perWeekday')
+                : bandsCollapsed
+                  ? tCommon('calendar.worktime.showBands')
+                  : tCommon('calendar.worktime.hideBands')}
             </button>
           </div>
 
           {savingPreset && (
-            <div className="flex items-center gap-2">
-              <input value={presetName} onChange={e => setPresetName(e.target.value)} autoFocus
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmSavePreset(); } }}
-                placeholder={tCommon('calendar.worktime.presetNamePlaceholder')} className={inputCls + ' flex-1'} />
-              <button type="button" onClick={confirmSavePreset} disabled={!presetName.trim()}
-                className="btn btn--sm btn--primary disabled:opacity-40" data-ops-preset-save>{tCommon('save')}</button>
-              <button type="button" onClick={() => { setSavingPreset(false); setPresetName(''); }}
-                className="btn btn--sm btn--secondary">{tCommon('cancel')}</button>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-text-secondary italic" data-ops-preset-saveas-hint>
+                {tCommon('calendar.worktime.saveAsPresetHint')}
+              </span>
+              <div className="flex items-center gap-2">
+                <input value={presetName} onChange={e => setPresetName(e.target.value)} autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmSavePreset(); } }}
+                  placeholder={tCommon('calendar.worktime.presetNamePlaceholder')} className={inputCls + ' flex-1'} />
+                <button type="button" onClick={confirmSavePreset} disabled={!presetName.trim()}
+                  className="btn btn--sm btn--primary disabled:opacity-40" data-ops-preset-save>{tCommon('save')}</button>
+                <button type="button" onClick={() => { setSavingPreset(false); setPresetName(''); }}
+                  className="btn btn--sm btn--secondary">{tCommon('cancel')}</button>
+              </div>
             </div>
           )}
 
-          {showBandEditor && draft.workTime && (
+          {/* Banden-editor: zichtbaar zodra de kalender in uur-modus is (elke uur-preset), tenzij ingeklapt. */}
+          {draft.workTime && !bandsCollapsed && (
             <WorkTimeEditor bands={draft.workTime} onChange={applyBands} />
           )}
         </div>
