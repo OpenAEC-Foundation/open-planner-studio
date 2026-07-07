@@ -12,7 +12,11 @@
     "completion": "Progresso",
     "milestone": "Marco",
     "hoursPerDayTip": "h/dia",
-    "mixedWarning": "Calendários mistos — horas/dia por calendário: {{list}}. A duração é exibida por tarefa na sua própria unidade."
+    "mixedWarning": "Calendários mistos — horas/dia por calendário: {{list}}. A duração é exibida por tarefa na sua própria unidade.",
+    "freeFloat": "Folga livre",
+    "interferingFloat": "Folga interferente",
+    "isNearCritical": "Quase crítica",
+    "floatPath": "Caminho de folga"
   },
   "taskType": {
     "CONSTRUCTION": "Construção",
@@ -100,7 +104,27 @@
     "calendarProject": "Calendário do projeto",
     "priority": "Prioridade de nivelamento",
     "levelingDelay": "Atraso de nivelamento",
-    "durationHours": "Duração (horas)"
+    "durationHours": "Duração (horas)",
+    "hardPin": "Obrigatório (fixação de data)",
+    "hardPinTip": "Apenas para MSO/MFO — fixa a data de forma rígida e substitui a lógica das relações (P6 Mandatory).",
+    "hardPinHint": "Uma fixação rígida substitui as relações: a barra é fixada na data, mesmo antes das suas predecessoras. Uma violação torna-se folga negativa a montante.",
+    "constraint2": "Restrição secundária",
+    "constraint2Date": "Data secundária",
+    "constraint2None": "(nenhum)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "Uma restrição secundária não pode ser obrigatória (rígida).",
+      "no-secondary-with-mandatory-or-on": "Sem restrição secundária com um MSO/MFO ou fixação rígida.",
+      "no-secondary-with-asap-alap": "Sem restrição secundária com ASAP/ALAP.",
+      "secondary-type-invalid": "O tipo secundário deve ser um limite (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "As restrições primária e secundária não podem limitar o mesmo lado."
+    },
+    "hammock": "Hammock (duração derivada)",
+    "hammockDerivedHint": "Duração derivada — o intervalo entre o driver de início e de fim (só leitura).",
+    "startDriver": "Driver de início",
+    "finishDriver": "Driver de fim",
+    "hammockNoDriver": "(nenhum)",
+    "hammockNoFinishDriver": "Sem driver de fim (FF/SF) — o intervalo volta a comprimento zero.",
+    "interferingFloat": "Folga interferente:"
   },
   "relations": {
     "title": "Relações",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "Estado"
+  },
+  "externalLinks": {
+    "action": "Ligação externa…",
+    "dialogTitle": "Ligação externa (entre projetos)",
+    "sourceFile": "Ficheiro de origem",
+    "pickRecent": "Escolher um ficheiro recente",
+    "noRecent": "Sem ficheiros recentes",
+    "readOnlyNote": "O ficheiro de origem é lido apenas em modo de leitura — não é aberto como documento.",
+    "loadingTasks": "A carregar tarefas…",
+    "sourceTask": "Tarefa de origem",
+    "direction": "Direção",
+    "directionPredecessor": "Predecessora (externa → eu)",
+    "directionSuccessor": "Sucessora (eu → externa)",
+    "relType": "Tipo de relação",
+    "lag": "Atraso (dias úteis)",
+    "anchorDate": "Data de ancoragem",
+    "manualTitle": "Manual (alternativa)",
+    "manualHint": "Não tem o ficheiro à mão? Cole o id de projeto e o id de tarefa da tarefa externa.",
+    "projectId": "Id de projeto",
+    "taskId": "Id de tarefa",
+    "taskName": "Nome da tarefa (opcional)",
+    "add": "Adicionar ligação",
+    "cancel": "Cancelar",
+    "existingTitle": "Ligações externas",
+    "none": "Ainda não há ligações externas nesta tarefa.",
+    "remove": "Remover",
+    "refresh": "Atualizar esta ligação",
+    "refreshAll": "Atualizar âncoras externas",
+    "refreshAllHint": "Reler cada ficheiro de origem referenciado e atualizar as âncoras + o estado obsoleto.",
+    "stale": "obsoleto",
+    "sourceMissing": "origem não carregada — reimporte para atualizar",
+    "pickTaskFirst": "Selecione uma única tarefa para adicionar uma ligação externa.",
+    "refreshedToast": "{{refreshed}} âncora(s) atualizada(s), {{missing}} obsoleta(s)",
+    "noSourcesToast": "Sem fontes externas atualizáveis (caminho do ficheiro em falta).",
+    "notAvailableWeb": "Ler ficheiros de origem só é possível na aplicação de ambiente de trabalho; use a alternativa manual."
   }
 }

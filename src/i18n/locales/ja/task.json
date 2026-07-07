@@ -12,7 +12,11 @@
     "completion": "進捗",
     "milestone": "マイルストーン",
     "hoursPerDayTip": "時間/日",
-    "mixedWarning": "混在カレンダー — カレンダーごとの時間/日：{{list}}。期間はタスクごとに固有の単位で表示されます。"
+    "mixedWarning": "混在カレンダー — カレンダーごとの時間/日：{{list}}。期間はタスクごとに固有の単位で表示されます。",
+    "freeFloat": "フリーフロート",
+    "interferingFloat": "干渉フロート",
+    "isNearCritical": "準クリティカル",
+    "floatPath": "フロートパス"
   },
   "taskType": {
     "CONSTRUCTION": "建設",
@@ -100,7 +104,27 @@
     "calendarProject": "プロジェクトカレンダー",
     "priority": "山崩し優先度",
     "levelingDelay": "山崩し遅延",
-    "durationHours": "期間（時間）"
+    "durationHours": "期間（時間）",
+    "hardPin": "必須（ピン留めロジック）",
+    "hardPinTip": "MSO/MFO専用 — 日付を強制的に固定し、関係のロジックを上書きします（P6 Mandatory）。",
+    "hardPinHint": "ハードピンは関係を上書きします。バーは先行タスクより前であっても、その日付に固定されます。違反は上流側で負のフロートになります。",
+    "constraint2": "副制約",
+    "constraint2Date": "副日付",
+    "constraint2None": "（なし）",
+    "constraintPair": {
+      "secondary-hard-forbidden": "副制約を必須（ハード）にすることはできません。",
+      "no-secondary-with-mandatory-or-on": "MSO/MFOまたはハードピンがある場合、副制約は設定できません。",
+      "no-secondary-with-asap-alap": "ASAP/ALAPの場合、副制約は設定できません。",
+      "secondary-type-invalid": "副制約の種類は境界型（SNET/FNET/SNLT/FNLT）である必要があります。",
+      "secondary-same-side": "主制約と副制約は同じ側を境界にできません。"
+    },
+    "hammock": "Hammock（派生期間）",
+    "hammockDerivedHint": "派生期間 — 開始ドライバーと終了ドライバーの間隔（読み取り専用）。",
+    "startDriver": "開始ドライバー",
+    "finishDriver": "終了ドライバー",
+    "hammockNoDriver": "（なし）",
+    "hammockNoFinishDriver": "終了ドライバーがありません（FF/SF）— 間隔はゼロ長に戻ります。",
+    "interferingFloat": "干渉フロート:"
   },
   "relations": {
     "title": "関係",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "ステータス"
+  },
+  "externalLinks": {
+    "action": "外部リンク…",
+    "dialogTitle": "外部（プロジェクト間）リンク",
+    "sourceFile": "ソースファイル",
+    "pickRecent": "最近使用したファイルを選択",
+    "noRecent": "最近使用したファイルはありません",
+    "readOnlyNote": "ソースファイルは読み取り専用で読み込まれます — ドキュメントとして開かれることはありません。",
+    "loadingTasks": "タスクを読み込み中…",
+    "sourceTask": "ソースタスク",
+    "direction": "方向",
+    "directionPredecessor": "先行（外部 → 自分）",
+    "directionSuccessor": "後続（自分 → 外部）",
+    "relType": "関係タイプ",
+    "lag": "ラグ（稼働日）",
+    "anchorDate": "アンカー日付",
+    "manualTitle": "手動（フォールバック）",
+    "manualHint": "ファイルが手元にない場合は、外部タスクのプロジェクトIDとタスクIDを貼り付けてください。",
+    "projectId": "プロジェクトID",
+    "taskId": "タスクID",
+    "taskName": "タスク名（任意）",
+    "add": "リンクを追加",
+    "cancel": "キャンセル",
+    "existingTitle": "外部リンク",
+    "none": "このタスクにはまだ外部リンクがありません。",
+    "remove": "削除",
+    "refresh": "このリンクを更新",
+    "refreshAll": "外部アンカーを更新",
+    "refreshAllHint": "参照している各ソースファイルを再読み込みし、アンカーと古さの状態を更新します。",
+    "stale": "古い",
+    "sourceMissing": "ソースが読み込まれていません — 更新するには再インポートしてください",
+    "pickTaskFirst": "外部リンクを追加するには、タスクを1つだけ選択してください。",
+    "refreshedToast": "{{refreshed}} 件のアンカーを更新、{{missing}} 件が古い状態",
+    "noSourcesToast": "更新可能な外部ソースがありません（ファイルパスがありません）。",
+    "notAvailableWeb": "ソースファイルの読み込みはデスクトップアプリでのみ可能です。手動フォールバックを使用してください。"
   }
 }

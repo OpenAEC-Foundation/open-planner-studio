@@ -12,7 +12,11 @@
     "completion": "Progresso",
     "milestone": "Traguardo",
     "hoursPerDayTip": "h/giorno",
-    "mixedWarning": "Calendari misti — ore/giorno per calendario: {{list}}. La durata è mostrata per attività nella propria unità."
+    "mixedWarning": "Calendari misti — ore/giorno per calendario: {{list}}. La durata è mostrata per attività nella propria unità.",
+    "freeFloat": "Margine libero",
+    "interferingFloat": "Margine interferente",
+    "isNearCritical": "Quasi critica",
+    "floatPath": "Percorso di margine"
   },
   "taskType": {
     "CONSTRUCTION": "Costruzione",
@@ -100,7 +104,27 @@
     "calendarProject": "Calendario del progetto",
     "priority": "Priorità di livellamento",
     "levelingDelay": "Ritardo di livellamento",
-    "durationHours": "Durata (ore)"
+    "durationHours": "Durata (ore)",
+    "hardPin": "Obbligatorio (logica di blocco)",
+    "hardPinTip": "Solo per MSO/MFO — blocca rigidamente la data e sovrascrive la logica delle relazioni (P6 Mandatory).",
+    "hardPinHint": "Un blocco rigido sovrascrive le relazioni: la barra viene fissata alla data, anche prima dei suoi predecessori. Una violazione diventa margine negativo a monte.",
+    "constraint2": "Vincolo secondario",
+    "constraint2Date": "Data secondaria",
+    "constraint2None": "(nessuno)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "Un vincolo secondario non può essere obbligatorio (rigido).",
+      "no-secondary-with-mandatory-or-on": "Nessun vincolo secondario con un MSO/MFO o blocco rigido.",
+      "no-secondary-with-asap-alap": "Nessun vincolo secondario con ASAP/ALAP.",
+      "secondary-type-invalid": "Il tipo secondario deve essere un limite (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "Il vincolo primario e quello secondario non possono limitare lo stesso lato."
+    },
+    "hammock": "Hammock (durata derivata)",
+    "hammockDerivedHint": "Durata derivata — l'intervallo tra il driver di inizio e di fine (sola lettura).",
+    "startDriver": "Driver di inizio",
+    "finishDriver": "Driver di fine",
+    "hammockNoDriver": "(nessuno)",
+    "hammockNoFinishDriver": "Nessun driver di fine (FF/SF) — l'intervallo torna a lunghezza zero.",
+    "interferingFloat": "Margine interferente:"
   },
   "relations": {
     "title": "Relazioni",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "Stato"
+  },
+  "externalLinks": {
+    "action": "Collegamento esterno…",
+    "dialogTitle": "Collegamento esterno (tra progetti)",
+    "sourceFile": "File di origine",
+    "pickRecent": "Scegli un file recente",
+    "noRecent": "Nessun file recente",
+    "readOnlyNote": "Il file di origine viene letto in sola lettura — non viene aperto come documento.",
+    "loadingTasks": "Caricamento attività…",
+    "sourceTask": "Attività di origine",
+    "direction": "Direzione",
+    "directionPredecessor": "Predecessore (esterno → io)",
+    "directionSuccessor": "Successore (io → esterno)",
+    "relType": "Tipo di relazione",
+    "lag": "Ritardo (giorni lavorativi)",
+    "anchorDate": "Data di ancoraggio",
+    "manualTitle": "Manuale (soluzione alternativa)",
+    "manualHint": "Non hai il file a portata di mano? Incolla l'id progetto e l'id attività dell'attività esterna.",
+    "projectId": "Id progetto",
+    "taskId": "Id attività",
+    "taskName": "Nome attività (facoltativo)",
+    "add": "Aggiungi collegamento",
+    "cancel": "Annulla",
+    "existingTitle": "Collegamenti esterni",
+    "none": "Nessun collegamento esterno su questa attività.",
+    "remove": "Rimuovi",
+    "refresh": "Aggiorna questo collegamento",
+    "refreshAll": "Aggiorna ancoraggi esterni",
+    "refreshAllHint": "Rileggi ogni file di origine referenziato e aggiorna gli ancoraggi + lo stato obsoleto.",
+    "stale": "obsoleto",
+    "sourceMissing": "origine non caricata — reimporta per aggiornare",
+    "pickTaskFirst": "Seleziona una singola attività per aggiungere un collegamento esterno.",
+    "refreshedToast": "{{refreshed}} ancoraggio/i aggiornato/i, {{missing}} obsoleto/i",
+    "noSourcesToast": "Nessuna fonte esterna aggiornabile (percorso del file mancante).",
+    "notAvailableWeb": "La lettura dei file di origine è possibile solo nell'app desktop; usa la soluzione alternativa manuale."
   }
 }

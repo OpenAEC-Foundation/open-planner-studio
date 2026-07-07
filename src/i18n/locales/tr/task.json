@@ -12,7 +12,11 @@
     "completion": "İlerleme",
     "milestone": "Kilometre taşı",
     "hoursPerDayTip": "sa/gün",
-    "mixedWarning": "Karışık takvimler — takvim başına saat/gün: {{list}}. Süre her görevde kendi biriminde gösterilir."
+    "mixedWarning": "Karışık takvimler — takvim başına saat/gün: {{list}}. Süre her görevde kendi biriminde gösterilir.",
+    "freeFloat": "Serbest bolluk",
+    "interferingFloat": "Müdahale bolluğu",
+    "isNearCritical": "Kritiğe yakın",
+    "floatPath": "Bolluk yolu"
   },
   "taskType": {
     "CONSTRUCTION": "İnşaat",
@@ -100,7 +104,27 @@
     "calendarProject": "Proje takvimi",
     "priority": "Dengeleme önceliği",
     "levelingDelay": "Dengeleme gecikmesi",
-    "durationHours": "Süre (saat)"
+    "durationHours": "Süre (saat)",
+    "hardPin": "Zorunlu (sabitleme mantığı)",
+    "hardPinTip": "Yalnızca MSO/MFO için — tarihi sıkı biçimde sabitler ve ilişki mantığını geçersiz kılar (P6 Mandatory).",
+    "hardPinHint": "Sıkı sabitleme ilişkileri geçersiz kılar: çubuk, öncüllerinden önce bile olsa tarihe sabitlenir. İhlal, yukarı akışta negatif bolluğa dönüşür.",
+    "constraint2": "İkincil kısıtlama",
+    "constraint2Date": "İkincil tarih",
+    "constraint2None": "(yok)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "İkincil kısıtlama zorunlu (sıkı) olamaz.",
+      "no-secondary-with-mandatory-or-on": "MSO/MFO veya sıkı sabitleme ile ikincil kısıtlama olamaz.",
+      "no-secondary-with-asap-alap": "ASAP/ALAP ile ikincil kısıtlama olamaz.",
+      "secondary-type-invalid": "İkincil tür bir sınır olmalıdır (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "Birincil ve ikincil kısıtlama aynı tarafı sınırlayamaz."
+    },
+    "hammock": "Hammock (türetilmiş süre)",
+    "hammockDerivedHint": "Türetilmiş süre — başlangıç ve bitiş driver'ı arasındaki aralık (salt okunur).",
+    "startDriver": "Başlangıç driver'ı",
+    "finishDriver": "Bitiş driver'ı",
+    "hammockNoDriver": "(yok)",
+    "hammockNoFinishDriver": "Bitiş driver'ı yok (FF/SF) — aralık sıfır uzunluğa döner.",
+    "interferingFloat": "Müdahale bolluğu:"
   },
   "relations": {
     "title": "İlişkiler",
@@ -170,5 +194,40 @@
   },
   "tooltip": {
     "status": "Durum"
+  },
+  "externalLinks": {
+    "action": "Dış bağlantı…",
+    "dialogTitle": "Dış (projeler arası) bağlantı",
+    "sourceFile": "Kaynak dosya",
+    "pickRecent": "Son kullanılan bir dosya seç",
+    "noRecent": "Son kullanılan dosya yok",
+    "readOnlyNote": "Kaynak dosya salt okunur olarak okunur — belge olarak açılmaz.",
+    "loadingTasks": "Görevler yükleniyor…",
+    "sourceTask": "Kaynak görev",
+    "direction": "Yön",
+    "directionPredecessor": "Öncül (dış → ben)",
+    "directionSuccessor": "Ardıl (ben → dış)",
+    "relType": "İlişki türü",
+    "lag": "Gecikme (iş günü)",
+    "anchorDate": "Bağlantı noktası tarihi",
+    "manualTitle": "Manuel (yedek)",
+    "manualHint": "Elinizde dosya yok mu? Dış görevin proje kimliğini ve görev kimliğini yapıştırın.",
+    "projectId": "Proje kimliği",
+    "taskId": "Görev kimliği",
+    "taskName": "Görev adı (isteğe bağlı)",
+    "add": "Bağlantı ekle",
+    "cancel": "İptal",
+    "existingTitle": "Dış bağlantılar",
+    "none": "Bu görevde henüz dış bağlantı yok.",
+    "remove": "Kaldır",
+    "refresh": "Bu bağlantıyı yenile",
+    "refreshAll": "Dış bağlantı noktalarını yenile",
+    "refreshAllHint": "Referans verilen her kaynak dosyayı yeniden oku ve bağlantı noktalarını + eskime durumunu güncelle.",
+    "stale": "eski",
+    "sourceMissing": "kaynak yüklenmedi — yenilemek için yeniden içe aktarın",
+    "pickTaskFirst": "Dış bağlantı eklemek için tek bir görev seçin.",
+    "refreshedToast": "{{refreshed}} bağlantı noktası yenilendi, {{missing}} eski",
+    "noSourcesToast": "Yenilenebilir dış kaynak yok (dosya yolu eksik).",
+    "notAvailableWeb": "Kaynak dosyaları okumak yalnızca masaüstü uygulamasında mümkündür; manuel yedeği kullanın."
   }
 }
