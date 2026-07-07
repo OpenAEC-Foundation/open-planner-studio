@@ -410,6 +410,9 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   minuut-precies); dit punt is de restcontrole dat we P6's PMXML-dialectvarianten breed genoeg dekken.
 - [ ] SVG-export van Gantt (PNG bestaat al)
 - [ ] Clipboard-ondersteuning (kopieer taken naar Excel)
+- [ ] MSPDI native `<Notes>`-mapping voor taak-aantekeningen (fase 2.10, item 1) — momenteel
+  bewust weggelaten-met-warn (lossy voor onze checklist-vorm met done-vlaggen + parse-
+  complexiteit); IFC blijft de verliesloze route (`OPS_TaskNotes`-pset).
 
 #### 3.9 Rapportage
 - [ ] Afdrukken naar printer (multi-page)

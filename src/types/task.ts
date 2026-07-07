@@ -158,6 +158,10 @@ export interface Task {
    *  (project.calendarId). Symmetrisch met Resource.calendarId. Bepaalt de kalender waarin de DUUR
    *  en de constraints van deze taak rekenen (§5). */
   calendarId?: string;
+  /** OPTIONEEL — vrije aantekeningen/checklist per taak (fase 2.10, item 1). Afwezig ⇒ geen
+   *  aantekeningen (byte-identiek). Puur een array-veld, geen dedicated store-acties nodig
+   *  (mutaties via `updateTask(taskId, { notes })`). */
+  notes?: { id: string; text: string; done: boolean }[];
 }
 
 export function createDefaultTaskTime(

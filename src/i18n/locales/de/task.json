@@ -85,6 +85,7 @@
     "freeFloat": "Freier Puffer:",
     "criticalPath": "Kritischer Pfad:",
     "dependencies": "Abhängigkeiten",
+    "relationPopoverTitle": "Beziehungstyp",
     "driving": "Maßgebende Beziehung (driving)",
     "lag": "Verzögerung (z.B. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Berechnen",
@@ -98,7 +99,8 @@
       "noResources": "Legen Sie zuerst Ressourcen an (Registerkarte Ressourcen).",
       "allAssigned": "Alle Ressourcen sind bereits zugewiesen.",
       "disabledMilestone": "Zuweisungen sind bei Meilensteinen nicht möglich.",
-      "disabledSummary": "Zuweisungen sind bei Sammelaufgaben nicht möglich."
+      "disabledSummary": "Zuweisungen sind bei Sammelaufgaben nicht möglich.",
+      "moveTo": "Verschieben nach…"
     },
     "calendar": "Kalender",
     "calendarProject": "Projektkalender",
@@ -124,7 +126,15 @@
     "finishDriver": "Ende-Treiber",
     "hammockNoDriver": "(keine)",
     "hammockNoFinishDriver": "Kein Ende-Treiber (FF/SF) — die Spanne fällt auf Länge null zurück.",
-    "interferingFloat": "Interferierender Puffer:"
+    "interferingFloat": "Interferierender Puffer:",
+    "notes": {
+      "title": "Notizen",
+      "add": "+ Notiz hinzufügen",
+      "placeholder": "Notiz…",
+      "remove": "Entfernen",
+      "done": "Erledigt",
+      "empty": "Noch keine Notizen."
+    }
   },
   "relations": {
     "title": "Beziehungen",

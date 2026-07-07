@@ -4,6 +4,13 @@ export interface UiSlice {
   ui: UIState;
   setUI: (updates: Partial<UIState>) => void;
   toggleCollapse: (taskId: string) => void;
+  /** Golf 1 (fase 2.10, bandkop-contextmenu §2.10): klap ALLE summary-taken (childIds.length>0)
+   *  expliciet uit (collapsed=false, niet togglen). Geen undo — `collapsedTaskIds` is
+   *  UI-sessiestate, net als `toggleCollapse` hierboven (zit niet in de undo-snapshot, zie
+   *  `state/snapshot.ts`). */
+  expandAll: () => void;
+  /** Golf 1 (fase 2.10): klap ALLE summary-taken expliciet in (collapsed=true). Zie `expandAll`. */
+  collapseAll: () => void;
   /** Presentatie-modus (§9): zet de flag + roept de echte Fullscreen-API aan. */
   setPresentationMode: (on: boolean) => void;
 }
@@ -44,6 +51,7 @@ export function createDefaultUI(): UIState {
     showStructureDialog: false,
     traceMode: 'off',
     showResourcePanel: false,
+    resourcePanelDocked: false,
     showHistogram: false,
     histogramHeight: 160,
     showLevelingDialog: false,
@@ -65,6 +73,13 @@ export function createDefaultUI(): UIState {
     durationDisplay: 'auto',
     barSplitMode: 'selection',
     hourDataNotice: false,
+    showShortcutsDialog: false,
+    // Fase 2.10 onderdeel 3: first-startup — ephemeral, bootstrap-hook in App.tsx zet
+    // showWelcomeDialog o.b.v. de persistente `welcomeSeen`-vlag (settingsStore.ts).
+    showWelcomeDialog: false,
+    showTourOverlay: false,
+    tourStepIndex: 0,
+    tourSnapshot: null,
   };
 }
 
@@ -105,5 +120,20 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       }
     });
     get().recomputeViewRows(); // taak-collapse verandert de zichtbaarheid van kinderen (§4.3).
+  },
+
+  expandAll: () => {
+    set((s) => {
+      const summaryIds = new Set(s.tasks.filter((t) => t.childIds.length > 0).map((t) => t.id));
+      s.ui.collapsedTaskIds = s.ui.collapsedTaskIds.filter((id) => !summaryIds.has(id));
+    });
+    get().recomputeViewRows();
+  },
+
+  collapseAll: () => {
+    set((s) => {
+      s.ui.collapsedTaskIds = s.tasks.filter((t) => t.childIds.length > 0).map((t) => t.id);
+    });
+    get().recomputeViewRows();
   },
 });

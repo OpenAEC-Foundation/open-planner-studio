@@ -16,6 +16,10 @@ export type TimeScale = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'hour';
 
 export type WeekStartDay = 'monday' | 'sunday';
 
+// Fase 2.10 (golf 1, sneltoetsen-fundament §"Nieuwe store-acties"): richting voor
+// `reorderSibling` — verwissel een taak met haar vorige/volgende sibling binnen dezelfde ouder.
+export type SiblingDirection = 'up' | 'down';
+
 // --- Scroll & zoom over the Gantt (configurable wheel behavior) ---
 // The wheel can do one of three things; in "modifier" mode the mapping is a
 // strict bijection (each function used exactly once).
@@ -86,6 +90,17 @@ export type BackstageSection =
   | 'project-info'
   | 'settings'
   | 'extensions';
+
+// Fase 2.10 fix-golf (onderdeel 3, item 6): snapshot van de UI-velden die de rondleiding
+// per stap forceert (`tourSteps.ts`'s `prepare()`-lijst) — vastgelegd bij tour-START, teruggezet
+// bij ELKE sluitroute (Sluiten/Overslaan/Escape/auto-skip-naar-buiten-de-lijst), zodat de
+// gebruikersstand van vóór de tour intact terugkomt i.p.v. altijd naar een vaste default.
+export interface TourUiSnapshot {
+  activeRibbonTab: RibbonTab;
+  backstageSection: BackstageSection;
+  showHistogram: boolean;
+  rightPanelCollapsed: boolean;
+}
 
 // --- Fase 2.7 weergaven: één veld-referentie voor filter, groep én sort (§2.1) ---
 export type BuiltinFieldKey =
@@ -212,6 +227,10 @@ export interface UIState {
   showStructureDialog: boolean;             // session — codes & velden-beheer open
   traceMode: TraceMode;                     // session — path tracing rond de geselecteerde taak
   showResourcePanel: boolean;               // session — resource-beheerpaneel (full-panel) open (fase 2.5)
+  /** Session — fase 2.10 (item 6): resource-paneel gedockt in de rechter-rail (compacte variant,
+   *  in plaats van full-panel). Default false = byte-identiek bestaand gedrag. Alleen relevant
+   *  zolang `showResourcePanel` ook true is; mutueel exclusief met de volledige-paneel-modus. */
+  resourcePanelDocked: boolean;
   showHistogram: boolean;                   // persisted — histogramstrook onder de Gantt zichtbaar (fase 2.5)
   histogramHeight: number;                  // persisted — hoogte van de histogramstrook in px (fase 2.5)
   showLevelingDialog: boolean;              // session — nivelleer-dialoog open (fase 2.5)
@@ -233,6 +252,23 @@ export interface UIState {
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
   hourDataNotice: boolean;                   // session — geladen bestand bevat uur-data terwijl Urenplanning uit staat (§6.8)
+  // --- Fase 2.10 golf 1: sneltoetsen-fundament ---
+  /** session — sneltoetsen-overzichtsdialoog (Ctrl/Cmd+/) open. De dialoog zelf komt in golf 3;
+   *  deze golf zet alleen de vlag zodat de toets al bedraad/testbaar is. */
+  showShortcutsDialog: boolean;
+  // --- Fase 2.10 onderdeel 3: first-startup (welkomstdialoog + rondleiding) ---
+  /** session — welkomstdialoog (2 stappen: voorkeuren + rondleiding-aanbod) open. Ephemeral:
+   *  het bootstrap-effect in App.tsx zet 'm op true bij een verse `!loadWelcomeSeen()`, of de
+   *  herstart-ingangen (ribbon/backstage) zetten 'm handmatig, ongeacht welcomeSeen. */
+  showWelcomeDialog: boolean;
+  /** session — rondleiding-overlay (TourOverlay) open. */
+  showTourOverlay: boolean;
+  /** session — huidige stapindex (0-based) van de rondleiding. */
+  tourStepIndex: number;
+  /** session — snapshot van de gebruikersstand vóór tour-start (zie `TourUiSnapshot`). `null`
+   *  wanneer er geen tour loopt; overleeft een presentatiemodus-unmount/remount van
+   *  `TourOverlay` (dit staat in de store, niet in component-state) — zie TourOverlay.tsx. */
+  tourSnapshot: TourUiSnapshot | null;
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

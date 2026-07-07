@@ -119,6 +119,7 @@
     "expandRibbon": "Développer le ruban",
     "resourceManagement": "Gérer",
     "openResourcePanel": "Ressources",
+    "dockResourcePanel": "Ancrer",
     "newResource": "Nouvelle ressource",
     "resourceAssignment": "Affectation",
     "assignResource": "Affecter",

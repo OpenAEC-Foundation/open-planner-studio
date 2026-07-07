@@ -85,6 +85,7 @@
     "freeFloat": "Holgura libre:",
     "criticalPath": "Ruta crítica:",
     "dependencies": "Dependencias",
+    "relationPopoverTitle": "Tipo de relación",
     "driving": "Relación determinante (driving)",
     "lag": "Desfase (ej. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Calcular",
@@ -98,7 +99,8 @@
       "noResources": "Crea primero recursos (pestaña Recursos).",
       "allAssigned": "Todos los recursos ya están asignados.",
       "disabledMilestone": "No es posible asignar en hitos.",
-      "disabledSummary": "No es posible asignar en tareas de resumen."
+      "disabledSummary": "No es posible asignar en tareas de resumen.",
+      "moveTo": "Mover a…"
     },
     "calendar": "Calendario",
     "calendarProject": "Calendario del proyecto",
@@ -124,7 +126,15 @@
     "finishDriver": "Driver de fin",
     "hammockNoDriver": "(ninguno)",
     "hammockNoFinishDriver": "Sin driver de fin (FF/SF) — el intervalo vuelve a longitud cero.",
-    "interferingFloat": "Holgura interferente:"
+    "interferingFloat": "Holgura interferente:",
+    "notes": {
+      "title": "Notas",
+      "add": "+ Añadir nota",
+      "placeholder": "Nota…",
+      "remove": "Eliminar",
+      "done": "Hecho",
+      "empty": "Aún no hay notas."
+    }
   },
   "relations": {
     "title": "Relaciones",

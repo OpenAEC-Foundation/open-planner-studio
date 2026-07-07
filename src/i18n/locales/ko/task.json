@@ -85,6 +85,7 @@
     "freeFloat": "자유 여유:",
     "criticalPath": "크리티컬 패스:",
     "dependencies": "종속성",
+    "relationPopoverTitle": "관계 유형",
     "driving": "주도 관계(드라이빙)",
     "lag": "지연(예: 2d, 3ed, 50%, -25e%)",
     "recalculate": "계산",
@@ -98,7 +99,8 @@
       "noResources": "먼저 자원을 만드세요 (자원 탭).",
       "allAssigned": "모든 자원이 이미 할당되었습니다.",
       "disabledMilestone": "마일스톤에는 할당할 수 없습니다.",
-      "disabledSummary": "요약 작업에는 할당할 수 없습니다."
+      "disabledSummary": "요약 작업에는 할당할 수 없습니다.",
+      "moveTo": "이동…"
     },
     "calendar": "달력",
     "calendarProject": "프로젝트 달력",
@@ -124,7 +126,15 @@
     "finishDriver": "종료 드라이버",
     "hammockNoDriver": "(없음)",
     "hammockNoFinishDriver": "종료 드라이버 없음(FF/SF) — 간격이 길이 0으로 돌아갑니다.",
-    "interferingFloat": "간섭 여유:"
+    "interferingFloat": "간섭 여유:",
+    "notes": {
+      "title": "메모",
+      "add": "+ 메모 추가",
+      "placeholder": "메모…",
+      "remove": "삭제",
+      "done": "완료",
+      "empty": "아직 메모가 없습니다."
+    }
   },
   "relations": {
     "title": "관계",

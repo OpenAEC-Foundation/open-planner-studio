@@ -30,7 +30,28 @@
     "newTask": "Nuova attività",
     "tracePath": "Traccia percorso",
     "traceOff": "Interrompi tracciamento",
-    "saveTemplate": "Salva ramo come modello"
+    "saveTemplate": "Salva ramo come modello",
+    "insertAbove": "Inserisci sopra",
+    "insertBelow": "Inserisci sotto",
+    "indent": "Rientra",
+    "outdent": "Rimuovi rientro",
+    "toggleMilestone": "Alterna traguardo",
+    "calendarMenu": "Assegna calendario",
+    "calendarProjectDefault": "Calendario di progetto",
+    "progressMenu": "Avanzamento",
+    "priorityMenu": "Priorità",
+    "priorityLow": "Bassa",
+    "priorityNormal": "Normale",
+    "priorityHigh": "Alta",
+    "startRelationHere": "Avvia relazione da qui",
+    "setConstraint": "Imposta vincolo…",
+    "paste": "Incolla",
+    "zoomReset": "Reimposta zoom",
+    "fitToProject": "Adatta al progetto",
+    "expandGroup": "Espandi gruppo",
+    "collapseGroup": "Comprimi gruppo",
+    "expandAll": "Espandi tutto",
+    "collapseAll": "Comprimi tutto"
   },
   "settings": {
     "title": "Impostazioni",
@@ -251,6 +272,12 @@
       "empty": "Ancora nessuna risorsa. Aggiungine una per iniziare.",
       "steps": "Fasi"
     },
+    "compact": {
+      "overallocated": "Sovrallocato",
+      "title": "Risorse",
+      "expandFull": "Pannello completo",
+      "closeDock": "Chiudi aggancio"
+    },
     "calendarDialog": {
       "title": "Calendario risorsa"
     },
@@ -453,5 +480,66 @@
     "suffixDay": "g",
     "suffixHour": "h",
     "suffixMinute": "m"
+  },
+  "shortcuts": {
+    "title": "Scorciatoie da tastiera",
+    "orJoiner": "o",
+    "category": {
+      "file": "File",
+      "edit": "Modifica",
+      "structure": "Struttura",
+      "view": "Visualizza",
+      "nav": "Navigazione"
+    },
+    "view": {
+      "exitFullscreen": "Esci dalla presentazione",
+      "showShortcuts": "Mostra scorciatoie"
+    },
+    "edit": {
+      "copy": "Copia",
+      "deselect": "Deseleziona",
+      "selectAll": "Seleziona tutto"
+    },
+    "structure": {
+      "moveUp": "Sposta attività in alto",
+      "moveDown": "Sposta attività in basso"
+    },
+    "nav": {
+      "reportTab": "Vai alla scheda Report",
+      "switchDocument": "Cambia documento",
+      "scrollToToday": "Vai a oggi"
+    }
+  },
+  "welcome": {
+    "title": "Benvenuto in Open Planner Studio",
+    "introBody": "Prima di iniziare: alcune preferenze rapide e un tour opzionale delle aree principali.",
+    "settingsSectionTitle": "Preferenze rapide",
+    "next": "Avanti",
+    "skip": "Salta",
+    "tourStepTitle": "Avviare il tour?",
+    "tourStepBody": "Un breve tour (7 passaggi) mostra le aree principali: attività, pianificazione, report e altro. Puoi interromperlo in qualsiasi momento.",
+    "startTour": "Avvia tour"
+  },
+  "tour": {
+    "step1Title": "Schede della barra multifunzione",
+    "step1Body": "In alto trovi le schede della barra multifunzione. Ogni scheda raggruppa funzioni attorno a un tema, come Home, Pianificazione e Risorse.",
+    "step2Title": "Tabella attività e diagramma di Gantt",
+    "step2Body": "A sinistra la tabella delle attività, a destra il diagramma di Gantt. Qui pianifichi e modifichi le attività e visualizzi la sequenza temporale.",
+    "step3Title": "Pannello proprietà",
+    "step3Body": "Seleziona un'attività per visualizzarne e modificarne i dettagli in questo pannello.",
+    "step4Title": "Istogramma",
+    "step4Body": "La striscia dell'istogramma mostra il carico delle risorse sotto il Gantt — utile per individuare le sovra-allocazioni.",
+    "step5Title": "Report",
+    "step5Body": "Nella scheda Report crei riepiloghi stampabili della tua pianificazione.",
+    "step6Title": "Progetti di esempio",
+    "step6Body": "In File → Esempi trovi pianificazioni pronte da cui partire o imparare.",
+    "previous": "Indietro",
+    "next": "Avanti",
+    "skip": "Salta",
+    "finish": "Chiudi",
+    "restartButton": "Tour",
+    "backstageRestart": "Avvia tour",
+    "step7Title": "La tua opinione conta",
+    "step7Body": "Manca qualcosa, qualcosa risulta scomodo, o hai notato un piccolo errore, per quanto minimo? Faccelo sapere con questo pulsante. Ogni feedback è benvenuto, davvero ogni minimo dettaglio ci aiuta a migliorare l'app."
   }
 }

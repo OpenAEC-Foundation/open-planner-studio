@@ -85,6 +85,7 @@
     "freeFloat": "شناوری آزاد:",
     "criticalPath": "مسیر بحرانی:",
     "dependencies": "وابستگی‌ها",
+    "relationPopoverTitle": "نوع رابطه",
     "driving": "رابطهٔ تعیین‌کننده (driving)",
     "lag": "تأخیر (مثلاً 2d، 3ed، 50%، -25e%)",
     "recalculate": "محاسبه",
@@ -98,7 +99,8 @@
       "noResources": "ابتدا منابع را ایجاد کنید (تب منابع).",
       "allAssigned": "همه منابع قبلاً تخصیص داده شده‌اند.",
       "disabledMilestone": "تخصیص روی نقاط عطف امکان‌پذیر نیست.",
-      "disabledSummary": "تخصیص روی وظایف خلاصه امکان‌پذیر نیست."
+      "disabledSummary": "تخصیص روی وظایف خلاصه امکان‌پذیر نیست.",
+      "moveTo": "انتقال به…"
     },
     "calendar": "تقویم",
     "calendarProject": "تقویم پروژه",
@@ -124,7 +126,15 @@
     "finishDriver": "درایور پایان",
     "hammockNoDriver": "(هیچ)",
     "hammockNoFinishDriver": "بدون درایور پایان (FF/SF) — فاصله به طول صفر برمی‌گردد.",
-    "interferingFloat": "شناوری مداخله‌گر:"
+    "interferingFloat": "شناوری مداخله‌گر:",
+    "notes": {
+      "title": "یادداشت‌ها",
+      "add": "+ افزودن یادداشت",
+      "placeholder": "یادداشت…",
+      "remove": "حذف",
+      "done": "انجام‌شده",
+      "empty": "هنوز یادداشتی نیست."
+    }
   },
   "relations": {
     "title": "روابط",

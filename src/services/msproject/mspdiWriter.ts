@@ -213,6 +213,14 @@ export function writeMSPDI(
     console.warn(`MSPDI-export: ${hammockCount} hammock/LOE-taak/-taken geëxporteerd als gewone taak met berekende datums — MSPDI kent geen native LOE (§6).`);
   }
 
+  // Fase 2.10 (item 1): MSPDI kent een native <Notes>-element, maar dat is BEWUST niet gebruikt
+  // (lossy voor onze checklist-vorm met done-vlaggen + parse-complexiteit) — weggelaten-met-warn,
+  // exact het externalLinks/hammock-patroon. Native mapping is een latere interop-optie (TODO §3.8).
+  const noteCount = tasks.reduce((n, t) => n + (t.notes?.length ?? 0), 0);
+  if (noteCount > 0) {
+    console.warn(`MSPDI-export: ${noteCount} taak-aantekening(en) weggelaten — MSPDI's native <Notes>-element is bewust niet gebruikt (lossy voor de checklist-vorm, §6).`);
+  }
+
   // Fase 2.6 (§9.1): alleen de ACTIEVE baseline gaat naar MSPDI-slot 0 (Baseline Number 0).
   // De overige OPS-baselines verliezen we bewust (extra slots 1-10 = latere uitbreiding).
   const activeBaseline = baselines.find(b => b.id === activeBaselineId) ?? null;

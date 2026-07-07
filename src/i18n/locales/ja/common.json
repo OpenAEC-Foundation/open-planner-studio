@@ -30,7 +30,28 @@
     "newTask": "新しいタスク",
     "tracePath": "パスをトレース",
     "traceOff": "パスのトレースを停止",
-    "saveTemplate": "ブランチをテンプレートとして保存"
+    "saveTemplate": "ブランチをテンプレートとして保存",
+    "insertAbove": "上に挿入",
+    "insertBelow": "下に挿入",
+    "indent": "インデント",
+    "outdent": "インデント解除",
+    "toggleMilestone": "マイルストーンを切り替え",
+    "calendarMenu": "カレンダーを割り当て",
+    "calendarProjectDefault": "プロジェクトカレンダー",
+    "progressMenu": "進捗",
+    "priorityMenu": "優先度",
+    "priorityLow": "低",
+    "priorityNormal": "標準",
+    "priorityHigh": "高",
+    "startRelationHere": "ここから関係を開始",
+    "setConstraint": "制約を設定…",
+    "paste": "貼り付け",
+    "zoomReset": "ズームをリセット",
+    "fitToProject": "プロジェクトに合わせる",
+    "expandGroup": "グループを展開",
+    "collapseGroup": "グループを折りたたむ",
+    "expandAll": "すべて展開",
+    "collapseAll": "すべて折りたたむ"
   },
   "settings": {
     "title": "設定",
@@ -251,6 +272,12 @@
       "empty": "リソースがまだありません。追加して始めましょう。",
       "steps": "ステップ"
     },
+    "compact": {
+      "overallocated": "過負荷",
+      "title": "リソース",
+      "expandFull": "フルパネル",
+      "closeDock": "ドッキングを閉じる"
+    },
     "calendarDialog": {
       "title": "リソースカレンダー"
     },
@@ -453,5 +480,66 @@
     "suffixDay": "日",
     "suffixHour": "時",
     "suffixMinute": "分"
+  },
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "orJoiner": "または",
+    "category": {
+      "file": "ファイル",
+      "edit": "編集",
+      "structure": "構造",
+      "view": "表示",
+      "nav": "ナビゲーション"
+    },
+    "view": {
+      "exitFullscreen": "プレゼンテーションを終了",
+      "showShortcuts": "ショートカットを表示"
+    },
+    "edit": {
+      "copy": "コピー",
+      "deselect": "選択を解除",
+      "selectAll": "すべて選択"
+    },
+    "structure": {
+      "moveUp": "タスクを上に移動",
+      "moveDown": "タスクを下に移動"
+    },
+    "nav": {
+      "reportTab": "レポートタブへ移動",
+      "switchDocument": "ドキュメントを切り替え",
+      "scrollToToday": "今日にジャンプ"
+    }
+  },
+  "welcome": {
+    "title": "Open Planner Studio へようこそ",
+    "introBody": "始める前に：いくつかのクイック設定と、主な機能を紹介する任意のツアーです。",
+    "settingsSectionTitle": "クイック設定",
+    "next": "次へ",
+    "skip": "スキップ",
+    "tourStepTitle": "ツアーを開始しますか？",
+    "tourStepBody": "短いツアー（7ステップ）で、タスク、スケジュール、レポートなどの主な機能を紹介します。いつでも中止できます。",
+    "startTour": "ツアーを開始"
+  },
+  "tour": {
+    "step1Title": "リボンタブ",
+    "step1Body": "上部にリボンタブがあります。各タブは、開始・スケジュール・リソースなど、テーマごとに機能をまとめています。",
+    "step2Title": "タスクテーブルとガントチャート",
+    "step2Body": "左側にタスクテーブル、右側にガントチャートがあります。ここでタスクを計画・編集し、タイムラインを確認します。",
+    "step3Title": "プロパティパネル",
+    "step3Body": "タスクを選択すると、このパネルで詳細を確認・編集できます。",
+    "step4Title": "ヒストグラム",
+    "step4Body": "ヒストグラムバーはガントチャートの下にリソース負荷を表示します。過剰割り当ての把握に便利です。",
+    "step5Title": "レポート",
+    "step5Body": "レポートタブでは、スケジュールの印刷可能な概要を作成できます。",
+    "step6Title": "サンプルプロジェクト",
+    "step6Body": "ファイル → サンプルには、すぐに使える、または学習用のスケジュールがあります。",
+    "previous": "戻る",
+    "next": "次へ",
+    "skip": "スキップ",
+    "finish": "閉じる",
+    "restartButton": "ツアー",
+    "backstageRestart": "ツアーを開始",
+    "step7Title": "あなたの声を聞かせてください",
+    "step7Body": "足りないもの、使いにくい点、ちょっとした不具合など、どんな小さなことでも構いません。このボタンから教えてください。あらゆるフィードバックを歓迎します。小さなことでもアプリの改善に役立ちます。"
   }
 }

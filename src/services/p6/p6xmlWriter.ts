@@ -183,6 +183,13 @@ export function writeP6XML(
     console.warn('P6-export: scheduling-opties niet geëxporteerd — P6 SCHEDOPTIONS-mapping UNVERIFIED (aspiratie, §6).');
   }
 
+  // Fase 2.10 (item 1): taak-aantekeningen zijn in P6-XML niet uitdrukbaar ⇒ weggelaten (blijven
+  // in-app), exact het externalLinks/hammock-weglaten-met-warn-patroon hierboven.
+  const noteCount = tasks.reduce((n, t) => n + (t.notes?.length ?? 0), 0);
+  if (noteCount > 0) {
+    console.warn(`P6-export: ${noteCount} taak-aantekening(en) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
+  }
+
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
   lines.push('<APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V23.12/API/BusinessObjects" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">');
 

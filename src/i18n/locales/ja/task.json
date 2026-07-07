@@ -85,6 +85,7 @@
     "freeFloat": "フリーフロート：",
     "criticalPath": "クリティカルパス：",
     "dependencies": "依存関係",
+    "relationPopoverTitle": "関係の種類",
     "driving": "駆動関係（ドライビング）",
     "lag": "ラグ（例: 2d、3ed、50%、-25e%）",
     "recalculate": "計算",
@@ -98,7 +99,8 @@
       "noResources": "先にリソースを作成してください（リソースタブ）。",
       "allAssigned": "すべてのリソースはすでに割り当てられています。",
       "disabledMilestone": "マイルストーンには割り当てできません。",
-      "disabledSummary": "サマリータスクには割り当てできません。"
+      "disabledSummary": "サマリータスクには割り当てできません。",
+      "moveTo": "移動先…"
     },
     "calendar": "カレンダー",
     "calendarProject": "プロジェクトカレンダー",
@@ -124,7 +126,15 @@
     "finishDriver": "終了ドライバー",
     "hammockNoDriver": "（なし）",
     "hammockNoFinishDriver": "終了ドライバーがありません（FF/SF）— 間隔はゼロ長に戻ります。",
-    "interferingFloat": "干渉フロート:"
+    "interferingFloat": "干渉フロート:",
+    "notes": {
+      "title": "メモ",
+      "add": "+ メモを追加",
+      "placeholder": "メモ…",
+      "remove": "削除",
+      "done": "完了",
+      "empty": "メモはまだありません。"
+    }
   },
   "relations": {
     "title": "関係",

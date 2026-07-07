@@ -668,6 +668,7 @@ export class GanttRenderer {
         this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
       }
       this.drawConstraintMarkers(task, y);
+      this.drawNotesIndicator(task, y);
       // Externe (cross-project) ghost-balken (fase 2.9, §5.5): op volle dekking (niet mee-dimmen),
       // ná de constraint-markers zodat de badge bovenop leesbaar blijft.
       if (dimmed || row.dimmed) this.ctx.globalAlpha = 1;
@@ -1068,6 +1069,26 @@ export class GanttRenderer {
     }
   }
 
+  /**
+   * Fase 2.10 (item 1) — klein, neutraal-gekleurd "aantekeningen aanwezig"-badge, rechtsboven de
+   * balk (naast `drawConstraintMarkers`, hetzelfde badge-precedent). Alleen zichtbaar bij ≥1 OPEN
+   * (`!done`) aantekening — een volledig afgevinkte lijst toont niets meer (bewust informatief,
+   * geen waarschuwingskleur).
+   */
+  private drawNotesIndicator(task: Task, y: number): void {
+    const notes = task.notes;
+    if (!notes || !notes.some(n => !n.done)) return;
+    const ctx = this.ctx;
+    const chartLeft = this.opts.taskTableWidth;
+    const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+    const px = this.dateToX(end) + this.opts.view.zoom;
+    if (px < chartLeft || px > this.opts.canvasWidth) return;
+    ctx.fillStyle = this.colors.textSecondary;
+    ctx.beginPath();
+    ctx.arc(px - 6, y - 5, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   private drawDependencyArrows(): void {
     const ctx = this.ctx;
     ctx.lineWidth = 1;
@@ -1380,6 +1401,20 @@ export class GanttRenderer {
       return task;
     }
     return null;
+  }
+
+  /** Hit test (fase 2.10 golf 4, box-selection): welke taak-ids liggen met hun rij-band verticaal
+   *  in [y1,y2] (canvas-coördinaten, willekeurige volgorde)? Bandrijen (`kind:'group'`) doen niet
+   *  mee. Zelfde rij-index-wiskunde als getRowAtY, dus consistent met alle andere hit-tests. */
+  getTaskIdsInYRange(y1: number, y2: number): string[] {
+    const lo = Math.max(0, this.getRowIndex(Math.min(y1, y2)));
+    const hi = Math.min(this.rows.length - 1, this.getRowIndex(Math.max(y1, y2)));
+    const ids: string[] = [];
+    for (let i = lo; i <= hi; i++) {
+      const row = this.rows[i];
+      if (row?.kind === 'task') ids.push(row.task.id);
+    }
+    return ids;
   }
 
   /** Hit test: get task bar bounds for a task at row index (for drag & drop) */

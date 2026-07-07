@@ -30,7 +30,28 @@
     "newTask": "새 작업",
     "tracePath": "경로 추적",
     "traceOff": "경로 추적 중지",
-    "saveTemplate": "분기를 템플릿으로 저장"
+    "saveTemplate": "분기를 템플릿으로 저장",
+    "insertAbove": "위에 삽입",
+    "insertBelow": "아래에 삽입",
+    "indent": "들여쓰기",
+    "outdent": "내어쓰기",
+    "toggleMilestone": "마일스톤 전환",
+    "calendarMenu": "캘린더 지정",
+    "calendarProjectDefault": "프로젝트 캘린더",
+    "progressMenu": "진행률",
+    "priorityMenu": "우선순위",
+    "priorityLow": "낮음",
+    "priorityNormal": "보통",
+    "priorityHigh": "높음",
+    "startRelationHere": "여기서 관계 시작",
+    "setConstraint": "제약 조건 설정…",
+    "paste": "붙여넣기",
+    "zoomReset": "확대/축소 재설정",
+    "fitToProject": "프로젝트에 맞추기",
+    "expandGroup": "그룹 펼치기",
+    "collapseGroup": "그룹 접기",
+    "expandAll": "모두 펼치기",
+    "collapseAll": "모두 접기"
   },
   "settings": {
     "title": "설정",
@@ -251,6 +272,12 @@
       "empty": "아직 자원이 없습니다. 시작하려면 하나를 추가하세요.",
       "steps": "단계"
     },
+    "compact": {
+      "overallocated": "과부하",
+      "title": "리소스",
+      "expandFull": "전체 패널",
+      "closeDock": "도킹 닫기"
+    },
     "calendarDialog": {
       "title": "자원 달력"
     },
@@ -453,5 +480,66 @@
     "suffixDay": "일",
     "suffixHour": "시",
     "suffixMinute": "분"
+  },
+  "shortcuts": {
+    "title": "키보드 단축키",
+    "orJoiner": "또는",
+    "category": {
+      "file": "파일",
+      "edit": "편집",
+      "structure": "구조",
+      "view": "보기",
+      "nav": "탐색"
+    },
+    "view": {
+      "exitFullscreen": "프레젠테이션 종료",
+      "showShortcuts": "단축키 표시"
+    },
+    "edit": {
+      "copy": "복사",
+      "deselect": "선택 해제",
+      "selectAll": "모두 선택"
+    },
+    "structure": {
+      "moveUp": "작업을 위로 이동",
+      "moveDown": "작업을 아래로 이동"
+    },
+    "nav": {
+      "reportTab": "보고서 탭으로 이동",
+      "switchDocument": "문서 전환",
+      "scrollToToday": "오늘로 이동"
+    }
+  },
+  "welcome": {
+    "title": "Open Planner Studio에 오신 것을 환영합니다",
+    "introBody": "시작하기 전에: 몇 가지 빠른 환경설정과 주요 영역을 둘러보는 선택적 투어입니다.",
+    "settingsSectionTitle": "빠른 환경설정",
+    "next": "다음",
+    "skip": "건너뛰기",
+    "tourStepTitle": "투어를 시작할까요?",
+    "tourStepBody": "짧은 투어(7단계)에서 작업, 일정, 보고서 등 주요 영역을 보여드립니다. 언제든지 중단할 수 있습니다.",
+    "startTour": "투어 시작"
+  },
+  "tour": {
+    "step1Title": "리본 탭",
+    "step1Body": "상단에 리본 탭이 있습니다. 각 탭은 시작, 일정, 리소스 등 주제별로 기능을 묶어 놓았습니다.",
+    "step2Title": "작업 표와 간트 차트",
+    "step2Body": "왼쪽에는 작업 표, 오른쪽에는 간트 차트가 있습니다. 여기서 작업을 계획하고 편집하며 일정을 확인합니다.",
+    "step3Title": "속성 패널",
+    "step3Body": "작업을 선택하면 이 패널에서 세부 정보를 보고 편집할 수 있습니다.",
+    "step4Title": "히스토그램",
+    "step4Body": "히스토그램 막대는 간트 차트 아래에 리소스 부하를 표시합니다 — 과다 할당을 파악하는 데 유용합니다.",
+    "step5Title": "보고서",
+    "step5Body": "보고서 탭에서 일정의 인쇄 가능한 요약을 만듭니다.",
+    "step6Title": "예제 프로젝트",
+    "step6Body": "파일 → 예제에서 시작하거나 학습할 수 있는 완성된 일정을 찾을 수 있습니다.",
+    "previous": "이전",
+    "next": "다음",
+    "skip": "건너뛰기",
+    "finish": "닫기",
+    "restartButton": "투어",
+    "backstageRestart": "투어 시작",
+    "step7Title": "여러분의 의견이 중요합니다",
+    "step7Body": "부족한 점, 불편한 점, 또는 아주 작은 버그라도 발견하셨다면 이 버튼으로 알려주세요. 어떤 의견이든 환영합니다. 아무리 사소한 것이라도 앱을 더 좋게 만드는 데 도움이 됩니다."
   }
 }

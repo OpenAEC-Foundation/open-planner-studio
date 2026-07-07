@@ -83,6 +83,7 @@
   --z-modal:          60;
   --z-toast:          70;
   --z-tooltip:        80;
+  --z-contextmenu:    90;
 
   /* Layout sizes (LAYOUTS.md §4.1) */
   --titlebar-height:  32px;

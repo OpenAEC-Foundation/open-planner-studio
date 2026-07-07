@@ -119,6 +119,7 @@
     "expandRibbon": "リボンを展開する",
     "resourceManagement": "管理",
     "openResourcePanel": "リソース",
+    "dockResourcePanel": "ドッキング",
     "newResource": "新規リソース",
     "resourceAssignment": "割り当て",
     "assignResource": "割り当てる",

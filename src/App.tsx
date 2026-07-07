@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode, loadWelcomeSeen } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -34,6 +34,7 @@ import { GanttCanvas } from '@/components/canvas/GanttCanvas';
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { TableEditor } from '@/components/panels/TableEditor';
 import { ResourcePanel } from '@/components/panels/ResourcePanel';
+import { ResourcePanelCompact } from '@/components/panels/ResourcePanelCompact';
 import { RelationsPanel } from '@/components/panels/RelationsPanel';
 import { IFCPanel } from '@/components/panels/IFCPanel';
 import { ReportPanel } from '@/components/panels/ReportPanel';
@@ -50,8 +51,11 @@ import { BaselineDialog } from '@/components/dialogs/BaselineDialog';
 import { ColumnsDialog } from '@/components/dialogs/ColumnsDialog';
 import { FilterDialog } from '@/components/dialogs/FilterDialog';
 import { LayoutsDialog } from '@/components/dialogs/LayoutsDialog';
+import { ShortcutsDialog } from '@/components/dialogs/ShortcutsDialog';
 import { PresentationHint } from '@/components/layout/PresentationHint';
 import { RecoveryDialog, type RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
+import { WelcomeDialog } from '@/components/dialogs/WelcomeDialog';
+import { TourOverlay } from '@/components/tour/TourOverlay';
 import { documentTitle } from '@/utils/documents';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
 import { Backstage } from '@/components/backstage/Backstage';
@@ -62,7 +66,7 @@ import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDoc
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useAppStore } from '@/state/appStore';
 import type { RecoveryDocInput } from '@/state/slices/documentSlice';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 import { HourDataNotice } from '@/components/layout/HourDataNotice';
 
 function AppContent() {
@@ -80,11 +84,15 @@ function AppContent() {
   const showStructureDialog = useAppStore(s => s.ui.showStructureDialog);
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
+  const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
+  const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
+  const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
+  const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
@@ -104,6 +112,14 @@ function AppContent() {
     onDiscard: () => void;
     onClose: () => void;
   } | null>(null);
+
+  // Fase 2.10 onderdeel 3 (§3): reactief signaal "recovery-flow volledig afgehandeld" — waar
+  // `autoSaveEnabled` (hieronder) een ref is (niet reactief, alleen voor de auto-save-timer),
+  // heeft de welkomstdialoog-bootstrap-check een render-triggerende state nodig om pas te
+  // vuren NADAT de recovery-detectie/-keuze echt klaar is (nooit gelijktijdig met RecoveryDialog).
+  // Gezet op exact dezelfde momenten als `autoSaveEnabled.current = true` hieronder (dezelfde
+  // `finish()`-closure + de niet-Tauri-kortsluiting).
+  const [recoveryResolved, setRecoveryResolved] = useState(false);
 
   // Auto-save-poort: blijft dicht tot de recovery-keuze is gemaakt, zodat de
   // debounced auto-save de recovery-snapshots niet overschrijft vóórdat de
@@ -312,10 +328,10 @@ function AppContent() {
 
     (async () => {
       // Buiten Tauri is er geen recovery/auto-save: poort meteen open.
-      if (!isTauri()) { autoSaveEnabled.current = true; return; }
+      if (!isTauri()) { autoSaveEnabled.current = true; setRecoveryResolved(true); return; }
       // Poort opent zodra de keuze is gemaakt (of er niets te herstellen valt);
       // pas dan mag de auto-save de snapshots overschrijven.
-      const finish = () => { autoSaveEnabled.current = true; };
+      const finish = () => { autoSaveEnabled.current = true; setRecoveryResolved(true); };
       try {
         const { readTextFile, exists, remove, stat } = await import('@tauri-apps/plugin-fs');
         const { appDataDir, join } = await import('@tauri-apps/api/path');
@@ -430,6 +446,26 @@ function AppContent() {
     })();
   }, []);
 
+  // First-startup-ervaring (fase 2.10, onderdeel 3, §3): toont de WelcomeDialog bij een verse
+  // `!loadWelcomeSeen()`. Eigen ref-guard (`welcomeChecked`) naar het recovery-/update-check-
+  // patroon hierboven, maar reageert op de REACTIEVE `recoveryResolved`-state (niet de
+  // `recoveryChecked`-ref, die synchroon al waar is vóórdat de async detectie/dialoogkeuze
+  // daadwerkelijk is afgerond) — zo vuurt dit effect pas nadat de recovery-flow ECHT klaar is
+  // (geen data gevonden, of de gebruiker heeft hersteld/verworpen/uitgesteld), nooit gelijktijdig
+  // met een zichtbare `RecoveryDialog`. Werkt zowel in Tauri als browser-build — de
+  // `welcomeSeen`-vlag leeft in localStorage, dat overal werkt.
+  const welcomeChecked = useRef(false);
+  useEffect(() => {
+    if (welcomeChecked.current) return;
+    if (!recoveryResolved) return; // wacht tot de recovery-flow (incl. eventuele keuze) echt klaar is
+    if (recovery !== null) return; // RecoveryDialog is zichtbaar — welkomstdialoog wacht
+    welcomeChecked.current = true;
+
+    loadWelcomeSeen().then(seen => {
+      if (!seen) setUI({ showWelcomeDialog: true });
+    });
+  }, [recoveryResolved, recovery, setUI]);
+
   // Stille opstart-update-check (Tauri-only) — spiegelt het auto-save-patroon:
   // dynamische import binnen de service, niet-blokkerend. Is er een update, dan
   // openen we de update-dialog zodat de gebruiker het ziet. Fouten worden in
@@ -451,8 +487,13 @@ function AppContent() {
       .catch(() => { /* stille check — fouten negeren */ });
   }, []);
 
-  // Determine if we should show the gantt canvas or a full-panel view
-  const isFullPanel = showResourcePanel || activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
+  // Determine if we should show the gantt canvas or a full-panel view.
+  // Fase 2.10 (item 6): een GEDOCKT resource-paneel (`resourcePanelDocked`) sluit `showResourcePanel`
+  // NIET meer in — de Gantt (incl. histogramstrook) blijft dan zichtbaar en de compacte
+  // resource-lijst dockt in de rechter-rail (zie het dock-blok hieronder) in plaats van de hele
+  // werkruimte te vervangen.
+  const isFullPanel = (showResourcePanel && !resourcePanelDocked) || activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
+  const resourceDocked = showResourcePanel && resourcePanelDocked;
 
   // Presentation mode (fase 2.7, §9.2): één wrapper-conditie i.p.v. losse `&& !presentationMode`-
   // guards door de hele boom — alle chrome (TitleBar/Ribbon/tabbar/brand-strip/rechterpaneel/
@@ -503,7 +544,12 @@ function AppContent() {
       >
         {isFullPanel ? (
           // Full panel views (Table, IFC, Report) — eigen kaart
-          <div className="ui-card flex-1 flex overflow-hidden">
+          // data-tour-anchor (fase 2.10, onderdeel 3, tourstap 5): alleen gezet op het
+          // Rapport-tabblad — dat is het enige full-panel-anker dat de tour gebruikt.
+          <div
+            className="ui-card flex-1 flex overflow-hidden"
+            {...(activeTab === 'report' ? { 'data-tour-anchor': 'report-panel' } : {})}
+          >
             {showResourcePanel ? (
               <ResourcePanel />
             ) : (
@@ -516,13 +562,16 @@ function AppContent() {
             )}
           </div>
         ) : (
-          // Gantt Chart view — zwevende kaart (Gantt + tabel samen)
-          <div className="ui-card flex-1 flex overflow-hidden">
+          // Gantt Chart view — zwevende kaart (Gantt + tabel samen). data-tour-anchor
+          // (tourstap 2: taaktabel + Gantt).
+          <div className="ui-card flex-1 flex overflow-hidden" data-tour-anchor="gantt-panel">
             <GanttCanvas />
           </div>
         )}
 
-        {/* Right Panel: Properties (collapsible) */}
+        {/* Right Panel: Properties (collapsible) — of, gedockt (fase 2.10 item 6), de compacte
+            resource-lijst i.p.v. het eigenschappenpaneel. Mutueel exclusief (architect-besluit 5):
+            één rail, geen tweede breedte/collapsed-veld. */}
         {!isFullPanel && (
           rightPanelCollapsed ? (
             <div
@@ -534,27 +583,48 @@ function AppContent() {
               <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider"
                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
               >
-                {t('properties')}
+                {resourceDocked ? t('resource.compact.title') : t('properties')}
               </span>
             </div>
           ) : (
             <div
               className="ui-card flex flex-col overflow-hidden"
               style={{ width: rightPanelWidth, minWidth: 200 }}
+              data-tour-anchor="properties-panel"
             >
               <div className="flex items-center justify-between h-8 px-3 border-b border-border flex-shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-                  {t('properties')}
+                  {resourceDocked ? t('resource.compact.title') : t('properties')}
                 </span>
-                <button
-                  onClick={() => setUI({ rightPanelCollapsed: true })}
-                  className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
-                >
-                  <ChevronRight size={14} />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  {resourceDocked && (
+                    <>
+                      <button
+                        onClick={() => setUI({ resourcePanelDocked: false })}
+                        title={t('resource.compact.expandFull')}
+                        className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                      >
+                        <Maximize2 size={13} />
+                      </button>
+                      <button
+                        onClick={() => setUI({ showResourcePanel: false, resourcePanelDocked: false })}
+                        title={t('resource.compact.closeDock')}
+                        className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                      >
+                        <X size={14} />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setUI({ rightPanelCollapsed: true })}
+                    className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto">
-                <TaskPropertiesPanel />
+                {resourceDocked ? <ResourcePanelCompact /> : <TaskPropertiesPanel />}
               </div>
               {debugTerminalEnabled && debugTerminalOpen && <DebugTerminal />}
             </div>
@@ -587,6 +657,9 @@ function AppContent() {
       {showColumnsDialog && <ColumnsDialog />}
       {showFilterDialog && <FilterDialog />}
       {showLayoutsDialog && <LayoutsDialog />}
+      {showShortcutsDialog && <ShortcutsDialog />}
+      {showWelcomeDialog && <WelcomeDialog />}
+      {showTourOverlay && <TourOverlay />}
       <UpdateDialog />
       {recovery && (
         <RecoveryDialog

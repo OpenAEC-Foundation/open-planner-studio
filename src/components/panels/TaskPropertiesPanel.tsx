@@ -1,194 +1,45 @@
-import { useState, useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import type { WorkCalendar } from '@/types/calendar';
-import { isHourCalendar } from '@/services/subdayIo';
-import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
-import { parseDuration, formatDuration } from '@/utils/durationFormat';
-import { Task, TaskType, ConstraintType, MilestoneKind } from '@/types/task';
-import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
-import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
-import type { ResourceCurve } from '@/types/resource';
-import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
-import { useTaskTypeLabels } from '@/i18n/taskTypes';
-import { Select } from '@/components/common/Select';
-import { SequenceLagInput } from '@/components/common/SequenceLagInput';
-import { UnitsInput } from '@/components/common/UnitsInput';
-import { DateTextInput } from '@/components/common/DateTextInput';
-import { useDisplayDate } from '@/utils/displayDate';
-import { Trash2, Zap } from 'lucide-react';
+import { Task } from '@/types/task';
+import { Trash2 } from 'lucide-react';
+import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
+import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
+import { TaskMilestoneFields } from '@/components/task-sections/TaskMilestoneFields';
+import { TaskTimeFields } from '@/components/task-sections/TaskTimeFields';
+import { TaskHammockFields } from '@/components/task-sections/TaskHammockFields';
+import { TaskConstraintFields } from '@/components/task-sections/TaskConstraintFields';
+import { TaskDeadlineField } from '@/components/task-sections/TaskDeadlineField';
+import { TaskProgressFields } from '@/components/task-sections/TaskProgressFields';
+import { TaskCpmResultSection } from '@/components/task-sections/TaskCpmResultSection';
+import { TaskDependenciesSection } from '@/components/task-sections/TaskDependenciesSection';
+import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
+import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 
-export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
-
-/** ResourceCurve → i18n-key in de common-namespace (resource.curve.*). `as const` houdt de
- *  literal-keytypes zodat de getypeerde `t(...)` ze accepteert. */
-export const CURVE_KEY = {
-  UNIFORM: 'resource.curve.uniform',
-  FRONT_LOADED: 'resource.curve.frontLoaded',
-  BACK_LOADED: 'resource.curve.backLoaded',
-  BELL: 'resource.curve.bell',
-  EARLY_PEAK: 'resource.curve.earlyPeak',
-  LATE_PEAK: 'resource.curve.latePeak',
-} as const satisfies Record<ResourceCurve, string>;
-
-/** Getypeerd invoerveld voor één custom field op een taak. */
-function CustomFieldInput({ def, value, onCommit }: {
-  def: CustomFieldDef;
-  value: CustomFieldValue | undefined;
-  onCommit: (value: CustomFieldValue | null) => void;
-}) {
-  const cls = 'input !text-xs !px-2.5 !py-1.5';
-  if (def.type === 'boolean') {
-    return (
-      <input
-        type="checkbox"
-        checked={value === true}
-        onChange={e => onCommit(e.target.checked ? true : null)}
-        className="w-4 h-4 accent-[var(--theme-accent)]"
-      />
-    );
-  }
-  if (def.type === 'date') {
-    return (
-      <DateTextInput
-        value={typeof value === 'string' ? value : ''}
-        onCommit={v => onCommit(v || null)}
-        className={cls}
-      />
-    );
-  }
-  if (def.type === 'text') {
-    return (
-      <input
-        value={typeof value === 'string' ? value : ''}
-        onChange={e => onCommit(e.target.value || null)}
-        className={cls}
-      />
-    );
-  }
-  // number / integer / cost
-  return (
-    <input
-      type="number"
-      step={def.type === 'integer' ? 1 : 'any'}
-      value={typeof value === 'number' ? value : ''}
-      onChange={e => {
-        const raw = e.target.value;
-        if (raw === '') { onCommit(null); return; }
-        const n = def.type === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
-        if (Number.isFinite(n)) onCommit(n);
-      }}
-      className={cls}
-    />
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label
-        className="text-[10px] uppercase tracking-wide"
-        style={{ color: 'var(--theme-text-muted)' }}
-      >
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function Input({ value, onChange, type = 'text', min, max, step, disabled }: {
-  value: string | number;
-  onChange: (v: string) => void;
-  type?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-  disabled?: boolean;
-}) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      min={min}
-      max={max}
-      step={step}
-      disabled={disabled}
-      className="input !text-xs !px-2.5 !py-1.5 disabled:opacity-50"
-    />
-  );
-}
+// RESOURCE_CURVES/CURVE_KEY verhuisd naar `@/components/task-sections/shared` (fase 2.10, golf D) —
+// Ribbon.tsx en de nieuwe Toewijzingen-sectie importeren vanaf daar. Re-export hier zou een
+// cirkelvormige afhankelijkheid met task-sections/shared kunnen introduceren; bestaande imports zijn
+// bijgewerkt naar de nieuwe plek.
 
 /**
- * Duurveld voor een uur-taak (§6.4): tekstinvoer die "20u"/"2d 4u"/"90m" via `parseDuration`
- * accepteert (hele eenheden) en pas op blur/Enter commit — een parse-fout (o.a. decimalen) draait
- * terug naar de vorige waarde. Gekeyd op de taak zodat het bij taakwissel vers seedt.
+ * Eigenschappenpaneel voor de geselecteerde taak (fase 2.10, golf D: geëxtraheerd in gedeelde
+ * `task-sections/*`-componenten, hergebruikt door `TaskDialog`). Dit paneel blijft INSTANT-APPLY
+ * (`update(patch) => updateTask(task.id, patch)`) — exact het gedrag van vóór de extractie, puur
+ * JSX/compositie verplaatst naar losse bestanden.
  */
-function HourDurationField({ minutes, hpd, onCommitMinutes }: {
-  minutes: number;
-  hpd: number;
-  onCommitMinutes: (m: number) => void;
-}) {
-  const seed = formatDuration(minutes, hpd, 'hours');
-  const [val, setVal] = useState(seed);
-  useEffect(() => { setVal(seed); }, [seed]);
-  const commit = () => {
-    const m = parseDuration(val, hpd);
-    if (m != null) onCommitMinutes(m); else setVal(seed);
-  };
-  return (
-    <input
-      type="text"
-      value={val}
-      onChange={e => setVal(e.target.value)}
-      onBlur={commit}
-      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
-      className="input !text-xs !px-2.5 !py-1.5"
-      data-ops-panel-duration
-    />
-  );
-}
-
 export function TaskPropertiesPanel() {
   const { t } = useTranslation('task');
-  const { t: tCommon } = useTranslation('common');
-  const dd = useDisplayDate();
-  const { options: taskTypeOptions } = useTaskTypeLabels();
 
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const tasks = useAppStore(s => s.tasks);
-  const sequences = useAppStore(s => s.sequences);
-  const cpmResult = useAppStore(s => s.cpmResult);
-  const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
-  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
-  const customFieldDefs = useAppStore(s => s.customFieldDefs);
-  const setTaskActivityCode = useAppStore(s => s.setTaskActivityCode);
-  const setTaskCustomField = useAppStore(s => s.setTaskCustomField);
   const updateTask = useAppStore(s => s.updateTask);
   const deleteTask = useAppStore(s => s.deleteTask);
-  const updateSequence = useAppStore(s => s.updateSequence);
-  const removeSequence = useAppStore(s => s.removeSequence);
   const runCPM = useAppStore(s => s.runCPM);
-  const resources = useAppStore(s => s.resources);
-  const assignments = useAppStore(s => s.assignments);
-  const assignResource = useAppStore(s => s.assignResource);
-  const updateAssignment = useAppStore(s => s.updateAssignment);
-  const unassignResource = useAppStore(s => s.unassignResource);
-  // Voortgang (fase 2.6): de acties dwingen de §3.2-invarianten af.
+  const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
+  // Voortgang (fase 2.6): de acties dwingen de §3.2-invarianten af — zie TaskProgressFields-docstring
+  // voor waarom deze als dedicated setters (i.p.v. de generieke patch) worden doorgegeven.
   const setTaskProgress = useAppStore(s => s.setTaskProgress);
   const setActualStart = useAppStore(s => s.setActualStart);
   const setActualFinish = useAppStore(s => s.setActualFinish);
-  const [actualError, setActualError] = useState(false);
-  // Eenmalige, niet-blokkerende hint bij het AANZETTEN van een harde pin (besluit B2): "pin
-  // overschrijft relaties". Geen bevestigingsdialoog — gegate op een localStorage-vlag zodat hij
-  // maar één keer ooit verschijnt.
-  const [pinHint, setPinHint] = useState(false);
-  // Taak-kalender-keuze (fase 2.8a, §7.3): bibliotheek-kalenders + "Projectkalender" (undefined).
-  const calendars = useAppStore(s => s.calendars);
-  const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
-  const projectCal = useAppStore(s => s.calendar);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
 
   if (selectedTaskIds.length === 0) {
     return (
@@ -209,41 +60,8 @@ export function TaskPropertiesPanel() {
   const task = tasks.find(t => t.id === selectedTaskIds[0]);
   if (!task) return null;
 
-  const taskSequences = sequences.filter(
-    s => s.predecessorId === task.id || s.successorId === task.id
-  );
-
-  // Hammock-drivers (fase 2.9 §5.3, besluit B6): auto-detectie volgens P6-conventie — inkomende
-  // FS/SS-relaties = start-driver (leveren de ES), FF/SF-relaties = finish-driver (leveren de EF,
-  // dus de afgeleide span). READ-ONLY getoond zodat de gebruiker de spanne ziet zonder klikwerk.
-  const incoming = sequences.filter(s => s.successorId === task.id);
-  const startDrivers = incoming.filter(s => s.type === 'FINISH_START' || s.type === 'START_START');
-  const finishDrivers = incoming.filter(s => s.type === 'FINISH_FINISH' || s.type === 'START_FINISH');
-  const SEQ_SHORT: Record<SequenceType, string> = {
-    FINISH_START: 'FS', FINISH_FINISH: 'FF', START_START: 'SS', START_FINISH: 'SF',
-  };
-  const predName = (id: string) => tasks.find(t => t.id === id)?.name || '?';
-  const hammockNoFinishDriver = !!cpmResult && !cpmResult.error
-    && cpmResult.hammockNoFinishDriverTaskIds?.includes(task.id);
-
-  // Constraint-paar-validatie (fase 2.9 §5.2): live rood + reden bij verboden combinaties.
-  const pairValidation = validateConstraintPair(task.constraint, task.constraint2);
-  const isPinnable = task.constraint?.type === 'MSO' || task.constraint?.type === 'MFO';
-
-  // Toewijzingen (fase 2.5, §6.3) — leaf-only, geen mijlpalen/samenvattingstaken.
-  const taskAssignments = assignments.filter(a => a.taskId === task.id);
-  const assignmentsDisabled = task.isMilestone || task.childIds.length > 0;
-  const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
-  const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
-
   const update = (updates: Partial<Task>) => {
     updateTask(task.id, updates);
-  };
-
-  const updateTime = (key: string, value: string | number) => {
-    updateTask(task.id, {
-      time: { ...task.time, [key]: value },
-    });
   };
 
   return (
@@ -260,549 +78,38 @@ export function TaskPropertiesPanel() {
         </button>
       </div>
 
-      <Field label={t('properties.name')}>
-        <Input value={task.name} onChange={v => update({ name: v })} />
-      </Field>
+      <TaskBasicFields
+        task={task}
+        onChange={update}
+        onCalendarChange={id => setTaskCalendar(task.id, id)}
+      />
 
-      <Field label={t('properties.wbsCode')}>
-        {/* Bij auto-nummering bezit de app de codes — handmatige invoer zou bij de
-            eerstvolgende structuurmutatie toch overschreven worden. */}
-        {wbsAutoNumber ? (
-          <input value={task.wbsCode} disabled title={t('properties.wbsAutoHint')}
-            className="input !text-xs !px-2.5 !py-1.5 opacity-60 cursor-not-allowed" />
-        ) : (
-          <Input value={task.wbsCode} onChange={v => update({ wbsCode: v })} />
-        )}
-      </Field>
+      <TaskNotesFields task={task} onChange={update} />
 
-      <Field label={t('properties.description')}>
-        <textarea
-          value={task.description}
-          onChange={e => update({ description: e.target.value })}
-          className="input !text-xs !px-2.5 !py-1.5 h-16 resize-none"
-        />
-      </Field>
+      <TaskMilestoneFields task={task} onChange={update} />
 
-      <Field label={t('properties.type')}>
-        <Select
-          aria-label={t('properties.type')}
-          value={task.taskType}
-          onChange={v => update({ taskType: v as TaskType })}
-          options={taskTypeOptions.map(tt => ({ value: tt.value, label: tt.label }))}
-        />
-      </Field>
+      <TaskTimeFields task={task} onChange={update} />
 
-      <Field label={t('properties.calendar')}>
-        <Select
-          aria-label={t('properties.calendar')}
-          value={task.calendarId ?? ''}
-          onChange={v => setTaskCalendar(task.id, v || undefined)}
-          options={[
-            { value: '', label: t('properties.calendarProject') },
-            ...calendars.map(c => ({ value: c.id, label: c.name })),
-          ]}
-        />
-      </Field>
+      <TaskHammockFields task={task} onChange={update} />
 
-      <div className="flex gap-2">
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={task.isMilestone}
-            onChange={e => {
-              // Mijlpaal = duur 0 (paritair met TaskDialog); uitvinken geeft de
-              // standaardduur terug zodat de balk niet onzichtbaar blijft.
-              const on = e.target.checked;
-              update({
-                isMilestone: on,
-                ...(on ? {} : { milestoneKind: undefined, mandatory: undefined }),
-                time: { ...task.time, scheduleDuration: on ? 0 : (task.time.scheduleDuration || 5) },
-              });
-            }}
-            className="accent-accent"
-          />
-          {t('properties.milestone')}
-        </label>
-      </div>
+      <TaskConstraintFields task={task} onChange={update} />
 
-      {task.isMilestone && (
-        <div className="grid grid-cols-2 gap-2">
-          <Field label={t('properties.milestoneKind')}>
-            <select
-              value={task.milestoneKind ?? 'AUTO'}
-              onChange={e => {
-                const v = e.target.value;
-                update({ milestoneKind: v === 'AUTO' ? undefined : (v as MilestoneKind) });
-              }}
-              className="input !text-xs !px-2.5 !py-1.5"
-            >
-              <option value="AUTO">{t('milestoneKind.AUTO')}</option>
-              <option value="START">{t('milestoneKind.START')}</option>
-              <option value="FINISH">{t('milestoneKind.FINISH')}</option>
-            </select>
-          </Field>
-          <label className="flex items-center gap-1.5 self-end pb-1.5">
-            <input
-              type="checkbox"
-              checked={!!task.mandatory}
-              onChange={e => update({ mandatory: e.target.checked || undefined })}
-              className="accent-accent"
-            />
-            {t('properties.mandatory')}
-          </label>
-        </div>
-      )}
+      <TaskDeadlineField task={task} onChange={update} />
 
-      <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
+      <TaskProgressFields
+        task={task}
+        onSetProgress={v => setTaskProgress(task.id, v)}
+        onSetActualStart={d => setActualStart(task.id, d)}
+        onSetActualFinish={d => setActualFinish(task.id, d)}
+      />
 
-      <span className="ui-card-header !text-xs">{t('properties.time')}</span>
+      <TaskCpmResultSection taskId={task.id} />
 
-      <div className="grid grid-cols-2 gap-2">
-        <Field label={t('properties.start')}>
-          <DateTextInput
-            className="input !text-xs !px-2.5 !py-1.5"
-            ariaLabel={t('properties.start')}
-            value={task.time.scheduleStart}
-            onCommit={v => updateTime('scheduleStart', v)}
-          />
-        </Field>
-        {/* Label modus-bewust (FIX golf, §6.4): een uur-taak toont uur-waarden, dus het label moet
-            "(uren)" tonen i.p.v. het misleidende "(dagen)". Dag-taken houden het dagen-label (dag-taken
-            kunnen per invariant Bevinding 2 geen sub-dag-duur dragen, dus het veld blijft dagen). */}
-        <Field label={
-          (enableHourPlanning && isHourCalendar(effectiveCalendarOf(task, projectCal, calendars)) && !task.isMilestone)
-            ? t('properties.durationHours')
-            : t('properties.duration')
-        }>
-          {(() => {
-            const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
-            const hourTask = enableHourPlanning && isHourCalendar(cal) && !task.isMilestone;
-            // Hammock (fase 2.9 §5.3): de duur is AFGELEID uit de span tussen start- en
-            // finish-driver — read-only weergave (invoer wordt door de solver overschreven).
-            if (task.isHammock) {
-              const hpd = effHoursPerDay(cal);
-              const text = hourTask
-                ? formatDuration(task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60, hpd, 'hours')
-                : `${task.time.scheduleDuration}`;
-              return (
-                <input
-                  value={text}
-                  disabled
-                  title={t('properties.hammockDerivedHint')}
-                  className="input !text-xs !px-2.5 !py-1.5 opacity-60 cursor-not-allowed"
-                  data-ops-hammock-duration
-                />
-              );
-            }
-            if (!hourTask) {
-              return (
-                <Input
-                  type="number"
-                  value={task.isMilestone ? 0 : task.time.scheduleDuration}
-                  onChange={v => updateTime('scheduleDuration', parseInt(v) || 0)}
-                  min={0}
-                  disabled={task.isMilestone}
-                />
-              );
-            }
-            const hpd = effHoursPerDay(cal);
-            const minutes = task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60;
-            return (
-              <HourDurationField
-                key={task.id}
-                minutes={minutes}
-                hpd={hpd}
-                onCommitMinutes={m => updateTask(task.id, {
-                  time: { ...task.time, durationMinutes: m, scheduleDuration: hpd > 0 ? m / (hpd * 60) : task.time.scheduleDuration },
-                })}
-              />
-            );
-          })()}
-        </Field>
-      </div>
+      <TaskDependenciesSection taskId={task.id} />
 
-      {/* Hammock / Level of Effort (fase 2.9 §5.3, besluit B6) — alleen op leaf-taken die geen
-          mijlpaal zijn. AAN ⇒ afgeleide duur (read-only), auto-gedetecteerde drivers read-only. */}
-      {!task.isMilestone && task.childIds.length === 0 && (
-        <>
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={!!task.isHammock}
-              onChange={e => update({ isHammock: e.target.checked || undefined })}
-              className="accent-accent"
-              data-ops-hammock-toggle
-            />
-            {t('properties.hammock')}
-          </label>
-          {task.isHammock && (
-            <div className="flex flex-col gap-1 pl-5 text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-              <div>
-                <span className="text-text-secondary">{t('properties.startDriver')}: </span>
-                {startDrivers.length > 0
-                  ? startDrivers.map(s => `${predName(s.predecessorId)} (${SEQ_SHORT[s.type]})`).join(', ')
-                  : t('properties.hammockNoDriver')}
-              </div>
-              <div>
-                <span className="text-text-secondary">{t('properties.finishDriver')}: </span>
-                {finishDrivers.length > 0
-                  ? finishDrivers.map(s => `${predName(s.predecessorId)} (${SEQ_SHORT[s.type]})`).join(', ')
-                  : t('properties.hammockNoDriver')}
-              </div>
-              {hammockNoFinishDriver && (
-                <div style={{ color: 'var(--error)' }}>{t('properties.hammockNoFinishDriver')}</div>
-              )}
-            </div>
-          )}
-        </>
-      )}
+      <TaskAssignmentsSection taskId={task.id} />
 
-      {/* Constraint & deadline (fase 2.3) — P6-soft: schendingen worden negatieve float.
-          Fase 2.9 §5.1/§5.2: harde Mandatory-pin + secundaire constraint. */}
-      <div className="grid grid-cols-2 gap-2">
-        <Field label={t('properties.constraint')}>
-          <select
-            value={task.constraint?.type ?? 'ASAP'}
-            onChange={e => {
-              const type = e.target.value as ConstraintType;
-              if (type === 'ASAP') update({ constraint: undefined, constraint2: undefined });
-              else if (type === 'ALAP') update({ constraint: { type }, constraint2: undefined });
-              // Bij een niet-MSO/MFO-primair vervalt de harde pin (hard alleen zinvol op MSO/MFO).
-              else update({ constraint: { type, date: task.constraint?.date ?? task.time.scheduleStart, hard: (type === 'MSO' || type === 'MFO') ? task.constraint?.hard : undefined } });
-            }}
-            className="input !text-xs !px-2.5 !py-1.5"
-          >
-            {(['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'] as ConstraintType[]).map(ct => (
-              <option key={ct} value={ct}>{t(`constraintType.${ct}`)}</option>
-            ))}
-          </select>
-        </Field>
-        {task.constraint && task.constraint.type !== 'ALAP' && (
-          <Field label={t('properties.constraintDate')}>
-            <DateTextInput
-              className="input !text-xs !px-2.5 !py-1.5"
-              ariaLabel={t('properties.constraintDate')}
-              value={task.constraint.date ?? ''}
-              onCommit={v => update({ constraint: { ...task.constraint!, date: v } })}
-            />
-          </Field>
-        )}
-      </div>
-
-      {/* Harde Mandatory-pin (fase 2.9 §5.1, besluit B2): alleen bij MSO/MFO. Aanzetten ⇒ eenmalige
-          niet-blokkerende hint "pin overschrijft relaties" (geen bevestigingsdialoog). */}
-      {isPinnable && (
-        <>
-          <label className="flex items-center gap-1.5" title={t('properties.hardPinTip')}>
-            <input
-              type="checkbox"
-              checked={!!task.constraint?.hard}
-              onChange={e => {
-                const on = e.target.checked;
-                update({ constraint: { ...task.constraint!, hard: on || undefined } });
-                if (on && !localStorage.getItem('ops-hardPinHintSeen')) {
-                  localStorage.setItem('ops-hardPinHintSeen', '1');
-                  setPinHint(true);
-                }
-              }}
-              className="accent-accent"
-              data-ops-hard-pin
-            />
-            {t('properties.hardPin')}
-          </label>
-          {pinHint && (
-            <div
-              className="flex items-start gap-2 text-[10px] px-2 py-1.5 rounded"
-              style={{ background: 'var(--theme-surface-alt)', color: 'var(--theme-text-muted)' }}
-              data-ops-pin-hint
-            >
-              <span className="flex-1">{t('properties.hardPinHint')}</span>
-              <button onClick={() => setPinHint(false)} style={{ color: 'var(--theme-accent)' }}>×</button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Secundaire constraint (fase 2.9 §5.2): een tweede grens (SNET/FNET/SNLT/FNLT); altijd soft.
-          Live validatie via validateConstraintPair — verboden combinaties rood + reden. */}
-      {task.constraint && task.constraint.type !== 'ASAP' && task.constraint.type !== 'ALAP' && !task.constraint.hard && (
-        <div className="grid grid-cols-2 gap-2">
-          <Field label={t('properties.constraint2')}>
-            <select
-              value={task.constraint2?.type ?? ''}
-              onChange={e => {
-                const type = e.target.value as ConstraintType | '';
-                if (!type) update({ constraint2: undefined });
-                else update({ constraint2: { type: type as ConstraintType, date: task.constraint2?.date ?? task.time.scheduleStart } });
-              }}
-              className={`input !text-xs !px-2.5 !py-1.5 ${!pairValidation.ok ? '!border-[var(--error)]' : ''}`}
-              title={!pairValidation.ok ? pairValidation.issues.map(i => t(`properties.constraintPair.${i}`)).join(' · ') : undefined}
-              data-ops-constraint2-type
-            >
-              <option value="">{t('properties.constraint2None')}</option>
-              {(['SNET', 'FNET', 'SNLT', 'FNLT'] as ConstraintType[]).map(ct => (
-                <option key={ct} value={ct}>{t(`constraintType.${ct}`)}</option>
-              ))}
-            </select>
-          </Field>
-          {task.constraint2 && (
-            <Field label={t('properties.constraint2Date')}>
-              <DateTextInput
-                className="input !text-xs !px-2.5 !py-1.5"
-                ariaLabel={t('properties.constraint2Date')}
-                value={task.constraint2.date ?? ''}
-                onCommit={v => update({ constraint2: { ...task.constraint2!, date: v } })}
-              />
-            </Field>
-          )}
-          {!pairValidation.ok && (
-            <div className="col-span-2 text-[10px]" style={{ color: 'var(--error)' }} data-ops-constraint2-error>
-              {pairValidation.issues.map(i => t(`properties.constraintPair.${i}`)).join(' · ')}
-            </div>
-          )}
-        </div>
-      )}
-
-      <Field label={t('properties.deadline')}>
-        <DateTextInput
-          className="input !text-xs !px-2.5 !py-1.5"
-          ariaLabel={t('properties.deadline')}
-          value={task.deadline ?? ''}
-          onCommit={v => update({ deadline: v || undefined })}
-        />
-      </Field>
-
-      <Field label={t('properties.completion')}>
-        <div className="flex items-center gap-2">
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(task.time.completion * 100)}
-            onChange={e => setTaskProgress(task.id, parseInt(e.target.value) / 100)}
-            className="flex-1 accent-accent"
-          />
-          <span className="w-8 text-right">{Math.round(task.time.completion * 100)}%</span>
-        </div>
-      </Field>
-
-      {/* Werkelijke datums (fase 2.6, §11.3): mijlpaal ⇒ één "Werkelijke datum"; anders start+einde.
-          De acties dwingen de invarianten af en weigeren datums ná de statusdatum (toast). */}
-      {task.isMilestone ? (
-        <Field label={t('properties.progress.actualDate')}>
-          <DateTextInput
-            className="input !text-xs !px-2.5 !py-1.5"
-            ariaLabel={t('properties.progress.actualDate')}
-            value={task.time.actualFinish ?? ''}
-            onCommit={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
-          />
-        </Field>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={t('properties.progress.actualStart')}>
-              <DateTextInput
-                className="input !text-xs !px-2.5 !py-1.5"
-                ariaLabel={t('properties.progress.actualStart')}
-                value={task.time.actualStart ?? ''}
-                onCommit={v => { setActualError(!setActualStart(task.id, v || undefined)); }}
-              />
-            </Field>
-            <Field label={t('properties.progress.actualFinish')}>
-              <DateTextInput
-                className="input !text-xs !px-2.5 !py-1.5"
-                ariaLabel={t('properties.progress.actualFinish')}
-                value={task.time.actualFinish ?? ''}
-                onCommit={v => { setActualError(!setActualFinish(task.id, v || undefined)); }}
-              />
-            </Field>
-          </div>
-          <Field label={t('properties.progress.remaining')}>
-            <input
-              value={task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion))}
-              disabled
-              className="input !text-xs !px-2.5 !py-1.5 opacity-60"
-            />
-          </Field>
-        </>
-      )}
-      {actualError && (
-        <div className="text-[11px]" style={{ color: 'var(--error)' }}>
-          {tCommon('progress.actualsAfterStatusDate')}
-        </div>
-      )}
-
-      {task.time.isCritical !== undefined && (
-        <>
-          <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-          <span className="ui-card-header !text-xs">{t('properties.cpmResult')}</span>
-          <div className="grid grid-cols-2 gap-1 text-[10px]">
-            <span className="text-text-secondary">{t('properties.earlyStart')}</span>
-            <span>{dd.date(task.time.earlyStart)}</span>
-            <span className="text-text-secondary">{t('properties.earlyFinish')}</span>
-            <span>{dd.date(task.time.earlyFinish)}</span>
-            <span className="text-text-secondary">{t('properties.lateStart')}</span>
-            <span>{dd.date(task.time.lateStart)}</span>
-            <span className="text-text-secondary">{t('properties.lateFinish')}</span>
-            <span>{dd.date(task.time.lateFinish)}</span>
-            <span className="text-text-secondary">{t('properties.totalFloat')}</span>
-            <span>{task.time.totalFloat} {tCommon('daysLong')}</span>
-            <span className="text-text-secondary">{t('properties.freeFloat')}</span>
-            <span>{task.time.freeFloat} {tCommon('daysLong')}</span>
-            {task.time.interferingFloat !== undefined && (
-              <>
-                <span className="text-text-secondary">{t('properties.interferingFloat')}</span>
-                <span>{task.time.interferingFloat} {tCommon('daysLong')}</span>
-              </>
-            )}
-            <span className="text-text-secondary">{t('properties.criticalPath')}</span>
-            <span className={task.time.isCritical ? 'text-critical font-bold' : ''}>
-              {task.time.isCritical ? tCommon('yes') : tCommon('no')}
-            </span>
-          </div>
-        </>
-      )}
-
-      {taskSequences.length > 0 && (
-        <>
-          <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-          <span className="ui-card-header !text-xs">{t('properties.dependencies')}</span>
-          {taskSequences.map(seq => {
-            const other = seq.predecessorId === task.id
-              ? tasks.find(t => t.id === seq.successorId)
-              : tasks.find(t => t.id === seq.predecessorId);
-            const role = seq.predecessorId === task.id ? '→' : '←';
-            const isDriving = !!cpmResult && !cpmResult.error
-              && cpmResult.drivingSequenceIds.includes(seq.id);
-            return (
-              <div key={seq.id} className="flex items-center gap-1 text-[10px]">
-                <span>{role}</span>
-                <span className="flex-1 truncate">{other?.name || '?'}</span>
-                {isDriving && (
-                  <span title={t('properties.driving')} style={{ color: 'var(--theme-accent)' }}>
-                    <Zap size={10} />
-                  </span>
-                )}
-                <select
-                  value={seq.type}
-                  onChange={e => updateSequence(seq.id, { type: e.target.value as SequenceType })}
-                  className="input !text-[10px] !px-1 !py-0.5"
-                >
-                  {SEQUENCE_TYPE_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                <SequenceLagInput
-                  seq={seq}
-                  title={t('properties.lag')}
-                  onCommit={patch => updateSequence(seq.id, patch)}
-                />
-                <button
-                  onClick={() => removeSequence(seq.id)}
-                  style={{ color: 'var(--error)' }}
-                >
-                  <Trash2 size={10} />
-                </button>
-              </div>
-            );
-          })}
-        </>
-      )}
-
-      {/* Toewijzingen (fase 2.5, §6.3) */}
-      <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-      <span className="ui-card-header !text-xs">{t('properties.assignments.title')}</span>
-      {assignmentsDisabled ? (
-        <span className="text-[10px] text-text-secondary italic">
-          {task.isMilestone
-            ? t('properties.assignments.disabledMilestone')
-            : t('properties.assignments.disabledSummary')}
-        </span>
-      ) : (
-        <>
-          {taskAssignments.length === 0 && (
-            <span className="text-[10px] text-text-secondary">{t('properties.assignments.empty')}</span>
-          )}
-          {taskAssignments.map(a => {
-            const res = resources.find(r => r.id === a.resourceId);
-            return (
-              <div key={a.id} className="flex items-center gap-1 text-[10px]">
-                <span className="flex-1 truncate" title={res?.name}>{res?.name || '?'}</span>
-                <UnitsInput
-                  value={a.unitsPerDay}
-                  title={t('properties.assignments.unitsPerDay')}
-                  ariaLabel={t('properties.assignments.unitsPerDay')}
-                  onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
-                  className="input !text-[10px] !px-1 !py-0.5 !w-14 text-right"
-                />
-                <select
-                  value={a.curve ?? 'UNIFORM'}
-                  title={t('properties.assignments.curve')}
-                  onChange={e => updateAssignment(a.id, { curve: e.target.value as ResourceCurve })}
-                  className="input !text-[10px] !px-1 !py-0.5 !w-24"
-                >
-                  {RESOURCE_CURVES.map(c => (
-                    <option key={c} value={c}>{tCommon(CURVE_KEY[c])}</option>
-                  ))}
-                </select>
-                <button onClick={() => unassignResource(a.id)} style={{ color: 'var(--error)' }} title={t('properties.assignments.remove')}>
-                  <Trash2 size={10} />
-                </button>
-              </div>
-            );
-          })}
-          {availableResources.length > 0 ? (
-            <select
-              value=""
-              onChange={e => { if (e.target.value) assignResource(task.id, e.target.value, 1); }}
-              className="input !text-xs !px-2.5 !py-1.5"
-            >
-              <option value="">{t('properties.assignments.add')}</option>
-              {availableResources.map(r => (
-                <option key={r.id} value={r.id}>{r.name || r.id}</option>
-              ))}
-            </select>
-          ) : (
-            <span className="text-[10px] text-text-secondary">
-              {resources.length === 0
-                ? t('properties.assignments.noResources')
-                : t('properties.assignments.allAssigned')}
-            </span>
-          )}
-        </>
-      )}
-
-      {(activityCodeTypes.length > 0 || customFieldDefs.length > 0) && (
-        <>
-          <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-          <span className="ui-card-header !text-xs">{t('structure.title')}</span>
-          {activityCodeTypes.map(type => (
-            <Field key={type.id} label={type.name}>
-              <select
-                value={task.activityCodes?.[type.id] ?? ''}
-                onChange={e => setTaskActivityCode(task.id, type.id, e.target.value || null)}
-                className="input !text-xs !px-2.5 !py-1.5"
-              >
-                <option value="">{t('structure.none')}</option>
-                {type.values.map(v => (
-                  <option key={v.id} value={v.id}>
-                    {v.code}{v.description ? ` — ${v.description}` : ''}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          ))}
-          {customFieldDefs.map(def => (
-            <Field key={def.id} label={def.name}>
-              <CustomFieldInput
-                def={def}
-                value={task.customFields?.[def.id]}
-                onCommit={value => setTaskCustomField(task.id, def.id, value)}
-              />
-            </Field>
-          ))}
-        </>
-      )}
+      <TaskCodesFieldsSection taskId={task.id} />
 
       <button
         onClick={runCPM}

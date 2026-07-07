@@ -30,7 +30,28 @@
     "newTask": "Neue Aufgabe",
     "tracePath": "Pfad verfolgen",
     "traceOff": "Pfadverfolgung beenden",
-    "saveTemplate": "Zweig als Vorlage speichern"
+    "saveTemplate": "Zweig als Vorlage speichern",
+    "insertAbove": "Oberhalb einfügen",
+    "insertBelow": "Unterhalb einfügen",
+    "indent": "Einrücken",
+    "outdent": "Ausrücken",
+    "toggleMilestone": "Meilenstein umschalten",
+    "calendarMenu": "Kalender zuweisen",
+    "calendarProjectDefault": "Projektkalender",
+    "progressMenu": "Fortschritt",
+    "priorityMenu": "Priorität",
+    "priorityLow": "Niedrig",
+    "priorityNormal": "Normal",
+    "priorityHigh": "Hoch",
+    "startRelationHere": "Beziehung von hier aus starten",
+    "setConstraint": "Randbedingung festlegen…",
+    "paste": "Einfügen",
+    "zoomReset": "Zoom zurücksetzen",
+    "fitToProject": "An Projekt anpassen",
+    "expandGroup": "Gruppe ausklappen",
+    "collapseGroup": "Gruppe einklappen",
+    "expandAll": "Alle ausklappen",
+    "collapseAll": "Alle einklappen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -251,6 +272,12 @@
       "empty": "Noch keine Ressourcen. Fügen Sie eine hinzu, um zu beginnen.",
       "steps": "Schritte"
     },
+    "compact": {
+      "overallocated": "Überlastet",
+      "title": "Ressourcen",
+      "expandFull": "Vollständiges Panel",
+      "closeDock": "Andocken schließen"
+    },
     "calendarDialog": {
       "title": "Ressourcenkalender"
     },
@@ -453,5 +480,66 @@
     "suffixDay": "T",
     "suffixHour": "Std",
     "suffixMinute": "Min"
+  },
+  "shortcuts": {
+    "title": "Tastenkombinationen",
+    "orJoiner": "oder",
+    "category": {
+      "file": "Datei",
+      "edit": "Bearbeiten",
+      "structure": "Struktur",
+      "view": "Ansicht",
+      "nav": "Navigation"
+    },
+    "view": {
+      "exitFullscreen": "Präsentation verlassen",
+      "showShortcuts": "Tastenkombinationen anzeigen"
+    },
+    "edit": {
+      "copy": "Kopieren",
+      "deselect": "Auswahl aufheben",
+      "selectAll": "Alles auswählen"
+    },
+    "structure": {
+      "moveUp": "Aufgabe nach oben verschieben",
+      "moveDown": "Aufgabe nach unten verschieben"
+    },
+    "nav": {
+      "reportTab": "Zum Bericht-Tab",
+      "switchDocument": "Dokument wechseln",
+      "scrollToToday": "Zu heute springen"
+    }
+  },
+  "welcome": {
+    "title": "Willkommen bei Open Planner Studio",
+    "introBody": "Bevor es losgeht: ein paar schnelle Einstellungen und eine optionale Tour durch die wichtigsten Bereiche.",
+    "settingsSectionTitle": "Schnelle Einstellungen",
+    "next": "Weiter",
+    "skip": "Überspringen",
+    "tourStepTitle": "Tour starten?",
+    "tourStepBody": "Eine kurze Tour (7 Schritte) zeigt die wichtigsten Bereiche: Aufgaben, Terminplanung, Berichte und mehr. Du kannst jederzeit abbrechen.",
+    "startTour": "Tour starten"
+  },
+  "tour": {
+    "step1Title": "Menüband-Registerkarten",
+    "step1Body": "Oben findest du die Menüband-Registerkarten. Jede Registerkarte gruppiert Funktionen rund um ein Thema, z. B. Start, Terminplanung und Ressourcen.",
+    "step2Title": "Aufgabentabelle und Gantt-Diagramm",
+    "step2Body": "Links die Aufgabentabelle, rechts das Gantt-Diagramm. Hier planst und bearbeitest du Aufgaben und siehst den Zeitplan.",
+    "step3Title": "Eigenschaftenbereich",
+    "step3Body": "Wähle eine Aufgabe aus, um ihre Details in diesem Bereich anzuzeigen und zu bearbeiten.",
+    "step4Title": "Histogramm",
+    "step4Body": "Der Histogrammstreifen zeigt die Ressourcenauslastung unter dem Gantt-Diagramm — praktisch, um Überlastungen zu erkennen.",
+    "step5Title": "Berichte",
+    "step5Body": "Auf der Registerkarte Bericht erstellst du druckbare Übersichten deines Terminplans.",
+    "step6Title": "Beispielprojekte",
+    "step6Body": "Unter Datei → Beispiele findest du fertige Terminpläne zum Starten oder Lernen.",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "skip": "Überspringen",
+    "finish": "Schließen",
+    "restartButton": "Tour",
+    "backstageRestart": "Tour starten",
+    "step7Title": "Dein Feedback zählt",
+    "step7Body": "Fehlt dir etwas, ist etwas umständlich, oder hast du einen kleinen Fehler entdeckt — egal wie klein? Lass es uns über diesen Button wissen. Jedes Feedback ist willkommen, wirklich jede Kleinigkeit hilft, die App besser zu machen."
   }
 }

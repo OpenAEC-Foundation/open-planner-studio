@@ -85,6 +85,7 @@
     "freeFloat": "Zapas swobodny:",
     "criticalPath": "Ścieżka krytyczna:",
     "dependencies": "Zależności",
+    "relationPopoverTitle": "Typ relacji",
     "driving": "Relacja wiodąca (driving)",
     "lag": "Zwłoka (np. 2d, 3ed, 50%, -25e%)",
     "recalculate": "Oblicz",
@@ -98,7 +99,8 @@
       "noResources": "Najpierw utwórz zasoby (karta Zasoby).",
       "allAssigned": "Wszystkie zasoby są już przydzielone.",
       "disabledMilestone": "Przydziały nie są możliwe dla kamieni milowych.",
-      "disabledSummary": "Przydziały nie są możliwe dla zadań sumarycznych."
+      "disabledSummary": "Przydziały nie są możliwe dla zadań sumarycznych.",
+      "moveTo": "Przenieś do…"
     },
     "calendar": "Kalendarz",
     "calendarProject": "Kalendarz projektu",
@@ -124,7 +126,15 @@
     "finishDriver": "Driver końca",
     "hammockNoDriver": "(brak)",
     "hammockNoFinishDriver": "Brak drivera końca (FF/SF) — odstęp wraca do zerowej długości.",
-    "interferingFloat": "Zapas interferujący:"
+    "interferingFloat": "Zapas interferujący:",
+    "notes": {
+      "title": "Notatki",
+      "add": "+ Dodaj notatkę",
+      "placeholder": "Notatka…",
+      "remove": "Usuń",
+      "done": "Gotowe",
+      "empty": "Brak notatek."
+    }
   },
   "relations": {
     "title": "Relacje",

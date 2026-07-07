@@ -30,7 +30,28 @@
     "newTask": "新建任务",
     "tracePath": "追踪路径",
     "traceOff": "停止路径追踪",
-    "saveTemplate": "将分支保存为模板"
+    "saveTemplate": "将分支保存为模板",
+    "insertAbove": "在上方插入",
+    "insertBelow": "在下方插入",
+    "indent": "缩进",
+    "outdent": "取消缩进",
+    "toggleMilestone": "切换里程碑",
+    "calendarMenu": "分配日历",
+    "calendarProjectDefault": "项目日历",
+    "progressMenu": "进度",
+    "priorityMenu": "优先级",
+    "priorityLow": "低",
+    "priorityNormal": "普通",
+    "priorityHigh": "高",
+    "startRelationHere": "从此处开始建立关系",
+    "setConstraint": "设置约束…",
+    "paste": "粘贴",
+    "zoomReset": "重置缩放",
+    "fitToProject": "适应项目",
+    "expandGroup": "展开分组",
+    "collapseGroup": "折叠分组",
+    "expandAll": "全部展开",
+    "collapseAll": "全部折叠"
   },
   "settings": {
     "title": "设置",
@@ -251,6 +272,12 @@
       "empty": "尚无资源。添加一个开始使用。",
       "steps": "阶段"
     },
+    "compact": {
+      "overallocated": "超负荷",
+      "title": "资源",
+      "expandFull": "完整面板",
+      "closeDock": "关闭停靠"
+    },
     "calendarDialog": {
       "title": "资源日历"
     },
@@ -453,5 +480,66 @@
     "suffixDay": "天",
     "suffixHour": "时",
     "suffixMinute": "分"
+  },
+  "shortcuts": {
+    "title": "键盘快捷键",
+    "orJoiner": "或",
+    "category": {
+      "file": "文件",
+      "edit": "编辑",
+      "structure": "结构",
+      "view": "视图",
+      "nav": "导航"
+    },
+    "view": {
+      "exitFullscreen": "退出演示",
+      "showShortcuts": "显示快捷键"
+    },
+    "edit": {
+      "copy": "复制",
+      "deselect": "取消选择",
+      "selectAll": "全选"
+    },
+    "structure": {
+      "moveUp": "上移任务",
+      "moveDown": "下移任务"
+    },
+    "nav": {
+      "reportTab": "转到报告选项卡",
+      "switchDocument": "切换文档",
+      "scrollToToday": "跳转到今天"
+    }
+  },
+  "welcome": {
+    "title": "欢迎使用 Open Planner Studio",
+    "introBody": "开始之前：几项快速偏好设置，以及一个可选的主要功能导览。",
+    "settingsSectionTitle": "快速偏好设置",
+    "next": "下一步",
+    "skip": "跳过",
+    "tourStepTitle": "要开始导览吗？",
+    "tourStepBody": "简短的导览（7 个步骤）展示主要功能区域：任务、计划、报表等。你可以随时停止。",
+    "startTour": "开始导览"
+  },
+  "tour": {
+    "step1Title": "功能区标签",
+    "step1Body": "顶部是功能区标签。每个标签按主题分组功能，例如开始、计划和资源。",
+    "step2Title": "任务表和甘特图",
+    "step2Body": "左侧是任务表，右侧是甘特图。你可以在此规划和编辑任务，并查看时间轴。",
+    "step3Title": "属性面板",
+    "step3Body": "选择一个任务，即可在此面板中查看和编辑其详情。",
+    "step4Title": "直方图",
+    "step4Body": "直方图条显示甘特图下方的资源负荷 — 便于发现过度分配。",
+    "step5Title": "报表",
+    "step5Body": "在报表标签中，可以创建计划的可打印概览。",
+    "step6Title": "示例项目",
+    "step6Body": "在“文件”→“示例”中，你可以找到现成的计划用于开始或学习。",
+    "previous": "上一步",
+    "next": "下一步",
+    "skip": "跳过",
+    "finish": "关闭",
+    "restartButton": "导览",
+    "backstageRestart": "开始导览",
+    "step7Title": "你的反馈很重要",
+    "step7Body": "缺少什么功能、哪里用起来不顺手，或者发现了一个小问题——无论多小，都可以通过这个按钮告诉我们。真的，每一个小细节都有助于让这个应用变得更好。"
   }
 }

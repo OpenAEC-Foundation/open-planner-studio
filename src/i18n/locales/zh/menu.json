@@ -119,6 +119,7 @@
     "expandRibbon": "展开功能区",
     "resourceManagement": "管理",
     "openResourcePanel": "资源",
+    "dockResourcePanel": "停靠",
     "newResource": "新建资源",
     "resourceAssignment": "分配",
     "assignResource": "分配",

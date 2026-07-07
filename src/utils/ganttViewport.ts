@@ -5,7 +5,7 @@
 // recenter-ankerformule (viewportmidden vasthouden) kunnen toepassen zonder dat de
 // store aan React/DOM hangt. Headless (tests) blijft de breedte null → geen recenter.
 
-import { parseDate, diffCalendarDays } from '@/utils/dateUtils';
+import { parseDate, diffCalendarDays, addCalendarDays, formatDate } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 
 /** Dagen links-padding die het canvas vóór de vroegste taak toevoegt: de renderer-origin op
@@ -53,6 +53,45 @@ export function computeFitToProject(
   // ORIGIN_PADDING_DAYS·zoom zodat minStart op de chart-linkerrand landt en maxFinish exact op
   // de rechterrand → alles past edge-to-edge.
   return { zoom, viewStartDate: minStart, scrollX: ORIGIN_PADDING_DAYS * zoom };
+}
+
+/** Kleine marge (in dagen) die vóór de doeldatum zichtbaar blijft, zodat hij niet exact tegen de
+ *  chart-linkerrand plakt (analoog aan de "reveal on select"-marge in
+ *  GanttCanvas.revealTaskIfOffscreen). */
+const SCROLL_TO_DATE_MARGIN_DAYS = 3;
+
+/** Minimale slice van app-state die {@link computeScrollToDate} nodig heeft. Bewust GEEN
+ *  `AppState`-import — dit bestand blijft headless/pure zoals de rest van `ganttViewport.ts`; een
+ *  volledige store-snapshot (`useAppStore.getState()`) voldoet hier structureel aan. */
+export interface ScrollToDateState {
+  tasks: Task[];
+  view: { viewStartDate: string; zoom: number };
+  project: { statusDate?: string };
+}
+
+/**
+ * Bereken de `scrollX` zodat `date` (default: `project.statusDate`, anders vandaag) links met een
+ * kleine marge in het chart-gedeelte in beeld komt. Zoom en `view.viewStartDate` blijven
+ * onaangeroerd. Gebruikt exact dezelfde `effectiveViewStart`-formule als `GanttCanvas`
+ * (vroegste taakstart, of `view.viewStartDate` als niets vroeger is, min `ORIGIN_PADDING_DAYS`)
+ * zodat de gesprongen positie 1-op-1 klopt met wat de renderer tekent. Gebruikt door
+ * `Ctrl/Cmd+Home` (sneltoets-register, fase 2.10 golf 1).
+ */
+export function computeScrollToDate(date: string | undefined, state: ScrollToDateState): number {
+  const target = date || state.project.statusDate || formatDate(new Date());
+
+  let earliest = parseDate(state.view.viewStartDate);
+  for (const task of state.tasks) {
+    const s = task.time.earlyStart || task.time.scheduleStart || task.time.lateStart;
+    if (s) {
+      const d = parseDate(s);
+      if (d.getTime() < earliest.getTime()) earliest = d;
+    }
+  }
+  const effectiveViewStart = addCalendarDays(earliest, -ORIGIN_PADDING_DAYS);
+
+  const days = diffCalendarDays(effectiveViewStart, parseDate(target));
+  return Math.max(0, (days - SCROLL_TO_DATE_MARGIN_DAYS) * state.view.zoom);
 }
 
 let chartWidth: number | null = null;

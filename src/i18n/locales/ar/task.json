@@ -85,6 +85,7 @@
     "freeFloat": "الفائض الحر:",
     "criticalPath": "المسار الحرج:",
     "dependencies": "التبعيات",
+    "relationPopoverTitle": "نوع العلاقة",
     "driving": "علاقة حاكمة (driving)",
     "lag": "التأخير (مثل 2d، 3ed، 50%، -25e%)",
     "recalculate": "حساب",
@@ -98,7 +99,8 @@
       "noResources": "أنشئ الموارد أولاً (علامة تبويب الموارد).",
       "allAssigned": "جميع الموارد مخصصة بالفعل.",
       "disabledMilestone": "لا يمكن التخصيص على المعالم.",
-      "disabledSummary": "لا يمكن التخصيص على المهام الموجزة."
+      "disabledSummary": "لا يمكن التخصيص على المهام الموجزة.",
+      "moveTo": "نقل إلى…"
     },
     "calendar": "التقويم",
     "calendarProject": "تقويم المشروع",
@@ -124,7 +126,15 @@
     "finishDriver": "محرِّك النهاية",
     "hammockNoDriver": "(لا شيء)",
     "hammockNoFinishDriver": "لا يوجد محرِّك نهاية (FF/SF) — تعود الفترة إلى طول صفري.",
-    "interferingFloat": "الفائض المتداخل:"
+    "interferingFloat": "الفائض المتداخل:",
+    "notes": {
+      "title": "ملاحظات",
+      "add": "+ إضافة ملاحظة",
+      "placeholder": "ملاحظة…",
+      "remove": "إزالة",
+      "done": "منجز",
+      "empty": "لا توجد ملاحظات بعد."
+    }
   },
   "relations": {
     "title": "العلاقات",

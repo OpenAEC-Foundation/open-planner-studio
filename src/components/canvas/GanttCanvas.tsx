@@ -13,7 +13,9 @@ import { durationSuffixesFrom } from '@/utils/taskDuration';
 import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/utils/displayDate';
 import { createDefaultTaskTime, Task } from '@/types/task';
+import { isTreeMode } from '@/engine/view/visibleRows';
 import { ContextMenu } from './ContextMenu';
+import { RelationTypePopover } from './RelationTypePopover';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
 import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
@@ -23,11 +25,21 @@ const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
 // Halve breedte van de grijpzone rond de tabel/chart-scheiding (splitter).
 const SPLITTER_GRAB_MARGIN = 4;
+// Zelfde default als de kale '0'-toets in useZoomShortcuts.ts (Zoom reset, leeg-canvas-contextmenu).
+const DEFAULT_ZOOM = 30;
+// Fase 2.10 golf 4 (box-selection): drempel in pixels vóórdat een sleep vanaf lege achtergrond
+// promoveert tot een selectie-kader — onder de drempel blijft het een gewone klik.
+const BOX_SELECT_THRESHOLD = 4;
 
 interface ContextMenuState {
   x: number;
   y: number;
   task: Task | null;
+  /** Fase 2.10 golf 2: rechtsklik landde op de balk zelf (i.p.v. alleen de rij) — bepaalt of de
+   *  balk-specifieke items (relatie leggen vanaf hier / constraint instellen) getoond worden. */
+  barHit: boolean;
+  /** Fase 2.10 golf 2: rechtsklik op een bandkop-rij (gegroepeerde weergave). */
+  group: { key: string; collapsed: boolean } | null;
 }
 
 interface DragState {
@@ -69,6 +81,23 @@ interface PanState {
   originScrollY: number;
 }
 
+/** Fase 2.10 golf 4: sleep vanaf lege achtergrond, nog ONDER de drempel — nog geen kader, alleen
+ *  bijhouden vanaf waar we moeten meten. Wordt bij overschrijding gepromoveerd tot BoxSelectState;
+ *  blijft de sleep onder de drempel tot mouseup, dan gebeurt er niets (de normale click volgt). */
+interface BoxSelectCandidate {
+  startClientX: number;
+  startClientY: number;
+}
+
+/** Fase 2.10 golf 4: actief selectie-kader (na de drempel). Client-coördinaten, net als
+ *  DependencyDragState — omgerekend naar canvas-relatief op het moment van tekenen/meten. */
+interface BoxSelectState {
+  startClientX: number;
+  startClientY: number;
+  currentClientX: number;
+  currentClientY: number;
+}
+
 export function GanttCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +123,7 @@ export function GanttCanvas() {
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const selectTask = useAppStore(s => s.selectTask);
+  const selectTasks = useAppStore(s => s.selectTasks);
   const deselectAll = useAppStore(s => s.deselectAll);
   const toggleCollapse = useAppStore(s => s.toggleCollapse);
   const addTask = useAppStore(s => s.addTask);
@@ -102,6 +132,20 @@ export function GanttCanvas() {
   const deleteTask = useAppStore(s => s.deleteTask);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
+  // Fase 2.10 golf 2 (contextmenu's): golf-1-helpers + bestaande taak-acties die het contextmenu
+  // nu ook ontsluit.
+  const indentTasks = useAppStore(s => s.indentTasks);
+  const outdentTasks = useAppStore(s => s.outdentTasks);
+  const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
+  const setTaskProgress = useAppStore(s => s.setTaskProgress);
+  const pasteTasks = useAppStore(s => s.pasteTasks);
+  const taskClipboard = useAppStore(s => s.taskClipboard);
+  // Golf 1-docstring (uiSlice.ts): expandAll/collapseAll werken op de summary-taken
+  // (collapsedTaskIds) en zijn expliciet "voor het bandkop-contextmenu" gebouwd.
+  const expandAll = useAppStore(s => s.expandAll);
+  const collapseAll = useAppStore(s => s.collapseAll);
+  const setZoom = useAppStore(s => s.setZoom);
+  const setViewStartDate = useAppStore(s => s.setViewStartDate);
   const project = useAppStore(s => s.project);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
@@ -147,8 +191,18 @@ export function GanttCanvas() {
   const [isResizingTable, setIsResizingTable] = useState(false);
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
   const [panState, setPanState] = useState<PanState | null>(null);
+  // Fase 2.10 golf 4 (box-selection): kandidaat (onder drempel) en gepromoveerd kader (boven drempel).
+  const [boxSelectCandidate, setBoxSelectCandidate] = useState<BoxSelectCandidate | null>(null);
+  const [boxSelectState, setBoxSelectState] = useState<BoxSelectState | null>(null);
+  // Onderdrukt de eerstvolgende click-afhandeling ná een gepromoveerd kader (en na een Escape-annulering
+  // ervan) — anders deselecteert/hertekent de gewone click-logica de zojuist gezette boxselectie.
+  const justBoxSelectedRef = useRef(false);
   const [cursor, setCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  // Fase 2.10 (item 3): popover die na een dependency-drag verschijnt om het relatietype/lag
+  // meteen te corrigeren — de sequence zelf bestaat al (FS+lag0, zie de dependency-drag-mouseup
+  // hieronder), dit is puur een correctie-UI.
+  const [relationPopover, setRelationPopover] = useState<{ sequenceId: string; x: number; y: number } | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isResizingHistogram, setIsResizingHistogram] = useState(false);
@@ -737,6 +791,13 @@ export function GanttCanvas() {
 
   // Click handler with collapse/expand, '+' button support, and multi-selection
   const handleClick = useCallback((e: React.MouseEvent) => {
+    // Fase 2.10 golf 4: een net voltooid (of met Escape geannuleerd) selectie-kader onderdrukt de
+    // eerstvolgende click — anders overschrijft/deselecteert de gewone klik-afhandeling hieronder
+    // meteen de zojuist gezette boxselectie (of doet iets onbedoelds na de Escape-annulering).
+    if (justBoxSelectedRef.current) {
+      justBoxSelectedRef.current = false;
+      return;
+    }
     setHistoTooltip(null);
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -790,9 +851,12 @@ export function GanttCanvas() {
       } else {
         // Plain click: single select (deselect others)
         selectTask(task.id, false, false);
-        // WENS 2: onthul de balk als hij qua tijd buiten beeld ligt (alleen bij een enkelvoudige
-        // klik-selectie; niet bij ctrl/shift-multiselect). Geen sprong als hij al zichtbaar is.
-        revealTaskIfOffscreen(task);
+        // WENS 2: onthul de balk als hij qua tijd buiten beeld ligt, maar ALLEEN als de klik in de
+        // linker takenlijst viel (niet bij ctrl/shift-multiselect, en niet bij een klik in het
+        // Gantt-gebied zelf — anders springt het beeld weg bij wegklikken/verslepen daar).
+        if (renderer.isInTaskTable(x)) {
+          revealTaskIfOffscreen(task);
+        }
       }
     } else {
       deselectAll();
@@ -818,10 +882,17 @@ export function GanttCanvas() {
   // Right-click context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    // Fase 2.10 fix-golf 2: een balk-hover-tooltip die nog zichtbaar is bij het rechtsklikken zou
+    // anders over de bovenste menu-items blijven hangen (z-tooltip > z-50 van het menu). Wissen is
+    // de primaire fix; de z-index-bump hieronder is het vangnet voor tooltips die via mousemove
+    // ná het openen alsnog opnieuw gezet zouden worden (zie de guard in handleMouseMove).
+    setTooltip(null);
+    setHistoTooltip(null);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     const renderer = rendererRef.current;
@@ -829,11 +900,25 @@ export function GanttCanvas() {
 
     if (y < HEADER_HEIGHT) return;
 
+    // Bandkop-rij (fase 2.10 golf 2): eigen, klein contextmenu — zelfde detectie als handleClick.
+    const hitRow = renderer.getRowAtY(y);
+    if (hitRow?.kind === 'group') {
+      setContextMenu({
+        x: e.clientX, y: e.clientY, task: null, barHit: false,
+        group: { key: hitRow.key, collapsed: hitRow.collapsed },
+      });
+      return;
+    }
+
     const task = renderer.getTaskAtY(y);
     if (task) {
       selectTask(task.id, false);
     }
-    setContextMenu({ x: e.clientX, y: e.clientY, task });
+    // Balk-hit (fase 2.10 golf 2): dezelfde hit-test als drag-start; geeft null op de rij ernaast,
+    // op een mijlpaal en op een summary-balk (getTaskBarBounds sluit die bewust uit) — die krijgen
+    // dan gewoon het rij-menu zonder balk-specifieke items, zoals bedoeld.
+    const barHit = !!task && !!renderer.getTaskBarBounds(x, y);
+    setContextMenu({ x: e.clientX, y: e.clientY, task, barHit, group: null });
   }, [selectTask]);
 
   // Drag and drop: mousedown (task move/resize + dependency drawing)
@@ -888,10 +973,16 @@ export function GanttCanvas() {
       return;
     }
 
-    // No bar hit: in 'drag' scroll mode, grabbing the empty chart background
-    // pans the view (map-style). Only in the gantt area, never the task table
-    // (the table has no horizontal pan and stays interactive).
-    if (scrollMode === 'drag' && x >= taskTableWidth) {
+    // No bar hit, lege achtergrond. Takentabel: pant nooit → altijd box-select-kandidaat (fase 2.10
+    // golf 4). Chart: in 'drag' scroll mode wint pannen (map-style, ongewijzigd gedrag); in de
+    // overige scroll-modi is lege chart-achtergrond ook box-select-kandidaat.
+    if (renderer.isInTaskTable(x)) {
+      e.preventDefault();
+      setBoxSelectCandidate({ startClientX: e.clientX, startClientY: e.clientY });
+      return;
+    }
+
+    if (scrollMode === 'drag') {
       e.preventDefault();
       const v = useAppStore.getState().view;
       setPanState({
@@ -900,7 +991,11 @@ export function GanttCanvas() {
         originScrollX: v.scrollX,
         originScrollY: v.scrollY,
       });
+      return;
     }
+
+    e.preventDefault();
+    setBoxSelectCandidate({ startClientX: e.clientX, startClientY: e.clientY });
   }, [selectTask, scrollMode, taskTableWidth]);
 
   // Splitter-drag: breedte volgt de muis (geklemd), opslaan bij loslaten.
@@ -933,13 +1028,23 @@ export function GanttCanvas() {
   useEffect(() => {
     if (!panState) return;
 
+    let panned = false;
+
     const handleMouseMove = (e: MouseEvent) => {
       const dx = e.clientX - panState.startClientX;
       const dy = e.clientY - panState.startClientY;
+      if (Math.hypot(dx, dy) >= BOX_SELECT_THRESHOLD) panned = true;
       setScroll(panState.originScrollX - dx, panState.originScrollY - dy);
     };
 
-    const handleMouseUp = () => setPanState(null);
+    const handleMouseUp = () => {
+      // Fase 2.10 fix-golf 1: de browser vuurt na een mouseup nog een native click op het canvas.
+      // Zonder onderdrukking zou die click de zojuist gepande selectie overschrijven/wissen (net als
+      // bij box-select hierboven). Alleen onderdrukken als er ook echt gepand is — een klik zonder
+      // beweging in 'drag'-modus moet gewoon als normale selectie-klik blijven werken.
+      if (panned) justBoxSelectedRef.current = true;
+      setPanState(null);
+    };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -948,6 +1053,90 @@ export function GanttCanvas() {
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [panState, setScroll]);
+
+  // Box-selection golf 4a: kandidaatfase (nog onder de drempel). Bij overschrijding promoveren
+  // we tot een echt kader; onder de drempel bij mouseup gebeurt niets (de gewone click-afhandeling
+  // doet dan gewoon zijn normale werk, want justBoxSelectedRef staat niet).
+  useEffect(() => {
+    if (!boxSelectCandidate) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - boxSelectCandidate.startClientX;
+      const dy = e.clientY - boxSelectCandidate.startClientY;
+      if (Math.hypot(dx, dy) < BOX_SELECT_THRESHOLD) return;
+      setBoxSelectCandidate(null);
+      setBoxSelectState({
+        startClientX: boxSelectCandidate.startClientX,
+        startClientY: boxSelectCandidate.startClientY,
+        currentClientX: e.clientX,
+        currentClientY: e.clientY,
+      });
+    };
+
+    const handleMouseUp = () => setBoxSelectCandidate(null);
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [boxSelectCandidate]);
+
+  // Box-selection golf 4b: het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
+  // (GanttRenderer.getTaskIdsInYRange) — alléén de Y-band telt, de X-as (tijd-as) doet niet mee,
+  // dus takentabel en chart gedragen zich identiek. Ctrl/Cmd bij mouseup = toevoegen, anders
+  // vervangen. Escape annuleert zonder selectie-wijziging.
+  useEffect(() => {
+    if (!boxSelectState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setBoxSelectState(prev => prev ? { ...prev, currentClientX: e.clientX, currentClientY: e.clientY } : null);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      const canvas = canvasRef.current;
+      const renderer = rendererRef.current;
+      if (canvas && renderer) {
+        const rect = canvas.getBoundingClientRect();
+        const y1 = boxSelectState.startClientY - rect.top;
+        const y2 = e.clientY - rect.top;
+        const ids = renderer.getTaskIdsInYRange(Math.min(y1, y2), Math.max(y1, y2));
+        const additive = e.ctrlKey || e.metaKey;
+        if (ids.length > 0) {
+          selectTasks(ids, additive);
+        } else if (!additive) {
+          deselectAll();
+        }
+      }
+      // Onderdruk de eerstvolgende click zodat de zojuist gezette selectie niet meteen weer
+      // overschreven/gedeselecteerd wordt door de normale klik-afhandeling.
+      justBoxSelectedRef.current = true;
+      setBoxSelectState(null);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Annuleren: geen selectie-wijziging. De globale Escape-sneltoets (edit.deselect in
+      // shortcutRegistry.ts) luistert ook op window (bubble-fase) en zou anders ALSNOG
+      // deselectAll() aanroepen — capture-fase + stopImmediatePropagation wint gegarandeerd van
+      // die bubble-fase-listener (ongeacht registratievolgorde), zodat de selectie echt onaangeroerd
+      // blijft. De muis is nog ingedrukt, dus onderdruk ook de eerstvolgende click (anders verandert
+      // de selectie alsnog als gevolg van de geannuleerde sleep).
+      e.stopImmediatePropagation();
+      justBoxSelectedRef.current = true;
+      setBoxSelectState(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [boxSelectState, selectTasks, deselectAll]);
 
   // Dependency drag: draw temporary line and handle release
   useEffect(() => {
@@ -967,13 +1156,16 @@ export function GanttCanvas() {
 
         const targetTask = renderer.getTaskAtY(y);
         if (targetTask && targetTask.id !== depDragState.sourceTaskId && x >= useAppStore.getState().ui.leftPanelWidth) {
-          // Create Finish-to-Start dependency
-          addSequence({
+          // Create Finish-to-Start dependency (default — ongewijzigd gedrag als de gebruiker de
+          // hieronder geopende popover negeert/wegklikt).
+          const newSequenceId = addSequence({
             predecessorId: depDragState.sourceTaskId,
             successorId: targetTask.id,
             type: 'FINISH_START',
             lagDays: 0,
           });
+          // Fase 2.10 (item 3): meteen de correctie-popover openen op de drop-positie.
+          setRelationPopover({ sequenceId: newSequenceId, x: e.clientX, y: e.clientY });
         }
       }
       setDepDragState(null);
@@ -1171,7 +1363,10 @@ export function GanttCanvas() {
 
   // Cursor changes on hover + tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (dragState || depDragState || panState) {
+    // Fase 2.10 fix-golf 2: terwijl het contextmenu open staat mag een mousemove de balk-tooltip
+    // niet opnieuw zetten (anders duikt hij, ondanks het wissen bij het openen, alsnog weer op
+    // over de menu-items zodra de muis binnen het canvas beweegt).
+    if (dragState || depDragState || panState || boxSelectCandidate || boxSelectState || contextMenu) {
       setTooltip(null);
       return;
     }
@@ -1236,7 +1431,7 @@ export function GanttCanvas() {
     }
 
     setCursor('default');
-  }, [dragState, depDragState, panState, scrollMode, taskTableWidth]);
+  }, [dragState, depDragState, panState, boxSelectCandidate, boxSelectState, contextMenu, scrollMode, taskTableWidth]);
 
   // Hide tooltip on mouse leave
   const handleMouseLeave = useCallback(() => {
@@ -1275,7 +1470,9 @@ export function GanttCanvas() {
                   ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
                   : depDragState
                     ? 'crosshair'
-                    : cursor,
+                    : boxSelectState
+                      ? 'crosshair'
+                      : cursor,
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
@@ -1290,6 +1487,37 @@ export function GanttCanvas() {
           className="absolute inset-0"
           style={{ pointerEvents: 'none' }}
         />
+
+        {/* Box-selection kader (fase 2.10 golf 4): half-transparant rechthoekje tijdens de sleep,
+            in viewport-coördinaten — hoeft niet mee te scrollen (§spec), de rij-intersectie zelf
+            wordt op het actuele moment berekend (getTaskIdsInYRange). */}
+        {boxSelectState && (() => {
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          const left = (containerRect?.left ?? 0);
+          const top = (containerRect?.top ?? 0);
+          const x1 = Math.min(boxSelectState.startClientX, boxSelectState.currentClientX) - left;
+          const y1 = Math.min(boxSelectState.startClientY, boxSelectState.currentClientY) - top;
+          const w = Math.abs(boxSelectState.currentClientX - boxSelectState.startClientX);
+          const h = Math.abs(boxSelectState.currentClientY - boxSelectState.startClientY);
+          return (
+            <div
+              data-testid="box-select-rect"
+              className="absolute"
+              style={{
+                left: x1,
+                top: y1,
+                width: w,
+                height: h,
+                border: '1px solid var(--theme-accent)',
+                pointerEvents: 'none',
+                zIndex: 5,
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ position: 'absolute', inset: 0, background: 'var(--theme-accent)', opacity: 0.15 }} />
+            </div>
+          );
+        })()}
 
         {/* Tooltip */}
         {tooltip && (
@@ -1368,6 +1596,7 @@ export function GanttCanvas() {
             ref={histogramContainerRef}
             className="relative overflow-hidden"
             style={{ height: histogramHeight, flexShrink: 0 }}
+            data-tour-anchor="histogram-strip"
           >
             <canvas
               ref={histogramCanvasRef}
@@ -1424,7 +1653,12 @@ export function GanttCanvas() {
           x={contextMenu.x}
           y={contextMenu.y}
           task={contextMenu.task}
+          barHit={contextMenu.barHit}
+          group={contextMenu.group}
           traceActive={traceMode !== 'off'}
+          isTreeMode={isTreeMode(view)}
+          calendars={calendars}
+          canPaste={!!taskClipboard}
           onClose={() => setContextMenu(null)}
           onEdit={() => {
             if (contextMenu.task) setUI({ showTaskDialog: true, editingTaskId: contextMenu.task.id });
@@ -1477,6 +1711,76 @@ export function GanttCanvas() {
               time: createDefaultTaskTime(startDate, 5),
             });
           }}
+          onInsertAbove={() => {
+            if (!contextMenu.task) return;
+            addTask({
+              name: defaultTaskName,
+              time: createDefaultTaskTime(startDate, 5),
+              position: { anchorId: contextMenu.task.id, where: 'above' },
+            });
+          }}
+          onInsertBelow={() => {
+            if (!contextMenu.task) return;
+            addTask({
+              name: defaultTaskName,
+              time: createDefaultTaskTime(startDate, 5),
+              position: { anchorId: contextMenu.task.id, where: 'below' },
+            });
+          }}
+          onIndent={() => { if (contextMenu.task) indentTasks([contextMenu.task.id]); }}
+          onOutdent={() => { if (contextMenu.task) outdentTasks([contextMenu.task.id]); }}
+          onToggleMilestone={() => {
+            if (contextMenu.task) updateTask(contextMenu.task.id, { isMilestone: !contextMenu.task.isMilestone });
+          }}
+          onSetCalendar={(calendarId) => {
+            if (contextMenu.task) setTaskCalendar(contextMenu.task.id, calendarId);
+          }}
+          onSetProgress={(completion) => {
+            if (contextMenu.task) setTaskProgress(contextMenu.task.id, completion);
+          }}
+          onSetPriority={(priority) => {
+            if (contextMenu.task) updateTask(contextMenu.task.id, { priority });
+          }}
+          onStartRelationFromBar={() => {
+            if (contextMenu.task) {
+              setUI({ showDependencyMode: true, dependencySourceId: contextMenu.task.id });
+            }
+          }}
+          onSetConstraint={() => {
+            // Er is geen aparte constraint-tab: de constraint-velden leven in het rechter
+            // eigenschappenpaneel (TaskPropertiesPanel), niet in TaskDialog. Selecteer de taak en
+            // vouw het paneel open — GEEN blinde datum/constraint-keuze vanuit het contextmenu zelf.
+            if (!contextMenu.task) return;
+            selectTask(contextMenu.task.id, false);
+            setUI({ rightPanelCollapsed: false });
+          }}
+          onPaste={() => { pasteTasks(); }}
+          onZoomReset={() => { setZoom(DEFAULT_ZOOM); setScroll(0, 0); }}
+          onFitToProject={() => {
+            const container = containerRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            if (tasks.length === 0) { setZoom(DEFAULT_ZOOM); setScroll(0, 0); return; }
+            const fit = computeFitToProject(tasks, rect.width - taskTableWidth, enableQuarterHourZoom);
+            if (!fit) return;
+            setZoom(fit.zoom);
+            setViewStartDate(fit.viewStartDate);
+            setScroll(fit.scrollX, 0);
+          }}
+          onToggleGroupCollapse={() => {
+            if (contextMenu.group) setCollapsedGroupKey(contextMenu.group.key, !contextMenu.group.collapsed);
+          }}
+          onExpandAll={() => expandAll()}
+          onCollapseAll={() => collapseAll()}
+        />
+      )}
+
+      {relationPopover && (
+        <RelationTypePopover
+          sequenceId={relationPopover.sequenceId}
+          x={relationPopover.x}
+          y={relationPopover.y}
+          onClose={() => setRelationPopover(null)}
         />
       )}
 

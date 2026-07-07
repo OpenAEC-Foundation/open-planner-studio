@@ -696,6 +696,29 @@ function extractStructure(
       continue;
     }
 
+    if (psetName === 'OPS_TaskNotes') {
+      // Fase 2.10 (item 1): taak-aantekeningen uit het autoritatieve JSON-veld (spiegel van
+      // writeTaskNotes/OPS_ExternalLink). Corrupte JSON wordt genegeerd i.p.v. de load te breken.
+      for (const objRef of objectRefs) {
+        const taskId = taskStepIdMap.get(objRef);
+        const task = taskId ? taskById.get(taskId) : undefined;
+        if (!task) continue;
+        for (const prop of props) {
+          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+          if (stripQuotes(prop.args[0] || '') !== 'Notes') continue;
+          const value = parseTypedValue(prop.args[2] || '');
+          if (typeof value !== 'string' || !value) continue;
+          try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed) && parsed.length > 0) task.notes = parsed;
+          } catch {
+            // Corrupte JSON: negeren (net als een onleesbare externe-link-blob) i.p.v. de load te breken.
+          }
+        }
+      }
+      continue;
+    }
+
     if (psetName === 'OPS_Milestone') {
       // Fase 2.4: mijlpaalsoort + verplicht-vlag (spiegel van writeMilestoneMeta).
       for (const objRef of objectRefs) {
