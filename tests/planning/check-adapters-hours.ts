@@ -15,7 +15,7 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Task } from '@/types/task';
+import type { Task, ConstraintType } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import type { Project } from '@/types/project';
@@ -128,6 +128,143 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   assert(p6.tasks.every(t => t.time.durationMinutes == null), 'P6-example: geen durationMinutes-lek');
   assert([msp.calendar, ...msp.resourceCalendars].every(c => !c.workTime), 'MSPDI-example: geen workTime-lek');
   assert(msp.tasks.every(t => t.time.durationMinutes == null), 'MSPDI-example: geen durationMinutes-lek');
+}
+
+// ══ Fase 2.9 golf 6 — constraint-round-trip + hard/secundair + custom psets ═════════════════════
+// Permanent bewaakt: mapping-tabellen béíde richtingen (writer emitteert de juiste code, reader
+// leest 'm terug), de soft↔hard-val (soft MSO→SNET op MSPDI), hard-round-trip, en de pset-round-trips
+// (OPS_Hammock/OPS_SchedulingOptions/secundaire constraint). Los van de uur-checks hierboven.
+{
+  const dayCal: WorkCalendar = {
+    id: 'cal-d', name: 'Dag', description: 'ma-vr', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 7, workEndHour: 15, hoursPerDay: 8, holidays: [],
+  };
+  const dayProj: Project = {
+    id: 'p-d', name: 'Dag', description: '', startDate: '2026-06-01', endDate: '2026-06-30',
+    calendarId: 'cal-d', createdAt: '2026-06-01T00:00', modifiedAt: '2026-06-01T00:00', author: 'T', company: 'C',
+  };
+  const D = '2026-06-08';
+  const mkT = (extra: Partial<Task>): Task[] => [{
+    id: 'x', name: 'X', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, parentId: null, childIds: [],
+    time: {
+      durationType: 'WORKTIME', scheduleDuration: 2, scheduleStart: D, scheduleFinish: '2026-06-09',
+      earlyStart: D, earlyFinish: '2026-06-09', lateStart: D, lateFinish: '2026-06-09',
+      freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
+    },
+    resourceIds: [], ...extra,
+  }];
+  const readT = (fmt: 'IFC' | 'P6' | 'MSPDI', tk: Task[]): Task => {
+    if (fmt === 'IFC') return readIFC(writeIFC(dayProj, dayCal, tk, [], [], [], [], [], [])).tasks.find(t => t.name === 'X')!;
+    if (fmt === 'P6') return readP6XML(writeP6XML(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!;
+    return readMSPDI(writeMSPDI(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!;
+  };
+  const withWarns = <T>(fn: () => T): { out: T; warns: string[] } => {
+    const warns: string[] = []; const orig = console.warn;
+    console.warn = (...a: unknown[]) => { warns.push(a.join(' ')); };
+    try { return { out: fn(), warns }; } finally { console.warn = orig; }
+  };
+
+  // (a) P6 mapping-tabel béíde richtingen: writer emitteert de CS_*-code, reader leest 'm terug.
+  const P6_MAP: [ConstraintType, string, boolean][] = [
+    ['ALAP', 'CS_ALAP', false], ['SNET', 'CS_MSOA', false], ['SNLT', 'CS_MSOB', false],
+    ['FNET', 'CS_MEOA', false], ['FNLT', 'CS_MEOB', false], ['MSO', 'CS_MSO', false],
+    ['MFO', 'CS_MEO', false], ['MSO', 'CS_MANDSTART', true], ['MFO', 'CS_MANDFIN', true],
+  ];
+  for (const [type, code, hard] of P6_MAP) {
+    const tk = mkT({ constraint: { type, ...(type === 'ALAP' ? {} : { date: D }), ...(hard ? { hard: true } : {}) } });
+    const xml = writeP6XML(dayProj, dayCal, tk, [], [], []);
+    assert(xml.includes(`<PrimaryConstraintType>${code}</PrimaryConstraintType>`), `P6 writer ${type}${hard ? '(hard)' : ''} → ${code}`);
+    const back = readT('P6', tk).constraint;
+    eq(`P6 rt ${type}${hard ? '(hard)' : ''} type`, back?.type, type);
+    eq(`P6 rt ${type}${hard ? '(hard)' : ''} hard`, back?.hard ?? false, hard);
+  }
+
+  // (b) MSPDI mapping-tabel béíde richtingen (soft SNET/SNLT/FNET/FNLT + hard MSO/MFO).
+  const MSP_MAP: [ConstraintType, number, boolean][] = [
+    ['ALAP', 1, false], ['SNET', 4, false], ['SNLT', 5, false], ['FNET', 6, false],
+    ['FNLT', 7, false], ['MSO', 2, true], ['MFO', 3, true],
+  ];
+  for (const [type, code, hard] of MSP_MAP) {
+    const tk = mkT({ constraint: { type, ...(type === 'ALAP' ? {} : { date: D }), ...(hard ? { hard: true } : {}) } });
+    const xml = writeMSPDI(dayProj, dayCal, tk, [], [], []);
+    assert(xml.includes(`<ConstraintType>${code}</ConstraintType>`), `MSPDI writer ${type}${hard ? '(hard)' : ''} → ${code}`);
+    const back = readT('MSPDI', tk).constraint;
+    eq(`MSPDI rt ${type}${hard ? '(hard)' : ''} type`, back?.type, type);
+    eq(`MSPDI rt ${type}${hard ? '(hard)' : ''} hard`, back?.hard ?? false, hard);
+  }
+
+  // (c) De soft↔hard-VAL: soft MSO/MFO mag op MSPDI NIET naar code 2/3 (hard) — degradeert naar
+  //     SNET(4)/FNET(6) mét warn; op P6 blijft soft MSO/MFO exact (CS_MSO/CS_MEO).
+  for (const [type, mspCode, p6Code] of [['MSO', 4, 'CS_MSO'], ['MFO', 6, 'CS_MEO']] as const) {
+    const tk = mkT({ constraint: { type, date: D } });
+    const { out: mspXml, warns } = withWarns(() => writeMSPDI(dayProj, dayCal, tk, [], [], []));
+    assert(mspXml.includes(`<ConstraintType>${mspCode}</ConstraintType>`), `MSPDI soft ${type} → code ${mspCode} (NIET hard 2/3)`);
+    assert(!mspXml.includes('<ConstraintType>2</ConstraintType>') && !mspXml.includes('<ConstraintType>3</ConstraintType>'), `MSPDI soft ${type} niet naar 2/3`);
+    assert(warns.some(w => w.includes('gedegradeerd')), `MSPDI soft ${type} → semantiek-verlies-warn`);
+    eq(`MSPDI soft ${type} leest terug als soft ${type === 'MSO' ? 'SNET' : 'FNET'}`, withWarns(() => readT('MSPDI', tk)).out.constraint?.type, type === 'MSO' ? 'SNET' : 'FNET');
+    // P6: soft MSO/MFO behoudt semantiek (geen degradatie).
+    const p6Back = readT('P6', tk).constraint;
+    eq(`P6 soft ${type} behoudt type`, p6Back?.type, type);
+    eq(`P6 soft ${type} blijft soft`, p6Back?.hard ?? false, false);
+  }
+
+  // (d) Hard-round-trip incl. datum, alle drie de formaten (IFC/P6/MSPDI).
+  for (const fmt of ['IFC', 'P6', 'MSPDI'] as const) {
+    const tk = mkT({ constraint: { type: 'MSO', date: D, hard: true } });
+    const back = readT(fmt, tk).constraint;
+    eq(`${fmt} hard MSO type`, back?.type, 'MSO');
+    eq(`${fmt} hard MSO hard`, back?.hard, true);
+    eq(`${fmt} hard MSO date`, back?.date, D);
+  }
+
+  // (e) Secundaire constraint: IFC + P6 round-trippen 'm (native); MSPDI laat 'm vallen + warn.
+  {
+    const tk = mkT({ constraint: { type: 'SNET', date: '2026-06-03' }, constraint2: { type: 'FNLT', date: D } });
+    for (const fmt of ['IFC', 'P6'] as const) {
+      const c2 = readT(fmt, tk).constraint2;
+      eq(`${fmt} secundair type`, c2?.type, 'FNLT');
+      eq(`${fmt} secundair date`, c2?.date, D);
+      eq(`${fmt} secundair niet-hard`, c2?.hard ?? false, false);
+    }
+    const { out: mspTk, warns } = withWarns(() => readMSPDI(writeMSPDI(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!);
+    eq('MSPDI secundair valt weg', mspTk.constraint2 ?? null, null);
+    eq('MSPDI primair blijft', mspTk.constraint?.type, 'SNET');
+    assert(warns.some(w => w.includes('secundaire constraint')), 'MSPDI secundair → weggelaten-warn');
+  }
+
+  // (f) OPS_Hammock-pset: IFC round-trippt isHammock; P6/MSPDI laten 'm vallen (gewone taak) + warn.
+  {
+    const tk = mkT({ isHammock: true });
+    eq('IFC hammock round-trip', readT('IFC', tk).isHammock, true);
+    const { out: p6Tk, warns: pw } = withWarns(() => readP6XML(writeP6XML(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!);
+    eq('P6 hammock valt weg (gewone taak)', p6Tk.isHammock ?? false, false);
+    assert(pw.some(w => w.includes('hammock')), 'P6 hammock → warn');
+    const { out: mspTk, warns: mw } = withWarns(() => readMSPDI(writeMSPDI(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!);
+    eq('MSPDI hammock valt weg (gewone taak)', mspTk.isHammock ?? false, false);
+    assert(mw.some(w => w.includes('hammock')), 'MSPDI hammock → warn');
+  }
+
+  // (g) OPS_SchedulingOptions-pset: IFC round-trippt het VOLLE blok; MSPDI alleen
+  //     criticalDefinition.threshold via CriticalSlackLimit (rest weggelaten + warn); P6 niets + warn.
+  {
+    const so = {
+      criticalDefinition: { mode: 'totalFloat' as const, threshold: 2 },
+      lagCalendar: 'successor' as const,
+      floatPaths: { enabled: true, method: 'FREE_FLOAT' as const, maxPaths: 10 },
+    };
+    const proj2: Project = { ...dayProj, schedulingOptions: so };
+    const tk = mkT({});
+    const ifcBack = readIFC(writeIFC(proj2, dayCal, tk, [], [], [], [], [], [])).project.schedulingOptions;
+    eq('IFC schedulingOptions volledig round-trip', ifcBack, so);
+    const { out: mspBack, warns: mw } = withWarns(() => readMSPDI(writeMSPDI(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
+    eq('MSPDI CriticalSlackLimit → threshold', mspBack?.criticalDefinition, { mode: 'totalFloat', threshold: 2 });
+    eq('MSPDI lagCalendar/floatPaths weg', [mspBack?.lagCalendar, mspBack?.floatPaths], [undefined, undefined]);
+    assert(mw.some(w => w.includes('lagCalendar')), 'MSPDI schedulingOptions-verlies-warn');
+    const { out: p6Back, warns: pw } = withWarns(() => readP6XML(writeP6XML(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
+    eq('P6 schedulingOptions niet uitdrukbaar', p6Back ?? null, null);
+    assert(pw.some(w => w.includes('scheduling-opties')), 'P6 schedulingOptions-verlies-warn');
+  }
 }
 
 if (fails === 0) {

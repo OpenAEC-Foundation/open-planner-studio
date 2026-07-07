@@ -1,4 +1,4 @@
-import { Task } from '@/types/task';
+import { Task, TaskConstraint, ConstraintType } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -88,6 +88,24 @@ function mspTypeToSequenceType(type: number): SequenceType {
     case 2: return 'START_FINISH';
     case 3: return 'START_START';
     default: return 'FINISH_START';
+  }
+}
+
+/**
+ * Fase 2.9 (§6) — MSPDI `ConstraintType`-code → OPS-constraint (spiegel van `mspConstraintCode`).
+ * 2/3 (Must Start/Finish On) zijn HARD ⇒ `MSO`/`MFO` mét `hard:true` (daar klopt de semantiek); 4-7
+ * zijn de soft SNET/SNLT/FNET/FNLT; 0 (ASAP, default) en onbekend ⇒ `undefined` (geen constraint).
+ */
+function mspCodeToConstraint(code: number): { type: ConstraintType; hard?: boolean } | undefined {
+  switch (code) {
+    case 1: return { type: 'ALAP' };
+    case 2: return { type: 'MSO', hard: true };
+    case 3: return { type: 'MFO', hard: true };
+    case 4: return { type: 'SNET' };
+    case 5: return { type: 'SNLT' };
+    case 6: return { type: 'FNET' };
+    case 7: return { type: 'FNLT' };
+    default: return undefined;
   }
 }
 
@@ -283,6 +301,26 @@ export function readMSPDI(content: string): {
     if (percentComplete >= 100) status = 'COMPLETED';
     else if (percentComplete > 0) status = 'STARTED';
 
+    // Datum-constraint (fase 2.9, §6): ConstraintType/ConstraintDate. 0/ontbrekend ⇒ geen constraint
+    // (default-inert). MSPDI kent geen secundaire constraint. Datum: uur ⇒ echte tijd, dag ⇒ strip.
+    const parseCstrDate = (raw: string): string => isHour ? parseMSPInstant(raw) : parseMSPDate(raw);
+    let constraint: TaskConstraint | undefined;
+    const cTypeRaw = getElementText(te, 'ConstraintType');
+    if (cTypeRaw) {
+      const mapped = mspCodeToConstraint(parseInt(cTypeRaw, 10));
+      if (mapped) {
+        const cdateRaw = getElementText(te, 'ConstraintDate');
+        constraint = {
+          type: mapped.type,
+          ...(mapped.hard ? { hard: true } : {}),
+          ...(cdateRaw ? { date: parseCstrDate(cdateRaw) } : {}),
+        };
+      }
+    }
+    // Zachte deadline (fase 2.9, §6): native <Deadline> → task.deadline.
+    const deadlineRaw = getElementText(te, 'Deadline');
+    const deadline = deadlineRaw ? parseCstrDate(deadlineRaw) : undefined;
+
     // Baseline 0: eerste direct-kind <Baseline> met <Number>0</Number>.
     const baselineEls = te.getElementsByTagName('Baseline');
     for (let b = 0; b < baselineEls.length; b++) {
@@ -330,6 +368,8 @@ export function readMSPDI(content: string): {
         completion: percentComplete / 100,
       },
       resourceIds: [],
+      ...(constraint ? { constraint } : {}),
+      ...(deadline ? { deadline } : {}),
       ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
     });
     taskHourById.set(id, isHour);
@@ -485,6 +525,16 @@ function parseProject(root: Element): Project {
   // Statusdatum (fase 2.6, §9.1) → project.statusDate. Alleen wanneer aanwezig.
   const statusDateRaw = getElementText(root, 'StatusDate');
   if (statusDateRaw) project.statusDate = parseMSPDate(statusDateRaw);
+  // Scheduling-options (fase 2.9, §6): CriticalSlackLimit → criticalDefinition.threshold (dagen,
+  // mode 'totalFloat'). Alleen wanneer het element aanwezig is (spiegel van de writer). threshold 0
+  // is de default (tf≤0) en dus inert. De overige opties zitten niet in MSPDI (alleen via IFC).
+  const cslRaw = getElementText(root, 'CriticalSlackLimit');
+  if (cslRaw) {
+    const csl = parseInt(cslRaw, 10);
+    if (Number.isFinite(csl)) {
+      project.schedulingOptions = { criticalDefinition: { mode: 'totalFloat', threshold: csl } };
+    }
+  }
   return project;
 }
 

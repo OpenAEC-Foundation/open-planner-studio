@@ -1,4 +1,4 @@
-import { Task, createDefaultTaskTime } from '@/types/task';
+import { Task, TaskConstraint, ConstraintType, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -75,6 +75,26 @@ function p6TypeToSequenceType(type: string): SequenceType {
 function p6HoursToDays(hours: number, hoursPerDay: number): number {
   if (hoursPerDay <= 0) hoursPerDay = 8;
   return Math.round(hours / hoursPerDay);
+}
+
+/**
+ * Fase 2.9 (§6) — P6 `CS_*`-code → OPS-constraint (spiegel van `p6ConstraintCode` in de writer).
+ * De harde `CS_MANDSTART`/`CS_MANDFIN` komen terug als `MSO`/`MFO` mét `hard:true`; de soft-typen
+ * als hun OPS-equivalent. Onbekende code ⇒ `undefined` (veld gewoon afwezig, dag-modus-analoog).
+ */
+function p6CodeToConstraint(code: string): { type: ConstraintType; hard?: boolean } | undefined {
+  switch (code) {
+    case 'CS_MSO': return { type: 'MSO' };
+    case 'CS_MSOA': return { type: 'SNET' };
+    case 'CS_MSOB': return { type: 'SNLT' };
+    case 'CS_MEO': return { type: 'MFO' };
+    case 'CS_MEOA': return { type: 'FNET' };
+    case 'CS_MEOB': return { type: 'FNLT' };
+    case 'CS_ALAP': return { type: 'ALAP' };
+    case 'CS_MANDSTART': return { type: 'MSO', hard: true };
+    case 'CS_MANDFIN': return { type: 'MFO', hard: true };
+    default: return undefined;
+  }
 }
 
 /** Werkweek teruglezen (fase 2.8a, §8.3, spiegel van `writeStandardWorkWeek`): per
@@ -417,6 +437,35 @@ export function readP6XML(content: string): {
 
     const parentId = wbsObjId >= 0 ? wbsObjIdToId.get(wbsObjId) || null : null;
 
+    // Datum-constraints (fase 2.9, §6): primair + secundair uit de `CS_*`-codes. Secundair is altijd
+    // soft (P6-invariant) ⇒ `hard` wordt gedropt. Datum: uur ⇒ echte tijd, dag ⇒ tijd-strippen.
+    const parseCstrDate = (raw: string): string => isHour ? parseP6Instant(raw) : parseP6Date(raw);
+    let constraint: TaskConstraint | undefined;
+    const primCode = getElementText(actEl, 'PrimaryConstraintType');
+    if (primCode) {
+      const mapped = p6CodeToConstraint(primCode);
+      if (mapped) {
+        const cdateRaw = getElementText(actEl, 'PrimaryConstraintDate');
+        constraint = {
+          type: mapped.type,
+          ...(mapped.hard ? { hard: true } : {}),
+          ...(cdateRaw ? { date: parseCstrDate(cdateRaw) } : {}),
+        };
+      }
+    }
+    let constraint2: TaskConstraint | undefined;
+    const secCode = getElementText(actEl, 'SecondaryConstraintType');
+    if (secCode) {
+      const mapped2 = p6CodeToConstraint(secCode);
+      if (mapped2) {
+        const cdate2Raw = getElementText(actEl, 'SecondaryConstraintDate');
+        constraint2 = {
+          type: mapped2.type,
+          ...(cdate2Raw ? { date: parseCstrDate(cdate2Raw) } : {}),
+        };
+      }
+    }
+
     const task: Task = {
       id,
       name,
@@ -429,6 +478,8 @@ export function readP6XML(content: string): {
       priority: 500,
       parentId,
       childIds: [],
+      ...(constraint ? { constraint } : {}),
+      ...(constraint2 ? { constraint2 } : {}),
       time: {
         durationType: 'WORKTIME',
         scheduleDuration: durationDays,

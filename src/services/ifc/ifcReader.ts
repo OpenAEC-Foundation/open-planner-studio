@@ -1,7 +1,7 @@
 import { Task, TaskTime, TaskType, ConstraintType, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceType, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
-import { Project } from '@/types/project';
+import { Project, SchedulingOptions } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, createDefaultCalendar } from '@/types/calendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
@@ -84,6 +84,10 @@ export function readIFC(content: string): {
 
   // Baselines (fase 2.6, §8.3): autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
+
+  // Scheduling-options (fase 2.9, §3.4/§6): het volledige blok uit de OPS_SchedulingOptions-JSON.
+  const schedulingOptions = extractSchedulingOptions(entities, entityMap);
+  if (schedulingOptions) project.schedulingOptions = schedulingOptions;
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
@@ -614,25 +618,56 @@ function extractStructure(
     }
 
     if (psetName === 'OPS_Constraints') {
-      // Fase 2.3: datum-constraint + deadline per taak (spiegel van writeConstraints).
+      // Fase 2.3/2.9: datum-constraint (+ harde pin + secundair) + deadline per taak (spiegel van
+      // writeConstraints). Afwezige velden ⇒ gewoon weg (default-inert, dag-modus-analoog).
       for (const objRef of objectRefs) {
         const taskId = taskStepIdMap.get(objRef);
         const task = taskId ? taskById.get(taskId) : undefined;
         if (!task) continue;
         let ctype: string | undefined;
         let cdate: string | undefined;
+        let hard = false;
+        let ctype2: string | undefined;
+        let cdate2: string | undefined;
         for (const prop of props) {
           if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
           const name = stripQuotes(prop.args[0] || '');
           const value = parseTypedValue(prop.args[2] || '');
+          // Fase 2.9: Hard is een IFCBOOLEAN — niet overslaan met de string-guard hieronder.
+          if (name === 'Hard') { if (value === true) hard = true; continue; }
           if (typeof value !== 'string') continue;
           if (name === 'ConstraintType') ctype = value;
           else if (name === 'ConstraintDate') cdate = value;
+          else if (name === 'ConstraintType2') ctype2 = value;
+          else if (name === 'ConstraintDate2') cdate2 = value;
           else if (name === 'Deadline') task.deadline = value;
         }
         const valid = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
         if (ctype && valid.includes(ctype)) {
-          task.constraint = { type: ctype as ConstraintType, ...(cdate ? { date: cdate } : {}) };
+          task.constraint = {
+            type: ctype as ConstraintType,
+            ...(cdate ? { date: cdate } : {}),
+            ...(hard ? { hard: true } : {}),
+          };
+        }
+        // Secundaire constraint is altijd soft (geen hard-veld).
+        if (ctype2 && valid.includes(ctype2)) {
+          task.constraint2 = { type: ctype2 as ConstraintType, ...(cdate2 ? { date: cdate2 } : {}) };
+        }
+      }
+      continue;
+    }
+
+    if (psetName === 'OPS_Hammock') {
+      // Fase 2.9 (§3.2/§6): hammock/LOE-vlag terug (spiegel van writeHammockMeta).
+      for (const objRef of objectRefs) {
+        const taskId = taskStepIdMap.get(objRef);
+        const task = taskId ? taskById.get(taskId) : undefined;
+        if (!task) continue;
+        for (const prop of props) {
+          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+          if (stripQuotes(prop.args[0] || '') !== 'IsHammock') continue;
+          if (parseTypedValue(prop.args[2] || '') === true) task.isHammock = true;
         }
       }
       continue;
@@ -1335,4 +1370,32 @@ function extractBaselines(
   }
 
   return { baselines, activeBaselineId };
+}
+
+/**
+ * Fase 2.9 (§3.4/§6) — scheduling-options teruglezen uit het autoritatieve `OPS_SchedulingOptions`-
+ * JSON op de `IfcWorkSchedule` (spiegel van `writeSchedulingOptionsMeta`, exact het extractBaselines-
+ * patroon). Afwezig/corrupt ⇒ `undefined` (default-inert; alle solver-defaults blijven staan).
+ */
+function extractSchedulingOptions(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): SchedulingOptions | undefined {
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_SchedulingOptions') continue;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (stripQuotes(prop.args[0] || '') !== 'SchedulingOptions') continue;
+      const raw = parseTypedValue(prop.args[2] || '');
+      if (typeof raw !== 'string' || !raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as SchedulingOptions;
+        }
+      } catch { /* corrupte JSON — negeer, opties blijven op default */ }
+    }
+  }
+  return undefined;
 }

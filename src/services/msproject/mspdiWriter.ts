@@ -1,4 +1,4 @@
-import { Task } from '@/types/task';
+import { Task, TaskConstraint } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -50,6 +50,29 @@ function sequenceTypeToMSP(type: SequenceType): number {
     case 'FINISH_START': return 1;
     case 'START_FINISH': return 2;
     case 'START_START': return 3;
+  }
+}
+
+/**
+ * Fase 2.9 (§6) — OPS-constraint → MSPDI `ConstraintType`-code (MS Learn: 0=ASAP, 1=ALAP,
+ * 2=Must Start On, 3=Must Finish On, 4=SNET, 5=SNLT, 6=FNET, 7=FNLT). Retourneert `undefined`
+ * voor ASAP (default ⇒ niets schrijven, byte-identiek).
+ *
+ * DE SOFT↔HARD-VAL (§6, mapping-tabel): MSPDI 2/3 zijn **hard** (Must). OPS' `MSO`/`MFO` zijn
+ * **soft** (P6 Start On/Finish On) — die mogen dus NIET naar 2/3. Best-effort: soft `MSO` → `SNET`(4),
+ * soft `MFO` → `FNET`(6) — de forward-ondergrens blijft behouden, de backward-bovengrens gaat verloren
+ * (`softLoss`, gedocumenteerd + console-warn). OPS-HARD `MSO`/`MFO` → 2/3 (semantiek exact, geen verlies).
+ */
+function mspConstraintCode(c: TaskConstraint): { code: number; softLoss?: boolean } | undefined {
+  switch (c.type) {
+    case 'ASAP': return undefined;
+    case 'ALAP': return { code: 1 };
+    case 'SNET': return { code: 4 };
+    case 'SNLT': return { code: 5 };
+    case 'FNET': return { code: 6 };
+    case 'FNLT': return { code: 7 };
+    case 'MSO': return c.hard ? { code: 2 } : { code: 4, softLoss: true };
+    case 'MFO': return c.hard ? { code: 3 } : { code: 6, softLoss: true };
   }
 }
 
@@ -173,6 +196,23 @@ export function writeMSPDI(
     console.warn(`MSPDI-export: ${extLinkCount} externe (cross-project) dependency(s) weggelaten — niet uitdrukbaar in MSPDI (§6).`);
   }
 
+  // Fase 2.9 (§6): soft↔hard-val — soft MSO/MFO degradeert naar SNET/FNET (MSPDI 2/3 is hard).
+  const softLossCount = tasks.filter(t =>
+    t.constraint && !t.constraint.hard && (t.constraint.type === 'MSO' || t.constraint.type === 'MFO')).length;
+  if (softLossCount > 0) {
+    console.warn(`MSPDI-export: ${softLossCount} soft Start On/Finish On-constraint(s) gedegradeerd naar SNET/FNET — MSPDI-code 2/3 is HARD (Must), backward-bovengrens gaat verloren (§6).`);
+  }
+  // Secundaire constraint: MSPDI kent één ConstraintType-element ⇒ niet uitdrukbaar (bron: MS Learn).
+  const secondaryCount = tasks.filter(t => t.constraint2).length;
+  if (secondaryCount > 0) {
+    console.warn(`MSPDI-export: ${secondaryCount} secundaire constraint(s) weggelaten — MSPDI kent maar één ConstraintType-element (§6).`);
+  }
+  // Hammock/LOE: geen native MSPDI-representatie ⇒ als gewone taak met berekende datums + warn (§6).
+  const hammockCount = tasks.filter(t => t.isHammock).length;
+  if (hammockCount > 0) {
+    console.warn(`MSPDI-export: ${hammockCount} hammock/LOE-taak/-taken geëxporteerd als gewone taak met berekende datums — MSPDI kent geen native LOE (§6).`);
+  }
+
   // Fase 2.6 (§9.1): alleen de ACTIEVE baseline gaat naar MSPDI-slot 0 (Baseline Number 0).
   // De overige OPS-baselines verliezen we bewust (extra slots 1-10 = latere uitbreiding).
   const activeBaseline = baselines.find(b => b.id === activeBaselineId) ?? null;
@@ -201,6 +241,31 @@ export function writeMSPDI(
   lines.push(`${indent(1)}<MinutesPerDay>${calendar.hoursPerDay * 60}</MinutesPerDay>`);
   lines.push(`${indent(1)}<MinutesPerWeek>${calendar.hoursPerDay * calendar.workDays.length * 60}</MinutesPerWeek>`);
   lines.push(`${indent(1)}<DaysPerMonth>20</DaysPerMonth>`);
+
+  // Scheduling-options (fase 2.9, §6): alleen wat MSPDI native kan. `CriticalSlackLimit` (dagen) draagt
+  // een triviale kritiek-drempel (`criticalDefinition.mode==='totalFloat'` met een niet-negatieve
+  // integer-drempel); al het overige (longest-path, fractionele/uur-drempel, lag-kalender, float-paths,
+  // near-critical, TF-modus) is niet native uitdrukbaar ⇒ weggelaten + warn. De VOLLE set round-trippt
+  // wél via IFC OPS_SchedulingOptions. Golden rule: geen schedulingOptions ⇒ geen element.
+  const so = project.schedulingOptions;
+  if (so) {
+    const cd = so.criticalDefinition;
+    if (cd && cd.mode === 'totalFloat' && typeof cd.threshold === 'number'
+      && Number.isInteger(cd.threshold) && cd.threshold >= 0) {
+      lines.push(`${indent(1)}<CriticalSlackLimit>${cd.threshold}</CriticalSlackLimit>`);
+    } else if (cd) {
+      console.warn(`MSPDI-export: kritiek-definitie (${cd.mode}${cd.threshold != null ? `, drempel ${cd.threshold}` : ''}) niet uitdrukbaar als CriticalSlackLimit — weggelaten (§6).`);
+    }
+    const lost: string[] = [];
+    if (so.lagCalendar && so.lagCalendar !== 'predecessor') lost.push('lagCalendar');
+    if (so.totalFloatMode && so.totalFloatMode !== 'smallest') lost.push('totalFloatMode');
+    if (so.makeOpenEndedCritical) lost.push('makeOpenEndedCritical');
+    if (so.nearCriticalThreshold != null) lost.push('nearCriticalThreshold');
+    if (so.floatPaths?.enabled) lost.push('floatPaths');
+    if (lost.length > 0) {
+      console.warn(`MSPDI-export: scheduling-opties ${lost.join('/')} niet native uitdrukbaar — weggelaten, alleen via IFC OPS_SchedulingOptions (§6).`);
+    }
+  }
 
   // Calendars: UID 1 = projectkalender (basiskalender); overige bibliotheek-kalenders (fase 2.5,
   // §8.2) krijgen UID 2, 3, ... — dezelfde `writeCalendarBlock` parametrisch hergebruikt.
@@ -284,6 +349,24 @@ export function writeMSPDI(
     }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
+    // Datum-constraint (fase 2.9, §6): primair als MSPDI ConstraintType/ConstraintDate. ASAP ⇒ niets
+    // (golden rule). Secundair is niet uitdrukbaar (één element, gewaarschuwd hierboven). Soft MSO/MFO
+    // degradeert naar SNET/FNET (soft↔hard-val, gewaarschuwd hierboven).
+    if (task.constraint) {
+      const mapped = mspConstraintCode(task.constraint);
+      if (mapped) {
+        lines.push(`${indent(3)}<ConstraintType>${mapped.code}</ConstraintType>`);
+        // ConstraintDate vereist behalve bij 0/1 (ASAP/ALAP); ALAP (1) draagt geen datum.
+        if (mapped.code !== 1 && task.constraint.date) {
+          lines.push(`${indent(3)}<ConstraintDate>${formatMSPDateTime(task.constraint.date)}</ConstraintDate>`);
+        }
+      }
+    }
+    // Zachte deadline (fase 2.9, §6): MSPDI kent een native <Deadline> op de taak (verschuift balken
+    // niet — begrenst total slack). Golden rule: geen deadline ⇒ geen element.
+    if (task.deadline) {
+      lines.push(`${indent(3)}<Deadline>${formatMSPDateTime(task.deadline)}</Deadline>`);
+    }
     // Taak-kalender (fase 2.8a, §8.3): MSPDI ondersteunt taak-kalenders native via dit element —
     // effectieve UID i.p.v. het oude hardcoded 1 (projectkalender). Onbekende/verwijderde
     // calendarId valt terug op 1 (golden rule: geen eigen kalender ⇒ projectkalender-UID, zelfde
