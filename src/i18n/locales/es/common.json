@@ -367,7 +367,8 @@
       "title": "Columnas",
       "visible": "Visible",
       "width": "Ancho",
-      "resetDefault": "Restablecer valores predeterminados"
+      "resetDefault": "Restablecer valores predeterminados",
+      "available": "Campos disponibles"
     },
     "filter": {
       "title": "Filtro",

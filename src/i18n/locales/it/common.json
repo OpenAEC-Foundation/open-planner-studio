@@ -367,7 +367,8 @@
       "title": "Colonne",
       "visible": "Visibile",
       "width": "Larghezza",
-      "resetDefault": "Ripristina predefiniti"
+      "resetDefault": "Ripristina predefiniti",
+      "available": "Campi disponibili"
     },
     "filter": {
       "title": "Filtro",

@@ -370,7 +370,8 @@
       "title": "Columns",
       "visible": "Visible",
       "width": "Width",
-      "resetDefault": "Reset to default"
+      "resetDefault": "Reset to default",
+      "available": "Available fields"
     },
     "filter": {
       "title": "Filter",

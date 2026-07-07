@@ -367,7 +367,8 @@
       "title": "列",
       "visible": "表示",
       "width": "幅",
-      "resetDefault": "既定値に戻す"
+      "resetDefault": "既定値に戻す",
+      "available": "利用可能なフィールド"
     },
     "filter": {
       "title": "フィルター",

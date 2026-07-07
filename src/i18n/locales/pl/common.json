@@ -367,7 +367,8 @@
       "title": "Kolumny",
       "visible": "Widoczna",
       "width": "Szerokość",
-      "resetDefault": "Przywróć domyślne"
+      "resetDefault": "Przywróć domyślne",
+      "available": "Dostępne pola"
     },
     "filter": {
       "title": "Filtr",

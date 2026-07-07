@@ -367,7 +367,8 @@
       "title": "열",
       "visible": "표시",
       "width": "너비",
-      "resetDefault": "기본값으로 재설정"
+      "resetDefault": "기본값으로 재설정",
+      "available": "사용 가능한 필드"
     },
     "filter": {
       "title": "필터",

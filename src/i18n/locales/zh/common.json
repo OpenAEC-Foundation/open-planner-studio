@@ -367,7 +367,8 @@
       "title": "列",
       "visible": "可见",
       "width": "宽度",
-      "resetDefault": "恢复默认"
+      "resetDefault": "恢复默认",
+      "available": "可用字段"
     },
     "filter": {
       "title": "筛选",

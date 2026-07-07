@@ -367,7 +367,8 @@
       "title": "Spalten",
       "visible": "Sichtbar",
       "width": "Breite",
-      "resetDefault": "Auf Standard zurücksetzen"
+      "resetDefault": "Auf Standard zurücksetzen",
+      "available": "Verfügbare Felder"
     },
     "filter": {
       "title": "Filter",

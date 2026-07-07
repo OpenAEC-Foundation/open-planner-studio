@@ -367,7 +367,8 @@
       "title": "Colonnes",
       "visible": "Visible",
       "width": "Largeur",
-      "resetDefault": "Réinitialiser par défaut"
+      "resetDefault": "Réinitialiser par défaut",
+      "available": "Champs disponibles"
     },
     "filter": {
       "title": "Filtre",

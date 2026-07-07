@@ -367,7 +367,8 @@
       "title": "ستون‌ها",
       "visible": "قابل مشاهده",
       "width": "عرض",
-      "resetDefault": "بازنشانی به پیش‌فرض"
+      "resetDefault": "بازنشانی به پیش‌فرض",
+      "available": "فیلدهای موجود"
     },
     "filter": {
       "title": "فیلتر",

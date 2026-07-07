@@ -370,7 +370,8 @@
       "title": "Kolommen",
       "visible": "Zichtbaar",
       "width": "Breedte",
-      "resetDefault": "Herstel standaard"
+      "resetDefault": "Herstel standaard",
+      "available": "Beschikbare velden"
     },
     "filter": {
       "title": "Filteren",

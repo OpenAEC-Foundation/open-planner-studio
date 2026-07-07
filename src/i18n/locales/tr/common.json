@@ -367,7 +367,8 @@
       "title": "Sütunlar",
       "visible": "Görünür",
       "width": "Genişlik",
-      "resetDefault": "Varsayılana sıfırla"
+      "resetDefault": "Varsayılana sıfırla",
+      "available": "Kullanılabilir alanlar"
     },
     "filter": {
       "title": "Filtre",
