@@ -29,6 +29,8 @@
 //        // datums "YYYY-MM-DD"; tf/ff/intf getallen; crit/nearCrit boolean; intf=interfering (tf−ff)
 //     criticalPathSet?: [names],   // vergeleken als verzameling (volgorde-onafhankelijk)
 //     nearCriticalSet?: [names],   // near-critical-taken (0<tf≤drempel), verzameling (fase 2.9 §4.6)
+//     floatPaths?: { [name]: nr },   // float-path-nummer per taak (fase 2.9 golf 3 §4.6); ontbrekende taak = geen pad
+//     criticalPaths?: [[names]],     // kritieke ketens (fase 2.9 golf 3 §4.6), verzameling-van-verzamelingen
 //     drivingSet?: [[pred,succ,type]],  // welke relaties driving zijn (verzameling van triples)
 //     violatedConstraintsSet?: [names], missedDeadlinesSet?: [names],  // taak-namen (verzameling)
 //     projectEnd?, projectDuration?,
@@ -740,6 +742,33 @@ function runCase(c: Case) {
     const wantNames = [...exp.criticalPathSet].sort();
     if (JSON.stringify(gotNames) !== JSON.stringify(wantNames))
       diffs.push(`criticalPath: verwacht {${wantNames.join(',')}}, kreeg {${gotNames.join(',')}}`);
+  }
+
+  // Float-path-nummers per taak (fase 2.9 golf 3, §4.6): {naam: nr} tegen `floatPathByTask`. Een taak
+  // die géén floatPath kreeg (bv. boven maxPaths) ontbreekt in de map ⇒ ontbreekt ook in de verwachting.
+  if (exp.floatPaths) {
+    const idToName: Record<string, string> = {};
+    for (const [n, i] of Object.entries(ids)) idToName[i] = n;
+    const got: Record<string, number> = {};
+    for (const [tid, nr] of Object.entries((cpm as any)?.floatPathByTask ?? {})) got[idToName[tid] ?? tid] = nr as number;
+    const norm = (o: Record<string, number>) => JSON.stringify(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
+    if (norm(got) !== norm(exp.floatPaths))
+      diffs.push(`floatPaths: verwacht ${norm(exp.floatPaths)}, kreeg ${norm(got)}`);
+  }
+
+  // Kritieke ketens (fase 2.9 golf 3, §4.6): lijst van paden, elk als naam-verzameling — vergeleken als
+  // verzameling-van-verzamelingen (volgorde-onafhankelijk in beide dimensies). De strikte invariant
+  // `criticalPaths[0] === criticalPath` wordt apart in check-advanced-cpm.ts bewezen.
+  if (exp.criticalPaths) {
+    const idToName: Record<string, string> = {};
+    for (const [n, i] of Object.entries(ids)) idToName[i] = n;
+    const enc = (paths: string[][], map: boolean) => JSON.stringify(
+      paths.map(p => [...p].map(x => (map ? (idToName[x] ?? x) : x)).sort())
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    );
+    const got = enc((cpm as any)?.criticalPaths ?? [], true);
+    const want = enc(exp.criticalPaths, false);
+    if (got !== want) diffs.push(`criticalPaths: verwacht ${want}, kreeg ${got}`);
   }
 
   // Universele invariant (fase 2.9 golf 2, §8.4-b): interferingFloat == totalFloat − freeFloat over

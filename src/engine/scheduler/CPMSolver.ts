@@ -1363,6 +1363,82 @@ export class CPMSolver {
       if (!anyRealWork) projectDuration = 0;
     }
 
+    // ── Fase 2.9 golf 3 (§4.6) — multiple float paths (POST-PASS op het VASTE resultaat) ──────────
+    // De vroege datums veranderen NIET door het peelen: dit is een goedkope graaf-peel resp.
+    // TF-rangschikking, geen her-solve. Uit ⇒ `criticalPaths = [criticalPath]` en `floatPathByTask =
+    // {}` — byte-identiek aan het golf-0-gedrag (de tak wordt dan niet betreden). `criticalPaths[0]`
+    // blijft ALTIJD de bestaande `criticalPath` (byte-compat, expliciet gecheckt in de check-batterij).
+    let criticalPaths: string[][] = [criticalPath];
+    const floatPathByTask: Record<string, number> = {};
+    const fpOpt = so?.floatPaths;
+    if (fpOpt?.enabled) {
+      // Hard begrensd op `maxPaths` (ook bij grote netten); <1 ⇒ geen paden.
+      const maxPaths = Math.max(0, Math.floor(fpOpt.maxPaths));
+      // Hammocks (§4.4 — het veld bestaat al, het gedrag komt in golf 4): nooit end-kandidaat, tellen
+      // niet mee in een keten. Nu al respecteren zodat golf 4 hier niets meer hoeft te wijzigen.
+      const isHammock = (id: string) => this.tasks.get(id)?.isHammock === true;
+      const candidates = new Set<string>();
+      for (const id of order) if (!isHammock(id)) candidates.add(id);
+
+      if (fpOpt.method === 'TOTAL_FLOAT') {
+        // TF-methode: rangschik op DISTINCT tf (1 = kleinste tf); `floatPath` = rang. Een rang boven
+        // `maxPaths` krijgt géén nummer (harde begrenzing). Peelt geen ketens ⇒ criticalPaths blijft
+        // de enkele bestaande keten.
+        const tfOf = (id: string) => taskResults.get(id)!.totalFloat;
+        const distinct = [...new Set([...candidates].map(tfOf))].sort((a, b) => a - b);
+        const rankOf = new Map<number, number>();
+        distinct.forEach((tf, i) => rankOf.set(tf, i + 1));
+        for (const id of candidates) {
+          const rank = rankOf.get(tfOf(id))!;
+          if (rank <= maxPaths) floatPathByTask[id] = rank;
+        }
+      } else {
+        // FREE_FLOAT (driving-logic-peeling, default): peel ketens naar afnemende EF.
+        //   (1) end = niet-toegewezen kandidaat met de grootste EF (topo-volgorde = stabiele tie-break).
+        //   (2) keten = traceFrom(end).drivingPredecessors ∪ {end} (hammocks uitgesloten).
+        //   (3) ken het padnummer toe aan de nog NIET-toegewezen taken in de keten (een gedeelde
+        //       voorganger houdt zo het nummer van de EERSTE peel waarin hij voorkomt).
+        //   (4) verwijder de héle keten uit de kandidaten; herhaal tot `maxPaths` of leeg.
+        const drivingSet = new Set(drivingSequenceIds);
+        const efMs = (id: string) => earlyDates.get(id)!.ef.getTime();
+        // Elke gepeelde keten + of hij (volledig) kritiek is — voor de `criticalPaths`-opbouw.
+        const peeled: { ids: string[]; critical: boolean }[] = [];
+        let p = 0;
+        while (candidates.size > 0 && p < maxPaths) {
+          let end: string | null = null;
+          let bestEf = -Infinity;
+          for (const id of order) {
+            if (!candidates.has(id)) continue;
+            const e = efMs(id);
+            if (e > bestEf) { bestEf = e; end = id; }
+          }
+          if (end === null) break;
+          p += 1;
+          const chain = new Set<string>([end]);
+          for (const q of traceFrom(end, this.sequences, drivingSet).drivingPredecessors) {
+            if (!isHammock(q)) chain.add(q);
+          }
+          for (const id of chain) {
+            if (floatPathByTask[id] === undefined && candidates.has(id)) floatPathByTask[id] = p;
+          }
+          for (const id of chain) candidates.delete(id);
+          const ids = [...chain].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+          peeled.push({ ids, critical: ids.every((id) => taskResults.get(id)?.isCritical === true) });
+        }
+        // criticalPaths = alle gepeelde ketens die kritiek zijn. Pad 1 is (indien kritiek) al door
+        // `criticalPath` gerepresenteerd op index 0 (byte-compat); extra kritieke ketens (bij ties)
+        // komen erachteraan.
+        for (let i = 1; i < peeled.length; i++) {
+          if (peeled[i].critical) criticalPaths.push(peeled[i].ids);
+        }
+      }
+
+      // Per-taak `floatPath` op het resultaat (alleen bij enabled ⇒ default byte-identiek ongeschreven).
+      for (const [id, r] of taskResults) {
+        if (floatPathByTask[id] !== undefined) r.floatPath = floatPathByTask[id];
+      }
+    }
+
     return {
       tasks: taskResults,
       criticalPath,
@@ -1372,12 +1448,12 @@ export class CPMSolver {
       violatedConstraintTaskIds,
       missedDeadlineTaskIds,
       outOfSequenceSequenceIds,
-      // Fase 2.9 golf 2 — analyse-laag: near-critical-set gevuld bij ingestelde drempel (§4.6);
-      // `interferingFloat` altijd per taak geschreven. `criticalPaths` blijft de enkele keten in een
-      // array gewikkeld en `floatPathByTask` leeg tot golf 3 (multiple float paths) die aanzet.
+      // Fase 2.9 golf 2/3 — analyse-laag: near-critical-set gevuld bij ingestelde drempel (§4.6);
+      // `interferingFloat` altijd per taak geschreven. `criticalPaths`/`floatPathByTask` gevuld door de
+      // golf-3-post-pass hierboven (uit ⇒ `[criticalPath]` resp. `{}`, byte-identiek).
       nearCriticalTaskIds,
-      criticalPaths: [criticalPath],
-      floatPathByTask: {},
+      criticalPaths,
+      floatPathByTask,
       // Projecteinde in de projectkalendermodus (§5.4): dag-project ⇒ `formatDate` (byte-identiek).
       projectEnd: formatInstant(projectEnd, this.modeOf(this.projectEngine)),
       projectDuration,

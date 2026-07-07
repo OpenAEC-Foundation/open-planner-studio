@@ -436,6 +436,169 @@
         "criticalPathSet": ["A1", "END"],
         "projectEnd": "2026-06-08"
       }
+    },
+    {
+      "id": "s11-float-free",
+      "title": "S11 — multiple float paths FREE_FLOAT (driving-logic-peel). Paden {A1,END}=1, {A2}=2, {A3}=3; enige kritieke keten [A1,END].",
+      "schedulingOptions": { "floatPaths": { "enabled": true, "method": "FREE_FLOAT", "maxPaths": 10 } },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "crit": true, "floatPath": 1 },
+          "A2": { "tf": 1, "crit": false, "floatPath": 2 },
+          "A3": { "tf": 3, "crit": false, "floatPath": 3 },
+          "END": { "tf": 0, "crit": true, "floatPath": 1 }
+        },
+        "floatPaths": { "A1": 1, "A2": 2, "A3": 3, "END": 1 },
+        "criticalPaths": [["A1", "END"]],
+        "criticalPathSet": ["A1", "END"],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s11-float-total",
+      "title": "S11-variant — TOTAL_FLOAT-rangschikking. Rangen op distinct tf {0,1,3} ⇒ zelfde indeling {A1,END}=1,{A2}=2,{A3}=3; criticalPaths blijft [A1,END].",
+      "schedulingOptions": { "floatPaths": { "enabled": true, "method": "TOTAL_FLOAT", "maxPaths": 10 } },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "floatPath": 1 },
+          "A2": { "tf": 1, "floatPath": 2 },
+          "A3": { "tf": 3, "floatPath": 3 },
+          "END": { "tf": 0, "floatPath": 1 }
+        },
+        "floatPaths": { "A1": 1, "A2": 2, "A3": 3, "END": 1 },
+        "criticalPaths": [["A1", "END"]],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s11-float-maxpaths2",
+      "title": "S11-variant — maxPaths=2 (harde begrenzing). Paden 1={A1,END} en 2={A2}; A3 krijgt GEEN floatPath (map mist A3).",
+      "schedulingOptions": { "floatPaths": { "enabled": true, "method": "FREE_FLOAT", "maxPaths": 2 } },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "floatPath": 1 },
+          "A2": { "floatPath": 2 },
+          "END": { "floatPath": 1 }
+        },
+        "floatPaths": { "A1": 1, "A2": 2, "END": 1 },
+        "criticalPaths": [["A1", "END"]],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "s11-float-disabled",
+      "title": "S11-variant — floatPaths.enabled=false ⇒ VOLLEDIG inert. floatPathByTask leeg, criticalPaths=[criticalPath], geen per-taak floatPath.",
+      "schedulingOptions": { "floatPaths": { "enabled": false, "method": "FREE_FLOAT", "maxPaths": 10 } },
+      "tasks": [
+        { "name": "A1", "dur": 5 },
+        { "name": "A2", "dur": 4 },
+        { "name": "A3", "dur": 2 },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "END", "type": "FINISH_START" },
+        { "pred": "A3", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A1": { "tf": 0, "crit": true },
+          "A2": { "tf": 1, "crit": false },
+          "END": { "tf": 0, "crit": true }
+        },
+        "floatPaths": {},
+        "criticalPaths": [["A1", "END"]],
+        "criticalPathSet": ["A1", "END"],
+        "projectEnd": "2026-06-08"
+      }
+    },
+    {
+      "id": "sh-float-shared-pred",
+      "title": "Gedeelde voorganger over twee ketens (FREE_FLOAT). S(3)→FS B(5) én S→FS C(2); S is driving-voorganger van beide. Peel: pad1={S,B}, pad2={C} — S houdt het nummer van de EERSTE peel (=1).",
+      "schedulingOptions": { "floatPaths": { "enabled": true, "method": "FREE_FLOAT", "maxPaths": 10 } },
+      "tasks": [
+        { "name": "S", "dur": 3 },
+        { "name": "B", "dur": 5 },
+        { "name": "C", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "S", "succ": "B", "type": "FINISH_START" },
+        { "pred": "S", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "S": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true, "floatPath": 1 },
+          "B": { "es": "2026-06-04", "ef": "2026-06-10", "tf": 0, "crit": true, "floatPath": 1 },
+          "C": { "es": "2026-06-04", "ef": "2026-06-05", "tf": 3, "crit": false, "floatPath": 2 }
+        },
+        "floatPaths": { "S": 1, "B": 1, "C": 2 },
+        "criticalPaths": [["S", "B"]],
+        "criticalPathSet": ["S", "B"],
+        "projectEnd": "2026-06-10"
+      }
+    },
+    {
+      "id": "sh-float-hour",
+      "title": "Multiple float paths in UUR-modus (H8). P1(24u),P2(16u),P3(8u) elk →FS ENDH(8u). FREE_FLOAT: pad1={P1,ENDH}=1 (driving), P2=2, P3=3; kritieke keten [P1,ENDH].",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "schedulingOptions": { "floatPaths": { "enabled": true, "method": "FREE_FLOAT", "maxPaths": 10 } },
+      "tasks": [
+        { "name": "P1", "dur": "24u" },
+        { "name": "P2", "dur": "16u" },
+        { "name": "P3", "dur": "8u" },
+        { "name": "ENDH", "dur": "8u" }
+      ],
+      "links": [
+        { "pred": "P1", "succ": "ENDH", "type": "FINISH_START" },
+        { "pred": "P2", "succ": "ENDH", "type": "FINISH_START" },
+        { "pred": "P3", "succ": "ENDH", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "P1": { "es": "2026-07-06T08:00", "ef": "2026-07-08T16:00", "crit": true, "floatPath": 1 },
+          "P2": { "es": "2026-07-06T08:00", "ef": "2026-07-07T16:00", "crit": false, "floatPath": 2 },
+          "P3": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "crit": false, "floatPath": 3 },
+          "ENDH": { "es": "2026-07-09T08:00", "ef": "2026-07-09T16:00", "crit": true, "floatPath": 1 }
+        },
+        "floatPaths": { "P1": 1, "P2": 2, "P3": 3, "ENDH": 1 },
+        "criticalPaths": [["P1", "ENDH"]],
+        "projectEnd": "2026-07-09T16:00",
+        "error": false
+      }
     }
   ]
 }

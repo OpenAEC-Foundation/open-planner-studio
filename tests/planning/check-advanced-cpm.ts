@@ -1,8 +1,10 @@
-// Geavanceerde-CPM checks (fase 2.9, golf 0 + 1 + 2). Golf 0/1: datamodel + plumbing default-inert,
+// Geavanceerde-CPM checks (fase 2.9, golf 0 + 1 + 2 + 3). Golf 0/1: datamodel + plumbing default-inert,
 // validateConstraintPair, harde-pin-idempotentie. Golf 2 (§4.6): de analyse-laag — interfering float
 // (ALTIJD tf−ff), near-critical-drempel (0<tf≤thr; tf=0 niet, tf=thr wél), kritiek-definitie-opties
 // (totalFloat-drempel, longestPath tf-onafhankelijk incl. discriminator), open-ended-kritiek, en de
-// TF-berekeningswijze (in de huidige symmetrische backward-pass observationeel identiek).
+// TF-berekeningswijze (in de huidige symmetrische backward-pass observationeel identiek). Golf 3 (§4.6):
+// multiple float paths — FREE_FLOAT-peel + TOTAL_FLOAT-rangschikking, maxPaths harde begrenzing,
+// gedeelde-voorganger-eerste-peel, criticalPaths[0]===criticalPath byte-compat, enabled=false inert.
 //
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
@@ -209,6 +211,61 @@ eq('58 makeOpenEndedCritical: OB intf=tf−ff invariant', rOForce.tasks.get('OB'
 //        backward-pass (LS=LF−dur ⇒ start-float == finish-float). Byte-inert bewezen via digest.
 eq('59 totalFloatMode finish ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: { totalFloatMode: 'finish' } })), digest(rA));
 eq('60 totalFloatMode start ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: { totalFloatMode: 'start' } })), digest(rA));
+
+// ── 14) Golf 3 — multiple float paths: FREE_FLOAT-peel op net A (§4.6) ─────────
+const rFP = solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } });
+eq('61 free-float: A1=1', rFP.floatPathByTask['A1'], 1);
+eq('62 free-float: END=1 (zelfde driving-keten als A1)', rFP.floatPathByTask['END'], 1);
+eq('63 free-float: A2=2', rFP.floatPathByTask['A2'], 2);
+eq('64 free-float: A3=3', rFP.floatPathByTask['A3'], 3);
+// Byte-compat-invariant (§4.6, expliciet gevraagd): criticalPaths[0] === criticalPath.
+eq('65 free-float: criticalPaths[0] == criticalPath', JSON.stringify(rFP.criticalPaths[0]), JSON.stringify(rFP.criticalPath));
+eq('66 free-float: precies 1 kritieke keten', rFP.criticalPaths.length, 1);
+eq('67 free-float: criticalPaths[0] = [A1,END]', JSON.stringify(rFP.criticalPaths[0]), JSON.stringify(['A1', 'END']));
+// Elke toegewezen taak precies één floatPath: map ↔ per-taak-veld consistent; alle 4 toegewezen.
+eq('68 free-float: alle 4 taken een floatPath', Object.keys(rFP.floatPathByTask).length, 4);
+eq('69 free-float: per-taak floatPath == floatPathByTask',
+  [...rFP.tasks.entries()].every(([id, t]) => t.floatPath === rFP.floatPathByTask[id]), true);
+
+// ── 15) Golf 3 — TOTAL_FLOAT-rangschikking (distinct tf {0,1,3}) ───────────────
+const rTFp = solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 10 } } });
+eq('70 total-float: A1=1 (tf0)', rTFp.floatPathByTask['A1'], 1);
+eq('71 total-float: END=1 (tf0, zelfde rang)', rTFp.floatPathByTask['END'], 1);
+eq('72 total-float: A2=2 (tf1)', rTFp.floatPathByTask['A2'], 2);
+eq('73 total-float: A3=3 (tf3)', rTFp.floatPathByTask['A3'], 3);
+eq('74 total-float: criticalPaths[0] == criticalPath', JSON.stringify(rTFp.criticalPaths[0]), JSON.stringify(rTFp.criticalPath));
+
+// ── 16) Golf 3 — maxPaths harde begrenzing: A3 krijgt GEEN floatPath ───────────
+const rMax2 = solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 2 } } });
+eq('75 maxPaths2: A1=1', rMax2.floatPathByTask['A1'], 1);
+eq('76 maxPaths2: A2=2', rMax2.floatPathByTask['A2'], 2);
+eq('77 maxPaths2: A3 GEEN floatPath (map)', rMax2.floatPathByTask['A3'], undefined);
+eq('78 maxPaths2: A3 GEEN floatPath (per-taak)', rMax2.tasks.get('A3')!.floatPath, undefined);
+eq('79 maxPaths2: precies 3 toegewezen', Object.keys(rMax2.floatPathByTask).length, 3);
+// Harde grens óók bij een groter net: 6 parallelle paden, maxPaths=2 ⇒ hoogste padnummer 2.
+const netBig: Task[] = [mkTask('END', 1)];
+const seqBig: Sequence[] = [];
+for (let i = 1; i <= 6; i++) { netBig.unshift(mkTask('T' + i, i)); seqBig.push(fs('bs' + i, 'T' + i, 'END')); }
+const rBig = solve(netBig, seqBig, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 2 } } });
+eq('80 groot net maxPaths2: hoogste padnummer 2', Math.max(...Object.values(rBig.floatPathByTask)), 2);
+
+// ── 17) Golf 3 — enabled=false ⇒ VOLLEDIG inert (byte-identiek golf 0) ─────────
+const rDis = solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 10 } } });
+eq('81 disabled: floatPathByTask leeg', Object.keys(rDis.floatPathByTask).length, 0);
+eq('82 disabled: criticalPaths == [criticalPath]', JSON.stringify(rDis.criticalPaths), JSON.stringify([rDis.criticalPath]));
+eq('83 disabled: geen per-taak floatPath', [...rDis.tasks.values()].every(t => t.floatPath === undefined), true);
+eq('84 disabled: digest byte-identiek aan geen-opties', digest(rDis), digest(rA));
+
+// ── 18) Golf 3 — gedeelde voorganger over twee ketens: nummer van de EERSTE peel ─
+// S(3) root; S→FS B(5) (langste keten), S→FS C(2). S is driving-voorganger van B én C.
+const netSh: Task[] = [mkTask('S', 3), mkTask('B', 5), mkTask('C', 2)];
+const seqSh: Sequence[] = [fs('sh1', 'S', 'B'), fs('sh2', 'S', 'C')];
+const rSh = solve(netSh, seqSh, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } });
+eq('85 gedeeld: B=1 (langste keten peelt eerst)', rSh.floatPathByTask['B'], 1);
+eq('86 gedeeld: S=1 (padnummer van de EERSTE peel)', rSh.floatPathByTask['S'], 1);
+eq('87 gedeeld: C=2 (tweede peel; S houdt zijn 1)', rSh.floatPathByTask['C'], 2);
+eq('88 gedeeld: criticalPaths[0] == criticalPath', JSON.stringify(rSh.criticalPaths[0]), JSON.stringify(rSh.criticalPath));
+eq('89 gedeeld: criticalPaths[0] = [S,B]', JSON.stringify(rSh.criticalPaths[0]), JSON.stringify(['S', 'B']));
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
