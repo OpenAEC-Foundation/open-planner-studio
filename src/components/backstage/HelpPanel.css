@@ -113,9 +113,13 @@
 }
 .help-p { margin: 0 0 var(--sp-3, 10px) 0; }
 .help-ul, .help-ol {
+  /* Tailwind preflight (`@import "tailwindcss"` in globals.css) zet `list-style: none` op alle
+     ul/ol — expliciet herstellen, anders renderen genummerde stappen en bullets zonder marker. */
   margin: 0 0 var(--sp-3, 10px) 0;
   padding-left: 1.4em;
 }
+.help-ul { list-style: disc outside; }
+.help-ol { list-style: decimal outside; }
 .help-ul li, .help-ol li { margin-bottom: 3px; }
 
 .help-inline-code {

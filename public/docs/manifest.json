@@ -11,6 +11,18 @@
       "title": { "nl": "Plannen & WBS", "en": "Planning & WBS" },
       "layer": "gidsen",
       "cluster": "plannen-wbs"
+    },
+    {
+      "id": "gids-relaties-constraints",
+      "title": { "nl": "Relaties & constraints", "en": "Relations & constraints" },
+      "layer": "gidsen",
+      "cluster": "relaties-constraints"
+    },
+    {
+      "id": "gids-kalenders-uren",
+      "title": { "nl": "Kalenders & uren-planning", "en": "Calendars & hour planning" },
+      "layer": "gidsen",
+      "cluster": "kalenders-uren"
     }
   ]
 }
