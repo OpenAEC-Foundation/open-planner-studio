@@ -184,8 +184,13 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
     }
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
     const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);
+    // Fase 2.10 (P1-verwante correctie): dezelfde CPMOptions als `runCPM` hierboven meegeven —
+    // zonder `dataDate`/`progressMode` rekende de nivelleerder intern op een pure-ASAP-realiteit
+    // die van de echte (actual-gepinde) planning kan afwijken zodra er voortgang+statusdatum is
+    // (zie de parameter-toelichting in `ResourceLeveler.ts:levelResources`).
     return computeLeveling(
       leafTasks, s.sequences, s.resources, s.assignments, s.calendar, s.calendars, cpm, options,
+      { dataDate: s.project.statusDate, progressMode: s.project.progressMode, schedulingOptions: s.project.schedulingOptions },
     );
   },
 

@@ -431,7 +431,7 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
   tasks.push(
     { key: 'documentatie', name: 'Documentatie-overdracht (revisietekeningen)', parent: 'P8', dur: 3, taskType: 'ATTENDANCE', codes: { Toren: 'ALG', Discipline: 'AFB' } },
     { key: 'sleutels', name: 'Sleuteloverdracht beheerder', parent: 'P8', dur: 2, taskType: 'ATTENDANCE', codes: { Toren: 'ALG', Discipline: 'AFB' } },
-    { key: 'eindschoon_geb', name: 'Eindschoonmaak algemene ruimtes', parent: 'P8', dur: 3, taskType: 'LOGISTIC', codes: { Toren: 'ALG', Discipline: 'AFB' } },
+    { key: 'eindschoon_geb', name: 'Eindschoonmaak gemeenschappelijke ruimtes gebouw', parent: 'P8', dur: 3, taskType: 'LOGISTIC', codes: { Toren: 'ALG', Discipline: 'AFB' } },
     { key: 'ms_hoofddeadline', name: 'Projectadministratie & contractuele afronding', parent: 'P8', milestone: true, milestoneKind: 'FINISH', mandatory: true,
       deadlineDay: 560, codes: { Toren: 'ALG', Discipline: 'AFB' },
       description: 'Contractuele/administratieve afronding (revisiedossier, beheerderoverdracht) — loopt parallel vanaf de terreinoplevering, niet gegateed door de torens (zie fase-toelichting).' },
@@ -444,24 +444,49 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
     { pred: 'sleutels', succ: 'ms_hoofddeadline' }, { pred: 'ms_hoofddeadline', succ: 'ms_nazorg' }, { pred: 'ms_nazorg', succ: 'onderhoud' },
   );
 
-  // ── Voortgang + statusdatum (fase 2.6/2.10) — fase 1+2 afgerond, torenkraan net op ─────────
+  // ── Voortgang + statusdatum (fase 2.6/2.10) — fase 1+2 volledig afgerond, torenkraan net op ──
+  // Fase 2.10 (P1-datafix, QA-bevinding): de patch dekte eerder NIET de volledige fase 1+2-keten
+  // (de kelder-vlechtwerk/stort-taken per toren + f4/f5/f7/f6 ontbraken, en de 3 mijlpalen op deze
+  // keten — ms_start/ms_bouwrijp/ms_kelder — waren categorisch uitgesloten). Resultaat: die
+  // mijlpalen bleven completion=0 terwijl hun al-afgeronde opvolgers (Sonderingen, Wegafzetting,
+  // Bemaling, Torenkraan opbouwen) wél actuals hadden ⇒ 4 out-of-sequence-meldingen, plus een door
+  // de data-date-vloer gevloerde `ms_start`-EF die als fantoom-negatieve float door de hele
+  // (allang voltooide) fase-1-keten propageerde (§P1-detector-fix in CPMSolver.ts verhielp de
+  // valse hard-pin-schending die hieruit voortvloeide; dit hier maakt de VERHAALLIJN zelf
+  // consistent). Nu is de volledige keten tot en met "torenkraan net op" doorgepatcht, inclusief
+  // de 3 mijlpalen (de eerdere categorische milestone-uitsluiting is opgeheven — hieronder mag een
+  // mijlpaal gewoon meedoen zolang hij vóór de statusdatum ligt) en is `kraan_op`/`statusDay`
+  // dienovereenkomstig doorgeschoven zodat de volgorde kloppend blijft (geen taak start vóór zijn
+  // voorganger volgens de actuals al klaar is).
   const withProgress = (t: TaskSpec, startD: number, finishD: number): TaskSpec => ({
     ...t, completion: 1, actualStartDay: startD, actualFinishDay: finishD,
   });
   const progressPatch: Record<string, [number, number]> = {
+    ms_start: [0, 0],
     v0: [0, 3], v1: [3, 13], v2: [8, 11], v3: [13, 17], v4: [17, 19], v5: [19, 23], v6: [23, 28],
+    ms_bouwrijp: [28, 28],
     f0: [28, 30], f1: [30, 36], f2: [36, 41], f3: [41, 45],
     fA_grond: [45, 48], fB_grond: [45, 48], fC_grond: [45, 48],
-    kraan_op: [55, 58],
+    // Vlechtwerk/stort per toren (uur-kalender, §hierboven) — SYMMETRISCH over A/B/C (zelfde
+    // dagwaarden voor alle drie) zodat de bewust getide kritieke paden (§3.3-ontwerp) intact
+    // blijven; de asymmetrie die toren C near-critical maakt komt pas uit de latere
+    // rebaseline-mutatie (stucwerk-verlenging op A+B), niet uit deze voortgangspatch.
+    fA_vlkv: [48, 49], fB_vlkv: [48, 49], fC_vlkv: [48, 49],
+    fA_stkv: [49, 50], fB_stkv: [49, 50], fC_stkv: [49, 50],
+    fA_vlkw: [50, 51], fB_vlkw: [50, 51], fC_vlkw: [50, 51],
+    fA_stkw: [51, 52], fB_stkw: [51, 52], fC_stkw: [51, 52],
+    f4: [52, 55], f5: [55, 58], f7: [58, 63], f6: [63, 65],
+    ms_kelder: [65, 65],
+    kraan_op: [65, 68],
   };
-  // BEWUST alleen op gedeelde/gemeenschappelijke fase 1+2-taken (nooit op een toren-specifieke
-  // taak): een voortgangs-override met `actualStartDay`/`completion` triggert data-date-gedreven
-  // herplanning (§CPMSolver "remaining work"), wat de bewust symmetrische torens A/B (§3.3-
-  // ontwerp: identieke ketens ⇒ getide kritieke paden) zou verstoren als hij op een toren-
-  // specifieke taak stond — vandaar geen per-toren voortgangsmarker hier.
+  // BEWUST alleen SYMMETRISCH per-toren (nooit een asymmetrische toren-specifieke waarde): een
+  // voortgangs-override met `actualStartDay`/`completion` triggert data-date-gedreven herplanning
+  // (§CPMSolver "remaining work"), wat de bewust symmetrische torens A/B (§3.3-ontwerp: identieke
+  // ketens ⇒ getide kritieke paden) zou verstoren als hij ASYMMETRISCH op één toren stond — vandaar
+  // hierboven overal dezelfde dagwaarden voor A/B/C.
   for (const [key, [s, f]] of Object.entries(progressPatch)) {
     const idx = tasks.findIndex(t => t.key === key);
-    if (idx >= 0 && !tasks[idx].milestone) tasks[idx] = withProgress(tasks[idx], s, f);
+    if (idx >= 0) tasks[idx] = withProgress(tasks[idx], s, f);
   }
 
   // ── Baselines + rebaseline (architect-besluit 3): Contract → meerwerk → Herbaseline ───────
@@ -551,6 +576,18 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
     links,
     baselines,
     activeBaselineName: 'Contract',
-    statusDay: 60,
+    // Fase 2.10 (P1-datafix): een korte, realistische buffer ná `kraan_op`s actualFinishDay (68,
+    // zie progressPatch hierboven) — "torenkraan net op". Er blijft een KLEIN or (~1 t/m 5
+    // werkdagen) negatieve float zichtbaar op de al-lang-voltooide fase-1-keten (Start
+    // project…Sonderingen…Wegafzetting…) — dit is GEEN nieuw datafix-artefact: het is een
+    // reeds langer bestaande, orthogonale eigenschap van de harde-pin-taak "Wegafzetting"
+    // (constraint.hard MSO) in combinatie met een statusdatum — al aanwezig vóór deze fix (ook
+    // in de ONgewijzigde showcase gaf die taak al totalFloat=-1) en volledig losstaand van de P1-
+    // detector-fix en de mijlpaal-actualisatie hierboven (met de statusdatum helemaal WEG
+    // verdwijnt het volledig — TF=0 overal, headless geverifieerd). Buiten scope van deze golf
+    // (raakt de EF-berekening van een voltooide harde-pin-taak, niet de valse-schending-detector
+    // of de mijlpaal-uitsluiting die hier gefixed worden); expliciet gemeld i.p.v. stilzwijgend
+    // "opgelost" geclaimd.
+    statusDay: 70,
   };
 }

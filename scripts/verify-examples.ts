@@ -108,7 +108,10 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
  *  NIET via `writeIFC`/`readIFC` round-tripen (bevestigd: op de kale eerste `readIFC`-parse staan
  *  ze altijd leeg) — ze bestaan pas ná een verse `runCPM()`-run zoals hier. De union-check moet
  *  dus op déze herberekende `facts`, niet op de kale `parsed.tasks`. */
-function scheduleFacts(parsed: Parsed): { negFloat: number; overalloc: string[]; criticalPaths: number; nearCritical: boolean } {
+function scheduleFacts(parsed: Parsed): {
+  negFloat: number; overalloc: string[]; criticalPaths: number; nearCritical: boolean;
+  violated: number; outOfSequence: number;
+} {
   S().loadState(parsed as any);
   S().runCPM();
   const st = S();
@@ -122,7 +125,32 @@ function scheduleFacts(parsed: Parsed): { negFloat: number; overalloc: string[];
   }
   const criticalPaths = st.cpmResult?.criticalPaths?.length ?? 1;
   const nearCritical = st.tasks.some(t => t.time.isNearCritical === true);
-  return { negFloat, overalloc, criticalPaths, nearCritical };
+  const violated = st.cpmResult?.violatedConstraintTaskIds?.length ?? 0;
+  const outOfSequence = st.cpmResult?.outOfSequenceSequenceIds?.length ?? 0;
+  return { negFloat, overalloc, criticalPaths, nearCritical, violated, outOfSequence };
+}
+
+/**
+ * Fase 2.10 (P1-datafix, golf 4): MIDDEL-specifieke nivelleringsproef. De showcase belooft EXPLICIET
+ * "een met nivellering oplosbare overallocatie" (de stukadoors) — deze check bewijst dat headless,
+ * via de ECHTE `levelResources`/`applyLeveling` (zelfde route als de Level-knop in de UI): vóór
+ * leveling moet er overallocatie zijn (al gedekt door de generieke `hasResources`-check hierboven),
+ * ná leveling moet ze VOLLEDIG verdwenen zijn (0 overallocated dagen over alle resources). Moet
+ * NA `scheduleFacts` draaien (state staat dan al geladen + CPM vers) — laadt zelf niet opnieuw.
+ */
+function verifyLevelingFullyResolves(diffs: string[]) {
+  const st = S();
+  const before = st.resourceLoadResult;
+  const beforeCount = before ? Object.values(before.overallocatedDays).reduce((a, d) => a + d.length, 0) : 0;
+  expect(diffs, beforeCount > 0, `nivellerings-proef: vóór leveling geen overallocatie gevonden (niets te bewijzen)`);
+  const result = S().levelResources({ constrainToFloat: false });
+  expect(diffs, Object.keys(result.unresolved).length === 0,
+    `nivellerings-proef: ${Object.keys(result.unresolved).length} taak/taken blijven onopgelost ná leveling`);
+  S().applyLeveling(result);
+  S().recomputeResourceLoad();
+  const after = S().resourceLoadResult;
+  const afterCount = after ? Object.values(after.overallocatedDays).reduce((a, d) => a + d.length, 0) : 0;
+  expect(diffs, afterCount === 0, `nivellerings-proef: ná leveling nog ${afterCount} overallocated resource-dag(en) over`);
 }
 
 /** Per-showcase: de functies die ÉLKE showcase hoort te tonen, ongeacht schaal (structuur,
@@ -207,6 +235,18 @@ function main() {
     const extra: string[] = [];
     if (spec.category === 'showcase') {
       const facts = verifyShowcase(spec, parsed, extra);
+      // Fase 2.10 (P1-datafix, golf 4) — showcase-specifieke nivellerings-/schendingsproeven.
+      // MIDDEL: "nivellering lost het op" moet aantoonbaar kloppen (headless, echte leveler).
+      // GROOT: de datafix moet 0 constraint-violations en 0 out-of-sequence-meldingen opleveren,
+      // mét overallocatie nog steeds zichtbaar (de bedoelde les — leveling lost NIET alles op).
+      if (spec.slug === 'showcase-rijwoningen-de-akkers') {
+        verifyLevelingFullyResolves(extra);
+      }
+      if (spec.slug === 'showcase-appartementencomplex') {
+        expect(extra, facts.violated === 0, `GROOT: ${facts.violated} constraint-violation(s) ná datafix (verwacht 0)`);
+        expect(extra, facts.outOfSequence === 0, `GROOT: ${facts.outOfSequence} out-of-sequence-melding(en) ná datafix (verwacht 0)`);
+        expect(extra, facts.overalloc.length > 0, `GROOT: geen overallocatie zichtbaar (verwacht de bedoelde les — nivellering lost niet alles op)`);
+      }
       parsed.resources.forEach(r => scResTypes.add(r.type));
       parsed.sequences.forEach(s => {
         scRelTypes.add(s.type);
