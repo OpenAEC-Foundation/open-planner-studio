@@ -1,4 +1,4 @@
-import { Task, createDefaultTaskTime } from '@/types/task';
+import { Task, createDefaultTaskTime, type ExternalLink } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { generateId } from '@/utils/id';
@@ -56,6 +56,11 @@ export interface TaskSlice {
   /** Taak-kalender (fase 2.8a, §7.3): wijs een bibliotheek-kalender toe (undefined = projectkalender).
    *  Dwingt niets af — zet alleen `calendarId` + undo-snapshot + scheduleStale (datum-beïnvloedend). */
   setTaskCalendar: (taskId: string, calendarId: string | undefined) => void;
+  /** Externe (cross-project) dependency (fase 2.9, §4.5/§5.5): voeg een link toe (genereert de id),
+   *  geeft de nieuwe link-id terug. Datum-beïnvloedend ⇒ scheduleStale. */
+  addExternalLink: (taskId: string, link: Omit<ExternalLink, 'id'>) => string;
+  /** Verwijder een externe link van een taak (fase 2.9). Datum-beïnvloedend ⇒ scheduleStale. */
+  removeExternalLink: (taskId: string, linkId: string) => void;
 }
 
 /**
@@ -119,6 +124,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         // Fase 2.9 (§3.2/§4.4): hammock/LOE-vlag doorgeven zodat de solver de afgeleide-span-tak
         // draait. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
         isHammock: partial.isHammock,
+        // Fase 2.9 (§3.3/§4.5): externe (cross-project) dependencies doorgeven zodat de solver ze als
+        // bevroren datum-grenzen meerekent. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
+        externalLinks: partial.externalLinks,
         deadline: partial.deadline,
         calendarId: partial.calendarId,
       };
@@ -173,6 +181,37 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       task.calendarId = calendarId; // undefined = projectkalender
       s.isDirty = true;
       s.scheduleStale = true; // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
+    });
+    get().recomputeViewRows();
+  },
+
+  addExternalLink: (taskId, link) => {
+    const id = generateId('extlink');
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      const full: ExternalLink = { ...link, id };
+      task.externalLinks = [...(task.externalLinks ?? []), full];
+      s.isDirty = true;
+      s.scheduleStale = true; // een bevroren datum-grens is datum-beïnvloedend (§4.5).
+    });
+    get().recomputeViewRows();
+    return id;
+  },
+
+  removeExternalLink: (taskId, linkId) => {
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task || !task.externalLinks) return;
+      const next = task.externalLinks.filter((l) => l.id !== linkId);
+      if (next.length === task.externalLinks.length) return; // no-op: niets verwijderd
+      s.undoStack.push(createSnapshot(s));
+      s.redoStack = [];
+      task.externalLinks = next.length > 0 ? next : undefined;
+      s.isDirty = true;
+      s.scheduleStale = true;
     });
     get().recomputeViewRows();
   },

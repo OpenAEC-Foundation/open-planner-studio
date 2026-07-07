@@ -65,6 +65,9 @@ export interface GanttRenderOptions {
   durationDisplay?: DurationDisplay;
   /** Fase 2.8b (§6.4/§11): vertaalde eenheid-afkortingen voor de duurkolom-WEERGAVE. Afwezig ⇒ NL d/u/m. */
   durationSuffixes?: DurationSuffixes;
+  /** Fase 2.9 (§5.5): vertaald "verouderd"-badgelabel voor een externe ghost-balk met sourceMissing.
+   *  Afwezig ⇒ NL 'verouderd'. */
+  externalStaleLabel?: string;
 }
 
 // Read theme colors from CSS variables on the document element
@@ -95,6 +98,7 @@ function getThemeColors() {
     statusDate: '#7C3AED',     // statusdatum-/voortgangslijn (paars, fase 2.6)
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
     summary: '#475569',        // samenvattingsbalk (slate)
+    ghost: '#94A3B8',          // externe (cross-project) ghost-balk (grijs, fase 2.9 §5.5)
     // Constraints & deadlines (fase 2.3; constraint-kleur uit PLAN §8.2)
     constraintEarly: '#3B82F6',   // vroege-zijde (SNET/FNET): blauw
     constraintLate: '#8B5CF6',    // late-zijde/pinnend (SNLT/FNLT/MSO/MFO): violet
@@ -611,7 +615,10 @@ export class GanttRenderer {
         this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
       }
       this.drawConstraintMarkers(task, y);
+      // Externe (cross-project) ghost-balken (fase 2.9, §5.5): op volle dekking (niet mee-dimmen),
+      // ná de constraint-markers zodat de badge bovenop leesbaar blijft.
       if (dimmed || row.dimmed) this.ctx.globalAlpha = 1;
+      this.drawExternalGhosts(task, y, barHeight);
       // Baseline-onderbalk (fase 2.6): op volle dekking, ná het eventuele dim-herstel.
       this.drawBaselineOverlay(task, y, barHeight);
     }
@@ -792,6 +799,69 @@ export class GanttRenderer {
     ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textBaseline = 'middle';
     ctx.fillText(task.name, x + size + 6, cy);
+  }
+
+  /**
+   * Fase 2.9 (§5.5) — externe (cross-project) ghost-balken. Per `ExternalLink` een grijze balk die op
+   * het bevroren anker EINDIGT (predecessor: de externe taak eindigt vóór mijn start) resp. BEGINT
+   * (successor). `sourceMissing` ⇒ gestippelde rand + een "verouderd"-badge (bron niet geladen; her-
+   * importeer om te verversen). De ghost is géén echte rij — puur weergave naast de lokale balk;
+   * afwezig/leeg `externalLinks` ⇒ deze methode is een no-op (byte-identiek). */
+  private drawExternalGhosts(task: Task, y: number, height: number): void {
+    const links = task.externalLinks;
+    if (!links || links.length === 0) return;
+    const ctx = this.ctx;
+    const ghostW = Math.max(this.opts.view.zoom * 1.5, 28);
+    const gh = height * 0.72;
+    const gy = y + (height - gh) / 2;
+    const chartLeft = this.opts.taskTableWidth;
+
+    for (const link of links) {
+      const anchorStr = link.anchorDate;
+      if (!anchorStr) continue;
+      const anchor = anchorStr.includes('T') ? parseInstant(anchorStr) : parseDate(anchorStr);
+      if (isNaN(anchor.getTime())) continue;
+      const ax = this.dateToX(anchor);
+      const gx1 = link.direction === 'predecessor' ? ax - ghostW : ax;
+      if (gx1 + ghostW < chartLeft || gx1 > this.opts.canvasWidth) continue;
+
+      ctx.save();
+      // Clip aan het chart-gebied (de ghost mag niet over de taaktabel lopen).
+      ctx.beginPath();
+      ctx.rect(chartLeft, this.opts.headerHeight, this.opts.canvasWidth - chartLeft, this.opts.canvasHeight - this.opts.headerHeight);
+      ctx.clip();
+      // Vulling — semi-transparant grijs.
+      ctx.fillStyle = this.colors.ghost + '40'; // ~25%
+      ctx.beginPath();
+      ctx.roundRect(gx1, gy, ghostW, gh, 2);
+      ctx.fill();
+      // Rand — solid (bron geladen) of gestippeld (sourceMissing = verouderd).
+      ctx.strokeStyle = this.colors.ghost;
+      ctx.lineWidth = 1;
+      if (link.sourceMissing) ctx.setLineDash([3, 2]);
+      ctx.beginPath();
+      ctx.roundRect(gx1 + 0.5, gy + 0.5, ghostW - 1, gh - 1, 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // "verouderd"-badge bij sourceMissing.
+      if (link.sourceMissing) {
+        const label = this.opts.externalStaleLabel ?? 'verouderd';
+        ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const tw = ctx.measureText(label).width + 6;
+        const bx = gx1 + Math.max((ghostW - tw) / 2, 0);
+        const by = gy - 13;
+        ctx.fillStyle = this.colors.critical;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, tw, 12, 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(label, bx + 3, by + 6.5);
+        ctx.textAlign = 'start';
+      }
+      ctx.restore();
+    }
   }
 
   /**

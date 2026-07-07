@@ -481,6 +481,7 @@ export function GanttCanvas() {
       enableHourPlanning,
       durationDisplay,
       durationSuffixes,
+      externalStaleLabel: tTask('externalLinks.stale'),
     };
 
     const renderer = new GanttRenderer(ctx, opts);

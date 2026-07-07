@@ -139,6 +139,13 @@ export function writeP6XML(
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
 
+  // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies zijn in P6-XML niet uitdrukbaar buiten de
+  // (uitgestelde) master/subproject-context ⇒ weggelaten (de ghost-weergave blijft in-app). Één warn.
+  const extLinkCount = tasks.reduce((n, t) => n + (t.externalLinks?.length ?? 0), 0);
+  if (extLinkCount > 0) {
+    console.warn(`P6-export: ${extLinkCount} externe (cross-project) dependency(s) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
+  }
+
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
   lines.push('<APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V23.12/API/BusinessObjects" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">');
 

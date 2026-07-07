@@ -166,6 +166,13 @@ export function writeMSPDI(
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
 
+  // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies zijn in MSPDI niet uitdrukbaar buiten de
+  // master/subproject-context ⇒ weggelaten (ghost-weergave blijft in-app). Één warn.
+  const extLinkCount = tasks.reduce((n, t) => n + (t.externalLinks?.length ?? 0), 0);
+  if (extLinkCount > 0) {
+    console.warn(`MSPDI-export: ${extLinkCount} externe (cross-project) dependency(s) weggelaten — niet uitdrukbaar in MSPDI (§6).`);
+  }
+
   // Fase 2.6 (§9.1): alleen de ACTIEVE baseline gaat naar MSPDI-slot 0 (Baseline Number 0).
   // De overige OPS-baselines verliezen we bewust (extra slots 1-10 = latere uitbreiding).
   const activeBaseline = baselines.find(b => b.id === activeBaselineId) ?? null;

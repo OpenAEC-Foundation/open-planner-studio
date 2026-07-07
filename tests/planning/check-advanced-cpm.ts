@@ -9,13 +9,17 @@
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { createDefaultTaskTime, type Task, type TaskConstraint } from '@/types/task';
+import { createDefaultTaskTime, type Task, type TaskConstraint, type ExternalLink } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import type { Project } from '@/types/project';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { FILTER_SORT_BUILTIN_KEYS, fieldKind, type FieldCatalogCtx } from '@/components/viewControls/fieldCatalog';
 import type { FieldRef, BuiltinFieldKey } from '@/state/slices/types';
 import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
+import { refreshExternalAnchors, externalSourceSide, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -386,6 +390,130 @@ const idemS = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_STA
 const idem1 = digest(new CPMSolver(idemT, idemS, CAL, [], {}).solve());
 const idem2 = digest(new CPMSolver(idemT, idemS, CAL, [], {}).solve());
 eq('127 hammock: solve idempotent na duur-mutatie (zelfde digest)', idem1, idem2);
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  Golf 5 (§4.5/§5.5) — externe (cross-project) dependencies: ververs-mapping, sourceMissing-gedrag,
+//  IFC-round-trip. De SOLVER-kant (bevroren datum-grenzen: FS/SS start-grens, FF/SF finish-grens,
+//  successor-bovengrens, uur-anker, lag-varianten) is handberekend in cases-advanced-cpm.json.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// (a) externalSourceSide-mapping: welke brontaak-zijde (start/finish) elk relType leest (§4.5). De
+//     conventie is voorganger→opvolger; bij `predecessor` telt het EERSTE teken (bron = mijn voorganger),
+//     bij `successor` het TWEEDE (bron = mijn opvolger).
+eq('128 side pred FS ⇒ finish', externalSourceSide('predecessor', 'FS'), 'finish');
+eq('129 side pred FF ⇒ finish', externalSourceSide('predecessor', 'FF'), 'finish');
+eq('130 side pred SS ⇒ start', externalSourceSide('predecessor', 'SS'), 'start');
+eq('131 side pred SF ⇒ start', externalSourceSide('predecessor', 'SF'), 'start');
+eq('132 side succ FS ⇒ start', externalSourceSide('successor', 'FS'), 'start');
+eq('133 side succ SS ⇒ start', externalSourceSide('successor', 'SS'), 'start');
+eq('134 side succ FF ⇒ finish', externalSourceSide('successor', 'FF'), 'finish');
+eq('135 side succ SF ⇒ finish', externalSourceSide('successor', 'SF'), 'finish');
+
+/** Brontaak met expliciete vroege datums (het anker leest earlyStart/earlyFinish, §4.5). */
+function srcTask(id: string, es: string, ef: string): Task {
+  const t = mkTask(id, 1);
+  t.time.earlyStart = es; t.time.scheduleStart = es;
+  t.time.earlyFinish = ef; t.time.scheduleFinish = ef;
+  return t;
+}
+function extLink(
+  id: string, direction: ExternalLink['direction'], relType: ExternalLink['relType'],
+  ref: ExternalLink['sourceRef'], anchor = '2000-01-01', missing = true,
+): ExternalLink {
+  return { id, direction, relType, anchorDate: anchor, sourceRef: ref, sourceMissing: missing };
+}
+
+// (b) refreshExternalAnchors: elk relType leest de juiste brontaak-datum + zet sourceMissing=false.
+const SRC_ES = '2026-06-05', SRC_EF = '2026-06-08';
+const source: ExternalSourceDoc = {
+  projectId: 'SRC', filePath: '/tmp/src.ifc', projectName: 'Bronproject',
+  tasks: [srcTask('X', SRC_ES, SRC_EF)],
+};
+const refX = (): ExternalLink['sourceRef'] => ({ projectId: 'SRC', taskId: 'X' });
+const localMulti: Task = mkTask('L', 3, {
+  externalLinks: [
+    extLink('p-fs', 'predecessor', 'FS', refX()),
+    extLink('p-ff', 'predecessor', 'FF', refX()),
+    extLink('p-ss', 'predecessor', 'SS', refX()),
+    extLink('p-sf', 'predecessor', 'SF', refX()),
+    extLink('s-fs', 'successor', 'FS', refX()),
+    extLink('s-ss', 'successor', 'SS', refX()),
+    extLink('s-ff', 'successor', 'FF', refX()),
+    extLink('s-sf', 'successor', 'SF', refX()),
+  ],
+});
+const refreshed = refreshExternalAnchors([localMulti], source);
+const byId = new Map((refreshed.tasks[0].externalLinks ?? []).map(l => [l.id, l]));
+eq('136 ververs pred FS ⇒ bron.earlyFinish', byId.get('p-fs')!.anchorDate, SRC_EF);
+eq('137 ververs pred FF ⇒ bron.earlyFinish', byId.get('p-ff')!.anchorDate, SRC_EF);
+eq('138 ververs pred SS ⇒ bron.earlyStart', byId.get('p-ss')!.anchorDate, SRC_ES);
+eq('139 ververs pred SF ⇒ bron.earlyStart', byId.get('p-sf')!.anchorDate, SRC_ES);
+eq('140 ververs succ FS ⇒ bron.earlyStart', byId.get('s-fs')!.anchorDate, SRC_ES);
+eq('141 ververs succ SS ⇒ bron.earlyStart', byId.get('s-ss')!.anchorDate, SRC_ES);
+eq('142 ververs succ FF ⇒ bron.earlyFinish', byId.get('s-ff')!.anchorDate, SRC_EF);
+eq('143 ververs succ SF ⇒ bron.earlyFinish', byId.get('s-sf')!.anchorDate, SRC_EF);
+eq('144 ververs: alle 8 sourceMissing=false', (refreshed.tasks[0].externalLinks ?? []).every(l => l.sourceMissing === false), true);
+eq('145 ververs: refreshed-teller = 8', refreshed.refreshed, 8);
+eq('146 ververs: brontaak-naam gecanonicaliseerd', byId.get('p-fs')!.sourceRef.taskName, 'X');
+eq('147 ververs: changed=true', refreshed.changed, true);
+
+// (c) sourceMissing-gedrag: brontaak weg ⇒ sourceMissing=true + oud anker behouden; andere bron ⇒ ongemoeid.
+const mixed: Task = mkTask('L2', 3, {
+  externalLinks: [
+    extLink('found', 'predecessor', 'FS', { projectId: 'SRC', taskId: 'X' }, '2000-01-01', false),
+    extLink('gone', 'predecessor', 'FS', { projectId: 'SRC', taskId: 'GHOST' }, '2019-12-31', false),
+    extLink('other', 'predecessor', 'FS', { projectId: 'OTHER', taskId: 'Z' }, '2018-01-01', false),
+  ],
+});
+const rMix = refreshExternalAnchors([mixed], source);
+const mixById = new Map((rMix.tasks[0].externalLinks ?? []).map(l => [l.id, l]));
+eq('148 sourceMissing: gevonden brontaak ⇒ anker bijgewerkt', mixById.get('found')!.anchorDate, SRC_EF);
+eq('149 sourceMissing: gevonden ⇒ sourceMissing=false', mixById.get('found')!.sourceMissing, false);
+eq('150 sourceMissing: ontbrekende brontaak ⇒ sourceMissing=true', mixById.get('gone')!.sourceMissing, true);
+eq('151 sourceMissing: ontbrekend ⇒ oud anker behouden', mixById.get('gone')!.anchorDate, '2019-12-31');
+eq('152 sourceMissing: andere bron ⇒ ongemoeid (anker)', mixById.get('other')!.anchorDate, '2018-01-01');
+eq('153 sourceMissing: andere bron ⇒ ongemoeid (sourceMissing)', mixById.get('other')!.sourceMissing, false);
+eq('154 sourceMissing: missing-teller = 1', rMix.missing, 1);
+
+// Fallback-match op filePath wanneer de projectId (nog) niet klopt (§3.3/§5.5).
+const byPath: Task = mkTask('L3', 3, {
+  externalLinks: [extLink('fp', 'predecessor', 'SS', { projectId: 'WRONG', taskId: 'X', filePath: '/tmp/src.ifc' }, '2000-01-01', true)],
+});
+const rPath = refreshExternalAnchors([byPath], source);
+eq('155 filePath-fallback: gematcht ⇒ anker uit bron', rPath.tasks[0].externalLinks![0].anchorDate, SRC_ES);
+eq('156 filePath-fallback: projectId gecanonicaliseerd naar bron', rPath.tasks[0].externalLinks![0].sourceRef.projectId, 'SRC');
+
+// Byte-stabiliteit: een reeds-actueel document geeft dezelfde referentie terug (changed=false).
+const already = refreshExternalAnchors(rPath.tasks, source);
+eq('157 idempotent: tweede ververs ⇒ changed=false', already.changed, false);
+eq('158 idempotent: task-referentie behouden', already.tasks[0] === rPath.tasks[0], true);
+
+// Taak zonder links: onaangeroerd (referentie behouden).
+const noLinks = [mkTask('N', 2)];
+const rNo = refreshExternalAnchors(noLinks, source);
+eq('159 geen-links: referentie behouden', rNo.tasks[0] === noLinks[0], true);
+eq('160 geen-links: changed=false', rNo.changed, false);
+
+// (d) IFC-round-trip van externe links: schrijf+lees terug (spiegel writeExternalLinks/OPS_ExternalLink).
+const rtProject: Project = {
+  id: 'proj-rt', name: 'RT', description: '', startDate: '2026-06-01', endDate: '2026-06-30',
+  calendarId: CAL.id, createdAt: '2026-06-01', modifiedAt: '2026-06-01', author: 'test', company: 'test',
+};
+const rtLinks: ExternalLink[] = [
+  { id: 'rt1', direction: 'predecessor', relType: 'FS', lagDays: 2, anchorDate: '2026-06-08',
+    sourceRef: { projectId: 'SRC', projectName: 'Bron', taskId: 'X', taskName: 'X-taak', filePath: '/tmp/src.ifc' }, sourceMissing: false },
+  { id: 'rt2', direction: 'successor', relType: 'FF', lagMinutes: 90, anchorDate: '2026-06-10T12:00',
+    sourceRef: { projectId: 'SRC', taskId: 'Y' }, sourceMissing: true },
+];
+const rtTask = mkTask('Local', 3, { externalLinks: rtLinks });
+const ifc = writeIFC(rtProject, CAL, [rtTask], [], [], []);
+eq('161 IFC-write: OPS_ExternalLink-pset aanwezig', ifc.includes("'OPS_ExternalLink'"), true);
+const backTask = readIFC(ifc).tasks.find(t => t.name === 'Local');
+eq('162 IFC-round-trip: taak teruggevonden', !!backTask, true);
+eq('163 IFC-round-trip: externalLinks byte-gelijk', JSON.stringify(backTask?.externalLinks ?? null), JSON.stringify(rtLinks));
+// Geen links ⇒ geen pset (byte-identiek met bestaande bestanden).
+const ifcNone = writeIFC(rtProject, CAL, [mkTask('Plain', 2)], [], [], []);
+eq('164 IFC-write: geen links ⇒ geen OPS_ExternalLink-pset', ifcNone.includes('OPS_ExternalLink'), false);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

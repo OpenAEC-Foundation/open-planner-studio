@@ -1,4 +1,4 @@
-import { Task, type TaskConstraint } from '@/types/task';
+import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
 import type { SchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
@@ -775,6 +775,71 @@ export class CPMSolver {
     return null;
   }
 
+  /** Externe-link-lag in MINUTEN (uur-modus, §4.5): `lagMinutes` ⇒ bron; anders `lagDays × hoursPerDay ×
+   *  60` (naakt getal = werkdagen — dezelfde conventie als de Sequence-lag, 2.8b §3.3). */
+  private externalLagMinutes(link: ExternalLink, eng: CalendarEngine): number {
+    if (typeof link.lagMinutes === 'number' && Number.isFinite(link.lagMinutes)) return link.lagMinutes;
+    const days = typeof link.lagDays === 'number' && Number.isFinite(link.lagDays) ? link.lagDays : 0;
+    return days * eng.hoursPerDay * 60;
+  }
+  /** Externe-link-lag in DAGEN (dag-modus). Afwezig ⇒ 0. */
+  private externalLagDays(link: ExternalLink): number {
+    return typeof link.lagDays === 'number' && Number.isFinite(link.lagDays) ? link.lagDays : 0;
+  }
+
+  /**
+   * Forward-ondergrens (start-equivalent) van een externe PREDECESSOR-link (§4.5). De bevroren
+   * `anchorDate` speelt de rol van de driving-datum van de externe taak (de ververs-actie schrijft
+   * daar de source-`earlyFinish` bij FS/FF resp. `earlyStart` bij SS/SF in — §refreshExternalAnchors).
+   * Het TWEEDE relType-teken bepaalt de zijde: FS/SS ⇒ START-grens, FF/SF ⇒ FINISH-grens (via
+   * `startFromFinish` naar een start terugvertaald). Het EERSTE teken de dag-boundary-overgang:
+   * alleen FS (externe finish → mijn start) krijgt de `nextWorkDayAfter`-+1 (spiegel van
+   * `getForwardConstraint` FS); SS/FF/SF ankeren op dezelfde grens (geen +1). In uur-modus valt de
+   * +1 weg (continue tijd) ⇒ `nextWorkInstant`. `sourceMissing` speelt GEEN rol — er wordt altijd op
+   * het anker gerekend (P6 External Dates). Retourneert null voor een successor-link.
+   */
+  private externalForwardBound(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
+    if (link.direction !== 'predecessor') return null;
+    const anchor = this.parseIn(eng, link.anchorDate);
+    if (isNaN(anchor.getTime())) return null;
+    const rel = link.relType;
+    const startSide = rel === 'FS' || rel === 'SS';   // tweede teken S ⇒ mijn start; F ⇒ mijn finish
+    if (eng.isHourMode) {
+      const shifted = eng.addWorkingMinutesSigned(anchor, this.externalLagMinutes(link, eng));
+      return startSide ? shifted : this.startFromFinish(eng, shifted, task);
+    }
+    const lag = this.externalLagDays(link);
+    // FS: de werkdag ná het finish-anker (finish→start). Anders: het anker zelf (addWorkingDaysSigned
+    // snapt zelf voorwaarts naar een werkdag). Beide takken tellen daarna `lag` werkdagen bij.
+    const base = rel === 'FS' ? eng.nextWorkDayAfter(anchor) : anchor;
+    const shifted = eng.addWorkingDaysSigned(base, lag);
+    return startSide ? shifted : this.startFromFinish(eng, shifted, task);
+  }
+
+  /**
+   * Backward-bovengrens (late finish) van een externe SUCCESSOR-link (§4.5). Spiegel van
+   * `externalForwardBound`: `anchorDate` is de driving-datum van de externe opvolger. Het EERSTE
+   * relType-teken bepaalt mijn zijde: FS/FF ⇒ LF-grens direct; SS/SF ⇒ LS-grens (via `finishFromStart`
+   * naar mijn LF vertaald). De dag-boundary-overgang zit alleen op FS (mijn finish → externe start ⇒
+   * `prevWorkDayBefore`, spiegel van de forward-FS); SS/FF/SF ankeren op `prevWorkDay`. Uur-modus:
+   * continue tijd ⇒ geen −1. Retourneert null voor een predecessor-link.
+   */
+  private externalBackwardBound(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
+    if (link.direction !== 'successor') return null;
+    const anchor = this.parseIn(eng, link.anchorDate);
+    if (isNaN(anchor.getTime())) return null;
+    const rel = link.relType;
+    const finishSide = rel === 'FS' || rel === 'FF';   // eerste teken F ⇒ mijn finish; S ⇒ mijn start
+    if (eng.isHourMode) {
+      const shifted = eng.addWorkingMinutesSigned(anchor, -this.externalLagMinutes(link, eng));
+      return finishSide ? shifted : this.finishFromStart(eng, shifted, task);
+    }
+    const lag = this.externalLagDays(link);
+    const base = rel === 'FS' ? eng.prevWorkDayBefore(anchor) : eng.prevWorkDay(anchor);
+    const shifted = eng.addWorkingDaysSigned(base, -lag);
+    return finishSide ? shifted : this.finishFromStart(eng, shifted, task);
+  }
+
   /**
    * Vroege-zijde constraints (fase 2.3, uitgebreid 2.9 §4.1-4.3). Een harde MSO/MFO-pin
    * OVERSCHRIJFT de voorganger-druk onvoorwaardelijk (barrière, §4.2) en registreert een
@@ -794,6 +859,14 @@ export class CPMSolver {
       const bound = this.forwardBoundOf(task, cc, eng);
       if (bound && bound > es) es = bound;
     }
+    // Externe predecessor-links (§4.5): bevroren forward-ondergrenzen, gestapeld als extra max-terms
+    // (net als een SNET/FNET). Afwezig ⇒ deze lus draait niet (byte-identiek).
+    if (task.externalLinks && task.externalLinks.length > 0) {
+      for (const link of task.externalLinks) {
+        const bound = this.externalForwardBound(task, link, eng);
+        if (bound && bound > es) es = bound;
+      }
+    }
     return es;
   }
 
@@ -812,6 +885,14 @@ export class CPMSolver {
     for (const cc of [task.constraint, task.constraint2]) {
       const bound = this.backwardBoundOf(task, cc, eng);
       if (bound && bound < lf) lf = bound;
+    }
+    // Externe successor-links (§4.5): bevroren backward-bovengrenzen (net als een SNLT/FNLT).
+    // Afwezig ⇒ deze lus draait niet (byte-identiek).
+    if (task.externalLinks && task.externalLinks.length > 0) {
+      for (const link of task.externalLinks) {
+        const bound = this.externalBackwardBound(task, link, eng);
+        if (bound && bound < lf) lf = bound;
+      }
     }
     if (task.deadline) {
       const dl = parseDate(task.deadline);

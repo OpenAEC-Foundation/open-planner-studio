@@ -223,6 +223,8 @@ export function writeIFC(
 
   // Datum-constraints + deadlines (fase 2.3) als OPS_Constraints-pset per taak
   writeConstraints(ctx, tasks, ownerHistId);
+  // Externe (cross-project) dependencies (fase 2.9, §4.5/§6) als OPS_ExternalLink-pset per taak
+  writeExternalLinks(ctx, tasks, ownerHistId);
   writeMilestoneMeta(ctx, tasks, ownerHistId);
   // Nivellering (fase 2.5): levelingDelay als OPS_Leveling-pset per taak
   writeLevelingMeta(ctx, tasks, ownerHistId);
@@ -410,6 +412,28 @@ function writeConstraints(ctx: WriteContext, tasks: Task[], ownerHistId: number)
       `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_cst_' + task.id))},#${ownerHistId},'OPS_Constraints',$,(${props.join(',')}))`);
     addLine(ctx, `_rel_cst_${task.id}`,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_cst_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Fase 2.9 (§4.5/§6) — externe (cross-project) dependencies als eigen OPS_ExternalLink-pset per taak.
+ * IFC 4.3 kent geen native cross-project `IfcRelSequence`; net als OPS_Baselines dragen we het rijke,
+ * geneste model (id/direction/relType/lag/anchorDate/sourceRef/sourceMissing) als één autoritatief
+ * JSON-veld — zo round-trippt de volledige array 1-op-1. Afwezig/leeg ⇒ niets geschreven (bit-gelijk
+ * met bestaande bestanden). P6/MSPDI kennen dit niet uitdrukbaar (weggelaten met console-warn in hun
+ * writers).
+ */
+function writeExternalLinks(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    const links = task.externalLinks;
+    if (!links || links.length === 0) continue;
+    const json = JSON.stringify(links);
+    const propId = addLine(ctx, `_extl_${task.id}`,
+      `IFCPROPERTYSINGLEVALUE('Links',$,IFCTEXT(${ifcStr(json)}),$)`);
+    const setId = addLine(ctx, `_pset_extl_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_extl_' + task.id))},#${ownerHistId},'OPS_ExternalLink',$,(#${propId}))`);
+    addLine(ctx, `_rel_extl_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_extl_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }
 

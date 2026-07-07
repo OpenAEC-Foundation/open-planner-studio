@@ -148,6 +148,14 @@ interface Case {
     /** Fase 2.9 (§4.4): hammock/LOE — afgeleide duur (span tussen start- en finish-driver); eigen
      *  duur-invoer genegeerd; nooit kritiek. Afwezig ⇒ gewone taak (byte-identiek). */
     hammock?: boolean;
+    /** Fase 2.9 (§4.5): externe (cross-project) dependencies — bevroren datum-grenzen. `lag` ⇒ `lagDays`,
+     *  `lagMinutes` ⇒ minuten (uur-modus). `sourceProject`/`sourceTask`/`sourceFile` vullen de `sourceRef`.
+     *  Afwezig ⇒ geen (byte-identiek). */
+    externalLinks?: {
+      direction: 'predecessor' | 'successor'; relType: 'FS' | 'SS' | 'FF' | 'SF';
+      lag?: number; lagMinutes?: number; anchorDate: string; sourceMissing?: boolean;
+      sourceProject?: string; sourceTask?: string; sourceFile?: string;
+    }[];
     priority?: number;
     /** Fase 2.8b (§8.3, durationMinutes-op-dag-kalender-invariant): zet `durationMinutes` RAUW op de
      *  taak, ontkoppeld van `dur` — om te bewijzen dat het veld op een dag-kalender wordt genegeerd
@@ -355,6 +363,22 @@ function buildAndSolve(c: Case): {
       ...(t.constraint ? { constraint: t.constraint as any } : {}),
       ...(t.constraint2 ? { constraint2: t.constraint2 as any } : {}),
       ...(t.hammock ? { isHammock: true } : {}),
+      ...(t.externalLinks ? {
+        externalLinks: t.externalLinks.map((e, i) => ({
+          id: `${t.name}-ext-${i}`,
+          direction: e.direction,
+          relType: e.relType,
+          ...(e.lag !== undefined ? { lagDays: e.lag } : {}),
+          ...(e.lagMinutes !== undefined ? { lagMinutes: e.lagMinutes } : {}),
+          anchorDate: e.anchorDate,
+          sourceRef: {
+            projectId: e.sourceProject ?? 'ext-project',
+            taskId: e.sourceTask ?? 'ext-task',
+            ...(e.sourceFile !== undefined ? { filePath: e.sourceFile } : {}),
+          },
+          sourceMissing: e.sourceMissing ?? false,
+        })),
+      } : {}),
       ...(t.deadline ? { deadline: t.deadline } : {}),
     });
     ids[t.name] = id;

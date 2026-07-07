@@ -764,6 +764,379 @@
         "projectEnd": "2026-06-09",
         "error": false
       }
+    },
+    {
+      "id": "s15-external-missing",
+      "title": "S15 — externe voorganger-link (FS+0, anchor 06-08), bron NIET geladen. L.ES=nextWDA(06-08)=06-09; identiek aan de geladen tweeling. Geen cyclus-impact.",
+      "tasks": [
+        {
+          "name": "L",
+          "dur": 3,
+          "externalLinks": [
+            {
+              "direction": "predecessor",
+              "relType": "FS",
+              "lag": 0,
+              "anchorDate": "2026-06-08",
+              "sourceMissing": true,
+              "sourceProject": "P2",
+              "sourceTask": "X"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "L": {
+            "es": "2026-06-09",
+            "ef": "2026-06-11",
+            "ls": "2026-06-09",
+            "lf": "2026-06-11",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-06-11",
+        "violatedConstraintsSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "s15-external-loaded",
+      "title": "S15-tweeling — zelfde externe FS+0-link maar bron WEL geladen (sourceMissing=false). Byte-identiek aan s15-external-missing: 2.9 rekent altijd op het anker.",
+      "tasks": [
+        {
+          "name": "L",
+          "dur": 3,
+          "externalLinks": [
+            {
+              "direction": "predecessor",
+              "relType": "FS",
+              "lag": 0,
+              "anchorDate": "2026-06-08",
+              "sourceMissing": false,
+              "sourceProject": "P2",
+              "sourceTask": "X"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "L": {
+            "es": "2026-06-09",
+            "ef": "2026-06-11",
+            "ls": "2026-06-09",
+            "lf": "2026-06-11",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-06-11",
+        "violatedConstraintsSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "ext-successor-fs-negative",
+      "title": "Externe OPVOLGER-link (FS+0, anchor 06-03) => backward-bovengrens: M.LF=prevWDB(06-03)=06-02 < EF 06-03 => tf=-1 (te krap).",
+      "tasks": [
+        {
+          "name": "M",
+          "dur": 3,
+          "externalLinks": [
+            {
+              "direction": "successor",
+              "relType": "FS",
+              "lag": 0,
+              "anchorDate": "2026-06-03",
+              "sourceMissing": false,
+              "sourceProject": "P3",
+              "sourceTask": "Y"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "M": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "ls": "2026-05-29",
+            "lf": "2026-06-02",
+            "tf": -1,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-hour-fs-anchor",
+      "title": "Uur-modus externe voorganger-link (H8, FS+0, datetime-anker 07-08T12:00). U.ES=nextWorkInstant(12:00)=07-08T12:00; U.EF=addWorkMin(12:00,480)=07-09T12:00.",
+      "anchor": "2026-07-06",
+      "calendar": {
+        "workTime": {
+          "byWeekday": {
+            "1": [
+              {
+                "start": 480,
+                "end": 960
+              }
+            ],
+            "2": [
+              {
+                "start": 480,
+                "end": 960
+              }
+            ],
+            "3": [
+              {
+                "start": 480,
+                "end": 960
+              }
+            ],
+            "4": [
+              {
+                "start": 480,
+                "end": 960
+              }
+            ],
+            "5": [
+              {
+                "start": 480,
+                "end": 960
+              }
+            ],
+            "6": [],
+            "7": []
+          }
+        }
+      },
+      "tasks": [
+        {
+          "name": "U",
+          "dur": "8u",
+          "externalLinks": [
+            {
+              "direction": "predecessor",
+              "relType": "FS",
+              "lagMinutes": 0,
+              "anchorDate": "2026-07-08T12:00",
+              "sourceMissing": false,
+              "sourceProject": "P4",
+              "sourceTask": "Xh"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "U": {
+            "es": "2026-07-08T12:00",
+            "ef": "2026-07-09T12:00",
+            "ls": "2026-07-08T12:00",
+            "lf": "2026-07-09T12:00",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-07-09T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-pred-fs-lag2",
+      "title": "Externe voorganger FS+2 (anchor 06-08): ES=addWD(nextWDA(06-08)=06-09,+2)=06-11; EF=06-12.",
+      "tasks": [
+        {
+          "name": "L",
+          "dur": 2,
+          "externalLinks": [
+            {
+              "direction": "predecessor",
+              "relType": "FS",
+              "lag": 2,
+              "anchorDate": "2026-06-08",
+              "sourceMissing": false,
+              "sourceProject": "P2",
+              "sourceTask": "X"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "L": {
+            "es": "2026-06-11",
+            "ef": "2026-06-12",
+            "ls": "2026-06-11",
+            "lf": "2026-06-12",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-06-12",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-pred-ss-lag1",
+      "title": "Externe voorganger SS+1 (anchor 06-08, = externe start): ES=addWD(06-08,+1)=06-09 (geen finish->start-+1); EF=06-10.",
+      "tasks": [
+        {
+          "name": "L",
+          "dur": 2,
+          "externalLinks": [
+            {
+              "direction": "predecessor",
+              "relType": "SS",
+              "lag": 1,
+              "anchorDate": "2026-06-08",
+              "sourceMissing": false,
+              "sourceProject": "P2",
+              "sourceTask": "X"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "L": {
+            "es": "2026-06-09",
+            "ef": "2026-06-10",
+            "ls": "2026-06-09",
+            "lf": "2026-06-10",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-06-10",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-pred-ff-lag0",
+      "title": "Externe voorganger FF+0 (anchor 06-10, = externe finish): finish-grens EF>=06-10 => ES=startFromFinish(06-10)=06-09; EF=06-10.",
+      "tasks": [
+        {
+          "name": "L",
+          "dur": 2,
+          "externalLinks": [
+            {
+              "direction": "predecessor",
+              "relType": "FF",
+              "lag": 0,
+              "anchorDate": "2026-06-10",
+              "sourceMissing": false,
+              "sourceProject": "P2",
+              "sourceTask": "X"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "L": {
+            "es": "2026-06-09",
+            "ef": "2026-06-10",
+            "ls": "2026-06-09",
+            "lf": "2026-06-10",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-06-10",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-twin-none",
+      "title": "Geen-links-tweeling (basis): A(3)->FS B(2), GEEN externalLinks. Referentie voor de empty-tweeling.",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 2
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START"
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "ls": "2026-06-01",
+            "lf": "2026-06-03",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-04",
+            "ef": "2026-06-05",
+            "ls": "2026-06-04",
+            "lf": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-twin-empty",
+      "title": "Geen-links-tweeling (empty): identiek net maar B heeft externalLinks:[] => byte-identiek aan ext-twin-none (lege array is inert, solver gate't op length>0).",
+      "tasks": [
+        {
+          "name": "A",
+          "dur": 3
+        },
+        {
+          "name": "B",
+          "dur": 2,
+          "externalLinks": []
+        }
+      ],
+      "links": [
+        {
+          "pred": "A",
+          "succ": "B",
+          "type": "FINISH_START"
+        }
+      ],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-06-01",
+            "ef": "2026-06-03",
+            "ls": "2026-06-01",
+            "lf": "2026-06-03",
+            "tf": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-06-04",
+            "ef": "2026-06-05",
+            "ls": "2026-06-04",
+            "lf": "2026-06-05",
+            "tf": 0,
+            "crit": true
+          }
+        },
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
     }
   ]
 }
