@@ -790,9 +790,12 @@ export function GanttCanvas() {
       } else {
         // Plain click: single select (deselect others)
         selectTask(task.id, false, false);
-        // WENS 2: onthul de balk als hij qua tijd buiten beeld ligt (alleen bij een enkelvoudige
-        // klik-selectie; niet bij ctrl/shift-multiselect). Geen sprong als hij al zichtbaar is.
-        revealTaskIfOffscreen(task);
+        // WENS 2: onthul de balk als hij qua tijd buiten beeld ligt, maar ALLEEN als de klik in de
+        // linker takenlijst viel (niet bij ctrl/shift-multiselect, en niet bij een klik in het
+        // Gantt-gebied zelf — anders springt het beeld weg bij wegklikken/verslepen daar).
+        if (renderer.isInTaskTable(x)) {
+          revealTaskIfOffscreen(task);
+        }
       }
     } else {
       deselectAll();
