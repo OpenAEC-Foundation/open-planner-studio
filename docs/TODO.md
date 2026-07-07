@@ -11,39 +11,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
-### UX & Desktop-shell
-
-- [ ] **Taakdialoog (dubbelklik) gelijktrekken met het eigenschappenpaneel.** Dubbelklik op een
-  taak opent `TaskDialog` (`src/components/dialogs/TaskDialog.tsx`), maar die biedt alleen de
-  fase-1-velden (naam, WBS, omschrijving, type, mijlpaal-vinkje, start, duur, oudertaak). Alles
-  wat het `TaskPropertiesPanel` sindsdien kreeg ontbreekt: mijlpaal-soort (start/eind) en
-  verplicht-vlag (2.4), datumconstraints + deadline (2.3), voortgang, prioriteit en de
-  toewijzingen-sectie (2.5). De dialoog moet dezelfde opties bieden als het paneel — bij
-  voorkeur door de secties als gedeelde componenten te delen i.p.v. te dupliceren (zelfde
-  patroon als `SettingsPanelContent`/`CalendarForm`), zodat dit niet opnieuw kan divergeren.
-- [ ] **Relatietype kiezen bij het slepen van een afhankelijkheid.** Nu maakt de
-      sleep-actie op het Gantt-canvas altijd een `FINISH_START`-relatie aan
-      (hardcoded in `GanttCanvas.tsx`, bij het loslaten van de dependency-drag).
-      Het type en de lag zijn inmiddels wél achteraf te wijzigen (eigenschappen-
-      paneel en relatietabel, via `updateSequence`), maar tijdens het slepen kun
-      je ze nog niet kiezen. *Aanpak:* toon bij het loslaten een klein
-      contextmenu/popover om het relatietype (FS/SS/FF/SF) en eventueel de lag
-      te kiezen in plaats van meteen FS aan te maken.
-
-- [ ] **Toewijzing verplaatsen tussen taken.** Nu kun je een toewijzing alleen verwijderen en
-      opnieuw aanmaken. Uit de review: maak het mogelijk een bestaande toewijzing (met eenheden +
-      curve) naar een andere taak te verplaatsen (drag of "verplaats naar…"), zodat herplannen niet
-      betekent dat je eenheden/curve opnieuw moet intikken.
-- [ ] **Native `confirm()`-dialogen vervangen door één in-app bevestigingsdialoog.** Uit de
-      fase-2.7-eind-QA: layout-verwijderen/toepassen en baseline-verwijderen gebruiken
-      `window.confirm()` — functioneel prima maar systeemgestyled (geen donker thema, geen
-      RTL, geen i18n-knoppen). Maak één herbruikbaar `ConfirmDialog`-component (patroon
-      RecoveryDialog) en vervang alle `window.confirm`-aanroepen (grep) in één keer.
-- [ ] **Resource-paneel als niet-fullscreen variant naast het histogram.** Het `ResourcePanel` neemt
-      nu het volledige rechterpaneel over. Uit de review: bied een compacte/gedockte variant zodat
-      je resources kunt bewerken terwijl de Gantt + histogramstrook zichtbaar blijven (het effect
-      van een wijziging op de belasting is dan meteen te zien).
-
 ### Distributie & Release
 
 #### Snap-packaging — follow-ups
@@ -232,6 +199,40 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] Scheduling options (keuze berekeningsmethoden)
 
 #### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
+
+##### UX-verbeteringen (verplaatst uit "Openstaand" op 2026-07-07 — bediening op peil vóór de documentatie)
+- [ ] **Taakdialoog (dubbelklik) gelijktrekken met het eigenschappenpaneel.** Dubbelklik op een
+  taak opent `TaskDialog` (`src/components/dialogs/TaskDialog.tsx`), maar die biedt alleen de
+  fase-1-velden (naam, WBS, omschrijving, type, mijlpaal-vinkje, start, duur, oudertaak). Alles
+  wat het `TaskPropertiesPanel` sindsdien kreeg ontbreekt: mijlpaal-soort (start/eind) en
+  verplicht-vlag (2.4), datumconstraints + deadline (2.3), voortgang, prioriteit en de
+  toewijzingen-sectie (2.5), plus de 2.9-constraint/hammock-secties. De dialoog moet dezelfde
+  opties bieden als het paneel — bij voorkeur door de secties als gedeelde componenten te delen
+  i.p.v. te dupliceren (zelfde patroon als `SettingsPanelContent`/`CalendarForm`), zodat dit niet
+  opnieuw kan divergeren.
+- [ ] **Relatietype kiezen bij het slepen van een afhankelijkheid.** Nu maakt de
+      sleep-actie op het Gantt-canvas altijd een `FINISH_START`-relatie aan
+      (hardcoded in `GanttCanvas.tsx`, bij het loslaten van de dependency-drag).
+      Het type en de lag zijn inmiddels wél achteraf te wijzigen (eigenschappen-
+      paneel en relatietabel, via `updateSequence`), maar tijdens het slepen kun
+      je ze nog niet kiezen. *Aanpak:* toon bij het loslaten een klein
+      contextmenu/popover om het relatietype (FS/SS/FF/SF) en eventueel de lag
+      te kiezen in plaats van meteen FS aan te maken.
+- [ ] **Toewijzing verplaatsen tussen taken.** Nu kun je een toewijzing alleen verwijderen en
+      opnieuw aanmaken. Uit de review: maak het mogelijk een bestaande toewijzing (met eenheden +
+      curve) naar een andere taak te verplaatsen (drag of "verplaats naar…"), zodat herplannen niet
+      betekent dat je eenheden/curve opnieuw moet intikken.
+- [ ] **Native `confirm()`-dialogen vervangen door één in-app bevestigingsdialoog.** Uit de
+      fase-2.7-eind-QA: layout-verwijderen/toepassen en baseline-verwijderen gebruiken
+      `window.confirm()` — functioneel prima maar systeemgestyled (geen donker thema, geen
+      RTL, geen i18n-knoppen). Maak één herbruikbaar `ConfirmDialog`-component (patroon
+      RecoveryDialog) en vervang alle `window.confirm`-aanroepen (grep) in één keer.
+- [ ] **Resource-paneel als niet-fullscreen variant naast het histogram.** Het `ResourcePanel` neemt
+      nu het volledige rechterpaneel over. Uit de review: bied een compacte/gedockte variant zodat
+      je resources kunt bewerken terwijl de Gantt + histogramstrook zichtbaar blijven (het effect
+      van een wijziging op de belasting is dan meteen te zien).
+
+##### Bediening, welkom & documentatie
 - [ ] **Keyboard-shortcuts + rechtermuisklik-menu uitbreiden — VÓÓR de documentatie (user-verzoek
   2026-07-04).** Voordat de gebruikersdocumentatie geschreven wordt (die legt sneltoetsen en
   menu's immers vast) moet de bediening op peil: (a) **sneltoetsen voor zoveel mogelijk
