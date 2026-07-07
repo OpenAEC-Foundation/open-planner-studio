@@ -1,0 +1,333 @@
+{
+  "result": {
+    "bestaandeShortcuts": [
+      {
+        "toets": "Ctrl/Cmd+Z",
+        "actie": "Ongedaan maken",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:129-131 (undo)"
+      },
+      {
+        "toets": "Ctrl/Cmd+Y of Ctrl/Cmd+Shift+Z",
+        "actie": "Opnieuw",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:132-134 (redo)"
+      },
+      {
+        "toets": "Ctrl/Cmd+S",
+        "actie": "Opslaan (whitelisted, werkt ook vanuit invoerveld)",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:82,86-96,115-117 (saveFile)"
+      },
+      {
+        "toets": "Ctrl/Cmd+Shift+S",
+        "actie": "Opslaan als",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:112-114 (saveFileAs)"
+      },
+      {
+        "toets": "Ctrl/Cmd+O",
+        "actie": "Openen",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:118-120 (openFile)"
+      },
+      {
+        "toets": "Ctrl/Cmd+N",
+        "actie": "Nieuw project-dialoog",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:175-177 (setUI showNewProjectDialog)"
+      },
+      {
+        "toets": "Ctrl/Cmd+C",
+        "actie": "Taken kopiëren (bij selectie)",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:121-125 (copyTasks)"
+      },
+      {
+        "toets": "Ctrl/Cmd+V",
+        "actie": "Taken plakken",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:126-128 (pasteTasks)"
+      },
+      {
+        "toets": "F5",
+        "actie": "Herbereken (CPM) — whitelisted, werkt ook vanuit invoerveld",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:61,81,92,135-137 (runCPM)"
+      },
+      {
+        "toets": "Alt+Shift+ArrowRight",
+        "actie": "Inspringen (indent), alleen in pure boommodus",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:138-144 (indentTasks)"
+      },
+      {
+        "toets": "Alt+Shift+ArrowLeft",
+        "actie": "Uitspringen (outdent), alleen in pure boommodus",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:145-150 (outdentTasks)"
+      },
+      {
+        "toets": "Delete / Backspace",
+        "actie": "Geselecteerde taken verwijderen",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:151-157 (deleteTask per id)"
+      },
+      {
+        "toets": "Escape",
+        "actie": "Deselecteren + alle dialogen/traceMode sluiten",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:158-160 (deselectAll, setUI)"
+      },
+      {
+        "toets": "Ctrl/Cmd+1..9",
+        "actie": "Springen naar het n-de open document",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:161-165 (switchDocument)"
+      },
+      {
+        "toets": "Ctrl/Cmd+=",
+        "actie": "Inzoomen (+10)",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:166-168 (setZoom)"
+      },
+      {
+        "toets": "Ctrl/Cmd+-",
+        "actie": "Uitzoomen (-10)",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:169-171 (setZoom)"
+      },
+      {
+        "toets": "Ctrl/Cmd+P",
+        "actie": "Naar rapportweergave (ribbon-tab 'report')",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:172-174 (setUI activeRibbonTab)"
+      },
+      {
+        "toets": "F11",
+        "actie": "Presentatiemodus aan/uit — whitelisted, werkt ook vanuit invoerveld",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:83,94-95,99-103 (setPresentationMode)"
+      },
+      {
+        "toets": "Escape (tijdens presentatiemodus)",
+        "actie": "Presentatiemodus uit — whitelisted",
+        "bestand": "src/hooks/keyboard/useKeyboardShortcuts.ts:84,94,104-108 (setPresentationMode(false))"
+      },
+      {
+        "toets": "+ of =",
+        "actie": "Inzoomen op Gantt (cursor-anchored, 1.1x)",
+        "bestand": "src/hooks/useZoomShortcuts.ts:38-40 (zoomAt)"
+      },
+      {
+        "toets": "-",
+        "actie": "Uitzoomen op Gantt (cursor-anchored, /1.1)",
+        "bestand": "src/hooks/useZoomShortcuts.ts:41-43 (zoomAt)"
+      },
+      {
+        "toets": "0",
+        "actie": "Zoom reset naar default (30)",
+        "bestand": "src/hooks/useZoomShortcuts.ts:44-47 (setZoom/setScroll)"
+      },
+      {
+        "toets": "Ctrl/Cmd+0",
+        "actie": "Fit to project (zoom+viewport op hele planning)",
+        "bestand": "src/hooks/useZoomShortcuts.ts:48-61 (computeFitToProject, setZoom, setViewStartDate, setScroll)"
+      },
+      {
+        "toets": "Escape (in ContextMenu)",
+        "actie": "Contextmenu sluiten",
+        "bestand": "src/components/canvas/ContextMenu.tsx:52-53"
+      },
+      {
+        "toets": "Escape (in dialogen)",
+        "actie": "Dialoog annuleren (generiek, via useDialogKeys)",
+        "bestand": "src/hooks/useDialogKeys.ts:24-27"
+      },
+      {
+        "toets": "Enter (in dialogen)",
+        "actie": "Primaire actie bevestigen (generiek, via useDialogKeys, met guards voor textarea/dropdown/IME)",
+        "bestand": "src/hooks/useDialogKeys.ts:28-36"
+      },
+      {
+        "toets": "Enter/ArrowDown/ArrowUp/Tab/Escape (in TableEditor-cel)",
+        "actie": "Celnavigatie tijdens inline-bewerken (lokaal, geen globale sneltoets)",
+        "bestand": "src/components/panels/TableEditor.tsx:297-306"
+      }
+    ],
+    "voorgesteldeShortcuts": [
+      {
+        "toets": "F2",
+        "actie": "Bewerken van geselecteerde taak (opent TaskDialog) — MSP-conventie",
+        "storeActie": "setUI({ showTaskDialog: true, editingTaskId: selectedTaskIds[0] })",
+        "categorie": "bewerken",
+        "conflictrisico": "laag — F2 is in geen enkele browser gereserveerd; wel als typing-guard nodig zodat het niet vuurt tijdens celbewerking in TableEditor"
+      },
+      {
+        "toets": "Insert",
+        "actie": "Nieuwe taak invoegen boven de selectie (of aan het eind als niets geselecteerd)",
+        "storeActie": "addTask({ name: defaultTaskName, parentId, time: ... }) — zelfde patroon als GanttCanvas.tsx:1474-1479 (onAddTask)",
+        "categorie": "structuur",
+        "conflictrisico": "laag — Insert is vrijwel nergens browser-gereserveerd"
+      },
+      {
+        "toets": "Ctrl/Cmd+Delete",
+        "actie": "Mijlpaal toevoegen op geselecteerde taak (of los)",
+        "storeActie": "addTask({ name: defaultMilestoneName, isMilestone: true, taskType: 'ATTENDANCE', parentId, time: createDefaultTaskTime(startDate, 0) }) — zelfde als GanttCanvas.tsx:1440-1448 (onAddMilestone)",
+        "categorie": "structuur",
+        "conflictrisico": "middel — Ctrl+Delete heeft in sommige besturingssystemen (Windows Verkenner) geen vaste betekenis in de browser, maar combinatie met Delete kan verwarrend zijn; alternatief Ctrl+M overwegen (zie open vraag)"
+      },
+      {
+        "toets": "Ctrl/Cmd+G",
+        "actie": "Relatie leggen tussen precies 2 geselecteerde taken (FINISH_START)",
+        "storeActie": "addSequence({ predecessorId: selectedTaskIds[0], successorId: selectedTaskIds[1], type: 'FINISH_START', lagDays: 0 }) — signature geverifieerd in src/state/slices/sequenceSlice.ts:8,18",
+        "categorie": "structuur",
+        "conflictrisico": "hoog — Ctrl+G is 'Zoek volgende' resp. 'Ga naar' in veel browsers/editors; niet in BLOCKED_SHORTCUTS dus in productie ongeblokkeerd, maar preventDefault() in de handler zou het waarschijnlijk toch overrulen (zoals nu al bij Ctrl+P) — desondanks als middel/hoog markeren, alternatief zoals Ctrl+L overwegen"
+      },
+      {
+        "toets": "Ctrl/Cmd+M",
+        "actie": "Mijlpaal toevoegen (alternatief voor bovenstaande, MSP-achtig)",
+        "storeActie": "addTask({ ...isMilestone: true, taskType: 'ATTENDANCE', time: createDefaultTaskTime(startDate, 0) })",
+        "categorie": "structuur",
+        "conflictrisico": "laag — Ctrl+M is in de meeste browsers vrij (Firefox gebruikt het soms voor mute-tab, maar dat is per-tab en niet universeel geblokkeerd)"
+      },
+      {
+        "toets": "Ctrl/Cmd+K",
+        "actie": "Toon 'sneltoetsen-overzicht'-dialoog (nieuw, zie open vraag 1)",
+        "storeActie": "GEEN bestaande store-actie — vereist nieuwe UI-state (bv. showShortcutsDialog) en een nieuwe dialoogcomponent; dit is dus GEEN pure ontsluiting maar nieuwe (kleine) functionaliteit",
+        "categorie": "dialogen",
+        "conflictrisico": "middel — Ctrl+K is in veel browsers de adresbalk-zoekfocus; TODO.md suggereert zelf Ctrl+/ als alternatief"
+      },
+      {
+        "toets": "Ctrl/Cmd+/",
+        "actie": "Toon 'sneltoetsen-overzicht'-dialoog (alternatief voor bovenstaande, expliciet genoemd in TODO.md)",
+        "storeActie": "GEEN bestaande store-actie — zelfde kanttekening als Ctrl+K hierboven",
+        "categorie": "dialogen",
+        "conflictrisico": "laag — Ctrl+/ is in de meeste browsers vrij (in sommige code-editors 'comment toggle', niet relevant hier)"
+      },
+      {
+        "toets": "*  (numpad-asterisk, MSP-conventie) of Ctrl/Cmd+Shift+ArrowDown",
+        "actie": "Alles uitklappen (alle summary-taken)",
+        "storeActie": "toggleCollapse per summary-taak — GEEN bulk-actie bestaat; toggleCollapse(taskId) bestaat alleen per-taak (src/state/slices/uiSlice.ts:6,98) dus dit vereist een kleine wrapper die over alle summary-taken itereert (geen nieuwe kernlogica, wel een nieuwe helperfunctie)",
+        "categorie": "weergave",
+        "conflictrisico": "laag (numpad-* is vrijwel nooit gereserveerd); Ctrl+Shift+ArrowDown is neutraal"
+      },
+      {
+        "toets": "Ctrl/Cmd+Home",
+        "actie": "Spring naar vandaag / statusdatum in de Gantt-viewport",
+        "storeActie": "GEEN kant-en-klare store-actie — setViewStartDate + setScroll bestaan (src/state/slices/viewSlice.ts:21,20) maar er is geen bestaande 'datum → scroll-positie'-helper zoals computeFitToProject voor fit-to-project; vereist een kleine nieuwe utility naar analogie van src/utils/ganttViewport.ts:34 (computeFitToProject)",
+        "categorie": "navigatie",
+        "conflictrisico": "laag — Ctrl+Home wordt door browsers niet universeel gereserveerd (soms 'ga naar begin document', neutraal in een SPA)"
+      },
+      {
+        "toets": "Ctrl/Cmd+E",
+        "actie": "Voortgang zetten op geselecteerde taak (opent invoer of TaskDialog-voortgangssectie)",
+        "storeActie": "setTaskProgress(taskId, completion) bestaat (src/state/slices/taskSlice.ts:49,604) maar heeft een percentage-argument nodig — een kale sneltoets kan niet 'raden' welk percentage; realistischer: setUI({ showTaskDialog:true, editingTaskId }) en daar focussen op het voortgangsveld",
+        "categorie": "bewerken",
+        "conflictrisico": "middel — Ctrl+E is in sommige browsers 'zoekbalk activeren' (Firefox/oudere Chrome), niet universeel maar wel een bekend risico"
+      },
+      {
+        "toets": "Ctrl/Cmd+Shift+C",
+        "actie": "Kalenders-dialoog openen",
+        "storeActie": "setUI({ showCalendarDialog: true }) — flag bestaat (src/state/slices/types.ts:196)",
+        "categorie": "dialogen",
+        "conflictrisico": "middel — Ctrl+Shift+C is DevTools-inspecteren in Chrome/Firefox; al indirect geraakt door de BLOCKED_SHORTCUTS-lijst? NEE, die blokkeert alleen 'i'/'j' met Ctrl+Shift, niet 'c'; dus in productie-web-build ongeblokkeerd risico"
+      },
+      {
+        "toets": "Ctrl/Cmd+B",
+        "actie": "Baselines-dialoog openen",
+        "storeActie": "setUI({ showBaselineDialog: true }) — flag bestaat (src/state/slices/types.ts:218)",
+        "categorie": "dialogen",
+        "conflictrisico": "laag — Ctrl+B is in de meeste browsers vrij (bladwijzerbalk-toggle in sommige browsers, niet universeel)"
+      },
+      {
+        "toets": "Ctrl/Cmd+Shift+F",
+        "actie": "Filter-dialoog openen",
+        "storeActie": "setUI({ showFilterDialog: true }) — flag bestaat (src/state/slices/types.ts:226)",
+        "categorie": "dialogen",
+        "conflictrisico": "laag/middel — Ctrl+F is al geblokkeerd (BLOCKED_SHORTCUTS) maar dat is zonder Shift; Ctrl+Shift+F is in sommige browsers 'globaal zoeken', niet universeel"
+      },
+      {
+        "toets": "Ctrl/Cmd+Shift+K",
+        "actie": "Kolommen-dialoog openen",
+        "storeActie": "setUI({ showColumnsDialog: true }) — flag bestaat (src/state/slices/types.ts:225)",
+        "categorie": "dialogen",
+        "conflictrisico": "laag — geen bekende browserreservering"
+      },
+      {
+        "toets": "Ctrl/Cmd+Shift+L",
+        "actie": "Layouts-dialoog openen (opslaan-als/beheer)",
+        "storeActie": "setUI({ showLayoutsDialog: true }) — flag bestaat (src/state/slices/types.ts:227)",
+        "categorie": "dialogen",
+        "conflictrisico": "middel — Ctrl+Shift+L is in sommige browsers/extensies 'nieuwe incognito-tab' (Chrome: nee, dat is Ctrl+Shift+N) — laag risico, extensie-afhankelijk"
+      },
+      {
+        "toets": "Ctrl/Cmd+Shift+H",
+        "actie": "Histogram tonen/verbergen (toggle)",
+        "storeActie": "setUI({ showHistogram: !current }) — flag bestaat (src/state/slices/types.ts:215)",
+        "categorie": "weergave",
+        "conflictrisico": "middel — Ctrl+Shift+H is in Chrome vaak 'geschiedenis openen' (browserreservering, moeilijk te overrulen zonder Electron/Tauri-native)"
+      },
+      {
+        "toets": "Ctrl/Cmd+Alt+ArrowUp/ArrowDown (MSP-achtig 'verplaats omhoog/omlaag')",
+        "actie": "Taak omhoog/omlaag verplaatsen binnen dezelfde ouder (sibling-volgorde wijzigen)",
+        "storeActie": "GEEN bestaande store-actie — moveTask(id, newParentId) wijzigt alleen de OUDER (src/state/slices/taskSlice.ts:31,255-281) en voegt de taak altijd toe aan het EIND van childIds (regel 275, push); er bestaat GEEN reorder-binnen-siblings-actie. Dit item vereist dus ECHT NIEUWE logica (childIds-array herschikken) en is GEEN pure ontsluiting — zie open vraag",
+        "categorie": "structuur",
+        "conflictrisico": "laag qua toetsencombinatie; het probleem is functioneel (ontbrekende store-actie), niet conflict"
+      },
+      {
+        "toets": "Tab (op geselecteerde rij, niet in invoerveld)",
+        "actie": "Inspringen (indent) — alternatief/aanvullend op Alt+Shift+→",
+        "storeActie": "indentTasks(selectedTaskIds) — bestaat al, src/state/slices/taskSlice.ts:42,285",
+        "categorie": "structuur",
+        "conflictrisico": "hoog — Tab wordt overal gebruikt voor focus-navigatie tussen interactieve elementen (toegankelijkheid); NIET aanraden als globale sneltoets buiten een tabel-context (TableEditor gebruikt Tab al lokaal voor celnavigatie, regel 303)"
+      },
+      {
+        "toets": "Ctrl/Cmd+A",
+        "actie": "Alle taken selecteren",
+        "storeActie": "GEEN bestaande store-actie — er is alleen deselectAll() (src/state/slices/taskSlice.ts:34,410); een 'selectAll' bestaat niet en zou nieuwe logica vergen (alle zichtbare taak-ids verzamelen en selectTask/multi voor elk aanroepen, of een nieuwe bulk-actie)",
+        "categorie": "navigatie",
+        "conflictrisico": "laag qua toets (Ctrl+A is 'select all' overal en dus intuïtief) maar functioneel ontbreekt de store-actie — nieuwe logica nodig, geen pure ontsluiting"
+      }
+    ],
+    "bestaandContextmenu": "Er is precies één ContextMenu-component (src/components/canvas/ContextMenu.tsx), gebruikt vanuit GanttCanvas.tsx (handleContextMenu, regel 819-836; render regel 1421-1481) bij rechtsklik op het Gantt-canvas. Het onderscheidt twee gevallen: (1) op een taak (task !== null): Bewerken (opent TaskDialog via setUI), Subtaak toevoegen (addTask met parentId), Mijlpaal toevoegen (addTask isMilestone), Relatie toevoegen (setUI showDependencyMode), Pad traceren aan/uit (setUI traceMode + selectTask), en alleen bij summary-taken (childIds.length>0): Inklappen/uitklappen (toggleCollapse) en Sjabloon opslaan (saveBranchAsWbsTemplate + toast); tot slot Verwijderen (deleteTask). (2) op leeg canvas (task === null): alleen Nieuwe taak (addTask) en Mijlpaal toevoegen (addTask isMilestone). Sluitgedrag: klik-buiten, rechtsklik-buiten of Escape sluiten het menu (regel 41-67). In productie wordt het browser-eigen contextmenu global uitgeschakeld (useKeyboardShortcuts.ts:181-184, 'contextmenu'-listener met preventDefault). Er is GEEN apart contextmenu voor taakrij (taaktabel-links), bandkop, of histogram — alleen dit ene canvas-menu, dat overigens zowel op de balk als op de rij-achtergrond in het canvas reageert (task wordt uit de klikpositie afgeleid in handleContextMenu, niet apart per 'balk' vs 'rij-gebied').",
+    "contextmenuVoorstel": [
+      {
+        "plek": "Taakrij (bestaand menu uitbreiden — task !== null)",
+        "acties": [
+          "Invoegen boven — addTask({...}) met parentId = huidige parentId, gevolgd door handmatige volgorde-plaatsing VOOR de huidige taak (LET OP: net als bij het 'verplaats omhoog/omlaag'-shortcut-item bestaat er geen store-actie om op een specifieke positie in childIds in te voegen; addTask duwt altijd aan het eind — dit vereist dus kleine nieuwe plaatsingslogica, geen pure ontsluiting)",
+          "Invoegen onder — analoog, addTask met plaatsing NA de huidige taak (zelfde kanttekening als hierboven)",
+          "Indent / Outdent — indentTasks([task.id]) / outdentTasks([task.id]), bestaat al (src/state/slices/taskSlice.ts:42,44)",
+          "Mijlpaal-toggle (bestaande taak omzetten naar/van mijlpaal) — updateTask(task.id, { isMilestone: !task.isMilestone }), updateTask bestaat (src/state/slices/taskSlice.ts:29,158)",
+          "Kalender toewijzen — setTaskCalendar(task.id, calendarId) bestaat (src/state/slices/taskSlice.ts:58,174), maar vereist een calendarId-KEUZE (submenu met beschikbare kalenders uit s.calendarLibrary of vergelijkbaar) — dus een submenu-component nodig, geen blinde aanroep",
+          "Voortgang zetten — setTaskProgress(task.id, completion) bestaat (taskSlice.ts:49,604), submenu met presets (0/25/50/75/100%) is een pure ontsluiting mits de presets hardcoded zijn",
+          "Resource toewijzen — assignResource(taskId, resourceId, unitsPerDay, curve) bestaat (src/state/slices/resourceSlice.ts:22,105), maar vereist resource-KEUZE — realistischer: menu-item 'Resource toewijzen…' dat setUI({showResourcePanel:true}) of het eigenschappenpaneel opent i.p.v. blind een resource kiest",
+          "Naar relaties (relatietabel/paneel tonen voor deze taak) — GEEN specifieke 'toon relaties van taak X'-store-actie gevonden; kan wel via setUI({ traceMode: 'both' }) + selectTask(task.id), zelfde als bestaande 'Pad traceren' (GanttCanvas.tsx:1460-1467) — dus feitelijk hergebruik van de al bestaande onTracePath-logica onder een duidelijker label"
+        ]
+      },
+      {
+        "plek": "Gantt-balk (specifiek de taakbalk, te onderscheiden van rij-achtergrond — vereist mogelijk een nieuw onderscheid in handleContextMenu tussen 'op de balk' en 'op de rij maar naast de balk')",
+        "acties": [
+          "Relatie leggen vanaf hier — setUI({ showDependencyMode: true, dependencySourceId: task.id }) — bestaat al identiek als 'onAddRelation' (GanttCanvas.tsx:1449-1453), puur hergebruik onder een balk-specifiek label",
+          "Prioriteit zetten — updateTask(task.id, { priority: n }) — priority-veld bestaat op Task (src/types/task.ts:124) en updateTask bestaat; submenu met presets (laag/normaal/hoog) is pure ontsluiting",
+          "Pin — GEEN 'pinned'-veld gevonden op Task (grep op src/types/task.ts leverde niets op behalve priority/constraint); dit vereist een NIEUW datamodelveld en is dus GEEN pure ontsluiting — open vraag of 'pin' synoniem bedoeld is voor 'prioriteit' of een apart nieuw concept is",
+          "Constraint zetten — Task.constraint bestaat (src/types/task.ts:141) maar is een object {type, date} — een kaal menu-item kan geen datum kiezen; realistischer is 'Constraint instellen…' dat de TaskDialog/TaskPropertiesPanel constraint-sectie opent i.p.v. blind updateTask aan te roepen"
+        ]
+      },
+      {
+        "plek": "Lege canvas (bestaand: alleen Nieuwe taak + Mijlpaal — task === null)",
+        "acties": [
+          "Taak toevoegen — addTask({...}) bestaat al identiek (GanttCanvas.tsx:1474-1479, huidige 'onAddTask')",
+          "Plakken — pasteTasks() bestaat (src/state/slices/taskSlice.ts:38,443), nu alleen via Ctrl+V bereikbaar, niet vanuit dit menu — pure ontsluiting",
+          "Zoom-presets — setZoom(30) (reset) en/of setTimeScale(scale) bestaan (src/state/slices/viewSlice.ts:18,19,67,78; gebruikt in Ribbon.tsx:1415,1429) — pure ontsluiting van bestaande acties in menu-vorm"
+        ]
+      },
+      {
+        "plek": "Bandkop (taaktabel-kolomkop of groepskop — GEEN bestaand contextmenu hiervoor gevonden; TableEditor.tsx heeft geen onContextMenu-handler)",
+        "acties": [
+          "In-/uitklappen (van deze groep) — setCollapsedGroupKey(key, collapsed) bestaat (src/state/slices/viewSlice.ts:40,161), pure ontsluiting mits de groep-key beschikbaar is op de bandkop",
+          "Alles in-/uitklappen — GEEN bulk-store-actie; zelfde kanttekening als bij de '*'-sneltoets hierboven: toggleCollapse bestaat alleen per-taak, een 'alles'-variant vereist nieuwe (kleine) iteratie-logica, geen pure ontsluiting"
+        ]
+      },
+      {
+        "plek": "Histogram (drill-down — GEEN bestaand contextmenu of onContextMenu-handler gevonden op histogram-component)",
+        "acties": [
+          "Drill-down naar resource — setHistogramResource(resourceId) bestaat (src/state/slices/viewSlice.ts:31,129), pure ontsluiting mits het histogram al per-balk weet welke resourceId erbij hoort (UNVERIFIED — histogram-componentcode zelf niet gelezen in deze inventarisatie, dus niet geverifieerd of de resourceId al beschikbaar is op klikniveau)"
+        ]
+      }
+    ],
+    "openVragen": [
+      "Sneltoetsen-overzichtsdialoog: TODO.md noemt zelf 'Ctrl+/?' als optie. Ctrl+K (mijn voorstel) heeft een hoger conflictrisico (adresbalk) dan Ctrl+/ — welke toets kiest de orchestrator? Dit vereist sowieso NIEUWE UI (dialoogcomponent + i18n-teksten voor alle bestaande/nieuwe sneltoetsen), geen pure ontsluiting.",
+      "'Taak omhoog/omlaag verplaatsen' (expliciet genoemd in TODO.md §2.10) en 'Alles selecteren' (Ctrl+A) hebben BEIDE geen onderliggende store-actie (geverifieerd: moveTask wijzigt alleen ouder, niet sibling-volgorde; er is geen selectAll-actie). Wil de orchestrator dat ik/de bouwer deze twee ALSNOG meeneemt als 'kleine nieuwe logica naast ontsluiting', of worden ze doorgeschoven naar een aparte taak omdat de opdracht expliciet zegt 'geen nieuwe logica, alleen ontsluiting'?",
+      "'Invoegen boven/onder' in het contextmenu (taakrij) stuit op dezelfde beperking: addTask plaatst altijd aan het eind van childIds, er is geen 'invoegen op positie X'. Zelfde vraag als hierboven: kleine uitbreiding toestaan, of schrappen/vereenvoudigen tot 'subtaak toevoegen' (wat al bestaat)?",
+      "'Pin/prioriteit' op de Gantt-balk (TODO.md §2.10 noemt letterlijk 'pin/prioriteit'): is 'pin' een apart nieuw datamodelconcept (vastzetten in de tijdlijn?) of is dit gewoon een andere naam voor het bestaande priority-veld? Zonder duidelijkheid kan dit menu-item niet als pure ontsluiting worden gebouwd.",
+      "'Constraint zetten' en 'Kalender toewijzen' en 'Resource toewijzen' vanuit het contextmenu vereisen allemaal een waarde-KEUZE (datum, kalender-id, resource-id) die niet blind vanuit een menu-klik kan komen — moeten deze menu-items een submenu/mini-popover krijgen, of simpelweg de bijbehorende sectie in TaskDialog/TaskPropertiesPanel openen (setUI showTaskDialog + eventueel een 'focus section'-hint)? Dat laatste is pure ontsluiting, het eerste vereist nieuwe UI.",
+      "Ctrl+G (relatie leggen op selectie) heeft een hoog conflictrisico (browser 'zoek volgende'/'ga naar'); is een alternatieve toets gewenst, en moet de predecessor/successor-volgorde bepaald worden door selectievolgorde (lastig te tracken, selectedTaskIds is een array maar de volgorde van toevoegen is niet per se gegarandeerd chronologisch — UNVERIFIED, ik heb selectTask's array-opbouw niet in detail nagelopen) of door WBS/rij-volgorde?",
+      "Ctrl+Shift+H (histogram toggle) en Ctrl+Shift+C (kalenders) hebben een reëel conflictrisico met browser-DevTools/geschiedenis in de WEB-build (niet geblokkeerd via BLOCKED_SHORTCUTS, die alleen 'i'/'j' met Ctrl+Shift blokkeert). Wil de orchestrator deze twee combinaties alsnog aan BLOCKED_SHORTCUTS toevoegen (met eigen actie erachter, naar het patroon van Ctrl+S/Ctrl+O), of andere toetsen kiezen?",
+      "Histogram-drill-down-contextmenu: ik heb de histogram-rendercomponent zelf niet geopend in deze inventarisatie (buiten scope-tijd), dus UNVERIFIED of setHistogramResource al een resourceId beschikbaar heeft op de plek waar rechtsgeklikt zou worden — dit moet bevestigd worden vóór implementatie.",
+      "Bandkop-contextmenu en histogram-contextmenu bestaan momenteel HELEMAAL NIET (geen onContextMenu-handler gevonden) — dit is dus geen 'uitbreiden' maar 'twee gehele nieuwe contextmenu's toevoegen'; wil de orchestrator dat expliciet meenemen in dezelfde implementatieronde als de taakrij/balk/canvas-uitbreiding, of als apart vervolgitem?"
+    ]
+  }
+}
