@@ -11,6 +11,12 @@ tauri-plugin-fs = "2"
 tauri-plugin-store = "2"
 tauri-plugin-os = "2"
 tauri-plugin-updater = "2"
+# Directe dependency op de zip-crate om via feature-unification de deflate-
+# backend (pure-Rust flate2/miniz_oxide) te forceren. Zonder deze feature bouwt
+# tauri-plugin-updater's zip zonder deflate-decompressie en faalt de Windows-
+# NSIS-updater met "Compression method not supported" (method=8 / Deflate).
+# deflate-flate2 = flate2 met default backend miniz_oxide (geen C-toolchain).
+zip = { version = "4", default-features = false, features = ["deflate-flate2"] }
 tauri-plugin-process = "2"
 tauri-plugin-clipboard-manager = "2"
 # Behouden voor de native command-escape-hatch (src/commands/mod.rs): payload-
