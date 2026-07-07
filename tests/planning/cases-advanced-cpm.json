@@ -599,6 +599,171 @@
         "projectEnd": "2026-07-09T16:00",
         "error": false
       }
+    },
+    {
+      "id": "s10-hammock-v1",
+      "title": "S10 golf 4 — hammock H: SS(A→H)=start-driver, FF(B→H)=finish-driver; B dur2 ⇒ H 06-01..06-05, afgeleide span 5; H nooit kritiek, tf=ff=0.",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2 },
+        { "name": "H", "dur": 1, "hammock": true }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "H", "type": "START_START" },
+        { "pred": "B", "succ": "H", "type": "FINISH_FINISH" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "ls": "2026-06-01", "lf": "2026-06-03", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "ls": "2026-06-04", "lf": "2026-06-05", "tf": 0, "ff": 0, "crit": true },
+          "H": { "es": "2026-06-01", "ef": "2026-06-05", "ls": "2026-06-01", "lf": "2026-06-05", "tf": 0, "ff": 0, "crit": false, "intf": 0 }
+        },
+        "criticalPathSet": ["A", "B"],
+        "hammockNoFinishDriversSet": [],
+        "projectEnd": "2026-06-05",
+        "error": false
+      }
+    },
+    {
+      "id": "s10-hammock-v2",
+      "title": "S10 golf 4 — driver B dur4 ⇒ hammock her-spant: H.EF 06-09, afgeleide span 7 (volgt de finish-driver zonder eigen duur-invoer).",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 4 },
+        { "name": "H", "dur": 1, "hammock": true }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "H", "type": "START_START" },
+        { "pred": "B", "succ": "H", "type": "FINISH_FINISH" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "ls": "2026-06-01", "lf": "2026-06-03", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-09", "ls": "2026-06-04", "lf": "2026-06-09", "tf": 0, "ff": 0, "crit": true },
+          "H": { "es": "2026-06-01", "ef": "2026-06-09", "ls": "2026-06-01", "lf": "2026-06-09", "tf": 0, "ff": 0, "crit": false, "intf": 0 }
+        },
+        "criticalPathSet": ["A", "B"],
+        "hammockNoFinishDriversSet": [],
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
+    },
+    {
+      "id": "hammock-hour-h8",
+      "title": "Golf 4 uur-modus hammock (H8, band [480,960]): A(4u), FS→B(6u); H SS(A)+FF(B) ⇒ 07-06T08:00..07-07T10:00, fractionele span 600 werkmin (1,25 dag).",
+      "anchor": "2026-07-06",
+      "calendar": {
+        "workTime": {
+          "byWeekday": {
+            "1": [{ "start": 480, "end": 960 }],
+            "2": [{ "start": 480, "end": 960 }],
+            "3": [{ "start": 480, "end": 960 }],
+            "4": [{ "start": 480, "end": 960 }],
+            "5": [{ "start": 480, "end": 960 }],
+            "6": [],
+            "7": []
+          }
+        }
+      },
+      "tasks": [
+        { "name": "A", "dur": "4h" },
+        { "name": "B", "dur": "6h" },
+        { "name": "H", "dur": "8h", "hammock": true }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "H", "type": "START_START" },
+        { "pred": "B", "succ": "H", "type": "FINISH_FINISH" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-07-06T12:00", "ef": "2026-07-07T10:00", "ls": "2026-07-06T12:00", "lf": "2026-07-07T10:00", "tf": 0, "ff": 0, "crit": true },
+          "H": { "es": "2026-07-06T08:00", "ef": "2026-07-07T10:00", "ls": "2026-07-06T08:00", "lf": "2026-07-07T10:00", "tf": 0, "ff": 0, "crit": false, "intf": 0 }
+        },
+        "criticalPathSet": ["A", "B"],
+        "hammockNoFinishDriversSet": [],
+        "projectEnd": "2026-07-07T10:00",
+        "error": false
+      }
+    },
+    {
+      "id": "hammock-no-finish-driver",
+      "title": "Golf 4 — hammock zonder finish-driver (alleen SS-start-driver) ⇒ EF=ES (nul-lengte) + waarschuwing in het resultaat; nooit kritiek.",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "H", "dur": 1, "hammock": true }
+      ],
+      "links": [
+        { "pred": "A", "succ": "H", "type": "START_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "ls": "2026-06-01", "lf": "2026-06-03", "tf": 0, "ff": 0, "crit": true },
+          "H": { "es": "2026-06-01", "ef": "2026-06-01", "ls": "2026-06-01", "lf": "2026-06-01", "tf": 0, "ff": 0, "crit": false, "intf": 0 }
+        },
+        "criticalPathSet": ["A"],
+        "hammockNoFinishDriversSet": ["H"],
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "hammock-with-successor",
+      "title": "Golf 4 — hammock met FS-opvolger Z: H→Z rekent forward door (Z 06-08); maar H geeft GEEN backward-druk ⇒ drivers A/B houden float 2, alleen Z kritiek (H nooit kritiek).",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2 },
+        { "name": "H", "dur": 1, "hammock": true },
+        { "name": "Z", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "H", "type": "START_START" },
+        { "pred": "B", "succ": "H", "type": "FINISH_FINISH" },
+        { "pred": "H", "succ": "Z", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "ls": "2026-06-03", "lf": "2026-06-05", "tf": 2, "ff": 0, "crit": false },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "ls": "2026-06-08", "lf": "2026-06-09", "tf": 2, "ff": 0, "crit": false },
+          "H": { "es": "2026-06-01", "ef": "2026-06-05", "ls": "2026-06-01", "lf": "2026-06-05", "tf": 0, "ff": 0, "crit": false, "intf": 0 },
+          "Z": { "es": "2026-06-08", "ef": "2026-06-09", "ls": "2026-06-08", "lf": "2026-06-09", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["Z"],
+        "hammockNoFinishDriversSet": [],
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
+    },
+    {
+      "id": "hammock-excluded-from-float-paths",
+      "title": "Golf 4 — multiple float paths op het hammock-net: H NOOIT in floatPathByTask (candidates + keten sluiten hammocks uit); Z=1, A/B=2; criticalPaths=[[Z]].",
+      "schedulingOptions": { "floatPaths": { "enabled": true, "method": "FREE_FLOAT", "maxPaths": 10 } },
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2 },
+        { "name": "H", "dur": 1, "hammock": true },
+        { "name": "Z", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "H", "type": "START_START" },
+        { "pred": "B", "succ": "H", "type": "FINISH_FINISH" },
+        { "pred": "H", "succ": "Z", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "H": { "crit": false, "tf": 0 }
+        },
+        "floatPaths": { "Z": 1, "A": 2, "B": 2 },
+        "criticalPaths": [["Z"]],
+        "criticalPathSet": ["Z"],
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
     }
   ]
 }

@@ -43,6 +43,9 @@ export interface CPMResult {
   criticalPaths: string[][];
   /** Float-path-nummer per taak (fase 2.9, §4.6): 1 = meest kritiek. Leeg als `floatPaths` uit. */
   floatPathByTask: Record<string, number>;
+  /** Hammocks (§4.4) zónder finish-driver (geen FF/SF-voorganger): hun EF valt terug op de ES
+   *  (nul-lengte). Waarschuwingssignaal — de span kan niet uit een finish-driver worden afgeleid. */
+  hammockNoFinishDriverTaskIds: string[];
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
@@ -113,6 +116,9 @@ export class CPMSolver {
   // valt dan de pin ⇒ de logica is gebroken (taak start vóór z'n voorganger klaar is). Verzameld in
   // de forward pass, samengevoegd met `violatedConstraintTaskIds` in `computeResults`.
   private hardPinViolatedIds: string[] = [];
+  // Hammocks (fase 2.9, §4.4) zónder finish-driver: EF valt terug op ES (nul-lengte). Verzameld in de
+  // forward pass, gerapporteerd als waarschuwing in `hammockNoFinishDriverTaskIds`.
+  private hammockNoFinishDriverIds: string[] = [];
 
   private options: CPMOptions;
   // Werkdag-gesnapte statusdatum (fase 2.6), of null ⇒ geen statusdatum-gedrag. Gezet in solve().
@@ -285,6 +291,7 @@ export class CPMSolver {
         nearCriticalTaskIds: [],
         criticalPaths: [[]],
         floatPathByTask: {},
+        hammockNoFinishDriverTaskIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: `Circular dependency detected: ${cycleNames}`,
@@ -306,6 +313,7 @@ export class CPMSolver {
         nearCriticalTaskIds: [],
         criticalPaths: [[]],
         floatPathByTask: {},
+        hammockNoFinishDriverTaskIds: [],
         projectEnd: '',
         projectDuration: 0,
         error: 'Kalender heeft geen werkdagen ingesteld',
@@ -329,6 +337,7 @@ export class CPMSolver {
           nearCriticalTaskIds: [],
           criticalPaths: [[]],
           floatPathByTask: {},
+          hammockNoFinishDriverTaskIds: [],
           projectEnd: '',
           projectDuration: 0,
           error: `Ongeldige startdatum voor taak "${task.name}"`,
@@ -455,6 +464,27 @@ export class CPMSolver {
       const cal = this.calendarFor(task);
       const preds = this.predecessors.get(taskId) || [];
 
+      // ── Hammock / Level of Effort (§4.4) ───────────────────────────────────
+      // Een hammock loopt mee in topologische volgorde (drivers staan er per definitie vóór). ES =
+      // de gewone forward-max over SS/FS-voorganger-bounds + projectstart-vloer; EF = de max over de
+      // FF/SF-voorganger-bounds (ondergrens ES). De AFGELEIDE duur (span ES→EF) wordt naar
+      // `scheduleDuration` (+ `durationMinutes` op een uur-kalender) geschreven; eigen duur-invoer
+      // wordt genegeerd. `isHammock` afwezig ⇒ deze tak draait niet (byte-identiek).
+      if (task.isHammock) {
+        const es = this.hammockEarlyStart(task, preds, results, projectStart, cal);
+        const { ef, hasFinishDriver } = this.hammockEarlyFinish(task, preds, results, es, cal);
+        if (!hasFinishDriver) this.hammockNoFinishDriverIds.push(taskId);
+        if (cal.isHourMode) {
+          const mins = cal.workMinutesBetween(es, ef);
+          task.time.durationMinutes = mins;
+          task.time.scheduleDuration = mins / (cal.hoursPerDay * 60);
+        } else {
+          task.time.scheduleDuration = cal.workDaysBetween(es, ef);
+        }
+        results.set(taskId, { es, ef });
+        continue;
+      }
+
       let earlyStart: Date;
 
       if (preds.length === 0) {
@@ -571,8 +601,64 @@ export class CPMSolver {
     return results;
   }
 
+  /** Hammock-ES (§4.4): de gewone forward-`max` over de START-drivers (SS/FS-voorgangers), met de
+   *  projectstart als vloer. FF/SF-voorgangers (finish-drivers) doen hier NIET mee — die bepalen de
+   *  EF. `getForwardConstraint` levert voor SS/FS een start-grens; `seqConstraint` wordt bewust NIET
+   *  gezet, zodat de hammock-relaties buiten de driving-/float-path-analyse blijven (§4.4). */
+  private hammockEarlyStart(
+    task: Task,
+    preds: Sequence[],
+    results: Map<string, { es: Date; ef: Date }>,
+    projectStart: Date | null,
+    cal: CalendarEngine,
+  ): Date {
+    let es = projectStart ? new Date(projectStart.getTime()) : new Date(0);
+    for (const seq of preds) {
+      if (seq.type !== 'START_START' && seq.type !== 'FINISH_START') continue;
+      const predResult = results.get(seq.predecessorId);
+      const predTask = this.tasks.get(seq.predecessorId);
+      if (!predResult || !predTask) continue;
+      const c = this.getForwardConstraint(
+        predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+      );
+      if (c > es) es = c;
+    }
+    return this.snapOnOrAfter(cal, es);
+  }
+
+  /** Hammock-EF (§4.4): de `max` over de FINISH-drivers (FF/SF-voorgangers), met ondergrens `es` (een
+   *  hammock is nooit negatief lang). `getForwardConstraint` levert de start-equivalente grens; die
+   *  wordt via `finishFromStart` terug naar de finish-grens vertaald (de duur-conversie valt weg — de
+   *  finish is duur-onafhankelijk, dus idempotent ongeacht de genegeerde duur-invoer). Zonder
+   *  finish-driver valt EF terug op ES (nul-lengte, met waarschuwing bij de aanroeper). */
+  private hammockEarlyFinish(
+    task: Task,
+    preds: Sequence[],
+    results: Map<string, { es: Date; ef: Date }>,
+    es: Date,
+    cal: CalendarEngine,
+  ): { ef: Date; hasFinishDriver: boolean } {
+    let ef: Date | null = null;
+    for (const seq of preds) {
+      if (seq.type !== 'FINISH_FINISH' && seq.type !== 'START_FINISH') continue;
+      const predResult = results.get(seq.predecessorId);
+      const predTask = this.tasks.get(seq.predecessorId);
+      if (!predResult || !predTask) continue;
+      const startEquiv = this.getForwardConstraint(
+        predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+      );
+      const finishBound = this.finishFromStart(cal, startEquiv, task);
+      if (!ef || finishBound > ef) ef = finishBound;
+    }
+    const hasFinishDriver = ef !== null;
+    let earlyFinish = ef ?? new Date(es.getTime());
+    if (earlyFinish < es) earlyFinish = new Date(es.getTime());   // vloer: nooit negatief lang
+    return { ef: earlyFinish, hasFinishDriver };
+  }
+
   /**
    * Out-of-sequence-detectie (fase 2.6, §4.4): relaties waarvan de opvolger progress/actuals heeft
+   * die de voorganger-logica tegenspreekt. Waarschuwing, geen correctie — het gedrag volgt uit de
    * die de voorganger-logica tegenspreekt. Waarschuwing, geen correctie — het gedrag volgt uit de
    * gekozen progressMode. Zonder statusdatum: geen detectie (no-op, backwards-compat).
    */
@@ -970,6 +1056,15 @@ export class CPMSolver {
       const task = this.tasks.get(taskId)!;
       const succs = this.successors.get(taskId) || [];
 
+      // Hammock (§4.4, normatief): een gevolg, geen oorzaak. GEEN backward-`min`-doorgifte; per
+      // definitie `LS = ES` en `LF = EF` (⇒ tf=ff=0, kritiek-neutraal — geforceerd in computeResults).
+      // De gewone min-combinatie wordt overgeslagen.
+      if (task.isHammock) {
+        const ed = earlyDates.get(taskId)!;
+        results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
+        continue;
+      }
+
       // Niets kan ná het projecteinde eindigen — dat is de bovengrens voor élke taak. Opvolger-
       // constraints kunnen de late finish alleen verder naar voren halen. (Voorheen kon een
       // Start-Start-opvolger een late finish ná het projecteinde opleveren, waardoor de
@@ -980,6 +1075,11 @@ export class CPMSolver {
         const succResult = results.get(seq.successorId);
         const succTask = this.tasks.get(seq.successorId);
         if (!succResult || !succTask) continue;
+        // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
+        // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
+        // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen
+        // (niet-hammock) opvolgers.
+        if (succTask.isHammock) continue;
         const constraintDate = this.getBackwardConstraint(
           succResult, seq, task, succTask, predCal, this.calendarFor(succTask),
         );
@@ -1220,6 +1320,7 @@ export class CPMSolver {
       const drivingSet = new Set(drivingSequenceIds);
       for (const [id, { ef }] of earlyDates) {
         if (ef.getTime() !== maxEf) continue;
+        if (this.tasks.get(id)?.isHammock === true) continue;   // hammock nooit kritiek (§4.4)
         longestPathCritical.add(id);
         for (const p of traceFrom(id, this.sequences, drivingSet).drivingPredecessors) {
           longestPathCritical.add(p);
@@ -1279,10 +1380,20 @@ export class CPMSolver {
         tf = 0;
         freeFloat = 0;
       }
-      // Kritiek-definitie (§4.6): voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een
-      // driving-keten naar de laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het
-      // huidige tf≤0).
-      const isCritical = completed
+      // Hammock (§4.4, normatief): tf=ff=0 DEFINITORISCH (LS=ES/LF=EF uit de backward pass), maar dit
+      // is géén kritiek-signaal — het forceren houdt de invariant ook als een niet-driving opvolger
+      // anders positieve free float zou geven. `isCritical` wordt hieronder geforceerd `false`.
+      const isHammock = taskObj.isHammock === true;
+      if (isHammock) {
+        tf = 0;
+        freeFloat = 0;
+      }
+      // Kritiek-definitie (§4.6): hammock ⇒ NOOIT kritiek (P6: LOE is een gevolg, geen oorzaak);
+      // voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een driving-keten naar de
+      // laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het huidige tf≤0).
+      const isCritical = isHammock
+        ? false
+        : completed
         ? false
         : useLongestPath
           ? longestPathCritical.has(taskId)
@@ -1454,6 +1565,8 @@ export class CPMSolver {
       nearCriticalTaskIds,
       criticalPaths,
       floatPathByTask,
+      // Hammocks zonder finish-driver (§4.4): waarschuwing (nul-lengte-terugval).
+      hammockNoFinishDriverTaskIds: [...this.hammockNoFinishDriverIds],
       // Projecteinde in de projectkalendermodus (§5.4): dag-project ⇒ `formatDate` (byte-identiek).
       projectEnd: formatInstant(projectEnd, this.modeOf(this.projectEngine)),
       projectDuration,

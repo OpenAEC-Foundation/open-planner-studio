@@ -8,9 +8,11 @@
 //
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { createDefaultTaskTime, type Task, type TaskConstraint } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { FILTER_SORT_BUILTIN_KEYS, fieldKind, type FieldCatalogCtx } from '@/components/viewControls/fieldCatalog';
 import type { FieldRef, BuiltinFieldKey } from '@/state/slices/types';
 import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
@@ -266,6 +268,124 @@ eq('86 gedeeld: S=1 (padnummer van de EERSTE peel)', rSh.floatPathByTask['S'], 1
 eq('87 gedeeld: C=2 (tweede peel; S houdt zijn 1)', rSh.floatPathByTask['C'], 2);
 eq('88 gedeeld: criticalPaths[0] == criticalPath', JSON.stringify(rSh.criticalPaths[0]), JSON.stringify(rSh.criticalPath));
 eq('89 gedeeld: criticalPaths[0] = [S,B]', JSON.stringify(rSh.criticalPaths[0]), JSON.stringify(['S', 'B']));
+
+// ── 19) Golf 4 — hammocks (§4.4) ──────────────────────────────────────────────
+// Relatie-helpers voor de driver-topologie: SS/FS = start-driver, FF/SF = finish-driver (B6).
+function lk(id: string, pred: string, succ: string, type: Sequence['type']): Sequence {
+  return { id, predecessorId: pred, successorId: succ, type, lagDays: 0 };
+}
+// Hammock H met start-driver SS(A→H) en finish-driver FF(B→H); A(3)→FS B(dur). Ongewijzigde
+// driver-topologie van S10; alleen B's duur varieert (⇒ her-spanning van de hammock).
+function s10(bDur: number): { r: CPMResult; tasks: Task[] } {
+  const tasks = [mkTask('A', 3), mkTask('B', bDur), mkTask('H', 1, { isHammock: true })];
+  const seqs = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
+  return { r: solve(tasks, seqs), tasks };
+}
+const engDay = new CalendarEngine(CAL);
+
+// S10-v1 (B dur2): H 06-01..06-05, span 5 werkdagen; nooit kritiek.
+const s10a = s10(2);
+const hA = s10a.r.tasks.get('H')!;
+eq('90 S10-v1: H.es', hA.earlyStart, '2026-06-01');
+eq('91 S10-v1: H.ef', hA.earlyFinish, '2026-06-05');
+eq('92 S10-v1: H tf=0', hA.totalFloat, 0);
+eq('93 S10-v1: H ff=0', hA.freeFloat, 0);
+eq('94 S10-v1: H interfering=0', hA.interferingFloat, 0);
+eq('95 S10-v1: H NOOIT kritiek', hA.isCritical, false);
+eq('96 S10-v1: H niet in criticalPath', s10a.r.criticalPath.includes('H'), false);
+eq('97 S10-v1: criticalPath = {A,B}', JSON.stringify([...s10a.r.criticalPath].sort()), JSON.stringify(['A', 'B']));
+// 8.4-d: hammock-span == workDaysBetween(ES,EF); zelfstandig herberekend via CalendarEngine.
+eq('98 S10-v1: afgeleide scheduleDuration = span 5', s10a.tasks.find(t => t.id === 'H')!.time.scheduleDuration, 5);
+eq('99 S10-v1: span == workDaysBetween(ES,EF)',
+  s10a.tasks.find(t => t.id === 'H')!.time.scheduleDuration,
+  engDay.workDaysBetween(parseDate(hA.earlyStart), parseDate(hA.earlyFinish)));
+
+// S10-v2 (B dur4): driver verschuift ⇒ H her-spant naar EF 06-09, span 7.
+const s10b = s10(4);
+const hB = s10b.r.tasks.get('H')!;
+eq('100 S10-v2: H.ef her-spant naar 06-09', hB.earlyFinish, '2026-06-09');
+eq('101 S10-v2: afgeleide scheduleDuration = span 7', s10b.tasks.find(t => t.id === 'H')!.time.scheduleDuration, 7);
+eq('102 S10-v2: span == workDaysBetween(ES,EF)',
+  s10b.tasks.find(t => t.id === 'H')!.time.scheduleDuration,
+  engDay.workDaysBetween(parseDate(hB.earlyStart), parseDate(hB.earlyFinish)));
+eq('103 S10-v2: H nooit kritiek', hB.isCritical, false);
+
+// Uur-modus hammock (H8, band [480,960]): fractionele span (600 werkmin = 1,25 dag). 8.4-d in uur-modus.
+const H8: WorkCalendar = {
+  id: 'h8', name: 'h8', description: 'h8',
+  workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+  workTime: { byWeekday: { 1: [{ start: 480, end: 960 }], 2: [{ start: 480, end: 960 }], 3: [{ start: 480, end: 960 }], 4: [{ start: 480, end: 960 }], 5: [{ start: 480, end: 960 }], 6: [], 7: [] } },
+} as unknown as WorkCalendar;
+function mkH(id: string, mins: number, extra: Partial<Task> = {}): Task {
+  const t = mkTask(id, mins / 480, extra);           // scheduleStart 2026-06-01 (ongebruikt) → anker in H8
+  t.time = createDefaultTaskTime('2026-07-06', mins / 480);
+  t.time.durationMinutes = mins;
+  return t;
+}
+const engH8 = new CalendarEngine(H8);
+const hourTasks = [mkH('A', 240), mkH('B', 360), mkH('H', 480, { isHammock: true })];
+const hourSeq = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
+const rHour = new CPMSolver(hourTasks, hourSeq, H8, [], {}).solve();
+const hH = rHour.tasks.get('H')!;
+eq('104 uur: H.es', hH.earlyStart, '2026-07-06T08:00');
+eq('105 uur: H.ef', hH.earlyFinish, '2026-07-07T10:00');
+eq('106 uur: H fractionele durationMinutes = 600', hourTasks.find(t => t.id === 'H')!.time.durationMinutes, 600);
+eq('107 uur: scheduleDuration = 1.25 dag', hourTasks.find(t => t.id === 'H')!.time.scheduleDuration, 1.25);
+// 8.4-d uur: span == workMinutesBetween(ES,EF), zelfstandig herberekend.
+eq('108 uur: span == workMinutesBetween(ES,EF)',
+  hourTasks.find(t => t.id === 'H')!.time.durationMinutes,
+  engH8.workMinutesBetween(parseInstant(hH.earlyStart), parseInstant(hH.earlyFinish)));
+eq('109 uur: H tf=0 ff=0 nooit kritiek', hH.totalFloat === 0 && hH.freeFloat === 0 && hH.isCritical === false, true);
+
+// Hammock zónder finish-driver ⇒ EF=ES (nul-lengte) + waarschuwing in het resultaat.
+const nfdTasks = [mkTask('A', 3), mkTask('H', 1, { isHammock: true })];
+const rNfd = solve(nfdTasks, [lk('l2', 'A', 'H', 'START_START')]);
+const hNfd = rNfd.tasks.get('H')!;
+eq('110 geen finish-driver: H.ef == H.es (nul-lengte)', hNfd.earlyFinish, hNfd.earlyStart);
+eq('111 geen finish-driver: waarschuwing gerapporteerd', JSON.stringify(rNfd.hammockNoFinishDriverTaskIds), JSON.stringify(['H']));
+eq('112 geen finish-driver: H nog steeds nooit kritiek', hNfd.isCritical, false);
+eq('113 met finish-driver: waarschuwingslijst leeg', JSON.stringify(s10a.r.hammockNoFinishDriverTaskIds), JSON.stringify([]));
+
+// Hammock met opvolger (§4.4): FS vanaf H rekent forward door; H geeft GEEN backward-druk aan de
+// drivers. Een STRAKKE opvolger (Z FNLT ⇒ Z negatief) mag NIET via de hammock heen negatieve float
+// op de start-/finish-driver leggen — A/B houden hun eigen (positieve) float.
+const succTasks = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true }),
+  mkTask('Z', 2, { constraint: { type: 'FNLT', date: '2026-06-08' } })];
+const succSeq = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'),
+  lk('l3', 'B', 'H', 'FINISH_FINISH'), lk('l4', 'H', 'Z', 'FINISH_START')];
+const rSucc = solve(succTasks, succSeq);
+eq('114 opvolger: Z.es (FS vanaf H rekent forward door)', rSucc.tasks.get('Z')!.earlyStart, '2026-06-08');
+eq('115 opvolger: Z negatief door FNLT (tf=-1)', rSucc.tasks.get('Z')!.totalFloat, -1);
+eq('116 opvolger: start-driver A GEEN negatieve float via hammock (tf=2)', rSucc.tasks.get('A')!.totalFloat, 2);
+eq('117 opvolger: finish-driver B GEEN negatieve float via hammock (tf=2)', rSucc.tasks.get('B')!.totalFloat, 2);
+eq('118 opvolger: H blijft LS=ES/LF=EF ⇒ tf=0, nooit kritiek', rSucc.tasks.get('H')!.totalFloat === 0 && rSucc.tasks.get('H')!.isCritical === false, true);
+eq('119 opvolger: criticalPath = {Z} (alleen de echte eindketen)', JSON.stringify([...rSucc.criticalPath].sort()), JSON.stringify(['Z']));
+
+// Float-paths negeren de hammock (§4.4/§4.6): H nooit in floatPathByTask.
+const rFpHam = solve(
+  [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true }), mkTask('Z', 2)],
+  [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH'), lk('l4', 'H', 'Z', 'FINISH_START')],
+  { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } },
+);
+eq('120 float-paths: H NIET in floatPathByTask', rFpHam.floatPathByTask['H'], undefined);
+eq('121 float-paths: H per-taak floatPath ongeschreven', rFpHam.tasks.get('H')!.floatPath, undefined);
+eq('122 float-paths: Z=1 (echte eindketen)', rFpHam.floatPathByTask['Z'], 1);
+eq('123 float-paths: criticalPaths bevat H niet', rFpHam.criticalPaths.every(p => !p.includes('H')), true);
+
+// isHammock afwezig ≡ isHammock:false ≡ gewone taak (byte-identiek). H als gewone taak ⇒ ES via de
+// volledige max (incl. FF-start-equivalent) ⇒ ANDER resultaat dan een hammock (bewijst dat de vlag telt).
+const plainTasks = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1)];
+const plainFalse = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: false })];
+const plainSeq = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
+eq('124 isHammock afwezig ≡ false (byte-identieke solve)', digest(solve(plainFalse, plainSeq)), digest(solve(plainTasks, plainSeq)));
+eq('125 gewone taak ≠ hammock (vlag heeft effect: H kritiek als gewone taak)', solve(plainTasks, plainSeq).tasks.get('H')!.isCritical, true);
+eq('126 hammock-tweeling: H als hammock is NIET kritiek', s10a.r.tasks.get('H')!.isCritical, false);
+// Twee keer solve op dezelfde task-objecten (afgeleide-duur-mutatie) ⇒ idempotent.
+const idemT = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true })];
+const idemS = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
+const idem1 = digest(new CPMSolver(idemT, idemS, CAL, [], {}).solve());
+const idem2 = digest(new CPMSolver(idemT, idemS, CAL, [], {}).solve());
+eq('127 hammock: solve idempotent na duur-mutatie (zelfde digest)', idem1, idem2);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

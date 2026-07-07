@@ -116,6 +116,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         // Fase 2.9 (§3.1/§4.3): secundaire constraint doorgeven zodat de solver hem als tweede
         // grens meerekent. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
         constraint2: partial.constraint2,
+        // Fase 2.9 (§3.2/§4.4): hammock/LOE-vlag doorgeven zodat de solver de afgeleide-span-tak
+        // draait. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
+        isHammock: partial.isHammock,
         deadline: partial.deadline,
         calendarId: partial.calendarId,
       };

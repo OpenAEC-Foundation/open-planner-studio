@@ -8,8 +8,10 @@
 //   id, title,
 //   calendar?: { workDays?: number[], holidays?: {name,startDate,endDate}[] }  // default: SCHOON (ma-vr, geen feestdagen)
 //   anchor?: "YYYY-MM-DD"   // startdatum voor wortel-taken (default 2026-06-01)
-//   tasks: [{ name, dur?, start?, milestone?, constraint?, deadline? }]
+//   tasks: [{ name, dur?, start?, milestone?, constraint?, constraint2?, hammock?, deadline? }]
 //     dur in werkdagen (default 1); milestone => duur 0
+//     hammock: true => LOE/hammock (fase 2.9 §4.4); afgeleide span-duur (SS/FS=start-driver, FF/SF=finish-driver),
+//              eigen duur genegeerd, nooit kritiek, tf=ff=0
 //     constraint: { type: ASAP|ALAP|SNET|SNLT|FNET|FNLT|MSO|MFO, date? } (P6-soft; MSO/MFO = Start/Finish On)
 //     deadline: "YYYY-MM-DD" (zacht: alleen late datums/float)
 //   links: [{ pred, succ, type, lag?, lagUnit?, lagPercent? }]
@@ -29,6 +31,7 @@
 //        // datums "YYYY-MM-DD"; tf/ff/intf getallen; crit/nearCrit boolean; intf=interfering (tf−ff)
 //     criticalPathSet?: [names],   // vergeleken als verzameling (volgorde-onafhankelijk)
 //     nearCriticalSet?: [names],   // near-critical-taken (0<tf≤drempel), verzameling (fase 2.9 §4.6)
+//     hammockNoFinishDriversSet?: [names],   // hammocks zonder finish-driver (nul-lengte, fase 2.9 §4.4)
 //     floatPaths?: { [name]: nr },   // float-path-nummer per taak (fase 2.9 golf 3 §4.6); ontbrekende taak = geen pad
 //     criticalPaths?: [[names]],     // kritieke ketens (fase 2.9 golf 3 §4.6), verzameling-van-verzamelingen
 //     drivingSet?: [[pred,succ,type]],  // welke relaties driving zijn (verzameling van triples)
@@ -142,6 +145,9 @@ interface Case {
     constraint?: { type: string; date?: string; hard?: boolean };
     /** Fase 2.9 (§4.3): SECUNDAIRE constraint (altijd soft). */
     constraint2?: { type: string; date?: string };
+    /** Fase 2.9 (§4.4): hammock/LOE — afgeleide duur (span tussen start- en finish-driver); eigen
+     *  duur-invoer genegeerd; nooit kritiek. Afwezig ⇒ gewone taak (byte-identiek). */
+    hammock?: boolean;
     priority?: number;
     /** Fase 2.8b (§8.3, durationMinutes-op-dag-kalender-invariant): zet `durationMinutes` RAUW op de
      *  taak, ontkoppeld van `dur` — om te bewijzen dat het veld op een dag-kalender wordt genegeerd
@@ -348,6 +354,7 @@ function buildAndSolve(c: Case): {
       ...(t.mandatory !== undefined ? { mandatory: t.mandatory } : {}),
       ...(t.constraint ? { constraint: t.constraint as any } : {}),
       ...(t.constraint2 ? { constraint2: t.constraint2 as any } : {}),
+      ...(t.hammock ? { isHammock: true } : {}),
       ...(t.deadline ? { deadline: t.deadline } : {}),
     });
     ids[t.name] = id;
@@ -733,6 +740,8 @@ function runCase(c: Case) {
   taskSetCheck('missedDeadlinesSet', exp.missedDeadlinesSet, (cpm as any)?.missedDeadlineTaskIds ?? []);
   // Near-critical-verzameling (fase 2.9 golf 2, §4.6): taak-namen met 0 < tf ≤ drempel.
   taskSetCheck('nearCriticalSet', exp.nearCriticalSet, (cpm as any)?.nearCriticalTaskIds ?? []);
+  // Hammocks zonder finish-driver (fase 2.9 golf 4, §4.4): nul-lengte-terugval + waarschuwing.
+  taskSetCheck('hammockNoFinishDriversSet', exp.hammockNoFinishDriversSet, (cpm as any)?.hammockNoFinishDriverTaskIds ?? []);
 
   // Kritiek pad als verzameling (namen)
   if (exp.criticalPathSet) {
