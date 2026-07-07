@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "レポートタブへ移動",
       "switchDocument": "ドキュメントを切り替え",
-      "scrollToToday": "今日にジャンプ"
+      "scrollToToday": "今日にジャンプ",
+      "help": "ヘルプを開く"
     }
   },
   "welcome": {

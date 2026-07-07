@@ -269,7 +269,18 @@
     "author": "Autor",
     "company": "Unternehmen",
     "startDate": "Startdatum",
-    "endDate": "Enddatum"
+    "endDate": "Enddatum",
+    "help": "Hilfe",
+    "helpSubtitle": "Dokumentation und Benutzerhandbuch, direkt in der App integriert.",
+    "helpSearchPlaceholder": "Dokumentation durchsuchen…",
+    "helpLoading": "Wird geladen…",
+    "helpLoadError": "Dokumentation konnte nicht geladen werden.",
+    "helpArticleNotFound": "Artikel nicht gefunden.",
+    "helpLayer": {
+      "quickstart": "Schnellstart",
+      "gidsen": "Themenbezogene Anleitungen",
+      "referentie": "Referenz"
+    }
   },
   "export": {
     "csvLabel": "CSV (semikolon-getrennt)",

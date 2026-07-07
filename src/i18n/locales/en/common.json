@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Go to Report tab",
       "switchDocument": "Switch document",
-      "scrollToToday": "Jump to today"
+      "scrollToToday": "Jump to today",
+      "help": "Open help"
     }
   },
   "welcome": {

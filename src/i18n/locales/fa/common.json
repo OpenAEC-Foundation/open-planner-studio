@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "رفتن به تب گزارش",
       "switchDocument": "تعویض سند",
-      "scrollToToday": "رفتن به امروز"
+      "scrollToToday": "رفتن به امروز",
+      "help": "باز کردن راهنما"
     }
   },
   "welcome": {

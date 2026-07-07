@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "articles": [
+    {
+      "id": "quick-start",
+      "title": { "nl": "Snel starten", "en": "Quick start" },
+      "layer": "quickstart"
+    },
+    {
+      "id": "gids-plannen-wbs",
+      "title": { "nl": "Plannen & WBS", "en": "Planning & WBS" },
+      "layer": "gidsen",
+      "cluster": "plannen-wbs"
+    }
+  ]
+}

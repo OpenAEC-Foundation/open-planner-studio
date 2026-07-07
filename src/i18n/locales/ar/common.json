@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "الانتقال إلى تبويب التقرير",
       "switchDocument": "تبديل المستند",
-      "scrollToToday": "الانتقال إلى اليوم"
+      "scrollToToday": "الانتقال إلى اليوم",
+      "help": "فتح المساعدة"
     }
   },
   "welcome": {

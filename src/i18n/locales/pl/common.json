@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Przejdź do karty Raport",
       "switchDocument": "Przełącz dokument",
-      "scrollToToday": "Przejdź do dziś"
+      "scrollToToday": "Przejdź do dziś",
+      "help": "Otwórz pomoc"
     }
   },
   "welcome": {

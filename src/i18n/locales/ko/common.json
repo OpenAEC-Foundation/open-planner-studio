@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "보고서 탭으로 이동",
       "switchDocument": "문서 전환",
-      "scrollToToday": "오늘로 이동"
+      "scrollToToday": "오늘로 이동",
+      "help": "도움말 열기"
     }
   },
   "welcome": {

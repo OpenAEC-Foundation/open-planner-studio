@@ -269,7 +269,18 @@
     "author": "Autor",
     "company": "Empresa",
     "startDate": "Fecha de inicio",
-    "endDate": "Fecha de fin"
+    "endDate": "Fecha de fin",
+    "help": "Ayuda",
+    "helpSubtitle": "Documentación y guía del usuario, integradas en la aplicación.",
+    "helpSearchPlaceholder": "Buscar en la documentación…",
+    "helpLoading": "Cargando…",
+    "helpLoadError": "No se pudo cargar la documentación.",
+    "helpArticleNotFound": "Artículo no encontrado.",
+    "helpLayer": {
+      "quickstart": "Inicio rápido",
+      "gidsen": "Guías por tema",
+      "referentie": "Referencia"
+    }
   },
   "export": {
     "csvLabel": "CSV (separado por punto y coma)",

@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Rapor sekmesine git",
       "switchDocument": "Belge değiştir",
-      "scrollToToday": "Bugüne git"
+      "scrollToToday": "Bugüne git",
+      "help": "Yardımı aç"
     }
   },
   "welcome": {

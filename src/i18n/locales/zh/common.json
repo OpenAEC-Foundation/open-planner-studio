@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "转到报告选项卡",
       "switchDocument": "切换文档",
-      "scrollToToday": "跳转到今天"
+      "scrollToToday": "跳转到今天",
+      "help": "打开帮助"
     }
   },
   "welcome": {

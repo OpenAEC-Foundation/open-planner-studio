@@ -269,7 +269,18 @@
     "author": "Yazar",
     "company": "Şirket",
     "startDate": "Başlangıç tarihi",
-    "endDate": "Bitiş tarihi"
+    "endDate": "Bitiş tarihi",
+    "help": "Yardım",
+    "helpSubtitle": "Uygulamaya gömülü belgeler ve kullanıcı kılavuzu.",
+    "helpSearchPlaceholder": "Belgelerde ara…",
+    "helpLoading": "Yükleniyor…",
+    "helpLoadError": "Belgeler yüklenemedi.",
+    "helpArticleNotFound": "Makale bulunamadı.",
+    "helpLayer": {
+      "quickstart": "Hızlı başlangıç",
+      "gidsen": "Konuya göre kılavuzlar",
+      "referentie": "Referans"
+    }
   },
   "export": {
     "csvLabel": "CSV (noktalı virgülle ayrılmış)",

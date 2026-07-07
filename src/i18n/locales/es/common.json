@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Ir a la pestaña Informe",
       "switchDocument": "Cambiar de documento",
-      "scrollToToday": "Ir a hoy"
+      "scrollToToday": "Ir a hoy",
+      "help": "Abrir ayuda"
     }
   },
   "welcome": {

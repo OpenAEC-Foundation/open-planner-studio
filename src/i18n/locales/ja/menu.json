@@ -269,7 +269,18 @@
     "author": "作成者",
     "company": "会社",
     "startDate": "開始日",
-    "endDate": "終了日"
+    "endDate": "終了日",
+    "help": "ヘルプ",
+    "helpSubtitle": "アプリに組み込まれたドキュメントとユーザーガイド。",
+    "helpSearchPlaceholder": "ドキュメントを検索…",
+    "helpLoading": "読み込み中…",
+    "helpLoadError": "ドキュメントを読み込めませんでした。",
+    "helpArticleNotFound": "記事が見つかりません。",
+    "helpLayer": {
+      "quickstart": "クイックスタート",
+      "gidsen": "トピック別ガイド",
+      "referentie": "リファレンス"
+    }
   },
   "export": {
     "csvLabel": "CSV（セミコロン区切り）",
