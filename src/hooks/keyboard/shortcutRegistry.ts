@@ -225,7 +225,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowRight', alt: true, shift: true },
     category: 'structure',
     labelKey: 'context.indent',
-    when: hasSelection,
+    when: () => hasSelection() && !hasBlockingDialogOpen(),
     run: (store) => { if (isTreeMode(store.view)) store.indentTasks(store.selectedTaskIds); },
   },
   {
@@ -233,7 +233,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowLeft', alt: true, shift: true },
     category: 'structure',
     labelKey: 'context.outdent',
-    when: hasSelection,
+    when: () => hasSelection() && !hasBlockingDialogOpen(),
     run: (store) => { if (isTreeMode(store.view)) store.outdentTasks(store.selectedTaskIds); },
   },
   // Aliassen (user-besluit tijdens golf 2): Alt+→/← naast de MS Project-conventie Alt+Shift+→/←
@@ -246,7 +246,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowRight', alt: true },
     category: 'structure',
     labelKey: 'context.indent',
-    when: hasSelection,
+    when: () => hasSelection() && !hasBlockingDialogOpen(),
     run: (store) => { if (isTreeMode(store.view)) store.indentTasks(store.selectedTaskIds); },
   },
   {
@@ -254,7 +254,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowLeft', alt: true },
     category: 'structure',
     labelKey: 'context.outdent',
-    when: hasSelection,
+    when: () => hasSelection() && !hasBlockingDialogOpen(),
     run: (store) => { if (isTreeMode(store.view)) store.outdentTasks(store.selectedTaskIds); },
   },
   {
@@ -353,7 +353,11 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: '/', mod: true },
     category: 'view',
     labelKey: 'shortcuts.view.showShortcuts',
-    run: (store) => store.setUI({ showShortcutsDialog: true }),
+    // Fase 2.10 fix-golf 4: echte toggle (was altijd `true`, dus Ctrl+/ kon de dialoog niet meer
+    // dichttoetsen). Geen `hasBlockingDialogOpen()`-guard hier — deze entry heeft er nooit een gehad
+    // en moet, net als voorheen, ook vuren terwijl een ándere dialoog open staat; de ShortcutsDialog
+    // zelf zit niet in `hasBlockingDialogOpen()`'s lijst, dus die blokkeert het togglen sowieso niet.
+    run: (store) => store.setUI({ showShortcutsDialog: !store.ui.showShortcutsDialog }),
   },
 
   // --- Navigatie ---

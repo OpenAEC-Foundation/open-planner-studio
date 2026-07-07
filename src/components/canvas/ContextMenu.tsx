@@ -133,7 +133,7 @@ export function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[180px]"
+      className="fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[180px]"
       style={{ left: adjustedX, top: adjustedY }}
       onMouseLeave={() => setOpenSub(null)}
     >
@@ -311,7 +311,7 @@ function SubMenuTrigger({
       </div>
       {open && (
         <div
-          className={`absolute top-0 bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[160px] z-50 ${
+          className={`absolute top-0 bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[160px] z-[var(--z-contextmenu)] ${
             flip ? 'right-full' : 'left-full'
           }`}
         >

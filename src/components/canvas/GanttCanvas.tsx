@@ -877,6 +877,12 @@ export function GanttCanvas() {
   // Right-click context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    // Fase 2.10 fix-golf 2: een balk-hover-tooltip die nog zichtbaar is bij het rechtsklikken zou
+    // anders over de bovenste menu-items blijven hangen (z-tooltip > z-50 van het menu). Wissen is
+    // de primaire fix; de z-index-bump hieronder is het vangnet voor tooltips die via mousemove
+    // ná het openen alsnog opnieuw gezet zouden worden (zie de guard in handleMouseMove).
+    setTooltip(null);
+    setHistoTooltip(null);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -1017,13 +1023,23 @@ export function GanttCanvas() {
   useEffect(() => {
     if (!panState) return;
 
+    let panned = false;
+
     const handleMouseMove = (e: MouseEvent) => {
       const dx = e.clientX - panState.startClientX;
       const dy = e.clientY - panState.startClientY;
+      if (Math.hypot(dx, dy) >= BOX_SELECT_THRESHOLD) panned = true;
       setScroll(panState.originScrollX - dx, panState.originScrollY - dy);
     };
 
-    const handleMouseUp = () => setPanState(null);
+    const handleMouseUp = () => {
+      // Fase 2.10 fix-golf 1: de browser vuurt na een mouseup nog een native click op het canvas.
+      // Zonder onderdrukking zou die click de zojuist gepande selectie overschrijven/wissen (net als
+      // bij box-select hierboven). Alleen onderdrukken als er ook echt gepand is — een klik zonder
+      // beweging in 'drag'-modus moet gewoon als normale selectie-klik blijven werken.
+      if (panned) justBoxSelectedRef.current = true;
+      setPanState(null);
+    };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -1339,7 +1355,10 @@ export function GanttCanvas() {
 
   // Cursor changes on hover + tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (dragState || depDragState || panState || boxSelectCandidate || boxSelectState) {
+    // Fase 2.10 fix-golf 2: terwijl het contextmenu open staat mag een mousemove de balk-tooltip
+    // niet opnieuw zetten (anders duikt hij, ondanks het wissen bij het openen, alsnog weer op
+    // over de menu-items zodra de muis binnen het canvas beweegt).
+    if (dragState || depDragState || panState || boxSelectCandidate || boxSelectState || contextMenu) {
       setTooltip(null);
       return;
     }
@@ -1404,7 +1423,7 @@ export function GanttCanvas() {
     }
 
     setCursor('default');
-  }, [dragState, depDragState, panState, boxSelectCandidate, boxSelectState, scrollMode, taskTableWidth]);
+  }, [dragState, depDragState, panState, boxSelectCandidate, boxSelectState, contextMenu, scrollMode, taskTableWidth]);
 
   // Hide tooltip on mouse leave
   const handleMouseLeave = useCallback(() => {
