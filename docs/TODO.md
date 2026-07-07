@@ -366,10 +366,14 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] MS Project MPP import (readonly) — realistisch alleen via MPXJ (JVM): NIET als core-dependency
   (strijdig met lichte Tauri/web-architectuur); route = optionele externe converter (MPXJ-CLI/sidecar)
   óf gebruikers MSPDI laten exporteren. Besluit gedocumenteerd in issue #17-triage (2026-07-07).
-  **Distributie via het bestaande extensiesysteem (user-akkoord 2026-07-07):** een catalogus-extensie
-  registreert .mpp/.pp in het open-dialoog, detecteert de los geïnstalleerde converter en begeleidt de
-  download ervan; de converter zelf (MPXJ + gebundelde JRE) kan NIET in de extensie-ZIP (extensies zijn
-  pure JS in de webview) en blijft een aparte desktop-only download.
+  **Distributie via het extensiesysteem met "managed tools" (user-besluit 2026-07-07):** de
+  catalogus-extensie declareert in zijn manifest een benodigd hulpprogramma (naam, downloadUrl uit
+  onze eigen releases, sha256-checksum, grootte); de APP-KERN — niet de extensie — beheert daarop de
+  volledige binary-levenscyclus: één bevestigingsvraag bij installatie, download + checksum-verificatie,
+  opslag in de app-datamap, updates bij een nieuwere manifest-declaratie, opruimen bij de-installatie.
+  De extensie-sandbox blijft ongewijzigd (JS mag alleen declareren/vragen, nooit zelf processen of
+  bestanden beheren); de gebruiker hoeft nooit over Java/binaries na te denken. Web-versie: dezelfde
+  extensie toont "alleen desktop". Generiek bouwen (herbruikbaar voor toekomstige zware extensies).
 - [ ] Asta Powerproject PP import — zelfde MPXJ-afweging als MPP; zelfde converter-route.
 - [ ] **KYP Project REST API-integratie (onderzoek)** — de facto NL-bouwplanningstool zonder publieke
   export; directe API-koppeling zou een unieke NL-USP zijn. Eerst: API-toegang/partnerschap verkennen
