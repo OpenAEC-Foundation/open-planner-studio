@@ -820,6 +820,33 @@ function runCase(c: Case) {
     }
   }
 
+  // Universele invariant (fase 2.9 golf 8, §3.5/§4.6): `criticalPaths` is NOOIT leeg (lengte ≥ 1) en
+  // `criticalPaths[0]` is ALTIJD gelijk aan `criticalPath` — het vorm-contract dat elke consument
+  // (renderer, rapporten) mag aannemen, met én zonder de floatPaths-optie. Over álle cases.
+  if (cpm && !cpm.error) {
+    const cp = cpm.criticalPath ?? [];
+    const cps = (cpm as any).criticalPaths ?? [];
+    if (cps.length < 1) diffs.push(`critpaths-invariant: criticalPaths leeg (verwacht ≥1)`);
+    else if (JSON.stringify(cps[0]) !== JSON.stringify(cp))
+      diffs.push(`critpaths-invariant: criticalPaths[0]=${JSON.stringify(cps[0])} ≠ criticalPath=${JSON.stringify(cp)}`);
+  }
+
+  // Universele invariant (fase 2.9 golf 8, §4.4): een hammock zit NOOIT in `floatPathByTask`, is nooit
+  // near-critical (tf definitorisch 0 ⇒ valt buiten 0<tf≤drempel) en komt in geen enkele kritieke keten
+  // voor. No-op op cases zonder hammocks (byte-veilig). Over álle cases.
+  if (cpm && !cpm.error) {
+    const fpbt = (cpm as any).floatPathByTask ?? {};
+    const nearIds = new Set<string>((cpm as any).nearCriticalTaskIds ?? []);
+    const cps: string[][] = (cpm as any).criticalPaths ?? [];
+    for (const t of S().tasks) {
+      if (t.isHammock !== true) continue;
+      const name = Object.entries(ids).find(([, i]) => i === t.id)?.[0] ?? t.name;
+      if (fpbt[t.id] !== undefined) diffs.push(`hammock-invariant: "${name}" heeft floatPath ${fpbt[t.id]}`);
+      if (nearIds.has(t.id)) diffs.push(`hammock-invariant: "${name}" in nearCriticalTaskIds`);
+      if (cps.some((p) => p.includes(t.id))) diffs.push(`hammock-invariant: "${name}" in een criticalPaths-keten`);
+    }
+  }
+
   if (exp.projectEnd !== undefined && cpm?.projectEnd !== exp.projectEnd)
     diffs.push(`projectEnd: verwacht ${exp.projectEnd}, kreeg ${cpm?.projectEnd}`);
   if (exp.projectDuration !== undefined && cpm?.projectDuration !== exp.projectDuration)

@@ -1137,6 +1137,182 @@
         "projectEnd": "2026-06-05",
         "error": false
       }
+    },
+    {
+      "id": "ext-hour-pred-ff",
+      "title": "Golf 8 — externe VOORGANGER FF+0 in UUR-modus (H8, datetime-anker 07-08T12:00 = externe finish). Finish-grens: EF>=07-08T12:00 => bound=startFromFinish(480min)=07-07T12:00; ES=07-07T12:00, EF=07-08T12:00. Handberekend (subWorkMin(Wed12:00,480): 12:00->08:00=240, rest 240 -> Tue16:00->12:00) + solver-bevestigd.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "U", "dur": "8u", "externalLinks": [{ "direction": "predecessor", "relType": "FF", "lagMinutes": 0, "anchorDate": "2026-07-08T12:00", "sourceMissing": false, "sourceProject": "P4", "sourceTask": "Xff" }] }
+      ],
+      "expect": {
+        "tasks": {
+          "U": { "es": "2026-07-07T12:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T12:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-hour-pred-sf",
+      "title": "Golf 8 — externe VOORGANGER SF+0 in UUR-modus (H8, datetime-anker 07-07T10:00 = externe start). Finish-grens (SF: mijn finish >= externe start): bound=startFromFinish(07-07T10:00,480)=07-06T10:00; ES=07-06T10:00, EF=07-07T10:00. Handberekend + solver-bevestigd.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "U", "dur": "8u", "externalLinks": [{ "direction": "predecessor", "relType": "SF", "lagMinutes": 0, "anchorDate": "2026-07-07T10:00", "sourceMissing": false, "sourceProject": "P4", "sourceTask": "Xsf" }] }
+      ],
+      "expect": {
+        "tasks": {
+          "U": { "es": "2026-07-06T10:00", "ef": "2026-07-07T10:00", "ls": "2026-07-06T10:00", "lf": "2026-07-07T10:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T10:00",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-hour-succ-ff",
+      "title": "Golf 8 — externe OPVOLGER FF+0 in UUR-modus (H8, bindend, datetime-anker 07-06T12:00). Backward-bovengrens: LF<=07-06T12:00. M(8u) root: EF=07-06T16:00 > 07-06T12:00 => LF=07-06T12:00, LS=07-03T12:00, tf=finishFloat=workMin(16:00,12:00)/480=-0.5 (fractionele negatieve uur-float). Handberekend + solver-bevestigd.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "M", "dur": "8u", "externalLinks": [{ "direction": "successor", "relType": "FF", "lagMinutes": 0, "anchorDate": "2026-07-06T12:00", "sourceMissing": false, "sourceProject": "P5", "sourceTask": "Yff" }] }
+      ],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "ls": "2026-07-03T12:00", "lf": "2026-07-06T12:00", "tf": -0.5, "crit": true }
+        },
+        "projectEnd": "2026-07-06T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "ext-hour-succ-sf",
+      "title": "Golf 8 — externe OPVOLGER SF+0 in UUR-modus (H8, bindend, datetime-anker 07-03T10:00 = externe finish). Backward: mijn start <= externe finish => LS<=07-03T10:00, LF=finishFromStart(07-03T10:00,480)=07-06T10:00. N(8u) root: EF=07-06T16:00 => tf=workMin(16:00,10:00)/480=-0.75 (fractioneel). Handberekend + solver-bevestigd.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "N", "dur": "8u", "externalLinks": [{ "direction": "successor", "relType": "SF", "lagMinutes": 0, "anchorDate": "2026-07-03T10:00", "sourceMissing": false, "sourceProject": "P5", "sourceTask": "Ysf" }] }
+      ],
+      "expect": {
+        "tasks": {
+          "N": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "ls": "2026-07-03T10:00", "lf": "2026-07-06T10:00", "tf": -0.75, "crit": true }
+        },
+        "projectEnd": "2026-07-06T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s13c-hour-constraint-ss-pred",
+      "title": "Golf 8 — soft constraint x uur x NIET-FS-relatie: A(16u) SS+0 B(8u), B FNET 07-09T12:00. B.ES=max(SS-grens 07-06T08:00, FNET-forward startFromFinish(07-09T12:00,480)=07-08T12:00)=07-08T12:00, EF=07-09T12:00 (finish precies op de FNET). A open-finish => tf=1.5 (fractioneel). Vult de constraint x uur x relatie-matrix (S13 was root-only). Solver-bevestigd.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "16u" },
+        { "name": "B", "dur": "8u", "constraint": { "type": "FNET", "date": "2026-07-09T12:00" } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T16:00", "ls": "2026-07-07T12:00", "lf": "2026-07-09T12:00", "tf": 1.5, "crit": false },
+          "B": { "es": "2026-07-08T12:00", "ef": "2026-07-09T12:00", "ls": "2026-07-08T12:00", "lf": "2026-07-09T12:00", "tf": 0, "crit": true }
+        },
+        "violatedConstraintsSet": [],
+        "projectEnd": "2026-07-09T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "s14-hour-near-fractional",
+      "title": "Golf 8 — near-critical drempel FRACTIONEEL in uur-eenheden (S14/B3). H8-net Q1(16u),Q2(12u),Q3(8u) elk FS ENDH(8u); drempel 0,5 werkdag (=4u). Q1 tf0 (kritiek, niet near); Q2 tf0,5 (0<0,5<=0,5 => near, randgeval); Q3 tf1,0 (niet near). nearSet {Q2}. Handberekend + solver-bevestigd.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "schedulingOptions": { "nearCriticalThreshold": 0.5 },
+      "tasks": [
+        { "name": "Q1", "dur": "16u" },
+        { "name": "Q2", "dur": "12u" },
+        { "name": "Q3", "dur": "8u" },
+        { "name": "ENDH", "dur": "8u" }
+      ],
+      "links": [
+        { "pred": "Q1", "succ": "ENDH", "type": "FINISH_START" },
+        { "pred": "Q2", "succ": "ENDH", "type": "FINISH_START" },
+        { "pred": "Q3", "succ": "ENDH", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "Q1": { "es": "2026-07-06T08:00", "ef": "2026-07-07T16:00", "tf": 0, "crit": true, "nearCrit": false },
+          "Q2": { "es": "2026-07-06T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-06T12:00", "lf": "2026-07-07T16:00", "tf": 0.5, "crit": false, "nearCrit": true },
+          "Q3": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "tf": 1, "crit": false, "nearCrit": false },
+          "ENDH": { "es": "2026-07-08T08:00", "ef": "2026-07-08T16:00", "tf": 0, "crit": true, "nearCrit": false }
+        },
+        "criticalPathSet": ["Q1", "ENDH"],
+        "nearCriticalSet": ["Q2"],
+        "projectEnd": "2026-07-08T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "fp-mixed-day-hour",
+      "title": "Golf 8 — multiple float paths op een GEMENGD dag/uur-net. D1(5d, dagkalender) en Hh1(8u, H8-kalender) elk FS END(1d, dagkalender). Kritieke keten D1->END (fp1); Hh1 is een aparte, kortere driving-loze keten (fp2). Hh1.tf=4 werkdagen (workDaysBetween(06-01,06-05)-1=4, cross-calendar FS naar de dag-opvolger). Peel graaf-gedreven, kalender-agnostisch; datums solver-bevestigd.",
+      "calendars": [
+        { "name": "h8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }
+      ],
+      "schedulingOptions": { "floatPaths": { "enabled": true, "method": "FREE_FLOAT", "maxPaths": 10 } },
+      "tasks": [
+        { "name": "D1", "dur": 5 },
+        { "name": "Hh1", "dur": "8u", "calendar": "h8" },
+        { "name": "END", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "D1", "succ": "END", "type": "FINISH_START" },
+        { "pred": "Hh1", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "D1": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true, "floatPath": 1 },
+          "Hh1": { "es": "2026-06-01T08:00", "ef": "2026-06-01T16:00", "tf": 4, "crit": false, "floatPath": 2 },
+          "END": { "es": "2026-06-08", "ef": "2026-06-08", "tf": 0, "crit": true, "floatPath": 1 }
+        },
+        "floatPaths": { "D1": 1, "Hh1": 2, "END": 1 },
+        "criticalPaths": [["D1", "END"]],
+        "criticalPathSet": ["D1", "END"],
+        "projectEnd": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "hammock-not-near-critical",
+      "title": "Golf 8 — invariant: een hammock is NOOIT near-critical (tf definitorisch 0 => valt buiten 0<tf<=drempel). Net A(3)/B(2)/H(hammock)/Z(2), plus NC(5) FS Z; nearCriticalThreshold 2. Drivers A,B krijgen tf2 (0<2<=2 => near); H tf0 (nooit near, nooit kritiek); NC/Z kritiek. nearSet {A,B}, H NIET erin. Solver-bevestigd.",
+      "schedulingOptions": { "nearCriticalThreshold": 2 },
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2 },
+        { "name": "H", "dur": 1, "hammock": true },
+        { "name": "Z", "dur": 2 },
+        { "name": "NC", "dur": 5 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "A", "succ": "H", "type": "START_START" },
+        { "pred": "B", "succ": "H", "type": "FINISH_FINISH" },
+        { "pred": "H", "succ": "Z", "type": "FINISH_START" },
+        { "pred": "NC", "succ": "Z", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 2, "crit": false, "nearCrit": true },
+          "B": { "es": "2026-06-04", "ef": "2026-06-05", "tf": 2, "crit": false, "nearCrit": true },
+          "H": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": false, "nearCrit": false, "intf": 0 },
+          "NC": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "Z": { "es": "2026-06-08", "ef": "2026-06-09", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["NC", "Z"],
+        "nearCriticalSet": ["A", "B"],
+        "hammockNoFinishDriversSet": [],
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
     }
   ]
 }

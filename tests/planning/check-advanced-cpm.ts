@@ -515,6 +515,96 @@ eq('163 IFC-round-trip: externalLinks byte-gelijk', JSON.stringify(backTask?.ext
 const ifcNone = writeIFC(rtProject, CAL, [mkTask('Plain', 2)], [], [], []);
 eq('164 IFC-write: geen links ⇒ geen OPS_ExternalLink-pset', ifcNone.includes('OPS_ExternalLink'), false);
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  Golf 8 (§8.4 / testplan) — UNVERIFIED-gaten dichten + invariant-sweep.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── 20) totalFloatMode 'start' vs 'finish' DISCRIMINATOR (scope 1b, de golf-2-vraag) ─────────────
+// Golf 2 meldde 'start'/'finish'/'smallest' als "observationeel identiek in de huidige symmetrische
+// backward-pass". Golf 8 bewijst dat hard op de netten die een verschil ZOUDEN tonen als het bestond.
+// UITKOMST: PROVABLY identiek. De backward pass leidt de late start ALTIJD af als LF ⊖ duur in de
+// EIGEN kalender (CPMSolver.ts:1175 `lateStart = subDuration(lateFinish, task)`). Daardoor is
+// startFloat = signedFloat(ES,LS) per constructie exact gelijk aan finishFloat = signedFloat(EF,LF)
+// voor élke taak — ES/LS en EF/LF verschillen door dezelfde duur-verschuiving binnen één kalender,
+// dus hun werkdag-afstand is gelijk. Er is geen tak die LS onafhankelijk van LF kapt (ook een SNLT
+// gaat via een LF-grens). Bewezen op (a) een SNLT-net met negatieve float (schijnbaar start-zijdig)
+// en (b) een FRACTIONEEL uur-net (H8) met half-dag-floats.
+function tfMap(r: CPMResult): Record<string, number> {
+  const m: Record<string, number> = {};
+  for (const [id, t] of r.tasks) m[id] = t.totalFloat;
+  return m;
+}
+// (a) S2-net: A(3)→FS B(2), B SNLT 06-03 ⇒ tf −1 (negatief).
+const s2 = [mkTask('A', 3), mkTask('B', 2, { constraint: { type: 'SNLT', date: '2026-06-03' } })];
+const s2seq = [fs('s2s', 'A', 'B')];
+const s2start = tfMap(solve(s2, s2seq, { schedulingOptions: { totalFloatMode: 'start' } }));
+const s2finish = tfMap(solve(s2, s2seq, { schedulingOptions: { totalFloatMode: 'finish' } }));
+const s2small = tfMap(solve(s2, s2seq, { schedulingOptions: { totalFloatMode: 'smallest' } }));
+eq('165 disc S2 (SNLT): start == finish per taak', JSON.stringify(s2start), JSON.stringify(s2finish));
+eq('166 disc S2: smallest == start (drie modi identiek)', JSON.stringify(s2small), JSON.stringify(s2start));
+eq('167 disc S2: waarde niet-triviaal (B tf=-1)', s2finish['B'], -1);
+// (b) H8 uur-net Q1(16u),Q2(12u),Q3(8u)→FS ENDH(8u): fractionele floats.
+const qn = [mkH('Q1', 960), mkH('Q2', 720), mkH('Q3', 480), mkH('ENDH', 480)];
+const qs = [lk('qa', 'Q1', 'ENDH', 'FINISH_START'), lk('qb', 'Q2', 'ENDH', 'FINISH_START'), lk('qc', 'Q3', 'ENDH', 'FINISH_START')];
+const qStart = tfMap(new CPMSolver(qn, qs, H8, [], { schedulingOptions: { totalFloatMode: 'start' } }).solve());
+const qFinish = tfMap(new CPMSolver(qn, qs, H8, [], { schedulingOptions: { totalFloatMode: 'finish' } }).solve());
+eq('168 disc uur: start == finish per taak (fractioneel)', JSON.stringify(qStart), JSON.stringify(qFinish));
+eq('169 disc uur: Q2 fractionele tf=0.5 (niet-triviaal)', qFinish['Q2'], 0.5);
+eq('170 disc uur: Q3 fractionele tf=1.0', qFinish['Q3'], 1);
+
+// ── 21) Invariant-sweep (scope 3) over een representatieve reeks netten+opties ────────────────────
+// Elke solve moet vier invarianten halen: (I1) interferingFloat == tf−ff voor élke taak; (I2)
+// criticalPaths[0] == criticalPath én |criticalPaths| ≥ 1; (I3) een hammock heeft nooit een floatPath,
+// is nooit near-critical en zit in geen kritieke keten; (I4, apart hieronder) 'start'/'finish'-tf gelijk.
+const HAM = (): Task[] => [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true }), mkTask('Z', 2)];
+const HAMSEQ = [lk('hs1', 'A', 'B', 'FINISH_START'), lk('hs2', 'A', 'H', 'START_START'), lk('hs3', 'B', 'H', 'FINISH_FINISH'), lk('hs4', 'H', 'Z', 'FINISH_START')];
+type Scen = { label: string; run: () => CPMResult; hammocks?: string[] };
+const scen: Scen[] = [
+  { label: 'netA', run: () => solve(netA, seqA) },
+  { label: 'netA+near2', run: () => solve(netA, seqA, { schedulingOptions: { nearCriticalThreshold: 2 } }) },
+  { label: 'netA+fp', run: () => solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } }) },
+  { label: 'netA+longest', run: () => solve(netA, seqA, { schedulingOptions: { criticalDefinition: { mode: 'longestPath' } } }) },
+  { label: 'S2-neg', run: () => solve(s2, s2seq) },
+  { label: 'pin', run: () => solve(pinTasks, pinSeq) },
+  { label: 'ham+near2+fp', run: () => solve(HAM(), HAMSEQ, { schedulingOptions: { nearCriticalThreshold: 2, floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } }), hammocks: ['H'] },
+  { label: 'qnet-hour', run: () => new CPMSolver(qn, qs, H8, [], { schedulingOptions: { nearCriticalThreshold: 0.5 } }).solve() },
+];
+let sweepOk = true;
+for (const s of scen) {
+  const r = s.run();
+  for (const [id, t] of r.tasks) {
+    if (Math.abs((t.interferingFloat ?? NaN) - (t.totalFloat - t.freeFloat)) > 1e-9) { sweepOk = false; diffs.push(`sweep ${s.label}: ${id} intf≠tf−ff`); }
+  }
+  if (r.criticalPaths.length < 1 || JSON.stringify(r.criticalPaths[0]) !== JSON.stringify(r.criticalPath)) { sweepOk = false; diffs.push(`sweep ${s.label}: criticalPaths[0]≠criticalPath`); }
+  for (const h of s.hammocks ?? []) {
+    if (r.floatPathByTask[h] !== undefined) { sweepOk = false; diffs.push(`sweep ${s.label}: hammock ${h} heeft floatPath`); }
+    if (r.nearCriticalTaskIds.includes(h)) { sweepOk = false; diffs.push(`sweep ${s.label}: hammock ${h} near-critical`); }
+    if (r.tasks.get(h)?.isNearCritical === true) { sweepOk = false; diffs.push(`sweep ${s.label}: hammock ${h} isNearCritical`); }
+    if (r.criticalPaths.some(p => p.includes(h))) { sweepOk = false; diffs.push(`sweep ${s.label}: hammock ${h} in kritieke keten`); }
+  }
+}
+eq('171 invariant-sweep I1..I3 groen over alle sweep-netten', sweepOk, true);
+// I4 — 'start'/'finish'-tf identiek over de sweep-netten (bevestigt scope 1b breder dan één net).
+const modeNets: { label: string; m: (mode: 'start' | 'finish') => CPMResult }[] = [
+  { label: 'netA', m: mode => solve(netA, seqA, { schedulingOptions: { totalFloatMode: mode } }) },
+  { label: 'S2', m: mode => solve(s2, s2seq, { schedulingOptions: { totalFloatMode: mode } }) },
+  { label: 'pin', m: mode => solve(pinTasks, pinSeq, { schedulingOptions: { totalFloatMode: mode } }) },
+  { label: 'ham', m: mode => solve(HAM(), HAMSEQ, { schedulingOptions: { totalFloatMode: mode } }) },
+  { label: 'qnet', m: mode => new CPMSolver(qn, qs, H8, [], { schedulingOptions: { totalFloatMode: mode } }).solve() },
+];
+let modeOk = true;
+for (const n of modeNets) if (JSON.stringify(tfMap(n.m('start'))) !== JSON.stringify(tfMap(n.m('finish')))) { modeOk = false; diffs.push(`mode ${n.label}: start≠finish`); }
+eq('172 totalFloatMode start==finish over alle sweep-netten (I4)', modeOk, true);
+
+// ── 22) Harde-pin-idempotentie ook in UUR-modus (scope 3; dag bestond als check 32) ──────────────
+const hourPin = [mkH('A', 960), mkH('B', 480, { constraint: { type: 'MSO', date: '2026-07-07T08:00', hard: true } })];
+const hourPinSeq = [lk('hp', 'A', 'B', 'FINISH_START')];
+const hp1 = new CPMSolver(hourPin, hourPinSeq, H8, [], {}).solve();
+const hp2 = new CPMSolver(hourPin, hourPinSeq, H8, [], {}).solve();
+eq('173 uur harde pin: solve idempotent (zelfde digest)', digest(hp1), digest(hp2));
+eq('174 uur harde pin: B gepind op 07-07T08:00 (logica gebroken)', hp1.tasks.get('B')!.earlyStart, '2026-07-07T08:00');
+eq('175 uur harde pin: B in violatedConstraintTaskIds', hp1.violatedConstraintTaskIds.includes('B'), true);
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  advanced-cpm-check: alle checks groen (${checks})`);
