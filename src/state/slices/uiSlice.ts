@@ -79,6 +79,7 @@ export function createDefaultUI(): UIState {
     showWelcomeDialog: false,
     showTourOverlay: false,
     tourStepIndex: 0,
+    tourSnapshot: null,
   };
 }
 

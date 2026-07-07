@@ -91,6 +91,17 @@ export type BackstageSection =
   | 'settings'
   | 'extensions';
 
+// Fase 2.10 fix-golf (onderdeel 3, item 6): snapshot van de UI-velden die de rondleiding
+// per stap forceert (`tourSteps.ts`'s `prepare()`-lijst) — vastgelegd bij tour-START, teruggezet
+// bij ELKE sluitroute (Sluiten/Overslaan/Escape/auto-skip-naar-buiten-de-lijst), zodat de
+// gebruikersstand van vóór de tour intact terugkomt i.p.v. altijd naar een vaste default.
+export interface TourUiSnapshot {
+  activeRibbonTab: RibbonTab;
+  backstageSection: BackstageSection;
+  showHistogram: boolean;
+  rightPanelCollapsed: boolean;
+}
+
 // --- Fase 2.7 weergaven: één veld-referentie voor filter, groep én sort (§2.1) ---
 export type BuiltinFieldKey =
   | 'name' | 'wbsCode' | 'duration' | 'start' | 'finish'
@@ -254,6 +265,10 @@ export interface UIState {
   showTourOverlay: boolean;
   /** session — huidige stapindex (0-based) van de rondleiding. */
   tourStepIndex: number;
+  /** session — snapshot van de gebruikersstand vóór tour-start (zie `TourUiSnapshot`). `null`
+   *  wanneer er geen tour loopt; overleeft een presentatiemodus-unmount/remount van
+   *  `TourOverlay` (dit staat in de store, niet in component-state) — zie TourOverlay.tsx. */
+  tourSnapshot: TourUiSnapshot | null;
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

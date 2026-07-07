@@ -57,7 +57,11 @@ export interface ShortcutDef {
 /** Golf 1 (F2/Insert/Ctrl+A/Alt+↑/↓): "niet in een dialoog" — deze structuur-acties werken
  *  alleen als de aandacht op de planning zelf ligt, niet terwijl een dialoog/overlay open staat.
  *  Puur redelijke, expliciete keuze (het ontwerp specificeert geen exacte lijst) — analoog aan de
- *  bestaande Escape-sluitlijst in `edit.deselect` hieronder, die ook met de hand is opgesomd. */
+ *  bestaande Escape-sluitlijst in `edit.deselect` hieronder, die ook met de hand is opgesomd.
+ *  Fix-golf (onderdeel 3, item 2): `showTourOverlay`/`showWelcomeDialog` toegevoegd — beide zijn
+ *  net zo goed modale overlays (welkomstdialoog: los dialoogvenster; rondleiding: sinds de
+ *  fix voor doorklik-corruptie een écht modale overlay, zie TourOverlay.tsx) en ontbraken hier
+ *  per abuis, waardoor bv. F2/Insert/Ctrl+A tijdens de rondleiding gewoon doorvuurden. */
 function hasBlockingDialogOpen(): boolean {
   const ui = useAppStore.getState().ui;
   return (
@@ -66,12 +70,22 @@ function hasBlockingDialogOpen(): boolean {
     ui.showNewProjectDialog || ui.showFeedbackDialog || ui.showStructureDialog ||
     ui.showLevelingDialog || ui.showBaselineDialog || ui.showColumnsDialog ||
     ui.showFilterDialog || ui.showLayoutsDialog || ui.showProjectOverview ||
-    ui.presentationMode
+    ui.presentationMode || ui.showTourOverlay || ui.showWelcomeDialog
   );
 }
 
 function hasSelection(): boolean {
   return useAppStore.getState().selectedTaskIds.length > 0;
+}
+
+/** Fix-golf (onderdeel 3, item 2), gebruikt door `view.showShortcuts` hieronder: BEWUST geen
+ *  hergebruik van `hasBlockingDialogOpen()` — die functie retourneert nu óók `true` voor allerlei
+ *  ándere dialogen (TaskDialog, SettingsDialog, …), terwijl Ctrl+/ juist tijdens die dialogen moet
+ *  blijven werken (bestaand, gewenst gedrag — zie de toelichting bij de entry zelf). Deze guard is
+ *  bewust smaller: alléén de rondleiding/welkomstdialoog blokkeren Ctrl+/. */
+function isTourOrWelcomeOpen(): boolean {
+  const ui = useAppStore.getState().ui;
+  return ui.showTourOverlay || ui.showWelcomeDialog;
 }
 
 const documentSwitchShortcuts: ShortcutDef[] = Array.from({ length: 9 }, (_, i) => {
@@ -357,6 +371,10 @@ export const SHORTCUTS: ShortcutDef[] = [
     // dichttoetsen). Geen `hasBlockingDialogOpen()`-guard hier — deze entry heeft er nooit een gehad
     // en moet, net als voorheen, ook vuren terwijl een ándere dialoog open staat; de ShortcutsDialog
     // zelf zit niet in `hasBlockingDialogOpen()`'s lijst, dus die blokkeert het togglen sowieso niet.
+    // Fix-golf (onderdeel 3, item 2): WEL geblokkeerd tijdens de rondleiding/welkomstdialoog — anders
+    // opent Ctrl+/ de overzichtsdialoog bovenop de tour, en sluit een volgende Escape beide lagen
+    // tegelijk (geen enkele van de twee roept `stopPropagation()` op de Escape-keydown aan).
+    when: () => !isTourOrWelcomeOpen(),
     run: (store) => store.setUI({ showShortcutsDialog: !store.ui.showShortcutsDialog }),
   },
 
