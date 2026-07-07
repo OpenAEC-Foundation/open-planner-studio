@@ -201,6 +201,15 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 #### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
 
 ##### UX-verbeteringen (verplaatst uit "Openstaand" op 2026-07-07 — bediening op peil vóór de documentatie)
+- [ ] **Aantekeningen (checklist) per taak (user-verzoek 2026-07-07, aangedragen uit praktijkervaring).**
+      Onder de taak-omschrijving (in `TaskPropertiesPanel`, en meteen ook in de taakdialoog zodra die
+      gelijkgetrokken is — zie item hieronder) een knop "Aantekening toevoegen" die een klein tekstveld
+      toevoegt; je kunt er MEERDERE toevoegen. Elke aantekening heeft een **vinkje** om hem af te vinken
+      (afgehandeld/gedaan), plus een verwijderknop. Datamodel: een `notes?: { id: string; text: string;
+      done: boolean }[]` op `Task` (optioneel ⇒ byte-identiek voor bestaande bestanden); serialiseren in
+      het projectformaat (IFC via een `OPS_TaskNotes`-pset volgens het bestaande pset-patroon; P6/MSPDI:
+      indien niet native uitdrukbaar, weglaten met warn — te bepalen bij implementatie). i18n 14 talen.
+      Overweeg een subtiele indicator op de taakrij/balk dat er (open) aantekeningen zijn.
 - [ ] **Taakdialoog (dubbelklik) gelijktrekken met het eigenschappenpaneel.** Dubbelklik op een
   taak opent `TaskDialog` (`src/components/dialogs/TaskDialog.tsx`), maar die biedt alleen de
   fase-1-velden (naam, WBS, omschrijving, type, mijlpaal-vinkje, start, duur, oudertaak). Alles
