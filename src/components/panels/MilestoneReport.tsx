@@ -1,7 +1,7 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { displayDate, useDisplayDate } from '@/utils/displayDate';
+import { useDisplayDate } from '@/utils/displayDate';
 
 /**
  * Mijlpalen-overzicht (fase 2.4): tabelrapport over alle mijlpalen — soort,
@@ -98,47 +98,4 @@ export function MilestoneReport() {
       </tbody>
     </table>
   );
-}
-
-/** Print-HTML voor het mijlpalen-overzicht (zelfde popup-print-route als de Gantt-afdruk). */
-export function useMilestoneReportPrint(projectName: string): () => void {
-  const { t } = useTranslation('report');
-  const rows = useMilestoneRows();
-  const notation = useAppStore(s => s.ui.dateNotation);
-
-  return useCallback(() => {
-    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const headers = (['wbs', 'name', 'kind', 'date', 'guardDate', 'float', 'mandatory', 'status'] as const)
-      .map(h => `<th>${esc(t(`milestoneReport.${h}`))}</th>`).join('');
-    const body = rows.map(r => `<tr>
-      <td>${esc(r.wbs)}</td>
-      <td>${r.mandatory ? '◆ ' : ''}${esc(r.name)}</td>
-      <td>${esc(t(`milestoneReport.kind_${r.kind}`))}</td>
-      <td>${esc(displayDate(r.date, notation))}</td>
-      <td>${esc(displayDate(r.guardDate, notation) || '—')}</td>
-      <td style="text-align:right;${r.float !== undefined && r.float < 0 ? 'color:#DC2626;font-weight:600;' : ''}">${r.float === undefined ? '—' : r.float}</td>
-      <td>${r.mandatory ? esc(t('milestoneReport.yes')) : ''}</td>
-      <td style="color:${STATUS_COLOR[r.status]};font-weight:600;">${esc(t(`milestoneReport.status_${r.status}`))}</td>
-    </tr>`).join('');
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html>
-<html><head><title>${esc(projectName)} — ${esc(t('milestoneReport.title'))}</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 16mm; color: #111; }
-  h1 { font-size: 16px; margin: 0 0 2px; }
-  p.sub { font-size: 10px; color: #666; margin: 0 0 12px; }
-  table { border-collapse: collapse; width: 100%; font-size: 10px; }
-  th { text-align: left; border-bottom: 2px solid #333; padding: 4px 6px; }
-  td { border-bottom: 1px solid #ddd; padding: 4px 6px; }
-  @page { size: A4 landscape; margin: 10mm; }
-</style>
-</head><body>
-<h1>${esc(t('milestoneReport.title'))}</h1>
-<p class="sub">${esc(projectName)} — ${esc(displayDate(new Date().toISOString().slice(0, 10), notation))}</p>
-<table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>
-<script>window.onload=function(){window.print();}</script>
-</body></html>`);
-    w.document.close();
-  }, [rows, t, projectName, notation]);
 }

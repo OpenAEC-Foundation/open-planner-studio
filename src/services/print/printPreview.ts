@@ -156,6 +156,75 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 /**
+ * Kort `text` in met een ellipsis ('…') zodat het binnen `maxWidth` (in dezelfde px-eenheid als
+ * `ctx.measureText`, d.w.z. de logische/CSS-px van de huidige transform) past. Verwacht dat
+ * `ctx.font` al is ingesteld. Geeft '' terug als er geen ruimte is. Wordt gebruikt om tekst nooit
+ * over een kolomrand/canvasrand te laten lopen (klachten 4 en 7).
+ */
+function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (maxWidth <= 0) return '';
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  const ellipsis = '…';
+  // Binaire zoektocht naar de langste prefix die met ellipsis nog past.
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (ctx.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  if (lo === 0) return ctx.measureText(ellipsis).width <= maxWidth ? ellipsis : '';
+  return text.slice(0, lo) + ellipsis;
+}
+
+/**
+ * Teken een taaknaam-label bij een staaf (klachten 4b + 7). Probeert rechts van de staaf; loopt het
+ * daar voorbij de canvasrand, dan wordt het links van de staaf getekend (rechts-uitgelijnd,
+ * eindigend net vóór de staaf). Past het ook links niet, dan wordt het afgekort met '…' aan de kant
+ * met de meeste ruimte. Zo valt een label nooit voorbij `canvasWidth` en overlapt het minder met
+ * naburige staven.
+ *
+ * @param barRightX  x van de rechterrand van de staaf (incl. eventuele speling-indicator)
+ * @param barLeftX   x van de linkerrand van de staaf
+ * @param y          baseline-y voor de tekst (textBaseline blijft 'alphabetic')
+ */
+function drawBarLabel(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  barRightX: number,
+  barLeftX: number,
+  y: number,
+  canvasWidth: number,
+  color: string,
+  font: string,
+) {
+  const pad = 4;
+  const rightMargin = 10;
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textBaseline = 'alphabetic';
+  const rightStart = barRightX + pad;
+  const rightAvail = canvasWidth - rightMargin - rightStart;
+  const leftEnd = barLeftX - pad;
+  const leftAvail = leftEnd - TABLE_WIDTH; // chart begint bij TABLE_WIDTH
+  const textWidth = ctx.measureText(name).width;
+
+  if (textWidth <= rightAvail) {
+    ctx.textAlign = 'left';
+    ctx.fillText(name, rightStart, y);
+  } else if (textWidth <= leftAvail) {
+    ctx.textAlign = 'right';
+    ctx.fillText(name, leftEnd, y);
+  } else if (rightAvail >= leftAvail) {
+    ctx.textAlign = 'left';
+    ctx.fillText(fitText(ctx, name, rightAvail), rightStart, y);
+  } else {
+    ctx.textAlign = 'right';
+    ctx.fillText(fitText(ctx, name, leftAvail), leftEnd, y);
+  }
+}
+
+/**
  * Render the print preview onto a canvas. Returns the logical (CSS) dimensions.
  *
  * `renderScale` overrides the raster-vs-logical multiplier (`canvas.width = logicalWidth *
@@ -172,7 +241,19 @@ export function renderPrintCanvas(
   projectName: string,
   options: PrintOptions,
   renderScale?: number,
-): { width: number; height: number } {
+): {
+  width: number;
+  height: number;
+  /**
+   * Breedte van de linker taaktabel-zone (de "frozen" naam-/info-kolommen links van het
+   * Gantt-gebied), in LOGISCHE/CSS-px — dezelfde eenheid als `width`/`height` hierboven en als de
+   * paginamaat die de PDF-laag (`miniPdf.canvasToPdfBytes`) uit `canvas.style.width` afleidt. Bewust
+   * NIET in raster/device-px (`canvas.width` = logisch × devicePixelRatio): een andere golf gebruikt
+   * dit om de tabelkolom per pagina te herhalen en werkt daarbij in hetzelfde logische coördinaten-
+   * stelsel als de rest van het return-object; de raster-schaal komt daar apart bij.
+   */
+  tableWidth: number;
+} {
   // Flatten and compute depth
   const flatTasks: PrintTask[] = [];
   const depthMap = new Map<string, number>();
@@ -211,7 +292,7 @@ export function renderPrintCanvas(
     ctx.font = `14px ${FONT_FAMILY}`;
     ctx.textAlign = 'center';
     ctx.fillText(options.labels?.noTasks ?? 'No tasks to display', 300, 100);
-    return { width: 600, height: 200 };
+    return { width: 600, height: 200, tableWidth: TABLE_WIDTH };
   }
 
   // Compute date range
@@ -396,12 +477,9 @@ export function renderPrintCanvas(
       ctx.closePath();
       ctx.fill();
 
-      // Task name label to the right
+      // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
-        ctx.fillStyle = PRINT_COLORS.text;
-        ctx.font = `9px ${FONT_FAMILY}`;
-        ctx.textAlign = 'left';
-        ctx.fillText(task.name, x + size + 4, cy + 3);
+        drawBarLabel(ctx, task.name, x + size, x - size, cy + 3, canvasWidth, PRINT_COLORS.text, `9px ${FONT_FAMILY}`);
       }
     } else if (task.childIds.length > 0) {
       // Summary bracket bar
@@ -432,12 +510,9 @@ export function renderPrintCanvas(
       ctx.closePath();
       ctx.fill();
 
-      // Task name label to the right
+      // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
-        ctx.fillStyle = PRINT_COLORS.text;
-        ctx.font = `bold 9px ${FONT_FAMILY}`;
-        ctx.textAlign = 'left';
-        ctx.fillText(task.name, x2 + 4, y + barHeight / 2 + 3);
+        drawBarLabel(ctx, task.name, x1 + width, x1, y + barHeight / 2 + 3, canvasWidth, PRINT_COLORS.text, `bold 9px ${FONT_FAMILY}`);
       }
     } else {
       // Normal task bar
@@ -470,15 +545,11 @@ export function renderPrintCanvas(
         ctx.fill();
       }
 
-      // Task name label to the right of the bar
+      // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
-        const labelX = x2 + (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical
-          ? task.time.totalFloat * zoom + 4
-          : 4);
-        ctx.fillStyle = PRINT_COLORS.text;
-        ctx.font = `9px ${FONT_FAMILY}`;
-        ctx.textAlign = 'left';
-        ctx.fillText(task.name, labelX, y + barHeight / 2 + 3);
+        const hasFloat = options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical;
+        const barRightX = x2 + (hasFloat ? task.time.totalFloat * zoom : 0);
+        drawBarLabel(ctx, task.name, barRightX, x1, y + barHeight / 2 + 3, canvasWidth, PRINT_COLORS.text, `9px ${FONT_FAMILY}`);
       }
     }
   }
@@ -492,7 +563,7 @@ export function renderPrintCanvas(
   // ---- FOOTER ----
   drawFooter(ctx, canvasWidth, canvasHeight, projectName, options);
 
-  return { width: canvasWidth, height: canvasHeight };
+  return { width: canvasWidth, height: canvasHeight, tableWidth: TABLE_WIDTH };
 }
 
 
@@ -514,17 +585,29 @@ function drawProjectHeader(
   ctx.lineWidth = 1;
   ctx.strokeRect(0.5, 0.5, canvasWidth - 1, hh - 1);
 
-  // Project name (large, bold)
+  // Right-aligned branding — eerst tekenen + meten, zodat we de projectnaam ernaast kunnen inkorten
+  // en overlap voorkomen (klacht 7).
+  const brandText = 'Open Planner Studio';
+  ctx.fillStyle = PRINT_COLORS.textSecondary;
+  ctx.font = `8px ${FONT_FAMILY}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  ctx.fillText(brandText, canvasWidth - 10, 16);
+  const brandWidth = ctx.measureText(brandText).width;
+
+  // Project name (large, bold) — inkorten zodat hij niet tot in de branding loopt
   ctx.fillStyle = PRINT_COLORS.text;
   ctx.font = `bold 14px ${FONT_FAMILY}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillText(projectName, 10, 16);
+  const nameMaxW = (canvasWidth - 10 - brandWidth - 12) - 10;
+  ctx.fillText(fitText(ctx, projectName, nameMaxW), 10, 16);
 
   // Row 2: Company | Author | Print date | Version
   ctx.font = `9px ${FONT_FAMILY}`;
   ctx.fillStyle = PRINT_COLORS.textSecondary;
   const row2Y = 34;
+  const rowMaxW = canvasWidth - 20; // binnen de paginabreedte houden (klacht 7)
 
   const companyLabel = options.companyName || '';
   const authorLabel = options.projectAuthor || '';
@@ -536,7 +619,7 @@ function drawProjectHeader(
   if (authorLabel) row2Text += (row2Text ? '  |  ' : '') + authorLabel;
   row2Text += (row2Text ? '  |  ' : '') + `${options.labels?.printed ?? 'Printed:'} ${printDate}`;
 
-  ctx.fillText(row2Text, 10, row2Y);
+  ctx.fillText(fitText(ctx, row2Text, rowMaxW), 10, row2Y);
 
   // Row 3: Project dates and duration
   const row3Y = 48;
@@ -556,13 +639,8 @@ function drawProjectHeader(
     row3Text += `  |  Duur: ${dur}d`;
   }
 
-  ctx.fillText(row3Text, 10, row3Y);
+  ctx.fillText(fitText(ctx, row3Text, rowMaxW), 10, row3Y);
 
-  // Right-aligned branding
-  ctx.fillStyle = PRINT_COLORS.textSecondary;
-  ctx.font = `8px ${FONT_FAMILY}`;
-  ctx.textAlign = 'right';
-  ctx.fillText('Open Planner Studio', canvasWidth - 10, 16);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 }
@@ -607,6 +685,9 @@ function drawTimelineHeader(
 
   let lastMonth = -1;
   let lastWeek = -1;
+  // Rechterrand (x) van het laatst getekende maand-/weeklabel, om overlap te vermijden (klacht 7).
+  let lastMonthLabelRight = -Infinity;
+  let lastWeekLabelRight = -Infinity;
 
   for (let i = 0; i < totalDays; i++) {
     const date = addCalendarDays(minDate, i);
@@ -630,11 +711,17 @@ function drawTimelineHeader(
       ctx.lineTo(x, top + monthRowH);
       ctx.stroke();
 
-      ctx.fillStyle = PRINT_COLORS.text;
+      // Alleen het label tekenen als het niet over het vorige maandlabel heen loopt (klacht 7);
+      // liever een gat dan over-elkaar-lopende tekst.
       ctx.font = `bold 10px ${FONT_FAMILY}`;
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'left';
-      ctx.fillText(label, x + 4, top + monthRowH / 2);
+      const monthLabelStart = x + 4;
+      if (monthLabelStart >= lastMonthLabelRight + 6) {
+        ctx.fillStyle = PRINT_COLORS.text;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, monthLabelStart, top + monthRowH / 2);
+        lastMonthLabelRight = monthLabelStart + ctx.measureText(label).width;
+      }
     }
 
     // Week headers
@@ -649,11 +736,17 @@ function drawTimelineHeader(
       ctx.lineTo(x, top + h);
       ctx.stroke();
 
-      ctx.fillStyle = PRINT_COLORS.textSecondary;
+      // Alleen tekenen als er ruimte is t.o.v. het vorige weeklabel (klacht 7).
+      const weekLabel = `W${weekNum}`;
+      const weekLabelStart = x + 2;
       ctx.font = `9px ${FONT_FAMILY}`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`W${weekNum}`, x + 2, top + monthRowH + weekRowH / 2);
+      if (weekLabelStart >= lastWeekLabelRight + 4) {
+        ctx.fillStyle = PRINT_COLORS.textSecondary;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(weekLabel, weekLabelStart, top + monthRowH + weekRowH / 2);
+        lastWeekLabelRight = weekLabelStart + ctx.measureText(weekLabel).width;
+      }
     }
 
     // Day numbers if zoom is large enough
@@ -769,15 +862,13 @@ function drawTaskTable(
     ctx.textAlign = 'left';
     ctx.fillText(task.wbsCode || '', cols.wbs.x + 4, textY);
 
-    // Name with indentation and clipping
+    // Name with indentation — afkorten met ellipsis i.p.v. hard clippen (klacht 4a)
     ctx.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
     ctx.font = isSummary ? `bold 9px ${FONT_FAMILY}` : `9px ${FONT_FAMILY}`;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(cols.name.x, y, cols.name.w, ROW_HEIGHT);
-    ctx.clip();
-    ctx.fillText(task.name, cols.name.x + 4 + indent, textY);
-    ctx.restore();
+    ctx.textAlign = 'left';
+    const nameX = cols.name.x + 4 + indent;
+    const nameAvail = cols.name.x + cols.name.w - 2 - nameX; // kleine padding vóór de kolomrand
+    ctx.fillText(fitText(ctx, task.name, nameAvail), nameX, textY);
 
     // Duration
     ctx.fillStyle = PRINT_COLORS.textSecondary;
@@ -910,92 +1001,111 @@ function drawFooter(
 
   const midY = footerTop + FOOTER_HEIGHT / 2;
 
-  // Left: Project name + print date
+  // Left: Project name + print date (breedtes meten voor de dynamische legenda-layout)
   ctx.fillStyle = PRINT_COLORS.text;
   ctx.font = `bold 10px ${FONT_FAMILY}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(projectName, 10, midY - 8);
+  const leftNameW = ctx.measureText(projectName).width;
 
   ctx.fillStyle = PRINT_COLORS.textSecondary;
   ctx.font = `8px ${FONT_FAMILY}`;
   const printLocale = options.locale ?? 'nl';
   const dateStr = new Date().toLocaleDateString(printLocale, { day: '2-digit', month: 'long', year: 'numeric' });
-  ctx.fillText(`${options.labels?.printed ?? 'Afgedrukt:'} ${dateStr}`, 10, midY + 8);
+  const dateText = `${options.labels?.printed ?? 'Afgedrukt:'} ${dateStr}`;
+  ctx.fillText(dateText, 10, midY + 8);
+  const leftBlockRight = 10 + Math.max(leftNameW, ctx.measureText(dateText).width);
 
-  // Center: Legend
-  if (options.showLegend) {
-    const lg = options.labels?.legend;
-    const legendStartX = canvasWidth / 2 - 200;
-    let lx = legendStartX;
-    ctx.font = `8px ${FONT_FAMILY}`;
-    ctx.textBaseline = 'middle';
-
-    // Critical path
-    if (options.showCritical) {
-      ctx.fillStyle = PRINT_COLORS.critical;
-      roundRect(ctx, lx, midY - 5, 16, 10, 2);
-      ctx.fill();
-      ctx.fillStyle = PRINT_COLORS.textSecondary;
-      ctx.fillText(lg?.criticalPath ?? 'Kritiek pad', lx + 20, midY);
-      lx += 90;
-    }
-
-    // Normal
-    ctx.fillStyle = PRINT_COLORS.normal;
-    roundRect(ctx, lx, midY - 5, 16, 10, 2);
-    ctx.fill();
-    ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.fillText(lg?.normal ?? 'Normaal', lx + 20, midY);
-    lx += 70;
-
-    // Milestone
-    ctx.fillStyle = PRINT_COLORS.milestone;
-    const mx = lx + 5;
-    ctx.beginPath();
-    ctx.moveTo(mx, midY - 5);
-    ctx.lineTo(mx + 5, midY);
-    ctx.lineTo(mx, midY + 5);
-    ctx.lineTo(mx - 5, midY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.fillText(lg?.milestone ?? 'Mijlpaal', lx + 14, midY);
-    lx += 70;
-
-    // Summary
-    ctx.fillStyle = PRINT_COLORS.summary;
-    ctx.fillRect(lx, midY - 2, 16, 4);
-    // Small triangles
-    ctx.beginPath();
-    ctx.moveTo(lx, midY - 2);
-    ctx.lineTo(lx, midY + 5);
-    ctx.lineTo(lx + 4, midY + 2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.fillText(lg?.summary ?? 'Samenvatting', lx + 20, midY);
-    lx += 90;
-
-    // Float
-    if (options.showFloat) {
-      ctx.fillStyle = PRINT_COLORS.float + '40';
-      ctx.fillRect(lx, midY - 4, 16, 8);
-      ctx.fillStyle = PRINT_COLORS.textSecondary;
-      ctx.fillText(lg?.float ?? 'Speling', lx + 20, midY);
-    }
-  }
-
-  // Right: Page number + branding
-  ctx.fillStyle = PRINT_COLORS.textSecondary;
-  ctx.font = `9px ${FONT_FAMILY}`;
-  ctx.textAlign = 'right';
+  // Right: Page number + branding (breedtes meten, dan tekenen)
   const pageLabel = options.labels?.page ?? 'Pagina';
   const ofLabel = options.labels?.of ?? 'van';
-  ctx.fillText(`${pageLabel} 1 ${ofLabel} 1`, canvasWidth - 10, midY - 6);
-
+  const pageText = `${pageLabel} 1 ${ofLabel} 1`;
+  const brandText = 'Open Planner Studio';
+  ctx.font = `9px ${FONT_FAMILY}`;
+  const pageW = ctx.measureText(pageText).width;
   ctx.font = `8px ${FONT_FAMILY}`;
-  ctx.fillText('Open Planner Studio', canvasWidth - 10, midY + 8);
+  const brandW = ctx.measureText(brandText).width;
+  const rightBlockLeft = canvasWidth - 10 - Math.max(pageW, brandW);
+
+  ctx.fillStyle = PRINT_COLORS.textSecondary;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.font = `9px ${FONT_FAMILY}`;
+  ctx.fillText(pageText, canvasWidth - 10, midY - 6);
+  ctx.font = `8px ${FONT_FAMILY}`;
+  ctx.fillText(brandText, canvasWidth - 10, midY + 8);
+
+  // Center: Legend — dynamisch tussen het linker- en rechterblok, items weglaten bij te weinig
+  // ruimte i.p.v. over de blokken heen tekenen (klacht 7).
+  if (options.showLegend) {
+    const availLeft = leftBlockRight + 16;
+    const availRight = rightBlockLeft - 16;
+    const availSpan = availRight - availLeft;
+    if (availSpan > 20) {
+      const lg = options.labels?.legend;
+      const swatchW = 16;
+      const gap = 16;
+      type LegendItem = { label: string; draw: (x: number) => void };
+      const items: LegendItem[] = [];
+
+      if (options.showCritical) {
+        items.push({ label: lg?.criticalPath ?? 'Kritiek pad', draw: (x) => {
+          ctx.fillStyle = PRINT_COLORS.critical;
+          roundRect(ctx, x, midY - 5, 16, 10, 2);
+          ctx.fill();
+        } });
+      }
+      items.push({ label: lg?.normal ?? 'Normaal', draw: (x) => {
+        ctx.fillStyle = PRINT_COLORS.normal;
+        roundRect(ctx, x, midY - 5, 16, 10, 2);
+        ctx.fill();
+      } });
+      items.push({ label: lg?.milestone ?? 'Mijlpaal', draw: (x) => {
+        ctx.fillStyle = PRINT_COLORS.milestone;
+        const mx = x + 8;
+        ctx.beginPath();
+        ctx.moveTo(mx, midY - 5);
+        ctx.lineTo(mx + 5, midY);
+        ctx.lineTo(mx, midY + 5);
+        ctx.lineTo(mx - 5, midY);
+        ctx.closePath();
+        ctx.fill();
+      } });
+      items.push({ label: lg?.summary ?? 'Samenvatting', draw: (x) => {
+        ctx.fillStyle = PRINT_COLORS.summary;
+        ctx.fillRect(x, midY - 2, 16, 4);
+        ctx.beginPath();
+        ctx.moveTo(x, midY - 2);
+        ctx.lineTo(x, midY + 5);
+        ctx.lineTo(x + 4, midY + 2);
+        ctx.closePath();
+        ctx.fill();
+      } });
+      if (options.showFloat) {
+        items.push({ label: lg?.float ?? 'Speling', draw: (x) => {
+          ctx.fillStyle = PRINT_COLORS.float + '40';
+          ctx.fillRect(x, midY - 4, 16, 8);
+        } });
+      }
+
+      ctx.font = `8px ${FONT_FAMILY}`;
+      ctx.textBaseline = 'middle';
+      const widths = items.map(it => swatchW + 4 + ctx.measureText(it.label).width);
+      const measure = (n: number) => widths.slice(0, n).reduce((a, b) => a + b, 0) + gap * Math.max(0, n - 1);
+      let visible = items.length;
+      while (visible > 0 && measure(visible) > availSpan) visible--;
+
+      let lx = availLeft + Math.max(0, (availSpan - measure(visible)) / 2);
+      for (let k = 0; k < visible; k++) {
+        items[k].draw(lx);
+        ctx.fillStyle = PRINT_COLORS.textSecondary;
+        ctx.textAlign = 'left';
+        ctx.fillText(items[k].label, lx + swatchW + 4, midY);
+        lx += widths[k] + gap;
+      }
+    }
+  }
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';

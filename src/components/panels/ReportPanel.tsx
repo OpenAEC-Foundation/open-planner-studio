@@ -4,11 +4,24 @@ import { useTranslation } from 'react-i18next';
 import { renderPrintCanvas, PrintOptions } from '@/services/print/printPreview';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
-import { canvasToPdfBytes, computeHighResScale } from '@/utils/miniPdf';
+import { computeHighResScale } from '@/utils/miniPdf';
+import { paginateCanvasToPdfBytes, paginateCanvasToTiles } from '@/services/print/paginate';
 import { Select } from '@/components/common/Select';
 import { isTauri } from '@/utils/platform';
-import { MilestoneReport, useMilestoneRows, useMilestoneReportPrint } from './MilestoneReport';
-import { VarianceReport, useVarianceResult, useVarianceReportPrint } from './VarianceReport';
+import { MilestoneReport, useMilestoneRows } from './MilestoneReport';
+import { VarianceReport, useVarianceResult } from './VarianceReport';
+
+/** Render-schaal voor de gepagineerde preview (goedkoper dan de export; wordt toch verkleind getoond). */
+const PREVIEW_RENDER_SCALE = 2;
+/** Maximaal aantal papiervellen dat de preview toont (rest verwijst naar de export). */
+const PREVIEW_MAX_PAGES = 30;
+
+/** Eén papiervel in de preview: PNG-dataURL + echte puntmaat (voor de beeldverhouding). */
+interface PreviewPage {
+  dataUrl: string;
+  wPt: number;
+  hPt: number;
+}
 
 export function ReportPanel() {
   const { t } = useTranslation('report');
@@ -34,7 +47,12 @@ export function ReportPanel() {
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [companyName, setCompanyName] = useState(project.company || '');
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const milestoneRef = useRef<HTMLDivElement>(null);
+  const varianceRef = useRef<HTMLDivElement>(null);
+
+  // Gepagineerde Gantt-preview: dezelfde tegels als de PDF-export (gedeelde pagineer-engine).
+  const [previewPages, setPreviewPages] = useState<PreviewPage[]>([]);
+  const [previewTotalPages, setPreviewTotalPages] = useState(0);
 
   const locale = i18n.language;
   const localizedMonths = getLocalizedMonths(locale);
@@ -78,58 +96,43 @@ export function ReportPanel() {
     dateNotation,
   };
 
-  // Re-render the canvas whenever data or options change
+  // Bereken de Gantt-preview als gepagineerde papiervellen — via dezelfde pagineer-engine als de
+  // PDF-export (paginateCanvasToTiles), zodat de preview WYSIWYG-identiek is aan de export.
   useEffect(() => {
-    if (reportType !== 'gantt') return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    renderPrintCanvas(canvas, tasks, sequences, calendar, projectName, options);
+    if (reportType !== 'gantt') {
+      setPreviewPages([]);
+      setPreviewTotalPages(0);
+      return;
+    }
+    const offscreen = document.createElement('canvas');
+    // Eerste render (schaal 1) → logische maten + naam-kolombreedte; tweede render → preview-raster.
+    const { width: logicalWidth, height: logicalHeight, tableWidth } = renderPrintCanvas(
+      offscreen, tasks, sequences, calendar, projectName, options, 1,
+    );
+    renderPrintCanvas(offscreen, tasks, sequences, calendar, projectName, options, PREVIEW_RENDER_SCALE);
+    const tiles = paginateCanvasToTiles(offscreen, {
+      paperSize: paperSize.toLowerCase() as 'a4' | 'a3' | 'a1',
+      orientation,
+      mode: autoFit ? 'fit-width' : 'actual',
+      logicalWidth,
+      logicalHeight,
+      frozenColumnWidthPx: tableWidth,
+      supersample: 1, // preview: goedkoper; wordt toch verkleind weergegeven
+    });
+    const shown = tiles.pages.slice(0, PREVIEW_MAX_PAGES);
+    setPreviewPages(shown.map(page => ({
+      dataUrl: page.toDataURL('image/png'),
+      wPt: tiles.pageWidthPt,
+      hPt: tiles.pageHeightPt,
+    })));
+    setPreviewTotalPages(tiles.pages.length);
   }, [reportType, tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation, companyName, locale, dateNotation]);
 
   const milestoneRows = useMilestoneRows();
-  const printMilestoneReport = useMilestoneReportPrint(projectName);
   const varianceResult = useVarianceResult();
-  const printVarianceReport = useVarianceReportPrint(projectName);
 
-  const handlePrint = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dataUrl = canvas.toDataURL('image/png');
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html>
-<html><head><title>${projectName}</title>
-<style>
-  * { margin: 0; padding: 0; }
-  body { display: flex; justify-content: center; }
-  img { max-width: 100%; height: auto; }
-  @page { size: ${paperSize} ${orientation}; margin: 8mm; }
-</style>
-</head><body>
-<img src="${dataUrl}" />
-<script>window.onload=function(){window.print();}</script>
-</body></html>`);
-    printWindow.document.close();
-  }, [projectName, orientation, paperSize]);
-
-  const handleExportPDF = useCallback(async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    // Render offscreen at a fixed high-res scale for the export — independent of the on-screen
-    // preview canvas (which uses window.devicePixelRatio, often just 1x) so the embedded image
-    // stays sharp regardless of the exporting user's screen. See computeHighResScale for the
-    // DPI-target/memory-cap trade-off.
-    const exportCanvas = document.createElement('canvas');
-    const { width: logicalWidth, height: logicalHeight } = renderPrintCanvas(
-      exportCanvas, tasks, sequences, calendar, projectName, options, 1,
-    );
-    const exportScale = computeHighResScale(logicalWidth, logicalHeight);
-    renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, exportScale);
-
-    const pdfBytes = canvasToPdfBytes(exportCanvas, 0.95);
-    const defaultName = `${projectName || 'project'}-planning.pdf`;
-
+  /** Gedeelde PDF-schrijver: Tauri → save-dialoog + writeFile, web → blob-download. */
+  const writePdf = useCallback(async (pdfBytes: Uint8Array, defaultName: string) => {
     if (isTauri()) {
       const { save } = await import('@tauri-apps/plugin-dialog');
       const { writeFile } = await import('@tauri-apps/plugin-fs');
@@ -141,7 +144,7 @@ export function ReportPanel() {
       const savedPath = ensureExtension(picked, 'pdf');
       await writeFile(savedPath, pdfBytes);
     } else {
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = defaultName;
@@ -149,7 +152,69 @@ export function ReportPanel() {
       link.click();
       URL.revokeObjectURL(url);
     }
-  }, [projectName, tasks, sequences, calendar, options]);
+  }, []);
+
+  const handleExportPDF = useCallback(async () => {
+    const lowerPaper = paperSize.toLowerCase() as 'a4' | 'a3' | 'a1';
+
+    if (reportType === 'gantt') {
+      // Render offscreen at a fixed high-res scale for the export — independent of the on-screen
+      // preview canvas (which uses window.devicePixelRatio, often just 1x) so the embedded image
+      // stays sharp regardless of the exporting user's screen. First render (scale 1) yields the
+      // LOGICAL dimensions + naam-kolombreedte; the second render produces the high-res raster.
+      const exportCanvas = document.createElement('canvas');
+      const { width: logicalWidth, height: logicalHeight, tableWidth } = renderPrintCanvas(
+        exportCanvas, tasks, sequences, calendar, projectName, options, 1,
+      );
+      const exportScale = computeHighResScale(logicalWidth, logicalHeight);
+      renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, exportScale);
+
+      // Tegel de volledige planning over meerdere pagina's (fit-width → 1 kolom, actual → tegelen
+      // met herhaalde naam-kolom). Alle tegel-wiskunde in logische px; exportCanvas is de high-res bron.
+      const pdfBytes = paginateCanvasToPdfBytes(exportCanvas, {
+        paperSize: lowerPaper,
+        orientation,
+        mode: autoFit ? 'fit-width' : 'actual',
+        logicalWidth,
+        logicalHeight,
+        frozenColumnWidthPx: tableWidth,
+      });
+      await writePdf(pdfBytes, `${projectName || 'project'}-planning.pdf`);
+      return;
+    }
+
+    // Mijlpalen / afwijkingen: DOM → canvas via modern-screenshot, dan pagineren (fit-width).
+    const node = reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
+    if (!node) return;
+
+    // domToCanvas met scale=s levert een canvas van node.offsetWidth*s × node.offsetHeight*s device-px;
+    // de LOGISCHE maat blijft node.offsetWidth/offsetHeight, dus srcScale = canvas.width/logicalWidth = s.
+    const pixelRatio = 2;
+    const { domToCanvas } = await import('modern-screenshot');
+    // Een PDF is een wit-papier-artefact. De rapporttabellen kleuren hun tekst via de thema-
+    // CSS-variabelen; in een donker thema is dat lichte tekst, die op de geforceerde witte
+    // achtergrond onleesbaar wordt. Forceer daarom kort het lichte thema tijdens de capture
+    // (zodat tekst donker-op-wit uitvalt) en herstel daarna het thema van de gebruiker.
+    const rootEl = document.documentElement;
+    const prevTheme = rootEl.getAttribute('data-theme');
+    rootEl.setAttribute('data-theme', 'light');
+    const shot = await domToCanvas(node, { scale: pixelRatio, backgroundColor: '#ffffff' })
+      .finally(() => {
+        if (prevTheme !== null) rootEl.setAttribute('data-theme', prevTheme);
+        else rootEl.removeAttribute('data-theme');
+      });
+
+    const pdfBytes = paginateCanvasToPdfBytes(shot, {
+      paperSize: lowerPaper,
+      orientation,
+      mode: 'fit-width',
+      logicalWidth: node.offsetWidth,
+      logicalHeight: node.offsetHeight,
+      frozenColumnWidthPx: 0,
+    });
+    const suffix = reportType === 'milestones' ? 'mijlpalen' : 'afwijkingen';
+    await writePdf(pdfBytes, `${projectName || 'project'}-${suffix}.pdf`);
+  }, [reportType, projectName, tasks, sequences, calendar, options, paperSize, orientation, autoFit, writePdf]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;
@@ -326,37 +391,49 @@ export function ReportPanel() {
         </div>
         )}
 
-        {/* Action buttons */}
+        {/* Action buttons — alle rapporttypes exporteren naar PDF (geen uitprinten meer). */}
         <div className="flex flex-col gap-2">
           <button
-            onClick={reportType === 'gantt' ? handlePrint : reportType === 'milestones' ? printMilestoneReport : printVarianceReport}
+            onClick={handleExportPDF}
             className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-xs font-medium"
             style={{ boxShadow: 'var(--shadow-glow)' }}
           >
-            {t('print')}
+            {t('exportPDF', { defaultValue: 'Exporteer PDF' })}
           </button>
-          {reportType === 'gantt' && (
-            <button
-              onClick={handleExportPDF}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium"
-            >
-              {t('exportPDF', { defaultValue: 'Exporteer PDF' })}
-            </button>
-          )}
         </div>
       </div>
 
       {/* Right: Live preview */}
       <div className="flex-1 overflow-auto p-4" style={{ background: 'var(--theme-bg)' }}>
         {reportType === 'gantt' ? (
-          <div
-            className="inline-block bg-white"
-            style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}
-          >
-            <canvas ref={canvasRef} />
+          <div className="flex flex-col items-center gap-4">
+            {previewPages.map((page, i) => (
+              <div
+                key={i}
+                className="bg-white"
+                style={{
+                  width: 'min(100%, 900px)',
+                  aspectRatio: `${page.wPt} / ${page.hPt}`,
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-card)',
+                  overflow: 'hidden',
+                }}
+              >
+                <img src={page.dataUrl} alt="" style={{ display: 'block', width: '100%', height: '100%' }} />
+              </div>
+            ))}
+            {previewTotalPages > previewPages.length && (
+              <div className="text-xs text-text-secondary text-center py-2">
+                {t('previewPageLimit', {
+                  defaultValue: '… en nog {{n}} pagina(\'s) — exporteer voor het volledige document',
+                  n: previewTotalPages - previewPages.length,
+                })}
+              </div>
+            )}
           </div>
         ) : reportType === 'milestones' ? (
           <div
+            ref={milestoneRef}
             className="bg-surface p-4"
             style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960 }}
           >
@@ -365,6 +442,7 @@ export function ReportPanel() {
           </div>
         ) : (
           <div
+            ref={varianceRef}
             className="bg-surface p-4"
             style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100 }}
           >

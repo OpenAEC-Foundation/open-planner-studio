@@ -1,9 +1,9 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeVariance, type VarianceResult, type VarianceStatus } from '@/engine/variance';
-import { displayDate, useDisplayDate } from '@/utils/displayDate';
+import { useDisplayDate } from '@/utils/displayDate';
 
 /**
  * Variance-rapport (fase 2.6, §7): vergelijkt de huidige (CPM-)datums met de actieve baseline.
@@ -87,53 +87,4 @@ export function VarianceReport() {
       </tbody>
     </table>
   );
-}
-
-/** Print-HTML voor het variance-rapport (zelfde popup-print-route als het mijlpalen-overzicht). */
-export function useVarianceReportPrint(projectName: string): () => void {
-  const { t } = useTranslation('report');
-  const { rows, projectEndDelta } = useVarianceResult();
-  const notation = useAppStore(s => s.ui.dateNotation);
-
-  return useCallback(() => {
-    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const fd = (iso: string | undefined) => displayDate(iso, notation) || '—';
-    const headers = COLUMNS
-      .map(h => `<th>${esc(h === 'wbs' ? t('milestoneReport.wbs') : h === 'name' ? t('milestoneReport.name') : t(`variance.${h}`))}</th>`).join('');
-    const body = rows.map(r => `<tr>
-      <td>${esc(r.wbs)}</td>
-      <td>${esc(r.name)}</td>
-      <td>${esc(fd(r.baselineStart))}</td>
-      <td>${esc(fd(r.baselineFinish))}</td>
-      <td>${esc(fd(r.currentStart))}</td>
-      <td>${esc(fd(r.currentFinish))}</td>
-      <td style="text-align:right;${r.deltaStart !== undefined && r.deltaStart > 0 ? 'color:#DC2626;font-weight:600;' : ''}">${esc(fmtDelta(r.deltaStart))}</td>
-      <td style="text-align:right;${r.deltaFinish !== undefined && r.deltaFinish > 0 ? 'color:#DC2626;font-weight:600;' : ''}">${esc(fmtDelta(r.deltaFinish))}</td>
-      <td style="color:${STATUS_COLOR[r.status]};font-weight:600;">${esc(t(`variance.status_${r.status}`))}</td>
-    </tr>`).join('');
-    const summary = projectEndDelta !== undefined
-      ? `<p class="sub">${esc(t('variance.projectEndDelta', { delta: fmtDelta(projectEndDelta) }))}</p>`
-      : '';
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html>
-<html><head><title>${esc(projectName)} — ${esc(t('variance.title'))}</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 16mm; color: #111; }
-  h1 { font-size: 16px; margin: 0 0 2px; }
-  p.sub { font-size: 10px; color: #666; margin: 0 0 12px; }
-  table { border-collapse: collapse; width: 100%; font-size: 10px; }
-  th { text-align: left; border-bottom: 2px solid #333; padding: 4px 6px; }
-  td { border-bottom: 1px solid #ddd; padding: 4px 6px; }
-  @page { size: A4 landscape; margin: 10mm; }
-</style>
-</head><body>
-<h1>${esc(t('variance.title'))}</h1>
-<p class="sub">${esc(projectName)} — ${esc(displayDate(new Date().toISOString().slice(0, 10), notation))}</p>
-${summary}
-<table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>
-<script>window.onload=function(){window.print();}</script>
-</body></html>`);
-    w.document.close();
-  }, [rows, projectEndDelta, t, projectName, notation]);
 }

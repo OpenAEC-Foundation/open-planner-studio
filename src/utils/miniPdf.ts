@@ -48,75 +48,137 @@ function concatBytes(chunks: Uint8Array[]): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Bouw een geldige PDF 1.4 rond één pagina-vullende JPEG.
+ * Eén pagina voor {@link buildImagePdf}: ruwe JPEG-bytes + de fysieke paginamaat in punten.
  *
- * Object-layout (vast, 1-op-1 met de xref-tabel):
- *   1: Catalog
- *   2: Pages
- *   3: Page (verwijst naar 4=XObject via Resources, en 5=content-stream)
- *   4: XObject /Image (DCTDecode = raw JPEG-bytes, ongewijzigd doorgegeven)
- *   5: Content-stream (tekent object 4 pagina-vullend met de `cm`/`Do`-operatoren)
+ * De rasterpixel-afmetingen (`imageWidthPx`/`imageHeightPx`) zijn optioneel — worden ze
+ * weggelaten, dan leest {@link buildImagePdf} ze uit de JPEG-headers (`readJpegSize`). De
+ * puntmaat schaalt de JPEG pagina-vullend in de MediaBox; de rasterresolutie blijft de
+ * feitelijke beeldkwaliteit (mag dus hoger zijn dan de puntmaat → scherpe tekst).
  */
-export function buildSinglePageImagePdf(image: MiniPdfImage): Uint8Array<ArrayBuffer> {
-  const widthPt = image.pageWidthPt;
-  const heightPt = image.pageHeightPt;
+export interface PdfImagePage {
+  jpegBytes: Uint8Array;
+  widthPt: number;
+  heightPt: number;
+  imageWidthPx?: number;
+  imageHeightPx?: number;
+}
 
-  const contentStream = `q\n${widthPt.toFixed(2)} 0 0 ${heightPt.toFixed(2)} 0 0 cm\n/Im0 Do\nQ\n`;
-  const contentBytes = asciiBytes(contentStream);
+/**
+ * Lees de pixel-afmetingen uit de JPEG-headers (SOF-marker). DCTDecode-XObjects in PDF
+ * moeten een /Width en /Height dragen die met de JPEG-inhoud overeenkomen; die halen we
+ * hier byte-voor-byte uit de markerketen i.p.v. te vertrouwen op een externe opgave.
+ */
+function readJpegSize(bytes: Uint8Array): { width: number; height: number } {
+  const len = bytes.length;
+  if (len < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    throw new Error('Geen geldige JPEG (ontbrekende SOI-marker)');
+  }
+  let i = 2;
+  while (i + 1 < len) {
+    if (bytes[i] !== 0xff) {
+      i++;
+      continue;
+    }
+    let marker = bytes[i + 1];
+    // Vul-bytes (0xFF) overslaan totdat we de echte markercode hebben.
+    while (marker === 0xff && i + 2 < len) {
+      i++;
+      marker = bytes[i + 1];
+    }
+    i += 2;
+    // Standalone markers zonder lengte-veld: SOI/EOI (D8/D9), RSTn (D0-D7), TEM (01).
+    if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+      continue;
+    }
+    if (i + 1 >= len) break;
+    const segLen = (bytes[i] << 8) | bytes[i + 1];
+    // SOF-markers dragen de afmetingen: C0-CF, behalve DHT (C4), JPG (C8) en DAC (CC).
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      if (i + 6 >= len) break;
+      const height = (bytes[i + 3] << 8) | bytes[i + 4];
+      const width = (bytes[i + 5] << 8) | bytes[i + 6];
+      return { width, height };
+    }
+    i += segLen;
+  }
+  throw new Error('Kon JPEG-afmetingen niet bepalen (geen SOF-marker gevonden)');
+}
 
-  const objects: Uint8Array[] = [];
-
-  objects[1] = asciiBytes('<< /Type /Catalog /Pages 2 0 R >>');
-  objects[2] = asciiBytes('<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-  objects[3] = asciiBytes(
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${widthPt.toFixed(2)} ${heightPt.toFixed(2)}] ` +
-    `/Resources << /XObject << /Im0 4 0 R >> /ProcSet [/PDF /ImageC] >> /Contents 5 0 R >>`
-  );
-  // Object 4 (image XObject) and 5 (content stream) are built below with raw binary payloads,
-  // so they are assembled directly into the file rather than as simple dict strings.
+/**
+ * Bouw een geldige multi-page PDF 1.4 rond een reeks pagina-vullende JPEG's.
+ *
+ * Object-layout (1-op-1 met de xref-tabel), voor N pagina's:
+ *   1: Catalog
+ *   2: Pages (/Kids [alle Page-objecten] /Count N)
+ * Daarna per pagina i (0-indexed) drie objecten, base = 3 + i*3:
+ *   3+i*3: Page   (MediaBox = eigen puntmaat, Resources → eigen Image, Contents → eigen stream)
+ *   4+i*3: XObject /Image (DCTDecode = raw JPEG-bytes, ongewijzigd doorgegeven)
+ *   5+i*3: Content-stream (tekent de image pagina-vullend met `cm`/`Do`)
+ *
+ * De byte-offsets voor de xref-tabel worden exact bijgeteld (PDF is binair/latin1, geen UTF-8);
+ * dit deelt dezelfde offset-boekhouding als de oorspronkelijke single-page-generator.
+ */
+export function buildImagePdf(pages: PdfImagePage[]): Uint8Array<ArrayBuffer> {
+  if (pages.length === 0) throw new Error('buildImagePdf: minstens één pagina vereist');
 
   const header = asciiBytes('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const streamEnd = asciiBytes('\nendstream');
+  const objTail = asciiBytes('\nendobj\n');
 
   const parts: Uint8Array[] = [header];
-  const offsets: number[] = new Array(6).fill(0); // index 0 unused (free object)
+  const objectCount = 3 + pages.length * 3; // objecten 0..(2 + N*3)
+  const offsets: number[] = new Array(objectCount).fill(0); // index 0 = free object
   let pos = header.length;
 
-  function pushObject(num: number, body: Uint8Array) {
+  function pushObject(num: number, bodies: Uint8Array[]) {
     offsets[num] = pos;
     const head = asciiBytes(`${num} 0 obj\n`);
-    const tail = asciiBytes('\nendobj\n');
-    parts.push(head, body, tail);
-    pos += head.length + body.length + tail.length;
+    parts.push(head, ...bodies, objTail);
+    pos += head.length + bodies.reduce((n, b) => n + b.length, 0) + objTail.length;
   }
 
-  pushObject(1, objects[1]);
-  pushObject(2, objects[2]);
-  pushObject(3, objects[3]);
+  // Object 1: Catalog.
+  pushObject(1, [asciiBytes('<< /Type /Catalog /Pages 2 0 R >>')]);
 
-  // Object 4: image XObject stream (raw JPEG bytes as the stream payload).
-  const imageDict = asciiBytes(
-    `<< /Type /XObject /Subtype /Image /Width ${image.imageWidthPx} /Height ${image.imageHeightPx} ` +
-    `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.jpegBytes.length} >>\nstream\n`
-  );
-  const streamEnd = asciiBytes('\nendstream');
-  offsets[4] = pos;
-  {
-    const head = asciiBytes('4 0 obj\n');
-    parts.push(head, imageDict, image.jpegBytes, streamEnd, asciiBytes('\nendobj\n'));
-    pos += head.length + imageDict.length + image.jpegBytes.length + streamEnd.length + '\nendobj\n'.length;
-  }
+  // Object 2: Pages — verwijst naar alle Page-objecten.
+  const kids = pages.map((_, i) => `${3 + i * 3} 0 R`).join(' ');
+  pushObject(2, [asciiBytes(`<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`)]);
 
-  // Object 5: content stream.
-  const contentDict = asciiBytes(`<< /Length ${contentBytes.length} >>\nstream\n`);
-  offsets[5] = pos;
-  {
-    const head = asciiBytes('5 0 obj\n');
-    parts.push(head, contentDict, contentBytes, streamEnd, asciiBytes('\nendobj\n'));
-    pos += head.length + contentDict.length + contentBytes.length + streamEnd.length + '\nendobj\n'.length;
+  // Per pagina: Page, Image XObject, Content-stream.
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    const pageObj = 3 + i * 3;
+    const imageObj = 4 + i * 3;
+    const contentObj = 5 + i * 3;
+
+    const widthPt = page.widthPt;
+    const heightPt = page.heightPt;
+    const size = page.imageWidthPx != null && page.imageHeightPx != null
+      ? { width: page.imageWidthPx, height: page.imageHeightPx }
+      : readJpegSize(page.jpegBytes);
+
+    // Page-object: eigen MediaBox + verwijzingen naar eigen image/content.
+    pushObject(pageObj, [asciiBytes(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${widthPt.toFixed(2)} ${heightPt.toFixed(2)}] ` +
+      `/Resources << /XObject << /Im0 ${imageObj} 0 R >> /ProcSet [/PDF /ImageC] >> /Contents ${contentObj} 0 R >>`
+    )]);
+
+    // Image-XObject: DCTDecode-stream met de ruwe JPEG-bytes als payload.
+    const imageDict = asciiBytes(
+      `<< /Type /XObject /Subtype /Image /Width ${size.width} /Height ${size.height} ` +
+      `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.jpegBytes.length} >>\nstream\n`
+    );
+    pushObject(imageObj, [imageDict, page.jpegBytes, streamEnd]);
+
+    // Content-stream: teken /Im0 pagina-vullend.
+    const contentBytes = asciiBytes(
+      `q\n${widthPt.toFixed(2)} 0 0 ${heightPt.toFixed(2)} 0 0 cm\n/Im0 Do\nQ\n`
+    );
+    const contentDict = asciiBytes(`<< /Length ${contentBytes.length} >>\nstream\n`);
+    pushObject(contentObj, [contentDict, contentBytes, streamEnd]);
   }
 
   const xrefStart = pos;
-  const objectCount = 6; // objects 0..5
   let xref = `xref\n0 ${objectCount}\n0000000000 65535 f \n`;
   for (let i = 1; i < objectCount; i++) {
     xref += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
@@ -130,6 +192,20 @@ export function buildSinglePageImagePdf(image: MiniPdfImage): Uint8Array<ArrayBu
   parts.push(xrefBytes, trailer);
 
   return concatBytes(parts);
+}
+
+/**
+ * Bouw een geldige PDF 1.4 rond één pagina-vullende JPEG. Dunne wrapper over
+ * {@link buildImagePdf} zodat er maar één PDF-structuur/xref-implementatie bestaat.
+ */
+export function buildSinglePageImagePdf(image: MiniPdfImage): Uint8Array<ArrayBuffer> {
+  return buildImagePdf([{
+    jpegBytes: image.jpegBytes,
+    widthPt: image.pageWidthPt,
+    heightPt: image.pageHeightPt,
+    imageWidthPx: image.imageWidthPx,
+    imageHeightPx: image.imageHeightPx,
+  }]);
 }
 
 /** Haal de ruwe JPEG-bytes uit een `data:image/jpeg;base64,...`-URL. */
