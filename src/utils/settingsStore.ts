@@ -138,6 +138,24 @@ export async function saveLeftPanelWidth(value: number): Promise<void> {
   await setSetting('leftPanelWidth', Math.round(value));
 }
 
+// Breedte van het rechterpaneel (eigenschappen / gedockte resourcelijst, ui.rightPanelWidth).
+// Zelfde patroon als leftPanelWidth hierboven. De boven-klem is bewust ruim en statisch (i.p.v.
+// "60% van het venster", wat pas bij het slepen zelf bekend is) — dat voorkomt alleen dat een
+// corrupte localStorage-waarde de layout onbruikbaar maakt; de live drag-klem in App.tsx gebruikt
+// wel de venstergrootte.
+export const RIGHT_PANEL_MIN_WIDTH = 200;
+export const RIGHT_PANEL_MAX_WIDTH = 900;
+
+export async function loadRightPanelWidth(): Promise<number | undefined> {
+  const v = await getSetting<number>('rightPanelWidth');
+  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
+  return Math.min(RIGHT_PANEL_MAX_WIDTH, Math.max(RIGHT_PANEL_MIN_WIDTH, Math.round(v)));
+}
+
+export async function saveRightPanelWidth(value: number): Promise<void> {
+  await setSetting('rightPanelWidth', Math.round(value));
+}
+
 export async function loadRibbonCompact(): Promise<boolean | undefined> {
   const v = await getSetting<boolean>('ribbonCompact');
   return typeof v === 'boolean' ? v : undefined;
