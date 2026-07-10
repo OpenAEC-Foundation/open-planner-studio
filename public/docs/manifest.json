@@ -41,6 +41,24 @@
       "title": { "nl": "Kritiek pad & geavanceerde analyse", "en": "Critical path & advanced analysis" },
       "layer": "gidsen",
       "cluster": "kritiek-pad-analyse"
+    },
+    {
+      "id": "gids-import-export",
+      "title": { "nl": "Im-/export", "en": "Import/export" },
+      "layer": "gidsen",
+      "cluster": "import-export"
+    },
+    {
+      "id": "gids-rapporten-printen",
+      "title": { "nl": "Rapporten & printen", "en": "Reports & printing" },
+      "layer": "gidsen",
+      "cluster": "rapporten-printen"
+    },
+    {
+      "id": "gids-sneltoetsen-bediening",
+      "title": { "nl": "Sneltoetsen & bediening", "en": "Keyboard shortcuts & controls" },
+      "layer": "gidsen",
+      "cluster": "sneltoetsen-bediening"
     }
   ]
 }
