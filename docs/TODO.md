@@ -27,6 +27,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       het schrijven van de rapporten-gids (2026-07-10). Óf label hernoemen naar "Exporteer afbeelding
       (PNG)" (14 locales) óf echte PDF-export bouwen; gids beschrijft nu het huidige gedrag.
 
+- [ ] **"Project verplaatsen…"-functie (Move Project, user-verzoek 2026-07-10).** Hele planning
+      N maanden/dagen verschuiven in één handeling: nieuwe projectstartdatum kiezen, alle expliciete
+      datums schuiven mee (constraint-datums, deadlines, werkelijke start/einde, statusdatum,
+      externe-koppeling-ankers), met keuze of baselines meegaan. Let op: kalender schuift NIET mee
+      (feestdagen/bouwvak liggen vast), dus einddatums kunnen verspringen — dat is correct en moet
+      in de preview zichtbaar zijn. Scope: store-actie + klein dialoog + tests (één golf).
+
 ### Distributie & Release
 
 #### Snap-packaging — follow-ups
