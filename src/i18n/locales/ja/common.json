@@ -60,6 +60,7 @@
     "version": "バージョン",
     "defaultZoom": "既定のズーム",
     "projectInfo": "プロジェクト情報...",
+    "tourHint": "アプリの紹介ツアーをもう一度行います。",
     "theme": "テーマ",
     "themeDark": "ダーク",
     "themeLight": "ライト",

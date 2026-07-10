@@ -60,6 +60,7 @@
     "version": "Version",
     "defaultZoom": "Zoom par défaut",
     "projectInfo": "Informations du projet...",
+    "tourHint": "Refaites la visite guidée d'introduction de l'application.",
     "theme": "Thème",
     "themeDark": "Sombre",
     "themeLight": "Clair",

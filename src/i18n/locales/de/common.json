@@ -60,6 +60,7 @@
     "version": "Version",
     "defaultZoom": "Standard-Zoom",
     "projectInfo": "Projektinformationen...",
+    "tourHint": "Wiederhole die einführende Tour durch die App.",
     "theme": "Design",
     "themeDark": "Dunkel",
     "themeLight": "Hell",

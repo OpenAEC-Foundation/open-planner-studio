@@ -221,6 +221,30 @@ export function SettingsPanelContent() {
                 {t('settings.projectInfo')}
               </button>
             </div>
+
+            {/* [Rondleiding] (fase 2.10, bugfix — user-melding: de herstart-ingang ontbrak in de
+                Instellingen). Derde ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
+                zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
+                Sluit eerst de Instellingen-dialoog (gear/Instellingen-ribbontab) én Backstage
+                (activeRibbonTab terug naar 'start', zoals Backstage's eigen closeBackstage()) zodat
+                de tour altijd vanaf een schone body start, ongeacht welke van de 3 ingangen. */}
+            <div className="settings-section">
+              <h3>{t('tour.restartButton')}</h3>
+              <p className="scrollzoom-hint">{t('settings.tourHint')}</p>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  setUI({
+                    showSettingsDialog: false,
+                    activeRibbonTab: 'start',
+                    showTourOverlay: true,
+                    tourStepIndex: 0,
+                  });
+                }}
+              >
+                {t('tour.backstageRestart')}
+              </button>
+            </div>
           </div>
         )}
 

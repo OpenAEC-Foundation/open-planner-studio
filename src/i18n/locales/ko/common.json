@@ -60,6 +60,7 @@
     "version": "버전",
     "defaultZoom": "기본 확대/축소",
     "projectInfo": "프로젝트 정보...",
+    "tourHint": "앱 소개 투어를 다시 진행합니다.",
     "theme": "테마",
     "themeDark": "어두운 테마",
     "themeLight": "밝은 테마",

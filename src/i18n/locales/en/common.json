@@ -60,6 +60,7 @@
     "version": "Version",
     "defaultZoom": "Default zoom",
     "projectInfo": "Project information...",
+    "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeDark": "Dark",
     "themeLight": "Light",

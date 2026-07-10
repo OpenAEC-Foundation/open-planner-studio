@@ -60,6 +60,7 @@
     "version": "Versie",
     "defaultZoom": "Standaard zoom",
     "projectInfo": "Projectinformatie...",
+    "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeDark": "Donker",
     "themeLight": "Licht",

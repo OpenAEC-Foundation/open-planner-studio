@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
@@ -6,6 +6,61 @@ import { TOUR_STEPS } from './tourSteps';
 
 const CARD_WIDTH = 300;
 const CARD_MARGIN = 12;
+// Redelijke schatting voor de kaarthoogte vóór de eerste meting (voorkomt een ongeklemde
+// eerste-frame-flits) — wordt direct na mount overschreven door de echte gemeten hoogte
+// (zie de meet-effect hieronder).
+const CARD_HEIGHT_ESTIMATE = 160;
+
+/**
+ * Bepaalt een kaartpositie die GEGARANDEERD volledig binnen de viewport valt (geklemd op
+ * `margin`), voor elke ankergrootte. Root-cause van de QA-bug (item 2): de oude logica koos
+ * enkel boven/onder o.b.v. de bovenkant van het anker en klemde alleen de LINKER kant van de
+ * kaart — de top/bottom-waarde zelf werd nooit tegen de kaart-HOOGTE geklemd. Bij een anker dat
+ * bijna de volle viewport beslaat (het Gantt-paneel, tourstap 2) is `spaceBelow` klein maar
+ * `rect.top` ook (net onder het lint), dus `placeBelow` werd `true` terwijl er in werkelijkheid
+ * geen ruimte was: de kaart kreeg een `top` vlak boven de viewport-bodem en liep er met zijn
+ * volledige hoogte overheen — de Volgende-knop viel letterlijk buiten het venster.
+ *
+ * Fix: probeer kandidaat-posities in volgorde (onder → boven → rechts → links van het anker) en
+ * accepteer alleen een kandidaat die met de ECHTE kaartafmetingen past; lukt geen enkele (het
+ * anker is te groot t.o.v. de viewport), overlap dan bewust met het anker (onderin gecentreerd)
+ * — nog steeds volledig geklemd op de viewport. Werkt identiek in RTL: alle berekeningen zijn in
+ * fysieke viewport-pixels (`getBoundingClientRect`), niet in logische/`dir`-afhankelijke eenheden.
+ */
+function computeCardPosition(
+  anchor: DOMRect,
+  cardW: number,
+  cardH: number,
+  viewportW: number,
+  viewportH: number,
+  margin: number,
+): { top: number; left: number } {
+  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
+  const leftFor = (l: number) => clamp(l, margin, viewportW - cardW - margin);
+  const topFor = (t: number) => clamp(t, margin, viewportH - cardH - margin);
+
+  const belowTop = anchor.bottom + margin;
+  if (belowTop + cardH <= viewportH - margin) {
+    return { top: belowTop, left: leftFor(anchor.left) };
+  }
+  const aboveTop = anchor.top - margin - cardH;
+  if (aboveTop >= margin) {
+    return { top: aboveTop, left: leftFor(anchor.left) };
+  }
+  const rightLeft = anchor.right + margin;
+  if (rightLeft + cardW <= viewportW - margin) {
+    return { top: topFor(anchor.top), left: rightLeft };
+  }
+  const leftLeft = anchor.left - margin - cardW;
+  if (leftLeft >= margin) {
+    return { top: topFor(anchor.top), left: leftLeft };
+  }
+  // Geen enkele kandidaat past (anker beslaat ~de hele viewport) — overlap bewust, onderin
+  // gecentreerd over het anker, maar nog steeds volledig geklemd binnen de viewport.
+  const overlapTop = anchor.bottom - cardH - margin;
+  const overlapLeft = anchor.left + (anchor.width - cardW) / 2;
+  return { top: topFor(overlapTop), left: leftFor(overlapLeft) };
+}
 
 /**
  * Rondleiding-overlay (fase 2.10, onderdeel 3, §4/§6): stappenlijst-gedreven dim-laag +
@@ -34,6 +89,19 @@ export function TourOverlay() {
   const stepIndex = useAppStore(s => s.ui.tourStepIndex);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const directionRef = useRef<'forward' | 'backward'>('forward');
+  const cardRef = useRef<HTMLDivElement>(null);
+  // Werkelijke kaartafmetingen (fix-golf, QA-item 2 — zie `computeCardPosition` hierboven voor de
+  // root-cause). De breedte staat vast op CARD_WIDTH; de hoogte is contentafhankelijk (varieert per
+  // stap én per taal/RTL) en wordt dus na elke render echt gemeten i.p.v. geraden.
+  const [cardSize, setCardSize] = useState<{ width: number; height: number }>({
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT_ESTIMATE,
+  });
+  // Losse viewport-tracking (i.p.v. alleen `window.innerWidth/Height` in de render-body lezen):
+  // garandeert een herbereking bij een pure window-resize, ook als die toevallig het ankerelement
+  // zelf niet van grootte doet veranderen (de bestaande `rect`-resize-listener hieronder dekt het
+  // gangbare geval al, dit is de expliciete achtervang).
+  const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
 
   const step = TOUR_STEPS[stepIndex];
   const isFirst = stepIndex === 0;
@@ -111,24 +179,41 @@ export function TourOverlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex]);
 
-  // Herpositioneren bij window-resize (bv. presentatie-fullscreen togglen tijdens de tour).
+  // Herpositioneren bij window-resize (bv. presentatie-fullscreen togglen tijdens de tour), plus
+  // de expliciete viewport-tracking hierboven (dekt ook resizes die het anker zelf niet raken).
   useEffect(() => {
     if (!step) return;
     const reposition = () => {
       const el = document.querySelector(`[data-tour-anchor="${step.anchor}"]`);
       if (el) setRect(el.getBoundingClientRect());
+      setViewport({ w: window.innerWidth, h: window.innerHeight });
     };
     window.addEventListener('resize', reposition);
     return () => window.removeEventListener('resize', reposition);
   }, [step]);
 
+  // Kaart-hoogte écht meten na elke render (i.p.v. gokken) — dit is wat de root-cause-fix
+  // mogelijk maakt: `computeCardPosition` kan pas correct klemmen als het de werkelijke hoogte
+  // kent. Geen oneindige lus: de vergelijking hieronder zorgt dat `setCardSize` alleen vuurt als
+  // de gemeten afmeting daadwerkelijk verandert (nieuwe stap/taal ⇒ andere content ⇒ andere
+  // hoogte), dus het convergeert na hoogstens één extra render per stap.
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    setCardSize(prev => (prev.width === width && prev.height === height ? prev : { width, height }));
+  });
+
   if (!step || !rect) return null;
 
-  const viewportW = window.innerWidth;
-  const viewportH = window.innerHeight;
-  const spaceBelow = viewportH - rect.bottom;
-  const placeBelow = spaceBelow > 200 || rect.top < 200;
-  const cardLeft = Math.min(Math.max(rect.left, CARD_MARGIN), viewportW - CARD_WIDTH - CARD_MARGIN);
+  const { top: cardTop, left: cardLeft } = computeCardPosition(
+    rect,
+    cardSize.width,
+    cardSize.height,
+    viewport.w,
+    viewport.h,
+    CARD_MARGIN,
+  );
 
   const handleNext = () => {
     if (isLast) finish();
@@ -168,18 +253,20 @@ export function TourOverlay() {
         }}
       />
 
-      {/* Tooltip-kaart — enige interactieve deel van de overlay. */}
+      {/* Tooltip-kaart — enige interactieve deel van de overlay. Positie volledig geklemd op de
+          viewport door `computeCardPosition` (zie bestandskop) — top/left zijn hier altijd al
+          een geldige, volledig-zichtbare plek, dus geen aparte `placeBelow`-tak/`bottom`-CSS meer
+          nodig zoals in de oude (bugfixte) versie. */}
       <div
+        ref={cardRef}
         data-ops-tour-card
         className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] flex flex-col gap-3 p-4 text-sm"
         style={{
           position: 'fixed',
           left: cardLeft,
+          top: cardTop,
           width: CARD_WIDTH,
           zIndex: 9999,
-          ...(placeBelow
-            ? { top: Math.min(rect.bottom + CARD_MARGIN, viewportH - CARD_MARGIN) }
-            : { bottom: Math.min(viewportH - rect.top + CARD_MARGIN, viewportH - CARD_MARGIN) }),
         }}
       >
         <span className="font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
