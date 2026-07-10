@@ -616,21 +616,35 @@ function AppContent() {
               </span>
             </div>
           ) : (
-            <>
-            {/* Sleeprand (fase 2.10, punt 3) — zelfde DOM-splitter-patroon als de split-view/
-                histogram-randen in GanttCanvas (5px, col-resize, `--theme-border`). Geldt ook voor
-                de gedockte `ResourcePanelCompact` (zelfde rail, zie hierboven). */}
-            <div
-              onMouseDown={e => { e.preventDefault(); setIsResizingRightPanel(true); }}
-              className="hover:!bg-[var(--theme-accent)]"
-              style={{ width: 5, flexShrink: 0, cursor: 'col-resize', background: isResizingRightPanel ? 'var(--theme-accent)' : 'var(--theme-border)' }}
-              data-ops-right-panel-resize
-            />
             <div
               className="ui-card flex flex-col overflow-hidden"
-              style={{ width: rightPanelWidth, minWidth: 200 }}
+              style={{ width: rightPanelWidth, minWidth: 200, position: 'relative' }}
               data-tour-anchor="properties-panel"
             >
+              {/* Sleepgrijpzone (fase 2.10, punt 3-correctie op user-feedback c8cce49) — geen
+                  zichtbare balk meer (die kostte enkel ruimte); i.p.v. een aparte DOM-kolom nu
+                  een onzichtbare, absoluut gepositioneerde grijpzone die over de linkerrand van
+                  het paneel heen ligt (half erbinnen/erbuiten), zelfde patroon als de tabel/
+                  chart-splitter in GanttCanvas (SPLITTER_GRAB_MARGIN: grijpmarge rond de rand,
+                  geen aparte balk, geen kleur). `insetInlineStart` i.p.v. `left` zodat de zone in
+                  RTL (ar/fa) automatisch mee-spiegelt naar de juiste (binnen)rand — de flex-rij
+                  hierboven heeft geen expliciete `row-reverse`, dus de browser spiegelt 'm al bij
+                  `dir="rtl"` op `<html>` (RTL_LOCALES); logical properties houden deze grijpzone
+                  daarmee synchroon zonder aparte RTL-tak. Neemt geen ruimte in (geen invloed op
+                  paneel-breedte/padding); alleen cursor, geen achtergrond/border. */}
+              <div
+                onMouseDown={e => { e.preventDefault(); setIsResizingRightPanel(true); }}
+                style={{
+                  position: 'absolute',
+                  insetInlineStart: -4,
+                  top: 0,
+                  bottom: 0,
+                  width: 8,
+                  cursor: 'col-resize',
+                  zIndex: 10,
+                }}
+                data-ops-right-panel-resize
+              />
               <div className="flex items-center justify-between h-8 px-3 border-b border-border flex-shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
                   {resourceDocked ? t('resource.compact.title') : t('properties')}
@@ -667,7 +681,6 @@ function AppContent() {
               </div>
               {debugTerminalEnabled && debugTerminalOpen && <DebugTerminal />}
             </div>
-            </>
           )
         )}
       </div>
