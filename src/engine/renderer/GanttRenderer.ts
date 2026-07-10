@@ -429,7 +429,7 @@ export class GanttRenderer {
     if (x > this.opts.taskTableWidth && x < this.opts.canvasWidth) {
       ctx.strokeStyle = this.colors.statusDate;
       ctx.lineWidth = 2;
-      ctx.setLineDash([2, 3]);
+      ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.moveTo(x, this.opts.headerHeight);
       ctx.lineTo(x, this.opts.canvasHeight);
