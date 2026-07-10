@@ -28,10 +28,10 @@ window groups shortcuts by category: File, Edit, Structure, View and Navigation.
 Right-clicking in the Gantt view gives a different menu depending on where the mouse is:
 
 - **On a task bar** — the full task menu (edit, insert, add subtask/milestone/relation, assign
-  calendar, progress, priority, trace path, delete…), plus two extra bar-specific items at the top:
-  **Start relation from here** and **Set constraint…**.
+  calendar, progress, priority, trace path, delete…), plus one extra bar-specific item at the top:
+  **Start relation from here**.
 - **On a task row without a bar hit** (for example a row with no bar currently visible) — the same
-  task menu, but without the two bar-specific items.
+  task menu, but without the bar-specific item.
 - **On a group header row** (the row that summarizes a grouped set of tasks) — a small menu to
   collapse/expand that one group, plus **Expand all**/**Collapse all** for the whole tree.
 - **On empty canvas** (no task, no group header) — **New task**, **Add milestone**, **Paste** (if

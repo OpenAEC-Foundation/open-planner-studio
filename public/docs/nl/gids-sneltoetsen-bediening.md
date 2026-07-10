@@ -29,10 +29,10 @@ Bestand, Bewerken, Structuur, Weergave en Navigatie.
 Rechtsklikken in de Gantt-weergave geeft een ander menu, afhankelijk van waar de muis staat:
 
 - **Op een taakbalk** — het volledige taakmenu (bewerken, invoegen, subtaak/mijlpaal/relatie
-  toevoegen, kalender toewijzen, voortgang, prioriteit, pad traceren, verwijderen…), plus twee
-  extra balk-specifieke items bovenaan: **Relatie leggen vanaf hier** en **Beperking instellen…**.
+  toevoegen, kalender toewijzen, voortgang, prioriteit, pad traceren, verwijderen…), plus één
+  extra balk-specifiek item bovenaan: **Relatie leggen vanaf hier**.
 - **Op een takenrij zonder balk-hit** (bijvoorbeeld een rij zonder zichtbare balk op dat moment) —
-  hetzelfde taakmenu, maar zonder de twee balk-specifieke items.
+  hetzelfde taakmenu, maar zonder het balk-specifieke item.
 - **Op een bandkop** (de rij die een gegroepeerde set taken samenvat) — een klein menu met
   in-/uitklappen van die ene groep, plus **Alles uitklappen**/**Alles inklappen** voor de hele boom.
 - **Op leeg canvas** (geen taak, geen bandkop) — **Nieuwe taak**, **Mijlpaal toevoegen**, **Plakken**
