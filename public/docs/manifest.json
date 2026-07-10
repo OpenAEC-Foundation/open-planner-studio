@@ -94,6 +94,46 @@
       "id": "ref-codes-velden",
       "title": { "nl": "Codes & velden (structuur)", "en": "Codes & fields (structure)" },
       "layer": "referentie"
+    },
+    {
+      "id": "ref-filters",
+      "title": { "nl": "Filters", "en": "Filters" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-kolommen",
+      "title": { "nl": "Kolommen kiezen", "en": "Choosing columns" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-layouts",
+      "title": { "nl": "Layouts opslaan/laden", "en": "Saving and loading layouts" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-projectgegevens",
+      "title": { "nl": "Projectinformatie", "en": "Project information" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-instellingen",
+      "title": { "nl": "Instellingen", "en": "Settings" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-extensies",
+      "title": { "nl": "Extensies beheren en installeren", "en": "Managing and installing extensions" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-herstellen",
+      "title": { "nl": "Herstellen na een crash", "en": "Recovering after a crash" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-sneltoetsen",
+      "title": { "nl": "Sneltoetsenoverzicht", "en": "Keyboard shortcut reference" },
+      "layer": "referentie"
     }
   ]
 }
