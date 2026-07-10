@@ -456,7 +456,8 @@ export class GanttRenderer {
     ctx.clip();
 
     ctx.strokeStyle = this.colors.statusDate;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]); // zelfde patroon als de vandaag-/statusdatumlijn (user-wens: één beeld)
     ctx.beginPath();
     ctx.moveTo(statusX, headerHeight);
 
