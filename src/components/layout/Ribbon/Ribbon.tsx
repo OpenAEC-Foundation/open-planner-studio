@@ -1245,6 +1245,7 @@ export function Ribbon() {
       {/* Content — verborgen wanneer File-tab actief is (Backstage neemt de hele body over) */}
       {activeTab !== 'file' && (
       <div className="ribbon-content">
+      <div className="ribbon-content-scroll">
         {activeTab === 'start' && (
           <>
             <RibbonGroup label={tMenu('ribbon.file')}>
@@ -1460,7 +1461,7 @@ export function Ribbon() {
                 sorteer-popovers. Narrow "small"-knoppen (i.p.v. grote 66px-tegels) zodat de groep
                 smal blijft en in compacte modus niet overlapt (zelfde valkuil als de 2.6-fix). */}
             <RibbonGroup label={tMenu('ribbon.display')}>
-              <div style={{ display: 'flex', gap: 2 }}>
+              <div className="ribbon-display-grid">
                 <RibbonSmallButton icon={<Columns3 size={14} />} label={tMenu('ribbon.columns')} onClick={() => setUI({ showColumnsDialog: true })} />
                 <RibbonSmallButton icon={<Filter size={14} />} label={tMenu('ribbon.filter')} onClick={() => setUI({ showFilterDialog: true })} active={view.filter !== null} />
                 <GroupPopoverButton />
@@ -1566,6 +1567,7 @@ export function Ribbon() {
           </RibbonGroup>
         )}
         <ExtensionRibbonGroups tab={activeTab} />
+      </div>
         {/* Compacte-modus-toggle rechtsonder (Word-web-stijl): ↑ = inklappen, ↓ = uitklappen.
             position:absolute (zie CSS) zodat de pijl een vaste plek in de hoek houdt en
             nooit kan worden dichtgeschoven/onklikbaar gemaakt door drukke tab-inhoud

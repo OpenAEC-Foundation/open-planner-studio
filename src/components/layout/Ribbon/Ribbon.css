@@ -52,12 +52,30 @@
 /* Ribbon Content */
 .ribbon-content {
   background: var(--theme-ribbon-content-bg);
-  padding: 4px 8px 0 8px;
+  padding: 4px 32px 0 8px;
   display: flex;
   align-items: stretch;
   height: 94px;
   position: relative; /* containing block voor .ribbon-collapse-toggle */
 }
+
+/* Alle groepen scrollen horizontaal wanneer ze samen niet passen, i.p.v. te overlappen
+   (fase 2.10 UX-fix). De inklap-toggle staat hier bewust BUITEN (sibling in
+   .ribbon-content) zodat die absoluut in de hoek blijft en niet meescrollt. */
+.ribbon-content-scroll {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-border) transparent;
+}
+.ribbon-content-scroll::-webkit-scrollbar { height: 6px; }
+.ribbon-content-scroll::-webkit-scrollbar-thumb { background: var(--theme-border); border-radius: 3px; }
+.ribbon-content-scroll::-webkit-scrollbar-track { background: transparent; }
+.ribbon-container.compact .ribbon-content-scroll { align-items: center; }
 
 /* Ribbon Groups */
 .ribbon-group {
@@ -66,6 +84,7 @@
   padding: 0 4px;
   min-width: 50px;
   height: 100%;
+  flex-shrink: 0;
 }
 
 .ribbon-group-label {
@@ -204,6 +223,26 @@
   display: block;
   -webkit-line-clamp: unset;
 }
+
+/* [Weergave] 2×2 grid (fase 2.10 UX-fix): de 4 kleine knoppen (Kolommen/Filter/
+   Groeperen/Sorteren) stonden in één horizontale rij van ~324px — veruit de breedste
+   groep. Als 2×2 grid halveert dat de groepsbreedte, wat ook de overlap-druk verlicht. */
+.ribbon-display-grid {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: 2px;
+  align-content: flex-start;
+}
+/* popover-wrappers (position:relative div) hun cel laten vullen zodat de knop erbinnen
+   even breed wordt als een directe knop in dezelfde kolom → nette uitlijning */
+.ribbon-display-grid > div { display: flex; }
+.ribbon-display-grid .ribbon-btn.small { width: 100%; min-width: 70px; }
+/* compacte modus: terug naar één rij (de hele ribbon is dan één 40px-strip) */
+.ribbon-container.compact .ribbon-display-grid { display: flex; gap: 1px; }
+/* de grid-cel-vulregel (width:100%) mag in de flex-rij niet blijven gelden — anders
+   claimt elke knop de volle breedte en blazen de 4 knoppen op tot een overflow die
+   over de buurgroep heen spilt (QA-bevinding fase 2.10). Terug naar natuurlijke breedte. */
+.ribbon-container.compact .ribbon-display-grid .ribbon-btn.small { width: auto; min-width: 0; }
 
 /* Compacte-modus-toggle (Word-web-stijl): klein pijltje rechtsonder in het lint.
    ↑ klapt in naar één rij van 40px, ↓ klapt weer uit.

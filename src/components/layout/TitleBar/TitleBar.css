@@ -83,13 +83,23 @@
 }
 
 /* Title Bar Center */
+/* Écht paginacentraal (position:absolute, left:50%), MAAR met een max-width-reservering
+   aan beide zijden zodat de titel bij smalle vensters netjes inkort (ellipsis) i.p.v. de
+   toolbar/vensterknoppen te overlappen. De reservering (~390px per kant) is ruimer dan de
+   breedste linkercluster-stand (icon + snelkoppelingen + de langste roterende feedback-
+   knoplabel ≈ 370px), zodat de gecentreerde titel de linkerknoppen altijd vrij houdt en
+   toch precies in het midden staat. Onder ~1045px begint hij af te kappen — exact wanneer
+   de volle titel anders zou overlappen. (fase 2.10 UX-fix: titelbalk gecentreerd + geen overlap) */
 .title-bar-center {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  max-width: calc(100% - 780px);
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -97,11 +107,31 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--theme-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .title-bar-file-name {
   font-size: 11px;
   color: var(--theme-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Onder ~1050px past de volledige, paginacentrale titel niet meer tussen de toolbar en de
+   vensterknoppen. In plaats van 'm tot een onleesbaar restje af te knippen ("O… N") verbergen
+   we de tekst-titel netjes — de projectnaam blijft zichtbaar in de documenttabbalk eronder.
+   Alleen de tekst-spans, NIET de hele .title-bar-center, zodat de SwitcherPill-chrome-stijl
+   (die óók in de center leeft) ongemoeid blijft. (fase 2.10 UX-fix: titelbalk) */
+@media (max-width: 1050px) {
+  .title-bar-app-name,
+  .title-bar-file-name {
+    display: none;
+  }
 }
 
 /* Feedback-tekstknop (rechts, vlak vóór de vensterknoppen) */
