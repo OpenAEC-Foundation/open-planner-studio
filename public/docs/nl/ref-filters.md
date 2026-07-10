@@ -19,10 +19,10 @@ Bovenaan elke groep kies je hoe de regels eronder samenwerken:
 
 - **Veld** — alle taakvelden: WBS, Taaknaam, Duur, Start, Einde, Type, Kritiek, Totale speling, Voortgang, Mijlpaal, Vrije speling, Interfererende speling, Bijna kritiek, Speling-pad en Resources, plus de activity codes en eigen velden van het project.
 - **Operator** — past zich aan het veldtype aan:
-  - tekst: **is gelijk aan**, **is ongelijk aan**, **bevat**, **begint met**, **is leeg**;
-  - getal en datum: daarnaast **kleiner dan**, **kleiner of gelijk aan**, **groter dan**, **groter of gelijk aan** en **tussen** (met **Van**/**Tot**);
-  - ja/nee-velden (zoals Kritiek en Mijlpaal): keuze uit **Ja**/**Nee**;
-  - keuzevelden (zoals Type of een activity code): **is een van**, met aanvinkbare waarden.
+- tekst: **is gelijk aan**, **is ongelijk aan**, **bevat**, **begint met**, **is leeg**;
+- getal en datum: daarnaast **kleiner dan**, **kleiner of gelijk aan**, **groter dan**, **groter of gelijk aan** en **tussen** (met **Van**/**Tot**);
+- ja/nee-velden (zoals Kritiek en Mijlpaal): keuze uit **Ja**/**Nee**;
+- keuzevelden (zoals Type of een activity code): **is een van**, met aanvinkbare waarden.
 - **Waarde** — het invoervak volgt het veldtype (tekstvak, getal, datum of keuzelijst); bij **is leeg** is er geen waarde-invoer.
 
 De prullenbak achter een regel verwijdert die regel; het kruisje rechtsboven in een geneste groep verwijdert de hele groep.

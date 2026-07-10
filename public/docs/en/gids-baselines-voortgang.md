@@ -62,7 +62,7 @@ Resolve an out-of-sequence warning by recording the actual situation accurately:
 
 ## The progress line
 
-Turn the progress line on via **View → Baselines & progress ribbon group → Progress line**. It draws, for every task, a point at the position corresponding to its percent complete, and connects that to the status-date line — the classic zigzag pattern. A kink to the left of the status date means a task is behind what you'd expect based on elapsed time; a kink to the right means it's ahead. Also turn on **Status date line** (same ribbon group) to see the status date itself as a vertical line through the Gantt — that makes the progress line easier to read because you immediately see the reference point.
+Turn the progress line on via **View → Baselines & progress ribbon group → Progress line**. It draws an orange dashed line (4/4 dashes, same style as the status-date line) that plots, for every task, a point at the position corresponding to its percent complete, and connects that to the status date — the classic zigzag pattern. A kink to the left of the status date means a task is behind what you'd expect based on elapsed time; a kink to the right means it's ahead. The progress line already draws the status-date vertical itself as the spine of the zigzag, so the separate **Status date line** toggle (same ribbon group) recedes while the progress line is on — it only becomes visible again once you turn the progress line off and still want the status date shown as a plain vertical line.
 
 ## Keep reading
 

@@ -19,10 +19,10 @@ At the top of each group you choose how its rules combine:
 
 - **Field** — all task fields: WBS, Task Name, Duration, Start, Finish, Type, Critical, Total Float, Progress, Milestone, Free Float, Interfering Float, Near Critical, Float Path and Resources, plus the project's activity codes and custom fields.
 - **Operator** — adapts to the field type:
-  - text: **equals**, **not equals**, **contains**, **starts with**, **is empty**;
-  - number and date: additionally **less than**, **less than or equal**, **greater than**, **greater than or equal** and **between** (with **From**/**To**);
-  - yes/no fields (such as Critical and Milestone): a **Yes**/**No** choice;
-  - choice fields (such as Type or an activity code): **is one of**, with tickable values.
+- text: **equals**, **not equals**, **contains**, **starts with**, **is empty**;
+- number and date: additionally **less than**, **less than or equal**, **greater than**, **greater than or equal** and **between** (with **From**/**To**);
+- yes/no fields (such as Critical and Milestone): a **Yes**/**No** choice;
+- choice fields (such as Type or an activity code): **is one of**, with tickable values.
 - **Value** — the input follows the field type (text box, number, date or picker); **is empty** has no value input.
 
 The trash icon behind a rule removes that rule; the cross at the top right of a nested group removes the whole group.

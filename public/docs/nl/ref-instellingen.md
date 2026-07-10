@@ -35,6 +35,6 @@ Alle drie tonen exact dezelfde instellingen, verdeeld over drie tabs: **Algemeen
 - **Kwartieren tonen bij ver inzoomen** — extra kwartier-gradatie op de uur-tijdschaal.
 - **Berekenen** — **Automatisch berekenen** herberekent de planning zodra die verouderd raakt, in plaats van te wachten op F5.
 - **Scrollen & zoomen** — **Modus**:
-  - **Positie** — de plek van de cursor bepaalt de scrollrichting; met **Schermverdeling** (**Links/rechts**, **Boven/onder** of **Rechtsboven-hoek**). Ctrl+scroll = zoomen, Shift+scroll = horizontaal.
-  - **Toetsen** — wijs zelf toe welke besturing (**Scrollen**, **Ctrl + scrollen**, **Shift + scrollen**) welke functie krijgt (**Verticaal**, **Horizontaal**, **Zoomen**) door de knopjes te verslepen; een bezette plek wisselt om.
-  - **Zoom + slepen** — scrollwiel zoomt (gecentreerd op de cursor); de achtergrond van de planning versleep je om te verschuiven.
+- **Positie** — de plek van de cursor bepaalt de scrollrichting; met **Schermverdeling** (**Links/rechts**, **Boven/onder** of **Rechtsboven-hoek**). Ctrl+scroll = zoomen, Shift+scroll = horizontaal.
+- **Toetsen** — wijs zelf toe welke besturing (**Scrollen**, **Ctrl + scrollen**, **Shift + scrollen**) welke functie krijgt (**Verticaal**, **Horizontaal**, **Zoomen**) door de knopjes te verslepen; een bezette plek wisselt om.
+- **Zoom + slepen** — scrollwiel zoomt (gecentreerd op de cursor); de achtergrond van de planning versleep je om te verschuiven.

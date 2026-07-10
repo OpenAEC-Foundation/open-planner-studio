@@ -62,7 +62,7 @@ Los een out-of-sequence-melding op door de werkelijke situatie kloppend te regis
 
 ## De voortgangslijn
 
-Zet de voortgangslijn aan via **Beeld → lintgroep Baselines & voortgang → Voortgangslijn**. Deze tekent voor elke taak een punt op de plek die overeenkomt met zijn percentage voltooid, en verbindt dat met de statusdatumlijn — het klassieke zaagtand-patroon. Een uitstulping naar links van de statusdatum betekent dat een taak achterloopt op wat je op basis van de tijd zou verwachten; een uitstulping naar rechts betekent dat hij voorloopt. Zet ook **Statusdatumlijn** aan (zelfde lintgroep) om de statusdatum zelf als verticale lijn door de Gantt te zien — dat maakt de voortgangslijn makkelijker te lezen omdat je meteen het referentiepunt ziet.
+Zet de voortgangslijn aan via **Beeld → lintgroep Baselines & voortgang → Voortgangslijn**. Deze tekent een oranje, gestreepte lijn (4/4-streepjes, zelfde stijl als de statusdatumlijn) die voor elke taak een punt tekent op de plek die overeenkomt met zijn percentage voltooid, en dat verbindt met de statusdatum — het klassieke zaagtand-patroon. Een uitstulping naar links van de statusdatum betekent dat een taak achterloopt op wat je op basis van de tijd zou verwachten; een uitstulping naar rechts betekent dat hij voorloopt. De voortgangslijn tekent de statusdatum-verticaal zelf al mee als ruggengraat van de zaagtand, dus de losse **Statusdatumlijn**-schakelaar (zelfde lintgroep) treedt terug zolang de voortgangslijn aan staat — die is alleen zichtbaar als je de voortgangslijn uitzet en toch de statusdatum als rechte lijn wilt zien.
 
 ## Verder lezen
 

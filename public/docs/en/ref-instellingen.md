@@ -35,6 +35,6 @@ All three show exactly the same settings, spread over three tabs: **General**, *
 - **Show quarter-hours when zoomed in far** — extra quarter-hour gradation on the hour time-scale.
 - **Calculation** — **Calculate automatically** recalculates the schedule as soon as it becomes out of date, instead of waiting for F5.
 - **Scroll & zoom** — **Mode**:
-  - **Position** — the cursor's position determines the scroll direction; with **Screen division** (**Left/right**, **Top/bottom** or **Top-right corner**). Ctrl+scroll = zoom, Shift+scroll = horizontal.
-  - **Keys** — assign which control (**Scroll**, **Ctrl + scroll**, **Shift + scroll**) gets which function (**Vertical**, **Horizontal**, **Zoom**) by dragging the chips; dropping on an occupied slot swaps the controls.
-  - **Zoom + drag** — the scroll wheel zooms (anchored on the cursor); drag the chart background to pan the view.
+- **Position** — the cursor's position determines the scroll direction; with **Screen division** (**Left/right**, **Top/bottom** or **Top-right corner**). Ctrl+scroll = zoom, Shift+scroll = horizontal.
+- **Keys** — assign which control (**Scroll**, **Ctrl + scroll**, **Shift + scroll**) gets which function (**Vertical**, **Horizontal**, **Zoom**) by dragging the chips; dropping on an occupied slot swaps the controls.
+- **Zoom + drag** — the scroll wheel zooms (anchored on the cursor); drag the chart background to pan the view.
