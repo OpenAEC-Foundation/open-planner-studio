@@ -22,6 +22,11 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       correct (P6-conform) maar verwarrend naast elkaar. Presentatie-verduidelijking
       overwegen (bv. forecast-markering of tooltip-uitleg).
 
+### Klein
+- [ ] **"Exporteer PDF"-knop (Rapport) levert een .png** — naamgevingsinconsistentie, gevonden bij
+      het schrijven van de rapporten-gids (2026-07-10). Óf label hernoemen naar "Exporteer afbeelding
+      (PNG)" (14 locales) óf echte PDF-export bouwen; gids beschrijft nu het huidige gedrag.
+
 ### Distributie & Release
 
 #### Snap-packaging — follow-ups
