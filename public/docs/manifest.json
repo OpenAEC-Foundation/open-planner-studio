@@ -23,6 +23,24 @@
       "title": { "nl": "Kalenders & uren-planning", "en": "Calendars & hour planning" },
       "layer": "gidsen",
       "cluster": "kalenders-uren"
+    },
+    {
+      "id": "gids-resources-histogram",
+      "title": { "nl": "Resources, histogram & nivellering", "en": "Resources, histogram & leveling" },
+      "layer": "gidsen",
+      "cluster": "resources-histogram"
+    },
+    {
+      "id": "gids-baselines-voortgang",
+      "title": { "nl": "Baselines & voortgang", "en": "Baselines & progress" },
+      "layer": "gidsen",
+      "cluster": "baselines-voortgang"
+    },
+    {
+      "id": "gids-kritiek-pad-analyse",
+      "title": { "nl": "Kritiek pad & geavanceerde analyse", "en": "Critical path & advanced analysis" },
+      "layer": "gidsen",
+      "cluster": "kritiek-pad-analyse"
     }
   ]
 }
