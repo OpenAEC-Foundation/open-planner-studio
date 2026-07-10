@@ -64,10 +64,12 @@ containing the report and immediately triggers the browser/OS print dialog. For 
 that window uses the chosen paper size and orientation; the milestone and variance reports print the
 table as displayed.
 
-Only the Gantt report also has an **Export PDF** button. Despite the label, that button saves the
-current preview as a **PNG image** (filename ending in `-planning.png`) — not a PDF file. If you
-actually need a PDF, use **Print...** and choose "Save as PDF" in the system print dialog (most
-operating systems and browsers offer that as an option in the print window).
+Only the Gantt report also has an **Export PDF** button. That saves the current preview as an
+actual PDF file (filename ending in `-planning.pdf`) — one page sized to the physical dimensions
+of the chosen paper size and orientation, with the report embedded full-page as an image. Handy
+for email or archiving without going through the system print dialog. If you'd rather print
+directly (or save to PDF via the system dialog, e.g. to pick a different paper size than the one
+configured above), use **Print...**.
 
 ## Reports in practice
 

@@ -64,11 +64,12 @@ afdrukvenster met het rapport erin en start meteen de browser-/systeem-printdial
 Gantt-rapport gebruikt dat venster het gekozen papierformaat en de oriëntatie; het mijlpalen- en
 variance-rapport printen de tabel zoals weergegeven.
 
-Alleen bij het Gantt-rapport staat er ook een knop **Exporteer PDF**. Ondanks het label bewaart
-die knop het huidige voorbeeld als een **PNG-afbeelding** (bestandsnaam eindigend op
-`-planning.png`) — geen PDF-bestand. Wil je écht een PDF, gebruik dan **Afdrukken...** en kies in
-de systeem-printdialoog "Opslaan als PDF" (de meeste besturingssystemen en browsers bieden dat als
-optie in het printvenster).
+Alleen bij het Gantt-rapport staat er ook een knop **Exporteer PDF**. Die bewaart het huidige
+voorbeeld als een echt PDF-bestand (bestandsnaam eindigend op `-planning.pdf`) — één pagina op de
+fysieke maat van het gekozen papierformaat en de oriëntatie, met het rapport paginavullend als
+afbeelding ingebed. Handig voor e-mail of archief zonder de systeem-printdialoog erbij te hoeven
+halen. Wil je liever direct printen (of via de systeemdialoog naar PDF, bijvoorbeeld om een ander
+papierformaat te kiezen dan hierboven ingesteld), gebruik dan **Afdrukken...**.
 
 ## Rapporten in de praktijk
 
