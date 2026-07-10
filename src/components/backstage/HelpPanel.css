@@ -1,0 +1,185 @@
+/* Help/documentatie-viewer (fase 2.10, onderdeel 5) — volgt de Backstage-stijl (--theme-* tokens),
+   zelfde tweekoloms-idee als de Backstage-sidebar zelf (ToC links, artikel rechts). */
+
+.help-panel {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  align-items: start;
+  gap: var(--sp-6, 20px);
+}
+
+.help-toc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 6px);
+  border-right: 1px solid var(--theme-border);
+  padding-right: var(--sp-4, 12px);
+  /* Bewust géén eigen overflow/hoogte: `.backstage-main` (de omringende Backstage-sectie) is al
+     zelf verticaal scrollbaar, net als elke andere sectie — geen geneste scrollcontainers nodig
+     voor de golf-1-omvang (2 artikelen); latere golven kunnen dit heroverwegen bij 25 artikelen. */
+}
+
+.help-search-wrap {
+  position: relative;
+  margin-bottom: var(--sp-2, 6px);
+}
+.help-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--theme-text-dim);
+  pointer-events: none;
+}
+.help-search {
+  width: 100%;
+  padding: 6px 10px 6px 28px;
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+  color: var(--theme-text);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.help-search:focus {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
+}
+
+.help-toc-layer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--sp-3, 10px);
+}
+.help-toc-layer-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-dim);
+  margin: 0 0 4px 0;
+  padding: 0 var(--sp-2, 6px);
+}
+.help-toc-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 6px var(--sp-2, 8px);
+  font-size: 0.8125rem;
+  color: var(--theme-text);
+  cursor: pointer;
+  font-family: inherit;
+}
+.help-toc-item:hover { background: var(--theme-hover); }
+.help-toc-item.active {
+  background: var(--theme-active);
+  color: var(--theme-accent-on);
+  font-weight: 600;
+}
+
+.help-article {
+  min-width: 0;
+}
+.help-article-body {
+  max-width: 760px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--theme-text);
+}
+
+.help-h1 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--sp-4, 14px) 0;
+}
+.help-h2 {
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: var(--sp-6, 20px) 0 var(--sp-2, 8px) 0;
+}
+.help-h3 {
+  font-family: var(--font-heading);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  margin: var(--sp-4, 14px) 0 var(--sp-1, 6px) 0;
+}
+.help-p { margin: 0 0 var(--sp-3, 10px) 0; }
+.help-ul, .help-ol {
+  /* Tailwind preflight (`@import "tailwindcss"` in globals.css) zet `list-style: none` op alle
+     ul/ol — expliciet herstellen, anders renderen genummerde stappen en bullets zonder marker. */
+  margin: 0 0 var(--sp-3, 10px) 0;
+  padding-left: 1.4em;
+}
+.help-ul { list-style: disc outside; }
+.help-ol { list-style: decimal outside; }
+.help-ul li, .help-ol li { margin-bottom: 3px; }
+
+.help-inline-code {
+  background: var(--theme-surface-alt);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--font-code, monospace);
+  font-size: 0.85em;
+}
+
+.help-code-block {
+  background: var(--theme-surface-alt);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3, 10px) var(--sp-4, 12px);
+  overflow-x: auto;
+  margin: 0 0 var(--sp-3, 10px) 0;
+}
+.help-code-block code {
+  font-family: var(--font-code, monospace);
+  font-size: 0.8125rem;
+  white-space: pre;
+}
+
+.help-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--theme-accent);
+  text-decoration: underline;
+}
+.help-link-internal:hover, .help-link-example:hover { color: var(--theme-accent-hover, var(--theme-accent)); }
+.help-link-unknown {
+  color: var(--theme-text-dim);
+  text-decoration: none;
+  cursor: default;
+}
+
+.help-image {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--theme-border);
+  display: block;
+  margin: var(--sp-2, 8px) 0;
+}
+.help-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  border: 1px dashed var(--theme-border);
+  border-radius: var(--radius-md);
+  background: var(--theme-surface-alt);
+  color: var(--theme-text-dim);
+  font-size: 0.75rem;
+  font-style: italic;
+  padding: var(--sp-4, 12px);
+  text-align: center;
+  margin: var(--sp-2, 8px) 0;
+}

@@ -129,7 +129,7 @@
     "durationHours": "Duration (hours)",
     "notes": {
       "title": "Notes",
-      "add": "+ Add note",
+      "add": "Add note",
       "placeholder": "Note…",
       "remove": "Remove",
       "done": "Done",

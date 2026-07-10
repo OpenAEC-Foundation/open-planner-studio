@@ -44,7 +44,6 @@
     "priorityNormal": "보통",
     "priorityHigh": "높음",
     "startRelationHere": "여기서 관계 시작",
-    "setConstraint": "제약 조건 설정…",
     "paste": "붙여넣기",
     "zoomReset": "확대/축소 재설정",
     "fitToProject": "프로젝트에 맞추기",
@@ -60,6 +59,7 @@
     "version": "버전",
     "defaultZoom": "기본 확대/축소",
     "projectInfo": "프로젝트 정보...",
+    "tourHint": "앱 소개 투어를 다시 진행합니다.",
     "theme": "테마",
     "themeDark": "어두운 테마",
     "themeLight": "밝은 테마",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "보고서 탭으로 이동",
       "switchDocument": "문서 전환",
-      "scrollToToday": "오늘로 이동"
+      "scrollToToday": "오늘로 이동",
+      "help": "도움말 열기"
     }
   },
   "welcome": {

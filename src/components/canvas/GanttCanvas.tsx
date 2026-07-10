@@ -1746,14 +1746,6 @@ export function GanttCanvas() {
               setUI({ showDependencyMode: true, dependencySourceId: contextMenu.task.id });
             }
           }}
-          onSetConstraint={() => {
-            // Er is geen aparte constraint-tab: de constraint-velden leven in het rechter
-            // eigenschappenpaneel (TaskPropertiesPanel), niet in TaskDialog. Selecteer de taak en
-            // vouw het paneel open — GEEN blinde datum/constraint-keuze vanuit het contextmenu zelf.
-            if (!contextMenu.task) return;
-            selectTask(contextMenu.task.id, false);
-            setUI({ rightPanelCollapsed: false });
-          }}
           onPaste={() => { pasteTasks(); }}
           onZoomReset={() => { setZoom(DEFAULT_ZOOM); setScroll(0, 0); }}
           onFitToProject={() => {

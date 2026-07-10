@@ -269,7 +269,18 @@
     "author": "Author",
     "company": "Company",
     "startDate": "Start date",
-    "endDate": "End date"
+    "endDate": "End date",
+    "help": "Help",
+    "helpSubtitle": "Documentation and user guide, built into the app.",
+    "helpSearchPlaceholder": "Search documentation…",
+    "helpLoading": "Loading…",
+    "helpLoadError": "Documentation could not be loaded.",
+    "helpArticleNotFound": "Article not found.",
+    "helpLayer": {
+      "quickstart": "Quick start",
+      "gidsen": "Guides by topic",
+      "referentie": "Reference"
+    }
   },
   "export": {
     "csvLabel": "CSV (semicolon-separated)",

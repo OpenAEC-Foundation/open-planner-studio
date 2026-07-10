@@ -155,7 +155,15 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-/** Render the print preview onto a canvas. Returns the logical (CSS) dimensions. */
+/**
+ * Render the print preview onto a canvas. Returns the logical (CSS) dimensions.
+ *
+ * `renderScale` overrides the raster-vs-logical multiplier (`canvas.width = logicalWidth *
+ * renderScale`); defaults to `window.devicePixelRatio || 2` so the on-screen preview keeps its
+ * existing behavior. PDF export passes a higher fixed scale (see `computeHighResScale` in
+ * `@/utils/miniPdf`) so the exported raster resolution doesn't depend on the exporting user's
+ * screen DPI — a 1x/headless browser would otherwise embed a blurry 96 DPI image.
+ */
 export function renderPrintCanvas(
   canvas: HTMLCanvasElement,
   tasks: Task[],
@@ -163,6 +171,7 @@ export function renderPrintCanvas(
   calendar: WorkCalendar,
   projectName: string,
   options: PrintOptions,
+  renderScale?: number,
 ): { width: number; height: number } {
   // Flatten and compute depth
   const flatTasks: PrintTask[] = [];
@@ -189,7 +198,7 @@ export function renderPrintCanvas(
   }
 
   if (flatTasks.length === 0) {
-    const dpr = window.devicePixelRatio || 2;
+    const dpr = renderScale ?? (window.devicePixelRatio || 2);
     canvas.width = 600 * dpr;
     canvas.height = 200 * dpr;
     canvas.style.width = '600px';
@@ -257,7 +266,7 @@ export function renderPrintCanvas(
   }
 
   // Create high-DPI canvas
-  const dpr = window.devicePixelRatio || 2;
+  const dpr = renderScale ?? (window.devicePixelRatio || 2);
   canvas.width = canvasWidth * dpr;
   canvas.height = canvasHeight * dpr;
   canvas.style.width = canvasWidth + 'px';

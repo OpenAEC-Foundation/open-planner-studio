@@ -635,6 +635,58 @@ eq('180 IFC-round-trip: taak zonder notes ⇒ notes blijft undefined', backC?.no
 const ifcNoNotes = writeIFC(rtProject, CAL, [mkTask('PlainNotes', 2)], [], [], []);
 eq('181 IFC-write: geen notes ⇒ geen OPS_TaskNotes-pset', ifcNoNotes.includes('OPS_TaskNotes'), false);
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  Fase 2.10 (P1-fix) — hard-pin-detector-gate (CPMSolver.ts:hardPinRespectedByActual).
+//  Bug: een niet-afgemelde START-mijlpaal wordt door de data-date-vloer naar de statusdatum
+//  getild ⇒ zijn EF voedt als `rawMax` de hard-pin-logica-schending-detectie, óók als de
+//  gepinde opvolger allang is afgerond ÉN de pin exact respecteert. De fix onderdrukt de melding
+//  ALLEEN wanneer een geregistreerd feit (actualStart voor MSO) de pin exact treft; een échte
+//  schending (actual wijkt af, of er is nog geen feit en de logica is structureel te laat) blijft
+//  gewoon vuren — bewust smal, de data-date-vloer zelf blijft ongewijzigd (zie R2a-R2c/CTRL-1/
+//  CTRL-2 in de solver-triage-repro's).
+// ══════════════════════════════════════════════════════════════════════════════
+function mkStartMs(id: string): Task {
+  return mkTask(id, 0, { isMilestone: true, milestoneKind: 'START' } as Partial<Task>);
+}
+
+// (a) Hard pin + actualStart-OP-de-pin + gevloerde voorganger ⇒ GEEN violation. S is een
+// niet-afgemelde START-mijlpaal (completion 0); de statusdatum (2026-07-01) ligt ver na S's eigen
+// schema-start, dus de data-date-vloer tilt S's ES/EF naar de statusdatum (§P6, ONGEWIJZIGD) — die
+// gevloerde EF voedt P's `rawMax`. P zelf is al lang voltooid, exact op zijn pin.
+const gateS: Task = mkStartMs('GateS');
+const gateP: Task = mkTask('GateP', 3, {
+  constraint: { type: 'MSO', date: '2026-06-10', hard: true },
+});
+gateP.time.completion = 1;
+gateP.time.actualStart = '2026-06-10'; // exact op de pin
+gateP.time.actualFinish = '2026-06-12';
+const gateSeq: Sequence[] = [fs('gp1', 'GateS', 'GateP')];
+const rGateA = solve([gateS, gateP], gateSeq, { dataDate: '2026-07-01' });
+eq('182 detector-gate: actual EXACT op de pin ⇒ GEEN violation', rGateA.violatedConstraintTaskIds.includes('GateP'), false);
+eq('183 detector-gate: P blijft gepind op zijn actuals (ES)', rGateA.tasks.get('GateP')!.earlyStart, '2026-06-10');
+eq('184 detector-gate: P blijft gepind op zijn actuals (EF)', rGateA.tasks.get('GateP')!.earlyFinish, '2026-06-12');
+
+// (b) CONTROLE — zelfde net, maar het geregistreerde feit wijkt AF van de pin (te laat gestart):
+// een ECHTE schending, moet gewoon blijven vuren (de gate is smal — respecteert de pin niet ⇒
+// geen onderdrukking).
+const gateP2: Task = mkTask('GateP2', 3, {
+  constraint: { type: 'MSO', date: '2026-06-10', hard: true },
+});
+gateP2.time.completion = 1;
+gateP2.time.actualStart = '2026-06-15'; // NA de pin — reële schending
+gateP2.time.actualFinish = '2026-06-17';
+const rGateB = solve([mkStartMs('GateS2'), gateP2], [fs('gp2', 'GateS2', 'GateP2')], { dataDate: '2026-07-01' });
+eq('185 detector-gate CONTROLE: actual NA de pin ⇒ violation blijft vuren', rGateB.violatedConstraintTaskIds.includes('GateP2'), true);
+
+// (c) CONTROLE — geen actuals, structureel te laat (nog geen feit geregistreerd) ⇒ violation
+// blijft vuren (de gate vereist een geregistreerd feit; zonder feit geen onderdrukking).
+const gateQ: Task = mkTask('GateQ', 20); // lange voorganger, geen actuals
+const gateP3: Task = mkTask('GateP3', 3, {
+  constraint: { type: 'MSO', date: '2026-06-10', hard: true },
+});
+const rGateC = solve([gateQ, gateP3], [fs('gp3', 'GateQ', 'GateP3')]); // geen dataDate nodig — structureel te laat
+eq('186 detector-gate CONTROLE: geen actuals + structureel te laat ⇒ violation blijft vuren', rGateC.violatedConstraintTaskIds.includes('GateP3'), true);
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  advanced-cpm-check: alle checks groen (${checks})`);

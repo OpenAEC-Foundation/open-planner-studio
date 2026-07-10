@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
-  Printer, Info, Settings, X, FileType, Puzzle, Upload, BookOpen, Compass,
+  Printer, Info, Settings, X, FileType, Puzzle, Upload, BookOpen, Compass, LifeBuoy,
 } from 'lucide-react';
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { BackstageSection } from '@/state/slices/types';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { ExtensionManagerPanel } from '@/components/backstage/ExtensionManagerPanel';
+import { HelpPanel } from '@/components/backstage/HelpPanel';
 import type { ExtensionImporter } from '@/state/slices/extensionSlice';
 import './Backstage.css';
 
@@ -64,6 +65,13 @@ export function Backstage() {
 
         <div className="backstage-nav-divider" />
 
+        {/* Fase 2.10, onderdeel 5 (golf 1): help/documentatie-viewer — architect-besluit 5
+            (bindend ontwerp §2.1): Backstage-NavItem als primaire ingang, in het "leer de app
+            kennen"-rijtje naast de rondleiding-herstart hieronder. */}
+        <NavItem icon={<LifeBuoy size={14} />} label={tMenu('backstage.help')} active={section === 'help'} onClick={() => goTo('help')} />
+
+        <div className="backstage-nav-divider" />
+
         {/* [Rondleiding] (fase 2.10, onderdeel 3, herstart-ingang §5/§6 — architect-besluit 3:
             BEIDE ingangen, ribbon + Backstage). Actie-item (geen `section`): sluit Backstage en
             start de TourOverlay direct, zonder de WelcomeDialog ertussen. */}
@@ -87,6 +95,7 @@ export function Backstage() {
         {section === 'project-info' && <ProjectInfoSection onApply={closeBackstage} />}
         {section === 'settings' && <SettingsSection />}
         {section === 'extensions' && <ExtensionsSection />}
+        {section === 'help' && <HelpSection />}
       </main>
     </div>
   );
@@ -519,6 +528,21 @@ function ExtensionsSection() {
       <h2 className="backstage-title">{tMenu('extensions.title')}</h2>
       <p className="backstage-subtitle">{tMenu('extensions.subtitle')}</p>
       <ExtensionManagerPanel />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Help/documentatie section (fase 2.10, onderdeel 5, golf 1)
+// ---------------------------------------------------------------------------
+
+function HelpSection() {
+  const { t: tMenu } = useTranslation('menu');
+  return (
+    <>
+      <h2 className="backstage-title">{tMenu('backstage.help')}</h2>
+      <p className="backstage-subtitle">{tMenu('backstage.helpSubtitle')}</p>
+      <HelpPanel />
     </>
   );
 }

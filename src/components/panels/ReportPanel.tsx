@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { renderPrintCanvas, PrintOptions } from '@/services/print/printPreview';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
+import { canvasToPdfBytes, computeHighResScale } from '@/utils/miniPdf';
 import { Select } from '@/components/common/Select';
 import { isTauri } from '@/utils/platform';
 import { MilestoneReport, useMilestoneRows, useMilestoneReportPrint } from './MilestoneReport';
@@ -115,30 +116,40 @@ export function ReportPanel() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const defaultName = `${projectName || 'project'}-planning.png`;
+    // Render offscreen at a fixed high-res scale for the export — independent of the on-screen
+    // preview canvas (which uses window.devicePixelRatio, often just 1x) so the embedded image
+    // stays sharp regardless of the exporting user's screen. See computeHighResScale for the
+    // DPI-target/memory-cap trade-off.
+    const exportCanvas = document.createElement('canvas');
+    const { width: logicalWidth, height: logicalHeight } = renderPrintCanvas(
+      exportCanvas, tasks, sequences, calendar, projectName, options, 1,
+    );
+    const exportScale = computeHighResScale(logicalWidth, logicalHeight);
+    renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, exportScale);
+
+    const pdfBytes = canvasToPdfBytes(exportCanvas, 0.95);
+    const defaultName = `${projectName || 'project'}-planning.pdf`;
 
     if (isTauri()) {
       const { save } = await import('@tauri-apps/plugin-dialog');
       const { writeFile } = await import('@tauri-apps/plugin-fs');
       const picked = await save({
         defaultPath: defaultName,
-        filters: [{ name: 'PNG Image', extensions: ['png'] }],
+        filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
       });
       if (!picked) return;
-      const savedPath = ensureExtension(picked, 'png');
-
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        const buffer = await blob.arrayBuffer();
-        await writeFile(savedPath, new Uint8Array(buffer));
-      }, 'image/png');
+      const savedPath = ensureExtension(picked, 'pdf');
+      await writeFile(savedPath, pdfBytes);
     } else {
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.download = `${projectName || 'project'}-planning.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.download = defaultName;
+      link.href = url;
       link.click();
+      URL.revokeObjectURL(url);
     }
-  }, [projectName]);
+  }, [projectName, tasks, sequences, calendar, options]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;

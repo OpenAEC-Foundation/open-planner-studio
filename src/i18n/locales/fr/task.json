@@ -129,7 +129,7 @@
     "interferingFloat": "Marge interférente :",
     "notes": {
       "title": "Notes",
-      "add": "+ Ajouter une note",
+      "add": "Ajouter une note",
       "placeholder": "Note…",
       "remove": "Supprimer",
       "done": "Terminé",

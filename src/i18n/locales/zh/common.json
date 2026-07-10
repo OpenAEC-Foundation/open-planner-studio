@@ -44,7 +44,6 @@
     "priorityNormal": "普通",
     "priorityHigh": "高",
     "startRelationHere": "从此处开始建立关系",
-    "setConstraint": "设置约束…",
     "paste": "粘贴",
     "zoomReset": "重置缩放",
     "fitToProject": "适应项目",
@@ -60,6 +59,7 @@
     "version": "版本",
     "defaultZoom": "默认缩放",
     "projectInfo": "项目信息...",
+    "tourHint": "重新查看应用的入门导览。",
     "theme": "主题",
     "themeDark": "深色",
     "themeLight": "浅色",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "转到报告选项卡",
       "switchDocument": "切换文档",
-      "scrollToToday": "跳转到今天"
+      "scrollToToday": "跳转到今天",
+      "help": "打开帮助"
     }
   },
   "welcome": {

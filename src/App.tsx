@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode, loadWelcomeSeen } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRightPanelWidth, saveRightPanelWidth, RIGHT_PANEL_MIN_WIDTH, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode, loadWelcomeSeen } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -121,6 +121,32 @@ function AppContent() {
   // `finish()`-closure + de niet-Tauri-kortsluiting).
   const [recoveryResolved, setRecoveryResolved] = useState(false);
 
+  // Rechterpaneel-breedte slepen (fase 2.10, punt 3) — zelfde patroon als de takentabel-splitter
+  // in GanttCanvas (`isResizingTable`): losse drag-state, window-listeners voor move/up, klem
+  // tussen min/max, en pas persisteren (localStorage) bij loslaten. Anders dan de canvas-splitter
+  // is dit een gewone DOM-sleeprand (het rechterpaneel is React/DOM, niet canvas), en de klem is
+  // hier tweezijdig: min 200px (RIGHT_PANEL_MIN_WIDTH), max 60% van het venster (dynamisch, i.p.v.
+  // een vaste breedte — het venster kan resizen tussen sessies).
+  const [isResizingRightPanel, setIsResizingRightPanel] = useState(false);
+  useEffect(() => {
+    if (!isResizingRightPanel) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const maxW = Math.round(window.innerWidth * 0.6);
+      const w = Math.min(maxW, Math.max(RIGHT_PANEL_MIN_WIDTH, Math.round(window.innerWidth - e.clientX)));
+      useAppStore.getState().setUI({ rightPanelWidth: w });
+    };
+    const handleMouseUp = () => {
+      setIsResizingRightPanel(false);
+      void saveRightPanelWidth(useAppStore.getState().ui.rightPanelWidth);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingRightPanel]);
+
   // Auto-save-poort: blijft dicht tot de recovery-keuze is gemaakt, zodat de
   // debounced auto-save de recovery-snapshots niet overschrijft vóórdat de
   // gebruiker heeft gekozen. Gaat open bij: geen recovery-data, een fout tijdens
@@ -143,6 +169,9 @@ function AppContent() {
     });
     loadLeftPanelWidth().then(w => {
       if (typeof w === 'number') setUI({ leftPanelWidth: w });
+    });
+    loadRightPanelWidth().then(w => {
+      if (typeof w === 'number') setUI({ rightPanelWidth: w });
     });
     loadRibbonCompact().then(v => {
       if (typeof v === 'boolean') setUI({ ribbonCompact: v });
@@ -589,9 +618,33 @@ function AppContent() {
           ) : (
             <div
               className="ui-card flex flex-col overflow-hidden"
-              style={{ width: rightPanelWidth, minWidth: 200 }}
+              style={{ width: rightPanelWidth, minWidth: 200, position: 'relative' }}
               data-tour-anchor="properties-panel"
             >
+              {/* Sleepgrijpzone (fase 2.10, punt 3-correctie op user-feedback c8cce49) — geen
+                  zichtbare balk meer (die kostte enkel ruimte); i.p.v. een aparte DOM-kolom nu
+                  een onzichtbare, absoluut gepositioneerde grijpzone die over de linkerrand van
+                  het paneel heen ligt (half erbinnen/erbuiten), zelfde patroon als de tabel/
+                  chart-splitter in GanttCanvas (SPLITTER_GRAB_MARGIN: grijpmarge rond de rand,
+                  geen aparte balk, geen kleur). `insetInlineStart` i.p.v. `left` zodat de zone in
+                  RTL (ar/fa) automatisch mee-spiegelt naar de juiste (binnen)rand — de flex-rij
+                  hierboven heeft geen expliciete `row-reverse`, dus de browser spiegelt 'm al bij
+                  `dir="rtl"` op `<html>` (RTL_LOCALES); logical properties houden deze grijpzone
+                  daarmee synchroon zonder aparte RTL-tak. Neemt geen ruimte in (geen invloed op
+                  paneel-breedte/padding); alleen cursor, geen achtergrond/border. */}
+              <div
+                onMouseDown={e => { e.preventDefault(); setIsResizingRightPanel(true); }}
+                style={{
+                  position: 'absolute',
+                  insetInlineStart: -4,
+                  top: 0,
+                  bottom: 0,
+                  width: 8,
+                  cursor: 'col-resize',
+                  zIndex: 10,
+                }}
+                data-ops-right-panel-resize
+              />
               <div className="flex items-center justify-between h-8 px-3 border-b border-border flex-shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
                   {resourceDocked ? t('resource.compact.title') : t('properties')}

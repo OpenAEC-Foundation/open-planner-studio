@@ -14,8 +14,8 @@ export interface ContextMenuProps {
   /** Taak-rij-context (ook gezet bij een balk-klik — zie `barHit`). Uitsluitend `null` als de
    *  rechtsklik een bandkop (`group`) of leeg canvas raakte. */
   task: Task | null;
-  /** Fase 2.10 golf 2: rechtsklik landde op de Gantt-BALK zelf (niet alleen de rij) — toont de
-   *  balk-specifieke items (relatie leggen vanaf hier / constraint) bovenaan het taakmenu. */
+  /** Fase 2.10 golf 2: rechtsklik landde op de Gantt-BALK zelf (niet alleen de rij) — toont het
+   *  balk-specifieke item (relatie leggen vanaf hier) bovenaan het taakmenu. */
   barHit: boolean;
   /** Fase 2.10 golf 2: rechtsklik op een bandkop-rij (gegroepeerde weergave) — apart, klein menu. */
   group: ContextMenuGroupInfo | null;
@@ -48,7 +48,6 @@ export interface ContextMenuProps {
   onSetPriority: (priority: number) => void;
   // Golf 2 — balk
   onStartRelationFromBar: () => void;
-  onSetConstraint: () => void;
   // Golf 2 — leeg canvas
   onPaste: () => void;
   onZoomReset: () => void;
@@ -69,7 +68,7 @@ export function ContextMenu({
   onToggleCollapse, onDelete, onAddTask,
   onInsertAbove, onInsertBelow, onIndent, onOutdent, onToggleMilestone,
   onSetCalendar, onSetProgress, onSetPriority,
-  onStartRelationFromBar, onSetConstraint,
+  onStartRelationFromBar,
   onPaste, onZoomReset, onFitToProject,
   onToggleGroupCollapse, onExpandAll, onCollapseAll,
 }: ContextMenuProps) {
@@ -153,7 +152,6 @@ export function ContextMenu({
           {barHit && (
             <>
               <MenuItem label={t('context.startRelationHere')} onClick={() => { onStartRelationFromBar(); closeAll(); }} onEnter={() => setOpenSub(null)} />
-              <MenuItem label={t('context.setConstraint')} onClick={() => { onSetConstraint(); closeAll(); }} onEnter={() => setOpenSub(null)} />
               <Separator />
             </>
           )}

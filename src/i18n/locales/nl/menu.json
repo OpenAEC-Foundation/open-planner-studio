@@ -269,7 +269,18 @@
     "author": "Auteur",
     "company": "Bedrijf",
     "startDate": "Startdatum",
-    "endDate": "Einddatum"
+    "endDate": "Einddatum",
+    "help": "Help",
+    "helpSubtitle": "Documentatie en gebruikershandleiding, ingebouwd in de app.",
+    "helpSearchPlaceholder": "Zoeken in documentatie…",
+    "helpLoading": "Laden…",
+    "helpLoadError": "Documentatie kon niet worden geladen.",
+    "helpArticleNotFound": "Artikel niet gevonden.",
+    "helpLayer": {
+      "quickstart": "Snel starten",
+      "gidsen": "Gidsen per onderwerp",
+      "referentie": "Referentie"
+    }
   },
   "export": {
     "csvLabel": "CSV (puntkomma-gescheiden)",

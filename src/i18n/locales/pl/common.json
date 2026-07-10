@@ -44,7 +44,6 @@
     "priorityNormal": "Normalny",
     "priorityHigh": "Wysoki",
     "startRelationHere": "Rozpocznij relację stąd",
-    "setConstraint": "Ustaw ograniczenie…",
     "paste": "Wklej",
     "zoomReset": "Resetuj powiększenie",
     "fitToProject": "Dopasuj do projektu",
@@ -60,6 +59,7 @@
     "version": "Wersja",
     "defaultZoom": "Domyślne powiększenie",
     "projectInfo": "Informacje o projekcie...",
+    "tourHint": "Powtórz wprowadzającą wycieczkę po aplikacji.",
     "theme": "Motyw",
     "themeDark": "Ciemny",
     "themeLight": "Jasny",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Przejdź do karty Raport",
       "switchDocument": "Przełącz dokument",
-      "scrollToToday": "Przejdź do dziś"
+      "scrollToToday": "Przejdź do dziś",
+      "help": "Otwórz pomoc"
     }
   },
   "welcome": {

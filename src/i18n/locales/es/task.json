@@ -129,7 +129,7 @@
     "interferingFloat": "Holgura interferente:",
     "notes": {
       "title": "Notas",
-      "add": "+ Añadir nota",
+      "add": "Añadir nota",
       "placeholder": "Nota…",
       "remove": "Eliminar",
       "done": "Hecho",

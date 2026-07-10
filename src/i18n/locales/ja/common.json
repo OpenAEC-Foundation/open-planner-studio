@@ -44,7 +44,6 @@
     "priorityNormal": "標準",
     "priorityHigh": "高",
     "startRelationHere": "ここから関係を開始",
-    "setConstraint": "制約を設定…",
     "paste": "貼り付け",
     "zoomReset": "ズームをリセット",
     "fitToProject": "プロジェクトに合わせる",
@@ -60,6 +59,7 @@
     "version": "バージョン",
     "defaultZoom": "既定のズーム",
     "projectInfo": "プロジェクト情報...",
+    "tourHint": "アプリの紹介ツアーをもう一度行います。",
     "theme": "テーマ",
     "themeDark": "ダーク",
     "themeLight": "ライト",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "レポートタブへ移動",
       "switchDocument": "ドキュメントを切り替え",
-      "scrollToToday": "今日にジャンプ"
+      "scrollToToday": "今日にジャンプ",
+      "help": "ヘルプを開く"
     }
   },
   "welcome": {

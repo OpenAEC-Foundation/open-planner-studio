@@ -44,7 +44,6 @@
     "priorityNormal": "Normale",
     "priorityHigh": "Haute",
     "startRelationHere": "Démarrer une relation à partir d'ici",
-    "setConstraint": "Définir une contrainte…",
     "paste": "Coller",
     "zoomReset": "Réinitialiser le zoom",
     "fitToProject": "Ajuster au projet",
@@ -60,6 +59,7 @@
     "version": "Version",
     "defaultZoom": "Zoom par défaut",
     "projectInfo": "Informations du projet...",
+    "tourHint": "Refaites la visite guidée d'introduction de l'application.",
     "theme": "Thème",
     "themeDark": "Sombre",
     "themeLight": "Clair",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Aller à l'onglet Rapport",
       "switchDocument": "Changer de document",
-      "scrollToToday": "Aller à aujourd'hui"
+      "scrollToToday": "Aller à aujourd'hui",
+      "help": "Ouvrir l'aide"
     }
   },
   "welcome": {

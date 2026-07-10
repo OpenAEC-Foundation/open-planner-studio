@@ -44,7 +44,6 @@
     "priorityNormal": "Normaal",
     "priorityHigh": "Hoog",
     "startRelationHere": "Relatie leggen vanaf hier",
-    "setConstraint": "Beperking instellen…",
     "paste": "Plakken",
     "zoomReset": "Zoom herstellen",
     "fitToProject": "Passend maken op project",
@@ -60,6 +59,7 @@
     "version": "Versie",
     "defaultZoom": "Standaard zoom",
     "projectInfo": "Projectinformatie...",
+    "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeDark": "Donker",
     "themeLight": "Licht",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Naar rapport-tabblad",
       "switchDocument": "Wissel van document",
-      "scrollToToday": "Spring naar vandaag"
+      "scrollToToday": "Spring naar vandaag",
+      "help": "Help openen"
     }
   },
   "welcome": {

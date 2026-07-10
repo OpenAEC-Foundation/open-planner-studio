@@ -122,7 +122,7 @@ function getThemeColors() {
     selected: v('--theme-accent', '#B45309'),
     dependency: '#6B7280',
     today: v('--theme-accent', '#B45309'),
-    statusDate: '#7C3AED',     // statusdatum-/voortgangslijn (paars, fase 2.6)
+    statusDate: v('--theme-accent', '#B45309'),  // statusdatum-/voortgangslijn (accent-oranje, zoals oorspronkelijk fase 2.6 — zelfde bron als `today`/`selected`)
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
     summary: '#475569',        // samenvattingsbalk (slate)
     ghost: '#94A3B8',          // externe (cross-project) ghost-balk (grijs, fase 2.9 §5.5)
@@ -416,15 +416,20 @@ export class GanttRenderer {
   }
 
   /** Statusdatumlijn (fase 2.6, §6.1): kopie van drawTodayLine met de statusdatum + eigen kleur.
-   *  Getekend ná de vandaag-lijn zodat beide zichtbaar zijn (statusdatum bovenop). */
+   *  Getekend ná de vandaag-lijn zodat beide zichtbaar zijn (statusdatum bovenop).
+   *  De voortgangslijn (`drawProgressLine`, verderop getekend) tekent zelf al een ononderbroken
+   *  spine op exact dezelfde X in dezelfde kleur — als die actief is zou deze gestippelde lijn er
+   *  bovenop dubbel tekenen (stippel-door-massief-effect / geknipper). Zodra de voortgangslijn aan
+   *  staat, IS die de statusdatum-markering; deze losse lijn treedt dan terug. */
   private drawStatusDateLine(): void {
     if (!this.opts.statusDate || this.opts.showStatusDateLine === false) return;
+    if (this.opts.showProgressLine !== false) return;
     const ctx = this.ctx;
     const x = this.dateToX(parseDate(this.opts.statusDate));
     if (x > this.opts.taskTableWidth && x < this.opts.canvasWidth) {
       ctx.strokeStyle = this.colors.statusDate;
       ctx.lineWidth = 2;
-      ctx.setLineDash([2, 3]);
+      ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.moveTo(x, this.opts.headerHeight);
       ctx.lineTo(x, this.opts.canvasHeight);
@@ -440,8 +445,8 @@ export class GanttRenderer {
   private drawProgressLine(): void {
     if (!this.opts.statusDate || this.opts.showProgressLine === false) return;
     const ctx = this.ctx;
-    const zoom = this.opts.view.zoom;
-    const statusX = this.dateToX(parseDate(this.opts.statusDate));
+    const statusDay = parseDate(this.opts.statusDate);
+    const statusX = this.dateToX(statusDay);
     const { headerHeight, canvasHeight, canvasWidth, taskTableWidth, rowHeight } = this.opts;
 
     ctx.save();
@@ -451,7 +456,8 @@ export class GanttRenderer {
     ctx.clip();
 
     ctx.strokeStyle = this.colors.statusDate;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]); // zelfde patroon als de vandaag-/statusdatumlijn (user-wens: één beeld)
     ctx.beginPath();
     ctx.moveTo(statusX, headerHeight);
 
@@ -466,12 +472,17 @@ export class GanttRenderer {
       let progressX = statusX;
       // Alleen echte leaf-taken (geen samenvatting/mijlpaal/band) stulpen uit.
       if (task && !task.isMilestone && task.childIds.length === 0) {
-        const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-        const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
-        const x1 = this.dateToX(start);
-        const x2 = this.dateToX(end) + zoom;
+        const geo = this.barGeometry(task);
         const c = Math.max(0, Math.min(1, task.time.completion || 0));
-        progressX = x1 + (x2 - x1) * c;
+        // Dagniveau-vergelijking t.o.v. de statusdatum (ook voor uur-taken: alleen de
+        // kalenderdag telt hier mee, niet het uur) — zo blijft "op de statusdatum" stabiel.
+        const finishDay = new Date(geo.end.getFullYear(), geo.end.getMonth(), geo.end.getDate());
+        const startDay = new Date(geo.start.getFullYear(), geo.start.getMonth(), geo.start.getDate());
+        const fullyDoneByStatus = c >= 1 && finishDay <= statusDay;
+        const notYetStarted = c === 0 && startDay >= statusDay;
+        if (!fullyDoneByStatus && !notYetStarted) {
+          progressX = geo.x1 + (geo.x2 - geo.x1) * c;
+        }
       }
 
       ctx.lineTo(statusX, rowTop);

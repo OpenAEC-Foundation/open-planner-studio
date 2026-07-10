@@ -44,7 +44,6 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Hoch",
     "startRelationHere": "Beziehung von hier aus starten",
-    "setConstraint": "Randbedingung festlegen…",
     "paste": "Einfügen",
     "zoomReset": "Zoom zurücksetzen",
     "fitToProject": "An Projekt anpassen",
@@ -60,6 +59,7 @@
     "version": "Version",
     "defaultZoom": "Standard-Zoom",
     "projectInfo": "Projektinformationen...",
+    "tourHint": "Wiederhole die einführende Tour durch die App.",
     "theme": "Design",
     "themeDark": "Dunkel",
     "themeLight": "Hell",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Zum Bericht-Tab",
       "switchDocument": "Dokument wechseln",
-      "scrollToToday": "Zu heute springen"
+      "scrollToToday": "Zu heute springen",
+      "help": "Hilfe öffnen"
     }
   },
   "welcome": {

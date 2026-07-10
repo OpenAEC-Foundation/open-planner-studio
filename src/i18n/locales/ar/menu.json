@@ -269,7 +269,18 @@
     "author": "المؤلف",
     "company": "الشركة",
     "startDate": "تاريخ البداية",
-    "endDate": "تاريخ النهاية"
+    "endDate": "تاريخ النهاية",
+    "help": "المساعدة",
+    "helpSubtitle": "التوثيق ودليل المستخدم مدمجان في التطبيق.",
+    "helpSearchPlaceholder": "البحث في التوثيق…",
+    "helpLoading": "جارٍ التحميل…",
+    "helpLoadError": "تعذر تحميل التوثيق.",
+    "helpArticleNotFound": "لم يتم العثور على المقالة.",
+    "helpLayer": {
+      "quickstart": "البدء السريع",
+      "gidsen": "أدلة حسب الموضوع",
+      "referentie": "المرجع"
+    }
   },
   "export": {
     "csvLabel": "CSV (مفصول بفاصلة منقوطة)",

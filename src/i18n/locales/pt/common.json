@@ -44,7 +44,6 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Alta",
     "startRelationHere": "Iniciar relação a partir daqui",
-    "setConstraint": "Definir restrição…",
     "paste": "Colar",
     "zoomReset": "Repor zoom",
     "fitToProject": "Ajustar ao projeto",
@@ -60,6 +59,7 @@
     "version": "Versão",
     "defaultZoom": "Zoom predefinido",
     "projectInfo": "Informações do projeto...",
+    "tourHint": "Repita o tour introdutório da aplicação.",
     "theme": "Tema",
     "themeDark": "Escuro",
     "themeLight": "Claro",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Ir para o separador Relatório",
       "switchDocument": "Mudar de documento",
-      "scrollToToday": "Saltar para hoje"
+      "scrollToToday": "Saltar para hoje",
+      "help": "Abrir ajuda"
     }
   },
   "welcome": {

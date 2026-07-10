@@ -2,46 +2,51 @@
   "version": 2,
   "examples": [
     {
-      "file": "showcase-woonblok-de-hoven.ifc",
-      "name": "Nieuwbouw Woonblok De Hoven",
-      "description": "Woningbouw-showcase: twee parallelle bouwblokken met WBS, alle vier relatietypes (incl. %-lag en lead), alle vijf resourcetypes met ploeg-hiërarchie, torenkraan met eigen kalender + capaciteitsstappen, alle zes toewijzingscurves, zichtbare overallocatie op metselaars én kraan (oplosbaar met nivellering), een vastgepinde taak (prioriteit 1000) en een contractuele opleverdeadline met negatieve float.",
+      "file": "showcase-verbouwing-eengezinswoning.ifc",
+      "name": "Verbouwing & Aanbouw Eengezinswoning",
+      "description": "Instap-showcase: aanbouw van een eengezinswoning met WBS-fasering, een FS-keten mét één SS-overlap (wanden/dak) en één FF-koppeling (schilderwerk vlak na tegelwerk), een SNET-vergunningconstraint, start-/verplichte-oplevermijlpaal, een comfortabele deadline (geen conflict) en één baseline direct na opzet.",
       "category": "showcase",
       "tags": [
         "woningbouw",
-        "resources",
-        "overallocatie",
-        "nivellering",
+        "klein",
+        "instap",
         "mijlpalen",
         "constraints",
-        "activity-codes"
+        "baseline"
       ]
     },
     {
-      "file": "showcase-fietstunnel-n225.ifc",
-      "name": "Aanleg Fietstunnel N225",
-      "description": "Infra-showcase: fietstunnel met 6-daagse civiele kalender, betonuitharding als ELAPSEDTIME-lag (24/7, loopt door in het weekend), een verplicht MSO-verkeersvenster en een FNLT-constraint, keuring wapening als verplichte mijlpaal, materieel/materiaal/onderaannemer-resources met een asfaltploeg op eigen kalender en zichtbare overallocatie op de mobiele kraan.",
+      "file": "showcase-rijwoningen-de-akkers.ifc",
+      "name": "Nieuwbouw 6 Rijwoningen De Akkers",
+      "description": "Middelgrote showcase: 6 rijwoningen met gedeelde fundering (vorstverlet via extraHolidays), een doorschuivende metselploeg (CREW+LABOR) per woning, installateurs op een 4-daagse resource-kalender, afbouw met curve-variatie (UNIFORM/FRONT_LOADED/BACK_LOADED) en zichtbare overallocatie op de stukadoors, per-woning verplichte opleverinspecties + een bewust te krappe contractdeadline (negatieve float), activity codes Woning×Discipline, aantekeningen (open + afgevinkt), voortgang + statusdatum halverwege, en een baseline vóór start.",
       "category": "showcase",
       "tags": [
-        "infra",
-        "civiel",
-        "elapsedtime",
-        "constraints",
-        "verkeersfasering",
-        "resources"
+        "woningbouw",
+        "middel",
+        "resources",
+        "overallocatie",
+        "voortgang",
+        "baseline",
+        "activity-codes",
+        "aantekeningen"
       ]
     },
     {
-      "file": "showcase-renovatie-willemskade.ifc",
-      "name": "Renovatie & Verduurzaming Willemskade",
-      "description": "Renovatie-showcase: bewoond kantoorpand met een START_FINISH-relatie (tijdelijke huisvesting eindigt als de sloop start), een MFO-inhuizingsdatum en een krappe FNLT-huurdeadline die negatieve float oplevert, asbestsanering (onderaannemer), isolatie (materiaal), sloopploeg (ploeg-hiërarchie) en hoogwerker (materieel), plus een vastgepinde verhuisdag (prioriteit 1000).",
+      "file": "showcase-appartementencomplex.ifc",
+      "name": "Nieuwbouw Appartementencomplex De Vaart",
+      "description": "GROOT: appartementencomplex met 3 parallelle torens (~250 taken) — hard-pin MSO, secundaire constraint, hammock (LOE), near-critical-markering + meerdere kritieke paden (floatPaths), uren-planning voor vlechtwerk/stort, alle 5 resourcetypes incl. torenkraan (EQUIPMENT) met capaciteitsstap, alle 4 relatietypes (incl. START_FINISH), alle 6 toewijzingscurves, een externe koppeling naar een apart aangeleverd terreinbestand, twee baselines (Contract → Herbaseline na meerwerk) en voortgang + statusdatum.",
       "category": "showcase",
       "tags": [
-        "renovatie",
-        "verduurzaming",
-        "start-finish",
-        "constraints",
-        "deadline",
-        "resources"
+        "woningbouw",
+        "groot",
+        "geavanceerd",
+        "kitchen-sink",
+        "near-critical",
+        "float-paths",
+        "hammock",
+        "uren-planning",
+        "externe-koppeling",
+        "baseline"
       ]
     },
     {

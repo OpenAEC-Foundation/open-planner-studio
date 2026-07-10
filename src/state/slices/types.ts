@@ -89,7 +89,9 @@ export type BackstageSection =
   | 'print'
   | 'project-info'
   | 'settings'
-  | 'extensions';
+  | 'extensions'
+  // Fase 2.10, onderdeel 5 (golf 1): in-app help/documentatie-viewer.
+  | 'help';
 
 // Fase 2.10 fix-golf (onderdeel 3, item 6): snapshot van de UI-velden die de rondleiding
 // per stap forceert (`tourSteps.ts`'s `prepare()`-lijst) — vastgelegd bij tour-START, teruggezet

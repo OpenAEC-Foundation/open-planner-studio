@@ -44,7 +44,6 @@
     "priorityNormal": "عادی",
     "priorityHigh": "زیاد",
     "startRelationHere": "شروع رابطه از اینجا",
-    "setConstraint": "تنظیم محدودیت…",
     "paste": "چسباندن",
     "zoomReset": "بازنشانی بزرگ‌نمایی",
     "fitToProject": "تنظیم با پروژه",
@@ -60,6 +59,7 @@
     "version": "نسخه",
     "defaultZoom": "بزرگنمایی پیش‌فرض",
     "projectInfo": "اطلاعات پروژه...",
+    "tourHint": "تور معرفی برنامه را دوباره انجام دهید.",
     "theme": "پوسته",
     "themeDark": "تیره",
     "themeLight": "روشن",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "رفتن به تب گزارش",
       "switchDocument": "تعویض سند",
-      "scrollToToday": "رفتن به امروز"
+      "scrollToToday": "رفتن به امروز",
+      "help": "باز کردن راهنما"
     }
   },
   "welcome": {

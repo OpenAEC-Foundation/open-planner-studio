@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "articles": [
+    {
+      "id": "quick-start",
+      "title": { "nl": "Snel starten", "en": "Quick start" },
+      "layer": "quickstart"
+    },
+    {
+      "id": "gids-plannen-wbs",
+      "title": { "nl": "Plannen & WBS", "en": "Planning & WBS" },
+      "layer": "gidsen",
+      "cluster": "plannen-wbs"
+    },
+    {
+      "id": "gids-relaties-constraints",
+      "title": { "nl": "Relaties & constraints", "en": "Relations & constraints" },
+      "layer": "gidsen",
+      "cluster": "relaties-constraints"
+    },
+    {
+      "id": "gids-kalenders-uren",
+      "title": { "nl": "Kalenders & uren-planning", "en": "Calendars & hour planning" },
+      "layer": "gidsen",
+      "cluster": "kalenders-uren"
+    },
+    {
+      "id": "gids-resources-histogram",
+      "title": { "nl": "Resources, histogram & nivellering", "en": "Resources, histogram & leveling" },
+      "layer": "gidsen",
+      "cluster": "resources-histogram"
+    },
+    {
+      "id": "gids-baselines-voortgang",
+      "title": { "nl": "Baselines & voortgang", "en": "Baselines & progress" },
+      "layer": "gidsen",
+      "cluster": "baselines-voortgang"
+    },
+    {
+      "id": "gids-kritiek-pad-analyse",
+      "title": { "nl": "Kritiek pad & geavanceerde analyse", "en": "Critical path & advanced analysis" },
+      "layer": "gidsen",
+      "cluster": "kritiek-pad-analyse"
+    },
+    {
+      "id": "gids-import-export",
+      "title": { "nl": "Im-/export", "en": "Import/export" },
+      "layer": "gidsen",
+      "cluster": "import-export"
+    },
+    {
+      "id": "gids-rapporten-printen",
+      "title": { "nl": "Rapporten & printen", "en": "Reports & printing" },
+      "layer": "gidsen",
+      "cluster": "rapporten-printen"
+    },
+    {
+      "id": "gids-sneltoetsen-bediening",
+      "title": { "nl": "Sneltoetsen & bediening", "en": "Keyboard shortcuts & controls" },
+      "layer": "gidsen",
+      "cluster": "sneltoetsen-bediening"
+    },
+    {
+      "id": "ref-taakdialoog",
+      "title": { "nl": "Taakdialoog", "en": "Task dialog" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-kalenderdialoog",
+      "title": { "nl": "Kalenderdialoog", "en": "Calendar dialog" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-resourcekalender",
+      "title": { "nl": "Resourcekalender", "en": "Resource calendar" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-nivellering",
+      "title": { "nl": "Nivelleringsopties", "en": "Leveling options" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-baselinebeheer",
+      "title": { "nl": "Baselinebeheer", "en": "Baseline management" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-externe-koppelingen",
+      "title": { "nl": "Externe koppelingen", "en": "External links" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-codes-velden",
+      "title": { "nl": "Codes & velden (structuur)", "en": "Codes & fields (structure)" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-filters",
+      "title": { "nl": "Filters", "en": "Filters" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-kolommen",
+      "title": { "nl": "Kolommen kiezen", "en": "Choosing columns" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-layouts",
+      "title": { "nl": "Layouts opslaan/laden", "en": "Saving and loading layouts" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-projectgegevens",
+      "title": { "nl": "Projectinformatie", "en": "Project information" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-instellingen",
+      "title": { "nl": "Instellingen", "en": "Settings" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-extensies",
+      "title": { "nl": "Extensies beheren en installeren", "en": "Managing and installing extensions" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-herstellen",
+      "title": { "nl": "Herstellen na een crash", "en": "Recovering after a crash" },
+      "layer": "referentie"
+    },
+    {
+      "id": "ref-sneltoetsen",
+      "title": { "nl": "Sneltoetsenoverzicht", "en": "Keyboard shortcut reference" },
+      "layer": "referentie"
+    }
+  ]
+}

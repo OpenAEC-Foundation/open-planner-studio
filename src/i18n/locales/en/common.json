@@ -44,7 +44,6 @@
     "priorityNormal": "Normal",
     "priorityHigh": "High",
     "startRelationHere": "Start relation from here",
-    "setConstraint": "Set constraint…",
     "paste": "Paste",
     "zoomReset": "Reset zoom",
     "fitToProject": "Fit to project",
@@ -60,6 +59,7 @@
     "version": "Version",
     "defaultZoom": "Default zoom",
     "projectInfo": "Project information...",
+    "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeDark": "Dark",
     "themeLight": "Light",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Go to Report tab",
       "switchDocument": "Switch document",
-      "scrollToToday": "Jump to today"
+      "scrollToToday": "Jump to today",
+      "help": "Open help"
     }
   },
   "welcome": {

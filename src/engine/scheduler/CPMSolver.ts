@@ -749,6 +749,35 @@ export class CPMSolver {
     return c.type === 'MFO' ? snapped : this.addDuration(eng, snapped, task);
   }
 
+  /**
+   * Detector-gate voor de harde-pin-logica-schending (fase 2.10, P1). Een taak met een geregistreerd
+   * feit (`actualStart` gezet voor MSO, `actualFinish` gezet voor MFO) waarvan dat feit EXACT op de
+   * pin valt, heeft de pin al aantoonbaar gerespecteerd — een later/gevloerd berekende voorganger-EF
+   * (`rawMax`, bv. via een niet-afgemelde startmijlpaal die door de data-date-vloer omhoog is
+   * geschoven) is dan een achterhaald forward-signaal, geen echte logica-schending. Wijkt het
+   * geregistreerde feit zelf af van de pin (te vroeg/te laat), of ontbreekt het feit nog, dan gate
+   * dit NIETS — de bestaande melding blijft vuren. Bewust smal: alleen dit ene detector-moment,
+   * de data-date-vloer zelf (§P6) blijft ongewijzigd.
+   */
+  private hardPinRespectedByActual(task: Task, eng: CalendarEngine): boolean {
+    const c = task.constraint;
+    if (!c?.hard || (c.type !== 'MSO' && c.type !== 'MFO')) return false;
+    const t = task.time;
+    if (c.type === 'MSO') {
+      if (!t.actualStart) return false;
+      const pin = this.hardPinStart(task, eng);
+      if (!pin) return false;
+      const actualES = this.snapOnOrAfter(eng, this.parseIn(eng, t.actualStart));
+      return formatDate(actualES) === formatDate(pin);
+    }
+    // MFO
+    if (!t.actualFinish) return false;
+    const pinFinish = this.hardPinFinish(task, eng);
+    if (!pinFinish) return false;
+    const actualEF = this.snapOnOrAfter(eng, this.parseIn(eng, t.actualFinish));
+    return formatDate(actualEF) === formatDate(pinFinish);
+  }
+
   /** Forward-ondergrens (start) van ÉÉN soft constraint (§4.1/§4.3), of null zonder forward-effect.
    *  SNET/MSO ⇒ start-ondergrens; FNET/MFO ⇒ finish-ondergrens vertaald naar de start. Dag-modus
    *  reduceert byte-identiek tot `nextWorkDay`/`addWorkingDaysSigned`; uur-modus gebruikt de instant-
@@ -851,7 +880,14 @@ export class CPMSolver {
   private applyForwardConstraints(task: Task, earlyStart: Date, rawMax: Date | null, eng: CalendarEngine): Date {
     const pin = this.hardPinStart(task, eng);
     if (pin) {
-      if (rawMax && rawMax > pin) this.hardPinViolatedIds.push(task.id);
+      // Fase 2.10 (P1): een gevloerde/berekende voorganger-EF (bv. een niet-afgemelde startmijlpaal
+      // ná de data-date-vloer) mag geen valse schending melden op een taak die al een geregistreerd
+      // feit heeft dat de pin AANTOONBAAR respecteert (§ gate hieronder). Een ECHTE schending —
+      // actual wijkt af van de pin, of er is nog geen feit en de logica is structureel te laat —
+      // blijft gewoon vuren.
+      if (rawMax && rawMax > pin && !this.hardPinRespectedByActual(task, eng)) {
+        this.hardPinViolatedIds.push(task.id);
+      }
       return pin;
     }
     let es = earlyStart;

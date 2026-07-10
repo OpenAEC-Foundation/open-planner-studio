@@ -269,7 +269,18 @@
     "author": "作者",
     "company": "公司",
     "startDate": "开始日期",
-    "endDate": "结束日期"
+    "endDate": "结束日期",
+    "help": "帮助",
+    "helpSubtitle": "内置于应用中的文档和用户指南。",
+    "helpSearchPlaceholder": "搜索文档…",
+    "helpLoading": "加载中…",
+    "helpLoadError": "无法加载文档。",
+    "helpArticleNotFound": "未找到文章。",
+    "helpLayer": {
+      "quickstart": "快速入门",
+      "gidsen": "主题指南",
+      "referentie": "参考"
+    }
   },
   "export": {
     "csvLabel": "CSV（分号分隔）",

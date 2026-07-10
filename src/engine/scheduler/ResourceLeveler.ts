@@ -36,7 +36,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
-import { CPMSolver, type CPMResult } from './CPMSolver';
+import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import { distributeUnits, maxUnitsOn } from './ResourceLoad';
 import { parseDate, formatDate } from '@/utils/dateUtils';
 
@@ -90,6 +90,16 @@ export function levelResources(
   resourceCalendars: WorkCalendar[],
   cpmResult: CPMResult,
   options: LevelingOptions,
+  // Fase 2.10 (P1-verwante correctie): de interne CPM-herberekeningen hieronder (baseline/PF/proef)
+  // draaiden tot nu toe ZONDER `dataDate`/`progressMode` — een gat dat al bestond sinds fase 2.5
+  // (vóór de voortgang/statusdatum-functie van fase 2.6) en nooit werd bijgewerkt. Bij een project
+  // MET voortgang+statusdatum (zoals de MIDDEL-showcase) rekende de nivelleerder zo op een andere
+  // (pure-ASAP, actual-onbewuste) realiteit dan de getoonde planning: sorteersleutels, PF én de
+  // proef-solve voor de preview weken af van de werkelijke (actual-gepinde) datums, waardoor de
+  // plaatsingslus conflicten miste die `computeResourceLoad` (WEL op de echte datums) wél zag —
+  // zichtbaar als "0 taken verschoven, 0 onopgelost" terwijl er gewoon overallocatie bleef staan.
+  // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
+  cpmOptions: CPMOptions = {},
 ): LevelingResult {
   const projEngine = new CalendarEngine(projectCalendar);
 
@@ -135,8 +145,10 @@ export function levelResources(
   const workById = new Map(workTasks.map(t => [t.id, t]));
 
   // A2/A4: VERSE baseline — de enige bron voor sorteersleutels (totalFloat/earlyStart), PF-basis en
-  // smoothing-vensters (lateStart). Nooit de (mogelijk stale) meegegeven cpmResult.
-  const baseline = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars).solve();
+  // smoothing-vensters (lateStart). Nooit de (mogelijk stale) meegegeven cpmResult. `cpmOptions`
+  // (dataDate/progressMode) mee, anders wijkt deze baseline af van de echte (actual-gepinde)
+  // planning zodra het project voortgang+statusdatum heeft (zie parameter-toelichting hierboven).
+  const baseline = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
   if (baseline.error) {
     const end = cpmResult.projectEnd;
     return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end };
@@ -250,7 +262,7 @@ export function levelResources(
     if (!pick) break; // zou niet mogen (CPM is acyclisch); voorkom oneindige lus
 
     // PF: draai de CPMSolver op de werkkopie (geplaatste taken hebben hun delay; `pick` niet).
-    const pf = computePF(pick, workTasks, sequences, projectCalendar, resourceCalendars);
+    const pf = computePF(pick, workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
 
     let startDate: Date;
     let slotUnresolved: string[] = [];
@@ -284,8 +296,9 @@ export function levelResources(
   }
 
   // A1: preview uit één echte proef-solve op de werkkopieën (nu mét alle gezette delays) — exact wat
-  // applyLeveling→runCPM straks doet. Bevat óók niet-geresourcete opvolgers die enkel meeschuiven.
-  const trial = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars).solve();
+  // applyLeveling→runCPM straks doet (incl. `cpmOptions`, anders wijkt de preview zelf weer af).
+  // Bevat óók niet-geresourcete opvolgers die enkel meeschuiven.
+  const trial = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
   const projectEndAfter = trial.error ? cpmResult.projectEnd : trial.projectEnd;
 
   const shifts: Record<string, LevelingShift> = {};
@@ -411,8 +424,9 @@ function computePF(
   sequences: Sequence[],
   projectCalendar: WorkCalendar,
   registry: WorkCalendar[],
+  cpmOptions: CPMOptions,
 ): Date {
-  const solver = new CPMSolver(workTasks, sequences, projectCalendar, registry);
+  const solver = new CPMSolver(workTasks, sequences, projectCalendar, registry, cpmOptions);
   const res = solver.solve();
   const r = res.tasks.get(taskId);
   return r ? parseDate(r.earlyStart) : parseDate(workTasks.find(t => t.id === taskId)!.time.earlyStart);

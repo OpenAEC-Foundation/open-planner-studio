@@ -124,7 +124,7 @@
     },
     "notes": {
       "title": "Aantekeningen",
-      "add": "+ aantekening toevoegen",
+      "add": "aantekening toevoegen",
       "placeholder": "Aantekening…",
       "remove": "Verwijderen",
       "done": "Afgevinkt",

@@ -44,7 +44,6 @@
     "priorityNormal": "Normale",
     "priorityHigh": "Alta",
     "startRelationHere": "Avvia relazione da qui",
-    "setConstraint": "Imposta vincolo…",
     "paste": "Incolla",
     "zoomReset": "Reimposta zoom",
     "fitToProject": "Adatta al progetto",
@@ -60,6 +59,7 @@
     "version": "Versione",
     "defaultZoom": "Zoom predefinito",
     "projectInfo": "Informazioni sul progetto...",
+    "tourHint": "Rifai il tour introduttivo dell'app.",
     "theme": "Tema",
     "themeDark": "Scuro",
     "themeLight": "Chiaro",
@@ -507,7 +507,8 @@
     "nav": {
       "reportTab": "Vai alla scheda Report",
       "switchDocument": "Cambia documento",
-      "scrollToToday": "Vai a oggi"
+      "scrollToToday": "Vai a oggi",
+      "help": "Apri guida"
     }
   },
   "welcome": {

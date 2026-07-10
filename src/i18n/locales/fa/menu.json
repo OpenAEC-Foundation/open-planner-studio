@@ -269,7 +269,18 @@
     "author": "نویسنده",
     "company": "شرکت",
     "startDate": "تاریخ شروع",
-    "endDate": "تاریخ پایان"
+    "endDate": "تاریخ پایان",
+    "help": "راهنما",
+    "helpSubtitle": "مستندات و راهنمای کاربر که در برنامه جاسازی شده‌اند.",
+    "helpSearchPlaceholder": "جستجو در مستندات…",
+    "helpLoading": "در حال بارگذاری…",
+    "helpLoadError": "بارگذاری مستندات ممکن نشد.",
+    "helpArticleNotFound": "مقاله یافت نشد.",
+    "helpLayer": {
+      "quickstart": "شروع سریع",
+      "gidsen": "راهنماهای موضوعی",
+      "referentie": "مرجع"
+    }
   },
   "export": {
     "csvLabel": "CSV (نقطه‌ویرگول‌جدا)",

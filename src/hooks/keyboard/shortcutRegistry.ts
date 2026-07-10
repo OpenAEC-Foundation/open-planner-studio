@@ -386,6 +386,19 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'shortcuts.nav.reportTab',
     run: (store) => store.setUI({ activeRibbonTab: 'report' }),
   },
+  // Fase 2.10, onderdeel 5 (golf 1, architect-besluit 5): F1 opent de in-app help-viewer via de
+  // Backstage-sectie 'help' (§2.1 ontwerpdocument — geen aparte ribbon-knop). `allowInInput` is
+  // BEWUST niet gezet: F1 in een invoerveld (bv. een taaknaam typen) mag niet ineens de help
+  // openen — net als de andere nav-entries hierboven/onder. `hasBlockingDialogOpen()`-guard: F1
+  // mag niet vuren terwijl een dialoog/overlay open staat (user-eis in de opdracht).
+  {
+    id: 'nav.help',
+    combo: { key: 'F1' },
+    category: 'nav',
+    labelKey: 'shortcuts.nav.help',
+    when: () => !hasBlockingDialogOpen(),
+    run: (store) => store.setUI({ activeRibbonTab: 'file', backstageSection: 'help' }),
+  },
   ...documentSwitchShortcuts,
   {
     id: 'nav.scrollToToday',

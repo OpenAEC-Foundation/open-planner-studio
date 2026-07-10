@@ -11,6 +11,25 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
+### Solver/presentatie (klein, uit de 2.10-showcase-triage, 2026-07-08)
+- [ ] **Hard-pin-restsignaal `TF=-4` op de GROOT-startmijlpaal.** Pre-existing interactie
+      (hard pin trekt de backward pass licht negatief door een voltooide keten); valse
+      "violated"-melding is al gefixt (74eb7b2), dit is alleen nog het float-getal.
+      Triage-repro's staan in de sessie-artefacten; opnieuw af te leiden uit
+      `showcase-groot.ts` + `check-advanced-cpm.ts` #182-186.
+- [ ] **Plan-datum vs. CPM-forecast zichtbaar verschillend.** De Gantt-balk toont
+      `scheduleStart` terwijl de CPM-diagnose de (data-date-gevloerde) forecast toont —
+      correct (P6-conform) maar verwarrend naast elkaar. Presentatie-verduidelijking
+      overwegen (bv. forecast-markering of tooltip-uitleg).
+
+### Klein
+- [ ] **"Project verplaatsen…"-functie (Move Project, user-verzoek 2026-07-10).** Hele planning
+      N maanden/dagen verschuiven in één handeling: nieuwe projectstartdatum kiezen, alle expliciete
+      datums schuiven mee (constraint-datums, deadlines, werkelijke start/einde, statusdatum,
+      externe-koppeling-ankers), met keuze of baselines meegaan. Let op: kalender schuift NIET mee
+      (feestdagen/bouwvak liggen vast), dus einddatums kunnen verspringen — dat is correct en moet
+      in de preview zichtbaar zijn. Scope: store-actie + klein dialoog + tests (één golf).
+
 ### Distributie & Release
 
 #### Snap-packaging — follow-ups
@@ -218,99 +237,14 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 
 #### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
 
-##### UX-verbeteringen (verplaatst uit "Openstaand" op 2026-07-07 — bediening op peil vóór de documentatie)
-- [ ] **Aantekeningen (checklist) per taak (user-verzoek 2026-07-07, aangedragen uit praktijkervaring).**
-      Onder de taak-omschrijving (in `TaskPropertiesPanel`, en meteen ook in de taakdialoog zodra die
-      gelijkgetrokken is — zie item hieronder) een knop "Aantekening toevoegen" die een klein tekstveld
-      toevoegt; je kunt er MEERDERE toevoegen. Elke aantekening heeft een **vinkje** om hem af te vinken
-      (afgehandeld/gedaan), plus een verwijderknop. Datamodel: een `notes?: { id: string; text: string;
-      done: boolean }[]` op `Task` (optioneel ⇒ byte-identiek voor bestaande bestanden); serialiseren in
-      het projectformaat (IFC via een `OPS_TaskNotes`-pset volgens het bestaande pset-patroon; P6/MSPDI:
-      indien niet native uitdrukbaar, weglaten met warn — te bepalen bij implementatie). i18n 14 talen.
-      Overweeg een subtiele indicator op de taakrij/balk dat er (open) aantekeningen zijn.
-- [ ] **Taakdialoog (dubbelklik) gelijktrekken met het eigenschappenpaneel.** Dubbelklik op een
-  taak opent `TaskDialog` (`src/components/dialogs/TaskDialog.tsx`), maar die biedt alleen de
-  fase-1-velden (naam, WBS, omschrijving, type, mijlpaal-vinkje, start, duur, oudertaak). Alles
-  wat het `TaskPropertiesPanel` sindsdien kreeg ontbreekt: mijlpaal-soort (start/eind) en
-  verplicht-vlag (2.4), datumconstraints + deadline (2.3), voortgang, prioriteit en de
-  toewijzingen-sectie (2.5), plus de 2.9-constraint/hammock-secties. De dialoog moet dezelfde
-  opties bieden als het paneel — bij voorkeur door de secties als gedeelde componenten te delen
-  i.p.v. te dupliceren (zelfde patroon als `SettingsPanelContent`/`CalendarForm`), zodat dit niet
-  opnieuw kan divergeren.
-- [ ] **Relatietype kiezen bij het slepen van een afhankelijkheid.** Nu maakt de
-      sleep-actie op het Gantt-canvas altijd een `FINISH_START`-relatie aan
-      (hardcoded in `GanttCanvas.tsx`, bij het loslaten van de dependency-drag).
-      Het type en de lag zijn inmiddels wél achteraf te wijzigen (eigenschappen-
-      paneel en relatietabel, via `updateSequence`), maar tijdens het slepen kun
-      je ze nog niet kiezen. *Aanpak:* toon bij het loslaten een klein
-      contextmenu/popover om het relatietype (FS/SS/FF/SF) en eventueel de lag
-      te kiezen in plaats van meteen FS aan te maken.
-- [ ] **Toewijzing verplaatsen tussen taken.** Nu kun je een toewijzing alleen verwijderen en
-      opnieuw aanmaken. Uit de review: maak het mogelijk een bestaande toewijzing (met eenheden +
-      curve) naar een andere taak te verplaatsen (drag of "verplaats naar…"), zodat herplannen niet
-      betekent dat je eenheden/curve opnieuw moet intikken.
-- [ ] **Native `confirm()`-dialogen vervangen door één in-app bevestigingsdialoog.** Uit de
-      fase-2.7-eind-QA: layout-verwijderen/toepassen en baseline-verwijderen gebruiken
-      `window.confirm()` — functioneel prima maar systeemgestyled (geen donker thema, geen
-      RTL, geen i18n-knoppen). Maak één herbruikbaar `ConfirmDialog`-component (patroon
-      RecoveryDialog) en vervang alle `window.confirm`-aanroepen (grep) in één keer.
-- [ ] **Resource-paneel als niet-fullscreen variant naast het histogram.** Het `ResourcePanel` neemt
-      nu het volledige rechterpaneel over. Uit de review: bied een compacte/gedockte variant zodat
-      je resources kunt bewerken terwijl de Gantt + histogramstrook zichtbaar blijven (het effect
-      van een wijziging op de belasting is dan meteen te zien).
-
-##### Bediening, welkom & documentatie
-- [ ] **Keyboard-shortcuts + rechtermuisklik-menu uitbreiden — VÓÓR de documentatie (user-verzoek
-  2026-07-04).** Voordat de gebruikersdocumentatie geschreven wordt (die legt sneltoetsen en
-  menu's immers vast) moet de bediening op peil: (a) **sneltoetsen voor zoveel mogelijk
-  acties** — inventariseer wat `useKeyboardShortcuts.ts` al heeft (F5/Ctrl+S/Ctrl+Z/F11/
-  indent-outdent/zoom…) en vul aan naar het niveau van MSP/P6: o.a. taak invoegen/verwijderen,
-  relatie leggen op selectie, mijlpaal maken, omhoog/omlaag verplaatsen, inklappen/uitklappen
-  (alles/niveau), naar vandaag/statusdatum springen, dialoog-openers (kalenders, baselines,
-  filter, kolommen), rapportweergave, tabwissel tussen documenten. Conflictvrij per platform
-  (let op browser-gereserveerde combinaties in de web-build) en tonen in tooltips; overweeg
-  een "sneltoetsen"-overzichtsdialoog (Ctrl+/?) als onderdeel van dit werk. (b) **Het
-  rechtermuisklik-contextmenu verrijken** — het bestaande `ContextMenu` op taakrij/canvas is
-  minimaal; voeg contextuele acties toe per plek: taakrij (bewerken, invoegen boven/onder,
-  verwijderen, indent/outdent, mijlpaal-toggle, kalender toewijzen, voortgang zetten,
-  resource toewijzen, naar relaties), Gantt-balk (relatie leggen vanaf hier, pin/prioriteit,
-  constraint zetten), lege canvas (taak toevoegen, plakken, zoom-presets), bandkop
-  (in-/uitklappen, alles), histogram (drill-down). Elke context-actie hergebruikt bestaande
-  store-acties — geen nieuwe logica, alleen ontsluiting. i18n 14 talen.
-- [ ] **First-startup-ervaring: welkomstmenu + rondleiding (user-verzoek 2026-07-04).** Bij de
-  allereerste start van het programma verschijnt een welkomstscherm met (a) een aantal basale
-  instellingen om direct te kiezen (denk: taal, thema licht/donker, en relevante voorkeuren
-  zoals de auto-bereken-toggle zodra die bestaat) en (b) een "show around": een korte
-  rondleiding door het programma (lint-tabs, taaktabel + Gantt, eigenschappenpaneel,
-  histogram/rapporten, voorbeelden openen) — overslaanbaar, en achteraf opnieuw te starten
-  vanuit Help/backstage. **Harde eis: het menu mag NIET terugkomen na een update** — de
-  gezien-vlag dus persistent opslaan onafhankelijk van de appversie (settingsStore/localStorage
-  zonder versie-sleutel; in Tauri overleven zowel localStorage als de settings een in-app
-  update, verifiëren bij implementatie). De gekozen instellingen landen gewoon in de bestaande
-  settings (3-surfaces-regel blijft gelden — het welkomstscherm is een vierde *invoerpunt*,
-  geen aparte opslag).
-- [ ] **Drie voorbeeld-planningen die écht alle functies van de app benutten.** De huidige
-  voorbeelden demonstreren vooral taken+relaties; maak drie rijk uitgewerkte, realistische
-  projecten (bv. woningbouw, infra, renovatie) die samen alle features raken: WBS-hiërarchie
-  met inspringen, alle vier relatietypes + lags/leads (incl. %-lag), datumconstraints +
-  deadlines (incl. een bewust conflict met negatieve float), start-/eindmijlpalen +
-  verplichte/inspectiemijlpalen, activity codes + custom fields + groepering, alle vijf
-  resourcetypes met ploeg-hiërarchie, resource-kalenders, capaciteitsstappen, toewijzingen
-  met verschillende curves, zichtbare overallocatie die met nivellering/smoothing oplosbaar
-  is, taak-prioriteiten (incl. een vastgepinde), en meerdere kalender-eigenaardigheden
-  (feestdagen/bouwvak). In het Voorbeelden-manifest opnemen met passende tags, zodat ze ook
-  als interactieve documentatie dienen naast de handleiding hieronder.
-- [ ] **Volledige gebruikersdocumentatie schrijven** — aan het einde van fase 2, als alle
-  planningsfeatures er zijn. Gebruikers moeten nu nog gokken hoe alles werkt; er is geen
-  handleiding. Dekking: projecten aanmaken (wizard, kalender-presets), taken/WBS/inspringen,
-  relaties + lags, constraints + deadlines, mijlpalen (soorten, verplicht), resources
-  (types, kalenders, capaciteitsstappen, toewijzen, curves), histogram lezen, nivelleren vs.
-  smoothing (en wanneer welke), rapporten/printen, import/export (IFC/P6/MSP/CSV, incl. wat
-  wél/niet meereist per formaat), multi-document, sneltoetsen, instellingen en de updater.
-  Vorm: gebruikersgericht (taakgericht "hoe doe ik X", niet feature-opsomming), NL als brontaal,
-  vindbaar vanuit de app (Backstage → Help of vergelijkbaar), met screenshots. Bestaande
-  vindplaats voor auteurs: alleen `docs/extensions.md` (extensie-auteurs) — eindgebruikers
-  hebben nu niets.
+> **AFGEROND (v2026.7.9 + v2026.7.10, 2026-07-07 t/m 2026-07-10).** Sneltoets-register + Ctrl+/-overzicht,
+> contextmenu's (4 oppervlakken), box-selectie, taakdialoog-parity via gedeelde task-sections,
+> taak-aantekeningen (IFC-pset `OPS_TaskNotes`), toewijzing verplaatsen, ConfirmDialog, relatietype-popover,
+> gedockt/versleepbaar resourcepaneel, first-startup (welkom + 7-staps rondleiding + feedback-slotstap),
+> 3 woningbouw-showcases klein/middel/groot (generator-schema uitgebreid; `verify:examples` als levend
+> contract), en volledige in-app-documentatie NL+EN (25 artikelen, F1/Backstage-viewer, `verify:docs`).
+> Zie changelog, de specs in `superpowers/specs/2026-07-07-2.10-*` en de git-historie van `fase-2.10`.
+> Bewust doorgeschoven: drag-and-drop toewijzing-verplaatsen; sneltoets-herbinden; 12 extra doc-talen.
 
 ### Fase 3 — Bouwsector & Nederlandse Features (v1.0)
 
