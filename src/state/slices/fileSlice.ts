@@ -55,10 +55,6 @@ export interface ApplyLoadedProjectOpts {
   recompute?: boolean;
   /** Canvas op het hele project passen (requestFitToProject). Open-paden: true; loadState: false. */
   fit?: boolean;
-  /** Activity-code-types & custom-field-defs uit het parse-resultaat overnemen. `loadState` doet
-   *  dit; de drie fileSlice-open-paden deden dit historisch NIET (bevinding F6-divergentie — hier
-   *  bewust identiek gehouden i.p.v. stilzwijgend gerepareerd). */
-  loadStructure?: boolean;
   /** Uur-data-melding (§6.8) berekenen en zetten. Open-paden: true; loadState: false. */
   hourDataNotice?: boolean;
 }
@@ -122,12 +118,11 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       s.calendars = parsed.resourceCalendars ?? [];
       // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
       promoteProjectCalendarToLibrary(s);
-      // Structuur (activity-codes/custom-fields): alleen wanneer de aanroeper dat vraagt. loadState
-      // neemt ze over; de open-paden lieten ze historisch ongemoeid (bevinding F6-divergentie).
-      if (opts.loadStructure) {
-        s.activityCodeTypes = parsed.activityCodeTypes ?? [];
-        s.customFieldDefs = parsed.customFieldDefs ?? [];
-      }
+      // Structuur (activity-codes/custom-fields) hoort bij het project en round-tript door IFC —
+      // altijd overnemen. (Fix van bevinding F6: de open-paden lieten dit historisch weg, waardoor
+      // Bestand → Openen + Opslaan activity-codes/custom-fields stil vernietigde.)
+      s.activityCodeTypes = parsed.activityCodeTypes ?? [];
+      s.customFieldDefs = parsed.customFieldDefs ?? [];
       // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
       // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
       if (opts.hourDataNotice) {
@@ -192,8 +187,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       if (!isActivePristine(get())) get().newDocument();
 
       // Gedeelde load-implementatie; open-pad-semantiek: pad zetten (+ recent), direct
-      // doorrekenen + fitten en de uur-melding evalueren. loadStructure blijft uit — de
-      // open-paden namen activity-codes/custom-fields historisch niet over (bevinding F6).
+      // doorrekenen + fitten en de uur-melding evalueren.
       get().applyLoadedProject(parsed, {
         filePath,
         recompute: true,

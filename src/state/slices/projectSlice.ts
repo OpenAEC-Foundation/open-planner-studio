@@ -249,10 +249,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
   loadState: (loaded) => {
     // Dunne wrapper over de gedeelde load-implementatie (audit P5/F6): `applyLoadedProject` in
     // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad, GEEN runCPM/fit,
-    // `filePath` ongemoeid (opt weggelaten), maar WÉL de structuur (activity-codes/custom-fields)
-    // overnemen en de projectkalender-migratie draaien. De externe callers blijven ongewijzigd.
+    // `filePath` ongemoeid (opt weggelaten). De externe callers blijven ongewijzigd.
     get().applyLoadedProject(loaded, {
-      loadStructure: true,
       recompute: false,
       fit: false,
       hourDataNotice: false,
