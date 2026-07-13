@@ -122,6 +122,23 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --define:__OPS_DEV_INSTANCE__='"test"' \
     --outfile="$DCCHECK" >/dev/null 2>&1
   node "$DCCHECK" || STATUS=1
+
+  # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
+  #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een
+  #      eigen tsconfig die alleen check-ifc-roundtrip.ts typecheckt (`satisfies Required<...>`); een
+  #      nieuw domeinveld → compile-fout → fixture MOET bijgewerkt (zelf-uitbreidende batterij).
+  #  (2) De round-trip zelf: writeIFC→readIFC veld-voor-veld + idempotentie + KNOWN_GAPS.
+  node "$ROOT/node_modules/.bin/tsc" --noEmit -p "$DIR/tsconfig.roundtrip.json" || STATUS=1
+
+  RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-ifc-roundtrip.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$RTCHECK" >/dev/null 2>&1
+  node "$RTCHECK" || STATUS=1
 fi
 
 node "$OUT" "${FILES[@]}" || STATUS=1

@@ -6,3 +6,4 @@
 .move-assignment-check.mjs
 .move-task-check.mjs
 .document-contract-check.mjs
+.ifc-roundtrip-check.mjs
