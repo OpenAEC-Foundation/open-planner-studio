@@ -33,6 +33,9 @@ export interface ProjectSlice {
   calendar: WorkCalendar;
   isDirty: boolean;
   filePath: string | null;
+  /** Web-opslaan-doel (spec §4). ALLEEN het FSA-opslaan-doel — nooit voor identiteit/titel;
+   *  die blijven bij `filePath` (echt pad in Tauri, bestandsnaam in web). `null` in Tauri/fallback-web. */
+  fileHandle: FileSystemFileHandle | null;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -94,6 +97,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
   calendar: createDefaultCalendar(),
   isDirty: false,
   filePath: null,
+  fileHandle: null,
 
   setProject: (updates) =>
     set((s) => {
@@ -178,6 +182,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.redoStack = [];
       s.isDirty = false;
       s.filePath = null;
+      s.fileHandle = null;
     });
     emitExtensionEvent(HOST_EVENTS.projectNew);
   },
@@ -235,6 +240,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       // Een leeg project (template 'Leeg') is nog niet 'dirty'; met fasen wél.
       s.isDirty = opts.phaseNames.length > 0;
       s.filePath = null;
+      s.fileHandle = null;
     });
     emitExtensionEvent(HOST_EVENTS.projectNew);
   },

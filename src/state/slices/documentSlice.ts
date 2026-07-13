@@ -57,6 +57,8 @@ export interface DocumentPayload {
   undoStack: Snapshot[];
   redoStack: Snapshot[];
   filePath: string | null;
+  /** Web-opslaan-doel (spec §4). Alleen FSA; nooit identiteit/titel. */
+  fileHandle: FileSystemFileHandle | null;
   isDirty: boolean;
 }
 
@@ -135,6 +137,7 @@ function capturePayload(s: AppState): DocumentPayload {
     undoStack: s.undoStack,
     redoStack: s.redoStack,
     filePath: s.filePath,
+    fileHandle: s.fileHandle,
     isDirty: s.isDirty,
   };
 }
@@ -186,6 +189,7 @@ function hydratePayload(s: AppState, p: DocumentPayload): void {
   s.undoStack = p.undoStack;
   s.redoStack = p.redoStack;
   s.filePath = p.filePath;
+  s.fileHandle = p.fileHandle ?? null;
   s.isDirty = p.isDirty;
   // §4.3: oude/verse documenten zonder bibliotheek-entry voor hun projectkalender krijgen er hier
   // één (idempotent — no-op als de entry al bestaat, bv. bij een gewone switchDocument/undo).
@@ -216,6 +220,7 @@ function freshPayload(): DocumentPayload {
     undoStack: [],
     redoStack: [],
     filePath: null,
+    fileHandle: null,
     isDirty: false,
   };
 }
@@ -244,6 +249,7 @@ function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
     undoStack: [],
     redoStack: [],
     filePath: d.filePath,
+    fileHandle: null,
     isDirty: d.isDirty,
   };
 }
