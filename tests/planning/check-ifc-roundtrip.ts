@@ -28,22 +28,14 @@
 //      writer/reader — dan FAALT de assertie en herinnert die eraan de gap uit KNOWN_GAPS te halen).
 //      GEEN productiecode-fix in dit pakket; de gaps zijn gerapporteerd aan de opdrachtgever.
 //
-// KNOWN_GAPS (write→read verlies), classificatie (a) echt dataverlies / (b) bewuste normalisatie:
-//   (a) project.author      — reader hardcodeert '' (extractProject); writer schrijft 'm wél
-//                             (IFCPERSON/FILE_NAME) maar reader leest 'm niet terug.
-//   (a) project.company     — idem, reader hardcodeert ''.
-//   (a) project.description — writer schrijft 'm NERGENS (IFCPROJECT arg3=$, IFCWORKPLAN arg3=$);
-//                             reader leest de lege workplan-slot als '$'.
-//   (a) project.createdAt   — writer schrijft 'm niet; reader zet new Date() (nu).
-//   (a) project.modifiedAt  — idem.
-//   (a) task.color          — writer schrijft 'm nergens; reader zet 'm nooit → undefined.
-//   (a) task.resourceIds    — reader geeft ALTIJD [] (extractTasks) en herbouwt 'm NIET uit de
-//                             assignments; de taak↔resource-koppeling overleeft wél via
-//                             ResourceAssignment, maar task.resourceIds zelf niet. NB: applyLoadedProject
-//                             reconcilieert dit óók niet op de load-payload.
-//   (a) task.time.interferingFloat / isNearCritical / floatPath — fase-2.9-analyse-uitvoer; writer
-//                             schrijft ze niet (i.t.t. earlyStart/float/isCritical, die WEL round-trippen).
-//                             Worden door de analyse-laag herberekend, maar overleven de round-trip niet.
+// KNOWN_GAPS (write→read verlies), classificatie (b) bewuste normalisatie. De acht (a)-gaps
+// (project.author/company/description/createdAt/modifiedAt, task.color/resourceIds,
+// task.time.interferingFloat/isNearCritical/floatPath) zijn in werkpakket H2 GEDICHT — ze lopen nu
+// door de echte round-trip-vergelijking. author/company via de IFCPERSON/IFCORGANIZATION-keten;
+// description via de IFCWORKPLAN/IFCPROJECT.Description-slot; createdAt/modifiedAt via het
+// OPS_ProjectSettings-pset; color via OPS_TaskAppearance; resourceIds herbouwd uit de assignments
+// (enige bron van waarheid, geen dubbele opslag); de drie analyse-velden via OPS_Analysis. Wat
+// bewust NIET round-trippt:
 //   (b) resource.availability — @deprecated migratie-alleen veld; writer schrijft 'm bewust niet.
 //   (b) task.time.durationMinutes / remainingMinutes — UUR-modus-velden; niet van toepassing in dag-modus
 //                             (deze fixture is dag-modus). hun uur-round-trip is gedekt door
@@ -168,8 +160,8 @@ const TM = {
   id: 't-m', name: 'Oplevering', description: 'Contractuele opleverdatum', wbsCode: '1.1',
   taskType: 'INSTALLATION', status: 'COMPLETED', isMilestone: true, milestoneKind: 'FINISH',
   mandatory: true, priority: 700, levelingDelay: 3, parentId: 't-p', childIds: [],
-  resourceIds: ['r-mem', 'r-eq'], // (a) gap: reader geeft [] terug
-  color: '#abcdef',              // (a) gap: nooit geschreven/gelezen
+  resourceIds: [], // milestone zonder assignments ⇒ afgeleide resourceIds is leeg (H2-fix)
+  color: '#abcdef', // round-trippt via OPS_TaskAppearance (H2-fix)
   isHammock: true,
   activityCodes: { 'act-loc': 'v-b1', 'act-dis': 'v-ruw' },
   customFields: {
@@ -202,13 +194,13 @@ const TM = {
 const TX: Task = {
   id: 't-x', name: 'Ruwbouw', description: 'Casco', wbsCode: '1.2',
   taskType: 'DEMOLITION', status: 'NOT_STARTED', isMilestone: false, priority: 500,
-  parentId: 't-p', childIds: [], resourceIds: [], // leeg (geen gap-demonstratie hier)
+  parentId: 't-p', childIds: [], resourceIds: ['r-mem'], // afgeleid uit a1/a2 (H2-fix)
   time: plainTime('2026-07-06', '2026-07-10', 5),
 };
 const TY: Task = {
   id: 't-y', name: 'Installaties', description: 'E+W', wbsCode: '1.3',
   taskType: 'LOGISTIC', status: 'NOT_STARTED', isMilestone: false, priority: 500,
-  parentId: 't-p', childIds: [], resourceIds: [],
+  parentId: 't-p', childIds: [], resourceIds: ['r-eq'], // afgeleid uit a3 (H2-fix)
   time: plainTime('2026-07-13', '2026-07-17', 5),
 };
 const tasks: Task[] = [TP, TM, TX, TY];
@@ -317,18 +309,23 @@ function canon(r: ImportResult): Any {
   });
 
   const canonTime = (t: TaskTime): Any => ({
-    // Gestripte gaps: durationMinutes/remainingMinutes/interferingFloat/isNearCritical/floatPath.
+    // Gestripte (b)-gaps: durationMinutes/remainingMinutes (uur-modus, n.v.t. in dag-modus).
+    // interferingFloat/isNearCritical/floatPath round-trippen sinds H2 (OPS_Analysis) mee.
     durationType: t.durationType, scheduleDuration: t.scheduleDuration,
     scheduleStart: t.scheduleStart, scheduleFinish: t.scheduleFinish,
     earlyStart: t.earlyStart, earlyFinish: t.earlyFinish, lateStart: t.lateStart, lateFinish: t.lateFinish,
     freeFloat: t.freeFloat, totalFloat: t.totalFloat, isCritical: t.isCritical,
+    interferingFloat: t.interferingFloat, isNearCritical: t.isNearCritical, floatPath: t.floatPath,
     actualStart: t.actualStart, actualFinish: t.actualFinish, actualDuration: t.actualDuration,
     remainingTime: t.remainingTime, completion: t.completion,
   });
 
   const canonTask = (t: Task): Any => ({
-    // Gestripte gaps: color, resourceIds.
+    // color + resourceIds round-trippen sinds H2 (OPS_TaskAppearance resp. herbouw uit assignments).
+    // resourceIds naar natuurlijke sleutels (resource-naam) + gesorteerd (volgorde-onafhankelijk).
     wbsCode: t.wbsCode, name: t.name, description: t.description, taskType: t.taskType,
+    color: t.color,
+    resourceIds: [...t.resourceIds].map(id => resNameById.get(id) ?? id).sort(),
     status: t.status, isMilestone: t.isMilestone, milestoneKind: t.milestoneKind, mandatory: t.mandatory,
     priority: t.priority, levelingDelay: t.levelingDelay,
     parent: t.parentId ? taskKeyById.get(t.parentId) ?? t.parentId : null,
@@ -374,8 +371,10 @@ function canon(r: ImportResult): Any {
 
   return {
     project: {
-      // Gestripte gaps: author, company, description, createdAt, modifiedAt.
+      // author/company/description/createdAt/modifiedAt round-trippen sinds H2.
       name: r.project.name, startDate: r.project.startDate, endDate: r.project.endDate,
+      description: r.project.description, author: r.project.author, company: r.project.company,
+      createdAt: r.project.createdAt, modifiedAt: r.project.modifiedAt,
       calendar: calKey(r.project.calendarId), wbsAutoNumber: r.project.wbsAutoNumber,
       statusDate: r.project.statusDate, progressMode: r.project.progressMode,
       schedulingOptions: r.project.schedulingOptions,
@@ -450,21 +449,9 @@ const rt2 = readIFC(writeIFC(rt1));
   const tmOut = tByWbs(rt1, '1.1'); // Oplevering (kitchen-sink)
   const txOut = tByWbs(rt1, '1.2'); // Ruwbouw
 
-  // Voor de resourceIds-gap-demonstratie: geef TX vóór het schrijven wél resourceIds mee (in de
-  // hoofdfixture is TX.resourceIds bewust leeg). Los round-trippen zodat we het verlies bewijzen.
-  const withRes = readIFC(writeIFC({ ...fixture, tasks: fixture.tasks.map(t => (t.wbsCode === '1.2' ? { ...t, resourceIds: ['r-mem', 'r-eq'] } : t)) }));
-  const txRes = withRes.tasks.find(t => t.wbsCode === '1.2')!;
-
-  assert(rt1.project.author !== project.author, '(a) project.author blijft verloren');
-  assert(rt1.project.company !== project.company, '(a) project.company blijft verloren');
-  assert(rt1.project.description !== project.description, '(a) project.description blijft verloren');
-  assert(rt1.project.createdAt !== project.createdAt, '(a) project.createdAt blijft verloren');
-  assert(rt1.project.modifiedAt !== project.modifiedAt, '(a) project.modifiedAt blijft verloren');
-  assert(tmOut.color === undefined && TM.color !== undefined, '(a) task.color blijft verloren');
-  assert(txRes.resourceIds.length === 0, '(a) task.resourceIds blijft verloren (niet herbouwd uit assignments)');
-  assert(tmOut.time.interferingFloat === undefined && def(TM.time.interferingFloat), '(a) time.interferingFloat blijft verloren');
-  assert(tmOut.time.isNearCritical === undefined && def(TM.time.isNearCritical), '(a) time.isNearCritical blijft verloren');
-  assert(tmOut.time.floatPath === undefined && def(TM.time.floatPath), '(a) time.floatPath blijft verloren');
+  // De gaps author/company/description/createdAt/modifiedAt/color/resourceIds/interferingFloat/
+  // isNearCritical/floatPath zijn in H2 gedicht — ze lopen nu door de echte round-trip-vergelijking
+  // hierboven en zijn uit KNOWN_GAPS gehaald. Hier resteren alleen de bewuste (b)-normalisaties.
   assert(tmOut.time.durationMinutes === undefined && def(TM.time.durationMinutes), '(b) time.durationMinutes n.v.t. in dag-modus');
   assert(tmOut.time.remainingMinutes === undefined && def(TM.time.remainingMinutes), '(b) time.remainingMinutes n.v.t. in dag-modus');
   assert(rMem.availability === undefined && def(RMember.availability), '(b) resource.availability (deprecated) niet geschreven');

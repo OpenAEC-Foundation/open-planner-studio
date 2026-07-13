@@ -139,8 +139,9 @@ export function writeIFC(input: WriteIFCInput): string {
   const axId = addLine(ctx, '_ax', `IFCAXIS2PLACEMENT3D(#${ptId},$,$)`);
   const ctxId = addLine(ctx, '_ctx', `IFCGEOMETRICREPRESENTATIONCONTEXT($,'Plan',3,1.0E-05,#${axId},$)`);
 
-  // Project
-  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(ifcGuid(project.id))},#${ownerHistId},${ifcStr(project.name)},$,$,$,$,(#${ctxId}),#${unitAssId})`);
+  // Project. Description (arg 3) draagt project.description (fase 3, H2) — de reader leest 'm terug
+  // uit de IFCWORKPLAN.Description-slot, met terugval op deze.
+  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(ifcGuid(project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
@@ -154,7 +155,7 @@ export function writeIFC(input: WriteIFCInput): string {
   const planEnd = endDates[endDates.length - 1] || project.endDate;
 
   const workPlanId = addLine(ctx, '_workplan',
-    `IFCWORKPLAN(${ifcStr(ifcGuid(project.id + '_wp'))},#${ownerHistId},${ifcStr(project.name)},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
+    `IFCWORKPLAN(${ifcStr(ifcGuid(project.id + '_wp'))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
 
   const workSchedId = addLine(ctx, '_worksched',
     `IFCWORKSCHEDULE(${ifcStr(ifcGuid(project.id + '_ws'))},#${ownerHistId},${ifcStr('Bouwplanning v1.0')},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
@@ -238,6 +239,10 @@ export function writeIFC(input: WriteIFCInput): string {
   writeLevelingMeta(ctx, tasks, ownerHistId);
   // Aantekeningen (fase 2.10, item 1) als OPS_TaskNotes-pset per taak
   writeTaskNotes(ctx, tasks, ownerHistId);
+  // Taak-kleur (fase 3, H2) als OPS_TaskAppearance-pset per taak
+  writeTaskAppearance(ctx, tasks, ownerHistId);
+  // Fase-2.9-analyse-uitvoer (fase 3, H2) als OPS_Analysis-pset per taak
+  writeAnalysisMeta(ctx, tasks, ownerHistId);
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
@@ -305,6 +310,21 @@ function writeStructure(
   if (project.progressMode && project.progressMode !== 'RETAINED_LOGIC') {
     projSettingProps.push(addLine(ctx, '_ps_progressmode',
       `IFCPROPERTYSINGLEVALUE('ProgressMode',$,IFCLABEL(${ifcStr(project.progressMode)}),$)`));
+  }
+  // CreatedAt/ModifiedAt (fase 3, H2): project-tijdstempels als verbatim ISO-instant. Bewust in het
+  // OPS_ProjectSettings-pset i.p.v. de native IFCOWNERHISTORY-slots (IfcTimeStamp): (1) elk bestaand
+  // bestand draagt in OwnerHistory al een schrijf-tijdstempel, dus dat slot teruglezen zou createdAt
+  // van álle oude bestanden stilletjes wijzigen (breekt "identiek laden"); (2) IfcTimeStamp is
+  // gehele-seconden en zou de millisecondeprecisie van de ISO-string afkappen; (3) createdAt/
+  // modifiedAt zijn project-metadata en horen bij de andere project-settings. Golden rule: alleen
+  // wanneer gezet — een leeg veld schrijft niets (oude bestanden byte-identiek).
+  if (project.createdAt) {
+    projSettingProps.push(addLine(ctx, '_ps_createdat',
+      `IFCPROPERTYSINGLEVALUE('CreatedAt',$,IFCTEXT(${ifcStr(project.createdAt)}),$)`));
+  }
+  if (project.modifiedAt) {
+    projSettingProps.push(addLine(ctx, '_ps_modifiedat',
+      `IFCPROPERTYSINGLEVALUE('ModifiedAt',$,IFCTEXT(${ifcStr(project.modifiedAt)}),$)`));
   }
   if (projSettingProps.length > 0) {
     const setId = addLine(ctx, '_pset_projset',
@@ -479,6 +499,62 @@ function writeTaskNotes(ctx: WriteContext, tasks: Task[], ownerHistId: number): 
       `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_notes_' + task.id))},#${ownerHistId},'OPS_TaskNotes',$,(#${propId}))`);
     addLine(ctx, `_rel_notes_${task.id}`,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_notes_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Fase 3 (H2) — taak-kleur als eigen OPS_TaskAppearance-pset per taak. IfcTask heeft geen native
+ * kleur-attribuut (styling loopt normaal via IfcStyledItem op geometrie, wat hier niet bestaat) →
+ * custom pset, exact het writeTaskNotes/writeHammockMeta-stramien: één `IFCPROPERTYSINGLEVALUE
+ * ('Color',$,IFCTEXT(hex),$)`. Afwezig ⇒ niets geschreven (golden rule, bit-gelijk met bestaande
+ * bestanden). De hex-string (bv. `#abcdef`) gaat verbatim door `ifcStr` (STEP-veilig).
+ */
+function writeTaskAppearance(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    if (!task.color) continue;
+    const propId = addLine(ctx, `_color_${task.id}`,
+      `IFCPROPERTYSINGLEVALUE('Color',$,IFCTEXT(${ifcStr(task.color)}),$)`);
+    const setId = addLine(ctx, `_pset_appear_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_appear_' + task.id))},#${ownerHistId},'OPS_TaskAppearance',$,(#${propId}))`);
+    addLine(ctx, `_rel_appear_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_appear_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Fase 3 (H2) — fase-2.9-analyse-uitvoer (interfererende float / bijna-kritiek / float-path) als
+ * eigen OPS_Analysis-pset per taak. De vergelijkbare computed velden earlyStart/lateStart/freeFloat/
+ * totalFloat/isCritical hebben native IfcTaskTime-slots en round-trippen daarlangs; deze drie
+ * OPS-eigen analyse-velden hebben géén native slot, dus een custom pset — maar wél op gelijke voet
+ * meegeschreven (IFC is het volledige dossier, geen verlies t.o.v. de andere computed velden).
+ * InterferingFloat als IFCREAL (fractionele dagen mogelijk), IsNearCritical als IFCBOOLEAN,
+ * FloatPath als IFCINTEGER. Golden rule: elk veld alleen wanneer gezet (`!== undefined`) — een taak
+ * zonder analyse-uitvoer schrijft niets (oude bestanden byte-identiek).
+ */
+function writeAnalysisMeta(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const task of tasks) {
+    const t = task.time;
+    const props: string[] = [];
+    if (t.interferingFloat !== undefined) {
+      const id = addLine(ctx, `_anaif_${task.id}`,
+        `IFCPROPERTYSINGLEVALUE('InterferingFloat',$,IFCREAL(${t.interferingFloat}),$)`);
+      props.push(`#${id}`);
+    }
+    if (t.isNearCritical !== undefined) {
+      const id = addLine(ctx, `_anank_${task.id}`,
+        `IFCPROPERTYSINGLEVALUE('IsNearCritical',$,IFCBOOLEAN(${ifcBool(t.isNearCritical)}),$)`);
+      props.push(`#${id}`);
+    }
+    if (t.floatPath !== undefined) {
+      const id = addLine(ctx, `_anafp_${task.id}`,
+        `IFCPROPERTYSINGLEVALUE('FloatPath',$,IFCINTEGER(${Math.round(t.floatPath)}),$)`);
+      props.push(`#${id}`);
+    }
+    if (props.length === 0) continue;
+    const setId = addLine(ctx, `_pset_ana_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_ana_' + task.id))},#${ownerHistId},'OPS_Analysis',$,(${props.join(',')}))`);
+    addLine(ctx, `_rel_ana_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_ana_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }
 

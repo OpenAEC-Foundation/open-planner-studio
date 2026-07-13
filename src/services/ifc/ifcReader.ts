@@ -68,6 +68,11 @@ export function readIFC(content: string): ImportResult {
   // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid (byte-identiek).
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
+  // Fase 3 (H2): task.resourceIds herbouwen uit de assignments. De assignments zijn de ENIGE bron
+  // van waarheid voor de taak↔resource-koppeling in het bestand (geen dubbele opslag) — de reader
+  // projecteert ze terug op elke taak. Deterministische, gede-dupliceerde volgorde (eerste-zien in
+  // de assignments-volgorde, die op zijn beurt uit de STEP-volgorde komt).
+  reconstructResourceIds(tasks, assignments);
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap,
   );
@@ -162,6 +167,14 @@ function stripQuotes(s: string): string {
   return s;
 }
 
+/** Optionele tekst uit een IFC-slot: `$`/leeg/afwezig ⇒ '' (geen letterlijke '$' meer teruggeven).
+ *  Gebruikt voor slots waar de writer bewust `$` schrijft als het veld leeg is (bv. project-
+ *  omschrijving, IFCPERSON.FamilyName). */
+function ifcSlotText(s: string | undefined): string {
+  if (!s || s === '$') return '';
+  return stripQuotes(s);
+}
+
 function parseRef(s: string): string | null {
   const m = s.trim().match(/^#(\w+)$/);
   return m ? m[1] : null;
@@ -218,21 +231,43 @@ function parseSequenceType(s: string): SequenceType {
   return map[clean] || 'FINISH_START';
 }
 
-function extractProject(entities: StepEntity[], _entityMap: Map<string, StepEntity>): Project {
+function extractProject(entities: StepEntity[], entityMap: Map<string, StepEntity>): Project {
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const wp = entities.find(e => e.type === 'IFCWORKPLAN');
+
+  // Auteur/organisatie uit de owner-history-keten (IFCOWNERHISTORY → IFCPERSONANDORGANIZATION →
+  // IFCPERSON.FamilyName / IFCORGANIZATION.Name; spiegel van wat de writer schrijft). Via de keten
+  // i.p.v. `entities.find('IFCPERSON')` zodat we de PROJECT-persoon/organisatie pakken en niet de
+  // applicatie-organisatie ('OpenAEC Foundation'). Ontbreekt de keten (bestand van een ander tool)
+  // of is een slot leeg (`$`) ⇒ '' (de bestaande default; oude bestanden laden identiek).
+  let author = '';
+  let company = '';
+  const owner = entities.find(e => e.type === 'IFCOWNERHISTORY');
+  if (owner) {
+    const po = entityMap.get(parseRef(owner.args[0] || '') || '');
+    if (po && po.type === 'IFCPERSONANDORGANIZATION') {
+      const person = entityMap.get(parseRef(po.args[0] || '') || '');
+      if (person && person.type === 'IFCPERSON') author = ifcSlotText(person.args[1]);
+      const org = entityMap.get(parseRef(po.args[1] || '') || '');
+      if (org && org.type === 'IFCORGANIZATION') company = ifcSlotText(org.args[1]);
+    }
+  }
 
   return {
     id: generateId('proj'),
     name: proj ? stripQuotes(proj.args[2] || '') : 'Geïmporteerd Project',
-    description: wp ? stripQuotes(wp.args[3] || '') : '',
+    // Omschrijving uit de IFCWORKPLAN.Description-slot (waar de writer 'm schrijft), met terugval op
+    // de IFCPROJECT.Description-slot; `$`/leeg ⇒ '' (voorheen kwam letterlijk '$' terug — een bug).
+    description: ifcSlotText(wp?.args[3]) || ifcSlotText(proj?.args[3]),
     startDate: wp ? parseDateFromIFC(wp.args[12] || '') : formatDate(new Date()),
     endDate: wp ? parseDateFromIFC(wp.args[13] || '') : '',
     calendarId: 'cal-default',
+    // createdAt/modifiedAt: default = nu; overschreven door het OPS_ProjectSettings-pset in
+    // extractStructure als het bestand ze draagt (oude bestanden ⇒ deze default blijft staan).
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),
-    author: '',
-    company: '',
+    author,
+    company,
   };
 }
 
@@ -601,6 +636,11 @@ function extractStructure(
         } else if (name === 'ProgressMode') {
           // Fase 2.6 (§8.2): alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
+        } else if (name === 'CreatedAt') {
+          // Fase 3 (H2): project-aanmaakdatum als verbatim ISO-instant (spiegel van writeStructure).
+          if (typeof v === 'string' && v) project.createdAt = v;
+        } else if (name === 'ModifiedAt') {
+          if (typeof v === 'string' && v) project.modifiedAt = v;
         }
       }
       continue;
@@ -657,6 +697,48 @@ function extractStructure(
           if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
           if (stripQuotes(prop.args[0] || '') !== 'IsHammock') continue;
           if (parseTypedValue(prop.args[2] || '') === true) task.isHammock = true;
+        }
+      }
+      continue;
+    }
+
+    if (psetName === 'OPS_TaskAppearance') {
+      // Fase 3 (H2): taak-kleur (spiegel van writeTaskAppearance). Afwezig ⇒ task.color blijft
+      // undefined (huidige default; oude bestanden identiek).
+      for (const objRef of objectRefs) {
+        const taskId = taskStepIdMap.get(objRef);
+        const task = taskId ? taskById.get(taskId) : undefined;
+        if (!task) continue;
+        for (const prop of props) {
+          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+          if (stripQuotes(prop.args[0] || '') !== 'Color') continue;
+          const value = parseTypedValue(prop.args[2] || '');
+          if (typeof value === 'string' && value) task.color = value;
+        }
+      }
+      continue;
+    }
+
+    if (psetName === 'OPS_Analysis') {
+      // Fase 3 (H2): fase-2.9-analyse-uitvoer (interfererende float / bijna-kritiek / float-path)
+      // per taak (spiegel van writeAnalysisMeta). Op dezelfde voet als de andere computed
+      // TaskTime-velden (earlyStart/float/isCritical) — IFC is het volledige dossier. Afwezig ⇒
+      // de velden blijven undefined (huidige default; oude bestanden identiek).
+      for (const objRef of objectRefs) {
+        const taskId = taskStepIdMap.get(objRef);
+        const task = taskId ? taskById.get(taskId) : undefined;
+        if (!task) continue;
+        for (const prop of props) {
+          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+          const name = stripQuotes(prop.args[0] || '');
+          const value = parseTypedValue(prop.args[2] || '');
+          if (name === 'InterferingFloat' && typeof value === 'number') {
+            task.time.interferingFloat = value;
+          } else if (name === 'IsNearCritical' && typeof value === 'boolean') {
+            task.time.isNearCritical = value;
+          } else if (name === 'FloatPath' && typeof value === 'number') {
+            task.time.floatPath = Math.round(value);
+          }
         }
       }
       continue;
@@ -1245,6 +1327,26 @@ function extractAssignments(
   }
 
   return assignments;
+}
+
+/**
+ * Fase 3 (H2) — `task.resourceIds` reconstrueren uit de assignments. Het IFC-bestand slaat de
+ * taak↔resource-koppeling uitsluitend op via de `ResourceAssignment`s (IFCRELASSIGNSTOPROCESS +
+ * OPS_Assignments); `resourceIds` is een afgeleide projectie daarvan en wordt NIET los in het
+ * bestand bewaard (geen dubbele opslag/waarheid). Volgorde is deterministisch: eerste-zien in de
+ * assignments-volgorde, met deduplicatie (één resource kan meerdere assignments op één taak hebben).
+ */
+function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
+  const byTask = new Map<string, string[]>();
+  for (const a of assignments) {
+    let list = byTask.get(a.taskId);
+    if (!list) { list = []; byTask.set(a.taskId, list); }
+    if (!list.includes(a.resourceId)) list.push(a.resourceId);
+  }
+  for (const t of tasks) {
+    const ids = byTask.get(t.id);
+    if (ids) t.resourceIds = ids;
+  }
 }
 
 /**
