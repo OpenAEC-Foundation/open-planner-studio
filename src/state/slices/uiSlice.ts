@@ -65,6 +65,9 @@ export function createDefaultUI(): UIState {
     showFilterDialog: false,
     showLayoutsDialog: false,
     autoCalcCPM: false,
+    // Bouwmodus (2026-07-13): default AAN = huidige bouwgerichte defaults/framing ongewijzigd.
+    // App.tsx hydrateert bij opstart uit localStorage (loadConstructionMode).
+    constructionMode: true,
     dateNotation: 'dmy',
     // Fase 2.8b (§6.8): urenplanning-defaults — hoofdschakelaar uit, gemengd toegestaan,
     // duurweergave automatisch, balk-opsplitsing bij selectie.

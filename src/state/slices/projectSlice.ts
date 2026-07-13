@@ -207,7 +207,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
         name,
         description: '',
         wbsCode: String(i + 1),
-        taskType: 'CONSTRUCTION',
+        // Bouwmodus (2026-07-13): wizard-fasen krijgen in bouw-agnostische modus een neutraal
+        // taaktype (USERDEFINED) i.p.v. CONSTRUCTION.
+        taskType: s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED',
         status: 'NOT_STARTED',
         isMilestone: false,
         priority: 500,

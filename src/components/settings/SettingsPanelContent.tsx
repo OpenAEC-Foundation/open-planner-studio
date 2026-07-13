@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
 import { UITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
@@ -39,6 +39,7 @@ export function SettingsPanelContent() {
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
+  const constructionMode = useAppStore(s => s.ui.constructionMode);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
@@ -66,6 +67,14 @@ export function SettingsPanelContent() {
   const applyDateNotation = (notation: DateNotation) => {
     setUI({ dateNotation: notation });
     void saveDateNotation(notation);
+  };
+
+  // Bouwmodus (2026-07-13): live toepassen + persisteren (localStorage). De synchrone
+  // kalenderfabriek leest de vlag rechtstreeks uit localStorage, dus de save moet vóór een
+  // eventuele nieuw-project-actie geschreven zijn — vandaar direct (niet gedebounced).
+  const applyConstructionMode = (value: boolean) => {
+    setUI({ constructionMode: value });
+    void saveConstructionMode(value);
   };
 
   // Fase 2.8b (§6.8): urenplanning-appliers — live toepassen + persisteren, zelfde patroon als boven.
@@ -172,6 +181,22 @@ export function SettingsPanelContent() {
                 ]}
               />
               <p className="scrollzoom-hint">{t('settings.dateNotationHint')}</p>
+            </div>
+
+            {/* Bouwmodus (2026-07-13): app-brede schakelaar. AAN = bouwgerichte defaults/framing
+                (default). UIT = bouw-agnostisch. Verschijnt via deze gedeelde component op alle 3
+                de ingangen (gear/ribbontab/backstage). */}
+            <div className="settings-section">
+              <h3>{t('settings.constructionModeSection')}</h3>
+              <label className="settings-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={constructionMode}
+                  onChange={e => applyConstructionMode(e.target.checked)}
+                />
+                <span>{t('settings.constructionMode')}</span>
+              </label>
+              <p className="scrollzoom-hint">{t('settings.constructionModeHint')}</p>
             </div>
 
             <div className="settings-section">

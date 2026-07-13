@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useAppStore } from '@/state/appStore';
 import { Select } from '@/components/common/Select';
 import { HOLIDAY_SETS, type HolidayCountry } from '@/engine/calendar/holidays';
 import {
@@ -45,6 +46,15 @@ export function CalendarGeneratorFields({
 }) {
   const { t: tCommon } = useTranslation('common');
   const [expanded, setExpanded] = useState(false);
+  // Bouwmodus (2026-07-13): het NL-bouwvak is bouwjargon → in bouw-agnostische modus (bouwmodus UIT)
+  // verbergen we de bouwvak-rij én forceren we de param terug naar 'geen', zodat een gegenereerde
+  // kalender in die modus nooit stilzwijgend een bouwvak bevat.
+  const constructionMode = useAppStore(s => s.ui.constructionMode);
+  useEffect(() => {
+    if (!constructionMode && value.bouwvak !== 'geen') {
+      onChange({ bouwvak: 'geen' });
+    }
+  }, [constructionMode, value.bouwvak, onChange]);
 
   const isKnownCountry = value.country === 'none' || (COUNTRIES as string[]).includes(value.country);
   const set = isKnownCountry && value.country !== 'none' ? HOLIDAY_SETS[value.country as HolidayCountry] : undefined;
@@ -94,7 +104,7 @@ export function CalendarGeneratorFields({
         )}
       </div>
 
-      {value.country === 'NL' && (
+      {constructionMode && value.country === 'NL' && (
         <div className="flex flex-col gap-1">
           <label className="text-text-secondary font-medium">{tCommon('calendar.generate.bouwvakLabel')}</label>
           <div className="flex gap-1.5">

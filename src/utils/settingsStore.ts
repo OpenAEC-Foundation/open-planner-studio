@@ -276,6 +276,26 @@ export async function saveAutoCalcCPM(value: boolean): Promise<void> {
   await setSetting('autoCalcCPM', value);
 }
 
+// Bouwmodus (bouw-agnostische modus, 2026-07-13): app-instelling onder de 3-plekken-regel
+// (tandwiel/ribbontab/backstage delen SettingsPanelContent). AAN = huidige bouwgerichte app;
+// UIT = bouw-agnostisch (neutrale default-kalender, geen bouwvak/NL-feestdagen, alleen "Leeg"-
+// sjabloon, neutraal taaktype). Default AAN, dus bestaande gebruikers merken niets.
+// AFWIJKING van de meeste load*-helpers: dit paar is SYNCHROON (geen Promise) omdat de synchrone
+// default-kalenderfabriek (`createDefaultCalendar`/`buildGeneratedCalendar`) de vlag direct moet
+// kunnen uitlezen. De `typeof localStorage`-guard houdt de headless test-/Node-omgeving (geen
+// localStorage) op de default (bouwmodus aan) — zo blijft de bestaande CPM-suite byte-identiek.
+export function loadConstructionMode(): boolean {
+  if (typeof localStorage === 'undefined') return true;
+  const raw = localStorage.getItem('ops-constructionMode');
+  if (raw === null) return true;
+  try { return JSON.parse(raw) !== false; } catch { return true; }
+}
+
+export function saveConstructionMode(value: boolean): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem('ops-constructionMode', JSON.stringify(value));
+}
+
 // Datumnotatie (taak #53): app-instelling, dus WEL onder de 3-plekken-regel (tandwiel,
 // Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Ontbrekende of
 // corrupte sleutel ⇒ undefined → de store houdt de default 'dmy' (dd-mm-jjjj), geen reset.

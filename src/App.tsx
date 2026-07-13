@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRightPanelWidth, saveRightPanelWidth, RIGHT_PANEL_MIN_WIDTH, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode, loadWelcomeSeen } from '@/utils/settingsStore';
+import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRightPanelWidth, saveRightPanelWidth, RIGHT_PANEL_MIN_WIDTH, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadConstructionMode, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode, loadWelcomeSeen } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
 import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -197,6 +197,8 @@ function AppContent() {
     loadAutoCalcCPM().then(v => {
       if (typeof v === 'boolean') setUI({ autoCalcCPM: v });
     });
+    // Bouwmodus (2026-07-13): synchroon (geen Promise) — hydrateert de store uit localStorage.
+    setUI({ constructionMode: loadConstructionMode() });
     loadDateNotation().then(v => {
       if (v) setUI({ dateNotation: v });
     });

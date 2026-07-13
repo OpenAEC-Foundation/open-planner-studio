@@ -134,7 +134,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         name: partial.name,
         description: partial.description || '',
         wbsCode: partial.wbsCode || '',
-        taskType: partial.taskType || 'CONSTRUCTION',
+        // Bouwmodus (2026-07-13): neutraal taaktype-default in bouw-agnostische modus (USERDEFINED)
+        // i.p.v. CONSTRUCTION. Alleen de default bij aanmaken verandert; de enum blijft intact.
+        taskType: partial.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED'),
         status: partial.status || 'NOT_STARTED',
         isMilestone: partial.isMilestone || false,
         milestoneKind: partial.milestoneKind,

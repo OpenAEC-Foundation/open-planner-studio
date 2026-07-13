@@ -24,9 +24,11 @@ import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFiel
 
 /** Lege draft voor de (in de praktijk onbereikbare — zie ontwerp-doc item 2) "nieuwe taak"-tak:
  *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
-function blankDraft(startDate: string): Task {
+function blankDraft(startDate: string, constructionMode: boolean): Task {
   return {
-    id: '', name: '', description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    // Bouwmodus (2026-07-13): neutraal taaktype-default (USERDEFINED) in bouw-agnostische modus.
+    id: '', name: '', description: '', wbsCode: '',
+    taskType: constructionMode ? 'CONSTRUCTION' : 'USERDEFINED', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [],
     time: createDefaultTaskTime(startDate, 5), resourceIds: [],
   };
@@ -44,6 +46,7 @@ export function TaskDialog() {
   const updateTask = useAppStore(s => s.updateTask);
   const moveTask = useAppStore(s => s.moveTask);
   const project = useAppStore(s => s.project);
+  const constructionMode = useAppStore(s => s.ui.constructionMode);
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
 
@@ -52,7 +55,7 @@ export function TaskDialog() {
   // `onChange(patch)` — commit pas op Save. De RELATIONELE secties (afhankelijkheden/toewijzingen/
   // codes&velden/CPM-resultaat) werken rechtstreeks op de store via `taskId` (identiek aan het
   // paneel, spec-akkoord) en raken de draft niet.
-  const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate));
+  const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 
   // Duur-invoer (fase 2.8b, §6.4) — BEWUST buiten de draft/onChange-generieke-patch-flow gehouden
@@ -99,13 +102,13 @@ export function TaskDialog() {
       // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
       setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
     } else {
-      setDraft(blankDraft(project.startDate));
+      setDraft(blankDraft(project.startDate, constructionMode));
       setDurDays(5);
       setDurHours(0);
       setStartDate(project.startDate);
     }
 
-  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, calendars, projectCal]);
+  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, calendars, projectCal, constructionMode]);
 
   useEffect(() => {
     if (!showTaskDialog) return;

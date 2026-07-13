@@ -53,7 +53,15 @@ export function ProjectInfoDialog() {
   const [schedulingOptions, setSchedulingOptions] = useState<SchedulingOptions>(
     isNew ? {} : (project.schedulingOptions ?? {}),
   );
-  const [calState, setCalState] = useState<WizardCalendarState>(DEFAULT_WIZARD_CALENDAR);
+  // Bouwmodus (2026-07-13): in bouw-agnostische modus (bouwmodus UIT) start de kalender-generator op
+  // `country: 'none'` (geen NL-feestdagen) i.p.v. NL. De dialoog wordt vers gemount, dus de
+  // useState-initializer leest de vlag eenmalig — geen re-init nodig.
+  const constructionMode = useAppStore(s => s.ui.constructionMode);
+  const [calState, setCalState] = useState<WizardCalendarState>(() =>
+    constructionMode
+      ? DEFAULT_WIZARD_CALENDAR
+      : { country: 'none', region: undefined, bouwvak: 'geen' },
+  );
   const [template, setTemplate] = useState<TemplateKey>('empty');
   // Ploeg-preset (§6.7): default 'day' = dag-kalender (byte-identiek). Alleen zichtbaar met
   // Urenplanning aan; een niet-default preset materialiseert workTime + shift op de nieuwe kalender.
@@ -124,7 +132,11 @@ export function ProjectInfoDialog() {
     woningbouw: tMenu('newProject.tmplWoningbouw'),
     utiliteit: tMenu('newProject.tmplUtiliteit'),
   };
-  const templateOptions = PROJECT_TEMPLATES.map(t => ({ value: t.key, label: templateLabel[t.key] }));
+  // Bouwmodus UIT (bouw-agnostisch): alleen "Leeg" aanbieden — de bouwsjablonen (woningbouw/
+  // utiliteit) zijn bouwjargon en vervallen uit de keuzelijst. Default stond al op 'empty'.
+  const templateOptions = PROJECT_TEMPLATES
+    .filter(t => constructionMode || t.key === 'empty')
+    .map(t => ({ value: t.key, label: templateLabel[t.key] }));
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
