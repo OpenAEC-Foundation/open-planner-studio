@@ -1,12 +1,14 @@
 import { Task, TaskConstraint, ConstraintType } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar, Holiday, WorkTimeBands, createDefaultCalendar } from '@/types/calendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import type { ImportResult } from '@/services/importTypes';
+import { WORKCONTOUR_TO_CURVE } from './mspdiWriter';
 import {
   canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isSubDayMinutes, workDaysFromBands,
 } from '@/services/subdayIo';
@@ -17,15 +19,8 @@ const MSP_TIME_ANCHOR = '08:00:00';
 /** Gecanonicaliseerde banden per gelezen kalender + afwijking (a/b), voor de uur-modus-beslissing. */
 const mspBandRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
 
-// Omgekeerde WorkContour-mapping (spiegel van mspdiWriter's CURVE_TO_WORKCONTOUR, §8.3).
-const WORKCONTOUR_TO_CURVE: Record<number, ResourceCurve> = {
-  0: 'UNIFORM',
-  1: 'BACK_LOADED',
-  2: 'FRONT_LOADED',
-  4: 'EARLY_PEAK',
-  5: 'LATE_PEAK',
-  6: 'BELL',
-};
+// WORKCONTOUR_TO_CURVE (spiegel van mspdiWriter's CURVE_TO_WORKCONTOUR, §8.3) wordt nu uit de
+// writer geïmporteerd — daar programmatisch afgeleid, dus reader en writer kunnen niet divergeren.
 
 function getElementText(parent: Element, tagName: string): string {
   const el = parent.getElementsByTagName(tagName)[0];
@@ -116,17 +111,7 @@ function tenthsOfMinutesToDays(tenths: number, hoursPerDay: number): number {
   return Math.round(hours / hoursPerDay);
 }
 
-export function readMSPDI(content: string): {
-  project: Project;
-  calendar: WorkCalendar;
-  tasks: Task[];
-  sequences: Sequence[];
-  resources: Resource[];
-  assignments: ResourceAssignment[];
-  resourceCalendars: WorkCalendar[];
-  baselines: Baseline[];
-  activeBaselineId: string | null;
-} {
+export function readMSPDI(content: string): ImportResult {
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, 'application/xml');
 

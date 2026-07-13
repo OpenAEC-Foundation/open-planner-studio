@@ -1,12 +1,13 @@
 import { Task, TaskConstraint, ConstraintType, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
+import { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar, Holiday, WorkTimeBands, createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
-import { P6_DAY_NAMES } from './p6xmlWriter';
+import type { ImportResult } from '@/services/importTypes';
+import { P6_DAY_NAMES, P6_NAME_TO_CURVE } from './p6xmlWriter';
 import {
   canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isSubDayMinutes, workDaysFromBands,
 } from '@/services/subdayIo';
@@ -17,14 +18,8 @@ const P6_TIME_ANCHOR = '08:00:00';
 /** Gecanonicaliseerde banden per gelezen kalender + afwijking (a/b), voor de uur-modus-beslissing. */
 const p6BandRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
 
-// Omgekeerde curve-/contour-naammapping (spiegel van p6xmlWriter's P6_CURVE_TO_NAME, §8.3).
-const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
-  'Linear': 'UNIFORM',
-  'Front Loaded': 'FRONT_LOADED',
-  'Back Loaded': 'BACK_LOADED',
-  'Bell Shaped': 'BELL',
-  'Early Peak': 'EARLY_PEAK',
-};
+// P6_NAME_TO_CURVE (P6-curvenaam → OPS-curve) wordt nu uit p6xmlWriter geïmporteerd, waar beide
+// (bewust asymmetrische) richtingen naast elkaar staan (spiegel van P6_DAY_NAMES-patroon).
 
 // P6 onderscheidt Nonlabor niet verder in Equipment/Subcontractor — invulling §8.1:
 // zonder verdere hint komt Nonlabor terug als EQUIPMENT (geaccepteerd verlies, §8.4).
@@ -175,15 +170,7 @@ function getAllByLocalName(doc: Document, localName: string): Element[] {
   return results;
 }
 
-export function readP6XML(content: string): {
-  project: Project;
-  calendar: WorkCalendar;
-  tasks: Task[];
-  sequences: Sequence[];
-  resources: Resource[];
-  assignments: ResourceAssignment[];
-  resourceCalendars: WorkCalendar[];
-} {
+export function readP6XML(content: string): ImportResult {
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, 'application/xml');
 

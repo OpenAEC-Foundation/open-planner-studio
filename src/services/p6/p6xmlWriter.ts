@@ -17,6 +17,19 @@ const P6_CURVE_TO_NAME: Record<ResourceCurve, string | undefined> = {
   LATE_PEAK: 'Early Peak',
 };
 
+// Inkomende richting (P6-curvenaam → OPS-curve), gebruikt door de reader. BEWUST ASYMMETRISCH,
+// dus NIET afleidbaar uit P6_CURVE_TO_NAME: (1) P6's default-naam 'Linear' → UNIFORM (de writer
+// schrijft UNIFORM juist als afwezig element, niet als 'Linear'); (2) 'Early Peak' is bij het
+// schrijven de dubbel-bezette bestemming van zowel EARLY_PEAK als LATE_PEAK (lossy, §8.4) — bij
+// het lezen kiezen we EARLY_PEAK. Beide richtingen staan hier bewust naast elkaar.
+export const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
+  'Linear': 'UNIFORM',
+  'Front Loaded': 'FRONT_LOADED',
+  'Back Loaded': 'BACK_LOADED',
+  'Bell Shaped': 'BELL',
+  'Early Peak': 'EARLY_PEAK',
+};
+
 function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material' {
   switch (type) {
     case 'LABOR':

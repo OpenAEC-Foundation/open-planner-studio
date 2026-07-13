@@ -1,14 +1,18 @@
 import { Task, TaskTime, TaskType, ConstraintType, createDefaultTaskTime } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceType, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
+import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
 import { Project, SchedulingOptions } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, createDefaultCalendar } from '@/types/calendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
-import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
+import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { ifcGuid } from './ifcWriter';
+import type { ImportResult } from '@/services/importTypes';
+import {
+  DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
+} from './ifcConstants';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import type { WorkTimeBands } from '@/types/calendar';
 import {
@@ -16,17 +20,14 @@ import {
   isSubDayMinutes, workDaysFromBands,
 } from '@/services/subdayIo';
 
-/** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.1). Een taak-datetime met
- *  een andere tijd-van-de-dag is sub-dag-informatie (discriminator (c)). */
-const IFC_TIME_ANCHOR = '07:00:00';
+// IFC_TIME_ANCHOR (§7.1, discriminator c) en DEFAULT_PRIORITY (fase 2.5) wonen nu in ./ifcConstants
+// zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken.
 
 /** Rauwe (gecanonicaliseerde) banden per gelezen kalender-object + of ze afwijken van het
  *  enkelvoudige dag-patroon (discriminator (a)/(b)). Gevuld door `buildCalendarFromEntity`, gelezen
  *  door de uur-modus-post-pass. WeakMap ⇒ per-parse, geen lek. */
 const rawBandsRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
 
-/** Fase 2.5-defaults — zie ifcWriter.ts (golden-rule-guards). */
-const DEFAULT_PRIORITY = 500;
 const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
 
 interface StepEntity {
@@ -37,19 +38,7 @@ interface StepEntity {
 }
 
 /** Parse an IFC STEP file into the internal model */
-export function readIFC(content: string): {
-  project: Project;
-  calendar: WorkCalendar;
-  tasks: Task[];
-  sequences: Sequence[];
-  resources: Resource[];
-  assignments: ResourceAssignment[];
-  activityCodeTypes: ActivityCodeType[];
-  customFieldDefs: CustomFieldDef[];
-  resourceCalendars: WorkCalendar[];
-  baselines: Baseline[];
-  activeBaselineId: string | null;
-} {
+export function readIFC(content: string): ImportResult {
   const entities = parseSTEP(content);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) {
@@ -518,10 +507,8 @@ function parseTypedValue(s: string): CustomFieldValue | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-const MEASURE_TO_FIELD: Record<string, CustomFieldType> = {
-  ifctext: 'text', ifclabel: 'text', ifcreal: 'number', ifcinteger: 'integer',
-  ifcmonetarymeasure: 'cost', ifcdate: 'date', ifcboolean: 'boolean',
-};
+// MEASURE_TO_FIELD (IFC-measure → custom-field-type) is verhuisd naar ./ifcConstants, waar het
+// programmatisch uit de writer-map FIELD_MEASURE wordt afgeleid (kan niet meer divergeren).
 
 /**
  * Fase 2.2 — structuurdefinities en taakwaarden teruglezen (spiegel van writeStructure):
@@ -806,23 +793,14 @@ function extractResources(
   entities: StepEntity[],
   _entityMap: Map<string, StepEntity>,
 ): { resources: Resource[]; resourceStepIdMap: Map<string, string>; resourceGuidMap: Map<string, string> } {
-  const resTypes: Record<string, ResourceType> = {
-    IFCLABORRESOURCE: 'LABOR',
-    IFCCONSTRUCTIONEQUIPMENTRESOURCE: 'EQUIPMENT',
-    IFCCONSTRUCTIONMATERIALRESOURCE: 'MATERIAL',
-    IFCSUBCONTRACTRESOURCE: 'SUBCONTRACTOR',
-    IFCCREWRESOURCE: 'CREW',
-    // Herbruikbaar bekisting e.d. (domeinrapport §8.A) — nooit geschreven door OPS zelf,
-    // maar acceptabel binnenkomend als EQUIPMENT.
-    IFCCONSTRUCTIONPRODUCTRESOURCE: 'EQUIPMENT',
-  };
-
   const resources: Resource[] = [];
   const resourceStepIdMap = new Map<string, string>();
   const resourceGuidMap = new Map<string, string>(); // IFC GlobalId-string -> ons resource-id
 
   for (const e of entities) {
-    const resType = resTypes[e.type];
+    // IFC-entiteit → resource-type via de gedeelde inverse-map (incl. de inkomende-alleen
+    // IFCCONSTRUCTIONPRODUCTRESOURCE→EQUIPMENT-alias, §8.A).
+    const resType = IFC_TO_RESOURCE_TYPE[e.type];
     if (!resType) continue;
 
     const id = generateId('res');

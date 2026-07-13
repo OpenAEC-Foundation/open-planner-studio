@@ -15,22 +15,32 @@ export function IFCPanel() {
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
   const resourceCalendars = useAppStore(s => s.calendars);
+  // B4-fix (audit P2): baselines/activeBaselineId meesturen — voorheen schreef dit paneel stil
+  // ONVOLLEDIGE IFC (baselines gingen verloren bij genereren/kopiëren vanuit de IFC-tab).
+  const baselines = useAppStore(s => s.baselines);
+  const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const loadState = useAppStore(s => s.loadState);
   const setViewStartDate = useAppStore(s => s.setViewStartDate);
   const runCPM = useAppStore(s => s.runCPM);
 
   const generated = useMemo(() => {
-    return writeIFC(project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars]);
+    return writeIFC({
+      project, calendar, tasks, sequences, resources, assignments,
+      activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId,
+    });
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
 
   const handleGenerate = useCallback(() => {
-    const ifc = writeIFC(project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars);
+    const ifc = writeIFC({
+      project, calendar, tasks, sequences, resources, assignments,
+      activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId,
+    });
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId]);
 
   const handleApply = useCallback(() => {
     try {

@@ -100,7 +100,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 }
 
 {
-  const p = readIFC(writeIFC(project, H8, tasks, sequences, resources, assignments, [], [], lib));
+  const p = readIFC(writeIFC({ project, calendar: H8, tasks, sequences, resources, assignments, resourceCalendars: lib }));
   roundTrip('IFC', p.tasks, p.sequences, p.calendar, p.resourceCalendars, true);
 }
 {
@@ -155,7 +155,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     resourceIds: [], ...extra,
   }];
   const readT = (fmt: 'IFC' | 'P6' | 'MSPDI', tk: Task[]): Task => {
-    if (fmt === 'IFC') return readIFC(writeIFC(dayProj, dayCal, tk, [], [], [], [], [], [])).tasks.find(t => t.name === 'X')!;
+    if (fmt === 'IFC') return readIFC(writeIFC({ project: dayProj, calendar: dayCal, tasks: tk, sequences: [], resources: [], assignments: [] })).tasks.find(t => t.name === 'X')!;
     if (fmt === 'P6') return readP6XML(writeP6XML(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!;
     return readMSPDI(writeMSPDI(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!;
   };
@@ -255,7 +255,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     };
     const proj2: Project = { ...dayProj, schedulingOptions: so };
     const tk = mkT({});
-    const ifcBack = readIFC(writeIFC(proj2, dayCal, tk, [], [], [], [], [], [])).project.schedulingOptions;
+    const ifcBack = readIFC(writeIFC({ project: proj2, calendar: dayCal, tasks: tk, sequences: [], resources: [], assignments: [] })).project.schedulingOptions;
     eq('IFC schedulingOptions volledig round-trip', ifcBack, so);
     const { out: mspBack, warns: mw } = withWarns(() => readMSPDI(writeMSPDI(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
     eq('MSPDI CriticalSlackLimit → threshold', mspBack?.criticalDefinition, { mode: 'totalFloat', threshold: 2 });

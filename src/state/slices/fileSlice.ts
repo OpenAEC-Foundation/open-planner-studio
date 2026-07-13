@@ -11,9 +11,8 @@ import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
-import type { WorkCalendar } from '@/types/calendar';
-import type { Baseline } from '@/types/baseline';
 import type { Task } from '@/types/task';
+import type { ImportResult } from '@/services/importTypes';
 import { promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { fileHasHourData } from '@/services/subdayIo';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
@@ -104,7 +103,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     try {
       const content = await readTextFile(filePath);
       const ext = filePath.split('.').pop()?.toLowerCase() || '';
-      let parsed;
+      let parsed: ImportResult;
 
       if (ext === 'csv') {
         parsed = readCSV(content);
@@ -125,15 +124,15 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.sequences = parsed.sequences;
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
-        s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        s.calendars = parsed.resourceCalendars ?? [];
         // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
         promoteProjectCalendarToLibrary(s);
         // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
         // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
         s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-        s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
-        s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
+        s.baselines = parsed.baselines ?? [];
+        s.activeBaselineId = parsed.activeBaselineId ?? null;
         s.selectedTaskIds = [];
         s.cpmResult = null;
         s.resourceLoadResult = null;
@@ -164,12 +163,19 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const { writeTextFile } = await import('@tauri-apps/plugin-fs');
     const state = get();
 
-    const content = writeIFC(
-      state.project, state.calendar, state.tasks,
-      state.sequences, state.resources, state.assignments,
-      state.activityCodeTypes, state.customFieldDefs, state.calendars,
-      state.baselines, state.activeBaselineId,
-    );
+    const content = writeIFC({
+      project: state.project,
+      calendar: state.calendar,
+      tasks: state.tasks,
+      sequences: state.sequences,
+      resources: state.resources,
+      assignments: state.assignments,
+      activityCodeTypes: state.activityCodeTypes,
+      customFieldDefs: state.customFieldDefs,
+      resourceCalendars: state.calendars,
+      baselines: state.baselines,
+      activeBaselineId: state.activeBaselineId,
+    });
 
     if (state.filePath) {
       await writeTextFile(state.filePath, content);
@@ -197,12 +203,19 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const { writeTextFile } = await import('@tauri-apps/plugin-fs');
     const state = get();
 
-    const content = writeIFC(
-      state.project, state.calendar, state.tasks,
-      state.sequences, state.resources, state.assignments,
-      state.activityCodeTypes, state.customFieldDefs, state.calendars,
-      state.baselines, state.activeBaselineId,
-    );
+    const content = writeIFC({
+      project: state.project,
+      calendar: state.calendar,
+      tasks: state.tasks,
+      sequences: state.sequences,
+      resources: state.resources,
+      assignments: state.assignments,
+      activityCodeTypes: state.activityCodeTypes,
+      customFieldDefs: state.customFieldDefs,
+      resourceCalendars: state.calendars,
+      baselines: state.baselines,
+      activeBaselineId: state.activeBaselineId,
+    });
 
     const picked = await save({
       defaultPath: state.filePath ?? `${state.project.name || 'project'}.ifc`,
@@ -256,12 +269,19 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         break;
       case 'ifc':
       default:
-        content = writeIFC(
-          state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments,
-          state.activityCodeTypes, state.customFieldDefs, state.calendars,
-          state.baselines, state.activeBaselineId,
-        );
+        content = writeIFC({
+          project: state.project,
+          calendar: state.calendar,
+          tasks: state.tasks,
+          sequences: state.sequences,
+          resources: state.resources,
+          assignments: state.assignments,
+          activityCodeTypes: state.activityCodeTypes,
+          customFieldDefs: state.customFieldDefs,
+          resourceCalendars: state.calendars,
+          baselines: state.baselines,
+          activeBaselineId: state.activeBaselineId,
+        });
         ext = 'ifc';
         filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
         break;
@@ -342,7 +362,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     try {
       const content = await readTextFile(filePath);
       const ext = filePath.split('.').pop()?.toLowerCase() || '';
-      let parsed;
+      let parsed: ImportResult;
 
       if (ext === 'csv') {
         parsed = readCSV(content);
@@ -361,15 +381,15 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.sequences = parsed.sequences;
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
-        s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        s.calendars = parsed.resourceCalendars ?? [];
         // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
         promoteProjectCalendarToLibrary(s);
         // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
         // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
         s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-        s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
-        s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
+        s.baselines = parsed.baselines ?? [];
+        s.activeBaselineId = parsed.activeBaselineId ?? null;
         s.selectedTaskIds = [];
         s.cpmResult = null;
         s.resourceLoadResult = null;
@@ -407,15 +427,15 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.sequences = parsed.sequences;
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
-        s.calendars = (parsed as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
+        s.calendars = parsed.resourceCalendars ?? [];
         // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
         promoteProjectCalendarToLibrary(s);
         // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
         // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
         s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-        s.baselines = (parsed as { baselines?: Baseline[] }).baselines ?? [];
-        s.activeBaselineId = (parsed as { activeBaselineId?: string | null }).activeBaselineId ?? null;
+        s.baselines = parsed.baselines ?? [];
+        s.activeBaselineId = parsed.activeBaselineId ?? null;
         s.selectedTaskIds = [];
         s.cpmResult = null;
         s.resourceLoadResult = null;

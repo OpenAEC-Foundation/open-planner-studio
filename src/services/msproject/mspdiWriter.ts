@@ -10,8 +10,8 @@ import {
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
 // 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
-// (Contoured/varianten) worden niet gebruikt.
-const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
+// (Contoured/varianten) worden niet gebruikt. Geëxporteerd zodat de reader de inverse gebruikt.
+export const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
   UNIFORM: 0,
   BACK_LOADED: 1,
   FRONT_LOADED: 2,
@@ -19,6 +19,16 @@ const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
   LATE_PEAK: 5,
   BELL: 6,
 };
+
+// Inverse voor de reader (WorkContour-code → curve). Programmatisch afgeleid ⇒ kan niet
+// divergeren van de schrijfrichting. De mapping is volledig bijectief (geen asymmetrie).
+export const WORKCONTOUR_TO_CURVE: Record<number, ResourceCurve> = (() => {
+  const inv: Record<number, ResourceCurve> = {};
+  for (const [curve, code] of Object.entries(CURVE_TO_WORKCONTOUR) as [ResourceCurve, number][]) {
+    inv[code] = curve;
+  }
+  return inv;
+})();
 
 function escapeXML(s: string): string {
   return s

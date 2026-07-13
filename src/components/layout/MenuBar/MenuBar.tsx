@@ -44,14 +44,14 @@ export function MenuBar() {
   }, [store]);
 
   const handleSave = useCallback(() => {
-    const content = writeIFC(
-      store.project,
-      store.calendar,
-      store.tasks,
-      store.sequences,
-      store.resources,
-      store.assignments,
-    );
+    const content = writeIFC({
+      project: store.project,
+      calendar: store.calendar,
+      tasks: store.tasks,
+      sequences: store.sequences,
+      resources: store.resources,
+      assignments: store.assignments,
+    });
     const blob = new Blob([content], { type: 'application/x-step' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

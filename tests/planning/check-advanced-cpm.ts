@@ -506,13 +506,13 @@ const rtLinks: ExternalLink[] = [
     sourceRef: { projectId: 'SRC', taskId: 'Y' }, sourceMissing: true },
 ];
 const rtTask = mkTask('Local', 3, { externalLinks: rtLinks });
-const ifc = writeIFC(rtProject, CAL, [rtTask], [], [], []);
+const ifc = writeIFC({ project: rtProject, calendar: CAL, tasks: [rtTask], sequences: [], resources: [], assignments: [] });
 eq('161 IFC-write: OPS_ExternalLink-pset aanwezig', ifc.includes("'OPS_ExternalLink'"), true);
 const backTask = readIFC(ifc).tasks.find(t => t.name === 'Local');
 eq('162 IFC-round-trip: taak teruggevonden', !!backTask, true);
 eq('163 IFC-round-trip: externalLinks byte-gelijk', JSON.stringify(backTask?.externalLinks ?? null), JSON.stringify(rtLinks));
 // Geen links ⇒ geen pset (byte-identiek met bestaande bestanden).
-const ifcNone = writeIFC(rtProject, CAL, [mkTask('Plain', 2)], [], [], []);
+const ifcNone = writeIFC({ project: rtProject, calendar: CAL, tasks: [mkTask('Plain', 2)], sequences: [], resources: [], assignments: [] });
 eq('164 IFC-write: geen links ⇒ geen OPS_ExternalLink-pset', ifcNone.includes('OPS_ExternalLink'), false);
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -621,7 +621,7 @@ const notesB: TaskNote[] = [
 const notesTaskA = mkTask('NotesA', 3, { notes: notesA });
 const notesTaskB = mkTask('NotesB', 2, { notes: notesB });
 const notesTaskC = mkTask('NotesC', 1); // geen notes-veld — moet byte-identiek blijven (undefined terug).
-const ifcNotes = writeIFC(rtProject, CAL, [notesTaskA, notesTaskB, notesTaskC], [], [], []);
+const ifcNotes = writeIFC({ project: rtProject, calendar: CAL, tasks: [notesTaskA, notesTaskB, notesTaskC], sequences: [], resources: [], assignments: [] });
 eq('176 IFC-write: OPS_TaskNotes-pset aanwezig', ifcNotes.includes("'OPS_TaskNotes'"), true);
 const notesBack = readIFC(ifcNotes).tasks;
 const backA = notesBack.find(t => t.name === 'NotesA');
@@ -632,7 +632,7 @@ eq('178 IFC-round-trip: notes A byte-gelijk (mix open/done)', JSON.stringify(bac
 eq('179 IFC-round-trip: notes B byte-gelijk (enkele open)', JSON.stringify(backB?.notes ?? null), JSON.stringify(notesB));
 eq('180 IFC-round-trip: taak zonder notes ⇒ notes blijft undefined', backC?.notes, undefined);
 // Geen notes ⇒ geen pset (byte-identiek met bestaande bestanden — golden rule).
-const ifcNoNotes = writeIFC(rtProject, CAL, [mkTask('PlainNotes', 2)], [], [], []);
+const ifcNoNotes = writeIFC({ project: rtProject, calendar: CAL, tasks: [mkTask('PlainNotes', 2)], sequences: [], resources: [], assignments: [] });
 eq('181 IFC-write: geen notes ⇒ geen OPS_TaskNotes-pset', ifcNoNotes.includes('OPS_TaskNotes'), false);
 
 // ══════════════════════════════════════════════════════════════════════════════

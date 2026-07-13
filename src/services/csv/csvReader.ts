@@ -1,11 +1,11 @@
 import { Task, TaskType, TaskStatus } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar, createDefaultCalendar } from '@/types/calendar';
+import { createDefaultCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import type { ImportResult } from '@/services/importTypes';
 
 interface ParsedRow {
   wbs: string;
@@ -176,14 +176,7 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
   return map;
 }
 
-export function readCSV(content: string): {
-  project: Project;
-  calendar: WorkCalendar;
-  tasks: Task[];
-  sequences: Sequence[];
-  resources: Resource[];
-  assignments: ResourceAssignment[];
-} {
+export function readCSV(content: string): ImportResult {
   // Strip BOM
   const clean = content.replace(/^\uFEFF/, '');
   const delimiter = detectDelimiter(clean);

@@ -302,12 +302,19 @@ function AppContent() {
         const dir = await appDataDir();
 
         for (const { id, payload } of docs) {
-          const content = writeIFC(
-            payload.project, payload.calendar, payload.tasks,
-            payload.sequences, payload.resources, payload.assignments,
-            payload.activityCodeTypes, payload.customFieldDefs, payload.calendars,
-            payload.baselines, payload.activeBaselineId,
-          );
+          const content = writeIFC({
+            project: payload.project,
+            calendar: payload.calendar,
+            tasks: payload.tasks,
+            sequences: payload.sequences,
+            resources: payload.resources,
+            assignments: payload.assignments,
+            activityCodeTypes: payload.activityCodeTypes,
+            customFieldDefs: payload.customFieldDefs,
+            resourceCalendars: payload.calendars,
+            baselines: payload.baselines,
+            activeBaselineId: payload.activeBaselineId,
+          });
           await writeTextFile(await join(dir, recoveryIfcName(id)), content);
         }
 

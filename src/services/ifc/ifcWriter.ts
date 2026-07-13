@@ -9,10 +9,10 @@ import { Baseline } from '@/types/baseline';
 import {
   effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
 } from '@/services/subdayIo';
-
-/** Fase 2.5-default: `Task.priority` (0-1000, default 500) en `Task.levelingDelay` (undefined/0
- *  = geen nivellering) — golden-rule-guards hieronder schrijven alleen bij afwijking. */
-const DEFAULT_PRIORITY = 500;
+import type { ImportResult } from '@/services/importTypes';
+import {
+  DEFAULT_PRIORITY, IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
+} from './ifcConstants';
 
 /** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader (fase 2.6,
  *  `extractBaselines`) baseline-taskId's — die als interne id in de OPS_Baselines-JSON staan —
@@ -39,8 +39,8 @@ function ifcStr(s: string): string {
 
 function ifcDateTime(iso: string): string {
   if (!iso) return '$';
-  // Ensure format: 'YYYY-MM-DDT07:00:00'
-  if (iso.length === 10) return `'${iso}T07:00:00'`;
+  // Ensure format: 'YYYY-MM-DDT07:00:00' (anker gedeeld met de reader via IFC_TIME_ANCHOR).
+  if (iso.length === 10) return `'${iso}T${IFC_TIME_ANCHOR}'`;
   return `'${iso}'`;
 }
 
@@ -87,19 +87,25 @@ function addLine(ctx: WriteContext, key: string, line: string): number {
   return id;
 }
 
-export function writeIFC(
-  project: Project,
-  calendar: WorkCalendar,
-  tasks: Task[],
-  sequences: Sequence[],
-  resources: Resource[],
-  assignments: ResourceAssignment[],
-  activityCodeTypes: ActivityCodeType[] = [],
-  customFieldDefs: CustomFieldDef[] = [],
-  resourceCalendars: WorkCalendar[] = [],
-  baselines: Baseline[] = [],
-  activeBaselineId: string | null = null,
-): string {
+/**
+ * Invoer voor `writeIFC` (audit P2, fixt bug B4). Voorheen had `writeIFC` 11 positionele params;
+ * callsites die de laatste enkele weglieten (IFCPanel) schreven daardoor stil ONVOLLEDIGE IFC.
+ * Eén input-object dwingt volledigheid af via de compiler. Hergebruikt `ImportResult`: de writer
+ * heeft exact dezelfde payload nodig als wat de readers teruggeven ⇒ symmetrische round-trip,
+ * geen dubbele typedefinitie. De kernvelden zijn verplicht; de optionele vullen we hier met de
+ * bestaande defaults (`[]` / `null`).
+ */
+export type WriteIFCInput = ImportResult;
+
+export function writeIFC(input: WriteIFCInput): string {
+  const {
+    project, calendar, tasks, sequences, resources, assignments,
+    activityCodeTypes = [],
+    customFieldDefs = [],
+    resourceCalendars = [],
+    baselines = [],
+    activeBaselineId = null,
+  } = input;
   const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map() };
   const now = new Date().toISOString().split('.')[0];
 
@@ -243,16 +249,8 @@ export function writeIFC(
   return header + ctx.lines.join('\n') + footer;
 }
 
-// IFC-measure-type per custom-field-type (IfcSimplePropertyTemplate.PrimaryMeasureType
-// en het getypeerde NominalValue van IfcPropertySingleValue).
-const FIELD_MEASURE: Record<CustomFieldType, string> = {
-  text: 'IfcText',
-  number: 'IfcReal',
-  integer: 'IfcInteger',
-  cost: 'IfcMonetaryMeasure',
-  date: 'IfcDate',
-  boolean: 'IfcBoolean',
-};
+// FIELD_MEASURE (IfcSimplePropertyTemplate.PrimaryMeasureType per custom-field-type) is verhuisd
+// naar ./ifcConstants zodat de reader er de inverse uit afleidt (geen stille divergentie).
 
 function ifcTypedValue(type: CustomFieldType, value: CustomFieldValue): string {
   switch (type) {
@@ -828,23 +826,10 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): v
 }
 
 function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): void {
-  let entity: string;
-  switch (res.type) {
-    case 'LABOR':
-      entity = `IFCLABORRESOURCE(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
-      break;
-    case 'EQUIPMENT':
-      entity = `IFCCONSTRUCTIONEQUIPMENTRESOURCE(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
-      break;
-    case 'SUBCONTRACTOR':
-      entity = `IFCSUBCONTRACTRESOURCE(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
-      break;
-    case 'CREW':
-      entity = `IFCCREWRESOURCE(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
-      break;
-    default:
-      entity = `IFCCONSTRUCTIONMATERIALRESOURCE(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
-  }
+  // Entiteitnaam uit de gedeelde RESOURCE_TYPE_TO_IFC-map (reader leidt de inverse eruit af).
+  // Fallback op MATERIAL is byte-identiek aan de vroegere switch-`default`.
+  const entityName = RESOURCE_TYPE_TO_IFC[res.type] ?? 'IFCCONSTRUCTIONMATERIALRESOURCE';
+  const entity = `${entityName}(${ifcStr(ifcGuid(res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
   addLine(ctx, `res_${res.id}`, entity);
 }
 
