@@ -7,25 +7,7 @@ import { loadAllExtensions } from '@/extensions';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { isTauri } from '@/utils/platform';
-
-// Recovery-bestanden leven in de gedeelde appDataDir (app-id org.openaec.planner),
-// dus concurrent dev-builds van verschillende worktrees zouden elkaar overschrijven.
-// In een dev-build isoleert de worktree-slug (gezet door scripts/tauri-dev.mjs) ze;
-// een plain/productie-build houdt de canonieke naam.
-//
-// Multi-document: er is één manifest (<base>.documents.json) dat alle open documenten
-// opsomt, elk met een eigen IFC-snapshot (<base>.<docId>.ifc). De oude losse
-// <base>.ifc wordt bij het opstarten nog herkend (terugval) en daarna opgeruimd.
-const recoveryBase = __OPS_DEV_INSTANCE__ ? `recovery.${__OPS_DEV_INSTANCE__}` : 'recovery';
-const recoveryManifestName = `${recoveryBase}.documents.json`;
-const legacyRecoveryFile = `${recoveryBase}.ifc`;
-const recoveryIfcName = (docId: string) => `${recoveryBase}.${docId}.ifc`;
-
-interface RecoveryManifest {
-  version: number;
-  activeDocumentId: string | null;
-  documents: { id: string; ifc: string; filePath: string | null; isDirty: boolean }[];
-}
+import { saveRecovery, loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -281,29 +263,21 @@ function AppContent() {
   // IFC-snapshot + een manifest; snapshots van gesloten documenten worden
   // opgeruimd.
   useEffect(() => {
-    if (!isTauri()) return;
-
     let saving = false;
     let pending = false;
 
     const runAutoSave = async () => {
-      // Wacht tot de recovery-keuze gemaakt is: anders zou deze schrijfactie de
-      // recovery-snapshots overschrijven vóórdat de gebruiker heeft gekozen.
+      // Wacht tot de recovery-keuze gemaakt is (anders overschrijven we de snapshots te vroeg).
       if (!autoSaveEnabled.current) return;
-      // Voorkom overlappende schrijfacties; vraag een herhaling aan als er
-      // tijdens het schrijven nieuwe wijzigingen binnenkwamen.
       if (saving) { pending = true; return; }
       const state = useAppStore.getState();
-      const docs = state.getOpenDocumentPayloads();
-      if (!docs.some((d) => d.payload.isDirty)) return;
+      const payloads = state.getOpenDocumentPayloads();
+      if (!payloads.some((d) => d.payload.isDirty)) return;
       saving = true;
       try {
-        const { writeTextFile, readDir, remove } = await import('@tauri-apps/plugin-fs');
-        const { appDataDir, join } = await import('@tauri-apps/api/path');
-        const dir = await appDataDir();
-
-        for (const { id, payload } of docs) {
-          const content = writeIFC({
+        const docs = payloads.map(({ id, payload }) => ({
+          id,
+          ifc: writeIFC({
             project: payload.project,
             calendar: payload.calendar,
             tasks: payload.tasks,
@@ -315,28 +289,11 @@ function AppContent() {
             resourceCalendars: payload.calendars,
             baselines: payload.baselines,
             activeBaselineId: payload.activeBaselineId,
-          });
-          await writeTextFile(await join(dir, recoveryIfcName(id)), content);
-        }
-
-        const manifest: RecoveryManifest = {
-          version: 1,
-          activeDocumentId: state.activeDocumentId,
-          documents: docs.map(({ id, payload }) => ({
-            id, ifc: recoveryIfcName(id), filePath: payload.filePath, isDirty: payload.isDirty,
-          })),
-        };
-        await writeTextFile(await join(dir, recoveryManifestName), JSON.stringify(manifest));
-
-        // Ruim snapshots op van documenten die niet meer open zijn (zelfde slug).
-        const keep = new Set(docs.map((d) => recoveryIfcName(d.id)));
-        const prefix = `${recoveryBase}.`;
-        for (const entry of await readDir(dir)) {
-          const name = entry.name;
-          if (name && name.startsWith(prefix) && name.endsWith('.ifc') && !keep.has(name)) {
-            await remove(await join(dir, name));
-          }
-        }
+          }),
+          filePath: payload.filePath,
+          isDirty: payload.isDirty,
+        }));
+        await saveRecovery(state.activeDocumentId, docs);
       } catch (err) {
         console.error('Auto-save failed:', err);
       } finally {
@@ -364,123 +321,75 @@ function AppContent() {
     recoveryChecked.current = true;
 
     (async () => {
-      // Buiten Tauri is er geen recovery/auto-save: poort meteen open.
-      if (!isTauri()) { autoSaveEnabled.current = true; setRecoveryResolved(true); return; }
-      // Poort opent zodra de keuze is gemaakt (of er niets te herstellen valt);
-      // pas dan mag de auto-save de snapshots overschrijven.
+      // Poort opent zodra de keuze gemaakt is (of er niets te herstellen valt).
       const finish = () => { autoSaveEnabled.current = true; setRecoveryResolved(true); };
       try {
-        const { readTextFile, exists, remove, stat } = await import('@tauri-apps/plugin-fs');
-        const { appDataDir, join } = await import('@tauri-apps/api/path');
-        const dir = await appDataDir();
-        const manifestPath = await join(dir, recoveryManifestName);
+        const { activeDocumentId, docs } = await loadRecovery();
+        if (docs.length === 0) { finish(); return; }
 
-        // Nieuw pad: multi-document manifest. Parse elke snapshot vooraf zodat de
-        // dialoog projectnaam + taakaantal kan tonen, en hergebruik dat resultaat
-        // bij het daadwerkelijke herstellen.
-        if (await exists(manifestPath)) {
-          const manifest = JSON.parse(await readTextFile(manifestPath)) as RecoveryManifest;
-          const restored: RecoveryDocInput[] = [];
-          const entries: RecoveryEntry[] = [];
-          for (const d of manifest.documents) {
-            try {
-              const ifcPath = await join(dir, d.ifc);
-              const parsed = readIFC(await readTextFile(ifcPath));
-              restored.push({
-                id: d.id,
-                project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
-                sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
-                activityCodeTypes: parsed.activityCodeTypes, customFieldDefs: parsed.customFieldDefs,
-                resourceCalendars: parsed.resourceCalendars,
-                filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
-              });
-              let mtime: Date | null = null;
-              try { mtime = (await stat(ifcPath)).mtime; } catch { /* geen mtime — laat null */ }
-              entries.push({
-                id: d.id,
-                name: documentTitle(d.filePath ?? null, parsed.project.name),
-                filePath: d.filePath ?? null,
-                taskCount: parsed.tasks.length,
-                mtime,
-              });
-            } catch (err) {
-              console.error('Failed to read recovery document:', d.id, err);
-            }
-          }
-
-          // Opruimen: alle gerefereerde snapshots + het manifest.
-          const cleanup = async () => {
-            for (const d of manifest.documents) {
-              try { await remove(await join(dir, d.ifc)); } catch { /* al weg */ }
-            }
-            try { await remove(manifestPath); } catch { /* al weg */ }
-          };
-
-          // Niets bruikbaars geparst → stil opruimen, geen dialoog.
-          if (entries.length === 0) { await cleanup(); finish(); return; }
-
-          setRecovery({
-            entries,
-            onRestore: () => {
-              if (restored.length > 0) {
-                useAppStore.getState().restoreDocuments(restored, manifest.activeDocumentId ?? null);
-              }
-              void cleanup();
-              setRecovery(null);
-              finish();
-            },
-            onDiscard: () => { void cleanup(); setRecovery(null); finish(); },
-            // Uitstellen: bestanden laten staan, niet herstellen (zie RecoveryDialog).
-            onClose: () => { setRecovery(null); finish(); },
-          });
-          return;
-        }
-
-        // Terugval: oude losse <base>.ifc (één document).
-        const legacyPath = await join(dir, legacyRecoveryFile);
-        if (await exists(legacyPath)) {
-          const content = await readTextFile(legacyPath);
-          let parsed: ReturnType<typeof readIFC>;
+        const restored: RecoveryDocInput[] = [];
+        const entries: RecoveryEntry[] = [];
+        for (const d of docs) {
           try {
-            parsed = readIFC(content);
-          } catch (err) {
-            console.error('Failed to parse legacy recovery file:', err);
-            try { await remove(legacyPath); } catch { /* al weg */ }
-            finish();
-            return;
-          }
-          let mtime: Date | null = null;
-          try { mtime = (await stat(legacyPath)).mtime; } catch { /* geen mtime — laat null */ }
-          const cleanup = async () => { try { await remove(legacyPath); } catch { /* al weg */ } };
-          setRecovery({
-            entries: [{
-              id: 'legacy',
-              name: parsed.project.name,
-              filePath: null,
+            const parsed = readIFC(d.ifc);
+            restored.push({
+              id: d.id,
+              project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
+              sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
+              activityCodeTypes: parsed.activityCodeTypes, customFieldDefs: parsed.customFieldDefs,
+              resourceCalendars: parsed.resourceCalendars,
+              filePath: d.filePath, isDirty: d.isDirty,
+            });
+            entries.push({
+              id: d.id,
+              name: documentTitle(d.filePath, parsed.project.name),
+              filePath: d.filePath,
               taskCount: parsed.tasks.length,
-              mtime,
-            }],
-            onRestore: () => {
-              try { useAppStore.getState().loadState(parsed); } catch (err) {
-                console.error('Failed to restore recovery file:', err);
-              }
-              void cleanup();
-              setRecovery(null);
-              finish();
-            },
-            onDiscard: () => { void cleanup(); setRecovery(null); finish(); },
-            onClose: () => { setRecovery(null); finish(); },
-          });
-          return;
+              mtime: d.mtime,
+            });
+          } catch (err) {
+            console.error('Failed to read recovery document:', d.id, err);
+          }
         }
 
-        // Geen recovery-data gevonden.
-        finish();
+        // Niets bruikbaars geparst → stil opruimen, geen dialoog.
+        if (entries.length === 0) { await clearRecovery(); finish(); return; }
+
+        setRecovery({
+          entries,
+          onRestore: () => {
+            if (restored.length > 0) {
+              useAppStore.getState().restoreDocuments(restored, activeDocumentId);
+            }
+            void clearRecovery();
+            setRecovery(null);
+            finish();
+          },
+          onDiscard: () => { void clearRecovery(); setRecovery(null); finish(); },
+          // Uitstellen: data laten staan, niet herstellen (zie RecoveryDialog).
+          onClose: () => { setRecovery(null); finish(); },
+        });
       } catch (err) {
         console.error('Recovery check failed:', err);
         finish();
       }
     })();
+  }, []);
+
+  // Web-only: waarschuw bij het sluiten van het tabblad met niet-opgeslagen wijzigingen.
+  // Tauri heeft hiervoor al de CloseDocumentDialog; een ongeguarde handler zou in de
+  // desktop-webview dubbel-prompten (spec §7).
+  useEffect(() => {
+    if (isTauri()) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      const anyDirty = useAppStore.getState().getOpenDocumentPayloads().some((d) => d.payload.isDirty);
+      if (anyDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
   }, []);
 
   // First-startup-ervaring (fase 2.10, onderdeel 3, §3): toont de WelcomeDialog bij een verse
