@@ -78,14 +78,14 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
 
   return ({
   openFile: async () => {
-    const opened = await openFileDialog([
-      { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
-      { name: 'IFC Files', extensions: ['ifc'] },
-      { name: 'CSV Files', extensions: ['csv'] },
-      { name: 'XML Files', extensions: ['xml'] },
-    ]);
-    if (!opened) return;
     try {
+      const opened = await openFileDialog([
+        { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
+        { name: 'IFC Files', extensions: ['ifc'] },
+        { name: 'CSV Files', extensions: ['csv'] },
+        { name: 'XML Files', extensions: ['xml'] },
+      ]);
+      if (!opened) return;
       const ext = opened.name.split('.').pop()?.toLowerCase() || '';
       let parsed: ImportResult;
 
