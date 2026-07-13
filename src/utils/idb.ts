@@ -67,8 +67,11 @@ export async function idbGet<T>(dbName: string, storeName: string, id: string): 
   }
 }
 
-/** Schrijf/vervang een record (moet een `id`-veld hebben). Faalt stil. */
-export async function idbPut(dbName: string, storeName: string, value: { id: string } & Record<string, unknown>): Promise<void> {
+/** Schrijf/vervang een record (moet een `id`-veld hebben). Faalt stil.
+ *  Param bewust alleen `{ id: string }` (niet `& Record<string, unknown>`): interfaces krijgen
+ *  geen impliciete index-signature en zouden anders niet toewijsbaar zijn — structural typing
+ *  laat de overige velden gewoon toe. */
+export async function idbPut(dbName: string, storeName: string, value: { id: string }): Promise<void> {
   try {
     const db = await openDb(dbName, storeName);
     await new Promise<void>((resolve, reject) => {
