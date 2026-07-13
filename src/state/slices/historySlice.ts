@@ -1,5 +1,4 @@
-import { createSnapshot, type Snapshot } from '../snapshot';
-import { syncProjectCalendar } from '../syncProjectCalendar';
+import { createSnapshot, restoreSnapshot, type Snapshot } from '../snapshot';
 import type { AppSlice } from './types';
 
 export interface HistorySlice {
@@ -17,29 +16,7 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
     set((s) => {
       if (s.undoStack.length === 0) return;
       s.redoStack.push(createSnapshot(s));
-      const snapshot = s.undoStack.pop()!;
-      s.tasks = snapshot.tasks;
-      s.sequences = snapshot.sequences;
-      s.resources = snapshot.resources;
-      s.assignments = snapshot.assignments;
-      // Oudere snapshots (van vóór fase 2.2/2.5/2.8a) kunnen deze velden missen; `resourceCalendars`
-      // is de pre-2.8a-naam van `calendars` (lees-alias).
-      s.calendars = snapshot.calendars ?? (snapshot as { resourceCalendars?: typeof s.calendars }).resourceCalendars ?? s.calendars;
-      s.activityCodeTypes = snapshot.activityCodeTypes ?? s.activityCodeTypes;
-      s.customFieldDefs = snapshot.customFieldDefs ?? s.customFieldDefs;
-      // Afgeleide resultaten mee terugdraaien (A5) — anders bleef bv. na undo van applyLeveling de
-      // statusbalk/het histogram op het genivelleerde schema staan. `?? null`/`?? false` houdt oude,
-      // veldloze snapshots veilig.
-      s.cpmResult = snapshot.cpmResult ?? null;
-      s.resourceLoadResult = snapshot.resourceLoadResult ?? null;
-      s.scheduleStale = snapshot.scheduleStale ?? false;
-      // Baselines (fase 2.6): `?? s.baselines` voor pre-2.6-snapshots; activeBaselineId met een
-      // expliciete `!== undefined`-guard — `null` ("geen actieve baseline") is een legitieme waarde
-      // die een undo moet kunnen terugzetten (?? zou die null wegslikken).
-      s.baselines = snapshot.baselines ?? s.baselines;
-      s.activeBaselineId = snapshot.activeBaselineId !== undefined ? snapshot.activeBaselineId : s.activeBaselineId;
-      syncProjectCalendar(s); // §9.1: cache gelijkzetten ná restore.
-      s.isDirty = true;
+      restoreSnapshot(s, s.undoStack.pop()!);
     });
     get().recomputeViewRows();
   },
@@ -48,21 +25,7 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
     set((s) => {
       if (s.redoStack.length === 0) return;
       s.undoStack.push(createSnapshot(s));
-      const snapshot = s.redoStack.pop()!;
-      s.tasks = snapshot.tasks;
-      s.sequences = snapshot.sequences;
-      s.resources = snapshot.resources;
-      s.assignments = snapshot.assignments;
-      s.calendars = snapshot.calendars ?? (snapshot as { resourceCalendars?: typeof s.calendars }).resourceCalendars ?? s.calendars;
-      s.activityCodeTypes = snapshot.activityCodeTypes ?? s.activityCodeTypes;
-      s.customFieldDefs = snapshot.customFieldDefs ?? s.customFieldDefs;
-      s.cpmResult = snapshot.cpmResult ?? null;
-      s.resourceLoadResult = snapshot.resourceLoadResult ?? null;
-      s.scheduleStale = snapshot.scheduleStale ?? false;
-      s.baselines = snapshot.baselines ?? s.baselines;
-      s.activeBaselineId = snapshot.activeBaselineId !== undefined ? snapshot.activeBaselineId : s.activeBaselineId;
-      syncProjectCalendar(s); // §9.1: cache gelijkzetten ná restore.
-      s.isDirty = true;
+      restoreSnapshot(s, s.redoStack.pop()!);
     });
     get().recomputeViewRows();
   },

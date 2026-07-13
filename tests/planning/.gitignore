@@ -5,3 +5,4 @@
 .advanced-cpm-check.mjs
 .move-assignment-check.mjs
 .move-task-check.mjs
+.document-contract-check.mjs

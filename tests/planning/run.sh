@@ -110,6 +110,18 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --define:__OPS_DEV_INSTANCE__='"test"' \
     --outfile="$MTCHECK" >/dev/null 2>&1
   node "$MTCHECK" || STATUS=1
+
+  # Documentcontract-checks (audit P10, F1/F3 — key-gedreven capture/hydrate/reset, Snapshot-subset,
+  # B3-regressie, recovery-round-trip; headless tegen de echte store, los van de CPM-cases).
+  DCCHECK="$DIR/.document-contract-check.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-document-contract.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$DCCHECK" >/dev/null 2>&1
+  node "$DCCHECK" || STATUS=1
 fi
 
 node "$OUT" "${FILES[@]}" || STATUS=1

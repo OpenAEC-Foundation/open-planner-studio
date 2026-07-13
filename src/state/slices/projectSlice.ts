@@ -12,7 +12,7 @@ import { formatDate } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { createSnapshot } from '../snapshot';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
-import { createDefaultView } from './viewSlice';
+import { freshPayload, hydratePayload } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 
@@ -156,28 +156,12 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     }),
 
   newProject: () => {
+    // Reset-pad (audit P10): één verse payload via het documentcontract i.p.v. een handmatig
+    // veld-voor-veld-blok — capture/hydrate/fresh delen dezelfde `DOCUMENT_FIELDS`-lijst, dus een
+    // nieuw per-document veld wordt hier automatisch mee-gereset (geen stille lek van het vorige
+    // project). hydratePayload promoveert + synct de projectkalender (§4.3/§9.1).
     set((s) => {
-      s.project = createDefaultProject();
-      s.calendar = createDefaultCalendar();
-      s.tasks = [];
-      s.sequences = [];
-      s.resources = [];
-      s.assignments = [];
-      s.calendars = [];
-      s.activityCodeTypes = [];
-      s.customFieldDefs = [];
-      s.selectedTaskIds = [];
-      s.cpmResult = null;
-      // Afgeleide belasting ook resetten (A5); de ribbon-guard van de UX-golf blijft defensief.
-      s.resourceLoadResult = null;
-      s.scheduleStale = false;
-      s.baselines = [];
-      s.activeBaselineId = null;
-      s.view = createDefaultView();
-      s.undoStack = [];
-      s.redoStack = [];
-      s.isDirty = false;
-      s.filePath = null;
+      hydratePayload(s, freshPayload());
     });
     emitExtensionEvent(HOST_EVENTS.projectNew);
   },
@@ -200,9 +184,12 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       proj.endDate = opts.endDate ?? '';
       proj.calendarId = opts.calendar.id;
 
-      s.project = proj;
-      s.calendar = opts.calendar;
-      s.tasks = opts.phaseNames.map((name, i) => ({
+      // Reset-pad (audit P10): start van een verse payload en override alleen de wizard-velden.
+      // hydratePayload vult §4.4 de bibliotheek met de wizard-kalender (promote) en synct de cache.
+      const payload = freshPayload();
+      payload.project = proj;
+      payload.calendar = opts.calendar;
+      payload.tasks = opts.phaseNames.map((name, i) => ({
         id: generateId('task'),
         name,
         description: '',
@@ -218,25 +205,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
         time: createDefaultTaskTime(proj.startDate, 5),
         resourceIds: [],
       }));
-      s.sequences = [];
-      s.resources = [];
-      s.assignments = [];
-      s.calendars = [];
-      // §4.4: de bibliotheek meteen vullen met de wizard-kalender i.p.v. leeg tot de
-      // CalendarDialog hem lazy promoveert — zo klopt de bibliotheek al vanaf het begin.
-      promoteProjectCalendarToLibrary(s);
-      s.selectedTaskIds = [];
-      s.cpmResult = null;
-      s.resourceLoadResult = null;
-      s.scheduleStale = false;
-      s.baselines = [];
-      s.activeBaselineId = null;
-      s.view = createDefaultView();
-      s.undoStack = [];
-      s.redoStack = [];
       // Een leeg project (template 'Leeg') is nog niet 'dirty'; met fasen wél.
-      s.isDirty = opts.phaseNames.length > 0;
-      s.filePath = null;
+      payload.isDirty = opts.phaseNames.length > 0;
+      hydratePayload(s, payload);
     });
     emitExtensionEvent(HOST_EVENTS.projectNew);
   },

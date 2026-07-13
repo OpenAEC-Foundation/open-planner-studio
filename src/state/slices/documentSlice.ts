@@ -1,21 +1,20 @@
 import type { Project } from '@/types/project';
-import type { WorkCalendar } from '@/types/calendar';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
-import type { Task } from '@/types/task';
-import type { Sequence } from '@/types/sequence';
-import type { Resource, ResourceAssignment } from '@/types/resource';
-import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
-import type { CPMResult } from '@/engine/scheduler/CPMSolver';
-import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
-import type { Baseline } from '@/types/baseline';
-import type { Snapshot } from '../snapshot';
-import type { ViewState, AppSlice } from './types';
-import type { AppState } from '../appStore';
+import type { AppSlice } from './types';
 import { generateId } from '@/utils/id';
-import { createDefaultProject } from './projectSlice';
-import { createDefaultView } from './viewSlice';
-import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
+import {
+  capturePayload,
+  hydratePayload,
+  freshPayload,
+  payloadFromInput,
+  type DocumentPayload,
+  type RecoveryDocInput,
+} from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
+
+// Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
+// (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
+// recovery). Re-export voor bestaande importers (bv. App.tsx importeert RecoveryDocInput hier).
+export type { DocumentPayload, RecoveryDocInput } from '../documentContract';
 
 /**
  * Multi-document back-end.
@@ -31,35 +30,6 @@ import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
  * panelen, thema) en `taskClipboard` — zo kun je takken tussen documenten
  * kopiëren/plakken.
  */
-export interface DocumentPayload {
-  project: Project;
-  calendar: WorkCalendar;
-  tasks: Task[];
-  sequences: Sequence[];
-  resources: Resource[];
-  assignments: ResourceAssignment[];
-  /** Gedeelde kalender-bibliotheek (fase 2.8a; hernoemd uit `resourceCalendars`). */
-  calendars: WorkCalendar[];
-  activityCodeTypes: ActivityCodeType[];
-  customFieldDefs: CustomFieldDef[];
-  selectedTaskIds: string[];
-  cpmResult: CPMResult | null;
-  /** Afgeleide belasting per document (A5): anders toont het histogram na een tabwissel dat van het
-   *  vórige document. */
-  resourceLoadResult: ResourceLoadResult | null;
-  /** "Verouderd"-vlag per document (A6) — leekt anders tussen documenten. */
-  scheduleStale: boolean;
-  /** Baselines per document (fase 2.6). `statusDate`/`progressMode` rijden mee in `project`. */
-  baselines: Baseline[];
-  activeBaselineId: string | null;
-  view: ViewState;
-  collapsedTaskIds: string[];
-  undoStack: Snapshot[];
-  redoStack: Snapshot[];
-  filePath: string | null;
-  isDirty: boolean;
-}
-
 export interface DocumentEntry {
   id: string;
   /** null wanneer dit het actieve document is — zijn data leeft dan op top-level. */
@@ -72,26 +42,6 @@ export interface DocumentInfo {
   title: string;
   isDirty: boolean;
   isActive: boolean;
-}
-
-/** Per-document projectdata + metadata om bij crash-recovery te herstellen.
- *  Alleen de IFC-round-trip-velden + identiteit; view/undo/cpm worden vers
- *  opgebouwd (zijn niet kritiek na een crash). */
-export interface RecoveryDocInput {
-  id: string;
-  project: Project;
-  calendar: WorkCalendar;
-  tasks: Task[];
-  sequences: Sequence[];
-  resources: Resource[];
-  assignments: ResourceAssignment[];
-  resourceCalendars?: WorkCalendar[];
-  activityCodeTypes?: ActivityCodeType[];
-  customFieldDefs?: CustomFieldDef[];
-  baselines?: Baseline[];
-  activeBaselineId?: string | null;
-  filePath: string | null;
-  isDirty: boolean;
 }
 
 export interface DocumentSlice {
@@ -110,142 +60,6 @@ export interface DocumentSlice {
   getOpenDocumentPayloads: () => { id: string; payload: DocumentPayload }[];
   /** Herstel meerdere documenten na een crash; vervangt de huidige set volledig. */
   restoreDocuments: (docs: RecoveryDocInput[], activeId: string | null) => void;
-}
-
-/** Lees de actieve (top-level) projectdata uit als losstaande payload. */
-function capturePayload(s: AppState): DocumentPayload {
-  return {
-    project: s.project,
-    calendar: s.calendar,
-    tasks: s.tasks,
-    sequences: s.sequences,
-    resources: s.resources,
-    assignments: s.assignments,
-    calendars: s.calendars,
-    activityCodeTypes: s.activityCodeTypes,
-    customFieldDefs: s.customFieldDefs,
-    selectedTaskIds: s.selectedTaskIds,
-    cpmResult: s.cpmResult,
-    resourceLoadResult: s.resourceLoadResult,
-    scheduleStale: s.scheduleStale,
-    baselines: s.baselines,
-    activeBaselineId: s.activeBaselineId,
-    view: s.view,
-    collapsedTaskIds: s.ui.collapsedTaskIds,
-    undoStack: s.undoStack,
-    redoStack: s.redoStack,
-    filePath: s.filePath,
-    isDirty: s.isDirty,
-  };
-}
-
-/**
- * Vul ontbrekende fase-2.7-view-velden aan en migreer het oude `groupBy` naar `group` (§12.2/§7.5).
- * Oude payloads/recovery (van vóór 2.7) missen filter/group/sort/collapsedGroupKeys; `?? default`-
- * guards houden ze veilig. Migratie: een `groupBy`-string zonder `group` → één activity-code-niveau.
- */
-function normalizeView(v: ViewState): ViewState {
-  // `groupBy` bestaat niet meer op ViewState (golf 2) maar kan nog in oude payloads/recovery zitten.
-  const legacyGroupBy = (v as ViewState & { groupBy?: string }).groupBy;
-  const group = v.group && v.group.length > 0
-    ? v.group
-    : legacyGroupBy
-      ? [{ field: { src: 'activityCode' as const, typeId: legacyGroupBy }, dir: 'asc' as const }]
-      : [];
-  const out: ViewState & { groupBy?: string } = {
-    ...v,
-    filter: v.filter ?? null,
-    group,
-    sort: v.sort ?? [],
-    collapsedGroupKeys: v.collapsedGroupKeys ?? [],
-  };
-  delete out.groupBy; // gemigreerd — niet opnieuw laten meereizen in payloads
-  return out;
-}
-
-/** Schrijf een payload terug naar de top-level (actieve) state. */
-function hydratePayload(s: AppState, p: DocumentPayload): void {
-  s.project = p.project;
-  s.calendar = p.calendar;
-  s.tasks = p.tasks;
-  s.sequences = p.sequences;
-  s.resources = p.resources;
-  s.assignments = p.assignments;
-  // Lees-alias (§4.2): oude payloads dragen `resourceCalendars`; nieuwe `calendars`.
-  s.calendars = p.calendars ?? (p as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [];
-  s.activityCodeTypes = p.activityCodeTypes ?? [];
-  s.customFieldDefs = p.customFieldDefs ?? [];
-  s.selectedTaskIds = p.selectedTaskIds;
-  s.cpmResult = p.cpmResult;
-  s.resourceLoadResult = p.resourceLoadResult ?? null;
-  s.scheduleStale = p.scheduleStale ?? false;
-  s.baselines = p.baselines ?? [];
-  s.activeBaselineId = p.activeBaselineId ?? null;
-  s.view = normalizeView(p.view);
-  s.ui.collapsedTaskIds = p.collapsedTaskIds;
-  s.undoStack = p.undoStack;
-  s.redoStack = p.redoStack;
-  s.filePath = p.filePath;
-  s.isDirty = p.isDirty;
-  // §4.3: oude/verse documenten zonder bibliotheek-entry voor hun projectkalender krijgen er hier
-  // één (idempotent — no-op als de entry al bestaat, bv. bij een gewone switchDocument/undo).
-  promoteProjectCalendarToLibrary(s);
-  syncProjectCalendar(s); // §9.1: gedenormaliseerde projectkalender-cache gelijkzetten ná hydrate/switch.
-}
-
-/** Verse, lege document-payload (nieuw project). */
-function freshPayload(): DocumentPayload {
-  return {
-    project: createDefaultProject(),
-    calendar: createDefaultCalendar(),
-    tasks: [],
-    sequences: [],
-    resources: [],
-    assignments: [],
-    calendars: [],
-    activityCodeTypes: [],
-    customFieldDefs: [],
-    selectedTaskIds: [],
-    cpmResult: null,
-    resourceLoadResult: null,
-    scheduleStale: false,
-    baselines: [],
-    activeBaselineId: null,
-    view: createDefaultView(),
-    collapsedTaskIds: [],
-    undoStack: [],
-    redoStack: [],
-    filePath: null,
-    isDirty: false,
-  };
-}
-
-/** Verse payload uit herstelde projectdata (view/undo/cpm worden vers opgebouwd). */
-function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
-  return {
-    project: d.project,
-    calendar: d.calendar,
-    tasks: d.tasks,
-    sequences: d.sequences,
-    resources: d.resources,
-    assignments: d.assignments,
-    // RecoveryDocInput draagt de pre-2.8a-naam `resourceCalendars` (recovery-contract).
-    calendars: d.resourceCalendars ?? [],
-    activityCodeTypes: d.activityCodeTypes ?? [],
-    customFieldDefs: d.customFieldDefs ?? [],
-    selectedTaskIds: [],
-    cpmResult: null,
-    resourceLoadResult: null,
-    scheduleStale: false,
-    baselines: d.baselines ?? [],
-    activeBaselineId: d.activeBaselineId ?? null,
-    view: createDefaultView(),
-    collapsedTaskIds: [],
-    undoStack: [],
-    redoStack: [],
-    filePath: d.filePath,
-    isDirty: d.isDirty,
-  };
 }
 
 function documentTitle(filePath: string | null, project: Project): string {

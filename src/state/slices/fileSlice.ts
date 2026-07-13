@@ -13,7 +13,7 @@ import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import type { ImportResult } from '@/services/importTypes';
-import { promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
+import { hydratePayload, payloadFromImport } from '../documentContract';
 import { fileHasHourData } from '@/services/subdayIo';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 
@@ -109,37 +109,25 @@ export interface FileSlice {
 export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
   applyLoadedProject: (parsed, opts) => {
     set((s) => {
-      s.project = parsed.project;
-      s.calendar = parsed.calendar;
-      s.tasks = parsed.tasks;
-      s.sequences = parsed.sequences;
-      s.resources = parsed.resources;
-      s.assignments = parsed.assignments;
-      s.calendars = parsed.resourceCalendars ?? [];
-      // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
-      promoteProjectCalendarToLibrary(s);
-      // Structuur (activity-codes/custom-fields) hoort bij het project en round-tript door IFC —
-      // altijd overnemen. (Fix van bevinding F6: de open-paden lieten dit historisch weg, waardoor
-      // Bestand → Openen + Opslaan activity-codes/custom-fields stil vernietigde.)
-      s.activityCodeTypes = parsed.activityCodeTypes ?? [];
-      s.customFieldDefs = parsed.customFieldDefs ?? [];
+      // string = nieuw pad, null = naamloos, undefined = laat filePath ongemoeid (loadState-semantiek).
+      const filePath = opts.filePath !== undefined ? opts.filePath : s.filePath;
+      // Reset-pad (audit P10): bouw een verse payload uit het geparste project (selectie/cpm/undo/
+      // scheduleStale starten vers, isDirty=false) en hydrateer die via het documentcontract —
+      // dezelfde `DOCUMENT_FIELDS`-lijst als switchDocument/undo, dus geen stille lek. hydratePayload
+      // doet ook de §4.3-promote + §9.1-sync van de projectkalender (was hier voorheen apart).
+      // Structuur (activity-codes/custom-fields) rijdt in payloadFromImport mee — altijd overnemen
+      // (fix F6: de open-paden lieten dit historisch weg → stil dataverlies bij openen + opslaan).
+      const payload = payloadFromImport(parsed, filePath);
+      // Load-semantiek: het HUIDIGE document behoudt zijn view/inklap (in-place vervangen van de
+      // projectdata raakt zoom/groepering/inklap niet — historisch gedrag van applyLoadedProject).
+      payload.view = s.view;
+      payload.collapsedTaskIds = s.ui.collapsedTaskIds;
+      hydratePayload(s, payload);
       // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
       // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
       if (opts.hourDataNotice) {
         s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
       }
-      // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-      s.baselines = parsed.baselines ?? [];
-      s.activeBaselineId = parsed.activeBaselineId ?? null;
-      s.selectedTaskIds = [];
-      s.cpmResult = null;
-      s.resourceLoadResult = null;
-      s.scheduleStale = false;
-      s.undoStack = [];
-      s.redoStack = [];
-      s.isDirty = false;
-      // string = nieuw pad, null = naamloos, undefined = laat filePath ongemoeid (loadState-semantiek).
-      if (opts.filePath !== undefined) s.filePath = opts.filePath;
     });
     // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
     // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
