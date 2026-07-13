@@ -6,7 +6,7 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
-import { ensureExtension } from '@/utils/filePath';
+import { openFileDialog, saveFileDialog, saveToRef, type FileRef } from '@/services/fileAccess';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 import type { AppState } from '../appStore';
@@ -86,31 +86,23 @@ export interface FileSlice {
 
 export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
   openFile: async () => {
-    if (!isTauri()) return;
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const { readTextFile } = await import('@tauri-apps/plugin-fs');
-    const selected = await open({
-      multiple: false,
-      filters: [
-        { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
-        { name: 'IFC Files', extensions: ['ifc'] },
-        { name: 'CSV Files', extensions: ['csv'] },
-        { name: 'XML Files', extensions: ['xml'] },
-      ],
-    });
-    if (!selected) return;
-    const filePath = selected as string;
+    const opened = await openFileDialog([
+      { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
+      { name: 'IFC Files', extensions: ['ifc'] },
+      { name: 'CSV Files', extensions: ['csv'] },
+      { name: 'XML Files', extensions: ['xml'] },
+    ]);
+    if (!opened) return;
     try {
-      const content = await readTextFile(filePath);
-      const ext = filePath.split('.').pop()?.toLowerCase() || '';
+      const ext = opened.name.split('.').pop()?.toLowerCase() || '';
       let parsed: ImportResult;
 
       if (ext === 'csv') {
-        parsed = readCSV(content);
+        parsed = readCSV(opened.content);
       } else if (ext === 'xml') {
-        parsed = parseProjectXml(content);
+        parsed = parseProjectXml(opened.content);
       } else {
-        parsed = readIFC(content);
+        parsed = readIFC(opened.content);
       }
 
       // Multi-document: open het bestand in een eigen tabblad. Hergebruik het
@@ -140,29 +132,28 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.undoStack = [];
         s.redoStack = [];
         s.isDirty = false;
-        s.filePath = filePath;
+        // Identiteit: echt pad (Tauri) of bestandsnaam (web); handle alleen als web-opslaan-doel.
+        s.filePath = opened.ref?.kind === 'path' ? opened.ref.path : opened.name;
+        s.fileHandle = opened.ref?.kind === 'handle' ? opened.ref.handle : null;
       });
       // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
       // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
       get().runCPM();
-      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
+      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
         resources: parsed.resources.length,
       });
-      addRecentFile(filePath);
+      // Recents (fase A): alleen Tauri-paden; web-handle-recents volgen in fase B.
+      if (opened.ref?.kind === 'path') addRecentFile(opened.ref.path);
     } catch (err) {
       console.error('Failed to parse file:', err);
     }
   },
 
   saveFile: async () => {
-    if (!isTauri()) return;
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    const { writeTextFile } = await import('@tauri-apps/plugin-fs');
     const state = get();
-
     const content = writeIFC({
       project: state.project,
       calendar: state.calendar,
@@ -177,32 +168,33 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       activeBaselineId: state.activeBaselineId,
     });
 
-    if (state.filePath) {
-      await writeTextFile(state.filePath, content);
+    // Bestaand opslaan-doel? Web: fileHandle. Tauri: het echte pad in filePath.
+    const ref: FileRef | null = state.fileHandle
+      ? { kind: 'handle', handle: state.fileHandle }
+      : (isTauri() && state.filePath ? { kind: 'path', path: state.filePath } : null);
+
+    if (ref && await saveToRef(ref, content)) {
       set((s) => { s.isDirty = false; });
-    } else {
-      const picked = await save({
-        defaultPath: `${state.project.name || 'project'}.ifc`,
-        filters: [{ name: 'IFC Files', extensions: ['ifc'] }],
-      });
-      if (picked) {
-        const savedPath = ensureExtension(picked, 'ifc');
-        await writeTextFile(savedPath, content);
-        set((s) => {
-          s.filePath = savedPath;
-          s.isDirty = false;
-        });
-        addRecentFile(savedPath);
-      }
+      return;
     }
+
+    // Geen (bruikbare) ref, of in-place opslaan geweigerd → opslaan-als.
+    const outcome = await saveFileDialog(
+      `${state.project.name || 'project'}.ifc`,
+      content,
+      [{ name: 'IFC Files', extensions: ['ifc'] }],
+    );
+    if (!outcome) return;
+    set((s) => {
+      s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
+      s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
+      s.isDirty = false;
+    });
+    if (outcome.ref?.kind === 'path') addRecentFile(outcome.ref.path);
   },
 
   saveFileAs: async () => {
-    if (!isTauri()) return;
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    const { writeTextFile } = await import('@tauri-apps/plugin-fs');
     const state = get();
-
     const content = writeIFC({
       project: state.project,
       calendar: state.calendar,
@@ -217,25 +209,21 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       activeBaselineId: state.activeBaselineId,
     });
 
-    const picked = await save({
-      defaultPath: state.filePath ?? `${state.project.name || 'project'}.ifc`,
-      filters: [{ name: 'IFC Files', extensions: ['ifc'] }],
+    const outcome = await saveFileDialog(
+      state.filePath ?? `${state.project.name || 'project'}.ifc`,
+      content,
+      [{ name: 'IFC Files', extensions: ['ifc'] }],
+    );
+    if (!outcome) return;
+    set((s) => {
+      s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
+      s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
+      s.isDirty = false;
     });
-    if (picked) {
-      const savedPath = ensureExtension(picked, 'ifc');
-      await writeTextFile(savedPath, content);
-      set((s) => {
-        s.filePath = savedPath;
-        s.isDirty = false;
-      });
-      addRecentFile(savedPath);
-    }
+    if (outcome.ref?.kind === 'path') addRecentFile(outcome.ref.path);
   },
 
   exportAs: async (format: ExportFormat) => {
-    if (!isTauri()) return;
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    const { writeTextFile } = await import('@tauri-apps/plugin-fs');
     const state = get();
 
     let content: string;
@@ -287,15 +275,8 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         break;
     }
 
-    const picked = await save({
-      defaultPath: `${state.project.name || 'project'}.${ext}`,
-      filters,
-    });
-    if (picked) {
-      const savedPath = ensureExtension(picked, ext);
-      await writeTextFile(savedPath, content);
-      addRecentFile(savedPath);
-    }
+    const outcome = await saveFileDialog(`${state.project.name || 'project'}.${ext}`, content, filters);
+    if (outcome?.ref?.kind === 'path') addRecentFile(outcome.ref.path);
   },
 
   getRecentFiles: () => readRecentFiles(),
