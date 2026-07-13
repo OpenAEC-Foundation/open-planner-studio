@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Link2, FileDown } from 'lucide-react';
@@ -18,16 +18,25 @@ type RelType = ExternalLink['relType'];
  */
 export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const { t } = useTranslation('task');
-  const getRecentFiles = useAppStore((s) => s.getRecentFiles);
+  const recentFiles = useAppStore((s) => s.recentFiles);
   const parseExternalSource = useAppStore((s) => s.parseExternalSource);
   const addExternalLink = useAppStore((s) => s.addExternalLink);
 
-  const recent = useMemo(() => getRecentFiles(), [getRecentFiles]);
+  // Alleen pad-refs zijn read-only te parsen (parseExternalSource is Tauri-only).
+  const recent = useMemo(
+    () => recentFiles.flatMap((e) => (e.ref.kind === 'path' ? [{ id: e.id, name: e.name, path: e.ref.path }] : [])),
+    [recentFiles],
+  );
 
   const [direction, setDirection] = useState<Direction>('predecessor');
   const [relType, setRelType] = useState<RelType>('FS');
   const [lag, setLag] = useState<string>('0');
-  const [manual, setManual] = useState<boolean>(recent.length === 0);
+  const [manual, setManual] = useState<boolean>(true);
+  const modeInited = useRef(false);
+  useEffect(() => {
+    if (modeInited.current) return;
+    if (recent.length > 0) { setManual(false); modeInited.current = true; }
+  }, [recent.length]);
 
   // Bron-route
   const [sourceFile, setSourceFile] = useState<string>('');
@@ -93,8 +102,6 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
     onClose();
   };
 
-  const fileLabel = (p: string) => p.split(/[\\/]/).pop() || p;
-
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div
@@ -129,7 +136,7 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
                 <span className="text-text-muted">{t('externalLinks.pickRecent')}</span>
                 <select className="input" value={sourceFile} onChange={(e) => setSourceFile(e.target.value)}>
                   <option value="">—</option>
-                  {recent.map((p) => <option key={p} value={p}>{fileLabel(p)}</option>)}
+                  {recent.map((r) => <option key={r.id} value={r.path}>{r.name}</option>)}
                 </select>
               </label>
               <p className="text-[10px] text-text-muted flex items-center gap-1"><FileDown size={11} />{t('externalLinks.readOnlyNote')}</p>

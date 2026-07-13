@@ -6,7 +6,8 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
-import { openFileDialog, saveFileDialog, saveToRef, type FileRef } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveToRef, readFromRef, type FileRef } from '@/services/fileAccess';
+import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import type { AppSlice } from './types';
 import type { AppState } from '../appStore';
@@ -42,33 +43,16 @@ function parseProjectXml(content: string) {
 
 export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
 
-// ---- Recente bestanden (localStorage) ----
-const RECENT_FILES_KEY = 'open-planner-studio-recent-files';
-const MAX_RECENT_FILES = 10;
-
-function readRecentFiles(): string[] {
-  try {
-    const stored = localStorage.getItem(RECENT_FILES_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
-
-function addRecentFile(filePath: string): void {
-  const recent = readRecentFiles().filter(f => f !== filePath);
-  recent.unshift(filePath);
-  if (recent.length > MAX_RECENT_FILES) recent.length = MAX_RECENT_FILES;
-  localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(recent));
-}
-
 export interface FileSlice {
   openFile: () => Promise<void>;
   saveFile: () => Promise<void>;
   saveFileAs: () => Promise<void>;
   exportAs: (format: ExportFormat) => Promise<void>;
-  getRecentFiles: () => string[];
-  openRecentFile: (path: string) => Promise<void>;
+  /** App-globale MRU-lijst van recente bestanden (spec §6). Async gehydrateerd bij opstart. */
+  recentFiles: RecentEntry[];
+  /** Lees de recents uit IndexedDB (met eenmalige localStorage-migratie) in de store. */
+  hydrateRecentFiles: () => Promise<void>;
+  openRecentFile: (id: string) => Promise<void>;
   /** Read-only parse van een bronbestand voor externe koppelingen (fase 2.9, §5.5): geeft de
    *  projectidentiteit + taken terug ZONDER het als document te openen (hergebruikt de bestaande
    *  readers). null bij een leesfout/onbekend formaat/niet-Tauri. */
@@ -84,7 +68,15 @@ export interface FileSlice {
   openExampleFromString: (content: string, name: string) => void;
 }
 
-export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
+export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
+  // Voeg een geopend/opgeslagen bestand toe aan de recents (elke herbruikbare ref).
+  const pushRecent = async (ref: FileRef | null, name: string) => {
+    if (!ref) return; // fallback-web: geen herbruikbare ref → niet aan recents (spec §6)
+    const list = await addRecent(ref, name);
+    set((s) => { s.recentFiles = list; });
+  };
+
+  return ({
   openFile: async () => {
     const opened = await openFileDialog([
       { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
@@ -145,8 +137,8 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         sequences: parsed.sequences.length,
         resources: parsed.resources.length,
       });
-      // Recents (fase A): alleen Tauri-paden; web-handle-recents volgen in fase B.
-      if (opened.ref?.kind === 'path') addRecentFile(opened.ref.path);
+      // Recents: elke herbruikbare ref (Tauri-pad óf Chromium-handle).
+      await pushRecent(opened.ref, opened.name);
     } catch (err) {
       console.error('Failed to parse file:', err);
     }
@@ -190,7 +182,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
       s.isDirty = false;
     });
-    if (outcome.ref?.kind === 'path') addRecentFile(outcome.ref.path);
+    await pushRecent(outcome.ref, outcome.name);
   },
 
   saveFileAs: async () => {
@@ -220,7 +212,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
       s.isDirty = false;
     });
-    if (outcome.ref?.kind === 'path') addRecentFile(outcome.ref.path);
+    await pushRecent(outcome.ref, outcome.name);
   },
 
   exportAs: async (format: ExportFormat) => {
@@ -276,10 +268,15 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     }
 
     const outcome = await saveFileDialog(`${state.project.name || 'project'}.${ext}`, content, filters);
-    if (outcome?.ref?.kind === 'path') addRecentFile(outcome.ref.path);
+    await pushRecent(outcome?.ref ?? null, outcome?.name ?? '');
   },
 
-  getRecentFiles: () => readRecentFiles(),
+  recentFiles: [],
+
+  hydrateRecentFiles: async () => {
+    const list = await loadRecents();
+    set((s) => { s.recentFiles = list; });
+  },
 
   parseExternalSource: async (filePath: string) => {
     if (!isTauri()) return null;
@@ -337,12 +334,18 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     return { refreshed, missing, sources };
   },
 
-  openRecentFile: async (filePath: string) => {
-    if (!isTauri()) return;
-    const { readTextFile } = await import('@tauri-apps/plugin-fs');
+  openRecentFile: async (id: string) => {
+    const entry = get().recentFiles.find((e) => e.id === id);
+    if (!entry) return;
+    const content = await readFromRef(entry.ref);
+    if (content === null) {
+      // Geweigerd of verdwenen → entry stil verwijderen.
+      const list = await removeRecent(entry.id);
+      set((s) => { s.recentFiles = list; });
+      return;
+    }
     try {
-      const content = await readTextFile(filePath);
-      const ext = filePath.split('.').pop()?.toLowerCase() || '';
+      const ext = entry.name.split('.').pop()?.toLowerCase() || '';
       let parsed: ImportResult;
 
       if (ext === 'csv') {
@@ -363,12 +366,8 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.resources = parsed.resources;
         s.assignments = parsed.assignments;
         s.calendars = parsed.resourceCalendars ?? [];
-        // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
         promoteProjectCalendarToLibrary(s);
-        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
-        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
         s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
-        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
         s.baselines = parsed.baselines ?? [];
         s.activeBaselineId = parsed.activeBaselineId ?? null;
         s.selectedTaskIds = [];
@@ -378,16 +377,19 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         s.undoStack = [];
         s.redoStack = [];
         s.isDirty = false;
-        s.filePath = filePath;
+        s.filePath = entry.ref.kind === 'path' ? entry.ref.path : entry.name;
+        s.fileHandle = entry.ref.kind === 'handle' ? entry.ref.handle : null;
       });
-      get().runCPM(); // consistent met openFile (A5): direct doorrekenen na load.
-      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
+      get().runCPM();
+      get().requestFitToProject();
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
         resources: parsed.resources.length,
       });
-      addRecentFile(filePath);
+      // MRU verversen: het net-geopende bestand naar boven.
+      const list = await addRecent(entry.ref, entry.name);
+      set((s) => { s.recentFiles = list; });
     } catch (err) {
       console.error('Failed to open recent file:', err);
     }
@@ -438,4 +440,5 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       console.error(`Failed to open example "${name}":`, err);
     }
   },
-});
+  });
+};

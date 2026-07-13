@@ -11,6 +11,7 @@ import { DateTextInput } from '@/components/common/DateTextInput';
 import { ExtensionManagerPanel } from '@/components/backstage/ExtensionManagerPanel';
 import { HelpPanel } from '@/components/backstage/HelpPanel';
 import type { ExtensionImporter } from '@/state/slices/extensionSlice';
+import { supportsHandles } from '@/services/fileAccess';
 import './Backstage.css';
 
 export function Backstage() {
@@ -160,9 +161,11 @@ function handleSaveAs() {
 
 function RecentSection() {
   const { t: tMenu } = useTranslation('menu');
-  const recentFiles = useAppStore(s => s.getRecentFiles)();
+  const recentFiles = useAppStore(s => s.recentFiles);
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const setUI = useAppStore(s => s.setUI);
+
+  if (!supportsHandles()) return null; // fallback-web: recents verbergen (spec §6)
 
   return (
     <>
@@ -172,19 +175,19 @@ function RecentSection() {
         <div className="backstage-empty">{tMenu('backstage.recentEmpty')}</div>
       ) : (
         <div className="backstage-recent-list">
-          {recentFiles.map(fp => (
+          {recentFiles.map(e => (
             <button
-              key={fp}
+              key={e.id}
               className="backstage-recent-item"
               onClick={() => {
-                void openRecentFile(fp);
+                void openRecentFile(e.id);
                 setUI({ activeRibbonTab: 'start' });
               }}
             >
               <span className="backstage-recent-thumb"><FileType size={20} /></span>
               <span className="backstage-recent-info">
-                <span className="backstage-recent-name">{fp.split(/[/\\]/).pop()}</span>
-                <span className="backstage-recent-path">{fp}</span>
+                <span className="backstage-recent-name">{e.name}</span>
+                <span className="backstage-recent-path">{e.ref.kind === 'path' ? e.ref.path : e.name}</span>
               </span>
             </button>
           ))}

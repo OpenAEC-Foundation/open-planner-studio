@@ -32,6 +32,7 @@ import { UnitsInput } from '@/components/common/UnitsInput';
 import { groupFieldList, fullFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
+import { supportsHandles } from '@/services/fileAccess';
 import './Ribbon.css';
 
 function encodeFieldRef(f: FieldRef): string {
@@ -461,7 +462,7 @@ function TemplatesDropdown() {
 function RecentFilesDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
-  const recentFiles = useAppStore(s => s.getRecentFiles)();
+  const recentFiles = useAppStore(s => s.recentFiles);
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -475,6 +476,8 @@ function RecentFilesDropdown() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  if (!supportsHandles()) return null; // fallback-web: geen herbruikbare recents (spec §6)
 
   return (
     <div ref={dropdownRef} style={{ position: 'relative' }}>
@@ -497,23 +500,23 @@ function RecentFilesDropdown() {
               {tMenu('ribbon.noRecentFiles')}
             </div>
           ) : (
-            recentFiles.map((fp, i) => (
+            recentFiles.map((e) => (
               <button
-                key={i}
+                key={e.id}
                 style={{
                   display: 'block', width: '100%', textAlign: 'left',
                   padding: '6px 12px', fontSize: 11, border: 'none',
                   background: 'transparent', color: 'var(--theme-text)',
                   cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}
-                title={fp}
-                onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                onClick={() => { openRecentFile(fp); setOpen(false); }}
+                title={e.ref.kind === 'path' ? e.ref.path : e.name}
+                onMouseOver={ev => (ev.currentTarget.style.background = 'var(--theme-hover)')}
+                onMouseOut={ev => (ev.currentTarget.style.background = 'transparent')}
+                onClick={() => { void openRecentFile(e.id); setOpen(false); }}
               >
-                {fp.split(/[/\\]/).pop()}
+                {e.name}
                 <span style={{ display: 'block', fontSize: 9, color: 'var(--theme-text-dim)', marginTop: 1 }}>
-                  {fp}
+                  {e.ref.kind === 'path' ? e.ref.path : e.name}
                 </span>
               </button>
             ))

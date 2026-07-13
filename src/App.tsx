@@ -214,6 +214,7 @@ function AppContent() {
       if (v) setUI({ barSplitMode: v });
     });
     void loadAllExtensions();
+    void useAppStore.getState().hydrateRecentFiles();
   }, []);
 
   // Automatisch berekenen: als de instelling aanstaat, draai runCPM zodra de planning
