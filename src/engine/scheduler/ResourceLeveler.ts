@@ -36,6 +36,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
+import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import { distributeUnits, maxUnitsOn } from './ResourceLoad';
 import { parseDate, formatDate } from '@/utils/dateUtils';
@@ -114,10 +115,7 @@ export function levelResources(
   const resById = new Map(resources.map(r => [r.id, r]));
   const engineByRes = new Map<string, CalendarEngine>();
   for (const r of selectedResources) {
-    const cal = r.calendarId
-      ? resourceCalendars.find(c => c.id === r.calendarId) ?? projectCalendar
-      : projectCalendar;
-    engineByRes.set(r.id, new CalendarEngine(cal));
+    engineByRes.set(r.id, new CalendarEngine(resolveCalendar(r.calendarId, resourceCalendars, projectCalendar)));
   }
   const capacityOf = (resId: string, iso: string): number => {
     const r = resById.get(resId);

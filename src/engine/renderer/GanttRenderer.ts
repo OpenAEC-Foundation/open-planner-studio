@@ -1,7 +1,7 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { ViewState, BarSplitMode, DurationDisplay } from '@/state/slices/types';
-import { parseDate, parseInstant, formatDate, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
+import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
 import { WorkCalendar } from '@/types/calendar';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
@@ -153,7 +153,9 @@ export class GanttRenderer {
   // canvas-interacties vanzelf degraderen.
   private rows: ViewRow[];
   private rowIndexByTask: Map<string, number>; // task id -> EERSTE rij-index (§7.1, pijlen)
-  private holidaySet: Set<string>;
+  /** Engine op de PROJECTkalender — enige bron voor de niet-werkdag-arcering van de grid
+   *  (weekpatroon + feestdagen, B2): geen hardcoded za/zo en geen eigen holiday-expansie meer. */
+  private projectEngine: CalendarEngine;
   private violatedSet: Set<string>;
   private missedDeadlineSet: Set<string>;
   private highContrast: boolean;
@@ -175,8 +177,11 @@ export class GanttRenderer {
     this.rows = opts.rows;
     // "Eerste index wint" (§7.1): bij multi-band-duplicaten verbinden pijlen de eerste occurrence.
     this.rowIndexByTask = firstRowIndexByTask(opts.rows);
-    this.holidaySet = new Set<string>();
-    this.buildHolidaySet();
+    // Eén engine per render voor de grid-arcering; ook in de engineCache gezet zodat een
+    // uur-modus-projectkalender in `engineFor` dezelfde instantie hergebruikt (geen dubbele
+    // holiday-expansie binnen één render).
+    this.projectEngine = new CalendarEngine(opts.calendar);
+    this.engineCache.set(opts.calendar.id, this.projectEngine);
     this.violatedSet = new Set(opts.violatedConstraintTaskIds ?? []);
     this.missedDeadlineSet = new Set(opts.missedDeadlineTaskIds ?? []);
     this.highContrast = !!opts.highContrast;
@@ -203,17 +208,6 @@ export class GanttRenderer {
   private static readonly FLOAT_PATH_TINTS = [
     '#2563EB', '#7C3AED', '#0891B2', '#DB2777', '#65A30D', '#EA580C', '#0D9488', '#9333EA',
   ];
-
-  private buildHolidaySet(): void {
-    for (const h of this.opts.calendar.holidays) {
-      const start = parseDate(h.startDate);
-      const end = parseDate(h.endDate);
-      const days = diffCalendarDays(start, end);
-      for (let i = 0; i <= days; i++) {
-        this.holidaySet.add(formatDate(addCalendarDays(start, i)));
-      }
-    }
-  }
 
   /**
    * Duurkolom-tekst (§6.5). Urenplanning UIT ⇒ byte-identiek het huidige `${scheduleDuration}d`.
@@ -311,10 +305,11 @@ export class GanttRenderer {
       const date = addCalendarDays(this.viewStart, startOffset + i);
       const x = this.dateToX(date);
       const dayOfWeek = isoDayOfWeek(date);
-      const dateStr = formatDate(date);
 
-      // Weekend or holiday background
-      if (dayOfWeek === 6 || dayOfWeek === 7 || this.holidaySet.has(dateStr)) {
+      // Niet-werkdag-arcering (B2): de PROJECTKALENDER is de enige waarheid — weekpatroon +
+      // feestdagen via `CalendarEngine.isWorkDay`, geen hardcoded za/zo. Bij een afwijkende
+      // werkweek (bv. za werkdag) volgt de arcering nu de kalender; ma–vr blijft visueel identiek.
+      if (!this.projectEngine.isWorkDay(date)) {
         ctx.fillStyle = this.colors.gridWeekend;
         ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
       }

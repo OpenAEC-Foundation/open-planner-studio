@@ -6,6 +6,7 @@ import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resour
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
+import { resolveCalendar } from './resolveCalendar';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
@@ -153,10 +154,7 @@ export function computeResourceLoad(
     const bucket = load[resource.id];
     if (!bucket) continue;
 
-    const cal = resource.calendarId
-      ? resourceCalendars.find(c => c.id === resource.calendarId) ?? projectCalendar
-      : projectCalendar;
-    const engine = new CalendarEngine(cal);
+    const engine = new CalendarEngine(resolveCalendar(resource.calendarId, resourceCalendars, projectCalendar));
 
     capacity[resource.id] = {};
     for (const iso of Object.keys(bucket)) {
