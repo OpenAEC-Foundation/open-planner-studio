@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { useDisplayDate } from '@/utils/displayDate';
+import { useDisplayDate } from '@/hooks/displayDate';
 
 /**
  * CPM-resultaat (readonly: ES/EF/LS/LF/TF/FF/interfering float/kritiek) — sectie 8 uit

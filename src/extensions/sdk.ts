@@ -10,9 +10,9 @@ import type { ExtensionCategory, ExtensionPermission, ImportResult } from './typ
 import { HOST_EVENTS } from './eventBus';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
-import { createDefaultCalendar } from '@/types/calendar';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { Task, TaskTime } from '@/types/task';
-import { createDefaultTaskTime } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { createDefaultProject } from '@/state/slices/projectSlice';
 import { generateId } from '@/utils/id';
 import { formatDate, parseDate, addBusinessDays } from '@/utils/dateUtils';

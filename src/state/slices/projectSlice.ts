@@ -1,7 +1,8 @@
 import type { Project, ProgressMode } from '@/types/project';
-import { createDefaultCalendar, type WorkCalendar } from '@/types/calendar';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
-import { createDefaultTaskTime } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';

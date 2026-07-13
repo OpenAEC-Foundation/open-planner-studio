@@ -1,5 +1,5 @@
 import { addCalendarDays } from '@/utils/dateUtils';
-import type { TimeScale } from '@/state/slices/types';
+import type { TimeScale } from '@/types/view';
 
 /**
  * Tijdschaal-presets (fase 2.7, §3.3): een dropdown-keuze mapt naar een zoom (px/dag). De presets

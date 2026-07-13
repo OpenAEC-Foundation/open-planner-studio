@@ -24,7 +24,7 @@ import {
 import { ExportFormat } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
 import { DateTextInput } from '@/components/common/DateTextInput';
-import { createDefaultTaskTime } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { RibbonTab, type FieldRef, type GroupLevel, type SortLevel, type Layout, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';

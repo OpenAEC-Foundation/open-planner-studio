@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { useDisplayDate } from '@/utils/displayDate';
+import { useDisplayDate } from '@/hooks/displayDate';
 
 /**
  * Mijlpalen-overzicht (fase 2.4): tabelrapport over alle mijlpalen — soort,

@@ -1,7 +1,7 @@
 import { Task, TaskType, TaskStatus } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Project } from '@/types/project';
-import { createDefaultCalendar } from '@/types/calendar';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';

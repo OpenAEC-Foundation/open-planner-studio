@@ -3,7 +3,7 @@
 // zodat de dagkolommen 1-op-1 boven de taakbalken staan. Eigen verticale schaal (eenheden i.p.v.
 // rijen). Links van taskTableWidth: een resourcekiezer-lijst; rechts: staafjes per dag met het
 // deel boven de capaciteitslijn in rood (P6-patroon). Thema-bewust via CSS-variabelen.
-import type { ViewState } from '@/state/slices/types';
+import type { ViewState } from '@/types/view';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 
 export interface HistogramSeries {

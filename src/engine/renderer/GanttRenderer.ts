@@ -1,6 +1,6 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
-import { ViewState, BarSplitMode, DurationDisplay } from '@/state/slices/types';
+import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
 import { WorkCalendar } from '@/types/calendar';
 import { isHourCalendar } from '@/services/subdayIo';

@@ -26,7 +26,7 @@
 import { useAppStore } from '@/state/appStore';
 import type { AppState } from '@/state/appStore';
 import { isTreeMode } from '@/engine/view/visibleRows';
-import { createDefaultTaskTime } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
 import { computeScrollToDate } from '@/utils/ganttViewport';
 import i18n from '@/i18n/config';

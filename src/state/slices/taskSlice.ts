@@ -1,4 +1,5 @@
-import { Task, createDefaultTaskTime, type ExternalLink } from '@/types/task';
+import { Task, type ExternalLink } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { generateId } from '@/utils/id';

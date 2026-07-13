@@ -1,6 +1,6 @@
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
-import { createDefaultCalendar } from '@/types/calendar';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';

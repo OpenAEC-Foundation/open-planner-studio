@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Task, createDefaultTaskTime } from '@/types/task';
+import { Task } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';

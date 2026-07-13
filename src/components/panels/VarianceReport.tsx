@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeVariance, type VarianceResult, type VarianceStatus } from '@/engine/variance';
-import { useDisplayDate } from '@/utils/displayDate';
+import { useDisplayDate } from '@/hooks/displayDate';
 
 /**
  * Variance-rapport (fase 2.6, §7): vergelijkt de huidige (CPM-)datums met de actieve baseline.

@@ -1,5 +1,4 @@
 import type { HolidayCountry } from '@/engine/calendar/holidays';
-import { generateHolidays, NL_SET } from '@/engine/calendar/holidays';
 
 export interface WorkCalendar {
   id: string;
@@ -50,25 +49,4 @@ export interface Holiday {
   name: string;
   startDate: string; // ISO 8601 date
   endDate: string;   // ISO 8601 date
-}
-
-/**
- * Standaard bouwkalender (NL, ma-vr). Jaar-onafhankelijk (fase 2.8a, §3.4): de feestdagen worden
- * regelgebaseerd gegenereerd voor `anchorYear-1 t/m anchorYear+2` — GEEN bouwvak (harde eis), MÉT
- * Kerst (die de oude hardgecodeerde 2026-lijst miste).
- */
-export function createDefaultCalendar(anchorYear: number = new Date().getFullYear()): WorkCalendar {
-  const from = anchorYear - 1;
-  const to = anchorYear + 2;
-  return {
-    id: 'cal-default',
-    name: 'Bouwkalender NL',
-    description: 'Standaard bouwkalender: ma-vr 07:00-16:00',
-    workDays: [1, 2, 3, 4, 5], // Monday to Friday
-    workStartHour: 7,
-    workEndHour: 16,
-    hoursPerDay: 8,
-    holidays: generateHolidays(NL_SET, undefined, from, to),
-    generation: { ruleSetId: 'NL', generatedFromYear: from, generatedToYear: to },
-  };
 }

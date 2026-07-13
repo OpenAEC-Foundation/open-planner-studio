@@ -2,7 +2,7 @@ import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { WorkCalendar } from '@/types/calendar';
 import { parseDate, formatDate, addCalendarDays, getWeekNumber, diffCalendarDays, isoDayOfWeek } from '@/utils/dateUtils';
-import type { DateNotation } from '@/state/slices/types';
+import type { DateNotation } from '@/types/view';
 
 /** Print-friendly color scheme */
 const PRINT_COLORS = {

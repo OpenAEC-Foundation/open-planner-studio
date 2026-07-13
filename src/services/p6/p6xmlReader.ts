@@ -1,8 +1,10 @@
-import { Task, TaskConstraint, ConstraintType, createDefaultTaskTime } from '@/types/task';
+import { Task, TaskConstraint, ConstraintType } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar, Holiday, WorkTimeBands, createDefaultCalendar } from '@/types/calendar';
+import { WorkCalendar, Holiday, WorkTimeBands } from '@/types/calendar';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';

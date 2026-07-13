@@ -43,7 +43,7 @@
 //   }
 // }
 import { useAppStore } from '@/state/appStore';
-import { createDefaultTaskTime } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { SchedulingOptions } from '@/types/project';
 import type { ResourceType, ResourceCurve } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
@@ -55,7 +55,7 @@ import {
   computeViewRows, isTreeMode, encodeBandKey, firstRowIndexByTask, NONE_RAWKEY,
   type ViewRow, type ViewContext,
 } from '@/engine/view/visibleRows';
-import type { FieldRef, FilterNode, GroupLevel, SortLevel } from '@/state/slices/types';
+import type { FieldRef, FilterNode, GroupLevel, SortLevel } from '@/types/view';
 import { scaleFromZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 import type { CustomFieldType } from '@/types/structure';
 import { readFileSync } from 'node:fs';

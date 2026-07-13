@@ -11,8 +11,9 @@ import { diffDays, formatDate, parseDate, parseInstant, formatInstant, addCalend
 import { effectiveCalendarByTask } from '@/services/subdayIo';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
-import { useDisplayDate } from '@/utils/displayDate';
-import { createDefaultTaskTime, Task } from '@/types/task';
+import { useDisplayDate } from '@/hooks/displayDate';
+import { Task } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import { ContextMenu } from './ContextMenu';
 import { RelationTypePopover } from './RelationTypePopover';

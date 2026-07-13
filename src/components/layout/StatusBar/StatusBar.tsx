@@ -2,7 +2,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Terminal } from 'lucide-react';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
-import { useDisplayDate } from '@/utils/displayDate';
+import { useDisplayDate } from '@/hooks/displayDate';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');

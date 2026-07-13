@@ -9,13 +9,14 @@
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { createDefaultTaskTime, type Task, type TaskConstraint, type ExternalLink } from '@/types/task';
+import type { Task, TaskConstraint, ExternalLink } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Project } from '@/types/project';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { FILTER_SORT_BUILTIN_KEYS, fieldKind, type FieldCatalogCtx } from '@/components/viewControls/fieldCatalog';
-import type { FieldRef, BuiltinFieldKey } from '@/state/slices/types';
+import type { FieldRef, BuiltinFieldKey } from '@/types/view';
 import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
 import { refreshExternalAnchors, externalSourceSide, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { writeIFC } from '@/services/ifc/ifcWriter';

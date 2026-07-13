@@ -3,7 +3,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { TFunction } from 'i18next';
 import { isHourCalendar, deriveHoursPerDay } from '@/services/subdayIo';
 import { formatDuration, type DurationUnit, type DurationSuffixes } from '@/utils/durationFormat';
-import type { DurationDisplay } from '@/state/slices/types';
+import type { DurationDisplay } from '@/types/view';
 
 /**
  * Bouw de vertaalde duur-suffixen uit de i18n-`t` (common-namespace). Licht adapter-laagje zodat de PURE

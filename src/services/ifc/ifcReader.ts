@@ -1,8 +1,10 @@
-import { Task, TaskTime, TaskType, ConstraintType, createDefaultTaskTime } from '@/types/task';
+import { Task, TaskTime, TaskType, ConstraintType } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
 import { Project, SchedulingOptions } from '@/types/project';
-import { WorkCalendar, Holiday, CalendarGeneration, createDefaultCalendar } from '@/types/calendar';
+import { WorkCalendar, Holiday, CalendarGeneration } from '@/types/calendar';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { Baseline, BaselineTask } from '@/types/baseline';

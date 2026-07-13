@@ -1,6 +1,4 @@
-import { useMemo } from 'react';
-import { useAppStore } from '@/state/appStore';
-import type { DateNotation } from '@/state/slices/types';
+import type { DateNotation } from '@/types/view';
 
 /**
  * Weergave-formatter voor datums (taak #53). Zet een INTERNE ISO-datum om naar de door de
@@ -36,24 +34,4 @@ export function displayDateTime(iso: string | undefined, notation: DateNotation)
   if (tIdx < 0) return date;
   const time = iso.slice(tIdx + 1, tIdx + 6); // HH:mm
   return /^\d{2}:\d{2}$/.test(time) ? `${date} ${time}` : date;
-}
-
-/** Reactieve toegang tot de huidige notatie-instelling (hertekent bij wijziging). */
-export function useDateNotation(): DateNotation {
-  return useAppStore(s => s.ui.dateNotation);
-}
-
-/**
- * Reactieve formatters gebonden aan de huidige instelling. Componenten lezen zo de notatie via
- * de store-hook (niet via een module-constante), zodat ze live hertekenen bij een wijziging.
- */
-export function useDisplayDate(): {
-  date: (iso: string | undefined) => string;
-  dateTime: (iso: string | undefined) => string;
-} {
-  const notation = useDateNotation();
-  return useMemo(() => ({
-    date: (iso: string | undefined) => displayDate(iso, notation),
-    dateTime: (iso: string | undefined) => displayDateTime(iso, notation),
-  }), [notation]);
 }

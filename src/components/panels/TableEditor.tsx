@@ -8,7 +8,7 @@ import { resourceCellValue, type ViewContext } from '@/engine/view/filterEval';
 import type { ColumnConfig, FieldRef, BuiltinFieldKey } from '@/state/slices/types';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { DateTextInput } from '@/components/common/DateTextInput';
-import { useDisplayDate } from '@/utils/displayDate';
+import { useDisplayDate } from '@/hooks/displayDate';
 import { effectiveCalendarOf, effHoursPerDay, formatTaskDurationDisplay, detectMixedCalendars, durationSuffixesFrom } from '@/utils/taskDuration';
 import { isHourCalendar } from '@/services/subdayIo';
 import { parseDuration, formatDuration } from '@/utils/durationFormat';

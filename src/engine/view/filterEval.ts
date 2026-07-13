@@ -5,7 +5,7 @@
 import type { Task } from '@/types/task';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Resource, ResourceAssignment } from '@/types/resource';
-import type { FieldRef, FilterNode, FilterOperator } from '@/state/slices/types';
+import type { FieldRef, FilterNode, FilterOperator } from '@/types/view';
 
 /** Gedeelde context voor filter/groep/sort/kolom-resolutie (§4.1). */
 export interface ViewContext {
