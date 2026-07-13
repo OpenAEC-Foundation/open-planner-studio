@@ -11,6 +11,27 @@ export type TaskType =
   | 'MAINTENANCE'
   | 'USERDEFINED';
 
+/**
+ * Alle geldige `TaskType`-waarden als runtime-lijst voor de import-readers (IFC/CSV) — F5-g.
+ * `satisfies Record<TaskType, true>` dwingt af dat de tabel EXACT de union dekt: een nieuw
+ * TaskType-lid zonder sleutel geeft een compileerfout, een sleutel die geen lid is ook. Zo kan de
+ * lijst niet stil verouderen. De readers houden hun eigen normalisatie (IFC strip punten, CSV
+ * uppercase) en gebruiken alleen deze verzameling voor de geldigheidscheck.
+ */
+const TASK_TYPE_TABLE = {
+  CONSTRUCTION: true,
+  INSTALLATION: true,
+  DEMOLITION: true,
+  LOGISTIC: true,
+  ATTENDANCE: true,
+  MOVE: true,
+  RENOVATION: true,
+  MAINTENANCE: true,
+  USERDEFINED: true,
+} satisfies Record<TaskType, true>;
+
+export const TASK_TYPES = Object.keys(TASK_TYPE_TABLE) as TaskType[];
+
 export type TaskStatus = 'NOT_STARTED' | 'STARTED' | 'COMPLETED';
 
 /**

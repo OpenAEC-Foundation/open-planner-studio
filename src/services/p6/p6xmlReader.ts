@@ -3,24 +3,25 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar, Holiday, WorkTimeBands } from '@/types/calendar';
+import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import { isoDatePrefixOrToday } from '@/services/importDates';
+import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import { P6_DAY_NAMES, P6_NAME_TO_CURVE } from './p6xmlWriter';
 import {
-  canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isSubDayMinutes, workDaysFromBands,
+  canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
+  promoteHourCalendar, registerCalendarBands,
 } from '@/services/subdayIo';
 
 /** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
 const P6_TIME_ANCHOR = '08:00:00';
 
-/** Gecanonicaliseerde banden per gelezen kalender + afwijking (a/b), voor de uur-modus-beslissing. */
-const p6BandRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
-
-// P6_NAME_TO_CURVE (P6-curvenaam → OPS-curve) wordt nu uit p6xmlWriter geïmporteerd, waar beide
+// De rauwe-banden-registry (voorheen een lokale WeakMap) en `synth*BandsFromScalar` wonen nu gedeeld
+// in subdayIo (F5-c/d/e). P6_NAME_TO_CURVE (P6-curvenaam → OPS-curve) komt uit p6xmlWriter, waar beide
 // (bewust asymmetrische) richtingen naast elkaar staan (spiegel van P6_DAY_NAMES-patroon).
 
 // P6 onderscheidt Nonlabor niet verder in Equipment/Subcontractor — invulling §8.1:
@@ -31,32 +32,24 @@ function resourceTypeFromP6(p6Type: string): ResourceType {
   return 'LABOR';
 }
 
+// Dunne lokale wrappers rond de gedeelde XML-primitieven (F5-b). P6 leest UITSLUITEND directe
+// kinderen (anders pikt hij geneste subbomen met dezelfde tag op, bv. binnen een Relationship); die
+// scope-keuze — het verschil met MSPDI's descendant-search — blijft hiermee per formaat bewaard.
 function getElementText(parent: Element, tagName: string): string {
-  // Look for direct children only to avoid picking up nested elements
-  for (let i = 0; i < parent.children.length; i++) {
-    const child = parent.children[i];
-    if (child.localName === tagName || child.tagName === tagName) {
-      return child.textContent?.trim() || '';
-    }
-  }
-  return '';
+  return directChildText(parent, tagName);
 }
 
 function getElementInt(parent: Element, tagName: string, fallback = 0): number {
-  const text = getElementText(parent, tagName);
-  const n = parseInt(text);
-  return isNaN(n) ? fallback : n;
+  return toInt(getElementText(parent, tagName), fallback);
 }
 
 function getElementFloat(parent: Element, tagName: string, fallback = 0): number {
-  const text = getElementText(parent, tagName);
-  const n = parseFloat(text);
-  return isNaN(n) ? fallback : n;
+  return toFloat(getElementText(parent, tagName), fallback);
 }
 
+/** P6-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met MSPDI (F5-a). */
 function parseP6Date(s: string): string {
-  if (!s) return formatDate(new Date());
-  return s.substring(0, 10);
+  return isoDatePrefixOrToday(s);
 }
 
 function p6TypeToSequenceType(type: string): SequenceType {
@@ -140,7 +133,7 @@ function parseP6StandardWorkWeek(calEl: Element): {
 /** Canonicaliseer de rauwe banden en registreer ze + de afwijking (a/b) op de kalender (§7.2). */
 function registerP6Bands(cal: WorkCalendar, rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>): void {
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
-  p6BandRegistry.set(cal, { canonical: bands, deviates });
+  registerCalendarBands(cal, { canonical: bands, deviates });
 }
 
 /** Feestdagen/exceptions teruglezen (fase 2.8a, §8.3, spiegel van `writeHolidayOrExceptions`). */
@@ -357,17 +350,13 @@ export function readP6XML(content: string): ImportResult {
       || hasNonAnchorTime(getElementText(actEl, 'PlannedFinishDate'), P6_TIME_ANCHOR);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
+  // P6 valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
+  // (preferCanonicalWhenEmpty = false) — zie de F5-noot bij `promoteHourCalendar`.
   const hourModeCalIds = new Set<string>();
   for (const [id, cal] of calById) {
-    const info = p6BandRegistry.get(cal);
-    if (!((info?.deviates ?? false) || cSignalCalIds.has(id))) continue;
-    hourModeCalIds.add(id);
-    if (cal.workTime) continue;
-    const bands = info && workDaysFromBands(info.canonical).length > 0 ? info.canonical : synthP6BandsFromScalar(cal);
-    cal.workTime = bands;
-    const wd = workDaysFromBands(bands);
-    if (wd.length > 0) cal.workDays = wd;
-    cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
+    if (promoteHourCalendar(cal, getCalendarBands(cal), cSignalCalIds.has(id), false)) {
+      hourModeCalIds.add(id);
+    }
   }
 
   for (const actEl of activityElements) {
@@ -612,14 +601,6 @@ function parseProject(doc: Document): Project {
   const dataDateRaw = getElementText(projEl, 'DataDate');
   if (dataDateRaw) project.statusDate = parseP6Date(dataDateRaw);
   return project;
-}
-
-/** Enkelband-kalender uit de scalar `workStartHour/EndHour` (fallback bij (c)-promotie zonder banden). */
-function synthP6BandsFromScalar(cal: WorkCalendar): WorkTimeBands {
-  const raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
-  const band = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
-  for (const wd of cal.workDays) if (wd >= 1 && wd <= 7) raw[wd as 1] = [{ ...band }];
-  return canonicalizeBands(raw).bands;
 }
 
 function parseCalendar(doc: Document): WorkCalendar {

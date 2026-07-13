@@ -52,3 +52,29 @@ export function normalizeImportedProgress(tasks: Task[], statusDate?: string): v
     t.remainingTime = Math.round(t.scheduleDuration * (1 - t.completion));
   }
 }
+
+/**
+ * Herbouw de parent-child-hiërarchie uit gepunte WBS-codes (F5-f) — gedeeld door de MSPDI- en
+ * CSV-readers, die hier eerder identieke code hadden. Een taak met een punt in zijn `wbsCode` (bv.
+ * `1.2.3`) hangt onder de taak met de code één niveau hoger (`1.2`), als die bestaat. Bouwt zijn
+ * eigen `wbsCode → id`-map, muteert `parentId`/`childIds` in-place en dupliceert nooit een childId.
+ */
+export function rebuildWbsHierarchy(tasks: Task[]): void {
+  const wbsToId = new Map<string, string>();
+  for (const task of tasks) wbsToId.set(task.wbsCode, task.id);
+
+  for (const task of tasks) {
+    if (!task.wbsCode || !task.wbsCode.includes('.')) continue;
+    const parts = task.wbsCode.split('.');
+    parts.pop();
+    const parentWbs = parts.join('.');
+    const parentId = wbsToId.get(parentWbs);
+    if (parentId) {
+      task.parentId = parentId;
+      const parent = tasks.find(t => t.id === parentId);
+      if (parent && !parent.childIds.includes(task.id)) {
+        parent.childIds.push(task.id);
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { Task, TaskTime, TaskType } from '@/types/task';
+import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
@@ -17,19 +17,14 @@ import {
 } from './ifcConstants';
 import { PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
 import { normalizeImportedProgress } from '@/services/importNormalize';
-import type { WorkTimeBands } from '@/types/calendar';
 import {
-  canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isoDurationToMinutes,
-  isSubDayMinutes, workDaysFromBands,
+  canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
+  isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
 } from '@/services/subdayIo';
 
 // IFC_TIME_ANCHOR (§7.1, discriminator c) en DEFAULT_PRIORITY (fase 2.5) wonen nu in ./ifcConstants
-// zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken.
-
-/** Rauwe (gecanonicaliseerde) banden per gelezen kalender-object + of ze afwijken van het
- *  enkelvoudige dag-patroon (discriminator (a)/(b)). Gevuld door `buildCalendarFromEntity`, gelezen
- *  door de uur-modus-post-pass. WeakMap ⇒ per-parse, geen lek. */
-const rawBandsRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
+// zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken. De rauwe-banden-
+// registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
 
 const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
 
@@ -191,6 +186,9 @@ function parseRefs(s: string): string[] {
   return refs;
 }
 
+// Datum-parse: BEWUST niet gedeeld met MSPDI/P6/CSV (F5-a). Deze variant handelt eerst de
+// STEP-quoting (`stripQuotes`) en de `$`-null-conventie af en houdt de exacte lege-tail-semantiek
+// (een quoted-lege slot geeft '' terug, niet vandaag) — dat is STEP-specifiek en mag niet verschuiven.
 function parseDateFromIFC(s: string): string {
   if (!s || s === '$') return formatDate(new Date());
   const clean = stripQuotes(s);
@@ -217,9 +215,9 @@ function parseDurationDays(s: string): number {
 }
 
 function parseTaskType(s: string): TaskType {
+  // IFC-specifieke normalisatie: STEP-enum-punten strippen (`.CONSTRUCTION.` → `CONSTRUCTION`).
   const clean = s.replace(/\./g, '').trim();
-  const valid: TaskType[] = ['CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE', 'MOVE', 'RENOVATION', 'MAINTENANCE', 'USERDEFINED'];
-  return valid.includes(clean as TaskType) ? (clean as TaskType) : 'CONSTRUCTION';
+  return TASK_TYPES.includes(clean as TaskType) ? (clean as TaskType) : 'CONSTRUCTION';
 }
 
 function parseSequenceType(s: string): SequenceType {
@@ -279,15 +277,6 @@ function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEnti
   return buildCalendarFromEntity(cal, entityMap, entities);
 }
 
-/** Enkelband-kalender uit de scalar `workStartHour/EndHour` (fallback wanneer geen banden geregistreerd
- *  zijn, bv. een default-kalender die door een sub-dag-taak alsnog uur-modus wordt). */
-function synthBandsFromScalar(cal: WorkCalendar): WorkTimeBands {
-  const raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
-  const band = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
-  for (const wd of cal.workDays) if (wd >= 1 && wd <= 7) raw[wd as 1] = [{ ...band }];
-  return canonicalizeBands(raw).bands;
-}
-
 /**
  * Fase 2.8b (§7.1, golf 4) — uur-modus-post-pass. Draait ná het resolven van elke `task.calendarId`.
  * Beslist per kalender (project + bibliotheek) of hij uur-modus is volgens de normatieve
@@ -320,16 +309,11 @@ function applyHourModeIFC(
     if (durSignal || dateSignal) subDayCals.add(effCal);
   }
 
-  // 2. Promoveer kalenders die afwijken (a/b uit de banden) of een (c)-signaal droegen.
+  // 2. Promoveer kalenders die afwijken (a/b uit de banden) of een (c)-signaal droegen. IFC kiest
+  //    altijd de geregistreerde canonical zodra er info is (preferCanonicalWhenEmpty = true) — zie
+  //    de F5-noot bij `promoteHourCalendar`.
   for (const cal of [projectCal, ...resourceCalendars]) {
-    if (cal.workTime) continue;
-    const info = rawBandsRegistry.get(cal);
-    if (!(info?.deviates || subDayCals.has(cal))) continue;
-    const bands = info?.canonical ?? synthBandsFromScalar(cal);
-    cal.workTime = bands;
-    const wd = workDaysFromBands(bands);
-    if (wd.length > 0) cal.workDays = wd;
-    cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
+    promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), true);
   }
 
   // 3. Herinterpreteer de taken op een uur-kalender: minuut-precieze duur + echte tijden.
@@ -969,7 +953,7 @@ function buildCalendarFromEntity(
   const rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
   for (const d of days) rawByWeekday[d as 1] = periods.map(p => ({ ...p }));
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
-  rawBandsRegistry.set(calendar, { canonical: bands, deviates });
+  registerCalendarBands(calendar, { canonical: bands, deviates });
 
   // Ploeg-classificatie uit `PredefinedType` (arg 7) → `shift` (§7.1). `.FIRSTSHIFT.`/afwezig ⇒
   // undefined (byte-identiek — de schrijver emitteert `.FIRSTSHIFT.` voor undefined).
