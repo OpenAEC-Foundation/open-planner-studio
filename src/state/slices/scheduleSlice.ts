@@ -6,7 +6,7 @@ import {
   type LevelingOptions,
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
-import { createSnapshot } from '../snapshot';
+import { beginUndoable, finishMutation } from '../transaction';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { isHourCalendar } from '@/services/subdayIo';
@@ -196,8 +196,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
 
   applyLeveling: (result) => {
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       // Idempotent: eerst álle levelingDelays wissen, dan de nieuwe zetten — zo levert een
       // her-nivellering (of een leveling na een eerdere) exact het resultaat van `result`,
       // niet een optelsom.
@@ -205,7 +204,8 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
         const d = result.delays[task.id];
         task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
       }
-      s.isDirty = true;
+      // Géén stale-vlag: de aansluitende runCPM zet scheduleStale zelf op false.
+      finishMutation(s);
     });
     get().runCPM();
   },
@@ -214,10 +214,9 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
     let changed = false;
     set((s) => {
       if (!s.tasks.some((t) => t.levelingDelay !== undefined)) return; // niets te wissen, geen snapshot
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       for (const task of s.tasks) task.levelingDelay = undefined;
-      s.isDirty = true;
+      finishMutation(s); // stale wordt door de aansluitende runCPM gewist.
       changed = true;
     });
     if (changed) get().runCPM();

@@ -1,6 +1,6 @@
 import type { Sequence } from '@/types/sequence';
 import { generateId } from '@/utils/id';
-import { createSnapshot } from '../snapshot';
+import { beginUndoable, finishMutation } from '../transaction';
 import type { AppSlice } from './types';
 
 export interface SequenceSlice {
@@ -18,8 +18,7 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
   addSequence: (seq) => {
     const id = generateId('seq');
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       // Voorkom exacte duplicaten, maar sta wél meerdere relatietypes tussen hetzelfde paar toe
       // (bv. SS+FF als overlap/ladder-koppeling) — type meewegen, anders verdwijnt de 2e relatie stil.
@@ -28,8 +27,7 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
       );
       if (!exists) {
         s.sequences.push({ ...seq, id });
-        s.isDirty = true;
-        s.scheduleStale = true; // nieuwe relatie (A6): planning verouderd tot F5.
+        finishMutation(s, { stale: true }); // nieuwe relatie (A6): planning verouderd tot F5.
       }
     });
     return id;
@@ -47,15 +45,13 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
           && e.successorId === seq.successorId && e.type === nextType
       );
       if (collides) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       if (patch.type !== undefined) seq.type = patch.type;
       if ('lagDays' in patch) seq.lagDays = Number.isFinite(patch.lagDays) ? (patch.lagDays as number) : 0;
       // lagUnit/lagPercent expliciet op undefined zetten = terug naar default (werkdagen / vaste lag).
       if ('lagUnit' in patch) seq.lagUnit = patch.lagUnit;
       if ('lagPercent' in patch) seq.lagPercent = patch.lagPercent;
-      s.isDirty = true;
-      s.scheduleStale = true; // relatie-wijziging (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // relatie-wijziging (A6): planning verouderd tot F5.
       applied = true;
     });
     return applied;
@@ -63,10 +59,8 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
 
   removeSequence: (id) =>
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.sequences = s.sequences.filter(seq => seq.id !== id);
-      s.isDirty = true;
-      s.scheduleStale = true; // verwijderde relatie (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // verwijderde relatie (A6): planning verouderd tot F5.
     }),
 });

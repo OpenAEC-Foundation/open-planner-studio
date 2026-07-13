@@ -10,7 +10,7 @@ import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
-import { createSnapshot } from '../snapshot';
+import { beginUndoable, finishMutation } from '../transaction';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { freshPayload, hydratePayload } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
@@ -99,19 +99,18 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     set((s) => {
       Object.assign(s.project, updates);
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
       // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet (A6).
-      if ('startDate' in updates) s.scheduleStale = true;
+      // Flag-only (bewuste asymmetrie): projectvelden muteren zónder undo-snapshot.
+      finishMutation(s, { stale: 'startDate' in updates });
     }),
 
   setWbsAutoNumber: (on) =>
     set((s) => {
       if (!!s.project.wbsAutoNumber === on) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.project.wbsAutoNumber = on;
       if (on) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
+      finishMutation(s); // WBS-nummering raakt geen datums: géén scheduleStale (bewuste asymmetrie).
     }),
 
   setCalendar: (calendar) =>
@@ -120,16 +119,15 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       // Houd de bibliotheek-entry (indien aanwezig) in sync met de gedenormaliseerde cache (§4.1).
       const idx = s.calendars.findIndex((c) => c.id === calendar.id);
       if (idx >= 0) s.calendars[idx] = calendar;
-      s.isDirty = true;
-      s.scheduleStale = true; // projectkalender-wijziging (A6): planning verouderd tot F5.
+      // Flag-only (bewuste asymmetrie, §9.3): projectkalender muteert zónder undo-snapshot.
+      finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
   setProjectCalendar: (id) =>
     set((s) => {
       if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
       s.project.calendarId = id;
-      s.isDirty = true;
-      s.scheduleStale = true; // projectdefault-wissel is datum-beïnvloedend (§5.4).
+      finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
       syncProjectCalendar(s); // §9.1: cache gelijkzetten (géén undo-snapshot, §9.3).
     }),
 
@@ -143,16 +141,14 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       if (date) s.project.statusDate = date;
       else delete s.project.statusDate;
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
-      s.scheduleStale = true; // datum-beïnvloedend (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // datum-beïnvloedend (A6): planning verouderd tot F5.
     }),
 
   setProgressMode: (mode) =>
     set((s) => {
       s.project.progressMode = mode;
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
-      s.scheduleStale = true;
+      finishMutation(s, { stale: true });
     }),
 
   newProject: () => {

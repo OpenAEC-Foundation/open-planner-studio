@@ -1,7 +1,7 @@
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
-import { createSnapshot } from '../snapshot';
+import { beginUndoable, finishMutation } from '../transaction';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import type { AppSlice } from './types';
 
@@ -54,10 +54,9 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   addResource: (res) => {
     const id = generateId('res');
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.resources.push({ ...res, id });
-      s.isDirty = true;
+      finishMutation(s);
     });
     // A6: pure resource-mutatie → histogram direct verversen (geen runCPM, datums onaangeroerd).
     get().recomputeResourceLoad();
@@ -77,10 +76,9 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         delete patch.maxUnits;
       }
       if (Object.keys(patch).length === 0) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       Object.assign(s.resources[idx], patch);
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -88,8 +86,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
 
   removeResource: (id) => {
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.resources = s.resources.filter(r => r.id !== id);
       s.assignments = s.assignments.filter(a => a.resourceId !== id);
       // Verweesde verwijzingen in task.resourceIds opruimen.
@@ -101,7 +98,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       for (const r of s.resources) {
         if (r.parentId === id) r.parentId = undefined;
       }
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -115,15 +112,14 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       // Weigeren (bevinding 1): 0/negatieve eenheden/dag is geen geldige toewijzing.
       if (!isValidUnits(unitsPerDay)) return;
 
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       const id = generateId('asgn');
       s.assignments.push({ id, taskId, resourceId, unitsPerDay, curve });
       if (!task.resourceIds.includes(resourceId)) {
         task.resourceIds.push(resourceId);
       }
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -141,10 +137,9 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         delete patch.unitsPerDay;
       }
       if (Object.keys(patch).length === 0) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       Object.assign(s.assignments[idx], patch);
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -155,8 +150,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       const removed = s.assignments.find(a => a.id === assignmentId);
       if (!removed) return;
 
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       s.assignments = s.assignments.filter(a => a.id !== assignmentId);
       // task.resourceIds alleen opschonen als er geen andere toewijzing van
@@ -169,7 +163,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         const idx = task?.resourceIds.indexOf(removed.resourceId) ?? -1;
         if (task && idx >= 0) task.resourceIds.splice(idx, 1);
       }
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -190,8 +184,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       );
       if (alreadyOnTarget) return;
 
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       const oldTaskId = assignment.taskId;
       assignment.taskId = newTaskId;
@@ -210,7 +203,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       if (!newTask.resourceIds.includes(assignment.resourceId)) {
         newTask.resourceIds.push(assignment.resourceId);
       }
-      s.isDirty = true;
+      finishMutation(s);
       moved = true;
     });
     if (moved) {
@@ -223,12 +216,10 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   addCalendar: (cal) => {
     const id = generateId('cal');
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.calendars.push({ ...cal, id });
       syncProjectCalendar(s); // houd de gedenormaliseerde projectkalender-cache in sync (§9.1).
-      s.isDirty = true;
-      s.scheduleStale = true; // conservatief datum-beïnvloedend (§5.4).
+      finishMutation(s, { stale: true }); // conservatief datum-beïnvloedend (§5.4).
     });
     get().recomputeResourceLoad();
   return id;
@@ -238,22 +229,19 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
     set((s) => {
       const idx = s.calendars.findIndex(c => c.id === id);
       if (idx < 0) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
-      s.isDirty = true;
       // Pure naamswijziging raakt geen datums (§5.4); elke andere mutatie wél.
       const onlyName = Object.keys(updates).length === 1 && 'name' in updates;
-      if (!onlyName) s.scheduleStale = true;
+      finishMutation(s, { stale: !onlyName });
     });
     get().recomputeResourceLoad();
   },
 
   removeCalendar: (id) => {
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.calendars = s.calendars.filter(c => c.id !== id);
       // Verweesde verwijzingen opruimen: resources én taken vallen terug op de projectkalender.
       for (const r of s.resources) {
@@ -272,16 +260,14 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         // Geen enkele bibliotheek-entry meer: `s.calendar` blijft de laatst-bekende cache staan.
       }
       syncProjectCalendar(s);
-      s.isDirty = true;
-      s.scheduleStale = true;
+      finishMutation(s, { stale: true });
     });
     get().recomputeResourceLoad();
   },
 
   commitCalendarLibrary: (calendars, projectCalendarId) => {
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.calendars = calendars;
       const ids = new Set(calendars.map(c => c.id));
       // Verweesde verwijzingen opruimen (spiegelt removeCalendar, §4.3/§9.2): resources én taken
@@ -299,8 +285,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         s.project.calendarId = calendars[0].id;
       }
       syncProjectCalendar(s);
-      s.isDirty = true;
-      s.scheduleStale = true;
+      finishMutation(s, { stale: true });
     });
     get().recomputeResourceLoad();
   },

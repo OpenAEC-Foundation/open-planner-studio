@@ -14,6 +14,7 @@ import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import type { ImportResult } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport } from '../documentContract';
+import { finishMutation } from '../transaction';
 import { fileHasHourData } from '@/services/subdayIo';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 
@@ -359,8 +360,8 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     if (result.changed) {
       set((s) => {
         s.tasks = result.tasks;
-        s.isDirty = true;
-        s.scheduleStale = true;
+        // Flag-only (bewuste asymmetrie): externe-anker-verversing is niet undoable.
+        finishMutation(s, { stale: true });
       });
       get().recomputeViewRows();
       get().runCPM();
