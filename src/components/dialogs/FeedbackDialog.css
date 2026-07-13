@@ -161,13 +161,6 @@
   user-select: none;
 }
 
-.feedback-toggle-label input[type="checkbox"] {
-  accent-color: var(--theme-accent);
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
-}
-
 /* Status-meldingen */
 .feedback-capturing {
   font-size: 11px;

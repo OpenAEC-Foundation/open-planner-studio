@@ -9,7 +9,7 @@ import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 
-type SettingsTab = 'general' | 'language' | 'timeline';
+type SettingsTab = 'appearance' | 'language' | 'timeline' | 'application';
 
 // Representatieve kleurstalen per thema voor de visuele theme-picker.
 const THEME_SWATCHES: Record<UITheme, string[]> = {
@@ -45,7 +45,7 @@ export function SettingsPanelContent() {
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
 
   // --- Live appliers (geen pending state) -------------------------------
   const applyTheme = (theme: UITheme) => {
@@ -94,10 +94,10 @@ export function SettingsPanelContent() {
       {/* Left sidebar tabs */}
       <div className="settings-tabs">
         <button
-          className={`settings-tab ${activeTab === 'general' ? 'active' : ''}`}
-          onClick={() => setActiveTab('general')}
+          className={`settings-tab ${activeTab === 'appearance' ? 'active' : ''}`}
+          onClick={() => setActiveTab('appearance')}
         >
-          {t('settings.general')}
+          {t('settings.appearanceTab')}
         </button>
         <button
           className={`settings-tab ${activeTab === 'language' ? 'active' : ''}`}
@@ -111,11 +111,17 @@ export function SettingsPanelContent() {
         >
           {t('settings.timeline')}
         </button>
+        <button
+          className={`settings-tab ${activeTab === 'application' ? 'active' : ''}`}
+          onClick={() => setActiveTab('application')}
+        >
+          {t('settings.applicationTab')}
+        </button>
       </div>
 
       {/* Right content */}
       <div className="settings-tab-content">
-        {activeTab === 'general' && (
+        {activeTab === 'appearance' && (
           <div className="settings-section-list">
             <div className="settings-section">
               <h3>{t('settings.theme')}</h3>
@@ -169,81 +175,10 @@ export function SettingsPanelContent() {
             </div>
 
             <div className="settings-section">
-              <h3>{t('settings.version')}</h3>
-              <div className="settings-row">
-                <span>{__APP_VERSION__}</span>
-              </div>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('updates.section')}</h3>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
-                  setUI({ showSettingsDialog: false, showUpdateDialog: true });
-                }}
-              >
-                {t('updates.checkButton')}
-              </button>
-            </div>
-
-            <div className="settings-section">
               <h3>{t('settings.defaultZoom')}</h3>
               <div className="settings-row">
                 <span>30 px/day</span>
               </div>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.debugTerminal')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={debugTerminalEnabled}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setUI({ debugTerminalEnabled: checked });
-                    void saveDebugTerminalEnabled(checked);
-                  }}
-                />
-                <span>{t('settings.debugTerminalEnable')}</span>
-              </label>
-            </div>
-
-            <div className="settings-section">
-              <button
-                className="settings-link"
-                onClick={() => {
-                  setUI({ showSettingsDialog: false, showProjectInfoDialog: true });
-                }}
-              >
-                {t('settings.projectInfo')}
-              </button>
-            </div>
-
-            {/* [Rondleiding] (fase 2.10, bugfix — user-melding: de herstart-ingang ontbrak in de
-                Instellingen). Derde ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
-                zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
-                Sluit eerst de Instellingen-dialoog (gear/Instellingen-ribbontab) én Backstage
-                (activeRibbonTab terug naar 'start', zoals Backstage's eigen closeBackstage()) zodat
-                de tour altijd vanaf een schone body start, ongeacht welke van de 3 ingangen. */}
-            <div className="settings-section">
-              <h3>{t('tour.restartButton')}</h3>
-              <p className="scrollzoom-hint">{t('settings.tourHint')}</p>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  setUI({
-                    showSettingsDialog: false,
-                    activeRibbonTab: 'start',
-                    showTourOverlay: true,
-                    tourStepIndex: 0,
-                  });
-                }}
-              >
-                {t('tour.backstageRestart')}
-              </button>
             </div>
           </div>
         )}
@@ -337,6 +272,7 @@ export function SettingsPanelContent() {
               />
             </div>
             <div className="settings-section">
+              <h3>{t('settings.quarterHourSection')}</h3>
               <label className="settings-checkbox-row">
                 <input
                   type="checkbox"
@@ -367,6 +303,78 @@ export function SettingsPanelContent() {
               <p className="scrollzoom-hint">{t('settings.autoCalcCPMHint')}</p>
             </div>
             <ScrollZoomSettings />
+          </div>
+        )}
+
+        {activeTab === 'application' && (
+          <div className="settings-section-list">
+            <div className="settings-section">
+              <h3>{t('settings.version')}</h3>
+              <div className="settings-row">
+                <span>{__APP_VERSION__}</span>
+              </div>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
+                  setUI({ showSettingsDialog: false, showUpdateDialog: true });
+                }}
+              >
+                {t('updates.checkButton')}
+              </button>
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.projectInfoSection')}</h3>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  setUI({ showSettingsDialog: false, showProjectInfoDialog: true });
+                }}
+              >
+                {t('settings.projectInfo')}
+              </button>
+            </div>
+
+            {/* [Rondleiding] (fase 2.10, bugfix — user-melding: de herstart-ingang ontbrak in de
+                Instellingen). Derde ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
+                zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
+                Sluit eerst de Instellingen-dialoog (gear/Instellingen-ribbontab) én Backstage
+                (activeRibbonTab terug naar 'start', zoals Backstage's eigen closeBackstage()) zodat
+                de tour altijd vanaf een schone body start, ongeacht welke van de 3 ingangen. */}
+            <div className="settings-section">
+              <h3>{t('tour.restartButton')}</h3>
+              <p className="scrollzoom-hint">{t('settings.tourHint')}</p>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  setUI({
+                    showSettingsDialog: false,
+                    activeRibbonTab: 'start',
+                    showTourOverlay: true,
+                    tourStepIndex: 0,
+                  });
+                }}
+              >
+                {t('tour.backstageRestart')}
+              </button>
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.debugTerminal')}</h3>
+              <label className="settings-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={debugTerminalEnabled}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setUI({ debugTerminalEnabled: checked });
+                    void saveDebugTerminalEnabled(checked);
+                  }}
+                />
+                <span>{t('settings.debugTerminalEnable')}</span>
+              </label>
+            </div>
           </div>
         )}
       </div>
