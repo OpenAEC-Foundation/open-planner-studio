@@ -271,7 +271,7 @@ const baselines = [{
   projectEnd: '2026-07-24', projectDuration: 14,
 }] satisfies Baseline[];
 
-const fixture: ImportResult = {
+export const fixture: ImportResult = {
   project, calendar: projCal, tasks, sequences, resources, assignments,
   resourceCalendars: [projCal, libCal], // projCal-entry wordt door de writer eruit gefilterd (b)
   activityCodeTypes, customFieldDefs, baselines, activeBaselineId: 'bl-1',

@@ -1,4 +1,4 @@
-import { Task, TaskTime, TaskType, ConstraintType } from '@/types/task';
+import { Task, TaskTime, TaskType } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
@@ -15,6 +15,7 @@ import type { ImportResult } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
 } from './ifcConstants';
+import { PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import type { WorkTimeBands } from '@/types/calendar';
 import {
@@ -76,7 +77,8 @@ export function readIFC(content: string): ImportResult {
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap,
   );
-  extractLevelingMeta(entities, entityMap, tasks, taskStepIdMap);
+  // Fase 3 (P11): OPS_Leveling wordt nu binnen extractStructure via de per-taak-registry gedispatcht
+  // (samen met de andere zeven per-taak-psets) — geen losse extractLevelingMeta-aanroep meer.
 
   // Baselines (fase 2.6, §8.3): autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
@@ -567,7 +569,7 @@ function extractStructure(
 
   // 1. Autoritaire meta-JSON.
   for (const e of entities) {
-    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_StructureMeta') continue;
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.StructureMeta) continue;
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
@@ -591,10 +593,10 @@ function extractStructure(
         if (!tmpl || tmpl.type !== 'IFCSIMPLEPROPERTYTEMPLATE') continue;
         const name = stripQuotes(tmpl.args[2] || '');
         const templateType = (tmpl.args[4] || '').replace(/\./g, '').trim();
-        if (setName === 'OPS_CustomFields' && templateType === 'P_SINGLEVALUE') {
+        if (setName === PSET.CustomFields && templateType === 'P_SINGLEVALUE') {
           const measure = stripQuotes(tmpl.args[5] || '').toLowerCase();
           customFieldDefs.push({ id: generateId('cfd'), name, type: MEASURE_TO_FIELD[measure] ?? 'text' });
-        } else if (setName === 'OPS_ActivityCodes' && templateType === 'P_ENUMERATEDVALUE') {
+        } else if (setName === PSET.ActivityCodes && templateType === 'P_ENUMERATEDVALUE') {
           const enumEntity = entityMap.get(parseRef(tmpl.args[7] || '') || '');
           const values = enumEntity && enumEntity.type === 'IFCPROPERTYENUMERATION'
             ? splitArgs((enumEntity.args[1] || '').replace(/^\(|\)$/g, ''))
@@ -623,7 +625,23 @@ function extractStructure(
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p);
 
-    if (psetName === 'OPS_ProjectSettings') {
+    // Fase 3 (P11) — de acht per-taak-psets via de gedeelde registry: één dispatch op naam vervangt
+    // de vroegere zeven losse `if (psetName === 'OPS_X')`-blokken + de losse extractLevelingMeta. De
+    // read-logica leeft naast de write-logica in ifcPsets.PER_TASK_PSETS (kan niet meer divergeren).
+    const perTask = PER_TASK_PSET_BY_NAME.get(psetName);
+    if (perTask) {
+      const singleValueProps = props
+        .filter(p => p.type === 'IFCPROPERTYSINGLEVALUE')
+        .map(p => ({ name: stripQuotes(p.args[0] || ''), value: parseTypedValue(p.args[2] || '') }));
+      for (const objRef of objectRefs) {
+        const taskId = taskStepIdMap.get(objRef);
+        const task = taskId ? taskById.get(taskId) : undefined;
+        if (task) perTask.apply(task, singleValueProps);
+      }
+      continue;
+    }
+
+    if (psetName === PSET.ProjectSettings) {
       for (const prop of props) {
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
         const name = stripQuotes(prop.args[0] || '');
@@ -646,184 +664,20 @@ function extractStructure(
       continue;
     }
 
-    if (psetName === 'OPS_Constraints') {
-      // Fase 2.3/2.9: datum-constraint (+ harde pin + secundair) + deadline per taak (spiegel van
-      // writeConstraints). Afwezige velden ⇒ gewoon weg (default-inert, dag-modus-analoog).
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        let ctype: string | undefined;
-        let cdate: string | undefined;
-        let hard = false;
-        let ctype2: string | undefined;
-        let cdate2: string | undefined;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          const name = stripQuotes(prop.args[0] || '');
-          const value = parseTypedValue(prop.args[2] || '');
-          // Fase 2.9: Hard is een IFCBOOLEAN — niet overslaan met de string-guard hieronder.
-          if (name === 'Hard') { if (value === true) hard = true; continue; }
-          if (typeof value !== 'string') continue;
-          if (name === 'ConstraintType') ctype = value;
-          else if (name === 'ConstraintDate') cdate = value;
-          else if (name === 'ConstraintType2') ctype2 = value;
-          else if (name === 'ConstraintDate2') cdate2 = value;
-          else if (name === 'Deadline') task.deadline = value;
-        }
-        const valid = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
-        if (ctype && valid.includes(ctype)) {
-          task.constraint = {
-            type: ctype as ConstraintType,
-            ...(cdate ? { date: cdate } : {}),
-            ...(hard ? { hard: true } : {}),
-          };
-        }
-        // Secundaire constraint is altijd soft (geen hard-veld).
-        if (ctype2 && valid.includes(ctype2)) {
-          task.constraint2 = { type: ctype2 as ConstraintType, ...(cdate2 ? { date: cdate2 } : {}) };
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_Hammock') {
-      // Fase 2.9 (§3.2/§6): hammock/LOE-vlag terug (spiegel van writeHammockMeta).
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          if (stripQuotes(prop.args[0] || '') !== 'IsHammock') continue;
-          if (parseTypedValue(prop.args[2] || '') === true) task.isHammock = true;
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_TaskAppearance') {
-      // Fase 3 (H2): taak-kleur (spiegel van writeTaskAppearance). Afwezig ⇒ task.color blijft
-      // undefined (huidige default; oude bestanden identiek).
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          if (stripQuotes(prop.args[0] || '') !== 'Color') continue;
-          const value = parseTypedValue(prop.args[2] || '');
-          if (typeof value === 'string' && value) task.color = value;
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_Analysis') {
-      // Fase 3 (H2): fase-2.9-analyse-uitvoer (interfererende float / bijna-kritiek / float-path)
-      // per taak (spiegel van writeAnalysisMeta). Op dezelfde voet als de andere computed
-      // TaskTime-velden (earlyStart/float/isCritical) — IFC is het volledige dossier. Afwezig ⇒
-      // de velden blijven undefined (huidige default; oude bestanden identiek).
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          const name = stripQuotes(prop.args[0] || '');
-          const value = parseTypedValue(prop.args[2] || '');
-          if (name === 'InterferingFloat' && typeof value === 'number') {
-            task.time.interferingFloat = value;
-          } else if (name === 'IsNearCritical' && typeof value === 'boolean') {
-            task.time.isNearCritical = value;
-          } else if (name === 'FloatPath' && typeof value === 'number') {
-            task.time.floatPath = Math.round(value);
-          }
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_ExternalLink') {
-      // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies uit het autoritatieve JSON-veld
-      // (spiegel van writeExternalLinks). De volledige geneste array round-trippt 1-op-1.
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          if (stripQuotes(prop.args[0] || '') !== 'Links') continue;
-          const value = parseTypedValue(prop.args[2] || '');
-          if (typeof value !== 'string' || !value) continue;
-          try {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed) && parsed.length > 0) task.externalLinks = parsed;
-          } catch {
-            // Corrupte JSON: negeren (net als een onleesbare baseline-blob) i.p.v. de load te breken.
-          }
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_TaskNotes') {
-      // Fase 2.10 (item 1): taak-aantekeningen uit het autoritatieve JSON-veld (spiegel van
-      // writeTaskNotes/OPS_ExternalLink). Corrupte JSON wordt genegeerd i.p.v. de load te breken.
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          if (stripQuotes(prop.args[0] || '') !== 'Notes') continue;
-          const value = parseTypedValue(prop.args[2] || '');
-          if (typeof value !== 'string' || !value) continue;
-          try {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed) && parsed.length > 0) task.notes = parsed;
-          } catch {
-            // Corrupte JSON: negeren (net als een onleesbare externe-link-blob) i.p.v. de load te breken.
-          }
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_Milestone') {
-      // Fase 2.4: mijlpaalsoort + verplicht-vlag (spiegel van writeMilestoneMeta).
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          const name = stripQuotes(prop.args[0] || '');
-          const value = parseTypedValue(prop.args[2] || '');
-          if (name === 'MilestoneKind' && (value === 'START' || value === 'FINISH')) {
-            task.milestoneKind = value;
-          } else if (name === 'Mandatory' && value === true) {
-            task.mandatory = true;
-          }
-        }
-      }
-      continue;
-    }
-
-    if (psetName !== 'OPS_CustomFields' && psetName !== 'OPS_ActivityCodes') continue;
+    if (psetName !== PSET.CustomFields && psetName !== PSET.ActivityCodes) continue;
     for (const objRef of objectRefs) {
       const taskId = taskStepIdMap.get(objRef);
       const task = taskId ? taskById.get(taskId) : undefined;
       if (!task) continue;
       for (const prop of props) {
         const name = stripQuotes(prop.args[0] || '');
-        if (psetName === 'OPS_CustomFields' && prop.type === 'IFCPROPERTYSINGLEVALUE') {
+        if (psetName === PSET.CustomFields && prop.type === 'IFCPROPERTYSINGLEVALUE') {
           const def = defByName.get(name);
           const value = parseTypedValue(prop.args[2] || '');
           if (def && value !== undefined) {
             task.customFields = { ...(task.customFields ?? {}), [def.id]: value };
           }
-        } else if (psetName === 'OPS_ActivityCodes' && prop.type === 'IFCPROPERTYENUMERATEDVALUE') {
+        } else if (psetName === PSET.ActivityCodes && prop.type === 'IFCPROPERTYENUMERATEDVALUE') {
           const type = typeByName.get(name);
           const codes = splitArgs((prop.args[2] || '').replace(/^\(|\)$/g, ''))
             .map(v => parseTypedValue(v))
@@ -922,7 +776,7 @@ function extractResourceMeta(
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
     if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    if (stripQuotes(pset.args[2] || '') !== 'OPS_Resource') continue;
+    if (stripQuotes(pset.args[2] || '') !== PSET.Resource) continue;
 
     const objectRefs = parseRefs(rel.args[4] || '');
     const props = parseRefs(pset.args[4] || '')
@@ -1014,7 +868,7 @@ function extractCalendarGeneration(
     const objectRefs = parseRefs(rel.args[4] || '');
     if (!objectRefs.includes(calStepId)) continue;
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== 'OPS_Calendar') continue;
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
 
     const props = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
@@ -1248,7 +1102,7 @@ function extractAssignments(
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
     if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    if (stripQuotes(pset.args[2] || '') !== 'OPS_Assignments') continue;
+    if (stripQuotes(pset.args[2] || '') !== PSET.Assignments) continue;
 
     const props = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
@@ -1349,42 +1203,9 @@ function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]
   }
 }
 
-/**
- * Fase 2.5 — `OPS_Leveling`-pset teruglezen (§7.6, spiegel van `writeLevelingMeta`):
- * `LevelingDelay` (werkdagen) per taak; ontbreekt de pset dan blijft `levelingDelay`
- * `undefined` (default, `extractTasks` zet het veld niet).
- */
-function extractLevelingMeta(
-  entities: StepEntity[],
-  entityMap: Map<string, StepEntity>,
-  tasks: Task[],
-  taskStepIdMap: Map<string, string>,
-): void {
-  const taskById = new Map(tasks.map(t => [t.id, t]));
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    if (stripQuotes(pset.args[2] || '') !== 'OPS_Leveling') continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
-    for (const objRef of parseRefs(rel.args[4] || '')) {
-      const taskId = taskStepIdMap.get(objRef);
-      const task = taskId ? taskById.get(taskId) : undefined;
-      if (!task) continue;
-      for (const prop of props) {
-        if (stripQuotes(prop.args[0] || '') !== 'LevelingDelay') continue;
-        const value = parseTypedValue(prop.args[2] || '');
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          task.levelingDelay = Math.round(value);
-        }
-      }
-    }
-  }
-}
+// Fase 3 (P11) — `OPS_Leveling` (§7.6) wordt nu, net als de andere zeven per-taak-psets, teruggelezen
+// via de gedeelde registry-dispatch in `extractStructure` (ifcPsets.PER_TASK_PSETS). De losse
+// extractLevelingMeta is daardoor vervallen.
 
 /**
  * Fase 2.6 — verzamel de STEP-#id's van taken die onder een `.BASELINE.`-IfcWorkSchedule hangen
@@ -1442,7 +1263,7 @@ function extractBaselines(
   let activeBaselineId: string | null = null;
 
   for (const e of entities) {
-    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_Baselines') continue;
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.Baselines) continue;
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
@@ -1487,7 +1308,7 @@ function extractSchedulingOptions(
   entityMap: Map<string, StepEntity>,
 ): SchedulingOptions | undefined {
   for (const e of entities) {
-    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_SchedulingOptions') continue;
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.SchedulingOptions) continue;
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
