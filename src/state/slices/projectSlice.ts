@@ -247,35 +247,15 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     }),
 
   loadState: (loaded) => {
-    set((s) => {
-      s.project = loaded.project;
-      s.calendar = loaded.calendar;
-      s.tasks = loaded.tasks;
-      s.sequences = loaded.sequences;
-      s.resources = loaded.resources;
-      s.assignments = loaded.assignments;
-      // Kalender-bibliotheek (fase 2.8a; readers leveren nog het veld `resourceCalendars`).
-      s.calendars = loaded.resourceCalendars ?? [];
-      // §4.3-migratie: een bestand zonder bibliotheek-entry voor zijn projectkalender (elk
-      // bestand van vóór 2.8a, of van CSV/P6/MSPDI) krijgt hier de eerste entry.
-      promoteProjectCalendarToLibrary(s);
-      s.activityCodeTypes = loaded.activityCodeTypes ?? [];
-      s.customFieldDefs = loaded.customFieldDefs ?? [];
-      s.selectedTaskIds = [];
-      s.cpmResult = null;
-      s.resourceLoadResult = null;
-      s.scheduleStale = false;
-      // Baselines uit de IFC-lezer (fase 2.6, §8.3); ontbreken ze (CSV/P6 of extern bestand) → leeg.
-      s.baselines = loaded.baselines ?? [];
-      s.activeBaselineId = loaded.activeBaselineId ?? null;
-      s.undoStack = [];
-      s.redoStack = [];
-      s.isDirty = false;
-    });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
-      tasks: loaded.tasks.length,
-      sequences: loaded.sequences.length,
-      resources: loaded.resources.length,
+    // Dunne wrapper over de gedeelde load-implementatie (audit P5/F6): `applyLoadedProject` in
+    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad, GEEN runCPM/fit,
+    // `filePath` ongemoeid (opt weggelaten), maar WÉL de structuur (activity-codes/custom-fields)
+    // overnemen en de projectkalender-migratie draaien. De externe callers blijven ongewijzigd.
+    get().applyLoadedProject(loaded, {
+      loadStructure: true,
+      recompute: false,
+      fit: false,
+      hourDataNotice: false,
     });
   },
 });

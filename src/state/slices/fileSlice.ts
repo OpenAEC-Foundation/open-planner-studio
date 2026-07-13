@@ -42,6 +42,27 @@ function parseProjectXml(content: string) {
 
 export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
 
+/** Opties voor `applyLoadedProject` — de één gedeelde "vul de actieve document-state met een
+ *  geparsed project"-implementatie (audit P5/F6). Elke variant (de drie open-paden + `loadState`)
+ *  dekt zijn historische gedrag af met deze vlaggen; defaults staan bewust op "niets doen". */
+export interface ApplyLoadedProjectOpts {
+  /** Nieuw bestandspad (string), `null` voor naamloos (voorbeeld/import), of weglaten
+   *  (`undefined`) om `filePath` ongemoeid te laten — dat laatste is de loadState-semantiek
+   *  (in-place vervangen zonder het pad te raken). Een string-pad wordt tevens aan de
+   *  recente-bestandenlijst toegevoegd. */
+  filePath?: string | null;
+  /** Direct doorrekenen (runCPM) na de load. Open-paden: true; loadState: false. */
+  recompute?: boolean;
+  /** Canvas op het hele project passen (requestFitToProject). Open-paden: true; loadState: false. */
+  fit?: boolean;
+  /** Activity-code-types & custom-field-defs uit het parse-resultaat overnemen. `loadState` doet
+   *  dit; de drie fileSlice-open-paden deden dit historisch NIET (bevinding F6-divergentie — hier
+   *  bewust identiek gehouden i.p.v. stilzwijgend gerepareerd). */
+  loadStructure?: boolean;
+  /** Uur-data-melding (§6.8) berekenen en zetten. Open-paden: true; loadState: false. */
+  hourDataNotice?: boolean;
+}
+
 // ---- Recente bestanden (localStorage) ----
 const RECENT_FILES_KEY = 'open-planner-studio-recent-files';
 const MAX_RECENT_FILES = 10;
@@ -82,9 +103,62 @@ export interface FileSlice {
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
   openExampleFromString: (content: string, name: string) => void;
+  /** Eén gedeelde load-implementatie (audit P5/F6): vul de ACTIEVE document-state met een geparsed
+   *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/recente-bestand/
+   *  extensie-event). Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór
+   *  de load. `loadState` en de drie open-paden lopen hier allemaal doorheen. */
+  applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => void;
 }
 
 export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
+  applyLoadedProject: (parsed, opts) => {
+    set((s) => {
+      s.project = parsed.project;
+      s.calendar = parsed.calendar;
+      s.tasks = parsed.tasks;
+      s.sequences = parsed.sequences;
+      s.resources = parsed.resources;
+      s.assignments = parsed.assignments;
+      s.calendars = parsed.resourceCalendars ?? [];
+      // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
+      promoteProjectCalendarToLibrary(s);
+      // Structuur (activity-codes/custom-fields): alleen wanneer de aanroeper dat vraagt. loadState
+      // neemt ze over; de open-paden lieten ze historisch ongemoeid (bevinding F6-divergentie).
+      if (opts.loadStructure) {
+        s.activityCodeTypes = parsed.activityCodeTypes ?? [];
+        s.customFieldDefs = parsed.customFieldDefs ?? [];
+      }
+      // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
+      // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
+      if (opts.hourDataNotice) {
+        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
+      }
+      // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
+      s.baselines = parsed.baselines ?? [];
+      s.activeBaselineId = parsed.activeBaselineId ?? null;
+      s.selectedTaskIds = [];
+      s.cpmResult = null;
+      s.resourceLoadResult = null;
+      s.scheduleStale = false;
+      s.undoStack = [];
+      s.redoStack = [];
+      s.isDirty = false;
+      // string = nieuw pad, null = naamloos, undefined = laat filePath ongemoeid (loadState-semantiek).
+      if (opts.filePath !== undefined) s.filePath = opts.filePath;
+    });
+    // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
+    // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
+    if (opts.recompute) get().runCPM();
+    if (opts.fit) get().requestFitToProject(); // Issue #16: canvas op het HELE project passen.
+    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+      tasks: parsed.tasks.length,
+      sequences: parsed.sequences.length,
+      resources: parsed.resources.length,
+    });
+    // Een string-pad landt in de recente-bestandenlijst; null/undefined (voorbeeld, in-place) niet.
+    if (typeof opts.filePath === 'string') addRecentFile(opts.filePath);
+  },
+
   openFile: async () => {
     if (!isTauri()) return;
     const { open } = await import('@tauri-apps/plugin-dialog');
@@ -117,41 +191,15 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       // actieve tabblad alleen als dat nog leeg en ongewijzigd is.
       if (!isActivePristine(get())) get().newDocument();
 
-      set((s) => {
-        s.project = parsed.project;
-        s.calendar = parsed.calendar;
-        s.tasks = parsed.tasks;
-        s.sequences = parsed.sequences;
-        s.resources = parsed.resources;
-        s.assignments = parsed.assignments;
-        s.calendars = parsed.resourceCalendars ?? [];
-        // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
-        promoteProjectCalendarToLibrary(s);
-        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
-        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
-        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
-        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-        s.baselines = parsed.baselines ?? [];
-        s.activeBaselineId = parsed.activeBaselineId ?? null;
-        s.selectedTaskIds = [];
-        s.cpmResult = null;
-        s.resourceLoadResult = null;
-        s.scheduleStale = false;
-        s.undoStack = [];
-        s.redoStack = [];
-        s.isDirty = false;
-        s.filePath = filePath;
+      // Gedeelde load-implementatie; open-pad-semantiek: pad zetten (+ recent), direct
+      // doorrekenen + fitten en de uur-melding evalueren. loadStructure blijft uit — de
+      // open-paden namen activity-codes/custom-fields historisch niet over (bevinding F6).
+      get().applyLoadedProject(parsed, {
+        filePath,
+        recompute: true,
+        fit: true,
+        hourDataNotice: true,
       });
-      // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
-      // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
-      get().runCPM();
-      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
-      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
-        tasks: parsed.tasks.length,
-        sequences: parsed.sequences.length,
-        resources: parsed.resources.length,
-      });
-      addRecentFile(filePath);
     } catch (err) {
       console.error('Failed to parse file:', err);
     }
@@ -374,39 +422,13 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
 
       if (!isActivePristine(get())) get().newDocument();
 
-      set((s) => {
-        s.project = parsed.project;
-        s.calendar = parsed.calendar;
-        s.tasks = parsed.tasks;
-        s.sequences = parsed.sequences;
-        s.resources = parsed.resources;
-        s.assignments = parsed.assignments;
-        s.calendars = parsed.resourceCalendars ?? [];
-        // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
-        promoteProjectCalendarToLibrary(s);
-        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
-        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
-        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
-        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-        s.baselines = parsed.baselines ?? [];
-        s.activeBaselineId = parsed.activeBaselineId ?? null;
-        s.selectedTaskIds = [];
-        s.cpmResult = null;
-        s.resourceLoadResult = null;
-        s.scheduleStale = false;
-        s.undoStack = [];
-        s.redoStack = [];
-        s.isDirty = false;
-        s.filePath = filePath;
+      // Zelfde open-pad-semantiek als openFile (zie daar); loopt door de gedeelde implementatie.
+      get().applyLoadedProject(parsed, {
+        filePath,
+        recompute: true,
+        fit: true,
+        hourDataNotice: true,
       });
-      get().runCPM(); // consistent met openFile (A5): direct doorrekenen na load.
-      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
-      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
-        tasks: parsed.tasks.length,
-        sequences: parsed.sequences.length,
-        resources: parsed.resources.length,
-      });
-      addRecentFile(filePath);
     } catch (err) {
       console.error('Failed to open recent file:', err);
     }
@@ -420,38 +442,13 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
       // tabblad alleen als dat nog leeg en ongewijzigd is, anders nieuw tabblad.
       if (!isActivePristine(get())) get().newDocument();
 
-      set((s) => {
-        s.project = parsed.project;
-        s.calendar = parsed.calendar;
-        s.tasks = parsed.tasks;
-        s.sequences = parsed.sequences;
-        s.resources = parsed.resources;
-        s.assignments = parsed.assignments;
-        s.calendars = parsed.resourceCalendars ?? [];
-        // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
-        promoteProjectCalendarToLibrary(s);
-        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
-        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
-        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
-        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-        s.baselines = parsed.baselines ?? [];
-        s.activeBaselineId = parsed.activeBaselineId ?? null;
-        s.selectedTaskIds = [];
-        s.cpmResult = null;
-        s.resourceLoadResult = null;
-        s.scheduleStale = false;
-        s.undoStack = [];
-        s.redoStack = [];
-        s.isDirty = false;
-        // Voorbeeld = geen bronbestand: opslaan wordt opslaan-als.
-        s.filePath = null;
-      });
-      get().runCPM(); // consistent met openFile (A5): voorbeeld direct doorrekenen na load.
-      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
-      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
-        tasks: parsed.tasks.length,
-        sequences: parsed.sequences.length,
-        resources: parsed.resources.length,
+      // Voorbeeld = geen bronbestand: filePath=null (opslaan wordt opslaan-als, geen recent-entry).
+      // Verder de open-pad-semantiek: direct doorrekenen + fitten + uur-melding.
+      get().applyLoadedProject(parsed, {
+        filePath: null,
+        recompute: true,
+        fit: true,
+        hourDataNotice: true,
       });
     } catch (err) {
       console.error(`Failed to open example "${name}":`, err);
