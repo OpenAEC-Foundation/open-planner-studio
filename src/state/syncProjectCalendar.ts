@@ -38,5 +38,9 @@ export function syncProjectCalendar(s: CalendarCacheState): void {
  */
 export function promoteProjectCalendarToLibrary(s: CalendarCacheState): void {
   if (s.calendars.some((c) => c.id === s.project.calendarId)) return;
-  s.calendars.push({ ...s.calendar, name: s.calendar.name || 'Projectkalender' });
+  // BEWUST geen .push: `s.calendars` kan hier een door Immer BEVROREN array zijn die zojuist
+  // binnen dezelfde set() uit een payload/snapshot is toegewezen (hydratePayload bij
+  // switchDocument/recovery, restoreSnapshot bij undo/redo) — push gooit dan
+  // "Cannot add property N, object is not extensible". Een verse array toewijzen is altijd veilig.
+  s.calendars = [...s.calendars, { ...s.calendar, name: s.calendar.name || 'Projectkalender' }];
 }

@@ -248,6 +248,27 @@ eq('e loadState: filePath ONGEMOEID', S().filePath, '/tmp/behouden.ifc');
 eq('e loadState: undo-stack vers leeg', S().undoStack.length, 0);
 truthy('e loadState: isDirty false na in-place load', S().isDirty === false);
 
+// ══ (f) FROZEN-ARRAY-REGRESSIE (switchDocument na recovery, 2026-07-16) ══════════════════════════
+// Een IFC-round-trip stript de projectkalender uit resourceCalendars, dus een via recovery
+// hersteld NIET-ACTIEF document heeft calendars=[] terwijl project.calendarId ernaar wijst.
+// switchDocument → hydratePayload wijst dan de door Immer BEVROREN payload-array toe en
+// promoteProjectCalendarToLibrary moest er vervolgens in schrijven — dat gooide
+// "Cannot add property 0, object is not extensible". De fix (geen .push maar een verse array)
+// moet dit pad crashvrij houden én de kalender alsnog promoveren.
+S().newProject();
+const frozenA = mkInput('froz-a', 'FrozenA');
+const frozenB: RecoveryDocInput = { ...mkInput('froz-b', 'FrozenB'), resourceCalendars: undefined };
+S().restoreDocuments([frozenA, frozenB], 'froz-a');
+let switchThrew: string | null = null;
+try {
+  S().switchDocument('froz-b');
+} catch (e) {
+  switchThrew = e instanceof Error ? e.message : String(e);
+}
+eq('f switchDocument naar hersteld doc zonder kalenderbibliotheek gooit NIET', switchThrew, null);
+truthy('f projectkalender is gepromoveerd naar de bibliotheek', S().calendars.some(c => c.id === S().project.calendarId));
+eq('f actief document is gewisseld', S().activeDocumentId, 'froz-b');
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  document-contract-check: alle checks groen (${checks})`);
