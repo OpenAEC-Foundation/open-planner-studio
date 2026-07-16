@@ -22,6 +22,15 @@ export default defineConfig({
     // instead of silently drifting to another port — see scripts/tauri-dev.mjs.
     port: Number(process.env.OPS_DEV_PORT) || 3007,
     strictPort: true,
+    watch: {
+      // Sibling git worktrees under .claude/worktrees/ each carry a full src
+      // tree (14 locales × 4 namespaces + all components). Watching them
+      // recursively multiplies inotify usage ~10× and blows past
+      // fs.inotify.max_user_watches (ENOSPC) once a second dev server starts —
+      // the main dev server has no business watching other worktrees. Appended
+      // to Vite's defaults (node_modules/.git stay ignored).
+      ignored: ['**/.claude/worktrees/**', '**/dist/**'],
+    },
   },
   build: {
     target: 'es2020',
