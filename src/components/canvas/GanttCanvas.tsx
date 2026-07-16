@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import { HistogramRenderer, HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { setGanttChartWidth, setGanttScrollBounds, ORIGIN_PADDING_DAYS, computeFitToProject } from '@/utils/ganttViewport';
 import { MiniMap } from './MiniMap';
-import { diffDays, formatDate, parseDate, parseInstant, formatInstant, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import { diffDays, formatDate, parseDate, parseInstant, formatInstant, addCalendarDays } from '@/utils/dateUtils';
 import { effectiveCalendarByTask } from '@/services/subdayIo';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
@@ -1238,6 +1239,13 @@ export function GanttCanvas() {
     // werk-instant (snap op het uur-raster, niet op de banden). Dag-taken houden exact het dag-pad.
     const isHourDrag = dragState.originalStart.includes('T');
 
+    // Dag-resize: de nieuwe duur is de INCLUSIEVE werkdagen-telling via de taakkalender — exact
+    // zoals CPM zelf rekent (CPMSolver: `scheduleDuration = cal.workDaysBetween(es, ef)`). Zo blijft
+    // een resize-sleep staan ná de eerstvolgende runCPM en tellen weekend/feestdagen niet als duur
+    // mee. (De vorige `diffCalendarDays` was exclusief én kalender-gebaseerd → één werkdag te weinig,
+    // en bij slepen over een weekend werden za/zo ten onrechte meegeteld.)
+    const resizeCalEngine = new CalendarEngine(effectiveCalById.get(dragState.taskId) ?? calendar);
+
     // Snap-quantum (§6.3): de actieve minor-tier, maar NOOIT fijner dan 60 min (kwartier-snap
     // bestaat niet). Zo is het quantum bij uur-zoom 1 uur en bij lagere zoom grover (dag/week);
     // altijd een veelvoud van 60 min ⇒ slepen muteert de duur in HELE uren (§6.4).
@@ -1326,7 +1334,7 @@ export function GanttCanvas() {
       } else if (dragState.edge === 'right') {
         // Resize from right (change duration/finish)
         const newFinish = addCalendarDays(origFinish, daysDelta);
-        const newDuration = Math.max(1, diffCalendarDays(origStart, newFinish));
+        const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(origStart, newFinish));
         updateTask(dragState.taskId, {
           time: {
             ...useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time,
@@ -1338,7 +1346,7 @@ export function GanttCanvas() {
       } else if (dragState.edge === 'left') {
         // Resize from left (change start/duration)
         const newStart = addCalendarDays(origStart, daysDelta);
-        const newDuration = Math.max(1, diffCalendarDays(newStart, origFinish));
+        const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(newStart, origFinish));
         updateTask(dragState.taskId, {
           time: {
             ...useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time,
