@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRightPanelWidth, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadConstructionMode, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode, loadWelcomeSeen } from '@/utils/settingsStore';
+import { loadWelcomeSeen } from '@/utils/settingsStore';
+import { loadAllSettings } from '@/utils/settingsRegistry';
 import { loadAllExtensions } from '@/extensions';
 import type { RecoveryState } from './useRecoveryRestore';
 
@@ -13,66 +14,11 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
 
   useEffect(() => {
     initLocale();
-    initTheme().then(theme => {
-      setUI({ uiTheme: theme });
-    });
-    loadZoomSettings().then(zs => {
-      if (Object.keys(zs).length > 0) setUI(zs);
-    });
-    loadDebugTerminalEnabled().then(v => {
-      if (typeof v === 'boolean') setUI({ debugTerminalEnabled: v });
-    });
-    loadDocumentChromeStyle().then(style => {
-      if (style) setUI({ documentChromeStyle: style });
-    });
-    loadLeftPanelWidth().then(w => {
-      if (typeof w === 'number') setUI({ leftPanelWidth: w });
-    });
-    loadRightPanelWidth().then(w => {
-      if (typeof w === 'number') setUI({ rightPanelWidth: w });
-    });
-    loadRibbonCompact().then(v => {
-      if (typeof v === 'boolean') setUI({ ribbonCompact: v });
-    });
-    loadShowHistogram().then(v => {
-      if (typeof v === 'boolean') setUI({ showHistogram: v });
-    });
-    loadHistogramHeight().then(h => {
-      if (typeof h === 'number') setUI({ histogramHeight: h });
-    });
-    loadShowBaselineOverlay().then(v => {
-      if (typeof v === 'boolean') setUI({ showBaselineOverlay: v });
-    });
-    loadShowProgressLine().then(v => {
-      if (typeof v === 'boolean') setUI({ showProgressLine: v });
-    });
-    loadShowStatusDateLine().then(v => {
-      if (typeof v === 'boolean') setUI({ showStatusDateLine: v });
-    });
-    loadShowMiniMap().then(v => {
-      if (typeof v === 'boolean') setUI({ showMiniMap: v });
-    });
-    loadAutoCalcCPM().then(v => {
-      if (typeof v === 'boolean') setUI({ autoCalcCPM: v });
-    });
-    // Bouwmodus (2026-07-13): synchroon (geen Promise) — hydrateert de store uit localStorage.
-    setUI({ constructionMode: loadConstructionMode() });
-    loadDateNotation().then(v => {
-      if (v) setUI({ dateNotation: v });
-    });
-    // Fase 2.8b (§6.8): urenplanning-instellingen — ontbrekende sleutel ⇒ default (undefined → geen setUI).
-    loadEnableHourPlanning().then(v => {
-      if (typeof v === 'boolean') setUI({ enableHourPlanning: v });
-    });
-    loadAllowMixedDayHour().then(v => {
-      if (typeof v === 'boolean') setUI({ allowMixedDayHour: v });
-    });
-    loadDurationDisplay().then(v => {
-      if (v) setUI({ durationDisplay: v });
-    });
-    loadBarSplitMode().then(v => {
-      if (v) setUI({ barSplitMode: v });
-    });
+    // Pakket M (audit H1): één registergedreven hydratatie i.p.v. ~20 losse `loadX().then(setUI)`-
+    // blokken. `loadAllSettings` itereert het `SETTINGS`-register + de twee afwijkers (thema-migratie,
+    // synchrone bouwmodus) en levert één `setUI`-patch. Gedrag identiek: zelfde sleutels/validators/
+    // defaults; alleen minder losse setUI-calls (de eindtoestand is gelijk — geen veld overlapt).
+    loadAllSettings().then(patch => setUI(patch));
     void loadAllExtensions();
   }, []);
 

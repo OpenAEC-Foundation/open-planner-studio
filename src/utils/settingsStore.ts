@@ -4,14 +4,12 @@ import type {
   ScrollMode,
   PositionDivision,
   ModifierMap,
-  WheelFunction,
   DocumentChromeStyle,
   Layout,
   DateNotation,
   DurationDisplay,
   BarSplitMode,
 } from '@/state/slices/types';
-import { DATE_NOTATIONS, DURATION_DISPLAYS, BAR_SPLIT_MODES } from '@/state/slices/types';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
@@ -74,49 +72,15 @@ export interface PersistedZoomSettings {
   modifierMap: ModifierMap;
 }
 
-const WHEEL_FUNCTIONS: WheelFunction[] = ['vertical', 'horizontal', 'zoom'];
-
-// A ModifierMap is only valid if it is a strict bijection over the three
-// wheel functions (each used exactly once). Reject anything else so a
-// corrupted localStorage value can't desync the wheel handler.
-function isValidModifierMap(m: unknown): m is ModifierMap {
-  if (!m || typeof m !== 'object') return false;
-  const map = m as Record<string, unknown>;
-  const values = [map.plain, map.ctrl, map.shift];
-  if (!values.every(v => typeof v === 'string' && WHEEL_FUNCTIONS.includes(v as WheelFunction))) {
-    return false;
-  }
-  return new Set(values).size === 3;
-}
-
-export async function loadZoomSettings(): Promise<Partial<PersistedZoomSettings>> {
-  const result: Partial<PersistedZoomSettings> = {};
-  const qh = await getSetting<boolean>('enableQuarterHourZoom');
-  const week = await getSetting<WeekStartDay>('weekStartDay');
-  const mode = await getSetting<ScrollMode>('scrollMode');
-  const division = await getSetting<PositionDivision>('positionDivision');
-  const modMap = await getSetting<ModifierMap>('modifierMap');
-  if (typeof qh === 'boolean') result.enableQuarterHourZoom = qh;
-  if (week === 'monday' || week === 'sunday') result.weekStartDay = week;
-  if (mode === 'position' || mode === 'modifier' || mode === 'drag') result.scrollMode = mode;
-  if (division === 'left-right' || division === 'top-bottom' || division === 'corner') {
-    result.positionDivision = division;
-  }
-  if (isValidModifierMap(modMap)) result.modifierMap = modMap;
-  return result;
-}
-
+// De LOAD-kant van de zoom-instellingen (`loadZoomSettings`) + de `isValidModifierMap`-validator zijn
+// naar het settings-register verhuisd (`src/utils/settingsRegistry.ts`, pakket M/audit H1). De
+// SAVE-kant blijft hier als dunne wrapper zodat de bestaande UI-callsites ongemoeid blijven.
 export async function saveZoomSettings(settings: Partial<PersistedZoomSettings>): Promise<void> {
   if (settings.enableQuarterHourZoom !== undefined) await setSetting('enableQuarterHourZoom', settings.enableQuarterHourZoom);
   if (settings.weekStartDay !== undefined) await setSetting('weekStartDay', settings.weekStartDay);
   if (settings.scrollMode !== undefined) await setSetting('scrollMode', settings.scrollMode);
   if (settings.positionDivision !== undefined) await setSetting('positionDivision', settings.positionDivision);
   if (settings.modifierMap !== undefined) await setSetting('modifierMap', settings.modifierMap);
-}
-
-export async function loadDebugTerminalEnabled(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('debugTerminalEnabled');
-  return typeof v === 'boolean' ? v : undefined;
 }
 
 export async function saveDebugTerminalEnabled(value: boolean): Promise<void> {
@@ -127,12 +91,6 @@ export async function saveDebugTerminalEnabled(value: boolean): Promise<void> {
 // zodat een corrupte localStorage-waarde de chart niet onbruikbaar maakt.
 export const TASK_TABLE_MIN_WIDTH = 150;
 export const TASK_TABLE_MAX_WIDTH = 800;
-
-export async function loadLeftPanelWidth(): Promise<number | undefined> {
-  const v = await getSetting<number>('leftPanelWidth');
-  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
-  return Math.min(TASK_TABLE_MAX_WIDTH, Math.max(TASK_TABLE_MIN_WIDTH, Math.round(v)));
-}
 
 export async function saveLeftPanelWidth(value: number): Promise<void> {
   await setSetting('leftPanelWidth', Math.round(value));
@@ -146,19 +104,8 @@ export async function saveLeftPanelWidth(value: number): Promise<void> {
 export const RIGHT_PANEL_MIN_WIDTH = 200;
 export const RIGHT_PANEL_MAX_WIDTH = 900;
 
-export async function loadRightPanelWidth(): Promise<number | undefined> {
-  const v = await getSetting<number>('rightPanelWidth');
-  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
-  return Math.min(RIGHT_PANEL_MAX_WIDTH, Math.max(RIGHT_PANEL_MIN_WIDTH, Math.round(v)));
-}
-
 export async function saveRightPanelWidth(value: number): Promise<void> {
   await setSetting('rightPanelWidth', Math.round(value));
-}
-
-export async function loadRibbonCompact(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('ribbonCompact');
-  return typeof v === 'boolean' ? v : undefined;
 }
 
 export async function saveRibbonCompact(value: boolean): Promise<void> {
@@ -167,11 +114,6 @@ export async function saveRibbonCompact(value: boolean): Promise<void> {
 
 // Histogramstrook (fase 2.5, §6.5): zichtbaarheid + hoogte zijn view-state (net als
 // leftPanelWidth), geen instellingen — persist via dezelfde ops-prefix, geen 3-plekken-regel.
-export async function loadShowHistogram(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('showHistogram');
-  return typeof v === 'boolean' ? v : undefined;
-}
-
 export async function saveShowHistogram(value: boolean): Promise<void> {
   await setSetting('showHistogram', value);
 }
@@ -179,57 +121,28 @@ export async function saveShowHistogram(value: boolean): Promise<void> {
 export const HISTOGRAM_MIN_HEIGHT = 80;
 export const HISTOGRAM_MAX_HEIGHT = 480;
 
-export async function loadHistogramHeight(): Promise<number | undefined> {
-  const v = await getSetting<number>('histogramHeight');
-  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
-  return Math.min(HISTOGRAM_MAX_HEIGHT, Math.max(HISTOGRAM_MIN_HEIGHT, Math.round(v)));
-}
-
 export async function saveHistogramHeight(value: number): Promise<void> {
   await setSetting('histogramHeight', Math.round(value));
 }
 
 // Baseline-/voortgang-overlays (fase 2.6, §11.1): view-state zoals showHistogram — geen
 // instellingen, persist via dezelfde ops-prefix, buiten de 3-plekken-regel.
-export async function loadShowBaselineOverlay(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('showBaselineOverlay');
-  return typeof v === 'boolean' ? v : undefined;
-}
 export async function saveShowBaselineOverlay(value: boolean): Promise<void> {
   await setSetting('showBaselineOverlay', value);
 }
 
-export async function loadShowProgressLine(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('showProgressLine');
-  return typeof v === 'boolean' ? v : undefined;
-}
 export async function saveShowProgressLine(value: boolean): Promise<void> {
   await setSetting('showProgressLine', value);
 }
 
-export async function loadShowStatusDateLine(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('showStatusDateLine');
-  return typeof v === 'boolean' ? v : undefined;
-}
 export async function saveShowStatusDateLine(value: boolean): Promise<void> {
   await setSetting('showStatusDateLine', value);
 }
 
 // Mini-map (fase 2.7, §11.3): app-globale zichtbaarheid, view-state zoals showHistogram —
 // persist via dezelfde ops-prefix (`ops-showMiniMap`), buiten de 3-plekken-regel.
-export async function loadShowMiniMap(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('showMiniMap');
-  return typeof v === 'boolean' ? v : undefined;
-}
 export async function saveShowMiniMap(value: boolean): Promise<void> {
   await setSetting('showMiniMap', value);
-}
-
-const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
-
-export async function loadDocumentChromeStyle(): Promise<DocumentChromeStyle | undefined> {
-  const v = await getSetting<DocumentChromeStyle>('documentChromeStyle');
-  return v && DOCUMENT_CHROME_STYLES.includes(v) ? v : undefined;
 }
 
 export async function saveDocumentChromeStyle(value: DocumentChromeStyle): Promise<void> {
@@ -267,11 +180,6 @@ export async function saveLayouts(layouts: Layout[]): Promise<void> {
 // Automatisch berekenen (fase 2.7 vervolg): app-instelling, dus WEL onder de 3-plekken-regel
 // (tandwiel, Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Default
 // UIT — huidig handmatige (F5) gedrag blijft ongewijzigd tenzij de gebruiker 'm expliciet aanzet.
-export async function loadAutoCalcCPM(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('autoCalcCPM');
-  return typeof v === 'boolean' ? v : undefined;
-}
-
 export async function saveAutoCalcCPM(value: boolean): Promise<void> {
   await setSetting('autoCalcCPM', value);
 }
@@ -299,11 +207,6 @@ export function saveConstructionMode(value: boolean): void {
 // Datumnotatie (taak #53): app-instelling, dus WEL onder de 3-plekken-regel (tandwiel,
 // Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Ontbrekende of
 // corrupte sleutel ⇒ undefined → de store houdt de default 'dmy' (dd-mm-jjjj), geen reset.
-export async function loadDateNotation(): Promise<DateNotation | undefined> {
-  const v = await getSetting<DateNotation>('dateNotation');
-  return v && DATE_NOTATIONS.includes(v) ? v : undefined;
-}
-
 export async function saveDateNotation(value: DateNotation): Promise<void> {
   await setSetting('dateNotation', value);
 }
@@ -312,36 +215,16 @@ export async function saveDateNotation(value: DateNotation): Promise<void> {
 //     (tandwiel/ribbontab/backstage delen SettingsPanelContent). Ontbrekende/corrupte sleutel ⇒
 //     undefined → de store houdt zijn default (§6.8: hoofdschakelaar uit, gemengd aan, duurweergave
 //     automatisch, balk-opsplitsing bij selectie), zonder reset van andere voorkeuren.
-export async function loadEnableHourPlanning(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('enableHourPlanning');
-  return typeof v === 'boolean' ? v : undefined;
-}
-
 export async function saveEnableHourPlanning(value: boolean): Promise<void> {
   await setSetting('enableHourPlanning', value);
-}
-
-export async function loadAllowMixedDayHour(): Promise<boolean | undefined> {
-  const v = await getSetting<boolean>('allowMixedDayHour');
-  return typeof v === 'boolean' ? v : undefined;
 }
 
 export async function saveAllowMixedDayHour(value: boolean): Promise<void> {
   await setSetting('allowMixedDayHour', value);
 }
 
-export async function loadDurationDisplay(): Promise<DurationDisplay | undefined> {
-  const v = await getSetting<DurationDisplay>('durationDisplay');
-  return v && DURATION_DISPLAYS.includes(v) ? v : undefined;
-}
-
 export async function saveDurationDisplay(value: DurationDisplay): Promise<void> {
   await setSetting('durationDisplay', value);
-}
-
-export async function loadBarSplitMode(): Promise<BarSplitMode | undefined> {
-  const v = await getSetting<BarSplitMode>('barSplitMode');
-  return v && BAR_SPLIT_MODES.includes(v) ? v : undefined;
 }
 
 export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
