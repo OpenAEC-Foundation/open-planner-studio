@@ -10,7 +10,7 @@ import { CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { CalcOptionsSection } from './CalcOptionsSection';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
-import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { Dialog } from '@/components/common/Dialog';
 import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
 import type { SchedulingOptions } from '@/types/project';
 
@@ -120,10 +120,6 @@ export function ProjectInfoDialog() {
     }
   };
 
-  // Esc sluit (LAYOUTS.md §3.3), Enter = primaire actie (Aanmaken/Toepassen), met de standaard
-  // textarea/dropdown/IME-uitzonderingen (o.a. de omschrijving-textarea en de land/template-Selects).
-  useDialogKeys({ onConfirm: handlePrimary, onCancel: close });
-
   const inputCls =
     'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
 
@@ -139,12 +135,15 @@ export function ProjectInfoDialog() {
     .map(t => ({ value: t.key, label: templateLabel[t.key] }));
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-        data-ops-project-dialog={isNew ? 'new' : 'info'}
-      >
+    // Esc sluit (LAYOUTS.md §3.3), Enter = primaire actie (Aanmaken/Toepassen), met de standaard
+    // textarea/dropdown/IME-uitzonderingen (o.a. de omschrijving-textarea en de land/template-Selects).
+    <Dialog
+      onBackdropClick={close}
+      onCancel={close}
+      onConfirm={handlePrimary}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[90vh] flex flex-col overflow-hidden"
+      panelProps={{ 'data-ops-project-dialog': isNew ? 'new' : 'info' }}
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {isNew ? tMenu('newProject.title') : tMenu('projectInfo.title')}
@@ -233,7 +232,6 @@ export function ProjectInfoDialog() {
             {isNew ? tCommon('create') : tCommon('apply')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

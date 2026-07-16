@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Link2, FileDown } from 'lucide-react';
+import { Dialog } from '@/components/common/Dialog';
 import type { Task, ExternalLink } from '@/types/task';
 import { externalSourceSide } from '@/engine/externalLinks';
 
@@ -96,12 +97,12 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
   const fileLabel = (p: string) => p.split(/[\\/]/).pop() || p;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[460px] max-h-[88vh] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-        data-testid="external-link-dialog"
-      >
+    // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
+    <Dialog
+      onBackdropClick={onClose}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[460px] max-h-[88vh] flex flex-col overflow-hidden"
+      panelProps={{ 'data-testid': 'external-link-dialog' }}
+    >
         {/* Kop */}
         <div className="flex items-center justify-between px-4" style={{ minHeight: 44, borderBottom: '1px solid var(--theme-border)' }}>
           <span className="ui-card-header flex items-center gap-2"><Link2 size={14} />{t('externalLinks.dialogTitle')}</span>
@@ -201,7 +202,6 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
             {t('externalLinks.add')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

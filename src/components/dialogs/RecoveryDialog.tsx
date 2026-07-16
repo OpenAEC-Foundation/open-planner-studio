@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RotateCcw, FileText, X } from 'lucide-react';
+import { Dialog } from '@/components/common/Dialog';
 
 /**
  * Eén te herstellen document, zoals de {@link RecoveryDialog} het toont.
@@ -48,29 +48,18 @@ interface RecoveryDialogProps {
 export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: RecoveryDialogProps) {
   const { t, i18n } = useTranslation('common');
 
-  // Escape = veilig sluiten (bestanden blijven staan). Enter = herstellen.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-      else if (e.key === 'Enter') { e.preventDefault(); onRestore(); }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, onRestore]);
-
   const fmt = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: 'medium', timeStyle: 'short',
   });
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-      onClick={onClose}
+    // Escape = veilig sluiten (bestanden blijven staan). Enter = herstellen.
+    <Dialog
+      onBackdropClick={onClose}
+      onCancel={onClose}
+      onConfirm={onRestore}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
@@ -130,7 +119,6 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: Recov
             {t('recovery.restore')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

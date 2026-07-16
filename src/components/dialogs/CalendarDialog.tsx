@@ -6,7 +6,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
-import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { Dialog } from '@/components/common/Dialog';
 import { CalendarForm } from './CalendarForm';
 
 /**
@@ -107,17 +107,16 @@ export function CalendarDialog() {
     setLocalCalendars(cs => cs.map(c => (c.id === selectedId ? { ...c, ...patch } : c)));
   };
 
-  // Esc = Annuleren (LAYOUTS.md §3.3), Enter = Toepassen (primaire actie), met de standaard
-  // textarea/dropdown/IME-uitzonderingen.
-  useDialogKeys({ onConfirm: confirm, onCancel: cancel });
-
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={cancel}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[860px] max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-        data-ops-calendar-dialog
-      >
+    // Esc = Annuleren (LAYOUTS.md §3.3), Enter = Toepassen (primaire actie), met de standaard
+    // textarea/dropdown/IME-uitzonderingen.
+    <Dialog
+      onBackdropClick={cancel}
+      onCancel={cancel}
+      onConfirm={confirm}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[860px] max-h-[90vh] flex flex-col overflow-hidden"
+      panelProps={{ 'data-ops-calendar-dialog': true }}
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {tCommon('calendar.library.title')}
@@ -209,7 +208,6 @@ export function CalendarDialog() {
             {tCommon('apply')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

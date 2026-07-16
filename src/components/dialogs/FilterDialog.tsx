@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Trash2 } from 'lucide-react';
+import { Dialog } from '@/components/common/Dialog';
 import {
   fullFieldList, fieldOptions, fieldKind, operatorsForKind, selectOptions,
   type FieldCatalogCtx,
@@ -308,11 +309,11 @@ export function FilterDialog() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
+    // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
+    <Dialog
+      onBackdropClick={close}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('view.filter.title')}
@@ -335,7 +336,6 @@ export function FilterDialog() {
             <button onClick={apply} className="btn btn--sm btn--primary">{t('apply')}</button>
           </div>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

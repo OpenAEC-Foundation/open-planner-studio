@@ -1,4 +1,5 @@
 import { useCallback, useState, useRef, useEffect, useId } from 'react';
+import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import {
@@ -47,80 +48,62 @@ function RibbonDropdown<T extends string>({ value, options, onChange }: {
   onChange: (v: T) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const id = useId();
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
 
   const current = options.find(o => o.value === value);
 
   return (
-    <div ref={ref} style={{ position: 'relative', minWidth: 100 }}>
-      <button
-        id={id}
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%',
-          padding: '4px 8px',
-          background: 'var(--theme-input-bg)',
-          border: '1px solid var(--theme-control-border)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'var(--theme-text)',
-          fontSize: 11,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 4,
-        }}
-      >
-        <span>{current?.label ?? value}</span>
-        <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          marginTop: 2,
-          minWidth: '100%',
-          background: 'var(--theme-dropdown-bg)',
-          border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)',
-          zIndex: 9999,
-          boxShadow: 'var(--shadow-pop)',
-        }}>
-          {options.map(o => (
-            <button
-              key={o.value}
-              onClick={() => { onChange(o.value); setOpen(false); }}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '5px 8px',
-                background: o.value === value ? 'var(--theme-active)' : 'var(--theme-dropdown-bg)',
-                color: 'var(--theme-text)',
-                border: 'none',
-                textAlign: 'left',
-                fontSize: 11,
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'var(--theme-hover)'; }}
-              onMouseLeave={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'var(--theme-dropdown-bg)'; }}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      containerStyle={{ minWidth: 100 }}
+      panelStyle={{ marginTop: 2, minWidth: '100%', zIndex: 9999 }}
+      trigger={
+        <button
+          id={id}
+          onClick={() => setOpen(o => !o)}
+          style={{
+            width: '100%',
+            padding: '4px 8px',
+            background: 'var(--theme-input-bg)',
+            border: '1px solid var(--theme-control-border)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--theme-text)',
+            fontSize: 11,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 4,
+          }}
+        >
+          <span>{current?.label ?? value}</span>
+          <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
+        </button>
+      }
+    >
+      {options.map(o => (
+        <button
+          key={o.value}
+          onClick={() => { onChange(o.value); setOpen(false); }}
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '5px 8px',
+            background: o.value === value ? 'var(--theme-active)' : 'var(--theme-dropdown-bg)',
+            color: 'var(--theme-text)',
+            border: 'none',
+            textAlign: 'left',
+            fontSize: 11,
+            cursor: 'pointer',
+          }}
+          onMouseEnter={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'var(--theme-hover)'; }}
+          onMouseLeave={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'var(--theme-dropdown-bg)'; }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </Popover>
   );
 }
 
@@ -203,16 +186,6 @@ function BaselinesProgressGroupContent({
 }) {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
 
   const statusDateControl = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
@@ -270,45 +243,46 @@ function BaselinesProgressGroupContent({
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      align="right"
+      panelStyle={{
+        marginTop: 2, zIndex: 9999,
+        padding: 8, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200,
+      }}
+      trigger={
+        <button
+          className="ribbon-btn small"
+          onClick={() => setOpen(o => !o)}
+          title={tMenu('ribbon.baselines')}
+          aria-label={tMenu('ribbon.baselines')}
+          style={{ minWidth: 0, padding: '2px 5px', gap: 0 }}
+        >
+          <span className="ribbon-btn-icon" style={{ width: 16, height: 16 }}><Flag size={14} /></span>
+        </button>
+      }
+    >
       <button
         className="ribbon-btn small"
-        onClick={() => setOpen(o => !o)}
-        title={tMenu('ribbon.baselines')}
-        aria-label={tMenu('ribbon.baselines')}
-        style={{ minWidth: 0, padding: '2px 5px', gap: 0 }}
+        style={{ width: '100%' }}
+        onClick={() => { onSaveBaseline(); setOpen(false); }}
       >
-        <span className="ribbon-btn-icon" style={{ width: 16, height: 16 }}><Flag size={14} /></span>
+        <span className="ribbon-btn-icon"><Flag size={14} /></span>
+        <span className="ribbon-btn-label">{tMenu('ribbon.saveBaseline')}</span>
       </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', right: 0, marginTop: 2, zIndex: 9999,
-          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)',
-          padding: 8, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200,
-        }}>
-          <button
-            className="ribbon-btn small"
-            style={{ width: '100%' }}
-            onClick={() => { onSaveBaseline(); setOpen(false); }}
-          >
-            <span className="ribbon-btn-icon"><Flag size={14} /></span>
-            <span className="ribbon-btn-label">{tMenu('ribbon.saveBaseline')}</span>
-          </button>
-          <button
-            className="ribbon-btn small"
-            style={{ width: '100%' }}
-            onClick={() => { onManageBaselines(); setOpen(false); }}
-          >
-            <span className="ribbon-btn-icon"><GitCompareArrows size={14} /></span>
-            <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
-          </button>
-          <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
-          {statusDateControl}
-          {progressModeControl}
-        </div>
-      )}
-    </div>
+      <button
+        className="ribbon-btn small"
+        style={{ width: '100%' }}
+        onClick={() => { onManageBaselines(); setOpen(false); }}
+      >
+        <span className="ribbon-btn-icon"><GitCompareArrows size={14} /></span>
+        <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
+      </button>
+      <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
+      {statusDateControl}
+      {progressModeControl}
+    </Popover>
   );
 }
 
@@ -323,16 +297,6 @@ function MilestoneDropdown() {
   const [open, setOpen] = useState(false);
   const addTask = useAppStore(s => s.addTask);
   const project = useAppStore(s => s.project);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
 
   const add = (kind: 'START' | 'FINISH', inspection: boolean) => {
     addTask({
@@ -353,35 +317,33 @@ function MilestoneDropdown() {
   ];
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
-      <button className="ribbon-btn" onClick={() => setOpen(!open)}>
-        <span className="ribbon-btn-icon"><Diamond size={20} /></span>
-        <span className="ribbon-btn-label">{tMenu('ribbon.milestone')} ▾</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 1000, minWidth: 200,
-          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
-        }}>
-          {items.map(item => (
-            <button
-              key={item.key}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
-                fontSize: 11, border: 'none', background: 'transparent',
-                color: 'var(--theme-text)', cursor: 'pointer', whiteSpace: 'nowrap',
-              }}
-              onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-              onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-              onClick={item.onClick}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{ zIndex: 1000, minWidth: 200, padding: '4px 0' }}
+      trigger={
+        <button className="ribbon-btn" onClick={() => setOpen(!open)}>
+          <span className="ribbon-btn-icon"><Diamond size={20} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.milestone')} ▾</span>
+        </button>
+      }
+    >
+      {items.map(item => (
+        <button
+          key={item.key}
+          style={{
+            display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
+            fontSize: 11, border: 'none', background: 'transparent',
+            color: 'var(--theme-text)', cursor: 'pointer', whiteSpace: 'nowrap',
+          }}
+          onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+          onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+          onClick={item.onClick}
+        >
+          {item.label}
+        </button>
+      ))}
+    </Popover>
   );
 }
 
@@ -391,70 +353,61 @@ function TemplatesDropdown() {
   const [templates, setTemplates] = useState<WbsTemplate[]>([]);
   const insertWbsTemplate = useAppStore(s => s.insertWbsTemplate);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Sjablonenlijst verversen bij elk openen (localStorage kan intussen gewijzigd zijn).
   useEffect(() => {
-    if (!open) return;
-    setTemplates(listWbsTemplates());
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    if (open) setTemplates(listWbsTemplates());
   }, [open]);
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
-      <button className="ribbon-btn small" onClick={() => setOpen(!open)}>
-        <span className="ribbon-btn-icon"><LayoutTemplate size={14} /></span>
-        <span className="ribbon-btn-label">{tMenu('ribbon.templates')}</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 1000,
-          minWidth: 240, maxWidth: 360,
-          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
-        }}>
-          {templates.length === 0 ? (
-            <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--theme-text-dim)' }}>
-              {tMenu('ribbon.noTemplates')}
-            </div>
-          ) : (
-            templates.map(tpl => (
-              <div key={tpl.id} style={{ display: 'flex', alignItems: 'center' }}>
-                <button
-                  style={{
-                    flex: 1, textAlign: 'left', padding: '6px 12px', fontSize: 11, border: 'none',
-                    background: 'transparent', color: 'var(--theme-text)', cursor: 'pointer',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}
-                  title={tMenu('ribbon.insertTemplateHint')}
-                  onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-                  onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                  onClick={() => {
-                    insertWbsTemplate(tpl, selectedTaskIds[0] ?? null);
-                    setOpen(false);
-                  }}
-                >
-                  {tpl.name}
-                  <span style={{ display: 'block', fontSize: 9, color: 'var(--theme-text-dim)', marginTop: 1 }}>
-                    {tMenu('ribbon.templateMeta', { tasks: tpl.tasks.length, relations: tpl.sequences.length })}
-                  </span>
-                </button>
-                <button
-                  style={{ padding: '0 10px', background: 'transparent', border: 'none', color: 'var(--error)', cursor: 'pointer' }}
-                  title={tMenu('ribbon.deleteTemplate')}
-                  onClick={() => { deleteWbsTemplate(tpl.id); setTemplates(listWbsTemplates()); }}
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ))
-          )}
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{ zIndex: 1000, minWidth: 240, maxWidth: 360, padding: '4px 0' }}
+      trigger={
+        <button className="ribbon-btn small" onClick={() => setOpen(!open)}>
+          <span className="ribbon-btn-icon"><LayoutTemplate size={14} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.templates')}</span>
+        </button>
+      }
+    >
+      {templates.length === 0 ? (
+        <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--theme-text-dim)' }}>
+          {tMenu('ribbon.noTemplates')}
         </div>
+      ) : (
+        templates.map(tpl => (
+          <div key={tpl.id} style={{ display: 'flex', alignItems: 'center' }}>
+            <button
+              style={{
+                flex: 1, textAlign: 'left', padding: '6px 12px', fontSize: 11, border: 'none',
+                background: 'transparent', color: 'var(--theme-text)', cursor: 'pointer',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}
+              title={tMenu('ribbon.insertTemplateHint')}
+              onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+              onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+              onClick={() => {
+                insertWbsTemplate(tpl, selectedTaskIds[0] ?? null);
+                setOpen(false);
+              }}
+            >
+              {tpl.name}
+              <span style={{ display: 'block', fontSize: 9, color: 'var(--theme-text-dim)', marginTop: 1 }}>
+                {tMenu('ribbon.templateMeta', { tasks: tpl.tasks.length, relations: tpl.sequences.length })}
+              </span>
+            </button>
+            <button
+              style={{ padding: '0 10px', background: 'transparent', border: 'none', color: 'var(--error)', cursor: 'pointer' }}
+              title={tMenu('ribbon.deleteTemplate')}
+              onClick={() => { deleteWbsTemplate(tpl.id); setTemplates(listWbsTemplates()); }}
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        ))
       )}
-    </div>
+    </Popover>
   );
 }
 
@@ -463,64 +416,49 @@ function RecentFilesDropdown() {
   const [open, setOpen] = useState(false);
   const recentFiles = useAppStore(s => s.getRecentFiles)();
   const openRecentFile = useAppStore(s => s.openRecentFile);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
-      <button
-        className="ribbon-btn small"
-        onClick={() => setOpen(!open)}
-      >
-        <span className="ribbon-btn-icon"><History size={14} /></span>
-        <span className="ribbon-btn-label">{tMenu('backstage.recent')}</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 1000,
-          minWidth: 280, maxWidth: 400,
-          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
-        }}>
-          {recentFiles.length === 0 ? (
-            <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--theme-text-dim)' }}>
-              {tMenu('ribbon.noRecentFiles')}
-            </div>
-          ) : (
-            recentFiles.map((fp, i) => (
-              <button
-                key={i}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '6px 12px', fontSize: 11, border: 'none',
-                  background: 'transparent', color: 'var(--theme-text)',
-                  cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}
-                title={fp}
-                onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                onClick={() => { openRecentFile(fp); setOpen(false); }}
-              >
-                {fp.split(/[/\\]/).pop()}
-                <span style={{ display: 'block', fontSize: 9, color: 'var(--theme-text-dim)', marginTop: 1 }}>
-                  {fp}
-                </span>
-              </button>
-            ))
-          )}
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{ zIndex: 1000, minWidth: 280, maxWidth: 400, padding: '4px 0' }}
+      trigger={
+        <button
+          className="ribbon-btn small"
+          onClick={() => setOpen(!open)}
+        >
+          <span className="ribbon-btn-icon"><History size={14} /></span>
+          <span className="ribbon-btn-label">{tMenu('backstage.recent')}</span>
+        </button>
+      }
+    >
+      {recentFiles.length === 0 ? (
+        <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--theme-text-dim)' }}>
+          {tMenu('ribbon.noRecentFiles')}
         </div>
+      ) : (
+        recentFiles.map((fp, i) => (
+          <button
+            key={i}
+            style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '6px 12px', fontSize: 11, border: 'none',
+              background: 'transparent', color: 'var(--theme-text)',
+              cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}
+            title={fp}
+            onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+            onClick={() => { openRecentFile(fp); setOpen(false); }}
+          >
+            {fp.split(/[/\\]/).pop()}
+            <span style={{ display: 'block', fontSize: 9, color: 'var(--theme-text-dim)', marginTop: 1 }}>
+              {fp}
+            </span>
+          </button>
+        ))
       )}
-    </div>
+    </Popover>
   );
 }
 
@@ -528,18 +466,6 @@ function ExportDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
   const exportAs = useAppStore(s => s.exportAs);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
 
   const formats: { label: string; format: ExportFormat }[] = [
     { label: tMenu('export.csvShort'), format: 'csv' },
@@ -549,40 +475,37 @@ function ExportDropdown() {
   ];
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
-      <button
-        className="ribbon-btn small"
-        onClick={() => setOpen(!open)}
-      >
-        <span className="ribbon-btn-icon"><Download size={14} /></span>
-        <span className="ribbon-btn-label">{tMenu('backstage.export')}</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 1000,
-          minWidth: 180,
-          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
-        }}>
-          {formats.map((f) => (
-            <button
-              key={f.format}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '6px 12px', fontSize: 11, border: 'none',
-                background: 'transparent', color: 'var(--theme-text)',
-                cursor: 'pointer',
-              }}
-              onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-              onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-              onClick={() => { exportAs(f.format); setOpen(false); }}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{ zIndex: 1000, minWidth: 180, padding: '4px 0' }}
+      trigger={
+        <button
+          className="ribbon-btn small"
+          onClick={() => setOpen(!open)}
+        >
+          <span className="ribbon-btn-icon"><Download size={14} /></span>
+          <span className="ribbon-btn-label">{tMenu('backstage.export')}</span>
+        </button>
+      }
+    >
+      {formats.map((f) => (
+        <button
+          key={f.format}
+          style={{
+            display: 'block', width: '100%', textAlign: 'left',
+            padding: '6px 12px', fontSize: 11, border: 'none',
+            background: 'transparent', color: 'var(--theme-text)',
+            cursor: 'pointer',
+          }}
+          onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+          onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+          onClick={() => { exportAs(f.format); setOpen(false); }}
+        >
+          {f.label}
+        </button>
+      ))}
+    </Popover>
   );
 }
 
@@ -645,16 +568,6 @@ function ResourceAssignDropdown() {
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
   const assignResource = useAppStore(s => s.assignResource);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
 
   const task = selectedTaskIds.length === 1 ? tasks.find(t => t.id === selectedTaskIds[0]) : undefined;
   const valid = !!task && !task.isMilestone && task.childIds.length === 0;
@@ -666,18 +579,18 @@ function ResourceAssignDropdown() {
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button className={`ribbon-btn${open ? ' active' : ''}`} onClick={() => setOpen(!open)}>
-        <span className="ribbon-btn-icon"><UserPlus size={20} /></span>
-        <span className="ribbon-btn-label">{tMenu('ribbon.assignResource')} ▾</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 1000, minWidth: 200, maxHeight: 300, overflowY: 'auto',
-          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: '4px 0',
-        }}>
-          {available.length === 0 ? (
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{ zIndex: 1000, minWidth: 200, maxHeight: 300, overflowY: 'auto', padding: '4px 0' }}
+      trigger={
+        <button className={`ribbon-btn${open ? ' active' : ''}`} onClick={() => setOpen(!open)}>
+          <span className="ribbon-btn-icon"><UserPlus size={20} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.assignResource')} ▾</span>
+        </button>
+      }
+    >
+      {available.length === 0 ? (
             <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--theme-text-dim)' }}>
               {resources.length === 0 ? tTask('properties.assignments.noResources') : tTask('properties.assignments.allAssigned')}
             </div>
@@ -724,9 +637,7 @@ function ResourceAssignDropdown() {
               ))}
             </>
           )}
-        </div>
-      )}
-    </div>
+    </Popover>
   );
 }
 
@@ -743,16 +654,6 @@ function GroupPopoverButton() {
   const fields = groupFieldList(ctx);
   const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
 
   const setLevel = (i: number, changes: Partial<GroupLevel>) => {
     setGroup(group.map((g, gi) => (gi === i ? { ...g, ...changes } : g)));
@@ -764,59 +665,59 @@ function GroupPopoverButton() {
   const removeLevel = (i: number) => setGroup(group.filter((_, gi) => gi !== i));
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        className={`ribbon-btn small${group.length > 0 ? ' active' : ''}`}
-        onClick={() => setOpen(o => !o)}
-      >
-        <span className="ribbon-btn-icon"><Layers size={14} /></span>
-        <span className="ribbon-btn-label">{tMenu('ribbon.group')}</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, marginTop: 2, zIndex: 9999, minWidth: 260,
-          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: 8,
-          display: 'flex', flexDirection: 'column', gap: 6,
-        }}>
-          <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.group.title')}</span>
-          {group.length === 0 && (
-            <span className="ribbon-info">{tCommon('view.group.noLevels')}</span>
-          )}
-          {group.map((lvl, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <select
-                value={encodeFieldRef(lvl.field)}
-                onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
-                className="input !text-[11px] !px-1.5 !py-1 flex-1"
-                aria-label={tCommon('view.filter.field')}
-              >
-                {options.map(({ field: f, label }) => (
-                  <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
-                ))}
-              </select>
-              <select
-                value={lvl.dir}
-                onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
-                className="input !text-[11px] !px-1.5 !py-1"
-                aria-label={tCommon('view.group.direction')}
-              >
-                <option value="asc">{tCommon('view.sort.ascending')}</option>
-                <option value="desc">{tCommon('view.sort.descending')}</option>
-              </select>
-              <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
-                <X size={13} />
-              </button>
-            </div>
-          ))}
-          {group.length < 2 && (
-            <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
-              {tCommon('view.group.addLevel')}
-            </button>
-          )}
-        </div>
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{
+        marginTop: 2, zIndex: 9999, minWidth: 260, padding: 8,
+        display: 'flex', flexDirection: 'column', gap: 6,
+      }}
+      trigger={
+        <button
+          className={`ribbon-btn small${group.length > 0 ? ' active' : ''}`}
+          onClick={() => setOpen(o => !o)}
+        >
+          <span className="ribbon-btn-icon"><Layers size={14} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.group')}</span>
+        </button>
+      }
+    >
+      <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.group.title')}</span>
+      {group.length === 0 && (
+        <span className="ribbon-info">{tCommon('view.group.noLevels')}</span>
       )}
-    </div>
+      {group.map((lvl, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <select
+            value={encodeFieldRef(lvl.field)}
+            onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
+            className="input !text-[11px] !px-1.5 !py-1 flex-1"
+            aria-label={tCommon('view.filter.field')}
+          >
+            {options.map(({ field: f, label }) => (
+              <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
+            ))}
+          </select>
+          <select
+            value={lvl.dir}
+            onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
+            className="input !text-[11px] !px-1.5 !py-1"
+            aria-label={tCommon('view.group.direction')}
+          >
+            <option value="asc">{tCommon('view.sort.ascending')}</option>
+            <option value="desc">{tCommon('view.sort.descending')}</option>
+          </select>
+          <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+      {group.length < 2 && (
+        <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
+          {tCommon('view.group.addLevel')}
+        </button>
+      )}
+    </Popover>
   );
 }
 
@@ -833,16 +734,6 @@ function SortPopoverButton() {
   const fields = fullFieldList(ctx);
   const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
 
   const setLevel = (i: number, changes: Partial<SortLevel>) => {
     setSort(sort.map((lvl, li) => (li === i ? { ...lvl, ...changes } : lvl)));
@@ -854,58 +745,57 @@ function SortPopoverButton() {
   const removeLevel = (i: number) => setSort(sort.filter((_, li) => li !== i));
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        className={`ribbon-btn small${sort.length > 0 ? ' active' : ''}`}
-        onClick={() => setOpen(o => !o)}
-      >
-        <span className="ribbon-btn-icon"><ArrowUpDown size={14} /></span>
-        <span className="ribbon-btn-label">{tMenu('ribbon.sort')}</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, marginTop: 2, zIndex: 9999, minWidth: 260,
-          maxHeight: 320, overflowY: 'auto',
-          background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', padding: 8,
-          display: 'flex', flexDirection: 'column', gap: 6,
-        }}>
-          <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.sort.title')}</span>
-          {sort.length === 0 && (
-            <span className="ribbon-info">{tCommon('view.sort.noLevels')}</span>
-          )}
-          {sort.map((lvl, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <select
-                value={encodeFieldRef(lvl.field)}
-                onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
-                className="input !text-[11px] !px-1.5 !py-1 flex-1"
-                aria-label={tCommon('view.filter.field')}
-              >
-                {options.map(({ field: f, label }) => (
-                  <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
-                ))}
-              </select>
-              <select
-                value={lvl.dir}
-                onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
-                className="input !text-[11px] !px-1.5 !py-1"
-                aria-label={tCommon('view.group.direction')}
-              >
-                <option value="asc">{tCommon('view.sort.ascending')}</option>
-                <option value="desc">{tCommon('view.sort.descending')}</option>
-              </select>
-              <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
-                <X size={13} />
-              </button>
-            </div>
-          ))}
-          <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
-            {tCommon('view.sort.addLevel')}
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{
+        marginTop: 2, zIndex: 9999, minWidth: 260, maxHeight: 320, overflowY: 'auto', padding: 8,
+        display: 'flex', flexDirection: 'column', gap: 6,
+      }}
+      trigger={
+        <button
+          className={`ribbon-btn small${sort.length > 0 ? ' active' : ''}`}
+          onClick={() => setOpen(o => !o)}
+        >
+          <span className="ribbon-btn-icon"><ArrowUpDown size={14} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.sort')}</span>
+        </button>
+      }
+    >
+      <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.sort.title')}</span>
+      {sort.length === 0 && (
+        <span className="ribbon-info">{tCommon('view.sort.noLevels')}</span>
+      )}
+      {sort.map((lvl, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <select
+            value={encodeFieldRef(lvl.field)}
+            onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
+            className="input !text-[11px] !px-1.5 !py-1 flex-1"
+            aria-label={tCommon('view.filter.field')}
+          >
+            {options.map(({ field: f, label }) => (
+              <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
+            ))}
+          </select>
+          <select
+            value={lvl.dir}
+            onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
+            className="input !text-[11px] !px-1.5 !py-1"
+            aria-label={tCommon('view.group.direction')}
+          >
+            <option value="asc">{tCommon('view.sort.ascending')}</option>
+            <option value="desc">{tCommon('view.sort.descending')}</option>
+          </select>
+          <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
+            <X size={13} />
           </button>
         </div>
-      )}
-    </div>
+      ))}
+      <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
+        {tCommon('view.sort.addLevel')}
+      </button>
+    </Popover>
   );
 }
 

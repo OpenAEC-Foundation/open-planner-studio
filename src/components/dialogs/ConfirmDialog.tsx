@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Dialog } from '@/components/common/Dialog';
 
 export interface ConfirmDialogProps {
   /** De te bevestigen vraag/mededeling — tekst wordt door de aanroeper vertaald aangeleverd. */
@@ -37,19 +38,18 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
   }, [onCancel, onConfirm]);
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]"
-      // stopPropagation: deze laag stapelt BOVEN een al openstaande dialoog (LayoutsDialog/
-      // BaselineDialog) die zelf ook een backdrop-onClick=close heeft. Zonder stopPropagation zou
-      // een klik op déze backdrop (buiten de kaart, binnen de DOM-boom van de onderliggende
-      // dialoog) doorbubbelen en die dialoog óók sluiten — de gebruiker wilde alleen de
-      // bevestiging annuleren.
-      onClick={e => { e.stopPropagation(); onCancel(); }}
+    // `z-[60]` + stopBackdropPropagation: deze laag stapelt BOVEN een al openstaande dialoog
+    // (LayoutsDialog/BaselineDialog) die zelf ook een backdrop-onClick=close heeft. Zonder
+    // stopPropagation zou een klik op déze backdrop (buiten de kaart, binnen de DOM-boom van de
+    // onderliggende dialoog) doorbubbelen en die dialoog óók sluiten — de gebruiker wilde alleen
+    // de bevestiging annuleren. De toetsen lopen om dezelfde reden via het eigen capture-effect
+    // hierboven, niet via de standaard-`useDialogKeys` van `Dialog`.
+    <Dialog
+      overlayClassName="bg-black/60 z-[60]"
+      stopBackdropPropagation
+      onBackdropClick={onCancel}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[420px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[420px] max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
         <div className="flex-1 overflow-y-auto p-4 text-xs text-text-primary leading-relaxed">
           {message}
         </div>
@@ -65,7 +65,6 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
             {confirmLabel ?? t('delete')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

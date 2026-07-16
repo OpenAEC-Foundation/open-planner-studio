@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Download, RefreshCw, AlertTriangle, CheckCircle2, RotateCw, Copy, Check, ExternalLink, PackageOpen } from 'lucide-react';
 import { isTauri } from '@/utils/platform';
+import { Dialog } from '@/components/common/Dialog';
 import {
   checkForUpdates,
   downloadAndInstall,
@@ -88,17 +89,6 @@ export function UpdateDialog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showUpdateDialog]);
 
-  // Esc sluit dialog (niet tijdens een actieve download).
-  useEffect(() => {
-    if (!showUpdateDialog) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && status?.kind !== 'downloading') close();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showUpdateDialog, status]);
-
   const handleInstall = () => {
     setBusy(true);
     setStatus({ kind: 'downloading', progress: 0, indeterminate: false });
@@ -149,14 +139,13 @@ export function UpdateDialog() {
   const canAutoInstall = !isSnap;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-      onClick={() => { if (!isDownloading) close(); }}
+    // Esc en backdrop-klik sluiten de dialoog, maar NIET tijdens een actieve download
+    // (dan zijn beide handlers `undefined` en doet `Dialog` niets).
+    <Dialog
+      onBackdropClick={isDownloading ? undefined : close}
+      onCancel={isDownloading ? undefined : close}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
@@ -333,7 +322,6 @@ export function UpdateDialog() {
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

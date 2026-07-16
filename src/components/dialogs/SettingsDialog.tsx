@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
+import { useDialogKeys } from '@/hooks/useDialogKeys';
 import './SettingsDialog.css';
 
 export function SettingsDialog() {
@@ -16,6 +17,10 @@ export function SettingsDialog() {
 
   const close = () => setUI({ showSettingsDialog: false });
 
+  // Escape sluit — standaard-toetsafhandeling; de overlay zelf blijft custom (versleepbaar paneel,
+  // eigen CSS-chrome, bewust géén backdrop-close), dus geen `Dialog`-migratie hier.
+  useDialogKeys({ onCancel: close });
+
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragging.current || !dialogRef.current) return;
@@ -26,16 +31,11 @@ export function SettingsDialog() {
       dialogRef.current.style.transform = 'none';
     };
     const onMouseUp = () => { dragging.current = false; };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setUI({ showSettingsDialog: false });
-    };
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
-      document.removeEventListener('keydown', onKeyDown);
     };
   }, [setUI]);
 

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
@@ -78,46 +79,13 @@ export function ContextMenu({
   // moment — hoveren over een ander item/submenu-trigger sluit het vorige (zie SubMenuTrigger).
   const [openSub, setOpenSub] = useState<string | null>(null);
 
-  // onClose is in de parent een nieuwe arrow per render; via een ref blijft het
-  // actueel zónder dat het effect (en z'n timer) bij elke parent-render reset.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  // Sluit bij klik-buiten, rechtsklik-buiten of Escape.
-  // KRITIEK: lege deps → het effect draait één keer (mount), zodat de
-  // setTimeout daadwerkelijk afloopt en de mousedown-listener aangehangen
-  // blijft. Met [onClose] werd de timer bij elke GanttCanvas-render (o.a. bij
-  // muisbeweging/hover) gereset, waardoor klik-buiten nooit werkte — alleen
-  // Escape (die buiten de timer wordt toegevoegd) deed het.
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onCloseRef.current();
-      }
-    };
-    const handleContext = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onCloseRef.current();
-      }
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      // Escape sluit ALTIJD het hele menu (incl. een eventueel open submenu) — geen aparte
-      // "sluit alleen het submenu"-stap, consistent met de rest van de app (zie shortcutRegistry).
-      if (e.key === 'Escape') onCloseRef.current();
-    };
-    // Kleine defer zodat de openende rechtsklik-event-reeks niet meteen sluit.
-    const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClick);
-      document.addEventListener('contextmenu', handleContext);
-    }, 0);
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('contextmenu', handleContext);
-      document.removeEventListener('keydown', handleKey);
-    };
-  }, []);
+  // Sluit bij klik-buiten, rechtsklik-buiten of Escape. `defer` zorgt dat de openende
+  // rechtsklik-event-reeks het menu niet meteen weer sluit; de hook houdt `onClose` via een
+  // interne ref actueel zodat parent-renders (muisbeweging/hover op het canvas) de defer-timer
+  // niet resetten — precies het gedrag dat hier voorheen handmatig stond.
+  // Escape sluit ALTIJD het hele menu (incl. een eventueel open submenu) — geen aparte
+  // "sluit alleen het submenu"-stap, consistent met de rest van de app (zie shortcutRegistry).
+  useClickOutside(menuRef, onClose, true, { escape: true, contextmenu: true, defer: true });
 
   // Adjust position to stay within viewport
   const adjustedX = Math.min(x, window.innerWidth - 200);

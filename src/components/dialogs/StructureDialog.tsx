@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { Dialog } from '@/components/common/Dialog';
 import type { CustomFieldType } from '@/types/structure';
 
 const inputCls = 'input !text-xs !px-2 !py-1 w-full';
@@ -33,20 +34,12 @@ export function StructureDialog() {
 
   const close = () => setUI({ showStructureDialog: false });
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setUI({ showStructureDialog: false });
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [setUI]);
-
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
+    <Dialog
+      onBackdropClick={close}
+      onCancel={close}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[90vh] flex flex-col overflow-hidden"
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('structure.title')}
@@ -189,7 +182,6 @@ export function StructureDialog() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

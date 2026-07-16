@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Keyboard } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { Dialog } from '@/components/common/Dialog';
 import { SHORTCUTS, type ShortcutCategory, type ShortcutCombo } from '@/hooks/keyboard/shortcutRegistry';
 import { isMacPlatform, formatComboGroup } from '@/hooks/keyboard/shortcutFormat';
 
@@ -50,19 +50,18 @@ export function ShortcutsDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const close = () => setUI({ showShortcutsDialog: false });
-  useDialogKeys({ onCancel: close });
 
   const rows = useMemo(buildRows, []);
   const isMac = useMemo(isMacPlatform, []);
   const orJoiner = t('shortcuts.orJoiner');
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-        data-ops-shortcuts-dialog
-      >
+    <Dialog
+      onBackdropClick={close}
+      onCancel={close}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
+      panelProps={{ 'data-ops-shortcuts-dialog': true }}
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
             <Keyboard size={16} />
@@ -110,7 +109,6 @@ export function ShortcutsDialog() {
             {t('close')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }
