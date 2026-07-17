@@ -1245,6 +1245,10 @@ export function GanttCanvas() {
     // mee. (De vorige `diffCalendarDays` was exclusief én kalender-gebaseerd → één werkdag te weinig,
     // en bij slepen over een weekend werden za/zo ten onrechte meegeteld.)
     const resizeCalEngine = new CalendarEngine(effectiveCalById.get(dragState.taskId) ?? calendar);
+    // Laatst toegepaste dag-verschuiving. Init op 0 = de begintoestand (geen no-op-update bij het
+    // grijpen), maar terugkeren naar Δ0 ná een beweging herstelt de originele duur weer (zie fix
+    // bij de guard hieronder).
+    let lastAppliedDelta = 0;
 
     // Snap-quantum (§6.3): de actieve minor-tier, maar NOOIT fijner dan 60 min (kwartier-snap
     // bestaat niet). Zo is het quantum bij uur-zoom 1 uur en bij lagere zoom grover (dag/week);
@@ -1313,7 +1317,13 @@ export function GanttCanvas() {
         return;
       }
       const daysDelta = Math.round(pixelDelta / view.zoom);
-      if (daysDelta === 0) return;
+      // Skip alleen als de dag-verschuiving NIET veranderd is sinds de vorige commit — niet zodra ze
+      // toevallig 0 is. De oude `=== 0`-guard maakte de START-duur onbereikbaar: na een beweging
+      // terug naar Δ0 werd niets gecommit, dus de balk bleef op de buur-waarde hangen en "flipte"
+      // tussen de duren links/rechts van de begin-duur (bug: "ik kan 'm niet op 4 krijgen, hij
+      // springt tussen 3 en 5"). Nu herstelt Δ0 netjes de originele duur.
+      if (daysDelta === lastAppliedDelta) return;
+      lastAppliedDelta = daysDelta;
 
       const origStart = parseDate(dragState.originalStart);
       const origFinish = parseDate(dragState.originalFinish);
@@ -1332,26 +1342,36 @@ export function GanttCanvas() {
           },
         });
       } else if (dragState.edge === 'right') {
-        // Resize from right (change duration/finish)
+        // Resize from right (change duration/finish). Bereken de duur uit de rauwe sleep-datum,
+        // maar schrijf een WERKDAG-anker weg (addWorkDays) i.p.v. de rauwe kalenderdag. Zo is de
+        // balk tijdens het slepen al identiek aan wat runCPM produceert; earlyFinish belandt nooit
+        // op een weekend/feestdag (een niet-canoniek anker verschuift bij de eerstvolgende runCPM —
+        // o.a. bij bestand openen — waardoor dezelfde sleep vóór/ná een ander resultaat gaf, plus
+        // een "plateau" rond een weekend-anker). Het weekend-DUURgedrag verandert niet: newDuration
+        // komt nog steeds uit workDaysBetween.
         const newFinish = addCalendarDays(origFinish, daysDelta);
         const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(origStart, newFinish));
+        const canonFinish = resizeCalEngine.addWorkDays(origStart, newDuration);
         updateTask(dragState.taskId, {
           time: {
             ...useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time,
-            scheduleFinish: formatDate(newFinish),
-            earlyFinish: formatDate(newFinish),
+            scheduleFinish: formatDate(canonFinish),
+            earlyFinish: formatDate(canonFinish),
             scheduleDuration: newDuration,
           },
         });
       } else if (dragState.edge === 'left') {
-        // Resize from left (change start/duration)
+        // Resize from left (change start/duration). Idem als de rechterrand: schrijf een WERKDAG-
+        // start weg (subtractWorkDays vanaf de vaste finish) i.p.v. de rauwe kalenderdag, zodat het
+        // anker canoniek blijft (geen weekend-start, geen verschuiving bij runCPM).
         const newStart = addCalendarDays(origStart, daysDelta);
         const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(newStart, origFinish));
+        const canonStart = resizeCalEngine.subtractWorkDays(origFinish, newDuration);
         updateTask(dragState.taskId, {
           time: {
             ...useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time,
-            scheduleStart: formatDate(newStart),
-            earlyStart: formatDate(newStart),
+            scheduleStart: formatDate(canonStart),
+            earlyStart: formatDate(canonStart),
             scheduleDuration: newDuration,
           },
         });
