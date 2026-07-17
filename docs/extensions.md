@@ -20,8 +20,25 @@ Een extensie is een ZIP-bestand met twee bestanden — of een los `.js`-bestand 
 ````
 
 Categorieën: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Other`.
-Permissies: `ribbon` en `events` worden afgedwongen; de overige (`commands`, `backstage`, `filesystem`, `network`) zijn declaratief.
-`minAppVersion` wordt **wel** afgedwongen: is de app ouder, dan weigert de extensie te activeren (status `error`).
+
+### Permissies
+
+| Permissie | Afdwinging | Betekenis |
+|---|---|---|
+| `events` | **hard** — ontbreekt ⇒ `api.events.*` gooit | Abonneren/uitzenden op de event-bus. |
+| `ribbon` | **hard** — ontbreekt ⇒ `api.ui.addRibbonButton` gooit | Een knop in de ribbon plaatsen. |
+| `backstage` | **warn** (overgangsregime) — ontbreekt ⇒ `api.importers.*` werkt nog, maar logt een waarschuwing | Een importer registreren (verschijnt in Bestand → Importeren). |
+| `filesystem` | informatief | Geen API-oppervlak; puur getoonde intentie bij installatie — **geen** sandbox-garantie (extensie-code heeft technisch gewoon toegang). |
+| `network` | informatief | Idem — getoonde intentie, geen technische grens. |
+
+`data.*`, `settings.*` en `ui.showNotification` zijn **kern-API**: altijd beschikbaar, geen permissie nodig.
+
+De afdwinging is gecentraliseerd in `src/extensions/permissions.ts` (één tabel pad → permissie).
+`minAppVersion` wordt óók afgedwongen: is de app ouder, dan weigert de extensie te activeren (status `error`).
+
+> **Migratie (audit P16):**
+> - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Manifesten die haar (of een andere onbekende waarde) noemen, blijven werken: onbekende permissies worden bij het activeren stil weggefilterd met een waarschuwing in de debug-terminal.
+> - `backstage` is nu de permissie voor `api.importers.*`. Bestaande importer-extensies die haar niet declareren blijven werken (warn-modus); **declareer `backstage` in nieuwe extensies met een importer** — in een toekomstige versie wordt dit hard.
 
 ## main.js
 
@@ -66,6 +83,13 @@ module.exports = {
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
 
 Belangrijk: na het muteren van taken/relaties zelf `api.data.recalculate()` aanroepen — het schema wordt niet reactief herberekend. `loadProject()` doet dat automatisch.
+
+### Datacontract: de `Ext*`-typen
+
+Alles wat via `api.data.*`, de importer-handlers en `sdk.factory.*` de extensie in- en uitgaat, gebruikt **stabiele extensie-typen** (`ExtProject`, `ExtCalendar`, `ExtTask`, `ExtTaskTime`, `ExtSequence`, `ExtResource`, `ExtAssignment`, `ExtImportResult`; gedefinieerd in `src/extensions/extTypes.ts`). Dit is het **publieke contract** — bewust losgekoppeld van het interne domeinmodel, zodat een interne refactor jouw extensie niet breekt.
+
+- `api.data.getTasks()` (en de andere `get*`) leveren **verse, muteerbare kopieën**: je mag het teruggegeven object gerust muteren, dat raakt de store niet. Schrijf terug via `addTask`/`updateTask`/`addSequence` en roep `recalculate()` aan. (Vóór P16 waren dit Immer-*bevroren* objecten die je niet mocht muteren — die beperking is vervallen.)
+- Een importer-handler retourneert een `ExtImportResult` (bouw 'm met `sdk.factory.emptyImportResult()`); de host mapt dat intern.
 
 ## Host-SDK: `require('open-planner-studio')`
 
@@ -142,6 +166,6 @@ Bij een los `.js`-bestand mag het manifest als commentaarblok bovenaan:
 
 ## Beperkingen
 
-- De sandbox is licht: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies zijn declaratief en worden alleen voor `ribbon` en `events` afgedwongen. Installeer alleen extensies die je vertrouwt.
-- Objecten uit `api.data.get*()` zijn Immer-frozen: muteer ze niet direct, gebruik de muterende API-functies.
+- De sandbox is licht: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen voor `ribbon`/`events`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
+- Objecten uit `api.data.get*()` zijn **verse, muteerbare `Ext*`-kopieën** — muteren raakt de store niet; schrijf terug via de muterende API-functies.
 - Het `@manifest`-commentaarblok in een los .js-bestand moet een plat JSON-object zijn (geen geneste objecten).

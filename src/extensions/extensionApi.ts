@@ -1,5 +1,8 @@
 /**
- * Maakt per extensie een scoped API-instantie met permissie-checks.
+ * Maakt per extensie een scoped API-instantie. De publieke datavormen zijn de `Ext*`-DTO's
+ * (extTypes.ts) — interne domeintypes lekken nooit naar extensie-code; alle conversie loopt via
+ * extMappers. Permissie-checks zijn NIET meer verspreid door de methodes maar gecentraliseerd in
+ * `permissions.ts`: één tabel (pad → permissie) + één generieke wrapper (`applyPermissionGuards`).
  * Alle registraties worden bijgehouden in cleanupFns zodat disable ze terugdraait.
  */
 import type {
@@ -7,8 +10,8 @@ import type {
   ExtensionPermission,
   ImporterDefinition,
   RibbonButtonRegistration,
-  ImportResult,
 } from './types';
+import type { ExtImportResult } from './extTypes';
 import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import {
@@ -16,7 +19,20 @@ import {
   unsubscribeExtensionEvent,
   emitExtensionEvent,
   type ExtEventListener,
-} from './eventBus';
+} from '@/services/extensionEvents';
+import { applyPermissionGuards } from './permissions';
+import {
+  toExtProject,
+  toExtCalendar,
+  toExtTask,
+  toExtSequence,
+  toExtResource,
+  toExtAssignment,
+  fromExtTaskInput,
+  fromExtTaskUpdates,
+  fromExtSequenceInput,
+  fromExtImportResult,
+} from './extMappers';
 
 // Re-export zodat bestaande importers (index.ts) ongewijzigd blijven werken.
 export { emitExtensionEvent };
@@ -26,12 +42,6 @@ export function createExtensionApi(
   permissions: ExtensionPermission[],
 ): ExtensionApi {
   const cleanupFns: (() => void)[] = [];
-
-  function requirePermission(perm: ExtensionPermission) {
-    if (!permissions.includes(perm)) {
-      throw new Error(`Extensie "${extensionId}" mist permissie: ${perm}`);
-    }
-  }
 
   const settingsPrefix = `ops-ext:${extensionId}:`;
 
@@ -50,22 +60,23 @@ export function createExtensionApi(
       },
     },
 
-    /** Lees-/schrijftoegang tot planningsdata. LET OP: teruggegeven objecten zijn
-     *  Immer-frozen — directe mutatie gooit een TypeError. Wijzig via addTask/
-     *  updateTask/addSequence en roep daarna recalculate() aan. */
+    /** Lees-/schrijftoegang tot planningsdata. `get*` levert VERSE, MUTEERBARE Ext*-kopieën
+     *  (gemapt uit de Immer-bevroren store) — muteren ervan raakt de store niet. Schrijf via
+     *  addTask/updateTask/addSequence en roep daarna recalculate() aan. */
     data: {
-      getProject: () => useAppStore.getState().project,
-      getCalendar: () => useAppStore.getState().calendar,
-      getTasks: () => useAppStore.getState().tasks,
-      getSequences: () => useAppStore.getState().sequences,
-      getResources: () => useAppStore.getState().resources,
-      getAssignments: () => useAppStore.getState().assignments,
-      addTask: (task) => useAppStore.getState().addTask(task),
-      updateTask: (id, updates) => useAppStore.getState().updateTask(id, updates),
-      addSequence: (seq) => useAppStore.getState().addSequence(seq),
-      loadProject: (result: ImportResult) => {
+      getProject: () => toExtProject(useAppStore.getState().project),
+      getCalendar: () => toExtCalendar(useAppStore.getState().calendar),
+      getTasks: () => useAppStore.getState().tasks.map(toExtTask),
+      getSequences: () => useAppStore.getState().sequences.map(toExtSequence),
+      getResources: () => useAppStore.getState().resources.map(toExtResource),
+      getAssignments: () => useAppStore.getState().assignments.map(toExtAssignment),
+      addTask: (task) => useAppStore.getState().addTask(fromExtTaskInput(task)),
+      updateTask: (id, updates) =>
+        useAppStore.getState().updateTask(id, fromExtTaskUpdates(updates)),
+      addSequence: (seq) => useAppStore.getState().addSequence(fromExtSequenceInput(seq)),
+      loadProject: (result: ExtImportResult) => {
         const store = useAppStore.getState();
-        store.loadState(result);
+        store.loadState(fromExtImportResult(result));
         store.runCPM();
       },
       recalculate: () => useAppStore.getState().runCPM(),
@@ -73,24 +84,20 @@ export function createExtensionApi(
 
     events: {
       on(event: string, listener: ExtEventListener) {
-        requirePermission('events');
         const unsub = subscribeExtensionEvent(event, listener);
         cleanupFns.push(unsub);
         return unsub;
       },
       off(event: string, listener: ExtEventListener) {
-        requirePermission('events');
         unsubscribeExtensionEvent(event, listener);
       },
       emit(event: string, data?: unknown) {
-        requirePermission('events');
         emitExtensionEvent(event, data);
       },
     },
 
     ui: {
       addRibbonButton(reg: RibbonButtonRegistration) {
-        requirePermission('ribbon');
         useAppStore.getState().addExtensionRibbonButton({ ...reg, extensionId });
         cleanupFns.push(() => {
           useAppStore.getState().removeExtensionRibbonButton(extensionId, reg.label);
@@ -125,6 +132,10 @@ export function createExtensionApi(
       useAppStore.getState().removeAllExtensionUI(extensionId);
     },
   };
+
+  // Centrale permissie-afdwinging: wikkel de guarded methodes (events.*, ui.addRibbonButton,
+  // importers.*) in checks volgens de tabel in permissions.ts. Kern-API blijft ongewijzigd.
+  applyPermissionGuards(api as unknown as Record<string, unknown>, extensionId, permissions);
 
   return api;
 }

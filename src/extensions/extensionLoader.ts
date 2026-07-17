@@ -7,6 +7,7 @@
 import type { ExtensionManifest, ExtensionPlugin, InstalledExtension } from './types';
 import { createExtensionApi } from './extensionApi';
 import { getExtensionSdk, installExtensionSdk } from './sdk';
+import { sanitizeManifestPermissions } from './permissions';
 import { useAppStore } from '@/state/appStore';
 
 const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
@@ -164,7 +165,11 @@ export async function enableExtension(id: string): Promise<void> {
     installExtensionSdk();
 
     const plugin = executeExtensionCode(stored.mainCode);
-    api = createExtensionApi(id, stored.manifest.permissions);
+    // Filter permissies tot wat deze app-versie kent (onbekende → weglaten + warn). Centrale
+    // chokepoint: elke activatie (zip/js/catalogus/devBridge/DB-load) loopt hierlangs, dus dit
+    // dekt óók manifesten die al in IndexedDB staan met een permissie die deze versie niet kent.
+    const permissions = sanitizeManifestPermissions(stored.manifest.permissions, id);
+    api = createExtensionApi(id, permissions);
 
     await plugin.onLoad(api);
 

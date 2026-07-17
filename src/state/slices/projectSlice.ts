@@ -13,7 +13,7 @@ import { applyWbsNumbering } from '@/utils/wbs';
 import { beginUndoable, finishMutation } from '../transaction';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { freshPayload, hydratePayload } from '../documentContract';
-import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
+import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSlice } from './types';
 
 /** Opties voor de nieuw-project-wizard. */

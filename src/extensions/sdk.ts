@@ -6,16 +6,23 @@
  * alleen constanten, versie-info en pure helpers om geldige domeinobjecten te bouwen.
  * Niets hier muteert de store of omzeilt permissies — mutaties lopen via `api.data.*`.
  */
-import type { ExtensionCategory, ExtensionPermission, ImportResult } from './types';
-import { HOST_EVENTS } from './eventBus';
-import type { Project } from '@/types/project';
-import type { WorkCalendar } from '@/types/calendar';
+import type { ExtensionCategory, ExtensionPermission } from './types';
+import type {
+  ExtProject,
+  ExtCalendar,
+  ExtTask,
+  ExtTaskTime,
+  ExtImportResult,
+} from './extTypes';
+import { HOST_EVENTS } from '@/services/extensionEvents';
+import { KNOWN_PERMISSIONS } from './permissions';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
-import type { Task, TaskTime } from '@/types/task';
+import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { createDefaultProject } from '@/state/slices/projectSlice';
 import { generateId } from '@/utils/id';
 import { formatDate, parseDate, addBusinessDays } from '@/utils/dateUtils';
+import { toExtProject, toExtCalendar, toExtTask, toExtTaskTime, fromExtTaskInput } from './extMappers';
 
 const CATEGORIES: readonly ExtensionCategory[] = [
   'Import/Export',
@@ -25,14 +32,7 @@ const CATEGORIES: readonly ExtensionCategory[] = [
   'Other',
 ];
 
-const PERMISSIONS: readonly ExtensionPermission[] = [
-  'commands',
-  'ribbon',
-  'backstage',
-  'events',
-  'filesystem',
-  'network',
-];
+const PERMISSIONS: readonly ExtensionPermission[] = KNOWN_PERMISSIONS;
 
 export interface PlannerStudioSdk {
   /** App-versie (calendar-versioning, bv. '2026.4.0'). Vergelijk met manifest.minAppVersion. */
@@ -52,20 +52,20 @@ export interface PlannerStudioSdk {
     addBusinessDays(date: Date, days: number): Date;
   };
 
-  /** Fabrieksfuncties die volledige, geldige domeinobjecten opleveren. */
+  /** Fabrieksfuncties die volledige, geldige EXT-facing objecten opleveren (Ext*-DTO's). */
   readonly factory: {
-    createProject(overrides?: Partial<Project>): Project;
-    createCalendar(): WorkCalendar;
-    createTask(partial: Partial<Task> & { name: string }): Task;
+    createProject(overrides?: Partial<ExtProject>): ExtProject;
+    createCalendar(): ExtCalendar;
+    createTask(partial: Partial<ExtTask> & { name: string }): ExtTask;
     /** Bouw een TaskTime met een gegeven startdatum (ISO) en duur in werkdagen. */
-    createTaskTime(start: string, durationDays: number): TaskTime;
-    /** Lege ImportResult als startpunt voor een importer-handler. */
-    emptyImportResult(overrides?: Partial<ImportResult>): ImportResult;
+    createTaskTime(start: string, durationDays: number): ExtTaskTime;
+    /** Lege ExtImportResult als startpunt voor een importer-handler. */
+    emptyImportResult(overrides?: Partial<ExtImportResult>): ExtImportResult;
   };
 }
 
-/** Bouw een volledige Task met dezelfde defaults als de store-actie addTask. */
-function createTask(partial: Partial<Task> & { name: string }): Task {
+/** Bouw een volledige (interne) Task met dezelfde defaults als de store-actie addTask. */
+function buildInternalTask(partial: Partial<Task> & { name: string }): Task {
   const start = partial.time?.scheduleStart ?? formatDate(new Date());
   return {
     id: partial.id ?? generateId('task'),
@@ -84,10 +84,15 @@ function createTask(partial: Partial<Task> & { name: string }): Task {
   };
 }
 
-function emptyImportResult(overrides?: Partial<ImportResult>): ImportResult {
+/** Ext-facing createTask: bouw intern (defaults) en map naar het publieke contract. */
+function createExtTask(partial: Partial<ExtTask> & { name: string }): ExtTask {
+  return toExtTask(buildInternalTask(fromExtTaskInput(partial)));
+}
+
+function emptyImportResult(overrides?: Partial<ExtImportResult>): ExtImportResult {
   return {
-    project: createDefaultProject(),
-    calendar: createDefaultCalendar(),
+    project: toExtProject(createDefaultProject()),
+    calendar: toExtCalendar(createDefaultCalendar()),
     tasks: [],
     sequences: [],
     resources: [],
@@ -108,10 +113,10 @@ export function getExtensionSdk(): PlannerStudioSdk {
     hostEvents: HOST_EVENTS,
     utils: { generateId, formatDate, parseDate, addBusinessDays },
     factory: {
-      createProject: (overrides) => ({ ...createDefaultProject(), ...overrides }),
-      createCalendar: createDefaultCalendar,
-      createTask,
-      createTaskTime: createDefaultTaskTime,
+      createProject: (overrides) => ({ ...toExtProject(createDefaultProject()), ...overrides }),
+      createCalendar: () => toExtCalendar(createDefaultCalendar()),
+      createTask: createExtTask,
+      createTaskTime: (start, durationDays) => toExtTaskTime(createDefaultTaskTime(start, durationDays)),
       emptyImportResult,
     },
   };

@@ -1,4 +1,5 @@
 export * from './types';
+export * from './extTypes';
 export { createExtensionApi } from './extensionApi';
 export {
   emitExtensionEvent,

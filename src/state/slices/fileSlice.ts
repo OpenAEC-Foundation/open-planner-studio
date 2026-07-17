@@ -7,7 +7,7 @@ import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { ensureExtension } from '@/utils/filePath';
-import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
+import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSlice } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';

@@ -7,7 +7,7 @@ import {
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
 import { beginUndoable, finishMutation } from '../transaction';
-import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
+import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { isHourCalendar } from '@/services/subdayIo';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';

@@ -9,7 +9,7 @@ import {
   type DocumentPayload,
   type RecoveryDocInput,
 } from '../documentContract';
-import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
+import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
