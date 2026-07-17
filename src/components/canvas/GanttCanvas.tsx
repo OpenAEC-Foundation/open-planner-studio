@@ -4,14 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import { HistogramRenderer, HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { setGanttChartWidth, setGanttScrollBounds, ORIGIN_PADDING_DAYS, computeFitToProject } from '@/utils/ganttViewport';
 import { MiniMap } from './MiniMap';
-import { diffDays, formatDate, parseDate, parseInstant, formatInstant, addCalendarDays } from '@/utils/dateUtils';
+import { diffDays, formatDate, parseDate, parseInstant, addCalendarDays } from '@/utils/dateUtils';
 import { effectiveCalendarByTask } from '@/services/subdayIo';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
-import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -21,7 +19,13 @@ import { RelationTypePopover } from './RelationTypePopover';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
 import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
+import { useSplitter } from '@/hooks/useSplitter';
 import { saveLeftPanelWidth, saveHistogramHeight, TASK_TABLE_MIN_WIDTH, TASK_TABLE_MAX_WIDTH, HISTOGRAM_MIN_HEIGHT, HISTOGRAM_MAX_HEIGHT } from '@/utils/settingsStore';
+import { useCanvasLayer } from './hooks/useCanvasLayer';
+import { useBarDrag } from './hooks/useBarDrag';
+import { usePan } from './hooks/usePan';
+import { useBoxSelect } from './hooks/useBoxSelect';
+import { useDependencyDraw } from './hooks/useDependencyDraw';
 
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
@@ -29,9 +33,6 @@ const HEADER_HEIGHT = 50;
 const SPLITTER_GRAB_MARGIN = 4;
 // Zelfde default als de kale '0'-toets in useZoomShortcuts.ts (Zoom reset, leeg-canvas-contextmenu).
 const DEFAULT_ZOOM = 30;
-// Fase 2.10 golf 4 (box-selection): drempel in pixels vóórdat een sleep vanaf lege achtergrond
-// promoveert tot een selectie-kader — onder de drempel blijft het een gewone klik.
-const BOX_SELECT_THRESHOLD = 4;
 
 interface ContextMenuState {
   x: number;
@@ -44,60 +45,15 @@ interface ContextMenuState {
   group: { key: string; collapsed: boolean } | null;
 }
 
-interface DragState {
-  taskId: string;
-  edge: 'left' | 'right' | 'body';
-  startX: number;
-  originalStart: string;
-  originalFinish: string;
-  originalDuration: number;
-  /** Fase 2.8b (§6.3): originele `durationMinutes` bij drag-start (uur-taken); undefined = dag-taak. */
-  originalDurationMinutes?: number;
-}
-
 interface TooltipState {
   x: number;
   y: number;
   task: Task;
 }
 
-interface DependencyDragState {
-  sourceTaskId: string;
-  sourceX: number;
-  sourceY: number;
-  currentX: number;
-  currentY: number;
-}
-
 interface ToastState {
   message: string;
   type: 'error' | 'info';
-}
-
-// Map-style drag-to-pan (Optie 3 / 'drag' scroll mode). Captures the pointer
-// origin and the scroll offsets at grab time; movement is applied as a delta.
-interface PanState {
-  startClientX: number;
-  startClientY: number;
-  originScrollX: number;
-  originScrollY: number;
-}
-
-/** Fase 2.10 golf 4: sleep vanaf lege achtergrond, nog ONDER de drempel — nog geen kader, alleen
- *  bijhouden vanaf waar we moeten meten. Wordt bij overschrijding gepromoveerd tot BoxSelectState;
- *  blijft de sleep onder de drempel tot mouseup, dan gebeurt er niets (de normale click volgt). */
-interface BoxSelectCandidate {
-  startClientX: number;
-  startClientY: number;
-}
-
-/** Fase 2.10 golf 4: actief selectie-kader (na de drempel). Client-coördinaten, net als
- *  DependencyDragState — omgerekend naar canvas-relatief op het moment van tekenen/meten. */
-interface BoxSelectState {
-  startClientX: number;
-  startClientY: number;
-  currentClientX: number;
-  currentClientY: number;
 }
 
 export function GanttCanvas() {
@@ -189,15 +145,9 @@ export function GanttCanvas() {
   const secondaryRendererRef = useRef<GanttRenderer | null>(null);
   const [isResizingSplit, setIsResizingSplit] = useState(false);
   const [primaryChartWidth, setPrimaryChartWidth] = useState(0);
-  const [dragState, setDragState] = useState<DragState | null>(null);
-  const [isResizingTable, setIsResizingTable] = useState(false);
-  const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
-  const [panState, setPanState] = useState<PanState | null>(null);
-  // Fase 2.10 golf 4 (box-selection): kandidaat (onder drempel) en gepromoveerd kader (boven drempel).
-  const [boxSelectCandidate, setBoxSelectCandidate] = useState<BoxSelectCandidate | null>(null);
-  const [boxSelectState, setBoxSelectState] = useState<BoxSelectState | null>(null);
   // Onderdrukt de eerstvolgende click-afhandeling ná een gepromoveerd kader (en na een Escape-annulering
   // ervan) — anders deselecteert/hertekent de gewone click-logica de zojuist gezette boxselectie.
+  // Gedeeld met de pan- en box-select-hooks.
   const justBoxSelectedRef = useRef(false);
   const [cursor, setCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -207,7 +157,6 @@ export function GanttCanvas() {
   const [relationPopover, setRelationPopover] = useState<{ sequenceId: string; x: number; y: number } | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
-  const [isResizingHistogram, setIsResizingHistogram] = useState(false);
   const [histoTooltip, setHistoTooltip] = useState<{ x: number; y: number; lines: string[] } | null>(null);
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
@@ -222,6 +171,50 @@ export function GanttCanvas() {
     () => effectiveCalendarByTask(tasks, calendar, calendars),
     [tasks, calendar, calendars],
   );
+
+  // ── Muisgebaar-hooks (audit P20/B1) ───────────────────────────────────────
+  // De interactie-logica die vroeger als losse state + effecten in dit component woonde, zit nu per
+  // gebaar in een eigen hook (elk bezit zijn eigen state + window-listeners). De centrale
+  // mousedown-dispatch (handleMouseDown) doet nog de hit-test en roept de juiste `start…`-functie
+  // aan; de hover-guard leest de gebundelde `active`-vlaggen i.p.v. een lange lijst losse states.
+  const barDrag = useBarDrag({ zoom: view.zoom, enableQuarterHourZoom, calendar, effectiveCalById, updateTask });
+  const pan = usePan({ setScroll, justBoxSelectedRef });
+  const boxSelect = useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef });
+  const depDraw = useDependencyDraw({
+    canvasRef,
+    containerRef,
+    depLineCanvasRef,
+    rendererRef,
+    addSequence,
+    onRelationCreated: (sequenceId, x, y) => setRelationPopover({ sequenceId, x, y }),
+  });
+
+  // Twee generieke sleep-splitters (pakket L, `useSplitter`): tabel/chart-breedte + histogram-hoogte.
+  // `max` altijd als functie (de hook vangt zijn opts bij drag-start; een kaal getal zou mid-drag
+  // stale kunnen zijn). `computeSize` valt terug op NaN als de ref (heel even) ontbreekt, en
+  // `onResize` slaat NaN over — zo blijft het "doe niets als het element weg is"-gedrag behouden.
+  const tableSplitter = useSplitter({
+    min: TASK_TABLE_MIN_WIDTH,
+    max: () => TASK_TABLE_MAX_WIDTH,
+    computeSize: (e) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return NaN;
+      return Math.round(e.clientX - canvas.getBoundingClientRect().left);
+    },
+    onResize: (w) => { if (!Number.isNaN(w)) setUI({ leftPanelWidth: w }); },
+    onCommit: () => { void saveLeftPanelWidth(useAppStore.getState().ui.leftPanelWidth); },
+  });
+  const histogramSplitter = useSplitter({
+    min: HISTOGRAM_MIN_HEIGHT,
+    max: () => HISTOGRAM_MAX_HEIGHT,
+    computeSize: (e) => {
+      const container = histogramContainerRef.current;
+      if (!container) return NaN;
+      return Math.round(container.getBoundingClientRect().bottom - e.clientY);
+    },
+    onResize: (h) => { if (!Number.isNaN(h)) setUI({ histogramHeight: h }); },
+    onCommit: () => { void saveHistogramHeight(useAppStore.getState().ui.histogramHeight); },
+  });
 
   // Baseline-overlay-Map uit de actieve baseline (fase 2.6, §6.2): keyed op Task.id (leaf-taken).
   const baselineOverlay = useMemo(() => {
@@ -353,29 +346,17 @@ export function GanttCanvas() {
     return { load: aggLoad, capacity: aggCap, overSet };
   }, [resourceLoadResult, histogramResourceId, resources]);
 
-  const renderHistogram = useCallback(() => {
-    const canvas = histogramCanvasRef.current;
-    const container = histogramContainerRef.current;
-    if (!canvas || !container) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = container.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-
+  // Histogram-teken-callback (§6.4): dpr/resize-boilerplate zit nu in useCanvasLayer; hier alleen de
+  // HistogramRenderer opbouwen + tekenen. `extraDeps: [histogramHeight]` bewaart de originele
+  // expliciete herteken-trigger op hoogte-wijziging.
+  const drawHistogram = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     const renderer = new HistogramRenderer(ctx, {
       series: histogramSeries,
       picker: histogramPicker,
       selectedResourceId: histogramResourceId,
       view: effectiveView,
-      canvasWidth: rect.width,
-      canvasHeight: rect.height,
+      canvasWidth: width,
+      canvasHeight: height,
       taskTableWidth,
       labels: { unitsSuffix: tCommon('resource.histogram.units') },
       emptyHint: !resourceLoadResult
@@ -388,42 +369,13 @@ export function GanttCanvas() {
     renderer.render();
   }, [histogramSeries, histogramPicker, histogramResourceId, effectiveView, taskTableWidth, resourceLoadResult, resources.length, tCommon, uiTheme]);
 
-  useEffect(() => {
-    if (!showHistogram) return;
-    const frame = requestAnimationFrame(renderHistogram);
-    return () => cancelAnimationFrame(frame);
-  }, [showHistogram, histogramHeight, renderHistogram]);
-
-  useEffect(() => {
-    if (!showHistogram) return;
-    const container = histogramContainerRef.current;
-    if (!container) return;
-    const obs = new ResizeObserver(() => requestAnimationFrame(renderHistogram));
-    obs.observe(container);
-    return () => obs.disconnect();
-  }, [showHistogram, renderHistogram]);
-
-  // Histogram-splitter: hoogte volgt de muis (geklemd), opslaan bij loslaten.
-  useEffect(() => {
-    if (!isResizingHistogram) return;
-    const handleMove = (e: MouseEvent) => {
-      const container = histogramContainerRef.current;
-      if (!container) return;
-      const bottom = container.getBoundingClientRect().bottom;
-      const h = Math.min(HISTOGRAM_MAX_HEIGHT, Math.max(HISTOGRAM_MIN_HEIGHT, Math.round(bottom - e.clientY)));
-      setUI({ histogramHeight: h });
-    };
-    const handleUp = () => {
-      setIsResizingHistogram(false);
-      void saveHistogramHeight(useAppStore.getState().ui.histogramHeight);
-    };
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
-  }, [isResizingHistogram, setUI]);
+  useCanvasLayer({
+    canvasRef: histogramCanvasRef,
+    containerRef: histogramContainerRef,
+    draw: drawHistogram,
+    enabled: showHistogram,
+    extraDeps: [histogramHeight],
+  });
 
   // Auto-dismiss van de drill-down-tooltip.
   useEffect(() => {
@@ -476,26 +428,12 @@ export function GanttCanvas() {
     }
   }, [setHistogramResource, contributingTaskNames, tCommon]);
 
-  const render = useCallback(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = container.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.scale(dpr, dpr);
-
+  // Primaire Gantt-teken-callback: dpr/resize-boilerplate zit nu in useCanvasLayer; hier alleen de
+  // viewport-registratie + het opbouwen/tekenen van de GanttRenderer (in CSS-pixels, `width`/`height`).
+  const drawPrimary = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     // Registreer het zichtbare tijdvenster (primaire pane) voor de recenter-formule van
     // setTimeScale (§3.3) en voor het mini-map-viewportkader (§11).
-    const chartW = Math.max(0, rect.width - taskTableWidth);
+    const chartW = Math.max(0, width - taskTableWidth);
     setGanttChartWidth(chartW);
     setPrimaryChartWidth(prev => (Math.abs(prev - chartW) > 1 ? chartW : prev));
 
@@ -504,8 +442,8 @@ export function GanttCanvas() {
     // alleen naar 0, zonder bovengrens, waardoor een verticale overscroll (of horizontaal ná een
     // extreme zoom-uit/-in-cyclus) de taakbalken-laag permanent buiten beeld kon duwen.
     setGanttScrollBounds({
-      maxScrollX: Math.max(0, totalContentWidth - rect.width),
-      maxScrollY: Math.max(0, viewRows.length * ROW_HEIGHT - (rect.height - HEADER_HEIGHT)),
+      maxScrollX: Math.max(0, totalContentWidth - width),
+      maxScrollY: Math.max(0, viewRows.length * ROW_HEIGHT - (height - HEADER_HEIGHT)),
     });
 
     const opts: GanttRenderOptions = {
@@ -524,8 +462,8 @@ export function GanttCanvas() {
       showBaselineOverlay,
       baselineOverlay,
       trace,
-      canvasWidth: rect.width,
-      canvasHeight: rect.height,
+      canvasWidth: width,
+      canvasHeight: height,
       taskTableWidth,
       rowHeight: ROW_HEIGHT,
       headerHeight: HEADER_HEIGHT,
@@ -547,24 +485,12 @@ export function GanttCanvas() {
     renderer.render();
   }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes]);
 
+  useCanvasLayer({ canvasRef, containerRef, draw: drawPrimary });
+
   // --- Split view (fase 2.7, §10): secundair tijdvenster met eigen zoom/scrollX; gedeelde
   // rijen + scrollY; geen canvas-taaktabel (taskTableWidth 0) — die tekent alleen links. ---
-  const renderSecondary = useCallback(() => {
+  const drawSecondary = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     if (!splitView) return;
-    const canvas = secondaryCanvasRef.current;
-    const container = secondaryContainerRef.current;
-    if (!canvas || !container) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = container.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-
     const renderer = new GanttRenderer(ctx, {
       rows: viewRows,
       sequences,
@@ -585,8 +511,8 @@ export function GanttCanvas() {
       showBaselineOverlay,
       baselineOverlay,
       trace,
-      canvasWidth: rect.width,
-      canvasHeight: rect.height,
+      canvasWidth: width,
+      canvasHeight: height,
       taskTableWidth: 0,
       rowHeight: ROW_HEIGHT,
       headerHeight: HEADER_HEIGHT,
@@ -602,20 +528,18 @@ export function GanttCanvas() {
     renderer.render();
   }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode]);
 
-  useEffect(() => {
-    if (!splitView) { secondaryRendererRef.current = null; return; }
-    const frameId = requestAnimationFrame(renderSecondary);
-    return () => cancelAnimationFrame(frameId);
-  }, [splitView, renderSecondary]);
+  useCanvasLayer({
+    canvasRef: secondaryCanvasRef,
+    containerRef: secondaryContainerRef,
+    draw: drawSecondary,
+    enabled: !!splitView,
+  });
 
+  // Reset de secundaire renderer-ref zodra split view uit gaat (het canvas verdwijnt dan; de
+  // klik-handler ernaar mag geen stale renderer meer zien). Was voorheen inline in het render-effect.
   useEffect(() => {
-    if (!splitView) return;
-    const container = secondaryContainerRef.current;
-    if (!container) return;
-    const observer = new ResizeObserver(() => requestAnimationFrame(renderSecondary));
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [splitView, renderSecondary]);
+    if (!splitView) secondaryRendererRef.current = null;
+  }, [splitView]);
 
   // Ctrl+scroll boven het secundaire pane past de EIGEN zoom aan (cursor-verankerd, §10.3);
   // shift = eigen horizontale scroll; gewoon scrollen = gedeelde verticale scroll.
@@ -692,24 +616,6 @@ export function GanttCanvas() {
     if (row?.kind === 'task') selectTask(row.task.id, e.ctrlKey || e.metaKey, e.shiftKey);
     else deselectAll();
   }, [selectTask, deselectAll, setCollapsedGroupKey]);
-
-  // Render on changes
-  useEffect(() => {
-    const frameId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(frameId);
-  }, [render]);
-
-  // Resize observer
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver(() => {
-      requestAnimationFrame(render);
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [render]);
 
   // Open-fit (issue #16, WENS 1): fileSlice zet `view.pendingFit` na een load; hier — waar de
   // viewport-breedte bekend is — voeren we de gedeelde computeFitToProject uit zodat het HELE
@@ -940,7 +846,7 @@ export function GanttCanvas() {
     // interacties (ook in de header, zodat de hele lijn grijpbaar is).
     if (Math.abs(x - taskTableWidth) <= SPLITTER_GRAB_MARGIN) {
       e.preventDefault();
-      setIsResizingTable(true);
+      tableSplitter.start();
       return;
     }
 
@@ -951,7 +857,7 @@ export function GanttCanvas() {
       // Shift+drag from task bar starts dependency drawing
       if (e.shiftKey) {
         e.preventDefault();
-        setDepDragState({
+        depDraw.startDepDraw({
           sourceTaskId: hit.task.id,
           sourceX: e.clientX,
           sourceY: e.clientY,
@@ -962,7 +868,7 @@ export function GanttCanvas() {
       }
 
       e.preventDefault();
-      setDragState({
+      barDrag.startBarDrag({
         taskId: hit.task.id,
         edge: hit.edge,
         startX: e.clientX,
@@ -980,14 +886,14 @@ export function GanttCanvas() {
     // overige scroll-modi is lege chart-achtergrond ook box-select-kandidaat.
     if (renderer.isInTaskTable(x)) {
       e.preventDefault();
-      setBoxSelectCandidate({ startClientX: e.clientX, startClientY: e.clientY });
+      boxSelect.startBoxSelect({ startClientX: e.clientX, startClientY: e.clientY });
       return;
     }
 
     if (scrollMode === 'drag') {
       e.preventDefault();
       const v = useAppStore.getState().view;
-      setPanState({
+      pan.startPan({
         startClientX: e.clientX,
         startClientY: e.clientY,
         originScrollX: v.scrollX,
@@ -997,405 +903,16 @@ export function GanttCanvas() {
     }
 
     e.preventDefault();
-    setBoxSelectCandidate({ startClientX: e.clientX, startClientY: e.clientY });
-  }, [selectTask, scrollMode, taskTableWidth]);
-
-  // Splitter-drag: breedte volgt de muis (geklemd), opslaan bij loslaten.
-  useEffect(() => {
-    if (!isResizingTable) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const x = e.clientX - canvas.getBoundingClientRect().left;
-      const w = Math.min(TASK_TABLE_MAX_WIDTH, Math.max(TASK_TABLE_MIN_WIDTH, Math.round(x)));
-      setUI({ leftPanelWidth: w });
-    };
-
-    const handleMouseUp = () => {
-      setIsResizingTable(false);
-      void saveLeftPanelWidth(useAppStore.getState().ui.leftPanelWidth);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizingTable, setUI]);
-
-  // Map-style pan: translate pointer movement into scroll offsets. Dragging the
-  // canvas content to the right reveals earlier content, so scrollX decreases.
-  useEffect(() => {
-    if (!panState) return;
-
-    let panned = false;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - panState.startClientX;
-      const dy = e.clientY - panState.startClientY;
-      if (Math.hypot(dx, dy) >= BOX_SELECT_THRESHOLD) panned = true;
-      setScroll(panState.originScrollX - dx, panState.originScrollY - dy);
-    };
-
-    const handleMouseUp = () => {
-      // Fase 2.10 fix-golf 1: de browser vuurt na een mouseup nog een native click op het canvas.
-      // Zonder onderdrukking zou die click de zojuist gepande selectie overschrijven/wissen (net als
-      // bij box-select hierboven). Alleen onderdrukken als er ook echt gepand is — een klik zonder
-      // beweging in 'drag'-modus moet gewoon als normale selectie-klik blijven werken.
-      if (panned) justBoxSelectedRef.current = true;
-      setPanState(null);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [panState, setScroll]);
-
-  // Box-selection golf 4a: kandidaatfase (nog onder de drempel). Bij overschrijding promoveren
-  // we tot een echt kader; onder de drempel bij mouseup gebeurt niets (de gewone click-afhandeling
-  // doet dan gewoon zijn normale werk, want justBoxSelectedRef staat niet).
-  useEffect(() => {
-    if (!boxSelectCandidate) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - boxSelectCandidate.startClientX;
-      const dy = e.clientY - boxSelectCandidate.startClientY;
-      if (Math.hypot(dx, dy) < BOX_SELECT_THRESHOLD) return;
-      setBoxSelectCandidate(null);
-      setBoxSelectState({
-        startClientX: boxSelectCandidate.startClientX,
-        startClientY: boxSelectCandidate.startClientY,
-        currentClientX: e.clientX,
-        currentClientY: e.clientY,
-      });
-    };
-
-    const handleMouseUp = () => setBoxSelectCandidate(null);
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [boxSelectCandidate]);
-
-  // Box-selection golf 4b: het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
-  // (GanttRenderer.getTaskIdsInYRange) — alléén de Y-band telt, de X-as (tijd-as) doet niet mee,
-  // dus takentabel en chart gedragen zich identiek. Ctrl/Cmd bij mouseup = toevoegen, anders
-  // vervangen. Escape annuleert zonder selectie-wijziging.
-  useEffect(() => {
-    if (!boxSelectState) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      setBoxSelectState(prev => prev ? { ...prev, currentClientX: e.clientX, currentClientY: e.clientY } : null);
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      const canvas = canvasRef.current;
-      const renderer = rendererRef.current;
-      if (canvas && renderer) {
-        const rect = canvas.getBoundingClientRect();
-        const y1 = boxSelectState.startClientY - rect.top;
-        const y2 = e.clientY - rect.top;
-        const ids = renderer.getTaskIdsInYRange(Math.min(y1, y2), Math.max(y1, y2));
-        const additive = e.ctrlKey || e.metaKey;
-        if (ids.length > 0) {
-          selectTasks(ids, additive);
-        } else if (!additive) {
-          deselectAll();
-        }
-      }
-      // Onderdruk de eerstvolgende click zodat de zojuist gezette selectie niet meteen weer
-      // overschreven/gedeselecteerd wordt door de normale klik-afhandeling.
-      justBoxSelectedRef.current = true;
-      setBoxSelectState(null);
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // Annuleren: geen selectie-wijziging. De globale Escape-sneltoets (edit.deselect in
-      // shortcutRegistry.ts) luistert ook op window (bubble-fase) en zou anders ALSNOG
-      // deselectAll() aanroepen — capture-fase + stopImmediatePropagation wint gegarandeerd van
-      // die bubble-fase-listener (ongeacht registratievolgorde), zodat de selectie echt onaangeroerd
-      // blijft. De muis is nog ingedrukt, dus onderdruk ook de eerstvolgende click (anders verandert
-      // de selectie alsnog als gevolg van de geannuleerde sleep).
-      e.stopImmediatePropagation();
-      justBoxSelectedRef.current = true;
-      setBoxSelectState(null);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [boxSelectState, selectTasks, deselectAll]);
-
-  // Dependency drag: draw temporary line and handle release
-  useEffect(() => {
-    if (!depDragState) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      setDepDragState(prev => prev ? { ...prev, currentX: e.clientX, currentY: e.clientY } : null);
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      const canvas = canvasRef.current;
-      const renderer = rendererRef.current;
-      if (canvas && renderer) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        const targetTask = renderer.getTaskAtY(y);
-        if (targetTask && targetTask.id !== depDragState.sourceTaskId && x >= useAppStore.getState().ui.leftPanelWidth) {
-          // Create Finish-to-Start dependency (default — ongewijzigd gedrag als de gebruiker de
-          // hieronder geopende popover negeert/wegklikt).
-          const newSequenceId = addSequence({
-            predecessorId: depDragState.sourceTaskId,
-            successorId: targetTask.id,
-            type: 'FINISH_START',
-            lagDays: 0,
-          });
-          // Fase 2.10 (item 3): meteen de correctie-popover openen op de drop-positie.
-          setRelationPopover({ sequenceId: newSequenceId, x: e.clientX, y: e.clientY });
-        }
-      }
-      setDepDragState(null);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [depDragState, addSequence]);
-
-  // Draw temporary dependency line on overlay canvas
-  useEffect(() => {
-    const depCanvas = depLineCanvasRef.current;
-    const container = containerRef.current;
-    if (!depCanvas || !container) return;
-
-    const rect = container.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    depCanvas.width = rect.width * dpr;
-    depCanvas.height = rect.height * dpr;
-    depCanvas.style.width = `${rect.width}px`;
-    depCanvas.style.height = `${rect.height}px`;
-
-    const ctx = depCanvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, rect.width, rect.height);
-
-    if (depDragState) {
-      const canvasRect = depCanvas.getBoundingClientRect();
-      const startX = depDragState.sourceX - canvasRect.left;
-      const startY = depDragState.sourceY - canvasRect.top;
-      const endX = depDragState.currentX - canvasRect.left;
-      const endY = depDragState.currentY - canvasRect.top;
-
-      const accent = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#F59E0B';
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
-      ctx.stroke();
-
-      // Arrowhead
-      const angle = Math.atan2(endY - startY, endX - startX);
-      ctx.setLineDash([]);
-      ctx.fillStyle = accent;
-      ctx.beginPath();
-      ctx.moveTo(endX, endY);
-      ctx.lineTo(endX - 10 * Math.cos(angle - Math.PI / 6), endY - 10 * Math.sin(angle - Math.PI / 6));
-      ctx.lineTo(endX - 10 * Math.cos(angle + Math.PI / 6), endY - 10 * Math.sin(angle + Math.PI / 6));
-      ctx.closePath();
-      ctx.fill();
-    }
-  }, [depDragState]);
-
-  // Drag and drop: mousemove (via native event for performance)
-  useEffect(() => {
-    if (!dragState) return;
-
-    // Fase 2.8b (§6.3): een UUR-taak (datumstring met tijdcomponent) sleept/rekt op HELE UREN — het
-    // snap-quantum is nooit fijner dan 60 min (kwartier-snap bestaat niet). Slepen muteert
-    // `durationMinutes` (hele minuten); de engine snapt bij de volgende runCPM naar de eerstvolgende
-    // werk-instant (snap op het uur-raster, niet op de banden). Dag-taken houden exact het dag-pad.
-    const isHourDrag = dragState.originalStart.includes('T');
-
-    // Dag-resize: de nieuwe duur is de INCLUSIEVE werkdagen-telling via de taakkalender — exact
-    // zoals CPM zelf rekent (CPMSolver: `scheduleDuration = cal.workDaysBetween(es, ef)`). Zo blijft
-    // een resize-sleep staan ná de eerstvolgende runCPM en tellen weekend/feestdagen niet als duur
-    // mee. (De vorige `diffCalendarDays` was exclusief én kalender-gebaseerd → één werkdag te weinig,
-    // en bij slepen over een weekend werden za/zo ten onrechte meegeteld.)
-    const resizeCalEngine = new CalendarEngine(effectiveCalById.get(dragState.taskId) ?? calendar);
-    // Laatst toegepaste dag-verschuiving. Init op 0 = de begintoestand (geen no-op-update bij het
-    // grijpen), maar terugkeren naar Δ0 ná een beweging herstelt de originele duur weer (zie fix
-    // bij de guard hieronder).
-    let lastAppliedDelta = 0;
-
-    // Snap-quantum (§6.3): de actieve minor-tier, maar NOOIT fijner dan 60 min (kwartier-snap
-    // bestaat niet). Zo is het quantum bij uur-zoom 1 uur en bij lagere zoom grover (dag/week);
-    // altijd een veelvoud van 60 min ⇒ slepen muteert de duur in HELE uren (§6.4).
-    const minorTier = pickTiers(view.zoom, enableQuarterHourZoom).minor;
-    const quantumMin = Math.max(60, Math.round(TIER_CONFIG[minorTier].stepDays * 1440));
-    const quantumMs = quantumMin * 60000;
-
-    const handleHourDrag = (pixelDelta: number) => {
-      const rawMs = (pixelDelta / view.zoom) * 86400000;
-      const snappedMs = Math.round(rawMs / quantumMs) * quantumMs;
-      if (snappedMs === 0) return;
-      const deltaMin = Math.round(snappedMs / 60000);
-      const origStart = parseInstant(dragState.originalStart);
-      const origFinish = parseInstant(dragState.originalFinish);
-      const baseTime = useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time;
-      // Originele werk-duur bij drag-start; val terug op de klok-span als het veld ontbrak.
-      const origMinutes = dragState.originalDurationMinutes
-        ?? Math.max(60, Math.round((origFinish.getTime() - origStart.getTime()) / 60000));
-
-      if (dragState.edge === 'body') {
-        // Verplaatsen: duur ongewijzigd, start+finish schuiven mee (op het quantum).
-        const newStart = new Date(origStart.getTime() + snappedMs);
-        const newFinish = new Date(origFinish.getTime() + snappedMs);
-        updateTask(dragState.taskId, {
-          time: {
-            ...baseTime,
-            scheduleStart: formatInstant(newStart, 'hour'),
-            scheduleFinish: formatInstant(newFinish, 'hour'),
-            earlyStart: formatInstant(newStart, 'hour'),
-            earlyFinish: formatInstant(newFinish, 'hour'),
-          },
-        });
-      } else if (dragState.edge === 'right') {
-        // Rekken vanaf rechts: duur ± deltaMin HELE werk-uren. De provisionele klok-finish geeft
-        // directe feedback; runCPM snapt daarna op het uur-raster naar de werk-instant.
-        const newMinutes = Math.max(60, origMinutes + deltaMin);
-        const newFinish = new Date(origFinish.getTime() + snappedMs);
-        updateTask(dragState.taskId, {
-          time: {
-            ...baseTime,
-            scheduleFinish: formatInstant(newFinish, 'hour'),
-            earlyFinish: formatInstant(newFinish, 'hour'),
-            durationMinutes: newMinutes,
-          },
-        });
-      } else if (dragState.edge === 'left') {
-        // Rekken vanaf links: start schuift, duur ∓ deltaMin HELE werk-uren (start eerder ⇒ langer).
-        const newMinutes = Math.max(60, origMinutes - deltaMin);
-        const newStart = new Date(origStart.getTime() + snappedMs);
-        updateTask(dragState.taskId, {
-          time: {
-            ...baseTime,
-            scheduleStart: formatInstant(newStart, 'hour'),
-            earlyStart: formatInstant(newStart, 'hour'),
-            durationMinutes: newMinutes,
-          },
-        });
-      }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const pixelDelta = e.clientX - dragState.startX;
-      if (isHourDrag) {
-        handleHourDrag(pixelDelta);
-        return;
-      }
-      const daysDelta = Math.round(pixelDelta / view.zoom);
-      // Skip alleen als de dag-verschuiving NIET veranderd is sinds de vorige commit — niet zodra ze
-      // toevallig 0 is. De oude `=== 0`-guard maakte de START-duur onbereikbaar: na een beweging
-      // terug naar Δ0 werd niets gecommit, dus de balk bleef op de buur-waarde hangen en "flipte"
-      // tussen de duren links/rechts van de begin-duur (bug: "ik kan 'm niet op 4 krijgen, hij
-      // springt tussen 3 en 5"). Nu herstelt Δ0 netjes de originele duur.
-      if (daysDelta === lastAppliedDelta) return;
-      lastAppliedDelta = daysDelta;
-
-      const origStart = parseDate(dragState.originalStart);
-      const origFinish = parseDate(dragState.originalFinish);
-
-      if (dragState.edge === 'body') {
-        // Move entire task
-        const newStart = addCalendarDays(origStart, daysDelta);
-        const newFinish = addCalendarDays(origFinish, daysDelta);
-        updateTask(dragState.taskId, {
-          time: {
-            ...useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time,
-            scheduleStart: formatDate(newStart),
-            scheduleFinish: formatDate(newFinish),
-            earlyStart: formatDate(newStart),
-            earlyFinish: formatDate(newFinish),
-          },
-        });
-      } else if (dragState.edge === 'right') {
-        // Resize from right (change duration/finish). Bereken de duur uit de rauwe sleep-datum,
-        // maar schrijf een WERKDAG-anker weg (addWorkDays) i.p.v. de rauwe kalenderdag. Zo is de
-        // balk tijdens het slepen al identiek aan wat runCPM produceert; earlyFinish belandt nooit
-        // op een weekend/feestdag (een niet-canoniek anker verschuift bij de eerstvolgende runCPM —
-        // o.a. bij bestand openen — waardoor dezelfde sleep vóór/ná een ander resultaat gaf, plus
-        // een "plateau" rond een weekend-anker). Het weekend-DUURgedrag verandert niet: newDuration
-        // komt nog steeds uit workDaysBetween.
-        const newFinish = addCalendarDays(origFinish, daysDelta);
-        const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(origStart, newFinish));
-        const canonFinish = resizeCalEngine.addWorkDays(origStart, newDuration);
-        updateTask(dragState.taskId, {
-          time: {
-            ...useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time,
-            scheduleFinish: formatDate(canonFinish),
-            earlyFinish: formatDate(canonFinish),
-            scheduleDuration: newDuration,
-          },
-        });
-      } else if (dragState.edge === 'left') {
-        // Resize from left (change start/duration). Idem als de rechterrand: schrijf een WERKDAG-
-        // start weg (subtractWorkDays vanaf de vaste finish) i.p.v. de rauwe kalenderdag, zodat het
-        // anker canoniek blijft (geen weekend-start, geen verschuiving bij runCPM).
-        const newStart = addCalendarDays(origStart, daysDelta);
-        const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(newStart, origFinish));
-        const canonStart = resizeCalEngine.subtractWorkDays(origFinish, newDuration);
-        updateTask(dragState.taskId, {
-          time: {
-            ...useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time,
-            scheduleStart: formatDate(canonStart),
-            earlyStart: formatDate(canonStart),
-            scheduleDuration: newDuration,
-          },
-        });
-      }
-    };
-
-    const handleMouseUp = () => {
-      setDragState(null);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [dragState, view.zoom, updateTask]);
+    boxSelect.startBoxSelect({ startClientX: e.clientX, startClientY: e.clientY });
+  }, [selectTask, scrollMode, taskTableWidth, tableSplitter, depDraw, barDrag, boxSelect, pan]);
 
   // Cursor changes on hover + tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     // Fase 2.10 fix-golf 2: terwijl het contextmenu open staat mag een mousemove de balk-tooltip
     // niet opnieuw zetten (anders duikt hij, ondanks het wissen bij het openen, alsnog weer op
-    // over de menu-items zodra de muis binnen het canvas beweegt).
-    if (dragState || depDragState || panState || boxSelectCandidate || boxSelectState || contextMenu) {
+    // over de menu-items zodra de muis binnen het canvas beweegt). De gebundelde `active`-vlaggen
+    // (audit P20) vervangen de vroegere lange lijst losse drag-states — één per gebaar-hook.
+    if (barDrag.active || depDraw.active || pan.active || boxSelect.active || contextMenu) {
       setTooltip(null);
       return;
     }
@@ -1460,7 +977,7 @@ export function GanttCanvas() {
     }
 
     setCursor('default');
-  }, [dragState, depDragState, panState, boxSelectCandidate, boxSelectState, contextMenu, scrollMode, taskTableWidth]);
+  }, [barDrag.active, depDraw.active, pan.active, boxSelect.active, contextMenu, scrollMode, taskTableWidth]);
 
   // Hide tooltip on mouse leave
   const handleMouseLeave = useCallback(() => {
@@ -1491,15 +1008,15 @@ export function GanttCanvas() {
           ref={canvasRef}
           className="absolute inset-0"
           style={{
-            cursor: isResizingTable
+            cursor: tableSplitter.isResizing
               ? 'col-resize'
-              : panState
+              : pan.panState
                 ? 'grabbing'
-                : dragState
-                  ? (dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
-                  : depDragState
+                : barDrag.dragState
+                  ? (barDrag.dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
+                  : depDraw.active
                     ? 'crosshair'
-                    : boxSelectState
+                    : boxSelect.boxSelectState
                       ? 'crosshair'
                       : cursor,
           }}
@@ -1520,7 +1037,8 @@ export function GanttCanvas() {
         {/* Box-selection kader (fase 2.10 golf 4): half-transparant rechthoekje tijdens de sleep,
             in viewport-coördinaten — hoeft niet mee te scrollen (§spec), de rij-intersectie zelf
             wordt op het actuele moment berekend (getTaskIdsInYRange). */}
-        {boxSelectState && (() => {
+        {boxSelect.boxSelectState && (() => {
+          const boxSelectState = boxSelect.boxSelectState;
           const containerRect = containerRef.current?.getBoundingClientRect();
           const left = (containerRect?.left ?? 0);
           const top = (containerRect?.top ?? 0);
@@ -1618,7 +1136,7 @@ export function GanttCanvas() {
         <>
           <div
             className="histogram-splitter"
-            onMouseDown={e => { e.preventDefault(); setIsResizingHistogram(true); }}
+            onMouseDown={e => { e.preventDefault(); histogramSplitter.start(); }}
             style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
           />
           <div
