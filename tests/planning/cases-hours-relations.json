@@ -1,0 +1,556 @@
+{
+  "_readme": "Audit-pakket P15 (RelationResolver) — VANGNET voor de unificatie van de 4× gedupliceerde relatie-wiskunde in CPMSolver. Pint het HUIDIGE gedrag van de SS/FF/SF-relaties in UUR-modus (voorheen als UNVERIFIED gemarkeerd in forwardConstraintHour/backwardConstraintHour), forward EN backward (es/ef + ls/lf + floats). Raster {SS,FF,SF}×{lag>0,=0,<0} op H8, plus lunch-break/night-wrap/weekend/elapsed/cross-kalender/mijlpaal-grensvlag-varianten. Anker = ma 6 juli 2026. Referentiekalenders: zie BRIEF.md 'Minuut-tabel'. H8=08:00-16:00; H-break=08-12+12:30-16:30 (lunch); Night=22:00->06:00 wrap; H10=08:00-18:00. Verwachtingen zijn AFGELEID uit de werkelijke solver-uitvoer (dit is een pin-batterij voor een byte-identieke refactor), maar elke uitkomst is kritisch tegen P6/MSP-semantiek getoetst; het 'note'-veld markeert de gevallen die mogelijk defect gedrag pinnen (JSON kent geen commentaar). Band=[start,end); een instant exact op een band-eind is niet-werkend en is work-equivalent aan de volgende band-start (verklaart ef's die op een vorige-dag-band-eind landen). Lag telt in de VOORGANGER-kalender.",
+  "cases": [
+    {
+      "id": "rr-ss-h8-pos",
+      "title": "SS+4u op H8 (fwd+bwd). A(12u,SNET di) di08->wo12 drijft; B(4u) start A.start+4u=di12->di16; B niet-kritiek tf=0,5d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T12:00", "ef": "2026-07-07T16:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0.5, "ff": 0.5, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ss-h8-zero",
+      "title": "SS+0 op H8 (fwd+bwd). B start = A.start = di08->di12; B tf=1d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 1, "ff": 1, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ss-h8-neg",
+      "title": "SS-4u (lead, lagMinutes -240) op H8. B start 4u vóór A.start = ma12->ma16; lead niet gevloerd; B tf=1,5d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lagMinutes": -240 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T12:00", "ef": "2026-07-06T16:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 1.5, "ff": 1.5, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 3,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-h8-pos",
+      "title": "FF+4u op H8 (fwd+bwd). B eindigt 4u ná A.finish (wo12) = wo16; B start wo12; beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-08T12:00", "ef": "2026-07-08T16:00", "ls": "2026-07-08T12:00", "lf": "2026-07-08T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T16:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-h8-zero",
+      "title": "FF+0 op H8 (fwd+bwd). B eindigt gelijk met A (wo12); B start wo08; beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-h8-neg",
+      "title": "FF-4u (lead) op H8. B eindigt 4u vóór A.finish (wo12) = geëiste finish wo08 == di16 (band-grens); B di12->di16; tf=0,5d.",
+      "note": "B.ef toont di16:00 (band-eind di), work-equivalent aan wo08:00 (=A.finish-4u). Cosmetisch band-grens-artefact, geen defect: tf=0,5 klopt.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lagMinutes": -240 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T12:00", "ef": "2026-07-07T16:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0.5, "ff": 0.5, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-sf-h8-pos",
+      "title": "SF+4u op H8 (fwd+bwd). A(4u,SNET wo) wo08->wo12; B(8u) eindigt op A.start+4u=wo12 ⇒ B di12->wo12; beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u", "constraint": { "type": "SNET", "date": "2026-07-08" } },
+        { "name": "B", "dur": "8u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_FINISH", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T12:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T12:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-sf-h8-zero",
+      "title": "SF+0 op H8 (fwd+bwd). B(8u) eindigt op A.start=wo08 (==di16 band-grens) ⇒ B di08->di16; B tf=0,5d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u", "constraint": { "type": "SNET", "date": "2026-07-08" } },
+        { "name": "B", "dur": "8u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T16:00", "ls": "2026-07-07T12:00", "lf": "2026-07-08T12:00", "tf": 0.5, "ff": 0.5, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-sf-h8-neg",
+      "title": "SF-4u (lead) op H8. B eindigt 4u vóór A.start=wo08 ⇒ geëiste finish di12; B ma12->di12; B tf=1d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u", "constraint": { "type": "SNET", "date": "2026-07-08" } },
+        { "name": "B", "dur": "8u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_FINISH", "lagMinutes": -240 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T12:00", "ef": "2026-07-07T12:00", "ls": "2026-07-07T12:00", "lf": "2026-07-08T12:00", "tf": 1, "ff": 1, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 3,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ss-hbreak-pos",
+      "title": "SS+4u op H-break (lunch 12:00-12:30). B start = A.start+4u; de 4u werktijd stapt over de lunch ⇒ B di12:30->di16:30.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "2": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "3": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "4": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "5": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T12:30", "ef": "2026-07-07T16:30", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0.5, "ff": 0.5, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-hbreak-pos",
+      "title": "FF+4u op H-break. B eindigt 4u ná A.finish (wo12); de lag stapt over de lunch ⇒ B wo12:30->wo16:30; A.lf snapt naar wo12:30 (work-equiv wo12).",
+      "note": "A.lf=wo12:30 (band-start ná lunch), work-equivalent aan A.ef=wo12:00 ⇒ A.tf=0. Cosmetisch band-grens-artefact, geen defect.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "2": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "3": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "4": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "5": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:30", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-08T12:30", "ef": "2026-07-08T16:30", "ls": "2026-07-08T12:30", "lf": "2026-07-08T16:30", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T16:30",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-sf-hbreak-zero",
+      "title": "SF+0 op H-break. B(8u) eindigt op A.start-grens (wo08) ⇒ B di08->di16:30 (8u werktijd incl. lunch-gat); B tf=0,5d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "2": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "3": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "4": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "5": [{ "start": 480, "end": 720 }, { "start": 750, "end": 990 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u", "constraint": { "type": "SNET", "date": "2026-07-08" } },
+        { "name": "B", "dur": "8u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T16:30", "ls": "2026-07-07T12:30", "lf": "2026-07-08T12:00", "tf": 0.5, "ff": 0.5, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ss-night-pos",
+      "title": "SS+4u op Night (22:00->06:00 wrap). A(8u) ma22->di06; B start A.start+4u=di02 (midden in de nachtdienst) ->di06; beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 1320, "end": 1800 }], "2": [{ "start": 1320, "end": 1800 }], "3": [{ "start": 1320, "end": 1800 }], "4": [{ "start": 1320, "end": 1800 }], "5": [{ "start": 1320, "end": 1800 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T22:00", "ef": "2026-07-07T06:00", "ls": "2026-07-06T22:00", "lf": "2026-07-07T06:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T02:00", "ef": "2026-07-07T06:00", "ls": "2026-07-07T02:00", "lf": "2026-07-07T06:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T06:00",
+        "projectDuration": 1,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-night-neg",
+      "title": "FF-4u (lead) op Night. B eindigt 4u vóór A.finish (di06) = di02; B ma22->di02; B tf=0,5d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 1320, "end": 1800 }], "2": [{ "start": 1320, "end": 1800 }], "3": [{ "start": 1320, "end": 1800 }], "4": [{ "start": 1320, "end": 1800 }], "5": [{ "start": 1320, "end": 1800 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lagMinutes": -240 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T22:00", "ef": "2026-07-07T06:00", "ls": "2026-07-06T22:00", "lf": "2026-07-07T06:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T22:00", "ef": "2026-07-07T02:00", "ls": "2026-07-07T02:00", "lf": "2026-07-07T06:00", "tf": 0.5, "ff": 0.5, "crit": false }
+        },
+        "projectEnd": "2026-07-07T06:00",
+        "projectDuration": 1,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-h8-weekend",
+      "title": "FF+8u over het weekend (H8). A(4u,SNET vr) vr08->vr12; geëiste finish B = vr12+8u = ma13-jul 12:00; B(6u) vr14->ma13-12:00; beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u", "constraint": { "type": "SNET", "date": "2026-07-10" } },
+        { "name": "B", "dur": "6u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": "8u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10T08:00", "ef": "2026-07-10T12:00", "ls": "2026-07-10T08:00", "lf": "2026-07-10T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-10T14:00", "ef": "2026-07-13T12:00", "ls": "2026-07-10T14:00", "lf": "2026-07-13T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-13T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ss-elapsed-hour",
+      "title": "SS+24u ELAPSEDTIME op H8 (24/7-klok). B start = A.start + 24 klokuren = di08 (werk-instant); vgl. WORKTIME zou 3 werkdagen zijn.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": "24u", "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T16:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-elapsed-hour",
+      "title": "FF+24u ELAPSEDTIME op H8. Geëiste finish = A.finish (ma12) + 24 klokuren = di12; B di08->di12; beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": "24u", "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ss-cross-h8-h10",
+      "title": "SS+4u cross-kalender: A op H8 (project), B(5u) op H10. Lag telt in de VOORGANGER-kalender (H8) ⇒ B.start = ma12; B 5u@H10 -> ma17.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "calendars": [{ "name": "H10", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1080 }], "2": [{ "start": 480, "end": 1080 }], "3": [{ "start": 480, "end": 1080 }], "4": [{ "start": 480, "end": 1080 }], "5": [{ "start": 480, "end": 1080 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A", "dur": "4u" },
+        { "name": "B", "dur": "5u", "calendar": "H10" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T12:00", "ef": "2026-07-06T17:00", "ls": "2026-07-06T12:00", "lf": "2026-07-06T17:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-06T17:00",
+        "projectDuration": 1,
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ss-succ-startms",
+      "title": "SS+4u naar START-mijlpaal opvolger (uur). M op A.start+4u = di12; M dagbegin-anker, tf=1d.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "M", "milestone": true, "milestoneKind": "START" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "START_START", "lag": "4u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-07T12:00", "ef": "2026-07-07T12:00", "ls": "2026-07-08T12:00", "lf": "2026-07-08T12:00", "tf": 1, "ff": 1, "crit": false }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-succ-finishms",
+      "title": "FF+0 naar FINISH-mijlpaal opvolger (uur). M eindigt gelijk met A (wo12); beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-08T12:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T12:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "M"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-succ-startms",
+      "title": "FF+0 naar START-mijlpaal opvolger (uur), grensvlag succIsStartMs. M snapt strikt-ná A.finish naar de VOLGENDE werkdag (do08), niet wo12; drijft de driver A naar niet-kritiek.",
+      "note": "LET OP — pint mogelijk verrassend gedrag: een START-mijlpaal als FF-opvolger landt op de eerstvolgende werk-instant NA de driver-finish (do08:00, een hele werkdag later), waardoor A speling krijgt (tf=0,5, ff=0) en niet-kritiek wordt terwijl M kritiek is. Dit spiegelt de dag-modus-semantiek (nextWorkDayAfter voor een startmijlpaal-FF-opvolger, §4.4 grens-model), maar de combinatie FF->startmijlpaal is ongebruikelijk. Geen mirror-/float-schending; reviewer: bevestig dat dit de gewenste P6-lezing is.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "12u", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "M", "milestone": true, "milestoneKind": "START" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-07T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T12:00", "lf": "2026-07-09T08:00", "tf": 0.5, "ff": 0, "crit": false },
+          "M": { "es": "2026-07-09T08:00", "ef": "2026-07-09T08:00", "ls": "2026-07-09T08:00", "lf": "2026-07-09T08:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-09T08:00",
+        "projectDuration": 3,
+        "criticalPathSet": ["M"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-sf-pred-finishms",
+      "title": "SF+0 vanuit FINISH-mijlpaal voorganger (uur), grensvlag predStartsNextDay. M(SNET wo) wo08; B(8u) wo08->wo16; M tf=1d ff=0.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "constraint": { "type": "SNET", "date": "2026-07-08" } },
+        { "name": "B", "dur": "8u" }
+      ],
+      "links": [{ "pred": "M", "succ": "B", "type": "START_FINISH" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-08T08:00", "ef": "2026-07-08T08:00", "ls": "2026-07-08T16:00", "lf": "2026-07-08T16:00", "tf": 1, "ff": 0, "crit": false },
+          "B": { "es": "2026-07-08T08:00", "ef": "2026-07-08T16:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T16:00",
+        "projectDuration": 1,
+        "criticalPathSet": ["B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ss-pred-finishms",
+      "title": "SS+0 vanuit FINISH-mijlpaal voorganger (uur), grensvlag predStartsNextDay. M(SNET di) di08; B start de werkdag ná M ⇒ wo08->wo12; M tf=1d ff=0.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "M", "succ": "B", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-07T08:00", "ef": "2026-07-07T08:00", "ls": "2026-07-07T16:00", "lf": "2026-07-07T16:00", "tf": 1, "ff": 0, "crit": false },
+          "B": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-fs-succ-finishms",
+      "title": "FS+0 naar FINISH-mijlpaal opvolger (uur): M ankert op de finish-grens van A zélf (ma12), geen band-boundary-+1; beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-06T12:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T12:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-06T12:00",
+        "projectDuration": 1,
+        "criticalPathSet": ["A", "M"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-fs-pred-startms",
+      "title": "FS+0 vanuit START-mijlpaal voorganger (uur): dagbegin-mijlpaal, geen band-boundary-+1 ⇒ B start dezelfde band-start ma08->ma12.",
+      "note": "LET OP — pint een dag/uur-asymmetrie: forward geeft M.ef=ma08:00, maar de backward hour-hour-FS past prevWorkInstant onvoorwaardelijk toe (ook bij predEndsBeginOfDay) ⇒ M.ls/lf=vr03-16:00 (vorige vrijdag-band-eind), terwijl de DAG-modus in dezelfde tak GEEN prevWorkDayBefore doet en het doeldatum-label behoudt. Work-equivalent (nul werk in het weekend ⇒ M.tf=0, kritiek), dus geen scheduling-fout, maar een echte mirror-representatie-divergentie tussen dag- en uur-modus in de FS-backward-startmijlpaal-tak. Reviewer: kandidaat-defect om te bevestigen/normaliseren.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "M", "milestone": true, "milestoneKind": "START" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-06T08:00", "ef": "2026-07-06T08:00", "ls": "2026-07-03T16:00", "lf": "2026-07-03T16:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-06T12:00",
+        "projectDuration": 1,
+        "criticalPathSet": ["M", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-ff-startms-na-startms",
+      "title": "FF+0 START-mijlpaal -> START-mijlpaal (uur): dagbegin-voorganger onderdrukt de strikt-ná-snap ⇒ beide op ma08; nul-lengte-project; beide kritiek.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "M1", "milestone": true, "milestoneKind": "START" },
+        { "name": "M2", "milestone": true, "milestoneKind": "START" }
+      ],
+      "links": [{ "pred": "M1", "succ": "M2", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "M1": { "es": "2026-07-06T08:00", "ef": "2026-07-06T08:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T08:00", "tf": 0, "crit": true },
+          "M2": { "es": "2026-07-06T08:00", "ef": "2026-07-06T08:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T08:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-06T08:00",
+        "projectDuration": 0,
+        "criticalPathSet": ["M1", "M2"],
+        "error": false
+      }
+    }
+  ]
+}
