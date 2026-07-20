@@ -63,6 +63,20 @@ export function MoveProjectDialog() {
   const calendarIntervened = !!preview && !preview.error && preview.endAfter !== '' &&
     (preview.endDeltaDays !== preview.deltaDays || preview.durationBefore !== preview.durationAfter);
 
+  // Meeverschoven-detailregel. Bewust GEEN doorlopende zin met vijf tellingen erin: die kan per
+  // telling enkelvoud of meervoud nodig hebben ("1 deadlines") en dat is met één sleutel niet op te
+  // lossen. In de "label: aantal"-vorm congrueert het label niet met het getal, dus is de regel in
+  // elke taal correct zonder pluralisatie. Nul-categorieën vallen weg — "0 deadlines" was ruis.
+  const detailItems = !preview || preview.error ? [] : ([
+    ['detailConstraints', preview.impact.constraintCount],
+    ['detailDeadlines', preview.impact.deadlineCount],
+    ['detailActuals', preview.impact.actualCount],
+    ['detailExternal', preview.impact.externalLinkCount],
+    ['detailSteps', preview.impact.availabilityStepCount],
+  ] as const)
+    .filter(([, n]) => n > 0)
+    .map(([key, n]) => `${t(`moveProject.${key}`)}: ${n}`);
+
   return (
     <Dialog
       onBackdropClick={close}
@@ -191,15 +205,11 @@ export function MoveProjectDialog() {
                         )}
 
                         <div>{t('moveProject.affectedTasks', { count: preview.impact.taskCount })}</div>
-                        <div className="text-[11px]" style={{ color: 'var(--theme-text-dim)' }}>
-                          {t('moveProject.affectedDetail', {
-                            constraints: preview.impact.constraintCount,
-                            deadlines: preview.impact.deadlineCount,
-                            actuals: preview.impact.actualCount,
-                            external: preview.impact.externalLinkCount,
-                            steps: preview.impact.availabilityStepCount,
-                          })}
-                        </div>
+                        {detailItems.length > 0 && (
+                          <div className="text-[11px]" style={{ color: 'var(--theme-text-dim)' }}>
+                            {t('moveProject.affectedDetail', { items: detailItems.join(' · ') })}
+                          </div>
+                        )}
                       </>
                     )}
 

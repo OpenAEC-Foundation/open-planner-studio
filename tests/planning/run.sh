@@ -150,6 +150,20 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --outfile="$GFCHECK" >/dev/null 2>&1
   node "$GFCHECK" || STATUS=1
 
+  # i18n-pluralisatie-contract voor de telsleutels van "Project verplaatsen…". Een ontbrekende
+  # plural-categorie valt bij i18next NIET terug op de _other van dezelfde taal maar op fallbackLng,
+  # en zet er dus Engels neer (in het Pools al zichtbaar bij twee items). Deze check eist per taal
+  # exact de categorieën die Intl.PluralRules opgeeft, en vuurt ze daarna nog echt af.
+  I18NCHECK="$DIR/.i18n-plurals.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-i18n-plurals.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$I18NCHECK" >/dev/null 2>&1
+  node "$I18NCHECK" || STATUS=1
+
   # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
   #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een
   #      eigen tsconfig die alleen check-ifc-roundtrip.ts typecheckt (`satisfies Required<...>`); een

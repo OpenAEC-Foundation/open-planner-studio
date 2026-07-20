@@ -7,6 +7,15 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Opgelost (kleine punten uit de 2.10-triage, 2026-07-20)
+- **"Project verplaatsen…" toonde meervoud bij één item.** De waarschuwingsregels schreven
+  "1 taken hebben een harde Mandatory-pin" en "1 externe koppelingen"; de detailregel maakte er
+  "1 deadlines" van. De vijf telsleutels gebruiken nu i18next-pluralisatie in alle veertien talen.
+  Daarbij bleek een addertje: ontbreekt één plural-categorie in een taal, dan valt i18next **niet**
+  terug op de `_other` van diezelfde taal maar op `fallbackLng` — een Poolse gebruiker met twéé
+  items kreeg dan Engelse tekst te zien. Elke taal heeft daarom precies de categorieën die CLDR
+  voorschrijft (Pools vier, Arabisch zes), bewaakt door de nieuwe batterij `check-i18n-plurals`.
+  De detailregel is omgebouwd van één zin met vijf tellingen naar "label: aantal", waarin het label
+  niet met het getal congrueert; nul-categorieën vallen nu weg in plaats van "0 deadlines" te tonen.
 - **Lag ging verloren in de backward-uurberekening bij een mijlpaal-voorganger.** In de
   eind-startrelatie deden de grensvlaggen `predEndsBeginOfDay`/`succIsFinishMs` dubbel werk: ze
   onderdrukten naast de finish-normalisatie óók de lag, terwijl de dagberekening de lag altijd
