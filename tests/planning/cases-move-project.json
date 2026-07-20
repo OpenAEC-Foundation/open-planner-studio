@@ -1,0 +1,312 @@
+{
+  "_doc": "Pakket D1 — 'Project verplaatsen'. Basisnet voor de meeste cases: A (5 werkdagen) -> FS -> B (3 werkdagen), anker 2026-06-01 (maandag), schone kalender (ma-vr, geen feestdagen). Zonder verschuiving: A 06-01..06-05, B 06-08..06-10, projectEnd 06-10, projectDuration 8. Alle verwachte datums met de hand nagerekend uit de werkdagtabel (anti-circulariteitsregel van de suite), niet uit de solver.",
+  "cases": [
+    {
+      "id": "move-01",
+      "title": "Basisverschuiving met een veelvoud van 7 => identieke vorm. Delta=+7 (2026-06-08, ma).",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-08" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-12" },
+          "B": { "es": "2026-06-15", "ef": "2026-06-17" }
+        },
+        "projectEnd": "2026-06-17",
+        "projectDuration": 8,
+        "projectStartDate": "2026-06-08",
+        "scheduleStale": false,
+        "error": false
+      }
+    },
+    {
+      "id": "move-02",
+      "title": "Delta geen veelvoud van 7 => weekdagen verschuiven, duur blijft. Delta=+2 (2026-06-03, wo).",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-03" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-03", "ef": "2026-06-09" },
+          "B": { "es": "2026-06-10", "ef": "2026-06-12" }
+        },
+        "projectEnd": "2026-06-12",
+        "projectDuration": 8,
+        "projectStartDate": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "move-03",
+      "title": "R10 shift-dan-snap: het anker landt op zaterdag 2026-06-06 (Delta=+5) en wordt door de forward pass naar maandag getild. Differentieel t.o.v. move-01: dezelfde uitkomst bij een ANDERE Delta.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-06" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-12" },
+          "B": { "es": "2026-06-15", "ef": "2026-06-17" }
+        },
+        "projectEnd": "2026-06-17",
+        "projectDuration": 8,
+        "projectStartDate": "2026-06-06",
+        "error": false
+      }
+    },
+    {
+      "id": "move-04",
+      "title": "R1 verschuiving naar het VERLEDEN. Delta=-7 (2026-05-25, ma). Volledig symmetrisch; de projectstart-vloer schuift mee, dus geen afgekapte lead.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-05-25" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-05-25", "ef": "2026-05-29" },
+          "B": { "es": "2026-06-01", "ef": "2026-06-03" }
+        },
+        "projectEnd": "2026-06-03",
+        "projectDuration": 8,
+        "projectStartDate": "2026-05-25",
+        "truncatedLeadSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "move-05",
+      "title": "KERNCASE (ontwerpbesluit 2): de KALENDER schuift NIET mee. Bouwvakweek 2026-06-22..06-26; moveProject 2026-06-22 (Delta=+21). Het anker landt IN de bouwvak en wordt naar 06-29 gesnapt, dus het EINDE schuift 28 kalenderdagen (06-10 -> 07-08) terwijl Delta=21. De duur in werkdagen blijft 8.",
+      "calendar": {
+        "holidays": [{ "name": "Bouwvak", "startDate": "2026-06-22", "endDate": "2026-06-26" }]
+      },
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-22" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-29", "ef": "2026-07-03" },
+          "B": { "es": "2026-07-06", "ef": "2026-07-08" }
+        },
+        "projectEnd": "2026-07-08",
+        "projectDuration": 8,
+        "projectStartDate": "2026-06-22",
+        "error": false
+      }
+    },
+    {
+      "id": "move-06",
+      "title": "R2 jaargrens: kerstsluiting 2026-12-25..2027-01-01; moveProject 2026-12-21 (ma, Delta=+203). A werkt 12-21..12-24 (4 dagen), springt over de sluiting en het weekend heen en pakt zijn 5e dag op 2027-01-04.",
+      "calendar": {
+        "holidays": [{ "name": "Kerstsluiting", "startDate": "2026-12-25", "endDate": "2027-01-01" }]
+      },
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-12-21" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-12-21", "ef": "2027-01-04" },
+          "B": { "es": "2027-01-05", "ef": "2027-01-07" }
+        },
+        "projectEnd": "2027-01-07",
+        "projectDuration": 8,
+        "projectStartDate": "2026-12-21",
+        "error": false
+      }
+    },
+    {
+      "id": "move-07",
+      "title": "R3 leeg project: geen taken. De actie moet SLAGEN en alleen de projectdatums verschuiven; het projecteinde blijft LEEG. Historie: de solver rapporteerde hier ooit 1970-01-01 — zijn projectEnd-accumulator start op new Date(0) en zonder enkele earlyFinish bleef hij daarop staan, terwijl alleen de FOUT-terugval '' gaf. Sinds pakket P is dat bij de bron opgelost (scheduleAnalysis: nul early-resultaten => projectEnd '' en projectDuration 0), zodat de epoch-datum nergens meer als echte einddatum kan lezen. Zie ook edge-empty-project-01, dat dezelfde invariant zonder moveProject bewaakt.",
+      "tasks": [],
+      "afterCPM": [{ "moveProject": { "newStart": "2027-03-01" } }],
+      "expect": {
+        "projectEnd": "",
+        "projectStartDate": "2027-03-01",
+        "error": false
+      }
+    },
+    {
+      "id": "move-08",
+      "title": "Constraint EN deadline schuiven mee. A: SNET 2026-06-08 + deadline 2026-06-15; moveProject 2026-06-08 (Delta=+7) => SNET 06-15, deadline 06-22. Differentieel: zou de deadline BLIJVEN staan (06-15), dan zou A met ef 06-19 zijn deadline missen.",
+      "tasks": [
+        { "name": "A", "dur": 5, "constraint": { "type": "SNET", "date": "2026-06-08" }, "deadline": "2026-06-15" },
+        { "name": "B", "dur": 3 }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-08" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-15", "ef": "2026-06-19" },
+          "B": { "es": "2026-06-22", "ef": "2026-06-24" }
+        },
+        "projectEnd": "2026-06-24",
+        "projectStartDate": "2026-06-08",
+        "missedDeadlinesSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "move-09",
+      "title": "R4 harde Mandatory-pin: B heeft MSO 2026-06-15 met hard:true. Na moveProject 2026-06-08 (Delta=+7) pint B onvoorwaardelijk op de VERSCHOVEN datum 2026-06-22 (de pin is een afspraak op de PLANNING, niet op de kalender).",
+      "tasks": [
+        { "name": "A", "dur": 5 },
+        { "name": "B", "dur": 3, "constraint": { "type": "MSO", "date": "2026-06-15", "hard": true } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-08" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-12" },
+          "B": { "es": "2026-06-22", "ef": "2026-06-24", "tf": 0 }
+        },
+        "projectEnd": "2026-06-24",
+        "projectStartDate": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "move-10",
+      "title": "R6 extern anker schuift mee: A heeft een externe FS-voorganger met anchorDate 2026-06-05. Na moveProject 2026-06-08 (Delta=+7) staat het anker op vrijdag 06-12 en start A op maandag 06-15. Het BRONproject schuift niet mee — dat is een preview-waarschuwing, geen state-wijziging.",
+      "tasks": [
+        {
+          "name": "A", "dur": 5,
+          "externalLinks": [{ "direction": "predecessor", "relType": "FS", "anchorDate": "2026-06-05" }]
+        },
+        { "name": "B", "dur": 3 }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-08" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-15", "ef": "2026-06-19" },
+          "B": { "es": "2026-06-22", "ef": "2026-06-24" }
+        },
+        "projectEnd": "2026-06-24",
+        "projectStartDate": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "move-11",
+      "title": "R5 statusdatum EN actuals schuiven met dezelfde Delta => de relatie 'wat is af t.o.v. de data date' blijft EXACT behouden. statusDate 06-03, A actualStart 06-01 met 40% van 5 dagen af; moveProject 2026-06-15 (Delta=+14) => statusDate 06-17, actualStart 06-15. Het restwerk (3 dagen) start op de nieuwe data date 06-17.",
+      "statusDate": "2026-06-03",
+      "tasks": [
+        { "name": "A", "dur": 5, "actualStart": "2026-06-01", "completion": 0.4 },
+        { "name": "B", "dur": 3 }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-15" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-15", "ef": "2026-06-19" },
+          "B": { "es": "2026-06-22", "ef": "2026-06-24" }
+        },
+        "projectEnd": "2026-06-24",
+        "projectStartDate": "2026-06-15",
+        "error": false
+      }
+    },
+    {
+      "id": "move-12",
+      "title": "EEN undo-stap, INCLUSIEF de projectdatums. moveProject +7, dan undo, dan runCPM => alles terug op de oorspronkelijke datums EN project.startDate terug op 2026-06-01. Zonder het volledige project in de undo-snapshot faalt deze case op projectStartDate.",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [
+        { "moveProject": { "newStart": "2026-06-08" } },
+        { "undo": true },
+        { "runCPM": true }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05" },
+          "B": { "es": "2026-06-08", "ef": "2026-06-10" }
+        },
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "projectStartDate": "2026-06-01",
+        "error": false
+      }
+    },
+    {
+      "id": "move-13",
+      "title": "Baselines schuiven standaard NIET mee (paragraaf 1.6): een baseline bestaat om AFWIJKING te meten, dus meeschuiven zou precies het signaal wissen waarvoor hij is aangemaakt. Na moveProject +7 zonder shiftBaselines staat baseline-taak A nog op 06-01..06-05 terwijl de planning op 06-08..06-12 ligt.",
+      "baseline": true,
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-08" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-12" },
+          "B": { "es": "2026-06-15", "ef": "2026-06-17" }
+        },
+        "baselineTasks": {
+          "A": { "start": "2026-06-01", "finish": "2026-06-05" },
+          "B": { "start": "2026-06-08", "finish": "2026-06-10" }
+        },
+        "projectStartDate": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "move-13b",
+      "title": "Spiegelcase van move-13: MET shiftBaselines schuiven de baseline-datums wel mee (rebaseline-intentie). Differentieel bewijs dat de vlag echt iets doet.",
+      "baseline": true,
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-08", "shiftBaselines": true } }],
+      "expect": {
+        "baselineTasks": {
+          "A": { "start": "2026-06-08", "finish": "2026-06-12" },
+          "B": { "start": "2026-06-15", "finish": "2026-06-17" }
+        },
+        "projectStartDate": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "move-14",
+      "title": "UUR-MODUS: het tijdstip-op-de-dag blijft EXACT behouden (paragraaf 2). Uur-kalender 08:00-16:00; A (4u) ankert op 2026-07-06T13:00. Na moveProject 2026-07-13 (Delta=+7) start A op 2026-07-13T13:00 en loopt 3u door tot 16:00 plus 1u de volgende ochtend => ef 2026-07-14T09:00. Differentieel: zou de shift de tijdcomponent verliezen (of naar het eerstvolgende werkmoment snappen), dan stond A op T08:00.",
+      "anchor": "2026-07-06",
+      "calendar": {
+        "workTime": {
+          "byWeekday": {
+            "1": [{ "start": 480, "end": 960 }],
+            "2": [{ "start": 480, "end": 960 }],
+            "3": [{ "start": 480, "end": 960 }],
+            "4": [{ "start": 480, "end": 960 }],
+            "5": [{ "start": 480, "end": 960 }],
+            "6": [],
+            "7": []
+          }
+        }
+      },
+      "tasks": [{ "name": "A", "dur": "4u", "start": "2026-07-06T13:00" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-07-13" } }],
+      "expect": {
+        "tasks": { "A": { "es": "2026-07-13T13:00", "ef": "2026-07-14T09:00" } },
+        "projectEnd": "2026-07-14T09:00",
+        "projectStartDate": "2026-07-13",
+        "error": false
+      }
+    },
+    {
+      "id": "move-15",
+      "title": "R8 Delta=0 is een VOLLEDIGE no-op: geen loze undo-stap. Opzet: B krijgt duur 5 (echte mutatie, pusht een snapshot), dan moveProject naar de ONGEWIJZIGDE startdatum, dan undo. De undo moet de duur-wijziging terugdraaien. Zou moveProject een lege snapshot hebben gepusht, dan at de undo die op en bleef B op duur 5 staan (projectEnd 06-12 i.p.v. 06-10).",
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 3 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [
+        { "setDuration": { "task": "B", "dur": 5 } },
+        { "moveProject": { "newStart": "2026-06-01" } },
+        { "undo": true },
+        { "runCPM": true }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-05" },
+          "B": { "es": "2026-06-08", "ef": "2026-06-10" }
+        },
+        "projectEnd": "2026-06-10",
+        "projectDuration": 8,
+        "projectStartDate": "2026-06-01",
+        "error": false
+      }
+    }
+  ]
+}

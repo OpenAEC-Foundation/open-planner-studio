@@ -156,7 +156,8 @@
     "manageLayouts": "管理…",
     "presentationMode": "演示",
     "splitView": "拆分视图",
-    "miniMap": "小地图"
+    "miniMap": "小地图",
+    "moveProject": "移动项目…"
   },
   "ifc": {
     "title": "IFC 编辑器",

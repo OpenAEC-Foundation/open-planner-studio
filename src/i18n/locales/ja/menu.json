@@ -156,7 +156,8 @@
     "manageLayouts": "管理…",
     "presentationMode": "プレゼンテーション",
     "splitView": "分割ビュー",
-    "miniMap": "ミニマップ"
+    "miniMap": "ミニマップ",
+    "moveProject": "プロジェクトを移動…"
   },
   "ifc": {
     "title": "IFC エディタ",

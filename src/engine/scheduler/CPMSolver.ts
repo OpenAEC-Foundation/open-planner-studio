@@ -66,13 +66,33 @@ export interface CPMOptions {
  * Effectieve lag in dagen van een relatie: procent-lag wordt uit de ACTUELE voorgangerduur
  * opgelost (MSP-semantiek, afgerond op hele dagen), anders geldt lagDays. Gedeeld met de UI
  * (relatietabel-waarschuwingen) zodat er één definitie bestaat.
+ *
+ * `hoursPerDay` (optioneel, fase 2.10) = de dag↔minuut-factor van de kalender waarin de lag telt —
+ * de VOORGANGER-kalender voor WORKTIME (`LAG_CALENDAR='predecessor'`), 24 voor ELAPSEDTIME. Alleen
+ * mét die factor kan een lag die uitsluitend als `lagMinutes` bestaat (`lagDays = 0`) in DAGEN
+ * uitgedrukt worden. Zonder de factor (UI-aanroepers) is de functie byte-identiek aan vóór 2.10.
  */
-export function resolveEffectiveLagDays(seq: Sequence, predTask: Task): number {
+export function resolveEffectiveLagDays(seq: Sequence, predTask: Task, hoursPerDay?: number): number {
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     const predDur = predTask.isMilestone ? 0 : predTask.time.scheduleDuration;
     return Math.round((predDur * seq.lagPercent) / 100);
   }
-  return Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+  const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+  // Minuut-lag ZONDER dag-lag (fase 2.10). `p6xmlReader`/`mspdiReader` schrijven `lagDays: 0` +
+  // `lagMinutes` zodra de OPVOLGER in uur-modus staat, terwijl de solver de lag in de VOORGANGER-
+  // kalender oplost. Bij een DAG-voorganger viel de lag daardoor stil weg (exact lag 0, forward én
+  // backward) — stil dataverlies op een reëel importpad. Reken hem om naar hele dagen met de
+  // meegegeven factor; half rondt van nul af, zodat een lead (negatief) symmetrisch behandeld wordt.
+  // `lagDays ≠ 0` blijft leidend: het IFC-pad vult beide velden (`parseDurationDays` rondt `PT4H`
+  // naar boven op 1 dag) en blijft zo byte-identiek.
+  if (
+    days === 0 && typeof hoursPerDay === 'number' && hoursPerDay > 0 &&
+    typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes) && seq.lagMinutes !== 0
+  ) {
+    const raw = seq.lagMinutes / (hoursPerDay * 60);
+    return Math.sign(raw) * Math.round(Math.abs(raw));
+  }
+  return days;
 }
 
 export interface CPMTaskResult {
@@ -231,8 +251,9 @@ export class CPMSolver {
    *  krijgt aangereikt. Ze blijven hier gedefinieerd (delen de dag↔uur-reductie met de rest van de
    *  solver); `forwardConstraint`/`backwardConstraint` draaien de FS/SS/FF/SF-formules erop. */
   private readonly relDeps: RelationDeps = {
-    resolveLag: (seq, predTask) => this.resolveLag(seq, predTask),
-    resolveEffectiveLagDays: (seq, predTask) => resolveEffectiveLagDays(seq, predTask),
+    resolveLag: (seq, predTask, predEng) => this.resolveLag(seq, predTask, predEng),
+    resolveEffectiveLagDays: (seq, predTask, predEng) =>
+      resolveEffectiveLagDays(seq, predTask, predEng.hoursPerDay),
     resolveElapsedMinutes: (seq, predTask) => this.resolveElapsedMinutes(seq, predTask),
     shiftLagPred: (predEng, base, seq, predTask, sign) => this.shiftLagPred(predEng, base, seq, predTask, sign),
     startFromFinish: (eng, finish, task) => this.startFromFinish(eng, finish, task),
@@ -286,7 +307,11 @@ export class CPMSolver {
     if (predEng.isHourMode) {
       return predEng.addWorkingMinutesSigned(base, sign * this.resolveLagMinutes(seq, predTask, predEng));
     }
-    return predEng.addWorkingDaysSigned(base, sign * resolveEffectiveLagDays(seq, predTask));
+    // Dag-voorganger: WORKTIME-lag in dagen; `hoursPerDay` van de voorganger-kalender vertaalt een
+    // lag die alleen als `lagMinutes` bestaat (fase 2.10, zie `resolveEffectiveLagDays`).
+    return predEng.addWorkingDaysSigned(
+      base, sign * resolveEffectiveLagDays(seq, predTask, predEng.hoursPerDay),
+    );
   }
 
   /** Leid de opvolger-START af uit zijn geëiste FINISH (FF/SF, §5.2): uur ⇒ `subtractWorkMinutes`;
@@ -557,7 +582,12 @@ export class CPMSolver {
             const c = this.seqConstraint.get(seq.id);
             const predTask = this.tasks.get(seq.predecessorId);
             if (!c || !predTask) continue;
-            if (formatDate(c) === formatDate(rawMax) && resolveEffectiveLagDays(seq, predTask) < 0) {
+            // Zelfde lag-resolutie als de relatie-wiskunde zelf (incl. `lagMinutes`-only, fase 2.10),
+            // anders wordt een lead die alleen in minuten bestaat niet als afgekapt gemarkeerd.
+            const predLagDays = resolveEffectiveLagDays(
+              seq, predTask, this.calendarFor(predTask).hoursPerDay,
+            );
+            if (formatDate(c) === formatDate(rawMax) && predLagDays < 0) {
               this.truncatedLeadIds.push(seq.id);
             }
           }
@@ -1017,10 +1047,14 @@ export class CPMSolver {
     }
   }
 
-  /** Effectieve lag van een relatie: dagen (via resolveEffectiveLagDays) + eenheid. */
-  private resolveLag(seq: Sequence, predTask: Task): { days: number; unit: LagUnit } {
+  /** Effectieve lag van een relatie: dagen (via resolveEffectiveLagDays) + eenheid. De dag↔minuut-
+   *  factor waarmee een `lagMinutes`-only-lag in dagen wordt uitgedrukt volgt de eenheid: WORKTIME
+   *  telt in WERKuren van de VOORGANGER-kalender (§5.2), ELAPSEDTIME 24/7 in klokuren — exact de
+   *  factoren die `resolveLagMinutes`/`resolveElapsedMinutes` in uur-modus gebruiken. */
+  private resolveLag(seq: Sequence, predTask: Task, predEng: CalendarEngine): { days: number; unit: LagUnit } {
     const unit: LagUnit = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
-    return { days: resolveEffectiveLagDays(seq, predTask), unit };
+    const hpd = unit === 'ELAPSEDTIME' ? 24 : predEng.hoursPerDay;
+    return { days: resolveEffectiveLagDays(seq, predTask, hpd), unit };
   }
 
   private backwardPass(

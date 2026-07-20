@@ -250,6 +250,97 @@
           "B": { "es": "2026-06-01", "ef": "2026-06-02" }
         }
       }
+    },
+    {
+      "id": "lagadv-minutes-daypred-hoursucc",
+      "title": "MINUUT-lag zonder dag-lag bij een DAG-voorganger, cross-modus: D(2d, dag) -> H(4u, H8), lagMinutes 480 en lagDays 0. Precies wat p6xmlReader/mspdiReader schrijven zodra de OPVOLGER in uur-modus staat. 480 min / (8u x 60) = 1 werkdag in de VOORGANGER-kalender; voor de fix verdampte de lag volledig (H startte 07-08T08:00).",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "D", "dur": 2 },
+        { "name": "H", "dur": "4u", "calendar": "H8" }
+      ],
+      "links": [{ "pred": "D", "succ": "H", "type": "FINISH_START", "lagMinutes": 480 }],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
+          "H": { "es": "2026-07-09T08:00", "ef": "2026-07-09T12:00", "ls": "2026-07-09T08:00", "lf": "2026-07-09T12:00", "tf": 0, "crit": true }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "lagadv-minutes-daypred-daysucc",
+      "title": "MINUUT-lag zonder dag-lag, puur dag->dag: D(2d) -> E(1d), lagMinutes 480. Zelfde omrekening (1 werkdag) in de dag-tak van de relatie-wiskunde; voor de fix startte E op 07-08.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "D", "dur": 2 },
+        { "name": "E", "dur": 1 }
+      ],
+      "links": [{ "pred": "D", "succ": "E", "type": "FINISH_START", "lagMinutes": 480 }],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
+          "E": { "es": "2026-07-09", "ef": "2026-07-09", "ls": "2026-07-09", "lf": "2026-07-09", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-09",
+        "projectDuration": 4,
+        "error": false
+      }
+    },
+    {
+      "id": "lagadv-minutes-daypred-lead-halftie",
+      "title": "MINUUT-LEAD zonder dag-lag, puur dag->dag: lagMinutes -240 = -0,5 werkdag. Rondt van NUL AF (-1 werkdag), zodat een lead niet stil naar 0 kantelt zoals Math.round(-0,5) zou doen. E start 07-07, tegelijk met de tweede dag van D.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "D", "dur": 2 },
+        { "name": "E", "dur": 1 }
+      ],
+      "links": [{ "pred": "D", "succ": "E", "type": "FINISH_START", "lagMinutes": -240 }],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
+          "E": { "es": "2026-07-07", "ef": "2026-07-07", "ls": "2026-07-07", "lf": "2026-07-07", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07",
+        "projectDuration": 2,
+        "error": false
+      }
+    },
+    {
+      "id": "lagadv-minutes-daypred-lagdays-wins",
+      "title": "REGRESSIE-ANKER: staan lagDays EN lagMinutes allebei (het IFC-pad -- parseDurationDays rondt PT4H naar boven op 1 dag naast lagMinutes 240), dan blijft lagDays leidend. E start 07-09, niet 07-08.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "D", "dur": 2 },
+        { "name": "E", "dur": 1 }
+      ],
+      "links": [{ "pred": "D", "succ": "E", "type": "FINISH_START", "lag": 1, "lagMinutes": 240 }],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
+          "E": { "es": "2026-07-09", "ef": "2026-07-09", "ls": "2026-07-09", "lf": "2026-07-09", "tf": 0, "crit": true }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "lagadv-minutes-hourpred-unchanged",
+      "title": "REGRESSIE-ANKER voor de UUR-voorganger: die honoreerde lagMinutes altijd al via resolveLagMinutes en moet byte-identiek blijven. H1(4u) -> H2(4u) op de H8-projectkalender met lagMinutes 240: H1 eindigt ma 12:00, +4 werkuren = ma 16:00 (bandeind) => H2 start di 08:00.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "H1", "dur": "4u" },
+        { "name": "H2", "dur": "4u" }
+      ],
+      "links": [{ "pred": "H1", "succ": "H2", "type": "FINISH_START", "lagMinutes": 240 }],
+      "expect": {
+        "tasks": {
+          "H1": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "H2": { "es": "2026-07-07T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T12:00", "tf": 0, "crit": true }
+        },
+        "error": false
+      }
     }
   ]
 }

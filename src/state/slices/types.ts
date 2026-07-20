@@ -145,6 +145,7 @@ export interface UIState {
   histogramHeight: number;                  // persisted — hoogte van de histogramstrook in px (fase 2.5)
   showLevelingDialog: boolean;              // session — nivelleer-dialoog open (fase 2.5)
   showBaselineDialog: boolean;              // session — baseline-dialoog open (fase 2.6)
+  showMoveProjectDialog: boolean;           // session — "Project verplaatsen…"-dialoog open (pakket D1)
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt (fase 2.6)
   showProgressLine: boolean;                // persisted — voortgangslijn in de Gantt (fase 2.6)
   showStatusDateLine: boolean;              // persisted — statusdatumlijn in de Gantt (fase 2.6)

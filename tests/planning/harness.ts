@@ -37,6 +37,8 @@
 //     drivingSet?: [[pred,succ,type]],  // welke relaties driving zijn (verzameling van triples)
 //     violatedConstraintsSet?: [names], missedDeadlinesSet?: [names],  // taak-namen (verzameling)
 //     projectEnd?, projectDuration?,
+//     projectStartDate?,           // project.startDate ná de afterCPM-ops (pakket D1: moveProject/undo)
+//     baselineTasks?: { [naam]: { start?, finish? } },  // datums in de ACTIEVE baseline (pakket D1 §1.6)
 //     load?: { [resName]: { [isoDate]: number } },              // spot-checks op resourceLoadResult.load
 //     overallocatedDays?: { [resName]: string[] },              // vergeleken als verzameling
 //     error?: boolean | string     // true => verwacht een fout; string => substring in de foutmelding
@@ -214,7 +216,11 @@ type AfterOp =
    *  de twee acties die de bug triggerde (addCalendar pusht een undo-snapshot, setProjectCalendar
    *  bewust niet, §9.3), zodat een navolgende `{ undo: true }` de bibliotheek-entry wegneemt terwijl
    *  `project.calendarId` er nog naar wijst. */
-  | { addCalendarAsDefault: { name: string } };
+  | { addCalendarAsDefault: { name: string } }
+  /** "Project verplaatsen" (pakket D1): verschuif de HELE planning naar een nieuwe startdatum.
+   *  `moveProject` draait zelf al `runCPM` + fit, dus een navolgende `{runCPM:true}` is optioneel.
+   *  `shiftBaselines` default false — baselines blijven dan bewust staan (§1.6). */
+  | { moveProject: { newStart: string; shiftBaselines?: boolean } };
 
 function resolveResourceIds(names: string[] | undefined, resIds: Record<string, string>, ctx: string): string[] | undefined {
   return names
@@ -547,6 +553,8 @@ function buildAndSolve(c: Case): {
         ...(resourceIds ? { resourceIds } : {}),
       });
       S().applyLeveling(r);
+    } else if ('moveProject' in op) {
+      S().moveProject(op.moveProject.newStart, { shiftBaselines: !!op.moveProject.shiftBaselines });
     } else if ('addCalendarAsDefault' in op) {
       const { id: _cid, ...calBase } = S().calendar;
       void _cid;
@@ -844,6 +852,28 @@ function runCase(c: Case) {
       if (fpbt[t.id] !== undefined) diffs.push(`hammock-invariant: "${name}" heeft floatPath ${fpbt[t.id]}`);
       if (nearIds.has(t.id)) diffs.push(`hammock-invariant: "${name}" in nearCriticalTaskIds`);
       if (cps.some((p) => p.includes(t.id))) diffs.push(`hammock-invariant: "${name}" in een criticalPaths-keten`);
+    }
+  }
+
+  // Projectstartdatum (pakket D1): het metadataveld dat `moveProject` exact op de gekozen datum zet
+  // — en dat een `undo` weer moet terugdraaien (move-12; bewaakt dat `project` in de undo-snapshot zit).
+  if (exp.projectStartDate !== undefined && S().project.startDate !== exp.projectStartDate)
+    diffs.push(`projectStartDate: verwacht ${exp.projectStartDate}, kreeg ${S().project.startDate}`);
+
+  // Baseline-taakdatums (pakket D1, §1.6): bewaakt dat een baseline standaard NIET meeschuift, zodat
+  // de verschuiving als afwijking zichtbaar blijft. Keyed op taaknaam.
+  if (exp.baselineTasks) {
+    const active = S().baselines.find((b) => b.id === S().activeBaselineId);
+    if (!active) diffs.push('baselineTasks: geen actieve baseline');
+    else {
+      for (const [name, want] of Object.entries<any>(exp.baselineTasks)) {
+        const bt = active.tasks.find((x) => x.taskId === ids[name]);
+        if (!bt) { diffs.push(`baselineTasks: taak "${name}" niet in de baseline`); continue; }
+        for (const [k, wv] of Object.entries<any>(want)) {
+          if ((bt as any)[k] !== wv)
+            diffs.push(`baselineTasks.${name}.${k}: verwacht ${JSON.stringify(wv)}, kreeg ${JSON.stringify((bt as any)[k])}`);
+        }
+      }
     }
   }
 

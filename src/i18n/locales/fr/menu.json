@@ -156,7 +156,8 @@
     "manageLayouts": "Gérer…",
     "presentationMode": "Présentation",
     "splitView": "Vue partagée",
-    "miniMap": "Mini-carte"
+    "miniMap": "Mini-carte",
+    "moveProject": "Déplacer le projet…"
   },
   "ifc": {
     "title": "Éditeur IFC",

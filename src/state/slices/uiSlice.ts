@@ -56,6 +56,7 @@ export function createDefaultUI(): UIState {
     histogramHeight: 160,
     showLevelingDialog: false,
     showBaselineDialog: false,
+    showMoveProjectDialog: false,
     showBaselineOverlay: true,
     showProgressLine: true,
     showStatusDateLine: true,

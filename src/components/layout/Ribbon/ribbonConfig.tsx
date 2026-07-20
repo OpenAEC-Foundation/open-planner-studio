@@ -10,6 +10,7 @@ import {
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
   ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays,
   Keyboard, Pin, PinOff, Compass,
+  CalendarClock,
 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { formatDate } from '@/utils/dateUtils';
@@ -287,8 +288,20 @@ const startTab: RibbonTabConfig = [
   },
 ];
 
+/** "Project verplaatsen…" (pakket D1) — schema-BREDE operatie, dus in de `schedule`-groep naast
+ *  Bereken; geen structuur-, kalender- of baseline-actie. Uitgeschakeld zonder projectstartdatum
+ *  (die is het referentiepunt van de verschuiving, R9). */
+const moveProjectButton: RibbonButtonSpec = {
+  kind: 'button', id: 'moveProject', icon: <CalendarClock size={20} />, labelKey: 'menu:ribbon.moveProject',
+  use: () => {
+    const setUI = useAppStore(s => s.setUI);
+    const hasStart = useAppStore(s => !!s.project.startDate);
+    return { onClick: () => setUI({ showMoveProjectDialog: true }), disabled: !hasStart };
+  },
+};
+
 const planningTab: RibbonTabConfig = [
-  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton] },
+  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton] },
   {
     id: 'relations', labelKey: 'menu:ribbon.relations',
     items: [

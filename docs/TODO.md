@@ -19,16 +19,28 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > showcase-generator, en het "plan vs. forecast"-punt was geen presentatiekwestie maar een echte
 > bug in het eigenschappenpaneel. Onderstaande punten zijn er tijdens dat werk bij gevonden.
 
-- [ ] **Cross-mode-FS-armen in `backwardHour` negeren de grensvlaggen volledig**
-      (`src/engine/scheduler/relationMath.ts`, de uur-pred/dag-succ- en dag-pred/uur-succ-armen).
-      Noch `predEndsBeginOfDay` noch `succIsFinishMs` komt erin voor, terwijl `forwardHour`'s
-      FS-tak ze mode-onafhankelijk toepast — een forward/backward-asymmetrie in dezelfde familie als
-      de op 2026-07-20 gefixte lag-verliesbug. **Alleen broncode-analyse, niet met een test
-      aangetoond**; eerst een falende case schrijven vóór er iets gewijzigd wordt.
-- [ ] **De dag-pred/uur-succ-arm leest de lag via `resolveEffectiveLagDays`, dat `seq.lagMinutes`
-      niet kent** — een in minuten uitgedrukte lag telt daar als 0. `forwardHour` doet hetzelfde,
-      dus forward en backward zijn onderling consistent; het is een unit-resolutiekwestie, geen
-      spiegelbreuk. Ook alleen broncode-analyse.
+> **Onderzocht op 2026-07-20 (headless probes tegen de echte solver).** Het vermoeden bestond uit
+> twee armen; er bleek er één echt te zijn.
+>
+> **VERWORPEN — de uur-pred/dag-succ-arm.** Daar ontbreken de grensvlaggen terecht: `predDoneAt` is
+> in uurmodus letterlijk de identiteit (`CalendarEngine.ts:495-498`), dus beide takken van de
+> forward-uitdrukking leveren dezelfde instant en er valt niets te spiegelen. Empirisch bevestigd:
+> alle varianten met vlaggen geven niet-negatieve float. **Niet opnieuw onderzoeken.**
+
+- [ ] **~~Dag-pred/uur-succ~~ — BEVESTIGD en in behandeling (2026-07-20).** In die arm is
+      `predDoneAt(ef)` gelijk aan `(ef + 1 dag)@00:00`; `forwardHour` onderdrukt die dagrand bij een
+      grensvlag, de backward-scanlus niet. Gemeten: dag-mijlpaal → uur-taak met FS 0 geeft
+      `tf = −1` waar het 0 moet zijn, en dezelfde netten puur dag→dag of puur uur→uur geven wél 0.
+      Ook bij lag 1 en 2. Geen enkele bestaande case pinde dit.
+- [ ] **Lag in minuten zonder dagen verdwijnt stil — BEVESTIGD en ERNSTIGER dan eerst genoteerd**
+      (2026-07-20). `resolveEffectiveLagDays` kent `seq.lagMinutes` niet, dus een lag met
+      `lagMinutes` gezet en `lagDays = 0` telt volledig als 0 (gemeten: `lagMinutes 240` geeft
+      exact dezelfde datums als lag 0). Dit is géén benigne eenheidskwestie: het is via import
+      bereikbaar, want `p6xmlReader.ts:520-528` en `mspdiReader.ts:388-405` keyen `lagMinutes` op de
+      **opvolger** terwijl de solver de lag in de **voorganger**-kalender oplost ⇒ P6-/MSPDI-import
+      met dag-voorganger en uur-opvolger verliest de lag zonder melding. IFC ontsnapt toevallig
+      (rondt `PT4H` op één dag af). Fix hoort in `resolveLag`/`shiftLagPred`. De lezer-kant is
+      **codelezing, geen import-fixture** — verifieer dat vóór je erop bouwt.
 - [ ] **Anker versus berekend: `scheduleStart` als datamodel-vraag.** Het paneelveld is op
       2026-07-20 gelijkgetrokken met de vier andere oppervlakken (toont `earlyStart || scheduleStart`,
       schrijft bij wijziging naar het anker), maar de onderliggende modellering blijft verwarrend: in
@@ -53,11 +65,53 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       verhelpen staat er inmiddels: `beginUndoable(s, { coalesceKey })` in `src/state/transaction.ts`
       (gebruikt door `setStatusDate`). Voor `updateTask` kan de key niet generiek zijn — die zou ook
       niet-datumbewerkingen en opeenvolgende Gantt-sleepacties samenvoegen — dus per veld kiezen.
+      **Onderzocht 2026-07-20:** 13 gebruiksplekken geïnventariseerd, 10 problematisch en 3 lokaal
+      (veilig). Correctie op de eerdere formulering: de start/finish-cellen in `TableEditor` zijn
+      géén `DateTextInput` en committeren al één keer. **Advies uit dat onderzoek: los het bij de
+      bron op** met een `commitMode`-prop (commit-op-blur) in plaats van per-actie coalesce-keys —
+      de gedeelde `task-sections`-componenten voeden zowel het eigenschappenpaneel als de
+      taakdialoog, dus een fix in het veld zelf dekt beide in één keer.
 - [ ] **Recovery-robuustheid bij een corrupt herstelbestand.** Sinds 2026-07-20 rekent
       `restoreDocuments` het herstelde document door (`runCPM`), net als elk ander laadpad. Een
       corrupte of afgekapte recovery-snapshot na een crash laat het opstarten daardoor klappen in
       plaats van doormodderen. Overweeg een defensieve afhandeling rond die ene aanroep, met een
       zichtbare melding in plaats van een stille catch.
+- [ ] **Een leeg project levert `projectEnd: "1970-01-01"` in plaats van een lege waarde.** De
+      accumulator in `src/engine/scheduler/` start op `new Date(0)`; alleen het fóutpad geeft `''`.
+      Gevonden 2026-07-20 bij het bouwen van Move Project (het ontwerpdoc nam `''` aan). Het gedrag
+      is vastgelegd in case `move-07` en de epoch wordt in `previewMoveProject` afgevangen zodat hij
+      nooit als echte einddatum op het scherm komt — maar de bron hoort gerepareerd: een project
+      zonder taken heeft geen einddatum, geen datum uit 1970.
+- [ ] **`project.endDate` overleeft opslaan + herladen niet.** `ifcWriter` schrijft
+      `planEnd = max(scheduleFinish)` en gebruikt `project.endDate` alleen als fallback bij nul
+      taken; de reader leest dat terug ín `project.endDate`. Elke ingevulde contractuele einddatum
+      gaat dus verloren bij een round-trip — los van Move Project, dat het veld correct meeschuift.
+      Het huidige gedrag is met toelichting vastgelegd in `check-move-project.ts` (check 151), zodat
+      een fix die check rood maakt.
+      **Aanpak (besloten 2026-07-20):** contractuele datums krijgen eigen persistentie in het
+      `OPS_ProjectSettings`-pset (precedent: `wbsAutoNumber` en de statusdatum zitten daar al, met een
+      gedocumenteerde reden in `ifcWriter.ts` ~regel 308). `IFCWORKPLAN.StartTime/FinishTime` blijven
+      ongewijzigd de *afgeleide* plan-omvang dragen — dat is semantisch juist en andere IFC-tools
+      lezen die slots. Lezer: pset wint, anders terugvallen op het WORKPLAN-slot, zodat bestaande
+      bestanden zich exact als vandaag gedragen.
+      **Twee valkuilen die de fix moet afdekken:**
+      (1) Een lege `endDate` moet léég terugkomen. De golden rule van dat pset (alleen schrijven wat
+      gezet is) zou bij `''` niets wegschrijven, waarna de lezer terugvalt op het WORKPLAN-slot en de
+      afgeleide datum alsnog invult — dezelfde bug, verplaatst naar het lege geval. De lezer moet
+      "veld aanwezig maar leeg" van "veld afwezig" kunnen onderscheiden.
+      (2) **`check-ifc-roundtrip.ts` geeft hier valse zekerheid.** Regel ~377 vergelijkt
+      `project.startDate`/`endDate` wél, maar de fixture heeft `endDate: '2026-07-24'` (regel ~257)
+      terwijl de laatste taak op diezelfde datum eindigt (regel ~184) — afgeleid en contractueel
+      vallen samen, dus het verlies is per constructie onzichtbaar en de check passeert zonder iets
+      te bewijzen. De fixture moet contractuele datums krijgen die expliciet afwijken van de
+      taak-span, anders bewijst ook de fix niets.
+- [ ] **`<html lang>` volgt de taalkeuze niet** (gevonden tijdens de visuele verificatie van
+      2026-07-20). `src/i18n/config.ts:135` zet wél `document.documentElement.dir` op basis van
+      `RTL_LOCALES`, maar `lang` blijft op de hardcoded `lang="nl"` uit `index.html` staan — bij alle
+      dertien niet-Nederlandse talen kondigen schermlezers de inhoud dus als Nederlands aan, en
+      browser-hyphenation/spellcheck gebruiken de verkeerde regels. Aangetoond in de draaiende app:
+      met locale `ar` staat `dir="rtl"` correct en `lang="nl"` fout. Fix = één regel naast de
+      bestaande `dir`-toewijzing.
 - [ ] **Generator-scripts staan niet in CI.** `npm run gen:examples` en `npm run verify:examples`
       waren op de branch van 2026-07-20 volledig stuk (een verplaatste import en een gewijzigde
       `writeIFC`-signatuur, beide zonder `scripts/` mee te nemen) en dat viel pas op toen iemand ze

@@ -99,6 +99,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --outfile="$MACHECK" >/dev/null 2>&1
   node "$MACHECK" || STATUS=1
 
+  # "Project verplaatsen"-checks (pakket D1 — veld-voor-veld shift-verdicten, R7-feestdagendekking,
+  # preview-zuiverheid en de R8/R9-guards; headless tegen de echte store + pure engine-helpers,
+  # los van de CPM-cases in cases-move-project.json).
+  MPCHECK="$DIR/.move-project-check.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-move-project.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$MPCHECK" >/dev/null 2>&1
+  node "$MPCHECK" || STATUS=1
+
   # moveTask-cykelguard + addTask.notes-checks (fase 2.10 onderdeel 2, QA-fixes P1/4 — headless
   # tegen de echte store, los van de CPM-cases).
   MTCHECK="$DIR/.move-task-check.mjs"

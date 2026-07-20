@@ -24,6 +24,7 @@ import { UpdateDialog } from '@/components/dialogs/UpdateDialog';
 import { FeedbackDialog } from '@/components/dialogs/FeedbackDialog';
 import { LevelingDialog } from '@/components/dialogs/LevelingDialog';
 import { BaselineDialog } from '@/components/dialogs/BaselineDialog';
+import { MoveProjectDialog } from '@/components/dialogs/MoveProjectDialog';
 import { ColumnsDialog } from '@/components/dialogs/ColumnsDialog';
 import { FilterDialog } from '@/components/dialogs/FilterDialog';
 import { LayoutsDialog } from '@/components/dialogs/LayoutsDialog';
@@ -67,6 +68,7 @@ function AppContent() {
   const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
+  const showMoveProjectDialog = useAppStore(s => s.ui.showMoveProjectDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
@@ -322,6 +324,7 @@ function AppContent() {
       {showFeedbackDialog && <FeedbackDialog />}
       {showLevelingDialog && <LevelingDialog />}
       {showBaselineDialog && <BaselineDialog />}
+      {showMoveProjectDialog && <MoveProjectDialog />}
       {showColumnsDialog && <ColumnsDialog />}
       {showFilterDialog && <FilterDialog />}
       {showLayoutsDialog && <LayoutsDialog />}

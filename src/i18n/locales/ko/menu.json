@@ -156,7 +156,8 @@
     "manageLayouts": "관리…",
     "presentationMode": "프레젠테이션",
     "splitView": "분할 보기",
-    "miniMap": "미니맵"
+    "miniMap": "미니맵",
+    "moveProject": "프로젝트 이동…"
   },
   "ifc": {
     "title": "IFC 편집기",

@@ -156,7 +156,8 @@
     "manageLayouts": "Yönet…",
     "presentationMode": "Sunum",
     "splitView": "Bölünmüş görünüm",
-    "miniMap": "Mini harita"
+    "miniMap": "Mini harita",
+    "moveProject": "Projeyi taşı…"
   },
   "ifc": {
     "title": "IFC Düzenleyici",

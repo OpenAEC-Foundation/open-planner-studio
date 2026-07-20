@@ -1247,6 +1247,16 @@
         "projectEnd": "2026-06-10",
         "error": false
       }
+    },
+    {
+      "id": "edge-empty-project-01",
+      "title": "Leeg project (nul taken), gewone runCPM zonder verdere acties. Er is geen enkele earlyFinish, dus geen projecteinde: projectEnd moet LEEG zijn en projectDuration 0 — dezelfde vorm die de foutterugval (emptyResult) al teruggaf. Bewaakt de bron-invariant uit pakket P: de projectEnd-accumulator start op new Date(0), dus zonder guard zou hier 1970-01-01 uitkomen en als een echte einddatum lezen (statusbalk, documentstatistiek, baseline, Move Project). Geen fout: een leeg project is geen degradatiepad.",
+      "tasks": [],
+      "expect": {
+        "projectEnd": "",
+        "projectDuration": 0,
+        "error": false
+      }
     }
   ]
 }

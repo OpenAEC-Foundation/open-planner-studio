@@ -156,7 +156,8 @@
     "manageLayouts": "مدیریت…",
     "presentationMode": "ارائه",
     "splitView": "نمای تقسیم‌شده",
-    "miniMap": "نقشه کوچک"
+    "miniMap": "نقشه کوچک",
+    "moveProject": "جابه‌جایی پروژه…"
   },
   "ifc": {
     "title": "ویرایشگر IFC",

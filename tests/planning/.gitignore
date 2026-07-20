@@ -5,6 +5,7 @@
 .advanced-cpm-check.mjs
 .move-assignment-check.mjs
 .move-task-check.mjs
+.move-project-check.mjs
 .document-contract-check.mjs
 .gantt-float-cull.mjs
 .ifc-roundtrip-check.mjs

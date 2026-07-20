@@ -156,7 +156,8 @@
     "manageLayouts": "إدارة…",
     "presentationMode": "العرض التقديمي",
     "splitView": "عرض مقسم",
-    "miniMap": "خريطة مصغرة"
+    "miniMap": "خريطة مصغرة",
+    "moveProject": "نقل المشروع…"
   },
   "ifc": {
     "title": "محرر IFC",

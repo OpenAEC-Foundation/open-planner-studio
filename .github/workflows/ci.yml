@@ -46,3 +46,29 @@ jobs:
 
       - name: Build Tauri app
         run: npm run tauri build -- --no-bundle
+
+  test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run planning/CPM regression suite
+        run: bash tests/planning/run.sh
+
+      - name: Verify example projects
+        run: npm run verify:examples
+
+      - name: Verify docs manifest
+        run: npm run verify:docs

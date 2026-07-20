@@ -41,6 +41,12 @@ ná de finish, lag in werkdagen, lead = negatieve lag, FF = finishes uitlijnen, 
 | `cases-driving.json` | driving/non-driving relaties + afgekapte leads (fase 2.1) |
 | `cases-constraints.json` | datum-constraints, deadlines, negatieve float (fase 2.3) |
 | `cases-resource-load.json` | resources/toewijzingen/curves/kalenders/availabilitySteps → `resourceLoadResult` (belasting/capaciteit/overallocatie, fase 2.5) |
+| `cases-move-project.json` | "Project verplaatsen" (pakket D1): verschuiving vooruit/terug, shift-dan-snap, kalender die NIET meeschuift (jaargrens/bouwvak), constraints/deadlines/harde pins/externe ankers/actuals die wél meeschuiven, uur-modus, undo, Δ=0-no-op |
+
+De losse check-batterijen (geen JSON-cases, eigen scripts die `run.sh` bij een volledige run meestart)
+staan bovenin `run.sh`. Nieuw in pakket D1: `check-move-project.ts` — de veld-voor-veld shift-verdicten
+uit de veld-inventarisatie, de feestdagendekking (R7), de preview-zuiverheid en de Δ=0/ongeldige-datum-
+guards; alles wat de JSON-batterij niet kan zien omdat het niet via de solver loopt.
 
 ## Een geval toevoegen
 

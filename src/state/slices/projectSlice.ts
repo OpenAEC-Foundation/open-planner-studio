@@ -8,8 +8,14 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, diffDays } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
+import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
+import {
+  computeMoveDelta, computeMoveImpact, computeHolidayGaps, shiftIso, shiftTask,
+  shiftProjectDates, shiftResource, shiftBaseline,
+  type MoveProjectOptions, type MoveImpact, type HolidayGapCalendar,
+} from '@/engine/moveProject';
 import { beginUndoable, finishMutation } from '../transaction';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { freshPayload, hydratePayload } from '../documentContract';
@@ -26,6 +32,36 @@ export interface NewProjectOptions {
   endDate?: string;
   calendar: WorkCalendar;
   phaseNames: string[];
+}
+
+/** Uitkomst van een `moveProject`-commit. */
+export interface MoveProjectResult {
+  /** false bij Δ=0 of een ongeldige huidige/nieuwe startdatum (R8/R9) — er is dan NIETS gemuteerd. */
+  moved: boolean;
+  deltaDays: number;
+  taskCount: number;
+}
+
+/** Droogrun-uitkomst van `previewMoveProject` (§7). Muteert per definitie niets. */
+export interface MoveProjectPreview {
+  /** `NaN` als de huidige of nieuwe startdatum onbruikbaar is (R9). */
+  deltaDays: number;
+  startBefore: string;
+  startAfter: string;
+  /** `''` als er geen taken zijn (R3). */
+  endBefore: string;
+  endAfter: string;
+  /** Projectduur in werkdagen (uit `CPMResult.projectDuration`). */
+  durationBefore: number;
+  durationAfter: number;
+  /** Kalenderdagen die het EINDE opschuift. ≠ `deltaDays` ⇒ de kalender heeft ingegrepen
+   *  (feestdagen/bouwvak schuiven NIET mee) — dat is het hele bestaansrecht van de preview. */
+  endDeltaDays: number;
+  impact: MoveImpact;
+  /** Kalenders waarvan de GEGENEREERDE feestdagen de nieuwe periode niet dekken (R7). */
+  holidayGapCalendars: HolidayGapCalendar[];
+  /** Solver-fout in de droogrun (cyclus e.d.) — de UI toont hem en blokkeert Verplaatsen. */
+  error?: string;
 }
 
 export interface ProjectSlice {
@@ -53,6 +89,20 @@ export interface ProjectSlice {
   setStatusDate: (date: string | undefined) => void;
   /** Voortgangsmodus (fase 2.6). setCalendar-patroon (undo-snapshot + isDirty + scheduleStale). */
   setProgressMode: (mode: ProgressMode) => void;
+  /**
+   * Verschuif de HELE planning zodat het project op `newStartDate` begint (pakket D1).
+   *
+   * Δ = kalenderdagen tussen de huidige en de nieuwe projectstart. De KALENDERS schuiven bewust
+   * NIET mee (feestdagen/bouwvak/winterstop liggen op absolute datums), dus einddatums kunnen met
+   * een ánder aantal dagen verspringen dan Δ — `previewMoveProject` maakt dat vooraf zichtbaar.
+   *
+   * Eén undo-stap; draait aansluitend `runCPM` + `requestFitToProject`. Δ=0 of een onbruikbare
+   * startdatum ⇒ volledige no-op (géén snapshot, géén isDirty).
+   */
+  moveProject: (newStartDate: string, opts?: MoveProjectOptions) => MoveProjectResult;
+  /** Droogrun van `moveProject`: rekent de verschoven planning volledig door met een verse
+   *  `CPMSolver` en geeft het resultaat terug ZONDER de store te muteren (levelResources-precedent). */
+  previewMoveProject: (newStartDate: string, opts?: MoveProjectOptions) => MoveProjectPreview;
   newProject: () => void;
   /** Nieuw-project-wizard: maak een project met metadata, kalender en een
    *  fasering-skelet in een eigen tabblad (hergebruikt het actieve tabblad als
@@ -194,6 +244,122 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.project.modifiedAt = new Date().toISOString();
       finishMutation(s, { stale: true });
     }),
+
+  moveProject: (newStartDate, opts) => {
+    let out: MoveProjectResult = { moved: false, deltaDays: 0, taskCount: 0 };
+    set((s) => {
+      const delta = computeMoveDelta(s.project.startDate, newStartDate);
+      // R8/R9 — guard vóór `beginUndoable`, zodat een no-op de undo-stack niet vervuilt.
+      if (!Number.isFinite(delta) || delta === 0) return;
+      beginUndoable(s);
+      s.project = shiftProjectDates(s.project, delta);
+      // Exact de gekozen datum, niet via Δ: voorkomt drift als `project.startDate` een datetime was.
+      s.project.startDate = newStartDate;
+      s.project.modifiedAt = new Date().toISOString();
+      // Élk taakanker moet mee — `project.startDate` alleen zetten doet NIETS aan de planning,
+      // want de forward pass leidt de projectstart af uit `time.scheduleStart`.
+      s.tasks = s.tasks.map((t) => shiftTask(t, delta));
+      s.resources = s.resources.map((r) => shiftResource(r, delta));
+      // Default UIT (§1.6): een baseline bestaat om afwijking te meten; meeschuiven wist het signaal.
+      if (opts?.shiftBaselines) s.baselines = s.baselines.map((b) => shiftBaseline(b, delta));
+      // GEEN { stale: true }: de runCPM hieronder wist `scheduleStale` zelf (applyLeveling-precedent).
+      finishMutation(s);
+      out = { moved: true, deltaDays: delta, taskCount: s.tasks.length };
+    });
+    if (out.moved) {
+      get().runCPM();
+      // §1.8: "toon het verplaatste project" — één definitie van in-beeld (computeFitToProject),
+      // niet een tweede die view.viewStartDate met Δ zou schuiven (fout zodra het einde verspringt).
+      get().requestFitToProject();
+    }
+    return out;
+  },
+
+  previewMoveProject: (newStartDate, opts) => {
+    const s = get();
+    const delta = computeMoveDelta(s.project.startDate, newStartDate);
+    const impact = computeMoveImpact(
+      s.tasks, s.resources,
+      // `baselineCount` telt wat er MEE gaat schuiven, niet hoeveel baselines er zijn: staat de
+      // checkbox uit (de default), dan blijven ze staan en is het er nul (§1.6).
+      opts?.shiftBaselines ? s.baselines : [],
+      s.customFieldDefs,
+    );
+    const empty: MoveProjectPreview = {
+      deltaDays: delta,
+      startBefore: s.project.startDate, startAfter: newStartDate,
+      endBefore: '', endAfter: '',
+      durationBefore: 0, durationAfter: 0, endDeltaDays: 0,
+      impact, holidayGapCalendars: [],
+    };
+    if (!Number.isFinite(delta)) return empty;
+
+    // Droogrun met een VERSE solver (§7.1): een goedkope schatting kan per definitie alleen
+    // "oude einddatum + Δ" opleveren, en dát is precies het antwoord dat fout is.
+    // LET OP: `CPMSolver` schrijft in de hammock-tak op de meegegeven task-objecten terug. Beide
+    // takken hieronder krijgen daarom KOPIEËN uit `shiftTask` (dat `time` altijd kloont) — nooit de
+    // store-objecten zelf. Zonder die kopie zou een "preview" de store muteren.
+    const solve = (tasks: Task[], dataDate: string | undefined): CPMResult => {
+      const leaf = tasks.filter((t) => t.childIds.length === 0);
+      return new CPMSolver(leaf, s.sequences, s.calendar, s.calendars, {
+        dataDate,
+        progressMode: s.project.progressMode,
+        schedulingOptions: s.project.schedulingOptions,
+      }).solve();
+    };
+
+    // "Voor" uit de bestaande run als die vers is; anders een tweede solve op de ONGEWIJZIGDE taken,
+    // zodat voor en na gegarandeerd met dezelfde motor en opties gemeten zijn.
+    // R3 — een project ZONDER taken heeft geen projecteinde. Dat wordt sinds pakket P bij de BRON
+    // gegarandeerd (`scheduleAnalysis`: nul early-resultaten ⇒ `projectEnd: ''`, `projectDuration: 0`;
+    // vroeger lekte daar de epoch `1970-01-01` uit), en `previewMoveProject` kent geen andere bron
+    // voor `projectEnd` dan `solve()` — ook de `fresh`-tak leest een eerder solve-resultaat.
+    // Deze afkorting blijft staan om twee redenen, GEEN van beide de epoch:
+    //   1) hij slaat twee zinloze solves over op een lege takenlijst;
+    //   2) hij pint `endDeltaDays` op 0 i.p.v. de Δ die de algemene tak zou invullen — er ís geen
+    //      einddatum, dus "het einde schuift Δ dagen op" is een uitspraak over niets.
+    // Verder is hij resultaat-identiek aan de algemene tak (leeg einde, duur 0, dezelfde
+    // feestdagenspanne). Zie tests/planning move-07 en edge-empty-project-01.
+    if (s.tasks.length === 0) {
+      return {
+        ...empty,
+        holidayGapCalendars: computeHolidayGaps(
+          [s.calendar, ...s.calendars],
+          newStartDate,
+          shiftIso(s.project.endDate, delta) || newStartDate,
+        ),
+      };
+    }
+
+    const fresh = s.cpmResult && !s.cpmResult.error && !s.scheduleStale ? s.cpmResult : null;
+    const before = fresh ?? solve(s.tasks.map((t) => shiftTask(t, 0)), s.project.statusDate);
+    const after = solve(
+      s.tasks.map((t) => shiftTask(t, delta)),
+      shiftIso(s.project.statusDate, delta),
+    );
+
+    if (after.error) return { ...empty, error: after.error };
+
+    const endBefore = before.error ? '' : before.projectEnd;
+    const endAfter = after.projectEnd;
+    // R2/besluit 2: wijkt dit af van `deltaDays`, dan heeft de kalender ingegrepen.
+    const endDeltaDays = endBefore && endAfter ? diffDays(endBefore, endAfter) : delta;
+
+    return {
+      ...empty,
+      endBefore, endAfter,
+      durationBefore: before.error ? 0 : before.projectDuration,
+      durationAfter: after.projectDuration,
+      endDeltaDays: Number.isFinite(endDeltaDays) ? endDeltaDays : delta,
+      // R7: dekt de gematerialiseerde feestdagenspanne de NIEUWE projectperiode nog? De
+      // projectkalender-cache én de hele bibliotheek meenemen (dedupe op id gebeurt in de helper).
+      holidayGapCalendars: computeHolidayGaps(
+        [s.calendar, ...s.calendars],
+        newStartDate,
+        endAfter || shiftIso(s.project.endDate, delta) || newStartDate,
+      ),
+    };
+  },
 
   newProject: () => {
     // Reset-pad (audit P10): één verse payload via het documentcontract i.p.v. een handmatig

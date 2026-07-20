@@ -245,20 +245,33 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     if (!violatedConstraintTaskIds.includes(id)) violatedConstraintTaskIds.push(id);
   }
 
+  // Een project ZONDER geplande taken heeft geen projecteinde. De accumulator hierboven start op
+  // de epoch en wordt alleen door een echte earlyFinish opgetild; zonder resultaten zou hij dus
+  // `1970-01-01` rapporteren — een datum die overal als een ECHT projecteinde leest. Conditie is
+  // daarom "nul early-resultaten" (`earlyDates` is per constructie 1-op-1 met `order`: de forward
+  // pass vult hem uit diezelfde volgorde), niet "nul taken": het is precies de verzameling die de
+  // accumulator voedt. Uitkomst = dezelfde vorm die `emptyResult()` in CPMSolver voor de
+  // degradatiepaden teruggeeft: leeg einde, duur 0.
+  const hasSchedule = earlyDates.size > 0;
+
   // Projectduur = werkdag-spanne van de vroegste start tot de laatste finish. Een project dat
   // op één moment valt (uitsluitend mijlpalen, geen echt werk) heeft duur 0 i.p.v. de 1 die de
   // inclusieve telling anders zou geven.
+  // `projStart` blijft null bij nul early-resultaten (⟺ !hasSchedule) — dan is er niets te meten
+  // en blijft de duur 0, i.p.v. de spanne "vandaag → epoch" die de oude terugval opleverde.
+  let projectDuration = 0;
   let projStart: Date | null = null;
   for (const { es } of earlyDates.values()) {
     if (!projStart || es < projStart) projStart = es;
   }
-  projStart = projStart || new Date();
-  let projectDuration = projectEngine.workDaysBetween(projStart, projectEnd);
-  if (formatDate(projStart) === formatDate(projectEnd)) {
-    const anyRealWork = [...tasks.values()].some(
-      (t) => !t.isMilestone && t.time.scheduleDuration > 0,
-    );
-    if (!anyRealWork) projectDuration = 0;
+  if (projStart) {
+    projectDuration = projectEngine.workDaysBetween(projStart, projectEnd);
+    if (formatDate(projStart) === formatDate(projectEnd)) {
+      const anyRealWork = [...tasks.values()].some(
+        (t) => !t.isMilestone && t.time.scheduleDuration > 0,
+      );
+      if (!anyRealWork) projectDuration = 0;
+    }
   }
 
   // ── Fase 2.9 golf 3 (§4.6) — multiple float paths (POST-PASS op het VASTE resultaat) ──────────
@@ -355,7 +368,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // Hammocks zonder finish-driver (§4.4): waarschuwing (nul-lengte-terugval).
     hammockNoFinishDriverTaskIds: [...hammockNoFinishDriverIds],
     // Projecteinde in de projectkalendermodus (§5.4): dag-project ⇒ `formatDate` (byte-identiek).
-    projectEnd: formatInstant(projectEnd, modeOf(projectEngine)),
+    // Zonder early-resultaten leeg (zie `hasSchedule` hierboven) i.p.v. de epoch.
+    projectEnd: hasSchedule ? formatInstant(projectEnd, modeOf(projectEngine)) : '',
     projectDuration,
   };
 }

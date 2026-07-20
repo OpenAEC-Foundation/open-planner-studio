@@ -156,7 +156,8 @@
     "manageLayouts": "Manage…",
     "presentationMode": "Presentation",
     "splitView": "Split view",
-    "miniMap": "Mini-map"
+    "miniMap": "Mini-map",
+    "moveProject": "Move project…"
   },
   "ifc": {
     "title": "IFC Editor",
