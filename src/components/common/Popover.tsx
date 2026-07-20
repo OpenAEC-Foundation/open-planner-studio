@@ -16,7 +16,10 @@ import { useClickOutside } from '@/hooks/useClickOutside';
  * Mijlpaal ▾ toonde alleen een 20px-sliver van het keuzemenu). De portal ontsnapt aan die clip; de
  * positie wordt na mount gemeten (`useLayoutEffect`, vóór de eerste schilderbeurt — geen zichtbare
  * sprong) i.p.v. relatief aan de trigger, en de aanroeper's `align` bepaalt links- of
- * rechts-verankering aan de trigger.
+ * rechts-verankering aan de trigger. `panelPos` zet ook een `minWidth` op de gemeten
+ * trigger-breedte — dat vervangt `minWidth: '100%'` (kon vroeger relatief aan de container, nu een
+ * losstaand `position: fixed`-element waarvoor '100%' de viewport zou zijn); sites met een eigen
+ * vaste `minWidth` in `panelStyle` overschrijven 'm gewoon (die spreidt ná `panelPos`).
  *
  * Bewust *controlled*: de aanroeper houdt zijn eigen `open`-state (dropdowns gebruiken die soms ook
  * voor de trigger-`active`-klasse of om een lijst te verversen). De variatiepunten van de acht sites
@@ -65,8 +68,8 @@ export function Popover({
     const rect = trigger.getBoundingClientRect();
     setPanelPos(
       align === 'right'
-        ? { top: rect.bottom, right: window.innerWidth - rect.right }
-        : { top: rect.bottom, left: rect.left },
+        ? { top: rect.bottom, right: window.innerWidth - rect.right, minWidth: rect.width }
+        : { top: rect.bottom, left: rect.left, minWidth: rect.width },
     );
   }, [open, align]);
 
