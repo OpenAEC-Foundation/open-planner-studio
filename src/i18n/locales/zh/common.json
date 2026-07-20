@@ -565,6 +565,8 @@
     "endRow": "项目完成：{{before}} → {{after}}",
     "durationUnchanged": "项目工期仍为 {{days}} 个工作日。",
     "durationChanged": "注意：项目完成日期偏移 {{endDays}} 个日历日，而非 {{days}} 个——日历（节假日、行业假期、冬歇期）不会随之移动。项目工期从 {{before}} 个工作日变为 {{after}} 个工作日。",
+    "endShiftedOnly": "注意：项目完成日期偏移 {{endDays}} 个日历日，而非 {{days}} 个——日历（节假日、行业假期、冬歇期）不会随之移动。项目工期仍为 {{duration}} 个工作日。",
+    "durationOnly": "注意：日历（节假日、行业假期、冬歇期）不会随之移动。项目工期从 {{before}} 个工作日变为 {{after}} 个工作日。",
     "affectedTasks_other": "已移动 {{count}} 项任务",
     "affectedDetail": "同时移动：{{items}}",
     "detailConstraints": "约束日期",

@@ -48,6 +48,10 @@ const PLURAL_KEYS = [
 const LABEL_KEYS = [
   'affectedDetail', 'detailConstraints', 'detailDeadlines',
   'detailActuals', 'detailExternal', 'detailSteps',
+  // De kalender-ingreep heeft drie varianten: einde én duur verschoven (durationChanged), alleen
+  // het einde (endShiftedOnly) of alleen de duur (durationOnly). Eén tekst die altijd beide noemt
+  // levert in de laatste twee gevallen een lege mededeling op ("van 177 naar 177 werkdagen").
+  'durationChanged', 'endShiftedOnly', 'durationOnly',
 ] as const;
 
 /** Tellingen waarmee elke taal wordt afgevuurd; dekt one/two/few/many/other in ar en pl. */

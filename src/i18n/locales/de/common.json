@@ -565,6 +565,8 @@
     "endRow": "Projektende: {{before}} → {{after}}",
     "durationUnchanged": "Die Projektdauer bleibt bei {{days}} Arbeitstagen.",
     "durationChanged": "Achtung: Das Projektende verschiebt sich um {{endDays}} Kalendertage statt um {{days}} — der Kalender (Feiertage, Betriebsferien, Winterpause) verschiebt sich nicht mit. Die Projektdauer ändert sich von {{before}} auf {{after}} Arbeitstage.",
+    "endShiftedOnly": "Achtung: Das Projektende verschiebt sich um {{endDays}} Kalendertage statt um {{days}} — der Kalender (Feiertage, Betriebsferien, Winterpause) verschiebt sich nicht mit. Die Projektdauer bleibt bei {{duration}} Arbeitstagen.",
+    "durationOnly": "Achtung: Der Kalender (Feiertage, Betriebsferien, Winterpause) verschiebt sich nicht mit. Die Projektdauer ändert sich von {{before}} auf {{after}} Arbeitstage.",
     "affectedTasks_one": "{{count}} Vorgang verschoben",
     "affectedTasks_other": "{{count}} Vorgänge verschoben",
     "affectedDetail": "Ebenfalls verschoben — {{items}}",

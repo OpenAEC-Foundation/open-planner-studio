@@ -565,6 +565,8 @@
     "endRow": "Fim do projeto: {{before}} → {{after}}",
     "durationUnchanged": "A duração do projeto permanece em {{days}} dias úteis.",
     "durationChanged": "Atenção: o fim do projeto desloca-se {{endDays}} dias corridos em vez de {{days}} — o calendário (feriados, férias do setor, paragem de inverno) não se desloca. A duração do projeto passa de {{before}} para {{after}} dias úteis.",
+    "endShiftedOnly": "Atenção: o fim do projeto desloca-se {{endDays}} dias corridos em vez de {{days}} — o calendário (feriados, férias do setor, paragem de inverno) não se desloca. A duração do projeto permanece em {{duration}} dias úteis.",
+    "durationOnly": "Atenção: o calendário (feriados, férias do setor, paragem de inverno) não se desloca. A duração do projeto passa de {{before}} para {{after}} dias úteis.",
     "affectedTasks_one": "{{count}} tarefa deslocada",
     "affectedTasks_other": "{{count}} tarefas deslocadas",
     "affectedTasks_many": "{{count}} tarefas deslocadas",

@@ -60,8 +60,20 @@ export function MoveProjectDialog() {
 
   // R2/ontwerpbesluit 2: schuift het EINDE met een ander aantal dagen op dan de verschuiving zelf,
   // of verandert de duur in werkdagen, dan heeft de kalender ingegrepen.
-  const calendarIntervened = !!preview && !preview.error && preview.endAfter !== '' &&
-    (preview.endDeltaDays !== preview.deltaDays || preview.durationBefore !== preview.durationAfter);
+  //
+  // Het zijn twee ONAFHANKELIJKE symptomen en ze treden los van elkaar op: verplaats je een planning
+  // over een bouwvak heen zonder dat het aantal werkdagen verandert, dan verspringt alleen het einde;
+  // valt er juist een feestdag weg én bij, dan kan het einde precies meeschuiven terwijl de duur
+  // verandert. Eén tekst die altijd béíde noemt levert dan een lege mededeling op ("de projectduur
+  // gaat van 177 naar 177 werkdagen"). Daarom per geval een eigen sleutel.
+  const endShifted = !!preview && !preview.error && preview.endAfter !== '' &&
+    preview.endDeltaDays !== preview.deltaDays;
+  const durationShifted = !!preview && !preview.error && preview.endAfter !== '' &&
+    preview.durationBefore !== preview.durationAfter;
+  const calendarIntervened = endShifted || durationShifted;
+  const interventionKey = endShifted && durationShifted ? 'durationChanged'
+    : endShifted ? 'endShiftedOnly'
+    : 'durationOnly';
 
   // Meeverschoven-detailregel. Bewust GEEN doorlopende zin met vijf tellingen erin: die kan per
   // telling enkelvoud of meervoud nodig hebben ("1 deadlines") en dat is met één sleutel niet op te
@@ -190,11 +202,12 @@ export function MoveProjectDialog() {
                           >
                             <AlertTriangle size={14} className="shrink-0 mt-px" />
                             <span>
-                              {t('moveProject.durationChanged', {
+                              {t(`moveProject.${interventionKey}`, {
                                 endDays: preview.endDeltaDays,
                                 days: preview.deltaDays,
                                 before: preview.durationBefore,
                                 after: preview.durationAfter,
+                                duration: preview.durationAfter,
                               })}
                             </span>
                           </div>

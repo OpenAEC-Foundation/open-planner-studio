@@ -565,6 +565,8 @@
     "endRow": "Koniec projektu: {{before}} → {{after}}",
     "durationUnchanged": "Czas trwania projektu pozostaje {{days}} dni roboczych.",
     "durationChanged": "Uwaga: koniec projektu przesuwa się o {{endDays}} dni kalendarzowych zamiast o {{days}} — kalendarz (dni wolne, przerwa budowlana, przerwa zimowa) nie przesuwa się. Czas trwania projektu zmienia się z {{before}} na {{after}} dni roboczych.",
+    "endShiftedOnly": "Uwaga: koniec projektu przesuwa się o {{endDays}} dni kalendarzowych zamiast o {{days}} — kalendarz (dni wolne, przerwa budowlana, przerwa zimowa) nie przesuwa się. Czas trwania projektu pozostaje {{duration}} dni roboczych.",
+    "durationOnly": "Uwaga: kalendarz (dni wolne, przerwa budowlana, przerwa zimowa) nie przesuwa się. Czas trwania projektu zmienia się z {{before}} na {{after}} dni roboczych.",
     "affectedTasks_one": "Przesunięto {{count}} zadanie",
     "affectedTasks_few": "Przesunięto {{count}} zadania",
     "affectedTasks_many": "Przesunięto {{count}} zadań",

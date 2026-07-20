@@ -565,6 +565,8 @@
     "endRow": "Projecteinde: {{before}} → {{after}}",
     "durationUnchanged": "De projectduur blijft {{days}} werkdagen.",
     "durationChanged": "Let op: het projecteinde verschuift {{endDays}} kalenderdagen in plaats van {{days}} — de kalender (feestdagen, bouwvak, winterstop) schuift niet mee. De projectduur gaat van {{before}} naar {{after}} werkdagen.",
+    "endShiftedOnly": "Let op: het projecteinde verschuift {{endDays}} kalenderdagen in plaats van {{days}} — de kalender (feestdagen, bouwvak, winterstop) schuift niet mee. De projectduur blijft {{duration}} werkdagen.",
+    "durationOnly": "Let op: de kalender (feestdagen, bouwvak, winterstop) schuift niet mee. De projectduur gaat van {{before}} naar {{after}} werkdagen.",
     "affectedTasks_one": "{{count}} taak verschoven",
     "affectedTasks_other": "{{count}} taken verschoven",
     "affectedDetail": "Meeverschoven — {{items}}",

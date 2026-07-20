@@ -565,6 +565,8 @@
     "endRow": "Proje bitişi: {{before}} → {{after}}",
     "durationUnchanged": "Proje süresi {{days}} iş günü olarak kalıyor.",
     "durationChanged": "Dikkat: proje bitişi {{days}} yerine {{endDays}} takvim günü kayıyor — takvim (resmî tatiller, sektör tatili, kış molası) kaymaz. Proje süresi {{before}} iş gününden {{after}} iş gününe değişiyor.",
+    "endShiftedOnly": "Dikkat: proje bitişi {{days}} yerine {{endDays}} takvim günü kayıyor — takvim (resmî tatiller, sektör tatili, kış molası) kaymaz. Proje süresi {{duration}} iş günü olarak kalıyor.",
+    "durationOnly": "Dikkat: takvim (resmî tatiller, sektör tatili, kış molası) kaymaz. Proje süresi {{before}} iş gününden {{after}} iş gününe değişiyor.",
     "affectedTasks_one": "{{count}} görev kaydırıldı",
     "affectedTasks_other": "{{count}} görev kaydırıldı",
     "affectedDetail": "Ayrıca kaydırıldı — {{items}}",

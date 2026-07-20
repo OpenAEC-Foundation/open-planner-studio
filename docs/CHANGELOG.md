@@ -7,6 +7,13 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 ## Ongepubliceerd
 
 ### Opgelost (kleine punten uit de 2.10-triage, 2026-07-20)
+- **De kalenderwaarschuwing bij "Project verplaatsen…" bevatte een lege mededeling.** De
+  waarschuwing vuurt bij twee onafhankelijke symptomen — het projecteinde verspringt met een ánder
+  aantal kalenderdagen dan gekozen, en/of de projectduur in werkdagen verandert — maar noemde er
+  altijd béíde. Trad er maar één op, dan stond er iets zinloos: "de projectduur gaat van 177 naar
+  177 werkdagen", of andersom "het einde verschuift 11 kalenderdagen in plaats van 11". Beide
+  gevallen komen in de praktijk voor; in een planning zonder feestdagen in het verschoven venster is
+  "alleen het einde verspringt" zelfs het gewone geval. Nu drie varianten met een eigen tekst.
 - **"Project verplaatsen…" toonde meervoud bij één item.** De waarschuwingsregels schreven
   "1 taken hebben een harde Mandatory-pin" en "1 externe koppelingen"; de detailregel maakte er
   "1 deadlines" van. De vijf telsleutels gebruiken nu i18next-pluralisatie in alle veertien talen.

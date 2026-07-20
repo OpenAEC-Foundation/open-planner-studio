@@ -565,6 +565,8 @@
     "endRow": "Project finish: {{before}} → {{after}}",
     "durationUnchanged": "Project duration stays {{days}} working days.",
     "durationChanged": "Note: the project finish moves {{endDays}} calendar days instead of {{days}} — the calendar (holidays, construction breaks) does not shift. Project duration changes from {{before}} to {{after}} working days.",
+    "endShiftedOnly": "Note: the project finish moves {{endDays}} calendar days instead of {{days}} — the calendar (holidays, construction breaks) does not shift. The project duration stays {{duration}} working days.",
+    "durationOnly": "Note: the calendar (holidays, construction breaks) does not shift. The project duration changes from {{before}} to {{after}} working days.",
     "affectedTasks_one": "{{count}} task shifted",
     "affectedTasks_other": "{{count}} tasks shifted",
     "affectedDetail": "Also shifted — {{items}}",

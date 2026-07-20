@@ -565,6 +565,8 @@
     "endRow": "Fine progetto: {{before}} → {{after}}",
     "durationUnchanged": "La durata del progetto resta di {{days}} giorni lavorativi.",
     "durationChanged": "Attenzione: la fine del progetto si sposta di {{endDays}} giorni solari anziché {{days}} — il calendario (festività, ferie di settore, pausa invernale) non si sposta. La durata del progetto passa da {{before}} a {{after}} giorni lavorativi.",
+    "endShiftedOnly": "Attenzione: la fine del progetto si sposta di {{endDays}} giorni solari anziché {{days}} — il calendario (festività, ferie di settore, pausa invernale) non si sposta. La durata del progetto resta di {{duration}} giorni lavorativi.",
+    "durationOnly": "Attenzione: il calendario (festività, ferie di settore, pausa invernale) non si sposta. La durata del progetto passa da {{before}} a {{after}} giorni lavorativi.",
     "affectedTasks_one": "{{count}} attività spostata",
     "affectedTasks_other": "{{count}} attività spostate",
     "affectedTasks_many": "{{count}} attività spostate",

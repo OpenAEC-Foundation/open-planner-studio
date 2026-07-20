@@ -565,6 +565,8 @@
     "endRow": "Fin du projet : {{before}} → {{after}}",
     "durationUnchanged": "La durée du projet reste de {{days}} jours ouvrés.",
     "durationChanged": "Attention : la fin du projet se décale de {{endDays}} jours calendaires au lieu de {{days}} — le calendrier (jours fériés, congés du bâtiment, trêve hivernale) ne se décale pas. La durée du projet passe de {{before}} à {{after}} jours ouvrés.",
+    "endShiftedOnly": "Attention : la fin du projet se décale de {{endDays}} jours calendaires au lieu de {{days}} — le calendrier (jours fériés, congés du bâtiment, trêve hivernale) ne se décale pas. La durée du projet reste de {{duration}} jours ouvrés.",
+    "durationOnly": "Attention : le calendrier (jours fériés, congés du bâtiment, trêve hivernale) ne se décale pas. La durée du projet passe de {{before}} à {{after}} jours ouvrés.",
     "affectedTasks_one": "{{count}} tâche décalée",
     "affectedTasks_other": "{{count}} tâches décalées",
     "affectedTasks_many": "{{count}} tâches décalées",

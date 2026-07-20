@@ -565,6 +565,8 @@
     "endRow": "プロジェクト終了：{{before}} → {{after}}",
     "durationUnchanged": "プロジェクト期間は {{days}} 稼働日のままです。",
     "durationChanged": "注意：プロジェクト終了日は {{days}} 日ではなく {{endDays}} 暦日ずれます — カレンダー（祝日、業界休暇、冬期休止）は移動しないためです。プロジェクト期間は {{before}} 稼働日から {{after}} 稼働日に変わります。",
+    "endShiftedOnly": "注意：プロジェクト終了日は {{days}} 日ではなく {{endDays}} 暦日ずれます — カレンダー（祝日、業界休暇、冬期休止）は移動しないためです。プロジェクト期間は {{duration}} 稼働日のままです。",
+    "durationOnly": "注意：カレンダー（祝日、業界休暇、冬期休止）は移動しません。プロジェクト期間は {{before}} 稼働日から {{after}} 稼働日に変わります。",
     "affectedTasks_other": "{{count}} 件のタスクを移動",
     "affectedDetail": "併せて移動：{{items}}",
     "detailConstraints": "制約日",

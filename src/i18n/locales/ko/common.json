@@ -565,6 +565,8 @@
     "endRow": "프로젝트 종료: {{before}} → {{after}}",
     "durationUnchanged": "프로젝트 기간은 {{days}} 작업일로 유지됩니다.",
     "durationChanged": "주의: 프로젝트 종료일이 {{days}}일이 아니라 달력 기준 {{endDays}}일 이동합니다 — 달력(공휴일, 업계 휴가, 동절기 중단)은 함께 이동하지 않기 때문입니다. 프로젝트 기간이 {{before}} 작업일에서 {{after}} 작업일로 바뀝니다.",
+    "endShiftedOnly": "주의: 프로젝트 종료일이 {{days}}일이 아니라 달력 기준 {{endDays}}일 이동합니다 — 달력(공휴일, 업계 휴가, 동절기 중단)은 함께 이동하지 않기 때문입니다. 프로젝트 기간은 {{duration}} 작업일로 유지됩니다.",
+    "durationOnly": "주의: 달력(공휴일, 업계 휴가, 동절기 중단)은 함께 이동하지 않습니다. 프로젝트 기간이 {{before}} 작업일에서 {{after}} 작업일로 바뀝니다.",
     "affectedTasks_other": "{{count}}개 작업 이동됨",
     "affectedDetail": "함께 이동: {{items}}",
     "detailConstraints": "제약 날짜",
