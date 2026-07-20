@@ -311,6 +311,25 @@ function writeStructure(
   // gehele-seconden en zou de millisecondeprecisie van de ISO-string afkappen; (3) createdAt/
   // modifiedAt zijn project-metadata en horen bij de andere project-settings. Golden rule: alleen
   // wanneer gezet — een leeg veld schrijft niets (oude bestanden byte-identiek).
+  // ProjectStartDate/ProjectEndDate — de CONTRACTUELE projectdatums. Bewust hier en niet in de
+  // IFCWORKPLAN.StartTime/FinishTime-slots: die dragen de AFGELEIDE plan-omvang (min/max van de
+  // taak-span), wat semantisch juist is en door andere IFC-tools zo gelezen wordt. Vóór dit pset
+  // was dat ene slot de enige opslag voor beide betekenissen, waardoor opslaan+herladen een
+  // ingevulde contractuele einddatum verving door de afgeleide planningsdatum.
+  //
+  // AFWIJKING van de golden rule hierboven ("alleen schrijven wat gezet is"): deze twee worden
+  // ALTIJD geschreven, ook leeg. Een leeg veld weglaten zou de lezer terug laten vallen op het
+  // WORKPLAN-slot, en dan vult de afgeleide datum alsnog een bewust léég gelaten einddatum —
+  // dezelfde bug, alleen verplaatst naar het lege geval. Codering: waarde gezet ⇒ IFCDATE(...),
+  // leeg ⇒ NominalValue `$` ("aanwezig, maar geen waarde"). Zo kan de lezer "veld aanwezig maar
+  // leeg" onderscheiden van "veld afwezig" (= bestand van vóór deze versie of van een ander tool,
+  // dat terugvalt op het WORKPLAN-slot en zich dus exact gedraagt als voorheen).
+  const contractDateProp = (key: string, name: string, value: string): number =>
+    addLine(ctx, key,
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value ? `IFCDATE(${ifcStr(value)})` : '$'},$)`);
+  projSettingProps.push(contractDateProp('_ps_projstart', 'ProjectStartDate', project.startDate));
+  projSettingProps.push(contractDateProp('_ps_projend', 'ProjectEndDate', project.endDate));
+
   if (project.createdAt) {
     projSettingProps.push(addLine(ctx, '_ps_createdat',
       `IFCPROPERTYSINGLEVALUE('CreatedAt',$,IFCTEXT(${ifcStr(project.createdAt)}),$)`));

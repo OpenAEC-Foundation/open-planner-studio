@@ -638,6 +638,16 @@ function extractStructure(
         } else if (name === 'ProgressMode') {
           // Fase 2.6 (§8.2): alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
+        } else if (name === 'ProjectStartDate' || name === 'ProjectEndDate') {
+          // Contractuele projectdatums (spiegel van writeStructure). Het PSET WINT wanneer het veld
+          // aanwezig is — óók als het leeg is: de writer codeert "bewust leeg" als NominalValue `$`
+          // (parseTypedValue ⇒ undefined) en dat moet leeg terugkomen, niet terugvallen op de
+          // AFGELEIDE datum uit IFCWORKPLAN.StartTime/FinishTime die extractProject al invulde.
+          // Ontbreekt het veld helemaal (bestand van vóór deze versie of van een ander tool), dan
+          // komen we hier niet en blijft die WORKPLAN-terugval staan — gedrag exact als voorheen.
+          const date = typeof v === 'string' ? v.substring(0, 10) : '';
+          if (name === 'ProjectStartDate') project.startDate = date;
+          else project.endDate = date;
         } else if (name === 'CreatedAt') {
           // Fase 3 (H2): project-aanmaakdatum als verbatim ISO-instant (spiegel van writeStructure).
           if (typeof v === 'string' && v) project.createdAt = v;

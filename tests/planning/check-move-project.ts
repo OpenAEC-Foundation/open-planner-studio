@@ -338,15 +338,15 @@ const ifc = writeIFC(buildWriteIFCInput(S()));
 const back = readIFC(ifc);
 
 eq('150 round-trip: project.startDate identiek terug', back.project?.startDate, movedProject.start);
-// BEVINDING (deze check-run, PRE-EXISTING en los van pakket D1): `project.endDate` round-trippt NIET
-// zolang er taken zijn. `ifcWriter` schrijft IFCWORKPLAN.FinishTime als max(scheduleFinish) en
-// gebruikt `project.endDate` alleen als FALLBACK bij nul taken; de reader leest dat slot terug in
-// `project.endDate`. Opslaan+herladen vervangt de vrije (contractuele) einddatum dus door de
-// afgeleide planningseinddatum — met of zonder verschuiving. Hier: verschoven endDate 2026-10-06,
-// terug 2026-09-16 (= de laatste scheduleFinish). `moveProject` schuift `endDate` correct mee; het
-// verlies zit in de IFC-laag. Vastgelegd zoals het IS, zodat een latere fix deze check rood maakt.
-eq('151 round-trip: project.endDate wordt overschreven door de AFGELEIDE planningseinddatum (pre-existing)',
-  back.project?.endDate, '2026-09-16');
+// De CONTRACTUELE einddatum overleeft de round-trip ongeschonden. Dat was ooit anders: `ifcWriter`
+// schreef 'm alleen naar IFCWORKPLAN.FinishTime — een slot dat de AFGELEIDE plan-omvang
+// (max(scheduleFinish)) draagt en `project.endDate` slechts als terugval bij nul taken gebruikte.
+// Opslaan+herladen verving de contractuele einddatum daardoor door de planningseinddatum (hier:
+// verschoven naar 2026-10-06, terug als 2026-09-16 = de laatste scheduleFinish). De contractuele
+// datums hebben nu eigen opslag in het OPS_ProjectSettings-pset; IFCWORKPLAN.StartTime/FinishTime
+// blijft onveranderd de afgeleide plan-omvang dragen, want dát is wat andere IFC-tools eruit lezen.
+eq('151 round-trip: contractuele project.endDate identiek terug (niet de afgeleide planningsdatum)',
+  back.project?.endDate, movedProject.end);
 eq('152 de verschuiving zelf was wél correct toegepast op endDate', movedProject.end, '2026-10-06');
 eq('153 round-trip: taakankers (scheduleStart/scheduleFinish) identiek terug',
   back.tasks.map(t => [t.name, t.time.scheduleStart, t.time.scheduleFinish]).sort(),

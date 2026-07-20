@@ -42,9 +42,14 @@
 //                             tests/planning/check-adapters-hours.ts.
 //   (b) resourceCalendars: de projectkalender-entry wordt bewust NIET in de bibliotheek gedupliceerd
 //                             (writer filtert 'm eruit; reader geeft de bibliotheek zonder projectkalender).
+//   project.startDate/endDate was hier ook zo'n (b)-normalisatie (→taak-span). Dat is GEDICHT: de
+//   contractuele datums hebben nu eigen opslag in het OPS_ProjectSettings-pset en lopen door de
+//   echte round-trip-vergelijking; de fixture kiest ze bewust LOS van de taak-span, zodat de
+//   vergelijking het verschil ook echt kan zien. IFCWORKPLAN.StartTime/FinishTime blijft de
+//   AFGELEIDE plan-omvang dragen. Zie blok (4) onderaan voor leeg-geval en legacy-terugval.
 //   Overige bewuste (b)-normalisaties die de fixture al in genormaliseerde vorm kiest (dus GEEN
 //   afwijking geven): ids regenereren (→ natuurlijke sleutels), project.calendarId→'cal-default',
-//   project.startDate/endDate→taak-span, ASAP-constraint niet geschreven, shift FIRST→undefined,
+//   ASAP-constraint niet geschreven, shift FIRST→undefined,
 //   lagUnit WORKTIME→undefined, curve UNIFORM→undefined, progressMode RETAINED_LOGIC→undefined,
 //   completion→1 decimaal, dag-duren integer, hoursPerDay=eind−startuur, priority 500 niet geschreven.
 
@@ -254,7 +259,10 @@ const SCHED_OPTS = {
 } satisfies Required<SchedulingOptions>;
 const project = {
   id: 'proj-1', name: 'Nieuwbouw Testtoren', description: 'Beschrijving X', // description: (a) gap
-  startDate: '2026-07-06', endDate: '2026-07-24', calendarId: 'projcal',
+  // CONTRACTUELE project-datums, bewust LOS van de taak-span (die loopt 2026-07-06 … 2026-07-24).
+  // Vielen ze samen — zoals vóór deze fixture-fix — dan bewees de vergelijking hieronder NIETS:
+  // de afgeleide planningsdatum uit IFCWORKPLAN was per constructie gelijk aan de contractuele.
+  startDate: '2026-06-15', endDate: '2026-09-30', calendarId: 'projcal',
   createdAt: '2026-01-01T00:00:00.000Z', modifiedAt: '2026-06-01T00:00:00.000Z', // (a) gaps
   author: 'Ir. Testz', company: 'Bouw BV',                                       // (a) gaps
   wbsAutoNumber: true, statusDate: '2026-07-25', progressMode: 'PROGRESS_OVERRIDE',
@@ -468,6 +476,39 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(tmOut.time.remainingMinutes === undefined && def(TM.time.remainingMinutes), '(b) time.remainingMinutes n.v.t. in dag-modus');
   assert(rMem.availability === undefined && def(RMember.availability), '(b) resource.availability (deprecated) niet geschreven');
   void txOut;
+}
+
+// (4) Contractuele projectdatums — de drie gevallen van de OPS_ProjectSettings-opslag. Het GEVULDE
+//     geval loopt al door de vergelijking in (1) (fixture: 2026-06-15 … 2026-09-30, bewust los van
+//     de taak-span 2026-07-06 … 2026-07-24). Hier de twee andere:
+{
+  // (4a) Een bewust LEEG gelaten einddatum moet leeg terugkomen. Zou de writer 'm — volgens de
+  //      golden rule "alleen schrijven wat gezet is" — weglaten, dan viel de lezer terug op
+  //      IFCWORKPLAN.FinishTime en stond de AFGELEIDE datum 2026-07-24 er alsnog in: dezelfde bug,
+  //      alleen verplaatst naar het lege geval.
+  const emptyEnd: ImportResult = { ...fixture, project: { ...fixture.project, endDate: '' } };
+  const rtEmpty = readIFC(writeIFC(emptyEnd));
+  assert(rtEmpty.project.endDate === '', `lege endDate moet leeg terugkomen — kreeg ${JSON.stringify(rtEmpty.project.endDate)}`);
+  assert(rtEmpty.project.startDate === '2026-06-15', `gevulde startDate naast een lege endDate — kreeg ${JSON.stringify(rtEmpty.project.startDate)}`);
+
+  // (4b) Terugval voor bestanden ZONDER de nieuwe pset-velden (vóór deze versie, of van een ander
+  //      tool): die moeten zich exact gedragen als voorheen — de afgeleide plan-omvang uit
+  //      IFCWORKPLAN. Gesimuleerd door precies die twee property-regels uit het bestand te knippen;
+  //      de pset houdt dan losse verwijzingen over, die de lezer al negeert.
+  const legacy = writeIFC(fixture).split('\n')
+    .filter(l => !/IFCPROPERTYSINGLEVALUE\('Project(Start|End)Date'/.test(l)).join('\n');
+  const rtLegacy = readIFC(legacy);
+  assert(rtLegacy.project.startDate === '2026-07-06', `zonder pset-veld terugvallen op IFCWORKPLAN.StartTime — kreeg ${JSON.stringify(rtLegacy.project.startDate)}`);
+  assert(rtLegacy.project.endDate === '2026-07-24', `zonder pset-veld terugvallen op IFCWORKPLAN.FinishTime — kreeg ${JSON.stringify(rtLegacy.project.endDate)}`);
+
+  // (4c) De IFCWORKPLAN-slots zelf blijven ONGEWIJZIGD de afgeleide plan-omvang dragen (semantisch
+  //      juist; andere IFC-tools lezen die slots). Dat is precies waarom de contractuele datums een
+  //      eigen plek nodig hadden in plaats van dit slot over te nemen.
+  const wpLine = writeIFC(fixture).split('\n').find(l => l.includes('IFCWORKPLAN('))!;
+  assert(wpLine.includes("'2026-07-06") && wpLine.includes("'2026-07-24"),
+    `IFCWORKPLAN moet de AFGELEIDE taak-span houden (2026-07-06 … 2026-07-24) — kreeg: ${wpLine}`);
+  assert(!wpLine.includes('2026-06-15') && !wpLine.includes('2026-09-30'),
+    `IFCWORKPLAN mag de CONTRACTUELE datums niet dragen — kreeg: ${wpLine}`);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
