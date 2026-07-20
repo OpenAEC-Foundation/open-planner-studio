@@ -211,14 +211,12 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
 
   updateTask: (id, updates) => {
     set((s) => {
-      beginUndoable(s);
-
       const idx = s.tasks.findIndex(t => t.id === id);
-      if (idx >= 0) {
-        Object.assign(s.tasks[idx], updates);
-        // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
-        finishMutation(s, { stale: true });
-      }
+      if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
+      beginUndoable(s); // snapshot pas ná de guard, vóór de mutatie (zie transaction.ts).
+      Object.assign(s.tasks[idx], updates);
+      // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
+      finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
   },

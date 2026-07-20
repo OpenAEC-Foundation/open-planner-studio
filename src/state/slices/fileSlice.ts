@@ -15,6 +15,7 @@ import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import type { ImportResult } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport } from '../documentContract';
+import { buildWriteIFCInput } from '../ifcSaveInput';
 import { finishMutation } from '../transaction';
 import { fileHasHourData } from '@/services/subdayIo';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
@@ -182,19 +183,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
 
     saveFile: async () => {
       const state = get();
-      const content = writeIFC({
-        project: state.project,
-        calendar: state.calendar,
-        tasks: state.tasks,
-        sequences: state.sequences,
-        resources: state.resources,
-        assignments: state.assignments,
-        activityCodeTypes: state.activityCodeTypes,
-        customFieldDefs: state.customFieldDefs,
-        resourceCalendars: state.calendars,
-        baselines: state.baselines,
-        activeBaselineId: state.activeBaselineId,
-      });
+      // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
+      // pad niet opnieuw velden kan laten vallen.
+      const content = writeIFC(buildWriteIFCInput(state));
 
       // Bestaand opslaan-doel? Web: fileHandle. Tauri: het echte pad in filePath.
       const ref: FileRef | null = state.fileHandle
@@ -223,19 +214,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
 
     saveFileAs: async () => {
       const state = get();
-      const content = writeIFC({
-        project: state.project,
-        calendar: state.calendar,
-        tasks: state.tasks,
-        sequences: state.sequences,
-        resources: state.resources,
-        assignments: state.assignments,
-        activityCodeTypes: state.activityCodeTypes,
-        customFieldDefs: state.customFieldDefs,
-        resourceCalendars: state.calendars,
-        baselines: state.baselines,
-        activeBaselineId: state.activeBaselineId,
-      });
+      // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
+      // pad niet opnieuw velden kan laten vallen.
+      const content = writeIFC(buildWriteIFCInput(state));
 
       const outcome = await saveFileDialog(
         state.filePath ?? `${state.project.name || 'project'}.ifc`,
@@ -285,19 +266,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           break;
         case 'ifc':
         default:
-          content = writeIFC({
-            project: state.project,
-            calendar: state.calendar,
-            tasks: state.tasks,
-            sequences: state.sequences,
-            resources: state.resources,
-            assignments: state.assignments,
-            activityCodeTypes: state.activityCodeTypes,
-            customFieldDefs: state.customFieldDefs,
-            resourceCalendars: state.calendars,
-            baselines: state.baselines,
-            activeBaselineId: state.activeBaselineId,
-          });
+          content = writeIFC(buildWriteIFCInput(state));
           ext = 'ifc';
           filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
           break;

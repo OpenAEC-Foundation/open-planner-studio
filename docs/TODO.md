@@ -31,6 +31,12 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       overwegen (bv. forecast-markering of tooltip-uitleg).
 
 ### Klein
+- [ ] **Existentie-guard vóór snapshot in de `remove*`-acties** (reviewer-aanbeveling pakket R,
+      2026-07-17). `removeSequence`/`deleteTask`/`removeResource`/`removeCalendar`/`deleteBaseline`
+      pushen een undo-snapshot vóór hun filter; bij een onbekend id blijft een loze undo-stap achter
+      (zelfde klasse als de in pakket R gefixte `updateTask`/`addSequence`). Impact laag (UI roept ze
+      met een bestaand id aan); fix = dezelfde goedkope guard, plus check-blok (g) in
+      `tests/planning/check-document-contract.ts` uitbreiden.
 - [ ] **"Project verplaatsen…"-functie (Move Project, user-verzoek 2026-07-10).** Hele planning
       N maanden/dagen verschuiven in één handeling: nieuwe projectstartdatum kiezen, alle expliciete
       datums schuiven mee (constraint-datums, deadlines, werkelijke start/einde, statusdatum,

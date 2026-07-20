@@ -2,6 +2,7 @@ import { useEffect, type MutableRefObject } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { saveRecovery, type RecoveryDocContent } from '@/services/recovery/recoveryStore';
 
 // Auto-save bij ELKE wijziging (gedebounced) i.p.v. op een vaste interval:
@@ -32,24 +33,15 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       if (!docs.some((d) => d.payload.isDirty)) return;
       saving = true;
       try {
+        // Bouw het options-object via de gedeelde helper (pakket R1) zodat dit pad niet
+        // opnieuw uit de pas loopt met de andere state→IFC-callsites.
         const recDocs: RecoveryDocContent[] = docs.map(({ id, payload }) => ({
           id,
-          ifc: writeIFC({
-            project: payload.project,
-            calendar: payload.calendar,
-            tasks: payload.tasks,
-            sequences: payload.sequences,
-            resources: payload.resources,
-            assignments: payload.assignments,
-            activityCodeTypes: payload.activityCodeTypes,
-            customFieldDefs: payload.customFieldDefs,
-            resourceCalendars: payload.calendars,
-            baselines: payload.baselines,
-            activeBaselineId: payload.activeBaselineId,
-          }),
+          ifc: writeIFC(buildWriteIFCInput(payload)),
           filePath: payload.filePath,
           isDirty: payload.isDirty,
         }));
+        // Backend-keuze (Tauri-bestanden of IndexedDB) zit in recoveryStore.
         await saveRecovery(state.activeDocumentId, recDocs);
       } catch (err) {
         console.error('Auto-save failed:', err);
