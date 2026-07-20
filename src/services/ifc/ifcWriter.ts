@@ -13,6 +13,7 @@ import type { ImportResult } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
+import { PSET, PER_TASK_PSETS, ifcStr, ifcBool } from './ifcPsets';
 
 /** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader (fase 2.6,
  *  `extractBaselines`) baseline-taskId's — die als interne id in de OPS_Baselines-JSON staan —
@@ -32,10 +33,8 @@ export function ifcGuid(seed: string): string {
   return result;
 }
 
-function ifcStr(s: string): string {
-  if (!s) return '$';
-  return `'${s.replace(/'/g, "''")}'`;
-}
+// ifcStr/ifcBool zijn verhuisd naar ./ifcPsets (gedeeld met de per-taak-pset-registry) en worden
+// bovenaan geïmporteerd — één bron, geen duplicaat dat kan divergeren.
 
 function ifcDateTime(iso: string): string {
   if (!iso) return '$';
@@ -63,10 +62,6 @@ function ifcDuration(days: number): string {
  *  (`PT{h}H{m}M0S`); minuut-precies en byte-stabiel terug te lezen (`isoDurationToMinutes`). */
 function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
-}
-
-function ifcBool(b: boolean): string {
-  return b ? '.T.' : '.F.';
 }
 
 interface WriteContext {
@@ -139,8 +134,9 @@ export function writeIFC(input: WriteIFCInput): string {
   const axId = addLine(ctx, '_ax', `IFCAXIS2PLACEMENT3D(#${ptId},$,$)`);
   const ctxId = addLine(ctx, '_ctx', `IFCGEOMETRICREPRESENTATIONCONTEXT($,'Plan',3,1.0E-05,#${axId},$)`);
 
-  // Project
-  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(ifcGuid(project.id))},#${ownerHistId},${ifcStr(project.name)},$,$,$,$,(#${ctxId}),#${unitAssId})`);
+  // Project. Description (arg 3) draagt project.description (fase 3, H2) — de reader leest 'm terug
+  // uit de IFCWORKPLAN.Description-slot, met terugval op deze.
+  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(ifcGuid(project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
@@ -154,7 +150,7 @@ export function writeIFC(input: WriteIFCInput): string {
   const planEnd = endDates[endDates.length - 1] || project.endDate;
 
   const workPlanId = addLine(ctx, '_workplan',
-    `IFCWORKPLAN(${ifcStr(ifcGuid(project.id + '_wp'))},#${ownerHistId},${ifcStr(project.name)},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
+    `IFCWORKPLAN(${ifcStr(ifcGuid(project.id + '_wp'))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
 
   const workSchedId = addLine(ctx, '_worksched',
     `IFCWORKSCHEDULE(${ifcStr(ifcGuid(project.id + '_ws'))},#${ownerHistId},${ifcStr('Bouwplanning v1.0')},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
@@ -227,17 +223,11 @@ export function writeIFC(input: WriteIFCInput): string {
   // Structuurdefinities (activity codes / custom fields) + waarden per taak + projectsettings
   writeStructure(ctx, project, tasks, activityCodeTypes, customFieldDefs, ownerHistId);
 
-  // Datum-constraints + deadlines (fase 2.3) als OPS_Constraints-pset per taak
-  writeConstraints(ctx, tasks, ownerHistId);
-  // Externe (cross-project) dependencies (fase 2.9, §4.5/§6) als OPS_ExternalLink-pset per taak
-  writeExternalLinks(ctx, tasks, ownerHistId);
-  // Hammock/LOE-vlag (fase 2.9, §3.2/§6) als OPS_Hammock-pset per taak
-  writeHammockMeta(ctx, tasks, ownerHistId);
-  writeMilestoneMeta(ctx, tasks, ownerHistId);
-  // Nivellering (fase 2.5): levelingDelay als OPS_Leveling-pset per taak
-  writeLevelingMeta(ctx, tasks, ownerHistId);
-  // Aantekeningen (fase 2.10, item 1) als OPS_TaskNotes-pset per taak
-  writeTaskNotes(ctx, tasks, ownerHistId);
+  // De acht per-taak-psets (Constraints/ExternalLink/Hammock/Milestone/Leveling/TaskNotes/
+  // TaskAppearance/Analysis) via de gedeelde registry (ifcPsets.PER_TASK_PSETS). De volgorde in de
+  // registry spiegelt de vroegere aanroepvolgorde ⇒ byte-identieke STEP-uitvoer. Reader-kant zit in
+  // dezelfde descriptors (apply), gedispatcht in extractStructure.
+  emitPerTaskPsets(ctx, tasks, ownerHistId);
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
@@ -306,9 +296,24 @@ function writeStructure(
     projSettingProps.push(addLine(ctx, '_ps_progressmode',
       `IFCPROPERTYSINGLEVALUE('ProgressMode',$,IFCLABEL(${ifcStr(project.progressMode)}),$)`));
   }
+  // CreatedAt/ModifiedAt (fase 3, H2): project-tijdstempels als verbatim ISO-instant. Bewust in het
+  // OPS_ProjectSettings-pset i.p.v. de native IFCOWNERHISTORY-slots (IfcTimeStamp): (1) elk bestaand
+  // bestand draagt in OwnerHistory al een schrijf-tijdstempel, dus dat slot teruglezen zou createdAt
+  // van álle oude bestanden stilletjes wijzigen (breekt "identiek laden"); (2) IfcTimeStamp is
+  // gehele-seconden en zou de millisecondeprecisie van de ISO-string afkappen; (3) createdAt/
+  // modifiedAt zijn project-metadata en horen bij de andere project-settings. Golden rule: alleen
+  // wanneer gezet — een leeg veld schrijft niets (oude bestanden byte-identiek).
+  if (project.createdAt) {
+    projSettingProps.push(addLine(ctx, '_ps_createdat',
+      `IFCPROPERTYSINGLEVALUE('CreatedAt',$,IFCTEXT(${ifcStr(project.createdAt)}),$)`));
+  }
+  if (project.modifiedAt) {
+    projSettingProps.push(addLine(ctx, '_ps_modifiedat',
+      `IFCPROPERTYSINGLEVALUE('ModifiedAt',$,IFCTEXT(${ifcStr(project.modifiedAt)}),$)`));
+  }
   if (projSettingProps.length > 0) {
     const setId = addLine(ctx, '_pset_projset',
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_projset'))},#${ownerHistId},'OPS_ProjectSettings',$,(${projSettingProps.map(i => `#${i}`).join(',')}))`);
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_projset'))},#${ownerHistId},${ifcStr(PSET.ProjectSettings)},$,(${projSettingProps.map(i => `#${i}`).join(',')}))`);
     relDefines('_rel_projset', projRef, setId);
   }
 
@@ -319,7 +324,7 @@ function writeStructure(
   const metaPropId = addLine(ctx, '_ps_structmeta',
     `IFCPROPERTYSINGLEVALUE('structure',$,IFCTEXT(${ifcStr(metaJson)}),$)`);
   const metaSetId = addLine(ctx, '_pset_structmeta',
-    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_structmeta'))},#${ownerHistId},'OPS_StructureMeta',$,(#${metaPropId}))`);
+    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_structmeta'))},#${ownerHistId},${ifcStr(PSET.StructureMeta)},$,(#${metaPropId}))`);
   relDefines('_rel_structmeta', projRef, metaSetId);
 
   // Conformante templates + declaratie aan het project.
@@ -331,7 +336,7 @@ function writeStructure(
       return `#${id}`;
     });
     templateIds.push(addLine(ctx, '_psett_fields',
-      `IFCPROPERTYSETTEMPLATE(${ifcStr(ifcGuid('psett_fields'))},#${ownerHistId},'OPS_CustomFields',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(${fieldTmplRefs.join(',')}))`));
+      `IFCPROPERTYSETTEMPLATE(${ifcStr(ifcGuid('psett_fields'))},#${ownerHistId},${ifcStr(PSET.CustomFields)},$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(${fieldTmplRefs.join(',')}))`));
   }
   if (activityCodeTypes.length > 0) {
     const codeTmplRefs = activityCodeTypes.map(t => {
@@ -343,7 +348,7 @@ function writeStructure(
       return `#${id}`;
     });
     templateIds.push(addLine(ctx, '_psett_codes',
-      `IFCPROPERTYSETTEMPLATE(${ifcStr(ifcGuid('psett_codes'))},#${ownerHistId},'OPS_ActivityCodes',$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(${codeTmplRefs.join(',')}))`));
+      `IFCPROPERTYSETTEMPLATE(${ifcStr(ifcGuid('psett_codes'))},#${ownerHistId},${ifcStr(PSET.ActivityCodes)},$,.PSET_OCCURRENCEDRIVEN.,'IfcTask',(${codeTmplRefs.join(',')}))`));
   }
   if (templateIds.length > 0) {
     addLine(ctx, '_decl_templates',
@@ -363,7 +368,7 @@ function writeStructure(
         return `#${id}`;
       });
       const setId = addLine(ctx, `_pset_cf_${task.id}`,
-        `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_cf_' + task.id))},#${ownerHistId},'OPS_CustomFields',$,(${propRefs.join(',')}))`);
+        `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_cf_' + task.id))},#${ownerHistId},${ifcStr(PSET.CustomFields)},$,(${propRefs.join(',')}))`);
       relDefines(`_rel_cf_${task.id}`, ref(ctx, `task_${task.id}`), setId);
     }
 
@@ -380,169 +385,34 @@ function writeStructure(
         return `#${id}`;
       });
       const setId = addLine(ctx, `_pset_ac_${task.id}`,
-        `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_ac_' + task.id))},#${ownerHistId},'OPS_ActivityCodes',$,(${propRefs.join(',')}))`);
+        `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_ac_' + task.id))},#${ownerHistId},${ifcStr(PSET.ActivityCodes)},$,(${propRefs.join(',')}))`);
       relDefines(`_rel_ac_${task.id}`, ref(ctx, `task_${task.id}`), setId);
     }
   }
 }
 
 /**
- * Fase 2.3 — datum-constraint + deadline per taak als eigen OPS_Constraints-pset
- * (IfcTaskTime heeft geen constraint-/deadline-slots; de standaardconforme
- * IfcRelAssociatesConstraint/IfcMetric-graf is gedocumenteerd alternatief voor later).
- * ASAP (default) wordt niet geschreven.
+ * Fase 3 (P11) — schrijf de acht per-taak-psets via de gedeelde registry (ifcPsets.PER_TASK_PSETS).
+ * Elk descriptor levert de property-lijst (`write`); een lege/`null`-lijst = golden rule ⇒ niets
+ * geschreven (bit-gelijk met bestaande bestanden). De buitenlus over de registry-VOLGORDE en de
+ * binnenlus over `tasks` reproduceren exact de vroegere aanroepvolgorde van writeConstraints/
+ * writeExternalLinks/writeHammockMeta/writeMilestoneMeta/writeLevelingMeta/writeTaskNotes/
+ * writeTaskAppearance/writeAnalysisMeta ⇒ byte-identieke STEP-uitvoer. De read-kant leeft in
+ * dezelfde descriptors (`apply`), gedispatcht in ifcReader.extractStructure.
  */
-function writeConstraints(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
-  for (const task of tasks) {
-    const props: string[] = [];
-    const c = task.constraint;
-    if (c && c.type !== 'ASAP') {
-      const typeId = addLine(ctx, `_cstt_${task.id}`,
-        `IFCPROPERTYSINGLEVALUE('ConstraintType',$,IFCLABEL(${ifcStr(c.type)}),$)`);
-      props.push(`#${typeId}`);
-      if (c.date) {
-        const dateId = addLine(ctx, `_cstd_${task.id}`,
-          `IFCPROPERTYSINGLEVALUE('ConstraintDate',$,IFCDATE(${ifcStr(c.date)}),$)`);
-        props.push(`#${dateId}`);
-      }
-      // Fase 2.9 (§6): logica-brekende harde pin (Mandatory). Alleen .T. wanneer gezet — soft
-      // (afwezig/false) schrijft niets ⇒ bestaande bestanden bit-gelijk.
-      if (c.hard) {
-        const hardId = addLine(ctx, `_csth_${task.id}`,
-          `IFCPROPERTYSINGLEVALUE('Hard',$,IFCBOOLEAN(.T.),$)`);
-        props.push(`#${hardId}`);
-      }
+function emitPerTaskPsets(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
+  for (const desc of PER_TASK_PSETS) {
+    for (const task of tasks) {
+      const specs = desc.write(task);
+      if (!specs || specs.length === 0) continue;
+      const propRefs = specs.map((s, i) =>
+        `#${addLine(ctx, `_prop_${desc.name}_${task.id}_${i}`,
+          `IFCPROPERTYSINGLEVALUE(${ifcStr(s.name)},$,${s.value},$)`)}`);
+      const setId = addLine(ctx, `_pset_${desc.name}_${task.id}`,
+        `IFCPROPERTYSET(${ifcStr(ifcGuid(desc.psetSeed + task.id))},#${ownerHistId},${ifcStr(desc.name)},$,(${propRefs.join(',')}))`);
+      addLine(ctx, `_rel_${desc.name}_${task.id}`,
+        `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid(desc.relSeed + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
     }
-    // Fase 2.9 (§6): secundaire constraint (P6-native, altijd soft) als ConstraintType2/ConstraintDate2.
-    const c2 = task.constraint2;
-    if (c2 && c2.type !== 'ASAP') {
-      const type2Id = addLine(ctx, `_cstt2_${task.id}`,
-        `IFCPROPERTYSINGLEVALUE('ConstraintType2',$,IFCLABEL(${ifcStr(c2.type)}),$)`);
-      props.push(`#${type2Id}`);
-      if (c2.date) {
-        const date2Id = addLine(ctx, `_cstd2_${task.id}`,
-          `IFCPROPERTYSINGLEVALUE('ConstraintDate2',$,IFCDATE(${ifcStr(c2.date)}),$)`);
-        props.push(`#${date2Id}`);
-      }
-    }
-    if (task.deadline) {
-      const dlId = addLine(ctx, `_dl_${task.id}`,
-        `IFCPROPERTYSINGLEVALUE('Deadline',$,IFCDATE(${ifcStr(task.deadline)}),$)`);
-      props.push(`#${dlId}`);
-    }
-    if (props.length === 0) continue;
-    const setId = addLine(ctx, `_pset_cst_${task.id}`,
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_cst_' + task.id))},#${ownerHistId},'OPS_Constraints',$,(${props.join(',')}))`);
-    addLine(ctx, `_rel_cst_${task.id}`,
-      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_cst_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
-  }
-}
-
-/**
- * Fase 2.9 (§4.5/§6) — externe (cross-project) dependencies als eigen OPS_ExternalLink-pset per taak.
- * IFC 4.3 kent geen native cross-project `IfcRelSequence`; net als OPS_Baselines dragen we het rijke,
- * geneste model (id/direction/relType/lag/anchorDate/sourceRef/sourceMissing) als één autoritatief
- * JSON-veld — zo round-trippt de volledige array 1-op-1. Afwezig/leeg ⇒ niets geschreven (bit-gelijk
- * met bestaande bestanden). P6/MSPDI kennen dit niet uitdrukbaar (weggelaten met console-warn in hun
- * writers).
- */
-function writeExternalLinks(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
-  for (const task of tasks) {
-    const links = task.externalLinks;
-    if (!links || links.length === 0) continue;
-    const json = JSON.stringify(links);
-    const propId = addLine(ctx, `_extl_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('Links',$,IFCTEXT(${ifcStr(json)}),$)`);
-    const setId = addLine(ctx, `_pset_extl_${task.id}`,
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_extl_' + task.id))},#${ownerHistId},'OPS_ExternalLink',$,(#${propId}))`);
-    addLine(ctx, `_rel_extl_${task.id}`,
-      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_extl_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
-  }
-}
-
-/**
- * Fase 2.10 (item 1) — taak-aantekeningen (checklist) als eigen OPS_TaskNotes-pset per taak.
- * Exact het `writeExternalLinks`-stramien: de volledige `notes`-array (id/text/done) gaat als ÉÉN
- * autoritatief JSON-veld in een `IFCPROPERTYSINGLEVALUE('Notes',$,IFCTEXT(json),$)` — geen los
- * IFC-attribuut per aantekening. Afwezig/leeg ⇒ niets geschreven (golden rule, bit-gelijk met
- * bestaande bestanden). P6/MSPDI kennen dit niet uitdrukbaar (weggelaten met console-warn in hun
- * writers).
- */
-function writeTaskNotes(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
-  for (const task of tasks) {
-    const notes = task.notes;
-    if (!notes || notes.length === 0) continue;
-    const json = JSON.stringify(notes);
-    const propId = addLine(ctx, `_notes_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('Notes',$,IFCTEXT(${ifcStr(json)}),$)`);
-    const setId = addLine(ctx, `_pset_notes_${task.id}`,
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_notes_' + task.id))},#${ownerHistId},'OPS_TaskNotes',$,(#${propId}))`);
-    addLine(ctx, `_rel_notes_${task.id}`,
-      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_notes_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
-  }
-}
-
-/**
- * Fase 2.9 (§3.2/§6) — hammock/LOE-vlag als eigen OPS_Hammock-pset per taak. IFC 4.3 kent geen
- * LEVELOFEFFORT in `IfcTaskTypeEnum` (Rapport B §8.1) → custom pset, exact het writeConstraints/
- * writeLeveling-patroon. `isHammock` afwezig/false ⇒ niets geschreven (bit-gelijk met bestaande
- * bestanden). P6/MSPDI kennen dit niet (gewone taak + warn in hun writers).
- */
-function writeHammockMeta(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
-  for (const task of tasks) {
-    if (!task.isHammock) continue;
-    const propId = addLine(ctx, `_hmk_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('IsHammock',$,IFCBOOLEAN(.T.),$)`);
-    const setId = addLine(ctx, `_pset_hmk_${task.id}`,
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_hmk_' + task.id))},#${ownerHistId},'OPS_Hammock',$,(#${propId}))`);
-    addLine(ctx, `_rel_hmk_${task.id}`,
-      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_hmk_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
-  }
-}
-
-/**
- * Fase 2.4 — mijlpaal-metadata als OPS_Milestone-pset per taak. IfcTask.IsMilestone
- * bestaat als attribuut, maar IfcTaskTypeEnum kent geen start/finish-onderscheid en
- * geen verplicht-vlag. Automatisch (kind undefined) en niet-verplicht schrijven niets,
- * zodat oude bestanden bit-gelijk round-trippen.
- */
-function writeMilestoneMeta(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
-  for (const task of tasks) {
-    if (!task.isMilestone) continue;
-    const props: string[] = [];
-    if (task.milestoneKind === 'START' || task.milestoneKind === 'FINISH') {
-      const kindId = addLine(ctx, `_msk_${task.id}`,
-        `IFCPROPERTYSINGLEVALUE('MilestoneKind',$,IFCLABEL(${ifcStr(task.milestoneKind)}),$)`);
-      props.push(`#${kindId}`);
-    }
-    if (task.mandatory) {
-      const mId = addLine(ctx, `_msm_${task.id}`,
-        `IFCPROPERTYSINGLEVALUE('Mandatory',$,IFCBOOLEAN(.T.),$)`);
-      props.push(`#${mId}`);
-    }
-    if (props.length === 0) continue;
-    const setId = addLine(ctx, `_pset_ms_${task.id}`,
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_ms_' + task.id))},#${ownerHistId},'OPS_Milestone',$,(${props.join(',')}))`);
-    addLine(ctx, `_rel_ms_${task.id}`,
-      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_ms_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
-  }
-}
-
-/**
- * Fase 2.5 — nivelleer-vertraging als OPS_Leveling-pset per taak (spiegel van
- * writeConstraints/writeMilestoneMeta). `IfcTask` heeft geen native slot voor een
- * per-taak levelingdelay (§7.6) — alleen geschreven wanneer de nivelleerder een
- * niet-nul delay heeft gezet (golden rule §7.7: undefined/0 schrijft niets).
- */
-function writeLevelingMeta(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
-  for (const task of tasks) {
-    if (!task.levelingDelay) continue;
-    const delayId = addLine(ctx, `_lvld_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('LevelingDelay',$,IFCINTEGER(${Math.round(task.levelingDelay)}),$)`);
-    const setId = addLine(ctx, `_pset_lvl_${task.id}`,
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_lvl_' + task.id))},#${ownerHistId},'OPS_Leveling',$,(#${delayId}))`);
-    addLine(ctx, `_rel_lvl_${task.id}`,
-      `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_lvl_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }
 
@@ -571,7 +441,7 @@ function writeBaselineMeta(
       `IFCPROPERTYSINGLEVALUE('ActiveBaselineId',$,IFCTEXT(${ifcStr(activeBaselineId)}),$)`));
   }
   const setId = addLine(ctx, '_pset_baselines',
-    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_baselines'))},#${ownerHistId},'OPS_Baselines',$,(${props.map(i => `#${i}`).join(',')}))`);
+    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_baselines'))},#${ownerHistId},${ifcStr(PSET.Baselines)},$,(${props.map(i => `#${i}`).join(',')}))`);
   addLine(ctx, '_rel_baselines',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_baselines'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
@@ -593,7 +463,7 @@ function writeSchedulingOptionsMeta(
   const propId = addLine(ctx, '_ps_schedopts',
     `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT(${ifcStr(json)}),$)`);
   const setId = addLine(ctx, '_pset_schedopts',
-    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_schedopts'))},#${ownerHistId},'OPS_SchedulingOptions',$,(#${propId}))`);
+    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_schedopts'))},#${ownerHistId},${ifcStr(PSET.SchedulingOptions)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedopts',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_schedopts'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
@@ -683,7 +553,7 @@ function writeCalendarGenerationMeta(
   props.push(addLine(ctx, `_opscal_to_${cal.id}`,
     `IFCPROPERTYSINGLEVALUE('GeneratedToYear',$,IFCINTEGER(${gen.generatedToYear}),$)`));
   const setId = addLine(ctx, `_pset_opscal_${cal.id}`,
-    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_opscal_' + cal.id))},#${ownerHistId},'OPS_Calendar',$,(${props.map(i => `#${i}`).join(',')}))`);
+    `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_opscal_' + cal.id))},#${ownerHistId},${ifcStr(PSET.Calendar)},$,(${props.map(i => `#${i}`).join(',')}))`);
   addLine(ctx, `_rel_opscal_${cal.id}`,
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_opscal_' + cal.id))},#${ownerHistId},$,$,(#${calStepId}),#${setId})`);
 }
@@ -876,7 +746,7 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
     }
     if (props.length === 0) continue;
     const setId = addLine(ctx, `_pset_res_${res.id}`,
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_res_' + res.id))},#${ownerHistId},'OPS_Resource',$,(${props.join(',')}))`);
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_res_' + res.id))},#${ownerHistId},${ifcStr(PSET.Resource)},$,(${props.join(',')}))`);
     addLine(ctx, `_rel_res_${res.id}`,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_res_' + res.id))},#${ownerHistId},$,$,(${ref(ctx, `res_${res.id}`)}),#${setId})`);
   }
@@ -957,7 +827,7 @@ function writeAssignmentMeta(
       return `#${propId}`;
     });
     const setId = addLine(ctx, `_pset_asgn_${task.id}`,
-      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_asgn_' + task.id))},#${ownerHistId},'OPS_Assignments',$,(${props.join(',')}))`);
+      `IFCPROPERTYSET(${ifcStr(ifcGuid('pset_asgn_' + task.id))},#${ownerHistId},${ifcStr(PSET.Assignments)},$,(${props.join(',')}))`);
     addLine(ctx, `_rel_asgn_${task.id}`,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(ifcGuid('rel_asgn_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }

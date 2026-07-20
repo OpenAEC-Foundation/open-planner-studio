@@ -2,48 +2,46 @@ import { Task, TaskConstraint, ConstraintType } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar, Holiday, WorkTimeBands } from '@/types/calendar';
+import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
-import { normalizeImportedProgress } from '@/services/importNormalize';
+import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/importNormalize';
+import { isoDatePrefixOrToday } from '@/services/importDates';
+import { descendantText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import { WORKCONTOUR_TO_CURVE } from './mspdiWriter';
 import {
-  canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isSubDayMinutes, workDaysFromBands,
+  canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
+  promoteHourCalendar, registerCalendarBands,
 } from '@/services/subdayIo';
 
 /** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
 const MSP_TIME_ANCHOR = '08:00:00';
 
-/** Gecanonicaliseerde banden per gelezen kalender + afwijking (a/b), voor de uur-modus-beslissing. */
-const mspBandRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
+// De rauwe-banden-registry (voorheen een lokale WeakMap) en `synth*BandsFromScalar` wonen nu gedeeld
+// in subdayIo (F5-c/d/e). WORKCONTOUR_TO_CURVE (spiegel van mspdiWriter's CURVE_TO_WORKCONTOUR, §8.3)
+// komt uit de writer — daar programmatisch afgeleid, dus reader en writer kunnen niet divergeren.
 
-// WORKCONTOUR_TO_CURVE (spiegel van mspdiWriter's CURVE_TO_WORKCONTOUR, §8.3) wordt nu uit de
-// writer geïmporteerd — daar programmatisch afgeleid, dus reader en writer kunnen niet divergeren.
-
+// Dunne lokale wrappers rond de gedeelde XML-primitieven (F5-b). MSPDI leest DESCENDANT-tags
+// (`getElementsByTagName`), waar P6 juist alleen directe kinderen leest — die scope-keuze blijft
+// hiermee per formaat bewaard terwijl de parse-fallback-conventie gedeeld is.
 function getElementText(parent: Element, tagName: string): string {
-  const el = parent.getElementsByTagName(tagName)[0];
-  return el?.textContent?.trim() || '';
+  return descendantText(parent, tagName);
 }
 
 function getElementInt(parent: Element, tagName: string, fallback = 0): number {
-  const text = getElementText(parent, tagName);
-  const n = parseInt(text);
-  return isNaN(n) ? fallback : n;
+  return toInt(getElementText(parent, tagName), fallback);
 }
 
 function getElementFloat(parent: Element, tagName: string, fallback = 0): number {
-  const text = getElementText(parent, tagName);
-  const n = parseFloat(text);
-  return isNaN(n) ? fallback : n;
+  return toFloat(getElementText(parent, tagName), fallback);
 }
 
+/** MS Project-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met P6 (F5-a). */
 function parseMSPDate(s: string): string {
-  if (!s) return formatDate(new Date());
-  // MS Project format: 2026-03-09T08:00:00
-  return s.substring(0, 10);
+  return isoDatePrefixOrToday(s);
 }
 
 /** Datum uit MSPDI in UUR-modus: echte tijd-van-de-dag behouden (`parseInstant`+`formatInstant`, §7.3). */
@@ -222,17 +220,13 @@ export function readMSPDI(content: string): ImportResult {
       || hasNonAnchorTime(getElementText(te, 'Finish'), MSP_TIME_ANCHOR);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
+  // MSPDI valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
+  // (preferCanonicalWhenEmpty = false) — zie de F5-noot bij `promoteHourCalendar`.
   const hourModeCalIds = new Set<string>();
   for (const [id, cal] of calById) {
-    const info = mspBandRegistry.get(cal);
-    if (!((info?.deviates ?? false) || cSignalCalIds.has(id))) continue;
-    hourModeCalIds.add(id);
-    if (cal.workTime) continue;
-    const bands = info && workDaysFromBands(info.canonical).length > 0 ? info.canonical : synthMspBandsFromScalar(cal);
-    cal.workTime = bands;
-    const wd = workDaysFromBands(bands);
-    if (wd.length > 0) cal.workDays = wd;
-    cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
+    if (promoteHourCalendar(cal, getCalendarBands(cal), cSignalCalIds.has(id), false)) {
+      hourModeCalIds.add(id);
+    }
   }
 
   for (let i = 0; i < taskElements.length; i++) {
@@ -380,26 +374,8 @@ export function readMSPDI(content: string): ImportResult {
     }
   }
 
-  // Rebuild parent-child hierarchy from WBS codes
-  const wbsToId = new Map<string, string>();
-  for (const task of tasks) {
-    wbsToId.set(task.wbsCode, task.id);
-  }
-
-  for (const task of tasks) {
-    if (!task.wbsCode || !task.wbsCode.includes('.')) continue;
-    const parts = task.wbsCode.split('.');
-    parts.pop();
-    const parentWbs = parts.join('.');
-    const parentId = wbsToId.get(parentWbs);
-    if (parentId) {
-      task.parentId = parentId;
-      const parent = tasks.find(t => t.id === parentId);
-      if (parent && !parent.childIds.includes(task.id)) {
-        parent.childIds.push(task.id);
-      }
-    }
-  }
+  // Parent-child-hiërarchie uit gepunte WBS-codes (gedeeld met CSV, F5-f).
+  rebuildWbsHierarchy(tasks);
 
   // Resolve sequences. LagFormat (subset van MSPDI DurationFormat): 19/20 = (elapsed) procent
   // met LinkLag in tienden van een procent; 4/6/8/10/12 = elapsed duren (24/7); rest = werktijd
@@ -585,7 +561,7 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar): void {
   }
 
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
-  mspBandRegistry.set(calendar, { canonical: bands, deviates });
+  registerCalendarBands(calendar, { canonical: bands, deviates });
 
   // Parse exceptions (holidays)
   const exceptions = calEl.getElementsByTagName('Exception');
@@ -606,14 +582,6 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar): void {
   if (holidays.length > 0) {
     calendar.holidays = holidays;
   }
-}
-
-/** Enkelband-kalender uit de scalar `workStartHour/EndHour` (fallback bij (c)-promotie zonder banden). */
-function synthMspBandsFromScalar(cal: WorkCalendar): WorkTimeBands {
-  const raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
-  const band = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
-  for (const wd of cal.workDays) if (wd >= 1 && wd <= 7) raw[wd as 1] = [{ ...band }];
-  return canonicalizeBands(raw).bands;
 }
 
 function parseCalendar(root: Element): WorkCalendar {

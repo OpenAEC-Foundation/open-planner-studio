@@ -12,6 +12,7 @@ import { ExtensionManagerPanel } from '@/components/backstage/ExtensionManagerPa
 import { HelpPanel } from '@/components/backstage/HelpPanel';
 import type { ExtensionImporter } from '@/state/slices/extensionSlice';
 import { supportsHandles } from '@/services/fileAccess';
+import { fromExtImportResult } from '@/extensions/extMappers';
 import './Backstage.css';
 
 export function Backstage() {
@@ -484,7 +485,8 @@ function ImportSection() {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) { input.remove(); return; }
       try {
-        const result = await imp.handler(file);
+        // De importer levert een EXT-facing resultaat; map het naar de interne loadState-vorm.
+        const result = fromExtImportResult(await imp.handler(file));
         loadState(result);
         runCPM();
         setUI({ activeRibbonTab: 'start' });

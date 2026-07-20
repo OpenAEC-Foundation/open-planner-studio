@@ -4,12 +4,16 @@
  * een extensie = manifest.json + main.js (CommonJS, exporteert onLoad/onUnload),
  * verpakt als ZIP of los .js-bestand, opgeslagen in IndexedDB.
  */
-import type { Project } from '@/types/project';
-import type { WorkCalendar } from '@/types/calendar';
-import type { Task } from '@/types/task';
-import type { Sequence } from '@/types/sequence';
-import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { RibbonTab } from '@/state/slices/types';
+import type {
+  ExtProject,
+  ExtCalendar,
+  ExtTask,
+  ExtSequence,
+  ExtResource,
+  ExtAssignment,
+  ExtImportResult,
+} from './extTypes';
 
 // ── Categorieën & permissies ──
 
@@ -20,9 +24,19 @@ export type ExtensionCategory =
   | 'Utility'
   | 'Other';
 
-// Declaratief in het manifest; 'ribbon' en 'events' worden afgedwongen in de API.
+/**
+ * Declaratieve manifest-permissies. De afdwinging is gecentraliseerd in `permissions.ts`:
+ *   • 'events'    → api.events.*        (hard afgedwongen)
+ *   • 'ribbon'    → api.ui.addRibbonButton (hard afgedwongen)
+ *   • 'backstage' → api.importers.*      (compat-WARN; zie permissions.ts / docs/extensions.md)
+ *   • 'filesystem' / 'network' → puur installatie-informatief; GEEN API-oppervlak en in
+ *     same-context JS niet technisch afdwingbaar (getoonde intentie, geen sandbox-garantie).
+ *
+ * NB: 'commands' bestond hiervoor maar had nooit een API-oppervlak en is per audit P16 verwijderd.
+ * Manifesten die het (of een andere onbekende waarde) nog noemen, worden bij het activeren
+ * gefilterd met een appLog-warn (`sanitizeManifestPermissions`) — installatie blijft slagen.
+ */
 export type ExtensionPermission =
-  | 'commands'
   | 'ribbon'
   | 'backstage'
   | 'events'
@@ -64,18 +78,9 @@ export interface ExtensionPlugin {
   onUnload?(): void | Promise<void>;
 }
 
-// ── Importresultaat = exact de vorm die loadState verwacht ──
-
-export interface ImportResult {
-  project: Project;
-  calendar: WorkCalendar;
-  tasks: Task[];
-  sequences: Sequence[];
-  resources: Resource[];
-  assignments: ResourceAssignment[];
-}
-
 // ── Importer-registratie ──
+// Het importresultaat is EXT-FACING (`ExtImportResult`, zie extTypes.ts). De host mapt het op de
+// importer-grens naar zijn interne `ImportResult` (extMappers.fromExtImportResult).
 
 export interface ImporterDefinition {
   id: string;
@@ -83,7 +88,7 @@ export interface ImporterDefinition {
   description: string;
   fileExtensions: string[];   // bv. ['.xlsx', '.xer']
   icon?: string;
-  handler: (file: File) => Promise<ImportResult>;
+  handler: (file: File) => Promise<ExtImportResult>;
 }
 
 // ── Ribbon-registratie ──
@@ -108,20 +113,22 @@ export interface ExtensionApi {
     unregister(id: string): void;
   };
 
-  /** Lees-/schrijftoegang tot de planningsdata. Mutaties lopen via store-acties
-   *  (die zelf undo-snapshots pushen); na bulk-wijzigingen zelf recalculate() aanroepen. */
+  /** Lees-/schrijftoegang tot de planningsdata. `get*` levert VERSE, MUTEERBARE kopieën (Ext*-DTO's,
+   *  géén bevroren store-objecten): muteren van het resultaat raakt de store NIET — schrijf via
+   *  addTask/updateTask/addSequence. Mutaties lopen via store-acties (die zelf undo-snapshots pushen);
+   *  na bulk-wijzigingen zelf recalculate() aanroepen. */
   data: {
-    getProject(): Project;
-    getCalendar(): WorkCalendar;
-    getTasks(): Task[];
-    getSequences(): Sequence[];
-    getResources(): Resource[];
-    getAssignments(): ResourceAssignment[];
-    addTask(task: Partial<Task> & { name: string }): string;
-    updateTask(id: string, updates: Partial<Task>): void;
-    addSequence(seq: Omit<Sequence, 'id'>): string;
+    getProject(): ExtProject;
+    getCalendar(): ExtCalendar;
+    getTasks(): ExtTask[];
+    getSequences(): ExtSequence[];
+    getResources(): ExtResource[];
+    getAssignments(): ExtAssignment[];
+    addTask(task: Partial<ExtTask> & { name: string }): string;
+    updateTask(id: string, updates: Partial<ExtTask>): void;
+    addSequence(seq: Omit<ExtSequence, 'id'>): string;
     /** Vervang het volledige project (zoals een import doet) en herbereken. */
-    loadProject(result: ImportResult): void;
+    loadProject(result: ExtImportResult): void;
     /** runCPM — herbereken het schema. */
     recalculate(): void;
   };

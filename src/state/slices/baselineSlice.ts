@@ -1,6 +1,6 @@
 import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { createSnapshot } from '../snapshot';
+import { beginUndoable, finishMutation } from '../transaction';
 import type { AppSlice } from './types';
 
 export interface BaselineSlice {
@@ -23,8 +23,7 @@ export const createBaselineSlice: AppSlice<BaselineSlice> = (set) => ({
   saveBaseline: (name) => {
     const id = generateId('baseline');
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       // Snapshot de CPM-early-datums (= de balk zoals getekend, §2.1) per leaf-taak; fallback op
       // de schedule-datums voor het geval er nog nooit een runCPM is geweest.
       const leaves = s.tasks.filter((t) => t.childIds.length === 0);
@@ -44,38 +43,35 @@ export const createBaselineSlice: AppSlice<BaselineSlice> = (set) => ({
         projectDuration: s.cpmResult?.projectDuration ?? 0,
       });
       s.activeBaselineId = id;
-      s.isDirty = true;
+      finishMutation(s);
     });
     return id;
   },
 
   deleteBaseline: (id) =>
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.baselines = s.baselines.filter((b) => b.id !== id);
       if (s.activeBaselineId === id) {
         s.activeBaselineId = s.baselines.length ? s.baselines[s.baselines.length - 1].id : null;
       }
-      s.isDirty = true;
+      finishMutation(s);
     }),
 
   renameBaseline: (id, name) =>
     set((s) => {
       const b = s.baselines.find((x) => x.id === id);
       if (!b) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       b.name = name;
-      s.isDirty = true;
+      finishMutation(s);
     }),
 
   setActiveBaseline: (id) =>
     set((s) => {
       if (s.activeBaselineId === id) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.activeBaselineId = id;
-      s.isDirty = true;
+      finishMutation(s);
     }),
 });

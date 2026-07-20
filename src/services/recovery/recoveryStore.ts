@@ -1,5 +1,9 @@
 import { isTauri } from '@/utils/platform';
 import { idbGetAll, idbPut, idbDelete } from '@/utils/idb';
+import {
+  recoveryBase, recoveryManifestName, legacyRecoveryFile, recoveryIfcName,
+  type RecoveryManifest,
+} from '@/hooks/recoveryPaths';
 
 /** Eén recovery-document (IFC-CONTENT, niet de bestandsnaam). */
 export interface RecoveryDocContent {
@@ -23,16 +27,11 @@ export interface LoadedRecovery {
 // Tauri-backend — appDataDir + plugin-fs (dev-slug-isolatie behouden, spec §7).
 // ---------------------------------------------------------------------------
 
-const recoveryBase = __OPS_DEV_INSTANCE__ ? `recovery.${__OPS_DEV_INSTANCE__}` : 'recovery';
-const manifestName = `${recoveryBase}.documents.json`;
-const legacyFile = `${recoveryBase}.ifc`;
-const ifcName = (docId: string): string => `${recoveryBase}.${docId}.ifc`;
-
-interface TauriManifest {
-  version: number;
-  activeDocumentId: string | null;
-  documents: { id: string; ifc: string; filePath: string | null; isDirty: boolean }[];
-}
+// Padnamen + manifestvorm komen uit `@/hooks/recoveryPaths` — één bron voor de dev-slug-isolatie
+// (zie daar), gedeeld met de auto-save-/herstel-hooks.
+const manifestName = recoveryManifestName;
+const legacyFile = legacyRecoveryFile;
+const ifcName = recoveryIfcName;
 
 async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<void> {
   const { writeTextFile, readDir, remove } = await import('@tauri-apps/plugin-fs');
@@ -43,7 +42,7 @@ async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<
     await writeTextFile(await join(dir, ifcName(d.id)), d.ifc);
   }
 
-  const manifest: TauriManifest = {
+  const manifest: RecoveryManifest = {
     version: 1,
     activeDocumentId: activeId,
     documents: docs.map((d) => ({ id: d.id, ifc: ifcName(d.id), filePath: d.filePath, isDirty: d.isDirty })),
@@ -68,7 +67,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
   const manifestPath = await join(dir, manifestName);
 
   if (await exists(manifestPath)) {
-    const manifest = JSON.parse(await readTextFile(manifestPath)) as TauriManifest;
+    const manifest = JSON.parse(await readTextFile(manifestPath)) as RecoveryManifest;
     const docs: LoadedRecoveryDoc[] = [];
     for (const d of manifest.documents) {
       try {
@@ -103,7 +102,7 @@ async function clearTauri(): Promise<void> {
   const manifestPath = await join(dir, manifestName);
   if (await exists(manifestPath)) {
     try {
-      const manifest = JSON.parse(await readTextFile(manifestPath)) as TauriManifest;
+      const manifest = JSON.parse(await readTextFile(manifestPath)) as RecoveryManifest;
       for (const d of manifest.documents) {
         try { await remove(await join(dir, d.ifc)); } catch { /* al weg */ }
       }

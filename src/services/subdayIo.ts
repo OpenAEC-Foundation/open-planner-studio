@@ -157,6 +157,72 @@ export function workDaysFromBands(bands: WorkTimeBands): number[] {
 }
 
 /**
+ * Enkelband-kalender uit de scalar `workStartHour/EndHour` (fallback bij (c)-promotie zonder
+ * geregistreerde banden — bv. een default-kalender die door een sub-dag-taak alsnog uur-modus wordt).
+ * Byte-identiek gedeeld door de IFC/MSPDI/P6-readers (voorheen `synth*BandsFromScalar` 3×, F5-d).
+ */
+export function synthBandsFromScalar(cal: WorkCalendar): WorkTimeBands {
+  const raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
+  const band = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
+  for (const wd of cal.workDays) if (wd >= 1 && wd <= 7) raw[wd as 1] = [{ ...band }];
+  return canonicalizeBands(raw).bands;
+}
+
+/**
+ * Rauwe (gecanonicaliseerde) banden per gelezen kalender-object + of ze afwijken van het
+ * enkelvoudige dag-patroon (discriminator (a)/(b)). Eén gedeelde WeakMap (F5-e): de sleutels zijn de
+ * per-parse aangemaakte `WorkCalendar`-objecten — elke reader maakt zijn eigen kalenders, dus de drie
+ * voormalige per-reader-registers deelden nooit een sleutel. Samenvoegen kan daarom niet lekken en
+ * verandert geen enkel gedrag. WeakMap ⇒ per-parse, automatisch opgeruimd.
+ */
+const bandRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
+
+/** Registreer de gecanonicaliseerde banden + afwijking van een zojuist gelezen kalender. */
+export function registerCalendarBands(
+  cal: WorkCalendar,
+  info: { canonical: WorkTimeBands; deviates: boolean },
+): void {
+  bandRegistry.set(cal, info);
+}
+
+/** De geregistreerde banden van een kalender, of `undefined` als er geen banden gelezen zijn. */
+export function getCalendarBands(
+  cal: WorkCalendar,
+): { canonical: WorkTimeBands; deviates: boolean } | undefined {
+  return bandRegistry.get(cal);
+}
+
+/**
+ * Promoveer één kalender naar uur-modus als hij afwijkt (a/b, `deviates`) of een (c)-signaal droeg
+ * (`signaled`). Zet `workTime` + afgeleide `workDays`/`hoursPerDay`. Retourneert of de kalender (nu)
+ * uur-modus is — inclusief het geval dat hij al `workTime` droeg. Gedeelde promotie-orkestratie (F5-c);
+ * de readers houden zelf hun format-specifieke signaal-verzameling (`cSignalCalIds`/`subDayCals`).
+ *
+ * `preferCanonicalWhenEmpty` bewaart een BEWUST formaatverschil (F5): het IFC-pad koos altijd de
+ * geregistreerde canonical zodra er info was (`info?.canonical ?? synth`), terwijl MSPDI/P6 terugvallen
+ * op de scalar-synth zodra de canonical geen werkdag draagt (`length > 0 ? canonical : synth`). Dat
+ * verschil raakt alleen de edge-case «geregistreerd maar leeg, gepromoveerd via een (c)-signaal»; om
+ * geen enkel formaat stil te veranderen blijft dat per formaat exact behouden.
+ */
+export function promoteHourCalendar(
+  cal: WorkCalendar,
+  info: { canonical: WorkTimeBands; deviates: boolean } | undefined,
+  signaled: boolean,
+  preferCanonicalWhenEmpty: boolean,
+): boolean {
+  if (!((info?.deviates ?? false) || signaled)) return false;
+  if (cal.workTime) return true;
+  const canonical = info?.canonical;
+  const useCanonical = !!canonical && (preferCanonicalWhenEmpty || workDaysFromBands(canonical).length > 0);
+  const bands = useCanonical ? canonical! : synthBandsFromScalar(cal);
+  cal.workTime = bands;
+  const wd = workDaysFromBands(bands);
+  if (wd.length > 0) cal.workDays = wd;
+  cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
+  return true;
+}
+
+/**
  * Bouw de map taak-id → effectieve kalender (§5): `task.calendarId` uit de bibliotheek, anders de
  * projectkalender. Gebruikt door de schrijvers om per taak uur- vs dag-modus te bepalen.
  */

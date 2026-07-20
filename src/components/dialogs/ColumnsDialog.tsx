@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, GripVertical, RotateCcw, Plus } from 'lucide-react';
+import { Dialog } from '@/components/common/Dialog';
 import { defaultColumns } from '@/engine/view/visibleRows';
 import { FILTER_SORT_BUILTIN_KEYS, fieldsEqual } from '@/components/viewControls/fieldCatalog';
 import type { ColumnConfig, FieldRef } from '@/state/slices/types';
@@ -111,12 +112,12 @@ export function ColumnsDialog() {
   const reset = () => setColumns(defaultColumns(activityCodeTypes, customFieldDefs));
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[480px] max-h-[88vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-        data-ops-columns-dialog
-      >
+    // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
+    <Dialog
+      onBackdropClick={close}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[480px] max-h-[88vh] flex flex-col overflow-hidden"
+      panelProps={{ 'data-ops-columns-dialog': true }}
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('view.columns.title')}
@@ -198,7 +199,6 @@ export function ColumnsDialog() {
             {t('close')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

@@ -1,5 +1,6 @@
 import type { WorkCalendar } from '@/types/calendar';
 import { materializeHolidays, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
+import { loadConstructionMode } from '@/utils/settingsStore';
 
 /**
  * Fasering-templates voor de nieuw-project-wizard: een herbruikbaar skelet van
@@ -52,13 +53,20 @@ export function templatePhases(key: TemplateKey): string[] {
 export function buildGeneratedCalendar(
   params: HolidayGenParams,
   span: { from: number; to: number },
-  name = 'Bouwkalender NL',
+  name?: string,
 ): WorkCalendar {
+  // Bouwmodus (2026-07-13): default-naam/omschrijving volgen de vlag (agnostisch ⇒ "Standaardkalender").
+  // De feestdagen komen uit `params` (de wizard zet in agnostische modus zelf `country: 'none'`), dus
+  // die worden hier niet apart geneutraliseerd. Namen blijven bewust hardcoded (geen t()).
+  const construction = loadConstructionMode();
+  const calName = name ?? (construction ? 'Bouwkalender NL' : 'Standaardkalender');
   const { holidays, generation } = materializeHolidays(params, span.from, span.to);
   return {
     id: 'cal-default',
-    name,
-    description: 'Standaard bouwkalender: ma-vr 07:00-16:00',
+    name: calName,
+    description: construction
+      ? 'Standaard bouwkalender: ma-vr 07:00-16:00'
+      : 'Standaardkalender: ma-vr 07:00-16:00',
     workDays: [1, 2, 3, 4, 5],
     workStartHour: 7,
     workEndHour: 16,

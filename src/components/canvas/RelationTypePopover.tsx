@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAppStore } from '@/state/appStore';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
@@ -30,30 +31,9 @@ export function RelationTypePopover({ sequenceId, x, y, onClose }: RelationTypeP
   const updateSequence = useAppStore(s => s.updateSequence);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        onCloseRef.current();
-      }
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
-    };
-    // Kleine defer, zelfde reden als ContextMenu: de mouseup die deze popover opent mag 'm niet
-    // meteen weer sluiten via dezelfde event-cyclus.
-    const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClick);
-    }, 0);
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKey);
-    };
-  }, []);
+  // Kleine defer, zelfde reden als ContextMenu: de mouseup die deze popover opent mag 'm niet
+  // meteen weer sluiten via dezelfde event-cyclus. Escape sluit ook (hook houdt `onClose` actueel).
+  useClickOutside(popoverRef, onClose, true, { escape: true, defer: true });
 
   // Sequence kan (in theorie) al verwijderd zijn vóór de popover sluit — niets te tonen dan.
   if (!sequence) return null;

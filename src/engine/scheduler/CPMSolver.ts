@@ -4,12 +4,14 @@ import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
-import { LAG_CALENDAR } from './lagCalendar';
 import {
-  parseDate, formatDate, addCalendarDays, parseInstant, type DateMode,
+  parseDate, formatDate, parseInstant, type DateMode,
 } from '@/utils/dateUtils';
 import { durationMinutesOf, durationDaysOf } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
+import {
+  forwardConstraint, backwardConstraint, type RelationDeps,
+} from './relationMath';
 
 export interface CPMResult {
   tasks: Map<string, CPMTaskResult>;
@@ -194,9 +196,7 @@ export class CPMSolver {
   //  UUR-kalender (`isHourMode`) activeert het minuut-native pad. Zo blijven de 290
   //  dag-cases + 23 examples ongemoeid — de constructie, niet een her-derivatie (§2.2).
   // ═══════════════════════════════════════════════════════════════════════════
-  private static readonly MS_PER_MIN = 60_000;
   private static readonly MS_PER_DAY = 86_400_000;
-  private static readonly HOUR_SCAN = 400;
 
   /** Parse een datum-string in de kalendermodus: dag ⇒ `parseDate` (middernacht, byte-identiek),
    *  uur ⇒ `parseInstant` (behoudt tijd-van-de-dag). */
@@ -226,6 +226,23 @@ export class CPMSolver {
   private startOfDay(d: Date): Date {
     return new Date(Math.floor(d.getTime() / CPMSolver.MS_PER_DAY) * CPMSolver.MS_PER_DAY);
   }
+
+  /** De mode-bewuste primitieven die de relatie-wiskunde (`relationMath.ts`, audit P15) injectief
+   *  krijgt aangereikt. Ze blijven hier gedefinieerd (delen de dag↔uur-reductie met de rest van de
+   *  solver); `forwardConstraint`/`backwardConstraint` draaien de FS/SS/FF/SF-formules erop. */
+  private readonly relDeps: RelationDeps = {
+    resolveLag: (seq, predTask) => this.resolveLag(seq, predTask),
+    resolveEffectiveLagDays: (seq, predTask) => resolveEffectiveLagDays(seq, predTask),
+    resolveElapsedMinutes: (seq, predTask) => this.resolveElapsedMinutes(seq, predTask),
+    shiftLagPred: (predEng, base, seq, predTask, sign) => this.shiftLagPred(predEng, base, seq, predTask, sign),
+    startFromFinish: (eng, finish, task) => this.startFromFinish(eng, finish, task),
+    finishFromStart: (eng, start, task) => this.finishFromStart(eng, start, task),
+    snapOnOrAfter: (eng, d) => this.snapOnOrAfter(eng, d),
+    snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
+    snapStrictAfter: (eng, d) => this.snapStrictAfter(eng, d),
+    snapStrictBefore: (eng, d) => this.snapStrictBefore(eng, d),
+    startOfDay: (d) => this.startOfDay(d),
+  };
 
   /** Vroege finish = start ⊕ duur (§5.1). Mijlpaal ⇒ 0; uur ⇒ `addWorkMinutes(durationMinutesOf)`;
    *  dag ⇒ `addWorkDays(durationDaysOf)` — LETTERLIJK de huidige regel (`durationDaysOf` levert op een
@@ -523,8 +540,8 @@ export class CPMSolver {
           const predResult = results.get(seq.predecessorId);
           const predTask = this.tasks.get(seq.predecessorId);
           if (!predResult || !predTask) continue;
-          const constraintDate = this.getForwardConstraint(
-            predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+          const constraintDate = forwardConstraint(
+            this.relDeps, predResult, predTask, seq, task, this.calendarFor(predTask), cal,
           );
           this.seqConstraint.set(seq.id, constraintDate);
           if (!rawMax || constraintDate > rawMax) rawMax = constraintDate;
@@ -614,7 +631,7 @@ export class CPMSolver {
 
   /** Hammock-ES (§4.4): de gewone forward-`max` over de START-drivers (SS/FS-voorgangers), met de
    *  projectstart als vloer. FF/SF-voorgangers (finish-drivers) doen hier NIET mee — die bepalen de
-   *  EF. `getForwardConstraint` levert voor SS/FS een start-grens; `seqConstraint` wordt bewust NIET
+   *  EF. `forwardConstraint` levert voor SS/FS een start-grens; `seqConstraint` wordt bewust NIET
    *  gezet, zodat de hammock-relaties buiten de driving-/float-path-analyse blijven (§4.4). */
   private hammockEarlyStart(
     task: Task,
@@ -629,8 +646,8 @@ export class CPMSolver {
       const predResult = results.get(seq.predecessorId);
       const predTask = this.tasks.get(seq.predecessorId);
       if (!predResult || !predTask) continue;
-      const c = this.getForwardConstraint(
-        predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+      const c = forwardConstraint(
+        this.relDeps, predResult, predTask, seq, task, this.calendarFor(predTask), cal,
       );
       if (c > es) es = c;
     }
@@ -638,7 +655,7 @@ export class CPMSolver {
   }
 
   /** Hammock-EF (§4.4): de `max` over de FINISH-drivers (FF/SF-voorgangers), met ondergrens `es` (een
-   *  hammock is nooit negatief lang). `getForwardConstraint` levert de start-equivalente grens; die
+   *  hammock is nooit negatief lang). `forwardConstraint` levert de start-equivalente grens; die
    *  wordt via `finishFromStart` terug naar de finish-grens vertaald (de duur-conversie valt weg — de
    *  finish is duur-onafhankelijk, dus idempotent ongeacht de genegeerde duur-invoer). Zonder
    *  finish-driver valt EF terug op ES (nul-lengte, met waarschuwing bij de aanroeper). */
@@ -655,8 +672,8 @@ export class CPMSolver {
       const predResult = results.get(seq.predecessorId);
       const predTask = this.tasks.get(seq.predecessorId);
       if (!predResult || !predTask) continue;
-      const startEquiv = this.getForwardConstraint(
-        predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+      const startEquiv = forwardConstraint(
+        this.relDeps, predResult, predTask, seq, task, this.calendarFor(predTask), cal,
       );
       const finishBound = this.finishFromStart(cal, startEquiv, task);
       if (!ef || finishBound > ef) ef = finishBound;
@@ -834,7 +851,7 @@ export class CPMSolver {
    * Het TWEEDE relType-teken bepaalt de zijde: FS/SS ⇒ START-grens, FF/SF ⇒ FINISH-grens (via
    * `startFromFinish` naar een start terugvertaald). Het EERSTE teken de dag-boundary-overgang:
    * alleen FS (externe finish → mijn start) krijgt de `nextWorkDayAfter`-+1 (spiegel van
-   * `getForwardConstraint` FS); SS/FF/SF ankeren op dezelfde grens (geen +1). In uur-modus valt de
+   * `forwardConstraint` FS); SS/FF/SF ankeren op dezelfde grens (geen +1). In uur-modus valt de
    * +1 weg (continue tijd) ⇒ `nextWorkInstant`. `sourceMissing` speelt GEEN rol — er wordt altijd op
    * het anker gerekend (P6 External Dates). Retourneert null voor een successor-link.
    */
@@ -994,7 +1011,7 @@ export class CPMSolver {
         if (!succTask) continue;
         this.seqConstraint.set(
           seq.id,
-          this.getForwardConstraint(early, task, seq, succTask, cal, this.calendarFor(succTask)),
+          forwardConstraint(this.relDeps, early, task, seq, succTask, cal, this.calendarFor(succTask)),
         );
       }
     }
@@ -1004,165 +1021,6 @@ export class CPMSolver {
   private resolveLag(seq: Sequence, predTask: Task): { days: number; unit: LagUnit } {
     const unit: LagUnit = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
     return { days: resolveEffectiveLagDays(seq, predTask), unit };
-  }
-
-  private getForwardConstraint(
-    predResult: { es: Date; ef: Date },
-    predTask: Task,
-    seq: Sequence,
-    successor: Task,
-    predEng: CalendarEngine,
-    succEng: CalendarEngine,
-  ): Date {
-    // Fase 2.8b (§5.2): zodra minstens één zijde uur-modus is loopt het cross-/uur-pad; een puur
-    // dag-dag-paar valt hier NIET binnen en draait onder het bevroren dag-pad hieronder (byte-identiek).
-    if (predEng.isHourMode || succEng.isHourMode) {
-      return this.forwardConstraintHour(predResult, predTask, seq, successor, predEng, succEng);
-    }
-    // Lag in dagen; positief = uitloop, negatief = lead (overlap), 0 = direct aansluitend.
-    // Werkdag-lag (WORKTIME, default) stapt over werkdagen; kalenderdag-lag (ELAPSEDTIME)
-    // telt 24/7 en snapt daarna vooruit naar een werkdag (het is een ondergrens: "niet
-    // eerder dan…", dus de eerstvolgende werkdag op of na de ruwe datum voldoet als eerste).
-    // Elke tak geeft de door de relatie geëiste vroegste start van de opvolger terug; de
-    // projectstart-ondergrens en de max-over-voorgangers worden in forwardPass toegepast
-    // (relaties zijn ondergrenzen, geen gelijkheden — een niet-bindende FF/SF zakt zo terug
-    // naar de anker i.p.v. de opvolger vóór het projectbegin te trekken).
-    const { days: lag, unit } = this.resolveLag(seq, predTask);
-    const elapsed = unit === 'ELAPSEDTIME';
-    // De relatie-lag telt in de kalender van de VOORGANGER (P6-default, §5.2). De succBack-aftrek en
-    // successor-mijlpaal-snaps tellen in de successor-kalender; de FS-finishgrens-snap in de voorganger.
-    const pe = predEng;
-    const se = succEng;
-    const lagEng = LAG_CALENDAR === 'predecessor' ? predEng : succEng;
-    const predIsMilestone = predTask.isMilestone || predTask.time.scheduleDuration <= 0;
-    const succDur = successor.isMilestone ? 0 : successor.time.scheduleDuration;
-    // Aantal werkdagen tussen start en finish van de opvolger (duur 0/1 => 0).
-    const succBack = succDur > 0 ? succDur - 1 : 0;
-    // Grens-model mijlpaalsoorten (fase 2.4): een startmijlpaal (en het automatische
-    // legacy-anker) ligt op een dagBEGIN — zijn "finish" bezet geen dag, dus opvolgers
-    // op de startzijde beginnen dezelfde dag. Een eindmijlpaal ligt op een dagEINDE:
-    // zijn finish-grens valt samen met die van een echte taak (opvolger start de werkdag
-    // erna) en zijn "start"-moment is diezelfde dag-eindgrens.
-    const predKind = predTask.isMilestone ? predTask.milestoneKind : undefined;
-    const predEndsBeginOfDay = predIsMilestone && predKind !== 'FINISH';
-    const predStartsNextDay = predIsMilestone && predKind === 'FINISH';
-    const succIsFinishMs = successor.isMilestone && successor.milestoneKind === 'FINISH';
-    const succIsStartMs = successor.isMilestone && successor.milestoneKind === 'START';
-
-    switch (seq.type) {
-      case 'START_START': {
-        // Opvolger start `lag` dagen na de start van de voorganger. Een ruwe elapsed-datum op
-        // een weekend hoeft hier niet gesnapt: forwardPass eindigt met nextWorkDay op de max.
-        // Het "start"-moment van een eindmijlpaal is zijn dag-eindgrens ⇒ werkdag erna.
-        if (elapsed) {
-          return addCalendarDays(predResult.es, predStartsNextDay ? lag + 1 : lag);
-        }
-        const base = predStartsNextDay ? pe.nextWorkDayAfter(predResult.es) : predResult.es;
-        return lagEng.addWorkingDaysSigned(base, lag);
-      }
-      case 'FINISH_FINISH': {
-        // Opvolger EINDIGT `lag` dagen na de finish van de voorganger → leid de bijbehorende
-        // start af (finish − (duur−1)). De geëiste finish moet een werkdag zijn vóór de
-        // werkdag-aftrek, dus elapsed snapt hier wél (vooruit — ondergrens op de finish).
-        const reqFinish = elapsed
-          ? se.nextWorkDay(addCalendarDays(predResult.ef, lag))
-          : lagEng.addWorkingDaysSigned(predResult.ef, lag);
-        // Een startmijlpaal-opvolger (dagbegin-anker) kan pas op de werkdag ná een
-        // dag-eindgrens liggen; na een dagbegin-voorganger (start-/auto-mijlpaal) niet.
-        if (succIsStartMs && !predEndsBeginOfDay) return se.nextWorkDayAfter(reqFinish);
-        return se.addWorkingDaysSigned(reqFinish, -succBack);
-      }
-      case 'START_FINISH': {
-        // Opvolger EINDIGT `lag` dagen na de START van de voorganger (zeldzaam).
-        const reqFinish = elapsed
-          ? se.nextWorkDay(addCalendarDays(predResult.es, predStartsNextDay ? lag + 1 : lag))
-          : lagEng.addWorkingDaysSigned(
-              predStartsNextDay ? pe.nextWorkDayAfter(predResult.es) : predResult.es,
-              lag,
-            );
-        return se.addWorkingDaysSigned(reqFinish, -succBack);
-      }
-      case 'FINISH_START':
-      default: {
-        // Eind-Start: opvolger start de werkdag ná de finish van de voorganger, plus `lag`.
-        // Een dagbegin-mijlpaal bezet geen dag, dus die "+1"-overgang geldt dan niet
-        // (anders schuift een tussengevoegde mijlpaal de hele keten een dag op). Een
-        // eindmijlpaal-opvolger ankert juist op de finish-grens zelf (zelfde daglabel).
-        // De finish-grens-snap (nextWorkDayAfter) telt in de VOORGANGER-kalender; de lag daarna
-        // in de lag-kalender (voorganger, §5.2). Elapsed telt vanaf de finish-grens 24/7.
-        if (elapsed) {
-          const plus = succIsFinishMs || predEndsBeginOfDay ? lag : lag + 1;
-          return addCalendarDays(predResult.ef, plus);
-        }
-        const base = succIsFinishMs || predEndsBeginOfDay
-          ? predResult.ef
-          : pe.nextWorkDayAfter(predResult.ef);
-        return lagEng.addWorkingDaysSigned(base, lag);
-      }
-    }
-  }
-
-  /**
-   * Cross-/uur-pad van `getForwardConstraint` (§4.3/§5.2). Engaged zodra minstens één zijde
-   * uur-modus is. FS is minuut-exact geverifieerd (scenario's 1-7); SS/FF/SF spiegelen de
-   * dag-formules met instant-primitieven (golf 3 maakt er cases van). Lag telt in de
-   * VOORGANGER-engine (`LAG_CALENDAR='predecessor'`); de opvolger-snap gebeurt in de succ-engine.
-   */
-  private forwardConstraintHour(
-    predResult: { es: Date; ef: Date },
-    predTask: Task,
-    seq: Sequence,
-    successor: Task,
-    pe: CalendarEngine,
-    se: CalendarEngine,
-  ): Date {
-    const elapsed = seq.lagUnit === 'ELAPSEDTIME';
-    const predIsMs = predTask.isMilestone || predTask.time.scheduleDuration <= 0;
-    const predKind = predTask.isMilestone ? predTask.milestoneKind : undefined;
-    const predEndsBeginOfDay = predIsMs && predKind !== 'FINISH';   // dag-conceptueel (mijlpaal)
-    const predStartsNextDay = predIsMs && predKind === 'FINISH';
-    const succIsFinishMs = successor.isMilestone && successor.milestoneKind === 'FINISH';
-    const succIsStartMs = successor.isMilestone && successor.milestoneKind === 'START';
-    const elapsedMin = () => this.resolveElapsedMinutes(seq, predTask) * CPMSolver.MS_PER_MIN;
-
-    switch (seq.type) {
-      case 'START_START': {
-        const base = predStartsNextDay ? this.snapStrictAfter(pe, predResult.es) : predResult.es;
-        if (elapsed) {
-          return this.snapOnOrAfter(se, new Date(base.getTime() + elapsedMin()));
-        }
-        return this.snapOnOrAfter(se, this.shiftLagPred(pe, base, seq, predTask, 1));
-      }
-      case 'FINISH_FINISH': {
-        const reqFinish = elapsed
-          ? this.snapOnOrAfter(se, new Date(predResult.ef.getTime() + elapsedMin()))
-          : this.shiftLagPred(pe, predResult.ef, seq, predTask, 1);
-        if (succIsStartMs && !predEndsBeginOfDay) return this.snapStrictAfter(se, reqFinish);
-        return this.startFromFinish(se, reqFinish, successor);
-      }
-      case 'START_FINISH': {
-        const startMoment = predStartsNextDay ? this.snapStrictAfter(pe, predResult.es) : predResult.es;
-        const reqFinish = elapsed
-          ? this.snapOnOrAfter(se, new Date(startMoment.getTime() + elapsedMin()))
-          : this.shiftLagPred(pe, startMoment, seq, predTask, 1);
-        return this.startFromFinish(se, reqFinish, successor);
-      }
-      case 'FINISH_START':
-      default: {
-        // FS (§4.3): de opvolger consumeert de exclusieve "beschikbaar-vanaf"-instant van de
-        // voorganger via `availableStart` — die ceilt een dag-opvolger correct naar de volgende
-        // volledige werkdag (scenario 7 uur→dag) en snapt een uur-opvolger naar de eerstvolgende
-        // werk-instant (scenario 1/6). Lag telt daarvóór in de voorganger-engine.
-        if (elapsed) {
-          // Klok-minuten 24/7 vanaf de exclusieve finish, dan vooruit-snap (scenario 6b).
-          return se.availableStart(new Date(predResult.ef.getTime() + elapsedMin()));
-        }
-        const predDone = (succIsFinishMs || predEndsBeginOfDay)
-          ? predResult.ef                       // mijlpaal-grens: geen dag-boundary-+1 (dag-conceptueel)
-          : pe.predDoneAt(predResult.ef);
-        return se.availableStart(this.shiftLagPred(pe, predDone, seq, predTask, 1));
-      }
-    }
   }
 
   private backwardPass(
@@ -1208,8 +1066,8 @@ export class CPMSolver {
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen
         // (niet-hammock) opvolgers.
         if (succTask.isHammock) continue;
-        const constraintDate = this.getBackwardConstraint(
-          succResult, seq, task, succTask, predCal, this.calendarFor(succTask),
+        const constraintDate = backwardConstraint(
+          this.relDeps, succResult, seq, task, succTask, predCal, this.calendarFor(succTask),
         );
         if (constraintDate < lateFinish) {
           lateFinish = constraintDate;
@@ -1227,167 +1085,4 @@ export class CPMSolver {
     return results;
   }
 
-  private getBackwardConstraint(
-    succResult: { ls: Date; lf: Date },
-    seq: Sequence,
-    predTask: Task,
-    succTask: Task,
-    predEng: CalendarEngine,
-    succEng: CalendarEngine,
-  ): Date {
-    // Fase 2.8b (§5.2): cross-/uur-pad zodra minstens één zijde uur-modus is; een puur dag-dag-paar
-    // (geval (c)) valt hier NIET binnen en loopt onder het bevroren dag-pad hieronder (byte-identiek).
-    if (predEng.isHourMode || succEng.isHourMode) {
-      return this.backwardConstraintHour(succResult, seq, predTask, succTask, predEng, succEng);
-    }
-    // Spiegel van getForwardConstraint: geef de laatst toegestane FINISH van de voorganger.
-    // Kalenderdag-lag snapt hier áchteruit (het is een bovengrens: "niet later dan…", dus de
-    // laatste werkdag op of vóór de ruwe datum voldoet als laatste) — exact symmetrisch met
-    // de vooruit-snap in de forward-pass, zodat een lead geen fantoomfloat oplevert.
-    const { days: lag, unit } = this.resolveLag(seq, predTask);
-    const elapsed = unit === 'ELAPSEDTIME';
-    // Spiegel van getForwardConstraint (§5.2): de lag telt terug in de VOORGANGER-kalender; de
-    // FS-gap-spiegel (prevWorkDayBefore) eveneens; de successor-zijde-datums in de successor-kalender.
-    const pe = predEng;
-    const se = succEng;
-    const lagEng = LAG_CALENDAR === 'predecessor' ? predEng : succEng;
-    const predIsMilestone = predTask.isMilestone || predTask.time.scheduleDuration <= 0;
-    const predDur = predTask.isMilestone ? 0 : predTask.time.scheduleDuration;
-    const predBack = predDur > 0 ? predDur - 1 : 0;
-    // Zelfde grens-model-vlaggen als in getForwardConstraint (fase 2.4).
-    const predKind = predTask.isMilestone ? predTask.milestoneKind : undefined;
-    const predEndsBeginOfDay = predIsMilestone && predKind !== 'FINISH';
-    const predStartsNextDay = predIsMilestone && predKind === 'FINISH';
-    const succIsFinishMs = succTask.isMilestone && succTask.milestoneKind === 'FINISH';
-    const succIsStartMs = succTask.isMilestone && succTask.milestoneKind === 'START';
-
-    switch (seq.type) {
-      case 'START_START': {
-        // Forward: succ.start = pred.start(-moment) + lag ⇒ pred.start ≤ succ.lateStart − lag;
-        // het startmoment van een eindmijlpaal-voorganger ligt een werkdag vóór die grens.
-        const predLS = elapsed
-          ? lagEng.prevWorkDay(addCalendarDays(succResult.ls, -(predStartsNextDay ? lag + 1 : lag)))
-          : predStartsNextDay
-            ? pe.prevWorkDayBefore(lagEng.addWorkingDaysSigned(succResult.ls, -lag))
-            : lagEng.addWorkingDaysSigned(succResult.ls, -lag);
-        return pe.addWorkingDaysSigned(predLS, predBack); // pred.lateFinish
-      }
-      case 'FINISH_FINISH': {
-        // Forward: succ.finish = pred.finish + lag ⇒ pred.finish ≤ succ.lateFinish − lag.
-        // Een startmijlpaal-opvolger lag een werkdag ná de finish-grens (zie forward).
-        const succLf = succIsStartMs && !predEndsBeginOfDay
-          ? se.prevWorkDayBefore(succResult.lf)
-          : succResult.lf;
-        return elapsed
-          ? lagEng.prevWorkDay(addCalendarDays(succLf, -lag))
-          : lagEng.addWorkingDaysSigned(succLf, -lag);
-      }
-      case 'START_FINISH': {
-        // Forward: succ.finish = pred.start(-moment) + lag ⇒ pred.start ≤ succ.lateFinish − lag.
-        const predLS = elapsed
-          ? lagEng.prevWorkDay(addCalendarDays(succResult.lf, -(predStartsNextDay ? lag + 1 : lag)))
-          : predStartsNextDay
-            ? pe.prevWorkDayBefore(lagEng.addWorkingDaysSigned(succResult.lf, -lag))
-            : lagEng.addWorkingDaysSigned(succResult.lf, -lag);
-        return pe.addWorkingDaysSigned(predLS, predBack);
-      }
-      case 'FINISH_START':
-      default: {
-        // Eind-Start: opvolger start `lag` dagen na de finish (de werkdag erná voor een echte
-        // taak; bij een dagbegin-mijlpaal-voorganger of eindmijlpaal-opvolger géén extra dag).
-        // Terug-inverteren; de FS-gap-spiegel (prevWorkDayBefore) telt in de VOORGANGER-kalender.
-        if (elapsed) {
-          const plus = succIsFinishMs || predEndsBeginOfDay ? lag : lag + 1;
-          return lagEng.prevWorkDay(addCalendarDays(succResult.ls, -plus));
-        }
-        const target = lagEng.addWorkingDaysSigned(succResult.ls, -lag);
-        return succIsFinishMs || predEndsBeginOfDay ? target : pe.prevWorkDayBefore(target);
-      }
-    }
-  }
-
-  /**
-   * Cross-/uur-pad van `getBackwardConstraint` (§5.2). Exacte spiegel van `forwardConstraintHour`:
-   * `prevWorkInstantBefore` spiegelt `nextWorkInstant`, `subtractWorkMinutes` spiegelt
-   * `addWorkMinutes`, lag terug in de VOORGANGER-engine. FS implementeert de normatieve backward-
-   * cross-formules (a)/(b)/(c) uit §5.2: (a) uur-pred/dag-succ, (b) dag-pred/uur-succ, (c) dag-dag
-   * (bevroren, buiten deze methode). FS is geverifieerd (scenario 1-7 backward); SS/FF/SF spiegelen
-   * de dag-formules (UNVERIFIED — golf 3).
-   */
-  private backwardConstraintHour(
-    succResult: { ls: Date; lf: Date },
-    seq: Sequence,
-    predTask: Task,
-    succTask: Task,
-    pe: CalendarEngine,
-    se: CalendarEngine,
-  ): Date {
-    const elapsed = seq.lagUnit === 'ELAPSEDTIME';
-    const predIsMs = predTask.isMilestone || predTask.time.scheduleDuration <= 0;
-    const predKind = predTask.isMilestone ? predTask.milestoneKind : undefined;
-    const predEndsBeginOfDay = predIsMs && predKind !== 'FINISH';
-    const predStartsNextDay = predIsMs && predKind === 'FINISH';
-    const succIsFinishMs = succTask.isMilestone && succTask.milestoneKind === 'FINISH';
-    const succIsStartMs = succTask.isMilestone && succTask.milestoneKind === 'START';
-    const elapsedMin = () => this.resolveElapsedMinutes(seq, predTask) * CPMSolver.MS_PER_MIN;
-
-    switch (seq.type) {
-      case 'START_START': {
-        const shifted = elapsed
-          ? new Date(succResult.ls.getTime() - elapsedMin())
-          : this.shiftLagPred(pe, succResult.ls, seq, predTask, -1);
-        const predStart = predStartsNextDay ? this.snapStrictBefore(pe, shifted)
-          : elapsed ? this.snapOnOrBefore(pe, shifted) : shifted;
-        return this.finishFromStart(pe, predStart, predTask);
-      }
-      case 'FINISH_FINISH': {
-        const succLf = (succIsStartMs && !predEndsBeginOfDay) ? this.snapStrictBefore(se, succResult.lf) : succResult.lf;
-        if (elapsed) {
-          return this.snapOnOrBefore(pe, new Date(succLf.getTime() - elapsedMin()));
-        }
-        return this.shiftLagPred(pe, succLf, seq, predTask, -1);       // pred.LF
-      }
-      case 'START_FINISH': {
-        const shifted = elapsed
-          ? new Date(succResult.lf.getTime() - elapsedMin())
-          : this.shiftLagPred(pe, succResult.lf, seq, predTask, -1);
-        const predStart = predStartsNextDay ? this.snapStrictBefore(pe, shifted)
-          : elapsed ? this.snapOnOrBefore(pe, shifted) : shifted;
-        return this.finishFromStart(pe, predStart, predTask);
-      }
-      case 'FINISH_START':
-      default: {
-        if (elapsed) {
-          // Klok-minuten terug vanaf succ.LS, dan achteruit-snap in de voorganger.
-          return this.snapOnOrBefore(pe, new Date(succResult.ls.getTime() - elapsedMin()));
-        }
-        const succDayStart = () => this.startOfDay(succResult.ls);
-        if (pe.isHourMode && se.isHourMode) {
-          // hour-hour: pred.LF = prevWorkInstant( succ.LS ⊖ lag ) (scenario 1-6 backward).
-          const target = (predEndsBeginOfDay || succIsFinishMs)
-            ? succResult.ls
-            : this.shiftLagPred(pe, succResult.ls, seq, predTask, -1);
-          return pe.prevWorkInstant(target);
-        }
-        if (pe.isHourMode && !se.isHourMode) {
-          // (a) uur-voorganger, dag-opvolger: klaar vóór de middernacht van de succ-startdag.
-          const target = this.shiftLagPred(pe, succDayStart(), seq, predTask, -1);
-          return pe.prevWorkInstant(target);
-        }
-        // (b) dag-voorganger, uur-opvolger: de grootste werkdag d waarvoor de forward-afleiding
-        // se.nextWorkInstant( (d+1)@00:00 ⊕ lag ) ≤ succ.LS blijft (scenario 7 backward).
-        const lagDays = resolveEffectiveLagDays(seq, predTask);
-        let d = succDayStart();
-        for (let scan = 0; scan <= CPMSolver.HOUR_SCAN; scan++) {
-          if (pe.isWorkDay(d)) {
-            const predDone = new Date(d.getTime() + CPMSolver.MS_PER_DAY);       // (d+1)@00:00
-            const shifted = pe.addWorkingDaysSigned(predDone, lagDays);          // lag in dag-pred
-            if (se.nextWorkInstant(shifted).getTime() <= succResult.ls.getTime()) return d;
-          }
-          d = addCalendarDays(d, -1);
-        }
-        return this.snapOnOrBefore(pe, succDayStart());   // best effort (kapotte kalender)
-      }
-    }
-  }
 }

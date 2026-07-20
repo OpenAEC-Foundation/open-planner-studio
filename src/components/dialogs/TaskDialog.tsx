@@ -8,7 +8,7 @@ import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
-import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { Dialog } from '@/components/common/Dialog';
 import { Field } from '@/components/task-sections/shared';
 import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
 import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
@@ -24,9 +24,11 @@ import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFiel
 
 /** Lege draft voor de (in de praktijk onbereikbare — zie ontwerp-doc item 2) "nieuwe taak"-tak:
  *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
-function blankDraft(startDate: string): Task {
+function blankDraft(startDate: string, constructionMode: boolean): Task {
   return {
-    id: '', name: '', description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    // Bouwmodus (2026-07-13): neutraal taaktype-default (USERDEFINED) in bouw-agnostische modus.
+    id: '', name: '', description: '', wbsCode: '',
+    taskType: constructionMode ? 'CONSTRUCTION' : 'USERDEFINED', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [],
     time: createDefaultTaskTime(startDate, 5), resourceIds: [],
   };
@@ -44,6 +46,7 @@ export function TaskDialog() {
   const updateTask = useAppStore(s => s.updateTask);
   const moveTask = useAppStore(s => s.moveTask);
   const project = useAppStore(s => s.project);
+  const constructionMode = useAppStore(s => s.ui.constructionMode);
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
 
@@ -52,7 +55,7 @@ export function TaskDialog() {
   // `onChange(patch)` — commit pas op Save. De RELATIONELE secties (afhankelijkheden/toewijzingen/
   // codes&velden/CPM-resultaat) werken rechtstreeks op de store via `taskId` (identiek aan het
   // paneel, spec-akkoord) en raken de draft niet.
-  const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate));
+  const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 
   // Duur-invoer (fase 2.8b, §6.4) — BEWUST buiten de draft/onChange-generieke-patch-flow gehouden
@@ -99,13 +102,13 @@ export function TaskDialog() {
       // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
       setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
     } else {
-      setDraft(blankDraft(project.startDate));
+      setDraft(blankDraft(project.startDate, constructionMode));
       setDurDays(5);
       setDurHours(0);
       setStartDate(project.startDate);
     }
 
-  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, calendars, projectCal]);
+  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, calendars, projectCal, constructionMode]);
 
   useEffect(() => {
     if (!showTaskDialog) return;
@@ -221,17 +224,6 @@ export function TaskDialog() {
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
-  // Esc = Annuleren, Enter = Opslaan (primaire actie) — huisconventie (QA-fix P3, fase 2.10
-  // onderdeel 2): dezelfde hook/guards (textarea/open-dropdown/IME) als CalendarDialog/
-  // ProjectInfoDialog, i.p.v. de vorige eigen Escape-only keydown-effect. Dit component blijft
-  // altijd gemount (`showTaskDialog` togglet zichtbaarheid) — de gate zit daarom in de
-  // onConfirm/onCancel-waarden zelf (`undefined` = de hook doet niets), net als het oude effect
-  // dat deed met zijn vroege `if (!showTaskDialog) return;`.
-  useDialogKeys({
-    onConfirm: showTaskDialog ? handleSave : undefined,
-    onCancel: showTaskDialog ? handleClose : undefined,
-  });
-
   if (!showTaskDialog) return null;
 
   const inputCls =
@@ -255,11 +247,19 @@ export function TaskDialog() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleClose} data-ops-task-dialog>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[620px] max-h-[85vh] overflow-hidden flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
+    // Esc = Annuleren, Enter = Opslaan (primaire actie) — huisconventie (QA-fix P3, fase 2.10
+    // onderdeel 2): dezelfde guards (textarea/open-dropdown/IME) als CalendarDialog/
+    // ProjectInfoDialog, nu via de standaard-toetsafhandeling van `Dialog`. `Dialog` rendert pas
+    // ná de `showTaskDialog`-gate hierboven, dus de toetsen zijn alleen actief bij een open dialoog.
+    // Let op: overlaytint is hier bg-black/50 (historisch iets lichter dan de andere dialogs).
+    <Dialog
+      onBackdropClick={handleClose}
+      onCancel={handleClose}
+      onConfirm={handleSave}
+      overlayClassName="bg-black/50 z-50"
+      overlayProps={{ 'data-ops-task-dialog': true }}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[620px] max-h-[85vh] overflow-hidden flex flex-col"
+    >
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-sm font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             {editingTask ? t('dialog.editTitle') : t('dialog.newTitle')}
@@ -427,7 +427,6 @@ export function TaskDialog() {
             {editingTask ? tCommon('save') : tCommon('add')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

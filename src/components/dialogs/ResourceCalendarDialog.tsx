@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
@@ -7,6 +7,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { CalendarForm } from './CalendarForm';
+import { Dialog } from '@/components/common/Dialog';
 
 /**
  * Resource-kalender-editor (fase 2.5, §3.4) — hergebruikt `CalendarForm`, net als de
@@ -53,21 +54,13 @@ export function ResourceCalendarDialog({
     onClose();
   };
 
-  // Esc sluit dialog (LAYOUTS.md §3.3)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
+    // Esc sluit dialog (LAYOUTS.md §3.3) — via de standaard-toetsafhandeling van `Dialog`.
+    <Dialog
+      onBackdropClick={onClose}
+      onCancel={onClose}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {tCommon('resource.calendarDialog.title')}
@@ -91,7 +84,6 @@ export function ResourceCalendarDialog({
             {tCommon('apply')}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

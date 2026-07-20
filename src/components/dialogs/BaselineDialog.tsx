@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Trash2 } from 'lucide-react';
 import { displayDate } from '@/utils/displayDate';
+import { Dialog } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
 
 /**
@@ -37,13 +38,6 @@ export function BaselineDialog() {
   // Nieuwe default-naam wanneer het aantal baselines wijzigt (bv. na opslaan/verwijderen).
   useEffect(() => { setNewName(defaultName); }, [defaultName]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const save = () => {
     saveBaseline(newName.trim() || defaultName);
   };
@@ -60,11 +54,11 @@ export function BaselineDialog() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
+    <Dialog
+      onBackdropClick={close}
+      onCancel={close}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('baseline.dialog.title')}
@@ -148,8 +142,8 @@ export function BaselineDialog() {
             {t('close')}
           </button>
         </div>
-      </div>
 
+      {/* Bevestiging stapelt bóven deze dialoog (eigen fixed overlay op z-[60]). */}
       {pendingConfirm && (
         <ConfirmDialog
           message={pendingConfirm.message}
@@ -158,6 +152,6 @@ export function BaselineDialog() {
           onCancel={() => setPendingConfirm(null)}
         />
       )}
-    </div>
+    </Dialog>
   );
 }

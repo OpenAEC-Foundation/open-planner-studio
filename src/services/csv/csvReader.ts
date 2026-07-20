@@ -1,10 +1,11 @@
-import { Task, TaskType, TaskStatus } from '@/types/task';
+import { Task, TaskType, TaskStatus, TASK_TYPES } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Project } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
-import { normalizeImportedProgress } from '@/services/importNormalize';
+import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/importNormalize';
+import { csvDateOrToday } from '@/services/importDates';
 import type { ImportResult } from '@/services/importTypes';
 
 interface ParsedRow {
@@ -66,9 +67,9 @@ function parseCSVLine(line: string, delimiter: string): string[] {
 }
 
 function parseTaskType(s: string): TaskType {
+  // CSV-specifieke normalisatie: hoofdletters + trim (`construction` → `CONSTRUCTION`).
   const upper = s.toUpperCase().trim();
-  const valid: TaskType[] = ['CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE', 'MOVE', 'RENOVATION', 'MAINTENANCE', 'USERDEFINED'];
-  return valid.includes(upper as TaskType) ? (upper as TaskType) : 'CONSTRUCTION';
+  return TASK_TYPES.includes(upper as TaskType) ? (upper as TaskType) : 'CONSTRUCTION';
 }
 
 function parseStatus(s: string): TaskStatus {
@@ -78,16 +79,9 @@ function parseStatus(s: string): TaskStatus {
   return 'NOT_STARTED';
 }
 
+/** CSV-datum: ISO of `DD-MM-YYYY`/`DD/MM/YYYY`; gedeeld met de import-datumhelper (F5-a). */
 function parseDate(s: string): string {
-  if (!s) return formatDate(new Date());
-  // Try ISO format first
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-  // Try DD-MM-YYYY or DD/MM/YYYY
-  const dmyMatch = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
-  if (dmyMatch) {
-    return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
-  }
-  return formatDate(new Date());
+  return csvDateOrToday(s);
 }
 
 function parsePredecessorString(predStr: string): {
@@ -265,21 +259,8 @@ export function readCSV(content: string): ImportResult {
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6). CSV kent geen statusdatum.
   normalizeImportedProgress(tasks, undefined);
 
-  // Rebuild parent-child hierarchy from WBS codes
-  for (const task of tasks) {
-    if (!task.wbsCode || !task.wbsCode.includes('.')) continue;
-    const parts = task.wbsCode.split('.');
-    parts.pop();
-    const parentWbs = parts.join('.');
-    const parentId = wbsToId.get(parentWbs);
-    if (parentId) {
-      task.parentId = parentId;
-      const parent = tasks.find(t => t.id === parentId);
-      if (parent && !parent.childIds.includes(task.id)) {
-        parent.childIds.push(task.id);
-      }
-    }
-  }
+  // Parent-child-hiërarchie uit gepunte WBS-codes (gedeeld met MSPDI, F5-f).
+  rebuildWbsHierarchy(tasks);
 
   // Parse predecessors into sequences
   const sequences: Sequence[] = [];

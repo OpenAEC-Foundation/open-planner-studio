@@ -1,6 +1,6 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { generateId } from '@/utils/id';
-import { createSnapshot } from '../snapshot';
+import { beginUndoable, finishMutation } from '../transaction';
 import type { AppSlice } from './types';
 
 /**
@@ -39,10 +39,9 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
   addActivityCodeType: (name) => {
     const id = generateId('act');
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.activityCodeTypes.push({ id, name, values: [] });
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
     return id;
@@ -52,10 +51,9 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const t = s.activityCodeTypes.find(x => x.id === id);
       if (!t || t.name === name) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       t.name = name;
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -63,8 +61,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
   removeActivityCodeType: (id) => {
     set((s) => {
       if (!s.activityCodeTypes.some(x => x.id === id)) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.activityCodeTypes = s.activityCodeTypes.filter(x => x.id !== id);
       for (const task of s.tasks) {
         if (task.activityCodes && id in task.activityCodes) delete task.activityCodes[id];
@@ -72,7 +69,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
       // Groep-/sort-niveaus die naar dit type verwezen laten vallen (§4.3, code-mutatie).
       s.view.group = s.view.group.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
       s.view.sort = s.view.sort.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -82,10 +79,9 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const t = s.activityCodeTypes.find(x => x.id === typeId);
       if (!t) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       t.values.push({ ...value, id });
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
     return id;
@@ -95,10 +91,9 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const v = s.activityCodeTypes.find(x => x.id === typeId)?.values.find(x => x.id === valueId);
       if (!v) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       Object.assign(v, patch);
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -107,13 +102,12 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const t = s.activityCodeTypes.find(x => x.id === typeId);
       if (!t || !t.values.some(v => v.id === valueId)) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       t.values = t.values.filter(v => v.id !== valueId);
       for (const task of s.tasks) {
         if (task.activityCodes?.[typeId] === valueId) delete task.activityCodes[typeId];
       }
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -124,14 +118,13 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
       if (!task) return;
       const current = task.activityCodes?.[typeId];
       if ((valueId ?? undefined) === current) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       if (valueId === null) {
         if (task.activityCodes) delete task.activityCodes[typeId];
       } else {
         task.activityCodes = { ...(task.activityCodes ?? {}), [typeId]: valueId };
       }
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -139,10 +132,9 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
   addCustomField: (name, type) => {
     const id = generateId('cfd');
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.customFieldDefs.push({ id, name, type });
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
     return id;
@@ -152,10 +144,9 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const d = s.customFieldDefs.find(x => x.id === id);
       if (!d || d.name === name) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       d.name = name;
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -163,15 +154,14 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
   removeCustomField: (id) => {
     set((s) => {
       if (!s.customFieldDefs.some(x => x.id === id)) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.customFieldDefs = s.customFieldDefs.filter(x => x.id !== id);
       for (const task of s.tasks) {
         if (task.customFields && id in task.customFields) delete task.customFields[id];
       }
       s.view.group = s.view.group.filter(g => !(g.field.src === 'customField' && g.field.defId === id));
       s.view.sort = s.view.sort.filter(g => !(g.field.src === 'customField' && g.field.defId === id));
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -182,14 +172,13 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
       if (!task) return;
       const current = task.customFields?.[defId];
       if ((value ?? undefined) === current) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       if (value === null) {
         if (task.customFields) delete task.customFields[defId];
       } else {
         task.customFields = { ...(task.customFields ?? {}), [defId]: value };
       }
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },

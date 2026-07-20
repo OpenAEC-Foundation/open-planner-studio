@@ -1,4 +1,4 @@
-import { Task, TaskTime, TaskType, ConstraintType } from '@/types/task';
+import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
@@ -15,20 +15,16 @@ import type { ImportResult } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
 } from './ifcConstants';
+import { PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
 import { normalizeImportedProgress } from '@/services/importNormalize';
-import type { WorkTimeBands } from '@/types/calendar';
 import {
-  canonicalizeBands, clockToMinutes, deriveHoursPerDay, hasNonAnchorTime, isoDurationToMinutes,
-  isSubDayMinutes, workDaysFromBands,
+  canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
+  isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
 } from '@/services/subdayIo';
 
 // IFC_TIME_ANCHOR (§7.1, discriminator c) en DEFAULT_PRIORITY (fase 2.5) wonen nu in ./ifcConstants
-// zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken.
-
-/** Rauwe (gecanonicaliseerde) banden per gelezen kalender-object + of ze afwijken van het
- *  enkelvoudige dag-patroon (discriminator (a)/(b)). Gevuld door `buildCalendarFromEntity`, gelezen
- *  door de uur-modus-post-pass. WeakMap ⇒ per-parse, geen lek. */
-const rawBandsRegistry = new WeakMap<WorkCalendar, { canonical: WorkTimeBands; deviates: boolean }>();
+// zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken. De rauwe-banden-
+// registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
 
 const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
 
@@ -68,10 +64,16 @@ export function readIFC(content: string): ImportResult {
   // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid (byte-identiek).
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
+  // Fase 3 (H2): task.resourceIds herbouwen uit de assignments. De assignments zijn de ENIGE bron
+  // van waarheid voor de taak↔resource-koppeling in het bestand (geen dubbele opslag) — de reader
+  // projecteert ze terug op elke taak. Deterministische, gede-dupliceerde volgorde (eerste-zien in
+  // de assignments-volgorde, die op zijn beurt uit de STEP-volgorde komt).
+  reconstructResourceIds(tasks, assignments);
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap,
   );
-  extractLevelingMeta(entities, entityMap, tasks, taskStepIdMap);
+  // Fase 3 (P11): OPS_Leveling wordt nu binnen extractStructure via de per-taak-registry gedispatcht
+  // (samen met de andere zeven per-taak-psets) — geen losse extractLevelingMeta-aanroep meer.
 
   // Baselines (fase 2.6, §8.3): autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
@@ -162,6 +164,14 @@ function stripQuotes(s: string): string {
   return s;
 }
 
+/** Optionele tekst uit een IFC-slot: `$`/leeg/afwezig ⇒ '' (geen letterlijke '$' meer teruggeven).
+ *  Gebruikt voor slots waar de writer bewust `$` schrijft als het veld leeg is (bv. project-
+ *  omschrijving, IFCPERSON.FamilyName). */
+function ifcSlotText(s: string | undefined): string {
+  if (!s || s === '$') return '';
+  return stripQuotes(s);
+}
+
 function parseRef(s: string): string | null {
   const m = s.trim().match(/^#(\w+)$/);
   return m ? m[1] : null;
@@ -176,6 +186,9 @@ function parseRefs(s: string): string[] {
   return refs;
 }
 
+// Datum-parse: BEWUST niet gedeeld met MSPDI/P6/CSV (F5-a). Deze variant handelt eerst de
+// STEP-quoting (`stripQuotes`) en de `$`-null-conventie af en houdt de exacte lege-tail-semantiek
+// (een quoted-lege slot geeft '' terug, niet vandaag) — dat is STEP-specifiek en mag niet verschuiven.
 function parseDateFromIFC(s: string): string {
   if (!s || s === '$') return formatDate(new Date());
   const clean = stripQuotes(s);
@@ -202,9 +215,9 @@ function parseDurationDays(s: string): number {
 }
 
 function parseTaskType(s: string): TaskType {
+  // IFC-specifieke normalisatie: STEP-enum-punten strippen (`.CONSTRUCTION.` → `CONSTRUCTION`).
   const clean = s.replace(/\./g, '').trim();
-  const valid: TaskType[] = ['CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE', 'MOVE', 'RENOVATION', 'MAINTENANCE', 'USERDEFINED'];
-  return valid.includes(clean as TaskType) ? (clean as TaskType) : 'CONSTRUCTION';
+  return TASK_TYPES.includes(clean as TaskType) ? (clean as TaskType) : 'CONSTRUCTION';
 }
 
 function parseSequenceType(s: string): SequenceType {
@@ -218,21 +231,43 @@ function parseSequenceType(s: string): SequenceType {
   return map[clean] || 'FINISH_START';
 }
 
-function extractProject(entities: StepEntity[], _entityMap: Map<string, StepEntity>): Project {
+function extractProject(entities: StepEntity[], entityMap: Map<string, StepEntity>): Project {
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const wp = entities.find(e => e.type === 'IFCWORKPLAN');
+
+  // Auteur/organisatie uit de owner-history-keten (IFCOWNERHISTORY → IFCPERSONANDORGANIZATION →
+  // IFCPERSON.FamilyName / IFCORGANIZATION.Name; spiegel van wat de writer schrijft). Via de keten
+  // i.p.v. `entities.find('IFCPERSON')` zodat we de PROJECT-persoon/organisatie pakken en niet de
+  // applicatie-organisatie ('OpenAEC Foundation'). Ontbreekt de keten (bestand van een ander tool)
+  // of is een slot leeg (`$`) ⇒ '' (de bestaande default; oude bestanden laden identiek).
+  let author = '';
+  let company = '';
+  const owner = entities.find(e => e.type === 'IFCOWNERHISTORY');
+  if (owner) {
+    const po = entityMap.get(parseRef(owner.args[0] || '') || '');
+    if (po && po.type === 'IFCPERSONANDORGANIZATION') {
+      const person = entityMap.get(parseRef(po.args[0] || '') || '');
+      if (person && person.type === 'IFCPERSON') author = ifcSlotText(person.args[1]);
+      const org = entityMap.get(parseRef(po.args[1] || '') || '');
+      if (org && org.type === 'IFCORGANIZATION') company = ifcSlotText(org.args[1]);
+    }
+  }
 
   return {
     id: generateId('proj'),
     name: proj ? stripQuotes(proj.args[2] || '') : 'Geïmporteerd Project',
-    description: wp ? stripQuotes(wp.args[3] || '') : '',
+    // Omschrijving uit de IFCWORKPLAN.Description-slot (waar de writer 'm schrijft), met terugval op
+    // de IFCPROJECT.Description-slot; `$`/leeg ⇒ '' (voorheen kwam letterlijk '$' terug — een bug).
+    description: ifcSlotText(wp?.args[3]) || ifcSlotText(proj?.args[3]),
     startDate: wp ? parseDateFromIFC(wp.args[12] || '') : formatDate(new Date()),
     endDate: wp ? parseDateFromIFC(wp.args[13] || '') : '',
     calendarId: 'cal-default',
+    // createdAt/modifiedAt: default = nu; overschreven door het OPS_ProjectSettings-pset in
+    // extractStructure als het bestand ze draagt (oude bestanden ⇒ deze default blijft staan).
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),
-    author: '',
-    company: '',
+    author,
+    company,
   };
 }
 
@@ -240,15 +275,6 @@ function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEnti
   const cal = entities.find(e => e.type === 'IFCWORKCALENDAR');
   if (!cal) return createDefaultCalendar();
   return buildCalendarFromEntity(cal, entityMap, entities);
-}
-
-/** Enkelband-kalender uit de scalar `workStartHour/EndHour` (fallback wanneer geen banden geregistreerd
- *  zijn, bv. een default-kalender die door een sub-dag-taak alsnog uur-modus wordt). */
-function synthBandsFromScalar(cal: WorkCalendar): WorkTimeBands {
-  const raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
-  const band = { start: cal.workStartHour * 60, end: cal.workEndHour * 60 };
-  for (const wd of cal.workDays) if (wd >= 1 && wd <= 7) raw[wd as 1] = [{ ...band }];
-  return canonicalizeBands(raw).bands;
 }
 
 /**
@@ -283,16 +309,11 @@ function applyHourModeIFC(
     if (durSignal || dateSignal) subDayCals.add(effCal);
   }
 
-  // 2. Promoveer kalenders die afwijken (a/b uit de banden) of een (c)-signaal droegen.
+  // 2. Promoveer kalenders die afwijken (a/b uit de banden) of een (c)-signaal droegen. IFC kiest
+  //    altijd de geregistreerde canonical zodra er info is (preferCanonicalWhenEmpty = true) — zie
+  //    de F5-noot bij `promoteHourCalendar`.
   for (const cal of [projectCal, ...resourceCalendars]) {
-    if (cal.workTime) continue;
-    const info = rawBandsRegistry.get(cal);
-    if (!(info?.deviates || subDayCals.has(cal))) continue;
-    const bands = info?.canonical ?? synthBandsFromScalar(cal);
-    cal.workTime = bands;
-    const wd = workDaysFromBands(bands);
-    if (wd.length > 0) cal.workDays = wd;
-    cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
+    promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), true);
   }
 
   // 3. Herinterpreteer de taken op een uur-kalender: minuut-precieze duur + echte tijden.
@@ -532,7 +553,7 @@ function extractStructure(
 
   // 1. Autoritaire meta-JSON.
   for (const e of entities) {
-    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_StructureMeta') continue;
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.StructureMeta) continue;
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
@@ -556,10 +577,10 @@ function extractStructure(
         if (!tmpl || tmpl.type !== 'IFCSIMPLEPROPERTYTEMPLATE') continue;
         const name = stripQuotes(tmpl.args[2] || '');
         const templateType = (tmpl.args[4] || '').replace(/\./g, '').trim();
-        if (setName === 'OPS_CustomFields' && templateType === 'P_SINGLEVALUE') {
+        if (setName === PSET.CustomFields && templateType === 'P_SINGLEVALUE') {
           const measure = stripQuotes(tmpl.args[5] || '').toLowerCase();
           customFieldDefs.push({ id: generateId('cfd'), name, type: MEASURE_TO_FIELD[measure] ?? 'text' });
-        } else if (setName === 'OPS_ActivityCodes' && templateType === 'P_ENUMERATEDVALUE') {
+        } else if (setName === PSET.ActivityCodes && templateType === 'P_ENUMERATEDVALUE') {
           const enumEntity = entityMap.get(parseRef(tmpl.args[7] || '') || '');
           const values = enumEntity && enumEntity.type === 'IFCPROPERTYENUMERATION'
             ? splitArgs((enumEntity.args[1] || '').replace(/^\(|\)$/g, ''))
@@ -588,7 +609,23 @@ function extractStructure(
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p);
 
-    if (psetName === 'OPS_ProjectSettings') {
+    // Fase 3 (P11) — de acht per-taak-psets via de gedeelde registry: één dispatch op naam vervangt
+    // de vroegere zeven losse `if (psetName === 'OPS_X')`-blokken + de losse extractLevelingMeta. De
+    // read-logica leeft naast de write-logica in ifcPsets.PER_TASK_PSETS (kan niet meer divergeren).
+    const perTask = PER_TASK_PSET_BY_NAME.get(psetName);
+    if (perTask) {
+      const singleValueProps = props
+        .filter(p => p.type === 'IFCPROPERTYSINGLEVALUE')
+        .map(p => ({ name: stripQuotes(p.args[0] || ''), value: parseTypedValue(p.args[2] || '') }));
+      for (const objRef of objectRefs) {
+        const taskId = taskStepIdMap.get(objRef);
+        const task = taskId ? taskById.get(taskId) : undefined;
+        if (task) perTask.apply(task, singleValueProps);
+      }
+      continue;
+    }
+
+    if (psetName === PSET.ProjectSettings) {
       for (const prop of props) {
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
         const name = stripQuotes(prop.args[0] || '');
@@ -601,147 +638,30 @@ function extractStructure(
         } else if (name === 'ProgressMode') {
           // Fase 2.6 (§8.2): alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
+        } else if (name === 'CreatedAt') {
+          // Fase 3 (H2): project-aanmaakdatum als verbatim ISO-instant (spiegel van writeStructure).
+          if (typeof v === 'string' && v) project.createdAt = v;
+        } else if (name === 'ModifiedAt') {
+          if (typeof v === 'string' && v) project.modifiedAt = v;
         }
       }
       continue;
     }
 
-    if (psetName === 'OPS_Constraints') {
-      // Fase 2.3/2.9: datum-constraint (+ harde pin + secundair) + deadline per taak (spiegel van
-      // writeConstraints). Afwezige velden ⇒ gewoon weg (default-inert, dag-modus-analoog).
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        let ctype: string | undefined;
-        let cdate: string | undefined;
-        let hard = false;
-        let ctype2: string | undefined;
-        let cdate2: string | undefined;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          const name = stripQuotes(prop.args[0] || '');
-          const value = parseTypedValue(prop.args[2] || '');
-          // Fase 2.9: Hard is een IFCBOOLEAN — niet overslaan met de string-guard hieronder.
-          if (name === 'Hard') { if (value === true) hard = true; continue; }
-          if (typeof value !== 'string') continue;
-          if (name === 'ConstraintType') ctype = value;
-          else if (name === 'ConstraintDate') cdate = value;
-          else if (name === 'ConstraintType2') ctype2 = value;
-          else if (name === 'ConstraintDate2') cdate2 = value;
-          else if (name === 'Deadline') task.deadline = value;
-        }
-        const valid = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
-        if (ctype && valid.includes(ctype)) {
-          task.constraint = {
-            type: ctype as ConstraintType,
-            ...(cdate ? { date: cdate } : {}),
-            ...(hard ? { hard: true } : {}),
-          };
-        }
-        // Secundaire constraint is altijd soft (geen hard-veld).
-        if (ctype2 && valid.includes(ctype2)) {
-          task.constraint2 = { type: ctype2 as ConstraintType, ...(cdate2 ? { date: cdate2 } : {}) };
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_Hammock') {
-      // Fase 2.9 (§3.2/§6): hammock/LOE-vlag terug (spiegel van writeHammockMeta).
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          if (stripQuotes(prop.args[0] || '') !== 'IsHammock') continue;
-          if (parseTypedValue(prop.args[2] || '') === true) task.isHammock = true;
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_ExternalLink') {
-      // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies uit het autoritatieve JSON-veld
-      // (spiegel van writeExternalLinks). De volledige geneste array round-trippt 1-op-1.
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          if (stripQuotes(prop.args[0] || '') !== 'Links') continue;
-          const value = parseTypedValue(prop.args[2] || '');
-          if (typeof value !== 'string' || !value) continue;
-          try {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed) && parsed.length > 0) task.externalLinks = parsed;
-          } catch {
-            // Corrupte JSON: negeren (net als een onleesbare baseline-blob) i.p.v. de load te breken.
-          }
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_TaskNotes') {
-      // Fase 2.10 (item 1): taak-aantekeningen uit het autoritatieve JSON-veld (spiegel van
-      // writeTaskNotes/OPS_ExternalLink). Corrupte JSON wordt genegeerd i.p.v. de load te breken.
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          if (stripQuotes(prop.args[0] || '') !== 'Notes') continue;
-          const value = parseTypedValue(prop.args[2] || '');
-          if (typeof value !== 'string' || !value) continue;
-          try {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed) && parsed.length > 0) task.notes = parsed;
-          } catch {
-            // Corrupte JSON: negeren (net als een onleesbare externe-link-blob) i.p.v. de load te breken.
-          }
-        }
-      }
-      continue;
-    }
-
-    if (psetName === 'OPS_Milestone') {
-      // Fase 2.4: mijlpaalsoort + verplicht-vlag (spiegel van writeMilestoneMeta).
-      for (const objRef of objectRefs) {
-        const taskId = taskStepIdMap.get(objRef);
-        const task = taskId ? taskById.get(taskId) : undefined;
-        if (!task) continue;
-        for (const prop of props) {
-          if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-          const name = stripQuotes(prop.args[0] || '');
-          const value = parseTypedValue(prop.args[2] || '');
-          if (name === 'MilestoneKind' && (value === 'START' || value === 'FINISH')) {
-            task.milestoneKind = value;
-          } else if (name === 'Mandatory' && value === true) {
-            task.mandatory = true;
-          }
-        }
-      }
-      continue;
-    }
-
-    if (psetName !== 'OPS_CustomFields' && psetName !== 'OPS_ActivityCodes') continue;
+    if (psetName !== PSET.CustomFields && psetName !== PSET.ActivityCodes) continue;
     for (const objRef of objectRefs) {
       const taskId = taskStepIdMap.get(objRef);
       const task = taskId ? taskById.get(taskId) : undefined;
       if (!task) continue;
       for (const prop of props) {
         const name = stripQuotes(prop.args[0] || '');
-        if (psetName === 'OPS_CustomFields' && prop.type === 'IFCPROPERTYSINGLEVALUE') {
+        if (psetName === PSET.CustomFields && prop.type === 'IFCPROPERTYSINGLEVALUE') {
           const def = defByName.get(name);
           const value = parseTypedValue(prop.args[2] || '');
           if (def && value !== undefined) {
             task.customFields = { ...(task.customFields ?? {}), [def.id]: value };
           }
-        } else if (psetName === 'OPS_ActivityCodes' && prop.type === 'IFCPROPERTYENUMERATEDVALUE') {
+        } else if (psetName === PSET.ActivityCodes && prop.type === 'IFCPROPERTYENUMERATEDVALUE') {
           const type = typeByName.get(name);
           const codes = splitArgs((prop.args[2] || '').replace(/^\(|\)$/g, ''))
             .map(v => parseTypedValue(v))
@@ -840,7 +760,7 @@ function extractResourceMeta(
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
     if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    if (stripQuotes(pset.args[2] || '') !== 'OPS_Resource') continue;
+    if (stripQuotes(pset.args[2] || '') !== PSET.Resource) continue;
 
     const objectRefs = parseRefs(rel.args[4] || '');
     const props = parseRefs(pset.args[4] || '')
@@ -932,7 +852,7 @@ function extractCalendarGeneration(
     const objectRefs = parseRefs(rel.args[4] || '');
     if (!objectRefs.includes(calStepId)) continue;
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== 'OPS_Calendar') continue;
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
 
     const props = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
@@ -1033,7 +953,7 @@ function buildCalendarFromEntity(
   const rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
   for (const d of days) rawByWeekday[d as 1] = periods.map(p => ({ ...p }));
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
-  rawBandsRegistry.set(calendar, { canonical: bands, deviates });
+  registerCalendarBands(calendar, { canonical: bands, deviates });
 
   // Ploeg-classificatie uit `PredefinedType` (arg 7) → `shift` (§7.1). `.FIRSTSHIFT.`/afwezig ⇒
   // undefined (byte-identiek — de schrijver emitteert `.FIRSTSHIFT.` voor undefined).
@@ -1166,7 +1086,7 @@ function extractAssignments(
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
     if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    if (stripQuotes(pset.args[2] || '') !== 'OPS_Assignments') continue;
+    if (stripQuotes(pset.args[2] || '') !== PSET.Assignments) continue;
 
     const props = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
@@ -1248,41 +1168,28 @@ function extractAssignments(
 }
 
 /**
- * Fase 2.5 — `OPS_Leveling`-pset teruglezen (§7.6, spiegel van `writeLevelingMeta`):
- * `LevelingDelay` (werkdagen) per taak; ontbreekt de pset dan blijft `levelingDelay`
- * `undefined` (default, `extractTasks` zet het veld niet).
+ * Fase 3 (H2) — `task.resourceIds` reconstrueren uit de assignments. Het IFC-bestand slaat de
+ * taak↔resource-koppeling uitsluitend op via de `ResourceAssignment`s (IFCRELASSIGNSTOPROCESS +
+ * OPS_Assignments); `resourceIds` is een afgeleide projectie daarvan en wordt NIET los in het
+ * bestand bewaard (geen dubbele opslag/waarheid). Volgorde is deterministisch: eerste-zien in de
+ * assignments-volgorde, met deduplicatie (één resource kan meerdere assignments op één taak hebben).
  */
-function extractLevelingMeta(
-  entities: StepEntity[],
-  entityMap: Map<string, StepEntity>,
-  tasks: Task[],
-  taskStepIdMap: Map<string, string>,
-): void {
-  const taskById = new Map(tasks.map(t => [t.id, t]));
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    if (stripQuotes(pset.args[2] || '') !== 'OPS_Leveling') continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
-    for (const objRef of parseRefs(rel.args[4] || '')) {
-      const taskId = taskStepIdMap.get(objRef);
-      const task = taskId ? taskById.get(taskId) : undefined;
-      if (!task) continue;
-      for (const prop of props) {
-        if (stripQuotes(prop.args[0] || '') !== 'LevelingDelay') continue;
-        const value = parseTypedValue(prop.args[2] || '');
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          task.levelingDelay = Math.round(value);
-        }
-      }
-    }
+function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
+  const byTask = new Map<string, string[]>();
+  for (const a of assignments) {
+    let list = byTask.get(a.taskId);
+    if (!list) { list = []; byTask.set(a.taskId, list); }
+    if (!list.includes(a.resourceId)) list.push(a.resourceId);
+  }
+  for (const t of tasks) {
+    const ids = byTask.get(t.id);
+    if (ids) t.resourceIds = ids;
   }
 }
+
+// Fase 3 (P11) — `OPS_Leveling` (§7.6) wordt nu, net als de andere zeven per-taak-psets, teruggelezen
+// via de gedeelde registry-dispatch in `extractStructure` (ifcPsets.PER_TASK_PSETS). De losse
+// extractLevelingMeta is daardoor vervallen.
 
 /**
  * Fase 2.6 — verzamel de STEP-#id's van taken die onder een `.BASELINE.`-IfcWorkSchedule hangen
@@ -1340,7 +1247,7 @@ function extractBaselines(
   let activeBaselineId: string | null = null;
 
   for (const e of entities) {
-    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_Baselines') continue;
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.Baselines) continue;
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
@@ -1385,7 +1292,7 @@ function extractSchedulingOptions(
   entityMap: Map<string, StepEntity>,
 ): SchedulingOptions | undefined {
   for (const e of entities) {
-    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== 'OPS_SchedulingOptions') continue;
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.SchedulingOptions) continue;
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;

@@ -6,7 +6,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
-import { createSnapshot } from '../snapshot';
+import { beginUndoable, finishMutation } from '../transaction';
 import type { AppSlice, SiblingDirection } from './types';
 
 /**
@@ -115,8 +115,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
   addTask: (partial) => {
     const id = generateId('task');
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       const now = s.project.startDate || formatDate(new Date());
 
@@ -134,7 +133,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         name: partial.name,
         description: partial.description || '',
         wbsCode: partial.wbsCode || '',
-        taskType: partial.taskType || 'CONSTRUCTION',
+        // Bouwmodus (2026-07-13): neutraal taaktype-default in bouw-agnostische modus (USERDEFINED)
+        // i.p.v. CONSTRUCTION. Alleen de default bij aanmaken verandert; de enum blijft intact.
+        taskType: partial.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED'),
         status: partial.status || 'NOT_STARTED',
         isMilestone: partial.isMilestone || false,
         milestoneKind: partial.milestoneKind,
@@ -202,8 +203,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         task.wbsCode = deriveWbsCodes(s.tasks).get(id) ?? '';
       }
 
-      s.isDirty = true;
-      s.scheduleStale = true; // nieuwe taak (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // nieuwe taak (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
     return id;
@@ -211,15 +211,13 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
 
   updateTask: (id, updates) => {
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx >= 0) {
         Object.assign(s.tasks[idx], updates);
-        s.isDirty = true;
         // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
-        s.scheduleStale = true;
+        finishMutation(s, { stale: true });
       }
     });
     get().recomputeViewRows();
@@ -230,11 +228,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       task.calendarId = calendarId; // undefined = projectkalender
-      s.isDirty = true;
-      s.scheduleStale = true; // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
+      finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });
     get().recomputeViewRows();
   },
@@ -244,12 +240,10 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       const full: ExternalLink = { ...link, id };
       task.externalLinks = [...(task.externalLinks ?? []), full];
-      s.isDirty = true;
-      s.scheduleStale = true; // een bevroren datum-grens is datum-beïnvloedend (§4.5).
+      finishMutation(s, { stale: true }); // een bevroren datum-grens is datum-beïnvloedend (§4.5).
     });
     get().recomputeViewRows();
     return id;
@@ -261,19 +255,16 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       if (!task || !task.externalLinks) return;
       const next = task.externalLinks.filter((l) => l.id !== linkId);
       if (next.length === task.externalLinks.length) return; // no-op: niets verwijderd
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       task.externalLinks = next.length > 0 ? next : undefined;
-      s.isDirty = true;
-      s.scheduleStale = true;
+      finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
   },
 
   deleteTask: (id) => {
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       // Remove from parent
       const task = s.tasks.find(t => t.id === id);
@@ -300,8 +291,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       s.assignments = s.assignments.filter(a => !removeIds.has(a.taskId));
       s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
-      s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
   },
@@ -324,8 +314,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         }
       }
 
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       // Remove from old parent
       if (task.parentId) {
@@ -343,8 +332,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       }
 
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
-      s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
   },
@@ -378,8 +366,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         }
         if (!newParentId) continue;
         if (!snapshotPushed) {
-          s.undoStack.push(createSnapshot(s));
-          s.redoStack = [];
+          beginUndoable(s);
           snapshotPushed = true;
         }
         if (task.parentId) {
@@ -393,8 +380,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       }
       if (!changed) return;
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
-      s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
   },
@@ -412,8 +398,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         const parent = s.tasks.find(t => t.id === task.parentId);
         if (!parent) continue;
         if (!snapshotPushed) {
-          s.undoStack.push(createSnapshot(s));
-          s.redoStack = [];
+          beginUndoable(s);
           snapshotPushed = true;
         }
         parent.childIds = parent.childIds.filter(c => c !== id);
@@ -426,8 +411,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       }
       if (!changed) return;
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
-      s.scheduleStale = true; // datum-rakende mutatie (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
   },
@@ -510,8 +494,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
         if (swapIdx < 0 || swapIdx >= parent.childIds.length) return; // rand: no-op
 
-        s.undoStack.push(createSnapshot(s));
-        s.redoStack = [];
+        beginUndoable(s);
         const tmp = parent.childIds[idx];
         parent.childIds[idx] = parent.childIds[swapIdx];
         parent.childIds[swapIdx] = tmp;
@@ -530,16 +513,15 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         const absA = s.tasks.findIndex(t => t.id === taskId);
         const absB = s.tasks.findIndex(t => t.id === otherId);
 
-        s.undoStack.push(createSnapshot(s));
-        s.redoStack = [];
+        beginUndoable(s);
         const tmp = s.tasks[absA];
         s.tasks[absA] = s.tasks[absB];
         s.tasks[absB] = tmp;
       }
 
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
       // Geen scheduleStale: pure volgorde-mutatie, raakt geen tijden/CPM (golf 1-spec, expliciet).
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -578,8 +560,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       const clip = s.taskClipboard;
       if (!clip || clip.tasks.length === 0) return;
 
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       const copiedIds = new Set(clip.tasks.map(t => t.id));
       const resourceExists = new Set(s.resources.map(r => r.id));
@@ -653,8 +634,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       }
 
       s.selectedTaskIds = newRootIds;
-      s.isDirty = true;
-      s.scheduleStale = true; // geplakte taken (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
     return newRootIds;
@@ -662,10 +642,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
 
   renumberWbs: () => {
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       applyWbsNumbering(s.tasks);
-      s.isDirty = true;
+      finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -674,8 +653,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     if (template.tasks.length === 0) return null;
     let newRootId: string | null = null;
     set((s) => {
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
 
       const startDate = s.project.startDate || formatDate(new Date());
       const idMap = new Map<string, string>();
@@ -726,8 +704,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       }
 
       if (newRootId) s.selectedTaskIds = [newRootId];
-      s.isDirty = true;
-      s.scheduleStale = true; // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
     return newRootId;
@@ -737,8 +714,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       const completion = Math.max(0, Math.min(1, raw));
       task.time.completion = completion;
       // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
@@ -748,8 +724,8 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
       if (completion < 1) task.time.actualFinish = undefined;
       applyProgressInvariants(task, s.project.statusDate);
-      s.isDirty = true;
-      if (s.project.statusDate) s.scheduleStale = true; // alleen datum-beïnvloedend mét statusdatum.
+      // alleen datum-beïnvloedend mét statusdatum.
+      finishMutation(s, { stale: !!s.project.statusDate });
     });
     get().recomputeViewRows();
   },
@@ -761,12 +737,10 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       if (!task) return;
       // Actuals liggen nooit ná de statusdatum: weigeren i.p.v. stil klemmen (§3.2, BESLIST).
       if (date && s.project.statusDate && date > s.project.statusDate) { accepted = false; return; }
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       task.time.actualStart = date || undefined;
       applyProgressInvariants(task, s.project.statusDate);
-      s.isDirty = true;
-      if (s.project.statusDate) s.scheduleStale = true;
+      finishMutation(s, { stale: !!s.project.statusDate });
     });
     get().recomputeViewRows();
     return accepted;
@@ -778,15 +752,13 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       if (date && s.project.statusDate && date > s.project.statusDate) { accepted = false; return; }
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       task.time.actualFinish = date || undefined;
       // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default
       // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
       if (!date && task.time.completion >= 1) task.time.completion = 0;
       applyProgressInvariants(task, s.project.statusDate);
-      s.isDirty = true;
-      if (s.project.statusDate) s.scheduleStale = true;
+      finishMutation(s, { stale: !!s.project.statusDate });
     });
     get().recomputeViewRows();
     return accepted;

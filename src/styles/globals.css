@@ -688,3 +688,43 @@ html, body, #root {
 .ui-pop {
   box-shadow: var(--shadow-pop);
 }
+
+/* ============================================================================
+   Uniforme checkboxes (2026-07-13) — ÉÉN stijl voor ALLE checkboxes in de app.
+   `appearance: none` schakelt de native (blauwe, OS-afhankelijke) checkbox uit.
+   Aangevinkt = massief accent-oranje vlak ZONDER vinkje (er is bewust geen
+   ::after-content), zodat er nooit een scheef-gecentreerd vinkje kan ontstaan.
+   Het accent volgt het thema (oranje in dark/light, geel in high-contrast).
+   Vervangt de vroegere wildgroei: bare native (blauw), Tailwind `accent-accent`
+   en losse `accent-color`-overrides renderen nu allemaal identiek.
+   ============================================================================ */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  margin: 0;
+  box-sizing: border-box;
+  vertical-align: middle;
+  border: 1.5px solid var(--theme-control-border);
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+input[type="checkbox"]:hover {
+  border-color: var(--theme-accent);
+}
+input[type="checkbox"]:checked {
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
+}
+input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 30%, transparent);
+}
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

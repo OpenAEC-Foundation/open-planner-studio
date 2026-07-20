@@ -148,7 +148,9 @@ function extractManifestFromCode(code: string, fileName: string): ExtensionManif
     description: `Extensie geladen uit ${fileName}`,
     category: 'Other',
     main: 'main.js',
-    permissions: ['commands', 'events'],
+    // 'commands' bestaat niet meer (audit P16); een los .js-bestand zonder @manifest krijgt
+    // standaard alleen 'events' (de rest declareert de auteur expliciet in een @manifest-blok).
+    permissions: ['events'],
   };
 }
 

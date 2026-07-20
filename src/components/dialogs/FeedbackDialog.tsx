@@ -10,11 +10,12 @@
  * - Twee verstuur-paden: PAD A (geen screenshot) / PAD B (met screenshot + klembord).
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { sendFeedback, openFeedbackUrl, type FeedbackType, type SendResult } from '@/services/feedback/feedbackService';
+import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { ScreenshotAnnotator } from './ScreenshotAnnotator';
 import './FeedbackDialog.css';
 
@@ -44,14 +45,9 @@ export function FeedbackDialog() {
 
   const close = useCallback(() => setUI({ showFeedbackDialog: false }), [setUI]);
 
-  // Escape sluit de dialoog (niet tijdens versturen).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !sending) close();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [close, sending]);
+  // Escape sluit de dialoog (niet tijdens versturen: dan is de handler `undefined` en doet de
+  // hook niets). De overlay zelf blijft custom CSS-chrome — geen `Dialog`-migratie hier.
+  useDialogKeys({ onCancel: sending ? undefined : close });
 
   // ── Screenshot maken ───────────────────────────────────────────────────────
   const captureScreenshot = useCallback(async () => {

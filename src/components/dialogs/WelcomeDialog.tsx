@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { Dialog } from '@/components/common/Dialog';
 import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
 import { UITheme, UI_THEMES } from '@/state/slices/types';
 import { saveLocale, saveTheme, saveAutoCalcCPM, saveWelcomeSeen } from '@/utils/settingsStore';
@@ -40,8 +40,6 @@ export function WelcomeDialog() {
     setUI({ showWelcomeDialog: false });
   };
 
-  useDialogKeys({ onCancel: markSeenAndClose });
-
   const applyTheme = (theme: UITheme) => {
     setUI({ uiTheme: theme });
     void saveTheme(theme);
@@ -63,11 +61,12 @@ export function WelcomeDialog() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[480px] max-h-[88vh] flex flex-col overflow-hidden"
-        data-ops-welcome-dialog
-      >
+    // Bewust GEEN backdrop-close (eerste-startdialoog) — alleen Escape/knoppen sluiten.
+    <Dialog
+      onCancel={markSeenAndClose}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[480px] max-h-[88vh] flex flex-col overflow-hidden"
+      panelProps={{ 'data-ops-welcome-dialog': true }}
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('welcome.title')}
@@ -139,7 +138,6 @@ export function WelcomeDialog() {
             <button onClick={startTour} className="btn btn--sm btn--primary">{t('welcome.startTour')}</button>
           )}
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

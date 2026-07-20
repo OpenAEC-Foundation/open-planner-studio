@@ -1,0 +1,19 @@
+{
+  // Dedicated tsconfig die ALLEEN de IFC-round-trip-fixture typecheckt. De hoofd-tsconfig
+  // (`include: ["src"]`) dekt tests/ bewust niet; deze config borgt de compile-afdwinging van de
+  // fixture-volledigheid (`satisfies Required<...>`) — een nieuw domeinveld geeft hier een fout.
+  // Draait mee in tests/planning/run.sh. Erft compilerOptions (incl. `paths` @/* → src/*) van de root.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // De type-only volledigheidsgetuigen (WorkCalendar/Sequence) zijn bewust "ongebruikt".
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    // Geen @types/node nodig; `process` wordt in het bestand minimaal gedeclareerd.
+    "types": []
+  },
+  // Ambient globals moeten expliciet mee: `include` volgt imports wél, maar pikt losse .d.ts-
+  // declaratiebestanden niet automatisch op. De fixture trekt via de store fileAccess/webBackend
+  // binnen, dat de File System Access-typen gebruikt.
+  "include": ["check-ifc-roundtrip.ts", "../../src/types/file-system-access.d.ts"]
+}

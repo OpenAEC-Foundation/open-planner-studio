@@ -10,10 +10,10 @@ import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
-import { createSnapshot } from '../snapshot';
+import { beginUndoable, finishMutation } from '../transaction';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
-import { createDefaultView } from './viewSlice';
-import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
+import { freshPayload, hydratePayload } from '../documentContract';
+import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSlice } from './types';
 
 /** Opties voor de nieuw-project-wizard. */
@@ -103,19 +103,18 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     set((s) => {
       Object.assign(s.project, updates);
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
       // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet (A6).
-      if ('startDate' in updates) s.scheduleStale = true;
+      // Flag-only (bewuste asymmetrie): projectvelden muteren zónder undo-snapshot.
+      finishMutation(s, { stale: 'startDate' in updates });
     }),
 
   setWbsAutoNumber: (on) =>
     set((s) => {
       if (!!s.project.wbsAutoNumber === on) return;
-      s.undoStack.push(createSnapshot(s));
-      s.redoStack = [];
+      beginUndoable(s);
       s.project.wbsAutoNumber = on;
       if (on) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
+      finishMutation(s); // WBS-nummering raakt geen datums: géén scheduleStale (bewuste asymmetrie).
     }),
 
   setCalendar: (calendar) =>
@@ -124,16 +123,15 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       // Houd de bibliotheek-entry (indien aanwezig) in sync met de gedenormaliseerde cache (§4.1).
       const idx = s.calendars.findIndex((c) => c.id === calendar.id);
       if (idx >= 0) s.calendars[idx] = calendar;
-      s.isDirty = true;
-      s.scheduleStale = true; // projectkalender-wijziging (A6): planning verouderd tot F5.
+      // Flag-only (bewuste asymmetrie, §9.3): projectkalender muteert zónder undo-snapshot.
+      finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
   setProjectCalendar: (id) =>
     set((s) => {
       if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
       s.project.calendarId = id;
-      s.isDirty = true;
-      s.scheduleStale = true; // projectdefault-wissel is datum-beïnvloedend (§5.4).
+      finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
       syncProjectCalendar(s); // §9.1: cache gelijkzetten (géén undo-snapshot, §9.3).
     }),
 
@@ -147,42 +145,23 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       if (date) s.project.statusDate = date;
       else delete s.project.statusDate;
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
-      s.scheduleStale = true; // datum-beïnvloedend (A6): planning verouderd tot F5.
+      finishMutation(s, { stale: true }); // datum-beïnvloedend (A6): planning verouderd tot F5.
     }),
 
   setProgressMode: (mode) =>
     set((s) => {
       s.project.progressMode = mode;
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
-      s.scheduleStale = true;
+      finishMutation(s, { stale: true });
     }),
 
   newProject: () => {
+    // Reset-pad (audit P10): één verse payload via het documentcontract i.p.v. een handmatig
+    // veld-voor-veld-blok — capture/hydrate/fresh delen dezelfde `DOCUMENT_FIELDS`-lijst, dus een
+    // nieuw per-document veld wordt hier automatisch mee-gereset (geen stille lek van het vorige
+    // project). hydratePayload promoveert + synct de projectkalender (§4.3/§9.1).
     set((s) => {
-      s.project = createDefaultProject();
-      s.calendar = createDefaultCalendar();
-      s.tasks = [];
-      s.sequences = [];
-      s.resources = [];
-      s.assignments = [];
-      s.calendars = [];
-      s.activityCodeTypes = [];
-      s.customFieldDefs = [];
-      s.selectedTaskIds = [];
-      s.cpmResult = null;
-      // Afgeleide belasting ook resetten (A5); de ribbon-guard van de UX-golf blijft defensief.
-      s.resourceLoadResult = null;
-      s.scheduleStale = false;
-      s.baselines = [];
-      s.activeBaselineId = null;
-      s.view = createDefaultView();
-      s.undoStack = [];
-      s.redoStack = [];
-      s.isDirty = false;
-      s.filePath = null;
-      s.fileHandle = null;
+      hydratePayload(s, freshPayload());
     });
     emitExtensionEvent(HOST_EVENTS.projectNew);
   },
@@ -205,14 +184,19 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       proj.endDate = opts.endDate ?? '';
       proj.calendarId = opts.calendar.id;
 
-      s.project = proj;
-      s.calendar = opts.calendar;
-      s.tasks = opts.phaseNames.map((name, i) => ({
+      // Reset-pad (audit P10): start van een verse payload en override alleen de wizard-velden.
+      // hydratePayload vult §4.4 de bibliotheek met de wizard-kalender (promote) en synct de cache.
+      const payload = freshPayload();
+      payload.project = proj;
+      payload.calendar = opts.calendar;
+      payload.tasks = opts.phaseNames.map((name, i) => ({
         id: generateId('task'),
         name,
         description: '',
         wbsCode: String(i + 1),
-        taskType: 'CONSTRUCTION',
+        // Bouwmodus (2026-07-13): wizard-fasen krijgen in bouw-agnostische modus een neutraal
+        // taaktype (USERDEFINED) i.p.v. CONSTRUCTION.
+        taskType: s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED',
         status: 'NOT_STARTED',
         isMilestone: false,
         priority: 500,
@@ -221,26 +205,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
         time: createDefaultTaskTime(proj.startDate, 5),
         resourceIds: [],
       }));
-      s.sequences = [];
-      s.resources = [];
-      s.assignments = [];
-      s.calendars = [];
-      // §4.4: de bibliotheek meteen vullen met de wizard-kalender i.p.v. leeg tot de
-      // CalendarDialog hem lazy promoveert — zo klopt de bibliotheek al vanaf het begin.
-      promoteProjectCalendarToLibrary(s);
-      s.selectedTaskIds = [];
-      s.cpmResult = null;
-      s.resourceLoadResult = null;
-      s.scheduleStale = false;
-      s.baselines = [];
-      s.activeBaselineId = null;
-      s.view = createDefaultView();
-      s.undoStack = [];
-      s.redoStack = [];
       // Een leeg project (template 'Leeg') is nog niet 'dirty'; met fasen wél.
-      s.isDirty = opts.phaseNames.length > 0;
-      s.filePath = null;
-      s.fileHandle = null;
+      payload.isDirty = opts.phaseNames.length > 0;
+      hydratePayload(s, payload);
     });
     emitExtensionEvent(HOST_EVENTS.projectNew);
   },
@@ -251,35 +218,13 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     }),
 
   loadState: (loaded) => {
-    set((s) => {
-      s.project = loaded.project;
-      s.calendar = loaded.calendar;
-      s.tasks = loaded.tasks;
-      s.sequences = loaded.sequences;
-      s.resources = loaded.resources;
-      s.assignments = loaded.assignments;
-      // Kalender-bibliotheek (fase 2.8a; readers leveren nog het veld `resourceCalendars`).
-      s.calendars = loaded.resourceCalendars ?? [];
-      // §4.3-migratie: een bestand zonder bibliotheek-entry voor zijn projectkalender (elk
-      // bestand van vóór 2.8a, of van CSV/P6/MSPDI) krijgt hier de eerste entry.
-      promoteProjectCalendarToLibrary(s);
-      s.activityCodeTypes = loaded.activityCodeTypes ?? [];
-      s.customFieldDefs = loaded.customFieldDefs ?? [];
-      s.selectedTaskIds = [];
-      s.cpmResult = null;
-      s.resourceLoadResult = null;
-      s.scheduleStale = false;
-      // Baselines uit de IFC-lezer (fase 2.6, §8.3); ontbreken ze (CSV/P6 of extern bestand) → leeg.
-      s.baselines = loaded.baselines ?? [];
-      s.activeBaselineId = loaded.activeBaselineId ?? null;
-      s.undoStack = [];
-      s.redoStack = [];
-      s.isDirty = false;
-    });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
-      tasks: loaded.tasks.length,
-      sequences: loaded.sequences.length,
-      resources: loaded.resources.length,
+    // Dunne wrapper over de gedeelde load-implementatie (audit P5/F6): `applyLoadedProject` in
+    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad, GEEN runCPM/fit,
+    // `filePath` ongemoeid (opt weggelaten). De externe callers blijven ongewijzigd.
+    get().applyLoadedProject(loaded, {
+      recompute: false,
+      fit: false,
+      hourDataNotice: false,
     });
   },
 });

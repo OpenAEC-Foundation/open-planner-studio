@@ -1,13 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { initLocale } from '@/i18n/config';
-import { initTheme, loadZoomSettings, loadDebugTerminalEnabled, loadDocumentChromeStyle, loadLeftPanelWidth, loadRightPanelWidth, saveRightPanelWidth, RIGHT_PANEL_MIN_WIDTH, loadRibbonCompact, loadShowHistogram, loadHistogramHeight, loadShowBaselineOverlay, loadShowProgressLine, loadShowStatusDateLine, loadShowMiniMap, loadAutoCalcCPM, loadDateNotation, loadEnableHourPlanning, loadAllowMixedDayHour, loadDurationDisplay, loadBarSplitMode, loadWelcomeSeen } from '@/utils/settingsStore';
+import { saveRightPanelWidth, RIGHT_PANEL_MIN_WIDTH } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
-import { loadAllExtensions } from '@/extensions';
-import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
-import { isTauri } from '@/utils/platform';
-import { saveRecovery, loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -35,19 +29,24 @@ import { FilterDialog } from '@/components/dialogs/FilterDialog';
 import { LayoutsDialog } from '@/components/dialogs/LayoutsDialog';
 import { ShortcutsDialog } from '@/components/dialogs/ShortcutsDialog';
 import { PresentationHint } from '@/components/layout/PresentationHint';
-import { RecoveryDialog, type RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
+import { RecoveryDialog } from '@/components/dialogs/RecoveryDialog';
 import { WelcomeDialog } from '@/components/dialogs/WelcomeDialog';
 import { TourOverlay } from '@/components/tour/TourOverlay';
-import { documentTitle } from '@/utils/documents';
-import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
 import { Backstage } from '@/components/backstage/Backstage';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
 import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
+import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
+import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
+import { useAutoSave } from '@/hooks/useAutoSave';
+import { useRecoveryRestore } from '@/hooks/useRecoveryRestore';
+import { useUpdateCheck } from '@/hooks/useUpdateCheck';
+import { useFullscreenSync } from '@/hooks/useFullscreenSync';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useSplitter } from '@/hooks/useSplitter';
 import { useAppStore } from '@/state/appStore';
-import type { RecoveryDocInput } from '@/state/slices/documentSlice';
 import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 import { HourDataNotice } from '@/components/layout/HourDataNotice';
 
@@ -57,7 +56,6 @@ function AppContent() {
 
   const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
   const rightPanelWidth = useAppStore(s => s.ui.rightPanelWidth);
-  const project = useAppStore(s => s.project);
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const showProjectInfoDialog = useAppStore(s => s.ui.showProjectInfoDialog);
   const showNewProjectDialog = useAppStore(s => s.ui.showNewProjectDialog);
@@ -78,151 +76,34 @@ function AppContent() {
   const presentationMode = useAppStore(s => s.ui.presentationMode);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
-  const isDirty = useAppStore(s => s.isDirty);
-  const filePath = useAppStore(s => s.filePath);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
 
-  // In-app herstel-dialoog (vervangt de native OS-`ask()`): de gedetecteerde
-  // recovery-payload + de callbacks om te herstellen/verwerpen/uitstellen. Lokale
-  // state i.p.v. een ui.show*-flag houdt de detectie-logica (paden, geparste IFC,
-  // opruim-closures) bij elkaar en vermijdt slice-wijzigingen.
-  const [recovery, setRecovery] = useState<{
-    entries: RecoveryEntry[];
-    onRestore: () => void;
-    onDiscard: () => void;
-    onClose: () => void;
-  } | null>(null);
+  // Rechterpaneel-breedte slepen (fase 2.10, punt 3) — generiek splitterpatroon (useSplitter,
+  // gedeeld met de takentabel-splitter in GanttCanvas): losse drag-state, window-listeners voor
+  // move/up, klem tussen min/max, en pas persisteren (localStorage) bij loslaten. Anders dan de
+  // canvas-splitter is dit een gewone DOM-sleeprand (het rechterpaneel is React/DOM, niet canvas),
+  // en de klem is hier tweezijdig: min 200px (RIGHT_PANEL_MIN_WIDTH), max 60% van het venster
+  // (dynamisch, i.p.v. een vaste breedte — het venster kan resizen tussen sessies).
+  const rightPanelSplitter = useSplitter({
+    min: RIGHT_PANEL_MIN_WIDTH,
+    max: () => Math.round(window.innerWidth * 0.6),
+    computeSize: e => Math.round(window.innerWidth - e.clientX),
+    onResize: w => useAppStore.getState().setUI({ rightPanelWidth: w }),
+    onCommit: () => { void saveRightPanelWidth(useAppStore.getState().ui.rightPanelWidth); },
+  });
 
-  // Fase 2.10 onderdeel 3 (§3): reactief signaal "recovery-flow volledig afgehandeld" — waar
-  // `autoSaveEnabled` (hieronder) een ref is (niet reactief, alleen voor de auto-save-timer),
-  // heeft de welkomstdialoog-bootstrap-check een render-triggerende state nodig om pas te
-  // vuren NADAT de recovery-detectie/-keuze echt klaar is (nooit gelijktijdig met RecoveryDialog).
-  // Gezet op exact dezelfde momenten als `autoSaveEnabled.current = true` hieronder (dezelfde
-  // `finish()`-closure + de niet-Tauri-kortsluiting).
-  const [recoveryResolved, setRecoveryResolved] = useState(false);
+  // Recovery-restore bij opstarten (Tauri én web): detectie + RecoveryDialog-callbacks; levert ook
+  // de auto-save-poort (`autoSaveEnabled`) en het reactieve "flow afgehandeld"-signaal.
+  const { recovery, recoveryResolved, autoSaveEnabled } = useRecoveryRestore();
 
-  // Rechterpaneel-breedte slepen (fase 2.10, punt 3) — zelfde patroon als de takentabel-splitter
-  // in GanttCanvas (`isResizingTable`): losse drag-state, window-listeners voor move/up, klem
-  // tussen min/max, en pas persisteren (localStorage) bij loslaten. Anders dan de canvas-splitter
-  // is dit een gewone DOM-sleeprand (het rechterpaneel is React/DOM, niet canvas), en de klem is
-  // hier tweezijdig: min 200px (RIGHT_PANEL_MIN_WIDTH), max 60% van het venster (dynamisch, i.p.v.
-  // een vaste breedte — het venster kan resizen tussen sessies).
-  const [isResizingRightPanel, setIsResizingRightPanel] = useState(false);
-  useEffect(() => {
-    if (!isResizingRightPanel) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      const maxW = Math.round(window.innerWidth * 0.6);
-      const w = Math.min(maxW, Math.max(RIGHT_PANEL_MIN_WIDTH, Math.round(window.innerWidth - e.clientX)));
-      useAppStore.getState().setUI({ rightPanelWidth: w });
-    };
-    const handleMouseUp = () => {
-      setIsResizingRightPanel(false);
-      void saveRightPanelWidth(useAppStore.getState().ui.rightPanelWidth);
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizingRightPanel]);
+  // Settings-bootstrap: hydrateert ~20 instellingen + extensies bij mount, en toont de
+  // welkomstdialoog zodra de recovery-flow is afgehandeld.
+  useSettingsBootstrap(recoveryResolved, recovery);
 
-  // Auto-save-poort: blijft dicht tot de recovery-keuze is gemaakt, zodat de
-  // debounced auto-save de recovery-snapshots niet overschrijft vóórdat de
-  // gebruiker heeft gekozen. Gaat open bij: geen recovery-data, een fout tijdens
-  // detectie, of nadat de gebruiker herstelt/verwerpt/uitstelt.
-  const autoSaveEnabled = useRef(false);
-
-  useEffect(() => {
-    initLocale();
-    initTheme().then(theme => {
-      setUI({ uiTheme: theme });
-    });
-    loadZoomSettings().then(zs => {
-      if (Object.keys(zs).length > 0) setUI(zs);
-    });
-    loadDebugTerminalEnabled().then(v => {
-      if (typeof v === 'boolean') setUI({ debugTerminalEnabled: v });
-    });
-    loadDocumentChromeStyle().then(style => {
-      if (style) setUI({ documentChromeStyle: style });
-    });
-    loadLeftPanelWidth().then(w => {
-      if (typeof w === 'number') setUI({ leftPanelWidth: w });
-    });
-    loadRightPanelWidth().then(w => {
-      if (typeof w === 'number') setUI({ rightPanelWidth: w });
-    });
-    loadRibbonCompact().then(v => {
-      if (typeof v === 'boolean') setUI({ ribbonCompact: v });
-    });
-    loadShowHistogram().then(v => {
-      if (typeof v === 'boolean') setUI({ showHistogram: v });
-    });
-    loadHistogramHeight().then(h => {
-      if (typeof h === 'number') setUI({ histogramHeight: h });
-    });
-    loadShowBaselineOverlay().then(v => {
-      if (typeof v === 'boolean') setUI({ showBaselineOverlay: v });
-    });
-    loadShowProgressLine().then(v => {
-      if (typeof v === 'boolean') setUI({ showProgressLine: v });
-    });
-    loadShowStatusDateLine().then(v => {
-      if (typeof v === 'boolean') setUI({ showStatusDateLine: v });
-    });
-    loadShowMiniMap().then(v => {
-      if (typeof v === 'boolean') setUI({ showMiniMap: v });
-    });
-    loadAutoCalcCPM().then(v => {
-      if (typeof v === 'boolean') setUI({ autoCalcCPM: v });
-    });
-    loadDateNotation().then(v => {
-      if (v) setUI({ dateNotation: v });
-    });
-    // Fase 2.8b (§6.8): urenplanning-instellingen — ontbrekende sleutel ⇒ default (undefined → geen setUI).
-    loadEnableHourPlanning().then(v => {
-      if (typeof v === 'boolean') setUI({ enableHourPlanning: v });
-    });
-    loadAllowMixedDayHour().then(v => {
-      if (typeof v === 'boolean') setUI({ allowMixedDayHour: v });
-    });
-    loadDurationDisplay().then(v => {
-      if (v) setUI({ durationDisplay: v });
-    });
-    loadBarSplitMode().then(v => {
-      if (v) setUI({ barSplitMode: v });
-    });
-    void loadAllExtensions();
-    void useAppStore.getState().hydrateRecentFiles();
-  }, []);
-
-  // Automatisch berekenen: als de instelling aanstaat, draai runCPM zodra de planning
-  // verouderd raakt (scheduleStale), i.p.v. te wachten op de gebruiker (F5). Eén centrale
-  // plek i.p.v. bij elke callsite die scheduleStale zet — hetzelfde patroon als de auto-save
-  // hierboven: een globale store-subscribe + debounce (~100ms) om snelle opeenvolgende
-  // mutaties tot één run te coalescen. Geen oneindige lus: runCPM zet scheduleStale zelf
-  // weer op false, dus de volgende subscribe-tick vindt de guard-conditie niet meer waar.
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const maybeScheduleRun = () => {
-      const state = useAppStore.getState();
-      if (!state.ui.autoCalcCPM || !state.scheduleStale) return;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = null;
-        const s = useAppStore.getState();
-        if (s.ui.autoCalcCPM && s.scheduleStale) s.runCPM();
-      }, 100);
-    };
-    const unsub = useAppStore.subscribe(maybeScheduleRun);
-    return () => {
-      if (timer) clearTimeout(timer);
-      unsub();
-    };
-  }, []);
+  // Automatisch berekenen: runCPM zodra de planning verouderd raakt (als de instelling aanstaat).
+  useAutoCalcCPM();
 
   // "(geen)"-bandlabel voor de gedeelde viewRows-pijplijn (fase 2.7, §4.1): de vertaalde
   // string wordt vanuit deze consument doorgegeven — de engine/store blijft i18n-vrij.
@@ -237,201 +118,18 @@ function AppContent() {
     document.documentElement.setAttribute('data-theme', uiTheme);
   }, [uiTheme]);
 
-  // Presentation mode (fase 2.7, §9.3): de fullscreenchange-listener zet de ui-flag terug op false
-  // als de gebruiker fullscreen verlaat buiten onze eigen knop/F11/Escape om (bv. OS-toets, browser-
-  // chrome), zodat de flag nooit desynct van de werkelijke fullscreen-status.
-  useEffect(() => {
-    const onFullscreenChange = () => {
-      if (!document.fullscreenElement && useAppStore.getState().ui.presentationMode) {
-        setUI({ presentationMode: false });
-      }
-    };
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, [setUI]);
+  // Presentation mode (fase 2.7, §9.3): fullscreenchange-listener houdt de ui-flag in sync.
+  useFullscreenSync();
 
-  useEffect(() => {
-    const dirtyMark = isDirty ? '* ' : '';
-    const fileInfo = filePath ? ` — ${filePath.split(/[/\\]/).pop()}` : '';
-    document.title = `${dirtyMark}${project.name}${fileInfo} — Open Planner Studio`;
-  }, [project.name, isDirty, filePath]);
+  // Venstertitel volgt het actieve document (dirty-markering, projectnaam, bestandsnaam).
+  useDocumentTitle();
 
-  // Auto-save bij ELKE wijziging (gedebounced) i.p.v. op een vaste interval:
-  // we abonneren op de store en schrijven een recovery-snapshot kort nadat de
-  // wijzigingen tot rust komen (de debounce coalesceert snelle bursts zoals
-  // slepen/typen tot één schrijfactie). Alle open documenten krijgen een eigen
-  // IFC-snapshot + een manifest; snapshots van gesloten documenten worden
-  // opgeruimd.
-  useEffect(() => {
-    let saving = false;
-    let pending = false;
+  // Auto-save (Tauri én web, gedebounced 800 ms): recovery-snapshots per open document,
+  // plus de web-only beforeunload-waarschuwing bij niet-opgeslagen wijzigingen.
+  useAutoSave(autoSaveEnabled);
 
-    const runAutoSave = async () => {
-      // Wacht tot de recovery-keuze gemaakt is (anders overschrijven we de snapshots te vroeg).
-      if (!autoSaveEnabled.current) return;
-      if (saving) { pending = true; return; }
-      const state = useAppStore.getState();
-      const payloads = state.getOpenDocumentPayloads();
-      if (!payloads.some((d) => d.payload.isDirty)) return;
-      saving = true;
-      try {
-        const docs = payloads.map(({ id, payload }) => ({
-          id,
-          ifc: writeIFC({
-            project: payload.project,
-            calendar: payload.calendar,
-            tasks: payload.tasks,
-            sequences: payload.sequences,
-            resources: payload.resources,
-            assignments: payload.assignments,
-            activityCodeTypes: payload.activityCodeTypes,
-            customFieldDefs: payload.customFieldDefs,
-            resourceCalendars: payload.calendars,
-            baselines: payload.baselines,
-            activeBaselineId: payload.activeBaselineId,
-          }),
-          filePath: payload.filePath,
-          isDirty: payload.isDirty,
-        }));
-        await saveRecovery(state.activeDocumentId, docs);
-      } catch (err) {
-        console.error('Auto-save failed:', err);
-      } finally {
-        saving = false;
-        if (pending) { pending = false; void runAutoSave(); }
-      }
-    };
-
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const unsub = useAppStore.subscribe(() => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { void runAutoSave(); }, 800);
-    });
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      unsub();
-    };
-  }, []);
-
-  // Check for recovery file on startup
-  const recoveryChecked = useRef(false);
-  useEffect(() => {
-    if (recoveryChecked.current) return;
-    recoveryChecked.current = true;
-
-    (async () => {
-      // Poort opent zodra de keuze gemaakt is (of er niets te herstellen valt).
-      const finish = () => { autoSaveEnabled.current = true; setRecoveryResolved(true); };
-      try {
-        const { activeDocumentId, docs } = await loadRecovery();
-        if (docs.length === 0) { finish(); return; }
-
-        const restored: RecoveryDocInput[] = [];
-        const entries: RecoveryEntry[] = [];
-        for (const d of docs) {
-          try {
-            const parsed = readIFC(d.ifc);
-            restored.push({
-              id: d.id,
-              project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
-              sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
-              activityCodeTypes: parsed.activityCodeTypes, customFieldDefs: parsed.customFieldDefs,
-              resourceCalendars: parsed.resourceCalendars,
-              filePath: d.filePath, isDirty: d.isDirty,
-            });
-            entries.push({
-              id: d.id,
-              name: documentTitle(d.filePath, parsed.project.name),
-              filePath: d.filePath,
-              taskCount: parsed.tasks.length,
-              mtime: d.mtime,
-            });
-          } catch (err) {
-            console.error('Failed to read recovery document:', d.id, err);
-          }
-        }
-
-        // Niets bruikbaars geparst → stil opruimen, geen dialoog.
-        if (entries.length === 0) { await clearRecovery(); finish(); return; }
-
-        setRecovery({
-          entries,
-          onRestore: () => {
-            if (restored.length > 0) {
-              useAppStore.getState().restoreDocuments(restored, activeDocumentId);
-            }
-            void clearRecovery();
-            setRecovery(null);
-            finish();
-          },
-          onDiscard: () => { void clearRecovery(); setRecovery(null); finish(); },
-          // Uitstellen: data laten staan, niet herstellen (zie RecoveryDialog).
-          onClose: () => { setRecovery(null); finish(); },
-        });
-      } catch (err) {
-        console.error('Recovery check failed:', err);
-        finish();
-      }
-    })();
-  }, []);
-
-  // Web-only: waarschuw bij het sluiten van het tabblad met niet-opgeslagen wijzigingen.
-  // Tauri heeft hiervoor al de CloseDocumentDialog; een ongeguarde handler zou in de
-  // desktop-webview dubbel-prompten (spec §7).
-  useEffect(() => {
-    if (isTauri()) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      const anyDirty = useAppStore.getState().getOpenDocumentPayloads().some((d) => d.payload.isDirty);
-      if (anyDirty) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, []);
-
-  // First-startup-ervaring (fase 2.10, onderdeel 3, §3): toont de WelcomeDialog bij een verse
-  // `!loadWelcomeSeen()`. Eigen ref-guard (`welcomeChecked`) naar het recovery-/update-check-
-  // patroon hierboven, maar reageert op de REACTIEVE `recoveryResolved`-state (niet de
-  // `recoveryChecked`-ref, die synchroon al waar is vóórdat de async detectie/dialoogkeuze
-  // daadwerkelijk is afgerond) — zo vuurt dit effect pas nadat de recovery-flow ECHT klaar is
-  // (geen data gevonden, of de gebruiker heeft hersteld/verworpen/uitgesteld), nooit gelijktijdig
-  // met een zichtbare `RecoveryDialog`. Werkt zowel in Tauri als browser-build — de
-  // `welcomeSeen`-vlag leeft in localStorage, dat overal werkt.
-  const welcomeChecked = useRef(false);
-  useEffect(() => {
-    if (welcomeChecked.current) return;
-    if (!recoveryResolved) return; // wacht tot de recovery-flow (incl. eventuele keuze) echt klaar is
-    if (recovery !== null) return; // RecoveryDialog is zichtbaar — welkomstdialoog wacht
-    welcomeChecked.current = true;
-
-    loadWelcomeSeen().then(seen => {
-      if (!seen) setUI({ showWelcomeDialog: true });
-    });
-  }, [recoveryResolved, recovery, setUI]);
-
-  // Stille opstart-update-check (Tauri-only) — spiegelt het auto-save-patroon:
-  // dynamische import binnen de service, niet-blokkerend. Is er een update, dan
-  // openen we de update-dialog zodat de gebruiker het ziet. Fouten worden in
-  // stille modus genegeerd.
-  const updateChecked = useRef(false);
-  useEffect(() => {
-    if (updateChecked.current) return;
-    updateChecked.current = true;
-    if (!isTauri()) return;
-    // Snap-builds worden door de Snap Store/snapd zelf bijgewerkt — de in-app
-    // auto-check overslaan zodat we de gebruiker niet lastigvallen.
-    getInstallKind()
-      .then(kind => {
-        if (kind === 'snap') return;
-        return checkForUpdates(true).then(info => {
-          if (info) useAppStore.getState().setUI({ showUpdateDialog: true });
-        });
-      })
-      .catch(() => { /* stille check — fouten negeren */ });
-  }, []);
+  // Stille opstart-update-check (Tauri-only).
+  useUpdateCheck();
 
   // Determine if we should show the gantt canvas or a full-panel view.
   // Fase 2.10 (item 6): een GEDOCKT resource-paneel (`resourcePanelDocked`) sluit `showResourcePanel`
@@ -550,7 +248,7 @@ function AppContent() {
                   daarmee synchroon zonder aparte RTL-tak. Neemt geen ruimte in (geen invloed op
                   paneel-breedte/padding); alleen cursor, geen achtergrond/border. */}
               <div
-                onMouseDown={e => { e.preventDefault(); setIsResizingRightPanel(true); }}
+                onMouseDown={e => { e.preventDefault(); rightPanelSplitter.start(); }}
                 style={{
                   position: 'absolute',
                   insetInlineStart: -4,

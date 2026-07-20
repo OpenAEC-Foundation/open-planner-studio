@@ -12,6 +12,14 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 ## Openstaand
 
 ### Solver/presentatie (klein, uit de 2.10-showcase-triage, 2026-07-08)
+- [ ] **Dag/uur-asymmetrie backward-FS bij start-mijlpaal-voorganger normaliseren** (vondst pakket O,
+      2026-07-17). De backward-uur-FS-tak past `prevWorkInstant` onvoorwaardelijk toe, óók bij
+      `predEndsBeginOfDay`; de dag-tak behoudt dan juist het doeldatum-label. Work-equivalent
+      (tf blijft 0, geen scheduling-fout), maar de mijlpaal toont in uur-modus een late finish op de
+      vórige werkdag. Pre-existing; bewust byte-identiek gepind in `tests/planning/`
+      `cases-hours-relations.json` case `rr-fs-pred-startms` (met note) — bij normaliseren gaat die
+      case bewust rood en moet de verwachting mee. Code: `src/engine/scheduler/relationMath.ts`
+      (backward-uur-FS vs. backward-dag-FS).
 - [ ] **Hard-pin-restsignaal `TF=-4` op de GROOT-startmijlpaal.** Pre-existing interactie
       (hard pin trekt de backward pass licht negatief door een voltooide keten); valse
       "violated"-melding is al gefixt (74eb7b2), dit is alleen nog het float-getal.

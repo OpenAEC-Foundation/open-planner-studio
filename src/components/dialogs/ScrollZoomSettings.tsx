@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { saveZoomSettings } from '@/utils/settingsStore';
@@ -10,7 +9,7 @@ import type {
   WheelFunction,
 } from '@/state/slices/types';
 
-// The three draggable controls (keys of ModifierMap).
+// The three assignable controls (keys of ModifierMap).
 type ControlKey = keyof ModifierMap; // 'plain' | 'ctrl' | 'shift'
 const CONTROL_KEYS: ControlKey[] = ['plain', 'ctrl', 'shift'];
 const FUNCTIONS: WheelFunction[] = ['vertical', 'horizontal', 'zoom'];
@@ -39,10 +38,6 @@ export function ScrollZoomSettings() {
   const positionDivision = useAppStore(s => s.ui.positionDivision);
   const modifierMap = useAppStore(s => s.ui.modifierMap);
 
-  // For the non-drag click fallback: which control chip is "picked up".
-  const [picked, setPicked] = useState<ControlKey | null>(null);
-  const [dragOverFn, setDragOverFn] = useState<WheelFunction | null>(null);
-
   const setMode = (mode: ScrollMode) => {
     setUI({ scrollMode: mode });
     void saveZoomSettings({ scrollMode: mode });
@@ -53,8 +48,10 @@ export function ScrollZoomSettings() {
     void saveZoomSettings({ positionDivision: division });
   };
 
-  // Assign `control` to slot `targetFn`, swapping with whatever control
-  // currently owns `targetFn` so the map stays a strict bijection.
+  // Assign `control` to `targetFn`, swapping with whatever control currently
+  // owns `targetFn` so the map stays a strict bijection. Because each function
+  // has its own visible dropdown, the swap is shown live: the other dropdown's
+  // value updates in place — no hidden "the displaced key jumped elsewhere".
   const assignControlToFunction = (control: ControlKey, targetFn: WheelFunction) => {
     const currentFn = modifierMap[control];
     if (currentFn === targetFn) return; // already there
@@ -64,12 +61,6 @@ export function ScrollZoomSettings() {
     next[displaced] = currentFn; // swap
     setUI({ modifierMap: next });
     void saveZoomSettings({ modifierMap: next });
-  };
-
-  const handleSlotActivate = (targetFn: WheelFunction) => {
-    if (!picked) return;
-    assignControlToFunction(picked, targetFn);
-    setPicked(null);
   };
 
   return (
@@ -117,62 +108,23 @@ export function ScrollZoomSettings() {
       {scrollMode === 'modifier' && (
         <div className="scrollzoom-mapper">
           <p className="scrollzoom-hint">{t('settings.modifierMapHint')}</p>
-          <div className="scrollzoom-slots" role="list">
-            {FUNCTIONS.map(fn => {
-              const control = controlForFunction(modifierMap, fn);
-              const isDropTarget = dragOverFn === fn;
-              return (
-                <div
-                  key={fn}
-                  role="listitem"
-                  className={
-                    'scrollzoom-slot' +
-                    (isDropTarget ? ' is-drop-target' : '') +
-                    (picked ? ' is-pick-target' : '')
-                  }
-                  onClick={() => handleSlotActivate(fn)}
-                  onDragOver={e => {
-                    e.preventDefault();
-                    setDragOverFn(fn);
-                  }}
-                  onDragLeave={() => setDragOverFn(prev => (prev === fn ? null : prev))}
-                  onDrop={e => {
-                    e.preventDefault();
-                    const dropped = e.dataTransfer.getData('text/plain') as ControlKey;
-                    if (CONTROL_KEYS.includes(dropped)) {
-                      assignControlToFunction(dropped, fn);
-                    }
-                    setDragOverFn(null);
-                    setPicked(null);
-                  }}
-                >
-                  <span className="scrollzoom-slot-label">
-                    {t(FUNCTION_LABEL_KEYS[fn])}
-                  </span>
-                  <button
-                    type="button"
-                    className={
-                      'scrollzoom-chip' + (picked === control ? ' is-picked' : '')
-                    }
-                    draggable
-                    aria-pressed={picked === control}
-                    onClick={e => {
-                      // Click-to-pick fallback; stop the slot click from firing.
-                      e.stopPropagation();
-                      setPicked(prev => (prev === control ? null : control));
-                    }}
-                    onDragStart={e => {
-                      e.dataTransfer.setData('text/plain', control);
-                      e.dataTransfer.effectAllowed = 'move';
-                      setPicked(null);
-                    }}
-                  >
-                    {t(CONTROL_LABEL_KEYS[control])}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          {/* One dropdown per wheel-action: pick which key triggers it. Choosing a
+              key that is already in use swaps it with the action that had it — and
+              because all three dropdowns stay on screen, that swap is visible. */}
+          {FUNCTIONS.map(fn => (
+            <div className="scrollzoom-field" key={fn}>
+              <label className="scrollzoom-label">{t(FUNCTION_LABEL_KEYS[fn])}</label>
+              <Select
+                aria-label={t(FUNCTION_LABEL_KEYS[fn])}
+                value={controlForFunction(modifierMap, fn)}
+                onChange={v => assignControlToFunction(v as ControlKey, fn)}
+                options={CONTROL_KEYS.map(k => ({
+                  value: k,
+                  label: t(CONTROL_LABEL_KEYS[k]),
+                }))}
+              />
+            </div>
+          ))}
         </div>
       )}
     </div>

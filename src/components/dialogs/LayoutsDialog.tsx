@@ -5,6 +5,7 @@ import { X, Trash2, Check } from 'lucide-react';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import { loadLayouts, saveLayouts, saveLastLayoutId } from '@/utils/settingsStore';
 import type { Layout } from '@/state/slices/types';
+import { Dialog } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
 
 /**
@@ -35,13 +36,6 @@ export function LayoutsDialog() {
     let cancelled = false;
     void loadLayouts().then(l => { if (!cancelled) { setLayoutsState(l); setLoaded(true); } });
     return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const persist = (next: Layout[]) => {
@@ -91,11 +85,11 @@ export function LayoutsDialog() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={close}>
-      <div
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
+    <Dialog
+      onBackdropClick={close}
+      onCancel={close}
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
+    >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('view.layout.manageTitle')}
@@ -172,8 +166,8 @@ export function LayoutsDialog() {
             {t('close')}
           </button>
         </div>
-      </div>
 
+      {/* Bevestiging stapelt bóven deze dialoog (eigen fixed overlay op z-[60]). */}
       {pendingConfirm && (
         <ConfirmDialog
           message={pendingConfirm.message}
@@ -183,6 +177,6 @@ export function LayoutsDialog() {
           onCancel={() => setPendingConfirm(null)}
         />
       )}
-    </div>
+    </Dialog>
   );
 }

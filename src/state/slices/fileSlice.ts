@@ -8,13 +8,14 @@ import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { openFileDialog, saveFileDialog, saveToRef, readFromRef, type FileRef } from '@/services/fileAccess';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
-import { emitExtensionEvent, HOST_EVENTS } from '@/extensions/eventBus';
+import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSlice } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import type { ImportResult } from '@/services/importTypes';
-import { promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
+import { hydratePayload, payloadFromImport } from '../documentContract';
+import { finishMutation } from '../transaction';
 import { fileHasHourData } from '@/services/subdayIo';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 
@@ -43,6 +44,26 @@ function parseProjectXml(content: string) {
 
 export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
 
+/** Opties voor `applyLoadedProject` — de één gedeelde "vul de actieve document-state met een
+ *  geparsed project"-implementatie (audit P5/F6). Elke variant (de drie open-paden + `loadState`)
+ *  dekt zijn historische gedrag af met deze vlaggen; defaults staan bewust op "niets doen". */
+export interface ApplyLoadedProjectOpts {
+  /** Nieuw bestandspad (string), `null` voor naamloos (voorbeeld/import), of weglaten
+   *  (`undefined`) om `filePath` ongemoeid te laten — dat laatste is de loadState-semantiek
+   *  (in-place vervangen zonder het pad te raken). De recente-bestandenlijst wordt door de
+   *  AANROEPER bijgewerkt (die kent de herbruikbare `FileRef`). */
+  filePath?: string | null;
+  /** Web-opslaan-doel voor het geladen document. undefined = laat de huidige handle ongemoeid
+   *  (loadState-semantiek); null = geen handle (voorbeeld/fallback-web); een handle = FSA-openen. */
+  fileHandle?: FileSystemFileHandle | null;
+  /** Direct doorrekenen (runCPM) na de load. Open-paden: true; loadState: false. */
+  recompute?: boolean;
+  /** Canvas op het hele project passen (requestFitToProject). Open-paden: true; loadState: false. */
+  fit?: boolean;
+  /** Uur-data-melding (§6.8) berekenen en zetten. Open-paden: true; loadState: false. */
+  hourDataNotice?: boolean;
+}
+
 export interface FileSlice {
   openFile: () => Promise<void>;
   saveFile: () => Promise<void>;
@@ -66,6 +87,11 @@ export interface FileSlice {
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
   openExampleFromString: (content: string, name: string) => void;
+  /** Eén gedeelde load-implementatie (audit P5/F6): vul de ACTIEVE document-state met een geparsed
+   *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/extensie-event).
+   *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
+   *  `loadState` en de drie open-paden lopen hier allemaal doorheen. */
+  applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => void;
 }
 
 export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
@@ -76,369 +102,335 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
     set((s) => { s.recentFiles = list; });
   };
 
-  return ({
-  openFile: async () => {
-    try {
-      const opened = await openFileDialog([
-        { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
-        { name: 'IFC Files', extensions: ['ifc'] },
-        { name: 'CSV Files', extensions: ['csv'] },
-        { name: 'XML Files', extensions: ['xml'] },
-      ]);
-      if (!opened) return;
-      const ext = opened.name.split('.').pop()?.toLowerCase() || '';
-      let parsed: ImportResult;
-
-      if (ext === 'csv') {
-        parsed = readCSV(opened.content);
-      } else if (ext === 'xml') {
-        parsed = parseProjectXml(opened.content);
-      } else {
-        parsed = readIFC(opened.content);
-      }
-
-      // Multi-document: open het bestand in een eigen tabblad. Hergebruik het
-      // actieve tabblad alleen als dat nog leeg en ongewijzigd is.
-      if (!isActivePristine(get())) get().newDocument();
-
+  return {
+    applyLoadedProject: (parsed, opts) => {
       set((s) => {
-        s.project = parsed.project;
-        s.calendar = parsed.calendar;
-        s.tasks = parsed.tasks;
-        s.sequences = parsed.sequences;
-        s.resources = parsed.resources;
-        s.assignments = parsed.assignments;
-        s.calendars = parsed.resourceCalendars ?? [];
-        // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
-        promoteProjectCalendarToLibrary(s);
+        // string = nieuw pad, null = naamloos, undefined = laat filePath ongemoeid (loadState-semantiek).
+        const filePath = opts.filePath !== undefined ? opts.filePath : s.filePath;
+        // Reset-pad (audit P10): bouw een verse payload uit het geparste project (selectie/cpm/undo/
+        // scheduleStale starten vers, isDirty=false) en hydrateer die via het documentcontract —
+        // dezelfde `DOCUMENT_FIELDS`-lijst als switchDocument/undo, dus geen stille lek. hydratePayload
+        // doet ook de §4.3-promote + §9.1-sync van de projectkalender (was hier voorheen apart).
+        // Structuur (activity-codes/custom-fields) rijdt in payloadFromImport mee — altijd overnemen
+        // (fix F6: de open-paden lieten dit historisch weg → stil dataverlies bij openen + opslaan).
+        const payload = payloadFromImport(parsed, filePath);
+        // Load-semantiek: het HUIDIGE document behoudt zijn view/inklap (in-place vervangen van de
+        // projectdata raakt zoom/groepering/inklap niet — historisch gedrag van applyLoadedProject).
+        payload.view = s.view;
+        payload.collapsedTaskIds = s.ui.collapsedTaskIds;
+        // Web-opslaan-doel: undefined = ongemoeid laten (loadState-semantiek), anders expliciet zetten.
+        payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : s.fileHandle;
+        hydratePayload(s, payload);
         // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
         // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
-        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
-        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-        s.baselines = parsed.baselines ?? [];
-        s.activeBaselineId = parsed.activeBaselineId ?? null;
-        s.selectedTaskIds = [];
-        s.cpmResult = null;
-        s.resourceLoadResult = null;
-        s.scheduleStale = false;
-        s.undoStack = [];
-        s.redoStack = [];
-        s.isDirty = false;
-        // Identiteit: echt pad (Tauri) of bestandsnaam (web); handle alleen als web-opslaan-doel.
-        s.filePath = opened.ref?.kind === 'path' ? opened.ref.path : opened.name;
-        s.fileHandle = opened.ref?.kind === 'handle' ? opened.ref.handle : null;
+        if (opts.hourDataNotice) {
+          s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
+        }
       });
       // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
       // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
-      get().runCPM();
-      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld.
+      if (opts.recompute) get().runCPM();
+      if (opts.fit) get().requestFitToProject(); // Issue #16: canvas op het HELE project passen.
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
         resources: parsed.resources.length,
       });
-      // Recents: elke herbruikbare ref (Tauri-pad óf Chromium-handle).
-      await pushRecent(opened.ref, opened.name);
-    } catch (err) {
-      console.error('Failed to parse file:', err);
-    }
-  },
+    },
 
-  saveFile: async () => {
-    const state = get();
-    const content = writeIFC({
-      project: state.project,
-      calendar: state.calendar,
-      tasks: state.tasks,
-      sequences: state.sequences,
-      resources: state.resources,
-      assignments: state.assignments,
-      activityCodeTypes: state.activityCodeTypes,
-      customFieldDefs: state.customFieldDefs,
-      resourceCalendars: state.calendars,
-      baselines: state.baselines,
-      activeBaselineId: state.activeBaselineId,
-    });
+    openFile: async () => {
+      try {
+        const opened = await openFileDialog([
+          { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
+          { name: 'IFC Files', extensions: ['ifc'] },
+          { name: 'CSV Files', extensions: ['csv'] },
+          { name: 'XML Files', extensions: ['xml'] },
+        ]);
+        if (!opened) return;
+        const ext = opened.name.split('.').pop()?.toLowerCase() || '';
+        let parsed: ImportResult;
 
-    // Bestaand opslaan-doel? Web: fileHandle. Tauri: het echte pad in filePath.
-    const ref: FileRef | null = state.fileHandle
-      ? { kind: 'handle', handle: state.fileHandle }
-      : (isTauri() && state.filePath ? { kind: 'path', path: state.filePath } : null);
+        if (ext === 'csv') {
+          parsed = readCSV(opened.content);
+        } else if (ext === 'xml') {
+          parsed = parseProjectXml(opened.content);
+        } else {
+          parsed = readIFC(opened.content);
+        }
 
-    if (ref && await saveToRef(ref, content)) {
-      set((s) => { s.isDirty = false; });
-      return;
-    }
+        // Multi-document: open het bestand in een eigen tabblad. Hergebruik het
+        // actieve tabblad alleen als dat nog leeg en ongewijzigd is.
+        if (!isActivePristine(get())) get().newDocument();
 
-    // Geen (bruikbare) ref, of in-place opslaan geweigerd → opslaan-als.
-    const outcome = await saveFileDialog(
-      `${state.project.name || 'project'}.ifc`,
-      content,
-      [{ name: 'IFC Files', extensions: ['ifc'] }],
-    );
-    if (!outcome) return;
-    set((s) => {
-      s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
-      s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
-      s.isDirty = false;
-    });
-    await pushRecent(outcome.ref, outcome.name);
-  },
-
-  saveFileAs: async () => {
-    const state = get();
-    const content = writeIFC({
-      project: state.project,
-      calendar: state.calendar,
-      tasks: state.tasks,
-      sequences: state.sequences,
-      resources: state.resources,
-      assignments: state.assignments,
-      activityCodeTypes: state.activityCodeTypes,
-      customFieldDefs: state.customFieldDefs,
-      resourceCalendars: state.calendars,
-      baselines: state.baselines,
-      activeBaselineId: state.activeBaselineId,
-    });
-
-    const outcome = await saveFileDialog(
-      state.filePath ?? `${state.project.name || 'project'}.ifc`,
-      content,
-      [{ name: 'IFC Files', extensions: ['ifc'] }],
-    );
-    if (!outcome) return;
-    set((s) => {
-      s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
-      s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
-      s.isDirty = false;
-    });
-    await pushRecent(outcome.ref, outcome.name);
-  },
-
-  exportAs: async (format: ExportFormat) => {
-    const state = get();
-
-    let content: string;
-    let ext: string;
-    let filters: { name: string; extensions: string[] }[];
-
-    switch (format) {
-      case 'csv':
-        content = writeCSV(
-          state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments,
-        );
-        ext = 'csv';
-        filters = [{ name: 'CSV Files', extensions: ['csv'] }];
-        break;
-      case 'mspdi':
-        content = writeMSPDI(
-          state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments, state.calendars,
-        );
-        ext = 'xml';
-        filters = [{ name: 'XML Files', extensions: ['xml'] }];
-        break;
-      case 'p6':
-        content = writeP6XML(
-          state.project, state.calendar, state.tasks,
-          state.sequences, state.resources, state.assignments, state.calendars,
-        );
-        ext = 'xml';
-        filters = [{ name: 'XML Files', extensions: ['xml'] }];
-        break;
-      case 'ifc':
-      default:
-        content = writeIFC({
-          project: state.project,
-          calendar: state.calendar,
-          tasks: state.tasks,
-          sequences: state.sequences,
-          resources: state.resources,
-          assignments: state.assignments,
-          activityCodeTypes: state.activityCodeTypes,
-          customFieldDefs: state.customFieldDefs,
-          resourceCalendars: state.calendars,
-          baselines: state.baselines,
-          activeBaselineId: state.activeBaselineId,
+        // Gedeelde load-implementatie; open-pad-semantiek: identiteit + opslaan-doel zetten,
+        // direct doorrekenen + fitten en de uur-melding evalueren.
+        get().applyLoadedProject(parsed, {
+          // Identiteit: echt pad (Tauri) of bestandsnaam (web); handle alleen als web-opslaan-doel.
+          filePath: opened.ref?.kind === 'path' ? opened.ref.path : opened.name,
+          fileHandle: opened.ref?.kind === 'handle' ? opened.ref.handle : null,
+          recompute: true,
+          fit: true,
+          hourDataNotice: true,
         });
-        ext = 'ifc';
-        filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
-        break;
-    }
 
-    const outcome = await saveFileDialog(`${state.project.name || 'project'}.${ext}`, content, filters);
-    await pushRecent(outcome?.ref ?? null, outcome?.name ?? '');
-  },
+        // Recents: elke herbruikbare ref (Tauri-pad óf Chromium-handle).
+        await pushRecent(opened.ref, opened.name);
+      } catch (err) {
+        console.error('Failed to open file:', err);
+      }
+    },
 
-  recentFiles: [],
+    saveFile: async () => {
+      const state = get();
+      const content = writeIFC({
+        project: state.project,
+        calendar: state.calendar,
+        tasks: state.tasks,
+        sequences: state.sequences,
+        resources: state.resources,
+        assignments: state.assignments,
+        activityCodeTypes: state.activityCodeTypes,
+        customFieldDefs: state.customFieldDefs,
+        resourceCalendars: state.calendars,
+        baselines: state.baselines,
+        activeBaselineId: state.activeBaselineId,
+      });
 
-  hydrateRecentFiles: async () => {
-    const list = await loadRecents();
-    set((s) => { s.recentFiles = list; });
-  },
+      // Bestaand opslaan-doel? Web: fileHandle. Tauri: het echte pad in filePath.
+      const ref: FileRef | null = state.fileHandle
+        ? { kind: 'handle', handle: state.fileHandle }
+        : (isTauri() && state.filePath ? { kind: 'path', path: state.filePath } : null);
 
-  parseExternalSource: async (filePath: string) => {
-    if (!isTauri()) return null;
-    try {
-      const { readTextFile } = await import('@tauri-apps/plugin-fs');
-      const content = await readTextFile(filePath);
-      const ext = filePath.split('.').pop()?.toLowerCase() || '';
-      const parsed = ext === 'csv' ? readCSV(content) : ext === 'xml' ? parseProjectXml(content) : readIFC(content);
-      return {
-        projectId: parsed.project.id,
-        projectName: parsed.project.name,
-        filePath,
-        tasks: parsed.tasks,
+      if (ref && await saveToRef(ref, content)) {
+        set((s) => { s.isDirty = false; });
+        return;
+      }
+
+      // Geen (bruikbare) ref, of in-place opslaan geweigerd → opslaan-als.
+      const outcome = await saveFileDialog(
+        `${state.project.name || 'project'}.ifc`,
+        content,
+        [{ name: 'IFC Files', extensions: ['ifc'] }],
+      );
+      if (!outcome) return;
+      set((s) => {
+        s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
+        s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
+        s.isDirty = false;
+      });
+      await pushRecent(outcome.ref, outcome.name);
+    },
+
+    saveFileAs: async () => {
+      const state = get();
+      const content = writeIFC({
+        project: state.project,
+        calendar: state.calendar,
+        tasks: state.tasks,
+        sequences: state.sequences,
+        resources: state.resources,
+        assignments: state.assignments,
+        activityCodeTypes: state.activityCodeTypes,
+        customFieldDefs: state.customFieldDefs,
+        resourceCalendars: state.calendars,
+        baselines: state.baselines,
+        activeBaselineId: state.activeBaselineId,
+      });
+
+      const outcome = await saveFileDialog(
+        state.filePath ?? `${state.project.name || 'project'}.ifc`,
+        content,
+        [{ name: 'IFC Files', extensions: ['ifc'] }],
+      );
+      if (!outcome) return;
+      set((s) => {
+        s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
+        s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
+        s.isDirty = false;
+      });
+      await pushRecent(outcome.ref, outcome.name);
+    },
+
+    exportAs: async (format: ExportFormat) => {
+      const state = get();
+
+      let content: string;
+      let ext: string;
+      let filters: { name: string; extensions: string[] }[];
+
+      switch (format) {
+        case 'csv':
+          content = writeCSV(
+            state.project, state.calendar, state.tasks,
+            state.sequences, state.resources, state.assignments,
+          );
+          ext = 'csv';
+          filters = [{ name: 'CSV Files', extensions: ['csv'] }];
+          break;
+        case 'mspdi':
+          content = writeMSPDI(
+            state.project, state.calendar, state.tasks,
+            state.sequences, state.resources, state.assignments, state.calendars,
+          );
+          ext = 'xml';
+          filters = [{ name: 'XML Files', extensions: ['xml'] }];
+          break;
+        case 'p6':
+          content = writeP6XML(
+            state.project, state.calendar, state.tasks,
+            state.sequences, state.resources, state.assignments, state.calendars,
+          );
+          ext = 'xml';
+          filters = [{ name: 'XML Files', extensions: ['xml'] }];
+          break;
+        case 'ifc':
+        default:
+          content = writeIFC({
+            project: state.project,
+            calendar: state.calendar,
+            tasks: state.tasks,
+            sequences: state.sequences,
+            resources: state.resources,
+            assignments: state.assignments,
+            activityCodeTypes: state.activityCodeTypes,
+            customFieldDefs: state.customFieldDefs,
+            resourceCalendars: state.calendars,
+            baselines: state.baselines,
+            activeBaselineId: state.activeBaselineId,
+          });
+          ext = 'ifc';
+          filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
+          break;
+      }
+
+      const outcome = await saveFileDialog(`${state.project.name || 'project'}.${ext}`, content, filters);
+      if (outcome) await pushRecent(outcome.ref, outcome.name);
+    },
+
+    recentFiles: [],
+
+    hydrateRecentFiles: async () => {
+      const list = await loadRecents();
+      set((s) => { s.recentFiles = list; });
+    },
+
+    parseExternalSource: async (filePath: string) => {
+      if (!isTauri()) return null;
+      try {
+        const { readTextFile } = await import('@tauri-apps/plugin-fs');
+        const content = await readTextFile(filePath);
+        const ext = filePath.split('.').pop()?.toLowerCase() || '';
+        const parsed = ext === 'csv' ? readCSV(content) : ext === 'xml' ? parseProjectXml(content) : readIFC(content);
+        return {
+          projectId: parsed.project.id,
+          projectName: parsed.project.name,
+          filePath,
+          tasks: parsed.tasks,
+        };
+      } catch (err) {
+        console.error('parseExternalSource: kon bronbestand niet lezen:', err);
+        return null;
+      }
+    },
+
+    refreshExternalAnchorsFrom: async (filePath: string) => {
+      const src = await get().parseExternalSource(filePath);
+      if (!src) return null;
+      const source: ExternalSourceDoc = {
+        projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
       };
-    } catch (err) {
-      console.error('parseExternalSource: kon bronbestand niet lezen:', err);
-      return null;
-    }
-  },
-
-  refreshExternalAnchorsFrom: async (filePath: string) => {
-    const src = await get().parseExternalSource(filePath);
-    if (!src) return null;
-    const source: ExternalSourceDoc = {
-      projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
-    };
-    const result = refreshExternalAnchors(get().tasks, source);
-    if (result.changed) {
-      set((s) => {
-        s.tasks = result.tasks;
-        s.isDirty = true;
-        s.scheduleStale = true;
-      });
-      get().recomputeViewRows();
-      get().runCPM();
-    }
-    return { refreshed: result.refreshed, missing: result.missing };
-  },
-
-  refreshAllExternalAnchors: async () => {
-    // Verzamel de distinct bron-bestandspaden uit alle links (fallback: geen pad ⇒ niet verversbaar).
-    const paths = new Set<string>();
-    for (const task of get().tasks) {
-      for (const link of task.externalLinks ?? []) {
-        if (link.sourceRef.filePath) paths.add(link.sourceRef.filePath);
+      const result = refreshExternalAnchors(get().tasks, source);
+      if (result.changed) {
+        set((s) => {
+          s.tasks = result.tasks;
+          // Flag-only (bewuste asymmetrie): externe-anker-verversing is niet undoable.
+          finishMutation(s, { stale: true });
+        });
+        get().recomputeViewRows();
+        get().runCPM();
       }
-    }
-    let refreshed = 0;
-    let missing = 0;
-    let sources = 0;
-    for (const p of paths) {
-      const r = await get().refreshExternalAnchorsFrom(p);
-      if (r) { refreshed += r.refreshed; missing += r.missing; sources++; }
-    }
-    return { refreshed, missing, sources };
-  },
+      return { refreshed: result.refreshed, missing: result.missing };
+    },
 
-  openRecentFile: async (id: string) => {
-    const entry = get().recentFiles.find((e) => e.id === id);
-    if (!entry) return;
-    const content = await readFromRef(entry.ref);
-    if (content === null) {
-      // Geweigerd of verdwenen → entry stil verwijderen.
-      const list = await removeRecent(entry.id);
-      set((s) => { s.recentFiles = list; });
-      return;
-    }
-    try {
-      const ext = entry.name.split('.').pop()?.toLowerCase() || '';
-      let parsed: ImportResult;
-
-      if (ext === 'csv') {
-        parsed = readCSV(content);
-      } else if (ext === 'xml') {
-        parsed = parseProjectXml(content);
-      } else {
-        parsed = readIFC(content);
+    refreshAllExternalAnchors: async () => {
+      // Verzamel de distinct bron-bestandspaden uit alle links (fallback: geen pad ⇒ niet verversbaar).
+      const paths = new Set<string>();
+      for (const task of get().tasks) {
+        for (const link of task.externalLinks ?? []) {
+          if (link.sourceRef.filePath) paths.add(link.sourceRef.filePath);
+        }
       }
+      let refreshed = 0;
+      let missing = 0;
+      let sources = 0;
+      for (const p of paths) {
+        const r = await get().refreshExternalAnchorsFrom(p);
+        if (r) { refreshed += r.refreshed; missing += r.missing; sources++; }
+      }
+      return { refreshed, missing, sources };
+    },
 
-      if (!isActivePristine(get())) get().newDocument();
+    openRecentFile: async (id: string) => {
+      const entry = get().recentFiles.find((e) => e.id === id);
+      if (!entry) return;
+      const content = await readFromRef(entry.ref);
+      if (content === null) {
+        // Geweigerd of verdwenen → entry stil verwijderen.
+        const list = await removeRecent(entry.id);
+        set((s) => { s.recentFiles = list; });
+        return;
+      }
+      try {
+        const ext = entry.name.split('.').pop()?.toLowerCase() || '';
+        let parsed: ImportResult;
 
-      set((s) => {
-        s.project = parsed.project;
-        s.calendar = parsed.calendar;
-        s.tasks = parsed.tasks;
-        s.sequences = parsed.sequences;
-        s.resources = parsed.resources;
-        s.assignments = parsed.assignments;
-        s.calendars = parsed.resourceCalendars ?? [];
-        promoteProjectCalendarToLibrary(s);
-        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
-        s.baselines = parsed.baselines ?? [];
-        s.activeBaselineId = parsed.activeBaselineId ?? null;
-        s.selectedTaskIds = [];
-        s.cpmResult = null;
-        s.resourceLoadResult = null;
-        s.scheduleStale = false;
-        s.undoStack = [];
-        s.redoStack = [];
-        s.isDirty = false;
-        s.filePath = entry.ref.kind === 'path' ? entry.ref.path : entry.name;
-        s.fileHandle = entry.ref.kind === 'handle' ? entry.ref.handle : null;
-      });
-      get().runCPM();
-      get().requestFitToProject();
-      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
-        tasks: parsed.tasks.length,
-        sequences: parsed.sequences.length,
-        resources: parsed.resources.length,
-      });
-      // MRU verversen: het net-geopende bestand naar boven.
-      const list = await addRecent(entry.ref, entry.name);
-      set((s) => { s.recentFiles = list; });
-    } catch (err) {
-      console.error('Failed to open recent file:', err);
-    }
-  },
+        if (ext === 'csv') {
+          parsed = readCSV(content);
+        } else if (ext === 'xml') {
+          parsed = parseProjectXml(content);
+        } else {
+          parsed = readIFC(content);
+        }
 
-  openExampleFromString: (content: string, name: string) => {
-    try {
-      const parsed = readIFC(content);
+        if (!isActivePristine(get())) get().newDocument();
 
-      // Zelfde multi-document-gedrag als openFile: hergebruik het actieve
-      // tabblad alleen als dat nog leeg en ongewijzigd is, anders nieuw tabblad.
-      if (!isActivePristine(get())) get().newDocument();
+        // Zelfde open-pad-semantiek als openFile (zie daar); loopt door de gedeelde implementatie.
+        get().applyLoadedProject(parsed, {
+          filePath: entry.ref.kind === 'path' ? entry.ref.path : entry.name,
+          fileHandle: entry.ref.kind === 'handle' ? entry.ref.handle : null,
+          recompute: true,
+          fit: true,
+          hourDataNotice: true,
+        });
 
-      set((s) => {
-        s.project = parsed.project;
-        s.calendar = parsed.calendar;
-        s.tasks = parsed.tasks;
-        s.sequences = parsed.sequences;
-        s.resources = parsed.resources;
-        s.assignments = parsed.assignments;
-        s.calendars = parsed.resourceCalendars ?? [];
-        // §4.3-migratie: bestand zonder bibliotheek-entry voor zijn projectkalender krijgt de eerste.
-        promoteProjectCalendarToLibrary(s);
-        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
-        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
-        s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
-        // Baselines (fase 2.6, §8.3): IFC/MSPDI leveren ze; CSV/P6 niet (dan leeg).
-        s.baselines = parsed.baselines ?? [];
-        s.activeBaselineId = parsed.activeBaselineId ?? null;
-        s.selectedTaskIds = [];
-        s.cpmResult = null;
-        s.resourceLoadResult = null;
-        s.scheduleStale = false;
-        s.undoStack = [];
-        s.redoStack = [];
-        s.isDirty = false;
-        // Voorbeeld = geen bronbestand: opslaan wordt opslaan-als.
-        s.filePath = null;
-      });
-      get().runCPM(); // consistent met openFile (A5): voorbeeld direct doorrekenen na load.
-      get().requestFitToProject(); // Issue #16: open het canvas met het HELE project in beeld (fit-to-project), niet alleen het begin.
-      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
-        tasks: parsed.tasks.length,
-        sequences: parsed.sequences.length,
-        resources: parsed.resources.length,
-      });
-    } catch (err) {
-      console.error(`Failed to open example "${name}":`, err);
-    }
-  },
-  });
+        // MRU verversen: het net-geopende bestand naar boven.
+        await pushRecent(entry.ref, entry.name);
+      } catch (err) {
+        console.error('Failed to open recent file:', err);
+      }
+    },
+
+    openExampleFromString: (content: string, name: string) => {
+      try {
+        const parsed = readIFC(content);
+
+        // Zelfde multi-document-gedrag als openFile: hergebruik het actieve
+        // tabblad alleen als dat nog leeg en ongewijzigd is, anders nieuw tabblad.
+        if (!isActivePristine(get())) get().newDocument();
+
+        // Voorbeeld = geen bronbestand: filePath=null + geen opslaan-doel (opslaan wordt
+        // opslaan-als, geen recent-entry). Verder de open-pad-semantiek: doorrekenen + fitten
+        // + uur-melding.
+        get().applyLoadedProject(parsed, {
+          filePath: null,
+          fileHandle: null,
+          recompute: true,
+          fit: true,
+          hourDataNotice: true,
+        });
+      } catch (err) {
+        console.error(`Failed to open example "${name}":`, err);
+      }
+    },
+  };
 };
