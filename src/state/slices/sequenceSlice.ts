@@ -18,17 +18,15 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
   addSequence: (seq) => {
     const id = generateId('seq');
     set((s) => {
-      beginUndoable(s);
-
       // Voorkom exacte duplicaten, maar sta wél meerdere relatietypes tussen hetzelfde paar toe
       // (bv. SS+FF als overlap/ladder-koppeling) — type meewegen, anders verdwijnt de 2e relatie stil.
       const exists = s.sequences.some(
         e => e.predecessorId === seq.predecessorId && e.successorId === seq.successorId && e.type === seq.type
       );
-      if (!exists) {
-        s.sequences.push({ ...seq, id });
-        finishMutation(s, { stale: true }); // nieuwe relatie (A6): planning verouderd tot F5.
-      }
+      if (exists) return; // afgewezen duplicaat: geen snapshot, geen loze undo-stap (R3).
+      beginUndoable(s); // snapshot pas ná de guard, vóór de mutatie (zie transaction.ts).
+      s.sequences.push({ ...seq, id });
+      finishMutation(s, { stale: true }); // nieuwe relatie (A6): planning verouderd tot F5.
     });
     return id;
   },

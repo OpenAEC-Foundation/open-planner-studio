@@ -269,6 +269,26 @@ eq('f switchDocument naar hersteld doc zonder kalenderbibliotheek gooit NIET', s
 truthy('f projectkalender is gepromoveerd naar de bibliotheek', S().calendars.some(c => c.id === S().project.calendarId));
 eq('f actief document is gewisseld', S().activeDocumentId, 'froz-b');
 
+// ══ (g) NO-OP-UNDO-REGRESSIE (pakket R/R3) ══════════════════════════════════════════════════════
+// Een AFGEWEZEN mutatie mag GEEN undo-snapshot achterlaten (anders doet Ctrl+Z één keer "niets").
+// De snapshot hoort ná de validatie-guards te worden gepusht, niet ervoor.
+S().newProject();
+const gA = S().addTask({ name: 'GA' });
+const gB = S().addTask({ name: 'GB' });
+const gBase = S().undoStack.length;
+S().updateTask('bestaat-niet', { name: 'X' }); // afgewezen: onbekend id
+eq('g updateTask(onbekend id): geen loze undo-snapshot', S().undoStack.length, gBase);
+S().addSequence({ predecessorId: gA, successorId: gB, type: 'FINISH_START' }); // geldig
+eq('g addSequence geldig: undo +1', S().undoStack.length, gBase + 1);
+S().addSequence({ predecessorId: gA, successorId: gB, type: 'FINISH_START' }); // exact duplicaat
+eq('g addSequence(duplicaat): geen loze undo-snapshot', S().undoStack.length, gBase + 1);
+// Geldige mutatie ná een afgewezen: één undo herstelt direct de juiste staat (geen no-op-stap).
+S().updateTask(gA, { name: 'GA2' });
+S().updateTask('ook-niet', { name: 'Y' }); // afgewezen
+S().updateTask(gA, { name: 'GA3' });
+S().undo();
+eq('g één undo na afgewezen mutatie herstelt de juiste naam', S().tasks.find(t => t.id === gA)?.name, 'GA2');
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  document-contract-check: alle checks groen (${checks})`);

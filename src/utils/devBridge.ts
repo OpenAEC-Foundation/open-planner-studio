@@ -1,6 +1,7 @@
 import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { readCSV } from '@/services/csv/csvReader';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb } from '@/extensions';
@@ -44,12 +45,7 @@ function stateSnapshot(s: AppState) {
 /** Niveau 1 — serialiseer de huidige state naar IFC en parse 'm terug; meet dataverlies. Werkt ook in de browser. */
 function roundTrip() {
   const s = useAppStore.getState();
-  const content = writeIFC({
-    project: s.project, calendar: s.calendar, tasks: s.tasks, sequences: s.sequences,
-    resources: s.resources, assignments: s.assignments, activityCodeTypes: s.activityCodeTypes,
-    customFieldDefs: s.customFieldDefs, resourceCalendars: s.calendars,
-    baselines: s.baselines, activeBaselineId: s.activeBaselineId,
-  });
+  const content = writeIFC(buildWriteIFCInput(s));
   const parsed = readIFC(content);
   const before = counts(s);
   const after = {
@@ -69,12 +65,7 @@ function roundTrip() {
 /** Niveau 2 — schrijf de huidige state als IFC naar een expliciet pad (dialoog omzeild). Tauri-only. */
 async function saveToPath(path: string) {
   const s = useAppStore.getState();
-  const content = writeIFC({
-    project: s.project, calendar: s.calendar, tasks: s.tasks, sequences: s.sequences,
-    resources: s.resources, assignments: s.assignments, activityCodeTypes: s.activityCodeTypes,
-    customFieldDefs: s.customFieldDefs, resourceCalendars: s.calendars,
-    baselines: s.baselines, activeBaselineId: s.activeBaselineId,
-  });
+  const content = writeIFC(buildWriteIFCInput(s));
   const { writeTextFile } = await import('@tauri-apps/plugin-fs');
   await writeTextFile(path, content);
   return { path, bytes: content.length };

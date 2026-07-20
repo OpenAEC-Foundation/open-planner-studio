@@ -14,6 +14,7 @@ import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import type { ImportResult } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport } from '../documentContract';
+import { buildWriteIFCInput } from '../ifcSaveInput';
 import { finishMutation } from '../transaction';
 import { fileHasHourData } from '@/services/subdayIo';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
@@ -194,19 +195,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const { writeTextFile } = await import('@tauri-apps/plugin-fs');
     const state = get();
 
-    const content = writeIFC({
-      project: state.project,
-      calendar: state.calendar,
-      tasks: state.tasks,
-      sequences: state.sequences,
-      resources: state.resources,
-      assignments: state.assignments,
-      activityCodeTypes: state.activityCodeTypes,
-      customFieldDefs: state.customFieldDefs,
-      resourceCalendars: state.calendars,
-      baselines: state.baselines,
-      activeBaselineId: state.activeBaselineId,
-    });
+    const content = writeIFC(buildWriteIFCInput(state));
 
     if (state.filePath) {
       await writeTextFile(state.filePath, content);
@@ -234,19 +223,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
     const { writeTextFile } = await import('@tauri-apps/plugin-fs');
     const state = get();
 
-    const content = writeIFC({
-      project: state.project,
-      calendar: state.calendar,
-      tasks: state.tasks,
-      sequences: state.sequences,
-      resources: state.resources,
-      assignments: state.assignments,
-      activityCodeTypes: state.activityCodeTypes,
-      customFieldDefs: state.customFieldDefs,
-      resourceCalendars: state.calendars,
-      baselines: state.baselines,
-      activeBaselineId: state.activeBaselineId,
-    });
+    const content = writeIFC(buildWriteIFCInput(state));
 
     const picked = await save({
       defaultPath: state.filePath ?? `${state.project.name || 'project'}.ifc`,
@@ -300,19 +277,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => ({
         break;
       case 'ifc':
       default:
-        content = writeIFC({
-          project: state.project,
-          calendar: state.calendar,
-          tasks: state.tasks,
-          sequences: state.sequences,
-          resources: state.resources,
-          assignments: state.assignments,
-          activityCodeTypes: state.activityCodeTypes,
-          customFieldDefs: state.customFieldDefs,
-          resourceCalendars: state.calendars,
-          baselines: state.baselines,
-          activeBaselineId: state.activeBaselineId,
-        });
+        content = writeIFC(buildWriteIFCInput(state));
         ext = 'ifc';
         filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
         break;

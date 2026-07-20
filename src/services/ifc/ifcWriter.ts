@@ -250,6 +250,13 @@ function ifcTypedValue(type: CustomFieldType, value: CustomFieldValue): string {
     case 'cost': return `IFCMONETARYMEASURE(${Number(value)})`;
     case 'date': return `IFCDATE(${ifcStr(String(value))})`;
     case 'boolean': return `IFCBOOLEAN(${value ? '.T.' : '.F.'})`;
+    default: {
+      // Exhaustiviteitscheck: een nieuw CustomFieldType zonder eigen case geeft hier een
+      // COMPILE-fout (het valt dan niet meer onder `never`). Zo kan de writer nooit stil een
+      // veld overslaan — geen gedragswijziging voor de bestaande waardetypen (die keren hierboven).
+      const _exhaustive: never = type;
+      throw new Error(`Onbekend custom-field-type: ${String(_exhaustive)}`);
+    }
   }
 }
 

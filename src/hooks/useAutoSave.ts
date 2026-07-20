@@ -2,6 +2,7 @@ import { useEffect, type MutableRefObject } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { recoveryBase, recoveryManifestName, recoveryIfcName, type RecoveryManifest } from './recoveryPaths';
 
 // Auto-save bij ELKE wijziging (gedebounced) i.p.v. op een vaste interval:
@@ -38,19 +39,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
         const dir = await appDataDir();
 
         for (const { id, payload } of docs) {
-          const content = writeIFC({
-            project: payload.project,
-            calendar: payload.calendar,
-            tasks: payload.tasks,
-            sequences: payload.sequences,
-            resources: payload.resources,
-            assignments: payload.assignments,
-            activityCodeTypes: payload.activityCodeTypes,
-            customFieldDefs: payload.customFieldDefs,
-            resourceCalendars: payload.calendars,
-            baselines: payload.baselines,
-            activeBaselineId: payload.activeBaselineId,
-          });
+          const content = writeIFC(buildWriteIFCInput(payload));
           await writeTextFile(await join(dir, recoveryIfcName(id)), content);
         }
 

@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 interface MenuItem {
   label: string;
   shortcut?: string;
@@ -44,14 +45,10 @@ export function MenuBar() {
   }, [store]);
 
   const handleSave = useCallback(() => {
-    const content = writeIFC({
-      project: store.project,
-      calendar: store.calendar,
-      tasks: store.tasks,
-      sequences: store.sequences,
-      resources: store.resources,
-      assignments: store.assignments,
-    });
+    // R1-fix (bug-klasse B4): dezelfde VOLLEDIGE writeIFC-invoer als het canonieke save-pad
+    // (fileSlice) via de gedeelde helper — voorheen liet deze browser-quicksave structuur
+    // (activity-codes/custom-fields) én baselines/kalender-bibliotheek stil vallen.
+    const content = writeIFC(buildWriteIFCInput(store));
     const blob = new Blob([content], { type: 'application/x-step' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

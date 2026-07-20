@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 
 export function IFCPanel() {
   const { t } = useTranslation('menu');
@@ -24,20 +25,20 @@ export function IFCPanel() {
   const runCPM = useAppStore(s => s.runCPM);
 
   const generated = useMemo(() => {
-    return writeIFC({
+    return writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
-      activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId,
-    });
+      activityCodeTypes, customFieldDefs, calendars: resourceCalendars, baselines, activeBaselineId,
+    }));
   }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
 
   const handleGenerate = useCallback(() => {
-    const ifc = writeIFC({
+    const ifc = writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
-      activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId,
-    });
+      activityCodeTypes, customFieldDefs, calendars: resourceCalendars, baselines, activeBaselineId,
+    }));
     setContent(ifc);
     setDirty(false);
   }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId]);
