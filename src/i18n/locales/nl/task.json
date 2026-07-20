@@ -63,6 +63,7 @@
     "mandatory": "Verplicht (contractueel)",
     "time": "Tijd",
     "start": "Start",
+    "scheduleStartHint": "Geplande ankerdatum — de berekende start volgt uit de planninglogica.",
     "duration": "Duur (dagen)",
     "constraint": "Constraint",
     "constraintDate": "Constraint-datum",

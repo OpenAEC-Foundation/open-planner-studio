@@ -99,6 +99,15 @@ export interface TaskSpec {
   /** OPTIONEEL — werkelijk einde, WERKDAG-offset t.o.v. het anker. Via de echte
    *  `setActualFinish`-actie (zet completion=1 + status COMPLETED). */
   actualFinishDay?: number;
+  /** OPTIONEEL — "conform plan afgerond": neem werkelijke start/einde over uit de BEREKENDE,
+   *  KALENDERBEWUSTE planning (`time.earlyStart`/`earlyFinish` op het moment dat de voortgang
+   *  wordt toegepast) i.p.v. uit werkdag-offsets. `actualStartDay`/`actualFinishDay` worden dan
+   *  genegeerd. Reden: `offset()` telt alleen weekenden weg (`addBusinessDays`), terwijl de
+   *  projectkalender óók feestdagen/bouwvak kent — handmatige dag-indices leveren daardoor
+   *  systematisch een schijn-UITLOOP op, en die uitloop verschijnt (terecht, P6-conform) als
+   *  negatieve totale speling op de al voltooide keten: de solver pint een voltooide taak in de
+   *  forward pass op zijn actuals, maar leidt LS/LF af uit het netwerk met de GEPLANDE duren. */
+  actualsFromPlan?: boolean;
   /** OPTIONEEL — verwijst naar `ProjectSpec.calendars[key]` (fase 2.10, golf 2: uren-planning).
    *  Afwezig ⇒ projectkalender (bestaand gedrag). */
   calendarKey?: string;
@@ -172,4 +181,10 @@ export interface ProjectSpec {
    *  anker. Gezet via de echte `setStatusDate`-actie vóór de (tweede) `runCPM()`-run zodat
    *  voortgang/actuals correct doorwerken in de forward pass (data-date-gedreven herplanning). */
   statusDay?: number;
+  /** OPTIONEEL — statusdatum AFGELEID uit de berekende planning i.p.v. uit een werkdag-offset:
+   *  de statusdatum wordt het GEPLANDE einde van de taak met deze key. Zelfde kalenderbewuste
+   *  bron als `TaskSpec.actualsFromPlan`, dus jaar- én feestdag-robuust: een hardgecodeerde
+   *  `statusDay` verschuift zodra het generatiejaar een feestdag anders laat vallen. Heeft
+   *  voorrang op `statusDay`. */
+  statusFromPlanFinish?: string;
 }

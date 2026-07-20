@@ -63,6 +63,7 @@
     "mandatory": "必須（契約上）",
     "time": "時間",
     "start": "開始",
+    "scheduleStartHint": "計画アンカー日 — 計算された開始日はスケジュールロジックに基づきます。",
     "duration": "期間（日）",
     "constraint": "制約",
     "constraintDate": "制約日",

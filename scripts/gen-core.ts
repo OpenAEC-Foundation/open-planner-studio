@@ -8,8 +8,9 @@
 // (incl. Pasen-afgeleiden + bouwvak) worden per jaar berekend.
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { createDefaultTaskTime } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { addBusinessDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
 // `easterSunday` verhuisde naar de gedeelde feestdagen-engine (fase 2.8a, §3.1); één bron voor
 // app én voorbeeld-generator. De NL-feestdagen-set hieronder blijft bewust lokaal: de examples
@@ -294,7 +295,17 @@ export function build(spec: ProjectSpec): BuildResult {
   // in de forward pass (`scheduleSlice.ts:runCPM` → `dataDate: s.project.statusDate`,
   // `CPMSolver.ts:558-592`), dus alleen dan werkt voortgang door in de herberekende datums.
   let needsRecompute = false;
-  if (spec.statusDay !== undefined) {
+  // Statusdatum: bij voorkeur AFGELEID uit de berekende planning (`statusFromPlanFinish`) i.p.v.
+  // uit een werkdag-offset. `offset()` telt alleen weekenden weg, dus een hardgecodeerde
+  // `statusDay` schuift zodra het generatiejaar een feestdag anders laat vallen; het geplande
+  // einde van een taak komt daarentegen uit de kalenderbewuste `runCPM()` hierboven.
+  if (spec.statusFromPlanFinish !== undefined) {
+    const sid = taskIds[spec.statusFromPlanFinish];
+    const planned = sid ? S().tasks.find(x => x.id === sid)?.time : undefined;
+    if (!planned) throw new Error(`[${spec.slug}] statusFromPlanFinish: onbekende taak "${spec.statusFromPlanFinish}"`);
+    S().setStatusDate(planned.earlyFinish || planned.scheduleFinish);
+    needsRecompute = true;
+  } else if (spec.statusDay !== undefined) {
     S().setStatusDate(offset(anchor, spec.statusDay));
     needsRecompute = true;
   }
@@ -302,9 +313,25 @@ export function build(spec: ProjectSpec): BuildResult {
   // bekende keys (spec.tasks + eventuele baseline-mutaties), niet alleen spec.tasks.
   const allTaskSpecs = [...spec.tasks, ...(spec.baselines ?? []).flatMap(b => b.mutationBefore?.addTasks ?? [])];
   for (const t of allTaskSpecs) {
-    if (t.completion === undefined && t.actualStartDay === undefined && t.actualFinishDay === undefined) continue;
+    if (t.completion === undefined && t.actualStartDay === undefined
+        && t.actualFinishDay === undefined && !t.actualsFromPlan) continue;
     needsRecompute = true;
     const id = taskIds[t.key];
+    // "Conform plan afgerond" (§TaskSpec.actualsFromPlan): de store draagt hier nog de
+    // KALENDERBEWUSTE planning uit de laatste `runCPM()` (opbouw-/baseline-fase); die overnemen
+    // als werkelijke datums levert per definitie 0 uitloop ⇒ geen negatieve speling op de
+    // voltooide keten. Alle actuals komen uit ÉÉN consistente planning: de progress-acties
+    // hieronder markeren de planning alleen als stale, ze herrekenen niet.
+    if (t.actualsFromPlan) {
+      const planned = S().tasks.find(x => x.id === id)?.time;
+      if (!planned) throw new Error(`[${spec.slug}] taak "${t.name}": niet in store (actualsFromPlan)`);
+      const as = planned.earlyStart || planned.scheduleStart;
+      const af = planned.earlyFinish || planned.scheduleFinish;
+      if (!S().setActualStart(id, as)) throw new Error(`[${spec.slug}] taak "${t.name}": geplande start ${as} ligt ná de statusdatum`);
+      if (t.completion !== undefined) S().setTaskProgress(id, t.completion);
+      if (!S().setActualFinish(id, af)) throw new Error(`[${spec.slug}] taak "${t.name}": gepland einde ${af} ligt ná de statusdatum`);
+      continue;
+    }
     if (t.actualStartDay !== undefined) {
       const ok = S().setActualStart(id, offset(anchor, t.actualStartDay));
       if (!ok) throw new Error(`[${spec.slug}] taak "${t.name}": actualStartDay ligt ná statusDay (geweigerd door setActualStart)`);
@@ -320,11 +347,9 @@ export function build(spec: ProjectSpec): BuildResult {
   const st = S();
   const leaves = st.tasks.filter(t => t.childIds.length === 0);
   const critical = leaves.filter(t => t.time.isCritical).length;
-  const ifcContent = writeIFC(
-    st.project, st.calendar, st.tasks, st.sequences, st.resources, st.assignments,
-    st.activityCodeTypes, st.customFieldDefs, st.calendars,
-    st.baselines, st.activeBaselineId,
-  );
+  // Zelfde gedeelde state→IFC-helper als de app-save-paden (pakket R, `state/ifcSaveInput.ts`),
+  // zodat de generator nooit stil velden kan weglaten die de app wél wegschrijft.
+  const ifcContent = writeIFC(buildWriteIFCInput(st));
   return {
     ifc: ifcContent,
     stats: {

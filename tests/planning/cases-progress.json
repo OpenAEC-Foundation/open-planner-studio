@@ -236,6 +236,58 @@
         "projectEnd": "2026-07-17",
         "error": false
       }
+    },
+    {
+      "id": "prog-completed-onplan-zero-float",
+      "title": "Voltooid CONFORM PLAN \u21d2 geen negatieve speling (pakket F): A(3)\u2192B(3)\u2192C(3), A+B voltooid met actuals exact gelijk aan de geplande datums, deadline op C = geplande finish \u21d2 tf=0 over de hele keten.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-14",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "tasks": [
+        { "name": "A", "dur": 3, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-08" },
+        { "name": "B", "dur": 3, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-09", "actualFinish": "2026-07-13" },
+        { "name": "C", "dur": 3, "start": "2026-07-06", "deadline": "2026-07-16" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-08", "lf": "2026-07-08", "tf": 0 },
+          "B": { "es": "2026-07-09", "ef": "2026-07-13", "lf": "2026-07-13", "tf": 0 },
+          "C": { "es": "2026-07-14", "ef": "2026-07-16", "lf": "2026-07-16", "tf": 0 }
+        },
+        "projectEnd": "2026-07-16",
+        "missedDeadlinesSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-completed-overrun-negative-float",
+      "title": "\u00c9\u00e9n werkdag uitloop op voltooid werk \u21d2 negatieve speling (pakket F): identiek aan prog-completed-onplan-zero-float, maar B's actualFinish \u00e9\u00e9n werkdag later. De solver pint B op zijn actuals (forward) maar leidt LS/LF af uit het netwerk met de GEPLANDE duren \u21d2 B.tf=LF\u2212EF=\u22121; A liep zelf NIET uit en houdt tf=0 (de terugstapeling vereist een CUMULATIEVE uitloop).",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-14",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "tasks": [
+        { "name": "A", "dur": 3, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-08" },
+        { "name": "B", "dur": 3, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-09", "actualFinish": "2026-07-14" },
+        { "name": "C", "dur": 3, "start": "2026-07-06", "deadline": "2026-07-16" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-08", "lf": "2026-07-08", "tf": 0 },
+          "B": { "es": "2026-07-09", "ef": "2026-07-14", "lf": "2026-07-13", "tf": -1 },
+          "C": { "es": "2026-07-15", "ef": "2026-07-17", "lf": "2026-07-16", "tf": -1 }
+        },
+        "projectEnd": "2026-07-17",
+        "missedDeadlinesSet": ["C"],
+        "error": false
+      }
     }
   ]
 }

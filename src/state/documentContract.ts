@@ -144,8 +144,14 @@ export function normalizeView(v: ViewState): ViewState {
 
 /** De canonieke documentveld-lijst. Volgorde = onafhankelijk; volledigheid compile-gecheckt. */
 export const DOCUMENT_FIELDS = [
-  field({ key: 'project', get: (s) => s.project, set: (s, v) => { s.project = v; }, fresh: createDefaultProject, snapshot: 'none' }),
-  field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'none' }),
+  // Pakket H: `project` doet VOLLEDIG mee in de snapshot (was 'none' met een nauwe wbsAutoNumber-
+  // projectie). Voorwaarde daarvoor — elke project-mutator pusht zelf een snapshot — is vervuld in
+  // projectSlice; zie de kop van snapshot.ts.
+  field({ key: 'project', get: (s) => s.project, set: (s, v) => { s.project = v; }, fresh: createDefaultProject, snapshot: 'clone' }),
+  // De gedenormaliseerde projectkalender-cache rijdt mee (§9.1): `restoreSnapshot` synct hem ná de
+  // restore alsnog uit `calendars`, maar zonder eigen snapshot-waarde zou de undo-orphan-fallback
+  // (`promoteProjectCalendarToLibrary`) de NIEUWE cache promoveren i.p.v. de oude.
+  field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'clone' }),
   field({ key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'clone' }),
   field({ key: 'sequences', get: (s) => s.sequences, set: (s, v) => { s.sequences = v; }, fresh: () => [], snapshot: 'clone' }),
   field({ key: 'resources', get: (s) => s.resources, set: (s, v) => { s.resources = v; }, fresh: () => [], snapshot: 'clone' }),

@@ -63,6 +63,7 @@
     "mandatory": "强制（合同性）",
     "time": "时间",
     "start": "开始",
+    "scheduleStartHint": "计划锚定日期 — 计算得出的开始日期由排程逻辑决定。",
     "duration": "工期（天）",
     "constraint": "限制",
     "constraintDate": "限制日期",

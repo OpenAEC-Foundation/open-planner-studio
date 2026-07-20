@@ -10,6 +10,7 @@ import {
   type RecoveryDocInput,
 } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import { resetUndoCoalescing } from '../transaction';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -94,6 +95,9 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
   switchDocument: (id) => {
     const state = get();
     if (id === state.activeDocumentId) return;
+    // Een documentwissel breekt een lopende coalesce-reeks af (pakket H): terugswitchen mag niet
+    // stilzwijgend verdergaan op de undo-stap van vóór de wissel.
+    resetUndoCoalescing();
     const target = state.documents.find((d) => d.id === id);
     if (!target || !target.payload) return;
     const outgoing = capturePayload(state);
@@ -189,6 +193,17 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       hydratePayload(s, payloadFromInput(active));
     });
     get().recomputeViewRows();
+    // Doorrekenen na herstel, net als élk ander laadpad (openFile/openRecentFile/
+    // openExampleFromString gaan via applyLoadedProject met `recompute: true`). Dit was tot nu toe
+    // het énige laadpad zónder runCPM; sinds de writer de afgeleide `OPS_Analysis`-pset niet meer
+    // schrijft (interferingFloat/isNearCritical/floatPath) zou de bijna-kritiek-kleuring, de
+    // float-path-tint en het InterferingFloat-veld hier anders leeg blijven tot de gebruiker F5
+    // drukt. Alleen het ACTIEVE document: de herstelde inactieve documenten krijgen via
+    // `payloadFromInput` sowieso een verse (lege) `cpmResult` — dat was al zo — en runCPM werkt
+    // uitsluitend op de top-level (actieve) state, dus alles doorrekenen zou per document een
+    // hydrate/capture-wissel + volledige CPM-run kosten en de opstart lineair vertragen bij veel
+    // herstelde documenten, terwijl de uitkomst pas zichtbaar is als je erheen switcht.
+    get().runCPM();
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
       tasks: active.tasks.length,
       sequences: active.sequences.length,

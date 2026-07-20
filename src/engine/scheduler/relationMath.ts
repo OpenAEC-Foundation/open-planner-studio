@@ -378,9 +378,29 @@ function backwardHour(
       const succDayStart = () => deps.startOfDay(succResult.ls);
       if (pe.isHourMode && se.isHourMode) {
         // hour-hour: pred.LF = prevWorkInstant( succ.LS ⊖ lag ) (scenario 1-6 backward).
-        const target = (predEndsBeginOfDay || succIsFinishMs)
+        // De grensvlaggen onderdrukken UITSLUITEND de finish-/band-gap-normalisatie, NOOIT de lag —
+        // exact zoals de dag-tak, die `addWorkingDaysSigned(succ.LS, −lag)` onvoorwaardelijk toepast
+        // en de vlaggen alleen over `prevWorkDayBefore` laat beslissen. (Vóór 2026-07-20 viel de lag
+        // in deze arm wég zodra een vlag stond, terwijl `forwardHour` hem wél toepaste ⇒ forward/
+        // backward-asymmetrie en een echt float-/kritiek-pad-verschil met dag-modus.)
+        // Uitzondering: bij lag = 0 reduceert `shiftLagPred` tot de kale `nextWorkInstant`-
+        // normalisatie (zie `addWorkingMinutesSigned`, m===0). Dat geval houdt bewust het
+        // ONgenormaliseerde `succ.LS`-anker aan — het dagbegin-mijlpaal-gedrag dat hieronder
+        // beschreven staat en dat de zusjes-cases rr-fs-pred-startms(-dagpariteit) vastleggen.
+        const lagged = deps.shiftLagPred(pe, succResult.ls, seq, predTask, -1);
+        const lagIsZero = lagged.getTime() === pe.nextWorkInstant(succResult.ls).getTime();
+        const target = (predEndsBeginOfDay || succIsFinishMs) && lagIsZero
           ? succResult.ls
-          : deps.shiftLagPred(pe, succResult.ls, seq, predTask, -1);
+          : lagged;
+        // Dag/uur-pariteit: een dagbegin-mijlpaal-voorganger (start-/auto-mijlpaal, oftewel
+        // `predEndsBeginOfDay`) heeft geen echte finish-instant — zijn "finish" is een dagbegin-
+        // anker. `prevWorkInstant` is de FINISH-normalisatie (rand `(start,end]`) en zou dat anker
+        // naar het vorige band-eind terugtrekken, terwijl de dag-tak hier juist GEEN
+        // `prevWorkDayBefore` doet en het doeldatum-label behoudt. Work-equivalent (nul werk
+        // ertussen ⇒ zelfde float), maar representatief divergent ⇒ hier overslaan.
+        // Bij `succIsFinishMs` is de voorganger wél een echte taak met een echte finish; daar
+        // blijft de normalisatie staan (de vlag onderdrukt alleen de band-gap, net als in dag-modus).
+        if (predEndsBeginOfDay) return target;
         return pe.prevWorkInstant(target);
       }
       if (pe.isHourMode && !se.isHourMode) {

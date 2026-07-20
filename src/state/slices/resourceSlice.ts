@@ -86,6 +86,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
 
   removeResource: (id) => {
     set((s) => {
+      if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       beginUndoable(s);
       s.resources = s.resources.filter(r => r.id !== id);
       s.assignments = s.assignments.filter(a => a.resourceId !== id);
@@ -241,6 +242,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
 
   removeCalendar: (id) => {
     set((s) => {
+      if (!s.calendars.some(c => c.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       beginUndoable(s);
       s.calendars = s.calendars.filter(c => c.id !== id);
       // Verweesde verwijzingen opruimen: resources én taken vallen terug op de projectkalender.

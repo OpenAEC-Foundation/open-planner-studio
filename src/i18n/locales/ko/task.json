@@ -63,6 +63,7 @@
     "mandatory": "필수(계약상)",
     "time": "시간",
     "start": "시작",
+    "scheduleStartHint": "계획된 앵커 날짜 — 계산된 시작일은 일정 로직에 따라 결정됩니다.",
     "duration": "기간 (일)",
     "constraint": "제약 조건",
     "constraintDate": "제약 날짜",

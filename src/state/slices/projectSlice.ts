@@ -41,17 +41,17 @@ export interface ProjectSlice {
   setWbsAutoNumber: (on: boolean) => void;
   setCalendar: (calendar: WorkCalendar) => void;
   /** Kies een bestaande bibliotheek-kalender (`s.calendars`) als projectdefault (ontwerp §7.1/§9.3).
-   *  setCalendar-precedent: isDirty + scheduleStale, GÉÉN undo-snapshot (bewuste asymmetrie —
-   *  bibliotheek-CRUD zelf blijft wél undoable). No-op op een onbekende id. */
+   *  setCalendar-precedent: undo-snapshot + isDirty + scheduleStale (pakket H). No-op (en dus géén
+   *  undo-stap) op een onbekende id of als hij al de projectdefault is. */
   setProjectCalendar: (id: string) => void;
   /** Promoveer de huidige gedenormaliseerde projectkalender (`s.calendar`) tot een zichtbare
    *  bibliotheek-entry als die er nog niet in staat (ontwerp §4.3-migratie, lazy variant voor de
    *  kalenderdialoog). Puur additief/niet-destructief — geen undo-snapshot nodig. */
   ensureProjectCalendarInLibrary: () => void;
-  /** Statusdatum (P6 data date, fase 2.6). undefined = wissen. setCalendar-patroon: isDirty +
-   *  scheduleStale, géén undo-snapshot (zie §10.3). */
+  /** Statusdatum (P6 data date, fase 2.6). undefined = wissen. setCalendar-patroon: undo-snapshot +
+   *  isDirty + scheduleStale (pakket H); dezelfde waarde opnieuw zetten is een no-op. */
   setStatusDate: (date: string | undefined) => void;
-  /** Voortgangsmodus (fase 2.6). setCalendar-patroon (isDirty + scheduleStale, géén undo-snapshot). */
+  /** Voortgangsmodus (fase 2.6). setCalendar-patroon (undo-snapshot + isDirty + scheduleStale). */
   setProgressMode: (mode: ProgressMode) => void;
   newProject: () => void;
   /** Nieuw-project-wizard: maak een project met metadata, kalender en een
@@ -72,6 +72,30 @@ export interface ProjectSlice {
     baselines?: Baseline[];
     activeBaselineId?: string | null;
   }) => void;
+}
+
+/**
+ * Structurele gelijkheid voor de no-op-guards hieronder (pakket H). Scalars via `===`, objecten
+ * (bv. `schedulingOptions`, een hele `WorkCalendar`) via een JSON-vergelijking — Immer-drafts
+ * serialiseren gewoon mee. Sleutelvolgorde telt mee: een gelijke-maar-anders-geordende kopie wordt
+ * als "gewijzigd" gezien, wat hooguit één extra undo-stap kost en nooit tot verkeerde state leidt.
+ */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Verandert `updates` iets BETEKENISVOLS aan het project? `modifiedAt` telt bewust NIET mee: elke
+ * mutator ververst dat veld, dus zonder deze uitzondering zou élke "opslaan" uit de Backstage/
+ * projectdialoog — óók met volledig ongewijzigde waarden — een (lege) undo-stap pushen. Zie de kop
+ * van `snapshot.ts`: sinds pakket H staat het volledige project in de snapshot, dus deze guard is
+ * de tegenhanger die de undo-stack schoon houdt.
+ */
+function projectChanges(current: Project, updates: Partial<Project>): boolean {
+  return (Object.keys(updates) as (keyof Project)[])
+    .some((k) => k !== 'modifiedAt' && !sameValue(current[k], updates[k]));
 }
 
 export function createDefaultProject(): Project {
@@ -101,10 +125,13 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
 
   setProject: (updates) =>
     set((s) => {
+      // No-op-guard vóór de snapshot (pakket H): een opslag met identieke waarden verandert niets —
+      // geen undo-stap, geen `modifiedAt`-bump, geen isDirty.
+      if (!projectChanges(s.project, updates)) return;
+      beginUndoable(s);
       Object.assign(s.project, updates);
       s.project.modifiedAt = new Date().toISOString();
       // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet (A6).
-      // Flag-only (bewuste asymmetrie): projectvelden muteren zónder undo-snapshot.
       finishMutation(s, { stale: 'startDate' in updates });
     }),
 
@@ -119,20 +146,25 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
 
   setCalendar: (calendar) =>
     set((s) => {
-      s.calendar = calendar;
       // Houd de bibliotheek-entry (indien aanwezig) in sync met de gedenormaliseerde cache (§4.1).
       const idx = s.calendars.findIndex((c) => c.id === calendar.id);
+      // No-op-guard vóór de snapshot (pakket H): identieke kalender (cache én bibliotheek-entry) ⇒
+      // niets te doen. Anders zou een dialoog-commit zonder wijziging een lege undo-stap pushen.
+      if (sameValue(s.calendar, calendar) && (idx < 0 || sameValue(s.calendars[idx], calendar))) return;
+      beginUndoable(s);
+      s.calendar = calendar;
       if (idx >= 0) s.calendars[idx] = calendar;
-      // Flag-only (bewuste asymmetrie, §9.3): projectkalender muteert zónder undo-snapshot.
       finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
   setProjectCalendar: (id) =>
     set((s) => {
       if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
+      if (s.project.calendarId === id) return; // no-op-guard: al de projectdefault (geen lege undo-stap).
+      beginUndoable(s);
       s.project.calendarId = id;
       finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
-      syncProjectCalendar(s); // §9.1: cache gelijkzetten (géén undo-snapshot, §9.3).
+      syncProjectCalendar(s); // §9.1: cache gelijkzetten.
     }),
 
   ensureProjectCalendarInLibrary: () =>
@@ -142,7 +174,13 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
 
   setStatusDate: (date) =>
     set((s) => {
-      if (date) s.project.statusDate = date;
+      const next = date || undefined; // '' telt als wissen — zelfde effect als undefined
+      if (s.project.statusDate === next) return; // no-op-guard vóór de snapshot (pakket H)
+      // Coalescing (pakket H): het statusdatumveld in het lint is een `DateTextInput` die LIVE per
+      // toetsaanslag committeert — één ingetypte datum levert meerdere geldige commits op (zie
+      // `beginUndoable`). Zonder key zouden dat evenzoveel undo-stappen met onzin-tussenwaarden zijn.
+      beginUndoable(s, { coalesceKey: 'project.statusDate' });
+      if (next) s.project.statusDate = next;
       else delete s.project.statusDate;
       s.project.modifiedAt = new Date().toISOString();
       finishMutation(s, { stale: true }); // datum-beïnvloedend (A6): planning verouderd tot F5.
@@ -150,6 +188,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
 
   setProgressMode: (mode) =>
     set((s) => {
+      if (s.project.progressMode === mode) return; // no-op-guard vóór de snapshot (pakket H)
+      beginUndoable(s);
       s.project.progressMode = mode;
       s.project.modifiedAt = new Date().toISOString();
       finishMutation(s, { stale: true });

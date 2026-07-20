@@ -262,11 +262,12 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
 
   deleteTask: (id) => {
     set((s) => {
+      const task = s.tasks.find(t => t.id === id);
+      if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
       beginUndoable(s);
 
       // Remove from parent
-      const task = s.tasks.find(t => t.id === id);
-      if (task?.parentId) {
+      if (task.parentId) {
         const parent = s.tasks.find(t => t.id === task.parentId);
         if (parent) {
           parent.childIds = parent.childIds.filter(cid => cid !== id);

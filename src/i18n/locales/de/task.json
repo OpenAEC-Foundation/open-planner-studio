@@ -63,6 +63,7 @@
     "mandatory": "Verbindlich (vertraglich)",
     "time": "Zeit",
     "start": "Anfang",
+    "scheduleStartHint": "Geplantes Ankerdatum — der berechnete Start ergibt sich aus der Terminplanungslogik.",
     "duration": "Dauer (Tage)",
     "constraint": "Einschränkung",
     "constraintDate": "Einschränkungstermin",

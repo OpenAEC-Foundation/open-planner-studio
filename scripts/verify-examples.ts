@@ -93,9 +93,16 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
   expect(diffs, parsed.baselines.length === (spec.baselines?.length ?? 0), `baselines: ${parsed.baselines.length} ≠ ${spec.baselines?.length ?? 0}`);
 
   // 3. round-trip write→read→write stabiel (structureel data-fixpunt)
-  const s2 = writeIFC(parsed.project, parsed.calendar, parsed.tasks, parsed.sequences, parsed.resources,
-    parsed.assignments, parsed.activityCodeTypes, parsed.customFieldDefs, parsed.resourceCalendars,
-    parsed.baselines, parsed.activeBaselineId);
+  // `writeIFC` neemt sinds pakket R één invoer-object (`WriteIFCInput`); een readIFC-resultaat
+  // draagt de kalender-bibliotheek al onder de writer-naam `resourceCalendars`, dus hier geen
+  // `buildWriteIFCInput` (die verwacht juist het store-veld `calendars`).
+  const s2 = writeIFC({
+    project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
+    sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
+    activityCodeTypes: parsed.activityCodeTypes, customFieldDefs: parsed.customFieldDefs,
+    resourceCalendars: parsed.resourceCalendars,
+    baselines: parsed.baselines, activeBaselineId: parsed.activeBaselineId,
+  });
   const parsed2 = readIFC(s2);
   expect(diffs, digest(parsed) === digest(parsed2), `round-trip niet stabiel (data verschilt na write→read→write)`);
 
@@ -109,13 +116,16 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
  *  ze altijd leeg) — ze bestaan pas ná een verse `runCPM()`-run zoals hier. De union-check moet
  *  dus op déze herberekende `facts`, niet op de kale `parsed.tasks`. */
 function scheduleFacts(parsed: Parsed): {
-  negFloat: number; overalloc: string[]; criticalPaths: number; nearCritical: boolean;
+  negFloat: number; negFloatAll: number; overalloc: string[]; criticalPaths: number; nearCritical: boolean;
   violated: number; outOfSequence: number;
 } {
   S().loadState(parsed as any);
   S().runCPM();
   const st = S();
   const negFloat = st.tasks.filter(t => t.childIds.length === 0 && t.time.totalFloat < 0).length;
+  // Ook de WBS-ouders meetellen (pakket F): een samenvattingstaak erft de speling van zijn
+  // kinderen, dus "geen enkele taak negatief" is strenger dan alleen de leaves.
+  const negFloatAll = st.tasks.filter(t => t.time.totalFloat < 0).length;
   const rlr = st.resourceLoadResult;
   const overalloc: string[] = [];
   if (rlr) {
@@ -127,7 +137,7 @@ function scheduleFacts(parsed: Parsed): {
   const nearCritical = st.tasks.some(t => t.time.isNearCritical === true);
   const violated = st.cpmResult?.violatedConstraintTaskIds?.length ?? 0;
   const outOfSequence = st.cpmResult?.outOfSequenceSequenceIds?.length ?? 0;
-  return { negFloat, overalloc, criticalPaths, nearCritical, violated, outOfSequence };
+  return { negFloat, negFloatAll, overalloc, criticalPaths, nearCritical, violated, outOfSequence };
 }
 
 /**
@@ -159,7 +169,7 @@ function verifyLevelingFullyResolves(diffs: string[]) {
  *  declareren — KLEIN heeft er bewust geen (instapniveau, zie showcases.ts). Union-brede functies
  *  (deadline, prioriteit 1000, negatieve float, alle relatietypes, %-lag/ELAPSEDTIME/lead,
  *  voortgang+statusdatum, notes, vorstverlet) worden op suite-niveau geverifieerd. */
-function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): { negFloat: number; overalloc: string[]; criticalPaths: number; nearCritical: boolean } {
+function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): ReturnType<typeof scheduleFacts> {
   const T = parsed.tasks;
   const expConstraints = spec.tasks.filter(t => t.constraint).length;
   expect(diffs, T.filter(t => t.constraint).length === expConstraints, `constraints teruggelezen: ${T.filter(t => t.constraint).length} ≠ ${expConstraints}`);
@@ -245,7 +255,18 @@ function main() {
       if (spec.slug === 'showcase-appartementencomplex') {
         expect(extra, facts.violated === 0, `GROOT: ${facts.violated} constraint-violation(s) ná datafix (verwacht 0)`);
         expect(extra, facts.outOfSequence === 0, `GROOT: ${facts.outOfSequence} out-of-sequence-melding(en) ná datafix (verwacht 0)`);
+        // Pakket F (datafix 2): de voltooide fase-1/2-keten liep CONFORM PLAN (`actualsFromPlan`),
+        // dus er is per definitie geen uitloop op voltooid werk — en dus ook geen negatieve
+        // speling. Vangnet tegen terugval naar handgeschreven werkdag-indices, die door de
+        // feestdag-blinde `offset()` systematisch schijn-uitloop (⇒ negatieve TF) opleveren.
+        expect(extra, facts.negFloatAll === 0, `GROOT: ${facts.negFloatAll} taak/taken met negatieve totale speling (verwacht 0 — voltooide keten conform plan)`);
         expect(extra, facts.overalloc.length > 0, `GROOT: geen overallocatie zichtbaar (verwacht de bedoelde les — nivellering lost niet alles op)`);
+        // Meerdere kritieke paden zijn een BELOFTE in GROOTs publicDescription, dus hier expliciet
+        // per showcase geasserteerd i.p.v. alleen suite-breed. De FREE_FLOAT-peel noemt een keten
+        // pas kritiek als élke taak erin kritiek is; voltooide taken zijn dat nooit, dus dit valt
+        // stil zodra de van de torens onafhankelijke garage/terrein-keten (fase 7, eigen wortel ná
+        // de statusdatum) niet meer strak tot het projecteinde doorloopt — zie showcase-groot.ts.
+        expect(extra, facts.criticalPaths >= 2, `GROOT: ${facts.criticalPaths} kritiek pad/paden (verwacht ≥2 — torens + onafhankelijke garage/terrein-keten)`);
       }
       parsed.resources.forEach(r => scResTypes.add(r.type));
       parsed.sequences.forEach(s => {

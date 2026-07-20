@@ -11,38 +11,75 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
-### Solver/presentatie (klein, uit de 2.10-showcase-triage, 2026-07-08)
-- [ ] **Dag/uur-asymmetrie backward-FS bij start-mijlpaal-voorganger normaliseren** (vondst pakket O,
-      2026-07-17). De backward-uur-FS-tak past `prevWorkInstant` onvoorwaardelijk toe, óók bij
-      `predEndsBeginOfDay`; de dag-tak behoudt dan juist het doeldatum-label. Work-equivalent
-      (tf blijft 0, geen scheduling-fout), maar de mijlpaal toont in uur-modus een late finish op de
-      vórige werkdag. Pre-existing; bewust byte-identiek gepind in `tests/planning/`
-      `cases-hours-relations.json` case `rr-fs-pred-startms` (met note) — bij normaliseren gaat die
-      case bewust rood en moet de verwachting mee. Code: `src/engine/scheduler/relationMath.ts`
-      (backward-uur-FS vs. backward-dag-FS).
-- [ ] **Hard-pin-restsignaal `TF=-4` op de GROOT-startmijlpaal.** Pre-existing interactie
-      (hard pin trekt de backward pass licht negatief door een voltooide keten); valse
-      "violated"-melding is al gefixt (74eb7b2), dit is alleen nog het float-getal.
-      Triage-repro's staan in de sessie-artefacten; opnieuw af te leiden uit
-      `showcase-groot.ts` + `check-advanced-cpm.ts` #182-186.
-- [ ] **Plan-datum vs. CPM-forecast zichtbaar verschillend.** De Gantt-balk toont
-      `scheduleStart` terwijl de CPM-diagnose de (data-date-gevloerde) forecast toont —
-      correct (P6-conform) maar verwarrend naast elkaar. Presentatie-verduidelijking
-      overwegen (bv. forecast-markering of tooltip-uitleg).
+### Solver/presentatie — resterende punten (2026-07-20)
+
+> De vier oorspronkelijke punten uit de 2.10-showcase-triage zijn afgerond op 2026-07-20; zie de
+> changelog. Twee ervan bleken een andere oorzaak te hebben dan het item beschreef: de `TF=-4` was
+> geen hard-pin-interactie maar een off-by-one plus feestdag-blinde dag-index in de
+> showcase-generator, en het "plan vs. forecast"-punt was geen presentatiekwestie maar een echte
+> bug in het eigenschappenpaneel. Onderstaande punten zijn er tijdens dat werk bij gevonden.
+
+- [ ] **Cross-mode-FS-armen in `backwardHour` negeren de grensvlaggen volledig**
+      (`src/engine/scheduler/relationMath.ts`, de uur-pred/dag-succ- en dag-pred/uur-succ-armen).
+      Noch `predEndsBeginOfDay` noch `succIsFinishMs` komt erin voor, terwijl `forwardHour`'s
+      FS-tak ze mode-onafhankelijk toepast — een forward/backward-asymmetrie in dezelfde familie als
+      de op 2026-07-20 gefixte lag-verliesbug. **Alleen broncode-analyse, niet met een test
+      aangetoond**; eerst een falende case schrijven vóór er iets gewijzigd wordt.
+- [ ] **De dag-pred/uur-succ-arm leest de lag via `resolveEffectiveLagDays`, dat `seq.lagMinutes`
+      niet kent** — een in minuten uitgedrukte lag telt daar als 0. `forwardHour` doet hetzelfde,
+      dus forward en backward zijn onderling consistent; het is een unit-resolutiekwestie, geen
+      spiegelbreuk. Ook alleen broncode-analyse.
+- [ ] **Anker versus berekend: `scheduleStart` als datamodel-vraag.** Het paneelveld is op
+      2026-07-20 gelijkgetrokken met de vier andere oppervlakken (toont `earlyStart || scheduleStart`,
+      schrijft bij wijziging naar het anker), maar de onderliggende modellering blijft verwarrend: in
+      de tabel typ je een datum die naar `scheduleStart` gaat terwijl de cel daarna de berekende
+      datum toont — je invoer *lijkt* genegeerd. Nette oplossing = het anker alleen bewaren bij taken
+      zonder voorgangers, óf het als apart "Plan"-veld benoemen en overal consistent labelen
+      ("Anker" vs "Berekend"). Raakt store, IFC-round-trip, `TableEditor`, `TaskDialog`, paneel,
+      `check-ifc-roundtrip.ts` en i18n — eigen golf. Let op het regressierisico dat in
+      `src/state/slices/scheduleSlice.ts:96-100` beschreven staat (taak blijft op zijn gedrifte
+      datum hangen na het verwijderen van een relatie).
 
 ### Klein
-- [ ] **Existentie-guard vóór snapshot in de `remove*`-acties** (reviewer-aanbeveling pakket R,
-      2026-07-17). `removeSequence`/`deleteTask`/`removeResource`/`removeCalendar`/`deleteBaseline`
-      pushen een undo-snapshot vóór hun filter; bij een onbekend id blijft een loze undo-stap achter
-      (zelfde klasse als de in pakket R gefixte `updateTask`/`addSequence`). Impact laag (UI roept ze
-      met een bestaand id aan); fix = dezelfde goedkope guard, plus check-blok (g) in
-      `tests/planning/check-document-contract.ts` uitbreiden.
+- [ ] **Undo-stack heeft geen limiet.** Gemeten 2026-07-20: 64 MB na 500 taakbewerkingen bij een
+      project van 500 taken (elke snapshot is een volledige deep clone). Er staat nergens een
+      `.slice`/`.shift` op `undoStack`. Sinds project-mutaties ook snapshots pushen (2026-07-20) is
+      het aantal pushes toegenomen, dus dit wordt relevanter. Fix = een bovengrens met afkappen aan
+      de onderkant; let op dat `redoStack` symmetrisch mee moet.
+- [ ] **Taakdatumvelden pushen 3 undo-stappen per ingetypte datum.** `DateTextInput` commit live bij
+      elke toetsaanslag en `parseFlexibleDate` accepteert een jaar al bij 2 cijfers, dus "01062030"
+      levert commits op voor 2020-06-01, 0203-06-01 en 2030-06-01 — elk met een volledige snapshot.
+      Gemeten en bevestigd op 2026-07-20; pre-existing, geen regressie. De infrastructuur om dit te
+      verhelpen staat er inmiddels: `beginUndoable(s, { coalesceKey })` in `src/state/transaction.ts`
+      (gebruikt door `setStatusDate`). Voor `updateTask` kan de key niet generiek zijn — die zou ook
+      niet-datumbewerkingen en opeenvolgende Gantt-sleepacties samenvoegen — dus per veld kiezen.
+- [ ] **Recovery-robuustheid bij een corrupt herstelbestand.** Sinds 2026-07-20 rekent
+      `restoreDocuments` het herstelde document door (`runCPM`), net als elk ander laadpad. Een
+      corrupte of afgekapte recovery-snapshot na een crash laat het opstarten daardoor klappen in
+      plaats van doormodderen. Overweeg een defensieve afhandeling rond die ene aanroep, met een
+      zichtbare melding in plaats van een stille catch.
+- [ ] **Generator-scripts staan niet in CI.** `npm run gen:examples` en `npm run verify:examples`
+      waren op de branch van 2026-07-20 volledig stuk (een verplaatste import en een gewijzigde
+      `writeIFC`-signatuur, beide zonder `scripts/` mee te nemen) en dat viel pas op toen iemand ze
+      wilde draaien. `tsc` dekt ze niet af omdat `scripts/` buiten het build-pad valt. Een goedkope
+      CI-stap zou dit vangen.
 - [ ] **"Project verplaatsen…"-functie (Move Project, user-verzoek 2026-07-10).** Hele planning
       N maanden/dagen verschuiven in één handeling: nieuwe projectstartdatum kiezen, alle expliciete
       datums schuiven mee (constraint-datums, deadlines, werkelijke start/einde, statusdatum,
       externe-koppeling-ankers), met keuze of baselines meegaan. Let op: kalender schuift NIET mee
       (feestdagen/bouwvak liggen vast), dus einddatums kunnen verspringen — dat is correct en moet
       in de preview zichtbaar zijn. Scope: store-actie + klein dialoog + tests (één golf).
+      **Bindend implementatieplan ligt klaar:**
+      [ontwerp](superpowers/specs/2026-07-20-move-project-design.md) — uitputtende veld-inventarisatie
+      met per veld een schuift-mee/niet-mee/afgeleid-verdict, uur-modus-gedrag, elf randgevallen,
+      store-/UI-/preview-ontwerp, i18n-sleutels en vijftien testcases. Twee correcties op de
+      aanname hierboven: `project.startDate` is **niet** het CPM-anker (de solver leidt de
+      projectstart af uit `scheduleStart` van taken zonder voorganger, `CPMSolver.ts:482-488`), dus
+      élk taakanker moet mee; en er is een randgeval bij dat er niet in stond — de gegenereerde
+      feestdagen dekken maar een eindige jarenspanne (`startjaar−1 … startjaar+3`), dus een grote
+      verschuiving vooruit rekent stil zonder feestdagen en moet een preview-waarschuwing krijgen.
+      §5.1 van het plan (undo-snapshot verbreden) is op 2026-07-20 al uitgevoerd, en anders dan het
+      plan voorstelde: `project` én `calendar` zitten nu volledig in de snapshot.
 
 ### Distributie & Release
 

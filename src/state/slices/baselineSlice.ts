@@ -50,6 +50,7 @@ export const createBaselineSlice: AppSlice<BaselineSlice> = (set) => ({
 
   deleteBaseline: (id) =>
     set((s) => {
+      if (!s.baselines.some((b) => b.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       beginUndoable(s);
       s.baselines = s.baselines.filter((b) => b.id !== id);
       if (s.activeBaselineId === id) {

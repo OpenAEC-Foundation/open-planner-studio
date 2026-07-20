@@ -512,7 +512,7 @@
     {
       "id": "rr-fs-pred-startms",
       "title": "FS+0 vanuit START-mijlpaal voorganger (uur): dagbegin-mijlpaal, geen band-boundary-+1 ⇒ B start dezelfde band-start ma08->ma12.",
-      "note": "LET OP — pint een dag/uur-asymmetrie: forward geeft M.ef=ma08:00, maar de backward hour-hour-FS past prevWorkInstant onvoorwaardelijk toe (ook bij predEndsBeginOfDay) ⇒ M.ls/lf=vr03-16:00 (vorige vrijdag-band-eind), terwijl de DAG-modus in dezelfde tak GEEN prevWorkDayBefore doet en het doeldatum-label behoudt. Work-equivalent (nul werk in het weekend ⇒ M.tf=0, kritiek), dus geen scheduling-fout, maar een echte mirror-representatie-divergentie tussen dag- en uur-modus in de FS-backward-startmijlpaal-tak. Reviewer: kandidaat-defect om te bevestigen/normaliseren.",
+      "note": "Pint de dag/uur-PARITEIT van de FS-backward-startmijlpaal-tak (genormaliseerd 2026-07-20; hiervóór pinde deze case de asymmetrie). De backward hour-hour-FS slaat bij predEndsBeginOfDay de finish-normalisatie prevWorkInstant over — een dagbegin-mijlpaal heeft geen echte finish-instant — precies zoals de DAG-tak daar GEEN prevWorkDayBefore doet. Uitkomst: M.ls/lf = ma06-08:00, hetzelfde doeldatum-label als in dag-modus (voorheen vr03-16:00, het vorige band-eind). Work-equivalent in beide gevallen (nul werk in het weekend ⇒ M.tf=0, kritiek); de zusjes-case rr-fs-pred-startms-dagpariteit legt hetzelfde net in dag-modus vast.",
       "anchor": "2026-07-06",
       "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
       "tasks": [
@@ -522,10 +522,31 @@
       "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START" }],
       "expect": {
         "tasks": {
-          "M": { "es": "2026-07-06T08:00", "ef": "2026-07-06T08:00", "ls": "2026-07-03T16:00", "lf": "2026-07-03T16:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-06T08:00", "ef": "2026-07-06T08:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T08:00", "tf": 0, "crit": true },
           "B": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true }
         },
         "projectEnd": "2026-07-06T12:00",
+        "projectDuration": 1,
+        "criticalPathSet": ["M", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-fs-pred-startms-dagpariteit",
+      "title": "DAG-tegenhanger van rr-fs-pred-startms: zelfde net (START-mijlpaal M -FS+0-> B) op een DAG-kalender ⇒ M.ls/lf = ma06, hetzelfde doeldatum-label als de uur-modus.",
+      "note": "Bewust een DAG-case in deze uur-batterij: hij bestaat alleen om de dag/uur-PARITEIT van de FS-backward-startmijlpaal-tak naast zijn uur-tweelingcase vast te leggen. De dag-tak doet bij predEndsBeginOfDay geen prevWorkDayBefore en houdt het doeldatum-label; de uur-tak slaat sinds 2026-07-20 om dezelfde reden prevWorkInstant over. Beide moeten hier ma 6 juli geven.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "M", "milestone": true, "milestoneKind": "START" },
+        { "name": "B", "dur": 1 }
+      ],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-06", "ef": "2026-07-06", "ls": "2026-07-06", "lf": "2026-07-06", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-06", "ef": "2026-07-06", "ls": "2026-07-06", "lf": "2026-07-06", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-06",
         "projectDuration": 1,
         "criticalPathSet": ["M", "B"],
         "error": false
@@ -549,6 +570,116 @@
         "projectEnd": "2026-07-06T08:00",
         "projectDuration": 0,
         "criticalPathSet": ["M1", "M2"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-fs-pred-startms-lag",
+      "title": "FS+8u (= 1 werkdag op H8) vanuit START-mijlpaal voorganger (uur): de lag telt gewoon mee ⇒ B start di08->di12 en M blijft kritiek (lf=ma08).",
+      "note": "Pint dat de grensvlag predEndsBeginOfDay alléén de finish-normalisatie (prevWorkInstant) onderdrukt en NIET de lag. Vóór 2026-07-20 liet de backward hour-hour-FS-arm de lag wegvallen zodra deze vlag stond (M.lf werd di08 i.p.v. ma08 ⇒ tf=1, niet-kritiek), terwijl forwardHour de lag wél toepaste — forward/backward-asymmetrie én een verschil met dag-modus. Zusjes-case: rr-fs-pred-startms-lag-dagpariteit.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "M", "milestone": true, "milestoneKind": "START" },
+        { "name": "B", "dur": "4u" }
+      ],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START", "lag": "8u" }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-06T08:00", "ef": "2026-07-06T08:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T08:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07T08:00", "ef": "2026-07-07T12:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["M", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-fs-pred-startms-lag-dagpariteit",
+      "title": "DAG-tegenhanger van rr-fs-pred-startms-lag: START-mijlpaal M -FS+1d-> B(1d) op een DAG-kalender ⇒ M.lf = ma06, tf=0, kritiek.",
+      "note": "Bewust een DAG-case in deze uur-batterij: pariteitsanker. De dag-tak past de lag onvoorwaardelijk toe (addWorkingDaysSigned(succ.LS, -lag)) en laat de grensvlaggen alleen over prevWorkDayBefore beslissen; de uur-tak moet hetzelfde doen.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "M", "milestone": true, "milestoneKind": "START" },
+        { "name": "B", "dur": 1 }
+      ],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START", "lag": 1 }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-06", "ef": "2026-07-06", "ls": "2026-07-06", "lf": "2026-07-06", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-07", "ef": "2026-07-07", "ls": "2026-07-07", "lf": "2026-07-07", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07",
+        "projectDuration": 2,
+        "criticalPathSet": ["M", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-fs-pred-startms-lead",
+      "title": "FS-4u (lead, lagMinutes -240) vanuit START-mijlpaal voorganger (uur): de lead telt ook terug ⇒ M.lf = wo16 (tf=2d), gelijk aan de speling van zijn opvolger B.",
+      "note": "De negatieve-lag-staart van rr-fs-pred-startms-lag. Vóór 2026-07-20 viel de lead in de backward-arm weg (M.lf werd wo12 ⇒ tf=1,5d) terwijl de forward-pass B wél 4u vóór M plaatste — de lead werd dus eenzijdig verrekend. C(8u, SNET wo) is er alleen om het projecteinde vast te zetten zodat alle spelingen positief blijven.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "M", "milestone": true, "milestoneKind": "START", "constraint": { "type": "SNET", "date": "2026-07-07" } },
+        { "name": "B", "dur": "4u" },
+        { "name": "C", "dur": "8u", "constraint": { "type": "SNET", "date": "2026-07-08" } }
+      ],
+      "links": [{ "pred": "M", "succ": "B", "type": "FINISH_START", "lagMinutes": -240 }],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-07T08:00", "ef": "2026-07-07T08:00", "ls": "2026-07-08T16:00", "lf": "2026-07-08T16:00", "tf": 2, "crit": false },
+          "B": { "es": "2026-07-06T12:00", "ef": "2026-07-06T16:00", "ls": "2026-07-08T12:00", "lf": "2026-07-08T16:00", "tf": 2, "crit": false },
+          "C": { "es": "2026-07-08T08:00", "ef": "2026-07-08T16:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T16:00",
+        "projectDuration": 3,
+        "criticalPathSet": ["C"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-fs-succ-finishms-lag",
+      "title": "FS+8u (= 1 werkdag op H8) naar FINISH-mijlpaal opvolger (uur): A(4u) ma08->ma12, M op di12; A blijft kritiek (lf=ma12).",
+      "note": "Zelfde defect als rr-fs-pred-startms-lag, maar via de andere grensvlag in dezelfde conditie: succIsFinishMs. Vóór 2026-07-20 gaf de backward-arm A.lf=di12 (tf=1, niet-kritiek) terwijl A de enige driver is. Anders dan bij predEndsBeginOfDay blijft de prevWorkInstant-normalisatie hier WEL staan (de voorganger is een echte taak met een echte finish); alleen de lag mag niet meer wegvallen.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lag": "8u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "ls": "2026-07-06T08:00", "lf": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-07T12:00", "ef": "2026-07-07T12:00", "ls": "2026-07-07T12:00", "lf": "2026-07-07T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "M"],
+        "error": false
+      }
+    },
+    {
+      "id": "rr-fs-succ-finishms-lag-dagpariteit",
+      "title": "DAG-tegenhanger van rr-fs-succ-finishms-lag: A(1d) -FS+1d-> FINISH-mijlpaal M ⇒ A.lf = ma06, tf=0, kritiek.",
+      "note": "Pariteitsanker: de dag-tak past de lag toe en laat succIsFinishMs alleen de prevWorkDayBefore-band-gap onderdrukken.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 1 },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lag": 1 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-06", "ls": "2026-07-06", "lf": "2026-07-06", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-07", "ef": "2026-07-07", "ls": "2026-07-07", "lf": "2026-07-07", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07",
+        "projectDuration": 2,
+        "criticalPathSet": ["A", "M"],
         "error": false
       }
     }

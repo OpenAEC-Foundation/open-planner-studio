@@ -19,8 +19,11 @@ import type { AppState } from './appStore';
  *   get().recomputeViewRows();  // trailing recomputes blijven bewust expliciet (per-actie-specifiek)
  *
  * BEWUSTE ASYMMETRIEËN blijven uitdrukbaar:
- *   - "dirty zonder undo" (setProject/setCalendar/setStatusDate/… — bibliotheek-CRUD blijft wél
- *     undoable): roep alleen `finishMutation` aan, NIET `beginUndoable`.
+ *   - "dirty zonder undo": roep alleen `finishMutation` aan, NIET `beginUndoable`. LET OP — de
+ *     project-mutators (setProject/setCalendar/setStatusDate/setProgressMode/setProjectCalendar)
+ *     waren hiervan het voorbeeld, maar zijn sinds pakket H wél undoable: het volledige `project`
+ *     zit nu in de snapshot en dat mag alleen zolang élke project-mutator een snapshot pusht
+ *     (invariant, zie de kop van `snapshot.ts`).
  *   - "undo zonder stale" (WBS-nummering, structuur-CRUD, baselines): `finishMutation(s)` zonder
  *     `stale` laat `scheduleStale` bewust met rust.
  *
@@ -30,14 +33,49 @@ import type { AppState } from './appStore';
  */
 
 /**
+ * Coalesce-marker (pakket H): welke keyed mutatie pushte als laatste een snapshot, bij welke
+ * undo-stack-diepte en in welk document. Bewust MODULE-state en geen store-state: het is puur een
+ * bewerkings-"sessie"-hint en hoort niet in het documentcontract/de snapshot thuis.
+ *
+ * Bewaking = key + stackdiepte + document. Elke ándere mutatie pusht een snapshot (diepte wijzigt
+ * ⇒ mismatch) én zet de marker op `null` (geen key). `undo`/`redo` en een documentwissel wissen hem
+ * expliciet — nodig omdat een undo+redo de diepte weer op dezelfde waarde kan brengen.
+ * (Referentievergelijking op de bovenste snapshot kan hier NIET: binnen een Immer-producer levert
+ * `s.undoStack[n]` een draft-proxy op i.p.v. het oorspronkelijke object.)
+ */
+let coalesce: { key: string; len: number; docId: string } | null = null;
+
+/** Wis de coalesce-marker: de eerstvolgende `beginUndoable` pusht gegarandeerd een verse snapshot.
+ *  Verplicht ná undo/redo en bij een documentwissel (zie de marker-docstring). */
+export function resetUndoCoalescing(): void {
+  coalesce = null;
+}
+
+/**
  * Open een ongedaan-maakbare mutatie: leg de huidige staat op de undo-stack en wis de redo-stack.
  * ROEP DIT AAN NÁ eventuele guard-returns en VÓÓR de mutatie — zo vervuilt een no-op de undo-stack
  * niet (bewust patroon door de hele state-laag: acties pushen de snapshot pas als er echt iets
  * verandert). `createSnapshot` leest de projectdata key-gedreven uit het documentcontract.
+ *
+ * `coalesceKey` (optioneel) voegt ÉÉN undo-stap samen voor een reeks directe herhalingen van
+ * dezelfde bewerking. Nodig voor LIVE-committerende invoervelden: `DateTextInput` committeert per
+ * toetsaanslag (`handleChange` → `commitFrom`), en omdat `parseFlexibleDate` een jaar van 2 én 3
+ * cijfers accepteert levert het intypen van "01062030" drie geldige commits op ("2020-06-01",
+ * "0203-06-01", "2030-06-01"). Zonder coalescing zou dat drie undo-stappen met onzin-tussenwaarden
+ * opleveren — plus drie volledige deep clones en drie gewiste redo-stacks. Elke andere mutatie,
+ * undo, redo of documentwissel breekt de reeks af, dus alleen aaneengesloten herhalingen van
+ * dezelfde bewerking vallen samen.
  */
-export function beginUndoable(s: AppState): void {
+export function beginUndoable(s: AppState, opts?: { coalesceKey?: string }): void {
+  const key = opts?.coalesceKey;
+  if (key && coalesce && coalesce.key === key && coalesce.len === s.undoStack.length && coalesce.docId === s.activeDocumentId) {
+    // Voortzetting van dezelfde bewerking: de bestaande snapshot dekt de begintoestand al.
+    if (s.redoStack.length) s.redoStack = [];
+    return;
+  }
   s.undoStack.push(createSnapshot(s));
   s.redoStack = [];
+  coalesce = key ? { key, len: s.undoStack.length, docId: s.activeDocumentId } : null;
 }
 
 /**

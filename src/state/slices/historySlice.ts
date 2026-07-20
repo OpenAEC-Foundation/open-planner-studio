@@ -1,4 +1,5 @@
 import { createSnapshot, restoreSnapshot, type Snapshot } from '../snapshot';
+import { resetUndoCoalescing } from '../transaction';
 import type { AppSlice } from './types';
 
 export interface HistorySlice {
@@ -13,6 +14,9 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
   redoStack: [],
 
   undo: () => {
+    // Een undo breekt elke lopende coalesce-reeks af (pakket H): de eerstvolgende keyed mutatie
+    // moet gegarandeerd een verse snapshot pushen.
+    resetUndoCoalescing();
     set((s) => {
       if (s.undoStack.length === 0) return;
       s.redoStack.push(createSnapshot(s));
@@ -22,6 +26,7 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
   },
 
   redo: () => {
+    resetUndoCoalescing(); // idem als bij undo — zie daar.
     set((s) => {
       if (s.redoStack.length === 0) return;
       s.undoStack.push(createSnapshot(s));

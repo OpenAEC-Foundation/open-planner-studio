@@ -57,6 +57,7 @@ export const createSequenceSlice: AppSlice<SequenceSlice> = (set) => ({
 
   removeSequence: (id) =>
     set((s) => {
+      if (!s.sequences.some(seq => seq.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       beginUndoable(s);
       s.sequences = s.sequences.filter(seq => seq.id !== id);
       finishMutation(s, { stale: true }); // verwijderde relatie (A6): planning verouderd tot F5.

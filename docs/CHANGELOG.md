@@ -6,6 +6,63 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
+### Opgelost (kleine punten uit de 2.10-triage, 2026-07-20)
+- **Lag ging verloren in de backward-uurberekening bij een mijlpaal-voorganger.** In de
+  eind-startrelatie deden de grensvlaggen `predEndsBeginOfDay`/`succIsFinishMs` dubbel werk: ze
+  onderdrukten naast de finish-normalisatie óók de lag, terwijl de dagberekening de lag altijd
+  toepast en de vlaggen alleen over de dagstap laat beslissen. Gevolg was een verkeerde totale
+  speling en een verkeerd kritiek pad in uurplanning — dezelfde planning gaf `tf=1` en niet-kritiek
+  in uurmodus tegen `tf=0` en kritiek in dagmodus. Voorwaartse en achterwaartse berekening spraken
+  elkaar dus tegen. Vijf nieuwe cases in `cases-hours-relations.json` leggen het vast, inclusief een
+  negatieve lag (lead) en dagpariteits-ankers.
+- **Dag/uur-asymmetrie bij een startmijlpaal-voorganger.** De uurtak trok het dagbegin-anker van een
+  startmijlpaal via `prevWorkInstant` terug naar het vorige bandeinde, terwijl zo'n mijlpaal geen
+  echte finish-instant heeft en de dagtak het doeldatumlabel juist behoudt. Werk-equivalent, maar de
+  mijlpaal toonde in uurmodus een late finish op de vórige werkdag. De dagkant was nergens gedekt —
+  bestaande mijlpaalcases asserteerden wel vroege maar geen late datums — en heeft nu een
+  pariteitsanker.
+- **Voltooide taken in het grote voorbeeldproject leken uit te lopen.** De generator schreef
+  werkelijke datums uit handgeschreven werkdag-indices waarin `finishDay − startDay == dur`, terwijl
+  de index-vertaling inclusief telt; bovendien sloeg die vertaling alleen weekenden over en geen
+  feestdagen, waardoor een taak op Goede Vrijdag begon. Elke voltooide taak kreeg daardoor een dag
+  schijn-uitloop, die in de achterwaartse berekening terugstapelde tot `TF=-4` op de startmijlpaal.
+  Werkelijke datums komen nu uit de doorgerekende, kalenderbewuste planning en de statusdatum wordt
+  afgeleid uit het geplande einde van de kraanopbouw in plaats van uit een vaste dag-index. Het
+  voorbeeld heeft nu nul taken met negatieve speling. Twee cases in `cases-progress.json` leggen het
+  onderliggende solvergedrag vast (voltooid conform plan ⇒ speling 0; uitloop ⇒ negatieve speling).
+- **Het eigenschappenpaneel toonde een andere startdatum dan de Gantt-balk.** Vier oppervlakken
+  (balk, tooltip, tabel, taakdialoog) tonen de berekende datum; het paneel toonde als enige de rauwe
+  ankerdatum. Gemeten over alle 24 voorbeelden liep dat op tot 484 dagen verschil, en in het grote
+  voorbeeld week 246 van de 249 taken af — het paneel toonde voor bijna elke taak simpelweg de
+  projectstartdatum. Het veld toont nu de berekende datum en schrijft alleen bij een echte wijziging
+  naar het anker, met een verklarende hint in alle 14 talen.
+- **Loze undo-stappen bij verwijderacties.** `removeSequence`, `deleteTask`, `removeResource`,
+  `removeCalendar` en `deleteBaseline` pushten een undo-snapshot vóór hun filter, zodat een aanroep
+  met een onbekend id een lege stap achterliet.
+
+### Gewijzigd
+- **Projectgegevens zijn nu ongedaan te maken.** Naam, omschrijving, auteur, bedrijf, start- en
+  einddatum, statusdatum, voortgangsmodus, rekenopties en de projectkalender-keuze vielen tot nu toe
+  volledig buiten undo. Ze zitten nu in de momentopname en elke wijziging is een undo-stap, met een
+  gelijkheidscontrole ervoor zodat opslaan-zonder-wijziging geen lege stap oplevert. Dit repareerde
+  meteen twee bestaande halve-herstel-bugs: undo na het verwijderen van een kalender of het opslaan
+  van de kalenderbibliotheek zette de bibliotheek wél terug maar de projectkalender niet, waarna de
+  interne cache op de verkeerde kalender bleef staan. Een ingetypte statusdatum kost voortaan één
+  undo-stap in plaats van drie (het datumveld commit bij elke toetsaanslag).
+- **Het grote voorbeeldproject heeft een tweede bouwstroom gekregen.** Het toonde meerdere kritieke
+  paden alleen dankzij de hierboven beschreven datafout; met correcte data was er één pad over. Fase 7
+  is uitgebouwd tot een echte parallelle stroom: zodra het parkeerdek gestort is begint een eigen ploeg
+  aan de garage-afbouw, die via het buitenterrein zonder speling naar dezelfde opleverdatum loopt als
+  de torens. Bijvangst: de tijdelijke bouwweg werd voorheen opgebroken terwijl de torens nog omhoog
+  moesten — die volgorde klopt nu.
+- **De IFC-writer schrijft de afgeleide analyse-eigenschappen niet meer.** De pset `OPS_Analysis`
+  (interfererende speling, bijna-kritiek, float-pad-nummer) bevatte uitsluitend uitvoer van de
+  planningsberekening zonder gebruikersinvoer; alle 589 taken in de voorbeelden reproduceerden hun
+  opgeslagen waarden bit-exact na herberekening. Dat scheelt ongeveer 157 kB in de meegeleverde
+  voorbeelden — de web-selectie ging van 726 naar 567 kB — en ruwweg een vijfde van elke automatische
+  tussenopslag, die per open document elke 800 ms draait. Bestaande bestanden mét deze eigenschappen
+  laden ongewijzigd; crashherstel rekent voortaan door, net als elk ander laadpad.
+
 ### Toegevoegd
 - **Geavanceerde CPM (fase 2.9)** — de kritieke-pad-motor is compleet gemaakt ten opzichte van
   Primavera P6 en MS Project, in zowel dag- als uurplanning (ontwerp:

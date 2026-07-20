@@ -10,9 +10,26 @@
 // het terug via de echte `readIFC` (exact het `ExternalLinkDialog`-patroon: bron read-only
 // parsen, anker bevriezen) en roept dan `buildGrootSpec()` hieronder aan met het bevroren anker.
 //
-// Ontwerp kritiek-pad-variantie (§3.3): torens A en B zijn qua taken/duren VOLLEDIG symmetrisch
-// (ze eindigen exact tegelijk ⇒ 2 gelijkwaardige kritieke ketens, `criticalPaths.length > 1` via
-// `floatPaths.method:'FREE_FLOAT'`); toren C is identiek t/m de afbouw-fase, maar krijgt daar één
+// ── Ontwerp: meerdere kritieke paden (§3.3, herzien) ────────────────────────────────────────
+// De FREE_FLOAT-peel noemt een gepeelde keten pas kritiek als ÉLKE taak erin kritiek is — óók de
+// gedeelde voorgangers waar de driving-trace doorheen loopt. Voltooide taken zijn P6-conform
+// nooit kritiek (`scheduleAnalysis.ts`, `completed ⇒ isCritical false`). Torens A en B zijn wel
+// exact getide, maar hun beide ketens tracen terug via `kraan_op` het VOLTOOIDE voorstuk in, dus
+// geen van beide levert een volledig kritieke peel op. Dat is geen fout in de solver: met correcte
+// voortgangsdata (fase 1+2 conform plan) is dat de juiste uitkomst.
+//
+// Een tweede kritiek pad vergt daarom een keten die de driving-trace NIET in het voltooide
+// voorstuk voert — dus een keten met een eigen wortel ná de statusdatum. Die wortel bestaat zodra
+// alle voorgangers van een taak vóór de statusdatum klaar waren: de taak wordt dan door de
+// data-date-vloer bepaald in plaats van door een relatie, en géén inkomende relatie is driving.
+// Fase 7 heeft precies zo'n wortel: `parkeer_overkap` hangt alleen aan het (voltooide) parkeerdek
+// `f7`. Die fase is daarom uitgebouwd tot een volwaardige, van de torens ONAFHANKELIJKE tweede
+// bouwstroom — garage-afbouw gevolgd door de terreininrichting en de administratieve afronding —
+// die exact op de laatste toren-oplevering uitkomt en dus 0 speling heeft. Resultaat:
+// `criticalPaths[0]` = de (torens-)kritieke set, `criticalPaths[1]` = de garage/terrein-keten.
+//
+// Torens A en B zijn qua taken/duren VOLLEDIG symmetrisch (ze eindigen exact tegelijk, allebei
+// tf 0 en kritiek); toren C is identiek t/m de afbouw-fase, maar krijgt daar één
 // kortere taak (`Vloerafwerking — Toren C`, 3 werkdagen korter) — dat plaatst toren C's hele keten
 // op precies 3 werkdagen positieve speling, binnen de `nearCriticalThreshold` (3), dus zichtbaar
 // near-critical i.p.v. kritiek. De torenkraan (EQUIPMENT, maxUnits 1 t/m een `availabilitySteps`-
@@ -363,9 +380,33 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
     { pred: 'buitenschil', succ: 'signage' }, { pred: 'signage', succ: 'eindschoon_gem' },
   );
 
-  // ── Fase 7 — Terrein & parkeergarage-koppeling (~15 taken, externe koppeling + SF) ────────
+  // ── Fase 7 — Parkeergarage & terrein (~26 taken, externe koppeling + SF) ─────────────────
+  // TWEEDE KRITIEKE BOUWSTROOM (zie de §"meerdere kritieke paden"-toelichting bovenaan dit
+  // bestand). Zodra het parkeerdek gestort is (`f7`, voltooid vóór de statusdatum) is de garage
+  // toegankelijk en begint een EIGEN ploeg aan de garage-afbouw — volledig los van de torens,
+  // die hun eigen kraan-/ruwbouw-/afbouwketen volgen. Die stroom loopt strak door tot de
+  // eindoplevering: hij heeft géén speling meer en is dus, náást de torens, kritiek.
+  //
+  // Het buitenterrein (ontsluiting, bestrating, groen) hangt aan het STAARTeind van diezelfde
+  // stroom. Dat is ook chronologisch juister dan de oude opzet: de tijdelijke bouwweg werd daar
+  // al in juni opgebroken terwijl de torens nog omhoog moesten — nu gebeurt dat pas nadat het
+  // steigerwerk weg is.
   tasks.push(
-    { key: 'P7', name: '7. Terrein & parkeergarage-koppeling', taskType: 'LOGISTIC', codes: { Toren: 'ALG', Discipline: 'CIV' } },
+    { key: 'P7', name: '7. Parkeergarage & terrein', taskType: 'LOGISTIC', codes: { Toren: 'ALG', Discipline: 'CIV' } },
+    // Garage-afbouw: een aaneengesloten ambachtsketen onder het (al gestorte) parkeerdek.
+    { key: 'gar_wanden', name: 'Binnenwanden, bergingen & trappenhuizen parkeergarage', parent: 'P7', dur: 30, taskType: 'CONSTRUCTION', codes: { Toren: 'ALG', Discipline: 'CIV' } },
+    { key: 'gar_leiding', name: 'Leidingwerk & kabelgoten parkeergarage', parent: 'P7', dur: 24, taskType: 'INSTALLATION', codes: { Toren: 'ALG', Discipline: 'INST' } },
+    { key: 'gar_vent', name: 'Ventilatie- & rookafvoerinstallatie parkeergarage', parent: 'P7', dur: 22, taskType: 'INSTALLATION', codes: { Toren: 'ALG', Discipline: 'INST' } },
+    { key: 'gar_sprink', name: 'Sprinkler- & droge blusleiding parkeergarage', parent: 'P7', dur: 16, taskType: 'INSTALLATION', codes: { Toren: 'ALG', Discipline: 'INST' } },
+    { key: 'gar_elek', name: 'Elektra, verlichting & noodverlichting parkeergarage', parent: 'P7', dur: 16, taskType: 'INSTALLATION', codes: { Toren: 'ALG', Discipline: 'INST' } },
+    { key: 'gar_brand', name: 'Brandmeld- & ontruimingsinstallatie parkeergarage', parent: 'P7', dur: 10, taskType: 'INSTALLATION', codes: { Toren: 'ALG', Discipline: 'INST' } },
+    { key: 'gar_ev', name: 'Laadinfrastructuur elektrische auto’s', parent: 'P7', dur: 10, taskType: 'INSTALLATION', codes: { Toren: 'ALG', Discipline: 'INST' } },
+    { key: 'gar_coating', name: 'Vloercoating & belijning parkeergarage', parent: 'P7', dur: 14, taskType: 'CONSTRUCTION', codes: { Toren: 'ALG', Discipline: 'AFB' } },
+    { key: 'gar_toegang', name: 'Toegangscontrole, slagbomen & parkeerbeheersysteem', parent: 'P7', dur: 10, taskType: 'INSTALLATION', codes: { Toren: 'ALG', Discipline: 'INST' } },
+    { key: 'gar_inregel', name: 'Inregelen & testen installaties parkeergarage', parent: 'P7', dur: 12, taskType: 'INSTALLATION', codes: { Toren: 'ALG', Discipline: 'INST' } },
+    { key: 'ms_garage', name: 'Veiligheidskeuring parkeergarage', parent: 'P7', milestone: true, milestoneKind: 'FINISH', mandatory: true,
+      codes: { Toren: 'ALG', Discipline: 'INST' },
+      description: 'Afsluiting van de garage-afbouwstroom — de tweede, van de torens onafhankelijke kritieke keten in dit project.' },
     { key: 'ontsl1', name: 'Nieuwe hoofdontsluiting aanleggen', parent: 'P7', dur: 4, taskType: 'CONSTRUCTION', codes: { Toren: 'ALG', Discipline: 'CIV' } },
     { key: 'ontsl2', name: 'Nieuwe hoofdontsluiting in gebruik genomen', parent: 'P7', milestone: true, milestoneKind: 'START', codes: { Toren: 'ALG', Discipline: 'CIV' } },
     // START_FINISH: het opbreken van de tijdelijke bouwweg mag pas EINDIGEN nadat de nieuwe
@@ -399,7 +440,14 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
       codes: { Toren: 'ALG', Discipline: 'CIV' } },
   );
   links.push(
-    { pred: 'parkeer_overkap', succ: 'ontsl1' }, { pred: 'ontsl1', succ: 'ontsl2' },
+    // Garage-afbouwketen: strak sequentieel vanaf de (voltooide) parkeerdek-overkapping.
+    { pred: 'parkeer_overkap', succ: 'gar_wanden' }, { pred: 'gar_wanden', succ: 'gar_leiding' },
+    { pred: 'gar_leiding', succ: 'gar_vent' }, { pred: 'gar_vent', succ: 'gar_sprink' },
+    { pred: 'gar_sprink', succ: 'gar_elek' }, { pred: 'gar_elek', succ: 'gar_brand' },
+    { pred: 'gar_brand', succ: 'gar_ev' }, { pred: 'gar_ev', succ: 'gar_coating' },
+    { pred: 'gar_coating', succ: 'gar_toegang' }, { pred: 'gar_toegang', succ: 'gar_inregel' },
+    { pred: 'gar_inregel', succ: 'ms_garage' },
+    { pred: 'ms_garage', succ: 'ontsl1' }, { pred: 'ontsl1', succ: 'ontsl2' },
     { pred: 'ontsl2', succ: 'bouwweg_op', type: 'START_FINISH' },
     { pred: 'ontsl2', succ: 'riool_terrein' }, { pred: 'riool_terrein', succ: 'bestrating' },
     { pred: 'bestrating', succ: 'fietsenst_buiten' }, { pred: 'bestrating', succ: 'groen_terrein' },
@@ -419,7 +467,10 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
   // solver ze als 2 onafhankelijke, niet-samenvloeiende kritieke ketens kunnen zien
   // (`CPMSolver.ts` se `floatPaths`-peeling voegt getide voorgangers van een GEDEELDE opvolger
   // samen tot één keten — twee torens die naar hetzelfde slotmijlpaal convergeren zouden dus altijd
-  // als 1 kritiek pad tellen, nooit als 2, ongeacht hoe strak ze getided zijn).
+  // als 1 kritiek pad tellen, nooit als 2, ongeacht hoe strak ze getided zijn). Dat blijft een
+  // noodzakelijke voorwaarde; VOLDOENDE is het niet — zie de toelichting bovenaan dit bestand:
+  // beide torenketens tracen alsnog het voltooide voorstuk in, dus het tweede kritieke pad komt
+  // van de garage/terrein-stroom in fase 7.
   tasks.push({ key: 'P8', name: '8. Oplevering', taskType: 'ATTENDANCE', codes: { Toren: 'ALG', Discipline: 'AFB' } });
   for (const tw of TORENS) {
     const opl = `opl_${tw}`;
@@ -458,35 +509,36 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
   // mijlpaal gewoon meedoen zolang hij vóór de statusdatum ligt) en is `kraan_op`/`statusDay`
   // dienovereenkomstig doorgeschoven zodat de volgorde kloppend blijft (geen taak start vóór zijn
   // voorganger volgens de actuals al klaar is).
-  const withProgress = (t: TaskSpec, startD: number, finishD: number): TaskSpec => ({
-    ...t, completion: 1, actualStartDay: startD, actualFinishDay: finishD,
-  });
-  const progressPatch: Record<string, [number, number]> = {
-    ms_start: [0, 0],
-    v0: [0, 3], v1: [3, 13], v2: [8, 11], v3: [13, 17], v4: [17, 19], v5: [19, 23], v6: [23, 28],
-    ms_bouwrijp: [28, 28],
-    f0: [28, 30], f1: [30, 36], f2: [36, 41], f3: [41, 45],
-    fA_grond: [45, 48], fB_grond: [45, 48], fC_grond: [45, 48],
-    // Vlechtwerk/stort per toren (uur-kalender, §hierboven) — SYMMETRISCH over A/B/C (zelfde
-    // dagwaarden voor alle drie) zodat de bewust getide kritieke paden (§3.3-ontwerp) intact
-    // blijven; de asymmetrie die toren C near-critical maakt komt pas uit de latere
-    // rebaseline-mutatie (stucwerk-verlenging op A+B), niet uit deze voortgangspatch.
-    fA_vlkv: [48, 49], fB_vlkv: [48, 49], fC_vlkv: [48, 49],
-    fA_stkv: [49, 50], fB_stkv: [49, 50], fC_stkv: [49, 50],
-    fA_vlkw: [50, 51], fB_vlkw: [50, 51], fC_vlkw: [50, 51],
-    fA_stkw: [51, 52], fB_stkw: [51, 52], fC_stkw: [51, 52],
-    f4: [52, 55], f5: [55, 58], f7: [58, 63], f6: [63, 65],
-    ms_kelder: [65, 65],
-    kraan_op: [65, 68],
-  };
+  // Fase 2.10 (pakket F, datafix 2): de werkelijke datums worden NIET meer uit handmatige
+  // werkdag-indices afgeleid. Die tabel had twee samenwerkende fouten: (1) off-by-one — per regel
+  // gold `eindDag − startDag == dur`, terwijl `offset()` in gen-core INCLUSIEF mapt
+  // (`addBusinessDays(anchor, n + 1)`), dus elke voltooide taak kreeg een actual-span van dur+1
+  // werkdagen; (2) feestdag-blind — `addBusinessDays` slaat alléén weekenden over, terwijl de
+  // projectkalender NL-feestdagen + bouwvak kent (Nutsaansluitingen landde zo op Goede Vrijdag).
+  // Samen leverde dat ~1 werkdag schijn-UITLOOP per voltooide taak op; de solver pint een
+  // voltooide taak in de forward pass op zijn actuals maar leidt LS/LF af uit het netwerk met de
+  // GEPLANDE duren (`CPMSolver.ts`), dus die uitloop stapelde P6-conform terug tot TF = −4 op
+  // `ms_start` en −5 op de fase-1-keten — correct rekenwerk, foute brondata.
+  // `actualsFromPlan` neemt in plaats daarvan de berekende, kalenderbewuste planning over ⇒
+  // 0 uitloop, 0 negatieve speling: "voltooid conform plan" ís de bedoelde verhaallijn.
+  //
   // BEWUST alleen SYMMETRISCH per-toren (nooit een asymmetrische toren-specifieke waarde): een
-  // voortgangs-override met `actualStartDay`/`completion` triggert data-date-gedreven herplanning
-  // (§CPMSolver "remaining work"), wat de bewust symmetrische torens A/B (§3.3-ontwerp: identieke
-  // ketens ⇒ getide kritieke paden) zou verstoren als hij ASYMMETRISCH op één toren stond — vandaar
-  // hierboven overal dezelfde dagwaarden voor A/B/C.
-  for (const [key, [s, f]] of Object.entries(progressPatch)) {
+  // voortgangs-override triggert data-date-gedreven herplanning (§CPMSolver "remaining work"),
+  // wat de bewust symmetrische torens A/B (§3.3-ontwerp: identieke ketens ⇒ getide kritieke paden)
+  // zou verstoren als hij ASYMMETRISCH op één toren stond — vandaar A/B/C alle drie of geen.
+  const PROGRESS_KEYS = [
+    'ms_start',
+    'v0', 'v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'ms_bouwrijp',
+    'f0', 'f1', 'f2', 'f3',
+    'fA_grond', 'fB_grond', 'fC_grond',
+    // Vlechtwerk/stort per toren (uur-kalender, §hierboven) — symmetrisch over A/B/C.
+    'fA_vlkv', 'fB_vlkv', 'fC_vlkv', 'fA_stkv', 'fB_stkv', 'fC_stkv',
+    'fA_vlkw', 'fB_vlkw', 'fC_vlkw', 'fA_stkw', 'fB_stkw', 'fC_stkw',
+    'f4', 'f5', 'f7', 'f6', 'ms_kelder', 'kraan_op',
+  ];
+  for (const key of PROGRESS_KEYS) {
     const idx = tasks.findIndex(t => t.key === key);
-    if (idx >= 0) tasks[idx] = withProgress(tasks[idx], s, f);
+    if (idx >= 0) tasks[idx] = { ...tasks[idx], completion: 1, actualsFromPlan: true };
   }
 
   // ── Baselines + rebaseline (architect-besluit 3): Contract → meerwerk → Herbaseline ───────
@@ -495,7 +547,8 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
   // tweede runCPM() vóór de Herbaseline-snapshot. Belangrijk voor het kritiek-pad-ontwerp (§3.3):
   // de mutatie is wat er ECHT in het geëxporteerde (actieve, post-mutatie) schema terechtkomt —
   // door A ÉN B met dezelfde 3 werkdagen te verlengen blijven ze na de mutatie getide kritiek
-  // (`criticalPaths.length > 1`), terwijl toren C (ongewijzigd) daardoor 3 werkdagen positieve
+  // (het tweede kritieke PAD komt niet hiervandaan maar uit de garage/terrein-stroom, zie de
+  // toelichting bovenaan dit bestand), terwijl toren C (ongewijzigd) daardoor 3 werkdagen positieve
   // speling krijgt — precies binnen `nearCriticalThreshold` (near-critical, niet kritiek).
   // activeBaselineName='Contract' houdt de variantie direct zichtbaar in de Gantt/VarianceReport.
   const baselines: NonNullable<ProjectSpec['baselines']> = [
@@ -570,24 +623,18 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
     // `criticalPaths.length > 1` op zodra torens A/B exact tied zijn (§3.3-ontwerp hierboven).
     schedulingOptions: {
       nearCriticalThreshold: 3,
-      floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 5 },
+      floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 8 },
     },
     tasks,
     links,
     baselines,
     activeBaselineName: 'Contract',
-    // Fase 2.10 (P1-datafix): een korte, realistische buffer ná `kraan_op`s actualFinishDay (68,
-    // zie progressPatch hierboven) — "torenkraan net op". Er blijft een KLEIN or (~1 t/m 5
-    // werkdagen) negatieve float zichtbaar op de al-lang-voltooide fase-1-keten (Start
-    // project…Sonderingen…Wegafzetting…) — dit is GEEN nieuw datafix-artefact: het is een
-    // reeds langer bestaande, orthogonale eigenschap van de harde-pin-taak "Wegafzetting"
-    // (constraint.hard MSO) in combinatie met een statusdatum — al aanwezig vóór deze fix (ook
-    // in de ONgewijzigde showcase gaf die taak al totalFloat=-1) en volledig losstaand van de P1-
-    // detector-fix en de mijlpaal-actualisatie hierboven (met de statusdatum helemaal WEG
-    // verdwijnt het volledig — TF=0 overal, headless geverifieerd). Buiten scope van deze golf
-    // (raakt de EF-berekening van een voltooide harde-pin-taak, niet de valse-schending-detector
-    // of de mijlpaal-uitsluiting die hier gefixed worden); expliciet gemeld i.p.v. stilzwijgend
-    // "opgelost" geclaimd.
-    statusDay: 70,
+    // Statusdatum = "de torenkraan staat er net": het GEPLANDE einde van `kraan_op` — de laatste
+    // schakel van de voortgangsketen hierboven. Bewust AFGELEID i.p.v. hardgecodeerd: een vaste
+    // `statusDay` is anker-afhankelijk (`offset()` telt alleen weekenden weg, de projectkalender
+    // kent ook feestdagen/bouwvak) en zou bij een ander generatiejaar naast de kraan-oplevering
+    // vallen — te vroeg ⇒ de generator weigert de actuals, te laat ⇒ opnieuw schijn-uitloop.
+    // Nu valt de statusdatum per constructie exact samen met `kraan_op`s werkelijke einde.
+    statusFromPlanFinish: 'kraan_op',
   };
 }

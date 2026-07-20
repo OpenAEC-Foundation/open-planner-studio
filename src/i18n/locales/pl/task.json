@@ -63,6 +63,7 @@
     "mandatory": "Obowiązkowy (umowny)",
     "time": "Czas",
     "start": "Początek",
+    "scheduleStartHint": "Zaplanowana data zakotwiczenia — obliczony początek wynika z logiki harmonogramowania.",
     "duration": "Czas trwania (dni)",
     "constraint": "Ograniczenie",
     "constraintDate": "Data ograniczenia",

@@ -63,6 +63,7 @@
     "mandatory": "Mandatory (contractual)",
     "time": "Time",
     "start": "Start",
+    "scheduleStartHint": "Planned anchor date — the calculated start follows from the scheduling logic.",
     "duration": "Duration (days)",
     "constraint": "Constraint",
     "constraintDate": "Constraint date",

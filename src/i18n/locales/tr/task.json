@@ -63,6 +63,7 @@
     "mandatory": "Zorunlu (sözleşmesel)",
     "time": "Zaman",
     "start": "Başlangıç",
+    "scheduleStartHint": "Planlanan çapa tarihi — hesaplanan başlangıç, planlama mantığından kaynaklanır.",
     "duration": "Süre (gün)",
     "constraint": "Kısıtlama",
     "constraintDate": "Kısıtlama tarihi",

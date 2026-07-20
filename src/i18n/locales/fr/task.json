@@ -63,6 +63,7 @@
     "mandatory": "Obligatoire (contractuel)",
     "time": "Temps",
     "start": "Début",
+    "scheduleStartHint": "Date d'ancrage planifiée — le début calculé résulte de la logique de planification.",
     "duration": "Durée (jours)",
     "constraint": "Contrainte",
     "constraintDate": "Date de contrainte",

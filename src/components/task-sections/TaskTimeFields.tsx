@@ -9,8 +9,10 @@ import { formatDuration } from '@/utils/durationFormat';
 import { Field, Input, HourDurationField } from './shared';
 
 /**
- * Start + duur (dag/uur-boxen) — sectie 4 uit `TaskPropertiesPanel` (fase 2.10, item 2), exact
- * de bestaande paneel-JSX, ongewijzigd gedrag.
+ * Start + duur (dag/uur-boxen) — sectie 4 uit `TaskPropertiesPanel` (fase 2.10, item 2), oorspronkelijk
+ * exact de bestaande paneel-JSX bij extractie. Pakket G (bugfix, zie scheduleSlice.ts:96-100) wijzigde
+ * het Start-veld nadien: het toonde vroeger de rauwe `scheduleStart`-anker terwijl elk ander oppervlak
+ * (Gantt/tabel/tooltip/TaskDialog) `earlyStart || scheduleStart` toont — nu getrokken gelijk.
  *
  * LET OP (KRITIEK spec-risico, item 2-voorstel): dit is een PANEL-ONLY sectie. `TaskDialog` deelt
  * deze component NIET — de dialoog heeft een eigen, dialoogspecifieke duur-UI (drie gesyncte
@@ -36,6 +38,14 @@ export function TaskTimeFields({ task, onChange }: {
   const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
   const hourTask = enableHourPlanning && isHourCalendar(cal) && !task.isMilestone;
 
+  // Getoonde start = berekende start, consistent met Gantt/tabel/tooltip/TaskDialog
+  // (`earlyStart || scheduleStart`). `scheduleStart` blijft de GEPLANDE anker — zie
+  // scheduleSlice.ts:96-100 ("BEWUST GEEN scheduleStart-ANKER-drift"). Commit schrijft daarom alleen
+  // naar scheduleStart als de gebruiker de waarde daadwerkelijk wijzigde t.o.v. wat getoond werd
+  // (zelfde patroon als TaskDialog.tsx:145-146) — anders zou elke render/commit-cyclus het anker naar
+  // de berekende datum laten meeschuiven en precies de drift veroorzaken die dat commentaar beschrijft.
+  const shownStart = task.time.earlyStart || task.time.scheduleStart;
+
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
@@ -46,8 +56,9 @@ export function TaskTimeFields({ task, onChange }: {
           <DateTextInput
             className="input !text-xs !px-2.5 !py-1.5"
             ariaLabel={t('properties.start')}
-            value={task.time.scheduleStart}
-            onCommit={v => updateTime('scheduleStart', v)}
+            title={t('properties.scheduleStartHint')}
+            value={shownStart}
+            onCommit={v => { if (v !== shownStart) updateTime('scheduleStart', v); }}
           />
         </Field>
         {/* Label modus-bewust (FIX golf, §6.4): een uur-taak toont uur-waarden, dus het label moet

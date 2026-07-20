@@ -63,6 +63,7 @@
     "mandatory": "Obligatorio (contractual)",
     "time": "Tiempo",
     "start": "Inicio",
+    "scheduleStartHint": "Fecha ancla planificada — el inicio calculado resulta de la lógica de planificación.",
     "duration": "Duración (días)",
     "constraint": "Restricción",
     "constraintDate": "Fecha de restricción",

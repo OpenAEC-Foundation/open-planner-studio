@@ -223,10 +223,11 @@ export function writeIFC(input: WriteIFCInput): string {
   // Structuurdefinities (activity codes / custom fields) + waarden per taak + projectsettings
   writeStructure(ctx, project, tasks, activityCodeTypes, customFieldDefs, ownerHistId);
 
-  // De acht per-taak-psets (Constraints/ExternalLink/Hammock/Milestone/Leveling/TaskNotes/
-  // TaskAppearance/Analysis) via de gedeelde registry (ifcPsets.PER_TASK_PSETS). De volgorde in de
+  // De per-taak-psets (Constraints/ExternalLink/Hammock/Milestone/Leveling/TaskNotes/
+  // TaskAppearance) via de gedeelde registry (ifcPsets.PER_TASK_PSETS). De volgorde in de
   // registry spiegelt de vroegere aanroepvolgorde ⇒ byte-identieke STEP-uitvoer. Reader-kant zit in
-  // dezelfde descriptors (apply), gedispatcht in extractStructure.
+  // dezelfde descriptors (apply), gedispatcht in extractStructure. OPS_Analysis wordt bewust NIET
+  // meer geschreven (afgeleide runCPM-uitvoer) — zie WRITTEN_PER_TASK_PSETS hieronder.
   emitPerTaskPsets(ctx, tasks, ownerHistId);
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
@@ -399,16 +400,29 @@ function writeStructure(
 }
 
 /**
- * Fase 3 (P11) — schrijf de acht per-taak-psets via de gedeelde registry (ifcPsets.PER_TASK_PSETS).
+ * `OPS_Analysis` (interferingFloat / isNearCritical / floatPath) wordt BEWUST NIET MEER GESCHREVEN.
+ * Die drie velden zijn pure uitvoer van `runCPM` (scheduleAnalysis) — geen gebruikersinvoer — en
+ * werden bit-exact gereproduceerd door elk laadpad (alle laadpaden gaan via `applyLoadedProject`
+ * met `recompute: true` ⇒ `runCPM()`; recovery-herstel rekent zelf door). Ze kostten ~157 kB over
+ * de publieke voorbeeldset en ~21% van elke auto-save-schrijfactie (elke 800 ms per document).
+ * De LEESkant blijft intact: bestaande bestanden mét `OPS_Analysis` laden gewoon (de descriptor
+ * staat nog in `PER_TASK_PSET_BY_NAME`, waar ifcReader op dispatcht) — `runCPM` overschrijft de
+ * gelezen waarden daarna toch.
+ */
+const WRITTEN_PER_TASK_PSETS = PER_TASK_PSETS.filter(d => d.name !== PSET.Analysis);
+
+/**
+ * Fase 3 (P11) — schrijf de per-taak-psets via de gedeelde registry (ifcPsets.PER_TASK_PSETS),
+ * minus de afgeleide `OPS_Analysis` (zie hierboven).
  * Elk descriptor levert de property-lijst (`write`); een lege/`null`-lijst = golden rule ⇒ niets
  * geschreven (bit-gelijk met bestaande bestanden). De buitenlus over de registry-VOLGORDE en de
  * binnenlus over `tasks` reproduceren exact de vroegere aanroepvolgorde van writeConstraints/
  * writeExternalLinks/writeHammockMeta/writeMilestoneMeta/writeLevelingMeta/writeTaskNotes/
- * writeTaskAppearance/writeAnalysisMeta ⇒ byte-identieke STEP-uitvoer. De read-kant leeft in
+ * writeTaskAppearance ⇒ byte-identieke STEP-uitvoer. De read-kant leeft in
  * dezelfde descriptors (`apply`), gedispatcht in ifcReader.extractStructure.
  */
 function emitPerTaskPsets(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
-  for (const desc of PER_TASK_PSETS) {
+  for (const desc of WRITTEN_PER_TASK_PSETS) {
     for (const task of tasks) {
       const specs = desc.write(task);
       if (!specs || specs.length === 0) continue;
