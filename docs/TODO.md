@@ -318,8 +318,8 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > lag-kalender-optie (P6's "Calendar for scheduling Relationship Lag") is fase 2.9; sub-dag
 > resource-nivellering (per-uur/per-shift capaciteits-emmers) blijft dag-emmer-gebaseerd;
 > tijdzone/DST-bewuste scheduling; per-rij Gantt-arcering op afwijkende taak-kalenders.
-> **Status: bouw af (golven 0-6), visuele QA en fix-golf lopen nog; niets naar main tot af en
-> getest.**
+> **Status: gemerged op main (golven 0-6, sinds 2026-07-06); visuele QA en fix-golf lopen nog.
+> CHANGELOG-note staat onder `Ongepubliceerd` in afwachting van het versionslag.**
 
 #### 2.9 Geavanceerde CPM
 
@@ -346,7 +346,8 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > solve (vergt store-singleton-refactor); Expected-Finish-constraint; independent float; de
 > spec-conforme `IfcRelAssociatesConstraint`-graf; sub-shift-nivellering van hammocks; native
 > P6/MSPDI LOE/external round-trip waar de veldcodes UNVERIFIED zijn.
-> **Status: bouw af (golven 0-8), QA loopt; niets naar main tot af en getest.**
+> **Status: gemerged op main (fase-2.9-branch, merge f79ae82 — 9 golven + QA + fix-golven);
+> CHANGELOG-note staat onder `Ongepubliceerd` in afwachting van het versionslag.**
 
 #### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
 
