@@ -689,7 +689,14 @@ export class GanttRenderer {
     const geo = this.barGeometry(task);
     const { x1, x2 } = geo;
 
-    if (x2 < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
+    // De speling-band loopt ná de balk door tot x2 + floatWidth (zie de float-indicator verderop).
+    // Die breedte MOET in de zichtbaarheidstest mee: anders verdwijnt een band die nog ruim in
+    // beeld staat zodra alleen de BALK links buiten beeld schuift — precies het gerapporteerde
+    // gedrag. Eén bron voor de breedte, zodat test en tekening niet uit elkaar kunnen lopen.
+    const floatWidth = task.time.totalFloat > 0 && !task.time.isCritical
+      ? task.time.totalFloat * this.opts.view.zoom
+      : 0;
+    if (x2 + floatWidth < this.opts.taskTableWidth || x1 > this.opts.canvasWidth) return;
 
     const width = Math.max(x2 - x1, 4);
     const color = this.barColor(task, overrideColor);
@@ -770,9 +777,9 @@ export class GanttRenderer {
       }
     }
 
-    // Float indicator (ná de exclusieve balk-finish x2)
-    if (task.time.totalFloat > 0 && !task.time.isCritical) {
-      const floatWidth = task.time.totalFloat * this.opts.view.zoom;
+    // Float indicator (ná de exclusieve balk-finish x2) — breedte is hierboven al bepaald en
+    // wordt daar ook in de zichtbaarheidstest gebruikt.
+    if (floatWidth > 0) {
       ctx.fillStyle = this.colors.float + 'E6'; // ~90% opacity — float band needs ≥3:1 vs light bg
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
     }

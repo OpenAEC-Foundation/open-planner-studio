@@ -6,4 +6,5 @@
 .move-assignment-check.mjs
 .move-task-check.mjs
 .document-contract-check.mjs
+.gantt-float-cull.mjs
 .ifc-roundtrip-check.mjs

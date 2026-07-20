@@ -123,6 +123,20 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --outfile="$DCCHECK" >/dev/null 2>&1
   node "$DCCHECK" || STATUS=1
 
+  # Gantt-cull-regressie: de speling-band mag niet verdwijnen zolang hij zichtbaar is. De cull in
+  # drawTaskBar keek alleen naar de BALK-extent, terwijl de band ná de balk doorloopt — een band die
+  # nog honderden pixels in beeld stond verdween daardoor mee. Draait de echte renderer met een
+  # opnemende 2D-context-stub (aantoonbaar rood tegen de oude cull).
+  GFCHECK="$DIR/.gantt-float-cull.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-gantt-float-cull.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$GFCHECK" >/dev/null 2>&1
+  node "$GFCHECK" || STATUS=1
+
   # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
   #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een
   #      eigen tsconfig die alleen check-ifc-roundtrip.ts typecheckt (`satisfies Required<...>`); een
