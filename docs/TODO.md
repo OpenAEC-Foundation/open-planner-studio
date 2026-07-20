@@ -82,7 +82,7 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       is vastgelegd in case `move-07` en de epoch wordt in `previewMoveProject` afgevangen zodat hij
       nooit als echte einddatum op het scherm komt — maar de bron hoort gerepareerd: een project
       zonder taken heeft geen einddatum, geen datum uit 1970.
-- [ ] **`project.endDate` overleeft opslaan + herladen niet.** `ifcWriter` schrijft
+- [x] **`project.endDate` overleeft opslaan + herladen niet.** *(gefixt 2026-07-20)* `ifcWriter` schrijft
       `planEnd = max(scheduleFinish)` en gebruikt `project.endDate` alleen als fallback bij nul
       taken; de reader leest dat terug ín `project.endDate`. Elke ingevulde contractuele einddatum
       gaat dus verloren bij een round-trip — los van Move Project, dat het veld correct meeschuift.
@@ -105,6 +105,14 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       vallen samen, dus het verlies is per constructie onzichtbaar en de check passeert zonder iets
       te bewijzen. De fixture moet contractuele datums krijgen die expliciet afwijken van de
       taak-span, anders bewijst ook de fix niets.
+      **Uitgevoerd 2026-07-20** volgens bovenstaande aanpak. Beide valkuilen afgedekt: de lege
+      einddatum wordt als NominalValue `$` geschreven ("aanwezig maar leeg") zodat de lezer hem van
+      een afwezig veld kan onderscheiden, en de round-trip-fixture heeft nu contractuele datums los
+      van de taak-span. De gap is uit KNOWN_GAPS naar de echte vergelijking verhuisd en check 151
+      legt het juiste gedrag vast. Rood/groen bewezen; live in de devbuild bevestigd.
+      Restpunt: `public/examples/*.ifc` zijn niet geregenereerd en bevatten de nieuwe
+      pset-properties dus nog niet — onschadelijk (ze lezen via de WORKPLAN-terugval), maar bij een
+      volgende `gen:examples`-run komen ze er vanzelf bij.
 - [ ] **`<html lang>` volgt de taalkeuze niet** (gevonden tijdens de visuele verificatie van
       2026-07-20). `src/i18n/config.ts:135` zet wél `document.documentElement.dir` op basis van
       `RTL_LOCALES`, maar `lang` blijft op de hardcoded `lang="nl"` uit `index.html` staan — bij alle

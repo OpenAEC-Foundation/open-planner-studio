@@ -1,5 +1,21 @@
 # HANDOFF — 2026-07-20: draaiboek voor de volgende sessie
 
+> **AFGEWERKT op 2026-07-20 — dit draaiboek is verbruikt; alleen nog van historisch belang.**
+>
+> - **STAP 1 (poorten)** — alle drie groen op de gecombineerde stand: tsc 0, suite 429/429 (exit 0,
+>   geen `XX`-regels), `verify:examples` 0. Pakket B, dat nog nooit gedraaid had, bleek goed.
+> - **STAP 2 (committen)** — gecommit; daarna bleek `main` 8 commits vooruit (release v2026.7.11 +
+>   benchmark-tool). Gemerged met 14 locale-conflicten (beide kanten voegden een sleutelblok toe op
+>   dezelfde plek), poorten opnieuw groen, gepusht naar `main`.
+> - **STAP 3 (visuele verificatie)** — de hele nakijklijst afgelopen in de draaiende devbuild.
+>   De kalenderwaarschuwing blijkt géén grijze voetnoot maar een echte callout (rode tint,
+>   waarschuwingsicoon, eigen blok); RTL-pijl `←` is in een echte RTL-render juist bevonden
+>   (oud staat rechts, nieuw links, pijl wijst mee). Gevonden restpunt: enkelvoud/meervoud klopt
+>   niet bij count=1 ("1 deadlines") — apart weggezet.
+> - **STAP 4 (`project.endDate`-round-trip)** — gefixt via het `OPS_ProjectSettings`-pset, inclusief
+>   het lege-einddatum-geval; zie `docs/TODO.md`.
+> - **STAP 5 (restwerk)** — nog niet opgepakt; staat onverkort in `docs/TODO.md`.
+
 Dit is geen statusrapport maar een **uitvoerbaar draaiboek**. Werk het van boven naar beneden af.
 Je hebt geen context uit de vorige sessie nodig; alles wat je moet weten staat hieronder.
 
