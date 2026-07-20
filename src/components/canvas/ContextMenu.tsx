@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Task } from '@/types/task';
@@ -87,12 +87,24 @@ export function ContextMenu({
   // "sluit alleen het submenu"-stap, consistent met de rest van de app (zie shortcutRegistry).
   useClickOutside(menuRef, onClose, true, { escape: true, contextmenu: true, defer: true });
 
-  // Adjust position to stay within viewport
-  const adjustedX = Math.min(x, window.innerWidth - 200);
-  const adjustedY = Math.min(y, window.innerHeight - 300);
+  // Positie binnen het venster houden. Het menu's hoogte varieert sterk met de context (rij-menu
+  // met indent/outdent/samenvatting-items kan 400+ px worden) — een vaste aanname (bv. "-300")
+  // klopt dan niet meer en laat het menu (vooral bij een klik onderin lange taaklijsten, zoals een
+  // afsluitende mijlpaal) voorbij de vensterrand vallen. Meet daarom de ECHTE afmeting na mount en
+  // klem daarop; `useLayoutEffect` draait vóór de browser schildert, dus geen zichtbare sprong.
+  const [pos, setPos] = useState({ left: x, top: y });
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const { offsetWidth: w, offsetHeight: h } = el;
+    setPos({
+      left: Math.max(0, Math.min(x, window.innerWidth - w)),
+      top: Math.max(0, Math.min(y, window.innerHeight - h)),
+    });
+  }, [x, y]);
   // Submenu's flippen naar links als de trigger te dicht bij de rechterrand van het venster staat
   // (anders valt de flyout goeddeels buiten beeld).
-  const flipSub = adjustedX > window.innerWidth - 380;
+  const flipSub = pos.left > window.innerWidth - 380;
 
   const isSummary = task ? task.childIds.length > 0 : false;
   const closeAll = () => { setOpenSub(null); onClose(); };
@@ -101,7 +113,7 @@ export function ContextMenu({
     <div
       ref={menuRef}
       className="fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[180px]"
-      style={{ left: adjustedX, top: adjustedY }}
+      style={{ left: pos.left, top: pos.top }}
       onMouseLeave={() => setOpenSub(null)}
     >
       {group ? (
