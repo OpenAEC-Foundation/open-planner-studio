@@ -22,6 +22,26 @@ export default defineConfig({
     // instead of silently drifting to another port — see scripts/tauri-dev.mjs.
     port: Number(process.env.OPS_DEV_PORT) || 3007,
     strictPort: true,
+    watch: {
+      // Sibling git worktrees under .claude/worktrees/ each carry a full src
+      // tree (14 locales × 4 namespaces + all components). Watching them
+      // recursively multiplies inotify usage ~10× and blows past
+      // fs.inotify.max_user_watches (ENOSPC) once a second dev server starts —
+      // the main dev server has no business watching other worktrees. Appended
+      // to Vite's defaults (node_modules/.git stay ignored).
+      //
+      // BELANGRIJK: anker deze paden aan __dirname (de ACTIEVE root) i.p.v. een
+      // vrije glob. Een glob als '**/.claude/worktrees/**' matcht namelijk óók de
+      // eigen bestanden zodra je de dev-server ván binnen een worktree draait
+      // (het root-pad bevat dan zelf '.claude/worktrees/') — dan negeert Vite de
+      // hele src-boom en valt HMR volledig stil: je krijgt stilzwijgend verouderde
+      // modules geserveerd. Absoluut ankeren negeert alleen worktrees ONDER deze
+      // root, dus de ENOSPC-bescherming blijft intact vanuit de hoofdmap.
+      ignored: [
+        path.resolve(__dirname, '.claude/worktrees') + '/**',
+        path.resolve(__dirname, 'dist') + '/**',
+      ],
+    },
   },
   build: {
     target: 'es2020',
