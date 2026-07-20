@@ -14,6 +14,10 @@ export interface UseClickOutsideOptions {
   escape?: boolean;
   contextmenu?: boolean;
   defer?: boolean;
+  /** Tweede element dat ook als "binnen" telt. Nodig zodra het paneel zelf ergens anders in de DOM
+   *  hangt dan `ref` — bv. een `createPortal` naar `document.body` (zie Popover), waar `ref` alleen
+   *  nog de trigger omvat. Zonder dit telt een klik ín het paneel als "buiten" en sluit het meteen. */
+  extraRef?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -36,7 +40,7 @@ export function useClickOutside<T extends HTMLElement>(
   enabled = true,
   options: UseClickOutsideOptions = {},
 ): void {
-  const { escape = false, contextmenu = false, defer = false } = options;
+  const { escape = false, contextmenu = false, defer = false, extraRef } = options;
 
   // Callback via ref: houdt 'm actueel zonder het effect (en z'n defer-timer) te resetten.
   const cbRef = useRef(onOutside);
@@ -45,8 +49,12 @@ export function useClickOutside<T extends HTMLElement>(
   useEffect(() => {
     if (!enabled) return;
 
-    const isOutside = (target: EventTarget | null) =>
-      ref.current !== null && !ref.current.contains(target as Node | null);
+    const isOutside = (target: EventTarget | null) => {
+      const node = target as Node | null;
+      const insideMain = ref.current !== null && ref.current.contains(node);
+      const insideExtra = extraRef?.current != null && extraRef.current.contains(node);
+      return !insideMain && !insideExtra;
+    };
 
     const onPointer = (e: MouseEvent) => { if (isOutside(e.target)) cbRef.current(); };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') cbRef.current(); };
@@ -68,5 +76,5 @@ export function useClickOutside<T extends HTMLElement>(
       document.removeEventListener('contextmenu', onPointer);
       document.removeEventListener('keydown', onKey);
     };
-  }, [ref, enabled, escape, contextmenu, defer]);
+  }, [ref, enabled, escape, contextmenu, defer, extraRef]);
 }
