@@ -28,6 +28,7 @@ import { ColumnsDialog } from '@/components/dialogs/ColumnsDialog';
 import { FilterDialog } from '@/components/dialogs/FilterDialog';
 import { LayoutsDialog } from '@/components/dialogs/LayoutsDialog';
 import { ShortcutsDialog } from '@/components/dialogs/ShortcutsDialog';
+import { BenchmarkDialog } from '@/components/dialogs/BenchmarkDialog';
 import { PresentationHint } from '@/components/layout/PresentationHint';
 import { RecoveryDialog } from '@/components/dialogs/RecoveryDialog';
 import { WelcomeDialog } from '@/components/dialogs/WelcomeDialog';
@@ -71,6 +72,7 @@ function AppContent() {
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
+  const showBenchmarkDialog = useAppStore(s => s.ui.showBenchmarkDialog);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
@@ -326,6 +328,7 @@ function AppContent() {
       {showFilterDialog && <FilterDialog />}
       {showLayoutsDialog && <LayoutsDialog />}
       {showShortcutsDialog && <ShortcutsDialog />}
+      {showBenchmarkDialog && <BenchmarkDialog />}
       {showWelcomeDialog && <WelcomeDialog />}
       {showTourOverlay && <TourOverlay />}
       <UpdateDialog />

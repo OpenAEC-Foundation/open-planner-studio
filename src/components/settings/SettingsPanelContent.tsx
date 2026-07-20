@@ -385,6 +385,22 @@ export function SettingsPanelContent() {
               </button>
             </div>
 
+            {/* Benchmark-tool (pakket S): via deze gedeelde component zichtbaar op alle 3 de
+                ingangen (gear/Instellingen-ribbontab/Backstage). Sluit eerst de Instellingen-dialoog
+                én Backstage (activeRibbonTab → 'start') zodat de benchmark-dialoog vrij opent. */}
+            <div className="settings-section">
+              <h3>{t('benchmark.section')}</h3>
+              <p className="scrollzoom-hint">{t('benchmark.sectionHint')}</p>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  setUI({ showSettingsDialog: false, activeRibbonTab: 'start', showBenchmarkDialog: true });
+                }}
+              >
+                {t('benchmark.open')}
+              </button>
+            </div>
+
             <div className="settings-section">
               <h3>{t('settings.debugTerminal')}</h3>
               <label className="settings-checkbox-row">
