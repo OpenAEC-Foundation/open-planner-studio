@@ -305,13 +305,16 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   behalve bestand-I/O — die zat achter een desktop-check. Dat gat is dicht:
   - **Openen, opslaan, opslaan-als en exporteren** (IFC, CSV, MS Project, Primavera P6) werken nu
     ook in de browser.
-  - **Chrome/Edge**: via de File System Access API. Je opent een bestand, bewerkt het en slaat met
-    Ctrl+S **over hetzelfde bestand** op — zoals op de desktop. De browser vraagt daarbij eenmalig
-    schrijftoestemming.
-  - **Firefox/Safari**: nette terugval — openen via een bestandskiezer, opslaan als download.
-    In-place overschrijven kan daar niet; dat wordt niet voorgespiegeld.
-  - **Recente bestanden** zijn in Chrome/Edge écht opnieuw te openen (de verwijzing naar het bestand
-    wordt bewaard, niet alleen de naam). In browsers zonder die ondersteuning wordt de lijst
+  - **Browsers met de File System Access API** — in de praktijk de Chromium-familie (Chrome, Edge,
+    Opera, Brave, Vivaldi, …): je opent een bestand, bewerkt het en slaat met Ctrl+S **over hetzelfde
+    bestand** op, precies zoals op de desktop. De browser vraagt daarbij eenmalig schrijftoestemming.
+  - **Browsers zonder die API** — op dit moment Firefox en Safari: nette terugval, openen via een
+    bestandskiezer en opslaan als download. In-place overschrijven kan daar niet; dat wordt ook niet
+    voorgespiegeld.
+  - De app kijkt naar de **mogelijkheid, niet naar de browsernaam** (feature-detectie). Rolt een
+    browser de API later alsnog uit, dan werkt in-place opslaan daar vanzelf — zonder nieuwe versie.
+  - **Recente bestanden** zijn opnieuw te openen in browsers met die API (de verwijzing naar het
+    bestand wordt bewaard, niet alleen de naam). Ontbreekt de ondersteuning, dan wordt de lijst
     verborgen in plaats van niet-werkende items te tonen.
   - **Auto-save en crash-herstel** werken nu ook in de browser: bij elke wijziging wordt (gedebounced)
     een momentopname per open document bewaard, en na een crash of per ongeluk sluiten biedt de app
