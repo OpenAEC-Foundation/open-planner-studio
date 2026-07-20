@@ -1,11 +1,25 @@
-import { useRef, type CSSProperties, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 /**
  * Gedeelde dropdown/popover-primitive (audit UI-F3): bundelt de container (`position: relative`),
  * de klik-buiten-afhandeling (via {@link useClickOutside}) en de paneel-basisstijl die de acht
- * ribbon-dropdowns letterlijk hadden gekopieerd (absolute positionering onder de trigger, de
- * `--theme-dropdown-bg`-achtergrond, `--theme-border`-rand, `--radius-md` en `--shadow-pop`).
+ * ribbon-dropdowns letterlijk hadden gekopieerd (de `--theme-dropdown-bg`-achtergrond,
+ * `--theme-border`-rand, `--radius-md` en `--shadow-pop`).
+ *
+ * Het paneel wordt via `createPortal` naar `document.body` gerenderd i.p.v. `position: absolute`
+ * binnen de container: de ribbon-groepen zitten in `.ribbon-content-scroll`, dat bewust
+ * `overflow-y: hidden` heeft (voor de horizontale scroll bij te veel groepen) — een gewoon
+ * absoluut-gepositioneerd paneel daarbinnen werd dus altijd afgesneden zodra het onder de rand van
+ * die 90px-hoge strook uitstak, wat bij élk paneel met meer dan 1-2 items gebeurde (bug: klik op
+ * Mijlpaal ▾ toonde alleen een 20px-sliver van het keuzemenu). De portal ontsnapt aan die clip; de
+ * positie wordt na mount gemeten (`useLayoutEffect`, vóór de eerste schilderbeurt — geen zichtbare
+ * sprong) i.p.v. relatief aan de trigger, en de aanroeper's `align` bepaalt links- of
+ * rechts-verankering aan de trigger. `panelPos` zet ook een `minWidth` op de gemeten
+ * trigger-breedte — dat vervangt `minWidth: '100%'` (kon vroeger relatief aan de container, nu een
+ * losstaand `position: fixed`-element waarvoor '100%' de viewport zou zijn); sites met een eigen
+ * vaste `minWidth` in `panelStyle` overschrijven 'm gewoon (die spreidt ná `panelPos`).
  *
  * Bewust *controlled*: de aanroeper houdt zijn eigen `open`-state (dropdowns gebruiken die soms ook
  * voor de trigger-`active`-klasse of om een lijst te verversen). De variatiepunten van de acht sites
@@ -13,8 +27,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
  * blijven per site via `panelStyle` gezet, zodat het resultaat visueel identiek is aan vroeger.
  */
 const BASE_PANEL_STYLE: CSSProperties = {
-  position: 'absolute',
-  top: '100%',
+  position: 'fixed',
   background: 'var(--theme-dropdown-bg)',
   border: '1px solid var(--theme-border)',
   borderRadius: 'var(--radius-md)',
@@ -42,15 +55,32 @@ export function Popover({
   open, onClose, trigger, children, align = 'left', panelStyle, containerStyle,
 }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, onClose, open);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // extraRef: het paneel leeft (via de portal) buiten `ref`'s DOM-subtree — zonder dit telt een
+  // klik ín het paneel als "buiten" en sluit useClickOutside het meteen vóór het item-onClick vuurt.
+  useClickOutside(ref, onClose, open, { extraRef: panelRef });
+
+  const [panelPos, setPanelPos] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    if (!open) { setPanelPos(null); return; }
+    const trigger = ref.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    setPanelPos(
+      align === 'right'
+        ? { top: rect.bottom, right: window.innerWidth - rect.right, minWidth: rect.width }
+        : { top: rect.bottom, left: rect.left, minWidth: rect.width },
+    );
+  }, [open, align]);
 
   return (
     <div ref={ref} style={{ position: 'relative', ...containerStyle }}>
       {trigger}
-      {open && (
-        <div style={{ ...BASE_PANEL_STYLE, [align]: 0, ...panelStyle }}>
+      {open && panelPos && createPortal(
+        <div ref={panelRef} style={{ ...BASE_PANEL_STYLE, ...panelPos, ...panelStyle }}>
           {children}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

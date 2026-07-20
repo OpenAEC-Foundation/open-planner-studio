@@ -1,5 +1,13 @@
 # Open Planner Studio
 
+[![Version](https://img.shields.io/github/package-json/v/OpenAEC-Foundation/open-planner-studio?label=versie&color=blue)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
+[![Downloads](https://img.shields.io/github/downloads/OpenAEC-Foundation/open-planner-studio/total?label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
+[![CI](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml)
+[![Live deploy](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/live.yml/badge.svg)](https://open-planner-studio.open-aec.com)
+[![Planning-suite](https://img.shields.io/badge/planning--suite-395%2F395-brightgreen)](tests/planning/README.md)
+[![Talen](https://img.shields.io/badge/talen-14-informational)](src/i18n/config.ts)
+[![License](https://img.shields.io/github/license/OpenAEC-Foundation/open-planner-studio)](#licentie)
+
 Open-source bouwplanningapplicatie voor de bouwsector. Native IFC-bestandsformaat.
 
 ![Open Planner Studio](screenshot.png)

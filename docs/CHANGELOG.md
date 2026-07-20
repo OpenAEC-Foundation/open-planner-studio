@@ -350,10 +350,73 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   taken en het tijdstip van de laatste auto-save-snapshot. Escape stelt de keuze
   uit zonder de recovery-bestanden op te ruimen; de auto-save wordt uitgesteld tot
   de keuze gemaakt is, zodat de snapshots niet vroegtijdig worden overschreven.
-  (Alleen desktop; de web-build heeft geen recovery.)
+  (Was desktop-only; sinds v2026.7.11 heeft de browser-build ook recovery, via IndexedDB.)
 - De standaard taak-prioriteit is nu een expliciete waarde (500) i.p.v. leeg,
   zodat prioriteit voorspelbaar meeweegt bij nivellering; een expliciet ingevulde
   0 blijft behouden (werd voorheen in de MSPDI-export stil naar 500 gecorrigeerd).
+
+## v2026.7.11 — 2026-07-20
+
+### Toegevoegd
+- **Bestanden openen en opslaan in de browser.** De web-versie was tot nu toe volledig bruikbaar
+  behalve bestand-I/O — die zat achter een desktop-check. Dat gat is dicht:
+  - **Openen, opslaan, opslaan-als en exporteren** (IFC, CSV, MS Project, Primavera P6) werken nu
+    ook in de browser.
+  - **Browsers met de File System Access API** — in de praktijk de Chromium-familie (Chrome, Edge,
+    Opera, Brave, Vivaldi, …): je opent een bestand, bewerkt het en slaat met Ctrl+S **over hetzelfde
+    bestand** op, precies zoals op de desktop. De browser vraagt daarbij eenmalig schrijftoestemming.
+  - **Browsers zonder die API** — op dit moment Firefox en Safari: nette terugval, openen via een
+    bestandskiezer en opslaan als download. In-place overschrijven kan daar niet; dat wordt ook niet
+    voorgespiegeld.
+  - De app kijkt naar de **mogelijkheid, niet naar de browsernaam** (feature-detectie). Rolt een
+    browser de API later alsnog uit, dan werkt in-place opslaan daar vanzelf — zonder nieuwe versie.
+  - **Recente bestanden** zijn opnieuw te openen in browsers met die API (de verwijzing naar het
+    bestand wordt bewaard, niet alleen de naam). Ontbreekt de ondersteuning, dan wordt de lijst
+    verborgen in plaats van niet-werkende items te tonen.
+  - **Auto-save en crash-herstel** werken nu ook in de browser: bij elke wijziging wordt (gedebounced)
+    een momentopname per open document bewaard, en na een crash of per ongeluk sluiten biedt de app
+    bij het opstarten aan om te herstellen. Sluit je het tabblad met niet-opgeslagen wijzigingen, dan
+    waarschuwt de browser eerst.
+  - De desktop-versie verandert hierdoor niet: die gebruikt dezelfde gedeelde laag met het
+    bestaande bestandssysteem-gedrag.
+- **Bouwmodus-schakelaar** — een bouw-agnostische modus voor gebruik buiten de bouwcontext
+  (ontwerp: `docs/superpowers/specs/2026-07-13-bouwmodus-toggle-design.md`).
+
+### Opgelost
+- **Acht gaten waardoor gegevens bij opslaan verloren gingen, zijn gedicht.** Het opslagcontract
+  round-tript nu aantoonbaar volledig (met een nieuwe testbatterij die dit permanent afdwingt).
+- **Openen verloor activity-codes en custom fields.** Alle open-paden lopen nu door één gedeelde
+  laad-implementatie, zodat structuurgegevens niet meer stil wegvallen.
+- **De snelle opslaan-route in de browser liet velden vallen** (activity-codes, custom fields,
+  baselines, kalenderbibliotheek). Alle state→IFC-routes bouwen hun gegevens nu op één plek op.
+- **Speling verdween bij horizontaal scrollen.** De speling-band werd samen met de taakbalk
+  overgeslagen zodra die balk links buiten beeld schoof, ook als de band zelf nog ruim zichtbaar was.
+- **Gantt-slepen:** het verslepen van de balkrand schrijft nu de juiste (inclusieve werkdagen-)duur,
+  en elke duur is bereikbaar — ook de beginwaarde.
+- **Niet-werkdagen werden altijd als zaterdag/zondag gearceerd** in plaats van volgens de
+  projectkalender; ploegen- en afwijkende kalenders tonen nu correct.
+- **Crash bij het wisselen van document** na een herstel-actie (een bevroren kalenderlijst werd
+  gemuteerd). Permanent bewaakt met een regressietest.
+- **PDF-export herzien**: meerdere pagina's, paginarichting en een voorbeeldweergave die overeenkomt
+  met het resultaat.
+- **Beeld-tab en titelbalk** overlapten bij een smal venster; de weergave-opties staan nu in een
+  2×2-raster.
+- **Instellingen**: nettere indeling, uniforme checkboxes en werkende toetsbediening in dropdowns.
+- **Beveiligingsupdate**: `serde_with` 3.18.0 → 3.21.0 (GHSA-7gcf-g7xr-8hxj).
+- **Ontwikkelomgeving**: Vite bekeek bij een tweede dev-server alle git-worktrees mee (kon het
+  systeemlimiet voor bestandsbewaking overschrijden), en negeerde omgekeerd juist álle bestanden
+  wanneer je de dev-server ván binnen een worktree draaide — waardoor wijzigingen niet doorkwamen.
+
+### Gewijzigd
+- **Grote saneringsronde op basis van een modulariteits-audit van de volledige codebase.** Geen
+  functionele wijzigingen, wel structureel minder plekken waar dezelfde fout opnieuw kan ontstaan:
+  één canoniek documentcontract voor per-document-state (capture/herstel/undo), een transactiehelper
+  die een 50× herhaald patroon vervangt, één gedeeld laad-pad, een pset-registry die IFC-lezer en
+  -schrijver koppelt, een declaratieve ribbon- en instellingen-registry, gedeelde dialoog-primitives,
+  een stabiele extensie-facade met centrale permissietabel, één relatie-wiskunde-module, en
+  `App.tsx` teruggebracht van 741 naar 345 regels.
+- **Testdekking uitgebreid** met batterijen die de zojuist gedichte gaten permanent bewaken:
+  IFC-round-trip, documentcontract en Gantt-speling-zichtbaarheid.
 
 ## v2026.7.2 — 2026-07-03
 

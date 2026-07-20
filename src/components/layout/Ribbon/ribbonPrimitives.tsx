@@ -31,7 +31,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
       open={open}
       onClose={() => setOpen(false)}
       containerStyle={{ minWidth: 100 }}
-      panelStyle={{ marginTop: 2, minWidth: '100%', zIndex: 9999 }}
+      panelStyle={{ marginTop: 2, zIndex: 9999 }}
       trigger={
         <button
           id={id}

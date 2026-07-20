@@ -169,6 +169,9 @@ export interface UIState {
   /** session — sneltoetsen-overzichtsdialoog (Ctrl/Cmd+/) open. De dialoog zelf komt in golf 3;
    *  deze golf zet alleen de vlag zodat de toets al bedraad/testbaar is. */
   showShortcutsDialog: boolean;
+  /** session — ingebouwde benchmark-tool (pakket S) open. Draait geïsoleerd op gegenereerde
+   *  data; raakt het open project/de store niet aan. */
+  showBenchmarkDialog: boolean;
   // --- Fase 2.10 onderdeel 3: first-startup (welkomstdialoog + rondleiding) ---
   /** session — welkomstdialoog (2 stappen: voorkeuren + rondleiding-aanbod) open. Ephemeral:
    *  het bootstrap-effect in App.tsx zet 'm op true bij een verse `!loadWelcomeSeen()`, of de
