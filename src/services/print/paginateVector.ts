@@ -41,6 +41,31 @@ export interface InterFontBytes {
 }
 
 /**
+ * Gegooid door {@link paginateVectorToPdfBytes} zodra de te tekenen tekst codepoints bevat die het
+ * ingebedde Inter-font niet dekt (CJK/RTL/…). Zonder deze bewuste fout zou `subset:false` die glyphs
+ * stil op `.notdef` (tofu) mappen. `handleExportPDF` vangt 'm en valt terug op de raster-pijplijn, die
+ * de browser CJK/RTL correct laat tekenen. De `name` is stabiel (`'VectorUnsupportedError'`) zodat de
+ * catch 'm kan herkennen zónder deze (lazy geïmporteerde) module in de hoofdbundle te trekken.
+ */
+export class VectorUnsupportedError extends Error {
+  /** De ongedekte Unicode-codepoints (voor logging/diagnose). */
+  readonly codepoints: number[];
+  /** True als er RTL-codepoints (Arabisch/Hebreeuws) tussen zaten. */
+  readonly hasRtl: boolean;
+  constructor(codepoints: number[], hasRtl: boolean) {
+    const preview = codepoints
+      .slice(0, 24)
+      .map(cp => 'U+' + cp.toString(16).toUpperCase().padStart(4, '0'))
+      .join(' ');
+    const more = codepoints.length > 24 ? ` (+${codepoints.length - 24} more)` : '';
+    super(`Inter dekt ${codepoints.length} codepoint(s) niet: ${preview}${more}`);
+    this.name = 'VectorUnsupportedError';
+    this.codepoints = codepoints;
+    this.hasRtl = hasRtl;
+  }
+}
+
+/**
  * Bouw een multi-page VECTOR-PDF uit een print-render.
  *
  * @param renderReport  wordt exact één keer aangeroepen met een Draw2D-fabriek; levert de logische
@@ -74,6 +99,14 @@ export async function paginateVectorToPdfBytes(
   });
   const d2d = captured as PdfVectorDraw2D | null;
   if (!d2d) throw new Error('paginateVectorToPdfBytes: renderReport riep de Draw2D-fabriek niet aan');
+
+  // Coverage-poort (fase 4): `renderReport` heeft nu ALLE tekst door `fillText` gehaald, dus de
+  // ongedekte-codepoint-set is compleet. Is die niet leeg → gooi vóór we de PDF verder opbouwen, zodat
+  // `handleExportPDF` terugvalt op raster i.p.v. tofu te exporteren. Dekt Gantt én tabellen (beide gaan
+  // door dezelfde PdfVectorDraw2D.fillText).
+  if (d2d.uncoveredCodepoints.size > 0) {
+    throw new VectorUnsupportedError([...d2d.uncoveredCodepoints], d2d.hasRtl);
+  }
 
   // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (G1: de
   // tekening wordt exact één keer vastgelegd en per pagina ge-`Do`'d). De TEKST zit BEWUST niet in het

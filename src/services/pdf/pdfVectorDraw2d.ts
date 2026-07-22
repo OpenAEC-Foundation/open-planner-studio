@@ -62,13 +62,43 @@ export interface PdfTextPlacement {
 /** Per-gewicht font-metrics (em-fracties) voor baseline-omrekening. */
 interface FontMetrics { ascentEm: number; descentEm: number }
 
-function readMetrics(font: PDFFont): FontMetrics {
-  // De CustomFontEmbedder houdt de fontkit-font in `.embedder.font` (unitsPerEm/ascent/descent).
-  const fk = (font as unknown as { embedder: { font: { unitsPerEm: number; ascent: number; descent: number; bbox: { maxY: number; minY: number } } } }).embedder.font;
+/** De subset van de fontkit-font-API die deze backend gebruikt (metrics + glyph-dekking). */
+interface FontkitFont {
+  unitsPerEm: number;
+  ascent: number;
+  descent: number;
+  bbox: { maxY: number; minY: number };
+  /** True als het font een echte (niet-`.notdef`) glyph heeft voor deze Unicode-codepoint. */
+  hasGlyphForCodePoint(codePoint: number): boolean;
+}
+
+/** Haal de door de CustomFontEmbedder gehouden fontkit-font uit een pdf-lib-`PDFFont`. */
+function fontkitOf(font: PDFFont): FontkitFont {
+  // De CustomFontEmbedder (subset:false) houdt de fontkit-font in `.embedder.font`.
+  return (font as unknown as { embedder: { font: FontkitFont } }).embedder.font;
+}
+
+function readMetrics(fk: FontkitFont): FontMetrics {
   const upem = fk.unitsPerEm || 1000;
   const ascent = fk.ascent || fk.bbox.maxY;
   const descent = fk.descent || fk.bbox.minY; // negatief
   return { ascentEm: ascent / upem, descentEm: descent / upem };
+}
+
+/**
+ * RTL-codepoint? (Arabisch + Hebreeuws, incl. presentatievormen). Puur vooruit-vlag: in v1 dekt Inter
+ * deze scripts tóch niet, dus ze vallen sowieso al onder `uncoveredCodepoints`; de aparte `hasRtl`-vlag
+ * laat een latere bidi/shaping-laag (fase na v1) onderscheiden "ongedekt Latijns rariteitje" van "RTL".
+ */
+function isRtlCodepoint(cp: number): boolean {
+  return (
+    (cp >= 0x0590 && cp <= 0x05FF) || // Hebreeuws
+    (cp >= 0x0600 && cp <= 0x06FF) || // Arabisch
+    (cp >= 0x0750 && cp <= 0x077F) || // Arabic Supplement
+    (cp >= 0x08A0 && cp <= 0x08FF) || // Arabic Extended-A
+    (cp >= 0xFB50 && cp <= 0xFDFF) || // Arabic Presentation Forms-A
+    (cp >= 0xFE70 && cp <= 0xFEFF)    // Arabic Presentation Forms-B
+  );
 }
 
 /**
@@ -119,10 +149,28 @@ export class PdfVectorDraw2D implements Draw2D {
   textAlign: TextAlign = 'left';
   textBaseline: TextBaseline = 'alphabetic';
 
+  /**
+   * Codepoints die het ingebedde Inter-font NIET dekt (geen echte glyph → zou als `.notdef`/tofu
+   * renderen bij `subset:false`). De pagineerder gooit een {@link VectorUnsupportedError} zodra deze
+   * set niet leeg is, zodat de export terugvalt op raster (dat CJK/RTL via de browser wél tekent).
+   * Wordt tijdens `fillText` gevuld en dekt zo ALLE getekende tekst (Gantt én tabellen).
+   */
+  readonly uncoveredCodepoints = new Set<number>();
+  /** True zodra een RTL-codepoint (Arabisch/Hebreeuws) getekend is — vooruit-vlag voor een latere bidi-laag. */
+  hasRtl = false;
+
   private readonly H: number;
   private readonly pool: PdfResourcePool;
+  private readonly fkReg: FontkitFont;
+  private readonly fkBold: FontkitFont;
   private readonly mReg: FontMetrics;
   private readonly mBold: FontMetrics;
+  /**
+   * Per-codepoint dekkingscache (`cp → gedekt?`). Een grote planning tekent duizenden labels met veel
+   * herhaalde tekens; zonder cache zou elke `fillText` z'n hele string opnieuw tegen fontkit opzoeken.
+   * Inter-Regular en -Bold delen dezelfde character-set, dus één cache over beide gewichten volstaat.
+   */
+  private readonly coverageCache = new Map<number, boolean>();
   private dash: number[] = [];
   /** Pad-buffer (geflipte pad-operatoren) sinds de laatste beginPath/roundRect; pas bij fill/stroke geëmit. */
   private pathBuf: PDFOperator[] = [];
@@ -131,8 +179,29 @@ export class PdfVectorDraw2D implements Draw2D {
     void logicalW;
     this.H = logicalH;
     this.pool = pool;
-    this.mReg = readMetrics(pool.regular);
-    this.mBold = readMetrics(pool.bold);
+    this.fkReg = fontkitOf(pool.regular);
+    this.fkBold = fontkitOf(pool.bold);
+    this.mReg = readMetrics(this.fkReg);
+    this.mBold = readMetrics(this.fkBold);
+  }
+
+  /**
+   * Registreer de glyph-dekking van `text` (per codepoint) tegen het ingebedde Inter-font `fk`.
+   * Ongedekte codepoints landen in {@link uncoveredCodepoints}; RTL-codepoints zetten {@link hasRtl}.
+   * Itereert per Unicode-codepoint (`for…of`), dus surrogaat-paren (astrale CJK) tellen als één cp.
+   */
+  private checkCoverage(text: string, fk: FontkitFont): void {
+    for (const ch of text) {
+      const cp = ch.codePointAt(0);
+      if (cp === undefined) continue;
+      if (isRtlCodepoint(cp)) this.hasRtl = true;
+      let covered = this.coverageCache.get(cp);
+      if (covered === undefined) {
+        covered = fk.hasGlyphForCodePoint(cp);
+        this.coverageCache.set(cp, covered);
+      }
+      if (!covered) this.uncoveredCodepoints.add(cp);
+    }
   }
 
   private flipY(y: number): number { return this.H - y; }
@@ -188,6 +257,10 @@ export class PdfVectorDraw2D implements Draw2D {
     const { bold, size } = parseFont(this.font);
     const pdfFont = bold ? this.pool.bold : this.pool.regular;
     const metrics = bold ? this.mBold : this.mReg;
+    // Glyph-dekking checken vóór het encoden: een ongedekte codepoint mapt bij subset:false op
+    // `.notdef` (tofu) zónder fout. De pagineerder leest `uncoveredCodepoints` uit en faalt bewust,
+    // zodat de raster-fallback aanslaat i.p.v. tofu te exporteren.
+    this.checkCoverage(text, bold ? this.fkBold : this.fkReg);
     const width = pdfFont.widthOfTextAtSize(text, size);
 
     // Horizontale uitlijning via x-offset op de gemeten breedte.

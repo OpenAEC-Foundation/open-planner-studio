@@ -21,6 +21,21 @@ import type { TFunction } from 'i18next';
 type DisplayDate = ReturnType<typeof useDisplayDate>;
 
 /**
+ * Beschrijf waarom de vector-export terugvalt op raster. Herkent de `VectorUnsupportedError` (fase 4)
+ * aan z'n `name` — géén eager import van `paginateVector`, zodat pdf-lib/fontkit uit de hoofdbundle
+ * blijft (B2) — en logt de ongedekte codepoints (bv. een CJK/Arabische taaknaam) i.p.v. tofu te tekenen.
+ */
+function describeVectorFallback(err: unknown): string {
+  if (err && typeof err === 'object' && (err as { name?: string }).name === 'VectorUnsupportedError') {
+    const cps = (err as { codepoints?: number[] }).codepoints ?? [];
+    const rtl = (err as { hasRtl?: boolean }).hasRtl ? ' (bevat RTL)' : '';
+    const list = cps.map(cp => 'U+' + cp.toString(16).toUpperCase().padStart(4, '0')).join(' ');
+    return `ongedekte glyphs${rtl}: ${list}`;
+  }
+  return String(err);
+}
+
+/**
  * Kolomspec voor de vector-PDF-export van het mijlpalenrapport — spiegelt EXACT
  * `MilestoneReport.tsx`: zelfde kolomvolgorde/headers (`t('milestoneReport.*')`), de `◆`-prefix bij
  * `mandatory`, float `< 0` rood+bold, en de `STATUS_COLOR`-badge (altijd bold, zoals de DOM-span).
@@ -279,7 +294,7 @@ export function ReportPanel() {
           { regular, bold },
         );
       } catch (err) {
-        console.warn('[ReportPanel] Vector-PDF-export mislukt, terugval op raster:', err);
+        console.warn('[ReportPanel] Vector-PDF-export mislukt, terugval op raster:', describeVectorFallback(err));
         pdfBytes = exportRaster();
       }
       await writePdf(pdfBytes, `${projectName || 'project'}-planning.pdf`);
@@ -360,7 +375,7 @@ export function ReportPanel() {
         );
       }
     } catch (err) {
-      console.warn('[ReportPanel] Vector-tabel-PDF-export mislukt, terugval op DOM-screenshot:', err);
+      console.warn('[ReportPanel] Vector-tabel-PDF-export mislukt, terugval op DOM-screenshot:', describeVectorFallback(err));
       tablePdfBytes = await exportTableRaster();
     }
 
