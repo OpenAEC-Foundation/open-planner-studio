@@ -42,8 +42,22 @@ export.
   engineering- en testlast van het hele project. De browser rendert RTL al perfect naar canvas, dus
   de raster-PDF is visueel correct; het enige verlies is niet-selecteerbare tekst voor 2 van de 14
   locales. **Dit is een afwijking van de oorspronkelijke "alle locales vector"-wens en staat als
-  open besluit in §11.**
+  open besluit in §10.**
 - Volledige per-run font-fallback voor willekeurig gemengde scripts binnen één string (§5.3).
+
+### 2.1 Waarom vector — en niet alleen hogere DPI
+
+Belangrijk om eerlijk vast te leggen (uit de kritische review): de huidige raster-export is **al
+~220 DPI**, niet 96 (`computeHighResScale(targetDpi=220, minScale=1.5)`, `miniPdf.ts:263-277`,
+begrensd op 24 MP). "Scherp printen" is voor A4/A3 daarmee grotendeels al opgelost; alleen A1 zakt
+door de MP-cap naar ~170 DPI. Wat raster **fundamenteel niet** kan is (i) oneindig inzoomen zonder
+pixelatie en (ii) **selecteerbare/doorzoekbare tekst**. Punt (ii) is de eigenlijke kostendrijver van
+dit hele plan.
+
+**Gekozen richting (bevestigd door de user):** volledige vector mét selecteerbare tekst — de user
+koos expliciet "ingebedde gesubsette fonts" en "Gantt + alle rapporten". De goedkopere alternatieven
+zijn afgewogen en bewust niet gekozen; ze staan gedocumenteerd in §10.1 zodat de afweging
+navolgbaar blijft.
 
 ## 3. Besluiten (met onderbouwing)
 
@@ -108,9 +122,18 @@ Lastige gevallen die de PDF-backend moet afhandelen:
 
 Bouwt bovenop pdf-lib's **low-level content-operators** (`page.pushOperators(...)` met de
 operator-helpers), niet alleen de high-level `page.draw*`-helpers, voor volledige pad-controle
-(dependency-routes, ruiten, driehoeken, afgeronde staven). **Fase-0-spike bevestigt deze API
-eerst** (zie §7). Houdt per pagina één content-stream bij; tekst via `page.drawText`/operators met
-het gesubsette embedded font.
+(dependency-routes, ruiten, driehoeken, afgeronde staven). De review verifieerde dat `operators.ts`
+(pdf-lib master) alle benodigde operators levert: `clip`/`clipEvenOdd` (W/W*), `setDashPattern`
+(d), `setGraphicsState` (gs → ExtGState `/ca`-alpha), `concatTransformationMatrix` (cm),
+`appendBezierCurve` (c), `moveTo`/`lineTo`/`fill`/`stroke`/`fillAndStroke`/`closePath`/`endPath`,
+`pushGraphicsState`/`popGraphicsState`, `setLineWidth`. **De aanname "operator-API bestaat" is dus
+al geretired** — de kleur-parser mapt naar `setFillingRgbColor`/`setStrokingRgbColor` (er is géén
+generieke `setFillingColor`). Houdt per pagina één content-stream bij.
+
+**Tekst-operators i.p.v. `page.drawText` (K9):** `page.drawText` beheert zelf `BT`/`ET` +
+tekstmatrix + font-resource en is lastig correct te nesten binnen een zelfbeheerde
+graphics-state/clip. Gebruik voor de vector-backend de **low-level `showText`-operators** binnen de
+eigen `q … Q`-wrapper voor volledige controle.
 
 ### 4.3 Vector-pagineerder (nieuw, naast bestaande `paginate.ts`)
 
@@ -124,6 +147,28 @@ transform). Today-lijn, gestippelde randen etc. tegelen mee als vector.
 
 De bestaande raster-functies (`paginateCanvasToTiles`, `paginateCanvasToPdfBytes`, `buildImagePdf`)
 **blijven bestaan** — ze voeden de preview en de ar/fa-raster-fallback.
+
+**G1 — kostenstructuur klapt om t.o.v. raster (kritisch).** Bij raster tekent `renderPrintCanvas`
+**één keer** naar een bitmap en maakt `paginate.ts` per tegel goedkope `drawImage`-crops. Bij vector
+is er geen bitmap om te croppen: naïef zou je de **volledige** operator-lijst per pagina opnieuw
+plaatsen, en door de frozen-kolom-herhaling zelfs twee keer per kolom k>0 → O(tegels × taken×dagen)
+i.p.v. O(taken×dagen) + O(tegels). Een A1-`actual`-planning tekent per dag grid-lijnen + weekend-
+shading over vele tegels → duizenden operators × tegels. **Mitigatie (bindend):** leg de volledige
+Gantt-tekening **één keer** vast als een PDF **Form-XObject** (of een herbruikbare operator-buffer),
+en laat elke pagina die alleen `Do`'en onder een eigen `q cm W n … Q`-wrapper (transform + clip).
+Zo blijft de operator-set O(taken×dagen) en zijn de pagina's goedkoop. **Bewijs deze aanname in
+fase 2 op een A1-case met veel taken, niet op A4.**
+
+**G2 — tekstlaag-duplicatie over tegel-/kolomgrenzen (ontwerpbesluit).** `clip` (`W n`) beperkt
+alleen de *rendering*, niet welke tekst in de content-stream staat: geclipte `Tj`-operators zijn in
+de meeste viewers volledig **selecteerbaar/doorzoekbaar buiten de clip**. Gevolgen: (a) de bevroren
+naam-/tabelkolom staat op elke horizontale tegel opnieuw als tekst → bij zoeken/kopiëren verschijnt
+elke taaknaam N keer; (b) een taaknaam op een tegelrand staat volledig op beide pagina's. **Besluit
+v1:** accepteer **per-pagina zelfstandige tekst** — dat is de bewuste prijs van de frozen-kolom-
+feature (elke pagina blijft los leesbaar/printbaar) en de raster-versie herhaalt dezelfde inhoud al
+visueel. Cross-tegel-dubbeling is een bekend, klein extractie-artefact. Een fijnere aanpak (frozen
+strip op k>0 als niet-selecteerbare visuele herhaling, of tekst clippen op woord/regelgrens) is v2.
+**Neem dit expliciet op in de fase-2-verificatie: controleer wat tekst-extractie oplevert.**
 
 ### 4.4 `PdfTable`-renderer (nieuw)
 
@@ -140,12 +185,23 @@ helper voor beide rapporten; ze verschillen alleen in kolom-spec en databron
 hangen allemaal op `measureText`. Preview (canvas) en export (PDF) moeten **identieke** breedtes
 geven, anders wijken afkapping/paginering uiteen. Oplossing:
 1. Vervang `FONT_FAMILY` (`printPreview.ts:38`) door een concreet meegeleverd font (Inter).
-2. Laad datzelfde TTF als **`FontFace`** voor de canvas-preview, zodat `ctx.measureText` op Inter
-   meet.
+2. **De preview heeft géén nieuwe FontFace nodig (K1):** Inter is al de UI-body-font
+   (`src/main.tsx:8-11` importeert `@fontsource/inter/400..700.css`; `globals.css:47`
+   `--font-body: "Inter"`), dus `ctx.measureText` op `"Inter"` werkt al zodra de app draait. Het
+   écht nieuwe is alleen de **raw TTF-bytes voor pdf-lib-embedding** in de exporttak (fontkit heeft
+   binair TTF nodig; @fontsource levert alleen woff2/woff — B3).
 3. De PDF-backend meet met pdf-lib's `font.widthOfTextAtSize` (leest fontkit-advances) — de
    **definitieve** plaatsing gebruikt die getallen, niet de doorgegeven canvas-metrics, om
    sub-pixel/hinting-verschil te elimineren. Voor CJK/shaping is dit sowieso nodig (ligaturen
    veranderen de somweidte).
+
+**K2 — bewuste layout-wijziging, geen pure interne verbetering.** `FONT_FAMILY` is nu de
+systeem-font-stack (`printPreview.ts:38`), niet Inter — ondanks dat de UI Inter gebruikt. Overstappen
+op Inter verandert `measureText` → andere `fitText`-afkappunten (`:164-178`), andere
+maand-/weeklabel-overlap-onderdrukking (`:718`, `:743`) en mogelijk een ander **paginatal**.
+Bestaande exports re-flowen dus zichtbaar. Dat is verdedigbaar (het huidige gedrag is al
+OS-afhankelijk; Inter maakt het deterministisch), maar het is een echte gedragsverandering — benoem
+het in de changelog.
 
 ### 5.2 Async font-load (valkuil)
 
@@ -160,7 +216,11 @@ best-effort render die herhaalt zodra `fonts.ready` resolvet.
 
 Getekende tekst = `t(...)`-labels **én vrije gebruikersinvoer** (taaknaam, projectnaam, bedrijf,
 auteur, WBS) — dus willekeurige Unicode, ongeacht de UI-locale. Strategie per export:
-1. Verzamel alle te tekenen strings; detecteer de voorkomende scripts.
+1. Verzamel alle te tekenen strings; detecteer de voorkomende scripts. **De detectie moet óók de
+   gelokaliseerde maandnamen meenemen (K4):** `toLocaleDateString(locale,{month:'long'})`
+   (`printPreview.ts:615`, `:1015`) én de timeline-maandnamen (`getLocalizedMonths`) produceren in
+   een CJK-locale CJK-glyphs *zonder* enige gebruikersinvoer. Detecteer dus over alle bronnen
+   (labels + maandnamen + gebruikersinvoer), niet alleen taaknamen.
 2. Latijn/Cyrillisch/Grieks → Inter (altijd geladen).
 3. Bevat een string CJK-codepoints → zorg dat het juiste Noto Sans CJK-TTF geladen is (lazy fetch);
    embed-subset dekt de gebruikte glyphs.
@@ -204,12 +264,14 @@ tekortschiet.
 Elke fase eindigt met `npx tsc --noEmit` groen; scheduling-suite draaien na aanraken van planning
 (hier n.v.t., maar de build-poort geldt altijd).
 
-**Fase 0 — de-risk spike (Opus xhigh).** Dun end-to-end: lazy-`import()` pdf-lib+fontkit, embed een
-Inter-TTF-subset, teken op één A4-pagina een paar rechthoeken/lijnen + één regel tekst via de
-**low-level operator-API**, schrijf de bytes weg via `writePdf`. **Verifieer**: PDF opent,
-tekst is selecteerbaar, `pushOperators`/operator-helpers bestaan zoals aangenomen, en
-`widthOfTextAtSize` ≈ `ctx.measureText` op hetzelfde font (meet numeriek op ~10 labels). Dit
-bevestigt de load-bearing aannames B1/§5.1 vóór de grote refactor. **Blokkeert de rest bij
+**Fase 0 — de-risk spike (Opus xhigh).** De operator-API-existentievraag is al door de review
+geretired (§4.2), dus de spike richt zich op de énige overgebleven load-bearing onzekerheid: de
+**measureText-pariteit**. Dun end-to-end: lazy-`import()` pdf-lib+fontkit, embed een Inter-TTF-subset,
+teken op één A4-pagina een paar rechthoeken/lijnen + tekst via de low-level operators, schrijf weg via
+`writePdf`. **Verifieer**: (a) PDF opent, tekst is selecteerbaar; (b) `widthOfTextAtSize` ≈
+`ctx.measureText` op hetzelfde Inter-font — meet numeriek op een **representatieve set** (korte
+labels én lange taaknamen mét pl/tr-diacriet, niet 10 triviale strings), zodat kerning-/GPOS-
+verschil boven water komt (K3). Bevestigt B1/§5.1 vóór de grote refactor. **Blokkeert de rest bij
 tegenvallen.**
 
 **Fase 1 — Draw2D-abstractie + CanvasDraw2D (Sonnet high, bindend doc).** Definieer de interface
@@ -229,13 +291,23 @@ kolom-specs voor beide rapporten; vervang de DOM-screenshot-tak. **Verifieer**: 
 statusbadges kloppen met de DOM-preview; selecteerbare tekst.
 
 **Fase 4 — CJK lazy-fetch + script-detectie + raster-fallback (Opus xhigh).** Host Noto Sans CJK-TTF
-als static asset; per-export script-detectie; lazy-fetch + subset-embed; RTL/ongedekt → raster-
-fallback. **Verifieer**: een showcase met CJK-taaknamen exporteert vector met correcte glyphs; een
-ar/fa-document valt correct terug op raster; offline CJK-fetch faalt gracieus naar raster.
+als static asset; per-export script-detectie (incl. maandnamen, K4); lazy-fetch + subset-embed;
+RTL/ongedekt → raster-fallback. **Cache de gefetchte font (K6)** in IndexedDB (web) / `appDataDir`
+(Tauri) zodat een tweede export niet tientallen MB her-downloadt; en zorg dat de **Tauri-CSP** de
+connectie naar de font-host (`open-planner-studio.open-aec.com`) toestaat. **Verifieer**: een
+showcase met CJK-taaknamen exporteert vector met correcte glyphs; een tweede export gebruikt de
+cache (geen her-download); een ar/fa-document valt correct terug op raster; offline CJK-fetch faalt
+gracieus naar raster.
 
-**Fase 5 — docs + i18n + changelog (Sonnet medium).** `public/docs/*/gids-rapporten-printen.md`
-bijwerken (vector vs. raster, welke locales), `docs/CHANGELOG.md`, eventuele nieuwe UI-labels via
-`t(...)` in alle 14 locales.
+**Fase 5 — docs + i18n + licentie + changelog (Sonnet medium).** De print-gids bijwerken — **let op:
+die bestaat alleen als `public/docs/en/` en `public/docs/nl/gids-rapporten-printen.md` (K8),** niet
+in 14 locales; verifieer welke bestaan i.p.v. `*` aan te nemen. `docs/CHANGELOG.md` (incl. de
+K2-layout-reflow-noot). **OFL-NOTICE (K7):** Inter en Noto zijn OFL-1.1 — de licentietekst moet
+meegeleverd worden en OFL kent Reserved-Font-Name-regels bij subsetten/hernoemen; voeg een
+NOTICE/licentiebestand toe. **Pre-existente i18n-gaten (K5, optioneel meenemen):** `'Today'`
+(`printPreview.ts:447`) en `'Start:'`/`'Eind:'`/`'Duur:'` (`:629,633,639`) zijn hardcoded buiten
+`t(...)` — de refactor erft die fout; fix ze of scope ze expliciet uit (de "af"-eis "correct voor
+alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle 14 locales.
 
 ## 8. Verificatie / groene poort
 
@@ -254,30 +326,64 @@ bijwerken (vector vs. raster, welke locales), `docs/CHANGELOG.md`, eventuele nie
 
 | Risico | Mitigatie |
 |--------|-----------|
-| pdf-lib low-level operator-API wijkt af van aanname | Fase-0-spike bevestigt het vóór de refactor. |
-| measureText ≠ PDF-advances (afkapping/paginering wijkt) | Zelfde ingebedde TTF voor beide; definitieve plaatsing via `widthOfTextAtSize`; numerieke meting in fase 0. |
-| CFF/OTF-subsetting kapot | Dwing TTF (glyf) af voor alle embed-fonts (B3/B4). |
-| CJK-TTF niet beschikbaar (offline desktop) | Graceful raster-fallback per document. |
+| ~~pdf-lib operator-API wijkt af~~ (geretired) | Review verifieerde `operators.ts` — API dekt alles (§4.2). |
+| **Render-/geheugenkost vector ≫ raster op grote planningen (G1)** | Draw-list één keer als Form-XObject; per pagina alleen `Do` onder transform+clip; bewijzen op A1. |
+| **Tekstlaag-duplicatie bij extractie (G2)** | Bewust besluit: per-pagina zelfstandige tekst v1; fijnere aanpak v2; verifiëren via tekst-extractie. |
+| measureText ≠ PDF-advances (afkapping/paginering wijkt) | Zelfde ingebedde TTF voor beide; definitieve plaatsing via `widthOfTextAtSize`; numerieke meting in fase 0 op diacriet-strings (K3). |
+| Font-swap (systeemstack → Inter) = zichtbare export-reflow (K2) | Bewuste, deterministische wijziging; changelog-noot. |
+| CFF/OTF-subsetting onbetrouwbaar | Dwing TTF (glyf) af voor alle embed-fonts (B3/B4). Exacte "kapot"-issuenummers deels ongeverifieerd; TTF-guardrail is sowieso goedkoop. |
+| CJK-TTF niet beschikbaar (offline desktop) | Graceful raster-fallback per document; cache na eerste fetch (K6); Tauri-CSP toestaan. |
 | Async font-load race → verkeerde eerste render | `await document.fonts.ready` vóór render (§5.2). |
 | RTL-vector onderschat | v1 raster-fallback; v2 pas na bidi-runlayout + test. |
 | Bundle-groei | Lazy `import()`; CJK als lazy static asset, niet gebundeld. |
 
 ## 10. Open besluiten voor de user
 
+**Besluit 0 — diepte van de oplossing (bevestigd).** De user koos volledige vector mét selecteerbare
+tekst (§2.1). De afgewogen, niet-gekozen alternatieven staan in §10.1.
+
 1. **RTL v1 = raster-fallback** (§5.4/B5). Afwijking van "alle locales vector". Akkoord, of moet
    ar/fa-vector (bidi-runlayout) toch in v1?
-2. **CJK-font hosting**: als static asset op `open-planner-studio.open-aec.com` (lazy-fetch) — of
-   liever bundelen ondanks de grootte, of GitHub-raw? Static-asset-fetch is de voorkeur; graag
-   bevestiging.
+2. **CJK-font hosting**: als static asset op `open-planner-studio.open-aec.com` (lazy-fetch, met
+   cache) — of liever bundelen ondanks de grootte, of GitHub-raw? Static-asset-fetch is de voorkeur;
+   graag bevestiging.
 3. **Preview-strategie**: canvas-raster-preview met Inter-font (near-WYSIWYG, pragmatisch) vs. een
    echte in-browser PDF-viewer (zwaarder). Voorstel = canvas-raster.
 
-## 11. Bronnen
+### 10.1 Afgewogen alternatieven (niet gekozen)
+
+Voor de navolgbaarheid — de kritische review wees erop dat selecteerbare tekst de hele kostendrijver
+is en dat er goedkopere routes bestaan die de letterlijke issue-klacht ("sharp print", "zoom without
+pixelation") ook deels adresseren:
+
+- **Goedkope scherpte (~1 dag):** PNG i.p.v. JPEG in `paginate.ts:214` (de tabelrapporten gebruiken
+  nu `toDataURL('image/jpeg',0.9)` → ringing op tekst) + de MP-cap in `computeHighResScale`
+  verhogen/opheffen voor A4/A3. Lost de scherpte-klacht grotendeels op, **geen** selecteerbare tekst,
+  A1 blijft eindige DPI. → Afgewezen: geen selecteerbare/doorzoekbare tekst, die de user expliciet
+  wil.
+- **Vector, alleen Latijn:** vector + selecteerbare tekst voor Latijnse locales; CJK én RTL via
+  raster-fallback. Schrapt CJK-hosting/fetch (fase 4) volledig. → Kleinere variant; blijft
+  beschikbaar als de CJK-hosting-vraag (besluit 2) op bezwaar stuit.
+
+Deze staan hier zodat een latere lezer ziet dat de volledige aanpak een bewuste keuze was, niet een
+default.
+
+## 11. Bronnen & verificatiestatus
 
 - Research A (PDF-vector/font-stack): pdf-lib `CustomFontEmbedder.ts` (Type0/CID/Identity-H +
   subsetting), `@pdf-lib/fontkit` browser-native + MIT, foliojs/fontkit `opentype/shapers`
   (ArabicShaper aanwezig, geen bidi), `bidi-js`, Noto Sans CJK TTF-vereiste, bundlephobia-groottes.
-  Ongeverifieerd: exacte CJK-subset-KB, bidi-js exacte gzip, woff2-in-browser-embed.
 - Research B (rapportcode): `printPreview.ts` primitieven-inventaris, `MilestoneReport.tsx`/
   `VarianceReport.tsx` data-inventaris, `ReportPanel.tsx`/`paginate.ts` integratiepunten,
   `i18n/config.ts` locales.
+- Kritische review (Opus xhigh): verifieerde pdf-lib `operators.ts` (clip/dash/gs/cm/bezier — API
+  compleet), `@fontsource` levert geen TTF (fontsource #371/#570), Inter is al UI-font
+  (`main.tsx`/`globals.css`), integratie-regelnummers, en de ~220-DPI-realiteit van de huidige
+  raster-export. Bracht G1/G2 + K1–K9 in; eindoordeel "klaar-met-aanpassingen" (nu verwerkt).
+
+**Ongeverifieerd (bewust als open gemarkeerd, valideren tijdens bouw):** exacte CJK-subset-KB in de
+PDF; `bidi-js` exacte gzip-grootte; woff2-in-browser-embed door `@pdf-lib/fontkit`; bundlegroottes
+178/342 KB gzip (bundlephobia niet geraadpleegd); de blanket-claim "CFF-subsetting kapot" met issue
+#664/#826 (alleen OpenPDF #71 bevestigd) — de TTF-guardrail staat er los van; numerieke
+`widthOfTextAtSize`≈`measureText`-match (→ fase 0); Inter's volledige glyph-dekking pl/tr/Cyrillisch/
+Grieks (→ render-test fase 1).
