@@ -2,7 +2,9 @@
 
 **Datum:** 2026-07-22
 **Issue:** #23 "Support vector PDF export support"
-**Status:** ontwerp — vier scope-besluiten vastgelegd (§2.2), klaar om te bouwen
+**Status:** ✅ v1 GEBOUWD & GEVERIFIEERD (2026-07-22) — fasen 0–5 af, gecommit & gepusht; end-to-end
+UI-QA groen (echte "Exporteer PDF"-knop → vector voor Gantt/mijlpalen/afwijkingen; CJK/RTL → raster-
+fallback). Post-v1: fase 4b (CJK-extensie, geblokkeerd op subset-defect) + RTL-vector (aparte agent).
 **Ontwikkelbranch:** `claude/vector-pdfs-investigation-15da01`
 
 ---
@@ -469,7 +471,10 @@ af zónder deze fase.
 **Losgekoppelde vervolgtaak (ná v1, aparte agent) — RTL-vector (ar/fa).** Zie §5.4. Niet in deze
 bouwronde.
 
-**Fase 5 — docs + i18n + licentie + changelog (Sonnet medium).** De print-gids bijwerken — **let op:
+**Fase 5 — docs + i18n + licentie + changelog — ✅ UITGEVOERD (2026-07-22, `f4f3882`).** Inter-OFL
+gevendord (byte-identiek aan upstream) + README; changelog (vectorexport + K2-reflow-noot + OFL);
+print-gids nl+en bijgewerkt; `verify:docs` groen. K5-hardcoded-labels bewust buiten v1 gescoped
+(pre-existente i18n-bug, los van issue #23). *Oorspronkelijke opdracht:* De print-gids bijwerken — **let op:
 die bestaat alleen als `public/docs/en/` en `public/docs/nl/gids-rapporten-printen.md` (K8),** niet
 in 14 locales; verifieer welke bestaan i.p.v. `*` aan te nemen. `docs/CHANGELOG.md` (incl. de
 K2-layout-reflow-noot). **OFL-NOTICE (K7):** Inter (kern) is OFL-1.1 — de licentietekst moet
