@@ -1,5 +1,7 @@
 import interRegularUrl from './fonts/Inter-Regular.ttf?url';
 import interBoldUrl from './fonts/Inter-Bold.ttf?url';
+import notoArabicRegularUrl from './fonts/NotoSansArabic-Regular.ttf?url';
+import notoArabicBoldUrl from './fonts/NotoSansArabic-Bold.ttf?url';
 
 /**
  * Font-loader voor het gevendorde Inter (statische glyf-TTF, wght 400/700). Doel: de print-renderer
@@ -31,6 +33,26 @@ export async function getInterFontBytes(weight: 400 | 700): Promise<Uint8Array> 
   const url = weight === 700 ? interBoldUrl : interRegularUrl;
   const bytes = await fetchBytes(url);
   byteCache[weight] = bytes;
+  return bytes;
+}
+
+/** Cache van de rauwe Noto-Sans-Arabic-TTF-bytes per gewicht (voor de RTL-shaping-embedding). */
+const arabicByteCache: Partial<Record<400 | 700, Uint8Array>> = {};
+
+/**
+ * Rauwe TTF-bytes van het gevendorde Noto Sans Arabic voor een gewicht (400 = Regular, 700 = Bold).
+ * Bedoeld voor de RTL-vector-uitbreiding: het gemengde Arabisch/Perzisch wordt door de bidi/shaping-kern
+ * ({@link file://./bidiShape.ts}) geshapt en als apart CID-font (naast Inter) ingebed. Statische glyf-TTF's
+ * met GSUB/GPOS (zie `fonts/README.md`); cachet per gewicht, net als {@link getInterFontBytes}.
+ *
+ * De canvas-preview-`FontFace`-registratie (screen-metrics) is een aparte zorg voor de integratie-fase;
+ * deze functie levert alléén de bytes voor de PDF-embedding.
+ */
+export async function getArabicFontBytes(weight: 400 | 700): Promise<Uint8Array> {
+  if (arabicByteCache[weight]) return arabicByteCache[weight]!;
+  const url = weight === 700 ? notoArabicBoldUrl : notoArabicRegularUrl;
+  const bytes = await fetchBytes(url);
+  arabicByteCache[weight] = bytes;
   return bytes;
 }
 
