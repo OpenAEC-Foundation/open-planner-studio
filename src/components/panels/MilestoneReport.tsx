@@ -51,7 +51,8 @@ export function useMilestoneRows(): MilestoneRow[] {
   }, [tasks, cpmResult]);
 }
 
-const STATUS_COLOR: Record<MilestoneRow['status'], string> = {
+/** Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */
+export const STATUS_COLOR: Record<MilestoneRow['status'], string> = {
   late: '#DC2626',
   critical: '#D97706',
   onSchedule: '#10B981',

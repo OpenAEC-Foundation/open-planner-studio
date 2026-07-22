@@ -9,8 +9,78 @@ import { paginateCanvasToPdfBytes, paginateCanvasToTiles } from '@/services/prin
 import { ensureInterLoaded, getInterFontBytes } from '@/services/pdf/fontLoader';
 import { Select } from '@/components/common/Select';
 import { isTauri } from '@/utils/platform';
-import { MilestoneReport, useMilestoneRows } from './MilestoneReport';
-import { VarianceReport, useVarianceResult } from './VarianceReport';
+import { useDisplayDate } from '@/hooks/displayDate';
+import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
+import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
+import type { VarianceRow } from '@/engine/variance';
+import type { PdfTableColumn } from '@/services/pdf/pdfTable';
+import type { TFunction } from 'i18next';
+
+/** Reactieve datum-formatters — zelfde vorm als `useDisplayDate()` (Hooks mogen hier niet in, dit
+ * bouwt de kolomspec buiten React-render-tijd op in `handleExportPDF`). */
+type DisplayDate = ReturnType<typeof useDisplayDate>;
+
+/**
+ * Kolomspec voor de vector-PDF-export van het mijlpalenrapport — spiegelt EXACT
+ * `MilestoneReport.tsx`: zelfde kolomvolgorde/headers (`t('milestoneReport.*')`), de `◆`-prefix bij
+ * `mandatory`, float `< 0` rood+bold, en de `STATUS_COLOR`-badge (altijd bold, zoals de DOM-span).
+ */
+function buildMilestoneColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTableColumn<MilestoneRow>[] {
+  return [
+    { header: t('milestoneReport.wbs'), width: 70, align: 'left', text: r => r.wbs },
+    { header: t('milestoneReport.name'), width: 260, align: 'left', text: r => `${r.mandatory ? '◆ ' : ''}${r.name}` },
+    { header: t('milestoneReport.kind'), width: 90, align: 'left', text: r => t(`milestoneReport.kind_${r.kind}`) },
+    { header: t('milestoneReport.date'), width: 100, align: 'left', text: r => dd.date(r.date) },
+    { header: t('milestoneReport.guardDate'), width: 130, align: 'left', text: r => dd.date(r.guardDate) || '—' },
+    {
+      header: t('milestoneReport.float'), width: 70, align: 'right',
+      text: r => (r.float === undefined ? '—' : String(r.float)),
+      color: r => (r.float !== undefined && r.float < 0 ? '#DC2626' : undefined),
+      bold: r => r.float !== undefined && r.float < 0,
+    },
+    { header: t('milestoneReport.mandatory'), width: 90, align: 'left', text: r => (r.mandatory ? t('milestoneReport.yes') : '') },
+    {
+      header: t('milestoneReport.status'), width: 110, align: 'left',
+      text: r => t(`milestoneReport.status_${r.status}`),
+      color: r => MILESTONE_STATUS_COLOR[r.status],
+      bold: () => true,
+    },
+  ];
+}
+
+/**
+ * Kolomspec voor de vector-PDF-export van het afwijkingenrapport — spiegelt EXACT
+ * `VarianceReport.tsx`: zelfde `COLUMNS`-volgorde/headers, `fmtDelta`, deltaStart/deltaFinish `> 0`
+ * rood+bold, en de `STATUS_COLOR`-badge (altijd bold).
+ */
+function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTableColumn<VarianceRow>[] {
+  return [
+    { header: t('milestoneReport.wbs'), width: 70, align: 'left', text: r => r.wbs },
+    { header: t('milestoneReport.name'), width: 220, align: 'left', text: r => r.name },
+    { header: t('variance.baselineStart'), width: 110, align: 'left', text: r => dd.date(r.baselineStart) || '—' },
+    { header: t('variance.baselineFinish'), width: 110, align: 'left', text: r => dd.date(r.baselineFinish) || '—' },
+    { header: t('variance.currentStart'), width: 110, align: 'left', text: r => dd.date(r.currentStart) || '—' },
+    { header: t('variance.currentFinish'), width: 110, align: 'left', text: r => dd.date(r.currentFinish) || '—' },
+    {
+      header: t('variance.deltaStart'), width: 90, align: 'right',
+      text: r => fmtDelta(r.deltaStart),
+      color: r => (r.deltaStart !== undefined && r.deltaStart > 0 ? '#DC2626' : undefined),
+      bold: r => r.deltaStart !== undefined && r.deltaStart > 0,
+    },
+    {
+      header: t('variance.deltaFinish'), width: 90, align: 'right',
+      text: r => fmtDelta(r.deltaFinish),
+      color: r => (r.deltaFinish !== undefined && r.deltaFinish > 0 ? '#DC2626' : undefined),
+      bold: r => r.deltaFinish !== undefined && r.deltaFinish > 0,
+    },
+    {
+      header: t('variance.status'), width: 110, align: 'left',
+      text: r => t(`variance.status_${r.status}`),
+      color: r => VARIANCE_STATUS_COLOR[r.status],
+      bold: () => true,
+    },
+  ];
+}
 
 /** Render-schaal voor de gepagineerde preview (goedkoper dan de export; wordt toch verkleind getoond). */
 const PREVIEW_RENDER_SCALE = 2;
@@ -27,6 +97,7 @@ interface PreviewPage {
 export function ReportPanel() {
   const { t } = useTranslation('report');
   const { i18n } = useTranslation();
+  const dd = useDisplayDate();
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const calendar = useAppStore(s => s.calendar);
@@ -215,38 +286,86 @@ export function ReportPanel() {
       return;
     }
 
-    // Mijlpalen / afwijkingen: DOM → canvas via modern-screenshot, dan pagineren (fit-width).
-    const node = reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
-    if (!node) return;
-
-    // domToCanvas met scale=s levert een canvas van node.offsetWidth*s × node.offsetHeight*s device-px;
-    // de LOGISCHE maat blijft node.offsetWidth/offsetHeight, dus srcScale = canvas.width/logicalWidth = s.
-    const pixelRatio = 2;
-    const { domToCanvas } = await import('modern-screenshot');
-    // Een PDF is een wit-papier-artefact. De rapporttabellen kleuren hun tekst via de thema-
-    // CSS-variabelen; in een donker thema is dat lichte tekst, die op de geforceerde witte
-    // achtergrond onleesbaar wordt. Forceer daarom kort het lichte thema tijdens de capture
-    // (zodat tekst donker-op-wit uitvalt) en herstel daarna het thema van de gebruiker.
-    const rootEl = document.documentElement;
-    const prevTheme = rootEl.getAttribute('data-theme');
-    rootEl.setAttribute('data-theme', 'light');
-    const shot = await domToCanvas(node, { scale: pixelRatio, backgroundColor: '#ffffff' })
-      .finally(() => {
-        if (prevTheme !== null) rootEl.setAttribute('data-theme', prevTheme);
-        else rootEl.removeAttribute('data-theme');
-      });
-
-    const pdfBytes = paginateCanvasToPdfBytes(shot, {
-      paperSize: lowerPaper,
-      orientation,
-      mode: 'fit-width',
-      logicalWidth: node.offsetWidth,
-      logicalHeight: node.offsetHeight,
-      frozenColumnWidthPx: 0,
-    });
+    // Mijlpalen / afwijkingen (fase 3): vector-tabel-export — dezelfde kolomspec als de levende
+    // DOM-tabel (MilestoneReport/VarianceReport), getekend via het renderReport-patroon en
+    // gepagineerd door dezelfde paginateVectorToPdfBytes als de Gantt-tak hierboven. Bij een fout
+    // valt de export terug op het BESTAANDE DOM-screenshot-pad (modern-screenshot), zodat de export
+    // nooit stukloopt.
     const suffix = reportType === 'milestones' ? 'mijlpalen' : 'afwijkingen';
-    await writePdf(pdfBytes, `${projectName || 'project'}-${suffix}.pdf`);
-  }, [reportType, projectName, tasks, sequences, calendar, options, paperSize, orientation, autoFit, writePdf]);
+
+    const exportTableRaster = async (): Promise<Uint8Array> => {
+      const node = reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
+      if (!node) throw new Error('exportTableRaster: DOM-node niet beschikbaar');
+
+      // domToCanvas met scale=s levert een canvas van node.offsetWidth*s × node.offsetHeight*s
+      // device-px; de LOGISCHE maat blijft node.offsetWidth/offsetHeight, dus srcScale =
+      // canvas.width/logicalWidth = s.
+      const pixelRatio = 2;
+      const { domToCanvas } = await import('modern-screenshot');
+      // Een PDF is een wit-papier-artefact. De rapporttabellen kleuren hun tekst via de thema-
+      // CSS-variabelen; in een donker thema is dat lichte tekst, die op de geforceerde witte
+      // achtergrond onleesbaar wordt. Forceer daarom kort het lichte thema tijdens de capture
+      // (zodat tekst donker-op-wit uitvalt) en herstel daarna het thema van de gebruiker.
+      const rootEl = document.documentElement;
+      const prevTheme = rootEl.getAttribute('data-theme');
+      rootEl.setAttribute('data-theme', 'light');
+      const shot = await domToCanvas(node, { scale: pixelRatio, backgroundColor: '#ffffff' })
+        .finally(() => {
+          if (prevTheme !== null) rootEl.setAttribute('data-theme', prevTheme);
+          else rootEl.removeAttribute('data-theme');
+        });
+
+      return paginateCanvasToPdfBytes(shot, {
+        paperSize: lowerPaper,
+        orientation,
+        mode: 'fit-width',
+        logicalWidth: node.offsetWidth,
+        logicalHeight: node.offsetHeight,
+        frozenColumnWidthPx: 0,
+      });
+    };
+
+    let tablePdfBytes: Uint8Array;
+    try {
+      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport }, regular, bold] = await Promise.all([
+        import('@/services/print/paginateVector'),
+        import('@/services/pdf/pdfTable'),
+        getInterFontBytes(400),
+        getInterFontBytes(700),
+      ]);
+
+      // Twee losse takken i.p.v. één ternaire spec: `makeTableRenderReport<Row>` is generiek over de
+      // rijtype, en een samengevoegde union-spec zou TS niet meer aan één Row-type kunnen binden.
+      if (reportType === 'milestones') {
+        tablePdfBytes = await paginateVectorToPdfBytes(
+          makeTableRenderReport({
+            title: t('milestoneReport.title'),
+            columns: buildMilestoneColumns(t, dd),
+            rows: milestoneRows,
+            emptyText: t('milestoneReport.empty'),
+          }),
+          { paperSize: lowerPaper, orientation, mode: 'fit-width' },
+          { regular, bold },
+        );
+      } else {
+        tablePdfBytes = await paginateVectorToPdfBytes(
+          makeTableRenderReport({
+            title: t('variance.title'),
+            columns: buildVarianceColumns(t, dd),
+            rows: varianceResult.rows,
+            emptyText: t('variance.noBaseline'),
+          }),
+          { paperSize: lowerPaper, orientation, mode: 'fit-width' },
+          { regular, bold },
+        );
+      }
+    } catch (err) {
+      console.warn('[ReportPanel] Vector-tabel-PDF-export mislukt, terugval op DOM-screenshot:', err);
+      tablePdfBytes = await exportTableRaster();
+    }
+
+    await writePdf(tablePdfBytes, `${projectName || 'project'}-${suffix}.pdf`);
+  }, [reportType, projectName, tasks, sequences, calendar, options, paperSize, orientation, autoFit, writePdf, t, dd, milestoneRows, varianceResult]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;
