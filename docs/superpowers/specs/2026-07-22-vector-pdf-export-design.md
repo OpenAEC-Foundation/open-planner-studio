@@ -375,8 +375,21 @@ te kennen.
 Elke fase eindigt met `npx tsc --noEmit` groen; scheduling-suite draaien na aanraken van planning
 (hier n.v.t., maar de build-poort geldt altijd).
 
-**Fase 0 — de-risk spike (Opus xhigh).** De operator-API-existentievraag is al door de review
-geretired (§4.2), dus de spike richt zich op de énige overgebleven load-bearing onzekerheid: de
+**Fase 0 — de-risk spike — ✅ UITGEVOERD (GO, 2026-07-22).** Bewezen met onafhankelijke verificatie
+(pypdf/fontTools/Playwright): pdf-lib **1.17.1** + @pdf-lib/fontkit **1.1.1** geïnstalleerd; Inter als
+statische **glyf**-TTF (`InterVariable.ttf` → `varLib.instancer` wght=400 → `src/services/pdf/fonts/
+Inter-Regular.ttf`, geen CFF, 2937 glyphs, pl/tr/de/Cyrillisch/Grieks gedekt); low-level operator-API
+(rects/dash/alpha/`showText`) werkt en levert Type0-font + `FontFile2`, géén DCTDecode, tekst exact
+extraheerbaar incl. diacrieten; **measureText-pariteit is exact modulo kerning** — met
+`ctx.fontKerning='none'` in de canvas-backend float-identiek aan `widthOfTextAtSize` (zonder: max
+~1,4% op korte labels). **Learnings voor de bouw:** (1) zet `ctx.fontKerning='none'` in `CanvasDraw2D`
+voor pixel-WYSIWYG; (2) valideer fase 2 tegen npm-**1.17.1** (niet master — `setFillingColor` bestáát
+er wél, maar gebruik `setFillingRgbColor`); (3) Bold moet nog geïnstantieerd/gevendord (wght=700); (4)
+`file://` is geblokkeerd in de Playwright-omgeving → serveer via een lokale http-server in
+harness-scripts.
+
+*Oorspronkelijke opdracht (behouden voor context):* De operator-API-existentievraag is al door de
+review geretired (§4.2), dus de spike richt zich op de énige overgebleven load-bearing onzekerheid: de
 **measureText-pariteit**. Dun end-to-end: lazy-`import()` pdf-lib+fontkit, embed een Inter-TTF-subset,
 teken op één A4-pagina een paar rechthoeken/lijnen + tekst via de low-level operators, schrijf weg via
 `writePdf`. **Verifieer**: (a) PDF opent, tekst is selecteerbaar; (b) `widthOfTextAtSize` ≈
