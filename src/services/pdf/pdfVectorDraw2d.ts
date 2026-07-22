@@ -43,6 +43,22 @@ export interface PdfResourcePool {
   registerAlpha(alpha: number): string;
 }
 
+/**
+ * Eén geplaatst tekst-blok, uit het gedeelde Form-XObject gehaald (fase 2.1). De {@link PdfVectorDraw2D}
+ * bakt tekst NIET meer mee in het XObject (dat zou z'n hele tekstlaag op elke tegel dupliceren bij
+ * extractie); i.p.v. dat levert hij per `fillText` een placement met (a) de kant-en-klare low-level
+ * tekst-operatoren (kleur/alpha + `BT…ET`, met een `setTextMatrix` in absolute XObject-coördinaten) en
+ * (b) de bron-bounding-box in ONgeflipte report-px (canvas, y-omlaag). De pagineerder emit elke
+ * placement onder EXACT dezelfde `cm`+clip als het XObject `Do`, maar alleen op de tegel(s) wiens
+ * bron-venster de bbox raakt — zo landt de tekst pixel-identiek als in fase 2, maar zonder duplicatie.
+ */
+export interface PdfTextPlacement {
+  /** Bron-bbox in report-px (canvas, y-omlaag): [x0,x1]×[y0,y1]. Bepaalt op welke tegel de tekst hoort. */
+  x0: number; y0: number; x1: number; y1: number;
+  /** Self-contained tekst-operatoren (setFillingRgbColor + evt. q/gs…Q rond BT…ET). */
+  ops: PDFOperator[];
+}
+
 /** Per-gewicht font-metrics (em-fracties) voor baseline-omrekening. */
 interface FontMetrics { ascentEm: number; descentEm: number }
 
@@ -90,8 +106,10 @@ function parseFont(css: string): { bold: boolean; size: number } {
 }
 
 export class PdfVectorDraw2D implements Draw2D {
-  /** De opgenomen operator-lijst (leest de pagineerder uit voor het Form-XObject). */
+  /** De opgenomen VORM-operatoren (leest de pagineerder uit voor het gedeelde Form-XObject). */
   readonly operators: PDFOperator[] = [];
+  /** De opgenomen TEKST-placements (per tegel geplaatst door de pagineerder; NIET in het XObject). */
+  readonly texts: PdfTextPlacement[] = [];
 
   // Draw2D-stijlvelden (property-setters, net als de canvas-backend).
   font = '10px sans-serif';
@@ -193,16 +211,31 @@ export class PdfVectorDraw2D implements Draw2D {
       showText(pdfFont.encodeText(text)),
       endText(),
     ];
+    // Self-contained op-blok: kleur (+ evt. alpha via q/gs…Q) rond BT…ET. De pagineerder emit dit
+    // ONVERANDERD onder de tegel-`cm`+clip, zodat de tekst pixel-identiek landt als toen hij in het
+    // XObject zat (setTextMatrix staat in absolute XObject-coördinaten).
+    let ops: PDFOperator[];
     if (c.a < 1) {
       const gs = this.pool.registerAlpha(c.a);
-      this.operators.push(
+      ops = [
         pushGraphicsState(), setGraphicsState(gs),
         setFillingRgbColor(c.r, c.g, c.b), ...textOps,
         popGraphicsState(),
-      );
+      ];
     } else {
-      this.operators.push(setFillingRgbColor(c.r, c.g, c.b), ...textOps);
+      ops = [setFillingRgbColor(c.r, c.g, c.b), ...textOps];
     }
+
+    // Bron-bbox in report-px (canvas, y-omlaag) voor de tegel-toewijzing: horizontaal [tx, tx+width];
+    // verticaal de glyf-extent rond de baseline (ascenders omhoog = kleinere y, descenders omlaag =
+    // grotere y). Zo emit de pagineerder de tekst op precies die tegels waar z'n glyphs zichtbaar zijn.
+    this.texts.push({
+      x0: tx,
+      x1: tx + width,
+      y0: baselineY - ascentPx,
+      y1: baselineY - descentPx,
+      ops,
+    });
   }
 
   measureText(text: string): { width: number } {

@@ -75,13 +75,18 @@ export async function paginateVectorToPdfBytes(
   const d2d = captured as PdfVectorDraw2D | null;
   if (!d2d) throw new Error('paginateVectorToPdfBytes: renderReport riep de Draw2D-fabriek niet aan');
 
-  // Eén Form-XObject met de volledige tekening + eigen font/ExtGState-resources.
+  // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (G1: de
+  // tekening wordt exact één keer vastgelegd en per pagina ge-`Do`'d). De TEKST zit BEWUST niet in het
+  // XObject (fase 2.1): een gedeeld XObject `Do`'t z'n volledige tekstlaag op élke pagina, waardoor de
+  // tekst-extractie elke taaknaam N× oplevert. De tekst wordt daarom per tegel apart geëmit (zie onder).
+  const resources = pool.buildResourcesDict();
   const xobj = doc.context.formXObject(d2d.operators, {
     BBox: [0, 0, dims.width, dims.height],
     Matrix: [1, 0, 0, 1, 0, 0],
-    Resources: pool.buildResourcesDict(),
+    Resources: resources,
   });
   const xobjRef = doc.context.register(xobj);
+  const texts = d2d.texts;
 
   // ---- Tegel-/schaalwiskunde: 1:1 uit paginateCanvasToTiles (paginate.ts) ----
   const marginPt = opts.marginPt ?? 24;
@@ -137,8 +142,21 @@ export async function paginateVectorToPdfBytes(
       rectangle(pageX, clipBottomYUp, drawnW, drawnH), clip(), endPath(),
       concatTransformationMatrix(scale, 0, 0, scale, e, f),
       drawObject('X0'),
-      popGraphicsState(),
     );
+    // Emit — ONDER dezelfde clip+cm als het XObject — de tekst wiens bron-bbox dit tegel-bronvenster
+    // [srcX..srcX+srcW]×[srcY..srcY+srcH] RAAKT. Zelfde tegel-toewijzing als de vorm-tegeling: de clip
+    // trimt partiële glyphs aan de tegelrand identiek, en de `setTextMatrix` (absolute XObject-coörd.)
+    // + deze `cm` reproduceren exact de fase-2-plaatsing. Bevroren-kolomtekst (bron-x < frozenPx) valt
+    // vanzelf binnen zowel de kolom-0-tegel als de herhaalde frozen-strip-tegel (pageX=marginPt,
+    // srcX=0) → één keer per horizontale kolom; body-tekst raakt alleen z'n eigen body-venster.
+    const srcXEnd = srcX + srcW;
+    const srcYEnd = srcY + srcH;
+    for (const t of texts) {
+      if (t.x1 > srcX && t.x0 < srcXEnd && t.y1 > srcY && t.y0 < srcYEnd) {
+        for (const op of t.ops) pageOps.push(op);
+      }
+    }
+    pageOps.push(popGraphicsState());
   };
 
   let pageIndex = 0;
@@ -151,7 +169,14 @@ export async function paginateVectorToPdfBytes(
       const page = doc.addPage([pageW, pageH]);
       const leaf = page.node;
       leaf.setXObject(PDFName.of('X0'), xobjRef);
+      // De tegel-tekst (fase 2.1) én de footer draaien nu op de PAGINA-content-stream i.p.v. in het
+      // XObject, dus de pagina heeft dezelfde resources nodig als het XObject: beide font-gewichten
+      // (F0=Regular voor footer+tekst, F1=Bold) en elke ExtGState-alpha die de tekst gebruikt.
       leaf.setFontDictionary(PDFName.of('F0'), regular.ref);
+      leaf.setFontDictionary(PDFName.of('F1'), bold.ref);
+      for (const [key, ref] of Object.entries(resources.ExtGState)) {
+        leaf.setExtGState(PDFName.of(key), ref);
+      }
 
       const pageOps: PDFOperator[] = [];
 
