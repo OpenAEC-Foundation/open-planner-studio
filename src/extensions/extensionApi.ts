@@ -14,6 +14,7 @@ import type {
 import type { ExtImportResult } from './extTypes';
 import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
+import { registerCjkFontProvider, type CjkFontProvider } from '@/services/pdf/fontRegistry';
 import {
   subscribeExtensionEvent,
   unsubscribeExtensionEvent,
@@ -40,6 +41,7 @@ export { emitExtensionEvent };
 export function createExtensionApi(
   extensionId: string,
   permissions: ExtensionPermission[],
+  assets?: Record<string, Uint8Array>,
 ): ExtensionApi {
   const cleanupFns: (() => void)[] = [];
 
@@ -126,6 +128,40 @@ export function createExtensionApi(
       },
     },
 
+    pdfFonts: {
+      register(provider: CjkFontProvider) {
+        // Valideer de provider-vorm vóór registratie — een extensie-fout mag de export-registry
+        // niet met een half object vervuilen.
+        if (!provider || typeof provider !== 'object') {
+          throw new Error(`Extensie "${extensionId}": pdfFonts.register vereist een provider-object`);
+        }
+        if (typeof provider.id !== 'string' || provider.id.length === 0) {
+          throw new Error(`Extensie "${extensionId}": font-provider mist een geldige 'id'`);
+        }
+        if (typeof provider.covers !== 'function') {
+          throw new Error(`Extensie "${extensionId}": font-provider mist 'covers(codepoint)'`);
+        }
+        if (typeof provider.getRegularBytes !== 'function') {
+          throw new Error(`Extensie "${extensionId}": font-provider mist 'getRegularBytes()'`);
+        }
+        if (provider.getBoldBytes !== undefined && typeof provider.getBoldBytes !== 'function') {
+          throw new Error(`Extensie "${extensionId}": font-provider 'getBoldBytes' moet een functie zijn`);
+        }
+        // registerCjkFontProvider geeft een uitschrijf-functie terug; hang 'm aan cleanupFns zodat
+        // disable/unload de provider automatisch verwijdert (net als importers/ribbon-knoppen).
+        const unregister = registerCjkFontProvider(provider);
+        cleanupFns.push(unregister);
+      },
+    },
+
+    assets: {
+      get(name: string): Uint8Array | undefined {
+        const bytes = assets?.[name];
+        // Kopie: de extensie mag het resultaat niet in de opgeslagen bytes muteren.
+        return bytes ? bytes.slice() : undefined;
+      },
+    },
+
     _cleanup() {
       cleanupFns.forEach((fn) => fn());
       cleanupFns.length = 0;
@@ -134,7 +170,8 @@ export function createExtensionApi(
   };
 
   // Centrale permissie-afdwinging: wikkel de guarded methodes (events.*, ui.addRibbonButton,
-  // importers.*) in checks volgens de tabel in permissions.ts. Kern-API blijft ongewijzigd.
+  // importers.*, pdfFonts.register) in checks volgens de tabel in permissions.ts. Kern-API
+  // (data.*, settings.*, assets.get, ui.showNotification) blijft ongewijzigd.
   applyPermissionGuards(api as unknown as Record<string, unknown>, extensionId, permissions);
 
   return api;

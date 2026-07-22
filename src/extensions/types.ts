@@ -5,6 +5,7 @@
  * verpakt als ZIP of los .js-bestand, opgeslagen in IndexedDB.
  */
 import type { RibbonTab } from '@/state/slices/types';
+import type { CjkFontProvider } from '@/services/pdf/fontRegistry';
 import type {
   ExtProject,
   ExtCalendar,
@@ -32,6 +33,9 @@ export type ExtensionCategory =
  *   • 'filesystem' / 'network' → puur installatie-informatief; GEEN API-oppervlak en in
  *     same-context JS niet technisch afdwingbaar (getoonde intentie, geen sandbox-garantie).
  *
+ *   • 'pdf-fonts'  → api.pdfFonts.register (hard afgedwongen) — een CJK/glyf-font-provider voor de
+ *     vector-PDF-export registreren (zie src/services/pdf/fontRegistry.ts).
+ *
  * NB: 'commands' bestond hiervoor maar had nooit een API-oppervlak en is per audit P16 verwijderd.
  * Manifesten die het (of een andere onbekende waarde) nog noemen, worden bij het activeren
  * gefilterd met een appLog-warn (`sanitizeManifestPermissions`) — installatie blijft slagen.
@@ -41,7 +45,8 @@ export type ExtensionPermission =
   | 'backstage'
   | 'events'
   | 'filesystem'
-  | 'network';
+  | 'network'
+  | 'pdf-fonts';
 
 export type ExtensionStatus = 'enabled' | 'disabled' | 'error' | 'loading';
 
@@ -150,6 +155,26 @@ export interface ExtensionApi {
   settings: {
     get<T>(key: string, defaultValue: T): T;
     set<T>(key: string, value: T): void;
+  };
+
+  /**
+   * Registratie van font-providers voor de vector-PDF-export (permissie 'pdf-fonts' vereist).
+   * Een provider levert rauwe glyf-TTF-bytes (bv. via `api.assets.get(...)`) + een codepoint-dekking;
+   * de vector-pagineerder subset en bedt hem conditioneel in. De teruggegeven provider wordt bij
+   * disable/unload automatisch weer uitgeschreven (net als importers/ribbon-knoppen).
+   */
+  pdfFonts: {
+    register(provider: CjkFontProvider): void;
+  };
+
+  /**
+   * Lees de eigen, mee-verpakte binaire assets van de extensie (de niet-`main`/`manifest`-bestanden
+   * uit de installatie-ZIP), op naam. Levert een kopie van de bytes of `undefined` als de asset niet
+   * bestaat. Géén permissie: dit zijn de eigen bestanden van de extensie (analoog aan `settings.*`).
+   * Een los `.js`-geïnstalleerde extensie heeft geen assets → altijd `undefined`.
+   */
+  assets: {
+    get(name: string): Uint8Array | undefined;
   };
 
   /** Intern — draait alle registraties terug bij disable. */

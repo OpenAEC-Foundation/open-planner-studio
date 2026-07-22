@@ -156,7 +156,17 @@ function extractManifestFromCode(code: string, fileName: string): ExtensionManif
 
 // ── ZIP-afhandeling ──
 
-async function installFromZipBlob(blob: Blob, overrideId?: string): Promise<boolean> {
+/** Per-asset-limiet (24 MB) — ruim genoeg voor een gesubset CJK-glyf-font, klein genoeg voor IndexedDB. */
+const MAX_ASSET_BYTES = 24 * 1024 * 1024;
+/** Totale asset-limiet per extensie (48 MB) — meerdere gewichten/fonts mogen, maar niet onbegrensd. */
+const MAX_TOTAL_ASSET_BYTES = 48 * 1024 * 1024;
+
+/**
+ * Installeer een extensie uit een ZIP-`Blob` via het volledige install-pad (parse → assets bewaren →
+ * opslaan → activeren). Ook gebruikt door `installFromCatalog`/`installFromFile`; los geëxporteerd zodat
+ * programmatische installatie (o.a. zelftests) hetzelfde pad kan aanroepen zonder bestandskiezer.
+ */
+export async function installFromZipBlob(blob: Blob, overrideId?: string): Promise<boolean> {
   try {
     const arrayBuffer = await blob.arrayBuffer();
     const files = await parseZipEntries(arrayBuffer);
@@ -175,6 +185,31 @@ async function installFromZipBlob(blob: Blob, overrideId?: string): Promise<bool
     const mainCode = new TextDecoder().decode(mainEntry.data);
     const id = overrideId || manifest.id;
 
+    // Overige ZIP-entries (niet main/manifest) bewaren als binaire assets, op naam → bytes. Zo kan
+    // een extensie z'n eigen font-bytes leveren via `api.assets.get(...)`. Grootte begrensd (font-
+    // assets zijn MB's, maar IndexedDB mag niet volgestampt worden): per bestand ≤ MAX_ASSET_BYTES,
+    // totaal ≤ MAX_TOTAL_ASSET_BYTES; te grote entries worden overgeslagen met een waarschuwing.
+    const assets: Record<string, Uint8Array> = {};
+    let assetTotal = 0;
+    for (const f of files) {
+      if (f === manifestEntry || f === mainEntry) continue;
+      if (f.data.length > MAX_ASSET_BYTES) {
+        console.warn(
+          `[Extensies] Asset "${f.name}" (${f.data.length} bytes) overschrijdt de limiet van ${MAX_ASSET_BYTES} bytes en wordt overgeslagen`,
+        );
+        continue;
+      }
+      if (assetTotal + f.data.length > MAX_TOTAL_ASSET_BYTES) {
+        console.warn(
+          `[Extensies] Assets samen overschrijden ${MAX_TOTAL_ASSET_BYTES} bytes; "${f.name}" en verdere assets worden overgeslagen`,
+        );
+        break;
+      }
+      assets[f.name] = f.data;
+      assetTotal += f.data.length;
+    }
+    const hasAssets = Object.keys(assets).length > 0;
+
     // Al geïnstalleerd? Eerst deactiveren.
     if (getActivePlugins().has(id)) {
       await disableExtension(id);
@@ -185,6 +220,8 @@ async function installFromZipBlob(blob: Blob, overrideId?: string): Promise<bool
       manifest: { ...manifest, id },
       mainCode,
       enabled: true,
+      // Backward-compat: alleen een `assets`-veld schrijven als er echt assets zijn.
+      ...(hasAssets ? { assets } : {}),
     });
 
     const installed: InstalledExtension = {

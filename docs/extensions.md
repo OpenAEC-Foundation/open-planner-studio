@@ -28,10 +28,11 @@ Categorieën: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Other`.
 | `events` | **hard** — ontbreekt ⇒ `api.events.*` gooit | Abonneren/uitzenden op de event-bus. |
 | `ribbon` | **hard** — ontbreekt ⇒ `api.ui.addRibbonButton` gooit | Een knop in de ribbon plaatsen. |
 | `backstage` | **warn** (overgangsregime) — ontbreekt ⇒ `api.importers.*` werkt nog, maar logt een waarschuwing | Een importer registreren (verschijnt in Bestand → Importeren). |
+| `pdf-fonts` | **hard** — ontbreekt ⇒ `api.pdfFonts.register` gooit | Een font-provider registreren voor de vector-PDF-export (bv. CJK-glyf-bytes). |
 | `filesystem` | informatief | Geen API-oppervlak; puur getoonde intentie bij installatie — **geen** sandbox-garantie (extensie-code heeft technisch gewoon toegang). |
 | `network` | informatief | Idem — getoonde intentie, geen technische grens. |
 
-`data.*`, `settings.*` en `ui.showNotification` zijn **kern-API**: altijd beschikbaar, geen permissie nodig.
+`data.*`, `settings.*`, `assets.*` en `ui.showNotification` zijn **kern-API**: altijd beschikbaar, geen permissie nodig.
 
 De afdwinging is gecentraliseerd in `src/extensions/permissions.ts` (één tabel pad → permissie).
 `minAppVersion` wordt óók afgedwongen: is de app ouder, dan weigert de extensie te activeren (status `error`).
@@ -81,8 +82,35 @@ module.exports = {
 | `api.events` | `on/off/emit` (permissie `events`) |
 | `api.ui` | `addRibbonButton(reg)` (permissie `ribbon`), `showNotification(msg, type?)` |
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
+| `api.assets` | `get(name)` — rauwe bytes van een mee-verpakt (niet-`main`/`manifest`) ZIP-bestand, of `undefined` (kern-API) |
+| `api.pdfFonts` | `register(provider)` (permissie `pdf-fonts`) — font-provider voor de vector-PDF-export; automatisch uitgeschreven bij disable |
 
 Belangrijk: na het muteren van taken/relaties zelf `api.data.recalculate()` aanroepen — het schema wordt niet reactief herberekend. `loadProject()` doet dat automatisch.
+
+### Binaire assets & font-providers
+
+Bestanden die je náást `manifest.json` en `main.js` in de installatie-ZIP stopt, worden bewaard als
+**assets** en zijn op naam op te vragen met `api.assets.get(naam)` (rauwe `Uint8Array`, of `undefined`).
+Dat is de manier om binaire data mee te leveren — bijvoorbeeld font-bytes. Een los `.js`-geïnstalleerde
+extensie heeft geen assets. Grootte is begrensd (per bestand ≤ 24 MB, samen ≤ 48 MB).
+
+Met de permissie `pdf-fonts` registreer je zulke bytes als **font-provider** voor de vector-PDF-export.
+Een provider levert rauwe glyf-TTF-bytes + een codepoint-dekking; de export subset en bedt hem
+conditioneel in. De registratie wordt bij het uitschakelen automatisch teruggedraaid.
+
+````js
+// manifest.json → "permissions": ["pdf-fonts"], en test.ttf mee in de ZIP.
+module.exports = {
+  onLoad(api) {
+    api.pdfFonts.register({
+      id: 'mijn-font',
+      covers: (cp) => cp >= 0x4e00 && cp <= 0x9fff,   // bv. CJK Unified Ideographs
+      getRegularBytes: async () => api.assets.get('test.ttf'),
+      // getBoldBytes: async () => api.assets.get('test-bold.ttf'),  // optioneel
+    });
+  },
+};
+````
 
 ### Datacontract: de `Ext*`-typen
 
