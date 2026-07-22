@@ -6,6 +6,7 @@ import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { computeHighResScale } from '@/utils/miniPdf';
 import { paginateCanvasToPdfBytes, paginateCanvasToTiles } from '@/services/print/paginate';
+import { ensureInterLoaded } from '@/services/pdf/fontLoader';
 import { Select } from '@/components/common/Select';
 import { isTauri } from '@/utils/platform';
 import { MilestoneReport, useMilestoneRows } from './MilestoneReport';
@@ -104,28 +105,37 @@ export function ReportPanel() {
       setPreviewTotalPages(0);
       return;
     }
-    const offscreen = document.createElement('canvas');
-    // Eerste render (schaal 1) → logische maten + naam-kolombreedte; tweede render → preview-raster.
-    const { width: logicalWidth, height: logicalHeight, tableWidth } = renderPrintCanvas(
-      offscreen, tasks, sequences, calendar, projectName, options, 1,
-    );
-    renderPrintCanvas(offscreen, tasks, sequences, calendar, projectName, options, PREVIEW_RENDER_SCALE);
-    const tiles = paginateCanvasToTiles(offscreen, {
-      paperSize: paperSize.toLowerCase() as 'a4' | 'a3' | 'a1',
-      orientation,
-      mode: autoFit ? 'fit-width' : 'actual',
-      logicalWidth,
-      logicalHeight,
-      frozenColumnWidthPx: tableWidth,
-      supersample: 1, // preview: goedkoper; wordt toch verkleind weergegeven
-    });
-    const shown = tiles.pages.slice(0, PREVIEW_MAX_PAGES);
-    setPreviewPages(shown.map(page => ({
-      dataUrl: page.toDataURL('image/png'),
-      wPt: tiles.pageWidthPt,
-      hPt: tiles.pageHeightPt,
-    })));
-    setPreviewTotalPages(tiles.pages.length);
+    let cancelled = false;
+    const renderPreview = () => {
+      if (cancelled) return;
+      const offscreen = document.createElement('canvas');
+      // Eerste render (schaal 1) → logische maten + naam-kolombreedte; tweede render → preview-raster.
+      const { width: logicalWidth, height: logicalHeight, tableWidth } = renderPrintCanvas(
+        offscreen, tasks, sequences, calendar, projectName, options, 1,
+      );
+      renderPrintCanvas(offscreen, tasks, sequences, calendar, projectName, options, PREVIEW_RENDER_SCALE);
+      const tiles = paginateCanvasToTiles(offscreen, {
+        paperSize: paperSize.toLowerCase() as 'a4' | 'a3' | 'a1',
+        orientation,
+        mode: autoFit ? 'fit-width' : 'actual',
+        logicalWidth,
+        logicalHeight,
+        frozenColumnWidthPx: tableWidth,
+        supersample: 1, // preview: goedkoper; wordt toch verkleind weergegeven
+      });
+      const shown = tiles.pages.slice(0, PREVIEW_MAX_PAGES);
+      setPreviewPages(shown.map(page => ({
+        dataUrl: page.toDataURL('image/png'),
+        wPt: tiles.pageWidthPt,
+        hPt: tiles.pageHeightPt,
+      })));
+      setPreviewTotalPages(tiles.pages.length);
+    };
+    // Wacht op het gevendorde Inter-font (family 'InterPDF') vóór de eerste render, zodat
+    // measureText/afkapping deterministisch is (§5.2). ensureInterLoaded is idempotent; de
+    // cancelled-guard voorkomt dat een verouderde async-render na deps-wijziging/unmount nog toepast.
+    ensureInterLoaded().then(renderPreview);
+    return () => { cancelled = true; };
   }, [reportType, tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation, companyName, locale, dateNotation]);
 
   const milestoneRows = useMilestoneRows();
@@ -156,6 +166,10 @@ export function ReportPanel() {
 
   const handleExportPDF = useCallback(async () => {
     const lowerPaper = paperSize.toLowerCase() as 'a4' | 'a3' | 'a1';
+
+    // Zorg dat het gevendorde Inter-font geladen is vóór de offscreen render, zodat ook de
+    // raster-export het deterministische Inter gebruikt (measureText-pariteit met de preview, §5.2).
+    await ensureInterLoaded();
 
     if (reportType === 'gantt') {
       // Render offscreen at a fixed high-res scale for the export — independent of the on-screen
