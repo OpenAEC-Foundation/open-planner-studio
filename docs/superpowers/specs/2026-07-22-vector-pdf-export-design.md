@@ -2,7 +2,7 @@
 
 **Datum:** 2026-07-22
 **Issue:** #23 "Support vector PDF export support"
-**Status:** ontwerp (nog niet geïmplementeerd)
+**Status:** ontwerp — vier scope-besluiten vastgelegd (§2.2), klaar om te bouwen
 **Ontwikkelbranch:** `claude/vector-pdfs-investigation-15da01`
 
 ---
@@ -33,16 +33,20 @@ export.
 **In scope (v1):**
 - Gantt-rapport volledig vector via een `Draw2D`-abstractie + PDF-vector-backend.
 - Mijlpalen- en afwijkingen-rapporten als data-gedreven vector-tabellen (geen DOM-screenshot meer).
-- Ingebedde gesubsette fonts: Latijn/Cyrillisch/Grieks (Inter) + CJK (Noto Sans CJK, lazy).
+- Ingebedde gesubsette fonts uit de **kern**: Latijn/Cyrillisch/Grieks (Inter).
+- Een **font-provider-registry + extensie-API** zodat extra scripts (CJK) via een extensie
+  bijgeplugd kunnen worden; scripts zonder dekkend font vallen terug op raster (§4.5, §5.3).
 - Vector-paginering (clip + transform per pagina) met behoud van de bevroren-naam-kolom-herhaling.
 
-**Bewust buiten v1 (met promotiepad in v2):**
-- **Arabisch/Farsi (ar/fa) blijven via de bestaande raster-JPEG-export** — zie §5.4. Reden: correcte
-  RTL-vectortekst vergt een zelfgebouwde bidi-runlayout bovenop `bidi-js`; dat is de grootste
-  engineering- en testlast van het hele project. De browser rendert RTL al perfect naar canvas, dus
-  de raster-PDF is visueel correct; het enige verlies is niet-selecteerbare tekst voor 2 van de 14
-  locales. **Dit is een afwijking van de oorspronkelijke "alle locales vector"-wens en staat als
-  open besluit in §10.**
+**Bewust buiten v1 (losgekoppelde vervolgtaken ná v1):**
+- **CJK (zh/ja/ko) zit niet in de kern maar wordt een aparte, officiële extensie** (besluit 3, §2.2).
+  De kern levert alleen de haak (font-registry + extensie-API); de extensie brengt het Noto Sans
+  CJK-font mee. Zonder geïnstalleerde extensie → raster-fallback voor CJK-documenten.
+- **Arabisch/Farsi (ar/fa) blijven via de bestaande raster-JPEG-export** (besluit 2, §5.4). De
+  RTL-vectortekst (bidi-runlayout op `bidi-js`) is de grootste engineering-/testlast en wordt
+  **pas ná de rest, als losgekoppelde vervolgtaak door een aparte agent** gedaan. De browser rendert
+  RTL al perfect naar canvas, dus de raster-PDF is visueel correct; enige verlies = niet-selecteerbare
+  tekst voor 2 van de 14 locales tot die vervolgtaak klaar is.
 - Volledige per-run font-fallback voor willekeurig gemengde scripts binnen één string (§5.3).
 
 ### 2.1 Waarom vector — en niet alleen hogere DPI
@@ -59,6 +63,22 @@ koos expliciet "ingebedde gesubsette fonts" en "Gantt + alle rapporten". De goed
 zijn afgewogen en bewust niet gekozen; ze staan gedocumenteerd in §10.1 zodat de afweging
 navolgbaar blijft.
 
+### 2.2 De vier vastgelegde scope-besluiten
+
+Na de kritische review heeft de user vier keuzes bevestigd; die zijn nu bindend:
+
+1. **Alles vector.** Volledige vector-aanpak mét selecteerbare tekst voor Gantt + beide
+   tabelrapporten. Geen afgeslankte variant.
+2. **Arabisch/Farsi: nu raster, vector later apart.** In v1 gaan ar/fa via de bestaande
+   raster-JPEG-export. Het RTL-vectorwerk (bidi-runlayout) wordt **pas ná v1 en door een aparte
+   agent** opgepakt — niet in deze bouwronde.
+3. **CJK wordt een extensie.** De Aziatische lettertypes (5–16 MB) komen niet in de kern of van een
+   server, maar als een **installeerbare extensie** via het bestaande extensiesysteem. De kern
+   levert een font-provider-registry + extensie-API; de extensie registreert het Noto-CJK-font.
+   Zonder extensie → raster-fallback voor CJK.
+4. **Preview = raster.** Het live-voorbeeld blijft de snelle raster-manier (canvas → PNG-tegels,
+   near-WYSIWYG). Geen zware in-browser PDF-viewer.
+
 ## 3. Besluiten (met onderbouwing)
 
 | # | Besluit | Onderbouwing |
@@ -66,8 +86,8 @@ navolgbaar blijft.
 | B1 | **`pdf-lib` + `@pdf-lib/fontkit`** als vector-PDF-generator, i.p.v. `miniPdf` uitbreiden of `jspdf`. | pdf-lib doet al Type0/CID (`Identity-H`) font-embedding **met subsetting via fontkit** (`embedFont(bytes,{subset:true})`), is browser-native (de fork bestaat juist om Node-`fs`/`Buffer` te vermijden), en is MIT (compatibel met LGPL-3.0). Zelf TrueType-subsetting + CID/Type0 + `cmap`/`GSUB` schrijven is honderden correctheidsgevoelige regels — precies wat fontkit betrouwbaar doet. `jspdf` heeft zwakkere subsetting en slechts partiële RTL. |
 | B2 | **Lazy `import()`** van pdf-lib/fontkit in de exporttak, niet in de hoofdbundle. | ~530 KB gzip (pdf-lib 178 KB + fontkit 342 KB). Volgt het bestaande patroon (`App.tsx` importeert de Tauri-auto-save dynamisch). De export is een gebruikersactie, geen opstartpad. |
 | B3 | **Inter als TTF meeleveren** (raw `.ttf` uit `rsms/inter`, OFL-1.1), niet de `@fontsource/inter`-woff2. | `@fontsource/inter` levert alleen woff2/woff + CSS, geen `.ttf`. Voor embedding is TTF/OTF nodig; of `@pdf-lib/fontkit` in-browser woff2 (brotli) decodeert is **ongeverifieerd** — dus veiligste route = raw TTF. Inter dekt Latijn + Cyrillisch + Grieks ⇒ 9 Latijnse locales met één font. Vervangt de systeem-font-stack `FONT_FAMILY` (`printPreview.ts:38`), die per platform verschilt en niet inbedbaar is. |
-| B4 | **CJK via Noto Sans CJK in TTF (glyf), region-specifiek, lazy-fetch** als static asset. | CFF/OTF-subsetting is over de hele linie kapot (pdf-lib #664, TCPDF #826, OpenPDF #71 → onzichtbare tekst). pdf-lib subset werkt betrouwbaar op glyf-outlines (TTF). Volledige CJK-font = 5–16 MB, dus niet bundelen: `fetch()` alleen bij export van een document met CJK-glyphs; subset embed alleen de ~honderden gebruikte glyphs (orde tientallen–honderd KB in de PDF). Horizontale CJK heeft **geen** shaping nodig — simpele codepoint→glyph via Type0/CID. |
-| B5 | **ar/fa via raster-fallback in v1** (bestaande miniPdf-pad); vector met `bidi-js` in v2. | fontkit shapet Arabisch (joining/ligaturen) al, maar doet **geen bidi-reordering** — dat is zelfbouw. Grote lift + testlast (mixed met cijfers/Latijnse namen). Raster = nul extra werk, vandaag visueel correct. `harfbuzz` is niet nodig (fontkit shapet even goed) en zou 390 KB wasm toevoegen. |
+| B4 | **CJK als installeerbare extensie** (Noto Sans CJK in TTF/glyf), niet in de kern of via server-fetch. Kern levert een font-provider-registry + extensie-API (§4.5). | CFF/OTF-subsetting is onbetrouwbaar (o.a. OpenPDF #71 → onzichtbare tekst); pdf-lib subset werkt betrouwbaar op glyf (TTF). Volledige CJK-font = 5–16 MB → hoort niet in de hoofdbundle. De user koos bewust het **extensie**-model (besluit 3): dat past bij de app-filosofie (frontend-extensies, IndexedDB-opslag, geen Rust), houdt de kern licht, en maakt CJK optioneel/opt-in. De extensie levert de ruwe TTF-bytes; de kern subset per export (~tientallen–honderd KB in de PDF). Horizontale CJK heeft **geen** shaping nodig — simpele codepoint→glyph via Type0/CID. |
+| B5 | **ar/fa via raster-fallback in v1**; RTL-vector (`bidi-js`) is een **losgekoppelde vervolgtaak ná v1, door een aparte agent**. | fontkit shapet Arabisch (joining/ligaturen) al, maar doet **geen bidi-reordering** — dat is zelfbouw (grootste lift + testlast: mixed met cijfers/Latijnse namen). Raster = nul extra werk, vandaag visueel correct. De user koos expliciet dit werk te ontkoppelen (besluit 2). `harfbuzz` is niet nodig (fontkit shapet even goed) en zou 390 KB wasm toevoegen. |
 | B6 | **Draw2D-abstractie** met twee backends (canvas voor preview, PDF-vector voor export); `renderPrintCanvas` tekent tegen `Draw2D` i.p.v. rechtstreeks `ctx`. | De renderer gebruikt een gesloten set van ~14 primitieven (geen gradients/clipping/composite). Eén renderer, twee backends houdt preview en export gegarandeerd in sync. |
 | B7 | **Tabellen als data-gedreven vector** (route a), niet DOM→vector (route b). | `useMilestoneRows()`/`useVarianceResult()` leveren al pure rij-data en worden al in `ReportPanel` aangeroepen (`:131-132`). Een generieke `PdfTable(columns, rows)`-renderer bovenop Draw2D geeft selecteerbare tekst + gedeelde font/kleur-infra. DOM→vector zou een HTML/CSS-engine vergen en vecht met thema-kleuren (de `data-theme='light'`-hack in `ReportPanel.tsx:198-205`). |
 
@@ -177,6 +197,41 @@ kleur-functie voor status-/delta-cellen), rij-hoogte, kop-onderlijn (2px), rij-s
 helper voor beide rapporten; ze verschillen alleen in kolom-spec en databron
 (`MilestoneRow`/`VarianceRow`). Voeden vanuit `useMilestoneRows()`/`useVarianceResult()`.
 
+### 4.5 Font-provider-registry + extensie-API (CJK via extensie — besluit 3)
+
+De kern bedt zelf alleen Inter in (Latijn/Cyrillisch/Grieks). Extra scripts komen via een
+**font-provider-registry** die extensies kunnen vullen:
+
+```ts
+interface PdfFontProvider {
+  id: string;                       // bv. 'noto-cjk-sc'
+  covers(codepoint: number): boolean; // of, praktischer: een lijst Unicode-ranges/scripts
+  getTtfBytes(): Promise<Uint8Array>; // ruwe TTF (glyf) — de kern subset per export
+}
+```
+
+- **Kern:** een module (bv. `src/services/pdf/fontRegistry.ts`) houdt de geregistreerde providers
+  bij. Bij export doet de script-detectie (§5.3) per string: gedekt door Inter → Inter; anders →
+  vraag de registry om een provider die de codepoints dekt; geen provider → **raster-fallback voor de
+  hele export**.
+- **Extensie-API:** breid `src/extensions/api` uit met `api.pdfFonts.register(provider)`, afgedwongen
+  achter een nieuwe permissie (bv. `pdf-fonts`) net als de bestaande `ribbon`/`events`-permissies.
+  De extensie roept dit aan in `onLoad(api)` en verwijdert zich bij `onUnload()`.
+- **De officiële CJK-extensie:** een ZIP met `manifest.json` + `main.js` die het Noto Sans CJK-TTF
+  meebrengt en registreert. Twee opties voor de font-bytes, te beslissen in fase 4b:
+  1. **Loader uitbreiden met binaire assets** (aanbevolen): de extensie-loader (`src/extensions/loader`)
+     leert een asset-bestand uit de ZIP als `Uint8Array` aan de extensie te geven. Schoon, maar raakt
+     de loader.
+  2. **Font als base64 in `main.js`** (geen loader-wijziging, maar een ~7–21 MB JS-string — lelijk).
+  Opslag is sowieso IndexedDB (`ops-extensions`), dat de multi-MB-payload aankan. De extensie hoort
+  in de catalogus (`open-planner-studio-extensions/catalog.json`).
+- **Waarom dit past:** extensies zijn puur frontend, geen Rust, geen IFC-impact — een font-provider is
+  precies zo'n app-niveau-uitbreiding. De kern blijft licht en CJK wordt opt-in.
+
+**Belangrijk voor de bouw:** de kern-haak (registry + API + fallback) is v1-werk (fase 4). De
+CJK-extensie zelf is een **apart deliverable** (fase 4b) en kan met een klein test-font gevalideerd
+worden zonder de volle 16 MB.
+
 ## 5. Font- & i18n-strategie
 
 ### 5.1 measureText-pariteit (het scherpste knelpunt, opgelost via de interface)
@@ -221,14 +276,16 @@ auteur, WBS) — dus willekeurige Unicode, ongeacht de UI-locale. Strategie per 
    (`printPreview.ts:615`, `:1015`) én de timeline-maandnamen (`getLocalizedMonths`) produceren in
    een CJK-locale CJK-glyphs *zonder* enige gebruikersinvoer. Detecteer dus over alle bronnen
    (labels + maandnamen + gebruikersinvoer), niet alleen taaknamen.
-2. Latijn/Cyrillisch/Grieks → Inter (altijd geladen).
-3. Bevat een string CJK-codepoints → zorg dat het juiste Noto Sans CJK-TTF geladen is (lazy fetch);
-   embed-subset dekt de gebruikte glyphs.
-4. Bevat een string ar/fa (of een script dat geen geladen font dekt) → **v1: raster-fallback voor de
-   hele export** (de bestaande miniPdf-pijplijn). Zo is de output altijd correct, nooit "tofu".
-5. **Bekende v1-beperking:** willekeurig gemengde scripts binnen één string die geen enkel geladen
-   font volledig dekt, vallen onder de raster-fallback. Volledige per-run font-fallback (string
-   splitsen per script, x-offsets berekenen) is v2.
+2. Latijn/Cyrillisch/Grieks → Inter (altijd door de kern geladen).
+3. Bevat een string CJK-codepoints → vraag de **font-provider-registry** (§4.5) om een provider die
+   ze dekt. Is de **officiële CJK-extensie geïnstalleerd**, dan levert die het Noto-CJK-TTF en subset
+   de kern per export; is er geen provider → stap 4 (raster-fallback).
+4. Bevat een string ar/fa, óf CJK zonder geïnstalleerde extensie, óf een ander script dat geen
+   provider dekt → **v1: raster-fallback voor de hele export** (de bestaande miniPdf-pijplijn). Zo is
+   de output altijd correct, nooit "tofu".
+5. **Bekende v1-beperking:** willekeurig gemengde scripts binnen één string die geen enkele provider
+   volledig dekt, vallen onder de raster-fallback. Volledige per-run font-fallback (string splitsen
+   per script, x-offsets berekenen) is een latere uitbreiding.
 
 De getekende tekstvelden (voor glyph-dekking) zijn geïnventariseerd: project-header (branding,
 projectnaam, bedrijf/auteur/print-datum met gelokaliseerde maandnaam, start/eind/duur), today-label,
@@ -236,15 +293,17 @@ taakbar-labels, timeline-header (maandnaam+jaar, week, dag, kolomkoppen), tabel 
 duur, datums, voltooiing) en footer (projectnaam, print-datum, "Pagina x van y", branding,
 legenda).
 
-### 5.4 RTL (ar/fa) — v1 raster, v2 vector
+### 5.4 RTL (ar/fa) — v1 raster, vector als losgekoppelde vervolgtaak
 
 **v1:** detecteer ar/fa (of RTL-codepoints) → route de hele export door de bestaande
 raster-JPEG-pijplijn. Visueel correct (browser shapet + bidi al), tekst niet selecteerbaar.
 
-**v2 (promotiepad):** `bidi-js` `getEmbeddingLevels()` + `getReorderSegments()` → visuele runs
-bepalen, RTL-runs omkeren/rechts uitlijnen, per run `font.layout` (fontkit-shaping) → subset →
-op de juiste x plaatsen. Bidi-aware line-breaking. harfbuzz alleen als fontkit-shaping kwalitatief
-tekortschiet.
+**Vervolgtaak ná v1 (aparte agent, besluit 2):** `bidi-js` `getEmbeddingLevels()` +
+`getReorderSegments()` → visuele runs bepalen, RTL-runs omkeren/rechts uitlijnen, per run
+`font.layout` (fontkit-shaping) → subset → op de juiste x plaatsen. Bidi-aware line-breaking. Het
+Arabische font komt — net als CJK — via een provider (kern-font of extensie). harfbuzz alleen als
+fontkit-shaping kwalitatief tekortschiet. **Deze taak wordt bewust níét in deze bouwronde gedaan;
+ze wordt pas gestart als v1 (fasen 0–5) staat en groen is.**
 
 ## 6. Integratiepunten (exact)
 
@@ -257,7 +316,10 @@ tekortschiet.
 | `src/services/print/printPreview.ts` `renderPrintCanvas` + helpers | Ombuigen van `ctx` naar `Draw2D`; `FONT_FAMILY` (`:38`) → Inter. Layout-logica ongewijzigd. |
 | `src/services/print/paginate.ts` | Behoud raster-functies; voeg `paginateVectorToPdfBytes` toe (tegelwiskunde hergebruikt). |
 | `src/utils/miniPdf.ts` | **Ongewijzigd** — blijft de raster-fallback + preview voeden. |
-| nieuw `src/services/pdf/` (voorstel) | `Draw2D`-interface, `CanvasDraw2D`, `PdfVectorDraw2D`, `PdfTable`, font-loading/subset-helper. |
+| nieuw `src/services/pdf/` (voorstel) | `Draw2D`-interface, `CanvasDraw2D`, `PdfVectorDraw2D`, `PdfTable`, `fontRegistry.ts`, font-subset-helper. |
+| `src/extensions/api` (+ `types`, permissie-lijst) | Nieuwe `api.pdfFonts.register(...)` achter een `pdf-fonts`-permissie (besluit 3, §4.5). |
+| `src/extensions/loader` | Mogelijk uitbreiden met binaire-asset-toegang zodat een font-extensie de TTF-bytes kan leveren (fase 4b, optie 1). |
+| catalogus `open-planner-studio-extensions/catalog.json` | Officiële CJK-font-extensie publiceren (fase 4b). |
 
 ## 7. Gefaseerd implementatieplan
 
@@ -290,21 +352,32 @@ tegel-/paginering-pariteit met de raster-versie op een meerpagina-planning.
 kolom-specs voor beide rapporten; vervang de DOM-screenshot-tak. **Verifieer**: kolommen/kleuren/
 statusbadges kloppen met de DOM-preview; selecteerbare tekst.
 
-**Fase 4 — CJK lazy-fetch + script-detectie + raster-fallback (Opus xhigh).** Host Noto Sans CJK-TTF
-als static asset; per-export script-detectie (incl. maandnamen, K4); lazy-fetch + subset-embed;
-RTL/ongedekt → raster-fallback. **Cache de gefetchte font (K6)** in IndexedDB (web) / `appDataDir`
-(Tauri) zodat een tweede export niet tientallen MB her-downloadt; en zorg dat de **Tauri-CSP** de
-connectie naar de font-host (`open-planner-studio.open-aec.com`) toestaat. **Verifieer**: een
-showcase met CJK-taaknamen exporteert vector met correcte glyphs; een tweede export gebruikt de
-cache (geen her-download); een ar/fa-document valt correct terug op raster; offline CJK-fetch faalt
-gracieus naar raster.
+**Fase 4 — font-provider-registry + extensie-API + script-detectie + raster-fallback (Opus xhigh).**
+Kern-werk (géén CJK-font nog): bouw `fontRegistry.ts`; breid de extensie-API uit met
+`api.pdfFonts.register(provider)` achter een `pdf-fonts`-permissie (§4.5); per-export script-detectie
+(incl. maandnamen, K4); scripts zonder dekkende provider (ar/fa, of CJK zonder extensie) → raster-
+fallback voor de hele export. **Verifieer**: met een klein **test-font-provider** (paar CJK-glyphs,
+in-repo, niet de volle 16 MB) exporteert een document met die glyphs vector; zonder provider valt
+hetzelfde document terug op raster; een ar/fa-document valt terug op raster; een puur-Latijn document
+blijft ongewijzigd vector.
+
+**Fase 4b — officiële CJK-font-extensie (Opus xhigh, apart deliverable).** Bouw de extensie-ZIP
+(`manifest.json` + `main.js`) die het Noto Sans CJK-TTF meebrengt en via `api.pdfFonts.register`
+aanbiedt. Beslis font-bytes-route (§4.5: loader-binaire-assets vs. base64). Publiceer in de catalogus.
+**Verifieer**: extensie installeren → een showcase met echte CJK-taaknamen exporteert vector met
+correcte glyphs; deïnstalleren → terug naar raster-fallback. **Deze fase mag ná de v1-merge lopen —
+de kern (fase 4) is af zonder haar.**
+
+**Losgekoppelde vervolgtaak (ná v1, aparte agent) — RTL-vector (ar/fa).** Zie §5.4. Niet in deze
+bouwronde.
 
 **Fase 5 — docs + i18n + licentie + changelog (Sonnet medium).** De print-gids bijwerken — **let op:
 die bestaat alleen als `public/docs/en/` en `public/docs/nl/gids-rapporten-printen.md` (K8),** niet
 in 14 locales; verifieer welke bestaan i.p.v. `*` aan te nemen. `docs/CHANGELOG.md` (incl. de
-K2-layout-reflow-noot). **OFL-NOTICE (K7):** Inter en Noto zijn OFL-1.1 — de licentietekst moet
-meegeleverd worden en OFL kent Reserved-Font-Name-regels bij subsetten/hernoemen; voeg een
-NOTICE/licentiebestand toe. **Pre-existente i18n-gaten (K5, optioneel meenemen):** `'Today'`
+K2-layout-reflow-noot). **OFL-NOTICE (K7):** Inter (kern) is OFL-1.1 — de licentietekst moet
+meegeleverd worden; OFL kent Reserved-Font-Name-regels bij subsetten/hernoemen. Voeg een
+NOTICE/licentiebestand toe voor Inter. Het Noto-CJK-OFL hoort bij de **CJK-extensie** (fase 4b), niet
+bij de kern. **Pre-existente i18n-gaten (K5, optioneel meenemen):** `'Today'`
 (`printPreview.ts:447`) en `'Start:'`/`'Eind:'`/`'Duur:'` (`:629,633,639`) zijn hardcoded buiten
 `t(...)` — de refactor erft die fout; fix ze of scope ze expliciet uit (de "af"-eis "correct voor
 alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle 14 locales.
@@ -332,23 +405,22 @@ alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle
 | measureText ≠ PDF-advances (afkapping/paginering wijkt) | Zelfde ingebedde TTF voor beide; definitieve plaatsing via `widthOfTextAtSize`; numerieke meting in fase 0 op diacriet-strings (K3). |
 | Font-swap (systeemstack → Inter) = zichtbare export-reflow (K2) | Bewuste, deterministische wijziging; changelog-noot. |
 | CFF/OTF-subsetting onbetrouwbaar | Dwing TTF (glyf) af voor alle embed-fonts (B3/B4). Exacte "kapot"-issuenummers deels ongeverifieerd; TTF-guardrail is sowieso goedkoop. |
-| CJK-TTF niet beschikbaar (offline desktop) | Graceful raster-fallback per document; cache na eerste fetch (K6); Tauri-CSP toestaan. |
+| CJK-extensie niet geïnstalleerd | Graceful raster-fallback per document (geen "tofu"); CJK is opt-in. |
+| Extensie kan geen binaire font-bytes leveren | Loader uitbreiden met binaire assets (§4.5, fase 4b, optie 1) of base64-fallback (optie 2). |
 | Async font-load race → verkeerde eerste render | `await document.fonts.ready` vóór render (§5.2). |
-| RTL-vector onderschat | v1 raster-fallback; v2 pas na bidi-runlayout + test. |
-| Bundle-groei | Lazy `import()`; CJK als lazy static asset, niet gebundeld. |
+| RTL-vector onderschat | v1 raster-fallback; losgekoppelde vervolgtaak ná v1 (aparte agent). |
+| Bundle-groei | Lazy `import()` van pdf-lib/fontkit; CJK-font zit in een extensie (IndexedDB), niet in de hoofdbundle. |
 
-## 10. Open besluiten voor de user
+## 10. Besluiten (allemaal beslist)
 
-**Besluit 0 — diepte van de oplossing (bevestigd).** De user koos volledige vector mét selecteerbare
-tekst (§2.1). De afgewogen, niet-gekozen alternatieven staan in §10.1.
+Alle eerder openstaande punten zijn door de user bevestigd (§2.2); niets blokkeert meer:
 
-1. **RTL v1 = raster-fallback** (§5.4/B5). Afwijking van "alle locales vector". Akkoord, of moet
-   ar/fa-vector (bidi-runlayout) toch in v1?
-2. **CJK-font hosting**: als static asset op `open-planner-studio.open-aec.com` (lazy-fetch, met
-   cache) — of liever bundelen ondanks de grootte, of GitHub-raw? Static-asset-fetch is de voorkeur;
-   graag bevestiging.
-3. **Preview-strategie**: canvas-raster-preview met Inter-font (near-WYSIWYG, pragmatisch) vs. een
-   echte in-browser PDF-viewer (zwaarder). Voorstel = canvas-raster.
+| # | Vraag | Besluit |
+|---|-------|---------|
+| 0 | Diepte van de oplossing | **Volledige vector mét selecteerbare tekst** (§2.1). Alternatieven in §10.1. |
+| 1 | RTL (ar/fa) in v1? | **Nee — v1 raster-fallback**; RTL-vector is een losgekoppelde vervolgtaak ná v1 door een aparte agent (§5.4). |
+| 2 | CJK-font: bundelen/hosten/extensie? | **Extensie** (§4.5/B4). Kern levert de haak; officiële CJK-extensie brengt het font. |
+| 3 | Preview-strategie | **Raster** (canvas → PNG-tegels, near-WYSIWYG). Geen in-browser PDF-viewer. |
 
 ### 10.1 Afgewogen alternatieven (niet gekozen)
 
@@ -361,9 +433,10 @@ pixelation") ook deels adresseren:
   verhogen/opheffen voor A4/A3. Lost de scherpte-klacht grotendeels op, **geen** selecteerbare tekst,
   A1 blijft eindige DPI. → Afgewezen: geen selecteerbare/doorzoekbare tekst, die de user expliciet
   wil.
-- **Vector, alleen Latijn:** vector + selecteerbare tekst voor Latijnse locales; CJK én RTL via
-  raster-fallback. Schrapt CJK-hosting/fetch (fase 4) volledig. → Kleinere variant; blijft
-  beschikbaar als de CJK-hosting-vraag (besluit 2) op bezwaar stuit.
+- **Vector, alleen Latijn (kern zonder CJK-extensie):** dit is feitelijk de gekozen v1 wanneer de
+  CJK-extensie níét geïnstalleerd is — vector + selecteerbare tekst voor Latijnse/Cyrillische/Griekse
+  locales, CJK én RTL via raster-fallback. Het extensie-model (besluit 2) maakt CJK juist opt-in
+  bovenop deze basis, zonder de kern zwaarder te maken.
 
 Deze staan hier zodat een latere lezer ziet dat de volledige aanpak een bewuste keuze was, niet een
 default.
