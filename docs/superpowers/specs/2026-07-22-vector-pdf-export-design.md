@@ -421,33 +421,48 @@ geplaatst; vormen blijven gedeeld) → terug naar het "per-pagina zelfstandig"-G
 baseline/align, dash, roundRect-bezier) en `paginateVectorToPdfBytes` (clip+transform,
 bevroren-kolom-herhaling); Gantt-vectortak in `handleExportPDF` voor Latijn/Cyrillisch/Grieks.
 
-**Fase 3 — PdfTable + mijlpalen/afwijkingen (Sonnet high, bindend doc).** Generieke tabel-renderer +
-kolom-specs voor beide rapporten; vervang de DOM-screenshot-tak. **Verifieer**: kolommen/kleuren/
-statusbadges kloppen met de DOM-preview; selecteerbare tekst.
+**Fase 3 — PdfTable + mijlpalen/afwijkingen — ✅ UITGEVOERD (2026-07-22, `04c7fd6`).** `pdfTable.ts`
+(`makeTableRenderReport`) + kolom-specs die de DOM exact spiegelen (headers via `t()`, ◆-prefix,
+float<0/delta>0 rood+bold, `STATUS_COLOR`-badges, `dd.date`); DOM-screenshot-tak vervangen, raster
+behouden als fallback; `STATUS_COLOR`+`fmtDelta` geëxporteerd tegen drift. Geverifieerd (echte
+CPMSolver/computeVariance-data; pypdf+PyMuPDF): Type0/FontFile2, geen DCTDecode, selecteerbaar,
+kolommen/kleuren/badges/lege-staat/paginering kloppen. tsc/planning(429)/build groen.
 
-**Fase 4 — font-provider-registry + extensie-API (incl. asset-route) + script-detectie + raster-
-fallback (Opus xhigh).** Kern-werk (géén echt CJK-font nog): bouw `fontRegistry.ts` (richting-
-agnostisch, §5.4); **beslis en bouw de font-bytes-leveringsroute nú** (§4.5 — aanbevolen: loader
-binaire assets: ZIP-entries bewaren, `StoredExtension`+record uitbreiden, `api.assets.get`,
-`ExtensionApi`-type/`createExtensionApi`, ook het `.js`-pad), zodat het API-contract vóór v1-freeze
-stabiel is; breid de extensie-API uit met `api.pdfFonts.register(provider)` (cleanup via `cleanupFns`,
-niet `onUnload`) achter de `pdf-fonts`-permissie **incl. de volledige permissie-plumbing** (`KNOWN_
-PERMISSIONS`, `ExtensionPermission`-type, `API_PERMISSIONS`) — anders stript `sanitizeManifest
-Permissions` 'm stil; per-export script-detectie (incl. maandnamen, K4); scripts zonder dekkende
-provider (ar/fa, of CJK zonder extensie) → raster-fallback voor de hele export. **Verifieer**: met een
-klein **test-font-provider** (paar CJK-glyphs, in-repo, niet de volle 16 MB) exporteert een document
-met die glyphs vector; zonder provider valt hetzelfde document terug op raster; een ar/fa-document valt
-terug op raster; een puur-Latijn document blijft ongewijzigd vector; een uitgeschakelde extensie
-schrijft z'n provider automatisch uit (`cleanupFns`).
+**Fase 4 — coverage-detectie + raster-fallback (Opus). HERSCOPED (2026-07-22).**
+Reden voor de herscope: het fase-2-subset-defect blokkeert de CJK-font-extensie (fase 4b), dus de
+volledige extensie-API + binaire-asset-loader + font-registry (oorspronkelijk fase-4-werk) heeft nog
+geen werkende afnemer — dat nu bouwen is speculatieve infra (een registry die niets embedt/consumeert).
+Wél v1-kritisch: zonder detectie rendert een CJK/RTL-string als **tofu** (`subset:false` mapt onbekende
+codepoints op `.notdef` — géén fout, dus de bestaande try/catch-fallback springt niet aan). Fase 4
+bouwt daarom uitsluitend:
+- **Coverage-detectie in `PdfVectorDraw2D`**: tijdens `fillText`-encoding per codepoint checken of het
+  ingebedde Inter-font (via de fontkit-`font`) een glyph heeft; verzamel ongedekte codepoints (+ een
+  RTL-vlag voor later). Dit dekt ALLE getekende tekst by-construction (Gantt én tabellen gaan door
+  dezelfde `fillText`). `paginateVectorToPdfBytes` gooit bij een niet-lege set een specifieke fout →
+  de **bestaande** try/catch in `handleExportPDF` valt terug op het raster-pad (dat CJK/RTL correct via
+  de browser rendert).
+- **Verifieer**: puur-Latijn/Cyrillisch/Grieks → vector (ongewijzigd); een taaknaam met CJK- of
+  Arabische glyphs → raster-fallback (geen tofu, correcte weergave); geen valse fallback op gedekte
+  tekst; geldt voor Gantt én de tabel-rapporten.
+
+De **font-registry, extensie-API (`api.pdfFonts.register` + `pdf-fonts`-permissie + volledige
+permissie-plumbing) en de binaire-asset-leveringsroute** (ZIP-entries bewaren, `StoredExtension`+record,
+`api.assets.get`, `ExtensionApi`-type/`createExtensionApi`, `.js`-pad; cleanup via `cleanupFns`)
+verhuizen naar **fase 4b**, samen met de subset-fix en het echte CJK-font — allemaal post-v1.
 
 **Fase 4b — officiële CJK-font-extensie (Opus xhigh, apart deliverable, mág ná v1-merge).**
 **BLOKKER-VOORWAARDE (fase-2-learning):** CJK-fonts zijn 5–16 MB → subsetten is verplicht, maar
 pdf-lib/@pdf-lib/fontkit's `subset:true` dropt glyphs (visueel defect, zie fase 2). Dit
 subset-defect moet éérst opgelost (pdf-lib/fontkit-upgrade, een losse subsetter zoals `subset-font`,
 of harfbuzz-wasm) — zonder werkende subsetting is een CJK-extensie niet leverbaar (subset:false zou
-16 MB per PDF inbedden). Daarna pas: pak het echte Noto Sans CJK-TTF in een extensie-ZIP (`manifest.json` + `main.js` + font-asset via de in
-fase 4 gebouwde asset-route), registreer via `api.pdfFonts.register`, voeg het Noto-OFL-NOTICE toe, en
-publiceer in de catalogus. **Verifieer**: extensie installeren → showcase met echte CJK-taaknamen
+16 MB per PDF inbedden). **Fase 4b omvat nu ook de uit fase 4 verschoven extensie-infra:** de
+extensie-API `api.pdfFonts.register(provider)` achter een `pdf-fonts`-permissie (volledige
+plumbing: `KNOWN_PERMISSIONS`, `ExtensionPermission`-type, `API_PERMISSIONS`; cleanup via
+`cleanupFns`), en de binaire-asset-leveringsroute in de loader (ZIP-entries bewaren,
+`StoredExtension`+record uitbreiden, `api.assets.get`, `ExtensionApi`-type/`createExtensionApi`, ook
+het `.js`-pad). Daarna: pak het echte Noto Sans CJK-TTF in een extensie-ZIP (`manifest.json` +
+`main.js` + font-asset via die asset-route), registreer via `api.pdfFonts.register`, voeg het
+Noto-OFL-NOTICE toe, en publiceer in de catalogus. **Verifieer**: extensie installeren → showcase met echte CJK-taaknamen
 exporteert vector met correcte glyphs; deïnstalleren → terug naar raster-fallback. De kern (fase 4) is
 af zónder deze fase.
 
