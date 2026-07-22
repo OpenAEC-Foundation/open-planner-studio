@@ -20,7 +20,7 @@ import {
   setFillingRgbColor, beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import { PdfVectorDraw2D, type PdfResourcePool } from '@/services/pdf/pdfVectorDraw2d';
+import { PdfVectorDraw2D, type PdfResourcePool, type ArabicShapingFonts } from '@/services/pdf/pdfVectorDraw2d';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
 import { PAPER_PT, FOOTER_PT, type PaperSize, type Orientation, type PaginateMode } from './paginate';
@@ -32,10 +32,25 @@ export interface VectorPaginateOptions {
   mode: PaginateMode;
   /** Paginamarge in punten (rondom). Default 24 (zelfde als de raster-pagineerder). */
   marginPt?: number;
+  /**
+   * Basisrichting van de export-taal (`RTL_LOCALES` ⇒ `'rtl'`). Stuurt de bidi-basisrichting in het
+   * complexe (RTL/gemengde) tekst-pad. Default `'ltr'` — zo blijven de 12 LTR-locales onveranderd.
+   */
+  baseDir?: 'ltr' | 'rtl';
 }
 
 /** Rauwe Inter-TTF-bytes per gewicht (caller levert ze; hier geen `?url`/asset-loader-afhankelijkheid). */
 export interface InterFontBytes {
+  regular: Uint8Array;
+  bold: Uint8Array;
+}
+
+/**
+ * Rauwe Noto-Sans-Arabic-TTF-bytes per gewicht, voor het complexe RTL-pad. Altijd aangeleverd (nodig
+ * om Arabisch tijdens de render te shapen/meten/dekken), maar pas ÍNGEBED als er ook echt Arabisch
+ * getekend is — zo draagt een puur-Latijnse export géén Noto-font mee.
+ */
+export interface ArabicFontBytes {
   regular: Uint8Array;
   bold: Uint8Array;
 }
@@ -77,6 +92,7 @@ export async function paginateVectorToPdfBytes(
   renderReport: (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult,
   opts: VectorPaginateOptions,
   fontBytes: InterFontBytes,
+  arabicBytes: ArabicFontBytes,
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
@@ -91,10 +107,20 @@ export async function paginateVectorToPdfBytes(
 
   const pool = createResourcePool(doc, regular, bold);
 
+  // Standalone fontkit-fonts uit de Noto-bytes (GEEN embedding): nodig om Arabisch/Perzisch tijdens de
+  // render te shapen, te meten én z'n dekking te checken. `subset:false`-embedding gebruikt straks
+  // dezelfde bytes → CID==GID==fontkit-glyph.id, dus de hier geshapte GID's kloppen met het latere font.
+  const fkCreate = fontkit as unknown as { create(bytes: Uint8Array): ArabicShapingFonts['regular'] };
+  const arabicFonts: ArabicShapingFonts = {
+    regular: fkCreate.create(arabicBytes.regular),
+    bold: fkCreate.create(arabicBytes.bold),
+  };
+  const baseDir = opts.baseDir ?? 'ltr';
+
   // Teken de VOLLEDIGE Gantt exact één keer; leg de operatoren vast (G1).
   let captured: PdfVectorDraw2D | null = null;
   const dims = renderReport((w, h) => {
-    captured = new PdfVectorDraw2D(w, h, pool);
+    captured = new PdfVectorDraw2D(w, h, pool, baseDir, arabicFonts);
     return captured;
   });
   const d2d = captured as PdfVectorDraw2D | null;
@@ -103,9 +129,21 @@ export async function paginateVectorToPdfBytes(
   // Coverage-poort (fase 4): `renderReport` heeft nu ALLE tekst door `fillText` gehaald, dus de
   // ongedekte-codepoint-set is compleet. Is die niet leeg → gooi vóór we de PDF verder opbouwen, zodat
   // `handleExportPDF` terugvalt op raster i.p.v. tofu te exporteren. Dekt Gantt én tabellen (beide gaan
-  // door dezelfde PdfVectorDraw2D.fillText).
+  // door dezelfde PdfVectorDraw2D.fillText). Arabisch/Perzisch is nu multi-font gedekt (Inter ÓF Noto),
+  // dus dat valt NIET meer hier uit; Hebreeuws/CJK wél → raster.
   if (d2d.uncoveredCodepoints.size > 0) {
     throw new VectorUnsupportedError([...d2d.uncoveredCodepoints], d2d.hasRtl);
+  }
+
+  // Conditionele Noto-embedding (geen Latijn-bloat): alléén als het complexe pad écht Arabisch/Perzisch
+  // plaatste, bedden we Noto in en zetten we F2/F3 in de resources. Een puur-Latijnse export raakt dit
+  // niet en draagt dus geen tweede FontFile2.
+  let notoRegular: PDFFont | undefined;
+  let notoBold: PDFFont | undefined;
+  if (d2d.usedArabic) {
+    notoRegular = await doc.embedFont(arabicBytes.regular, { subset: false });
+    notoBold = await doc.embedFont(arabicBytes.bold, { subset: false });
+    pool.setArabicFonts(notoRegular, notoBold);
   }
 
   // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (G1: de
@@ -207,6 +245,11 @@ export async function paginateVectorToPdfBytes(
       // (F0=Regular voor footer+tekst, F1=Bold) en elke ExtGState-alpha die de tekst gebruikt.
       leaf.setFontDictionary(PDFName.of('F0'), regular.ref);
       leaf.setFontDictionary(PDFName.of('F1'), bold.ref);
+      // F2/F3 (Noto) alleen op de pagina als er Arabisch geplaatst is — anders geen dangling font-ref.
+      if (notoRegular && notoBold) {
+        leaf.setFontDictionary(PDFName.of('F2'), notoRegular.ref);
+        leaf.setFontDictionary(PDFName.of('F3'), notoBold.ref);
+      }
       for (const [key, ref] of Object.entries(resources.ExtGState)) {
         leaf.setExtGState(PDFName.of(key), ref);
       }
@@ -256,11 +299,14 @@ export async function paginateVectorToPdfBytes(
  */
 interface ResourcePool extends PdfResourcePool {
   buildResourcesDict(): { Font: Record<string, PDFRef>; ExtGState: Record<string, PDFRef> };
+  /** Voeg de ingebedde Noto-gewichten toe als F2 (Regular) / F3 (Bold) — pas ná de coverage-poort. */
+  setArabicFonts(reg: PDFFont, bld: PDFFont): void;
 }
 
 function createResourcePool(doc: PDFDocument, regular: PDFFont, bold: PDFFont): ResourcePool {
   const alphaKeys = new Map<number, string>();
   const extgStates: Array<{ key: string; ref: PDFRef }> = [];
+  const fonts: Record<string, PDFRef> = { F0: regular.ref, F1: bold.ref };
 
   return {
     regular,
@@ -275,11 +321,15 @@ function createResourcePool(doc: PDFDocument, regular: PDFFont, bold: PDFFont): 
       extgStates.push({ key, ref });
       return key;
     },
+    setArabicFonts(reg: PDFFont, bld: PDFFont): void {
+      fonts.F2 = reg.ref;
+      fonts.F3 = bld.ref;
+    },
     buildResourcesDict() {
       const extg: Record<string, PDFRef> = {};
       for (const g of extgStates) extg[g.key] = g.ref;
       return {
-        Font: { F0: regular.ref, F1: bold.ref },
+        Font: { ...fonts },
         ExtGState: extg,
       };
     },

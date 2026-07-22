@@ -14,13 +14,14 @@
  * Puur browser (pdf-lib/fontkit) — geen Tauri-imports; lazy geladen in de export-tak.
  */
 import {
-  PDFFont, PDFOperator,
+  PDFFont, PDFOperator, PDFHexString,
   pushGraphicsState, popGraphicsState, setGraphicsState,
   setFillingRgbColor, setStrokingRgbColor, setLineWidth, setDashPattern,
   moveTo, lineTo, closePath, appendBezierCurve, rectangle, fill, stroke,
   beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
 import type { Draw2D, TextAlign, TextBaseline } from './draw2d';
+import { shapeAndPlace, type ShapingFonts, type ShapedRun, type FontKey } from './bidiShape';
 
 /** Bezier-benadering van een kwart-cirkel: controle-afstand = kappa × r. */
 const KAPPA = 0.5522847498307936;
@@ -62,7 +63,10 @@ export interface PdfTextPlacement {
 /** Per-gewicht font-metrics (em-fracties) voor baseline-omrekening. */
 interface FontMetrics { ascentEm: number; descentEm: number }
 
-/** De subset van de fontkit-font-API die deze backend gebruikt (metrics + glyph-dekking). */
+/**
+ * De subset van de fontkit-font-API die deze backend gebruikt (metrics + glyph-dekking + shaping).
+ * `layout` maakt 'm ook bruikbaar als {@link ShapingFonts}-lid voor het complexe (RTL/gemengde) pad.
+ */
 interface FontkitFont {
   unitsPerEm: number;
   ascent: number;
@@ -70,6 +74,23 @@ interface FontkitFont {
   bbox: { maxY: number; minY: number };
   /** True als het font een echte (niet-`.notdef`) glyph heeft voor deze Unicode-codepoint. */
   hasGlyphForCodePoint(codePoint: number): boolean;
+  /** fontkit-shaping (zie {@link ShapingFonts}); 5e arg stuurt de richting. */
+  layout(
+    string: string,
+    features?: unknown,
+    script?: unknown,
+    language?: unknown,
+    direction?: 'ltr' | 'rtl',
+  ): {
+    glyphs: Array<{ id: number }>;
+    positions: Array<{ xAdvance: number; xOffset?: number; yOffset?: number }>;
+  };
+}
+
+/** De twee gevendorde Noto-Sans-Arabic fontkit-fonts (Regular + Bold) voor RTL-shaping/-dekking. */
+export interface ArabicShapingFonts {
+  regular: FontkitFont;
+  bold: FontkitFont;
 }
 
 /** Haal de door de CustomFontEmbedder gehouden fontkit-font uit een pdf-lib-`PDFFont`. */
@@ -158,6 +179,12 @@ export class PdfVectorDraw2D implements Draw2D {
   readonly uncoveredCodepoints = new Set<number>();
   /** True zodra een RTL-codepoint (Arabisch/Hebreeuws) getekend is — vooruit-vlag voor een latere bidi-laag. */
   hasRtl = false;
+  /**
+   * True zodra er via het complexe pad daadwerkelijk een Arabische/Perzische glyph (font-key F2/F3)
+   * geplaatst is. De pagineerder bedt Noto ALLEEN dan in (en zet F2/F3 in de resources), zodat een
+   * puur-Latijnse export géén Noto-font meedraagt (geen bloat, geen dangling resource-refs).
+   */
+  usedArabic = false;
 
   private readonly H: number;
   private readonly pool: PdfResourcePool;
@@ -165,6 +192,12 @@ export class PdfVectorDraw2D implements Draw2D {
   private readonly fkBold: FontkitFont;
   private readonly mReg: FontMetrics;
   private readonly mBold: FontMetrics;
+  /** Basisrichting van de export-taal (`RTL_LOCALES` ⇒ `'rtl'`). Stuurt bidi in het complexe pad. */
+  private readonly baseDir: 'ltr' | 'rtl';
+  /** De vier fontkit-fonts (Latijn×gewicht + Arabisch×gewicht) voor het complexe pad; undefined ⇒ geen Noto. */
+  private readonly shapingFonts?: ShapingFonts;
+  /** Noto-fontkit voor coverage-checks (character-map is gewicht-onafhankelijk → Regular volstaat). */
+  private readonly fkArabic?: FontkitFont;
   /**
    * Per-codepoint dekkingscache (`cp → gedekt?`). Een grote planning tekent duizenden labels met veel
    * herhaalde tekens; zonder cache zou elke `fillText` z'n hele string opnieuw tegen fontkit opzoeken.
@@ -175,7 +208,13 @@ export class PdfVectorDraw2D implements Draw2D {
   /** Pad-buffer (geflipte pad-operatoren) sinds de laatste beginPath/roundRect; pas bij fill/stroke geëmit. */
   private pathBuf: PDFOperator[] = [];
 
-  constructor(logicalW: number, logicalH: number, pool: PdfResourcePool) {
+  constructor(
+    logicalW: number,
+    logicalH: number,
+    pool: PdfResourcePool,
+    baseDir: 'ltr' | 'rtl' = 'ltr',
+    arabicFonts?: ArabicShapingFonts,
+  ) {
     void logicalW;
     this.H = logicalH;
     this.pool = pool;
@@ -183,6 +222,16 @@ export class PdfVectorDraw2D implements Draw2D {
     this.fkBold = fontkitOf(pool.bold);
     this.mReg = readMetrics(this.fkReg);
     this.mBold = readMetrics(this.fkBold);
+    this.baseDir = baseDir;
+    if (arabicFonts) {
+      this.fkArabic = arabicFonts.regular;
+      this.shapingFonts = {
+        latinRegular: this.fkReg,
+        latinBold: this.fkBold,
+        arabicRegular: arabicFonts.regular,
+        arabicBold: arabicFonts.bold,
+      };
+    }
   }
 
   /**
@@ -197,11 +246,37 @@ export class PdfVectorDraw2D implements Draw2D {
       if (isRtlCodepoint(cp)) this.hasRtl = true;
       let covered = this.coverageCache.get(cp);
       if (covered === undefined) {
-        covered = fk.hasGlyphForCodePoint(cp);
+        // Multi-font: een codepoint is "gedekt" als Inter ÓF Noto (indien aanwezig) 'm heeft. Zo
+        // vallen Arabisch/Perzisch niet meer in `uncoveredCodepoints` (→ vector via het complexe pad),
+        // terwijl Hebreeuws/CJK — door geen van beide gedekt — ongedekt blijft (→ raster-fallback).
+        covered =
+          fk.hasGlyphForCodePoint(cp) ||
+          (this.fkArabic?.hasGlyphForCodePoint(cp) ?? false);
         this.coverageCache.set(cp, covered);
       }
       if (!covered) this.uncoveredCodepoints.add(cp);
     }
+  }
+
+  /** True als `text` minstens één RTL-codepoint bevat (trigger voor het complexe bidi/shaping-pad). */
+  private hasRtlText(text: string): boolean {
+    for (const ch of text) {
+      const cp = ch.codePointAt(0);
+      if (cp !== undefined && isRtlCodepoint(cp)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Complexe (RTL/gemengde) shaping: draai `text` door de bidi/shaping-kern en geef de runs in visuele
+   * volgorde + de totale breedte (= som van de run-breedtes, multi-font). Gedeeld door {@link fillText}
+   * (emissie) en {@link measureText} (metrics) zodat afkap/paginering exact op de emissie aansluit.
+   */
+  private shapeComplex(text: string, bold: boolean, size: number): { runs: ShapedRun[]; width: number } {
+    const runs = shapeAndPlace(text, this.baseDir, size, this.shapingFonts!, bold);
+    let width = 0;
+    for (const r of runs) width += r.width;
+    return { runs, width };
   }
 
   private flipY(y: number): number { return this.H - y; }
@@ -261,6 +336,16 @@ export class PdfVectorDraw2D implements Draw2D {
     // `.notdef` (tofu) zónder fout. De pagineerder leest `uncoveredCodepoints` uit en faalt bewust,
     // zodat de raster-fallback aanslaat i.p.v. tofu te exporteren.
     this.checkCoverage(text, bold ? this.fkBold : this.fkReg);
+
+    // Complex pad: bevat de string RTL (Arabisch/Perzisch) én zijn de shaping-fonts beschikbaar, dan
+    // gaat de tekst door de bidi/shaping-kern en wordt PER GLYPH geplaatst (het `/W`-tabel-contract:
+    // rauwe geshapte GID's zonder per-glyph-matrix vallen op `/DW` → losgekoppelde letters). Zonder
+    // shaping-fonts (of geen RTL) valt hij door naar het onveranderde Latijnse snelpad hieronder.
+    if (this.shapingFonts && this.hasRtlText(text)) {
+      this.fillTextComplex(text, x, y, bold, size, metrics);
+      return;
+    }
+
     const width = pdfFont.widthOfTextAtSize(text, size);
 
     // Horizontale uitlijning via x-offset op de gemeten breedte.
@@ -311,8 +396,77 @@ export class PdfVectorDraw2D implements Draw2D {
     });
   }
 
+  /**
+   * Complex (RTL/gemengd) tekst-pad: shape via de bidi/shaping-kern en emit ELKE glyph op z'n eigen
+   * tekst-matrix (`setTextMatrix` + `showText(<hex>)`) — bewust NIET één `showText` per run, want de
+   * `/W`-breedtetabel van pdf-lib dekt alleen via `encodeText` geregistreerde glyphs; rauwe geshapte
+   * GID's zouden op `/DW=1000` vallen en de Arabische letters losgekoppeld tekenen (RTL-1 bewees dit).
+   * Per run een `setFontAndSize(fontKey,…)` (F0/F1 Latijn, F2/F3 Noto); de kleur/alpha net als het snelpad.
+   */
+  private fillTextComplex(
+    text: string, x: number, y: number, bold: boolean, size: number, metrics: FontMetrics,
+  ): void {
+    const { runs, width } = this.shapeComplex(text, bold, size);
+    if (runs.length === 0) return;
+
+    // Uitlijning op de totale (multi-font) breedte — zo landt rechts-uitgelijnde RTL-tekst correct.
+    let tx = x;
+    if (this.textAlign === 'center') tx = x - width / 2;
+    else if (this.textAlign === 'right') tx = x - width;
+
+    // Baseline-omrekening identiek aan het snelpad (Latijnse metrics → consistente rij-uitlijning).
+    const ascentPx = metrics.ascentEm * size;
+    const descentPx = metrics.descentEm * size; // negatief
+    let baselineY = y; // 'alphabetic'
+    if (this.textBaseline === 'middle') baselineY = y + (ascentPx + descentPx) / 2;
+    else if (this.textBaseline === 'bottom') baselineY = y + descentPx;
+    const pdfBaselineY = this.flipY(baselineY); // PDF y-omhoog
+
+    // Per-glyph emissie binnen één BT…ET. `glyph.x` = tekst-lokale x vanaf de plaatsings-oorsprong;
+    // `glyph.y` = baseline-relatieve GPOS-offset (positief = omhoog → in PDF y-omhoog optellen).
+    const textOps: PDFOperator[] = [beginText()];
+    for (const run of runs) {
+      if (run.fontKey === 'F2' || run.fontKey === 'F3') this.usedArabic = true;
+      textOps.push(setFontAndSize(run.fontKey as FontKey, size));
+      for (const g of run.glyphs) {
+        textOps.push(
+          setTextMatrix(1, 0, 0, 1, tx + g.x, pdfBaselineY + g.y),
+          showText(PDFHexString.of(g.hex)),
+        );
+      }
+    }
+    textOps.push(endText());
+
+    const c = parseColor(this.fillStyle);
+    let ops: PDFOperator[];
+    if (c.a < 1) {
+      const gs = this.pool.registerAlpha(c.a);
+      ops = [
+        pushGraphicsState(), setGraphicsState(gs),
+        setFillingRgbColor(c.r, c.g, c.b), ...textOps,
+        popGraphicsState(),
+      ];
+    } else {
+      ops = [setFillingRgbColor(c.r, c.g, c.b), ...textOps];
+    }
+
+    // Bron-bbox (report-px, y-omlaag) over de hele tekstplaatsing — voor de per-tegel-emissie.
+    this.texts.push({
+      x0: tx,
+      x1: tx + width,
+      y0: baselineY - ascentPx,
+      y1: baselineY - descentPx,
+      ops,
+    });
+  }
+
   measureText(text: string): { width: number } {
     const { bold, size } = parseFont(this.font);
+    // Complex pad: dezelfde shaping-pijplijn als `fillText` → som van de run-breedtes (multi-font),
+    // zodat `fitText`-afkapping/`drawBarLabel`/paginering exact op de emissie aansluiten.
+    if (this.shapingFonts && this.hasRtlText(text)) {
+      return { width: this.shapeComplex(text, bold, size).width };
+    }
     const pdfFont = bold ? this.pool.bold : this.pool.regular;
     return { width: pdfFont.widthOfTextAtSize(text, size) };
   }

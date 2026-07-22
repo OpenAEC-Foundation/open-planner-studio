@@ -6,7 +6,8 @@ import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { computeHighResScale } from '@/utils/miniPdf';
 import { paginateCanvasToPdfBytes, paginateCanvasToTiles } from '@/services/print/paginate';
-import { ensureInterLoaded, getInterFontBytes } from '@/services/pdf/fontLoader';
+import { ensureInterLoaded, getInterFontBytes, getArabicFontBytes } from '@/services/pdf/fontLoader';
+import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
 import { isTauri } from '@/utils/platform';
 import { useDisplayDate } from '@/hooks/displayDate';
@@ -252,6 +253,9 @@ export function ReportPanel() {
 
   const handleExportPDF = useCallback(async () => {
     const lowerPaper = paperSize.toLowerCase() as 'a4' | 'a3' | 'a1';
+    // Basisrichting van de export-taal: stuurt de bidi in het complexe RTL-tekst-pad van de vector-export.
+    const exportBaseDir: 'ltr' | 'rtl' =
+      RTL_LOCALES.includes((options.locale ?? '') as Locale) ? 'rtl' : 'ltr';
 
     // Zorg dat het gevendorde Inter-font geladen is vóór de offscreen render, zodat ook de
     // raster-export het deterministische Inter gebruikt (measureText-pariteit met de preview, §5.2).
@@ -283,15 +287,18 @@ export function ReportPanel() {
       // uit de hoofdbundle (B2).
       let pdfBytes: Uint8Array;
       try {
-        const [{ paginateVectorToPdfBytes }, regular, bold] = await Promise.all([
+        const [{ paginateVectorToPdfBytes }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
           import('@/services/print/paginateVector'),
           getInterFontBytes(400),
           getInterFontBytes(700),
+          getArabicFontBytes(400),
+          getArabicFontBytes(700),
         ]);
         pdfBytes = await paginateVectorToPdfBytes(
           (make) => renderReport(make, tasks, sequences, calendar, projectName, options),
-          { paperSize: lowerPaper, orientation, mode },
+          { paperSize: lowerPaper, orientation, mode, baseDir: exportBaseDir },
           { regular, bold },
+          { regular: arabicRegular, bold: arabicBold },
         );
       } catch (err) {
         console.warn('[ReportPanel] Vector-PDF-export mislukt, terugval op raster:', describeVectorFallback(err));
@@ -342,11 +349,13 @@ export function ReportPanel() {
 
     let tablePdfBytes: Uint8Array;
     try {
-      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport }, regular, bold] = await Promise.all([
+      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
         import('@/services/print/paginateVector'),
         import('@/services/pdf/pdfTable'),
         getInterFontBytes(400),
         getInterFontBytes(700),
+        getArabicFontBytes(400),
+        getArabicFontBytes(700),
       ]);
 
       // Twee losse takken i.p.v. één ternaire spec: `makeTableRenderReport<Row>` is generiek over de
@@ -359,8 +368,9 @@ export function ReportPanel() {
             rows: milestoneRows,
             emptyText: t('milestoneReport.empty'),
           }),
-          { paperSize: lowerPaper, orientation, mode: 'fit-width' },
+          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
           { regular, bold },
+          { regular: arabicRegular, bold: arabicBold },
         );
       } else {
         tablePdfBytes = await paginateVectorToPdfBytes(
@@ -370,8 +380,9 @@ export function ReportPanel() {
             rows: varianceResult.rows,
             emptyText: t('variance.noBaseline'),
           }),
-          { paperSize: lowerPaper, orientation, mode: 'fit-width' },
+          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
           { regular, bold },
+          { regular: arabicRegular, bold: arabicBold },
         );
       }
     } catch (err) {

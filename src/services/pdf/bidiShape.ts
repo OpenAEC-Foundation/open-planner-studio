@@ -56,6 +56,13 @@ export interface ShapeFontkitFont {
     glyphs: Array<{ id: number }>;
     positions: Array<{ xAdvance: number; xOffset?: number; yOffset?: number }>;
   };
+  /**
+   * Optioneel: True als het font een echte glyph heeft voor deze codepoint. Gebruikt om neutrale
+   * interpunctie (bv. em-dash) die in een RTL-run valt maar door Noto NIET gedekt wordt, alsnog aan
+   * het Latijnse font toe te wijzen i.p.v. een `.notdef`-tofu te tekenen. Ontbreekt hij (minimale
+   * test-fonts), dan geldt het oude gedrag (neutraal in RTL → Arabisch).
+   */
+  hasGlyphForCodePoint?(codePoint: number): boolean;
 }
 
 /** De vier ingebedde fontkit-fonts, één per (script × gewicht). Sleutels mappen op de PDF-font-keys. */
@@ -162,10 +169,23 @@ function isNeutralCp(cp: number): boolean {
   );
 }
 
-/** Font-klasse ('latin'|'arabic') voor één codepoint, gegeven of z'n run-level oneven (RTL) is. */
-function fontClassFor(cp: number, levelOdd: boolean): 'latin' | 'arabic' {
+/**
+ * Font-klasse ('latin'|'arabic') voor één codepoint, gegeven of z'n run-level oneven (RTL) is.
+ * `arabicHasGlyph` (indien meegegeven) laat een neutraal teken dat in een RTL-run valt maar door het
+ * Arabische font NIET gedekt wordt (bv. de em-dash '—', die Noto Sans Arabic mist) tóch naar het
+ * Latijnse font gaan i.p.v. een tofu te tekenen — het Latijnse font dekt zulke interpunctie wél.
+ */
+function fontClassFor(
+  cp: number,
+  levelOdd: boolean,
+  arabicHasGlyph?: (cp: number) => boolean,
+): 'latin' | 'arabic' {
   if (isArabicScriptCp(cp)) return 'arabic';
-  if (isNeutralCp(cp)) return levelOdd ? 'arabic' : 'latin';
+  if (isNeutralCp(cp)) {
+    if (!levelOdd) return 'latin';
+    // RTL-run: neutraal hoort bij het Arabische font, tenzij Noto 'm niet dekt → val terug op Latijn.
+    return arabicHasGlyph && !arabicHasGlyph(cp) ? 'latin' : 'arabic';
+  }
   return 'latin';
 }
 
@@ -198,16 +218,20 @@ interface LogicalRun {
  * verder gesplitst op font-klasse-grenzen binnen een level (bv. Latijnse cijfers in Arabische context).
  * Werkt op UTF-16 code-units, gelijk aan de indexering van `bidi-js`' levels-array.
  */
-function segmentRuns(text: string, baseDir: 'ltr' | 'rtl'): LogicalRun[] {
+function segmentRuns(
+  text: string,
+  baseDir: 'ltr' | 'rtl',
+  arabicHasGlyph?: (cp: number) => boolean,
+): LogicalRun[] {
   const { levels } = bidi.getEmbeddingLevels(text, baseDir);
   const runs: LogicalRun[] = [];
   let start = 0;
   let curLevel = levels[0] ?? (baseDir === 'rtl' ? 1 : 0);
-  let curCls = fontClassFor(text.charCodeAt(0), (curLevel & 1) === 1);
+  let curCls = fontClassFor(text.charCodeAt(0), (curLevel & 1) === 1, arabicHasGlyph);
   for (let i = 1; i <= text.length; i++) {
     const atEnd = i === text.length;
     const lvl = atEnd ? -1 : levels[i];
-    const cls = atEnd ? curCls : fontClassFor(text.charCodeAt(i), (lvl & 1) === 1);
+    const cls = atEnd ? curCls : fontClassFor(text.charCodeAt(i), (lvl & 1) === 1, arabicHasGlyph);
     if (atEnd || lvl !== curLevel || cls !== curCls) {
       runs.push({ start, end: i, level: curLevel, cls: curCls });
       start = i;
@@ -337,7 +361,12 @@ export function layoutRuns(
   size = 1,
 ): RawRunSized[] {
   if (!text) return [];
-  const logical = segmentRuns(text, baseDir);
+  // Coverage-predicaat van het Arabische font (character-map is gewicht-onafhankelijk → Regular
+  // volstaat) zodat neutrale interpunctie die Noto mist naar Latijn valt i.p.v. tofu.
+  const arabicHasGlyph = fonts.arabicRegular.hasGlyphForCodePoint
+    ? (cp: number) => fonts.arabicRegular.hasGlyphForCodePoint!(cp)
+    : undefined;
+  const logical = segmentRuns(text, baseDir, arabicHasGlyph);
   const visual = reorderL2(logical);
   const runs: RawRunSized[] = [];
   for (const lr of visual) {
