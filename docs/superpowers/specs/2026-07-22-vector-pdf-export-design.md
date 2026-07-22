@@ -28,7 +28,9 @@ weergave voor alle 14 locales. **Check**: (a) de geëxporteerde PDF bevat PDF-te
 (`BT`/`Tj`) en ingebedde font-objecten i.p.v. één grote `DCTDecode`-image; (b) tekst is
 selecteerbaar in een PDF-viewer; (c) inzoomen pixelt niet; (d) de bestaande groene poort
 (`npm run build`, `bash tests/planning/run.sh`) blijft groen; (e) preview blijft WYSIWYG t.o.v. de
-export.
+export **voor door-Inter-gedekte scripts** — voor CJK is de preview een benadering tenzij de
+provider-`FontFace` ook in de preview geladen wordt (§5.1, review-bevinding: de preview-canvas heeft
+geen Noto-font, de export wel → afwijkende metrics/afkapping voor CJK).
 
 **In scope (v1):**
 - Gantt-rapport volledig vector via een `Draw2D`-abstractie + PDF-vector-backend.
@@ -86,7 +88,7 @@ Na de kritische review heeft de user vier keuzes bevestigd; die zijn nu bindend:
 | B1 | **`pdf-lib` + `@pdf-lib/fontkit`** als vector-PDF-generator, i.p.v. `miniPdf` uitbreiden of `jspdf`. | pdf-lib doet al Type0/CID (`Identity-H`) font-embedding **met subsetting via fontkit** (`embedFont(bytes,{subset:true})`), is browser-native (de fork bestaat juist om Node-`fs`/`Buffer` te vermijden), en is MIT (compatibel met LGPL-3.0). Zelf TrueType-subsetting + CID/Type0 + `cmap`/`GSUB` schrijven is honderden correctheidsgevoelige regels — precies wat fontkit betrouwbaar doet. `jspdf` heeft zwakkere subsetting en slechts partiële RTL. |
 | B2 | **Lazy `import()`** van pdf-lib/fontkit in de exporttak, niet in de hoofdbundle. | ~530 KB gzip (pdf-lib 178 KB + fontkit 342 KB). Volgt het bestaande patroon (`App.tsx` importeert de Tauri-auto-save dynamisch). De export is een gebruikersactie, geen opstartpad. |
 | B3 | **Inter als TTF meeleveren** (raw `.ttf` uit `rsms/inter`, OFL-1.1), niet de `@fontsource/inter`-woff2. | `@fontsource/inter` levert alleen woff2/woff + CSS, geen `.ttf`. Voor embedding is TTF/OTF nodig; of `@pdf-lib/fontkit` in-browser woff2 (brotli) decodeert is **ongeverifieerd** — dus veiligste route = raw TTF. Inter dekt Latijn + Cyrillisch + Grieks ⇒ 9 Latijnse locales met één font. Vervangt de systeem-font-stack `FONT_FAMILY` (`printPreview.ts:38`), die per platform verschilt en niet inbedbaar is. |
-| B4 | **CJK als installeerbare extensie** (Noto Sans CJK in TTF/glyf), niet in de kern of via server-fetch. Kern levert een font-provider-registry + extensie-API (§4.5). | CFF/OTF-subsetting is onbetrouwbaar (o.a. OpenPDF #71 → onzichtbare tekst); pdf-lib subset werkt betrouwbaar op glyf (TTF). Volledige CJK-font = 5–16 MB → hoort niet in de hoofdbundle. De user koos bewust het **extensie**-model (besluit 3): dat past bij de app-filosofie (frontend-extensies, IndexedDB-opslag, geen Rust), houdt de kern licht, en maakt CJK optioneel/opt-in. De extensie levert de ruwe TTF-bytes; de kern subset per export (~tientallen–honderd KB in de PDF). Horizontale CJK heeft **geen** shaping nodig — simpele codepoint→glyph via Type0/CID. |
+| B4 | **CJK als installeerbare extensie** (Noto Sans CJK in TTF/glyf), niet in de kern of via server-fetch. Kern levert een font-provider-registry + extensie-API (§4.5). | CFF/OTF-subsetting is onbetrouwbaar (o.a. OpenPDF #71 → onzichtbare tekst); pdf-lib subset werkt betrouwbaar op glyf (TTF). Volledige CJK-font = 5–16 MB → hoort niet in de hoofdbundle. De user koos bewust het **extensie**-model (besluit 3): frontend-extensies, IndexedDB-opslag, geen Rust; houdt de default-bundle licht en maakt CJK opt-in. **Eerlijke kanttekening (§4.5):** dit is méér kern-werk dan een simpele lazy-`fetch` — de extensie-loader/API kent nu geen binaire assets, dus die moeten gebouwd worden (fase 4). De extensie levert de ruwe TTF-bytes; de kern subset per export (~tientallen–honderd KB in de PDF). Horizontale CJK heeft **geen** shaping nodig — simpele codepoint→glyph via Type0/CID. |
 | B5 | **ar/fa via raster-fallback in v1**; RTL-vector (`bidi-js`) is een **losgekoppelde vervolgtaak ná v1, door een aparte agent**. | fontkit shapet Arabisch (joining/ligaturen) al, maar doet **geen bidi-reordering** — dat is zelfbouw (grootste lift + testlast: mixed met cijfers/Latijnse namen). Raster = nul extra werk, vandaag visueel correct. De user koos expliciet dit werk te ontkoppelen (besluit 2). `harfbuzz` is niet nodig (fontkit shapet even goed) en zou 390 KB wasm toevoegen. |
 | B6 | **Draw2D-abstractie** met twee backends (canvas voor preview, PDF-vector voor export); `renderPrintCanvas` tekent tegen `Draw2D` i.p.v. rechtstreeks `ctx`. | De renderer gebruikt een gesloten set van ~14 primitieven (geen gradients/clipping/composite). Eén renderer, twee backends houdt preview en export gegarandeerd in sync. |
 | B7 | **Tabellen als data-gedreven vector** (route a), niet DOM→vector (route b). | `useMilestoneRows()`/`useVarianceResult()` leveren al pure rij-data en worden al in `ReportPanel` aangeroepen (`:131-132`). Een generieke `PdfTable(columns, rows)`-renderer bovenop Draw2D geeft selecteerbare tekst + gedeelde font/kleur-infra. DOM→vector zou een HTML/CSS-engine vergen en vecht met thema-kleuren (de `data-theme='light'`-hack in `ReportPanel.tsx:198-205`). |
@@ -177,7 +179,9 @@ shading over vele tegels → duizenden operators × tegels. **Mitigatie (bindend
 Gantt-tekening **één keer** vast als een PDF **Form-XObject** (of een herbruikbare operator-buffer),
 en laat elke pagina die alleen `Do`'en onder een eigen `q cm W n … Q`-wrapper (transform + clip).
 Zo blijft de operator-set O(taken×dagen) en zijn de pagina's goedkoop. **Bewijs deze aanname in
-fase 2 op een A1-case met veel taken, niet op A4.**
+fase 2 op een A1-case met veel taken, niet op A4.** Let op: de Form-XObject-resource-dict moet de
+gebruikte (gesubsette) font-objecten meenemen — als een CJK-subset per export verschilt, hoort dat
+font bij de XObject-resources.
 
 **G2 — tekstlaag-duplicatie over tegel-/kolomgrenzen (ontwerpbesluit).** `clip` (`W n`) beperkt
 alleen de *rendering*, niet welke tekst in de content-stream staat: geclipte `Tj`-operators zijn in
@@ -215,22 +219,50 @@ interface PdfFontProvider {
   vraag de registry om een provider die de codepoints dekt; geen provider → **raster-fallback voor de
   hele export**.
 - **Extensie-API:** breid `src/extensions/api` uit met `api.pdfFonts.register(provider)`, afgedwongen
-  achter een nieuwe permissie (bv. `pdf-fonts`) net als de bestaande `ribbon`/`events`-permissies.
-  De extensie roept dit aan in `onLoad(api)` en verwijdert zich bij `onUnload()`.
-- **De officiële CJK-extensie:** een ZIP met `manifest.json` + `main.js` die het Noto Sans CJK-TTF
-  meebrengt en registreert. Twee opties voor de font-bytes, te beslissen in fase 4b:
-  1. **Loader uitbreiden met binaire assets** (aanbevolen): de extensie-loader (`src/extensions/loader`)
-     leert een asset-bestand uit de ZIP als `Uint8Array` aan de extensie te geven. Schoon, maar raakt
-     de loader.
-  2. **Font als base64 in `main.js`** (geen loader-wijziging, maar een ~7–21 MB JS-string — lelijk).
-  Opslag is sowieso IndexedDB (`ops-extensions`), dat de multi-MB-payload aankan. De extensie hoort
-  in de catalogus (`open-planner-studio-extensions/catalog.json`).
-- **Waarom dit past:** extensies zijn puur frontend, geen Rust, geen IFC-impact — een font-provider is
-  precies zo'n app-niveau-uitbreiding. De kern blijft licht en CJK wordt opt-in.
+  achter een nieuwe permissie `pdf-fonts`. De registratie moet een **cleanup-functie op `cleanupFns`
+  pushen** (net als `importers.register` in `extensionApi.ts:54` en `ui.addRibbonButton` `:102`), zodat
+  `disableExtension` → `_cleanup()` (`extensionLoader.ts:209`) de provider **automatisch** uitschrijft
+  — niet vertrouwen op een auteur-`onUnload()` (dat lekt een stale provider als het ontbreekt/gooit).
 
-**Belangrijk voor de bouw:** de kern-haak (registry + API + fallback) is v1-werk (fase 4). De
-CJK-extensie zelf is een **apart deliverable** (fase 4b) en kan met een klein test-font gevalideerd
-worden zonder de volle 16 MB.
+- **Eerlijke kern-kost (review-bevinding — het doc onderschatte dit eerst).** "Een provider
+  registreren" is licht, maar **de font-bytes bij de extensie krijgen** raakt meerdere kernbestanden.
+  De ZIP-install decodeert nu *alleen* `manifest.json` + `main.js` als tekst en gooit de rest weg
+  (`extensionService.ts:167,175`); `StoredExtension` = `{id,manifest,mainCode,enabled}` heeft geen
+  asset-veld (`extensionLoader.ts:62-67`); de SDK is globaal/stateless (`sdk.ts:4-7`) en de
+  `ExtensionApi` (`types.ts:107-157`) heeft geen asset-accessor. Twee routes:
+  1. **Loader uitbreiden met binaire assets (aanbevolen).** Concreet kern-werk: (a) niet-main
+     ZIP-entries bewaren in `installFromZipBlob`; (b) `StoredExtension` + opgeslagen record uitbreiden
+     met assets; (c) een asset-accessor op de API (bv. `api.assets.get(name): Uint8Array`); (d)
+     `ExtensionApi`-type + `createExtensionApi`; (e) idem voor het losse-`.js`-pad
+     (`installFromJsFile`). Dit is een **echte kern-feature**, geen bijzaak.
+  2. **Font als base64 in `main.js`** — geen loader-wijziging, maar ingeschakelde extensies worden bij
+     **elke app-start** opnieuw uitgevoerd via `new Function(mainCode)` (`extensionLoader.ts:126,223,239`),
+     dus een ~20 MB base64-blob (16 MB font × +33%) wordt bij iedere startup gecompileerd + als string
+     uit IndexedDB gehaald. Reële geheugen-/opstart-kost, niet slechts "lelijk". → afgeraden.
+  Opslag is sowieso IndexedDB (`ops-extensions`, `extensionLoader.ts:38`), dat de multi-MB-payload aankan.
+  De extensie hoort in de catalogus (`open-planner-studio-extensions/catalog.json`).
+
+- **Permissie-plumbing (review-bevinding).** `pdf-fonts` toevoegen vergt: `KNOWN_PERMISSIONS`
+  (`permissions.ts:72-78`), het `ExtensionPermission`-type (`types.ts:39-44`), `API_PERMISSIONS`
+  (`permissions.ts:39`, pad `pdfFonts.register` met `mode:'throw'`), plus een `pdfFonts`-groep in
+  `ExtensionApi` + `createExtensionApi`. **Valkuil:** `sanitizeManifestPermissions` **stript elke
+  onbekende permissie** (`permissions.ts:86-106`) — zolang `pdf-fonts` niet in `KNOWN_PERMISSIONS`
+  staat, verliest elke extensie die 'm declareert de permissie stil. Deze edits horen dus in **fase 4
+  (kern)**, niet 4b.
+
+- **Sandbox-doorgifte is géén probleem:** de `new Function`-sandbox draait in hetzelfde realm (geen
+  echte isolatie, `extensionLoader.ts:110-111`), dus een provider-object met een echte `Uint8Array`
+  gaat 1:1 naar de kern — geen structured-clone-grens.
+
+- **Waarom dit model (ondanks de kost):** de user koos het bewust (besluit 3). Het houdt de
+  default-bundle licht en maakt CJK opt-in. Wees wél eerlijk: het is **méér** kern-complexiteit dan
+  een simpele lazy-`fetch` van het font uit de app-assets zou zijn — dat is de prijs van de
+  extensie-keuze, niet gratis.
+
+**Belangrijk voor de bouw:** de kern-haak (registry + API + **de gekozen font-bytes-leveringsroute** +
+permissie-plumbing + fallback) is v1-werk (**fase 4**) — de API-vorm moet stabiel zijn vóór v1-freeze.
+Fase 4b is puur "het echte Noto-CJK-font inpakken + catalogus publiceren" en mag ná de v1-merge lopen;
+valideer fase 4 met een **klein test-font-provider** (paar glyphs, in-repo), niet de volle 16 MB.
 
 ## 5. Font- & i18n-strategie
 
@@ -249,6 +281,15 @@ geven, anders wijken afkapping/paginering uiteen. Oplossing:
    **definitieve** plaatsing gebruikt die getallen, niet de doorgegeven canvas-metrics, om
    sub-pixel/hinting-verschil te elimineren. Voor CJK/shaping is dit sowieso nodig (ligaturen
    veranderen de somweidte).
+
+**CJK preview≠export (review-bevinding).** De preview-canvas heeft géén Noto-font geladen (Inter
+dekt geen CJK), dus meet daar op de OS-CJK-fallback, terwijl de export Noto Sans CJK gebruikt →
+afwijkende afkapping/overlap/paginering voor CJK-documenten. Dat is dezelfde measureText-valkuil,
+nu tussen twee verschillende fonts. Keuze: (a) accepteer dat WYSIWYG (check e) alleen voor
+Inter-gedekte scripts geldt en voor CJK een benadering is (pragmatisch, past bij besluit 4); óf (b)
+laad in de preview-tak de provider-`FontFace` (uit de TTF-bytes: `new FontFace('NotoCJK', bytes)`)
+zodat de canvas óók Noto meet — kost een extra async font-load in de preview en trekt de provider de
+preview-lus in. **Voorstel: (a) in v1, (b) als latere verfijning.**
 
 **K2 — bewuste layout-wijziging, geen pure interne verbetering.** `FONT_FAMILY` is nu de
 systeem-font-stack (`printPreview.ts:38`), niet Inter — ondanks dat de UI Inter gebruikt. Overstappen
@@ -305,6 +346,14 @@ Arabische font komt — net als CJK — via een provider (kern-font of extensie)
 fontkit-shaping kwalitatief tekortschiet. **Deze taak wordt bewust níét in deze bouwronde gedaan;
 ze wordt pas gestart als v1 (fasen 0–5) staat en groen is.**
 
+**Forward-compat-eis voor v1 (zodat de ontkoppeling veilig blijft — review-bevinding):** de latere
+RTL-laag moet **boven** `Draw2D` kunnen zitten (bidi reorderen + per visuele run een x uitrekenen,
+dan per run een gewone LTR-`fillText(run, xRun, y)` aanroepen). Daarom in v1: (a) de font-provider-
+registry blijft **richting-agnostisch** (alleen bytes/coverage, geen shaping/richting); (b) bak in de
+gedeelde meet-/pagineerpaden (`measureText`-gebruik in footer/timeline/`fitText`) **geen LTR-only-
+aannames** die RTL later tot een refactor dwingen. Zo staat de deur open zonder dat v1 al bidi hoeft
+te kennen.
+
 ## 6. Integratiepunten (exact)
 
 | Plek | Wat |
@@ -338,8 +387,11 @@ tegenvallen.**
 
 **Fase 1 — Draw2D-abstractie + CanvasDraw2D (Sonnet high, bindend doc).** Definieer de interface
 (§4.1); implementeer de canvas-backend; buig `renderPrintCanvas` + de 5 helpers om naar `Draw2D`;
-vervang `FONT_FAMILY` door Inter (met FontFace-load in preview/export). **Verifieer**: preview
-identiek aan vóór de refactor (visuele QA, Sonnet high; verwachtingen vooraf uitgerekend).
+vervang `FONT_FAMILY` door Inter (met FontFace-load in preview/export). **Scoping-geruststelling
+(geverifieerd door de review):** de font-swap raakt alléén `printPreview.ts:38` — de on-screen
+`GanttRenderer` heeft z'n eigen hardcoded font-stacks en importeert `printPreview` niet, dus het
+hoofdscherm verandert niet. **Verifieer**: preview identiek aan vóór de refactor (visuele QA, Sonnet
+high; verwachtingen vooraf uitgerekend).
 
 **Fase 2 — PdfVectorDraw2D + vector-pagineerder (Opus xhigh).** Implementeer de PDF-backend
 (kleur-parsing, alpha/ExtGState, baseline/align, dash, roundRect-bezier) en
@@ -352,21 +404,27 @@ tegel-/paginering-pariteit met de raster-versie op een meerpagina-planning.
 kolom-specs voor beide rapporten; vervang de DOM-screenshot-tak. **Verifieer**: kolommen/kleuren/
 statusbadges kloppen met de DOM-preview; selecteerbare tekst.
 
-**Fase 4 — font-provider-registry + extensie-API + script-detectie + raster-fallback (Opus xhigh).**
-Kern-werk (géén CJK-font nog): bouw `fontRegistry.ts`; breid de extensie-API uit met
-`api.pdfFonts.register(provider)` achter een `pdf-fonts`-permissie (§4.5); per-export script-detectie
-(incl. maandnamen, K4); scripts zonder dekkende provider (ar/fa, of CJK zonder extensie) → raster-
-fallback voor de hele export. **Verifieer**: met een klein **test-font-provider** (paar CJK-glyphs,
-in-repo, niet de volle 16 MB) exporteert een document met die glyphs vector; zonder provider valt
-hetzelfde document terug op raster; een ar/fa-document valt terug op raster; een puur-Latijn document
-blijft ongewijzigd vector.
+**Fase 4 — font-provider-registry + extensie-API (incl. asset-route) + script-detectie + raster-
+fallback (Opus xhigh).** Kern-werk (géén echt CJK-font nog): bouw `fontRegistry.ts` (richting-
+agnostisch, §5.4); **beslis en bouw de font-bytes-leveringsroute nú** (§4.5 — aanbevolen: loader
+binaire assets: ZIP-entries bewaren, `StoredExtension`+record uitbreiden, `api.assets.get`,
+`ExtensionApi`-type/`createExtensionApi`, ook het `.js`-pad), zodat het API-contract vóór v1-freeze
+stabiel is; breid de extensie-API uit met `api.pdfFonts.register(provider)` (cleanup via `cleanupFns`,
+niet `onUnload`) achter de `pdf-fonts`-permissie **incl. de volledige permissie-plumbing** (`KNOWN_
+PERMISSIONS`, `ExtensionPermission`-type, `API_PERMISSIONS`) — anders stript `sanitizeManifest
+Permissions` 'm stil; per-export script-detectie (incl. maandnamen, K4); scripts zonder dekkende
+provider (ar/fa, of CJK zonder extensie) → raster-fallback voor de hele export. **Verifieer**: met een
+klein **test-font-provider** (paar CJK-glyphs, in-repo, niet de volle 16 MB) exporteert een document
+met die glyphs vector; zonder provider valt hetzelfde document terug op raster; een ar/fa-document valt
+terug op raster; een puur-Latijn document blijft ongewijzigd vector; een uitgeschakelde extensie
+schrijft z'n provider automatisch uit (`cleanupFns`).
 
-**Fase 4b — officiële CJK-font-extensie (Opus xhigh, apart deliverable).** Bouw de extensie-ZIP
-(`manifest.json` + `main.js`) die het Noto Sans CJK-TTF meebrengt en via `api.pdfFonts.register`
-aanbiedt. Beslis font-bytes-route (§4.5: loader-binaire-assets vs. base64). Publiceer in de catalogus.
-**Verifieer**: extensie installeren → een showcase met echte CJK-taaknamen exporteert vector met
-correcte glyphs; deïnstalleren → terug naar raster-fallback. **Deze fase mag ná de v1-merge lopen —
-de kern (fase 4) is af zonder haar.**
+**Fase 4b — officiële CJK-font-extensie (Opus xhigh, apart deliverable, mág ná v1-merge).** Puur: pak
+het echte Noto Sans CJK-TTF in een extensie-ZIP (`manifest.json` + `main.js` + font-asset via de in
+fase 4 gebouwde asset-route), registreer via `api.pdfFonts.register`, voeg het Noto-OFL-NOTICE toe, en
+publiceer in de catalogus. **Verifieer**: extensie installeren → showcase met echte CJK-taaknamen
+exporteert vector met correcte glyphs; deïnstalleren → terug naar raster-fallback. De kern (fase 4) is
+af zónder deze fase.
 
 **Losgekoppelde vervolgtaak (ná v1, aparte agent) — RTL-vector (ar/fa).** Zie §5.4. Niet in deze
 bouwronde.
@@ -375,9 +433,10 @@ bouwronde.
 die bestaat alleen als `public/docs/en/` en `public/docs/nl/gids-rapporten-printen.md` (K8),** niet
 in 14 locales; verifieer welke bestaan i.p.v. `*` aan te nemen. `docs/CHANGELOG.md` (incl. de
 K2-layout-reflow-noot). **OFL-NOTICE (K7):** Inter (kern) is OFL-1.1 — de licentietekst moet
-meegeleverd worden; OFL kent Reserved-Font-Name-regels bij subsetten/hernoemen. Voeg een
-NOTICE/licentiebestand toe voor Inter. Het Noto-CJK-OFL hoort bij de **CJK-extensie** (fase 4b), niet
-bij de kern. **Pre-existente i18n-gaten (K5, optioneel meenemen):** `'Today'`
+meegeleverd worden. Voeg een NOTICE/licentiebestand toe voor Inter. (Recente Inter-versies hebben
+géén Reserved Font Name meer, dus de RFN-regel bij subsetten is voor Inter vermoedelijk moot —
+verifiëren tegen de meegeleverde versie.) Het Noto-CJK-OFL hoort bij de **CJK-extensie** (fase 4b),
+niet bij de kern. **Pre-existente i18n-gaten (K5, optioneel meenemen):** `'Today'`
 (`printPreview.ts:447`) en `'Start:'`/`'Eind:'`/`'Duur:'` (`:629,633,639`) zijn hardcoded buiten
 `t(...)` — de refactor erft die fout; fix ze of scope ze expliciet uit (de "af"-eis "correct voor
 alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle 14 locales.
@@ -406,7 +465,9 @@ alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle
 | Font-swap (systeemstack → Inter) = zichtbare export-reflow (K2) | Bewuste, deterministische wijziging; changelog-noot. |
 | CFF/OTF-subsetting onbetrouwbaar | Dwing TTF (glyf) af voor alle embed-fonts (B3/B4). Exacte "kapot"-issuenummers deels ongeverifieerd; TTF-guardrail is sowieso goedkoop. |
 | CJK-extensie niet geïnstalleerd | Graceful raster-fallback per document (geen "tofu"); CJK is opt-in. |
-| Extensie kan geen binaire font-bytes leveren | Loader uitbreiden met binaire assets (§4.5, fase 4b, optie 1) of base64-fallback (optie 2). |
+| **Extensie-loader kent geen binaire assets (onderschatte kern-kost)** | Loader/API-asset-support is echte fase-4-kern-feature (§4.5, optie 1); leveringsroute + permissie-plumbing vóór v1-freeze. Base64 (optie 2) afgeraden om startup-`new Function`-parsekost. |
+| **Preview≠export voor CJK (WYSIWYG-check e faalt)** | v1: WYSIWYG alleen voor Inter-gedekte scripts; CJK-preview is benadering. Optioneel later: provider-`FontFace` in preview (§5.1). |
+| Provider lekt bij uitschakelen extensie | Registratie pusht cleanup op `cleanupFns` → auto-uitschrijven bij `disableExtension` (§4.5). |
 | Async font-load race → verkeerde eerste render | `await document.fonts.ready` vóór render (§5.2). |
 | RTL-vector onderschat | v1 raster-fallback; losgekoppelde vervolgtaak ná v1 (aparte agent). |
 | Bundle-groei | Lazy `import()` van pdf-lib/fontkit; CJK-font zit in een extensie (IndexedDB), niet in de hoofdbundle. |
@@ -449,10 +510,18 @@ default.
 - Research B (rapportcode): `printPreview.ts` primitieven-inventaris, `MilestoneReport.tsx`/
   `VarianceReport.tsx` data-inventaris, `ReportPanel.tsx`/`paginate.ts` integratiepunten,
   `i18n/config.ts` locales.
-- Kritische review (Opus xhigh): verifieerde pdf-lib `operators.ts` (clip/dash/gs/cm/bezier — API
+- Kritische review 1 (Opus xhigh): verifieerde pdf-lib `operators.ts` (clip/dash/gs/cm/bezier — API
   compleet), `@fontsource` levert geen TTF (fontsource #371/#570), Inter is al UI-font
   (`main.tsx`/`globals.css`), integratie-regelnummers, en de ~220-DPI-realiteit van de huidige
-  raster-export. Bracht G1/G2 + K1–K9 in; eindoordeel "klaar-met-aanpassingen" (nu verwerkt).
+  raster-export. Bracht G1/G2 + K1–K9 in; eindoordeel "klaar-met-aanpassingen" (verwerkt).
+- Kritische review 2 (Opus xhigh, na de vier scope-besluiten): verifieerde tegen de echte
+  extensie-code dat de CJK-extensie een echte kern-uitbreiding vergt (ZIP-install bewaart alleen
+  manifest+main `extensionService.ts:167,175`; `StoredExtension` zonder asset-veld
+  `extensionLoader.ts:62-67`; geen asset-API `types.ts:107-157`; `sanitizeManifestPermissions` stript
+  onbekende perms `permissions.ts:86-106`), dat de font-swap alleen print/preview raakt (niet
+  `GanttRenderer`), en dat de RTL-ontkoppeling veilig is. Bracht de leveringsroute→fase-4-verschuiving,
+  base64-startup-kost, CJK-preview≠export, `cleanupFns`-cleanup en de RTL-forward-compat-eis in
+  (nu verwerkt). Eindoordeel "klaar-met-aanpassingen".
 
 **Ongeverifieerd (bewust als open gemarkeerd, valideren tijdens bouw):** exacte CJK-subset-KB in de
 PDF; `bidi-js` exacte gzip-grootte; woff2-in-browser-embed door `@pdf-lib/fontkit`; bundlegroottes
