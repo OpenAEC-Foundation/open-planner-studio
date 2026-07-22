@@ -453,11 +453,14 @@ permissie-plumbing) en de binaire-asset-leveringsroute** (ZIP-entries bewaren, `
 verhuizen naar **fase 4b**, samen met de subset-fix en het echte CJK-font — allemaal post-v1.
 
 **Fase 4b — officiële CJK-font-extensie (Opus xhigh, apart deliverable, mág ná v1-merge).**
-**BLOKKER-VOORWAARDE (fase-2-learning):** CJK-fonts zijn 5–16 MB → subsetten is verplicht, maar
-pdf-lib/@pdf-lib/fontkit's `subset:true` dropt glyphs (visueel defect, zie fase 2). Dit
-subset-defect moet éérst opgelost (pdf-lib/fontkit-upgrade, een losse subsetter zoals `subset-font`,
-of harfbuzz-wasm) — zonder werkende subsetting is een CJK-extensie niet leverbaar (subset:false zou
-16 MB per PDF inbedden). **Fase 4b omvat nu ook de uit fase 4 verschoven extensie-infra:** de
+**BLOKKER OPGELOST (spike 2026-07-22):** CJK-fonts zijn 5–16 MB → subsetten is verplicht. Het
+`subset:true`-defect (corrupte glyf uit `@pdf-lib/fontkit`) wordt omzeild door **harfbuzz
+`hb-subset.wasm`** als pre-subsetter (MIT, 197 KB gzip, 0 imports → puur browser, lazy) vóór pdf-lib
+`subset:false` — bewezen correct in pdfium/MuPDF/Chrome (WQY-CJK 11,6 MB → 3,1 KB subset). Integratie
+= twee-pass in `paginateVector` (scan `usedCodepoints` → `hb-subset` → embed), `PdfVectorDraw2D`/
+coverage ongewijzigd; eigen ~90-regel wasm-wrapper (niet `subset-font`, dat sleept Node-`fs`/`Buffer`).
+Deze harfbuzz-pipeline is een eigen post-v1-stap (verkleint óók de Inter-PDF's) die vóór het echte
+CJK-font landt. **Fase 4b omvat nu ook de uit fase 4 verschoven extensie-infra:** de
 extensie-API `api.pdfFonts.register(provider)` achter een `pdf-fonts`-permissie (volledige
 plumbing: `KNOWN_PERMISSIONS`, `ExtensionPermission`-type, `API_PERMISSIONS`; cleanup via
 `cleanupFns`), en de binaire-asset-leveringsroute in de loader (ZIP-entries bewaren,
@@ -468,8 +471,28 @@ Noto-OFL-NOTICE toe, en publiceer in de catalogus. **Verifieer**: extensie insta
 exporteert vector met correcte glyphs; deïnstalleren → terug naar raster-fallback. De kern (fase 4) is
 af zónder deze fase.
 
-**Losgekoppelde vervolgtaak (ná v1, aparte agent) — RTL-vector (ar/fa).** Zie §5.4. Niet in deze
-bouwronde.
+## Post-v1 bouwvolgorde (in uitvoering, gestart 2026-07-22)
+
+Twee research-spikes (RTL + subset-defect) hebben de resterende onbekenden met rasterbewijs weggenomen.
+Conflictvrije, sequentiële volgorde (alles raakt `paginateVector.ts`/`pdfVectorDraw2d.ts`, dus geen
+parallelle edits):
+
+1. **RTL-vector (ar/fa)** — kleiner dan gevreesd: shaping is al gratis via pdf-lib's `encodeText`
+   (fontkit `layout`), single-line ⇒ geen bidi-line-breaking, en Noto Sans Arabic (~0,4 MB, glyf, OFL)
+   wordt **vol in de kern ingebed** (`subset:false`, zoals Inter) → ontkoppeld van het subset-defect.
+   - **RTL-1**: Noto Arabic vendoren + `bidi-js` (MIT, 5,6 KB gzip) + `bidiShape.ts` (UBA-L2-runreorder
+     + per-run `fk.layout(dir)` + font-per-run + glyph-ID-emissie via `PDFHexString.of`+`showText` op
+     Identity-H). Los mechanisme, nog niet in `fillText` gehaakt (main blijft groen).
+   - **RTL-2**: integreren in `fillText` (snelpad ongewijzigd voor 12 locales; complex pad voor
+     RTL/gemengd) + `measureText` run-summed + coverage multi-font (Arabisch → vector i.p.v. raster) +
+     GPOS-posities; verifiëren tegen de browser-canvas-referentie. Geen layout-mirroring (alleen tekst).
+2. **harfbuzz subset-pipeline** — eigen ~90-regel wasm-wrapper om `hb-subset.wasm`; twee-pass in
+   `paginateVector` (scan `usedCodepoints` → subset → embed `subset:false`). Fixt het subset-defect,
+   verkleint alle vector-PDF's (Inter mee), en is de prerequisite voor CJK.
+3. **Font-provider-infra (fase 4b-kern)** — registry + `api.pdfFonts.register` + `pdf-fonts`-permissie
+   + binaire-asset-loader (§4.5) voor CJK-bron-levering (het 5–16 MB-font blijft lazy/extern).
+4. **Noto-CJK-extensie (fase 4b)** — het echte font via de extensie; per export gesubset met harfbuzz
+   (→ ~KB in de PDF).
 
 **Fase 5 — docs + i18n + licentie + changelog — ✅ UITGEVOERD (2026-07-22, `f4f3882`).** Inter-OFL
 gevendord (byte-identiek aan upstream) + README; changelog (vectorexport + K2-reflow-noot + OFL);
@@ -506,7 +529,7 @@ alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle
 | ~~pdf-lib operator-API wijkt af~~ (geretired) | Review verifieerde `operators.ts` — API dekt alles (§4.2). |
 | **Render-/geheugenkost vector ≫ raster op grote planningen (G1)** | Draw-list één keer als Form-XObject; per pagina alleen `Do` onder transform+clip; bewijzen op A1. |
 | **Tekstlaag-duplicatie bij extractie (G2)** | ✅ Opgelost + geverifieerd in fase 2.1 (`5d5c868`): tekst uit XObject, per tegel geplaatst → body-label 1×, frozen = aantal kolommen (gemeten 72×→6× op A1, git-stash vóór→na + pypdf/MuPDF). G1 blijft intact (1 vorm-XObject). |
-| **`subset:true` dropt glyphs (pdf-lib/fontkit-defect)** | v1 gebruikt `subset:false` (Inter volledig, ~0,4 MB). Blokkeert CJK-subsetting → oplossen vóór fase 4b (upgrade/andere subsetter). |
+| **`subset:true` dropt glyphs (pdf-lib/fontkit-defect)** | Root cause (spike 2026-07-22): `@pdf-lib/fontkit@1.1.1`'s glyf-subsetter schrijft corrupte coördinaat-bytes (6/15 Inter-glyphs onparsebaar; ToUnicode blijft ok). **Oplossing bewezen** (pdfium+Chrome): harfbuzz `hb-subset.wasm` pre-subsetten → dan pdf-lib `subset:false`. v1 draait nu op `subset:false` (Inter vol); post-v1 harfbuzz-pipeline verkleint PDF's + deblokkeert CJK. |
 | measureText ≠ PDF-advances (afkapping/paginering wijkt) | Zelfde ingebedde TTF voor beide; definitieve plaatsing via `widthOfTextAtSize`; numerieke meting in fase 0 op diacriet-strings (K3). |
 | Font-swap (systeemstack → Inter) = zichtbare export-reflow (K2) | Bewuste, deterministische wijziging; changelog-noot. |
 | CFF/OTF-subsetting onbetrouwbaar | Dwing TTF (glyf) af voor alle embed-fonts (B3/B4). Exacte "kapot"-issuenummers deels ongeverifieerd; TTF-guardrail is sowieso goedkoop. |
