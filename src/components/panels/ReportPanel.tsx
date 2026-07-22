@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { renderPrintCanvas, PrintOptions } from '@/services/print/printPreview';
+import { renderPrintCanvas, renderReport, PrintOptions } from '@/services/print/printPreview';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { computeHighResScale } from '@/utils/miniPdf';
 import { paginateCanvasToPdfBytes, paginateCanvasToTiles } from '@/services/print/paginate';
-import { ensureInterLoaded } from '@/services/pdf/fontLoader';
+import { ensureInterLoaded, getInterFontBytes } from '@/services/pdf/fontLoader';
 import { Select } from '@/components/common/Select';
 import { isTauri } from '@/utils/platform';
 import { MilestoneReport, useMilestoneRows } from './MilestoneReport';
@@ -172,27 +172,45 @@ export function ReportPanel() {
     await ensureInterLoaded();
 
     if (reportType === 'gantt') {
-      // Render offscreen at a fixed high-res scale for the export — independent of the on-screen
-      // preview canvas (which uses window.devicePixelRatio, often just 1x) so the embedded image
-      // stays sharp regardless of the exporting user's screen. First render (scale 1) yields the
-      // LOGICAL dimensions + naam-kolombreedte; the second render produces the high-res raster.
-      const exportCanvas = document.createElement('canvas');
-      const { width: logicalWidth, height: logicalHeight, tableWidth } = renderPrintCanvas(
-        exportCanvas, tasks, sequences, calendar, projectName, options, 1,
-      );
-      const exportScale = computeHighResScale(logicalWidth, logicalHeight);
-      renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, exportScale);
+      const mode = autoFit ? 'fit-width' : 'actual';
 
-      // Tegel de volledige planning over meerdere pagina's (fit-width → 1 kolom, actual → tegelen
-      // met herhaalde naam-kolom). Alle tegel-wiskunde in logische px; exportCanvas is de high-res bron.
-      const pdfBytes = paginateCanvasToPdfBytes(exportCanvas, {
-        paperSize: lowerPaper,
-        orientation,
-        mode: autoFit ? 'fit-width' : 'actual',
-        logicalWidth,
-        logicalHeight,
-        frozenColumnWidthPx: tableWidth,
-      });
+      // De raster-tak (JPEG-tegels) als betrouwbare terugval: exact het bestaande pad, uitgesplitst
+      // zodat de vector-tak erop kan terugvallen bij een fout (bv. een glyph buiten Inter — echte
+      // script-detectie is fase 4). Render offscreen op een vaste hoge schaal, onafhankelijk van het
+      // scherm van de exporterende gebruiker (window.devicePixelRatio, vaak 1x). Eerste render (schaal
+      // 1) levert de LOGISCHE maten + naam-kolombreedte; de tweede render het high-res raster.
+      const exportRaster = (): Uint8Array => {
+        const exportCanvas = document.createElement('canvas');
+        const { width: logicalWidth, height: logicalHeight, tableWidth } = renderPrintCanvas(
+          exportCanvas, tasks, sequences, calendar, projectName, options, 1,
+        );
+        const exportScale = computeHighResScale(logicalWidth, logicalHeight);
+        renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, exportScale);
+        return paginateCanvasToPdfBytes(exportCanvas, {
+          paperSize: lowerPaper, orientation, mode,
+          logicalWidth, logicalHeight, frozenColumnWidthPx: tableWidth,
+        });
+      };
+
+      // Vector-tak (fase 2): échte vector-PDF met selecteerbare tekst + ingebedde Inter. Bij een fout
+      // valt de export terug op raster zodat hij nooit stukloopt. Lazy import houdt pdf-lib/fontkit
+      // uit de hoofdbundle (B2).
+      let pdfBytes: Uint8Array;
+      try {
+        const [{ paginateVectorToPdfBytes }, regular, bold] = await Promise.all([
+          import('@/services/print/paginateVector'),
+          getInterFontBytes(400),
+          getInterFontBytes(700),
+        ]);
+        pdfBytes = await paginateVectorToPdfBytes(
+          (make) => renderReport(make, tasks, sequences, calendar, projectName, options),
+          { paperSize: lowerPaper, orientation, mode },
+          { regular, bold },
+        );
+      } catch (err) {
+        console.warn('[ReportPanel] Vector-PDF-export mislukt, terugval op raster:', err);
+        pdfBytes = exportRaster();
+      }
       await writePdf(pdfBytes, `${projectName || 'project'}-planning.pdf`);
       return;
     }

@@ -213,23 +213,9 @@ function drawBarLabel(
 }
 
 /**
- * Render the print preview onto a canvas. Returns the logical (CSS) dimensions.
- *
- * `renderScale` overrides the raster-vs-logical multiplier (`canvas.width = logicalWidth *
- * renderScale`); defaults to `window.devicePixelRatio || 2` so the on-screen preview keeps its
- * existing behavior. PDF export passes a higher fixed scale (see `computeHighResScale` in
- * `@/utils/miniPdf`) so the exported raster resolution doesn't depend on the exporting user's
- * screen DPI — a 1x/headless browser would otherwise embed a blurry 96 DPI image.
+ * Het resultaat van een print-render: de logische (CSS-px) afmetingen + de bevroren-kolombreedte.
  */
-export function renderPrintCanvas(
-  canvas: HTMLCanvasElement,
-  tasks: Task[],
-  sequences: Sequence[],
-  calendar: WorkCalendar,
-  projectName: string,
-  options: PrintOptions,
-  renderScale?: number,
-): {
+export interface RenderReportResult {
   width: number;
   height: number;
   /**
@@ -241,7 +227,25 @@ export function renderPrintCanvas(
    * stelsel als de rest van het return-object; de raster-schaal komt daar apart bij.
    */
   tableWidth: number;
-} {
+}
+
+/**
+ * Render het print-rapport tegen een {@link Draw2D}-backend die door `makeDraw2D` geleverd wordt.
+ * Alle teken-logica is backend-agnostisch; `makeDraw2D(logicalW, logicalH)` wordt exact één keer
+ * aangeroepen zodra de logische afmetingen bekend zijn (vóór er getekend wordt) en de teruggegeven
+ * `Draw2D` ontvangt vervolgens alle teken-aanroepen. Zo delen de raster-preview (canvas-backend) en
+ * de vector-export (pdf-lib-backend) exact dezelfde renderer.
+ *
+ * @returns De logische (CSS-px) afmetingen + de bevroren-kolombreedte ({@link RenderReportResult}).
+ */
+export function renderReport(
+  makeDraw2D: (logicalW: number, logicalH: number) => Draw2D,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+): RenderReportResult {
   // Flatten and compute depth
   const flatTasks: PrintTask[] = [];
   const depthMap = new Map<string, number>();
@@ -267,8 +271,7 @@ export function renderPrintCanvas(
   }
 
   if (flatTasks.length === 0) {
-    const dpr = renderScale ?? (window.devicePixelRatio || 2);
-    const d2d = new CanvasDraw2D(canvas, 600, 200, dpr);
+    const d2d = makeDraw2D(600, 200);
     d2d.fillStyle = PRINT_COLORS.bg;
     d2d.fillRect(0, 0, 600, 200);
     d2d.fillStyle = PRINT_COLORS.textSecondary;
@@ -329,9 +332,9 @@ export function renderPrintCanvas(
     }
   }
 
-  // Create high-DPI canvas via de Draw2D-canvas-backend (neemt de dpr-scale + maat-setup over).
-  const dpr = renderScale ?? (window.devicePixelRatio || 2);
-  const d2d = new CanvasDraw2D(canvas, canvasWidth, canvasHeight, dpr);
+  // Verkrijg de Draw2D-backend zodra de logische afmetingen bekend zijn (canvas-backend neemt de
+  // dpr-scale + maat-setup over; vector-backend werkt 1:1 in logische px).
+  const d2d = makeDraw2D(canvasWidth, canvasHeight);
 
   // Helper: date to X
   const dateToX = (date: Date) => TABLE_WIDTH + diffCalendarDays(minDate, date) * zoom;
@@ -542,6 +545,34 @@ export function renderPrintCanvas(
   drawFooter(d2d, canvasWidth, canvasHeight, projectName, options);
 
   return { width: canvasWidth, height: canvasHeight, tableWidth: TABLE_WIDTH };
+}
+
+
+/**
+ * Render het print-rapport naar een canvas (raster/preview). Dunne wrapper over {@link renderReport}
+ * met de canvas-backend: alle teken-logica leeft in `renderReport`, hier wordt alleen de Draw2D-
+ * backend gekozen. Geeft de logische (CSS) afmetingen terug.
+ *
+ * `renderScale` overschrijft de raster-vs-logisch-multiplier (`canvas.width = logicalWidth *
+ * renderScale`); default `window.devicePixelRatio || 2` zodat de on-screen preview z'n bestaande
+ * gedrag houdt. De PDF-raster-export geeft een hogere vaste schaal door (zie `computeHighResScale`
+ * in `@/utils/miniPdf`) zodat de geëxporteerde rasterresolutie niet afhangt van de schermdichtheid
+ * van de exporterende gebruiker — een 1x/headless browser zou anders een wazig 96-DPI-beeld inbedden.
+ */
+export function renderPrintCanvas(
+  canvas: HTMLCanvasElement,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+  renderScale?: number,
+): RenderReportResult {
+  const dpr = renderScale ?? (window.devicePixelRatio || 2);
+  return renderReport(
+    (w, h) => new CanvasDraw2D(canvas, w, h, dpr),
+    tasks, sequences, calendar, projectName, options,
+  );
 }
 
 
