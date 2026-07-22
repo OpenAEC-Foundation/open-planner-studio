@@ -485,7 +485,7 @@ alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle
 |--------|-----------|
 | ~~pdf-lib operator-API wijkt af~~ (geretired) | Review verifieerde `operators.ts` — API dekt alles (§4.2). |
 | **Render-/geheugenkost vector ≫ raster op grote planningen (G1)** | Draw-list één keer als Form-XObject; per pagina alleen `Do` onder transform+clip; bewijzen op A1. |
-| **Tekstlaag-duplicatie bij extractie (G2)** | Fase 2 toonde dat G1's gedeelde XObject dit versterkt tot volledige-document-duplicatie per pagina (798× op A1). Opgelost in fase 2.1: tekst uit XObject, per tegel geplaatst → per-pagina zelfstandig. |
+| **Tekstlaag-duplicatie bij extractie (G2)** | ✅ Opgelost + geverifieerd in fase 2.1 (`5d5c868`): tekst uit XObject, per tegel geplaatst → body-label 1×, frozen = aantal kolommen (gemeten 72×→6× op A1, git-stash vóór→na + pypdf/MuPDF). G1 blijft intact (1 vorm-XObject). |
 | **`subset:true` dropt glyphs (pdf-lib/fontkit-defect)** | v1 gebruikt `subset:false` (Inter volledig, ~0,4 MB). Blokkeert CJK-subsetting → oplossen vóór fase 4b (upgrade/andere subsetter). |
 | measureText ≠ PDF-advances (afkapping/paginering wijkt) | Zelfde ingebedde TTF voor beide; definitieve plaatsing via `widthOfTextAtSize`; numerieke meting in fase 0 op diacriet-strings (K3). |
 | Font-swap (systeemstack → Inter) = zichtbare export-reflow (K2) | Bewuste, deterministische wijziging; changelog-noot. |
