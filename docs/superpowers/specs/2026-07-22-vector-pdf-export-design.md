@@ -494,6 +494,21 @@ parallelle edits):
 4. **Noto-CJK-extensie (fase 4b)** — het echte font via de extensie; per export gesubset met harfbuzz
    (→ ~KB in de PDF).
 
+**CJK-voortgang (2026-07-22):**
+- **CJK-1 ✅ (`14b2be6`):** harfbuzz-subset-wrapper (`hbSubset.ts`, gevendorde `hb-subset.wasm`,
+  RETAIN_GIDS) + `fontRegistry.ts` (provider-registry) + rendering (coverage-multi-provider,
+  `fillTextCjk`, twee-pass subset→embed→emit, F4/F5). Bewezen met testfont (MuPDF ink 0,59 = rendert).
+  Inter/Noto-Arabisch blijven ongewijzigd `subset:false`.
+- **Font-verify ✅:** de gemelde `@pdf-lib/fontkit`-crash was een cu2qu-conversie-artefact; de
+  **officiële Noto glyf-fonts** (Google Fonts `ofl/`, variabel → statisch geïnstantieerd wght 400/700)
+  gaan schoon door de pijplijn en renderen zh/ja/ko zichtbaar (MuPDF). Subset echt font 10,6 MB →
+  ~200–330 KB/gewicht per export.
+- **CJK-2 (in uitvoering):** font-provider-extensie-API (`api.pdfFonts.register` + `pdf-fonts`-permissie
+  + volledige plumbing; binaire-asset-loader `api.assets.get`). Font-agnostisch.
+- **CJK-3 (plan):** **per-regio-extensies** (zh→Noto Sans SC, ja→JP, ko→KR), Regular-only (~5–10 MB
+  elk, Bold→Regular-fallback) → gebruiker installeert alleen z'n schrift, met correcte regionale
+  Han-vormen. Elk brengt z'n glyf-TTF + OFL mee via de asset-loader.
+
 **Fase 5 — docs + i18n + licentie + changelog — ✅ UITGEVOERD (2026-07-22, `f4f3882`).** Inter-OFL
 gevendord (byte-identiek aan upstream) + README; changelog (vectorexport + K2-reflow-noot + OFL);
 print-gids nl+en bijgewerkt; `verify:docs` groen. K5-hardcoded-labels bewust buiten v1 gescoped
