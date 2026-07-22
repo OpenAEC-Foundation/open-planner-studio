@@ -20,7 +20,9 @@ import {
   setFillingRgbColor, beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import { PdfVectorDraw2D, type PdfResourcePool, type ArabicShapingFonts } from '@/services/pdf/pdfVectorDraw2d';
+import { PdfVectorDraw2D, type PdfResourcePool, type ArabicShapingFonts, type CjkVectorFont } from '@/services/pdf/pdfVectorDraw2d';
+import { getCjkFontProviders } from '@/services/pdf/fontRegistry';
+import { subsetFont } from '@/services/pdf/hbSubset';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
 import { PAPER_PT, FOOTER_PT, type PaperSize, type Orientation, type PaginateMode } from './paginate';
@@ -117,20 +119,50 @@ export async function paginateVectorToPdfBytes(
   };
   const baseDir = opts.baseDir ?? 'ltr';
 
-  // Teken de VOLLEDIGE Gantt exact één keer; leg de operatoren vast (G1).
-  let captured: PdfVectorDraw2D | null = null;
-  const dims = renderReport((w, h) => {
-    captured = new PdfVectorDraw2D(w, h, pool, baseDir, arabicFonts);
-    return captured;
+  // CJK-font-providers (registry, §4.5): laad hun rauwe glyf-TTF-bytes + fontkit-fonts (coverage +
+  // breedte-meting) klaar vóór pass 1. Subsetten/embedden gebeurt pas ná pass 1, en alléén voor
+  // providers die écht getekend zijn. Geen provider → dit is een no-op en de export blijft ongewijzigd
+  // (Latijn/Arabisch-pad exact als voorheen; CJK-documenten vallen dan via de coverage-poort op raster).
+  const providers = getCjkFontProviders();
+  const cjkPreload = await Promise.all(providers.map(async (p) => {
+    const regBytes = await p.getRegularBytes();
+    const boldBytes = p.getBoldBytes ? await p.getBoldBytes() : regBytes;
+    return {
+      provider: p,
+      regBytes,
+      boldBytes,
+      fk: fkCreate.create(regBytes),
+      fkBold: fkCreate.create(boldBytes),
+    };
+  }));
+  const makeCjkBase = (i: number): CjkVectorFont => ({
+    id: cjkPreload[i].provider.id,
+    covers: (cp: number) => cjkPreload[i].provider.covers(cp),
+    fk: cjkPreload[i].fk,
+    fkBold: cjkPreload[i].fkBold,
   });
-  const d2d = captured as PdfVectorDraw2D | null;
-  if (!d2d) throw new Error('paginateVectorToPdfBytes: renderReport riep de Draw2D-fabriek niet aan');
 
-  // Coverage-poort (fase 4): `renderReport` heeft nu ALLE tekst door `fillText` gehaald, dus de
-  // ongedekte-codepoint-set is compleet. Is die niet leeg → gooi vóór we de PDF verder opbouwen, zodat
-  // `handleExportPDF` terugvalt op raster i.p.v. tofu te exporteren. Dekt Gantt én tabellen (beide gaan
-  // door dezelfde PdfVectorDraw2D.fillText). Arabisch/Perzisch is nu multi-font gedekt (Inter ÓF Noto),
-  // dus dat valt NIET meer hier uit; Hebreeuws/CJK wél → raster.
+  // Render-helper: draai `renderReport` één keer met een verse PdfVectorDraw2D die de gegeven CJK-fonts
+  // kent. Beide passes delen dezelfde `pool` (alpha-/font-dedup is idempotent, dus pass 2 hergebruikt de
+  // resource-sleutels van pass 1). Geeft de laatste capture + de logische dims terug.
+  const runRender = (cjk: CjkVectorFont[]): { d2d: PdfVectorDraw2D; dims: RenderReportResult } => {
+    let captured: PdfVectorDraw2D | null = null;
+    const dims = renderReport((w, h) => {
+      captured = new PdfVectorDraw2D(w, h, pool, baseDir, arabicFonts, cjk);
+      return captured;
+    });
+    if (!captured) throw new Error('paginateVectorToPdfBytes: renderReport riep de Draw2D-fabriek niet aan');
+    return { d2d: captured as PdfVectorDraw2D, dims };
+  };
+
+  // PASS 1 (altijd): teken de VOLLEDIGE Gantt/tabel één keer. Levert coverage + (per provider) de
+  // gebruikte CJK-codepoints. De CJK-fonts hebben nog geen `embed`, dus CJK-tekst wordt hier alleen
+  // geïnventariseerd, niet geëmit — de pass-1-operatoren worden bij een tweede pass tóch weggegooid.
+  let { d2d, dims } = runRender(cjkPreload.map((_, i) => makeCjkBase(i)));
+
+  // Coverage-poort (fase 4): ongedekte codepoints (Hebreeuws, CJK zónder provider, …) → gooi vóór we de
+  // PDF verder opbouwen, zodat `handleExportPDF` op raster terugvalt i.p.v. tofu te exporteren. Arabisch/
+  // Perzisch (Noto) én CJK-met-provider vallen hier NIET meer uit.
   if (d2d.uncoveredCodepoints.size > 0) {
     throw new VectorUnsupportedError([...d2d.uncoveredCodepoints], d2d.hasRtl);
   }
@@ -144,6 +176,31 @@ export async function paginateVectorToPdfBytes(
     notoRegular = await doc.embedFont(arabicBytes.regular, { subset: false });
     notoBold = await doc.embedFont(arabicBytes.bold, { subset: false });
     pool.setArabicFonts(notoRegular, notoBold);
+  }
+
+  // Conditionele CJK-embedding + TWEEDE render-pass: alléén als er echt CJK getekend is. Voor elke
+  // gebruikte provider → HarfBuzz-subset op de verzamelde codepoints (met RETAIN_GIDS) → `subset:false`
+  // embedden (F4/F5 voor provider 0, F6/F7 voor 1, …). Daarna PASS 2, die de CJK-tekst nu via het
+  // (gesubsette) providerfont emit. Geen CJK → geen tweede render, geen HarfBuzz, geen bloat.
+  if (d2d.usedCjk) {
+    const cjkPass2: CjkVectorFont[] = [];
+    for (let i = 0; i < cjkPreload.length; i++) {
+      const base = makeCjkBase(i);
+      const cps = d2d.usedCjkCodepoints.get(i);
+      if (cps && cps.size > 0) {
+        const keyRegular = `F${4 + 2 * i}`;
+        const keyBold = `F${5 + 2 * i}`;
+        const subReg = await subsetFont(cjkPreload[i].regBytes, cps);
+        const subBold = await subsetFont(cjkPreload[i].boldBytes, cps);
+        const embReg = await doc.embedFont(subReg, { subset: false });
+        const embBold = await doc.embedFont(subBold, { subset: false });
+        pool.setCjkFont(keyRegular, embReg);
+        pool.setCjkFont(keyBold, embBold);
+        base.embed = { regular: embReg, bold: embBold, keyRegular, keyBold };
+      }
+      cjkPass2.push(base);
+    }
+    ({ d2d, dims } = runRender(cjkPass2));
   }
 
   // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (G1: de
@@ -241,14 +298,11 @@ export async function paginateVectorToPdfBytes(
       const leaf = page.node;
       leaf.setXObject(PDFName.of('X0'), xobjRef);
       // De tegel-tekst (fase 2.1) én de footer draaien nu op de PAGINA-content-stream i.p.v. in het
-      // XObject, dus de pagina heeft dezelfde resources nodig als het XObject: beide font-gewichten
-      // (F0=Regular voor footer+tekst, F1=Bold) en elke ExtGState-alpha die de tekst gebruikt.
-      leaf.setFontDictionary(PDFName.of('F0'), regular.ref);
-      leaf.setFontDictionary(PDFName.of('F1'), bold.ref);
-      // F2/F3 (Noto) alleen op de pagina als er Arabisch geplaatst is — anders geen dangling font-ref.
-      if (notoRegular && notoBold) {
-        leaf.setFontDictionary(PDFName.of('F2'), notoRegular.ref);
-        leaf.setFontDictionary(PDFName.of('F3'), notoBold.ref);
+      // XObject, dus de pagina heeft dezelfde font-resources nodig als het XObject. `resources.Font`
+      // bevat precies de ingebedde fonts (F0/F1 Inter altijd; F2/F3 Noto alleen bij Arabisch; F4/F5…
+      // alleen bij CJK) — geen dangling refs, want ongebruikte gewichten zitten er niet in.
+      for (const [key, ref] of Object.entries(resources.Font)) {
+        leaf.setFontDictionary(PDFName.of(key), ref);
       }
       for (const [key, ref] of Object.entries(resources.ExtGState)) {
         leaf.setExtGState(PDFName.of(key), ref);
@@ -301,6 +355,8 @@ interface ResourcePool extends PdfResourcePool {
   buildResourcesDict(): { Font: Record<string, PDFRef>; ExtGState: Record<string, PDFRef> };
   /** Voeg de ingebedde Noto-gewichten toe als F2 (Regular) / F3 (Bold) — pas ná de coverage-poort. */
   setArabicFonts(reg: PDFFont, bld: PDFFont): void;
+  /** Voeg een ingebed (gesubset) CJK-providerfont toe onder een eigen sleutel (F4/F5, F6/F7, …). */
+  setCjkFont(key: string, font: PDFFont): void;
 }
 
 function createResourcePool(doc: PDFDocument, regular: PDFFont, bold: PDFFont): ResourcePool {
@@ -324,6 +380,9 @@ function createResourcePool(doc: PDFDocument, regular: PDFFont, bold: PDFFont): 
     setArabicFonts(reg: PDFFont, bld: PDFFont): void {
       fonts.F2 = reg.ref;
       fonts.F3 = bld.ref;
+    },
+    setCjkFont(key: string, font: PDFFont): void {
+      fonts[key] = font.ref;
     },
     buildResourcesDict() {
       const extg: Record<string, PDFRef> = {};

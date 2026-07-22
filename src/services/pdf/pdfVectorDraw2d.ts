@@ -93,6 +93,32 @@ export interface ArabicShapingFonts {
   bold: FontkitFont;
 }
 
+/**
+ * Eén CJK-font (uit een {@link file://./fontRegistry.ts}-provider) zoals de vector-pagineerder 'm aan
+ * `PdfVectorDraw2D` aanreikt. `fk`/`fkBold` (fontkit) zijn ALTIJD aanwezig — nodig voor coverage én
+ * breedte-meting (`measureText`) in de eerste pass, vóór er iets ingebed is. `embed` is er pas in de
+ * TWEEDE pass (ná HarfBuzz-subset + `embedFont`): dán bevat het de ingebedde `PDFFont`s + hun
+ * resource-sleutels (F4/F5, F6/F7, … per provider), waarmee CJK-tekst via `encodeText`+`showText`
+ * geëmit wordt. Zonder `embed` (pass 1) verzamelt de backend alleen de gebruikte codepoints.
+ */
+export interface CjkVectorFont {
+  /** Provider-id (diagnose). */
+  id: string;
+  /** Snelle dekkings-voorfilter van de provider (nog geverifieerd tegen `fk.hasGlyphForCodePoint`). */
+  covers(codepoint: number): boolean;
+  /** fontkit Regular-font (coverage + breedte-meting; character-map = gewicht-onafhankelijk). */
+  fk: FontkitFont;
+  /** fontkit Bold-font. */
+  fkBold: FontkitFont;
+  /** Alleen in pass 2: de ingebedde (gesubsette) PDF-fonts + hun resource-sleutels. */
+  embed?: {
+    regular: PDFFont;
+    bold: PDFFont;
+    keyRegular: string;
+    keyBold: string;
+  };
+}
+
 /** Haal de door de CustomFontEmbedder gehouden fontkit-font uit een pdf-lib-`PDFFont`. */
 function fontkitOf(font: PDFFont): FontkitFont {
   // De CustomFontEmbedder (subset:false) houdt de fontkit-font in `.embedder.font`.
@@ -185,6 +211,14 @@ export class PdfVectorDraw2D implements Draw2D {
    * puur-Latijnse export géén Noto-font meedraagt (geen bloat, geen dangling resource-refs).
    */
   usedArabic = false;
+  /**
+   * Gebruikte CJK-codepoints per provider-index (⇒ de HarfBuzz-subset-set van de pagineerder). Wordt in
+   * BEIDE passes gevuld tijdens `fillText`, zodat de pagineerder ná pass 1 exact weet welke glyphs elk
+   * providerfont moet behouden. Leeg ⇒ geen CJK getekend ⇒ geen subset/embed (geen bloat).
+   */
+  readonly usedCjkCodepoints = new Map<number, Set<number>>();
+  /** True zodra er een CJK-codepoint (door een provider gedekt) getekend is. Stuurt de twee-pass-keuze. */
+  usedCjk = false;
 
   private readonly H: number;
   private readonly pool: PdfResourcePool;
@@ -192,6 +226,10 @@ export class PdfVectorDraw2D implements Draw2D {
   private readonly fkBold: FontkitFont;
   private readonly mReg: FontMetrics;
   private readonly mBold: FontMetrics;
+  /** De CJK-fonts (per provider) — fontkit voor coverage/meting, `embed` pas in pass 2 (emissie). */
+  private readonly cjkFonts: CjkVectorFont[];
+  /** True als ELKE CJK-font z'n `embed` heeft (pass 2) → CJK-tekst wordt daadwerkelijk geëmit. */
+  private readonly cjkEmbedReady: boolean;
   /** Basisrichting van de export-taal (`RTL_LOCALES` ⇒ `'rtl'`). Stuurt bidi in het complexe pad. */
   private readonly baseDir: 'ltr' | 'rtl';
   /** De vier fontkit-fonts (Latijn×gewicht + Arabisch×gewicht) voor het complexe pad; undefined ⇒ geen Noto. */
@@ -214,6 +252,7 @@ export class PdfVectorDraw2D implements Draw2D {
     pool: PdfResourcePool,
     baseDir: 'ltr' | 'rtl' = 'ltr',
     arabicFonts?: ArabicShapingFonts,
+    cjkFonts?: CjkVectorFont[],
   ) {
     void logicalW;
     this.H = logicalH;
@@ -222,6 +261,8 @@ export class PdfVectorDraw2D implements Draw2D {
     this.fkBold = fontkitOf(pool.bold);
     this.mReg = readMetrics(this.fkReg);
     this.mBold = readMetrics(this.fkBold);
+    this.cjkFonts = cjkFonts ?? [];
+    this.cjkEmbedReady = this.cjkFonts.length > 0 && this.cjkFonts.every(c => c.embed !== undefined);
     this.baseDir = baseDir;
     if (arabicFonts) {
       this.fkArabic = arabicFonts.regular;
@@ -246,16 +287,68 @@ export class PdfVectorDraw2D implements Draw2D {
       if (isRtlCodepoint(cp)) this.hasRtl = true;
       let covered = this.coverageCache.get(cp);
       if (covered === undefined) {
-        // Multi-font: een codepoint is "gedekt" als Inter ÓF Noto (indien aanwezig) 'm heeft. Zo
-        // vallen Arabisch/Perzisch niet meer in `uncoveredCodepoints` (→ vector via het complexe pad),
-        // terwijl Hebreeuws/CJK — door geen van beide gedekt — ongedekt blijft (→ raster-fallback).
+        // Multi-font: een codepoint is "gedekt" als Inter ÓF Noto-Arabic (indien aanwezig) ÓF een
+        // geregistreerde CJK-provider 'm heeft. Zo vallen Arabisch/Perzisch (Noto) én CJK (provider)
+        // niet in `uncoveredCodepoints` (→ vector), terwijl Hebreeuws en CJK-zónder-provider — door
+        // niets gedekt — ongedekt blijven (→ raster-fallback).
         covered =
           fk.hasGlyphForCodePoint(cp) ||
-          (this.fkArabic?.hasGlyphForCodePoint(cp) ?? false);
+          (this.fkArabic?.hasGlyphForCodePoint(cp) ?? false) ||
+          this.cjkProviderIndexFor(cp) >= 0;
         this.coverageCache.set(cp, covered);
       }
       if (!covered) this.uncoveredCodepoints.add(cp);
     }
+  }
+
+  /**
+   * Index van de eerste geregistreerde CJK-provider die `cp` echt dekt (`covers()` én een niet-`.notdef`
+   * fontkit-glyph), of −1. Gebruikt door coverage (→ vector i.p.v. raster) én door het run-splitsen in
+   * {@link fillTextCjk} (welk providerfont een teken tekent).
+   */
+  private cjkProviderIndexFor(cp: number): number {
+    for (let i = 0; i < this.cjkFonts.length; i++) {
+      const c = this.cjkFonts[i];
+      if (c.covers(cp) && c.fk.hasGlyphForCodePoint(cp)) return i;
+    }
+    return -1;
+  }
+
+  /**
+   * True als `text` minstens één teken bevat dat Inter NIET dekt maar een CJK-provider WÉL. Zo blijft
+   * puur-Latijnse tekst op het onveranderde snelpad (byte-identiek aan vóór CJK) en gaat alleen echte
+   * gemengd/CJK-tekst door het (LTR, niet-bidi) run-splitsende CJK-pad.
+   */
+  private textHasCjk(text: string): boolean {
+    for (const ch of text) {
+      const cp = ch.codePointAt(0);
+      if (cp === undefined) continue;
+      if (!this.fkReg.hasGlyphForCodePoint(cp) && this.cjkProviderIndexFor(cp) >= 0) return true;
+    }
+    return false;
+  }
+
+  /** Verzamel de door CJK-providers gedekte codepoints van `text` per provider-index (voor de subset-set). */
+  private collectCjkCodepoints(text: string): void {
+    for (const ch of text) {
+      const cp = ch.codePointAt(0);
+      if (cp === undefined) continue;
+      if (this.fkReg.hasGlyphForCodePoint(cp)) continue; // Latijn/cijfers → Inter, geen CJK-subset nodig
+      const idx = this.cjkProviderIndexFor(cp);
+      if (idx < 0) continue;
+      let set = this.usedCjkCodepoints.get(idx);
+      if (!set) { set = new Set<number>(); this.usedCjkCodepoints.set(idx, set); }
+      set.add(cp);
+      this.usedCjk = true;
+    }
+  }
+
+  /** Breedte (in `size`-eenheden) van een tekst-run op een fontkit-font (horizontaal, som van advances). */
+  private fkRunWidth(fk: FontkitFont, str: string, size: number): number {
+    const run = fk.layout(str);
+    let adv = 0;
+    for (const p of run.positions) adv += p.xAdvance;
+    return (adv * size) / (fk.unitsPerEm || 1000);
   }
 
   /** True als `text` minstens één RTL-codepoint bevat (trigger voor het complexe bidi/shaping-pad). */
@@ -343,6 +436,16 @@ export class PdfVectorDraw2D implements Draw2D {
     // shaping-fonts (of geen RTL) valt hij door naar het onveranderde Latijnse snelpad hieronder.
     if (this.shapingFonts && this.hasRtlText(text)) {
       this.fillTextComplex(text, x, y, bold, size, metrics);
+      return;
+    }
+
+    // CJK-pad (LTR, géén bidi/shaping — horizontale CJK is codepoint→glyph): bevat de string tekens die
+    // Inter niet dekt maar een provider wél, dan verzamelen we altijd de gebruikte codepoints (voor de
+    // subset-set) en emitteren — zodra de providerfonts ingebed zijn (pass 2) — via het providerfont.
+    // In pass 1 (nog geen embed) verzamelen we enkel: de operatoren van pass 1 worden tóch weggegooid.
+    if (this.textHasCjk(text)) {
+      this.collectCjkCodepoints(text);
+      if (this.cjkEmbedReady) this.fillTextCjk(text, x, y, bold, size, metrics);
       return;
     }
 
@@ -460,12 +563,131 @@ export class PdfVectorDraw2D implements Draw2D {
     });
   }
 
+  /**
+   * CJK-tekst-pad (LTR, niet-bidi): splits `text` in maximale runs van gelijke font-toewijzing (Inter
+   * vs. één CJK-provider), emit per run een `setFontAndSize(fontKey) + Tm + encodeText`-blok op de
+   * cumulatieve x. Zelfde baseline-omrekening + kleur/alpha-wrapping + bron-bbox-model als het snelpad,
+   * zodat de pagineerder 'm identiek per tegel plaatst. Alleen aangeroepen als de providerfonts ingebed
+   * zijn (pass 2), dus elke CJK-run heeft gegarandeerd een `embed`.
+   */
+  private fillTextCjk(
+    text: string, x: number, y: number, bold: boolean, size: number, metrics: FontMetrics,
+  ): void {
+    const runs = this.splitCjkRuns(text);
+    if (runs.length === 0) return;
+
+    // Breedtes per run + totaal (voor uitlijning). Latijn via de PDF-font-metrics, CJK via fontkit —
+    // identiek aan {@link measureText}, zodat afkap/paginering op de emissie aansluiten.
+    const widths = runs.map(r => this.cjkRunWidth(r, bold, size));
+    let total = 0;
+    for (const w of widths) total += w;
+
+    let tx = x;
+    if (this.textAlign === 'center') tx = x - total / 2;
+    else if (this.textAlign === 'right') tx = x - total;
+
+    const ascentPx = metrics.ascentEm * size;
+    const descentPx = metrics.descentEm * size; // negatief
+    let baselineY = y; // 'alphabetic'
+    if (this.textBaseline === 'middle') baselineY = y + (ascentPx + descentPx) / 2;
+    else if (this.textBaseline === 'bottom') baselineY = y + descentPx;
+    const pdfBaselineY = this.flipY(baselineY);
+
+    const textOps: PDFOperator[] = [beginText()];
+    let cursor = tx;
+    for (let i = 0; i < runs.length; i++) {
+      const r = runs[i];
+      const { fontKey, pdfFont } = this.cjkRunFont(r, bold);
+      textOps.push(
+        setFontAndSize(fontKey, size),
+        setTextMatrix(1, 0, 0, 1, cursor, pdfBaselineY),
+        showText(pdfFont.encodeText(r.str)),
+      );
+      cursor += widths[i];
+    }
+    textOps.push(endText());
+
+    const c = parseColor(this.fillStyle);
+    let ops: PDFOperator[];
+    if (c.a < 1) {
+      const gs = this.pool.registerAlpha(c.a);
+      ops = [
+        pushGraphicsState(), setGraphicsState(gs),
+        setFillingRgbColor(c.r, c.g, c.b), ...textOps,
+        popGraphicsState(),
+      ];
+    } else {
+      ops = [setFillingRgbColor(c.r, c.g, c.b), ...textOps];
+    }
+
+    this.texts.push({
+      x0: tx,
+      x1: tx + total,
+      y0: baselineY - ascentPx,
+      y1: baselineY - descentPx,
+      ops,
+    });
+  }
+
+  /** Eén run in het CJK-pad: een span tekst die door één font (Inter of provider-`idx`) getekend wordt. */
+  private splitCjkRuns(text: string): Array<{ latin: boolean; idx: number; str: string }> {
+    const runs: Array<{ latin: boolean; idx: number; str: string }> = [];
+    for (const ch of text) {
+      const cp = ch.codePointAt(0);
+      if (cp === undefined) continue;
+      // Inter heeft voorrang (Latijn/cijfers in een CJK-label blijven op Inter). Anders de provider die
+      // 'm dekt; dekt niets 'm (kan niet in pass 2, gate is al gepasseerd), dan als Inter (tofu).
+      let latin = true;
+      let idx = -1;
+      if (!this.fkReg.hasGlyphForCodePoint(cp)) {
+        const pi = this.cjkProviderIndexFor(cp);
+        if (pi >= 0) { latin = false; idx = pi; }
+      }
+      const last = runs[runs.length - 1];
+      if (last && last.latin === latin && last.idx === idx) last.str += ch;
+      else runs.push({ latin, idx, str: ch });
+    }
+    return runs;
+  }
+
+  /** Breedte van een CJK-pad-run: Latijn via de PDF-font (kerning-consistent), CJK via fontkit-advances. */
+  private cjkRunWidth(run: { latin: boolean; idx: number; str: string }, bold: boolean, size: number): number {
+    if (run.latin) {
+      const pdfFont = bold ? this.pool.bold : this.pool.regular;
+      return pdfFont.widthOfTextAtSize(run.str, size);
+    }
+    const c = this.cjkFonts[run.idx];
+    return this.fkRunWidth(bold ? c.fkBold : c.fk, run.str, size);
+  }
+
+  /** Font-resource-sleutel + PDF-font voor een CJK-pad-run (alleen pass 2 — `embed` is gegarandeerd). */
+  private cjkRunFont(
+    run: { latin: boolean; idx: number; str: string }, bold: boolean,
+  ): { fontKey: string; pdfFont: PDFFont } {
+    if (run.latin) {
+      return bold
+        ? { fontKey: 'F1', pdfFont: this.pool.bold }
+        : { fontKey: 'F0', pdfFont: this.pool.regular };
+    }
+    const embed = this.cjkFonts[run.idx].embed!;
+    return bold
+      ? { fontKey: embed.keyBold, pdfFont: embed.bold }
+      : { fontKey: embed.keyRegular, pdfFont: embed.regular };
+  }
+
   measureText(text: string): { width: number } {
     const { bold, size } = parseFont(this.font);
     // Complex pad: dezelfde shaping-pijplijn als `fillText` → som van de run-breedtes (multi-font),
     // zodat `fitText`-afkapping/`drawBarLabel`/paginering exact op de emissie aansluiten.
     if (this.shapingFonts && this.hasRtlText(text)) {
       return { width: this.shapeComplex(text, bold, size).width };
+    }
+    // CJK-pad: som van de run-breedtes (Inter + providerfonts), consistent tussen beide render-passes
+    // (fontkit-breedtes zijn in beide passes beschikbaar) zodat de paginering niet tussen de passes schuift.
+    if (this.textHasCjk(text)) {
+      let total = 0;
+      for (const r of this.splitCjkRuns(text)) total += this.cjkRunWidth(r, bold, size);
+      return { width: total };
     }
     const pdfFont = bold ? this.pool.bold : this.pool.regular;
     return { width: pdfFont.widthOfTextAtSize(text, size) };
