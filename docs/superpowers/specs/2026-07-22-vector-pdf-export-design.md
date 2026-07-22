@@ -2,9 +2,14 @@
 
 **Datum:** 2026-07-22
 **Issue:** #23 "Support vector PDF export support"
-**Status:** ✅ v1 GEBOUWD & GEVERIFIEERD (2026-07-22) — fasen 0–5 af, gecommit & gepusht; end-to-end
-UI-QA groen (echte "Exporteer PDF"-knop → vector voor Gantt/mijlpalen/afwijkingen; CJK/RTL → raster-
-fallback). Post-v1: fase 4b (CJK-extensie, geblokkeerd op subset-defect) + RTL-vector (aparte agent).
+**Status:** ✅ v1 + RTL + CJK-ONDERSTEUNING GEBOUWD & GEVERIFIEERD (2026-07-22). v1 (fasen 0–5):
+Latijn/Cyrillisch/Grieks vector. RTL (RTL-1/2): Arabisch/Perzisch vector (bidi/shaping, Noto Arabic).
+CJK (CJK-1/2 + font-verify): harfbuzz-subset (omzeilt het pdf-lib-defect) + font-provider-extensie-API;
+CJK rendert vector zodra een font-extensie geïnstalleerd is, anders raster. **Capstone E2E-UI-QA groen**
+(echte browser, pypdf+PyMuPDF): Latijn/Arabisch/CJK-via-extensie allemaal vector, per-glyph-coverage
+afgedwongen. **Rest (buiten deze repo):** de echte per-regio CJK-font-extensies (zh/ja/ko) publiceren
+naar de catalogus-repo `open-planner-studio-extensions`. Nog niet-vector (later): Tauri-save-pad
+niet in Tier-1-QA; extensie-disable→raster-reversie ongetest; CJK-Bold-gewicht ongetest.
 **Ontwikkelbranch:** `claude/vector-pdfs-investigation-15da01`
 
 ---
