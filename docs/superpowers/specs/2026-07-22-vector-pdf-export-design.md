@@ -406,12 +406,20 @@ vervang `FONT_FAMILY` door Inter (met FontFace-load in preview/export). **Scopin
 hoofdscherm verandert niet. **Verifieer**: preview identiek aan vóór de refactor (visuele QA, Sonnet
 high; verwachtingen vooraf uitgerekend).
 
-**Fase 2 — PdfVectorDraw2D + vector-pagineerder (Opus xhigh).** Implementeer de PDF-backend
-(kleur-parsing, alpha/ExtGState, baseline/align, dash, roundRect-bezier) en
-`paginateVectorToPdfBytes` (clip+transform, bevroren-kolom-herhaling). Sluit de Gantt-vectortak aan
-in `handleExportPDF` voor Latijn/Cyrillisch/Grieks. **Verifieer**: export is vector (tekstoperators
-+ font-object, geen paginavullende DCTDecode), selecteerbaar, geen pixelatie bij inzoomen;
-tegel-/paginering-pariteit met de raster-versie op een meerpagina-planning.
+**Fase 2 — PdfVectorDraw2D + vector-pagineerder — ✅ UITGEVOERD (2026-07-22).** PDF-backend
+(`pdfVectorDraw2d.ts`) + `paginateVectorToPdfBytes` (`paginateVector.ts`); Gantt-export is vector met
+selecteerbare tekst, G1 bewezen op A1 (1 Form-XObject 57× ge-`Do`'d, 30 pag., 432 KB, 1,7 s), 0
+DCTDecode, tsc/planning(429)/build groen; vector = aparte lazy chunk. **Twee afwijkingen/learnings:**
+(1) **`subset:false` gekozen i.p.v. `subset:true`** — subset:true dropt glyphs in pdfium/Chrome
+(visueel defect; extractie klopt wél, vandaar door fase 0 gemist). Volledige Inter-embed = ~0,4 MB
+vloer, prima voor print. **Blokkeert CJK-subsetting → moet vóór fase 4b opgelost (zie B4/fase 4b).**
+(2) **G2-amplificatie:** het gedeelde XObject (G1) betekende dat tekst-extractie op élke pagina de
+HELE planning gaf (taaknaam 798× op A1). Opgelost in **fase 2.1** (tekst uit het XObject, per tegel
+geplaatst; vormen blijven gedeeld) → terug naar het "per-pagina zelfstandig"-G2-niveau.
+
+*Oorspronkelijke opdracht:* Implementeer de PDF-backend (kleur-parsing, alpha/ExtGState,
+baseline/align, dash, roundRect-bezier) en `paginateVectorToPdfBytes` (clip+transform,
+bevroren-kolom-herhaling); Gantt-vectortak in `handleExportPDF` voor Latijn/Cyrillisch/Grieks.
 
 **Fase 3 — PdfTable + mijlpalen/afwijkingen (Sonnet high, bindend doc).** Generieke tabel-renderer +
 kolom-specs voor beide rapporten; vervang de DOM-screenshot-tak. **Verifieer**: kolommen/kleuren/
@@ -432,8 +440,12 @@ met die glyphs vector; zonder provider valt hetzelfde document terug op raster; 
 terug op raster; een puur-Latijn document blijft ongewijzigd vector; een uitgeschakelde extensie
 schrijft z'n provider automatisch uit (`cleanupFns`).
 
-**Fase 4b — officiële CJK-font-extensie (Opus xhigh, apart deliverable, mág ná v1-merge).** Puur: pak
-het echte Noto Sans CJK-TTF in een extensie-ZIP (`manifest.json` + `main.js` + font-asset via de in
+**Fase 4b — officiële CJK-font-extensie (Opus xhigh, apart deliverable, mág ná v1-merge).**
+**BLOKKER-VOORWAARDE (fase-2-learning):** CJK-fonts zijn 5–16 MB → subsetten is verplicht, maar
+pdf-lib/@pdf-lib/fontkit's `subset:true` dropt glyphs (visueel defect, zie fase 2). Dit
+subset-defect moet éérst opgelost (pdf-lib/fontkit-upgrade, een losse subsetter zoals `subset-font`,
+of harfbuzz-wasm) — zonder werkende subsetting is een CJK-extensie niet leverbaar (subset:false zou
+16 MB per PDF inbedden). Daarna pas: pak het echte Noto Sans CJK-TTF in een extensie-ZIP (`manifest.json` + `main.js` + font-asset via de in
 fase 4 gebouwde asset-route), registreer via `api.pdfFonts.register`, voeg het Noto-OFL-NOTICE toe, en
 publiceer in de catalogus. **Verifieer**: extensie installeren → showcase met echte CJK-taaknamen
 exporteert vector met correcte glyphs; deïnstalleren → terug naar raster-fallback. De kern (fase 4) is
@@ -473,7 +485,8 @@ alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle
 |--------|-----------|
 | ~~pdf-lib operator-API wijkt af~~ (geretired) | Review verifieerde `operators.ts` — API dekt alles (§4.2). |
 | **Render-/geheugenkost vector ≫ raster op grote planningen (G1)** | Draw-list één keer als Form-XObject; per pagina alleen `Do` onder transform+clip; bewijzen op A1. |
-| **Tekstlaag-duplicatie bij extractie (G2)** | Bewust besluit: per-pagina zelfstandige tekst v1; fijnere aanpak v2; verifiëren via tekst-extractie. |
+| **Tekstlaag-duplicatie bij extractie (G2)** | Fase 2 toonde dat G1's gedeelde XObject dit versterkt tot volledige-document-duplicatie per pagina (798× op A1). Opgelost in fase 2.1: tekst uit XObject, per tegel geplaatst → per-pagina zelfstandig. |
+| **`subset:true` dropt glyphs (pdf-lib/fontkit-defect)** | v1 gebruikt `subset:false` (Inter volledig, ~0,4 MB). Blokkeert CJK-subsetting → oplossen vóór fase 4b (upgrade/andere subsetter). |
 | measureText ≠ PDF-advances (afkapping/paginering wijkt) | Zelfde ingebedde TTF voor beide; definitieve plaatsing via `widthOfTextAtSize`; numerieke meting in fase 0 op diacriet-strings (K3). |
 | Font-swap (systeemstack → Inter) = zichtbare export-reflow (K2) | Bewuste, deterministische wijziging; changelog-noot. |
 | CFF/OTF-subsetting onbetrouwbaar | Dwing TTF (glyf) af voor alle embed-fonts (B3/B4). Exacte "kapot"-issuenummers deels ongeverifieerd; TTF-guardrail is sowieso goedkoop. |
