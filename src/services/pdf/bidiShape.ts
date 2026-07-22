@@ -146,7 +146,7 @@ export interface RawRun {
 const bidi = bidiFactory();
 
 /** Arabisch/Perzisch script (incl. Arabisch-Indische + Perzische cijfers) én presentatievormen. */
-function isArabicScriptCp(cp: number): boolean {
+export function isArabicScriptCp(cp: number): boolean {
   return (
     (cp >= 0x0600 && cp <= 0x06ff) || // Arabic (incl. ٠-٩ 0660-0669 en ۰-۹ 06F0-06F9)
     (cp >= 0x0750 && cp <= 0x077f) || // Arabic Supplement
@@ -161,7 +161,7 @@ function isArabicScriptCp(cp: number): boolean {
  * erven de font-klasse van hun run-level (RTL → Arabisch, anders Latijn). Zo blijft een Arabische run
  * mét interne spaties op het Arabische font i.p.v. bij elke spatie te splitsen.
  */
-function isNeutralCp(cp: number): boolean {
+export function isNeutralCp(cp: number): boolean {
   return (
     cp === 0x20 || cp === 0x09 || cp === 0x0a || cp === 0x0d || // whitespace
     cp === 0x00a0 ||                                            // NBSP

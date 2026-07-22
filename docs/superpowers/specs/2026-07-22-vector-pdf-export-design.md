@@ -561,6 +561,27 @@ alle 14 locales" raakt hieraan). Eventuele nieuwe UI-labels via `t(...)` in alle
 | RTL-vector onderschat | v1 raster-fallback; losgekoppelde vervolgtaak ná v1 (aparte agent). |
 | Bundle-groei | Lazy `import()` van pdf-lib/fontkit; CJK-font zit in een extensie (IndexedDB), niet in de hoofdbundle. |
 
+### 9.1 Bekende beperkingen (post-v1 hardening)
+
+Vastgelegd bij de eind-review van de vector-PDF-uitbreiding (2026-07-22). Geen v1-blokkers — bewuste,
+begrensde restrisico's met een follow-up-route.
+
+- **(G-2) Regionale Han-variant bij méérdere CJK-providers.** Zijn er meerdere CJK-font-extensies
+  geïnstalleerd die de Han-range overlappen, dan kiest de vector-pagineerder de **eerst-geregistreerde**
+  provider die een codepoint dekt (`cjkProviderIndexFor` → eerste `covers() && hasGlyphForCodePoint`).
+  Voor Han (CJK Unified Ideographs) verschillen de glyfvormen per regio (SC/TC/JP/KR); de eerst-
+  geïnstalleerde extensie kan dus een glyfvariant tekenen die niet bij de bedoelde taal past. Er is
+  (nog) geen tofu — de tekst rendert, alleen mogelijk in de verkeerde regionale stijl.
+  **Mitigatie nu:** installeer alléén de font-extensie van je eigen schrift/regio. **Later:** locale-
+  bewuste providerselectie (de export-locale → voorkeurs-provider), i.p.v. registratie-volgorde.
+
+- **(K-3) Asset-groottelimiet ná inflate (deflate-bom).** De extensie-asset-limiet wordt **na** het
+  uitpakken (inflate) toegepast: een kwaadaardig sterk-gecomprimeerde asset (deflate-bom) kan het
+  tabblad al OOM'en vóórdat de limiet grijpt. **Follow-up (hardening):** de grootte tijdens/vóór
+  inflate begrenzen (streaming-inflate met een harde uitvoer-cap). **Géén risico:** path-traversal —
+  assets landen in een in-memory record (op naam), niet op het bestandssysteem, dus er is geen
+  pad-ontsnapping mogelijk.
+
 ## 10. Besluiten (allemaal beslist)
 
 Alle eerder openstaande punten zijn door de user bevestigd (§2.2); niets blokkeert meer:

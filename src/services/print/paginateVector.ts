@@ -23,6 +23,7 @@ import fontkit from '@pdf-lib/fontkit';
 import { PdfVectorDraw2D, type PdfResourcePool, type ArabicShapingFonts, type CjkVectorFont } from '@/services/pdf/pdfVectorDraw2d';
 import { getCjkFontProviders } from '@/services/pdf/fontRegistry';
 import { subsetFont } from '@/services/pdf/hbSubset';
+import { appLog } from '@/services/debug/appLog';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
 import { PAPER_PT, FOOTER_PT, type PaperSize, type Orientation, type PaginateMode } from './paginate';
@@ -119,29 +120,6 @@ export async function paginateVectorToPdfBytes(
   };
   const baseDir = opts.baseDir ?? 'ltr';
 
-  // CJK-font-providers (registry, §4.5): laad hun rauwe glyf-TTF-bytes + fontkit-fonts (coverage +
-  // breedte-meting) klaar vóór pass 1. Subsetten/embedden gebeurt pas ná pass 1, en alléén voor
-  // providers die écht getekend zijn. Geen provider → dit is een no-op en de export blijft ongewijzigd
-  // (Latijn/Arabisch-pad exact als voorheen; CJK-documenten vallen dan via de coverage-poort op raster).
-  const providers = getCjkFontProviders();
-  const cjkPreload = await Promise.all(providers.map(async (p) => {
-    const regBytes = await p.getRegularBytes();
-    const boldBytes = p.getBoldBytes ? await p.getBoldBytes() : regBytes;
-    return {
-      provider: p,
-      regBytes,
-      boldBytes,
-      fk: fkCreate.create(regBytes),
-      fkBold: fkCreate.create(boldBytes),
-    };
-  }));
-  const makeCjkBase = (i: number): CjkVectorFont => ({
-    id: cjkPreload[i].provider.id,
-    covers: (cp: number) => cjkPreload[i].provider.covers(cp),
-    fk: cjkPreload[i].fk,
-    fkBold: cjkPreload[i].fkBold,
-  });
-
   // Render-helper: draai `renderReport` één keer met een verse PdfVectorDraw2D die de gegeven CJK-fonts
   // kent. Beide passes delen dezelfde `pool` (alpha-/font-dedup is idempotent, dus pass 2 hergebruikt de
   // resource-sleutels van pass 1). Geeft de laatste capture + de logische dims terug.
@@ -155,14 +133,72 @@ export async function paginateVectorToPdfBytes(
     return { d2d: captured as PdfVectorDraw2D, dims };
   };
 
-  // PASS 1 (altijd): teken de VOLLEDIGE Gantt/tabel één keer. Levert coverage + (per provider) de
-  // gebruikte CJK-codepoints. De CJK-fonts hebben nog geen `embed`, dus CJK-tekst wordt hier alleen
-  // geïnventariseerd, niet geëmit — de pass-1-operatoren worden bij een tweede pass tóch weggegooid.
-  let { d2d, dims } = runRender(cjkPreload.map((_, i) => makeCjkBase(i)));
+  // ── CJK-providers: LAZY, per-document, per-provider (K-1/K-2) ──────────────────────────────────────
+  // Eerder werden ALLE geregistreerde providers eager geladen+geparset (`getRegularBytes()` +
+  // `fontkit.create()`, bv. 3 CJK-extensies ≈ 22 MB) bij ELKE vector-export — óók een puur-Latijnse — en
+  // brak één gooiende/`undefined`-leverende provider meteen de HELE export (→ raster voor alles).
+  //
+  // Nu: eerst een goedkope SCAN-render ZÓNDER enige CJK-font. Die levert de Inter/Noto-ONgedekte
+  // codepoints (kandidaat-CJK) zonder één providerfont aan te raken, en is meteen een geldige pass 1 als
+  // het document geen CJK bevat. Daarna laden we ALLEEN providers waarvan `covers()` zo'n codepoint matcht,
+  // elk in try/catch: een kapotte/onbeschikbare provider wordt OVERGESLAGEN (z'n codepoints blijven ongedekt
+  // → coverage-poort → raster) zónder de rest te breken. Zijn er providers geladen, dan her-renderen we pass
+  // 1 mét die fonts (nu echte `fk`-coverage + correcte CJK-breedte-meting/truncatie + verzamelde used-cps).
+  const providers = getCjkFontProviders();
+  type LoadedCjk = {
+    provider: (typeof providers)[number];
+    regBytes: Uint8Array;
+    boldBytes: Uint8Array;
+    fk: ArabicShapingFonts['regular'];
+    fkBold: ArabicShapingFonts['regular'];
+  };
 
-  // Coverage-poort (fase 4): ongedekte codepoints (Hebreeuws, CJK zónder provider, …) → gooi vóór we de
-  // PDF verder opbouwen, zodat `handleExportPDF` op raster terugvalt i.p.v. tofu te exporteren. Arabisch/
-  // Perzisch (Noto) én CJK-met-provider vallen hier NIET meer uit.
+  // SCAN-render (geen CJK-fonts). Voor een CJK-vrij document is dit meteen de definitieve pass 1.
+  let { d2d, dims } = runRender([]);
+
+  const cjkPreload: LoadedCjk[] = [];
+  if (providers.length > 0 && d2d.uncoveredCodepoints.size > 0) {
+    const candidates = [...d2d.uncoveredCodepoints];
+    for (const p of providers) {
+      // Goedkope voorfilter (geen bytes): dekt deze provider volgens z'n eigen `covers` überhaupt iets in
+      // dit document? Zo niet → nooit laden/parsen.
+      if (!candidates.some((cp) => p.covers(cp))) continue;
+      try {
+        const regBytes = await p.getRegularBytes();
+        const boldBytes = p.getBoldBytes ? await p.getBoldBytes() : regBytes;
+        cjkPreload.push({
+          provider: p,
+          regBytes,
+          boldBytes,
+          fk: fkCreate.create(regBytes),
+          fkBold: fkCreate.create(boldBytes),
+        });
+      } catch (err) {
+        // Kapotte/onbeschikbare provider: overslaan. Z'n codepoints blijven ongedekt en vallen via de
+        // coverage-poort terug op raster — de rest van de export breekt niet.
+        appLog.emit('warn', 'pdf', `CJK-fontprovider '${p.id}' overgeslagen (laden/parsen mislukt):`, err);
+      }
+    }
+  }
+
+  const makeCjkBase = (i: number): CjkVectorFont => ({
+    id: cjkPreload[i].provider.id,
+    covers: (cp: number) => cjkPreload[i].provider.covers(cp),
+    fk: cjkPreload[i].fk,
+    fkBold: cjkPreload[i].fkBold,
+  });
+
+  // PASS 1 (alleen als er echt providers geladen zijn): her-teken de VOLLEDIGE Gantt/tabel mét de
+  // providerfonts → coverage (echte `fk`) + per provider de gebruikte CJK-codepoints. De CJK-fonts hebben
+  // nog geen `embed`, dus CJK-tekst wordt hier alleen geïnventariseerd, niet geëmit. Geen providers → de
+  // scan-render hierboven ís pass 1 (puur-Latijn/Arabisch), geen tweede render.
+  if (cjkPreload.length > 0) {
+    ({ d2d, dims } = runRender(cjkPreload.map((_, i) => makeCjkBase(i))));
+  }
+
+  // Coverage-poort (fase 4): ongedekte codepoints (Hebreeuws, CJK zónder (werkende) provider, gemengd
+  // Arabisch+CJK, …) → gooi vóór we de PDF verder opbouwen, zodat `handleExportPDF` op raster terugvalt
+  // i.p.v. tofu te exporteren. Arabisch/Perzisch (Noto) én puur-CJK-met-provider vallen hier NIET uit.
   if (d2d.uncoveredCodepoints.size > 0) {
     throw new VectorUnsupportedError([...d2d.uncoveredCodepoints], d2d.hasRtl);
   }

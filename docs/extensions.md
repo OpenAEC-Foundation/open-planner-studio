@@ -19,7 +19,7 @@ Een extensie is een ZIP-bestand met twee bestanden — of een los `.js`-bestand 
 }
 ````
 
-Categorieën: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Other`.
+Categorieën: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Fonts`, `Other`.
 
 ### Permissies
 

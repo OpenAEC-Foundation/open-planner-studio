@@ -21,7 +21,10 @@ import {
   beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
 import type { Draw2D, TextAlign, TextBaseline } from './draw2d';
-import { shapeAndPlace, type ShapingFonts, type ShapedRun, type FontKey } from './bidiShape';
+import {
+  shapeAndPlace, isArabicScriptCp, isNeutralCp,
+  type ShapingFonts, type ShapedRun, type FontKey,
+} from './bidiShape';
 
 /** Bezier-benadering van een kwart-cirkel: controle-afstand = kappa × r. */
 const KAPPA = 0.5522847498307936;
@@ -242,6 +245,13 @@ export class PdfVectorDraw2D implements Draw2D {
    * Inter-Regular en -Bold delen dezelfde character-set, dus één cache over beide gewichten volstaat.
    */
   private readonly coverageCache = new Map<number, boolean>();
+  /**
+   * Aparte dekkingscache voor het RTL/complexe pad (zie {@link checkCoverageComplex}). Die kent een
+   * ANDERE dekkingsregel dan {@link coverageCache}: in het complexe pad tellen CJK-providers NIET mee
+   * (het pad tekent uitsluitend via Inter/Noto), dus een CJK-codepoint is daar ongedekt terwijl hij in
+   * de gedeelde cache "gedekt" (provider) zou staan. Een aparte cache voorkomt kruisbesmetting.
+   */
+  private readonly coverageCacheComplex = new Map<number, boolean>();
   private dash: number[] = [];
   /** Pad-buffer (geflipte pad-operatoren) sinds de laatste beginPath/roundRect; pas bij fill/stroke geëmit. */
   private pathBuf: PDFOperator[] = [];
@@ -296,6 +306,46 @@ export class PdfVectorDraw2D implements Draw2D {
           (this.fkArabic?.hasGlyphForCodePoint(cp) ?? false) ||
           this.cjkProviderIndexFor(cp) >= 0;
         this.coverageCache.set(cp, covered);
+      }
+      if (!covered) this.uncoveredCodepoints.add(cp);
+    }
+  }
+
+  /**
+   * Coverage-check voor het RTL/COMPLEXE pad (G-1). Cruciaal verschil met {@link checkCoverage}: het
+   * complexe pad ({@link fillTextComplex} → {@link shapeAndPlace}) tekent ELKE codepoint via één van de
+   * twee shaping-fonts — Inter (font-klasse `latin`) of Noto-Arabic (`arabic`) — en NOOIT via een
+   * CJK-provider. `bidiShape.fontClassFor` klasseert een niet-Arabisch, niet-neutraal teken (dus óók
+   * Han/Kana/Hangul) als `latin` → Inter shapet 'm → `.notdef`/tofu, terwijl {@link checkCoverage} 'm
+   * via de provider als "gedekt" zou zien. Zo'n string levert dus STIL tofu.
+   *
+   * Fix: verifieer per codepoint of het font van z'n eigen font-klasse de glyph ÉCHT heeft. Zo niet →
+   * in {@link uncoveredCodepoints}, zodat de coverage-poort van de pagineerder `VectorUnsupportedError`
+   * gooit en de export op RASTER terugvalt (dat mengscripts wél correct via de browser tekent).
+   *
+   * De klasse-toewijzing spiegelt {@link file://./bidiShape.ts}'s `fontClassFor` (zelfde helpers, geen
+   * drift): Arabisch-script → Noto; neutraal → Noto óf (als Noto 'm mist) Inter — dus gedekt zodra één
+   * van beide 'm heeft; al het overige (Latijn, cijfers, CJK, …) → Inter. Gevolg per vereiste:
+   *   • puur-Arabisch, Arabisch+Latijn(+cijfers), puur-Latijn → elk teken door z'n font gedekt → vector;
+   *   • Arabisch+CJK → het CJK-teken valt in `latin`-klasse, Inter mist 'm → ongedekt → raster (geen tofu).
+   */
+  private checkCoverageComplex(text: string, bold: boolean): void {
+    const latinFk = bold ? this.fkBold : this.fkReg;
+    const arabicHas = (cp: number) => this.fkArabic?.hasGlyphForCodePoint(cp) ?? false;
+    for (const ch of text) {
+      const cp = ch.codePointAt(0);
+      if (cp === undefined) continue;
+      if (isRtlCodepoint(cp)) this.hasRtl = true;
+      let covered = this.coverageCacheComplex.get(cp);
+      if (covered === undefined) {
+        if (isArabicScriptCp(cp)) {
+          covered = arabicHas(cp);                       // → Noto (F2/F3)
+        } else if (isNeutralCp(cp)) {
+          covered = latinFk.hasGlyphForCodePoint(cp) || arabicHas(cp); // → Inter óf Noto
+        } else {
+          covered = latinFk.hasGlyphForCodePoint(cp);    // → Inter (F0/F1); CJK mist hier → ongedekt
+        }
+        this.coverageCacheComplex.set(cp, covered);
       }
       if (!covered) this.uncoveredCodepoints.add(cp);
     }
@@ -425,19 +475,24 @@ export class PdfVectorDraw2D implements Draw2D {
     const { bold, size } = parseFont(this.font);
     const pdfFont = bold ? this.pool.bold : this.pool.regular;
     const metrics = bold ? this.mBold : this.mReg;
-    // Glyph-dekking checken vóór het encoden: een ongedekte codepoint mapt bij subset:false op
-    // `.notdef` (tofu) zónder fout. De pagineerder leest `uncoveredCodepoints` uit en faalt bewust,
-    // zodat de raster-fallback aanslaat i.p.v. tofu te exporteren.
-    this.checkCoverage(text, bold ? this.fkBold : this.fkReg);
 
     // Complex pad: bevat de string RTL (Arabisch/Perzisch) én zijn de shaping-fonts beschikbaar, dan
     // gaat de tekst door de bidi/shaping-kern en wordt PER GLYPH geplaatst (het `/W`-tabel-contract:
     // rauwe geshapte GID's zonder per-glyph-matrix vallen op `/DW` → losgekoppelde letters). Zonder
     // shaping-fonts (of geen RTL) valt hij door naar het onveranderde Latijnse snelpad hieronder.
+    // Coverage MOET hier via {@link checkCoverageComplex} (G-1): dit pad tekent nooit via een CJK-
+    // provider, dus een codepoint die enkel een provider dekt (Han in een Arabisch+CJK-label) is hier
+    // ongedekt → coverage-poort → raster, i.p.v. Inter 'm als tofu te laten shapen.
     if (this.shapingFonts && this.hasRtlText(text)) {
+      this.checkCoverageComplex(text, bold);
       this.fillTextComplex(text, x, y, bold, size, metrics);
       return;
     }
+
+    // Niet-complex pad (Latijn/CJK, LTR): glyph-dekking checken vóór het encoden. Een ongedekte
+    // codepoint mapt bij subset:false op `.notdef` (tofu) zónder fout; de pagineerder leest
+    // `uncoveredCodepoints` uit en faalt bewust, zodat de raster-fallback aanslaat i.p.v. tofu.
+    this.checkCoverage(text, bold ? this.fkBold : this.fkReg);
 
     // CJK-pad (LTR, géén bidi/shaping — horizontale CJK is codepoint→glyph): bevat de string tekens die
     // Inter niet dekt maar een provider wél, dan verzamelen we altijd de gebruikte codepoints (voor de

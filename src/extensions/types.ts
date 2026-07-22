@@ -23,6 +23,7 @@ export type ExtensionCategory =
   | 'Planning'
   | 'Reporting'
   | 'Utility'
+  | 'Fonts'
   | 'Other';
 
 /**
