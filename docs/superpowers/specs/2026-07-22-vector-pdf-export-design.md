@@ -428,7 +428,7 @@ behouden als fallback; `STATUS_COLOR`+`fmtDelta` geëxporteerd tegen drift. Geve
 CPMSolver/computeVariance-data; pypdf+PyMuPDF): Type0/FontFile2, geen DCTDecode, selecteerbaar,
 kolommen/kleuren/badges/lege-staat/paginering kloppen. tsc/planning(429)/build groen.
 
-**Fase 4 — coverage-detectie + raster-fallback (Opus). HERSCOPED (2026-07-22).**
+**Fase 4 — coverage-detectie + raster-fallback — ✅ UITGEVOERD (2026-07-22, `bb8af28`). HERSCOPED.**
 Reden voor de herscope: het fase-2-subset-defect blokkeert de CJK-font-extensie (fase 4b), dus de
 volledige extensie-API + binaire-asset-loader + font-registry (oorspronkelijk fase-4-werk) heeft nog
 geen werkende afnemer — dat nu bouwen is speculatieve infra (een registry die niets embedt/consumeert).
