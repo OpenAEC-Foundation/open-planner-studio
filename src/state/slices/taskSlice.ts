@@ -68,11 +68,13 @@ export interface TaskSlice {
    *  completion>0, remainingTime afgeleid, status). scheduleStale alleen als er een statusdatum is. */
   setTaskProgress: (taskId: string, completion: number, opts?: { coalesceKey?: string }) => void;
   /** Werkelijke start (fase 2.6). undefined = wissen. Retourneert false als de datum ná de
-   *  statusdatum ligt (geweigerd, geen mutatie — de UI toont een toast). */
-  setActualStart: (taskId: string, date: string | undefined) => boolean;
+   *  statusdatum ligt (geweigerd, geen mutatie — de UI toont een toast). `opts.coalesceKey` voegt
+   *  de per-toetsaanslag-commits van het LIVE-committerende datumveld tot één undo-stap samen. */
+  setActualStart: (taskId: string, date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
   /** Werkelijke einde (fase 2.6): zet completion=1 + status COMPLETED. undefined = wissen.
-   *  Retourneert false als de datum ná de statusdatum ligt (geweigerd). */
-  setActualFinish: (taskId: string, date: string | undefined) => boolean;
+   *  Retourneert false als de datum ná de statusdatum ligt (geweigerd). `opts.coalesceKey` als bij
+   *  setActualStart. */
+  setActualFinish: (taskId: string, date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
   /** Taak-kalender (fase 2.8a, §7.3): wijs een bibliotheek-kalender toe (undefined = projectkalender).
    *  Dwingt niets af — zet alleen `calendarId` + undo-snapshot + scheduleStale (datum-beïnvloedend). */
   setTaskCalendar: (taskId: string, calendarId: string | undefined) => void;
@@ -729,14 +731,15 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     get().recomputeViewRows();
   },
 
-  setActualStart: (taskId, date) => {
+  setActualStart: (taskId, date, opts) => {
     let accepted = true;
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       // Actuals liggen nooit ná de statusdatum: weigeren i.p.v. stil klemmen (§3.2, BESLIST).
+      // Weigering pusht GÉÉN snapshot (return vóór beginUndoable) — ongewijzigd gedrag.
       if (date && s.project.statusDate && date > s.project.statusDate) { accepted = false; return; }
-      beginUndoable(s);
+      beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
       task.time.actualStart = date || undefined;
       applyProgressInvariants(task, s.project.statusDate);
       finishMutation(s, { stale: !!s.project.statusDate });
@@ -745,13 +748,13 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     return accepted;
   },
 
-  setActualFinish: (taskId, date) => {
+  setActualFinish: (taskId, date, opts) => {
     let accepted = true;
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       if (date && s.project.statusDate && date > s.project.statusDate) { accepted = false; return; }
-      beginUndoable(s);
+      beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
       task.time.actualFinish = date || undefined;
       // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default
       // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).

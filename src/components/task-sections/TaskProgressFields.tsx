@@ -25,8 +25,8 @@ let progressSeq = 0;
 export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSetActualFinish }: {
   task: Task;
   onSetProgress: (completion: number, opts?: { coalesceKey?: string }) => void;
-  onSetActualStart: (date: string | undefined) => boolean;
-  onSetActualFinish: (date: string | undefined) => boolean;
+  onSetActualStart: (date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
+  onSetActualFinish: (date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
 }) {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
@@ -60,7 +60,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             className="input !text-xs !px-2.5 !py-1.5"
             ariaLabel={t('properties.progress.actualDate')}
             value={task.time.actualFinish ?? ''}
-            onCommit={v => { setActualError(!onSetActualFinish(v || undefined)); }}
+            onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
           />
         </Field>
       ) : (
@@ -71,7 +71,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
                 className="input !text-xs !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualStart')}
                 value={task.time.actualStart ?? ''}
-                onCommit={v => { setActualError(!onSetActualStart(v || undefined)); }}
+                onCommit={v => { setActualError(!onSetActualStart(v || undefined, { coalesceKey: `actualStart:${task.id}` })); }}
               />
             </Field>
             <Field label={t('properties.progress.actualFinish')}>
@@ -79,7 +79,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
                 className="input !text-xs !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualFinish')}
                 value={task.time.actualFinish ?? ''}
-                onCommit={v => { setActualError(!onSetActualFinish(v || undefined)); }}
+                onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
               />
             </Field>
           </div>

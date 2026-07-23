@@ -115,8 +115,8 @@ export function TaskPropertiesPanel() {
       <TaskProgressFields
         task={task}
         onSetProgress={(v, opts) => setTaskProgress(task.id, v, opts)}
-        onSetActualStart={d => setActualStart(task.id, d)}
-        onSetActualFinish={d => setActualFinish(task.id, d)}
+        onSetActualStart={(d, opts) => setActualStart(task.id, d, opts)}
+        onSetActualFinish={(d, opts) => setActualFinish(task.id, d, opts)}
       />
 
       <TaskCpmResultSection taskId={task.id} />
