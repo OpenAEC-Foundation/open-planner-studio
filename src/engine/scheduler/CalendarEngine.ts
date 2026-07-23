@@ -23,6 +23,14 @@ const bandCacheRegistry = new WeakMap<WorkCalendar, BandCache>();
 export class CalendarEngine {
   private calendar: WorkCalendar;
   private holidaySet: Set<string>;
+  // ── Numerieke afgeleide structuren (pakket A1/A2, gedragsneutraal) ─────────────
+  // Vervangen de string/dag-voor-dag-hotpaths in isWorkDay/workDaysBetween door
+  // O(1)- resp. O(1+#holidays·log)-arithmetiek. NAAST de bestaande string-structuren:
+  // de uur-modus (bandsStartingOn/isHoliday) blijft byte-identiek op holidaySet leunen.
+  private workDayMask: boolean[];         // index 1..7 (ISO-weekdag) ⇒ is-werkdag
+  private workDaysPerWeek: number;        // som van true in workDayMask[1..7]
+  private holidayDaySet: Set<number>;     // UTC-dagindices van alle holiday-dagen
+  private holidayWorkdayIdxSorted: number[]; // holiday-dagindices OP een werk-weekdag, oplopend
   // Veiligheidsgrenzen tegen vastlopen bij een kapotte kalender (geen werkdagen)
   // of een ongeldige/sentinel-datum: MAX_SCAN = max dagen zoeken naar een werkdag;
   // MAX_DAYS = absolute iteratielimiet (~547 jaar) voor de tel-lussen.
@@ -41,8 +49,21 @@ export class CalendarEngine {
 
   constructor(calendar: WorkCalendar) {
     this.calendar = calendar;
+    // Werkdag-masker + weekdag-som (numeriek, pakket A1/A2). Alleen indices 1..7 tellen mee;
+    // een out-of-range workDays-entry raakt nooit een echte isoDayOfWeek (1..7) en verstoort
+    // dus niets — byte-identiek met de oude `workDays.includes(...)`-semantiek.
+    this.workDayMask = new Array(8).fill(false);
+    for (const wd of this.calendar.workDays) this.workDayMask[wd] = true;
+    this.workDaysPerWeek = 0;
+    for (let wd = 1; wd <= 7; wd++) if (this.workDayMask[wd]) this.workDaysPerWeek++;
     this.holidaySet = new Set<string>();
-    this.buildHolidaySet();
+    this.holidayDaySet = new Set<number>();
+    this.buildHolidaySet(); // vult zowel de string-set (uur-modus) als de numerieke dagindex-set
+    // Holiday-dagen die OP een werk-weekdag vallen, gededupliceerd (via de Set) en oplopend
+    // gesorteerd — de aftrekterm van workDaysBetween (binary-search-telling per bereik).
+    this.holidayWorkdayIdxSorted = [...this.holidayDaySet]
+      .filter((idx) => this.workDayMask[isoDayOfWeek(new Date(idx * CalendarEngine.MS_PER_DAY))])
+      .sort((a, b) => a - b);
     // ── Fase 2.8b: modus-detectie + uur-setup (§4.1). Afwezige `workTime` ⇒ dag-modus:
     //    dan wordt niets hieronder geraakt en draaien de bevroren dag-lussen ongewijzigd.
     this.mode = calendar.workTime ? 'hour' : 'day';
@@ -65,6 +86,7 @@ export class CalendarEngine {
       for (let i = 0; i <= days; i++) {
         const d = addCalendarDays(start, i);
         this.holidaySet.add(formatDate(d));
+        this.holidayDaySet.add(Math.floor(d.getTime() / CalendarEngine.MS_PER_DAY));
       }
     }
   }
@@ -74,11 +96,16 @@ export class CalendarEngine {
     return Array.isArray(this.calendar.workDays) && this.calendar.workDays.length > 0;
   }
 
-  /** Check if a given date is a working day */
+  /** Check if a given date is a working day.
+   *  Pakket A1 (gedragsneutraal): numeriek i.p.v. `workDays.includes` + `formatDate`.
+   *  `floor(ms/MS_PER_DAY)` = dezelfde UTC-dagindex als `formatDate` (epoch op UTC-middernacht).
+   *  Ongeldige datum: `isoDayOfWeek`→NaN ⇒ `workDayMask[NaN]`=undefined ⇒ return false (identiek
+   *  aan het oude `workDays.includes(NaN)===false`, dat óók vóór `formatDate` short-circuitte). */
   isWorkDay(date: Date): boolean {
-    const dayOfWeek = isoDayOfWeek(date);
-    if (!this.calendar.workDays.includes(dayOfWeek)) return false;
-    if (this.holidaySet.has(formatDate(date))) return false;
+    const dow = isoDayOfWeek(date);
+    if (!this.workDayMask[dow]) return false;
+    const dayIdx = Math.floor(date.getTime() / CalendarEngine.MS_PER_DAY);
+    if (this.holidayDaySet.has(dayIdx)) return false;
     return true;
   }
 
@@ -117,17 +144,67 @@ export class CalendarEngine {
 
   /**
    * Calculate the number of working days between two dates (inclusive).
+   *
+   * Pakket A2 (gedragsneutraal, de O(n²)-killer): arithmetisch i.p.v. dag-voor-dag scannen.
+   * Semantiek die exact wordt gerepliceerd t.o.v. de oude lus:
+   *  - De oude lus checkte dagen k=0,1,… met dagindex `startIdx+k` zolang
+   *    `startMs + k·MS_PER_DAY ≤ endMs` (elke +1 kalenderdag = +MS_PER_DAY in UTC, geen DST).
+   *    Aantal dagen = `floor((endMs−startMs)/MS_PER_DAY)+1` als `endMs≥startMs`, anders 0.
+   *  - CAP: de oude lus brak af zodra `steps > MAX_DAYS`; hij checkte dan de dagen k=0..MAX_DAYS
+   *    (= MAX_DAYS+1 dagen) vóór hij stopte ⇒ `cappedDays = min(totalDays, MAX_DAYS+1)`.
+   * Telling: #werk-weekdagen in het (gecapte) bereik − #(holidays op een werk-weekdag) daarin.
    */
   workDaysBetween(start: Date, end: Date): number {
-    let count = 0;
-    let current = new Date(start.getTime());
-    let steps = 0;
-    while (current <= end) {
-      if (this.isWorkDay(current)) count++;
-      current = addCalendarDays(current, 1);
-      if (++steps > CalendarEngine.MAX_DAYS) break; // absurde spanne (sentinel/ongeldige datum)
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    if (!(endMs >= startMs)) return 0; // dekt endMs<startMs én NaN (NaN>=x is false) — 0-iteratie-lus
+    const totalDays = Math.floor((endMs - startMs) / CalendarEngine.MS_PER_DAY) + 1;
+    const cappedDays = Math.min(totalDays, CalendarEngine.MAX_DAYS + 1);
+    const startIdx = Math.floor(startMs / CalendarEngine.MS_PER_DAY);
+    const lastIdx = startIdx + cappedDays - 1;
+    return this.countWorkWeekdays(startIdx, lastIdx) - this.countHolidayWorkdaysInRange(startIdx, lastIdx);
+  }
+
+  /** #werk-weekdagen in het INCLUSIEVE dagindex-bereik [startIdx, lastIdx]. Volledige weken dragen
+   *  elk `workDaysPerWeek` bij (elke weekdag komt precies één keer voor); de resterende dagen worden
+   *  uitgeteld vanaf de weekdag van `startIdx` (consistent met de per-dag-check in de oude lus). */
+  private countWorkWeekdays(startIdx: number, lastIdx: number): number {
+    const L = lastIdx - startIdx + 1;
+    if (L <= 0) return 0;
+    const fullWeeks = Math.floor(L / 7);
+    let count = fullWeeks * this.workDaysPerWeek;
+    const rem = L - fullWeeks * 7;
+    if (rem > 0) {
+      let wd = isoDayOfWeek(new Date(startIdx * CalendarEngine.MS_PER_DAY)); // 1..7
+      for (let i = 0; i < rem; i++) {
+        if (this.workDayMask[wd]) count++;
+        wd = wd === 7 ? 1 : wd + 1;
+      }
     }
     return count;
+  }
+
+  /** Aantal holiday-dagen ÓP een werk-weekdag in het inclusieve bereik [startIdx, lastIdx], via
+   *  lower/upper-bound binary search over de oplopende `holidayWorkdayIdxSorted`. */
+  private countHolidayWorkdaysInRange(startIdx: number, lastIdx: number): number {
+    const a = this.holidayWorkdayIdxSorted;
+    // lo = eerste index i met a[i] >= startIdx (lower bound)
+    let lo = 0;
+    let loHi = a.length;
+    while (lo < loHi) {
+      const mid = (lo + loHi) >>> 1;
+      if (a[mid] < startIdx) lo = mid + 1;
+      else loHi = mid;
+    }
+    // hi = eerste index i met a[i] > lastIdx (upper bound)
+    let hi = 0;
+    let hiHi = a.length;
+    while (hi < hiHi) {
+      const mid = (hi + hiHi) >>> 1;
+      if (a[mid] <= lastIdx) hi = mid + 1;
+      else hiHi = mid;
+    }
+    return hi - lo;
   }
 
   /**
