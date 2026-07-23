@@ -130,16 +130,32 @@ acquire(lockPath, {allowAgeSteal}):
   // timeout met levende houder → HARD FALEN (nooit een levend slot stelen, nooit doorgaan zonder slot)
 ```
 
-Waarom dit sluit: een naïeve **`unlink` + `open('wx')`** (v3-voorstel) is NIET
-race-veilig — een eigen stresstest (8 gelijktijdige stelers van een verweesd slot)
-gaf meerdere winnaars: een steler die "dood" las, unlinkte de net-gewonnen *verse*
-lock van een winnaar. De fix claimt de stale inode **atomair via `rename`** (bij N
-stelers verplaatst maar één de inode; de rest krijgt ENOENT), verifieert met
-`sameHolder` dat exact de beoordeelde dode holder gegrepen is, en herstelt bij een
-refresh-race via `link` (dat op EEXIST faalt i.p.v. te overschrijven). Een leeg/
-half-geschreven slot geldt als levend (niet stelen). Bewezen met een witness-
-gebaseerde gelijktijdigheidstest (`tests/dev-server/steal-race.sh`, 8 stelers, geen
-handoff-ruis): elke ronde exact één winnaar, nul dubbel-eigenaarschap.
+Waarom dit sluit (en wat de harde garantie is):
+
+- **Verse acquire** (het slot bestaat nog niet) is via `open('wx')` (O_EXCL)
+  altijd single-winner — deterministisch, ook onder 8-voudige gelijktijdigheid
+  (getest: `tests/dev-server/lock-mutex.sh`). **Hierop rusten de kern-garanties:**
+  twee bewakers van één worktree → de tweede ziet een *levende* houder en weigert;
+  twee allocators → één houdt de flock, de rest wacht. Géén steal betrokken.
+- **Stelen** is alléén post-crash-herstel (een houder die crashte zonder cleanup).
+  Een naïeve `unlink`+`open('wx')` bleek NIET race-veilig — een eigen witness-
+  stresstest onthulde dat een steler die "dood" las de net-gewonnen *verse* lock van
+  een winnaar wegveegde → meerdere winnaars. De fix claimt de stale inode **atomair
+  via `rename`** (bij N stelers verplaatst maar één de inode; de rest ENOENT),
+  verifieert met `sameHolder`, en herstelt bij een refresh-race via `link` (faalt op
+  EEXIST i.p.v. te overschrijven). Dit is single-winner voor realistische
+  gelijktijdigheid (empirisch 0 conflicten t/m 6 gelijktijdige stelers over 100
+  rondes). **Resterend, eerlijk benoemd:** onder pathologische, gelijktijdige steal
+  van één gecrashte lock (8+ processen in dezelfde milliseconde) blijft een
+  theoretische dubbel-claim mogelijk — intrinsiek aan pidfile-stelen zonder
+  OS-locks. Dat scenario doet zich met een handvol worktrees niet voor.
+- **De harde backstop is `strictPort`:** zelfs bij een (vrijwel onmogelijke)
+  dubbel-toewijzing van poort P laat de kernel maar één proces P binden; het andere
+  worktree faalt schoon met EADDRINUSE — **nooit een verkeerde build**. Dat is de
+  daadwerkelijke "fysiek onmogelijk"-eigenschap; het slot is de serialisatie/UX-laag
+  eromheen.
+
+Een leeg/half-geschreven slot geldt als levend (niet stelen).
 
 **3a. Toewijzings-flock** — gedeeld, kort. `allowAgeSteal = false`: **alleen
 dode-pid-steal**. Een trage-maar-levende allocator (100 worktrees × bind-probes) mag
@@ -255,4 +271,4 @@ scriptpad in het hook-commando).
 | `package.json` | `"dev": "vite"` → `"node scripts/dev-server.mjs"` |
 | `~/.claude/settings.json` | user-global SessionStart-hook (buiten de repo) |
 | `docs/self-test-harness.md` | 3007-aannames vervangen door launch.json-poort |
-| `tests/dev-server/…` | nieuwe unit + integratietest (incl. steal-race) |
+| `tests/dev-server/…` | nieuwe units + integratietest + deterministische `lock-mutex.sh` (verse-acquire single-winner) |

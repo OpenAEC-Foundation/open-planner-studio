@@ -393,7 +393,9 @@ Expected: FAIL — module `scripts/dev-lock.mjs` bestaat niet.
 > race-veilig (eigen 8-stelers-stresstest gaf meerdere winnaars: een steler unlinkt de
 > verse lock van een winnaar). De steal claimt de stale inode nu atomair via `rename`,
 > verifieert `sameHolder`, en herstelt bij een refresh-race via `link` (nooit
-> overschrijven). Bewezen met `tests/dev-server/steal-race.sh`.
+> overschrijven). Single-winner voor realistische gelijktijdigheid; de harde
+> garantie tegen twee-servers-één-poort is `strictPort` (kernel-bind). De
+> deterministische verse-acquire-mutex is getest in `tests/dev-server/lock-mutex.sh`.
 
 ```js
 // scripts/dev-lock.mjs
