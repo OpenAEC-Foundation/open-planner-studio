@@ -9,6 +9,8 @@ import { formatDuration, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
+import { readGanttPalette, type GanttPalette } from './themePalette';
+import { dateToX as axisDateToX } from './timeAxis';
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -72,6 +74,10 @@ export interface GanttRenderOptions {
    *  onvoldoende, dus near-critical-balken krijgen een geblokt/gearceerd vulpatroon (kritiek=massief,
    *  near-critical=geblokt, normaal=omlijnd). Afwezig/false ⇒ licht/donker (amber-kleur als signaal). */
   highContrast?: boolean;
+  /** Geïnjecteerd themapalet (audit C5/P17). Afwezig ⇒ de renderer leest het zelf via
+   *  `readGanttPalette()` (identiek lees-moment/-resultaat als vroeger). Meegeven maakt de renderer
+   *  puur/headless-testbaar (geen DOM-afhankelijkheid). */
+  palette?: GanttPalette;
 }
 
 // Near-critical "geblokt"-vulpatroon voor het high-contrast-thema (fase 2.9 §5.4, BINDEND besluit).
@@ -95,55 +101,10 @@ function getNearCriticalHatch(ctx: CanvasRenderingContext2D): CanvasPattern | nu
   return nearCriticalHatch;
 }
 
-// Read theme colors from CSS variables on the document element
-function getThemeColors() {
-  const s = getComputedStyle(document.documentElement);
-  const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
-  return {
-    // The Gantt now lives inside a white floating card, so the canvas background
-    // must read the card surface (white in light), NOT the workspace tint (--theme-bg).
-    bg: v('--theme-surface', '#ffffff'),
-    surface: v('--theme-surface-alt', '#F6F8FB'),
-    grid: v('--theme-border-light', '#EDF0F5'),
-    gridWeekend: v('--theme-grid-weekend', '#EFF2F7'),
-    border: v('--theme-border', '#E2E7EE'),
-    text: v('--theme-text', '#333845'),
-    textSecondary: v('--theme-text-dim', '#5B6472'),
-    critical: '#DC2626',       // kritiek (rood)
-    criticalLight: '#991B1B',  // voortgangsvulling kritiek
-    nearCritical: '#F59E0B',   // bijna-kritiek (amber, tussen kritiek-rood en float-groen, fase 2.9 §5.4)
-    hammock: '#0E7490',        // hammock/LOE-balk (teal, fase 2.9 §5.3)
-    normal: '#2563EB',         // normale taak (blauw)
-    normalLight: '#1D4ED8',    // voortgangsvulling / voltooid (blauw)
-    milestone: '#7C3AED',      // mijlpaal (paars, ruit)
-    float: v('--theme-bar-float', '#059669'),
-    baseline: '#6B7280',
-    complete: '#1D4ED8',
-    selected: v('--theme-accent', '#B45309'),
-    dependency: '#6B7280',
-    today: v('--theme-accent', '#B45309'),
-    statusDate: v('--theme-accent', '#B45309'),  // statusdatum-/voortgangslijn (accent-oranje, zoals oorspronkelijk fase 2.6 — zelfde bron als `today`/`selected`)
-    headerBg: v('--theme-surface-alt', '#F6F8FB'),
-    summary: '#475569',        // samenvattingsbalk (slate)
-    ghost: '#94A3B8',          // externe (cross-project) ghost-balk (grijs, fase 2.9 §5.5)
-    // Constraints & deadlines (fase 2.3; constraint-kleur uit PLAN §8.2)
-    constraintEarly: '#3B82F6',   // vroege-zijde (SNET/FNET): blauw
-    constraintLate: '#8B5CF6',    // late-zijde/pinnend (SNLT/FNLT/MSO/MFO): violet
-    deadlineOk: '#10B981',        // deadline-marker (groen; rood bij overschrijding)
-    // Path tracing (MSP Task Path-conventie: voorgangers goud, opvolgers paars; driving sterker)
-    tracePred: '#F59E0B',
-    tracePredDriving: '#D97706',
-    traceSucc: '#A78BFA',
-    traceSuccDriving: '#7C3AED',
-  };
-}
-
-type ThemeColors = ReturnType<typeof getThemeColors>;
-
 export class GanttRenderer {
   private ctx: CanvasRenderingContext2D;
   private opts: GanttRenderOptions;
-  private colors: ThemeColors;
+  private colors: GanttPalette;
 
   // Computed
   private viewStart: Date;
@@ -171,7 +132,7 @@ export class GanttRenderer {
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
-    this.colors = getThemeColors();
+    this.colors = opts.palette ?? readGanttPalette();
 
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.rows = opts.rows;
@@ -197,17 +158,11 @@ export class GanttRenderer {
     if (task.time.isNearCritical) return this.colors.nearCritical;
     const fp = task.time.floatPath;
     if (fp !== undefined && fp > 1) {
-      return GanttRenderer.FLOAT_PATH_TINTS[(fp - 2) % GanttRenderer.FLOAT_PATH_TINTS.length];
+      const tints = this.colors.floatPathTints;
+      return tints[(fp - 2) % tints.length];
     }
     return task.color || this.colors.normal;
   }
-
-  /** Optionele tint per float-pad (fase 2.9 §5.4): pad 1 = kritiek (rood, hierboven), paden ≥2
-   *  krijgen elk een eigen tint. Alleen actief wanneer de floatPaths-optie draait (anders is
-   *  `floatPath` ongezet). */
-  private static readonly FLOAT_PATH_TINTS = [
-    '#2563EB', '#7C3AED', '#0891B2', '#DB2777', '#65A30D', '#EA580C', '#0D9488', '#9333EA',
-  ];
 
   /**
    * Duurkolom-tekst (§6.5). Urenplanning UIT ⇒ byte-identiek het huidige `${scheduleDuration}d`.
@@ -220,11 +175,10 @@ export class GanttRenderer {
     return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', this.opts.durationSuffixes);
   }
 
-  /** Convert a date (with optional sub-day precision) to X position on canvas */
+  /** Convert a date (with optional sub-day precision) to X position on canvas.
+   *  Deelt de tijd-as met HistogramRenderer via `timeAxis.dateToX` (bit-identiek). */
   dateToX(date: Date): number {
-    const msPerDay = 86400000;
-    const daysFromStart = (date.getTime() - this.viewStart.getTime()) / msPerDay;
-    return this.opts.taskTableWidth + daysFromStart * this.opts.view.zoom - this.opts.view.scrollX;
+    return axisDateToX(date, this.viewStart, this.opts.taskTableWidth, this.opts.view.zoom, this.opts.view.scrollX);
   }
 
   /** Convert task row index to Y position */
@@ -795,7 +749,7 @@ export class GanttRenderer {
 
     // Task name on bar (if wide enough)
     if (width > 40) {
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = this.colors.barText;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.textBaseline = 'middle';
       ctx.save();
@@ -1353,7 +1307,7 @@ export class GanttRenderer {
         ctx.beginPath();
         ctx.roundRect(btnX, btnY, btnSize, btnSize, 2);
         ctx.fill();
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = this.colors.barText;
         ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('+', btnX + btnSize / 2, textY);

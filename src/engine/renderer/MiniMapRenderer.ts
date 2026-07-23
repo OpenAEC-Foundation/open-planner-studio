@@ -5,6 +5,7 @@
 
 import { parseDate, diffCalendarDays } from '@/utils/dateUtils';
 import type { ViewRow } from '@/engine/view/visibleRows';
+import { readMiniMapPalette, type MiniMapPalette } from './themePalette';
 
 export interface MiniMapOptions {
   rows: ViewRow[];
@@ -17,21 +18,12 @@ export interface MiniMapOptions {
   zoom: number;
   /** Breedte van het zichtbare chart-gedeelte van het hoofdvenster (px). */
   chartWidth: number;
+  /** Geïnjecteerd mini-map-palet (audit C5/P17). Afwezig ⇒ zelf gelezen via `readMiniMapPalette()`
+   *  op render-moment (identiek resultaat); meegeven maakt de renderer headless-testbaar. */
+  palette?: MiniMapPalette;
 }
 
 interface Span { startDay: number; endDay: number; span: number }
-
-function getColors() {
-  const s = getComputedStyle(document.documentElement);
-  const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
-  return {
-    bg: v('--theme-surface-alt', '#F6F8FB'),
-    border: v('--theme-border', '#E2E7EE'),
-    bar: '#2563EB',
-    critical: '#DC2626',
-    frame: v('--theme-accent', '#B45309'),
-  };
-}
 
 /** Projectperiode (min start .. max finish) in dagen t.o.v. originDate. */
 function projectSpan(rows: ViewRow[], originDate: string): Span | null {
@@ -78,7 +70,7 @@ export class MiniMapRenderer {
   render(): void {
     const { canvasWidth, canvasHeight, rows, scrollX, zoom, chartWidth } = this.opts;
     const ctx = this.ctx;
-    const colors = getColors();
+    const colors = this.opts.palette ?? readMiniMapPalette();
 
     ctx.fillStyle = colors.bg;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);

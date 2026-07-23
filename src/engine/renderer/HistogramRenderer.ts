@@ -5,6 +5,8 @@
 // deel boven de capaciteitslijn in rood (P6-patroon). Thema-bewust via CSS-variabelen.
 import type { ViewState } from '@/types/view';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
+import { readHistogramPalette, type HistogramPalette } from './themePalette';
+import { dateToX as axisDateToX } from './timeAxis';
 
 export interface HistogramSeries {
   /** iso-datum → belaste eenheden voor de getoonde resource (of som over alle renewables). */
@@ -32,6 +34,9 @@ export interface HistogramRenderOptions {
   taskTableWidth: number;
   labels: { unitsSuffix: string };
   emptyHint?: string;            // getoond wanneer er geen (herberekende) data is
+  /** Geïnjecteerd histogram-palet (audit C5/P17). Afwezig ⇒ zelf gelezen via
+   *  `readHistogramPalette()` (identiek resultaat); meegeven maakt de renderer headless-testbaar. */
+  palette?: HistogramPalette;
 }
 
 const ROW_H = 18;          // hoogte van een resourcekiezer-rij
@@ -39,43 +44,23 @@ const TOP_PAD = 8;         // ruimte boven de hoogste staaf
 const BOTTOM_PAD = 4;      // ruimte onder de nullijn
 const LEFT_PAD = 8;        // padding binnen de kiezerzone
 
-function getColors() {
-  const s = getComputedStyle(document.documentElement);
-  const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
-  return {
-    bg: v('--theme-surface', '#ffffff'),
-    surfaceAlt: v('--theme-surface-alt', '#F6F8FB'),
-    grid: v('--theme-border-light', '#EDF0F5'),
-    border: v('--theme-border', '#E2E7EE'),
-    text: v('--theme-text', '#333845'),
-    textDim: v('--theme-text-dim', '#5B6472'),
-    accent: v('--theme-accent', '#D97706'),
-    hover: v('--theme-hover', 'rgba(0,0,0,0.05)'),
-    active: v('--theme-active', 'rgba(0,0,0,0.08)'),
-    barNormal: '#2563EB',   // gelijk aan GanttRenderer's "normal" (blauw)
-    barOver: '#DC2626',     // gelijk aan GanttRenderer's "critical" (rood)
-    capacity: v('--theme-text-dim', '#5B6472'),
-  };
-}
-
 export class HistogramRenderer {
   private ctx: CanvasRenderingContext2D;
   private opts: HistogramRenderOptions;
-  private colors: ReturnType<typeof getColors>;
+  private colors: HistogramPalette;
   private viewStart: Date;
 
   constructor(ctx: CanvasRenderingContext2D, opts: HistogramRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
-    this.colors = getColors();
+    this.colors = opts.palette ?? readHistogramPalette();
     this.viewStart = parseDate(opts.view.viewStartDate);
   }
 
-  /** Zelfde mapping als GanttRenderer.dateToX — gedeelde X-as. */
+  /** Gedeelde X-as met GanttRenderer via `timeAxis.dateToX` (bit-identiek), zodat de dagkolommen
+   *  1-op-1 boven de taakbalken staan. */
   private dateToX(date: Date): number {
-    const msPerDay = 86400000;
-    const daysFromStart = (date.getTime() - this.viewStart.getTime()) / msPerDay;
-    return this.opts.taskTableWidth + daysFromStart * this.opts.view.zoom - this.opts.view.scrollX;
+    return axisDateToX(date, this.viewStart, this.opts.taskTableWidth, this.opts.view.zoom, this.opts.view.scrollX);
   }
 
   /** Inverse: kolom-iso onder een X-positie in de plotzone. */

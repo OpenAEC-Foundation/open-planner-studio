@@ -5,31 +5,9 @@ import { parseDate, formatDate, addCalendarDays, getWeekNumber, diffCalendarDays
 import type { DateNotation } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
-
-/** Print-friendly color scheme */
-const PRINT_COLORS = {
-  bg: '#ffffff',
-  surface: '#f8f9fa',
-  grid: '#e5e7eb',
-  gridWeekend: '#f0f1f3',
-  gridHoliday: '#fef3c7',
-  border: '#d1d5db',
-  borderDark: '#9ca3af',
-  text: '#111827',
-  textSecondary: '#6b7280',
-  critical: '#DC2626',
-  criticalDark: '#991b1b',
-  normal: '#2563EB',
-  normalDark: '#1d4ed8',
-  milestone: '#7C3AED',
-  float: '#10B981',
-  dependency: '#9CA3AF',
-  today: '#F59E0B',
-  headerBg: '#f1f5f9',
-  summary: '#7C3AED',
-  rowEven: '#f9fafb',
-  rowOdd: '#ffffff',
-};
+// Print-vriendelijk kleurschema — nu uit het centrale themapalet (audit C5/P17). De naam
+// `PRINT_COLORS` blijft behouden zodat de teken-aanroepen ongewijzigd zijn; waarden zijn identiek.
+import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
 
 const ROW_HEIGHT = 24;
 const PROJECT_HEADER_HEIGHT = 64;
