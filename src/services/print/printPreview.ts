@@ -3,6 +3,8 @@ import { Sequence } from '@/types/sequence';
 import { WorkCalendar } from '@/types/calendar';
 import { parseDate, formatDate, addCalendarDays, getWeekNumber, diffCalendarDays, isoDayOfWeek } from '@/utils/dateUtils';
 import type { DateNotation } from '@/types/view';
+import type { Draw2D } from '@/services/pdf/draw2d';
+import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
 
 /** Print-friendly color scheme */
 const PRINT_COLORS = {
@@ -35,7 +37,10 @@ const TIMELINE_HEADER_HEIGHT = 44;
 const TOTAL_HEADER_HEIGHT = PROJECT_HEADER_HEIGHT + TIMELINE_HEADER_HEIGHT;
 const TABLE_WIDTH = 450;
 const FOOTER_HEIGHT = 50;
-const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+// Inter (gevendorde glyf-TTF, family 'InterPDF') eerst — deterministisch en inbedbaar zodat preview
+// en de latere vector-export identieke measureText geven; systeem-stack als fallback zolang de
+// FontFace nog niet geladen is (§5.1/K2 ontwerpdoc). De swap reflowt bewust bestaande exports.
+const FONT_FAMILY = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 // Column definitions for the task table
 const COL = {
@@ -138,42 +143,25 @@ function formatCompletion(completion: number): string {
   return `${Math.round(completion * 100)}%`;
 }
 
-/** Draw rounded rect helper (polyfill for older canvas) */
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  if (w < 0) return;
-  r = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
-}
-
 /**
  * Kort `text` in met een ellipsis ('…') zodat het binnen `maxWidth` (in dezelfde px-eenheid als
- * `ctx.measureText`, d.w.z. de logische/CSS-px van de huidige transform) past. Verwacht dat
- * `ctx.font` al is ingesteld. Geeft '' terug als er geen ruimte is. Wordt gebruikt om tekst nooit
+ * `d2d.measureText`, d.w.z. de logische/CSS-px van de huidige transform) past. Verwacht dat
+ * `d2d.font` al is ingesteld. Geeft '' terug als er geen ruimte is. Wordt gebruikt om tekst nooit
  * over een kolomrand/canvasrand te laten lopen (klachten 4 en 7).
  */
-function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+function fitText(d2d: Draw2D, text: string, maxWidth: number): string {
   if (maxWidth <= 0) return '';
-  if (ctx.measureText(text).width <= maxWidth) return text;
+  if (d2d.measureText(text).width <= maxWidth) return text;
   const ellipsis = '…';
   // Binaire zoektocht naar de langste prefix die met ellipsis nog past.
   let lo = 0;
   let hi = text.length;
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
-    if (ctx.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
+    if (d2d.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
     else hi = mid - 1;
   }
-  if (lo === 0) return ctx.measureText(ellipsis).width <= maxWidth ? ellipsis : '';
+  if (lo === 0) return d2d.measureText(ellipsis).width <= maxWidth ? ellipsis : '';
   return text.slice(0, lo) + ellipsis;
 }
 
@@ -189,7 +177,7 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number):
  * @param y          baseline-y voor de tekst (textBaseline blijft 'alphabetic')
  */
 function drawBarLabel(
-  ctx: CanvasRenderingContext2D,
+  d2d: Draw2D,
   name: string,
   barRightX: number,
   barLeftX: number,
@@ -200,48 +188,34 @@ function drawBarLabel(
 ) {
   const pad = 4;
   const rightMargin = 10;
-  ctx.font = font;
-  ctx.fillStyle = color;
-  ctx.textBaseline = 'alphabetic';
+  d2d.font = font;
+  d2d.fillStyle = color;
+  d2d.textBaseline = 'alphabetic';
   const rightStart = barRightX + pad;
   const rightAvail = canvasWidth - rightMargin - rightStart;
   const leftEnd = barLeftX - pad;
   const leftAvail = leftEnd - TABLE_WIDTH; // chart begint bij TABLE_WIDTH
-  const textWidth = ctx.measureText(name).width;
+  const textWidth = d2d.measureText(name).width;
 
   if (textWidth <= rightAvail) {
-    ctx.textAlign = 'left';
-    ctx.fillText(name, rightStart, y);
+    d2d.textAlign = 'left';
+    d2d.fillText(name, rightStart, y);
   } else if (textWidth <= leftAvail) {
-    ctx.textAlign = 'right';
-    ctx.fillText(name, leftEnd, y);
+    d2d.textAlign = 'right';
+    d2d.fillText(name, leftEnd, y);
   } else if (rightAvail >= leftAvail) {
-    ctx.textAlign = 'left';
-    ctx.fillText(fitText(ctx, name, rightAvail), rightStart, y);
+    d2d.textAlign = 'left';
+    d2d.fillText(fitText(d2d, name, rightAvail), rightStart, y);
   } else {
-    ctx.textAlign = 'right';
-    ctx.fillText(fitText(ctx, name, leftAvail), leftEnd, y);
+    d2d.textAlign = 'right';
+    d2d.fillText(fitText(d2d, name, leftAvail), leftEnd, y);
   }
 }
 
 /**
- * Render the print preview onto a canvas. Returns the logical (CSS) dimensions.
- *
- * `renderScale` overrides the raster-vs-logical multiplier (`canvas.width = logicalWidth *
- * renderScale`); defaults to `window.devicePixelRatio || 2` so the on-screen preview keeps its
- * existing behavior. PDF export passes a higher fixed scale (see `computeHighResScale` in
- * `@/utils/miniPdf`) so the exported raster resolution doesn't depend on the exporting user's
- * screen DPI — a 1x/headless browser would otherwise embed a blurry 96 DPI image.
+ * Het resultaat van een print-render: de logische (CSS-px) afmetingen + de bevroren-kolombreedte.
  */
-export function renderPrintCanvas(
-  canvas: HTMLCanvasElement,
-  tasks: Task[],
-  sequences: Sequence[],
-  calendar: WorkCalendar,
-  projectName: string,
-  options: PrintOptions,
-  renderScale?: number,
-): {
+export interface RenderReportResult {
   width: number;
   height: number;
   /**
@@ -253,7 +227,25 @@ export function renderPrintCanvas(
    * stelsel als de rest van het return-object; de raster-schaal komt daar apart bij.
    */
   tableWidth: number;
-} {
+}
+
+/**
+ * Render het print-rapport tegen een {@link Draw2D}-backend die door `makeDraw2D` geleverd wordt.
+ * Alle teken-logica is backend-agnostisch; `makeDraw2D(logicalW, logicalH)` wordt exact één keer
+ * aangeroepen zodra de logische afmetingen bekend zijn (vóór er getekend wordt) en de teruggegeven
+ * `Draw2D` ontvangt vervolgens alle teken-aanroepen. Zo delen de raster-preview (canvas-backend) en
+ * de vector-export (pdf-lib-backend) exact dezelfde renderer.
+ *
+ * @returns De logische (CSS-px) afmetingen + de bevroren-kolombreedte ({@link RenderReportResult}).
+ */
+export function renderReport(
+  makeDraw2D: (logicalW: number, logicalH: number) => Draw2D,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+): RenderReportResult {
   // Flatten and compute depth
   const flatTasks: PrintTask[] = [];
   const depthMap = new Map<string, number>();
@@ -279,19 +271,13 @@ export function renderPrintCanvas(
   }
 
   if (flatTasks.length === 0) {
-    const dpr = renderScale ?? (window.devicePixelRatio || 2);
-    canvas.width = 600 * dpr;
-    canvas.height = 200 * dpr;
-    canvas.style.width = '600px';
-    canvas.style.height = '200px';
-    const ctx = canvas.getContext('2d')!;
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = PRINT_COLORS.bg;
-    ctx.fillRect(0, 0, 600, 200);
-    ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.font = `14px ${FONT_FAMILY}`;
-    ctx.textAlign = 'center';
-    ctx.fillText(options.labels?.noTasks ?? 'No tasks to display', 300, 100);
+    const d2d = makeDraw2D(600, 200);
+    d2d.fillStyle = PRINT_COLORS.bg;
+    d2d.fillRect(0, 0, 600, 200);
+    d2d.fillStyle = PRINT_COLORS.textSecondary;
+    d2d.font = `14px ${FONT_FAMILY}`;
+    d2d.textAlign = 'center';
+    d2d.fillText(options.labels?.noTasks ?? 'No tasks to display', 300, 100);
     return { width: 600, height: 200, tableWidth: TABLE_WIDTH };
   }
 
@@ -346,14 +332,9 @@ export function renderPrintCanvas(
     }
   }
 
-  // Create high-DPI canvas
-  const dpr = renderScale ?? (window.devicePixelRatio || 2);
-  canvas.width = canvasWidth * dpr;
-  canvas.height = canvasHeight * dpr;
-  canvas.style.width = canvasWidth + 'px';
-  canvas.style.height = canvasHeight + 'px';
-  const ctx = canvas.getContext('2d')!;
-  ctx.scale(dpr, dpr);
+  // Verkrijg de Draw2D-backend zodra de logische afmetingen bekend zijn (canvas-backend neemt de
+  // dpr-scale + maat-setup over; vector-backend werkt 1:1 in logische px).
+  const d2d = makeDraw2D(canvasWidth, canvasHeight);
 
   // Helper: date to X
   const dateToX = (date: Date) => TABLE_WIDTH + diffCalendarDays(minDate, date) * zoom;
@@ -366,11 +347,11 @@ export function renderPrintCanvas(
   // ==================== DRAW ====================
 
   // Background
-  ctx.fillStyle = PRINT_COLORS.bg;
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  d2d.fillStyle = PRINT_COLORS.bg;
+  d2d.fillRect(0, 0, canvasWidth, canvasHeight);
 
   // ---- PROJECT HEADER BOX ----
-  drawProjectHeader(ctx, canvasWidth, projectName, options);
+  drawProjectHeader(d2d, canvasWidth, projectName, options);
 
   // ---- GANTT CHART AREA ----
 
@@ -385,11 +366,11 @@ export function renderPrintCanvas(
       const isWeekend = dow === 6 || dow === 7;
 
       if (isHoliday) {
-        ctx.fillStyle = PRINT_COLORS.gridHoliday;
-        ctx.fillRect(x, chartTop, zoom, chartBottom - chartTop);
+        d2d.fillStyle = PRINT_COLORS.gridHoliday;
+        d2d.fillRect(x, chartTop, zoom, chartBottom - chartTop);
       } else if (isWeekend) {
-        ctx.fillStyle = PRINT_COLORS.gridWeekend;
-        ctx.fillRect(x, chartTop, zoom, chartBottom - chartTop);
+        d2d.fillStyle = PRINT_COLORS.gridWeekend;
+        d2d.fillRect(x, chartTop, zoom, chartBottom - chartTop);
       }
     }
   }
@@ -397,8 +378,8 @@ export function renderPrintCanvas(
   // Alternating row backgrounds in chart area
   for (let i = 0; i < flatTasks.length; i++) {
     if (i % 2 === 0) {
-      ctx.fillStyle = 'rgba(249, 250, 251, 0.3)';
-      ctx.fillRect(TABLE_WIDTH, rowToY(i), chartWidth, ROW_HEIGHT);
+      d2d.fillStyle = 'rgba(249, 250, 251, 0.3)';
+      d2d.fillRect(TABLE_WIDTH, rowToY(i), chartWidth, ROW_HEIGHT);
     }
   }
 
@@ -408,49 +389,49 @@ export function renderPrintCanvas(
     const x = dateToX(date);
     const dow = isoDayOfWeek(date);
 
-    ctx.strokeStyle = PRINT_COLORS.grid;
-    ctx.lineWidth = dow === 1 ? 0.8 : 0.2;
-    ctx.beginPath();
-    ctx.moveTo(x, chartTop);
-    ctx.lineTo(x, chartBottom);
-    ctx.stroke();
+    d2d.strokeStyle = PRINT_COLORS.grid;
+    d2d.lineWidth = dow === 1 ? 0.8 : 0.2;
+    d2d.beginPath();
+    d2d.moveTo(x, chartTop);
+    d2d.lineTo(x, chartBottom);
+    d2d.stroke();
   }
 
   // Horizontal grid lines in chart area
   for (let i = 0; i <= flatTasks.length; i++) {
     const y = rowToY(i);
-    ctx.strokeStyle = PRINT_COLORS.grid;
-    ctx.lineWidth = 0.3;
-    ctx.beginPath();
-    ctx.moveTo(TABLE_WIDTH, y);
-    ctx.lineTo(canvasWidth, y);
-    ctx.stroke();
+    d2d.strokeStyle = PRINT_COLORS.grid;
+    d2d.lineWidth = 0.3;
+    d2d.beginPath();
+    d2d.moveTo(TABLE_WIDTH, y);
+    d2d.lineTo(canvasWidth, y);
+    d2d.stroke();
   }
 
   // Today line
   const today = new Date();
   const todayX = dateToX(today);
   if (todayX > TABLE_WIDTH && todayX < canvasWidth) {
-    ctx.strokeStyle = PRINT_COLORS.today;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([5, 3]);
-    ctx.beginPath();
-    ctx.moveTo(todayX, chartTop);
-    ctx.lineTo(todayX, chartBottom);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    d2d.strokeStyle = PRINT_COLORS.today;
+    d2d.lineWidth = 1.5;
+    d2d.setLineDash([5, 3]);
+    d2d.beginPath();
+    d2d.moveTo(todayX, chartTop);
+    d2d.lineTo(todayX, chartBottom);
+    d2d.stroke();
+    d2d.setLineDash([]);
 
     // "Today" label
-    ctx.fillStyle = PRINT_COLORS.today;
-    ctx.font = `bold 7px ${FONT_FAMILY}`;
-    ctx.textAlign = 'center';
-    ctx.fillText('Today', todayX, chartTop - 2);
-    ctx.textAlign = 'left';
+    d2d.fillStyle = PRINT_COLORS.today;
+    d2d.font = `bold 7px ${FONT_FAMILY}`;
+    d2d.textAlign = 'center';
+    d2d.fillText('Today', todayX, chartTop - 2);
+    d2d.textAlign = 'left';
   }
 
   // Dependency arrows
   if (options.showDeps) {
-    drawDependencies(ctx, flatTasks, sequences, dateToX, rowToY, zoom);
+    drawDependencies(d2d, flatTasks, sequences, dateToX, rowToY, zoom);
   }
 
   // Task bars
@@ -468,18 +449,18 @@ export function renderPrintCanvas(
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
 
-      ctx.fillStyle = PRINT_COLORS.milestone;
-      ctx.beginPath();
-      ctx.moveTo(x, cy - size);
-      ctx.lineTo(x + size, cy);
-      ctx.lineTo(x, cy + size);
-      ctx.lineTo(x - size, cy);
-      ctx.closePath();
-      ctx.fill();
+      d2d.fillStyle = PRINT_COLORS.milestone;
+      d2d.beginPath();
+      d2d.moveTo(x, cy - size);
+      d2d.lineTo(x + size, cy);
+      d2d.lineTo(x, cy + size);
+      d2d.lineTo(x - size, cy);
+      d2d.closePath();
+      d2d.fill();
 
       // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
-        drawBarLabel(ctx, task.name, x + size, x - size, cy + 3, canvasWidth, PRINT_COLORS.text, `9px ${FONT_FAMILY}`);
+        drawBarLabel(d2d, task.name, x + size, x - size, cy + 3, canvasWidth, PRINT_COLORS.text, `9px ${FONT_FAMILY}`);
       }
     } else if (task.childIds.length > 0) {
       // Summary bracket bar
@@ -491,28 +472,28 @@ export function renderPrintCanvas(
       const barY = y + barHeight * 0.3;
       const barH = barHeight * 0.3;
 
-      ctx.fillStyle = PRINT_COLORS.summary;
-      ctx.fillRect(x1, barY, width, barH);
+      d2d.fillStyle = PRINT_COLORS.summary;
+      d2d.fillRect(x1, barY, width, barH);
 
       // Left triangle
-      ctx.beginPath();
-      ctx.moveTo(x1, barY);
-      ctx.lineTo(x1, barY + barH + 5);
-      ctx.lineTo(x1 + 6, barY + barH);
-      ctx.closePath();
-      ctx.fill();
+      d2d.beginPath();
+      d2d.moveTo(x1, barY);
+      d2d.lineTo(x1, barY + barH + 5);
+      d2d.lineTo(x1 + 6, barY + barH);
+      d2d.closePath();
+      d2d.fill();
 
       // Right triangle
-      ctx.beginPath();
-      ctx.moveTo(x1 + width, barY);
-      ctx.lineTo(x1 + width, barY + barH + 5);
-      ctx.lineTo(x1 + width - 6, barY + barH);
-      ctx.closePath();
-      ctx.fill();
+      d2d.beginPath();
+      d2d.moveTo(x1 + width, barY);
+      d2d.lineTo(x1 + width, barY + barH + 5);
+      d2d.lineTo(x1 + width - 6, barY + barH);
+      d2d.closePath();
+      d2d.fill();
 
       // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
-        drawBarLabel(ctx, task.name, x1 + width, x1, y + barHeight / 2 + 3, canvasWidth, PRINT_COLORS.text, `bold 9px ${FONT_FAMILY}`);
+        drawBarLabel(d2d, task.name, x1 + width, x1, y + barHeight / 2 + 3, canvasWidth, PRINT_COLORS.text, `bold 9px ${FONT_FAMILY}`);
       }
     } else {
       // Normal task bar
@@ -525,51 +506,79 @@ export function renderPrintCanvas(
       const color = isCritical ? PRINT_COLORS.critical : PRINT_COLORS.normal;
 
       // Main bar with rounded corners
-      ctx.fillStyle = color;
-      roundRect(ctx, x1, y, width, barHeight, 3);
-      ctx.fill();
+      d2d.fillStyle = color;
+      d2d.roundRect(x1, y, width, barHeight, 3);
+      d2d.fill();
 
       // Completion overlay (darker shade)
       if (options.showCompletion && task.time.completion > 0) {
         const progressWidth = width * task.time.completion;
-        ctx.fillStyle = isCritical ? PRINT_COLORS.criticalDark : PRINT_COLORS.normalDark;
-        roundRect(ctx, x1, y, progressWidth, barHeight, 3);
-        ctx.fill();
+        d2d.fillStyle = isCritical ? PRINT_COLORS.criticalDark : PRINT_COLORS.normalDark;
+        d2d.roundRect(x1, y, progressWidth, barHeight, 3);
+        d2d.fill();
       }
 
       // Float indicator
       if (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical) {
         const floatWidth = task.time.totalFloat * zoom;
-        ctx.fillStyle = PRINT_COLORS.float + '40';
-        roundRect(ctx, x2, y + barHeight * 0.2, floatWidth, barHeight * 0.6, 2);
-        ctx.fill();
+        d2d.fillStyle = PRINT_COLORS.float + '40';
+        d2d.roundRect(x2, y + barHeight * 0.2, floatWidth, barHeight * 0.6, 2);
+        d2d.fill();
       }
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
         const hasFloat = options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical;
         const barRightX = x2 + (hasFloat ? task.time.totalFloat * zoom : 0);
-        drawBarLabel(ctx, task.name, barRightX, x1, y + barHeight / 2 + 3, canvasWidth, PRINT_COLORS.text, `9px ${FONT_FAMILY}`);
+        drawBarLabel(d2d, task.name, barRightX, x1, y + barHeight / 2 + 3, canvasWidth, PRINT_COLORS.text, `9px ${FONT_FAMILY}`);
       }
     }
   }
 
   // ---- TIMELINE HEADER ----
-  drawTimelineHeader(ctx, canvasWidth, minDate, totalDays, zoom, dateToX, options);
+  drawTimelineHeader(d2d, canvasWidth, minDate, totalDays, zoom, dateToX, options);
 
   // ---- TASK TABLE ----
-  drawTaskTable(ctx, flatTasks, depthMap, canvasHeight, cols, options);
+  drawTaskTable(d2d, flatTasks, depthMap, canvasHeight, cols, options);
 
   // ---- FOOTER ----
-  drawFooter(ctx, canvasWidth, canvasHeight, projectName, options);
+  drawFooter(d2d, canvasWidth, canvasHeight, projectName, options);
 
   return { width: canvasWidth, height: canvasHeight, tableWidth: TABLE_WIDTH };
 }
 
 
+/**
+ * Render het print-rapport naar een canvas (raster/preview). Dunne wrapper over {@link renderReport}
+ * met de canvas-backend: alle teken-logica leeft in `renderReport`, hier wordt alleen de Draw2D-
+ * backend gekozen. Geeft de logische (CSS) afmetingen terug.
+ *
+ * `renderScale` overschrijft de raster-vs-logisch-multiplier (`canvas.width = logicalWidth *
+ * renderScale`); default `window.devicePixelRatio || 2` zodat de on-screen preview z'n bestaande
+ * gedrag houdt. De PDF-raster-export geeft een hogere vaste schaal door (zie `computeHighResScale`
+ * in `@/utils/miniPdf`) zodat de geëxporteerde rasterresolutie niet afhangt van de schermdichtheid
+ * van de exporterende gebruiker — een 1x/headless browser zou anders een wazig 96-DPI-beeld inbedden.
+ */
+export function renderPrintCanvas(
+  canvas: HTMLCanvasElement,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+  renderScale?: number,
+): RenderReportResult {
+  const dpr = renderScale ?? (window.devicePixelRatio || 2);
+  return renderReport(
+    (w, h) => new CanvasDraw2D(canvas, w, h, dpr),
+    tasks, sequences, calendar, projectName, options,
+  );
+}
+
+
 /** Draw the project header box at the top of the page */
 function drawProjectHeader(
-  ctx: CanvasRenderingContext2D,
+  d2d: Draw2D,
   canvasWidth: number,
   projectName: string,
   options: PrintOptions,
@@ -577,35 +586,35 @@ function drawProjectHeader(
   const hh = PROJECT_HEADER_HEIGHT;
 
   // Background
-  ctx.fillStyle = PRINT_COLORS.bg;
-  ctx.fillRect(0, 0, canvasWidth, hh);
+  d2d.fillStyle = PRINT_COLORS.bg;
+  d2d.fillRect(0, 0, canvasWidth, hh);
 
   // Border
-  ctx.strokeStyle = PRINT_COLORS.borderDark;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(0.5, 0.5, canvasWidth - 1, hh - 1);
+  d2d.strokeStyle = PRINT_COLORS.borderDark;
+  d2d.lineWidth = 1;
+  d2d.strokeRect(0.5, 0.5, canvasWidth - 1, hh - 1);
 
   // Right-aligned branding — eerst tekenen + meten, zodat we de projectnaam ernaast kunnen inkorten
   // en overlap voorkomen (klacht 7).
   const brandText = 'Open Planner Studio';
-  ctx.fillStyle = PRINT_COLORS.textSecondary;
-  ctx.font = `8px ${FONT_FAMILY}`;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'right';
-  ctx.fillText(brandText, canvasWidth - 10, 16);
-  const brandWidth = ctx.measureText(brandText).width;
+  d2d.fillStyle = PRINT_COLORS.textSecondary;
+  d2d.font = `8px ${FONT_FAMILY}`;
+  d2d.textBaseline = 'middle';
+  d2d.textAlign = 'right';
+  d2d.fillText(brandText, canvasWidth - 10, 16);
+  const brandWidth = d2d.measureText(brandText).width;
 
   // Project name (large, bold) — inkorten zodat hij niet tot in de branding loopt
-  ctx.fillStyle = PRINT_COLORS.text;
-  ctx.font = `bold 14px ${FONT_FAMILY}`;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left';
+  d2d.fillStyle = PRINT_COLORS.text;
+  d2d.font = `bold 14px ${FONT_FAMILY}`;
+  d2d.textBaseline = 'middle';
+  d2d.textAlign = 'left';
   const nameMaxW = (canvasWidth - 10 - brandWidth - 12) - 10;
-  ctx.fillText(fitText(ctx, projectName, nameMaxW), 10, 16);
+  d2d.fillText(fitText(d2d, projectName, nameMaxW), 10, 16);
 
   // Row 2: Company | Author | Print date | Version
-  ctx.font = `9px ${FONT_FAMILY}`;
-  ctx.fillStyle = PRINT_COLORS.textSecondary;
+  d2d.font = `9px ${FONT_FAMILY}`;
+  d2d.fillStyle = PRINT_COLORS.textSecondary;
   const row2Y = 34;
   const rowMaxW = canvasWidth - 20; // binnen de paginabreedte houden (klacht 7)
 
@@ -619,7 +628,7 @@ function drawProjectHeader(
   if (authorLabel) row2Text += (row2Text ? '  |  ' : '') + authorLabel;
   row2Text += (row2Text ? '  |  ' : '') + `${options.labels?.printed ?? 'Printed:'} ${printDate}`;
 
-  ctx.fillText(fitText(ctx, row2Text, rowMaxW), 10, row2Y);
+  d2d.fillText(fitText(d2d, row2Text, rowMaxW), 10, row2Y);
 
   // Row 3: Project dates and duration
   const row3Y = 48;
@@ -639,16 +648,16 @@ function drawProjectHeader(
     row3Text += `  |  Duur: ${dur}d`;
   }
 
-  ctx.fillText(fitText(ctx, row3Text, rowMaxW), 10, row3Y);
+  d2d.fillText(fitText(d2d, row3Text, rowMaxW), 10, row3Y);
 
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
+  d2d.textAlign = 'left';
+  d2d.textBaseline = 'alphabetic';
 }
 
 
 /** Draw the timeline header with month/week/day rows */
 function drawTimelineHeader(
-  ctx: CanvasRenderingContext2D,
+  d2d: Draw2D,
   canvasWidth: number,
   minDate: Date,
   totalDays: number,
@@ -662,24 +671,24 @@ function drawTimelineHeader(
   const weekRowH = h / 2;
 
   // Background
-  ctx.fillStyle = PRINT_COLORS.headerBg;
-  ctx.fillRect(0, top, canvasWidth, h);
+  d2d.fillStyle = PRINT_COLORS.headerBg;
+  d2d.fillRect(0, top, canvasWidth, h);
 
   // Bottom border
-  ctx.strokeStyle = PRINT_COLORS.border;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, top + h);
-  ctx.lineTo(canvasWidth, top + h);
-  ctx.stroke();
+  d2d.strokeStyle = PRINT_COLORS.border;
+  d2d.lineWidth = 1;
+  d2d.beginPath();
+  d2d.moveTo(0, top + h);
+  d2d.lineTo(canvasWidth, top + h);
+  d2d.stroke();
 
   // Mid border between month and week rows
-  ctx.strokeStyle = PRINT_COLORS.grid;
-  ctx.lineWidth = 0.5;
-  ctx.beginPath();
-  ctx.moveTo(TABLE_WIDTH, top + monthRowH);
-  ctx.lineTo(canvasWidth, top + monthRowH);
-  ctx.stroke();
+  d2d.strokeStyle = PRINT_COLORS.grid;
+  d2d.lineWidth = 0.5;
+  d2d.beginPath();
+  d2d.moveTo(TABLE_WIDTH, top + monthRowH);
+  d2d.lineTo(canvasWidth, top + monthRowH);
+  d2d.stroke();
 
   const months = options.localizedMonths ?? ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
 
@@ -704,23 +713,23 @@ function drawTimelineHeader(
       const label = `${capitalizedMonth} ${date.getUTCFullYear()}`;
 
       // Vertical separator
-      ctx.strokeStyle = PRINT_COLORS.border;
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(x, top);
-      ctx.lineTo(x, top + monthRowH);
-      ctx.stroke();
+      d2d.strokeStyle = PRINT_COLORS.border;
+      d2d.lineWidth = 0.5;
+      d2d.beginPath();
+      d2d.moveTo(x, top);
+      d2d.lineTo(x, top + monthRowH);
+      d2d.stroke();
 
       // Alleen het label tekenen als het niet over het vorige maandlabel heen loopt (klacht 7);
       // liever een gat dan over-elkaar-lopende tekst.
-      ctx.font = `bold 10px ${FONT_FAMILY}`;
+      d2d.font = `bold 10px ${FONT_FAMILY}`;
       const monthLabelStart = x + 4;
       if (monthLabelStart >= lastMonthLabelRight + 6) {
-        ctx.fillStyle = PRINT_COLORS.text;
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'left';
-        ctx.fillText(label, monthLabelStart, top + monthRowH / 2);
-        lastMonthLabelRight = monthLabelStart + ctx.measureText(label).width;
+        d2d.fillStyle = PRINT_COLORS.text;
+        d2d.textBaseline = 'middle';
+        d2d.textAlign = 'left';
+        d2d.fillText(label, monthLabelStart, top + monthRowH / 2);
+        lastMonthLabelRight = monthLabelStart + d2d.measureText(label).width;
       }
     }
 
@@ -729,23 +738,23 @@ function drawTimelineHeader(
       lastWeek = weekNum;
 
       // Vertical separator
-      ctx.strokeStyle = PRINT_COLORS.grid;
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(x, top + monthRowH);
-      ctx.lineTo(x, top + h);
-      ctx.stroke();
+      d2d.strokeStyle = PRINT_COLORS.grid;
+      d2d.lineWidth = 0.5;
+      d2d.beginPath();
+      d2d.moveTo(x, top + monthRowH);
+      d2d.lineTo(x, top + h);
+      d2d.stroke();
 
       // Alleen tekenen als er ruimte is t.o.v. het vorige weeklabel (klacht 7).
       const weekLabel = `W${weekNum}`;
       const weekLabelStart = x + 2;
-      ctx.font = `9px ${FONT_FAMILY}`;
+      d2d.font = `9px ${FONT_FAMILY}`;
       if (weekLabelStart >= lastWeekLabelRight + 4) {
-        ctx.fillStyle = PRINT_COLORS.textSecondary;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(weekLabel, weekLabelStart, top + monthRowH + weekRowH / 2);
-        lastWeekLabelRight = weekLabelStart + ctx.measureText(weekLabel).width;
+        d2d.fillStyle = PRINT_COLORS.textSecondary;
+        d2d.textAlign = 'left';
+        d2d.textBaseline = 'middle';
+        d2d.fillText(weekLabel, weekLabelStart, top + monthRowH + weekRowH / 2);
+        lastWeekLabelRight = weekLabelStart + d2d.measureText(weekLabel).width;
       }
     }
 
@@ -753,67 +762,67 @@ function drawTimelineHeader(
     if (zoom > 15) {
       const dayNum = date.getUTCDate();
       if (dow !== 6 && dow !== 7) { // Skip weekend days for cleaner display
-        ctx.fillStyle = PRINT_COLORS.textSecondary;
-        ctx.font = `7px ${FONT_FAMILY}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(String(dayNum), x + zoom / 2, top + h - 1);
+        d2d.fillStyle = PRINT_COLORS.textSecondary;
+        d2d.font = `7px ${FONT_FAMILY}`;
+        d2d.textAlign = 'center';
+        d2d.textBaseline = 'bottom';
+        d2d.fillText(String(dayNum), x + zoom / 2, top + h - 1);
       }
     }
   }
 
   // Table header area (left side of timeline header)
-  ctx.fillStyle = PRINT_COLORS.headerBg;
-  ctx.fillRect(0, top, TABLE_WIDTH, h);
+  d2d.fillStyle = PRINT_COLORS.headerBg;
+  d2d.fillRect(0, top, TABLE_WIDTH, h);
 
   // Table column headers
   const cols = getColPositions();
-  ctx.fillStyle = PRINT_COLORS.text;
-  ctx.font = `bold 9px ${FONT_FAMILY}`;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
+  d2d.fillStyle = PRINT_COLORS.text;
+  d2d.font = `bold 9px ${FONT_FAMILY}`;
+  d2d.textBaseline = 'middle';
+  d2d.textAlign = 'center';
   const headerY = top + h / 2;
 
   const th = options.labels?.tableHeaders;
-  ctx.fillText(th?.rowNum ?? '#', cols.rowNum.x + cols.rowNum.w / 2, headerY);
-  ctx.fillText(th?.wbs ?? 'WBS', cols.wbs.x + cols.wbs.w / 2, headerY);
+  d2d.fillText(th?.rowNum ?? '#', cols.rowNum.x + cols.rowNum.w / 2, headerY);
+  d2d.fillText(th?.wbs ?? 'WBS', cols.wbs.x + cols.wbs.w / 2, headerY);
 
-  ctx.textAlign = 'left';
-  ctx.fillText(th?.taskName ?? 'Taaknaam', cols.name.x + 4, headerY);
+  d2d.textAlign = 'left';
+  d2d.fillText(th?.taskName ?? 'Taaknaam', cols.name.x + 4, headerY);
 
-  ctx.textAlign = 'center';
-  ctx.fillText(th?.duration ?? 'Duur', cols.duration.x + cols.duration.w / 2, headerY);
-  ctx.fillText(th?.start ?? 'Start', cols.start.x + cols.start.w / 2, headerY);
-  ctx.fillText(th?.end ?? 'Einde', cols.end.x + cols.end.w / 2, headerY);
-  ctx.fillText(th?.completion ?? 'Volt.', cols.complete.x + cols.complete.w / 2, headerY);
+  d2d.textAlign = 'center';
+  d2d.fillText(th?.duration ?? 'Duur', cols.duration.x + cols.duration.w / 2, headerY);
+  d2d.fillText(th?.start ?? 'Start', cols.start.x + cols.start.w / 2, headerY);
+  d2d.fillText(th?.end ?? 'Einde', cols.end.x + cols.end.w / 2, headerY);
+  d2d.fillText(th?.completion ?? 'Volt.', cols.complete.x + cols.complete.w / 2, headerY);
 
   // Column separator lines in header
-  ctx.strokeStyle = PRINT_COLORS.border;
-  ctx.lineWidth = 0.5;
+  d2d.strokeStyle = PRINT_COLORS.border;
+  d2d.lineWidth = 0.5;
   const colBorders = [cols.wbs.x, cols.name.x, cols.duration.x, cols.start.x, cols.end.x, cols.complete.x, TABLE_WIDTH];
   for (const cx of colBorders) {
-    ctx.beginPath();
-    ctx.moveTo(cx, top);
-    ctx.lineTo(cx, top + h);
-    ctx.stroke();
+    d2d.beginPath();
+    d2d.moveTo(cx, top);
+    d2d.lineTo(cx, top + h);
+    d2d.stroke();
   }
 
   // Bottom border for header
-  ctx.strokeStyle = PRINT_COLORS.borderDark;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, top + h);
-  ctx.lineTo(TABLE_WIDTH, top + h);
-  ctx.stroke();
+  d2d.strokeStyle = PRINT_COLORS.borderDark;
+  d2d.lineWidth = 1;
+  d2d.beginPath();
+  d2d.moveTo(0, top + h);
+  d2d.lineTo(TABLE_WIDTH, top + h);
+  d2d.stroke();
 
-  ctx.textBaseline = 'alphabetic';
-  ctx.textAlign = 'left';
+  d2d.textBaseline = 'alphabetic';
+  d2d.textAlign = 'left';
 }
 
 
 /** Draw the task table (left side) */
 function drawTaskTable(
-  ctx: CanvasRenderingContext2D,
+  d2d: Draw2D,
   flatTasks: PrintTask[],
   depthMap: Map<string, number>,
   canvasHeight: number,
@@ -823,8 +832,8 @@ function drawTaskTable(
   const chartBottom = canvasHeight - FOOTER_HEIGHT;
 
   // Table background
-  ctx.fillStyle = PRINT_COLORS.bg;
-  ctx.fillRect(0, TOTAL_HEADER_HEIGHT, TABLE_WIDTH, chartBottom - TOTAL_HEADER_HEIGHT);
+  d2d.fillStyle = PRINT_COLORS.bg;
+  d2d.fillRect(0, TOTAL_HEADER_HEIGHT, TABLE_WIDTH, chartBottom - TOTAL_HEADER_HEIGHT);
 
   // Task rows
   for (let i = 0; i < flatTasks.length; i++) {
@@ -837,108 +846,108 @@ function drawTaskTable(
 
     // Alternating row background
     if (i % 2 === 0) {
-      ctx.fillStyle = PRINT_COLORS.rowEven;
-      ctx.fillRect(0, y, TABLE_WIDTH, ROW_HEIGHT);
+      d2d.fillStyle = PRINT_COLORS.rowEven;
+      d2d.fillRect(0, y, TABLE_WIDTH, ROW_HEIGHT);
     }
 
     // Row border
-    ctx.strokeStyle = PRINT_COLORS.grid;
-    ctx.lineWidth = 0.3;
-    ctx.beginPath();
-    ctx.moveTo(0, y + ROW_HEIGHT);
-    ctx.lineTo(TABLE_WIDTH, y + ROW_HEIGHT);
-    ctx.stroke();
+    d2d.strokeStyle = PRINT_COLORS.grid;
+    d2d.lineWidth = 0.3;
+    d2d.beginPath();
+    d2d.moveTo(0, y + ROW_HEIGHT);
+    d2d.lineTo(TABLE_WIDTH, y + ROW_HEIGHT);
+    d2d.stroke();
 
     // Row number
-    ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.font = `8px ${FONT_FAMILY}`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), cols.rowNum.x + cols.rowNum.w - 4, textY);
+    d2d.fillStyle = PRINT_COLORS.textSecondary;
+    d2d.font = `8px ${FONT_FAMILY}`;
+    d2d.textAlign = 'right';
+    d2d.textBaseline = 'middle';
+    d2d.fillText(String(i + 1), cols.rowNum.x + cols.rowNum.w - 4, textY);
 
     // WBS
-    ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.font = `8px ${FONT_FAMILY}`;
-    ctx.textAlign = 'left';
-    ctx.fillText(task.wbsCode || '', cols.wbs.x + 4, textY);
+    d2d.fillStyle = PRINT_COLORS.textSecondary;
+    d2d.font = `8px ${FONT_FAMILY}`;
+    d2d.textAlign = 'left';
+    d2d.fillText(task.wbsCode || '', cols.wbs.x + 4, textY);
 
     // Name with indentation — afkorten met ellipsis i.p.v. hard clippen (klacht 4a)
-    ctx.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
-    ctx.font = isSummary ? `bold 9px ${FONT_FAMILY}` : `9px ${FONT_FAMILY}`;
-    ctx.textAlign = 'left';
+    d2d.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
+    d2d.font = isSummary ? `bold 9px ${FONT_FAMILY}` : `9px ${FONT_FAMILY}`;
+    d2d.textAlign = 'left';
     const nameX = cols.name.x + 4 + indent;
     const nameAvail = cols.name.x + cols.name.w - 2 - nameX; // kleine padding vóór de kolomrand
-    ctx.fillText(fitText(ctx, task.name, nameAvail), nameX, textY);
+    d2d.fillText(fitText(d2d, task.name, nameAvail), nameX, textY);
 
     // Duration
-    ctx.fillStyle = PRINT_COLORS.textSecondary;
-    ctx.font = `8px ${FONT_FAMILY}`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(formatDuration(task.time.scheduleDuration), cols.duration.x + cols.duration.w - 4, textY);
+    d2d.fillStyle = PRINT_COLORS.textSecondary;
+    d2d.font = `8px ${FONT_FAMILY}`;
+    d2d.textAlign = 'right';
+    d2d.textBaseline = 'middle';
+    d2d.fillText(formatDuration(task.time.scheduleDuration), cols.duration.x + cols.duration.w - 4, textY);
 
     // Start date
     const startStr = task.time.earlyStart || task.time.scheduleStart;
     if (startStr) {
       const sd = parseDate(startStr);
-      ctx.fillText(formatDutchDate(sd, options.dateNotation), cols.start.x + cols.start.w - 4, textY);
+      d2d.fillText(formatDutchDate(sd, options.dateNotation), cols.start.x + cols.start.w - 4, textY);
     }
 
     // End date
     const endStr = task.time.earlyFinish || task.time.scheduleFinish;
     if (endStr) {
       const ed = parseDate(endStr);
-      ctx.fillText(formatDutchDate(ed, options.dateNotation), cols.end.x + cols.end.w - 4, textY);
+      d2d.fillText(formatDutchDate(ed, options.dateNotation), cols.end.x + cols.end.w - 4, textY);
     }
 
     // Completion
     if (options.showCompletion) {
-      ctx.fillText(formatCompletion(task.time.completion), cols.complete.x + cols.complete.w - 4, textY);
+      d2d.fillText(formatCompletion(task.time.completion), cols.complete.x + cols.complete.w - 4, textY);
     }
 
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
+    d2d.textAlign = 'left';
+    d2d.textBaseline = 'alphabetic';
   }
 
   // Column separator lines throughout the table
-  ctx.strokeStyle = PRINT_COLORS.grid;
-  ctx.lineWidth = 0.5;
+  d2d.strokeStyle = PRINT_COLORS.grid;
+  d2d.lineWidth = 0.5;
   const colBorders = [cols.wbs.x, cols.name.x, cols.duration.x, cols.start.x, cols.end.x, cols.complete.x];
   for (const cx of colBorders) {
-    ctx.beginPath();
-    ctx.moveTo(cx, TOTAL_HEADER_HEIGHT);
-    ctx.lineTo(cx, chartBottom);
-    ctx.stroke();
+    d2d.beginPath();
+    d2d.moveTo(cx, TOTAL_HEADER_HEIGHT);
+    d2d.lineTo(cx, chartBottom);
+    d2d.stroke();
   }
 
   // Table right border (thick)
-  ctx.strokeStyle = PRINT_COLORS.borderDark;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(TABLE_WIDTH, PROJECT_HEADER_HEIGHT);
-  ctx.lineTo(TABLE_WIDTH, chartBottom);
-  ctx.stroke();
+  d2d.strokeStyle = PRINT_COLORS.borderDark;
+  d2d.lineWidth = 1;
+  d2d.beginPath();
+  d2d.moveTo(TABLE_WIDTH, PROJECT_HEADER_HEIGHT);
+  d2d.lineTo(TABLE_WIDTH, chartBottom);
+  d2d.stroke();
 
   // Table left border
-  ctx.beginPath();
-  ctx.moveTo(0, PROJECT_HEADER_HEIGHT);
-  ctx.lineTo(0, chartBottom);
-  ctx.stroke();
+  d2d.beginPath();
+  d2d.moveTo(0, PROJECT_HEADER_HEIGHT);
+  d2d.lineTo(0, chartBottom);
+  d2d.stroke();
 }
 
 
 /** Draw dependency lines with arrowheads */
 function drawDependencies(
-  ctx: CanvasRenderingContext2D,
+  d2d: Draw2D,
   flatTasks: PrintTask[],
   sequences: Sequence[],
   dateToX: (d: Date) => number,
   rowToY: (i: number) => number,
   zoom: number,
 ) {
-  ctx.strokeStyle = PRINT_COLORS.dependency;
-  ctx.fillStyle = PRINT_COLORS.dependency;
-  ctx.lineWidth = 1.2;
+  d2d.strokeStyle = PRINT_COLORS.dependency;
+  d2d.fillStyle = PRINT_COLORS.dependency;
+  d2d.lineWidth = 1.2;
 
   for (const seq of sequences) {
     const predIdx = flatTasks.findIndex(t => t.id === seq.predecessorId);
@@ -959,27 +968,27 @@ function drawDependencies(
     const gapX = 6;
     const midX = fromX + gapX;
 
-    ctx.beginPath();
-    ctx.moveTo(fromX, predY);
-    ctx.lineTo(midX, predY);
-    ctx.lineTo(midX, succY);
-    ctx.lineTo(toX, succY);
-    ctx.stroke();
+    d2d.beginPath();
+    d2d.moveTo(fromX, predY);
+    d2d.lineTo(midX, predY);
+    d2d.lineTo(midX, succY);
+    d2d.lineTo(toX, succY);
+    d2d.stroke();
 
     // Arrowhead (filled triangle)
-    ctx.beginPath();
-    ctx.moveTo(toX, succY);
-    ctx.lineTo(toX - 5, succY - 3);
-    ctx.lineTo(toX - 5, succY + 3);
-    ctx.closePath();
-    ctx.fill();
+    d2d.beginPath();
+    d2d.moveTo(toX, succY);
+    d2d.lineTo(toX - 5, succY - 3);
+    d2d.lineTo(toX - 5, succY + 3);
+    d2d.closePath();
+    d2d.fill();
   }
 }
 
 
 /** Draw the footer with project info, legend, and page number */
 function drawFooter(
-  ctx: CanvasRenderingContext2D,
+  d2d: Draw2D,
   canvasWidth: number,
   canvasHeight: number,
   projectName: string,
@@ -988,53 +997,53 @@ function drawFooter(
   const footerTop = canvasHeight - FOOTER_HEIGHT;
 
   // Background
-  ctx.fillStyle = PRINT_COLORS.surface;
-  ctx.fillRect(0, footerTop, canvasWidth, FOOTER_HEIGHT);
+  d2d.fillStyle = PRINT_COLORS.surface;
+  d2d.fillRect(0, footerTop, canvasWidth, FOOTER_HEIGHT);
 
   // Top border
-  ctx.strokeStyle = PRINT_COLORS.borderDark;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, footerTop);
-  ctx.lineTo(canvasWidth, footerTop);
-  ctx.stroke();
+  d2d.strokeStyle = PRINT_COLORS.borderDark;
+  d2d.lineWidth = 1;
+  d2d.beginPath();
+  d2d.moveTo(0, footerTop);
+  d2d.lineTo(canvasWidth, footerTop);
+  d2d.stroke();
 
   const midY = footerTop + FOOTER_HEIGHT / 2;
 
   // Left: Project name + print date (breedtes meten voor de dynamische legenda-layout)
-  ctx.fillStyle = PRINT_COLORS.text;
-  ctx.font = `bold 10px ${FONT_FAMILY}`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(projectName, 10, midY - 8);
-  const leftNameW = ctx.measureText(projectName).width;
+  d2d.fillStyle = PRINT_COLORS.text;
+  d2d.font = `bold 10px ${FONT_FAMILY}`;
+  d2d.textAlign = 'left';
+  d2d.textBaseline = 'middle';
+  d2d.fillText(projectName, 10, midY - 8);
+  const leftNameW = d2d.measureText(projectName).width;
 
-  ctx.fillStyle = PRINT_COLORS.textSecondary;
-  ctx.font = `8px ${FONT_FAMILY}`;
+  d2d.fillStyle = PRINT_COLORS.textSecondary;
+  d2d.font = `8px ${FONT_FAMILY}`;
   const printLocale = options.locale ?? 'nl';
   const dateStr = new Date().toLocaleDateString(printLocale, { day: '2-digit', month: 'long', year: 'numeric' });
   const dateText = `${options.labels?.printed ?? 'Afgedrukt:'} ${dateStr}`;
-  ctx.fillText(dateText, 10, midY + 8);
-  const leftBlockRight = 10 + Math.max(leftNameW, ctx.measureText(dateText).width);
+  d2d.fillText(dateText, 10, midY + 8);
+  const leftBlockRight = 10 + Math.max(leftNameW, d2d.measureText(dateText).width);
 
   // Right: Page number + branding (breedtes meten, dan tekenen)
   const pageLabel = options.labels?.page ?? 'Pagina';
   const ofLabel = options.labels?.of ?? 'van';
   const pageText = `${pageLabel} 1 ${ofLabel} 1`;
   const brandText = 'Open Planner Studio';
-  ctx.font = `9px ${FONT_FAMILY}`;
-  const pageW = ctx.measureText(pageText).width;
-  ctx.font = `8px ${FONT_FAMILY}`;
-  const brandW = ctx.measureText(brandText).width;
+  d2d.font = `9px ${FONT_FAMILY}`;
+  const pageW = d2d.measureText(pageText).width;
+  d2d.font = `8px ${FONT_FAMILY}`;
+  const brandW = d2d.measureText(brandText).width;
   const rightBlockLeft = canvasWidth - 10 - Math.max(pageW, brandW);
 
-  ctx.fillStyle = PRINT_COLORS.textSecondary;
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  ctx.font = `9px ${FONT_FAMILY}`;
-  ctx.fillText(pageText, canvasWidth - 10, midY - 6);
-  ctx.font = `8px ${FONT_FAMILY}`;
-  ctx.fillText(brandText, canvasWidth - 10, midY + 8);
+  d2d.fillStyle = PRINT_COLORS.textSecondary;
+  d2d.textAlign = 'right';
+  d2d.textBaseline = 'middle';
+  d2d.font = `9px ${FONT_FAMILY}`;
+  d2d.fillText(pageText, canvasWidth - 10, midY - 6);
+  d2d.font = `8px ${FONT_FAMILY}`;
+  d2d.fillText(brandText, canvasWidth - 10, midY + 8);
 
   // Center: Legend — dynamisch tussen het linker- en rechterblok, items weglaten bij te weinig
   // ruimte i.p.v. over de blokken heen tekenen (klacht 7).
@@ -1051,47 +1060,47 @@ function drawFooter(
 
       if (options.showCritical) {
         items.push({ label: lg?.criticalPath ?? 'Kritiek pad', draw: (x) => {
-          ctx.fillStyle = PRINT_COLORS.critical;
-          roundRect(ctx, x, midY - 5, 16, 10, 2);
-          ctx.fill();
+          d2d.fillStyle = PRINT_COLORS.critical;
+          d2d.roundRect(x, midY - 5, 16, 10, 2);
+          d2d.fill();
         } });
       }
       items.push({ label: lg?.normal ?? 'Normaal', draw: (x) => {
-        ctx.fillStyle = PRINT_COLORS.normal;
-        roundRect(ctx, x, midY - 5, 16, 10, 2);
-        ctx.fill();
+        d2d.fillStyle = PRINT_COLORS.normal;
+        d2d.roundRect(x, midY - 5, 16, 10, 2);
+        d2d.fill();
       } });
       items.push({ label: lg?.milestone ?? 'Mijlpaal', draw: (x) => {
-        ctx.fillStyle = PRINT_COLORS.milestone;
+        d2d.fillStyle = PRINT_COLORS.milestone;
         const mx = x + 8;
-        ctx.beginPath();
-        ctx.moveTo(mx, midY - 5);
-        ctx.lineTo(mx + 5, midY);
-        ctx.lineTo(mx, midY + 5);
-        ctx.lineTo(mx - 5, midY);
-        ctx.closePath();
-        ctx.fill();
+        d2d.beginPath();
+        d2d.moveTo(mx, midY - 5);
+        d2d.lineTo(mx + 5, midY);
+        d2d.lineTo(mx, midY + 5);
+        d2d.lineTo(mx - 5, midY);
+        d2d.closePath();
+        d2d.fill();
       } });
       items.push({ label: lg?.summary ?? 'Samenvatting', draw: (x) => {
-        ctx.fillStyle = PRINT_COLORS.summary;
-        ctx.fillRect(x, midY - 2, 16, 4);
-        ctx.beginPath();
-        ctx.moveTo(x, midY - 2);
-        ctx.lineTo(x, midY + 5);
-        ctx.lineTo(x + 4, midY + 2);
-        ctx.closePath();
-        ctx.fill();
+        d2d.fillStyle = PRINT_COLORS.summary;
+        d2d.fillRect(x, midY - 2, 16, 4);
+        d2d.beginPath();
+        d2d.moveTo(x, midY - 2);
+        d2d.lineTo(x, midY + 5);
+        d2d.lineTo(x + 4, midY + 2);
+        d2d.closePath();
+        d2d.fill();
       } });
       if (options.showFloat) {
         items.push({ label: lg?.float ?? 'Speling', draw: (x) => {
-          ctx.fillStyle = PRINT_COLORS.float + '40';
-          ctx.fillRect(x, midY - 4, 16, 8);
+          d2d.fillStyle = PRINT_COLORS.float + '40';
+          d2d.fillRect(x, midY - 4, 16, 8);
         } });
       }
 
-      ctx.font = `8px ${FONT_FAMILY}`;
-      ctx.textBaseline = 'middle';
-      const widths = items.map(it => swatchW + 4 + ctx.measureText(it.label).width);
+      d2d.font = `8px ${FONT_FAMILY}`;
+      d2d.textBaseline = 'middle';
+      const widths = items.map(it => swatchW + 4 + d2d.measureText(it.label).width);
       const measure = (n: number) => widths.slice(0, n).reduce((a, b) => a + b, 0) + gap * Math.max(0, n - 1);
       let visible = items.length;
       while (visible > 0 && measure(visible) > availSpan) visible--;
@@ -1099,14 +1108,14 @@ function drawFooter(
       let lx = availLeft + Math.max(0, (availSpan - measure(visible)) / 2);
       for (let k = 0; k < visible; k++) {
         items[k].draw(lx);
-        ctx.fillStyle = PRINT_COLORS.textSecondary;
-        ctx.textAlign = 'left';
-        ctx.fillText(items[k].label, lx + swatchW + 4, midY);
+        d2d.fillStyle = PRINT_COLORS.textSecondary;
+        d2d.textAlign = 'left';
+        d2d.fillText(items[k].label, lx + swatchW + 4, midY);
         lx += widths[k] + gap;
       }
     }
   }
 
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
+  d2d.textAlign = 'left';
+  d2d.textBaseline = 'alphabetic';
 }

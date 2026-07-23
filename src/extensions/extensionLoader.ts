@@ -64,6 +64,12 @@ export interface StoredExtension {
   manifest: ExtensionManifest;
   mainCode: string;
   enabled: boolean;
+  /**
+   * Binaire, mee-verpakte assets (de niet-`main`/`manifest`-bestanden uit de installatie-ZIP),
+   * op naam → rauwe bytes. Optioneel en backward-compat: oude records zonder `assets` (en los
+   * `.js`-geïnstalleerde extensies) blijven geldig; de extensie krijgt dan een lege asset-set.
+   */
+  assets?: Record<string, Uint8Array>;
 }
 
 export async function saveExtensionToDb(ext: StoredExtension): Promise<void> {
@@ -169,7 +175,7 @@ export async function enableExtension(id: string): Promise<void> {
     // chokepoint: elke activatie (zip/js/catalogus/devBridge/DB-load) loopt hierlangs, dus dit
     // dekt óók manifesten die al in IndexedDB staan met een permissie die deze versie niet kent.
     const permissions = sanitizeManifestPermissions(stored.manifest.permissions, id);
-    api = createExtensionApi(id, permissions);
+    api = createExtensionApi(id, permissions, stored.assets);
 
     await plugin.onLoad(api);
 

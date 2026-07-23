@@ -28,7 +28,8 @@ export function useVarianceResult(): VarianceResult {
   }, [tasks, cpmResult, baselines, activeBaselineId, calendar]);
 }
 
-const STATUS_COLOR: Record<VarianceStatus, string> = {
+/** Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */
+export const STATUS_COLOR: Record<VarianceStatus, string> = {
   onSchedule: '#10B981',
   late: '#DC2626',
   early: '#2563EB',
@@ -38,7 +39,8 @@ const STATUS_COLOR: Record<VarianceStatus, string> = {
 
 const COLUMNS = ['wbs', 'name', 'baselineStart', 'baselineFinish', 'currentStart', 'currentFinish', 'deltaStart', 'deltaFinish', 'status'] as const;
 
-function fmtDelta(v: number | undefined): string {
+/** Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde delta-formattering gebruikt. */
+export function fmtDelta(v: number | undefined): string {
   if (v === undefined) return '—';
   return v > 0 ? `+${v}` : `${v}`;
 }

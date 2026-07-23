@@ -21,6 +21,7 @@ const CATEGORY_COLORS: Record<ExtensionCategory, string> = {
   Planning: '#3b82f6',
   Reporting: '#8b5cf6',
   Utility: '#6b7280',
+  Fonts: '#f59e0b',
   Other: '#6b7280',
 };
 

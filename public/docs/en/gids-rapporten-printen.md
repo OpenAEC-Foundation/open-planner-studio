@@ -66,10 +66,14 @@ table as displayed.
 
 Only the Gantt report also has an **Export PDF** button. That saves the current preview as an
 actual PDF file (filename ending in `-planning.pdf`) — one page sized to the physical dimensions
-of the chosen paper size and orientation, with the report embedded full-page as an image. Handy
-for email or archiving without going through the system print dialog. If you'd rather print
-directly (or save to PDF via the system dialog, e.g. to pick a different paper size than the one
-configured above), use **Print...**.
+of the chosen paper size and orientation. The PDF file is **vector-based**: bars, lines and text
+are stored as PDF drawing instructions rather than a single embedded image, so it stays crisp at
+any zoom level and the text is selectable and searchable in any PDF viewer. This applies to Latin,
+Cyrillic and Greek text; if the project contains Chinese, Japanese, Korean, Arabic or Persian text,
+the export automatically falls back to a raster image for that text — still correctly displayed,
+but not selectable or searchable. Handy for email or archiving without going through the system
+print dialog. If you'd rather print directly (or save to PDF via the system dialog, e.g. to pick a
+different paper size than the one configured above), use **Print...**.
 
 ## Reports in practice
 

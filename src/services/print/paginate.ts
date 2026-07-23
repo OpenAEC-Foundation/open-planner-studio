@@ -61,14 +61,14 @@ export interface PaginatedTiles {
 }
 
 /** Paginamaten in PDF-punten (1/72 inch), portret; landscape = omgewisseld. */
-const PAPER_PT: Record<PaperSize, { width: number; height: number }> = {
+export const PAPER_PT: Record<PaperSize, { width: number; height: number }> = {
   a4: { width: 595.28, height: 841.89 },
   a3: { width: 841.89, height: 1190.55 },
   a1: { width: 1683.78, height: 2383.94 },
 };
 
 /** Ruimte onderaan (punten) gereserveerd voor het paginanummer in de marge. */
-const FOOTER_PT = 14;
+export const FOOTER_PT = 14;
 /** Supersample-factor: teken op punt-resolutie × deze factor voor scherpe tekst; MediaBox blijft de echte puntmaat. */
 const SUPERSAMPLE = 2;
 

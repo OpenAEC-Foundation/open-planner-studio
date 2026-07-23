@@ -50,6 +50,12 @@ export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
   'ui.addRibbonButton': { perm: 'ribbon', mode: 'throw' },
   'ui.showNotification': null,
 
+  // PDF-font-providers — hard (net als ui.addRibbonButton).
+  'pdfFonts.register': { perm: 'pdf-fonts', mode: 'throw' },
+
+  // Assets — kern-API (de extensie leest z'n eigen mee-verpakte bestanden).
+  'assets.get': null,
+
   // Data — kern-API.
   'data.getProject': null,
   'data.getCalendar': null,
@@ -75,6 +81,7 @@ export const KNOWN_PERMISSIONS: readonly ExtensionPermission[] = [
   'events',
   'filesystem',
   'network',
+  'pdf-fonts',
 ];
 
 /**

@@ -4,7 +4,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { readCSV } from '@/services/csv/csvReader';
-import { enableExtension, disableExtension, removeExtension, saveExtensionToDb } from '@/extensions';
+import { enableExtension, disableExtension, removeExtension, saveExtensionToDb, installFromZipBlob } from '@/extensions';
 import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
 import { copyScreenshotToClipboard } from '@/services/feedback/feedbackService';
 import { isTauri } from '@/utils/platform';
@@ -212,6 +212,8 @@ export interface OpsDevBridge {
   /** Dev-only extensie-haken voor zelftests. */
   extensions: {
     installFromCode: typeof installExtensionFromCode;
+    /** Installeer via het echte ZIP-pad (parse → assets → opslaan → activeren). */
+    installFromZip: typeof installFromZipBlob;
     enable: typeof enableExtension;
     disable: typeof disableExtension;
     remove: typeof removeExtension;
@@ -234,6 +236,7 @@ export function installDevBridge(): void {
     openFromPath,
     extensions: {
       installFromCode: installExtensionFromCode,
+      installFromZip: installFromZipBlob,
       enable: enableExtension,
       disable: disableExtension,
       remove: removeExtension,

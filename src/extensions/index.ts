@@ -22,5 +22,6 @@ export {
   installFromCatalog,
   installFromFile,
   installFromJsFile,
+  installFromZipBlob,
   removeExtension,
 } from './extensionService';

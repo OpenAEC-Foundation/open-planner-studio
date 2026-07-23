@@ -29,6 +29,7 @@ const CATEGORIES: readonly ExtensionCategory[] = [
   'Planning',
   'Reporting',
   'Utility',
+  'Fonts',
   'Other',
 ];
 

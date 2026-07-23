@@ -6,6 +6,15 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
+### Documentatie
+- **OFL-1.1-licentietekst gevendord bij het meegeleverde Inter** (`src/services/pdf/fonts/Inter-OFL.txt`
+  + toelichting in `src/services/pdf/fonts/README.md`) — de Open Font License verplicht dat de
+  licentietekst met het font meegeleverd wordt; die verplichting ontbrak nog sinds Inter in fase 0/1
+  van de vector-PDF-export (issue #23) als raw TTF gevendord werd.
+- De gids **Rapporten & printen** (`gids-rapporten-printen`, nl+en) is bijgewerkt voor de
+  vectorexport: uitleg dat het PDF-bestand nu scherp blijft op elk zoomniveau en selecteerbare/
+  doorzoekbare tekst bevat, plus de CJK/RTL-raster-fallback.
+
 ### Opgelost (kleine punten uit de 2.10-triage, 2026-07-20)
 - **De kalenderwaarschuwing bij "Project verplaatsen…" bevatte een lege mededeling.** De
   waarschuwing vuurt bij twee onafhankelijke symptomen — het projecteinde verspringt met een ánder
@@ -57,6 +66,14 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   met een onbekend id een lege stap achterliet.
 
 ### Gewijzigd
+- **Het print-/exportfont voor rapporten is gewijzigd van de systeem-font-stack naar het
+  meegeleverde Inter.** Dit hoort bij de vectorexport hierboven: de oude preview/export mat
+  tekstbreedtes met welk font het besturingssysteem toevallig als eerste in de stack aanbood, wat
+  per platform (en soms per machine) verschilde. Nu is dat altijd Inter, dus is de layout
+  deterministisch over Windows/macOS/Linux/browser. Neveneffect: bestaande exports kunnen bij
+  herexport licht anders uitvallen — een iets andere tekstbreedte kan een regel doen afkappen of
+  doorlopen, wat weer het aantal pagina's kan verschuiven. Functioneel identiek, visueel niet per se
+  pixel-gelijk aan een export van vóór deze wijziging.
 - **Projectgegevens zijn nu ongedaan te maken.** Naam, omschrijving, auteur, bedrijf, start- en
   einddatum, statusdatum, voortgangsmodus, rekenopties en de projectkalender-keuze vielen tot nu toe
   volledig buiten undo. Ze zitten nu in de momentopname en elke wijziging is een undo-stap, met een
@@ -80,6 +97,17 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
   laden ongewijzigd; crashherstel rekent voortaan door, net als elk ander laadpad.
 
 ### Toegevoegd
+- **PDF-rapportexport is nu vectorgrafisch met selecteerbare tekst (issue #23).** De export van het
+  Gantt-rapport, het mijlpalen-overzicht en het variance-rapport bedde het gerenderde voorbeeld
+  voorheen als één raster-afbeelding in het PDF-bestand — scherpte hing af van de canvas-resolutie
+  en er viel niets te selecteren of doorzoeken. De export tekent nu rechtstreeks als PDF-vectoren
+  (lijnen, vlakken en ingebedde, gesubsette tekst) via `pdf-lib`, zodat het resultaat op elk
+  zoomniveau scherp blijft en tekst selecteerbaar/doorzoekbaar is — precies zoals van een "echt" PDF
+  verwacht. Dit geldt voor Latijnse, Cyrillische en Griekse tekst (ingebed met het meegeleverde
+  Inter-font, zie hieronder); documenten met **CJK-tekst (Chinees/Japans/Koreaans) of RTL-tekst
+  (Arabisch/Perzisch)** herkent de export automatisch en die vallen terug op de oude
+  raster-export — nog steeds correct leesbaar, maar niet selecteerbaar. Vector-CJK komt later via
+  een extensie; vector-RTL volgt in een latere fase.
 - **Geavanceerde CPM (fase 2.9)** — de kritieke-pad-motor is compleet gemaakt ten opzichte van
   Primavera P6 en MS Project, in zowel dag- als uurplanning (ontwerp:
   `docs/superpowers/specs/2026-07-06-geavanceerde-cpm-design.md`):
