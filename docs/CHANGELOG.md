@@ -6,6 +6,8 @@ per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
 
 ## Ongepubliceerd
 
+## v2026.7.12 — 2026-07-23
+
 ### Documentatie
 - **OFL-1.1-licentietekst gevendord bij het meegeleverde Inter** (`src/services/pdf/fonts/Inter-OFL.txt`
   + toelichting in `src/services/pdf/fonts/README.md`) — de Open Font License verplicht dat de
