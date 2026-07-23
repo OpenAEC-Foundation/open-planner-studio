@@ -75,7 +75,8 @@ export const TIER_CONFIG: Record<TimelineTier, TierConfig> = {
  */
 export function pickTiers(
   zoom: number,
-  enableQuarterHour: boolean
+  enableQuarterHour: boolean,
+  enableHourTiers = false
 ): { major: TimelineTier; mid?: TimelineTier; minor: TimelineTier } {
   if (zoom < 4) return { major: 'year', minor: 'quarter' };
   // issue #21 pt. 2: was year/month — het maandlabel bevat het jaartal al ('Jul 2026'), dus de
@@ -86,6 +87,13 @@ export function pickTiers(
   if (zoom < 25) return { major: 'month', minor: 'week' };
   // issue #21 punt 2: dagweergave — voeg de weeknummer-middenrij toe (mid:'week').
   if (zoom < 80) return { major: 'month', mid: 'week', minor: 'day' };
+  // issue #21 punt 2 (vervolg: geen fontsprong naar uurband zonder urenplanning). Zonder de
+  // hoofdschakelaar Urenplanning blijft de band ≥80 dag-granulair: dezelfde 3-rijen-opbouw als
+  // 25–80 (month/week/day), zodat de daglabels klein onderaan blijven i.p.v. bold naar de major-rij
+  // te verspringen — én er geen lege uur-rij ontstaat (uurlabels passen fysiek niet: een uurcel is
+  // zoom/24 px, pas bij extreme zoom breed genoeg voor minLabelWidth 28). Pas met urenplanning aan
+  // geldt het oorspronkelijke uur-gedrag: day/hour, resp. hour/quarterHour bij kwartier-zoom.
+  if (!enableHourTiers) return { major: 'month', mid: 'week', minor: 'day' };
   if (zoom < 400 || !enableQuarterHour) return { major: 'day', minor: 'hour' };
   return { major: 'hour', minor: 'quarterHour' };
 }

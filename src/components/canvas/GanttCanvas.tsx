@@ -194,7 +194,7 @@ export function GanttCanvas() {
   // gebaar in een eigen hook (elk bezit zijn eigen state + window-listeners). De centrale
   // mousedown-dispatch (handleMouseDown) doet nog de hit-test en roept de juiste `start…`-functie
   // aan; de hover-guard leest de gebundelde `active`-vlaggen i.p.v. een lange lijst losse states.
-  const barDrag = useBarDrag({ zoom: view.zoom, enableQuarterHourZoom, calendar, effectiveCalById, updateTask });
+  const barDrag = useBarDrag({ zoom: view.zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, updateTask });
   const pan = usePan({ setScroll, justBoxSelectedRef });
   const boxSelect = useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef });
   const depDraw = useDependencyDraw({

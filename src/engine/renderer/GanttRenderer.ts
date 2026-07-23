@@ -532,7 +532,7 @@ export class GanttRenderer {
   }
 
   private drawTimelineHeader(): void {
-    const { canvasWidth, headerHeight, view, enableQuarterHourZoom } = this.opts;
+    const { canvasWidth, headerHeight, view, enableQuarterHourZoom, enableHourPlanning } = this.opts;
     const ctx = this.ctx;
 
     // Header background + bottom border
@@ -546,7 +546,10 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    const { major, mid, minor } = pickTiers(view.zoom, enableQH);
+    // issue #21 punt 2 (vervolg): de urenplanning-hoofdschakelaar bepaalt óf de ≥80-band uur-tiers
+    // tekent (enableHourTiers). Stemt overeen met scaleFromZoom(zoom, hourPlanningEnabled).
+    const enableHourTiers = enableHourPlanning ?? false;
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH, enableHourTiers);
 
     // Visible date range
     const startDate = addCalendarDays(this.viewStart, Math.floor(view.scrollX / view.zoom) - 1);
