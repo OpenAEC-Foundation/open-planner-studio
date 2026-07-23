@@ -34,7 +34,7 @@ export interface TaskSlice {
      *  `anchorId` valt stil terug op het default-gedrag (stille tolerantie, zoals elders). */
     position?: { anchorId: string; where: 'above' | 'below' };
   }) => string;
-  updateTask: (id: string, updates: Partial<Task>) => void;
+  updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
   deleteTask: (id: string) => void;
   moveTask: (id: string, newParentId: string | null) => void;
   selectTask: (id: string, multi?: boolean, range?: boolean) => void;
@@ -209,11 +209,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     return id;
   },
 
-  updateTask: (id, updates) => {
+  updateTask: (id, updates, opts) => {
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
-      beginUndoable(s); // snapshot pas ná de guard, vóór de mutatie (zie transaction.ts).
+      beginUndoable(s, opts); // snapshot pas ná de guard, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
       Object.assign(s.tasks[idx], updates);
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       finishMutation(s, { stale: true });

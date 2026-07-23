@@ -6,6 +6,11 @@ import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
+// Monotone teller: geeft élk sleep-gebaar een UNIEKE coalesce-key (`bardrag:<taskId>:<n>`). Zo vloeit
+// een reeks per-mousemove `updateTask`-commits samen tot ÉÉN undo-stap, terwijl twee opeenvolgende
+// sleeps nooit samenvloeien — ook niet binnen dezelfde milliseconde (de teller loopt altijd door).
+let dragSeq = 0;
+
 export interface DragState {
   taskId: string;
   edge: 'left' | 'right' | 'body';
@@ -22,7 +27,7 @@ interface UseBarDragOptions {
   enableQuarterHourZoom: boolean;
   calendar: WorkCalendar;
   effectiveCalById: Map<string, WorkCalendar>;
-  updateTask: (id: string, updates: Partial<Task>) => void;
+  updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
 }
 
 // Balk-sleep (resize links/rechts + verplaatsen), dag- én uur-taken. Bezit zijn eigen `dragState`
@@ -39,6 +44,11 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCal
   // Drag and drop: mousemove (via native event for performance)
   useEffect(() => {
     if (!dragState) return;
+
+    // Eén UNIEKE undo-key voor dít hele sleep-gebaar: alle per-mousemove `updateTask`-commits
+    // hieronder coalescen tot ÉÉN undo-stap (pakket UNDO-DRAG). `++dragSeq` garandeert dat een
+    // volgende sleep een verse key krijgt en dus nooit samenvloeit met deze.
+    const undoKey = `bardrag:${dragState.taskId}:${++dragSeq}`;
 
     // Fase 2.8b (§6.3): een UUR-taak (datumstring met tijdcomponent) sleept/rekt op HELE UREN — het
     // snap-quantum is nooit fijner dan 60 min (kwartier-snap bestaat niet). Slepen muteert
@@ -88,7 +98,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCal
             earlyStart: formatInstant(newStart, 'hour'),
             earlyFinish: formatInstant(newFinish, 'hour'),
           },
-        });
+        }, { coalesceKey: undoKey });
       } else if (dragState.edge === 'right') {
         // Rekken vanaf rechts: duur ± deltaMin HELE werk-uren. De provisionele klok-finish geeft
         // directe feedback; runCPM snapt daarna op het uur-raster naar de werk-instant.
@@ -101,7 +111,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCal
             earlyFinish: formatInstant(newFinish, 'hour'),
             durationMinutes: newMinutes,
           },
-        });
+        }, { coalesceKey: undoKey });
       } else if (dragState.edge === 'left') {
         // Rekken vanaf links: start schuift, duur ∓ deltaMin HELE werk-uren (start eerder ⇒ langer).
         const newMinutes = Math.max(60, origMinutes - deltaMin);
@@ -113,7 +123,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCal
             earlyStart: formatInstant(newStart, 'hour'),
             durationMinutes: newMinutes,
           },
-        });
+        }, { coalesceKey: undoKey });
       }
     };
 
@@ -147,7 +157,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCal
             earlyStart: formatDate(newStart),
             earlyFinish: formatDate(newFinish),
           },
-        });
+        }, { coalesceKey: undoKey });
       } else if (dragState.edge === 'right') {
         // Resize from right (change duration/finish). Bereken de duur uit de rauwe sleep-datum,
         // maar schrijf een WERKDAG-anker weg (addWorkDays) i.p.v. de rauwe kalenderdag. Zo is de
@@ -166,7 +176,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCal
             earlyFinish: formatDate(canonFinish),
             scheduleDuration: newDuration,
           },
-        });
+        }, { coalesceKey: undoKey });
       } else if (dragState.edge === 'left') {
         // Resize from left (change start/duration). Idem als de rechterrand: schrijf een WERKDAG-
         // start weg (subtractWorkDays vanaf de vaste finish) i.p.v. de rauwe kalenderdag, zodat het
@@ -181,7 +191,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCal
             earlyStart: formatDate(canonStart),
             scheduleDuration: newDuration,
           },
-        });
+        }, { coalesceKey: undoKey });
       }
     };
 
