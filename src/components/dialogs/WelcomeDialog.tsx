@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
-import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
+import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
 import { UITheme, UI_THEMES } from '@/state/slices/types';
 import { saveLocale, saveTheme, saveAutoCalcCPM, saveWelcomeSeen } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
@@ -46,7 +46,7 @@ export function WelcomeDialog() {
   };
 
   const applyLocale = (locale: Locale) => {
-    void i18n.changeLanguage(locale);
+    void setLocale(locale);
     void saveLocale(locale);
   };
 

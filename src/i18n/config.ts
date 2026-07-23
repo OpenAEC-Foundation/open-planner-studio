@@ -2,76 +2,12 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { syncSettingToLocalStorage } from '@/utils/settingsStore';
 
-// --- Eager-import every namespace for every locale ---
-import nlCommon from './locales/nl/common.json';
-import nlTask from './locales/nl/task.json';
-import nlReport from './locales/nl/report.json';
-import nlMenu from './locales/nl/menu.json';
-
+// --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 13 talen
+// laden lazy via loadLocale() (Vite splitst per taal een eigen async chunk). ---
 import enCommon from './locales/en/common.json';
 import enTask from './locales/en/task.json';
 import enReport from './locales/en/report.json';
 import enMenu from './locales/en/menu.json';
-
-import frCommon from './locales/fr/common.json';
-import frTask from './locales/fr/task.json';
-import frReport from './locales/fr/report.json';
-import frMenu from './locales/fr/menu.json';
-
-import deCommon from './locales/de/common.json';
-import deTask from './locales/de/task.json';
-import deReport from './locales/de/report.json';
-import deMenu from './locales/de/menu.json';
-
-import esCommon from './locales/es/common.json';
-import esTask from './locales/es/task.json';
-import esReport from './locales/es/report.json';
-import esMenu from './locales/es/menu.json';
-
-import zhCommon from './locales/zh/common.json';
-import zhTask from './locales/zh/task.json';
-import zhReport from './locales/zh/report.json';
-import zhMenu from './locales/zh/menu.json';
-
-import itCommon from './locales/it/common.json';
-import itTask from './locales/it/task.json';
-import itReport from './locales/it/report.json';
-import itMenu from './locales/it/menu.json';
-
-import ptCommon from './locales/pt/common.json';
-import ptTask from './locales/pt/task.json';
-import ptReport from './locales/pt/report.json';
-import ptMenu from './locales/pt/menu.json';
-
-import plCommon from './locales/pl/common.json';
-import plTask from './locales/pl/task.json';
-import plReport from './locales/pl/report.json';
-import plMenu from './locales/pl/menu.json';
-
-import trCommon from './locales/tr/common.json';
-import trTask from './locales/tr/task.json';
-import trReport from './locales/tr/report.json';
-import trMenu from './locales/tr/menu.json';
-
-import arCommon from './locales/ar/common.json';
-import arTask from './locales/ar/task.json';
-import arReport from './locales/ar/report.json';
-import arMenu from './locales/ar/menu.json';
-
-import jaCommon from './locales/ja/common.json';
-import jaTask from './locales/ja/task.json';
-import jaReport from './locales/ja/report.json';
-import jaMenu from './locales/ja/menu.json';
-
-import koCommon from './locales/ko/common.json';
-import koTask from './locales/ko/task.json';
-import koReport from './locales/ko/report.json';
-import koMenu from './locales/ko/menu.json';
-
-import faCommon from './locales/fa/common.json';
-import faTask from './locales/fa/task.json';
-import faReport from './locales/fa/report.json';
-import faMenu from './locales/fa/menu.json';
 
 export type Locale =
   | 'nl' | 'en' | 'fr' | 'de' | 'es' | 'zh'
@@ -99,20 +35,7 @@ export const LANGUAGE_LABELS: Record<Locale, [string, string]> = {
 export const supportedLanguages = Object.keys(LANGUAGE_LABELS) as Locale[];
 
 const resources = {
-  nl: { common: nlCommon, task: nlTask, report: nlReport, menu: nlMenu },
   en: { common: enCommon, task: enTask, report: enReport, menu: enMenu },
-  fr: { common: frCommon, task: frTask, report: frReport, menu: frMenu },
-  de: { common: deCommon, task: deTask, report: deReport, menu: deMenu },
-  es: { common: esCommon, task: esTask, report: esReport, menu: esMenu },
-  zh: { common: zhCommon, task: zhTask, report: zhReport, menu: zhMenu },
-  it: { common: itCommon, task: itTask, report: itReport, menu: itMenu },
-  pt: { common: ptCommon, task: ptTask, report: ptReport, menu: ptMenu },
-  pl: { common: plCommon, task: plTask, report: plReport, menu: plMenu },
-  tr: { common: trCommon, task: trTask, report: trReport, menu: trMenu },
-  ar: { common: arCommon, task: arTask, report: arReport, menu: arMenu },
-  ja: { common: jaCommon, task: jaTask, report: jaReport, menu: jaMenu },
-  ko: { common: koCommon, task: koTask, report: koReport, menu: koMenu },
-  fa: { common: faCommon, task: faTask, report: faReport, menu: faMenu },
 };
 
 i18n
@@ -137,6 +60,31 @@ function updateDirection(lng: string) {
 updateDirection(i18n.language);
 i18n.on('languageChanged', updateDirection);
 
+const loadedLocales = new Set<Locale>(['en']);
+
+/** Laad de 4 namespaces van een taal lazy (Vite splitst per taal een eigen chunk) en
+ *  registreer ze bij i18next. Idempotent; 'en' is al eager geladen. */
+export async function loadLocale(lng: Locale): Promise<void> {
+  if (loadedLocales.has(lng)) return;
+  const [common, task, report, menu] = await Promise.all([
+    import(`./locales/${lng}/common.json`),
+    import(`./locales/${lng}/task.json`),
+    import(`./locales/${lng}/report.json`),
+    import(`./locales/${lng}/menu.json`),
+  ]);
+  i18n.addResourceBundle(lng, 'common', common.default);
+  i18n.addResourceBundle(lng, 'task', task.default);
+  i18n.addResourceBundle(lng, 'report', report.default);
+  i18n.addResourceBundle(lng, 'menu', menu.default);
+  loadedLocales.add(lng);
+}
+
+/** Wissel van taal: eerst de resources laden (geen kale keys), dan pas wisselen. */
+export async function setLocale(lng: Locale): Promise<void> {
+  await loadLocale(lng);
+  await i18n.changeLanguage(lng);
+}
+
 /**
  * Detect the best locale at startup:
  * 1. Saved preference in Tauri Store / localStorage
@@ -148,13 +96,17 @@ export async function initLocale(): Promise<void> {
   await syncSettingToLocalStorage('locale', 'ops-locale');
   const saved = localStorage.getItem('ops-locale');
   if (saved && supportedLanguages.includes(saved as Locale)) {
-    if (saved !== i18n.language) await i18n.changeLanguage(saved);
+    if (saved !== i18n.language) {
+      await loadLocale(saved as Locale);
+      await i18n.changeLanguage(saved);
+    }
     return;
   }
 
   // No saved preference — detect from browser/OS
   const browserLang = navigator.language?.split('-')[0]?.toLowerCase() as Locale;
   if (browserLang && supportedLanguages.includes(browserLang)) {
+    await loadLocale(browserLang);
     await i18n.changeLanguage(browserLang);
     return;
   }

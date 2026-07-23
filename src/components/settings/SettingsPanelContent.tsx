@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { Locale, LANGUAGE_LABELS, supportedLanguages } from '@/i18n/config';
+import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
 import { UITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode } from '@/state/slices/types';
 import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
@@ -55,7 +55,7 @@ export function SettingsPanelContent() {
   };
 
   const applyLocale = (locale: Locale) => {
-    void i18n.changeLanguage(locale);
+    void setLocale(locale);
     void saveLocale(locale);
   };
 

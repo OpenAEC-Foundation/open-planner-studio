@@ -54,10 +54,13 @@ export default defineConfig({
         // a smaller main chunk and better browser caching: a vendor bump (or an
         // app-code edit) only invalidates the chunk it touches, not everything.
         manualChunks(id) {
-          // Translation JSON (~350 kB of source, eagerly imported in
-          // src/i18n/config.ts). Stays eager — only relocated to its own file.
+          // Translation JSON: één chunk per taal. Alleen 'en' is statisch
+          // geïmporteerd (blijft dus eager); de overige 13 talen worden enkel
+          // dynamisch via loadLocale() geïmporteerd en worden daardoor async
+          // chunks die pas bij een taalwissel/-detectie geladen worden.
           if (id.includes('/src/i18n/locales/')) {
-            return 'locales';
+            const m = id.match(/\/locales\/([^/]+)\//);
+            return m ? `locale-${m[1]}` : 'locales';
           }
           if (id.includes('/node_modules/')) {
             // React runtime (react, react-dom, its scheduler dep).

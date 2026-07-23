@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './i18n/config';
+// De module-side-effect (i18n.init met en) draait synchroon bij deze import; initLocale()
+// laadt daarna de actieve taal-chunk vóór de eerste paint (geen Engelse flits).
+import { initLocale } from './i18n/config';
 import { appLog } from '@/services/debug/appLog';
 import App from './App';
 
@@ -25,8 +27,14 @@ if (import.meta.env.DEV) {
   void import('@/utils/devBridge').then(({ installDevBridge }) => installDevBridge());
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// Wacht tot de actieve taal geladen is voordat we renderen (voorkomt een Engelse flits).
+// Faalt de taal-load, dan valt i18next terug op de eager 'en'-resources en renderen we alsnog.
+initLocale()
+  .catch(() => { /* taal-load faalde → en-fallback; toch renderen */ })
+  .finally(() => {
+    ReactDOM.createRoot(document.getElementById('root')!).render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+  });

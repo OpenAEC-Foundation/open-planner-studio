@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { initLocale } from '@/i18n/config';
 import { loadWelcomeSeen } from '@/utils/settingsStore';
 import { loadAllSettings } from '@/utils/settingsRegistry';
 import { loadAllExtensions } from '@/extensions';
@@ -13,7 +12,8 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   const setUI = useAppStore(s => s.setUI);
 
   useEffect(() => {
-    initLocale();
+    // initLocale() is naar main.tsx verhuisd (pré-render, zodat de actieve taal-chunk vóór
+    // de eerste paint geladen is). Hier alleen nog de overige app-instellingen hydrateren.
     // Pakket M (audit H1): één registergedreven hydratatie i.p.v. ~20 losse `loadX().then(setUI)`-
     // blokken. `loadAllSettings` itereert het `SETTINGS`-register + de twee afwijkers (thema-migratie,
     // synchrone bouwmodus) en levert één `setUI`-patch. Gedrag identiek: zelfde sleutels/validators/
