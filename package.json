@@ -4,7 +4,7 @@
   "version": "2026.7.12",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev-server.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
