@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import pkg from './package.json';
+// @ts-expect-error — dev-port.mjs is plain JS zonder types
+import { worktreeRoot, readRecordedPort } from './scripts/dev-port.mjs';
 
 export default defineConfig({
   plugins: [react()],
@@ -20,7 +22,10 @@ export default defineConfig({
     // Port comes from scripts/tauri-dev.mjs (OPS_DEV_PORT) so the desktop
     // window's devUrl always matches. strictPort makes a clash fail loudly
     // instead of silently drifting to another port — see scripts/tauri-dev.mjs.
-    port: Number(process.env.OPS_DEV_PORT) || 3007,
+    // Poort: launcher zet OPS_DEV_PORT; anders de vastgelegde opsDevPort van dit
+    // worktree; anders 3007. readRecordedPort/worktreeRoot gooien nooit (CI: vite
+    // build in een .claude-loze checkout). strictPort maakt een clash luid.
+    port: Number(process.env.OPS_DEV_PORT) || readRecordedPort(worktreeRoot()) || 3007,
     strictPort: true,
     watch: {
       // Sibling git worktrees under .claude/worktrees/ each carry a full src
