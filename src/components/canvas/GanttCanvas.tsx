@@ -839,14 +839,19 @@ export function GanttCanvas() {
 
     const task = renderer.getTaskAtY(y);
     if (task) {
-      selectTask(task.id, false);
+      // issue #21 punt 3: rechtsklik op een taak die al in de selectie zit behoudt de
+      // multiselectie (standaard-UX) — alleen resetten naar enkele selectie als hij er nog niet
+      // in zat. Zo werkt rechtsklik op één van meerdere geselecteerde balken als groepsactie.
+      if (!selectedTaskIds.includes(task.id)) {
+        selectTask(task.id, false);
+      }
     }
     // Balk-hit (fase 2.10 golf 2): dezelfde hit-test als drag-start; geeft null op de rij ernaast,
     // op een mijlpaal en op een summary-balk (getTaskBarBounds sluit die bewust uit) — die krijgen
     // dan gewoon het rij-menu zonder balk-specifieke items, zoals bedoeld.
     const barHit = !!task && !!renderer.getTaskBarBounds(x, y);
     setContextMenu({ x: e.clientX, y: e.clientY, task, barHit, group: null });
-  }, [selectTask]);
+  }, [selectTask, selectedTaskIds]);
 
   // Drag and drop: mousedown (task move/resize + dependency drawing)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -883,6 +888,18 @@ export function GanttCanvas() {
           currentX: e.clientX,
           currentY: e.clientY,
         });
+        return;
+      }
+
+      // issue #21 punt 3: Ctrl/Cmd-klik op een balk is een selectiegebaar, geen drag/resize.
+      // Vroeger liep mousedown hier altijd door naar barDrag + een harde single-reset
+      // (selectTask(id, false)), waarna handleClick's toggle het id er weer uit haalde → bij
+      // ctrl+klik netto deselectie. Nu armen we niets en laat handleClick de toggle doen; zonder
+      // modifier is het gedrag identiek aan vroeger (select + drag armen).
+      // NB: shift heeft hierboven een eigen pad (dependency-tekenen) en doet geen reset, dus
+      // shift+klik-range-select werkte al — shift bewust niet in deze check opgenomen.
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
         return;
       }
 
