@@ -40,7 +40,7 @@ setSetting('lastVersion', huidige)      // altijd bijwerken
 ```
 
 Randgevallen:
-- **Verse installatie** (`opgeslagen` is `undefined`): niets tonen, alleen wegschrijven. We poppen dus nooit op bij een schone eerste start.
+- **Verse installatie** (`opgeslagen` is `undefined`): niets tonen, alleen wegschrijven. We poppen dus nooit op bij een schone eerste start. **Gevolg (bevestigd in review):** de release die deze feature zélf introduceert toont nog niets — er is dan nog geen `ops-lastVersion`. De dialoog debuteert pas bij de eerstvolgende update daarna. Dit is bewust en geen bug.
 - **Downgrade** (opgeslagen > huidige): telt ook als "gewijzigd" → we tonen de dialoog. De grootte-/tijdregels degraderen vanzelf als de data niet klopt (zie hieronder). Acceptabel; downgrades zijn zeldzaam.
 - **Web-build**: `isTauri()` is false → nooit tonen, maar we mogen `lastVersion` wel wegschrijven (schaadt niet). Om het simpel te houden schrijven we de sleutel alleen in Tauri weg.
 
@@ -111,7 +111,7 @@ Inhoud (elke regel verschijnt alleen als de bijbehorende data er is):
 Gedrag:
 - Bij openen: `getInstallKind()` + `fetchReleaseComparison(to, installKind)` aanroepen; tijdens laden een subtiele "…"-staat, geen blokkerende spinner.
 - Body als `<pre className="whitespace-pre-wrap break-words … font-sans">` met scrollbare `max-h`, identiek aan `UpdateDialog`.
-- Grootteverschil: geformatteerd met de bestaande `formatBytes` uit `src/services/benchmark/runner.ts`, met richting/teken ("3,2 MB kleiner" / "4,1 MB groter"). Bij delta 0 → "even groot".
+- Grootteverschil: geformatteerd met `formatBytes` (in v1 verhuisd naar `src/utils/formatBytes.ts`, zie plan), met richting/teken. Let op: `formatBytes` rendert binaire MiB met punt-decimaal en 2 decimalen ("1.04 MB"), niet de komma uit de mockup — bewust geaccepteerd, geen bytes-lokalisatie in v1. Bij delta 0 → "even groot".
 - Tijd: `daysBetween` in mensvriendelijke tekst via i18n (dagen; bij ≥ ~60 dagen eventueel "maanden", maar dagen volstaat voor v1).
 - Esc / backdrop / Sluiten → `ui.justUpdated = null`.
 

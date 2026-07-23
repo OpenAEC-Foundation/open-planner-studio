@@ -32,6 +32,12 @@
 - "Wat is er nieuw"-kop: hergebruik de bestaande sleutel `updates.releaseNotes`.
 - Netwerk: globale `fetch` naar `api.github.com` (CSP is `null` in `tauri.conf.json` → toegestaan, geen `http`-plugin/Rust-wijziging nodig).
 
+**Uit de hyperkritische review verwerkt (2026-07-23):**
+- **Must-fix — dialoog-stapeling:** `ui.justUpdated` mag niet blind náást een `RecoveryDialog`/`UpdateDialog` verschijnen. Detectie zet de state (eenmalig) en schrijft `lastVersion` meteen weg, maar de **weergave** wordt in `App.tsx` gegate op dezelfde poort als de welcome-flow: pas tonen als `recoveryResolved && recovery === null && !showUpdateDialog`. Zo blijft de melding bewaard (transiënte `ui`-vlag) en verschijnt 'ie zodra de andere dialogen weg zijn (Task 7).
+- **`formatBytes` verhuizen:** naar `src/utils/formatBytes.ts`, met een re-export uit `benchmark/runner.ts` voor back-compat. De dialoog importeert uit de kale util, zodat het lazy dialoog-chunk niet aan de benchmark-/engine-imports hangt (Task 6).
+- **`formatBytes`-notatie (geaccepteerd):** rendert als bv. `1.04 MB` (punt, 2 decimalen, binaire MiB gelabeld "MB"). De mockup toonde `3,2 MB` (komma) — puur illustratief; we lokaliseren de bytes-notatie niet in v1. Bewust geaccepteerd.
+- **Stille debuutrelease (geaccepteerd, vastgelegd):** de release die deze feature uitbrengt toont zélf nog niets, want er is nog geen `ops-lastVersion`. De dialoog debuteert één update later. Conform de spec; hier expliciet als verwachting vastgelegd.
+
 ---
 
 ## Task 1: UI-state `justUpdated` + `lastVersion`-persistentie
@@ -665,6 +671,53 @@ git commit -m "i18n(update): updates.justUpdated.* in 14 locales"
 
 ---
 
+## Task 5b: `formatBytes` naar een kale util (koppeling losmaken)
+
+Zodat het lazy `JustUpdatedDialog`-chunk niet aan de benchmark-/engine-imports (`CPMSolver`, `writeIFC`, `GanttRenderer`, …) hangt. Re-export uit `runner.ts` houdt de bestaande `BenchmarkDialog`-import werkend.
+
+**Files:**
+- Create: `src/utils/formatBytes.ts`
+- Modify: `src/services/benchmark/runner.ts:276-280` (definitie → re-export)
+
+- [ ] **Step 1: Maak de util**
+
+```ts
+// Byte-grootte mensvriendelijk formatteren (binaire eenheden, "MB" als label). Bewust kaal en
+// dependency-vrij zodat lichte importeurs (bv. JustUpdatedDialog) er niet de halve engine bij
+// inslepen. De benchmark-runner re-exporteert deze functie voor back-compat.
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+```
+
+- [ ] **Step 2: Vervang de definitie in `runner.ts` door een re-export**
+
+Verwijder in `src/services/benchmark/runner.ts` de `export function formatBytes(bytes: number): string { … }` (regels ~276-280) en zet bij de imports/exports bovenin (of onderin) in de plaats:
+
+```ts
+export { formatBytes } from '@/utils/formatBytes';
+```
+
+- [ ] **Step 3: Verifieer typecheck + suite**
+
+Run:
+```bash
+npm run build
+bash tests/planning/run.sh; echo "exit=$?"
+```
+Expected: `tsc` groen (de bestaande `import { formatBytes } from '@/services/benchmark/runner'` in `BenchmarkDialog.tsx` blijft via de re-export werken); suite `exit=0`, geen `XX`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/utils/formatBytes.ts src/services/benchmark/runner.ts
+git commit -m "refactor: formatBytes naar kale util (re-export uit benchmark/runner)"
+```
+
+---
+
 ## Task 6: `JustUpdatedDialog`-component
 
 **Files:**
@@ -680,7 +733,7 @@ import { X, PartyPopper, ArrowDown, ArrowUp, Clock } from 'lucide-react';
 import { Dialog } from '@/components/common/Dialog';
 import { getInstallKind } from '@/services/updater/updaterService';
 import { fetchReleaseComparison, type ReleaseComparison } from '@/services/updater/releaseInfo';
-import { formatBytes } from '@/services/benchmark/runner';
+import { formatBytes } from '@/utils/formatBytes';
 
 /**
  * "Je bent net geüpdatet"-dialoog. Toont de versiesprong plus drie weetjes over de update:
@@ -885,7 +938,7 @@ export function useUpdateCheck(): void {
 }
 ```
 
-- [ ] **Step 2: Mount `JustUpdatedDialog` in `App.tsx`**
+- [ ] **Step 2: Mount `JustUpdatedDialog` in `App.tsx` — gegate tegen dialoog-stapeling (must-fix #1)**
 
 In `src/App.tsx`, bij de andere lazy-dialoog-imports (rond regel 48-59), voeg toe:
 
@@ -893,17 +946,20 @@ In `src/App.tsx`, bij de andere lazy-dialoog-imports (rond regel 48-59), voeg to
 const JustUpdatedDialog = lazy(() => import('@/components/dialogs/JustUpdatedDialog').then(m => ({ default: m.JustUpdatedDialog })));
 ```
 
-Bij de andere `ui.show*`-selectors (rond regel 75-86), voeg toe:
+Bij de andere `ui.show*`-selectors (rond regel 75-86), voeg toe (de `recovery`/`recoveryResolved`-vars bestaan al, uit `useRecoveryRestore()` op regel 111):
 
 ```ts
   const justUpdated = useAppStore(s => s.ui.justUpdated);
+  const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
 ```
 
-Bij de dialoog-mounts (rond regel 348-350, naast `UpdateDialog`), voeg toe:
+Bij de dialoog-mounts, direct ná de `<UpdateDialog />` en het `{recovery && <RecoveryDialog … />}`-blok (rond regel 350-358), voeg toe. **De gate spiegelt de welcome-flow** (`useSettingsBootstrap.ts:39-40`): pas tonen als de recovery-flow écht klaar is én er geen recovery- of update-dialoog open staat, zodat de "net geüpdatet"-melding nooit bovenop een andere `fixed inset-0`-dialoog landt. `ui.justUpdated` blijft ondertussen gewoon gezet (transiënte state) en verschijnt zodra de poort vrij is:
 
 ```tsx
-        {justUpdated && <JustUpdatedDialog />}
+        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && <JustUpdatedDialog />}
 ```
+
+> Waarom in de mount-conditie en niet in de detectie: de detectie in `useUpdateCheck` is eenmalig (schrijft `lastVersion` meteen weg), dus als we dáár zouden onderdrukken raakten we de melding kwijt. Door alleen de *weergave* te gaten blijft de melding bewaard tot de gebruiker 'm ziet en sluit.
 
 - [ ] **Step 3: Verifieer typecheck + volledige suite**
 
@@ -914,18 +970,17 @@ bash tests/planning/run.sh; echo "exit=$?"
 ```
 Expected: `tsc` groen; suite `exit=0`, geen `XX`.
 
-- [ ] **Step 4: Visuele self-test in de browser dev-build**
+- [ ] **Step 4: Visuele self-test in de browser dev-build — met eerlijke dekkingsgrens**
 
-De Tauri-tak draait niet in de browser, dus forceer de state via de dev-bridge om de layout en degradatie-varianten te zien:
+De logica is al hard gedekt door de headless test (Task 3). Deze stap gaat puur over de *layout*. **Belangrijke grens (review #2):** in de browser is `isTauri()` false → `getInstallKind()` = `'native'` en `detectOs()` = `'linux'`, en `pickInstallerAsset('native','linux')` = `null`. De **grootteregel rendert dus NIET** via het normale pad in de browser — die is alleen echt zichtbaar in een Tauri-build. Wat je in de browser wél ziet: versiesprong, dagen en body (de GitHub-call levert `published_at` + `body`).
 
 1. Start de dev-server via `preview_start` (`npm run dev`, poort 3007; zie CLAUDE.md).
-2. Forceer de dialoog via de dev-hook, bijv. in de console/`javascript_tool`:
-   `window.__OPS__.store.getState().setUI({ justUpdated: { from: '2026.7.10', to: '2026.7.11' } })`
-   (In de browser is er geen Tauri, dus `fetchReleaseComparison` doet een echte GitHub-call — dat werkt vanuit de browser; anders toont de dialoog alleen de versiesprong. Beide varianten zijn geldig om te bekijken.)
-3. Controleer met `read_page`/screenshot: header met PartyPopper-icoon + titel, versiesprong `2026.7.10 → 2026.7.11`, en (indien data) de grootte-/dagen-regels + release-body. Sluiten via de knop zet `justUpdated` terug op `null` (dialoog weg).
-4. Degradatie checken: zet `justUpdated` terwijl je offline bent of mock `comparison` leeg → alleen de versiesprong blijft, geen kapotte/lege regels.
+2. Forceer de dialoog via de dev-hook (`javascript_tool`): `window.__OPS__.store.getState().setUI({ justUpdated: { from: '2026.7.10', to: '2026.7.11' } })`. (Zorg dat er geen recovery-/update-dialoog open staat — anders houdt de gate 'm terecht tegen.)
+3. Controleer met `read_page`/screenshot: header met PartyPopper-icoon + titel, versiesprong `2026.7.10 → 2026.7.11`, dagen-regel + release-body. Sluiten via de knop zet `justUpdated` terug op `null`.
+4. **Om de grootteregel tóch te eyeballen**, patch de dialoog tijdelijk zodat `comparison` een vaste waarde met een `sizeDeltaBytes` krijgt (bv. hardcode `setComparison({ currentBody:'…', daysBetween:12, sizeDeltaBytes:-3_200_000, currentSizeBytes:12_000_000 })` i.p.v. de fetch), bekijk de `↓ … kleiner`- en `↑ … groter`-varianten, en **draai de patch terug**. Verifieer dat `formatBytes` er `MB` van maakt (bv. `3.05 MB`).
+5. Degradatie: zet `justUpdated` en simuleer een lege `comparison` (of ga offline) → alleen de versiesprong blijft, geen kapotte/lege regels.
 
-Deel een screenshot met de gebruiker; eindoordeel over de look is aan de gebruiker.
+Deel een screenshot met de gebruiker; benoem er eerlijk bij dat de grootteregel in de browser alleen via de tijdelijke patch te zien was en dat een echte Tauri-build de definitieve verificatie is. Eindoordeel over de look is aan de gebruiker.
 
 - [ ] **Step 5: Commit**
 
@@ -941,4 +996,15 @@ git commit -m "feat(update): net-geüpdatet-detectie bij opstart + JustUpdatedDi
 - **Spec-dekking:** detectie (Task 1+7), GitHub-data/grootte/tijd/body (Task 2+4), dialoog met lucide-iconen (Task 6), degradatie (Task 6 conditionele regels + Task 4 null-returns), i18n 14 talen (Task 5), dagen-only zonder plural (Task 5). Alle spec-secties gedekt.
 - **Placeholders:** geen TBD/TODO; alle code volledig uitgeschreven.
 - **Type-consistentie:** `ReleaseComparison`/`GhRelease`/`InstallKind`/`OsName` en functienamen (`detectJustUpdated`, `pickInstallerAsset`, `daysBetween`, `findCurrentAndPrevious`, `computeComparison`, `fetchReleaseComparison`, `detectOs`) identiek gebruikt over Task 2/3/4/6/7. `ui.justUpdated`-shape (`{from,to}`) consistent in types, uiSlice, hook, dialog, App.
-- **Bekende aandachtspunten (bij bouw verifiëren):** exacte asset-suffixen tegen een echte release (`-setup.exe`/`.dmg`/`.AppImage`/`amd64.deb`); niet-nl/en vertalingen zijn best-effort en mogen door een native/vertaalcheck bevestigd worden.
+- **Bekende aandachtspunten (bij bouw verifiëren):** exacte asset-suffixen tegen een echte release (`-setup.exe`/`.dmg`/`.AppImage`/`amd64.deb` — door de review [BEVESTIGD] tegen v2026.7.11/.12, maar hercontroleer bij bouw); niet-nl/en vertalingen zijn best-effort en mogen door een native/vertaalcheck bevestigd worden.
+
+## Hyperkritische review verwerkt (2026-07-23)
+
+Poort van de review: **go**, met één must-fix. Alle vijf punten zijn in dit plan verwerkt:
+- **#1 (must-fix) — dialoog-stapeling:** gegate mount in Task 7 stap 2 (spiegelt de welcome-poort). ✔
+- **#2 — self-test oververkocht dekking:** Task 7 stap 4 herschreven met eerlijke grens + tijdelijke patch voor de grootteregel. ✔
+- **#3 — `formatBytes`-notatie:** geaccepteerd + vastgelegd in de beslissingen (rendert als `1.04 MB`). ✔
+- **#4 — `formatBytes`-koppeling:** verhuisd naar `src/utils/formatBytes.ts` (Task 5b), dialoog importeert uit de util. ✔
+- **#5 — stille debuutrelease:** als verwachting vastgelegd in de beslissingen. ✔
+
+Door de review zelf weerlegd (aannames hielden stand, met bewijs): i18n zonder plural lekt geen Engels (ook niet voor Pools); GitHub-fetch werkt (CORS `*`, CSP `null`, 60/uur ruim voldoende); asset-suffixen matchen de echte releases; web-build schrijft de key niet weg; `justUpdated` lekt niet in IFC/document-swap.
