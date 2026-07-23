@@ -149,8 +149,12 @@ Handmatige/self-test-verificatie (browser dev-build kan de Tauri-tak niet draaie
 - **`fetchReleaseComparison`**: testen met een gemockte `fetch`-respons (twee releases) → juiste `daysBetween`/`sizeDeltaBytes`/`body`; en foutpaden → nette degradatie.
 - **Dialoog visueel**: via een dev-only hook de `ui.justUpdated` forceren in de browser dev-build om de layout/degradatie-varianten (alle regels, ontbrekende size, ontbrekende tijd, lege body) te bekijken; eindoordeel visueel over aan de gebruiker.
 
+## Beslist
+
+- **Iconen:** lucide (consistent met de rest) — `ArrowDown`/`ArrowUp` voor kleiner/groter, `Clock` voor de tijd, `PartyPopper` (of vergelijkbaar) in de titel. Geen emoji.
+- **Tijd:** alleen in **dagen** ("{{count}} dagen sinds de vorige release"), ook bij lange periodes. Geen maanden/weken.
+
 ## Open puntjes (klein, tijdens bouw beslissen)
 
 - Exacte asset-naam-patronen verifiëren tegen een echte release.
 - macOS `native`: `.dmg` als installer-grootte (updater gebruikt `.app.tar.gz`, maar de `.dmg` is wat de gebruiker "downloadt" — consistenter voor het weetje).
-- Emoji vs. lucide-iconen in de regels (bestaande dialogen gebruiken lucide; waarschijnlijk lucide `ArrowDown`/`ArrowUp`/`Clock` voor stijlconsistentie i.p.v. emoji).
