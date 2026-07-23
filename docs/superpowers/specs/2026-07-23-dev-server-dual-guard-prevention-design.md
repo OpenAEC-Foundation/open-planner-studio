@@ -1,167 +1,219 @@
-# Dev-server dual-guard-preventie
+# Dev-server dual-guard-preventie (v2)
 
 **Datum:** 2026-07-23
-**Status:** ontwerp (goedgekeurd door user, richting A + flock-melding, SessionStart-hook-sync)
+**Status:** ontwerp — v2 na hyperkritische review (v1 was NO-GO)
 **Bouwt voort op:** [2026-06-05-multi-worktree-dev-isolation-design.md](2026-06-05-multi-worktree-dev-isolation-design.md)
 
 ## Probleem
 
 Het overkomt de user herhaaldelijk dat een dev server per ongeluk door twee
-agents/sessies tegelijk "bewaakt" wordt. De concrete faalmodus (door de user
-bevestigd) is **poort-drift / verkeerde build**: de preview of het
-desktop-venster laadt de Vite van een *ander* worktree, of er draaien onbedoeld
-twee servers voor één worktree.
+agents/sessies tegelijk "bewaakt" wordt. Bevestigde faalmodus: **poort-drift /
+verkeerde build** — de preview of het desktop-venster laadt de Vite van een
+*ander* worktree, of er draaien onbedoeld twee servers voor één worktree.
 
 ### Grondoorzaak
 
-Twee onafhankelijke poort-bronnen die niet synchroon lopen:
-
 1. **`.claude/launch.json` hardcodet `port: 3007`** in elk worktree. `preview_start`
    leest die poort *voordat* het commando draait en opent dus altijd
-   `localhost:3007` — wat het worktree is dat toevallig als eerste 3007 pakte
-   (nu het root-worktree z'n Tauri-Vite), niet noodzakelijk het worktree waarin
-   je werkt. → **verkeerde build.**
-2. **De poortkeuze is niet-deterministisch.** `scripts/tauri-dev.mjs` pakt de
-   "eerste vrije poort ≥ 3007" (start-volgorde-afhankelijk, TOCTOU-gevoelig) en
-   `vite.config.ts` valt terug op `Number(OPS_DEV_PORT) || 3007` — waarbij
-   `OPS_DEV_PORT` voor de kale `npm run dev` (browser) door niets in de repo
-   gezet wordt. Bij herstart kan een worktree een andere poort krijgen. → **drift.**
+   `localhost:3007` — het worktree dat toevallig als eerste 3007 pakte, niet
+   noodzakelijk het worktree waarin je werkt.
+2. **De poortkeuze is niet-deterministisch en niet-gecoördineerd.**
+   `scripts/tauri-dev.mjs` pakt "eerste vrije poort ≥ 3007" (start-volgorde-
+   afhankelijk), `vite.config.ts` valt terug op `OPS_DEV_PORT || 3007` (en
+   `OPS_DEV_PORT` wordt door niets in de repo gezet voor de kale `npm run dev`).
 
-Bevestigd bij onderzoek: er draaiden vier Vites op 3007/3017/3027/3037 (de +10
-komt uit een handmatige/externe `OPS_DEV_PORT`, niet uit repo-code), en
-`.claude/launch.json` is **gitignored** (per-worktree, vrij te herschrijven).
+### Waarom v1 (pure hash `P(slug)`) sneuvelde — bevindingen review
 
-## Kernidee: kernel-exclusiviteit + determinisme
+- **Botsing is waarschijnlijk, niet zeldzaam.** `3007 + FNV1a(slug)%90` over de
+  13 worktree-namen die nú bestaan gaf **9 unieke poorten / 13 slugs** (3
+  botsgroepen). Verjaardagsparadox over 90 slots: n=12 → ~54%.
+- **Botsing → verkeerde build.** Per-slug sloten dekken cross-slug niets;
+  `preview_start` opent `localhost:P`, vindt de al-luisterende Vite van het
+  andere worktree en toont **die** build. Exact de oorspronkelijke bug.
+- **`tauri:dev` deadlockte zichzelf.** `tauri.conf.json` heeft
+  `beforeDevCommand: "npm run dev"`; twee sloten op één slug in één procesboom.
+- **Een "committed" hook kan niet bestaan.** `.gitignore:6` = `.claude/`; een
+  verse worktree krijgt geen `settings.json`, dus de SessionStart-hook wordt
+  nooit geregistreerd.
 
-Een gebonden TCP-poort is een kernel-exclusieve resource — precies één proces
-kan hem vasthouden. Combineer dat met een *pure* poortfunctie:
+Kernconclusie: determinisme-per-rekensom is onhoudbaar. De poort moet
+**collision-vrij toegewezen en vastgelegd** worden.
 
-1. **Elk worktree ⇒ precies één vaste poort** `P(slug)`, deterministisch.
-2. **Alles wat start óf verbindt** (Vite-bind, Tauri-devUrl, `preview_start` via
-   launch.json) gebruikt diezelfde `P(slug)`.
+## Kernidee (v2): toewijzen-en-vastleggen, met git als registry
 
-Gevolg — geen afspraak, geen raceable check, maar door de OS afgedwongen:
+Geen hash. In plaats daarvan: elk worktree krijgt **één keer** een poort
+toegewezen die aantoonbaar door geen enkel ánder worktree geclaimd is, en die
+poort wordt **vastgelegd in dít worktree z'n eigen `.claude/launch.json`**
+(per-worktree, gitignored — natuurlijke opslag, geen aparte registry die kan
+verrotten). Alle consumenten *lezen* die poort; niemand herrekent.
+
+De verzameling "welke worktrees bestaan" komt van git zelf: `git worktree list`.
+Een verwijderd worktree staat er niet meer in → z'n poort komt automatisch vrij,
+zonder handmatige opruimlogica. Dat lost de "verweesde registry"-zwakte op.
+
+**Twee garanties, beide OS-afgedwongen:**
 
 | Faalmodus | Waarom onmogelijk |
 |---|---|
-| Twee servers voor één worktree | `strictPort` op een *vaste* poort — de kernel weigert de 2e bind |
-| Preview toont verkeerde worktree | launch.json + Vite + Tauri delen dezelfde `P(slug)` |
-| Poort-drift bij herstart | `P(slug)` is puur — herstart = zelfde poort |
-| Verweesde registry-troep | pidfile wordt bij exit opgeruimd + dode PID's automatisch overgenomen; geen gedeelde mutabele staat |
+| Twee servers voor één worktree | runtime-slot (pidfile, proces-leven) + `strictPort` op de vaste poort — kernel weigert de 2e bind |
+| Twee worktrees dezelfde poort | toewijzing onder een **globaal `flock`** scant alle `git worktree list`-poorten → kiest gegarandeerd een vrije |
+| Preview toont verkeerde worktree | launch.json draagt de eigen, uniek-toegewezen poort; stale kan hooguit "onze eigen (oude) poort" zijn, nooit die van een ander |
+| Poort-drift bij herstart | poort is vastgelegd; herstart leest dezelfde |
 
 ## Componenten
 
-### 1. `scripts/dev-port.mjs` — bron van waarheid (nieuw)
+### 1. `scripts/dev-port.mjs` — toewijzing + uitlezen (nieuw, enige implementatie)
 
-Zuivere, dependency-vrije helper. Geen `Math.random`, geen runtime-staat.
+Wordt door álle andere modules geïmporteerd; niemand herimplementeert de logica
+(review-punt: vier plekken die poorten berekenen = stille mismatch-risico).
 
-```js
-export function deriveSlug(cwd)      // basename(cwd) — zoals tauri-dev.mjs nu doet
-export function resolveDevPort(slug) // 3007 + FNV1a(slug) % 90  → 3007–3096
+```
+worktreeRoot()                 // git rev-parse --show-toplevel  (unieke sleutel; géén basename)
+worktreeSlug()                 // basename(worktreeRoot())        (alleen voor weergave/logs)
+readRecordedPort(root)         // lees dev-poort uit <root>/.claude/launch.json → number | null
+allocatePort(root)             // idempotent; zie hieronder → number
 ```
 
-Bereik 3007–3096 blijft onder 4173 (`npm run preview`). Zelfde worktree ⇒
-altijd dezelfde poort; ander worktree ⇒ (vrijwel) altijd andere poort.
+**`allocatePort(root)`** (de kern):
+1. `readRecordedPort(root)` ≠ null → dat is onze poort, klaar (idempotent, stabiel).
+2. Anders, onder de **toewijzings-flock** (kort, gedeeld — zie §3a):
+   - `git worktree list --porcelain` → alle worktree-paden.
+   - Voor elk pad: `readRecordedPort(pad)` → de verzameling reeds-geclaimde poorten.
+   - Kies de laagste poort ≥ 3007 die (a) niet in die verzameling zit én (b) niet
+     actueel gebonden is (`net.createServer`-probe, `127.0.0.1`), tot een
+     maximum (bv. 3007–3106).
+   - Schrijf de poort in `<root>/.claude/launch.json` (maak aan uit sjabloon als
+     nodig), geef 'm terug.
 
-### 2. De drie consumenten — allemaal `P(slug)`, nooit meer los `3007`
+Determinisme-na-toewijzing (stabiel over herstarts), globale uniciteit
+(registry-afgedwongen), race-vrij (flock), zelf-opruimend (verdwenen worktree =
+verdwenen claim). **Sleutel = absoluut pad**, niet basename → twee worktrees met
+toevallig dezelfde mapnaam botsen niet (review-punt).
 
-- **`vite.config.ts`** → `port: Number(process.env.OPS_DEV_PORT) || resolveDevPort(deriveSlug(process.cwd()))`,
-  `strictPort: true` blijft. De kale `|| 3007` verdwijnt. (Import van
-  `scripts/dev-port.mjs` — vite laadt de config via esbuild, ESM-import werkt.)
-- **`scripts/tauri-dev.mjs`** → gebruikt `resolveDevPort(slug)` i.p.v. de
-  `findFreePort()`-lus; zet `OPS_DEV_PORT` + `--config devUrl` op `P(slug)`.
-  `OPS_DEV_INSTANCE` (recovery-isolatie) blijft ongewijzigd.
-- **`.claude/launch.json`** → `port` wordt op `P(slug)` gehouden door de
-  SessionStart-hook (zie 5), zodat `preview_start` gegarandeerd *déze* worktree
-  opent.
+### 2. De consumenten — lezers vs. toewijzers
 
-### 3. `scripts/dev-lock.mjs` — de bewaker (nieuw)
+**Toewijzers** (doen flock + `git worktree list` + vastleggen):
+- **`scripts/dev-bootstrap.mjs`** (hook, §5) — stempelt launch.json vóór elke sessie.
+- **`scripts/dev-server.mjs`** (browser-launcher, §4).
+- **`scripts/tauri-dev.mjs`** (desktop-launcher) — `findFreePort()` vervalt; roept
+  `allocatePort()` aan, zet `OPS_DEV_PORT` + `--config devUrl` + `OPS_DEV_GUARDED=1`.
 
-Atomair pidfile-slot, dependency-vrij (geen `flock(2)` in Node-core):
+**Lezer** (geen flock, snel):
+- **`vite.config.ts`** → `Number(process.env.OPS_DEV_PORT) || readRecordedPort(cwd) || 3007`,
+  `strictPort: true` blijft. Alloceert nooit zelf; tegen de tijd dat Vite draait
+  heeft de launcher `OPS_DEV_PORT` al gezet. De `readRecordedPort`-fallback dekt
+  kale `vite` zonder launcher.
 
-- Padvorm `<os.tmpdir()>/ops-dev-<slug>.lock`, inhoud `{ pid, port, startedAt }`.
-- Claim via `fs.openSync(path, 'wx')` (atomaire exclusieve create). Bestaat het
-  al → lees pid, `process.kill(pid, 0)`:
-  - **leeft** → weiger: `dev server voor "<slug>" draait al (PID <pid>, sinds
-    <HH:MM>) op poort <port> — tweede bewaker geweigerd`, exit ≠ 0.
-  - **dood/verweesd** → neem over (herschrijf slot).
-- Vasthouden tot proces-exit; opruimen in een `exit`/`SIGINT`/`SIGTERM`-handler.
+### 3. Twee sloten met verschillende levensduur (`scripts/dev-lock.mjs`, nieuw)
 
-De **echte** onmogelijkheid zit in `strictPort` op de vaste `P(slug)`: twee
-processen kunnen die poort nooit tegelijk binden. Het pidfile-slot levert enkel
-de vriendelijke melding en dekt het minieme venster vóór de bind.
+Dependency-vrij (Node-core heeft geen `flock(2)`): atomair pidfile-slot via
+`fs.openSync(path,'wx')`, inhoud **atomair** geschreven (temp + `rename`, tegen de
+lege-file-leesrace) met `{ pid, port, root, startedAt }`.
+
+**3a. Toewijzings-flock** — gedeeld, kort (alleen tijdens `allocatePort`).
+Pad `<git-common-dir>/ops-dev-alloc.lock` (`git rev-parse --git-common-dir`,
+gedeeld door alle worktrees). Korte retry-lus (bv. 50 ms × 100); stale-steal als
+`pid` dood is óf leeftijd > 30 s (de sectie duurt milliseconden). Puur om twee
+gelijktijdige toewijzingen te serialiseren.
+
+**3b. Runtime-bewakingsslot** — per worktree, proces-leven.
+Pad `<os.tmpdir()>/ops-dev-guard-<sha1(root)>.lock`. Bij start:
+- `OPS_DEV_GUARDED=1` in env → **overslaan** (een ouder-launcher houdt het al;
+  lost de `tauri:dev`-deadlock op).
+- slot vrij/dood → claim, houd vast tot exit (opruimen in
+  `exit`/`SIGINT`/`SIGTERM`-handler).
+- slot leeft (pid via `kill(pid,0)` én `startedAt` plausibel, tegen PID-recycling)
+  → **weiger**: `dev server voor "<slug>" draait al (PID X, sinds HH:MM) op poort
+  P — tweede bewaker geweigerd`, exit ≠ 0.
+
+De echte onmogelijkheid van twee servers-per-worktree is `strictPort` op de vaste
+poort (kernel weigert de 2e bind; Vite bindt `127.0.0.1`, geen `SO_REUSEPORT`).
+Het slot levert de nette melding en dekt het venster vóór de bind.
 
 ### 4. `scripts/dev-server.mjs` — browser-launcher (nieuw)
 
-Symmetrisch met `tauri-dev.mjs`. `package.json`: `"dev": "node scripts/dev-server.mjs"`.
+`package.json`: `"dev": "node scripts/dev-server.mjs"`.
+1. `root = worktreeRoot()`; als `OPS_DEV_GUARDED` gezet → gebruik `OPS_DEV_PORT`,
+   sla toewijzing+slot over (geneste start onder `tauri-dev`).
+2. anders: `port = allocatePort(root)`; `acquireGuardLock(root, port)` (weiger+exit
+   als bezet); launch.json is door `allocatePort` al gestempeld.
+3. `spawn(viteBin, { env: { ...env, OPS_DEV_PORT: String(port) }, stdio: 'inherit' })`.
+   `viteBin` via `node_modules/.bin` oplossen (+ `.cmd` op win32), net als
+   `tauri-dev.mjs` — kale `spawn('vite')` faalt bij directe `node`-start/Windows
+   (review-punt).
+4. print `▶ … worktree "<slug>" → http://localhost:<port>/`.
+5. release slot + propageer exit-code.
 
-1. `slug = deriveSlug(cwd)`, `port = resolveDevPort(slug)`.
-2. `acquireDevLock(slug, port)` — weiger + exit als bezet.
-3. stempel `port` in `.claude/launch.json` (idempotent; dekt "poort net
-   veranderd" bovenop de hook).
-4. `spawn('vite', { env: { ...env, OPS_DEV_PORT: String(port) }, stdio: 'inherit' })`.
-5. print `▶ open-planner-studio dev — worktree "<slug>" → http://localhost:<port>/`.
-6. release slot + propageer exit-code bij afsluiten.
+### 5. `scripts/dev-bootstrap.mjs` + **user-global** hook — launch.json-sync
 
-### 5. `scripts/dev-bootstrap.mjs` + SessionStart-hook — launch.json-sync (nieuw)
+`preview_start` leest `launch.json.port` vóór het commando draait. De bootstrap
+zorgt dat het bestand al klopt vóór de eerste preview. Omdat een committed
+projecthook onmogelijk is (`.claude/` gitignored), gaat de hook naar
+**`~/.claude/settings.json`** (reist mee met de machine, niet met de repo):
 
-`preview_start` leest `launch.json.port` *voordat* het commando draait, dus
-launch.json moet al kloppen vóór de allereerste preview. Oplossing: een
-SessionStart-hook stempelt bij elke sessiestart `P(slug)` in launch.json
-(zelfhelend, ook in een vers worktree).
+```json
+{ "hooks": { "SessionStart": [
+    { "hooks": [ { "type": "command", "command": "node scripts/dev-bootstrap.mjs || true" } ] }
+] } }
+```
 
-- `scripts/dev-bootstrap.mjs`: bereken `P(slug)`, schrijf `port` in de `dev`-entry
-  van `.claude/launch.json` (maak het bestand aan als het ontbreekt, uit een
-  sjabloon). Bindt niets, stempelt alleen. Idempotent.
-- `.claude/settings.json` (committed, zodat de garantie met de repo meereist):
-  ```json
-  { "hooks": { "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "node scripts/dev-bootstrap.mjs" } ] }
-  ] } }
-  ```
-  Faalt de hook, dan is de launcher-stamp (stap 3 in §4) de vangnet — de bind
-  zelf hangt sowieso nooit van launch.json af, alleen `preview_start`'s eerste
-  keuze.
+`dev-bootstrap.mjs` **zelf-scopet**: leest `package.json`, exit 0 als de naam niet
+onze app is (dus in andere projecten no-op). Verder: `allocatePort(worktreeRoot())`
+→ stempelt launch.json. Idempotent. `|| true` zodat een ontbrekend script in een
+ander project de sessie niet stoort.
 
-## Randgeval: hash-botsing
+**Belangrijk (verlaagt de inzet van deze hook):** door de collision-vrije,
+vastgelegde toewijzing kan een stale/ontbrekende launch.json hooguit naar *onze
+eigen* poort wijzen of leeg zijn — **nooit** naar die van een ander worktree. De
+hook is dus **ergonomie** (eerste preview meteen goed in een vers worktree), geen
+correctheidsvereiste meer. De launcher stempelt launch.json óók (defense in
+depth). Alternatief indien user-global ongewenst: een `.gitignore`-uitzondering
+`!.claude/settings.json` + committen (met behoud van de lokale
+`settings.local.json`-worktree-guard) — niet de voorkeur.
 
-Twee slugs → zelfde `P(slug)` is zeldzaam (±10 worktrees over 90 poorten).
+## Randgevallen
 
-- **Basisgedrag:** schoon falen via `strictPort` — worktree B krijgt een
-  duidelijke "poort bezet"-melding, **nooit** een verkeerde build.
-- **Optionele verharding (nu weggelaten, YAGNI):** deterministische lineaire
-  probe (`P, P+1, …`) die de opgeloste poort in het slotbestand onthoudt zodat
-  hij stabiel blijft over herstarts. Pas toevoegen als het zich ooit voordoet.
+- **Poort-uitputting** (>100 worktrees): `allocatePort` faalt luid met een
+  duidelijke melding i.p.v. te driften.
+- **PID-recycling / lege-file-race:** ondervangen door atomaire schrijf + `startedAt`-plausibiliteit naast `kill(pid,0)`.
+- **`git worktree prune` niet gedraaid:** `git worktree list` toont soms een
+  verdwenen pad; `readRecordedPort` op een niet-bestaand pad → `null` → geen valse claim.
 
-## Testen
+## Raakt ook (review-punten, mee in scope)
 
-Geen raakvlak met de CPM/kalender-suite. Nieuw, klein:
+- **`docs/self-test-harness.md`** hardcodeert `localhost:3007` (regels ~18/39/45).
+  De harness-flow moet de poort uit launch.json / de launcher-print lezen i.p.v.
+  3007 aannemen. Ook de MEMORY-notitie "harness = poort 3007" is dan achterhaald.
+- **`OPS_DEV_INSTANCE`/recovery-isolatie** blijft op basename (ongewijzigd);
+  twee worktrees met identieke basename delen recovery-bestanden — pre-existing,
+  **buiten scope** hier (noteren, niet oplossen).
 
-1. **Unit (node, headless):** `resolveDevPort` — determinisme (zelfde slug ⇒
-   zelfde poort), bereik 3007–3096, redelijke spreiding over een set
-   voorbeeld-slugs, geen botsing binnen de bekende worktree-namen.
-2. **Integratie (shell):** start twee `dev-server.mjs` met dezelfde slug; verifieer
-   dat de tweede exit ≠ 0 geeft en de weiger-melding print, en dat er één Vite op
-   `P(slug)` luistert. Start twee met verschillende slugs; verifieer twee
-   verschillende poorten.
+## Testen (geen raakvlak met de CPM-suite)
+
+1. **Unit (node):** `allocatePort` met een gemockte worktree-lijst → distinct per
+   pad; idempotent (2e call = vastgelegde poort); een verwijderd pad geeft z'n
+   poort vrij; identieke basenames → toch verschillende poorten.
+2. **Integratie (shell):** twee `dev-server.mjs` in hetzelfde worktree → 2e exit ≠ 0
+   + weiger-melding; twee verschillende worktrees → twee poorten; geneste
+   `OPS_DEV_GUARDED=1`-start alloceert/lockt niet (tauri-pad, geen deadlock).
 
 ## Buiten scope (YAGNI)
 
-- `npm run preview` (4173) meenemen — apart, minder vaak dubbel; later indien nodig.
-- Hash-botsing-probe (zie boven).
-- Een gedeelde poort-registry (richting B) — bewust vermeden om
-  shared-state-onderhoud te ontlopen.
+- `npm run preview` (4173) meenemen.
+- Recovery-isolatie op pad i.p.v. basename.
+- Een aparte gedeelde JSON-registry (git `worktree list` vervangt 'm).
 
 ## Raakbestanden
 
 | Bestand | Wijziging |
 |---|---|
-| `scripts/dev-port.mjs` | nieuw — `deriveSlug`, `resolveDevPort` |
-| `scripts/dev-lock.mjs` | nieuw — atomair pidfile-slot |
-| `scripts/dev-server.mjs` | nieuw — browser-launcher |
-| `scripts/dev-bootstrap.mjs` | nieuw — stempelt launch.json |
-| `scripts/tauri-dev.mjs` | `findFreePort()` → `resolveDevPort()` + `dev-lock` |
-| `vite.config.ts` | `|| 3007` → `resolveDevPort(deriveSlug(cwd))` |
+| `scripts/dev-port.mjs` | nieuw — `worktreeRoot/Slug`, `readRecordedPort`, `allocatePort` |
+| `scripts/dev-lock.mjs` | nieuw — toewijzings-flock + runtime-bewakingsslot |
+| `scripts/dev-server.mjs` | nieuw — browser-launcher (OPS_DEV_GUARDED-bewust) |
+| `scripts/dev-bootstrap.mjs` | nieuw — zelf-scopende launch.json-stamper |
+| `scripts/tauri-dev.mjs` | `findFreePort()` → `allocatePort()`; zet `OPS_DEV_GUARDED=1` |
+| `vite.config.ts` | fallback `readRecordedPort(cwd)` i.p.v. kale `|| 3007` |
 | `package.json` | `"dev": "vite"` → `"node scripts/dev-server.mjs"` |
-| `.claude/settings.json` | SessionStart-hook toevoegen |
+| `~/.claude/settings.json` | user-global SessionStart-hook (buiten de repo) |
+| `docs/self-test-harness.md` | 3007-aannames vervangen door launch.json-poort |
 | `tests/dev-server/…` | nieuwe unit + integratietest |
