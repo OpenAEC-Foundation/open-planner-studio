@@ -6,6 +6,7 @@
  * Desktop-only qua gebruik, maar de pure functies hebben geen Tauri-afhankelijkheid.
  */
 import type { InstallKind } from './updaterService';
+import { isTauri } from '@/utils/platform';
 
 const REPO = 'OpenAEC-Foundation/open-planner-studio';
 const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=30`;
@@ -153,3 +154,47 @@ export function computeComparison(
 }
 
 export { RELEASES_API };
+
+/**
+ * Detecteer het OS via `@tauri-apps/plugin-os` (dynamisch, achter `isTauri()`). Buiten Tauri of
+ * bij een fout → `'linux'` (onschuldige default; de asset-keuze degradeert dan gewoon naar null
+ * voor `native`).
+ */
+export async function detectOs(): Promise<OsName> {
+  if (!isTauri()) return 'linux';
+  try {
+    const { platform } = await import('@tauri-apps/plugin-os');
+    return platform() as OsName;
+  } catch {
+    return 'linux';
+  }
+}
+
+/**
+ * Haal de release-vergelijking op via de GitHub Releases-API. Vuurt alleen na een gedetecteerde
+ * update (één call, ongeauthenticeerd — ruim binnen de 60/uur-ratelimit). Bij ELKE fout (offline,
+ * ratelimit, JSON, huidige release niet gevonden) → `null`; de dialoog toont dan enkel de
+ * versiesprong. Ontbrekende deelvelden (geen vorige release / geen asset) worden binnen
+ * `computeComparison` `null` — nette degradatie.
+ */
+export async function fetchReleaseComparison(
+  currentVersion: string,
+  installKind: InstallKind,
+): Promise<ReleaseComparison | null> {
+  try {
+    const res = await fetch(RELEASES_API, {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) return null;
+    const releases = (await res.json()) as GhRelease[];
+    if (!Array.isArray(releases)) return null;
+
+    const { current, previous } = findCurrentAndPrevious(releases, currentVersion);
+    if (!current) return null;
+
+    const os = await detectOs();
+    return computeComparison(current, previous, installKind, os);
+  } catch {
+    return null;
+  }
+}
