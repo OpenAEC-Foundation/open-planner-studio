@@ -52,6 +52,10 @@ export interface GanttRenderOptions {
   rowHeight: number;
   headerHeight: number;
   localizedMonths?: string[];
+  /** issue #21 punt 2 (vervolg: dagnamen): 7 weekdag-afkortingen, geïndexeerd op
+   *  d.getUTCDay() (0=zondag … 6=zaterdag). Alleen gebruikt in de 'day'-tier bij zoom≥40;
+   *  afwezig ⇒ de dag-tier toont alleen het dagnummer (backwards-compat). */
+  localizedWeekdays?: string[];
   columnHeaders?: { wbs: string; taskName: string; duration: string };
   weekStartDay?: 'monday' | 'sunday';        // default 'monday'
   enableQuarterHourZoom?: boolean;            // default false
@@ -496,11 +500,38 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    const { major, minor } = pickTiers(view.zoom, enableQH);
+    // issue #21 punt 2 (vervolg, user-besluit): de HEADER toont áltijd de dagplanning-opbouw
+    // (maand/week/dag), ook met urenplanning aan — de oude dag/uur-band gaf een fontsprong en
+    // een lege uurrij. De uur-tiers leven alleen nog in de sleep-snapping (useBarDrag geeft
+    // de urenplanning-vlag wél door aan pickTiers).
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH, false);
 
     // Visible date range
     const startDate = addCalendarDays(this.viewStart, Math.floor(view.scrollX / view.zoom) - 1);
     const endDate = addCalendarDays(this.viewStart, Math.ceil((view.scrollX + canvasWidth) / view.zoom) + 1);
+
+    // issue #21 punt 2: bij een `mid`-tier (dagweergave, 25≤zoom<80) komt er een weeknummer-rij
+    // bij en worden de drie rijen gelijkmatig verdeeld (h/6, h/2, 5h/6). Zonder `mid` valt dit
+    // blok weg en blijft de oorspronkelijke 2-rijen-layout hieronder byte-identiek staan.
+    if (mid) {
+      // --- Bovenste rij: major tier (maand) ---
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = this.colors.text;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      this.drawTierLabels(major, startDate, endDate, headerHeight / 6);
+
+      // --- Middenrij: mid tier (weeknummers), zelfde stijl als de minor-rij ---
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = this.colors.textSecondary;
+      this.drawTierLabels(mid, startDate, endDate, headerHeight / 2);
+
+      // --- Onderste rij: minor tier (dag) ---
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = this.colors.textSecondary;
+      this.drawTierLabels(minor, startDate, endDate, headerHeight * 5 / 6);
+      return;
+    }
 
     // --- Top row: major tier ---
     ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
@@ -521,7 +552,7 @@ export class GanttRenderer {
     endDate: Date,
     yCenter: number,
   ): void {
-    const { canvasWidth, taskTableWidth, weekStartDay, localizedMonths } = this.opts;
+    const { canvasWidth, taskTableWidth, weekStartDay, localizedMonths, localizedWeekdays } = this.opts;
     const wsd = weekStartDay ?? 'monday';
     const ctx = this.ctx;
     const cfg = TIER_CONFIG[tier];
@@ -534,7 +565,7 @@ export class GanttRenderer {
       const next = nextTickBoundary(cursor, tier);
       const x1 = this.dateToX(cursor);
       const x2 = this.dateToX(next);
-      const labelText = this.formatTierLabel(tier, cursor, wsd, localizedMonths);
+      const labelText = this.formatTierLabel(tier, cursor, wsd, localizedMonths, localizedWeekdays);
 
       // Skip tick entirely if it doesn't reach the visible task area
       if (x2 <= taskTableWidth) {
@@ -562,7 +593,8 @@ export class GanttRenderer {
     tier: TimelineTier,
     d: Date,
     weekStartDay: 'monday' | 'sunday',
-    localizedMonths?: string[]
+    localizedMonths?: string[],
+    localizedWeekdays?: string[]
   ): string {
     const months = localizedMonths || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const pad = (n: number) => n.toString().padStart(2, '0');
@@ -571,7 +603,16 @@ export class GanttRenderer {
       case 'quarter':     return `Q${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`;
       case 'month':       return `${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
       case 'week':        return `W${getWeekNumberFor(d, weekStartDay)}`;
-      case 'day':         return `${d.getUTCDate()}`;
+      // issue #21 punt 2 (vervolg: dagnamen): bij voldoende inzoomen (zoom≥40 px/dag) de
+      // weekdag-afkorting vóór het dagnummer tonen ('wo 23'); anders alleen het dagnummer.
+      // Zonder localizedWeekdays valt het terug op alleen het dagnummer (backwards-compat).
+      case 'day': {
+        const dayNum = d.getUTCDate();
+        if (localizedWeekdays && this.opts.view.zoom >= 40) {
+          return `${localizedWeekdays[d.getUTCDay()]} ${dayNum}`;
+        }
+        return `${dayNum}`;
+      }
       case 'hour':        return `${pad(d.getUTCHours())}:00`;
       case 'quarterHour': return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
     }

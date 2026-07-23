@@ -25,6 +25,7 @@ export interface DragState {
 interface UseBarDragOptions {
   zoom: number;
   enableQuarterHourZoom: boolean;
+  enableHourPlanning: boolean;
   calendar: WorkCalendar;
   effectiveCalById: Map<string, WorkCalendar>;
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
@@ -38,7 +39,7 @@ interface UseBarDragOptions {
 //      (lastAppliedDelta, init 0) — niet zodra 'ie 0 is — zodat terug-naar-Δ0 de begin-duur herstelt;
 //   3. het balk-anker wordt gecanonaliseerd naar een werkdag (addWorkDays/subtractWorkDays) zodat
 //      earlyStart/earlyFinish nooit op een weekend landen en niet verschuiven bij de volgende runCPM.
-export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCalById, updateTask }: UseBarDragOptions) {
+export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, updateTask }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   // Drag and drop: mousemove (via native event for performance)
@@ -70,7 +71,10 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, calendar, effectiveCal
     // Snap-quantum (§6.3): de actieve minor-tier, maar NOOIT fijner dan 60 min (kwartier-snap
     // bestaat niet). Zo is het quantum bij uur-zoom 1 uur en bij lagere zoom grover (dag/week);
     // altijd een veelvoud van 60 min ⇒ slepen muteert de duur in HELE uren (§6.4).
-    const minorTier = pickTiers(zoom, enableQuarterHourZoom).minor;
+    // issue #21 punt 2 (vervolg): zonder urenplanning snapt een sleep bij hoge zoom op DAGEN
+    // (minor='day'), want pickTiers geeft dan geen uur-tier. Met urenplanning aan blijft de
+    // uur-snapping exact als voorheen. Derde arg stemt overeen met renderer/scaleFromZoom.
+    const minorTier = pickTiers(zoom, enableQuarterHourZoom, enableHourPlanning).minor;
     const quantumMin = Math.max(60, Math.round(TIER_CONFIG[minorTier].stepDays * 1440));
     const quantumMs = quantumMin * 60000;
 

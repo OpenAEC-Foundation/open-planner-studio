@@ -67,6 +67,7 @@ export function GanttCanvas() {
 
   const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const { t: tMenu } = useTranslation('menu');
   const dd = useDisplayDate();
 
   const tasks = useAppStore(s => s.tasks);
@@ -160,6 +161,22 @@ export function GanttCanvas() {
   const [histoTooltip, setHistoTooltip] = useState<{ x: number; y: number; lines: string[] } | null>(null);
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
+  // issue #21 punt 2 (vervolg: dagnamen): 7 weekdag-afkortingen in getUTCDay()-volgorde
+  // (0=zondag … 6=zaterdag). Hergebruikt de bestaande kalender-vertalingen uit het menu-
+  // namespace (ribbon.calendarDialog.days, ISO 1=ma … 7=zo) en remapt die naar Sun-first.
+  // Gememoized op taal, net als localizedMonths, zodat de renderer-opts stabiel blijven.
+  const localizedWeekdays = useMemo(
+    () => [
+      tMenu('ribbon.calendarDialog.days.7'), // zo (getUTCDay 0 = zondag)
+      tMenu('ribbon.calendarDialog.days.1'), // ma
+      tMenu('ribbon.calendarDialog.days.2'), // di
+      tMenu('ribbon.calendarDialog.days.3'), // wo
+      tMenu('ribbon.calendarDialog.days.4'), // do
+      tMenu('ribbon.calendarDialog.days.5'), // vr
+      tMenu('ribbon.calendarDialog.days.6'), // za
+    ],
+    [i18n.language], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   // Vertaalde duur-eenheid-suffixen voor de duurkolom-weergave (§6.4/§11). Gememoized op taal zodat de
   // renderer-opts stabiel blijven tussen renders (geen memo-bust per frame).
   const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -177,7 +194,7 @@ export function GanttCanvas() {
   // gebaar in een eigen hook (elk bezit zijn eigen state + window-listeners). De centrale
   // mousedown-dispatch (handleMouseDown) doet nog de hit-test en roept de juiste `start…`-functie
   // aan; de hover-guard leest de gebundelde `active`-vlaggen i.p.v. een lange lijst losse states.
-  const barDrag = useBarDrag({ zoom: view.zoom, enableQuarterHourZoom, calendar, effectiveCalById, updateTask });
+  const barDrag = useBarDrag({ zoom: view.zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, updateTask });
   const pan = usePan({ setScroll, justBoxSelectedRef });
   const boxSelect = useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef });
   const depDraw = useDependencyDraw({
@@ -468,6 +485,7 @@ export function GanttCanvas() {
       rowHeight: ROW_HEIGHT,
       headerHeight: HEADER_HEIGHT,
       localizedMonths,
+      localizedWeekdays,
       columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
@@ -483,7 +501,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes]);
 
   useCanvasLayer({ canvasRef, containerRef, draw: drawPrimary });
 
@@ -517,6 +535,7 @@ export function GanttCanvas() {
       rowHeight: ROW_HEIGHT,
       headerHeight: HEADER_HEIGHT,
       localizedMonths,
+      localizedWeekdays,
       columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
@@ -526,7 +545,7 @@ export function GanttCanvas() {
     });
     secondaryRendererRef.current = renderer;
     renderer.render();
-  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode]);
+  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode]);
 
   useCanvasLayer({
     canvasRef: secondaryCanvasRef,
@@ -820,14 +839,19 @@ export function GanttCanvas() {
 
     const task = renderer.getTaskAtY(y);
     if (task) {
-      selectTask(task.id, false);
+      // issue #21 punt 3: rechtsklik op een taak die al in de selectie zit behoudt de
+      // multiselectie (standaard-UX) — alleen resetten naar enkele selectie als hij er nog niet
+      // in zat. Zo werkt rechtsklik op één van meerdere geselecteerde balken als groepsactie.
+      if (!selectedTaskIds.includes(task.id)) {
+        selectTask(task.id, false);
+      }
     }
     // Balk-hit (fase 2.10 golf 2): dezelfde hit-test als drag-start; geeft null op de rij ernaast,
     // op een mijlpaal en op een summary-balk (getTaskBarBounds sluit die bewust uit) — die krijgen
     // dan gewoon het rij-menu zonder balk-specifieke items, zoals bedoeld.
     const barHit = !!task && !!renderer.getTaskBarBounds(x, y);
     setContextMenu({ x: e.clientX, y: e.clientY, task, barHit, group: null });
-  }, [selectTask]);
+  }, [selectTask, selectedTaskIds]);
 
   // Drag and drop: mousedown (task move/resize + dependency drawing)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -864,6 +888,18 @@ export function GanttCanvas() {
           currentX: e.clientX,
           currentY: e.clientY,
         });
+        return;
+      }
+
+      // issue #21 punt 3: Ctrl/Cmd-klik op een balk is een selectiegebaar, geen drag/resize.
+      // Vroeger liep mousedown hier altijd door naar barDrag + een harde single-reset
+      // (selectTask(id, false)), waarna handleClick's toggle het id er weer uit haalde → bij
+      // ctrl+klik netto deselectie. Nu armen we niets en laat handleClick de toggle doen; zonder
+      // modifier is het gedrag identiek aan vroeger (select + drag armen).
+      // NB: shift heeft hierboven een eigen pad (dependency-tekenen) en doet geen reset, dus
+      // shift+klik-range-select werkte al — shift bewust niet in deze check opgenomen.
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
         return;
       }
 

@@ -561,7 +561,9 @@ export function TableEditor() {
                     }
                   : {}),
               }}
-              onClick={() => selectTask(task.id)}
+              // issue #21 punt 3: ctrl/cmd toggelt, shift range-selecteert —zelfde selectiegedrag
+              // als in het Gantt-canvas (was hiervoor altijd harde single-select).
+              onClick={e => selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey)}
             >
               {visibleColumns.map(({ col, index }) => {
                 const isName = col.field.src === 'builtin' && col.field.key === 'name';

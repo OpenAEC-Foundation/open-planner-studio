@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 /**
  * Gedeelde dialoog-primitive (audit UI-F4): de overlay-JSX die ~16 dialogs letterlijk kopieerden
@@ -42,6 +43,9 @@ export function Dialog({
   overlayProps, panelProps, children,
 }: DialogProps) {
   useDialogKeys({ onConfirm, onCancel });
+  // Focus-trap (a11y): Tab/Shift+Tab blijven binnen dit paneel; role/aria-modal maken het modaal.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
 
   // Alleen een klik-handler op de overlay zetten als er iets te doen valt — WelcomeDialog heeft
   // bewust géén backdrop-close en had ook geen onClick.
@@ -59,7 +63,14 @@ export function Dialog({
       {...overlayProps}
     >
       {/* stopPropagation: klikken ín het paneel mogen de backdrop-close niet triggeren. */}
-      <div className={panelClassName} onClick={e => e.stopPropagation()} {...panelProps}>
+      <div
+        ref={panelRef}
+        className={panelClassName}
+        role="dialog"
+        aria-modal="true"
+        onClick={e => e.stopPropagation()}
+        {...panelProps}
+      >
         {children}
       </div>
     </div>
