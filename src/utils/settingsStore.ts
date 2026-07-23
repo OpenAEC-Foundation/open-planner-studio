@@ -281,3 +281,16 @@ export async function loadWelcomeSeen(): Promise<boolean | undefined> {
 export async function saveWelcomeSeen(value: boolean): Promise<void> {
   await setSetting('welcomeSeen', value);
 }
+
+// "Je bent net geüpdatet"-detectie (fase "kleine dingen"): de laatst gestarte appversie. Bij de
+// volgende start vergelijken we deze met `getVersion()`; verschillen ze, dan is er net geüpdatet.
+// Ontbreekt de sleutel (verse installatie), dan tonen we NIETS en schrijven we 'm alleen weg.
+// Zelfde ops-* localStorage-pad als alle andere instellingen.
+export async function loadLastVersion(): Promise<string | undefined> {
+  const v = await getSetting<string>('lastVersion');
+  return typeof v === 'string' && v ? v : undefined;
+}
+
+export async function saveLastVersion(value: string): Promise<void> {
+  await setSetting('lastVersion', value);
+}

@@ -34,6 +34,7 @@ export function createDefaultUI(): UIState {
     showSettingsDialog: false,
     showCalendarDialog: false,
     showUpdateDialog: false,
+    justUpdated: null,
     uiTheme: 'dark',
     enableQuarterHourZoom: false,
     weekStartDay: 'monday',

@@ -120,6 +120,10 @@ export interface UIState {
   showSettingsDialog: boolean;
   showCalendarDialog: boolean;
   showUpdateDialog: boolean;
+  /** Fase "kleine dingen": als de app zojuist naar een nieuwe versie is geüpdatet, bevat dit de
+   *  versiesprong (van → naar) en toont `JustUpdatedDialog` zich. `null` = geen sprong (normale
+   *  start of verse installatie). Desktop-only; in de web-build altijd `null`. */
+  justUpdated: { from: string; to: string } | null;
   uiTheme: UITheme;
   enableQuarterHourZoom: boolean;
   weekStartDay: WeekStartDay;
