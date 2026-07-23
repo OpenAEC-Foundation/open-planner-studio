@@ -542,11 +542,34 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    const { major, minor } = pickTiers(view.zoom, enableQH);
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH);
 
     // Visible date range
     const startDate = addCalendarDays(this.viewStart, Math.floor(view.scrollX / view.zoom) - 1);
     const endDate = addCalendarDays(this.viewStart, Math.ceil((view.scrollX + canvasWidth) / view.zoom) + 1);
+
+    // issue #21 punt 2: bij een `mid`-tier (dagweergave, 25≤zoom<80) komt er een weeknummer-rij
+    // bij en worden de drie rijen gelijkmatig verdeeld (h/6, h/2, 5h/6). Zonder `mid` valt dit
+    // blok weg en blijft de oorspronkelijke 2-rijen-layout hieronder byte-identiek staan.
+    if (mid) {
+      // --- Bovenste rij: major tier (maand) ---
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = this.colors.text;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      this.drawTierLabels(major, startDate, endDate, headerHeight / 6);
+
+      // --- Middenrij: mid tier (weeknummers), zelfde stijl als de minor-rij ---
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = this.colors.textSecondary;
+      this.drawTierLabels(mid, startDate, endDate, headerHeight / 2);
+
+      // --- Onderste rij: minor tier (dag) ---
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = this.colors.textSecondary;
+      this.drawTierLabels(minor, startDate, endDate, headerHeight * 5 / 6);
+      return;
+    }
 
     // --- Top row: major tier ---
     ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';

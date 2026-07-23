@@ -67,17 +67,25 @@ export const TIER_CONFIG: Record<TimelineTier, TierConfig> = {
 };
 
 /**
- * Pick the {major, minor} tier pair for the given zoom (pixels per day).
- * QH-tier is only used when enableQuarterHour is true.
+ * Kiest de tier-combinatie voor de gegeven zoom (px/dag). De QH-tier wordt alleen gebruikt
+ * als enableQuarterHour aan staat.
+ * issue #21 punt 2: in de dagweergave-band (25≤zoom<80) wordt optioneel een `mid`-tier
+ * ('week') meegegeven, zodat weeknummers als extra middenrij tussen maand en dag getekend
+ * worden. Alle andere banden blijven zonder `mid` (byte-identiek ten opzichte van vóór #21).
  */
 export function pickTiers(
   zoom: number,
   enableQuarterHour: boolean
-): { major: TimelineTier; minor: TimelineTier } {
+): { major: TimelineTier; mid?: TimelineTier; minor: TimelineTier } {
   if (zoom < 4) return { major: 'year', minor: 'quarter' };
-  if (zoom < 10) return { major: 'year', minor: 'month' };
+  // issue #21 pt. 2: was year/month — het maandlabel bevat het jaartal al ('Jul 2026'), dus de
+  // jaar-rij was grotendeels leeg en bij uitzoomen versprong het maandfont van major (bold) naar
+  // minor. Met month als major blijft de maand de bold rij én blijven weeknummers zichtbaar tot
+  // zoom 4 (7·4=28px = precies minLabelWidth van de week-tier; drawTierLabels vangt de krapste af).
+  if (zoom < 10) return { major: 'month', minor: 'week' };
   if (zoom < 25) return { major: 'month', minor: 'week' };
-  if (zoom < 80) return { major: 'month', minor: 'day' };
+  // issue #21 punt 2: dagweergave — voeg de weeknummer-middenrij toe (mid:'week').
+  if (zoom < 80) return { major: 'month', mid: 'week', minor: 'day' };
   if (zoom < 400 || !enableQuarterHour) return { major: 'day', minor: 'hour' };
   return { major: 'hour', minor: 'quarterHour' };
 }
