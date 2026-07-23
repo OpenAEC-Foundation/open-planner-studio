@@ -218,7 +218,14 @@
     "debCommandLabel": "インストールコマンド",
     "copyCommand": "コマンドをコピー",
     "copied": "コピーしました",
-    "openDownloads": "ダウンロードページを開く"
+    "openDownloads": "ダウンロードページを開く",
+    "justUpdated": {
+      "title": "最新の状態です！",
+      "smaller": "前のバージョンより {{size}} 小さい",
+      "larger": "前のバージョンより {{size}} 大きい",
+      "sameSize": "前のバージョンと同じサイズ",
+      "daysSincePrevious": "前回のリリースから：{{count}} 日"
+    }
   },
   "statusWarnings": {
     "missedDeadlines": "期限超過: {{count}} 件",

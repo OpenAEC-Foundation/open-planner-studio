@@ -218,7 +218,14 @@
     "debCommandLabel": "Installatiecommando",
     "copyCommand": "Commando kopiëren",
     "copied": "Gekopieerd",
-    "openDownloads": "Open downloadpagina"
+    "openDownloads": "Open downloadpagina",
+    "justUpdated": {
+      "title": "Je bent bijgewerkt!",
+      "smaller": "{{size}} kleiner dan de vorige versie",
+      "larger": "{{size}} groter dan de vorige versie",
+      "sameSize": "Even groot als de vorige versie",
+      "daysSincePrevious": "Sinds de vorige release: {{count}} dagen"
+    }
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) overschreden",

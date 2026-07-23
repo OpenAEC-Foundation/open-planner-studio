@@ -218,7 +218,14 @@
     "debCommandLabel": "Kurulum komutu",
     "copyCommand": "Komutu kopyala",
     "copied": "Kopyalandı",
-    "openDownloads": "İndirme sayfasını aç"
+    "openDownloads": "İndirme sayfasını aç",
+    "justUpdated": {
+      "title": "Güncelsiniz!",
+      "smaller": "Önceki sürümden {{size}} daha küçük",
+      "larger": "Önceki sürümden {{size}} daha büyük",
+      "sameSize": "Önceki sürümle aynı boyutta",
+      "daysSincePrevious": "Önceki sürümden bu yana: {{count}} gün"
+    }
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} son tarih aşıldı",

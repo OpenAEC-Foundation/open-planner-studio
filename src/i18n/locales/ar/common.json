@@ -218,7 +218,14 @@
     "debCommandLabel": "أمر التثبيت",
     "copyCommand": "نسخ الأمر",
     "copied": "تم النسخ",
-    "openDownloads": "فتح صفحة التنزيلات"
+    "openDownloads": "فتح صفحة التنزيلات",
+    "justUpdated": {
+      "title": "أنت على أحدث إصدار!",
+      "smaller": "أصغر بمقدار {{size}} من الإصدار السابق",
+      "larger": "أكبر بمقدار {{size}} من الإصدار السابق",
+      "sameSize": "بنفس حجم الإصدار السابق",
+      "daysSincePrevious": "منذ الإصدار السابق: {{count}} يوم"
+    }
   },
   "statusWarnings": {
     "missedDeadlines": "المواعيد النهائية المتجاوزة: {{count}}",
