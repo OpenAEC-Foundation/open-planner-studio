@@ -882,15 +882,16 @@ export function GanttCanvas() {
     }
 
     // No bar hit, lege achtergrond. Takentabel: pant nooit → altijd box-select-kandidaat (fase 2.10
-    // golf 4). Chart: in 'drag' scroll mode wint pannen (map-style, ongewijzigd gedrag); in de
-    // overige scroll-modi is lege chart-achtergrond ook box-select-kandidaat.
+    // golf 4). Chart: in 'drag' scroll mode wint pannen (map-style, ongewijzigd gedrag) — BEHALVE met
+    // Ctrl/Cmd ingedrukt, dan box-select (anders is box-select in deze modus onbereikbaar). In de
+    // overige scroll-modi is lege chart-achtergrond sowieso box-select-kandidaat.
     if (renderer.isInTaskTable(x)) {
       e.preventDefault();
       boxSelect.startBoxSelect({ startClientX: e.clientX, startClientY: e.clientY });
       return;
     }
 
-    if (scrollMode === 'drag') {
+    if (scrollMode === 'drag' && !(e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       const v = useAppStore.getState().view;
       pan.startPan({
@@ -970,9 +971,10 @@ export function GanttCanvas() {
     }
 
     // In 'drag' scroll mode, show a grab affordance over the pannable chart
-    // background so panning is discoverable.
+    // background so panning is discoverable — maar met Ctrl/Cmd ingedrukt schakelt de
+    // achtergrond naar box-select, dus toon dan het crosshair (zelfde signaal als elders).
     if (scrollMode === 'drag' && x >= taskTableWidth) {
-      setCursor('grab');
+      setCursor(e.ctrlKey || e.metaKey ? 'crosshair' : 'grab');
       return;
     }
 
