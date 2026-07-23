@@ -218,7 +218,14 @@
     "debCommandLabel": "安装命令",
     "copyCommand": "复制命令",
     "copied": "已复制",
-    "openDownloads": "打开下载页面"
+    "openDownloads": "打开下载页面",
+    "justUpdated": {
+      "title": "已更新到最新版本！",
+      "smaller": "比上一个版本小 {{size}}",
+      "larger": "比上一个版本大 {{size}}",
+      "sameSize": "与上一个版本大小相同",
+      "daysSincePrevious": "距上次发布：{{count}} 天"
+    }
   },
   "statusWarnings": {
     "missedDeadlines": "已超过 {{count}} 个期限",

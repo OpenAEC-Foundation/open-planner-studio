@@ -218,7 +218,14 @@
     "debCommandLabel": "설치 명령",
     "copyCommand": "명령 복사",
     "copied": "복사됨",
-    "openDownloads": "다운로드 페이지 열기"
+    "openDownloads": "다운로드 페이지 열기",
+    "justUpdated": {
+      "title": "최신 버전입니다!",
+      "smaller": "이전 버전보다 {{size}} 작음",
+      "larger": "이전 버전보다 {{size}} 큼",
+      "sameSize": "이전 버전과 동일한 크기",
+      "daysSincePrevious": "이전 릴리스 이후: {{count}}일"
+    }
   },
   "statusWarnings": {
     "missedDeadlines": "기한 초과: {{count}}건",

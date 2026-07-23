@@ -218,7 +218,14 @@
     "debCommandLabel": "Polecenie instalacji",
     "copyCommand": "Kopiuj polecenie",
     "copied": "Skopiowano",
-    "openDownloads": "Otwórz stronę pobierania"
+    "openDownloads": "Otwórz stronę pobierania",
+    "justUpdated": {
+      "title": "Masz najnowszą wersję!",
+      "smaller": "{{size}} mniej niż poprzednia wersja",
+      "larger": "{{size}} więcej niż poprzednia wersja",
+      "sameSize": "Taki sam rozmiar jak poprzednia wersja",
+      "daysSincePrevious": "Od poprzedniego wydania: {{count}} dni"
+    }
   },
   "statusWarnings": {
     "missedDeadlines": "Przekroczone terminy: {{count}}",

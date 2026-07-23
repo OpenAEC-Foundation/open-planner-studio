@@ -15,6 +15,7 @@ import type { ViewState } from '@/types/view';
 import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { generateBenchmarkProject, type GeneratedProject } from './generateProject';
+import { formatBytes } from '@/utils/formatBytes';
 
 export type PhaseId = 'generate' | 'cpm' | 'ifcWrite' | 'ifcRead' | 'render';
 export const PHASE_ORDER: PhaseId[] = ['generate', 'cpm', 'ifcWrite', 'ifcRead', 'render'];
@@ -273,11 +274,8 @@ export async function runBenchmark({ size, version, onProgress }: RunOptions): P
   };
 }
 
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
+// Back-compat re-export: bestaande importeurs (BenchmarkDialog) halen `formatBytes` hier vandaan.
+export { formatBytes };
 
 /** Engelse detail-tekst per fase, opgebouwd uit de gestructureerde velden (audit-punt 1) — geen
  *  hardgecodeerde runner-strings meer. De dialoog rendert dezelfde data via `t(...)`; deze functie

@@ -218,7 +218,14 @@
     "debCommandLabel": "دستور نصب",
     "copyCommand": "کپی دستور",
     "copied": "کپی شد",
-    "openDownloads": "باز کردن صفحه دانلود"
+    "openDownloads": "باز کردن صفحه دانلود",
+    "justUpdated": {
+      "title": "شما به‌روز هستید!",
+      "smaller": "{{size}} کوچک‌تر از نسخهٔ قبلی",
+      "larger": "{{size}} بزرگ‌تر از نسخهٔ قبلی",
+      "sameSize": "هم‌اندازهٔ نسخهٔ قبلی",
+      "daysSincePrevious": "از انتشار قبلی: {{count}} روز"
+    }
   },
   "statusWarnings": {
     "missedDeadlines": "مهلت‌های گذشته: {{count}}",
