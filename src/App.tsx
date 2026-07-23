@@ -46,6 +46,7 @@ const SettingsDialog = lazy(() => import('@/components/dialogs/SettingsDialog').
 const CalendarDialog = lazy(() => import('@/components/dialogs/CalendarDialog').then(m => ({ default: m.CalendarDialog })));
 const StructureDialog = lazy(() => import('@/components/dialogs/StructureDialog').then(m => ({ default: m.StructureDialog })));
 const UpdateDialog = lazy(() => import('@/components/dialogs/UpdateDialog').then(m => ({ default: m.UpdateDialog })));
+const JustUpdatedDialog = lazy(() => import('@/components/dialogs/JustUpdatedDialog').then(m => ({ default: m.JustUpdatedDialog })));
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
 const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
@@ -85,6 +86,8 @@ function AppContent() {
   const showBenchmarkDialog = useAppStore(s => s.ui.showBenchmarkDialog);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
+  const justUpdated = useAppStore(s => s.ui.justUpdated);
+  const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
   const uiTheme = useAppStore(s => s.ui.uiTheme);
   const setUI = useAppStore(s => s.setUI);
@@ -356,6 +359,7 @@ function AppContent() {
             onClose={recovery.onClose}
           />
         )}
+        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && <JustUpdatedDialog />}
       </Suspense>
     </div>
   );
