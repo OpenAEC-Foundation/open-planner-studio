@@ -354,6 +354,46 @@ S().deleteBaseline('baseline-bestaat-niet');
 eq('g deleteBaseline(onbekend id): geen loze undo-snapshot', S().undoStack.length, gUndoBaseBaseline);
 eq('g deleteBaseline(onbekend id): baselines ongewijzigd', S().baselines.length, gBaselineCountBase);
 
+// Andere richting van hetzelfde vangnet: met een BESTAAND id pusht elke actie WÉL precies één
+// undo-stap én verkleint de betrokken array met één. Zo betrapt de check niet alleen een
+// ontbrekende guard (loze stap), maar óók een guard die per ongeluk de geldige tak zou blokkeren.
+// Volgorde: eerst de relatie weg (anders sleept deleteTask(gB) hem mee), dan de rest.
+const gSeqValidId = S().sequences.find(
+  (sq) => sq.predecessorId === gA && sq.successorId === gB && sq.type === 'FINISH_START',
+)!.id;
+const gUndoPreSeqDel = S().undoStack.length;
+const gSeqLenPre = S().sequences.length;
+S().removeSequence(gSeqValidId);
+eq('g removeSequence(bestaand id): undo +1', S().undoStack.length, gUndoPreSeqDel + 1);
+eq('g removeSequence(bestaand id): sequences -1', S().sequences.length, gSeqLenPre - 1);
+
+const gUndoPreTaskDel = S().undoStack.length;
+const gTaskLenPre = S().tasks.length;
+S().deleteTask(gB);
+eq('g deleteTask(bestaand id): undo +1', S().undoStack.length, gUndoPreTaskDel + 1);
+eq('g deleteTask(bestaand id): tasks -1', S().tasks.length, gTaskLenPre - 1);
+
+const gResValidId = S().resources.find((r) => r.name === 'GRes')!.id;
+const gUndoPreResDel = S().undoStack.length;
+const gResLenPre = S().resources.length;
+S().removeResource(gResValidId);
+eq('g removeResource(bestaand id): undo +1', S().undoStack.length, gUndoPreResDel + 1);
+eq('g removeResource(bestaand id): resources -1', S().resources.length, gResLenPre - 1);
+
+const gCalValidId = S().calendars.find((c) => c.name === 'GCal')!.id;
+const gUndoPreCalDel = S().undoStack.length;
+const gCalLenPre = S().calendars.length;
+S().removeCalendar(gCalValidId);
+eq('g removeCalendar(bestaand id): undo +1', S().undoStack.length, gUndoPreCalDel + 1);
+eq('g removeCalendar(bestaand id): calendars -1', S().calendars.length, gCalLenPre - 1);
+
+const gBaseValidId = S().baselines.find((b) => b.name === 'GBaseline')!.id;
+const gUndoPreBaseDel = S().undoStack.length;
+const gBaseLenPre = S().baselines.length;
+S().deleteBaseline(gBaseValidId);
+eq('g deleteBaseline(bestaand id): undo +1', S().undoStack.length, gUndoPreBaseDel + 1);
+eq('g deleteBaseline(bestaand id): baselines -1', S().baselines.length, gBaseLenPre - 1);
+
 // ══ (h) PROJECT VOLLEDIG IN DE SNAPSHOT (pakket H) ══════════════════════════════════════════════
 // Sinds pakket H staat het HELE `project` in de undo-snapshot; voorwaarde is dat élke
 // project-mutator zelf een snapshot pusht (invariant, zie de kop van snapshot.ts). Per mutator:
