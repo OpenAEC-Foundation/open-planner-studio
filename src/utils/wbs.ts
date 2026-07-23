@@ -10,12 +10,26 @@ import type { Task } from '@/types/task';
 export function flattenOrder(tasks: Task[]): Task[] {
   const out: Task[] = [];
   const seen = new Set<string>();
+  // Ouder→kinderen in array-volgorde: één keer over `tasks` itereren en elke
+  // taak achteraan de lijst van zijn ouder pushen levert precies dezelfde
+  // sibling-volgorde als de vroegere per-taak-scan (`child.parentId === id`),
+  // maar in O(n) i.p.v. O(n²). `!= null` matcht exact wat de `===`-scan als
+  // kind zag (een parentId `''` matcht alleen een — pathologisch — id `''`).
+  const childrenByParent = new Map<string, Task[]>();
+  for (const t of tasks) {
+    if (t.parentId != null) {
+      const list = childrenByParent.get(t.parentId);
+      if (list) list.push(t);
+      else childrenByParent.set(t.parentId, [t]);
+    }
+  }
   const addRecursive = (task: Task) => {
     if (seen.has(task.id)) return; // corrupte cyclus — niet vastlopen
     seen.add(task.id);
     out.push(task);
-    for (const child of tasks) {
-      if (child.parentId === task.id) addRecursive(child);
+    const kids = childrenByParent.get(task.id);
+    if (kids) {
+      for (const child of kids) addRecursive(child);
     }
   };
   for (const root of tasks) {
