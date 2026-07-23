@@ -29,3 +29,29 @@ export function readRecordedPort(root, readFile = readFileSync) {
     return null;
   }
 }
+
+/** Absolute, symlink-resolved worktree-root, of null buiten een git-worktree. */
+export function worktreeRoot(cwd = process.cwd()) {
+  try {
+    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return top ? realpathSync(top) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function worktreeSlug(root) {
+  return root ? basename(root) : 'unknown';
+}
+
+/** Resolvet true als `port` op 127.0.0.1 gebonden kan worden. */
+export function isPortFree(port) {
+  return new Promise((resolve) => {
+    const srv = createServer();
+    srv.once('error', () => resolve(false));
+    srv.once('listening', () => srv.close(() => resolve(true)));
+    srv.listen(port, '127.0.0.1');
+  });
+}
