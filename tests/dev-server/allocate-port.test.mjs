@@ -55,3 +55,14 @@ test('behoudt een bestaande preview-configuratie bij het stempelen', async () =>
   assert.equal(prev.port, 4173);
   rmSync(join(root, '..'), { recursive: true, force: true });
 });
+
+test('herstelt een onbruikbare (array) launch.json naar een geldig object met opsDevPort', async () => {
+  const root = wt('d');
+  writeFileSync(join(root, '.claude', 'launch.json'), '[1,2,3]');
+  const port = await allocatePort(root, deps({ paths: [root] }));
+  const json = JSON.parse(readFileSync(join(root, '.claude', 'launch.json'), 'utf8'));
+  assert.equal(Array.isArray(json), false);
+  assert.equal(json.opsDevPort, port);
+  assert.equal(json.configurations.find((c) => c.name === 'dev').port, port);
+  rmSync(join(root, '..'), { recursive: true, force: true });
+});

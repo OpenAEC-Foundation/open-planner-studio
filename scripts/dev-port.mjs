@@ -73,7 +73,7 @@ export function stampLaunchJson(root, port) {
   let json;
   try { json = JSON.parse(readFileSync(file, 'utf8')); }
   catch { json = defaultLaunchJson(); }
-  if (!json || typeof json !== 'object') json = defaultLaunchJson();
+  if (!json || typeof json !== 'object' || Array.isArray(json)) json = defaultLaunchJson();
   json.opsDevPort = port;
   json.configurations = Array.isArray(json.configurations) ? json.configurations : [];
   const dev = json.configurations.find((c) => c && c.name === 'dev');
