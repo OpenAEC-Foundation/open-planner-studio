@@ -389,9 +389,17 @@ Expected: FAIL — module `scripts/dev-lock.mjs` bestaat niet.
 
 - [ ] **Step 3: Schrijf `scripts/dev-lock.mjs`**
 
+> **Correctie tijdens uitvoering:** een naïeve `unlink`+`open('wx')`-steal bleek NIET
+> race-veilig (eigen 8-stelers-stresstest gaf meerdere winnaars: een steler unlinkt de
+> verse lock van een winnaar). De steal claimt de stale inode nu atomair via `rename`,
+> verifieert `sameHolder`, en herstelt bij een refresh-race via `link` (nooit
+> overschrijven). Bewezen met `tests/dev-server/steal-race.sh`.
+
 ```js
 // scripts/dev-lock.mjs
-import { openSync, writeSync, closeSync, readFileSync, unlinkSync } from 'node:fs';
+import { openSync, writeSync, closeSync, readFileSync, unlinkSync, renameSync, linkSync } from 'node:fs';
+
+let stealSeq = 0;
 
 function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -409,9 +417,14 @@ function readHolder(lockPath) {
   } catch { return null; }
 }
 
+function sameHolder(a, b) {
+  return Boolean(a && b && a.pid === b.pid && a.startedAt === b.startedAt);
+}
+
 /**
  * Atomair pidfile-slot. Returnt release(); throwt bij timeout met een levende houder.
- * Steal is race-veilig: unlink → open('wx') laat precies één O_EXCL-winnaar toe.
+ * Verse claim = open('wx') (O_EXCL, één winnaar). Steal van een verweesd slot is
+ * race-veilig via rename-claim + sameHolder-verify + link-herstel (nooit overschrijven).
  * Een leeg/half-geschreven slot (null holder) geldt als levend → niet stelen.
  */
 export function acquireLock(lockPath, opts = {}) {
@@ -433,7 +446,22 @@ export function acquireLock(lockPath, opts = {}) {
       const dead = h && typeof h.pid === 'number' && !pidAlive(h.pid);
       const aged = allowAgeSteal && h && typeof h.startedAt === 'number' && (now() - h.startedAt) > ageMs;
       if (dead || aged) {
-        try { unlinkSync(lockPath); } catch { /* andere steler was ons voor */ }
+        const mine = `${lockPath}.steal.${process.pid}.${stealSeq++}`;
+        try {
+          renameSync(lockPath, mine); // atomair; slechts één steler verplaatst de inode
+        } catch (e2) {
+          if (e2.code === 'ENOENT') continue; // andere steler/creator was ons voor
+          throw e2;
+        }
+        const grabbed = readHolder(mine);
+        if (sameHolder(grabbed, h)) {
+          try { unlinkSync(mine); } catch { /* al weg */ }
+        } else {
+          // Refresh-race: we grepen een ánder (mogelijk levend) slot → zet terug
+          // zonder een vers-gemaakt slot te overschrijven (link faalt op EEXIST).
+          try { linkSync(mine, lockPath); } catch { /* al opnieuw geclaimd */ }
+          try { unlinkSync(mine); } catch { /* al weg */ }
+        }
         continue; // her-lus: open('wx') kiest één winnaar
       }
       if (now() >= deadline) {

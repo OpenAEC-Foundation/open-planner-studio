@@ -110,7 +110,7 @@ mid-allocatie-lek.
 ### 3. Twee sloten (`scripts/dev-lock.mjs`, nieuw) — atomaire pidfile-sloten
 
 Dependency-vrij (Node-core heeft geen `flock(2)`). **Gedeeld acquire-protocol,
-race-veilig — dit is de v3-blocker-fix:**
+race-veilig:**
 
 ```
 acquire(lockPath, {allowAgeSteal}):
@@ -119,17 +119,27 @@ acquire(lockPath, {allowAgeSteal}):
     catch EEXIST:
       h = readHolder(lockPath)                     // leeg/half-geschreven → behandel als LEVEND (wacht, steel niet)
       dead = h.pid && kill(h.pid,0) throws ESRCH
-      recycled = allowAgeSteal && ouder dan drempel && h.startedAt onaannemelijk
+      recycled = allowAgeSteal && ouder dan drempel
       if dead || recycled:
-         unlinkSync(lockPath)  (fouten negeren);  continue   // steal: unlink → volgende open('wx') kiest ÉÉN winnaar
+         // claim-en-verifieer (NIET kaal unlinken):
+         renameSync(lockPath → privé)              // atomair; slechts één steler verplaatst de inode, rest ENOENT → her-lus
+         if sameHolder(readHolder(privé), h): unlink(privé)   // exact de dode holder → weggooien
+         else: linkSync(privé → lockPath) (faalt op EEXIST); unlink(privé)  // refresh-race: zet holder terug, nooit overschrijven
+         continue
       else: sleep 50ms; continue                    // levende houder → wachten
   // timeout met levende houder → HARD FALEN (nooit een levend slot stelen, nooit doorgaan zonder slot)
 ```
 
-Waarom dit sluit (v3-blocker): stelen gebeurt via **`unlink` + `open('wx')`**, nooit
-via rename-overschrijven — twee gelijktijdige stelers doen allebei `unlink`
-(idempotent) maar precies één `open('wx')` wint; de verliezer krijgt EEXIST, her-lest
-en ziet de verse slot. Een leeg/half-geschreven slot geldt als levend (niet stelen).
+Waarom dit sluit: een naïeve **`unlink` + `open('wx')`** (v3-voorstel) is NIET
+race-veilig — een eigen stresstest (8 gelijktijdige stelers van een verweesd slot)
+gaf meerdere winnaars: een steler die "dood" las, unlinkte de net-gewonnen *verse*
+lock van een winnaar. De fix claimt de stale inode **atomair via `rename`** (bij N
+stelers verplaatst maar één de inode; de rest krijgt ENOENT), verifieert met
+`sameHolder` dat exact de beoordeelde dode holder gegrepen is, en herstelt bij een
+refresh-race via `link` (dat op EEXIST faalt i.p.v. te overschrijven). Een leeg/
+half-geschreven slot geldt als levend (niet stelen). Bewezen met een witness-
+gebaseerde gelijktijdigheidstest (`tests/dev-server/steal-race.sh`, 8 stelers, geen
+handoff-ruis): elke ronde exact één winnaar, nul dubbel-eigenaarschap.
 
 **3a. Toewijzings-flock** — gedeeld, kort. `allowAgeSteal = false`: **alleen
 dode-pid-steal**. Een trage-maar-levende allocator (100 worktrees × bind-probes) mag
@@ -236,7 +246,7 @@ scriptpad in het hook-commando).
 | Bestand | Wijziging |
 |---|---|
 | `scripts/dev-port.mjs` | nieuw — geen import-tijd-side-effects; `worktreeRoot` (realpath, defensief), `readRecordedPort` (opsDevPort), `allocatePort` (absolute-pad git + flock) |
-| `scripts/dev-lock.mjs` | nieuw — race-veilig `unlink`+`open('wx')`-steal; alloc-flock (dode-pid-steal only, absoluut verankerd) + runtime-slot (age-steal ok) |
+| `scripts/dev-lock.mjs` | nieuw — race-veilige rename-claim+verify+link-steal; alloc-flock (dode-pid-steal only, absoluut verankerd) + runtime-slot (age-steal ok) |
 | `scripts/dev-server.mjs` | nieuw — browser-launcher (OPS_DEV_GUARDED-bewust) |
 | `scripts/dev-bootstrap.mjs` | nieuw — zelf-scopende, cwd-robuuste launch.json-stamper |
 | `scripts/tauri-dev.mjs` | `findFreePort()` → `allocatePort()`; claimt guard-slot; zet `OPS_DEV_GUARDED=1`; **behoudt `OPS_DEV_INSTANCE`** |
