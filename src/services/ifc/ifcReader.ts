@@ -16,6 +16,9 @@ import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
 } from './ifcConstants';
 import { PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
+import {
+  IFC_TASKTIME_SLOTS, TASK_SLOT, TASKTIME_SLOT, type TaskTimeReadHelpers,
+} from './ifcTaskSlots';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
@@ -302,10 +305,16 @@ function applyHourModeIFC(
     const e = taskTimeEntities.get(t.id);
     if (!e) continue;
     const effCal = effCalOf(t);
-    const durMin = isoDurationToMinutes(stripQuotes(e.args[4] || ''));
+    const durMin = isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.scheduleDuration] || ''));
     const durSignal = durMin != null && isSubDayMinutes(durMin, effCal.hoursPerDay);
-    const dateSignal = [5, 6, 7, 8, 9, 10, 16, 17]
-      .some(i => hasNonAnchorTime(stripQuotes(e.args[i] || ''), IFC_TIME_ANCHOR));
+    // Datetime-slots die een echte tijd-van-de-dag (≠ `T07:00`) kunnen dragen (schedule/early/late
+    // start+finish + actual start/finish) — via de gedeelde slot-namen i.p.v. magische indices.
+    const dateSignal = [
+      TASKTIME_SLOT.scheduleStart, TASKTIME_SLOT.scheduleFinish,
+      TASKTIME_SLOT.earlyStart, TASKTIME_SLOT.earlyFinish,
+      TASKTIME_SLOT.lateStart, TASKTIME_SLOT.lateFinish,
+      TASKTIME_SLOT.actualStart, TASKTIME_SLOT.actualFinish,
+    ].some(i => hasNonAnchorTime(stripQuotes(e.args[i] || ''), IFC_TIME_ANCHOR));
     if (durSignal || dateSignal) subDayCals.add(effCal);
   }
 
@@ -323,7 +332,7 @@ function applyHourModeIFC(
     const e = taskTimeEntities.get(t.id);
     if (!e) continue;
     const hpd = effCal.hoursPerDay;
-    const durMin = isoDurationToMinutes(stripQuotes(e.args[4] || ''));
+    const durMin = isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.scheduleDuration] || ''));
     const minutes = durMin != null ? durMin : Math.round(t.time.scheduleDuration * hpd * 60);
     t.time.durationMinutes = minutes;
     if (hpd > 0) t.time.scheduleDuration = minutes / (hpd * 60);
@@ -331,15 +340,15 @@ function applyHourModeIFC(
       const q = stripQuotes(raw || '');
       return q && q !== '$' ? formatInstant(parseInstant(q), 'hour') : undefined;
     };
-    const ss = toHour(e.args[5]); if (ss) t.time.scheduleStart = ss;
-    const sf = toHour(e.args[6]); if (sf) t.time.scheduleFinish = sf;
-    const es = toHour(e.args[7]); if (es) t.time.earlyStart = es;
-    const ef = toHour(e.args[8]); if (ef) t.time.earlyFinish = ef;
-    const ls = toHour(e.args[9]); if (ls) t.time.lateStart = ls;
-    const lf = toHour(e.args[10]); if (lf) t.time.lateFinish = lf;
-    const as = toHour(e.args[16]); if (as) t.time.actualStart = as;
-    const af = toHour(e.args[17]); if (af) t.time.actualFinish = af;
-    const remMin = isoDurationToMinutes(stripQuotes(e.args[18] || ''));
+    const ss = toHour(e.args[TASKTIME_SLOT.scheduleStart]); if (ss) t.time.scheduleStart = ss;
+    const sf = toHour(e.args[TASKTIME_SLOT.scheduleFinish]); if (sf) t.time.scheduleFinish = sf;
+    const es = toHour(e.args[TASKTIME_SLOT.earlyStart]); if (es) t.time.earlyStart = es;
+    const ef = toHour(e.args[TASKTIME_SLOT.earlyFinish]); if (ef) t.time.earlyFinish = ef;
+    const ls = toHour(e.args[TASKTIME_SLOT.lateStart]); if (ls) t.time.lateStart = ls;
+    const lf = toHour(e.args[TASKTIME_SLOT.lateFinish]); if (lf) t.time.lateFinish = lf;
+    const as = toHour(e.args[TASKTIME_SLOT.actualStart]); if (as) t.time.actualStart = as;
+    const af = toHour(e.args[TASKTIME_SLOT.actualFinish]); if (af) t.time.actualFinish = af;
+    const remMin = isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.remainingTime] || ''));
     if (remMin != null) t.time.remainingMinutes = remMin;
   }
 }
@@ -365,12 +374,15 @@ function extractTasks(
     // dat schrijven wij nu zelf en dat schrijven ook bestanden van derden. Oudere
     // OPS-bestanden tellen 12 args (WorkMethod ontbrak; dezelfde vier attributen één
     // positie eerder op 8/9/10/11). Detectie op arg-count: exact 12 = legacy-OPS-lay-out,
-    // al het andere = spec-lay-out.
+    // al het andere = spec-lay-out. De legacy-lay-out mist WorkMethod (spec-index 8), dus alle
+    // slots ná die positie schuiven één plek terug — één OFFSET op de gedeelde `TASK_SLOT`-indices
+    // (./ifcTaskSlots) i.p.v. losse ternary's. Name/Description/Identification (< 8) schuiven niet.
     const legacy12 = te.args.length === 12;
-    const isMilestoneIdx = legacy12 ? 8 : 9;
-    const priorityIdx = legacy12 ? 9 : 10;
-    const taskTimeIdx = legacy12 ? 10 : 11;
-    const predefinedTypeIdx = legacy12 ? 11 : 12;
+    const shift = legacy12 ? 1 : 0;
+    const isMilestoneIdx = TASK_SLOT.isMilestone - shift;
+    const priorityIdx = TASK_SLOT.priority - shift;
+    const taskTimeIdx = TASK_SLOT.taskTime - shift;
+    const predefinedTypeIdx = TASK_SLOT.predefinedType - shift;
 
     // Parse IfcTaskTime reference
     const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
@@ -397,9 +409,9 @@ function extractTasks(
 
     tasks.push({
       id,
-      name: stripQuotes(te.args[2] || '') || 'Naamloze taak',
-      description: stripQuotes(te.args[3] || '') || '',
-      wbsCode: stripQuotes(te.args[5] || '') || '',
+      name: stripQuotes(te.args[TASK_SLOT.name] || '') || 'Naamloze taak',
+      description: stripQuotes(te.args[TASK_SLOT.description] || '') || '',
+      wbsCode: stripQuotes(te.args[TASK_SLOT.identification] || '') || '',
       taskType: te.args[predefinedTypeIdx] ? parseTaskType(te.args[predefinedTypeIdx]) : 'CONSTRUCTION',
       status: 'NOT_STARTED',
       isMilestone,
@@ -423,28 +435,30 @@ function optDuration(s: string | undefined): number | undefined {
   return s && s !== '$' ? parseDurationDays(s) : undefined;
 }
 
+/** STEP-parse-helpers die aan de IFCTASKTIME-read-descriptors (./ifcTaskSlots) worden doorgegeven —
+ *  ze wonen hier (STEP-specifieke `$`/quote-semantiek) en worden geïnjecteerd zodat de slot-registry
+ *  cyclusvrij blijft. `parseDate`/`parseDur` reproduceren de vroegere `... (e.args[N] || '')`-vorm. */
+const TASKTIME_READ_HELPERS: TaskTimeReadHelpers = {
+  parseDate: (arg) => parseDateFromIFC(arg || ''),
+  parseDur: (arg) => parseDurationDays(arg || ''),
+  optDate,
+  optDur: optDuration,
+};
+
+/**
+ * IFCTASKTIME → TaskTime via de gedeelde slot-registry (./ifcTaskSlots.IFC_TASKTIME_SLOTS): per slot
+ * dispatcht de descriptor zijn eigen `read` (spiegel van de `write` die de writer emitteerde), zodat
+ * arg-index en veld niet meer op drie plekken los kunnen divergeren (bevinding A2). Slots zonder
+ * `read` (Name/DataOrigin/UserDefinedDataOrigin en StatusTime slot 14 — die statusdatum komt uit
+ * OPS_ProjectSettings, §15.3) laten hun veld ongemoeid ⇒ `$`/afwezige actuals blijven undefined en
+ * legacy-bestanden laden ongewijzigd. Veld-voor-veld resultaat-identiek aan de vroegere object-literal.
+ */
 function parseTaskTime(e: StepEntity): TaskTime {
-  // Voortgang (fase 2.6, §8.1): slots 15 ActualDuration, 16 ActualStart, 17 ActualFinish,
-  // 18 RemainingTime (StatusTime slot 14 wordt genegeerd — we lezen de projectbrede statusdatum
-  // uit OPS_ProjectSettings, §15.3). `$` ⇒ undefined zodat legacy-bestanden ongewijzigd laden.
-  return {
-    durationType: e.args[3]?.includes('ELAPSED') ? 'ELAPSEDTIME' : 'WORKTIME',
-    scheduleDuration: parseDurationDays(e.args[4] || ''),
-    scheduleStart: parseDateFromIFC(e.args[5] || ''),
-    scheduleFinish: parseDateFromIFC(e.args[6] || ''),
-    earlyStart: parseDateFromIFC(e.args[7] || ''),
-    earlyFinish: parseDateFromIFC(e.args[8] || ''),
-    lateStart: parseDateFromIFC(e.args[9] || ''),
-    lateFinish: parseDateFromIFC(e.args[10] || ''),
-    freeFloat: parseDurationDays(e.args[11] || ''),
-    totalFloat: parseDurationDays(e.args[12] || ''),
-    isCritical: e.args[13]?.includes('T') || false,
-    actualDuration: optDuration(e.args[15]),
-    actualStart: optDate(e.args[16]),
-    actualFinish: optDate(e.args[17]),
-    remainingTime: optDuration(e.args[18]),
-    completion: parseFloat(e.args[19] || '0') || 0,
-  };
+  const time = {} as TaskTime;
+  for (let i = 0; i < IFC_TASKTIME_SLOTS.length; i++) {
+    IFC_TASKTIME_SLOTS[i].read?.(time, e.args[i], TASKTIME_READ_HELPERS);
+  }
+  return time;
 }
 
 function extractSequences(
@@ -1250,7 +1264,8 @@ function extractBaselines(
   for (const e of entities) {
     if (e.type !== 'IFCTASK') continue;
     const newId = taskStepIdMap.get(e.id);
-    if (newId) guidToTaskId.set(stripQuotes(e.args[0] || ''), newId);
+    // GlobalId (slot-index 0, ongevoelig voor de 12/13-arg-lay-out) via de gedeelde slot-naam.
+    if (newId) guidToTaskId.set(stripQuotes(e.args[TASK_SLOT.globalId] || ''), newId);
   }
 
   let baselines: Baseline[] = [];

@@ -11,9 +11,12 @@ import {
 } from '@/services/subdayIo';
 import type { ImportResult } from '@/services/importTypes';
 import {
-  DEFAULT_PRIORITY, IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
+  IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
-import { PSET, PER_TASK_PSETS, ifcStr, ifcBool } from './ifcPsets';
+import { PSET, PER_TASK_PSETS, ifcStr } from './ifcPsets';
+import {
+  IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx,
+} from './ifcTaskSlots';
 
 /** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader (fase 2.6,
  *  `extractBaselines`) baseline-taskId's — die als interne id in de OPS_Baselines-JSON staan —
@@ -666,24 +669,25 @@ function writeTask(
   const remainingArg = isHour && t.remainingMinutes != null
     ? ifcDurationHour(t.remainingMinutes)
     : t.remainingTime != null ? ifcDuration(t.remainingTime) : '$';
-  const taskTimeId = addLine(ctx, `tasktime_${task.id}`,
-    `IFCTASKTIME(${ifcStr(task.name + ' Time')},.PREDICTED.,$,.${t.durationType}.,${schedDurArg},${dt(t.scheduleStart)},${dt(t.scheduleFinish)},${dt(t.earlyStart)},${dt(t.earlyFinish)},${dt(t.lateStart)},${dt(t.lateFinish)},${ifcDuration(t.freeFloat)},${ifcDuration(t.totalFloat)},${ifcBool(t.isCritical)},${statusTimeArg},${actualDurationArg},${actualStartArg},${actualFinishArg},${remainingArg},${t.completion.toFixed(1)})`);
 
-  const ifcTaskType = `.${task.taskType}.`;
-  // Spec-conforme 13-args-IFCTASK (L1-fix). IFC 4.3-attribuutvolgorde (0-based STEP-index,
-  // geverifieerd tegen ifc43-docs.standards.buildingsmart.org, IfcTask-attribuuttabel):
-  //   0 GlobalId, 1 OwnerHistory, 2 Name, 3 Description, 4 ObjectType, 5 Identification,
-  //   6 LongDescription, 7 Status, 8 WorkMethod, 9 IsMilestone, 10 Priority, 11 TaskTime,
-  //   12 PredefinedType.
-  // Oudere OPS-versies schreven 12 args (WorkMethod op index 8 ontbrak, waardoor
-  // IsMilestone/Priority/TaskTime/PredefinedType één positie te vroeg zaten) — de reader
-  // (extractTasks) detecteert de arg-count en leest beide varianten. Deze schrijver blijft
-  // een pragmatische subset: ObjectType/LongDescription/Status/WorkMethod blijven `$`;
-  // Priority (IFCINTEGER, native attribuut) alleen bij afwijking van de default 500
-  // (golden rule §7.7, anders `$`).
-  const priorityArg = task.priority !== DEFAULT_PRIORITY ? String(Math.round(task.priority)) : '$';
+  // IFCTASKTIME + IFCTASK worden via de gedeelde slot-registry (./ifcTaskSlots) geëmitteerd: de writer
+  // ITEREERT de geordende descriptor-lijst en `.join(',')`t de per-slot geformatteerde waarden ⇒
+  // byte-identiek aan de vroegere template-literals (zelfde volgorde, zelfde `$`-conventies). De
+  // reader (parseTaskTime/applyHourModeIFC/extractTasks) leest via dezelfde lijst-indices, zodat
+  // writer-positie en reader-index niet meer kunnen divergeren (bevinding A2). `dt`/`ifcDuration`/
+  // `guidArg` worden meegegeven omdat ze in ifcWriter wonen (injectie vermijdt een import-cyclus).
+  const ttCtx: TaskTimeWriteCtx = {
+    task, dt, ifcDuration, schedDurArg, statusTimeArg,
+    actualDurationArg, actualStartArg, actualFinishArg, remainingArg,
+  };
+  const taskTimeId = addLine(ctx, `tasktime_${task.id}`,
+    `IFCTASKTIME(${IFC_TASKTIME_SLOTS.map(s => s.write(ttCtx)).join(',')})`);
+
+  const taskCtx: TaskWriteCtx = {
+    task, ownerHistId, guidArg: ifcStr(ifcGuid(task.id)), taskTimeId,
+  };
   addLine(ctx, `task_${task.id}`,
-    `IFCTASK(${ifcStr(ifcGuid(task.id))},#${ownerHistId},${ifcStr(task.name)},${ifcStr(task.description)},$,${ifcStr(task.wbsCode)},$,$,$,${ifcBool(task.isMilestone)},${priorityArg},#${taskTimeId},${ifcTaskType})`);
+    `IFCTASK(${IFC_TASK_SLOTS.map(s => s.write(taskCtx)).join(',')})`);
 }
 
 function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
