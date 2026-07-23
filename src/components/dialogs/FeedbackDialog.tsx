@@ -10,12 +10,13 @@
  * - Twee verstuur-paden: PAD A (geen screenshot) / PAD B (met screenshot + klembord).
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { sendFeedback, openFeedbackUrl, type FeedbackType, type SendResult } from '@/services/feedback/feedbackService';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { ScreenshotAnnotator } from './ScreenshotAnnotator';
 import './FeedbackDialog.css';
 
@@ -44,6 +45,10 @@ export function FeedbackDialog() {
   const [result, setResult] = useState<SendResult | null>(null);
 
   const close = useCallback(() => setUI({ showFeedbackDialog: false }), [setUI]);
+
+  // Focus-trap (a11y): eigen overlay (geen shared Dialog), role/aria-modal staan al op het paneel.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
 
   // Escape sluit de dialoog (niet tijdens versturen: dan is de handler `undefined` en doet de
   // hook niets). De overlay zelf blijft custom CSS-chrome — geen `Dialog`-migratie hier.
@@ -124,6 +129,7 @@ export function FeedbackDialog() {
       onClick={() => { if (!sending) close(); }}
     >
       <div
+        ref={dialogRef}
         className="feedback-dialog"
         onClick={e => e.stopPropagation()}
         role="dialog"
