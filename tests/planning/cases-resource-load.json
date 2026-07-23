@@ -79,6 +79,32 @@
       }
     },
     {
+      "id": "res-curve-uniform-fractional",
+      "title": "UNIFORM-curve op 4-dagen-taak, unitsPerDay=0.5: fractioneel tempo blijft fractioneel (vlak 0.5/dag, som exact 2) — herstel issue #21 pt. 7 (gate op tempo, niet op totaal)",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 4, "assign": [{ "res": "R1", "units": 0.5, "curve": "UNIFORM" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 0.5, "2026-06-02": 0.5, "2026-06-03": 0.5, "2026-06-04": 0.5
+          }
+        }
+      }
+    },
+    {
+      "id": "res-curve-back-loaded-fractional",
+      "title": "BACK_LOADED-curve op 4-dagen-taak, unitsPerDay=0.5: fractioneel tempo → honderdsten-precisie (scale=100), oplopend, som exact 2 — herstel issue #21 pt. 7",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 4, "assign": [{ "res": "R1", "units": 0.5, "curve": "BACK_LOADED" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 0.17, "2026-06-02": 0.39, "2026-06-03": 0.61, "2026-06-04": 0.83
+          }
+        }
+      }
+    },
+    {
       "id": "res-duration-one",
       "title": "D=1: alle curves geven [unitsPerDay] op de enige dag (curve-parameter is een no-op)",
       "resources": [{ "name": "RU", "maxUnits": 5 }, { "name": "RB", "maxUnits": 5 }],
