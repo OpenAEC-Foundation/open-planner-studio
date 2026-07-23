@@ -15,7 +15,7 @@ De round-trip-check (`roundTrip()`: serialiseer→parse, meet dataverlies) werkt
 
 ## Tier 1 — Licht (standaard): Playwright MCP → browser-dev-build
 
-Werkt tegen de **browser-dev-build** op `http://localhost:3007` (dezelfde React-UI als de
+Werkt tegen de **browser-dev-build** op de aan dit worktree toegewezen poort (zie de `▶`-print van `npm run dev` of `.claude/launch.json` → `opsDevPort`) (dezelfde React-UI als de
 desktop-app; "fully functional except file I/O and auto-save"). Geen eigen server, geen extra deps
 in het project.
 
@@ -36,13 +36,12 @@ in het project.
 1. Start de browser-dev-build (bewust **niet** `tauri:dev` — Playwright kan het desktopvenster niet
    aansturen):
    ```bash
-   npm run dev      # Vite op http://localhost:3007
+   npm run dev      # Vite op de toegewezen poort (zie de ▶-print)
    ```
-   > Draait er al een Vite op 3007 (bv. een tweede worktree)? `npm run dev` faalt nu bewust
-   > (`strictPort`) i.p.v. stil naar 3008 te driften. Kies in die worktree een andere poort met
-   > `OPS_DEV_PORT=3010 npm run dev` en navigeer Playwright naar die poort.
+   > Elk worktree krijgt via scripts/dev-port.mjs een eigen vaste poort; een tweede start in
+   > hetzelfde worktree wordt bewust geweigerd.
 2. Via Playwright MCP-tools:
-   - `browser_navigate` → `http://localhost:3007`
+   - `browser_navigate` → `http://localhost:<toegewezen poort>` (lees 'm uit .claude/launch.json → opsDevPort of de ▶-print)
    - `browser_click` / `browser_type` op de DOM-chrome (ribbon, panelen, knoppen, dialogen)
    - `browser_take_screenshot` voor visuele controle
    - `browser_evaluate` om **state te asserten**, bv.:
@@ -119,3 +118,17 @@ De native OS-picker aanklikken — die zit buiten de webview. Standaardpraktijk:
 Moet ooit gerenderd webview-gedrag in de echte shell geautomatiseerd worden (géén native dialoog), dan is
 `tauri-driver` + `WebKitWebDriver` (Linux, `webkit2gtk-driver`, sudo) + WebdriverIO de route — broos,
 per-platform, geen macOS. Bewust niet gebouwd; zie https://v2.tauri.app/develop/tests/webdriver/.
+
+### Automatische poort-sync (dual-guard)
+
+Installeer eenmalig een user-global SessionStart-hook zodat `preview_start` altijd
+de juiste worktree-poort opent (buiten de repo, want `.claude/` is gitignored). In
+`~/.claude/settings.json`:
+
+    { "hooks": { "SessionStart": [
+        { "hooks": [ { "type": "command", "command": "node scripts/dev-bootstrap.mjs || true" } ] }
+    ] } }
+
+De hook her-stempelt `.claude/launch.json` bij sessiestart. Hij is ergonomie, geen
+correctheidsvereiste: de harde garantie tegen "verkeerde build" zit in de
+vastgelegde `opsDevPort` + de launcher.
