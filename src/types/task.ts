@@ -125,6 +125,82 @@ export interface TaskTime {
   completion: number; // 0.0 - 1.0
 }
 
+/**
+ * TYPE-ONLY rol-splitsing van `TaskTime` (Bevinding A7). `TaskTime` mengt vier rollen in één plat
+ * type; een consument kan niet zien welke velden hij mag SCHRIJVEN en welke `runCPM` OVERSCHRIJFT.
+ * De vier `Pick<>`-aliassen hieronder maken die rollen expliciet — puur documentair/afdwingend,
+ * ZONDER runtime-verandering en ZONDER `TaskTime` zelf te herstructureren. `Task.time` blijft de
+ * volledige `TaskTime`; alle bestaande lezers/schrijvers blijven ongewijzigd. Elk `TaskTime`-veld
+ * hoort in PRECIES één rol; de compile-assert onderaan dwingt volledige + disjuncte dekking af,
+ * zodat een nieuw veld gedwongen wordt gecategoriseerd.
+ */
+
+/** INVOER — door de gebruiker/importers geschreven. `runCPM` raakt deze normaliter niet aan, MAAR
+ *  overschrijft in UUR-modus `scheduleStart`/`scheduleFinish` (naar de berekende instants,
+ *  `scheduleSlice.ts`) en `scheduleDuration` (+ `durationMinutes` op een uur-kalender) voor
+ *  HAMMOCK-taken (afgeleide span, `CPMSolver`). `durationType` blijft puur invoer. */
+export type TaskTimeInput = Pick<
+  TaskTime,
+  'durationType' | 'scheduleDuration' | 'durationMinutes' | 'scheduleStart' | 'scheduleFinish'
+>;
+
+/** CPM-COMPUTED — geschreven door `runCPM` (CPMSolver). Normaliter niet handmatig muteren; de
+ *  legitieme uitzonderingen zijn restore-paden (IFC-import herstelt deze velden, benchmark-runner). */
+export type TaskTimeComputed = Pick<
+  TaskTime,
+  'earlyStart' | 'earlyFinish' | 'lateStart' | 'lateFinish' | 'freeFloat' | 'totalFloat' | 'isCritical'
+>;
+
+/** ANALYSE (fase 2.9, §4.6) — afgeleiden bovenop de CPM-output. `interferingFloat` (= tf − ff) wordt
+ *  ALTIJD elke `runCPM` (her)berekend en teruggeschreven; `isNearCritical`/`floatPath` alleen wanneer
+ *  de bijbehorende optie/drempel draait (anders gewist, om stale markering te voorkomen). */
+export type TaskTimeAnalysis = Pick<
+  TaskTime,
+  'interferingFloat' | 'isNearCritical' | 'floatPath'
+>;
+
+/** TRACKING — voortgang/actuals; door de gebruiker geschreven, niet door de solver. */
+export type TaskTimeTracking = Pick<
+  TaskTime,
+  'actualStart' | 'actualFinish' | 'actualDuration' | 'remainingTime' | 'remainingMinutes' | 'completion'
+>;
+
+// --- Compile-assert: de vier rollen vormen een EXACTE partitie van `keyof TaskTime` ---------------
+// Puur type-niveau (verdwijnt bij compilatie). Dwingt twee dingen af, zodat de rol-splitsing niet
+// stil kan verouderen:
+//   1) VOLLEDIGHEID — elk TaskTime-veld zit in minstens één rol (een nieuw, niet-gecategoriseerd
+//      veld laat `_UncategorizedTaskTimeField` iets anders dan `never` worden → tsc-fout).
+//   2) DISJUNCTHEID — geen veld zit in twee rollen (een dubbel geplaatst veld laat `_OverlappingRole`
+//      iets anders dan `never` worden → tsc-fout).
+// (Elke Pick is per definitie al een subset van `keyof TaskTime`, dus een getypte sleutel die niet
+//  bestaat geeft al bij de Pick zelf een fout — een aparte "extra keys"-check is overbodig.)
+type _TaskTimeRoleKeys =
+  | keyof TaskTimeInput
+  | keyof TaskTimeComputed
+  | keyof TaskTimeAnalysis
+  | keyof TaskTimeTracking;
+
+type _UncategorizedTaskTimeField = Exclude<keyof TaskTime, _TaskTimeRoleKeys>;
+
+type _OverlappingRole =
+  | (keyof TaskTimeInput & keyof TaskTimeComputed)
+  | (keyof TaskTimeInput & keyof TaskTimeAnalysis)
+  | (keyof TaskTimeInput & keyof TaskTimeTracking)
+  | (keyof TaskTimeComputed & keyof TaskTimeAnalysis)
+  | (keyof TaskTimeComputed & keyof TaskTimeTracking)
+  | (keyof TaskTimeAnalysis & keyof TaskTimeTracking);
+
+// `[T] extends [never]` is de robuuste "is exact never"-check (geen distributie over unies).
+type _Expect<T extends true> = T;
+type _IsNever<T> = [T] extends [never] ? true : false;
+// Deze twee asserts compileren alleen wanneer beide condities `never` zijn. Waarde-vorm + `void`
+// (zoals snapshot.ts/documentContract.ts) zodat `noUnusedLocals` ze niet als dood markeert; de
+// twee const-declaraties minificeren weg (inert).
+const _assertTaskTimeComplete: _Expect<_IsNever<_UncategorizedTaskTimeField>> = true;
+const _assertTaskTimeDisjoint: _Expect<_IsNever<_OverlappingRole>> = true;
+void _assertTaskTimeComplete;
+void _assertTaskTimeDisjoint;
+
 export interface Task {
   id: string;
   name: string;
