@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
+
+// Uniek per slider-gebaar: coalesceKey per pointer-sleep ⇒ één undo-stap i.p.v. één per stap.
+let progressSeq = 0;
 
 /**
  * Voortgang/completion + werkelijke start/finish + resterend (fase 2.6, §11.3) — sectie 7 uit
@@ -21,13 +24,14 @@ import { Field } from './shared';
  */
 export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSetActualFinish }: {
   task: Task;
-  onSetProgress: (completion: number) => void;
+  onSetProgress: (completion: number, opts?: { coalesceKey?: string }) => void;
   onSetActualStart: (date: string | undefined) => boolean;
   onSetActualFinish: (date: string | undefined) => boolean;
 }) {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const [actualError, setActualError] = useState(false);
+  const dragKey = useRef<string | undefined>(undefined);
 
   return (
     <>
@@ -38,7 +42,9 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             min={0}
             max={100}
             value={Math.round(task.time.completion * 100)}
-            onChange={e => onSetProgress(parseInt(e.target.value) / 100)}
+            onPointerDown={() => { dragKey.current = `progress:${task.id}:${++progressSeq}`; }}
+            onPointerUp={() => { dragKey.current = undefined; }}
+            onChange={e => onSetProgress(parseInt(e.target.value) / 100, dragKey.current ? { coalesceKey: dragKey.current } : undefined)}
             data-ops-progress-slider
             className="flex-1 accent-accent"
           />

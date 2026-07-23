@@ -98,7 +98,7 @@ export function TaskPropertiesPanel() {
 
       <TaskProgressFields
         task={task}
-        onSetProgress={v => setTaskProgress(task.id, v)}
+        onSetProgress={(v, opts) => setTaskProgress(task.id, v, opts)}
         onSetActualStart={d => setActualStart(task.id, d)}
         onSetActualFinish={d => setActualFinish(task.id, d)}
       />

@@ -66,7 +66,7 @@ export interface TaskSlice {
   insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
   /** Voortgang (fase 2.6): zet completion (0..1), dwingt de §3.2-invarianten af (auto-actualStart bij
    *  completion>0, remainingTime afgeleid, status). scheduleStale alleen als er een statusdatum is. */
-  setTaskProgress: (taskId: string, completion: number) => void;
+  setTaskProgress: (taskId: string, completion: number, opts?: { coalesceKey?: string }) => void;
   /** Werkelijke start (fase 2.6). undefined = wissen. Retourneert false als de datum ná de
    *  statusdatum ligt (geweigerd, geen mutatie — de UI toont een toast). */
   setActualStart: (taskId: string, date: string | undefined) => boolean;
@@ -709,11 +709,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     return newRootId;
   },
 
-  setTaskProgress: (taskId, raw) => {
+  setTaskProgress: (taskId, raw, opts) => {
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      beginUndoable(s);
+      beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
       const completion = Math.max(0, Math.min(1, raw));
       task.time.completion = completion;
       // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
