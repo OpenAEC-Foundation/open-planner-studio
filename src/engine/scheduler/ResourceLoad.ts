@@ -51,9 +51,11 @@ export function distributeUnits(unitsPerDay: number, durationDays: number, curve
   const weights = raw.map(r => r / sumRaw);
 
   // Grootste-rest-methode: eerst afronden naar beneden, dan de grootste fractionele resten
-  // ophogen tot de som weer exact `total` is (bij 2 decimalen precisie, i.e. honderdsten van
-  // een eenheid — dag-granulaire assignments zijn zelden fijner dan dat).
-  return largestRemainderRound(weights.map(w => w * total), total);
+  // ophogen tot de som weer exact `total` is. De precisie (hele eenheden/dag bij een geheel TEMPO,
+  // anders honderdsten) wordt bepaald in `largestRemainderRound` — zie het issue-#21-punt-7-
+  // commentaar daar voor de motivering (hele mensen/machines per dag bij geheel tempo; een
+  // fractioneel tempo als 0,5 kracht/dag blijft fractioneel).
+  return largestRemainderRound(weights.map(w => w * total), total, unitsPerDay);
 }
 
 function interpolate(points: [number, number][], t: number): number {
@@ -68,8 +70,22 @@ function interpolate(points: [number, number][], t: number): number {
   return points[points.length - 1][1];
 }
 
-function largestRemainderRound(values: number[], targetSum: number): number[] {
-  const scale = 100; // 2 decimalen precisie (honderdsten van een eenheid)
+function largestRemainderRound(values: number[], targetSum: number, unitsPerDay: number): number[] {
+  // issue #21 punt 7 — heel TEMPO (unitsPerDay) ⇒ hele eenheden/dag; fractioneel tempo ⇒ fracties.
+  // Een resource-spreiding gaat over echte eenheden per dag: is het TEMPO geheel (bv. 2 kracht/dag),
+  // dan verdelen we in GEHELE eenheden per dag (scale=1) — een halve machinist of 0,67 kraan op één
+  // dag is praktisch onzin, en de grootste-rest-methode garandeert dat de som EXACT op het gehele
+  // totaal uitkomt (remainder = round(targetSum×scale) − Σvloer). Is het tempo fractie (bv. 0,5
+  // kracht/dag), dan behouden we de honderdsten-precisie (scale=100) zodat de som exact klopt op
+  // 2 decimalen — fractioneel tempo is expliciet ondersteund (UnitsInput step=any, P6/MSPDI-imports)
+  // en mag niet worden afgerond naar hele eenheden.
+  //
+  // De gate is op unitsPerDay, NIET op het totaal: anders vervormt een fractioneel tempo dat
+  // toevallig op een geheel totaal uitkomt. Bv. distributeUnits(0,5, 4, UNIFORM) → totaal 2 → een
+  // totaal-gate kiest dan scale=1 en levert [1,1,0,0] i.p.v. de juiste [0,5,0,5,0,5,0,5]; en
+  // distributeUnits(0,1, 10, UNIFORM) → totaal 0,9999999999999999 → binnen 1e-9 van 1 → [1,0,…,0].
+  // Beide fouten zijn de aanleiding tot deze herstelronde. Drempel 1e-9 dekt floating-point-ruis.
+  const scale = Math.abs(unitsPerDay - Math.round(unitsPerDay)) < 1e-9 ? 1 : 100;
   const floors = values.map(v => Math.floor(v * scale));
   let remainder = Math.round(targetSum * scale) - floors.reduce((a, b) => a + b, 0);
   const fracIdx = values

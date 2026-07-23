@@ -15,65 +15,91 @@
     },
     {
       "id": "res-curve-front-loaded",
-      "title": "FRONT_LOADED-curve op 5-dagen-taak, unitsPerDay=2: aflopend, grootste-rest-afronding, som exact 10",
+      "title": "FRONT_LOADED-curve op 5-dagen-taak, unitsPerDay=2: aflopend in HELE eenheden/dag (grootste-rest, som exact 10) — issue #21 pt. 7",
       "resources": [{ "name": "R1", "maxUnits": 5 }],
       "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "FRONT_LOADED" }] }],
       "expect": {
         "load": {
           "R1": {
-            "2026-06-01": 3.33, "2026-06-02": 2.67, "2026-06-03": 2, "2026-06-04": 1.33, "2026-06-05": 0.67
+            "2026-06-01": 3, "2026-06-02": 3, "2026-06-03": 2, "2026-06-04": 1, "2026-06-05": 1
           }
         }
       }
     },
     {
       "id": "res-curve-back-loaded",
-      "title": "BACK_LOADED-curve op 5-dagen-taak, unitsPerDay=2: oplopend (spiegel van front-loaded), som exact 10",
+      "title": "BACK_LOADED-curve op 5-dagen-taak, unitsPerDay=2: oplopend in HELE eenheden/dag (spiegel van front-loaded, som exact 10) — issue #21 pt. 7",
       "resources": [{ "name": "R1", "maxUnits": 5 }],
       "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "BACK_LOADED" }] }],
       "expect": {
         "load": {
           "R1": {
-            "2026-06-01": 0.67, "2026-06-02": 1.33, "2026-06-03": 2, "2026-06-04": 2.67, "2026-06-05": 3.33
+            "2026-06-01": 1, "2026-06-02": 1, "2026-06-03": 2, "2026-06-04": 3, "2026-06-05": 3
           }
         }
       }
     },
     {
       "id": "res-curve-bell",
-      "title": "BELL-curve op 5-dagen-taak, unitsPerDay=2: piek in het midden, som exact 10",
+      "title": "BELL-curve op 5-dagen-taak, unitsPerDay=2: piek in het midden, HELE eenheden/dag (som exact 10) — issue #21 pt. 7",
       "resources": [{ "name": "R1", "maxUnits": 5 }],
       "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "BELL" }] }],
       "expect": {
         "load": {
           "R1": {
-            "2026-06-01": 0.77, "2026-06-02": 2.31, "2026-06-03": 3.84, "2026-06-04": 2.31, "2026-06-05": 0.77
+            "2026-06-01": 1, "2026-06-02": 2, "2026-06-03": 4, "2026-06-04": 2, "2026-06-05": 1
           }
         }
       }
     },
     {
       "id": "res-curve-early-peak",
-      "title": "EARLY_PEAK-curve op 5-dagen-taak, unitsPerDay=2: piek op 1/3 van de duur, som exact 10",
+      "title": "EARLY_PEAK-curve op 5-dagen-taak, unitsPerDay=2: piek op 1/3 van de duur, HELE eenheden/dag (som exact 10) — issue #21 pt. 7",
       "resources": [{ "name": "R1", "maxUnits": 5 }],
       "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "EARLY_PEAK" }] }],
       "expect": {
         "load": {
           "R1": {
-            "2026-06-01": 0.8, "2026-06-02": 3.2, "2026-06-03": 3.2, "2026-06-04": 2, "2026-06-05": 0.8
+            "2026-06-01": 1, "2026-06-02": 3, "2026-06-03": 3, "2026-06-04": 2, "2026-06-05": 1
           }
         }
       }
     },
     {
       "id": "res-curve-late-peak",
-      "title": "LATE_PEAK-curve op 5-dagen-taak, unitsPerDay=2: piek op 2/3 van de duur, som exact 10",
+      "title": "LATE_PEAK-curve op 5-dagen-taak, unitsPerDay=2: piek op 2/3 van de duur, HELE eenheden/dag (som exact 10) — issue #21 pt. 7",
       "resources": [{ "name": "R1", "maxUnits": 5 }],
       "tasks": [{ "name": "T1", "dur": 5, "assign": [{ "res": "R1", "units": 2, "curve": "LATE_PEAK" }] }],
       "expect": {
         "load": {
           "R1": {
-            "2026-06-01": 0.8, "2026-06-02": 2, "2026-06-03": 3.2, "2026-06-04": 3.2, "2026-06-05": 0.8
+            "2026-06-01": 1, "2026-06-02": 2, "2026-06-03": 3, "2026-06-04": 3, "2026-06-05": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "res-curve-uniform-fractional",
+      "title": "UNIFORM-curve op 4-dagen-taak, unitsPerDay=0.5: fractioneel tempo blijft fractioneel (vlak 0.5/dag, som exact 2) — herstel issue #21 pt. 7 (gate op tempo, niet op totaal)",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 4, "assign": [{ "res": "R1", "units": 0.5, "curve": "UNIFORM" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 0.5, "2026-06-02": 0.5, "2026-06-03": 0.5, "2026-06-04": 0.5
+          }
+        }
+      }
+    },
+    {
+      "id": "res-curve-back-loaded-fractional",
+      "title": "BACK_LOADED-curve op 4-dagen-taak, unitsPerDay=0.5: fractioneel tempo → honderdsten-precisie (scale=100), oplopend, som exact 2 — herstel issue #21 pt. 7",
+      "resources": [{ "name": "R1", "maxUnits": 5 }],
+      "tasks": [{ "name": "T1", "dur": 4, "assign": [{ "res": "R1", "units": 0.5, "curve": "BACK_LOADED" }] }],
+      "expect": {
+        "load": {
+          "R1": {
+            "2026-06-01": 0.17, "2026-06-02": 0.39, "2026-06-03": 0.61, "2026-06-04": 0.83
           }
         }
       }

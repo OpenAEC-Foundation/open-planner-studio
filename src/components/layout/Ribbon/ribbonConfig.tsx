@@ -125,7 +125,27 @@ const relationButton: RibbonButtonSpec = {
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const active = useAppStore(s => s.ui.showDependencyMode);
-    return { active, onClick: () => setUI({ showDependencyMode: !active, dependencySourceId: null }) };
+    const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
+    const addSequence = useAppStore(s => s.addSequence);
+    return {
+      active,
+      onClick: () => {
+        // issue #21 punt 4: bij precies 2 geselecteerde taken direct een Finish-Start-relatie
+        // aanleggen (voorganger = eerst aangeklikt), via hetzelfde pad als
+        // RelationsPanel.addFromSelection — zelfde actie, defaults (FS, lag 0) en duplicaat-guard.
+        // In alle andere gevallen (0/1/>2 geselecteerd) de afhankelijkheids-modus togglen, zoals voorheen.
+        if (selectedTaskIds.length === 2) {
+          addSequence({
+            predecessorId: selectedTaskIds[0],
+            successorId: selectedTaskIds[1],
+            type: 'FINISH_START',
+            lagDays: 0,
+          });
+          return;
+        }
+        setUI({ showDependencyMode: !active, dependencySourceId: null });
+      },
+    };
   },
 };
 
