@@ -114,8 +114,14 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       }
 
       // Update summary tasks (roll up dates from children)
+      // A4 (prestatie): één vooraf gebouwde id→taak-Map i.p.v. `s.tasks.find` per taak én per kind
+      // (recursief) — dat was O(n²) op de rollup. `byId` bouwt op de draft `s.tasks`, dus
+      // `byId.get(...)` levert exact dezelfde draft-proxy als `find` (identiek muteren via
+      // `task.time.*`); alleen de opzoeking gaat van O(n) naar O(1). Rollup-logica, -volgorde en de
+      // berekende waarden blijven ongewijzigd (byte-identiek).
+      const byId = new Map<string, Task>(s.tasks.map(t => [t.id, t]));
       const updateSummary = (taskId: string) => {
-        const task = s.tasks.find(t => t.id === taskId);
+        const task = byId.get(taskId);
         if (!task || task.childIds.length === 0) return;
 
         for (const childId of task.childIds) {
@@ -123,7 +129,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
         }
 
         const children = task.childIds
-          .map(cid => s.tasks.find(t => t.id === cid))
+          .map(cid => byId.get(cid))
           .filter(Boolean) as Task[];
 
         if (children.length > 0) {
