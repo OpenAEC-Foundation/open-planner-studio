@@ -22,6 +22,9 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
   useEffect(() => {
     let saving = false;
     let pending = false;
+    // Cache van de laatst-geserialiseerde IFC per document-id, meegaand over de hele hook-levensduur.
+    // Zo hoeven niet-gewijzigde documenten hun (dure) writeIFC niet elke tick opnieuw te draaien.
+    const ifcCache = new Map<string, string>();
 
     const runAutoSave = async () => {
       // Wacht tot de recovery-keuze gemaakt is: anders zou deze schrijfactie de
@@ -37,12 +40,21 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       try {
         // Bouw het options-object via de gedeelde helper (pakket R1) zodat dit pad niet
         // opnieuw uit de pas loopt met de andere state→IFC-callsites.
-        const recDocs: RecoveryDocContent[] = docs.map(({ id, payload }) => ({
-          id,
-          ifc: writeIFC(buildWriteIFCInput(payload)),
-          filePath: payload.filePath,
-          isDirty: payload.isDirty,
-        }));
+        const openIds = new Set(docs.map((d) => d.id));
+        const recDocs: RecoveryDocContent[] = docs.map(({ id, payload }) => {
+          let ifc = ifcCache.get(id);
+          // Herserialiseer alleen als het document gewijzigd is (isDirty) of nog nooit geserialiseerd is.
+          // Niet-gewijzigde, al-gecachte documenten hergebruiken hun IFC — hun inhoud is per definitie
+          // ongewijzigd, dus de recovery-snapshot blijft correct (saveRecovery schrijft nog steeds álle
+          // documenten, dus de herstel-correctheid verandert niet; alleen de dure writeIFC wordt overgeslagen).
+          if (payload.isDirty || ifc === undefined) {
+            ifc = writeIFC(buildWriteIFCInput(payload));
+            ifcCache.set(id, ifc);
+          }
+          return { id, ifc, filePath: payload.filePath, isDirty: payload.isDirty };
+        });
+        // Ruim cache-entries op van documenten die niet meer open zijn (voorkomt onbegrensde groei).
+        for (const cachedId of ifcCache.keys()) if (!openIds.has(cachedId)) ifcCache.delete(cachedId);
         // Backend-keuze (Tauri-bestanden of IndexedDB) zit in recoveryStore.
         await saveRecovery(state.activeDocumentId, recDocs);
       } catch (err) {
