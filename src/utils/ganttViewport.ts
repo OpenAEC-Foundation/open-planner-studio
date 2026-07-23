@@ -129,3 +129,14 @@ export function clampGanttScroll(x: number, y: number): { x: number; y: number }
     y: maxScrollY !== null ? Math.min(y, maxScrollY) : y,
   };
 }
+
+/**
+ * De laatst geregistreerde scrolbare grenzen (of `null` als er nog geen render-pass langskwam,
+ * bv. headless). De wheel-handler leest `maxScrollY` om te bepalen of een verticale wheel-scroll
+ * überhaupt iets kán bewegen: past het hele project verticaal in beeld (`maxScrollY <= 0`), dan
+ * is verticaal scrollen een no-op en valt de handler terug op horizontaal — anders voelt het
+ * gewone wiel "dood" (§keys-modus: plat wiel = verticaal per default).
+ */
+export function getGanttScrollBounds(): { maxScrollX: number | null; maxScrollY: number | null } {
+  return { maxScrollX, maxScrollY };
+}

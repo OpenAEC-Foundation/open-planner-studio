@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { getGanttScrollBounds } from '@/utils/ganttViewport';
 import type { WheelFunction } from '@/state/slices/types';
 
 interface UseGanttZoomOpts {
@@ -108,7 +109,17 @@ export function useGanttZoom({ containerRef, taskTableWidth }: UseGanttZoomOpts)
         setScroll(v.scrollX + delta, v.scrollY);
       } else {
         // vertical: scroll task rows via view.scrollY (renderer offsets rows by it).
-        setScroll(v.scrollX, v.scrollY + delta);
+        // Valt het hele project verticaal binnen het venster (maxScrollY <= 0), dan is verticaal
+        // scrollen een no-op → het gewone wiel voelt "dood" (vooral in de keys-modus, waar het
+        // platte wiel per default verticaal is en de tijdlijn achter Shift zit). Val in dat geval
+        // terug op horizontaal, zodat het wiel altijd íets zichtbaars doet. `maxScrollY === null`
+        // = nog geen render-pass geweest (headless) → ongewijzigd verticaal.
+        const { maxScrollY } = getGanttScrollBounds();
+        if (maxScrollY !== null && maxScrollY <= 0) {
+          setScroll(v.scrollX + delta, v.scrollY);
+        } else {
+          setScroll(v.scrollX, v.scrollY + delta);
+        }
       }
     };
 
