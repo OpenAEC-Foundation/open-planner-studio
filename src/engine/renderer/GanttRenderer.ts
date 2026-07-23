@@ -1144,6 +1144,13 @@ export class GanttRenderer {
       const predY = this.rowToY(predIdx) + rowH / 2;
       const succY = this.rowToY(succIdx) + rowH / 2;
 
+      // Verticale offscreen-cull (prestatie): valt de hele pijl — beide endpoints, de elleboog
+      // ertussen én de pijlkop (succY ± ~3) — ruim boven of onder het canvas, dan tekent hij
+      // niets zichtbaars. Marge 8px dekt pijlkop + lijnbreedte ruim, zodat een net-zichtbare pijl
+      // NOOIT wordt overgeslagen. Bespaart de dure parseDate/dateToX hieronder voor die pijlen.
+      const canvasH = this.opts.canvasHeight;
+      if (Math.max(predY, succY) < -8 || Math.min(predY, succY) > canvasH + 8) continue;
+
       let fromX: number, toX: number;
 
       switch (seq.type) {
