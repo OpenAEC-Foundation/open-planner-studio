@@ -50,6 +50,10 @@ export interface GanttRenderOptions {
   rowHeight: number;
   headerHeight: number;
   localizedMonths?: string[];
+  /** issue #21 punt 2 (vervolg: dagnamen): 7 weekdag-afkortingen, geïndexeerd op
+   *  d.getUTCDay() (0=zondag … 6=zaterdag). Alleen gebruikt in de 'day'-tier bij zoom≥40;
+   *  afwezig ⇒ de dag-tier toont alleen het dagnummer (backwards-compat). */
+  localizedWeekdays?: string[];
   columnHeaders?: { wbs: string; taskName: string; duration: string };
   weekStartDay?: 'monday' | 'sunday';        // default 'monday'
   enableQuarterHourZoom?: boolean;            // default false
@@ -590,7 +594,7 @@ export class GanttRenderer {
     endDate: Date,
     yCenter: number,
   ): void {
-    const { canvasWidth, taskTableWidth, weekStartDay, localizedMonths } = this.opts;
+    const { canvasWidth, taskTableWidth, weekStartDay, localizedMonths, localizedWeekdays } = this.opts;
     const wsd = weekStartDay ?? 'monday';
     const ctx = this.ctx;
     const cfg = TIER_CONFIG[tier];
@@ -603,7 +607,7 @@ export class GanttRenderer {
       const next = nextTickBoundary(cursor, tier);
       const x1 = this.dateToX(cursor);
       const x2 = this.dateToX(next);
-      const labelText = this.formatTierLabel(tier, cursor, wsd, localizedMonths);
+      const labelText = this.formatTierLabel(tier, cursor, wsd, localizedMonths, localizedWeekdays);
 
       // Skip tick entirely if it doesn't reach the visible task area
       if (x2 <= taskTableWidth) {
@@ -631,7 +635,8 @@ export class GanttRenderer {
     tier: TimelineTier,
     d: Date,
     weekStartDay: 'monday' | 'sunday',
-    localizedMonths?: string[]
+    localizedMonths?: string[],
+    localizedWeekdays?: string[]
   ): string {
     const months = localizedMonths || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const pad = (n: number) => n.toString().padStart(2, '0');
@@ -640,7 +645,16 @@ export class GanttRenderer {
       case 'quarter':     return `Q${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`;
       case 'month':       return `${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
       case 'week':        return `W${getWeekNumberFor(d, weekStartDay)}`;
-      case 'day':         return `${d.getUTCDate()}`;
+      // issue #21 punt 2 (vervolg: dagnamen): bij voldoende inzoomen (zoom≥40 px/dag) de
+      // weekdag-afkorting vóór het dagnummer tonen ('wo 23'); anders alleen het dagnummer.
+      // Zonder localizedWeekdays valt het terug op alleen het dagnummer (backwards-compat).
+      case 'day': {
+        const dayNum = d.getUTCDate();
+        if (localizedWeekdays && this.opts.view.zoom >= 40) {
+          return `${localizedWeekdays[d.getUTCDay()]} ${dayNum}`;
+        }
+        return `${dayNum}`;
+      }
       case 'hour':        return `${pad(d.getUTCHours())}:00`;
       case 'quarterHour': return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
     }

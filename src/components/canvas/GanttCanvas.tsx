@@ -67,6 +67,7 @@ export function GanttCanvas() {
 
   const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const { t: tMenu } = useTranslation('menu');
   const dd = useDisplayDate();
 
   const tasks = useAppStore(s => s.tasks);
@@ -160,6 +161,22 @@ export function GanttCanvas() {
   const [histoTooltip, setHistoTooltip] = useState<{ x: number; y: number; lines: string[] } | null>(null);
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
+  // issue #21 punt 2 (vervolg: dagnamen): 7 weekdag-afkortingen in getUTCDay()-volgorde
+  // (0=zondag … 6=zaterdag). Hergebruikt de bestaande kalender-vertalingen uit het menu-
+  // namespace (ribbon.calendarDialog.days, ISO 1=ma … 7=zo) en remapt die naar Sun-first.
+  // Gememoized op taal, net als localizedMonths, zodat de renderer-opts stabiel blijven.
+  const localizedWeekdays = useMemo(
+    () => [
+      tMenu('ribbon.calendarDialog.days.7'), // zo (getUTCDay 0 = zondag)
+      tMenu('ribbon.calendarDialog.days.1'), // ma
+      tMenu('ribbon.calendarDialog.days.2'), // di
+      tMenu('ribbon.calendarDialog.days.3'), // wo
+      tMenu('ribbon.calendarDialog.days.4'), // do
+      tMenu('ribbon.calendarDialog.days.5'), // vr
+      tMenu('ribbon.calendarDialog.days.6'), // za
+    ],
+    [i18n.language], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   // Vertaalde duur-eenheid-suffixen voor de duurkolom-weergave (§6.4/§11). Gememoized op taal zodat de
   // renderer-opts stabiel blijven tussen renders (geen memo-bust per frame).
   const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -468,6 +485,7 @@ export function GanttCanvas() {
       rowHeight: ROW_HEIGHT,
       headerHeight: HEADER_HEIGHT,
       localizedMonths,
+      localizedWeekdays,
       columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
@@ -483,7 +501,7 @@ export function GanttCanvas() {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes]);
 
   useCanvasLayer({ canvasRef, containerRef, draw: drawPrimary });
 
@@ -517,6 +535,7 @@ export function GanttCanvas() {
       rowHeight: ROW_HEIGHT,
       headerHeight: HEADER_HEIGHT,
       localizedMonths,
+      localizedWeekdays,
       columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
@@ -526,7 +545,7 @@ export function GanttCanvas() {
     });
     secondaryRendererRef.current = renderer;
     renderer.render();
-  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode]);
+  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode]);
 
   useCanvasLayer({
     canvasRef: secondaryCanvasRef,
