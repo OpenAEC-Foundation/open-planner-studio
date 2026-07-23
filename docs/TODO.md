@@ -191,6 +191,21 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   gemeten en werkt (0 nieuwe cache-fills bij een tweede solve op dezelfde kalenders).
   Benchmark-scripts: `/tmp/ops-perf/` (bench.ts + run.sh, herbruikbaar).
 
+- [ ] **D2 — opslaan naar een Web Worker verhuizen (prestatie-audit, geparkeerd 2026-07-23).**
+  Uit de prestatie-audit ([`superpowers/prestatie-modulariteit-audit.md`](superpowers/prestatie-modulariteit-audit.md)):
+  de IFC-serialisatie bij auto-save draait op de hoofd-thread en kan bij grote projecten een
+  korte hik geven. De pijn is al fors verzacht door de throttle (eens/10 s) en de dirty-cache
+  (alleen gewijzigde documenten her-serialiseren, `src/hooks/useAutoSave.ts`), dus dit is een
+  *nice-to-have*, geen blokker. *Aanpak:* `ifcWriter` in een Web Worker draaien zodat het
+  serialiseren de UI nooit blokkeert. **Let op:** dit zou de eerste Web Worker in de app zijn —
+  nieuwe infrastructuur (berichtenverkeer, foutafhandeling), dus met een frisse aanloop bouwen,
+  niet er even tussendoor. Verificatie-eis: de worker moet **byte-identieke** IFC produceren
+  t.o.v. de huidige synchrone `writeIFC` (git-archive-vergelijking, zoals bij A1/A2).
+- [ ] **C3 — canvas-heralloc / renderer-hergebruik (prestatie-audit, geparkeerd 2026-07-23).**
+  Marginale winst nadat de pijl-culling (C1) al binnen is; in de browser-preview bovendien
+  lastig hard te bewijzen (het canvas composit niet in een verborgen tab). Alleen oppakken als
+  een concrete meting laat zien dat het nog ergens knelt. Zie de audit voor de context.
+
 - [ ] **Driedubbele eindverificatie van fase 2 (uitgesteld op 2026-07-04).** Na afronding van
   fase 2.5 was een uiterst grondige verificatie gepland maar die is doorgeschoven; uitvoeren
   zodra fase 2 verder gevorderd is (bv. na 2.7 of als afsluiter samen met §2.10). De volledige
