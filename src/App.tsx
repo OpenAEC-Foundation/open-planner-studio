@@ -359,7 +359,7 @@ function AppContent() {
             onClose={recovery.onClose}
           />
         )}
-        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && <JustUpdatedDialog />}
+        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !showWelcomeDialog && <JustUpdatedDialog />}
       </Suspense>
     </div>
   );
