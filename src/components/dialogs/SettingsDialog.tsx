@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import './SettingsDialog.css';
 
 export function SettingsDialog() {
@@ -20,6 +21,8 @@ export function SettingsDialog() {
   // Escape sluit — standaard-toetsafhandeling; de overlay zelf blijft custom (versleepbaar paneel,
   // eigen CSS-chrome, bewust géén backdrop-close), dus geen `Dialog`-migratie hier.
   useDialogKeys({ onCancel: close });
+  // Focus-trap (a11y): custom overlay zonder shared Dialog; hergebruikt de bestaande drag-ref.
+  useFocusTrap(dialogRef);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -50,7 +53,13 @@ export function SettingsDialog() {
 
   return (
     <div className="settings-overlay">
-      <div ref={dialogRef} className="settings-dialog">
+      <div
+        ref={dialogRef}
+        className="settings-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('settings.title')}
+      >
         {/* Header */}
         <div ref={headerRef} className="settings-header" onMouseDown={onHeaderMouseDown}>
           <span>{t('settings.title')}</span>
