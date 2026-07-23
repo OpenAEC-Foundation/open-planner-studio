@@ -54,6 +54,17 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --outfile="$DTCHECK" >/dev/null 2>&1
   node "$DTCHECK" || STATUS=1
 
+  # "Je bent net geüpdatet"-vergelijklogica (releaseInfo.ts — pure functies, los van de CPM-cases).
+  JUCHECK="$DIR/.just-updated-check.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-just-updated.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$JUCHECK" >/dev/null 2>&1
+  node "$JUCHECK" || STATUS=1
+
   # CalendarEngine uur-modus-checks (fase 2.8b golf 1, §4/§9 — engine-primitieven, los van de CPM-cases).
   CHCHECK="$DIR/.calendar-hours-check.mjs"
   "$ROOT/node_modules/.bin/esbuild" "$DIR/check-calendar-hours.ts" \
