@@ -51,8 +51,9 @@ export function distributeUnits(unitsPerDay: number, durationDays: number, curve
   const weights = raw.map(r => r / sumRaw);
 
   // Grootste-rest-methode: eerst afronden naar beneden, dan de grootste fractionele resten
-  // ophogen tot de som weer exact `total` is (bij 2 decimalen precisie, i.e. honderdsten van
-  // een eenheid — dag-granulaire assignments zijn zelden fijner dan dat).
+  // ophogen tot de som weer exact `total` is. De precisie (hele eenheden bij een geheel totaal,
+  // anders honderdsten) wordt bepaald in `largestRemainderRound` — zie het issue-#21-punt-7-
+  // commentaar daar voor de motivering (hele mensen/machines per dag i.p.v. fracties).
   return largestRemainderRound(weights.map(w => w * total), total);
 }
 
@@ -69,7 +70,15 @@ function interpolate(points: [number, number][], t: number): number {
 }
 
 function largestRemainderRound(values: number[], targetSum: number): number[] {
-  const scale = 100; // 2 decimalen precisie (honderdsten van een eenheid)
+  // issue #21 punt 7 — heeltallig verdelen i.p.v. fracties. Een resource-spreiding gaat over hele
+  // mensen/machines per dag: een halve machinist of 0,67 kraan op één dag is praktisch onzin. Daarom
+  // verdelen we in GEHELE eenheden per dag (scale=1) zodra het TOTAAL aantal eenheden
+  // (unitsPerDay × durationDays = `targetSum`) nagenoeg geheel is. De grootste-rest-methode garandeert
+  // dat de som EXACT op dat gehele totaal uitkomt (remainder = round(targetSum) − Σvloer). Is het totaal
+  // daarentegen fractie (bv. 0,5/dag × 3 dagen = 1,5), dan kan het per definitie niet heeltallig worden
+  // verdeeld zonder de som te breken — dan behouden we de honderdsten-precisie (scale=100) zodat de som
+  // althans exact klopt op 2 decimalen. De drempel 1e-9 dekt floating-point-ruis uit unitsPerDay×duur.
+  const scale = Math.abs(targetSum - Math.round(targetSum)) < 1e-9 ? 1 : 100;
   const floors = values.map(v => Math.floor(v * scale));
   let remainder = Math.round(targetSum * scale) - floors.reduce((a, b) => a + b, 0);
   const fracIdx = values
