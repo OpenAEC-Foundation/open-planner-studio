@@ -532,7 +532,7 @@ export class GanttRenderer {
   }
 
   private drawTimelineHeader(): void {
-    const { canvasWidth, headerHeight, view, enableQuarterHourZoom, enableHourPlanning } = this.opts;
+    const { canvasWidth, headerHeight, view, enableQuarterHourZoom } = this.opts;
     const ctx = this.ctx;
 
     // Header background + bottom border
@@ -546,10 +546,11 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    // issue #21 punt 2 (vervolg): de urenplanning-hoofdschakelaar bepaalt óf de ≥80-band uur-tiers
-    // tekent (enableHourTiers). Stemt overeen met scaleFromZoom(zoom, hourPlanningEnabled).
-    const enableHourTiers = enableHourPlanning ?? false;
-    const { major, mid, minor } = pickTiers(view.zoom, enableQH, enableHourTiers);
+    // issue #21 punt 2 (vervolg, user-besluit): de HEADER toont áltijd de dagplanning-opbouw
+    // (maand/week/dag), ook met urenplanning aan — de oude dag/uur-band gaf een fontsprong en
+    // een lege uurrij. De uur-tiers leven alleen nog in de sleep-snapping (useBarDrag geeft
+    // de urenplanning-vlag wél door aan pickTiers).
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH, false);
 
     // Visible date range
     const startDate = addCalendarDays(this.viewStart, Math.floor(view.scrollX / view.zoom) - 1);
