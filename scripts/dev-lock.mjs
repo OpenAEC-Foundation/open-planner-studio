@@ -1,5 +1,9 @@
 // scripts/dev-lock.mjs
 import { openSync, writeSync, closeSync, readFileSync, unlinkSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { resolve, join, basename } from 'node:path';
+import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 
 function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -49,5 +53,41 @@ export function acquireLock(lockPath, opts = {}) {
       }
       sleepSync(sleepMs);
     }
+  }
+}
+
+/** Absoluut verankerd pad naar de gedeelde toewijzings-flock. */
+export function allocLockPath(root) {
+  const gcd = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
+  return join(resolve(root, gcd), 'ops-dev-alloc.lock');
+}
+
+/**
+ * Serialiseert poort-toewijzing over alle worktrees. Kort vastgehouden.
+ * allowAgeSteal=false: nooit een trage-maar-levende allocator bestelen.
+ */
+export async function withAllocLock(root, fn) {
+  const release = acquireLock(allocLockPath(root), { allowAgeSteal: false, timeoutMs: 15000 });
+  try { return await fn(); }
+  finally { release(); }
+}
+
+/** Per-worktree runtime-slot voor proces-leven. No-op onder OPS_DEV_GUARDED. */
+export function acquireGuardLock(root, port) {
+  if (process.env.OPS_DEV_GUARDED) return () => {};
+  const key = createHash('sha1').update(root).digest('hex').slice(0, 16);
+  const lockPath = join(tmpdir(), `ops-dev-guard-${key}.lock`);
+  try {
+    return acquireLock(lockPath, {
+      allowAgeSteal: true, ageMs: 24 * 3600 * 1000,
+      timeoutMs: 0, extra: { port, root },
+    });
+  } catch {
+    const h = readHolder(lockPath);
+    throw new Error(
+      `dev server voor "${basename(root)}" draait al (PID ${h?.pid ?? '?'}, poort ${h?.port ?? '?'}) — tweede bewaker geweigerd`,
+    );
   }
 }
