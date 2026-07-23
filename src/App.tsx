@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { saveRightPanelWidth, RIGHT_PANEL_MIN_WIDTH } from '@/utils/settingsStore';
 import { setNoneLabelValue } from '@/utils/noneLabel';
@@ -12,29 +12,7 @@ import { TableEditor } from '@/components/panels/TableEditor';
 import { ResourcePanel } from '@/components/panels/ResourcePanel';
 import { ResourcePanelCompact } from '@/components/panels/ResourcePanelCompact';
 import { RelationsPanel } from '@/components/panels/RelationsPanel';
-import { IFCPanel } from '@/components/panels/IFCPanel';
-import { ReportPanel } from '@/components/panels/ReportPanel';
-import { DebugTerminal } from '@/components/panels/DebugTerminal';
-import { TaskDialog } from '@/components/dialogs/TaskDialog';
-import { ProjectInfoDialog } from '@/components/dialogs/ProjectInfoDialog';
-import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
-import { CalendarDialog } from '@/components/dialogs/CalendarDialog';
-import { StructureDialog } from '@/components/dialogs/StructureDialog';
-import { UpdateDialog } from '@/components/dialogs/UpdateDialog';
-import { FeedbackDialog } from '@/components/dialogs/FeedbackDialog';
-import { LevelingDialog } from '@/components/dialogs/LevelingDialog';
-import { BaselineDialog } from '@/components/dialogs/BaselineDialog';
-import { MoveProjectDialog } from '@/components/dialogs/MoveProjectDialog';
-import { ColumnsDialog } from '@/components/dialogs/ColumnsDialog';
-import { FilterDialog } from '@/components/dialogs/FilterDialog';
-import { LayoutsDialog } from '@/components/dialogs/LayoutsDialog';
-import { ShortcutsDialog } from '@/components/dialogs/ShortcutsDialog';
-import { BenchmarkDialog } from '@/components/dialogs/BenchmarkDialog';
 import { PresentationHint } from '@/components/layout/PresentationHint';
-import { RecoveryDialog } from '@/components/dialogs/RecoveryDialog';
-import { WelcomeDialog } from '@/components/dialogs/WelcomeDialog';
-import { TourOverlay } from '@/components/tour/TourOverlay';
-import { Backstage } from '@/components/backstage/Backstage';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
 import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
@@ -51,6 +29,36 @@ import { useSplitter } from '@/hooks/useSplitter';
 import { useAppStore } from '@/state/appStore';
 import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 import { HourDataNotice } from '@/components/layout/HourDataNotice';
+
+// Code-splitting (pakket E2): componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
+// overlay renderen worden lazy geladen, zodat hun code niet in de eager first-load-bundel zit maar
+// pas wordt opgehaald bij openen. De altijd-gemounte chrome (TitleBar/Ribbon/StatusBar/GanttCanvas/
+// TaskPropertiesPanel/TableEditor/Resource-/Relations-panelen/DocumentChrome) blijft eager. Named
+// exports ⇒ .then(m => ({ default: m.X })). Gedrag (welke conditie toont wat, welke props) ongewijzigd;
+// elke lazy-render zit in een <Suspense fallback={null}> — een dialoog/overlay die 1 frame later
+// verschijnt is prima.
+const IFCPanel = lazy(() => import('@/components/panels/IFCPanel').then(m => ({ default: m.IFCPanel })));
+const ReportPanel = lazy(() => import('@/components/panels/ReportPanel').then(m => ({ default: m.ReportPanel })));
+const DebugTerminal = lazy(() => import('@/components/panels/DebugTerminal').then(m => ({ default: m.DebugTerminal })));
+const TaskDialog = lazy(() => import('@/components/dialogs/TaskDialog').then(m => ({ default: m.TaskDialog })));
+const ProjectInfoDialog = lazy(() => import('@/components/dialogs/ProjectInfoDialog').then(m => ({ default: m.ProjectInfoDialog })));
+const SettingsDialog = lazy(() => import('@/components/dialogs/SettingsDialog').then(m => ({ default: m.SettingsDialog })));
+const CalendarDialog = lazy(() => import('@/components/dialogs/CalendarDialog').then(m => ({ default: m.CalendarDialog })));
+const StructureDialog = lazy(() => import('@/components/dialogs/StructureDialog').then(m => ({ default: m.StructureDialog })));
+const UpdateDialog = lazy(() => import('@/components/dialogs/UpdateDialog').then(m => ({ default: m.UpdateDialog })));
+const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
+const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
+const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
+const MoveProjectDialog = lazy(() => import('@/components/dialogs/MoveProjectDialog').then(m => ({ default: m.MoveProjectDialog })));
+const ColumnsDialog = lazy(() => import('@/components/dialogs/ColumnsDialog').then(m => ({ default: m.ColumnsDialog })));
+const FilterDialog = lazy(() => import('@/components/dialogs/FilterDialog').then(m => ({ default: m.FilterDialog })));
+const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').then(m => ({ default: m.LayoutsDialog })));
+const ShortcutsDialog = lazy(() => import('@/components/dialogs/ShortcutsDialog').then(m => ({ default: m.ShortcutsDialog })));
+const BenchmarkDialog = lazy(() => import('@/components/dialogs/BenchmarkDialog').then(m => ({ default: m.BenchmarkDialog })));
+const RecoveryDialog = lazy(() => import('@/components/dialogs/RecoveryDialog').then(m => ({ default: m.RecoveryDialog })));
+const WelcomeDialog = lazy(() => import('@/components/dialogs/WelcomeDialog').then(m => ({ default: m.WelcomeDialog })));
+const TourOverlay = lazy(() => import('@/components/tour/TourOverlay').then(m => ({ default: m.TourOverlay })));
+const Backstage = lazy(() => import('@/components/backstage/Backstage').then(m => ({ default: m.Backstage })));
 
 function AppContent() {
   useKeyboardShortcuts();
@@ -172,7 +180,7 @@ function AppContent() {
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
           Anders: gradient strip + main content. */}
       {activeTab === 'file' ? (
-        <Backstage />
+        <Suspense fallback={null}><Backstage /></Suspense>
       ) : (
         <>
       {/* A · Documenttabs — tabstrip onder het lint (multi-document) */}
@@ -201,12 +209,12 @@ function AppContent() {
             {showResourcePanel ? (
               <ResourcePanel />
             ) : (
-              <>
+              <Suspense fallback={null}>
                 {activeTab === 'table' && <TableEditor />}
                 {activeTab === 'relations' && <RelationsPanel />}
                 {activeTab === 'ifc' && <IFCPanel />}
                 {activeTab === 'report' && <ReportPanel />}
-              </>
+              </Suspense>
             )}
           </div>
         ) : (
@@ -298,7 +306,9 @@ function AppContent() {
               <div className="flex-1 overflow-y-auto">
                 {resourceDocked ? <ResourcePanelCompact /> : <TaskPropertiesPanel />}
               </div>
-              {debugTerminalEnabled && debugTerminalOpen && <DebugTerminal />}
+              {debugTerminalEnabled && debugTerminalOpen && (
+                <Suspense fallback={null}><DebugTerminal /></Suspense>
+              )}
             </div>
           )
         )}
@@ -317,32 +327,36 @@ function AppContent() {
       {/* Sluit-bevestiging bij niet-opgeslagen wijzigingen (3-weg) */}
       <CloseDocumentDialog />
 
-      {/* Dialogs */}
-      <TaskDialog />
-      {(showProjectInfoDialog || showNewProjectDialog) && <ProjectInfoDialog />}
-      {showSettingsDialog && <SettingsDialog />}
-      {showCalendarDialog && <CalendarDialog />}
-      {showStructureDialog && <StructureDialog />}
-      {showFeedbackDialog && <FeedbackDialog />}
-      {showLevelingDialog && <LevelingDialog />}
-      {showBaselineDialog && <BaselineDialog />}
-      {showMoveProjectDialog && <MoveProjectDialog />}
-      {showColumnsDialog && <ColumnsDialog />}
-      {showFilterDialog && <FilterDialog />}
-      {showLayoutsDialog && <LayoutsDialog />}
-      {showShortcutsDialog && <ShortcutsDialog />}
-      {showBenchmarkDialog && <BenchmarkDialog />}
-      {showWelcomeDialog && <WelcomeDialog />}
-      {showTourOverlay && <TourOverlay />}
-      <UpdateDialog />
-      {recovery && (
-        <RecoveryDialog
-          entries={recovery.entries}
-          onRestore={recovery.onRestore}
-          onDiscard={recovery.onDiscard}
-          onClose={recovery.onClose}
-        />
-      )}
+      {/* Dialogs — lazy geladen (pakket E2); één Suspense-grens rond het hele blok. Alle dialogs
+          zijn standaard verborgen (gated of intern `return null`), dus een null-fallback tijdens het
+          laden van een chunk is onzichtbaar. */}
+      <Suspense fallback={null}>
+        <TaskDialog />
+        {(showProjectInfoDialog || showNewProjectDialog) && <ProjectInfoDialog />}
+        {showSettingsDialog && <SettingsDialog />}
+        {showCalendarDialog && <CalendarDialog />}
+        {showStructureDialog && <StructureDialog />}
+        {showFeedbackDialog && <FeedbackDialog />}
+        {showLevelingDialog && <LevelingDialog />}
+        {showBaselineDialog && <BaselineDialog />}
+        {showMoveProjectDialog && <MoveProjectDialog />}
+        {showColumnsDialog && <ColumnsDialog />}
+        {showFilterDialog && <FilterDialog />}
+        {showLayoutsDialog && <LayoutsDialog />}
+        {showShortcutsDialog && <ShortcutsDialog />}
+        {showBenchmarkDialog && <BenchmarkDialog />}
+        {showWelcomeDialog && <WelcomeDialog />}
+        {showTourOverlay && <TourOverlay />}
+        <UpdateDialog />
+        {recovery && (
+          <RecoveryDialog
+            entries={recovery.entries}
+            onRestore={recovery.onRestore}
+            onDiscard={recovery.onDiscard}
+            onClose={recovery.onClose}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
