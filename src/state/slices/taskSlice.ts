@@ -319,9 +319,15 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       // state. Dit is de enige plek die parentId/childIds mag muteren (zie TaskDialog.handleSave —
       // die haalt parentId daarom uit de kale `updateTask`-patch en roept in plaats daarvan dit aan).
       if (newParentId != null) {
+        // Review issue #21 pt. 1: visited-set voorkomt een oneindige lus (app-bevriezing) op
+        // corrupte parentId-cycli die id zelf niet bevatten (bereikbaar via een corrupt IFC —
+        // extractNesting zet parentId zonder cykelcheck). flattenOrder overleeft zo'n cyclus
+        // al met een seen-set; deze walk nu ook.
+        const bezocht = new Set<string>();
         let cur: Task | undefined = newParentId === id ? task : s.tasks.find(t => t.id === newParentId);
-        while (cur) {
+        while (cur && !bezocht.has(cur.id)) {
           if (cur.id === id) return; // newParentId is id zelf, of een afstammeling van id
+          bezocht.add(cur.id);
           cur = cur.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
         }
       }
@@ -363,9 +369,12 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       // (spiegelbeeld van moveTask's cykel-check hierboven :310-316: loop van newParentId omhoog
       // door de ouderketen; komt hij bij id uit ⇒ weigeren, GEEN snapshot/mutatie).
       if (newParentId !== null) {
+        // Zelfde visited-set-bescherming als in moveTask hierboven (corrupte parentId-cycli).
+        const bezocht = new Set<string>();
         let cur: Task | undefined = newParentId === id ? task : s.tasks.find(t => t.id === newParentId);
-        while (cur) {
+        while (cur && !bezocht.has(cur.id)) {
           if (cur.id === id) return;
+          bezocht.add(cur.id);
           cur = cur.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
         }
       }
