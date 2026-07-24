@@ -8,7 +8,7 @@
 // Sources:
 //   public/docs/manifest.json + public/docs/en/*.md   → the 25 manual pages (also power the in-app F1/Help)
 //   docs/wiki/*.md                                     → wiki-only pages (Home, Features, Installation, …)
-//   docs/CHANGELOG.md                                  → the Changelog page (as-is, Dutch, with an English note)
+//   docs/CHANGELOG.md                                  → the Changelog page (as-is; authored in English)
 //   screenshot*.png                                    → image assets for the Home page
 //
 // See docs/superpowers/specs/2026-07-24-github-wiki-design.md.
@@ -22,7 +22,6 @@ import { dirname, join, resolve } from 'node:path';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, '.wiki-build');
 const WIKI_REMOTE = 'https://github.com/OpenAEC-Foundation/open-planner-studio.wiki.git';
-const RELEASES = 'https://github.com/OpenAEC-Foundation/open-planner-studio/releases';
 const SCREENSHOTS = ['screenshot.png', 'screenshot-rapport.png', 'screenshot-context-menu.png'];
 
 const push = process.argv.includes('--push');
@@ -82,11 +81,9 @@ for (const f of readdirSync(wikiSrcDir).filter((f) => f.endsWith('.md'))) {
   writePage(f.replace(/\.md$/, ''), rewriteLinks(readFileSync(join(wikiSrcDir, f), 'utf8'), f));
 }
 
-// 3. Changelog (as-is, Dutch) with an English note on top.
-const changelogNote =
-  `> **Note:** detailed change notes are currently maintained in Dutch. English release summaries are ` +
-  `on the [Releases](${RELEASES}) page.\n\n`;
-writePage('Changelog', changelogNote + readFileSync(join(ROOT, 'docs/CHANGELOG.md'), 'utf8'));
+// 3. Changelog — taken verbatim from docs/CHANGELOG.md. That file is authored in English, one
+//    section per released version, with no Unreleased/Ongepubliceerd heading; the wiki mirrors it as-is.
+writePage('Changelog', readFileSync(join(ROOT, 'docs/CHANGELOG.md'), 'utf8'));
 
 // 4. Image assets for the Home page.
 for (const img of SCREENSHOTS) {
