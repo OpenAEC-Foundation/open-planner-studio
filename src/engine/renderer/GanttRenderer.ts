@@ -1395,6 +1395,20 @@ export class GanttRenderer {
     return Math.floor((canvasY - this.opts.headerHeight + this.opts.view.scrollY) / this.opts.rowHeight);
   }
 
+  /** Hit test (issue #21 punt 1, fase 2): verticale drieband bínnen de rij op `canvasY` — bovenste
+   *  kwart = 'before' (invoegen boven deze rij), onderste kwart = 'after' (invoegen onder deze
+   *  rij), middenband = 'nest' (kind worden van deze rij). Hergebruikt exact dezelfde
+   *  rowTop-formule als `getRowIndex`/de rij-tekencode hierboven, zodat de zone altijd op de
+   *  pixel klopt met waar de rij getekend is. */
+  getRowZone(canvasY: number): 'before' | 'after' | 'nest' {
+    const idx = this.getRowIndex(canvasY);
+    const rowTop = this.opts.headerHeight + idx * this.opts.rowHeight - this.opts.view.scrollY;
+    const frac = (canvasY - rowTop) / this.opts.rowHeight;
+    if (frac < 0.25) return 'before';
+    if (frac > 0.75) return 'after';
+    return 'nest';
+  }
+
   /** Hit test: is this position in the task table area? */
   isInTaskTable(canvasX: number): boolean {
     return canvasX < this.opts.taskTableWidth;
