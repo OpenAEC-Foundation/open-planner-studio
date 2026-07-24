@@ -89,6 +89,8 @@
     "deadline": "Deadline",
     "hasConstraint": "Heeft een datum-constraint",
     "deadlineMissed": "Deadline overschreden",
+    "longFreePeriodWarning": "Deze taak loopt over een vrije periode van {{days}} dagen ({{start}} t/m {{end}}).",
+    "longFreePeriodWarningNamed": "Deze taak loopt over {{name}} — een vrije periode van {{days}} dagen ({{start}} t/m {{end}}).",
     "completion": "Voortgang (%)",
     "progress": {
       "actualStart": "Werkelijke start",

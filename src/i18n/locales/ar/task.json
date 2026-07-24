@@ -70,6 +70,8 @@
     "deadline": "الموعد النهائي",
     "hasConstraint": "له قيد تاريخ",
     "deadlineMissed": "تم تجاوز الموعد النهائي",
+    "longFreePeriodWarning": "تمتد هذه المهمة عبر فترة عطلة مدتها {{days}} يومًا ({{start}} إلى {{end}}).",
+    "longFreePeriodWarningNamed": "تمتد هذه المهمة عبر {{name}} — فترة عطلة مدتها {{days}} يومًا ({{start}} إلى {{end}}).",
     "completion": "التقدم (%)",
     "progress": {
       "actualStart": "البداية الفعلية",

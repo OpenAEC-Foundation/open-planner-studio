@@ -70,6 +70,8 @@
     "deadline": "Fecha límite",
     "hasConstraint": "Tiene una restricción de fecha",
     "deadlineMissed": "Fecha límite superada",
+    "longFreePeriodWarning": "Esta tarea abarca un período no laborable de {{days}} días ({{start}} a {{end}}).",
+    "longFreePeriodWarningNamed": "Esta tarea abarca {{name}} — un período no laborable de {{days}} días ({{start}} a {{end}}).",
     "completion": "Progreso (%)",
     "progress": {
       "actualStart": "Inicio real",

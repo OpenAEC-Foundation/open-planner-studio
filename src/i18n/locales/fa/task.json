@@ -70,6 +70,8 @@
     "deadline": "مهلت",
     "hasConstraint": "دارای محدودیت تاریخ",
     "deadlineMissed": "مهلت گذشته است",
+    "longFreePeriodWarning": "این وظیفه در یک دوره تعطیل {{days}} روزه قرار می‌گیرد ({{start}} تا {{end}}).",
+    "longFreePeriodWarningNamed": "این وظیفه در {{name}} قرار می‌گیرد — یک دوره تعطیل {{days}} روزه ({{start}} تا {{end}}).",
     "completion": "پیشرفت (%)",
     "progress": {
       "actualStart": "شروع واقعی",

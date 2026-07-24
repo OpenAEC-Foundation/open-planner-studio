@@ -70,6 +70,8 @@
     "deadline": "Scadenza",
     "hasConstraint": "Ha un vincolo di data",
     "deadlineMissed": "Scadenza superata",
+    "longFreePeriodWarning": "Questa attività attraversa un periodo non lavorativo di {{days}} giorni ({{start}} - {{end}}).",
+    "longFreePeriodWarningNamed": "Questa attività attraversa {{name}} — un periodo non lavorativo di {{days}} giorni ({{start}} - {{end}}).",
     "completion": "Progresso (%)",
     "progress": {
       "actualStart": "Inizio effettivo",

@@ -70,6 +70,8 @@
     "deadline": "Prazo",
     "hasConstraint": "Tem uma restrição de data",
     "deadlineMissed": "Prazo ultrapassado",
+    "longFreePeriodWarning": "Esta tarefa atravessa um período não útil de {{days}} dias ({{start}} a {{end}}).",
+    "longFreePeriodWarningNamed": "Esta tarefa atravessa {{name}} — um período não útil de {{days}} dias ({{start}} a {{end}}).",
     "completion": "Progresso (%)",
     "progress": {
       "actualStart": "Início real",

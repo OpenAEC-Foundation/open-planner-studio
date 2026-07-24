@@ -70,6 +70,8 @@
     "deadline": "Échéance",
     "hasConstraint": "A une contrainte de date",
     "deadlineMissed": "Échéance dépassée",
+    "longFreePeriodWarning": "Cette tâche traverse une période non travaillée de {{days}} jours ({{start}} au {{end}}).",
+    "longFreePeriodWarningNamed": "Cette tâche traverse {{name}} — une période non travaillée de {{days}} jours ({{start}} au {{end}}).",
     "completion": "Avancement (%)",
     "progress": {
       "actualStart": "Début réel",

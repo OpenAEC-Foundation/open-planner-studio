@@ -70,6 +70,8 @@
     "deadline": "기한",
     "hasConstraint": "날짜 제약 조건이 있음",
     "deadlineMissed": "기한 초과",
+    "longFreePeriodWarning": "이 작업은 {{days}}일간의 비근무 기간에 걸쳐 있습니다 ({{start}} ~ {{end}}).",
+    "longFreePeriodWarningNamed": "이 작업은 {{name}} 기간에 걸쳐 있습니다 — {{days}}일간의 비근무 기간 ({{start}} ~ {{end}}).",
     "completion": "진행률 (%)",
     "progress": {
       "actualStart": "실제 시작",
