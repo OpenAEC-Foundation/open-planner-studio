@@ -538,3 +538,44 @@ Elke fase: eigen commit, eigen poort, laat het werkend achter.
 ### Niet-gedaan (bewust)
 - MiniMap-strip en Print blijven op kalender-as in alle fases (andere transformatie). Een
   apart vervolg-ticket kan die later aansluiten als de as-eenheid-helper (§5.5) er eenmaal is.
+
+---
+
+## 10. Review-verwerking (Opus-xhigh, 2026-07-24 — BINDEND voor fase 2/3)
+
+De onafhankelijke review gaf GO op de architectuur en fase 0+1, en NO-GO op fase 2/3
+zoals hierboven beschreven totdat de volgende reparaties in het plan zitten. Deze sectie
+overschrijft bij conflict de eerdere secties.
+
+1. **HistogramRenderer hoort in de as-scope (blokkerend).** `HistogramRenderer.ts` deelt
+   bewust exact dezelfde X-as als de Gantt (import van `dateToX`, zelfde effectiveView) en
+   wordt kolom-uitgelijnd onder de Gantt getekend. Hij krijgt dezelfde `axis`-instantie als
+   de GanttRenderer, in dezelfde fase als waarin de Gantt omgaat (fase 2), anders schuiven
+   de resource-staafjes onder de verkeerde kolommen.
+2. **`ganttViewport.ts` (fit/scroll) — eenheden-consistentie.** `computeFitToProject` en
+   `computeScrollToDate` krijgen een axis/kalender-parameter (signature-ripple naar alle
+   callers benoemen in fase 3). `ORIGIN_PADDING_DAYS × zoom` (scrollX-formule) en `span`
+   moeten in DEZELFDE eenheid rekenen (werkdag-eenheden bij toggle aan), anders landt
+   minStart niet meer op de linkerrand.
+3. **`useBarDrag` resize-randen (left/right) expliciet.** Niet alleen body-move: de
+   edge-paden doen `round(pixelDelta/zoom)` → `addCalendarDays` → `workDaysBetween`. Onder
+   compressie is `pixelDelta/zoom` al een wérkdag-aantal; het moet dus via de axis naar een
+   datum (kolommen = werkdagen), anders levert 5 kolommen slepen ~3-4 werkdagen duur op.
+4. **§5.2 (cursor-verankerd zoomen) vervalt als wijziging.** `useGanttZoom`/de
+   GanttCanvas-kopie werken puur in pixel/kolomruimte en zijn as-agnostisch — alleen
+   verifiëren, niet aanpassen.
+5. **Correcties op eerdere secties:** de CalendarEngine-velden uit §1.2 (workDayMask,
+   holidayDaySet, …) zijn `private` — de prefix-som bouwt uitsluitend op het publieke
+   `isWorkDay(date)` (zoals §2.2 al doet). En het as-bestand is `src/engine/renderer/
+   timeAxis.ts` (geen `axis/`-submap; §3.1 was correct, §2.1 niet).
+
+Aanscherpingen zonder planwijziging:
+- §6-fallback-conditie concreet: het enige echte breekpunt is de ONGESPLITSTE uur-balk
+  die een naad kruist — dáárop terugvallen naar uitsluiten, niet op vage "fragiliteit".
+- §4.5: de default-mijlpaal (anchor zoom/2) landt op naad + zoom/2 (midden maandagkolom) —
+  geaccepteerde kleine incoherentie, documenteren.
+- Randgeval Q3 (taakstart op niet-werkdag, bv. uit import) moet BESLIST zijn vóór fase 3;
+  advies: data niet muteren, naad-landing + naad-marker als uitleg.
+- Split-view-pane en het timescale-preset-label (`scaleFromZoom` toont 'week' terwijl een
+  week 5×zoom breed is) in fase 3 expliciet naverifiëren ([VERMOED]-punten uit de review).
+- Print blijft kalender-as in v1 → WYSIWYG-afwijking expliciet in release-notes/tooltip.
