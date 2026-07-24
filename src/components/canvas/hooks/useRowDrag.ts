@@ -131,6 +131,7 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
       // Geen geldig doel (bv. cykel, buiten de lijst) ⇒ stille no-op — de store-actie zelf guardt
       // cykels ook al, dus dit is een dubbele bodem, geen enige bescherming.
       justRowDraggedRef.current = true;
+      armJustRowDraggedClear();
       setRowDragState(null);
     };
 
@@ -138,8 +139,20 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
       if (e.key !== 'Escape') return;
       e.stopImmediatePropagation();
       justRowDraggedRef.current = true;
+      armJustRowDraggedClear();
       setRowDragState(null);
     };
+
+    // Issue #21 punt 1 (dode-klik-fix): eindigt de sleep buiten het canvas, dan bereikt geen
+    // canvas-click de handler die de vlag normaal consumeert (handleClick in GanttCanvas) —
+    // de vlag zou dan blijven staan en de EERSTVOLGENDE echte canvas-klik inslikken. Eenmalige
+    // window-listener in de BUBBLE-fase (default, geen `capture`) wist de vlag alsnog: bij een
+    // klik ÓP het canvas bereikt React's onClick de root-container (die vóór window ligt in de
+    // bubble-keten) eerst en consumeert 'm daar al — deze listener wist 'm dan idempotent nog
+    // een keer. Bij een klik BUITEN het canvas is dit de enige plek die de vlag opruimt.
+    function armJustRowDraggedClear(): void {
+      window.addEventListener('click', () => { justRowDraggedRef.current = false; }, { once: true });
+    }
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);

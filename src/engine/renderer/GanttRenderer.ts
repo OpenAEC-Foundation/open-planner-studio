@@ -410,19 +410,35 @@ export class GanttRenderer {
 
       if (widthPx >= 70) {
         // Breed genoeg: horizontaal, gecentreerd in het zichtbare deel van het blok, bovenaan.
+        // Issue #21 (holiday-labels-clip-fix): ware grootte tekenen en CLIPPEN op het zichtbare
+        // gebied i.p.v. samenknijpen via een fillText-maxWidth — een lang woord valt dan gewoon
+        // gedeeltelijk buiten beeld i.p.v. onleesbaar verdrukt te worden.
         ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(h.name, (clipX1 + clipX2) / 2, headerHeight + 6, visibleWidth - 8);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(clipX1, headerHeight, visibleWidth, Math.max(0, canvasHeight - headerHeight));
+        ctx.clip();
+        ctx.fillText(h.name, (clipX1 + clipX2) / 2, headerHeight + 6);
+        ctx.restore();
       } else {
-        // Smal blok: verticale tekst langs de linkerrand.
+        // Smal blok: verticale tekst langs de linkerrand. Zelfde clip-in-plaats-van-knijpen-aanpak,
+        // maar dan in wereldcoördinaten VÓÓR de translate/rotate (clip-pad wordt vastgelegd in de
+        // transform die op dat moment geldt), zodat de geroteerde tekst ook gewoon aan de onderkant
+        // afgesneden wordt i.p.v. samengeperst.
         ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(clipX1, headerHeight, visibleWidth, Math.max(0, canvasHeight - headerHeight));
+        ctx.clip();
         ctx.save();
         ctx.translate(clipX1 + zoom / 2, headerHeight + 8);
         ctx.rotate(Math.PI / 2);
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(h.name, 0, 0, Math.max(0, canvasHeight - headerHeight - 16));
+        ctx.fillText(h.name, 0, 0);
+        ctx.restore();
         ctx.restore();
       }
     }
@@ -682,11 +698,17 @@ export class GanttRenderer {
       const labelX = Math.max(x1 + 4, taskTableWidth + 4);
       const slotWidth = x2 - Math.max(x1, taskTableWidth);
 
-      // Defensive skip: if slot is too narrow OR we'd overlap the previous label
+      // Defensive skip: if slot is too narrow OR we'd overlap the previous label. Issue #21
+      // (tier-labels-overlap-fix): daarnaast pas TEKENEN als de GEMETEN tekstbreedte ook echt
+      // vóór het einde van deze tick past (x2-2) — anders overslaan (nooit knijpen/afkappen via
+      // een fillText-maxWidth), zodat twee labels (bv. maandnamen) nooit door elkaar heen lopen.
+      // De lastDrawnRight-guard hierboven blijft als extra vangnet.
       if (slotWidth >= cfg.minLabelWidth && labelX > lastDrawnRight + 4) {
-        ctx.fillText(labelText, labelX, yCenter);
         const measured = ctx.measureText(labelText).width;
-        lastDrawnRight = labelX + measured;
+        if (labelX + measured <= x2 - 2) {
+          ctx.fillText(labelText, labelX, yCenter);
+          lastDrawnRight = labelX + measured;
+        }
       }
 
       cursor = next;
@@ -733,10 +755,14 @@ export class GanttRenderer {
       const labelX = Math.max(x1 + 4, taskTableWidth + 4);
       const slotWidth = x2 - Math.max(x1, taskTableWidth);
 
+      // Zelfde meten-vóór-tekenen-guard als drawTierLabels hierboven (issue #21,
+      // tier-labels-overlap-fix): niet knijpen/afkappen, gewoon overslaan als het niet past.
       if (slotWidth >= cfg.minLabelWidth && labelX > lastDrawnRight + 4) {
-        ctx.fillText(labelText, labelX, yCenter);
         const measured = ctx.measureText(labelText).width;
-        lastDrawnRight = labelX + measured;
+        if (labelX + measured <= x2 - 2) {
+          ctx.fillText(labelText, labelX, yCenter);
+          lastDrawnRight = labelX + measured;
+        }
       }
 
       idx++;
