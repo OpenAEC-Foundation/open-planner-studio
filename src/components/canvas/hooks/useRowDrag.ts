@@ -53,7 +53,7 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
   const [rowDragCandidate, setRowDragCandidate] = useState<RowDragCandidate | null>(null);
   const [rowDragState, setRowDragState] = useState<RowDragState | null>(null);
 
-  const computeHover = (clientY: number): { rowIndex: number; zone: 'before' | 'after' | 'nest'; target: DropTarget | null } | null => {
+  const computeHover = (clientY: number, draggedTaskId: string): { rowIndex: number; zone: 'before' | 'after' | 'nest'; target: DropTarget | null } | null => {
     const canvas = canvasRef.current;
     const renderer = rendererRef.current;
     if (!canvas || !renderer) return null;
@@ -61,7 +61,9 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
     const y = clientY - rect.top;
     const rowIndex = renderer.getRowIndex(y);
     const zone = renderer.getRowZone(y);
-    return { rowIndex, zone, target: resolveDropTarget(rows, rowIndex, zone, tasksById) };
+    // draggedTaskId gaat mee zodat de resolver compenseert voor de remove-dan-insert-verschuiving
+    // bij herordenen binnen dezelfde ouder (review issue #21 pt. 1 fase 2).
+    return { rowIndex, zone, target: resolveDropTarget(rows, rowIndex, zone, tasksById, draggedTaskId) };
   };
 
   // Kandidaatfase: nog onder de drempel. Bij overschrijding (verticale beweging, |dy| — dit is
@@ -74,7 +76,7 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
       const dy = e.clientY - rowDragCandidate.startClientY;
       if (Math.abs(dy) < ROW_DRAG_THRESHOLD) return;
       setRowDragCandidate(null);
-      const hover = computeHover(e.clientY);
+      const hover = computeHover(e.clientY, rowDragCandidate.taskId);
       setRowDragState({
         taskId: rowDragCandidate.taskId,
         currentClientX: e.clientX,
@@ -106,7 +108,7 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
     if (!rowDragState) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const hover = computeHover(e.clientY);
+      const hover = computeHover(e.clientY, rowDragState.taskId);
       setRowDragState(prev => prev ? {
         ...prev,
         currentClientX: e.clientX,

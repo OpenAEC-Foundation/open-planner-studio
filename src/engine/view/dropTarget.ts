@@ -35,6 +35,7 @@ export function resolveDropTarget(
   rowIndex: number,
   zone: 'before' | 'after' | 'nest',
   tasksById: Map<string, Task>,
+  draggedTaskId?: string,
 ): DropTarget | null {
   const row = rows[rowIndex];
   if (!row || row.kind !== 'task') return null;
@@ -52,10 +53,19 @@ export function resolveDropTarget(
   // vangnet (bv. corrupte data) ⇒ dan maar achteraan.
   const base = refIdx >= 0 ? refIdx : siblingIds.length;
 
-  if (zone === 'before') return { parentId, childIndex: base };
+  let childIndex = zone === 'before' ? base : Math.min(base + 1, siblingIds.length);
 
-  // zone === 'after'
-  return { parentId, childIndex: Math.min(base + 1, siblingIds.length) };
+  // Review issue #21 pt. 1 fase 2 (bewezen off-by-one): `childIndex` is hierboven berekend tegen
+  // de siblinglijst MÉT het gesleepte item, maar `moveTaskTo` klemt/plaatst tegen de lijst
+  // ZÓNDER dat item (remove-dan-insert). Staat het gesleepte item in dezelfde lijst vóór het
+  // droppunt, dan verschuift zijn verwijdering het doel één plek — compenseer, anders landt elke
+  // neerwaartse herordening binnen dezelfde ouder één positie te ver (en liegt de indicator).
+  if (draggedTaskId !== undefined) {
+    const dragIdx = siblingIds.indexOf(draggedTaskId);
+    if (dragIdx >= 0 && dragIdx < childIndex) childIndex -= 1;
+  }
+
+  return { parentId, childIndex };
 }
 
 /** Kindlijst van `parentId` in display-volgorde; root (`null`) leunt op de rijvolgorde. */
