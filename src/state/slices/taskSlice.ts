@@ -598,11 +598,26 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         if (idx < 0) return;
         const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
         if (swapIdx < 0 || swapIdx >= parent.childIds.length) return; // rand: no-op
+        const otherId = parent.childIds[swapIdx];
 
         beginUndoable(s);
         const tmp = parent.childIds[idx];
         parent.childIds[idx] = parent.childIds[swapIdx];
         parent.childIds[swapIdx] = tmp;
+
+        // Rauwe s.tasks-array meeschuiven (WBS/flattenOrder-bron, zie utils/wbs.ts) —
+        // ENKEL-NODE-splice, exact zoals moveTaskTo hierboven (:414-434): alleen `taskId`
+        // zelf verhuist relatief t.o.v. `otherId`, subtrees blijven via parentId gewoon
+        // hangen. Zonder deze stap loopt de WBS-nummering (raw-array-volgorde) uit de pas
+        // met de weergave (childIds-volgorde, zie visibleRows.ts:242).
+        const rawIdx = s.tasks.findIndex(t => t.id === taskId);
+        const [node] = s.tasks.splice(rawIdx, 1);
+        const otherRawIdx = s.tasks.findIndex(t => t.id === otherId);
+        if (direction === 'up') {
+          s.tasks.splice(otherRawIdx, 0, node); // vóór otherId
+        } else {
+          s.tasks.splice(otherRawIdx + 1, 0, node); // ná otherId
+        }
       } else {
         // Root-niveau: er is geen aparte root-childIds-array — de sibling-volgorde is de
         // relatieve positie binnen de rauwe `s.tasks`-array (zie flattenOrder in utils/wbs.ts en
