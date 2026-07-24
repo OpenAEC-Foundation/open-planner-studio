@@ -7,15 +7,30 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { LANGUAGE_LABELS } from '@/i18n/config';
 import { renderMiniMarkdown, extractHeadings } from '@/utils/miniMarkdown';
 import './HelpPanel.css';
 
+// De documentatietaal wordt persistent los van de UI-taal bewaard, zodat een gebruiker de docs in
+// bv. Engels kan lezen terwijl de rest van de app in zijn eigen taal blijft.
+const DOCS_LANG_KEY = 'ops-docs-locale';
+
 type HelpLayer = 'quickstart' | 'gidsen' | 'referentie';
-type HelpLang = 'nl' | 'en';
+
+// Alle UI-locales met een eigen vertaalde docs-map onder public/docs/<lang>/. Elke UI-taal die
+// hier niet in staat (of waarvan een specifiek artikel ontbreekt) valt terug op de EN-docs.
+const DOC_LANGS = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'] as const;
+type HelpLang = (typeof DOC_LANGS)[number];
+
+function resolveDocLang(uiLang: string): HelpLang {
+  const base = uiLang.split('-')[0];
+  return (DOC_LANGS as readonly string[]).includes(base) ? (base as HelpLang) : 'en';
+}
 
 interface HelpArticleMeta {
   id: string;
-  title: Record<HelpLang, string>;
+  // EN is altijd aanwezig als fallback; de overige talen zijn optioneel.
+  title: Partial<Record<HelpLang, string>> & { en: string };
   layer: HelpLayer;
   cluster?: string;
 }
@@ -34,9 +49,29 @@ export function HelpPanel() {
   const runCPM = useAppStore(s => s.runCPM);
   const setUI = useAppStore(s => s.setUI);
 
-  // Taal-koppeling (§3 ontwerp): NL-UI → NL-docs, elke andere UI-taal → EN-docs (zelfde
-  // fallback-gedrag als de rest van de app, ReportPanel.tsx:13,38 als precedent).
-  const lang: HelpLang = i18n.language.startsWith('nl') ? 'nl' : 'en';
+  // Taal-koppeling (§3 ontwerp): standaard volgt de docs-taal de UI-taal (met EN-fallback per
+  // artikel in de body-fetch). De gebruiker kan de docs-taal echter LOS van de UI overrulen —
+  // handig omdat de niet-NL/EN-vertalingen maar sporadisch worden bijgewerkt (zie de waarschuwing
+  // hieronder). De override is persistent in localStorage.
+  const uiDocsLang: HelpLang = resolveDocLang(i18n.language);
+  const [docsLangOverride, setDocsLangOverride] = useState<HelpLang | null>(() => {
+    const saved = localStorage.getItem(DOCS_LANG_KEY);
+    return saved && (DOC_LANGS as readonly string[]).includes(saved) ? (saved as HelpLang) : null;
+  });
+  const lang: HelpLang = docsLangOverride ?? uiDocsLang;
+  // NL/EN zijn de canonieke, meebewegende brontalen; alle andere docs-talen lopen mogelijk achter.
+  const isStaleDocsLang = lang !== 'nl' && lang !== 'en';
+
+  // '__auto__' = volg de UI-taal (override wissen); anders een concrete docs-taal vastzetten.
+  const changeDocsLang = (value: string) => {
+    if (value === '__auto__') {
+      setDocsLangOverride(null);
+      localStorage.removeItem(DOCS_LANG_KEY);
+    } else if ((DOC_LANGS as readonly string[]).includes(value)) {
+      setDocsLangOverride(value as HelpLang);
+      localStorage.setItem(DOCS_LANG_KEY, value);
+    }
+  };
 
   const [manifest, setManifest] = useState<HelpManifest | null>(null);
   const [manifestError, setManifestError] = useState(false);
@@ -72,15 +107,31 @@ export function HelpPanel() {
     setArticles({});
     setFailedIds(new Set());
     Promise.all(
-      manifest.articles.map(a =>
-        fetch(`${import.meta.env.BASE_URL}docs/${lang}/${a.id}.md`)
-          .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+      manifest.articles.map(a => {
+        const fetchLang = (l: HelpLang) =>
+          fetch(`${import.meta.env.BASE_URL}docs/${l}/${a.id}.md`)
+            .then(async r => {
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              // Vite (dev) en veel statische hosts (prod) serveren voor een ONBEKEND pad hun
+              // SPA-fallback (index.html) mét status 200 — `r.ok` is dus geen betrouwbaar
+              // "bestaat"-signaal. Herken de fallback aan het HTML-content-type en/of een
+              // <!doctype>/<html>-body en behandel 'm als "niet gevonden", anders belandt de
+              // rauwe app-HTML als "artikelinhoud" in de markdown-renderer.
+              const ct = r.headers.get('content-type') ?? '';
+              if (ct.includes('text/html')) throw new Error('SPA-fallback (content-type)');
+              const text = await r.text();
+              if (/^\uFEFF?\s*<(?:!doctype|html)\b/i.test(text)) throw new Error('SPA-fallback (body)');
+              return text;
+            });
+        // Val per artikel terug op EN als de vertaling voor deze taal (nog) ontbreekt.
+        return fetchLang(lang)
+          .catch(() => (lang === 'en' ? Promise.reject(new Error('geen EN-fallback')) : fetchLang('en')))
           .then(text => ({ id: a.id, text, ok: true as const }))
           .catch(err => {
-            console.error(`[Help] Artikel "${a.id}" (${lang}) laden mislukt:`, err);
+            console.error(`[Help] Artikel "${a.id}" (taal ${lang}, incl. EN-fallback) laden mislukt:`, err);
             return { id: a.id, text: '', ok: false as const };
-          })
-      )
+          });
+      })
     ).then(results => {
       if (cancelled) return;
       const map: Record<string, string> = {};
@@ -160,6 +211,25 @@ export function HelpPanel() {
           />
         </div>
 
+        <div className="help-docslang-wrap">
+          <label className="help-docslang-label" htmlFor="help-docslang">
+            {tMenu('backstage.helpDocsLang')}
+          </label>
+          <select
+            id="help-docslang"
+            className="help-docslang"
+            value={docsLangOverride ?? '__auto__'}
+            onChange={e => changeDocsLang(e.target.value)}
+          >
+            <option value="__auto__">
+              {tMenu('backstage.helpDocsLangAuto')} ({LANGUAGE_LABELS[uiDocsLang][1]})
+            </option>
+            {DOC_LANGS.map(l => (
+              <option key={l} value={l}>{LANGUAGE_LABELS[l][1]}</option>
+            ))}
+          </select>
+        </div>
+
         {manifestError ? (
           <div className="backstage-empty">{tMenu('backstage.helpLoadError')}</div>
         ) : !manifest ? (
@@ -190,6 +260,19 @@ export function HelpPanel() {
       </aside>
 
       <main className="help-article">
+        {isStaleDocsLang && (
+          <div className="help-stale-warning" role="note">
+            <span className="help-stale-text">{tMenu('backstage.helpStale')}</span>
+            <span className="help-stale-actions">
+              <button type="button" className="help-stale-btn" onClick={() => changeDocsLang('en')}>
+                {LANGUAGE_LABELS.en[1]}
+              </button>
+              <button type="button" className="help-stale-btn" onClick={() => changeDocsLang('nl')}>
+                {LANGUAGE_LABELS.nl[1]}
+              </button>
+            </span>
+          </div>
+        )}
         {!manifest ? null : !selectedMeta || selectedFailed ? (
           <div className="backstage-empty">{tMenu('backstage.helpArticleNotFound')}</div>
         ) : selectedContent === undefined ? (

@@ -183,3 +183,57 @@
   text-align: center;
   margin: var(--sp-2, 8px) 0;
 }
+
+/* Documentatietaal-kiezer (los van de UI-taal) — onder het zoekveld in de zijbalk. */
+.help-docslang-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--sp-2, 8px);
+}
+.help-docslang-label {
+  font-size: 11px;
+  color: var(--theme-text-dim);
+}
+.help-docslang {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 12px;
+  color: var(--theme-text);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+}
+
+/* Waarschuwing bovenaan het artikel: niet-NL/EN-talen lopen mogelijk achter. */
+.help-stale-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: var(--sp-3, 12px);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--theme-text);
+  background: var(--theme-surface-alt);
+  border: 1px solid var(--theme-border);
+  border-left: 3px solid var(--theme-accent);
+  border-radius: var(--radius-md);
+}
+.help-stale-text { flex: 1 1 220px; }
+.help-stale-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.help-stale-btn {
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--theme-accent-on);
+  background: var(--theme-accent);
+  border: none;
+  border-radius: var(--radius-md);
+}
+.help-stale-btn:hover { opacity: 0.9; }
