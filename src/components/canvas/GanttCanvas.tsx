@@ -216,6 +216,7 @@ export function GanttCanvas() {
   const tasksById = useMemo(() => new Map(tasks.map(t => [t.id, t])), [tasks]);
   const rowDrag = useRowDrag({
     canvasRef, rendererRef, rows: viewRows, tasksById, moveTaskTo, justRowDraggedRef,
+    headerHeight: HEADER_HEIGHT,
   });
   const depDraw = useDependencyDraw({
     canvasRef,

@@ -42,6 +42,10 @@ interface UseRowDragOptions {
   /** Gedeelde vlag met de click-handler: onderdrukt de eerstvolgende click ná een rijsleep
    *  (zelfde patroon als `justBoxSelectedRef`). */
   justRowDraggedRef: RefObject<boolean>;
+  /** Hoogte van de tijdlijnheader in canvas-px. Review issue #21 pt. 1 fase 2: `getRowIndex`
+   *  klemt niet, dus een hover BOVEN de header zou bij scrollY>0 op een echte rij mappen en
+   *  daar een (grotendeels verstopte) droptarget tonen — boven de header is er géén target. */
+  headerHeight: number;
 }
 
 // Rijsleep (verticaal taak-verslepen vanuit de takentabel — issue #21 punt 1, fase 2). Bezit de
@@ -49,7 +53,7 @@ interface UseRowDragOptions {
 // window-listeners, gespiegeld aan `useBoxSelect`. De mutatie (`moveTaskTo`) gebeurt uitsluitend
 // bij mouseup, nooit tijdens het slepen zelf — dus één aanroep = één undo-stap, geen coalescing
 // nodig (zie ontwerp-B §4/§5).
-export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo, justRowDraggedRef }: UseRowDragOptions) {
+export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo, justRowDraggedRef, headerHeight }: UseRowDragOptions) {
   const [rowDragCandidate, setRowDragCandidate] = useState<RowDragCandidate | null>(null);
   const [rowDragState, setRowDragState] = useState<RowDragState | null>(null);
 
@@ -59,6 +63,7 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
     if (!canvas || !renderer) return null;
     const rect = canvas.getBoundingClientRect();
     const y = clientY - rect.top;
+    if (y < headerHeight) return null; // boven de tijdlijnheader is geen droptarget
     const rowIndex = renderer.getRowIndex(y);
     const zone = renderer.getRowZone(y);
     // draggedTaskId gaat mee zodat de resolver compenseert voor de remove-dan-insert-verschuiving
