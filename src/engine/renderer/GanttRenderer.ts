@@ -10,7 +10,8 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 import { readGanttPalette, type GanttPalette } from './themePalette';
-import { dateToX as axisDateToX, xToDayOffset } from './timeAxis';
+import { xToDayOffset, type GanttAxis } from './timeAxis';
+import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -82,6 +83,15 @@ export interface GanttRenderOptions {
    *  `readGanttPalette()` (identiek lees-moment/-resultaat als vroeger). Meegeven maakt de renderer
    *  puur/headless-testbaar (geen DOM-afhankelijkheid). */
   palette?: GanttPalette;
+  /** Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen». Afwezig/false ⇒ de bestaande
+   *  kalender-as (byte-identiek). Zie `axis` hieronder voor de gedeelde-instantie-variant. */
+  compressNonWorkdays?: boolean;
+  /** Issue #21 punt 5 (fase 2, ontwerp §10.1): een VAN BUITEN meegegeven `GanttAxis` — gebruikt
+   *  door `GanttCanvas` om de PRIMAIRE Gantt-pane en de `HistogramRenderer` LETTERLIJK dezelfde
+   *  as-instantie te geven (anders schuiven de resource-staafjes onder de verkeerde kolommen).
+   *  Afwezig ⇒ de renderer bouwt zelf een as uit `calendar`+`compressNonWorkdays`+`view`
+   *  (bv. de secundaire split-view-pane, of headless tests die geen axis meegeven). */
+  axis?: GanttAxis;
 }
 
 // Near-critical "geblokt"-vulpatroon voor het high-contrast-thema (fase 2.9 §5.4, BINDEND besluit).
@@ -124,6 +134,13 @@ export class GanttRenderer {
   private violatedSet: Set<string>;
   private missedDeadlineSet: Set<string>;
   private highContrast: boolean;
+  /** Issue #21 punt 5 (fase 2): de gekozen tijd-as (kalender- of werkdagen-, §2.1). Fresh per
+   *  render — zie `workdayAxis.ts` §2.2/§2.5 (geen cross-render cache). */
+  private axis: GanttAxis;
+  /** Is de as DAADWERKELIJK gecomprimeerd (vlag AAN én de kalender heeft werkdagen, §9.4-guard)?
+   *  Stuurt de grid-/arceringkeuze in `drawGridBackground` (§4.2: geen niet-werkdagen ⇒ geen
+   *  arcering, geen dubbele rasterlijnen op de samengevallen naad-x). */
+  private compressed: boolean;
 
   /** Alpha voor gedimde rijen (filter-ouderketen, §4.2). */
   private static readonly DIM_ALPHA = 0.45;
@@ -150,6 +167,20 @@ export class GanttRenderer {
     this.violatedSet = new Set(opts.violatedConstraintTaskIds ?? []);
     this.missedDeadlineSet = new Set(opts.missedDeadlineTaskIds ?? []);
     this.highContrast = !!opts.highContrast;
+    // Issue #21 punt 5 (fase 2): `opts.axis` (indien meegegeven door GanttCanvas — de gedeelde
+    // instantie met HistogramRenderer, §10.1) wint; anders bouwt de renderer zelf een as uit de
+    // eigen opts (secundaire split-view-pane, headless tests zonder axis-prop). Toggle
+    // UIT/afwezig ⇒ `resolveGanttAxis` levert `buildCalendarAxis(...)` = byte-identiek aan vóór
+    // fase 2 (het bestaande `dateToX`-pad hieronder).
+    this.axis = opts.axis ?? resolveGanttAxis({
+      calendar: this.projectEngine,
+      compressNonWorkdays: !!opts.compressNonWorkdays,
+      origin: this.viewStart,
+      taskTableWidth: opts.taskTableWidth,
+      zoom: opts.view.zoom,
+      scrollX: opts.view.scrollX,
+    });
+    this.compressed = isCompressedEffective(this.projectEngine, !!opts.compressNonWorkdays);
   }
 
   /** Basis-balkkleur (fase 2.9 §5.4): kritiek-rood ≻ near-critical-amber ≻ float-path-tint ≻
@@ -180,9 +211,13 @@ export class GanttRenderer {
   }
 
   /** Convert a date (with optional sub-day precision) to X position on canvas.
-   *  Deelt de tijd-as met HistogramRenderer via `timeAxis.dateToX` (bit-identiek). */
+   *  Issue #21 punt 5 (fase 2): het ENE as-chokepoint (ontwerp §2.1/§10) — nu `this.axis.dateToX`
+   *  i.p.v. rechtstreeks `timeAxis.dateToX`. Toggle uit ⇒ `this.axis` ís de kalender-as (dunne
+   *  wrapper om exact dezelfde `axisDateToX`-aanroep, zie `buildCalendarAxis`) ⇒ byte-identiek.
+   *  Alle 30+ bestaande call-sites (grid, balken, pijlen, mijlpalen, header, …) werken ongewijzigd
+   *  door dit ene punt. */
   dateToX(date: Date): number {
-    return axisDateToX(date, this.viewStart, this.opts.taskTableWidth, this.opts.view.zoom, this.opts.view.scrollX);
+    return this.axis.dateToX(date);
   }
 
   /** Convert task row index to Y position */
@@ -264,26 +299,56 @@ export class GanttRenderer {
     // (issue #21 punt 5, fase 0-consolidatie; geen Date-round-trip, dus geen ms-afronding erbij).
     const startOffset = Math.floor(xToDayOffset(this.opts.taskTableWidth, this.opts.taskTableWidth, view.zoom, view.scrollX));
 
-    for (let i = -1; i < visibleDays; i++) {
-      const date = addCalendarDays(this.viewStart, startOffset + i);
-      const x = this.dateToX(date);
-      const dayOfWeek = isoDayOfWeek(date);
+    // Issue #21 punt 5 (fase 2, ontwerp §4.2/§10): bij een DAADWERKELIJK gecomprimeerde as bestaan
+    // niet-werkdagen niet meer op het raster — itereren per kalenderdag zou meerdere niet-werkdagen
+    // (za+zo+feestdag) op DEZELFDE naad-x laten samenvallen (kleef-rechts, §2.4), met dubbele
+    // rasterlijnen en een arcering die per ongeluk over de eerstvolgende werkdag-kolom zou vallen.
+    // Daarom hieronder een apart, index-gebaseerd pad dat uitsluitend over de as-eigen `dateAtIndex`
+    // loopt (elke stap = één ECHTE werkdag); de niet-gecomprimeerde tak hieronder blijft ONGEWIJZIGD
+    // (byte-identiek aan vóór fase 2 — geen enkele regel in die tak is aangeraakt).
+    if (this.compressed) {
+      // `axisStartIndex` = de as-index op x=taskTableWidth: `axis.dayIndexOf(viewStart)` (het
+      // as-eigen nulpunt, kan >0 zijn — de as telt vanaf de epoch, zie workdayAxis.ts) plus
+      // `scrollX/zoom` (dezelfde herleiding als `startOffset` hierboven, maar dan in as-eenheden
+      // i.p.v. kalenderdagen-vanaf-viewStart).
+      const axisStartIndex = Math.floor(this.axis.dayIndexOf(this.viewStart) + view.scrollX / view.zoom);
+      for (let i = -1; i < visibleDays; i++) {
+        const date = this.axis.dateAtIndex(axisStartIndex + i);
+        const x = this.axis.dateToX(date);
+        const dayOfWeek = isoDayOfWeek(date);
 
-      // Niet-werkdag-arcering (B2): de PROJECTKALENDER is de enige waarheid — weekpatroon +
-      // feestdagen via `CalendarEngine.isWorkDay`, geen hardcoded za/zo. Bij een afwijkende
-      // werkweek (bv. za werkdag) volgt de arcering nu de kalender; ma–vr blijft visueel identiek.
-      if (!this.projectEngine.isWorkDay(date)) {
-        ctx.fillStyle = this.colors.gridWeekend;
-        ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
+        // Geen arcering: `dateAtIndex` op de werkdagen-as geeft ALTIJD een echte werkdag terug
+        // (§2.2: de prefix-som is per definitie een rij werkdag-indices) — er is niets om te
+        // arceren (§4.2: "de arcering vervalt volledig").
+        ctx.strokeStyle = this.colors.grid;
+        ctx.lineWidth = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1) ? 1 : 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, headerHeight);
+        ctx.lineTo(x, canvasHeight);
+        ctx.stroke();
       }
+    } else {
+      for (let i = -1; i < visibleDays; i++) {
+        const date = addCalendarDays(this.viewStart, startOffset + i);
+        const x = this.dateToX(date);
+        const dayOfWeek = isoDayOfWeek(date);
 
-      // Vertical grid line
-      ctx.strokeStyle = this.colors.grid;
-      ctx.lineWidth = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1) ? 1 : 0.5;
-      ctx.beginPath();
-      ctx.moveTo(x, headerHeight);
-      ctx.lineTo(x, canvasHeight);
-      ctx.stroke();
+        // Niet-werkdag-arcering (B2): de PROJECTKALENDER is de enige waarheid — weekpatroon +
+        // feestdagen via `CalendarEngine.isWorkDay`, geen hardcoded za/zo. Bij een afwijkende
+        // werkweek (bv. za werkdag) volgt de arcering nu de kalender; ma–vr blijft visueel identiek.
+        if (!this.projectEngine.isWorkDay(date)) {
+          ctx.fillStyle = this.colors.gridWeekend;
+          ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
+        }
+
+        // Vertical grid line
+        ctx.strokeStyle = this.colors.grid;
+        ctx.lineWidth = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1) ? 1 : 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, headerHeight);
+        ctx.lineTo(x, canvasHeight);
+        ctx.stroke();
+      }
     }
 
     // Horizontal grid lines (per row)

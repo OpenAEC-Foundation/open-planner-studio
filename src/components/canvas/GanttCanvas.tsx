@@ -18,6 +18,9 @@ import { ContextMenu } from './ContextMenu';
 import { RelationTypePopover } from './RelationTypePopover';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { dateToX as axisDateToX } from '@/engine/renderer/timeAxis';
+// Issue #21 punt 5 (fase 2): gedeelde as-instantie voor Gantt + Histogram (ontwerp §10.1).
+import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
 import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
 import { useSplitter } from '@/hooks/useSplitter';
@@ -77,6 +80,8 @@ export function GanttCanvas() {
   const calendar = useAppStore(s => s.calendar);
   const calendars = useAppStore(s => s.calendars);
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
+  // Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen» — globale weergavevoorkeur.
+  const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const view = useAppStore(s => s.view);
@@ -323,6 +328,24 @@ export function GanttCanvas() {
     [view, effectiveViewStart],
   );
 
+  // Issue #21 punt 5 (fase 2, ontwerp §10.1 — BINDEND): ÉÉN gedeelde `GanttAxis`-instantie voor de
+  // primaire Gantt-pane ÉN de Histogram (zelfde `taskTableWidth`/`effectiveView`, dus zelfde
+  // kolomindeling) — anders schuiven de resource-staafjes onder de verkeerde kolommen zodra de as
+  // gecomprimeerd is. Fresh per render via de dep-array, geen cross-render cache (§2.5). De
+  // secundaire split-view-pane (`drawSecondary`) heeft een eigen zoom/scrollX en bouwt daarom zijn
+  // eigen as (via `compressNonWorkdays` in de opts) — die deelt bewust NIET in deze instantie.
+  const sharedAxis = useMemo(() => {
+    const engine = new CalendarEngine(calendar);
+    return resolveGanttAxis({
+      calendar: engine,
+      compressNonWorkdays,
+      origin: parseDate(effectiveView.viewStartDate),
+      taskTableWidth,
+      zoom: effectiveView.zoom,
+      scrollX: effectiveView.scrollX,
+    });
+  }, [calendar, compressNonWorkdays, effectiveView, taskTableWidth]);
+
   // Calculate total content width based on task date range
   const totalContentWidth = useMemo(() => {
     if (tasks.length === 0) return 2000;
@@ -331,12 +354,17 @@ export function GanttCanvas() {
     for (const task of tasks) {
       const end = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish;
       if (end) {
-        const days = diffDays(viewStart, end);
+        // Issue #21 punt 5 (fase 2, §10.2 eenheden-consistentie): bij compressie telt de
+        // contentbreedte in WERKDAG-eenheden (`axis.daySpan`) i.p.v. kalenderdagen — anders is de
+        // scrollbar te breed (kalenderdagen) of te smal t.o.v. wat er daadwerkelijk getekend wordt.
+        const days = compressNonWorkdays
+          ? sharedAxis.daySpan(parseDate(viewStart), parseDate(end))
+          : diffDays(viewStart, end);
         if (days > maxDays) maxDays = days;
       }
     }
     return Math.max(2000, (maxDays * 1.2) * view.zoom + taskTableWidth);
-  }, [tasks, effectiveViewStart, view.zoom, taskTableWidth]);
+  }, [tasks, effectiveViewStart, view.zoom, taskTableWidth, compressNonWorkdays, sharedAxis]);
 
   // --- Histogram (fase 2.5, §6.4) ---
   const histogramPicker = useMemo<HistogramPickerItem[]>(() => {
@@ -390,6 +418,8 @@ export function GanttCanvas() {
       canvasWidth: width,
       canvasHeight: height,
       taskTableWidth,
+      // Issue #21 punt 5 (fase 2, §10.1): dezelfde as-instantie als de primaire Gantt-pane.
+      axis: sharedAxis,
       labels: { unitsSuffix: tCommon('resource.histogram.units') },
       emptyHint: !resourceLoadResult
         ? tCommon('resource.histogram.noData')
@@ -399,7 +429,7 @@ export function GanttCanvas() {
     });
     histogramRendererRef.current = renderer;
     renderer.render();
-  }, [histogramSeries, histogramPicker, histogramResourceId, effectiveView, taskTableWidth, resourceLoadResult, resources.length, tCommon, uiTheme]);
+  }, [histogramSeries, histogramPicker, histogramResourceId, effectiveView, taskTableWidth, resourceLoadResult, resources.length, tCommon, uiTheme, sharedAxis]);
 
   useCanvasLayer({
     canvasRef: histogramCanvasRef,
@@ -511,12 +541,15 @@ export function GanttCanvas() {
       durationSuffixes,
       externalStaleLabel: tTask('externalLinks.stale'),
       highContrast: uiTheme === 'high-contrast',
+      // Issue #21 punt 5 (fase 2): vlag + de gedeelde as-instantie (§10.1, zelfde als Histogram).
+      compressNonWorkdays,
+      axis: sharedAxis,
     };
 
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, compressNonWorkdays, sharedAxis]);
 
   useCanvasLayer({ canvasRef, containerRef, draw: drawPrimary });
 
@@ -557,10 +590,13 @@ export function GanttCanvas() {
       effectiveCalById,
       barSplitMode,
       highContrast: uiTheme === 'high-contrast',
+      // Issue #21 punt 5 (fase 2): geen `axis` meegegeven — de secundaire split-view-pane heeft
+      // eigen zoom/scrollX, dus bouwt de renderer zelf een consistente as via `compressNonWorkdays`.
+      compressNonWorkdays,
     });
     secondaryRendererRef.current = renderer;
     renderer.render();
-  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode]);
+  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode, compressNonWorkdays]);
 
   useCanvasLayer({
     canvasRef: secondaryCanvasRef,

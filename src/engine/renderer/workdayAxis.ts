@@ -253,3 +253,52 @@ export function buildWorkdayAxis(options: WorkdayAxisOptions): GanttAxis {
   };
   return axis;
 }
+
+// ── Fase 2 — instelling + bedrading (issue #21 punt 5, `werkdagen-as-ontwerp.md` §8 fase 2) ──────
+//
+// `resolveGanttAxis`/`isCompressedEffective` zijn de ÉÉN gedeelde chokepoint-helpers die GanttRenderer,
+// HistogramRenderer én GanttCanvas allemaal identiek aanroepen om de vlag naar een concrete as om te
+// zetten — zodat de "kies CalendarAxis vs WorkdayAxis"-beslissing (inclusief de §9.4-randgeval-guard:
+// een kalender zonder werkdagen mag de as niet laten "instorten") maar op ÉÉN plek staat, niet in elke
+// aanroeper apart gedupliceerd.
+
+export interface ResolveGanttAxisOptions {
+  /** Kalender waarop de as werkdagen bepaalt (uitsluitend via de publieke CalendarEngine-API). */
+  calendar: CalendarEngine;
+  /** De instelling (`ui.compressNonWorkdays`). Zie `isCompressedEffective` voor de effectieve waarde. */
+  compressNonWorkdays: boolean;
+  origin: Date;
+  taskTableWidth: number;
+  zoom: number;
+  scrollX: number;
+}
+
+/**
+ * Is de as, gegeven de instelling én de kalender, DAADWERKELIJK gecomprimeerd? Randgeval §9.4:
+ * een kalender zonder één enkele werkdag (`hasWorkingDays()===false`) kan geen werkdagen-as leveren
+ * ("de as stort in") — dan blijft het effectief UIT, ongeacht de instelling. Aparte export zodat
+ * bedrading (bv. de grid-arcering-keuze in `GanttRenderer`) dezelfde beslissing kan lezen zonder de
+ * as zelf te hoeven bouwen.
+ */
+export function isCompressedEffective(calendar: CalendarEngine, compressNonWorkdays: boolean): boolean {
+  return compressNonWorkdays && calendar.hasWorkingDays();
+}
+
+/**
+ * Kiest `CalendarAxis` vs `WorkdayAxis` op de vlag (§8 fase 2), met de §9.4-guard: vlag AAN maar
+ * geen enkele werkdag ⇒ terugvallen op `CalendarAxis` + console-warning, GEEN crash/throw. Toggle
+ * UIT (of de guard triggert) levert exact `buildCalendarAxis(...)` op — byte-identiek aan vandaag.
+ */
+export function resolveGanttAxis(options: ResolveGanttAxisOptions): GanttAxis {
+  const { calendar, compressNonWorkdays, origin, taskTableWidth, zoom, scrollX } = options;
+  if (compressNonWorkdays) {
+    if (calendar.hasWorkingDays()) {
+      return buildWorkdayAxis({ calendar, origin, taskTableWidth, zoom, scrollX });
+    }
+    console.warn(
+      'compressNonWorkdays: de kalender heeft geen enkele werkdag — val terug op de kalender-as ' +
+        '(issue #21 punt 5, randgeval §9.4).',
+    );
+  }
+  return buildCalendarAxis({ origin, taskTableWidth, zoom, scrollX });
+}

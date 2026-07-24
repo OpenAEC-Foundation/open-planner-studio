@@ -168,6 +168,9 @@ export interface UIState {
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
+  // Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-
+  // tijd-as (weekenden+feestdagen weggelaten). Globaal (geen ViewState), zie werkdagen-as-ontwerp §7.3.
+  compressNonWorkdays: boolean;               // persisted — default UIT (§0 user-besluit)
   hourDataNotice: boolean;                   // session — geladen bestand bevat uur-data terwijl Urenplanning uit staat (§6.8)
   // --- Fase 2.10 golf 1: sneltoetsen-fundament ---
   /** session — sneltoetsen-overzichtsdialoog (Ctrl/Cmd+/) open. De dialoog zelf komt in golf 3;
