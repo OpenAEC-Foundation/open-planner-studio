@@ -70,6 +70,8 @@
     "deadline": "Termin ostateczny",
     "hasConstraint": "Ma ograniczenie daty",
     "deadlineMissed": "Termin ostateczny przekroczony",
+    "longFreePeriodWarning": "To zadanie obejmuje {{days}}-dniowy okres wolny od pracy ({{start}} do {{end}}).",
+    "longFreePeriodWarningNamed": "To zadanie obejmuje {{name}} — {{days}}-dniowy okres wolny od pracy ({{start}} do {{end}}).",
     "completion": "Postęp (%)",
     "progress": {
       "actualStart": "Rzeczywisty początek",

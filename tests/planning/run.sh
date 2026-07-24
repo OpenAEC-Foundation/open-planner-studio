@@ -161,6 +161,52 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --outfile="$GFCHECK" >/dev/null 2>&1
   node "$GFCHECK" || STATUS=1
 
+  # Tijd-as-consolidatie (issue #21 punt 5, fase 0): geconsolideerde `timeAxis.dateToX`/`xToDate`/
+  # `xToDayOffset` vs. letterlijk-gekopieerde OUDE formules (printPreview/GanttCanvas/GanttRenderer/
+  # useBarDrag), plus een live-render-vergelijking van de grid-`startOffset`. Bewijst dat de
+  # consolidatie geen pixel verandert (docs/superpowers/werkdagen-as-ontwerp.md §3.2).
+  AXCHECK="$DIR/.axis-consolidation.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-axis-consolidation.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$AXCHECK" >/dev/null 2>&1
+  node "$AXCHECK" || STATUS=1
+
+  # WorkdayAxis (issue #21 punt 5, fase 1): de nieuwe gecomprimeerde-werkdagen-as, headless en
+  # nog niet aangesloten op de renderer/UI. Round-trip datum→index→datum, kleef-rechts-naadlanding
+  # voor za/zo/feestdag, 5-werkdagen-span over weekend+feestdag = 5 kolommen, consistentie met
+  # CalendarEngine.workDaysBetween/addWorkDays, sub-dag-fracties, lazy-groei + groei-plafond
+  # (docs/superpowers/werkdagen-as-ontwerp.md §2, §8 fase 1).
+  WDCHECK="$DIR/.workday-axis.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-workday-axis.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$WDCHECK" >/dev/null 2>&1
+  node "$WDCHECK" || STATUS=1
+
+  # Header-datumregel onder compressie (issue #21 punt 5, vervolg): `drawTimelineHeader` gebruikte
+  # nog een kalenderdag-aanname (`scrollX/zoom`) voor zijn zichtbare-bereik, die bij compressie +
+  # voldoende scroll steeds verder achterliep op het werkelijk zichtbare venster — bij genoeg
+  # scroll viel de tick-loop stil vóórdat hij het canvas bereikte (LEGE/zwarte datumregel). Bewijst
+  # nu, over een zoom×scrollX-raster: geen stapelende labels binnen één header-rij, volle
+  # canvas-dekking van de onderste rij onder compressie, en algebraïsche byte-identiek-heid van de
+  # nieuwe as-index-bereiksberekening t.o.v. de oude formule zodra compressie UIT staat.
+  HCCHECK="$DIR/.header-compress.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-header-compress.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$HCCHECK" >/dev/null 2>&1
+  node "$HCCHECK" || STATUS=1
+
   # i18n-pluralisatie-contract voor de telsleutels van "Project verplaatsen…". Een ontbrekende
   # plural-categorie valt bij i18next NIET terug op de _other van dezelfde taal maar op fallbackLng,
   # en zet er dus Engels neer (in het Pools al zichtbaar bij twee items). Deze check eist per taal

@@ -8,6 +8,7 @@ import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
 // Print-vriendelijk kleurschema — nu uit het centrale themapalet (audit C5/P17). De naam
 // `PRINT_COLORS` blijft behouden zodat de teken-aanroepen ongewijzigd zijn; waarden zijn identiek.
 import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
+import { dateToX as axisDateToX } from '@/engine/renderer/timeAxis';
 
 const ROW_HEIGHT = 24;
 const PROJECT_HEADER_HEIGHT = 64;
@@ -314,8 +315,13 @@ export function renderReport(
   // dpr-scale + maat-setup over; vector-backend werkt 1:1 in logische px).
   const d2d = makeDraw2D(canvasWidth, canvasHeight);
 
-  // Helper: date to X
-  const dateToX = (date: Date) => TABLE_WIDTH + diffCalendarDays(minDate, date) * zoom;
+  // Helper: date to X. Gedeeld met GanttRenderer/HistogramRenderer via `timeAxis.dateToX`
+  // (issue #21 punt 5, fase 0-consolidatie); print heeft geen scrollX ⇒ `scrollX=0`. `minDate`/
+  // `date` komen hier altijd uit `parseDate` (middernacht UTC), dus de fractionele
+  // `daysFromStart`-berekening in `axisDateToX` is voor print altijd een geheel getal — identiek
+  // aan de vroegere `diffCalendarDays(minDate, date) * zoom` (die intern ook afrondt, maar op een
+  // al-geheel verschil is dat een no-op).
+  const dateToX = (date: Date) => axisDateToX(date, minDate, TABLE_WIDTH, zoom, 0);
   const chartTop = TOTAL_HEADER_HEIGHT;
   const chartBottom = canvasHeight - FOOTER_HEIGHT;
   const rowToY = (i: number) => TOTAL_HEADER_HEIGHT + i * ROW_HEIGHT;

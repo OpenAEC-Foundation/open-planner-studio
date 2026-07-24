@@ -94,6 +94,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
       // Onderdruk de eerstvolgende click zodat de zojuist gezette selectie niet meteen weer
       // overschreven/gedeselecteerd wordt door de normale klik-afhandeling.
       justBoxSelectedRef.current = true;
+      armJustBoxSelectedClear();
       setBoxSelectState(null);
     };
 
@@ -107,8 +108,17 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
       // de selectie alsnog als gevolg van de geannuleerde sleep).
       e.stopImmediatePropagation();
       justBoxSelectedRef.current = true;
+      armJustBoxSelectedClear();
       setBoxSelectState(null);
     };
+
+    // Issue #21 punt 1 (dode-klik-fix, zelfde latente gat als useRowDrag): eindigt de sleep buiten
+    // het canvas, dan bereikt geen canvas-click de handler die de vlag normaal consumeert — hij
+    // zou blijven staan en de eerstvolgende echte canvas-klik inslikken. Eenmalige window-listener
+    // in de BUBBLE-fase wist 'm alsnog (idempotent als een canvas-click 'm al had gewist).
+    function armJustBoxSelectedClear(): void {
+      window.addEventListener('click', () => { justBoxSelectedRef.current = false; }, { once: true });
+    }
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);

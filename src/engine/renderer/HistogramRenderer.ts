@@ -6,7 +6,7 @@
 import type { ViewState } from '@/types/view';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { readHistogramPalette, type HistogramPalette } from './themePalette';
-import { dateToX as axisDateToX } from './timeAxis';
+import { dateToX as axisDateToX, type GanttAxis } from './timeAxis';
 
 export interface HistogramSeries {
   /** iso-datum → belaste eenheden voor de getoonde resource (of som over alle renewables). */
@@ -37,6 +37,12 @@ export interface HistogramRenderOptions {
   /** Geïnjecteerd histogram-palet (audit C5/P17). Afwezig ⇒ zelf gelezen via
    *  `readHistogramPalette()` (identiek resultaat); meegeven maakt de renderer headless-testbaar. */
   palette?: HistogramPalette;
+  /** Issue #21 punt 5 (fase 2, ontwerp §10.1 — BINDEND): de HistogramRenderer deelt bewust EXACT
+   *  dezelfde X-as als de Gantt, dus krijgt hier de LETTERLIJK ZELFDE `GanttAxis`-instantie als
+   *  `GanttRenderer` (door `GanttCanvas` gebouwd en aan beide renderers doorgegeven) — anders
+   *  schuiven de resource-staafjes onder de verkeerde kolommen zodra de as gecomprimeerd is.
+   *  Afwezig ⇒ terugvallen op de oude rechtstreekse `timeAxis.dateToX`-aanroep (byte-identiek). */
+  axis?: GanttAxis;
 }
 
 const ROW_H = 18;          // hoogte van een resourcekiezer-rij
@@ -57,14 +63,19 @@ export class HistogramRenderer {
     this.viewStart = parseDate(opts.view.viewStartDate);
   }
 
-  /** Gedeelde X-as met GanttRenderer via `timeAxis.dateToX` (bit-identiek), zodat de dagkolommen
-   *  1-op-1 boven de taakbalken staan. */
+  /** Gedeelde X-as met GanttRenderer (issue #21 punt 5, fase 2 — ontwerp §10.1): `opts.axis`
+   *  (meegegeven door `GanttCanvas`, de letterlijk gedeelde instantie) wint; afwezig ⇒ het oude
+   *  rechtstreekse `timeAxis.dateToX`-pad (bit-identiek), zodat de dagkolommen 1-op-1 boven de
+   *  taakbalken staan zowel bij de kalender- als de werkdagen-as. */
   private dateToX(date: Date): number {
+    if (this.opts.axis) return this.opts.axis.dateToX(date);
     return axisDateToX(date, this.viewStart, this.opts.taskTableWidth, this.opts.view.zoom, this.opts.view.scrollX);
   }
 
-  /** Inverse: kolom-iso onder een X-positie in de plotzone. */
+  /** Inverse: kolom-iso onder een X-positie in de plotzone. Gaat via `opts.axis.xToDate` zodra die
+   *  gedeelde as gecomprimeerd is (§10.1) — anders (as afwezig) het oude kalenderdag-pad. */
   dateAtX(x: number): string {
+    if (this.opts.axis) return formatDate(this.opts.axis.xToDate(x));
     const daysFromStart = (x - this.opts.taskTableWidth + this.opts.view.scrollX) / this.opts.view.zoom;
     const d = addCalendarDays(this.viewStart, Math.floor(daysFromStart));
     return formatDate(d);

@@ -70,6 +70,8 @@
     "deadline": "Stichtag",
     "hasConstraint": "Hat eine Termineinschränkung",
     "deadlineMissed": "Stichtag überschritten",
+    "longFreePeriodWarning": "Diese Aufgabe erstreckt sich über einen arbeitsfreien Zeitraum von {{days}} Tagen ({{start}} bis {{end}}).",
+    "longFreePeriodWarningNamed": "Diese Aufgabe erstreckt sich über {{name}} — einen arbeitsfreien Zeitraum von {{days}} Tagen ({{start}} bis {{end}}).",
     "completion": "Fortschritt (%)",
     "progress": {
       "actualStart": "Ist-Anfang",

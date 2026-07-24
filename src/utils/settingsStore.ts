@@ -231,6 +231,12 @@ export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
   await setSetting('barSplitMode', value);
 }
 
+// Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen» — globale weergavevoorkeur, zelfde
+// 1-op-1-patroon als barSplitMode hierboven.
+export async function saveCompressNonWorkdays(value: boolean): Promise<void> {
+  await setSetting('compressNonWorkdays', value);
+}
+
 // Eigen werktijd-presets (§6.6b): app-niveau localStorage, NIET in het projectbestand — ze reizen
 // niet mee met een project maar zijn op elke machine van de gebruiker beschikbaar. Parse-guard:
 // corrupte JSON of een item zonder de juiste shape ⇒ weggelaten (nooit een crash op een handmatig

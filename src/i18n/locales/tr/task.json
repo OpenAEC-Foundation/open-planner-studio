@@ -70,6 +70,8 @@
     "deadline": "Son tarih",
     "hasConstraint": "Tarih kısıtlaması var",
     "deadlineMissed": "Son tarih aşıldı",
+    "longFreePeriodWarning": "Bu görev, {{days}} günlük çalışmaya kapalı bir dönemi kapsıyor ({{start}} - {{end}}).",
+    "longFreePeriodWarningNamed": "Bu görev {{name}} dönemini kapsıyor — {{days}} günlük çalışmaya kapalı bir dönem ({{start}} - {{end}}).",
     "completion": "İlerleme (%)",
     "progress": {
       "actualStart": "Gerçek başlangıç",

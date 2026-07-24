@@ -77,6 +77,8 @@ export function createDefaultUI(): UIState {
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
+    // Issue #21 punt 5 (fase 2): default UIT (§0/§7.1 user-besluit).
+    compressNonWorkdays: false,
     hourDataNotice: false,
     showShortcutsDialog: false,
     showBenchmarkDialog: false,

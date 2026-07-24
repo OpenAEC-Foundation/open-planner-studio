@@ -89,6 +89,8 @@
     "deadline": "Deadline",
     "hasConstraint": "Has a date constraint",
     "deadlineMissed": "Deadline missed",
+    "longFreePeriodWarning": "This task runs through a {{days}}-day non-working period ({{start}} to {{end}}).",
+    "longFreePeriodWarningNamed": "This task runs through {{name}} — a {{days}}-day non-working period ({{start}} to {{end}}).",
     "completion": "Progress (%)",
     "progress": {
       "actualStart": "Actual start",

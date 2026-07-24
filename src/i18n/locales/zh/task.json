@@ -70,6 +70,8 @@
     "deadline": "期限",
     "hasConstraint": "有日期限制",
     "deadlineMissed": "已超过期限",
+    "longFreePeriodWarning": "此任务跨越一个 {{days}} 天的非工作时段（{{start}} 至 {{end}}）。",
+    "longFreePeriodWarningNamed": "此任务跨越{{name}} —— 一个为期 {{days}} 天的非工作时段（{{start}} 至 {{end}}）。",
     "completion": "进度（%）",
     "progress": {
       "actualStart": "实际开始",

@@ -70,6 +70,8 @@
     "deadline": "期限",
     "hasConstraint": "日付制約があります",
     "deadlineMissed": "期限超過",
+    "longFreePeriodWarning": "このタスクは {{days}} 日間の非稼働期間にまたがっています（{{start}} 〜 {{end}}）。",
+    "longFreePeriodWarningNamed": "このタスクは{{name}} にまたがっています — {{days}} 日間の非稼働期間（{{start}} 〜 {{end}}）。",
     "completion": "進捗（%）",
     "progress": {
       "actualStart": "実績開始",

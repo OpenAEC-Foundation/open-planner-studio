@@ -151,6 +151,10 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'allowMixedDayHour', field: 'allowMixedDayHour', parse: parseBoolean }),
   setting({ key: 'durationDisplay', field: 'durationDisplay', parse: parseEnum(DURATION_DISPLAYS) }),
   setting({ key: 'barSplitMode', field: 'barSplitMode', parse: parseEnum(BAR_SPLIT_MODES) }),
+
+  // Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen» — globale weergavevoorkeur, exact
+  // het barSplitMode-patroon (1 sleutel → 1 UIState-veld).
+  setting({ key: 'compressNonWorkdays', field: 'compressNonWorkdays', parse: parseBoolean }),
 ];
 
 /** Hydrateert álle opstart-instellingen uit localStorage tot één `setUI`-patch. Vervangt de ~20 losse
