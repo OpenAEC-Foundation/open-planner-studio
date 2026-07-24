@@ -414,13 +414,22 @@ export class GanttRenderer {
         // gebied i.p.v. samenknijpen via een fillText-maxWidth — een lang woord valt dan gewoon
         // gedeeltelijk buiten beeld i.p.v. onleesbaar verdrukt te worden.
         ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.save();
         ctx.beginPath();
         ctx.rect(clipX1, headerHeight, visibleWidth, Math.max(0, canvasHeight - headerHeight));
         ctx.clip();
-        ctx.fillText(h.name, (clipX1 + clipX2) / 2, headerHeight + 6);
+        // User-feedback issue #21: centreren + clippen sneed een te lange naam aan TWEE kanten af
+        // ("stverlet funder" — het begin ontbrak, leest als wartaal). Past de naam in het zichtbare
+        // deel: gecentreerd zoals voorheen. Past hij niet: links uitlijnen op de échte blokstart
+        // (x1), zodat altijd het BEGIN van het woord zichtbaar is en alleen het einde wegvalt.
+        if (ctx.measureText(h.name).width <= visibleWidth - 8) {
+          ctx.textAlign = 'center';
+          ctx.fillText(h.name, (clipX1 + clipX2) / 2, headerHeight + 6);
+        } else {
+          ctx.textAlign = 'left';
+          ctx.fillText(h.name, x1 + 4, headerHeight + 6);
+        }
         ctx.restore();
       } else {
         // Smal blok: verticale tekst langs de linkerrand. Zelfde clip-in-plaats-van-knijpen-aanpak,
