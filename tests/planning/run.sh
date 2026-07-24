@@ -175,6 +175,21 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --outfile="$AXCHECK" >/dev/null 2>&1
   node "$AXCHECK" || STATUS=1
 
+  # WorkdayAxis (issue #21 punt 5, fase 1): de nieuwe gecomprimeerde-werkdagen-as, headless en
+  # nog niet aangesloten op de renderer/UI. Round-trip datum→index→datum, kleef-rechts-naadlanding
+  # voor za/zo/feestdag, 5-werkdagen-span over weekend+feestdag = 5 kolommen, consistentie met
+  # CalendarEngine.workDaysBetween/addWorkDays, sub-dag-fracties, lazy-groei + groei-plafond
+  # (docs/superpowers/werkdagen-as-ontwerp.md §2, §8 fase 1).
+  WDCHECK="$DIR/.workday-axis.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-workday-axis.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$WDCHECK" >/dev/null 2>&1
+  node "$WDCHECK" || STATUS=1
+
   # i18n-pluralisatie-contract voor de telsleutels van "Project verplaatsen…". Een ontbrekende
   # plural-categorie valt bij i18next NIET terug op de _other van dezelfde taal maar op fallbackLng,
   # en zet er dus Engels neer (in het Pools al zichtbaar bij twee items). Deze check eist per taal

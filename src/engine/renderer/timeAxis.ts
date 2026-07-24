@@ -71,4 +71,21 @@ export interface GanttAxis {
   dateToX(date: Date): number;
   /** inverse: een X op het chart-canvas → datum (met sub-dag-precisie). */
   xToDate(x: number): Date;
+  /**
+   * Aantal *getoonde* dag-eenheden tussen twee datums (issue #21 punt 5, fase 1 —
+   * `docs/superpowers/werkdagen-as-ontwerp.md` §2.1/§5.3/§5.5): op de kalender-as zijn dat
+   * kalenderdagen, op de werkdagen-as werkdagen. Gebruikt door fit-to-project/scroll-bounds/
+   * `totalContentWidth` (fase 2/3) zodat die eenheden-bewust rekenen i.p.v. impliciet in
+   * kalenderdagen.
+   */
+  daySpan(from: Date, to: Date): number;
+  /**
+   * 0-based dag-index (met sub-dag-fractie) van `date` op de getoonde as — de as-eenheid-
+   * pendant van "welke kolom is dit". Op een niet-werkdag (werkdagen-as) geldt kleef-rechts
+   * (§2.4): de index van de eerstvolgende werkdag.
+   */
+  dayIndexOf(date: Date): number;
+  /** Inverse van `dayIndexOf`: de datum (start van de dag, met evt. sub-dag-fractie als
+   *  `index` niet-heel is) op as-index `index`. */
+  dateAtIndex(index: number): Date;
 }
