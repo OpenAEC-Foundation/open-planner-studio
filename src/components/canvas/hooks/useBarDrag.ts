@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { parseDate, parseInstant, formatDate, formatInstant, addCalendarDays } from '@/utils/dateUtils';
+import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/dateUtils';
 import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import { MS_PER_DAY } from '@/engine/renderer/timeAxis';
+import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
+import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
@@ -29,6 +31,11 @@ interface UseBarDragOptions {
   enableHourPlanning: boolean;
   calendar: WorkCalendar;
   effectiveCalById: Map<string, WorkCalendar>;
+  /** Issue #21 punt 5 (review §10.3): dezelfde vlag als `GanttCanvas`/`resolveGanttAxis` — bepaalt
+   *  of een getoonde kolom een KALENDERdag (uit) of een WERKDAG (aan) voorstelt tijdens het slepen.
+   *  Effectieve compressie wordt, net als de as zelf, ook gegate op `hasWorkingDays()` van de
+   *  PROJECTkalender (`calendar`, niet de per-taak-kalender) — zie `isCompressedEffective`. */
+  compressNonWorkdays: boolean;
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
 }
 
@@ -40,7 +47,13 @@ interface UseBarDragOptions {
 //      (lastAppliedDelta, init 0) — niet zodra 'ie 0 is — zodat terug-naar-Δ0 de begin-duur herstelt;
 //   3. het balk-anker wordt gecanonaliseerd naar een werkdag (addWorkDays/subtractWorkDays) zodat
 //      earlyStart/earlyFinish nooit op een weekend landen en niet verschuiven bij de volgende runCPM.
-export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, updateTask }: UseBarDragOptions) {
+// Issue #21 punt 5 (review §10.3): onder werkdagen-as-compressie (`compressNonWorkdays`) stelt een
+// GETOONDE kolom een WERKDAG voor i.p.v. een kalenderdag — de dag-modus-branches (body/left/right,
+// hieronder) vertalen `daysDelta` daarom via `shiftByDisplayedColumns` (`addWorkingDaysSigned` i.p.v.
+// `addCalendarDays`). Toggle uit ⇒ ongewijzigd. De UUR-tak (`handleHourDrag`) blijft BEWUST op het
+// oude lineaire ms-pad (§6 van het ontwerp: een uur-balk die een naad kruist tekent bij compressie
+// "over de naad heen" — bekende, gedocumenteerde v1-beperking, geen regressie t.o.v. vandaag).
+export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, updateTask }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   // Drag and drop: mousemove (via native event for performance)
@@ -64,6 +77,15 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     // mee. (De vorige `diffCalendarDays` was exclusief én kalender-gebaseerd → één werkdag te weinig,
     // en bij slepen over een weekend werden za/zo ten onrechte meegeteld.)
     const resizeCalEngine = new CalendarEngine(effectiveCalById.get(dragState.taskId) ?? calendar);
+    // Issue #21 punt 5 (review §10.3): de kolom→datum-vertaling voor het SLEEP-gebaar zelf moet de
+    // PROJECTkalender volgen — dat is dezelfde kalender waarmee `GanttCanvas` de gedeelde
+    // (mogelijk gecomprimeerde) as bouwt (`resolveGanttAxis({ calendar, ... })`), dus 1 getoonde
+    // kolom = 1 werkdag van DIE kalender, ongeacht of deze taak een eigen kalender heeft. Duur-
+    // berekening (workDaysBetween/addWorkDays/subtractWorkDays hieronder) blijft op de
+    // taak-specifieke `resizeCalEngine` leunen — dat is een apart vraagstuk (hoeveel werkdagen
+    // past de taak-kalender in het gesleepte bereik) en verandert hier niet.
+    const axisCalEngine = new CalendarEngine(calendar);
+    const compressed = isCompressedEffective(axisCalEngine, compressNonWorkdays);
     // Laatst toegepaste dag-verschuiving. Init op 0 = de begintoestand (geen no-op-update bij het
     // grijpen), maar terugkeren naar Δ0 ná een beweging herstelt de originele duur weer (zie fix
     // bij de guard hieronder).
@@ -155,9 +177,12 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       const origFinish = parseDate(dragState.originalFinish);
 
       if (dragState.edge === 'body') {
-        // Move entire task
-        const newStart = addCalendarDays(origStart, daysDelta);
-        const newFinish = addCalendarDays(origFinish, daysDelta);
+        // Move entire task. Issue #21 punt 5 (review §10.3): onder compressie stelt `daysDelta`
+        // GETOONDE kolommen = WERKdagen voor, niet kalenderdagen — `shiftByDisplayedColumns` schuift
+        // dan via `addWorkingDaysSigned` (dezelfde werkdag-telling voor start én finish behoudt de
+        // duur exact). Toggle uit ⇒ ONGEWIJZIGD `addCalendarDays`-pad (byte-identiek).
+        const newStart = shiftByDisplayedColumns(axisCalEngine, origStart, daysDelta, compressed);
+        const newFinish = shiftByDisplayedColumns(axisCalEngine, origFinish, daysDelta, compressed);
         updateTask(dragState.taskId, {
           time: {
             ...useAppStore.getState().tasks.find(t => t.id === dragState.taskId)!.time,
@@ -174,8 +199,10 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
         // op een weekend/feestdag (een niet-canoniek anker verschuift bij de eerstvolgende runCPM —
         // o.a. bij bestand openen — waardoor dezelfde sleep vóór/ná een ander resultaat gaf, plus
         // een "plateau" rond een weekend-anker). Het weekend-DUURgedrag verandert niet: newDuration
-        // komt nog steeds uit workDaysBetween.
-        const newFinish = addCalendarDays(origFinish, daysDelta);
+        // komt nog steeds uit workDaysBetween. Issue #21 punt 5 (review §10.3): onder compressie is
+        // `daysDelta` een WERKDAG-aantal getoonde kolommen — `shiftByDisplayedColumns` schuift dan
+        // via `addWorkingDaysSigned` i.p.v. de rauwe kalenderdag-optelling (toggle uit: ongewijzigd).
+        const newFinish = shiftByDisplayedColumns(axisCalEngine, origFinish, daysDelta, compressed);
         const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(origStart, newFinish));
         const canonFinish = resizeCalEngine.addWorkDays(origStart, newDuration);
         updateTask(dragState.taskId, {
@@ -189,8 +216,10 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       } else if (dragState.edge === 'left') {
         // Resize from left (change start/duration). Idem als de rechterrand: schrijf een WERKDAG-
         // start weg (subtractWorkDays vanaf de vaste finish) i.p.v. de rauwe kalenderdag, zodat het
-        // anker canoniek blijft (geen weekend-start, geen verschuiving bij runCPM).
-        const newStart = addCalendarDays(origStart, daysDelta);
+        // anker canoniek blijft (geen weekend-start, geen verschuiving bij runCPM). Issue #21 punt 5
+        // (review §10.3): onder compressie is `daysDelta` een WERKDAG-aantal getoonde kolommen —
+        // `shiftByDisplayedColumns` schuift dan via `addWorkingDaysSigned` (toggle uit: ongewijzigd).
+        const newStart = shiftByDisplayedColumns(axisCalEngine, origStart, daysDelta, compressed);
         const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(newStart, origFinish));
         const canonStart = resizeCalEngine.subtractWorkDays(origFinish, newDuration);
         updateTask(dragState.taskId, {
@@ -214,7 +243,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState, zoom, updateTask]);
+  }, [dragState, zoom, compressNonWorkdays, updateTask]);
 
   return { dragState, startBarDrag: setDragState, active: !!dragState };
 }
