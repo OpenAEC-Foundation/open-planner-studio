@@ -410,8 +410,11 @@ function extractTasks(
     tasks.push({
       id,
       name: stripQuotes(te.args[TASK_SLOT.name] || '') || 'Naamloze taak',
-      description: stripQuotes(te.args[TASK_SLOT.description] || '') || '',
-      wbsCode: stripQuotes(te.args[TASK_SLOT.identification] || '') || '',
+      // `$`/leeg/afwezig ⇒ '' (niet de letterlijke '$' — zelfde bug/fix als IFCPROJECT.Description
+      // hierboven; de writer schrijft description/identification bewust als bare `$` via `ifcStr`
+      // wanneer leeg, zie ifcTaskSlots.ts).
+      description: ifcSlotText(te.args[TASK_SLOT.description]),
+      wbsCode: ifcSlotText(te.args[TASK_SLOT.identification]),
       taskType: te.args[predefinedTypeIdx] ? parseTaskType(te.args[predefinedTypeIdx]) : 'CONSTRUCTION',
       status: 'NOT_STARTED',
       isMilestone,
@@ -757,7 +760,8 @@ function extractResources(
       id,
       name: stripQuotes(e.args[2] || '') || 'Resource',
       type: resType,
-      description: stripQuotes(e.args[3] || '') || '',
+      // `$`/leeg/afwezig ⇒ '' (zelfde bug/fix als IfcTask.Description hierboven).
+      description: ifcSlotText(e.args[3]),
       maxUnits: 1,
     });
   }
@@ -926,7 +930,8 @@ function buildCalendarFromEntity(
 ): WorkCalendar {
   const calendar = createDefaultCalendar();
   calendar.name = stripQuotes(cal.args[2] || '') || calendar.name;
-  calendar.description = stripQuotes(cal.args[3] || '') || calendar.description;
+  // `$`/leeg/afwezig ⇒ '' (zelfde bug/fix als IfcTask.Description hierboven), val terug op de default.
+  calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
 
   // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
   // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes
