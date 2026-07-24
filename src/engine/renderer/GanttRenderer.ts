@@ -10,7 +10,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 import { readGanttPalette, type GanttPalette } from './themePalette';
-import { dateToX as axisDateToX } from './timeAxis';
+import { dateToX as axisDateToX, xToDayOffset } from './timeAxis';
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -257,7 +257,12 @@ export class GanttRenderer {
 
     // Calculate visible date range
     const visibleDays = Math.ceil(canvasWidth / view.zoom) + 2;
-    const startOffset = Math.floor(view.scrollX / view.zoom);
+    // startOffset = eerste zichtbare dag-index t.o.v. `viewStart`. Gelijk aan de inverse van
+    // `this.dateToX` op x=`taskTableWidth` (het linker chart-randje): `xToDayOffset(taskTableWidth,
+    // taskTableWidth, zoom, scrollX)` = `(taskTableWidth-taskTableWidth+scrollX)/zoom` =
+    // `scrollX/zoom` — algebraïsch en drijvende-komma-identiek aan de vorige inline `scrollX/zoom`
+    // (issue #21 punt 5, fase 0-consolidatie; geen Date-round-trip, dus geen ms-afronding erbij).
+    const startOffset = Math.floor(xToDayOffset(this.opts.taskTableWidth, this.opts.taskTableWidth, view.zoom, view.scrollX));
 
     for (let i = -1; i < visibleDays; i++) {
       const date = addCalendarDays(this.viewStart, startOffset + i);

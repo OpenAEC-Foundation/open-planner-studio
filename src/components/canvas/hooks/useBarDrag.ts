@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDate, parseInstant, formatDate, formatInstant, addCalendarDays } from '@/utils/dateUtils';
 import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
+import { MS_PER_DAY } from '@/engine/renderer/timeAxis';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
@@ -79,7 +80,11 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     const quantumMs = quantumMin * 60000;
 
     const handleHourDrag = (pixelDelta: number) => {
-      const rawMs = (pixelDelta / zoom) * 86400000;
+      // 1 kolom = zoom px = MS_PER_DAY ms (issue #21 punt 5, fase 0-consolidatie: dezelfde
+      // constante als `timeAxis.dateToX`, i.p.v. een eigen `86400000`-kopie). `daysDelta` blijft
+      // een RELATIEVE pixel→tijd-verhouding — geen absolute canvas-x, dus geen `xToDate`-aanroep
+      // hier (zie tests/planning/check-axis-consolidation.ts en het rapport voor de afweging).
+      const rawMs = (pixelDelta / zoom) * MS_PER_DAY;
       const snappedMs = Math.round(rawMs / quantumMs) * quantumMs;
       if (snappedMs === 0) return;
       const deltaMin = Math.round(snappedMs / 60000);

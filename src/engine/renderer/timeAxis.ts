@@ -25,3 +25,50 @@ export function dateToX(
   const daysFromStart = (date.getTime() - viewStart.getTime()) / MS_PER_DAY;
   return taskTableWidth + daysFromStart * zoom - scrollX;
 }
+
+/**
+ * Zuivere inverse van `dateToX`: een X-pixel → het aantal (fractionele) dag-eenheden sinds
+ * `viewStart`. Losstaand van `xToDate` geëxporteerd omdat sommige aanroepers (bv. de eerste
+ * zichtbare-dag-index in de grid-loop) alleen het GETAL nodig hebben — een round-trip door een
+ * `Date`-object zou daar een nutteloze (en potentieel niet-byte-identieke) afronding op hele
+ * milliseconden introduceren.
+ */
+export function xToDayOffset(
+  x: number,
+  taskTableWidth: number,
+  zoom: number,
+  scrollX: number,
+): number {
+  return (x - taskTableWidth + scrollX) / zoom;
+}
+
+/**
+ * Inverse van `dateToX`: X-pixel op het chart-canvas → datum (met sub-dag-precisie). Fase 0
+ * (issue #21 punt 5, `docs/superpowers/werkdagen-as-ontwerp.md` §2.1/§3.1): dit is de huidige
+ * lineaire kalender-as; een latere `WorkdayAxis`-implementatie deelt dezelfde `GanttAxis`-vorm
+ * (zie hieronder) maar comprimeert niet-werkdagen — geen gedragswijziging hier.
+ */
+export function xToDate(
+  x: number,
+  viewStart: Date,
+  taskTableWidth: number,
+  zoom: number,
+  scrollX: number,
+): Date {
+  const days = xToDayOffset(x, taskTableWidth, zoom, scrollX);
+  return new Date(viewStart.getTime() + days * MS_PER_DAY);
+}
+
+/**
+ * As-abstractie (werkdagen-as-ontwerp §2.1, met de §10-correctie dat dit bestand zonder
+ * `axis/`-submap blijft). Alleen een TYPE in fase 0 — er bestaat nog géén tweede implementatie
+ * (`WorkdayAxis`); de losse `dateToX`/`xToDate`-functies hierboven zijn de facto de
+ * `CalendarAxis`. Vastgelegd zodat een latere fase een `WorkdayAxis` ernaast kan zetten zonder
+ * de call-sites opnieuw te hoeven vinden.
+ */
+export interface GanttAxis {
+  /** datum (met sub-dag-precisie) → X op het chart-canvas (incl. −scrollX). */
+  dateToX(date: Date): number;
+  /** inverse: een X op het chart-canvas → datum (met sub-dag-precisie). */
+  xToDate(x: number): Date;
+}

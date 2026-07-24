@@ -17,6 +17,7 @@ import { isTreeMode } from '@/engine/view/visibleRows';
 import { ContextMenu } from './ContextMenu';
 import { RelationTypePopover } from './RelationTypePopover';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
+import { dateToX as axisDateToX } from '@/engine/renderer/timeAxis';
 import { useGanttZoom } from '@/hooks/useGanttZoom';
 import { useZoomShortcuts } from '@/hooks/useZoomShortcuts';
 import { useSplitter } from '@/hooks/useSplitter';
@@ -697,14 +698,15 @@ export function GanttCanvas() {
     }
     const evs = addCalendarDays(earliest, -ORIGIN_PADDING_DAYS);
 
-    // Balk-uiteinden in content-x (dateToX zonder de −scrollX-term), zelfde uur/dag-splitsing als
-    // GanttRenderer.barGeometry: uur-taak [start, finish), dag-taak [start, finish+1 dag].
+    // Balk-uiteinden in content-x (dateToX zonder de −scrollX-term, dus `scrollX=0`), zelfde
+    // uur/dag-splitsing als GanttRenderer.barGeometry: uur-taak [start, finish), dag-taak
+    // [start, finish+1 dag]. Gedeeld met GanttRenderer/HistogramRenderer via `timeAxis.dateToX`
+    // (issue #21 punt 5, fase 0-consolidatie) — zelfde formule, geen gedragswijziging.
     const hourMode = startStr.includes('T') || endStr.includes('T');
     const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
     const end = hourMode ? parseInstant(endStr) : parseDate(endStr);
-    const msPerDay = 86400000;
-    const cx1 = tableW + ((start.getTime() - evs.getTime()) / msPerDay) * v.zoom;
-    const cx2 = tableW + ((end.getTime() - evs.getTime()) / msPerDay) * v.zoom + (hourMode ? 0 : v.zoom);
+    const cx1 = axisDateToX(start, evs, tableW, v.zoom, 0);
+    const cx2 = axisDateToX(end, evs, tableW, v.zoom, 0) + (hourMode ? 0 : v.zoom);
 
     // Zichtbaar content-venster: canvas-x = content-x − scrollX ∈ [tableW, rect.width].
     const visibleLeft = tableW + v.scrollX;

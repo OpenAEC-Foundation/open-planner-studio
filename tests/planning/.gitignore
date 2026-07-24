@@ -11,3 +11,4 @@
 .ifc-roundtrip-check.mjs
 .i18n-plurals.mjs
 .just-updated-check.mjs
+.axis-consolidation.mjs

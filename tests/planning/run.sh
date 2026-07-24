@@ -161,6 +161,20 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --outfile="$GFCHECK" >/dev/null 2>&1
   node "$GFCHECK" || STATUS=1
 
+  # Tijd-as-consolidatie (issue #21 punt 5, fase 0): geconsolideerde `timeAxis.dateToX`/`xToDate`/
+  # `xToDayOffset` vs. letterlijk-gekopieerde OUDE formules (printPreview/GanttCanvas/GanttRenderer/
+  # useBarDrag), plus een live-render-vergelijking van de grid-`startOffset`. Bewijst dat de
+  # consolidatie geen pixel verandert (docs/superpowers/werkdagen-as-ontwerp.md §3.2).
+  AXCHECK="$DIR/.axis-consolidation.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-axis-consolidation.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$AXCHECK" >/dev/null 2>&1
+  node "$AXCHECK" || STATUS=1
+
   # i18n-pluralisatie-contract voor de telsleutels van "Project verplaatsen…". Een ontbrekende
   # plural-categorie valt bij i18next NIET terug op de _other van dezelfde taal maar op fallbackLng,
   # en zet er dus Engels neer (in het Pools al zichtbaar bij twee items). Deze check eist per taal
