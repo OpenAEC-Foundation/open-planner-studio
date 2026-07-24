@@ -18,3 +18,7 @@ src-tauri/gen/
 
 # Lokale QA-screenshots (niet committen)
 qa/
+
+# Gegenereerde wiki (build-artefact van scripts/publish-wiki.mjs)
+.wiki-build/
+.wiki-repo/

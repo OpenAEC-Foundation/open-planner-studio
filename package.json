@@ -13,7 +13,8 @@
     "bump": "node scripts/bump-version.js",
     "gen:examples": "node scripts/run-ts.mjs scripts/generate-examples.ts",
     "verify:examples": "node scripts/run-ts.mjs scripts/verify-examples.ts",
-    "verify:docs": "node scripts/run-ts.mjs scripts/verify-docs.ts"
+    "verify:docs": "node scripts/run-ts.mjs scripts/verify-docs.ts",
+    "publish:wiki": "node scripts/publish-wiki.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
