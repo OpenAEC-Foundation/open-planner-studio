@@ -277,6 +277,9 @@
     "helpLoading": "Yükleniyor…",
     "helpLoadError": "Belgeler yüklenemedi.",
     "helpArticleNotFound": "Makale bulunamadı.",
+    "helpDocsLang": "Belge dili",
+    "helpDocsLangAuto": "Uygulama dilini takip et",
+    "helpStale": "Bu dil yalnızca ara sıra güncellenir. En güncel belgeler için İngilizce veya Hollandaca'ya geçin.",
     "helpLayer": {
       "quickstart": "Hızlı başlangıç",
       "gidsen": "Konuya göre kılavuzlar",

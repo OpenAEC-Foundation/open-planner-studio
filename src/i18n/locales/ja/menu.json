@@ -277,6 +277,9 @@
     "helpLoading": "読み込み中…",
     "helpLoadError": "ドキュメントを読み込めませんでした。",
     "helpArticleNotFound": "記事が見つかりません。",
+    "helpDocsLang": "ドキュメントの言語",
+    "helpDocsLangAuto": "アプリの言語に従う",
+    "helpStale": "この言語は不定期にのみ更新されます。最新のドキュメントを確認するには、英語またはオランダ語に切り替えてください。",
     "helpLayer": {
       "quickstart": "クイックスタート",
       "gidsen": "トピック別ガイド",

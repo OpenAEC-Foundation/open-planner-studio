@@ -277,6 +277,9 @@
     "helpLoading": "加载中…",
     "helpLoadError": "无法加载文档。",
     "helpArticleNotFound": "未找到文章。",
+    "helpDocsLang": "文档语言",
+    "helpDocsLangAuto": "跟随应用语言",
+    "helpStale": "此语言的文档仅偶尔更新。如需查看最新文档，请切换到英语或荷兰语。",
     "helpLayer": {
       "quickstart": "快速入门",
       "gidsen": "主题指南",

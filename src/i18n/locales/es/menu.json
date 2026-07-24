@@ -277,6 +277,9 @@
     "helpLoading": "Cargando…",
     "helpLoadError": "No se pudo cargar la documentación.",
     "helpArticleNotFound": "Artículo no encontrado.",
+    "helpDocsLang": "Idioma de la documentación",
+    "helpDocsLangAuto": "Seguir el idioma de la aplicación",
+    "helpStale": "Este idioma solo se actualiza ocasionalmente. Para la documentación más actualizada, cambie a inglés o neerlandés.",
     "helpLayer": {
       "quickstart": "Inicio rápido",
       "gidsen": "Guías por tema",
