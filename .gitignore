@@ -3,7 +3,12 @@ dist/
 .vite/
 *.local
 .DS_Store
-.claude/
+.claude/*
+# Deel alleen de project-specifieke skills mee; de rest van .claude/ blijft lokaal
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/release/
+!.claude/skills/wiki/
 temp/
 
 # Tauri
