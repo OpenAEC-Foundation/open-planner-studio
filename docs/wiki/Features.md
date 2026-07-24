@@ -41,7 +41,7 @@ identically in the desktop app and in the browser version — the same buttons, 
 ## Reporting
 
 - **Live print preview** — configurable report options right in the ribbon.
-- **Vector PDF export** — stays crisp at any zoom level and keeps text selectable and searchable, with a raster fallback for CJK and right-to-left scripts.
+- **Vector PDF export** — stays crisp at any zoom level and keeps text selectable and searchable.
 
 ## Platform & experience
 
