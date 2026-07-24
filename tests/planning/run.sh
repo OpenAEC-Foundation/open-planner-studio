@@ -190,6 +190,23 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     --outfile="$WDCHECK" >/dev/null 2>&1
   node "$WDCHECK" || STATUS=1
 
+  # Header-datumregel onder compressie (issue #21 punt 5, vervolg): `drawTimelineHeader` gebruikte
+  # nog een kalenderdag-aanname (`scrollX/zoom`) voor zijn zichtbare-bereik, die bij compressie +
+  # voldoende scroll steeds verder achterliep op het werkelijk zichtbare venster — bij genoeg
+  # scroll viel de tick-loop stil vóórdat hij het canvas bereikte (LEGE/zwarte datumregel). Bewijst
+  # nu, over een zoom×scrollX-raster: geen stapelende labels binnen één header-rij, volle
+  # canvas-dekking van de onderste rij onder compressie, en algebraïsche byte-identiek-heid van de
+  # nieuwe as-index-bereiksberekening t.o.v. de oude formule zodra compressie UIT staat.
+  HCCHECK="$DIR/.header-compress.mjs"
+  "$ROOT/node_modules/.bin/esbuild" "$DIR/check-header-compress.ts" \
+    --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+    --define:import.meta.env.DEV=false \
+    --define:import.meta.env.PROD=true \
+    --define:import.meta.env.MODE='"production"' \
+    --define:__OPS_DEV_INSTANCE__='"test"' \
+    --outfile="$HCCHECK" >/dev/null 2>&1
+  node "$HCCHECK" || STATUS=1
+
   # i18n-pluralisatie-contract voor de telsleutels van "Project verplaatsen…". Een ontbrekende
   # plural-categorie valt bij i18next NIET terug op de _other van dezelfde taal maar op fallbackLng,
   # en zet er dus Engels neer (in het Pools al zichtbaar bij twee items). Deze check eist per taal

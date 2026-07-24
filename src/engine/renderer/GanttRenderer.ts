@@ -8,7 +8,7 @@ import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
 import { formatDuration, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
-import { TimelineTier, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
+import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 import { readGanttPalette, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
@@ -373,6 +373,14 @@ export class GanttRenderer {
    * bij voldoende breedte, anders verticaal (90°) langs de linkerrand van het blok.
    */
   private drawHolidayLabels(): void {
+    // Issue #21 punt 5 (header-bugfix, vervolg fase 3 van werkdagen-as-ontwerp.md §4.3): onder
+    // compressie bestaan feestdagen niet meer op de as (0 kolommen) — `widthPx = days*zoom`
+    // gebruikt hieronder nog de OUDE, ongecomprimeerde dagbreedte, wat op de gecomprimeerde
+    // `dateToX(start)`-positie een breed blok zou overtekenen dat niet bij de echte (0-brede)
+    // naad past. §4.3 wijst dit zelf aan als toekomstige "naad-marker"-vervanging (latere fase,
+    // hier niet gebouwd) — tot dan: simpelweg niets tekenen i.p.v. het 0-breedte-artefact.
+    if (this.compressed) return;
+
     const { canvasWidth, canvasHeight, headerHeight, taskTableWidth, view } = this.opts;
     const zoom = view.zoom;
     const minWidthPx = zoom * 3;
@@ -576,9 +584,22 @@ export class GanttRenderer {
     // de urenplanning-vlag wél door aan pickTiers).
     const { major, mid, minor } = pickTiers(view.zoom, enableQH, false);
 
-    // Visible date range
-    const startDate = addCalendarDays(this.viewStart, Math.floor(view.scrollX / view.zoom) - 1);
-    const endDate = addCalendarDays(this.viewStart, Math.ceil((view.scrollX + canvasWidth) / view.zoom) + 1);
+    // Visible date range. Issue #21 punt 5 (header-bugfix, vervolg fase 3 van
+    // werkdagen-as-ontwerp.md §4.1/§10): via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`)
+    // i.p.v. de kalenderdag-aanname `scrollX/zoom` — die laatste gaat er impliciet van uit dat
+    // 1 kalenderdag = 1 zoom-kolom, wat alleen klopt op de ongecomprimeerde as. Onder compressie
+    // "kost" elke overgeslagen niet-werkdag 0 px maar telde in de oude formule als 1 kalenderdag
+    // mee, dus het berekende bereik liep steeds verder ACHTER op het werkelijk zichtbare venster
+    // naarmate scrollX groeide — bij genoeg scroll viel de tick-loop (`drawTierLabels`) stil
+    // vóórdat hij het canvas had bereikt: een (deels of geheel) LEGE datumregel, precies het
+    // gerapporteerde "zwarte" headergedeelte (bevestigd headless: bij scrollX=3000, zoom=26 gaf
+    // de oude formule 0 dag-labels i.p.v. de volle breedte — zie `tests/planning/
+    // check-header-compress.ts` voor de blijvende regressiebewaking).
+    // Byte-identiek op de niet-gecomprimeerde as: `CalendarAxis.dayIndexOf(viewStart)`===0, dus
+    // dit reduceert algebraïsch tot exact de oude `addCalendarDays(...)`-formule.
+    const axisViewStartIdx = this.axis.dayIndexOf(this.viewStart);
+    const startDate = this.axis.dateAtIndex(axisViewStartIdx + Math.floor(view.scrollX / view.zoom) - 1);
+    const endDate = this.axis.dateAtIndex(axisViewStartIdx + Math.ceil((view.scrollX + canvasWidth) / view.zoom) + 1);
 
     // issue #21 punt 2: bij een `mid`-tier (dagweergave, 25≤zoom<80) komt er een weeknummer-rij
     // bij en worden de drie rijen gelijkmatig verdeeld (h/6, h/2, 5h/6). Zonder `mid` valt dit
@@ -627,6 +648,19 @@ export class GanttRenderer {
     const ctx = this.ctx;
     const cfg = TIER_CONFIG[tier];
 
+    // Issue #21 punt 5 (header-bugfix, vervolg fase 3 van werkdagen-as-ontwerp.md §4.1): onder
+    // compressie stapt de DAG-tier over werkdag-AS-INDICES i.p.v. kalenderdagen. Reden: met
+    // `nextTickBoundary('day')` (+1 kalenderdag) vallen aaneengesloten niet-werkdagen (weekend,
+    // feestdagblok) allemaal op dezelfde kleef-rechts-naad-x (`workdayAxis.ts`) — elke zo'n tick
+    // krijgt toevallig `slotWidth===0` en wordt door de defensieve skip hieronder overgeslagen,
+    // dus zichtbare dubbele labels ontstaan hier NIET. Week-/maand-tiers werken wél al
+    // automatisch mee via `dateToX` (§4.1: "vrijwel automatisch") — alleen de dag-tier verandert
+    // van stapmethode.
+    if (tier === 'day' && this.compressed) {
+      this.drawWorkdayTierLabels(startDate, endDate, yCenter, cfg, wsd, localizedWeekdays);
+      return;
+    }
+
     // Snap to the tick boundary at-or-before startDate
     let cursor = snapToTickStart(startDate, tier, wsd);
     let lastDrawnRight = -Infinity;
@@ -656,6 +690,56 @@ export class GanttRenderer {
       }
 
       cursor = next;
+    }
+  }
+
+  /**
+   * Issue #21 punt 5 (header-bugfix): dag-tier onder compressie, itererend over
+   * WERKDAG-as-indices (`this.axis.dayIndexOf`/`dateAtIndex`) i.p.v. kalenderdagen. Elke
+   * opeenvolgende index is per constructie een ANDERE echte werkdag (§2.2 prefix-som) — er
+   * bestaat dus geen niet-werkdag-tick om over te slaan, en twee ticks kunnen nooit op dezelfde
+   * x landen. Bijkomend voordeel t.o.v. "per kalenderdag + 0-breedte-skip": het aantal
+   * iteraties is O(zichtbare kolommen), niet O(zichtbare kalenderdagen incl. gecomprimeerde
+   * weekenden/feestdagen) — bij een ver-gescrolde weergave met veel vrije dagen scheelt dat.
+   */
+  private drawWorkdayTierLabels(
+    startDate: Date,
+    endDate: Date,
+    yCenter: number,
+    cfg: TierConfig,
+    wsd: 'monday' | 'sunday',
+    localizedWeekdays?: string[],
+  ): void {
+    const { canvasWidth, taskTableWidth } = this.opts;
+    const ctx = this.ctx;
+
+    let idx = Math.floor(this.axis.dayIndexOf(startDate));
+    const endIdx = Math.ceil(this.axis.dayIndexOf(endDate));
+    let lastDrawnRight = -Infinity;
+
+    while (idx <= endIdx) {
+      const cursor = this.axis.dateAtIndex(idx);
+      const next = this.axis.dateAtIndex(idx + 1);
+      const x1 = this.axis.dateToX(cursor);
+      const x2 = this.axis.dateToX(next);
+      const labelText = this.formatTierLabel('day', cursor, wsd, undefined, localizedWeekdays);
+
+      if (x2 <= taskTableWidth) {
+        idx++;
+        continue;
+      }
+      if (x1 >= canvasWidth) break;
+
+      const labelX = Math.max(x1 + 4, taskTableWidth + 4);
+      const slotWidth = x2 - Math.max(x1, taskTableWidth);
+
+      if (slotWidth >= cfg.minLabelWidth && labelX > lastDrawnRight + 4) {
+        ctx.fillText(labelText, labelX, yCenter);
+        const measured = ctx.measureText(labelText).width;
+        lastDrawnRight = labelX + measured;
+      }
+
+      idx++;
     }
   }
 
