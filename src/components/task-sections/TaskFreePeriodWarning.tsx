@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
@@ -20,17 +21,21 @@ export function TaskFreePeriodWarning({ taskId }: { taskId: string }) {
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
 
-  if (!task || task.isMilestone) return null;
-
   // Zelfde "berekende start/finish"-bron als `TaskTimeFields`/Gantt/tooltip
   // (`earlyStart || scheduleStart`, analoog voor finish) — niet de rauwe plan-ankers.
-  const start = task.time.earlyStart || task.time.scheduleStart;
-  const finish = task.time.earlyFinish || task.time.scheduleFinish;
-  if (!start || !finish) return null;
+  const start = task && !task.isMilestone ? (task.time.earlyStart || task.time.scheduleStart) : undefined;
+  const finish = task && !task.isMilestone ? (task.time.earlyFinish || task.time.scheduleFinish) : undefined;
+  const cal = task ? effectiveCalendarOf(task, projectCal, calendars) : undefined;
 
-  const cal = effectiveCalendarOf(task, projectCal, calendars);
-  const periods = findLongFreePeriods(cal, start, finish);
-  if (periods.length === 0) return null;
+  // Review vóór de merge (aanbeveling): memoïseren — de scan is O(taakduur in kalenderdagen) en
+  // draaide anders op élke store-mutatie mee (ook per sleep-frame bij niet-datumwijzigingen).
+  // Deps zijn de daadwerkelijke invoer (datums + kalender), niet het taak-object zelf.
+  const periods = useMemo(
+    () => (cal && start && finish ? findLongFreePeriods(cal, start, finish) : []),
+    [cal, start, finish],
+  );
+
+  if (!task || task.isMilestone || periods.length === 0) return null;
 
   return (
     <>
