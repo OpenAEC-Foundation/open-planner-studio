@@ -4,11 +4,12 @@
 // als verify-examples zodat de invocatie-conventie (`npm run verify:docs`) identiek blijft.
 //
 // Checks:
-//   1. Elk manifest-artikel-id heeft public/docs/nl/<id>.md EN public/docs/en/<id>.md; geen
-//      wees-bestanden (md op schijf zonder manifest-entry); geen dubbele ids in het manifest.
+//   1. Elk manifest-artikel-id heeft public/docs/nl/<id>.md EN public/docs/en/<id>.md (brontalen,
+//      hard vereist); de overige 12 talen worden gevalideerd wanneer aanwezig maar mogen ontbreken
+//      (maandelijkse vertaalronde). Geen wees-bestanden (md zonder manifest-entry); geen dubbele ids.
 //   2. Elke docs://<id>-link wijst naar een bestaand manifest-id.
 //   3. Elke examples://<file>-link wijst naar een bestand in public/examples/manifest.json.
-//   4. title.nl/title.en niet leeg; layer ∈ {quickstart, gidsen, referentie}.
+//   4. title.nl/title.en niet leeg (overige talen: niet leeg indien aanwezig); layer ∈ {quickstart, gidsen, referentie}.
 //   5. Parser-compatibiliteit tegen de subset die src/utils/miniMarkdown.tsx ondersteunt (koppen
 //      #/##/### zonder nesting, paragrafen, single-level ongeordende/geordende lijsten, **vet**/
 //      *cursief*/`code`, ```-codeblokken, alleen docs://- en examples://-links, ![alt](pad)):
@@ -42,6 +43,10 @@ const VALID_LAYERS = new Set(['quickstart', 'gidsen', 'referentie']);
 // Alle 14 UI-locales met een eigen vertaalde docs-map (moet gelijk lopen met DOC_LANGS in
 // src/components/backstage/HelpPanel.tsx en Locale in src/i18n/config.ts).
 const LANGS = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'] as const;
+// Brontalen: hard vereist voor elk artikel. De overige 12 worden maandelijks vertaald en daarom
+// alleen gevalideerd wanneer ze aanwezig zijn — zo faalt de poort niet op een nieuw artikel dat nog
+// niet vertaald is, terwijl bestaande vertalingen wél volledig getoetst blijven (structuur/drift/parser).
+const SOURCE_LANGS: readonly string[] = ['nl', 'en'];
 
 interface Check { ok: boolean; msg: string }
 function expect(diffs: string[], ok: boolean, msg: string): Check {
@@ -218,17 +223,25 @@ function main() {
   for (const article of manifest.articles) {
     const diffs: string[] = [];
 
-    // 1c. Bestaan van beide taalbestanden.
+    // 1c. Bestaan van de taalbestanden. Brontalen (nl/en) zijn hard vereist; de overige talen worden
+    //     alleen getoetst als het bestand er is — een nog niet vertaald nieuw artikel blokkeert de
+    //     poort dus niet, maar bestaande vertalingen worden hieronder volledig gevalideerd.
     const paths: Record<string, string> = {};
     for (const lang of LANGS) {
       const p = join(DOCS_DIR, lang, `${article.id}.md`);
       paths[lang] = p;
-      expect(diffs, existsSync(p), `ontbreekt: public/docs/${lang}/${article.id}.md`);
+      if (SOURCE_LANGS.includes(lang)) {
+        expect(diffs, existsSync(p), `ontbreekt: public/docs/${lang}/${article.id}.md`);
+      }
     }
 
-    // 4. Titels (alle 14 talen) + layer.
+    // 4. Titels + layer. Brontalen (nl/en) zijn verplicht; een titel in een andere taal wordt alleen
+    //    afgekeurd als hij bestaat maar leeg is (ontbreken mag — volgt in de maandelijkse vertaalronde).
     for (const lang of LANGS) {
-      expect(diffs, !!article.title?.[lang]?.trim(), `title.${lang} ontbreekt of is leeg`);
+      const hasTitle = article.title?.[lang] !== undefined;
+      if (SOURCE_LANGS.includes(lang) || hasTitle) {
+        expect(diffs, !!article.title?.[lang]?.trim(), `title.${lang} ontbreekt of is leeg`);
+      }
     }
     expect(diffs, !!article.layer && VALID_LAYERS.has(article.layer), `ongeldige layer "${article.layer}" (verwacht quickstart/gidsen/referentie)`);
 
