@@ -277,6 +277,9 @@
     "helpLoading": "Ładowanie…",
     "helpLoadError": "Nie udało się załadować dokumentacji.",
     "helpArticleNotFound": "Nie znaleziono artykułu.",
+    "helpDocsLang": "Język dokumentacji",
+    "helpDocsLangAuto": "Zgodnie z językiem aplikacji",
+    "helpStale": "Ta wersja językowa jest aktualizowana tylko sporadycznie. Aby uzyskać najbardziej aktualną dokumentację, przełącz się na angielski lub niderlandzki.",
     "helpLayer": {
       "quickstart": "Szybki start",
       "gidsen": "Przewodniki tematyczne",

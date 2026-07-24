@@ -1,708 +1,863 @@
 # Changelog
 
-Alle noemenswaardige wijzigingen aan Open Planner Studio worden hier vastgelegd.
-Nieuwe wijzigingen komen bovenaan onder **Ongepubliceerd**; houd ze gegroepeerd
-per type (`Toegevoegd`, `Gewijzigd`, `Opgelost`, `Documentatie`).
-
-## Ongepubliceerd
+This document describes, **per released version**, what that release of Open Planner Studio
+contains — the detailed, substantive counterpart to the short release notes. Every released
+version has its own section (no gaps); the newest is at the top. It is deliberately not a
+running archive of every individual commit: within a version there is a curated description,
+grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
 ## v2026.7.12 — 2026-07-23
 
-### Documentatie
-- **OFL-1.1-licentietekst gevendord bij het meegeleverde Inter** (`src/services/pdf/fonts/Inter-OFL.txt`
-  + toelichting in `src/services/pdf/fonts/README.md`) — de Open Font License verplicht dat de
-  licentietekst met het font meegeleverd wordt; die verplichting ontbrak nog sinds Inter in fase 0/1
-  van de vector-PDF-export (issue #23) als raw TTF gevendord werd.
-- De gids **Rapporten & printen** (`gids-rapporten-printen`, nl+en) is bijgewerkt voor de
-  vectorexport: uitleg dat het PDF-bestand nu scherp blijft op elk zoomniveau en selecteerbare/
-  doorzoekbare tekst bevat, plus de CJK/RTL-raster-fallback.
+### Added
+- **PDF report export is now vector-based with selectable text (issue #23).** The export of the
+  Gantt report, the milestone overview and the variance report previously embedded the rendered
+  preview as a single raster image in the PDF file — sharpness depended on the canvas resolution
+  and nothing could be selected or searched. The export now draws directly as PDF vectors
+  (lines, fills and embedded, subsetted text) via `pdf-lib`, so the result stays sharp at every
+  zoom level and text is selectable/searchable — exactly as expected from a "real" PDF.
+  This applies to Latin, Cyrillic and Greek text (embedded with the bundled Inter font, see
+  below); documents with **CJK text (Chinese/Japanese/Korean) or RTL text
+  (Arabic/Persian)** are detected automatically by the export and fall back to the old
+  raster export — still perfectly legible, but not selectable. Vector CJK will come later via
+  an extension; vector RTL follows in a later phase. (Under the hood, RTL shaping/bidi and
+  CJK harfbuzz subsetting are already in place and exposed behind a font-provider extension API.)
+- **Move project…** — a feature that shifts the entire schedule to a new start date in one go,
+  with a calendar-aware warning when the project end or the project duration ends up different
+  than chosen (see the accompanying i18n fixes under *Fixed*).
+- **Built-in benchmark tool** — reachable via Settings; measures the compute time of the
+  scheduling engine (including `runCPM`) on the user's own machine, as a frame of reference for
+  the performance work below. App plumbing, no IFC impact.
 
-### Opgelost (kleine punten uit de 2.10-triage, 2026-07-20)
-- **De kalenderwaarschuwing bij "Project verplaatsen…" bevatte een lege mededeling.** De
-  waarschuwing vuurt bij twee onafhankelijke symptomen — het projecteinde verspringt met een ánder
-  aantal kalenderdagen dan gekozen, en/of de projectduur in werkdagen verandert — maar noemde er
-  altijd béíde. Trad er maar één op, dan stond er iets zinloos: "de projectduur gaat van 177 naar
-  177 werkdagen", of andersom "het einde verschuift 11 kalenderdagen in plaats van 11". Beide
-  gevallen komen in de praktijk voor; in een planning zonder feestdagen in het verschoven venster is
-  "alleen het einde verspringt" zelfs het gewone geval. Nu drie varianten met een eigen tekst.
-- **"Project verplaatsen…" toonde meervoud bij één item.** De waarschuwingsregels schreven
-  "1 taken hebben een harde Mandatory-pin" en "1 externe koppelingen"; de detailregel maakte er
-  "1 deadlines" van. De vijf telsleutels gebruiken nu i18next-pluralisatie in alle veertien talen.
-  Daarbij bleek een addertje: ontbreekt één plural-categorie in een taal, dan valt i18next **niet**
-  terug op de `_other` van diezelfde taal maar op `fallbackLng` — een Poolse gebruiker met twéé
-  items kreeg dan Engelse tekst te zien. Elke taal heeft daarom precies de categorieën die CLDR
-  voorschrijft (Pools vier, Arabisch zes), bewaakt door de nieuwe batterij `check-i18n-plurals`.
-  De detailregel is omgebouwd van één zin met vijf tellingen naar "label: aantal", waarin het label
-  niet met het getal congrueert; nul-categorieën vallen nu weg in plaats van "0 deadlines" te tonen.
-- **Lag ging verloren in de backward-uurberekening bij een mijlpaal-voorganger.** In de
-  eind-startrelatie deden de grensvlaggen `predEndsBeginOfDay`/`succIsFinishMs` dubbel werk: ze
-  onderdrukten naast de finish-normalisatie óók de lag, terwijl de dagberekening de lag altijd
-  toepast en de vlaggen alleen over de dagstap laat beslissen. Gevolg was een verkeerde totale
-  speling en een verkeerd kritiek pad in uurplanning — dezelfde planning gaf `tf=1` en niet-kritiek
-  in uurmodus tegen `tf=0` en kritiek in dagmodus. Voorwaartse en achterwaartse berekening spraken
-  elkaar dus tegen. Vijf nieuwe cases in `cases-hours-relations.json` leggen het vast, inclusief een
-  negatieve lag (lead) en dagpariteits-ankers.
-- **Dag/uur-asymmetrie bij een startmijlpaal-voorganger.** De uurtak trok het dagbegin-anker van een
-  startmijlpaal via `prevWorkInstant` terug naar het vorige bandeinde, terwijl zo'n mijlpaal geen
-  echte finish-instant heeft en de dagtak het doeldatumlabel juist behoudt. Werk-equivalent, maar de
-  mijlpaal toonde in uurmodus een late finish op de vórige werkdag. De dagkant was nergens gedekt —
-  bestaande mijlpaalcases asserteerden wel vroege maar geen late datums — en heeft nu een
-  pariteitsanker.
-- **Voltooide taken in het grote voorbeeldproject leken uit te lopen.** De generator schreef
-  werkelijke datums uit handgeschreven werkdag-indices waarin `finishDay − startDay == dur`, terwijl
-  de index-vertaling inclusief telt; bovendien sloeg die vertaling alleen weekenden over en geen
-  feestdagen, waardoor een taak op Goede Vrijdag begon. Elke voltooide taak kreeg daardoor een dag
-  schijn-uitloop, die in de achterwaartse berekening terugstapelde tot `TF=-4` op de startmijlpaal.
-  Werkelijke datums komen nu uit de doorgerekende, kalenderbewuste planning en de statusdatum wordt
-  afgeleid uit het geplande einde van de kraanopbouw in plaats van uit een vaste dag-index. Het
-  voorbeeld heeft nu nul taken met negatieve speling. Twee cases in `cases-progress.json` leggen het
-  onderliggende solvergedrag vast (voltooid conform plan ⇒ speling 0; uitloop ⇒ negatieve speling).
-- **Het eigenschappenpaneel toonde een andere startdatum dan de Gantt-balk.** Vier oppervlakken
-  (balk, tooltip, tabel, taakdialoog) tonen de berekende datum; het paneel toonde als enige de rauwe
-  ankerdatum. Gemeten over alle 24 voorbeelden liep dat op tot 484 dagen verschil, en in het grote
-  voorbeeld week 246 van de 249 taken af — het paneel toonde voor bijna elke taak simpelweg de
-  projectstartdatum. Het veld toont nu de berekende datum en schrijft alleen bij een echte wijziging
-  naar het anker, met een verklarende hint in alle 14 talen.
-- **Loze undo-stappen bij verwijderacties.** `removeSequence`, `deleteTask`, `removeResource`,
-  `removeCalendar` en `deleteBaseline` pushten een undo-snapshot vóór hun filter, zodat een aanroep
-  met een onbekend id een lege stap achterliet.
+### Changed
+- **The print/export font for reports has changed from the system font stack to the bundled
+  Inter.** This belongs with the vector export above: the old preview/export measured
+  text widths with whichever font the operating system happened to offer first in the stack, which
+  differed per platform (and sometimes per machine). Now it is always Inter, so the layout is
+  deterministic across Windows/macOS/Linux/browser. Side effect: existing exports may come out
+  slightly differently on re-export — a slightly different text width can make a line wrap or
+  run on, which in turn can shift the number of pages. Functionally identical, visually not
+  necessarily pixel-equal to an export from before this change.
+- **Project data can now be undone.** Name, description, author, company, start and end date,
+  data date, progress mode, calculation options and the project-calendar choice were until now
+  entirely outside undo. They are now in the snapshot and every change is an undo step, with an
+  equality check in front of it so that saving-without-change does not produce an empty step. This
+  immediately repaired two existing half-restore bugs: undo after deleting a calendar or saving
+  the calendar library did restore the library but not the project calendar, after which the
+  internal cache stayed pointed at the wrong calendar. A typed-in data date now costs one undo
+  step instead of three (the date field commits on every keystroke).
+- **The large example project got a second construction stream.** It showed multiple critical
+  paths only thanks to the data error described under *Fixed*; with correct data there was one
+  path left. Phase 7 has been expanded into a genuine parallel stream: as soon as the parking deck
+  is poured, its own crew starts on the garage fit-out, which runs via the outdoor area with no
+  float to the same delivery date as the towers. Bonus: the temporary construction road was
+  previously torn up while the towers still had to go up — that order is now correct.
+- **The IFC writer no longer writes the derived analysis properties.** The pset `OPS_Analysis`
+  (interfering float, near-critical, float-path number) contained solely output of the
+  scheduling calculation with no user input; all 589 tasks in the examples reproduced their
+  stored values bit-exact after recalculation. That saves about 157 kB in the bundled
+  examples — the web selection went from 726 to 567 kB — and roughly a fifth of every automatic
+  intermediate save, which runs every 800 ms per open document. Existing files with these
+  properties load unchanged; crash recovery now recalculates, just like every other load path.
+- **Performance of the scheduling engine (based on the new performance audit).** Byte-identical
+  results, only faster: `CalendarEngine` now computes working days numerically/arithmetically with
+  an allocation-free `isWorkDay` instead of day-by-day with date strings (the audit pointed to
+  this as the main culprit, effectively O(n²) on large schedules); the summary rollup uses an
+  id→task `Map` instead of a linear `find` per task; and the undo snapshot is taken from the
+  ordinary pre-mutation state instead of from the Immer draft.
 
-### Gewijzigd
-- **Het print-/exportfont voor rapporten is gewijzigd van de systeem-font-stack naar het
-  meegeleverde Inter.** Dit hoort bij de vectorexport hierboven: de oude preview/export mat
-  tekstbreedtes met welk font het besturingssysteem toevallig als eerste in de stack aanbood, wat
-  per platform (en soms per machine) verschilde. Nu is dat altijd Inter, dus is de layout
-  deterministisch over Windows/macOS/Linux/browser. Neveneffect: bestaande exports kunnen bij
-  herexport licht anders uitvallen — een iets andere tekstbreedte kan een regel doen afkappen of
-  doorlopen, wat weer het aantal pagina's kan verschuiven. Functioneel identiek, visueel niet per se
-  pixel-gelijk aan een export van vóór deze wijziging.
-- **Projectgegevens zijn nu ongedaan te maken.** Naam, omschrijving, auteur, bedrijf, start- en
-  einddatum, statusdatum, voortgangsmodus, rekenopties en de projectkalender-keuze vielen tot nu toe
-  volledig buiten undo. Ze zitten nu in de momentopname en elke wijziging is een undo-stap, met een
-  gelijkheidscontrole ervoor zodat opslaan-zonder-wijziging geen lege stap oplevert. Dit repareerde
-  meteen twee bestaande halve-herstel-bugs: undo na het verwijderen van een kalender of het opslaan
-  van de kalenderbibliotheek zette de bibliotheek wél terug maar de projectkalender niet, waarna de
-  interne cache op de verkeerde kalender bleef staan. Een ingetypte statusdatum kost voortaan één
-  undo-stap in plaats van drie (het datumveld commit bij elke toetsaanslag).
-- **Het grote voorbeeldproject heeft een tweede bouwstroom gekregen.** Het toonde meerdere kritieke
-  paden alleen dankzij de hierboven beschreven datafout; met correcte data was er één pad over. Fase 7
-  is uitgebouwd tot een echte parallelle stroom: zodra het parkeerdek gestort is begint een eigen ploeg
-  aan de garage-afbouw, die via het buitenterrein zonder speling naar dezelfde opleverdatum loopt als
-  de torens. Bijvangst: de tijdelijke bouwweg werd voorheen opgebroken terwijl de torens nog omhoog
-  moesten — die volgorde klopt nu.
-- **De IFC-writer schrijft de afgeleide analyse-eigenschappen niet meer.** De pset `OPS_Analysis`
-  (interfererende speling, bijna-kritiek, float-pad-nummer) bevatte uitsluitend uitvoer van de
-  planningsberekening zonder gebruikersinvoer; alle 589 taken in de voorbeelden reproduceerden hun
-  opgeslagen waarden bit-exact na herberekening. Dat scheelt ongeveer 157 kB in de meegeleverde
-  voorbeelden — de web-selectie ging van 726 naar 567 kB — en ruwweg een vijfde van elke automatische
-  tussenopslag, die per open document elke 800 ms draait. Bestaande bestanden mét deze eigenschappen
-  laden ongewijzigd; crashherstel rekent voortaan door, net als elk ander laadpad.
+### Fixed (minor items from the 2.10 triage, 2026-07-20)
+- **The calendar warning for "Move project…" contained an empty message.** The
+  warning fires on two independent symptoms — the project end shifts by a different
+  number of calendar days than chosen, and/or the project duration in working days changes — but
+  always named both. If only one occurred, it stated something meaningless: "the project duration
+  goes from 177 to 177 working days", or the other way around "the end shifts 11 calendar days
+  instead of 11". Both cases occur in practice; in a schedule without public holidays in the
+  shifted window, "only the end shifts" is even the common case. Now three variants with their own
+  text.
+- **"Move project…" showed plurals for a single item.** The warning lines wrote
+  "1 tasks have a hard Mandatory pin" and "1 external links"; the detail line turned it into
+  "1 deadlines". The five count keys now use i18next pluralization in all fourteen languages.
+  In the process a catch surfaced: if one plural category is missing in a language, i18next does
+  **not** fall back to the `_other` of that same language but to `fallbackLng` — a Polish user
+  with two items would then see English text. Every language therefore has exactly the categories
+  that CLDR prescribes (Polish four, Arabic six), guarded by the new battery `check-i18n-plurals`.
+  The detail line was rebuilt from one sentence with five counts to "label: count", in which the
+  label does not agree with the number; zero categories now drop out instead of showing
+  "0 deadlines".
+- **Lag was lost in the backward hour calculation with a milestone predecessor.** In the
+  finish-start relationship the boundary flags `predEndsBeginOfDay`/`succIsFinishMs` did double
+  duty: alongside the finish normalization they also suppressed the lag, whereas the day
+  calculation always applies the lag and lets the flags decide only about the day step. The result
+  was a wrong total float and a wrong critical path in hour-based scheduling — the same schedule
+  gave `tf=1` and non-critical in hour mode versus `tf=0` and critical in day mode. Forward and
+  backward calculation thus contradicted each other. Five new cases in `cases-hours-relations.json`
+  capture it, including a negative lag (lead) and day-parity anchors.
+- **Day/hour asymmetry with a start-milestone predecessor.** The hour branch pulled the day-start
+  anchor of a start milestone via `prevWorkInstant` back to the previous band end, whereas such a
+  milestone has no real finish instant and the day branch actually keeps the target-date label.
+  Work-equivalent, but the milestone showed a late finish on the previous working day in hour mode.
+  The day side was covered nowhere — existing milestone cases asserted early but no late dates —
+  and now has a parity anchor.
+- **Completed tasks in the large example project appeared to overrun.** The generator wrote
+  actual dates from hand-written working-day indices in which `finishDay − startDay == dur`,
+  whereas the index translation counts inclusively; moreover that translation only skipped weekends
+  and no public holidays, causing a task to start on Good Friday. Every completed task therefore got
+  a day of apparent overrun, which in the backward calculation stacked back up to `TF=-4` on the
+  start milestone. Actual dates now come from the fully-computed, calendar-aware schedule and the
+  data date is derived from the planned end of the crane erection instead of from a fixed day index.
+  The example now has zero tasks with negative float. Two cases in `cases-progress.json` capture the
+  underlying solver behavior (completed as planned ⇒ float 0; overrun ⇒ negative float).
+- **The properties panel showed a different start date than the Gantt bar.** Four surfaces
+  (bar, tooltip, table, task dialog) show the computed date; the panel was the only one showing the
+  raw anchor date. Measured across all 24 examples this ran up to 484 days of difference, and in the
+  large example 246 of the 249 tasks diverged — the panel simply showed the project start date for
+  almost every task. The field now shows the computed date and writes to the anchor only on a real
+  change, with an explanatory hint in all 14 languages.
+- **The contractual project dates did not survive the IFC round-trip** — the deliberately set
+  project start/end date was not reliably read back on save-and-reload. Sealed and covered.
+- **Ribbon dropdowns went wrong after the portal fix.** The RibbonDropdown panel (including the
+  timescale) lost its width; dropdown menus such as Milestone were clipped by the ribbon itself;
+  and the right-click menu fell below the window for milestones low in the task list. All three
+  fixed.
+- **Empty undo steps on delete actions.** `removeSequence`, `deleteTask`, `removeResource`,
+  `removeCalendar` and `deleteBaseline` pushed an undo snapshot before their filter, so a call
+  with an unknown id left an empty step behind.
 
-### Toegevoegd
-- **PDF-rapportexport is nu vectorgrafisch met selecteerbare tekst (issue #23).** De export van het
-  Gantt-rapport, het mijlpalen-overzicht en het variance-rapport bedde het gerenderde voorbeeld
-  voorheen als één raster-afbeelding in het PDF-bestand — scherpte hing af van de canvas-resolutie
-  en er viel niets te selecteren of doorzoeken. De export tekent nu rechtstreeks als PDF-vectoren
-  (lijnen, vlakken en ingebedde, gesubsette tekst) via `pdf-lib`, zodat het resultaat op elk
-  zoomniveau scherp blijft en tekst selecteerbaar/doorzoekbaar is — precies zoals van een "echt" PDF
-  verwacht. Dit geldt voor Latijnse, Cyrillische en Griekse tekst (ingebed met het meegeleverde
-  Inter-font, zie hieronder); documenten met **CJK-tekst (Chinees/Japans/Koreaans) of RTL-tekst
-  (Arabisch/Perzisch)** herkent de export automatisch en die vallen terug op de oude
-  raster-export — nog steeds correct leesbaar, maar niet selecteerbaar. Vector-CJK komt later via
-  een extensie; vector-RTL volgt in een latere fase.
-- **Geavanceerde CPM (fase 2.9)** — de kritieke-pad-motor is compleet gemaakt ten opzichte van
-  Primavera P6 en MS Project, in zowel dag- als uurplanning (ontwerp:
-  `docs/superpowers/specs/2026-07-06-geavanceerde-cpm-design.md`):
-  - **Alle constraint-types in de berekening.** Naast de bestaande "zachte" constraints nu ook
-    **logica-brekende Mandatory Start/Finish-pins**: een vastgepinde taak wordt onvoorwaardelijk op
-    zijn datum gezet — ook als een voorganger daardoor niet op tijd klaar is — en de resulterende
-    negatieve speling wordt stroomopwaarts (naar de voorgangers) gedreven in plaats van door de pin
-    heen. Een **secundaire constraint** per taak (P6's primair + secundair), met live validatie die
-    onmogelijke combinaties weigert. Constraints werken nu **uur-precies**: een datum-met-tijd wordt
-    tot de minuut gehonoreerd op een uurkalender, een datum-zonder-tijd blijft dagverankerd.
-  - **Hammock-taken (Level of Effort).** Een hammock leidt zijn duur af uit de afstand tussen zijn
-    start-driver en finish-driver en **rekt automatisch mee** wanneer die dragers verschuiven; hij
-    telt nooit mee in het kritieke pad en legt geen speling-druk op zijn dragers.
-  - **Externe (cross-project) koppelingen.** Verwijs naar een taak in een ander bestand via een
-    **bevroren ankerdatum** (P6 External Dates), voor alle vier relatietypes en beide richtingen. De
-    externe taak toont als **ghost-balk**; ankers zijn per koppeling én projectbreed te **verversen**,
-    en een niet-geladen bron krijgt een "verouderd"-markering. Geen live twee-documenten-herberekening.
-  - **Near-critical-analyse.** Een instelbare drempel markeert taken met weinig speling (amber-band
-    tussen kritiek en normaal; in het hoog-contrastthema met een blokpatroon). Default uit; aangezet
-    is de drempel 2 werkdagen en de weergave volgt de duureenheid (dagen of uren, fractioneel).
-  - **Meerdere kritieke paden / float paths.** Parallelle ketens worden genummerd (`floatPath` per
-    taak) via driving-logic-peeling of totale-float-rangschikking, met een instelbaar maximum.
-  - **Interfering float** — de speling die een taak wél kan opnemen zonder het projecteinde te raken
-    maar die tussenliggende taken verschuift (totale float − vrije float), getekend en fractioneel.
-  - **Berekening-instellingenblok op het project.** Een nieuwe projectsectie voor de rekenkeuzes:
-    lag-kalenderkeuze, kritiek-definitie (float-drempel of langste pad), float-berekeningswijze,
-    open-einde-taken-kritiek, near-critical-drempel en float-paths. Op het project (niet app-breed),
-    zodat hetzelfde bestand overal dezelfde planning geeft.
-  - **Interop.** Taak-constraints round-trippen nu óók in **P6-XML en MSPDI** (voorheen gingen die bij
-    export verloren), inclusief de hard/secundair-uitbreiding; hammocks, externe koppelingen en het
-    Berekening-blok bewaren hun gegevens via custom IFC-property-sets.
-  - **Volledig backwards-compatible:** elke nieuwe optie heeft als default exact het bestaande gedrag;
-    documenten van vóór 2.9 rekenen en serialiseren byte-voor-byte identiek.
-- **Urenplanning (fase 2.8b)** — scheduling wordt uur-/minuut-bewust, bovenop de dag-granulaire
-  kern van 2.8a (ontwerp: `docs/superpowers/specs/2026-07-06-uren-scheduling-design.md`):
-  - **Hoofdschakelaar Urenplanning** (Instellingen, **default uit**): schakelt de uur-/
-    minuten-scheduling in — een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze
-    taakbalken. Uit ⇒ de app blijft byte-voor-byte hetzelfde dag-granulaire gedrag van vóór
-    2.8b. Aparte instelling **"Gemengde dag/uur-planning toestaan"** voor documenten die
-    beide soorten taken/kalenders combineren.
-  - **Werktijd-banden per weekdag** op de kalender: meerdere banden per dag (pauzes), banden
-    die over middernacht heen lopen (nachtploeg) en een volledige **24/7**-vorm. Kant-en-klare
-    **ploegen-presets** (dagdienst, 2 ploegen, 3 ploegen, nachtploeg, 24/7) plus een
-    banden-editor (band toevoegen, bewaren als eigen preset, per weekdag instellen, kopiëren
-    naar alle werkdagen) met een live afgeleide uren/dag-indicator.
-  - **Uur-tijdschaal in de Gantt**: de al aanwezige uur-/kwartier-tiers (`timelineTiers`,
-    tot dusver dood sinds fase 2.7) worden geactiveerd zodra een kalender uur-data heeft.
-  - **Drie duurweergave-modi** in de instellingen: automatisch (eigen eenheid per taak),
-    altijd dagen, altijd uren — met een waarschuwing bij gemengde kalenders in de taaktabel
-    en drie aparte duur-invoervakjes (dagen/uren/totaal uren) in het taakdialoog.
-  - **Taakbalk-opsplitsing bij onderbrekingen**: instelbaar nooit/bij selectie/altijd, zodat
-    een taak die over een pauze of nachtblok heen loopt visueel als losse segmenten getoond
-    kan worden in plaats van als één doorlopende balk.
-  - **Minuut-precieze interop**: P6-XML, MSPDI en IFC lezen en schrijven nu sub-dag-duur en
-    -tijden verliesloos (voorheen werd alles afgerond op hele dagen); documenten zonder
-    uur-data round-trippen ongewijzigd.
-  - **Datumvelden herbouwd**: typbare dag/maand/jaar-segmenten in plaats van een enkel
-    tekstveld, met een projectbrede datumnotatie-instelling en bijbehorende
-    kalenderdialoog-fixes.
-  - Volledig vertaald in alle 14 talen.
-  - **Bewuste beperkingen**: een instelbare lag-kalender-optie (P6's "Calendar for scheduling
-    Relationship Lag") is fase 2.9; sub-dag resource-nivellering (per-uur/per-shift
-    capaciteits-emmers) blijft dag-emmer-gebaseerd; tijdzone/DST-bewuste scheduling en
-    per-rij Gantt-arcering op afwijkende taak-kalenders volgen later.
-- **Kalender-uitbreidingen (fase 2.8a)** — de kalender wordt een eersteklas, meervoudig,
-  jaar-onafhankelijk concept (ontwerp:
-  `docs/superpowers/specs/2026-07-04-kalenders-design.md`):
-  - **Jaar-onafhankelijke feestdagen-engine** (`src/engine/calendar/holidays.ts`): regelgebaseerd
-    i.p.v. een hardgecodeerde 2026-lijst, met een Pasen-algoritme en substitutieregels (bv.
-    Koningsdag op zondag → 26 april, VK-feestdagen die in het weekend vallen → eerstvolgende
-    maandag). **Zeven landensets**: NL, **Duitsland incl. alle 16 Bundesländer**, België,
-    Frankrijk (+ Alsace-Moselle), Verenigd Koninkrijk (EN-WLS/SCT/NIR), Oostenrijk en Zwitserland.
-    Bevrijdingsdag (5 mei) volgt de **lustrum-regel**: alleen in jaren deelbaar door 5 wordt hij
-    als feestdag gegenereerd (overige jaren optioneel te kiezen).
-  - **Bouwvak is nu opt-in via de wizardkeuze** (geen/Noord/Midden/Zuid), met **default geen** —
-    de oude standaardkalender bakte stilzwijgend drie weken bouwvak (regio Noord) in elk nieuw
-    project, wat in de fase-2.5-QA een 5-daagse taak liet ogen als een "opgerekte balk van vier
-    weken". De regionale bouwvak-datums komen uit een geverifieerde datatabel per jaar met een
-    benaderings-fallback voor jaren buiten de tabel.
-  - **Kalender-bibliotheek**: de resource-kalenderregistry (fase 2.5) is gepromoveerd tot dé
-    projectbrede bibliotheek (`calendars: WorkCalendar[]`) waar project, taken én resources
-    allemaal naar verwijzen — één centrale plek i.p.v. een impliciete projectkalender plus een
-    losse resource-registry. Bestaande documenten migreren automatisch (inline projectkalender
-    wordt bibliotheek-entry "Projectkalender").
-  - **Taak-specifieke kalenders in de CPM**: elke taak kan een eigen kalender krijgen
-    (`Task.calendarId`, fallback projectkalender); de solver rekent duur, float en
-    constraint-snaps per taak in diens eigen kalender via een engine-cache. **Voorganger-
-    kalender-lagregel**: de lag tussen twee taken telt in de kalender van de *voorganger*
-    (P6-default), terwijl de opvolger-afgeleide starttijd in de kalender van de *opvolger* snapt
-    — forward en backward pass spiegelen deze verdeling exact, zodat float symmetrisch blijft.
-  - **Wizard** (`ProjectInfoDialog`): land/regio-dropdown (Bundesland bij Duitsland, landsdeel bij
-    VK, kanton bij Zwitserland), de bouwvak-keuze, een vaste-winterstop-checkbox (default uit) en
-    een compacte feestdagen-preview met uitklapbare lijst — vervangt de oude, jaargebonden
-    3-presets-dropdown.
-  - **Kalenderdialoog als bibliotheekbeheer**: lijst van alle bibliotheekkalenders met
-    actief/projectdefault-markering, nieuw/dupliceren/verwijderen, en een nieuwe **"Feestdagen
-    genereren…"**-knop die dezelfde land/regio/bouwvak-generator als de wizard opent — ook voor
-    bestaande projecten, niet alleen bij het aanmaken.
-  - **Gantt-naamlabel op meerdaagse feestdagblokken**: blokken breder dan een paar zoom-pixels
-    tonen nu hun naam (bv. "Bouwvak (Noord)") in de arceringszone, zodat direct zichtbaar is
-    wélke feestdag of vakantieperiode in de planning zit.
-  - **IFC-reader-gat gedicht**: werkweek en werkuren lezen nu ook daadwerkelijk terug uit
-    `IFCRECURRENCEPATTERN`/`IFCTIMEPERIOD` (voorheen viel een 6- of 7-daagse kalender bij het
-    herladen stilzwijgend terug op de ma-vr-default). Meerdere benoemde kalenders en de
-    taak-kalender-koppeling round-trippen via `IfcRelAssignsToControl` en een nieuwe
-    OPS-pset (regelset-id/bouwvak-keuze).
-  - **Multi-kalender- en taak-kalender-round-trip** ook in **MSPDI** (`Calendars` +
-    `Task CalendarUID`, effectief gemaakt) en **P6-XML** (`StandardWorkWeek`/
-    `HolidayOrExceptions`, `CalendarObjectId` per activity). Verliesmatrix in het ontwerpdoc §8.4.
-  - Volledig vertaald in alle 14 talen; de test-suite groeide van 280 naar **289 handberekende
-    cases**, alle bestaande cases ongewijzigd groen, `verify:examples` byte-identiek.
-  - **Bewuste beperkingen**: uren-/minuten-based scheduling en dag/nacht-ploegenkalenders zijn
-    **fase 2.8b** (het datamodel blijft dag-granulair — een uur-kalender heeft nu geen effect op
-    de solver); per-rij Gantt-arcering op afwijkende taak-kalenders volgt **later** (de globale
-    kolom-arcering blijft op de projectkalender, MSP-gedrag); een instelbare lag-kalender-optie
-    (P6's "Calendar for scheduling Relationship Lag") is **fase 2.9** — 2.8a legt
-    voorganger-kalender vast als interne constante; weer-/vorstafhankelijk winterverlet is
-    **fase 4** (2.8a kent alleen een vaste, jaarlijks terugkerende winterstop-periode); de
-    bouwvak-tabeldatums zijn **adviesdata** (Bouwend Nederland) die met een benaderingsfallback
-    verder in de toekomst minder precies worden.
-- **Weergaven (fase 2.7)** — echte, opslaanbare weergaven op de Beeld-ribbontab (ontwerp:
-  `docs/superpowers/specs/2026-07-04-weergaven-design.md`):
-  - **Tijdschaal-reparatie**: de tot dusver dode tijdschaal-keuze is vervangen door een
-    werkende dropdown (Jaar/Kwartaal/Maand/Week/Dag) die naar zoom-presets mapt; het
-    getoonde label wordt **afgeleid** uit de daadwerkelijke zoomstand (kan dus nooit meer
-    desyncen van de getekende as) en de viewport recentert op het middelpunt van het
-    huidige venster bij het wisselen van schaal.
-  - **Eén gedeelde zichtbare-rijenlijst** (`computeViewRows`) voor tabel én Gantt: filter,
-    groepering en sortering worden voortaan op precies één plek berekend, zodat tabel en
-    Gantt-canvas structureel niet meer uit elkaar kunnen lopen (structurele pariteit).
-  - **Kolom-configuratie** in de taaktabel: zichtbaarheid, volgorde en breedte per kolom,
-    over builtin-velden, activity codes, custom fields en een nieuwe **resource-kolom**
-    (comma-gescheiden join via toewijzingen, read-only in 2.7).
-  - **Geneste AND/OR-filters** met een P6-achtige editor (All/Any-groepen, veldtype-bewuste
-    waarde-invoer: tekst/getal/datum/dropdown voor codes/resources), inclusief
-    "show summaries"-gedrag (niet-matchende ouders van een match blijven zichtbaar, gedimd).
-  - **Groeperen tot 2 niveaus** over elk veld (WBS, activity code, custom field, resource,
-    taaktype) met bandkop + count, en onbeperkt **multi-key-sorteren** (stabiele sort,
-    respecteert de WBS-hiërarchie binnen boommodus).
-  - **Structuur-vergrendeling buiten boommodus**: indent/outdent en taak-verslepen zijn
-    uitgeschakeld zodra filter/groep/sort actief is (structuur-mutaties zijn alleen
-    welgedefinieerd in de pure boommodus); waarde-mutaties (cel-edits, toevoegen,
-    verwijderen) blijven altijd mogelijk.
-  - **Custom layouts**: opslaan/toepassen/hernoemen/verwijderen/beheren, app-globaal
-    (localStorage, niet per document), met stille tolerantie voor velden die in het
-    huidige document niet (meer) bestaan.
-  - **Presentation mode** (F11) via de echte Fullscreen-API: alle chrome (titelbalk, lint,
-    documenttabs, statusbalk, eigenschappenpaneel) verdwijnt, alleen de Gantt full-bleed
-    blijft over; Escape of de browser/OS-fullscreen sluit af.
-  - **Split view** binnen één document: twee onafhankelijke tijdvensters naast elkaar op
-    dezelfde gedeelde rijen en verticale scroll — bijvoorbeeld een detailweek naast een
-    ver weg liggende mijlpaal.
-  - **Mini-map**: een lichte thumbnail-strook van de hele planning met een sleepbaar
-    viewport-kader.
-  - **Auto-bereken-instelling** (drie surfaces: tandwiel ⚙, Settings-ribbon-tab en
-    backstage) plus de "Bereken"-naamgeving geconsolideerd tot één i18n-sleutel overal
-    (ribbon, menu, eigenschappenpaneel).
-  - Volledig vertaald in alle 14 talen; de test-suite groeide van 256 naar **280
-    handberekende cases**, alle bestaande cases ongewijzigd groen.
-  - **Bewuste beperkingen**: uur-tijdschaal wacht op uren-/minuten-scheduling (fase 2.8) —
-    het datamodel is dag-granulair, een uur-as zou nu misleiden; rollup-totalen per
-    groepsband (som duur/kosten/units) volgen later (fase 3.5/3.9); een split view met
-    **twee verschillende documenten** vergt een store-singleton-refactor en is bewust
-    later; layouts zijn app-globaal en round-trippen niet mee in het IFC-bestand
-    (per-bestand-layouts zijn bewust later).
-- **Baselines & voortgang (fase 2.6)** — statusdatum-gestuurde CPM, echte
-  voortgangsregistratie en onbeperkte baselines (ontwerp:
-  `docs/superpowers/specs/2026-07-04-baselines-voortgang-design.md`):
-  - **Statusdatum** (P6 *data date*) op het project: stuurt de CPM-forward-pass —
-    voltooide taken worden op hun actuals vastgeklonken, gestarte-niet-voltooide
-    taken plaatsen hun resterende werk vanaf de statusdatum, en niet-gestarte taken
-    kunnen niet vóór de statusdatum starten. Geen statusdatum gezet ⇒ het gedrag is
-    byte-voor-byte gelijk aan vóór 2.6.
-  - **Echte voortgangsregistratie**: percentage-voltooid, werkelijke start en
-    werkelijke einde (de tot dusver dode `TaskTime`-velden) met afgedwongen
-    invarianten (een werkelijk einde impliceert 100 %, 100 % impliceert een
-    werkelijk einde, invullen van een percentage zet automatisch een werkelijke
-    start, actuals mogen nooit ná de statusdatum liggen). `remainingTime` is altijd
-    afgeleid uit het percentage.
-  - **Retained Logic / Progress Override** als projectbrede voortgangsmodus: bepaalt
-    hoe het resterende werk van een taak die vóór zijn voorganger is afgerond
-    zich verhoudt tot de netwerklogica.
-  - **Out-of-sequence-detectie**: taken die voortgang tonen terwijl hun voorganger-
-    relatie (FS/SS/FF/SF) dat logisch tegenspreekt, worden gemarkeerd en gemeld als
-    waarschuwing — blokkeert niets, volgt de gekozen voortgangsmodus.
-  - **Onbeperkte, benoemde baselines** (P6-stijl snapshots) met precies één actieve;
-    beheer via een baseline-dialoog (opslaan/hernoemen/verwijderen/activeren) in de
-    Planning-tab.
-  - **In de Gantt**: een statusdatumlijn, een baseline-overlay (dunne onderbalk per
-    taak tegen de vastgelegde baselinedatums) en een voortgangslijn (MSP-zigzag die
-    per rij naar de voortgangspositie uitstulpt) — alle drie los in-/uit te
-    schakelen.
-  - **Variance-rapport** als derde rapporttype in het Rapport-paneel: baseline- vs.
-    huidige start/einde per taak, delta in werkdagen, status (op schema/later/
-    eerder/nieuw/vervallen) en een projecteinde-samenvatting.
-  - Round-trip door **IFC 4.3** (actuals in de al bestaande maar tot dusver
-    ongebruikte `IfcTaskTime`-slots 14-18 — spec-conform; statusdatum/
-    voortgangsmodus in `OPS_ProjectSettings`; baselines dubbelspoor via een
-    verliesloze `OPS_Baselines`-JSON plus `.BASELINE.`-scheduleheaders voor
-    interop), **MSPDI** (volwaardig: Baseline0, `<StatusDate>`, actuals), **P6-XML**
-    (best-effort: actuals + data date; P6-baselines zijn een gedocumenteerd
-    verlies) en **CSV** (nieuwe actual-start/-einde-kolommen, bewust zonder
-    baselines/statusdatum). Gouden regel bewaard: bestanden zonder 2.6-data
-    round-trippen bit-identiek.
-  - Volledig vertaald in alle 14 talen; de CPM-regressiesuite groeide van 240 naar
-    **256 handberekende cases**, alle bestaande cases ongewijzigd groen.
-  - **Bewuste beperkingen**: geen kosten/werk/Earned Value (SPI/CPI/BCWP) — dat is
-    fase 3.5; P6-baselines worden niet geëxporteerd (best-effort, gedocumenteerd
-    verlies); het instellen van statusdatum/voortgangsmodus is niet undo-baar
-    (zelfde precedent als de projectkalender — undo via leegmaken + herberekenen).
-- **Voorbeeldprojecten in Backstage** — een nieuwe sectie **Bestand → Voorbeelden**
-  ontsluit de meegeleverde voorbeeldplanningen (kaartjes met naam, omschrijving en
-  tags). Klikken opent het voorbeeld in een nieuw tabblad (geen bronbestand, dus
-  opslaan wordt opslaan-als). De lijst is data-gedreven via
-  `public/examples/manifest.json`, zodat nieuwe voorbeelden er zonder codewijziging
-  in komen. Werkt in de web- én desktopbuild. De sectie toont nu twee groepen: de
-  drie **showcase-planningen** bovenaan (badge "Alle functies"), daaronder de
-  **eenvoudige voorbeelden** (manifest-veld `category`).
-- **Voorbeeld-generator herbouwd (`npm run gen:examples`)** — de voorbeelden worden nu
-  volledig door de app zelf opgebouwd via de échte store + `runCPM()` + `writeIFC`
-  (i.p.v. een met de hand nagebouwde IFC-writer, die was gedrift). Drift tussen de
-  voorbeelden en de app is daarmee structureel onmogelijk. Nieuw:
-  - **Drie showcase-planningen** (woningbouw / infra / renovatie) die samen álle
-    app-functies benutten: alle vier relatietypes + lags/leads/%-lag/ELAPSEDTIME,
-    datum-constraints + deadlines incl. een bewust conflict met negatieve float,
-    start-/eind-/verplichte mijlpalen, activity codes + custom fields, alle vijf
-    resourcetypes met ploeg-hiërarchie, resource-kalenders, availabilitySteps, alle
-    zes toewijzingscurves, een met nivellering oplosbare overallocatie en een
-    vastgepinde taak (prioriteit 1000).
-  - **Jaar-onafhankelijke datums**: projecten ankeren relatief ("eerste maandag van
-    maart, volgend jaar"); NL-feestdagen (incl. Pasen-afgeleiden) en de bouwvak
-    worden per jaar berekend, zodat regenereren altijd actuele datums oplevert.
-  - **Twintig sectorvoorbeelden verrijkt** met échte fase-overlap (SS/FF-relaties,
-    leads en %-lags op de fasegrenzen) en gevarieerde kalenders, zodat er een
-    realistisch kritiek pad **mét float** ontstaat (55–86 % kritiek i.p.v. bijna
-    alles). De twee oude, met de hand gebouwde "grote" voorbeelden zijn vervangen
-    door de showcases.
-  - **Verificatie** (`npm run verify:examples`): elk bestand gaat door de échte
-    `readIFC` met asserts op tellingen, round-trip-stabiliteit en aanwezige functies.
-- **Resources (fase 2.5)** — resourcebeheer, belasting, overallocatie en
-  automatische nivellering (ontwerp: `docs/superpowers/specs/2026-07-03-resources-design.md`):
-  - **Vijf resourcetypes**: arbeid (mensen), materieel (kranen, machines,
-    steigers), materiaal (beton, staal, hout), onderaannemer en ploeg. Ploegen
-    bundelen andere resources; elke resource heeft een maximale capaciteit,
-    eenheid en optioneel een eigen kalender.
-  - **Tijd-gefaseerde capaciteit**: de beschikbaarheid van een resource kan per
-    periode wijzigen (availability-stappen) — bijv. drie timmerlieden tot week 10,
-    daarna vijf.
-  - **Resource-toewijzing aan taken** met units per dag en zes verdeelcurves
-    (gelijkmatig, front-loaded, back-loaded, klok/bell, en op- en aflopend), zodat
-    de inzet realistisch over de taakduur wordt uitgesmeerd. Toewijzen kan alleen
-    op werkbare (leaf-)taken.
-  - **Belasting- en overallocatie-engine** in de berekening (F5 / Berekenen): per
-    resource wordt de dagelijkse belasting opgeteld en vergeleken met de capaciteit;
-    overbelasting wordt gemarkeerd.
-  - **Resource-histogram** als strook onder de Gantt, met een gedeelde tijd-as,
-    capaciteitslijn, rode pieken boven de lijn, een resourcekiezer met
-    overallocatie-badges en drill-down-tooltip; de hoogte is instelbaar en
-    persistent.
-  - **Automatische resource-nivellering én smoothing**: een serieel plaatsings-
-    algoritme (SGS) verschuift taken binnen hun speling om overallocatie op te
-    lossen, gesorteerd op prioriteit/speling/startdatum. Nivelleren gaat via een
-    dialoog met vooraf-preview (verschuivingen, nieuwe einddatum, resterende
-    conflicten) en is met één klik toe te passen of te annuleren.
-  - **Taak-prioriteit** (0–1000; 1000 = niet nivelleren) stuurt welke taken bij
-    schaarste voorrang krijgen.
-  - **Resources-ribbontab** met beheerpaneel (resources + capaciteitsstappen +
-    kalenderkoppeling), een toewijzingensectie in het taak-eigenschappenpaneel, de
-    histogramstrook en de nivelleer-dialoog.
-  - Round-trip door **IFC 4.3** (o.a. `IfcCrewResource`, `OPS_Resource`/
-    `OPS_Assignments`/`OPS_Leveling`-psets, een `IfcWorkCalendar` per resource en
-    `IfcTask.Priority`) en import/export via **Primavera P6-XML** en **MS Project
-    MSPDI** — resources, toewijzingen, curves en resource-kalenders reizen mee.
-    Gouden regel: bestanden zónder resources blijven bit-identiek.
-  - Volledig vertaald in alle 14 talen; de CPM-regressiesuite groeide van 202 naar
-    **231 handberekende cases** (incl. nivelleer- en smoothing-scenario's), alle
-    bestaande cases ongewijzigd groen.
-
-### Gewijzigd
-- **Herstel-dialoog in de app zelf** — bij het opstarten na een onverwachte
-  afsluiting verschijnt de herstelvraag nu als een eigen, gestylede React-dialog
-  (`RecoveryDialog`) in plaats van een native OS-dialog. De dialoog toont per te
-  herstellen document de projectnaam, het bestandspad (indien bekend), het aantal
-  taken en het tijdstip van de laatste auto-save-snapshot. Escape stelt de keuze
-  uit zonder de recovery-bestanden op te ruimen; de auto-save wordt uitgesteld tot
-  de keuze gemaakt is, zodat de snapshots niet vroegtijdig worden overschreven.
-  (Was desktop-only; sinds v2026.7.11 heeft de browser-build ook recovery, via IndexedDB.)
-- De standaard taak-prioriteit is nu een expliciete waarde (500) i.p.v. leeg,
-  zodat prioriteit voorspelbaar meeweegt bij nivellering; een expliciet ingevulde
-  0 blijft behouden (werd voorheen in de MSPDI-export stil naar 500 gecorrigeerd).
+### Documentation
+- **OFL-1.1 license text vendored with the bundled Inter** (`src/services/pdf/fonts/Inter-OFL.txt`
+  + explanation in `src/services/pdf/fonts/README.md`) — the Open Font License requires the
+  license text to be bundled with the font; that obligation was still missing since Inter was
+  vendored as a raw TTF in phase 0/1 of the vector-PDF export (issue #23).
+- The guide **Reports & printing** (`gids-rapporten-printen`, nl+en) has been updated for the
+  vector export: an explanation that the PDF file now stays sharp at every zoom level and contains
+  selectable/searchable text, plus the CJK/RTL raster fallback.
+- README provided with a badge bar (version/CI/deploy/suite/languages/license) and a
+  download-counter badge; the performance & modularity audit has been recorded as a measurement
+  report with a phased plan.
 
 ## v2026.7.11 — 2026-07-20
 
-### Toegevoegd
-- **Bestanden openen en opslaan in de browser.** De web-versie was tot nu toe volledig bruikbaar
-  behalve bestand-I/O — die zat achter een desktop-check. Dat gat is dicht:
-  - **Openen, opslaan, opslaan-als en exporteren** (IFC, CSV, MS Project, Primavera P6) werken nu
-    ook in de browser.
-  - **Browsers met de File System Access API** — in de praktijk de Chromium-familie (Chrome, Edge,
-    Opera, Brave, Vivaldi, …): je opent een bestand, bewerkt het en slaat met Ctrl+S **over hetzelfde
-    bestand** op, precies zoals op de desktop. De browser vraagt daarbij eenmalig schrijftoestemming.
-  - **Browsers zonder die API** — op dit moment Firefox en Safari: nette terugval, openen via een
-    bestandskiezer en opslaan als download. In-place overschrijven kan daar niet; dat wordt ook niet
-    voorgespiegeld.
-  - De app kijkt naar de **mogelijkheid, niet naar de browsernaam** (feature-detectie). Rolt een
-    browser de API later alsnog uit, dan werkt in-place opslaan daar vanzelf — zonder nieuwe versie.
-  - **Recente bestanden** zijn opnieuw te openen in browsers met die API (de verwijzing naar het
-    bestand wordt bewaard, niet alleen de naam). Ontbreekt de ondersteuning, dan wordt de lijst
-    verborgen in plaats van niet-werkende items te tonen.
-  - **Auto-save en crash-herstel** werken nu ook in de browser: bij elke wijziging wordt (gedebounced)
-    een momentopname per open document bewaard, en na een crash of per ongeluk sluiten biedt de app
-    bij het opstarten aan om te herstellen. Sluit je het tabblad met niet-opgeslagen wijzigingen, dan
-    waarschuwt de browser eerst.
-  - De desktop-versie verandert hierdoor niet: die gebruikt dezelfde gedeelde laag met het
-    bestaande bestandssysteem-gedrag.
-- **Bouwmodus-schakelaar** — een bouw-agnostische modus voor gebruik buiten de bouwcontext
-  (ontwerp: `docs/superpowers/specs/2026-07-13-bouwmodus-toggle-design.md`).
+### Added
+- **Opening and saving files in the browser.** The web version was until now fully usable
+  except for file I/O — which sat behind a desktop check. That gap is closed:
+  - **Open, save, save-as and export** (IFC, CSV, MS Project, Primavera P6) now work
+    in the browser as well.
+  - **Browsers with the File System Access API** — in practice the Chromium family (Chrome, Edge,
+    Opera, Brave, Vivaldi, …): you open a file, edit it and save with Ctrl+S **over the same
+    file**, exactly as on the desktop. The browser asks for write permission once.
+  - **Browsers without that API** — currently Firefox and Safari: a clean fallback, opening via a
+    file picker and saving as a download. In-place overwriting is not possible there; nor is it
+    suggested.
+  - The app looks at the **capability, not the browser name** (feature detection). If a
+    browser rolls out the API later, in-place saving works there automatically — without a new
+    version.
+  - **Recent files** can be reopened in browsers with that API (the reference to the
+    file is kept, not just the name). If the support is missing, the list is
+    hidden instead of showing non-working items.
+  - **Auto-save and crash recovery** now work in the browser too: on every change a (debounced)
+    snapshot per open document is kept, and after a crash or accidental close the app offers
+    to recover on startup. If you close the tab with unsaved changes, the browser
+    warns first.
+  - The desktop version does not change as a result: it uses the same shared layer with the
+    existing file-system behavior.
+- **Construction-mode toggle** — a construction-agnostic mode for use outside the construction
+  context (design: `docs/superpowers/specs/2026-07-13-bouwmodus-toggle-design.md`).
 
-### Opgelost
-- **Acht gaten waardoor gegevens bij opslaan verloren gingen, zijn gedicht.** Het opslagcontract
-  round-tript nu aantoonbaar volledig (met een nieuwe testbatterij die dit permanent afdwingt).
-- **Openen verloor activity-codes en custom fields.** Alle open-paden lopen nu door één gedeelde
-  laad-implementatie, zodat structuurgegevens niet meer stil wegvallen.
-- **De snelle opslaan-route in de browser liet velden vallen** (activity-codes, custom fields,
-  baselines, kalenderbibliotheek). Alle state→IFC-routes bouwen hun gegevens nu op één plek op.
-- **Speling verdween bij horizontaal scrollen.** De speling-band werd samen met de taakbalk
-  overgeslagen zodra die balk links buiten beeld schoof, ook als de band zelf nog ruim zichtbaar was.
-- **Gantt-slepen:** het verslepen van de balkrand schrijft nu de juiste (inclusieve werkdagen-)duur,
-  en elke duur is bereikbaar — ook de beginwaarde.
-- **Niet-werkdagen werden altijd als zaterdag/zondag gearceerd** in plaats van volgens de
-  projectkalender; ploegen- en afwijkende kalenders tonen nu correct.
-- **Crash bij het wisselen van document** na een herstel-actie (een bevroren kalenderlijst werd
-  gemuteerd). Permanent bewaakt met een regressietest.
-- **PDF-export herzien**: meerdere pagina's, paginarichting en een voorbeeldweergave die overeenkomt
-  met het resultaat.
-- **Beeld-tab en titelbalk** overlapten bij een smal venster; de weergave-opties staan nu in een
-  2×2-raster.
-- **Instellingen**: nettere indeling, uniforme checkboxes en werkende toetsbediening in dropdowns.
-- **Beveiligingsupdate**: `serde_with` 3.18.0 → 3.21.0 (GHSA-7gcf-g7xr-8hxj).
-- **Ontwikkelomgeving**: Vite bekeek bij een tweede dev-server alle git-worktrees mee (kon het
-  systeemlimiet voor bestandsbewaking overschrijden), en negeerde omgekeerd juist álle bestanden
-  wanneer je de dev-server ván binnen een worktree draaide — waardoor wijzigingen niet doorkwamen.
+### Changed
+- **Large cleanup round based on a modularity audit of the entire codebase.** No
+  functional changes, but structurally fewer places where the same mistake can arise again:
+  one canonical document contract for per-document state (capture/restore/undo), a transaction
+  helper that replaces a pattern repeated 50×, one shared load path, a pset registry that couples
+  the IFC reader and writer, a declarative ribbon and settings registry, shared dialog primitives,
+  a stable extension facade with a central permission table, one relationship-math module, and
+  `App.tsx` reduced from 741 to 345 lines.
+- **Test coverage expanded** with batteries that permanently guard the just-closed gaps:
+  IFC round-trip, document contract and Gantt-float visibility.
 
-### Gewijzigd
-- **Grote saneringsronde op basis van een modulariteits-audit van de volledige codebase.** Geen
-  functionele wijzigingen, wel structureel minder plekken waar dezelfde fout opnieuw kan ontstaan:
-  één canoniek documentcontract voor per-document-state (capture/herstel/undo), een transactiehelper
-  die een 50× herhaald patroon vervangt, één gedeeld laad-pad, een pset-registry die IFC-lezer en
-  -schrijver koppelt, een declaratieve ribbon- en instellingen-registry, gedeelde dialoog-primitives,
-  een stabiele extensie-facade met centrale permissietabel, één relatie-wiskunde-module, en
-  `App.tsx` teruggebracht van 741 naar 345 regels.
-- **Testdekking uitgebreid** met batterijen die de zojuist gedichte gaten permanent bewaken:
-  IFC-round-trip, documentcontract en Gantt-speling-zichtbaarheid.
+### Fixed
+- **Eight gaps through which data was lost on save have been closed.** The storage contract
+  now demonstrably round-trips completely (with a new test battery that permanently enforces this).
+- **Opening lost activity codes and custom fields.** All open paths now run through one shared
+  load implementation, so structural data no longer silently drops out.
+- **The fast save route in the browser dropped fields** (activity codes, custom fields,
+  baselines, calendar library). All state→IFC routes now build their data in one place.
+- **Float disappeared on horizontal scroll.** The float band was skipped together with the task
+  bar as soon as that bar scrolled off the left edge, even when the band itself was still clearly
+  visible.
+- **Gantt dragging:** dragging the bar edge now writes the correct (inclusive working-day)
+  duration, and every duration is reachable — including the initial value.
+- **Non-working days were always shaded as Saturday/Sunday** instead of according to the
+  project calendar; crew and deviating calendars now display correctly.
+- **Crash when switching document** after a recovery action (a frozen calendar list was
+  mutated). Permanently guarded with a regression test.
+- **PDF export revised**: multiple pages, page orientation and a preview that matches
+  the result.
+- **View tab and title bar** overlapped on a narrow window; the display options now sit in a
+  2×2 grid.
+- **Settings**: cleaner layout, uniform checkboxes and working keyboard operation in dropdowns.
+- **Security update**: `serde_with` 3.18.0 → 3.21.0 (GHSA-7gcf-g7xr-8hxj).
+- **Development environment**: on a second dev server Vite watched all git worktrees along
+  (could exceed the system limit for file watching), and conversely ignored all files
+  when you ran the dev server from within a worktree — causing changes not to come through.
+
+## v2026.7.10 — 2026-07-10
+
+Completion of phase 2.10 (parts 4 and 5).
+
+### Added
+- **In-app documentation** — a built-in help viewer with complete user documentation in
+  Dutch and English: a real quick-start, nine task-oriented guides (Planning & WBS, Relationships
+  & constraints, Calendars & hours, Resources, Baselines, Critical path, Import/export, Reports &
+  printing, Shortcuts & controls) and fifteen reference articles (R1–R15). A `verify:docs` script
+  guards that the bundled content stays complete and consistent.
+- **Three residential-construction showcases (SMALL / MEDIUM / LARGE)** that together use all
+  app features, including advanced schema extensions and an external (cross-project) link. They
+  replace the earlier ad-hoc "large" examples with an ascending series that starts small and runs
+  up to a fully filled schedule.
+
+### Fixed
+- **"Export PDF" in the Report panel actually generated a PNG.** The button now delivers a
+  genuine PDF file, in high resolution.
+- **The progress line and the data-date line** got their correct dash pattern and thickness back
+  (equal to the today line, 4/4 pattern, 2 px), after a regression in which the progress line
+  fanned out and the data-date line was drawn twice.
+- **False "hard pin violated" message** in a showcase removed (data fix), plus the MEDIUM
+  showcase leveling corrected.
+- **Small UX items**: the context-menu item "Set constraint…" on the task bar removed, an
+  invisible grab zone instead of a visible 5 px drag edge on the right panel, and the
+  tour can be restarted from Settings with the tour tooltip inside the window.
+
+## v2026.7.9 — 2026-07-07
+
+Phase 2.10 (parts 1–3): controls, shortcuts and the first-start experience.
+
+### Added
+- **Shortcut foundation** with a central registry and store helpers, plus a
+  **shortcut overview dialog** (Ctrl+/). Reorder runs via Alt+arrow (Ctrl+Alt+arrow collided with
+  a GNOME workspace switch), with Alt+left/right as indent/outdent aliases.
+- **Context-menu expansion** across the Gantt and table, and **box selection**: a drag frame that
+  selects tasks by row intersection.
+- **Task notes** — a free note field per task (on request from the field).
+- **First-startup experience** — a `WelcomeDialog` on the very first start, followed by a
+  7-step `TourOverlay` that guides through the most important parts and ends at the feedback button.
+- Further UI building blocks: a shared **ConfirmDialog** (replaces separate `window.confirm`
+  calls), a relationship-type popover, a resource dock and `moveAssignment`.
+
+### Fixed
+- QA fix waves on the new controls: parent-move corruption on reorder, popover select behavior,
+  Enter in dialogs, `addTask.notes`, and reveal-on-select that may only fire on a click in the left
+  task list.
+
+## v2026.7.8 — 2026-07-07
+
+The bulk is phase 2.9; alongside that an important Windows updater hotfix.
+
+### Added
+- **Advanced CPM (phase 2.9)** — the critical-path engine has been made complete relative to
+  Primavera P6 and MS Project, in both day and hour-based scheduling (design:
+  `docs/superpowers/specs/2026-07-06-geavanceerde-cpm-design.md`):
+  - **All constraint types in the calculation.** Alongside the existing "soft" constraints, now
+    also **logic-breaking Mandatory Start/Finish pins**: a pinned task is placed unconditionally on
+    its date — even if a predecessor is then not finished on time — and the resulting
+    negative float is driven upstream (to the predecessors) instead of through the pin.
+    A **secondary constraint** per task (P6's primary + secondary), with live validation that
+    rejects impossible combinations. Constraints now work **hour-precise**: a date-with-time is
+    honored to the minute on an hour calendar, a date-without-time stays day-anchored.
+  - **Hammock tasks (Level of Effort).** A hammock derives its duration from the distance between
+    its start driver and finish driver and **stretches automatically** when those drivers shift; it
+    never counts in the critical path and puts no float pressure on its drivers.
+  - **External (cross-project) links.** Refer to a task in another file via a
+    **frozen anchor date** (P6 External Dates), for all four relationship types and both
+    directions. The external task shows as a **ghost bar**; anchors can be **refreshed** per link
+    and project-wide, and a non-loaded source gets a "stale" mark. No live two-document
+    recalculation.
+  - **Near-critical analysis.** A configurable threshold marks tasks with little float (an amber
+    band between critical and normal; in the high-contrast theme with a block pattern). Off by
+    default; when enabled the threshold is 2 working days and the display follows the duration unit
+    (days or hours, fractional).
+  - **Multiple critical paths / float paths.** Parallel chains are numbered (`floatPath` per
+    task) via driving-logic peeling or total-float ranking, with a configurable maximum.
+  - **Interfering float** — the float a task can absorb without hitting the project end
+    but which shifts intermediate tasks (total float − free float), drawn and fractional.
+  - **Calculation-settings block on the project.** A new project section for the calculation
+    choices: lag-calendar choice, critical definition (float threshold or longest path),
+    float-calculation method, open-ended-tasks-critical, near-critical threshold and float paths.
+    On the project (not app-wide), so that the same file gives the same schedule everywhere.
+  - **Interop.** Task constraints now also round-trip in **P6-XML and MSPDI** (previously they were
+    lost on export), including the hard/secondary extension; hammocks, external links and the
+    Calculation block preserve their data via custom IFC property sets.
+  - **Fully backwards-compatible:** every new option defaults to exactly the existing behavior;
+    documents from before 2.9 calculate and serialize byte-for-byte identically.
+  - The CPM regression suite grew along to **369 hand-computed cases** (incl. FF/SF-hour and a
+    completeness sweep), all existing cases unchanged green.
+
+### Fixed
+- **Windows auto-update could not unpack the installer.** The zip crate used a backend that could
+  not read the NSIS updater zip; the deflate backend is now forced so that the Windows updater
+  does unpack the package (updater hotfix, also merged back to main).
+- **A schedule opened on "today" instead of at its own project period** (issue #16). On
+  opening, fit-to-project is now applied and the view jumps to the project window; on
+  selection, task bars are brought into view (reveal-on-select).
+- **The Calculation section committed live** instead of via a draft — a half-filled choice could
+  already take effect; it now works draft-based.
+- **The Columns dialog did not let all available fields be added**; that is now possible.
+- **The working-time editor stayed hidden** on some hour presets; it is now immediately visible on
+  every hour preset, with an explanation at "Save as preset".
+
+## v2026.7.7 — 2026-07-06
+
+### Added
+- **Hour-based scheduling (phase 2.8b)** — scheduling becomes hour/minute-aware, on top of the
+  day-granular core of 2.8a (design: `docs/superpowers/specs/2026-07-06-uren-scheduling-design.md`):
+  - **Main toggle Hour-based scheduling** (Settings, **default off**): switches on the hour/
+    minute scheduling — an hour timescale, crews with working-time bands and hour-precise
+    task bars. Off ⇒ the app keeps the byte-for-byte same day-granular behavior from before
+    2.8b. A separate setting **"Allow mixed day/hour scheduling"** for documents that
+    combine both kinds of tasks/calendars.
+  - **Working-time bands per weekday** on the calendar: multiple bands per day (breaks), bands
+    that run over midnight (night shift) and a full **24/7** form. Ready-made
+    **crew presets** (day shift, 2 shifts, 3 shifts, night shift, 24/7) plus a
+    band editor (add band, save as own preset, set per weekday, copy
+    to all working days) with a live derived hours/day indicator.
+  - **Hour timescale in the Gantt**: the already-present hour/quarter-hour tiers (`timelineTiers`,
+    dead until now since phase 2.7) are activated as soon as a calendar has hour data.
+  - **Three duration-display modes** in the settings: automatic (own unit per task),
+    always days, always hours — with a warning on mixed calendars in the task table
+    and three separate duration input fields (days/hours/total hours) in the task dialog.
+  - **Task-bar splitting at interruptions**: configurable never/on selection/always, so that
+    a task running over a break or night block can be shown visually as separate segments
+    instead of as one continuous bar.
+  - **Minute-precise interop**: P6-XML, MSPDI and IFC now read and write sub-day duration and
+    times losslessly (previously everything was rounded to whole days); documents without
+    hour data round-trip unchanged.
+  - **Date fields rebuilt**: typeable day/month/year segments instead of a single
+    text field, with a project-wide date-notation setting and accompanying
+    calendar-dialog fixes.
+  - Fully translated in all 14 languages; the CPM regression suite reached **319 hand-computed
+    cases**.
+  - **Deliberate limitations**: a configurable lag-calendar option (P6's "Calendar for scheduling
+    Relationship Lag") is phase 2.9; sub-day resource leveling (per-hour/per-shift
+    capacity buckets) stays day-bucket-based; timezone/DST-aware scheduling and
+    per-row Gantt shading on deviating task calendars follow later.
+
+### Fixed
+- The band editor no longer corrupted the `hoursPerDay` of ordinary day calendars; typing over a
+  filled date segment now replaces the content; in the calendar/wizard dialog Enter executes the
+  primary action and Cancel reverts the changes (buffer model). The "fixed winter shutdown" toggle
+  has been removed from the generator (it belongs in the public-holidays generator).
+
+## v2026.7.6 — 2026-07-04
+
+### Added
+- **Calendar extensions (phase 2.8a)** — the calendar becomes a first-class, multiple,
+  year-independent concept (design:
+  `docs/superpowers/specs/2026-07-04-kalenders-design.md`):
+  - **Year-independent public-holidays engine** (`src/engine/calendar/holidays.ts`): rule-based
+    instead of a hard-coded 2026 list, with an Easter algorithm and substitution rules (e.g.
+    King's Day on Sunday → 26 April, UK public holidays that fall on the weekend → next
+    Monday). **Seven country sets**: NL, **Germany incl. all 16 Bundesländer**, Belgium,
+    France (+ Alsace-Moselle), United Kingdom (EN-WLS/SCT/NIR), Austria and Switzerland.
+    Liberation Day (5 May) follows the **lustrum rule**: only in years divisible by 5 is it
+    generated as a public holiday (in other years optionally selectable).
+  - **Construction holiday is now opt-in via the wizard choice** (none/North/Central/South), with
+    **default none** — the old default calendar silently baked three weeks of construction holiday
+    (region North) into every new project, which in the phase-2.5 QA made a 5-day task look like a
+    "stretched bar of four weeks". The regional construction-holiday dates come from a verified data
+    table per year with an approximation fallback for years outside the table.
+  - **Calendar library**: the resource-calendar registry (phase 2.5) has been promoted to the
+    project-wide library (`calendars: WorkCalendar[]`) that project, tasks and resources
+    all refer to — one central place instead of an implicit project calendar plus a
+    separate resource registry. Existing documents migrate automatically (inline project calendar
+    becomes library entry "Project calendar").
+  - **Task-specific calendars in the CPM**: every task can get its own calendar
+    (`Task.calendarId`, fallback project calendar); the solver computes duration, float and
+    constraint snaps per task in its own calendar via an engine cache. **Predecessor-
+    calendar lag rule**: the lag between two tasks counts in the calendar of the *predecessor*
+    (P6 default), while the successor-derived start time snaps in the calendar of the *successor*
+    — forward and backward pass mirror this split exactly, so that float stays symmetric.
+  - **Wizard** (`ProjectInfoDialog`): country/region dropdown (Bundesland for Germany, country part
+    for the UK, canton for Switzerland), the construction-holiday choice, a fixed-winter-shutdown
+    checkbox (default off) and a compact public-holidays preview with an expandable list — replaces
+    the old, year-bound 3-presets dropdown.
+  - **Calendar dialog as library management**: a list of all library calendars with
+    active/project-default marking, new/duplicate/delete, and a new **"Generate public
+    holidays…"** button that opens the same country/region/construction-holiday generator as the
+    wizard — also for existing projects, not only on creation.
+  - **Gantt name label on multi-day holiday blocks**: blocks wider than a few zoom pixels
+    now show their name (e.g. "Construction holiday (North)") in the shading zone, so it is
+    immediately visible which public holiday or vacation period is in the schedule.
+  - **IFC-reader gap closed**: the work week and working hours now actually read back from
+    `IFCRECURRENCEPATTERN`/`IFCTIMEPERIOD` (previously a 6- or 7-day calendar silently fell
+    back to the Mon-Fri default on reload). Multiple named calendars and the
+    task-calendar link round-trip via `IfcRelAssignsToControl` and a new
+    OPS pset (rule-set id/construction-holiday choice).
+  - **Multi-calendar and task-calendar round-trip** also in **MSPDI** (`Calendars` +
+    `Task CalendarUID`, made effective) and **P6-XML** (`StandardWorkWeek`/
+    `HolidayOrExceptions`, `CalendarObjectId` per activity). Loss matrix in the design doc §8.4.
+  - Fully translated in all 14 languages; the test suite grew from 280 to **289 hand-computed
+    cases**, all existing cases unchanged green, `verify:examples` byte-identical.
+  - **Deliberate limitations**: hour/minute-based scheduling and day/night crew calendars are
+    **phase 2.8b** (the data model stays day-granular — an hour calendar now has no effect on
+    the solver); per-row Gantt shading on deviating task calendars follows **later** (the global
+    column shading stays on the project calendar, MSP behavior); a configurable lag-calendar option
+    (P6's "Calendar for scheduling Relationship Lag") is **phase 2.9** — 2.8a fixes
+    predecessor calendar as an internal constant; weather/frost-dependent winter downtime is
+    **phase 4** (2.8a knows only a fixed, annually recurring winter-shutdown period); the
+    construction-holiday table dates are **advisory dates** (Bouwend Nederland) that become less
+    precise further into the future with an approximation fallback.
+
+### Fixed
+- Eight QA findings from the 2.8a walkthrough corrected, plus the 24/7-preset labels translated in
+  the remaining languages.
+
+## v2026.7.5 — 2026-07-04
+
+### Added
+- **Views (phase 2.7)** — real, saveable views on the View ribbon tab (design:
+  `docs/superpowers/specs/2026-07-04-weergaven-design.md`):
+  - **Timescale repair**: the until-now dead timescale choice has been replaced by a
+    working dropdown (Year/Quarter/Month/Week/Day) that maps to zoom presets; the
+    displayed label is **derived** from the actual zoom level (so it can never
+    desync from the drawn axis again) and the viewport recenters on the midpoint of the
+    current window when switching scale.
+  - **One shared visible-rows list** (`computeViewRows`) for table and Gantt: filter,
+    grouping and sorting are henceforth computed in exactly one place, so that table and
+    Gantt canvas can structurally no longer diverge (structural parity).
+  - **Column configuration** in the task table: visibility, order and width per column,
+    across builtin fields, activity codes, custom fields and a new **resource column**
+    (comma-separated join via assignments, read-only in 2.7).
+  - **Nested AND/OR filters** with a P6-like editor (All/Any groups, field-type-aware
+    value input: text/number/date/dropdown for codes/resources), including
+    "show summaries" behavior (non-matching parents of a match stay visible, dimmed).
+  - **Grouping up to 2 levels** over any field (WBS, activity code, custom field, resource,
+    task type) with a band header + count, and unlimited **multi-key sorting** (stable sort,
+    respects the WBS hierarchy within tree mode).
+  - **Structure locking outside tree mode**: indent/outdent and task dragging are
+    disabled as soon as filter/group/sort is active (structure mutations are only
+    well-defined in pure tree mode); value mutations (cell edits, adding,
+    deleting) always remain possible.
+  - **Custom layouts**: save/apply/rename/delete/manage, app-global
+    (localStorage, not per document), with silent tolerance for fields that no longer
+    exist in the current document.
+  - **Presentation mode** (F11) via the real Fullscreen API: all chrome (title bar, ribbon,
+    document tabs, status bar, properties panel) disappears, only the Gantt full-bleed
+    remains; Escape or the browser/OS fullscreen closes it.
+  - **Split view** within one document: two independent time windows side by side on
+    the same shared rows and vertical scroll — for example a detail week next to a
+    faraway milestone.
+  - **Mini-map**: a light thumbnail strip of the entire schedule with a draggable
+    viewport frame.
+  - **Auto-calculate setting** (three surfaces: gear ⚙, Settings ribbon tab and
+    backstage) plus the "Calculate" naming consolidated into one i18n key everywhere
+    (ribbon, menu, properties panel).
+  - Fully translated in all 14 languages; the test suite grew from 256 to **280
+    hand-computed cases**, all existing cases unchanged green.
+  - **Deliberate limitations**: the hour timescale waits on hour/minute scheduling (phase 2.8) —
+    the data model is day-granular, an hour axis would mislead now; rollup totals per
+    group band (sum duration/costs/units) follow later (phase 3.5/3.9); a split view with
+    **two different documents** requires a store-singleton refactor and is deliberately
+    later; layouts are app-global and do not round-trip in the IFC file
+    (per-file layouts are deliberately later).
+
+### Fixed
+- QA findings 2.7: a unique Milestone label in the field catalog (was duplicated) and the
+  Gantt tooltip via i18n.
+
+## v2026.7.4 — 2026-07-04
+
+### Added
+- **Baselines & progress (phase 2.6)** — data-date-driven CPM, real
+  progress tracking and unlimited baselines (design:
+  `docs/superpowers/specs/2026-07-04-baselines-voortgang-design.md`):
+  - **Data date** (P6 *data date*) on the project: drives the CPM forward pass —
+    completed tasks are clamped to their actuals, started-not-completed
+    tasks place their remaining work from the data date, and not-started tasks
+    cannot start before the data date. No data date set ⇒ the behavior is
+    byte-for-byte equal to before 2.6.
+  - **Real progress tracking**: percent-complete, actual start and
+    actual finish (the until-now dead `TaskTime` fields) with enforced
+    invariants (an actual finish implies 100%, 100% implies an
+    actual finish, filling in a percentage automatically sets an actual
+    start, actuals may never lie after the data date). `remainingTime` is always
+    derived from the percentage.
+  - **Retained Logic / Progress Override** as project-wide progress mode: determines
+    how the remaining work of a task that finished before its predecessor
+    relates to the network logic.
+  - **Out-of-sequence detection**: tasks that show progress while their predecessor
+    relationship (FS/SS/FF/SF) logically contradicts it, are marked and reported as a
+    warning — blocks nothing, follows the chosen progress mode.
+  - **Unlimited, named baselines** (P6-style snapshots) with exactly one active;
+    management via a baseline dialog (save/rename/delete/activate) in the
+    Planning tab.
+  - **In the Gantt**: a data-date line, a baseline overlay (thin sub-bar per
+    task against the recorded baseline dates) and a progress line (MSP zigzag that
+    bulges out per row to the progress position) — all three separately toggleable.
+  - **Variance report** as the third report type in the Report panel: baseline vs.
+    current start/end per task, delta in working days, status (on schedule/later/
+    earlier/new/removed) and a project-end summary.
+  - Round-trip through **IFC 4.3** (actuals in the already-existing but until-now
+    unused `IfcTaskTime` slots 14-18 — spec-conform; data date/
+    progress mode in `OPS_ProjectSettings`; baselines double-track via a
+    lossless `OPS_Baselines` JSON plus `.BASELINE.` schedule headers for
+    interop), **MSPDI** (full: Baseline0, `<StatusDate>`, actuals), **P6-XML**
+    (best-effort: actuals + data date; P6 baselines are a documented
+    loss) and **CSV** (new actual-start/-end columns, deliberately without
+    baselines/data date). Golden rule preserved: files without 2.6 data
+    round-trip bit-identically.
+  - Fully translated in all 14 languages; the CPM regression suite grew from 240 to
+    **256 hand-computed cases**, all existing cases unchanged green.
+  - **Deliberate limitations**: no costs/work/Earned Value (SPI/CPI/BCWP) — that is
+    phase 3.5; P6 baselines are not exported (best-effort, documented
+    loss); setting the data date/progress mode is not undoable
+    (same precedent as the project calendar — undo via clearing + recalculating).
+
+### Fixed
+- QA findings 2.6: the compact-ribbon overlap and F5/Ctrl+S from input fields.
+
+## v2026.7.3 — 2026-07-03
+
+### Added
+- **Resources (phase 2.5)** — resource management, load, overallocation and
+  automatic leveling (design: `docs/superpowers/specs/2026-07-03-resources-design.md`):
+  - **Five resource types**: labor (people), equipment (cranes, machines,
+    scaffolding), material (concrete, steel, wood), subcontractor and crew. Crews
+    bundle other resources; every resource has a maximum capacity,
+    unit and optionally its own calendar.
+  - **Time-phased capacity**: the availability of a resource can change per
+    period (availability steps) — e.g. three carpenters until week 10,
+    five after that.
+  - **Resource assignment to tasks** with units per day and six distribution curves
+    (uniform, front-loaded, back-loaded, bell, and ascending and descending), so that
+    the deployment is spread realistically over the task duration. Assignment is only
+    possible on workable (leaf) tasks.
+  - **Load and overallocation engine** in the calculation (F5 / Calculate): per
+    resource the daily load is summed and compared with the capacity;
+    overload is marked.
+  - **Resource histogram** as a strip under the Gantt, with a shared time axis,
+    capacity line, red peaks above the line, a resource picker with
+    overallocation badges and drill-down tooltip; the height is adjustable and
+    persistent.
+  - **Automatic resource leveling and smoothing**: a serial placement
+    algorithm (SGS) shifts tasks within their float to resolve overallocation,
+    sorted by priority/float/start date. Leveling goes via a
+    dialog with an up-front preview (shifts, new end date, remaining
+    conflicts) and can be applied or cancelled with one click.
+  - **Task priority** (0–1000; 1000 = do not level) drives which tasks get
+    precedence under scarcity.
+  - **Resources ribbon tab** with a management panel (resources + capacity steps +
+    calendar link), an assignments section in the task properties panel, the
+    histogram strip and the leveling dialog.
+  - Round-trip through **IFC 4.3** (incl. `IfcCrewResource`, `OPS_Resource`/
+    `OPS_Assignments`/`OPS_Leveling` psets, an `IfcWorkCalendar` per resource and
+    `IfcTask.Priority`) and import/export via **Primavera P6-XML** and **MS Project
+    MSPDI** — resources, assignments, curves and resource calendars travel along.
+    Golden rule: files without resources stay bit-identical.
+  - Fully translated in all 14 languages; the CPM regression suite grew from 202 to
+    **231 hand-computed cases** (incl. leveling and smoothing scenarios), all
+    existing cases unchanged green.
+- **Example projects in Backstage** — a new section **File → Examples**
+  exposes the bundled example schedules (cards with name, description and
+  tags). Clicking opens the example in a new tab (no source file, so
+  saving becomes save-as). The list is data-driven via
+  `public/examples/manifest.json`, so new examples come
+  in without a code change. Works in the web and desktop build. The section now shows two groups:
+  the three **showcase schedules** at the top (badge "All features"), below them the
+  **simple examples** (manifest field `category`).
+- **Example generator rebuilt (`npm run gen:examples`)** — the examples are now
+  fully built by the app itself via the real store + `runCPM()` + `writeIFC`
+  (instead of a hand-rebuilt IFC writer, which had drifted). Drift between the
+  examples and the app is thereby structurally impossible. New:
+  - **Three showcase schedules** (residential / infra / renovation) that together use all
+    app features: all four relationship types + lags/leads/%-lag/ELAPSEDTIME,
+    date constraints + deadlines incl. a deliberate conflict with negative float,
+    start/finish/mandatory milestones, activity codes + custom fields, all five
+    resource types with crew hierarchy, resource calendars, availabilitySteps, all
+    six assignment curves, an overallocation solvable with leveling and a
+    pinned task (priority 1000).
+  - **Year-independent dates**: projects anchor relatively ("first Monday of
+    March, next year"); NL public holidays (incl. Easter derivatives) and the construction holiday
+    are computed per year, so that regenerating always yields current dates.
+  - **Twenty sector examples enriched** with real phase overlap (SS/FF relationships,
+    leads and %-lags on the phase boundaries) and varied calendars, so that a
+    realistic critical path **with float** arises (55–86% critical instead of nearly
+    everything). The two old, hand-built "large" examples have been replaced
+    by the showcases.
+  - **Verification** (`npm run verify:examples`): every file goes through the real
+    `readIFC` with asserts on counts, round-trip stability and present features.
+
+### Changed
+- **Recovery dialog in the app itself** — on startup after an unexpected
+  shutdown the recovery question now appears as its own, styled React dialog
+  (`RecoveryDialog`) instead of a native OS dialog. The dialog shows, per document to
+  recover, the project name, the file path (if known), the number of
+  tasks and the timestamp of the last auto-save snapshot. Escape defers the choice
+  without cleaning up the recovery files; the auto-save is postponed until
+  the choice is made, so that the snapshots are not overwritten prematurely.
+  (This was desktop-only at the time; since v2026.7.11 the browser build also has recovery, via
+  IndexedDB.)
+- The default task priority is now an explicit value (500) instead of empty,
+  so that priority weighs in predictably during leveling; an explicitly filled-in
+  0 is preserved (was previously silently corrected to 500 in the MSPDI export).
+
+### Fixed
+- Product/code-review findings on the resource features: an honest leveling preview with fresh
+  floats, first-class derived state and histogram refresh; validation, popover behavior, Y-scale,
+  explanation and a total column in the management panel; and the resource name that was
+  squeezed out in the assignment row. The IFC/P6 adapters got correct assignment keys, a
+  correct P6 rate, a spec-conform `IfcTask` and units as a fraction.
+- Collapsed subtasks appeared at the bottom of the table instead of staying hidden; the
+  "parent task" field has been removed from the task dialog when editing.
+- i18n final sweep: hundreds of translation keys in the twelve remaining languages filled in and an
+  orphaned key cleaned up (incl. a German `clearLeveling` label that broke mid-word in the ribbon).
 
 ## v2026.7.2 — 2026-07-03
 
-### Toegevoegd
-- **Mijlpalen (fase 2.4)** — start-/eindmijlpalen, verplichte mijlpalen en een
-  mijlpalen-overzicht (ontwerp: `docs/superpowers/specs/2026-07-02-mijlpalen-design.md`):
-  - **Start- en eindmijlpalen** (P6 *Start/Finish Milestone*) via een dag-granulair
-    grens-model: een startmijlpaal ankert op een dagbegin, een eindmijlpaal op een
-    dageinde (einde werkdag F = begin volgende werkdag). FS naar een eindmijlpaal landt
-    op de finishdag zelf; een FS/SS-opvolger van een eindmijlpaal start de werkdag erna.
-    `undefined` = automatisch (het anker volgt de bindende relatiezijde) — bestaande
-    bestanden rekenen bit-gelijk. Gouden invariant: een tussengevoegde mijlpaal
-    verschuift de keten nooit.
-  - **Verplichte (contractuele) mijlpalen**: `mandatory`-vlag met dubbel-ruit in de
-    Gantt; datumbewaking via de bestaande 2.3-constraints (FNLT/MFO → negatieve float).
-    Ribbon-mijlpaalknop is een keuzemenu: startmijlpaal, eindmijlpaal of
-    **inspectiemoment** (eindmijlpaal + taaktype Keuring/Inspectie + verplicht).
-  - **Mijlpalen-overzicht** als tweede rapporttype in het Rapport-paneel: tabel met
-    soort, datum, constraint-/deadline-datum, float, verplicht en status
-    (op schema / kritiek / te laat, kleurgecodeerd), afdrukbaar; samenvatting met
-    verplicht- en te-laat-tellers.
-  - Round-trip door IFC 4.3 (`OPS_Milestone`-pset; automatisch schrijft niets) en
-    P6-XML (activitytype `Start`/`Finish Milestone`, soort blijft behouden bij import).
-  - Testsuite gegroeid van 176 naar **202 handberekende cases** (batterij
-    `cases-milestone-kinds.json`), alle bestaande cases ongewijzigd groen.
-- **Indent/outdent van taken** (MSP-conventie): Alt+Shift+→/← en knoppen in
-  Planning → Structuur; inspringen maakt een taak kind van zijn voorgaande sibling,
-  uitspringen maakt hem sibling ná zijn ouder — subbomen liften mee, WBS-autonummering
-  hernummert en het is één undo-stap.
-- **Resizebare takentabel** in de Gantt: sleep de scheidingslijn (150–800 px,
-  persistent); vervangt de vaste breedte van 350 px.
-- **Compacte ribbon-modus**: een klein pijltje rechtsonder in het lint
-  (Word-web-stijl) klapt het lint in naar één rij van 40 px in plaats van 94 px —
-  voor kleine schermen; de stand wordt onthouden.
+### Added
+- **Milestones (phase 2.4)** — start/finish milestones, mandatory milestones and a
+  milestone overview (design: `docs/superpowers/specs/2026-07-02-mijlpalen-design.md`):
+  - **Start and finish milestones** (P6 *Start/Finish Milestone*) via a day-granular
+    boundary model: a start milestone anchors on a day start, a finish milestone on a
+    day end (end of working day F = start of the next working day). FS to a finish milestone lands
+    on the finish day itself; an FS/SS successor of a finish milestone starts the working day after.
+    `undefined` = automatic (the anchor follows the binding relationship side) — existing
+    files calculate bit-equally. Golden invariant: an inserted milestone
+    never shifts the chain.
+  - **Mandatory (contractual) milestones**: `mandatory` flag with a double-diamond in the
+    Gantt; date guarding via the existing 2.3 constraints (FNLT/MFO → negative float).
+    The ribbon milestone button is a menu: start milestone, finish milestone or
+    **inspection point** (finish milestone + task type Inspection + mandatory).
+  - **Milestone overview** as the second report type in the Report panel: a table with
+    kind, date, constraint/deadline date, float, mandatory and status
+    (on schedule / critical / late, color-coded), printable; a summary with
+    mandatory and late counters.
+  - Round-trip through IFC 4.3 (`OPS_Milestone` pset; automatic writes nothing) and
+    P6-XML (activity type `Start`/`Finish Milestone`, kind is preserved on import).
+  - Test suite grown from 176 to **202 hand-computed cases** (battery
+    `cases-milestone-kinds.json`), all existing cases unchanged green.
+- **Indent/outdent of tasks** (MSP convention): Alt+Shift+→/← and buttons in
+  Planning → Structure; indenting makes a task a child of its preceding sibling,
+  outdenting makes it a sibling after its parent — subtrees ride along, WBS auto-numbering
+  renumbers and it is one undo step.
+- **Resizable task table** in the Gantt: drag the divider line (150–800 px,
+  persistent); replaces the fixed width of 350 px.
+- **Compact ribbon mode**: a small arrow at the bottom right of the ribbon
+  (Word-web style) collapses the ribbon to a single row of 40 px instead of 94 px —
+  for small screens; the state is remembered.
 
-### Gewijzigd
-- Het mijlpaal-vinkje in het eigenschappen-paneel zet de duur nu op 0 en disabled het
-  duurveld; de tabellen tonen consequent duur 0 voor mijlpalen (was: stille divergentie).
-- Nieuwe mijlpalen krijgen niet langer standaard het taaktype Keuring/Inspectie
-  (dat is nu voorbehouden aan het inspectiemoment).
+### Changed
+- The milestone checkbox in the properties panel now sets the duration to 0 and disables the
+  duration field; the tables consistently show duration 0 for milestones (was: silent divergence).
+- New milestones no longer get the task type Inspection by default
+  (that is now reserved for the inspection point).
 
-### Opgelost
-- **In-app updater op .deb-installaties (Ubuntu/Debian)**: .deb-installs kregen alleen
-  handmatige update-instructies, op de verouderde aanname dat de Tauri-updater .deb niet
-  in-place kan vervangen. De updater-plugin (≥2.6; wij draaien 2.10.1) doet dat wél —
-  hij matcht de `linux-x86_64-deb`-entry in `latest.json` via de bundle-type-stempel in
-  het binary en installeert via pkexec/sudo + `dpkg -i`. De update-dialog toont op .deb
-  nu de normale "Downloaden en installeren"-knop; het handmatige copy-paste-commando en
-  de downloadpagina-knop blijven als fallback wanneer de installatie faalt.
-- **Windows-auto-update brak door draft-URL in `latest.json`**: de re-sign-stap in
-  `release.yml` nam de download-URL over uit de GitHub-API terwijl de release nog draft
-  was, waardoor de `windows-x86_64(-nsis)`-entries naar een `untagged-…`-URL wezen die
-  na publicatie 404't (zo geschied in v2026.7.1). De workflow bouwt nu zelf de stabiele
-  `releases/latest/download/`-URL uit de assetnaam; de `latest.json` van release
-  v2026.7.1 is ter plekke gerepareerd (alle URL's geverifieerd 200, signatures ongewijzigd).
-- **Scherp app-icoon op Linux**: het runtime-venstericoon was 32×32 (eerste PNG in
-  `bundle.icon`), waardoor docks een opgeschaald wazig icoon toonden. `icon.png` (512 px)
-  staat nu vooraan, 256×256/512×512 vullen de hicolor-slots in de `.deb`/snap en alle
-  maten zijn opnieuw uit de 1024px-vectorbron gegenereerd (incl. `snap/gui/icon.png`).
+### Fixed
+- **In-app updater on .deb installations (Ubuntu/Debian)**: .deb installs got only
+  manual update instructions, on the outdated assumption that the Tauri updater cannot replace .deb
+  in-place. The updater plugin (≥2.6; we run 2.10.1) does do that —
+  it matches the `linux-x86_64-deb` entry in `latest.json` via the bundle-type stamp in
+  the binary and installs via pkexec/sudo + `dpkg -i`. The update dialog on .deb
+  now shows the normal "Download and install" button; the manual copy-paste command and
+  the download-page button remain as a fallback when the installation fails.
+- **Windows auto-update broke due to a draft URL in `latest.json`**: the re-sign step in
+  `release.yml` took over the download URL from the GitHub API while the release was still draft,
+  causing the `windows-x86_64(-nsis)` entries to point to an `untagged-…` URL that
+  404s after publication (as happened in v2026.7.1). The workflow now builds the stable
+  `releases/latest/download/` URL itself from the asset name; the `latest.json` of release
+  v2026.7.1 was repaired in place (all URLs verified 200, signatures unchanged).
+- **Sharp app icon on Linux**: the runtime window icon was 32×32 (first PNG in
+  `bundle.icon`), causing docks to show an upscaled blurry icon. `icon.png` (512 px)
+  is now at the front, 256×256/512×512 fill the hicolor slots in the `.deb`/snap and all
+  sizes have been regenerated from the 1024px vector source (incl. `snap/gui/icon.png`).
 
 ## v2026.7.1 — 2026-07-02
 
-### Toegevoegd
-- **Constraints & deadlines (fase 2.3)** — datum-constraints, deadlines en negatieve float
-  (ontwerp: `docs/superpowers/specs/2026-07-02-constraints-deadlines-design.md`):
-  - **Alle 8 datum-constraints in CPM** (ASAP, ALAP, SNET, SNLT, FNET, FNLT, MSO, MFO) met
-    **P6-soft-semantiek**: constraints breken nooit de netwerklogica — vroege-zijde types zijn
-    ondergrenzen in de forward pass, late-zijde types bovengrenzen in de backward pass;
-    MSO/MFO werken als P6's *Start On*/*Finish On* (beide grenzen tegelijk); ALAP schuift naar
-    zero-free-float (P6-model, en de relatie wordt daarna correct driving). Constraint-datums
-    snappen naar werkdagen. De logica-brekende Mandatory-pin is bewust §2.9.
-  - **Deadline per taak** (MSP-model, zacht): begrenst alleen de late finish — balken bewegen
-    nooit; float wordt gemeten tot de deadline en negatief bij overschrijding.
-  - **Negatieve float**: totale speling is nu getekend (min van start- en finish-float,
-    MSP-veilig) en `kritiek = float ≤ 0`; gemiste deadlines en geschonden constraints
-    propageren negatieve float door de voorgangerketen (DCMA-checks 5/7 als kader).
-  - **Indicatoren**: constraint-pin op de balkrand (blauw = vroege-zijde, violet = late-zijde,
-    rood = geschonden), deadline-pijl op de deadline-datum (groen/rood), P6-asterisk achter
-    de datum in de tabel, negatieve float rood in de spelingkolom en warning-tellers in de
-    statusbar.
-  - Round-trip via `OPS_Constraints`-pset (IfcTaskTime heeft geen constraint-slots);
-    testsuite 159 → **176 handberekende cases**.
-- Dependabot-alert #12 (glib `VariantStrIter`, RUSTSEC-2024-0429) beoordeeld en gedismisst
-  als *not used*: de API wordt door app noch Tauri's gtk3-pad gebruikt en de fix (glib 0.20)
-  vereist GTK4-bindings die Tauri 2 niet gebruikt — herzien bij een Tauri-migratie.
+### Added
+- **Constraints & deadlines (phase 2.3)** — date constraints, deadlines and negative float
+  (design: `docs/superpowers/specs/2026-07-02-constraints-deadlines-design.md`):
+  - **All 8 date constraints in CPM** (ASAP, ALAP, SNET, SNLT, FNET, FNLT, MSO, MFO) with
+    **P6 soft semantics**: constraints never break the network logic — early-side types are
+    lower bounds in the forward pass, late-side types upper bounds in the backward pass;
+    MSO/MFO work as P6's *Start On*/*Finish On* (both bounds at once); ALAP shifts to
+    zero-free-float (P6 model, and the relationship then becomes correctly driving). Constraint
+    dates snap to working days. The logic-breaking Mandatory pin is deliberately §2.9.
+  - **Deadline per task** (MSP model, soft): bounds only the late finish — bars never
+    move; float is measured up to the deadline and negative on overrun.
+  - **Negative float**: total float is now drawn (min of start and finish float,
+    MSP-safe) and `critical = float ≤ 0`; missed deadlines and violated constraints
+    propagate negative float through the predecessor chain (DCMA checks 5/7 as a frame).
+  - **Indicators**: constraint pin on the bar edge (blue = early-side, violet = late-side,
+    red = violated), deadline arrow on the deadline date (green/red), P6 asterisk after
+    the date in the table, negative float red in the float column and warning counters in the
+    status bar.
+  - Round-trip via `OPS_Constraints` pset (IfcTaskTime has no constraint slots);
+    test suite 159 → **176 hand-computed cases**.
+- Dependabot alert #12 (glib `VariantStrIter`, RUSTSEC-2024-0429) assessed and dismissed
+  as *not used*: the API is used by neither the app nor Tauri's gtk3 path and the fix (glib 0.20)
+  requires GTK4 bindings that Tauri 2 does not use — revisit on a Tauri migration.
 
 ## v2026.7.0 — 2026-07-02
 
-### Toegevoegd
-- **WBS & structuur (fase 2.2)** — de structuurlaag op professioneel niveau
-  (ontwerp: `docs/superpowers/specs/2026-07-02-wbs-structuur-design.md`):
-  - **Automatische WBS-nummering** (1.2.3.4 uit de boompositie): nieuwe projecten
-    nummeren live bij elke structuurmutatie (aan/uit via Planning → Structuur);
-    bestaande bestanden behouden hun vrije codes (MSP-model) met een expliciete
-    **Hernummer WBS**-actie. Nieuwe taken krijgen ook zonder auto een afgeleide
-    code, en plakken hernummert de geplakte tak (geen code-duplicaten meer).
-  - **Activity codes** (P6-model): projectgebonden codetypes (bv. Locatie,
-    Discipline) met waarden (code + omschrijving + kleur), max één waarde per
-    type per taak; beheer via de nieuwe dialoog *Codes & velden*, toewijzing in
-    het eigenschappen-paneel en als tabelkolommen.
-  - **Custom fields**: getypeerde gebruikersvelden (tekst/getal/geheel getal/
-    kosten/datum/ja-nee) per taak, zichtbaar als tabelkolommen.
-  - **Meerdere WBS-indelingen**: Beeld → *Groeperen op* toont tabel én Gantt als
-    banden per codewaarde (kleurstrook + label, P6 Group & Sort-stijl) — de
-    vakstandaard voor locatie × discipline zonder tweede opgeslagen boom.
-  - **WBS-templates** (Asta task-pools-stijl): rechtsklik op een samenvattingstaak
-    → *Bewaar tak als sjabloon* (taken + interne relaties incl. lag); invoegen en
-    beheren via Planning → Structuur → *Sjablonen*. App-niveau (localStorage).
-  - **IFC 4.3-round-trip** voor dit alles: definities als `IfcPropertySetTemplate`
-    (+ `IfcPropertyEnumeration` voor codetypes, gedeclareerd via `IfcRelDeclares`),
-    waarden per taak als `OPS_CustomFields`/`OPS_ActivityCodes`-psets met
-    getypeerde waarden, projectvlag in `OPS_ProjectSettings`; verliesloze
-    meta-JSON voor eigen bestanden en template-terugval voor bestanden van derden.
-  - Kopiëren/plakken van WBS-takken bestond al; de nieuwe velden liften mee en
-    plakken behoudt nu ook `lagUnit`/`lagPercent` van interne relaties (fix).
-- **Volledige dependencies (fase 2.1)** — het relatiemodel is op het niveau van professionele
-  planners gebracht (ontwerp: `docs/superpowers/specs/2026-07-02-volledige-dependencies-design.md`):
-  - **Lag-eenheid per relatie**: werkdagen (default) of **kalenderdagen** (24/7, bv. uitharden
-    van beton) — IFC-conform als `IfcTaskDurationEnum` (`WORKTIME`/`ELAPSEDTIME`); notatie `2d`
-    vs. `3ed` in editors, CSV en MSPDI (LagFormat 8).
-  - **Procentuele lag** (bv. `SS+50%`, MS Project-semantiek): percentage van de duur van de
-    voorganger, bij elke CPM-run opnieuw geëvalueerd; round-tript via IFC (`IfcRatioMeasure`)
-    en MSPDI (LagFormat 19/20); P6-export bakt uit naar vaste uren (met logmelding).
-  - **Negatieve lag (lead) afgerond**: klem op de projectstart blijft (P6/MSP-conform) maar een
-    **afgekapte lead** wordt nu gemarkeerd, net als een lead groter dan de voorgangerduur;
-    leads serialiseren ISO-8601-conform (`-P2D`) en de omgewisselde `IfcLagTime`-attributen
-    (LagValue ↔ DurationType) zijn rechtgezet — oude bestanden blijven leesbaar.
-  - **Driving/non-driving relaties** (P6-definitie: relationship free float = 0, gelijkspel
-    toegestaan): doorgetrokken vs. gestreepte pijlen in de Gantt (rood = kritieke driving-lijn),
-    ⚡-indicator in het eigenschappen-paneel en de relatietabel.
-  - **Relatietabel** — nieuwe ribbon-tab *Relaties*: alle relaties in één sorteerbare, inline
-    bewerkbare tabel (voorganger, type, lag, opvolger, driving, vrije speling per relatie,
-    waarschuwingen) + "nieuwe relatie uit selectie"; de Beheer-knop op de Planning-tab opent hem.
-  - **Path tracing** (MSP Task Path-stijl): trace-knoppen (voorgangers/opvolgers) op de
-    Planning- en Relaties-tab + contextmenu "Pad traceren" — transitieve voorgangers goud,
-    opvolgers paars (driving-ketens donkerder), de rest gedimd; Escape stopt.
-  - Relaties zijn nu ook **bewerkbaar** in het eigenschappen-paneel (type + lag-notatie
-    `2d/3ed/50%/-25e%`); nieuwe store-actie `updateSequence` met undo.
-  - Testsuite uitgebreid: 129 → **159 cases** (nieuwe batterijen `cases-lag-advanced.json` en
-    `cases-driving.json`; harness kent `lagUnit`/`lagPercent`/`drivingSet`/`truncatedLeadSet`).
+### Added
+- **WBS & structure (phase 2.2)** — the structure layer at a professional level
+  (design: `docs/superpowers/specs/2026-07-02-wbs-structuur-design.md`):
+  - **Automatic WBS numbering** (1.2.3.4 from the tree position): new projects
+    number live on every structure mutation (on/off via Planning → Structure);
+    existing files keep their free codes (MSP model) with an explicit
+    **Renumber WBS** action. New tasks also get a derived
+    code without auto, and pasting renumbers the pasted branch (no more code duplicates).
+  - **Activity codes** (P6 model): project-bound code types (e.g. Location,
+    Discipline) with values (code + description + color), max one value per
+    type per task; management via the new dialog *Codes & fields*, assignment in
+    the properties panel and as table columns.
+  - **Custom fields**: typed user fields (text/number/integer/
+    cost/date/yes-no) per task, visible as table columns.
+  - **Multiple WBS breakdowns**: View → *Group by* shows table and Gantt as
+    bands per code value (color strip + label, P6 Group & Sort style) — the
+    industry standard for location × discipline without a second saved tree.
+  - **WBS templates** (Asta task-pools style): right-click on a summary task
+    → *Save branch as template* (tasks + internal relationships incl. lag); inserting and
+    managing via Planning → Structure → *Templates*. App-level (localStorage).
+  - **IFC 4.3 round-trip** for all of this: definitions as `IfcPropertySetTemplate`
+    (+ `IfcPropertyEnumeration` for code types, declared via `IfcRelDeclares`),
+    values per task as `OPS_CustomFields`/`OPS_ActivityCodes` psets with
+    typed values, project flag in `OPS_ProjectSettings`; lossless
+    meta-JSON for own files and template fallback for third-party files.
+  - Copy/paste of WBS branches already existed; the new fields ride along and
+    pasting now also preserves `lagUnit`/`lagPercent` of internal relationships (fix).
+- **Full dependencies (phase 2.1)** — the relationship model has been brought to the level of
+  professional planners (design:
+  `docs/superpowers/specs/2026-07-02-volledige-dependencies-design.md`):
+  - **Lag unit per relationship**: working days (default) or **calendar days** (24/7, e.g. curing
+    of concrete) — IFC-conform as `IfcTaskDurationEnum` (`WORKTIME`/`ELAPSEDTIME`); notation `2d`
+    vs. `3ed` in editors, CSV and MSPDI (LagFormat 8).
+  - **Percentage lag** (e.g. `SS+50%`, MS Project semantics): percentage of the duration of the
+    predecessor, re-evaluated on every CPM run; round-trips via IFC (`IfcRatioMeasure`)
+    and MSPDI (LagFormat 19/20); P6 export bakes out to fixed hours (with a log message).
+  - **Negative lag (lead) rounded**: the clamp on the project start remains (P6/MSP-conform) but a
+    **truncated lead** is now marked, as is a lead larger than the predecessor duration;
+    leads serialize ISO-8601-conform (`-P2D`) and the swapped `IfcLagTime` attributes
+    (LagValue ↔ DurationType) have been corrected — old files remain readable.
+  - **Driving/non-driving relationships** (P6 definition: relationship free float = 0, ties
+    allowed): solid vs. dashed arrows in the Gantt (red = critical driving line),
+    ⚡ indicator in the properties panel and the relationship table.
+  - **Relationship table** — new ribbon tab *Relationships*: all relationships in one sortable,
+    inline editable table (predecessor, type, lag, successor, driving, free float per relationship,
+    warnings) + "new relationship from selection"; the Manage button on the Planning tab opens it.
+  - **Path tracing** (MSP Task Path style): trace buttons (predecessors/successors) on the
+    Planning and Relationships tab + context menu "Trace path" — transitive predecessors gold,
+    successors purple (driving chains darker), the rest dimmed; Escape stops.
+  - Relationships are now also **editable** in the properties panel (type + lag notation
+    `2d/3ed/50%/-25e%`); new store action `updateSequence` with undo.
+  - Test suite expanded: 129 → **159 cases** (new batteries `cases-lag-advanced.json` and
+    `cases-driving.json`; harness knows `lagUnit`/`lagPercent`/`drivingSet`/`truncatedLeadSet`).
 
-### Documentatie
-- To-do-lijst (`docs/TODO.md`) toegevoegd en vanuit `CLAUDE.md` verwezen.
-- Dit changelog-document toegevoegd en vanuit `CLAUDE.md` verwezen.
-- README-screenshots aangevuld en documentatie gelijkgetrokken met de actuele code.
-- `CLAUDE.md`: State-sectie gecorrigeerd, multi-worktree dev-setup, i18n/settings/Rust-feiten
-  bijgewerkt en verwijzing naar de self-test harness toegevoegd.
-- README-architectuur gecorrigeerd: app-shell volgt Open 2D Studio / OpenFEM2D Studio, terwijl
-  het extensiesysteem en de styling naar Open Calc Studio gemodelleerd zijn.
-- Spec voor de moderne UI-overhaul (Polished Forge + Soft Depth) toegevoegd.
-- `read_file`/`write_file` in de Rust-backend gedocumenteerd als bewuste escape-hatch.
+### Fixed
+- **The manual `.deb` install command in the update dialog** accidentally also matched the
+  `amd64.deb.sig` asset, causing `$url` to contain two URLs and `curl` to fail with
+  "URL rejected: Malformed input to a URL function". The grep now matches on the closing quote.
 
-### Toegevoegd
-- **Snap-packaging werkend gemaakt** — `snap/snapcraft.yaml` toegevoegd (core22, strict
-  confinement, gnome-extensie) die de release-deb herverpakt. `snap.yml` herschreven:
-  triggert nu op tag-push én `workflow_dispatch`, downloadt de release-deb i.p.v. de
-  Tauri-app opnieuw te bouwen, hangt de `.snap` als release-asset, en publiceert naar de
-  Snap Store zodra het `SNAPCRAFT_STORE_CREDENTIALS`-secret bestaat. Follow-ups:
-  in-app updater overslaan binnen de snap, en Store-registratie van de naam.
-- **Multi-document (back-end)** — `documentSlice` houdt meerdere geopende projecten bij; het
-  actieve document leeft op top-level (alle bestaande slices/renderer ongewijzigd), inactieve als
-  payload-snapshot. Acties `newDocument`/`switchDocument`/`closeDocument` + `getOpenDocuments`.
-  View (zoom/scroll), undo-historie, selectie en dirty-status zijn per document; het klembord is
-  gedeeld zodat takken tussen documenten te kopiëren zijn.
-- **Multi-document (UI)** — drie wisselstijlen, kiesbaar in Instellingen (verschijnt in alle drie
-  de settings-oppervlakken) met default *Horizontale tabbladen*: **horizontale tabbladen** onder
-  het lint (A), **verticale tabbladen** (projectbalk) links met hover-flyout (B) en een **pil** in
-  de titelbalk (C). Alle drie delen één **projectoverzicht-overlay** (kaarten met mini-Gantt +
-  taken/kritiek/einde per document). Per project een stabiele identiteitskleur (afgeleid uit de
-  project-id) en 2-letter-code. Bestand openen opent voortaan een nieuw tabblad (hergebruikt het
-  lege beginscherm); 'Nieuw' opent een nieuw tabblad i.p.v. het actieve te wissen; `⌘/Ctrl 1–9`
-  springt naar het n-de open document. Front-end-only, UI-state in de `ui`-slice.
-- **Multi-document recovery** — auto-save bewaart nu *alle* open documenten: één manifest
-  (`recovery[.<slug>].documents.json`) + per document een IFC-snapshot, met opruimen van
-  snapshots van gesloten documenten. Bij het opstarten worden alle documenten hersteld (id's,
-  actief document en dirty-status blijven behouden); de oude losse `recovery.ifc` wordt nog
-  herkend als terugval. Tauri-only.
-- **Sluit-bevestiging (3-weg)** — een document met niet-opgeslagen wijzigingen sluiten toont nu
-  een dialoog met *Opslaan* / *Niet opslaan* / *Annuleren* i.p.v. een simpele bevestiging.
-  *Opslaan* bewaart het document (maakt het zo nodig eerst actief, evt. via 'Opslaan als…') en
-  sluit het daarna; bij een geannuleerd opslaan blijft het document open.
-- **Nieuw-project wizard** — `ProjectInfoDialog` is nu dubbel-modus: naast 'projectinfo bewerken'
-  ook een wizard die bij *Nieuw* een project opzet met naam/opdrachtgever/startdatum, een
-  **kalender-preset** (bouwkalender NL incl. bouwvak / NL-feestdagen zonder bouwvak / 5-daags) en
-  een **fasering-template** (Leeg / Woningbouw / Utiliteitsbouw) die de WBS met hoofdfasen vult.
-  Alle 'Nieuw'-acties (titelbalk, lint, menubalk, Backstage) en `Ctrl/⌘ N` openen de wizard;
-  `createNewProject` maakt het project atomair (geen undo-ruis) in een eigen tabblad (hergebruikt
-  een leeg, ongewijzigd tabblad). Hiermee is Fase 1 compleet.
-- **Taken kopiëren/plakken** — Ctrl+C / Ctrl+V dupliceren de geselecteerde takken inclusief
-  subtaken, interne relaties en resource-toewijzingen. Geplakt als sibling van de selectie (of op
-  rootniveau) met verse ids; één undo maakt het ongedaan.
-- **Extensiesysteem** — extensies (manifest + main.js, als ZIP/JS of uit de catalogus) kunnen
-  importers en ribbon-knoppen registreren. Beheer via Bestand → Extensies; importeren via
-  Bestand → Importeren. Naar het model van Open Calc Studio.
-- **Extensie-SDK** — `require('open-planner-studio')` geeft nu een echte host-SDK (versie,
-  categorieën/permissies, `hostEvents`, `utils` en `factory`-helpers) i.p.v. een leeg object.
-- **Host-events** — de app zendt `host:project-loaded`, `host:project-new` en
-  `host:schedule-calculated` op de extensie-event-bus; extensies kunnen erop abonneren via
-  `api.events.on`.
-- **Voorbeeld-extensie** — `examples/extensions/voorbeeld-takenlijst-importer/` als werkende
-  referentie (importer + ribbon-knop + host-event); ook gepubliceerd in de catalogus.
-- **Extensie-catalogus** — publieke repo `OpenAEC-Foundation/open-planner-studio-extensions`
-  met `catalog.json`; Bladeren toont en installeert er extensies uit. ZIP's via `raw` gehost
-  (release-assets falen op browser-CORS); `fetchCatalog` met `cache:'no-store'` tegen stale data.
-- **Settings unificatie** — instellingen gedeeld over tandwiel ⚙, Settings-ribbon-tab en
-  File-backstage via één gedeelde settings-component.
-- **Gantt** — instelbaar scrollen en zoomen over de Gantt-weergave.
-- **UI** — herbruikbare themed `Select`-dropdown met migratie weg van native selects.
-- **Dev** — poort en recovery-bestand per worktree geïsoleerd, zodat meerdere
-  desktop-builds tegelijk kunnen draaien.
-- **Tauri** — Linux desktop-icoon metadata.
-- **Devtools** — Tier 2 `ops-test` controlekanaal (echte Tauri save/open + dispatch).
+## v2026.6.1 — 2026-06-29
 
-### Gewijzigd
-- **UI moderne overhaul** — koele "Soft-Depth"-look over alle oppervlakken (Fase 1 koele tokens,
-  schaduw/radius, AA-control-rand en fonts; Fase 2 doorgevoerd over de hele app).
-- **Store-architectuur** — de monolithische Zustand-store is opgesplitst in tien slices
-  (`src/state/slices/`); `appStore.ts` is nu een compositie-root. Geen gedragswijziging.
-- **Performance** — O(n³)/O(n²) lookups in IFC-nesting en het tekenen van Gantt-pijlen weggewerkt.
-- `isTauri()` gecentraliseerd in `src/utils/platform.ts`.
-- CI naar Node 24-compatibele GitHub Actions-versies gebracht.
-- CODEOWNERS bijgewerkt naar de nieuwe product owner.
+### Added
+- **In-app feedback button → GitHub issue** with an optional screenshot and a full-screen
+  annotation editor (inline text tool, OK confirmation before anything goes to GitHub). The
+  feedback button got a rotating label to make it more visible.
+- **Working snap packaging** — `snap/snapcraft.yaml` (core22, strict confinement,
+  gnome extension) that repackages the release `.deb`, plus a restored `snap.yml` workflow that
+  triggers on tag push and `workflow_dispatch`, downloads the release deb instead of rebuilding the
+  app, attaches the `.snap` as a release asset and publishes to the Snap Store once
+  the store credential exists.
+- **Auto-save on every change** — the recovery snapshot is henceforth written on every mutation
+  (debounced) instead of at fixed moments.
 
-### Opgelost
-- **Updates** — het handmatige `.deb`-installeercommando in de update-dialog matchte per ongeluk
-  óók het `amd64.deb.sig`-asset, waardoor `$url` twee URL's bevatte en `curl` faalde met
-  "URL rejected: Malformed input to a URL function". De grep matcht nu op de afsluitende quote.
-- **Scheduler** — kritiek pad klopt nu; geen spook-float meer op predecessors.
-- **Scheduler** — `runCPM` kan niet meer bevriezen of crashen op rare/ongeldige data.
-- **UI** — light-mode contrast verbeterd (diepere tint, zichtbare randen/lijnen, helder amber,
-  extra contrast op canvas-lijnen).
-- **Extensies** — `minAppVersion` wordt nu afgedwongen; een te oude app weigert te activeren.
-- **Extensies** — catalogus-foutmelding via i18n-interpolatie (`{{error}}`) i.p.v. string-plakken
-  (alle 14 locales); catalogus-installfouten worden in de kaart getoond.
-- **Extensies** — ZIP-parser leest maten uit de central directory (lost data-descriptor-overshoot op).
-- **Resources** — `removeResource`/`unassignResource` ruimen verweesde ids in `task.resourceIds` op.
-- **Bestanden** — XML-import-detectie robuuster (P6 vóór MS Project; onbekend formaat gooit nu).
-- **i18n** — thema-namen worden nu vertaald in de theme-picker.
-- **Taken** — standaard einddatum volgt nu de duur.
-- **Bestanden** — bestandsextensie wordt geborgd bij opslaan (Linux/GTK plakt 'm niet).
-- **IFC** — STEP-entiteiten correct getermineerd met `;` (ongeldige IFC-output verholpen),
-  inclusief de voorbeeldgenerator.
-- **Devtools** — self-test harness draait op chromium-headless i.p.v. webkit.
+### Fixed
+- **CPM correctness** — seven verified issues from a new planning-correctness test plan:
+  CPM relationships, lag/lead, milestones and free float are now correct, the `scheduleStart` drift
+  on recalculation is gone, and a review round sealed the IFC lead, WBS late rollup and various
+  hang/robustness cases.
+- The canvas context menu now also closes on a click-outside (not only on Escape); the
+  clipboard image in the feedback tool is built via `Image.new(rgba,w,h)` instead of from
+  raw bytes; and the auto-assign workflow got the `issues:write` permission.
+
+### Documentation
+- Test plan and findings for planning correctness (CPM/relationships/milestones/calendar) recorded,
+  and the design + the to-do for working snap packaging.
+
+## v2026.6.0 — 2026-06-24
+
+A large leap of ~146 commits that took the app from a prototype to a genuinely extensible,
+self-updating product (highlights).
+
+### Added
+- **Cross-platform in-app auto-update** (Tauri updater) on Windows, macOS and Linux — the
+  flagship of this release. The app checks silently on startup against the GitHub-release
+  `latest.json`, verified with a minisign pubkey; macOS got an `app` target and Windows
+  a re-sign step so that the updater can install the package.
+- **Extension system** (modeled on Open Calc Studio) — an extension is a ZIP or loose
+  `.js` file (`manifest.json` + `main.js`) that registers importers and ribbon buttons.
+  Loader with IndexedDB storage and a `new Function` sandbox, a scoped host API with
+  permission checks and event bus, host events (`host:project-loaded`/`-new`/`schedule-calculated`),
+  a real host SDK via `require('open-planner-studio')`, management via Backstage → Extensions /
+  Import, an example extension and a public catalog repo.
+- **Multi-document** — `documentSlice` keeps track of multiple opened projects (active at
+  top-level, inactive as a payload snapshot); three switch styles (horizontal tabs /
+  project rail / title-bar pill) with a shared project-overview overlay, per-document view/
+  undo/selection/dirty, shared clipboard, `Ctrl/⌘ 1–9`, multi-document recovery and a 3-way
+  close confirmation (Save / Don't save / Cancel).
+- **New-project wizard** (`ProjectInfoDialog`) with name/client/start date, a
+  calendar preset and a phasing template — with this **Phase 1 is complete**.
+- **Copy/paste tasks** (Ctrl+C / Ctrl+V) including subtasks and internal relationships.
+- **CAD-style zoom**: cursor-anchored zooming with a tier-driven timescale header,
+  week-start awareness and shortcuts (+/−/0/Ctrl+0 fit-to-project).
+- **Debug terminal** overlay, a shared **settings unification** across three surfaces, a
+  reusable themed **Select** dropdown, a work-calendar dialog, a **self-test harness**
+  (Tier 1 Playwright + `window.__OPS__`, Tier 2 `ops-test` channel), Linux desktop-icon metadata
+  and per-worktree isolation of port and recovery file so that multiple desktop builds can
+  run at once.
+
+### Changed
+- **Modern UI overhaul** — a cool "Soft-Depth" look across all surfaces (Phase 1 cool
+  tokens, shadow/radius, AA control edge and fonts; Phase 2 across the whole app), on top of an
+  OpenAEC stylebook alignment (fonts + tokens, theme reduction from 7 to 3 with migration).
+- **Store architecture** — the monolithic Zustand store has been split into ten slices
+  (`src/state/slices/`); `appStore.ts` is now a composition root. No behavior change.
+- **Performance** — O(n³)/O(n²) lookups in IFC nesting and the drawing of Gantt arrows
+  eliminated; `isTauri()` centralized in `src/utils/platform.ts`; CI to Node 24-compatible
+  Actions versions; eleven of twelve Dependabot vulnerabilities patched.
+
+### Fixed
+- **Scheduler** — the critical path is now correct (no more phantom float on predecessors) and
+  `runCPM` can no longer freeze or crash on odd/invalid data.
+- **Light-mode contrast** improved (deeper tint, visible edges/lines, bright amber, WCAG AA).
+- **Extension robustness**: `minAppVersion` is enforced, the own ZIP parser reads sizes from
+  the central directory, and a failed activation cleanly cleans up its UI registrations;
+  `removeResource`/`unassignResource` clean up orphaned ids; XML-import detection more robust
+  (P6 before MS Project; unknown format throws).
+- Various: the update-dialog grep accidentally matched the `.sig` asset, the file extension is
+  ensured on save (Linux/GTK), STEP entities are terminated with `;` (invalid IFC output
+  fixed, incl. the example generator), the default end date follows the duration and theme names
+  are translated in the theme picker.
+
+### Documentation
+- `CLAUDE.md` added/updated (architecture, multi-worktree dev setup, i18n/settings/
+  Rust facts), the README architecture corrected, a to-do list and this changelog document
+  set up, the UI-overhaul spec and the self-test-harness documentation recorded, and `read_file`/
+  `write_file` in the Rust backend documented as a deliberate escape hatch.
+
+## v2026.2.0 — 2026-02-23
+
+First public release (seed). This is one squashed initial commit plus a handful of
+follow-ups; the granular history behind it is missing.
+
+### Added
+- **The core of Open Planner Studio** — a construction-planning application with **Gantt charts**
+  (imperative on canvas), a **CPM scheduler** with a calendar engine and the **native IFC 4.3
+  file format** (reading and writing via `ifcReader`/`ifcWriter`, no separate project format).
+  Around the Gantt: a **ribbon** UI, an Excel-like **table editor**, an **IFC code editor**,
+  a **report panel** with an inline live print preview, draggable task bars, collapsible
+  WBS chapters and a right-click context menu.
+- **Multilingual with 14 languages** (i18next + OS-locale detection), a **Settings dialog**, a
+  **4-theme system** (Dark, Light, Blue, High Contrast) with CSS variables from which the
+  canvas renderer also reads its colors, and a **custom title bar** with working window buttons.
+- CalVer versioning (`YYYY.M.B`), two bundled example IFC schedules and the
+  release/CI plumbing (bundling, Azure Trusted Signing for the Windows installer).

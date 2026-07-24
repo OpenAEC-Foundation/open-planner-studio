@@ -277,6 +277,9 @@
     "helpLoading": "Laden…",
     "helpLoadError": "Documentatie kon niet worden geladen.",
     "helpArticleNotFound": "Artikel niet gevonden.",
+    "helpDocsLang": "Documentatietaal",
+    "helpDocsLangAuto": "Volg de app-taal",
+    "helpStale": "Deze taal wordt maar af en toe bijgewerkt. Voor de meest actuele documentatie kun je beter overschakelen naar het Engels of Nederlands.",
     "helpLayer": {
       "quickstart": "Snel starten",
       "gidsen": "Gidsen per onderwerp",

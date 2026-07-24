@@ -277,6 +277,9 @@
     "helpLoading": "Wird geladen…",
     "helpLoadError": "Dokumentation konnte nicht geladen werden.",
     "helpArticleNotFound": "Artikel nicht gefunden.",
+    "helpDocsLang": "Dokumentationssprache",
+    "helpDocsLangAuto": "App-Sprache folgen",
+    "helpStale": "Diese Sprache wird nur gelegentlich aktualisiert. Für die aktuellste Dokumentation wechseln Sie zu Englisch oder Niederländisch.",
     "helpLayer": {
       "quickstart": "Schnellstart",
       "gidsen": "Themenbezogene Anleitungen",
