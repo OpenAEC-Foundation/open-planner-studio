@@ -324,6 +324,11 @@ export function toExtTask(t: Task): ExtTask {
     // create-/update-paden (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts` REJECT_HINTS).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
+    // X0 (XER-etappeplan): drie nieuwe .xer-importvelden — zelfde onvoorwaardelijke doorgifte als
+    // mspTaskType/effortDriven hierboven.
+    p6DurationType: t.p6DurationType,
+    p6ActivityType: t.p6ActivityType,
+    p6SuspendResume: t.p6SuspendResume,
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
@@ -369,6 +374,11 @@ export function fromExtTask(t: ExtTask): Task {
     // (`fromExtTaskInput`, extensie-API) blijven hier bewust buiten (leeskant-alleen-besluit F5).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
+    // X0 (XER-etappeplan): drie nieuwe .xer-importvelden — zelfde onvoorwaardelijke doorgifte als
+    // mspTaskType/effortDriven hierboven.
+    p6DurationType: t.p6DurationType,
+    p6ActivityType: t.p6ActivityType,
+    p6SuspendResume: t.p6SuspendResume,
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,

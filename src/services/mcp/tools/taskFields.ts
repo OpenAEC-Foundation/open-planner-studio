@@ -144,6 +144,11 @@ const REJECT_HINTS: Record<string, string> = {
   mspTaskType: 'MSP\'s eigen Task Type is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
   effortDriven: 'MSP\'s "Effort Driven"-vlag is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
   timephasedContours: 'de rauwe contourperiodes zijn via de bridge niet zetbaar (afgeleid uit een .mpp-import, geen agent-invoervorm — zie planner_get_task)',
+  // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde "read-only, geen
+  // agent-invoervorm"-redenering als mspTaskType/effortDriven hierboven.
+  p6DurationType: 'P6\'s eigen Duration Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
+  p6ActivityType: 'P6\'s eigen Activity Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
+  p6SuspendResume: 'de P6-suspend/resume-herkomstvlag is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
 };
 
 /** Uitkomst van de veldvalidatie. */

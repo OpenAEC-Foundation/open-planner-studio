@@ -206,6 +206,15 @@ export interface ExtTask {
   mspTaskType?: 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
   /** Z14b — MSP's "Effort Driven"-vlag bij .mpp-import. Puur data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. */
   effortDriven?: boolean;
+  /** X0 (XER-etappeplan) — P6's eigen Duration Type bij .xer-import. Puur data; zelfde vertaal-/
+   *  zetbaarheidsnuance als `mspTaskType` (volledige vertaling, buiten de create-/update-paden). */
+  p6DurationType?: 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
+  /** X0 (XER-etappeplan) — P6's eigen Activity Type bij .xer-import. Zelfde nuance als `p6DurationType`. */
+  p6ActivityType?: 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
+  /** X0 (XER-etappeplan) — herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/
+   *  resume-herkomst (XER `suspend_date`/`resume_date`) i.p.v. de MSP-conventie. Stub tot de XER-
+   *  etappe se X7-taak 'm daadwerkelijk zet. Spiegelt {@link import('@/types/task').Task}.p6SuspendResume. */
+  p6SuspendResume?: boolean;
   /** Z14b (eigenaarsprincipe 2026-08-18) — rauwe, gedecodeerde .mpp-contourperiodes; de bron ONDER
    *  `splitGaps`, blijft ALTIJD staan (ook ná een bewerking die het Z8-venster invalideert). Puur
    *  data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. Spiegelt {@link import('@/types/task').

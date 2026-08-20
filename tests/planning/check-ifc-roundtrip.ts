@@ -247,6 +247,9 @@ const TM = {
   ] satisfies TaskTimephasedContour[],
   // Z14b — MSP's eigen task-type/effort-driven-vlag (eigenaarsbesluit 2026-08-18, punt 1).
   mspTaskType: 'FIXED_WORK', effortDriven: true,
+  // X0 (XER-etappeplan, 2026-08-20) — drie nieuwe .xer-importvelden, nog GEEN IFC-pset (zie
+  // TASK_CANON hieronder: skip, reden X9). Alleen hier gevuld voor de `Required<Task>`-volledigheid.
+  p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc', p6SuspendResume: true,
   parentId: 't-p', childIds: [],
   resourceIds: [], // milestone zonder assignments ⇒ afgeleide resourceIds is leeg (H2-fix)
   color: '#abcdef', // round-trippt via OPS_TaskAppearance (H2-fix)
@@ -535,6 +538,13 @@ const TASK_CANON = {
   timephasedContours: KEEP,
   // Z14b — MSP's eigen task-type/effort-driven-vlag (`OPS_MspTaskType`), puur data, geen verwijzing.
   mspTaskType: KEEP, effortDriven: KEEP,
+  // X0 (XER-etappeplan, 2026-08-20) — drie nieuwe .xer-importvelden: typecontract-only deze etappe
+  // (X0 raakt src/services/ifc/ NIET aan). Geen IFC-pset ⇒ geen echte round-trip-vergelijking
+  // mogelijk; de daadwerkelijke IFC-round-trip-wiring is XER-etappe se X9-taak (documentcontract/
+  // round-trip). Zelfde taxonomie als `interferingFloat`/`isNearCritical`/`floatPath` hierboven.
+  p6DurationType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
+  p6ActivityType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
+  p6SuspendResume: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
   parentId: { as: 'parent', get: (t: Task, k: Keys) => (t.parentId ? k.task(t.parentId) : null) },
   childIds: { as: 'children', get: (t: Task, k: Keys) => t.childIds.map(c => k.task(c)).sort() },
   time: { get: (t: Task, k: Keys) => canonize(TIME_CANON, t.time, k) },
@@ -1226,6 +1236,9 @@ const rt2 = readIFC(writeIFC(rt1));
     parentId: null, childIds: [], resourceIds: [], time: plainTime('2026-08-18', '2026-08-20', 2),
     mspTaskType: 'FIXED_DURATION', effortDriven: true,
     timephasedContours: [{ resourceUid: 3, periods: [{ afterMinutes: 0, minutes: 60, workMinutes: 60, kind: 'actual' }] }],
+    // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde compact-optionele
+    // doorgifte als de drie Z14b-velden hierboven.
+    p6DurationType: 'DT_FixedQty', p6ActivityType: 'TT_LOE', p6SuspendResume: true,
   };
   const mapped8e = toExtTask(withFields);
   assert(mapped8e.mspTaskType === 'FIXED_DURATION', `(8e) toExtTask moet mspTaskType doorgeven — kreeg ${mapped8e.mspTaskType}`);
@@ -1234,6 +1247,9 @@ const rt2 = readIFC(writeIFC(rt1));
     JSON.stringify(mapped8e.timephasedContours) === JSON.stringify(withFields.timephasedContours),
     `(8e) toExtTask moet timephasedContours doorgeven — kreeg ${JSON.stringify(mapped8e.timephasedContours)}`,
   );
+  assert(mapped8e.p6DurationType === 'DT_FixedQty', `(8e) toExtTask moet p6DurationType doorgeven — kreeg ${mapped8e.p6DurationType}`);
+  assert(mapped8e.p6ActivityType === 'TT_LOE', `(8e) toExtTask moet p6ActivityType doorgeven — kreeg ${mapped8e.p6ActivityType}`);
+  assert(mapped8e.p6SuspendResume === true, `(8e) toExtTask moet p6SuspendResume doorgeven — kreeg ${mapped8e.p6SuspendResume}`);
 
   const withoutFields: Task = {
     id: 't-8e-neg', name: '(8e)-zonder-velden', description: '', wbsCode: '',
@@ -1244,6 +1260,9 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(mapped8eNeg.mspTaskType === undefined, `(8e) zonder mspTaskType blijft toExtTask.mspTaskType undefined — kreeg ${mapped8eNeg.mspTaskType}`);
   assert(mapped8eNeg.effortDriven === undefined, `(8e) zonder effortDriven blijft toExtTask.effortDriven undefined — kreeg ${mapped8eNeg.effortDriven}`);
   assert(mapped8eNeg.timephasedContours === undefined, `(8e) zonder timephasedContours blijft toExtTask.timephasedContours undefined — kreeg ${mapped8eNeg.timephasedContours}`);
+  assert(mapped8eNeg.p6DurationType === undefined, `(8e) zonder p6DurationType blijft toExtTask.p6DurationType undefined — kreeg ${mapped8eNeg.p6DurationType}`);
+  assert(mapped8eNeg.p6ActivityType === undefined, `(8e) zonder p6ActivityType blijft toExtTask.p6ActivityType undefined — kreeg ${mapped8eNeg.p6ActivityType}`);
+  assert(mapped8eNeg.p6SuspendResume === undefined, `(8e) zonder p6SuspendResume blijft toExtTask.p6SuspendResume undefined — kreeg ${mapped8eNeg.p6SuspendResume}`);
 
   // Mutatiebewijs (uitgevoerd): de drie nieuwe regels in `toExtTask` tijdelijk verwijderd maakt de
   // eerste drie asserties hierboven ROOD (undefined i.p.v. de gezette waarde).

@@ -147,6 +147,25 @@ export interface TaskTimephasedContour {
 export type MspTaskType = 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
 
 /**
+ * P6's eigen "Duration Type" (XER `TASK.duration_type` — Primavera "Duration Type" op de
+ * activiteit: stuurt hoe P6 zelf duur/eenheden/snelheid aan elkaar koppelt bij een bewerking).
+ * VIER canonieke P6-tokens (Oracle P6-schema): Fixed Duration & Units, Fixed Duration & Units/Time,
+ * Fixed Units/Time, Fixed Units. Deze unie draagt de canonieke schrijfwijze; de XER-etappe se
+ * generieke enum-tokenregel (§4.7 van het XER-etappeplan, geïmplementeerd in X4a/X5) matcht
+ * corpusvarianten case-insensitief tegen deze lijst en rapporteert — nooit stil — een token dat ook
+ * ná case-fold onbekend blijft. NIET te verwarren met `MspTaskType` hierboven: twee bronformaten,
+ * twee taaktypeconcepten met een andere waardenverzameling.
+ */
+export type P6DurationType = 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
+
+/**
+ * P6's eigen "Activity Type" (XER `TASK.task_type`): Task Dependent, Resource Dependent, Level of
+ * Effort, Start Milestone, Finish Milestone, WBS Summary. ZES canonieke P6-tokens; zie
+ * `P6DurationType` voor de case-insensitieve-matchafspraak (§4.7).
+ */
+export type P6ActivityType = 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
+
+/**
  * Soort mijlpaal (fase 2.4, P6 Start/Finish Milestone). Dag-granulair grens-model:
  * START ankert op een dagbegin, FINISH op een dageinde (einde werkdag F = begin
  * eerstvolgende werkdag). undefined = automatisch: het anker volgt de bindende
@@ -434,6 +453,31 @@ export interface Task {
    *  Afwezig/false ⇒ byte-identiek. Round-tript via `OPS_MspTaskType` (`ifcPsets.ts`, zelfde pset
    *  als `mspTaskType` — het is hetzelfde MSP-taaktypeconcept-paar). */
   effortDriven?: boolean;
+  /** OPTIONEEL — P6's eigen Duration Type bij .xer-import (zie `P6DurationType`). VELD-ALS-SIGNAAL,
+   *  eigen opgeslagen veld NAAST `mspTaskType` — géén hergebruik: de twee bronformaten kennen elk
+   *  hun eigen taaktypeconcept met een andere waardenverzameling en een andere reken-relatie (MSP:
+   *  Fixed Units/Duration/Work; P6: Fixed Duration&Units/Duration&Units-per-Time/Units-per-Time/
+   *  Units). Puur data — eigenaarsbesluit XER-etappeplan §1/X0 (2026-08-20): GEEN enkele solverstap
+   *  leest dit veld deze etappe. VASTGELEGDE AFSPRAAK (§1 van het plan): de latere taaktypes/effort-
+   *  driven-motor-etappe (`2026-08-18-spec-taaktypes-effort-driven.md`) mapt zowel `mspTaskType` als
+   *  `p6DurationType` naar ÉÉN interne superset-rekenmodel — twee opslagvelden nu, één rekenmodel
+   *  straks, geen twee eilanden. Afwezig ⇒ geen .xer-herkomst of onbekend token (byte-identiek). */
+  p6DurationType?: P6DurationType;
+  /** OPTIONEEL — P6's eigen Activity Type bij .xer-import (zie `P6ActivityType`). Zelfde
+   *  eigenaarsbesluit/superset-afspraak als `p6DurationType` hierboven — puur data, geen solverstap
+   *  leest dit veld deze etappe (de XER-lezer leidt `isMilestone`/`isHammock` er later wél
+   *  OPERATIONEEL uit af — TT_Mile/TT_FinMile resp. TT_LOE, zie X4a — maar dat zijn AFGELEIDEN, niet
+   *  dit veld zelf, dat blijft de rauwe herkomst). Afwezig ⇒ geen .xer-herkomst (byte-identiek). */
+  p6ActivityType?: P6ActivityType;
+  /** OPTIONEEL — herkomstvlag voor `time.resume`/`time.stop` (O6-patroon; zie `resumeFromActualElapsed`
+   *  in `types/project.ts` voor het precedent van een default-uit, uitsluitend-door-de-eigen-lezer-
+   *  gezette opt-invlag). P6 kent EIGEN suspend/resume-semantiek (XER `TASK.suspend_date`/
+   *  `resume_date`) die het bestaande MSP-conventiepad rond `time.resume`/`time.stop` (Z12-herwerk)
+   *  niet zonder meer deelt. DIT VELD IS EEN STUB: X0 (typecontract) legt alleen de aanwezigheid en
+   *  de naam vast — de XER-etappe se X7-taak meet EERST of/waar P6's suspend/resume-gedrag afwijkt
+   *  van de MSP-solversemantiek, en vult dit veld pas dan daadwerkelijk (geen enkele lezer zet het
+   *  vóór die meting). Default/afwezig ⇒ MSP-conventie, byte-identiek. */
+  p6SuspendResume?: boolean;
   parentId: string | null; // WBS parent
   childIds: string[];      // WBS children
   time: TaskTime;

@@ -90,6 +90,9 @@ const EXT_TASK_KEYS = keys<ExtTask>()([
   'levelingDelayMinutes', 'levelingDelayElapsed', 'splitGaps', 'manuallyScheduled',
   'mspTaskType', 'effortDriven', 'timephasedContours',
   'timephasedFinishFloor', 'timephasedStartAnchor', 'timephasedDurationWalks',
+  // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde behandeling als de
+  // .mpp-velden hierboven.
+  'p6DurationType', 'p6ActivityType', 'p6SuspendResume',
 ] as const);
 
 const EXT_SEQUENCE_KEYS = keys<ExtSequence>()([
@@ -170,6 +173,11 @@ const VOL_TASK = {
   manuallyScheduled: true,
   mspTaskType: 'FIXED_WORK',
   effortDriven: true,
+  // X0 (XER-etappeplan): drie nieuwe .xer-importvelden, allemaal gevuld — zelfde volgorde-eis als
+  // de .mpp-velden hierboven (de round-trip-check vergelijkt via JSON.stringify).
+  p6DurationType: 'DT_FixedDUR2',
+  p6ActivityType: 'TT_Rsrc',
+  p6SuspendResume: true,
   timephasedContours: [{ resourceUid: 3, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 240, kind: 'remaining' }] }],
   timephasedFinishFloor: '2026-06-10T17:00',
   timephasedStartAnchor: '2026-06-01T08:00',
