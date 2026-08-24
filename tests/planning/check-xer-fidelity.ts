@@ -181,6 +181,31 @@ eq('1l dubbele bron-taak-id binnen een project is fataal', duplicateTruthIds.err
   'TASK rij 2: dubbele task_id P1/DUP',
 ]);
 
+function scanEmptySourceIdentity(projectId: string, taskId: string, taskCode: string) {
+  return scanXerGroundTruth(Buffer.from([
+    'ERMHDR\t23.12',
+    '%T\tTASK',
+    `%F\t${header.join('\t')}`,
+    `%R\t${projectId}\t${taskId}\t${taskCode}\tIdentity\tTK_NotStart\t\t\t2026-04-01 08:00\t\t\t\t\t\t`,
+    '%E',
+  ].join('\n')));
+}
+
+// Breuk die dit vangt: een lege bronidentiteit als gewone Map-sleutel of gelijke taakcode
+// behandelen. Iedere verplichte identiteit heeft een eigen scannerfout en levert geen truth-taak.
+eq('1m lege bron-proj_id is scannerfataal', {
+  errors: scanEmptySourceIdentity('', 'ID', 'CODE').errors,
+  tasks: scanEmptySourceIdentity('', 'ID', 'CODE').tasks.length,
+}, { errors: ['TASK rij 1/proj_id: ontbrekende waarde'], tasks: 0 });
+eq('1n lege bron-task_id is scannerfataal', {
+  errors: scanEmptySourceIdentity('P1', '', 'CODE').errors,
+  tasks: scanEmptySourceIdentity('P1', '', 'CODE').tasks.length,
+}, { errors: ['TASK rij 1/task_id: ontbrekende waarde'], tasks: 0 });
+eq('1o lege bron-task_code is scannerfataal', {
+  errors: scanEmptySourceIdentity('P1', 'ID', '').errors,
+  tasks: scanEmptySourceIdentity('P1', 'ID', '').tasks.length,
+}, { errors: ['TASK rij 1/task_code: ontbrekende waarde'], tasks: 0 });
+
 const measured = measureXerFidelity(truth, [
   {
     projectId: 'P1',
@@ -310,6 +335,29 @@ eq('2j dubbele project- en taak-id zijn beide fataal', duplicateIds.errors, [
   'project P1: dubbele opgeloste taak-id: MID',
 ]);
 
+// Breuk die dit vangt: handgebouwde adapteruitvoer kan de scanner omzeilen. De meetgrens moet
+// daarom projectId, sourceTaskId en taskCode zelf op niet-lege waarden controleren.
+const emptySolvedProjectId = measureXerFidelity(midnightTruth, [{
+  projectId: '', tasks: [{ sourceTaskId: 'MID', taskCode: 'MID', earlyStart: '2026-03-01T00:00' }],
+}]);
+eq('2k lege opgeloste projectId is expliciet gate-fataal', {
+  firstError: emptySolvedProjectId.errors[0], gatePassed: emptySolvedProjectId.gatePassed,
+}, { firstError: 'opgelost project heeft lege projectId', gatePassed: false });
+
+const emptySolvedTaskId = measureXerFidelity(midnightTruth, [{
+  projectId: 'P1', tasks: [{ sourceTaskId: '', taskCode: 'MID', earlyStart: '2026-03-01T00:00' }],
+}]);
+eq('2l lege opgeloste sourceTaskId is expliciet gate-fataal', {
+  firstError: emptySolvedTaskId.errors[0], gatePassed: emptySolvedTaskId.gatePassed,
+}, { firstError: 'project P1: opgeloste taak heeft lege sourceTaskId', gatePassed: false });
+
+const emptySolvedTaskCode = measureXerFidelity(midnightTruth, [{
+  projectId: 'P1', tasks: [{ sourceTaskId: 'MID', taskCode: '', earlyStart: '2026-03-01T00:00' }],
+}]);
+eq('2m lege opgeloste taskCode is expliciet gate-fataal', {
+  firstError: emptySolvedTaskCode.errors[0], gatePassed: emptySolvedTaskCode.gatePassed,
+}, { firstError: 'project P1/taak MID: opgeloste taskCode is leeg', gatePassed: false });
+
 function schemaTruth(projectIds: readonly string[], driving: 'Y' | 'N', taskId = 'S') {
   return scanXerGroundTruth(Buffer.from([
     'ERMHDR\t23.12',
@@ -329,13 +377,13 @@ const schemaOtherTaskId = schemaTruth(['P1'], 'Y', 'OTHER');
 
 // Breuken die dit vangt: PROJECT-rijen negeren of de zevende rapportage-as indirect de
 // zesassige steekproef laten splitsen.
-eq('2k grondwaarheid leest de echte PROJECT-set inclusief leeg project',
+eq('2n grondwaarheid leest de echte PROJECT-set inclusief leeg project',
   [...schemaP1P2.projects], ['P1', 'P2']);
-eq('2l extra PROJECT-rij verandert de zesassige schemafingerprint',
+eq('2o extra PROJECT-rij verandert de zesassige schemafingerprint',
   xerSchemaFingerprint(schemaP1) === xerSchemaFingerprint(schemaP1P2), false);
-eq('2m alleen driving_path_flag verandert de gatefingerprint niet',
+eq('2p alleen driving_path_flag verandert de gatefingerprint niet',
   xerSchemaFingerprint(schemaP1), xerSchemaFingerprint(schemaDrivingOnly));
-eq('2n andere taakidentiteit verandert de gatefingerprint',
+eq('2q andere taakidentiteit verandert de gatefingerprint',
   xerSchemaFingerprint(schemaP1) === xerSchemaFingerprint(schemaOtherTaskId), false);
 
 const byteDuplicate = Buffer.from(bytes);
@@ -411,13 +459,45 @@ eq('3c baseline pint per bestand de projectsom en beide tellers per as', entries
   },
 }]);
 
+const roleAwareFiles = [
+  { label: 'a/parser-fixture.xer', bytes },
+  { label: 'z/included-oracle.xer', bytes: Buffer.from(bytes) },
+] as const;
+const roleAwareManifest: XerCorpusManifest = {
+  version: 1,
+  policy: 'rolbewuste byte-dedup-regressie',
+  files: {
+    'a/parser-fixture.xer': {
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      source: 'synthetische testfixture',
+      role: 'parser-fixture',
+      included: false,
+      exclusionReason: 'alleen parserdekking',
+    },
+    'z/included-oracle.xer': {
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      source: 'synthetische testfixture',
+      role: 'oracle',
+      included: true,
+    },
+  },
+};
+const roleAwareBaseline = buildXerTargetBaseline(roleAwareFiles, roleAwareManifest);
+
+// Breuk die dit vangt: de alfabetisch eerdere excluded parserfixture vult `seenBytes` voordat de
+// latere inbegrepen orakelkopie aan de beurt komt. De groep moet altijd het orakellabel kiezen.
+eq('3d byte-dedup verkiest inbegrepen orakel boven eerdere excluded kopie', {
+  labels: Object.values(roleAwareBaseline.baseline.files).map(entry => entry.label),
+  errors: roleAwareBaseline.errors,
+}, { labels: ['z/included-oracle.xer'], errors: [] });
+
 const nonZeroWithoutReason = structuredClone(built.baseline);
 Object.values(nonZeroWithoutReason.files)[0].counters.es.deviations = 1;
-eq('3d niet-nul-pin zonder reason wordt geweigerd', validateXerBaselinePins(nonZeroWithoutReason), [
+eq('3e niet-nul-pin zonder reason wordt geweigerd', validateXerBaselinePins(nonZeroWithoutReason), [
   'baseline-entry 1: niet-nul afwijking vereist een niet-lege reason',
 ]);
 Object.values(nonZeroWithoutReason.files)[0].reason = 'bewust gemeten verschil';
-eq('3e niet-nul-pin met reason is welgevormd', validateXerBaselinePins(nonZeroWithoutReason), []);
+eq('3f niet-nul-pin met reason is welgevormd', validateXerBaselinePins(nonZeroWithoutReason), []);
 
 function listXerFilesRecursive(dir: string): string[] {
   const files: string[] = [];
@@ -452,8 +532,8 @@ if (!corpusRoot) {
   // de implementatie gebruikt ze nergens om taken of bestanden te selecteren.
   eq('C1 volledige crawl', corpus.stats.scannedFiles, 93);
   eq('C2 unieke bestanden na byte-dedup', corpus.stats.byteUniqueFiles, 84);
-  eq('C3 taken met vier effectieve datumassen', corpus.stats.fourDateTasks, 18_504);
-  eq('C4 taken met alle zes effectieve assen', corpus.stats.sixAxisTasks, 17_954);
+  eq('C3 taken met vier effectieve datumassen', corpus.stats.fourDateTasks, 18_421);
+  eq('C4 taken met alle zes effectieve assen', corpus.stats.sixAxisTasks, 17_871);
   eq('C4a de eerder gemiste scheve dekking blijft volledig zichtbaar', {
     files: corpus.stats.partialOnlyByteUniqueFiles,
     cells: corpus.stats.partialOnlyAxisCells,

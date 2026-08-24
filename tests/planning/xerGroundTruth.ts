@@ -211,10 +211,20 @@ function buildTask(
   const projectId = row.get('proj_id')?.trim() ?? '';
   const taskId = row.get('task_id')?.trim() ?? '';
   const taskCode = row.get('task_code')?.trim() ?? '';
+  let missingIdentity = false;
+  if (!projectId) {
+    errors.push(`TASK rij ${rowNumber}/proj_id: ontbrekende waarde`);
+    missingIdentity = true;
+  }
   if (!taskId) {
     errors.push(`TASK rij ${rowNumber}/task_id: ontbrekende waarde`);
-    return null;
+    missingIdentity = true;
   }
+  if (!taskCode) {
+    errors.push(`TASK rij ${rowNumber}/task_code: ontbrekende waarde`);
+    missingIdentity = true;
+  }
+  if (missingIdentity) return null;
 
   const statusCode = row.get('status_code')?.trim() ?? '';
   const normalizedStatus = statusCode.toLowerCase();

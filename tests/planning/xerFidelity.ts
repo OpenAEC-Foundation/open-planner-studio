@@ -151,6 +151,13 @@ function measureProject(
 ): XerProjectFidelity {
   const solvedById = new Map<string, XerSolvedTask>();
   for (const task of solved?.tasks ?? []) {
+    if (!task.sourceTaskId.trim()) {
+      errors.push(`project ${projectId}: opgeloste taak heeft lege sourceTaskId`);
+      continue;
+    }
+    if (!task.taskCode.trim()) {
+      errors.push(`project ${projectId}/taak ${task.sourceTaskId}: opgeloste taskCode is leeg`);
+    }
     if (solvedById.has(task.sourceTaskId)) {
       errors.push(`project ${projectId}: dubbele opgeloste taak-id: ${task.sourceTaskId}`);
     }
@@ -166,7 +173,7 @@ function measureProject(
   }
   for (const truthTask of truthTasks) {
     const solvedTask = solvedById.get(truthTask.taskId);
-    if (solvedTask && solvedTask.taskCode !== truthTask.taskCode) {
+    if (solvedTask && solvedTask.taskCode.trim() && solvedTask.taskCode !== truthTask.taskCode) {
       errors.push(
         `project ${projectId}/taak ${truthTask.taskId}: taskCode verwacht ${truthTask.taskCode}, `
         + `kreeg ${solvedTask.taskCode}`,
@@ -313,8 +320,12 @@ export function buildXerTargetBaseline(
   for (const label of [...filesByLabel.keys()].filter(label => !(label in manifest.files)).sort()) {
     errors.push(`corpusbestand ontbreekt in manifest: ${label}`);
   }
-  const seenBytes = new Set<string>();
   const seenSchemas = new Set<string>();
+  const filesByHash = new Map<string, Array<{
+    file: XerCorpusFile;
+    manifestEntry: XerCorpusManifestEntry;
+    truth: XerGroundTruth;
+  }>>();
 
   for (const file of [...files].sort((a, b) => a.label.localeCompare(b.label))) {
     const manifestEntry = manifest.files[file.label];
@@ -322,7 +333,6 @@ export function buildXerTargetBaseline(
     const fullByteHash = byteHash(file.bytes);
     if (manifestEntry.sha256 !== fullByteHash) {
       errors.push(`${file.label}: SHA-256 verwacht ${manifestEntry.sha256}, kreeg ${fullByteHash}`);
-      continue;
     }
     if (manifestEntry.included !== (manifestEntry.role === 'oracle')) {
       errors.push(`${file.label}: included moet exact overeenkomen met role=oracle`);
@@ -336,12 +346,19 @@ export function buildXerTargetBaseline(
     stats.sixAxisTasks += truth.tasks.filter(isFullOracleTask).length;
     stats.drivingPathTasks += truth.tasks.filter(task => task.drivingPath !== null).length;
 
-    if (seenBytes.has(fullByteHash)) {
-      stats.byteDuplicateFiles++;
-      continue;
-    }
-    seenBytes.add(fullByteHash);
+    const group = filesByHash.get(fullByteHash) ?? [];
+    group.push({ file, manifestEntry, truth });
+    filesByHash.set(fullByteHash, group);
+  }
+
+  for (const [fullByteHash, group] of filesByHash) {
     stats.byteUniqueFiles++;
+    stats.byteDuplicateFiles += group.length - 1;
+
+    const oracle = group.find(candidate =>
+      candidate.manifestEntry.included && candidate.manifestEntry.role === 'oracle');
+    const selected = oracle ?? group[0];
+    const { file, truth } = selected;
 
     const fullOracleTasks = truth.tasks.filter(isFullOracleTask).length;
     const axisTasks = truth.tasks.filter(hasOracleAxis).length;
@@ -351,7 +368,7 @@ export function buildXerTargetBaseline(
       stats.partialOnlyByteUniqueFiles++;
       stats.partialOnlyAxisCells += axisCells;
     }
-    if (!manifestEntry.included) continue;
+    if (!oracle) continue;
     if (truth.errors.length > 0) {
       errors.push(...truth.errors.map(error => `${file.label}: ${error}`));
       continue;
@@ -407,6 +424,10 @@ export function measureXerFidelity(
   const errors: string[] = [...truth.errors];
   const solvedByProject = new Map<string, XerSolvedProject>();
   for (const project of solvedProjects) {
+    if (!project.projectId.trim()) {
+      errors.push('opgelost project heeft lege projectId');
+      continue;
+    }
     if (solvedByProject.has(project.projectId)) {
       errors.push(`dubbele opgeloste project-id: ${project.projectId}`);
     } else {
