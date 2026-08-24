@@ -29,6 +29,8 @@ export interface XerGroundTruth {
   tasks: XerGroundTruthTask[];
   /** Niet-lege onparseerbare waarden en ontbrekende verplichte identiteit zijn fataal. */
   errors: string[];
+  /** Niet-fatale expliciete formaatkeuzes die de onafhankelijke scanner niet stil mag maken. */
+  numberFormatIssues: string[];
 }
 
 const IDENTITY_FIELDS = ['proj_id', 'task_id', 'task_code'] as const;
@@ -90,30 +92,75 @@ function parseOracleDate(
   return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
-function decodeNumberSymbol(
-  values: readonly string[],
-  field: 'decimal_symbol' | 'digit_group_symbol',
+function inspectNumberSymbol(
+  raw: string,
+  family: 'decimal' | 'group',
+  field: string,
+  currency: string,
   errors: string[],
-): '.' | ',' | null {
-  for (const raw of values) {
-    const value = raw.trim().toLowerCase();
-    if (!value) continue;
-    if (value === '.' || value === 'period' || value === 'ds_period' || value === 'dg_period') return '.';
-    if (value === ',' || value === 'comma' || value === 'ds_comma' || value === 'dg_comma') return ',';
+): '.' | ',' | undefined {
+  const value = raw.trim().toLowerCase();
+  if (!value) return undefined;
+  if (value === '.' || value === 'period') return '.';
+  if (value === ',' || value === 'comma') return ',';
+  if (value.startsWith('ds_')) {
+    if (family !== 'decimal') {
+      errors.push(`CURRTYPE ${currency}/${field}: ds-token hoort niet in de groepsfamilie`);
+      return undefined;
+    }
+    if (value === 'ds_period') return '.';
+    if (value === 'ds_comma') return ',';
   }
-  if (field === 'decimal_symbol') errors.push('CURRTYPE/decimal_symbol: ontbrekende of onbekende waarde');
-  return null;
+  if (value.startsWith('dg_')) {
+    if (family !== 'group') {
+      errors.push(`CURRTYPE ${currency}/${field}: dg-token hoort niet in de decimaalfamilie`);
+      return undefined;
+    }
+    if (value === 'dg_period') return '.';
+    if (value === 'dg_comma') return ',';
+  }
+  errors.push(`CURRTYPE ${currency}/${field}: onbekende separator ${JSON.stringify(raw.trim())}`);
+  return undefined;
 }
 
-function scanNumberFormat(lines: readonly string[], errors: string[]): XerNumberFormat {
+function inspectNumberFamily(
+  row: ReadonlyMap<string, string>,
+  family: 'decimal' | 'group',
+  currency: string,
+  errors: string[],
+): '.' | ',' | null {
+  const fields = family === 'decimal'
+    ? ['decimal_symbol', 'decimal_symbol_type']
+    : ['digit_group_symbol', 'digit_group_symbol_type'];
+  const declared = fields.filter(field => !!row.get(field)?.trim());
+  const values = declared
+    .map(field => inspectNumberSymbol(row.get(field) ?? '', family, field, currency, errors))
+    .filter((value): value is '.' | ',' => value !== undefined);
+  if (new Set(values).size > 1) {
+    errors.push(`CURRTYPE ${currency}/${family}: tegenstrijdige separatorrepresentaties`);
+    return null;
+  }
+  if (declared.length === 0 && family === 'decimal') {
+    errors.push(`CURRTYPE ${currency}/decimal: ontbrekende separatorrepresentatie`);
+  }
+  return values[0] ?? null;
+}
+
+function scanNumberFormat(
+  lines: readonly string[],
+  errors: string[],
+  issues: string[],
+): XerNumberFormat {
   const header = lines.find(line => line.startsWith('ERMHDR\t'))?.split('\t') ?? [];
   const defaultCurrency = header[8]?.trim() ?? '';
   let table = '';
   let fields: string[] = [];
-  const currencyRows: Map<string, string>[] = [];
-  for (const line of lines) {
+  const currencyRows: Array<{ values: Map<string, string>; line: number }> = [];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
     const cells = line.split('\t');
     const marker = cells[0]?.trim();
+    if (marker === '%E') break;
     if (marker === '%T') {
       table = cells[1]?.trim().toUpperCase() ?? '';
       fields = [];
@@ -128,24 +175,45 @@ function scanNumberFormat(lines: readonly string[], errors: string[]): XerNumber
     const row = new Map<string, string>();
     const values = cells.slice(1);
     for (let index = 0; index < fields.length; index++) row.set(fields[index], values[index] ?? '');
-    currencyRows.push(row);
+    currencyRows.push({ values: row, line: lineIndex + 1 });
   }
-  const row = (defaultCurrency
-    ? currencyRows.find(candidate => candidate.get('curr_short_name')?.trim() === defaultCurrency)
-    : undefined) ?? currencyRows[0];
-  if (!row) return { decimal: '.', group: null, fromCurrencyTable: false };
-  const decimal = decodeNumberSymbol([
-    row.get('decimal_symbol') ?? '', row.get('decimal_symbol_type') ?? '',
-  ], 'decimal_symbol', errors);
-  const group = decodeNumberSymbol([
-    row.get('digit_group_symbol') ?? '', row.get('digit_group_symbol_type') ?? '',
-  ], 'digit_group_symbol', errors);
-  if (decimal === null) return { decimal: '.', group: null, fromCurrencyTable: true };
-  if (group === decimal) {
-    errors.push('CURRTYPE: decimaal- en groepsteken zijn gelijk');
-    return { decimal, group: null, fromCurrencyTable: true };
+  if (currencyRows.length === 0) return { decimal: '.', group: null, fromCurrencyTable: false };
+  const normalizedCurrency = defaultCurrency.toLowerCase();
+  const matches = normalizedCurrency
+    ? currencyRows.filter(candidate =>
+      candidate.values.get('curr_short_name')?.trim().toLowerCase() === normalizedCurrency)
+    : [];
+  if (matches.length === 0) {
+    issues.push(
+      `CURRTYPE: ERMHDR-valuta ${defaultCurrency || '(leeg)'} heeft geen overeenkomstige rij; `
+      + 'punt-default gebruikt',
+    );
+    return { decimal: '.', group: null, fromCurrencyTable: false };
   }
-  return { decimal, group, fromCurrencyTable: true };
+  const resolved = matches.map(match => {
+    const currency = match.values.get('curr_short_name')?.trim() || defaultCurrency;
+    const decimal = inspectNumberFamily(match.values, 'decimal', currency, errors);
+    const group = inspectNumberFamily(match.values, 'group', currency, errors);
+    if (decimal === null) return null;
+    if (group === decimal) {
+      errors.push('CURRTYPE: decimaal- en groepsteken zijn gelijk');
+      return null;
+    }
+    return { decimal, group, line: match.line };
+  });
+  if (resolved.some(format => format === null)) {
+    return { decimal: '.', group: null, fromCurrencyTable: true };
+  }
+  const first = resolved[0]!;
+  const conflict = resolved.find(format =>
+    format!.decimal !== first.decimal || format!.group !== first.group);
+  if (conflict) {
+    errors.push(
+      `CURRTYPE ${defaultCurrency}: regels ${first.line}, ${conflict.line} `
+      + 'hebben tegenstrijdige decimaal-/groepssemantiek',
+    );
+  }
+  return { decimal: first.decimal, group: first.group, fromCurrencyTable: true };
 }
 
 function escapeRegExp(value: string): string {
@@ -273,7 +341,8 @@ export function scanXerGroundTruth(bytes: Uint8Array): XerGroundTruth {
   const declaredProjects = new Set<string>();
   const taskProjects = new Set<string>();
   const errors: string[] = [];
-  const numberFormat = scanNumberFormat(lines, errors);
+  const numberFormatIssues: string[] = [];
+  const numberFormat = scanNumberFormat(lines, errors, numberFormatIssues);
   let table = '';
   let fields: string[] = [];
   let taskRowNumber = 0;
@@ -284,6 +353,7 @@ export function scanXerGroundTruth(bytes: Uint8Array): XerGroundTruth {
   for (const line of lines) {
     const cells = line.split('\t');
     const marker = cells[0]?.trim();
+    if (marker === '%E') break;
     if (marker === '%T') {
       table = cells[1]?.trim().toUpperCase() ?? '';
       if (table === 'PROJECT') sawProjectTable = true;
@@ -334,5 +404,6 @@ export function scanXerGroundTruth(bytes: Uint8Array): XerGroundTruth {
     projects: sawProjectTable ? declaredProjects : taskProjects,
     tasks,
     errors,
+    numberFormatIssues,
   };
 }
