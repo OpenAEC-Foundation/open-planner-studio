@@ -110,6 +110,53 @@ eq('1e CURRTYPE-kommafloat blijft meetbaar in afgeronde minuten', commaTruth.tas
 });
 eq('1f geldige kommafixture heeft geen parsefouten', commaTruth.errors, []);
 
+const currencyMismatchTruth = scanXerGroundTruth(Buffer.from([
+  'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEP',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+  '%R\tEUR\t,\t.',
+  '%T\tTASK',
+  `%F\t${header.join('\t')}`,
+  '%R\tP1\tM\tM\tMismatch\tTK_NotStart\t\t\t2026-04-01\t2026-04-02\t2026-04-01\t2026-04-02\t1.25\t0.5\t',
+  '%E',
+].join('\n'))) as ReturnType<typeof scanXerGroundTruth> & { numberFormatIssues?: string[] };
+const conflictingCurrencyTruth = scanXerGroundTruth(Buffer.from([
+  'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol\tdecimal_symbol_type\tdigit_group_symbol\tdigit_group_symbol_type',
+  '%R\tEUR\t,\tds_Period\t.\tdg_Period',
+  '%E',
+].join('\n'))) as ReturnType<typeof scanXerGroundTruth> & { numberFormatIssues?: string[] };
+const wrongFamilyTruth = scanXerGroundTruth(Buffer.from([
+  'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol_type\tdigit_group_symbol_type',
+  '%R\tEUR\tdg_Period\tds_Comma',
+  '%E',
+].join('\n'))) as ReturnType<typeof scanXerGroundTruth> & { numberFormatIssues?: string[] };
+// Breuk die dit vangt: X1 dezelfde first-row- en eerste-herkenbare foutmodus laten delen met
+// productie. Het orakel gebruikt punt-default na mismatch en meldt alle representatiefouten zelf.
+eq('1g X1 controleert CURRTYPE via een onafhankelijk volledig pad', {
+  mismatch: {
+    issues: currencyMismatchTruth.numberFormatIssues,
+    errors: currencyMismatchTruth.errors,
+    totalFloat: currencyMismatchTruth.tasks[0]?.axes.tf,
+  },
+  conflictErrors: conflictingCurrencyTruth.errors,
+  familyErrors: wrongFamilyTruth.errors,
+}, {
+  mismatch: {
+    issues: ['CURRTYPE: ERMHDR-valuta EP heeft geen overeenkomstige rij; punt-default gebruikt'],
+    errors: [],
+    totalFloat: 75,
+  },
+  conflictErrors: ['CURRTYPE EUR/decimal: tegenstrijdige separatorrepresentaties'],
+  familyErrors: [
+    'CURRTYPE EUR/decimal_symbol_type: dg-token hoort niet in de decimaalfamilie',
+    'CURRTYPE EUR/digit_group_symbol_type: ds-token hoort niet in de groepsfamilie',
+  ],
+});
+
 const brokenTruth = scanXerGroundTruth(Buffer.from([
   'ERMHDR\t23.12',
   '%T\tTASK',
@@ -119,7 +166,7 @@ const brokenTruth = scanXerGroundTruth(Buffer.from([
   '%R\tP1\t\tNO_ID\tNo id\tTK_NotStart\t\t\t\t\t\t\t\t\t',
   '%E',
 ].join('\n')));
-eq('1g niet-lege kapotte waarden en ontbrekende identiteit zijn fataal zichtbaar', brokenTruth.errors, [
+eq('1h niet-lege kapotte waarden en ontbrekende identiteit zijn fataal zichtbaar', brokenTruth.errors, [
   'TASK BAD/early_start_date: ongeldige datum "2026-02-30 08:00"',
   'TASK BAD/total_float_hr_cnt: ongeldig getal "1.2x"',
   'TASK rij 3/task_id: ontbrekende waarde',
@@ -131,7 +178,7 @@ const brokenMeasurement = measureXerFidelity(brokenTruth, [{
     { sourceTaskId: 'NO_STATUS', taskCode: 'NO_STATUS' },
   ],
 }]);
-eq('1h scannerfouten zijn gate-fataal bij verder exacte uitlijning', {
+eq('1i scannerfouten zijn gate-fataal bij verder exacte uitlijning', {
   errors: brokenMeasurement.errors,
   gatePassed: brokenMeasurement.gatePassed,
 }, { errors: brokenTruth.errors, gatePassed: false });

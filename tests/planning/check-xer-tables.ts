@@ -1,4 +1,9 @@
-import { parseXerNumber, parseXerTables } from '@/services/xer/xerTables';
+import {
+  parseXerNumber,
+  parseXerTables,
+  XER_TRANSPORT_KIND,
+  type XerByteInput,
+} from '@/services/xer/xerTables';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -63,12 +68,18 @@ function caughtXerError(run: () => unknown): Record<string, unknown> | null {
       xerCode?: string;
       table?: string;
       missingColumns?: string[];
+      missingValues?: string[];
+      line?: number;
+      encoding?: string;
     };
     return {
       name: typed.name,
       xerCode: typed.xerCode,
       ...(typed.table ? { table: typed.table } : {}),
       ...(typed.missingColumns ? { missingColumns: typed.missingColumns } : {}),
+      ...(typed.missingValues ? { missingValues: typed.missingValues } : {}),
+      ...(typed.line ? { line: typed.line } : {}),
+      ...(typed.encoding ? { encoding: typed.encoding } : {}),
     };
   }
 }
@@ -162,15 +173,15 @@ eq('4 veld-/waardetellingsverschil wordt verzameld en vervolgd', {
 // laten staan, of de BOM/NUL-vervuiling uit MPXJ's NotesHelper-gevallen doorgeven aan de gebruiker.
 const multilineNote = parseXerTables(utf8([
   'ERMHDR\t23.12',
-  '%T\tTASK',
-  '%F\tproj_id\ttask_id\ttask_code\ttask_name\ttask_notes',
-  `%R\tP1\t1\tA1\tTaak\tBegin\u007f\u007fmidden\u0000\ufeff`,
-  '\t\t\t\t\teinde',
+  '%T\tTASKMEMO',
+  '%F\ttask_id\ttask_memo',
+  `%R\t1\tBegin\u007f\u007fmidden\u0000\ufeff`,
+  '\t\teinde',
   '%E',
 ]));
 eq('5 DEL-DEL-notitie, BOM/NUL-strip en lege-token-continuatie', {
-  rows: multilineNote.tables.get('TASK')?.rows.length,
-  note: multilineNote.tables.get('TASK')?.rows[0]?.cells.task_notes,
+  rows: multilineNote.tables.get('TASKMEMO')?.rows.length,
+  note: multilineNote.tables.get('TASKMEMO')?.rows[0]?.cells.task_memo,
   issues: multilineNote.report.issues,
 }, {
   rows: 1,
@@ -378,6 +389,261 @@ eq('15 verplichte sleutelkolommen gelden per aanwezige P6-kern-/koppeltabel', [
   { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_COLUMNS', table: 'RSRC', missingColumns: ['rsrc_id'] },
   { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_COLUMNS', table: 'TASKRSRC', missingColumns: ['rsrc_id'] },
 ]);
+
+const bytesOnlyParser: (input: XerByteInput) => ReturnType<typeof parseXerTables> = parseXerTables;
+void bytesOnlyParser;
+if (false) {
+  // @ts-expect-error XER mag nooit via een reeds gedecodeerde string de parser in.
+  parseXerTables('ERMHDR\t23.12');
+}
+const cp1252TransportFixture = windows1252([
+  'ERMHDR\t23.12',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_name',
+  '%R\tP1\tPrijs \u0080',
+  '%E',
+].join('\n'));
+const directCp1252 = parseXerTables(cp1252TransportFixture);
+const reencodedCp1252 = parseXerTables(new TextEncoder().encode(
+  new TextDecoder().decode(cp1252TransportFixture),
+));
+// Breuk die dit vangt: XER in de registry als tekst transporteren, of de runtimegrens een string
+// laten aanvaarden. De CP1252-euro wordt via string onomkeerbaar U+FFFD en daarna vals als UTF-8.
+eq('16 XER-consumercontract is uitsluitend ruwe bytes', {
+  transportKind: XER_TRANSPORT_KIND,
+  stringInput: caughtXerError(() => parseXerTables('ERMHDR\t23.12' as unknown as XerByteInput)),
+  direct: {
+    encoding: directCp1252.report.encoding,
+    name: directCp1252.tables.get('PROJECT')?.rows[0]?.cells.proj_name,
+  },
+  reencoded: {
+    encoding: reencodedCp1252.report.encoding,
+    name: reencodedCp1252.tables.get('PROJECT')?.rows[0]?.cells.proj_name,
+  },
+}, {
+  transportKind: 'binary',
+  stringInput: { name: 'XerImportError', xerCode: 'XER_INVALID_INPUT' },
+  direct: { encoding: 'windows-1252', name: 'Prijs €' },
+  reencoded: { encoding: 'utf-8', name: 'Prijs �' },
+});
+
+const p6Notes = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tTASKMEMO',
+  '%F\ttask_id\ttask_memo',
+  `%R\tT1\tTaak\u007f\u007fregel\u0000\ufeff`,
+  '%T\tWBSMEMO',
+  '%F\twbs_id\twbs_memo',
+  `%R\tW1\tWBS\u007f\u007fregel\u0000\ufeff`,
+  '%T\tACCOUNT',
+  '%F\tacct_id\tacct_descr',
+  `%R\tA1\tRekening\u007f\u007fregel\u0000\ufeff`,
+  '%T\tRSRC',
+  '%F\trsrc_id\trsrc_notes',
+  `%R\tR1\tResource\u007f\u007fregel\u0000\ufeff`,
+  '%T\tROLES',
+  '%F\trole_id\trole_descr',
+  `%R\tO1\tRol\u007f\u007fregel\u0000\ufeff`,
+  '%T\tTASKPROC',
+  '%F\tproc_id\tproc_descr',
+  `%R\tS1\tStap\u007f\u007fregel\u0000\ufeff`,
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_data',
+  `%R\tC1\tKalender\u007f\u007fdata\u0000\ufeff`,
+  '%E',
+]));
+// Breuk die dit vangt: NotesHelper op veldnaam of globaal toepassen. Alleen onderzochte echte
+// P6-notitievelden worden opgeschoond; structured calendar text blijft byte-inhoudelijk rauw.
+eq('17 NotesHelper-semantiek is tabel- en veldspecifiek', {
+  task: p6Notes.tables.get('TASKMEMO')?.rows[0]?.cells.task_memo,
+  wbs: p6Notes.tables.get('WBSMEMO')?.rows[0]?.cells.wbs_memo,
+  account: p6Notes.tables.get('ACCOUNT')?.rows[0]?.cells.acct_descr,
+  resource: p6Notes.tables.get('RSRC')?.rows[0]?.cells.rsrc_notes,
+  role: p6Notes.tables.get('ROLES')?.rows[0]?.cells.role_descr,
+  step: p6Notes.tables.get('TASKPROC')?.rows[0]?.cells.proc_descr,
+  calendar: p6Notes.tables.get('CALENDAR')?.rows[0]?.cells.clndr_data,
+}, {
+  task: 'Taak\nregel',
+  wbs: 'WBS\nregel',
+  account: 'Rekening\nregel',
+  resource: 'Resource\nregel',
+  role: 'Rol\nregel',
+  step: 'Stap\nregel',
+  calendar: `Kalender\u007f\u007fdata\u0000\ufeff`,
+});
+
+function emptyIdentity(table: string, fields: string, row: string): Record<string, unknown> | null {
+  return caughtXerError(() => parseXerTables(utf8([
+    'ERMHDR\t23.12',
+    `%T\t${table}`,
+    `%F\t${fields}`,
+    `%R\t${row}`,
+    '%E',
+  ])));
+}
+const roleOnlyAssignment = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tTASKRSRC',
+  '%F\ttask_id\trsrc_id\trole_id\ttarget_qty',
+  '%R\tT1\t\tROLE1\t',
+  '%E',
+]));
+// Breuk die dit vangt: alleen %F-kolomnamen controleren of alle sparse assignmentwaarden
+// generiek verplicht maken. Fouten dragen tabel, fysieke regel en de werkelijk ontbrekende waarde.
+eq('18 aanwezige P6-tabellen vereisen niet-lege identiteit zonder role-only data af te wijzen', {
+  failures: [
+    emptyIdentity('PROJECT', 'proj_id', ''),
+    emptyIdentity('CALENDAR', 'clndr_id', ''),
+    emptyIdentity('PROJWBS', 'wbs_id\tproj_id', 'W1\t'),
+    emptyIdentity('TASK', 'task_id\tproj_id\ttask_code', 'T1\t\tA1'),
+    emptyIdentity('TASKPRED', 'task_id\tpred_task_id\tpred_type', 'T1\tT0\t'),
+    emptyIdentity('RSRC', 'rsrc_id', ''),
+    emptyIdentity('TASKRSRC', 'task_id\trsrc_id\trole_id', '\tR1\t'),
+    emptyIdentity('TASKRSRC', 'task_id\trsrc_id\trole_id', 'T1\t\t'),
+  ],
+  roleOnlyRows: roleOnlyAssignment.tables.get('TASKRSRC')?.rows.length,
+}, {
+  failures: [
+    { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'PROJECT', missingValues: ['proj_id'], line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'CALENDAR', missingValues: ['clndr_id'], line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'PROJWBS', missingValues: ['proj_id'], line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'TASK', missingValues: ['proj_id'], line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'TASKPRED', missingValues: ['pred_type'], line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'RSRC', missingValues: ['rsrc_id'], line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'TASKRSRC', missingValues: ['task_id'], line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'TASKRSRC', missingValues: ['rsrc_id', 'role_id'], line: 4 },
+  ],
+  roleOnlyRows: 1,
+});
+
+const missingCurrencyMatch = parseXerTables(utf8([
+  'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEP',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+  '%R\tEUR\t,\t.',
+  '%T\tTASK',
+  '%F\tproj_id\ttask_id\ttask_code\ttarget_drtn_hr_cnt',
+  '%R\tP1\tT1\tA1\t1.5',
+  '%E',
+]));
+const consistentCurrency = parseXerTables(utf8([
+  'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\teur',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol\tdecimal_symbol_type\tdigit_group_symbol\tdigit_group_symbol_type',
+  '%R\tEUR\tds_Comma\tCOMMA\tdg_Period\tPERIOD',
+  '%E',
+]));
+function currencyRow(fields: string, values: string): Record<string, unknown> | null {
+  return caughtXerError(() => parseXerTables(utf8([
+    'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
+    '%T\tCURRTYPE',
+    `%F\tcurr_short_name\t${fields}`,
+    `%R\tEUR\t${values}`,
+    '%E',
+  ])));
+}
+// Breuken die dit vangt: de eerste valutaregel als stille fallback kiezen, slechts de eerste
+// herkenbare representatie vertrouwen, of ds/dg-symbolen in de verkeerde familie accepteren.
+eq('19 CURRTYPE matcht exact en valideert alle separatorrepresentaties', {
+  missingMatch: {
+    format: missingCurrencyMatch.numberFormat,
+    issues: missingCurrencyMatch.report.issues,
+  },
+  consistent: consistentCurrency.numberFormat,
+  invalid: [
+    currencyRow('decimal_symbol\tdecimal_symbol_type\tdigit_group_symbol', ',\tds_Period\t.'),
+    currencyRow('decimal_symbol\tdigit_group_symbol\tdigit_group_symbol_type', '.\t,\tdg_Period'),
+    currencyRow('decimal_symbol_type', 'dg_Period'),
+    currencyRow('decimal_symbol\tdigit_group_symbol_type', '.\tds_Comma'),
+    currencyRow('decimal_symbol', 'onbekend'),
+  ],
+}, {
+  missingMatch: {
+    format: { decimal: '.', group: null, source: 'default', currencyCode: 'EP' },
+    issues: [{ code: 'XER_CURRENCY_NOT_FOUND', line: 1, table: 'CURRTYPE', currencyCode: 'EP' }],
+  },
+  consistent: { decimal: ',', group: '.', source: 'currtype', currencyCode: 'eur' },
+  invalid: Array.from({ length: 5 }, () => ({
+    name: 'XerImportError',
+    xerCode: 'XER_INVALID_NUMBER_FORMAT',
+  })),
+});
+
+const terminalEnd = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tPROJECT',
+  '%F\tproj_id',
+  '%R\tP1',
+  '%E',
+  '%T\tPROJECT',
+  '%F\tproj_id',
+  '%R\tP2',
+]));
+// Breuk die dit vangt: na de eerste %E doorlezen en een eerder betrouwbare bekende tabel
+// overschrijven. De hele niet-lege staart krijgt precies één issue met record- én regeltelling.
+eq('20 de eerste %E is terminaal en rapporteert de volledig genegeerde staart', {
+  project: terminalEnd.tables.get('PROJECT')?.rows[0]?.cells.proj_id,
+  rows: terminalEnd.tables.get('PROJECT')?.rows.length,
+  issues: terminalEnd.report.issues,
+}, {
+  project: 'P1',
+  rows: 1,
+  issues: [{
+    code: 'XER_TRAILING_RECORDS_AFTER_END',
+    line: 6,
+    ignoredRecords: 3,
+    ignoredLines: 3,
+  }],
+});
+
+// Breuk die dit vangt: fatale TextDecoder-TypeErrors uit BOM-takken laten ontsnappen. De BOM
+// bepaalt ook bij een kapotte payload welke encoding in het typed foutcontract moet staan.
+eq('21 kapotte BOM-payloads worden altijd getypeerd met encodingcontext', [
+  caughtXerError(() => parseXerTables(Uint8Array.from([0xef, 0xbb, 0xbf, 0xc3, 0x28]))),
+  caughtXerError(() => parseXerTables(Uint8Array.from([0xff, 0xfe, 0x45]))),
+  caughtXerError(() => parseXerTables(Uint8Array.from([0xfe, 0xff, 0x00]))),
+], [
+  { name: 'XerImportError', xerCode: 'XER_INVALID_ENCODING', encoding: 'utf-8' },
+  { name: 'XerImportError', xerCode: 'XER_INVALID_ENCODING', encoding: 'utf-16le' },
+  { name: 'XerImportError', xerCode: 'XER_INVALID_ENCODING', encoding: 'utf-16be' },
+]);
+
+function noCurrencyDuration(value: string, field = 'target_drtn_hr_cnt'): Record<string, unknown> | null {
+  return caughtXerError(() => parseXerTables(utf8([
+    'ERMHDR\t23.12',
+    '%T\tTASK',
+    `%F\tproj_id\ttask_id\ttask_code\t${field}`,
+    `%R\tP1\tT1\tA1\t${value}`,
+    '%E',
+  ])));
+}
+const validCommaGroups = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tTASK',
+  '%F\tproj_id\ttask_id\ttask_code\ttarget_drtn_hr_cnt',
+  '%R\tP1\tT1\tA1\t1,234',
+  '%R\tP1\tT2\tA2\t-12,345',
+  '%R\tP1\tT3\tA3\t1,234,567',
+  '%E',
+]));
+// Breuk die dit vangt: maximaal twee fractiecijfers aannemen, op een suffixregex vertrouwen,
+// of geldige komma-duizendgroepen als bewezen decimaalnotatie afwijzen.
+eq('22 komma-decimaalbewijs gebruikt veldcatalogus en onbeperkte precisie', {
+  ambiguous: [
+    noCurrencyDuration('1,5000'),
+    noCurrencyDuration('-2,34567'),
+    noCurrencyDuration('1.234,567890'),
+  ],
+  groupedRows: validCommaGroups.tables.get('TASK')?.rows.length,
+  numericLookingText: noCurrencyDuration('1,5000', 'task_name'),
+}, {
+  ambiguous: Array.from({ length: 3 }, () => ({
+    name: 'XerImportError',
+    xerCode: 'XER_AMBIGUOUS_DECIMAL',
+  })),
+  groupedRows: 3,
+  numericLookingText: null,
+});
 
 if (diffs.length === 0) {
   console.log(`OK  xer-tables: ${checks} checks groen`);
