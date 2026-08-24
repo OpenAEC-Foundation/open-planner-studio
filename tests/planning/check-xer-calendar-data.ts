@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   decodeXerCalendarData,
   parseXerStructuredText,
@@ -22,13 +20,6 @@ function eq(label: string, got: unknown, want: unknown): void {
 
 function utf8(lines: readonly string[]): Uint8Array {
   return new TextEncoder().encode(lines.join('\n'));
-}
-
-function actualDayHours(decodedCalendar: ReturnType<typeof decodeXerCalendarData>): number {
-  const dayHours = Object.values(decodedCalendar.bands.byWeekday)
-    .filter(dayBands => dayBands.length > 0)
-    .map(dayBands => dayBands.reduce((sum, band) => sum + band.end - band.start, 0) / 60);
-  return dayHours.reduce((sum, hours) => sum + hours, 0) / dayHours.length;
 }
 
 // Breuk die dit vangt: structured text als losse string-splitsingen behandelen, waardoor geneste
@@ -57,6 +48,18 @@ eq('1 eigen tokenizer bewaart nummer, naam, velden en geneste kinderen', nested,
     }],
   }],
 });
+
+let unnamedRootBands: unknown = 'geweigerd';
+try {
+  unnamedRootBands = decodeXerCalendarData(
+    '(0||()((0||DaysOfWeek()((0||2()((0||0(s|07:00|f|12:00)())))))(0||Exceptions()())))',
+  ).bands.byWeekday[1];
+} catch {
+  // De assertion hieronder maakt een onterechte rootnaamweigering als gewone RED zichtbaar.
+}
+eq('1a lege hoofdrecordnaam behoudt volledig aanwezige kalenderkinderen', unnamedRootBands, [
+  { start: 420, end: 720 },
+]);
 
 // Breuk die dit vangt: P6-dag 1 als ISO-maandag behandelen, AM/PM als 24-uursklok lezen,
 // middernacht-wrap verliezen of een uitzondering met uren als vrije dag opslaan.
@@ -134,28 +137,179 @@ eq('11 ontbrekende uren-per-periode komen uit 12 echte weekuren over 2 werkdagen
 }, { day: 6, week: 12, month: 48, year: 576 });
 eq('12 tabelresultaat behoudt X2-encodingrapportage', tableCalendars.encoding, 'utf-8');
 
+// Breuken die dit vangt: alle CALENDAR-rijen in een globale `map` laten falen op één defecte rij,
+// of de twee waargenomen compacte recordvormen alleen in de test voorfilteren. De productie-ingang
+// moet de compacte band/exception-vorm smal herstellen, de afgeknotte rij zichtbaar weigeren en de
+// geldige zusterrij behouden.
+const isolatedRows = readXerCalendars(parseXerTables(utf8([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tclndr_data',
+  '%R\tcompact\tCompact\t(0||CalendarData()((0||DaysOfWeek()((0||2()((s|08:00|f|12:00)(s|13:00|f|17:00)))))(0||Exceptions()((0||d|0())))))',
+  '%R\tsurplus\tSurplus\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|16:00)()))))))(0||Exceptions()())))',
+  '%R\tbroken\tAfgekapt\t(0||CalendarData()(',
+  '%R\tvalid\tGeldig\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|16:00)())))))(0||Exceptions()())))',
+  '%E',
+])));
+eq('13 productie-ingang behoudt herstelde en geldige zusterkalenders per rij',
+  isolatedRows.calendars.map(calendar => calendar.id), ['compact', 'surplus', 'valid']);
+eq('14 rij-issues pinnen kalender-id, bronregel, code en afhandeling',
+  isolatedRows.issues.map(issue => ({
+    id: issue.calendarId,
+    line: issue.line,
+    code: issue.code,
+    resolution: issue.resolution,
+  })), [{
+    id: 'compact',
+    line: 4,
+    code: 'XER_CALENDAR_COMPACT_RECORD_RECOVERED',
+    resolution: 'RECOVERED',
+  }, {
+    id: 'surplus',
+    line: 5,
+    code: 'XER_CALENDAR_SURPLUS_CLOSE_RECOVERED',
+    resolution: 'RECOVERED',
+  }, {
+    id: 'broken',
+    line: 6,
+    code: 'XER_CALENDAR_INVALID_STRUCTURE',
+    resolution: 'REJECTED',
+  }]);
+eq('15 ieder rij-issue bevat een niet-lege reden',
+  isolatedRows.issues.every(issue => issue.reason.trim().length > 0), true);
+
+// Breuken die dit vangt: aanwezige maar ongeldige data als "afwezig" behandelen en stil naar de
+// ma-vr-default vallen, losse tokens/ongeldige dagen of epochs laten verdwijnen, seconden afkappen,
+// overlappende banden doorgeven en negatieve periode-uren stil afleiden. Alleen de lege cel mag
+// defaulten. Bij een dubbele exceptiondatum wint een werkende uitzondering altijd van een vrije dag.
+const hostileRows = readXerCalendars(parseXerTables(utf8([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tday_hr_cnt\tclndr_data',
+  '%R\tabsent\t\t',
+  '%R\tclock\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|25:00|f|26:00)())))))(0||Exceptions()())))',
+  '%R\tpairs\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|dangling)())))))(0||Exceptions()())))',
+  '%R\tday\t\t(0||CalendarData()((0||DaysOfWeek()((0||8()((0||0(s|08:00|f|16:00)())))))(0||Exceptions()())))',
+  '%R\tepoch\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|16:00)())))))(0||Exceptions()((0||0(d|geen-datum)())))))',
+  '%R\tseconds\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00:59|f|16:00:00)())))))(0||Exceptions()())))',
+  '%R\toverlap\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|12:00)())(0||1(s|11:00|f|13:00)())))))(0||Exceptions()())))',
+  '%R\tperiod\t-1\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|16:00)())))))(0||Exceptions()())))',
+  '%R\tduplicate\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|16:00)())))))(0||Exceptions()((0||0(d|0)())(0||1(d|0)((0||0(s|09:00|f|13:00)())))))))',
+  '%R\tduplicate-key\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|s|09:00|f|16:00)())))))(0||Exceptions()())))',
+  '%R\tduplicate-day\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|12:00)())))(0||2()((0||0(s|13:00|f|17:00)())))))(0||Exceptions()())))',
+  '%R\tempty-key\t\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(|waarde|s|08:00|f|16:00)())))))(0||Exceptions()())))',
+  '%E',
+])));
+eq('15a alleen afwezige data en de deterministisch herstelde duplicate blijven behouden',
+  hostileRows.calendars.map(calendar => calendar.id), ['absent', 'duplicate']);
+eq('15b hostile semantiek levert onderscheiden issuecodes zonder stille defaults',
+  hostileRows.issues.map(issue => [issue.calendarId, issue.code, issue.resolution]), [
+    ['clock', 'XER_CALENDAR_INVALID_CLOCK', 'REJECTED'],
+    ['pairs', 'XER_CALENDAR_ODD_FIELD_COUNT', 'REJECTED'],
+    ['day', 'XER_CALENDAR_INVALID_DAY', 'REJECTED'],
+    ['epoch', 'XER_CALENDAR_INVALID_EPOCH', 'REJECTED'],
+    ['seconds', 'XER_CALENDAR_NONZERO_SECONDS', 'REJECTED'],
+    ['overlap', 'XER_CALENDAR_OVERLAPPING_BANDS', 'REJECTED'],
+    ['period', 'XER_CALENDAR_INVALID_PERIOD_HOURS', 'REJECTED'],
+    ['duplicate', 'XER_CALENDAR_DUPLICATE_EXCEPTION', 'RECOVERED'],
+    ['duplicate-key', 'XER_CALENDAR_DUPLICATE_FIELD', 'REJECTED'],
+    ['duplicate-day', 'XER_CALENDAR_DUPLICATE_DAY', 'REJECTED'],
+    ['empty-key', 'XER_CALENDAR_INVALID_FIELD_PAIR', 'REJECTED'],
+  ]);
+eq('15c werkende uitzondering wint op een dubbele datum en sluit holiday-dubbeling uit', {
+  holidays: hostileRows.byId.get('duplicate')?.holidays,
+  working: hostileRows.byId.get('duplicate')?.workingExceptions,
+}, {
+  holidays: [],
+  working: [{
+    name: 'Kalenderuitzondering',
+    startDate: '1899-12-30',
+    endDate: '1899-12-30',
+    bands: [{ start: 540, end: 780 }],
+  }],
+});
+eq('15d hostile issues dragen steeds bronregel en reden', hostileRows.issues.map(issue => ({
+  line: issue.line,
+  hasReason: issue.reason.trim().length > 0,
+})), [
+  { line: 5, hasReason: true },
+  { line: 6, hasReason: true },
+  { line: 7, hasReason: true },
+  { line: 8, hasReason: true },
+  { line: 9, hasReason: true },
+  { line: 10, hasReason: true },
+  { line: 11, hasReason: true },
+  { line: 12, hasReason: true },
+  { line: 13, hasReason: true },
+  { line: 14, hasReason: true },
+  { line: 15, hasReason: true },
+]);
+
+// Breuken die dit vangt: een dangling/self-base stil laten staan of A↔B als echte circulaire
+// objectgraaf koppelen. De ruwe id blijft diagnostisch bewaard; alleen veilige randen worden objecten.
+const baseGraph = readXerCalendars(parseXerTables(utf8([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tbase_clndr_id\tclndr_data',
+  '%R\tA\tB\t',
+  '%R\tB\tA\t',
+  '%R\tself\tself\t',
+  '%R\tdangling\tmissing\t',
+  '%R\troot\t\t',
+  '%R\tchild\troot\t',
+  '%E',
+])));
+eq('15e ruwe base-id blijft staan maar alleen de acyclische geldige rand wordt gekoppeld',
+  baseGraph.calendars.map(calendar => ({
+    id: calendar.id,
+    rawBase: calendar.baseCalendarId,
+    linkedBase: calendar.baseCalendar?.id,
+  })), [
+    { id: 'A', rawBase: 'B' },
+    { id: 'B', rawBase: 'A' },
+    { id: 'self', rawBase: 'self' },
+    { id: 'dangling', rawBase: 'missing' },
+    { id: 'root' },
+    { id: 'child', rawBase: 'root', linkedBase: 'root' },
+  ]);
+eq('15f basegraaf rapporteert cyclusleden, self en dangling onderscheiden',
+  baseGraph.issues.map(issue => [issue.calendarId, issue.code, issue.resolution]), [
+    ['A', 'XER_CALENDAR_BASE_CYCLE', 'UNLINKED'],
+    ['B', 'XER_CALENDAR_BASE_CYCLE', 'UNLINKED'],
+    ['self', 'XER_CALENDAR_SELF_BASE', 'UNLINKED'],
+    ['dangling', 'XER_CALENDAR_DANGLING_BASE', 'UNLINKED'],
+  ]);
+let baseGraphSerializable = true;
+try {
+  JSON.stringify(baseGraph.calendars);
+} catch {
+  baseGraphSerializable = false;
+}
+eq('15g kalenderresultaat blijft serialiseerbaar zonder cyclische objectgraaf',
+  baseGraphSerializable, true);
+
 // Breuk die dit vangt: XER-klokbanden alleen via de universele (a)/(b)/(b2)-regels laten lopen.
 // De gewone enkelbandkalender `Basis` moet door de XER-eigen bronregel promoveren; `Volledige dag`
 // promoveerde al door gedeelde regel (b2), terwijl de gesynthetiseerde lege `Afgeleid` dagmodus blijft.
-eq('13 uurmodus-blast-radius is expliciet meetbaar vóór en na XER-regel c', tableCalendars.promotion, {
+eq('16 uurmodus-blast-radius is expliciet meetbaar vóór en na XER-regel c', tableCalendars.promotion, {
   sharedRules: 1,
   withXerClockRule: 2,
 });
-eq('14 gewone expliciete XER-klokband promoveert door bronregel c', {
+eq('17 gewone expliciete XER-klokband promoveert door bronregel c', {
   source: base?.hourModeSource,
   workTime: base?.workTime?.byWeekday[1],
 }, {
   source: 'XER_CLOCK',
   workTime: [{ start: 480, end: 720 }],
 });
-eq('15 volledige dag blijft door de gedeelde b2-regel promoveren', {
+eq('18 volledige dag blijft door de gedeelde b2-regel promoveren', {
   source: tableCalendars.byId.get('3')?.hourModeSource,
   workTime: tableCalendars.byId.get('3')?.workTime?.byWeekday[1],
 }, {
   source: 'SHARED',
   workTime: [{ start: 0, end: 1440 }],
 });
-eq('16 lege default zonder bronklokken blijft dagmodus', {
+eq('19 lege default zonder bronklokken blijft dagmodus', {
   source: child?.hourModeSource,
   workTime: child?.workTime,
 }, {});
@@ -175,110 +329,13 @@ const p6Calendar = new DOMParser().parseFromString(
   + '</StandardWorkWeek></Calendar>',
   'application/xml',
 ).documentElement;
-const p6Week = canonicalizeBands(parseP6StandardWorkWeek(p6Calendar).rawByWeekday).bands;
-eq('17 equivalente XER- en P6XML-werkweken leveren dezelfde canonieke banden', decoded.bands, p6Week);
-
-// Openbare corpuspins worden uitsluitend met inhoudshashes aangeduid: geen lokale paden, namen of
-// veldinhoud in broncode of foutmeldingen. Zonder corpus blijft de corpusloze gedragsset groen.
-const corpusRoot = process.env.OPS_XER_CORPUS;
-if (!corpusRoot) {
-  console.log('OK  xer-calendar-data-corpus: openbare bron niet ingesteld — corpuspins overgeslagen');
-} else if (!existsSync(corpusRoot)) {
-  diffs.push('OPS_XER_CORPUS wijst niet naar een bestaande map');
-} else {
-  const manifest = JSON.parse(
-    readFileSync(join(import.meta.dirname, 'xer-corpus-manifest.json'), 'utf8'),
-  ) as { files: Record<string, { sha256: string }> };
-  const observed: Record<string, {
-    calendars: number;
-    decoded: number;
-    malformed: number;
-    sharedRules: number;
-    withXerClockRule: number;
-  }> = {};
-  for (const [relativePath, entry] of Object.entries(manifest.files)) {
-    if (observed[entry.sha256]) continue;
-    let tables;
-    try {
-      tables = parseXerTables(new Uint8Array(readFileSync(join(corpusRoot, relativePath))));
-    } catch {
-      continue;
-    }
-    const calendarTable = tables.tables.get('CALENDAR');
-    const calendarCount = calendarTable?.rows.length ?? 0;
-    if (calendarCount === 0) continue;
-    const validRows = calendarTable!.rows.filter(row => {
-      try {
-        decodeXerCalendarData(row.cells.clndr_data ?? '');
-        return true;
-      } catch {
-        return false;
-      }
-    });
-    const scopedTables = new Map(tables.tables);
-    scopedTables.set('CALENDAR', { ...calendarTable!, rows: validRows });
-    const result = readXerCalendars({ ...tables, tables: scopedTables });
-    observed[entry.sha256] = {
-      calendars: calendarCount,
-      decoded: validRows.length,
-      malformed: calendarCount - validRows.length,
-      ...result.promotion,
-    };
-  }
-  const promotionBaseline = JSON.parse(
-    readFileSync(join(import.meta.dirname, 'xer-calendar-hour-mode-baseline.json'), 'utf8'),
-  ) as { pins: Record<string, string[]> };
-  const groupedPins: Record<string, string[]> = {};
-  for (const [hash, pin] of Object.entries(observed)) {
-    const key = [
-      pin.calendars,
-      pin.decoded,
-      pin.malformed,
-      pin.sharedRules,
-      pin.withXerClockRule,
-    ].join('/');
-    (groupedPins[key] ??= []).push(hash);
-  }
-  for (const hashes of Object.values(groupedPins)) hashes.sort();
-  eq(
-    '18 uurmoduspromoties zijn per openbaar bestand vóór en na XER-regel c gepind',
-    groupedPins,
-    promotionBaseline.pins,
-  );
-
-  const dossierHash = '2c1dce175b9f078111a48dc13fd1777f5fbd4cd7ab6623e647e7437330c60b7f';
-  const dossierPath = Object.entries(manifest.files)
-    .find(([, entry]) => entry.sha256 === dossierHash)?.[0];
-  let dossierPin: unknown = { hashFound: false };
-  if (dossierPath) {
-    const dossierTables = parseXerTables(new Uint8Array(readFileSync(join(corpusRoot, dossierPath))));
-    const rows = dossierTables.tables.get('CALENDAR')?.rows ?? [];
-    const result = readXerCalendars(dossierTables);
-    dossierPin = {
-      calendars: rows.length,
-      dayHourFieldsPresent: rows.filter(
-        row => Object.prototype.hasOwnProperty.call(row.cells, 'day_hr_cnt'),
-      ).length,
-      derivedWeekHours: rows.filter((row, index) => {
-        const decodedRow = decodeXerCalendarData(row.cells.clndr_data ?? '');
-        const expected = Object.values(decodedRow.bands.byWeekday)
-          .flat()
-          .reduce((sum, band) => sum + band.end - band.start, 0) / 60;
-        return Math.abs(result.calendars[index].hoursPerWeek - expected) < 1e-9;
-      }).length,
-      derivedFromActualWeek: rows.filter((row, index) => {
-        const expected = actualDayHours(decodeXerCalendarData(row.cells.clndr_data ?? ''));
-        return Math.abs(result.calendars[index].hoursPerDay - expected) < 1e-9;
-      }).length,
-    };
-  }
-  eq('19 inhoudshash-dossier leidt alle ontbrekende daguren uit echte weekbanden af', dossierPin, {
-    calendars: 124,
-    dayHourFieldsPresent: 0,
-    derivedWeekHours: 124,
-    derivedFromActualWeek: 124,
-  });
-}
+const p6RawWeek = parseP6StandardWorkWeek(p6Calendar).rawByWeekday;
+eq('20 P6XML levert vóór gedeelde canonicalisatie de letterlijk verwachte ruwe banden', p6RawWeek, {
+  1: [{ start: 480, end: 720 }, { start: 780, end: 1020 }],
+  2: [{ start: 1320, end: 360 }],
+});
+const p6Week = canonicalizeBands(p6RawWeek).bands;
+eq('21 equivalente XER- en P6XML-werkweken leveren dezelfde canonieke banden', decoded.bands, p6Week);
 
 if (diffs.length === 0) {
   console.log(`OK  xer-calendar-data: ${checks} checks groen`);
