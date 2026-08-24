@@ -1,8 +1,7 @@
 /**
- * De baseline-vorm-poort (X0, XER-etappeplan §3/§6-X0) — het "harness-skelet" van de X0-brief:
- * er is nog GEEN lezer (X1+ bouwt de echte meetkern), dus dit bestand bewaakt alleen de VORM van
- * `xer-fidelity-baseline.json` — een lege-maar-welgevormde baseline vandaag, dezelfde vorm die X1
- * straks vult.
+ * De baseline-vorm-poort (X0/X1, XER-etappeplan §3/§6): X0 legde het lege harness-skelet vast;
+ * X1 vult `xer-fidelity-baseline.json` met de onafhankelijk gemeten corpuspins. Dit bestand bewaakt
+ * de VORM daarvan zonder de XER-parser of corpuslus te dupliceren.
  *
  * TWEE LAGEN, zelfde truc als `check-ext-contract.ts`:
  *  (a) COMPILE-TIME — `keys<T>()` klonkt de sleutellijsten vast aan `xerFidelityTypes.ts`'s
@@ -125,21 +124,26 @@ function validateBaseline(v: unknown): string[] {
   return problems;
 }
 
-// ── 1. De committe baseline (`xer-fidelity-baseline.json`) is leeg-maar-welgevormd ─────────────
+// ── 1. De committe X1-baseline is gevuld en welgevormd ─────────────────────────────────────────
 {
   const raw = readFileSync(join(HERE, 'xer-fidelity-baseline.json'), 'utf-8');
   const parsed: unknown = JSON.parse(raw);
   const problems = validateBaseline(parsed);
   truthy(`1 xer-fidelity-baseline.json is welgevormd (${problems.join('; ')})`, problems.length === 0);
-  eq('1a xer-fidelity-baseline.json is vandaag LEEG (X1 vult hem)', parsed, { files: {} });
+  truthy('1a xer-fidelity-baseline.json bevat de 22 unieke orakelbestanden',
+    isPlainObject(parsed) && isPlainObject(parsed.files) && Object.keys(parsed.files).length === 22);
+  truthy('1b elke X1-entry draagt een niet-lege schemaFingerprint',
+    isPlainObject(parsed) && isPlainObject(parsed.files)
+      && Object.values(parsed.files).every(entry => isPlainObject(entry)
+        && typeof entry.schemaFingerprint === 'string' && entry.schemaFingerprint.length > 0));
 }
 
-// ── 2. De lege-lezer-run (harness-skelet) produceert diezelfde vorm ─────────────────────────────
+// ── 2. Het X0-harness-skelet blijft een geldige lege bouwsteen ─────────────────────────────────
 {
   const built: XerFidelityBaseline = createEmptyXerFidelityBaseline();
   const problems = validateBaseline(built);
   truthy(`2 createEmptyXerFidelityBaseline() is welgevormd (${problems.join('; ')})`, problems.length === 0);
-  eq('2a createEmptyXerFidelityBaseline() === de committe baseline', built, { files: {} });
+  eq('2a createEmptyXerFidelityBaseline() blijft leeg', built, { files: {} });
 }
 
 // ── 3. emptyAxisCounts()/emptyCounters() zijn zelf welgevormde bouwstenen ───────────────────────
