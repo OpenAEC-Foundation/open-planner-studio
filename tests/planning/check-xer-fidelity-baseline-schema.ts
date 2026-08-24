@@ -18,6 +18,7 @@
  * Draait ALTIJD (geen corpus nodig) — dit is pure structuurbewaking, geen corpusmeting.
  */
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -26,6 +27,22 @@ import {
 } from './xerFidelityTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
+const EXPECTED_BASELINE_KEYS = [
+  '0611f9054a4b5663', '0fa5172162fbd689', '146e4c8659bad066', '1ba69d297ee9a5c6',
+  '1ba8cf1885491db3', '1d7901d68cc7063b', '2bc12241c3f8ee5b', '2c1dce175b9f0781',
+  '467ab0eb0885c4a7', '49aea658c963a005', '4d8bce790a93b9bc', '53f5cdbeb3fbd9c6',
+  '55b7e4463dcd36ba', '568c19375b4e0d67', '5d71eac4e70b0d95', '68ce5f0bb2b534d5',
+  '78325fb6445d22f5', '790b90fda837bad3', '79f6fb43bb391ed6', '816e01738f496787',
+  '9590c4cdc4efa69a', '9679599df9108bd3', '97058f720a70f623', 'a132f8c7ebb070d2',
+  'a2ef7b35c00d8cf8', 'a2f3b2469e26f199', 'a7fc367eab6c904e', 'ac4b9d677133c6ed',
+  'ad92ce52ba95b275', 'b7ef6d85acfedda1', 'b9547eb91c30af17', 'c872c9e704797d82',
+  'deabc76347eaef15', 'def489b2a803af9f',
+] as const;
+const EXPECTED_MEASURABLE = {
+  es: 13_935, ef: 13_941, ls: 13_833, lf: 13_825, tf: 13_677, ff: 13_322,
+} as const;
+const EXPECTED_MANIFEST_SHA256 = '6defbc4b4a71500565e5847750662060d9baca983952098dd1b334ac81d55786';
+const EXPECTED_BASELINE_SHA256 = 'e74960626b828b3187b11e2674783da34e7a4d8f470c1b97e40eb3ef48e7a6d2';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -127,15 +144,64 @@ function validateBaseline(v: unknown): string[] {
 // ── 1. De committe X1-baseline is gevuld en welgevormd ─────────────────────────────────────────
 {
   const raw = readFileSync(join(HERE, 'xer-fidelity-baseline.json'), 'utf-8');
+  eq('1a0 volledige corpusloze baseline-inhoud is exact gepind',
+    createHash('sha256').update(raw).digest('hex'), EXPECTED_BASELINE_SHA256);
   const parsed: unknown = JSON.parse(raw);
   const problems = validateBaseline(parsed);
   truthy(`1 xer-fidelity-baseline.json is welgevormd (${problems.join('; ')})`, problems.length === 0);
-  truthy('1a xer-fidelity-baseline.json bevat de 22 unieke orakelbestanden',
-    isPlainObject(parsed) && isPlainObject(parsed.files) && Object.keys(parsed.files).length === 22);
+  eq('1a corpusloze CI pint de exacte 34-entryset',
+    isPlainObject(parsed) && isPlainObject(parsed.files) ? Object.keys(parsed.files).sort() : [],
+    EXPECTED_BASELINE_KEYS);
   truthy('1b elke X1-entry draagt een niet-lege schemaFingerprint',
     isPlainObject(parsed) && isPlainObject(parsed.files)
       && Object.values(parsed.files).every(entry => isPlainObject(entry)
         && typeof entry.schemaFingerprint === 'string' && entry.schemaFingerprint.length > 0));
+  if (isPlainObject(parsed) && isPlainObject(parsed.files)) {
+    for (const axis of COUNTERS_KEYS) {
+      const measurable = Object.values(parsed.files).reduce((sum: number, entry) => {
+        if (!isPlainObject(entry) || !isPlainObject(entry.counters)
+          || !isPlainObject(entry.counters[axis])) return sum;
+        const value = entry.counters[axis].measurable;
+        return sum + (typeof value === 'number' ? value : 0);
+      }, 0);
+      eq(`1c corpusloze CI pint totaal meetbaar voor ${axis}`, measurable, EXPECTED_MEASURABLE[axis]);
+    }
+    truthy('1d corpusloze nulpoort eist nul afwijkingen op elke entry/as',
+      Object.values(parsed.files).every(entry => {
+        if (!isPlainObject(entry) || !isPlainObject(entry.counters)) return false;
+        const counters = entry.counters;
+        return COUNTERS_KEYS.every(axis => {
+          const value = counters[axis];
+          return isPlainObject(value) && value.deviations === 0;
+        });
+      }));
+    truthy('1e corpusloze nulpoort verbiedt reason-pins',
+      Object.values(parsed.files).every(entry => isPlainObject(entry) && !('reason' in entry)));
+  }
+}
+
+// De manifesthash maakt de 93 relatieve paden, volledige bytehashes, herkomstklassen en expliciete
+// inclusie-/uitsluitingsbesluiten zelfstandig CI-data. Een corpusmount verifieert die pins opnieuw
+// tegen de bytes; zonder mount kan de populatie niet ongemerkt worden verkleind of omgeboekt.
+{
+  const raw = readFileSync(join(HERE, 'xer-corpus-manifest.json'));
+  eq('1f openbaar corpusmanifest is corpusloos exact gepind',
+    createHash('sha256').update(raw).digest('hex'), EXPECTED_MANIFEST_SHA256);
+  const manifest = JSON.parse(raw.toString('utf-8')) as unknown;
+  truthy('1g manifest bevat exact 93 geclassificeerde bestanden', isPlainObject(manifest)
+    && isPlainObject(manifest.files) && Object.keys(manifest.files).length === 93);
+  if (isPlainObject(manifest) && isPlainObject(manifest.files)) {
+    const entries = Object.entries(manifest.files);
+    eq('1h manifestselectie bevat 45 herkomstgeschikte orakelbestanden',
+      entries.filter(([, entry]) => isPlainObject(entry) && entry.included === true).length, 45);
+    eq('1i manifest sluit 48 fixtures/pseudo-/invoerbestanden met reden uit',
+      entries.filter(([, entry]) => isPlainObject(entry) && entry.included === false
+        && typeof entry.exclusionReason === 'string' && entry.exclusionReason.length > 0).length, 48);
+    truthy('1j cases-import.xer is op engine-input-herkomst uitgesloten',
+      isPlainObject(manifest.files['cpp-cpm-engine/validation/p6-comparison/cases-import.xer'])
+        && manifest.files['cpp-cpm-engine/validation/p6-comparison/cases-import.xer'].role === 'engine-input'
+        && manifest.files['cpp-cpm-engine/validation/p6-comparison/cases-import.xer'].included === false);
+  }
 }
 
 // ── 2. Het X0-harness-skelet blijft een geldige lege bouwsteen ─────────────────────────────────

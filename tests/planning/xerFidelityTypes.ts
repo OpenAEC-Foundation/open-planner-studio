@@ -15,13 +15,13 @@
  * `ons_float_in_minuten === round(p6_float_uren × 60)`).
  *
  * `Measurable` bestaat APART van `Deviations` omdat de orakeldekking scheef is (planreview M1,
- * her-check-meting): ES/EF gevuld in 48 orakelbestanden, LS/LF in 36, TF in ±18.400 cellen, FF in
- * ±18.000 — sommige bestanden dragen alleen float en geen datums, en andersom. Beide tellers
- * worden gepind (X1): een lezer die stilletjes MINDER gaat meten (een as die stil naar 0 meetbaar
- * zakt) moet de suite even rood maken als een lezer die FOUT meet.
+ * her-check-meting): na herkomstselectie en beide deduplagen zijn ES/EF/LS/LF/TF/FF respectievelijk
+ * 13.935/13.941/13.833/13.825/13.677/13.322 keer meetbaar — sommige bestanden dragen alleen float
+ * en geen datums, en andersom. Beide tellers worden gepind (X1): een lezer die stilletjes MINDER
+ * gaat meten moet de suite even rood maken als een lezer die FOUT meet.
  */
 
-/** Eén as se dubbele teller: hoeveel taken op deze as gemeten zijn (`measurable`), en hoeveel
+/** De dubbele teller van één as: hoeveel taken op deze as gemeten zijn (`measurable`), en hoeveel
  *  daarvan afweken van het P6-orakel (`deviations`, per definitie `<= measurable`). */
 export interface XerFidelityAxisCounts {
   deviations: number;
@@ -55,9 +55,9 @@ export function emptyCounters(): XerFidelityCounters {
 }
 
 /**
- * Eén gepind bestand. `tasks`/`projects` zijn de SOM over de daadwerkelijk geopende projecten
- * binnen dat bestand (X-O1: lege en als-baseline-gematerialiseerde projecten tellen niet mee —
- * "de fidelity meet per project en pint per bestand de som", plan §6-X-O1-slotzin).
+ * Eén gepind bestand. In X1 zijn `tasks`/`projects` de onafhankelijke WAARHEIDSTELLINGEN over de
+ * taakdragende projecten; vanaf X4a moeten de apart gemeten adaptertellingen daar exact aan gelijk
+ * zijn. Lege PROJECT-rijen blijven wel onderdeel van `schemaFingerprint`, maar niet van deze som.
  */
 export interface XerFidelityBaselineEntry {
   /** Corpus is publiek (plan §4.3/§2) — een leesbaar relatief pad mag hier altijd, in

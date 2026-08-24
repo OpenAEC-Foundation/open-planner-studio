@@ -30,7 +30,39 @@
           "measurable": 52
         }
       },
-      "schemaFingerprint": "cfe1fc0d9ba21ca6"
+      "schemaFingerprint": "97fa9ea1f533ca60"
+    },
+    "5d71eac4e70b0d95": {
+      "label": "crawl-xer-extra/clause-epc/MER-1-2026_update_2026-05-01.xer",
+      "tasks": 120,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "bedebad4a58673b0"
     },
     "b7ef6d85acfedda1": {
       "label": "crawl-xer-extra/groupdocs-conversion/sample.xer",
@@ -62,7 +94,7 @@
           "measurable": 70
         }
       },
-      "schemaFingerprint": "b61c9d452729a130"
+      "schemaFingerprint": "eff3a3e2b55bfb17"
     },
     "2c1dce175b9f0781": {
       "label": "crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer",
@@ -94,7 +126,7 @@
           "measurable": 6976
         }
       },
-      "schemaFingerprint": "2a90d1c08f617859"
+      "schemaFingerprint": "c6a7ada359dc738c"
     },
     "146e4c8659bad066": {
       "label": "crawl-xer-extra/meridianiq/demo-sample.xer",
@@ -126,7 +158,7 @@
           "measurable": 30
         }
       },
-      "schemaFingerprint": "8ade02da137cc09e"
+      "schemaFingerprint": "e6e701b2eb7cd2fd"
     },
     "53f5cdbeb3fbd9c6": {
       "label": "crawl-xer-extra/meridianiq/sample_update2.xer",
@@ -158,7 +190,7 @@
           "measurable": 31
         }
       },
-      "schemaFingerprint": "a6990e00940e33f5"
+      "schemaFingerprint": "edb0bca25b371266"
     },
     "c872c9e704797d82": {
       "label": "crawl-xer-extra/p6difftool/sample-target.xer",
@@ -190,7 +222,7 @@
           "measurable": 8
         }
       },
-      "schemaFingerprint": "df43a1d904c33129"
+      "schemaFingerprint": "076682f8996cef76"
     },
     "1ba8cf1885491db3": {
       "label": "crawl-xer-extra/planning-risk-intelligent/sample_schedule.xer",
@@ -222,7 +254,7 @@
           "measurable": 20
         }
       },
-      "schemaFingerprint": "09e1f54f9c488d4d"
+      "schemaFingerprint": "f81e7c7d61b45f91"
     },
     "deabc76347eaef15": {
       "label": "crawl-xer-extra/schedulevisualiser/Sample_Project.xer",
@@ -254,7 +286,7 @@
           "measurable": 24
         }
       },
-      "schemaFingerprint": "d49801efb8734ab4"
+      "schemaFingerprint": "56fdb27c001a9872"
     },
     "4d8bce790a93b9bc": {
       "label": "crawl-xer-extra/xernative/sample.xer",
@@ -286,7 +318,7 @@
           "measurable": 25
         }
       },
-      "schemaFingerprint": "508b7e192de8b447"
+      "schemaFingerprint": "80fd54b21f2afc76"
     },
     "2bc12241c3f8ee5b": {
       "label": "crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer",
@@ -318,7 +350,39 @@
           "measurable": 152
         }
       },
-      "schemaFingerprint": "752737afb7e1d3e0"
+      "schemaFingerprint": "9415c811af9cd8cf"
+    },
+    "9590c4cdc4efa69a": {
+      "label": "crawl-xer/gimmer-crag-mountain-refuge.xer",
+      "tasks": 93,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 93
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 93
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 93
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 93
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "667a456c465a069f"
     },
     "b9547eb91c30af17": {
       "label": "crawl-xer/HarbourPointe_AssistedLiving.xer",
@@ -350,7 +414,7 @@
           "measurable": 113
         }
       },
-      "schemaFingerprint": "99edcd57081f9063"
+      "schemaFingerprint": "380e546c56886af3"
     },
     "ad92ce52ba95b275": {
       "label": "crawl-xer/hb-intel_Project_Schedule.xer",
@@ -382,7 +446,39 @@
           "measurable": 281
         }
       },
-      "schemaFingerprint": "b3f8e6abe788a5fb"
+      "schemaFingerprint": "b4049a03e6562ab3"
+    },
+    "0fa5172162fbd689": {
+      "label": "crawl-xer/Hospital_GW_Programme.bound.xer",
+      "tasks": 14,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 14
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 14
+        }
+      },
+      "schemaFingerprint": "1b13676b68daa11e"
     },
     "9679599df9108bd3": {
       "label": "crawl-xer/Hotel_Construction_TEC.xer",
@@ -414,7 +510,39 @@
           "measurable": 4217
         }
       },
-      "schemaFingerprint": "c0559954e2c7d7b2"
+      "schemaFingerprint": "f1e5f479674e3ce4"
+    },
+    "49aea658c963a005": {
+      "label": "crawl-xer/MER-1-2026_epc.xer",
+      "tasks": 120,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 120
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "406419f29971a53c"
     },
     "568c19375b4e0d67": {
       "label": "crawl-xer/p6diff-baseline.xer",
@@ -446,7 +574,7 @@
           "measurable": 8
         }
       },
-      "schemaFingerprint": "747f2f90fdb99295"
+      "schemaFingerprint": "7948ab001aa2da93"
     },
     "97058f720a70f623": {
       "label": "crawl-xer/p6diff-revised.xer",
@@ -478,7 +606,7 @@
           "measurable": 8
         }
       },
-      "schemaFingerprint": "8bde004d6b3f8cc8"
+      "schemaFingerprint": "dc5627141ff39da1"
     },
     "a2ef7b35c00d8cf8": {
       "label": "crawl-xer/Roads_Project_TEC.xer",
@@ -510,7 +638,7 @@
           "measurable": 1036
         }
       },
-      "schemaFingerprint": "5b299c7a64f62382"
+      "schemaFingerprint": "2168c6d533f62f7b"
     },
     "55b7e4463dcd36ba": {
       "label": "crawl-xer/Sample_Construction_TEC.xer",
@@ -542,7 +670,39 @@
           "measurable": 51
         }
       },
-      "schemaFingerprint": "3125accde6764654"
+      "schemaFingerprint": "3f976da19fabf0b7"
+    },
+    "1ba69d297ee9a5c6": {
+      "label": "crawl-xer/stack_data_center_baseline.xer",
+      "tasks": 8,
+      "projects": 2,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 8
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 8
+        }
+      },
+      "schemaFingerprint": "b076686bf51b5e7f"
     },
     "816e01738f496787": {
       "label": "delay-analysis-toolkit/deploy/aws-package/sample/Harbour Point DCP-03 - As-Built Programme Rev 12.xer",
@@ -574,7 +734,7 @@
           "measurable": 61
         }
       },
-      "schemaFingerprint": "05eedb2df080d008"
+      "schemaFingerprint": "17c89dd77c177b3a"
     },
     "0611f9054a4b5663": {
       "label": "delay-analysis-toolkit/deploy/aws-package/sample/Harbour Point DCP-03 - Baseline Programme Rev 0.xer",
@@ -606,7 +766,103 @@
           "measurable": 60
         }
       },
-      "schemaFingerprint": "c521d20f46f9b036"
+      "schemaFingerprint": "a5df7e105f83da06"
+    },
+    "79f6fb43bb391ed6": {
+      "label": "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revA.xer",
+      "tasks": 5,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 3
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 5
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 5
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "fd5753c0cb6c4715"
+    },
+    "def489b2a803af9f": {
+      "label": "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revB.xer",
+      "tasks": 5,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 3
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 5
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 0
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 5
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "faa4c0bade1d55ae"
+    },
+    "a7fc367eab6c904e": {
+      "label": "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revC.xer",
+      "tasks": 5,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 3
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 5
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 1
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 2
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 5
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "3b0d135d5ce02f18"
     },
     "1d7901d68cc7063b": {
       "label": "P6-Viewer/XER Files/sample.xer",
@@ -638,7 +894,7 @@
           "measurable": 11
         }
       },
-      "schemaFingerprint": "f80099273141c876"
+      "schemaFingerprint": "d14f605d6a854880"
     },
     "a2f3b2469e26f199": {
       "label": "P6-Viewer/XER Files/TERMINAL BUILDING-AIRPORT.xer",
@@ -670,39 +926,167 @@
           "measurable": 66
         }
       },
-      "schemaFingerprint": "59835bb802b586b5"
+      "schemaFingerprint": "926a3b9c4a643cea"
     },
-    "b8bc3cb30463c99c": {
-      "label": "pmxml-samples/testXer.xer",
-      "tasks": 83,
+    "467ab0eb0885c4a7": {
+      "label": "ProjectLens/docs/demo/northstar-baseline.xer",
+      "tasks": 10,
       "projects": 1,
       "counters": {
         "es": {
           "deviations": 0,
-          "measurable": 83
+          "measurable": 10
         },
         "ef": {
           "deviations": 0,
-          "measurable": 83
+          "measurable": 10
         },
         "ls": {
           "deviations": 0,
-          "measurable": 83
+          "measurable": 0
         },
         "lf": {
           "deviations": 0,
-          "measurable": 83
+          "measurable": 0
         },
         "tf": {
           "deviations": 0,
-          "measurable": 83
+          "measurable": 10
         },
         "ff": {
           "deviations": 0,
-          "measurable": 83
+          "measurable": 0
         }
       },
-      "schemaFingerprint": "1832cd1cb1022d1f"
+      "schemaFingerprint": "a272dc5906bf3d5b"
+    },
+    "a132f8c7ebb070d2": {
+      "label": "ProjectLens/docs/demo/northstar-current.xer",
+      "tasks": 23,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 23
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 23
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 2
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 2
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 23
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "cf7f7bf2470c4e6e"
+    },
+    "ac4b9d677133c6ed": {
+      "label": "ProjectLens/docs/demo/northstar-previous.xer",
+      "tasks": 22,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 22
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 22
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 1
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 1
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 22
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "b83f7fe67823738b"
+    },
+    "790b90fda837bad3": {
+      "label": "ProjectLens/docs/demo/riverside-current.xer",
+      "tasks": 23,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 23
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 23
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 2
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 2
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 23
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "b8ea5c0682122f82"
+    },
+    "78325fb6445d22f5": {
+      "label": "ProjectLens/docs/demo/riverside-previous.xer",
+      "tasks": 22,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 22
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 22
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 1
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 1
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 22
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 0
+        }
+      },
+      "schemaFingerprint": "8cc9c1c456a80b52"
     }
   }
 }

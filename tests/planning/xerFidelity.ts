@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   classifyExact,
+  classifyMinuteExact,
   compareFidelityRow,
   countFidelityAxis,
   type FidelityCounts,
@@ -47,12 +48,19 @@ export interface XerProjectFidelity {
 }
 
 export interface XerFileFidelity {
+  truthProjects: number;
+  solvedProjects: number;
+  truthTasks: number;
+  solvedTasks: number;
+  /** Compatibiliteitsalias voor de bestaande rapportage: gelijk aan `truthTasks`. */
   tasks: number;
   projects: XerProjectFidelity[];
   counters: XerFidelityCounters;
   /** Zevende rapportage-as; bewust geen lid van `counters` en dus buiten de zesassige nulpoort. */
   drivingPath: XerFidelityAxisCounts;
   errors: string[];
+  /** De zesassige poort: nul uitlijnfouten, gelijke aantallen en nul afwijkingen. */
+  gatePassed: boolean;
 }
 
 export interface XerCorpusFile {
@@ -60,8 +68,33 @@ export interface XerCorpusFile {
   bytes: Uint8Array;
 }
 
+export type XerCorpusRole =
+  | 'oracle'
+  | 'engine-input'
+  | 'parser-fixture'
+  | 'pseudo-xer'
+  | 'reference-only'
+  | 'synthetic-fixture';
+
+export interface XerCorpusManifestEntry {
+  sha256: string;
+  source: string;
+  role: XerCorpusRole;
+  included: boolean;
+  exclusionReason?: string;
+}
+
+export interface XerCorpusManifest {
+  version: 1;
+  policy: string;
+  files: Record<string, XerCorpusManifestEntry>;
+}
+
 export interface XerCorpusStats {
   scannedFiles: number;
+  manifestFiles: number;
+  includedFiles: number;
+  excludedFiles: number;
   byteUniqueFiles: number;
   byteDuplicateFiles: number;
   /** Ruwe corpusmassa vóór dedup: vier datumassen aanwezig na statussemantiek. */
@@ -70,18 +103,22 @@ export interface XerCorpusStats {
   sixAxisTasks: number;
   /** Zevende rapportage-as vóór dedup; buiten de nulpoort. */
   drivingPathTasks: number;
+  /** Reviewreconciliatie: byte-unieke bestanden met minstens één as, maar geen alles-zes-taak. */
+  partialOnlyByteUniqueFiles: number;
+  partialOnlyAxisCells: number;
+  /** Geselecteerde, herkomstvaste bestanden met minstens één effectieve poortas. */
   byteUniqueOracleFiles: number;
   schemaDuplicateFiles: number;
   uniqueOracleFiles: number;
-  /** Taken met alle zes assen na uitsluitend byte-dedup. */
   byteUniqueOracleTasks: number;
-  /** Taken met alle zes assen na beide deduplagen. */
   uniqueOracleTasks: number;
+  selectedMeasurable: Record<XerFidelityAxis, number>;
 }
 
 export interface XerTargetBaselineResult {
   baseline: XerFidelityBaseline;
   stats: XerCorpusStats;
+  errors: string[];
 }
 
 function asComparable(value: string | number | boolean | null | undefined): string | null | undefined {
@@ -110,17 +147,31 @@ function measureProject(
   projectId: string,
   truthTasks: readonly XerGroundTruthTask[],
   solved: XerSolvedProject | undefined,
-  projectIndex: number,
   errors: string[],
 ): XerProjectFidelity {
   const solvedById = new Map<string, XerSolvedTask>();
-  let duplicateSolvedIds = 0;
   for (const task of solved?.tasks ?? []) {
-    if (solvedById.has(task.sourceTaskId)) duplicateSolvedIds++;
+    if (solvedById.has(task.sourceTaskId)) {
+      errors.push(`project ${projectId}: dubbele opgeloste taak-id: ${task.sourceTaskId}`);
+    }
     else solvedById.set(task.sourceTaskId, task);
   }
-  if (duplicateSolvedIds > 0) {
-    errors.push(`project ${projectIndex + 1}: ${duplicateSolvedIds} dubbele opgeloste taak-id('s)`);
+
+  const truthById = new Map(truthTasks.map(task => [task.taskId, task]));
+  for (const taskId of [...solvedById.keys()].filter(id => !truthById.has(id)).sort()) {
+    errors.push(`project ${projectId}: onverwachte opgeloste taak-id: ${taskId}`);
+  }
+  for (const taskId of [...truthById.keys()].filter(id => !solvedById.has(id)).sort()) {
+    errors.push(`project ${projectId}: ontbrekende opgeloste taak-id: ${taskId}`);
+  }
+  for (const truthTask of truthTasks) {
+    const solvedTask = solvedById.get(truthTask.taskId);
+    if (solvedTask && solvedTask.taskCode !== truthTask.taskCode) {
+      errors.push(
+        `project ${projectId}/taak ${truthTask.taskId}: taskCode verwacht ${truthTask.taskCode}, `
+        + `kreeg ${solvedTask.taskCode}`,
+      );
+    }
   }
 
   const rows = truthTasks.map(truthTask => {
@@ -131,6 +182,10 @@ function measureProject(
         truth: asComparable(truthTask.axes[axis]) ?? null,
       }]),
     ) as Record<XerFidelityAxis, { ours: string | undefined; truth: string | null }>, {
+      es: classifyMinuteExact,
+      ef: classifyMinuteExact,
+      ls: classifyMinuteExact,
+      lf: classifyMinuteExact,
       tf: classifyExact,
       ff: classifyExact,
     });
@@ -163,7 +218,11 @@ function addAxisCounts(target: XerFidelityAxisCounts, source: XerFidelityAxisCou
 }
 
 function isFullOracleTask(task: XerGroundTruthTask): boolean {
-  return XER_FIDELITY_AXES.every(axis => task.storedAxes[axis]);
+  return XER_FIDELITY_AXES.every(axis => task.presentAxes[axis]);
+}
+
+function hasOracleAxis(task: XerGroundTruthTask): boolean {
+  return XER_FIDELITY_AXES.some(axis => task.axes[axis] !== null);
 }
 
 function byteHash(bytes: Uint8Array): string {
@@ -178,10 +237,9 @@ export function xerSchemaFingerprint(truth: XerGroundTruth): string {
   const projects = [...truth.projects].sort().join('\u001f');
   const rows = truth.tasks.map(task => [
     task.projectId,
+    task.taskId,
     task.taskCode,
-    task.statusCode,
-    ...XER_FIDELITY_AXES.map(axis => task.axes[axis] ?? ''),
-    task.drivingPath === null ? '' : task.drivingPath ? 'Y' : 'N',
+    ...XER_FIDELITY_AXES.map(axis => task.axes[axis] === null ? '\u2400' : task.axes[axis]),
   ].join('\u001f')).sort();
   return createHash('sha256').update(`${projects}\u001e${rows.join('\u001e')}`).digest('hex').slice(0, 16);
 }
@@ -204,10 +262,11 @@ function targetCountersPerProject(truth: XerGroundTruth): XerFidelityCounters {
 }
 
 function targetEntry(label: string, truth: XerGroundTruth, fingerprint: string): XerFidelityBaselineEntry {
+  const taskProjects = new Set(truth.tasks.map(task => task.projectId));
   return {
     label,
     tasks: truth.tasks.length,
-    projects: truth.projects.size,
+    projects: taskProjects.size,
     counters: targetCountersPerProject(truth),
     schemaFingerprint: fingerprint,
   };
@@ -218,32 +277,65 @@ function targetEntry(label: string, truth: XerGroundTruth, fingerprint: string):
  * X1 levert geen productielezer. De synthetische `measureXerFidelity`-checks hierboven bewaken het
  * echte vergelijkpad; een latere taak sluit daar de opgeloste documenten op aan.
  */
-export function buildXerTargetBaseline(files: readonly XerCorpusFile[]): XerTargetBaselineResult {
+export function buildXerTargetBaseline(
+  files: readonly XerCorpusFile[],
+  manifest: XerCorpusManifest,
+): XerTargetBaselineResult {
   const baseline: XerFidelityBaseline = { files: {} };
+  const errors: string[] = [];
   const stats: XerCorpusStats = {
     scannedFiles: files.length,
+    manifestFiles: Object.keys(manifest.files).length,
+    includedFiles: Object.values(manifest.files).filter(entry => entry.included).length,
+    excludedFiles: Object.values(manifest.files).filter(entry => !entry.included).length,
     byteUniqueFiles: 0,
     byteDuplicateFiles: 0,
     fourDateTasks: 0,
     sixAxisTasks: 0,
     drivingPathTasks: 0,
+    partialOnlyByteUniqueFiles: 0,
+    partialOnlyAxisCells: 0,
     byteUniqueOracleFiles: 0,
     schemaDuplicateFiles: 0,
     uniqueOracleFiles: 0,
     byteUniqueOracleTasks: 0,
     uniqueOracleTasks: 0,
+    selectedMeasurable: Object.fromEntries(XER_FIDELITY_AXES.map(axis => [axis, 0])) as Record<XerFidelityAxis, number>,
   };
+  const filesByLabel = new Map<string, XerCorpusFile>();
+  for (const file of files) {
+    if (filesByLabel.has(file.label)) errors.push(`dubbel corpuslabel: ${file.label}`);
+    else filesByLabel.set(file.label, file);
+  }
+  for (const label of Object.keys(manifest.files).sort()) {
+    if (!filesByLabel.has(label)) errors.push(`manifestbestand ontbreekt in corpus: ${label}`);
+  }
+  for (const label of [...filesByLabel.keys()].filter(label => !(label in manifest.files)).sort()) {
+    errors.push(`corpusbestand ontbreekt in manifest: ${label}`);
+  }
   const seenBytes = new Set<string>();
   const seenSchemas = new Set<string>();
 
   for (const file of [...files].sort((a, b) => a.label.localeCompare(b.label))) {
+    const manifestEntry = manifest.files[file.label];
+    if (!manifestEntry) continue;
+    const fullByteHash = byteHash(file.bytes);
+    if (manifestEntry.sha256 !== fullByteHash) {
+      errors.push(`${file.label}: SHA-256 verwacht ${manifestEntry.sha256}, kreeg ${fullByteHash}`);
+      continue;
+    }
+    if (manifestEntry.included !== (manifestEntry.role === 'oracle')) {
+      errors.push(`${file.label}: included moet exact overeenkomen met role=oracle`);
+    }
+    if (!manifestEntry.included && !manifestEntry.exclusionReason?.trim()) {
+      errors.push(`${file.label}: uitgesloten manifestentry mist exclusionReason`);
+    }
     const truth = scanXerGroundTruth(file.bytes);
     stats.fourDateTasks += truth.tasks.filter(task =>
-      task.storedAxes.es && task.storedAxes.ef && task.storedAxes.ls && task.storedAxes.lf).length;
+      task.presentAxes.es && task.presentAxes.ef && task.presentAxes.ls && task.presentAxes.lf).length;
     stats.sixAxisTasks += truth.tasks.filter(isFullOracleTask).length;
     stats.drivingPathTasks += truth.tasks.filter(task => task.drivingPath !== null).length;
 
-    const fullByteHash = byteHash(file.bytes);
     if (seenBytes.has(fullByteHash)) {
       stats.byteDuplicateFiles++;
       continue;
@@ -252,9 +344,24 @@ export function buildXerTargetBaseline(files: readonly XerCorpusFile[]): XerTarg
     stats.byteUniqueFiles++;
 
     const fullOracleTasks = truth.tasks.filter(isFullOracleTask).length;
-    if (fullOracleTasks === 0) continue;
+    const axisTasks = truth.tasks.filter(hasOracleAxis).length;
+    const axisCells = XER_FIDELITY_AXES.reduce((sum, axis) =>
+      sum + truth.tasks.filter(task => task.axes[axis] !== null).length, 0);
+    if (axisTasks > 0 && fullOracleTasks === 0) {
+      stats.partialOnlyByteUniqueFiles++;
+      stats.partialOnlyAxisCells += axisCells;
+    }
+    if (!manifestEntry.included) continue;
+    if (truth.errors.length > 0) {
+      errors.push(...truth.errors.map(error => `${file.label}: ${error}`));
+      continue;
+    }
+    if (axisTasks === 0) {
+      errors.push(`${file.label}: als orakel geselecteerd maar geen enkele poortas meetbaar`);
+      continue;
+    }
     stats.byteUniqueOracleFiles++;
-    stats.byteUniqueOracleTasks += fullOracleTasks;
+    stats.byteUniqueOracleTasks += axisTasks;
 
     const fingerprint = xerSchemaFingerprint(truth);
     if (seenSchemas.has(fingerprint)) {
@@ -263,11 +370,13 @@ export function buildXerTargetBaseline(files: readonly XerCorpusFile[]): XerTarg
     }
     seenSchemas.add(fingerprint);
     stats.uniqueOracleFiles++;
-    stats.uniqueOracleTasks += fullOracleTasks;
-    baseline.files[fullByteHash.slice(0, 16)] = targetEntry(file.label, truth, fingerprint);
+    stats.uniqueOracleTasks += axisTasks;
+    const entry = targetEntry(file.label, truth, fingerprint);
+    for (const axis of XER_FIDELITY_AXES) stats.selectedMeasurable[axis] += entry.counters[axis].measurable;
+    baseline.files[fullByteHash.slice(0, 16)] = entry;
   }
 
-  return { baseline, stats };
+  return { baseline, stats, errors };
 }
 
 export function validateXerBaselinePins(baseline: XerFidelityBaseline): string[] {
@@ -295,10 +404,24 @@ export function measureXerFidelity(
     list.push(task);
     truthByProject.set(task.projectId, list);
   }
-  const solvedByProject = new Map(solvedProjects.map(project => [project.projectId, project]));
-  const errors: string[] = [];
-  const projects = [...truthByProject.entries()].map(([projectId, tasks], index) =>
-    measureProject(projectId, tasks, solvedByProject.get(projectId), index, errors));
+  const errors: string[] = [...truth.errors];
+  const solvedByProject = new Map<string, XerSolvedProject>();
+  for (const project of solvedProjects) {
+    if (solvedByProject.has(project.projectId)) {
+      errors.push(`dubbele opgeloste project-id: ${project.projectId}`);
+    } else {
+      solvedByProject.set(project.projectId, project);
+    }
+  }
+  for (const projectId of [...solvedByProject.keys()].filter(id => !truthByProject.has(id)).sort()) {
+    errors.push(`onverwacht opgelost project-id: ${projectId}`);
+  }
+  for (const projectId of [...truthByProject.keys()].filter(id => !solvedByProject.has(id)).sort()) {
+    errors.push(`ontbrekend opgelost project-id: ${projectId}`);
+  }
+
+  const projects = [...truthByProject.entries()].map(([projectId, tasks]) =>
+    measureProject(projectId, tasks, solvedByProject.get(projectId), errors));
 
   const counters = emptyCounters();
   const drivingPath: XerFidelityAxisCounts = { deviations: 0, measurable: 0 };
@@ -307,11 +430,25 @@ export function measureXerFidelity(
     addAxisCounts(drivingPath, project.drivingPath);
   }
 
+  const truthTasks = projects.reduce((sum, project) => sum + project.tasks, 0);
+  const solvedTasks = solvedProjects.reduce((sum, project) => sum + project.tasks.length, 0);
+  const truthProjects = truthByProject.size;
+  const solvedProjectCount = solvedProjects.length;
+  const hasDeviations = XER_FIDELITY_AXES.some(axis => counters[axis].deviations !== 0);
+
   return {
-    tasks: projects.reduce((sum, project) => sum + project.tasks, 0),
+    truthProjects,
+    solvedProjects: solvedProjectCount,
+    truthTasks,
+    solvedTasks,
+    tasks: truthTasks,
     projects,
     counters,
     drivingPath,
     errors,
+    gatePassed: errors.length === 0
+      && truthProjects === solvedProjectCount
+      && truthTasks === solvedTasks
+      && !hasDeviations,
   };
 }

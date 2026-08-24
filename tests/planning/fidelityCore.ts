@@ -27,6 +27,26 @@ export function classifyExact(ours: string | undefined, truth: string | null): F
   return ours === truth ? 'exact' : 'diff';
 }
 
+const CANONICAL_MINUTE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+function isCanonicalMinute(value: string): boolean {
+  const match = CANONICAL_MINUTE.exec(value);
+  if (!match) return false;
+  const [, year, month, day, hour, minute] = match;
+  const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 16) === value;
+}
+
+/** XER-poortvergelijking: uitsluitend twee geldige canonieke minuten kunnen exact zijn. */
+export function classifyMinuteExact(
+  ours: string | undefined,
+  truth: string | null,
+): FidelityVerdict {
+  if (truth === null || ours === undefined) return 'missing';
+  if (!isCanonicalMinute(ours) || !isCanonicalMinute(truth)) return 'diff';
+  return ours === truth ? 'exact' : 'diff';
+}
+
 export interface FidelityValuePair {
   ours: string | undefined;
   truth: string | null;
