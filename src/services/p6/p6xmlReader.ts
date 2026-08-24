@@ -93,7 +93,7 @@ function p6CodeToConstraint(code: string): { type: ConstraintType; hard?: boolea
  *  het LAATST gevonden werktijdblok (één scalar per kalender, bestaande aanname). Golden rule:
  *  geen `<StandardWorkWeek>` (ander tool / oud bestand) ⇒ lege workDays, aanroeper valt terug op
  *  de `createDefaultCalendar()`-defaults. */
-function parseP6StandardWorkWeek(calEl: Element): {
+export function parseP6StandardWorkWeek(calEl: Element): {
   workDays: number[]; workStartHour?: number; workEndHour?: number;
   rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>;
 } {

@@ -225,6 +225,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERTABLESCHECK="$DIR/.xer-tables.mjs"
   if bundle_check "$DIR/check-xer-tables.ts" "$XERTABLESCHECK"; then node "$XERTABLESCHECK" || STATUS=1; fi
 
+  # X3-kalenderdecoder: eigen structured-text-tokenizer, weekbanden/uitzonderingen,
+  # CALENDAR-hiërarchie, uren-per-periode en de XER-eigen uurmodusregel.
+  XERCALENDARCHECK="$DIR/.xer-calendar-data.mjs"
+  if bundle_check "$DIR/check-xer-calendar-data.ts" "$XERCALENDARCHECK"; then node "$XERCALENDARCHECK" || STATUS=1; fi
+
   # X2-corpuspoort: alle kedular-parserfixtures en publieke p6xer-robuustheidsgevallen zijn op
   # concrete rapportinhoud of typed foutcode gepind. Zonder corpus een expliciete groene skip.
   XERCORPUSCHECK="$DIR/.xer-corpus.mjs"
