@@ -155,10 +155,12 @@ function scanNumberFormat(
   const defaultCurrency = header[8]?.trim() ?? '';
   let table = '';
   let fields: string[] = [];
-  const currencyRows: Map<string, string>[] = [];
-  for (const line of lines) {
+  const currencyRows: Array<{ values: Map<string, string>; line: number }> = [];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
     const cells = line.split('\t');
     const marker = cells[0]?.trim();
+    if (marker === '%E') break;
     if (marker === '%T') {
       table = cells[1]?.trim().toUpperCase() ?? '';
       fields = [];
@@ -173,30 +175,45 @@ function scanNumberFormat(
     const row = new Map<string, string>();
     const values = cells.slice(1);
     for (let index = 0; index < fields.length; index++) row.set(fields[index], values[index] ?? '');
-    currencyRows.push(row);
+    currencyRows.push({ values: row, line: lineIndex + 1 });
   }
   if (currencyRows.length === 0) return { decimal: '.', group: null, fromCurrencyTable: false };
   const normalizedCurrency = defaultCurrency.toLowerCase();
-  const row = normalizedCurrency
-    ? currencyRows.find(candidate =>
-      candidate.get('curr_short_name')?.trim().toLowerCase() === normalizedCurrency)
-    : undefined;
-  if (!row) {
+  const matches = normalizedCurrency
+    ? currencyRows.filter(candidate =>
+      candidate.values.get('curr_short_name')?.trim().toLowerCase() === normalizedCurrency)
+    : [];
+  if (matches.length === 0) {
     issues.push(
       `CURRTYPE: ERMHDR-valuta ${defaultCurrency || '(leeg)'} heeft geen overeenkomstige rij; `
       + 'punt-default gebruikt',
     );
     return { decimal: '.', group: null, fromCurrencyTable: false };
   }
-  const currency = row.get('curr_short_name')?.trim() || defaultCurrency;
-  const decimal = inspectNumberFamily(row, 'decimal', currency, errors);
-  const group = inspectNumberFamily(row, 'group', currency, errors);
-  if (decimal === null) return { decimal: '.', group: null, fromCurrencyTable: true };
-  if (group === decimal) {
-    errors.push('CURRTYPE: decimaal- en groepsteken zijn gelijk');
-    return { decimal, group: null, fromCurrencyTable: true };
+  const resolved = matches.map(match => {
+    const currency = match.values.get('curr_short_name')?.trim() || defaultCurrency;
+    const decimal = inspectNumberFamily(match.values, 'decimal', currency, errors);
+    const group = inspectNumberFamily(match.values, 'group', currency, errors);
+    if (decimal === null) return null;
+    if (group === decimal) {
+      errors.push('CURRTYPE: decimaal- en groepsteken zijn gelijk');
+      return null;
+    }
+    return { decimal, group, line: match.line };
+  });
+  if (resolved.some(format => format === null)) {
+    return { decimal: '.', group: null, fromCurrencyTable: true };
   }
-  return { decimal, group, fromCurrencyTable: true };
+  const first = resolved[0]!;
+  const conflict = resolved.find(format =>
+    format!.decimal !== first.decimal || format!.group !== first.group);
+  if (conflict) {
+    errors.push(
+      `CURRTYPE ${defaultCurrency}: regels ${first.line}, ${conflict.line} `
+      + 'hebben tegenstrijdige decimaal-/groepssemantiek',
+    );
+  }
+  return { decimal: first.decimal, group: first.group, fromCurrencyTable: true };
 }
 
 function escapeRegExp(value: string): string {
@@ -336,6 +353,7 @@ export function scanXerGroundTruth(bytes: Uint8Array): XerGroundTruth {
   for (const line of lines) {
     const cells = line.split('\t');
     const marker = cells[0]?.trim();
+    if (marker === '%E') break;
     if (marker === '%T') {
       table = cells[1]?.trim().toUpperCase() ?? '';
       if (table === 'PROJECT') sawProjectTable = true;

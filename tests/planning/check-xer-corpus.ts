@@ -235,6 +235,29 @@ if (!root) {
     rows: 163_628,
     withinGenerousBudget: true,
   });
+  const trailingLinesHash = 'a303595f1def90620cb7da693e7217f364dd66bbc3b3775de5ae93106fa504e4';
+  const trailingLinesLabel = Object.entries(manifest.files)
+    .find(([, entry]) => entry.sha256 === trailingLinesHash)?.[0];
+  let trailingLinesOutcome: unknown = { missing: true };
+  if (trailingLinesLabel) {
+    const bytes = new Uint8Array(readFileSync(join(root, trailingLinesLabel)));
+    const parsed = parseXerTables(bytes);
+    trailingLinesOutcome = {
+      hash: createHash('sha256').update(bytes).digest('hex'),
+      issue: parsed.report.issues.find(issue => issue.code === 'XER_TRAILING_RECORDS_AFTER_END'),
+    };
+  }
+  // Breuk die dit vangt: alleen synthetische LF-fixtures corrigeren en de echte afsluitende
+  // newline in het openbare bestand als extra fysieke staartregel blijven tellen.
+  eq('R12 inhoudshash-anker telt de genegeerde staart fysiek', trailingLinesOutcome, {
+    hash: trailingLinesHash,
+    issue: {
+      code: 'XER_TRAILING_RECORDS_AFTER_END',
+      line: 6,
+      ignoredRecords: 21,
+      ignoredLines: 21,
+    },
+  });
   const aggregate = {
     files: 0,
     ok: 0,

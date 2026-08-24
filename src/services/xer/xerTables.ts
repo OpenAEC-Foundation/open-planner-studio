@@ -30,6 +30,7 @@ export class XerImportError extends Error {
   readonly missingColumns?: string[];
   readonly missingValues?: string[];
   readonly line?: number;
+  readonly lines?: number[];
   readonly encoding?: XerEncoding;
 
   constructor(
@@ -40,6 +41,7 @@ export class XerImportError extends Error {
       missingColumns?: string[];
       missingValues?: string[];
       line?: number;
+      lines?: number[];
       encoding?: XerEncoding;
     },
   ) {
@@ -50,6 +52,7 @@ export class XerImportError extends Error {
     this.missingColumns = context?.missingColumns;
     this.missingValues = context?.missingValues;
     this.line = context?.line;
+    this.lines = context?.lines;
     this.encoding = context?.encoding;
   }
 }
@@ -209,13 +212,7 @@ function assertRequiredColumns(tables: ReadonlyMap<string, XerTable>): void {
   }
 }
 
-function assertRequiredIdentity(
-  tables: ReadonlyMap<string, XerTable>,
-  issues: readonly XerImportIssue[],
-): void {
-  const structurallyBrokenRows = new Set(issues
-    .filter(issue => issue.code === 'XER_ROW_FIELD_COUNT_MISMATCH')
-    .map(issue => `${issue.table ?? ''}\u0000${issue.line}`));
+function assertRequiredIdentity(tables: ReadonlyMap<string, XerTable>): void {
   const requirements: ReadonlyArray<readonly [string, readonly string[]]> = [
     ['PROJECT', ['proj_id']],
     ['CALENDAR', ['clndr_id']],
@@ -229,7 +226,6 @@ function assertRequiredIdentity(
     const table = tables.get(tableName);
     if (!table) continue;
     for (const row of table.rows) {
-      if (structurallyBrokenRows.has(`${tableName}\u0000${row.line}`)) continue;
       const missingValues = required.filter(field => !row.cells[field]?.trim());
       if (tableName === 'TASKRSRC'
         && !row.cells.rsrc_id?.trim()
@@ -265,11 +261,11 @@ function determineNumberFormat(
     return { decimal: '.', group: null, source: 'default', currencyCode };
   }
   const normalizedCurrency = currencyCode.trim().toLowerCase();
-  const selected = normalizedCurrency
-    ? currencyRows.find(row =>
+  const matchingRows = normalizedCurrency
+    ? currencyRows.filter(row =>
       row.cells.curr_short_name?.trim().toLowerCase() === normalizedCurrency)
-    : undefined;
-  if (!selected) {
+    : [];
+  if (matchingRows.length === 0) {
     issues.push({
       code: 'XER_CURRENCY_NOT_FOUND',
       line: 1,
@@ -279,7 +275,17 @@ function determineNumberFormat(
     return { decimal: '.', group: null, source: 'default', currencyCode };
   }
 
-  const decodeToken = (raw: string, family: 'decimal' | 'group'): '.' | ',' => {
+  const formatError = (message: string, line: number, lines = [line]): XerImportError =>
+    new XerImportError('XER_INVALID_NUMBER_FORMAT', message, {
+      table: 'CURRTYPE',
+      line,
+      lines,
+    });
+  const decodeToken = (
+    raw: string,
+    family: 'decimal' | 'group',
+    line: number,
+  ): '.' | ',' => {
     const value = raw.trim().toLowerCase();
     if (value === '.' || value === 'period') return '.';
     if (value === ',' || value === 'comma') return ',';
@@ -287,41 +293,55 @@ function determineNumberFormat(
     if (value === 'ds_comma' && family === 'decimal') return ',';
     if (value === 'dg_period' && family === 'group') return '.';
     if (value === 'dg_comma' && family === 'group') return ',';
-    throw new XerImportError(
-      'XER_INVALID_NUMBER_FORMAT',
+    throw formatError(
       'CURRTYPE bevat geen betrouwbare combinatie van decimaal- en groepsteken.',
+      line,
     );
   };
   const resolveRepresentations = (
     values: readonly string[],
     family: 'decimal' | 'group',
+    line: number,
   ): '.' | ',' | null => {
-    const decoded = values.filter(value => value.trim()).map(value => decodeToken(value, family));
+    const decoded = values.filter(value => value.trim()).map(value => decodeToken(value, family, line));
     if (new Set(decoded).size > 1) {
-      throw new XerImportError(
-        'XER_INVALID_NUMBER_FORMAT',
+      throw formatError(
         'CURRTYPE bevat tegenstrijdige separatorrepresentaties.',
+        line,
       );
     }
     return decoded[0] ?? null;
   };
-  const decimal = resolveRepresentations([
-    selected.cells.decimal_symbol ?? '',
-    selected.cells.decimal_symbol_type ?? '',
-  ], 'decimal');
-  const group = resolveRepresentations([
-    selected.cells.digit_group_symbol ?? '',
-    selected.cells.digit_group_symbol_type ?? '',
-  ], 'group');
-  if (decimal === null || group === decimal) {
-    throw new XerImportError(
-      'XER_INVALID_NUMBER_FORMAT',
-      'CURRTYPE bevat geen betrouwbare combinatie van decimaal- en groepsteken.',
+  const formats = matchingRows.map(row => {
+    const decimal = resolveRepresentations([
+      row.cells.decimal_symbol ?? '',
+      row.cells.decimal_symbol_type ?? '',
+    ], 'decimal', row.line);
+    const group = resolveRepresentations([
+      row.cells.digit_group_symbol ?? '',
+      row.cells.digit_group_symbol_type ?? '',
+    ], 'group', row.line);
+    if (decimal === null || group === decimal) {
+      throw formatError(
+        'CURRTYPE bevat geen betrouwbare combinatie van decimaal- en groepsteken.',
+        row.line,
+      );
+    }
+    return { decimal, group, line: row.line };
+  });
+  const selected = formats[0];
+  const conflict = formats.find(format =>
+    format.decimal !== selected.decimal || format.group !== selected.group);
+  if (conflict) {
+    throw formatError(
+      'CURRTYPE bevat meerdere matching valutaregels met tegenstrijdige getalsemantiek.',
+      conflict.line,
+      [selected.line, conflict.line],
     );
   }
   return {
-    decimal,
-    group,
+    decimal: selected.decimal,
+    group: selected.group,
     source: 'currtype',
     currencyCode,
   };
@@ -352,31 +372,31 @@ export function parseXerNumber(raw: string, format: XerNumberFormat): number | n
   return parsed;
 }
 
-// Expliciete P6-veldencatalogus: identiteit en vrije tekst mogen nooit op hun naamvorm als
-// decimaalbewijs gelden. X4a en latere mappers kunnen deze lijst uitbreiden wanneer zij nieuwe
-// numerieke tabellen consumeren; X2 gebruikt hem uitsluitend om een onveilige localegok te weren.
-const XER_NUMERIC_FIELD_CATALOG = new Set([
-  'CALENDAR.day_hr_cnt', 'CALENDAR.week_hr_cnt', 'CALENDAR.month_hr_cnt', 'CALENDAR.year_hr_cnt',
-  'PROJECT.last_recalc_priority',
-  'PROJCOST.cost_value', 'PROJCOST.cost_load_value', 'PROJCOST.actual_value', 'PROJCOST.remain_value',
-  'ROLES.def_qty_per_hr', 'ROLERATE.cost_per_qty',
-  'RSRC.def_qty_per_hr', 'RSRC.ot_factor',
-  'RSRCRATE.cost_per_qty', 'RSRCRATE.max_qty_per_hr',
-  'TASK.complete_pct', 'TASK.phys_complete_pct',
-  'TASK.target_drtn_hr_cnt', 'TASK.remain_drtn_hr_cnt', 'TASK.act_drtn_hr_cnt',
-  'TASK.total_float_hr_cnt', 'TASK.free_float_hr_cnt', 'TASK.old_remain_drtn_hr_cnt',
-  'TASK.critical_drtn_hr_cnt',
-  'TASK.target_work_qty', 'TASK.remain_work_qty', 'TASK.act_work_qty',
-  'TASK.act_this_per_work_qty', 'TASK.target_equip_qty', 'TASK.remain_equip_qty',
-  'TASK.act_equip_qty', 'TASK.act_this_per_equip_qty',
-  'TASK.remain_cost', 'TASK.plan_cost', 'TASK.act_cost',
-  'TASK.target_qty_per_hr', 'TASK.act_reg_qty', 'TASK.act_ot_qty',
-  'TASKPRED.lag_hr_cnt',
-  'TASKPROC.complete_pct', 'TASKPROC.seq_num', 'TASKPROC.proc_wt',
-  'TASKRSRC.target_qty', 'TASKRSRC.remain_qty', 'TASKRSRC.act_reg_qty', 'TASKRSRC.act_ot_qty',
-  'TASKRSRC.target_cost', 'TASKRSRC.remain_cost', 'TASKRSRC.act_reg_cost', 'TASKRSRC.act_ot_cost',
-  'TASKRSRC.target_rate', 'TASKRSRC.cost_per_qty',
-  'TASKRSRC.target_lag_drtn_hr_cnt', 'TASKRSRC.remain_lag_drtn_hr_cnt',
+// MPXJ's XerFile.FIELD_TYPE_MAP is geraadpleegd om alle NUMERIC/DURATION/CURRENCY-veldnamen te
+// inventariseren. Alleen de veldclassificatie is zelfstandig overgenomen, geen parsercode. De map
+// is veldnaamgebaseerd (met target_qty als eveneens numerieke tabelvariant), zodat vrije tekst en
+// INTEGER-identiteit nooit door een suffixgok als komma-decimaalbewijs gelden.
+const XER_DECIMAL_FIELDS = new Set([
+  'act_cost', 'act_equip_qty', 'act_ot_cost', 'act_ot_qty', 'act_reg_cost', 'act_reg_qty',
+  'act_work_qty', 'asgnmnt_catg_id', 'asgnmnt_catg_short_len', 'asgnmnt_catg_type_id',
+  'base_exch_rate', 'complete_pct', 'cost_per_qty', 'cost_per_qty2', 'cost_per_qty3',
+  'cost_per_qty4', 'cost_per_qty5', 'critical_drtn_hr_cnt', 'curv_id', 'day_hr_cnt',
+  'def_qty_per_hr', 'est_wt', 'free_float_hr_cnt', 'indep_remain_total_cost',
+  'indep_remain_work_qty', 'lag_hr_cnt', 'latitude', 'longitude', 'max_qty_per_hr',
+  'month_hr_cnt', 'orig_cost', 'parent_asgnmnt_catg_id',
+  'pct_usage_0', 'pct_usage_1', 'pct_usage_2', 'pct_usage_3', 'pct_usage_4', 'pct_usage_5',
+  'pct_usage_6', 'pct_usage_7', 'pct_usage_8', 'pct_usage_9', 'pct_usage_10', 'pct_usage_11',
+  'pct_usage_12', 'pct_usage_13', 'pct_usage_14', 'pct_usage_15', 'pct_usage_16',
+  'pct_usage_17', 'pct_usage_18', 'pct_usage_19', 'pct_usage_20', 'phys_complete_pct',
+  'proc_wt', 'remain_cost', 'remain_drtn_hr_cnt', 'remain_equip_qty', 'remain_qty',
+  'remain_qty_per_hr', 'remain_work_qty', 'target_cost', 'target_drtn_hr_cnt',
+  'target_equip_qty', 'target_lag_drtn_hr_cnt', 'target_qty', 'target_qty_per_hr',
+  'target_work_qty', 'total_float_hr_cnt', 'udf_number', 'week_hr_cnt', 'year_hr_cnt',
+
+  // Aanvullende P6-velden die de bestaande X2-catalogus al als decimaaldragend behandelde.
+  'act_drtn_hr_cnt', 'act_this_per_equip_qty', 'act_this_per_work_qty', 'actual_value',
+  'cost_load_value', 'cost_value', 'last_recalc_priority', 'old_remain_drtn_hr_cnt', 'ot_factor',
+  'plan_cost', 'remain_lag_drtn_hr_cnt', 'remain_value', 'seq_num', 'target_rate',
 ]);
 
 function hasProvableCommaDecimals(tables: ReadonlyMap<string, XerTable>): boolean {
@@ -386,7 +406,7 @@ function hasProvableCommaDecimals(tables: ReadonlyMap<string, XerTable>): boolea
   for (const table of tables.values()) {
     for (const row of table.rows) {
       for (const field of table.fields) {
-        if (!XER_NUMERIC_FIELD_CATALOG.has(`${table.name}.${field}`)) continue;
+        if (!XER_DECIMAL_FIELDS.has(field)) continue;
         const value = row.cells[field]?.trim() ?? '';
         if ((plainCommaDecimal.test(value) || groupedCommaDecimal.test(value))
           && !commaGroupedInteger.test(value)) return true;
@@ -487,11 +507,12 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
       const ignoredRecords = ignoredTail.filter(line => line.trim()).length;
       if (ignoredRecords > 0) {
         const firstIgnoredOffset = ignoredTail.findIndex(line => line.trim());
+        const syntheticEndToken = ignoredTail[ignoredTail.length - 1] === '' ? 1 : 0;
         issues.push({
           code: 'XER_TRAILING_RECORDS_AFTER_END',
           line: index + 2 + firstIgnoredOffset,
           ignoredRecords,
-          ignoredLines: ignoredTail.length,
+          ignoredLines: ignoredTail.length - syntheticEndToken,
         });
       }
       break;
@@ -505,7 +526,7 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
   }
 
   assertRequiredColumns(tables);
-  assertRequiredIdentity(tables, issues);
+  assertRequiredIdentity(tables);
   const header: XerHeader = {
     version: headerCells[1] ?? '',
     defaultCurrencyCode: headerCells[8] ?? '',

@@ -70,6 +70,7 @@ function caughtXerError(run: () => unknown): Record<string, unknown> | null {
       missingColumns?: string[];
       missingValues?: string[];
       line?: number;
+      lines?: number[];
       encoding?: string;
     };
     return {
@@ -79,6 +80,7 @@ function caughtXerError(run: () => unknown): Record<string, unknown> | null {
       ...(typed.missingColumns ? { missingColumns: typed.missingColumns } : {}),
       ...(typed.missingValues ? { missingValues: typed.missingValues } : {}),
       ...(typed.line ? { line: typed.line } : {}),
+      ...(typed.lines ? { lines: typed.lines } : {}),
       ...(typed.encoding ? { encoding: typed.encoding } : {}),
     };
   }
@@ -148,10 +150,10 @@ eq('3 quotes en lege laatste kolomnaam', {
 const mismatchedRows = parseXerTables(utf8([
   'ERMHDR\t23.12',
   '%T\tTASK',
-  '%F\tproj_id\ttask_id\ttask_code',
-  '%R\tP1\t1',
-  '%R\tP1\t2\tA2\textra',
-  '%R\tP1\t3\tA3',
+  '%F\tproj_id\ttask_id\ttask_code\ttask_name',
+  '%R\tP1\t1\tA1',
+  '%R\tP1\t2\tA2\tNaam\textra',
+  '%R\tP1\t3\tA3\tNaam',
   '%E',
 ]));
 eq('4 veld-/waardetellingsverschil wordt verzameld en vervolgd', {
@@ -159,13 +161,13 @@ eq('4 veld-/waardetellingsverschil wordt verzameld en vervolgd', {
   issues: mismatchedRows.report.issues,
 }, {
   rows: [
-    { proj_id: 'P1', task_id: '1', task_code: '' },
-    { proj_id: 'P1', task_id: '2', task_code: 'A2' },
-    { proj_id: 'P1', task_id: '3', task_code: 'A3' },
+    { proj_id: 'P1', task_id: '1', task_code: 'A1', task_name: '' },
+    { proj_id: 'P1', task_id: '2', task_code: 'A2', task_name: 'Naam' },
+    { proj_id: 'P1', task_id: '3', task_code: 'A3', task_name: 'Naam' },
   ],
   issues: [
-    { code: 'XER_ROW_FIELD_COUNT_MISMATCH', line: 4, table: 'TASK', expected: 3, actual: 2 },
-    { code: 'XER_ROW_FIELD_COUNT_MISMATCH', line: 5, table: 'TASK', expected: 3, actual: 4 },
+    { code: 'XER_ROW_FIELD_COUNT_MISMATCH', line: 4, table: 'TASK', expected: 4, actual: 3 },
+    { code: 'XER_ROW_FIELD_COUNT_MISMATCH', line: 5, table: 'TASK', expected: 4, actual: 5 },
   ],
 });
 
@@ -340,8 +342,8 @@ eq('13 onbruikbare CURRTYPE-notatie is getypeerd fataal', [
   caughtXerError(() => parseXerTables(currencyOnly('ds_Unknown', 'dg_Period'))),
   caughtXerError(() => parseXerTables(currencyOnly('ds_Comma', 'dg_Comma'))),
 ], [
-  { name: 'XerImportError', xerCode: 'XER_INVALID_NUMBER_FORMAT' },
-  { name: 'XerImportError', xerCode: 'XER_INVALID_NUMBER_FORMAT' },
+  { name: 'XerImportError', xerCode: 'XER_INVALID_NUMBER_FORMAT', table: 'CURRTYPE', line: 4, lines: [4] },
+  { name: 'XerImportError', xerCode: 'XER_INVALID_NUMBER_FORMAT', table: 'CURRTYPE', line: 4, lines: [4] },
 ]);
 
 // Breuk die dit vangt: grammaticaal kapotte rijen stil overslaan. Elk probleem blijft zichtbaar
@@ -566,6 +568,9 @@ eq('19 CURRTYPE matcht exact en valideert alle separatorrepresentaties', {
   invalid: Array.from({ length: 5 }, () => ({
     name: 'XerImportError',
     xerCode: 'XER_INVALID_NUMBER_FORMAT',
+    table: 'CURRTYPE',
+    line: 4,
+    lines: [4],
   })),
 });
 
@@ -643,6 +648,157 @@ eq('22 komma-decimaalbewijs gebruikt veldcatalogus en onbeperkte precisie', {
   })),
   groupedRows: 3,
   numericLookingText: null,
+});
+
+// Breuk die dit vangt: elke rij met een breedte-issue generiek overslaan. Een ontbrekende
+// verplichte token blijft bij afkappen of uitsluitend extra eindtokens ondubbelzinnig zichtbaar.
+eq('23 rijbreedte omzeilt ondubbelzinnig ontbrekende identiteit niet', [
+  emptyIdentity('PROJECT', 'proj_id', '\tEXTRA'),
+  emptyIdentity('PROJECT', 'proj_id\tproj_name', ''),
+  emptyIdentity('TASK', 'proj_id\ttask_id\ttask_code\ttask_name', 'P1\tT1\t\tNaam\tEXTRA'),
+  emptyIdentity('TASK', 'proj_id\ttask_id\ttask_code\ttask_name', 'P1\tT1'),
+  emptyIdentity('TASKPRED', 'task_id\tpred_task_id\tpred_type', 'T1\t\tFS\tEXTRA'),
+  emptyIdentity('RSRC', 'rsrc_id\trsrc_name', ''),
+], [
+  { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'PROJECT', missingValues: ['proj_id'], line: 4 },
+  { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'PROJECT', missingValues: ['proj_id'], line: 4 },
+  { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'TASK', missingValues: ['task_code'], line: 4 },
+  { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'TASK', missingValues: ['task_code'], line: 4 },
+  { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'TASKPRED', missingValues: ['pred_task_id'], line: 4 },
+  { name: 'XerImportError', xerCode: 'XER_MISSING_REQUIRED_VALUE', table: 'RSRC', missingValues: ['rsrc_id'], line: 4 },
+]);
+
+function duplicateCurrency(secondRow: string): Record<string, unknown> | ReturnType<typeof parseXerTables> {
+  try {
+    return parseXerTables(utf8([
+      'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
+      '%T\tCURRTYPE',
+      '%F\tcurr_short_name\tdecimal_symbol\tdecimal_symbol_type\tdigit_group_symbol\tdigit_group_symbol_type',
+      '%R\teur\t.\tperiod\t,\tcomma',
+      secondRow,
+      '%E',
+    ]));
+  } catch (error) {
+    return caughtXerError(() => { throw error; }) ?? {};
+  }
+}
+const identicalCurrencyDuplicates = duplicateCurrency('%R\tEUR\t.\tds_period\t,\tdg_comma');
+// Breuken die dit vangt: de eerste matching CURRTYPE-rij kiezen zonder de rest te valideren,
+// of semantisch afwijkende duplicaten accepteren. Foutcontext wijst de fysieke bronregels aan.
+eq('24 alle matching CURRTYPE-rijen zijn gevalideerd en semantisch eensluidend', {
+  identical: 'numberFormat' in identicalCurrencyDuplicates
+    ? identicalCurrencyDuplicates.numberFormat
+    : identicalCurrencyDuplicates,
+  conflict: duplicateCurrency('%R\tEUR\t,\tcomma\t.\tperiod'),
+  invalidSecond: duplicateCurrency('%R\tEUR\t.\tdg_period\t,\tdg_comma'),
+}, {
+  identical: { decimal: '.', group: ',', source: 'currtype', currencyCode: 'EUR' },
+  conflict: {
+    name: 'XerImportError', xerCode: 'XER_INVALID_NUMBER_FORMAT', table: 'CURRTYPE',
+    line: 5, lines: [4, 5],
+  },
+  invalidSecond: {
+    name: 'XerImportError', xerCode: 'XER_INVALID_NUMBER_FORMAT', table: 'CURRTYPE',
+    line: 5, lines: [5],
+  },
+});
+
+function trailingLinesWithFinalNewline(newline: '\n' | '\r\n'): unknown {
+  const text = [
+    'ERMHDR\t23.12',
+    '%E',
+    '%T\tPROJECT',
+    '',
+    '%F\tproj_id',
+    '%R\tP2',
+  ].join(newline) + newline;
+  return parseXerTables(new TextEncoder().encode(text)).report.issues;
+}
+// Breuk die dit vangt: het lege split-token ná een afsluitende newline als fysieke staartregel
+// tellen. De bewust lege regel midden in de genegeerde staart moet juist wel blijven meetellen.
+eq('25 ignoredLines telt fysieke LF/CRLF-staartregels zonder synthetisch eindtoken', {
+  lf: trailingLinesWithFinalNewline('\n'),
+  crlf: trailingLinesWithFinalNewline('\r\n'),
+}, {
+  lf: [{ code: 'XER_TRAILING_RECORDS_AFTER_END', line: 3, ignoredRecords: 3, ignoredLines: 4 }],
+  crlf: [{ code: 'XER_TRAILING_RECORDS_AFTER_END', line: 3, ignoredRecords: 3, ignoredLines: 4 }],
+});
+
+// Onafhankelijke inventaris uit MPXJ XerFile.FIELD_TYPE_MAP: uitsluitend bronvelden met
+// DataType.NUMERIC, DURATION of CURRENCY. De lijst is met de hand gecontroleerd en wordt niet uit
+// productie afgeleid; ontbreekt daar later één veld, dan noemt deze gedragsmatrix precies dat veld.
+const authoritativeDecimalFields = [
+  'act_cost', 'act_equip_qty', 'act_ot_cost', 'act_ot_qty', 'act_reg_cost', 'act_reg_qty',
+  'act_work_qty', 'asgnmnt_catg_id', 'asgnmnt_catg_short_len', 'asgnmnt_catg_type_id',
+  'base_exch_rate', 'complete_pct', 'cost_per_qty', 'cost_per_qty2', 'cost_per_qty3',
+  'cost_per_qty4', 'cost_per_qty5', 'critical_drtn_hr_cnt', 'curv_id', 'day_hr_cnt',
+  'def_qty_per_hr', 'est_wt', 'free_float_hr_cnt', 'indep_remain_total_cost',
+  'indep_remain_work_qty', 'lag_hr_cnt', 'latitude', 'longitude', 'max_qty_per_hr',
+  'month_hr_cnt', 'orig_cost', 'parent_asgnmnt_catg_id',
+  'pct_usage_0', 'pct_usage_1', 'pct_usage_2', 'pct_usage_3', 'pct_usage_4', 'pct_usage_5',
+  'pct_usage_6', 'pct_usage_7', 'pct_usage_8', 'pct_usage_9', 'pct_usage_10', 'pct_usage_11',
+  'pct_usage_12', 'pct_usage_13', 'pct_usage_14', 'pct_usage_15', 'pct_usage_16',
+  'pct_usage_17', 'pct_usage_18', 'pct_usage_19', 'pct_usage_20', 'phys_complete_pct',
+  'proc_wt', 'remain_cost', 'remain_drtn_hr_cnt', 'remain_equip_qty', 'remain_qty',
+  'remain_qty_per_hr', 'remain_work_qty', 'target_cost', 'target_drtn_hr_cnt',
+  'target_equip_qty', 'target_lag_drtn_hr_cnt', 'target_qty', 'target_qty_per_hr',
+  'target_work_qty', 'total_float_hr_cnt', 'udf_number', 'week_hr_cnt', 'year_hr_cnt',
+] as const;
+
+function commaDecimalField(
+  table: string,
+  fields: readonly string[],
+  values: readonly string[],
+): Record<string, unknown> | null {
+  return caughtXerError(() => parseXerTables(utf8([
+    'ERMHDR\t23.12',
+    `%T\t${table}`,
+    `%F\t${fields.join('\t')}`,
+    `%R\t${values.join('\t')}`,
+    '%E',
+  ])));
+}
+const uncoveredAuthoritativeFields = authoritativeDecimalFields.filter(field =>
+  commaDecimalField('UDFVALUE', [field], ['1,5000'])?.xerCode !== 'XER_AMBIGUOUS_DECIMAL');
+const representativeDecimalFields = [
+  commaDecimalField('UDFVALUE', ['udf_number'], ['1,5000']),
+  ...['cost_per_qty2', 'cost_per_qty3', 'cost_per_qty4', 'cost_per_qty5']
+    .map(field => commaDecimalField('RSRCRATE', [field], ['1,5000'])),
+  commaDecimalField(
+    'TASKRSRC',
+    ['task_id', 'rsrc_id', 'role_id', 'remain_qty_per_hr'],
+    ['T1', 'R1', '', '-2,34567'],
+  ),
+  commaDecimalField('RSRCCURVDATA', ['pct_usage_0', 'pct_usage_20'], ['1,5000', '2']),
+  commaDecimalField('PROJCOST', ['target_cost'], ['1.234,5678']),
+  commaDecimalField(
+    'TASK',
+    ['proj_id', 'task_id', 'task_code', 'target_drtn_hr_cnt'],
+    ['P1', 'T1', 'A1', '1,5000'],
+  ),
+];
+// Breuken die dit vangt: een suffixheuristiek, alleen de reeds gemapte X3-velden opnemen, of
+// NUMERIC/DURATION/CURRENCY onvolledig overnemen. INTEGER-id en vrije tekst blijven negatief.
+eq('26 gezaghebbende numerieke P6-veldmatrix draagt de komma-decimaalheuristiek volledig', {
+  authoritativeCount: authoritativeDecimalFields.length,
+  uncoveredAuthoritativeFields,
+  representativeDecimalFields,
+  negative: {
+    udfText: commaDecimalField('UDFVALUE', ['udf_text'], ['1,5000']),
+    integerId: commaDecimalField('UDFVALUE', ['udf_type_id'], ['1,5000']),
+    projectTextAndId: commaDecimalField(
+      'PROJECT',
+      ['proj_id', 'proj_name'],
+      ['1,5000', '1,5000'],
+    ),
+  },
+}, {
+  authoritativeCount: 72,
+  uncoveredAuthoritativeFields: [],
+  representativeDecimalFields: Array.from({ length: 9 }, () => ({
+    name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL',
+  })),
+  negative: { udfText: null, integerId: null, projectTextAndId: null },
 });
 
 if (diffs.length === 0) {

@@ -157,6 +157,59 @@ eq('1g X1 controleert CURRTYPE via een onafhankelijk volledig pad', {
   ],
 });
 
+const duplicateCurrencyTruth = scanXerGroundTruth(Buffer.from([
+  'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+  '%R\teur\t.\t,',
+  '%R\tEUR\t,\t.',
+  '%E',
+].join('\n')));
+const identicalDuplicateCurrencyTruth = scanXerGroundTruth(Buffer.from([
+  'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol\tdecimal_symbol_type\tdigit_group_symbol\tdigit_group_symbol_type',
+  '%R\teur\t.\tperiod\t,\tcomma',
+  '%R\tEUR\t.\tds_period\t,\tdg_comma',
+  '%E',
+].join('\n')));
+// Breuk die dit vangt: ook in X1 de eerste case-insensitieve valutamatch vertrouwen. Deze
+// fixture deelt geen tokenizer, helper of verwachte foutvorm met de productieparser.
+eq('1h X1 weigert afwijkende dubbele defaultvaluta via een eigen controlepad', {
+  conflict: duplicateCurrencyTruth.errors,
+  identical: identicalDuplicateCurrencyTruth.errors,
+}, {
+  conflict: ['CURRTYPE EUR: regels 4, 5 hebben tegenstrijdige decimaal-/groepssemantiek'],
+  identical: [],
+});
+
+const terminalGroundTruth = scanXerGroundTruth(Buffer.from([
+  'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
+  '%T\tTASK',
+  `%F\t${header.join('\t')}`,
+  '%R\tP1\tT1\tA1\tVoor grens\tTK_NotStart\t\t\t2026-04-01\t2026-04-02\t2026-04-01\t2026-04-02\t1.25\t0.5\t',
+  '%E',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+  '%R\tEUR\t,\t.',
+  '%T\tTASK',
+  `%F\t${header.join('\t')}`,
+  '%R\tP1\tT2\tA2\tNa grens\tTK_NotStart\t\t\t2026-04-03\t2026-04-04\t2026-04-03\t2026-04-04\t2,5\t1,5\t',
+].join('\n')));
+// Breuken die dit vangt: alleen de taakscan of alleen de formatenscan bij de eerste %E stoppen.
+// De staart mag noch een taak toevoegen, noch de getalnotatie van de betrouwbare kop wijzigen.
+eq('1h-b X1-formatenscan en taakscan stoppen beide op de eerste %E', {
+  taskIds: terminalGroundTruth.tasks.map(task => task.taskId),
+  totalFloat: terminalGroundTruth.tasks[0]?.axes.tf,
+  errors: terminalGroundTruth.errors,
+  formatIssues: terminalGroundTruth.numberFormatIssues,
+}, {
+  taskIds: ['T1'],
+  totalFloat: 75,
+  errors: [],
+  formatIssues: [],
+});
+
 const brokenTruth = scanXerGroundTruth(Buffer.from([
   'ERMHDR\t23.12',
   '%T\tTASK',
@@ -166,7 +219,7 @@ const brokenTruth = scanXerGroundTruth(Buffer.from([
   '%R\tP1\t\tNO_ID\tNo id\tTK_NotStart\t\t\t\t\t\t\t\t\t',
   '%E',
 ].join('\n')));
-eq('1h niet-lege kapotte waarden en ontbrekende identiteit zijn fataal zichtbaar', brokenTruth.errors, [
+eq('1i niet-lege kapotte waarden en ontbrekende identiteit zijn fataal zichtbaar', brokenTruth.errors, [
   'TASK BAD/early_start_date: ongeldige datum "2026-02-30 08:00"',
   'TASK BAD/total_float_hr_cnt: ongeldig getal "1.2x"',
   'TASK rij 3/task_id: ontbrekende waarde',
@@ -178,7 +231,7 @@ const brokenMeasurement = measureXerFidelity(brokenTruth, [{
     { sourceTaskId: 'NO_STATUS', taskCode: 'NO_STATUS' },
   ],
 }]);
-eq('1i scannerfouten zijn gate-fataal bij verder exacte uitlijning', {
+eq('1j scannerfouten zijn gate-fataal bij verder exacte uitlijning', {
   errors: brokenMeasurement.errors,
   gatePassed: brokenMeasurement.gatePassed,
 }, { errors: brokenTruth.errors, gatePassed: false });
