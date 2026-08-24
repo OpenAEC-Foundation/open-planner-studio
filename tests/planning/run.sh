@@ -183,6 +183,21 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MPPFIDCHECK="$DIR/.mpp-fidelity.mjs"
   if bundle_check "$DIR/check-mpp-fidelity.ts" "$MPPFIDCHECK"; then node "$MPPFIDCHECK" || STATUS=1; fi
 
+  # XER-veldlijsten-poort (X0, XER-etappeplan §4.1/§6): whitelist/verboden/genegeerd als getypeerde
+  # constanten (`check-xer-field-whitelist.ts`), getoetst tegen de union van alle TASK-%F-kolommen
+  # over `OPS_XER_CORPUS` — het "gatenkaas"-mechanisme: een corpuskolom die in géén van de drie
+  # bakken zit is ROOD. Corpus is publiek (§4.3): namen mogen in de uitvoer, geen hash-only-regime
+  # zoals bij OPS_MPP_CORPUS. Corpus-afwezig ⇒ nette OK-skip, zelfde conventie als hierboven — dit
+  # is dus GEEN CI-poort.
+  XERWHITELISTCHECK="$DIR/.xer-field-whitelist.mjs"
+  if bundle_check "$DIR/check-xer-field-whitelist.ts" "$XERWHITELISTCHECK"; then node "$XERWHITELISTCHECK" || STATUS=1; fi
+
+  # XER-fidelity-baselinevorm (X0, XER-etappeplan §3/§6): het harness-skelet — er is nog geen lezer
+  # (X1+), dus dit bewaakt alleen de VORM van `xer-fidelity-baseline.json` (`xerFidelityTypes.ts`)
+  # via een compile-locked sleutellijst + een runtime-structuurvalidator. Corpusloos, draait altijd.
+  XERBASELINESCHEMACHECK="$DIR/.xer-fidelity-baseline-schema.mjs"
+  if bundle_check "$DIR/check-xer-fidelity-baseline-schema.ts" "$XERBASELINESCHEMACHECK"; then node "$XERBASELINESCHEMACHECK" || STATUS=1; fi
+
   # Opslagdoel-guard voor binaire bronformaten (fase 3.8 e1, T8-stap 5a): `fileSlice.openFile`
   # via de echte `<input type=file>`-terugval — .mpp krijgt GEEN opslagdoel, .ifc (contrast) wel.
   # Corpusdeel volgt dezelfde skip-OK-conventie als hierboven.

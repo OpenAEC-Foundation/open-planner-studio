@@ -106,6 +106,11 @@ const TASK_VERDICTS = {
                                     // geen datum erin — zelfde taxonomie als splitGaps hierboven
   mspTaskType: 'n/a',              // Z14b: MSP-eigen enum, geen datum
   effortDriven: 'n/a',             // Z14b: vlag, geen datum
+  p6DurationType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
+  p6ActivityType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
+  p6SuspendResume: 'n/a',          // X0 (XER-etappeplan): herkomstvlag, geen datum zelf — de
+                                    // datums eronder (time.resume/stop) schuiven al mee via
+                                    // TASK_TIME_VERDICTS
   parentId: 'n/a', childIds: 'n/a',
   time: 'shift',                  // zie TASK_TIME_VERDICTS
   resourceIds: 'n/a', color: 'n/a', activityCodes: 'n/a',
