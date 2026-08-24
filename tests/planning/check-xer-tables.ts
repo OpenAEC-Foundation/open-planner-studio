@@ -67,6 +67,7 @@ function caughtXerError(run: () => unknown): Record<string, unknown> | null {
       name?: string;
       xerCode?: string;
       table?: string;
+      field?: string;
       missingColumns?: string[];
       missingValues?: string[];
       line?: number;
@@ -77,6 +78,7 @@ function caughtXerError(run: () => unknown): Record<string, unknown> | null {
       name: typed.name,
       xerCode: typed.xerCode,
       ...(typed.table ? { table: typed.table } : {}),
+      ...(typed.field ? { field: typed.field } : {}),
       ...(typed.missingColumns ? { missingColumns: typed.missingColumns } : {}),
       ...(typed.missingValues ? { missingValues: typed.missingValues } : {}),
       ...(typed.line ? { line: typed.line } : {}),
@@ -324,6 +326,9 @@ eq('12 komma-decimaal zonder CURRTYPE wordt getypeerd geweigerd',
   caughtXerError(() => parseXerTables(noCurrencyComma)), {
     name: 'XerImportError',
     xerCode: 'XER_AMBIGUOUS_DECIMAL',
+    table: 'TASK',
+    field: 'target_drtn_hr_cnt',
+    line: 4,
   });
 
 function currencyOnly(decimal: string, group: string): Uint8Array {
@@ -645,6 +650,9 @@ eq('22 komma-decimaalbewijs gebruikt veldcatalogus en onbeperkte precisie', {
   ambiguous: Array.from({ length: 3 }, () => ({
     name: 'XerImportError',
     xerCode: 'XER_AMBIGUOUS_DECIMAL',
+    table: 'TASK',
+    field: 'target_drtn_hr_cnt',
+    line: 4,
   })),
   groupedRows: 3,
   numericLookingText: null,
@@ -795,10 +803,277 @@ eq('26 gezaghebbende numerieke P6-veldmatrix draagt de komma-decimaalheuristiek 
 }, {
   authoritativeCount: 72,
   uncoveredAuthoritativeFields: [],
-  representativeDecimalFields: Array.from({ length: 9 }, () => ({
-    name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL',
-  })),
+  representativeDecimalFields: [
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'UDFVALUE', field: 'udf_number', line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'RSRCRATE', field: 'cost_per_qty2', line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'RSRCRATE', field: 'cost_per_qty3', line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'RSRCRATE', field: 'cost_per_qty4', line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'RSRCRATE', field: 'cost_per_qty5', line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'TASKRSRC', field: 'remain_qty_per_hr', line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'RSRCCURVDATA', field: 'pct_usage_0', line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'PROJCOST', field: 'target_cost', line: 4 },
+    { name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL', table: 'TASK', field: 'target_drtn_hr_cnt', line: 4 },
+  ],
   negative: { udfText: null, integerId: null, projectTextAndId: null },
+});
+
+function duplicateKnownTable(lines: readonly string[]): Record<string, unknown> | null {
+  return caughtXerError(() => parseXerTables(utf8(lines)));
+}
+const repeatedUnknownTables = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tMYSTERY',
+  '%F\tvalue',
+  '%R\tone',
+  '%T\tMYSTERY',
+  '%F\tvalue',
+  '%R\ttwo',
+  '%E',
+]));
+// Breuk die dit vangt: een tweede bekende %T vóór %E met tables.set laten overschrijven. De
+// duplicate-fout moet vóór opslag ontstaan, zodat ook eerdere valuta, data of lege identiteit niet
+// verdwijnen. Bewust onbekende tabellen behouden hun bestaande afzonderlijke telrapportage.
+eq('27 een bekende tabel heeft vóór de eerste %E precies één sectie', {
+  splitCurrency: duplicateKnownTable([
+    'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
+    '%T\tCURRTYPE',
+    '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+    '%R\tEUR\t.\t,',
+    '%T\tCURRTYPE',
+    '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+    '%R\tEUR\t,\t.',
+    '%E',
+  ]),
+  duplicateProjectData: duplicateKnownTable([
+    'ERMHDR\t23.12',
+    '%T\tPROJECT',
+    '%F\tproj_id',
+    '%R\tP1',
+    '%T\tPROJECT',
+    '%F\tproj_id',
+    '%R\tP2',
+    '%E',
+  ]),
+  hiddenEmptyIdentity: duplicateKnownTable([
+    'ERMHDR\t23.12',
+    '%T\tPROJECT',
+    '%F\tproj_id',
+    '%R\t',
+    '%T\tPROJECT',
+    '%F\tproj_id',
+    '%R\tP2',
+    '%E',
+  ]),
+  unknownTables: repeatedUnknownTables.report.unknownTables,
+}, {
+  splitCurrency: {
+    name: 'XerImportError', xerCode: 'XER_DUPLICATE_TABLE', table: 'CURRTYPE',
+    line: 5, lines: [2, 5],
+  },
+  duplicateProjectData: {
+    name: 'XerImportError', xerCode: 'XER_DUPLICATE_TABLE', table: 'PROJECT',
+    line: 5, lines: [2, 5],
+  },
+  hiddenEmptyIdentity: {
+    name: 'XerImportError', xerCode: 'XER_DUPLICATE_TABLE', table: 'PROJECT',
+    line: 5, lines: [2, 5],
+  },
+  unknownTables: [{ name: 'MYSTERY', rows: 1 }, { name: 'MYSTERY', rows: 1 }],
+});
+
+// Onafhankelijke tegenhelft van dezelfde MPXJ XerFile.FIELD_TYPE_MAP-inventaris. Deze 104
+// bronvelden zijn uitdrukkelijk NIET NUMERIC/DURATION/CURRENCY en worden met hun bronsoort
+// letterlijk vastgezet, zodat iedere botsende productie-aanvulling gedragsmatig rood wordt.
+const authoritativeNonDecimalFields = [
+  ['acct_id', 'INTEGER'],
+  ['acct_seq_num', 'INTEGER'],
+  ['act_end_date', 'DATE'],
+  ['act_start_date', 'DATE'],
+  ['actv_code_id', 'INTEGER'],
+  ['actv_code_type_id', 'INTEGER'],
+  ['actv_short_len', 'INTEGER'],
+  ['anticip_end_date', 'DATE'],
+  ['anticip_start_date', 'DATE'],
+  ['auto_compute_act_flag', 'BOOLEAN'],
+  ['base_clndr_id', 'INTEGER'],
+  ['clndr_data', 'STRING'],
+  ['clndr_id', 'INTEGER'],
+  ['clndr_name', 'STRING'],
+  ['clndr_type', 'STRING'],
+  ['cost_item_id', 'INTEGER'],
+  ['cost_type_id', 'INTEGER'],
+  ['create_date', 'DATE'],
+  ['cstr_date', 'DATE'],
+  ['cstr_date2', 'DATE'],
+  ['curr_id', 'INTEGER'],
+  ['decimal_digit_cnt', 'INTEGER'],
+  ['default_flag', 'STRING'],
+  ['driving_path_flag', 'STRING'],
+  ['early_end_date', 'DATE'],
+  ['early_start_date', 'DATE'],
+  ['expect_end_date', 'DATE'],
+  ['external_early_start_date', 'DATE'],
+  ['external_late_end_date', 'DATE'],
+  ['fk_id', 'INTEGER'],
+  ['float_path', 'INTEGER'],
+  ['float_path_order', 'INTEGER'],
+  ['fy_start_month_num', 'INTEGER'],
+  ['group_digit_cnt', 'INTEGER'],
+  ['last_chng_date', 'STRING'],
+  ['last_recalc_date', 'DATE'],
+  ['late_end_date', 'DATE'],
+  ['late_start_date', 'DATE'],
+  ['location_id', 'INTEGER'],
+  ['loginal_data_type', 'STRING'],
+  ['memo_type_id', 'INTEGER'],
+  ['memo_id', 'INTEGER'],
+  ['parent_acct_id', 'INTEGER'],
+  ['parent_actv_code_id', 'INTEGER'],
+  ['parent_proj_catg_id', 'INTEGER'],
+  ['parent_role_id', 'INTEGER'],
+  ['parent_role_catg_id', 'INTEGER'],
+  ['parent_rsrc_catg_id', 'INTEGER'],
+  ['parent_rsrc_id', 'INTEGER'],
+  ['parent_wbs_id', 'INTEGER'],
+  ['plan_end_date', 'DATE'],
+  ['plan_start_date', 'DATE'],
+  ['pred_task_id', 'INTEGER'],
+  ['proc_id', 'INTEGER'],
+  ['proj_catg_id', 'INTEGER'],
+  ['proj_catg_type_id', 'INTEGER'],
+  ['proj_catg_short_len', 'INTEGER'],
+  ['proj_id', 'INTEGER'],
+  ['reend_date', 'DATE'],
+  ['rem_late_start_date', 'DATE'],
+  ['rem_late_end_date', 'DATE'],
+  ['restart_date', 'DATE'],
+  ['resume_date', 'DATE'],
+  ['role_id', 'INTEGER'],
+  ['role_catg_id', 'INTEGER'],
+  ['role_catg_short_len', 'INTEGER'],
+  ['role_catg_type_id', 'INTEGER'],
+  ['rsrc_id', 'INTEGER'],
+  ['rsrc_catg_id', 'INTEGER'],
+  ['rsrc_catg_type_id', 'INTEGER'],
+  ['rsrc_catg_short_len', 'INTEGER'],
+  ['rsrc_role_id', 'INTEGER'],
+  ['rsrc_seq_num', 'INTEGER'],
+  ['scd_end_date', 'DATE'],
+  ['sched_calendar_on_relationship_lag', 'STRING'],
+  ['seq_num', 'INTEGER'],
+  ['shift_id', 'INTEGER'],
+  ['shift_period_id', 'INTEGER'],
+  ['shift_start_hr_num', 'INTEGER'],
+  ['skill_level', 'INTEGER'],
+  ['start_date', 'DATE'],
+  ['step_complete_flag', 'BOOLEAN'],
+  ['sum_base_proj_id', 'INTEGER'],
+  ['super_flag', 'STRING'],
+  ['suspend_date', 'DATE'],
+  ['table_name', 'STRING'],
+  ['target_end_date', 'DATE'],
+  ['target_start_date', 'DATE'],
+  ['task_code_base', 'INTEGER'],
+  ['task_code_step', 'INTEGER'],
+  ['task_id', 'INTEGER'],
+  ['task_pred_id', 'INTEGER'],
+  ['taskrsrc_id', 'INTEGER'],
+  ['tmpl_guid', 'GUID'],
+  ['udf_code_id', 'INTEGER'],
+  ['udf_date', 'DATE'],
+  ['udf_text', 'STRING'],
+  ['udf_type', 'INTEGER'],
+  ['udf_type_id', 'INTEGER'],
+  ['udf_type_label', 'STRING'],
+  ['udf_type_name', 'STRING'],
+  ['unit_id', 'INTEGER'],
+  ['wbs_id', 'INTEGER'],
+  ['wbs_memo_id', 'INTEGER'],
+] as const;
+const nonDecimalTypeCounts = authoritativeNonDecimalFields.reduce<Record<string, number>>(
+  (counts, [, type]) => ({ ...counts, [type]: (counts[type] ?? 0) + 1 }),
+  {},
+);
+const falsePositiveNonDecimalFields = authoritativeNonDecimalFields.filter(([field]) =>
+  commaDecimalField('UDFVALUE', [field], ['1,5000'])?.xerCode === 'XER_AMBIGUOUS_DECIMAL');
+// Breuken die dit vangt: een MPXJ-INTEGER zoals seq_num of acct_seq_num als lokale decimale
+// aanvulling classificeren. De matrix test de echte parser; de verwachtingen delen geen catalogus.
+eq('28 alle gezaghebbende niet-decimale P6-velden blijven buiten het decimaalbewijs', {
+  authoritativeCount: authoritativeNonDecimalFields.length,
+  typeCounts: nonDecimalTypeCounts,
+  falsePositiveNonDecimalFields,
+  seqNum: commaDecimalField('TASKPROC', ['seq_num'], ['1,5000']),
+}, {
+  authoritativeCount: 104,
+  typeCounts: { INTEGER: 60, DATE: 28, BOOLEAN: 2, STRING: 13, GUID: 1 },
+  falsePositiveNonDecimalFields: [],
+  seqNum: null,
+});
+
+function ambiguousDecimalEvidence(
+  table: string,
+  fields: readonly string[],
+  values: readonly string[],
+  sourceValue: string,
+  privatePath: string,
+): Record<string, unknown> | null {
+  try {
+    parseXerTables(utf8([
+      'ERMHDR\t23.12',
+      `%T\t${table}`,
+      `%F\t${fields.join('\t')}`,
+      `%R\t${values.join('\t')}`,
+      '%E',
+    ]));
+    return null;
+  } catch (error) {
+    const typed = error as Error & {
+      xerCode?: string;
+      table?: string;
+      field?: string;
+      line?: number;
+    };
+    return {
+      name: typed.name,
+      xerCode: typed.xerCode,
+      table: typed.table ?? null,
+      field: typed.field ?? null,
+      line: typed.line ?? null,
+      sourceValueLeaked: typed.message.includes(sourceValue),
+      privatePathLeaked: typed.message.includes(privatePath),
+    };
+  }
+}
+const udfPrivatePath = '/home/private-user/secret/project.xer';
+const curvePrivatePath = 'C:\\Users\\private-user\\secret\\curve.xer';
+// Breuk die dit vangt: de reeds gevonden tabel/rij/veldcontext tot boolean reduceren of bij het
+// opbouwen van de fatale fout de context laten vallen. Fouttekst mag bronwaarde noch pad opnemen.
+eq('29 komma-decimaalfout draagt het eerste concrete bewijs zonder brondata te lekken', {
+  udf: ambiguousDecimalEvidence(
+    'UDFVALUE',
+    ['udf_text', 'udf_number'],
+    [udfPrivatePath, '1,5000'],
+    '1,5000',
+    udfPrivatePath,
+  ),
+  curve: ambiguousDecimalEvidence(
+    'RSRCCURVDATA',
+    ['pct_usage_20', 'pct_usage_0', 'curve_path'],
+    ['-2,34567', '1,5000', curvePrivatePath],
+    '-2,34567',
+    curvePrivatePath,
+  ),
+}, {
+  udf: {
+    name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL',
+    table: 'UDFVALUE', field: 'udf_number', line: 4,
+    sourceValueLeaked: false, privatePathLeaked: false,
+  },
+  curve: {
+    name: 'XerImportError', xerCode: 'XER_AMBIGUOUS_DECIMAL',
+    table: 'RSRCCURVDATA', field: 'pct_usage_20', line: 4,
+    sourceValueLeaked: false, privatePathLeaked: false,
+  },
 });
 
 if (diffs.length === 0) {
