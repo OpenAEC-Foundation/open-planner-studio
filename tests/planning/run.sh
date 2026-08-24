@@ -73,11 +73,19 @@ EXPECTED_BATTERIES=(
   msp-pariteit probes progress relations resource-leveling resource-load view
 )
 
+# JSON-meetlatdata met de verplichte `cases-*.json`-naam, maar NIET het CPM-harnessschema. Elk
+# bestand hier heeft een eigen check-script verderop; zonder deze expliciete grens zou de glob het
+# als een gewone batterij proberen te valideren en uitvoeren.
+is_auxiliary_case_data () {
+  [ "$(basename "$1")" = "cases-p6-verified.json" ]
+}
+
 check_batteries () {
   local f base b missing=() unexpected=()
   local -A want=() have=()
   for b in "${EXPECTED_BATTERIES[@]}"; do want[$b]=1; done
   for f in "$DIR"/cases-*.json; do
+    if is_auxiliary_case_data "$f"; then continue; fi
     base="$(basename "$f")"; base="${base#cases-}"; base="${base%.json}"
     have[$base]=1
     if [ -z "${want[$base]:-}" ]; then unexpected+=("$base"); fi
@@ -106,7 +114,10 @@ if [ "$#" -gt 0 ]; then
   for f in "$@"; do FILES+=("$DIR/$f"); done
   RUN_HOLIDAYS=0
 else
-  FILES=("$DIR"/cases-*.json)
+  FILES=()
+  for f in "$DIR"/cases-*.json; do
+    if ! is_auxiliary_case_data "$f"; then FILES+=("$f"); fi
+  done
   RUN_HOLIDAYS=1   # volledige run: ook de holiday-generator-checks (fase 2.8a, §10.2)
 fi
 
@@ -183,6 +194,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MPPFIDCHECK="$DIR/.mpp-fidelity.mjs"
   if bundle_check "$DIR/check-mpp-fidelity.ts" "$MPPFIDCHECK"; then node "$MPPFIDCHECK" || STATUS=1; fi
 
+  # Formaat-agnostische fidelitykern: rijvorm, minuutclassificatie en delta-administratie die de
+  # MPP- en XER-meetlat delen zonder hun grondwaarheidparsers te koppelen.
+  FIDCORECHECK="$DIR/.fidelity-core.mjs"
+  if bundle_check "$DIR/check-fidelity-core.ts" "$FIDCORECHECK"; then node "$FIDCORECHECK" || STATUS=1; fi
+
   # XER-veldlijsten-poort (X0, XER-etappeplan §4.1/§6): whitelist/verboden/genegeerd als getypeerde
   # constanten (`check-xer-field-whitelist.ts`), getoetst tegen de union van alle TASK-%F-kolommen
   # over `OPS_XER_CORPUS` — het "gatenkaas"-mechanisme: een corpuskolom die in géén van de drie
@@ -197,6 +213,18 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # via een compile-locked sleutellijst + een runtime-structuurvalidator. Corpusloos, draait altijd.
   XERBASELINESCHEMACHECK="$DIR/.xer-fidelity-baseline-schema.mjs"
   if bundle_check "$DIR/check-xer-fidelity-baseline-schema.ts" "$XERBASELINESCHEMACHECK"; then node "$XERBASELINESCHEMACHECK" || STATUS=1; fi
+
+  # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
+  # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
+  # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.
+  XERFIDCHECK="$DIR/.xer-fidelity.mjs"
+  if bundle_check "$DIR/check-xer-fidelity.ts" "$XERFIDCHECK"; then node "$XERFIDCHECK" || STATUS=1; fi
+
+  # P6 23.12-capture: uitsluitend de ruwe *_p6-kolommen met tijden; enginekolommen en de
+  # genormaliseerde PASS-oordelen zijn expliciet geen meetlat. Met OPS_P6_COMPARISON wordt ook de
+  # generator byte-identiek tegen de publieke bron gedraaid.
+  P6VERIFIEDCHECK="$DIR/.p6-verified-cases.mjs"
+  if bundle_check "$DIR/check-p6-verified-cases.ts" "$P6VERIFIEDCHECK"; then node "$P6VERIFIEDCHECK" || STATUS=1; fi
 
   # Opslagdoel-guard voor binaire bronformaten (fase 3.8 e1, T8-stap 5a): `fileSlice.openFile`
   # via de echte `<input type=file>`-terugval — .mpp krijgt GEEN opslagdoel, .ifc (contrast) wel.

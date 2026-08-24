@@ -179,7 +179,7 @@ export const XER_TASK_IGNORED: readonly string[] = [
 // De corpusscan: union van alle TASK-%F-kolommen over OPS_XER_CORPUS, tegen de drie bakken.
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
-const CORPUS = process.env.OPS_XER_CORPUS ?? '/home/nozzit/open-aec/voor claude/testdata-crawl';
+const CORPUS = process.env.OPS_XER_CORPUS;
 
 function listXerFilesRecursive(dir: string): string[] {
   const out: string[] = [];
@@ -229,13 +229,15 @@ function scanTaskColumns(text: string): string[] | null {
   return null;
 }
 
-const corpusDirExists = existsSync(CORPUS);
+const corpusDirExists = CORPUS !== undefined && existsSync(CORPUS);
 const corpusFiles = corpusDirExists ? listXerFilesRecursive(CORPUS) : [];
 
-if (!corpusDirExists) {
-  console.log(`OK  xer-field-whitelist: corpus niet aanwezig (OPS_XER_CORPUS=${CORPUS}) — corpusscan overgeslagen`);
+if (!CORPUS) {
+  console.log('OK  xer-field-whitelist: corpus niet aanwezig (OPS_XER_CORPUS) — corpusscan overgeslagen');
+} else if (!corpusDirExists) {
+  truthy('xer-field-whitelist: OPS_XER_CORPUS wijst naar een bestaande map', false);
 } else if (corpusFiles.length === 0) {
-  console.log(`OK  xer-field-whitelist: corpus aanwezig maar geen .xer-bestanden gevonden (${CORPUS}) — corpusscan overgeslagen`);
+  console.log('OK  xer-field-whitelist: corpus aanwezig maar geen .xer-bestanden gevonden — corpusscan overgeslagen');
 } else {
   // kolomnaam -> één voorbeeldbestand (relatief pad — corpus is publiek, §4.3, geen hash-only-eis)
   const unionFirstSeen = new Map<string, string>();
