@@ -220,6 +220,16 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERFIDCHECK="$DIR/.xer-fidelity.mjs"
   if bundle_check "$DIR/check-xer-fidelity.ts" "$XERFIDCHECK"; then node "$XERFIDCHECK" || STATUS=1; fi
 
+  # XER-formaatlaag (X2): corpusloze grammatica-/encoding-/CURRTYPE-fixtures. De productparser
+  # blijft bewust onafhankelijk van X1's xerGroundTruth/xerFidelity-orakelpad.
+  XERTABLESCHECK="$DIR/.xer-tables.mjs"
+  if bundle_check "$DIR/check-xer-tables.ts" "$XERTABLESCHECK"; then node "$XERTABLESCHECK" || STATUS=1; fi
+
+  # X2-corpuspoort: alle kedular-parserfixtures en publieke p6xer-robuustheidsgevallen zijn op
+  # concrete rapportinhoud of typed foutcode gepind. Zonder corpus een expliciete groene skip.
+  XERCORPUSCHECK="$DIR/.xer-corpus.mjs"
+  if bundle_check "$DIR/check-xer-corpus.ts" "$XERCORPUSCHECK"; then node "$XERCORPUSCHECK" || STATUS=1; fi
+
   # P6 23.12-capture: uitsluitend de ruwe *_p6-kolommen met tijden; enginekolommen en de
   # genormaliseerde PASS-oordelen zijn expliciet geen meetlat. Met OPS_P6_COMPARISON wordt ook de
   # generator byte-identiek tegen de publieke bron gedraaid.
