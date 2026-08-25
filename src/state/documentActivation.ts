@@ -1,4 +1,4 @@
-import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
 import { computeViewRows, type ViewContext, type ViewRow, type ViewRowOpts } from '@/engine/view/visibleRows';
 import { getNoneLabelValue } from '@/utils/noneLabel';
@@ -152,15 +152,14 @@ export function materializeLibraryBoundary(input: {
   const refreshed = materializeBehindOnlyRefresh(input);
   const refreshedCount = refreshed.calendarsChanged + refreshed.resourcesChanged;
   // Spiegel runCPM: bij een onberekenbare planning is belasting niet betrouwbaar en dus null.
-  const resourceLoadResult = refreshed.payload.cpmResult?.error
-    ? null
-    : computeResourceLoad(
-      refreshed.payload.resources,
-      refreshed.payload.assignments,
-      refreshed.payload.tasks,
-      refreshed.payload.calendar,
-      refreshed.payload.calendars,
-    );
+  const resourceLoadResult = computeReliableResourceLoad(
+    refreshed.payload.cpmResult,
+    refreshed.payload.resources,
+    refreshed.payload.assignments,
+    refreshed.payload.tasks,
+    refreshed.payload.calendar,
+    refreshed.payload.calendars,
+  );
   refreshed.payload.resourceLoadResult = resourceLoadResult;
   return {
     payload: refreshed.payload,

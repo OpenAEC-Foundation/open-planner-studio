@@ -195,6 +195,25 @@ export function computeResourceLoad(
   return { load, capacity, overallocatedDays };
 }
 
+/**
+ * Eén gedeelde betrouwbaarheidspoort voor afgeleide belasting. Een CPM-fout betekent dat de
+ * taakdatums niet als geldige planning mogen worden behandeld; callers publiceren dan `null`.
+ * Een nog niet berekende planning (`cpmResult === null`) behoudt het bestaande gedrag en leidt de
+ * belasting af uit de aanwezige taakdatums.
+ */
+export function computeReliableResourceLoad(
+  cpmResult: CPMResult | null,
+  resources: Resource[],
+  assignments: ResourceAssignment[],
+  tasks: Task[],
+  projectCalendar: WorkCalendar,
+  resourceCalendars: WorkCalendar[],
+): ResourceLoadResult | null {
+  return cpmResult?.error
+    ? null
+    : computeResourceLoad(resources, assignments, tasks, projectCalendar, resourceCalendars);
+}
+
 /** Vlakke `maxUnits`, tenzij `availabilitySteps` een latere stap ≤ `iso` heeft — dan geldt de
  *  laatste zo'n stap (effective-dated, P6 Units-and-Prices-model). Geëxporteerd zodat de
  *  nivelleerder (`ResourceLeveler.ts`) exact dezelfde capaciteitsdefinitie hergebruikt — één

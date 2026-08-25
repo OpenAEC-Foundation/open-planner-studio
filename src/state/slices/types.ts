@@ -201,6 +201,8 @@ export interface AppNotification {
 
 /** Wat een aanroeper meegeeft; `id` en `count` vult de store. */
 export type NotifyInput = Omit<AppNotification, 'id' | 'count'>;
+/** Een gridprepare verzamelt meldingen in deze vorm en toont ze pas ná een geslaagde commit. */
+export type DeferredNotification = NotifyInput;
 
 export interface UIState {
   showTaskDialog: boolean;

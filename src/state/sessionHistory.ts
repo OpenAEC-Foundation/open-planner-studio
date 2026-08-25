@@ -3,7 +3,7 @@ import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/task
 import type { ViewState } from '@/types/view';
 import type { AppState } from './appStore';
 import { deriveViewRows } from './slices/viewSlice';
-import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { ViewRow } from '@/engine/view/visibleRows';
 
 export const MAX_SESSION_HISTORY_EVENTS_PER_SCOPE = 100;
@@ -53,7 +53,7 @@ export type MaterializedHistoryTarget =
       documentId: string;
       snapshot: Snapshot;
       viewRows: ViewRow[];
-      resourceLoadResult: ResourceLoadResult;
+      resourceLoadResult: ResourceLoadResult | null;
       isDirty: true;
     }
   | {
@@ -102,7 +102,8 @@ export function materializeHistoryTarget(
       documentId: delta.documentId,
       snapshot,
       viewRows: deriveViewRows(isolated),
-      resourceLoadResult: computeResourceLoad(
+      resourceLoadResult: computeReliableResourceLoad(
+        isolated.cpmResult,
         isolated.resources,
         isolated.assignments,
         isolated.tasks,
@@ -354,6 +355,19 @@ export function recordSessionHistoryDeltas(
   state.historyEvents = appendSessionHistoryEvent(state.historyEvents, event);
   state.nextHistorySequence = sequence + 1;
   return event;
+}
+
+/** Registreer één voorbereide documentdatasprong zonder dat de aanroeper zelf de deltavorm bouwt. */
+export function recordDocumentDataHistoryDelta(
+  state: AppState,
+  label: string,
+  documentId: string,
+  before: Snapshot,
+  after: Snapshot,
+): SessionHistoryEvent {
+  return recordSessionHistoryDeltas(state, label, [{
+    kind: 'document-data', documentId, before, after,
+  }])!;
 }
 
 /** Verwijder undone events die één van de opgegeven scopes raken; compounds verdwijnen geheel. */

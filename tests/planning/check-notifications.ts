@@ -23,6 +23,9 @@ import { createRelationWithFeedback } from '@/state/relationActions';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/timephasedLossNotice';
+import { commitPreparedGridMutation, prepareGridMutation } from '@/state/gridTransaction';
+import type { CellEditIntent } from '@/types/taskGrid';
+import type { PreparedGridMutation } from '@/state/gridTransaction';
 import type { Sequence } from '@/types/sequence';
 
 const S = () => useAppStore.getState();
@@ -497,6 +500,35 @@ const beforeTphC = S().tasks.find(t => t.id === tphC)!;
 S().updateTask(tphC, { time: { ...beforeTphC.time, scheduleDuration: 4 } });
 eq('109 na newProject() meldt een NIEUW sturingsverlies WÉÉR (P1-fix, was: stil dood)', N().length, 1);
 eq('110 met de mpp-timephased-sleutel', N()[0]?.messageKey, 'notifications.mppTimephasedSteeringLost');
+
+// ── 11. Een voorbereide gridmelding wordt pas na de atomaire datacommit getoond ───────────────
+clearAll();
+S().newProject();
+const gridTask = S().addTask({ name: 'Grid voor' });
+useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.ui.notifications = []; });
+const gridIntent: CellEditIntent = {
+  kind: 'cell-edit', taskId: gridTask, columnId: 'task.name' as CellEditIntent['columnId'],
+  route: 'task-field', value: 'Grid na',
+};
+const gridPrepared = prepareGridMutation(S(), [gridIntent]);
+const gridStates: Array<{ name: string | undefined; history: number; notifications: number }> = [];
+const unsubscribeGrid = useAppStore.subscribe(state => gridStates.push({
+  name: state.tasks[0]?.name,
+  history: state.historyEvents.length,
+  notifications: state.ui.notifications.length,
+}));
+const gridWithNotification: PreparedGridMutation | null = gridPrepared.ok ? {
+  ...gridPrepared.value,
+  notifications: [{ severity: 'info', messageKey: 'notifications.relationCreated' }],
+} : null;
+const gridCommit = gridWithNotification ? commitPreparedGridMutation(gridWithNotification) : null;
+unsubscribeGrid();
+eq('111 voorbereide gridcommit met melding slaagt', gridCommit?.ok, true);
+eq('112 eerste gridpublicatie bevat data en history zonder melding', gridStates[0], {
+  name: 'Grid na', history: 1, notifications: 0,
+});
+eq('113 gridmelding volgt in een aparte publicatie', gridStates.map(state => state.notifications), [0, 1]);
+eq('114 uitgestelde gridmelding gebruikt het normale app-globale kanaal', N()[0]?.messageKey, 'notifications.relationCreated');
 
 // ── Uitkomst ────────────────────────────────────────────────────────────────
 if (diffs.length) {

@@ -2,7 +2,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { cpmResultFromRecorded, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import {
   levelResources as computeLeveling,
   type LevelingOptions,
@@ -73,7 +73,9 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
     // één `assignResource` op aan Immer-proxywerk waar nul mutaties tegenover stonden. `get()` levert
     // dezelfde (bevroren, dus veilig te lezen) staat plain.
     const s = get();
-    const result = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars);
+    const result = computeReliableResourceLoad(
+      s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+    );
     set((st) => { st.resourceLoadResult = result; });
   },
 
@@ -141,8 +143,8 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
 
       // Belasting/overallocatie herberekenen ná de CPM-pass + samenvattingstaak-rollup hierboven
       // (de resource-belasting mapt op de zojuist bijgewerkte earlyStart/earlyFinish).
-      s.resourceLoadResult = computeResourceLoad(
-        s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+      s.resourceLoadResult = computeReliableResourceLoad(
+        s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
       if (openedHistory) finishUndoable(s);
       else if (refreshPreviousEventAfter) refreshLatestDocumentDataHistoryAfter(s);
@@ -199,8 +201,8 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       }
 
       s.cpmResult = cpmResultFromRecorded(info.times, s.tasks, s.calendar);
-      s.resourceLoadResult = computeResourceLoad(
-        s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+      s.resourceLoadResult = computeReliableResourceLoad(
+        s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
       s.datesAsRecorded = true;
       // De weergave is consistent met wat er getoond wordt — niet verouderd.

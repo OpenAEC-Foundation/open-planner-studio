@@ -17,6 +17,11 @@ import { createStructureSlice, type StructureSlice } from './slices/structureSli
 import { createBaselineSlice, type BaselineSlice } from './slices/baselineSlice';
 import { createLibrarySlice, type LibrarySlice } from './slices/librarySlice';
 import { createTaskGridSlice, type TaskGridSlice } from './slices/taskGridSlice';
+import {
+  bindDefaultGridTransactionStore,
+  createGridTransactionSlice,
+  type GridTransactionSlice,
+} from './gridTransaction';
 
 // Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
 export type { ExportFormat } from './slices/fileSlice';
@@ -43,7 +48,8 @@ export type AppState = ProjectSlice &
   StructureSlice &
   BaselineSlice &
   LibrarySlice &
-  TaskGridSlice;
+  TaskGridSlice &
+  GridTransactionSlice;
 
 /**
  * Bouw een NIEUWE, onafhankelijke store-instantie (K-item 41).
@@ -94,9 +100,11 @@ export function createAppStore() {
       ...createBaselineSlice(...a),
       ...createLibrarySlice(...a),
       ...createTaskGridSlice(...a),
+      ...createGridTransactionSlice(...a),
     })),
   );
 }
 
 /** De store van de app. Eén instantie, gebouwd met de factory hierboven. */
 export const useAppStore = createAppStore();
+bindDefaultGridTransactionStore(useAppStore.getState, useAppStore.setState);

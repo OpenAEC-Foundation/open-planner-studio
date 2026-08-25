@@ -272,7 +272,8 @@ bevroren('19 bevroren na een bulk-transactie');
     const rrl = src.schedule.slice(src.schedule.indexOf('recomputeResourceLoad:'));
     const body = rrl.slice(0, rrl.indexOf('runCPM:'));
     truthy('29 recomputeResourceLoad rekent buiten de producer', /const s = get\(\);/.test(body));
-    eq('29a en zet binnen de producer alleen het resultaat', /computeResourceLoad\(\s*s\./.test(body), true);
+    eq('29a en rekent via de betrouwbaarheidspoort buiten de producer',
+      /computeReliableResourceLoad\(\s*s\.cpmResult,\s*s\./.test(body), true);
     eq('29b computeResourceLoad staat niet ín een set()-producer',
       /set\(\([a-z]+\) => \{\s*[a-z]+\.resourceLoadResult = computeResourceLoad/.test(body), false);
 
