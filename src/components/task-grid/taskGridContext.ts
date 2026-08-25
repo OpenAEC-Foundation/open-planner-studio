@@ -48,6 +48,10 @@ export interface DataGridLabels {
   collapseGroup: (label: string) => string;
   expandGroup: (label: string) => string;
   resizeColumn: (label: string) => string;
+  removeColumn: (label: string) => string;
+  pinColumn: string;
+  unpinColumn: string;
+  autoFitColumn: string;
 }
 
 export interface TaskGridContextValue {

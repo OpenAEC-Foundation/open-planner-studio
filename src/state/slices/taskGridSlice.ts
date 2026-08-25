@@ -16,6 +16,7 @@ import {
 } from '@/engine/taskGrid/preferences';
 import { saveTaskGridPreferences } from '@/utils/settingsStore';
 import type { ColumnConfig } from '@/types/view';
+import { recordGridPreferenceHistoryDelta } from '../sessionHistory';
 
 export interface PendingLegacyTaskGridColumns {
   projectId: string;
@@ -29,6 +30,12 @@ export interface TaskGridSlice {
   recentTaskColumns: TaskColumnId[];
   hydrateTaskGridPreferences: (preferences: PersistedTaskGridPreferencesV1) => void;
   setTaskGridColumns: (surface: TaskGridSurfaceId, columns: readonly TaskGridColumnPreference[]) => void;
+  /** Eén directe gebruikersactie: voorkeur en undo-record worden in dezelfde producer gepubliceerd. */
+  commitTaskGridColumns: (
+    surface: TaskGridSurfaceId,
+    label: string,
+    columns: readonly TaskGridColumnPreference[],
+  ) => void;
   setTaskGridScrollX: (surface: TaskGridSurfaceId, scrollX: number) => void;
   recordRecentTaskColumn: (id: TaskColumnId) => void;
   applyTaskGridLayoutColumns: (columns: readonly TaskGridColumnPreference[]) => void;
@@ -95,6 +102,27 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
         state.taskGridSurfaces[surface].columns = normalized;
         persisted = payloadFromState(state);
       });
+      if (persisted) void saveTaskGridPreferences(persisted);
+    },
+
+    commitTaskGridColumns: (surface, label, columns) => {
+      const normalized = normalizeTaskGridColumnPreferences(columns);
+      if (normalized === null) return;
+      let persisted: PersistedTaskGridPreferencesV1 | null = null;
+      let recorded = false;
+      set((state) => {
+        const before = state.taskGridSurfaces[surface];
+        const after: TaskGridSurfacePreferences = {
+          columns: normalized.map(column => ({ ...column })),
+          scrollX: before.scrollX,
+        };
+        recorded = recordGridPreferenceHistoryDelta(state, label, surface, before, after) !== null;
+        if (!recorded) return;
+        state.taskGridSurfaces[surface] = after;
+        persisted = payloadFromState(state);
+      });
+      if (!recorded) return;
+      markPreferencesReady();
       if (persisted) void saveTaskGridPreferences(persisted);
     },
 

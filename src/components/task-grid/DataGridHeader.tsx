@@ -1,4 +1,15 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { Minus } from 'lucide-react';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import type { TaskColumnId } from '@/types/taskGrid';
 import type { DataGridColumnModel, DataGridLabels } from './taskGridContext';
 
@@ -47,10 +58,18 @@ export interface DataGridHeaderProps {
   height: number;
   viewportWidth: number;
   labels: DataGridLabels;
-  onResizeStart?: (columnId: TaskColumnId, before: number) => void;
+  onResizeStart?: (columnId: TaskColumnId, before: number) => boolean | void;
   onResizePreview?: (columnId: TaskColumnId, width: number) => void;
   onResizeCommit?: (columnId: TaskColumnId, before: number, after: number) => void;
   onResizeCancel?: (columnId: TaskColumnId, before: number) => void;
+  onRemoveColumn?: (columnId: TaskColumnId) => void;
+  onTogglePinned?: (columnId: TaskColumnId, pinned: boolean) => void;
+  onAutoFitColumn?: (columnId: TaskColumnId) => void;
+  onReorderColumn?: (
+    draggedId: TaskColumnId,
+    targetId: TaskColumnId,
+    placement: 'before' | 'after',
+  ) => void;
 }
 
 interface ResizeDrag {
@@ -66,6 +85,17 @@ interface PendingResizePreview {
   width: number;
 }
 
+interface HeaderContextMenuState {
+  columnId: TaskColumnId;
+  x: number;
+  y: number;
+}
+
+interface HeaderDropTarget {
+  columnId: TaskColumnId;
+  placement: 'before' | 'after';
+}
+
 export function DataGridHeader({
   columns,
   height,
@@ -75,14 +105,62 @@ export function DataGridHeader({
   onResizePreview,
   onResizeCommit,
   onResizeCancel,
+  onRemoveColumn,
+  onTogglePinned,
+  onAutoFitColumn,
+  onReorderColumn,
 }: DataGridHeaderProps) {
   const [drag, setDrag] = useState<ResizeDrag | null>(null);
   const dragRef = useRef<ResizeDrag | null>(null);
   const pendingPreviewRef = useRef<PendingResizePreview | null>(null);
   const previewFrameRef = useRef<number | null>(null);
+  const [draggedColumnId, setDraggedColumnId] = useState<TaskColumnId | null>(null);
+  const [dropTarget, setDropTarget] = useState<HeaderDropTarget | null>(null);
+  const [contextMenu, setContextMenu] = useState<HeaderContextMenuState | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ left: 0, top: 0 });
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const contextTriggerRef = useRef<HTMLButtonElement | null>(null);
   const pinned = computePinnedColumnLayout(columns, viewportWidth);
   const totalWidth = columns.reduce((total, column) => total + column.width, 0);
   const template = columns.map(column => `${column.width}px`).join(' ');
+  const contextColumn = contextMenu
+    ? columns.find(column => column.id === contextMenu.columnId)
+    : undefined;
+
+  useClickOutside(contextMenuRef, () => setContextMenu(null), contextMenu !== null, {
+    contextmenu: true,
+    defer: true,
+  });
+
+  useLayoutEffect(() => {
+    if (!contextMenu) return;
+    const menu = contextMenuRef.current;
+    if (!menu) return;
+    setContextMenuPosition({
+      left: Math.max(0, Math.min(contextMenu.x, window.innerWidth - menu.offsetWidth)),
+      top: Math.max(0, Math.min(contextMenu.y, window.innerHeight - menu.offsetHeight)),
+    });
+    menu.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  }, [contextMenu]);
+
+  const closeContextMenu = (restoreFocus: boolean) => {
+    setContextMenu(null);
+    if (!restoreFocus) return;
+    const restore = () => contextTriggerRef.current?.focus();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restore);
+    else setTimeout(restore, 0);
+  };
+
+  const openContextMenu = (
+    columnId: TaskColumnId,
+    x: number,
+    y: number,
+    trigger: HTMLButtonElement | null,
+  ) => {
+    contextTriggerRef.current = trigger;
+    setContextMenu({ columnId, x, y });
+    setContextMenuPosition({ left: x, top: y });
+  };
 
   const cancelScheduledPreview = () => {
     if (previewFrameRef.current !== null && typeof cancelAnimationFrame === 'function') {
@@ -114,6 +192,7 @@ export function DataGridHeader({
   const beginResize = (event: PointerEvent<HTMLButtonElement>, column: DataGridColumnModel) => {
     event.preventDefault();
     if (dragRef.current) return;
+    if (onResizeStart?.(column.id, column.width) === false) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     const nextDrag = {
       columnId: column.id,
@@ -124,7 +203,6 @@ export function DataGridHeader({
     };
     dragRef.current = nextDrag;
     setDrag(nextDrag);
-    onResizeStart?.(column.id, column.width);
   };
 
   const moveResize = (event: PointerEvent<HTMLButtonElement>, column: DataGridColumnModel) => {
@@ -145,6 +223,10 @@ export function DataGridHeader({
     cancelScheduledPreview();
     dragRef.current = null;
     setDrag(null);
+    if (currentDrag.current === currentDrag.before) {
+      onResizeCancel?.(column.id, currentDrag.before);
+      return;
+    }
     onResizePreview?.(column.id, currentDrag.current);
     onResizeCommit?.(column.id, currentDrag.before, currentDrag.current);
   };
@@ -170,29 +252,101 @@ export function DataGridHeader({
     event.preventDefault();
     const after = keyboardResizeWidth(column.width, event.key, event.shiftKey);
     if (after === column.width) return;
-    onResizeStart?.(column.id, column.width);
+    if (onResizeStart?.(column.id, column.width) === false) return;
     onResizePreview?.(column.id, after);
     onResizeCommit?.(column.id, column.width, after);
   };
 
+  const updateDropTarget = (event: DragEvent<HTMLDivElement>, column: DataGridColumnModel) => {
+    if (!draggedColumnId || draggedColumnId === column.id) return;
+    const dragged = columns.find(candidate => candidate.id === draggedColumnId);
+    if (!dragged || dragged.pinned !== column.pinned) {
+      event.dataTransfer.dropEffect = 'none';
+      setDropTarget(null);
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const rect = event.currentTarget.getBoundingClientRect();
+    setDropTarget({
+      columnId: column.id,
+      placement: event.clientX < rect.left + rect.width / 2 ? 'before' : 'after',
+    });
+  };
+
+  const contextMenuPortal = contextMenu && contextColumn && typeof document !== 'undefined'
+    ? createPortal(
+      <div
+        ref={contextMenuRef}
+        role="menu"
+        aria-label={contextColumn.label}
+        className="task-grid-header-context-menu"
+        style={contextMenuPosition}
+        onKeyDown={event => {
+          if (event.key !== 'Escape') return;
+          event.preventDefault();
+          event.stopPropagation();
+          closeContextMenu(true);
+        }}
+      >
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            onTogglePinned?.(contextColumn.id, !contextColumn.pinned);
+            closeContextMenu(true);
+          }}
+        >
+          {contextColumn.pinned ? labels.unpinColumn : labels.pinColumn}
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            onAutoFitColumn?.(contextColumn.id);
+            closeContextMenu(true);
+          }}
+        >
+          {labels.autoFitColumn}
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            onRemoveColumn?.(contextColumn.id);
+            closeContextMenu(false);
+          }}
+        >
+          {labels.removeColumn(contextColumn.label)}
+        </button>
+      </div>,
+      document.body,
+    )
+    : null;
+
   return (
-    <div
-      role="row"
-      aria-rowindex={1}
-      className="task-grid-header-row"
-      data-grid-sticky-enabled={pinned.stickyEnabled ? 'true' : 'false'}
-      style={{ height, minWidth: totalWidth, gridTemplateColumns: template }}
-    >
-      {columns.map((column, columnIndex) => {
-        const left = pinned.leftByColumnId.get(column.id);
-        const isSticky = column.pinned && pinned.stickyEnabled && left !== undefined;
-        return (
-          <div
+    <>
+      <div
+        role="row"
+        aria-rowindex={1}
+        className="task-grid-header-row"
+        data-grid-sticky-enabled={pinned.stickyEnabled ? 'true' : 'false'}
+        style={{ height, minWidth: totalWidth, gridTemplateColumns: template }}
+      >
+        {columns.map((column, columnIndex) => {
+          const left = pinned.leftByColumnId.get(column.id);
+          const isSticky = column.pinned && pinned.stickyEnabled && left !== undefined;
+          return (
+            <div
             key={column.id}
             role="columnheader"
             aria-colindex={columnIndex + 1}
             data-grid-pinned={column.pinned ? 'true' : undefined}
             className="task-grid-column-header"
+            draggable={onReorderColumn !== undefined}
+            data-grid-dragging={draggedColumnId === column.id ? 'true' : undefined}
+            data-grid-drop-before={dropTarget?.columnId === column.id && dropTarget.placement === 'before' ? 'true' : undefined}
+            data-grid-drop-after={dropTarget?.columnId === column.id && dropTarget.placement === 'after' ? 'true' : undefined}
             style={{
               width: column.width,
               height,
@@ -201,10 +355,65 @@ export function DataGridHeader({
               zIndex: isSticky ? 6 : 5,
               justifyContent: column.align === 'end' ? 'flex-end' : column.align === 'center' ? 'center' : 'flex-start',
             }}
+            onDragStart={event => {
+              if (!onReorderColumn) return;
+              event.dataTransfer.effectAllowed = 'move';
+              event.dataTransfer.setData('text/plain', column.id);
+              setDraggedColumnId(column.id);
+            }}
+            onDragOver={event => updateDropTarget(event, column)}
+            onDrop={event => {
+              event.preventDefault();
+              if (draggedColumnId && dropTarget?.columnId === column.id) {
+                onReorderColumn?.(draggedColumnId, column.id, dropTarget.placement);
+              }
+              setDraggedColumnId(null);
+              setDropTarget(null);
+            }}
+            onDragEnd={() => {
+              setDraggedColumnId(null);
+              setDropTarget(null);
+            }}
+            onContextMenu={event => {
+              event.preventDefault();
+              event.stopPropagation();
+              openContextMenu(
+                column.id,
+                event.clientX,
+                event.clientY,
+                event.currentTarget.querySelector<HTMLButtonElement>('.task-grid-resize-handle'),
+              );
+            }}
+            onKeyDown={event => {
+              if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const rect = event.currentTarget.getBoundingClientRect();
+              openContextMenu(
+                column.id,
+                rect.left + Math.min(rect.width, 24),
+                rect.top + Math.min(rect.height, 24),
+                event.currentTarget.querySelector<HTMLButtonElement>('.task-grid-resize-handle'),
+              );
+            }}
           >
             <span className="task-grid-column-label">{column.label}</span>
             <button
               type="button"
+              draggable={false}
+              aria-label={labels.removeColumn(column.label)}
+              className="task-grid-remove-column"
+              onDragStart={event => event.preventDefault()}
+              onClick={event => {
+                event.stopPropagation();
+                onRemoveColumn?.(column.id);
+              }}
+            >
+              <Minus size={12} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              draggable={false}
               role="separator"
               aria-orientation="vertical"
               aria-label={labels.resizeColumn(column.label)}
@@ -218,10 +427,16 @@ export function DataGridHeader({
               onPointerCancel={event => cancelResize(column, event.pointerId)}
               onLostPointerCapture={event => cancelResize(column, event.pointerId)}
               onKeyDown={event => resizeWithKeyboard(event, column)}
+              onDoubleClick={event => {
+                event.preventDefault();
+                onAutoFitColumn?.(column.id);
+              }}
             />
-          </div>
-        );
-      })}
-    </div>
+            </div>
+          );
+        })}
+      </div>
+      {contextMenuPortal}
+    </>
   );
 }

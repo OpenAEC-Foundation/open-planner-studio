@@ -18,6 +18,7 @@ import {
 export const TASK_GRID_COLUMN_MIN_WIDTH = 40;
 /** Alleen een corruptiegrens. Auto-fit heeft later zijn eigen UX-grens van 480 px. */
 export const TASK_GRID_COLUMN_MAX_WIDTH = 2000;
+export const TASK_GRID_AUTOFIT_MAX_WIDTH = 480;
 export const TASK_GRID_RECENT_LIMIT = 10;
 
 export interface TaskGridProjectFields {
@@ -148,7 +149,142 @@ export function normalizeTaskGridColumnPreferences(
       pinned: candidate.pinned,
     });
   }
-  return result;
+  return [
+    ...result.filter(columnPreference => columnPreference.pinned),
+    ...result.filter(columnPreference => !columnPreference.pinned),
+  ];
+}
+
+function cloneColumns(columns: readonly TaskGridColumnPreference[]): TaskGridColumnPreference[] {
+  return columns.map(columnPreference => ({ ...columnPreference }));
+}
+
+/** Voeg uitsluitend een nieuwe id toe; de vrije kolom komt na alle bestaande vrije en onbekende ids. */
+export function addTaskGridColumn(
+  columns: readonly TaskGridColumnPreference[],
+  added: TaskGridColumnPreference,
+): TaskGridColumnPreference[] {
+  if (columns.some(columnPreference => columnPreference.id === added.id)) return cloneColumns(columns);
+  const normalized = normalizeTaskGridColumnPreferences([...columns, { ...added, pinned: false }]);
+  return normalized ?? cloneColumns(columns);
+}
+
+export function removeTaskGridColumn(
+  columns: readonly TaskGridColumnPreference[],
+  id: TaskColumnId,
+): TaskGridColumnPreference[] {
+  return columns.filter(columnPreference => columnPreference.id !== id).map(columnPreference => ({
+    ...columnPreference,
+  }));
+}
+
+export function setTaskGridColumnPinned(
+  columns: readonly TaskGridColumnPreference[],
+  id: TaskColumnId,
+  pinned: boolean,
+): TaskGridColumnPreference[] {
+  const source = columns.find(columnPreference => columnPreference.id === id);
+  if (!source || source.pinned === pinned) return cloneColumns(columns);
+  const remaining = columns.filter(columnPreference => columnPreference.id !== id)
+    .map(columnPreference => ({ ...columnPreference }));
+  const firstFree = remaining.findIndex(columnPreference => !columnPreference.pinned);
+  const insertAt = firstFree < 0 ? remaining.length : firstFree;
+  remaining.splice(insertAt, 0, { ...source, pinned });
+  return remaining;
+}
+
+export function moveTaskGridColumn(
+  columns: readonly TaskGridColumnPreference[],
+  draggedId: TaskColumnId,
+  targetId: TaskColumnId,
+  placement: 'before' | 'after',
+): TaskGridColumnPreference[] {
+  const dragged = columns.find(columnPreference => columnPreference.id === draggedId);
+  const target = columns.find(columnPreference => columnPreference.id === targetId);
+  if (!dragged || !target || dragged.id === target.id || dragged.pinned !== target.pinned) {
+    return cloneColumns(columns);
+  }
+  const next = columns.filter(columnPreference => columnPreference.id !== draggedId)
+    .map(columnPreference => ({ ...columnPreference }));
+  const targetIndex = next.findIndex(columnPreference => columnPreference.id === targetId);
+  next.splice(targetIndex + (placement === 'after' ? 1 : 0), 0, { ...dragged });
+  return next;
+}
+
+export function resizeTaskGridColumn(
+  columns: readonly TaskGridColumnPreference[],
+  id: TaskColumnId,
+  width: number,
+): TaskGridColumnPreference[] {
+  if (!Number.isFinite(width)) return cloneColumns(columns);
+  const normalizedWidth = Math.max(
+    TASK_GRID_COLUMN_MIN_WIDTH,
+    Math.min(TASK_GRID_AUTOFIT_MAX_WIDTH, Math.round(width)),
+  );
+  return columns.map(columnPreference => columnPreference.id === id
+    ? { ...columnPreference, width: normalizedWidth }
+    : { ...columnPreference });
+}
+
+export function recentAvailableTaskColumnIds(
+  recent: readonly TaskColumnId[],
+  availableIds: ReadonlySet<TaskColumnId>,
+): TaskColumnId[] {
+  return recent.filter(id => availableIds.has(id)).slice(0, TASK_GRID_RECENT_LIMIT);
+}
+
+export interface TaskGridAutoFitRow {
+  rowKey: string;
+  valueVersion: string | number;
+  text: string;
+}
+
+export interface ComputeTaskGridAutoFitWidthInput {
+  columnId: TaskColumnId;
+  headerText: string;
+  rows: readonly TaskGridAutoFitRow[];
+  cache: Map<string, number>;
+  measureText: (text: string) => number;
+  horizontalPadding?: number;
+  chunkSize?: number;
+  yieldToMain?: () => Promise<void>;
+}
+
+function defaultAutoFitYield(): Promise<void> {
+  if (typeof requestIdleCallback === 'function') {
+    return new Promise(resolve => requestIdleCallback(() => resolve(), { timeout: 50 }));
+  }
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+/** Meet alle aangeleverde rijen in chunks. De cache-identiteit bevat occurrence, kolom en versie. */
+export async function computeTaskGridAutoFitWidth(
+  input: ComputeTaskGridAutoFitWidthInput,
+): Promise<number> {
+  const padding = Math.max(0, input.horizontalPadding ?? 16);
+  const chunkSize = Math.max(1, Math.floor(input.chunkSize ?? 250));
+  const yieldToMain = input.yieldToMain ?? defaultAutoFitYield;
+  let widest = input.measureText(input.headerText);
+
+  for (let start = 0; start < input.rows.length; start += chunkSize) {
+    const end = Math.min(input.rows.length, start + chunkSize);
+    for (let index = start; index < end; index++) {
+      const row = input.rows[index];
+      const key = JSON.stringify([row.rowKey, input.columnId, row.valueVersion]);
+      let width = input.cache.get(key);
+      if (width === undefined) {
+        width = input.measureText(row.text);
+        input.cache.set(key, width);
+      }
+      widest = Math.max(widest, width);
+    }
+    if (end < input.rows.length) await yieldToMain();
+  }
+
+  return Math.max(
+    TASK_GRID_COLUMN_MIN_WIDTH,
+    Math.min(TASK_GRID_AUTOFIT_MAX_WIDTH, Math.ceil(widest + padding)),
+  );
 }
 
 export function normalizeTaskGridScrollX(raw: unknown): number | null {

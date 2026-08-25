@@ -323,6 +323,49 @@ eq('Store bewaart één gedeelde MRU van tien', store.getState().recentTaskColum
   Array.from({ length: 10 }, (_, i) => `store-${11 - i}`));
 eq('Ook MRU-mutaties laten isDirty ongemoeid', store.getState().isDirty, dirtyBefore);
 
+const historyStore = createAppStore();
+historyStore.getState().hydrateTaskGridPreferences(defaults);
+const historyDirtyBefore = historyStore.getState().isDirty;
+const historyTableBefore = JSON.stringify(historyStore.getState().taskGridSurfaces['full-task-grid']);
+const historyGanttBefore = historyStore.getState().taskGridSurfaces['gantt-task-grid'];
+const historyGanttAfter = [
+  ...historyGanttBefore.columns,
+  { id: taskColumnId('task.time.scheduleStart'), width: 120, pinned: false },
+];
+historyStore.getState().commitTaskGridColumns(
+  'gantt-task-grid', 'Kolom Start toegevoegd', historyGanttAfter,
+);
+eq('Eén directe kolomactie schrijft precies één toegepast grid-history-event',
+  historyStore.getState().historyEvents.map(event => ({
+    label: event.label,
+    state: event.state,
+    kinds: event.deltas.map(delta => delta.kind),
+  })), [{
+    label: 'Kolom Start toegevoegd', state: 'applied', kinds: ['grid-preference'],
+  }]);
+const firstGridDelta = historyStore.getState().historyEvents[0]?.deltas[0];
+eq('Grid-history bevat uitsluitend de bedoelde surface',
+  firstGridDelta?.kind === 'grid-preference' ? firstGridDelta.surface : null,
+  'gantt-task-grid');
+eq('Een persoonlijke historywijziging raakt de andere surface niet',
+  JSON.stringify(historyStore.getState().taskGridSurfaces['full-task-grid']), historyTableBefore);
+eq('Een persoonlijke historywijziging zet het project niet dirty',
+  historyStore.getState().isDirty, historyDirtyBefore);
+historyStore.getState().undo();
+eq('Undo herstelt de volledige eerdere kolomvoorkeur',
+  historyStore.getState().taskGridSurfaces['gantt-task-grid'], historyGanttBefore);
+eq('Undo markeert hetzelfde event als undone zonder extra event',
+  historyStore.getState().historyEvents.map(event => event.state), ['undone']);
+historyStore.getState().redo();
+eq('Redo herstelt de volledige nieuwe kolomvoorkeur',
+  historyStore.getState().taskGridSurfaces['gantt-task-grid'].columns, historyGanttAfter);
+const eventCountBeforeNoOp = historyStore.getState().historyEvents.length;
+historyStore.getState().commitTaskGridColumns(
+  'gantt-task-grid', 'Dit is een no-op', historyStore.getState().taskGridSurfaces['gantt-task-grid'].columns,
+);
+eq('Een identieke kolomcommit schrijft geen history-event',
+  historyStore.getState().historyEvents.length, eventCountBeforeNoOp);
+
 store.setState((state) => {
   state.project.id = 'project:1';
   state.activityCodeTypes = [{ id: 'fase:1', name: 'Fase', values: [] }];

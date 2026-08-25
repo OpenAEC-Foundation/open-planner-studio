@@ -357,6 +357,47 @@ export function recordSessionHistoryDeltas(
   return event;
 }
 
+function cloneGridSurfacePreferences(
+  preferences: Readonly<TaskGridSurfacePreferences>,
+): TaskGridSurfacePreferences {
+  return {
+    columns: preferences.columns.map(column => ({ ...column })),
+    scrollX: preferences.scrollX,
+  };
+}
+
+function sameGridSurfacePreferences(
+  left: Readonly<TaskGridSurfacePreferences>,
+  right: Readonly<TaskGridSurfacePreferences>,
+): boolean {
+  return left.scrollX === right.scrollX
+    && left.columns.length === right.columns.length
+    && left.columns.every((column, index) => {
+      const candidate = right.columns[index];
+      return candidate !== undefined
+        && column.id === candidate.id
+        && column.width === candidate.width
+        && column.pinned === candidate.pinned;
+    });
+}
+
+/** Registreer één persoonlijke gridwijziging; gelijke voor- en nastaat leveren bewust geen event. */
+export function recordGridPreferenceHistoryDelta(
+  state: AppState,
+  label: string,
+  surface: TaskGridSurfaceId,
+  before: Readonly<TaskGridSurfacePreferences>,
+  after: Readonly<TaskGridSurfacePreferences>,
+): SessionHistoryEvent | null {
+  if (sameGridSurfacePreferences(before, after)) return null;
+  return recordSessionHistoryDeltas(state, label, [{
+    kind: 'grid-preference',
+    surface,
+    before: cloneGridSurfacePreferences(before),
+    after: cloneGridSurfacePreferences(after),
+  }]);
+}
+
 /** Registreer één voorbereide documentdatasprong zonder dat de aanroeper zelf de deltavorm bouwt. */
 export function recordDocumentDataHistoryDelta(
   state: AppState,

@@ -37,6 +37,10 @@ export interface DataGridCoreProps {
   onResizePreview?: DataGridHeaderProps['onResizePreview'];
   onResizeCommit?: DataGridHeaderProps['onResizeCommit'];
   onResizeCancel?: DataGridHeaderProps['onResizeCancel'];
+  onRemoveColumn?: DataGridHeaderProps['onRemoveColumn'];
+  onTogglePinned?: DataGridHeaderProps['onTogglePinned'];
+  onAutoFitColumn?: DataGridHeaderProps['onAutoFitColumn'];
+  onReorderColumn?: DataGridHeaderProps['onReorderColumn'];
 }
 
 function sameCell(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
@@ -90,6 +94,10 @@ export function DataGridCore({
   onResizePreview,
   onResizeCommit,
   onResizeCancel,
+  onRemoveColumn,
+  onTogglePinned,
+  onAutoFitColumn,
+  onReorderColumn,
 }: DataGridCoreProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cellsRef = useRef(new Map<string, HTMLDivElement>());
@@ -258,6 +266,10 @@ export function DataGridCore({
           onResizePreview={onResizePreview}
           onResizeCommit={onResizeCommit}
           onResizeCancel={onResizeCancel}
+          onRemoveColumn={onRemoveColumn}
+          onTogglePinned={onTogglePinned}
+          onAutoFitColumn={onAutoFitColumn}
+          onReorderColumn={onReorderColumn}
         />
         <div role="presentation" className="task-grid-body" style={{ minWidth: totalWidth }}>
           <div
@@ -277,26 +289,28 @@ export function DataGridCore({
                   className="task-grid-group-row"
                   style={{ height: rowHeight, minWidth: totalWidth }}
                 >
-                  <div
-                    role="gridcell"
-                    aria-colindex={1}
-                    aria-colspan={columns.length}
-                    data-grid-group-cell="true"
-                    className="task-grid-group-cell"
-                    style={{ width: totalWidth, height: rowHeight, paddingInlineStart: 8 + row.depth * 14 }}
-                  >
-                    <button
-                      type="button"
-                      aria-expanded={expanded}
-                      aria-label={expanded ? labels.collapseGroup(row.label) : labels.expandGroup(row.label)}
-                      className="task-grid-group-toggle"
-                      onClick={() => onToggleGroup?.(row.rowKey, !row.collapsed)}
+                  {columns.length > 0 && (
+                    <div
+                      role="gridcell"
+                      aria-colindex={1}
+                      aria-colspan={columns.length}
+                      data-grid-group-cell="true"
+                      className="task-grid-group-cell"
+                      style={{ width: totalWidth, height: rowHeight, paddingInlineStart: 8 + row.depth * 14 }}
                     >
-                      <span aria-hidden="true">{expanded ? '▾' : '▸'}</span>
-                      <span className="task-grid-group-label">{row.label}</span>
-                      <span className="task-grid-group-count">{row.count}</span>
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        aria-expanded={expanded}
+                        aria-label={expanded ? labels.collapseGroup(row.label) : labels.expandGroup(row.label)}
+                        className="task-grid-group-toggle"
+                        onClick={() => onToggleGroup?.(row.rowKey, !row.collapsed)}
+                      >
+                        <span aria-hidden="true">{expanded ? '▾' : '▸'}</span>
+                        <span className="task-grid-group-label">{row.label}</span>
+                        <span className="task-grid-group-count">{row.count}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             }

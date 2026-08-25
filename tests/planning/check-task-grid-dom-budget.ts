@@ -60,6 +60,10 @@ const markup = renderToStaticMarkup(createElement(DataGridCore, {
       collapseGroup: label => `${label} inklappen`,
       expandGroup: label => `${label} uitklappen`,
       resizeColumn: label => `${label} breder of smaller maken`,
+      removeColumn: label => `${label} verwijderen`,
+      pinColumn: 'Links vastzetten',
+      unpinColumn: 'Links losmaken',
+      autoFitColumn: 'Breedte automatisch',
     },
   }));
 
