@@ -13,6 +13,7 @@ import { effectiveCalendarByTask } from '@/services/subdayIo';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import { Task } from '@/types/task';
 import { isTreeMode } from '@/engine/view/visibleRows';
+import { resolveFirstVisibleFocusOccurrence } from '@/state/slices/viewSlice';
 import { ContextMenu } from './ContextMenu';
 // Issue #42/#45: reikwijdte (aangeklikte taak = handgreep, selectie = bereik) + de bulk-uitvoering
 // als ÉÉN undo-stap. DOM-vrij afgezonderd zodat de regressiebatterij dezelfde functies draait.
@@ -815,7 +816,13 @@ export function GanttCanvas() {
 
     const { zoom, scrollX } = computeFocusTaskHorizontal(durationDays, midDayOffset, usable);
 
-    const rowIndex = viewRows.findIndex(r => r.kind === 'task' && r.task.id === pendingFocusTaskId);
+    // `focusOnTask` blijft een domeinactie met taskId-input. Bij resourcegroepering kan die taak
+    // meerdere keren zichtbaar zijn: benoem daarom lokaal eerst deterministisch de eerste
+    // occurrence als rowKey en zoek de visuele rij uitsluitend via die occurrence-key.
+    const focusRowKey = resolveFirstVisibleFocusOccurrence(viewRows, pendingFocusTaskId)?.rowKey;
+    const rowIndex = focusRowKey === undefined
+      ? -1
+      : viewRows.findIndex(row => row.rowKey === focusRowKey);
     const scrollY = rowIndex >= 0
       ? computeFocusTaskScrollY(rowIndex, rowHeight, headerHeight, rect.height)
       : st.view.scrollY; // niet gevonden (bv. weggefilterd) — verticaal onaangeroerd

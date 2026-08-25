@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
-import { defaultColumns, isTreeMode } from '@/engine/view/visibleRows';
+import { defaultColumns, isTreeMode, normalizeTaskRowCursor } from '@/engine/view/visibleRows';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { resourceCellValue, type ViewContext } from '@/engine/view/filterEval';
 import type { ColumnConfig, FieldRef, BuiltinFieldKey } from '@/state/slices/types';
@@ -18,6 +18,13 @@ import { useTableRowDrag } from './hooks/useTableRowDrag';
 import { neighbourGridCell, type GridDirection } from '@/utils/gridNavigation';
 
 const MIN_COLUMN_WIDTH = 40;
+
+interface TableCellAddress {
+  rowKey: string;
+  rowIndex: number;
+  taskId: string;
+  field: string;
+}
 
 /** Compacte, altijd-bewerkbare celvariant voor een custom field (tabelrij). */
 function FieldCell({ def, value, onCommit }: {
@@ -136,15 +143,15 @@ export function TableEditor() {
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
 
-  const [editCell, setEditCell] = useState<{ taskId: string; field: string } | null>(null);
+  const [editCell, setEditCell] = useState<TableCellAddress | null>(null);
   const [editValue, setEditValue] = useState('');
   const [resizing, setResizing] = useState<{ index: number; startX: number; startWidth: number } | null>(null);
   // issue #26 (spreadsheet-gevoel): de cel waar de cursor "staat" zonder dat er getypt wordt —
   // één klik zet hem, typen/F2/Enter start pas de bewerking.
-  const [activeCell, setActiveCell] = useState<{ taskId: string; field: string } | null>(null);
+  const [activeCell, setActiveCell] = useState<TableCellAddress | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Spiegel van `editCell` voor de focus-herstelcheck ná de render (zie restoreGridFocus).
-  const editCellRef = useRef<{ taskId: string; field: string } | null>(null);
+  const editCellRef = useRef<TableCellAddress | null>(null);
   useEffect(() => { editCellRef.current = editCell; }, [editCell]);
 
   // Punt D (issue #26): na een commit hoort de focus terug op het raster, anders werkt
@@ -276,12 +283,16 @@ export function TableEditor() {
   const selectAllOnOpenRef = useRef(false);
   const editInputRef = useRef<HTMLInputElement | null>(null);
 
-  const startEdit = useCallback((taskId: string, field: string, value: string, opts?: { selectAll?: boolean }) => {
+  const startEdit = useCallback((rowKey: string, taskId: string, field: string, value: string, opts?: { selectAll?: boolean }) => {
+    // Lees vers uit de store: de nieuwe-rijroute herberekent viewRows synchroon en roept startEdit
+    // nog in dezelfde callback aan; een React-closure zou daar de rij van vóór de invoeging zien.
+    const rowIndex = useAppStore.getState().viewRows.findIndex(row => row.rowKey === rowKey);
+    if (rowIndex < 0) return;
     selectAllOnOpenRef.current = opts?.selectAll === true;
-    setEditCell({ taskId, field });
+    setEditCell({ rowKey, rowIndex, taskId, field });
     setEditValue(value);
     // De cursor blijft ná de bewerking op dezelfde cel staan (issue #26).
-    setActiveCell({ taskId, field });
+    setActiveCell({ rowKey, rowIndex, taskId, field });
   }, []);
 
   // Loopt ná het mounten van de bewerk-input (refs zijn dan gezet), dus `select()` treft het echte
@@ -365,7 +376,7 @@ export function TableEditor() {
     return '';
   }, [durationEditSeed]);
 
-  const taskRowIds = useMemo(() => taskRows.map(r => r.task.id), [taskRows]);
+  const taskRowKeys = useMemo(() => taskRows.map(row => row.rowKey), [taskRows]);
 
   /** Buurcel over (taakrijen × bewerkbare kolommen). `null` = geen buur (rand, onbekende rij/kolom,
    *  of geen bewerkbare kolommen zichtbaar). Gedeeld door de bewerk-navigatie en de rasternavigatie
@@ -374,11 +385,15 @@ export function TableEditor() {
    *  (zie de kop van dat bestand voor waarom alleen de REKENSOM gedeeld kan worden en niet de
    *  cursor-mechaniek). */
   const neighbourCell = useCallback(
-    (taskId: string, field: string, direction: GridDirection): { taskId: string; field: string } | null => {
-      const next = neighbourGridCell(taskRowIds, editableFields, { rowId: taskId, field }, direction);
-      return next && { taskId: next.rowId, field: next.field };
+    (rowKey: string, field: string, direction: GridDirection): TableCellAddress | null => {
+      const next = neighbourGridCell(taskRowKeys, editableFields, { rowId: rowKey, field }, direction);
+      if (!next) return null;
+      const nextRow = taskRows.find(row => row.rowKey === next.rowId);
+      if (!nextRow) return null;
+      const rowIndex = viewRows.findIndex(row => row.rowKey === nextRow.rowKey);
+      return { rowKey: nextRow.rowKey, rowIndex, taskId: nextRow.task.id, field: next.field };
     },
-    [taskRowIds, editableFields],
+    [taskRowKeys, editableFields, taskRows, viewRows],
   );
 
   // Een cel die niet meer BESTAAT mag niet actief of in bewerking blijven: de rij kan verdwenen zijn
@@ -388,20 +403,46 @@ export function TableEditor() {
   // geval afgebroken ZONDER commit (de cel is immers weg). Alleen zetten wanneer de waarde echt
   // verandert, anders is dit een render-lus.
   useEffect(() => {
-    const bestaat = (cell: { taskId: string; field: string } | null): boolean =>
-      !cell || (taskRows.some(r => r.task.id === cell.taskId) && editableFields.includes(cell.field));
-    if (!bestaat(activeCell)) setActiveCell(null);
-    if (!bestaat(editCell)) setEditCell(null);
-  }, [taskRows, editableFields, activeCell, editCell]);
+    if (activeCell) {
+      if (!editableFields.includes(activeCell.field)) {
+        setActiveCell(null);
+      } else {
+        const cursor = normalizeTaskRowCursor(viewRows, activeCell);
+        if (cursor === null) {
+          setActiveCell(null);
+        } else {
+          const row = viewRows[cursor.rowIndex];
+          if (row?.kind !== 'task') {
+            setActiveCell(null);
+          } else if (
+            cursor.rowKey !== activeCell.rowKey
+            || cursor.rowIndex !== activeCell.rowIndex
+            || row.task.id !== activeCell.taskId
+          ) {
+            setActiveCell({ ...activeCell, ...cursor, taskId: row.task.id });
+          }
+        }
+      }
+    }
 
-  const navigateCell = useCallback((taskId: string, field: string, direction: 'up' | 'down' | 'left' | 'right') => {
+    // Een open edit migreert nooit naar een andere taakoccurrence: als exact deze rij verdwijnt,
+    // annuleren we zonder commit. Alleen de niet-bewerkende actieve cursor wordt genormaliseerd.
+    if (editCell) {
+      const exactRow = viewRows[editCell.rowIndex]?.rowKey === editCell.rowKey
+        ? viewRows[editCell.rowIndex]
+        : viewRows.find(row => row.rowKey === editCell.rowKey);
+      if (exactRow?.kind !== 'task' || !editableFields.includes(editCell.field)) setEditCell(null);
+    }
+  }, [viewRows, editableFields, activeCell, editCell]);
+
+  const navigateCell = useCallback((rowKey: string, taskId: string, field: string, direction: 'up' | 'down' | 'left' | 'right') => {
     commitEdit();
-    const next = neighbourCell(taskId, field, direction);
+    const next = neighbourCell(rowKey, field, direction);
     if (next) {
-      const nextTask = taskRows.find(r => r.task.id === next.taskId)?.task;
+      const nextTask = tasks.find(task => task.id === next.taskId);
       if (!nextTask) return;
-      selectTask(nextTask.id);
-      startEdit(nextTask.id, next.field, getCellValue(nextTask, next.field));
+      selectTask(next.taskId);
+      startEdit(next.rowKey, next.taskId, next.field, getCellValue(nextTask, next.field));
       return;
     }
     // issue #26: Enter/↓ op de LAATSTE rij maakt een nieuwe zustertaak en zet de cursor meteen in
@@ -409,7 +450,7 @@ export function TableEditor() {
     // filter/groepering/sortering actief kan de nieuwe taak zó weer uit beeld vallen. Dat weigeren
     // gebeurt niet meer stil — de melding vertelt waarom (en biedt aan de standen te wissen).
     if (direction !== 'down') return;
-    const rowIndex = taskRows.findIndex(r => r.task.id === taskId);
+    const rowIndex = taskRows.findIndex(row => row.rowKey === rowKey);
     if (rowIndex === -1 || rowIndex !== taskRows.length - 1) return;
     // Issue #49: de boommodus-poort én de structuurmelding zitten sinds die fix in de gedeelde
     // invoegroute, zodat élke route (lint, contextmenu, sneltoets, tabel) dezelfde regel volgt.
@@ -418,19 +459,19 @@ export function TableEditor() {
     if (!newId) return;
     selectTask(newId);
     // Lege startwaarde (niet de standaardnaam) zodat wat de gebruiker typt direct overschrijft.
-    startEdit(newId, 'name', '');
-  }, [taskRows, neighbourCell, commitEdit, selectTask, startEdit, getCellValue, t]);
+    startEdit(newId, newId, 'name', '');
+  }, [taskRows, tasks, neighbourCell, commitEdit, selectTask, startEdit, getCellValue, t]);
 
-  const handleCellKeyDown = useCallback((e: React.KeyboardEvent, taskId: string, field: string) => {
+  const handleCellKeyDown = useCallback((e: React.KeyboardEvent, rowKey: string, taskId: string, field: string) => {
     if (e.key === 'Enter' || e.key === 'ArrowDown') {
       e.preventDefault();
-      navigateCell(taskId, field, 'down');
+      navigateCell(rowKey, taskId, field, 'down');
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      navigateCell(taskId, field, 'up');
+      navigateCell(rowKey, taskId, field, 'up');
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      navigateCell(taskId, field, e.shiftKey ? 'left' : 'right');
+      navigateCell(rowKey, taskId, field, e.shiftKey ? 'left' : 'right');
     } else if (e.key === 'Escape') {
       setEditCell(null);
       // Focus terug op het raster, anders is "typen om te bewerken" na één Escape stuk.
@@ -453,7 +494,7 @@ export function TableEditor() {
       selectTask(newId);
       // Lege startwaarde, zodat wat je typt de standaardnaam direct overschrijft — zelfde gedrag
       // als de doorlopende invoer met Enter/↓ op de laatste rij.
-      startEdit(newId, 'name', '');
+      startEdit(newId, newId, 'name', '');
     }
   }, [navigateCell, restoreGridFocus, commitEdit, selectTask, startEdit, t]);
 
@@ -508,7 +549,7 @@ export function TableEditor() {
     if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
       e.stopPropagation();
-      startEdit(activeCell.taskId, activeCell.field, '');
+      startEdit(activeCell.rowKey, activeCell.taskId, activeCell.field, '');
       return;
     }
 
@@ -517,7 +558,7 @@ export function TableEditor() {
       e.preventDefault();
       // Niet doorlaten naar de globale sneltoetsen: F2 opent daar het taakdialoog.
       e.stopPropagation();
-      startEdit(activeCell.taskId, activeCell.field, getCellValue(task, activeCell.field), { selectAll: true });
+      startEdit(activeCell.rowKey, activeCell.taskId, activeCell.field, getCellValue(task, activeCell.field), { selectAll: true });
       return;
     }
     // KALE pijltjes verplaatsen de cursorcel. Met een modifier erbij houden we onze handen thuis:
@@ -530,7 +571,7 @@ export function TableEditor() {
       e.preventDefault();
       e.stopPropagation();
       const direction = e.key === 'ArrowUp' ? 'up' : e.key === 'ArrowDown' ? 'down' : e.key === 'ArrowLeft' ? 'left' : 'right';
-      const next = neighbourCell(activeCell.taskId, activeCell.field, direction);
+      const next = neighbourCell(activeCell.rowKey, activeCell.field, direction);
       if (!next) return;
       setActiveCell(next);
       if (next.taskId !== activeCell.taskId) selectTask(next.taskId);
@@ -543,16 +584,16 @@ export function TableEditor() {
       e.preventDefault();
       // Niet doorlaten: '0'/'-'/'=' zijn globale zoom-sneltoetsen (useZoomShortcuts).
       e.stopPropagation();
-      startEdit(activeCell.taskId, activeCell.field, e.key);
+      startEdit(activeCell.rowKey, activeCell.taskId, activeCell.field, e.key);
     }
   }, [editCell, activeCell, tasks, startEdit, getCellValue, neighbourCell, selectTask, selectedTaskIds, view, indentTasks, outdentTasks, notifyStructureLocked]);
 
   // `displayValue` (optioneel): wat de cel TOONT wanneer hij niet in bewerking is — voor datumcellen
   // de notatie-geformatteerde datum. De bewerk-/navigatiewaarde blijft `value` (ISO), dus dubbelklik
   // en commit gedragen zich onveranderd; alleen de weergave volgt de datumnotatie-instelling.
-  const renderCell = (taskId: string, field: string, value: string, align = 'left', displayValue?: string) => {
-    const isEditing = editCell?.taskId === taskId && editCell?.field === field;
-    const isActive = activeCell?.taskId === taskId && activeCell?.field === field;
+  const renderCell = (rowKey: string, taskId: string, field: string, value: string, align = 'left', displayValue?: string) => {
+    const isEditing = editCell?.rowKey === rowKey && editCell?.field === field;
+    const isActive = activeCell?.rowKey === rowKey && activeCell?.field === field;
     if (isEditing) {
       return (
         <input
@@ -561,7 +602,7 @@ export function TableEditor() {
           value={editValue}
           onChange={e => setEditValue(e.target.value)}
           onBlur={() => { commitEdit(); restoreGridFocus(); }}
-          onKeyDown={e => handleCellKeyDown(e, taskId, field)}
+          onKeyDown={e => handleCellKeyDown(e, rowKey, taskId, field)}
           className="w-full px-1 py-0.5 text-xs outline-none"
           style={{
             textAlign: align as 'left' | 'right' | 'center',
@@ -592,10 +633,14 @@ export function TableEditor() {
           if (justDraggedRef.current) return;
           // Ctrl/⌘/Shift+klik zijn multi-selectklikken: die horen alleen te selecteren. Zou hier een
           // editor opengaan, dan was multi-select (en dus Tab-inspringen op meerdere taken) stuk.
-          if (e.ctrlKey || e.metaKey || e.shiftKey) { setActiveCell({ taskId, field }); return; }
-          startEdit(taskId, field, value, { selectAll: true });
+          if (e.ctrlKey || e.metaKey || e.shiftKey) {
+            const rowIndex = viewRows.findIndex(row => row.rowKey === rowKey);
+            setActiveCell({ rowKey, rowIndex, taskId, field });
+            return;
+          }
+          startEdit(rowKey, taskId, field, value, { selectAll: true });
         }}
-        onDoubleClick={() => startEdit(taskId, field, value, { selectAll: true })}
+        onDoubleClick={() => startEdit(rowKey, taskId, field, value, { selectAll: true })}
       >
         {displayValue ?? value}
       </span>
@@ -610,25 +655,25 @@ export function TableEditor() {
   };
 
   /** Cel-inhoud voor één kolom van één taakrij (naamkolom heeft een eigen tak in de rij-render). */
-  const renderColumnCell = (col: ColumnConfig, task: Task, isSummary: boolean) => {
+  const renderColumnCell = (rowKey: string, col: ColumnConfig, task: Task, isSummary: boolean) => {
     const f = col.field;
     if (f.src === 'builtin') {
       switch (f.key) {
         case 'wbsCode':
           return wbsAutoNumber
             ? <span className="px-1 truncate">{task.wbsCode}</span>
-            : renderCell(task.id, 'wbsCode', task.wbsCode);
+            : renderCell(rowKey, task.id, 'wbsCode', task.wbsCode);
         case 'duration':
           return (
             <span title={durationCellTitle(task)} className="block" data-ops-dur-cell={task.id}>
-              {renderCell(task.id, 'duration', durationEditSeed(task), 'right', durationDisplayValue(task))}
+              {renderCell(rowKey, task.id, 'duration', durationEditSeed(task), 'right', durationDisplayValue(task))}
             </span>
           );
         case 'start': {
           const startIso = task.time.earlyStart || task.time.scheduleStart;
           return (
             <>
-              {renderCell(task.id, 'start', startIso, 'left', dd.date(startIso))}
+              {renderCell(rowKey, task.id, 'start', startIso, 'left', dd.date(startIso))}
               {task.constraint && ['SNET', 'SNLT', 'MSO'].includes(task.constraint.type) && (
                 <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
               )}
@@ -639,7 +684,7 @@ export function TableEditor() {
           const finishIso = task.time.earlyFinish || task.time.scheduleFinish;
           return (
             <>
-              {renderCell(task.id, 'finish', finishIso, 'left', dd.date(finishIso))}
+              {renderCell(rowKey, task.id, 'finish', finishIso, 'left', dd.date(finishIso))}
               {task.constraint && ['FNET', 'FNLT', 'MFO'].includes(task.constraint.type) && (
                 <span title={t('properties.hasConstraint')} style={{ color: 'var(--theme-accent)' }}>*</span>
               )}
@@ -664,7 +709,7 @@ export function TableEditor() {
         case 'completion':
           return (
             <>
-              {renderCell(task.id, 'completion', `${Math.round(task.time.completion * 100)}`, 'right')}
+              {renderCell(rowKey, task.id, 'completion', `${Math.round(task.time.completion * 100)}`, 'right')}
               <span className="text-text-secondary ml-0.5">%</span>
             </>
           );
@@ -792,7 +837,7 @@ export function TableEditor() {
             // Bandkop-rij (§4.4/§7.3): label + count, inklapbaar op de pad-gecodeerde sleutel.
             return (
               <div
-                key={`band-${row.key}-${rowIdx}`}
+                key={row.rowKey}
                 className="flex items-center gap-1.5 text-xs font-semibold px-2 cursor-pointer select-none"
                 style={{
                   minHeight: 26,
@@ -829,7 +874,7 @@ export function TableEditor() {
 
           return (
             <div
-              key={`${task.id}-${rowIdx}`}
+              key={row.rowKey}
               // De rijindex in de VOLLEDIGE viewRows; de rijsleep-hook meet hierop met
               // elementFromPoint. Groepsrijen dragen dit attribuut bewust niet.
               data-ops-row-index={rowIdx}
@@ -890,7 +935,7 @@ export function TableEditor() {
                       )}
                       {!isSummary && <span className="w-4" />}
                       <span className="flex-1 min-w-0">
-                        {renderCell(task.id, 'name', task.name)}
+                        {renderCell(row.rowKey, task.id, 'name', task.name)}
                       </span>
                     </div>
                   );
@@ -909,7 +954,7 @@ export function TableEditor() {
                         : {}),
                     }}
                   >
-                    {renderColumnCell(col, task, isSummary)}
+                    {renderColumnCell(row.rowKey, col, task, isSummary)}
                   </div>
                 );
               })}

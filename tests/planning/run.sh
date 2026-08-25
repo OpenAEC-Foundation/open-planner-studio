@@ -304,6 +304,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   FOCUSCHECK="$DIR/.focus-task.mjs"
   if bundle_check "$DIR/check-focus-task.ts" "$FOCUSCHECK"; then node "$FOCUSCHECK" || STATUS=1; fi
 
+  # Tabel-overhaul Task 1: stabiele rowKeys voor boom-, groeps- en dubbele resource-occurrences,
+  # occurrence-range met unieke domeinselectie en cursorherstel als filter/collapse een rij wist.
+  VRKCHECK="$DIR/.view-row-key.mjs"
+  if bundle_check "$DIR/check-view-row-key.ts" "$VRKCHECK"; then node "$VRKCHECK" || STATUS=1; fi
+
   # Gantt-eventeigenaars (tabel-overhaul task 0): iedere actie heeft precies één actuele
   # eigenaar, zodat de DOM-gridmigratie geen dubbele canvas-/DOM-listeners achterlaat.
   GEO_CHECK="$DIR/.gantt-event-ownership.mjs"

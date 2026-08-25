@@ -19,6 +19,7 @@ import { collectSubtreeIds } from '@/state/taskTree';
 import { beginUndoable, finishMutation } from '@/state/transaction';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { generateId } from '@/utils/id';
+import { uniqueTaskIds } from '@/engine/view/visibleRows';
 
 export interface TaskClipboard {
   tasks: Task[];
@@ -103,18 +104,17 @@ export const createSelectionSlice: AppSlice<SelectionSlice> = (set, get) => ({
 
   selectAllTasks: () =>
     set((s) => {
-      s.selectedTaskIds = s.viewRows
-        .filter((row): row is Extract<typeof row, { kind: 'task' }> => row.kind === 'task')
-        .map((row) => row.task.id);
+      s.selectedTaskIds = uniqueTaskIds(s.viewRows);
     }),
 
   selectTasks: (ids, additive) =>
     set((s) => {
+      const uniqueIds = [...new Set(ids)];
       if (!additive) {
-        s.selectedTaskIds = [...ids];
+        s.selectedTaskIds = uniqueIds;
         return;
       }
-      const merged = new Set([...s.selectedTaskIds, ...ids]);
+      const merged = new Set([...s.selectedTaskIds, ...uniqueIds]);
       s.selectedTaskIds = Array.from(merged);
     }),
 

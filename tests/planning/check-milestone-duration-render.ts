@@ -95,9 +95,9 @@ const realMs: Task = {
 } as Task;
 
 const rows: ViewRow[] = [
-  { kind: 'task', task: base, depth: 0, dimmed: false },
-  { kind: 'task', task: msWithDuration, depth: 0, dimmed: false },
-  { kind: 'task', task: realMs, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: base.id, task: base, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: msWithDuration.id, task: msWithDuration, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: realMs.id, task: realMs, depth: 0, dimmed: false },
 ];
 
 const W = 1200, H = 600, TTW = 300, ROWH = 28, HDRH = 60;

@@ -6,7 +6,7 @@ import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 import { getGanttChartWidth, clampGanttScroll } from '@/utils/ganttViewport';
 import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
-  allBandKeys, computeViewRows, defaultColumns,
+  allBandKeys, computeViewRows, defaultColumns, firstTaskOccurrence,
   type ViewRow, type ViewContext, type ViewRowOpts,
 } from '@/engine/view/visibleRows';
 import type { AppState } from '../appStore';
@@ -35,6 +35,28 @@ function rowInputs(s: AppState): { opts: ViewRowOpts; ctx: ViewContext } {
       noneLabel: getNoneLabelValue(),
     },
   };
+}
+
+/**
+ * Occurrence-expliciete helft van `focusOnTask`: de storeactie hieronder bewaart bewust alleen het
+ * domeindoel `taskId`; de visuele consument resolveert dat doel pas tegen de actuele `viewRows`.
+ * Bij dubbele resource-occurrences wint deterministisch de eerste zichtbare rij en wordt die keuze
+ * vanaf hier uitsluitend als `rowKey`/absolute rijindex doorgegeven.
+ */
+export interface FocusTaskOccurrence {
+  taskId: string;
+  rowKey: string;
+  rowIndex: number;
+}
+
+export function resolveFirstVisibleFocusOccurrence(
+  rows: readonly ViewRow[],
+  taskId: string,
+): FocusTaskOccurrence | null {
+  const occurrence = firstTaskOccurrence(rows, taskId);
+  return occurrence === null
+    ? null
+    : { taskId, rowKey: occurrence.rowKey, rowIndex: occurrence.rowIndex };
 }
 
 export interface ViewSlice {
@@ -156,6 +178,8 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
     }),
 
   focusOnTask: (taskId) => {
+    // Alleen het domeindoel reist door de store. Een rowKey is view-afgeleid en wordt door
+    // resolveFirstVisibleFocusOccurrence pas tegen de actuele zichtbare occurrences gekozen.
     get().expandAncestorsOf(taskId);
     get().selectTask(taskId);
     set((s) => {

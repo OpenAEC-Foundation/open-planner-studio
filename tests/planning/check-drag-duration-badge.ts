@@ -163,7 +163,7 @@ setDates(wide.id, '2026-08-03', '2026-08-14', 10);
 setDates(narrow.id, '2026-08-03', '2026-08-03', 1);
 
 const rowsOf = (...ids: string[]): ViewRow[] =>
-  ids.map((id) => ({ kind: 'task', task: S().tasks.find((t) => t.id === id)!, depth: 0, dimmed: false }) as ViewRow);
+  ids.map((id) => ({ kind: 'task', rowKey: id, task: S().tasks.find((t) => t.id === id)!, depth: 0, dimmed: false }) as ViewRow);
 
 // Kalender-as (geen compressie): x = TABLE_W + dagen-sinds-2026-08-01 × zoom − scrollX.
 const MS = 86400000;

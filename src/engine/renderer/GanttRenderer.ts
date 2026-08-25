@@ -8,7 +8,7 @@ import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
-import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
+import { firstRowIndexByTask, uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
 import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 import { readGanttPalette, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
@@ -2079,12 +2079,12 @@ export class GanttRenderer {
   getTaskIdsInYRange(y1: number, y2: number): string[] {
     const lo = Math.max(0, this.getRowIndex(Math.min(y1, y2)));
     const hi = Math.min(this.rows.length - 1, this.getRowIndex(Math.max(y1, y2)));
-    const ids: string[] = [];
+    const rows: ViewRow[] = [];
     for (let i = lo; i <= hi; i++) {
       const row = this.rows[i];
-      if (row?.kind === 'task') ids.push(row.task.id);
+      if (row) rows.push(row);
     }
-    return ids;
+    return uniqueTaskIds(rows);
   }
 
   /** Hit test: get task bar bounds for a task at row index (for drag & drop) */

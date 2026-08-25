@@ -146,7 +146,7 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten + connector --');
     { afterMinutes: 480, gapMinutes: 480 },
   ];
   const rows: ViewRow[] = [
-    { kind: 'task', task: hourTask('row0', '2026-06-01T08:00', '2026-06-04T12:00', twoGaps), depth: 0, dimmed: false },
+    { kind: 'task', rowKey: 'row0', task: hourTask('row0', '2026-06-01T08:00', '2026-06-04T12:00', twoGaps), depth: 0, dimmed: false },
   ];
   // barSplitMode:'never' — bewijst meteen mede dat de necking-instelling hier NIET aan te pas komt
   // (O5): met 'never' zou de kalender-necking nooit splitsen, maar `splitGaps` doet het toch.
@@ -164,7 +164,7 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten + connector --');
 console.log('-- split-bar-render: barSplitMode=never + geen splitGaps ⇒ geen split --');
 {
   const rows: ViewRow[] = [
-    { kind: 'task', task: hourTask('row1', '2026-06-01T08:00', '2026-06-03T16:00', undefined), depth: 0, dimmed: false },
+    { kind: 'task', rowKey: 'row1', task: hourTask('row1', '2026-06-01T08:00', '2026-06-03T16:00', undefined), depth: 0, dimmed: false },
   ];
   const { rects, lines } = renderRows(rows, { barSplitMode: 'never' });
   const row1Rects = rects.filter(r => inRow(r, 0));
@@ -181,7 +181,7 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
 {
   const oneGap: TaskSplitGap[] = [{ afterMinutes: 120, gapMinutes: 2880 }];
   const passA = renderRows([
-    { kind: 'task', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, 0), depth: 0, dimmed: false },
+    { kind: 'task', rowKey: 'row2', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, 0), depth: 0, dimmed: false },
   ]);
   const bgA = passA.rects.filter(r => inRow(r, 0));
   eq('opzet pass A: 1 gat ⇒ 2 achtergrondsegmenten', bgA.length, 2);
@@ -195,7 +195,7 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
     ok('opzet: completion ligt in (0,1)', completion > 0 && completion < 1);
 
     const passB = renderRows([
-      { kind: 'task', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, completion), depth: 0, dimmed: false },
+      { kind: 'task', rowKey: 'row2', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, completion), depth: 0, dimmed: false },
     ]);
     const row2Rects = passB.rects.filter(r => inRow(r, 0));
     // Achtergrond (task.color = '#123456') vs. voortgang (colors.normalLight, hier ongezet ⇒
@@ -224,7 +224,7 @@ console.log('-- split-bar-render: dag-modus splitGaps (addWorkingDaysSigned-pad,
     time: { ...base.time, earlyStart: '2026-06-01', earlyFinish: '2026-06-20', scheduleStart: '2026-06-01', scheduleFinish: '2026-06-20', completion: 0 },
     splitGaps: dayGap,
   } as Task;
-  const { rects } = renderRows([{ kind: 'task', task: dayTask, depth: 0, dimmed: false }]);
+  const { rects } = renderRows([{ kind: 'task', rowKey: dayTask.id, task: dayTask, depth: 0, dimmed: false }]);
   const dayRects = rects.filter(r => inRow(r, 0));
   eq('dag-modus: 1 gat ⇒ 2 segmenten, GEEN crash', dayRects.length, 2);
 }
