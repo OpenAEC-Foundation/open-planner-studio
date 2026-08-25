@@ -225,6 +225,20 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERTABLESCHECK="$DIR/.xer-tables.mjs"
   if bundle_check "$DIR/check-xer-tables.ts" "$XERTABLESCHECK"; then node "$XERTABLESCHECK" || STATUS=1; fi
 
+  # X3-kalenderdecoder: snelle grammatica-/semantiek-/TZ-fixtures, CALENDAR-hiërarchie,
+  # uren-per-periode, P6XML-pariteit en de XER-eigen uurmodusregel.
+  XERCALENDARCHECK="$DIR/.xer-calendar-data.mjs"
+  if bundle_check "$DIR/check-xer-calendar-data.ts" "$XERCALENDARCHECK"; then node "$XERCALENDARCHECK" || STATUS=1; fi
+
+  # X3-openbare corpuspin: de echte productie-ingang zonder rijvoorfilter, vier concrete
+  # herstel-/weigerhashes, basegraafpin en de statische 124-kalenderdigest. Deze zware scan draait
+  # bewust één keer en wordt daarom na het bundelen uit de tijdzonematrix verwijderd.
+  XERCALENDARCORPUSCHECK="$DIR/.xer-calendar-corpus.mjs"
+  if bundle_check "$DIR/check-xer-calendar-corpus.ts" "$XERCALENDARCORPUSCHECK"; then
+    node "$XERCALENDARCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X2-corpuspoort: alle kedular-parserfixtures en publieke p6xer-robuustheidsgevallen zijn op
   # concrete rapportinhoud of typed foutcode gepind. Zonder corpus een expliciete groene skip.
   XERCORPUSCHECK="$DIR/.xer-corpus.mjs"
