@@ -14,6 +14,10 @@ import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { resetUndoCoalescing } from '../transaction';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import {
+  removeSessionHistoryForDocumentFromState,
+  replaceSessionHistoryState,
+} from '../sessionHistory';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -82,7 +86,8 @@ export interface DocumentSlice {
   newDocument: () => string;
   /** Dupliceer het actieve document naar een nieuwe, actieve kopie (wat-als/variant, MCP-WP4). De
    *  kopie krijgt genulde `filePath`/`fileHandle` (zodat Ctrl+S het bronbestand niet overschrijft),
-   *  `isDirty = true`, verse lege undo/redo-stacks en lege selectie, en álle muteerbare payload-velden
+   *  `isDirty = true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
+   *  blijft app-globaal en wordt niet met de documentpayload gekopieerd.
    *  worden diep gekloond (geen enkele array/object gedeeld met de bron). Naam: `name` indien
    *  meegegeven, anders `"<projectnaam> (variant N)"`. Geeft het nieuwe document-id terug. */
   duplicateDocument: (name?: string) => string;
@@ -198,7 +203,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     const newId = generateId('doc');
 
     // Bouw de kopie-payload EXPLICIET — geen stilzwijgende afhankelijkheid van Immer-copy-on-write.
-    // 'clone'-rolvelden + view/collapsedTaskIds worden diep gekloond; selectie/undo/redo starten vers;
+    // 'clone'-rolvelden + view/collapsedTaskIds worden diep gekloond; selectie start vers;
     // filePath/fileHandle genuld; cpmResult/resourceLoadResult ('ref') mogen per referentie mee.
     const copy: DocumentPayload = {
       project: { ...deepClone(src.project), name: copyName },
@@ -222,8 +227,6 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       selectedTaskIds: [],
       view: deepClone(src.view),
       collapsedTaskIds: deepClone(src.collapsedTaskIds),
-      undoStack: [],
-      redoStack: [],
       filePath: null,
       fileHandle: null,
       isDirty: true,
@@ -299,6 +302,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     if (state.documents.length === 1) {
       const newId = generateId('doc');
       set((s) => {
+        removeSessionHistoryForDocumentFromState(s, id);
         s.documents = [{ id: newId, payload: null }];
         s.activeDocumentId = newId;
         hydratePayload(s, freshPayload());
@@ -313,6 +317,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     // Inactief document: gewoon verwijderen.
     if (id !== state.activeDocumentId) {
       set((s) => {
+        removeSessionHistoryForDocumentFromState(s, id);
         s.documents = s.documents.filter((d) => d.id !== id);
       });
       return;
@@ -323,6 +328,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     const neighbor = state.documents[idx + 1] ?? state.documents[idx - 1];
     const incoming = neighbor.payload!;
     set((s) => {
+      removeSessionHistoryForDocumentFromState(s, id);
       hydratePayload(s, incoming);
       s.documents = s.documents.filter((d) => d.id !== id);
       const n = s.documents.find((d) => d.id === neighbor.id);
@@ -377,6 +383,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     if (docs.length === 0) return;
     const active = docs.find((d) => d.id === activeId) ?? docs[0];
     set((s) => {
+      replaceSessionHistoryState(s, [], 1);
       s.documents = docs.map((d) => ({
         id: d.id,
         payload: d.id === active.id ? null : payloadFromInput(d),
@@ -438,14 +445,15 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
         // mee, alleen de vier doorrekenvelden worden vervangen. `resourceLoadResult: null` omdat
         // `switchDocument` bij activering tóch onvoorwaardelijk `recomputeResourceLoad()` draait —
         // een hier berekende belasting zou dubbel werk zijn dat alleen kan verouderen.
-        // `undoStack`/`redoStack`/`isDirty` blijven letterlijk staan: geen bewerking, geen snapshot.
+        // `isDirty` blijft letterlijk staan. De app-globale sessiehistorie wordt hier niet geraakt:
+        // dit is geen gebruikersbewerking maar alleen een afleiding voor een slapend document.
         //
         // `datesAsRecorded`/`recordedDates` MOETEN hier mee gewist worden (issue #63): de spread
         // draagt ze anders ongewijzigd mee, waarna dit document belooft "dit zijn de datums zoals
         // opgeslagen" terwijl de zojuist berekende datums op het scherm staan zodra je het
         // activeert — precies de mengvorm die de modus moet voorkomen. Dat er geen undo-stap
         // tegenover staat is hier consistent: deze functie herschrijft `tasks`/`cpmResult` óók
-        // zonder snapshot, en de undo-stack van het slapende document blijft als geheel bij zijn
+        // zonder history-event; bestaande events voor het slapende document blijven bij hun
         // eigen, oudere toestand horen.
         //
         // BACKSTOP, geen dagelijks pad: `markScheduleStale` (transaction.ts) houdt `scheduleStale`

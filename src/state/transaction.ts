@@ -1,131 +1,60 @@
-import { createSnapshot } from './snapshot';
+import { current, isDraft } from 'immer';
+import { createSnapshot, type Snapshot } from './snapshot';
+import {
+  MAX_SESSION_HISTORY_EVENTS_PER_SCOPE,
+  recordSessionHistoryDeltas,
+  type SessionHistoryEvent,
+} from './sessionHistory';
 import type { AppState } from './appStore';
 
-/**
- * Transactie-helpers voor het muterende-actie-ritueel (audit P8, bevinding F4/A6).
- *
- * Vóór deze helpers werd het ritueel ~50× met de hand herhaald door `src/state/slices/` heen:
- *   - openen: `s.undoStack.push(createSnapshot(s)); s.redoStack = [];`
- *   - sluiten: `s.isDirty = true;` (vaak + `s.scheduleStale = true;`)
- * Handmatige herhaling laat divergentie insluipen op auteursgeheugen. Deze twee functies zetten het
- * ritueel op ÉÉN plek, terwijl het gedrag per actie EXACT gelijk blijft:
- *
- *   set((s) => {
- *     ...eventuele guard-returns (géén snapshot bij een no-op!)...
- *     beginUndoable(s);        // snapshot + redo-wis, ná de guards en vóór de mutatie
- *     ...mutatie...
- *     finishMutation(s, { stale: true });  // isDirty (+ optioneel scheduleStale)
- *   });
- *   get().recomputeViewRows();  // trailing recomputes blijven bewust expliciet (per-actie-specifiek)
- *
- * BEWUSTE ASYMMETRIEËN blijven uitdrukbaar:
- *   - "dirty zonder undo": roep alleen `finishMutation` aan, NIET `beginUndoable`. LET OP — de
- *     project-mutators (setProject/setCalendar/setStatusDate/setProgressMode/setProjectCalendar)
- *     waren hiervan het voorbeeld, maar zijn sinds pakket H wél undoable: het volledige `project`
- *     zit nu in de snapshot en dat mag alleen zolang élke project-mutator een snapshot pusht
- *     (invariant, zie de kop van `snapshot.ts`).
- *   - "undo zonder stale" (WBS-nummering, structuur-CRUD, baselines): `finishMutation(s)` zonder
- *     `stale` laat `scheduleStale` bewust met rust. LET OP: `stale` betekent "datum-rakend", niet
- *     "de vlag moet blijven staan" — acties die zélf `runCPM` aanroepen (moveProject, applyLeveling,
- *     clearLeveling) zetten hem tóch, want `finishMutation` hangt er meer aan dan alleen de vlag
- *     (het verlaten van "datums zoals opgeslagen", issue #63).
- *
- * De trailing recomputes (`recomputeViewRows`/`recomputeResourceLoad`) blijven per actie expliciet
- * ná de `set()` staan: hun aanwezigheid, volgorde en conditie (bv. alleen bij `moved`) verschillen
- * per actie en horen bij de recipe, niet bij het generieke ritueel.
- */
+/** Bestaande publieke naam; de grens wordt nu per session-historyscope afgedwongen. */
+export const MAX_UNDO = MAX_SESSION_HISTORY_EVENTS_PER_SCOPE;
 
-/**
- * Coalesce-marker (pakket H): welke keyed mutatie pushte als laatste een snapshot, bij welke
- * push-volgnummer en in welk document. Bewust MODULE-state en geen store-state: het is puur een
- * bewerkings-"sessie"-hint en hoort niet in het documentcontract/de snapshot thuis.
- *
- * Bewaking = key + volgnummer + document. Elke ándere mutatie pusht een snapshot (volgnummer
- * wijzigt ⇒ mismatch) én zet de marker op `null` (geen key). `undo`/`redo` en een documentwissel
- * wissen hem expliciet.
- *
- * De bewaking was hiervoor de STACKDIEPTE (`undoStack.length`). Dat kan niet meer sinds de stack
- * op `MAX_UNDO` begrensd is: zodra het plafond bereikt is blijft de diepte constant bij elke
- * push, waardoor een volgende bewerking met dezelfde key ten onrechte als voortzetting zou gelden
- * en twee losse bewerkingen tot één undo-stap zouden versmelten. Een monotone teller heeft dat
- * probleem niet. (Referentievergelijking op de bovenste snapshot kan hier NIET: binnen een
- * Immer-producer levert `s.undoStack[n]` een draft-proxy op i.p.v. het oorspronkelijke object.)
- */
-let coalesce: { key: string; seq: number; docId: string } | null = null;
-
-/**
- * Bovengrens op de undo-historie.
- *
- * De oorspronkelijke aanleiding was geheugen: `createSnapshot` deep-cloonde toen élke bewerking
- * (~4,95 MB per snapshot bij 5.000 taken), en omdat `undoStack`/`redoStack` ÍN het documentcontract
- * zitten hield élk geopend document zijn volledige historie vast — geheugen ≈ bewerkingen ×
- * projectgrootte × open documenten. Sinds de snapshot per referentie deelt (zie `snapshot.ts`) is
- * dat argument grotendeels weg: opeenvolgende snapshots delen alles wat niet veranderde, dus een
- * stap kost nog ongeveer de objecten die die ene bewerking aanraakte.
- *
- * De grens blijft staan, nu om de andere reden die er altijd al onder lag: een ONBEGRENSDE historie
- * houdt élke tussentoestand levend, dus ook de volledige takenlijst van vóór een grote verwijdering
- * of import. Honderd stappen is ruim genoeg voor de bewerkingssessie die een gebruiker in zijn hoofd
- * heeft en houdt de bovengrens eindig.
- */
-export const MAX_UNDO = 100;
-
-/** Monotoon volgnummer over alle undo-pushes — de identiteit van de coalescing-reeks (zie boven). */
-let undoSeq = 0;
-
-/**
- * Push een snapshot op de undo-stack en houd de historie begrensd: bij overschrijding valt de
- * OUDSTE stap eruit. Enige plek waar op `undoStack` gepusht wordt, zodat de grens en het
- * volgnummer niet per callsite opnieuw onderhouden hoeven te worden.
- */
-export function pushUndoSnapshot(s: AppState, base: AppState = s): void {
-  s.undoStack.push(createSnapshot(base));
-  if (s.undoStack.length > MAX_UNDO) s.undoStack.shift();
-  undoSeq++;
+interface PendingDocumentMutation {
+  before: Snapshot;
+  documentId: string;
+  label: string;
+  coalesceKey: string | null;
+  depth: number;
 }
 
-/** Wis de coalesce-marker: de eerstvolgende `beginUndoable` pusht gegarandeerd een verse snapshot.
- *  Verplicht ná undo/redo en bij een documentwissel (zie de marker-docstring). */
+interface CoalesceMarker {
+  key: string;
+  eventId: string;
+  documentId: string;
+}
+
+/** Dezelfde Immer-draft komt bij begin en finish terug; WeakMap voorkomt lek tussen store-instanties. */
+const pendingByDraft = new WeakMap<object, PendingDocumentMutation>();
+let coalesce: CoalesceMarker | null = null;
+let mcpTransactionActive = false;
+let batchDepth = 0;
+
+function snapshotOfCurrentState(state: AppState): Snapshot {
+  if (!isDraft(state)) return createSnapshot(state);
+  return createSnapshot(current(state) as AppState);
+}
+
+export function snapshotsEqual(left: Snapshot, right: Snapshot): boolean {
+  for (const key of Object.keys(left) as (keyof Snapshot)[]) {
+    if (!Object.is(left[key], right[key])) return false;
+  }
+  return true;
+}
+
+/** Wis de lopende keyed reeks; undo/redo en documentwissels roepen dit expliciet aan. */
 export function resetUndoCoalescing(): void {
   coalesce = null;
 }
 
-/**
- * Suppressie-vlag voor MCP-bulk/batch-transacties (WP0). Zolang deze aanstaat geeft `beginUndoable`
- * een early-return: de per-mutator-snapshots worden onderdrukt zodat de transactie zelf ÉÉN snapshot
- * vooraf kan nemen ("één bulk = één undo-stap"). Bewust MODULE-state, net als de coalesce-marker —
- * een puur uitvoerings-"venster"-hint die niet in het documentcontract/de snapshot thuishoort.
- * Alleen `runInMcpTransaction` (mcpTransaction.ts) zet 'm, strikt synchroon aan/uit rond de callback.
- */
-let mcpTransactionActive = false;
-
-/** Zet de MCP-transactie-suppressie aan/uit. Uitsluitend aangeroepen door `runInMcpTransaction`,
- *  die de vlag synchroon rond de mutatie-callback beheert (aan vóór, uit ná — óók bij een throw). */
 export function setMcpTransactionActive(active: boolean): void {
   mcpTransactionActive = active;
 }
 
-/**
- * Diepteteller voor bulk-transacties (K-item 32).
- *
- * Zonder dit pusht élke mutator zijn eigen snapshot. Dat gebeurt echt: `api.data.addTask` is de
- * enige manier waarop een extensie taken kan aanmaken, dus een importer die duizend taken toevoegt
- * laat duizend undo-stappen achter voor wat de gebruiker als één handeling ziet. Toen de snapshot
- * nog deep-cloonde was het bovendien kwadratisch in tijd én geheugen (1 + 2 + … + n taken gekloond);
- * dat deel is weg sinds hij per referentie deelt, de undo-stap-vervuiling niet.
- *
- * Een TELLER en geen boolean, zodat een geneste `withTransaction` de buitenste niet voortijdig
- * opheft. Module-state, net als de coalesce-marker en de MCP-vlag: een uitvoerings-"venster",
- * geen documentdata.
- */
-let batchDepth = 0;
-
-/** Loopt er een bulk-transactie? Dan neemt die de ene snapshot en zwijgen de mutators. */
 export function isBatchActive(): boolean {
   return batchDepth > 0;
 }
 
-/** Uitsluitend door `withTransaction` aangeroepen, synchroon rond de callback (ook bij een throw). */
 export function enterBatch(): void {
   batchDepth++;
 }
@@ -135,106 +64,143 @@ export function exitBatch(): void {
 }
 
 /**
- * Open een ongedaan-maakbare mutatie: leg de huidige staat op de undo-stack en wis de redo-stack.
- * ROEP DIT AAN NÁ eventuele guard-returns en VÓÓR de mutatie — zo vervuilt een no-op de undo-stack
- * niet (bewust patroon door de hele state-laag: acties pushen de snapshot pas als er echt iets
- * verandert). `createSnapshot` leest de projectdata key-gedreven uit het documentcontract.
- *
- * `coalesceKey` (optioneel) voegt ÉÉN undo-stap samen voor een reeks directe herhalingen van
- * dezelfde bewerking. Nodig voor LIVE-committerende invoervelden: `DateTextInput` committeert per
- * toetsaanslag (`handleChange` → `commitFrom`), en omdat `parseFlexibleDate` een jaar van 2 én 3
- * cijfers accepteert levert het intypen van "01062030" drie geldige commits op ("2020-06-01",
- * "0203-06-01", "2030-06-01"). Zonder coalescing zou dat drie undo-stappen met onzin-tussenwaarden
- * opleveren — plus drie volledige deep clones en drie gewiste redo-stacks. Elke andere mutatie,
- * undo, redo of documentwissel breekt de reeks af, dus alleen aaneengesloten herhalingen van
- * dezelfde bewerking vallen samen.
+ * Registreer een documentdata-event tegen een eerder vastgelegde begintoestand. Bulk- en
+ * MCP-grenzen gebruiken dit na hun laatste producer, zodat ook een gedeeltelijk uitgevoerde bulk
+ * exact zijn werkelijk bereikte eindstand krijgt.
  */
-export function beginUndoable(s: AppState, opts?: { coalesceKey?: string }): void {
-  // Suppressie: binnen een MCP-transactie (WP0) óf een bulk-transactie (`withTransaction`,
-  // K-item 32) is de ene snapshot al vooraf genomen; de individuele mutators mogen er dan géén
-  // pushen. Early-return vóór álle snapshot-/coalesce-logica.
+export function recordDocumentDataHistory(
+  state: AppState,
+  before: Snapshot,
+  documentId: string,
+  label = 'Wijziging',
+): SessionHistoryEvent | null {
+  const after = snapshotOfCurrentState(state);
+  if (snapshotsEqual(before, after)) return null;
+  return recordSessionHistoryDeltas(state, label, [{
+    kind: 'document-data', documentId, before, after,
+  }]);
+}
+
+/**
+ * Compatibiliteitsgrens voor de bestaande mutators. De buitenste begin legt alleen de oude
+ * documentdata vast; finish registreert pas na een werkelijk verschil één sessie-event.
+ */
+export function beginUndoable(
+  state: AppState,
+  opts?: { coalesceKey?: string; label?: string },
+): void {
   if (mcpTransactionActive || batchDepth > 0) return;
-  const key = opts?.coalesceKey;
-  if (key && coalesce && coalesce.key === key && coalesce.seq === undoSeq && coalesce.docId === s.activeDocumentId) {
-    // Voortzetting van dezelfde bewerking: de bestaande snapshot dekt de begintoestand al.
-    if (s.redoStack.length) s.redoStack = [];
+  const draftKey = state as object;
+  const pending = pendingByDraft.get(draftKey);
+  if (pending) {
+    pending.depth++;
     return;
   }
-  // De snapshot moet de PLAIN pre-mutatie-basisstaat vastleggen, niet de draft `s` — `createSnapshot`
-  // normaliseert dat zelf via `original()` (zie de kop van snapshot.ts, incl. waarom dat klopt zolang
-  // de conventie "guards; beginUndoable; mutatie" wordt aangehouden). Hier stond diezelfde
-  // normalisatie ook nog een keer; één definitie is genoeg.
-  pushUndoSnapshot(s);
-  s.redoStack = [];
-  coalesce = key ? { key, seq: undoSeq, docId: s.activeDocumentId } : null;
+  pendingByDraft.set(draftKey, {
+    before: createSnapshot(state),
+    documentId: state.activeDocumentId,
+    label: opts?.label?.trim() || opts?.coalesceKey || 'Wijziging',
+    coalesceKey: opts?.coalesceKey ?? null,
+    depth: 1,
+  });
 }
 
-/**
- * Sluit een mutatie af: markeer het document als gewijzigd (`isDirty`) en — indien de mutatie
- * datum-beïnvloedend was (`stale: true`, A6) — de planning als verouderd. `stale` default `false`,
- * zodat puur niet-datum-rakende mutaties (WBS-nummering, structuur-CRUD, baselines) `scheduleStale`
- * bewust NIET zetten (gedocumenteerde asymmetrie). Datum-beïnvloedende mutaties verlaten daarnaast
- * de modus "datums zoals opgeslagen" (issue #63) — zie de onderbouwing in de body hieronder.
- */
-export function finishMutation(s: AppState, opts?: { stale?: boolean }): void {
-  s.isDirty = true;
-  if (opts?.stale) s.scheduleStale = true;
-  // "Datums zoals opgeslagen" (issue #63): élke datum-rakende bewerking verlaat de modus. Eén regel
-  // op één plek, zodat alle muterende callsites het erven i.p.v. het per actie te herhalen.
-  //
-  // De snapshot is op dit punt al door `beginUndoable` gepusht MÉT de modus aan, dus Ctrl+Z herstelt
-  // modus, datums en cpmResult in één stap — daarmee vervult deze uitgang zijn kant van de
-  // contract-invariant (zie de kop van `snapshot.ts`: een veld mag in de snapshot staan dan en
-  // slechts dan als élke mutator ervan een snapshot pusht). Binnen een MCP- of bulk-transactie
-  // zwijgt `beginUndoable`, maar dan heeft de omvattende transactie zijn ene snapshot al vóór de
-  // eerste mutatie genomen — óók met de modus aan; de keten klopt daar dus net zo goed.
-  //
-  // Zonder dit zou een half-opgeslagen/half-bewerkte planning ontstaan zonder dat iets aangeeft
-  // welke datum welke is. Herrekenen doet deze functie bewust NIET (ze draait binnen een
-  // Immer-producer); dat is het werk van `useExitRecordedDates` (of van F5, route B).
-  //
-  // Waarom `opts?.stale` als voorwaarde: de "undo zonder stale"-gevallen hierboven (WBS-nummering,
-  // structuur-CRUD, baselines) raken geen datums, dus wat er op het scherm staat is nog steeds
-  // exact wat het bestand zei. De modus daar verlaten zou het aanbod stil weggooien én de getoonde
-  // datums onverklaard achterlaten — er is dan immers geen `scheduleStale` die een herberekening
-  // uitlokt. `stale` is daarmee de eerlijke lezing van "datum-rakend"; de drie acties die zélf
-  // herrekenen (moveProject, applyLeveling, clearLeveling) zetten de vlag sinds de review van taak 6
-  // dan ook gewoon, ook al wist hun eigen `runCPM` hem meteen weer — anders zouden ze de modus pas
-  // via die `runCPM` verlaten, in een tweede undo-stap met een tussentoestand die niemand zag.
-  if (opts?.stale && s.datesAsRecorded) {
-    s.datesAsRecorded = false;
-    s.recordedDates = null;
+function replaceCoalescedAfter(
+  state: AppState,
+  marker: CoalesceMarker,
+  after: Snapshot,
+): boolean {
+  const index = state.historyEvents.findIndex(event => event.id === marker.eventId);
+  if (index < 0) return false;
+  const event = state.historyEvents[index];
+  if (event.state !== 'applied') return false;
+  const deltaIndex = event.deltas.findIndex(delta =>
+    delta.kind === 'document-data' && delta.documentId === marker.documentId);
+  if (deltaIndex < 0) return false;
+  const deltas = event.deltas.map((delta, currentIndex) => {
+    if (currentIndex !== deltaIndex || delta.kind !== 'document-data') return delta;
+    return { ...delta, after };
+  }) as [SessionHistoryEvent['deltas'][number], ...SessionHistoryEvent['deltas'][number][]];
+  state.historyEvents[index] = { ...event, deltas };
+  return true;
+}
+
+/** Sluit een pending historyregistratie zonder zelf dirty- of stale-state te veranderen. */
+export function finishUndoable(state: AppState): SessionHistoryEvent | null {
+  const draftKey = state as object;
+  const pending = pendingByDraft.get(draftKey);
+  if (!pending) return null;
+  if (pending.depth > 1) {
+    pending.depth--;
+    return null;
   }
+  pendingByDraft.delete(draftKey);
+
+  const after = snapshotOfCurrentState(state);
+  if (snapshotsEqual(pending.before, after)) return null;
+
+  const compatible = pending.coalesceKey !== null
+    && coalesce?.key === pending.coalesceKey
+    && coalesce.documentId === pending.documentId
+    && replaceCoalescedAfter(state, coalesce, after);
+  if (compatible) {
+    return state.historyEvents.find(event => event.id === coalesce?.eventId) ?? null;
+  }
+
+  const event = recordSessionHistoryDeltas(state, pending.label, [{
+    kind: 'document-data', documentId: pending.documentId, before: pending.before, after,
+  }]);
+  coalesce = pending.coalesceKey && event
+    ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId }
+    : null;
+  return event;
 }
 
 /**
- * Zet de "verouderd"-vlag voor de handvol paden die BUITEN het `finishMutation`-ritueel om de
- * INVOER van een toekomstige berekening veranderen: de niet-undoable bibliotheek-verversingen
- * (`refreshBehindItems`, `resolveDeviation`, `refreshAllDocumentsFromPool`). Die zetten bewust géén
- * snapshot en géén `isDirty` — ze veranderen kalenderwaarden, niet de getoonde datums.
- *
- * ZE MOGEN DE MODUS "DATUMS ZOALS OPGESLAGEN" DAAROM NIET VERLATEN (issue #63): zonder snapshot zou
- * dat de invariant van `snapshot.ts` breken — een latere undo zou `datesAsRecorded: true` uit een
- * oudere snapshot terugzetten terwijl de datums dat niet meer zijn (bug-klasse B3). Maar ze mogen de
- * modus ook niet als "verouderd" bestempelen, en dát is wat deze helper regelt.
- *
- * Waarom: in de modus staat op het scherm wat het BESTAND zei, niet een berekening. "Verouderd" is
- * een uitspraak over de berekening, dus `showRecordedDates` houdt `scheduleStale` daar al bewust op
- * `false`. Een kalenderverversing verandert wat een toekomstige berekening zou opleveren, niet wat er
- * nu staat — de weergave blijft dus waar.
- *
- * Er gaat niets verloren: de modus verlaten rekent altijd door. Route A (`finishMutation`) zet
- * `scheduleStale` zelf en `useExitRecordedDates` rekent; route B (F5) ís de berekening. Beide werken
- * dan met de zojuist ververste kalenders.
- *
- * En het sluit de enige toestand af waarin een STILLE herberekening de modus zonder undo-stap kon
- * verlaten: zowel `ensureFreshSchedule` (AI-leestools) als `recalculateStaleSleepingDocuments`
- * sturen op `scheduleStale`. Met deze regel is "modus aan én verouderd" onbereikbaar.
- *
- * Structureel getypeerd, want hij wordt zowel op een `AppState`-draft als op een `DocumentPayload`
- * van een SLAPEND document toegepast.
+ * Werk de after-zijde van de nieuwste toegepaste datahandeling bij na een uitgestelde berekening.
+ * De berekening is geen losse gebruikershandeling, maar hoort wel bij de toestand die redo later
+ * exact moet herstellen. Binnen batch/MCP doet de omvattende grens dit zelf.
  */
-export function markScheduleStale(s: { scheduleStale: boolean; datesAsRecorded: boolean }): void {
-  if (s.datesAsRecorded) return;
-  s.scheduleStale = true;
+export function refreshLatestDocumentDataHistoryAfter(state: AppState): boolean {
+  if (mcpTransactionActive || batchDepth > 0) return false;
+  let selectedIndex = -1;
+  let selectedSequence = -1;
+  for (let index = 0; index < state.historyEvents.length; index++) {
+    const event = state.historyEvents[index];
+    if (event.state !== 'applied' || event.sequence <= selectedSequence) continue;
+    if (!event.deltas.some(delta =>
+      delta.kind === 'document-data' && delta.documentId === state.activeDocumentId)) continue;
+    selectedIndex = index;
+    selectedSequence = event.sequence;
+  }
+  if (selectedIndex < 0) return false;
+
+  const after = snapshotOfCurrentState(state);
+  const event = state.historyEvents[selectedIndex];
+  const deltas = event.deltas.map(delta =>
+    delta.kind === 'document-data' && delta.documentId === state.activeDocumentId
+      ? { ...delta, after }
+      : delta) as [SessionHistoryEvent['deltas'][number], ...SessionHistoryEvent['deltas'][number][]];
+  state.historyEvents[selectedIndex] = { ...event, deltas };
+  return true;
+}
+
+/** Markeer dirty/stale en sluit de bijbehorende pending historyregistratie. */
+export function finishMutation(state: AppState, opts?: { stale?: boolean }): void {
+  state.isDirty = true;
+  if (opts?.stale) state.scheduleStale = true;
+  if (opts?.stale && state.datesAsRecorded) {
+    state.datesAsRecorded = false;
+    state.recordedDates = null;
+  }
+  finishUndoable(state);
+}
+
+/**
+ * Niet-undoable bibliotheekverversingen veranderen toekomstige berekeninput. In de modus "datums
+ * zoals opgeslagen" blijft de bestaande berekenstand leidend; daar mag de stale-vlag niet aan.
+ */
+export function markScheduleStale(state: { scheduleStale: boolean; datesAsRecorded: boolean }): void {
+  if (state.datesAsRecorded) return;
+  state.scheduleStale = true;
 }

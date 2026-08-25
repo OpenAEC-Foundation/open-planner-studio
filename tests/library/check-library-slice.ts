@@ -7,6 +7,7 @@ import { computeCalendarHash, computeResourceHash, isResourceFieldLocked } from 
 import { PoolImportDialog } from '@/components/dialogs/PoolImportDialog';
 import { DEFAULT_COMPANY_ID } from '@/types/library';
 import { DEMO_COMPANY_ID } from '@/services/library/demoLibrary';
+import { createSnapshot } from '@/state/snapshot';
 
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
@@ -15,6 +16,15 @@ function assert(cond: boolean, msg: string): void {
 }
 
 const store = useAppStore.getState();
+
+function seedRedoEvent(): void {
+  const state = useAppStore.getState();
+  const snapshot = createSnapshot(state);
+  state.recordSessionHistoryEvent('redo-fixture', [{
+    kind: 'document-data', documentId: state.activeDocumentId, before: snapshot, after: snapshot,
+  }]);
+  useAppStore.getState().undo();
+}
 
 // --- Bedrijven-CRUD + standaardbedrijf ---
 {
@@ -235,38 +245,38 @@ const store = useAppStore.getState();
   useAppStore.getState().bindProjectToCompany(cid);
 
   const beforeCals = useAppStore.getState().calendars.length;
-  const undoBefore = useAppStore.getState().undoStack.length;
+  const undoBefore = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const r1 = useAppStore.getState().addLibraryResourceToProject(cid, poolResId);
   assert(r1.added === true, 'addLibraryResource: resource toegevoegd');
   let st = useAppStore.getState();
   assert(st.resources.some(r => r.id === r1.resourceId), 'addLibraryResource: resource in project');
   assert(st.calendars.length === beforeCals + 1, 'addLibraryResource: kalender reisde mee');
-  assert(st.undoStack.length === undoBefore + 1, 'addLibraryResource: undo-snapshot gepusht (E-3)');
+  assert(st.historyEvents.filter(event => event.state === 'applied').length === undoBefore + 1, 'addLibraryResource: undo-snapshot gepusht (E-3)');
   const added = st.resources.find(r => r.id === r1.resourceId)!;
   assert(!!st.calendars.find(c => c.id === added.calendarId)?.libraryOrigin, 'addLibraryResource: meegereisde kalender heeft herkomst');
   assert(st.project.companyId === cid, 'addLibraryResource: binding blijft intact na add (plan-eis 9 — add bindt niet meer zelf)');
 
   // Nogmaals toevoegen ⇒ dedup, geen duplicaat, GEEN loze undo-stap (E-3).
-  const undoAfterAdd = useAppStore.getState().undoStack.length;
+  const undoAfterAdd = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const r2 = useAppStore.getState().addLibraryResourceToProject(cid, poolResId);
   assert(r2.added === false && r2.resourceId === r1.resourceId, 'addLibraryResource: dedup ("al in project")');
   assert(useAppStore.getState().resources.filter(r => r.libraryOrigin?.libraryItemId === poolResId).length === 1, 'addLibraryResource: geen duplicaat');
   assert(useAppStore.getState().calendars.length === beforeCals + 1, 'addLibraryResource: kalender niet gedupliceerd bij tweede keer');
-  assert(useAppStore.getState().undoStack.length === undoAfterAdd, 'addLibraryResource: dedup pusht geen undo-snapshot (E-3)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoAfterAdd, 'addLibraryResource: dedup pusht geen undo-snapshot (E-3)');
 
   // Losse bibliotheek-kalender toevoegen is óók undoable (E-3).
   const poolCalId2 = useAppStore.getState().promoteCalendarToPool(cid, {
     id: 'seed-cal2', name: 'Weekendploeg', description: '', workDays: [6, 7],
     workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
   })!;
-  const undoBeforeCal = useAppStore.getState().undoStack.length;
+  const undoBeforeCal = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const c1 = useAppStore.getState().addLibraryCalendarToProject(cid, poolCalId2);
   assert(c1.added === true, 'addLibraryCalendar: kalender toegevoegd');
-  assert(useAppStore.getState().undoStack.length === undoBeforeCal + 1, 'addLibraryCalendar: undo-snapshot gepusht (E-3)');
-  const undoAfterCal = useAppStore.getState().undoStack.length;
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeCal + 1, 'addLibraryCalendar: undo-snapshot gepusht (E-3)');
+  const undoAfterCal = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const c2 = useAppStore.getState().addLibraryCalendarToProject(cid, poolCalId2);
   assert(c2.added === false, 'addLibraryCalendar: dedup ("al in project")');
-  assert(useAppStore.getState().undoStack.length === undoAfterCal, 'addLibraryCalendar: dedup pusht geen undo-snapshot (E-3)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoAfterCal, 'addLibraryCalendar: dedup pusht geen undo-snapshot (E-3)');
 }
 
 // --- Undo van een add-resource: echte rollback; materialiseren op ongebonden project = no-op (plan-eis 9) ---
@@ -350,32 +360,32 @@ const store = useAppStore.getState();
 
   // undoBeforeUpd wordt hier gemeten — ná de lokale updateResource — dus de +1-assert telt alleen de
   // updateProjectResourceFromLibrary-snapshot (de extra updateResource zit al in de baseline).
-  const undoBeforeUpd = useAppStore.getState().undoStack.length;
+  const undoBeforeUpd = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().updateProjectResourceFromLibrary(projResId);
   const updated = useAppStore.getState().resources.find(r => r.id === projResId)!;
   // F1 (critreview, issue #19): maxUnits is PROJECTINZET, geen bibliotheekafspraak — "bijwerken"
   // laat 'm ongemoeid, ook al wijzigde de pool naar 4 (was vóór de fix: stilzwijgend overgenomen).
   assert(updated.maxUnits === 1, 'F1: updateProjectResourceFromLibrary laat maxUnits (projectinzet) ongemoeid, ook al wijzigde de pool naar 4');
   assert(updated.id === projResId, 'updateProjectResourceFromLibrary: project-id behouden');
-  assert(useAppStore.getState().undoStack.length === undoBeforeUpd + 1, 'updateProjectResourceFromLibrary: undo-snapshot gepusht (E-3)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeUpd + 1, 'updateProjectResourceFromLibrary: undo-snapshot gepusht (E-3)');
   assert(useAppStore.getState().diffProjectResource(projResId)?.status === 'up-to-date', 'na bijwerken weer up-to-date');
 
   // Micro-stap (critreview taak 9): update-aanroep op een up-to-date item is óók een no-op — geen
   // loze undo-stap, isDirty blijft ongewijzigd (guard verruimd van 'removed' naar '!== changed').
-  const undoBeforeUpToDate = useAppStore.getState().undoStack.length;
+  const undoBeforeUpToDate = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const isDirtyBeforeUpToDate = useAppStore.getState().isDirty;
   useAppStore.getState().updateProjectResourceFromLibrary(projResId);
-  assert(useAppStore.getState().undoStack.length === undoBeforeUpToDate, 'update op up-to-date resource: geen loze undo-snapshot');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeUpToDate, 'update op up-to-date resource: geen loze undo-snapshot');
   assert(useAppStore.getState().isDirty === isDirtyBeforeUpToDate, 'update op up-to-date resource: isDirty ongewijzigd');
 
   // Verwijder het origineel uit de pool ⇒ diff "removed", bijwerken is no-op (én geen undo-stap, E-3).
   useAppStore.getState().removePoolResource(cid, poolResId);
   assert(useAppStore.getState().diffProjectResource(projResId)?.status === 'removed', 'diffProjectResource: origineel weg ⇒ removed');
   const beforeName = useAppStore.getState().resources.find(r => r.id === projResId)!.name;
-  const undoBeforeNoop = useAppStore.getState().undoStack.length;
+  const undoBeforeNoop = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().updateProjectResourceFromLibrary(projResId);
   assert(useAppStore.getState().resources.find(r => r.id === projResId)!.name === beforeName, 'update op verwijderd origineel = no-op');
-  assert(useAppStore.getState().undoStack.length === undoBeforeNoop, 'update op verwijderd origineel: geen loze undo-snapshot (E-3)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeNoop, 'update op verwijderd origineel: geen loze undo-snapshot (E-3)');
 }
 
 // --- PROJECTDEFAULT-kalender bijwerken: denorm-cache s.calendar moet meelopen (E-2, §9.1) ---
@@ -395,30 +405,30 @@ const store = useAppStore.getState();
   useAppStore.getState().updatePoolCalendar(cid, poolCalId, { workEndHour: 18, hoursPerDay: 9 });
   assert(useAppStore.getState().diffProjectCalendar(defId)?.status === 'changed', 'projectdefault: pool gewijzigd ⇒ changed');
 
-  const undoBefore = useAppStore.getState().undoStack.length;
+  const undoBefore = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().updateProjectCalendarFromLibrary(defId);
   const su = useAppStore.getState();
   assert(su.calendars.find(c => c.id === defId)!.workEndHour === 18, 'projectdefault: waarde overgenomen in s.calendars');
   // De kern van E-2: de gedenormaliseerde cache s.calendar (bron voor de writer) is meegelopen.
   assert(su.calendar.id === defId && su.calendar.workEndHour === 18 && su.calendar.hoursPerDay === 9, 'projectdefault: denorm-cache s.calendar in sync (E-2, §9.1)');
-  assert(su.undoStack.length === undoBefore + 1, 'projectdefault: undo-snapshot gepusht (E-3)');
+  assert(su.historyEvents.filter(event => event.state === 'applied').length === undoBefore + 1, 'projectdefault: undo-snapshot gepusht (E-3)');
   assert(su.diffProjectCalendar(defId)?.status === 'up-to-date', 'projectdefault: na bijwerken weer up-to-date');
 
   // Micro-stap (critreview taak 9): update op een up-to-date kalender is óók een no-op.
-  const undoBeforeUpToDate = useAppStore.getState().undoStack.length;
+  const undoBeforeUpToDate = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const isDirtyBeforeUpToDate = useAppStore.getState().isDirty;
   useAppStore.getState().updateProjectCalendarFromLibrary(defId);
-  assert(useAppStore.getState().undoStack.length === undoBeforeUpToDate, 'update op up-to-date kalender: geen loze undo-snapshot');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeUpToDate, 'update op up-to-date kalender: geen loze undo-snapshot');
   assert(useAppStore.getState().isDirty === isDirtyBeforeUpToDate, 'update op up-to-date kalender: isDirty ongewijzigd');
 
   // Verwijder het origineel ⇒ removed + bijwerken no-op zonder undo-stap.
   useAppStore.getState().removePoolCalendar(cid, poolCalId);
   assert(useAppStore.getState().diffProjectCalendar(defId)?.status === 'removed', 'projectdefault: origineel weg ⇒ removed');
-  const undoNoop = useAppStore.getState().undoStack.length;
+  const undoNoop = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const endHourBefore = useAppStore.getState().calendar.workEndHour;
   useAppStore.getState().updateProjectCalendarFromLibrary(defId);
   assert(useAppStore.getState().calendar.workEndHour === endHourBefore, 'projectdefault: update op verwijderd origineel = no-op');
-  assert(useAppStore.getState().undoStack.length === undoNoop, 'projectdefault: no-op geen loze undo-snapshot (E-3)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoNoop, 'projectdefault: no-op geen loze undo-snapshot (E-3)');
 }
 
 // --- Export/import pool + demping ---
@@ -556,8 +566,9 @@ const store = useAppStore.getState();
   const behindHash = computeResourceHash({ id: 'x', name: 'Stukadoor', type: 'LABOR', description: '', maxUnits: 1, costPerHour: 1 });
   // Muterende setState-vorm (gevestigd patroon, tests/planning/check-document-contract.ts:127) — geen
   // partieel-object-return; muteer de Immer-draft.
+  seedRedoEvent();
   useAppStore.setState((st) => {
-    st.isDirty = false; st.redoStack = [{} as never];
+    st.isDirty = false;
     const r = st.resources.find(r => r.id === add.resourceId);
     if (r) { r.costPerHour = 1; r.libraryOrigin!.syncedHash = behindHash; }
   });
@@ -565,7 +576,7 @@ const store = useAppStore.getState();
   const after = useAppStore.getState();
   assert(changed >= 1, 'refreshBehindItems telt gewijzigde items');
   assert(after.resources.find(r => r.id === add.resourceId)?.costPerHour === 5, 'verversing neemt poolwaarde over');
-  assert(after.redoStack.length === 0, 'verversing WIST de redoStack (plan-eis 2)');
+  assert(after.historyEvents.filter(event => event.state === 'undone').length === 0, 'verversing WIST de redoStack (plan-eis 2)');
   assert(after.isDirty === false, 'verversing zet GEEN isDirty (spec §3)');
 
   // Een DEVIATED item (file != syncedHash) blijft ONgemoeid: file=4, syncedHash=hash(1), pool=5.
@@ -738,12 +749,12 @@ const store = useAppStore.getState();
   assert(added.added === true, 'F4-fixture: materialisatie is gelukt');
   useAppStore.getState().undo(); // undo't de materialisatie ⇒ zet een ECHTE redo-entry klaar
   assert(useAppStore.getState().resources.find(r => r.id === added.resourceId) === undefined, 'F4-fixture: undo verwijdert de gematerialiseerde kopie weer');
-  assert(useAppStore.getState().redoStack.length === 1, 'F4-fixture: er staat nu precies één redo-entry klaar (zou de materialisatie terugzetten)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'undone').length === 1, 'F4-fixture: er staat nu precies één redo-entry klaar (zou de materialisatie terugzetten)');
 
   // Pool-bump op ditzelfde bedrijf. De gematerialiseerde kopie bestaat niet meer (net ge-undo'd), dus
   // refreshAllDocumentsFromPool raakt hier NUL 'behind'-items — precies de guard-ontwijkende situatie.
   useAppStore.getState().updatePoolResource(cid, resId, { maxUnits: 9 });
-  assert(useAppStore.getState().redoStack.length === 0, 'F4: updatePoolResource wist de redoStack ONVOORWAARDELIJK, ook bij nul "behind"-treffers');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'undone').length === 0, 'F4: updatePoolResource wist de redoStack ONVOORWAARDELIJK, ook bij nul "behind"-treffers');
   useAppStore.getState().redo();
   assert(useAppStore.getState().resources.find(r => r.name === 'Stellingbouwer') === undefined, 'F4: redo() doet niets (lege redoStack) — de net-verwijderde materialisatie komt niet stilletjes terug');
 }
@@ -757,13 +768,13 @@ const store = useAppStore.getState();
   const resId = s.promoteResourceToPool(cid, { id: 'f4b-res', name: 'Isolatiemonteur', type: 'LABOR', description: '', maxUnits: 1 })!;
   s.addLibraryResourceToProject(cid, resId);
   useAppStore.getState().undo(); // undo't de materialisatie ⇒ redo-entry klaar
-  assert(useAppStore.getState().redoStack.length === 1, 'F4-promote-fixture: er staat een redo-entry klaar');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'undone').length === 1, 'F4-promote-fixture: er staat een redo-entry klaar');
 
   // Een NIEUWE promotie (ander poolitem) bumpt de pool en moet via refreshAllDocumentsFromPool ook DIT
   // gebonden document zijn redoStack laten wissen, ook al raakt de promotie geen 'behind'-item van dit
   // document (het net-gepromoveerde item is nieuw, niemand in het project verwijst er nog naar).
   useAppStore.getState().promoteResourceToPool(cid, { id: 'f4b-extra', name: 'Grondwerker', type: 'LABOR', description: '', maxUnits: 1 });
-  assert(useAppStore.getState().redoStack.length === 0, 'F4: promoteResourceToPool wist de redoStack van een gebonden document (promote-route)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'undone').length === 0, 'F4: promoteResourceToPool wist de redoStack van een gebonden document (promote-route)');
   useAppStore.getState().redo();
   assert(useAppStore.getState().resources.find(r => r.name === 'Isolatiemonteur') === undefined, 'F4 (promote-route): redo() doet niets — de net-verwijderde materialisatie komt niet terug');
 }
@@ -898,16 +909,16 @@ const store = useAppStore.getState();
   const projCalId = addedCal.calendarId!;
   assert(useAppStore.getState().calendar.id === projCalId, 'setup: projectkalender is de default (s.calendar)');
 
-  const undoBefore = useAppStore.getState().undoStack.length;
+  const undoBefore = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().unbindProject();
-  assert(useAppStore.getState().undoStack.length === undoBefore + 1, 'unbindProject: undo-snapshot gepusht (GO-NA-fix 1)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBefore + 1, 'unbindProject: undo-snapshot gepusht (GO-NA-fix 1)');
   assert(useAppStore.getState().resources.find(r => r.id === projResId)?.libraryOrigin === undefined, 'unbindProject: resource-stempel gestript');
   assert(useAppStore.getState().calendars.find(c => c.id === projCalId)?.libraryOrigin === undefined, 'unbindProject: kalender-stempel gestript');
 
   // No-op-guard: nogmaals ontkoppelen (al los) pusht GEEN loze undo-snapshot.
-  const undoBeforeNoop = useAppStore.getState().undoStack.length;
+  const undoBeforeNoop = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().unbindProject();
-  assert(useAppStore.getState().undoStack.length === undoBeforeNoop, 'unbindProject op een al-los project: geen loze undo-snapshot');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeNoop, 'unbindProject op een al-los project: geen loze undo-snapshot');
 
   useAppStore.getState().undo(); // draait de EERSTE (echte) unbind terug
   const after = useAppStore.getState();
@@ -928,13 +939,13 @@ const store = useAppStore.getState();
   assert(useAppStore.getState().resources.find(r => r.id === projResId)?.libraryOrigin?.companyId === cidA, 'setup: resource gestempeld voor bedrijf A');
 
   // Zuivere herbind naar HETZELFDE bedrijf (A) pusht geen undo-snapshot (guard-check, GO-NA-fix 1).
-  const undoBeforeSame = useAppStore.getState().undoStack.length;
+  const undoBeforeSame = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().bindProjectToCompany(cidA);
-  assert(useAppStore.getState().undoStack.length === undoBeforeSame, 'herbind naar hetzelfde bedrijf: geen loze undo-snapshot');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeSame, 'herbind naar hetzelfde bedrijf: geen loze undo-snapshot');
 
-  const undoBefore = useAppStore.getState().undoStack.length;
+  const undoBefore = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().bindProjectToCompany(cidB);
-  assert(useAppStore.getState().undoStack.length === undoBefore + 1, 'omkoppelen A→B: undo-snapshot gepusht (GO-NA-fix 1)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBefore + 1, 'omkoppelen A→B: undo-snapshot gepusht (GO-NA-fix 1)');
   assert(useAppStore.getState().project.companyId === cidB, 'omkoppelen A→B: project nu gebonden aan B');
   assert(useAppStore.getState().resources.find(r => r.id === projResId)?.libraryOrigin === undefined, 'omkoppel-strip: A-stempel weg ná bind naar B');
 
@@ -1270,10 +1281,10 @@ const store = useAppStore.getState();
     if (r) r.maxUnits = 5; // deviated: file=hash(5) != syncedHash=hash(2)
   });
   // Kunstmatige redo-entry (patroon regel 556 hierboven) — alsof er ooit een undo is geweest.
-  useAppStore.setState((st) => { st.redoStack = [{} as never]; });
-  assert(useAppStore.getState().redoStack.length === 1, 'setup: redoStack heeft één (kunstmatige) entry');
+  seedRedoEvent();
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'undone').length === 1, 'setup: redoStack heeft één (kunstmatige) entry');
   s.resolveDeviation({ kind: 'resource', projectId: added.resourceId! }, 'file');
-  assert(useAppStore.getState().redoStack.length === 0, "resolveDeviation('file') wist de redoStack (niet-undoable, GO-NA-fix)");
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'undone').length === 0, "resolveDeviation('file') wist de redoStack (niet-undoable, GO-NA-fix)");
 }
 
 // --- Voorstap taak 14 (critreview taak 12, verplicht): de vlag-invariant is UNIVERSEEL —
@@ -1470,13 +1481,13 @@ const store = useAppStore.getState();
   assert(!!useAppStore.getState().resources.find(r => r.id === addA.resourceId)?.libraryOrigin, 'setup: A gestempeld');
   assert(!!useAppStore.getState().resources.find(r => r.id === addB.resourceId)?.libraryOrigin, 'setup: B gestempeld');
 
-  const undoBefore = useAppStore.getState().undoStack.length;
+  const undoBefore = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().unlinkResourceFromLibrary(addA.resourceId!);
   const afterUnlink = useAppStore.getState();
   assert(afterUnlink.resources.find(r => r.id === addA.resourceId)?.libraryOrigin === undefined, 'unlinkResourceFromLibrary: stempel van A weg');
   assert(!!afterUnlink.resources.find(r => r.id === addB.resourceId)?.libraryOrigin, 'unlinkResourceFromLibrary: stempel van B blijft (raakt precies ÉÉN item)');
   assert(afterUnlink.resources.some(r => r.id === addA.resourceId), 'unlinkResourceFromLibrary: resource zelf blijft in het project staan');
-  assert(afterUnlink.undoStack.length === undoBefore + 1, 'unlinkResourceFromLibrary: undoable (undo-snapshot gepusht)');
+  assert(afterUnlink.historyEvents.filter(event => event.state === 'applied').length === undoBefore + 1, 'unlinkResourceFromLibrary: undoable (undo-snapshot gepusht)');
 
   useAppStore.getState().undo();
   assert(!!useAppStore.getState().resources.find(r => r.id === addA.resourceId)?.libraryOrigin, 'undo van unlinkResourceFromLibrary: stempel van A terug');
@@ -1485,14 +1496,14 @@ const store = useAppStore.getState();
   useAppStore.getState().undo(); // terug naar "beide gestempeld" voor de rest van dit blok
 
   // Negatieve controles: onbekend id / al-stempel-loos = no-op (geen loze undo-stap).
-  const undoBeforeNoop = useAppStore.getState().undoStack.length;
+  const undoBeforeNoop = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().unlinkResourceFromLibrary('ghost-resource-id');
-  assert(useAppStore.getState().undoStack.length === undoBeforeNoop, 'unlinkResourceFromLibrary: onbekend id is een no-op (geen loze undo-stap)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeNoop, 'unlinkResourceFromLibrary: onbekend id is een no-op (geen loze undo-stap)');
 
   const plainResId = useAppStore.getState().addResource({ name: 'Projecteigen', type: 'LABOR', description: '', maxUnits: 1 });
-  const undoBeforeNoop2 = useAppStore.getState().undoStack.length;
+  const undoBeforeNoop2 = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().unlinkResourceFromLibrary(plainResId);
-  assert(useAppStore.getState().undoStack.length === undoBeforeNoop2, 'unlinkResourceFromLibrary: resource zonder stempel is een no-op (geen loze undo-stap)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeNoop2, 'unlinkResourceFromLibrary: resource zonder stempel is een no-op (geen loze undo-stap)');
 }
 
 // --- F4 (critreview op 352bb94, issue #19): "losmaken" strip ook de MEEGEREISDE kalenderkopie —
@@ -1513,11 +1524,11 @@ const store = useAppStore.getState();
   const travelingCalId = useAppStore.getState().resources.find(r => r.id === added.resourceId)!.calendarId!;
   assert(!!useAppStore.getState().calendars.find(c => c.id === travelingCalId)?.libraryOrigin, 'setup: de meegereisde kalender is gestempeld');
 
-  const undoBefore = useAppStore.getState().undoStack.length;
+  const undoBefore = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   useAppStore.getState().unlinkResourceFromLibrary(added.resourceId!);
   assert(useAppStore.getState().resources.find(r => r.id === added.resourceId)?.libraryOrigin === undefined, 'F4: resource-stempel weg');
   assert(useAppStore.getState().calendars.find(c => c.id === travelingCalId)?.libraryOrigin === undefined, "F4 (solo): meegereisde kalender-stempel OOK weg — geen andere resource volgt 'm meer");
-  assert(useAppStore.getState().undoStack.length === undoBefore + 1, 'F4: nog steeds ÉÉN undo-snapshot (zelfde transactie, geen extra stap)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBefore + 1, 'F4: nog steeds ÉÉN undo-snapshot (zelfde transactie, geen extra stap)');
   useAppStore.getState().undo();
   assert(!!useAppStore.getState().calendars.find(c => c.id === travelingCalId)?.libraryOrigin, 'F4: undo zet OOK de kalenderstempel terug (zelfde transactie)');
 }
@@ -1580,6 +1591,7 @@ const store = useAppStore.getState();
   const cidB = s.addCompany('F5f B');
   s.bindProjectToCompany(cidB);
   const foreignResId = s.addResource({ name: 'Vreemdeling', type: 'LABOR', description: '', maxUnits: 1 });
+  seedRedoEvent();
   useAppStore.setState((st) => {
     const r = st.resources.find(r => r.id === foreignResId);
     if (r) r.libraryOrigin = { companyId: cidA, libraryItemId: 'ghost', poolVersion: 1 };
@@ -1643,7 +1655,7 @@ const store = useAppStore.getState();
   const projResId = s.addResource({ name: 'Elektricien Piet', type: 'LABOR', description: '', maxUnits: 2 });
   const projRes = useAppStore.getState().resources.find(r => r.id === projResId)!;
   const poolCountBefore = useAppStore.getState().pools[cid].resources.length;
-  const undoBefore = useAppStore.getState().undoStack.length;
+  const undoBefore = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const poolId = useAppStore.getState().promoteResourceToPool(cid, projRes, { dedupByName: true });
   const after = useAppStore.getState();
@@ -1651,7 +1663,7 @@ const store = useAppStore.getState();
   assert(after.pools[cid].resources.find(r => r.id === poolId)?.name === 'Elektricien Piet', 'promoteResourceToPool: het nieuwe poolitem draagt de juiste naam');
   assert(after.resources.find(r => r.id === projResId)?.libraryOrigin?.libraryItemId === poolId, 'promoteResourceToPool: het bronitem is gestempeld naar het nieuwe poolitem');
   assert(after.resources.find(r => r.id === otherResId)?.libraryOrigin === undefined, 'promoteResourceToPool: het ONGERELATEERDE item blijft ongemoeid');
-  assert(after.undoStack.length === undoBefore + 1, 'promoteResourceToPool: undoable (undo-snapshot gepusht)');
+  assert(after.historyEvents.filter(event => event.state === 'applied').length === undoBefore + 1, 'promoteResourceToPool: undoable (undo-snapshot gepusht)');
   assert(isResourceFieldLocked(useAppStore.getState().onOpenStatusForResource(projResId)) === true, 'promoteResourceToPool: het bronitem is meteen geërfd/locked (in-sync met de pool die het zelf net gevoed heeft)');
 
   useAppStore.getState().undo();
@@ -1671,12 +1683,12 @@ const store = useAppStore.getState();
 
   // (c) Negatieve controles: no-op op een reeds gestempeld item, en no-op op een onbestaand bedrijf
   // (spiegelt het los-project-gedrag — geen pool ⇒ niets te doen).
-  const undoBeforeAlready = useAppStore.getState().undoStack.length;
+  const undoBeforeAlready = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const againId = useAppStore.getState().promoteResourceToPool(cid, useAppStore.getState().resources.find(r => r.id === dupProjResId)!, { dedupByName: true });
   // F8 (critreview op 352bb94): de no-op-tak mag NIET meer net doen alsof er iets gebeurde — `null`,
   // niet de bestaande pool-id (anders zou een aanroeper hierop "succes" kunnen concluderen).
   assert(againId === null, 'promoteResourceToPool op een AL gestempeld item: retourneert null (F8, geen suggestie van een geslaagde koppeling)');
-  assert(useAppStore.getState().undoStack.length === undoBeforeAlready, 'promoteResourceToPool op een AL gestempeld item: no-op (geen loze undo-stap, geen doublestamp)');
+  assert(useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length === undoBeforeAlready, 'promoteResourceToPool op een AL gestempeld item: no-op (geen loze undo-stap, geen doublestamp)');
   assert(useAppStore.getState().pools[cid].resources.length === poolCountBeforeDup, 'promoteResourceToPool op een AL gestempeld item: geen extra poolitem');
 
   const ghostRes = { id: 'ghost-res', name: 'Spookresource', type: 'LABOR' as const, description: '', maxUnits: 1 };
@@ -1886,13 +1898,12 @@ const store = useAppStore.getState();
   useAppStore.setState((st) => {
     st.project.companyId = boundaryCompanyId; // al gebonden aan een bedrijf dat lokaal nog niet bestaat
     st.isDirty = false;
-    st.redoStack = [{} as never]; // aantoonbaar gewist door de niet-undoable verversing hieronder
     const r = st.resources.find(r => r.id === boundaryResId)!;
     r.libraryOrigin = { companyId: boundaryCompanyId, libraryItemId: 'boundary-res-echo', poolVersion: 6, syncedHash: oldFieldsHash };
   });
   assert(useAppStore.getState().onOpenStatusForResource(boundaryResId) === null, 'F3 setup: vóór import bestaat het bedrijf lokaal niet ⇒ los-gedrag (null)');
 
-  const undoBefore = useAppStore.getState().undoStack.length;
+  const undoBefore = useAppStore.getState().historyEvents.filter(event => event.state === 'applied').length;
   const isDirtyBefore = useAppStore.getState().isDirty;
 
   // De "toevoegen"-route (companyId is hier vrij en niet reserved, dus behouden).
@@ -1904,9 +1915,9 @@ const store = useAppStore.getState();
   assert(boundaryResult.refreshed >= 1, 'F3 [DE CORRECTIE]: runOpenBoundary() ná de "toevoegen"-route doet ECHT werk als het actieve project al aan dat companyId hangt — geen "inherent no-op"');
   const afterBoundary = useAppStore.getState();
   assert(afterBoundary.resources.find(r => r.id === boundaryResId)?.costPerHour === 9, 'F3: het behind-item is stil ververst naar de nieuw-geïmporteerde poolwaarde');
-  assert(afterBoundary.undoStack.length === undoBefore, 'F3: geen undo-stap (grens 1 is niet-undoable, ongewijzigd gedrag)');
+  assert(afterBoundary.historyEvents.filter(event => event.state === 'applied').length === undoBefore, 'F3: geen undo-stap (grens 1 is niet-undoable, ongewijzigd gedrag)');
   assert(afterBoundary.isDirty === isDirtyBefore, 'F3: isDirty blijft ongewijzigd (niet-undoable verversing zet geen isDirty)');
-  assert(afterBoundary.redoStack.length === 0, 'F3: de redoStack is gewist door de stille verversing');
+  assert(afterBoundary.historyEvents.filter(event => event.state === 'undone').length === 0, 'F3: de redoStack is gewist door de stille verversing');
 }
 
 console.log(`library-slice: ${checks - fails}/${checks} groen`);

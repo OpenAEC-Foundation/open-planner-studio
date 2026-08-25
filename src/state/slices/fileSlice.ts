@@ -20,6 +20,7 @@ import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
@@ -150,6 +151,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         payload.collapsedTaskIds = s.ui.collapsedTaskIds;
         // Web-opslaan-doel: undefined = ongemoeid laten (loadState-semantiek), anders expliciet zetten.
         payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : s.fileHandle;
+        removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
         hydratePayload(s, payload);
         // Spec §5 (review-punt 3): een volledig-vervangende load zonder open-pad-semantiek levert een
         // LOS document — geen stille koppeling, geen stille herkenning. Strip bedrijfsbinding + stempels.

@@ -8,7 +8,12 @@ import {
   type LevelingOptions,
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
-import { beginUndoable, finishMutation } from '../transaction';
+import {
+  beginUndoable,
+  finishMutation,
+  finishUndoable,
+  refreshLatestDocumentDataHistoryAfter,
+} from '../transaction';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSlice } from './types';
 
@@ -74,6 +79,8 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
 
   runCPM: () => {
     set((s) => {
+      const refreshPreviousEventAfter = s.scheduleStale && !s.datesAsRecorded;
+      let openedHistory = false;
       // "Datums zoals opgeslagen" (issue #63): dit is de ENIGE situatie waarin `runCPM` een undo-
       // snapshot pusht. Buiten de modus blijft het gedrag byte-identiek en blijft de invariant
       // intact waar `staleGuard.ts` (ensureFreshSchedule) en `batchTool.ts` (recomputeMidBatch) op
@@ -97,6 +104,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       // undo-stap in plaats van twee, met een tussentoestand die de gebruiker nooit gezien heeft.
       if (s.datesAsRecorded) {
         beginUndoable(s);
+        openedHistory = true;
         s.datesAsRecorded = false;
         s.recordedDates = null;
       }
@@ -124,6 +132,8 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       if (result.error) {
         s.cpmResult = result;
         s.resourceLoadResult = null;
+        if (openedHistory) finishUndoable(s);
+        else if (refreshPreviousEventAfter) refreshLatestDocumentDataHistoryAfter(s);
         return;
       }
 
@@ -134,6 +144,8 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       s.resourceLoadResult = computeResourceLoad(
         s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
+      if (openedHistory) finishUndoable(s);
+      else if (refreshPreviousEventAfter) refreshLatestDocumentDataHistoryAfter(s);
     });
 
     // Filter/sort kunnen op de zojuist bijgewerkte totalFloat/isCritical/earlyStart keyen (§4.3).
@@ -193,7 +205,8 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       s.datesAsRecorded = true;
       // De weergave is consistent met wat er getoond wordt — niet verouderd.
       s.scheduleStale = false;
-      // BEWUST GEEN finishMutation: er is niets gewijzigd t.o.v. het bestand.
+      // Wel history sluiten, maar bewust niet dirty maken: er is niets gewijzigd t.o.v. het bestand.
+      finishUndoable(s);
     });
     get().recomputeViewRows();
   },

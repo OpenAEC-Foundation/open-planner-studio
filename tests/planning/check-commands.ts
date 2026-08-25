@@ -74,12 +74,12 @@ eq('07 delete: uitgeschakeld zonder selectie', enabled(COMMANDS.delete), false);
 S().selectTask(idA);
 observe(COMMANDS.delete);
 eq('08 delete: ingeschakeld met selectie', enabled(COMMANDS.delete), true);
-const undoBefore = S().undoStack.length;
+const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 const idB = S().addTask({ name: 'Ruwbouw' });
 S().selectTasks([idA, idB], false);
 run(COMMANDS.delete);
 eq('09 delete: beide geselecteerde taken zijn weg', S().tasks.filter(t => t.id === idA || t.id === idB).length, 0);
-eq('10 delete: één handeling = één undo-stap (niet N)', S().undoStack.length, undoBefore + 2); // addTask + delete
+eq('10 delete: één handeling = één undo-stap (niet N)', S().historyEvents.filter(event => event.state === 'applied').length, undoBefore + 2); // addTask + delete
 run(COMMANDS.undo);
 eq('11 delete: één undo brengt ze allebei terug', S().tasks.filter(t => t.id === idA || t.id === idB).length, 2);
 

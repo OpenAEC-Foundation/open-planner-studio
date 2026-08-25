@@ -35,6 +35,7 @@ import { isTreeMode } from '@/engine/view/visibleRows';
 import { saveShowHistogram } from '@/utils/settingsStore';
 import { ZOOM_STEP } from '@/utils/ganttViewport';
 import i18n from '@/i18n/config';
+import { canRedo, canUndo } from '@/state/sessionHistory';
 
 export interface Command {
   /** Stabiele id — tevens de sleutel in {@link COMMANDS}. */
@@ -59,12 +60,12 @@ export const COMMANDS = {
   undo: {
     id: 'undo',
     run: (s) => s.undo(),
-    isEnabled: (s) => s.undoStack.length > 0,
+    isEnabled: canUndo,
   },
   redo: {
     id: 'redo',
     run: (s) => s.redo(),
-    isEnabled: (s) => s.redoStack.length > 0,
+    isEnabled: canRedo,
   },
   save: {
     id: 'save',

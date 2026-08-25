@@ -28,6 +28,7 @@
 //       in-place muteren buiten een producer kán niet — plus dat undo/redo nog precies herstelt.
 //
 // Draait via run.sh. Exit 0 = alles groen.
+import { latestAppliedDocumentDataDelta } from '@/state/sessionHistory';
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { withTransaction } from '@/state/batchTransaction';
@@ -114,7 +115,7 @@ S().runCPM();
   const takenVoor = S().tasks;
   S().updateTask(a, { name: 'A2' });
 
-  const snap = S().undoStack[S().undoStack.length - 1]!;
+  const snap = latestAppliedDocumentDataDelta(S())!.before;
   eq('6 de snapshot deelt de takenarray van vóór de mutatie', snap.tasks === takenVoor, true);
   eq('6a de snapshot ziet de oude naam', snap.tasks.find(t => t.id === a)?.name, 'A');
   eq('6b de live state ziet de nieuwe', S().tasks.find(t => t.id === a)?.name, 'A2');
@@ -206,7 +207,7 @@ bevroren('19 bevroren na een bulk-transactie');
   S().updateTask(grote[1000], { name: 'midden' });
   eq('23 één updateTask op 2.000 taken raakt precies één taak aan', vervangen(voor2, S().tasks), [grote[1000]]);
 
-  const snap = S().undoStack[S().undoStack.length - 1]!;
+  const snap = latestAppliedDocumentDataDelta(S())!.before;
   eq('24 en de snapshot daarvan deelt de oude array', snap.tasks === voor2, true);
 
   S().undo();

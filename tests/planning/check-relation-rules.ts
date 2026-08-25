@@ -171,9 +171,9 @@ ok('… geen extra relatie erbij', S().sequences.length === seqCountAfterSummary
 
 // Een geweigerde relatie (hier: de voorouder-relatie, ander type dan hierboven) mag geen undo-stap
 // achterlaten (zelfde regel als bij duplicaten, R3).
-const undoDepth = S().undoStack.length;
+const undoDepth = S().historyEvents.filter(event => event.state === 'applied').length;
 S().addSequence({ predecessorId: kind, successorId: fase, type: 'START_START', lagDays: 0 });
-ok('geweigerde (voorouder-)relatie duwt geen undo-snapshot', S().undoStack.length === undoDepth);
+ok('geweigerde (voorouder-)relatie duwt geen undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length === undoDepth);
 
 const msId = S().addSequence({ predecessorId: mp, successorId: los, type: FS, lagDays: 0 });
 ok('addSequence staat een MIJLPAAL als voorganger toe (regressie-anker, ongewijzigd)', msId !== null);

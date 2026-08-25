@@ -282,7 +282,7 @@ test('spec-usecase 1: bestek → planning in ÉÉN batch (tasks + relaties + kal
   assertEq(S().sequences[0].predecessorId, fundering.id, 'de tempId van de voorganger is opgelost');
   assertEq(S().sequences[0].successorId, ruwbouw.id, 'de tempId van de opvolger is opgelost');
   // Eén batch = één undo-stap (WP0-invariant).
-  assert(S().undoStack.length >= 1, 'de batch pushte een undo-snapshot');
+  assert(S().historyEvents.filter(event => event.state === 'applied').length >= 1, 'de batch pushte een undo-snapshot');
 });
 
 test('de OVERIGE batchStep-kernen draaien echt als stap (niet alleen aanwezig)', async () => {

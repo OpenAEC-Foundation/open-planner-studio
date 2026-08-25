@@ -55,17 +55,17 @@ export type AppState = ProjectSlice &
  * elkaar, cross-project rekenen en een gedeelde resourcepool.
  *
  * WAT EEN TWEEDE INSTANTIE VANDAAG WÉL KAN. Alles wat via de store zelf loopt: eigen project, eigen
- * taken/relaties/resources, eigen selectie, eigen undo/redo-stacks, eigen `runCPM`. Twee instanties
- * zitten elkaar daarin niet in de weg.
+ * taken/relaties/resources, eigen selectie, eigen session-historyledger en eigen `runCPM`. Twee
+ * instanties zitten elkaar daarin niet in de weg.
  *
  * WAT HIJ NOG NIET KAN — lees dit vóór je hem gebruikt. Drie mechanismen hangen nog aan de
  * singleton of aan module-state, en die zijn dus GEDEELD tussen instanties:
  *
  *   1. `batchTransaction.withTransaction` en `mcpTransaction.runInMcpTransaction` importeren
  *      `useAppStore` rechtstreeks. Een bulk-transactie op instantie B landt op instantie A.
- *   2. `transaction.ts` houdt de undo-coalescing (`coalesce`, `undoSeq`), de batch-diepte en de
- *      MCP-suppressie in MODULE-variabelen. Twee instanties delen die teller, dus een batch op A
- *      onderdrukt de snapshots van B.
+ *   2. `transaction.ts` houdt de undo-coalescing, de batch-diepte en de MCP-suppressie in
+ *      MODULE-variabelen. Twee instanties delen die uitvoeringsstaat, dus een batch op A
+ *      onderdrukt de historyregistratie van B.
  *   3. De app-globale registers (extensies, MCP-server, SDK, bibliotheek-persistentie) kennen maar
  *      één store. Dat is voor een deel bewust — een extensie hoort niet per venster te bestaan —
  *      maar het is niet uitgezocht welk deel.

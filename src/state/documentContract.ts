@@ -10,7 +10,6 @@ import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
 import type { ImportResult } from '@/services/importTypes';
 import type { ColumnConfig, ViewState } from './slices/types';
-import type { Snapshot } from './snapshot';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -68,8 +67,6 @@ export interface DocumentPayload {
   view: ViewState;
   /** Woont in `s.ui` maar wordt per-document geswapt (zie descriptor-uitzondering). */
   collapsedTaskIds: string[];
-  undoStack: Snapshot[];
-  redoStack: Snapshot[];
   filePath: string | null;
   /** Web-opslaan-doel (browser-bestandstoegang). ALLEEN het FSA-opslaan-doel — nooit identiteit/titel (die blijft filePath: echt pad in Tauri, bestandsnaam in web). null in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
@@ -215,8 +212,6 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'view', get: (s) => s.view, set: (s, v) => { s.view = v; }, fresh: createDefaultView, snapshot: 'none', fromPayload: (p) => normalizeView(p.view) }),
   // Uitzondering: collapsedTaskIds woont in `s.ui` (wordt wél per-document geswapt).
   field({ key: 'collapsedTaskIds', get: (s) => s.ui.collapsedTaskIds, set: (s, v) => { s.ui.collapsedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
-  field({ key: 'undoStack', get: (s) => s.undoStack, set: (s, v) => { s.undoStack = v; }, fresh: () => [], snapshot: 'none' }),
-  field({ key: 'redoStack', get: (s) => s.redoStack, set: (s, v) => { s.redoStack = v; }, fresh: () => [], snapshot: 'none' }),
   field({ key: 'filePath', get: (s) => s.filePath, set: (s, v) => { s.filePath = v; }, fresh: () => null, snapshot: 'none' }),
   field({ key: 'fileHandle', get: (s) => s.fileHandle, set: (s, v) => { s.fileHandle = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.fileHandle ?? null }),
   field({ key: 'isDirty', get: (s) => s.isDirty, set: (s, v) => { s.isDirty = v; }, fresh: () => false, snapshot: 'none' }),
@@ -260,6 +255,8 @@ type AppGlobalKey =
   | 'recentFiles'
   // Multi-document-boekhouding zelf — dit ís de laag die de rest swapt.
   | 'documents' | 'activeDocumentId'
+  // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.
+  | 'historyEvents' | 'nextHistorySequence'
   // Extensies: app-niveau data, geen projectdata (zie CLAUDE.md, *Extensiesysteem*).
   | 'installedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
   | 'catalogEntries' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'

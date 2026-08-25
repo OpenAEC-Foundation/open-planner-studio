@@ -85,7 +85,7 @@ const tAsap = S().addTask({
 // alleen `{{count}}` in de melding op zonder dat het ooit iets aan de solver-uitkomst verandert.
 const tHammock = S().addTask({ name: 'Hammock', time: createDefaultTaskTime('2026-05-01', 2), isHammock: true });
 
-const undoLenBeforeClamp = S().undoStack.length;
+const undoLenBeforeClamp = S().historyEvents.filter(event => event.state === 'applied').length;
 S().setProject({ startDate: '2026-08-17' }); // maandag, LATER dan alle bovenstaande vroege ankers
 
 eq('01 A (wortel, geen voorganger/constraint) klemt naar de nieuwe startdatum',
@@ -98,7 +98,7 @@ eq('05 D (expliciete SNET-constraint) blijft ongemoeid ondanks een vroeg eigen a
 eq('06 D.constraint zelf blijft ongemoeid', S().tasks.find(t => t.id === tD)?.constraint, { type: 'SNET', date: '2026-05-10' });
 eq('07 E (eigen anker al ná de nieuwe startdatum) blijft ongemoeid', S().tasks.find(t => t.id === tE)?.time.scheduleStart, '2026-09-01');
 eq('08 project.startDate is de nieuwe datum', S().project.startDate, '2026-08-17');
-eq('09 precies ÉÉN undo-stap voor de hele klem-transactie (klem + startDate samen)', S().undoStack.length, undoLenBeforeClamp + 1);
+eq('09 precies ÉÉN undo-stap voor de hele klem-transactie (klem + startDate samen)', S().historyEvents.filter(event => event.state === 'applied').length, undoLenBeforeClamp + 1);
 eq('L1: dateless ASAP blokkeert de klem niet', S().tasks.find(t => t.id === tAsap)?.time.scheduleStart, '2026-08-17');
 eq('L2: de hammock-wortel wordt overgeslagen (eigen scheduleStart blijft ongemoeid)',
   S().tasks.find(t => t.id === tHammock)?.time.scheduleStart, '2026-05-01');
@@ -178,9 +178,9 @@ eq('32 project.startDate is wél gewoon bijgewerkt', S().project.startDate, '202
 
 // 3b — DEZELFDE datum (het no-op-guard-pad, pakket H): geen undo-stap, geen klem, geen melding.
 clearAll();
-const undoLenBeforeSame = S().undoStack.length;
+const undoLenBeforeSame = S().historyEvents.filter(event => event.state === 'applied').length;
 S().setProject({ startDate: '2026-06-01' });
-eq('33 identieke startDate is een volledige no-op (geen undo-stap)', S().undoStack.length, undoLenBeforeSame);
+eq('33 identieke startDate is een volledige no-op (geen undo-stap)', S().historyEvents.filter(event => event.state === 'applied').length, undoLenBeforeSame);
 eq('34 geen melding bij een ongewijzigde startDate', N().length, 0);
 
 // 3c — een LATERE datum zonder klembare wortel-taken (alle taken hebben al een latere eigen start,

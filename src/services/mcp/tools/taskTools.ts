@@ -54,6 +54,7 @@ import {
 } from './sequenceFields';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -910,20 +911,22 @@ function historyStep(ctx: Parameters<McpToolDef['handler']>[1], dir: 'undo' | 'r
   const g = guardNonTransactional(ctx);
   if (g) return g;
   const before = useAppStore.getState();
-  const depthBefore = dir === 'undo' ? before.undoStack.length : before.redoStack.length;
+  const depthsBefore = historyDepthsForActiveScope(before);
+  const depthBefore = dir === 'undo' ? depthsBefore.undoDepth : depthsBefore.redoDepth;
   if (dir === 'undo') useAppStore.getState().undo();
   else useAppStore.getState().redo();
   const after = useAppStore.getState();
+  const depthsAfter = historyDepthsForActiveScope(after);
   const done = depthBefore > 0;
   return {
     ok: true,
     envelope: okEnvelope(ctx),
     data: {
       [dir === 'undo' ? 'undone' : 'redone']: done,
-      undoDepth: after.undoStack.length,
-      redoDepth: after.redoStack.length,
+      undoDepth: depthsAfter.undoDepth,
+      redoDepth: depthsAfter.redoDepth,
       projectEnd: after.cpmResult?.projectEnd ?? '',
-      ...(done ? {} : { reason: `de ${dir}-stack is leeg; er is niets ${dir === 'undo' ? 'teruggedraaid' : 'opnieuw uitgevoerd'}` }),
+      ...(done ? {} : { reason: `de toepasbare ${dir}-geschiedenis is leeg; er is niets ${dir === 'undo' ? 'teruggedraaid' : 'opnieuw uitgevoerd'}` }),
     },
   };
 }
@@ -932,10 +935,10 @@ const undo: McpToolDef = {
   name: 'planner_undo',
   description:
     'Maak de laatste ongedaan-maakbare wijziging in het ACTIEVE document ongedaan (één stap). Controleer ' +
-    'ALTIJD `undone` in het antwoord: bij een lege undo-stack blijft de call `ok` maar is `undone` false ' +
+    'ALTIJD `undone` in het antwoord: zonder toepasbaar sessie-event blijft de call `ok` maar is `undone` false ' +
     '(met `reason`) — `ok` alleen betekent dus niet dat er iets is teruggedraaid. `undoDepth`/`redoDepth` ' +
-    'geven de resterende stackdiepte. Let op: de undo-stack is per document en wordt GEDEELD met de ' +
-    'gebruiker — een undo kan dus een handmatige wijziging van de gebruiker terugdraaien. Voor ' +
+    'geven alleen de resterende, voor het actieve document toepasbare sessiediepte. Globale gridvoorkeuren ' +
+    'tellen mee; events van andere geopende documenten niet. De geschiedenis wordt GEDEELD met de gebruiker. Voor ' +
     'wat-als-werk: gebruik duplicate_document, niet undo.',
   kind: 'other',
   batchable: false,
@@ -949,8 +952,9 @@ const redo: McpToolDef = {
   description:
     'Herhaal de laatst ongedaan gemaakte wijziging in het ACTIEVE document (één stap). Controleer ALTIJD ' +
     '`redone` in het antwoord: bij een lege redo-stack blijft de call `ok` maar is `redone` false (met ' +
-    '`reason`). `undoDepth`/`redoDepth` geven de resterende stackdiepte. De redo-stack is per document ' +
-    'en gedeeld met de gebruiker; een nieuwe wijziging wist de redo-stack.',
+    '`reason`). `undoDepth`/`redoDepth` geven de resterende, voor het actieve document toepasbare ' +
+    'sessiediepte. Globale gridvoorkeuren tellen mee; events van andere documenten niet. Een nieuwe ' +
+    'wijziging wist alleen botsende redo-scopes.',
   kind: 'other',
   batchable: false,
   annotations: { ...STD_ANNOT },

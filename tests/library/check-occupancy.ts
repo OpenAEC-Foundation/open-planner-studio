@@ -646,9 +646,10 @@ let afterPayload: DocumentPayload | null = null;
 
   const before = sleeping(parkedId);
   assert(before !== null && before.scheduleStale === true, 'case 17 setup: de geparkeerde payload is stale');
-  const undoBefore = JSON.stringify(before?.undoStack);
+  const historyBefore = JSON.stringify(S().historyEvents.filter(event =>
+    event.deltas.some(delta => delta.kind !== 'grid-preference' && delta.documentId === parkedId)));
   const dirtyBefore = before?.isDirty;
-  assert((before?.undoStack.length ?? 0) > 0, 'case 17 setup: de geparkeerde payload draagt een undo-historie');
+  assert(JSON.parse(historyBefore).length > 0, 'case 17 setup: de sessie draagt historie voor het geparkeerde document');
   const startBefore = before?.tasks.map(t => t.time.earlyStart) ?? [];
   assert(
     startBefore.length === 2 && startBefore[0] === startBefore[1],
@@ -673,8 +674,9 @@ let afterPayload: DocumentPayload | null = null;
     `case 17: de FS-relatie is écht doorgerekend (A2 start ná A1 klaar; kreeg ${a1?.time.earlyFinish} → ${a2?.time.earlyStart})`,
   );
   // Semantiek spiegelt runCPM: geen undo-snapshot, isDirty ongemoeid.
-  assert(JSON.stringify(afterPayload?.undoStack) === undoBefore, 'case 17: de undo-stack van de payload is ongewijzigd');
-  assert(afterPayload?.redoStack.length === 0, 'case 17: de redo-stack blijft leeg (geen bewerking)');
+  assert(JSON.stringify(S().historyEvents.filter(event =>
+    event.deltas.some(delta => delta.kind !== 'grid-preference' && delta.documentId === parkedId))) === historyBefore,
+  'case 17: de sessiehistorie van het slapende document is ongewijzigd');
   assert(afterPayload?.isDirty === dirtyBefore, 'case 17: isDirty is ongemoeid');
 }
 
@@ -732,7 +734,9 @@ let afterPayload: DocumentPayload | null = null;
   const o1 = okAfter?.tasks.find(t => t.id === 'o1');
   const o2 = okAfter?.tasks.find(t => t.id === 'o2');
   assert(!!o1 && !!o2 && o2.time.earlyStart > o1.time.earlyFinish, 'case 20: de relatie is doorgerekend (o2 ná o1)');
-  assert(okAfter?.undoStack.length === 0 && okAfter?.isDirty === false, 'case 20: geen undo-snapshot, isDirty ongemoeid');
+  assert(S().historyEvents.every(event => !event.deltas.some(delta =>
+    delta.kind !== 'grid-preference' && delta.documentId === 'doc-gezond')) && okAfter?.isDirty === false,
+  'case 20: geen history-event, isDirty ongemoeid');
 }
 
 console.log(`occupancy: ${checks - fails}/${checks} groen`);

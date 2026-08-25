@@ -61,12 +61,12 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
 // ── 1) Mijlpaal aan/uit — anker + één undo-stap ─────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.toggleMilestone(task(c)!);
   eq('04 mijlpaal: alle drie geselecteerde taken zijn mijlpaal',
     [b, c, d].map(id => !!task(id)?.isMilestone), [true, true, true]);
   eq('05 mijlpaal: de niet-geselecteerde taak blijft ongemoeid', !!task(a)?.isMilestone, false);
-  eq('06 mijlpaal: precies één undo-stap voor de hele bulk', S().undoStack.length - undoVoor, 1);
+  eq('06 mijlpaal: precies één undo-stap voor de hele bulk', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
   S().undo();
   eq('07 mijlpaal: één Ctrl+Z draait alle drie terug',
     [b, c, d].map(id => !!task(id)?.isMilestone), [false, false, false]);
@@ -85,12 +85,12 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   const { a, b, c, d } = verseVier();
   const calId = S().addCalendar({ ...S().calendars[0], name: 'Testkalender' });
   S().selectTasks([b, c, d], false);
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.setCalendar(c, calId);
   eq('09 kalender: alle drie geselecteerde taken kregen de kalender',
     [b, c, d].map(id => task(id)?.calendarId), [calId, calId, calId]);
   eq('10 kalender: de niet-geselecteerde taak blijft ongemoeid', task(a)?.calendarId, undefined);
-  eq('11 kalender: precies één undo-stap voor de hele bulk', S().undoStack.length - undoVoor, 1);
+  eq('11 kalender: precies één undo-stap voor de hele bulk', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
   S().undo();
   eq('12 kalender: één Ctrl+Z draait alle drie terug',
     [b, c, d].map(id => task(id)?.calendarId), [undefined, undefined, undefined]);
@@ -99,20 +99,20 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   // die al volledig op deze kalender staat mag geen (lege) undo-stap opleveren.
   S().selectTasks([b, c, d], false);
   contextMenuBulk.setCalendar(c, calId);
-  const undoNaEerste = S().undoStack.length;
+  const undoNaEerste = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.setCalendar(c, calId);
-  eq('13 kalender: tweede identieke bulk = no-op, geen undo-stap', S().undoStack.length - undoNaEerste, 0);
+  eq('13 kalender: tweede identieke bulk = no-op, geen undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - undoNaEerste, 0);
 }
 
 // ── 3) Voortgang ────────────────────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.setProgress(c, 0.5);
   eq('14 voortgang: alle drie geselecteerde taken op 50%',
     [b, c, d].map(id => task(id)?.time.completion), [0.5, 0.5, 0.5]);
   eq('15 voortgang: de niet-geselecteerde taak blijft op 0', task(a)?.time.completion, 0);
-  eq('16 voortgang: precies één undo-stap voor de hele bulk', S().undoStack.length - undoVoor, 1);
+  eq('16 voortgang: precies één undo-stap voor de hele bulk', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
   S().undo();
   eq('17 voortgang: één Ctrl+Z draait alle drie terug',
     [b, c, d].map(id => task(id)?.time.completion), [0, 0, 0]);
@@ -122,12 +122,12 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
 {
   const { a, b, c, d } = verseVier();
   const prioVoorA = task(a)?.priority;
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.setPriority(c, 900);
   eq('18 prioriteit: alle drie geselecteerde taken op 900',
     [b, c, d].map(id => task(id)?.priority), [900, 900, 900]);
   eq('19 prioriteit: de niet-geselecteerde taak blijft ongemoeid', task(a)?.priority, prioVoorA);
-  eq('20 prioriteit: precies één undo-stap voor de hele bulk', S().undoStack.length - undoVoor, 1);
+  eq('20 prioriteit: precies één undo-stap voor de hele bulk', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
   S().undo();
   eq('21 prioriteit: één Ctrl+Z draait alle drie terug',
     [b, c, d].map(id => task(id)?.priority), [prioVoorA, prioVoorA, prioVoorA]);
@@ -136,18 +136,18 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
 // ── 5) Inspringen / uitspringen ─────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.indent(c);
   eq('22 inspringen: alle drie geselecteerde taken hangen onder taak A',
     [b, c, d].map(id => task(id)?.parentId), [a, a, a]);
-  eq('23 inspringen: precies één undo-stap voor de hele bulk', S().undoStack.length - undoVoor, 1);
+  eq('23 inspringen: precies één undo-stap voor de hele bulk', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
 
   S().selectTasks([b, c, d], false);
-  const undoVoorUit = S().undoStack.length;
+  const undoVoorUit = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.outdent(c);
   eq('24 uitspringen: alle drie geselecteerde taken staan weer op rootniveau',
     [b, c, d].map(id => task(id)?.parentId), [null, null, null]);
-  eq('25 uitspringen: precies één undo-stap voor de hele bulk', S().undoStack.length - undoVoorUit, 1);
+  eq('25 uitspringen: precies één undo-stap voor de hele bulk', S().historyEvents.filter(event => event.state === 'applied').length - undoVoorUit, 1);
   S().undo();
   eq('26 uitspringen: één Ctrl+Z zet alle drie terug onder taak A',
     [b, c, d].map(id => task(id)?.parentId), [a, a, a]);
@@ -156,12 +156,12 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
 // ── 6) Verwijderen ──────────────────────────────────────────────────────────────────────────
 {
   const { a, b, c, d } = verseVier();
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.remove(c);
   eq('27 verwijderen: alle drie geselecteerde taken zijn weg',
     [b, c, d].map(id => !!task(id)), [false, false, false]);
   eq('28 verwijderen: de niet-geselecteerde taak staat er nog', !!task(a), true);
-  eq('29 verwijderen: precies één undo-stap voor de hele bulk', S().undoStack.length - undoVoor, 1);
+  eq('29 verwijderen: precies één undo-stap voor de hele bulk', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
   S().undo();
   eq('30 verwijderen: één Ctrl+Z brengt alle drie terug',
     [b, c, d].map(id => !!task(id)), [true, true, true]);
@@ -175,11 +175,11 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   const kind = S().addTask({ name: 'Kind', parentId: ouder });
   const rest = S().addTask({ name: 'Rest' });
   S().selectTasks([ouder, kind], false);
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   contextMenuBulk.remove(ouder);
   eq('31 verwijderen: ouder én kind weg', [!!task(ouder), !!task(kind)], [false, false]);
   eq('32 verwijderen: de rest staat er nog', !!task(rest), true);
-  eq('33 verwijderen: ouder+kind samen kost één undo-stap', S().undoStack.length - undoVoor, 1);
+  eq('33 verwijderen: ouder+kind samen kost één undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
 }
 
 // ── 7) Rechtsklik BUITEN de selectie raakt alleen die ene taak ───────────────────────────────
@@ -206,12 +206,12 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   {
     const { c } = verseVier(); // A B C D, selectie = B, C, D
     const aantalVoor = S().tasks.length;
-    const undoVoor = S().undoStack.length;
+    const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
     contextMenuBulk.insert(c, 'above', 'Nieuw');
     eq('36 invoegen boven: landt boven de BOVENSTE van de selectie, niet boven de aangeklikte',
       zichtbaar(), ['Taak A', 'Nieuw', 'Taak B', 'Taak C', 'Taak D']);
     eq('37 invoegen: precies één nieuwe taak voor de hele selectie', S().tasks.length - aantalVoor, 1);
-    eq('38 invoegen: precies één undo-stap', S().undoStack.length - undoVoor, 1);
+    eq('38 invoegen: precies één undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
     S().undo();
     eq('39 invoegen: één Ctrl+Z draait de invoeging terug',
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Taak D']);
@@ -313,11 +313,11 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   {
     const { b } = verseVier();
     S().selectTasks([b], false);
-    const undoVoor = S().undoStack.length;
+    const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
     addTaskNearSelection({ name: 'Nieuw' });
     eq('52 + Taak met selectie: direct ONDER de geselecteerde taak',
       zichtbaar(), ['Taak A', 'Taak B', 'Nieuw', 'Taak C', 'Taak D']);
-    eq('53 + Taak: precies één undo-stap', S().undoStack.length - undoVoor, 1);
+    eq('53 + Taak: precies één undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
     S().undo();
     eq('54 + Taak: één Ctrl+Z draait de invoeging terug',
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Taak D']);
@@ -414,13 +414,13 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
     const { b } = verseGegroepeerd();
     S().selectTasks([b], false);
     const meldingVoor = S().ui.structureLockedNotice;
-    const undoVoor = S().undoStack.length;
+    const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
     const id = insertTaskRelativeToScope(S().selectedTaskIds, 'above', { name: 'Nieuw' });
     eq('66 gegroepeerd: "Invoegen boven" maakt GEEN taak aan', id, null);
     eq('67 gegroepeerd: het document blijft ongewijzigd',
       namen(), ['Taak A', 'Taak B', 'Taak C', 'Taak D']);
     eq('68 gegroepeerd: geweigerde invoeging kost geen undo-stap',
-      S().undoStack.length - undoVoor, 0);
+      S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 0);
     eq('69 gegroepeerd: de structuurmelding gaat af',
       S().ui.structureLockedNotice - meldingVoor, 1);
   }
@@ -579,20 +579,20 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
     diffs.push('sneltoets edit.delete/edit.deleteBackspace ontbreekt in SHORTCUTS'); checks++;
   } else {
     verseVier(); // selecteert B/C/D; A blijft de controle
-    const undoVoor = S().undoStack.length;
+    const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
     entry.run(S());
     eq('87 Delete: alle geselecteerde taken weg, de controle blijft', zichtbaar(), ['Taak A']);
-    eq('88 Delete: precies één undo-stap voor de hele bulk', S().undoStack.length - undoVoor, 1);
+    eq('88 Delete: precies één undo-stap voor de hele bulk', S().historyEvents.filter(event => event.state === 'applied').length - undoVoor, 1);
     S().undo();
     eq('89 Delete: één Ctrl+Z zet alle drie terug',
       zichtbaar(), ['Taak A', 'Taak B', 'Taak C', 'Taak D']);
 
     // Backspace is een alias van dezelfde handeling — zelfde boekhouding.
     S().selectTasks(S().tasks.filter(t => t.name !== 'Taak A').map(t => t.id), false);
-    const undoVoorBs = S().undoStack.length;
+    const undoVoorBs = S().historyEvents.filter(event => event.state === 'applied').length;
     entryBackspace.run(S());
     eq('90 Backspace: zelfde bulk-route — alles weg in één undo-stap',
-      [zichtbaar(), S().undoStack.length - undoVoorBs], [['Taak A'], 1]);
+      [zichtbaar(), S().historyEvents.filter(event => event.state === 'applied').length - undoVoorBs], [['Taak A'], 1]);
   }
 }
 

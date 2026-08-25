@@ -7,6 +7,15 @@ import { loadLibrary, saveLibrary, bumpPool, makeOrigin, copyCalendarToProject, 
 import { beginUndoable, finishMutation, markScheduleStale } from '../transaction';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
+import { invalidateUndoneHistoryForScopes, type HistoryScopeKey } from '../sessionHistory';
+
+function invalidateDocumentRedo(
+  state: { historyEvents: import('../sessionHistory').SessionHistoryEvent[] },
+  documentId: string,
+): void {
+  const scope: HistoryScopeKey = `document:${documentId}`;
+  state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
+}
 
 export interface RecognitionCandidate {
   kind: 'resource' | 'calendar';
@@ -147,7 +156,7 @@ export interface LibrarySlice {
   /** Verversingsprimitief (spec §3, plan-eis 2): werk UITSLUITEND 'behind'-items van het ACTIEVE
    *  document bij naar de poolwaarden van het gegeven bedrijf (scope §2). 'behind' = file == syncedHash
    *  én pool wijkt af; een 'deviated' (lokaal bewerkt) item blijft ongemoeid (spec §3). Niet-undoable:
-   *  geen undo-snapshot, geen isDirty, WIST de redoStack; raakte het een kalender, dan zet het
+   *  geen history-event, geen isDirty, wist botsende redo-history; raakte het een kalender, dan zet het
    *  `scheduleStale` (geen runCPM). Retourneert het aantal gewijzigde items. */
   refreshBehindItems: (companyId: string) => number;
 
@@ -155,7 +164,7 @@ export interface LibrarySlice {
    *  het ACTIEVE document én in elke SLAPENDE document-payload, binnen één set(). 'deviated'-items
    *  blijven ongemoeid (spec §3). Slapende documenten herrekenen pas bij activering (geen recompute
    *  hier); raakte de verversing een kalender, dan zet het `scheduleStale` (per document/payload),
-   *  ZONDER isDirty. Niet-undoable (wist redoStacks). Retourneert het totaal aantal gewijzigde items. */
+   *  ZONDER isDirty. Niet-undoable (wist botsende redo-history). Retourneert het totaal aantal gewijzigde items. */
   refreshAllDocumentsFromPool: (companyId: string) => number;
 
   /** Grens 1/4 (spec §3): ná volledige hydratatie van het actieve document — ververs 'behind'-items
@@ -170,7 +179,7 @@ export interface LibrarySlice {
   onOpenStatusForCalendar: (calendarId: string) => import('@/services/library').OnOpenStatus | null;
 
   /** Los één afwijking op (spec §3, koppel-/afwijkingenscherm). 'company' = neem de poolwaarde over
-   *  (ververs het item, niet-undoable, wist redoStack, geen isDirty). 'file' = neem de BESTANDSwaarde
+   *  (ververs het item, niet-undoable, wist botsende redo-history, geen isDirty). 'file' = neem de BESTANDSwaarde
    *  over in het bedrijf: werk het poolitem bij (bumpt de pool — "geldt voor al je projecten") en
    *  ververs de siblings; het net-geopende item krijgt de verse syncedHash zonder dubbele verversing
    *  (plan-eis 4). */
@@ -394,7 +403,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
     persist(get);
     // F4 (vloot-fixpakket, issue #19): promote valt onder hetzelfde pool-bump-regime als
     // updatePoolCalendar/removePoolCalendar — voor bestaande kopieën is dit een no-op behalve de
-    // onvoorwaardelijke redoStack-wis (er is nooit een 'behind'-item van het NET-gepromoveerde item,
+    // onvoorwaardelijke redo-history-wis (er is nooit een 'behind'-item van het NET-gepromoveerde item,
     // dat is per definitie in-sync met de pool die het zelf net gevoed heeft).
     get().refreshAllDocumentsFromPool(companyId);
     return newId;
@@ -789,9 +798,9 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
 
       changed = calChanged + resChanged;
       if (changed > 0) {
-        // Plan-eis 2: niet-undoable — GEEN beginUndoable, GEEN isDirty. Wél de redoStack wissen zodat
+        // Plan-eis 2: niet-undoable — GEEN beginUndoable, GEEN isDirty. Wél botsende redo-history wissen zodat
         // "opnieuw" niet stilletjes oude poolwaarden terugzet (spec §3, Ctrl+Z-eigenaardigheid).
-        s.redoStack = [];
+        invalidateDocumentRedo(s, s.activeDocumentId);
         // Review-fix (cleanup 3): bewust GEEN syncProjectCalendar(s) hier — die helper promoveert bij een
         // ontbrekende s.project.calendarId-match de huidige s.calendar-cache tot een NIEUWE
         // bibliotheek-entry (orphan-fallback, §9.1); in deze niet-undoable context willen we die
@@ -822,7 +831,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       // maar de pool wijkt af. 'deviated' blijft staan. Review-fix (critreview 71762fd, GO-NA 2/3):
       // per-BESTEMMING tellers (niet gedeeld tussen het actieve document en elke slapende payload) —
       // zo wijzen we `s.calendars`/`s.resources`/`doc.payload.*` alleen opnieuw toe, wissen we de
-      // redoStack en zetten we scheduleStale alleen als er in DIE ENE bestemming ook echt iets
+      // botsende redo-history en zetten we scheduleStale alleen als er in DIE ENE bestemming ook echt iets
       // ververst is. Geen identiteitschurn bij nul treffers, geen te-brede redo-wis over slapende
       // documenten die deze pool-edit niet raakten.
       const refreshCalendars = (
@@ -855,14 +864,14 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         const cals = refreshCalendars(s.calendars.map((c) => current(c)));
         const ress = refreshResources(s.resources.map((r) => current(r)));
         const docChanged = cals.calChanged + ress.resChanged;
-        // F4 (vloot-fixpakket, issue #19): de redoStack-wis is ONVOORWAARDELIJK voor elk document dat
+        // F4 (vloot-fixpakket, issue #19): de redo-history-wis is ONVOORWAARDELIJK voor elk document dat
         // aan DIT bedrijf gebonden is, losgekoppeld van `docChanged` — een pool-bump (elke mutatie die
         // hier binnenkomt via updatePool*/removePool*/promote*) mag een "opnieuw" op dit document nooit
         // meer laten terugzetten naar een toestand van vóór de bump, ook als er toevallig nul 'behind'-
         // items waren (bv. alle kopieën waren al 'deviated', of raakten alleen niet-gevolgde velden).
         // De array-toewijzingen/scheduleStale/recomputes blijven wél achter hun tellers (geen
         // identiteitschurn bij nul treffers).
-        s.redoStack = [];
+        invalidateDocumentRedo(s, s.activeDocumentId);
         if (docChanged > 0) {
           if (cals.calChanged > 0) s.calendars = cals.items;
           if (ress.resChanged > 0) s.resources = ress.items;
@@ -884,7 +893,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         const docChanged = cals.calChanged + ress.resChanged;
         // F4: zelfde onvoorwaardelijke redo-wis-garantie voor elke SLAPENDE payload die aan dit
         // bedrijf gebonden is (zie toelichting bij de actieve-documenttak hierboven).
-        payload.redoStack = [];
+        invalidateDocumentRedo(s, doc.id);
         if (docChanged > 0) {
           if (cals.calChanged > 0) {
             payload.calendars = cals.items;
@@ -932,7 +941,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       if (st === 'deviated') deviated++; else if (st === 'removed') removed++;
     }
     // 'behind' stil verversen via de primitief uit Taak 5 (behind-only: 'deviated'-items blijven
-    // ongemoeid, wachtend op een gebruikerskeuze). Niet-undoable, wist redoStack, geen isDirty.
+    // ongemoeid, wachtend op een gebruikerskeuze). Niet-undoable, wist botsende redo-history, geen isDirty.
     const refreshed = get().refreshBehindItems(companyId);
     // Voorstap taak 14 (critreview taak 12): de VOLLEDIGE vlagtoestand in één keer vestigen — ook het
     // WISSEN als er niets deviated/behind is (was voorheen alleen-AAN-zetten; een stale true/getal van
@@ -1065,7 +1074,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
           // Review-fix (spec §3): kalenderwaarden gewijzigd ⇒ scheduleStale (geen isDirty, geen runCPM).
           markScheduleStale(s);
         }
-        s.redoStack = [];
+        invalidateDocumentRedo(s, s.activeDocumentId);
       });
       get().recomputeResourceLoad();
       get().recomputeViewRows();
@@ -1110,11 +1119,11 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         s.calendars[cIdx] = { ...item, libraryOrigin: makeOrigin(bumped, libId!, newHash) };
         s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
       }
-      // Niet-undoable (spiegel de 'company'-tak hierboven): wis de redoStack expliciet. Zonder dit
+      // Niet-undoable (spiegel de 'company'-tak hierboven): wis botsende redo-history expliciet. Zonder dit
       // overleeft een bestaande redo-entry het oplossen van precies één afwijking (de sibling-
       // verversing hieronder wist 'm alleen bij docChanged>0) — "opnieuw" zou dan oude stempels
       // over de zojuist gebumpte pool kunnen terugzetten (GO-NA-fix, critreview 3870ef9).
-      s.redoStack = [];
+      invalidateDocumentRedo(s, s.activeDocumentId);
     });
     persist(get);
     // Siblings in alle open/slapende documenten volgen de nieuwe pool (plan-eis 4). Het net-opgeloste

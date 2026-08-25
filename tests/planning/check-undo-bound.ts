@@ -33,17 +33,17 @@ const truthy = (label: string, got: boolean) => {
 // ── 1. De grens houdt ────────────────────────────────────────────────────────
 S().newProject();
 const id = S().addTask({ name: 'grens-0' });
-eq('1 opzet: één bewerking op de stack', S().undoStack.length, 1);
+eq('1 opzet: één bewerking op de stack', S().historyEvents.filter(event => event.state === 'applied').length, 1);
 
 const OVER = 25; // ruim voorbij het plafond
 for (let i = 1; i <= MAX_UNDO + OVER; i++) S().updateTask(id, { name: `grens-${i}` });
 
-eq('2 stack blijft op MAX_UNDO', S().undoStack.length, MAX_UNDO);
+eq('2 stack blijft op MAX_UNDO', S().historyEvents.filter(event => event.state === 'applied').length, MAX_UNDO);
 eq('3 huidige naam is de laatste bewerking', S().tasks.find(t => t.id === id)?.name, `grens-${MAX_UNDO + OVER}`);
 
 // ── 2. Undo blijft werken tot aan de grens, en stopt daarna netjes ───────────
 for (let i = 0; i < MAX_UNDO; i++) S().undo();
-eq('4 na MAX_UNDO keer undo is de stack leeg', S().undoStack.length, 0);
+eq('4 na MAX_UNDO keer undo is de stack leeg', S().historyEvents.filter(event => event.state === 'applied').length, 0);
 // De oudste stappen zijn eruit gevallen: we komen NIET terug op 'grens-0'.
 const naUndo = S().tasks.find(t => t.id === id)?.name;
 eq('5 oudste stappen zijn afgekapt (niet terug bij het begin)', naUndo, `grens-${OVER}`);
@@ -52,7 +52,7 @@ truthy('6 taak bestaat nog na alle undos', !!S().tasks.find(t => t.id === id));
 // Eén undo te veel mag niet klappen en niets veranderen.
 S().undo();
 eq('7 undo op een lege stack is een no-op', S().tasks.find(t => t.id === id)?.name, naUndo);
-eq('8 stack blijft leeg', S().undoStack.length, 0);
+eq('8 stack blijft leeg', S().historyEvents.filter(event => event.state === 'applied').length, 0);
 
 // ── 3. Coalescing werkt nog ALS de stack op de grens staat ───────────────────
 // Dit is de kern: met de oude lengte-identiteit is `undoStack.length` bij een volle stack
@@ -61,14 +61,14 @@ eq('8 stack blijft leeg', S().undoStack.length, 0);
 S().newProject();
 const id2 = S().addTask({ name: 'coal-0' });
 for (let i = 1; i <= MAX_UNDO + OVER; i++) S().updateTask(id2, { name: `coal-${i}` });
-eq('9 opzet: stack staat op de grens', S().undoStack.length, MAX_UNDO);
+eq('9 opzet: stack staat op de grens', S().historyEvents.filter(event => event.state === 'applied').length, MAX_UNDO);
 
-const voorGebaar = S().undoStack.length;
+const voorGebaar = S().historyEvents.filter(event => event.state === 'applied').length;
 for (let i = 0; i < 20; i++) {
   S().updateTask(id2, { name: `sleep-${i}` }, { coalesceKey: 'sleep:1' });
 }
 eq('10 één gebaar = één undo-stap, ook op de grens',
-  S().undoStack.length - voorGebaar + 1, 1); // stack zit op het plafond: +1 push, -1 afgekapt
+  S().historyEvents.filter(event => event.state === 'applied').length - voorGebaar + 1, 1); // stack zit op het plafond: +1 push, -1 afgekapt
 eq('11 het gebaar heeft wel gewerkt', S().tasks.find(t => t.id === id2)?.name, 'sleep-19');
 
 // Eén undo moet het HELE gebaar terugdraaien, niet één toetsaanslag.
@@ -78,10 +78,10 @@ eq('12 undo draait het hele gebaar terug', S().tasks.find(t => t.id === id2)?.na
 // ── 4. Twee VERSCHILLENDE keys mogen niet samenvallen ────────────────────────
 S().newProject();
 const id3 = S().addTask({ name: 'k-0' });
-const voorTwee = S().undoStack.length;
+const voorTwee = S().historyEvents.filter(event => event.state === 'applied').length;
 S().updateTask(id3, { name: 'k-a' }, { coalesceKey: 'gebaar:A' });
 S().updateTask(id3, { name: 'k-b' }, { coalesceKey: 'gebaar:B' });
-eq('13 twee verschillende keys = twee undo-stappen', S().undoStack.length - voorTwee, 2);
+eq('13 twee verschillende keys = twee undo-stappen', S().historyEvents.filter(event => event.state === 'applied').length - voorTwee, 2);
 S().undo();
 eq('14 eerste undo geeft gebaar A terug', S().tasks.find(t => t.id === id3)?.name, 'k-a');
 S().undo();
@@ -95,7 +95,7 @@ S().undo();
 const naEersteUndo = S().tasks.find(t => t.id === id4)?.name;
 S().redo();
 eq('16 redo herstelt de bewerking', S().tasks.find(t => t.id === id4)?.name, `r-${MAX_UNDO + OVER}`);
-eq('17 redo laat de stack niet over de grens groeien', S().undoStack.length <= MAX_UNDO, true);
+eq('17 redo laat de stack niet over de grens groeien', S().historyEvents.filter(event => event.state === 'applied').length <= MAX_UNDO, true);
 truthy('18 undo na redo werkt nog', (S().undo(), S().tasks.find(t => t.id === id4)?.name === naEersteUndo));
 
 // ── withTransaction: één bulk = één undo-stap (K-item 32) ─────────────────────
@@ -106,14 +106,14 @@ truthy('18 undo na redo werkt nog', (S().undo(), S().tasks.find(t => t.id === id
   S().newProject();
   const N = 25;
 
-  const before = S().undoStack.length;
+  const before = S().historyEvents.filter(event => event.state === 'applied').length;
   for (let i = 0; i < N; i++) S().addTask({ name: `zonder-${i}` });
-  eq('bt1 zonder batch: n mutaties ⇒ n undo-stappen', S().undoStack.length - before, N);
+  eq('bt1 zonder batch: n mutaties ⇒ n undo-stappen', S().historyEvents.filter(event => event.state === 'applied').length - before, N);
 
   S().newProject();
-  const beforeBatch = S().undoStack.length;
+  const beforeBatch = S().historyEvents.filter(event => event.state === 'applied').length;
   withTransaction(() => { for (let i = 0; i < N; i++) S().addTask({ name: `met-${i}` }); });
-  eq('bt2 met batch: n mutaties ⇒ precies één undo-stap', S().undoStack.length - beforeBatch, 1);
+  eq('bt2 met batch: n mutaties ⇒ precies één undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - beforeBatch, 1);
   eq('bt3 met batch: alle taken zijn er wél', S().tasks.filter(t => t.name.startsWith('met-')).length, N);
 
   // Die ene stap moet de HELE reeks terugdraaien — anders is "één undo-stap" een lege belofte.
@@ -122,13 +122,13 @@ truthy('18 undo na redo werkt nog', (S().undo(), S().tasks.find(t => t.id === id
 
   // Nesten is veilig: de binnenste transactie mag de buitenste niet voortijdig opheffen.
   S().newProject();
-  const beforeNest = S().undoStack.length;
+  const beforeNest = S().historyEvents.filter(event => event.state === 'applied').length;
   withTransaction(() => {
     S().addTask({ name: 'buiten' });
     withTransaction(() => { S().addTask({ name: 'binnen-1' }); S().addTask({ name: 'binnen-2' }); });
     S().addTask({ name: 'buiten-2' });
   });
-  eq('bt5 geneste batch levert nog steeds één undo-stap', S().undoStack.length - beforeNest, 1);
+  eq('bt5 geneste batch levert nog steeds één undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - beforeNest, 1);
   eq('bt6 geneste batch: alle vier de taken staan er', S().tasks.length, 4);
 
   // Gooit de callback, dan mag de suppressie NIET blijven hangen — anders levert elke volgende
@@ -137,10 +137,10 @@ truthy('18 undo na redo werkt nog', (S().undo(), S().tasks.find(t => t.id === id
   try {
     withTransaction(() => { S().addTask({ name: 'voor-de-fout' }); throw new Error('boem'); });
   } catch { /* verwacht */ }
-  const afterThrow = S().undoStack.length;
+  const afterThrow = S().historyEvents.filter(event => event.state === 'applied').length;
   S().addTask({ name: 'na-de-fout' });
   eq('bt7 na een throw in de batch pusht een gewone mutatie weer een undo-stap',
-    S().undoStack.length - afterThrow, 1);
+    S().historyEvents.filter(event => event.state === 'applied').length - afterThrow, 1);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

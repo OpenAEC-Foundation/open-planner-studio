@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 import { buildImportLabels } from '@/i18n/importLabels';
+import { canRedo, canUndo } from '@/state/sessionHistory';
 
 // Het label van de feedback-knop roteert elke 10 minuten door deze drie.
 const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
@@ -18,8 +19,8 @@ export function TitleBar() {
   const project = useAppStore(s => s.project);
   const undo = useAppStore(s => s.undo);
   const redo = useAppStore(s => s.redo);
-  const undoStack = useAppStore(s => s.undoStack);
-  const redoStack = useAppStore(s => s.redoStack);
+  const undoAvailable = useAppStore(canUndo);
+  const redoAvailable = useAppStore(canRedo);
   const isDirty = useAppStore(s => s.isDirty);
   const setUI = useAppStore(s => s.setUI);
   const saveFile = useAppStore(s => s.saveFile);
@@ -94,7 +95,7 @@ export function TitleBar() {
           <button
             className="quick-access-btn"
             title={tMenu('ribbon.undoTitle')}
-            disabled={undoStack.length === 0}
+            disabled={!undoAvailable}
             onClick={() => undo()}
           >
             <Undo2 size={16} />
@@ -102,7 +103,7 @@ export function TitleBar() {
           <button
             className="quick-access-btn"
             title={tMenu('ribbon.redoTitle')}
-            disabled={redoStack.length === 0}
+            disabled={!redoAvailable}
             onClick={() => redo()}
           >
             <Redo2 size={16} />

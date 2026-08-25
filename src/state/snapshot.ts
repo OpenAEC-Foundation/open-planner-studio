@@ -23,9 +23,10 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
  *      met `tasks` ('data') draait één undo de datums én de modus terug:
  *    cpmResult, scheduleStale, activeBaselineId, recordedDates, datesAsRecorded
  *  UIT ('none' — undo mag deze bewust NIET aanraken):
- *    selectedTaskIds, resourceLoadResult, view, collapsedTaskIds, undoStack, redoStack, filePath,
- *    fileHandle, isDirty (undo/redo zet isDirty altijd op true). resourceLoadResult en viewRows
- *    worden door `materializeHistoryTarget` uit het herstelde target afgeleid.
+ *    selectedTaskIds, resourceLoadResult, view, collapsedTaskIds, filePath, fileHandle en isDirty
+ *    (data-undo/redo zet isDirty altijd op true). De sessiehistorie is app-globaal en hoort niet bij
+ *    `DocumentPayload`. resourceLoadResult en viewRows worden door `materializeHistoryTarget` uit
+ *    het herstelde target afgeleid.
  *
  * PROJECT — de oude B3-uitzondering is VERVALLEN (pakket H). Historie: het hele `project`-object
  * stond hier NIET in, met één nauwe projectie (`wbsAutoNumber`). Reden was dat

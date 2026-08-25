@@ -93,7 +93,7 @@ test('update_calendar: bulk over 2 kalenders ⇒ één undo-stap, beide wijzigin
   const secondId = created.calendars[0].id as string;
   assert(typeof secondId === 'string' && secondId.length > 0, 'create levert een echt kalender-id');
 
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const res = await call(
     'planner_update_calendar',
     {
@@ -105,7 +105,7 @@ test('update_calendar: bulk over 2 kalenders ⇒ één undo-stap, beide wijzigin
     ctx,
   );
   okData(res);
-  assertEq(store.getState().undoStack.length, undoLen + 1, 'bulk over 2 kalenders = precies één undo-stap');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'bulk over 2 kalenders = precies één undo-stap');
   const lib = store.getState().calendars;
   assertEq(lib.find((c) => c.id === projCalId)!.name, 'Hoofdkalender', 'projectkalender hernoemd');
   assertEq(lib.find((c) => c.id === secondId)!.name, 'Nachtploeg', 'tweede kalender hernoemd');
@@ -212,8 +212,8 @@ test('update_calendar: onbekend id zonder create ⇒ zachte weigering, GEEN snap
   reset();
   store.getState().addTask({ name: 'seed' });
   store.getState().undo(); // seed de redo-stack
-  const undoLen = store.getState().undoStack.length;
-  const redoLen = store.getState().redoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
+  const redoLen = store.getState().historyEvents.filter(event => event.state === 'undone').length;
   assert(redoLen >= 1, 'de redo-stack is geseed');
 
   const ctx = makeCtx();
@@ -221,8 +221,8 @@ test('update_calendar: onbekend id zonder create ⇒ zachte weigering, GEEN snap
   assert(res.ok, 'all-unknown update_calendar slaagt als no-op met weigeringen');
   assertEq(rejections(res).length, 1, 'één zachte weigering');
   assert(/create|bestaat niet/i.test(rejections(res)[0].reason), 'de reden wijst naar `create`');
-  assertEq(store.getState().undoStack.length, undoLen, 'GEEN nieuwe undo-snapshot');
-  assertEq(store.getState().redoStack.length, redoLen, 'redo-stack ONGEMOEID');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'GEEN nieuwe undo-snapshot');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'undone').length, redoLen, 'redo-stack ONGEMOEID');
 });
 
 // =================================================================================================
@@ -333,7 +333,7 @@ test('manage_assignments: onbekende curve (add) ⇒ zachte weigering, store byte
   const a = addTask('curve-a', 5);
   const r = store.getState().addResource({ name: 'Stukadoor', type: 'LABOR', description: '', maxUnits: 2 });
   const before = JSON.stringify(createSnapshot(store.getState()));
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const ctx = makeCtx();
   const res = await call('planner_manage_assignments', {
@@ -348,7 +348,7 @@ test('manage_assignments: onbekende curve (add) ⇒ zachte weigering, store byte
     'de reden somt de geldige waarden op');
   assertEq(store.getState().assignments.length, 0, 'geen toewijzing in de store');
   assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'store byte-identiek');
-  assertEq(store.getState().undoStack.length, undoLen, 'geen undo-stap gepusht');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'geen undo-stap gepusht');
 });
 
 test('manage_assignments: kleine-letter-curve ("bell") ⇒ geweigerd; geldig item in dezelfde call WEL toegepast', async () => {
@@ -381,7 +381,7 @@ test('manage_assignments: onbekende curve (update) ⇒ zachte weigering, bestaan
   }, ctx)).added[0].assignmentId as string;
 
   const before = JSON.stringify(createSnapshot(store.getState()));
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const res = await call('planner_manage_assignments', {
     actions: [{ action: 'update', assignmentId: asgnId, curve: 'ZIGZAG' }],
   }, ctx);
@@ -389,7 +389,7 @@ test('manage_assignments: onbekende curve (update) ⇒ zachte weigering, bestaan
   assertEq(rejections(res).length, 1, 'zachte weigering op de update-tak');
   assertEq(store.getState().assignments.find((x) => x.id === asgnId)!.curve, 'FRONT_LOADED', 'curve ongewijzigd');
   assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'store byte-identiek');
-  assertEq(store.getState().undoStack.length, undoLen, 'geen undo-stap gepusht');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'geen undo-stap gepusht');
 });
 
 // =================================================================================================
@@ -411,7 +411,7 @@ function levelingFixture(): { a: string; b: string; r: string } {
 test('level_resources dryRun: store byte-identiek + VOLLEDIG LevelingResult in de respons', async () => {
   levelingFixture();
   const before = JSON.stringify(createSnapshot(store.getState()));
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const ctx = makeCtx();
   const res = await call('planner_level_resources', { constrainToFloat: false, dryRun: true }, ctx);
   const data = okData(res);
@@ -420,18 +420,18 @@ test('level_resources dryRun: store byte-identiek + VOLLEDIG LevelingResult in d
     assert(key in data, `LevelingResult-veld '${key}' ontbreekt in de respons`);
   }
   assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'dryRun muteert de store NIET (byte-identiek)');
-  assertEq(store.getState().undoStack.length, undoLen, 'dryRun pusht geen undo-snapshot');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'dryRun pusht geen undo-snapshot');
 });
 
 test('level_resources apply: delays geschreven, ÉÉN undo-stap, before/after gerapporteerd', async () => {
   const { b } = levelingFixture();
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const ctx = makeCtx();
   const res = await call('planner_level_resources', { constrainToFloat: false }, ctx);
   const data = okData(res);
   assertEq(data.dryRun, false, 'geen preview: echt toegepast');
   assert(Object.keys(data.delays).length >= 1, 'minstens één taak krijgt een levelingDelay');
-  assertEq(store.getState().undoStack.length, undoLen + 1, 'precies één undo-stap');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'precies één undo-stap');
   const withDelay = store.getState().tasks.filter((t) => t.levelingDelay !== undefined);
   assert(withDelay.length >= 1, 'de delay staat ECHT op een taak in de store');
   assert(withDelay.some((t) => t.id === b) || withDelay.length >= 1, 'de korte taak schuift (of minstens één taak)');
@@ -469,12 +469,12 @@ test('clear_leveling: wist alle levelingDelays in één undo-stap', async () => 
   const ctx = makeCtx();
   okData(await call('planner_level_resources', { constrainToFloat: false }, ctx));
   assert(store.getState().tasks.some((t) => t.levelingDelay !== undefined), 'voorwaarde: er staan delays');
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const res = await call('planner_clear_leveling', {}, ctx);
   const data = okData(res);
   assert(data.cleared >= 1, 'het aantal gewiste delays wordt gemeld');
   assertEq(store.getState().tasks.filter((t) => t.levelingDelay !== undefined).length, 0, 'alle delays weg');
-  assertEq(store.getState().undoStack.length, undoLen + 1, 'precies één undo-stap');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'precies één undo-stap');
 });
 
 // =================================================================================================
@@ -566,7 +566,7 @@ test('move_project: verschuift de bestaande planning in één undo-stap', async 
   store.getState().runCPM();
   const startBefore = store.getState().tasks.find((t) => t.id === a)!.time.scheduleStart;
   const nieuweStart = shiftIso(store.getState().project.startDate, 14);
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const ctx = makeCtx();
   const res = await call('planner_move_project', { newStartDate: nieuweStart }, ctx);
@@ -576,7 +576,7 @@ test('move_project: verschuift de bestaande planning in één undo-stap', async 
   assertEq(store.getState().project.startDate, nieuweStart, 'projectstart verzet');
   assert(store.getState().tasks.find((t) => t.id === a)!.time.scheduleStart !== startBefore,
     'de bestaande taak IS meegeschoven (i.t.t. update_project)');
-  assertEq(store.getState().undoStack.length, undoLen + 1, 'precies één undo-stap');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'precies één undo-stap');
 });
 
 // =================================================================================================
@@ -588,7 +588,7 @@ test('save_baseline: stale ⇒ eerst herrekenen, baseline op VERSE datums, batch
   assertEq(store.getState().scheduleStale, true, 'testvoorwaarde: planning is stale');
   assertEq(tool('planner_save_baseline').batchable, false, 'save_baseline is uitgesloten van batch');
 
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const ctx = makeCtx();
   const res = await call('planner_save_baseline', { name: 'Nulmeting' }, ctx);
   const data = okData(res);
@@ -597,7 +597,7 @@ test('save_baseline: stale ⇒ eerst herrekenen, baseline op VERSE datums, batch
   assertEq(store.getState().baselines.length, 1, 'precies één baseline');
   assertEq(store.getState().baselines[0].name, 'Nulmeting', 'naam toegepast');
   assertEq(store.getState().activeBaselineId, store.getState().baselines[0].id, 'de nieuwe baseline is actief');
-  assertEq(store.getState().undoStack.length, undoLen + 1, 'precies één undo-stap');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'precies één undo-stap');
   // De baseline is op de VERSE datums genomen.
   const fresh = store.getState().tasks.find((t) => t.id === a)!.time.earlyStart;
   assertEq(store.getState().baselines[0].tasks.find((r) => r.taskId === a)!.start, fresh,

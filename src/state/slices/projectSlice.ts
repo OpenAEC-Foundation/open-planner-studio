@@ -27,6 +27,7 @@ import type { AppSlice } from './types';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
+import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 export { createDefaultProject };
 
 /** Opties voor de nieuw-project-wizard. */
@@ -425,6 +426,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     // nieuw per-document veld wordt hier automatisch mee-gereset (geen stille lek van het vorige
     // project). hydratePayload promoveert + synct de projectkalender (§4.3/§9.1).
     set((s) => {
+      removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
       hydratePayload(s, freshPayload());
       // Zelfde reset als newDocument()/closeDocument() in documentSlice.ts (critreview taak 12):
       // showLibraryLinkDialog/libraryRefreshNotice zijn APP-globaal en worden door hydratePayload
@@ -453,6 +455,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     if (!pristine) get().newDocument();
 
     set((s) => {
+      removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
       const proj = createDefaultProject();
       proj.name = opts.name.trim() || proj.name;
       proj.description = opts.description ?? '';

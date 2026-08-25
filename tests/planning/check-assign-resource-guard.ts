@@ -30,17 +30,17 @@ S().assignResource(idA, resId, 2);
 eq('01 sanity: geldige toewijzing bestaat', S().assignments.length, 1);
 
 // ── 1) Onbekend resourceId ⇒ stil geweigerd: geen toewijzing, geen resourceIds, geen snapshot. ──
-const undoBefore = S().undoStack.length;
+const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 S().assignResource(idB, 'res_bestaat_niet', 3);
 eq('02 onbekend resourceId: geen toewijzing erbij', S().assignments.length, 1);
 eq('03 onbekend resourceId: B.resourceIds blijft leeg', S().tasks.find(t => t.id === idB)?.resourceIds, []);
-eq('04 onbekend resourceId: geen undo-snapshot', S().undoStack.length, undoBefore);
+eq('04 onbekend resourceId: geen undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, undoBefore);
 
 // ── 2) null/undefined resourceId (dev-bridge/JS-callers omzeilen de compiler) ⇒ zelfde weigering. ──
 S().assignResource(idB, null as unknown as string, 3);
 S().assignResource(idB, undefined as unknown as string, 3);
 eq('05 null/undefined resourceId: geen toewijzing erbij', S().assignments.length, 1);
-eq('06 null/undefined resourceId: geen undo-snapshot', S().undoStack.length, undoBefore);
+eq('06 null/undefined resourceId: geen undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, undoBefore);
 eq('07 null/undefined resourceId: geen null in assignments', S().assignments.some(a => a.resourceId == null), false);
 
 // ── 3) Kern van de bug: na de weigering blijft opslaan/auto-save gewoon werken. ──

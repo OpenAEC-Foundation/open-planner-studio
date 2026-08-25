@@ -30,6 +30,8 @@ export type SessionHistoryDelta =
       after: TaskGridSurfacePreferences;
     };
 
+export type DocumentDataHistoryDelta = Extract<SessionHistoryDelta, { kind: 'document-data' }>;
+
 export interface SessionHistoryEvent {
   id: string;
   sequence: number;
@@ -39,6 +41,11 @@ export interface SessionHistoryEvent {
 }
 
 export type HistoryTargetSide = 'before' | 'after';
+
+export interface SessionHistoryDepths {
+  undoDepth: number;
+  redoDepth: number;
+}
 
 export type MaterializedHistoryTarget =
   | {
@@ -62,6 +69,19 @@ export type MaterializedHistoryTarget =
       preferences: TaskGridSurfacePreferences;
       isDirty: false;
     };
+
+/** Leg uitsluitend de undoable viewsubset vast; tijdelijke focus-/fit-/scrollY-state blijft erbuiten. */
+export function captureViewLayoutHistoryState(view: Readonly<ViewState>): ViewLayoutHistoryState {
+  return {
+    filter: view.filter == null ? null : JSON.parse(JSON.stringify(view.filter)) as ViewState['filter'],
+    group: view.group.map(level => ({ ...level, field: { ...level.field } })),
+    sort: view.sort.map(level => ({ ...level, field: { ...level.field } })),
+    zoom: view.zoom,
+    scrollX: view.scrollX,
+    timeScale: view.timeScale,
+    collapsedGroupKeys: [...view.collapsedGroupKeys],
+  };
+}
 
 /**
  * Bouw het volledige doel buiten de live store. Datahistory herstelt eerst alle snapshotbronnen en
@@ -194,6 +214,48 @@ export function selectRedoHistoryEvent(
   return selected;
 }
 
+type SessionHistoryProjectionState = Pick<AppState, 'historyEvents' | 'activeDocumentId'>;
+
+/** Puur beschikbaarheidssignaal voor lint, titelbalk en sneltoetsen. */
+export function canUndo(state: SessionHistoryProjectionState): boolean {
+  return selectUndoHistoryEvent(state.historyEvents, state.activeDocumentId) !== null;
+}
+
+/** Puur beschikbaarheidssignaal voor lint, titelbalk en sneltoetsen. */
+export function canRedo(state: SessionHistoryProjectionState): boolean {
+  return selectRedoHistoryEvent(state.historyEvents, state.activeDocumentId) !== null;
+}
+
+/** Alleen werkelijk toepasbare events tellen mee; history van slapende documenten blijft buiten beeld. */
+export function historyDepthsForActiveScope(
+  state: SessionHistoryProjectionState,
+): SessionHistoryDepths {
+  let undoDepth = 0;
+  let redoDepth = 0;
+  for (const event of state.historyEvents) {
+    if (!isSessionHistoryEventApplicable(event, state.activeDocumentId)) continue;
+    if (event.state === 'applied') undoDepth++;
+    else redoDepth++;
+  }
+  return { undoDepth, redoDepth };
+}
+
+/** Laatste toegepaste documentdatasprong voor gerichte contract-/sharingtests. */
+export function latestAppliedDocumentDataDelta(
+  state: SessionHistoryProjectionState,
+): DocumentDataHistoryDelta | null {
+  let selected: { sequence: number; delta: DocumentDataHistoryDelta } | null = null;
+  for (const event of state.historyEvents) {
+    if (event.state !== 'applied' || !isSessionHistoryEventApplicable(event, state.activeDocumentId)) continue;
+    const delta = event.deltas.find((candidate): candidate is DocumentDataHistoryDelta =>
+      candidate.kind === 'document-data' && candidate.documentId === state.activeDocumentId);
+    if (delta && (selected === null || event.sequence > selected.sequence)) {
+      selected = { sequence: event.sequence, delta };
+    }
+  }
+  return selected?.delta ?? null;
+}
+
 /**
  * Een nieuwe wijziging wist alleen undone events met een overlappende scope. Bij een botsing
  * verdwijnt het hele oude event, zodat een compound nooit half opnieuw toepasbaar wordt.
@@ -266,4 +328,99 @@ export function appendSessionHistoryEvent(
     ...invalidateUndoneHistoryForEvent(events, newEvent),
     newEvent,
   ]);
+}
+
+/**
+ * Storegerichte maar synchrone registratieprimitief. De teller blijft oplopen wanneer pruning oude
+ * events verwijdert; ids zijn daardoor sessie-uniek zonder een tweede moduleglobale generator.
+ */
+export function recordSessionHistoryDeltas(
+  state: AppState,
+  label: string,
+  deltas: readonly SessionHistoryDelta[],
+): SessionHistoryEvent | null {
+  if (deltas.length === 0) return null;
+  const sequence = state.nextHistorySequence;
+  if (!Number.isSafeInteger(sequence) || sequence <= 0) {
+    throw new Error(`Ongeldige volgende history-sequence: ${String(sequence)}`);
+  }
+  const event: SessionHistoryEvent = {
+    id: `history-${sequence}`,
+    sequence,
+    label: label.trim() || 'Wijziging',
+    state: 'applied',
+    deltas: deltas as [SessionHistoryDelta, ...SessionHistoryDelta[]],
+  };
+  state.historyEvents = appendSessionHistoryEvent(state.historyEvents, event);
+  state.nextHistorySequence = sequence + 1;
+  return event;
+}
+
+/** Verwijder undone events die één van de opgegeven scopes raken; compounds verdwijnen geheel. */
+export function invalidateUndoneHistoryForScopes(
+  events: readonly SessionHistoryEvent[],
+  scopes: ReadonlySet<HistoryScopeKey>,
+): SessionHistoryEvent[] {
+  return events.filter(event =>
+    event.state !== 'undone' || !scopeKeysOf(event).some(scope => scopes.has(scope)));
+}
+
+/** Verwijder ieder atomair event dat naar het document wijst; een compound verdwijnt als geheel. */
+export function removeSessionHistoryForDocument(
+  events: readonly SessionHistoryEvent[],
+  documentId: string,
+): SessionHistoryEvent[] {
+  return events.filter(event => !event.deltas.some(delta =>
+    delta.kind !== 'grid-preference' && delta.documentId === documentId));
+}
+
+export function removeSessionHistoryForDocumentFromState(
+  state: AppState,
+  documentId: string,
+): void {
+  state.historyEvents = removeSessionHistoryForDocument(state.historyEvents, documentId);
+}
+
+export function replaceSessionHistoryState(
+  state: AppState,
+  events: SessionHistoryEvent[],
+  nextHistorySequence: number,
+): void {
+  state.historyEvents = events;
+  state.nextHistorySequence = nextHistorySequence;
+}
+
+/**
+ * Materialiseer alle deltas in eventvolgorde tegen één geïsoleerd voortschrijdend doel. Dit houdt
+ * ook een toekomstig data+view-compound correct: de viewrijen worden dan tegen de herstelde data
+ * afgeleid, niet tegen de oude live bron.
+ */
+export function materializeHistoryEventTargets(
+  state: Readonly<AppState>,
+  event: SessionHistoryEvent,
+  side: HistoryTargetSide,
+): MaterializedHistoryTarget[] {
+  let isolated = { ...state } as AppState;
+  const targets: MaterializedHistoryTarget[] = [];
+  for (const delta of event.deltas) {
+    const target = materializeHistoryTarget(isolated, delta, side);
+    targets.push(target);
+    if (target.kind === 'document-data') {
+      restoreSnapshot(isolated, target.snapshot);
+      isolated.viewRows = target.viewRows;
+      isolated.resourceLoadResult = target.resourceLoadResult;
+    } else if (target.kind === 'document-view') {
+      isolated.view = { ...isolated.view, ...target.view };
+      isolated.viewRows = target.viewRows;
+    } else {
+      isolated.taskGridSurfaces = {
+        ...isolated.taskGridSurfaces,
+        [target.surface]: {
+          columns: target.preferences.columns.map(column => ({ ...column })),
+          scrollX: target.preferences.scrollX,
+        },
+      };
+    }
+  }
+  return targets;
 }

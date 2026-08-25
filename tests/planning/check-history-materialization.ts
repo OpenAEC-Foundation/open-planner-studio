@@ -183,10 +183,6 @@ const expectedUndoCpm = I().cpmResult;
 const expectedUndoStale = I().scheduleStale;
 I().removeResource(integrationResourceId);
 integrationStore.setState(state => {
-  const index = state.undoStack.length - 1;
-  state.undoStack[index] = {
-    ...state.undoStack[index], resourceLoadResult: poison,
-  } as Snapshot & { resourceLoadResult: ResourceLoadResult };
   state.cpmResult = null;
   state.scheduleStale = false;
   state.viewRows = [];
@@ -197,7 +193,7 @@ eq('Compat-undo herstelt exact de opgeslagen CPM-uitkomst', I().cpmResult, expec
 eq('Compat-undo herstelt exact de opgeslagen stale-vlag', I().scheduleStale, expectedUndoStale);
 ok('Compat-undo leidt viewRows vóór publicatie opnieuw af',
   I().viewRows.some(row => row.kind === 'task' && row.task.id === integrationTaskId));
-ok('Compat-undo negeert poisoned snapshotload en leidt echte belasting af',
+ok('Session-undo leidt de echte belasting uit het eventtarget af',
   Object.keys(I().resourceLoadResult?.load[integrationResourceId] ?? {}).length > 0
   && !('fout' in (I().resourceLoadResult?.load ?? {})));
 I().redo();
