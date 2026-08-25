@@ -20,6 +20,11 @@ export interface XerScheduleOptionsResult {
   source: 'schedoptions' | 'xer-defaults';
   progressMode: ProgressMode;
   schedulingOptions: SchedulingOptions;
+  /** Bronwaarden waarvoor X5 nog geen correcte solverrepresentatie heeft. Ze blijven expliciet
+   *  beschikbaar voor de latere readerwiring en worden niet als schijnoptie op het project gezet. */
+  retainedSource: {
+    sched_use_project_end_date_for_float?: boolean;
+  };
   fallbacks: XerScheduleOptionFallback[];
 }
 
@@ -71,8 +76,8 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
   { field: 'sched_use_expect_end_flag', status: 'mapped', target: 'schedulingOptions.useExpectedFinishDates' },
   {
     field: 'sched_use_project_end_date_for_float',
-    status: 'mapped',
-    target: 'schedulingOptions.useProjectEndDateForFloat',
+    status: 'todo',
+    reason: 'Meerdere gelijktijdig geplande projecten ontbreken; X5 bewaart de bronwaarde zonder solversturing.',
   },
   { field: 'schedhash', status: 'ignored', reason: 'Technische bronhash; geen planningssemantiek of stabiele OPS-identiteit.' },
   { field: 'schedoptions_id', status: 'ignored', reason: 'Technische rij-identiteit; proj_id is de projectbinding.' },
@@ -89,10 +94,9 @@ export const XER_SCHEDULING_DEFAULTS = {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
     lagCalendar: 'predecessor',
-    criticalDefinition: { mode: 'totalFloat', threshold: 0 },
+    criticalDefinition: { mode: 'totalFloat', thresholdHours: 0 },
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
-    useProjectEndDateForFloat: true,
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
@@ -148,6 +152,19 @@ function booleanValue(
   return fallback;
 }
 
+function retainedBooleanValue(
+  row: XerRow,
+  field: string,
+  fallbacks: XerScheduleOptionFallback[],
+): boolean | undefined {
+  const token = row.cells[field]?.trim() ?? '';
+  if (!token) return undefined;
+  if (token.toUpperCase() === 'Y') return true;
+  if (token.toUpperCase() === 'N') return false;
+  reportFallback(fallbacks, row, field, token, 'niet bewaard');
+  return undefined;
+}
+
 function progressModeValue(
   row: XerRow,
   fallbacks: XerScheduleOptionFallback[],
@@ -177,7 +194,6 @@ function progressModeValue(
 function projectCriticalDefinition(
   tables: XerTables,
   projectId: string,
-  hoursPerDay: number,
   fallbacks: XerScheduleOptionFallback[],
 ): SchedulingOptions['criticalDefinition'] {
   const row = tables.tables.get('PROJECT')?.rows.find(item => item.cells.proj_id?.trim() === projectId);
@@ -188,7 +204,7 @@ function projectCriticalDefinition(
     reportFallback(fallbacks, row, 'critical_path_type', token, 'totalFloat');
   }
   const thresholdHours = parseXerNumber(row.cells.critical_drtn_hr_cnt ?? '', tables.numberFormat) ?? 0;
-  return { mode: 'totalFloat', threshold: thresholdHours / hoursPerDay };
+  return { mode: 'totalFloat', thresholdHours };
 }
 
 function scheduleRow(tables: XerTables, projectId: string): XerRow | undefined {
@@ -202,11 +218,9 @@ export function deriveXerScheduleOptions(
 ): XerScheduleOptionsResult {
   const defaults = freshDefaults();
   const fallbacks: XerScheduleOptionFallback[] = [];
-  const hoursPerDay = context.hoursPerDay && context.hoursPerDay > 0 ? context.hoursPerDay : 8;
   defaults.schedulingOptions.criticalDefinition = projectCriticalDefinition(
     tables,
     projectId,
-    hoursPerDay,
     fallbacks,
   );
 
@@ -216,6 +230,7 @@ export function deriveXerScheduleOptions(
       source: 'xer-defaults',
       progressMode: defaults.progressMode,
       schedulingOptions: defaults.schedulingOptions,
+      retainedSource: {},
       fallbacks,
     };
   }
@@ -236,14 +251,17 @@ export function deriveXerScheduleOptions(
       FT_MIN: 'smallest',
     }, 'finish', fallbacks),
     makeOpenEndedCritical: booleanValue(row, 'sched_open_critical_flag', false, fallbacks),
-    useProjectEndDateForFloat: booleanValue(
-      row,
-      'sched_use_project_end_date_for_float',
-      true,
-      fallbacks,
-    ),
     useExpectedFinishDates: booleanValue(row, 'sched_use_expect_end_flag', true, fallbacks),
   };
+
+  const retainedProjectEndValue = retainedBooleanValue(
+    row,
+    'sched_use_project_end_date_for_float',
+    fallbacks,
+  );
+  const retainedSource = retainedProjectEndValue === undefined
+    ? {}
+    : { sched_use_project_end_date_for_float: retainedProjectEndValue };
 
   const progressMode = progressModeValue(row, fallbacks);
 
@@ -270,5 +288,5 @@ export function deriveXerScheduleOptions(
     };
   }
 
-  return { source: 'schedoptions', progressMode, schedulingOptions, fallbacks };
+  return { source: 'schedoptions', progressMode, schedulingOptions, retainedSource, fallbacks };
 }

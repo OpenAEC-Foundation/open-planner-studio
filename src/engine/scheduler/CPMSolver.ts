@@ -2609,9 +2609,7 @@ export class CPMSolver {
       // Start-Start-opvolger een late finish ná het projecteinde opleveren, waardoor de
       // voorganger ten onrechte speling/niet-kritiek kreeg.)
       const predCal = this.calendarFor(task);
-      let lateFinish = this.options.schedulingOptions?.useProjectEndDateForFloat
-        ? this.snapOnOrBefore(predCal, projectEnd)
-        : projectEnd;
+      let lateFinish = projectEnd;
       for (const seq of succs) {
         const succResult = results.get(seq.successorId);
         const succTask = this.tasks.get(seq.successorId);

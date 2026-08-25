@@ -11,15 +11,18 @@ export interface SchedulingOptions {
   /** Kalender voor relatie-lag (P6 4-way, Rapport B §7.1). Default 'predecessor' = de huidige
    *  LAG_CALENDAR-constante (lagCalendar.ts) ⇒ byte-identiek. */
   lagCalendar?: 'predecessor' | 'successor' | '24hour' | 'projectDefault';
-  /** Kritiek-definitie. Default { mode:'totalFloat', threshold:0 } = het huidige tf≤0. */
-  criticalDefinition?: { mode: 'totalFloat' | 'longestPath'; threshold?: number };  // threshold mag negatief (P6)
+  /** Kritiek-definitie. `threshold` is de bestaande grens in taakdagen; `thresholdHours` bewaart
+   *  een P6/XER-grens in bronuren en wordt per taak tegen floaturen op diens effectieve kalender
+   *  vergeleken. Bij beide wint `thresholdHours`. Beide grenzen mogen negatief zijn. */
+  criticalDefinition?: {
+    mode: 'totalFloat' | 'longestPath';
+    threshold?: number;
+    thresholdHours?: number;
+  };
   /** TF-berekeningswijze. Default 'smallest' = de huidige min(finish,start)-float. */
   totalFloatMode?: 'start' | 'finish' | 'smallest';
   /** Open-ended taken kritiek? Default = huidig gedrag (een eindtaak krijgt tf via LF−EF). */
   makeOpenEndedCritical?: boolean;
-  /** P6/XER: zaai de backward-pass per taak vanaf het projecteinde op de eigen taakkalender.
-   *  Afwezig/false houdt de algemene OPS-huissemantiek byte-identiek. */
-  useProjectEndDateForFloat?: boolean;
   /** P6/XER-bronsignaal: verwachte einddatums mogen de resterende duur begrenzen. X7 consumeert
    *  dit pas samen met het taakveld; bewaren voorkomt dat de SCHEDOPTIONS-keuze verloren gaat. */
   useExpectedFinishDates?: boolean;

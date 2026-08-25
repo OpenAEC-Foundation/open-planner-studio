@@ -1164,6 +1164,11 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
 
   if (result) {
     truthy('I4 end-to-end readMPP: project.name uit Props/TITLE', result.project.name === 'Fixture Project');
+    truthy('I4 end-to-end readMPP: zonder XER-floatbron blijven alleen de twee MPP-eigen opties staan',
+      JSON.stringify(result.project.schedulingOptions) === JSON.stringify({
+        resumeFromActualElapsed: true,
+        unstartedIgnoresStatusDate: true,
+      }));
     truthy('I4 end-to-end readMPP: hoursPerDay uit MINUTES_PER_DAY (480/60)', result.calendar.hoursPerDay === 8);
     truthy('I4 end-to-end readMPP: 6 taken', result.tasks.length === 6);
 

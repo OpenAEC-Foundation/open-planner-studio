@@ -290,17 +290,35 @@ const sixDayCalendar: WorkCalendar = {
 };
 const endTasks = [task('LONG', 6, 'six-day'), task('SHORT', 1, 'end-project')];
 const ordinaryEnd = new CPMSolver(endTasks, [], endProjectCalendar, [sixDayCalendar]).solve();
-const projectEndPerCalendar = new CPMSolver(
-  endTasks,
-  [],
-  endProjectCalendar,
-  [sixDayCalendar],
-  { schedulingOptions: { useProjectEndDateForFloat: true } },
-).solve();
-eq('projecteinde-voor-float zaait late finish op de eigen taakkalender', {
-  ordinary: ordinaryEnd.tasks.get('SHORT')?.lateFinish,
-  p6: projectEndPerCalendar.tasks.get('SHORT')?.lateFinish,
-}, { ordinary: '2026-06-06', p6: '2026-06-05' });
+eq('één project gebruikt één gemeenschappelijk projecteinde zonder taakkalender-snap',
+  ordinaryEnd.tasks.get('SHORT')?.lateFinish, '2026-06-06');
+
+function sourceWithoutXerFloatValue(options?: {
+  resumeFromActualElapsed?: boolean;
+  unstartedIgnoresStatusDate?: boolean;
+}): unknown {
+  return [...new CPMSolver(
+    endTasks,
+    [],
+    endProjectCalendar,
+    [sixDayCalendar],
+    { schedulingOptions: options },
+  ).solve().tasks];
+}
+eq('afwezige XER-floatbron houdt verse/MPP/MSPDI/P6XML-uitvoer byte-identiek', {
+  fresh: sourceWithoutXerFloatValue(createDefaultProject().schedulingOptions),
+  mpp: sourceWithoutXerFloatValue({
+    resumeFromActualElapsed: true,
+    unstartedIgnoresStatusDate: true,
+  }),
+  mspdi: sourceWithoutXerFloatValue(undefined),
+  p6xml: sourceWithoutXerFloatValue(undefined),
+}, {
+  fresh: [...ordinaryEnd.tasks],
+  mpp: [...ordinaryEnd.tasks],
+  mspdi: [...ordinaryEnd.tasks],
+  p6xml: [...ordinaryEnd.tasks],
+});
 
 const explicitInertEnd = new CPMSolver(
   endTasks,
@@ -309,7 +327,6 @@ const explicitInertEnd = new CPMSolver(
   [sixDayCalendar],
   {
     schedulingOptions: {
-      useProjectEndDateForFloat: false,
       useExpectedFinishDates: false,
       preserveActualDatesInBackwardPass: false,
       clampNegativeFreeFloat: false,
@@ -333,7 +350,7 @@ const p6MultiCalendar = new CPMSolver(
   [],
   p6MonFri,
   [p6SixDay],
-  { schedulingOptions: { useProjectEndDateForFloat: true, totalFloatMode: 'finish' } },
+  { schedulingOptions: { totalFloatMode: 'finish' } },
 ).solve();
 eq('P6-geval 06: meerdere kalenders, alle zes datum-/floatassen', {
   A: axes(p6MultiCalendar, 'A'),
@@ -437,6 +454,59 @@ eq('P6-voltooide activiteit rapporteert geen float, ook niet bij out-of-sequence
   ff: completedFloat?.freeFloat,
 }, { tf: 0, ff: 0 });
 
+const running = p6Task('RUNNING', 4, 'p6-monfri', '2026-07-06T08:00');
+running.status = 'STARTED';
+running.time.completion = 0.5;
+running.time.actualStart = '2026-07-06T08:00';
+const runningDriver = p6Task('RUNNING-DRIVER', 10, 'p6-monfri', '2026-07-06T08:00');
+function solveRunningFloat(mode: 'start' | 'finish' | 'smallest'): unknown {
+  const solved = new CPMSolver(
+    [running, runningDriver],
+    [],
+    p6MonFri,
+    [],
+    {
+      dataDate: '2026-07-08',
+      progressMode: 'RETAINED_LOGIC',
+      schedulingOptions: { totalFloatMode: mode, preserveActualDatesInBackwardPass: true },
+    },
+  ).solve().tasks.get('RUNNING');
+  return solved && {
+    earlyStart: solved.earlyStart,
+    lateStart: solved.lateStart,
+    earlyFinish: solved.earlyFinish,
+    lateFinish: solved.lateFinish,
+    totalFloat: solved.totalFloat,
+  };
+}
+eq('lopende taak gebruikt per expliciete modus echt LS-ES, LF-EF of de kleinste', {
+  start: solveRunningFloat('start'),
+  finish: solveRunningFloat('finish'),
+  smallest: solveRunningFloat('smallest'),
+}, {
+  start: {
+    earlyStart: '2026-07-06T08:00',
+    lateStart: '2026-07-06T08:00',
+    earlyFinish: '2026-07-09T17:00',
+    lateFinish: '2026-07-21T17:00',
+    totalFloat: 0,
+  },
+  finish: {
+    earlyStart: '2026-07-06T08:00',
+    lateStart: '2026-07-06T08:00',
+    earlyFinish: '2026-07-09T17:00',
+    lateFinish: '2026-07-21T17:00',
+    totalFloat: 8,
+  },
+  smallest: {
+    earlyStart: '2026-07-06T08:00',
+    lateStart: '2026-07-06T08:00',
+    earlyFinish: '2026-07-09T17:00',
+    lateFinish: '2026-07-21T17:00',
+    totalFloat: 0,
+  },
+});
+
 function xer(projectFields: readonly string[], projectValues: readonly string[], schedule?: {
   fields: readonly string[];
   values: readonly string[];
@@ -458,6 +528,55 @@ function xer(projectFields: readonly string[], projectValues: readonly string[],
   return new TextEncoder().encode(lines.join('\n'));
 }
 
+function projectEndSource(value: 'Y' | 'N') {
+  return deriveXerScheduleOptions(parseXerTables(xer(
+    ['proj_id'],
+    ['P1'],
+    {
+      fields: ['proj_id', 'sched_use_project_end_date_for_float'],
+      values: ['P1', value],
+    },
+  )), 'P1');
+}
+const projectEndTrue = projectEndSource('Y');
+const projectEndFalse = projectEndSource('N');
+eq('projecteindevlag blijft expliciet als TODO-bronwaarde bewaard', {
+  trueValue: projectEndTrue.retainedSource,
+  falseValue: projectEndFalse.retainedSource,
+  disposition: XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(
+    item => item.field === 'sched_use_project_end_date_for_float',
+  ),
+}, {
+  trueValue: { sched_use_project_end_date_for_float: true },
+  falseValue: { sched_use_project_end_date_for_float: false },
+  disposition: {
+    field: 'sched_use_project_end_date_for_float',
+    status: 'todo',
+    reason: 'Meerdere gelijktijdig geplande projecten ontbreken; X5 bewaart de bronwaarde zonder solversturing.',
+  },
+});
+const projectEndTrueSolve = new CPMSolver(
+  endTasks,
+  [],
+  endProjectCalendar,
+  [sixDayCalendar],
+  { schedulingOptions: projectEndTrue.schedulingOptions },
+).solve();
+const projectEndFalseSolve = new CPMSolver(
+  endTasks,
+  [],
+  endProjectCalendar,
+  [sixDayCalendar],
+  { schedulingOptions: projectEndFalse.schedulingOptions },
+).solve();
+eq('projecteindevlag true/false verandert binnen één project geen enkele taakdatum', {
+  trueResult: [...projectEndTrueSolve.tasks],
+  falseResult: [...projectEndFalseSolve.tasks],
+}, {
+  trueResult: [...ordinaryEnd.tasks],
+  falseResult: [...ordinaryEnd.tasks],
+});
+
 const withoutTable = deriveXerScheduleOptions(parseXerTables(xer(
   ['proj_id', 'critical_path_type', 'critical_drtn_hr_cnt'],
   ['P1', 'CT_TotFloat', '16'],
@@ -468,46 +587,86 @@ eq('expliciete XER-defaultset is brongebonden en compleet', withoutTable, {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
     lagCalendar: 'predecessor',
-    criticalDefinition: { mode: 'totalFloat', threshold: 2 },
+    criticalDefinition: { mode: 'totalFloat', thresholdHours: 16 },
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
-    useProjectEndDateForFloat: true,
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
   },
+  retainedSource: {},
   fallbacks: [],
 });
 eq('geexporteerde defaults blijven de ongewijzigde nul-drempel leveren', XER_SCHEDULING_DEFAULTS, {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
     lagCalendar: 'predecessor',
-    criticalDefinition: { mode: 'totalFloat', threshold: 0 },
+    criticalDefinition: { mode: 'totalFloat', thresholdHours: 0 },
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
-    useProjectEndDateForFloat: true,
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
   },
 });
-eq('default 1/9: finish-float', XER_SCHEDULING_DEFAULTS.schedulingOptions.totalFloatMode, 'finish');
-eq('default 2/9: retained logic', XER_SCHEDULING_DEFAULTS.progressMode, 'RETAINED_LOGIC');
-eq('default 3/9: kritiek op totale float met nulgrens',
+eq('default 1/8: finish-float', XER_SCHEDULING_DEFAULTS.schedulingOptions.totalFloatMode, 'finish');
+eq('default 2/8: retained logic', XER_SCHEDULING_DEFAULTS.progressMode, 'RETAINED_LOGIC');
+eq('default 3/8: kritiek op totale float met nul uur als P6-bronwaarde',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.criticalDefinition,
-  { mode: 'totalFloat', threshold: 0 });
-eq('default 4/9: open eindes niet automatisch kritiek',
+  { mode: 'totalFloat', thresholdHours: 0 });
+eq('default 4/8: open eindes niet automatisch kritiek',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.makeOpenEndedCritical, false);
-eq('default 5/9: relatielag op de voorgangerskalender',
+eq('default 5/8: relatielag op de voorgangerskalender',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.lagCalendar, 'predecessor');
-eq('default 6/9: float tot projecteinde per taakkalender',
-  XER_SCHEDULING_DEFAULTS.schedulingOptions.useProjectEndDateForFloat, true);
-eq('default 7/9: verwachte einddatums als bewaard bronbeleid',
+eq('default 6/8: verwachte einddatums als bewaard bronbeleid (solverconsumptie volgt in X7)',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.useExpectedFinishDates, true);
-eq('default 8/9: P6-actuals blijven feiten in de backward-pass',
+eq('default 7/8: P6-actuals blijven feiten in de backward-pass',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.preserveActualDatesInBackwardPass, true);
-eq('default 9/9: P6-vrije-float wordt niet negatief',
+eq('default 8/8: P6-vrije-float wordt niet negatief',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.clampNegativeFreeFloat, true);
+
+const fourHourBands = [{ start: 480, end: 720 }];
+const fourHourCalendar: WorkCalendar = {
+  ...p6Calendar('p6-four-hour', [1, 2, 3, 4, 5]),
+  workEndHour: 12,
+  hoursPerDay: 4,
+  workTime: {
+    byWeekday: {
+      1: fourHourBands,
+      2: fourHourBands,
+      3: fourHourBands,
+      4: fourHourBands,
+      5: fourHourBands,
+      6: [],
+      7: [],
+    },
+  },
+};
+const thresholdTask = p6Task('THRESHOLD-4H', 1, fourHourCalendar.id, '2026-01-05T08:00');
+thresholdTask.time.durationMinutes = 4 * 60;
+const thresholdDriver = p6Task('THRESHOLD-DRIVER', 3, p6MonFri.id, '2026-01-05T08:00');
+const thresholdSource = deriveXerScheduleOptions(parseXerTables(xer(
+  ['proj_id', 'critical_path_type', 'critical_drtn_hr_cnt'],
+  ['P1', 'CT_TotFloat', '8'],
+)), 'P1', { hoursPerDay: 8, taskCount: 2 });
+const thresholdSolve = new CPMSolver(
+  [thresholdDriver, thresholdTask],
+  [],
+  p6MonFri,
+  [fourHourCalendar],
+  { schedulingOptions: thresholdSource.schedulingOptions },
+).solve().tasks.get(thresholdTask.id);
+eq('P6-drempeluren vergelijken tegen floaturen van de effectieve 4h-taakkalender', {
+  mapped: thresholdSource.schedulingOptions.criticalDefinition,
+  totalFloatTaskDays: thresholdSolve?.totalFloat,
+  totalFloatHours: thresholdSolve && thresholdSolve.totalFloat * fourHourCalendar.hoursPerDay,
+  isCritical: thresholdSolve?.isCritical,
+}, {
+  mapped: { mode: 'totalFloat', thresholdHours: 8 },
+  totalFloatTaskDays: 2,
+  totalFloatHours: 8,
+  isCritical: true,
+});
 
 const defaultLagSolve = new CPMSolver(
   lagTasks,
@@ -552,12 +711,12 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
     criticalDefinition: { mode: 'longestPath' },
     totalFloatMode: 'start',
     makeOpenEndedCritical: true,
-    useProjectEndDateForFloat: false,
     useExpectedFinishDates: false,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 3 },
   },
+  retainedSource: { sched_use_project_end_date_for_float: false },
   fallbacks: [],
 });
 

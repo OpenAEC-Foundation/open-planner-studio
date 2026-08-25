@@ -123,10 +123,13 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 {
   const p = readP6XML(writeP6XML(project, H8, tasks, sequences, resources, assignments, lib));
   roundTrip('P6', p.tasks, p.sequences, p.calendar, p.resourceCalendars ?? [], false);
+  eq('P6XML zonder bronwaarde introduceert geen schedulingOptions', p.project.schedulingOptions, undefined);
 }
 {
   const p = readMSPDI(writeMSPDI(project, H8, tasks, sequences, resources, assignments, lib));
   roundTrip('MSPDI', p.tasks, p.sequences, p.calendar, p.resourceCalendars ?? [], false);
+  eq('MSPDI zonder CriticalSlackLimit introduceert geen schedulingOptions',
+    p.project.schedulingOptions, undefined);
 }
 
 // ── Review-follow-up (2026-08, op bugfix B1): GEMENGDE ISO-duur uit een VREEMD bestand ─────────────
