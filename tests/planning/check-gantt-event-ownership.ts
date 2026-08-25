@@ -7,24 +7,26 @@ import {
   type GanttOwner,
 } from '@/components/canvas/ganttEventOwnership';
 
-const expectedActions: readonly GanttAction[] = [
-  'rowselect',
-  'disclosure',
-  'add',
-  'row-dubbelklik',
-  'rowcontextmenu',
-  'rowdrag',
-  'tooltip',
-  'splitter',
-  'vertical-scroll',
-  'horizontal-time-scroll',
-  'fit-to-project',
-  'focus-on-task',
-  'bars',
-  'dependencies',
-  'pan',
-  'boxselect',
-];
+const expectedCurrentOwners = {
+  rowselect: 'canvas',
+  disclosure: 'canvas',
+  add: 'canvas',
+  'row-dubbelklik': 'canvas',
+  rowcontextmenu: 'canvas',
+  rowdrag: 'canvas',
+  tooltip: 'canvas',
+  splitter: 'canvas',
+  'vertical-scroll': 'canvas',
+  'horizontal-time-scroll': 'canvas',
+  'fit-to-project': 'canvas',
+  'focus-on-task': 'canvas',
+  bars: 'canvas',
+  dependencies: 'canvas',
+  pan: 'canvas',
+  boxselect: 'canvas',
+} as const satisfies Record<GanttAction, GanttOwner>;
+
+const expectedActions = Object.keys(expectedCurrentOwners) as GanttAction[];
 
 let checks = 0;
 const diffs: string[] = [];
@@ -41,6 +43,10 @@ for (const action of expectedActions) {
   checks++;
   if (owners.length !== 1) {
     diffs.push(`${action}: verwacht precies één eigenaar, kreeg ${JSON.stringify(owners)}`);
+  }
+  checks++;
+  if (owners[0] !== expectedCurrentOwners[action]) {
+    diffs.push(`${action}: kreeg eigenaar ${JSON.stringify(owners[0])}, verwacht ${JSON.stringify(expectedCurrentOwners[action])}`);
   }
 }
 

@@ -2,8 +2,10 @@
 
 ## Meetomgeving
 
+- Integratiebranch: `codex/tabel-overhaul`.
 - Basiskop: `446324ce83bab363bb66f28a4cf2d805ce4a0d25`.
-- Basistak: `codex/tabel-overhaul`; deze geïsoleerde worktree werkt op de afgeleide tak `codex/task-0-gantt-baseline`.
+- Uitvoerisolatie: Task 0 is voorbereid in een afzonderlijke workerworktree; die verandert de
+  bindende integratiebranch niet.
 - Node: `v24.15.0`.
 - npm: `11.12.1`.
 - `npm run typecheck`: exitcode `0` (2026-08-25, na de Task-0-wijzigingen).
