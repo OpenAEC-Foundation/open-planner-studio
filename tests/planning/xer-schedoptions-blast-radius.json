@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "axes": [
     "es",
     "ef",
@@ -28,12 +28,16 @@
   "population": {
     "scanned": 93,
     "oracleAxisFiles": 60,
-    "withSchedOptions": 24,
-    "withoutSchedOptions": 36,
-    "measured": 34,
+    "rawWithSchedOptions": 24,
+    "rawWithoutSchedOptions": 36,
+    "projectAddressableSchedOptions": 23,
+    "functionallyWithoutSchedOptions": 37,
+    "measured": 35,
     "deferred": 2,
-    "openedProjectsWithDefaults": 35,
-    "wiredProjectsWithDefaults": 35,
+    "readableFiles": 35,
+    "openedProjectsWithDefaults": 36,
+    "wiredProjectsWithDefaults": 36,
+    "concreteProjectsCompared": 84,
     "oracleNegativeFloatFiles": 5,
     "withoutSchedOptionsNegativeFloatFiles": 4,
     "rawNegativeFloatFiles": 6,
@@ -50,13 +54,13 @@
     "lagFromEarlyStart": 40,
     "progressOverride": 1,
     "unknownFloatDialect": 8,
-    "derivedRows": 50,
+    "derivedRows": 49,
     "derivedFallbacks": 8,
     "derivedFloatDialectFallbacks": 8,
-    "derivedRetainedLogic": 49,
+    "derivedRetainedLogic": 48,
     "derivedProgressOverride": 1,
-    "derivedFinishFloat": 50,
-    "derivedLagPredecessor": 45,
+    "derivedFinishFloat": 49,
+    "derivedLagPredecessor": 44,
     "derivedLagSuccessor": 3,
     "derivedLag24Hour": 1,
     "derivedLagProjectDefault": 1,
@@ -3297,6 +3301,116 @@
       }
     },
     {
+      "id": "c1ccf20436ba38b5-1",
+      "state": "measured",
+      "tasks": 2,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
       "id": "c872c9e704797d82-1",
       "state": "measured",
       "tasks": 8,
@@ -3866,8 +3980,8 @@
         "measurable": 7532
       },
       "tf": {
-        "deviations": 6931,
-        "measurable": 7600
+        "deviations": 6932,
+        "measurable": 7602
       },
       "ff": {
         "deviations": 2341,
@@ -3892,8 +4006,8 @@
         "measurable": 7532
       },
       "tf": {
-        "deviations": 6406,
-        "measurable": 7600
+        "deviations": 6407,
+        "measurable": 7602
       },
       "ff": {
         "deviations": 585,
@@ -3920,8 +4034,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6930,
-            "measurable": 7600
+            "deviations": 6931,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,
@@ -3946,8 +4060,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,
@@ -3974,8 +4088,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,
@@ -4000,8 +4114,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 7409,
-            "measurable": 7600
+            "deviations": 7410,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2521,
@@ -4028,8 +4142,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,
@@ -4054,8 +4168,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6912,
-            "measurable": 7600
+            "deviations": 6913,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2339,
@@ -4082,8 +4196,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,
@@ -4108,8 +4222,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2342,
@@ -4136,8 +4250,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6407,
-            "measurable": 7600
+            "deviations": 6408,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 704,
@@ -4162,8 +4276,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,
@@ -4190,8 +4304,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 1749,
@@ -4216,8 +4330,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,
@@ -4244,8 +4358,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,
@@ -4270,8 +4384,8 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6931,
-            "measurable": 7600
+            "deviations": 6932,
+            "measurable": 7602
           },
           "ff": {
             "deviations": 2341,

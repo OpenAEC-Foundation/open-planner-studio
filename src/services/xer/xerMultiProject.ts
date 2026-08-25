@@ -34,6 +34,27 @@ interface BaselineDecision {
   reasons: XerBaselineFallbackReason[];
 }
 
+/** Clone de projectpayload zonder het bestandsbrede raw-archief P keer te materialiseren. */
+function cloneMappedProject(result: XerReadResult): XerReadResult {
+  const scheduleOptions = result.xer.scheduleOptions;
+  const archive = scheduleOptions.sourceArchive;
+  const clone = structuredClone({
+    ...result,
+    xer: {
+      ...result.xer,
+      scheduleOptions: {
+        ...scheduleOptions,
+        sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
+        sourceRows: [],
+      },
+    },
+  }) as XerReadResult;
+  clone.xer.scheduleOptions.sourceArchive = archive;
+  clone.xer.scheduleOptions.sourceRows = clone.xer.scheduleOptions.sourceRowIndexes
+    .map(rowIndex => archive.rows[rowIndex]);
+  return clone;
+}
+
 function assertUniqueProjectIds(projectRows: readonly XerRow[]): void {
   const firstLineById = new Map<string, number>();
   for (const projectRow of projectRows) {
@@ -233,7 +254,7 @@ export function assembleXerMultiProjectImport(
       projectRow.cells.proj_id,
       // Eén bestand kan readers intern dezelfde kalender-/resourcearrays laten delen. Elke
       // documentpayload krijgt daarom vóór baselineverrijking zijn eigen volledige objectgraaf.
-      structuredClone(mapProject(projectRow.cells.proj_id)),
+      cloneMappedProject(mapProject(projectRow.cells.proj_id)),
     ]),
   );
   const documents = nonEmptyProjectRows

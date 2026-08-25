@@ -4,15 +4,14 @@ import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProjec
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport } from '@/services/importTypes';
-import {
-  deriveXerScheduleOptions,
-  type XerScheduleOptionsMetadata,
-} from '@/services/xer/xerScheduleOptions';
+import type { XerScheduleOptionsMetadata } from '@/services/xer/xerScheduleOptions';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
-import { parseXerTables } from '@/services/xer/xerTables';
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
-import { isLeafTask } from '@/utils/taskHierarchy';
+import {
+  expectedXerScheduleOptions,
+  scanRawXerScheduleOptions,
+} from './xerScheduleOptionsGroundTruth';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -34,6 +33,15 @@ function bytes(lines: readonly string[]): Uint8Array {
 
 function scheduleMetadata(result: XerReadResult): XerScheduleOptionsMetadata {
   return result.xer.scheduleOptions;
+}
+
+function legacyMetadata(metadata: XerScheduleOptionsMetadata) {
+  return {
+    source: metadata.source,
+    retainedSource: metadata.retainedSource,
+    fallbacks: metadata.fallbacks,
+    sourceRows: metadata.sourceRows,
+  };
 }
 
 function openedProjects(source: Uint8Array): XerReadResult[] {
@@ -71,6 +79,15 @@ if (!isMultiDocumentImport(multiOpened)) {
   throw new Error('X5-wiringfixture leverde geen meervoudige import');
 }
 const [projectA, projectB] = multiOpened.results as XerReadResult[];
+
+eq('bestandsbreed raw-archief heeft één gedeelde bronkopie met projectviews als referenties', {
+  sameArchive: projectA?.xer.scheduleOptions.sourceArchive === projectB?.xer.scheduleOptions.sourceArchive,
+  rows: projectA?.xer.scheduleOptions.sourceArchive.rows.length,
+  projectARefs: projectA?.xer.scheduleOptions.sourceRows.every((row, index) =>
+    row === projectA.xer.scheduleOptions.sourceArchive.rows[projectA.xer.scheduleOptions.sourceRowIndexes[index]]),
+  projectBRefs: projectB?.xer.scheduleOptions.sourceRows.every((row, index) =>
+    row === projectB.xer.scheduleOptions.sourceArchive.rows[projectB.xer.scheduleOptions.sourceRowIndexes[index]]),
+}, { sameArchive: true, rows: 4, projectARefs: true, projectBRefs: true });
 
 eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
   {
@@ -187,7 +204,7 @@ eq('4 ontbrekende SCHEDOPTIONS krijgt altijd de expliciete P6-defaultset op de 4
   schedulingOptions: defaultProject.project.schedulingOptions,
   projectHours: defaultProject.calendar.hoursPerDay,
   taskHours: defaultProject.resourceCalendars?.find(calendar => calendar.id === 'C4')?.hoursPerDay,
-  metadata: scheduleMetadata(defaultProject),
+  metadata: legacyMetadata(scheduleMetadata(defaultProject)),
 }, {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
@@ -218,6 +235,46 @@ eq('4 ontbrekende SCHEDOPTIONS krijgt altijd de expliciete P6-defaultset op de 4
       },
     }],
   },
+});
+
+const hostileProject = openedProjects(bytes([
+  'ERMHDR\t23.12\t2026-08-25\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tcritical_path_type\tcritical_drtn_hr_cnt',
+  '%R\tP-HOSTILE\tHostile\tCT_TotFloat\t8',
+  '%T\tSCHEDOPTIONS',
+  '%F\tproj_id\tsched_float_type\tsched_retained_logic\tsched_progress_override',
+  '%R\tP-HOSTILE\tFT_SS\tN\tY',
+  '%R\tP-HOSTILE\tFT_FF\tY\tN',
+  '%R\tORPHAN\tFT_MIN\tN\tY',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt',
+  '%R\tT1\tP-HOSTILE\tT1\tTaak\t2026-01-05\t2026-01-06\t8',
+  '%E',
+]))[0]!;
+eq('hostile reader bewaart orphan/duplicates eenmaal en past geen onzekere rijsemantiek toe', {
+  source: hostileProject.xer.scheduleOptions.source,
+  progressMode: hostileProject.project.progressMode,
+  floatMode: hostileProject.project.schedulingOptions?.totalFloatMode,
+  sourceRowIndexes: hostileProject.xer.scheduleOptions.sourceRowIndexes,
+  sourceProjectIds: hostileProject.xer.scheduleOptions.sourceRows.map(row => row.cells.proj_id),
+  archiveProjectIds: hostileProject.xer.scheduleOptions.sourceArchive.rows.map(row => row.cells.proj_id),
+  unmatched: hostileProject.xer.scheduleOptions.sourceArchive.unmatchedScheduleOptionsRowIndexes,
+  diagnostics: hostileProject.xer.scheduleOptions.diagnostics,
+}, {
+  source: 'xer-defaults',
+  progressMode: 'RETAINED_LOGIC',
+  floatMode: 'finish',
+  sourceRowIndexes: [0, 1, 2],
+  sourceProjectIds: ['P-HOSTILE', 'P-HOSTILE', 'P-HOSTILE'],
+  archiveProjectIds: ['P-HOSTILE', 'P-HOSTILE', 'P-HOSTILE', 'ORPHAN'],
+  unmatched: [3],
+  diagnostics: [{
+    code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID',
+    projectId: 'P-HOSTILE',
+    rowIndexes: [1, 2],
+    lines: [7, 8],
+  }],
 });
 
 function solvedAxes(source: Uint8Array): unknown {
@@ -285,6 +342,10 @@ eq('7 X4b-file-openfan-out bewaart per document zijn eigen projectinstellingen e
     { id: 'P-A', progressMode: 'PROGRESS_OVERRIDE', floatMode: 'start', sourceProjectIds: ['P-A', 'P-A'] },
     { id: 'P-B', progressMode: 'RETAINED_LOGIC', floatMode: 'finish', sourceProjectIds: ['P-B', 'P-B'] },
   ]);
+eq('file-open bewaart de file-wide bronkopie gedeeld tussen de documentpayloads',
+  openedDocs[0]?.payload.xerImportMetadata?.scheduleOptions.sourceArchive
+    === openedDocs[1]?.payload.xerImportMetadata?.scheduleOptions.sourceArchive,
+  true);
 
 const firstDocumentId = openedDocs[0]?.id;
 const secondDocumentId = openedDocs[1]?.id;
@@ -321,6 +382,11 @@ eq('9 RecoveryDocInput bewaart instellingen en retained bronwaarde per project',
     { id: 'P-A', progressMode: 'PROGRESS_OVERRIDE', floatMode: 'start', retained: { sched_use_project_end_date_for_float: true } },
     { id: 'P-B', progressMode: 'RETAINED_LOGIC', floatMode: 'finish', retained: { sched_use_project_end_date_for_float: false } },
   ]);
+const recoveredDocuments = useAppStore.getState().getOpenDocumentPayloads();
+eq('RecoveryDocInput behoudt één gedeeld file-wide bronarchief',
+  recoveredDocuments[0]?.payload.xerImportMetadata?.scheduleOptions.sourceArchive
+    === recoveredDocuments[1]?.payload.xerImportMetadata?.scheduleOptions.sourceArchive,
+  true);
 
 eq('10 bestaand project-IFC dekt schedulingOptions/progressMode; retained XER-metadata blijft expliciet X9',
   (multiOpened.results as XerReadResult[]).map(result => {
@@ -350,13 +416,12 @@ const corpusRoot = process.env.OPS_XER_CORPUS;
 if (corpusRoot && existsSync(corpusRoot)) {
   const relativePath = 'crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer';
   const publicBytes = new Uint8Array(readFileSync(join(corpusRoot, relativePath)));
-  const publicTables = parseXerTables(publicBytes);
+  const publicTruth = scanRawXerScheduleOptions(publicBytes);
   const publicOpened = readXER(publicBytes);
   if (!isMultiDocumentImport(publicOpened)) throw new Error('Openbare 15-projectenfixture is niet meervoudig');
   const settings = (publicOpened.results as XerReadResult[]).map(result => {
-    const expected = deriveXerScheduleOptions(publicTables, result.project.id, {
-      hoursPerDay: result.calendar.hoursPerDay,
-      taskCount: result.tasks.filter(isLeafTask).length,
+    const expected = expectedXerScheduleOptions(publicTruth, result.project.id, {
+      taskCount: result.tasks.filter(task => task.p6ActivityType !== undefined).length,
     });
     const metadata = scheduleMetadata(result);
     return {
@@ -368,7 +433,21 @@ if (corpusRoot && existsSync(corpusRoot)) {
       }) === JSON.stringify({
         progressMode: expected.progressMode,
         schedulingOptions: expected.schedulingOptions,
-      }) && metadata?.sourceRows.every(row => row.cells.proj_id === result.project.id),
+      }) && JSON.stringify({
+        source: metadata?.source,
+        retainedSource: metadata?.retainedSource,
+        fallbacks: metadata?.fallbacks,
+        diagnostics: metadata?.diagnostics,
+        sourceRowIndexes: metadata?.sourceRowIndexes,
+        sourceRows: metadata?.sourceRows,
+      }) === JSON.stringify({
+        source: expected.source,
+        retainedSource: expected.retainedSource,
+        fallbacks: expected.fallbacks,
+        diagnostics: expected.diagnostics,
+        sourceRowIndexes: expected.sourceRowIndexes,
+        sourceRows: expected.sourceRows,
+      }),
       progressMode: result.project.progressMode,
       lagCalendar: result.project.schedulingOptions?.lagCalendar,
       totalFloatMode: result.project.schedulingOptions?.totalFloatMode,

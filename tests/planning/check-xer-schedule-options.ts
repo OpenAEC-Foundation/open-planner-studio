@@ -1,7 +1,8 @@
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { createDefaultProject } from '@/state/defaults';
 import {
-  deriveXerScheduleOptions,
+  deriveXerScheduleOptions as deriveIndexedXerScheduleOptions,
+  indexXerScheduleOptions,
   XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS,
   XER_SCHEDULING_DEFAULTS,
 } from '@/services/xer/xerScheduleOptions';
@@ -21,6 +22,19 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (JSON.stringify(got) !== JSON.stringify(want)) {
     diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
   }
+}
+
+function deriveXerScheduleOptions(
+  tables: ReturnType<typeof parseXerTables>,
+  projectId: string,
+  context: { hoursPerDay?: number; taskCount?: number } = {},
+) {
+  return deriveIndexedXerScheduleOptions(indexXerScheduleOptions(tables), projectId, context);
+}
+
+function legacyResult(result: ReturnType<typeof deriveIndexedXerScheduleOptions>) {
+  const { sourceArchive: _archive, sourceRowIndexes: _indexes, diagnostics: _diagnostics, ...legacy } = result;
+  return legacy;
 }
 
 const predecessorCalendar: WorkCalendar = {
@@ -582,7 +596,105 @@ const withoutTable = deriveXerScheduleOptions(parseXerTables(xer(
   ['P1', 'CT_TotFloat', '16'],
 )), 'P1', { hoursPerDay: 8, taskCount: 9 });
 
-eq('expliciete XER-defaultset is brongebonden en compleet', withoutTable, {
+const hostileIndex = indexXerScheduleOptions(parseXerTables(new TextEncoder().encode([
+  'ERMHDR\t23.12\t2026-08-25\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tcritical_path_type\tcritical_drtn_hr_cnt',
+  '%R\tP1\tCT_TotFloat\t8',
+  '%R\tP2\tCT_TotFloat\t0',
+  '%T\tSCHEDOPTIONS',
+  '%F\tproj_id\tsched_float_type\tsched_retained_logic\tsched_progress_override',
+  '%R\tP1\tFT_SS\tN\tY',
+  '%R\tP1\tFT_FF\tY\tN',
+  '%R\tORPHAN\tFT_MIN\tN\tY',
+  '%E',
+].join('\n'))));
+const duplicateResult = deriveIndexedXerScheduleOptions(hostileIndex, 'P1');
+const unaffectedResult = deriveIndexedXerScheduleOptions(hostileIndex, 'P2');
+eq('hostile bronarchief bewaart iedere raw rij eenmaal en diagnosticeert duplicate/unmatched', {
+  rows: hostileIndex.sourceArchive.rows.map(row => [row.table, row.line, row.cells.proj_id]),
+  unmatched: hostileIndex.sourceArchive.unmatchedScheduleOptionsRowIndexes,
+  duplicates: hostileIndex.sourceArchive.diagnostics,
+  duplicateSource: duplicateResult.source,
+  duplicateOptions: duplicateResult.schedulingOptions,
+  duplicateDiagnostics: duplicateResult.diagnostics,
+  unaffectedSource: unaffectedResult.source,
+}, {
+  rows: [
+    ['PROJECT', 4, 'P1'],
+    ['PROJECT', 5, 'P2'],
+    ['SCHEDOPTIONS', 8, 'P1'],
+    ['SCHEDOPTIONS', 9, 'P1'],
+    ['SCHEDOPTIONS', 10, 'ORPHAN'],
+  ],
+  unmatched: [4],
+  duplicates: [{
+    code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID',
+    projectId: 'P1',
+    rowIndexes: [2, 3],
+    lines: [8, 9],
+  }],
+  duplicateSource: 'xer-defaults',
+  duplicateOptions: {
+    lagCalendar: 'predecessor',
+    criticalDefinition: { mode: 'totalFloat', thresholdHours: 8 },
+    totalFloatMode: 'finish',
+    makeOpenEndedCritical: false,
+    useExpectedFinishDates: true,
+    preserveActualDatesInBackwardPass: true,
+    clampNegativeFreeFloat: true,
+  },
+  duplicateDiagnostics: [{
+    code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID',
+    projectId: 'P1',
+    rowIndexes: [2, 3],
+    lines: [8, 9],
+  }],
+  unaffectedSource: 'xer-defaults',
+});
+
+const LINEAR_PROJECTS = 4_000;
+const linearProjectRows = Array.from({ length: LINEAR_PROJECTS }, (_, index) =>
+  `%R\tP${index}\tCT_TotFloat\t${index % 9}`).join('\n');
+const linearScheduleRows = Array.from({ length: LINEAR_PROJECTS }, (_, index) =>
+  `%R\tP${index}\t${index % 2 === 0 ? 'FT_SS' : 'FT_FF'}`).join('\n');
+const linearTables = parseXerTables(new TextEncoder().encode([
+  'ERMHDR\t23.12\t2026-08-25\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tcritical_path_type\tcritical_drtn_hr_cnt',
+  linearProjectRows,
+  '%T\tSCHEDOPTIONS',
+  '%F\tproj_id\tsched_float_type',
+  linearScheduleRows,
+  '%E',
+].join('\n')));
+let projIdReads = 0;
+for (const tableName of ['PROJECT', 'SCHEDOPTIONS']) {
+  for (const row of linearTables.tables.get(tableName)?.rows ?? []) {
+    const value = row.cells.proj_id;
+    Object.defineProperty(row.cells, 'proj_id', {
+      enumerable: true,
+      get: () => { projIdReads++; return value; },
+    });
+  }
+}
+const linearIndex = indexXerScheduleOptions(linearTables);
+let deriveArchiveProjectIdReads = 0;
+for (const row of linearIndex.sourceArchive.rows) {
+  const value = row.cells.proj_id;
+  Object.defineProperty(row.cells, 'proj_id', {
+    enumerable: true,
+    get: () => { deriveArchiveProjectIdReads++; return value; },
+  });
+}
+for (let index = 0; index < LINEAR_PROJECTS; index++) {
+  deriveIndexedXerScheduleOptions(linearIndex, `P${index}`);
+}
+eq('PROJECT en SCHEDOPTIONS worden eenmaal lineair geïndexeerd; afleiding is O(1)',
+  { indexProjectIdReads: projIdReads, deriveArchiveProjectIdReads },
+  { indexProjectIdReads: LINEAR_PROJECTS * 2, deriveArchiveProjectIdReads: 0 });
+
+eq('expliciete XER-defaultset is brongebonden en compleet', legacyResult(withoutTable), {
   source: 'xer-defaults',
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
@@ -712,7 +824,7 @@ const mapped = deriveXerScheduleOptions(parseXerTables(xer(
   },
 )), 'P1', { hoursPerDay: 8, taskCount: 9 });
 
-eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemapt', mapped, {
+eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemapt', legacyResult(mapped), {
   source: 'schedoptions',
   progressMode: 'PROGRESS_OVERRIDE',
   schedulingOptions: {

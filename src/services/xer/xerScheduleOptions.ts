@@ -9,20 +9,39 @@
 import type { ProgressMode, SchedulingOptions } from '@/types/project';
 import type {
   XerScheduleOptionFallback,
+  XerScheduleOptionsDiagnostic,
   XerScheduleOptionsMetadata,
+  XerScheduleOptionsSourceArchive,
   XerScheduleOptionsSourceRow,
 } from '../importTypes';
 import { parseXerNumber, type XerRow, type XerTables } from './xerTables';
 
 export type {
   XerScheduleOptionFallback,
+  XerScheduleOptionsDiagnostic,
   XerScheduleOptionsMetadata,
+  XerScheduleOptionsSourceArchive,
   XerScheduleOptionsSourceRow,
 } from '../importTypes';
 
 export interface XerScheduleOptionsResult extends XerScheduleOptionsMetadata {
   progressMode: ProgressMode;
   schedulingOptions: SchedulingOptions;
+}
+
+interface IndexedSourceRow {
+  row: XerRow;
+  sourceRowIndex: number;
+}
+
+/** Eenmalige bestandsindex: afleiding per project doet hierna uitsluitend Map-lookups. */
+export interface XerScheduleOptionsIndex {
+  numberFormat: XerTables['numberFormat'];
+  projectRowsById: ReadonlyMap<string, IndexedSourceRow>;
+  scheduleRowsById: ReadonlyMap<string, IndexedSourceRow>;
+  sourceRowIndexesByProject: ReadonlyMap<string, readonly number[]>;
+  diagnosticsByProject: ReadonlyMap<string, readonly XerScheduleOptionsDiagnostic[]>;
+  sourceArchive: XerScheduleOptionsSourceArchive;
 }
 
 export type XerScheduleOptionColumnDisposition =
@@ -189,50 +208,120 @@ function progressModeValue(
 }
 
 function projectCriticalDefinition(
-  tables: XerTables,
+  index: XerScheduleOptionsIndex,
   projectId: string,
   fallbacks: XerScheduleOptionFallback[],
 ): SchedulingOptions['criticalDefinition'] {
-  const row = tables.tables.get('PROJECT')?.rows.find(item => item.cells.proj_id?.trim() === projectId);
+  const row = index.projectRowsById.get(projectId)?.row;
   if (!row) return { ...XER_SCHEDULING_DEFAULTS.schedulingOptions.criticalDefinition };
   const token = row.cells.critical_path_type?.trim() ?? '';
   if (token && token.toUpperCase() === 'CT_DRIVPATH') return { mode: 'longestPath' };
   if (token && token.toUpperCase() !== 'CT_TOTFLOAT') {
     reportFallback(fallbacks, row, 'critical_path_type', token, 'totalFloat');
   }
-  const thresholdHours = parseXerNumber(row.cells.critical_drtn_hr_cnt ?? '', tables.numberFormat) ?? 0;
+  const thresholdHours = parseXerNumber(row.cells.critical_drtn_hr_cnt ?? '', index.numberFormat) ?? 0;
   return { mode: 'totalFloat', thresholdHours };
 }
 
-function scheduleRow(tables: XerTables, projectId: string): XerRow | undefined {
-  return tables.tables.get('SCHEDOPTIONS')?.rows.find(row => row.cells.proj_id?.trim() === projectId);
+function appendSourceRows(
+  rows: readonly XerRow[],
+  table: XerScheduleOptionsSourceRow['table'],
+  sourceRows: XerScheduleOptionsSourceRow[],
+  indexesByProject: Map<string, number[]>,
+  indexedRowsByProject: Map<string, IndexedSourceRow[]>,
+): void {
+  for (const row of rows) {
+    const sourceRowIndex = sourceRows.length;
+    const sourceRow: XerScheduleOptionsSourceRow = { table, line: row.line, cells: { ...row.cells } };
+    sourceRows.push(sourceRow);
+    const projectId = sourceRow.cells.proj_id?.trim() ?? '';
+    const indexes = indexesByProject.get(projectId) ?? [];
+    indexes.push(sourceRowIndex);
+    indexesByProject.set(projectId, indexes);
+    const indexed = indexedRowsByProject.get(projectId) ?? [];
+    indexed.push({ row, sourceRowIndex });
+    indexedRowsByProject.set(projectId, indexed);
+  }
 }
 
-function sourceRows(tables: XerTables, projectId: string): XerScheduleOptionsSourceRow[] {
-  const projectRows = (tables.tables.get('PROJECT')?.rows ?? [])
-    .filter(row => row.cells.proj_id?.trim() === projectId)
-    .map(row => ({ table: 'PROJECT' as const, line: row.line, cells: { ...row.cells } }));
-  const scheduleRows = (tables.tables.get('SCHEDOPTIONS')?.rows ?? [])
-    .filter(row => row.cells.proj_id?.trim() === projectId)
-    .map(row => ({ table: 'SCHEDOPTIONS' as const, line: row.line, cells: { ...row.cells } }));
-  return [...projectRows, ...scheduleRows];
+/**
+ * Indexeer PROJECT en SCHEDOPTIONS elk precies eenmaal. Een dubbele SCHEDOPTIONS-proj_id wordt
+ * niet stil gekozen: alle raw rijen blijven bewaard, een typed diagnose wordt uitgegeven en de
+ * onzekere SCHEDOPTIONS-semantiek wordt voor dat project niet toegepast.
+ */
+export function indexXerScheduleOptions(tables: XerTables): XerScheduleOptionsIndex {
+  const sourceRows: XerScheduleOptionsSourceRow[] = [];
+  const sourceRowIndexesByProject = new Map<string, number[]>();
+  const projectCandidates = new Map<string, IndexedSourceRow[]>();
+  const scheduleCandidates = new Map<string, IndexedSourceRow[]>();
+  appendSourceRows(
+    tables.tables.get('PROJECT')?.rows ?? [],
+    'PROJECT',
+    sourceRows,
+    sourceRowIndexesByProject,
+    projectCandidates,
+  );
+  appendSourceRows(
+    tables.tables.get('SCHEDOPTIONS')?.rows ?? [],
+    'SCHEDOPTIONS',
+    sourceRows,
+    sourceRowIndexesByProject,
+    scheduleCandidates,
+  );
+
+  const projectRowsById = new Map<string, IndexedSourceRow>();
+  for (const [projectId, rows] of projectCandidates) {
+    if (rows.length === 1) projectRowsById.set(projectId, rows[0]);
+  }
+  const scheduleRowsById = new Map<string, IndexedSourceRow>();
+  const diagnosticsByProject = new Map<string, XerScheduleOptionsDiagnostic[]>();
+  const diagnostics: XerScheduleOptionsDiagnostic[] = [];
+  for (const [projectId, rows] of scheduleCandidates) {
+    if (rows.length === 1) {
+      scheduleRowsById.set(projectId, rows[0]);
+      continue;
+    }
+    const diagnostic: XerScheduleOptionsDiagnostic = {
+      code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID',
+      projectId,
+      rowIndexes: rows.map(item => item.sourceRowIndex),
+      lines: rows.map(item => item.row.line),
+    };
+    diagnostics.push(diagnostic);
+    diagnosticsByProject.set(projectId, [diagnostic]);
+  }
+  const projectIds = new Set(projectCandidates.keys());
+  const unmatchedScheduleOptionsRowIndexes = [...scheduleCandidates]
+    .filter(([projectId]) => !projectIds.has(projectId))
+    .flatMap(([, rows]) => rows.map(item => item.sourceRowIndex));
+
+  return {
+    numberFormat: tables.numberFormat,
+    projectRowsById,
+    scheduleRowsById,
+    sourceRowIndexesByProject,
+    diagnosticsByProject,
+    sourceArchive: { rows: sourceRows, unmatchedScheduleOptionsRowIndexes, diagnostics },
+  };
 }
 
 export function deriveXerScheduleOptions(
-  tables: XerTables,
+  index: XerScheduleOptionsIndex,
   projectId: string,
   context: { hoursPerDay?: number; taskCount?: number } = {},
 ): XerScheduleOptionsResult {
   const defaults = freshDefaults();
   const fallbacks: XerScheduleOptionFallback[] = [];
-  const retainedRows = sourceRows(tables, projectId);
+  const sourceRowIndexes = [...(index.sourceRowIndexesByProject.get(projectId) ?? [])];
+  const retainedRows = sourceRowIndexes.map(rowIndex => index.sourceArchive.rows[rowIndex]);
+  const diagnostics = [...(index.diagnosticsByProject.get(projectId) ?? [])];
   defaults.schedulingOptions.criticalDefinition = projectCriticalDefinition(
-    tables,
+    index,
     projectId,
     fallbacks,
   );
 
-  const row = scheduleRow(tables, projectId);
+  const row = index.scheduleRowsById.get(projectId)?.row;
   if (!row) {
     return {
       source: 'xer-defaults',
@@ -240,6 +329,9 @@ export function deriveXerScheduleOptions(
       schedulingOptions: defaults.schedulingOptions,
       retainedSource: {},
       fallbacks,
+      diagnostics,
+      sourceArchive: index.sourceArchive,
+      sourceRowIndexes,
       sourceRows: retainedRows,
     };
   }
@@ -288,7 +380,7 @@ export function deriveXerScheduleOptions(
       : 'use_total_float';
     const totalFloat = booleanValue(row, methodField, false, fallbacks);
     const limited = booleanValue(row, 'limit_multiple_longest_path_calc', true, fallbacks);
-    const parsedMaximum = parseXerNumber(row.cells.max_multiple_longest_path ?? '', tables.numberFormat);
+    const parsedMaximum = parseXerNumber(row.cells.max_multiple_longest_path ?? '', index.numberFormat);
     const taskCount = Math.max(1, Math.floor(context.taskCount ?? Number.MAX_SAFE_INTEGER));
     schedulingOptions.floatPaths = {
       enabled,
@@ -303,6 +395,9 @@ export function deriveXerScheduleOptions(
     schedulingOptions,
     retainedSource,
     fallbacks,
+    diagnostics,
+    sourceArchive: index.sourceArchive,
+    sourceRowIndexes,
     sourceRows: retainedRows,
   };
 }

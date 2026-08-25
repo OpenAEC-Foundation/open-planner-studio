@@ -106,7 +106,9 @@ function mappedProject(projectId: string, leaves: number, summaries = 0): XerRea
       calendarIssues: [],
       enumFallbacks: [],
       scheduleOptions: {
-        source: 'xer-defaults', retainedSource: {}, fallbacks: [], sourceRows: [],
+        source: 'xer-defaults', retainedSource: {}, fallbacks: [], diagnostics: [],
+        sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
+        sourceRowIndexes: [], sourceRows: [],
       },
       externalRelations: [],
       externalLinks: [],
@@ -783,7 +785,9 @@ function mapCorpusProject(source: XerTables, projectId: string): XerReadResult {
       calendarIssues: [],
       enumFallbacks: [],
       scheduleOptions: {
-        source: 'xer-defaults', retainedSource: {}, fallbacks: [], sourceRows: [],
+        source: 'xer-defaults', retainedSource: {}, fallbacks: [], diagnostics: [],
+        sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
+        sourceRowIndexes: [], sourceRows: [],
       },
       externalRelations: [],
       externalLinks: [],

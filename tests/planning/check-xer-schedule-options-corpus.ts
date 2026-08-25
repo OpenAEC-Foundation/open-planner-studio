@@ -6,11 +6,9 @@ import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProjec
 import { readXER } from '@/services/xer/xerReader';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import {
-  deriveXerScheduleOptions,
   XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS,
-  type XerScheduleOptionsResult,
 } from '@/services/xer/xerScheduleOptions';
-import { parseXerTables, XerImportError } from '@/services/xer/xerTables';
+import { XerImportError } from '@/services/xer/xerTables';
 import type { ProgressMode, SchedulingOptions } from '@/types/project';
 import {
   measureXerFidelity,
@@ -23,6 +21,13 @@ import {
   type XerGroundTruth,
 } from './xerGroundTruth';
 import { emptyCounters, type XerFidelityCounters } from './xerFidelityTypes';
+import {
+  expectedXerScheduleOptions,
+  hasProjectAddressableScheduleRow,
+  scanRawXerScheduleOptions,
+  type IndependentXerScheduleExpected,
+  type RawXerScheduleScan,
+} from './xerScheduleOptionsGroundTruth';
 
 const BLAST_AXES = [...XER_FIDELITY_AXES, 'isCritical'] as const;
 type BlastAxis = typeof BLAST_AXES[number];
@@ -77,19 +82,23 @@ interface MeasuredFile {
 }
 
 interface BlastRadiusBaseline {
-  version: 6;
+  version: 7;
   axes: readonly BlastAxis[];
   defaults: readonly DefaultKey[];
   deferredDefaults: typeof DEFERRED_DEFAULTS;
   population: {
     scanned: number;
     oracleAxisFiles: number;
-    withSchedOptions: number;
-    withoutSchedOptions: number;
+    rawWithSchedOptions: number;
+    rawWithoutSchedOptions: number;
+    projectAddressableSchedOptions: number;
+    functionallyWithoutSchedOptions: number;
     measured: number;
     deferred: number;
+    readableFiles: number;
     openedProjectsWithDefaults: number;
     wiredProjectsWithDefaults: number;
+    concreteProjectsCompared: number;
     oracleNegativeFloatFiles: number;
     withoutSchedOptionsNegativeFloatFiles: number;
     rawNegativeFloatFiles: number;
@@ -130,16 +139,8 @@ interface BlastRadiusBaseline {
   };
 }
 
-interface RawXerRow {
-  cells: Record<string, string>;
-}
-
-interface RawXerTable {
-  fields: string[];
-  rows: RawXerRow[];
-}
-
-type RawXerTables = Map<string, RawXerTable>;
+type RawXerTables = RawXerScheduleScan['tables'];
+type RawXerTable = RawXerTables extends Map<string, infer T> ? T : never;
 
 type BlastSolvedTask = XerSolvedTask & { isCritical?: boolean };
 interface BlastSolvedProject extends XerSolvedProject {
@@ -192,37 +193,6 @@ function decodedForTableMarker(bytes: Uint8Array): string {
     ? bytes.subarray(3)
     : bytes;
   return new TextDecoder('windows-1252').decode(payload);
-}
-
-/** Onafhankelijke, minimale tabelscan voor de blast-radiuspoort. Deze gebruikt bewust niet
- * `parseXerTables` of `deriveXerScheduleOptions`: populatie, SCHEDOPTIONS-rijen en kolommenunion
- * mogen niet groen worden doordat productieparser en productie-afleiding dezelfde fout delen. */
-function scanRawXerTables(bytes: Uint8Array): RawXerTables {
-  const tables: RawXerTables = new Map();
-  let tableName = '';
-  let fields: string[] = [];
-  for (const line of decodedForTableMarker(bytes).split(/\r?\n/)) {
-    const cells = line.split('\t');
-    if (cells[0] === '%E') break;
-    if (cells[0] === '%T') {
-      tableName = cells[1]?.trim().toUpperCase() ?? '';
-      fields = [];
-      if (tableName && !tables.has(tableName)) tables.set(tableName, { fields: [], rows: [] });
-      continue;
-    }
-    if (!tableName) continue;
-    if (cells[0] === '%F') {
-      fields = cells.slice(1).map(field => field.trim().toLowerCase());
-      const table = tables.get(tableName)!;
-      table.fields = [...new Set([...table.fields, ...fields])];
-      continue;
-    }
-    if (cells[0] !== '%R' || fields.length === 0) continue;
-    const row: RawXerRow = { cells: {} };
-    fields.forEach((field, index) => { row.cells[field] = cells[index + 1] ?? ''; });
-    tables.get(tableName)!.rows.push(row);
-  }
-  return tables;
 }
 
 function hasRawNegativeFloat(bytes: Uint8Array): boolean {
@@ -414,24 +384,28 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       bytes,
       fullHash: hash(bytes),
       truth: scanXerGroundTruth(bytes),
-      rawTables: scanRawXerTables(bytes),
+      rawScan: scanRawXerScheduleOptions(bytes),
     };
   });
   const oracleFiles = scanned.filter(file => hasOracleAxis(file.truth));
-  const hasScheduleRows = (file: typeof scanned[number]): boolean =>
-    (file.rawTables.get('SCHEDOPTIONS')?.rows.length ?? 0) > 0;
-  const without = oracleFiles.filter(file => !hasScheduleRows(file));
-  const withTable = oracleFiles.filter(hasScheduleRows);
+  const hasRawScheduleRows = (file: typeof scanned[number]): boolean =>
+    (file.rawScan.tables.get('SCHEDOPTIONS')?.rows.length ?? 0) > 0;
+  const hasAddressableScheduleRows = (file: typeof scanned[number]): boolean =>
+    hasProjectAddressableScheduleRow(file.rawScan);
+  const rawWithout = oracleFiles.filter(file => !hasRawScheduleRows(file));
+  const rawWith = oracleFiles.filter(hasRawScheduleRows);
+  const without = oracleFiles.filter(file => !hasAddressableScheduleRows(file));
+  const addressable = oracleFiles.filter(hasAddressableScheduleRows);
 
   const allScheduleTables = scanned
-    .map(file => file.rawTables.get('SCHEDOPTIONS'))
+    .map(file => file.rawScan.tables.get('SCHEDOPTIONS'))
     .filter((table): table is RawXerTable => table !== undefined);
-  const derivedRows: XerScheduleOptionsResult[] = [];
-  for (const file of scanned.filter(hasScheduleRows)) {
-    const tables = parseXerTables(file.bytes);
-    const rawRows = file.rawTables.get('SCHEDOPTIONS')!.rows;
-    for (const row of rawRows) {
-      derivedRows.push(deriveXerScheduleOptions(tables, row.cells.proj_id?.trim() ?? ''));
+  const derivedRows: IndependentXerScheduleExpected[] = [];
+  for (const file of scanned) {
+    for (const projectId of file.rawScan.projectRowIndexesById.keys()) {
+      if ((file.rawScan.scheduleRowIndexesById.get(projectId)?.length ?? 0) > 0) {
+        derivedRows.push(expectedXerScheduleOptions(file.rawScan, projectId));
+      }
     }
   }
   const union = [...new Set(allScheduleTables.flatMap(table => table.fields))].sort();
@@ -452,6 +426,43 @@ function measureCorpus(root: string): BlastRadiusBaseline {
   const files: MeasuredFile[] = [];
   let openedProjectsWithDefaults = 0;
   let wiredProjectsWithDefaults = 0;
+  let concreteProjectsCompared = 0;
+  for (const file of oracleFiles) {
+    let importedProjects: ImportResult[];
+    try {
+      const opened = readXER(file.bytes);
+      importedProjects = isMultiDocumentImport(opened) ? opened.results : [opened];
+    } catch {
+      continue;
+    }
+    const archives = importedProjects.map(imported => imported.xer?.scheduleOptions.sourceArchive);
+    if (!archives.every(archive => archive === archives[0])) {
+      throw new Error(`${file.path}: SCHEDOPTIONS-bronarchief is per document gekopieerd`);
+    }
+    if (JSON.stringify(archives[0]) !== JSON.stringify(file.rawScan.sourceArchive)) {
+      throw new Error(`${file.path}: bestandsbreed raw-bronarchief wijkt af van het onafhankelijke orakel`);
+    }
+    for (const imported of importedProjects) {
+      const expected = expectedXerScheduleOptions(file.rawScan, imported.project.id, {
+        taskCount: imported.tasks.filter(task => task.p6ActivityType !== undefined).length,
+      });
+      const actualMetadata = imported.xer?.scheduleOptions;
+      const actual = {
+        progressMode: imported.project.progressMode,
+        schedulingOptions: imported.project.schedulingOptions,
+        source: actualMetadata?.source,
+        retainedSource: actualMetadata?.retainedSource,
+        fallbacks: actualMetadata?.fallbacks,
+        diagnostics: actualMetadata?.diagnostics,
+        sourceRowIndexes: actualMetadata?.sourceRowIndexes,
+        sourceRows: actualMetadata?.sourceRows,
+      };
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error(`${file.path}/${imported.project.id}: concrete SCHEDOPTIONS-afleiding wijkt af`);
+      }
+      concreteProjectsCompared++;
+    }
+  }
   for (const file of [...without].sort((a, b) =>
     a.fullHash.localeCompare(b.fullHash) || a.path.localeCompare(b.path))) {
     const occurrence = (occurrences.get(file.fullHash) ?? 0) + 1;
@@ -485,7 +496,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     };
     oracleNegativeFloatTasks = openedTruth.tasks.filter(taskHasNegativeFloat).length;
     const xerDefaultsVariants = importedProjects.map(imported =>
-      independentXerDefaults(file.rawTables, imported.project.id));
+      independentXerDefaults(file.rawScan.tables, imported.project.id));
     openedProjectsWithDefaults += importedProjects.length;
     wiredProjectsWithDefaults += importedProjects.filter((imported, index) =>
       JSON.stringify({
@@ -550,24 +561,28 @@ function measureCorpus(root: string): BlastRadiusBaseline {
   }
 
   return {
-    version: 6,
+    version: 7,
     axes: BLAST_AXES,
     defaults: DEFAULT_KEYS,
     deferredDefaults: DEFERRED_DEFAULTS,
     population: {
       scanned: scanned.length,
       oracleAxisFiles: oracleFiles.length,
-      withSchedOptions: withTable.length,
-      withoutSchedOptions: without.length,
+      rawWithSchedOptions: rawWith.length,
+      rawWithoutSchedOptions: rawWithout.length,
+      projectAddressableSchedOptions: addressable.length,
+      functionallyWithoutSchedOptions: without.length,
       measured: files.filter(file => file.state === 'measured').length,
       deferred: files.filter(file => file.state === 'deferred').length,
+      readableFiles: files.filter(file => file.state === 'measured').length,
       openedProjectsWithDefaults,
       wiredProjectsWithDefaults,
+      concreteProjectsCompared,
       oracleNegativeFloatFiles: oracleFiles.filter(file => file.truth.tasks.some(taskHasNegativeFloat)).length,
       withoutSchedOptionsNegativeFloatFiles: without.filter(file => file.truth.tasks.some(taskHasNegativeFloat)).length,
       rawNegativeFloatFiles: scanned.filter(file => hasRawNegativeFloat(file.bytes)).length,
       rawWithoutSchedOptionsNegativeFloatFiles: scanned.filter(file =>
-        !hasScheduleRows(file) && hasRawNegativeFloat(file.bytes)).length,
+        !hasAddressableScheduleRows(file) && hasRawNegativeFloat(file.bytes)).length,
     },
     schedOptionsRows: {
       rows: scheduleRows.length,
@@ -606,13 +621,13 @@ if (!existsSync(baselinePath)) {
 } else {
   const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
   eq('baselineversie en asvolgorde', { version: committed.version, axes: committed.axes }, {
-    version: 6,
+    version: 7,
     axes: BLAST_AXES,
   });
   eq('baseline bevat alle defaults los van elkaar', committed.defaults, DEFAULT_KEYS);
   eq('expectedFinishDates staat eerlijk als X7-uitstel geregistreerd',
     committed.deferredDefaults, DEFERRED_DEFAULTS);
-  eq('baseline pint exact de 36 actuele bestanden zonder SCHEDOPTIONS', committed.files.length, 36);
+  eq('baseline pint exact de 37 functioneel SCHEDOPTIONS-loze bestanden', committed.files.length, 37);
   eq('baseline bevat alleen hash-identiteiten',
     committed.files.every(file => /^[0-9a-f]{16}-\d+$/.test(file.id)), true);
   eq('iedere gemeten bestandregel pint iedere default als eigen gekozen/tegenvariant',
@@ -635,12 +650,16 @@ if (!root) {
   eq('openbare populatie en negatieve-floatverdeling', measured.population, {
     scanned: 93,
     oracleAxisFiles: 60,
-    withSchedOptions: 24,
-    withoutSchedOptions: 36,
-    measured: 34,
+    rawWithSchedOptions: 24,
+    rawWithoutSchedOptions: 36,
+    projectAddressableSchedOptions: 23,
+    functionallyWithoutSchedOptions: 37,
+    measured: 35,
     deferred: 2,
-    openedProjectsWithDefaults: 35,
-    wiredProjectsWithDefaults: 35,
+    readableFiles: 35,
+    openedProjectsWithDefaults: 36,
+    wiredProjectsWithDefaults: 36,
+    concreteProjectsCompared: 84,
     oracleNegativeFloatFiles: 5,
     withoutSchedOptionsNegativeFloatFiles: 4,
     rawNegativeFloatFiles: 6,
@@ -657,18 +676,21 @@ if (!root) {
     lagFromEarlyStart: 40,
     progressOverride: 1,
     unknownFloatDialect: 8,
-    derivedRows: 50,
+    derivedRows: 49,
     derivedFallbacks: 8,
     derivedFloatDialectFallbacks: 8,
-    derivedRetainedLogic: 49,
+    derivedRetainedLogic: 48,
     derivedProgressOverride: 1,
-    derivedFinishFloat: 50,
-    derivedLagPredecessor: 45,
+    derivedFinishFloat: 49,
+    derivedLagPredecessor: 44,
     derivedLagSuccessor: 3,
     derivedLag24Hour: 1,
     derivedLagProjectDefault: 1,
     retainedProjectEndValues: 47,
   });
+  eq('exact twee functioneel SCHEDOPTIONS-loze bestanden blijven typed uitgesteld',
+    measured.files.filter(file => file.state === 'deferred').map(file => file.deferredCode).sort(),
+    ['XER_DANGLING_LOCAL_RELATION', 'XER_INVALID_FILE']);
   eq('de onafhankelijke ruwe SCHEDOPTIONS-scan vindt exact 27 kolommen',
     measured.corpusUnion.length, 27);
   eq('de 27-kolommenunion is exact de productieclassificatiematrix', measured.corpusUnion,

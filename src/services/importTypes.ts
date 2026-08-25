@@ -57,6 +57,26 @@ export interface XerScheduleOptionsSourceRow {
   cells: Record<string, string>;
 }
 
+export interface XerScheduleOptionsDiagnostic {
+  code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID';
+  projectId: string;
+  /** Indexen in `XerScheduleOptionsSourceArchive.rows`; zo blijven de raw rijen één bronkopie. */
+  rowIndexes: number[];
+  lines: number[];
+}
+
+/**
+ * Bestandsbreed XER-bronarchief voor X5 en de geplande X9-native opslag. PROJECT- en
+ * SCHEDOPTIONS-rijen worden precies eenmaal gekopieerd. Projectmetadata verwijst met indexen naar
+ * deze ene bron; verweesde SCHEDOPTIONS-rijen blijven daardoor zichtbaar zonder aan een verkeerd
+ * project te worden toegeschreven.
+ */
+export interface XerScheduleOptionsSourceArchive {
+  rows: XerScheduleOptionsSourceRow[];
+  unmatchedScheduleOptionsRowIndexes: number[];
+  diagnostics: XerScheduleOptionsDiagnostic[];
+}
+
 /** Neutraal documentcontract voor X5-bronbewijs. Dit staat bewust buiten de lazy XER-chunk:
  * algemene document-/recoverycode mag het type kennen zonder de reader statisch te laden. */
 export interface XerScheduleOptionsMetadata {
@@ -65,6 +85,11 @@ export interface XerScheduleOptionsMetadata {
     sched_use_project_end_date_for_float?: boolean;
   };
   fallbacks: XerScheduleOptionFallback[];
+  diagnostics: XerScheduleOptionsDiagnostic[];
+  sourceArchive: XerScheduleOptionsSourceArchive;
+  /** Projectgebonden view-indexen in het bestandsbrede archief; bevat bij duplicaten alle rijen. */
+  sourceRowIndexes: number[];
+  /** Compatibele projectview; de rijobjecten zijn referenties naar `sourceArchive.rows`. */
   sourceRows: XerScheduleOptionsSourceRow[];
 }
 
