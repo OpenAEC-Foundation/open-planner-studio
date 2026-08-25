@@ -23,7 +23,9 @@ export type XerImportErrorCode =
   | 'XER_MISSING_REQUIRED_VALUE'
   | 'XER_AMBIGUOUS_DECIMAL'
   | 'XER_INVALID_NUMBER_FORMAT'
-  | 'XER_INVALID_NUMBER';
+  | 'XER_INVALID_NUMBER'
+  | 'XER_SINGLE_PROJECT_REQUIRED'
+  | 'XER_EMPTY_PROJECT';
 
 export class XerImportError extends Error {
   readonly xerCode: XerImportErrorCode;

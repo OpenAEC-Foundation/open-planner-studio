@@ -205,6 +205,38 @@ function buildMinimalMppBytes(): Uint8Array {
   };
   return buildNestedCfb(tree);
 }
+
+function xerFixture(projectName: string): string {
+  return [
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+    `%R\tP1\t${projectName}\tC1\t2026-01-01 08:00`,
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+    '%R\tT1\tP1\tA1\tTaak\t2026-01-01 08:00\t2026-01-01 16:00',
+    '%E',
+  ].join('\n');
+}
+
+function xerUtf16(text: string, littleEndian: boolean): Uint8Array {
+  const out = new Uint8Array(2 + text.length * 2);
+  out.set(littleEndian ? [0xff, 0xfe] : [0xfe, 0xff]);
+  for (let index = 0; index < text.length; index++) {
+    const value = text.charCodeAt(index);
+    out[2 + index * 2] = littleEndian ? value & 0xff : value >>> 8;
+    out[3 + index * 2] = littleEndian ? value >>> 8 : value & 0xff;
+  }
+  return out;
+}
+
+function xerCp1252(text: string): Uint8Array {
+  return Uint8Array.from([...text].map(character => {
+    if (character === '€') return 0x80;
+    if (character === 'é') return 0xe9;
+    return character.charCodeAt(0);
+  }));
+}
 installFakeFs();
 
 /** Vers document met een klein doorgerekend benchmarkproject; retourneert het aantal taken. */
@@ -621,6 +653,30 @@ test('import_schedule: .mpp gaat via het bytes-pad, wordt als MPP14 herkend mét
   assertEq(S().filePath, null, 'na een MPP-import heeft het document GEEN opslagdoel');
   assertEq(data.filePath, null, 'en de respons meldt dat ook');
   assert(data.tasks >= 1, 'de fixture-taak is daadwerkelijk geïmporteerd (geen stille lege import)');
+});
+
+test('import_schedule: .xer behoudt CP1252 en beide UTF-16-BOM-payloads via MCP-readFile en krijgt GEEN opslagdoel', async () => {
+  const source = xerFixture('Café €');
+  const fixtures = [
+    ['cp1252', xerCp1252(source)],
+    ['utf16le', xerUtf16(source, true)],
+    ['utf16be', xerUtf16(source, false)],
+  ] as const;
+  for (const [encoding, bytes] of fixtures) {
+    installFakeFs();
+    resetToSingleEmptyDocument();
+    const path = `${HOME}/plan-${encoding}.xer`;
+    setBinaryFile(path, bytes);
+
+    const data = await callOk('planner_import_schedule', { path });
+
+    assertEq(readFileCalls, [path], `${encoding}: MCP leest .xer uitsluitend via readFile`);
+    assertEq(data.format, 'XER', `${encoding}: MCP rapporteert het XER-formaat`);
+    assertEq(S().project.name, 'Café €', `${encoding}: projectnaam overleeft zonder re-encoding`);
+    assertEq(data.tasks, 1, `${encoding}: de activiteit is geïmporteerd`);
+    assertEq(S().filePath, null, `${encoding}: .xer wordt nooit het Ctrl+S-opslagdoel`);
+    assert(String(data.notice).includes('alleen-lezen'), `${encoding}: notice noemt alleen-lezen`);
+  }
 });
 
 test('import_schedule: onbekend pad ⇒ NOT_FOUND, buiten de scope ⇒ SCOPE', async () => {

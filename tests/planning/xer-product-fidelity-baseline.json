@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "files": {
+    "crawl-xer/p6diff-baseline.xer": {
+      "tasks": 8,
+      "projects": 1,
+      "counters": {
+        "es": { "deviations": 3, "measurable": 8 },
+        "ef": { "deviations": 7, "measurable": 8 },
+        "ls": { "deviations": 4, "measurable": 8 },
+        "lf": { "deviations": 8, "measurable": 8 },
+        "tf": { "deviations": 2, "measurable": 8 },
+        "ff": { "deviations": 0, "measurable": 8 }
+      },
+      "reason": "Eerste X4a-nulmeting: lege bronkalender valt terug op X3-banden; latere SCHEDOPTIONS- en voortgangssemantiek zijn nog buiten scope."
+    },
+    "crawl-xer-extra/p6difftool/sample-target.xer": {
+      "tasks": 8,
+      "projects": 1,
+      "counters": {
+        "es": { "deviations": 7, "measurable": 8 },
+        "ef": { "deviations": 8, "measurable": 8 },
+        "ls": { "deviations": 8, "measurable": 8 },
+        "lf": { "deviations": 8, "measurable": 8 },
+        "tf": { "deviations": 3, "measurable": 8 },
+        "ff": { "deviations": 1, "measurable": 8 }
+      },
+      "reason": "Eerste X4a-nulmeting: bronstatusdatum en gewijzigde inputduur sturen de solver; P6-uitvoervelden blijven bewust verboden en X5/X7 zijn nog buiten scope."
+    }
+  }
+}

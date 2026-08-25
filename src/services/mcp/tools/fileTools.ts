@@ -156,10 +156,11 @@ export function checkScope(home: string, input: string): ScopeCheck {
 /** Leesbaar formaatlabel op basis van de extensie (de XML-variant wordt op inhoud gesnifft).
  *  `MPP14` (T8): de enige binaire indeling die dit pad kent — `.mpp` (MS Project 2010-2021,
  *  alleen-lezen native lezer, zie `src/services/mpp/`). */
-function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' | 'MPP14' {
+function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' | 'MPP14' | 'XER' {
   const ext = extensionOf(path);
   if (ext === 'csv') return 'CSV';
   if (ext === 'mpp') return 'MPP14';
+  if (ext === 'xer') return 'XER';
   if (ext === 'xml') {
     return content.includes('APIBusinessObjects') || content.includes('Primavera') ? 'P6-XML' : 'MSPDI-XML';
   }
@@ -283,7 +284,8 @@ export const fileTools: McpToolDef[] = [
     description:
       'Lees een planningsbestand van schijf en open het als DOCUMENT (tabblad). Ondersteund: .ifc ' +
       '(native, volledig), .xml (Primavera P6 of MS Project MSPDI — het formaat wordt op inhoud ' +
-      'herkend), .csv en .mpp (MS Project 2010-2021, MPP14, alleen-lezen — oudere formaten en ' +
+      'herkend), .csv, .xer (Primavera P6, alleen-lezen) en .mpp (MS Project 2010-2021, MPP14, ' +
+      'alleen-lezen — oudere formaten en ' +
       'wachtwoordbestanden geven een fout die vraagt om eerst als XML te exporteren). Er wordt NIET ' +
       'samengevoegd met het huidige plan: een leeg-en-ongewijzigd ' +
       'actief tabblad wordt hergebruikt, anders komt er een nieuw tabblad bij; het resultaat wordt ' +
@@ -401,6 +403,8 @@ export const fileTools: McpToolDef[] = [
         notices.push('P6-XML: Nonlabor-resources zijn als EQUIPMENT geïmporteerd.');
       } else if (format === 'MPP14') {
         notices.push('MPP-import is alleen-lezen (best effort; baselines en custom fields komen niet mee). Opslaan schrijft IFC; export naar MS Project = MSPDI-XML.');
+      } else if (format === 'XER') {
+        notices.push('XER-import is alleen-lezen; deze stap importeert één niet-leeg P6-project. Opslaan schrijft IFC.');
       }
       if (format !== 'IFC') {
         notices.push('Het document heeft nog GEEN opslagdoel: opslaan schrijft IFC, dus het bronbestand wordt niet overschreven — de gebruiker kiest bij opslaan een pad.');

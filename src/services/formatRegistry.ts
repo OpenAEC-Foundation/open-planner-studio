@@ -54,7 +54,7 @@ const IFC_FORMAT: ReadFormat = {
   read: async (i, labels) => readIFC(i.text ?? '', labels),
 };
 
-// Volgorde = bestaande filtervolgorde in openFile ('All Supported' met ifc,csv,xml,mpp).
+// Volgorde = filtervolgorde in openFile ('All Supported' met ifc,csv,xml,mpp,xer).
 const READ_FORMATS: ReadFormat[] = [
   IFC_FORMAT,
   { id: 'csv', extensions: ['csv'], kind: 'text', filterName: 'CSV Files',
@@ -67,6 +67,13 @@ const READ_FORMATS: ReadFormat[] = [
       // Dynamic import: de parser (CFB + fieldmaps) blijft buiten de main chunk.
       const { readMPP } = await import('@/services/mpp/mppReader');
       return readMPP(i.bytes, labels);
+    } },
+  { id: 'xer', extensions: ['xer'], kind: 'binary', filterName: 'Primavera XER Files',
+    read: async (i) => {
+      if (!i.bytes) throw new Error('XER requires original binary content');
+      // Dynamic import: encodingdetectie en de semantische reader blijven buiten de main chunk.
+      const { readXER } = await import('@/services/xer/xerReader');
+      return readXER(i.bytes);
     } },
 ];
 
@@ -144,10 +151,40 @@ export function saveTargetFor(
  *  laag (services/) niet van state/ afhangt. */
 export function importErrorMessageKey(
   err: unknown,
-): 'notifications.openFailed' | 'notifications.mppEncrypted' | 'notifications.mppLegacy' {
-  const code = (err as { mppCode?: string } | null | undefined)?.mppCode;
-  if (code === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
-  if (code === 'MPP_LEGACY') return 'notifications.mppLegacy';
+):
+  | 'notifications.openFailed'
+  | 'notifications.mppEncrypted'
+  | 'notifications.mppLegacy'
+  | 'notifications.xerInvalidInput'
+  | 'notifications.xerInvalidFile'
+  | 'notifications.xerInvalidEncoding'
+  | 'notifications.xerDuplicateTable'
+  | 'notifications.xerMissingRequiredColumns'
+  | 'notifications.xerMissingRequiredValue'
+  | 'notifications.xerAmbiguousDecimal'
+  | 'notifications.xerInvalidNumberFormat'
+  | 'notifications.xerInvalidNumber'
+  | 'notifications.xerSingleProjectRequired'
+  | 'notifications.xerEmptyProject' {
+  const typed = err as { mppCode?: string; xerCode?: string } | null | undefined;
+  if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
+  if (typed?.mppCode === 'MPP_LEGACY') return 'notifications.mppLegacy';
+  const xerKeys = {
+    XER_INVALID_INPUT: 'notifications.xerInvalidInput',
+    XER_INVALID_FILE: 'notifications.xerInvalidFile',
+    XER_INVALID_ENCODING: 'notifications.xerInvalidEncoding',
+    XER_DUPLICATE_TABLE: 'notifications.xerDuplicateTable',
+    XER_MISSING_REQUIRED_COLUMNS: 'notifications.xerMissingRequiredColumns',
+    XER_MISSING_REQUIRED_VALUE: 'notifications.xerMissingRequiredValue',
+    XER_AMBIGUOUS_DECIMAL: 'notifications.xerAmbiguousDecimal',
+    XER_INVALID_NUMBER_FORMAT: 'notifications.xerInvalidNumberFormat',
+    XER_INVALID_NUMBER: 'notifications.xerInvalidNumber',
+    XER_SINGLE_PROJECT_REQUIRED: 'notifications.xerSingleProjectRequired',
+    XER_EMPTY_PROJECT: 'notifications.xerEmptyProject',
+  } as const;
+  if (typed?.xerCode && typed.xerCode in xerKeys) {
+    return xerKeys[typed.xerCode as keyof typeof xerKeys];
+  }
   return 'notifications.openFailed';
 }
 
