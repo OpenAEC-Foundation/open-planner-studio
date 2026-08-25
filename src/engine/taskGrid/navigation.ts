@@ -2,13 +2,20 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { GridKeyEventLike } from '@/utils/gridNavigation';
 import type { TaskColumnId } from '@/types/taskGrid';
 import type { GridCellAddress } from './selection';
-import type { TaskGridRowIndex } from './rowIndex';
+
+/** Het minimale rijcontract dat navigatie nodig heeft; zowel TaskGridRowIndex als een generieke
+ *  DOM-gridindex kan dit leveren zonder elkaars domeinmodel te importeren. */
+export interface TaskGridNavigationIndex {
+  readonly taskRows: readonly { rowKey: string }[];
+  readonly taskIndexByRowKey: ReadonlyMap<string, number>;
+  readonly taskAbsoluteIndices: readonly number[];
+}
 
 export interface TaskGridCommandInput {
   event: GridKeyEventLike;
   mode: 'select' | 'edit';
   active: GridCellAddress | null;
-  rowIndex: TaskGridRowIndex;
+  rowIndex: TaskGridNavigationIndex;
   columns: readonly TaskColumnId[];
   rowHeight: number;
   viewportHeight: number;

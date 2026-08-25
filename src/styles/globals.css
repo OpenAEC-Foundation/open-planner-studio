@@ -1,5 +1,182 @@
 @import "tailwindcss";
 
+/* De gedeelde taakgrid is een dicht planninginstrument: één DOM-boom, vaste rijhoogte en één
+   scherpe actieve-celrand. Alle kleurkeuzes blijven via de bestaande thematokens lopen. */
+.task-grid-core {
+  position: relative;
+  overflow: auto;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  font-family: var(--font-body);
+  font-size: 11px;
+  outline: none;
+}
+
+.task-grid-header-row,
+.task-grid-data-row {
+  display: grid;
+}
+
+.task-grid-header-row {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--theme-surface-alt);
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.task-grid-column-header,
+.task-grid-cell {
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border-inline-end: 1px solid var(--theme-border-light);
+  border-bottom: 1px solid var(--theme-border-light);
+  background: var(--theme-surface);
+}
+
+.task-grid-column-header {
+  padding-inline: 8px 10px;
+  overflow: visible;
+  background: var(--theme-surface-alt);
+  color: var(--theme-text-muted);
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.task-grid-column-label,
+.task-grid-cell-content,
+.task-grid-group-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-grid-cell {
+  position: relative;
+  padding-inline: 7px;
+  outline: none;
+}
+
+.task-grid-cell[data-grid-selected="true"] {
+  background: color-mix(in srgb, var(--theme-accent) 12%, var(--theme-surface));
+  box-shadow: inset 0 -1px 0 var(--theme-accent);
+}
+
+.task-grid-cell[data-grid-active="true"] {
+  z-index: 4 !important;
+  box-shadow: inset 0 0 0 2px var(--theme-accent);
+}
+
+.task-grid-cell[data-grid-readonly="true"]::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-end: 3px;
+  width: 4px;
+  height: 4px;
+  border-block-start: 1px solid var(--theme-text-muted);
+  border-inline-end: 1px solid var(--theme-text-muted);
+}
+
+.task-grid-cell[data-grid-stale="true"] .task-grid-cell-content {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.task-grid-cell[aria-invalid="true"] {
+  box-shadow: inset 0 0 0 2px var(--error);
+}
+
+.task-grid-data-row[data-grid-dimmed="true"] .task-grid-cell-content {
+  opacity: 0.58;
+}
+
+.task-grid-group-row,
+.task-grid-group-cell {
+  box-sizing: border-box;
+  background: var(--theme-surface-alt);
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.task-grid-group-cell {
+  display: flex;
+  align-items: center;
+}
+
+.task-grid-group-toggle {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 0 8px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+}
+
+.task-grid-group-toggle:focus-visible,
+.task-grid-resize-handle:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: -2px;
+}
+
+.task-grid-group-count {
+  flex: none;
+  color: var(--theme-text-muted);
+  font-family: var(--font-code);
+  font-size: 10px;
+}
+
+.task-grid-resize-handle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -4px;
+  z-index: 2;
+  width: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.task-grid-resize-handle:hover {
+  background: color-mix(in srgb, var(--theme-accent) 38%, transparent);
+}
+
+.task-grid-editor-host {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.task-grid-editor-error {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  max-width: 320px;
+  padding: 5px 7px;
+  color: var(--theme-text);
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--error);
+  box-shadow: var(--shadow-pop);
+  font-size: 11px;
+  white-space: normal;
+}
+
 /* ============================================================================
    OpenAEC Foundation — Design Tokens
    Source: OpenAEC-style-book/brandbook/DESIGN-SYSTEM.md §2 + LAYOUTS.md §0/§4.1
