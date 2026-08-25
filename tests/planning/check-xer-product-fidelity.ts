@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { readXER } from '@/services/xer/xerReader';
+import { activeImportResult } from '@/services/importTypes';
 import { scanXerGroundTruth } from './xerGroundTruth';
 import { measureXerFidelity, type XerSolvedProject } from './xerFidelity';
 
@@ -27,7 +28,7 @@ function eq(label: string, got: unknown, want: unknown): void {
 }
 
 function solved(bytes: Uint8Array): XerSolvedProject {
-  const imported = readXER(bytes);
+  const imported = activeImportResult(readXER(bytes));
   const cpm = solveProject({
     tasks: imported.tasks,
     sequences: imported.sequences,
@@ -114,7 +115,8 @@ if (!root) {
     'crawl-xer/MER-1-2026_epc.xer': 119,
   } as const;
   for (const [label, expectedBareRelations] of Object.entries(bareRelationPins)) {
-    const imported = readXER(readFileSync(join(root, label)));
+    const imported = activeImportResult(readXER(readFileSync(join(root, label))));
+    if (!imported.xer) throw new Error(`${label}: XER-metadata ontbreekt`);
     eq(`${label}: alle kale FS/SS-relaties bereiken de echte Sequence-set zonder terugval`, {
       relations: imported.sequences.length,
       fallbackRelations: imported.xer.enumFallbacks.filter(item => item.family === 'relation').length,

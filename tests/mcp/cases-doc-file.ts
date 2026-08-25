@@ -219,6 +219,22 @@ function xerFixture(projectName: string): string {
   ].join('\n');
 }
 
+function xerMultiFixture(): Uint8Array {
+  return new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+    '%R\tP-A\tKlein\tC1\t2026-01-01 08:00',
+    '%R\tP-B\tGroot\tC1\t2026-01-01 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+    '%R\tA1\tP-A\tA1\tEen\t2026-01-01\t2026-01-02',
+    '%R\tB1\tP-B\tB1\tEen\t2026-01-01\t2026-01-02',
+    '%R\tB2\tP-B\tB2\tTwee\t2026-01-02\t2026-01-03',
+    '%E',
+  ].join('\n'));
+}
+
 function xerUtf16(text: string, littleEndian: boolean): Uint8Array {
   const out = new Uint8Array(2 + text.length * 2);
   out.set(littleEndian ? [0xff, 0xfe] : [0xfe, 0xff]);
@@ -576,6 +592,9 @@ test('import_schedule: hergebruikt een leeg-en-ongewijzigd actief tabblad (geen 
   assertEq(S().activeDocumentId, pristineId, 'hetzelfde document blijft actief');
   assertEq(data.documentId, pristineId, 'de respons meldt het hergebruikte document');
   assertEq(data.reusedActiveTab, true, 'de respons meldt expliciet dat het tabblad hergebruikt is');
+  assertEq(data.documentsOpened, 1, 'de bestaande enkelprojectrespons meldt één geopend document');
+  assertEq(data.documents?.map((document: { documentId: string }) => document.documentId), [pristineId],
+    'de enkelprojectrespons blijft compatibel en vult de documentinventaris aan');
   assert(S().tasks.length > 0, 'de planning is ingeladen');
   assertEq(data.tasks, S().tasks.length, 'de respons meldt het aantal geïmporteerde taken');
   assertEq(ctx.expectedDocId, pristineId, 'het drift-anker wijst naar het resulterende document');
@@ -677,6 +696,34 @@ test('import_schedule: .xer behoudt CP1252 en beide UTF-16-BOM-payloads via MCP-
     assertEq(S().filePath, null, `${encoding}: .xer wordt nooit het Ctrl+S-opslagdoel`);
     assert(String(data.notice).includes('alleen-lezen'), `${encoding}: notice noemt alleen-lezen`);
   }
+});
+
+test('import_schedule: meerproject-XER fan-out antwoordt met exact aantal en inventaris van alle documenten', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  const path = `${HOME}/meerproject.xer`;
+  setBinaryFile(path, xerMultiFixture());
+
+  const data = await callOk('planner_import_schedule', { path });
+  const docs = S().getOpenDocumentPayloads();
+  const expectedInventory = docs.map(document => ({
+    documentId: document.id,
+    projectId: document.payload.project.id,
+    projectName: document.payload.project.name,
+    tasks: document.payload.tasks.length,
+    sequences: document.payload.sequences.length,
+    resources: document.payload.resources.length,
+    filePath: document.payload.filePath,
+  }));
+
+  assertEq(docs.map(document => document.payload.project.id), ['P-A', 'P-B'],
+    'de echte planner_import_schedule-route opent beide niet-lege XER-projecten');
+  assertEq(data.documentsOpened, 2, 'de respons meldt exact twee geopende documenten');
+  assertEq(data.documents, expectedInventory, 'de respons inventariseert exact de aangemaakte/hergebruikte ids');
+  assertEq(data.documentId, docs[1].id, 'documentId blijft compatibel en wijst naar het actieve grootste project');
+  assertEq(S().activeDocumentId, docs[1].id, 'het grootste project is werkelijk actief');
+  assert(String(data.notice).includes('2'), 'de XER-notice noemt het werkelijke aantal projecten/documenten');
+  assert(!String(data.notice).includes('één niet-leeg P6-project'), 'de oude onware enkelvoudsclaim is verdwenen');
 });
 
 test('import_schedule: onbekend pad ⇒ NOT_FOUND, buiten de scope ⇒ SCOPE', async () => {

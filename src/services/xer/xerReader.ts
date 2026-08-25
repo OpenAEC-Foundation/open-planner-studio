@@ -24,6 +24,7 @@ import type {
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { readXerCalendars } from './xerCalendarData';
+import { assembleXerMultiProjectImport, type XerMultiProjectImport } from './xerMultiProject';
 import {
   parseXerNumber,
   parseXerTables,
@@ -36,6 +37,9 @@ export interface XerReadResult extends ImportResult {
   /** Importtijd-metadata; externe relaties blijven hier brondata en sturen de solver niet. */
   xer: XerImportMetadata;
 }
+
+/** X4b: één XER kan nu één payload óf een geordende verzameling documentpayloads opleveren. */
+export type XerOpenResult = XerReadResult | XerMultiProjectImport;
 
 const ACTIVITY_TYPES: readonly P6ActivityType[] = [
   'TT_Task', 'TT_Rsrc', 'TT_LOE', 'TT_Mile', 'TT_FinMile', 'TT_WBS',
@@ -260,19 +264,18 @@ function assertUniqueId(
   }
 }
 
-/** Lees precies één niet-leeg P6-project uit de oorspronkelijke XER-bestandsbytes. */
-export function readXER(bytes: Uint8Array): XerReadResult {
-  const tables = parseXerTables(bytes);
-  const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
-  if (projectRows.length !== 1) {
+/** Map precies één reeds getokenized, niet-leeg P6-project. X4b roept deze kern één keer per
+ * PROJECT-rij aan; zo blijft de X4a-mapping zelf één implementatie. */
+function readXerProject(tables: XerTables, projectId: string): XerReadResult {
+  const projectRow = (tables.tables.get('PROJECT')?.rows ?? [])
+    .find(row => row.cells.proj_id === projectId);
+  if (!projectRow) {
     throw new XerImportError(
-      'XER_SINGLE_PROJECT_REQUIRED',
-      `Deze importstap verwacht precies één PROJECT-rij; gevonden: ${projectRows.length}.`,
-      { table: 'PROJECT', lines: projectRows.map(row => row.line) },
+      'XER_MISSING_REQUIRED_VALUE',
+      `PROJECT.proj_id '${projectId}' bestaat niet in de getokenized XER-invoer.`,
+      { table: 'PROJECT', field: 'proj_id' },
     );
   }
-  const projectRow = projectRows[0];
-  const projectId = projectRow.cells.proj_id;
   const activityRows = (tables.tables.get('TASK')?.rows ?? [])
     .filter(row => row.cells.proj_id === projectId);
   if (activityRows.length === 0) {
@@ -547,6 +550,46 @@ export function readXER(bytes: Uint8Array): XerReadResult {
       calendarIssues: calendars.issues,
       enumFallbacks,
       externalRelations,
+      externalLinks: [],
+      // `assembleXerMultiProjectImport` vervangt dit vóór de reader retourneert door het echte,
+      // bestandsbrede verslag. De verplichte vorm voorkomt dat een XER-document zonder X10-data
+      // door een nieuwe codeweg kan ontsnappen.
+      report: {
+        projectsSeen: 1,
+        documentsOpened: 1,
+        emptyProjectsSkipped: 0,
+        baselineProjectsExcluded: 0,
+        baselinesMaterialized: 0,
+        danglingBaselineReferences: 0,
+        externalLinksPreserved: 0,
+        baselineExclusionReverted: false,
+        baselineFallbackReasons: [],
+      },
     },
   };
+}
+
+/**
+ * Lees de oorspronkelijke XER-bytes. Eén PROJECT behoudt de enkelvoudige X4a-returnvorm, maar
+ * krijgt hetzelfde X4b-rapportcontract; meerdere PROJECT-rijen waaieren uit naar losse payloads.
+ * De baselinebeslissing zit vóór de openroute: die krijgt dus uitsluitend documenten die echt als
+ * tab geopend mogen worden.
+ */
+export function readXER(bytes: Uint8Array): XerOpenResult {
+  const tables = parseXerTables(bytes);
+  const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
+  const assembled = assembleXerMultiProjectImport(
+    tables,
+    projectId => readXerProject(tables, projectId),
+  );
+  if (assembled.results.length > 0) {
+    // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de
+    // rapportberekening loopt uniform door dezelfde X4b-kern als een meervoudig bestand.
+    return projectRows.length === 1 ? assembled.documents[0].result : assembled;
+  }
+  throw new XerImportError(
+    'XER_EMPTY_PROJECT',
+    'Geen enkel XER-project bevat activiteiten om te openen.',
+    { table: 'TASK' },
+  );
 }

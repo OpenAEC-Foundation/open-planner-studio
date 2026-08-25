@@ -9,6 +9,7 @@ import {
   saveTargetFor,
 } from '@/services/formatRegistry';
 import { XerImportError, type XerImportErrorCode } from '@/services/xer/xerTables';
+import { activeImportResult } from '@/services/importTypes';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -97,7 +98,7 @@ const encoded = [
   ['UTF-16BE BOM', utf16(fixture('Café €'), false)],
 ] as const;
 for (const [label, input] of encoded) {
-  const parsed = await parseOpenedFile({ name: 'bron.xer', bytes: input });
+  const parsed = activeImportResult(await parseOpenedFile({ name: 'bron.xer', bytes: input }));
   eq(`5 ${label} bereikt de lazy reader als originele bytes`, parsed.project.name, 'Café €');
 }
 
