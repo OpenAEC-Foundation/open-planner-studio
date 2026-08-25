@@ -578,6 +578,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   TGPREFCHECK="$DIR/.task-grid-preferences.mjs"
   if bundle_check "$DIR/check-task-grid-preferences.ts" "$TGPREFCHECK"; then node "$TGPREFCHECK" || STATUS=1; fi
 
+  # Tabel-overhaul Task 4A: één sessiebrede, scopebewuste geschiedenis. Puur modelbewijs voor
+  # multi-documentvolgorde, globale gridvoorkeuren, compounds, redo-invalidatie en pruning.
+  SHMODELCHECK="$DIR/.session-history-model.mjs"
+  if bundle_check "$DIR/check-session-history-model.ts" "$SHMODELCHECK"; then node "$SHMODELCHECK" || STATUS=1; fi
+
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
 
