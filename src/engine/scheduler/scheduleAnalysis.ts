@@ -126,11 +126,12 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
   // tak staat strak achter zijn optie-conditie; afwezig ⇒ exact de bestaande expressie (byte-
   // identiek: de 333 cases kennen `schedulingOptions` nergens).
   const so = schedulingOptions;
-  const tfMode = so?.totalFloatMode ?? 'smallest';
+  const tfMode = so?.totalFloatMode;
   const makeOpenEndedCritical = so?.makeOpenEndedCritical === true;
   const nearCriticalThreshold = so?.nearCriticalThreshold;
   const critDef = so?.criticalDefinition;
   const critThreshold = critDef?.threshold ?? 0;
+  const critThresholdHours = critDef?.thresholdHours;
   const useLongestPath = critDef?.mode === 'longestPath';
   // Longest-path-kritiek (§4.6, normatief): de Free-Float-peel van pad 1 — de driving-keten(s)
   // vanaf de taak/taken met de grootste EF; bij ties (meerdere eindtaken met dezelfde grootste EF)
@@ -196,19 +197,22 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // constraints/deadlines), MSP-veilig als min van finish- en start-float (die kunnen
     // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
     const tt = taskObj.time;
-    // Voortgang (fase 2.6, §4.5): voor in-progress/voltooide taken is de start-zijde-float
-    // betekenisloos (de ES is een actual in het verleden) ⇒ alleen finish-zijde (LF−EF).
-    const hasProgress = !!dataDate && (!!tt.actualStart || tt.completion > 0);
     const completed = !!dataDate && tt.completion >= 1;
     const finishFloat = signedFloat(early.ef, late.lf, cal, taskObj);
     const startFloat = signedFloat(early.es, late.ls, cal, taskObj);
-    // TF-berekeningswijze (§3.4): default 'smallest' = min(finish,start) ⇒ byte-identiek. Een taak
-    // met voortgang houdt zijn finish-zijde-float (bestaande invariant, §4.5), ongeacht de modus.
-    let tf = hasProgress
+    // Een EXPLICIETE P6-modus geldt ook voor lopende taken: start = LS−ES, finish = LF−EF en
+    // smallest = min(beide). Ontbreekt de bronoptie, dan blijft de oudere OPS-invariant behouden:
+    // een lopende taak gebruikt finish-float en een overige taak de kleinste — zo blijven verse,
+    // MSPDI-, MPP- en P6XML-projecten zonder deze bronwaarde byte-identiek.
+    let tf = tfMode === 'finish'
       ? finishFloat
-      : tfMode === 'finish' ? finishFloat
-      : tfMode === 'start' ? startFloat
-      : Math.min(finishFloat, startFloat);
+      : tfMode === 'start'
+        ? startFloat
+        : tfMode === 'smallest'
+          ? Math.min(finishFloat, startFloat)
+          : (!!dataDate && (!!tt.actualStart || tt.completion > 0))
+            ? finishFloat
+            : Math.min(finishFloat, startFloat);
     // Open-ended kritiek (§3.4): alleen bij `makeOpenEndedCritical` krijgt een taak zonder opvolger
     // tf=ff=0 (P6: LF=EF ⇒ kritiek). Default (optie afwezig) ⇒ ongewijzigd.
     if (makeOpenEndedCritical && succs.length === 0 && !completed) {
@@ -240,6 +244,19 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       tf = 0;
       freeFloat = 0;
     }
+    // P6/XER bewaart bij voltooid werk geen floatwaarde: de actuals zijn feiten, geen nog
+    // verschuifbaar venster. Dit voorkomt ook een kunstmatige negatieve FF wanneer een latere
+    // out-of-sequence-actual vóór de historische relatiegrens ligt. Alleen de expliciete
+    // bronvlag activeert dit; de algemene analyse-default blijft ongewijzigd.
+    if (completed && so?.preserveActualDatesInBackwardPass === true) {
+      tf = 0;
+      freeFloat = 0;
+    }
+    // P6/XER houdt vrije float op nul wanneer een late constraint de totale float negatief maakt.
+    // De publieke P6-meetmassa bevat wel 63 negatieve TF-cellen maar geen negatieve FF-cel; case 05
+    // bevestigt hetzelfde op een FNLT-eindtaak. Brongebonden, zodat de algemene getekende OPS-
+    // semantiek zonder vlag ongewijzigd blijft.
+    if (so?.clampNegativeFreeFloat === true && freeFloat < 0) freeFloat = 0;
     // Kritiek-definitie (§4.6): hammock ⇒ NOOIT kritiek (P6: LOE is een gevolg, geen oorzaak);
     // voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een driving-keten naar de
     // laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het huidige tf≤0).
@@ -254,7 +271,9 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       ? false
       : useLongestPath
         ? longestPathCritical.has(taskId)
-        : tf <= critThreshold;
+        : critThresholdHours !== undefined
+          ? tf * cal.hoursPerDay <= critThresholdHours
+          : tf <= critThreshold;
 
     if (isCritical) criticalPath.push(taskId);
     // Interfererende speling (§4.6): ALTIJD berekend, getekend (fractioneel in uur-modus, erft

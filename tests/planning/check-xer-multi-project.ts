@@ -20,6 +20,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { payloadFromImport } from '@/state/documentContract';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -88,6 +89,8 @@ function mappedProject(projectId: string, leaves: number, summaries = 0): XerRea
       modifiedAt: '2026-01-02T00:00:00.000Z',
       author: '',
       company: '',
+      progressMode: XER_SCHEDULING_DEFAULTS.progressMode,
+      schedulingOptions: structuredClone(XER_SCHEDULING_DEFAULTS.schedulingOptions),
     },
     calendar,
     tasks: [
@@ -102,6 +105,11 @@ function mappedProject(projectId: string, leaves: number, summaries = 0): XerRea
       tableReport: { encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [] },
       calendarIssues: [],
       enumFallbacks: [],
+      scheduleOptions: {
+        source: 'xer-defaults', retainedSource: {}, fallbacks: [], diagnostics: [],
+        sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
+        sourceRowIndexes: [], sourceRows: [],
+      },
       externalRelations: [],
       externalLinks: [],
       report: {
@@ -763,6 +771,8 @@ function mapCorpusProject(source: XerTables, projectId: string): XerReadResult {
       modifiedAt: fallbackStart,
       author: '',
       company: '',
+      progressMode: XER_SCHEDULING_DEFAULTS.progressMode,
+      schedulingOptions: structuredClone(XER_SCHEDULING_DEFAULTS.schedulingOptions),
     },
     calendar,
     tasks,
@@ -774,6 +784,11 @@ function mapCorpusProject(source: XerTables, projectId: string): XerReadResult {
       tableReport: source.report,
       calendarIssues: [],
       enumFallbacks: [],
+      scheduleOptions: {
+        source: 'xer-defaults', retainedSource: {}, fallbacks: [], diagnostics: [],
+        sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
+        sourceRowIndexes: [], sourceRows: [],
+      },
       externalRelations: [],
       externalLinks: [],
       report: {

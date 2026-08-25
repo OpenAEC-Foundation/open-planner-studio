@@ -349,9 +349,12 @@ const assignments: ResourceAssignment[] = [
 // ── Project incl. schedulingOptions/statusDate/progressMode/wbsAutoNumber ─────────────────────────
 const SCHED_OPTS = {
   lagCalendar: 'successor',
-  criticalDefinition: { mode: 'longestPath', threshold: -1 },
+  criticalDefinition: { mode: 'longestPath', threshold: -1, thresholdHours: -8 },
   totalFloatMode: 'finish',
   makeOpenEndedCritical: true,
+  useExpectedFinishDates: false,
+  preserveActualDatesInBackwardPass: true,
+  clampNegativeFreeFloat: true,
   nearCriticalThreshold: 3,
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   resumeFromActualElapsed: true, // T9 (voortgangsafronding): rondt lossless mee als deel van het JSON-blob

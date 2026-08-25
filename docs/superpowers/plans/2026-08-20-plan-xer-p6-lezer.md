@@ -335,15 +335,15 @@ TODO** (planreview V7 — o.a. `sched_use_project_end_date_for_float` en
 `sched_lag_early_start_flag` raken float en hebben geen tegenhanger in `SchedulingOptions`;
 die worden op zijn minst geregistreerd), en de mapping verhoudt zich expliciet tot wat
 `mppReader`/`mspdiReader` al zetten én tot de `OPS_SchedulingOptions`-IFC-round-trip.
-*(b) de defaults-paragraaf (planreview B2 — het meerderheidsgeval!)*: 37 van de 60
-orakelbestanden hebben géén SCHEDOPTIONS, waaronder `rehab-2.xer` (39% van het orakel). Voor
+*(b) de defaults-paragraaf (planreview B2 — het meerderheidsgeval!)*: 36 van de 60
+orakelbestanden hebben géén SCHEDOPTIONS, waaronder `rehab-2.xer` (60% van het orakel). Voor
 die populatie geldt een expliciet vastgelegde default-set, gefundeerd op **de gemeten
 meerderheid in de SCHEDOPTIONS-dragende bestanden** (her-check: `sched_float_type` = `FT_FF`
 in 41/50 rijen ⇒ finish float — een échte gedragsomslag t.o.v. onze 'smallest'-huisdefault;
 retained logic 48/50 aan; open-eindes-niet-kritiek en lag-op-voorgangerskalender sporen met
 onze defaults), per default blast-radius-gemeten over het corpus en gepind. **Acceptatie**: de
 in-progress/retained-logic- en completed-successor-cases uit `cases-p6-verified.json` groen;
-de 37-zonder-SCHEDOPTIONS-populatie per default-keuze gemeten en gepind; mutatiebewijs:
+de 36-zonder-SCHEDOPTIONS-populatie per default-keuze gemeten en gepind; mutatiebewijs:
 `lagCalendar` naar successor forceren ⇒ de multi-kalender-case ROOD.
 
 **X6 — Resources en toewijzingen** *(parallel aan X5 — geen afhankelijkheid, planreview §5)*.
@@ -434,7 +434,7 @@ dan meet, meet zijn eigen aannames.
 ## §8 Risico's, eerlijk benoemd
 
 1. **De float-assen zijn onontgonnen terrein**, en het defaults-gat maakt het scherper: voor
-   62% van de orakelbestanden (37 van 60, incl. de grootste massa) bepalen ónze
+   60% van de orakelbestanden (36 van 60, incl. de grootste massa) bepalen ónze
    default-aannames de late datums en de float. X5(b) is daarom geen administratie maar een
    meetprogramma. Negatieve float zit in **zes** bestanden (45/6/6/3/2/1 taken — planreview
    B4; het concept zei twee), waarvan vijf zonder SCHEDOPTIONS — dat wordt een dossier.

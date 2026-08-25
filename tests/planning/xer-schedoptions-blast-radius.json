@@ -1,0 +1,4398 @@
+{
+  "version": 7,
+  "axes": [
+    "es",
+    "ef",
+    "ls",
+    "lf",
+    "tf",
+    "ff",
+    "isCritical"
+  ],
+  "defaults": [
+    "totalFloatFinish",
+    "retainedLogic",
+    "openEndedNotCritical",
+    "predecessorLagCalendar",
+    "preserveActualDates",
+    "clampNegativeFreeFloat",
+    "projectCriticalDefinition"
+  ],
+  "deferredDefaults": [
+    {
+      "key": "expectedFinishDates",
+      "owner": "X7",
+      "reason": "Het X7-taakveld expectedFinish ontbreekt nog; X5 bewaart alleen het bronbeleid."
+    }
+  ],
+  "population": {
+    "scanned": 93,
+    "oracleAxisFiles": 60,
+    "rawWithSchedOptions": 24,
+    "rawWithoutSchedOptions": 36,
+    "projectAddressableSchedOptions": 23,
+    "functionallyWithoutSchedOptions": 37,
+    "measured": 35,
+    "deferred": 2,
+    "readableFiles": 35,
+    "openedProjectsWithDefaults": 36,
+    "wiredProjectsWithDefaults": 36,
+    "concreteProjectsCompared": 84,
+    "oracleNegativeFloatFiles": 5,
+    "withoutSchedOptionsNegativeFloatFiles": 4,
+    "rawNegativeFloatFiles": 6,
+    "rawWithoutSchedOptionsNegativeFloatFiles": 5
+  },
+  "schedOptionsRows": {
+    "rows": 50,
+    "floatFinish": 41,
+    "retainedLogic": 48,
+    "openEndedNotCritical": 48,
+    "predecessorLagCalendar": 44,
+    "projectEndForFloat": 39,
+    "expectedFinishDates": 48,
+    "lagFromEarlyStart": 40,
+    "progressOverride": 1,
+    "unknownFloatDialect": 8,
+    "derivedRows": 49,
+    "derivedFallbacks": 8,
+    "derivedFloatDialectFallbacks": 8,
+    "derivedRetainedLogic": 48,
+    "derivedProgressOverride": 1,
+    "derivedFinishFloat": 49,
+    "derivedLagPredecessor": 44,
+    "derivedLagSuccessor": 3,
+    "derivedLag24Hour": 1,
+    "derivedLagProjectDefault": 1,
+    "retainedProjectEndValues": 47
+  },
+  "corpusUnion": [
+    "enable_multiple_longest_path_calc",
+    "key_activity_for_multiple_longest_paths",
+    "level_all_rsrc_flag",
+    "level_float_thrs_cnt",
+    "level_keep_sched_date_flag",
+    "level_outer_assign_flag",
+    "level_outer_assign_priority",
+    "level_over_alloc_pct",
+    "level_within_float_flag",
+    "levelprioritylist",
+    "limit_multiple_longest_path_calc",
+    "max_multiple_longest_path",
+    "proj_id",
+    "sched_calendar_on_relationship_lag",
+    "sched_float_type",
+    "sched_lag_early_start_flag",
+    "sched_open_critical_flag",
+    "sched_outer_depend_type",
+    "sched_progress_override",
+    "sched_retained_logic",
+    "sched_setplantoforecast",
+    "sched_use_expect_end_flag",
+    "sched_use_project_end_date_for_float",
+    "schedhash",
+    "schedoptions_id",
+    "use_total_float",
+    "use_total_float_multiple_longest_paths"
+  ],
+  "files": [
+    {
+      "id": "0fa5172162fbd689-1",
+      "state": "measured",
+      "tasks": 14,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "11d8c34fff8cf0b8-1",
+      "state": "deferred",
+      "tasks": 1,
+      "oracleNegativeFloatTasks": 0,
+      "deferredCode": "XER_DANGLING_LOCAL_RELATION"
+    },
+    {
+      "id": "146e4c8659bad066-1",
+      "state": "measured",
+      "tasks": 30,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        19,
+        16,
+        16,
+        4,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 1,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            19,
+            16,
+            16,
+            3,
+            0
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "1ba69d297ee9a5c6-1",
+      "state": "measured",
+      "tasks": 4,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            2,
+            2,
+            2
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "1ba8cf1885491db3-1",
+      "state": "measured",
+      "tasks": 20,
+      "oracleNegativeFloatTasks": 3,
+      "houseNegativeFloatTasks": 4,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        6,
+        4,
+        4,
+        1,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 4,
+          "counterfactualNegativeFloatTasks": 5
+        },
+        "retainedLogic": {
+          "movement": [
+            14,
+            16,
+            20,
+            20,
+            5,
+            1,
+            0
+          ],
+          "chosenNegativeFloatTasks": 4,
+          "counterfactualNegativeFloatTasks": 4
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 4,
+          "counterfactualNegativeFloatTasks": 4
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 4,
+          "counterfactualNegativeFloatTasks": 4
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            6,
+            4,
+            4,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 4
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ],
+          "chosenNegativeFloatTasks": 4,
+          "counterfactualNegativeFloatTasks": 4
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 4,
+          "counterfactualNegativeFloatTasks": 4
+        }
+      }
+    },
+    {
+      "id": "1d7901d68cc7063b-1",
+      "state": "measured",
+      "tasks": 11,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 2,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        1,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 1,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 2
+        },
+        "retainedLogic": {
+          "movement": [
+            9,
+            10,
+            11,
+            11,
+            2,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 2,
+          "counterfactualNegativeFloatTasks": 2
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 2,
+          "counterfactualNegativeFloatTasks": 2
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 2,
+          "counterfactualNegativeFloatTasks": 2
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 2,
+          "counterfactualNegativeFloatTasks": 2
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ],
+          "chosenNegativeFloatTasks": 2,
+          "counterfactualNegativeFloatTasks": 2
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 2,
+          "counterfactualNegativeFloatTasks": 2
+        }
+      }
+    },
+    {
+      "id": "1d7bd29d2c157bdd-1",
+      "state": "measured",
+      "tasks": 3,
+      "oracleNegativeFloatTasks": 1,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "2a7732b5b99de2a5-1",
+      "state": "measured",
+      "tasks": 126,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 44,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        16,
+        12,
+        12,
+        9,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 37,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 44,
+          "counterfactualNegativeFloatTasks": 44
+        },
+        "retainedLogic": {
+          "movement": [
+            67,
+            68,
+            1,
+            1,
+            67,
+            28,
+            0
+          ],
+          "chosenNegativeFloatTasks": 44,
+          "counterfactualNegativeFloatTasks": 44
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            2,
+            2,
+            2
+          ],
+          "chosenNegativeFloatTasks": 44,
+          "counterfactualNegativeFloatTasks": 44
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            78,
+            78,
+            76,
+            76,
+            106,
+            28,
+            0
+          ],
+          "chosenNegativeFloatTasks": 44,
+          "counterfactualNegativeFloatTasks": 43
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            16,
+            12,
+            12,
+            7,
+            0
+          ],
+          "chosenNegativeFloatTasks": 37,
+          "counterfactualNegativeFloatTasks": 44
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            0
+          ],
+          "chosenNegativeFloatTasks": 44,
+          "counterfactualNegativeFloatTasks": 44
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 44,
+          "counterfactualNegativeFloatTasks": 44
+        }
+      }
+    },
+    {
+      "id": "2c1dce175b9f0781-1",
+      "state": "measured",
+      "tasks": 6977,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 38,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        2666,
+        2618,
+        2618,
+        1785,
+        504
+      ],
+      "xerDefaultsNegativeFloatTasks": 543,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            331,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 38,
+          "counterfactualNegativeFloatTasks": 38
+        },
+        "retainedLogic": {
+          "movement": [
+            3036,
+            3149,
+            6977,
+            6977,
+            6971,
+            547,
+            31
+          ],
+          "chosenNegativeFloatTasks": 38,
+          "counterfactualNegativeFloatTasks": 57
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            11,
+            11,
+            11
+          ],
+          "chosenNegativeFloatTasks": 38,
+          "counterfactualNegativeFloatTasks": 38
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            164,
+            164,
+            164,
+            10,
+            0
+          ],
+          "chosenNegativeFloatTasks": 38,
+          "counterfactualNegativeFloatTasks": 38
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            2666,
+            2618,
+            2618,
+            1639,
+            504
+          ],
+          "chosenNegativeFloatTasks": 543,
+          "counterfactualNegativeFloatTasks": 38
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            621,
+            0
+          ],
+          "chosenNegativeFloatTasks": 38,
+          "counterfactualNegativeFloatTasks": 38
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 38,
+          "counterfactualNegativeFloatTasks": 38
+        }
+      }
+    },
+    {
+      "id": "32524ea41f8bb4cb-1",
+      "state": "measured",
+      "tasks": 2,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "3daf749da5d4cd89-1",
+      "state": "deferred",
+      "tasks": 5,
+      "oracleNegativeFloatTasks": 0,
+      "deferredCode": "XER_INVALID_FILE"
+    },
+    {
+      "id": "467ab0eb0885c4a7-1",
+      "state": "measured",
+      "tasks": 10,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "49aea658c963a005-1",
+      "state": "measured",
+      "tasks": 120,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            9,
+            0,
+            0,
+            9,
+            9,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            30,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            39,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "4d39fc3daf2d2859-1",
+      "state": "measured",
+      "tasks": 2,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "53f5cdbeb3fbd9c6-1",
+      "state": "measured",
+      "tasks": 31,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 1,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        25,
+        24,
+        24,
+        12,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 1,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "retainedLogic": {
+          "movement": [
+            5,
+            6,
+            30,
+            30,
+            25,
+            6,
+            1
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            25,
+            24,
+            24,
+            11,
+            0
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
+        }
+      }
+    },
+    {
+      "id": "568c19375b4e0d67-1",
+      "state": "measured",
+      "tasks": 8,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "5d71eac4e70b0d95-1",
+      "state": "measured",
+      "tasks": 120,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        53,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            8,
+            0,
+            0,
+            8,
+            8,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            45,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            53,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "78325fb6445d22f5-1",
+      "state": "measured",
+      "tasks": 22,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            2,
+            1,
+            1,
+            1,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "790b90fda837bad3-1",
+      "state": "measured",
+      "tasks": 23,
+      "oracleNegativeFloatTasks": 6,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        3,
+        1,
+        1,
+        2,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            3,
+            1,
+            1,
+            2,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "79f6fb43bb391ed6-1",
+      "state": "measured",
+      "tasks": 5,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            3,
+            3,
+            3
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "79f6fb43bb391ed6-2",
+      "state": "measured",
+      "tasks": 5,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            3,
+            3,
+            3
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "9590c4cdc4efa69a-1",
+      "state": "measured",
+      "tasks": 93,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "97058f720a70f623-1",
+      "state": "measured",
+      "tasks": 8,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        7,
+        6,
+        6,
+        1,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 5,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            1,
+            2,
+            8,
+            8,
+            8,
+            1,
+            2
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 5
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            7,
+            6,
+            6,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 5,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "98f079b267688de2-1",
+      "state": "measured",
+      "tasks": 2,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "9f2964425c0e295b-1",
+      "state": "measured",
+      "tasks": 2,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "a132f8c7ebb070d2-1",
+      "state": "measured",
+      "tasks": 23,
+      "oracleNegativeFloatTasks": 6,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        3,
+        1,
+        1,
+        2,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            3,
+            1,
+            1,
+            2,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "a7fc367eab6c904e-1",
+      "state": "measured",
+      "tasks": 5,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        3,
+        2,
+        2,
+        2,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            2,
+            2,
+            2
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            3,
+            2,
+            2,
+            2,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "a7fc367eab6c904e-2",
+      "state": "measured",
+      "tasks": 5,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        3,
+        2,
+        2,
+        2,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            2,
+            2,
+            2
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            3,
+            2,
+            2,
+            2,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "ac4b9d677133c6ed-1",
+      "state": "measured",
+      "tasks": 22,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            2,
+            1,
+            1,
+            1,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "b72a879f6282cc61-1",
+      "state": "measured",
+      "tasks": 2,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "b7ef6d85acfedda1-1",
+      "state": "measured",
+      "tasks": 70,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "c1ccf20436ba38b5-1",
+      "state": "measured",
+      "tasks": 2,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "c872c9e704797d82-1",
+      "state": "measured",
+      "tasks": 8,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "deabc76347eaef15-1",
+      "state": "measured",
+      "tasks": 24,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "def489b2a803af9f-1",
+      "state": "measured",
+      "tasks": 5,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            3,
+            3,
+            3
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "def489b2a803af9f-2",
+      "state": "measured",
+      "tasks": 5,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            3,
+            3,
+            3
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    },
+    {
+      "id": "fc74bdab8629d9e8-1",
+      "state": "measured",
+      "tasks": 14,
+      "oracleNegativeFloatTasks": 0,
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
+    }
+  ],
+  "fidelity": {
+    "house": {
+      "es": {
+        "deviations": 4552,
+        "measurable": 7649
+      },
+      "ef": {
+        "deviations": 4488,
+        "measurable": 7661
+      },
+      "ls": {
+        "deviations": 7485,
+        "measurable": 7539
+      },
+      "lf": {
+        "deviations": 7466,
+        "measurable": 7532
+      },
+      "tf": {
+        "deviations": 6932,
+        "measurable": 7602
+      },
+      "ff": {
+        "deviations": 2341,
+        "measurable": 7221
+      }
+    },
+    "xerDefaults": {
+      "es": {
+        "deviations": 4552,
+        "measurable": 7649
+      },
+      "ef": {
+        "deviations": 4488,
+        "measurable": 7661
+      },
+      "ls": {
+        "deviations": 5417,
+        "measurable": 7539
+      },
+      "lf": {
+        "deviations": 5450,
+        "measurable": 7532
+      },
+      "tf": {
+        "deviations": 6407,
+        "measurable": 7602
+      },
+      "ff": {
+        "deviations": 585,
+        "measurable": 7221
+      }
+    },
+    "defaults": {
+      "totalFloatFinish": {
+        "chosen": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6931,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        }
+      },
+      "retainedLogic": {
+        "chosen": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 4994,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4959,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7501,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7481,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 7410,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2521,
+            "measurable": 7221
+          }
+        }
+      },
+      "openEndedNotCritical": {
+        "chosen": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6913,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2339,
+            "measurable": 7221
+          }
+        }
+      },
+      "predecessorLagCalendar": {
+        "chosen": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2342,
+            "measurable": 7221
+          }
+        }
+      },
+      "preserveActualDates": {
+        "chosen": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 5417,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 5450,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6408,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 704,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        }
+      },
+      "clampNegativeFreeFloat": {
+        "chosen": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 1749,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        }
+      },
+      "projectCriticalDefinition": {
+        "chosen": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 4552,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 4488,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7485,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7466,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2341,
+            "measurable": 7221
+          }
+        }
+      }
+    }
+  }
+}

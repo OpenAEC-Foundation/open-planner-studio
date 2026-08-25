@@ -246,6 +246,24 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XEROPENWIRINGCHECK="$DIR/.xer-open-wiring.mjs"
   if bundle_check "$DIR/check-xer-open-wiring.ts" "$XEROPENWIRINGCHECK"; then node "$XEROPENWIRINGCHECK" || STATUS=1; fi
 
+  # X5 SCHEDOPTIONS: pure mapping/defaults plus brongebonden solvervlaggen; de end-to-end-wiring
+  # bouwt voort op X4b's per-projectdocumenten zonder diens open-fan-out te omzeilen.
+  XERSCHEDOPTIONSCHECK="$DIR/.xer-schedule-options.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options.ts" "$XERSCHEDOPTIONSCHECK"; then node "$XERSCHEDOPTIONSCHECK" || STATUS=1; fi
+
+  # X5 seriële wiring: per-project-SCHEDOPTIONS door X4b's echte meerdocumentreader, inclusief
+  # defaults, bronmetadata, documentwissel/undo/recovery en de bestaande IFC-projectvelden.
+  XERSCHEDOPTIONSWIRINGCHECK="$DIR/.xer-schedule-options-wiring.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options-wiring.ts" "$XERSCHEDOPTIONSWIRINGCHECK"; then node "$XERSCHEDOPTIONSWIRINGCHECK" || STATUS=1; fi
+
+  # X5 zware openbare corpuspin: 27-kolommenunion en de 36 actuele bestanden zonder SCHEDOPTIONS,
+  # per default/per as en tegen de onafhankelijke X1-meetlat. Eén keer draaien, niet per tijdzone.
+  XERSCHEDOPTIONSCORPUSCHECK="$DIR/.xer-schedule-options-corpus.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options-corpus.ts" "$XERSCHEDOPTIONSCORPUSCHECK"; then
+    node "$XERSCHEDOPTIONSCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X4a-registercontract: .xer is lazy en binair, behoudt CP1252/UTF-16-BOM-bytes en wordt nooit
   # een opslagdoel.
   XERREGISTRYCHECK="$DIR/.xer-registry.mjs"

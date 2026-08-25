@@ -26,6 +26,11 @@ import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { readXerCalendars } from './xerCalendarData';
 import { assembleXerMultiProjectImport, type XerMultiProjectImport } from './xerMultiProject';
 import {
+  deriveXerScheduleOptions,
+  indexXerScheduleOptions,
+  type XerScheduleOptionsIndex,
+} from './xerScheduleOptions';
+import {
   parseXerNumber,
   parseXerTables,
   XerImportError,
@@ -266,9 +271,12 @@ function assertUniqueId(
 
 /** Map precies één reeds getokenized, niet-leeg P6-project. X4b roept deze kern één keer per
  * PROJECT-rij aan; zo blijft de X4a-mapping zelf één implementatie. */
-function readXerProject(tables: XerTables, projectId: string): XerReadResult {
-  const projectRow = (tables.tables.get('PROJECT')?.rows ?? [])
-    .find(row => row.cells.proj_id === projectId);
+function readXerProject(
+  tables: XerTables,
+  scheduleOptionsIndex: XerScheduleOptionsIndex,
+  projectId: string,
+): XerReadResult {
+  const projectRow = scheduleOptionsIndex.projectRowsById.get(projectId)?.row;
   if (!projectRow) {
     throw new XerImportError(
       'XER_MISSING_REQUIRED_VALUE',
@@ -524,6 +532,16 @@ function readXerProject(tables: XerTables, projectId: string): XerReadResult {
     }
   }
 
+  const derivedSchedule = deriveXerScheduleOptions(scheduleOptionsIndex, projectId, {
+    hoursPerDay: projectCalendar.hoursPerDay,
+    taskCount: mappedActivities.length,
+  });
+  const {
+    progressMode,
+    schedulingOptions,
+    ...scheduleOptionsMetadata
+  } = derivedSchedule;
+
   return {
     project: {
       id: projectId,
@@ -537,6 +555,8 @@ function readXerProject(tables: XerTables, projectId: string): XerReadResult {
       author: '',
       company: '',
       ...(statusDate ? { statusDate } : {}),
+      progressMode,
+      schedulingOptions,
     },
     calendar: projectCalendar,
     resourceCalendars: calendarList.filter(calendar => calendar.id !== projectCalendar.id),
@@ -549,6 +569,7 @@ function readXerProject(tables: XerTables, projectId: string): XerReadResult {
       tableReport: tables.report,
       calendarIssues: calendars.issues,
       enumFallbacks,
+      scheduleOptions: scheduleOptionsMetadata,
       externalRelations,
       externalLinks: [],
       // `assembleXerMultiProjectImport` vervangt dit vóór de reader retourneert door het echte,
@@ -577,10 +598,11 @@ function readXerProject(tables: XerTables, projectId: string): XerReadResult {
  */
 export function readXER(bytes: Uint8Array): XerOpenResult {
   const tables = parseXerTables(bytes);
+  const scheduleOptionsIndex = indexXerScheduleOptions(tables);
   const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
   const assembled = assembleXerMultiProjectImport(
     tables,
-    projectId => readXerProject(tables, projectId),
+    projectId => readXerProject(tables, scheduleOptionsIndex, projectId),
   );
   if (assembled.results.length > 0) {
     // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de
