@@ -281,7 +281,7 @@ truthy('d recovery: isDirty', S().isDirty === true);
 truthy('d recovery: cpmResult doorgerekend (niet null)', S().cpmResult !== null);
 eq('d recovery: cpmResult beslaat het herstelde document', S().cpmResult?.criticalPath, ['task-rec-b']);
 eq('d recovery: selectedTaskIds vers leeg', S().selectedTaskIds, []);
-eq('d recovery: undoStack vers leeg', S().historyEvents.filter(event => event.state === 'applied').length, 0);
+eq('d recovery: sessiehistory vers leeg', S().historyEvents.filter(event => event.state === 'applied').length, 0);
 
 // Inactief document rec-a kwam via de registry (payloadFromInput) — switch en controleer.
 S().switchDocument('rec-a');
@@ -433,7 +433,7 @@ eq('d eigenaarsprincipe-poort: het GESCHREVEN IFC draagt de RAUWE contouren nog 
 // uit `taskSlice.ts`'s `updateTask` verwijderd ⇒ de eerste twee asserties hierboven sloegen rood uit
 // (het venster stond nog in het geschreven IFC); teruggezet ⇒ weer groen.
 
-// Snapshot-vorm sanity: undoStack draagt `Snapshot`-objecten met het VOLLEDIGE project (pakket H).
+// Snapshot-vorm sanity: een documentdata-event draagt het VOLLEDIGE project (pakket H).
 S().newProject();
 S().addTask({ name: 'X' });
 const snap: Snapshot = latestAppliedDocumentDataDelta(S())!.before;

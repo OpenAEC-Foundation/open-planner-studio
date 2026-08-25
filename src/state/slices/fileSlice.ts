@@ -138,7 +138,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       set((s) => {
         // string = nieuw pad, null = naamloos, undefined = laat filePath ongemoeid (loadState-semantiek).
         const filePath = opts.filePath !== undefined ? opts.filePath : s.filePath;
-        // Reset-pad (audit P10): bouw een verse payload uit het geparste project (selectie/cpm/undo/
+        // Reset-pad (audit P10): bouw een verse payload uit het geparste project (selectie/cpm/history/
         // scheduleStale starten vers, isDirty=false) en hydrateer die via het documentcontract —
         // dezelfde `DOCUMENT_FIELDS`-lijst als switchDocument/undo, dus geen stille lek. hydratePayload
         // doet ook de §4.3-promote + §9.1-sync van de projectkalender (was hier voorheen apart).

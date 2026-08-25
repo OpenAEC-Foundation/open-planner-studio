@@ -132,7 +132,8 @@ export function PoolImportDialog() {
     // Critreview F3: dit is GEEN algemene no-op bij "toevoegen" — hangt het ACTIEVE project al aan
     // het companyId uit het zojuist geïmporteerde bestand (exact het deel-scenario: een meegestuurd
     // project met stempels naar dat companyId), dan doet deze aanroep wél echt werk: 'behind'-items
-    // worden stil ververst naar de nieuwe pool (geen undo-stap, geen isDirty, redoStack gewist) en bij
+    // worden stil ververst naar de nieuwe pool (geen undo-stap, geen isDirty, botsende redo-history
+    // gewist) en bij
     // ≥1 'deviated'-item opent het koppel-/afwijkingenscherm. Alleen als het actieve project aan een
     // ANDER bedrijf hangt (of ongebonden is) — de meest voorkomende situatie ná "toevoegen", want de
     // nieuwe bibliotheek is per definitie nooit al gekoppeld — is dit een no-op.

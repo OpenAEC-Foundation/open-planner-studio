@@ -74,7 +74,7 @@ export interface DocumentPayload {
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
- *  Alleen de IFC-round-trip-velden + identiteit; view/undo/cpm worden vers
+ *  Alleen de IFC-round-trip-velden + identiteit; view/history/cpm worden vers
  *  opgebouwd (zijn niet kritiek na een crash).
  *
  *  AFGELEID van `ImportResult` (bevinding K3), niet meer met de hand opgesomd. De twee lijsten
@@ -346,7 +346,7 @@ export function freshPayload(): DocumentPayload {
   return out as unknown as DocumentPayload;
 }
 
-/** Verse payload uit herstelde recovery-projectdata (view/undo/cpm worden vers opgebouwd).
+/** Verse payload uit herstelde recovery-projectdata (view/history/cpm worden vers opgebouwd).
  *
  *  Delegeert naar `payloadFromImport` (bevinding K3): een `RecoveryDocInput` ÍS een `ImportResult`
  *  + identiteit, dus de veldmapping is exact dezelfde — inclusief de `resourceCalendars`→
@@ -368,7 +368,7 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
 }
 
 /** Verse payload uit een ingelezen project (IFC/CSV/MSPDI/P6). Alleen de IFC-round-trip-velden
- *  worden overgenomen; selectie/cpm/undo/scheduleStale starten vers. `view`/`collapsedTaskIds`
+ *  worden overgenomen; selectie/cpm/history/scheduleStale starten vers. `view`/`collapsedTaskIds`
  *  vult de aanroeper (`applyLoadedProject` behoudt die van het huidige document — load-semantiek). */
 export function payloadFromImport(parsed: ImportResult, filePath: string | null): DocumentPayload {
   return {
