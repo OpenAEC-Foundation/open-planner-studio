@@ -63,6 +63,18 @@ const fixture = [
 ] as const;
 
 const result = read(fixture);
+eq('0 enkelproject-XER draagt hetzelfde volledige importverslagcontract als meerproject-XER',
+  result.xer.report, {
+    projectsSeen: 1,
+    documentsOpened: 1,
+    emptyProjectsSkipped: 0,
+    baselineProjectsExcluded: 0,
+    baselinesMaterialized: 0,
+    danglingBaselineReferences: 0,
+    externalLinksPreserved: 0,
+    baselineExclusionReverted: false,
+    baselineFallbackReasons: [],
+  });
 eq('1 PROJECT-identiteit, statusdatum, projectkalender en header-valuta', {
   id: result.project.id,
   name: result.project.name,
@@ -219,6 +231,49 @@ typedError('15 project zonder TASK wordt expliciet geweigerd', [
 
 ok('16 XER-resultaat levert lege resourcevelden binnen het gedeelde importcontract',
   result.resources.length === 0 && result.assignments.length === 0);
+
+const singleDangling = read([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tsum_base_proj_id',
+  '%R\tP1\tLosse baselineverwijzing\tP-MISSING',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+  '%R\tT1\tP1\tA1\tTaak\t2026-01-01\t2026-01-02',
+  '%E',
+]);
+eq('16a enkelproject-XER rapporteert een dangling baselineverwijzing echt', {
+  dangling: singleDangling.xer.report.danglingBaselineReferences,
+  baselines: singleDangling.baselines ?? [],
+}, { dangling: 1, baselines: [] });
+
+const singleSelf = read([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tsum_base_proj_id',
+  '%R\tP1\tZelfbaseline\tP1',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+  '%R\tT1\tP1\tA1\tTaak\t2026-01-01\t2026-01-02',
+  '%E',
+]);
+eq('16b enkelproject-XER rapporteert zelfverwijzing en vangrail zonder opensemantiek te wijzigen', {
+  project: singleSelf.project.id,
+  report: singleSelf.xer.report,
+}, {
+  project: 'P1',
+  report: {
+    projectsSeen: 1,
+    documentsOpened: 1,
+    emptyProjectsSkipped: 0,
+    baselineProjectsExcluded: 0,
+    baselinesMaterialized: 0,
+    danglingBaselineReferences: 0,
+    externalLinksPreserved: 0,
+    baselineExclusionReverted: true,
+    baselineFallbackReasons: ['self-reference', 'all-projects-baselines'],
+  },
+});
 
 // Fixronde 1, bevinding 1: een lege PROJWBS-rij blijft semantisch een samenvattingstaak. Dit
 // bewijs rijdt niet alleen langs de fidelityfilter, maar door de echte solveProject-keten én de

@@ -1,39 +1,22 @@
 import type { XerReadResult } from './xerReader';
-import type { MultiDocumentImport } from '@/services/importTypes';
+import type {
+  MultiDocumentImport,
+  XerBaselineFallbackReason,
+  XerDocumentExternalLink,
+  XerImportReport,
+} from '@/services/importTypes';
 import { XerImportError, type XerRow, type XerTables } from './xerTables';
 import type { Baseline } from '@/types/baseline';
 import type { Task } from '@/types/task';
 import { isLeafTask } from '@/utils/taskHierarchy';
-
-export type XerBaselineFallbackReason =
-  | 'self-reference'
-  | 'cycle'
-  | 'all-projects-baselines';
 
 export interface XerMultiProjectDocument {
   projectId: string;
   result: XerReadResult;
 }
 
-export interface XerDocumentExternalLink {
-  id: string;
-  predecessor: { projectId: string; taskId: string };
-  successor: { projectId: string; taskId: string };
-  type: 'FS' | 'SS' | 'FF' | 'SF';
-  lagMinutes: number;
-}
-
-export interface XerMultiProjectReport {
-  projectsSeen: number;
-  documentsOpened: number;
-  emptyProjectsSkipped: number;
-  baselineProjectsExcluded: number;
-  baselinesMaterialized: number;
-  danglingBaselineReferences: number;
-  externalLinksPreserved: number;
-  baselineExclusionReverted: boolean;
-  baselineFallbackReasons: XerBaselineFallbackReason[];
-}
+export type XerMultiProjectReport = XerImportReport;
+export type { XerBaselineFallbackReason, XerDocumentExternalLink } from '@/services/importTypes';
 
 export interface XerMultiProjectImport extends MultiDocumentImport {
   documents: XerMultiProjectDocument[];
@@ -92,11 +75,13 @@ function hasNonSelfCycle(targetByProject: ReadonlyMap<string, string>): boolean 
 /**
  * Beslis welke aanwezige baselineprojecten als gewone documenten worden uitgesloten.
  *
- * De uitsluiting is alleen veilig voor een acyclische hoofdproject→baselinegraaf die minstens één
- * niet-leeg gewoon document overlaat. Een zelfverwijzing, een wederzijdse/langere cyclus of een
- * verzameling waarin elk niet-leeg project als baseline is aangewezen neemt daarom de HELE
- * uitsluiting voor dit bestand terug. Zo kan baselineherkenning nooit nul documenten produceren;
- * alle niet-lege projecten openen dan gewoon en het verslag draagt elke concrete reden.
+ * Alleen niet-lege projecten kunnen eigenaar van een baselinekoppeling zijn: een PROJECT-rij die
+ * zelf wordt overgeslagen mag geen ander, niet-leeg project uit de openlijst drukken. De aldus
+ * begrensde uitsluiting is alleen veilig voor een acyclische hoofdproject→baselinegraaf die
+ * minstens één niet-leeg gewoon document overlaat. Een zelfverwijzing, een wederzijdse/langere
+ * cyclus of een verzameling waarin elk niet-leeg project als baseline is aangewezen neemt daarom
+ * de HELE uitsluiting voor dit bestand terug. Zo kan baselineherkenning nooit nul documenten
+ * produceren; alle niet-lege projecten openen dan gewoon en het verslag draagt elke reden.
  */
 function decideBaselineExclusion(
   projectRows: readonly XerRow[],
@@ -105,8 +90,13 @@ function decideBaselineExclusion(
   const projectIds = new Set(projectRows.map(projectRow => projectRow.cells.proj_id));
   const targetByProject = new Map<string, string>();
   for (const projectRow of projectRows) {
+    const ownerProjectId = projectRow.cells.proj_id;
+    // Een overgeslagen lege PROJECT-rij is geen geopend hoofdproject en kan dus ook geen
+    // baseline-eigenaar zijn. Zijn verwijzing blijft wel als bronfeit meetellen (dangling e.d.),
+    // maar mag nooit een niet-leeg project uit de documentselectie drukken.
+    if (!nonEmptyProjectIds.has(ownerProjectId)) continue;
     const target = projectRow.cells.sum_base_proj_id?.trim() ?? '';
-    if (target && projectIds.has(target)) targetByProject.set(projectRow.cells.proj_id, target);
+    if (target && projectIds.has(target)) targetByProject.set(ownerProjectId, target);
   }
   const excludedProjectIds = new Set(targetByProject.values());
   const reasons: XerBaselineFallbackReason[] = [];
@@ -283,6 +273,31 @@ export function assembleXerMultiProjectImport(
     }
   }
 
+  const report: XerMultiProjectReport = {
+    projectsSeen: projectRows.length,
+    documentsOpened: documents.length,
+    emptyProjectsSkipped: projectRows.length - nonEmptyProjectRows.length,
+    baselineProjectsExcluded: nonEmptyProjectRows
+      .filter(projectRow => baselineDecision.excludedProjectIds.has(projectRow.cells.proj_id)).length,
+    baselinesMaterialized,
+    danglingBaselineReferences,
+    externalLinksPreserved: externalLinks.length,
+    baselineExclusionReverted: baselineDecision.reverted,
+    baselineFallbackReasons: baselineDecision.reasons,
+  };
+
+  // `externalLinks` alleen op de meervoudige wrapper bewaren is onvoldoende: zodra fileSlice de
+  // resultaten over documenten verdeelt verdwijnt die wrapper. Hang daarom aan ieder betrokken
+  // document een eigen kopie. Dit veld zit via `xerImportMetadata` in DOCUMENT_FIELDS en overleeft
+  // documentwissel/undo/recovery-input. X9 blijft verantwoordelijk voor de IFC-serialisatie ervan.
+  for (const document of documents) {
+    document.result.xer.externalLinks = externalLinks
+      .filter(link => link.predecessor.projectId === document.projectId
+        || link.successor.projectId === document.projectId)
+      .map(link => structuredClone(link));
+    document.result.xer.report = structuredClone(report);
+  }
+
   return {
     kind: 'multi-document',
     results: documents.map(document => document.result),
@@ -292,17 +307,6 @@ export function assembleXerMultiProjectImport(
     documents,
     activeProjectId,
     externalLinks,
-    report: {
-      projectsSeen: projectRows.length,
-      documentsOpened: documents.length,
-      emptyProjectsSkipped: projectRows.length - nonEmptyProjectRows.length,
-      baselineProjectsExcluded: nonEmptyProjectRows
-        .filter(projectRow => baselineDecision.excludedProjectIds.has(projectRow.cells.proj_id)).length,
-      baselinesMaterialized,
-      danglingBaselineReferences,
-      externalLinksPreserved: externalLinks.length,
-      baselineExclusionReverted: baselineDecision.reverted,
-      baselineFallbackReasons: baselineDecision.reasons,
-    },
+    report,
   };
 }

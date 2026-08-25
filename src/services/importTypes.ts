@@ -55,6 +55,33 @@ export interface XerExternalRelation {
   lagMinutes: number;
 }
 
+export type XerBaselineFallbackReason =
+  | 'self-reference'
+  | 'cycle'
+  | 'all-projects-baselines';
+
+/** Eén gededupliceerde relatie tussen twee werkelijk geopende XER-projectdocumenten. */
+export interface XerDocumentExternalLink {
+  id: string;
+  predecessor: { projectId: string; taskId: string };
+  successor: { projectId: string; taskId: string };
+  type: 'FS' | 'SS' | 'FF' | 'SF';
+  lagMinutes: number;
+}
+
+/** Uniform XER-openingsverslag; aanwezig bij zowel één als meerdere PROJECT-rijen. */
+export interface XerImportReport {
+  projectsSeen: number;
+  documentsOpened: number;
+  emptyProjectsSkipped: number;
+  baselineProjectsExcluded: number;
+  baselinesMaterialized: number;
+  danglingBaselineReferences: number;
+  externalLinksPreserved: number;
+  baselineExclusionReverted: boolean;
+  baselineFallbackReasons: XerBaselineFallbackReason[];
+}
+
 /** Documentgebonden XER-brondata. Externe relaties zijn nadrukkelijk geen solverrelaties. */
 export interface XerImportMetadata {
   defaultCurrencyCode: string;
@@ -62,6 +89,10 @@ export interface XerImportMetadata {
   calendarIssues: XerCalendarIssueMetadata[];
   enumFallbacks: XerEnumFallback[];
   externalRelations: XerExternalRelation[];
+  /** Canonieke cross-documentlinks waarbij dit document een eindpunt is; nooit solverinvoer. */
+  externalLinks: XerDocumentExternalLink[];
+  /** Bestandsbreed verslag, bewust ook documentgebonden zodat X10 het na openen kan consumeren. */
+  report: XerImportReport;
 }
 
 /**

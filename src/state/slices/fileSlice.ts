@@ -70,6 +70,13 @@ export interface ApplyLoadedProjectOpts {
   linkedOpen?: boolean;
 }
 
+/** Feitelijke uitkomst van de centrale opennaad; gebruikt door DevBridge en MCP voor eerlijke ids. */
+export interface AppliedOpenedImport {
+  documentIds: string[];
+  activeDocumentId: string;
+  reusedActiveTab: boolean;
+}
+
 export interface FileSlice {
   /** `labels` — vertaalde teksten die de UI aanlevert omdat de store-laag geen `t(...)` heeft (zie
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
@@ -109,7 +116,7 @@ export interface FileSlice {
    * meervoudige vorm; de individuele documenten lopen daarna letterlijk door hetzelfde
    * applyLoadedProject-pad als IFC/CSV/MSPDI/MPP/P6XML.
    */
-  applyOpenedImport: (parsed: OpenedImport, opts: ApplyLoadedProjectOpts) => void;
+  applyOpenedImport: (parsed: OpenedImport, opts: ApplyLoadedProjectOpts) => AppliedOpenedImport;
 }
 
 export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
@@ -252,6 +259,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       const results = isMultiDocumentImport(parsed) ? parsed.results : [parsed];
       if (results.length === 0) throw new Error('Openroute ontving geen projectdocumenten');
 
+      const reusedActiveTab = isActivePristine(get());
       const openedDocumentIds: string[] = [];
       for (const result of results) {
         // De eerste payload mag het lege starttabblad hergebruiken; elk volgend project krijgt
@@ -268,6 +276,11 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
       const activeId = openedDocumentIds[activeIndex];
       if (activeId && activeId !== get().activeDocumentId) get().switchDocument(activeId);
+      return {
+        documentIds: openedDocumentIds,
+        activeDocumentId: get().activeDocumentId,
+        reusedActiveTab,
+      };
     },
 
     openFile: async (labels) => {

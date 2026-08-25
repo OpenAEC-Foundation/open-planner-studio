@@ -3,8 +3,13 @@ import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { parseOpenedFile, readFormatInput, type FormatIO } from '@/services/formatRegistry';
-import { activeImportResult } from '@/services/importTypes';
+import {
+  parseOpenedFile,
+  readFormatForFile,
+  readFormatInput,
+  saveTargetFor,
+  type FormatIO,
+} from '@/services/formatRegistry';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb, installFromZipBlob } from '@/extensions';
 import type { InstallOutcome } from '@/extensions';
 import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
@@ -83,8 +88,16 @@ async function saveToPath(path: string) {
 export async function openFromPathWithIO(path: string, io: FormatIO) {
   const input = await readFormatInput(path, io);
   const parsed = await parseOpenedFile(input);
-  useAppStore.getState().loadState(activeImportResult(parsed));
-  return { path, ...counts(useAppStore.getState()) };
+  const target = saveTargetFor(readFormatForFile(path), { kind: 'path', path }, path);
+  const opened = useAppStore.getState().applyOpenedImport(parsed, {
+    filePath: target.filePath,
+    fileHandle: target.fileHandle,
+    recompute: true,
+    fit: true,
+    hourDataNotice: true,
+    linkedOpen: true,
+  });
+  return { path, ...opened, ...counts(useAppStore.getState()) };
 }
 
 async function openFromPath(path: string) {

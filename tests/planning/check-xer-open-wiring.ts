@@ -41,6 +41,9 @@ const source = new TextEncoder().encode([
   '%R\tO1\tOTHER\tO1\tEerste\t2026-01-03 08:00\t2026-01-03 16:00',
   '%R\tO2\tOTHER\tO2\tTweede\t2026-01-04 08:00\t2026-01-04 16:00',
   '%R\tD1\tDANGLING\tD1\tLosse taak\t2026-01-05 08:00\t2026-01-05 16:00',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR-CROSS\tO1\tM1\tOTHER\tMAIN\tPR_FS\t0',
   '%E',
 ].join('\n'));
 
@@ -58,7 +61,7 @@ eq('2 lezer behoudt selectie-, baseline- en danglingtellingen', multi.report, {
   baselineProjectsExcluded: 1,
   baselinesMaterialized: 1,
   danglingBaselineReferences: 1,
-  externalLinksPreserved: 0,
+  externalLinksPreserved: 1,
   baselineExclusionReverted: false,
   baselineFallbackReasons: [],
 });
@@ -123,6 +126,70 @@ eq('8 elk geopend document kan onafhankelijk als IFC recoverypayload rond-tripen
     { name: 'Hoofd', baselines: ['xer-baseline:MAIN:BASE'] },
     { name: 'Grootste', baselines: [] },
     { name: 'Los', baselines: [] },
+  ]);
+
+const linkIds = (metadata: typeof docs[number]['payload']['xerImportMetadata']) =>
+  metadata?.externalLinks.map(link => link.id) ?? [];
+eq('8a geconsolideerde cross-documentlink hangt exact aan beide betrokken documenten',
+  docs.map(document => ({
+    projectId: document.payload.project.id,
+    links: linkIds(document.payload.xerImportMetadata),
+    solverSequences: document.payload.sequences.map(sequence => sequence.id),
+    taskLinks: document.payload.tasks.flatMap(task => task.externalLinks ?? []).length,
+  })), [
+    { projectId: 'MAIN', links: ['R-CROSS'], solverSequences: [], taskLinks: 0 },
+    { projectId: 'OTHER', links: ['R-CROSS'], solverSequences: [], taskLinks: 0 },
+    { projectId: 'DANGLING', links: [], solverSequences: [], taskLinks: 0 },
+  ]);
+ok('8b betrokken documenten delen geen mutable externalLinks-array',
+  docs.length >= 2
+    && docs[0].payload.xerImportMetadata?.externalLinks
+    !== docs[1].payload.xerImportMetadata?.externalLinks);
+
+const mainDocumentId = docs.find(document => document.payload.project.id === 'MAIN')?.id;
+const otherDocumentId = docs.find(document => document.payload.project.id === 'OTHER')?.id;
+ok('8c MAIN en OTHER bestaan beide als schakelbare documenten', mainDocumentId && otherDocumentId);
+if (mainDocumentId && otherDocumentId) {
+  after.switchDocument(mainDocumentId);
+  eq('8d documentwissel hydrateert de eigen geconsolideerde XER-links',
+    linkIds(useAppStore.getState().xerImportMetadata), ['R-CROSS']);
+  after.switchDocument(otherDocumentId);
+  const linksBeforeUndo = JSON.stringify(linkIds(useAppStore.getState().xerImportMetadata));
+  useAppStore.getState().setProject({ description: 'Undo-proef zonder brondatawijziging' });
+  useAppStore.getState().undo();
+  eq('8e gewone bewerking plus undo laat documentgebonden XER-links exact intact',
+    JSON.stringify(linkIds(useAppStore.getState().xerImportMetadata)), linksBeforeUndo);
+}
+
+// X4b kan de metadata al door het document-/recovery-inputcontract dragen. De daadwerkelijke
+// IFC-serialisatie van `xerImportMetadata.externalLinks` blijft bewust de geregistreerde X9-taak.
+const recoveryDocs = docs.map(({ id, payload }) => ({
+  id,
+  filePath: payload.filePath,
+  isDirty: payload.isDirty,
+  project: payload.project,
+  calendar: payload.calendar,
+  tasks: payload.tasks,
+  sequences: payload.sequences,
+  resources: payload.resources,
+  assignments: payload.assignments,
+  resourceCalendars: payload.calendars,
+  activityCodeTypes: payload.activityCodeTypes,
+  customFieldDefs: payload.customFieldDefs,
+  baselines: payload.baselines,
+  activeBaselineId: payload.activeBaselineId,
+  xer: payload.xerImportMetadata ?? undefined,
+}));
+useAppStore.getState().restoreDocuments(recoveryDocs, otherDocumentId ?? null);
+eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwerking',
+  useAppStore.getState().getOpenDocumentPayloads().map(document => ({
+    projectId: document.payload.project.id,
+    links: linkIds(document.payload.xerImportMetadata),
+    sequences: document.payload.sequences.map(sequence => sequence.id),
+  })), [
+    { projectId: 'MAIN', links: ['R-CROSS'], sequences: [] },
+    { projectId: 'OTHER', links: ['R-CROSS'], sequences: [] },
+    { projectId: 'DANGLING', links: [], sequences: [] },
   ]);
 
 const corpusRoot = process.env.OPS_XER_CORPUS;

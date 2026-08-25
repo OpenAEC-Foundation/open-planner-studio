@@ -103,6 +103,18 @@ function mappedProject(projectId: string, leaves: number, summaries = 0): XerRea
       calendarIssues: [],
       enumFallbacks: [],
       externalRelations: [],
+      externalLinks: [],
+      report: {
+        projectsSeen: 1,
+        documentsOpened: 1,
+        emptyProjectsSkipped: 0,
+        baselineProjectsExcluded: 0,
+        baselinesMaterialized: 0,
+        danglingBaselineReferences: 0,
+        externalLinksPreserved: 0,
+        baselineExclusionReverted: false,
+        baselineFallbackReasons: [],
+      },
     },
   };
 }
@@ -471,32 +483,36 @@ eq('9 cyclus neemt uitsluiting voor het hele bestand terug, ook als C open zou b
   reasons: ['cycle'],
 });
 
-// Breuk die dit vangt: alleen expliciete zelfverwijzingen/cycli als vangrail behandelen. Ook een
-// acyclische graaf kan door verwijzingen vanuit lege eigenaren alle niet-lege projecten uitsluiten;
-// dan moet de volledige uitsluiting terug zodat de te openen verzameling niet leeg wordt.
-const allExcludedTables = tables([
-  row(2, { proj_id: 'P-OPEN-A' }),
-  row(3, { proj_id: 'P-OPEN-B' }),
-  row(4, { proj_id: 'P-EMPTY-OWNER-A', sum_base_proj_id: 'P-OPEN-A' }),
-  row(5, { proj_id: 'P-EMPTY-OWNER-B', sum_base_proj_id: 'P-OPEN-B' }),
+// Reviewronde 1, P1: een PROJECT-rij zonder taken wordt niet geopend en kan daarom ook geen
+// baseline-eigenaar zijn. Zijn sum_base_proj_id mag een niet-leeg bronproject niet uit de openlijst
+// drukken. Het derde, niet-lege project voorkomt dat de algemene alles-uitgesloten-vangrail deze
+// fout maskeert: de oude implementatie opende alleen P-THIRD en verloor P-BASE volledig.
+const emptyOwnerTables = tables([
+  row(2, { proj_id: 'P-BASE' }),
+  row(3, { proj_id: 'P-EMPTY-OWNER', sum_base_proj_id: 'P-BASE' }),
+  row(4, { proj_id: 'P-THIRD' }),
 ], [
-  row(8, { proj_id: 'P-OPEN-A', task_id: 'OA-1', task_code: 'OA-1' }),
-  row(9, { proj_id: 'P-OPEN-B', task_id: 'OB-1', task_code: 'OB-1' }),
+  row(8, { proj_id: 'P-BASE', task_id: 'B-1', task_code: 'B-1' }),
+  row(9, { proj_id: 'P-THIRD', task_id: 'T-1', task_code: 'T-1' }),
 ]);
-const allExcludedGuard = assembleXerMultiProjectImport(
-  allExcludedTables,
+const emptyOwnerImport = assembleXerMultiProjectImport(
+  emptyOwnerTables,
   projectId => mappedProject(projectId, 1),
 );
-eq('9a acyclische uitsluiting van alle niet-lege projecten wordt volledig teruggenomen', {
-  documents: allExcludedGuard.documents.map(document => document.projectId),
-  baselines: allExcludedGuard.report.baselinesMaterialized,
-  reverted: allExcludedGuard.report.baselineExclusionReverted,
-  reasons: allExcludedGuard.report.baselineFallbackReasons,
+eq('9a lege baseline-eigenaar sluit een niet-leeg bronproject nooit uit', {
+  documents: emptyOwnerImport.documents.map(document => document.projectId),
+  empty: emptyOwnerImport.report.emptyProjectsSkipped,
+  excluded: emptyOwnerImport.report.baselineProjectsExcluded,
+  baselines: emptyOwnerImport.report.baselinesMaterialized,
+  reverted: emptyOwnerImport.report.baselineExclusionReverted,
+  reasons: emptyOwnerImport.report.baselineFallbackReasons,
 }, {
-  documents: ['P-OPEN-A', 'P-OPEN-B'],
+  documents: ['P-BASE', 'P-THIRD'],
+  empty: 1,
+  excluded: 0,
   baselines: 0,
-  reverted: true,
-  reasons: ['all-projects-baselines'],
+  reverted: false,
+  reasons: [],
 });
 
 // Breuk die dit vangt: de baselinegraaf recursief aflopen. Een groot maar geldig bestand met een
@@ -598,6 +614,14 @@ eq('10 twee lokale perspectieven worden één solverloze externalLink tussen doc
   sequences: [0, 0],
   taskLinks: [0, 0],
 });
+eq('10a iedere betrokken documentpayload draagt exact dezelfde gededupliceerde bronlink',
+  linkImport.documents.map(document => ({
+    projectId: document.projectId,
+    links: document.result.xer.externalLinks,
+  })), [
+    { projectId: 'P-LINK-A', links: linkImport.externalLinks },
+    { projectId: 'P-LINK-B', links: linkImport.externalLinks },
+  ]);
 const solvedLinkB = solveProject({
   tasks: linkImport.documents[1].result.tasks.map(item => ({ ...item, time: { ...item.time } })),
   sequences: linkImport.documents[1].result.sequences,
@@ -751,6 +775,18 @@ function mapCorpusProject(source: XerTables, projectId: string): XerReadResult {
       calendarIssues: [],
       enumFallbacks: [],
       externalRelations: [],
+      externalLinks: [],
+      report: {
+        projectsSeen: 1,
+        documentsOpened: 1,
+        emptyProjectsSkipped: 0,
+        baselineProjectsExcluded: 0,
+        baselinesMaterialized: 0,
+        danglingBaselineReferences: 0,
+        externalLinksPreserved: 0,
+        baselineExclusionReverted: false,
+        baselineFallbackReasons: [],
+      },
     },
   };
 }

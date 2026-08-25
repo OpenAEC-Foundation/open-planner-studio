@@ -550,25 +550,43 @@ function readXerProject(tables: XerTables, projectId: string): XerReadResult {
       calendarIssues: calendars.issues,
       enumFallbacks,
       externalRelations,
+      externalLinks: [],
+      // `assembleXerMultiProjectImport` vervangt dit vóór de reader retourneert door het echte,
+      // bestandsbrede verslag. De verplichte vorm voorkomt dat een XER-document zonder X10-data
+      // door een nieuwe codeweg kan ontsnappen.
+      report: {
+        projectsSeen: 1,
+        documentsOpened: 1,
+        emptyProjectsSkipped: 0,
+        baselineProjectsExcluded: 0,
+        baselinesMaterialized: 0,
+        danglingBaselineReferences: 0,
+        externalLinksPreserved: 0,
+        baselineExclusionReverted: false,
+        baselineFallbackReasons: [],
+      },
     },
   };
 }
 
 /**
- * Lees de oorspronkelijke XER-bytes. Eén PROJECT behoudt de byte-identieke X4a-returnvorm;
- * meerdere PROJECT-rijen waaieren via X4b uit naar losse payloads. De baselinebeslissing zit vóór
- * de openroute: die krijgt dus uitsluitend documenten die echt als tab geopend mogen worden.
+ * Lees de oorspronkelijke XER-bytes. Eén PROJECT behoudt de enkelvoudige X4a-returnvorm, maar
+ * krijgt hetzelfde X4b-rapportcontract; meerdere PROJECT-rijen waaieren uit naar losse payloads.
+ * De baselinebeslissing zit vóór de openroute: die krijgt dus uitsluitend documenten die echt als
+ * tab geopend mogen worden.
  */
 export function readXER(bytes: Uint8Array): XerOpenResult {
   const tables = parseXerTables(bytes);
   const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
-  if (projectRows.length === 1) return readXerProject(tables, projectRows[0].cells.proj_id);
-
-  const multi = assembleXerMultiProjectImport(
+  const assembled = assembleXerMultiProjectImport(
     tables,
     projectId => readXerProject(tables, projectId),
   );
-  if (multi.results.length > 0) return multi;
+  if (assembled.results.length > 0) {
+    // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de
+    // rapportberekening loopt uniform door dezelfde X4b-kern als een meervoudig bestand.
+    return projectRows.length === 1 ? assembled.documents[0].result : assembled;
+  }
   throw new XerImportError(
     'XER_EMPTY_PROJECT',
     'Geen enkel XER-project bevat activiteiten om te openen.',
