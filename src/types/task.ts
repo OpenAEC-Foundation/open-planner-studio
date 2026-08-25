@@ -470,3 +470,9 @@ export interface Task {
   notes?: { id: string; text: string; done: boolean }[];
 }
 
+/** Itemtypes van de drie historisch inline arrays/objecten. De aliases veranderen de opgeslagen
+ * vorm niet, maar maken compile-time velddekking buiten dit bestand mogelijk. */
+export type TaskNote = NonNullable<Task['notes']>[number];
+export type TimephasedDurationWalk = NonNullable<Task['timephasedDurationWalks']>[number];
+export type ExternalSourceRef = ExternalLink['sourceRef'];
+

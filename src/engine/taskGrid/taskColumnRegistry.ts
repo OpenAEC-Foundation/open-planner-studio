@@ -1,0 +1,695 @@
+import type { Baseline, BaselineTask } from '@/types/baseline';
+import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
+import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
+import type { ConstraintType, MilestoneKind, Task, TaskStatus, TaskType } from '@/types/task';
+import type {
+  CellValidationError,
+  GridIntent,
+  GridResult,
+  TaskColumnCategory,
+  TaskColumnContext,
+  TaskColumnDescriptor,
+  TaskColumnId,
+} from '@/types/taskGrid';
+import {
+  activityCodeColumnId,
+  baselineColumnId,
+  customFieldColumnId,
+  taskColumnId,
+  type BaselineTaskColumnField,
+} from '@/engine/taskGrid/fieldIds';
+import { taskRelations, type TaskRelationEntry } from '@/engine/taskGrid/relationIndex';
+import { parseDuration as parseDurationMinutes } from '@/utils/durationFormat';
+
+export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
+  'task', 'planning', 'constraints', 'relations', 'resources',
+  'progress', 'computed', 'baseline', 'custom', 'technical',
+];
+
+export interface TaskColumnRegistryInput {
+  projectId: string;
+  activityCodeTypes: readonly ActivityCodeType[];
+  customFieldDefs: readonly CustomFieldDef[];
+  baselines: readonly Baseline[];
+}
+
+type ValueKind = TaskColumnDescriptor['valueKind'];
+type EditorKind = TaskColumnDescriptor['editorKind'];
+type Reader = (task: Task, ctx: TaskColumnContext) => unknown;
+type Formatter = (value: unknown, task: Task, ctx: TaskColumnContext) => string;
+type Parser = NonNullable<TaskColumnDescriptor['parse']>;
+type Validator = NonNullable<TaskColumnDescriptor['validate']>;
+type Writer = NonNullable<TaskColumnDescriptor['planWrite']>;
+
+interface ReadonlyColumnConfig {
+  id: string | TaskColumnId;
+  labelKey: string;
+  category: TaskColumnCategory;
+  valueKind: ValueKind;
+  defaultWidth?: number;
+  read: Reader;
+  format?: Formatter;
+  copy?: (task: Task, ctx: TaskColumnContext) => string;
+  available?: (ctx: TaskColumnContext) => boolean;
+}
+
+interface EditableColumnConfig extends Omit<ReadonlyColumnConfig, 'copy'> {
+  editorKind: Exclude<EditorKind, 'none'>;
+  readOnly?: (task: Task, ctx: TaskColumnContext) => boolean;
+  parse: Parser;
+  validate: Validator;
+  planWrite?: Writer;
+  copy?: (task: Task, ctx: TaskColumnContext) => string;
+}
+
+function success<T>(value: T): GridResult<T, readonly CellValidationError[]> {
+  return { ok: true, value };
+}
+
+function failure(code: string, value?: unknown): GridResult<never, readonly CellValidationError[]> {
+  return { ok: false, errors: [{ code, messageKey: `taskGrid.validation.${code}`, value }] };
+}
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(source).sort()) {
+      if (source[key] !== undefined) result[key] = canonicalize(source[key]);
+    }
+    return result;
+  }
+  return value;
+}
+
+export function canonicalGridJson(value: unknown): string {
+  return JSON.stringify(canonicalize(value)) ?? '';
+}
+
+function formatScalar(value: unknown): string {
+  if (value === undefined || value === null || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'Ja' : 'Nee';
+  if (typeof value === 'object') return canonicalGridJson(value);
+  return String(value);
+}
+
+function copyScalar(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'boolean') return value ? 'Ja' : 'Nee';
+  if (typeof value === 'object') return canonicalGridJson(value);
+  return String(value);
+}
+
+function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
+  const id = typeof config.id === 'string' ? taskColumnId(config.id) : config.id;
+  const format = config.format ?? ((value: unknown) => formatScalar(value));
+  const copy = config.copy ?? ((task: Task, ctx: TaskColumnContext) => copyScalar(config.read(task, ctx)));
+  return {
+    id,
+    labelKey: config.labelKey,
+    category: config.category,
+    valueKind: config.valueKind,
+    editorKind: 'none',
+    defaultWidth: config.defaultWidth ?? 140,
+    available: config.available ?? (() => true),
+    readOnly: true,
+    read: config.read,
+    format,
+    copy,
+    autoFitText: (task, ctx) => format(config.read(task, ctx), task, ctx),
+  };
+}
+
+function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
+  const id = typeof config.id === 'string' ? taskColumnId(config.id) : config.id;
+  const format = config.format ?? ((value: unknown) => formatScalar(value));
+  const copy = config.copy ?? ((task: Task, ctx: TaskColumnContext) => copyScalar(config.read(task, ctx)));
+  const planWrite: Writer = config.planWrite ?? ((value, task) => success<readonly GridIntent[]>([{
+    kind: 'cell-edit', taskId: task.id, columnId: id, value,
+  }]));
+  return {
+    id,
+    labelKey: config.labelKey,
+    category: config.category,
+    valueKind: config.valueKind,
+    editorKind: config.editorKind,
+    defaultWidth: config.defaultWidth ?? 140,
+    available: config.available ?? (() => true),
+    readOnly: config.readOnly ?? false,
+    read: config.read,
+    format,
+    copy,
+    parse: config.parse,
+    validate: config.validate,
+    planWrite,
+    autoFitText: (task, ctx) => format(config.read(task, ctx), task, ctx),
+  };
+}
+
+const parseText: Parser = text => success(text);
+const parseOptionalText: Parser = text => success(text.trim() === '' ? undefined : text);
+const validateAny: Validator = value => success(value);
+
+const parseNumber: Parser = text => {
+  if (text.trim() === '') return success(undefined);
+  const value = Number(text.trim().replace(',', '.'));
+  return Number.isFinite(value) ? success(value) : failure('number', text);
+};
+
+function finiteNumber(options: { min?: number; max?: number; integer?: boolean; optional?: boolean } = {}): Validator {
+  return value => {
+    if (value === undefined && options.optional) return success(undefined);
+    if (typeof value !== 'number' || !Number.isFinite(value)) return failure('number', value);
+    if (options.integer && !Number.isInteger(value)) return failure('integer', value);
+    if (options.min !== undefined && value < options.min) return failure('min', value);
+    if (options.max !== undefined && value > options.max) return failure('max', value);
+    return success(value);
+  };
+}
+
+const parseBoolean: Parser = text => {
+  const value = text.trim().toLocaleLowerCase();
+  if (value === '') return success(undefined);
+  if (['true', '1', 'ja', 'yes'].includes(value)) return success(true);
+  if (['false', '0', 'nee', 'no'].includes(value)) return success(false);
+  return failure('boolean', text);
+};
+const validateBoolean: Validator = value =>
+  value === undefined || typeof value === 'boolean' ? success(value) : failure('boolean', value);
+
+function enumParser(values: readonly string[], optional = false): Parser {
+  return text => {
+    const value = text.trim();
+    if (optional && value === '') return success(undefined);
+    const exact = values.find(option => option.toLocaleLowerCase() === value.toLocaleLowerCase());
+    return exact ? success(exact) : failure('enum', text);
+  };
+}
+
+function enumValidator(values: readonly string[], optional = false): Validator {
+  return value => {
+    if (optional && value === undefined) return success(undefined);
+    return typeof value === 'string' && values.includes(value)
+      ? success(value)
+      : failure('enum', value);
+  };
+}
+
+function isValidIso(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(value)) return false;
+  return Number.isFinite(Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value));
+}
+
+const parseDate: Parser = text => {
+  const value = text.trim();
+  if (value === '') return success(undefined);
+  return isValidIso(value) ? success(value) : failure('date', text);
+};
+const validateDate: Validator = value =>
+  value === undefined || (typeof value === 'string' && isValidIso(value))
+    ? success(value)
+    : failure('date', value);
+
+const parsePercentage: Parser = text => {
+  const normalized = text.trim().replace('%', '').replace(',', '.');
+  if (normalized === '') return failure('percentage', text);
+  const value = Number(normalized);
+  return Number.isFinite(value) ? success(value / 100) : failure('percentage', text);
+};
+const validatePercentage: Validator = value =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
+    ? success(value)
+    : failure('percentage', value);
+
+function effectiveHoursPerDay(task: Task, ctx: TaskColumnContext): number {
+  const supplied = ctx.effectiveHoursPerDay?.(task);
+  if (typeof supplied === 'number' && Number.isFinite(supplied) && supplied > 0) return supplied;
+  const minutes = task.time.durationMinutes;
+  if (minutes !== undefined && task.time.scheduleDuration > 0) {
+    const derived = minutes / task.time.scheduleDuration / 60;
+    if (Number.isFinite(derived) && derived > 0) return derived;
+  }
+  return 8;
+}
+
+const parseTaskDuration: Parser = (text, task, ctx) => {
+  if (text.trim() === '') return success(undefined);
+  const hoursPerDay = effectiveHoursPerDay(task, ctx);
+  const minutes = parseDurationMinutes(text, hoursPerDay);
+  return minutes === null ? failure('duration', text) : success(minutes / (hoursPerDay * 60));
+};
+const validateDuration = finiteNumber({ min: 0 });
+const validateOptionalDuration = finiteNumber({ min: 0, optional: true });
+
+const TASK_TYPES: readonly TaskType[] = [
+  'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
+  'MOVE', 'RENOVATION', 'MAINTENANCE', 'USERDEFINED',
+];
+const TASK_STATUSES: readonly TaskStatus[] = ['NOT_STARTED', 'STARTED', 'COMPLETED'];
+const MILESTONE_KINDS: readonly MilestoneKind[] = ['START', 'FINISH'];
+const CONSTRAINT_TYPES: readonly ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
+const RESOURCE_CURVES: readonly ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+
+function compactArraySummary(value: unknown, noun: string): string {
+  const count = Array.isArray(value) ? value.length : 0;
+  return count === 0 ? '—' : `${count} ${noun}${count === 1 ? '' : 'en'}`;
+}
+
+function relationLabel(entry: TaskRelationEntry, ctx: TaskColumnContext): string {
+  if (entry.kind === 'external') {
+    const source = entry.link.sourceRef.taskName || entry.link.sourceRef.taskId;
+    const lag = entry.link.lagMinutes ?? entry.link.lagDays;
+    return `${source} (${entry.link.relType}${lag ? `+${lag}` : ''})`;
+  }
+  const other = ctx.tasksById.get(entry.otherTaskId);
+  const label = other ? `${other.wbsCode} ${other.name}`.trim() : entry.otherTaskId;
+  const seq = entry.sequence;
+  const short = seq.type === 'FINISH_START' ? 'FS'
+    : seq.type === 'START_START' ? 'SS'
+      : seq.type === 'FINISH_FINISH' ? 'FF' : 'SF';
+  const lag = seq.lagPercent !== undefined ? `${seq.lagPercent}%`
+    : seq.lagMinutes !== undefined ? `${seq.lagMinutes}m`
+      : seq.lagDays ? `${seq.lagDays}d` : '';
+  return `${label} (${short}${lag ? `+${lag}` : ''})`;
+}
+
+function assignments(task: Task, ctx: TaskColumnContext): readonly ResourceAssignment[] {
+  return ctx.assignmentsByTaskId.get(task.id) ?? [];
+}
+
+function assignmentLabel(assignment: ResourceAssignment, ctx: TaskColumnContext): string {
+  return ctx.resourcesById.get(assignment.resourceId)?.name ?? assignment.resourceId;
+}
+
+function resolveAssignment(label: string, task: Task, ctx: TaskColumnContext): ResourceAssignment | undefined {
+  return assignments(task, ctx).find(item =>
+    item.id === label
+    || item.resourceId === label
+    || ctx.resourcesById.get(item.resourceId)?.name === label);
+}
+
+const parseAssignmentUnits: Parser = (text, task, ctx) => {
+  const tokens = parseTokens(text);
+  if (tokens.length === 0) return failure('assignmentUnits', text);
+  const result: { assignmentId: string; unitsPerDay: number }[] = [];
+  for (const token of tokens) {
+    const separator = token.lastIndexOf(':');
+    if (separator <= 0) return failure('assignmentUnits', token);
+    const assignment = resolveAssignment(token.slice(0, separator).trim(), task, ctx);
+    const unitsPerDay = Number(token.slice(separator + 1).trim().replace(',', '.'));
+    if (!assignment || !Number.isFinite(unitsPerDay) || unitsPerDay <= 0) return failure('assignmentUnits', token);
+    result.push({ assignmentId: assignment.id, unitsPerDay });
+  }
+  return success(result);
+};
+
+const validateAssignmentUnits: Validator = value => Array.isArray(value)
+  && value.length > 0
+  && value.every(item => {
+    const entry = item as { assignmentId?: unknown; unitsPerDay?: unknown };
+    return typeof entry.assignmentId === 'string'
+      && typeof entry.unitsPerDay === 'number'
+      && Number.isFinite(entry.unitsPerDay)
+      && entry.unitsPerDay > 0;
+  }) ? success(value) : failure('assignmentUnits', value);
+
+const parseAssignmentCurves: Parser = (text, task, ctx) => {
+  const tokens = parseTokens(text);
+  if (tokens.length === 0) return failure('assignmentCurve', text);
+  const result: { assignmentId: string; curve: ResourceCurve }[] = [];
+  for (const token of tokens) {
+    const separator = token.lastIndexOf(':');
+    if (separator <= 0) return failure('assignmentCurve', token);
+    const assignment = resolveAssignment(token.slice(0, separator).trim(), task, ctx);
+    const curve = token.slice(separator + 1).trim().toUpperCase() as ResourceCurve;
+    if (!assignment || !RESOURCE_CURVES.includes(curve)) return failure('assignmentCurve', token);
+    result.push({ assignmentId: assignment.id, curve });
+  }
+  return success(result);
+};
+
+const validateAssignmentCurves: Validator = value => Array.isArray(value)
+  && value.length > 0
+  && value.every(item => {
+    const entry = item as { assignmentId?: unknown; curve?: unknown };
+    return typeof entry.assignmentId === 'string'
+      && typeof entry.curve === 'string'
+      && RESOURCE_CURVES.includes(entry.curve as ResourceCurve);
+  }) ? success(value) : failure('assignmentCurve', value);
+
+function parseTokens(text: string): string[] {
+  return text.split(/[,;\n]/).map(value => value.trim()).filter(Boolean);
+}
+
+function fixedTaskColumns(): TaskColumnDescriptor[] {
+  const columns: TaskColumnDescriptor[] = [
+    readonlyColumn({ id: 'task.id', labelKey: 'taskGrid.columns.taskId', category: 'technical', valueKind: 'text', read: task => task.id }),
+    editableColumn({ id: 'task.name', labelKey: 'taskGrid.columns.name', category: 'task', valueKind: 'text', editorKind: 'text', defaultWidth: 220, read: task => task.name, parse: parseText, validate: value => typeof value === 'string' && value.trim() ? success(value) : failure('required', value) }),
+    editableColumn({ id: 'task.description', labelKey: 'taskGrid.columns.description', category: 'task', valueKind: 'text', editorKind: 'text', defaultWidth: 280, read: task => task.description, parse: parseText, validate: value => typeof value === 'string' ? success(value) : failure('text', value) }),
+    editableColumn({ id: 'task.wbsCode', labelKey: 'taskGrid.columns.wbs', category: 'task', valueKind: 'text', editorKind: 'text', read: task => task.wbsCode, readOnly: (_task, ctx) => ctx.wbsAutoNumber === true, parse: parseText, validate: value => typeof value === 'string' && value.trim() ? success(value) : failure('required', value) }),
+    editableColumn({ id: 'task.taskType', labelKey: 'taskGrid.columns.taskType', category: 'task', valueKind: 'enum', editorKind: 'enum', read: task => task.taskType, parse: enumParser(TASK_TYPES), validate: enumValidator(TASK_TYPES) }),
+    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
+    editableColumn({ id: 'task.isMilestone', labelKey: 'taskGrid.columns.milestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', read: task => task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.milestoneKind', labelKey: 'taskGrid.columns.milestoneKind', category: 'planning', valueKind: 'enum', editorKind: 'enum', read: task => task.milestoneKind, parse: enumParser(MILESTONE_KINDS, true), validate: enumValidator(MILESTONE_KINDS, true) }),
+    editableColumn({ id: 'task.mandatory', labelKey: 'taskGrid.columns.mandatoryMilestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', read: task => task.mandatory, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.priority', labelKey: 'taskGrid.columns.priority', category: 'planning', valueKind: 'number', editorKind: 'number', read: task => task.priority, parse: parseNumber, validate: finiteNumber({ min: 0, max: 1000, integer: true }) }),
+    readonlyColumn({ id: 'task.levelingDelay', labelKey: 'taskGrid.columns.levelingDelay', category: 'computed', valueKind: 'duration', read: task => task.levelingDelay }),
+    readonlyColumn({ id: 'task.levelingDelayMinutes', labelKey: 'taskGrid.columns.levelingDelayMinutes', category: 'technical', valueKind: 'number', read: task => task.levelingDelayMinutes }),
+    readonlyColumn({ id: 'task.levelingDelayElapsed', labelKey: 'taskGrid.columns.levelingDelayElapsed', category: 'technical', valueKind: 'boolean', read: task => task.levelingDelayElapsed }),
+    readonlyColumn({
+      id: 'task.splitGaps', labelKey: 'taskGrid.columns.splitGaps', category: 'planning', valueKind: 'technical',
+      read: task => task.splitGaps, format: value => compactArraySummary(value, 'onderbreking'),
+      copy: task => canonicalGridJson(task.splitGaps ?? []),
+    }),
+    readonlyColumn({ id: 'task.timephasedFinishFloor', labelKey: 'taskGrid.columns.timephasedFinishFloor', category: 'technical', valueKind: 'datetime', read: task => task.timephasedFinishFloor }),
+    readonlyColumn({ id: 'task.timephasedStartAnchor', labelKey: 'taskGrid.columns.timephasedStartAnchor', category: 'technical', valueKind: 'datetime', read: task => task.timephasedStartAnchor }),
+    readonlyColumn({
+      id: 'task.timephasedDurationWalks', labelKey: 'taskGrid.columns.timephasedDurationWalks', category: 'technical', valueKind: 'technical',
+      read: task => task.timephasedDurationWalks, format: value => compactArraySummary(value, 'duurwandeling'),
+      copy: task => canonicalGridJson(task.timephasedDurationWalks ?? []),
+    }),
+    readonlyColumn({
+      id: 'task.timephasedContours', labelKey: 'taskGrid.columns.timephasedContours', category: 'technical', valueKind: 'technical',
+      read: task => task.timephasedContours, format: value => compactArraySummary(value, 'contour'),
+      copy: task => canonicalGridJson(task.timephasedContours ?? []),
+    }),
+    readonlyColumn({ id: 'task.manuallyScheduled', labelKey: 'taskGrid.columns.manuallyScheduled', category: 'technical', valueKind: 'boolean', read: task => task.manuallyScheduled }),
+    readonlyColumn({ id: 'task.mspTaskType', labelKey: 'taskGrid.columns.mspTaskType', category: 'technical', valueKind: 'enum', read: task => task.mspTaskType }),
+    readonlyColumn({ id: 'task.effortDriven', labelKey: 'taskGrid.columns.effortDriven', category: 'technical', valueKind: 'boolean', read: task => task.effortDriven }),
+    readonlyColumn({ id: 'task.parentId', labelKey: 'taskGrid.columns.parentId', category: 'technical', valueKind: 'text', read: task => task.parentId }),
+    readonlyColumn({ id: 'task.childIds', labelKey: 'taskGrid.columns.childIds', category: 'technical', valueKind: 'technical', read: task => task.childIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.childIds) }),
+    readonlyColumn({ id: 'task.resourceIds', labelKey: 'taskGrid.columns.resourceIds', category: 'technical', valueKind: 'technical', read: task => task.resourceIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.resourceIds) }),
+    readonlyColumn({ id: 'task.activityCodes.technical', labelKey: 'taskGrid.columns.activityCodeData', category: 'technical', valueKind: 'technical', read: task => task.activityCodes, format: value => value && typeof value === 'object' && Object.keys(value).length ? `${Object.keys(value).length} codetoewijzing(en)` : '—', copy: task => canonicalGridJson(task.activityCodes ?? {}) }),
+    readonlyColumn({ id: 'task.customFields.technical', labelKey: 'taskGrid.columns.customFieldData', category: 'technical', valueKind: 'technical', read: task => task.customFields, format: value => value && typeof value === 'object' && Object.keys(value).length ? `${Object.keys(value).length} eigen veld(en)` : '—', copy: task => canonicalGridJson(task.customFields ?? {}) }),
+    editableColumn({ id: 'task.color', labelKey: 'taskGrid.columns.color', category: 'task', valueKind: 'text', editorKind: 'color', read: task => task.color, parse: parseOptionalText, validate: value => value === undefined || typeof value === 'string' ? success(value) : failure('color', value) }),
+    editableColumn({ id: 'task.constraint.type', labelKey: 'taskGrid.columns.constraintType', category: 'constraints', valueKind: 'enum', editorKind: 'enum', read: task => task.constraint?.type ?? 'ASAP', parse: enumParser(CONSTRAINT_TYPES), validate: enumValidator(CONSTRAINT_TYPES) }),
+    editableColumn({ id: 'task.constraint.date', labelKey: 'taskGrid.columns.constraintDate', category: 'constraints', valueKind: 'date', editorKind: 'date', read: task => task.constraint?.date, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.constraint.hard', labelKey: 'taskGrid.columns.constraintHard', category: 'constraints', valueKind: 'boolean', editorKind: 'boolean', read: task => task.constraint?.hard, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.constraint2.type', labelKey: 'taskGrid.columns.constraint2Type', category: 'constraints', valueKind: 'enum', editorKind: 'enum', read: task => task.constraint2?.type, parse: enumParser(CONSTRAINT_TYPES, true), validate: enumValidator(CONSTRAINT_TYPES, true) }),
+    editableColumn({ id: 'task.constraint2.date', labelKey: 'taskGrid.columns.constraint2Date', category: 'constraints', valueKind: 'date', editorKind: 'date', read: task => task.constraint2?.date, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.isHammock', labelKey: 'taskGrid.columns.hammock', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', read: task => task.isHammock, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.deadline', labelKey: 'taskGrid.columns.deadline', category: 'constraints', valueKind: 'date', editorKind: 'date', read: task => task.deadline, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.calendarId', labelKey: 'taskGrid.columns.calendar', category: 'planning', valueKind: 'text', editorKind: 'autocomplete', read: task => task.calendarId, parse: parseOptionalText, validate: validateAny }),
+    readonlyColumn({
+      id: 'task.notes', labelKey: 'taskGrid.columns.notes', category: 'task', valueKind: 'text', defaultWidth: 240,
+      read: task => task.notes,
+      format: value => Array.isArray(value) && value.length
+        ? value.map(note => `${(note as { done: boolean }).done ? '✓' : '○'} ${(note as { text: string }).text}`).join('; ')
+        : '—',
+      copy: task => (task.notes ?? []).map(note => `${note.done ? '✓' : '○'} ${note.text}`).join('; '),
+    }),
+    readonlyColumn({
+      id: 'task.notes.technical', labelKey: 'taskGrid.columns.noteData', category: 'technical', valueKind: 'technical',
+      read: task => task.notes, format: value => compactArraySummary(value, 'notitie'),
+      copy: task => canonicalGridJson(task.notes ?? []),
+    }),
+  ];
+
+  columns.push(...fixedTimeColumns(), ...fixedRelationColumns(), ...fixedAssignmentColumns());
+  return columns;
+}
+
+function fixedTimeColumns(): TaskColumnDescriptor[] {
+  return [
+    editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', read: task => task.time.scheduleDuration, readOnly: task => task.isHammock === true, format: value => value === undefined ? '—' : `${value}d`, copy: task => `${task.time.scheduleDuration}d`, parse: parseTaskDuration, validate: validateDuration }),
+    readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
+    editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', read: task => task.time.scheduleFinish, parse: parseDate, validate: validateDate }),
+    readonlyColumn({ id: 'task.time.resume', labelKey: 'taskGrid.columns.resume', category: 'progress', valueKind: 'datetime', read: task => task.time.resume }),
+    readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
+    readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),
+    readonlyColumn({ id: 'task.time.earlyFinish', labelKey: 'taskGrid.columns.earlyFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyFinish }),
+    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: task => task.time.lateStart }),
+    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.lateFinish }),
+    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: task => task.time.freeFloat }),
+    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: task => task.time.totalFloat }),
+    readonlyColumn({ id: 'task.time.isCritical', labelKey: 'taskGrid.columns.critical', category: 'computed', valueKind: 'boolean', read: task => task.time.isCritical }),
+    readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat }),
+    readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
+    readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
+    editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
+    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', read: task => task.time.remainingTime, parse: parseTaskDuration, validate: validateOptionalDuration }),
+    readonlyColumn({ id: 'task.time.remainingMinutes', labelKey: 'taskGrid.columns.remainingMinutes', category: 'technical', valueKind: 'number', read: task => task.time.remainingMinutes }),
+    editableColumn({ id: 'task.time.completion', labelKey: 'taskGrid.columns.completion', category: 'progress', valueKind: 'number', editorKind: 'percentage', read: task => task.time.completion, format: value => typeof value === 'number' ? `${Math.round(value * 10000) / 100}%` : '—', copy: task => `${Math.round(task.time.completion * 10000) / 100}%`, parse: parsePercentage, validate: validatePercentage }),
+  ];
+}
+
+function fixedRelationColumns(): TaskColumnDescriptor[] {
+  const relationColumn = (direction: 'predecessor' | 'successor'): TaskColumnDescriptor => editableColumn({
+    id: `relation.${direction}s`,
+    labelKey: `taskGrid.columns.${direction}s`,
+    category: 'relations',
+    valueKind: 'tokens',
+    editorKind: 'relations',
+    defaultWidth: 240,
+    read: (task, ctx) => taskRelations(ctx.relationIndex, task.id, direction),
+    format: (value, _task, ctx) => Array.isArray(value) && value.length
+      ? (value as TaskRelationEntry[]).map(entry => relationLabel(entry, ctx)).join(', ')
+      : '—',
+    copy: (task, ctx) => taskRelations(ctx.relationIndex, task.id, direction).map(entry => relationLabel(entry, ctx)).join(', '),
+    parse: text => success(parseTokens(text)),
+    validate: value => Array.isArray(value) && value.every(token => typeof token === 'string') ? success(value) : failure('relations', value),
+    planWrite: (value, task) => success([{ kind: 'relation-set', taskId: task.id, direction, value }]),
+  });
+  return [
+    relationColumn('predecessor'),
+    relationColumn('successor'),
+    readonlyColumn({
+      id: 'relation.internalTechnical', labelKey: 'taskGrid.columns.internalRelationData', category: 'technical', valueKind: 'technical',
+      read: (task, ctx) => ctx.relationIndex.internalByTaskId.get(task.id) ?? [],
+      format: value => compactArraySummary(value, 'interne relatie'),
+      copy: (task, ctx) => canonicalGridJson(ctx.relationIndex.internalByTaskId.get(task.id) ?? []),
+    }),
+    readonlyColumn({
+      id: 'relation.externalTechnical', labelKey: 'taskGrid.columns.externalRelationData', category: 'technical', valueKind: 'technical',
+      read: (task, ctx) => ctx.relationIndex.externalByTaskId.get(task.id) ?? [],
+      format: value => compactArraySummary(value, 'externe relatie'),
+      copy: (task, ctx) => canonicalGridJson(ctx.relationIndex.externalByTaskId.get(task.id) ?? []),
+    }),
+  ];
+}
+
+function fixedAssignmentColumns(): TaskColumnDescriptor[] {
+  return [
+    editableColumn({
+      id: 'assignment.resources', labelKey: 'taskGrid.columns.assignedResources', category: 'resources', valueKind: 'tokens', editorKind: 'autocomplete', defaultWidth: 220,
+      read: (task, ctx) => assignments(task, ctx).map(item => item.resourceId),
+      format: (value, _task, ctx) => Array.isArray(value) && value.length
+        ? value.map(id => ctx.resourcesById.get(String(id))?.name ?? String(id)).join(', ') : '—',
+      copy: (task, ctx) => assignments(task, ctx).map(item => assignmentLabel(item, ctx)).join(', '),
+      parse: text => success(parseTokens(text)),
+      validate: value => Array.isArray(value) && value.every(token => typeof token === 'string') ? success(value) : failure('assignments', value),
+      planWrite: (value, task) => success([{ kind: 'assignment-set', taskId: task.id, value }]),
+    }),
+    editableColumn({
+      id: 'assignment.unitsPerDay', labelKey: 'taskGrid.columns.assignmentUnits', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
+      read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, resourceId: item.resourceId, unitsPerDay: item.unitsPerDay })),
+      readOnly: (task, ctx) => assignments(task, ctx).length === 0,
+      format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
+        const item = raw as { resourceId: string; unitsPerDay: number };
+        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.unitsPerDay}`;
+      }).join(', ') : '—',
+      copy: (task, ctx) => assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.unitsPerDay}`).join(', '),
+      parse: parseAssignmentUnits, validate: validateAssignmentUnits,
+    }),
+    editableColumn({
+      id: 'assignment.curve', labelKey: 'taskGrid.columns.assignmentCurve', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
+      read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, resourceId: item.resourceId, curve: item.curve ?? 'UNIFORM' })),
+      readOnly: (task, ctx) => assignments(task, ctx).length === 0,
+      format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
+        const item = raw as { resourceId: string; curve: ResourceCurve };
+        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.curve}`;
+      }).join(', ') : '—',
+      copy: (task, ctx) => assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.curve ?? 'UNIFORM'}`).join(', '),
+      parse: parseAssignmentCurves,
+      validate: validateAssignmentCurves,
+    }),
+    readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: value => compactArraySummary((value as unknown[]).filter(item => (item as { value?: string }).value), 'werkvenster'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
+    readonlyColumn({ id: 'assignment.workWindowFinish', labelKey: 'taskGrid.columns.workWindowFinish', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowFinish })), format: value => compactArraySummary((value as unknown[]).filter(item => (item as { value?: string }).value), 'werkvenster'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowFinish: item.workWindowFinish }))) }),
+    readonlyColumn({ id: 'assignment.id', labelKey: 'taskGrid.columns.assignmentId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.id), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.id)) }),
+    readonlyColumn({ id: 'assignment.taskId', labelKey: 'taskGrid.columns.assignmentTaskId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.taskId), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.taskId)) }),
+    readonlyColumn({ id: 'assignment.resourceId', labelKey: 'taskGrid.columns.assignmentResourceId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.resourceId), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.resourceId)) }),
+  ];
+}
+
+function activityCodeColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
+  return input.activityCodeTypes.map(type => {
+    const id = activityCodeColumnId(input.projectId, type.id);
+    return editableColumn({
+      id,
+      labelKey: type.name,
+      category: 'custom',
+      valueKind: 'enum',
+      editorKind: 'autocomplete',
+      read: task => task.activityCodes?.[type.id],
+      format: value => {
+        if (value === undefined) return '—';
+        const item = type.values.find(candidate => candidate.id === value);
+        return item ? item.code : String(value);
+      },
+      copy: task => {
+        const valueId = task.activityCodes?.[type.id];
+        return valueId === undefined ? '' : type.values.find(value => value.id === valueId)?.code ?? valueId;
+      },
+      parse: parseOptionalText,
+      validate: value => {
+        if (value === undefined) return success(undefined);
+        if (typeof value !== 'string') return failure('activityCode', value);
+        const match = type.values.find(candidate => candidate.id === value || candidate.code === value);
+        return match ? success(match.id) : failure('activityCode', value);
+      },
+    });
+  });
+}
+
+function customFieldParser(def: CustomFieldDef): Parser {
+  if (def.type === 'number' || def.type === 'integer' || def.type === 'cost') return parseNumber;
+  if (def.type === 'date') return parseDate;
+  if (def.type === 'boolean') return parseBoolean;
+  return parseOptionalText;
+}
+
+function customFieldValidator(def: CustomFieldDef): Validator {
+  if (def.type === 'number' || def.type === 'cost') return finiteNumber({ optional: true });
+  if (def.type === 'integer') return finiteNumber({ integer: true, optional: true });
+  if (def.type === 'date') return validateDate;
+  if (def.type === 'boolean') return validateBoolean;
+  return value => value === undefined || typeof value === 'string' ? success(value) : failure('text', value);
+}
+
+function customEditorKind(def: CustomFieldDef): Exclude<EditorKind, 'none'> {
+  if (def.type === 'number' || def.type === 'integer' || def.type === 'cost') return 'number';
+  if (def.type === 'date') return 'date';
+  if (def.type === 'boolean') return 'boolean';
+  return 'text';
+}
+
+function customValueKind(def: CustomFieldDef): ValueKind {
+  if (def.type === 'number' || def.type === 'integer' || def.type === 'cost') return 'number';
+  if (def.type === 'date') return 'date';
+  if (def.type === 'boolean') return 'boolean';
+  return 'text';
+}
+
+function customFieldColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
+  return input.customFieldDefs.map(def => editableColumn({
+    id: customFieldColumnId(input.projectId, def.id),
+    labelKey: def.name,
+    category: 'custom',
+    valueKind: customValueKind(def),
+    editorKind: customEditorKind(def),
+    read: task => task.customFields?.[def.id],
+    parse: customFieldParser(def),
+    validate: customFieldValidator(def),
+  }));
+}
+
+const BASELINE_MISSING = Symbol('baseline-missing');
+
+function defaultSignedWeekdaysBetween(fromIso: string, toIso: string): number {
+  const from = new Date(`${fromIso.slice(0, 10)}T00:00:00Z`);
+  const to = new Date(`${toIso.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return 0;
+  const sign = from <= to ? 1 : -1;
+  let cursor = new Date(sign === 1 ? from : to);
+  const end = sign === 1 ? to : from;
+  let workdays = 0;
+  while (cursor < end) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    const day = cursor.getUTCDay();
+    if (day !== 0 && day !== 6) workdays++;
+  }
+  return sign * workdays;
+}
+
+function currentTaskDate(task: Task, field: 'start' | 'finish'): string {
+  return field === 'start'
+    ? task.time.earlyStart || task.time.scheduleStart
+    : task.time.earlyFinish || task.time.scheduleFinish;
+}
+
+function baselineValue(
+  field: BaselineTaskColumnField,
+  baselineTask: BaselineTask,
+  task: Task,
+  ctx: TaskColumnContext,
+): unknown {
+  if (field === 'start') return baselineTask.start;
+  if (field === 'finish') return baselineTask.finish;
+  if (field === 'duration') return baselineTask.duration;
+  if (field === 'isMilestone') return baselineTask.isMilestone;
+  if (field === 'milestoneKind') return baselineTask.milestoneKind;
+  if (field === 'varianceDuration') return task.time.scheduleDuration - baselineTask.duration;
+  const dateField = field === 'varianceStart' ? 'start' : 'finish';
+  const from = dateField === 'start' ? baselineTask.start : baselineTask.finish;
+  const to = currentTaskDate(task, dateField);
+  return (ctx.signedWorkDaysBetween ?? defaultSignedWeekdaysBetween)(from, to);
+}
+
+function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
+  const result: TaskColumnDescriptor[] = [];
+  const fields: readonly BaselineTaskColumnField[] = [
+    'start', 'finish', 'duration', 'varianceStart', 'varianceFinish', 'varianceDuration',
+    'isMilestone', 'milestoneKind',
+  ];
+  for (const baseline of input.baselines) {
+    // Expliciet één indexbouw per baseline. De descriptor-readers doen alleen Map.get(task.id).
+    const taskIndex = new Map(baseline.tasks.map(task => [task.taskId, task] as const));
+    for (const fieldName of fields) {
+      const technical = fieldName === 'isMilestone' || fieldName === 'milestoneKind';
+      const valueKind: ValueKind = fieldName === 'start' || fieldName === 'finish' ? 'datetime'
+        : fieldName === 'isMilestone' ? 'boolean'
+          : fieldName === 'milestoneKind' ? 'enum'
+            : fieldName === 'duration' ? 'duration' : 'number';
+      result.push(readonlyColumn({
+        id: baselineColumnId(input.projectId, baseline.id, fieldName),
+        labelKey: `${baseline.name} — ${fieldName}`,
+        category: technical ? 'technical' : 'baseline',
+        valueKind,
+        available: ctx => ctx.projectId === input.projectId && ctx.baselinesById.has(baseline.id),
+        read: (task, ctx) => {
+          const snapshot = taskIndex.get(task.id);
+          return snapshot ? baselineValue(fieldName, snapshot, task, ctx) : BASELINE_MISSING;
+        },
+        format: value => value === BASELINE_MISSING ? '—' : formatScalar(value),
+        copy: (task, ctx) => {
+          const snapshot = taskIndex.get(task.id);
+          return snapshot ? copyScalar(baselineValue(fieldName, snapshot, task, ctx)) : '';
+        },
+      }));
+    }
+  }
+  return result;
+}
+
+/** Bouwt de volledige headless registry. De categorie-sortering is stabiel; binnen een categorie
+ * blijft de declaratie/projectvolgorde behouden. Dubbele ids zijn een programmeerfout en stoppen
+ * de bouw onmiddellijk in plaats van stil een descriptor te overschrijven. */
+export function buildTaskColumnRegistry(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
+  const columns = [
+    ...fixedTaskColumns(),
+    ...activityCodeColumns(input),
+    ...customFieldColumns(input),
+    ...baselineColumns(input),
+  ];
+  const seen = new Set<TaskColumnId>();
+  for (const column of columns) {
+    if (seen.has(column.id)) throw new Error(`Dubbele TaskColumnId: ${column.id}`);
+    seen.add(column.id);
+  }
+  return columns
+    .map((column, declarationIndex) => ({ column, declarationIndex }))
+    .sort((a, b) => TASK_COLUMN_CATEGORY_ORDER.indexOf(a.column.category)
+      - TASK_COLUMN_CATEGORY_ORDER.indexOf(b.column.category)
+      || a.declarationIndex - b.declarationIndex)
+    .map(item => item.column);
+}
+
+/** Type-only garantie dat dynamische custom fields uitsluitend de bestaande opgeslagen union
+ * produceren. Houdt de import hierboven betekenisdragend wanneer alle concrete defs runtime zijn. */
+const _customFieldValueContract: CustomFieldValue | undefined = undefined;
+void _customFieldValueContract;

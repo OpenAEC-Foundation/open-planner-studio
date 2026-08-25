@@ -569,6 +569,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   #  (2) De round-trip zelf: writeIFC→readIFC veld-voor-veld + idempotentie + KNOWN_GAPS.
   node "$ROOT/node_modules/.bin/tsc" --noEmit -p "$DIR/tsconfig.check.json" || STATUS=1
 
+  # Tabel-overhaul Task 2: stabiele dynamische kolom-id's, registrycontract en compile-time
+  # velddekking. Beide checks zijn headless en importeren geen Zustand-store.
+  TGREGCHECK="$DIR/.task-column-registry.mjs"
+  if bundle_check "$DIR/check-task-column-registry.ts" "$TGREGCHECK"; then node "$TGREGCHECK" || STATUS=1; fi
+  TGFIELDCHECK="$DIR/.task-field-coverage.mjs"
+  if bundle_check "$DIR/check-task-field-coverage.ts" "$TGFIELDCHECK"; then node "$TGFIELDCHECK" || STATUS=1; fi
+
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
 
