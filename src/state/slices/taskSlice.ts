@@ -313,6 +313,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         priority: partial.priority ?? 500,
         parentId,
         childIds: [],
+        isSummary: partial.isSummary,
         // T14b (gebruikstestbevinding, ernst hoog — dataverlies): een meegegeven `partial.time` wordt
         // veld-voor-veld gemerged met de verse default i.p.v. ongewijzigd overgenomen — anders bleef
         // een ontbrekend veld (bv. `completion`) `undefined` tot writeIFC crashte op

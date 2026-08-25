@@ -61,6 +61,37 @@ test('draft.addTask mijlpaal ⇒ duur 0, gewone taak ⇒ default 5', () => {
   assertEq(store.getState().tasks.find((t) => t.id === normalId)?.time.scheduleDuration, 5, 'gewone taak hoort default-duur 5 te krijgen');
 });
 
+test('draft add/update bewaart en reset een lege summary zonder stille solvertaak', () => {
+  let summaryId = '';
+  const added = runInMcpTransaction(() => {
+    summaryId = draft.addTask({ name: 'Draft lege summary', isSummary: true });
+  });
+  assert(added.ok, 'aanmaaktransactie hoort te slagen');
+  assertEq(store.getState().tasks.find((task) => task.id === summaryId)?.isSummary, true,
+    'draft.addTask hoort expliciet true te bewaren');
+  assertEq(store.getState().cpmResult?.tasks.has(summaryId), false,
+    'de lege draft-summary hoort buiten CPMResult.tasks te blijven');
+
+  const reset = runInMcpTransaction(() => {
+    draft.updateTaskFields(summaryId, { isSummary: false });
+  });
+  assert(reset.ok, 'resettransactie hoort te slagen');
+  assertEq(store.getState().tasks.find((task) => task.id === summaryId)?.isSummary, false,
+    'draft.updateTaskFields hoort expliciet false als bewuste reset te bewaren');
+  assertEq(store.getState().cpmResult?.tasks.has(summaryId), true,
+    'de bewust teruggezette taak hoort weer een solvertaak te zijn');
+
+  let regularId = '';
+  const regular = runInMcpTransaction(() => {
+    regularId = draft.addTask({ name: 'Draft gewone taak' });
+  });
+  assert(regular.ok, 'gewone aanmaaktransactie hoort te slagen');
+  assertEq(store.getState().tasks.find((task) => task.id === regularId)?.isSummary, undefined,
+    'draft.addTask mag een gewone invoer niet per ongeluk summary maken');
+  assertEq(store.getState().cpmResult?.tasks.has(regularId), true,
+    'de gewone draft-taak hoort in CPMResult.tasks te staan');
+});
+
 test('draft.addTask erft taskType van de ouder wanneer de aanroeper er zelf geen opgeeft', () => {
   const parentId = store.getState().addTask({ name: 'mcp-ouder', taskType: 'LOGISTIC' });
 

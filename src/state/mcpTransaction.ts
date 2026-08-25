@@ -243,6 +243,7 @@ export const draft = {
         priority: partial.priority ?? 500,
         parentId,
         childIds: [],
+        isSummary: partial.isSummary,
         // T14b (gebruikstestbevinding, ernst hoog — dataverlies): zie taskSlice.ts addTask — zelfde
         // veld-voor-veld-merge, MCP-pad. Een ongemerged meegegeven `time` liet writeIFC crashen op
         // een ontbrekend `completion` (`time.completion.toFixed(1)` in ifcTaskSlots.ts).
