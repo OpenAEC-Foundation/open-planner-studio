@@ -2,8 +2,9 @@
 
 import type { Resource, ResourceType } from '@/types/resource';
 import type {
-  XerEntityIdentity, XerResourceIssue, XerResourceRateSource, XerResourceReadContext,
-  XerResourceReadResult, XerResourceSource, XerRoleSource,
+  XerCurvePoints, XerEntityIdentity, XerReadonly, XerResourceCurveSource, XerResourceIssue,
+  XerResourceRateSource, XerResourceReadContext, XerResourceReadResult, XerResourceSource,
+  XerRoleSource,
 } from './xerResourceTypes';
 import { parseXerNumber, XerImportError, type XerRow, type XerTables } from './xerTables';
 import { readXerResourceCurves } from './xerResourceCurves';
@@ -15,16 +16,16 @@ export type {
 } from './xerResourceTypes';
 
 export interface XerResourceCatalog {
-  resources: Resource[];
-  identities: XerEntityIdentity[];
-  rows: {
-    resources: XerResourceSource[];
-    roles: XerRoleSource[];
-    rates: XerResourceRateSource[];
-    curves: ReturnType<typeof readXerResourceCurves>['sources'];
-    assignments: XerRow[];
+  readonly resources: readonly XerReadonly<Resource>[];
+  readonly identities: readonly XerReadonly<XerEntityIdentity>[];
+  readonly rows: {
+    readonly resources: readonly XerReadonly<XerResourceSource>[];
+    readonly roles: readonly XerReadonly<XerRoleSource>[];
+    readonly rates: readonly XerReadonly<XerResourceRateSource>[];
+    readonly curves: readonly XerReadonly<XerResourceCurveSource>[];
+    readonly assignments: readonly XerReadonly<XerRow>[];
   };
-  issues: XerResourceIssue[];
+  readonly issues: readonly XerReadonly<XerResourceIssue>[];
 }
 
 function resourceInternalId(sourceId: string): string { return `xer-resource:${sourceId}`; }
@@ -174,14 +175,39 @@ export function buildXerResourceCatalog(tables: XerTables, availableCalendarIds:
       assignments: [...(tables.tables.get('TASKRSRC')?.rows ?? [])],
     },
     issues,
-  });
+  }) as XerResourceCatalog;
+}
+
+function cloneResourceSource(source: XerReadonly<XerResourceSource>): XerResourceSource {
+  return { ...source };
+}
+function cloneRoleSource(source: XerReadonly<XerRoleSource>): XerRoleSource {
+  return { ...source };
+}
+function cloneRateSource(source: XerReadonly<XerResourceRateSource>): XerResourceRateSource {
+  return { ...source, entity: { ...source.entity }, costs: [...source.costs] as XerResourceRateSource['costs'] };
+}
+function cloneCurveSource(source: XerReadonly<XerResourceCurveSource>): XerResourceCurveSource {
+  const { rawPoints, numericPoints, ...withoutPoints } = source;
+  return {
+    ...withoutPoints,
+    rawPoints: [...rawPoints] as XerCurvePoints<string>,
+    ...(numericPoints ? { numericPoints: [...numericPoints] as XerCurvePoints<number> } : {}),
+  };
 }
 
 /** Projectbound: kopieert uitsluitend de mutable projectprojectie en leest alleen zijn lineair gevonden TASKRSRC-rijen. */
 export function materializeXerResources(catalog: XerResourceCatalog, tables: XerTables, context: XerResourceReadContext, assignmentRows: readonly XerRow[]): XerResourceReadResult {
   const resources = structuredClone(catalog.resources) as Resource[];
   const assignments = readXerResourceAssignments(tables, context, resources, catalog.rows.resources, catalog.rows.roles, catalog.rows.rates, catalog.rows.curves, assignmentRows);
-  return { resources: [...resources, ...assignments.roleResources], assignments: assignments.assignments, identities: [...catalog.identities],
-    sources: { resources: [...catalog.rows.resources], roles: [...catalog.rows.roles], rates: [...catalog.rows.rates], curves: [...catalog.rows.curves], assignments: assignments.sources },
-    issues: [...catalog.issues, ...assignments.issues] };
+  return { resources: [...resources, ...assignments.roleResources], assignments: assignments.assignments,
+    identities: catalog.identities.map(identity => ({ ...identity })),
+    sources: {
+      resources: catalog.rows.resources.map(cloneResourceSource),
+      roles: catalog.rows.roles.map(cloneRoleSource),
+      rates: catalog.rows.rates.map(cloneRateSource),
+      curves: catalog.rows.curves.map(cloneCurveSource),
+      assignments: assignments.sources,
+    },
+    issues: [...catalog.issues.map(issue => ({ ...issue })), ...assignments.issues] };
 }

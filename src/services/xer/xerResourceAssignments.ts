@@ -3,8 +3,8 @@
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type {
   XerAssignmentCostsSource, XerAssignmentQuantitiesSource, XerAssignmentUnitScale,
-  XerResourceCurveSource, XerResourceIssue, XerResourceRateSource, XerResourceReadContext,
-  XerResourceSource, XerRoleSource, XerTaskResourceSource,
+  XerReadonly, XerResourceCurveSource, XerResourceIssue, XerResourceRateSource,
+  XerResourceReadContext, XerResourceSource, XerRoleSource, XerTaskResourceSource,
 } from './xerResourceTypes';
 import { parseXerNumber, XerImportError, type XerRow, type XerTables } from './xerTables';
 
@@ -103,15 +103,15 @@ export function indexXerTaskResourceRows(tables: XerTables): ReadonlyMap<string,
 
 export function readXerResourceAssignments(
   tables: XerTables, context: XerResourceReadContext, resources: readonly Resource[],
-  resourceSources: readonly XerResourceSource[], roles: readonly XerRoleSource[],
-  rates: readonly XerResourceRateSource[], curves: readonly XerResourceCurveSource[],
+  resourceSources: readonly XerReadonly<XerResourceSource>[], roles: readonly XerReadonly<XerRoleSource>[],
+  rates: readonly XerReadonly<XerResourceRateSource>[], curves: readonly XerReadonly<XerResourceCurveSource>[],
   rows: readonly XerRow[] = [],
 ): { assignments: ResourceAssignment[]; roleResources: Resource[]; sources: XerTaskResourceSource[]; issues: XerResourceIssue[] } {
   assertUniqueAssignmentIds(rows);
   const resourceSourceById = new Map(resourceSources.map(source => [source.sourceId, source]));
   const resourceByInternalId = new Map(resources.map(resource => [resource.id, resource]));
   const roleById = new Map(roles.map(role => [role.sourceId, role]));
-  const roleRatesById = new Map<string, XerResourceRateSource[]>();
+  const roleRatesById = new Map<string, XerReadonly<XerResourceRateSource>[]>();
   for (const rate of rates) {
     if (rate.entity.kind !== 'ROLE') continue;
     const current = roleRatesById.get(rate.entity.sourceId) ?? [];

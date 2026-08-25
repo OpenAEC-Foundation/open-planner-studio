@@ -1,6 +1,17 @@
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { XerRow } from './xerTables';
 
+/**
+ * Catalogusweergave zonder tweede type-eiland: behoudt tuplevormen en maakt
+ * elke laag van de gedeelde bestandsbrede grafiek readonly. De gewone Xer*-typen
+ * hieronder blijven juist de mutable per-projectprojectie beschrijven.
+ */
+export type XerReadonly<T> = T extends readonly unknown[]
+  ? { readonly [Key in keyof T]: XerReadonly<T[Key]> }
+  : T extends object
+    ? { readonly [Key in keyof T]: XerReadonly<T[Key]> }
+    : T;
+
 /** Dezelfde parserrij, readonly aangeboden: volledige XER-brondata zonder tweede celobject. */
 export type XerSourceRow = Readonly<{
   line: XerRow['line'];

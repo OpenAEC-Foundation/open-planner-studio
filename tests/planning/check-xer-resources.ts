@@ -39,6 +39,16 @@ function rejectsMutation(label: string, mutate: () => void): void {
   }
 }
 
+/** Een clone-regressie mag deze contracttest niet vóór zijn diagnostiek doen crashen. */
+function mutatesProjectView(label: string, mutate: () => void): void {
+  checks++;
+  try {
+    mutate();
+  } catch (error) {
+    diffs.push(`${label}: gematerialiseerde projectie is niet mutable (${error instanceof TypeError ? error.message : String(error)})`);
+  }
+}
+
 function bytes(lines: readonly string[]): Uint8Array {
   return new TextEncoder().encode(lines.join('\n'));
 }
@@ -108,9 +118,79 @@ if (present('X6-a2 directe materialisatie heeft projectkalender', directProjectC
     calendarHoursPerDay: new Map(directCalendars.calendars.map(calendar => [calendar.id, calendar.hoursPerDay])),
     taskIds: new Set(['T1', 'T2', 'T3']),
   }, indexXerTaskResourceRows(parsed).get('P1') ?? []);
+  const peerMaterialized = materializeXerResources(directCatalog, parsed, {
+    projectId: 'P1', projectCalendarId: directProjectCalendar.id, projectHoursPerDay: directProjectCalendar.hoursPerDay,
+    availableCalendarIds: new Set(directCalendars.calendars.map(calendar => calendar.id)),
+    calendarHoursPerDay: new Map(directCalendars.calendars.map(calendar => [calendar.id, calendar.hoursPerDay])),
+    taskIds: new Set(['T1', 'T2', 'T3']),
+  }, indexXerTaskResourceRows(parsed).get('P1') ?? []);
+  const catalogResource = directCatalog.resources.find(resource => resource.id === 'xer-resource:42');
   const materializedResource = directMaterialized.resources.find(resource => resource.id === 'xer-resource:42');
-  if (present('X6-a2 directe materialisatie heeft resourcekopie', materializedResource)) materializedResource.name = 'Alleen directe projectview';
-  eq('X6-a2 directe materialisatie kan catalogusresource niet muteren', directCatalog.resources.find(resource => resource.id === 'xer-resource:42')?.name, 'Vakman');
+  const peerResource = peerMaterialized.resources.find(resource => resource.id === 'xer-resource:42');
+  const catalogResourceSource = directCatalog.rows.resources.find(source => source.sourceId === '42');
+  const materializedResourceSource = directMaterialized.sources.resources.find(source => source.sourceId === '42');
+  const peerResourceSource = peerMaterialized.sources.resources.find(source => source.sourceId === '42');
+  eq('X6-a2 resourceprojectie heeft eigen objectidentiteit ten opzichte van catalogus en peerprojectie', {
+    catalog: materializedResource !== catalogResource,
+    peer: materializedResource !== peerResource,
+    sourceCatalog: materializedResourceSource !== catalogResourceSource,
+    sourcePeer: materializedResourceSource !== peerResourceSource,
+  }, { catalog: true, peer: true, sourceCatalog: true, sourcePeer: true });
+  if (present('X6-a2 directe materialisatie heeft resourcekopie', materializedResource)) {
+    mutatesProjectView('X6-a2 resourceprojectie', () => { materializedResource.name = 'Alleen directe projectview'; });
+  }
+  if (present('X6-a2 directe materialisatie heeft resourcebronkopie', materializedResourceSource)) {
+    mutatesProjectView('X6-a2 resourcebronprojectie', () => { materializedResourceSource.rawType = 'Alleen projectview'; });
+  }
+  eq('X6-a2 resourceprojectie is geïsoleerd van catalogus en peerprojectie', {
+    catalog: catalogResource?.name,
+    peer: peerResource?.name,
+    catalogSource: catalogResourceSource?.rawType,
+    peerSource: peerResourceSource?.rawType,
+  }, { catalog: 'Vakman', peer: 'Vakman', catalogSource: 'RT_Labor', peerSource: 'RT_Labor' });
+
+  const materializedRole = directMaterialized.resources.find(resource => resource.id === 'xer-role:42');
+  const peerRole = peerMaterialized.resources.find(resource => resource.id === 'xer-role:42');
+  const catalogRoleSource = directCatalog.rows.roles.find(source => source.sourceId === '42');
+  const materializedRoleSource = directMaterialized.sources.roles.find(source => source.sourceId === '42');
+  const peerRoleSource = peerMaterialized.sources.roles.find(source => source.sourceId === '42');
+  eq('X6-a3 roleprojectie heeft eigen objectidentiteit ten opzichte van catalogus en peerprojectie', {
+    rolePeer: materializedRole !== peerRole,
+    sourceCatalog: materializedRoleSource !== catalogRoleSource,
+    sourcePeer: materializedRoleSource !== peerRoleSource,
+  }, { rolePeer: true, sourceCatalog: true, sourcePeer: true });
+  if (present('X6-a3 directe materialisatie heeft rolekopie', materializedRole)) {
+    mutatesProjectView('X6-a3 roleprojectie', () => { materializedRole.name = 'Alleen directe roleview'; });
+  }
+  if (present('X6-a3 directe materialisatie heeft rolebronkopie', materializedRoleSource)) {
+    mutatesProjectView('X6-a3 rolebronprojectie', () => { materializedRoleSource.name = 'Alleen roleprojectie'; });
+  }
+  eq('X6-a3 roleprojectie is geïsoleerd van catalogus en peerprojectie', {
+    peerRole: peerRole?.name,
+    catalogSource: catalogRoleSource?.name,
+    peerSource: peerRoleSource?.name,
+  }, { peerRole: 'Ontwerper', catalogSource: 'Ontwerper', peerSource: 'Ontwerper' });
+
+  const materializedAssignment = directMaterialized.assignments.find(assignment => assignment.id === 'xer-assignment:A-LABOR');
+  const peerAssignment = peerMaterialized.assignments.find(assignment => assignment.id === 'xer-assignment:A-LABOR');
+  const materializedAssignmentSource = directMaterialized.sources.assignments.find(source => source.sourceId === 'A-LABOR');
+  const peerAssignmentSource = peerMaterialized.sources.assignments.find(source => source.sourceId === 'A-LABOR');
+  const catalogAssignmentRow = directCatalog.rows.assignments.find(row => row.cells.taskrsrc_id === 'A-LABOR');
+  eq('X6-a4 assignmentprojectie heeft eigen identiteit, maar behoudt raw-row-identiteit', {
+    assignmentPeer: materializedAssignment !== peerAssignment,
+    sourcePeer: materializedAssignmentSource !== peerAssignmentSource,
+    rawRow: materializedAssignmentSource?.rawRow === catalogAssignmentRow,
+  }, { assignmentPeer: true, sourcePeer: true, rawRow: true });
+  if (present('X6-a4 directe materialisatie heeft assignmentkopie', materializedAssignment)) {
+    mutatesProjectView('X6-a4 assignmentprojectie', () => { materializedAssignment.unitsPerDay = 99; });
+  }
+  if (present('X6-a4 directe materialisatie heeft assignmentbronkopie', materializedAssignmentSource)) {
+    mutatesProjectView('X6-a4 assignmentbronprojectie', () => { materializedAssignmentSource.quantities.target = 99; });
+  }
+  eq('X6-a4 assignmentprojectie is geïsoleerd van peerprojectie', {
+    peerUnits: peerAssignment?.unitsPerDay,
+    peerTarget: peerAssignmentSource?.quantities.target,
+  }, { peerUnits: 0.5, peerTarget: 5 });
 }
 
 const opened = readXER(fixture);
@@ -210,17 +290,17 @@ if (isMultiDocumentImport(opened)) {
 
   if (present('X6-d3 mutatieproef heeft catalogusresource', firstResource)) {
     rejectsMutation('X6-d3 catalogusresource weigert mutatie vóór X4b-fan-out', () => {
-      firstResource.name = 'verboden';
+      (firstResource as unknown as { name: string }).name = 'verboden';
     });
   }
   if (present('X6-d4 mutatieproef heeft ratetuple', resourceRate?.costs)) {
     rejectsMutation('X6-d4 catalogus-ratetuple weigert mutatie vóór X4b-fan-out', () => {
-      resourceRate.costs[0] = 9_999;
+      (resourceRate.costs as unknown as [number | null, number | null, number | null, number | null, number | null])[0] = 9_999;
     });
   }
   if (present('X6-d5 mutatieproef heeft curvepunten', curve?.rawPoints)) {
     rejectsMutation('X6-d5 catalogus-curvetuple weigert mutatie vóór X4b-fan-out', () => {
-      curve.rawPoints[0] = '9999';
+      (curve.rawPoints as unknown as [string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string])[0] = '9999';
     });
   }
 }
@@ -297,7 +377,7 @@ if (!isMultiDocumentImport(multi)) {
   if (present('X6-e3 gedeelde catalogusresource bestaat na X4b-fan-out', sharedCatalogResource)) {
     const originalName = secondXer?.catalog.resources.find(resource => resource.id === 'xer-resource:R1')?.name;
     rejectsMutation('X6-e3 catalogusmutatie wordt na X4b-fan-out geweigerd', () => {
-      sharedCatalogResource.name = 'lek naar P2';
+      (sharedCatalogResource as unknown as { name: string }).name = 'lek naar P2';
     });
     eq('X6-e3 geweigerde catalogusmutatie kan P2 niet veranderen',
       secondXer?.catalog.resources.find(resource => resource.id === 'xer-resource:R1')?.name,

@@ -1,4 +1,5 @@
 import type { Project } from '@/types/project';
+import { castDraft } from 'immer';
 import type { AppState } from '../appStore';
 import type { AppSlice } from './types';
 import { generateId } from '@/utils/id';
@@ -195,7 +196,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     const newId = generateId('doc');
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = outgoing;
+      if (cur) cur.payload = castDraft(outgoing);
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       hydratePayload(s, freshPayload());
@@ -259,7 +260,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
 
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = src; // bron parkeren (per referentie, net als newDocument/switchDocument)
+      if (cur) cur.payload = castDraft(src); // bron parkeren (per referentie, net als newDocument/switchDocument)
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       hydratePayload(s, copy);
@@ -286,7 +287,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     const incoming = target.payload;
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = outgoing;
+      if (cur) cur.payload = castDraft(outgoing);
       hydratePayload(s, incoming);
       const inc = s.documents.find((d) => d.id === id);
       if (inc) inc.payload = null;
@@ -405,10 +406,10 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     if (docs.length === 0) return;
     const active = docs.find((d) => d.id === activeId) ?? docs[0];
     set((s) => {
-      s.documents = docs.map((d) => ({
+      s.documents = castDraft(docs.map((d) => ({
         id: d.id,
         payload: d.id === active.id ? null : payloadFromInput(d),
-      }));
+      })));
       s.activeDocumentId = active.id;
       hydratePayload(s, payloadFromInput(active));
       resetDocumentScopedUI(s);
@@ -498,7 +499,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       for (const u of updates) {
         const entry = s.documents.find((d) => d.id === u.id);
         if (!entry || entry.payload === null) continue; // tussentijds gesloten/geactiveerd.
-        entry.payload = u.payload;
+        entry.payload = castDraft(u.payload);
       }
     });
     return updates.length;

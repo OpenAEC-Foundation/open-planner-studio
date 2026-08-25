@@ -101,3 +101,30 @@ exitcode 0. Rode mutaties (ieder exitcode 1, direct hersteld): rate ×100, verke
 20 i.p.v. 21 curvepunten, resourceIds-fan-out weg, projectmisrouting en catalogusfilter met
 baseline/unscoped-verlies. De voorafgaande RED-tests bewezen ook shallow freeze en rawmetadata-
 klonen bij duplicateDocument().
+
+## Herreviewfix X6 — 2026-08-25 (twee Important-restpunten)
+
+De runtime-freeze is nu ook statisch afgedwongen. `XerReadonly<T>` is de ene canonieke,
+tuple-behoudende diep-readonlycompositie voor de catalogusgrens; `XerResourceCatalog` exposeert
+alle resources, identiteiten, rows, rates, entities, kostentuples, curve-tuples, issues en raw
+rows als readonly. De bestaande `Xer*`-bronvormen blijven de expliciet mutabele,
+documentgebonden projectie beschrijven. De compile-time contracttest zet `@ts-expect-error` op
+catalogusmutaties; wanneer een daarvan weer compileert wordt die directive ongebruikt en faalt
+de typecheck. Dezelfde proef bevestigt dat entity, assignedRole, quantities, costs en rawCurves
+in een `XerResourceReadResult` wél mutabel blijven.
+
+Materialisatie kloont naast resources nu ook catalogusidentiteiten, issues en bronwrappers voor
+resources, roles, rates en curves. Alleen `rawRow` blijft per ontwerp referentie-identiek aan de
+catalogus/parserrij. De X6-contracttest vergelijkt voor resource-, role- en
+assignmentprojecties afzonderlijk de objectidentiteit met catalogus/peerprojectie en vervolgens
+de isolatie na mutatie. Een tijdelijke vervanging van `structuredClone(catalog.resources)` door
+de catalogusreferentie gaf exitcode 1 met twee gerichte contractverschillen (identiteit en
+“gematerialiseerde projectie is niet mutable”), zonder stacktrace; de tijdelijke mutatie is
+direct hersteld.
+
+Zelf gereproduceerd op `50799884`: vóór de fix waren acht `@ts-expect-error`-directives
+ongebruikt (`npm run typecheck`, exitcode 2), dus catalogusmutaties compileerden. Dezelfde
+tijdelijke materialisatieclone-regressie beëindigde de oude test met een ongehanteerde
+`TypeError` en exitcode 1. Na de fix waren de gerichte resource-, duplicateDocument- en
+openbare corpuschecks respectievelijk groen met 38, 7 en 40 checks (alle exitcode 0); de
+volledige poorten staan onder de commit vastgelegd.
