@@ -304,6 +304,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   FOCUSCHECK="$DIR/.focus-task.mjs"
   if bundle_check "$DIR/check-focus-task.ts" "$FOCUSCHECK"; then node "$FOCUSCHECK" || STATUS=1; fi
 
+  # Gantt-eventeigenaars (tabel-overhaul task 0): iedere actie heeft precies één actuele
+  # eigenaar, zodat de DOM-gridmigratie geen dubbele canvas-/DOM-listeners achterlaat.
+  GEO_CHECK="$DIR/.gantt-event-ownership.mjs"
+  if bundle_check "$DIR/check-gantt-event-ownership.ts" "$GEO_CHECK"; then node "$GEO_CHECK" || STATUS=1; fi
+
   # Commandoregister (K-item 34): de elf acties die het lint en het toetsenbord delen, stonden twee
   # keer los gedefinieerd. Toetst het gedrag van elk commando tegen de echte store, het contract dat
   # `run` niet stil niets doet als `isEnabled` false is (issue #26), en dat geen van beide registers
