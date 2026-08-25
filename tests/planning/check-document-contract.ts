@@ -55,6 +55,28 @@ const truthy = (label: string, cond: boolean) => {
 const task = (id: string): Task | undefined => S().tasks.find(t => t.id === id);
 const flat = (p: DocumentPayload) => p as unknown as Record<string, unknown>;
 
+// Mutatiebewijs voor de compilepoort staat naast de assert in documentContract.ts. Handmatige rode
+// controle: voeg tijdelijk `__taskGridContractMutationFixture: string` als stateveld aan een slice
+// toe zonder de key in AppGlobalKey te zetten; `npm run typecheck` moet dan op Unclassified falen.
+
+// Persoonlijke taakgridstate mag in geen enkele document-/undo-/IFC-/recoverybron terechtkomen.
+// Een unieke sentinel maakt ook een onbedoeld genest lek zichtbaar, niet alleen een top-level key.
+const taskGridSentinel = 'plugin.user-only-document-contract-proof';
+useAppStore.setState((s) => {
+  s.taskGridSurfaces['full-task-grid'].columns = [{
+    id: taskGridSentinel as never, width: 123, pinned: true,
+  }];
+  s.recentTaskColumns = [taskGridSentinel as never];
+});
+for (const [label, artifact] of [
+  ['DocumentPayload', capturePayload(S())],
+  ['undo-snapshot', createSnapshot(S())],
+  ['IFC-schrijfinvoer', buildWriteIFCInput(S())],
+] as const) {
+  truthy(`gebruikersvoorkeur ontbreekt volledig in ${label}`,
+    !JSON.stringify(artifact).includes(taskGridSentinel));
+}
+
 // ══ (a) VELD-LEK-TEST ═══════════════════════════════════════════════════════════════════════════
 // Bouw document 1 rijk gevuld via ECHTE store-acties (valide data — recomputeViewRows bij een swap
 // mag niet crashen), raak zo veel mogelijk contract-velden aan, en round-trip via switchDocument.
@@ -303,9 +325,12 @@ truthy('d K3 setup: baseline heeft taken', kBlBefore.tasks.length === 2);
 const kActiveBefore = S().activeBaselineId;
 
 const kIfc = writeIFC(buildWriteIFCInput(S()));
+truthy('d recovery-IFC bevat geen persoonlijke taakgridvoorkeur', !kIfc.includes(taskGridSentinel));
 const kParsed = readIFC(kIfc);
 // Exact het productiepad: de hook bouwt de recovery-invoer met deze functie, geen replica hier.
 const kInput: RecoveryDocInput = recoveryInputFromParsed(kParsed, { id: 'k3-doc', filePath: '/tmp/k3.ifc', isDirty: true });
+truthy('d recovery-invoer bevat geen persoonlijke taakgridvoorkeur',
+  !JSON.stringify(kInput).includes(taskGridSentinel));
 S().restoreDocuments([kInput], 'k3-doc');
 
 eq('d K3 keten: precies één baseline overleeft write→read→restore', S().baselines.length, 1);

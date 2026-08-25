@@ -28,6 +28,7 @@ import { groupFieldList, fullFieldList, fieldOptions } from '@/components/viewCo
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
+import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
   encodeFieldRef, decodeFieldRef,
@@ -716,8 +717,8 @@ export function LayoutGroupContent() {
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const applyLayout = useAppStore(s => s.applyLayout);
   const view = useAppStore(s => s.view);
-  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
-  const customFieldDefs = useAppStore(s => s.customFieldDefs);
+  const activeSurface = useAppStore(s => taskGridSurfaceForRibbonTab(s.ui.activeRibbonTab));
+  const columns = useAppStore(s => s.taskGridSurfaces[activeSurface].columns);
 
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
@@ -752,7 +753,7 @@ export function LayoutGroupContent() {
   const update = () => {
     if (!activeLayout) return;
     const next = layouts.map(l => (l.id === activeLayout.id
-      ? snapshotLayout(view, activityCodeTypes, customFieldDefs, l.name, l.id)
+      ? snapshotLayout(view, columns, l.name, l.id)
       : l));
     setLayouts(next);
     void saveLayouts(next);
@@ -934,7 +935,8 @@ export function TimeScaleGroupContent() {
 /**
  * Kolommen-knop — gedeelde binding voor de Beeld-tab (kleine knop) en de Tabel-tab (grote knop).
  *
- * De dialoog schrijft naar `view.columns`, en dat leest **alleen** `TableEditor`. De takenlijst
+ * De dialoog schrijft naar de persoonlijke `full-task-grid`-voorkeur, en die leest **alleen**
+ * `TableEditor`. De takenlijst
  * naast de Gantt tekent drie vaste kolommen (WBS, naam, duur) in `GanttRenderer` en trekt zich er
  * niets van aan. `TableEditor` is bovendien alleen gemount op de Tabel-tab (`App.tsx`), dus wie de
  * knop vanaf de Beeld-tab gebruikt ziet per definitie niets veranderen. Dat verraste de melder.

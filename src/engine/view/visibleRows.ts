@@ -4,9 +4,8 @@
 // structureel onmogelijk is.
 
 import type { Task } from '@/types/task';
-import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type {
-  ColumnConfig, FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
+  FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
 } from '@/state/slices/types';
 import { evaluate, resolveField, resourceNames, type FieldValue, type ViewContext } from './filterEval';
 
@@ -56,31 +55,6 @@ export function isTreeMode(view: Pick<ViewState, 'filter' | 'group' | 'sort'>): 
     (view.group?.length ?? 0) === 0 &&
     (view.sort?.length ?? 0) === 0
   );
-}
-
-/** Reproduceert exact de huidige kolommenset + breedtes (§5.2). undefined view.columns ⇒ dit. */
-export function defaultColumns(
-  activityCodeTypes: ActivityCodeType[],
-  customFieldDefs: CustomFieldDef[],
-): ColumnConfig[] {
-  return [
-    { field: { src: 'builtin', key: 'wbsCode' }, visible: true, width: 60 },
-    { field: { src: 'builtin', key: 'name' }, visible: true, width: 240 },
-    { field: { src: 'builtin', key: 'duration' }, visible: true, width: 60 },
-    { field: { src: 'builtin', key: 'start' }, visible: true, width: 100 },
-    { field: { src: 'builtin', key: 'finish' }, visible: true, width: 100 },
-    { field: { src: 'builtin', key: 'taskType' }, visible: true, width: 80 },
-    { field: { src: 'builtin', key: 'isCritical' }, visible: true, width: 50 },
-    { field: { src: 'builtin', key: 'totalFloat' }, visible: true, width: 50 },
-    { field: { src: 'builtin', key: 'completion' }, visible: true, width: 60 },
-    ...activityCodeTypes.map(t => ({
-      field: { src: 'activityCode' as const, typeId: t.id }, visible: true, width: 90,
-    })),
-    ...customFieldDefs.map(d => ({
-      field: { src: 'customField' as const, defId: d.id }, visible: true, width: 90,
-    })),
-    { field: { src: 'resource' as const }, visible: false, width: 140 },
-  ];
 }
 
 // --- Vergelijken (sort + bandvolgorde) ---

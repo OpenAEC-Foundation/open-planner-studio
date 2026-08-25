@@ -6,12 +6,12 @@ import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 import { getGanttChartWidth, clampGanttScroll } from '@/utils/ganttViewport';
 import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
-  allBandKeys, computeViewRows, defaultColumns, firstTaskOccurrence,
+  allBandKeys, computeViewRows, firstTaskOccurrence,
   type ViewRow, type ViewContext, type ViewRowOpts,
 } from '@/engine/view/visibleRows';
 import type { AppState } from '../appStore';
 import type {
-  ViewState, TimeScale, AppSlice, ColumnConfig, FilterNode, GroupLevel, SortLevel,
+  ViewState, TimeScale, AppSlice, FilterNode, GroupLevel, SortLevel,
   SplitViewState, Layout,
 } from './types';
 
@@ -91,7 +91,6 @@ export interface ViewSlice {
   /** Split view (§10): twee tijdvensters binnen één document; undefined = uit. */
   setSplitView: (splitView: SplitViewState | undefined) => void;
   // --- Fase 2.7 view-mutaties (§4.3) ---
-  setColumns: (columns: ColumnConfig[] | undefined) => void;
   setFilter: (filter: FilterNode | null) => void;
   setGroup: (group: GroupLevel[]) => void;
   setSort: (sort: SortLevel[]) => void;
@@ -202,11 +201,6 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
       s.view.splitView = splitView;
     }),
 
-  setColumns: (columns) => {
-    set((s) => { s.view.columns = columns; });
-    get().recomputeViewRows();
-  },
-
   setFilter: (filter) => {
     set((s) => { s.view.filter = filter; });
     get().recomputeViewRows();
@@ -260,15 +254,12 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
 
   applyLayout: (layout) => {
     set((s) => {
-      s.view.columns = layout.columns;
       s.view.group = layout.group;
       s.view.sort = layout.sort;
       s.view.filter = layout.filter;
     });
+    get().applyTaskGridLayoutColumns(layout.columns);
     get().setTimeScale(layout.timeScale);
     get().recomputeViewRows();
   },
 });
-
-// Re-export voor consumenten (golf 2) die de default-kolommen los nodig hebben.
-export { defaultColumns };

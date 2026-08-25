@@ -165,7 +165,7 @@ export function normalizeView(v: ViewState): ViewState {
     : legacyGroupBy
       ? [{ field: { src: 'activityCode' as const, typeId: legacyGroupBy }, dir: 'asc' as const }]
       : [];
-  const out: ViewState & { groupBy?: string } = {
+  const out: ViewState & { groupBy?: string; columns?: unknown } = {
     ...v,
     filter: v.filter ?? null,
     group,
@@ -173,6 +173,7 @@ export function normalizeView(v: ViewState): ViewState {
     collapsedGroupKeys: v.collapsedGroupKeys ?? [],
   };
   delete out.groupBy; // gemigreerd — niet opnieuw laten meereizen in payloads
+  delete out.columns; // taakgridkolommen zijn vanaf Task 3 uitsluitend app-globale voorkeuren
   return out;
 }
 
@@ -261,7 +262,9 @@ type AppGlobalKey =
   | 'installedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
   | 'catalogEntries' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
   // Resourcebibliotheek: app-globaal, net als extensies (zie CLAUDE.md, *Resourcebibliotheken*).
-  | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded';
+  | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded'
+  // Taakgridkolommen, surface-scroll en MRU zijn persoonlijke instellingen.
+  | 'taskGridSurfaces' | 'recentTaskColumns';
 
 /**
  * Categorie 3 — afgeleid: geen bron van waarheid, wordt herberekend uit velden die wél in het
@@ -276,6 +279,20 @@ const _assertNoUnclassifiedState: Unclassified extends never ? true : [
   Unclassified,
 ] = true;
 void _assertNoUnclassifiedState;
+
+// Mutatiebewijs voor de richting van de assert: voeg denkbeeldig één ongeclassificeerd bronveld
+// aan AppState toe en bewijs dat precies die key door dezelfde typeformule wordt gevangen. Dit is
+// bewust een compileerbare fixture; voeg de fixturekey tijdelijk echt aan een slice toe om de rode
+// compilertekst van de gewone AppState-assert te zien.
+type TaskGridContractMutationFixture = AppState & { __taskGridContractMutationFixture: string };
+type FixtureUnclassified = Exclude<
+  StateDataKey<TaskGridContractMutationFixture>,
+  keyof DocumentPayload | AppGlobalKey | DerivedKey
+>;
+const _assertMutationFixtureIsCaught: FixtureUnclassified extends '__taskGridContractMutationFixture'
+  ? true
+  : ['Mutatiefixture werd niet als ongeclassificeerd stateveld gevangen:', FixtureUnclassified] = true;
+void _assertMutationFixtureIsCaught;
 
 // En andersom: een classificatie die naar een verdwenen veld wijst is dode ballast die de check
 // stilletjes zwakker maakt. Hernoem of verwijder je een veld, dan valt deze regel om.

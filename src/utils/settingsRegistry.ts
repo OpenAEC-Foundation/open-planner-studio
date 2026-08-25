@@ -18,6 +18,7 @@
 
 import { snapToChoice } from '@/utils/numberChoice';
 import type { UIState } from '@/state/slices/types';
+import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import {
   DATE_NOTATIONS,
   DURATION_DISPLAYS,
@@ -45,7 +46,9 @@ import {
   RAIL_SECTION_MAX_HEIGHT,
   HISTOGRAM_MIN_HEIGHT,
   HISTOGRAM_MAX_HEIGHT,
+  loadTaskGridPreferences,
 } from '@/utils/settingsStore';
+import type { TaskGridPreferencesLoadResult } from '@/utils/settingsStore';
 
 // --- Parse-/validatiehelpers (byte-identiek aan de oude `loadX`-validators) ---------------------
 
@@ -220,4 +223,12 @@ export async function loadAllSettings(): Promise<Partial<UIState>> {
   }
 
   return patch;
+}
+
+/** Gestructureerde bootstrap-afwijker naast het 1-op-1 UI-register: één versieerbare sleutel
+ * voedt twee surfaces plus MRU en kan daarom niet als `SettingDescriptor` worden gemodelleerd. */
+export async function loadTaskGridSettings(
+  defaults: PersistedTaskGridPreferencesV1,
+): Promise<TaskGridPreferencesLoadResult> {
+  return loadTaskGridPreferences(defaults);
 }

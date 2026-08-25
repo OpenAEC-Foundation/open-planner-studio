@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
-import { defaultColumns, isTreeMode, type TaskRowCursor } from '@/engine/view/visibleRows';
+import { isTreeMode, type TaskRowCursor } from '@/engine/view/visibleRows';
 import { reconcileTaskCursorSelection } from '@/state/slices/selectionSlice';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { resourceCellValue, type ViewContext } from '@/engine/view/filterEval';
@@ -17,12 +17,17 @@ import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { AlertTriangle } from 'lucide-react';
 import { useTableRowDrag } from './hooks/useTableRowDrag';
 import { neighbourGridCell, type GridDirection } from '@/utils/gridNavigation';
-
-const MIN_COLUMN_WIDTH = 40;
+import {
+  TASK_GRID_COLUMN_MIN_WIDTH,
+  taskColumnIdToLegacyFieldRef,
+} from '@/engine/taskGrid/preferences';
+import type { TaskColumnId } from '@/types/taskGrid';
 
 interface TableCellAddress extends TaskRowCursor {
   field: string;
 }
+
+type RenderableColumn = ColumnConfig & { preferenceId: TaskColumnId };
 
 /** Compacte, altijd-bewerkbare celvariant voor een custom field (tabelrij). */
 function FieldCell({ def, value, onCommit }: {
@@ -124,14 +129,15 @@ export function TableEditor() {
   const moveTasksTo = useAppStore(s => s.moveTasksTo);
   const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const toggleCollapse = useAppStore(s => s.toggleCollapse);
+  const projectId = useAppStore(s => s.project.id);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
   const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
   const setTaskActivityCode = useAppStore(s => s.setTaskActivityCode);
   const setTaskCustomField = useAppStore(s => s.setTaskCustomField);
-  // Fase 2.7 (§4/§5): DE gedeelde zichtbare-rijenlijst + kolom-config.
+  // Fase 2.7 (§4/§5): DE gedeelde zichtbare-rijenlijst + persoonlijke full-gridkolommen.
   const viewRows = useAppStore(s => s.viewRows);
-  const viewColumns = useAppStore(s => s.view.columns);
+  const taskGridColumns = useAppStore(s => s.taskGridSurfaces['full-task-grid'].columns);
   const setCollapsedGroupKey = useAppStore(s => s.setCollapsedGroupKey);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
@@ -143,7 +149,9 @@ export function TableEditor() {
 
   const [editCell, setEditCell] = useState<TableCellAddress | null>(null);
   const [editValue, setEditValue] = useState('');
-  const [resizing, setResizing] = useState<{ index: number; startX: number; startWidth: number } | null>(null);
+  const [resizing, setResizing] = useState<{
+    id: TaskColumnId; startX: number; startWidth: number;
+  } | null>(null);
   // issue #26 (spreadsheet-gevoel): de cel waar de cursor "staat" zonder dat er getypt wordt —
   // één klik zet hem, typen/F2/Enter start pas de bewerking.
   const [activeCell, setActiveCell] = useState<TableCellAddress | null>(null);
@@ -201,22 +209,26 @@ export function TableEditor() {
     return `${effHoursPerDay(effectiveCalendarOf(task, projectCal, calendars))} ${t('table.hoursPerDayTip')}`;
   };
 
-  // Kolom-config (§5.2): view.columns of de defaults; onbekende refs worden overgeslagen bij
-  // render maar blijven in de config bewaard (§8.4 — geldig in een ander document).
-  const columns = useMemo<ColumnConfig[]>(
-    () => viewColumns ?? defaultColumns(activityCodeTypes, customFieldDefs),
-    [viewColumns, activityCodeTypes, customFieldDefs],
-  );
-  const knownRef = useCallback((f: FieldRef): boolean => {
-    if (f.src === 'activityCode') return activityCodeTypes.some(ct => ct.id === f.typeId);
-    if (f.src === 'customField') return customFieldDefs.some(d => d.id === f.defId);
-    return true;
-  }, [activityCodeTypes, customFieldDefs]);
+  // Alleen kolommen die in dit project oplosbaar zijn worden gerenderd. De bronvoorkeur wordt
+  // niet gefilterd of herschreven, zodat ids van andere projecten en plugins bewaard blijven.
+  const projectFields = useMemo(() => ({
+    projectId,
+    activityCodeTypeIds: activityCodeTypes.map(type => type.id),
+    customFieldDefIds: customFieldDefs.map(def => def.id),
+  }), [projectId, activityCodeTypes, customFieldDefs]);
   const visibleColumns = useMemo(
-    () => columns
-      .map((col, index) => ({ col, index }))
-      .filter(({ col }) => col.visible && knownRef(col.field)),
-    [columns, knownRef],
+    () => taskGridColumns.flatMap(preference => {
+      const field = taskColumnIdToLegacyFieldRef(preference.id, projectFields);
+      if (!field) return [];
+      const col: RenderableColumn = {
+        preferenceId: preference.id,
+        field,
+        visible: true,
+        width: preference.width,
+      };
+      return [{ col }];
+    }),
+    [taskGridColumns, projectFields],
   );
   const totalWidth = visibleColumns.reduce((acc, { col }) => acc + col.width, 0);
 
@@ -226,20 +238,22 @@ export function TableEditor() {
     noneLabel: t('structure.none'),
   }), [activityCodeTypes, customFieldDefs, resources, assignments, t]);
 
-  // Kolombreedte sleepbaar in de header (§5.5): schrijft width terug via setColumns.
-  const startColumnResize = useCallback((e: React.MouseEvent, index: number, width: number) => {
+  // Kolombreedte sleepbaar in de header (§5.5): schrijft naar de gebruikersvoorkeur.
+  const startColumnResize = useCallback((e: React.MouseEvent, id: TaskColumnId, width: number) => {
     e.preventDefault();
     e.stopPropagation();
-    setResizing({ index, startX: e.clientX, startWidth: width });
+    setResizing({ id, startX: e.clientX, startWidth: width });
   }, []);
   useEffect(() => {
     if (!resizing) return;
     const handleMove = (e: MouseEvent) => {
       const s = useAppStore.getState();
-      const all = s.view.columns ?? defaultColumns(s.activityCodeTypes, s.customFieldDefs);
-      const w = Math.max(MIN_COLUMN_WIDTH, Math.round(resizing.startWidth + e.clientX - resizing.startX));
-      if (all[resizing.index]?.width === w) return;
-      s.setColumns(all.map((c, i) => (i === resizing.index ? { ...c, width: w } : c)));
+      const all = s.taskGridSurfaces['full-task-grid'].columns;
+      const w = Math.max(TASK_GRID_COLUMN_MIN_WIDTH,
+        Math.round(resizing.startWidth + e.clientX - resizing.startX));
+      if (all.find(column => column.id === resizing.id)?.width === w) return;
+      s.setTaskGridColumns('full-task-grid', all.map(column =>
+        column.id === resizing.id ? { ...column, width: w } : column));
     };
     const handleUp = () => setResizing(null);
     window.addEventListener('mousemove', handleMove);
@@ -783,12 +797,12 @@ export function TableEditor() {
           borderBottom: '1px solid var(--theme-border)',
         }}
       >
-        {visibleColumns.map(({ col, index }) => {
+        {visibleColumns.map(({ col }) => {
           const isName = col.field.src === 'builtin' && col.field.key === 'name';
           const align = cellAlign(col.field);
           return (
             <div
-              key={index}
+              key={col.preferenceId}
               // min-w-0: defensief gelijkgetrokken met de body-cellen, die het al hadden. Zonder
               // dit houdt een flex-item `min-width: auto` en kan het niet krimpen onder zijn
               // min-content-breedte — hier in de praktijk al afgevangen doordat de label-span
@@ -812,9 +826,9 @@ export function TableEditor() {
                   <AlertTriangle size={12} />
                 </span>
               )}
-              {/* Sleep-handle op de rechterrand (schrijft width terug via setColumns) */}
+              {/* Sleep-handle op de rechterrand (schrijft naar de persoonlijke surface). */}
               <div
-                onMouseDown={e => startColumnResize(e, index, col.width)}
+                onMouseDown={e => startColumnResize(e, col.preferenceId, col.width)}
                 className="absolute top-0 right-0 h-full"
                 style={{ width: 5, cursor: 'col-resize' }}
               />
@@ -909,12 +923,12 @@ export function TableEditor() {
                 selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey);
               }}
             >
-              {visibleColumns.map(({ col, index }) => {
+              {visibleColumns.map(({ col }) => {
                 const isName = col.field.src === 'builtin' && col.field.key === 'name';
                 if (isName) {
                   return (
                     <div
-                      key={index}
+                      key={col.preferenceId}
                       className="px-2 flex items-center gap-1 min-w-0"
                       style={{ flex: `1 0 ${col.width}px`, width: col.width, paddingLeft: 8 + depth * 16 }}
                     >
@@ -936,7 +950,7 @@ export function TableEditor() {
                 const align = cellAlign(col.field);
                 return (
                   <div
-                    key={index}
+                    key={col.preferenceId}
                     className="px-1 flex items-center min-w-0"
                     style={{
                       flex: `0 0 ${col.width}px`,

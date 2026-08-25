@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { loadWelcomeSeen } from '@/utils/settingsStore';
-import { loadAllSettings } from '@/utils/settingsRegistry';
+import { loadWelcomeSeen, saveTaskGridPreferences } from '@/utils/settingsStore';
+import { loadAllSettings, loadTaskGridSettings } from '@/utils/settingsRegistry';
+import {
+  cloneTaskGridPreferences,
+  createDefaultTaskGridPreferences,
+  legacyDocumentColumnsToTaskGridPreferences,
+} from '@/engine/taskGrid/preferences';
+import type { ColumnConfig } from '@/types/view';
 import { loadAllExtensions } from '@/extensions';
 import type { RecoveryState } from './useRecoveryRestore';
 
@@ -24,6 +30,46 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     // één keer bij opstart in de store hydrateren.
     void useAppStore.getState().hydrateRecentFiles();
   }, []);
+
+  // Taakgridvoorkeuren wachten bewust tot de recoverykeuze volledig is afgehandeld. Bij mount is
+  // de store nog het lege startdocument; direct lezen zou daardoor de dynamische defaults en een
+  // eventuele oude actieve `view.columns` vastleggen uit het verkeerde document. Na herstel staat
+  // hier eerst het werkelijk actieve document in de store; bij afwijzen/uitstellen blijft het lege
+  // document terecht de bron. De ref maakt deze migratie exact eenmalig.
+  const taskGridChecked = useRef(false);
+  useEffect(() => {
+    if (taskGridChecked.current || !recoveryResolved || recovery !== null) return;
+    taskGridChecked.current = true;
+
+    const current = useAppStore.getState();
+    const defaults = createDefaultTaskGridPreferences({
+      projectId: current.project.id,
+      activityCodeTypeIds: current.activityCodeTypes.map(type => type.id),
+      customFieldDefIds: current.customFieldDefs.map(def => def.id),
+    });
+    // `columns` is uit ViewState verwijderd, maar kan runtime nog in een oude actieve payload
+    // staan. Alleen bij een werkelijk ontbrekende nieuwe key mag die bron de full-griddefault
+    // vervangen; corrupte/nieuwe onbekende data wordt nooit stil overschreven.
+    const legacyColumns = (current.view as typeof current.view & {
+      columns?: ColumnConfig[];
+    }).columns;
+    void loadTaskGridSettings(defaults).then(result => {
+      if (result.status === 'valid') {
+        useAppStore.getState().hydrateTaskGridPreferences(result.value);
+        return;
+      }
+      const fallback = cloneTaskGridPreferences(defaults);
+      if (result.status === 'missing') {
+        if (legacyColumns !== undefined) {
+          fallback.surfaces['full-task-grid'].columns =
+            legacyDocumentColumnsToTaskGridPreferences(legacyColumns, current.project.id);
+        }
+        // De eenmalige migratie wordt pas geplaatst nadat de volledige payload is opgebouwd.
+        void saveTaskGridPreferences(fallback);
+      }
+      useAppStore.getState().hydrateTaskGridPreferences(fallback);
+    });
+  }, [recoveryResolved, recovery]);
 
   // First-startup-ervaring (fase 2.10, onderdeel 3, §3): toont de WelcomeDialog bij een verse
   // `!loadWelcomeSeen()`. Eigen ref-guard (`welcomeChecked`) naar het recovery-/update-check-

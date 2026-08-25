@@ -42,7 +42,7 @@ export function encodeTaskColumnIdSegment(value: string): string {
     `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
-function decodeSegment(segment: string): string | null {
+export function decodeTaskColumnIdSegment(segment: string): string | null {
   if (!segment) return null;
   try {
     const decoded = decodeURIComponent(segment);
@@ -77,22 +77,22 @@ export function baselineColumnId(
 export function decodeDynamicTaskColumnId(id: string): DynamicTaskColumnIdParts | null {
   const parts = id.split(':');
   if (parts[0] === 'activity-code' && parts.length === 3) {
-    const projectId = decodeSegment(parts[1]);
-    const typeId = decodeSegment(parts[2]);
+    const projectId = decodeTaskColumnIdSegment(parts[1]);
+    const typeId = decodeTaskColumnIdSegment(parts[2]);
     return projectId !== null && typeId !== null
       ? { kind: 'activity-code', projectId, typeId }
       : null;
   }
   if (parts[0] === 'custom-field' && parts.length === 3) {
-    const projectId = decodeSegment(parts[1]);
-    const defId = decodeSegment(parts[2]);
+    const projectId = decodeTaskColumnIdSegment(parts[1]);
+    const defId = decodeTaskColumnIdSegment(parts[2]);
     return projectId !== null && defId !== null
       ? { kind: 'custom-field', projectId, defId }
       : null;
   }
   if (parts[0] === 'baseline' && parts.length === 4) {
-    const projectId = decodeSegment(parts[1]);
-    const baselineId = decodeSegment(parts[2]);
+    const projectId = decodeTaskColumnIdSegment(parts[1]);
+    const baselineId = decodeTaskColumnIdSegment(parts[2]);
     const field = parts[3] as BaselineTaskColumnField;
     return projectId !== null && baselineId !== null && BASELINE_FIELDS.has(field)
       ? { kind: 'baseline', projectId, baselineId, field }

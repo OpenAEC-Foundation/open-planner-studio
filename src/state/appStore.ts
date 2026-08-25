@@ -16,6 +16,7 @@ import { createDocumentSlice, type DocumentSlice } from './slices/documentSlice'
 import { createStructureSlice, type StructureSlice } from './slices/structureSlice';
 import { createBaselineSlice, type BaselineSlice } from './slices/baselineSlice';
 import { createLibrarySlice, type LibrarySlice } from './slices/librarySlice';
+import { createTaskGridSlice, type TaskGridSlice } from './slices/taskGridSlice';
 
 // Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
 export type { ExportFormat } from './slices/fileSlice';
@@ -41,7 +42,8 @@ export type AppState = ProjectSlice &
   DocumentSlice &
   StructureSlice &
   BaselineSlice &
-  LibrarySlice;
+  LibrarySlice &
+  TaskGridSlice;
 
 /**
  * Bouw een NIEUWE, onafhankelijke store-instantie (K-item 41).
@@ -91,6 +93,7 @@ export function createAppStore() {
       ...createStructureSlice(...a),
       ...createBaselineSlice(...a),
       ...createLibrarySlice(...a),
+      ...createTaskGridSlice(...a),
     })),
   );
 }

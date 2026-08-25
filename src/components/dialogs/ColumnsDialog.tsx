@@ -3,13 +3,18 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, GripVertical, RotateCcw, Plus } from 'lucide-react';
 import { Dialog } from '@/components/common/Dialog';
-import { defaultColumns } from '@/engine/view/visibleRows';
-import { FILTER_SORT_BUILTIN_KEYS, fieldsEqual } from '@/components/viewControls/fieldCatalog';
-import type { ColumnConfig, FieldRef } from '@/state/slices/types';
+import { FILTER_SORT_BUILTIN_KEYS } from '@/components/viewControls/fieldCatalog';
+import {
+  createDefaultTaskGridPreferences,
+  fieldRefToTaskColumnId,
+  TASK_GRID_COLUMN_MAX_WIDTH,
+  TASK_GRID_COLUMN_MIN_WIDTH,
+  taskColumnIdToLegacyFieldRef,
+} from '@/engine/taskGrid/preferences';
+import type { FieldRef } from '@/state/slices/types';
+import type { TaskColumnId, TaskGridColumnPreference } from '@/types/taskGrid';
 
-const MIN_COLUMN_WIDTH = 40;
-
-/** Redelijke default-breedte voor een pas toegevoegd veld (px). Volgt de `defaultColumns`-conventie. */
+/** Redelijke default-breedte voor een pas toegevoegd legacyveld (px). */
 function defaultWidthFor(field: FieldRef): number {
   if (field.src === 'resource') return 140;
   if (field.src === 'activityCode' || field.src === 'customField') return 90;
@@ -29,24 +34,34 @@ function defaultWidthFor(field: FieldRef): number {
  * checkbox, sleep-handle voor volgorde, breedte-input); daaronder een "Beschikbare velden"-lijst met
  * ELK builtin-veld (`FILTER_SORT_BUILTIN_KEYS`, incl. de vier 2.9-analysevelden) plus activity codes,
  * eigen velden en resource dat nog GEEN kolom is — aanvinken voegt het als kolom toe. Zo zijn ook niet-
- * default-velden toevoegbaar zonder een hardcoded lijst. Live toegepast via `setColumns` (elke wijziging
- * schrijft direct naar de store; `TableEditor` leest `view.columns` reactief). "Herstel standaard" →
- * `defaultColumns()` (de vier 2.9-velden vallen dan terug naar de beschikbare-lijst).
+ * default-velden toevoegbaar zonder een hardcoded lijst. Live toegepast op de persoonlijke
+ * `full-task-grid`-voorkeur; het actieve project wordt daardoor nooit dirty. Onbekende of voor het
+ * huidige project niet-beschikbare ids blijven zichtbaar als opaque id en worden niet stil gewist.
  */
 export function ColumnsDialog() {
   const { t } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
   const setUI = useAppStore(s => s.setUI);
+  const projectId = useAppStore(s => s.project.id);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
-  const viewColumns = useAppStore(s => s.view.columns);
-  const setColumns = useAppStore(s => s.setColumns);
+  const columns = useAppStore(s => s.taskGridSurfaces['full-task-grid'].columns);
+  const setColumns = useAppStore(s => s.setTaskGridColumns);
 
   const close = () => setUI({ showColumnsDialog: false });
 
-  const columns = useMemo<ColumnConfig[]>(
-    () => viewColumns ?? defaultColumns(activityCodeTypes, customFieldDefs),
-    [viewColumns, activityCodeTypes, customFieldDefs],
+  const projectFields = useMemo(() => ({
+    projectId,
+    activityCodeTypeIds: activityCodeTypes.map(type => type.id),
+    customFieldDefIds: customFieldDefs.map(def => def.id),
+  }), [projectId, activityCodeTypes, customFieldDefs]);
+
+  const selectedColumns = useMemo(
+    () => columns.map(preference => ({
+      preference,
+      field: taskColumnIdToLegacyFieldRef(preference.id, projectFields),
+    })),
+    [columns, projectFields],
   );
 
   // Alle beschikbare velden (builtin-catalogus + user-data + resource). Wat al kolom is, valt weg uit
@@ -61,9 +76,12 @@ export function ColumnsDialog() {
     [activityCodeTypes, customFieldDefs],
   );
 
-  const addable = useMemo<FieldRef[]>(
-    () => availableFields.filter(f => !columns.some(c => fieldsEqual(c.field, f))),
-    [availableFields, columns],
+  const addable = useMemo<Array<{ id: TaskColumnId; field: FieldRef }>>(
+    () => availableFields.flatMap(field => {
+      const id = fieldRefToTaskColumnId(field, projectId);
+      return id && !columns.some(column => column.id === id) ? [{ id, field }] : [];
+    }),
+    [availableFields, columns, projectId],
   );
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -93,12 +111,20 @@ export function ColumnsDialog() {
     return tTask('column.resource');
   };
 
-  const patch = (index: number, changes: Partial<ColumnConfig>) => {
-    setColumns(columns.map((c, i) => (i === index ? { ...c, ...changes } : c)));
+  const saveColumns = (next: readonly TaskGridColumnPreference[]) => {
+    setColumns('full-task-grid', next);
   };
 
-  const add = (field: FieldRef) => {
-    setColumns([...columns, { field, visible: true, width: defaultWidthFor(field) }]);
+  const patch = (index: number, changes: Partial<TaskGridColumnPreference>) => {
+    saveColumns(columns.map((column, i) => (i === index ? { ...column, ...changes } : column)));
+  };
+
+  const remove = (index: number) => {
+    saveColumns(columns.filter((_, i) => i !== index));
+  };
+
+  const add = (id: TaskColumnId, field: FieldRef) => {
+    saveColumns([...columns, { id, width: defaultWidthFor(field), pinned: false }]);
   };
 
   const move = (from: number, to: number) => {
@@ -106,10 +132,11 @@ export function ColumnsDialog() {
     const next = columns.slice();
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
-    setColumns(next);
+    saveColumns(next);
   };
 
-  const reset = () => setColumns(defaultColumns(activityCodeTypes, customFieldDefs));
+  const reset = () => saveColumns(createDefaultTaskGridPreferences(projectFields)
+    .surfaces['full-task-grid'].columns);
 
   return (
     // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
@@ -127,18 +154,16 @@ export function ColumnsDialog() {
           </button>
         </div>
 
-        {/* Reikwijdte staat vóór de lijst, niet erachter: deze kolommen sturen alleen de
-            Tabel-weergave aan (`view.columns` → `TableEditor`). De takenlijst naast de Gantt
-            tekent drie vaste kolommen in `GanttRenderer` en negeert dit. Zelfde hint-conventie
-            als `report:timelineColumnsHint`. */}
+        {/* Deze overgangsdialoog stuurt alleen de persoonlijke full-task-grid-voorkeur. De
+            afzonderlijke Gantt-surface krijgt later zijn eigen gedeelde kolomkiezer. */}
         <div className="px-4 pt-3 text-[11px] text-text-secondary">
           {t('view.columns.scopeHint')}
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-0.5 text-xs">
-          {columns.map((col, index) => (
+          {selectedColumns.map(({ preference: col, field }, index) => (
             <div
-              key={index}
+              key={col.id}
               draggable
               onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDragIndex(index); }}
               onDragOver={e => e.preventDefault()}
@@ -156,18 +181,22 @@ export function ColumnsDialog() {
               </span>
               <input
                 type="checkbox"
-                checked={col.visible}
-                onChange={e => patch(index, { visible: e.target.checked })}
+                checked
+                onChange={e => { if (!e.target.checked) remove(index); }}
                 aria-label={t('view.columns.visible')}
                 className="accent-accent flex-shrink-0"
               />
-              <span className="flex-1 truncate">{label(col.field)}</span>
+              <span className="flex-1 truncate" title={field ? undefined : col.id}>
+                {field ? label(field) : col.id}
+              </span>
               <input
                 type="number"
-                min={MIN_COLUMN_WIDTH}
+                min={TASK_GRID_COLUMN_MIN_WIDTH}
+                max={TASK_GRID_COLUMN_MAX_WIDTH}
                 value={col.width}
                 onChange={e => {
-                  const w = Math.max(MIN_COLUMN_WIDTH, parseInt(e.target.value, 10) || MIN_COLUMN_WIDTH);
+                  const w = Math.max(TASK_GRID_COLUMN_MIN_WIDTH,
+                    parseInt(e.target.value, 10) || TASK_GRID_COLUMN_MIN_WIDTH);
                   patch(index, { width: w });
                 }}
                 aria-label={t('view.columns.width')}
@@ -183,11 +212,11 @@ export function ColumnsDialog() {
               <div className="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                 {t('view.columns.available')}
               </div>
-              {addable.map(field => (
+              {addable.map(({ id, field }) => (
                 <button
-                  key={JSON.stringify(field)}
+                  key={id}
                   type="button"
-                  onClick={() => add(field)}
+                  onClick={() => add(id, field)}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-[8px] hover:bg-surface-hover text-left"
                   data-ops-columns-add={field.src === 'builtin' ? field.key : field.src}
                 >

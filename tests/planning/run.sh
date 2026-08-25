@@ -575,6 +575,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-column-registry.ts" "$TGREGCHECK"; then node "$TGREGCHECK" || STATUS=1; fi
   TGFIELDCHECK="$DIR/.task-field-coverage.mjs"
   if bundle_check "$DIR/check-task-field-coverage.ts" "$TGFIELDCHECK"; then node "$TGFIELDCHECK" || STATUS=1; fi
+  TGPREFCHECK="$DIR/.task-grid-preferences.mjs"
+  if bundle_check "$DIR/check-task-grid-preferences.ts" "$TGPREFCHECK"; then node "$TGPREFCHECK" || STATUS=1; fi
 
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi

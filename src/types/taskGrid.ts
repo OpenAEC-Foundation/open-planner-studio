@@ -21,6 +21,12 @@ export interface TaskGridSurfacePreferences {
   scrollX: number;
 }
 
+export interface PersistedTaskGridPreferencesV1 {
+  version: 1;
+  surfaces: Record<TaskGridSurfaceId, TaskGridSurfacePreferences>;
+  recent: TaskColumnId[];
+}
+
 export type TaskColumnCategory =
   | 'task'
   | 'planning'
