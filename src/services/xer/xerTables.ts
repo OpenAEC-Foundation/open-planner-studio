@@ -71,6 +71,11 @@ export interface XerHeader {
 }
 
 export interface XerRow {
+  readonly line: number;
+  readonly cells: Readonly<Record<string, string>>;
+}
+
+interface MutableXerRow {
   line: number;
   cells: Record<string, string>;
 }
@@ -79,6 +84,12 @@ export interface XerTable {
   name: string;
   fields: string[];
   rows: XerRow[];
+}
+
+interface MutableXerTable {
+  name: string;
+  fields: string[];
+  rows: MutableXerRow[];
 }
 
 export type XerImportIssueCode =
@@ -434,6 +445,16 @@ function findProvableCommaDecimal(
   return null;
 }
 
+/** Sluit parseropbouw af zonder rij- of celkopieën; iedere latere lezer deelt dezelfde bronrij. */
+function freezeXerRows(tables: ReadonlyMap<string, XerTable>): void {
+  for (const table of tables.values()) {
+    for (const row of table.rows) {
+      Object.freeze(row.cells);
+      Object.freeze(row);
+    }
+  }
+}
+
 /** Parse uitsluitend de oorspronkelijke bestandsbytes; een stringingang is ook runtime ongeldig. */
 export function parseXerTables(bytes: XerByteInput): XerTables {
   if (!(bytes instanceof Uint8Array)) {
@@ -444,7 +465,7 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
   }
   const { text, encoding } = decodeXerBytes(bytes);
   const lines = text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line);
-  const tables = new Map<string, XerTable>();
+  const tables = new Map<string, MutableXerTable>();
   const issues: XerImportIssue[] = [];
   const unknownTables: Array<{ name: string; rows: number }> = [];
   const knownTableHeaderLines = new Map<string, number>();
@@ -455,7 +476,7 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
       'Ongeldig XER-bestand: ERMHDR met versie ontbreekt.',
     );
   }
-  let current: XerTable | undefined;
+  let current: MutableXerTable | undefined;
   let currentUnknown: { name: string; rows: number } | undefined;
   let endMarkerSeen = false;
 
@@ -558,15 +579,16 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
     }
   }
 
-  assertRequiredColumns(tables);
-  assertRequiredIdentity(tables);
+  const immutableTables = tables as unknown as Map<string, XerTable>;
+  assertRequiredColumns(immutableTables);
+  assertRequiredIdentity(immutableTables);
   const header: XerHeader = {
     version: headerCells[1] ?? '',
     defaultCurrencyCode: headerCells[8] ?? '',
   };
-  const numberFormat = determineNumberFormat(tables, header.defaultCurrencyCode, issues);
+  const numberFormat = determineNumberFormat(immutableTables, header.defaultCurrencyCode, issues);
   const commaDecimalEvidence = numberFormat.source === 'default'
-    ? findProvableCommaDecimal(tables)
+    ? findProvableCommaDecimal(immutableTables)
     : null;
   if (commaDecimalEvidence) {
     throw new XerImportError(
@@ -576,9 +598,10 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
     );
   }
 
+  freezeXerRows(immutableTables);
   return {
     header,
-    tables,
+    tables: immutableTables,
     numberFormat,
     report: {
       encoding,

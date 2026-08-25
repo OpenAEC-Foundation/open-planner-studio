@@ -1,4 +1,5 @@
 import type { Project } from '@/types/project';
+import { castDraft } from 'immer';
 import type { AppState } from '../appStore';
 import type { AppSlice } from './types';
 import { generateId } from '@/utils/id';
@@ -14,6 +15,7 @@ import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { resetUndoCoalescing } from '../transaction';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -129,6 +131,32 @@ function deepClone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
+/**
+ * X6 bewaart een bestandsbrede, immutable resourcecatalogus met de oorspronkelijke TASKRSRC-
+ * rijen. Een documentkopie krijgt een nieuwe, mutable projectview, maar mag die catalogus nooit
+ * JSON-klonen: rehab-2 alleen al bevat 52.640 retained rijen.
+ */
+function cloneXerResourceMetadata(source: XerResourceMetadata): XerResourceMetadata {
+  return {
+    catalog: source.catalog,
+    assignments: source.assignments.map(assignment => ({
+      ...assignment,
+      entity: { ...assignment.entity },
+      ...(assignment.assignedRole ? { assignedRole: { ...assignment.assignedRole } } : {}),
+      quantities: { ...assignment.quantities },
+      rawCurves: { ...assignment.rawCurves },
+      costs: { ...assignment.costs },
+    })),
+    issues: source.issues.map(issue => ({ ...issue })),
+  };
+}
+
+function cloneXerImportMetadata(source: XerImportMetadata): XerImportMetadata {
+  const { resources, ...withoutResources } = source;
+  const clone = deepClone(withoutResources);
+  return resources ? { ...clone, resources: cloneXerResourceMetadata(resources) } : clone;
+}
+
 /** `"Basis (variant 3)"` → `"Basis"`; een naam zonder variant-suffix blijft ongewijzigd. Zo blijft de
  *  basisnaam stabiel wanneer je een variant-document opnieuw dupliceert (varianten-van-varianten). */
 const VARIANT_RE = /^(.*) \(variant (\d+)\)$/;
@@ -168,7 +196,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     const newId = generateId('doc');
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = outgoing;
+      if (cur) cur.payload = castDraft(outgoing);
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       hydratePayload(s, freshPayload());
@@ -227,12 +255,12 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       filePath: null,
       fileHandle: null,
       isDirty: true,
-      xerImportMetadata: src.xerImportMetadata ? deepClone(src.xerImportMetadata) : null,
+      xerImportMetadata: src.xerImportMetadata ? cloneXerImportMetadata(src.xerImportMetadata) : null,
     };
 
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = src; // bron parkeren (per referentie, net als newDocument/switchDocument)
+      if (cur) cur.payload = castDraft(src); // bron parkeren (per referentie, net als newDocument/switchDocument)
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       hydratePayload(s, copy);
@@ -259,7 +287,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     const incoming = target.payload;
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = outgoing;
+      if (cur) cur.payload = castDraft(outgoing);
       hydratePayload(s, incoming);
       const inc = s.documents.find((d) => d.id === id);
       if (inc) inc.payload = null;
@@ -378,10 +406,10 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     if (docs.length === 0) return;
     const active = docs.find((d) => d.id === activeId) ?? docs[0];
     set((s) => {
-      s.documents = docs.map((d) => ({
+      s.documents = castDraft(docs.map((d) => ({
         id: d.id,
         payload: d.id === active.id ? null : payloadFromInput(d),
-      }));
+      })));
       s.activeDocumentId = active.id;
       hydratePayload(s, payloadFromInput(active));
       resetDocumentScopedUI(s);
@@ -471,7 +499,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       for (const u of updates) {
         const entry = s.documents.find((d) => d.id === u.id);
         if (!entry || entry.payload === null) continue; // tussentijds gesloten/geactiveerd.
-        entry.payload = u.payload;
+        entry.payload = castDraft(u.payload);
       }
     });
     return updates.length;
