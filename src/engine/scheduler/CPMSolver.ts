@@ -72,8 +72,8 @@ export interface CPMResult {
 export interface CPMOptions {
   dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; // default RETAINED_LOGIC
-  /** Project-scoped reken-opties (fase 2.9, §3.4). Afwezig ⇒ elke default ⇒ byte-identiek. In golf 0
-   *  wordt dit blok alleen doorgegeven; de solver leest het nog nergens gedragswijzigend. */
+  /** Project-scoped rekenopties. Afwezig ⇒ elke brongebonden uitbreiding blijft uit en het
+   *  algemene solvergedrag blijft byte-identiek. */
   schedulingOptions?: SchedulingOptions;
   /** De geconfigureerde PROJECTSTARTDATUM (`Project.startDate`, ISO-datum), gebruikstest-bevinding
    *  2026-08: ondergrens voor de early-start-berekening van ELKE taak MET voorganger (en
@@ -159,6 +159,28 @@ export interface CPMTaskResult {
   floatPath?: number;
 }
 
+const TWENTY_FOUR_HOUR_LAG_CALENDAR: WorkCalendar = {
+  id: 'ops-p6-24hour-lag',
+  name: '24 uur',
+  description: 'Interne P6-relatielagkalender',
+  workDays: [1, 2, 3, 4, 5, 6, 7],
+  workStartHour: 0,
+  workEndHour: 24,
+  hoursPerDay: 24,
+  holidays: [],
+  workTime: {
+    byWeekday: {
+      1: [{ start: 0, end: 1440 }],
+      2: [{ start: 0, end: 1440 }],
+      3: [{ start: 0, end: 1440 }],
+      4: [{ start: 0, end: 1440 }],
+      5: [{ start: 0, end: 1440 }],
+      6: [{ start: 0, end: 1440 }],
+      7: [{ start: 0, end: 1440 }],
+    },
+  },
+};
+
 /**
  * Leeg `CPMResult` voor de degradatiepaden in `solve()` (cyclus, kalender zonder werkdagen,
  * onparseerbare startdatum): alle verzamelingen leeg, alleen de foutmelding verschilt per pad.
@@ -194,6 +216,7 @@ export class CPMSolver {
   private projectCal: WorkCalendar;
   private registry: WorkCalendar[];
   private projectEngine: CalendarEngine;
+  private readonly twentyFourHourLagEngine = new CalendarEngine(TWENTY_FOUR_HOUR_LAG_CALENDAR);
   private engineCache = new Map<string, CalendarEngine>();
 
   // Adjacency lists
@@ -556,6 +579,15 @@ export class CPMSolver {
    *  krijgt aangereikt. Ze blijven hier gedefinieerd (delen de dag↔uur-reductie met de rest van de
    *  solver); `forwardConstraint`/`backwardConstraint` draaien de FS/SS/FF/SF-formules erop. */
   private readonly relDeps: RelationDeps = {
+    lagEngine: (predEng, succEng) => {
+      switch (this.options.schedulingOptions?.lagCalendar) {
+        case 'successor': return succEng;
+        case 'projectDefault': return this.projectEngine;
+        case '24hour': return this.twentyFourHourLagEngine;
+        case 'predecessor':
+        default: return predEng;
+      }
+    },
     resolveLag: (seq, predTask, predEng) => this.resolveLag(seq, predTask, predEng),
     resolveEffectiveLagDays: (seq, predTask, predEng) =>
       resolveEffectiveLagDays(seq, predTask, predEng.hoursPerDay),
@@ -1452,6 +1484,12 @@ export class CPMSolver {
           // `timephasedFinishFloor`/`timephasedDurationWalks` NOOIT meer op een taak met
           // `completion >= 1`, dus een raadpleging hier zou toch altijd `null` opleveren — bewust
           // weggelaten in plaats van dode code te laten staan.
+          // XER/P6-bronsemantiek: een voltooide opvolger is historisch en levert daarom ook geen
+          // relatievrije-speling/driving-grens voor een nog open voorganger. De algemene solver-
+          // default blijft ongewijzigd; alleen de expliciete bronvlag verwijdert deze grenzen.
+          if (this.options.schedulingOptions?.preserveActualDatesInBackwardPass === true) {
+            for (const seq of preds) this.seqConstraint.delete(seq.id);
+          }
           results.set(taskId, { es, ef });
           continue;
         }
@@ -2500,10 +2538,20 @@ export class CPMSolver {
 
     // Backward pass in reverse topological order
     const reversed = [...order].reverse();
+    const preserveActualDates = this.dataDate !== null
+      && this.options.schedulingOptions?.preserveActualDatesInBackwardPass === true;
 
     for (const taskId of reversed) {
       const task = this.tasks.get(taskId)!;
       const succs = this.successors.get(taskId) || [];
+
+      // P6 houdt een voltooide activiteit op haar geregistreerde venster, ook aan de late zijde.
+      // Brongebonden achter een expliciete vlag: niet-XER-projecten behouden hun bestaande gedrag.
+      if (preserveActualDates && task.time.actualFinish && task.time.completion >= 1) {
+        const ed = earlyDates.get(taskId)!;
+        results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
+        continue;
+      }
 
       // Hammock (§4.4, normatief): een gevolg, geen oorzaak. GEEN backward-`min`-doorgifte; per
       // definitie `LS = ES` en `LF = EF` (⇒ tf=ff=0, kritiek-neutraal — geforceerd in computeResults).
@@ -2561,11 +2609,16 @@ export class CPMSolver {
       // Start-Start-opvolger een late finish ná het projecteinde opleveren, waardoor de
       // voorganger ten onrechte speling/niet-kritiek kreeg.)
       const predCal = this.calendarFor(task);
-      let lateFinish = projectEnd;
+      let lateFinish = this.options.schedulingOptions?.useProjectEndDateForFloat
+        ? this.snapOnOrBefore(predCal, projectEnd)
+        : projectEnd;
       for (const seq of succs) {
         const succResult = results.get(seq.successorId);
         const succTask = this.tasks.get(seq.successorId);
         if (!succResult || !succTask) continue;
+        // Een voltooide P6-opvolger beschrijft historie en mag de late finish van een nog open
+        // voorganger niet door haar historische actual finish terugtrekken.
+        if (preserveActualDates && succTask.time.actualFinish && succTask.time.completion >= 1) continue;
         // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen
@@ -2606,7 +2659,14 @@ export class CPMSolver {
       // Late-zijde datum-constraints + deadline (fase 2.3) als extra bovengrens.
       lateFinish = this.applyBackwardBound(task, lateFinish, predCal);
 
-      const lateStart = this.subDuration(predCal, lateFinish, task, earlyDates.get(taskId)?.es ?? null);
+      const computedLateStart = this.subDuration(
+        predCal, lateFinish, task, earlyDates.get(taskId)?.es ?? null,
+      );
+      // Bij P6-voortgang is een geregistreerde actual start ook de getoonde LS; LF blijft uit het
+      // resterende netwerk volgen. Zonder bronvlag blijft de berekende late start leidend.
+      const lateStart = preserveActualDates && task.time.actualStart && task.time.completion < 1
+        ? new Date(earlyDates.get(taskId)!.es.getTime())
+        : computedLateStart;
 
       results.set(taskId, { ls: lateStart, lf: lateFinish });
     }

@@ -240,6 +240,19 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       tf = 0;
       freeFloat = 0;
     }
+    // P6/XER bewaart bij voltooid werk geen floatwaarde: de actuals zijn feiten, geen nog
+    // verschuifbaar venster. Dit voorkomt ook een kunstmatige negatieve FF wanneer een latere
+    // out-of-sequence-actual vóór de historische relatiegrens ligt. Alleen de expliciete
+    // bronvlag activeert dit; de algemene analyse-default blijft ongewijzigd.
+    if (completed && so?.preserveActualDatesInBackwardPass === true) {
+      tf = 0;
+      freeFloat = 0;
+    }
+    // P6/XER houdt vrije float op nul wanneer een late constraint de totale float negatief maakt.
+    // De publieke P6-meetmassa bevat wel 63 negatieve TF-cellen maar geen negatieve FF-cel; case 05
+    // bevestigt hetzelfde op een FNLT-eindtaak. Brongebonden, zodat de algemene getekende OPS-
+    // semantiek zonder vlag ongewijzigd blijft.
+    if (so?.clampNegativeFreeFloat === true && freeFloat < 0) freeFloat = 0;
     // Kritiek-definitie (§4.6): hammock ⇒ NOOIT kritiek (P6: LOE is een gevolg, geen oorzaak);
     // voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een driving-keten naar de
     // laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het huidige tf≤0).

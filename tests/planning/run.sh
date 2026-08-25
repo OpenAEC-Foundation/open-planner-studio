@@ -235,6 +235,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERREADERCHECK="$DIR/.xer-reader.mjs"
   if bundle_check "$DIR/check-xer-reader.ts" "$XERREADERCHECK"; then node "$XERREADERCHECK" || STATUS=1; fi
 
+  # X5 SCHEDOPTIONS: pure mapping/defaults plus brongebonden solvervlaggen. De centrale XER-reader
+  # blijft in kernfase 1 bewust buiten schot; dit checkoppervlak bedient de module rechtstreeks.
+  XERSCHEDOPTIONSCHECK="$DIR/.xer-schedule-options.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options.ts" "$XERSCHEDOPTIONSCHECK"; then node "$XERSCHEDOPTIONSCHECK" || STATUS=1; fi
+
+  # X5 zware openbare corpuspin: 27-kolommenunion en de 36 actuele bestanden zonder SCHEDOPTIONS,
+  # per default/per as en tegen de onafhankelijke X1-meetlat. Eén keer draaien, niet per tijdzone.
+  XERSCHEDOPTIONSCORPUSCHECK="$DIR/.xer-schedule-options-corpus.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options-corpus.ts" "$XERSCHEDOPTIONSCORPUSCHECK"; then
+    node "$XERSCHEDOPTIONSCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X4a-registercontract: .xer is lazy en binair, behoudt CP1252/UTF-16-BOM-bytes en wordt nooit
   # een opslagdoel.
   XERREGISTRYCHECK="$DIR/.xer-registry.mjs"

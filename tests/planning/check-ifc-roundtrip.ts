@@ -352,6 +352,10 @@ const SCHED_OPTS = {
   criticalDefinition: { mode: 'longestPath', threshold: -1 },
   totalFloatMode: 'finish',
   makeOpenEndedCritical: true,
+  useProjectEndDateForFloat: true,
+  useExpectedFinishDates: false,
+  preserveActualDatesInBackwardPass: true,
+  clampNegativeFreeFloat: true,
   nearCriticalThreshold: 3,
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   resumeFromActualElapsed: true, // T9 (voortgangsafronding): rondt lossless mee als deel van het JSON-blob

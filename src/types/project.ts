@@ -17,6 +17,20 @@ export interface SchedulingOptions {
   totalFloatMode?: 'start' | 'finish' | 'smallest';
   /** Open-ended taken kritiek? Default = huidig gedrag (een eindtaak krijgt tf via LF−EF). */
   makeOpenEndedCritical?: boolean;
+  /** P6/XER: zaai de backward-pass per taak vanaf het projecteinde op de eigen taakkalender.
+   *  Afwezig/false houdt de algemene OPS-huissemantiek byte-identiek. */
+  useProjectEndDateForFloat?: boolean;
+  /** P6/XER-bronsignaal: verwachte einddatums mogen de resterende duur begrenzen. X7 consumeert
+   *  dit pas samen met het taakveld; bewaren voorkomt dat de SCHEDOPTIONS-keuze verloren gaat. */
+  useExpectedFinishDates?: boolean;
+  /** P6/XER-bronsemantiek voor de late zijde bij voortgang: een gestart activiteit houdt zijn
+   *  geregistreerde start als LS, een voltooide activiteit houdt haar actual-venster als LS/LF,
+   *  en zo'n voltooide opvolger trekt een nog open voorganger niet historisch terug. Afwezig/false
+   *  bewaart de bestaande niet-XER-semantiek. */
+  preserveActualDatesInBackwardPass?: boolean;
+  /** P6/XER rapporteert vrije float niet negatief: bij een onhaalbare late constraint blijft TF
+   *  negatief maar wordt FF nul. Afwezig/false bewaart de algemene getekende OPS-semantiek. */
+  clampNegativeFreeFloat?: boolean;
   /** Near-critical-drempel in werkdagen (fractioneel in uur-modus). Default undefined ⇒ feature uit. */
   nearCriticalThreshold?: number;
   /** Multiple float paths. Default undefined ⇒ uit (byte-identiek). */
