@@ -88,7 +88,12 @@ export interface XerCalendar extends WorkCalendar {
   hoursPerWeek: number;
   hoursPerMonth: number;
   hoursPerYear: number;
+  /** Serialiseerbare bron van waarheid voor de optionele basiskalender. */
   baseCalendarId?: string;
+  /**
+   * Afgeleide gemakskoppeling binnen een leesresultaat. `readXerCalendars` installeert deze
+   * bewust niet-enumerable: overdracht en persistentie gebruiken uitsluitend `baseCalendarId`.
+   */
   baseCalendar?: XerCalendar;
   hourModeSource?: 'SHARED' | 'XER_CLOCK';
 }
@@ -596,6 +601,15 @@ function cyclicCalendarIds(
   return cycles;
 }
 
+function linkBaseCalendar(calendar: XerCalendar, base: XerCalendar): void {
+  Object.defineProperty(calendar, 'baseCalendar', {
+    configurable: true,
+    enumerable: false,
+    value: base,
+    writable: true,
+  });
+}
+
 /** Bouw XER-kalenders uitsluitend uit X2's reeds gedecodeerde `CALENDAR`-tabel. */
 export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
   const rows = tables.tables.get('CALENDAR')?.rows ?? [];
@@ -756,7 +770,7 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
       });
       continue;
     }
-    calendar.baseCalendar = base;
+    linkBaseCalendar(calendar, base);
   }
 
   return {

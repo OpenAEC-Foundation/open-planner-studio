@@ -2,6 +2,7 @@ import {
   decodeXerCalendarData,
   parseXerStructuredText,
   readXerCalendars,
+  type XerCalendar,
 } from '@/services/xer/xerCalendarData';
 import { parseP6StandardWorkWeek } from '@/services/p6/p6xmlReader';
 import { canonicalizeBands } from '@/services/subdayIo';
@@ -393,19 +394,42 @@ try {
 } catch (error) {
   deepAcyclicError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 }
+let deepAcyclicJsonError = '';
+let deepAcyclicTransfer: XerCalendar[] | undefined;
+if (deepAcyclic) {
+  const result = deepAcyclic;
+  try {
+    deepAcyclicTransfer = JSON.parse(JSON.stringify(result.calendars)) as XerCalendar[];
+  } catch (error) {
+    deepAcyclicJsonError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  }
+}
 eq('15j iteratieve basegraaf verwerkt 10.000 acyclische vooruitverwijzingen zonder stackfout', {
   error: deepAcyclicError,
+  jsonError: deepAcyclicJsonError,
   calendars: deepAcyclic?.calendars.length,
   issues: deepAcyclic?.issues.length,
   firstBase: deepAcyclic?.byId.get('a-0')?.baseCalendar?.id,
+  firstBaseIdentity: deepAcyclic?.byId.get('a-0')?.baseCalendar
+    === deepAcyclic?.byId.get('a-1'),
   penultimateBase: deepAcyclic?.byId.get('a-9998')?.baseCalendar?.id,
   rootBase: deepAcyclic?.byId.get('a-9999')?.baseCalendar?.id,
+  transferCount: deepAcyclicTransfer?.length,
+  transferFirstBaseId: deepAcyclicTransfer?.[0]?.baseCalendarId,
+  transferContainsConvenienceLink: Object.prototype.hasOwnProperty.call(
+    deepAcyclicTransfer?.[0] ?? {}, 'baseCalendar',
+  ),
 }, {
   error: '',
+  jsonError: '',
   calendars: 10_000,
   issues: 0,
   firstBase: 'a-1',
+  firstBaseIdentity: true,
   penultimateBase: 'a-9999',
+  transferCount: 10_000,
+  transferFirstBaseId: 'a-1',
+  transferContainsConvenienceLink: false,
 });
 
 const deepCycleRows = Array.from({ length: 10_000 }, (_, index) => (
