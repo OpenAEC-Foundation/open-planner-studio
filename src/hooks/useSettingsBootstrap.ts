@@ -1,15 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { loadWelcomeSeen, saveTaskGridPreferences } from '@/utils/settingsStore';
-import { loadAllSettings, loadTaskGridSettings } from '@/utils/settingsRegistry';
-import {
-  cloneTaskGridPreferences,
-  createDefaultTaskGridPreferences,
-  legacyDocumentColumnsToTaskGridPreferences,
-} from '@/engine/taskGrid/preferences';
-import type { ColumnConfig } from '@/types/view';
+import { loadWelcomeSeen } from '@/utils/settingsStore';
+import { loadAllSettings } from '@/utils/settingsRegistry';
 import { loadAllExtensions } from '@/extensions';
 import type { RecoveryState } from './useRecoveryRestore';
+import { bootstrapTaskGridPreferences } from '@/state/taskGridBootstrap';
 
 // Bootstrap van app-instellingen bij het opstarten: hydrateert de store uit localStorage
 // (thema, locale, zoom, panelen, urenplanning, …) plus extensies, en toont de eerste-keer
@@ -41,39 +36,7 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     if (taskGridChecked.current || !recoveryResolved || recovery !== null) return;
     taskGridChecked.current = true;
 
-    const current = useAppStore.getState();
-    const defaults = createDefaultTaskGridPreferences({
-      projectId: current.project.id,
-      activityCodeTypeIds: current.activityCodeTypes.map(type => type.id),
-      customFieldDefIds: current.customFieldDefs.map(def => def.id),
-    });
-    // `columns` is uit ViewState verwijderd, maar kan runtime nog in een oude actieve payload
-    // staan. Alleen bij een werkelijk ontbrekende nieuwe key mag die bron de full-griddefault
-    // vervangen; corrupte/nieuwe onbekende data wordt nooit stil overschreven.
-    const directLegacyColumns = (current.view as typeof current.view & {
-      columns?: ColumnConfig[];
-    }).columns;
-    const stagedLegacy = current.peekPendingLegacyTaskGridColumns();
-    const legacySource = directLegacyColumns !== undefined
-      ? { projectId: current.project.id, columns: directLegacyColumns }
-      : stagedLegacy;
-    void loadTaskGridSettings(defaults).then(async result => {
-      if (result.status === 'valid') {
-        useAppStore.getState().hydrateTaskGridPreferences(result.value);
-        return;
-      }
-      const fallback = cloneTaskGridPreferences(defaults);
-      if (result.status === 'missing') {
-        if (legacySource) {
-          fallback.surfaces['full-task-grid'].columns =
-            legacyDocumentColumnsToTaskGridPreferences(legacySource.columns, legacySource.projectId);
-        }
-        // Eerst de volledige geldige payload plaatsen; pas de hydrate hieronder ruimt de tijdelijke
-        // migratiebron op. Een sync localStorage-fout kan de oude bron zo niet voortijdig wissen.
-        await saveTaskGridPreferences(fallback);
-      }
-      useAppStore.getState().hydrateTaskGridPreferences(fallback);
-    }).catch(error => {
+    void bootstrapTaskGridPreferences(useAppStore).catch(error => {
       console.error('Taakgridvoorkeuren konden niet worden geïnitialiseerd:', error);
     });
   }, [recoveryResolved, recovery]);

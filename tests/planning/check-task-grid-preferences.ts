@@ -17,9 +17,10 @@ import {
   loadLayouts,
   loadTaskGridPreferences,
   saveLayouts,
-  saveTaskGridPreferences,
+  type TaskGridPreferencesLoadResult,
 } from '@/utils/settingsStore';
 import { activityCodeColumnId, customFieldColumnId, taskColumnId } from '@/engine/taskGrid/fieldIds';
+import { bootstrapTaskGridPreferences } from '@/state/taskGridBootstrap';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -178,18 +179,111 @@ eq('Een tweede store erft de tijdelijke migratiebron niet',
   createAppStore().getState().peekPendingLegacyTaskGridColumns(), null);
 
 storage.clear();
-const migratedFallback = createDefaultTaskGridPreferences({
-  projectId: 'project:1', activityCodeTypeIds: [], customFieldDefIds: [],
-});
-migratedFallback.surfaces['full-task-grid'].columns =
-  legacyDocumentColumnsToTaskGridPreferences(stagedLegacy!.columns, stagedLegacy!.projectId);
-await saveTaskGridPreferences(migratedFallback);
-migrationStore.getState().hydrateTaskGridPreferences(migratedFallback);
+eq('De echte product-bootstrap rapporteert een geslaagde legacy-migratie',
+  await bootstrapTaskGridPreferences(migrationStore), 'migrated');
 eq('Na geslaagde persist+hydrate staat de oude indeling in de gebruikersvoorkeur',
   migrationStore.getState().taskGridSurfaces['full-task-grid'].columns.map(column => column.id),
   ['task.name', activityCodeColumnId('project:1', 'fase:1')]);
 eq('Pas hydrate ruimt de tijdelijke legacybron op',
   migrationStore.getState().peekPendingLegacyTaskGridColumns(), null);
+
+// Opslagfout: product-bootstrap mag de enige legacybron niet opruimen voordat persist slaagt.
+const failingStore = createAppStore();
+const failingPayload = capturePayload(failingStore.getState());
+failingPayload.project = { ...failingPayload.project, id: 'project:failure' };
+(failingPayload.view as ViewState & { columns?: ColumnConfig[] }).columns = legacyDocumentColumns;
+failingStore.setState(state => hydratePayload(state, failingPayload));
+let saveFailed = false;
+try {
+  await bootstrapTaskGridPreferences(failingStore, {
+    load: async () => ({ status: 'missing' }),
+    save: async () => { throw new Error('quota'); },
+  });
+} catch {
+  saveFailed = true;
+}
+ok('Een opslagfout wordt aan de aanroeper gemeld', saveFailed);
+eq('Een opslagfout ruimt de pending legacybron niet op',
+  failingStore.getState().peekPendingLegacyTaskGridColumns()?.projectId, 'project:failure');
+
+// Bestaande geldige nieuwe voorkeur wint altijd van oude documentkolommen.
+const precedenceStore = createAppStore();
+const precedencePayload = capturePayload(precedenceStore.getState());
+precedencePayload.project = { ...precedencePayload.project, id: 'project:precedence' };
+(precedencePayload.view as ViewState & { columns?: ColumnConfig[] }).columns = legacyDocumentColumns;
+precedenceStore.setState(state => hydratePayload(state, precedencePayload));
+const validNewPreferences = createDefaultTaskGridPreferences({
+  projectId: '', activityCodeTypeIds: [], customFieldDefIds: [],
+});
+validNewPreferences.surfaces['full-task-grid'].columns = [{
+  id: taskColumnId('task.time.freeFloat'), width: 177, pinned: true,
+}];
+eq('Geldige nieuwe voorkeur heeft voorrang op oude documentkolommen',
+  await bootstrapTaskGridPreferences(precedenceStore, {
+    load: async () => ({ status: 'valid', value: validNewPreferences }),
+  }), 'valid');
+eq('De geldige nieuwe kolomset wordt letterlijk gehydrateerd',
+  precedenceStore.getState().taskGridSurfaces['full-task-grid'].columns,
+  validNewPreferences.surfaces['full-task-grid'].columns);
+eq('Geldige voorkeur ruimt de overbodige legacybron op',
+  precedenceStore.getState().peekPendingLegacyTaskGridColumns(), null);
+
+// Een corrupte bestaande key heeft eveneens voorrang: geen legacyconversie en geen overschrijving.
+const invalidStore = createAppStore();
+const invalidPayload = capturePayload(invalidStore.getState());
+invalidPayload.project = { ...invalidPayload.project, id: 'project:invalid' };
+(invalidPayload.view as ViewState & { columns?: ColumnConfig[] }).columns = legacyDocumentColumns;
+invalidStore.setState(state => hydratePayload(state, invalidPayload));
+let invalidSaveCalled = false;
+eq('Corrupte nieuwe voorkeur valt in memory terug en migreert legacy niet',
+  await bootstrapTaskGridPreferences(invalidStore, {
+    load: async () => ({ status: 'invalid' }),
+    save: async () => { invalidSaveCalled = true; },
+  }), 'invalid-fallback');
+ok('Invalid-fallback schrijft niets terug', !invalidSaveCalled);
+const invalidDefaults = createDefaultTaskGridPreferences({
+  projectId: 'project:invalid', activityCodeTypeIds: [], customFieldDefIds: [],
+});
+eq('Invalid-fallback gebruikt de negen vaste defaults, niet de legacyset',
+  invalidStore.getState().taskGridSurfaces['full-task-grid'].columns.map(column => column.id),
+  invalidDefaults.surfaces['full-task-grid'].columns.map(column => column.id));
+
+// Na preference-hydrate mogen latere documentwissels geen nieuwe pending bron opbouwen.
+const laterPayload = capturePayload(precedenceStore.getState());
+laterPayload.project = { ...laterPayload.project, id: 'project:later' };
+laterPayload.view = { ...laterPayload.view };
+(laterPayload.view as ViewState & { columns?: ColumnConfig[] }).columns = legacyDocumentColumns;
+precedenceStore.setState(state => hydratePayload(state, laterPayload));
+eq('Documenthydrate na preference-bootstrap stage’t geen nieuwe legacybron',
+  precedenceStore.getState().peekPendingLegacyTaskGridColumns(), null);
+
+// Zelfs met een kunstmatig trage loader gebruikt missing-migratie het document dat op het moment
+// van migreren actief is, niet een eerder snapshot met een verkeerd project-id.
+const raceStore = createAppStore();
+const raceA = capturePayload(raceStore.getState());
+raceA.project = { ...raceA.project, id: 'project:race-a' };
+(raceA.view as ViewState & { columns?: ColumnConfig[] }).columns = legacyDocumentColumns;
+raceStore.setState(state => hydratePayload(state, raceA));
+let releaseRaceLoad = (): void => undefined;
+const delayedLoad = new Promise<TaskGridPreferencesLoadResult>(resolve => {
+  releaseRaceLoad = () => resolve({ status: 'missing' });
+});
+const raceSaved: PersistedTaskGridPreferencesV1[] = [];
+const raceBootstrap = bootstrapTaskGridPreferences(raceStore, {
+  load: async () => delayedLoad,
+  save: async preferences => { raceSaved.push(preferences); },
+});
+const raceB = capturePayload(raceStore.getState());
+raceB.project = { ...raceB.project, id: 'project:race-b' };
+raceB.view = { ...raceB.view };
+(raceB.view as ViewState & { columns?: ColumnConfig[] }).columns = legacyDocumentColumns;
+raceStore.setState(state => hydratePayload(state, raceB));
+releaseRaceLoad();
+eq('Trage missing-bootstrap migreert tegen het inmiddels actieve project',
+  await raceBootstrap, 'migrated');
+eq('Trage bootstrap bindt dynamische legacy-id aan project B, niet project A',
+  raceSaved[0]?.surfaces['full-task-grid'].columns.map(column => column.id),
+  ['task.name', activityCodeColumnId('project:race-b', 'fase:1')]);
 
 storage.setItem('ops-taskGridPreferences', '{kapot');
 const corruptRaw = storage.getItem('ops-taskGridPreferences');
@@ -271,6 +365,8 @@ await saveLayouts(migratedLayouts as Layout[]);
 ok('Nieuwe layouts worden onder een versieerbare eigen sleutel opgeslagen',
   storage.getItem('ops-taskGridLayouts')?.includes('"version":1') === true);
 eq('Expliciet opslaan laat de oude ops-layouts onaangeroerd', storage.getItem('ops-layouts'), oldLayoutRaw);
+eq('De geldige legacy-layout blijft na expliciete save opnieuw bereikbaar',
+  (await loadLayouts()).map(layout => layout.id), ['legacy-layout']);
 
 if (diffs.length) {
   console.error(`XX task-grid-preferences: ${diffs.length}/${checks} checks rood`);
