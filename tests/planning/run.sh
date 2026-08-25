@@ -699,7 +699,7 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   #      oude tsconfig.roundtrip.json dekte alleen deze ene batterij, de rest werd door esbuild
   #      gestript en dus nooit type-gecheckt.
   #  (2) De round-trip zelf: writeIFC→readIFC veld-voor-veld + idempotentie + KNOWN_GAPS.
-  node "$ROOT/node_modules/.bin/tsc" --noEmit -p "$DIR/tsconfig.check.json" || STATUS=1
+  "$ROOT/node_modules/.bin/tsc" --noEmit -p "$DIR/tsconfig.check.json" || STATUS=1
 
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
