@@ -251,6 +251,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERSCHEDOPTIONSCHECK="$DIR/.xer-schedule-options.mjs"
   if bundle_check "$DIR/check-xer-schedule-options.ts" "$XERSCHEDOPTIONSCHECK"; then node "$XERSCHEDOPTIONSCHECK" || STATUS=1; fi
 
+  # X5 seriële wiring: per-project-SCHEDOPTIONS door X4b's echte meerdocumentreader, inclusief
+  # defaults, bronmetadata, documentwissel/undo/recovery en de bestaande IFC-projectvelden.
+  XERSCHEDOPTIONSWIRINGCHECK="$DIR/.xer-schedule-options-wiring.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options-wiring.ts" "$XERSCHEDOPTIONSWIRINGCHECK"; then node "$XERSCHEDOPTIONSWIRINGCHECK" || STATUS=1; fi
+
   # X5 zware openbare corpuspin: 27-kolommenunion en de 36 actuele bestanden zonder SCHEDOPTIONS,
   # per default/per as en tegen de onafhankelijke X1-meetlat. Eén keer draaien, niet per tijdzone.
   XERSCHEDOPTIONSCORPUSCHECK="$DIR/.xer-schedule-options-corpus.mjs"

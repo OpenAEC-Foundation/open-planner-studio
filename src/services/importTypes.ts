@@ -44,6 +44,30 @@ export interface XerEnumFallback {
   line: number;
 }
 
+export interface XerScheduleOptionFallback {
+  field: string;
+  token: string;
+  fallback: string;
+  line: number;
+}
+
+export interface XerScheduleOptionsSourceRow {
+  table: 'PROJECT' | 'SCHEDOPTIONS';
+  line: number;
+  cells: Record<string, string>;
+}
+
+/** Neutraal documentcontract voor X5-bronbewijs. Dit staat bewust buiten de lazy XER-chunk:
+ * algemene document-/recoverycode mag het type kennen zonder de reader statisch te laden. */
+export interface XerScheduleOptionsMetadata {
+  source: 'schedoptions' | 'xer-defaults';
+  retainedSource: {
+    sched_use_project_end_date_for_float?: boolean;
+  };
+  fallbacks: XerScheduleOptionFallback[];
+  sourceRows: XerScheduleOptionsSourceRow[];
+}
+
 export interface XerExternalRelation {
   id: string;
   localProjectId: string;
@@ -88,6 +112,8 @@ export interface XerImportMetadata {
   tableReport: XerTableReportMetadata;
   calendarIssues: XerCalendarIssueMetadata[];
   enumFallbacks: XerEnumFallback[];
+  /** X5: afleidingsbron, terugvallen en retained/TODO-waarden van precies dit project. */
+  scheduleOptions: XerScheduleOptionsMetadata;
   externalRelations: XerExternalRelation[];
   /** Canonieke cross-documentlinks waarbij dit document een eindpunt is; nooit solverinvoer. */
   externalLinks: XerDocumentExternalLink[];

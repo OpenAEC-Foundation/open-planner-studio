@@ -30,8 +30,10 @@
     "oracleAxisFiles": 60,
     "withSchedOptions": 24,
     "withoutSchedOptions": 36,
-    "measured": 32,
-    "deferred": 4,
+    "measured": 34,
+    "deferred": 2,
+    "openedProjectsWithDefaults": 35,
+    "wiredProjectsWithDefaults": 35,
     "oracleNegativeFloatFiles": 5,
     "withoutSchedOptionsNegativeFloatFiles": 4,
     "rawNegativeFloatFiles": 6,
@@ -319,10 +321,113 @@
     },
     {
       "id": "1ba69d297ee9a5c6-1",
-      "state": "deferred",
-      "tasks": 8,
+      "state": "measured",
+      "tasks": 4,
       "oracleNegativeFloatTasks": 0,
-      "deferredCode": "XER_SINGLE_PROJECT_REQUIRED"
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            2,
+            2,
+            2
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
     },
     {
       "id": "1ba8cf1885491db3-1",
@@ -876,10 +981,113 @@
     },
     {
       "id": "32524ea41f8bb4cb-1",
-      "state": "deferred",
+      "state": "measured",
       "tasks": 2,
       "oracleNegativeFloatTasks": 0,
-      "deferredCode": "XER_SINGLE_PROJECT_REQUIRED"
+      "houseNegativeFloatTasks": 0,
+      "xerDefaultsMovement": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "xerDefaultsNegativeFloatTasks": 0,
+      "defaults": {
+        "totalFloatFinish": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "retainedLogic": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "openEndedNotCritical": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "preserveActualDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "clampNegativeFreeFloat": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "projectCriticalDefinition": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        }
+      }
     },
     {
       "id": "3daf749da5d4cd89-1",
@@ -3658,12 +3866,12 @@
         "measurable": 7532
       },
       "tf": {
-        "deviations": 6928,
-        "measurable": 7594
+        "deviations": 6931,
+        "measurable": 7600
       },
       "ff": {
-        "deviations": 2339,
-        "measurable": 7217
+        "deviations": 2341,
+        "measurable": 7221
       }
     },
     "xerDefaults": {
@@ -3684,12 +3892,12 @@
         "measurable": 7532
       },
       "tf": {
-        "deviations": 6403,
-        "measurable": 7594
+        "deviations": 6406,
+        "measurable": 7600
       },
       "ff": {
-        "deviations": 583,
-        "measurable": 7217
+        "deviations": 585,
+        "measurable": 7221
       }
     },
     "defaults": {
@@ -3712,12 +3920,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6927,
-            "measurable": 7594
+            "deviations": 6930,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         },
         "counterfactual": {
@@ -3738,12 +3946,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         }
       },
@@ -3766,12 +3974,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         },
         "counterfactual": {
@@ -3792,12 +4000,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 7406,
-            "measurable": 7594
+            "deviations": 7409,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2519,
-            "measurable": 7217
+            "deviations": 2521,
+            "measurable": 7221
           }
         }
       },
@@ -3820,12 +4028,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         },
         "counterfactual": {
@@ -3846,12 +4054,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6911,
-            "measurable": 7594
+            "deviations": 6912,
+            "measurable": 7600
           },
           "ff": {
             "deviations": 2339,
-            "measurable": 7217
+            "measurable": 7221
           }
         }
       },
@@ -3874,12 +4082,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         },
         "counterfactual": {
@@ -3900,12 +4108,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2340,
-            "measurable": 7217
+            "deviations": 2342,
+            "measurable": 7221
           }
         }
       },
@@ -3928,12 +4136,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6404,
-            "measurable": 7594
+            "deviations": 6407,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 702,
-            "measurable": 7217
+            "deviations": 704,
+            "measurable": 7221
           }
         },
         "counterfactual": {
@@ -3954,12 +4162,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         }
       },
@@ -3982,12 +4190,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 1747,
-            "measurable": 7217
+            "deviations": 1749,
+            "measurable": 7221
           }
         },
         "counterfactual": {
@@ -4008,12 +4216,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         }
       },
@@ -4036,12 +4244,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         },
         "counterfactual": {
@@ -4062,12 +4270,12 @@
             "measurable": 7532
           },
           "tf": {
-            "deviations": 6928,
-            "measurable": 7594
+            "deviations": 6931,
+            "measurable": 7600
           },
           "ff": {
-            "deviations": 2339,
-            "measurable": 7217
+            "deviations": 2341,
+            "measurable": 7221
           }
         }
       }

@@ -25,6 +25,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { readXerCalendars } from './xerCalendarData';
 import { assembleXerMultiProjectImport, type XerMultiProjectImport } from './xerMultiProject';
+import { deriveXerScheduleOptions } from './xerScheduleOptions';
 import {
   parseXerNumber,
   parseXerTables,
@@ -524,6 +525,16 @@ function readXerProject(tables: XerTables, projectId: string): XerReadResult {
     }
   }
 
+  const derivedSchedule = deriveXerScheduleOptions(tables, projectId, {
+    hoursPerDay: projectCalendar.hoursPerDay,
+    taskCount: mappedActivities.length,
+  });
+  const {
+    progressMode,
+    schedulingOptions,
+    ...scheduleOptionsMetadata
+  } = derivedSchedule;
+
   return {
     project: {
       id: projectId,
@@ -537,6 +548,8 @@ function readXerProject(tables: XerTables, projectId: string): XerReadResult {
       author: '',
       company: '',
       ...(statusDate ? { statusDate } : {}),
+      progressMode,
+      schedulingOptions,
     },
     calendar: projectCalendar,
     resourceCalendars: calendarList.filter(calendar => calendar.id !== projectCalendar.id),
@@ -549,6 +562,7 @@ function readXerProject(tables: XerTables, projectId: string): XerReadResult {
       tableReport: tables.report,
       calendarIssues: calendars.issues,
       enumFallbacks,
+      scheduleOptions: scheduleOptionsMetadata,
       externalRelations,
       externalLinks: [],
       // `assembleXerMultiProjectImport` vervangt dit vóór de reader retourneert door het echte,

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
 import { readXER } from '@/services/xer/xerReader';
+import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import {
   deriveXerScheduleOptions,
   XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS,
@@ -87,6 +88,8 @@ interface BlastRadiusBaseline {
     withoutSchedOptions: number;
     measured: number;
     deferred: number;
+    openedProjectsWithDefaults: number;
+    wiredProjectsWithDefaults: number;
     oracleNegativeFloatFiles: number;
     withoutSchedOptionsNegativeFloatFiles: number;
     rawNegativeFloatFiles: number;
@@ -274,12 +277,27 @@ function movement(before: BlastSolvedProject, after: BlastSolvedProject): AxisVe
   }, 0)) as AxisVector;
 }
 
-function negativeFloatTasks(solved: BlastSolvedProject): number {
-  return solved.tasks.filter(task => (task.totalFloatMinutes ?? 0) < 0).length;
+function movementProjects(
+  before: readonly BlastSolvedProject[],
+  after: readonly BlastSolvedProject[],
+): AxisVector {
+  const afterByProject = new Map(after.map(project => [project.projectId, project]));
+  const total = Array(BLAST_AXES.length).fill(0) as AxisVector;
+  for (const project of before) {
+    const next = afterByProject.get(project.projectId);
+    if (!next) throw new Error(`blast-radius mist project ${project.projectId} in de tegenvariant`);
+    movement(project, next).forEach((value, index) => { total[index] += value; });
+  }
+  return total;
+}
+
+function negativeFloatTasks(solved: readonly BlastSolvedProject[]): number {
+  return solved.reduce((sum, project) => sum
+    + project.tasks.filter(task => (task.totalFloatMinutes ?? 0) < 0).length, 0);
 }
 
 function projectResult(
-  imported: ReturnType<typeof readXER>,
+  imported: ImportResult,
   variant: SolverVariant,
 ): BlastSolvedProject {
   const tasks = cloneTasksForSolve(imported.tasks);
@@ -432,15 +450,18 @@ function measureCorpus(root: string): BlastRadiusBaseline {
 
   const occurrences = new Map<string, number>();
   const files: MeasuredFile[] = [];
+  let openedProjectsWithDefaults = 0;
+  let wiredProjectsWithDefaults = 0;
   for (const file of [...without].sort((a, b) =>
     a.fullHash.localeCompare(b.fullHash) || a.path.localeCompare(b.path))) {
     const occurrence = (occurrences.get(file.fullHash) ?? 0) + 1;
     occurrences.set(file.fullHash, occurrence);
     const id = `${file.fullHash.slice(0, 16)}-${occurrence}`;
-    const oracleNegativeFloatTasks = file.truth.tasks.filter(taskHasNegativeFloat).length;
-    let imported: ReturnType<typeof readXER>;
+    let oracleNegativeFloatTasks = file.truth.tasks.filter(taskHasNegativeFloat).length;
+    let importedProjects: ImportResult[];
     try {
-      imported = readXER(file.bytes);
+      const opened = readXER(file.bytes);
+      importedProjects = isMultiDocumentImport(opened) ? opened.results : [opened];
     } catch (error) {
       files.push({
         id,
@@ -452,33 +473,58 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       continue;
     }
 
-    const xerDefaultsVariant = independentXerDefaults(file.rawTables, imported.project.id);
-    const house = projectResult(imported, {});
-    const houseMeasurement = measureXerFidelity(file.truth, [house]);
+    // X4b kan aanwezige baselineprojecten bewust niet als document openen. De blast-radius meet
+    // daarom alle WERKELIJK geopende projecten uit dit bestand en filtert de onafhankelijke
+    // grondwaarheid op exact die ids; zo blijft de uitlijning per project zonder terug te vallen
+    // op één willekeurig actief document.
+    const openedProjectIds = new Set(importedProjects.map(imported => imported.project.id));
+    const openedTruth: XerGroundTruth = {
+      ...file.truth,
+      projects: new Set([...file.truth.projects].filter(projectId => openedProjectIds.has(projectId))),
+      tasks: file.truth.tasks.filter(task => openedProjectIds.has(task.projectId)),
+    };
+    oracleNegativeFloatTasks = openedTruth.tasks.filter(taskHasNegativeFloat).length;
+    const xerDefaultsVariants = importedProjects.map(imported =>
+      independentXerDefaults(file.rawTables, imported.project.id));
+    openedProjectsWithDefaults += importedProjects.length;
+    wiredProjectsWithDefaults += importedProjects.filter((imported, index) =>
+      JSON.stringify({
+        progressMode: imported.project.progressMode,
+        schedulingOptions: imported.project.schedulingOptions,
+        source: imported.xer?.scheduleOptions.source,
+      }) === JSON.stringify({
+        ...xerDefaultsVariants[index],
+        source: 'xer-defaults',
+      })).length;
+    const house = importedProjects.map(imported => projectResult(imported, {}));
+    const houseMeasurement = measureXerFidelity(openedTruth, house);
     if (houseMeasurement.errors.length > 0) throw new Error(`${id}: fidelity-uitlijning mislukt`);
     addCounters(fidelity.house, houseMeasurement.counters);
 
-    const xerDefaults = projectResult(imported, {
-      progressMode: xerDefaultsVariant.progressMode,
-      schedulingOptions: xerDefaultsVariant.schedulingOptions,
-    });
-    const xerDefaultsFidelity = measureXerFidelity(file.truth, [xerDefaults]);
+    const xerDefaults = importedProjects.map((imported, index) => projectResult(imported, {
+      progressMode: xerDefaultsVariants[index].progressMode,
+      schedulingOptions: xerDefaultsVariants[index].schedulingOptions,
+    }));
+    const xerDefaultsFidelity = measureXerFidelity(openedTruth, xerDefaults);
     if (xerDefaultsFidelity.errors.length > 0) {
       throw new Error(`${id}: gecombineerde-XER-defaultuitlijning mislukt`);
     }
     addCounters(fidelity.xerDefaults, xerDefaultsFidelity.counters);
 
     const defaultMeasurements = {} as Record<DefaultKey, DefaultMeasurement>;
-    for (const [key, pair] of Object.entries(variantDefinitions(
-      xerDefaultsVariant.schedulingOptions?.criticalDefinition,
-    )) as Array<[
-      DefaultKey,
-      ReturnType<typeof variantDefinitions>[DefaultKey],
-    ]>) {
-      const chosen = projectResult(imported, pair.chosen);
-      const counterfactual = projectResult(imported, pair.counterfactual);
+    for (const key of DEFAULT_KEYS) {
+      const chosen = importedProjects.map((imported, index) => projectResult(
+        imported,
+        variantDefinitions(xerDefaultsVariants[index].schedulingOptions?.criticalDefinition)[key].chosen,
+      ));
+      const counterfactual = importedProjects.map((imported, index) => projectResult(
+        imported,
+        variantDefinitions(
+          xerDefaultsVariants[index].schedulingOptions?.criticalDefinition,
+        )[key].counterfactual,
+      ));
       defaultMeasurements[key] = {
-        movement: movement(counterfactual, chosen),
+        movement: movementProjects(counterfactual, chosen),
         chosenNegativeFloatTasks: negativeFloatTasks(chosen),
         counterfactualNegativeFloatTasks: negativeFloatTasks(counterfactual),
       };
@@ -486,7 +532,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
         ['chosen', chosen],
         ['counterfactual', counterfactual],
       ] as const) {
-        const measured = measureXerFidelity(file.truth, [solved]);
+        const measured = measureXerFidelity(openedTruth, solved);
         if (measured.errors.length > 0) throw new Error(`${id}: ${variant}-uitlijning mislukt`);
         addCounters(fidelity.defaults[key][variant], measured.counters);
       }
@@ -494,10 +540,10 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     files.push({
       id,
       state: 'measured',
-      tasks: file.truth.tasks.length,
+      tasks: openedTruth.tasks.length,
       oracleNegativeFloatTasks,
       houseNegativeFloatTasks: negativeFloatTasks(house),
-      xerDefaultsMovement: movement(house, xerDefaults),
+      xerDefaultsMovement: movementProjects(house, xerDefaults),
       xerDefaultsNegativeFloatTasks: negativeFloatTasks(xerDefaults),
       defaults: defaultMeasurements,
     });
@@ -515,6 +561,8 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       withoutSchedOptions: without.length,
       measured: files.filter(file => file.state === 'measured').length,
       deferred: files.filter(file => file.state === 'deferred').length,
+      openedProjectsWithDefaults,
+      wiredProjectsWithDefaults,
       oracleNegativeFloatFiles: oracleFiles.filter(file => file.truth.tasks.some(taskHasNegativeFloat)).length,
       withoutSchedOptionsNegativeFloatFiles: without.filter(file => file.truth.tasks.some(taskHasNegativeFloat)).length,
       rawNegativeFloatFiles: scanned.filter(file => hasRawNegativeFloat(file.bytes)).length,
@@ -589,8 +637,10 @@ if (!root) {
     oracleAxisFiles: 60,
     withSchedOptions: 24,
     withoutSchedOptions: 36,
-    measured: 32,
-    deferred: 4,
+    measured: 34,
+    deferred: 2,
+    openedProjectsWithDefaults: 35,
+    wiredProjectsWithDefaults: 35,
     oracleNegativeFloatFiles: 5,
     withoutSchedOptionsNegativeFloatFiles: 4,
     rawNegativeFloatFiles: 6,

@@ -596,6 +596,15 @@ eq('expliciete XER-defaultset is brongebonden en compleet', withoutTable, {
   },
   retainedSource: {},
   fallbacks: [],
+  sourceRows: [{
+    table: 'PROJECT',
+    line: 4,
+    cells: {
+      proj_id: 'P1',
+      critical_path_type: 'CT_TotFloat',
+      critical_drtn_hr_cnt: '16',
+    },
+  }],
 });
 eq('geexporteerde defaults blijven de ongewijzigde nul-drempel leveren', XER_SCHEDULING_DEFAULTS, {
   progressMode: 'RETAINED_LOGIC',
@@ -718,6 +727,35 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
   },
   retainedSource: { sched_use_project_end_date_for_float: false },
   fallbacks: [],
+  sourceRows: [
+    {
+      table: 'PROJECT',
+      line: 4,
+      cells: {
+        proj_id: 'P1',
+        critical_path_type: 'ct_drivpath',
+        critical_drtn_hr_cnt: '0',
+      },
+    },
+    {
+      table: 'SCHEDOPTIONS',
+      line: 7,
+      cells: {
+        proj_id: 'P1',
+        sched_calendar_on_relationship_lag: 'RCAL_SUCCESSOR',
+        sched_float_type: 'ft_ss',
+        sched_retained_logic: 'N',
+        sched_progress_override: 'y',
+        sched_open_critical_flag: 'Y',
+        sched_use_project_end_date_for_float: 'n',
+        sched_use_expect_end_flag: 'N',
+        enable_multiple_longest_path_calc: 'Y',
+        use_total_float: 'Y',
+        limit_multiple_longest_path_calc: 'Y',
+        max_multiple_longest_path: '3',
+      },
+    },
+  ],
 });
 
 const mixedCaseLag = deriveXerScheduleOptions(parseXerTables(xer(

@@ -1,31 +1,28 @@
 /**
- * Pure XER-SCHEDOPTIONS-afleiding. Deze module bedraadt zichzelf bewust niet in `xerReader`: de
- * seriële importnaad volgt pas nadat de parallelle XER-kernbanen zijn samengebracht.
+ * Pure XER-SCHEDOPTIONS-afleiding. `xerReader` roept deze module één keer per geopend project aan;
+ * de mapping blijft hier zelfstandig zodat projectselectie en schedulingssemantiek niet mengen.
  *
  * Voor de betekenis van de P6-enumtokens is MPXJ als gedragsreferentie geraadpleegd
  * (https://github.com/joniles/mpxj, LGPL-2.1, Jon Iles e.a.). Er is geen MPXJ-code overgenomen;
  * mapping, defaults, kolommatrix en terugvalrapportage zijn hier zelfstandig geïmplementeerd.
  */
 import type { ProgressMode, SchedulingOptions } from '@/types/project';
+import type {
+  XerScheduleOptionFallback,
+  XerScheduleOptionsMetadata,
+  XerScheduleOptionsSourceRow,
+} from '../importTypes';
 import { parseXerNumber, type XerRow, type XerTables } from './xerTables';
 
-export interface XerScheduleOptionFallback {
-  field: string;
-  token: string;
-  fallback: string;
-  line: number;
-}
+export type {
+  XerScheduleOptionFallback,
+  XerScheduleOptionsMetadata,
+  XerScheduleOptionsSourceRow,
+} from '../importTypes';
 
-export interface XerScheduleOptionsResult {
-  source: 'schedoptions' | 'xer-defaults';
+export interface XerScheduleOptionsResult extends XerScheduleOptionsMetadata {
   progressMode: ProgressMode;
   schedulingOptions: SchedulingOptions;
-  /** Bronwaarden waarvoor X5 nog geen correcte solverrepresentatie heeft. Ze blijven expliciet
-   *  beschikbaar voor de latere readerwiring en worden niet als schijnoptie op het project gezet. */
-  retainedSource: {
-    sched_use_project_end_date_for_float?: boolean;
-  };
-  fallbacks: XerScheduleOptionFallback[];
 }
 
 export type XerScheduleOptionColumnDisposition =
@@ -211,6 +208,16 @@ function scheduleRow(tables: XerTables, projectId: string): XerRow | undefined {
   return tables.tables.get('SCHEDOPTIONS')?.rows.find(row => row.cells.proj_id?.trim() === projectId);
 }
 
+function sourceRows(tables: XerTables, projectId: string): XerScheduleOptionsSourceRow[] {
+  const projectRows = (tables.tables.get('PROJECT')?.rows ?? [])
+    .filter(row => row.cells.proj_id?.trim() === projectId)
+    .map(row => ({ table: 'PROJECT' as const, line: row.line, cells: { ...row.cells } }));
+  const scheduleRows = (tables.tables.get('SCHEDOPTIONS')?.rows ?? [])
+    .filter(row => row.cells.proj_id?.trim() === projectId)
+    .map(row => ({ table: 'SCHEDOPTIONS' as const, line: row.line, cells: { ...row.cells } }));
+  return [...projectRows, ...scheduleRows];
+}
+
 export function deriveXerScheduleOptions(
   tables: XerTables,
   projectId: string,
@@ -218,6 +225,7 @@ export function deriveXerScheduleOptions(
 ): XerScheduleOptionsResult {
   const defaults = freshDefaults();
   const fallbacks: XerScheduleOptionFallback[] = [];
+  const retainedRows = sourceRows(tables, projectId);
   defaults.schedulingOptions.criticalDefinition = projectCriticalDefinition(
     tables,
     projectId,
@@ -232,6 +240,7 @@ export function deriveXerScheduleOptions(
       schedulingOptions: defaults.schedulingOptions,
       retainedSource: {},
       fallbacks,
+      sourceRows: retainedRows,
     };
   }
 
@@ -288,5 +297,12 @@ export function deriveXerScheduleOptions(
     };
   }
 
-  return { source: 'schedoptions', progressMode, schedulingOptions, retainedSource, fallbacks };
+  return {
+    source: 'schedoptions',
+    progressMode,
+    schedulingOptions,
+    retainedSource,
+    fallbacks,
+    sourceRows: retainedRows,
+  };
 }
