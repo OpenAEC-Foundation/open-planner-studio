@@ -1,5 +1,6 @@
 import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 /**
  * Afgeleide identiteit + statistieken per geopend document, voor de
@@ -104,7 +105,7 @@ export interface DocStats {
 }
 
 export function buildStats(tasks: Task[], cpm: CPMResult | null, projectEnd: string): DocStats {
-  const leaves = tasks.filter((t) => t.childIds.length === 0);
+  const leaves = tasks.filter(isLeafTask);
   const milestoneCount = tasks.filter((t) => t.isMilestone).length;
   const criticalCount = cpm
     ? cpm.criticalPath.length
@@ -127,7 +128,7 @@ export interface ThumbBar {
 export function buildThumbnail(tasks: Task[], identityColor: string, maxBars = 9): ThumbBar[] {
   const points: { start: number; end: number; ms: boolean; crit: boolean }[] = [];
   for (const t of tasks) {
-    if (t.childIds.length > 0) continue; // alleen bladtaken/mijlpalen
+    if (isSummaryTask(t)) continue; // alleen bladtaken/mijlpalen
     const startStr = t.time.earlyStart || t.time.scheduleStart;
     if (!startStr) continue;
     const start = Date.parse(startStr);

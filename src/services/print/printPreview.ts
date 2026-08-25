@@ -12,6 +12,7 @@ import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
 import { dateToX as axisDateToX } from '@/engine/renderer/timeAxis';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { snapToChoice } from '@/utils/numberChoice';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
 // tekenhelpers rekenen met de geschaalde varianten uit {@link ReportMetrics}/{@link makeMetrics}.
@@ -675,7 +676,7 @@ export function renderReport(
       if (options.showTaskNames) {
         barLabelJobs.push({ name: task.name, barRightX: x + size, barLeftX: x - size, y: cy + m.s(3), bold: false });
       }
-    } else if (task.childIds.length > 0) {
+    } else if (isSummaryTask(task)) {
       // Summary bracket bar
       const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
       const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
@@ -1223,7 +1224,7 @@ function drawTaskTable(
     // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
     // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
     const indent = depth * m.s(12);
-    const isSummary = task.childIds.length > 0;
+    const isSummary = isSummaryTask(task);
 
     // Alternating row background
     if (i % 2 === 0) {

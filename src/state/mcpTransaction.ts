@@ -19,6 +19,7 @@ import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resour
 import type { Project } from '@/types/project';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 /** Herintreedbaarheids-wachter: `true` zolang een `runInMcpTransaction` loopt. Los van de
  *  `beginUndoable`-suppressievlag in transaction.ts (die stuurt de mutators aan) — deze stuurt puur
@@ -242,6 +243,7 @@ export const draft = {
         priority: partial.priority ?? 500,
         parentId,
         childIds: [],
+        isSummary: partial.isSummary,
         // T14b (gebruikstestbevinding, ernst hoog — dataverlies): zie taskSlice.ts addTask — zelfde
         // veld-voor-veld-merge, MCP-pad. Een ongemerged meegegeven `time` liet writeIFC crashen op
         // een ontbrekend `completion` (`time.completion.toFixed(1)` in ifcTaskSlots.ts).
@@ -678,7 +680,7 @@ export const draft = {
     useAppStore.setState((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) throw new Error(`draft.assignResource: onbekende taskId '${taskId}'`);
-      if (task.isMilestone || task.childIds.length > 0) {
+      if (task.isMilestone || isSummaryTask(task)) {
         throw new Error(`draft.assignResource: kan geen resource toewijzen aan een mijlpaal/samenvattingstaak '${taskId}'`);
       }
       if (!isValidUnits(unitsPerDay)) {
@@ -731,7 +733,7 @@ export const draft = {
       if (!assignment) throw new Error(`draft.moveAssignment: onbekende assignmentId '${assignmentId}'`);
       const newTask = s.tasks.find((t) => t.id === newTaskId);
       if (!newTask) throw new Error(`draft.moveAssignment: onbekende taskId '${newTaskId}'`);
-      if (newTask.isMilestone || newTask.childIds.length > 0) {
+      if (newTask.isMilestone || isSummaryTask(newTask)) {
         throw new Error(`draft.moveAssignment: doeltaak '${newTaskId}' is een mijlpaal/samenvattingstaak`);
       }
       const alreadyOnTarget = s.assignments.some(

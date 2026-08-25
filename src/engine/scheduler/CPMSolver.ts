@@ -250,7 +250,7 @@ export class CPMSolver {
 
     // Guard (T8-rooktest, 870d339f60603f71 — hash-only §8): de aanroepers (`runCPM`/`levelResources` in
     // `scheduleSlice.ts`, de leveler in `ResourceLeveler.ts`, `benchmark/runner.ts`) geven hier
-    // opzettelijk alleen BLADTAKEN aan mee (`childIds.length === 0`) — een samenvattingstaak krijgt
+    // opzettelijk alleen semantische BLADTAKEN aan mee — een samenvattingstaak krijgt
     // zijn datums via de rollup in `applyCpmResult`, niet als eigen CPM-knoop. `sequences` komt
     // ONGEFILTERD binnen: in MS Project is een relatie op een samenvattingstaak legaal (mspdiReader/
     // ifcReader/mppReader lezen 'm gewoon in), maar deze solver kent geen samenvattingstaken. Vóór

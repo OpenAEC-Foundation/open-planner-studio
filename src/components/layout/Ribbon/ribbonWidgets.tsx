@@ -20,6 +20,7 @@ import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsHandles } from '@/services/fileAccess';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import { RibbonTab, type GroupLevel, type SortLevel, type Layout, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';
@@ -464,7 +465,7 @@ export function ResourceAssignDropdown() {
   const assignResource = useAppStore(s => s.assignResource);
 
   const task = selectedTaskIds.length === 1 ? tasks.find(t => t.id === selectedTaskIds[0]) : undefined;
-  const valid = !!task && !task.isMilestone && task.childIds.length === 0;
+  const valid = !!task && isLeafTask(task) && !task.isMilestone;
   const assignedIds = new Set(assignments.filter(a => a.taskId === task?.id).map(a => a.resourceId));
   const available = resources.filter(r => !assignedIds.has(r.id));
 

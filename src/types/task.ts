@@ -478,6 +478,11 @@ export interface Task {
    *  van de MSP-solversemantiek, en vult dit veld pas dan daadwerkelijk (geen enkele lezer zet het
    *  vóór die meting). Default/afwezig ⇒ MSP-conventie, byte-identiek. */
   p6SuspendResume?: boolean;
+  /** Expliciete WBS-/samenvattingsidentiteit. `true` betekent dat de taak ook zonder kinderen een
+   *  samenvatting blijft (bijvoorbeeld een lege PROJWBS-rij uit P6). `false` verwijdert alleen die
+   *  expliciete marker; taken met kinderen blijven samenvatting. Afwezig houdt bij updates de
+   *  bestaande waarde ongemoeid. Gebruik `isSummaryTask`/`isLeafTask` voor de semantiek. */
+  isSummary?: boolean;
   parentId: string | null; // WBS parent
   childIds: string[];      // WBS children
   time: TaskTime;

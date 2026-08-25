@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Task } from '@/types/task';
 import { SequenceType } from '@/types/sequence';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 /**
  * Hammock/Level-of-Effort-toggle + read-only driver-info (fase 2.9 §5.3) — deel van sectie 4 uit
@@ -18,7 +19,7 @@ export function TaskHammockFields({ task, onChange }: {
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
 
-  if (task.isMilestone || task.childIds.length > 0) return null;
+  if (task.isMilestone || isSummaryTask(task)) return null;
 
   // Hammock-drivers (fase 2.9 §5.3, besluit B6): auto-detectie volgens P6-conventie — inkomende
   // FS/SS-relaties = start-driver (leveren de ES), FF/SF-relaties = finish-driver (leveren de EF,

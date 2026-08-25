@@ -16,6 +16,7 @@ import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { AlertTriangle } from 'lucide-react';
 import { useTableRowDrag } from './hooks/useTableRowDrag';
 import { neighbourGridCell, type GridDirection } from '@/utils/gridNavigation';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 const MIN_COLUMN_WIDTH = 40;
 
@@ -811,7 +812,7 @@ export function TableEditor() {
             );
           }
           const { task, depth, dimmed } = row;
-          const isSummary = task.childIds.length > 0;
+          const isSummary = isSummaryTask(task);
           const isCollapsed = collapsedTaskIds.includes(task.id);
           const isSelected = selectedTaskIds.includes(task.id);
           // issue #26 punt 6: is DEZE rij het actuele drop-doel, en zo ja in welke zone?

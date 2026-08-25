@@ -5,6 +5,7 @@ import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarByTask, isHourCalendar, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 // Curve-/contour-naammapping (fase 2.5, §8.3): P6 kent geen `LATE_PEAK`-curve — beste
 // benadering is 'Early Peak' (gedocumenteerd verlies, zie verliesmatrix §8.4). UNIFORM wordt
@@ -106,7 +107,7 @@ function taskTypeToP6(task: Task): string {
     // dode code: mijlpalen hebben altijd duur 0.
     return task.milestoneKind === 'FINISH' ? 'Finish Milestone' : 'Start Milestone';
   }
-  if (task.childIds.length > 0) return 'WBS Summary';
+  if (isSummaryTask(task)) return 'WBS Summary';
   return 'Task Dependent';
 }
 
@@ -290,8 +291,8 @@ export function writeP6XML(
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
 
   // WBS elements (parent tasks)
-  const wbsTasks = tasks.filter(t => t.childIds.length > 0);
-  const leafTasks = tasks.filter(t => t.childIds.length === 0);
+  const wbsTasks = tasks.filter(isSummaryTask);
+  const leafTasks = tasks.filter(isLeafTask);
 
   // Project
   lines.push(`${indent(1)}<Project>`);

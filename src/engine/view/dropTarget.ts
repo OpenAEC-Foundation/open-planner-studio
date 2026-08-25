@@ -6,6 +6,7 @@
 
 import type { Task } from '@/types/task';
 import type { ViewRow } from './visibleRows';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export interface DropTarget {
   parentId: string | null;
@@ -20,7 +21,7 @@ export interface DropTarget {
  *   valt het doel dus niet naar root/grootouder uit (het bekende gat in ontwerp B §3.2 dat hiermee
  *   gedicht wordt), want `childIndex` wordt geklemd op de kindlijst-lengte van diezelfde ouder.
  * - `'nest'`   — de rij-taak wordt de nieuwe ouder; het gesleepte item wordt diens LAATSTE kind.
- *   Alleen geldig als de rij-taak een summary is (`childIds.length > 0`) — mijlpalen en gewone
+ *   Alleen geldig als de rij-taak semantisch een summary is — mijlpalen en gewone
  *   leaves zijn geen nest-doel.
  * - Groepsrijen (`kind: 'group'`) en een leeg/ongeldig `rowIndex` hebben geen structurele
  *   betekenis ⇒ altijd `null`.
@@ -42,7 +43,7 @@ export function resolveDropTarget(
   const refTask = row.task;
 
   if (zone === 'nest') {
-    if (refTask.childIds.length === 0) return null; // mijlpaal/leaf: geen nest-doel
+    if (isLeafTask(refTask)) return null; // mijlpaal/leaf: geen nest-doel
     return { parentId: refTask.id, childIndex: refTask.childIds.length };
   }
 

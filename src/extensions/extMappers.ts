@@ -335,6 +335,7 @@ export function toExtTask(t: Task): ExtTask {
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
     parentId: t.parentId,
     childIds: [...t.childIds],
+    isSummary: t.isSummary,
     time: toExtTaskTime(t.time),
     resourceIds: [...t.resourceIds],
     color: t.color,
@@ -385,6 +386,7 @@ export function fromExtTask(t: ExtTask): Task {
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
     parentId: t.parentId,
     childIds: [...t.childIds],
+    isSummary: t.isSummary,
     time: fromExtTaskTime(t.time),
     resourceIds: [...t.resourceIds],
     color: t.color,
@@ -426,6 +428,7 @@ export function fromExtTaskInput(
   if (input.manuallyScheduled !== undefined) out.manuallyScheduled = input.manuallyScheduled;
   if (input.parentId !== undefined) out.parentId = input.parentId;
   if (input.childIds !== undefined) out.childIds = [...input.childIds];
+  if (input.isSummary !== undefined) out.isSummary = input.isSummary;
   if (input.time !== undefined) out.time = fromExtTaskTime(input.time);
   if (input.resourceIds !== undefined) out.resourceIds = [...input.resourceIds];
   if (input.color !== undefined) out.color = input.color;
@@ -528,6 +531,7 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.manuallyScheduled !== undefined) out.manuallyScheduled = updates.manuallyScheduled;
   if (updates.parentId !== undefined) out.parentId = updates.parentId;
   if (updates.childIds !== undefined) out.childIds = [...updates.childIds];
+  if (updates.isSummary !== undefined) out.isSummary = updates.isSummary;
   // T14b-vervolg: `fromExtTaskTimePatch`, NIET `fromExtTaskTime` — zie de docstring daarboven. `out.time`
   // is hier op TS-niveau een volledige `TaskTime`, maar dat is dezelfde bewuste afwijking als
   // `addTask`'s `partial.time`: de echte volledigheid wordt pas door `taskSlice.updateTask`'s

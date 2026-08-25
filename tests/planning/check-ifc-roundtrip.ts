@@ -250,6 +250,7 @@ const TM = {
   // X0 (XER-etappeplan, 2026-08-20) — drie nieuwe .xer-importvelden, nog GEEN IFC-pset (zie
   // TASK_CANON hieronder: skip, reden X9). Alleen hier gevuld voor de `Required<Task>`-volledigheid.
   p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc', p6SuspendResume: true,
+  isSummary: false,
   parentId: 't-p', childIds: [],
   resourceIds: [], // milestone zonder assignments ⇒ afgeleide resourceIds is leeg (H2-fix)
   color: '#abcdef', // round-trippt via OPS_TaskAppearance (H2-fix)
@@ -545,6 +546,7 @@ const TASK_CANON = {
   p6DurationType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
   p6ActivityType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
   p6SuspendResume: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
+  isSummary: { skip: 'false is de afwezige default; expliciet true round-trippt in check-xer-reader' },
   parentId: { as: 'parent', get: (t: Task, k: Keys) => (t.parentId ? k.task(t.parentId) : null) },
   childIds: { as: 'children', get: (t: Task, k: Keys) => t.childIds.map(c => k.task(c)).sort() },
   time: { get: (t: Task, k: Keys) => canonize(TIME_CANON, t.time, k) },

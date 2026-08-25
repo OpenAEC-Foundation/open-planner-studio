@@ -8,6 +8,7 @@ import { projectFileBase } from '@/utils/documents';
 import {
   effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
 } from '@/services/subdayIo';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
 // 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
@@ -422,7 +423,7 @@ export function writeMSPDI(
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i];
     const uid = i + 1;
-    const isSummary = task.childIds.length > 0;
+    const isSummary = isSummaryTask(task);
     const isMilestone = task.isMilestone || task.time.scheduleDuration === 0;
 
     // Fase 2.8b (§7.3): uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒ het

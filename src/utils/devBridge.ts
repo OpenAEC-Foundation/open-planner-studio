@@ -3,7 +3,7 @@ import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { parseOpenedFile, readFormatInput } from '@/services/formatRegistry';
+import { parseOpenedFile, readFormatInput, type FormatIO } from '@/services/formatRegistry';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb, installFromZipBlob } from '@/extensions';
 import type { InstallOutcome } from '@/extensions';
 import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
@@ -79,12 +79,16 @@ async function saveToPath(path: string) {
  *  Dev-only gedragsverbetering (T1): loopt nu via de formatRegistry, dus `.xml` wordt hier ook
  *  herkend (voorheen viel dat stil terug op IFC). T2: binaire formaten worden als bytes gelezen
  *  i.p.v. tekst. */
-async function openFromPath(path: string) {
-  const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
-  const input = await readFormatInput(path, { readTextFile, readFile });
+export async function openFromPathWithIO(path: string, io: FormatIO) {
+  const input = await readFormatInput(path, io);
   const parsed = await parseOpenedFile(input);
   useAppStore.getState().loadState(parsed);
   return { path, ...counts(useAppStore.getState()) };
+}
+
+async function openFromPath(path: string) {
+  const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
+  return openFromPathWithIO(path, { readTextFile, readFile });
 }
 
 /** Dev-only: installeer een extensie direct vanuit een code-string (voor zelftests). */

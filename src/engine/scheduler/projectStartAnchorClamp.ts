@@ -20,6 +20,7 @@
 import type { Task, TaskConstraint } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { snapWorkInstantOnOrAfter } from './CPMSolver';
@@ -70,7 +71,7 @@ export function clampProjectStartAnchors(input: ClampProjectStartAnchorsInput): 
 
   let clamped = 0;
   for (const t of input.tasks) {
-    if (t.childIds.length > 0) continue;          // alleen bladtaken (CPMSolver-precedent)
+    if (isSummaryTask(t)) continue;               // alleen bladtaken (CPMSolver-precedent)
     if (t.isHammock) continue;                     // L2: de solver negeert een hammock-anker toch
     if (hasPredecessor.has(t.id)) continue;         // heeft een voorganger — geen wortel-anker
     if (hasForwardConstraint(t.constraint)) continue;  // L1: expliciete forward-constraint wint

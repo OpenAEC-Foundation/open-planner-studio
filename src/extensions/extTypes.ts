@@ -233,6 +233,10 @@ export interface ExtTask {
   parentId: string | null;
   /** WBS-kinderen. */
   childIds: string[];
+  /** Expliciete samenvattingsidentiteit voor een lege WBS. `true` maakt ook zonder kinderen een
+   *  summary; `false` verwijdert alleen die expliciete marker (taken mét kinderen blijven summary).
+   *  Afwezig bij create/update laat de bestaande waarde en child-afleiding ongemoeid. */
+  isSummary?: boolean;
   time: ExtTaskTime;
   resourceIds: string[];
   color?: string;

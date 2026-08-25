@@ -9,6 +9,7 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
 import type { ImportResult } from '@/services/importTypes';
+import type { XerImportMetadata } from '@/services/importTypes';
 import type { ViewState } from './slices/types';
 import type { Snapshot } from './snapshot';
 import type { AppState } from './appStore';
@@ -74,6 +75,8 @@ export interface DocumentPayload {
   /** Web-opslaan-doel (browser-bestandstoegang). ALLEEN het FSA-opslaan-doel — nooit identiteit/titel (die blijft filePath: echt pad in Tauri, bestandsnaam in web). null in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
   isDirty: boolean;
+  /** XER-bronmetadata per document; geen onderdeel van undo omdat bewerkingen dit niet muteren. */
+  xerImportMetadata: XerImportMetadata | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -217,6 +220,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'filePath', get: (s) => s.filePath, set: (s, v) => { s.filePath = v; }, fresh: () => null, snapshot: 'none' }),
   field({ key: 'fileHandle', get: (s) => s.fileHandle, set: (s, v) => { s.fileHandle = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.fileHandle ?? null }),
   field({ key: 'isDirty', get: (s) => s.isDirty, set: (s, v) => { s.isDirty = v; }, fresh: () => false, snapshot: 'none' }),
+  field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -363,6 +367,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     customFieldDefs: parsed.customFieldDefs ?? [],
     baselines: parsed.baselines ?? [],
     activeBaselineId: parsed.activeBaselineId ?? null,
+    xerImportMetadata: parsed.xer ?? null,
     filePath,
     isDirty: false,
   };

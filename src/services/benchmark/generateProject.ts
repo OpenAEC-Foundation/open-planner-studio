@@ -14,6 +14,7 @@ import type { WorkCalendar, Holiday } from '@/types/calendar';
 import type { Project } from '@/types/project';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 /** De aangeboden benchmark-groottes (aantal taken totaal, incl. mijlpalen + verzameltaken). */
 export const BENCHMARK_SIZES = [100, 500, 1000, 2500, 5000] as const;
@@ -257,7 +258,7 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
   }
 
   // NB — waarom `leafTaskIds` hier gelijk is aan "alles wat de solver als leaf ziet". Het criterium
-  // van de solver is `childIds.length === 0`, niet "als verzameltaak bedoeld". Een verzameltaak die
+  // van de solver volgt `isLeafTask`, inclusief expliciete lege samenvattingen. Een verzameltaak die
   // door de loting geen enkel kind kreeg zou dus een leaf zijn die buiten het netwerk valt. Dat kan
   // niet meer: de twee round-robins hierboven geven élke top-fase een subfase en élke subfase een
   // blad, vóórdat er geloot wordt. Hier stond een reparatielus voor dat geval; die bleek
@@ -368,6 +369,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     // `runner.ts` rekent (audit-punt 5). Dit telt ook een eventuele verzameltaak die (door de
     // willekeurige verdeling) geen kinderen kreeg, zodat het gerapporteerde aantal en het aantal
     // dat de CPM-fase daadwerkelijk verwerkt niet meer uiteenlopen (geen "91 vs 90").
-    leafCount: tasks.filter(t => t.childIds.length === 0).length,
+    leafCount: tasks.filter(isLeafTask).length,
   };
 }

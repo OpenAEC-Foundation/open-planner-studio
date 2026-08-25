@@ -181,6 +181,18 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         const shifted = countShiftedTasks(get().tasks, recorded.times);
         if (shifted > 0) set((s) => { s.recordedDates = { ...recorded, shifted }; });
       }
+      if (parsed.xer?.enumFallbacks.length) {
+        get().notify({
+          severity: 'info',
+          messageKey: 'notifications.xerEnumFallback',
+          params: {
+            family: parsed.xer.enumFallbacks.map(item => item.family).join(', '),
+            token: parsed.xer.enumFallbacks.map(item => item.token).join(', '),
+            fallback: parsed.xer.enumFallbacks.map(item => item.fallback).join(', '),
+          },
+          dedupeKey: 'xer-enum-fallback',
+        });
+      }
       if (opts.fit) get().requestFitToProject(); // Issue #16: canvas op het HELE project passen.
       // Relaties die de solver ECHT niet kon meerekenen (eigenaarsbesluit 2026-08-15): een
       // verzameltaak-eindpunt op zich is sinds `expandSummaryRelations` GEEN reden meer om te

@@ -42,8 +42,12 @@ import {
   toExtSequence, fromExtSequence,
   toExtResource, fromExtResource,
   toExtAssignment, fromExtAssignment,
+  fromExtTaskInput, fromExtTaskUpdates,
   fromExtRibbonTab, fromExtFontProvider,
 } from '@/extensions/extMappers';
+import { getExtensionSdk } from '@/extensions/sdk';
+import { createExtensionApi } from '@/extensions/extensionApi';
+import { useAppStore } from '@/state/appStore';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -83,7 +87,7 @@ const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
 
 const EXT_TASK_KEYS = keys<ExtTask>()([
   'id', 'name', 'description', 'wbsCode', 'taskType', 'status', 'isMilestone', 'milestoneKind',
-  'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'time', 'resourceIds', 'color',
+  'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'isSummary', 'time', 'resourceIds', 'color',
   'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock', 'externalLinks',
   'deadline', 'calendarId', 'notes',
   // fase 3.8 (.mpp-datumgetrouwheid): leeskant-velden uit de import, zie extTypes.ts
@@ -184,6 +188,7 @@ const VOL_TASK = {
   timephasedDurationWalks: [{ anchor: '2026-06-01T08:00', resourceCalendarId: 'cal2', workMinutes: 480 }],
   parentId: 'p1',
   childIds: ['c1', 'c2'],
+  isSummary: true,
   time: VOL_TIME,
   resourceIds: ['r1'],
   color: '#abcdef',
@@ -437,12 +442,56 @@ for (const [naam, ext, bron, sleutels] of [
   eq('29 een class-provider overleeft de mapping (this blijft gebonden)', bindGooide, false);
 }
 
-// ── 6. De contract-versiepoort (los van minAppVersion) ───────────────────────
+// ── 6. Publieke create-/updatepaden bewaren expliciete samenvattingsidentiteit ────────────────
+// Breuk die dit vangt: `ExtTask.isSummary` staat in het publieke type, maar één van de input- of
+// updatemappers, de SDK-factory of `api.data.addTask/updateTask` laat true/false stil vallen. Een
+// lege summary zou dan als gewone CPM-knoop terugkomen.
+{
+  const mappedInput = fromExtTaskInput({ name: 'Mapper-summary', isSummary: true });
+  const mappedRegular = fromExtTaskInput({ name: 'Mapper-gewoon' });
+  eq('30 fromExtTaskInput draagt expliciet true', mappedInput.isSummary, true);
+  eq('30a fromExtTaskInput maakt invoer zonder marker niet per ongeluk summary',
+    'isSummary' in mappedRegular, false);
+  eq('30b fromExtTaskUpdates draagt expliciet true', fromExtTaskUpdates({ isSummary: true }).isSummary, true);
+  eq('30c fromExtTaskUpdates draagt expliciet false als bewuste reset',
+    fromExtTaskUpdates({ isSummary: false }).isSummary, false);
+  eq('30d fromExtTaskUpdates voegt bij een ongenoemde marker geen update toe',
+    'isSummary' in fromExtTaskUpdates({ name: 'Alleen naam' }), false);
+
+  useAppStore.getState().newProject();
+  const sdkSummary = getExtensionSdk().factory.createTask({ name: 'SDK lege summary', isSummary: true });
+  eq('31 SDK-factory bewaart de expliciete lege summary', sdkSummary.isSummary, true);
+
+  const api = createExtensionApi('x4a-summary-contract', []);
+  const id = api.data.addTask(sdkSummary);
+  api.data.recalculate();
+  eq('31a extension addTask bewaart de marker in de store',
+    useAppStore.getState().tasks.find(task => task.id === id)?.isSummary, true);
+  eq('31b extension addTask houdt de lege summary buiten CPMResult.tasks',
+    useAppStore.getState().cpmResult?.tasks.has(id), false);
+
+  api.data.updateTask(id, { isSummary: false });
+  api.data.recalculate();
+  eq('31c extension updateTask kan de marker bewust naar false terugzetten',
+    useAppStore.getState().tasks.find(task => task.id === id)?.isSummary, false);
+  eq('31d een bewust teruggezette lege summary wordt weer een solvertaak',
+    useAppStore.getState().cpmResult?.tasks.has(id), true);
+
+  api.data.updateTask(id, { isSummary: true });
+  api.data.recalculate();
+  eq('31e extension updateTask kan de samenvattingsidentiteit opnieuw aanzetten',
+    useAppStore.getState().tasks.find(task => task.id === id)?.isSummary, true);
+  eq('31f opnieuw aangezette summary blijft buiten CPMResult.tasks',
+    useAppStore.getState().cpmResult?.tasks.has(id), false);
+  api._cleanup();
+}
+
+// ── 7. De contract-versiepoort (los van minAppVersion) ───────────────────────
 // CalVer draagt geen breaking-change-signaal; `apiVersion` doet dat wel. De poort moet in BEIDE
 // richtingen dicht: een extensie voor een oudere major mist de brekende wijziging, een voor een
 // nieuwere rekent op iets dat er niet is.
 {
-  eq('30 de host-API-versie is een geldige semver', /^\d+\.\d+\.\d+$/.test(EXTENSION_API_VERSION), true);
+  eq('32 de host-API-versie is een geldige semver', /^\d+\.\d+\.\d+$/.test(EXTENSION_API_VERSION), true);
 
   // Legacy: geen apiVersion ⇒ toegestaan, maar herkenbaar als legacy.
   eq('31 geen apiVersion ⇒ toegestaan', checkApiCompatibility(undefined, '1.2.0').ok, true);

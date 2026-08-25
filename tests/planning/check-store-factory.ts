@@ -145,6 +145,32 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   }
 }
 
+// ── 6. Partial<Task>-constructor bewaart expliciete lege-summarysemantiek ─────────────────────
+// Breuk die dit vangt: `addTask` accepteert publiek `Partial<Task>`, maar vergeet `isSummary` in
+// zijn object-literal. De taak lijkt dan opgeslagen, maar belandt als gewone leaf in de solver.
+{
+  const E = createAppStore();
+  const summaryId = E.getState().addTask({ name: 'Store lege summary', isSummary: true });
+  E.getState().runCPM();
+  eq('16 store addTask bewaart expliciet true',
+    E.getState().tasks.find(task => task.id === summaryId)?.isSummary, true);
+  eq('16a store addTask houdt de lege summary buiten CPMResult.tasks',
+    E.getState().cpmResult?.tasks.has(summaryId), false);
+
+  E.getState().updateTask(summaryId, { isSummary: false });
+  E.getState().runCPM();
+  eq('16b store updateTask kan de marker bewust terugzetten',
+    E.getState().tasks.find(task => task.id === summaryId)?.isSummary, false);
+  eq('16c de teruggezette taak wordt weer een solvertaak',
+    E.getState().cpmResult?.tasks.has(summaryId), true);
+
+  const regularId = E.getState().addTask({ name: 'Store gewone taak' });
+  E.getState().runCPM();
+  eq('16d store addTask maakt een gewone invoer niet per ongeluk summary',
+    E.getState().tasks.find(task => task.id === regularId)?.isSummary, undefined);
+  eq('16e de gewone taak blijft een solvertaak', E.getState().cpmResult?.tasks.has(regularId), true);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: store-factory — ${checks} checks groen`);

@@ -230,6 +230,29 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERCALENDARCHECK="$DIR/.xer-calendar-data.mjs"
   if bundle_check "$DIR/check-xer-calendar-data.ts" "$XERCALENDARCHECK"; then node "$XERCALENDARCHECK" || STATUS=1; fi
 
+  # X4a-project/taakmapping: corpusloze PROJECT/PROJWBS/TASK/TASKPRED-fixtures, enumterugval,
+  # constraints, WBS-samenvattingen en externe-relatie-isolatie.
+  XERREADERCHECK="$DIR/.xer-reader.mjs"
+  if bundle_check "$DIR/check-xer-reader.ts" "$XERREADERCHECK"; then node "$XERREADERCHECK" || STATUS=1; fi
+
+  # X4a-registercontract: .xer is lazy en binair, behoudt CP1252/UTF-16-BOM-bytes en wordt nooit
+  # een opslagdoel.
+  XERREGISTRYCHECK="$DIR/.xer-registry.mjs"
+  if bundle_check "$DIR/check-xer-registry.ts" "$XERREGISTRYCHECK"; then node "$XERREGISTRYCHECK" || STATUS=1; fi
+
+  XERCHUNKCHECK="$DIR/.xer-chunk-boundary.mjs"
+  if bundle_check "$DIR/check-xer-chunk-boundary.ts" "$XERCHUNKCHECK"; then node "$XERCHUNKCHECK" || STATUS=1; fi
+
+  # X4a eerste echte productmeting: readXER + de gedeelde solveProject-keten tegen precies de twee
+  # onafhankelijke acht-taaks P6-orakels uit het brief.
+  XERPRODUCTFIDCHECK="$DIR/.xer-product-fidelity.mjs"
+  if bundle_check "$DIR/check-xer-product-fidelity.ts" "$XERPRODUCTFIDCHECK"; then node "$XERPRODUCTFIDCHECK" || STATUS=1; fi
+
+  # X4a oorspronkelijke bytes: CP1252 + beide UTF-16-BOM-vormen door web, Tauri, recents en de
+  # dev-bridge; de MCP-route heeft dezelfde drie fixtures in tests/mcp/cases-doc-file.ts.
+  XERBYTEPATHCHECK="$DIR/.xer-byte-paths.mjs"
+  if bundle_check "$DIR/check-xer-byte-paths.ts" "$XERBYTEPATHCHECK"; then node "$XERBYTEPATHCHECK" || STATUS=1; fi
+
   # X3-openbare corpuspin: de echte productie-ingang zonder rijvoorfilter, vier concrete
   # herstel-/weigerhashes, basegraafpin en de statische 124-kalenderdigest. Deze zware scan draait
   # bewust één keer en wordt daarom na het bundelen uit de tijdzonematrix verwijderd.

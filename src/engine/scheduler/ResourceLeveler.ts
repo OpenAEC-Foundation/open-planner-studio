@@ -40,6 +40,7 @@ import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import { distributeUnits, maxUnitsOn } from './ResourceLoad';
 import { parseDate, formatDate } from '@/utils/dateUtils';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 export interface LevelingOptions {
   /** true = smoothing: alleen binnen de totale float schuiven, einddatum heilig, onoplosbare
@@ -102,6 +103,9 @@ export function levelResources(
   // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
   cpmOptions: CPMOptions = {},
 ): LevelingResult {
+  // Defensief dezelfde semantische bladgrens als scheduleSlice: directe aanroepers mogen een lege,
+  // expliciete WBS-samenvatting nooit als nivelleer-/interne CPM-taak laten binnenglippen.
+  tasks = tasks.filter(isLeafTask);
   const projEngine = new CalendarEngine(projectCalendar);
 
   // Geselecteerde renewables: default alle non-material, anders de opgegeven ids ∩ non-material.
@@ -164,7 +168,7 @@ export function levelResources(
   for (const a of assignments) {
     if (!selectedIds.has(a.resourceId)) continue;
     const task = taskById.get(a.taskId);
-    if (!task || task.isMilestone || task.childIds.length > 0) continue;
+    if (!task || task.isMilestone || isSummaryTask(task)) continue;
     const dur = task.time.scheduleDuration;
     if (dur <= 0) continue;
     const arr = distributeUnits(a.unitsPerDay, dur, a.curve ?? 'UNIFORM');

@@ -63,6 +63,8 @@ export const PSET = {
   /** MSP's eigen Task Type + Effort-Driven-vlag (`Task.mspTaskType`/`effortDriven`) — puur data,
    *  geen rekengedrag (eigenaarsbesluit 2026-08-18, punt 1). */
   MspTaskType: 'OPS_MspTaskType',
+  /** Expliciete samenvattingsidentiteit voor een WBS-taak zonder kinderen. */
+  Summary: 'OPS_Summary',
   // Structuur/waarden op project- of taak-niveau (afwijkende vorm — alleen naam gedeeld).
   ProjectSettings: 'OPS_ProjectSettings',
   StructureMeta: 'OPS_StructureMeta',
@@ -440,6 +442,21 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
         if (name === 'MspTaskType' && typeof value === 'string' && (valid as readonly string[]).includes(value)) {
           task.mspTaskType = value as MspTaskType;
         }
+      }
+    },
+  },
+  // 15. Expliciete WBS-identiteit — nodig om een lege PROJWBS-samenvatting door IFC te bewaren.
+  //     Alleen `true` schrijft iets; alle bestaande taken blijven byte-identiek.
+  {
+    name: PSET.Summary, psetSeed: 'pset_sum_', relSeed: 'rel_sum_',
+    write(task) {
+      return task.isSummary === true
+        ? [{ name: 'IsSummary', value: 'IFCBOOLEAN(.T.)' }]
+        : null;
+    },
+    apply(task, props) {
+      for (const { name, value } of props) {
+        if (name === 'IsSummary' && value === true) task.isSummary = true;
       }
     },
   },

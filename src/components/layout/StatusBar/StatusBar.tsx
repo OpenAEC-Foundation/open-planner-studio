@@ -4,6 +4,7 @@ import { Terminal, Circle } from 'lucide-react';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { AI_STATUS_COLOR } from '@/components/ribbon/ai/AiServerGroup';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -22,7 +23,7 @@ export function StatusBar() {
   const setUI = useAppStore(s => s.setUI);
   const dd = useDisplayDate();
 
-  const leafTasks = tasks.filter(t => t.childIds.length === 0);
+  const leafTasks = tasks.filter(isLeafTask);
   const milestones = tasks.filter(t => t.isMilestone);
   const criticalCount = cpmResult?.criticalPath.length || 0;
 

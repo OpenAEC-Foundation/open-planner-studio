@@ -11,6 +11,7 @@ import {
 import { beginUndoable, finishMutation } from '../transaction';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSlice } from './types';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export interface ScheduleSlice {
   cpmResult: CPMResult | null;
@@ -225,7 +226,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end };
     }
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
-    const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);
+    const leafTasks = s.tasks.filter(isLeafTask);
     // Zelfde samenvattingsrelatie-propagatie als runCPM (zie daar): `ResourceLeveler` krijgt hier
     // alleen bladtaken door, dus de expansie moet vóór het leaf-filter gebeuren, met de VOLLEDIGE
     // taakboom (parentId/childIds) als bron — `ResourceLeveler` zelf blijft ongewijzigd, die kent

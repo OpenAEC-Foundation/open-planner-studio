@@ -96,6 +96,9 @@ export default defineConfig({
           // MPP-lezer (CFB-container + fieldmaps, fase 3.8 e1, T8): alleen dynamisch geïmporteerd
           // via de mpp-entry in formatRegistry.ts, dus een eigen chunk houdt hem uit de main graf.
           if (id.includes('/src/services/mpp/')) return 'mpp-reader';
+          // XER-lezer: byteparser, kalenderdecoder en semantische reader worden alleen via de
+          // registry geladen en blijven samen in een eigen lazy chunk.
+          if (id.includes('/src/services/xer/')) return 'xer-reader';
           if (id.includes('/node_modules/')) {
             // React runtime (react, react-dom, its scheduler dep).
             if (

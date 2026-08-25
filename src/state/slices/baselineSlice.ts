@@ -2,6 +2,7 @@ import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { beginUndoable, finishMutation } from '../transaction';
 import type { AppSlice } from './types';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export interface BaselineSlice {
   baselines: Baseline[];
@@ -26,7 +27,7 @@ export const createBaselineSlice: AppSlice<BaselineSlice> = (set) => ({
       beginUndoable(s);
       // Snapshot de CPM-early-datums (= de balk zoals getekend, §2.1) per leaf-taak; fallback op
       // de schedule-datums voor het geval er nog nooit een runCPM is geweest.
-      const leaves = s.tasks.filter((t) => t.childIds.length === 0);
+      const leaves = s.tasks.filter(isLeafTask);
       s.baselines.push({
         id,
         name,

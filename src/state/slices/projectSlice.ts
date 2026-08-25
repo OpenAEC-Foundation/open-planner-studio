@@ -24,6 +24,8 @@ import { freshPayload, hydratePayload } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import type { AppSlice } from './types';
+import { isLeafTask } from '@/utils/taskHierarchy';
+import type { XerImportMetadata } from '@/services/importTypes';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
@@ -79,6 +81,8 @@ export interface ProjectSlice {
   /** Web-opslaan-doel (spec §4). ALLEEN het FSA-opslaan-doel — nooit voor identiteit/titel;
    *  die blijven bij `filePath` (echt pad in Tauri, bestandsnaam in web). `null` in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
+  /** XER-herkomst van het actieve document; externe relaties blijven solverloze brondata. */
+  xerImportMetadata: XerImportMetadata | null;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -163,6 +167,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
   isDirty: false,
   filePath: null,
   fileHandle: null,
+  xerImportMetadata: null,
 
   setProject: (updates) => {
     // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B, ná escalatie T7 + de
@@ -353,7 +358,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     // expansie op `s.tasks` volstaat voor beide takken.
     const { sequences: expandedSequences } = expandSummaryRelations(s.tasks, s.sequences);
     const solve = (tasks: Task[], dataDate: string | undefined, projectStartDate: string): CPMResult => {
-      const leaf = tasks.filter((t) => t.childIds.length === 0);
+      const leaf = tasks.filter(isLeafTask);
       return new CPMSolver(leaf, expandedSequences, s.calendar, s.calendars, {
         dataDate,
         progressMode: s.project.progressMode,

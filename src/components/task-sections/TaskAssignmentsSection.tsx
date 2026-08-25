@@ -4,6 +4,7 @@ import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 /**
  * Toewijzingen (fase 2.5, §6.3 + fase 2.10 item 4 "verplaats naar…") — sectie 10 uit
@@ -27,14 +28,14 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
 
   // Toewijzingen (fase 2.5, §6.3) — leaf-only, geen mijlpalen/samenvattingstaken.
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
-  const assignmentsDisabled = task.isMilestone || task.childIds.length > 0;
+  const assignmentsDisabled = task.isMilestone || isSummaryTask(task);
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
   const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
 
   /** Kandidaat-doeltaken voor "verplaats naar…" (item 4): leaf-taken zonder deze resource, exclusief
    *  de huidige taak zelf. */
   const moveCandidates = (resourceId: string) => tasks.filter(t =>
-    t.id !== taskId && !t.isMilestone && t.childIds.length === 0
+    t.id !== taskId && !t.isMilestone && isLeafTask(t)
     && !assignments.some(a => a.taskId === t.id && a.resourceId === resourceId)
   );
 

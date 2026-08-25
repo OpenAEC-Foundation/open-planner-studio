@@ -3,6 +3,7 @@
 // functie die zowel het histogram als, straks, de nivelleerder voedt) en `computeResourceLoad`
 // (dag-granulaire belasting/capaciteit/overallocatie over alle resources+toewijzingen).
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
@@ -147,7 +148,7 @@ export function computeResourceLoad(
   // 1. Leaf-only, geen mijlpalen (dubbele bewaking t.o.v. resourceSlice.assignResource, §2.4).
   const validAssignments = assignments.filter(a => {
     const task = taskById.get(a.taskId);
-    return !!task && !task.isMilestone && task.childIds.length === 0;
+    return !!task && isLeafTask(task) && !task.isMilestone;
   });
 
   // 2-3. Verdeel + accumuleer per resource per dag.
@@ -291,7 +292,7 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   const perAssignment: AssignDaily[] = [];
   for (const a of assignments) {
     const task = taskById.get(a.taskId);
-    if (!task || task.isMilestone || task.childIds.length > 0) continue;
+    if (!task || task.isMilestone || isSummaryTask(task)) continue;
     const dist = distributeUnits(a.unitsPerDay, task.time.scheduleDuration, a.curve ?? 'UNIFORM');
     if (dist.length === 0) continue;
     const workDayIsos = enumerateWorkDays(projectEngine, task.time.earlyStart, task.time.earlyFinish);
