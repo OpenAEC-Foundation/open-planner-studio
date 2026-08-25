@@ -74,6 +74,27 @@ try {
 }
 ok('Eén compound event met twee document-id’s wordt geweigerd', rejectedTwoDocuments);
 
+for (const hostileSequence of [NaN, Infinity, -Infinity, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+  let rejectedHostileSequence = false;
+  try {
+    assertValidSessionHistoryEvent(event('hostile-sequence', hostileSequence, [dataDelta('A')]));
+  } catch {
+    rejectedHostileSequence = true;
+  }
+  ok(`Sequence ${String(hostileSequence)} wordt als ongeldige tellerwaarde geweigerd`,
+    rejectedHostileSequence);
+}
+let hostileSelectionRejected = false;
+try {
+  selectUndoHistoryEvent([
+    event('NaN', NaN, [dataDelta('A')]),
+    event('gezond', 1, [dataDelta('A')]),
+  ], 'A');
+} catch {
+  hostileSelectionRejected = true;
+}
+ok('Selectie ordent geen geschiedenis waarin een niet-eindige sequence zit', hostileSelectionRejected);
+
 ok('A1 is toepasbaar met A actief', isSessionHistoryEventApplicable(a1, 'A'));
 ok('A1 is niet toepasbaar met B actief', !isSessionHistoryEventApplicable(a1, 'B'));
 ok('B1 is toepasbaar met B actief', isSessionHistoryEventApplicable(b1, 'B'));

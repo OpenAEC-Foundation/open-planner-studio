@@ -42,6 +42,14 @@ export function assertValidSessionHistoryEvent(event: SessionHistoryEvent): void
   if (event.deltas.length === 0) {
     throw new Error(`History-event ${event.id || '<zonder id>'} bevat geen deltas`);
   }
+  // `sequence` is een oplopende sessieteller, geen willekeurig ranggetal. Met NaN zouden zowel
+  // hoogste-undo als laagste-redo stil afhankelijk worden van arrayvolgorde; onveilige integers
+  // kunnen bij het ophogen bovendien gelijk gaan lijken door IEEE-754-afronding.
+  if (!Number.isSafeInteger(event.sequence) || event.sequence <= 0) {
+    throw new Error(
+      `History-event ${event.id || '<zonder id>'} heeft een ongeldige sequence: ${String(event.sequence)}`,
+    );
+  }
 
   const documentIds = new Set<string>();
   for (const delta of event.deltas) {
@@ -160,6 +168,9 @@ export function appendSessionHistoryEvent(
     throw new Error(`Nieuw history-event ${newEvent.id || '<zonder id>'} moet toegepast zijn`);
   }
   if (events.some(event => event.id === newEvent.id)) {
+    // Alleen de actuele ledger hoeft uniek te zijn: een gepruned event is niet meer selecteerbaar
+    // en heeft nergens een blijvende verwijzing. Task 4C laat ids door de sessiegenerator maken en
+    // bewaart daarnaast `nextHistorySequence`, dat juist onafhankelijk van pruning blijft oplopen.
     throw new Error(`History-event-id bestaat al: ${newEvent.id}`);
   }
   if (events.some(event => event.sequence === newEvent.sequence)) {
