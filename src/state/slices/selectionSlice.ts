@@ -19,7 +19,27 @@ import { collectSubtreeIds } from '@/state/taskTree';
 import { beginUndoable, finishMutation } from '@/state/transaction';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { generateId } from '@/utils/id';
-import { uniqueTaskIds } from '@/engine/view/visibleRows';
+import {
+  normalizeTaskRowCursor,
+  uniqueTaskIds,
+  type TaskRowCursor,
+  type ViewRow,
+} from '@/engine/view/visibleRows';
+
+/**
+ * Productiegrens tussen een occurrence-cursor en de domeinselectie. Alleen wanneer reconciliatie
+ * werkelijk op een andere taak uitkomt, wordt de enkelvoudige taakselectie meegeschoven. Een
+ * identieke occurrence met alleen een nieuwe absolute rijindex laat de selectie ongemoeid.
+ */
+export function reconcileTaskCursorSelection(
+  rows: readonly ViewRow[],
+  cursor: TaskRowCursor | null,
+  selectTask: (taskId: string) => void,
+): TaskRowCursor | null {
+  const next = normalizeTaskRowCursor(rows, cursor);
+  if (cursor !== null && next !== null && next.taskId !== cursor.taskId) selectTask(next.taskId);
+  return next;
+}
 
 export interface TaskClipboard {
   tasks: Task[];

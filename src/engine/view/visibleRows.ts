@@ -342,6 +342,7 @@ export function uniqueTaskIds(rows: readonly ViewRow[]): string[] {
 export interface TaskRowCursor {
   rowKey: string;
   rowIndex: number;
+  taskId: string;
 }
 
 export function normalizeTaskRowCursor(
@@ -350,7 +351,10 @@ export function normalizeTaskRowCursor(
 ): TaskRowCursor | null {
   if (cursor === null) return null;
   const exactIndex = rows.findIndex(row => row.kind === 'task' && row.rowKey === cursor.rowKey);
-  if (exactIndex >= 0) return { rowKey: cursor.rowKey, rowIndex: exactIndex };
+  if (exactIndex >= 0) {
+    const row = rows[exactIndex] as TaskViewRow;
+    return { rowKey: row.rowKey, rowIndex: exactIndex, taskId: row.task.id };
+  }
 
   let nearest: TaskRowCursor | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
@@ -358,7 +362,7 @@ export function normalizeTaskRowCursor(
     if (row.kind !== 'task') return;
     const distance = Math.abs(rowIndex - cursor.rowIndex);
     if (distance < nearestDistance) {
-      nearest = { rowKey: row.rowKey, rowIndex };
+      nearest = { rowKey: row.rowKey, rowIndex, taskId: row.task.id };
       nearestDistance = distance;
     }
   });

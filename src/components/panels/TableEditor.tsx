@@ -3,7 +3,8 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { CustomFieldDef, CustomFieldValue } from '@/types/structure';
-import { defaultColumns, isTreeMode, normalizeTaskRowCursor } from '@/engine/view/visibleRows';
+import { defaultColumns, isTreeMode, type TaskRowCursor } from '@/engine/view/visibleRows';
+import { reconcileTaskCursorSelection } from '@/state/slices/selectionSlice';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { resourceCellValue, type ViewContext } from '@/engine/view/filterEval';
 import type { ColumnConfig, FieldRef, BuiltinFieldKey } from '@/state/slices/types';
@@ -19,10 +20,7 @@ import { neighbourGridCell, type GridDirection } from '@/utils/gridNavigation';
 
 const MIN_COLUMN_WIDTH = 40;
 
-interface TableCellAddress {
-  rowKey: string;
-  rowIndex: number;
-  taskId: string;
+interface TableCellAddress extends TaskRowCursor {
   field: string;
 }
 
@@ -407,20 +405,15 @@ export function TableEditor() {
       if (!editableFields.includes(activeCell.field)) {
         setActiveCell(null);
       } else {
-        const cursor = normalizeTaskRowCursor(viewRows, activeCell);
+        const cursor = reconcileTaskCursorSelection(viewRows, activeCell, selectTask);
         if (cursor === null) {
           setActiveCell(null);
-        } else {
-          const row = viewRows[cursor.rowIndex];
-          if (row?.kind !== 'task') {
-            setActiveCell(null);
-          } else if (
-            cursor.rowKey !== activeCell.rowKey
-            || cursor.rowIndex !== activeCell.rowIndex
-            || row.task.id !== activeCell.taskId
-          ) {
-            setActiveCell({ ...activeCell, ...cursor, taskId: row.task.id });
-          }
+        } else if (
+          cursor.rowKey !== activeCell.rowKey
+          || cursor.rowIndex !== activeCell.rowIndex
+          || cursor.taskId !== activeCell.taskId
+        ) {
+          setActiveCell({ ...activeCell, ...cursor });
         }
       }
     }
@@ -433,7 +426,7 @@ export function TableEditor() {
         : viewRows.find(row => row.rowKey === editCell.rowKey);
       if (exactRow?.kind !== 'task' || !editableFields.includes(editCell.field)) setEditCell(null);
     }
-  }, [viewRows, editableFields, activeCell, editCell]);
+  }, [viewRows, editableFields, activeCell, editCell, selectTask]);
 
   const navigateCell = useCallback((rowKey: string, taskId: string, field: string, direction: 'up' | 'down' | 'left' | 'right') => {
     commitEdit();

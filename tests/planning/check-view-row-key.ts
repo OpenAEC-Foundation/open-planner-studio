@@ -5,6 +5,7 @@
 import './domStub';
 import * as visibleRows from '@/engine/view/visibleRows';
 import * as viewSlice from '@/state/slices/viewSlice';
+import * as selectionSlice from '@/state/slices/selectionSlice';
 import { useAppStore } from '@/state/appStore';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
@@ -12,7 +13,7 @@ import type { FilterNode, GroupLevel } from '@/types/view';
 import type { ViewContext, ViewRow, ViewRowOpts } from '@/engine/view/visibleRows';
 
 type TaskViewRow = Extract<ViewRow, { kind: 'task' }>;
-type TaskRowCursor = { rowKey: string; rowIndex: number };
+type TaskRowCursor = { rowKey: string; rowIndex: number; taskId: string };
 type OccurrenceApi = {
   taskRowsInRange: (
     rows: readonly ViewRow[],
@@ -31,9 +32,17 @@ type FocusOccurrenceApi = {
     taskId: string,
   ) => { taskId: string; rowKey: string; rowIndex: number } | null;
 };
+type CursorSelectionApi = {
+  reconcileTaskCursorSelection: (
+    rows: readonly ViewRow[],
+    cursor: TaskRowCursor | null,
+    selectTask: (taskId: string) => void,
+  ) => TaskRowCursor | null;
+};
 
 const occurrenceApi = visibleRows as typeof visibleRows & Partial<OccurrenceApi>;
 const focusOccurrenceApi = viewSlice as typeof viewSlice & Partial<FocusOccurrenceApi>;
+const cursorSelectionApi = selectionSlice as typeof selectionSlice & Partial<CursorSelectionApi>;
 const diffs: string[] = [];
 let checks = 0;
 
@@ -117,6 +126,33 @@ ok('04 dezelfde taak in twee resourcebanden moet twee verschillende rowKeys hebb
 ok('05 hostile task-id/raw-groupkeycase houdt alle task- en group-rowKeys uniek',
   new Set(groupedRows.map(row => row.rowKey)).size === groupedRows.length);
 
+// Onderscheidende raw-path-fixture: de ontbrekende activity-codewaarde heeft als rauwe sleutel
+// NONE_RAWKEY, terwijl de zichtbare groepslabel door vertaling `(geen)` is. Alleen de rauwe waarde
+// mag in de taakoccurrence-key belanden.
+{
+  const rawPathTask = task('raw-path-task');
+  const rawPathCtx: ViewContext = {
+    ...ctx,
+    activityCodeTypes: [{ id: 'phase', name: 'Fase', values: [] }],
+  };
+  const rawPathGrouping: GroupLevel[] = [
+    { field: { src: 'activityCode', typeId: 'phase' }, dir: 'asc' },
+  ];
+  const rawPathRows = visibleRows.computeViewRows([rawPathTask], opts(rawPathGrouping), rawPathCtx);
+  const rawPathGroup = rawPathRows.find(row => row.kind === 'group');
+  const rawPathOccurrence = rawPathRows.find((row): row is TaskViewRow => row.kind === 'task');
+  eq('05b onderscheidende fixture toont het vertaalde label maar bewaart de rauwe groepskey',
+    { label: rawPathGroup?.label, key: rawPathGroup?.key },
+    { label: '(geen)', key: JSON.stringify([visibleRows.NONE_RAWKEY]) });
+  eq('05c grouped task rowKey bevat NONE_RAWKEY en nooit het zichtbare noneLabel',
+    rawPathOccurrence?.rowKey,
+    JSON.stringify({
+      kind: 'task',
+      groupPath: [visibleRows.NONE_RAWKEY],
+      taskId: rawPathTask.id,
+    }));
+}
+
 if (typeof focusOccurrenceApi.resolveFirstVisibleFocusOccurrence !== 'function') {
   ok('06 viewSlice-focusresolver ontbreekt', false);
 } else {
@@ -163,7 +199,7 @@ if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
   const collapsedRows = visibleRows.computeViewRows([groupedTask], collapsed, groupedCtx);
   const normalized = occurrenceApi.normalizeTaskRowCursor(
     collapsedRows,
-    { rowKey: expectedTaskKeys[0], rowIndex: oldIndex },
+    { rowKey: expectedTaskKeys[0], rowIndex: oldIndex, taskId: hostileTaskId },
   );
   eq('10 collapse kiest de dichtstbijzijnde geldige taakoccurrence in absolute rijvolgorde',
     normalized?.rowKey, expectedTaskKeys[1]);
@@ -177,6 +213,63 @@ if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
   const filteredRows = visibleRows.computeViewRows([groupedTask], opts(grouping, impossibleFilter), groupedCtx);
   eq('11 filter zonder overgebleven taakcel maakt de gridcursor leeg',
     occurrenceApi.normalizeTaskRowCursor(filteredRows, normalized), null);
+}
+
+// Als occurrence A verdwijnt en de dichtstbijzijnde taakrij van taak B is, moeten de actieve
+// cursor én de echte domeinselectie naar B. TaskPropertiesPanel gebruikt selectedTaskIds[0] als
+// zijn enige taakdoel; deze store-assert bewaakt dus dezelfde bron zonder een nieuwe UI-harnaslaag.
+{
+  const S = () => useAppStore.getState();
+  S().newProject();
+  const taskA = S().addTask({ name: 'A — verdwijnt' });
+  const taskB = S().addTask({ name: 'B — blijft' });
+  const cursorGrouping: GroupLevel[] = [
+    { field: { src: 'builtin', key: 'name' }, dir: 'asc' },
+  ];
+  const beforeRows = visibleRows.computeViewRows(S().tasks, opts(cursorGrouping), ctx);
+  const rowAIndex = beforeRows.findIndex(row => row.kind === 'task' && row.task.id === taskA);
+  const rowA = beforeRows[rowAIndex] as TaskViewRow;
+  const oldCursor: TaskRowCursor = { rowKey: rowA.rowKey, rowIndex: rowAIndex, taskId: taskA };
+  const collapsed = opts(cursorGrouping);
+  collapsed.collapsedGroupKeys = new Set([JSON.stringify(['A — verdwijnt'])]);
+  const afterRows = visibleRows.computeViewRows(S().tasks, collapsed, ctx);
+  const rowBIndex = afterRows.findIndex(row => row.kind === 'task' && row.task.id === taskB);
+  const rowB = afterRows[rowBIndex] as TaskViewRow;
+
+  const normalized = occurrenceApi.normalizeTaskRowCursor?.(afterRows, oldCursor);
+  eq('12 cursorreconciliatie levert occurrence-expliciet het nieuwe domein-taskId op', normalized,
+    { rowKey: rowB.rowKey, rowIndex: rowBIndex, taskId: taskB });
+
+  if (typeof cursorSelectionApi.reconcileTaskCursorSelection !== 'function') {
+    ok('13 productiecursorroute voor selectiesynchronisatie ontbreekt', false);
+  } else {
+    S().selectTask(taskA);
+    const reconciled = cursorSelectionApi.reconcileTaskCursorSelection(
+      afterRows,
+      oldCursor,
+      S().selectTask,
+    );
+    eq('13 productiecursorroute migreert activeCell naar taak B', reconciled,
+      { rowKey: rowB.rowKey, rowIndex: rowBIndex, taskId: taskB });
+    eq('14 productiecursorroute synchroniseert de echte selectedTaskIds naar taak B',
+      S().selectedTaskIds, [taskB]);
+    eq('15 TaskPropertiesPanel-doel volgt via zijn echte selectedTaskIds-bron logisch taak B',
+      S().tasks.find(candidate => candidate.id === S().selectedTaskIds[0])?.id, taskB);
+
+    // Dezelfde occurrence mag na een ingevoegde eerdere band een andere absolute index hebben.
+    // Omdat taskId gelijk blijft, mag dit een bestaande meervoudige domeinselectie niet reduceren.
+    S().addTask({ name: '0 — eerdere band' });
+    const shiftedRows = visibleRows.computeViewRows(S().tasks, opts(cursorGrouping), ctx);
+    S().selectTasks([taskA, taskB], false);
+    const shifted = cursorSelectionApi.reconcileTaskCursorSelection(
+      shiftedRows,
+      { rowKey: rowB.rowKey, rowIndex: rowBIndex, taskId: taskB },
+      S().selectTask,
+    );
+    eq('16 exacte occurrence met alleen een nieuwe rowIndex houdt hetzelfde taskId', shifted?.taskId, taskB);
+    eq('17 alleen een absolute indexverschuiving wijzigt selectedTaskIds niet',
+      S().selectedTaskIds, [taskA, taskB]);
+  }
 }
 
 if (diffs.length === 0) {
