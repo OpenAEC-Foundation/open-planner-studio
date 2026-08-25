@@ -1,12 +1,12 @@
 /**
- * X6-corpuspoort. De orakelscan leest tabs rechtstreeks uit de bytes en importeert geen
- * productiemodule; de tweede meting gebruikt de echte X6-kern met dezelfde catalogus/partitionering
- * als readXER. Alleen anonieme bytehashes worden gelogd.
+ * X6-corpuspoort. Het orakel leest %T/%F/%R direct uit de oorspronkelijke bytes, zonder een
+ * productiemodule te importeren. Pas daarna mag de productiecatalogus worden vergeleken.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { readXER } from '@/services/xer/xerReader';
 import { readXerCalendars } from '@/services/xer/xerCalendarData';
 import { indexXerTaskResourceRows } from '@/services/xer/xerResourceAssignments';
 import { buildXerResourceCatalog, materializeXerResources } from '@/services/xer/xerResources';
@@ -21,20 +21,63 @@ interface Pin {
   curves: number;
   roles: number;
   maxParserMs: number;
-  maxCoreMs: number;
+  maxCatalogBuildMs: number;
+  maxMaterializationMs: number;
+  maxEndToEndMs: number;
   maxParserHeapBytes: number;
-  maxCoreHeapBytes: number;
+  maxCatalogBuildHeapBytes: number;
+  maxMaterializationHeapBytes: number;
+  maxEndToEndHeapBytes: number;
 }
 
 const PINS: Readonly<Record<string, Pin>> = {
-  a2ef7b35c00d8cf8: { bytes: 1797989, resources: 92, rates: 91, assignments: 3575, materialAssignments: 85, curves: 0, roles: 2, maxParserMs: 1000, maxCoreMs: 1000, maxParserHeapBytes: 67108864, maxCoreHeapBytes: 16777216 },
-  '2c1dce175b9f0781': { bytes: 18592333, resources: 179, rates: 55, assignments: 52640, materialAssignments: 10584, curves: 1, roles: 2, maxParserMs: 8000, maxCoreMs: 5000, maxParserHeapBytes: 402653184, maxCoreHeapBytes: 67108864 },
+  a2ef7b35c00d8cf8: {
+    bytes: 1797989, resources: 92, rates: 91, assignments: 3575, materialAssignments: 85, curves: 0, roles: 2,
+    maxParserMs: 1000, maxCatalogBuildMs: 1000, maxMaterializationMs: 1000, maxEndToEndMs: 3000,
+    maxParserHeapBytes: 67108864, maxCatalogBuildHeapBytes: 33554432, maxMaterializationHeapBytes: 33554432, maxEndToEndHeapBytes: 134217728,
+  },
+  '2c1dce175b9f0781': {
+    bytes: 18592333, resources: 179, rates: 55, assignments: 52640, materialAssignments: 10584, curves: 1, roles: 2,
+    maxParserMs: 8000, maxCatalogBuildMs: 5000, maxMaterializationMs: 5000, maxEndToEndMs: 16000,
+    maxParserHeapBytes: 402653184, maxCatalogBuildHeapBytes: 134217728, maxMaterializationHeapBytes: 134217728, maxEndToEndHeapBytes: 805306368,
+  },
 };
+
+type DirectRow = Record<string, string>;
+interface DirectRate {
+  sourceId: string;
+  kind: 'RESOURCE' | 'ROLE';
+  entitySourceId: string;
+  effectiveDate?: string;
+  maxUnitsPerTime: number | null;
+  costs: Array<number | null>;
+}
+interface DirectCurve { sourceId: string; rawPoints: string[]; bestFit?: string; }
+interface DirectScan {
+  projectId: string;
+  resources: number;
+  rates: DirectRate[];
+  assignments: Array<{ sourceId: string; taskId: string; entityKind: 'RESOURCE' | 'ROLE'; entitySourceId: string }>;
+  materialAssignments: number;
+  curves: DirectCurve[];
+  roles: number;
+  resourceCalendars: Array<{ sourceId: string; calendarSourceId?: string }>;
+  rawAssignmentIds: string[];
+}
+
 const diffs: string[] = [];
 let checks = 0;
 function eq(label: string, got: unknown, want: unknown): void {
   checks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
+}
+function present<T>(label: string, value: T | null | undefined): value is T {
+  checks++;
+  if (value === null || value === undefined) {
+    diffs.push(`${label}: verplichte corpusdata ontbreekt`);
+    return false;
+  }
+  return true;
 }
 function hash(bytes: Uint8Array): string { return createHash('sha256').update(bytes).digest('hex').slice(0, 16); }
 function files(dir: string): string[] {
@@ -46,38 +89,132 @@ function files(dir: string): string[] {
   }
   return found;
 }
-function scan(bytes: Uint8Array): Record<string, number> {
-  const text = new TextDecoder().decode(bytes);
-  let table = '';
-  let fields: string[] = [];
-  const rows = new Map<string, Array<Record<string, string>>>();
-  for (const line of text.split(/\r\n|\n|\r/)) {
-    const values = line.split('\t');
-    if (values[0] === '%E') break;
-    if (values[0] === '%T') { table = values[1] ?? ''; fields = []; continue; }
-    if (values[0] === '%F') { fields = values.slice(1); continue; }
-    if (values[0] !== '%R' || fields.length === 0) continue;
-    const row: Record<string, string> = {};
-    for (let index = 0; index < fields.length; index++) row[fields[index]] = values[index + 1] ?? '';
-    rows.set(table, [...(rows.get(table) ?? []), row]);
-  }
-  const project = rows.get('PROJECT')?.[0]?.proj_id ?? '';
-  const resourceTypes = new Map((rows.get('RSRC') ?? []).map(row => [row.rsrc_id, row.rsrc_type?.toLowerCase()]));
-  const assignments = (rows.get('TASKRSRC') ?? []).filter(row => !row.proj_id || row.proj_id === project);
-  return {
-    resources: (rows.get('RSRC') ?? []).length,
-    rates: (rows.get('RSRCRATE') ?? []).length + (rows.get('ROLERATE') ?? []).length,
-    assignments: assignments.length,
-    materialAssignments: assignments.filter(row => resourceTypes.get(row.rsrc_id) === 'rt_mat').length,
-    curves: (rows.get('RSRCCURVDATA') ?? []).length,
-    roles: (rows.get('ROLES') ?? []).length,
-  };
-}
 function gc(): void {
   const force = (globalThis as typeof globalThis & { gc?: () => void }).gc;
   if (typeof force !== 'function') throw new Error('X6-corpuspoort vereist node --expose-gc');
   force();
 }
+function measure<T>(work: () => T): { value: T; ms: number; heapBytes: number } {
+  const before = process.memoryUsage().heapUsed;
+  const start = performance.now();
+  const value = work();
+  const ms = performance.now() - start;
+  // Alle vier fasen houden hun resultaat vast voor het onafhankelijke orakel. Daarom is dit een
+  // live-heapdelta; een GC per fase zou die legitiem live grafiek scannen in plaats van meten.
+  return { value, ms, heapBytes: Math.max(0, process.memoryUsage().heapUsed - before) };
+}
+function separator(raw: string, family: 'decimal' | 'group'): '.' | ',' | undefined {
+  const value = raw.trim().toLowerCase();
+  if (!value) return undefined;
+  if (value === '.' || value === 'period' || value === `d${family === 'decimal' ? 's' : 'g'}_period`) return '.';
+  if (value === ',' || value === 'comma' || value === `d${family === 'decimal' ? 's' : 'g'}_comma`) return ',';
+  throw new Error(`Onafhankelijke scanner kan CURRTYPE-token ${raw} niet duiden`);
+}
+function numberFormat(rows: ReadonlyMap<string, DirectRow[]>, currencyCode: string): { decimal: '.' | ','; group: '.' | ',' | null } {
+  const currency = (rows.get('CURRTYPE') ?? []).find(row => row.curr_short_name?.trim().toLowerCase() === currencyCode.trim().toLowerCase());
+  if (!currency) return { decimal: '.', group: null };
+  const decimal = separator(currency.decimal_symbol || currency.decimal_symbol_type || '', 'decimal');
+  const group = separator(currency.digit_group_symbol || currency.digit_group_symbol_type || '', 'group');
+  if (!decimal || !group || decimal === group) throw new Error('Onafhankelijke scanner mist geldige CURRTYPE-separators');
+  return { decimal, group };
+}
+function sourceNumber(raw: string | undefined, format: { decimal: '.' | ','; group: '.' | ',' | null }): number | null {
+  const value = raw?.trim() ?? '';
+  if (!value) return null;
+  const normalized = (format.group ? value.split(format.group).join('') : value).replace(format.decimal, '.');
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) throw new Error(`Onafhankelijke scanner kreeg ongeldig getal ${JSON.stringify(value)}`);
+  return parsed;
+}
+function curveBestFit(points: readonly string[], format: { decimal: '.' | ','; group: '.' | ',' | null }): string | undefined {
+  const values: number[] = [];
+  for (const point of points) {
+    const value = sourceNumber(point, format);
+    if (value === null || value < 0 || value > 100) return undefined;
+    values.push(value);
+  }
+  if (values.length !== 21) return undefined;
+  const total = values.reduce((sum, point) => sum + point, 0);
+  if (total === 0) return undefined;
+  const controls: Readonly<Record<string, ReadonlyArray<readonly [number, number]>>> = {
+    UNIFORM: [[0, 1], [1, 1]], FRONT_LOADED: [[0, 1], [1, 0.2]], BACK_LOADED: [[0, 0.2], [1, 1]],
+    BELL: [[0, 0.2], [0.5, 1], [1, 0.2]], EARLY_PEAK: [[0, 0.2], [1 / 3, 1], [1, 0.2]], LATE_PEAK: [[0, 0.2], [2 / 3, 1], [1, 0.2]],
+  };
+  const observed = values.map(point => point / total);
+  let best: string | undefined;
+  let bestError = Number.POSITIVE_INFINITY;
+  for (const [family, pointsForFamily] of Object.entries(controls)) {
+    const profile = Array.from({ length: 21 }, (_, index) => {
+      const at = index / 20;
+      for (let control = 0; control < pointsForFamily.length - 1; control++) {
+        const [leftAt, leftWeight] = pointsForFamily[control];
+        const [rightAt, rightWeight] = pointsForFamily[control + 1];
+        if (at < leftAt || at > rightAt) continue;
+        return leftWeight + (rightWeight - leftWeight) * ((at - leftAt) / (rightAt - leftAt));
+      }
+      return pointsForFamily[pointsForFamily.length - 1][1];
+    });
+    const profileTotal = profile.reduce((sum, point) => sum + point, 0);
+    const error = observed.reduce((sum, point, index) => sum + (point - profile[index] / profileTotal) ** 2, 0) / observed.length;
+    if (error < bestError) { best = family; bestError = error; }
+  }
+  return best;
+}
+function scan(bytes: Uint8Array): DirectScan {
+  const text = new TextDecoder().decode(bytes);
+  const rows = new Map<string, DirectRow[]>();
+  let table = '';
+  let fields: string[] = [];
+  let currencyCode = '';
+  for (const line of text.split(/\r\n|\n|\r/)) {
+    const values = line.split('\t');
+    if (values[0] === 'ERMHDR') currencyCode = values[8] ?? '';
+    if (values[0] === '%E') break;
+    if (values[0] === '%T') { table = values[1] ?? ''; fields = []; continue; }
+    if (values[0] === '%F') { fields = values.slice(1).map(field => field.trim().toLowerCase()); continue; }
+    if (values[0] !== '%R' || fields.length === 0) continue;
+    const row: DirectRow = {};
+    fields.forEach((field, index) => { row[field] = values[index + 1] ?? ''; });
+    const tableRows = rows.get(table);
+    if (tableRows) tableRows.push(row);
+    else rows.set(table, [row]);
+  }
+  const format = numberFormat(rows, currencyCode);
+  const projectId = rows.get('PROJECT')?.[0]?.proj_id ?? '';
+  const resources = rows.get('RSRC') ?? [];
+  const roles = rows.get('ROLES') ?? [];
+  const resourceTypes = new Map(resources.map(row => [row.rsrc_id, row.rsrc_type?.trim().toLowerCase()]));
+  const assignmentRows = (rows.get('TASKRSRC') ?? []).filter(row => row.proj_id === projectId);
+  const rateRows = [
+    ...(rows.get('RSRCRATE') ?? []).map(row => ({ row, kind: 'RESOURCE' as const, id: 'rsrc_rate_id', entity: 'rsrc_id' })),
+    ...(rows.get('ROLERATE') ?? []).map(row => ({ row, kind: 'ROLE' as const, id: 'role_rate_id', entity: 'role_id' })),
+  ];
+  return {
+    projectId,
+    resources: resources.length,
+    rates: rateRows.map(({ row, kind, id, entity }) => ({
+      sourceId: row[id] || '', kind, entitySourceId: row[entity] || '',
+      ...(row.start_date?.trim().match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ? { effectiveDate: row.start_date.trim().slice(0, 10) } : {}),
+      maxUnitsPerTime: sourceNumber(row.max_qty_per_hr, format),
+      costs: ['cost_per_qty', 'cost_per_qty2', 'cost_per_qty3', 'cost_per_qty4', 'cost_per_qty5'].map(field => sourceNumber(row[field], format)),
+    })).sort((left, right) => left.kind.localeCompare(right.kind) || left.entitySourceId.localeCompare(right.entitySourceId) || left.sourceId.localeCompare(right.sourceId)),
+    assignments: assignmentRows.map(row => ({ sourceId: row.taskrsrc_id || '', taskId: row.task_id || '', entityKind: row.rsrc_id?.trim() ? 'RESOURCE' as const : 'ROLE' as const, entitySourceId: row.rsrc_id?.trim() || row.role_id?.trim() || '' })),
+    materialAssignments: assignmentRows.filter(row => resourceTypes.get(row.rsrc_id) === 'rt_mat').length,
+    curves: (rows.get('RSRCCURVDATA') ?? []).map(row => {
+      const rawPoints = Array.from({ length: 21 }, (_, index) => row[`pct_usage_${index}`] ?? '');
+      const bestFit = curveBestFit(rawPoints, format);
+      return { sourceId: row.curv_id || '', rawPoints, ...(bestFit ? { bestFit } : {}) };
+    }),
+    roles: roles.length,
+    resourceCalendars: resources.map(row => ({ sourceId: row.rsrc_id || '', ...(row.clndr_id?.trim() ? { calendarSourceId: row.clndr_id.trim() } : {}) })),
+    rawAssignmentIds: (rows.get('TASKRSRC') ?? []).map(row => row.taskrsrc_id || ''),
+  };
+}
+function exceeds(label: string, actual: number, maximum: number): void {
+  checks++;
+  if (actual > maximum) diffs.push(`${label}: ${actual.toFixed(1)} boven ${maximum}`);
+}
+
 const corpus = process.env.OPS_XER_CORPUS;
 if (!corpus) console.log('OK X6 corpus: OPS_XER_CORPUS niet gezet — corpuspins overgeslagen');
 else if (!existsSync(corpus)) eq('X6 corpusmap bestaat', false, true);
@@ -93,39 +230,44 @@ else {
     const content = targets.get(digest);
     eq(`${digest}: openbare corpuspin aanwezig`, Boolean(content), true);
     if (!content) continue;
-    eq(`${digest}: onafhankelijke tabscan`, { bytes: content.byteLength, ...scan(content) }, {
-      bytes: pin.bytes, resources: pin.resources, rates: pin.rates, assignments: pin.assignments,
-      materialAssignments: pin.materialAssignments, curves: pin.curves, roles: pin.roles,
-    });
-    gc(); const parserHeap = process.memoryUsage().heapUsed; const parserStart = performance.now();
-    const tables = parseXerTables(content);
-    const parserMs = performance.now() - parserStart; gc(); const parserDelta = Math.max(0, process.memoryUsage().heapUsed - parserHeap);
+    const source = scan(content);
+    eq(`${digest}: onafhankelijke bytescan telt de volledige X6-bron`, { bytes: content.byteLength, resources: source.resources, rates: source.rates.length, assignments: source.assignments.length, materialAssignments: source.materialAssignments, curves: source.curves.length, roles: source.roles }, { bytes: pin.bytes, resources: pin.resources, rates: pin.rates, assignments: pin.assignments, materialAssignments: pin.materialAssignments, curves: pin.curves, roles: pin.roles });
+    gc();
+    const parser = measure(() => parseXerTables(content));
+    const tables = parser.value;
     const calendarResult = readXerCalendars(tables);
     const projectRow = tables.tables.get('PROJECT')?.rows[0];
-    const project = projectRow?.cells.proj_id ?? '';
-    const projectCalendar = calendarResult.byId.get(projectRow?.cells.clndr_id ?? '') ?? calendarResult.calendars[0];
-    if (!projectCalendar) { eq(`${digest}: projectkalender bestaat`, false, true); continue; }
+    const project = projectRow?.cells.proj_id;
+    const projectCalendar = projectRow ? calendarResult.byId.get(projectRow.cells.clndr_id ?? '') ?? calendarResult.calendars[0] : undefined;
+    if (!present(`${digest}: projectrij`, projectRow) || !present(`${digest}: project-id`, project) || !present(`${digest}: projectkalender`, projectCalendar)) continue;
     const availableCalendarIds = new Set(calendarResult.calendars.map(calendar => calendar.id));
-    const catalog = buildXerResourceCatalog(tables, availableCalendarIds);
-    gc(); const coreHeap = process.memoryUsage().heapUsed; const coreStart = performance.now();
-    const materialized = materializeXerResources(catalog, tables, {
+    const catalogBuild = measure(() => buildXerResourceCatalog(tables, availableCalendarIds));
+    const catalog = catalogBuild.value;
+    const materialization = measure(() => materializeXerResources(catalog, tables, {
       projectId: project, projectCalendarId: projectCalendar.id, projectHoursPerDay: projectCalendar.hoursPerDay,
       availableCalendarIds, calendarHoursPerDay: new Map(calendarResult.calendars.map(calendar => [calendar.id, calendar.hoursPerDay])),
       taskIds: new Set((tables.tables.get('TASK')?.rows ?? []).filter(row => row.cells.proj_id === project).map(row => row.cells.task_id)),
-    }, indexXerTaskResourceRows(tables).get(project) ?? []);
-    const coreMs = performance.now() - coreStart; gc(); const coreDelta = Math.max(0, process.memoryUsage().heapUsed - coreHeap);
-    const actual = {
-      resources: catalog.rows.resources.length, rates: catalog.rows.rates.length, assignments: materialized.assignments.length,
-      materialAssignments: materialized.assignments.filter(assignment => materialized.resources.find(resource => resource.id === assignment.resourceId)?.type === 'MATERIAL').length,
-      curves: catalog.rows.curves.length, roles: catalog.rows.roles.length,
-    };
-    eq(`${digest}: productiecatalogus en lineaire projectprojectie volgen het onafhankelijke orakel`, actual, scan(content));
-    checks += 4;
-    if (parserMs > pin.maxParserMs) diffs.push(`${digest}: parser ${parserMs.toFixed(1)} ms boven ${pin.maxParserMs} ms`);
-    if (coreMs > pin.maxCoreMs) diffs.push(`${digest}: X6-kern ${coreMs.toFixed(1)} ms boven ${pin.maxCoreMs} ms`);
-    if (parserDelta > pin.maxParserHeapBytes) diffs.push(`${digest}: parserheap ${parserDelta} boven ${pin.maxParserHeapBytes}`);
-    if (coreDelta > pin.maxCoreHeapBytes) diffs.push(`${digest}: kernheap ${coreDelta} boven ${pin.maxCoreHeapBytes}`);
-    console.log(`. X6 corpus ${digest}: parser ${parserMs.toFixed(1)} ms/${parserDelta} B; kern ${coreMs.toFixed(1)} ms/${coreDelta} B`);
+    }, indexXerTaskResourceRows(tables).get(project) ?? []));
+    const materialized = materialization.value;
+    const endToEnd = measure(() => readXER(content));
+    const catalogRates = catalog.rows.rates.map(rate => ({ sourceId: rate.sourceId, kind: rate.entity.kind, entitySourceId: rate.entity.sourceId, ...(rate.effectiveDate ? { effectiveDate: rate.effectiveDate } : {}), maxUnitsPerTime: rate.maxUnitsPerTime, costs: [...rate.costs] })).sort((left, right) => left.kind.localeCompare(right.kind) || left.entitySourceId.localeCompare(right.entitySourceId) || left.sourceId.localeCompare(right.sourceId));
+    eq(`${digest}: exacte rates en ingangsdatums volgen de directe tabscan`, catalogRates, source.rates);
+    eq(`${digest}: resourcekalenderverwijzingen volgen de directe RSRC-scan`, catalog.rows.resources.map(row => ({ sourceId: row.sourceId, ...(row.calendarSourceId ? { calendarSourceId: row.calendarSourceId } : {}) })), source.resourceCalendars);
+    eq(`${digest}: projectpartitie bevat alleen de directe TASKRSRC-projectview`, materialized.sources.assignments.map(row => ({ sourceId: row.sourceId, taskId: row.taskSourceId, entityKind: row.entity.kind, entitySourceId: row.entity.sourceId })), source.assignments);
+    eq(`${digest}: role-only TASKRSRC blijft role-only`, materialized.sources.assignments.filter(row => row.entity.kind === 'ROLE').map(row => row.sourceId), source.assignments.filter(row => row.entityKind === 'ROLE').map(row => row.sourceId));
+    eq(`${digest}: 21 curvepunten en onafhankelijke best-fit blijven behouden`, catalog.rows.curves.map(curve => ({ sourceId: curve.sourceId, rawPoints: [...curve.rawPoints], ...(curve.bestFit ? { bestFit: curve.bestFit } : {}) })), source.curves);
+    const rawRowByAssignmentId = new Map(catalog.rows.assignments.map(row => [row.cells.taskrsrc_id, row]));
+    eq(`${digest}: iedere projectbron behoudt de catalogus-raw-rowidentiteit`, materialized.sources.assignments.every(sourceAssignment => sourceAssignment.rawRow === rawRowByAssignmentId.get(sourceAssignment.sourceId)), true);
+    eq(`${digest}: retained raw TASKRSRC-telling is volledig vóór projectfilter`, catalog.rows.assignments.map(row => row.cells.taskrsrc_id), source.rawAssignmentIds);
+    exceeds(`${digest}: parser ms`, parser.ms, pin.maxParserMs);
+    exceeds(`${digest}: catalogusbouw ms`, catalogBuild.ms, pin.maxCatalogBuildMs);
+    exceeds(`${digest}: materialisatie ms`, materialization.ms, pin.maxMaterializationMs);
+    exceeds(`${digest}: end-to-end readXER ms`, endToEnd.ms, pin.maxEndToEndMs);
+    exceeds(`${digest}: parser heap`, parser.heapBytes, pin.maxParserHeapBytes);
+    exceeds(`${digest}: catalogusbouw heap`, catalogBuild.heapBytes, pin.maxCatalogBuildHeapBytes);
+    exceeds(`${digest}: materialisatie heap`, materialization.heapBytes, pin.maxMaterializationHeapBytes);
+    exceeds(`${digest}: end-to-end readXER heap`, endToEnd.heapBytes, pin.maxEndToEndHeapBytes);
+    console.log(`. X6 corpus ${digest}: parser ${parser.ms.toFixed(1)} ms/${parser.heapBytes} B; catalogusbouw ${catalogBuild.ms.toFixed(1)} ms/${catalogBuild.heapBytes} B; materialisatie ${materialization.ms.toFixed(1)} ms/${materialization.heapBytes} B; end-to-end ${endToEnd.ms.toFixed(1)} ms/${endToEnd.heapBytes} B`);
   }
 }
 if (diffs.length) { console.error(`XX X6 corpus (${checks} checks)\n${diffs.join('\n')}`); process.exitCode = 1; }

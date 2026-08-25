@@ -290,6 +290,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # X6: echte storeduplicatie met een rehab-grote retained catalogus. Ook deze check is datumvrij.
+  XERRESOURCEDUPLICATECHECK="$DIR/.xer-resource-duplicate.mjs"
+  if bundle_check "$DIR/check-xer-resource-duplicate.ts" "$XERRESOURCEDUPLICATECHECK"; then
+    node "$XERRESOURCEDUPLICATECHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X6: onafhankelijke, hashgepinde corpusmeting. Deze draait eenmaal met expliciete GC, zodat
   # parser- en kernheapdelta's vergelijkbaar blijven en nooit in de tijdzonematrix vallen.
   XERRESOURCECORPUSCHECK="$DIR/.xer-resource-corpus.mjs"

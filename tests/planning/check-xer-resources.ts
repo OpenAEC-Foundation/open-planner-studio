@@ -6,6 +6,9 @@
 import { readXER } from '@/services/xer/xerReader';
 import { parseXerTables } from '@/services/xer/xerTables';
 import { isMultiDocumentImport } from '@/services/importTypes';
+import { readXerCalendars } from '@/services/xer/xerCalendarData';
+import { indexXerTaskResourceRows } from '@/services/xer/xerResourceAssignments';
+import { buildXerResourceCatalog, materializeXerResources } from '@/services/xer/xerResources';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -14,6 +17,25 @@ function eq(label: string, got: unknown, want: unknown): void {
   checks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) {
     diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
+  }
+}
+
+function present<T>(label: string, value: T | null | undefined): value is T {
+  checks++;
+  if (value === null || value === undefined) {
+    diffs.push(`${label}: verplichte testdata ontbreekt`);
+    return false;
+  }
+  return true;
+}
+
+function rejectsMutation(label: string, mutate: () => void): void {
+  checks++;
+  try {
+    mutate();
+    diffs.push(`${label}: mutatie werd niet door runtime-freeze geweigerd`);
+  } catch (error) {
+    if (!(error instanceof TypeError)) diffs.push(`${label}: verwacht TypeError, kreeg ${String(error)}`);
   }
 }
 
@@ -39,6 +61,7 @@ const fixture = bytes([
   '%F\ttask_id\tproj_id\ttask_name\ttask_code\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tstatus_code',
   '%R\tT1\tP1\tMetselen\tA1\t2026-01-01\t2026-01-02\t8\tTT_Task\tTK_NotStart',
   '%R\tT2\tP1\tOntwerp\tA2\t2026-01-01\t2026-01-02\t8\tTT_Task\tTK_NotStart',
+  '%R\tT3\tP1\tControle\tA3\t2026-01-01\t2026-01-02\t8\tTT_Task\tTK_NotStart',
   '%T\tUMEASURE',
   '%F\tunit_id\tunit_abbrev',
   '%R\tU-KG\tkg',
@@ -53,6 +76,10 @@ const fixture = bytes([
   '%F\trsrc_rate_id\trsrc_id\tmax_qty_per_hr\tcost_per_qty\tstart_date',
   '%R\tR-1\t42\t1\t25\t2026-01-01 00:00',
   '%R\tR-2\tMAT\t50\t4.5\t2026-01-01 00:00',
+  '%R\tR-ORPHAN\tNOPE\t1\t99\t2026-01-01 00:00',
+  '%T\tROLERATE',
+  '%F\trole_rate_id\trole_id\tmax_qty_per_hr\tcost_per_qty\tstart_date',
+  '%R\tROLE-RATE\t42\t0.75\t80\t2026-02-01 00:00',
   '%T\tRSRCCURVDATA',
   `%F\tcurv_id\tcurv_name\t${curveFields.join('\t')}`,
   `%R\tC-BELL\tKlok\t${bell.join('\t')}`,
@@ -60,6 +87,7 @@ const fixture = bytes([
   '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\trole_id\ttarget_qty_per_hr\tremain_qty_per_hr\tremain_qty\ttarget_qty\tcurv_id\ttarget_crv\tremain_crv\tactual_crv\tcost_per_qty\ttarget_cost\tremain_cost',
   '%R\tA-LABOR\tP1\tT1\t42\t42\t0.5\t0.5\t4\t5\tC-BELL\tTC\tRC\tAC\t25\t125\t100',
   '%R\tA-MATERIAL\tP1\tT2\tMAT\t\t3\t3\t18\t24\t\t\t\t\t4\t96\t72',
+  '%R\tA-ROLE\tP1\tT3\t\t42\t0.25\t0.25\t2\t2\t\t\t\t\t80\t160\t120',
   '%E',
 ]);
 
@@ -69,6 +97,21 @@ eq('X6-a parser bevries gedeelde TASKRSRC- en taakbronrijen', {
   row: taskRow ? Object.isFrozen(taskRow) : false,
   cells: taskRow ? Object.isFrozen(taskRow.cells) : false,
 }, { row: true, cells: true });
+
+const directCalendars = readXerCalendars(parsed);
+const directCatalog = buildXerResourceCatalog(parsed, new Set(directCalendars.calendars.map(calendar => calendar.id)));
+const directProjectCalendar = directCalendars.byId.get('CP');
+if (present('X6-a2 directe materialisatie heeft projectkalender', directProjectCalendar)) {
+  const directMaterialized = materializeXerResources(directCatalog, parsed, {
+    projectId: 'P1', projectCalendarId: directProjectCalendar.id, projectHoursPerDay: directProjectCalendar.hoursPerDay,
+    availableCalendarIds: new Set(directCalendars.calendars.map(calendar => calendar.id)),
+    calendarHoursPerDay: new Map(directCalendars.calendars.map(calendar => [calendar.id, calendar.hoursPerDay])),
+    taskIds: new Set(['T1', 'T2', 'T3']),
+  }, indexXerTaskResourceRows(parsed).get('P1') ?? []);
+  const materializedResource = directMaterialized.resources.find(resource => resource.id === 'xer-resource:42');
+  if (present('X6-a2 directe materialisatie heeft resourcekopie', materializedResource)) materializedResource.name = 'Alleen directe projectview';
+  eq('X6-a2 directe materialisatie kan catalogusresource niet muteren', directCatalog.resources.find(resource => resource.id === 'xer-resource:42')?.name, 'Vakman');
+}
 
 const opened = readXER(fixture);
 if (isMultiDocumentImport(opened)) {
@@ -92,6 +135,10 @@ if (isMultiDocumentImport(opened)) {
         id: 'xer-resource:MAT', type: 'MATERIAL', calendarId: 'CR', maxUnits: 40,
         unitOfMeasure: 'kg', costPerHour: 4.5, availabilitySteps: [{ from: '2026-01-01', maxUnits: 50 }],
       },
+      {
+        id: 'xer-role:42', type: 'LABOR', maxUnits: 0,
+        costPerHour: 80, availabilitySteps: [{ from: '2026-02-01', maxUnits: 0.75 }],
+      },
     ]);
   eq('X6-c TASKRSRC vult toewijzingen, resourceIds en materiaaluren op resourcekalender', {
     assignments: opened.assignments.map(assignment => ({
@@ -105,21 +152,77 @@ if (isMultiDocumentImport(opened)) {
     assignments: [
       { taskId: 'T1', resourceId: 'xer-resource:42', unitsPerDay: 0.5, curve: 'BELL' },
       { taskId: 'T2', resourceId: 'xer-resource:MAT', unitsPerDay: 30 },
+      { taskId: 'T3', resourceId: 'xer-role:42', unitsPerDay: 0.25 },
     ],
-    taskResourceIds: [['T1', ['xer-resource:42']], ['T2', ['xer-resource:MAT']]],
+    taskResourceIds: [
+      ['T1', ['xer-resource:42']],
+      ['T2', ['xer-resource:MAT']],
+      ['T3', ['xer-role:42']],
+    ],
   });
-  const xer = opened.xer as unknown as {
-    resources?: {
-      catalog: { rows: { assignments: readonly unknown[]; curves: readonly { rawPoints: readonly string[] }[] } };
-      assignments: readonly { rawRow: object; projectSourceId?: string; quantities: unknown; costs: unknown }[];
-    };
-  };
+  const xer = opened.xer.resources;
+  const catalog = xer?.catalog;
+  const curve = catalog?.rows.curves.find(item => item.sourceId === 'C-BELL');
+  const resourceRate = catalog?.rows.rates.find(item => item.sourceId === 'R-1');
+  const projectAssignment = xer?.assignments.find(item => item.sourceId === 'A-LABOR');
+  const rawAssignment = catalog?.rows.assignments.find(row => row.cells.taskrsrc_id === 'A-LABOR');
   eq('X6-d retained bronmetadata houdt 21 curvepunten en raw assignment-identiteit vast', {
-    rawAssignments: xer.resources?.catalog.rows.assignments.length,
-    projectAssignments: xer.resources?.assignments.length,
-    points: xer.resources?.catalog.rows.curves[0]?.rawPoints.length,
-    sameRow: xer.resources?.assignments[0]?.rawRow === xer.resources?.catalog.rows.assignments[0],
-  }, { rawAssignments: 2, projectAssignments: 2, points: 21, sameRow: true });
+    rawAssignments: catalog?.rows.assignments.length,
+    projectAssignments: xer?.assignments.length,
+    points: curve?.rawPoints.length,
+    numericPoints: curve?.numericPoints?.length,
+    sameRow: projectAssignment?.rawRow === rawAssignment,
+  }, { rawAssignments: 3, projectAssignments: 3, points: 21, numericPoints: 21, sameRow: true });
+
+  const firstResource = catalog?.resources.find(resource => resource.id === 'xer-resource:42');
+  const firstSource = catalog?.rows.resources.find(source => source.sourceId === '42');
+  const orphanIssue = catalog?.issues.find(issue => issue.sourceId === 'R-ORPHAN');
+  eq('X6-d2 volledige catalogusobjectgraaf is expliciet runtime-deep-frozen', {
+    catalog: catalog ? Object.isFrozen(catalog) : false,
+    resources: catalog ? Object.isFrozen(catalog.resources) : false,
+    resource: firstResource ? Object.isFrozen(firstResource) : false,
+    availabilitySteps: firstResource?.availabilitySteps ? Object.isFrozen(firstResource.availabilitySteps) : false,
+    availabilityStep: firstResource?.availabilitySteps?.[0] ? Object.isFrozen(firstResource.availabilitySteps[0]) : false,
+    identities: catalog ? Object.isFrozen(catalog.identities) : false,
+    identity: catalog?.identities[0] ? Object.isFrozen(catalog.identities[0]) : false,
+    rows: catalog ? Object.isFrozen(catalog.rows) : false,
+    source: firstSource ? Object.isFrozen(firstSource) : false,
+    sourceRawRow: firstSource ? Object.isFrozen(firstSource.rawRow) : false,
+    sourceCells: firstSource ? Object.isFrozen(firstSource.rawRow.cells) : false,
+    rate: resourceRate ? Object.isFrozen(resourceRate) : false,
+    rateEntity: resourceRate ? Object.isFrozen(resourceRate.entity) : false,
+    rateCostsTuple: resourceRate ? Object.isFrozen(resourceRate.costs) : false,
+    curve: curve ? Object.isFrozen(curve) : false,
+    rawCurveTuple: curve ? Object.isFrozen(curve.rawPoints) : false,
+    numericCurveTuple: curve?.numericPoints ? Object.isFrozen(curve.numericPoints) : false,
+    assignments: catalog ? Object.isFrozen(catalog.rows.assignments) : false,
+    assignmentRow: rawAssignment ? Object.isFrozen(rawAssignment) : false,
+    assignmentCells: rawAssignment ? Object.isFrozen(rawAssignment.cells) : false,
+    issues: catalog ? Object.isFrozen(catalog.issues) : false,
+    issue: orphanIssue ? Object.isFrozen(orphanIssue) : false,
+  }, {
+    catalog: true, resources: true, resource: true, availabilitySteps: true,
+    availabilityStep: true, identities: true, identity: true, rows: true, source: true,
+    sourceRawRow: true, sourceCells: true, rate: true, rateEntity: true,
+    rateCostsTuple: true, curve: true, rawCurveTuple: true, numericCurveTuple: true,
+    assignments: true, assignmentRow: true, assignmentCells: true, issues: true, issue: true,
+  });
+
+  if (present('X6-d3 mutatieproef heeft catalogusresource', firstResource)) {
+    rejectsMutation('X6-d3 catalogusresource weigert mutatie vóór X4b-fan-out', () => {
+      firstResource.name = 'verboden';
+    });
+  }
+  if (present('X6-d4 mutatieproef heeft ratetuple', resourceRate?.costs)) {
+    rejectsMutation('X6-d4 catalogus-ratetuple weigert mutatie vóór X4b-fan-out', () => {
+      resourceRate.costs[0] = 9_999;
+    });
+  }
+  if (present('X6-d5 mutatieproef heeft curvepunten', curve?.rawPoints)) {
+    rejectsMutation('X6-d5 catalogus-curvetuple weigert mutatie vóór X4b-fan-out', () => {
+      curve.rawPoints[0] = '9999';
+    });
+  }
 }
 
 const multiLines = [
@@ -138,7 +241,9 @@ const multiLines = [
   '%T\tTASKRSRC',
   '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\ttarget_qty_per_hr',
   '%R\tA1\tP1\tT1\tR1\t1',
+  '%R\tA-MISSING\tP1\tT-MISSING\tR1\t7',
   '%R\tA2\tP2\tT2\tR1\t2',
+  '%R\tA-UNSCOPED\t\tT1\tR1\t8',
   '%R\tA-BASELINE\tB9\tTB\tR1\t9',
   '%E',
 ] as const;
@@ -147,28 +252,38 @@ if (!isMultiDocumentImport(multi)) {
   diffs.push('X6-e tweeporject-fixture moet de X4b-meerdocumentvorm volgen');
 } else {
   const [first, second] = multi.results;
-  const firstXer = first.xer as unknown as { resources?: { catalog: { rows: { assignments: readonly object[] } }; assignments: readonly { rawRow: object }[] } };
-  const secondXer = second.xer as unknown as { resources?: { catalog: { rows: { assignments: readonly object[] } }; assignments: readonly { rawRow: object }[] } };
+  const firstXer = first?.xer?.resources;
+  const secondXer = second?.xer?.resources;
+  const firstAssignment = first?.assignments.find(assignment => assignment.id === 'xer-assignment:A1');
+  const secondAssignment = second?.assignments.find(assignment => assignment.id === 'xer-assignment:A2');
+  const secondSource = secondXer?.assignments.find(source => source.sourceId === 'A2');
+  const secondRawRow = secondXer?.catalog.rows.assignments.find(row => row.cells.taskrsrc_id === 'A2');
   eq('X6-e partitioneert TASKRSRC lineair per project, behoudt unscoped/baselinebronnen en deelt catalogusidentiteit', {
     projects: multi.results.map(result => [result.project.id, result.assignments.map(assignment => assignment.id)]),
-    rawRows: firstXer.resources?.catalog.rows.assignments.length,
-    sharedCatalog: firstXer.resources?.catalog === secondXer.resources?.catalog,
-    projectRowIdentity: secondXer.resources?.assignments[0]?.rawRow === secondXer.resources?.catalog.rows.assignments[1],
+    sourceViews: multi.results.map(result => [result.project.id, result.xer?.resources?.assignments.map(source => source.sourceId)]),
+    missingTaskIssues: firstXer?.issues.filter(issue => issue.code === 'XER_ASSIGNMENT_TASK_MISSING').map(issue => issue.sourceId),
+    rawRows: firstXer?.catalog.rows.assignments.length,
+    sharedCatalog: firstXer?.catalog === secondXer?.catalog,
+    projectRowIdentity: secondSource?.rawRow === secondRawRow,
   }, {
     projects: [['P1', ['xer-assignment:A1']], ['P2', ['xer-assignment:A2']]],
-    rawRows: 3,
+    sourceViews: [['P1', ['A1', 'A-MISSING']], ['P2', ['A2']]],
+    missingTaskIssues: ['A-MISSING'],
+    rawRows: 5,
     sharedCatalog: true,
     projectRowIdentity: true,
   });
-  first.resources[0].name = 'Alleen project P1';
-  first.assignments[0].unitsPerDay = 99;
+  const firstResource = first?.resources.find(resource => resource.id === 'xer-resource:R1');
+  const secondResource = second?.resources.find(resource => resource.id === 'xer-resource:R1');
+  if (present('X6-e2 P1-resource bestaat', firstResource)) firstResource.name = 'Alleen project P1';
+  if (present('X6-e2 P1-assignment bestaat', firstAssignment)) firstAssignment.unitsPerDay = 99;
   eq('X6-e2 projectprojecties zijn mutable en onderling geïsoleerd, terwijl de catalogus immutable gedeeld blijft', {
-    firstResource: first.resources[0].name,
-    secondResource: second.resources[0].name,
-    firstUnits: first.assignments[0].unitsPerDay,
-    secondUnits: second.assignments[0].unitsPerDay,
-    catalogFrozen: Object.isFrozen(firstXer.resources?.catalog),
-    catalogRowsFrozen: Object.isFrozen(firstXer.resources?.catalog.rows),
+    firstResource: firstResource?.name,
+    secondResource: secondResource?.name,
+    firstUnits: firstAssignment?.unitsPerDay,
+    secondUnits: secondAssignment?.unitsPerDay,
+    catalogFrozen: firstXer ? Object.isFrozen(firstXer.catalog) : false,
+    catalogRowsFrozen: firstXer ? Object.isFrozen(firstXer.catalog.rows) : false,
   }, {
     firstResource: 'Alleen project P1',
     secondResource: 'Gedeeld',
@@ -177,6 +292,17 @@ if (!isMultiDocumentImport(multi)) {
     catalogFrozen: true,
     catalogRowsFrozen: true,
   });
+  const sharedCatalog = firstXer?.catalog;
+  const sharedCatalogResource = sharedCatalog?.resources.find(resource => resource.id === 'xer-resource:R1');
+  if (present('X6-e3 gedeelde catalogusresource bestaat na X4b-fan-out', sharedCatalogResource)) {
+    const originalName = secondXer?.catalog.resources.find(resource => resource.id === 'xer-resource:R1')?.name;
+    rejectsMutation('X6-e3 catalogusmutatie wordt na X4b-fan-out geweigerd', () => {
+      sharedCatalogResource.name = 'lek naar P2';
+    });
+    eq('X6-e3 geweigerde catalogusmutatie kan P2 niet veranderen',
+      secondXer?.catalog.resources.find(resource => resource.id === 'xer-resource:R1')?.name,
+      originalName);
+  }
 }
 
 const baseline = readXER(bytes(multiLines.map(line => {
@@ -191,12 +317,16 @@ if (!isMultiDocumentImport(baseline)) {
   diffs.push('X6-f baseline-fixture moet via de X4b-meerdocumentvorm openen');
 } else {
   const result = baseline.results[0];
-  const xer = result?.xer as unknown as { resources?: { catalog: { rows: { assignments: readonly object[] } } } };
+  const xer = result?.xer?.resources;
   eq('X6-f baselineproject wordt niet geopend maar zijn TASKRSRC-bronrijen blijven ongeschonden voor X9 retained', {
     documents: baseline.results.map(item => item.project.id),
     baselines: result?.baselines?.map(item => item.id),
-    rawAssignments: xer.resources?.catalog.rows.assignments.length,
-  }, { documents: ['P1'], baselines: ['xer-baseline:P1:P2'], rawAssignments: 3 });
+    rawAssignments: xer?.catalog.rows.assignments.length,
+    retainedKinds: xer?.catalog.rows.assignments.map(row => row.cells.taskrsrc_id),
+  }, {
+    documents: ['P1'], baselines: ['xer-baseline:P1:P2'], rawAssignments: 5,
+    retainedKinds: ['A1', 'A-MISSING', 'A2', 'A-UNSCOPED', 'A-BASELINE'],
+  });
 }
 
 if (diffs.length > 0) {

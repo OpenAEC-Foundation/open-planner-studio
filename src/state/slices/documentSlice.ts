@@ -14,6 +14,7 @@ import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { resetUndoCoalescing } from '../transaction';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -129,6 +130,32 @@ function deepClone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
+/**
+ * X6 bewaart een bestandsbrede, immutable resourcecatalogus met de oorspronkelijke TASKRSRC-
+ * rijen. Een documentkopie krijgt een nieuwe, mutable projectview, maar mag die catalogus nooit
+ * JSON-klonen: rehab-2 alleen al bevat 52.640 retained rijen.
+ */
+function cloneXerResourceMetadata(source: XerResourceMetadata): XerResourceMetadata {
+  return {
+    catalog: source.catalog,
+    assignments: source.assignments.map(assignment => ({
+      ...assignment,
+      entity: { ...assignment.entity },
+      ...(assignment.assignedRole ? { assignedRole: { ...assignment.assignedRole } } : {}),
+      quantities: { ...assignment.quantities },
+      rawCurves: { ...assignment.rawCurves },
+      costs: { ...assignment.costs },
+    })),
+    issues: source.issues.map(issue => ({ ...issue })),
+  };
+}
+
+function cloneXerImportMetadata(source: XerImportMetadata): XerImportMetadata {
+  const { resources, ...withoutResources } = source;
+  const clone = deepClone(withoutResources);
+  return resources ? { ...clone, resources: cloneXerResourceMetadata(resources) } : clone;
+}
+
 /** `"Basis (variant 3)"` → `"Basis"`; een naam zonder variant-suffix blijft ongewijzigd. Zo blijft de
  *  basisnaam stabiel wanneer je een variant-document opnieuw dupliceert (varianten-van-varianten). */
 const VARIANT_RE = /^(.*) \(variant (\d+)\)$/;
@@ -227,7 +254,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       filePath: null,
       fileHandle: null,
       isDirty: true,
-      xerImportMetadata: src.xerImportMetadata ? deepClone(src.xerImportMetadata) : null,
+      xerImportMetadata: src.xerImportMetadata ? cloneXerImportMetadata(src.xerImportMetadata) : null,
     };
 
     set((s) => {

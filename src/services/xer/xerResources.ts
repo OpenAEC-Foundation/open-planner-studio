@@ -99,7 +99,25 @@ function readRatesForKind(tables: XerTables, kind: 'RESOURCE' | 'ROLE', ownerIds
       line: row.line, ...(date ? { effectiveDate: date } : {}), maxUnitsPerTime: numberOf(tables, row, table, 'max_qty_per_hr'), costs };
   });
 }
-function freezeArray<T>(items: T[]): T[] { Object.freeze(items); return items; }
+/**
+ * Bevriest de volledige catalogusgrafiek in-place. De parser levert XerRow-objecten al bevroren;
+ * deze doorloop behoudt die referenties dus precies zoals zij uit de tabelparser kwamen en maakt
+ * geen tweede (potentieel zeer grote) raw-row-kopie.
+ */
+function deepFreeze<T>(value: T, seen = new Set<object>()): T {
+  if (value === null || typeof value !== 'object') return value;
+  const object = value as object;
+  // Parserrijen en hun cellmaps zijn al runtime-bevroren. Niet opnieuw door hun volledige,
+  // potentieel tienduizenden rijen tellende objectgraaf lopen is essentieel voor rehab-2.
+  if (Object.isFrozen(object)) return value;
+  if (seen.has(object)) return value;
+  seen.add(object);
+  for (const key of Reflect.ownKeys(object)) {
+    deepFreeze((object as Record<PropertyKey, unknown>)[key], seen);
+  }
+  Object.freeze(object);
+  return value;
+}
 
 /** Bouw één bestandsbrede, immutable broncatalogus. TASKRSRC-rijen worden niet hier geprojecteerd. */
 export function buildXerResourceCatalog(tables: XerTables, availableCalendarIds: ReadonlySet<string>): XerResourceCatalog {
@@ -145,9 +163,18 @@ export function buildXerResourceCatalog(tables: XerTables, availableCalendarIds:
   const roles = mapRoles(roleRows, roleIds, issues);
   const curves = readXerResourceCurves(tables);
   issues.push(...curves.issues);
-  return Object.freeze({ resources: freezeArray(resources), identities: freezeArray([...identities, ...roles.identities]),
-    rows: Object.freeze({ resources: freezeArray(sources), roles: freezeArray(roles.sources), rates: freezeArray(rates), curves: freezeArray(curves.sources), assignments: freezeArray([...(tables.tables.get('TASKRSRC')?.rows ?? [])]) }),
-    issues: freezeArray(issues) });
+  return deepFreeze({
+    resources,
+    identities: [...identities, ...roles.identities],
+    rows: {
+      resources: sources,
+      roles: roles.sources,
+      rates,
+      curves: curves.sources,
+      assignments: [...(tables.tables.get('TASKRSRC')?.rows ?? [])],
+    },
+    issues,
+  });
 }
 
 /** Projectbound: kopieert uitsluitend de mutable projectprojectie en leest alleen zijn lineair gevonden TASKRSRC-rijen. */

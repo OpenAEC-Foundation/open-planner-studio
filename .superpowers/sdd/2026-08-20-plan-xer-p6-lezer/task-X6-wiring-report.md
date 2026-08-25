@@ -77,3 +77,27 @@ X9 moet de retained `xer.resources`-catalogus en projectassignment-view door het
 documentcontract, IFC-writer/-reader en recovery-bronserialisatie voeren. Deze X6-commit bewaart
 alleen de in-memory raw rows met referentie-identiteit; zij claimt expliciet geen save/reload-
 round-trip, export of MCP-leespaddocumentatie.
+
+## Reviewfix X6 — 2026-08-25
+
+De bestandsbrede catalogus is nu runtime-diep bevroren: nested resources, sourceprojecties,
+rate-entiteiten/-tuples, curve-tuples en issues zijn immutable. De doorloop werkt in-place en
+stopt bij de reeds bevroren parserrijen, dus raw `XerRow`- en celidentiteit wordt nooit gekloond.
+Documentprojecties blijven bewust mutable en geïsoleerd.
+
+`duplicateDocument()` kloont XER-metadata gericht: catalogus plus raw rows worden gedeeld, maar
+projectassignmentbronnen (entity, quantities, costs, rawCurves) en issues zijn nieuwe objecten.
+Hiermee wordt een catalogus met 52.640 retained TASKRSRC-rijen niet meer JSON-gekloneerd.
+
+De corpuspoort start met een directe byte-/tabelscanner voor presence/tellingen, exacte rates en
+ingangsdatums, resourcekalenders, role-only assignments, 21 curvepunten/best-fit, projectpartitie
+en raw-rowidentiteit. Zij rapporteert afzonderlijk parser, catalogusbouw, materialisatie en de
+volledige `readXER`-route. Heap is een live-delta vanaf één nulmeting per corpuscase, omdat alle
+resultaten voor het onafhankelijke orakel terecht live blijven.
+
+Laatste openbare corpusrun: Roads 90,6 / 6,6 / 72,4 / 246,1 ms; rehab-2 1.079,2 / 13,1 /
+1.066,6 / 2.707,8 ms (parser / catalogusbouw / materialisatie / end-to-end), 40 checks,
+exitcode 0. Rode mutaties (ieder exitcode 1, direct hersteld): rate ×100, verkeerde kalender,
+20 i.p.v. 21 curvepunten, resourceIds-fan-out weg, projectmisrouting en catalogusfilter met
+baseline/unscoped-verlies. De voorafgaande RED-tests bewezen ook shallow freeze en rawmetadata-
+klonen bij duplicateDocument().
