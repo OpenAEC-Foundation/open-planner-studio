@@ -4,6 +4,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { parseOpenedFile, readFormatInput, type FormatIO } from '@/services/formatRegistry';
+import { activeImportResult } from '@/services/importTypes';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb, installFromZipBlob } from '@/extensions';
 import type { InstallOutcome } from '@/extensions';
 import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
@@ -82,7 +83,7 @@ async function saveToPath(path: string) {
 export async function openFromPathWithIO(path: string, io: FormatIO) {
   const input = await readFormatInput(path, io);
   const parsed = await parseOpenedFile(input);
-  useAppStore.getState().loadState(parsed);
+  useAppStore.getState().loadState(activeImportResult(parsed));
   return { path, ...counts(useAppStore.getState()) };
 }
 

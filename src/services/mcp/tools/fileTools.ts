@@ -36,7 +36,7 @@ import { isActivePristine } from '@/state/slices/fileSlice';
 import { parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { extensionOf } from '@/utils/filePath';
-import type { ImportResult } from '@/services/importTypes';
+import type { OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
@@ -359,7 +359,7 @@ export const fileTools: McpToolDef[] = [
       }
       const content = input.text ?? '';
 
-      let parsed: ImportResult;
+      let parsed: OpenedImport;
       try {
         // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
@@ -369,11 +369,9 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', `'${path}' kon niet worden gelezen als planning: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      // Exact het bestaande laadpatroon (fileSlice.openFile): pristine tabblad hergebruiken, anders
-      // een nieuw document — er is bewust geen merge.
+      // Exact het bestaande laadpatroon (fileSlice.openFile), inclusief X4b's meervoudige XER-vorm.
       const store = useAppStore.getState();
       const reusedActiveTab = isActivePristine(store);
-      if (!reusedActiveTab) store.newDocument();
       const format = formatOf(path, content);
       // OPSLAGDOEL alleen bij een formaat dat `canBeSaveTarget` draagt (T11 — vóór deze fix: `format
       // === 'IFC' && !isBinary`, twee losse classificaties die uit elkaar konden lopen). Opslaan
@@ -384,7 +382,7 @@ export const fileTools: McpToolDef[] = [
       // wat je wilt. `formatOf` blijft puur het AI-facing label (`format` hieronder, voor de respons
       // en de notices) — de opslagdoel-beslissing leest voortaan uitsluitend `readFormat.
       // canBeSaveTarget`, dezelfde registry-vlag als `fileSlice.ts`.
-      useAppStore.getState().applyLoadedProject(parsed, {
+      useAppStore.getState().applyOpenedImport(parsed, {
         filePath: readFormat.canBeSaveTarget ? path : null,
         fileHandle: null,
         recompute: true,

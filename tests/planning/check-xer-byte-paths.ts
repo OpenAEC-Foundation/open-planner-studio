@@ -1,6 +1,7 @@
 import { openDialogFilters, binaryExtensions, parseOpenedFile } from '@/services/formatRegistry';
 import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
 import { openFileDialogWeb, readBytesFromRefWeb } from '@/services/fileAccess/webBackend';
+import { activeImportResult } from '@/services/importTypes';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -102,11 +103,11 @@ for (const [encoding, bytes] of encodings) {
   webTextCalls = 0;
   webArrayCalls = 0;
   const webOpened = await openFileDialogWeb(openDialogFilters(), { binaryExtensions: binaryExtensions() });
-  const webParsed = await parseOpenedFile({
+  const webParsed = activeImportResult(await parseOpenedFile({
     name: webOpened?.name ?? '',
     bytes: webOpened?.bytes,
     text: webOpened?.content,
-  });
+  }));
   eq(`web ${encoding}: originele bytes via File.arrayBuffer`, {
     name: webParsed.project.name,
     textCalls: webTextCalls,
@@ -121,7 +122,7 @@ for (const [encoding, bytes] of encodings) {
     readTextFile: async () => { tauriCalls.push('text'); return 'verboden'; },
     readFile: async () => { tauriCalls.push('bytes'); return bytes; },
   });
-  const tauriParsed = await parseOpenedFile(tauriOpened);
+  const tauriParsed = activeImportResult(await parseOpenedFile(tauriOpened));
   eq(`Tauri ${encoding}: plugin-fs-bytes blijven ongewijzigd`, {
     name: tauriParsed.project.name,
     calls: tauriCalls,
@@ -139,7 +140,7 @@ for (const [encoding, bytes] of encodings) {
     }),
   } as unknown as FileSystemFileHandle;
   const recentBytes = await readBytesFromRefWeb({ kind: 'handle', handle });
-  const recentParsed = await parseOpenedFile({ name: 'route.xer', bytes: recentBytes ?? undefined });
+  const recentParsed = activeImportResult(await parseOpenedFile({ name: 'route.xer', bytes: recentBytes ?? undefined }));
   eq(`recents ${encoding}: handle-bytepad bereikt de XER-reader`, recentParsed.project.name, 'Café €');
 }
 

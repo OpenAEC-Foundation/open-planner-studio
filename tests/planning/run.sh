@@ -241,6 +241,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERMULTIPROJECTCHECK="$DIR/.xer-multi-project.mjs"
   if bundle_check "$DIR/check-xer-multi-project.ts" "$XERMULTIPROJECTCHECK"; then node "$XERMULTIPROJECTCHECK" || STATUS=1; fi
 
+  # X4b-wiring: de echte registry→fileSlice→documentroute opent één XER-bestand als losse,
+  # geïsoleerde documenten met clean save-/recoverytoestand en een deterministische actieve tab.
+  XEROPENWIRINGCHECK="$DIR/.xer-open-wiring.mjs"
+  if bundle_check "$DIR/check-xer-open-wiring.ts" "$XEROPENWIRINGCHECK"; then node "$XEROPENWIRINGCHECK" || STATUS=1; fi
+
   # X4a-registercontract: .xer is lazy en binair, behoudt CP1252/UTF-16-BOM-bytes en wordt nooit
   # een opslagdoel.
   XERREGISTRYCHECK="$DIR/.xer-registry.mjs"

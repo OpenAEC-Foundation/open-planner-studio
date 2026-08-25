@@ -24,6 +24,7 @@ import type {
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { readXerCalendars } from './xerCalendarData';
+import { assembleXerMultiProjectImport, type XerMultiProjectImport } from './xerMultiProject';
 import {
   parseXerNumber,
   parseXerTables,
@@ -36,6 +37,9 @@ export interface XerReadResult extends ImportResult {
   /** Importtijd-metadata; externe relaties blijven hier brondata en sturen de solver niet. */
   xer: XerImportMetadata;
 }
+
+/** X4b: één XER kan nu één payload óf een geordende verzameling documentpayloads opleveren. */
+export type XerOpenResult = XerReadResult | XerMultiProjectImport;
 
 const ACTIVITY_TYPES: readonly P6ActivityType[] = [
   'TT_Task', 'TT_Rsrc', 'TT_LOE', 'TT_Mile', 'TT_FinMile', 'TT_WBS',
@@ -260,19 +264,18 @@ function assertUniqueId(
   }
 }
 
-/** Lees precies één niet-leeg P6-project uit de oorspronkelijke XER-bestandsbytes. */
-export function readXER(bytes: Uint8Array): XerReadResult {
-  const tables = parseXerTables(bytes);
-  const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
-  if (projectRows.length !== 1) {
+/** Map precies één reeds getokenized, niet-leeg P6-project. X4b roept deze kern één keer per
+ * PROJECT-rij aan; zo blijft de X4a-mapping zelf één implementatie. */
+function readXerProject(tables: XerTables, projectId: string): XerReadResult {
+  const projectRow = (tables.tables.get('PROJECT')?.rows ?? [])
+    .find(row => row.cells.proj_id === projectId);
+  if (!projectRow) {
     throw new XerImportError(
-      'XER_SINGLE_PROJECT_REQUIRED',
-      `Deze importstap verwacht precies één PROJECT-rij; gevonden: ${projectRows.length}.`,
-      { table: 'PROJECT', lines: projectRows.map(row => row.line) },
+      'XER_MISSING_REQUIRED_VALUE',
+      `PROJECT.proj_id '${projectId}' bestaat niet in de getokenized XER-invoer.`,
+      { table: 'PROJECT', field: 'proj_id' },
     );
   }
-  const projectRow = projectRows[0];
-  const projectId = projectRow.cells.proj_id;
   const activityRows = (tables.tables.get('TASK')?.rows ?? [])
     .filter(row => row.cells.proj_id === projectId);
   if (activityRows.length === 0) {
@@ -549,4 +552,26 @@ export function readXER(bytes: Uint8Array): XerReadResult {
       externalRelations,
     },
   };
+}
+
+/**
+ * Lees de oorspronkelijke XER-bytes. Eén PROJECT behoudt de byte-identieke X4a-returnvorm;
+ * meerdere PROJECT-rijen waaieren via X4b uit naar losse payloads. De baselinebeslissing zit vóór
+ * de openroute: die krijgt dus uitsluitend documenten die echt als tab geopend mogen worden.
+ */
+export function readXER(bytes: Uint8Array): XerOpenResult {
+  const tables = parseXerTables(bytes);
+  const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
+  if (projectRows.length === 1) return readXerProject(tables, projectRows[0].cells.proj_id);
+
+  const multi = assembleXerMultiProjectImport(
+    tables,
+    projectId => readXerProject(tables, projectId),
+  );
+  if (multi.results.length > 0) return multi;
+  throw new XerImportError(
+    'XER_EMPTY_PROJECT',
+    'Geen enkel XER-project bevat activiteiten om te openen.',
+    { table: 'TASK' },
+  );
 }

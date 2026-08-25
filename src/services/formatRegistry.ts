@@ -7,7 +7,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readP6XML } from '@/services/p6/p6xmlReader';
-import type { ImportLabels, ImportResult } from '@/services/importTypes';
+import type { ImportLabels, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
 import { extensionOf } from '@/utils/filePath';
 
@@ -28,14 +28,14 @@ export interface ReadFormat {
    *  Vervangt de eerdere `id === 'ifc'`/`format === 'IFC' && !isBinary`-vergelijkingen in
    *  `fileSlice.ts` en `fileTools.ts` — één vlag, één plek. */
   canBeSaveTarget?: boolean;
-  read(input: FormatInput, labels?: ImportLabels): Promise<ImportResult>;
+  read(input: FormatInput, labels?: ImportLabels): Promise<OpenedImport>;
 }
 
 /** Interne subdispatch voor de xml-entry van `READ_FORMATS`: kies de juiste XML-reader op basis
  *  van inhoudsmarkers (P6 vóór MS Project). Gooit bij een onbekend formaat i.p.v. stil als MSPDI
  *  te parsen. Niet geëxporteerd (T1-restpunt): geen afnemer buiten deze module — de enige
  *  aanroeper is de xml-entry hieronder. */
-function parseProjectXml(content: string): ImportResult {
+function parseProjectXml(content: string): OpenedImport {
   const isP6 = content.includes('APIBusinessObjects') || content.includes('Primavera');
   const isMsProject =
     content.includes('schemas.microsoft.com/project') || content.includes('<Project');
@@ -101,7 +101,7 @@ export function allReadFormats(): readonly ReadFormat[] {
   return READ_FORMATS;
 }
 
-export function parseOpenedFile(input: FormatInput, labels?: ImportLabels): Promise<ImportResult> {
+export function parseOpenedFile(input: FormatInput, labels?: ImportLabels): Promise<OpenedImport> {
   return readFormatForFile(input.name).read(input, labels);
 }
 

@@ -1,4 +1,5 @@
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
+import { isMultiDocumentImport } from '@/services/importTypes';
 import { XerImportError } from '@/services/xer/xerTables';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
@@ -26,7 +27,9 @@ function bytes(lines: readonly string[]): Uint8Array {
 }
 
 function read(lines: readonly string[]): XerReadResult {
-  return readXER(bytes(lines));
+  const parsed = readXER(bytes(lines));
+  if (isMultiDocumentImport(parsed)) throw new Error('Enkelprojectfixture gaf een meervoudige import terug');
+  return parsed;
 }
 
 const fixture = [
@@ -197,14 +200,14 @@ function typedError(label: string, lines: readonly string[], code: string): void
   eq(label, got, code);
 }
 
-typedError('14 meer dan één PROJECT wordt begrensd geweigerd', [
+typedError('14 meerdere uitsluitend lege PROJECT-rijen worden expliciet geweigerd', [
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
   '%T\tPROJECT',
   '%F\tproj_id\tproj_short_name',
   '%R\tP1\tEen',
   '%R\tP2\tTwee',
   '%E',
-], 'XER_SINGLE_PROJECT_REQUIRED');
+], 'XER_EMPTY_PROJECT');
 
 typedError('15 project zonder TASK wordt expliciet geweigerd', [
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',

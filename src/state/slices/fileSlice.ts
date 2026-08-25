@@ -11,7 +11,7 @@ import type { AppSlice } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
-import type { ImportLabels, ImportResult } from '@/services/importTypes';
+import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport } from '../documentContract';
 import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
@@ -104,6 +104,12 @@ export interface FileSlice {
    *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
    *  `loadState` en de drie open-paden lopen hier allemaal doorheen. */
   applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => void;
+  /**
+   * Centrale open-naad voor één of meer geparste projectpayloads. Alleen XER gebruikt vandaag de
+   * meervoudige vorm; de individuele documenten lopen daarna letterlijk door hetzelfde
+   * applyLoadedProject-pad als IFC/CSV/MSPDI/MPP/P6XML.
+   */
+  applyOpenedImport: (parsed: OpenedImport, opts: ApplyLoadedProjectOpts) => void;
 }
 
 export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
@@ -242,15 +248,33 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       });
     },
 
+    applyOpenedImport: (parsed, opts) => {
+      const results = isMultiDocumentImport(parsed) ? parsed.results : [parsed];
+      if (results.length === 0) throw new Error('Openroute ontving geen projectdocumenten');
+
+      const openedDocumentIds: string[] = [];
+      for (const result of results) {
+        // De eerste payload mag het lege starttabblad hergebruiken; elk volgend project krijgt
+        // gegarandeerd een eigen tab. Dit leest de actuele state per iteratie, want de vorige load
+        // heeft die state bewust niet-pristine gemaakt.
+        if (!isActivePristine(get())) get().newDocument();
+        openedDocumentIds.push(get().activeDocumentId);
+        get().applyLoadedProject(result, opts);
+        // De open-grens hoort bij ieder document, niet alleen bij het document dat uiteindelijk
+        // actief blijft. Zo blijft koppeling-/librarygedrag gelijk aan herhaald enkelvoudig openen.
+        get().runOpenBoundary();
+      }
+
+      const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
+      const activeId = openedDocumentIds[activeIndex];
+      if (activeId && activeId !== get().activeDocumentId) get().switchDocument(activeId);
+    },
+
     openFile: async (labels) => {
       try {
         const opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
         if (!opened) return;
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
-
-        // Multi-document: open het bestand in een eigen tabblad. Hergebruik het
-        // actieve tabblad alleen als dat nog leeg en ongewijzigd is.
-        if (!isActivePristine(get())) get().newDocument();
 
         // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: via `canBeSaveTarget` op
         // de registry-entry i.p.v. een `id === 'ifc'`-vergelijking hier). Opslaan schrijft altijd
@@ -260,9 +284,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         // MCP-kant (`fileTools.ts` leest óók `canBeSaveTarget`).
         const target = saveTargetFor(readFormatForFile(opened.name), opened.ref, opened.name);
 
-        // Gedeelde load-implementatie; open-pad-semantiek: identiteit + opslaan-doel zetten,
-        // direct doorrekenen + fitten en de uur-melding evalueren.
-        get().applyLoadedProject(parsed, {
+        // De centrale naad splitst alleen een expliciete multi-import; enkelvoudige formaten
+        // volgen byte-identiek hetzelfde laadpad, inclusief pristine-tab-hergebruik.
+        get().applyOpenedImport(parsed, {
           filePath: target.filePath,
           fileHandle: target.fileHandle,
           recompute: true,
@@ -270,10 +294,6 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           hourDataNotice: true,
           linkedOpen: true,
         });
-
-        // Grens 1 (spec §3, plan-eis 4): ná VOLLEDIGE hydratatie — behind stil verversen, deviated
-        // markeren/vragen. Nooit tijdens de hydratatie zelf.
-        get().runOpenBoundary();
 
         // Recents: elke herbruikbare ref (Tauri-pad óf Chromium-handle) — óók bij een niet-IFC
         // bronformaat: heropenen via recents moet blijven werken, alleen het OPSLAGDOEL wordt niet
@@ -462,7 +482,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       try {
         const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
         const input = await readFormatInput(filePath, { readTextFile, readFile });
-        const parsed = await parseOpenedFile(input, labels);
+        const parsed = activeImportResult(await parseOpenedFile(input, labels));
         return {
           projectId: parsed.project.id,
           projectName: parsed.project.name,
@@ -579,14 +599,12 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           labels,
         );
 
-        if (!isActivePristine(get())) get().newDocument();
-
         // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: `saveTargetFor` — zie
         // openFile voor de volledige toelichting). `readFormat` is hierboven al opgezocht (F2).
         const target = saveTargetFor(readFormat, entry.ref, entry.name);
 
-        // Zelfde open-pad-semantiek als openFile (zie daar); loopt door de gedeelde implementatie.
-        get().applyLoadedProject(parsed, {
+        // Zelfde open-pad-semantiek als openFile (zie daar), ook voor meervoudige XER-import.
+        get().applyOpenedImport(parsed, {
           filePath: target.filePath,
           fileHandle: target.fileHandle,
           recompute: true,
@@ -594,9 +612,6 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           hourDataNotice: true,
           linkedOpen: true,
         });
-
-        // Grens 1 (idem openFile): ná hydratatie de openings-check draaien.
-        get().runOpenBoundary();
 
         // MRU verversen: het net-geopende bestand naar boven (óók bij een niet-IFC bronformaat —
         // alleen het opslagdoel blijft leeg, zie `target` hierboven).

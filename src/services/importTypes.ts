@@ -159,3 +159,30 @@ export interface ImportResult {
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
 }
+
+/**
+ * Eén bronbestand kan uitzonderlijk meerdere zelfstandige projectdocumenten opleveren. De
+ * individuele payloads blijven het bestaande `ImportResult`-contract volgen; alleen de openroute
+ * krijgt hier de extra informatie welke tab na het openen actief hoort te zijn. Zo blijven alle
+ * enkelvoudige readers en hun bestaande laadpaden structureel ongewijzigd.
+ */
+export interface MultiDocumentImport {
+  kind: 'multi-document';
+  results: ImportResult[];
+  activeDocumentIndex: number;
+}
+
+/** Het resultaat van een reader op de centrale open-pijplijn. */
+export type OpenedImport = ImportResult | MultiDocumentImport;
+
+export function isMultiDocumentImport(value: OpenedImport): value is MultiDocumentImport {
+  return 'kind' in value && value.kind === 'multi-document';
+}
+
+/** De primaire payload voor read-only consumenten die per ontwerp slechts één project kennen. */
+export function activeImportResult(value: OpenedImport): ImportResult {
+  if (!isMultiDocumentImport(value)) return value;
+  const active = value.results[value.activeDocumentIndex];
+  if (!active) throw new Error('Meervoudige import bevat geen actief document');
+  return active;
+}

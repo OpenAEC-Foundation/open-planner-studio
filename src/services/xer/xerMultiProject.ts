@@ -1,4 +1,5 @@
 import type { XerReadResult } from './xerReader';
+import type { MultiDocumentImport } from '@/services/importTypes';
 import { XerImportError, type XerRow, type XerTables } from './xerTables';
 import type { Baseline } from '@/types/baseline';
 import type { Task } from '@/types/task';
@@ -34,7 +35,7 @@ export interface XerMultiProjectReport {
   baselineFallbackReasons: XerBaselineFallbackReason[];
 }
 
-export interface XerMultiProjectImport {
+export interface XerMultiProjectImport extends MultiDocumentImport {
   documents: XerMultiProjectDocument[];
   activeProjectId: string | null;
   /** Cross-projectbrondata tussen geopende documenten; bewust geen Sequence/Task.externalLinks. */
@@ -283,6 +284,11 @@ export function assembleXerMultiProjectImport(
   }
 
   return {
+    kind: 'multi-document',
+    results: documents.map(document => document.result),
+    activeDocumentIndex: activeProjectId === null
+      ? -1
+      : documents.findIndex(document => document.projectId === activeProjectId),
     documents,
     activeProjectId,
     externalLinks,
