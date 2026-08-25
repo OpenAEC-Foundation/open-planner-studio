@@ -22,24 +22,37 @@ function utf8(lines: readonly string[]): Uint8Array {
   return new TextEncoder().encode(lines.join('\n'));
 }
 
+function structuredRecord(
+  number: string,
+  name: string,
+  fields: string,
+  children: readonly string[],
+): string {
+  return `(${number}||${name}(${fields})(${children.join('')}))`;
+}
+
 // Breuk die dit vangt: structured text als losse string-splitsingen behandelen, waardoor geneste
 // records of P6's DEL-DEL-opmaak de recordgrenzen verschuiven.
 const nested = parseXerStructuredText(
   '\u007f\u007f (0||CalendarData(kind|root)((1||DaysOfWeek()((2||2()((3||0(s|08:00|f|16:00)())))))))',
 );
 eq('1 eigen tokenizer bewaart nummer, naam, velden en geneste kinderen', nested, {
+  role: 'ROOT',
   number: '0',
   name: 'CalendarData',
   fields: { kind: 'root' },
   children: [{
+    role: 'CONTAINER',
     number: '1',
     name: 'DaysOfWeek',
     fields: {},
     children: [{
+      role: 'DAY',
       number: '2',
       name: '2',
       fields: {},
       children: [{
+        role: 'BAND',
         number: '3',
         name: '0',
         fields: { s: '08:00', f: '16:00' },
@@ -178,6 +191,44 @@ eq('14 rij-issues pinnen kalender-id, bronregel, code en afhandeling',
 eq('15 ieder rij-issue bevat een niet-lege reden',
   isolatedRows.issues.every(issue => issue.reason.trim().length > 0), true);
 
+// Breuken die dit vangt: compacte records louter op prefix herkennen en daardoor een exception
+// als weekdag fabriceren, een dag onder Exceptions toelaten, compactvormen door wrappers laten
+// lekken of een compact record onder een onbekende ouder accepteren. Iedere rij wordt geheel
+// geweigerd; alleen de geldige zusterkalender blijft over.
+const nestedCompactExceptions = structuredRecord('0', 'CalendarData', '', [
+  structuredRecord('0', 'DaysOfWeek', '', [
+    structuredRecord('0', '2', '', [structuredRecord('0', '0', 's|08:00|f|12:00', [])]),
+  ]),
+  structuredRecord('0', 'Wrapper', '', [
+    structuredRecord('0', 'Exceptions', '', ['(0||d|2())']),
+  ]),
+]);
+const misplacedCompactRows = readXerCalendars(parseXerTables(utf8([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_data',
+  '%R\texception-under-days\t(0||CalendarData()((0||DaysOfWeek()((2||d|123((s|08:00|f|16:00)))))(0||Exceptions()())))',
+  '%R\tday-under-exceptions\t(0||CalendarData()((0||DaysOfWeek()((0||2()())))(0||Exceptions()((0||2()((s|08:00|f|16:00)))))))',
+  '%R\tnested-compact\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||Wrapper()((s|08:00|f|16:00)))))))(0||Exceptions()())))',
+  `%R\tnested-exceptions\t${nestedCompactExceptions}`,
+  '%R\twrong-parent\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|12:00)())))))(0||Wrong()((s|13:00|f|17:00)))(0||Exceptions()())))',
+  '%R\tvalid-sister\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|07:00|f|11:00)())))))(0||Exceptions()())))',
+  '%E',
+])));
+eq('15a compacte recovery behoudt alleen de geldige zusterkalender',
+  misplacedCompactRows.calendars.map(calendar => ({
+    id: calendar.id,
+    workTime: calendar.workTime?.byWeekday[1],
+  })), [{ id: 'valid-sister', workTime: [{ start: 420, end: 660 }] }]);
+eq('15b verkeerde compactcontext wordt per rij typed geweigerd zonder default of deelkalender',
+  misplacedCompactRows.issues.map(issue => [issue.calendarId, issue.code, issue.resolution]), [
+    ['exception-under-days', 'XER_CALENDAR_INVALID_COMPACT_CONTEXT', 'REJECTED'],
+    ['day-under-exceptions', 'XER_CALENDAR_INVALID_COMPACT_CONTEXT', 'REJECTED'],
+    ['nested-compact', 'XER_CALENDAR_INVALID_COMPACT_CONTEXT', 'REJECTED'],
+    ['nested-exceptions', 'XER_CALENDAR_INVALID_COMPACT_CONTEXT', 'REJECTED'],
+    ['wrong-parent', 'XER_CALENDAR_INVALID_COMPACT_CONTEXT', 'REJECTED'],
+  ]);
+
 // Breuken die dit vangt: aanwezige maar ongeldige data als "afwezig" behandelen en stil naar de
 // ma-vr-default vallen, losse tokens/ongeldige dagen of epochs laten verdwijnen, seconden afkappen,
 // overlappende banden doorgeven en negatieve periode-uren stil afleiden. Alleen de lege cel mag
@@ -245,6 +296,41 @@ eq('15d hostile issues dragen steeds bronregel en reden', hostileRows.issues.map
   { line: 15, hasReason: true },
 ]);
 
+// Breuk die dit vangt: alleen het eerste Exceptions-kind met `find` lezen en de inhoud van een
+// tweede container stil verliezen. De containers worden in bronvolgorde samengevoegd en het
+// herstelbesluit blijft als typed issue zichtbaar.
+const multipleExceptionContainers = readXerCalendars(parseXerTables(utf8([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_data',
+  '%R\tmulti-exceptions\t(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|16:00)())))))(0||Exceptions()((0||0(d|0)())))(0||Exceptions()((0||1(d|1)((0||0(s|09:00|f|13:00)())))))))',
+  '%E',
+])));
+eq('15e meerdere Exceptions-containers behouden vrije en werkende datums in bronvolgorde', {
+  holidays: multipleExceptionContainers.calendars[0]?.holidays,
+  working: multipleExceptionContainers.calendars[0]?.workingExceptions,
+}, {
+  holidays: [{
+    name: 'Kalenderuitzondering', startDate: '1899-12-30', endDate: '1899-12-30',
+  }],
+  working: [{
+    name: 'Kalenderuitzondering', startDate: '1899-12-31', endDate: '1899-12-31',
+    bands: [{ start: 540, end: 780 }],
+  }],
+});
+eq('15f meerdere Exceptions-containers leveren een expliciet recovery-issue',
+  multipleExceptionContainers.issues.map(issue => ({
+    id: issue.calendarId,
+    line: issue.line,
+    code: issue.code,
+    resolution: issue.resolution,
+  })), [{
+    id: 'multi-exceptions',
+    line: 4,
+    code: 'XER_CALENDAR_MULTIPLE_EXCEPTIONS_MERGED',
+    resolution: 'RECOVERED',
+  }]);
+
 // Breuken die dit vangt: een dangling/self-base stil laten staan of A↔B als echte circulaire
 // objectgraaf koppelen. De ruwe id blijft diagnostisch bewaard; alleen veilige randen worden objecten.
 const baseGraph = readXerCalendars(parseXerTables(utf8([
@@ -259,7 +345,7 @@ const baseGraph = readXerCalendars(parseXerTables(utf8([
   '%R\tchild\troot\t',
   '%E',
 ])));
-eq('15e ruwe base-id blijft staan maar alleen de acyclische geldige rand wordt gekoppeld',
+eq('15g ruwe base-id blijft staan maar alleen de acyclische geldige rand wordt gekoppeld',
   baseGraph.calendars.map(calendar => ({
     id: calendar.id,
     rawBase: calendar.baseCalendarId,
@@ -272,7 +358,7 @@ eq('15e ruwe base-id blijft staan maar alleen de acyclische geldige rand wordt g
     { id: 'root' },
     { id: 'child', rawBase: 'root', linkedBase: 'root' },
   ]);
-eq('15f basegraaf rapporteert cyclusleden, self en dangling onderscheiden',
+eq('15h basegraaf rapporteert cyclusleden, self en dangling onderscheiden',
   baseGraph.issues.map(issue => [issue.calendarId, issue.code, issue.resolution]), [
     ['A', 'XER_CALENDAR_BASE_CYCLE', 'UNLINKED'],
     ['B', 'XER_CALENDAR_BASE_CYCLE', 'UNLINKED'],
@@ -285,8 +371,89 @@ try {
 } catch {
   baseGraphSerializable = false;
 }
-eq('15g kalenderresultaat blijft serialiseerbaar zonder cyclische objectgraaf',
+eq('15i kalenderresultaat blijft serialiseerbaar zonder cyclische objectgraaf',
   baseGraphSerializable, true);
+
+// Breuken die dit vangt: basegraafdetectie recursief uitvoeren en daardoor bij een geldige diepe
+// keten of cyclus de JS-callstack overschrijden. De grote cyclus heeft een korte tail; alleen de
+// 10.000 echte cyclusleden krijgen een issue en de ongekoppelde objectgraaf blijft serialiseerbaar.
+const deepAcyclicRows = Array.from({ length: 10_000 }, (_, index) => (
+  `%R\ta-${index}\t${index === 9_999 ? '' : `a-${index + 1}`}\t`
+));
+let deepAcyclic: ReturnType<typeof readXerCalendars> | undefined;
+let deepAcyclicError = '';
+try {
+  deepAcyclic = readXerCalendars(parseXerTables(utf8([
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tbase_clndr_id\tclndr_data',
+    ...deepAcyclicRows,
+    '%E',
+  ])));
+} catch (error) {
+  deepAcyclicError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+eq('15j iteratieve basegraaf verwerkt 10.000 acyclische vooruitverwijzingen zonder stackfout', {
+  error: deepAcyclicError,
+  calendars: deepAcyclic?.calendars.length,
+  issues: deepAcyclic?.issues.length,
+  firstBase: deepAcyclic?.byId.get('a-0')?.baseCalendar?.id,
+  penultimateBase: deepAcyclic?.byId.get('a-9998')?.baseCalendar?.id,
+  rootBase: deepAcyclic?.byId.get('a-9999')?.baseCalendar?.id,
+}, {
+  error: '',
+  calendars: 10_000,
+  issues: 0,
+  firstBase: 'a-1',
+  penultimateBase: 'a-9999',
+});
+
+const deepCycleRows = Array.from({ length: 10_000 }, (_, index) => (
+  `%R\tc-${index}\tc-${(index + 1) % 10_000}\t`
+));
+let deepCycle: ReturnType<typeof readXerCalendars> | undefined;
+let deepCycleError = '';
+try {
+  deepCycle = readXerCalendars(parseXerTables(utf8([
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tbase_clndr_id\tclndr_data',
+    '%R\tt-0\tt-1\t',
+    '%R\tt-1\tt-2\t',
+    '%R\tt-2\tc-0\t',
+    ...deepCycleRows,
+    '%E',
+  ])));
+} catch (error) {
+  deepCycleError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+const deepCycleIssues = deepCycle?.issues.filter(
+  issue => issue.code === 'XER_CALENDAR_BASE_CYCLE',
+) ?? [];
+let deepCycleSerializable = true;
+try {
+  JSON.stringify(deepCycle?.calendars);
+} catch {
+  deepCycleSerializable = false;
+}
+eq('15k diepe cyclus markeert alleen 10.000 echte leden en laat de tail veilig gekoppeld', {
+  error: deepCycleError,
+  cycleIssues: deepCycleIssues.length,
+  firstCycleId: deepCycleIssues[0]?.calendarId,
+  lastCycleId: deepCycleIssues.at(-1)?.calendarId,
+  tailCycleIssues: deepCycleIssues.filter(issue => issue.calendarId.startsWith('t-')).length,
+  tailLinks: ['t-0', 't-1', 't-2'].map(id => deepCycle?.byId.get(id)?.baseCalendar?.id),
+  cycleLink: deepCycle?.byId.get('c-0')?.baseCalendar?.id,
+  serializable: deepCycleSerializable,
+}, {
+  error: '',
+  cycleIssues: 10_000,
+  firstCycleId: 'c-0',
+  lastCycleId: 'c-9999',
+  tailCycleIssues: 0,
+  tailLinks: ['t-1', 't-2', 'c-0'],
+  serializable: true,
+});
 
 // Breuk die dit vangt: XER-klokbanden alleen via de universele (a)/(b)/(b2)-regels laten lopen.
 // De gewone enkelbandkalender `Basis` moet door de XER-eigen bronregel promoveren; `Volledige dag`

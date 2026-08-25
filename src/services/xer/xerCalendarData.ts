@@ -21,11 +21,20 @@ import {
 } from './xerTables';
 
 export interface XerStructuredRecord {
+  role: XerStructuredRecordRole;
   number: string;
   name: string;
   fields: Record<string, string>;
   children: XerStructuredRecord[];
 }
+
+export type XerStructuredRecordRole =
+  | 'ROOT'
+  | 'CONTAINER'
+  | 'DAY'
+  | 'EXCEPTION'
+  | 'BAND'
+  | 'RECORD';
 
 export interface DecodedXerCalendarData {
   bands: WorkTimeBands;
@@ -36,12 +45,17 @@ export interface DecodedXerCalendarData {
   recoveries: XerCalendarRecovery[];
 }
 
-export type XerCalendarRecovery = 'COMPACT_RECORD' | 'SURPLUS_CLOSE' | 'DUPLICATE_EXCEPTION';
+export type XerCalendarRecovery =
+  | 'COMPACT_RECORD'
+  | 'SURPLUS_CLOSE'
+  | 'MULTIPLE_EXCEPTIONS'
+  | 'DUPLICATE_EXCEPTION';
 
 export type XerCalendarIssueCode =
   | 'XER_CALENDAR_COMPACT_RECORD_RECOVERED'
   | 'XER_CALENDAR_SURPLUS_CLOSE_RECOVERED'
   | 'XER_CALENDAR_INVALID_STRUCTURE'
+  | 'XER_CALENDAR_INVALID_COMPACT_CONTEXT'
   | 'XER_CALENDAR_ODD_FIELD_COUNT'
   | 'XER_CALENDAR_INVALID_FIELD_PAIR'
   | 'XER_CALENDAR_DUPLICATE_FIELD'
@@ -52,6 +66,7 @@ export type XerCalendarIssueCode =
   | 'XER_CALENDAR_OVERLAPPING_BANDS'
   | 'XER_CALENDAR_INVALID_EPOCH'
   | 'XER_CALENDAR_INVALID_PERIOD_HOURS'
+  | 'XER_CALENDAR_MULTIPLE_EXCEPTIONS_MERGED'
   | 'XER_CALENDAR_DUPLICATE_EXCEPTION'
   | 'XER_CALENDAR_DANGLING_BASE'
   | 'XER_CALENDAR_SELF_BASE'
@@ -250,6 +265,14 @@ function scalarBounds(bands: WorkTimeBands): { start: number; end: number } {
   return { start: 8, end: 16 };
 }
 
+type XerStructuredParseContext =
+  | 'ROOT'
+  | 'ROOT_CHILD'
+  | 'DAY'
+  | 'EXCEPTION'
+  | 'BAND'
+  | 'GENERIC';
+
 class StructuredTextTokenizer {
   private index = 0;
   usedCompactRecord = false;
@@ -261,7 +284,7 @@ class StructuredTextTokenizer {
 
   parse(): XerStructuredRecord {
     this.skipFormatting();
-    const record = this.readRecord();
+    const record = this.readRecord('ROOT');
     this.skipFormatting();
     if (this.index !== this.text.length) {
       throw new Error('Ongeldige XER-kalenderdata: onverwachte tekst na het hoofdrecord.');
@@ -269,21 +292,23 @@ class StructuredTextTokenizer {
     return record;
   }
 
-  private readRecord(): XerStructuredRecord {
+  private readRecord(context: XerStructuredParseContext): XerStructuredRecord {
     this.expect('(');
     if (this.allowCompactRecords && this.text.startsWith('s|', this.index)) {
+      if (context !== 'BAND') this.invalidCompactContext();
       this.usedCompactRecord = true;
       this.expect('s|');
       const start = this.readUntil('|');
       this.expect('|f|');
       const finish = this.readUntil(')');
       this.expect(')');
-      return { number: '', name: '0', fields: { s: start, f: finish }, children: [] };
+      return { role: 'BAND', number: '', name: '', fields: { s: start, f: finish }, children: [] };
     }
     const number = this.readWhile(char => /\d/.test(char));
     if (!number) throw new Error('Ongeldige XER-kalenderdata: recordnummer ontbreekt.');
     this.expect('||');
     if (this.allowCompactRecords && this.text.startsWith('d|', this.index)) {
+      if (context !== 'EXCEPTION') this.invalidCompactContext();
       this.usedCompactRecord = true;
       this.expect('d|');
       const epoch = this.readUntil('(');
@@ -291,12 +316,12 @@ class StructuredTextTokenizer {
       const children: XerStructuredRecord[] = [];
       this.skipFormatting();
       while (this.peek() === '(') {
-        children.push(this.readRecord());
+        children.push(this.readRecord('BAND'));
         this.skipFormatting();
       }
       this.expect(')');
       this.expect(')');
-      return { number, name: number, fields: { d: epoch }, children };
+      return { role: 'EXCEPTION', number, name: '', fields: { d: epoch }, children };
     }
     const name = this.readUntil('(');
     this.expect('(');
@@ -305,14 +330,41 @@ class StructuredTextTokenizer {
     this.skipFormatting();
     this.expect('(');
     const children: XerStructuredRecord[] = [];
+    const childContext: XerStructuredParseContext = context === 'ROOT'
+      ? 'ROOT_CHILD'
+      : context === 'ROOT_CHILD' && name === 'DaysOfWeek'
+        ? 'DAY'
+        : context === 'ROOT_CHILD' && name === 'Exceptions'
+          ? 'EXCEPTION'
+          : context === 'DAY' || context === 'EXCEPTION'
+            ? 'BAND'
+            : 'GENERIC';
     this.skipFormatting();
     while (this.peek() === '(') {
-      children.push(this.readRecord());
+      children.push(this.readRecord(childContext));
       this.skipFormatting();
     }
     this.expect(')');
     this.expect(')');
-    return { number, name, fields, children };
+    if (this.allowCompactRecords && context === 'EXCEPTION'
+      && !Object.prototype.hasOwnProperty.call(fields, 'd')) {
+      this.invalidCompactContext();
+    }
+    const role: XerStructuredRecordRole = context === 'ROOT'
+      ? 'ROOT'
+      : context === 'ROOT_CHILD' && (name === 'DaysOfWeek' || name === 'Exceptions')
+        ? 'CONTAINER'
+        : context === 'DAY' || context === 'EXCEPTION' || context === 'BAND'
+          ? context
+          : 'RECORD';
+    return { role, number, name, fields, children };
+  }
+
+  private invalidCompactContext(): never {
+    throw new XerCalendarDataError(
+      'XER_CALENDAR_INVALID_COMPACT_CONTEXT',
+      'Een compact kalenderrecord staat niet op zijn toegestane grammaticale positie.',
+    );
   }
 
   private readFields(): Record<string, string> {
@@ -479,8 +531,9 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
   const holidaysByDate = new Map<string, Holiday>();
   const workingByDate = new Map<string, WorkingException>();
   let duplicateException = false;
-  const exceptions = root.children.find(record => record.name === 'Exceptions');
-  for (const exception of exceptions?.children ?? []) {
+  const exceptionContainers = root.children.filter(record => record.name === 'Exceptions');
+  if (exceptionContainers.length > 1) recoveries.push('MULTIPLE_EXCEPTIONS');
+  for (const exception of exceptionContainers.flatMap(container => container.children)) {
     const date = dateFromP6Epoch(exception.fields.d ?? '');
     const canonicalException = canonicalizeBands({ 1: bandsFromRecords(exception.children) }).bands;
     assertNoBandOverlap(canonicalException);
@@ -514,25 +567,32 @@ function cyclicCalendarIds(
   byId: ReadonlyMap<string, XerCalendar>,
 ): Set<string> {
   const state = new Map<string, 'VISITING' | 'DONE'>();
-  const path: string[] = [];
   const cycles = new Set<string>();
-  const visit = (calendar: XerCalendar): void => {
-    const currentState = state.get(calendar.id);
-    if (currentState === 'DONE') return;
-    if (currentState === 'VISITING') {
-      const cycleStart = path.lastIndexOf(calendar.id);
-      for (const id of path.slice(cycleStart)) cycles.add(id);
-      return;
+  for (const start of calendars) {
+    if (state.get(start.id) === 'DONE') continue;
+    const path: XerCalendar[] = [];
+    const pathIndex = new Map<string, number>();
+    let current: XerCalendar | undefined = start;
+    while (current) {
+      const currentState = state.get(current.id);
+      if (currentState === 'DONE') break;
+      if (currentState === 'VISITING') {
+        const cycleStart = pathIndex.get(current.id);
+        if (cycleStart !== undefined) {
+          for (let index = cycleStart; index < path.length; index++) {
+            cycles.add(path[index].id);
+          }
+        }
+        break;
+      }
+      state.set(current.id, 'VISITING');
+      pathIndex.set(current.id, path.length);
+      path.push(current);
+      const baseId: string | undefined = current.baseCalendarId;
+      current = baseId && baseId !== current.id ? byId.get(baseId) : undefined;
     }
-    state.set(calendar.id, 'VISITING');
-    path.push(calendar.id);
-    const baseId = calendar.baseCalendarId;
-    const base = baseId && baseId !== calendar.id ? byId.get(baseId) : undefined;
-    if (base) visit(base);
-    path.pop();
-    state.set(calendar.id, 'DONE');
-  };
-  for (const calendar of calendars) visit(calendar);
+    for (const calendar of path) state.set(calendar.id, 'DONE');
+  }
   return cycles;
 }
 
@@ -645,6 +705,15 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
         calendarId,
         line: row.line,
         reason: 'Een werkende uitzondering wint van een vrije dag; binnen dezelfde klasse blijft de eerste staan.',
+        resolution: 'RECOVERED',
+      });
+    }
+    if (decoded.recoveries.includes('MULTIPLE_EXCEPTIONS')) {
+      issues.push({
+        code: 'XER_CALENDAR_MULTIPLE_EXCEPTIONS_MERGED',
+        calendarId,
+        line: row.line,
+        reason: 'Meerdere Exceptions-containers zijn deterministisch in bronvolgorde samengevoegd.',
         resolution: 'RECOVERED',
       });
     }
