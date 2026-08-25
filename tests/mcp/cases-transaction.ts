@@ -98,13 +98,21 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
   const b = store.getState().addTask({ name: 'trans-5-B' });
   // Schone uitgangsplanning zodat cpmResult een geldige (niet-error) waarde heeft om naar terug te rollen.
   store.getState().runCPM();
+  store.getState().recomputeViewRows();
+  store.getState().recomputeResourceLoad();
+  store.setState((s) => { s.isDirty = false; });
 
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
   const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const beforeCpmError = store.getState().cpmResult?.error ?? null;
+  const beforeViewRows = JSON.stringify(store.getState().viewRows);
+  const beforeResourceLoad = JSON.stringify(store.getState().resourceLoadResult);
   assert(beforeCpmError == null, 'voorwaarde: cpmResult mag vóór de transactie geen error dragen');
+  assertEq(store.getState().isDirty, false, 'voorwaarde: document is schoon vóór de transactie');
 
   const res = runInMcpTransaction(() => {
+    // Deze taak dwingt ook de afgeleide viewRows naar een tussenstaat die rollback moet opruimen.
+    store.getState().addTask({ name: 'trans-5-moet-ook-uit-viewRows' });
     // Directe draft-mutatie: een kring A→B→A dwingt de solver tot cpmResult.error.
     store.setState((s) => {
       s.sequences.push(
@@ -122,6 +130,12 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
   );
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack mag niet gewijzigd zijn na rollback');
   assertEq(store.getState().cpmResult?.error ?? null, null, 'cpmResult hoort terug op de geldige pre-transactie-waarde te staan (geen error-banner)');
+  assertEq(JSON.stringify(store.getState().viewRows), beforeViewRows,
+    'rollback herstelt viewRows exact en laat geen rij van de teruggerolde taak achter');
+  assertEq(JSON.stringify(store.getState().resourceLoadResult), beforeResourceLoad,
+    'rollback herstelt resourceLoadResult exact en laat geen null/tussenresultaat achter');
+  assertEq(store.getState().isDirty, false,
+    'een geweigerde MCP-transactie maakt een vooraf schoon document niet dirty');
 });
 
 // 6) Geneste aanroep is verboden: de geneste `runInMcpTransaction` gooit, en die throw laat de

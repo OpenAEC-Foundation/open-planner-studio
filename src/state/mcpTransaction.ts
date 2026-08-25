@@ -107,10 +107,16 @@ export function runInMcpTransaction(
   const documentId = initial.activeDocumentId;
   const previousHistory = initial.historyEvents;
   const previousSequence = initial.nextHistorySequence;
+  const previousViewRows = initial.viewRows;
+  const previousResourceLoad = initial.resourceLoadResult;
+  const previousDirty = initial.isDirty;
 
   const rollback = (error: string): { ok: false; error: string } => {
     useAppStore.setState((s) => {
       restoreSnapshot(s, snapshot);
+      s.viewRows = previousViewRows;
+      s.resourceLoadResult = previousResourceLoad;
+      s.isDirty = previousDirty;
       replaceSessionHistoryState(s, previousHistory, previousSequence);
     });
     resetUndoCoalescing();

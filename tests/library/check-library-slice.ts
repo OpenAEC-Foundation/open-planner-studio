@@ -640,6 +640,56 @@ function seedRedoEvent(): void {
   assert(useAppStore.getState().scheduleStale === false, 'refreshBehindItems: resource-only-verversing laat scheduleStale false');
 }
 
+// --- Historymigratie: stille kalenderrefresh + F5 behoudt de bestaande undo/redo-semantiek ---
+// Legacy undo herstelde het oude documentsnapshot en draaide daarmee een latere niet-undoable
+// kalenderrefresh tijdelijk mee terug. Redo legde bij undo de werkelijk zichtbare eindtoestand vast
+// en bracht dus zowel de gebruikershandeling als de ververste, doorgerekende kalender terug. De
+// session-historymigratie moet precies dat gedrag behouden; de refresh wordt geen eigen undo-stap.
+{
+  useAppStore.getState().newProject();
+  const cid = useAppStore.getState().addCompany('History refresh BV');
+  useAppStore.getState().bindProjectToCompany(cid);
+  const poolCalId = useAppStore.getState().promoteCalendarToPool(cid, {
+    id: 'history-refresh-cal', name: 'Historyploeg', description: '',
+    workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 15,
+    hoursPerDay: 8, holidays: [],
+  })!;
+  const added = useAppStore.getState().addLibraryCalendarToProject(cid, poolCalId);
+  const projectCalId = added.calendarId!;
+  useAppStore.getState().setProjectCalendar(projectCalId);
+
+  const taskId = useAppStore.getState().addTask({ name: 'Vóór hernoemen' });
+  useAppStore.getState().updateTask(taskId, { name: 'Na hernoemen' });
+
+  // Maak de projectkalender behind zonder via de automatische poolgrens al te verversen.
+  useAppStore.setState((state) => {
+    const poolCalendar = state.pools[cid].calendars.find(cal => cal.id === poolCalId)!;
+    poolCalendar.workEndHour = 18;
+    poolCalendar.hoursPerDay = 9;
+  });
+  assert(useAppStore.getState().refreshBehindItems(cid) >= 1,
+    'historyrefresh setup: stille kalenderverversing is toegepast');
+  useAppStore.getState().runCPM();
+  assert(useAppStore.getState().calendar.workEndHour === 18,
+    'historyrefresh setup: F5 rekent met de ververste kalender');
+
+  useAppStore.getState().undo();
+  let afterHistory = useAppStore.getState();
+  assert(afterHistory.tasks.find(task => task.id === taskId)?.name === 'Vóór hernoemen',
+    'historyrefresh: undo draait de gewone gebruikershandeling terug');
+  assert(afterHistory.calendar.workEndHour === 15 && afterHistory.calendar.hoursPerDay === 8,
+    'historyrefresh: undo behoudt legacygedrag en herstelt tijdelijk het oude documentsnapshot');
+
+  useAppStore.getState().redo();
+  afterHistory = useAppStore.getState();
+  assert(afterHistory.tasks.find(task => task.id === taskId)?.name === 'Na hernoemen',
+    'historyrefresh: redo brengt de gewone gebruikershandeling terug');
+  assert(afterHistory.calendar.workEndHour === 18 && afterHistory.calendar.hoursPerDay === 9,
+    'historyrefresh: redo herstelt de ververste en doorgerekende eindtoestand');
+  assert(afterHistory.scheduleStale === false,
+    'historyrefresh: redo herstelt ook de na F5 verse planningstoestand');
+}
+
 // --- Bonus (taak-4-review): binding no-op bij afwijkend bedrijf (herhaalt geen bestaande assert) ---
 {
   const s = useAppStore.getState();
