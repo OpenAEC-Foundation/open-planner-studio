@@ -282,6 +282,22 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERBYTEPATHCHECK="$DIR/.xer-byte-paths.mjs"
   if bundle_check "$DIR/check-xer-byte-paths.ts" "$XERBYTEPATHCHECK"; then node "$XERBYTEPATHCHECK" || STATUS=1; fi
 
+  # X6: RSRC/RSRCRATE/TASKRSRC, immutable retained bronrijen en het X4b-aliasingcontract.
+  # De check is datumvrij en draait daarom slechts eenmaal buiten de tijdzonematrix.
+  XERRESOURCESCHECK="$DIR/.xer-resources.mjs"
+  if bundle_check "$DIR/check-xer-resources.ts" "$XERRESOURCESCHECK"; then
+    node "$XERRESOURCESCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # X6: onafhankelijke, hashgepinde corpusmeting. Deze draait eenmaal met expliciete GC, zodat
+  # parser- en kernheapdelta's vergelijkbaar blijven en nooit in de tijdzonematrix vallen.
+  XERRESOURCECORPUSCHECK="$DIR/.xer-resource-corpus.mjs"
+  if bundle_check "$DIR/check-xer-resource-corpus.ts" "$XERRESOURCECORPUSCHECK"; then
+    node --expose-gc "$XERRESOURCECORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X3-openbare corpuspin: de echte productie-ingang zonder rijvoorfilter, vier concrete
   # herstel-/weigerhashes, basegraafpin en de statische 124-kalenderdigest. Deze zware scan draait
   # bewust één keer en wordt daarom na het bundelen uit de tijdzonematrix verwijderd.

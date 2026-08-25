@@ -24,6 +24,12 @@ import type {
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { readXerCalendars } from './xerCalendarData';
+import { indexXerTaskResourceRows } from './xerResourceAssignments';
+import {
+  buildXerResourceCatalog,
+  materializeXerResources,
+  type XerResourceCatalog,
+} from './xerResources';
 import { assembleXerMultiProjectImport, type XerMultiProjectImport } from './xerMultiProject';
 import {
   deriveXerScheduleOptions,
@@ -275,6 +281,8 @@ function readXerProject(
   tables: XerTables,
   scheduleOptionsIndex: XerScheduleOptionsIndex,
   projectId: string,
+  resourceCatalog: XerResourceCatalog,
+  taskResourceRowsByProject: ReadonlyMap<string, readonly XerRow[]>,
 ): XerReadResult {
   const projectRow = scheduleOptionsIndex.projectRowsById.get(projectId)?.row;
   if (!projectRow) {
@@ -488,6 +496,21 @@ function readXerProject(
     if (parent && !parent.childIds.includes(task.id)) parent.childIds.push(task.id);
   }
 
+  // X6: projectresources zijn bewust mutable kopieën; de raw catalogus en TASKRSRC-cellen blijven
+  // één maal geparseerde, bevroren bestandsdata. Dit voorkomt P×52.640 structuredClone-kopieën.
+  const resourceResult = materializeXerResources(resourceCatalog, tables, {
+    projectId,
+    projectCalendarId: projectCalendar.id,
+    projectHoursPerDay: projectCalendar.hoursPerDay,
+    availableCalendarIds: new Set(calendarList.map(calendar => calendar.id)),
+    calendarHoursPerDay: new Map(calendarList.map(calendar => [calendar.id, calendar.hoursPerDay])),
+    taskIds: new Set(mappedActivities.map(task => task.id)),
+  }, taskResourceRowsByProject.get(projectId) ?? []);
+  for (const assignment of resourceResult.assignments) {
+    const task = taskById.get(assignment.taskId);
+    if (task && !task.resourceIds.includes(assignment.resourceId)) task.resourceIds.push(assignment.resourceId);
+  }
+
   const sequences: Sequence[] = [];
   const externalRelations: XerExternalRelation[] = [];
   for (const row of relationRows) {
@@ -562,8 +585,8 @@ function readXerProject(
     resourceCalendars: calendarList.filter(calendar => calendar.id !== projectCalendar.id),
     tasks: allTasks,
     sequences,
-    resources: [],
-    assignments: [],
+    resources: resourceResult.resources,
+    assignments: resourceResult.assignments,
     xer: {
       defaultCurrencyCode: tables.header.defaultCurrencyCode,
       tableReport: tables.report,
@@ -586,6 +609,11 @@ function readXerProject(
         baselineExclusionReverted: false,
         baselineFallbackReasons: [],
       },
+      resources: {
+        catalog: resourceCatalog,
+        assignments: resourceResult.sources.assignments,
+        issues: resourceResult.issues,
+      },
     },
   };
 }
@@ -599,10 +627,18 @@ function readXerProject(
 export function readXER(bytes: Uint8Array): XerOpenResult {
   const tables = parseXerTables(bytes);
   const scheduleOptionsIndex = indexXerScheduleOptions(tables);
+  const availableCalendarIds = new Set((tables.tables.get('CALENDAR')?.rows ?? [])
+    .map(row => row.cells.clndr_id?.trim()).filter((id): id is string => Boolean(id)));
+  for (const row of tables.tables.get('PROJECT')?.rows ?? []) {
+    const calendarId = row.cells.clndr_id?.trim();
+    if (calendarId) availableCalendarIds.add(calendarId);
+  }
+  const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds);
+  const taskResourceRowsByProject = indexXerTaskResourceRows(tables);
   const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
   const assembled = assembleXerMultiProjectImport(
     tables,
-    projectId => readXerProject(tables, scheduleOptionsIndex, projectId),
+    projectId => readXerProject(tables, scheduleOptionsIndex, projectId, resourceCatalog, taskResourceRowsByProject),
   );
   if (assembled.results.length > 0) {
     // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de

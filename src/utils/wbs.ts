@@ -25,7 +25,7 @@ import type { Task } from '@/types/task';
  * mutatie nergens aan.
  */
 function plainView(tasks: readonly Task[]): readonly Task[] {
-  return isDraft(tasks) ? (current(tasks) as readonly Task[]) : tasks;
+  return isDraft(tasks) ? (current(tasks as never) as readonly Task[]) : tasks;
 }
 
 /**

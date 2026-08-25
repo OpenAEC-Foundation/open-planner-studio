@@ -658,7 +658,9 @@ const linearProjectRows = Array.from({ length: LINEAR_PROJECTS }, (_, index) =>
   `%R\tP${index}\tCT_TotFloat\t${index % 9}`).join('\n');
 const linearScheduleRows = Array.from({ length: LINEAR_PROJECTS }, (_, index) =>
   `%R\tP${index}\t${index % 2 === 0 ? 'FT_SS' : 'FT_FF'}`).join('\n');
-const linearTables = parseXerTables(new TextEncoder().encode([
+// X6 maakt parserrijen terecht immutable. Deze instrumentatietest meet uitsluitend property-reads
+// en krijgt daarom een lokale, mutable meetkopie — nooit de runtime-bron die readers delen.
+const linearTables = structuredClone(parseXerTables(new TextEncoder().encode([
   'ERMHDR\t23.12\t2026-08-25\t\t\t\t\t\tEUR',
   '%T\tPROJECT',
   '%F\tproj_id\tcritical_path_type\tcritical_drtn_hr_cnt',
@@ -667,7 +669,7 @@ const linearTables = parseXerTables(new TextEncoder().encode([
   '%F\tproj_id\tsched_float_type',
   linearScheduleRows,
   '%E',
-].join('\n')));
+].join('\n'))));
 let projIdReads = 0;
 for (const tableName of ['PROJECT', 'SCHEDOPTIONS']) {
   for (const row of linearTables.tables.get(tableName)?.rows ?? []) {

@@ -7,6 +7,8 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Baseline } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
+import type { XerResourceCatalog } from './xer/xerResources';
+import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
 
 export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 
@@ -131,6 +133,14 @@ export interface XerImportReport {
   baselineFallbackReasons: XerBaselineFallbackReason[];
 }
 
+/** X6-bronbewijs. De catalogus is één bestandsbreed, immutable object; per document blijft alleen
+ * de gefilterde TASKRSRC-view over. X9 bepaalt later de exacte serialisatie naar IFC/recovery. */
+export interface XerResourceMetadata {
+  catalog: XerResourceCatalog;
+  assignments: XerTaskResourceSource[];
+  issues: XerResourceIssue[];
+}
+
 /** Documentgebonden XER-brondata. Externe relaties zijn nadrukkelijk geen solverrelaties. */
 export interface XerImportMetadata {
   defaultCurrencyCode: string;
@@ -144,6 +154,8 @@ export interface XerImportMetadata {
   externalLinks: XerDocumentExternalLink[];
   /** Bestandsbreed verslag, bewust ook documentgebonden zodat X10 het na openen kan consumeren. */
   report: XerImportReport;
+  /** X6 retained-data; baseline- en unscoped TASKRSRC-rijen blijven uitsluitend catalogusdata voor X9. */
+  resources?: XerResourceMetadata;
 }
 
 /**
