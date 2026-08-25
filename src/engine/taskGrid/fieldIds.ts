@@ -23,6 +23,21 @@ const BASELINE_FIELDS = new Set<BaselineTaskColumnField>([
 /** Eén canonieke RFC-3986-segmentencoding. encodeURIComponent laat !'()* ongemoeid; die tekens
  * worden hier alsnog encoded zodat quotes en alle scheidingstekens nooit betekenis lekken. */
 export function encodeTaskColumnIdSegment(value: string): string {
+  if (value.length === 0) {
+    throw new TypeError('TaskColumnId-segment mag niet leeg zijn');
+  }
+  for (let index = 0; index < value.length; index++) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit >= 0xD800 && codeUnit <= 0xDBFF) {
+      const next = value.charCodeAt(index + 1);
+      if (index + 1 >= value.length || next < 0xDC00 || next > 0xDFFF) {
+        throw new TypeError('TaskColumnId-segment bevat een losse UTF-16-surrogaat');
+      }
+      index++;
+    } else if (codeUnit >= 0xDC00 && codeUnit <= 0xDFFF) {
+      throw new TypeError('TaskColumnId-segment bevat een losse UTF-16-surrogaat');
+    }
+  }
   return encodeURIComponent(value).replace(/[!'()*]/g, char =>
     `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }

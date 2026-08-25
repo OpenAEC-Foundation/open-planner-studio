@@ -33,6 +33,18 @@ function ok(label: string, condition: boolean): void {
   if (!condition) diffs.push(label);
 }
 
+function typeError(label: string, fn: () => unknown, message: string): void {
+  checks++;
+  try {
+    fn();
+    diffs.push(`${label}: verwacht TypeError`);
+  } catch (error) {
+    if (!(error instanceof TypeError) || error.message !== message) {
+      diffs.push(`${label}: verwacht TypeError ${JSON.stringify(message)}, kreeg ${String(error)}`);
+    }
+  }
+}
+
 const hostile = ['project:1', '100%', 'pad/met/slash', `dubbel\"en'enkel`, '日本語 🧱'];
 for (const projectId of hostile) {
   for (const fieldId of hostile) {
@@ -60,11 +72,26 @@ eq('niet-canonieke ongecodeerde dubbele punt wordt geweigerd',
   decodeDynamicTaskColumnId('activity-code:a:b:c'), null);
 eq('onbekende baselinesuffix wordt geweigerd',
   decodeDynamicTaskColumnId('baseline:a:b:nope'), null);
+eq('percent-encoded losse UTF-16-surrogaat wordt geweigerd',
+  decodeDynamicTaskColumnId('activity-code:project:%ED%A0%80'), null);
+typeError('activity-code weigert leeg segment', () => activityCodeColumnId('', 'type'),
+  'TaskColumnId-segment mag niet leeg zijn');
+typeError('custom-field weigert leeg segment', () => customFieldColumnId('project', ''),
+  'TaskColumnId-segment mag niet leeg zijn');
+typeError('baseline weigert leeg segment', () => baselineColumnId('project', '', 'start'),
+  'TaskColumnId-segment mag niet leeg zijn');
+typeError('activity-code weigert losse UTF-16-surrogaat', () => activityCodeColumnId('project', '\uD800'),
+  'TaskColumnId-segment bevat een losse UTF-16-surrogaat');
+typeError('custom-field weigert losse UTF-16-surrogaat', () => customFieldColumnId('\uDC00', 'veld'),
+  'TaskColumnId-segment bevat een losse UTF-16-surrogaat');
+typeError('baseline weigert losse UTF-16-surrogaat', () => baselineColumnId('project', '\uD800', 'start'),
+  'TaskColumnId-segment bevat een losse UTF-16-surrogaat');
 
 const task = {
   id: 't-1', name: 'Taak', description: '', wbsCode: '1', taskType: 'CONSTRUCTION',
   status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
-  resourceIds: ['r-1'], splitGaps: [{ gapMinutes: 60, afterMinutes: 120 }],
+  resourceIds: ['r-1', 'r-2', 'r-3'], splitGaps: [{ gapMinutes: 60, afterMinutes: 120 }],
+  activityCodes: { 'fase:1': 'v-2' }, customFields: { 'cf:1': 'Inhoud' },
   externalLinks: [{
     id: 'ext-1', direction: 'predecessor', relType: 'FS', lagDays: 0,
     anchorDate: '2025-12-30', sourceRef: { projectId: 'bron:1', taskId: 'bron-taak', taskName: 'Bron' },
@@ -85,8 +112,20 @@ const sequence: Sequence = {
 const assignment: ResourceAssignment = {
   id: 'a-1', taskId: task.id, resourceId: 'r-1', unitsPerDay: 1,
 };
+const assignment2: ResourceAssignment = {
+  id: 'a-2', taskId: task.id, resourceId: 'r-2', unitsPerDay: 0.5, curve: 'FRONT_LOADED',
+};
+const assignment3: ResourceAssignment = {
+  id: 'a-3', taskId: task.id, resourceId: 'r-3', unitsPerDay: 2,
+};
 const resource: Resource = {
-  id: 'r-1', name: 'Ploeg A', type: 'CREW', description: '', maxUnits: 1,
+  id: 'r-1', name: 'Dubbele ploeg', type: 'CREW', description: '', maxUnits: 1,
+};
+const resource2: Resource = {
+  id: 'r-2', name: 'Dubbele ploeg', type: 'CREW', description: '', maxUnits: 1,
+};
+const resource3: Resource = {
+  id: 'r-3', name: 'Ploeg, Noord; nacht', type: 'CREW', description: '', maxUnits: 2,
 };
 let baselineTasksReads = 0;
 const baselineTaskRows: Baseline['tasks'] = [
@@ -100,15 +139,19 @@ const ctx: TaskColumnContext = {
   projectId: 'project:1',
   tasksById: new Map([[task.id, task]]),
   relationIndex: buildTaskRelationIndex([task], [sequence]),
-  assignmentsByTaskId: new Map([[task.id, [assignment]]]),
-  resourcesById: new Map([[resource.id, resource]]),
+  assignmentsByTaskId: new Map([[task.id, [assignment, assignment2, assignment3]]]),
+  resourcesById: new Map([
+    [resource.id, resource], [resource2.id, resource2], [resource3.id, resource3],
+  ]),
   baselinesById: new Map([[baseline.id, baseline]]),
   scheduleStale: false,
   signedWorkDaysBetween: () => 42,
 };
 const registry = buildTaskColumnRegistry({
   projectId: ctx.projectId,
-  activityCodeTypes: [{ id: 'fase:1', name: 'Fase', values: [{ id: 'v-1', code: 'A' }] }],
+  activityCodeTypes: [{
+    id: 'fase:1', name: 'Fase', values: [{ id: 'v-1', code: 'A' }, { id: 'v-2', code: 'A' }],
+  }],
   customFieldDefs: [{ id: 'cf:1', name: 'Eigen veld', type: 'text' }],
   baselines: [baseline],
 });
@@ -139,6 +182,133 @@ eq('baselineafwijking gebruikt de aangeleverde projectkalenderroute', baselineVa
 baselineStart.copy(task, ctx);
 baselineStart.autoFitText(task, ctx);
 eq('Baseline.tasks wordt exact één keer per registrybouw geïndexeerd en nooit per cel', baselineTasksReads, 1);
+
+const otherProjectCtx: TaskColumnContext = { ...ctx, projectId: 'ander-project' };
+const activityCode = registry.find(column => column.id === activityCodeColumnId(ctx.projectId, 'fase:1'))!;
+const customField = registry.find(column => column.id === customFieldColumnId(ctx.projectId, 'cf:1'))!;
+ok('activity-codekolom is alleen in het eigen project beschikbaar',
+  activityCode.available(ctx) && !activityCode.available(otherProjectCtx));
+ok('custom-fieldkolom is alleen in het eigen project beschikbaar',
+  customField.available(ctx) && !customField.available(otherProjectCtx));
+
+const taskWithoutBaseline = { ...task, id: 't-zonder-baseline' } as Task;
+const missingBaselineValue = baselineStart.read(taskWithoutBaseline, ctx);
+eq('ontbrekende baselinetaak toont een liggend streepje',
+  baselineStart.format(missingBaselineValue, taskWithoutBaseline, ctx), '—');
+eq('ontbrekende baselinetaak kopieert leeg', baselineStart.copy(taskWithoutBaseline, ctx), '');
+eq('ontbrekende baselinetaak legt de lege cel uit',
+  baselineStart.tooltip?.(missingBaselineValue, taskWithoutBaseline, ctx),
+  'Niet aanwezig in deze baseline');
+
+const expectedAssignmentTokens = [
+  { assignmentId: 'a-1', resourceId: 'r-1', unitsPerDay: 1 },
+  { assignmentId: 'a-2', curve: 'FRONT_LOADED', resourceId: 'r-2', unitsPerDay: 0.5 },
+  { assignmentId: 'a-3', resourceId: 'r-3', unitsPerDay: 2 },
+];
+for (const id of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.curve']) {
+  const column = registry.find(candidate => candidate.id === id)!;
+  const copied = column.copy(task, ctx);
+  ok(`${id}: zichtbare labels blijven in het klembord staan`, copied.startsWith(
+    id === 'assignment.resources' ? 'Dubbele ploeg, Dubbele ploeg, Ploeg, Noord; nacht' : 'Dubbele ploeg:',
+  ));
+  const parsed = column.parse!(copied, task, ctx);
+  ok(`${id}: id-dragende klembordinhoud parseert`, parsed.ok);
+  if (!parsed.ok) continue;
+  const validated = column.validate!(parsed.value, task, ctx);
+  ok(`${id}: id-dragende klembordinhoud valideert`, validated.ok);
+  if (!validated.ok) continue;
+  const planned = column.planWrite!(validated.value, task, ctx);
+  eq(`${id}: writer plant exact één volledige assignment-set op ids`, planned.ok ? planned.value : planned, [{
+    kind: 'assignment-set', taskId: task.id, tokens: expectedAssignmentTokens,
+  }]);
+}
+
+const assignedResources = registry.find(column => column.id === 'assignment.resources')!;
+const ambiguousResource = assignedResources.parse!('Dubbele ploeg', task, ctx);
+eq('een handmatig dubbel resourcelabel wordt gericht geweigerd',
+  ambiguousResource.ok ? null : ambiguousResource.errors[0].code, 'assignmentAmbiguous');
+const mismatchedAssignment = assignedResources.validate!([{
+  assignmentId: 'a-1', resourceId: 'r-2', unitsPerDay: 1,
+}], task, ctx);
+eq('een assignment-id mag niet naar een andere resource verschuiven',
+  mismatchedAssignment.ok ? null : mismatchedAssignment.errors[0].code, 'assignmentIdentity');
+const duplicateAssignmentResource = assignedResources.validate!([
+  { assignmentId: 'a-1', resourceId: 'r-1', unitsPerDay: 1 },
+  { resourceId: 'r-1', unitsPerDay: 2 },
+], task, ctx);
+eq('een resource mag maar één keer in de volledige assignment-set staan',
+  duplicateAssignmentResource.ok ? null : duplicateAssignmentResource.errors[0].code,
+  'assignmentDuplicateResource');
+const zeroAssignmentUnits = assignedResources.validate!([{
+  assignmentId: 'a-1', resourceId: 'r-1', unitsPerDay: 0,
+}], task, ctx);
+eq('assignmenttokens weigeren nul eenheden',
+  zeroAssignmentUnits.ok ? null : zeroAssignmentUnits.errors[0].code, 'assignments');
+
+const emptyAssignmentCtx: TaskColumnContext = {
+  ...ctx, assignmentsByTaskId: new Map([[task.id, []]]),
+};
+eq('een lege assignmentcel kopieert echt leeg', assignedResources.copy(task, emptyAssignmentCtx), '');
+const parsedEmptyAssignments = assignedResources.parse!('', task, emptyAssignmentCtx);
+eq('een lege assignmentcel plant een lege volledige set', parsedEmptyAssignments.ok
+  ? assignedResources.planWrite!(parsedEmptyAssignments.value, task, emptyAssignmentCtx)
+  : parsedEmptyAssignments, {
+  ok: true, value: [{ kind: 'assignment-set', taskId: task.id, tokens: [] }],
+});
+
+const activityCopy = activityCode.copy(task, ctx);
+const parsedActivity = activityCode.parse!(activityCopy, task, ctx);
+const validatedActivity = parsedActivity.ok
+  ? activityCode.validate!(parsedActivity.value, task, ctx)
+  : parsedActivity;
+const plannedActivity = validatedActivity.ok
+  ? activityCode.planWrite!(validatedActivity.value, task, ctx)
+  : validatedActivity;
+eq('dubbele activity-code behoudt via klembord exact waarde-id v-2',
+  plannedActivity.ok ? plannedActivity.value : plannedActivity, [{
+    kind: 'cell-edit', taskId: task.id, columnId: activityCodeColumnId(ctx.projectId, 'fase:1'),
+    route: 'activity-code', value: 'v-2',
+  }]);
+const ambiguousCodeParsed = activityCode.parse!('A', task, ctx);
+const ambiguousCode = ambiguousCodeParsed.ok
+  ? activityCode.validate!(ambiguousCodeParsed.value, task, ctx)
+  : ambiguousCodeParsed;
+eq('een handmatig dubbele activity-code wordt gericht geweigerd',
+  ambiguousCode.ok ? null : ambiguousCode.errors[0].code, 'activityCodeAmbiguous');
+
+const routeCases: readonly [string, unknown, string][] = [
+  ['task.name', 'Nieuwe naam', 'task-field'],
+  ['task.time.scheduleStart', '2026-01-02', 'task-schedule'],
+  ['task.status', 'STARTED', 'task-progress'],
+  ['task.isMilestone', true, 'task-milestone'],
+  ['task.constraint.type', 'ASAP', 'task-constraint'],
+  ['task.isHammock', true, 'task-hammock'],
+  [activityCode.id, 'v-2', 'activity-code'],
+  [customField.id, 'Inhoud', 'custom-field'],
+];
+for (const [id, value, route] of routeCases) {
+  const column = registry.find(candidate => candidate.id === id)!;
+  const planned = column.planWrite!(value, task, ctx);
+  const intent = planned.ok ? planned.value[0] : undefined;
+  eq(`${id}: gebruikt de expliciete bewaakte schrijfroute`,
+    intent?.kind === 'cell-edit' ? intent.route : null, route);
+}
+
+const wbs = registry.find(column => column.id === 'task.wbsCode')!;
+const autoNumberCtx: TaskColumnContext = { ...ctx, wbsAutoNumber: true };
+eq('WBS is conditioneel read-only bij autonummering',
+  typeof wbs.readOnly === 'function' && wbs.readOnly(task, autoNumberCtx), true);
+const blockedWbs = wbs.planWrite!('2', task, autoNumberCtx);
+eq('conditioneel read-only WBS plant geen intent',
+  blockedWbs.ok ? null : blockedWbs.errors[0].code, 'readOnly');
+
+const duration = registry.find(column => column.id === 'task.time.scheduleDuration')!;
+const hammockTask = { ...task, isHammock: true } as Task;
+eq('duur is conditioneel read-only voor een hammock',
+  typeof duration.readOnly === 'function' && duration.readOnly(hammockTask, ctx), true);
+const blockedDuration = duration.planWrite!(2, hammockTask, ctx);
+eq('conditioneel read-only hammockduur plant geen intent',
+  blockedDuration.ok ? null : blockedDuration.errors[0].code, 'readOnly');
 
 function isReadOnly(column: TaskColumnDescriptor): boolean {
   return typeof column.readOnly === 'function' ? column.readOnly(task, ctx) : column.readOnly;

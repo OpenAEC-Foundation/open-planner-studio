@@ -1,5 +1,5 @@
 import type { Baseline } from '@/types/baseline';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 
@@ -45,8 +45,19 @@ export interface CellEditIntent {
   kind: 'cell-edit';
   taskId: string;
   columnId: TaskColumnId;
+  route: CellEditRoute;
   value: unknown;
 }
+
+export type CellEditRoute =
+  | 'task-field'
+  | 'task-schedule'
+  | 'task-progress'
+  | 'task-milestone'
+  | 'task-constraint'
+  | 'task-hammock'
+  | 'activity-code'
+  | 'custom-field';
 
 export interface PasteIntent {
   kind: 'paste';
@@ -63,7 +74,14 @@ export interface RelationSetIntent {
 export interface AssignmentSetIntent {
   kind: 'assignment-set';
   taskId: string;
-  value: unknown;
+  tokens: readonly TaskAssignmentToken[];
+}
+
+export interface TaskAssignmentToken {
+  resourceId: string;
+  assignmentId?: string;
+  unitsPerDay: number;
+  curve?: ResourceCurve;
 }
 
 export type GridIntent = CellEditIntent | PasteIntent | RelationSetIntent | AssignmentSetIntent;
@@ -95,6 +113,7 @@ export interface TaskColumnDescriptor {
   read(task: Task, ctx: TaskColumnContext): unknown;
   format(value: unknown, task: Task, ctx: TaskColumnContext): string;
   copy(task: Task, ctx: TaskColumnContext): string;
+  tooltip?: (value: unknown, task: Task, ctx: TaskColumnContext) => string | null;
   parse?: (text: string, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
   validate?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
   planWrite?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<readonly GridIntent[], readonly CellValidationError[]>;

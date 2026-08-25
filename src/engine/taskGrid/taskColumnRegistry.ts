@@ -4,8 +4,10 @@ import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types
 import type { ConstraintType, MilestoneKind, Task, TaskStatus, TaskType } from '@/types/task';
 import type {
   CellValidationError,
+  CellEditRoute,
   GridIntent,
   GridResult,
+  TaskAssignmentToken,
   TaskColumnCategory,
   TaskColumnContext,
   TaskColumnDescriptor,
@@ -15,6 +17,7 @@ import {
   activityCodeColumnId,
   baselineColumnId,
   customFieldColumnId,
+  encodeTaskColumnIdSegment,
   taskColumnId,
   type BaselineTaskColumnField,
 } from '@/engine/taskGrid/fieldIds';
@@ -51,11 +54,13 @@ interface ReadonlyColumnConfig {
   format?: Formatter;
   copy?: (task: Task, ctx: TaskColumnContext) => string;
   available?: (ctx: TaskColumnContext) => boolean;
+  tooltip?: (value: unknown, task: Task, ctx: TaskColumnContext) => string | null;
 }
 
 interface EditableColumnConfig extends Omit<ReadonlyColumnConfig, 'copy'> {
   editorKind: Exclude<EditorKind, 'none'>;
   readOnly?: (task: Task, ctx: TaskColumnContext) => boolean;
+  route?: CellEditRoute;
   parse: Parser;
   validate: Validator;
   planWrite?: Writer;
@@ -117,6 +122,7 @@ function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
     read: config.read,
     format,
     copy,
+    tooltip: config.tooltip,
     autoFitText: (task, ctx) => format(config.read(task, ctx), task, ctx),
   };
 }
@@ -125,9 +131,12 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
   const id = typeof config.id === 'string' ? taskColumnId(config.id) : config.id;
   const format = config.format ?? ((value: unknown) => formatScalar(value));
   const copy = config.copy ?? ((task: Task, ctx: TaskColumnContext) => copyScalar(config.read(task, ctx)));
-  const planWrite: Writer = config.planWrite ?? ((value, task) => success<readonly GridIntent[]>([{
-    kind: 'cell-edit', taskId: task.id, columnId: id, value,
+  const rawPlanWrite: Writer = config.planWrite ?? ((value, task) => success<readonly GridIntent[]>([{
+    kind: 'cell-edit', taskId: task.id, columnId: id, route: config.route ?? 'task-field', value,
   }]));
+  const planWrite: Writer = (value, task, ctx) => config.readOnly?.(task, ctx)
+    ? failure('readOnly', value)
+    : rawPlanWrite(value, task, ctx);
   return {
     id,
     labelKey: config.labelKey,
@@ -140,6 +149,7 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     read: config.read,
     format,
     copy,
+    tooltip: config.tooltip,
     parse: config.parse,
     validate: config.validate,
     planWrite,
@@ -282,61 +292,166 @@ function assignmentLabel(assignment: ResourceAssignment, ctx: TaskColumnContext)
   return ctx.resourcesById.get(assignment.resourceId)?.name ?? assignment.resourceId;
 }
 
-function resolveAssignment(label: string, task: Task, ctx: TaskColumnContext): ResourceAssignment | undefined {
-  return assignments(task, ctx).find(item =>
-    item.id === label
-    || item.resourceId === label
-    || ctx.resourcesById.get(item.resourceId)?.name === label);
+const STRUCTURED_CLIPBOARD_SEPARATOR = '\u2063';
+const ASSIGNMENT_CLIPBOARD_MARKER = `${STRUCTURED_CLIPBOARD_SEPARATOR}ops-assignment:`;
+const ACTIVITY_CODE_CLIPBOARD_MARKER = `${STRUCTURED_CLIPBOARD_SEPARATOR}ops-activity-code:`;
+
+function structuredClipboardText(visible: string, marker: string, payload: unknown): string {
+  return `${visible}${marker}${encodeTaskColumnIdSegment(canonicalGridJson(payload))}`;
+}
+
+function structuredClipboardPayload(
+  text: string,
+  marker: string,
+): GridResult<unknown | undefined, readonly CellValidationError[]> {
+  const markerIndex = text.lastIndexOf(marker);
+  if (markerIndex < 0) return success(undefined);
+  const encoded = text.slice(markerIndex + marker.length);
+  try {
+    const decoded = decodeURIComponent(encoded);
+    if (encodeTaskColumnIdSegment(decoded) !== encoded) return failure('structuredClipboard', text);
+    return success(JSON.parse(decoded));
+  } catch {
+    return failure('structuredClipboard', text);
+  }
+}
+
+function assignmentTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentToken[] {
+  return assignments(task, ctx).map(assignment => ({
+    assignmentId: assignment.id,
+    resourceId: assignment.resourceId,
+    unitsPerDay: assignment.unitsPerDay,
+    curve: assignment.curve,
+  }));
+}
+
+function resolveResourceId(reference: string, ctx: TaskColumnContext): GridResult<string, readonly CellValidationError[]> {
+  if (ctx.resourcesById.has(reference)) return success(reference);
+  const matches = [...ctx.resourcesById.values()].filter(resource => resource.name === reference);
+  if (matches.length === 1) return success(matches[0].id);
+  return matches.length > 1
+    ? failure('assignmentAmbiguous', reference)
+    : failure('assignmentResource', reference);
+}
+
+function resolveAssignment(
+  reference: string,
+  task: Task,
+  ctx: TaskColumnContext,
+): GridResult<ResourceAssignment, readonly CellValidationError[]> {
+  const current = assignments(task, ctx);
+  const byId = current.find(item => item.id === reference);
+  if (byId) return success(byId);
+  const byResourceId = current.filter(item => item.resourceId === reference);
+  if (byResourceId.length === 1) return success(byResourceId[0]);
+  const byName = current.filter(item => ctx.resourcesById.get(item.resourceId)?.name === reference);
+  if (byName.length === 1) return success(byName[0]);
+  return byResourceId.length > 1 || byName.length > 1
+    ? failure('assignmentAmbiguous', reference)
+    : failure('assignmentResource', reference);
+}
+
+function validateAssignmentTokens(
+  value: unknown,
+  task: Task,
+  ctx: TaskColumnContext,
+  code: string,
+): GridResult<unknown, readonly CellValidationError[]> {
+  if (!Array.isArray(value)) return failure(code, value);
+  const currentById = new Map(assignments(task, ctx).map(item => [item.id, item] as const));
+  const resourceIds = new Set<string>();
+  const assignmentIds = new Set<string>();
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') return failure(code, raw);
+    const token = raw as Partial<TaskAssignmentToken>;
+    if (typeof token.resourceId !== 'string' || !ctx.resourcesById.has(token.resourceId)) return failure(code, raw);
+    if (typeof token.unitsPerDay !== 'number' || !Number.isFinite(token.unitsPerDay) || token.unitsPerDay <= 0) {
+      return failure(code, raw);
+    }
+    if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) return failure(code, raw);
+    if (resourceIds.has(token.resourceId)) return failure('assignmentDuplicateResource', token.resourceId);
+    resourceIds.add(token.resourceId);
+    if (token.assignmentId !== undefined) {
+      if (typeof token.assignmentId !== 'string' || assignmentIds.has(token.assignmentId)) {
+        return failure('assignmentDuplicateId', token.assignmentId);
+      }
+      const current = currentById.get(token.assignmentId);
+      if (!current || current.resourceId !== token.resourceId) return failure('assignmentIdentity', raw);
+      assignmentIds.add(token.assignmentId);
+    }
+  }
+  return success(value);
+}
+
+const parseAssignmentResources: Parser = (text, task, ctx) => {
+  const structured = structuredClipboardPayload(text, ASSIGNMENT_CLIPBOARD_MARKER);
+  if (!structured.ok || structured.value !== undefined) return structured;
+  const trimmed = text.trim();
+  if (trimmed === '') return success([]);
+  const exactNameMatches = [...ctx.resourcesById.values()].filter(resource => resource.name === trimmed);
+  const references = ctx.resourcesById.has(trimmed) || exactNameMatches.length > 0
+    ? [trimmed]
+    : parseTokens(text);
+  const currentByResourceId = new Map(assignmentTokens(task, ctx).map(token => [token.resourceId, token] as const));
+  const result: TaskAssignmentToken[] = [];
+  const seen = new Set<string>();
+  for (const reference of references) {
+    const resolved = resolveResourceId(reference, ctx);
+    if (!resolved.ok) return resolved;
+    if (seen.has(resolved.value)) return failure('assignmentDuplicateResource', resolved.value);
+    seen.add(resolved.value);
+    result.push(currentByResourceId.get(resolved.value) ?? { resourceId: resolved.value, unitsPerDay: 1 });
+  }
+  return success(result);
+};
+
+function assignmentPairs(text: string): string[] {
+  return text.split(/[;\n]/).map(value => value.trim()).filter(Boolean);
 }
 
 const parseAssignmentUnits: Parser = (text, task, ctx) => {
-  const tokens = parseTokens(text);
-  if (tokens.length === 0) return failure('assignmentUnits', text);
-  const result: { assignmentId: string; unitsPerDay: number }[] = [];
-  for (const token of tokens) {
-    const separator = token.lastIndexOf(':');
-    if (separator <= 0) return failure('assignmentUnits', token);
-    const assignment = resolveAssignment(token.slice(0, separator).trim(), task, ctx);
-    const unitsPerDay = Number(token.slice(separator + 1).trim().replace(',', '.'));
-    if (!assignment || !Number.isFinite(unitsPerDay) || unitsPerDay <= 0) return failure('assignmentUnits', token);
-    result.push({ assignmentId: assignment.id, unitsPerDay });
+  const structured = structuredClipboardPayload(text, ASSIGNMENT_CLIPBOARD_MARKER);
+  if (!structured.ok || structured.value !== undefined) return structured;
+  const pairs = assignmentPairs(text);
+  if (pairs.length === 0) return failure('assignmentUnits', text);
+  const result = assignmentTokens(task, ctx);
+  const tokenByAssignmentId = new Map(result.map(token => [token.assignmentId, token] as const));
+  const seen = new Set<string>();
+  for (const pair of pairs) {
+    const separator = pair.lastIndexOf(':');
+    if (separator <= 0) return failure('assignmentUnits', pair);
+    const resolved = resolveAssignment(pair.slice(0, separator).trim(), task, ctx);
+    const unitsPerDay = Number(pair.slice(separator + 1).trim().replace(',', '.'));
+    if (!resolved.ok) return resolved;
+    if (!Number.isFinite(unitsPerDay) || unitsPerDay <= 0) return failure('assignmentUnits', pair);
+    if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
+    seen.add(resolved.value.id);
+    tokenByAssignmentId.get(resolved.value.id)!.unitsPerDay = unitsPerDay;
   }
   return success(result);
 };
-
-const validateAssignmentUnits: Validator = value => Array.isArray(value)
-  && value.length > 0
-  && value.every(item => {
-    const entry = item as { assignmentId?: unknown; unitsPerDay?: unknown };
-    return typeof entry.assignmentId === 'string'
-      && typeof entry.unitsPerDay === 'number'
-      && Number.isFinite(entry.unitsPerDay)
-      && entry.unitsPerDay > 0;
-  }) ? success(value) : failure('assignmentUnits', value);
 
 const parseAssignmentCurves: Parser = (text, task, ctx) => {
-  const tokens = parseTokens(text);
-  if (tokens.length === 0) return failure('assignmentCurve', text);
-  const result: { assignmentId: string; curve: ResourceCurve }[] = [];
-  for (const token of tokens) {
-    const separator = token.lastIndexOf(':');
-    if (separator <= 0) return failure('assignmentCurve', token);
-    const assignment = resolveAssignment(token.slice(0, separator).trim(), task, ctx);
-    const curve = token.slice(separator + 1).trim().toUpperCase() as ResourceCurve;
-    if (!assignment || !RESOURCE_CURVES.includes(curve)) return failure('assignmentCurve', token);
-    result.push({ assignmentId: assignment.id, curve });
+  const structured = structuredClipboardPayload(text, ASSIGNMENT_CLIPBOARD_MARKER);
+  if (!structured.ok || structured.value !== undefined) return structured;
+  const pairs = assignmentPairs(text);
+  if (pairs.length === 0) return failure('assignmentCurve', text);
+  const result = assignmentTokens(task, ctx);
+  const tokenByAssignmentId = new Map(result.map(token => [token.assignmentId, token] as const));
+  const seen = new Set<string>();
+  for (const pair of pairs) {
+    const separator = pair.lastIndexOf(':');
+    if (separator <= 0) return failure('assignmentCurve', pair);
+    const resolved = resolveAssignment(pair.slice(0, separator).trim(), task, ctx);
+    const curve = pair.slice(separator + 1).trim().toUpperCase() as ResourceCurve;
+    if (!resolved.ok) return resolved;
+    if (!RESOURCE_CURVES.includes(curve)) return failure('assignmentCurve', pair);
+    if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
+    seen.add(resolved.value.id);
+    tokenByAssignmentId.get(resolved.value.id)!.curve = curve === 'UNIFORM' ? undefined : curve;
   }
   return success(result);
 };
-
-const validateAssignmentCurves: Validator = value => Array.isArray(value)
-  && value.length > 0
-  && value.every(item => {
-    const entry = item as { assignmentId?: unknown; curve?: unknown };
-    return typeof entry.assignmentId === 'string'
-      && typeof entry.curve === 'string'
-      && RESOURCE_CURVES.includes(entry.curve as ResourceCurve);
-  }) ? success(value) : failure('assignmentCurve', value);
 
 function parseTokens(text: string): string[] {
   return text.split(/[,;\n]/).map(value => value.trim()).filter(Boolean);
@@ -349,10 +464,10 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
     editableColumn({ id: 'task.description', labelKey: 'taskGrid.columns.description', category: 'task', valueKind: 'text', editorKind: 'text', defaultWidth: 280, read: task => task.description, parse: parseText, validate: value => typeof value === 'string' ? success(value) : failure('text', value) }),
     editableColumn({ id: 'task.wbsCode', labelKey: 'taskGrid.columns.wbs', category: 'task', valueKind: 'text', editorKind: 'text', read: task => task.wbsCode, readOnly: (_task, ctx) => ctx.wbsAutoNumber === true, parse: parseText, validate: value => typeof value === 'string' && value.trim() ? success(value) : failure('required', value) }),
     editableColumn({ id: 'task.taskType', labelKey: 'taskGrid.columns.taskType', category: 'task', valueKind: 'enum', editorKind: 'enum', read: task => task.taskType, parse: enumParser(TASK_TYPES), validate: enumValidator(TASK_TYPES) }),
-    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
-    editableColumn({ id: 'task.isMilestone', labelKey: 'taskGrid.columns.milestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', read: task => task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
-    editableColumn({ id: 'task.milestoneKind', labelKey: 'taskGrid.columns.milestoneKind', category: 'planning', valueKind: 'enum', editorKind: 'enum', read: task => task.milestoneKind, parse: enumParser(MILESTONE_KINDS, true), validate: enumValidator(MILESTONE_KINDS, true) }),
-    editableColumn({ id: 'task.mandatory', labelKey: 'taskGrid.columns.mandatoryMilestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', read: task => task.mandatory, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', route: 'task-progress', read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
+    editableColumn({ id: 'task.isMilestone', labelKey: 'taskGrid.columns.milestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.milestoneKind', labelKey: 'taskGrid.columns.milestoneKind', category: 'planning', valueKind: 'enum', editorKind: 'enum', route: 'task-milestone', read: task => task.milestoneKind, parse: enumParser(MILESTONE_KINDS, true), validate: enumValidator(MILESTONE_KINDS, true) }),
+    editableColumn({ id: 'task.mandatory', labelKey: 'taskGrid.columns.mandatoryMilestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.mandatory, parse: parseBoolean, validate: validateBoolean }),
     editableColumn({ id: 'task.priority', labelKey: 'taskGrid.columns.priority', category: 'planning', valueKind: 'number', editorKind: 'number', read: task => task.priority, parse: parseNumber, validate: finiteNumber({ min: 0, max: 1000, integer: true }) }),
     readonlyColumn({ id: 'task.levelingDelay', labelKey: 'taskGrid.columns.levelingDelay', category: 'computed', valueKind: 'duration', read: task => task.levelingDelay }),
     readonlyColumn({ id: 'task.levelingDelayMinutes', labelKey: 'taskGrid.columns.levelingDelayMinutes', category: 'technical', valueKind: 'number', read: task => task.levelingDelayMinutes }),
@@ -383,14 +498,14 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.activityCodes.technical', labelKey: 'taskGrid.columns.activityCodeData', category: 'technical', valueKind: 'technical', read: task => task.activityCodes, format: value => value && typeof value === 'object' && Object.keys(value).length ? `${Object.keys(value).length} codetoewijzing(en)` : '—', copy: task => canonicalGridJson(task.activityCodes ?? {}) }),
     readonlyColumn({ id: 'task.customFields.technical', labelKey: 'taskGrid.columns.customFieldData', category: 'technical', valueKind: 'technical', read: task => task.customFields, format: value => value && typeof value === 'object' && Object.keys(value).length ? `${Object.keys(value).length} eigen veld(en)` : '—', copy: task => canonicalGridJson(task.customFields ?? {}) }),
     editableColumn({ id: 'task.color', labelKey: 'taskGrid.columns.color', category: 'task', valueKind: 'text', editorKind: 'color', read: task => task.color, parse: parseOptionalText, validate: value => value === undefined || typeof value === 'string' ? success(value) : failure('color', value) }),
-    editableColumn({ id: 'task.constraint.type', labelKey: 'taskGrid.columns.constraintType', category: 'constraints', valueKind: 'enum', editorKind: 'enum', read: task => task.constraint?.type ?? 'ASAP', parse: enumParser(CONSTRAINT_TYPES), validate: enumValidator(CONSTRAINT_TYPES) }),
-    editableColumn({ id: 'task.constraint.date', labelKey: 'taskGrid.columns.constraintDate', category: 'constraints', valueKind: 'date', editorKind: 'date', read: task => task.constraint?.date, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.constraint.hard', labelKey: 'taskGrid.columns.constraintHard', category: 'constraints', valueKind: 'boolean', editorKind: 'boolean', read: task => task.constraint?.hard, parse: parseBoolean, validate: validateBoolean }),
-    editableColumn({ id: 'task.constraint2.type', labelKey: 'taskGrid.columns.constraint2Type', category: 'constraints', valueKind: 'enum', editorKind: 'enum', read: task => task.constraint2?.type, parse: enumParser(CONSTRAINT_TYPES, true), validate: enumValidator(CONSTRAINT_TYPES, true) }),
-    editableColumn({ id: 'task.constraint2.date', labelKey: 'taskGrid.columns.constraint2Date', category: 'constraints', valueKind: 'date', editorKind: 'date', read: task => task.constraint2?.date, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.isHammock', labelKey: 'taskGrid.columns.hammock', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', read: task => task.isHammock, parse: parseBoolean, validate: validateBoolean }),
-    editableColumn({ id: 'task.deadline', labelKey: 'taskGrid.columns.deadline', category: 'constraints', valueKind: 'date', editorKind: 'date', read: task => task.deadline, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.calendarId', labelKey: 'taskGrid.columns.calendar', category: 'planning', valueKind: 'text', editorKind: 'autocomplete', read: task => task.calendarId, parse: parseOptionalText, validate: validateAny }),
+    editableColumn({ id: 'task.constraint.type', labelKey: 'taskGrid.columns.constraintType', category: 'constraints', valueKind: 'enum', editorKind: 'enum', route: 'task-constraint', read: task => task.constraint?.type ?? 'ASAP', parse: enumParser(CONSTRAINT_TYPES), validate: enumValidator(CONSTRAINT_TYPES) }),
+    editableColumn({ id: 'task.constraint.date', labelKey: 'taskGrid.columns.constraintDate', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.constraint?.date, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.constraint.hard', labelKey: 'taskGrid.columns.constraintHard', category: 'constraints', valueKind: 'boolean', editorKind: 'boolean', route: 'task-constraint', read: task => task.constraint?.hard, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.constraint2.type', labelKey: 'taskGrid.columns.constraint2Type', category: 'constraints', valueKind: 'enum', editorKind: 'enum', route: 'task-constraint', read: task => task.constraint2?.type, parse: enumParser(CONSTRAINT_TYPES, true), validate: enumValidator(CONSTRAINT_TYPES, true) }),
+    editableColumn({ id: 'task.constraint2.date', labelKey: 'taskGrid.columns.constraint2Date', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.constraint2?.date, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.isHammock', labelKey: 'taskGrid.columns.hammock', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-hammock', read: task => task.isHammock, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.deadline', labelKey: 'taskGrid.columns.deadline', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.deadline, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.calendarId', labelKey: 'taskGrid.columns.calendar', category: 'planning', valueKind: 'text', editorKind: 'autocomplete', route: 'task-schedule', read: task => task.calendarId, parse: parseOptionalText, validate: validateAny }),
     readonlyColumn({
       id: 'task.notes', labelKey: 'taskGrid.columns.notes', category: 'task', valueKind: 'text', defaultWidth: 240,
       read: task => task.notes,
@@ -412,11 +527,11 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
 
 function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
-    editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
-    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', read: task => task.time.scheduleDuration, readOnly: task => task.isHammock === true, format: value => value === undefined ? '—' : `${value}d`, copy: task => `${task.time.scheduleDuration}d`, parse: parseTaskDuration, validate: validateDuration }),
+    editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.scheduleDuration, readOnly: task => task.isHammock === true, format: value => value === undefined ? '—' : `${value}d`, copy: task => `${task.time.scheduleDuration}d`, parse: parseTaskDuration, validate: validateDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
-    editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', read: task => task.time.scheduleFinish, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, parse: parseDate, validate: validateDate }),
     readonlyColumn({ id: 'task.time.resume', labelKey: 'taskGrid.columns.resume', category: 'progress', valueKind: 'datetime', read: task => task.time.resume }),
     readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
     readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),
@@ -429,12 +544,12 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
-    editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
-    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', read: task => task.time.remainingTime, parse: parseTaskDuration, validate: validateOptionalDuration }),
+    editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
+    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.remainingTime, parse: parseTaskDuration, validate: validateOptionalDuration }),
     readonlyColumn({ id: 'task.time.remainingMinutes', labelKey: 'taskGrid.columns.remainingMinutes', category: 'technical', valueKind: 'number', read: task => task.time.remainingMinutes }),
-    editableColumn({ id: 'task.time.completion', labelKey: 'taskGrid.columns.completion', category: 'progress', valueKind: 'number', editorKind: 'percentage', read: task => task.time.completion, format: value => typeof value === 'number' ? `${Math.round(value * 10000) / 100}%` : '—', copy: task => `${Math.round(task.time.completion * 10000) / 100}%`, parse: parsePercentage, validate: validatePercentage }),
+    editableColumn({ id: 'task.time.completion', labelKey: 'taskGrid.columns.completion', category: 'progress', valueKind: 'number', editorKind: 'percentage', route: 'task-progress', read: task => task.time.completion, format: value => typeof value === 'number' ? `${Math.round(value * 10000) / 100}%` : '—', copy: task => `${Math.round(task.time.completion * 10000) / 100}%`, parse: parsePercentage, validate: validatePercentage }),
   ];
 }
 
@@ -480,10 +595,19 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       read: (task, ctx) => assignments(task, ctx).map(item => item.resourceId),
       format: (value, _task, ctx) => Array.isArray(value) && value.length
         ? value.map(id => ctx.resourcesById.get(String(id))?.name ?? String(id)).join(', ') : '—',
-      copy: (task, ctx) => assignments(task, ctx).map(item => assignmentLabel(item, ctx)).join(', '),
-      parse: text => success(parseTokens(text)),
-      validate: value => Array.isArray(value) && value.every(token => typeof token === 'string') ? success(value) : failure('assignments', value),
-      planWrite: (value, task) => success([{ kind: 'assignment-set', taskId: task.id, value }]),
+      copy: (task, ctx) => {
+        const tokens = assignmentTokens(task, ctx);
+        return tokens.length === 0 ? '' : structuredClipboardText(
+          assignments(task, ctx).map(item => assignmentLabel(item, ctx)).join(', '),
+          ASSIGNMENT_CLIPBOARD_MARKER,
+          tokens,
+        );
+      },
+      parse: parseAssignmentResources,
+      validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignments'),
+      planWrite: (value, task) => success([{
+        kind: 'assignment-set', taskId: task.id, tokens: value as readonly TaskAssignmentToken[],
+      }]),
     }),
     editableColumn({
       id: 'assignment.unitsPerDay', labelKey: 'taskGrid.columns.assignmentUnits', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
@@ -492,9 +616,17 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; unitsPerDay: number };
         return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.unitsPerDay}`;
-      }).join(', ') : '—',
-      copy: (task, ctx) => assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.unitsPerDay}`).join(', '),
-      parse: parseAssignmentUnits, validate: validateAssignmentUnits,
+      }).join('; ') : '—',
+      copy: (task, ctx) => structuredClipboardText(
+        assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.unitsPerDay}`).join('; '),
+        ASSIGNMENT_CLIPBOARD_MARKER,
+        assignmentTokens(task, ctx),
+      ),
+      parse: parseAssignmentUnits,
+      validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignmentUnits'),
+      planWrite: (value, task) => success([{
+        kind: 'assignment-set', taskId: task.id, tokens: value as readonly TaskAssignmentToken[],
+      }]),
     }),
     editableColumn({
       id: 'assignment.curve', labelKey: 'taskGrid.columns.assignmentCurve', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
@@ -503,10 +635,17 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; curve: ResourceCurve };
         return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.curve}`;
-      }).join(', ') : '—',
-      copy: (task, ctx) => assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.curve ?? 'UNIFORM'}`).join(', '),
+      }).join('; ') : '—',
+      copy: (task, ctx) => structuredClipboardText(
+        assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.curve ?? 'UNIFORM'}`).join('; '),
+        ASSIGNMENT_CLIPBOARD_MARKER,
+        assignmentTokens(task, ctx),
+      ),
       parse: parseAssignmentCurves,
-      validate: validateAssignmentCurves,
+      validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignmentCurve'),
+      planWrite: (value, task) => success([{
+        kind: 'assignment-set', taskId: task.id, tokens: value as readonly TaskAssignmentToken[],
+      }]),
     }),
     readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: value => compactArraySummary((value as unknown[]).filter(item => (item as { value?: string }).value), 'werkvenster'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
     readonlyColumn({ id: 'assignment.workWindowFinish', labelKey: 'taskGrid.columns.workWindowFinish', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowFinish })), format: value => compactArraySummary((value as unknown[]).filter(item => (item as { value?: string }).value), 'werkvenster'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowFinish: item.workWindowFinish }))) }),
@@ -525,6 +664,8 @@ function activityCodeColumns(input: TaskColumnRegistryInput): TaskColumnDescript
       category: 'custom',
       valueKind: 'enum',
       editorKind: 'autocomplete',
+      route: 'activity-code',
+      available: ctx => ctx.projectId === input.projectId,
       read: task => task.activityCodes?.[type.id],
       format: value => {
         if (value === undefined) return '—';
@@ -533,14 +674,30 @@ function activityCodeColumns(input: TaskColumnRegistryInput): TaskColumnDescript
       },
       copy: task => {
         const valueId = task.activityCodes?.[type.id];
-        return valueId === undefined ? '' : type.values.find(value => value.id === valueId)?.code ?? valueId;
+        if (valueId === undefined) return '';
+        const visible = type.values.find(value => value.id === valueId)?.code ?? valueId;
+        return structuredClipboardText(visible, ACTIVITY_CODE_CLIPBOARD_MARKER, valueId);
       },
-      parse: parseOptionalText,
+      parse: text => {
+        const structured = structuredClipboardPayload(text, ACTIVITY_CODE_CLIPBOARD_MARKER);
+        if (!structured.ok) return structured;
+        if (structured.value !== undefined) {
+          return typeof structured.value === 'string'
+            ? success(structured.value)
+            : failure('activityCode', structured.value);
+        }
+        return success(text.trim() === '' ? undefined : text);
+      },
       validate: value => {
         if (value === undefined) return success(undefined);
         if (typeof value !== 'string') return failure('activityCode', value);
-        const match = type.values.find(candidate => candidate.id === value || candidate.code === value);
-        return match ? success(match.id) : failure('activityCode', value);
+        const exactId = type.values.find(candidate => candidate.id === value);
+        if (exactId) return success(exactId.id);
+        const matches = type.values.filter(candidate => candidate.code === value);
+        if (matches.length === 1) return success(matches[0].id);
+        return matches.length > 1
+          ? failure('activityCodeAmbiguous', value)
+          : failure('activityCode', value);
       },
     });
   });
@@ -582,6 +739,8 @@ function customFieldColumns(input: TaskColumnRegistryInput): TaskColumnDescripto
     category: 'custom',
     valueKind: customValueKind(def),
     editorKind: customEditorKind(def),
+    route: 'custom-field',
+    available: ctx => ctx.projectId === input.projectId,
     read: task => task.customFields?.[def.id],
     parse: customFieldParser(def),
     validate: customFieldValidator(def),
@@ -656,6 +815,7 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
           return snapshot ? baselineValue(fieldName, snapshot, task, ctx) : BASELINE_MISSING;
         },
         format: value => value === BASELINE_MISSING ? '—' : formatScalar(value),
+        tooltip: value => value === BASELINE_MISSING ? 'Niet aanwezig in deze baseline' : null,
         copy: (task, ctx) => {
           const snapshot = taskIndex.get(task.id);
           return snapshot ? copyScalar(baselineValue(fieldName, snapshot, task, ctx)) : '';
