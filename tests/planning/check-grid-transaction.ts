@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAppStore, useAppStore, type AppState } from '@/state/appStore';
 import { commitPreparedGridMutation, prepareGridMutation, runGridMutation, type PreparedGridMutation } from '@/state/gridTransaction';
-import type { CellEditIntent, PasteIntent } from '@/types/taskGrid';
+import type { CellEditIntent, PasteIntent, RelationSetIntent } from '@/types/taskGrid';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -112,7 +112,7 @@ function observed(state: AppState): unknown {
   S().runCPM();
   useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.ui.notifications = []; state.isDirty = false; });
   const before = JSON.stringify(observed(S()));
-  const paste: PasteIntent = { kind: 'paste', edits: [nameEdit(taskId, 'Mag niet landen'), nameEdit('onbekende-taak', 'Fout')] };
+  const paste: PasteIntent = { kind: 'paste', writes: [nameEdit(taskId, 'Mag niet landen'), nameEdit('onbekende-taak', 'Fout')] };
   let publications = 0;
   const unsubscribe = useAppStore.subscribe(() => { publications++; });
   const result = runGridMutation([paste]);
@@ -120,6 +120,23 @@ function observed(state: AppState): unknown {
   eq('Paste met fout in cel twee faalt', result.ok, false);
   eq('Gefaalde paste publiceert niets', publications, 0);
   eq('Gefaalde paste laat alle bewaakte state byte-identiek', JSON.stringify(observed(S())), before);
+}
+
+// Paste mag toekomstige domeinwrites dragen, maar de transactiegrens weigert ze tot hun pure
+// planner bestaat. Een eerdere celwrite uit dezelfde paste mag daarbij nooit lekken.
+{
+  reset();
+  const taskId = S().addTask({ name: 'Relatiegrens' });
+  useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false; });
+  const relation: RelationSetIntent = {
+    kind: 'relation-set', taskId, direction: 'predecessor', value: ['1.2 FS+2d'],
+  };
+  const paste: PasteIntent = { kind: 'paste', writes: [nameEdit(taskId, 'Mag niet landen'), relation] };
+  const before = JSON.stringify(observed(S()));
+  const result = runGridMutation([paste]);
+  eq('Paste met nog niet aangesloten relatiewrite faalt', result.ok, false);
+  eq('Relatiewrite benoemt plannerNotAvailable', result.ok ? null : result.errors[0]?.code, 'plannerNotAvailable');
+  eq('Relatiewrite laat eerdere celwrite en alle state onaangeraakt', JSON.stringify(observed(S())), before);
 }
 
 // Dezelfde bronmutatie met exact dezelfde waarde dedupliceert tot één wijziging.

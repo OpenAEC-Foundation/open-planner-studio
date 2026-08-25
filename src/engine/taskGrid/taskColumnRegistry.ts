@@ -5,8 +5,8 @@ import type { ConstraintType, MilestoneKind, Task, TaskStatus, TaskType } from '
 import type {
   CellValidationError,
   CellEditRoute,
-  GridIntent,
   GridResult,
+  GridWriteIntent,
   TaskAssignmentToken,
   TaskColumnCategory,
   TaskColumnContext,
@@ -131,7 +131,7 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
   const id = typeof config.id === 'string' ? taskColumnId(config.id) : config.id;
   const format = config.format ?? ((value: unknown) => formatScalar(value));
   const copy = config.copy ?? ((task: Task, ctx: TaskColumnContext) => copyScalar(config.read(task, ctx)));
-  const rawPlanWrite: Writer = config.planWrite ?? ((value, task) => success<readonly GridIntent[]>([{
+  const rawPlanWrite: Writer = config.planWrite ?? ((value, task) => success<readonly GridWriteIntent[]>([{
     kind: 'cell-edit', taskId: task.id, columnId: id, route: config.route ?? 'task-field', value,
   }]));
   const planWrite: Writer = (value, task, ctx) => config.readOnly?.(task, ctx)
@@ -247,7 +247,10 @@ const parseTaskDuration: Parser = (text, task, ctx) => {
   if (text.trim() === '') return success(undefined);
   const hoursPerDay = effectiveHoursPerDay(task, ctx);
   const minutes = parseDurationMinutes(text, hoursPerDay);
-  return minutes === null ? failure('duration', text) : success(minutes / (hoursPerDay * 60));
+  // De editor-/pastegrens draagt minuten. Task 12's bewaakte duurplanner houdt daaruit de
+  // opgeslagen dag- en minutenvelden samen consistent; hier al terugdelen zou subdaginformatie
+  // verliezen en van de kolomcontext afhankelijke fractionele dagen doorgeven.
+  return minutes === null ? failure('duration', text) : success(minutes);
 };
 const validateDuration = finiteNumber({ min: 0 });
 const validateOptionalDuration = finiteNumber({ min: 0, optional: true });

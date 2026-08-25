@@ -43,6 +43,7 @@ export interface CellValidationError {
   code: string;
   messageKey: string;
   taskId?: string;
+  rowKey?: string;
   columnId?: TaskColumnId;
   value?: unknown;
 }
@@ -65,11 +66,6 @@ export type CellEditRoute =
   | 'activity-code'
   | 'custom-field';
 
-export interface PasteIntent {
-  kind: 'paste';
-  edits: readonly CellEditIntent[];
-}
-
 export interface RelationSetIntent {
   kind: 'relation-set';
   taskId: string;
@@ -90,7 +86,15 @@ export interface TaskAssignmentToken {
   curve?: ResourceCurve;
 }
 
-export type GridIntent = CellEditIntent | PasteIntent | RelationSetIntent | AssignmentSetIntent;
+/** Eén al geparseerde domeinwrite. Paste groepeert deze writes, maar mag zichzelf niet nesten. */
+export type GridWriteIntent = CellEditIntent | RelationSetIntent | AssignmentSetIntent;
+
+export interface PasteIntent {
+  kind: 'paste';
+  writes: readonly GridWriteIntent[];
+}
+
+export type GridIntent = GridWriteIntent | PasteIntent;
 
 export interface TaskColumnContext {
   projectId: string;
@@ -122,6 +126,6 @@ export interface TaskColumnDescriptor {
   tooltip?: (value: unknown, task: Task, ctx: TaskColumnContext) => string | null;
   parse?: (text: string, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
   validate?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
-  planWrite?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<readonly GridIntent[], readonly CellValidationError[]>;
+  planWrite?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<readonly GridWriteIntent[], readonly CellValidationError[]>;
   autoFitText(task: Task, ctx: TaskColumnContext): string;
 }

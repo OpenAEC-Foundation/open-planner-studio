@@ -12,6 +12,7 @@ import type {
   CellValidationError,
   GridIntent,
   GridResult,
+  GridWriteIntent,
   TaskColumnContext,
   TaskColumnDescriptor,
 } from '@/types/taskGrid';
@@ -69,21 +70,13 @@ function validationError(
   };
 }
 
-function flattenIntents(intents: readonly GridIntent[]): CellEditIntent[] | CellValidationError[] {
-  const edits: CellEditIntent[] = [];
-  const errors: CellValidationError[] = [];
+function flattenIntents(intents: readonly GridIntent[]): GridWriteIntent[] {
+  const writes: GridWriteIntent[] = [];
   for (const intent of intents) {
-    if (intent.kind === 'cell-edit') edits.push(intent);
-    else if (intent.kind === 'paste') edits.push(...intent.edits);
-    else errors.push(validationError('plannerNotAvailable', { taskId: intent.taskId }, intent));
+    if (intent.kind === 'paste') writes.push(...intent.writes);
+    else writes.push(intent);
   }
-  return errors.length > 0 ? errors : edits;
-}
-
-function isValidationErrors(
-  value: CellEditIntent[] | CellValidationError[],
-): value is CellValidationError[] {
-  return value.length > 0 && !('kind' in value[0]);
+  return writes;
 }
 
 interface GridColumnRuntime {
@@ -186,8 +179,14 @@ export function prepareGridMutation(
   intents: readonly GridIntent[],
 ): GridResult<PreparedGridMutation, readonly CellValidationError[]> {
   const flattened = flattenIntents(intents);
-  if (isValidationErrors(flattened)) return { ok: false, errors: flattened };
-  const normalized = normalizeEdits(flattened);
+  const unavailable = flattened.find(intent => intent.kind !== 'cell-edit');
+  if (unavailable) {
+    return {
+      ok: false,
+      errors: [validationError('plannerNotAvailable', { taskId: unavailable.taskId }, unavailable)],
+    };
+  }
+  const normalized = normalizeEdits(flattened as CellEditIntent[]);
   if (!normalized.ok) return normalized;
 
   const runtime = buildGridColumnRuntime(state);

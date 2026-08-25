@@ -76,6 +76,17 @@ eq('24 lagMinutes 90, ELAPSEDTIME ⇒ "+1.5eu"', formatLagShort({ lagDays: 0, la
 eq('25 lagMinutes 0 (expliciet) ⇒ valt terug op lagDays-vorm', formatLagShort({ lagDays: 0, lagUnit: undefined, lagPercent: undefined, lagMinutes: 0 }), '');
 eq('26 lagMinutes 0 + lagDays 4 ⇒ "+4d" (0-minuten telt niet als "gezet" voor de weergave)', formatLagShort({ lagDays: 4, lagUnit: undefined, lagPercent: undefined, lagMinutes: 0 }), '+4d');
 
+// De latere relationele clipboardformatter bouwt op deze bestaande centrale korte vorm. Pin daarom
+// nu al de directe format→parse-roundtrip, inclusief lead, procent en elapsed-uren.
+for (const [label, fields] of [
+  ['dag-lag', { lagDays: 2, lagUnit: undefined, lagPercent: undefined, lagMinutes: undefined }],
+  ['negatieve lead', { lagDays: -1, lagUnit: undefined, lagPercent: undefined, lagMinutes: undefined }],
+  ['elapsed procent', { lagDays: 0, lagUnit: 'ELAPSEDTIME' as const, lagPercent: -25, lagMinutes: undefined }],
+  ['elapsed uur', { lagDays: 0, lagUnit: 'ELAPSEDTIME' as const, lagPercent: undefined, lagMinutes: 90 }],
+] as const) {
+  eq(`26 clipboard-roundtrip ${label}`, parseLagInput(formatLagShort(fields)), fields);
+}
+
 // ── Round-trip: format(parse(s)) genormaliseerd, en parse(format(seq)) == seq voor elk veld. ──
 for (const s of ['2d', '-1d', '3ed', '50%', '-25e%', '2u', '-1u', '3eu', '1.5u']) {
   const parsed = parseLagInput(s)!;
