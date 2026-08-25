@@ -276,8 +276,9 @@ function normalizeLayout(v: unknown): Layout | null {
 
 function normalizeLayouts(raw: unknown): Layout[] | null {
   if (!Array.isArray(raw)) return null;
-  const layouts = raw.map(normalizeLayout);
-  return layouts.every((layout): layout is Layout => layout !== null) ? layouts : null;
+  // Eén kapotte legacy-layout mag zijn geldige buren niet verbergen. Dit bewaart het oude
+  // item-voor-item parsegedrag, terwijl iedere overlevende layout wel volledig wordt genormaliseerd.
+  return raw.map(normalizeLayout).filter((layout): layout is Layout => layout !== null);
 }
 
 export async function loadLayouts(): Promise<Layout[]> {

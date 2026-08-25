@@ -15,6 +15,12 @@ import {
   resolveLayoutColumnsForProject,
 } from '@/engine/taskGrid/preferences';
 import { saveTaskGridPreferences } from '@/utils/settingsStore';
+import type { ColumnConfig } from '@/types/view';
+
+export interface PendingLegacyTaskGridColumns {
+  projectId: string;
+  columns: readonly ColumnConfig[];
+}
 
 export interface TaskGridSlice {
   /** App-globaal en gebruikersgebonden; nooit onderdeel van een documentpayload. */
@@ -26,6 +32,9 @@ export interface TaskGridSlice {
   setTaskGridScrollX: (surface: TaskGridSurfaceId, scrollX: number) => void;
   recordRecentTaskColumn: (id: TaskColumnId) => void;
   applyTaskGridLayoutColumns: (columns: readonly TaskGridColumnPreference[]) => void;
+  /** Tijdelijke, store-lokale migratiebron. Staat bewust niet als dataveld in AppState. */
+  stageLegacyTaskGridColumns: (projectId: string, columns: readonly ColumnConfig[] | undefined) => void;
+  peekPendingLegacyTaskGridColumns: () => PendingLegacyTaskGridColumns | null;
 }
 
 function payloadFromState(state: Pick<TaskGridSlice, 'taskGridSurfaces' | 'recentTaskColumns'>): PersistedTaskGridPreferencesV1 {
@@ -49,62 +58,92 @@ const initial = createDefaultTaskGridPreferences({
   projectId: '', activityCodeTypeIds: [], customFieldDefIds: [],
 });
 
-export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => ({
-  taskGridSurfaces: initial.surfaces,
-  recentTaskColumns: initial.recent,
+export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
+  // Per store-instantie, buiten de serialiseerbare Zustand-state. `hydratePayload` kan hierdoor de
+  // oude actieve `view.columns` veilig weg-normaliseren zonder de eenmalige migratiebron te verliezen.
+  // Na een expliciete nieuwe voorkeur of een bootstrap-hydrate is de bron definitief irrelevant.
+  let preferencesReady = false;
+  let pendingLegacyColumns: PendingLegacyTaskGridColumns | null = null;
 
-  hydrateTaskGridPreferences: (preferences) => {
-    const normalized = cloneTaskGridPreferences(preferences);
-    set((state) => {
-      state.taskGridSurfaces = normalized.surfaces;
-      state.recentTaskColumns = normalized.recent;
-      // Een oude actieve documentpayload kan deze key runtime nog dragen. De migratie heeft hem
-      // vóór deze call gelezen; vanaf hier mag hij niet opnieuw door capturePayload meereizen.
-      delete (state.view as typeof state.view & { columns?: unknown }).columns;
-    });
-  },
+  const markPreferencesReady = () => {
+    preferencesReady = true;
+    pendingLegacyColumns = null;
+  };
 
-  setTaskGridColumns: (surface, columns) => {
-    const normalized = normalizeTaskGridColumnPreferences(columns);
-    if (normalized === null) return;
-    let persisted: PersistedTaskGridPreferencesV1 | null = null;
-    set((state) => {
-      state.taskGridSurfaces[surface].columns = normalized;
-      persisted = payloadFromState(state);
-    });
-    if (persisted) void saveTaskGridPreferences(persisted);
-  },
+  return {
+    taskGridSurfaces: initial.surfaces,
+    recentTaskColumns: initial.recent,
 
-  setTaskGridScrollX: (surface, scrollX) => {
-    const normalized = normalizeTaskGridScrollX(scrollX);
-    if (normalized === null) return;
-    let persisted: PersistedTaskGridPreferencesV1 | null = null;
-    set((state) => {
-      state.taskGridSurfaces[surface].scrollX = normalized;
-      persisted = payloadFromState(state);
-    });
-    if (persisted) void saveTaskGridPreferences(persisted);
-  },
+    hydrateTaskGridPreferences: (preferences) => {
+      const normalized = cloneTaskGridPreferences(preferences);
+      markPreferencesReady();
+      set((state) => {
+        state.taskGridSurfaces = normalized.surfaces;
+        state.recentTaskColumns = normalized.recent;
+        // Een oude actieve documentpayload kan deze key runtime nog dragen. De migratie heeft hem
+        // vóór deze call gelezen; vanaf hier mag hij niet opnieuw door capturePayload meereizen.
+        delete (state.view as typeof state.view & { columns?: unknown }).columns;
+      });
+    },
 
-  recordRecentTaskColumn: (id) => {
-    let persisted: PersistedTaskGridPreferencesV1 | null = null;
-    set((state) => {
-      state.recentTaskColumns = recordRecentTaskColumnId(state.recentTaskColumns, id);
-      persisted = payloadFromState(state);
-    });
-    if (persisted) void saveTaskGridPreferences(persisted);
-  },
+    setTaskGridColumns: (surface, columns) => {
+      const normalized = normalizeTaskGridColumnPreferences(columns);
+      if (normalized === null) return;
+      markPreferencesReady();
+      let persisted: PersistedTaskGridPreferencesV1 | null = null;
+      set((state) => {
+        state.taskGridSurfaces[surface].columns = normalized;
+        persisted = payloadFromState(state);
+      });
+      if (persisted) void saveTaskGridPreferences(persisted);
+    },
 
-  applyTaskGridLayoutColumns: (columns) => {
-    const state = get();
-    const surface: TaskGridSurfaceId = state.ui.activeRibbonTab === 'table'
-      ? 'full-task-grid'
-      : 'gantt-task-grid';
-    const resolved = resolveLayoutColumnsForProject(columns, {
-      projectId: state.project.id,
-      activityCodeTypeIds: state.activityCodeTypes.map(type => type.id),
-      customFieldDefIds: state.customFieldDefs.map(def => def.id),
-    });
-    state.setTaskGridColumns(surface, resolved);
-  },
-});
+    setTaskGridScrollX: (surface, scrollX) => {
+      const normalized = normalizeTaskGridScrollX(scrollX);
+      if (normalized === null) return;
+      markPreferencesReady();
+      let persisted: PersistedTaskGridPreferencesV1 | null = null;
+      set((state) => {
+        state.taskGridSurfaces[surface].scrollX = normalized;
+        persisted = payloadFromState(state);
+      });
+      if (persisted) void saveTaskGridPreferences(persisted);
+    },
+
+    recordRecentTaskColumn: (id) => {
+      markPreferencesReady();
+      let persisted: PersistedTaskGridPreferencesV1 | null = null;
+      set((state) => {
+        state.recentTaskColumns = recordRecentTaskColumnId(state.recentTaskColumns, id);
+        persisted = payloadFromState(state);
+      });
+      if (persisted) void saveTaskGridPreferences(persisted);
+    },
+
+    applyTaskGridLayoutColumns: (columns) => {
+      const state = get();
+      const surface: TaskGridSurfaceId = state.ui.activeRibbonTab === 'table'
+        ? 'full-task-grid'
+        : 'gantt-task-grid';
+      const resolved = resolveLayoutColumnsForProject(columns, {
+        projectId: state.project.id,
+        activityCodeTypeIds: state.activityCodeTypes.map(type => type.id),
+        customFieldDefIds: state.customFieldDefs.map(def => def.id),
+      });
+      state.setTaskGridColumns(surface, resolved);
+    },
+
+    stageLegacyTaskGridColumns: (projectId, columns) => {
+      if (preferencesReady) return;
+      pendingLegacyColumns = columns === undefined ? null : { projectId, columns };
+    },
+
+    peekPendingLegacyTaskGridColumns: () => pendingLegacyColumns && ({
+      projectId: pendingLegacyColumns.projectId,
+      columns: pendingLegacyColumns.columns.map(column => ({
+        ...column,
+        field: { ...column.field },
+      })),
+    }),
+  };
+};

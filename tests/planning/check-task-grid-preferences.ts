@@ -1,5 +1,5 @@
 import { createAppStore } from '@/state/appStore';
-import { normalizeView } from '@/state/documentContract';
+import { capturePayload, hydratePayload, normalizeView } from '@/state/documentContract';
 import type { ColumnConfig, Layout, ViewState } from '@/types/view';
 import type { PersistedTaskGridPreferencesV1, TaskGridColumnPreference } from '@/types/taskGrid';
 import {
@@ -17,6 +17,7 @@ import {
   loadLayouts,
   loadTaskGridPreferences,
   saveLayouts,
+  saveTaskGridPreferences,
 } from '@/utils/settingsStore';
 import { activityCodeColumnId, customFieldColumnId, taskColumnId } from '@/engine/taskGrid/fieldIds';
 
@@ -161,6 +162,35 @@ const cleanView = normalizeView(legacyView);
 ok('normalizeView verwijdert het oude documentveld columns', !('columns' in cleanView));
 ok('normalizeView-migratie is idempotent', !('columns' in normalizeView(cleanView)));
 
+// Echte hydrateketen: de documentnormalisatie mag `view.columns` wissen, maar alleen nadat de
+// store-lokale migratiebron veilig is vastgelegd voor de ontbrekende gebruikerssleutel.
+const migrationStore = createAppStore();
+const migrationPayload = capturePayload(migrationStore.getState());
+migrationPayload.project = { ...migrationPayload.project, id: 'project:1' };
+(migrationPayload.view as ViewState & { columns?: ColumnConfig[] }).columns = legacyDocumentColumns;
+migrationStore.setState(state => hydratePayload(state, migrationPayload));
+ok('Hydrate verwijdert oude columns uit het documentmodel',
+  !('columns' in migrationStore.getState().view));
+const stagedLegacy = migrationStore.getState().peekPendingLegacyTaskGridColumns();
+eq('Hydrate bewaart de oude actieve kolommen buiten het documentcontract voor bootstrap',
+  stagedLegacy, { projectId: 'project:1', columns: legacyDocumentColumns });
+eq('Een tweede store erft de tijdelijke migratiebron niet',
+  createAppStore().getState().peekPendingLegacyTaskGridColumns(), null);
+
+storage.clear();
+const migratedFallback = createDefaultTaskGridPreferences({
+  projectId: 'project:1', activityCodeTypeIds: [], customFieldDefIds: [],
+});
+migratedFallback.surfaces['full-task-grid'].columns =
+  legacyDocumentColumnsToTaskGridPreferences(stagedLegacy!.columns, stagedLegacy!.projectId);
+await saveTaskGridPreferences(migratedFallback);
+migrationStore.getState().hydrateTaskGridPreferences(migratedFallback);
+eq('Na geslaagde persist+hydrate staat de oude indeling in de gebruikersvoorkeur',
+  migrationStore.getState().taskGridSurfaces['full-task-grid'].columns.map(column => column.id),
+  ['task.name', activityCodeColumnId('project:1', 'fase:1')]);
+eq('Pas hydrate ruimt de tijdelijke legacybron op',
+  migrationStore.getState().peekPendingLegacyTaskGridColumns(), null);
+
 storage.setItem('ops-taskGridPreferences', '{kapot');
 const corruptRaw = storage.getItem('ops-taskGridPreferences');
 const corruptLoad = await loadTaskGridPreferences(defaults);
@@ -226,9 +256,14 @@ storage.clear();
 const oldLayouts: unknown[] = [{
   id: 'legacy-layout', name: 'Oud', columns: legacyDocumentColumns,
   group: [], sort: [], filter: null, timeScale: 'week',
+}, {
+  id: 'kapot', name: 'Kapot', columns: 'geen-array',
+  group: [], sort: [], filter: null, timeScale: 'week',
 }];
 storage.setItem('ops-layouts', JSON.stringify(oldLayouts));
 const migratedLayouts = await loadLayouts();
+eq('Eén kapotte oude layout verbergt zijn geldige buren niet',
+  migratedLayouts.map(layout => layout.id), ['legacy-layout']);
 eq('Oude globale layout wordt lazy met opaque dynamiek gelezen', migratedLayouts[0]?.columns.map(column => column.id),
   ['task.name', 'legacy-activity-code:fase%3A1']);
 const oldLayoutRaw = storage.getItem('ops-layouts');

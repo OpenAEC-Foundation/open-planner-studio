@@ -9,7 +9,7 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
 import type { ImportResult } from '@/services/importTypes';
-import type { ViewState } from './slices/types';
+import type { ColumnConfig, ViewState } from './slices/types';
 import type { Snapshot } from './snapshot';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
@@ -326,6 +326,11 @@ export function capturePayload(s: AppState): DocumentPayload {
  *  lijst bepaalt welke velden gezet worden — capture en hydrate kunnen niet meer divergeren. */
 export function hydratePayload(s: AppState, p: DocumentPayload): void {
   const raw = p as unknown as Record<string, unknown>;
+  // Vang de oude actieve documentkolommen vóór `normalizeView` ze uit het documentcontract
+  // verwijdert. De TaskGridSlice bewaart deze bron tijdelijk per store-instantie, buiten AppState;
+  // bootstrap gebruikt hem alleen wanneer de nieuwe gebruikerssleutel werkelijk ontbreekt.
+  s.stageLegacyTaskGridColumns(p.project.id,
+    (p.view as ViewState & { columns?: ColumnConfig[] }).columns);
   for (const f of DOCUMENT_FIELDS) {
     writeField(f, s, f.fromPayload ? f.fromPayload(p) : raw[f.key]);
   }

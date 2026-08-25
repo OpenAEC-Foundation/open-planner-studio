@@ -50,24 +50,31 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     // `columns` is uit ViewState verwijderd, maar kan runtime nog in een oude actieve payload
     // staan. Alleen bij een werkelijk ontbrekende nieuwe key mag die bron de full-griddefault
     // vervangen; corrupte/nieuwe onbekende data wordt nooit stil overschreven.
-    const legacyColumns = (current.view as typeof current.view & {
+    const directLegacyColumns = (current.view as typeof current.view & {
       columns?: ColumnConfig[];
     }).columns;
-    void loadTaskGridSettings(defaults).then(result => {
+    const stagedLegacy = current.peekPendingLegacyTaskGridColumns();
+    const legacySource = directLegacyColumns !== undefined
+      ? { projectId: current.project.id, columns: directLegacyColumns }
+      : stagedLegacy;
+    void loadTaskGridSettings(defaults).then(async result => {
       if (result.status === 'valid') {
         useAppStore.getState().hydrateTaskGridPreferences(result.value);
         return;
       }
       const fallback = cloneTaskGridPreferences(defaults);
       if (result.status === 'missing') {
-        if (legacyColumns !== undefined) {
+        if (legacySource) {
           fallback.surfaces['full-task-grid'].columns =
-            legacyDocumentColumnsToTaskGridPreferences(legacyColumns, current.project.id);
+            legacyDocumentColumnsToTaskGridPreferences(legacySource.columns, legacySource.projectId);
         }
-        // De eenmalige migratie wordt pas geplaatst nadat de volledige payload is opgebouwd.
-        void saveTaskGridPreferences(fallback);
+        // Eerst de volledige geldige payload plaatsen; pas de hydrate hieronder ruimt de tijdelijke
+        // migratiebron op. Een sync localStorage-fout kan de oude bron zo niet voortijdig wissen.
+        await saveTaskGridPreferences(fallback);
       }
       useAppStore.getState().hydrateTaskGridPreferences(fallback);
+    }).catch(error => {
+      console.error('Taakgridvoorkeuren konden niet worden geïnitialiseerd:', error);
     });
   }, [recoveryResolved, recovery]);
 
