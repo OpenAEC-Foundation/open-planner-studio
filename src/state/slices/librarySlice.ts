@@ -8,6 +8,8 @@ import { beginUndoable, finishMutation, markScheduleStale } from '../transaction
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
 import { invalidateUndoneHistoryForScopes, type HistoryScopeKey } from '../sessionHistory';
+import { capturePayload, hydratePayload } from '../documentContract';
+import { materializeLibraryBoundary } from '../documentActivation';
 
 function invalidateDocumentRedo(
   state: { historyEvents: import('../sessionHistory').SessionHistoryEvent[] },
@@ -129,7 +131,8 @@ export interface LibrarySlice {
   /** Serialiseer de pool van een bedrijf naar een IFC-string (voor export/backup, spec §4). */
   exportPoolIFC: (companyId: string) => string | null;
   /** Vervang de HELE pool van een bedrijf door een geïmporteerde pool ná bevestiging (spec §4).
-   *  De demping-waarschuwing zit in de UI (via `isPoolNewer`); deze actie vervangt onvoorwaardelijk. */
+   *  De demping-waarschuwing zit in de UI (via `isPoolNewer`). Pool en open-boundary van het
+   *  actieve document worden samen gepubliceerd, zodat nooit een halve import zichtbaar is. */
   replacePool: (companyId: string, pool: import('@/types/library').CompanyPool) => void;
   /**
    * Importeer een geïmporteerde pool als NIEUW bedrijf (issue #19: "een bibliotheek importeren"
@@ -167,10 +170,6 @@ export interface LibrarySlice {
    *  ZONDER isDirty. Niet-undoable (wist botsende redo-history). Retourneert het totaal aantal gewijzigde items. */
   refreshAllDocumentsFromPool: (companyId: string) => number;
 
-  /** Grens 1/4 (spec §3): ná volledige hydratatie van het actieve document — ververs 'behind'-items
-   *  stil, en open bij ≥1 'deviated'-item het koppel-/afwijkingenscherm. Retourneert de tellingen
-   *  (voor het discrete signaal + tests). Plan-eis 4: roep dit ná de hydratatie aan, nooit ertijdens. */
-  runOpenBoundary: () => { refreshed: number; deviated: number; removed: number };
 
   /** Openings-status van één projectitem t.o.v. zijn eigen-bedrijf-pool (spec §2-scope): drijft de
    *  markeringen in de Projectweergave ("wijkt af — beslis" / "niet meer in het bedrijf"). Geen
@@ -305,7 +304,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
   removeCompany: (id) => {
     // Bevinding 4 (eindreview): als het verwijderde bedrijf het bedrijf van het ACTIEVE project was,
     // hoort bij de ontkoppeling ook het afwijkingenscherm/-signaal te resetten (patroon
-    // runOpenBoundary/newDocument/closeDocument hierboven) — anders blijft een stale dialoog/melding
+    // activatie/newDocument/closeDocument hierboven) — anders blijft een stale dialoog/melding
     // van het net-verwijderde bedrijf staan. Vastleggen vóór de mutatie: de "laatste bedrijf blijft"
     // no-op-tak hieronder mag deze reset niet triggeren als er niets daadwerkelijk verwijderd is.
     const wasActiveCompany = get().companies.length > 1 && get().project.companyId === id;
@@ -715,50 +714,78 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
   },
 
   replacePool: (companyId, pool) => {
+    const state = get();
+    const company = state.companies.find(c => c.id === companyId);
+    if (!company) return;
+    // De geïmporteerde pool krijgt het DOEL-companyId (import in een gekozen bedrijf, spec §4).
+    // Eerst normaliseren (fix critreview taak 10): een vorm-invalide pool — bijv. een hand-gemaakt
+    // of door een derde tool geproduceerd OPS_Library-bestand zonder resources/calendars — mag na
+    // import nooit een TypeError geven op een latere `.push`/`.find` (promote, addLibrary*ToProject).
+    const normalized = {
+      ...normalizePool(companyId, pool, state.companies),
+      companyName: company.name,
+    };
+    const pools = { ...state.pools, [companyId]: normalized };
+    const activation = materializeLibraryBoundary({
+      payload: capturePayload(state),
+      companies: state.companies,
+      pools,
+      mode: 'open-boundary',
+    });
     set((s) => {
-      if (!s.companies.some(c => c.id === companyId)) return;
-      // De geïmporteerde pool krijgt het DOEL-companyId (import in een gekozen bedrijf, spec §4).
-      // Eerst normaliseren (fix critreview taak 10): een vorm-invalide pool — bijv. een hand-gemaakt
-      // of door een derde tool geproduceerd OPS_Library-bestand zonder resources/calendars — mag na
-      // import nooit een TypeError geven op een latere `.push`/`.find` (promote, addLibrary*ToProject).
-      const company = s.companies.find(c => c.id === companyId)!;
-      const normalized = normalizePool(companyId, pool, s.companies);
-      s.pools[companyId] = { ...normalized, companyName: company.name };
+      s.pools[companyId] = normalized;
+      hydratePayload(s, activation.payload);
+      s.viewRows = [...activation.viewRows];
+      s.resourceLoadResult = activation.resourceLoadResult;
+      s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
+      s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
+      if (activation.invalidateRedoScope) invalidateDocumentRedo(s, s.activeDocumentId);
     });
     persist(get);
-    // Bewust GEEN refreshAllDocumentsFromPool hier — pool-import volgt het grens-1-gedrag mét
-    // afwijkingsvraag (taak 13).
   },
 
   importPoolAsNewCompany: (pool) => {
-    let newId = '';
+    const state = get();
+    const name = resolveUniqueCompanyName(pool.companyName ?? '', state.companies.map((c) => c.name));
+    // Behoud het companyId uit het bestand ALLEEN als het (a) lokaal nog vrij is, (b) GEEN reserved
+    // id is (critreview F1 — DEFAULT_COMPANY_ID/DEMO_COMPANY_ID zijn géén identiteitsbewijs, vrijwel
+    // elke installatie deelt ze) en (c) een veilige state-sleutel is (critreview F2 — een vijandig
+    // bestand-id als "__proto__" mag nooit als Immer-draft-sleutel eindigen). Anders een vers id,
+    // net als bij een naamsbotsing (zie de uitgebreide toelichting bij de interface hierboven).
+    const fileId = pool.companyId;
+    const canKeepFileId = !!fileId
+      && isSafeFileCompanyId(fileId)
+      && !isReservedCompanyId(fileId)
+      && !state.companies.some((c) => c.id === fileId);
+    const id = canKeepFileId ? fileId : generateId('company');
+    const company: Company = { id, name };
+    const companies = [...state.companies, company];
+    // Zelfde defensieve normalisatie als replacePool (vorm-invalide bestand ⇒ geen TypeError op
+    // een latere .push/.find in promote/add-acties); companyName wordt daarna overschreven met de
+    // (mogelijk gededupliceerde) `name` — normalizePoolShape zou anders het RUWE pool.companyName
+    // laten staan.
+    const normalized = { ...normalizePoolShape(id, pool, companies), companyName: name };
+    const pools = { ...state.pools, [id]: normalized };
+    const activation = materializeLibraryBoundary({
+      payload: capturePayload(state),
+      companies,
+      pools,
+      mode: 'open-boundary',
+    });
     set((s) => {
-      const name = resolveUniqueCompanyName(pool.companyName ?? '', s.companies.map((c) => c.name));
-      // Behoud het companyId uit het bestand ALLEEN als het (a) lokaal nog vrij is, (b) GEEN reserved
-      // id is (critreview F1 — DEFAULT_COMPANY_ID/DEMO_COMPANY_ID zijn géén identiteitsbewijs, vrijwel
-      // elke installatie deelt ze) en (c) een veilige state-sleutel is (critreview F2 — een vijandig
-      // bestand-id als "__proto__" mag nooit als Immer-draft-sleutel eindigen). Anders een vers id,
-      // net als bij een naamsbotsing (zie de uitgebreide toelichting bij de interface hierboven).
-      const fileId = pool.companyId;
-      const canKeepFileId = !!fileId
-        && isSafeFileCompanyId(fileId)
-        && !isReservedCompanyId(fileId)
-        && !s.companies.some((c) => c.id === fileId);
-      const id = canKeepFileId ? fileId : generateId('company');
-      const company: Company = { id, name };
       s.companies.push(company);
-      // Zelfde defensieve normalisatie als replacePool (vorm-invalide bestand ⇒ geen TypeError op
-      // een latere .push/.find in promote/add-acties); companyName wordt daarna overschreven met de
-      // (mogelijk gededupliceerde) `name` — normalizePoolShape zou anders het RUWE pool.companyName
-      // laten staan.
-      const normalized = normalizePoolShape(id, pool, s.companies);
-      s.pools[id] = { ...normalized, companyName: name };
-      newId = id;
+      s.pools[id] = normalized;
+      hydratePayload(s, activation.payload);
+      s.viewRows = [...activation.viewRows];
+      s.resourceLoadResult = activation.resourceLoadResult;
+      s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
+      s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
+      if (activation.invalidateRedoScope) invalidateDocumentRedo(s, s.activeDocumentId);
     });
     persist(get);
-    // Bewust GEEN bindProjectToCompany/runOpenBoundary hier — een nieuw-geïmporteerde bibliotheek
-    // koppelt het actieve project niet automatisch (aparte, bewuste gebruikershandeling, issue #19).
-    return newId;
+    // De actie koppelt het actieve project niet automatisch. Alleen een al in het bestand aanwezige
+    // binding met hetzelfde, behouden companyId kan hierdoor meteen zijn open-boundary doorlopen.
+    return id;
   },
 
   isLocalPoolNewer: (companyId, imported) => {
@@ -766,56 +793,22 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
   },
 
   refreshBehindItems: (companyId) => {
-    let changed = 0;
-    set((s) => {
-      // §2-scope: alleen het eigen-bedrijf van het actieve document, en alleen als het lokaal bestaat.
-      if (s.project.companyId !== companyId || !s.companies.some((c) => c.id === companyId)) return;
-      const draftPool = s.pools[companyId];
-      if (!draftPool) return;
-      const pool = current(draftPool);
-
-      // Review-fix (cleanup 2): map naar lokale variabelen + eigen tellers per array, en pas
-      // TOEWIJZEN als er in die array daadwerkelijk iets ververst is. Een onvoorwaardelijke
-      // `s.x = s.x.map(...)` (ook bij 0 treffers) geeft referentie-selectors anders een spurieuze
-      // wijziging, zelfs wanneer er niets te verversen viel.
-      let calChanged = 0;
-      const newCalendars = s.calendars.map((cal) => {
-        if (cal.libraryOrigin?.companyId !== companyId) return cal;
-        if (classifyCalendarOnOpen(current(cal), pool) !== 'behind') return cal; // deviated/removed/in-sync ⇒ ongemoeid
-        calChanged++;
-        return applyCalendarUpdate(current(cal), pool);
-      });
-      if (calChanged > 0) s.calendars = newCalendars;
-
-      let resChanged = 0;
-      const newResources = s.resources.map((res) => {
-        if (res.libraryOrigin?.companyId !== companyId) return res;
-        if (classifyResourceOnOpen(current(res), pool) !== 'behind') return res;
-        resChanged++;
-        return applyResourceUpdate(current(res), pool);
-      });
-      if (resChanged > 0) s.resources = newResources;
-
-      changed = calChanged + resChanged;
-      if (changed > 0) {
-        // Plan-eis 2: niet-undoable — GEEN beginUndoable, GEEN isDirty. Wél botsende redo-history wissen zodat
-        // "opnieuw" niet stilletjes oude poolwaarden terugzet (spec §3, Ctrl+Z-eigenaardigheid).
-        invalidateDocumentRedo(s, s.activeDocumentId);
-        // Review-fix (cleanup 3): bewust GEEN syncProjectCalendar(s) hier — die helper promoveert bij een
-        // ontbrekende s.project.calendarId-match de huidige s.calendar-cache tot een NIEUWE
-        // bibliotheek-entry (orphan-fallback, §9.1); in deze niet-undoable context willen we die
-        // side-effect niet riskeren, dus herpunten we de denorm-cache handmatig en laten 'm ongewijzigd
-        // als de projectkalender hier niet bij zat.
-        s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
-        // Review-fix (spec §3): kalenderverversing raakt datums ⇒ scheduleStale (geen isDirty, geen runCPM).
-        // Via `markScheduleStale`: in "datums zoals opgeslagen" (issue #63) blijft de vlag uit — zie daar.
-        if (calChanged > 0) markScheduleStale(s);
-      }
+    const state = get();
+    if (state.project.companyId !== companyId) return 0;
+    const activation = materializeLibraryBoundary({
+      payload: capturePayload(state),
+      companies: state.companies,
+      pools: state.pools,
+      mode: 'silent-switch',
     });
-    if (changed > 0) {
-      get().recomputeResourceLoad();
-      get().recomputeViewRows();
-    }
+    const changed = activation.signals.refreshed;
+    if (changed === 0) return 0;
+    set((s) => {
+      hydratePayload(s, activation.payload);
+      s.viewRows = [...activation.viewRows];
+      s.resourceLoadResult = activation.resourceLoadResult;
+      if (activation.invalidateRedoScope) invalidateDocumentRedo(s, s.activeDocumentId);
+    });
     return changed;
   },
 
@@ -915,39 +908,6 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       get().recomputeViewRows();
     }
     return changed;
-  },
-
-  runOpenBoundary: () => {
-    const s0 = get();
-    const companyId = s0.project.companyId;
-    // §2-scope: onbekend/ontbrekend bedrijf ⇒ los-gedrag, geen mechaniek, geen valse labels.
-    // Voorstap taak 14 (critreview taak 12): OOK hier de VOLLEDIGE vlagtoestand vestigen — een
-    // eerder document kan het afwijkingenscherm/signaal hebben laten AANstaan; zonder deze reset
-    // lekt die stale toestand naar een nieuw-geopend, (nog) ongebonden document (openFile-in-nieuw-
-    // document, spec-lek uit de NB).
-    if (!companyId || !s0.companies.some((c) => c.id === companyId) || !s0.pools[companyId]) {
-      get().setUI({ showLibraryLinkDialog: false, libraryRefreshNotice: null });
-      return { refreshed: 0, deviated: 0, removed: 0 };
-    }
-    let deviated = 0; let removed = 0;
-    for (const r of s0.resources) {
-      if (r.libraryOrigin?.companyId !== companyId) continue;
-      const st = classifyResourceOnOpen(r, s0.pools[companyId]);
-      if (st === 'deviated') deviated++; else if (st === 'removed') removed++;
-    }
-    for (const c of s0.calendars) {
-      if (c.libraryOrigin?.companyId !== companyId) continue;
-      const st = classifyCalendarOnOpen(c, s0.pools[companyId]);
-      if (st === 'deviated') deviated++; else if (st === 'removed') removed++;
-    }
-    // 'behind' stil verversen via de primitief uit Taak 5 (behind-only: 'deviated'-items blijven
-    // ongemoeid, wachtend op een gebruikerskeuze). Niet-undoable, wist botsende redo-history, geen isDirty.
-    const refreshed = get().refreshBehindItems(companyId);
-    // Voorstap taak 14 (critreview taak 12): de VOLLEDIGE vlagtoestand in één keer vestigen — ook het
-    // WISSEN als er niets deviated/behind is (was voorheen alleen-AAN-zetten; een stale true/getal van
-    // een vorige boundary-run bleef dan onterecht staan).
-    get().setUI({ showLibraryLinkDialog: deviated > 0, libraryRefreshNotice: refreshed > 0 ? refreshed : null });
-    return { refreshed, deviated, removed };
   },
 
   onOpenStatusForResource: (resourceId) => {

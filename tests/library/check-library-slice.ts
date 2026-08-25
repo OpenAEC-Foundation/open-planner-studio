@@ -8,6 +8,8 @@ import { PoolImportDialog } from '@/components/dialogs/PoolImportDialog';
 import { DEFAULT_COMPANY_ID } from '@/types/library';
 import { DEMO_COMPANY_ID } from '@/services/library/demoLibrary';
 import { createSnapshot } from '@/state/snapshot';
+import { capturePayload, hydratePayload } from '@/state/documentContract';
+import { materializeLibraryBoundary } from '@/state/documentActivation';
 
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
@@ -24,6 +26,27 @@ function seedRedoEvent(): void {
     kind: 'document-data', documentId: state.activeDocumentId, before: snapshot, after: snapshot,
   }]);
   useAppStore.getState().undo();
+}
+
+/** Testadapter voor de pure grens. Productie-activaties materialiseren dit resultaat al vóór hun
+ * ene publicatie; deze adapter houdt de oudere, gerichte bibliotheekscenario's leesbaar. */
+function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; removed: number } {
+  const state = useAppStore.getState();
+  const activation = materializeLibraryBoundary({
+    payload: capturePayload(state),
+    companies: state.companies,
+    pools: state.pools,
+    mode: 'open-boundary',
+  });
+  useAppStore.setState(draft => {
+    hydratePayload(draft, activation.payload);
+    draft.viewRows = [...activation.viewRows];
+    draft.resourceLoadResult = activation.resourceLoadResult;
+    draft.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
+    draft.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
+  });
+  const { refreshed, deviated, removed } = activation.signals;
+  return { refreshed, deviated, removed };
 }
 
 // --- Bedrijven-CRUD + standaardbedrijf ---
@@ -1114,7 +1137,7 @@ function seedRedoEvent(): void {
     const r = st.resources.find(r => r.id === added.resourceId);
     if (r) { r.costPerHour = 2; r.libraryOrigin!.syncedHash = behindHash; }
   });
-  const result = useAppStore.getState().runOpenBoundary();
+  const result = commitOpenBoundaryForTest();
   const copy = useAppStore.getState().resources.find(r => r.id === added.resourceId);
   assert(copy?.costPerHour === 9, 'grens 1 ververst een behind-item stil naar de poolwaarde');
   assert(result.deviated === 0, 'geen deviated-items in dit scenario');
@@ -1146,7 +1169,7 @@ function seedRedoEvent(): void {
     const poolRes = st.pools[cid].resources.find(r => r.id === resId);
     if (poolRes) poolRes.costPerHour = 9;
   });
-  const result = useAppStore.getState().runOpenBoundary();
+  const result = commitOpenBoundaryForTest();
   const copy = useAppStore.getState().resources.find(r => r.id === added.resourceId);
   assert(result.deviated === 1, 'grens 1: het lokaal bewerkte item classificeert als deviated');
   assert(useAppStore.getState().ui.showLibraryLinkDialog === true, 'grens 1: ≥1 deviated ⇒ afwijkingenscherm gaat open');
@@ -1167,7 +1190,7 @@ function seedRedoEvent(): void {
     const pool = st.pools[cid];
     pool.resources = pool.resources.filter(r => r.id !== resId);
   });
-  const result = useAppStore.getState().runOpenBoundary();
+  const result = commitOpenBoundaryForTest();
   assert(result.removed === 1, 'grens 1: een verdwenen poolitem wordt geteld als removed');
   assert(result.deviated === 0, 'grens 1: removed is geen deviated');
   assert(useAppStore.getState().ui.showLibraryLinkDialog === false, 'grens 1: removed-only opent het afwijkingenscherm niet');
@@ -1189,10 +1212,9 @@ function seedRedoEvent(): void {
     resources: [{ id: 'rr', name: 'Sloper', type: 'LABOR', description: '', maxUnits: 3, costPerHour: 3, libraryOrigin: { companyId: cid, libraryItemId: poolResId, poolVersion: 1, syncedHash } }],
     assignments: [], filePath: null, isDirty: false,
   }], 'doc-rec');
-  const res = useAppStore.getState().runOpenBoundary();
   const copy = useAppStore.getState().resources.find(r => r.id === 'rr');
   assert(copy?.costPerHour === 5, 'grens 4 ververst een behind-kopie stil na herstel');
-  assert(res.refreshed === 1, 'grens 4 telt de verversing');
+  assert(useAppStore.getState().ui.libraryRefreshNotice === 1, 'grens 4 publiceert de verversingstelling tijdens herstel');
 }
 
 // --- Grens 2: documentwissel ververst het inkomende document stil (spec §3.2) ---
@@ -1260,24 +1282,18 @@ function seedRedoEvent(): void {
   const imported = { ...useAppStore.getState().pools[cid], poolVersion: 99, modifiedAt: new Date().toISOString(),
     resources: [{ id: resId, name: 'Betonvlechter', type: 'LABOR' as const, description: '', maxUnits: 2, costPerHour: 12 }] };
   s.replacePool(cid, imported);
-  const res = useAppStore.getState().runOpenBoundary();
   const copy = useAppStore.getState().resources.find(r => r.id === added.resourceId);
-  assert(copy?.costPerHour === 12, 'na import + grens 1 volgt de behind-kopie de nieuwe pool');
-  assert(res.refreshed >= 1, 'import telt als grens 1 (behind stil ververst)');
+  assert(copy?.costPerHour === 12, 'poolimport publiceert grens 1 meteen: behind-kopie volgt de nieuwe pool');
+  assert(useAppStore.getState().ui.libraryRefreshNotice === 1, 'poolimport publiceert meteen de grens-1-telling');
 }
 
-// --- Pool-import-dialoog draadt runOpenBoundary() ná replacePool in de confirm-handler (Taak 13,
-// stap 3). Geen headless dialoog-render beschikbaar in deze suite (store-only, geen React-mount) —
-// deze bron-invariant (via Function.prototype.toString() op de geïmporteerde component, geen fs-
-// toegang nodig) borgt dat de wire-regel zelf blijft staan: verwijder 'm en dit blok kleurt rood. ---
+// --- Pool-importacties materialiseren grens 1 zelf. De dialoog mag daar geen tweede live boundary
+// achteraan zetten; dat zou de atomaire pool+documentpublicatie opnieuw openbreken. ---
 {
-  // Let op: esbuild hernoemt de lokale `confirm`-variabele bij het bundelen (scope-botsing met het
-  // globale `confirm()`), dus zoeken op de variabelenaam is fragiel — we zoeken op de aanroepen zelf,
-  // die alleen in deze ene handler voorkomen.
   const componentSrc = PoolImportDialog.toString();
   const replaceIdx = componentSrc.indexOf('replacePool(');
   const boundaryIdx = componentSrc.indexOf('runOpenBoundary()');
-  assert(replaceIdx >= 0 && boundaryIdx >= 0 && boundaryIdx > replaceIdx, 'confirm-handler roept runOpenBoundary() aan ná replacePool (grens 1, spec §3)');
+  assert(replaceIdx >= 0 && boundaryIdx < 0, 'confirm-handler start geen tweede runOpenBoundary() na de atomaire poolimport');
 }
 
 // --- Taak 14, stap 1: resolveDeviation — bedrijfswaarden vs bestandswaarden-overnemen (spec §3).
@@ -1338,35 +1354,35 @@ function seedRedoEvent(): void {
 }
 
 // --- Voorstap taak 14 (critreview taak 12, verplicht): de vlag-invariant is UNIVERSEEL —
-// runOpenBoundary/newDocument()/closeDocument() vestigen de VOLLEDIGE showLibraryLinkDialog/
+// De open-materializer/newDocument()/closeDocument() vestigen de VOLLEDIGE showLibraryLinkDialog/
 // libraryRefreshNotice-toestand, óók het WISSEN wanneer er niets deviated/behind is. Zonder deze
 // reset-regels blijft een stale dialoog/signaal van een vorige boundary-run of een vorig document
 // onterecht staan (File→Nieuw, openFile-in-nieuw-document). ---
 
-// runOpenBoundary: bedrijf gebonden, maar niets deviated/behind ⇒ stale true/getal wordt gewist.
+// Open-materializer: bedrijf gebonden, maar niets deviated/behind ⇒ stale true/getal wordt gewist.
 {
   const s = useAppStore.getState();
   const cid = s.addCompany('Invariant BV');
   s.bindProjectToCompany(cid);
   // Verse pool, geen gestempelde items voor dit bedrijf ⇒ 0 deviated, 0 behind.
   useAppStore.setState((st) => { st.ui.showLibraryLinkDialog = true; st.ui.libraryRefreshNotice = 42; });
-  const result = useAppStore.getState().runOpenBoundary();
+  const result = commitOpenBoundaryForTest();
   assert(result.deviated === 0 && result.refreshed === 0, 'invariant-setup: scenario heeft niets deviated/behind');
-  assert(useAppStore.getState().ui.showLibraryLinkDialog === false, 'runOpenBoundary wist showLibraryLinkDialog ook zónder deviated-items (universele vlagtoestand)');
-  assert(useAppStore.getState().ui.libraryRefreshNotice === null, 'runOpenBoundary wist libraryRefreshNotice ook zónder behind-items (universele vlagtoestand)');
+  assert(useAppStore.getState().ui.showLibraryLinkDialog === false, 'open-materializer wist showLibraryLinkDialog ook zónder deviated-items (universele vlagtoestand)');
+  assert(useAppStore.getState().ui.libraryRefreshNotice === null, 'open-materializer wist libraryRefreshNotice ook zónder behind-items (universele vlagtoestand)');
 }
 
-// runOpenBoundary: ongebonden project (early-return-tak, §2-scope) wist óók stale vlaggen.
+// Open-materializer: ongebonden project (§2-scope) wist óók stale vlaggen.
 {
   useAppStore.getState().unbindProject(); // actief project raakt ongebonden (companyId = undefined)
   useAppStore.setState((st) => { st.ui.showLibraryLinkDialog = true; st.ui.libraryRefreshNotice = 7; });
-  const result = useAppStore.getState().runOpenBoundary();
+  const result = commitOpenBoundaryForTest();
   assert(result.deviated === 0 && result.refreshed === 0, 'invariant-setup: ongebonden project ⇒ geen mechaniek');
-  assert(useAppStore.getState().ui.showLibraryLinkDialog === false, 'runOpenBoundary (early-return, geen bedrijf) wist showLibraryLinkDialog');
-  assert(useAppStore.getState().ui.libraryRefreshNotice === null, 'runOpenBoundary (early-return, geen bedrijf) wist libraryRefreshNotice');
+  assert(useAppStore.getState().ui.showLibraryLinkDialog === false, 'open-materializer (geen bedrijf) wist showLibraryLinkDialog');
+  assert(useAppStore.getState().ui.libraryRefreshNotice === null, 'open-materializer (geen bedrijf) wist libraryRefreshNotice');
 }
 
-// newDocument(): een vers document draait geen runOpenBoundary — de reset moet dus IN newDocument()
+// newDocument(): een vers document heeft geen open-boundary — de reset moet dus IN newDocument()
 // zelf zitten, anders blijft een stale dialoog/signaal van het vorige document staan.
 {
   useAppStore.setState((st) => { st.ui.showLibraryLinkDialog = true; st.ui.libraryRefreshNotice = 5; });
@@ -1929,9 +1945,8 @@ function seedRedoEvent(): void {
 
 // --- Critreview F3: de oude comment "bij toevoegen is dit inherent een no-op" was onjuist. Hangt
 // het ACTIEVE project al aan het companyId uit het bestand (exact het deel-scenario), dan doet
-// runOpenBoundary() ná de add-route WEL echt werk: 'behind'-items worden stil ververst, zonder
-// undo-stap en zonder isDirty, met de redoStack gewist. Dit blok legt dat gedrag vast — het
-// gedrag zelf verandert niet (grens-1-semantiek), alleen de comment werd gecorrigeerd. ---
+// de add-route WEL echt werk: 'behind'-items worden tijdens dezelfde publicatie stil ververst,
+// zonder undo-stap en zonder isDirty, met de redoStack gewist. ---
 {
   useAppStore.getState().newProject();
   const boundaryCompanyId = 'shared-co-boundary-1';
@@ -1957,12 +1972,14 @@ function seedRedoEvent(): void {
   const isDirtyBefore = useAppStore.getState().isDirty;
 
   // De "toevoegen"-route (companyId is hier vrij en niet reserved, dus behouden).
+  let importPublications = 0;
+  const unsubscribe = useAppStore.subscribe(() => { importPublications++; });
   const importedBoundaryId = useAppStore.getState().importPoolAsNewCompany(boundaryPool);
+  unsubscribe();
   assert(importedBoundaryId === boundaryCompanyId, 'F3 setup: companyId behouden (vrij, niet reserved)');
 
-  // Ná import: het project HANGT AL aan dit bedrijf ⇒ runOpenBoundary() is GEEN no-op.
-  const boundaryResult = useAppStore.getState().runOpenBoundary();
-  assert(boundaryResult.refreshed >= 1, 'F3 [DE CORRECTIE]: runOpenBoundary() ná de "toevoegen"-route doet ECHT werk als het actieve project al aan dat companyId hangt — geen "inherent no-op"');
+  assert(importPublications === 1, 'F3: toevoegen publiceert bedrijf, pool en actieve grens exact één keer');
+  assert(useAppStore.getState().ui.libraryRefreshNotice === 1, 'F3: de toevoegen-route publiceert zelf de positieve grens-1-telling');
   const afterBoundary = useAppStore.getState();
   assert(afterBoundary.resources.find(r => r.id === boundaryResId)?.costPerHour === 9, 'F3: het behind-item is stil ververst naar de nieuw-geïmporteerde poolwaarde');
   assert(afterBoundary.historyEvents.filter(event => event.state === 'applied').length === undoBefore, 'F3: geen undo-stap (grens 1 is niet-undoable, ongewijzigd gedrag)');

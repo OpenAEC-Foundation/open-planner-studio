@@ -80,9 +80,7 @@ export function createExtensionApi(
         useAppStore.getState().updateTask(id, fromExtTaskUpdates(updates)),
       addSequence: (seq) => useAppStore.getState().addSequence(fromExtSequenceInput(seq)),
       loadProject: (result: ExtImportResult) => {
-        const store = useAppStore.getState();
-        store.loadState(fromExtImportResult(result));
-        store.runCPM();
+        useAppStore.getState().loadState(fromExtImportResult(result));
       },
       recalculate: () => useAppStore.getState().runCPM(),
       // K-item 32: één snapshot voor de hele reeks i.p.v. één per mutatie — lineair in plaats van

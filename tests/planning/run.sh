@@ -590,6 +590,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-session-history-boundaries.ts" "$SHBOUNDCHECK"; then node "$SHBOUNDCHECK" || STATUS=1; fi
   SHMIGRATIONCHECK="$DIR/.session-history-migration.mjs"
   if bundle_check "$DIR/check-session-history-migration.ts" "$SHMIGRATIONCHECK"; then node "$SHMIGRATIONCHECK" || STATUS=1; fi
+  ACTIVATIONCHECK="$DIR/.document-activation.mjs"
+  if bundle_check "$DIR/check-document-activation.ts" "$ACTIVATIONCHECK"; then node "$ACTIVATIONCHECK" || STATUS=1; fi
 
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi

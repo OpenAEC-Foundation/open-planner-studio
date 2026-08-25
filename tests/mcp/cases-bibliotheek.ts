@@ -9,7 +9,7 @@
 //      bibliotheekmechaniek; "bijwerken vanuit bibliotheek" werkt er nooit meer op.
 //   2. HASH BLIND MEEGESCHREVEN — de tool werkt `syncedHash` bij zonder de POOL te wijzigen. Dan
 //      geldt `fileHash === syncedHash` bij de eerstvolgende grens, wat `classifyOnOpen` als
-//      'behind' leest — en 'behind' wordt door `runOpenBoundary` STIL ververst naar de poolwaarden.
+//      'behind' leest — en 'behind' wordt door de open-boundary STIL ververst naar de poolwaarden.
 //      De AI-bewerking verdwijnt dan geruisloos, zonder dat de gebruiker ooit iets gevraagd wordt.
 //
 // HET STEMPELBEHEER (gemeten en hier vastgepind): de tools laten de stempel met rust. Ze raken
@@ -51,6 +51,8 @@ import { readTools } from '@/services/mcp/tools/readTools';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { computeResourceHash, computeCalendarHash } from '@/services/library/libraryOps';
+import { capturePayload, hydratePayload } from '@/state/documentContract';
+import { materializeLibraryBoundary } from '@/state/documentActivation';
 
 const store = useAppStore;
 const ALL = [...resourceTools, ...calendarResourceTools, ...batchTools, ...readTools];
@@ -86,6 +88,27 @@ function soleReason(res: McpToolResult): string {
   const rej = (res as McpToolOk).itemRejections ?? [];
   assertEq(rej.length, 1, `verwachtte precies één weigering, kreeg ${JSON.stringify(rej)}`);
   return rej[0].reason;
+}
+
+/** Testadapter rond de pure open-boundary; productiepublicaties gebruiken deze materialisatie al
+ * vóór activatie en hebben daarom geen losse live storeactie meer. */
+function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; removed: number } {
+  const state = store.getState();
+  const activation = materializeLibraryBoundary({
+    payload: capturePayload(state),
+    companies: state.companies,
+    pools: state.pools,
+    mode: 'open-boundary',
+  });
+  store.setState(draft => {
+    hydratePayload(draft, activation.payload);
+    draft.viewRows = [...activation.viewRows];
+    draft.resourceLoadResult = activation.resourceLoadResult;
+    draft.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
+    draft.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
+  });
+  const { refreshed, deviated, removed } = activation.signals;
+  return { refreshed, deviated, removed };
 }
 
 /** Gekoppeld project met één gestempelde resource uit de bedrijfspool. */
@@ -130,7 +153,7 @@ test('nulmeting: vers gematerialiseerde resource is in-sync en draagt de juiste 
   assertEq(res.libraryOrigin!.syncedHash, computeResourceHash(res), 'syncedHash hoort de verse velden te dekken');
   assertEq(hashBijMaterialisatie, computeResourceHash(res), 'hash bij materialisatie == hash van de velden');
   assertEq(store.getState().onOpenStatusForResource(resourceId), 'in-sync', 'verse materialisatie is in-sync');
-  assertEq(store.getState().runOpenBoundary(), { refreshed: 0, deviated: 0, removed: 0 }, 'grens ziet niets te doen');
+  assertEq(commitOpenBoundaryForTest(), { refreshed: 0, deviated: 0, removed: 0 }, 'grens ziet niets te doen');
 });
 
 // =================================================================================================
@@ -154,7 +177,7 @@ test('MCP-wijziging op een BIBLIOTHEEKVELD wordt geweigerd; niets verandert, gee
   assertEq(res.libraryOrigin!.syncedHash, hashBijMaterialisatie, 'hash blijft staan');
   assertEq(res.libraryOrigin!.syncedHash, computeResourceHash(res), 'hash dekt nog steeds de velden');
   assertEq(store.getState().onOpenStatusForResource(resourceId), 'in-sync', 'een geweigerde wijziging levert geen afwijking op');
-  assertEq(store.getState().runOpenBoundary(), { refreshed: 0, deviated: 0, removed: 0 }, 'geen afwijkingsvraag');
+  assertEq(commitOpenBoundaryForTest(), { refreshed: 0, deviated: 0, removed: 0 }, 'geen afwijkingsvraag');
   assert(!store.getState().ui.showLibraryLinkDialog, 'de gebruiker wordt niets gevraagd');
 });
 
@@ -241,7 +264,7 @@ test('MCP-wijziging op PROJECTINZET (maxUnits) veroorzaakt geen afwijking', asyn
   // maxUnits zit bewust NIET in RESOURCE_DIFF_FIELDS ⇒ de hash dekt hem niet ⇒ nog steeds in-sync.
   assertEq(res.libraryOrigin!.syncedHash, computeResourceHash(res), 'de gevolgde velden zijn niet veranderd');
   assertEq(store.getState().onOpenStatusForResource(resourceId), 'in-sync', 'projectinzet is geen bedrijfsafspraak');
-  assertEq(store.getState().runOpenBoundary(), { refreshed: 0, deviated: 0, removed: 0 }, 'geen afwijkingsvraag');
+  assertEq(commitOpenBoundaryForTest(), { refreshed: 0, deviated: 0, removed: 0 }, 'geen afwijkingsvraag');
   assert(!store.getState().ui.showLibraryLinkDialog, 'geen dialoog voor een projectinzet-wijziging');
 });
 
@@ -258,7 +281,7 @@ test('create in een gekoppeld project levert een PROJECTEIGEN resource (geen ste
   assert(!nieuw.libraryOrigin, 'een via de bridge aangemaakte resource hoort GEEN herkomststempel te krijgen');
   assertEq(store.getState().onOpenStatusForResource(nieuw.id), null, 'geen eigen-bedrijf-stempel ⇒ geen status');
   assertEq(store.getState().pools[companyId].resources.length, 1, 'de bedrijfspool mag niet meegroeien met projectwerk');
-  assertEq(store.getState().runOpenBoundary(), { refreshed: 0, deviated: 0, removed: 0 }, 'projecteigen items zijn geen afwijking');
+  assertEq(commitOpenBoundaryForTest(), { refreshed: 0, deviated: 0, removed: 0 }, 'projecteigen items zijn geen afwijking');
 });
 
 // =================================================================================================
@@ -273,7 +296,7 @@ test('delete van een gestempelde resource laat de bedrijfspool ongemoeid', async
   assert(!resource(resourceId), 'de projectresource hoort weg te zijn');
   assertEq(store.getState().pools[companyId].resources.length, 1, 'het poolorigineel blijft bestaan');
   // Geen wees-ruis: het item is wég, dus de grens heeft er niets meer over te melden.
-  assertEq(store.getState().runOpenBoundary(), { refreshed: 0, deviated: 0, removed: 0 }, 'geen removed-ruis na een projectverwijdering');
+  assertEq(commitOpenBoundaryForTest(), { refreshed: 0, deviated: 0, removed: 0 }, 'geen removed-ruis na een projectverwijdering');
   assert(!store.getState().ui.showLibraryLinkDialog, 'verwijderen levert geen afwijkingsvraag op');
 });
 
@@ -292,7 +315,7 @@ test('planner_update_calendar op een gestempelde kalender: stempel intact, hash 
   assertEq(cal.libraryOrigin!.syncedHash, hashBijMaterialisatie, 'syncedHash mag niet meebewegen');
   assert(cal.libraryOrigin!.syncedHash !== computeCalendarHash(cal), 'hash hoort af te wijken van de gewijzigde velden');
   assertEq(store.getState().onOpenStatusForCalendar(calendarId), 'deviated', 'gewijzigde kalenderinhoud is een afwijking');
-  assertEq(store.getState().runOpenBoundary(), { refreshed: 0, deviated: 1, removed: 0 }, 'de grens telt precies één afwijking');
+  assertEq(commitOpenBoundaryForTest(), { refreshed: 0, deviated: 1, removed: 0 }, 'de grens telt precies één afwijking');
   assertEq(store.getState().calendars.find((c) => c.id === calendarId)!.hoursPerDay, 6, 'de grens draait de wijziging niet stil terug');
 });
 
@@ -315,7 +338,7 @@ test('planner_batch omzeilt de bibliotheek-gating niet', async () => {
   assert(!!res.libraryOrigin, 'stempel blijft staan');
   assertEq(res.libraryOrigin!.syncedHash, hashBijMaterialisatie, 'hash blijft staan');
   assertEq(store.getState().onOpenStatusForResource(resourceId), 'in-sync', 'geen afwijking via de achterdeur');
-  assertEq(store.getState().runOpenBoundary(), { refreshed: 0, deviated: 0, removed: 0 }, 'zelfde grens-uitkomst als direct');
+  assertEq(commitOpenBoundaryForTest(), { refreshed: 0, deviated: 0, removed: 0 }, 'zelfde grens-uitkomst als direct');
 });
 
 test('projectinzet blijft ook via planner_batch gewoon schrijfbaar', async () => {
@@ -343,8 +366,8 @@ test('de poolroute laat beide kanten meebewegen en blijft in-sync', () => {
   assertEq(store.getState().onOpenStatusForResource(resourceId), 'in-sync', 'bibliotheek en project zijn het eens');
   // Let op: de dialoogvlag is APP-globaal en wordt door `newProject()` niet gewist (alleen
   // `newDocument()` doet dat) — vandaar dat we hem via de grens laten vestigen i.p.v. hem rauw te
-  // lezen; `runOpenBoundary` zet de volledige vlagtoestand, inclusief het WISSEN.
-  assertEq(store.getState().runOpenBoundary(), { refreshed: 0, deviated: 0, removed: 0 }, 'de grens ziet geen afwijking');
+  // lezen; de boundarymaterialisatie zet de volledige vlagtoestand, inclusief het WISSEN.
+  assertEq(commitOpenBoundaryForTest(), { refreshed: 0, deviated: 0, removed: 0 }, 'de grens ziet geen afwijking');
   assert(!store.getState().ui.showLibraryLinkDialog, 'geen afwijkingsvraag op de bedoelde route');
 });
 

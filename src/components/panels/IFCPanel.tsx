@@ -23,8 +23,6 @@ export function IFCPanel() {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const loadState = useAppStore(s => s.loadState);
-  const setViewStartDate = useAppStore(s => s.setViewStartDate);
-  const runCPM = useAppStore(s => s.runCPM);
   const notify = useAppStore(s => s.notify);  // bevinding K8 — alert() vervangen door het meldingenkanaal
 
   const generated = useMemo(() => {
@@ -49,9 +47,7 @@ export function IFCPanel() {
   const handleApply = useCallback(() => {
     try {
       const data = readIFC(content, buildImportLabels(tCommon));
-      loadState(data);
-      setViewStartDate(data.project.startDate);
-      runCPM();
+      loadState(data, { viewStartDate: data.project.startDate });
       setDirty(false);
     } catch (err) {
       // Bevinding K8: alert() (de énige in de hele repo) vervangen door het gecentraliseerde kanaal.
@@ -61,7 +57,7 @@ export function IFCPanel() {
         detail: (err as Error).message,
       });
     }
-  }, [content, loadState, setViewStartDate, runCPM, notify]);
+  }, [content, loadState, notify]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(content);

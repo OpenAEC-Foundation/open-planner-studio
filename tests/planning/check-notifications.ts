@@ -316,8 +316,9 @@ const lTasks = S().tasks;
 clearAll();
 // `loadState` is de in-place-load-route (geen open-pad) en loopt, net als de drie open-paden,
 // door `applyLoadedProject` — de gedeelde implementatie die de melding pusht (fileSlice.ts).
-// `loadState` draait BEWUST geen `runCPM` (`recompute: false`), dus deze melding mag niet op
-// `cpmResult` leunen — zie de toelichting bij `expandSummaryRelations` in fileSlice.ts.
+// De melding mag niet op een later live `runCPM`-moment leunen: `loadState` bereidt de solve nu op
+// de geïsoleerde payload voor en publiceert alles samen. De pure expansie blijft de bron voor deze
+// importwaarschuwing.
 S().loadState({
   project: lProject,
   calendar: createDefaultCalendar(),

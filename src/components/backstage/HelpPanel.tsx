@@ -49,7 +49,6 @@ export function HelpPanel() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon, i18n } = useTranslation('common');
   const openExampleFromString = useAppStore(s => s.openExampleFromString);
-  const runCPM = useAppStore(s => s.runCPM);
   const setUI = useAppStore(s => s.setUI);
   // mpp-nul-data-etappe — "lees meer"-diepe-link vanuit een melding of het eigenschappenpaneel
   // (`openHelpArticle` in uiSlice.ts). Eenmalig-verzoek-patroon: lezen + direct weer op `null`.
@@ -179,8 +178,7 @@ export function HelpPanel() {
 
   const handleNavigate = (id: string) => setSelectedId(id);
 
-  // Zelfde open-flow als Backstage → Voorbeelden (`ExamplesSection.handleOpen` hierboven in
-  // Backstage.tsx): fetch → openExampleFromString → runCPM → terug naar het Start-tabblad.
+  // Zelfde open-flow als Backstage → Voorbeelden: laden en vooraf berekenen, daarna terug naar Start.
   const handleOpenExample = async (file: string) => {
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}examples/${file}`);
@@ -192,7 +190,6 @@ export function HelpPanel() {
       // alleen de bestandsnaam (geen manifest-`category`) — de showcase-bestanden dragen allemaal het
       // `showcase-`-voorvoegsel (zie `public/examples/manifest.json`), de basisvoorbeelden niet.
       if (file.startsWith('showcase-')) applyDemoLibraryToShowcaseProject();
-      runCPM();
       setUI({ activeRibbonTab: 'start' });
     } catch (err) {
       console.error(`[Help] Voorbeeld "${file}" openen mislukt:`, err);

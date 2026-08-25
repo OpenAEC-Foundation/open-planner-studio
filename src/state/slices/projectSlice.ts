@@ -130,7 +130,7 @@ export interface ProjectSlice {
     customFieldDefs?: CustomFieldDef[];
     baselines?: Baseline[];
     activeBaselineId?: string | null;
-  }) => void;
+  }, opts?: { viewStartDate?: string }) => void;
 }
 
 /**
@@ -509,14 +509,15 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.filePath = path;
     }),
 
-  loadState: (loaded) => {
+  loadState: (loaded, opts) => {
     // Dunne wrapper over de gedeelde load-implementatie (audit P5/F6): `applyLoadedProject` in
-    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad, GEEN runCPM/fit,
-    // `filePath` ongemoeid (opt weggelaten). De externe callers blijven ongewijzigd.
+    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad/fit, `filePath`
+    // ongemoeid (opt weggelaten). De berekening gebeurt vóór dezelfde ene publicatie.
     get().applyLoadedProject(loaded, {
-      recompute: false,
+      recompute: true,
       fit: false,
       hourDataNotice: false,
+      viewStartDate: opts?.viewStartDate,
     });
   },
 });

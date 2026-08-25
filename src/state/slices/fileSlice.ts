@@ -13,6 +13,7 @@ import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport } from '../documentContract';
+import { materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { beginUndoable, finishMutation } from '../transaction';
@@ -20,7 +21,19 @@ import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
+import {
+  invalidateUndoneHistoryForScopes,
+  removeSessionHistoryForDocumentFromState,
+  type HistoryScopeKey, type SessionHistoryEvent,
+} from '../sessionHistory';
+
+function invalidateDocumentRedo(
+  state: { historyEvents: SessionHistoryEvent[] },
+  documentId: string,
+): void {
+  const scope: HistoryScopeKey = `document:${documentId}`;
+  state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
+}
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
@@ -57,7 +70,7 @@ export interface ApplyLoadedProjectOpts {
   /** Web-opslaan-doel voor het geladen document. undefined = laat de huidige handle ongemoeid
    *  (loadState-semantiek); null = geen handle (voorbeeld/fallback-web); een handle = FSA-openen. */
   fileHandle?: FileSystemFileHandle | null;
-  /** Direct doorrekenen (runCPM) na de load. Open-paden: true; loadState: false. */
+  /** Direct doorrekenen op de geïsoleerde laadpayload, vóór publicatie. */
   recompute?: boolean;
   /** Canvas op het hele project passen (requestFitToProject). Open-paden: true; loadState: false. */
   fit?: boolean;
@@ -69,6 +82,8 @@ export interface ApplyLoadedProjectOpts {
    *  (Crash-herstel loopt NIET door applyLoadedProject maar via `restoreDocuments`, dat de opgeslagen —
    *  dus gekoppelde — staat exact herstelt en de grens-1-check apart draait, Taak 11.) */
   linkedOpen?: boolean;
+  /** Optionele view-start die samen met de nieuwe brondata wordt gepubliceerd (IFC-tab). */
+  viewStartDate?: string;
 }
 
 export interface FileSlice {
@@ -135,53 +150,70 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
 
   return {
     applyLoadedProject: (parsed, opts) => {
+      const current = get();
+      const filePath = opts.filePath !== undefined ? opts.filePath : current.filePath;
+      const payload = payloadFromImport(parsed, filePath);
+      payload.view = opts.viewStartDate === undefined
+        ? { ...current.view }
+        : { ...current.view, viewStartDate: opts.viewStartDate };
+      payload.collapsedTaskIds = current.ui.collapsedTaskIds;
+      payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : current.fileHandle;
+      if (!opts.linkedOpen) {
+        payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
+        payload.resources = payload.resources.map((resource) => {
+          const { libraryOrigin: _discarded, ...rest } = resource;
+          return rest;
+        });
+        payload.calendars = payload.calendars.map((calendar) => {
+          const { libraryOrigin: _discarded, ...rest } = calendar;
+          return rest;
+        });
+        payload.calendar = payload.calendars.find(calendar =>
+          calendar.id === payload.project.calendarId) ?? payload.calendar;
+      }
+      const recorded = opts.recompute
+        ? captureRecordedDates(payload.tasks, parsed.recordedFields)
+        : null;
+      const prepared = prepareLoadedPayload(payload, { recompute: !!opts.recompute });
+      if (recorded && recorded.total > 0) {
+        const shifted = countShiftedTasks(prepared.tasks, recorded.times);
+        if (shifted > 0) prepared.recordedDates = { ...recorded, shifted };
+      }
+      const activation = materializeLibraryBoundary({
+        payload: prepared,
+        companies: current.companies,
+        pools: current.pools,
+        mode: opts.linkedOpen ? 'open-boundary' : 'silent-switch',
+      });
       set((s) => {
-        // string = nieuw pad, null = naamloos, undefined = laat filePath ongemoeid (loadState-semantiek).
-        const filePath = opts.filePath !== undefined ? opts.filePath : s.filePath;
-        // Reset-pad (audit P10): bouw een verse payload uit het geparste project (selectie/cpm/history/
-        // scheduleStale starten vers, isDirty=false) en hydrateer die via het documentcontract —
-        // dezelfde `DOCUMENT_FIELDS`-lijst als switchDocument/undo, dus geen stille lek. hydratePayload
-        // doet ook de §4.3-promote + §9.1-sync van de projectkalender (was hier voorheen apart).
-        // Structuur (activity-codes/custom-fields) rijdt in payloadFromImport mee — altijd overnemen
-        // (fix F6: de open-paden lieten dit historisch weg → stil dataverlies bij openen + opslaan).
-        const payload = payloadFromImport(parsed, filePath);
-        // Load-semantiek: het HUIDIGE document behoudt zijn view/inklap (in-place vervangen van de
-        // projectdata raakt zoom/groepering/inklap niet — historisch gedrag van applyLoadedProject).
-        payload.view = s.view;
-        payload.collapsedTaskIds = s.ui.collapsedTaskIds;
-        // Web-opslaan-doel: undefined = ongemoeid laten (loadState-semantiek), anders expliciet zetten.
-        payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : s.fileHandle;
         removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
-        hydratePayload(s, payload);
-        // Spec §5 (review-punt 3): een volledig-vervangende load zonder open-pad-semantiek levert een
-        // LOS document — geen stille koppeling, geen stille herkenning. Strip bedrijfsbinding + stempels.
-        if (!opts.linkedOpen) {
-          s.project = { ...s.project, companyId: undefined, companyName: undefined };
-          s.resources = s.resources.map((r) => { const { libraryOrigin: _d, ...rest } = r; return rest; });
-          s.calendars = s.calendars.map((c) => { const { libraryOrigin: _d, ...rest } = c; return rest; });
-          s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+        if (activation.invalidateRedoScope) {
+          invalidateDocumentRedo(s, s.activeDocumentId);
         }
-        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
-        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
+        hydratePayload(s, activation.payload);
+        s.viewRows = [...activation.viewRows];
+        s.resourceLoadResult = activation.resourceLoadResult;
+        s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
+        s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
         if (opts.hourDataNotice) {
           s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         }
       });
-      // "Datums zoals opgeslagen" (issue #63): leg VÓÓR de solve vast wat het bestand zei. `set()`
-      // hierboven is synchroon en er zit niets tussenin, dus `get().tasks` hier is nog exact wat
-      // `hydratePayload` er net neerzette. Dat moet vóór de recompute hieronder: `payloadFromImport`
-      // geeft `parsed.tasks` per referentie door, dus `s.tasks`/`get().tasks` en `parsed.tasks` zijn
-      // dezelfde objecten — `runCPM` muteert ze in-place, dus na de solve zijn de gelezen waarden ook
-      // in `parsed` alweer overschreven.
-      const recorded = opts.recompute ? captureRecordedDates(get().tasks, parsed.recordedFields) : null;
-      // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
-      // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
-      if (opts.recompute) get().runCPM();
-      // …en pas dán vergelijken. Nul verschil ⇒ niets in de state; de strook blijft dan onzichtbaar,
-      // precies zoals bedoeld.
-      if (recorded && recorded.total > 0) {
-        const shifted = countShiftedTasks(get().tasks, recorded.times);
-        if (shifted > 0) set((s) => { s.recordedDates = { ...recorded, shifted }; });
+      if (opts.recompute) {
+        const cpm = activation.payload.cpmResult;
+        if (cpm?.error) {
+          get().notify({
+            severity: 'error',
+            messageKey: 'notifications.scheduleFailed',
+            detail: cpm.error,
+            dedupeKey: 'cpm-error',
+          });
+        }
+        emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
+          hasError: !!cpm?.error,
+          error: cpm?.error ?? null,
+          criticalTasks: activation.payload.tasks.filter(task => task.time.isCritical).length,
+        });
       }
       if (opts.fit) get().requestFitToProject(); // Issue #16: canvas op het HELE project passen.
       // Relaties die de solver ECHT niet kon meerekenen (eigenaarsbesluit 2026-08-15): een
@@ -190,10 +222,8 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       // gekoppeld aan zijn eigen (voor)ouder-samenvatting), een lege/kapotte tak, of de
       // MAX_EXPANDED_RELATIONS-klem — stuk voor stuk gevallen waarin de relatie écht geen effect
       // heeft. Rechtstreeks `expandSummaryRelations` aanroepen i.p.v. op `cpmResult.
-      // droppedSequenceIds` leunen: die is alleen gevuld ná `runCPM`, en `loadState` (extensie-
-      // imports, devBridge) draait die BEWUST NIET (`opts.recompute: false`, zie `loadState` in
-      // `projectSlice.ts`) — de pure expansiefunctie geeft hier hetzelfde antwoord, ongeacht of er
-      // straks nog wordt doorgerekend, en zonder de timing-afhankelijkheid van `cpmResult`. Bewust
+      // droppedSequenceIds` leunen: de pure expansiefunctie geeft hier hetzelfde antwoord zonder
+      // timing-afhankelijkheid van `cpmResult`. Bewust
       // NIET gefilterd uit het document — dat zou logica uit het bronbestand vernietigen bij open +
       // opslaan — maar wel één keer gemeld, want anders merkt niemand die een P6/MSP-plan importeert
       // dat er logica stilvalt.
@@ -260,10 +290,6 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           hourDataNotice: true,
           linkedOpen: true,
         });
-
-        // Grens 1 (spec §3, plan-eis 4): ná VOLLEDIGE hydratatie — behind stil verversen, deviated
-        // markeren/vragen. Nooit tijdens de hydratatie zelf.
-        get().runOpenBoundary();
 
         // Recents: elke herbruikbare ref (Tauri-pad óf Chromium-handle) — óók bij een niet-IFC
         // bronformaat: heropenen via recents moet blijven werken, alleen het OPSLAGDOEL wordt niet
@@ -584,9 +610,6 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           hourDataNotice: true,
           linkedOpen: true,
         });
-
-        // Grens 1 (idem openFile): ná hydratatie de openings-check draaien.
-        get().runOpenBoundary();
 
         // MRU verversen: het net-geopende bestand naar boven (óók bij een niet-IFC bronformaat —
         // alleen het opslagdoel blijft leeg, zie `target` hierboven).
