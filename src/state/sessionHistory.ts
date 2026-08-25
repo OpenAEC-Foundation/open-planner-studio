@@ -1,6 +1,10 @@
-import type { Snapshot } from './snapshot';
+import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/taskGrid';
 import type { ViewState } from '@/types/view';
+import type { AppState } from './appStore';
+import { deriveViewRows } from './slices/viewSlice';
+import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import type { ViewRow } from '@/engine/view/visibleRows';
 
 export const MAX_SESSION_HISTORY_EVENTS_PER_SCOPE = 100;
 
@@ -32,6 +36,81 @@ export interface SessionHistoryEvent {
   label: string;
   state: 'applied' | 'undone';
   deltas: readonly [SessionHistoryDelta, ...SessionHistoryDelta[]];
+}
+
+export type HistoryTargetSide = 'before' | 'after';
+
+export type MaterializedHistoryTarget =
+  | {
+      kind: 'document-data';
+      documentId: string;
+      snapshot: Snapshot;
+      viewRows: ViewRow[];
+      resourceLoadResult: ResourceLoadResult;
+      isDirty: true;
+    }
+  | {
+      kind: 'document-view';
+      documentId: string;
+      view: ViewLayoutHistoryState;
+      viewRows: ViewRow[];
+      isDirty: false;
+    }
+  | {
+      kind: 'grid-preference';
+      surface: TaskGridSurfaceId;
+      preferences: TaskGridSurfacePreferences;
+      isDirty: false;
+    };
+
+/**
+ * Bouw het volledige doel buiten de live store. Datahistory herstelt eerst alle snapshotbronnen en
+ * de kalendercache op een ondiepe geïsoleerde state; pas daarna worden rijen en belasting afgeleid.
+ * De handmatig berekende CPM-uitkomst en stale-vlag komen letterlijk uit het snapshot.
+ */
+export function materializeHistoryTarget(
+  state: Readonly<AppState>,
+  delta: SessionHistoryDelta,
+  side: HistoryTargetSide,
+): MaterializedHistoryTarget {
+  if (delta.kind === 'document-data') {
+    const isolated = { ...state } as AppState;
+    restoreSnapshot(isolated, delta[side]);
+    const snapshot = createSnapshot(isolated);
+    return {
+      kind: 'document-data',
+      documentId: delta.documentId,
+      snapshot,
+      viewRows: deriveViewRows(isolated),
+      resourceLoadResult: computeResourceLoad(
+        isolated.resources,
+        isolated.assignments,
+        isolated.tasks,
+        isolated.calendar,
+        isolated.calendars,
+      ),
+      isDirty: true,
+    };
+  }
+
+  if (delta.kind === 'document-view') {
+    const view = delta[side];
+    const isolated = { ...state, view: { ...state.view, ...view } } as AppState;
+    return {
+      kind: 'document-view',
+      documentId: delta.documentId,
+      view,
+      viewRows: deriveViewRows(isolated),
+      isDirty: false,
+    };
+  }
+
+  return {
+    kind: 'grid-preference',
+    surface: delta.surface,
+    preferences: delta[side],
+    isDirty: false,
+  };
 }
 
 /**

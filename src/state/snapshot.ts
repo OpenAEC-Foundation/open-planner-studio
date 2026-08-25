@@ -17,15 +17,15 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
  *  IN (muteerbare projectdata, 'data'):
  *    project, calendar, tasks, sequences, resources, assignments, calendars, activityCodeTypes,
  *    customFieldDefs, baselines
- *  IN (afgeleid/scalar, 'derived'; runCPM/recomputeResourceLoad vervangt ze als geheel,
- *      muteert nooit in-place, dus delen is veilig). Zonder cpmResult/resourceLoadResult zou undo van
- *      bv. applyLeveling de taken wél maar statusbalk/histogram NIET terugdraaien (A5). recordedDates/
- *      datesAsRecorded (issue #63) horen om dezelfde reden hier: samen met `tasks` ('clone') draait
- *      één undo de datums én de modus terug:
- *    cpmResult, resourceLoadResult, scheduleStale, activeBaselineId, recordedDates, datesAsRecorded
+ *  IN (afgeleid/scalar, 'derived'; runCPM vervangt ze als geheel, muteert nooit in-place, dus delen
+ *      is veilig). cpmResult en scheduleStale moeten exact de handmatig berekende toestand kunnen
+ *      herstellen. recordedDates/datesAsRecorded (issue #63) horen om dezelfde reden hier: samen
+ *      met `tasks` ('data') draait één undo de datums én de modus terug:
+ *    cpmResult, scheduleStale, activeBaselineId, recordedDates, datesAsRecorded
  *  UIT ('none' — undo mag deze bewust NIET aanraken):
- *    selectedTaskIds, view, collapsedTaskIds, undoStack, redoStack, filePath, fileHandle,
- *    isDirty (undo/redo zet isDirty altijd op true).
+ *    selectedTaskIds, resourceLoadResult, view, collapsedTaskIds, undoStack, redoStack, filePath,
+ *    fileHandle, isDirty (undo/redo zet isDirty altijd op true). resourceLoadResult en viewRows
+ *    worden door `materializeHistoryTarget` uit het herstelde target afgeleid.
  *
  * PROJECT — de oude B3-uitzondering is VERVALLEN (pakket H). Historie: het hele `project`-object
  * stond hier NIET in, met één nauwe projectie (`wbsAutoNumber`). Reden was dat
@@ -45,7 +45,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 export type Snapshot = Pick<
   DocumentPayload,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
-  | 'activityCodeTypes' | 'customFieldDefs' | 'cpmResult' | 'resourceLoadResult'
+  | 'activityCodeTypes' | 'customFieldDefs' | 'cpmResult'
   | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'recordedDates' | 'datesAsRecorded'
 >;
 
@@ -125,7 +125,6 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     activityCodeTypes: raw.activityCodeTypes ?? [],
     customFieldDefs: raw.customFieldDefs ?? [],
     cpmResult: raw.cpmResult ?? null,
-    resourceLoadResult: raw.resourceLoadResult ?? null,
     scheduleStale: raw.scheduleStale ?? false,
     baselines: raw.baselines ?? [],
     // `null` ("geen actieve baseline") is een legitieme waarde die een undo moet kunnen terugzetten;

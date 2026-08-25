@@ -143,10 +143,21 @@ const snapKeys = DOCUMENT_FIELDS.filter(f => f.snapshot !== 'none').map(f => f.k
 // de vergelijking op `calendar` de sync-bijwerking meten i.p.v. de restore.
 const projA = { id: 'proj-ab', name: 'ProjA', description: '', startDate: '2030-01-01', endDate: '', calendarId: 'cal-x', createdAt: '2030-01-01T00:00:00.000Z', modifiedAt: '2030-01-01T00:00:00.000Z', author: '', company: '', wbsAutoNumber: true };
 const projB = { ...projA, name: 'ProjB', startDate: '2030-02-02', statusDate: '2030-03-03' };
+// Geldige Task-objecten zijn hier noodzakelijk: Task 4B leidt resourceLoadResult tijdens
+// undo/redo opnieuw uit het target af. De vroegere minimale `{ id, name, parentId, childIds }`-stubs
+// konden alleen bestaan doordat de test ze met `unknown` langs het domeincontract forceerde.
+const taskA = {
+  id: 'ta', name: 'A', parentId: null, childIds: [], resourceIds: [], isMilestone: false,
+  time: createDefaultTaskTime('2030-01-01', 1),
+} as unknown as Task;
+const taskB = {
+  id: 'tb', name: 'B', parentId: null, childIds: [], resourceIds: ['ra'], isMilestone: false,
+  time: createDefaultTaskTime('2030-01-02', 1),
+} as unknown as Task;
 const valuesA: Record<string, unknown> = {
   project: projA,
   calendar: calX,
-  tasks: [{ id: 'ta', name: 'A', parentId: null, childIds: [] }],
+  tasks: [taskA],
   sequences: [],
   resources: [{ id: 'ra', name: 'RA', type: 'LABOR', description: '', maxUnits: 1 }],
   assignments: [],
@@ -164,7 +175,7 @@ const valuesA: Record<string, unknown> = {
 const valuesB: Record<string, unknown> = {
   project: projB,
   calendar: calX,
-  tasks: [{ id: 'ta', name: 'A', parentId: null, childIds: [] }, { id: 'tb', name: 'B', parentId: null, childIds: [] }],
+  tasks: [taskA, taskB],
   sequences: [{ id: 'sb', predecessorId: 'ta', successorId: 'tb', type: 'FS', lag: 0 }],
   resources: [],
   assignments: [{ id: 'asb', taskId: 'tb', resourceId: 'ra', unitsPerDay: 1 }],
@@ -429,6 +440,7 @@ truthy('d snapshot draagt het volledige project (id + naam + vlag)',
   typeof snap.project.name === 'string' &&
   typeof snap.project.wbsAutoNumber === 'boolean');
 truthy('d snapshot draagt de projectkalender-cache', typeof snap.calendar?.id === 'string');
+truthy('d snapshot draagt geen afleidbare resourceLoadResult', !('resourceLoadResult' in snap));
 
 // ══ (e) IN-PLACE LOAD via loadState → applyLoadedProject (key-gedreven reset-pad) ════════════════
 // loadState vervangt de projectdata IN-PLACE: geen nieuw tabblad, view/inklap behouden, filePath

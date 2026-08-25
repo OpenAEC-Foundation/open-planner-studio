@@ -200,7 +200,9 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'customFieldDefs', get: (s) => s.customFieldDefs, set: (s, v) => { s.customFieldDefs = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.customFieldDefs ?? [] }),
   field({ key: 'selectedTaskIds', get: (s) => s.selectedTaskIds, set: (s, v) => { s.selectedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
   field({ key: 'cpmResult', get: (s) => s.cpmResult, set: (s, v) => { s.cpmResult = v; }, fresh: () => null, snapshot: 'derived' }),
-  field({ key: 'resourceLoadResult', get: (s) => s.resourceLoadResult, set: (s, v) => { s.resourceLoadResult = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.resourceLoadResult ?? null }),
+  // Afleidbare cache: blijft per document opgeslagen voor slapende tabs, maar hoort niet in undo.
+  // Historymaterialisatie berekent hem vóór publicatie opnieuw uit het herstelde target.
+  field({ key: 'resourceLoadResult', get: (s) => s.resourceLoadResult, set: (s, v) => { s.resourceLoadResult = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.resourceLoadResult ?? null }),
   field({ key: 'scheduleStale', get: (s) => s.scheduleStale, set: (s, v) => { s.scheduleStale = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.scheduleStale ?? false }),
   // "Datums zoals opgeslagen" (issue #63). `snapshot: 'derived'` net als cpmResult/scheduleStale:
   // beide worden altijd als geheel vervangen, nooit in-place gemuteerd. Dat is precies wat Ctrl+Z

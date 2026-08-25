@@ -37,6 +37,12 @@ function rowInputs(s: AppState): { opts: ViewRowOpts; ctx: ViewContext } {
   };
 }
 
+/** Eén pure afleiding voor zowel gewone viewupdates als historymaterialisatie. */
+export function deriveViewRows(s: AppState): ViewRow[] {
+  const { opts, ctx } = rowInputs(s);
+  return computeViewRows(s.tasks, opts, ctx);
+}
+
 /**
  * Occurrence-expliciete helft van `focusOnTask`: de storeactie hieronder bewaart bewust alleen het
  * domeindoel `taskId`; de visuele consument resolveert dat doel pas tegen de actuele `viewRows`.
@@ -247,8 +253,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
 
   recomputeViewRows: () => {
     const s = get();
-    const { opts, ctx } = rowInputs(s);
-    const rows = computeViewRows(s.tasks, opts, ctx);
+    const rows = deriveViewRows(s);
     set((st) => { st.viewRows = rows; });
   },
 

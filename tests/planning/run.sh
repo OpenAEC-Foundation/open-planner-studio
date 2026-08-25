@@ -582,6 +582,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # multi-documentvolgorde, globale gridvoorkeuren, compounds, redo-invalidatie en pruning.
   SHMODELCHECK="$DIR/.session-history-model.mjs"
   if bundle_check "$DIR/check-session-history-model.ts" "$SHMODELCHECK"; then node "$SHMODELCHECK" || STATUS=1; fi
+  SHMATCHECK="$DIR/.history-materialization.mjs"
+  if bundle_check "$DIR/check-history-materialization.ts" "$SHMATCHECK"; then node "$SHMATCHECK" || STATUS=1; fi
 
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
