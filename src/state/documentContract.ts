@@ -75,7 +75,9 @@ export interface DocumentPayload {
   /** Web-opslaan-doel (browser-bestandstoegang). ALLEEN het FSA-opslaan-doel — nooit identiteit/titel (die blijft filePath: echt pad in Tauri, bestandsnaam in web). null in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
   isDirty: boolean;
-  /** XER-bronmetadata per document; geen onderdeel van undo omdat bewerkingen dit niet muteren. */
+  /** XER-bronmetadata per document; geen onderdeel van undo omdat bewerkingen dit niet muteren.
+   *  X9 moet dit veld (incl. geconsolideerde externalLinks + importrapport) nog door IFC laten
+   *  round-trippen; X4b bewaart het al door documentwissel en de recovery-inputlaag. */
   xerImportMetadata: XerImportMetadata | null;
 }
 

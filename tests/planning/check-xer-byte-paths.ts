@@ -1,6 +1,9 @@
 import { openDialogFilters, binaryExtensions, parseOpenedFile } from '@/services/formatRegistry';
 import { readOpenedTauriPath } from '@/services/fileAccess/tauriBackend';
 import { openFileDialogWeb, readBytesFromRefWeb } from '@/services/fileAccess/webBackend';
+import { activeImportResult } from '@/services/importTypes';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -29,6 +32,22 @@ function fixture(projectName: string): string {
     '%R\tR-EXT\tT1\tEXT-1\tP1\tP-EXT\tPR_FS\t2',
     '%E',
   ].join('\n');
+}
+
+function multiFixture(): Uint8Array {
+  return new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+    '%R\tP-A\tKlein\tC1\t2026-01-01 08:00',
+    '%R\tP-B\tGroot\tC1\t2026-01-01 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+    '%R\tA1\tP-A\tA1\tEen\t2026-01-01\t2026-01-02',
+    '%R\tB1\tP-B\tB1\tEen\t2026-01-01\t2026-01-02',
+    '%R\tB2\tP-B\tB2\tTwee\t2026-01-02\t2026-01-03',
+    '%E',
+  ].join('\n'));
 }
 
 function utf16(text: string, littleEndian: boolean): Uint8Array {
@@ -102,11 +121,11 @@ for (const [encoding, bytes] of encodings) {
   webTextCalls = 0;
   webArrayCalls = 0;
   const webOpened = await openFileDialogWeb(openDialogFilters(), { binaryExtensions: binaryExtensions() });
-  const webParsed = await parseOpenedFile({
+  const webParsed = activeImportResult(await parseOpenedFile({
     name: webOpened?.name ?? '',
     bytes: webOpened?.bytes,
     text: webOpened?.content,
-  });
+  }));
   eq(`web ${encoding}: originele bytes via File.arrayBuffer`, {
     name: webParsed.project.name,
     textCalls: webTextCalls,
@@ -121,7 +140,7 @@ for (const [encoding, bytes] of encodings) {
     readTextFile: async () => { tauriCalls.push('text'); return 'verboden'; },
     readFile: async () => { tauriCalls.push('bytes'); return bytes; },
   });
-  const tauriParsed = await parseOpenedFile(tauriOpened);
+  const tauriParsed = activeImportResult(await parseOpenedFile(tauriOpened));
   eq(`Tauri ${encoding}: plugin-fs-bytes blijven ongewijzigd`, {
     name: tauriParsed.project.name,
     calls: tauriCalls,
@@ -139,7 +158,7 @@ for (const [encoding, bytes] of encodings) {
     }),
   } as unknown as FileSystemFileHandle;
   const recentBytes = await readBytesFromRefWeb({ kind: 'handle', handle });
-  const recentParsed = await parseOpenedFile({ name: 'route.xer', bytes: recentBytes ?? undefined });
+  const recentParsed = activeImportResult(await parseOpenedFile({ name: 'route.xer', bytes: recentBytes ?? undefined }));
   eq(`recents ${encoding}: handle-bytepad bereikt de XER-reader`, recentParsed.project.name, 'Café €');
 }
 
@@ -192,6 +211,67 @@ useAppStore.getState().switchDocument(loadedDocId);
 eq('documentroute: documentswitch herstelt eigen externe brondata',
   (useAppStore.getState() as typeof loadedState).xerImportMetadata?.externalRelations.map(item => item.id),
   ['R-EXT']);
+
+function resetDevDocuments(): void {
+  for (const document of [...useAppStore.getState().documents]) {
+    if (useAppStore.getState().documents.some(current => current.id === document.id)) {
+      useAppStore.getState().closeDocument(document.id);
+    }
+  }
+}
+
+// Reviewronde 1, P2: de dev-handeling is een echte openhandeling, geen single-state loadState.
+// De return-id's moeten exact de documenten zijn die de gedeelde opennaad heeft hergebruikt/gemaakt.
+resetDevDocuments();
+const devMulti = await openFromPathWithIO('/tmp/twee-projecten.xer', {
+  readTextFile: async () => 'verboden',
+  readFile: async () => multiFixture(),
+}) as { documentIds?: string[]; activeDocumentId?: string };
+const devMultiDocs = useAppStore.getState().getOpenDocumentPayloads();
+eq('dev bridge meerproject: twee PROJECTen worden twee echte documenten met exacte ids', {
+  returnedIds: devMulti.documentIds,
+  stateIds: devMultiDocs.map(document => document.id),
+  projects: devMultiDocs.map(document => document.payload.project.id),
+  activeDocumentId: devMulti.activeDocumentId,
+  stateActiveDocumentId: useAppStore.getState().activeDocumentId,
+}, {
+  returnedIds: devMultiDocs.map(document => document.id),
+  stateIds: devMultiDocs.map(document => document.id),
+  projects: ['P-A', 'P-B'],
+  activeDocumentId: devMultiDocs[1]?.id,
+  stateActiveDocumentId: devMultiDocs[1]?.id,
+});
+
+const corpusRoot = process.env.OPS_XER_CORPUS;
+const publicMultiPath = corpusRoot
+  ? join(corpusRoot, 'crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer')
+  : '';
+if (publicMultiPath && existsSync(publicMultiPath)) {
+  resetDevDocuments();
+  const publicBytes = new Uint8Array(readFileSync(publicMultiPath));
+  const publicOpened = await openFromPathWithIO('/tmp/openbaar-15-projecten.xer', {
+    readTextFile: async () => 'verboden',
+    readFile: async () => publicBytes,
+  }) as { documentIds?: string[]; activeDocumentId?: string };
+  const publicDocs = useAppStore.getState().getOpenDocumentPayloads();
+  eq('dev bridge openbaar: 15 PROJECTen waaieren via open-by-path uit naar 12 documentIds', {
+    returnedCount: publicOpened.documentIds?.length,
+    returnedIds: publicOpened.documentIds,
+    stateIds: publicDocs.map(document => document.id),
+    stateCount: publicDocs.length,
+    activeDocumentId: publicOpened.activeDocumentId,
+    stateActiveDocumentId: useAppStore.getState().activeDocumentId,
+  }, {
+    returnedCount: 12,
+    returnedIds: publicDocs.map(document => document.id),
+    stateIds: publicDocs.map(document => document.id),
+    stateCount: 12,
+    activeDocumentId: useAppStore.getState().activeDocumentId,
+    stateActiveDocumentId: useAppStore.getState().activeDocumentId,
+  });
+} else {
+  console.log('OK  XER-bytepaden: openbare DevBridge-12-documentenpin overgeslagen (OPS_XER_CORPUS)');
+}
 
 // Echte fileSlice-openactie boven op het web-bytepad: de bron wordt geladen, maar krijgt nooit
 // een opslagdoel omdat saveTargetFor alleen IFC doorlaat.

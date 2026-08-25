@@ -235,6 +235,17 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERREADERCHECK="$DIR/.xer-reader.mjs"
   if bundle_check "$DIR/check-xer-reader.ts" "$XERREADERCHECK"; then node "$XERREADERCHECK" || STATUS=1; fi
 
+  # X4b-multi-projectkern: documentselectie, aanwezige P6-baselines, volledige terugval bij
+  # zelfverwijzing/cycli, solverloze cross-projectlinks en geïsoleerde documentpayloads. De twee
+  # openbare acceptatiepins draaien uitsluitend wanneer OPS_XER_CORPUS beschikbaar is.
+  XERMULTIPROJECTCHECK="$DIR/.xer-multi-project.mjs"
+  if bundle_check "$DIR/check-xer-multi-project.ts" "$XERMULTIPROJECTCHECK"; then node "$XERMULTIPROJECTCHECK" || STATUS=1; fi
+
+  # X4b-wiring: de echte registry→fileSlice→documentroute opent één XER-bestand als losse,
+  # geïsoleerde documenten met clean save-/recoverytoestand en een deterministische actieve tab.
+  XEROPENWIRINGCHECK="$DIR/.xer-open-wiring.mjs"
+  if bundle_check "$DIR/check-xer-open-wiring.ts" "$XEROPENWIRINGCHECK"; then node "$XEROPENWIRINGCHECK" || STATUS=1; fi
+
   # X4a-registercontract: .xer is lazy en binair, behoudt CP1252/UTF-16-BOM-bytes en wordt nooit
   # een opslagdoel.
   XERREGISTRYCHECK="$DIR/.xer-registry.mjs"
