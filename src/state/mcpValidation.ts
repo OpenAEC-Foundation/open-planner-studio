@@ -22,6 +22,7 @@
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import { applyProgressInvariants } from './slices/taskSlice';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 /** Per-item-fout: het aangesproken id + een leesbare reden (voor de per-item-rapportage van de
  *  tool-laag). */
@@ -158,7 +159,7 @@ export const validate = {
     const task = state.tasks.find((t) => t.id === taskId);
     if (!task) return { ok: false, reason: `taak '${taskId}' bestaat niet` };
     if (task.isMilestone) return { ok: false, reason: `taak '${taskId}' is een mijlpaal; een mijlpaal draagt geen resources` };
-    if (task.childIds.length > 0) return { ok: false, reason: `taak '${taskId}' is een verzameltaak (summary); wijs resources toe aan de bladtaken` };
+    if (isSummaryTask(task)) return { ok: false, reason: `taak '${taskId}' is een verzameltaak (summary); wijs resources toe aan de bladtaken` };
     if (!isValidUnits(units)) return { ok: false, reason: `ongeldige eenheden/dag ${String(units)} (strikt positief vereist)` };
     if (state.assignments.some((a) => a.taskId === taskId && a.resourceId === resourceId)) {
       return { ok: false, reason: `resource '${resourceId}' is al toegewezen aan taak '${taskId}' (een tweede toewijzing zou de last dubbel tellen)` };
@@ -278,7 +279,7 @@ export const progress = {
     }
 
     // (9) voortgang op een verzameltaak (heeft kinderen) ⇒ weigering.
-    if (task.childIds.length > 0) {
+    if (isSummaryTask(task)) {
       return { applied: false, reason: `taak '${taskId}' is een verzameltaak (heeft kinderen); voortgang wordt afgeleid uit de kinderen, niet direct gezet` };
     }
 

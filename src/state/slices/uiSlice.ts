@@ -1,6 +1,7 @@
 import type { UIState, AppSlice, NotifyInput } from './types';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 export interface UiSlice {
   ui: UIState;
@@ -323,7 +324,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
 
   collapseTasks: (taskIds) => {
     set((s) => {
-      const summaryIds = s.tasks.filter((t) => t.childIds.length > 0).map((t) => t.id);
+      const summaryIds = s.tasks.filter(isSummaryTask).map((t) => t.id);
       if (!taskIds || taskIds.length === 0) {
         // Geen doellijst ⇒ alles. Bewust een VERVANGING (niet toevoegen): zo verdwijnen meteen ook
         // ids van taken die inmiddels geen summary meer zijn.
@@ -343,7 +344,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
 
   expandTasks: (taskIds) => {
     set((s) => {
-      const summaryIds = new Set(s.tasks.filter((t) => t.childIds.length > 0).map((t) => t.id));
+      const summaryIds = new Set(s.tasks.filter(isSummaryTask).map((t) => t.id));
       // Doellijst beperken tot echte summary-taken; zonder lijst gelden ze allemaal.
       const targets = !taskIds || taskIds.length === 0
         ? summaryIds

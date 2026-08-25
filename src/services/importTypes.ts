@@ -8,6 +8,62 @@ import type { Baseline } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
 
+export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+
+export interface XerTableReportMetadata {
+  encoding: XerSourceEncoding;
+  endMarkerSeen: boolean;
+  issues: Array<{
+    code: string;
+    line: number;
+    table?: string;
+    expected?: number;
+    actual?: number;
+    field?: string;
+    currencyCode?: string;
+    ignoredRecords?: number;
+    ignoredLines?: number;
+  }>;
+  unknownTables: Array<{ name: string; rows: number }>;
+}
+
+export interface XerCalendarIssueMetadata {
+  code: string;
+  calendarId: string;
+  line: number;
+  reason: string;
+  resolution: 'RECOVERED' | 'REJECTED' | 'UNLINKED';
+}
+
+export interface XerEnumFallback {
+  family: 'activityType' | 'durationType' | 'status' | 'priority' | 'constraint' | 'relation';
+  token: string;
+  fallback: string;
+  table: 'PROJECT' | 'TASK' | 'TASKPRED';
+  field: string;
+  line: number;
+}
+
+export interface XerExternalRelation {
+  id: string;
+  localProjectId: string;
+  localTaskId: string;
+  externalProjectId: string;
+  externalTaskId: string;
+  direction: 'predecessor' | 'successor';
+  type: 'FS' | 'SS' | 'FF' | 'SF';
+  lagMinutes: number;
+}
+
+/** Documentgebonden XER-brondata. Externe relaties zijn nadrukkelijk geen solverrelaties. */
+export interface XerImportMetadata {
+  defaultCurrencyCode: string;
+  tableReport: XerTableReportMetadata;
+  calendarIssues: XerCalendarIssueMetadata[];
+  enumFallbacks: XerEnumFallback[];
+  externalRelations: XerExternalRelation[];
+}
+
 /**
  * Eén gedeelde payload-vorm voor een ingelezen project (audit P1). De vier readers (`readIFC`,
  * `readMSPDI`, `readP6XML`, `readCSV`) gaven elk een eigen ad-hoc objectvorm terug (11/9/7/6
@@ -100,4 +156,6 @@ export interface ImportResult {
    *  onderscheiden. Een taak-id ZONDER IfcTaskTime krijgt een lege array (niet: ontbrekende sleutel)
    *  — "geen enkel slot gevuld" is een uitspraak, "onbekend" niet. */
   recordedFields?: Record<string, RecordedFieldKey[]>;
+  /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
+  xer?: XerImportMetadata;
 }

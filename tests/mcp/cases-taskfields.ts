@@ -303,6 +303,19 @@ test('update_tasks: isMilestone ⇒ duur 0; verzameltaak/taak-met-toewijzing wor
   const res = await call('planner_update_tasks', { updates: [{ id: parent, fields: { isMilestone: true } }] });
   assertEq(rejections(res).length, 1, 'een verzameltaak kan geen mijlpaal worden');
   assertEq(taskById(parent)!.isMilestone, false, 'de verzameltaak bleef ongewijzigd');
+
+  const emptyWbs = store.getState().addTask({ name: 'Lege P6-WBS' });
+  store.setState((s) => {
+    const task = s.tasks.find((candidate) => candidate.id === emptyWbs)!;
+    task.isSummary = true;
+  });
+  const emptyWbsResult = await call('planner_update_tasks', {
+    updates: [{ id: emptyWbs, fields: { isMilestone: true } }],
+  });
+  assertEq(rejections(emptyWbsResult).length, 1,
+    'een expliciete lege WBS-samenvatting kan via MCP geen mijlpaal worden');
+  assertEq(taskById(emptyWbs)!.isMilestone, false,
+    'de expliciete lege WBS-samenvatting bleef ongewijzigd');
 });
 
 test('update_tasks: een geweigerd fields-blok blokkeert het progress-pad van hetzelfde item NIET', async () => {

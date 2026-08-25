@@ -184,6 +184,9 @@ export type NotificationMessageKey =
   | 'notifications.xerInvalidNumber'
   | 'notifications.xerSingleProjectRequired'
   | 'notifications.xerEmptyProject'
+  | 'notifications.xerDuplicateId'
+  | 'notifications.xerDanglingLocalRelation'
+  | 'notifications.xerEnumFallback'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.mppTimephasedSteeringLost';

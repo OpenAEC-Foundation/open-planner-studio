@@ -1,5 +1,11 @@
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { XerImportError } from '@/services/xer/xerTables';
+import { solveProject } from '@/engine/scheduler/solveProject';
+import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
+import { levelResources } from '@/engine/scheduler/ResourceLeveler';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -210,6 +216,168 @@ typedError('15 project zonder TASK wordt expliciet geweigerd', [
 
 ok('16 XER-resultaat levert lege resourcevelden binnen het gedeelde importcontract',
   result.resources.length === 0 && result.assignments.length === 0);
+
+// Fixronde 1, bevinding 1: een lege PROJWBS-rij blijft semantisch een samenvattingstaak. Dit
+// bewijs rijdt niet alleen langs de fidelityfilter, maar door de echte solveProject-keten én de
+// gedeelde relatie-/resourceconsumenten die uitsluitend bladtaken mogen zien.
+const emptyWbsResult = read([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tclndr_data',
+  '%R\tC1\tStandaard\t',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+  '%R\tP1\tLege WBS\tC1\t2026-01-01 08:00',
+  '%T\tPROJWBS',
+  '%F\twbs_id\tproj_id\tparent_wbs_id\tseq_num\twbs_short_name\twbs_name',
+  '%R\tW-USED\tP1\t\t10\t1\tGebruikt',
+  '%R\tW-EMPTY\tP1\t\t20\t2\tLeeg maar summary',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\twbs_id\ttask_code\ttask_name\ttarget_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+  '%R\tT1\tP1\tW-USED\tA1\tTaak\t8\t2026-01-01 08:00\t2026-01-01 16:00',
+  '%E',
+]);
+const emptyWbsId = 'xer-wbs:P1:W-EMPTY';
+const emptyWbs = emptyWbsResult.tasks.find(task => task.id === emptyWbsId);
+eq('17 lege PROJWBS heeft expliciete samenvattingsidentiteit',
+  (emptyWbs as typeof emptyWbs & { isSummary?: boolean })?.isSummary, true);
+const emptyWbsSolve = solveProject({
+  tasks: emptyWbsResult.tasks.map(task => ({ ...task, time: { ...task.time } })),
+  sequences: [],
+  calendar: emptyWbsResult.calendar,
+  calendars: emptyWbsResult.resourceCalendars ?? [],
+});
+eq('18 echte solveProject-route neemt lege PROJWBS niet als CPM-knoop op',
+  emptyWbsSolve.tasks.has(emptyWbsId), false);
+eq('19 samenvattingsrelatie vanaf lege PROJWBS wordt zichtbaar gedropt',
+  expandSummaryRelations(emptyWbsResult.tasks, [{
+    id: 'EMPTY-WBS-REL', predecessorId: emptyWbsId, successorId: 'T1',
+    type: 'FINISH_START', lagDays: 0,
+  }]).droppedSequenceIds, ['EMPTY-WBS-REL']);
+const poisonedSummaryTasks = emptyWbsResult.tasks.map(task => task.id === emptyWbsId
+  ? { ...task, time: { ...task.time, scheduleDuration: 1, earlyFinish: '2026-01-02' } }
+  : task);
+const emptyWbsLoad = computeResourceLoad(
+  [{ id: 'R1', name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 }],
+  [{ id: 'A1', taskId: emptyWbsId, resourceId: 'R1', unitsPerDay: 1 }],
+  poisonedSummaryTasks,
+  emptyWbsResult.calendar,
+  emptyWbsResult.resourceCalendars ?? [],
+);
+eq('20 resourcebelasting behandelt lege PROJWBS niet als bladtaak', emptyWbsLoad.load, {});
+const emptyWbsLeveling = levelResources(
+  poisonedSummaryTasks,
+  [],
+  [{ id: 'R1', name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 }],
+  [
+    { id: 'A1', taskId: emptyWbsId, resourceId: 'R1', unitsPerDay: 1 },
+    { id: 'A2', taskId: 'T1', resourceId: 'R1', unitsPerDay: 1 },
+  ],
+  emptyWbsResult.calendar,
+  emptyWbsResult.resourceCalendars ?? [],
+  emptyWbsSolve,
+  { constrainToFloat: false },
+);
+eq('20b nivelleerder laat lege PROJWBS ook bij directe aanroep buiten CPM en vraag', {
+  delays: emptyWbsLeveling.delays,
+  shifts: emptyWbsLeveling.shifts,
+}, { delays: {}, shifts: {} });
+const emptyWbsIfc = readIFC(writeIFC(emptyWbsResult));
+eq('21 IFC-roundtrip behoudt lege PROJWBS als expliciete samenvatting',
+  (emptyWbsIfc.tasks.find(task => task.wbsCode === '2') as TaskWithSummary | undefined)?.isSummary,
+  true);
+
+type TaskWithSummary = XerReadResult['tasks'][number] & { isSummary?: boolean };
+
+function duplicateFixture(table: 'PROJWBS' | 'TASK' | 'TASKPRED'): readonly string[] {
+  const lines = [
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name',
+    '%R\tP1\tDubbeltest',
+    '%T\tPROJWBS',
+    '%F\twbs_id\tproj_id\tparent_wbs_id\tseq_num\twbs_short_name\twbs_name',
+    '%R\tW1\tP1\t\t10\t1\tEen',
+    ...(table === 'PROJWBS' ? ['%R\tW1\tP1\t\t20\t2\tDubbel'] : []),
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\twbs_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+    '%R\tT1\tP1\tW1\tA1\tEen\t2026-01-01\t2026-01-02',
+    ...(table === 'TASK' ? ['%R\tT1\tP1\tW1\tA2\tDubbel\t2026-01-03\t2026-01-04'] : [
+      '%R\tT2\tP1\tW1\tA2\tTwee\t2026-01-03\t2026-01-04',
+    ]),
+    ...(table === 'TASKPRED' ? [
+      '%T\tTASKPRED',
+      '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+      '%R\tR1\tT2\tT1\tP1\tP1\tPR_FS\t0',
+      '%R\tR1\tT2\tT1\tP1\tP1\tPR_FS\t0',
+    ] : []),
+    '%E',
+  ];
+  return lines;
+}
+
+typedError('22 dubbele wbs_id wordt vóór boombouw getypeerd geweigerd',
+  duplicateFixture('PROJWBS'), 'XER_DUPLICATE_ID');
+typedError('23 dubbele task_id wordt vóór taakmap getypeerd geweigerd',
+  duplicateFixture('TASK'), 'XER_DUPLICATE_ID');
+typedError('24 dubbele relatie-id wordt vóór relatiebouw getypeerd geweigerd',
+  duplicateFixture('TASKPRED'), 'XER_DUPLICATE_ID');
+
+typedError('25 lokaal gedeclareerde relatie met ontbrekend lokaal eindpunt verdwijnt nooit stil', [
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name',
+  '%R\tP1\tVerweesde relatie',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+  '%R\tT1\tP1\tA1\tEen\t2026-01-01\t2026-01-02',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR-DANGLING\tMISSING\tT1\tP1\tP1\tPR_FS\t0',
+  '%E',
+], 'XER_DANGLING_LOCAL_RELATION');
+
+function sortingFixture(order: readonly string[]): readonly string[] {
+  const rows: Record<string, string> = {
+    root: '%R\tROOT\tP1\t\t1\t0\tRoot',
+    z: '%R\tW-Z\tP1\tROOT\t10\tZ\tZ',
+    umlaut: '%R\tW-Ä\tP1\tROOT\t10\tÄ\tÄ',
+  };
+  return [
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name',
+    '%R\tP1\tSortering',
+    '%T\tPROJWBS',
+    '%F\twbs_id\tproj_id\tparent_wbs_id\tseq_num\twbs_short_name\twbs_name',
+    ...order.map(key => rows[key]),
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\twbs_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+    '%R\tT1\tP1\tROOT\tA1\tTaak\t2026-01-01\t2026-01-02',
+    '%E',
+  ];
+}
+
+function sortedWbsUnderLocale(locale: string, order: readonly string[]): string[] {
+  const original = String.prototype.localeCompare;
+  String.prototype.localeCompare = function localeBound(other: string): number {
+    return original.call(String(this), other, locale);
+  };
+  try {
+    return read(sortingFixture(order)).tasks
+      .filter(task => task.id.startsWith('xer-wbs:'))
+      .map(task => task.id);
+  } finally {
+    String.prototype.localeCompare = original;
+  }
+}
+const expectedWbsOrder = ['xer-wbs:P1:ROOT', 'xer-wbs:P1:W-Z', 'xer-wbs:P1:W-Ä'];
+eq('26 WBS-sortering is hostonafhankelijk onder en-US',
+  sortedWbsUnderLocale('en-US', ['root', 'umlaut', 'z']), expectedWbsOrder);
+eq('27 WBS-sortering is hostonafhankelijk onder sv-SE',
+  sortedWbsUnderLocale('sv-SE', ['root', 'umlaut', 'z']), expectedWbsOrder);
+eq('28 unieke wbs_id is tie-breaker, onafhankelijk van bronhussel',
+  sortedWbsUnderLocale('en-US', ['z', 'root', 'umlaut']), expectedWbsOrder);
 
 if (diffs.length > 0) {
   console.error(`XER-reader: ${diffs.length}/${checks} checks rood`);

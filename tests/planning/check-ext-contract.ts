@@ -83,7 +83,7 @@ const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
 
 const EXT_TASK_KEYS = keys<ExtTask>()([
   'id', 'name', 'description', 'wbsCode', 'taskType', 'status', 'isMilestone', 'milestoneKind',
-  'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'time', 'resourceIds', 'color',
+  'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'isSummary', 'time', 'resourceIds', 'color',
   'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock', 'externalLinks',
   'deadline', 'calendarId', 'notes',
   // fase 3.8 (.mpp-datumgetrouwheid): leeskant-velden uit de import, zie extTypes.ts
@@ -184,6 +184,7 @@ const VOL_TASK = {
   timephasedDurationWalks: [{ anchor: '2026-06-01T08:00', resourceCalendarId: 'cal2', workMinutes: 480 }],
   parentId: 'p1',
   childIds: ['c1', 'c2'],
+  isSummary: true,
   time: VOL_TIME,
   resourceIds: ['r1'],
   color: '#abcdef',

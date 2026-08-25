@@ -14,6 +14,7 @@ import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
 import { PSET, PER_TASK_PSETS, ifcStr } from './ifcPsets';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 import { projectFileBase } from '@/utils/documents';
 import {
   IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx,
@@ -896,7 +897,7 @@ function writeTask(
 
 function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
   for (const task of tasks) {
-    if (task.childIds.length === 0) continue;
+    if (!isSummaryTask(task)) continue;
     const childRefs = task.childIds
       .map(cid => ref(ctx, `task_${cid}`))
       .filter(r => r !== '#0')

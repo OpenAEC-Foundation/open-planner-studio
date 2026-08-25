@@ -8,7 +8,9 @@
  * vastgelegd.
  */
 
-import type { ImportResult } from '@/services/importTypes';
+import type {
+  ImportResult, XerEnumFallback, XerExternalRelation, XerImportMetadata,
+} from '@/services/importTypes';
 import { getCalendarBands, promoteHourCalendar } from '@/services/subdayIo';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence, SequenceType } from '@/types/sequence';
@@ -21,47 +23,18 @@ import type {
 } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
-import { readXerCalendars, type XerCalendarIssue } from './xerCalendarData';
+import { readXerCalendars } from './xerCalendarData';
 import {
   parseXerNumber,
   parseXerTables,
   XerImportError,
-  type XerImportReport,
   type XerRow,
   type XerTables,
 } from './xerTables';
 
-export interface XerEnumFallback {
-  family: 'activityType' | 'durationType' | 'status' | 'priority' | 'constraint' | 'relation';
-  token: string;
-  fallback: string;
-  table: 'PROJECT' | 'TASK' | 'TASKPRED';
-  field: string;
-  line: number;
-}
-
-export interface XerExternalRelation {
-  id: string;
-  localProjectId: string;
-  localTaskId: string;
-  externalProjectId: string;
-  externalTaskId: string;
-  direction: 'predecessor' | 'successor';
-  type: 'FS' | 'SS' | 'FF' | 'SF';
-  lagMinutes: number;
-}
-
-export interface XerReaderMetadata {
-  defaultCurrencyCode: string;
-  tableReport: XerImportReport;
-  calendarIssues: XerCalendarIssue[];
-  enumFallbacks: XerEnumFallback[];
-  externalRelations: XerExternalRelation[];
-}
-
 export interface XerReadResult extends ImportResult {
   /** Importtijd-metadata; externe relaties blijven hier brondata en sturen de solver niet. */
-  xer: XerReaderMetadata;
+  xer: XerImportMetadata;
 }
 
 const ACTIVITY_TYPES: readonly P6ActivityType[] = [
@@ -240,15 +213,51 @@ function wbsTaskId(projectId: string, wbsId: string): string {
   return `xer-wbs:${projectId}:${wbsId}`;
 }
 
+/** Unicode-codepointvolgorde, onafhankelijk van hostlocale en ICU-versie. */
+function compareCodePoints(left: string, right: string): number {
+  const a = Array.from(left, char => char.codePointAt(0) ?? 0);
+  const b = Array.from(right, char => char.codePointAt(0) ?? 0);
+  const length = Math.min(a.length, b.length);
+  for (let index = 0; index < length; index++) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return a.length - b.length;
+}
+
 function stableWbsRows(rows: readonly XerRow[], projectId: string): XerRow[] {
   return rows
     .filter(row => row.cells.proj_id === projectId)
     .sort((left, right) => {
-      const parentOrder = (left.cells.parent_wbs_id ?? '').localeCompare(right.cells.parent_wbs_id ?? '');
+      const parentOrder = compareCodePoints(
+        left.cells.parent_wbs_id ?? '', right.cells.parent_wbs_id ?? '',
+      );
       const leftSeq = Number(left.cells.seq_num) || 0;
       const rightSeq = Number(right.cells.seq_num) || 0;
-      return parentOrder || leftSeq - rightSeq || left.line - right.line;
+      return parentOrder
+        || leftSeq - rightSeq
+        || compareCodePoints(left.cells.wbs_id ?? '', right.cells.wbs_id ?? '')
+        || left.line - right.line;
     });
+}
+
+function assertUniqueId(
+  rows: readonly XerRow[], table: 'PROJWBS' | 'TASK' | 'TASKPRED', field: string,
+): void {
+  const firstLineById = new Map<string, number>();
+  for (const row of rows) {
+    const id = row.cells[field]?.trim() ?? '';
+    // TASKPRED-id is in sommige exports leeg; de regelgebonden fallback blijft intrinsiek uniek.
+    if (!id) continue;
+    const firstLine = firstLineById.get(id);
+    if (firstLine !== undefined) {
+      throw new XerImportError(
+        'XER_DUPLICATE_ID',
+        `${table}.${field} bevat dubbele id '${id}' op regels ${firstLine} en ${row.line}.`,
+        { table, field, line: row.line, lines: [firstLine, row.line] },
+      );
+    }
+    firstLineById.set(id, row.line);
+  }
 }
 
 /** Lees precies één niet-leeg P6-project uit de oorspronkelijke XER-bestandsbytes. */
@@ -272,6 +281,35 @@ export function readXER(bytes: Uint8Array): XerReadResult {
       `XER-project ${projectId} bevat geen activiteiten.`,
       { table: 'TASK' },
     );
+  }
+  const rawWbsRows = (tables.tables.get('PROJWBS')?.rows ?? [])
+    .filter(row => row.cells.proj_id === projectId);
+  const relationRows = (tables.tables.get('TASKPRED')?.rows ?? []).filter(row => {
+    const successorProjectId = row.cells.proj_id || projectId;
+    const predecessorProjectId = row.cells.pred_proj_id || successorProjectId;
+    return successorProjectId === projectId || predecessorProjectId === projectId;
+  });
+
+  // Identiteit en lokale eindpunten moeten vaststaan vóór maps, WBS-boom of relaties ontstaan.
+  assertUniqueId(rawWbsRows, 'PROJWBS', 'wbs_id');
+  assertUniqueId(activityRows, 'TASK', 'task_id');
+  assertUniqueId(relationRows, 'TASKPRED', 'task_pred_id');
+  const localTaskIds = new Set(activityRows.map(row => row.cells.task_id));
+  for (const row of relationRows) {
+    const successorProjectId = row.cells.proj_id || projectId;
+    const predecessorProjectId = row.cells.pred_proj_id || successorProjectId;
+    const missingField = successorProjectId === projectId && !localTaskIds.has(row.cells.task_id)
+      ? 'task_id'
+      : predecessorProjectId === projectId && !localTaskIds.has(row.cells.pred_task_id)
+        ? 'pred_task_id'
+        : undefined;
+    if (missingField) {
+      throw new XerImportError(
+        'XER_DANGLING_LOCAL_RELATION',
+        `TASKPRED op regel ${row.line} verwijst via ${missingField} naar een ontbrekende lokale activiteit.`,
+        { table: 'TASKPRED', field: missingField, line: row.line },
+      );
+    }
   }
 
   const calendars = readXerCalendars(tables);
@@ -409,7 +447,7 @@ export function readXER(bytes: Uint8Array): XerReadResult {
   const projectHourMode = projectCalendar.workTime !== undefined;
   const statusDate = sourceInstant(projectRow.cells.last_recalc_date ?? '', projectHourMode);
 
-  const wbsRows = stableWbsRows(tables.tables.get('PROJWBS')?.rows ?? [], projectId);
+  const wbsRows = stableWbsRows(rawWbsRows, projectId);
   const wbsTasks: Task[] = wbsRows.map(row => {
     const id = wbsTaskId(projectId, row.cells.wbs_id);
     const parentId = row.cells.parent_wbs_id
@@ -423,6 +461,7 @@ export function readXER(bytes: Uint8Array): XerReadResult {
       taskType: 'CONSTRUCTION',
       status: 'NOT_STARTED',
       isMilestone: false,
+      isSummary: true,
       priority: 500,
       parentId,
       childIds: [],
@@ -440,7 +479,7 @@ export function readXER(bytes: Uint8Array): XerReadResult {
 
   const sequences: Sequence[] = [];
   const externalRelations: XerExternalRelation[] = [];
-  for (const row of tables.tables.get('TASKPRED')?.rows ?? []) {
+  for (const row of relationRows) {
     const successorProjectId = row.cells.proj_id || projectId;
     const predecessorProjectId = row.cells.pred_proj_id || successorProjectId;
     const relationType = relationTypeOf(row.cells.pred_type, row, enumFallbacks);

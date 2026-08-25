@@ -22,8 +22,11 @@ function fixture(projectName: string): string {
     '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
     `%R\tP1\t${projectName}\tC1\t2026-01-01 08:00`,
     '%T\tTASK',
-    '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
-    '%R\tT1\tP1\tA1\tTaak\t2026-01-01 08:00\t2026-01-01 16:00',
+    '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttask_type\ttarget_start_date\ttarget_end_date',
+    '%R\tT1\tP1\tA1\tTaak\tTT_Onbekend\t2026-01-01 08:00\t2026-01-01 16:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR-EXT\tT1\tEXT-1\tP1\tP-EXT\tPR_FS\t2',
     '%E',
   ].join('\n');
 }
@@ -157,6 +160,39 @@ for (const [encoding, bytes] of encodings) {
   }, { calls: ['bytes'], project: 'Café €', tasks: 1 });
 }
 
+// Fixronde 1, bevinding 2: parseOpenedFile → applyLoadedProject moet de XER-bronmetadata
+// documentgebonden behouden. De externe relatie blijft uitsluitend daar staan (geen Task-link),
+// en een enumterugval wordt met familie/token/fallback zichtbaar gemeld.
+const loadedState = useAppStore.getState() as ReturnType<typeof useAppStore.getState> & {
+  xerImportMetadata?: {
+    enumFallbacks: Array<{ family: string; token: string; fallback: string }>;
+    externalRelations: Array<{ id: string }>;
+  } | null;
+};
+const loadedDocId = loadedState.activeDocumentId;
+eq('documentroute: XER-metadata staat op het geladen document', {
+  fallbacks: loadedState.xerImportMetadata?.enumFallbacks.map(item => [item.family, item.token, item.fallback]),
+  external: loadedState.xerImportMetadata?.externalRelations.map(item => item.id),
+  taskExternalLinks: loadedState.tasks.flatMap(task => task.externalLinks ?? []).length,
+}, {
+  fallbacks: [['activityType', 'TT_Onbekend', 'TT_Task']],
+  external: ['R-EXT'],
+  taskExternalLinks: 0,
+});
+const fallbackNotice = loadedState.ui.notifications.find(
+  notice => notice.messageKey === ('notifications.xerEnumFallback' as typeof notice.messageKey),
+);
+eq('documentroute: enumterugval toont familie, token en fallback', fallbackNotice?.params, {
+  family: 'activityType', token: 'TT_Onbekend', fallback: 'TT_Task',
+});
+loadedState.newDocument();
+eq('documentroute: vers document erft geen XER-metadata',
+  (useAppStore.getState() as typeof loadedState).xerImportMetadata, null);
+useAppStore.getState().switchDocument(loadedDocId);
+eq('documentroute: documentswitch herstelt eigen externe brondata',
+  (useAppStore.getState() as typeof loadedState).xerImportMetadata?.externalRelations.map(item => item.id),
+  ['R-EXT']);
+
 // Echte fileSlice-openactie boven op het web-bytepad: de bron wordt geladen, maar krijgt nooit
 // een opslagdoel omdat saveTargetFor alleen IFC doorlaat.
 nextBytes = new Uint8Array(encodings[0][1]);
@@ -198,6 +234,31 @@ eq('fileSlice recents: UTF-16BE-XER laadt zonder opslagdoel', {
   filePath: useAppStore.getState().filePath,
   fileHandle: useAppStore.getState().fileHandle,
 }, { project: 'Café €', filePath: null, fileHandle: null });
+
+// Een getypeerde semantische fout gebeurt volledig vóór de documenthydratatie.
+const beforeRejectedOpen = {
+  project: useAppStore.getState().project.name,
+  taskIds: useAppStore.getState().tasks.map(task => task.id),
+  metadata: (useAppStore.getState() as typeof loadedState).xerImportMetadata,
+};
+nextBytes = new TextEncoder().encode([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name',
+  '%R\tP1\tDubbel',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+  '%R\tT1\tP1\tA1\tEen\t2026-01-01\t2026-01-02',
+  '%R\tT1\tP1\tA2\tDubbel\t2026-01-03\t2026-01-04',
+  '%E',
+].join('\n'));
+await useAppStore.getState().openFile();
+eq('fileSlice foutpad: dubbele id hydrateert niets gedeeltelijk', {
+  project: useAppStore.getState().project.name,
+  taskIds: useAppStore.getState().tasks.map(task => task.id),
+  metadata: (useAppStore.getState() as typeof loadedState).xerImportMetadata,
+  errorKey: useAppStore.getState().ui.notifications.at(-1)?.messageKey,
+}, { ...beforeRejectedOpen, errorKey: 'notifications.xerDuplicateId' });
 
 if (diffs.length > 0) {
   console.error(`XER-bytepaden: ${diffs.length}/${checks} checks rood`);

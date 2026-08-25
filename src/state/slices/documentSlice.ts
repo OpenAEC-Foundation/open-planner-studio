@@ -227,6 +227,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       filePath: null,
       fileHandle: null,
       isDirty: true,
+      xerImportMetadata: src.xerImportMetadata ? deepClone(src.xerImportMetadata) : null,
     };
 
     set((s) => {

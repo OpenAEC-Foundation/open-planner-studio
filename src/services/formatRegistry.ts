@@ -165,7 +165,9 @@ export function importErrorMessageKey(
   | 'notifications.xerInvalidNumberFormat'
   | 'notifications.xerInvalidNumber'
   | 'notifications.xerSingleProjectRequired'
-  | 'notifications.xerEmptyProject' {
+  | 'notifications.xerEmptyProject'
+  | 'notifications.xerDuplicateId'
+  | 'notifications.xerDanglingLocalRelation' {
   const typed = err as { mppCode?: string; xerCode?: string } | null | undefined;
   if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
   if (typed?.mppCode === 'MPP_LEGACY') return 'notifications.mppLegacy';
@@ -181,6 +183,8 @@ export function importErrorMessageKey(
     XER_INVALID_NUMBER: 'notifications.xerInvalidNumber',
     XER_SINGLE_PROJECT_REQUIRED: 'notifications.xerSingleProjectRequired',
     XER_EMPTY_PROJECT: 'notifications.xerEmptyProject',
+    XER_DUPLICATE_ID: 'notifications.xerDuplicateId',
+    XER_DANGLING_LOCAL_RELATION: 'notifications.xerDanglingLocalRelation',
   } as const;
   if (typed?.xerCode && typed.xerCode in xerKeys) {
     return xerKeys[typed.xerCode as keyof typeof xerKeys];

@@ -233,6 +233,7 @@ export interface ExtTask {
   parentId: string | null;
   /** WBS-kinderen. */
   childIds: string[];
+  isSummary?: boolean;
   time: ExtTaskTime;
   resourceIds: string[];
   color?: string;

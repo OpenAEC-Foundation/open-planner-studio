@@ -1,10 +1,11 @@
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { CPMResult } from './CPMSolver';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 /**
  * Volledige samenvattingsrelatie-propagatie (vervolg op 489a9ef2). `CPMSolver` kent alleen
- * bladtaken (`childIds.length === 0`) als knopen; een relatie die een WBS-samenvattingstaak raakt
+ * semantische bladtaken als knopen; een relatie die een WBS-samenvattingstaak raakt
  * kan de solver dus niet zelf verwerken. 489a9ef2 loste de crash op door zulke relaties te droppen
  * (`CPMResult.droppedSequenceIds`) — een bewuste tussenoplossing die op een echt corpusbestand
  * (870d339f60603f71, hash-only §8) 28 van de 105 relaties liet vallen: een kwart van de logica.
@@ -110,7 +111,7 @@ export function expandSummaryRelations(tasks: Task[], sequences: Sequence[]): Ex
     if (cached) return cached;
     const root = byId.get(rootId);
     if (!root) return NONE;
-    if (root.childIds.length === 0) {
+    if (isLeafTask(root)) {
       const self = [rootId];
       leafDescCache.set(rootId, self);
       return self;
@@ -124,7 +125,7 @@ export function expandSummaryRelations(tasks: Task[], sequences: Sequence[]): Ex
       visited.add(id);
       const t = byId.get(id);
       if (!t) continue; // verweesd kind-id — geen bladtaak om te representeren
-      if (t.childIds.length === 0) {
+      if (isLeafTask(t)) {
         out.push(id);
       } else {
         stack.push(...t.childIds);
@@ -161,8 +162,8 @@ export function expandSummaryRelations(tasks: Task[], sequences: Sequence[]): Ex
       outSeqs.push(seq);
       continue;
     }
-    const predIsLeaf = predTask.childIds.length === 0;
-    const succIsLeaf = succTask.childIds.length === 0;
+    const predIsLeaf = isLeafTask(predTask);
+    const succIsLeaf = isLeafTask(succTask);
     if (predIsLeaf && succIsLeaf) {
       outSeqs.push(seq); // geen samenvatting aan weerskant — niets te expanderen
       continue;

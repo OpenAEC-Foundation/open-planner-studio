@@ -1,5 +1,6 @@
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import type { CPMResult } from './CPMSolver';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { isHourCalendar } from '@/services/subdayIo';
@@ -68,7 +69,7 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
   const byId = new Map<string, Task>(tasks.map(t => [t.id, t]));
   const updateSummary = (taskId: string): void => {
     const task = byId.get(taskId);
-    if (!task || task.childIds.length === 0) return;
+    if (!task || isLeafTask(task)) return;
 
     for (const childId of task.childIds) updateSummary(childId);
 

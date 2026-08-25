@@ -1,4 +1,5 @@
 import type { Task } from '@/types/task';
+import { isSummaryTask as taskIsSummary } from '@/utils/taskHierarchy';
 import type { Sequence, SequenceType } from '@/types/sequence';
 
 /**
@@ -45,20 +46,13 @@ export type RelationVerdict = { ok: true } | { ok: false; reason: RelationReject
 export type TaskLookup = (id: string) => Task | undefined;
 
 /**
- * Is deze taak een verzameltaak — een taak MET subtaken? Een onbekende taak (`undefined`) is dat
- * níét. Sinds het eigenaarsbesluit van 2026-08-15 heeft GEEN productiecode meer een directe
- * afhankelijkheid op deze functie: `relationVerdict` leunt niet meer op dit predicaat (een
- * verzameltaak-eindpunt is nu legaal, zie `isAncestorRelation` hieronder voor de regel die wél nog
- * weigert), en de drie oude UI-/MCP-lezers (RelationsPanel, fileSlice, dependencyTools) lezen sinds
- * dat besluit `cpmResult.droppedSequenceIds` resp. `isAncestorRelation` in plaats van dit predicaat.
- * `GanttRenderer.getRelationSourceAt` dupliceert het CONCEPT `childIds.length > 0` inline (die
- * renderer importeert bewust niets uit `@/state`) maar staat een verzameltaak als relatiebron
- * sindsdien juist WÉL toe — dat is dus geen lockstep-lezer van deze functie. Blijft geëxporteerd
- * als algemeen, headless-getest predicaat (`tests/planning/check-relation-rules.ts`); niet
- * verwijderd omdat "is dit een WBS-samenvatting" een op zichzelf staand, herbruikbaar begrip is.
+ * Is deze taak een verzameltaak? De gedeelde semantiek staat in `utils/taskHierarchy`: een taak
+ * met kinderen én een expliciet gemarkeerde lege WBS-taak zijn allebei samenvattingen. Deze export
+ * blijft bestaan voor de state-regeltests en de bestaande state-API, maar de uitvoering delegeert
+ * zodat scheduler, renderer, resourcepaden en IFC exact hetzelfde begrip gebruiken.
  */
 export function isSummaryTask(task: Task | undefined): boolean {
-  return (task?.childIds.length ?? 0) > 0;
+  return taskIsSummary(task);
 }
 
 /**

@@ -38,6 +38,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 // Zelfde twee bronnen als het slot in `ResourcePanel` en de weigering in `resourceTools` — één lijst.
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 // ── Lokale leestool-wikkel + nette fout ──────────────────────────────────────────────────────────
 
@@ -256,8 +257,8 @@ function calendarSummary(cal: WorkCalendar) {
 
 function getProjectInfo(s: AppState) {
   const tasks = s.tasks;
-  const leaves = tasks.filter((t) => t.childIds.length === 0);
-  const summaries = tasks.filter((t) => t.childIds.length > 0);
+  const leaves = tasks.filter(isLeafTask);
+  const summaries = tasks.filter(isSummaryTask);
   const milestones = tasks.filter((t) => t.isMilestone);
   const criticalCount = tasks.filter((t) => t.time.isCritical).length;
   const p = s.project;
@@ -382,7 +383,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   // Wees-detectie: alléén LEAF-taken die in geen enkele relatie voorkomen. Verzameltaken hebben per
   // definitie geen relaties en zijn dus geen "wezen" — die worden hier bewust uitgesloten.
   if (args.zonder_relaties === true) {
-    filtered = filtered.filter((t) => t.childIds.length === 0 && !inSeq.has(t.id));
+    filtered = filtered.filter((t) => isLeafTask(t) && !inSeq.has(t.id));
   }
 
   const paged = paginate(filtered, args);
@@ -400,7 +401,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     if (p > 0) row.prog = p;
     if (t.time.isCritical) row.crit = true;
     if (t.isMilestone) row.ms = true;
-    if (t.childIds.length > 0) row.summary = true;
+    if (isSummaryTask(t)) row.summary = true;
     return row;
   });
   return {

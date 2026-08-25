@@ -113,6 +113,8 @@ const errorKeys: ReadonlyArray<readonly [XerImportErrorCode, string]> = [
   ['XER_INVALID_NUMBER', 'notifications.xerInvalidNumber'],
   ['XER_SINGLE_PROJECT_REQUIRED', 'notifications.xerSingleProjectRequired'],
   ['XER_EMPTY_PROJECT', 'notifications.xerEmptyProject'],
+  ['XER_DUPLICATE_ID', 'notifications.xerDuplicateId'],
+  ['XER_DANGLING_LOCAL_RELATION', 'notifications.xerDanglingLocalRelation'],
 ];
 eq('6 iedere typed XER-fout heeft een eigen meldingssleutel',
   errorKeys.map(([code]) => importErrorMessageKey(new XerImportError(code, code))),
