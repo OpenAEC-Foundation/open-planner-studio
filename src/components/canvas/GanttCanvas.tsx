@@ -33,10 +33,11 @@ import { saveHistogramHeight, HISTOGRAM_MIN_HEIGHT, HISTOGRAM_MAX_HEIGHT } from 
 // hierheen verhuisd zodat ze headless te controleren zijn; de `useMemo`-aanroepen hieronder blijven
 // bewust in dit component staan (zie de kop van dat bestand voor waarom).
 import {
-  buildBaselineOverlay, buildTrace, buildSharedAxis,
+  buildBaselineOverlay, buildSharedAxis,
   computeContentSpanDays, computeContentWidth,
   buildHistogramPicker, buildHistogramSeries, buildGanttRenderOptions,
 } from './ganttRenderOptions';
+import { buildTrace } from '@/engine/taskGrid/trace';
 import { useCanvasLayer } from './hooks/useCanvasLayer';
 import { useBarDrag } from './hooks/useBarDrag';
 import { usePan } from './hooks/usePan';

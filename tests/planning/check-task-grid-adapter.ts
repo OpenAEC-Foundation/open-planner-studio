@@ -40,7 +40,9 @@ const baseInput = {
   baselines: [], activityCodeTypes: [], customFieldDefs: [], scheduleStale: true,
   wbsAutoNumber: false, selectedTaskIds: ['t-1'],
   labelForColumn: (key: string) => key,
-  traceClassForTask: (candidate: Task) => candidate.time.isCritical ? 'critical' : null,
+  trace: {
+    focusId: 't-1', predecessors: [], drivingPredecessors: [], successors: [], drivenSuccessors: [],
+  },
 };
 const gantt = createTaskGridAdapter({ ...baseInput, surfaceId: 'gantt-task-grid' });
 const table = createTaskGridAdapter({ ...baseInput, surfaceId: 'full-task-grid' });
@@ -66,7 +68,7 @@ eq('Groepsrijmeta blijft expliciet', gantt.rowMetaByKey.get('groep-a'), {
 eq('Taakrijmeta draagt occurrence, taak, dimming, selectie, trace en gedeelde tooltiptaak',
   gantt.rowMetaByKey.get('occurrence-b'), {
     rowKey: 'occurrence-b', taskId: 't-1', kind: 'task', depth: 1, dimmed: true,
-    selected: true, traceClass: 'critical', tooltipData: { task },
+    selected: true, traceClass: 'task-grid-trace-focus', tooltipData: { task },
   });
 eq('Twee occurrences lezen rechtstreeks dezelfde taakwaarde', [
   gantt.getCell('occurrence-a', taskColumnId('task.name'))?.text,

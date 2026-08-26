@@ -9,6 +9,7 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Task } from '@/types/task';
 import type { DateNotation } from '@/types/view';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { classifyTraceTask, taskGridTraceClass, type TaskTrace } from '@/engine/taskGrid/trace';
 import type {
   CellValidationError,
   GridIntent,
@@ -108,7 +109,7 @@ export interface CreateTaskGridAdapterInput {
   selectedTaskIds: readonly string[] | ReadonlySet<string>;
   labelForColumn: (labelKey: string) => string;
   labelForBoolean?: (value: boolean) => string;
-  traceClassForTask?: (task: Task) => string | null;
+  trace?: TaskTrace;
   effectiveHoursPerDay?: (task: Task) => number;
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
   dateNotation?: DateNotation;
@@ -257,7 +258,7 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       depth: row.depth,
       dimmed: row.dimmed,
       selected: selectedTaskIds.has(row.task.id),
-      traceClass: input.traceClassForTask?.(row.task) ?? null,
+      traceClass: taskGridTraceClass(classifyTraceTask(input.trace, row.task.id)),
       tooltipData: { task: row.task },
     });
     return {
@@ -266,7 +267,7 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       depth: row.depth,
       dimmed: row.dimmed,
       selected: selectedTaskIds.has(row.task.id),
-      traceClass: input.traceClassForTask?.(row.task) ?? null,
+      traceClass: taskGridTraceClass(classifyTraceTask(input.trace, row.task.id)),
     };
   });
   const availableColumns = descriptors.map<TaskGridAdapterColumn>(descriptor => ({

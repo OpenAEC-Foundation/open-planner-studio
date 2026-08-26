@@ -16,7 +16,7 @@ import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { contextMenuBulk, contextMenuOutlineScope } from '@/components/canvas/contextMenuScope';
-import { buildTrace } from '@/components/canvas/ganttRenderOptions';
+import { buildTrace } from '@/engine/taskGrid/trace';
 import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
 import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
@@ -309,14 +309,7 @@ export function TaskGridSurface({
       key => tTask(key, { defaultValue: key }),
     ),
     labelForBoolean: value => tCommon(value ? 'yes' : 'no'),
-    traceClassForTask: task => {
-      if (!trace || task.id === trace.focusId) return null;
-      if (trace.drivingPredecessors.includes(task.id)) return 'task-grid-trace-predecessor-driving';
-      if (trace.predecessors.includes(task.id)) return 'task-grid-trace-predecessor';
-      if (trace.drivenSuccessors.includes(task.id)) return 'task-grid-trace-successor-driving';
-      if (trace.successors.includes(task.id)) return 'task-grid-trace-successor';
-      return 'task-grid-trace-dimmed';
-    },
+    trace,
     callbacks: {
       onPrepareEdit: () => true,
       onCommitEdit: (_target, intents) => {

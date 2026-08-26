@@ -477,6 +477,55 @@
   color: #ffffff;
 }
 
+.ribbon-relation-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--theme-text);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ribbon-relation-menu-item:hover:not(:disabled),
+.ribbon-relation-menu-item:focus-visible {
+  background: var(--theme-hover);
+}
+
+.ribbon-relation-menu-item:disabled {
+  color: var(--theme-text-dim);
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.ribbon-relation-menu-mark {
+  width: 14px;
+  flex: 0 0 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ribbon-relation-menu-status {
+  max-width: 300px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--theme-border-light);
+  color: var(--theme-text-dim);
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  white-space: normal;
+}
+
+@media (forced-colors: active) {
+  .ribbon-relation-menu-item:disabled {
+    border-inline-start: 2px dashed GrayText;
+    opacity: 1;
+  }
+}
+
 .ribbon-info {
   font-size: calc(10px * var(--ui-font-scale, 1));
   color: var(--theme-text-dim);

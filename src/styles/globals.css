@@ -127,6 +127,11 @@
   opacity: 0.25;
 }
 
+.task-grid-data-row.task-grid-trace-focus {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: -2px;
+}
+
 .task-grid-data-row.task-grid-trace-predecessor,
 .task-grid-data-row.task-grid-trace-predecessor-driving {
   border-inline-start: 3px solid var(--trace-predecessor, #7c3aed);
@@ -139,7 +144,36 @@
 
 .task-grid-data-row.task-grid-trace-predecessor-driving,
 .task-grid-data-row.task-grid-trace-successor-driving {
+  border-inline-start-width: 5px;
   font-weight: 600;
+}
+
+@media (forced-colors: active) {
+  .task-grid-data-row.task-grid-trace-dimmed .task-grid-cell-content {
+    opacity: 1;
+    text-decoration: line-through;
+    text-decoration-style: dotted;
+  }
+
+  .task-grid-data-row.task-grid-trace-dimmed {
+    border-inline-start: 2px dotted GrayText;
+  }
+
+  .task-grid-data-row.task-grid-trace-focus {
+    outline-color: Highlight;
+  }
+
+  .task-grid-data-row.task-grid-trace-predecessor,
+  .task-grid-data-row.task-grid-trace-predecessor-driving {
+    border-inline-start-color: Highlight;
+    border-inline-start-style: solid;
+  }
+
+  .task-grid-data-row.task-grid-trace-successor,
+  .task-grid-data-row.task-grid-trace-successor-driving {
+    border-inline-start-color: Highlight;
+    border-inline-start-style: dashed;
+  }
 }
 
 .task-grid-group-row,

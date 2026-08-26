@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Plus, Link, Play, Undo2, Redo2, ZoomIn, ZoomOut,
+  Plus, Play, Undo2, Redo2, ZoomIn, ZoomOut,
   FileText, FolderOpen, Save, Printer, Trash2,
   Calendar, Settings, Info, Clock,
   ArrowRightLeft, Eye, EyeOff, SaveAll,
@@ -15,7 +15,6 @@ import {
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
 import { useCommandBinding } from './useCommandBinding';
-import { createRelationWithFeedback } from '@/state/relationActions';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import {
@@ -23,7 +22,7 @@ import {
 } from '@/utils/settingsStore';
 import type { RibbonTab } from '@/state/slices/types';
 import {
-  BaselinesProgressGroupContent, MilestoneDropdown, TemplatesDropdown, RecentFilesDropdown,
+  BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ExportDropdown, ResourceAssignDropdown, LayoutGroupContent, PresentationGroupContent,
   TimeScaleGroupContent, DisplayGroupContent, OverallocationIndicator, IfcInfo,
   useColumnsButtonBinding,
@@ -119,8 +118,8 @@ const addTaskButton: RibbonButtonSpec = {
     const hasSelection = useAppStore(s => s.selectedTaskIds.length > 0);
     const treeMode = useAppStore(s => isTreeMode(s.view));
     // Issue #49: de knop zette de nieuwe taak altijd onderaan de lijst. Nu volgt hij de selectie
-    // (zie `addTaskNearSelection`). Net als bij `relationButton` hierboven hangt het gedrag dus van
-    // de selectie af, en net als daar (issue #40) zegt de tooltip vooraf wélke van de twee er nu
+    // (zie `addTaskNearSelection`). Net als bij de relatie-dropdown hangt het gedrag dus van
+    // de selectie af, en net als daar zegt de tooltip vooraf wélke van de twee er nu
     // gebeurt — anders is "waarom staat mijn taak onderaan?" opnieuw een verrassing.
     return {
       title: hasSelection && treeMode ? tMenu('ribbon.taskHintBelow') : tMenu('ribbon.taskHintAppend'),
@@ -129,38 +128,8 @@ const addTaskButton: RibbonButtonSpec = {
   },
 };
 
-/** Relatie-modus-knop (start/planning/relations). */
-const relationButton: RibbonButtonSpec = {
-  kind: 'button', id: 'relation', icon: <Link size={20} />, labelKey: 'menu:ribbon.relation',
-  use: () => {
-    const setUI = useAppStore(s => s.setUI);
-    const active = useAppStore(s => s.ui.showDependencyMode);
-    const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-    const { t } = useTranslation('menu');
-    // issue #40: de knop doet twee dingen afhankelijk van de selectie. Dat verraste (de melder zag
-    // "geen enkele actie"), dus de tooltip zegt vooraf wélke van de twee er nu gebeurt.
-    const pairMode = selectedTaskIds.length === 2;
-    return {
-      active,
-      title: pairMode
-        ? t('ribbon.relationHintPair')
-        : active ? t('ribbon.relationHintModeOff') : t('ribbon.relationHintModeOn'),
-      onClick: () => {
-        // issue #21 punt 4: bij precies 2 geselecteerde taken direct een Finish-Start-relatie
-        // aanleggen (voorganger = eerst aangeklikt), via hetzelfde pad als
-        // RelationsPanel.addFromSelection — zelfde actie, defaults (FS, lag 0) en duplicaat-guard.
-        // Issue #40: nu via de gedeelde wrapper, zodat succes én een geweigerd duplicaat een
-        // zichtbare melding geven in plaats van stil te blijven.
-        // In alle andere gevallen (0/1/>2 geselecteerd) de relatiemodus togglen — die stuurt sinds
-        // issue #40 écht gedrag aan (zie `ui.showDependencyMode`).
-        if (pairMode) {
-          createRelationWithFeedback(selectedTaskIds[0], selectedTaskIds[1]);
-          return;
-        }
-        setUI({ showDependencyMode: !active });
-      },
-    };
-  },
+const relationDropdownItem: RibbonComponentSpec = {
+  kind: 'component', id: 'relation', Component: RelationDropdown,
 };
 
 /** Kalender-knop (planning + instellingen). */
@@ -194,7 +163,7 @@ const tasksGroup: RibbonGroupSpec = {
   items: [
     addTaskButton,
     { kind: 'component', id: 'milestone', Component: MilestoneDropdown },
-    relationButton,
+    relationDropdownItem,
   ],
 };
 
@@ -367,7 +336,7 @@ const planningTab: RibbonTabConfig = [
   {
     id: 'relations', labelKey: 'menu:ribbon.relations',
     items: [
-      relationButton,
+      relationDropdownItem,
       {
         kind: 'button', id: 'manage', icon: <ArrowRightLeft size={20} />, labelKey: 'menu:ribbon.manage',
         use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ activeRibbonTab: 'relations' }) }; },
@@ -450,7 +419,7 @@ const planningTab: RibbonTabConfig = [
  * Gedeelde item-specs (issue #46c): "Resources", "Resourcedock" en "Histogram" staan zowel op de
  * Resources-tab als onder Beeld → Panelen. Bewust GEDUPLICEERD (niet verplaatst) — de melder vroeg
  * er expliciet om ze ook onder Beeld te zien, zonder ze bij Resources weg te halen. Eén definitie,
- * twee callsites, in lijn met `calcButton`/`relationButton`/`calendarButton`/`printPreviewButton`
+ * twee callsites, in lijn met `calcButton`/`relationDropdownItem`/`calendarButton`/`printPreviewButton`
  * hierboven.
  *
  * Naamgeving (issue #46, slot): de twee resourceknoppen doen ECHT iets anders — `openResourcePanel`
@@ -616,7 +585,7 @@ const resourcesTab: RibbonTabConfig = [
 ];
 
 const relationsTab: RibbonTabConfig = [
-  { id: 'relations', labelKey: 'menu:ribbon.relations', items: [relationButton] },
+  { id: 'relations', labelKey: 'menu:ribbon.relations', items: [relationDropdownItem] },
   traceGroup,
   { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton] },
 ];

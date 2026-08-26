@@ -18,7 +18,6 @@
 // memo-grens kan een renderlus opleveren. Die faalmodus ziet geen enkele headless test. Door alleen
 // de INHOUD te verplaatsen is de hook-graaf per constructie ongewijzigd.
 import type { Task } from '@/types/task';
-import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource } from '@/types/resource';
 import type { Baseline } from '@/types/baseline';
@@ -27,16 +26,12 @@ import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
-import type { TraceMode } from '@/state/slices/types';
-import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { diffDays, parseDate } from '@/utils/dateUtils';
 
 /** Overlay-datums uit de actieve baseline, keyed op Task.id. */
 export type BaselineOverlay = NonNullable<GanttRenderOptions['baselineOverlay']>;
-/** Path-tracing-bundel zoals de renderer hem verwacht. */
-export type GanttTrace = NonNullable<GanttRenderOptions['trace']>;
 
 /**
  * Overlay-map uit de actieve baseline. `undefined` (geen actieve baseline, of een id dat niet meer
@@ -54,31 +49,6 @@ export function buildBaselineOverlay(
     map.set(bt.taskId, { start: bt.start, finish: bt.finish, isMilestone: bt.isMilestone });
   }
   return map;
-}
-
-/**
- * Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
- * driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
- */
-export function buildTrace(
-  traceMode: TraceMode,
-  selectedTaskIds: string[],
-  sequences: Sequence[],
-  cpmResult: CPMResult | null | undefined,
-): GanttTrace | undefined {
-  if (traceMode === 'off' || selectedTaskIds.length === 0) return undefined;
-  const focusId = selectedTaskIds[0];
-  const drivingIds = cpmResult && !cpmResult.error
-    ? new Set(cpmResult.drivingSequenceIds)
-    : undefined;
-  const tr = traceFrom(focusId, sequences, drivingIds);
-  return {
-    focusId,
-    predecessors: traceMode !== 'successors' ? [...tr.predecessors] : [],
-    drivingPredecessors: traceMode !== 'successors' ? [...tr.drivingPredecessors] : [],
-    successors: traceMode !== 'predecessors' ? [...tr.successors] : [],
-    drivenSuccessors: traceMode !== 'predecessors' ? [...tr.drivenSuccessors] : [],
-  };
 }
 
 export interface SharedAxisInput {

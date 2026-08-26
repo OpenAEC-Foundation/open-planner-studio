@@ -14,6 +14,7 @@ import { readGanttPalette, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
+import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -29,13 +30,7 @@ export interface GanttRenderOptions {
   drivingSequenceIds?: string[];
   /** Path tracing (MSP Task Path-stijl): focus-taak + de te markeren voorgangers/opvolgers.
    *  Actief ⇒ niet-betrokken taken dimmen; driving-ketens in een sterkere tint. */
-  trace?: {
-    focusId: string;
-    predecessors: string[];
-    drivingPredecessors: string[];
-    successors: string[];
-    drivenSuccessors: string[];
-  } | null;
+  trace?: TaskTrace | null;
   /** Fase 2.3: taken met geschonden late-zijde-constraint resp. gemiste deadline
    *  (uit cpmResult) — kleurt de markers rood. */
   violatedConstraintTaskIds?: string[];
@@ -901,10 +896,6 @@ export class GanttRenderer {
     // Path tracing: betrokken taken krijgen de trace-tint (driving-keten sterker), de rest dimt.
     // De focus-taak behoudt z'n eigen kleur — de selectiering markeert hem al.
     const trace = this.opts.trace;
-    const tDPred = trace ? new Set(trace.drivingPredecessors) : null;
-    const tPred = trace ? new Set(trace.predecessors) : null;
-    const tDSucc = trace ? new Set(trace.drivenSuccessors) : null;
-    const tSucc = trace ? new Set(trace.successors) : null;
 
     for (let i = 0; i < this.rows.length; i++) {
       const row = this.rows[i];
@@ -924,12 +915,13 @@ export class GanttRenderer {
 
       let overrideColor: string | undefined;
       let dimmed = false;
-      if (trace && task.id !== trace.focusId) {
-        if (tDPred!.has(task.id)) overrideColor = this.colors.tracePredDriving;
-        else if (tPred!.has(task.id)) overrideColor = this.colors.tracePred;
-        else if (tDSucc!.has(task.id)) overrideColor = this.colors.traceSuccDriving;
-        else if (tSucc!.has(task.id)) overrideColor = this.colors.traceSucc;
-        else dimmed = true;
+      const traceRole = classifyTraceTask(trace, task.id);
+      if (traceRole === 'predecessor-driving') overrideColor = this.colors.tracePredDriving;
+      else if (traceRole === 'predecessor') overrideColor = this.colors.tracePred;
+      else if (traceRole === 'successor-driving') overrideColor = this.colors.traceSuccDriving;
+      else if (traceRole === 'successor') overrideColor = this.colors.traceSucc;
+      else if (traceRole === 'dimmed') {
+        dimmed = true;
       }
 
       if (dimmed) this.ctx.globalAlpha = 0.25;
@@ -1670,9 +1662,6 @@ export class GanttRenderer {
     // Bij actieve path tracing dimmen pijlen waarvan een van beide taken buiten de trace valt,
     // in lijn met de gedimde balken.
     const trace = this.opts.trace;
-    const traced = trace
-      ? new Set([trace.focusId, ...trace.predecessors, ...trace.successors])
-      : null;
 
     for (const seq of this.opts.sequences) {
       // §7.1: taskId→rij-index-map is "eerste occurrence wint" — bij multi-band-duplicaten
@@ -1693,8 +1682,11 @@ export class GanttRenderer {
       const color = isCriticalLink ? this.colors.critical : this.colors.dependency;
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
-      ctx.setLineDash(isDriving ? [] : [4, 3]);
-      ctx.globalAlpha = traced && !(traced.has(seq.predecessorId) && traced.has(seq.successorId)) ? 0.15 : 1;
+      const outsideTrace = isRelationOutsideTrace(trace, seq.predecessorId, seq.successorId);
+      // Buiten de trace is de lijn niet alleen transparanter maar ook fijn gestippeld. Daardoor
+      // blijft het onderscheid in high-contrast/forced-colors leesbaar wanneer alpha of kleur wegvalt.
+      ctx.setLineDash(outsideTrace ? [1, 4] : isDriving ? [] : [4, 3]);
+      ctx.globalAlpha = outsideTrace ? 0.15 : 1;
 
       const rowH = this.opts.rowHeight;
       const predY = this.rowToY(predIdx) + rowH / 2;

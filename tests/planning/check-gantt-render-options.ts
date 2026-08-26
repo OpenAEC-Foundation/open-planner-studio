@@ -26,10 +26,11 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import {
-  buildBaselineOverlay, buildTrace, buildSharedAxis,
+  buildBaselineOverlay, buildSharedAxis,
   computeContentSpanDays, computeContentWidth, buildHistogramPicker, buildHistogramSeries,
   buildGanttRenderOptions, type GanttRenderOptionsInput,
 } from '@/components/canvas/ganttRenderOptions';
+import { buildTrace } from '@/engine/taskGrid/trace';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';

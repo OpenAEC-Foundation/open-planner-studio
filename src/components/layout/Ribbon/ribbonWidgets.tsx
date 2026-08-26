@@ -3,7 +3,7 @@ import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import {
-  Diamond, ZoomIn, ZoomOut, Trash2, Eye,
+  Diamond, Link, ZoomIn, ZoomOut, Trash2, Eye,
   History, Download, Puzzle,
   LayoutTemplate, UserPlus, Flag, GitCompareArrows, CalendarClock, X,
   Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal,
@@ -35,6 +35,8 @@ import {
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
 import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
+import { createRelationWithFeedback } from '@/state/relationActions';
+import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 
 /**
  * Ribbon-widgets (audit P18): de "component-escape-hatch" uit de config-registry — de
@@ -222,6 +224,152 @@ export function MilestoneDropdown() {
         </button>
       ))}
     </Popover>
+  );
+}
+
+export interface RelationActionAvailability {
+  linkSelected: boolean;
+  addExternal: boolean;
+  refreshExternal: boolean;
+}
+
+/** Pure beschikbaarheidsregels achter de vier vaste dropdownacties. */
+export function relationActionAvailability(
+  selectedTaskCount: number,
+  externalRelationCount: number,
+): RelationActionAvailability {
+  return {
+    linkSelected: selectedTaskCount === 2,
+    addExternal: selectedTaskCount === 1,
+    refreshExternal: externalRelationCount > 0,
+  };
+}
+
+/**
+ * Relatie is bewust een keuzemenu met vier vaste betekenissen. De selectie bepaalt alleen of een
+ * actie beschikbaar is; de hoofdknop verandert nooit meer stil van gedrag.
+ */
+export function RelationDropdown() {
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tTask } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
+  const [open, setOpen] = useState(false);
+  const [externalTaskId, setExternalTaskId] = useState<string | null>(null);
+  const [refreshStatus, setRefreshStatus] = useState('');
+  const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
+  const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
+  const externalRelationCount = useAppStore(s => s.tasks.reduce(
+    (count, task) => count + (task.externalLinks?.length ?? 0),
+    0,
+  ));
+  const setUI = useAppStore(s => s.setUI);
+  const refreshAllExternalAnchors = useAppStore(s => s.refreshAllExternalAnchors);
+  const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount);
+
+  const items: Array<{
+    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal';
+    label: string;
+    disabled: boolean;
+    title: string;
+    active?: boolean;
+    onClick: () => void;
+  }> = [
+    {
+      key: 'draw',
+      label: tMenu('ribbon.relationDraw'),
+      disabled: false,
+      active: dependencyMode,
+      title: tMenu(dependencyMode ? 'ribbon.relationDrawOffHint' : 'ribbon.relationDrawOnHint'),
+      onClick: () => {
+        setUI({ showDependencyMode: !dependencyMode });
+        setOpen(false);
+      },
+    },
+    {
+      key: 'linkSelected',
+      label: tMenu('ribbon.relationLinkSelected'),
+      disabled: !availability.linkSelected,
+      title: availability.linkSelected
+        ? tMenu('ribbon.relationLinkSelectedHint')
+        : tMenu('ribbon.relationSelectExactlyTwo'),
+      onClick: () => {
+        createRelationWithFeedback(selectedTaskIds[0], selectedTaskIds[1], 'FINISH_START');
+        setOpen(false);
+      },
+    },
+    {
+      key: 'addExternal',
+      label: tMenu('ribbon.relationAddExternal'),
+      disabled: !availability.addExternal,
+      title: availability.addExternal
+        ? tMenu('ribbon.relationAddExternalHint')
+        : tMenu('ribbon.relationSelectOne'),
+      onClick: () => {
+        setExternalTaskId(selectedTaskIds[0]);
+        setOpen(false);
+      },
+    },
+    {
+      key: 'refreshExternal',
+      label: tMenu('ribbon.relationRefreshExternal'),
+      disabled: !availability.refreshExternal,
+      title: availability.refreshExternal
+        ? tTask('externalLinks.refreshAllHint')
+        : tMenu('ribbon.relationNoExternal'),
+      onClick: () => {
+        void (async () => {
+          const result = await refreshAllExternalAnchors(buildImportLabels(tCommon));
+          setRefreshStatus(result.sources === 0
+            ? tTask('externalLinks.noSourcesToast')
+            : tTask('externalLinks.refreshedToast', { refreshed: result.refreshed, missing: result.missing }));
+        })();
+      },
+    },
+  ];
+
+  return (
+    <>
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        panelStyle={{ zIndex: 1000, minWidth: 260, padding: '4px 0' }}
+        trigger={
+          <button
+            className={`ribbon-btn${dependencyMode ? ' active' : ''}`}
+            onClick={() => setOpen(current => !current)}
+            title={tMenu('ribbon.relation')}
+            aria-label={tMenu('ribbon.relation')}
+            aria-haspopup="menu"
+            aria-expanded={open}
+          >
+            <span className="ribbon-btn-icon"><Link size={20} /></span>
+            <span className="ribbon-btn-label">{tMenu('ribbon.relation')} ▾</span>
+          </button>
+        }
+      >
+        <div role="menu" aria-label={tMenu('ribbon.relation')}>
+          {items.map(item => (
+            <button
+              key={item.key}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              aria-disabled={item.disabled || undefined}
+              title={item.title}
+              className="ribbon-relation-menu-item"
+              onClick={item.disabled ? undefined : item.onClick}
+            >
+              <span className="ribbon-relation-menu-mark" aria-hidden="true">{item.active ? '✓' : ''}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+          {refreshStatus && <div className="ribbon-relation-menu-status" role="status">{refreshStatus}</div>}
+        </div>
+      </Popover>
+      {externalTaskId && (
+        <ExternalLinkDialog taskId={externalTaskId} onClose={() => setExternalTaskId(null)} />
+      )}
+    </>
   );
 }
 

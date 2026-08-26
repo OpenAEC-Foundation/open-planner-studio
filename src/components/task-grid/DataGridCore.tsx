@@ -368,6 +368,7 @@ export function DataGridCore({
                 data-ops-row-index={mounted.index}
                 data-grid-dimmed={row.dimmed ? 'true' : undefined}
                 data-grid-row-selected={row.selected ? 'true' : undefined}
+                data-grid-trace-role={row.traceClass?.replace('task-grid-trace-', '')}
                 data-grid-drop-zone={row.dropZone ?? undefined}
                 data-grid-dragging={row.dragging ? 'true' : undefined}
                 className={`task-grid-data-row${row.traceClass ? ` ${row.traceClass}` : ''}`}
