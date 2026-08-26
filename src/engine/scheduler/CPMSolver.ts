@@ -1886,13 +1886,17 @@ export class CPMSolver {
           if (task.p6ProjectId && this.options.schedulingOptions?.useExpectedFinishDates === true
               && task.p6ExpectedFinish) {
             const parsedExpected = this.parseIn(progressCal, task.p6ExpectedFinish);
-            // X7: date-only Expected Finish heeft dagprecisie, ook wanneer een ANDER X7-veld de
-            // taakkalender naar uurmodus promoveerde. Als finish-anker landt die datum daarom op
-            // het laatste effectieve band-einde van DEZELFDE dag; een echte timestamp blijft exact.
+            // X7: date-only Expected Finish heeft FINISH-dagprecisie, ook wanneer een ANDER X7-veld
+            // de taakkalender naar uurmodus promoveerde. Zoek vanaf de volgende daggrens begrensd
+            // terug naar het laatste effectieve band-einde op of vóór de bedoelde kalenderdag.
+            // `null` betekent: binnen CalendarEngine.MAX_SCAN bestaat aantoonbaar geen bandpunt;
+            // dan blijft de al berekende finish staan i.p.v. een middernachtanker te verzinnen.
             const expected = progressCal.isHourMode && !task.p6ExpectedFinish.includes('T')
-              ? this.dayLastBandEnd(progressCal, parsedExpected) ?? parsedExpected
+              ? progressCal.prevWorkInstantOrNull(new Date(
+                this.startOfDay(parsedExpected).getTime() + MS_PER_DAY,
+              ))
               : parsedExpected;
-            if (!isNaN(expected.getTime())) ef = expected;
+            if (expected && !isNaN(expected.getTime())) ef = expected;
           }
           // Z8-HERWERKRONDE (LAAG 2 van de gelaagde beslistabel): een IN-PROGRESS-taak plant op haar
           // bestaande resume-/actuals-pad hierboven — GEEN Z8-venster-raadpleging. De EERSTE Z8-versie

@@ -643,7 +643,7 @@ export class CalendarEngine {
 
   /** Laatste band-eind ≤ `tMs` (of strikt < bij `strict`), in ms. Dag-scan achteruit; stopt zodra
    *  geen eerdere dag het beste resultaat nog kan verbeteren (max mogelijke eind = dagstart+2880m). */
-  private prevBandEndBound(tMs: number, strict: boolean): number {
+  private prevBandEndBound(tMs: number, strict: boolean): number | null {
     let best = Number.NEGATIVE_INFINITY;
     let dayMs = this.dayStartMsOf(tMs);
     let scan = 0;
@@ -657,7 +657,7 @@ export class CalendarEngine {
       dayMs -= CalendarEngine.MS_PER_DAY;
       scan++;
     }
-    return best === Number.NEGATIVE_INFINITY ? tMs : best;
+    return best === Number.NEGATIVE_INFINITY ? null : best;
   }
 
   // ── Instant-vinders (§4.1) ─────────────────────────────────────────────────
@@ -684,12 +684,22 @@ export class CalendarEngine {
   prevWorkInstant(t: Date): Date {
     const tMs = t.getTime();
     if (this.findContaining(tMs, true)) return new Date(tMs);
-    return new Date(this.prevBandEndBound(tMs, false));
+    return new Date(this.prevBandEndBound(tMs, false) ?? tMs);
+  }
+
+  /** Begrensde variant voor aanroepers die "geen band gevonden" semantisch moeten onderscheiden
+   *  van de bestaande best-effort-terugval op `t`. Dezelfde MAX_SCAN-zoektocht, nooit een tweede lus. */
+  prevWorkInstantOrNull(t: Date): Date | null {
+    const tMs = t.getTime();
+    if (this.findContaining(tMs, true)) return new Date(tMs);
+    const found = this.prevBandEndBound(tMs, false);
+    return found === null ? null : new Date(found);
   }
 
   /** Het laatste band-eind STRIKT < t (§4.1). */
   prevWorkInstantBefore(t: Date): Date {
-    return new Date(this.prevBandEndBound(t.getTime(), true));
+    const tMs = t.getTime();
+    return new Date(this.prevBandEndBound(tMs, true) ?? tMs);
   }
 
   // ── Minuut-lussen (§4.2) ───────────────────────────────────────────────────

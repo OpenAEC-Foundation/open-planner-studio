@@ -162,6 +162,69 @@ eq('gemengde solver gebruikt date-only Expected Finish als einde van die werkdag
     ['R', '2026-08-12T13:15'],
   ]);
 
+// Reviewfinding B: een date-only Expected Finish is een FINISH-dag. De solver zoekt daarom het
+// laatste effectieve band-einde op of vóór die datum. Deze fixture loopt per case door de volledige
+// XER→IFC→XER-store→solverketen en onderscheidt weekband, werkende uitzondering, holiday,
+// weekend, exact timestamp-anker en een aantoonbaar bandloze kalender.
+const weekBands = '(0||DaysOfWeek()('
+  + '(0||2()((0||0(s|08:00|f|16:00)())))'
+  + '(0||3()((0||0(s|08:00|f|16:00)())))'
+  + '(0||4()((0||0(s|08:00|f|16:00)())))'
+  + '(0||5()((0||0(s|08:00|f|16:00)())))'
+  + '(0||6()((0||0(s|08:00|f|16:00)())))'
+  + '))';
+const normalCalendarData = `(0||CalendarData()(${weekBands}(0||Exceptions()())))`;
+const exceptionBand = '(0||0(s|06:00|f|12:00)())';
+const exceptionRecord = `(0||0(d|46246)(${exceptionBand}))`;
+const holidayRecord = '(0||0(d|46246)())';
+const exceptionCalendarData = `(0||CalendarData()(${weekBands}(0||Exceptions()(${exceptionRecord}))))`;
+const holidayCalendarData = `(0||CalendarData()(${weekBands}(0||Exceptions()(${holidayRecord}))))`;
+const noWorkCalendarData = '(0||CalendarData()((0||DaysOfWeek()())(0||Exceptions()())))';
+const finishDayXer = [
+  'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+  '%R\tP1\tX7 finishdag\tCN\t2026-08-10',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  `%R\tCN\tNormaal\tP1\tCA_Project\t8\t40\t${normalCalendarData}`,
+  `%R\tCX\tWerkende uitzondering\tP1\tCA_Project\t8\t40\t${exceptionCalendarData}`,
+  `%R\tCH\tHoliday\tP1\tCA_Project\t8\t40\t${holidayCalendarData}`,
+  `%R\tCZ\tGeen werk\tP1\tCA_Project\t8\t0\t${noWorkCalendarData}`,
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\tcomplete_pct_type\tcomplete_pct\tphys_complete_pct\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tsuspend_date\tresume_date\texpect_end_date',
+  '%R\tN\tP1\tCN\tN\tNormale werkdag\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04 15:30\t2026-08-06 09:45\t2026-08-12',
+  '%R\tX\tP1\tCX\tX\tWerkende uitzondering\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04 15:30\t2026-08-06 09:45\t2026-08-12',
+  '%R\tH\tP1\tCH\tH\tVolledige holiday\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04 15:30\t2026-08-06 09:45\t2026-08-12',
+  '%R\tS\tP1\tCN\tS\tGewone zaterdag\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04 15:30\t2026-08-06 09:45\t2026-08-15',
+  '%R\tT\tP1\tCH\tT\tTimestamp op holiday\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t\t\t2026-08-12 13:15',
+  '%R\tF\tP1\tCZ\tF\tGeen werkbandpunt\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04 15:30\t2026-08-06 09:45\t2026-08-12',
+  '%E',
+];
+const finishDaysOpened = readXER(new TextEncoder().encode(finishDayXer.join('\n')));
+if (isMultiDocumentImport(finishDaysOpened)) throw new Error('finishdagfixture gaf meerdere documenten');
+const finishDaysReloaded = readIFC(writeIFC(finishDaysOpened));
+const openedFinishByCode = new Map(finishDaysOpened.tasks.map(candidate => [candidate.wbsCode, candidate]));
+const reloadedFinishByCode = new Map(finishDaysReloaded.tasks.map(candidate => [candidate.wbsCode, candidate]));
+const solvedFinishDays = solve(finishDaysReloaded);
+const finishDayResult = (code: string): [string | undefined, string | undefined, string | undefined] => [
+  openedFinishByCode.get(code)?.p6ExpectedFinish,
+  reloadedFinishByCode.get(code)?.p6ExpectedFinish,
+  solvedFinishDays.get(code),
+];
+eq('finishdag a: normale werkdag gebruikt eigen laatste band',
+  finishDayResult('N'), ['2026-08-12', '2026-08-12', '2026-08-12T16:00']);
+eq('finishdag b: werkende uitzondering gebruikt exceptionband 06-12',
+  finishDayResult('X'), ['2026-08-12', '2026-08-12', '2026-08-12T12:00']);
+eq('finishdag c: volledige holiday gebruikt vorige effectieve werkdag',
+  finishDayResult('H'), ['2026-08-12', '2026-08-12', '2026-08-11T16:00']);
+eq('finishdag d: gewone zaterdag gebruikt vorige effectieve werkdag',
+  finishDayResult('S'), ['2026-08-15', '2026-08-15', '2026-08-14T16:00']);
+eq('finishdag e: timestamp op niet-werkdag blijft exact en wordt nooit gesnapt',
+  finishDayResult('T'), ['2026-08-12T13:15', '2026-08-12T13:15', '2026-08-12T13:15']);
+eq('finishdag f: bandloze kalender slaat override begrensd over zonder middernacht te verzinnen',
+  finishDayResult('F'), ['2026-08-12', '2026-08-12', '2026-08-06T09:45']);
+
 if (diffs.length > 0) {
   console.error(`XER-X7-uurmodus: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX  ${diff}`);
