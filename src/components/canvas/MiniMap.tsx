@@ -13,8 +13,8 @@ const MINIMAP_HEIGHT = 48;
 interface MiniMapProps {
   /** Datum die in het hoofdvenster op scrollX = 0 ligt (effectiveViewStart van GanttCanvas). */
   originDate: string;
-  /** Breedte van het zichtbare chart-gedeelte van het bestuurde pane (px). */
-  chartWidth: number;
+  /** Werkelijk gemeten breedte van het bestuurde tijdlijnpaneel (px). */
+  timelineWidth: number;
   /** Issue #35 punt 1 — bestuurde tijdvenster. Alle drie afwezig ⇒ het PRIMAIRE pane: de strip
    *  leest `view.scrollX`/`view.zoom` en schrijft via `setScroll` (ongewijzigd gedrag). Meegegeven
    *  ⇒ een tweede strip die het secundaire split-view-venster bestuurt
@@ -30,7 +30,7 @@ interface MiniMapProps {
 
 export function MiniMap({
   originDate,
-  chartWidth,
+  timelineWidth,
   scrollX: scrollXProp,
   zoom: zoomProp,
   onScrollXChange,
@@ -82,11 +82,11 @@ export function MiniMap({
       originDate,
       scrollX,
       zoom,
-      chartWidth,
+      chartWidth: timelineWidth,
     });
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, originDate, scrollX, zoom, chartWidth, uiTheme]);
+  }, [viewRows, originDate, scrollX, zoom, timelineWidth, uiTheme]);
 
   // Debounced redraw (§11/§17-risico 3): alleen op discrete wijzigingen, via rAF gecoalesced.
   useEffect(() => {
@@ -129,11 +129,11 @@ export function MiniMap({
     } else {
       // Klik buiten het kader: centreer het hoofdvenster op het aangeklikte punt (§11.2)
       // en sleep daarna vanuit het midden verder.
-      const halfDays = chartWidth > 0 ? chartWidth / 2 / zoom : 0;
+      const halfDays = timelineWidth > 0 ? timelineWidth / 2 / zoom : 0;
       applyScrollX((day - halfDays) * zoom);
       setDragOffsetDays(halfDays);
     }
-  }, [scrollX, zoom, chartWidth, applyScrollX]);
+  }, [scrollX, zoom, timelineWidth, applyScrollX]);
 
   useEffect(() => {
     if (dragOffsetDays === null) return;

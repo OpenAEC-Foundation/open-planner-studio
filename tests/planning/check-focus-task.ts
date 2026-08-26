@@ -63,6 +63,13 @@ const close = (label: string, got: number, want: number, eps = 0.001) => {
   eq('05 scrollX klemt op 0', scrollX, 0);
 }
 
+// De invoer is de GEMETEN timelinebreedte. Een oude tweede aftrek van 300px zou hier zoom 13.9
+// geven; de correcte 995px (1000 minus uitsluitend de 5px splitter) levert 19.9.
+{
+  const splitPane = computeFocusTaskHorizontal(10, 100, 995);
+  close('05b focus gebruikt de volledige gemeten timelinebreedte', splitPane.zoom, 19.9);
+}
+
 // ── 4) Verticaal: rij wordt gecentreerd in de zichtbare hoogte. ─────────────
 {
   const scrollY = computeFocusTaskScrollY(10, 28, 40, 600);

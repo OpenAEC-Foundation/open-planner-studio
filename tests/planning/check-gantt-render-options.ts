@@ -305,10 +305,10 @@ eq('06 contentSpanDays: leeg project ⇒ null', computeContentSpanDays([], '2027
 })), null);
 
 // 7 — contentWidthFor: de bodem van 2000px en de lineaire tak.
-eq('07 computeContentWidth: leeg project ⇒ vaste 2000px', computeContentWidth(null, 30, 300), 2000);
-eq('08 computeContentWidth: korte span blijft op de 2000px-bodem', computeContentWidth(10, 30, 300), 2000);
-eq('09 computeContentWidth: lange span schaalt met zoom en tabelbreedte',
-  computeContentWidth(500, 30, 300), Math.max(2000, (500 * 1.2) * 30 + 300));
+eq('07 computeContentWidth: leeg project ⇒ vaste 2000px', computeContentWidth(null, 30), 2000);
+eq('08 computeContentWidth: korte span blijft op de 2000px-bodem', computeContentWidth(10, 30), 2000);
+eq('09 computeContentWidth: lange span schaalt uitsluitend met zoom',
+  computeContentWidth(500, 30), Math.max(2000, (500 * 1.2) * 30));
 
 // 10 — trace, over alle vier de standen. De focus is `idB`, die zowel een VOORGANGER (idA) als een
 // OPVOLGER (idC) heeft. Dat tweede is niet cosmetisch: met alleen een voorganger zijn

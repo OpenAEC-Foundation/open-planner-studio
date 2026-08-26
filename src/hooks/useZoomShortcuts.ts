@@ -5,11 +5,10 @@ import { computeFitToProject, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 interface UseZoomShortcutsOpts {
   zoomAt: (newZoom: number, anchorX: number) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  taskTableWidth: number;
 }
 
 
-export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZoomShortcutsOpts) {
+export function useZoomShortcuts({ zoomAt, containerRef }: UseZoomShortcutsOpts) {
   const setZoom = useAppStore(s => s.setZoom);
   const setScroll = useAppStore(s => s.setScroll);
   const setViewStartDate = useAppStore(s => s.setViewStartDate);
@@ -52,7 +51,7 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
           setScroll(0, 0);
           return;
         }
-        const fit = computeFitToProject(t, rect.width - taskTableWidth, enableQH);
+        const fit = computeFitToProject(t, rect.width, enableQH);
         if (!fit) return;
         setZoom(fit.zoom);
         setViewStartDate(fit.viewStartDate);
@@ -62,5 +61,5 @@ export function useZoomShortcuts({ zoomAt, containerRef, taskTableWidth }: UseZo
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [zoomAt, containerRef, taskTableWidth, setZoom, setScroll, setViewStartDate]);
+  }, [zoomAt, containerRef, setZoom, setScroll, setViewStartDate]);
 }

@@ -18,7 +18,7 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
-import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
+import { ZOOM_STEP, DEFAULT_ZOOM, computeTimelineZoom } from '@/utils/ganttViewport';
 
 const S = () => useAppStore.getState();
 
@@ -53,6 +53,13 @@ for (let i = 0; i < 10; i++) {
   S().setZoom(S().view.zoom - ZOOM_STEP);
 }
 eq('03 tien keer in/uit laat de zoom niet weglopen', S().view.zoom, begin);
+
+// Cursorgeankerde paneelzoom: beide uiterste geldige pixels en een hoge scrollpositie. Deze
+// pure helper wordt door zowel het primaire als secundaire pane gebruikt.
+eq('03c zoom op de lokale linkerrand behoudt de datum onder de cursor',
+  computeTimelineZoom(30, 60, 900, 0, 400), { zoom: 60, scrollX: 1800 });
+eq('03d zoom op de lokale rechterrand behoudt de datum onder de cursor',
+  computeTimelineZoom(30, 60, 900, 639, 400), { zoom: 60, scrollX: 2439 });
 
 // ── 2) Bron: geen kale zoomwaarden meer naast setZoom. ───────────────────────
 {

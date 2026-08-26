@@ -1,16 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { getGanttScrollBounds } from '@/utils/ganttViewport';
+import { computeTimelineZoom, getGanttScrollBounds } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
 
 interface UseGanttZoomOpts {
   containerRef: React.RefObject<HTMLDivElement | null>;
-  taskTableWidth: number;
 }
 
 const ZOOM_FACTOR_PER_TICK = 1.1;
 
-export function useGanttZoom({ containerRef, taskTableWidth }: UseGanttZoomOpts) {
+export function useGanttZoom({ containerRef }: UseGanttZoomOpts) {
   const view = useAppStore(s => s.view);
   const setZoom = useAppStore(s => s.setZoom);
   const setScroll = useAppStore(s => s.setScroll);
@@ -27,18 +26,11 @@ export function useGanttZoom({ containerRef, taskTableWidth }: UseGanttZoomOpts)
   const zoomAt = (newZoom: number, anchorX: number) => {
     const { view: v, enableQuarterHourZoom: enableQH } = latest.current;
     const max = enableQH ? 1000 : 400;
-    const clamped = Math.max(0.5, Math.min(max, newZoom));
-    if (clamped === v.zoom) return;
+    const next = computeTimelineZoom(v.zoom, newZoom, v.scrollX, anchorX, max);
+    if (next.zoom === v.zoom) return;
 
-    // Date under the cursor at current zoom (in fractional days from viewStart)
-    const localX = anchorX - taskTableWidth + v.scrollX;
-    const daysUnderCursor = localX / v.zoom;
-
-    // New scrollX so the same fractional day stays under the cursor
-    const newScrollX = Math.max(0, daysUnderCursor * clamped - (anchorX - taskTableWidth));
-
-    setZoom(clamped);
-    setScroll(newScrollX, v.scrollY);
+    setZoom(next.zoom);
+    setScroll(next.scrollX, v.scrollY);
   };
 
   // Wheel handler
@@ -104,7 +96,7 @@ export function useGanttZoom({ containerRef, taskTableWidth }: UseGanttZoomOpts)
     return () => {
       container.removeEventListener('wheel', handleWheel);
     };
-  }, [containerRef, taskTableWidth, setZoom, setScroll]);
+  }, [containerRef, setZoom, setScroll]);
 
   return { zoomAt };
 }

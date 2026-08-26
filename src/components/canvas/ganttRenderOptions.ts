@@ -114,7 +114,7 @@ export function buildSharedAxis(input: SharedAxisInput): GanttAxis {
 }
 
 /**
- * Content-span in dagen vanaf de effectieve oorsprong — bewust ZONDER zoom/taskTableWidth, zodat
+ * Content-span in dagen vanaf de effectieve oorsprong — bewust ZONDER zoom, zodat
  * dezelfde span ook voor het secundaire split-view-venster (eigen zoom, geen taaktabel) gebruikt
  * kan worden zonder de compressie-logica te dupliceren (issue #35 punt 1). `null` = leeg project.
  */
@@ -141,15 +141,14 @@ export function computeContentSpanDays(
   return maxDays;
 }
 
-/** Contentbreedte (px) van een tijdvenster met de gegeven zoom en tabelbreedte. */
+/** Contentbreedte (px) van een tijdlijnvenster met de gegeven zoom. */
 export function computeContentWidth(
   contentSpanDays: number | null,
   zoom: number,
-  tableWidth: number,
 ): number {
   return contentSpanDays === null
     ? 2000
-    : Math.max(2000, (contentSpanDays * 1.2) * zoom + tableWidth);
+    : Math.max(2000, (contentSpanDays * 1.2) * zoom);
 }
 
 /**

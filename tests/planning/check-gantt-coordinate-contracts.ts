@@ -9,6 +9,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { readGanttPalette } from '@/engine/renderer/themePalette';
+import { computeSplitPaneWidths, computeTimelineZoom, splitPanePrimaryWidthCss } from '@/utils/ganttViewport';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -16,6 +17,13 @@ let checks = 0;
 function equal(label: string, actual: unknown, expected: unknown): void {
   checks++;
   if (actual !== expected) diffs.push(`${label}: kreeg ${String(actual)}, verwacht ${String(expected)}`);
+}
+
+function deepEqual(label: string, actual: unknown, expected: unknown): void {
+  checks++;
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    diffs.push(`${label}: kreeg ${JSON.stringify(actual)}, verwacht ${JSON.stringify(expected)}`);
+  }
 }
 
 function close(label: string, actual: number, expected: number, tolerance = 1e-8): void {
@@ -99,6 +107,10 @@ const timelineHookSources = [
   'useBoxSelect.ts',
   'useDependencyDraw.ts',
 ].map(file => fs.readFileSync(path.join(root, 'src/components/canvas/hooks', file), 'utf8')).join('\n');
+const zoomSources = [
+  fs.readFileSync(path.join(root, 'src/hooks/useGanttZoom.ts'), 'utf8'),
+  fs.readFileSync(path.join(root, 'src/hooks/useZoomShortcuts.ts'), 'utf8'),
+].join('\n');
 
 equal('timeAxis gebruikt chartOriginX', /chartOriginX:\s*number/.test(timeAxisSource), true);
 equal('timeAxis noemt de oude oorsprong niet meer', /taskTableWidth/.test(timeAxisSource), false);
@@ -158,6 +170,33 @@ equal('GanttRenderer tekent geen canvas-taaktabel meer', /drawTaskTable|columnHe
 equal('GanttRenderer heeft geen lokale tabelhit-tests meer', /isInTaskTable|isCollapseToggle|isAddButton/.test(rendererSource), false);
 equal('primaire gedeelde as begint letterlijk op 0', /buildSharedAxis\(\{[\s\S]*?chartOriginX:\s*0\b/.test(ganttCanvasSource), true);
 equal('timelinehooks trekken geen paneel- of tabelbreedte af', /taskTableWidth|leftPanelWidth/.test(timelineHookSources), false);
+
+// Task 16C: zoomankers, splitverhoudingen en DOM-scrollrange rekenen uitsluitend binnen de echte
+// timelinebreedte. Hoge scroll en beide uiterste cursorpixels bewaken de oude datum-onder-cursor.
+deepEqual('zoom op x=0 behoudt de datum onder de cursor',
+  computeTimelineZoom(30, 60, 900, 0, 400), { zoom: 60, scrollX: 1800 });
+deepEqual('zoom op x=width-1 behoudt de datum onder de cursor',
+  computeTimelineZoom(30, 60, 900, 639, 400), { zoom: 60, scrollX: 2439 });
+deepEqual('zoom-uit op een smalle timeline klemt scroll niet negatief',
+  computeTimelineZoom(60, 15, 0, 0, 400), { zoom: 15, scrollX: 0 });
+deepEqual('split 20/80 verdeelt alleen ruimte buiten de splitter',
+  computeSplitPaneWidths(1000, 0.2, 5), { primary: 199, secondary: 796 });
+deepEqual('split 80/20 verdeelt alleen ruimte buiten de splitter',
+  computeSplitPaneWidths(1000, 0.8, 5), { primary: 796, secondary: 199 });
+deepEqual('smalle split blijft niet-negatief',
+  computeSplitPaneWidths(3, 0.5, 5), { primary: 0, secondary: 0 });
+equal('split-CSS drukt dezelfde 20/80-verdeling zonder ongedekte vermenigvuldiging uit',
+  splitPanePrimaryWidthCss(0.2, 5), 'calc(20% - 1px)');
+equal('split-CSS drukt dezelfde 80/20-verdeling zonder ongedekte vermenigvuldiging uit',
+  splitPanePrimaryWidthCss(0.8, 5), 'calc(80% - 4px)');
+equal('zoomhooks kennen geen tweede linkerpaneelaftrek meer', /taskTableWidth|leftPanelWidth/.test(zoomSources), false);
+equal('fitpaden geven de werkelijk gemeten paneelbreedte door',
+  /computeFitToProject\([^\n]*rect\.width\s*-/.test(`${ganttCanvasSource}\n${zoomSources}`), false);
+equal('splitlayout trekt de splitter vóór de ratioverdeling af',
+  (ganttCanvasSource.match(/splitPanePrimaryWidthCss\(splitView\.ratio, SPLIT_RATIO_BAR_WIDTH\)/g) ?? []).length, 2);
+equal('primaire scrollbar begint lokaal op nul', /data-testid="gantt-hscroll"[\s\S]*?style=\{\{\s*left:\s*0\b/.test(ganttCanvasSource), true);
+equal('primaire scrollbar gebruikt de volledige timeline-contentbreedte',
+  /data-testid="gantt-hscroll"[\s\S]*?width:\s*Math\.max\(1,\s*totalContentWidth\)/.test(ganttCanvasSource), true);
 
 if (diffs.length > 0) {
   console.error(`XX  gantt-coordinate-contracts: ${diffs.length} afwijking(en) van ${checks}`);

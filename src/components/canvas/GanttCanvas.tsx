@@ -5,7 +5,7 @@ import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRender
 import { HistogramRenderer, HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { resolveUIFontStack } from '@/utils/uiFont';
-import { setGanttChartWidth, setGanttScrollBounds, getGanttScrollBounds, computeGanttScrollBounds, computeFitToProject, computeEffectiveViewStart, computeFocusTaskHorizontal, computeFocusTaskScrollY, DEFAULT_ZOOM } from '@/utils/ganttViewport';
+import { setGanttChartWidth, setGanttScrollBounds, getGanttScrollBounds, computeGanttScrollBounds, computeFitToProject, computeEffectiveViewStart, computeFocusTaskHorizontal, computeFocusTaskScrollY, computeTimelineZoom, splitPanePrimaryWidthCss, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
 import { MiniMap } from './MiniMap';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
@@ -170,9 +170,6 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   const splitView = useAppStore(s => s.view.splitView);
   const setSplitView = useAppStore(s => s.setSplitView);
   const showMiniMap = useAppStore(s => s.ui.showMiniMap);
-  // Task 15: de linker taaktabel is nu DOM en staat buiten dit component. Het primaire canvas
-  // is vanaf deze commit timeline-only; Task 16B verwijdert de daardoor dode renderermethodes.
-  const taskTableWidth = 0;
   const showHistogram = useAppStore(s => s.ui.showHistogram);
   const histogramHeight = useAppStore(s => s.ui.histogramHeight);
   const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
@@ -189,8 +186,8 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   const assignments = useAppStore(s => s.assignments);
   const setHistogramResource = useAppStore(s => s.setHistogramResource);
 
-  const { zoomAt } = useGanttZoom({ containerRef, taskTableWidth });
-  useZoomShortcuts({ zoomAt, containerRef, taskTableWidth });
+  const { zoomAt } = useGanttZoom({ containerRef });
+  useZoomShortcuts({ zoomAt, containerRef });
 
   const rendererRef = useRef<GanttRenderer | null>(null);
   // Split view (fase 2.7, §10): secundair tijdvenster + sleepbare ratio-balk.
@@ -199,10 +196,9 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   const secondaryCanvasRef = useRef<HTMLCanvasElement>(null);
   const secondaryRendererRef = useRef<GanttRenderer | null>(null);
   const [isResizingSplit, setIsResizingSplit] = useState(false);
-  const [primaryChartWidth, setPrimaryChartWidth] = useState(0);
-  // Idem voor het secundaire pane (issue #35 punt 1): daar is taskTableWidth 0, dus de chart-breedte
-  // is de volle pane-breedte. Voedt het viewport-kader van de tweede mini-map-strook.
-  const [secondaryChartWidth, setSecondaryChartWidth] = useState(0);
+  const [primaryTimelineWidth, setPrimaryTimelineWidth] = useState(0);
+  // Het secundaire pane meet zijn eigen breedte; die voedt uitsluitend zijn eigen mini-mapkader.
+  const [secondaryTimelineWidth, setSecondaryTimelineWidth] = useState(0);
   // Onderdrukt de eerstvolgende click-afhandeling ná een gepromoveerd kader (en na een Escape-annulering
   // ervan) — anders deselecteert/hertekent de gewone click-logica de zojuist gezette boxselectie.
   // Gedeeld met de pan- en box-select-hooks.
@@ -342,30 +338,30 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     [calendar, compressNonWorkdays, effectiveView],
   );
 
-  // Content-span in dagen vanaf de effectieve origin — bewust ZONDER zoom/taskTableWidth, zodat
-  // dezelfde span ook voor het secundaire split-view-venster (eigen zoom, geen taaktabel) gebruikt
+  // Content-span in dagen vanaf de effectieve origin — bewust ZONDER zoom, zodat
+  // dezelfde span ook voor het secundaire split-view-venster (eigen zoom) gebruikt
   // kan worden zonder de compressie-logica te dupliceren (issue #35 punt 1). `null` = leeg project.
   const contentSpanDays = useMemo(
     () => computeContentSpanDays(tasks, effectiveViewStart, compressNonWorkdays, sharedAxis),
     [tasks, effectiveViewStart, compressNonWorkdays, sharedAxis],
   );
 
-  /** Contentbreedte (px) van een tijdvenster met de gegeven zoom en tabelbreedte. */
+  /** Contentbreedte (px) van een tijdlijnvenster met de gegeven zoom. */
   const contentWidthFor = useCallback(
-    (zoom: number, tableWidth: number) => computeContentWidth(contentSpanDays, zoom, tableWidth),
+    (zoom: number) => computeContentWidth(contentSpanDays, zoom),
     [contentSpanDays],
   );
 
   // Calculate total content width based on task date range
   const totalContentWidth = useMemo(
-    () => contentWidthFor(view.zoom, taskTableWidth),
-    [contentWidthFor, view.zoom, taskTableWidth],
+    () => contentWidthFor(view.zoom),
+    [contentWidthFor, view.zoom],
   );
 
-  // Idem voor het secundaire pane: eigen zoom, en daar is `taskTableWidth` 0 (drawSecondary
-  // tekent geen taaktabel). 0 zolang split view uit staat — dan is er ook geen tweede balk.
+  // Idem voor het secundaire pane: eigen zoom. 0 zolang split view uit staat — dan is er ook
+  // geen tweede balk.
   const secondaryContentWidth = useMemo(
-    () => (splitView ? contentWidthFor(splitView.secondaryZoom, 0) : 0),
+    () => (splitView ? contentWidthFor(splitView.secondaryZoom) : 0),
     [contentWidthFor, splitView],
   );
 
@@ -391,7 +387,9 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       view: effectiveView,
       canvasWidth: width,
       canvasHeight: height,
-      taskTableWidth,
+      // Task 16D geeft de histogramkiezer een eigen semantische breedte; de tijdlijn zelf begint
+      // hier al lokaal op 0.
+      taskTableWidth: 0,
       // Issue #21 punt 5 (fase 2, §10.1): dezelfde as-instantie als de primaire Gantt-pane.
       axis: sharedAxis,
       // Issue #25 punt 4: zelfde lettertypefamilie als de Gantt erboven en de DOM-chrome.
@@ -408,7 +406,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     });
     histogramRendererRef.current = renderer;
     renderer.render();
-  }, [histogramSeries, histogramPicker, histogramResourceId, effectiveView, taskTableWidth, resourceLoadResult, resources.length, tCommon, uiTheme, sharedAxis, canvasFontFamily, fontScale]);
+  }, [histogramSeries, histogramPicker, histogramResourceId, effectiveView, resourceLoadResult, resources.length, tCommon, uiTheme, sharedAxis, canvasFontFamily, fontScale]);
 
   useCanvasLayer({
     canvasRef: histogramCanvasRef,
@@ -474,9 +472,9 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   const drawPrimary = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     // Registreer het zichtbare tijdvenster (primaire pane) voor de recenter-formule van
     // setTimeScale (§3.3) en voor het mini-map-viewportkader (§11).
-    const chartW = Math.max(0, width - taskTableWidth);
-    setGanttChartWidth(chartW);
-    setPrimaryChartWidth(prev => (Math.abs(prev - chartW) > 1 ? chartW : prev));
+    const timelineWidth = Math.max(0, width);
+    setGanttChartWidth(timelineWidth);
+    setPrimaryTimelineWidth(prev => (Math.abs(prev - timelineWidth) > 1 ? timelineWidth : prev));
 
     // Fix 2 (fase 2.8a QA): registreer de werkelijke scrolbare grenzen bij elke render, zodat
     // `setScroll` (viewSlice) nooit voorbij de content kan klemmen — de vorige versie klemde
@@ -532,7 +530,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, compressNonWorkdays, sharedAxis, canvasFontFamily, durationDrag, fontScale, rowHeight, headerHeight, tTask]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, compressNonWorkdays, sharedAxis, canvasFontFamily, durationDrag, fontScale, rowHeight, headerHeight, tTask]);
 
   useCanvasLayer({ canvasRef, containerRef, draw: drawPrimary });
 
@@ -540,9 +538,9 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   // rijen + scrollY en dezelfde lokale timeline-oorsprong 0. ---
   const drawSecondary = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     if (!splitView) return;
-    // Zelfde >1px-drempel als bij `primaryChartWidth`: zonder die drempel zet elke render een
+    // Zelfde >1px-drempel als bij `primaryTimelineWidth`: zonder die drempel zet elke render een
     // nieuwe state en tolt de render-lus rond (setState → render → setState).
-    setSecondaryChartWidth(prev => (Math.abs(prev - width) > 1 ? width : prev));
+    setSecondaryTimelineWidth(prev => (Math.abs(prev - width) > 1 ? width : prev));
     const renderer = new GanttRenderer(ctx, buildGanttRenderOptions({
       rows: viewRows,
       sequences,
@@ -634,9 +632,8 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       const anchorY = e.clientY - rect.top;
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
 
-      // Cursorfracties tegen de EIGEN container: dit pane heeft geen takentabel
-      // (`taskTableWidth` is hier 0), dus de hele breedte is chart — de 'position'-verdelingen
-      // (links/rechts, boven/onder, hoek) gelden 1-op-1 over deze rect.
+      // Cursorfracties tegen de EIGEN container: de 'position'-verdelingen (links/rechts,
+      // boven/onder, hoek) gelden 1-op-1 over deze rect.
       const fn = resolveWheelFunction({
         mode: st.ui.scrollMode,
         ctrl: e.ctrlKey || e.metaKey,
@@ -653,12 +650,15 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       if (fn === 'zoom') {
         const max = st.ui.enableQuarterHourZoom ? 1000 : 400;
         const factor = delta > 0 ? 1 / 1.1 : 1.1;
-        const clamped = Math.max(0.5, Math.min(max, sv.secondaryZoom * factor));
-        if (clamped === sv.secondaryZoom) return;
-        // Zelfde ankerformule als useGanttZoom.zoomAt, met taskTableWidth 0.
-        const daysUnderCursor = (anchorX + sv.secondaryScrollX) / sv.secondaryZoom;
-        const newScrollX = Math.max(0, daysUnderCursor * clamped - anchorX);
-        st.setSplitView({ ...sv, secondaryZoom: clamped, secondaryScrollX: newScrollX });
+        const next = computeTimelineZoom(
+          sv.secondaryZoom,
+          sv.secondaryZoom * factor,
+          sv.secondaryScrollX,
+          anchorX,
+          max,
+        );
+        if (next.zoom === sv.secondaryZoom) return;
+        st.setSplitView({ ...sv, secondaryZoom: next.zoom, secondaryScrollX: next.scrollX });
       } else if (fn === 'horizontal') {
         scrollSecondaryX(delta);
       } else {
@@ -692,8 +692,9 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       const sv = useAppStore.getState().view.splitView;
       if (!row || !sv) return;
       const rect = row.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const ratio = Math.min(0.85, Math.max(0.15, (e.clientX - rect.left) / rect.width));
+      const availableWidth = Math.max(0, rect.width - SPLIT_RATIO_BAR_WIDTH);
+      if (availableWidth <= 0) return;
+      const ratio = Math.min(0.85, Math.max(0.15, (e.clientX - rect.left) / availableWidth));
       setSplitView({ ...sv, ratio });
     };
     const handleUp = () => setIsResizingSplit(false);
@@ -731,14 +732,14 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     if (!container) return;
     if (tasks.length === 0) { clearPendingFit(); return; }
     const rect = container.getBoundingClientRect();
-    const fit = computeFitToProject(tasks, rect.width - taskTableWidth, enableQuarterHourZoom);
+    const fit = computeFitToProject(tasks, rect.width, enableQuarterHourZoom);
     clearPendingFit();
     if (!fit) return;
     const st = useAppStore.getState();
     st.setZoom(fit.zoom);
     st.setViewStartDate(fit.viewStartDate);
     st.setScroll(fit.scrollX, 0);
-  }, [pendingFit, tasks, taskTableWidth, enableQuarterHourZoom]);
+  }, [pendingFit, tasks, enableQuarterHourZoom]);
 
   // "Spring naar taak" (issue #65): `focusOnTask` (aangeroepen vanuit de WBS-sprongknop bij een
   // afhankelijkheid) klapt eerst de oudersketen uit en selecteert de taak, en zet dit signaal —
@@ -763,8 +764,8 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     if (!startStr || !endStr) { clearPendingFocusTask(); return; }
 
     const rect = container.getBoundingClientRect();
-    const usable = rect.width - taskTableWidth;
-    if (usable <= 0) { clearPendingFocusTask(); return; }
+    const timelineWidth = rect.width;
+    if (timelineWidth <= 0) { clearPendingFocusTask(); return; }
 
     const st = useAppStore.getState();
     const evs = parseDate(computeEffectiveViewStart(st.tasks, st.view.viewStartDate));
@@ -775,7 +776,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     const durationDays = (endMs - start.getTime()) / MS_PER_DAY;
     const midDayOffset = ((start.getTime() + endMs) / 2 - evs.getTime()) / MS_PER_DAY;
 
-    const { zoom, scrollX } = computeFocusTaskHorizontal(durationDays, midDayOffset, usable);
+    const { zoom, scrollX } = computeFocusTaskHorizontal(durationDays, midDayOffset, timelineWidth);
 
     // `focusOnTask` blijft een domeinactie met taskId-input. Bij resourcegroepering kan die taak
     // meerdere keren zichtbaar zijn: benoem daarom lokaal eerst deterministisch de eerste
@@ -797,7 +798,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     // geen kopie) en de NIEUWE zoom/rijtelling, vóór `setScroll` ze leest.
     setGanttScrollBounds(
       computeGanttScrollBounds(
-        contentWidthFor(zoom, taskTableWidth), viewRows.length, rowHeight, headerHeight,
+        contentWidthFor(zoom), viewRows.length, rowHeight, headerHeight,
         rect.width, rect.height,
       ),
     );
@@ -805,7 +806,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     clearPendingFocusTask();
     st.setZoom(zoom);
     st.setScroll(scrollX, scrollY);
-  }, [pendingFocusTaskId, tasks, viewRows, taskTableWidth, rowHeight, headerHeight, contentWidthFor]);
+  }, [pendingFocusTaskId, tasks, viewRows, rowHeight, headerHeight, contentWidthFor]);
 
   // Sync horizontal scrollbar with canvas scrollX (also re-sync after zoom changes)
   useEffect(() => {
@@ -837,7 +838,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   // balk qua TIJD volledig buiten het zichtbare venster, scroll dan horizontaal zodat hij in beeld
   // komt (kleine marge). Al (deels) zichtbaar → niets doen (geen sprong). Alléén horizontaal
   // scrollen; zoom onaangeroerd. Gebruikt exact dezelfde effectiveViewStart/dateToX-conventie als de
-  // renderer (effectiveViewStart = vroegste start − ORIGIN_PADDING_DAYS; content-x = tableW +
+  // renderer (effectiveViewStart = vroegste start − ORIGIN_PADDING_DAYS; content-x =
   // dagen·zoom) zodat de positie 1-op-1 klopt. Alles vers uit de store → geen closure-deps.
   const revealTaskIfOffscreen = useCallback((task: Task) => {
     const canvas = canvasRef.current;
@@ -848,10 +849,9 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
 
     const st = useAppStore.getState();
     const v = st.view;
-    const tableW = 0;
     const rect = canvas.getBoundingClientRect();
-    const usable = rect.width - tableW;
-    if (usable <= 0) return;
+    const timelineWidth = rect.width;
+    if (timelineWidth <= 0) return;
 
     // effectiveViewStart: sinds K-item 33 LETTERLIJK dezelfde functie als de render-memo, niet meer
     // een tweede kopie die met de hand in de pas gehouden moest worden. Identiek aan de vorige
@@ -868,17 +868,17 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     const hourMode = startStr.includes('T') || endStr.includes('T');
     const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
     const end = hourMode ? parseInstant(endStr) : parseDate(endStr);
-    const cx1 = axisDateToX(start, evs, tableW, v.zoom, 0);
-    const cx2 = axisDateToX(end, evs, tableW, v.zoom, 0) + (hourMode ? 0 : v.zoom);
+    const cx1 = axisDateToX(start, evs, 0, v.zoom, 0);
+    const cx2 = axisDateToX(end, evs, 0, v.zoom, 0) + (hourMode ? 0 : v.zoom);
 
-    // Zichtbaar content-venster: canvas-x = content-x − scrollX ∈ [tableW, rect.width].
-    const visibleLeft = tableW + v.scrollX;
-    const visibleRight = visibleLeft + usable;
+    // Zichtbaar content-venster: canvas-x = content-x − scrollX ∈ [0, rect.width].
+    const visibleLeft = v.scrollX;
+    const visibleRight = visibleLeft + timelineWidth;
     if (cx2 > visibleLeft && cx1 < visibleRight) return; // al (deels) in beeld → geen sprong.
 
     // Lijn de START links uit met een kleine marge (dekt ook een balk breder dan het venster).
     const REVEAL_MARGIN_PX = 40;
-    st.setScroll(Math.max(0, cx1 - tableW - REVEAL_MARGIN_PX), v.scrollY);
+    st.setScroll(Math.max(0, cx1 - REVEAL_MARGIN_PX), v.scrollY);
   }, []);
 
   // De DOM-grid is de eigenaar van rijselectie; deze eenrichtingsmelding vraagt uitsluitend om
@@ -1208,7 +1208,12 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       <div
         ref={containerRef}
         className="overflow-hidden relative"
-        style={{ width: splitView ? `${splitView.ratio * 100}%` : '100%', flexShrink: 0 }}
+        style={{
+          width: splitView
+            ? splitPanePrimaryWidthCss(splitView.ratio, SPLIT_RATIO_BAR_WIDTH)
+            : '100%',
+          flexShrink: 0,
+        }}
       >
         <canvas
           ref={canvasRef}
@@ -1285,25 +1290,17 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
         )}
 
         {/* Horizontale scrollbalk van het primaire pane (issue #22, sinds #35 een overlay). Hij
-            zweeft ONDERIN dit pane in plaats van in een eigen rij eronder, zodat het canvas de
-            volle hoogte houdt en de kaart tot de onderrand doorloopt.
-            Hij begint pas bij `taskTableWidth`: de taaktabel schuift horizontaal niet mee, dus een
-            balk daaronder was verwarrend (#22) — en dát is precies wat de losse rij weer opleverde.
-            DE VALKUIL: de scrollrange moet exact gelijk zijn aan de klem in `setScroll`
-            (`maxScrollX = totalContentWidth − canvasbreedte`, gezet in `drawPrimary`). Dat klopt
-            hier omdat zowel de zichtbare breedte (`left: taskTableWidth; right: 0` ⇒ paneBreedte −
-            taskTableWidth) als de spacer (`totalContentWidth − taskTableWidth`) met dezelfde
-            `taskTableWidth` krimpen. Laat hem dus NIET vóór de verticale balk stoppen (`right: 8`):
-            dan is hij 8px smaller dan het chartgebied en loopt de DOM-range 8px uit de pas met
-            `maxScrollX`. De 8×8px hoekoverlap met de verticale balk is bewust geaccepteerd. */}
+            bestrijkt exact het lokale tijdlijnpaneel. De zichtbare DOM-breedte en de canvasbreedte
+            zijn daardoor gelijk en de spacer gebruikt dezelfde `totalContentWidth` als
+            `computeGanttScrollBounds`; zo kan er geen tweede breedteaftrek ontstaan. */}
         <div
           ref={hScrollRef}
           data-testid="gantt-hscroll"
           className="gantt-overlay-scrollbar absolute overflow-x-auto overflow-y-hidden"
-          style={{ left: taskTableWidth, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
+          style={{ left: 0, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
           onScroll={handleHScroll}
         >
-          <div style={{ width: Math.max(1, totalContentWidth - taskTableWidth), height: 1 }} />
+          <div style={{ width: Math.max(1, totalContentWidth), height: 1 }} />
         </div>
       </div>
       {/* Secundair pane (§10): eigen tijdvenster, gedeelde rijen + verticale scroll */}
@@ -1325,10 +1322,8 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
               onClick={handleSecondaryClick}
             />
             {/* Eigen zwevende horizontale balk (issue #35 punt 1): dit pane heeft een EIGEN
-                tijdvenster (`secondaryScrollX`/`secondaryZoom`) en geen taaktabel — drawSecondary
-                tekent met `taskTableWidth: 0`, dus `left: 0` en de spacer is de volle
-                `secondaryContentWidth`. Zichtbare breedte == canvasbreedte, dus de DOM-range is
-                per constructie `secondaryContentWidth − canvasbreedte`. */}
+                tijdvenster (`secondaryScrollX`/`secondaryZoom`). Zichtbare breedte ==
+                canvasbreedte en de spacer is de volle `secondaryContentWidth`. */}
             <div
               ref={hScrollSecondaryRef}
               data-testid="gantt-hscroll-secondary"
@@ -1398,8 +1393,15 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
           en neemt geen kolombreedte meer in. */}
       {showMiniMap && (
         <div className="flex" dir="ltr" style={{ flexShrink: 0 }}>
-          <div style={{ width: splitView ? `${splitView.ratio * 100}%` : '100%', flexShrink: 0 }}>
-            <MiniMap originDate={effectiveViewStart} chartWidth={primaryChartWidth} />
+          <div
+            style={{
+              width: splitView
+                ? splitPanePrimaryWidthCss(splitView.ratio, SPLIT_RATIO_BAR_WIDTH)
+                : '100%',
+              flexShrink: 0,
+            }}
+          >
+            <MiniMap originDate={effectiveViewStart} timelineWidth={primaryTimelineWidth} />
           </div>
           {splitView && (
             <>
@@ -1407,7 +1409,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
               <div className="flex-1 min-w-0">
                 <MiniMap
                   originDate={effectiveViewStart}
-                  chartWidth={secondaryChartWidth}
+                  timelineWidth={secondaryTimelineWidth}
                   scrollX={splitView.secondaryScrollX}
                   zoom={splitView.secondaryZoom}
                   onScrollXChange={handleSecondaryMiniScroll}
@@ -1525,7 +1527,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
             if (!container) return;
             const rect = container.getBoundingClientRect();
             if (tasks.length === 0) { setZoom(DEFAULT_ZOOM); setScroll(0, 0); return; }
-            const fit = computeFitToProject(tasks, rect.width - taskTableWidth, enableQuarterHourZoom);
+            const fit = computeFitToProject(tasks, rect.width, enableQuarterHourZoom);
             if (!fit) return;
             setZoom(fit.zoom);
             setViewStartDate(fit.viewStartDate);
