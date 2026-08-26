@@ -41,12 +41,23 @@ if (!root) {
   throw new Error('OPS_XER_CORPUS bestaat niet');
 } else {
   const tasks = files(root).flatMap(rawTasks);
-  const counts = { suspend: 0, resume: 0, validPairs: 0, stopOnly: 0, reversed: 0, CP_Drtn: 0, CP_Phys: 0, CP_Units: 0 };
+  const counts = {
+    suspend: 0, resume: 0, expectedFinish: 0,
+    suspendWithClock: 0, resumeWithClock: 0, expectedFinishWithClock: 0,
+    validPairs: 0, stopOnly: 0, reversed: 0,
+    CP_Drtn: 0, CP_Phys: 0, CP_Units: 0,
+  };
+  const hasClock = (value: string): boolean => /(?:\s|T)\d{1,2}:\d{2}/.test(value);
   for (const task of tasks) {
     const stop = task.suspend_date;
     const resume = task.resume_date;
-    if (stop) counts.suspend++;
-    if (resume) counts.resume++;
+    const expectedFinish = task.expect_end_date;
+    if (stop) { counts.suspend++; if (hasClock(stop)) counts.suspendWithClock++; }
+    if (resume) { counts.resume++; if (hasClock(resume)) counts.resumeWithClock++; }
+    if (expectedFinish) {
+      counts.expectedFinish++;
+      if (hasClock(expectedFinish)) counts.expectedFinishWithClock++;
+    }
     if (stop && resume) {
       if (stop <= resume) counts.validPairs++;
       else counts.reversed++;
@@ -59,7 +70,9 @@ if (!root) {
   // paren en twee stop-only records. Deze telling komt uit de ruwe TASK-rijen,
   // dus niet uit een door de reader afgeleide projectselectie.
   equal('onafhankelijk P6-X7-telling', counts, {
-    suspend: 22, resume: 20, validPairs: 20, stopOnly: 2, reversed: 0,
+    suspend: 22, resume: 20, expectedFinish: 246,
+    suspendWithClock: 20, resumeWithClock: 19, expectedFinishWithClock: 246,
+    validPairs: 20, stopOnly: 2, reversed: 0,
     CP_Drtn: 16813, CP_Phys: 1492, CP_Units: 8,
   });
 

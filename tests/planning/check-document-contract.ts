@@ -300,7 +300,7 @@ S().updateTask(kT1, {
   p6CompletePctType: 'CP_Phys',
   p6ExpectedFinish: '2031-03-12',
   p6SuspendResume: true,
-  time: { ...kt1Before.time, resume: '2031-03-05', stop: '2031-03-06' },
+  time: { ...kt1Before.time, stop: '2031-03-05', resume: '2031-03-06' },
 });
 const k3X7 = (candidate: Task | undefined) => [
   candidate?.p6ProjectId,
@@ -363,8 +363,8 @@ eq('d K3 keten: splitGaps overleeft', kT1After?.splitGaps, [{ afterMinutes: 60, 
 eq('d K3 keten: manuallyScheduled overleeft', kT1After?.manuallyScheduled, true);
 eq('d K3 keten: levelingDelayMinutes overleeft', kT1After?.levelingDelayMinutes, 15);
 eq('d K3 keten: levelingDelayElapsed overleeft', kT1After?.levelingDelayElapsed, true);
-eq('d K3 keten: time.resume overleeft', kT1After?.time.resume, '2031-03-05');
-eq('d K3 keten: time.stop overleeft', kT1After?.time.stop, '2031-03-06');
+eq('d K3 keten: time.stop overleeft', kT1After?.time.stop, '2031-03-05');
+eq('d K3 keten: time.resume overleeft', kT1After?.time.resume, '2031-03-06');
 // Z14b — de drie NIEUWE velden overleven dezelfde keten (bewijst de "tasks"-clone-snapshot-rol
 // écht draagt wat er verder in de plan-toelichting over beweerd wordt, geen aanname).
 eq('d K3 keten: mspTaskType overleeft', kT1After?.mspTaskType, 'FIXED_DURATION');

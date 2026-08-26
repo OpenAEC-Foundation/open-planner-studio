@@ -24,6 +24,7 @@ import type {
 } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
+import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { readXerCalendars } from './xerCalendarData';
 import { indexXerTaskResourceRows } from './xerResourceAssignments';
 import {
@@ -468,6 +469,9 @@ function readXerProject(
       row.cells.act_end_date,
       row.cells.cstr_date,
       row.cells.cstr_date2,
+      row.cells.suspend_date,
+      row.cells.resume_date,
+      row.cells.expect_end_date,
     ].some(value => hasClock(value ?? ''))) {
       hourSignalCalendarIds.add(calendarId);
     }
@@ -508,21 +512,23 @@ function readXerProject(
     const rawStatus = row.cells.status_code ?? '';
     const status = statusOf(rawStatus, row, enumFallbacks);
     const rawCompletePctType = row.cells.complete_pct_type ?? '';
-    const completePctType = completePctTypeOf(rawCompletePctType, row, enumFallbacks);
-    const completePercent = numberOf(tables, row, 'complete_pct');
-    const physicalPercent = numberOf(tables, row, 'phys_complete_pct') ?? 0;
+    const completePctType = rawCompletePctType.trim() === ''
+      ? undefined
+      : completePctTypeOf(rawCompletePctType, row, enumFallbacks);
+    const statusToken = rawStatus.trim().toLowerCase();
+    const statusForcesCompletion = statusToken === 'tk_notstart' || statusToken === 'tk_complete';
     // Status is de leidende P6-toestand. Percentagekolommen verklaren uitsluitend de voortgang
     // van een actieve taak; ze mogen een expliciete TK_NotStart nooit de solver-in-progressroute
     // in trekken. CP_Drtn en CP_Units lezen complete_pct, CP_Phys leest uitsluitend
     // phys_complete_pct — geen familie valt terug op de percentagekolom van een andere familie.
-    const completionPercent = rawCompletePctType.trim() === ''
-      ? physicalPercent
-      : completePctType === 'CP_Phys'
-        ? physicalPercent
-        : completePercent ?? 0;
-    const completion = status === 'COMPLETED'
+    const completionPercent = statusForcesCompletion
+      ? 0
+      : completePctType === 'CP_Drtn' || completePctType === 'CP_Units'
+        ? numberOf(tables, row, 'complete_pct') ?? 0
+        : numberOf(tables, row, 'phys_complete_pct') ?? 0;
+    const completion = statusToken === 'tk_complete'
       ? 1
-      : rawStatus.trim() !== '' && status === 'NOT_STARTED'
+      : statusToken === 'tk_notstart'
         ? 0
         : Math.max(0, Math.min(1, completionPercent / 100));
     const parentId = row.cells.wbs_id ? wbsTaskId(projectId, row.cells.wbs_id) : null;
@@ -533,7 +539,7 @@ function readXerProject(
     time.lateStart = start;
     time.lateFinish = finish;
     time.completion = completion;
-    const p6RemainingHours = completePctType === 'CP_Drtn' && completePercent !== null
+    const p6RemainingHours = status === 'STARTED' && completePctType === 'CP_Drtn'
       ? durationHours * (1 - completion)
       : remainingHours;
     if (hourMode) {
@@ -550,7 +556,11 @@ function readXerProject(
     const resume = sourceInstant(row.cells.resume_date ?? '', hourMode);
     if (stop) time.stop = stop;
     if (resume) time.resume = resume;
-    const validSuspendResume = stop !== undefined && resume !== undefined && parseInstant(stop) <= parseInstant(resume);
+    const validSuspendResume = hasValidP6SuspendResume({
+      p6ProjectId: projectId,
+      p6SuspendResume: true,
+      time,
+    });
     const expectedFinish = sourceInstant(row.cells.expect_end_date ?? '', hourMode);
 
     const isStartMilestone = activityType === 'TT_Mile';
@@ -578,7 +588,7 @@ function readXerProject(
       p6ActivityType: activityType,
       p6ProjectId: projectId,
       p6TaskId: row.cells.task_id,
-      p6CompletePctType: completePctType,
+      ...(completePctType ? { p6CompletePctType: completePctType } : {}),
       ...(expectedFinish ? { p6ExpectedFinish: expectedFinish } : {}),
       ...(validSuspendResume ? { p6SuspendResume: true } : {}),
       ...(activityType === 'TT_LOE' ? { isHammock: true } : {}),

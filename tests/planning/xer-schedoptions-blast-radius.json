@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "axes": [
     "es",
     "ef",
@@ -14,17 +14,12 @@
     "retainedLogic",
     "openEndedNotCritical",
     "predecessorLagCalendar",
+    "expectedFinishDates",
     "preserveActualDates",
     "clampNegativeFreeFloat",
     "projectCriticalDefinition"
   ],
-  "deferredDefaults": [
-    {
-      "key": "expectedFinishDates",
-      "owner": "X7",
-      "reason": "Het X7-taakveld expectedFinish ontbreekt nog; X5 bewaart alleen het bronbeleid."
-    }
-  ],
+  "deferredDefaults": [],
   "population": {
     "scanned": 93,
     "oracleAxisFiles": 60,
@@ -165,6 +160,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -270,6 +278,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -392,6 +413,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -490,6 +524,19 @@
           "counterfactualNegativeFloatTasks": 4
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 4,
+          "counterfactualNegativeFloatTasks": 4
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -612,6 +659,19 @@
           "chosenNegativeFloatTasks": 2,
           "counterfactualNegativeFloatTasks": 2
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 2,
+          "counterfactualNegativeFloatTasks": 2
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -710,6 +770,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -832,6 +905,19 @@
           "chosenNegativeFloatTasks": 44,
           "counterfactualNegativeFloatTasks": 43
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 44,
+          "counterfactualNegativeFloatTasks": 44
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -942,6 +1028,19 @@
           "chosenNegativeFloatTasks": 38,
           "counterfactualNegativeFloatTasks": 38
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 11,
+          "counterfactualNegativeFloatTasks": 11
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -1040,6 +1139,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -1169,6 +1281,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -1267,6 +1392,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -1389,6 +1527,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -1499,6 +1650,19 @@
           "chosenNegativeFloatTasks": 1,
           "counterfactualNegativeFloatTasks": 1
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -1597,6 +1761,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -1719,6 +1896,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -1817,6 +2007,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -1939,6 +2142,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -2037,6 +2253,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -2159,6 +2388,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -2257,6 +2499,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -2379,6 +2634,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -2477,6 +2745,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -2599,6 +2880,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -2697,6 +2991,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -2819,6 +3126,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -2917,6 +3237,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -3039,6 +3372,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -3137,6 +3483,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -3259,6 +3618,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -3357,6 +3729,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -3479,6 +3864,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -3577,6 +3975,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -3699,6 +4110,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -3797,6 +4221,19 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "predecessorLagCalendar": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "expectedFinishDates": {
           "movement": [
             0,
             0,
@@ -3919,6 +4356,19 @@
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         },
+        "expectedFinishDates": {
+          "movement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
         "preserveActualDates": {
           "movement": [
             0,
@@ -3959,6 +4409,779 @@
           "counterfactualNegativeFloatTasks": 0
         }
       }
+    }
+  ],
+  "expectedFinishVariant": {
+    "selection": {
+      "chosen": true,
+      "counterfactual": false
+    },
+    "population": {
+      "oracleFiles": 60,
+      "readableFiles": 58,
+      "deferredFiles": 2,
+      "projects": 84,
+      "tasks": 18778,
+      "sourceTasks": 163,
+      "activeSourceTasks": 0,
+      "sourceFiles": 2,
+      "movingFiles": 0
+    },
+    "movement": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "files": [
+      {
+        "id": "9590c4cdc4efa69a-1",
+        "tasks": 93,
+        "sourceTasks": 93,
+        "activeSourceTasks": 0,
+        "movement": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "directionChanges": 0,
+        "directionDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "id": "b7ef6d85acfedda1-1",
+        "tasks": 70,
+        "sourceTasks": 70,
+        "activeSourceTasks": 0,
+        "movement": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "directionChanges": 0,
+        "directionDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    ],
+    "fidelity": {
+      "chosen": {
+        "es": {
+          "deviations": 7665,
+          "measurable": 18540
+        },
+        "ef": {
+          "deviations": 7718,
+          "measurable": 18552
+        },
+        "ls": {
+          "deviations": 8408,
+          "measurable": 18430
+        },
+        "lf": {
+          "deviations": 8628,
+          "measurable": 18423
+        },
+        "tf": {
+          "deviations": 10372,
+          "measurable": 18296
+        },
+        "ff": {
+          "deviations": 3636,
+          "measurable": 17915
+        }
+      },
+      "counterfactual": {
+        "es": {
+          "deviations": 7665,
+          "measurable": 18540
+        },
+        "ef": {
+          "deviations": 7718,
+          "measurable": 18552
+        },
+        "ls": {
+          "deviations": 8408,
+          "measurable": 18430
+        },
+        "lf": {
+          "deviations": 8628,
+          "measurable": 18423
+        },
+        "tf": {
+          "deviations": 10372,
+          "measurable": 18296
+        },
+        "ff": {
+          "deviations": 3636,
+          "measurable": 17915
+        }
+      }
+    }
+  },
+  "legacyMissingTypeDelta": [
+    {
+      "path": "files[8].houseNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].xerDefaultsMovement[6]",
+      "before": 505,
+      "after": 523
+    },
+    {
+      "path": "files[8].defaults.totalFloatFinish.movement[4]",
+      "before": 331,
+      "after": 322
+    },
+    {
+      "path": "files[8].defaults.totalFloatFinish.chosenNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.totalFloatFinish.counterfactualNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.retainedLogic.movement[0]",
+      "before": 3036,
+      "after": 3416
+    },
+    {
+      "path": "files[8].defaults.retainedLogic.movement[1]",
+      "before": 3149,
+      "after": 3529
+    },
+    {
+      "path": "files[8].defaults.retainedLogic.movement[4]",
+      "before": 6971,
+      "after": 6962
+    },
+    {
+      "path": "files[8].defaults.retainedLogic.movement[5]",
+      "before": 547,
+      "after": 590
+    },
+    {
+      "path": "files[8].defaults.retainedLogic.movement[6]",
+      "before": 31,
+      "after": 50
+    },
+    {
+      "path": "files[8].defaults.retainedLogic.chosenNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.retainedLogic.counterfactualNegativeFloatTasks",
+      "before": 57,
+      "after": 59
+    },
+    {
+      "path": "files[8].defaults.openEndedNotCritical.chosenNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.openEndedNotCritical.counterfactualNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.predecessorLagCalendar.movement[2]",
+      "before": 164,
+      "after": 303
+    },
+    {
+      "path": "files[8].defaults.predecessorLagCalendar.movement[3]",
+      "before": 164,
+      "after": 303
+    },
+    {
+      "path": "files[8].defaults.predecessorLagCalendar.movement[4]",
+      "before": 164,
+      "after": 303
+    },
+    {
+      "path": "files[8].defaults.predecessorLagCalendar.chosenNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.predecessorLagCalendar.counterfactualNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.preserveActualDates.movement[6]",
+      "before": 505,
+      "after": 523
+    },
+    {
+      "path": "files[8].defaults.preserveActualDates.counterfactualNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.clampNegativeFreeFloat.chosenNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.clampNegativeFreeFloat.counterfactualNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.projectCriticalDefinition.chosenNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[8].defaults.projectCriticalDefinition.counterfactualNegativeFloatTasks",
+      "before": 38,
+      "after": 11
+    },
+    {
+      "path": "files[14].houseNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.totalFloatFinish.chosenNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.totalFloatFinish.counterfactualNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.retainedLogic.chosenNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.openEndedNotCritical.chosenNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.openEndedNotCritical.counterfactualNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.predecessorLagCalendar.chosenNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.predecessorLagCalendar.counterfactualNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.preserveActualDates.counterfactualNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.clampNegativeFreeFloat.chosenNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.clampNegativeFreeFloat.counterfactualNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.projectCriticalDefinition.chosenNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "files[14].defaults.projectCriticalDefinition.counterfactualNegativeFloatTasks",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "path": "fidelity.house.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.house.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.house.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.house.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.house.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.house.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.xerDefaults.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.xerDefaults.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.xerDefaults.ls.deviations",
+      "before": 5417,
+      "after": 5422
+    },
+    {
+      "path": "fidelity.xerDefaults.tf.deviations",
+      "before": 6407,
+      "after": 6704
+    },
+    {
+      "path": "fidelity.xerDefaults.ff.deviations",
+      "before": 585,
+      "after": 673
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.chosen.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.chosen.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.chosen.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.chosen.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.chosen.tf.deviations",
+      "before": 6931,
+      "after": 7194
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.chosen.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.counterfactual.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.counterfactual.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.counterfactual.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.counterfactual.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.counterfactual.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.totalFloatFinish.counterfactual.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.chosen.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.chosen.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.chosen.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.chosen.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.chosen.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.chosen.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.counterfactual.es.deviations",
+      "before": 4994,
+      "after": 5212
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.counterfactual.ef.deviations",
+      "before": 4959,
+      "after": 5206
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.counterfactual.ls.deviations",
+      "before": 7501,
+      "after": 7507
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.counterfactual.tf.deviations",
+      "before": 7410,
+      "after": 7409
+    },
+    {
+      "path": "fidelity.defaults.retainedLogic.counterfactual.ff.deviations",
+      "before": 2521,
+      "after": 2534
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.chosen.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.chosen.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.chosen.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.chosen.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.chosen.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.chosen.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.counterfactual.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.counterfactual.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.counterfactual.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.counterfactual.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.counterfactual.tf.deviations",
+      "before": 6913,
+      "after": 7176
+    },
+    {
+      "path": "fidelity.defaults.openEndedNotCritical.counterfactual.ff.deviations",
+      "before": 2339,
+      "after": 2426
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.chosen.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.chosen.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.chosen.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.chosen.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.chosen.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.chosen.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.counterfactual.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.counterfactual.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.counterfactual.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.counterfactual.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.counterfactual.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.predecessorLagCalendar.counterfactual.ff.deviations",
+      "before": 2342,
+      "after": 2429
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.chosen.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.chosen.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.chosen.ls.deviations",
+      "before": 5417,
+      "after": 5422
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.chosen.tf.deviations",
+      "before": 6408,
+      "after": 6705
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.chosen.ff.deviations",
+      "before": 705,
+      "after": 793
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.counterfactual.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.counterfactual.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.counterfactual.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.counterfactual.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.counterfactual.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.preserveActualDates.counterfactual.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.chosen.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.chosen.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.chosen.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.chosen.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.chosen.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.chosen.ff.deviations",
+      "before": 1749,
+      "after": 1836
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.counterfactual.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.counterfactual.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.counterfactual.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.counterfactual.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.counterfactual.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.clampNegativeFreeFloat.counterfactual.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.chosen.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.chosen.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.chosen.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.chosen.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.chosen.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.chosen.ff.deviations",
+      "before": 2341,
+      "after": 2428
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.counterfactual.es.deviations",
+      "before": 4552,
+      "after": 5156
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.counterfactual.ef.deviations",
+      "before": 4488,
+      "after": 5144
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.counterfactual.ls.deviations",
+      "before": 7485,
+      "after": 7505
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.counterfactual.lf.deviations",
+      "before": 7466,
+      "after": 7482
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.counterfactual.tf.deviations",
+      "before": 6932,
+      "after": 7195
+    },
+    {
+      "path": "fidelity.defaults.projectCriticalDefinition.counterfactual.ff.deviations",
+      "before": 2341,
+      "after": 2428
     }
   ],
   "fidelity": {
@@ -4227,6 +5450,60 @@
           },
           "ff": {
             "deviations": 2342,
+            "measurable": 7221
+          }
+        }
+      },
+      "expectedFinishDates": {
+        "chosen": {
+          "es": {
+            "deviations": 5156,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 5144,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7505,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7482,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 7195,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2428,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 5156,
+            "measurable": 7649
+          },
+          "ef": {
+            "deviations": 5144,
+            "measurable": 7661
+          },
+          "ls": {
+            "deviations": 7505,
+            "measurable": 7539
+          },
+          "lf": {
+            "deviations": 7482,
+            "measurable": 7532
+          },
+          "tf": {
+            "deviations": 7195,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2428,
             "measurable": 7221
           }
         }

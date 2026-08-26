@@ -2,6 +2,7 @@ import type {
   Task, ConstraintType, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType,
   P6CompletePctType,
 } from '@/types/task';
+import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 
 /**
  * IFC-pset-registry (fase 3, tweede helft van P11 uit docs/superpowers/modulariteit-audit.md,
@@ -459,7 +460,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       if (task.p6TaskId) props.push({ name: 'TaskId', value: `IFCTEXT(${ifcStr(task.p6TaskId)})` });
       if (task.p6CompletePctType) props.push({ name: 'CompletePctType', value: `IFCLABEL(${ifcStr(task.p6CompletePctType)})` });
       if (task.p6ExpectedFinish) props.push({ name: 'ExpectedFinish', value: `IFCTEXT(${ifcStr(task.p6ExpectedFinish)})` });
-      if (task.p6SuspendResume === true) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.T.)' });
+      if (hasValidP6SuspendResume(task)) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.T.)' });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {

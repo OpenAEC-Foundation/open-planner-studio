@@ -7,6 +7,7 @@ import type { CustomFieldDef } from '@/types/structure';
 import {
   parseInstant, formatInstant, addCalendarDays, diffDays, parseDate, type DateMode,
 } from '@/utils/dateUtils';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 
 /**
  * "Project verplaatsen" (pakket D1) — PURE domeintransformatie, geen store-import.
@@ -293,6 +294,7 @@ export function shiftTask(task: Task, delta: number): Task {
       // "anker verouderd"; misbruiken zou de ghost-weergave vervuilen.
     }));
   }
+  reconcileP6SuspendResume(next);
   return next;
 }
 

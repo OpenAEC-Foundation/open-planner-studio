@@ -23,6 +23,7 @@ import {
   type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -140,6 +141,7 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap, libraryPoolOut, projectStartRecorded,
   );
+  for (const task of tasks) reconcileP6SuspendResume(task);
   // Z14b (Z8-nataak, F1-fixronde) — LAAG-4-kalenderwandelingen, eigen pset (zie de functie se
   // moduleheader voor waarom dit niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
   // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).

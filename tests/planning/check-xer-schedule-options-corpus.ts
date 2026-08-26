@@ -37,6 +37,7 @@ type DefaultKey =
   | 'retainedLogic'
   | 'openEndedNotCritical'
   | 'predecessorLagCalendar'
+  | 'expectedFinishDates'
   | 'preserveActualDates'
   | 'clampNegativeFreeFloat'
   | 'projectCriticalDefinition';
@@ -46,16 +47,13 @@ const DEFAULT_KEYS: readonly DefaultKey[] = [
   'retainedLogic',
   'openEndedNotCritical',
   'predecessorLagCalendar',
+  'expectedFinishDates',
   'preserveActualDates',
   'clampNegativeFreeFloat',
   'projectCriticalDefinition',
 ];
 
-const DEFERRED_DEFAULTS = [{
-  key: 'expectedFinishDates',
-  owner: 'X7',
-  reason: 'Het X7-taakveld expectedFinish ontbreekt nog; X5 bewaart alleen het bronbeleid.',
-}] as const;
+const DEFERRED_DEFAULTS = [] as const;
 
 interface SolverVariant {
   progressMode?: ProgressMode;
@@ -81,8 +79,50 @@ interface MeasuredFile {
   defaults?: Record<DefaultKey, DefaultMeasurement>;
 }
 
+interface ExpectedFinishVariantFile {
+  id: string;
+  tasks: number;
+  sourceTasks: number;
+  activeSourceTasks: number;
+  movement: AxisVector;
+  directionChanges: number;
+  directionDigest: string;
+}
+
+interface ExpectedFinishVariantBaseline {
+  selection: {
+    chosen: boolean;
+    counterfactual: boolean;
+  };
+  population: {
+    oracleFiles: number;
+    readableFiles: number;
+    deferredFiles: number;
+    projects: number;
+    tasks: number;
+    sourceTasks: number;
+    activeSourceTasks: number;
+    sourceFiles: number;
+    movingFiles: number;
+  };
+  movement: AxisVector;
+  files: ExpectedFinishVariantFile[];
+  fidelity: {
+    chosen: XerFidelityCounters;
+    counterfactual: XerFidelityCounters;
+  };
+}
+
+const EXPECTED_FINISH_SELECTION = { chosen: true, counterfactual: false } as const;
+
+interface BaselineValueDelta {
+  path: string;
+  before: unknown;
+  after: unknown;
+}
+
 interface BlastRadiusBaseline {
-  version: 7;
+  version: 8;
   axes: readonly BlastAxis[];
   defaults: readonly DefaultKey[];
   deferredDefaults: typeof DEFERRED_DEFAULTS;
@@ -129,6 +169,9 @@ interface BlastRadiusBaseline {
   };
   corpusUnion: string[];
   files: MeasuredFile[];
+  expectedFinishVariant: ExpectedFinishVariantBaseline;
+  /** Exact causaal delta-orakel voor het X7-contract "ontbrekend type blijft afwezig". */
+  legacyMissingTypeDelta?: BaselineValueDelta[];
   fidelity: {
     house: XerFidelityCounters;
     xerDefaults: XerFidelityCounters;
@@ -156,6 +199,21 @@ const report = process.env.OPS_XER_SCHEDOPTIONS_REPORT;
 function eq(label: string, got: unknown, want: unknown): void {
   checks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(label);
+}
+
+function baselineValueDeltas(before: unknown, after: unknown, path = ''): BaselineValueDelta[] {
+  if (JSON.stringify(before) === JSON.stringify(after)) return [];
+  if (Array.isArray(before) && Array.isArray(after)) {
+    if (before.length !== after.length) return [{ path: `${path}.length`, before: before.length, after: after.length }];
+    return before.flatMap((value, index) => baselineValueDeltas(value, after[index], `${path}[${index}]`));
+  }
+  if (before && after && typeof before === 'object' && typeof after === 'object') {
+    const beforeObject = before as Record<string, unknown>;
+    const afterObject = after as Record<string, unknown>;
+    return [...new Set([...Object.keys(beforeObject), ...Object.keys(afterObject)])].flatMap(key =>
+      baselineValueDeltas(beforeObject[key], afterObject[key], path ? `${path}.${key}` : key));
+  }
+  return [{ path, before, after }];
 }
 
 function listXerFilesRecursive(dir: string): string[] {
@@ -392,6 +450,10 @@ function variantDefinitions(
       chosen: { schedulingOptions: { lagCalendar: 'predecessor' } },
       counterfactual: { schedulingOptions: { lagCalendar: 'successor' } },
     },
+    expectedFinishDates: {
+      chosen: { schedulingOptions: { useExpectedFinishDates: true } },
+      counterfactual: { schedulingOptions: { useExpectedFinishDates: false } },
+    },
     preserveActualDates: {
       chosen: { schedulingOptions: { preserveActualDatesInBackwardPass: true } },
       counterfactual: { schedulingOptions: { preserveActualDatesInBackwardPass: false } },
@@ -486,6 +548,100 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       chosen: emptyCounters(),
       counterfactual: emptyCounters(),
     }])) as BlastRadiusBaseline['fidelity']['defaults'],
+  };
+
+  // X7-reviewpunt 4: een eigen corpusbaan over ALLE dossiers met een fidelity-as, dus niet alleen
+  // de functioneel SCHEDOPTIONS-loze defaultpopulatie hieronder en ook niet de gecombineerde
+  // xerDefaults-vector. De gekozen baan zet uitsluitend expected-finish aan; de tegenvariant
+  // uitsluitend uit. Richtingsdigest bevat before/after en wordt daardoor rood als beide vlaggen
+  // worden verwisseld, ook wanneer de symmetrische bewegingsteller gelijk blijft.
+  const expectedOccurrences = new Map<string, number>();
+  const expectedFiles: ExpectedFinishVariantFile[] = [];
+  const expectedMovement = Array(BLAST_AXES.length).fill(0) as AxisVector;
+  const expectedFidelity = { chosen: emptyCounters(), counterfactual: emptyCounters() };
+  let expectedReadableFiles = 0;
+  let expectedDeferredFiles = 0;
+  let expectedProjects = 0;
+  let expectedTasks = 0;
+  let expectedSourceTasks = 0;
+  let expectedActiveSourceTasks = 0;
+  for (const file of [...oracleFiles].sort((a, b) =>
+    a.fullHash.localeCompare(b.fullHash) || a.path.localeCompare(b.path))) {
+    const occurrence = (expectedOccurrences.get(file.fullHash) ?? 0) + 1;
+    expectedOccurrences.set(file.fullHash, occurrence);
+    const id = `${file.fullHash.slice(0, 16)}-${occurrence}`;
+    let importedProjects: ImportResult[];
+    try {
+      const opened = readXER(file.bytes);
+      importedProjects = isMultiDocumentImport(opened) ? opened.results : [opened];
+    } catch {
+      expectedDeferredFiles++;
+      continue;
+    }
+    expectedReadableFiles++;
+    expectedProjects += importedProjects.length;
+    const openedProjectIds = new Set(importedProjects.map(imported => imported.project.id));
+    const openedTruth: XerGroundTruth = {
+      ...file.truth,
+      projects: new Set([...file.truth.projects].filter(projectId => openedProjectIds.has(projectId))),
+      tasks: file.truth.tasks.filter(task => openedProjectIds.has(task.projectId)),
+    };
+    expectedTasks += openedTruth.tasks.length;
+    const sourceTasks = (file.rawScan.tables.get('TASK')?.rows ?? []).filter(row =>
+      openedProjectIds.has(row.cells.proj_id?.trim() ?? '')
+      && (row.cells.expect_end_date?.trim() ?? '') !== '').length;
+    expectedSourceTasks += sourceTasks;
+    const activeSourceTasks = importedProjects.flatMap(imported => imported.tasks).filter(task =>
+      task.p6ExpectedFinish !== undefined
+      && task.status === 'STARTED'
+      && task.time.completion > 0
+      && task.time.completion < 1).length;
+    expectedActiveSourceTasks += activeSourceTasks;
+    const chosen = importedProjects.map(imported => projectResult(imported, {
+      schedulingOptions: { useExpectedFinishDates: EXPECTED_FINISH_SELECTION.chosen },
+    }));
+    const counterfactual = importedProjects.map(imported => projectResult(imported, {
+      schedulingOptions: { useExpectedFinishDates: EXPECTED_FINISH_SELECTION.counterfactual },
+    }));
+    const movement = movementProjects(counterfactual, chosen);
+    movement.forEach((value, index) => { expectedMovement[index] += value; });
+    const details = movementDetails(counterfactual, chosen);
+    for (const [variant, solved] of [
+      ['chosen', chosen],
+      ['counterfactual', counterfactual],
+    ] as const) {
+      const measured = measureXerFidelity(openedTruth, solved);
+      if (measured.errors.length > 0) throw new Error(`${id}: expected-finish ${variant}-uitlijning mislukt`);
+      addCounters(expectedFidelity[variant], measured.counters);
+    }
+    if (sourceTasks > 0 || details.length > 0) {
+      expectedFiles.push({
+        id,
+        tasks: openedTruth.tasks.length,
+        sourceTasks,
+        activeSourceTasks,
+        movement,
+        directionChanges: details.length,
+        directionDigest: hash(new TextEncoder().encode(JSON.stringify(details))),
+      });
+    }
+  }
+  const expectedFinishVariant: ExpectedFinishVariantBaseline = {
+    selection: EXPECTED_FINISH_SELECTION,
+    population: {
+      oracleFiles: oracleFiles.length,
+      readableFiles: expectedReadableFiles,
+      deferredFiles: expectedDeferredFiles,
+      projects: expectedProjects,
+      tasks: expectedTasks,
+      sourceTasks: expectedSourceTasks,
+      activeSourceTasks: expectedActiveSourceTasks,
+      sourceFiles: expectedFiles.filter(file => file.sourceTasks > 0).length,
+      movingFiles: expectedFiles.filter(file => file.movement.some(Boolean)).length,
+    },
+    movement: expectedMovement,
+    files: expectedFiles,
+    fidelity: expectedFidelity,
   };
 
   const occurrences = new Map<string, number>();
@@ -637,7 +793,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
   }
 
   return {
-    version: 7,
+    version: 8,
     axes: BLAST_AXES,
     defaults: DEFAULT_KEYS,
     deferredDefaults: DEFERRED_DEFAULTS,
@@ -688,6 +844,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     },
     corpusUnion: union,
     files,
+    expectedFinishVariant,
     fidelity,
   };
 }
@@ -697,11 +854,11 @@ if (!existsSync(baselinePath)) {
 } else {
   const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
   eq('baselineversie en asvolgorde', { version: committed.version, axes: committed.axes }, {
-    version: 7,
+    version: 8,
     axes: BLAST_AXES,
   });
   eq('baseline bevat alle defaults los van elkaar', committed.defaults, DEFAULT_KEYS);
-  eq('expectedFinishDates staat eerlijk als X7-uitstel geregistreerd',
+  eq('geen geïmplementeerde XER-default staat nog als uitstel geregistreerd',
     committed.deferredDefaults, DEFERRED_DEFAULTS);
   eq('baseline pint exact de 37 functioneel SCHEDOPTIONS-loze bestanden', committed.files.length, 37);
   eq('baseline bevat alleen hash-identiteiten',
@@ -714,6 +871,12 @@ if (!existsSync(baselinePath)) {
       Array.isArray(file.xerDefaultsMovement)
       && file.xerDefaultsMovement.length === BLAST_AXES.length
       && typeof file.xerDefaultsNegativeFloatTasks === 'number'), true);
+  eq('expectedFinishDates heeft een zelfstandige gekozen/tegenvariant-corpuspin',
+    typeof committed.expectedFinishVariant === 'object'
+    && Array.isArray(committed.expectedFinishVariant?.files)
+    && committed.expectedFinishVariant?.movement.length === BLAST_AXES.length, true);
+  eq('ontbrekend-typepad heeft een exact before/after-delta-orakel',
+    Array.isArray(committed.legacyMissingTypeDelta) && committed.legacyMissingTypeDelta.length > 0, true);
 }
 
 const root = process.env.OPS_XER_CORPUS;
@@ -776,7 +939,23 @@ if (!root) {
     console.log(JSON.stringify(measured));
   } else if (existsSync(baselinePath)) {
     const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
-    eq('per-bestand/per-as-defaultbeweging en XER-fidelity blijven exact gepind', measured, committed);
+    eq('expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind',
+      measured.expectedFinishVariant, committed.expectedFinishVariant);
+    const {
+      expectedFinishVariant: _measuredExpected,
+      legacyMissingTypeDelta: _measuredLegacyDelta,
+      ...measuredRest
+    } = measured;
+    const {
+      expectedFinishVariant: _committedExpected,
+      legacyMissingTypeDelta: committedLegacyDelta,
+      ...committedRest
+    } = committed;
+    void _measuredExpected;
+    void _measuredLegacyDelta;
+    void _committedExpected;
+    eq('ontbrekend-typepad beweegt exact de gepinde bestaande baselinecellen',
+      baselineValueDeltas(committedRest, measuredRest), committedLegacyDelta);
   }
 }
 

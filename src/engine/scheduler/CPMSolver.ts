@@ -12,6 +12,7 @@ import {
   signedElapsedSpan, isZeroDurationMilestone, splitTotalSpanMinutes, splitTotalSpanDays,
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
+import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
 } from './relationMath';
@@ -1638,7 +1639,7 @@ export class CPMSolver {
             // `time.resume` is universele brondata. Het MPP-pad blijft veldgedreven, maar een
             // XER-taak mag nooit door kale veld-aanwezigheid als MPP behandeld worden: P6 activeert
             // zijn eigen route alleen na de gevalideerde suspend/resume-opt-in.
-            const mayUseResume = task.p6ProjectId ? task.p6SuspendResume === true : true;
+            const mayUseResume = task.p6ProjectId ? hasValidP6SuspendResume(task) : true;
             const resumeOverride = mayUseResume && t.resume && task.resourceIds.length <= 1
               ? this.parseIn(progressCal, t.resume)
               : null;

@@ -5,6 +5,7 @@ import {
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate, parseDate, parseInstant } from '@/utils/dateUtils';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
@@ -408,6 +409,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       const { time, ...rest } = updates;
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
       // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`

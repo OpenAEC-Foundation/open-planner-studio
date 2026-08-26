@@ -5,6 +5,7 @@ import { resetUndoCoalescing, setMcpTransactionActive } from './transaction';
 import { relationVerdict } from './relationRules';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
@@ -470,6 +471,7 @@ export const draft = {
       const { time, ...rest } = updates;
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — gedocumenteerde tweeling van taskSlice.ts's
       // `updateTask`: zelfde triggerset/uitleg in `taskDefaults.ts`.
       if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
@@ -513,6 +515,7 @@ export const draft = {
         if (timePatch.durationType !== undefined) { task.time.durationType = timePatch.durationType; timeTouched = true; }
         if (timePatch.clearDurationMinutes) { delete task.time.durationMinutes; timeTouched = true; }
       }
+      reconcileP6SuspendResume(task);
       // Z14b (eigenaarsprincipe 2026-08-18) — zelfde triggerset als `updateTaskFields`, zie
       // `taskDefaults.ts`. `timePatch` heeft een eigen, smallere vorm (allowlist-gedreven) dan een
       // volledige `Partial<TaskTime>`, dus hier direct de sleutel-aanwezigheid bijhouden i.p.v.

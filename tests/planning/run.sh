@@ -239,6 +239,20 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERPROGRESSCHECK="$DIR/.xer-progress.mjs"
   if bundle_check "$DIR/check-xer-progress.ts" "$XERPROGRESSCHECK"; then node "$XERPROGRESSCHECK" || STATUS=1; fi
 
+  # X7 reviewfix 2: percentages worden uitsluitend uit hun expliciete P6-familie gelezen;
+  # ontbrekend type houdt de legacy fysieke fallback zonder bronremaining te herschrijven.
+  XERPROGRESSFAMILIESCHECK="$DIR/.xer-progress-families.mjs"
+  if bundle_check "$DIR/check-xer-progress-families.ts" "$XERPROGRESSFAMILIESCHECK"; then node "$XERPROGRESSFAMILIESCHECK" || STATUS=1; fi
+
+  # X7 reviewfix 2: de P6 suspend/resume-route is een blijvende invariant door edit, IFC,
+  # recovery en solver heen; stale true mag na een los/omgekeerd paar niet herleven.
+  XERSUSPENDINVARIANTCHECK="$DIR/.xer-suspend-invariant.mjs"
+  if bundle_check "$DIR/check-xer-suspend-invariant.ts" "$XERSUSPENDINVARIANTCHECK"; then node "$XERSUSPENDINVARIANTCHECK" || STATUS=1; fi
+
+  # X7 reviewfix 2: suspend/resume/expected-finish kunnen zélf de XER-uurmodus activeren.
+  XERX7HOURMODECHECK="$DIR/.xer-x7-hour-mode.mjs"
+  if bundle_check "$DIR/check-xer-x7-hour-mode.ts" "$XERX7HOURMODECHECK"; then node "$XERX7HOURMODECHECK" || STATUS=1; fi
+
   # X7: zelfstandig bronorakel voor P6 voortgang/suspend-resume, zonder productiereader.
   XERPROGRESSCORPUSCHECK="$DIR/.xer-progress-corpus.mjs"
   if bundle_check "$DIR/check-xer-progress-corpus.ts" "$XERPROGRESSCORPUSCHECK"; then
