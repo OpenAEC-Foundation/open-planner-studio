@@ -98,7 +98,10 @@ export interface ExpandSummaryRelationsResult {
 /** Lege, cache-gedeelde constante voor "geen bladafstammelingen" (kapotte/lege tak). */
 const NONE: string[] = [];
 
-export function expandSummaryRelations(tasks: Task[], sequences: Sequence[]): ExpandSummaryRelationsResult {
+export function expandSummaryRelations(
+  tasks: readonly Task[],
+  sequences: readonly Sequence[],
+): ExpandSummaryRelationsResult {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const leafDescCache = new Map<string, string[]>();
 

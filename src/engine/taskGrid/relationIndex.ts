@@ -19,11 +19,38 @@ export interface ExternalTaskRelationEntry {
 
 export type TaskRelationEntry = InternalTaskRelationEntry | ExternalTaskRelationEntry;
 
+export type InternalRelationWarning = 'truncated-lead' | 'out-of-sequence';
+export type ExternalRelationWarning = 'source-missing';
+
+export interface InternalRelationAnalysis {
+  driving: boolean;
+  freeFloat?: number;
+  warnings: readonly InternalRelationWarning[];
+}
+
+export interface RelationTraceEdge {
+  otherTaskId: string;
+  sequenceId: string;
+  driving: boolean;
+}
+
+/** Alleen de relationele CPM-afgeleiden die dit readmodel nodig heeft; een volledig CPMResult past. */
+export interface RelationIndexAnalysisInput {
+  drivingSequenceIds: readonly string[];
+  sequenceFreeFloat: Readonly<Record<string, number>>;
+  truncatedLeadSequenceIds: readonly string[];
+  outOfSequenceSequenceIds: readonly string[];
+}
+
 export interface TaskRelationIndex {
   predecessorsByTaskId: ReadonlyMap<string, readonly TaskRelationEntry[]>;
   successorsByTaskId: ReadonlyMap<string, readonly TaskRelationEntry[]>;
   internalByTaskId: ReadonlyMap<string, readonly InternalTaskRelationEntry[]>;
   externalByTaskId: ReadonlyMap<string, readonly ExternalTaskRelationEntry[]>;
+  analysisBySequenceId: ReadonlyMap<string, InternalRelationAnalysis>;
+  warningsByExternalLinkId: ReadonlyMap<string, readonly ExternalRelationWarning[]>;
+  tracePredecessorsByTaskId: ReadonlyMap<string, readonly RelationTraceEdge[]>;
+  traceSuccessorsByTaskId: ReadonlyMap<string, readonly RelationTraceEdge[]>;
 }
 
 function append<T>(map: Map<string, T[]>, key: string, value: T): void {
@@ -37,13 +64,31 @@ function append<T>(map: Map<string, T[]>, key: string, value: T): void {
 export function buildTaskRelationIndex(
   tasks: readonly Task[],
   sequences: readonly Sequence[],
+  analysis?: RelationIndexAnalysisInput | null,
 ): TaskRelationIndex {
   const predecessors = new Map<string, TaskRelationEntry[]>();
   const successors = new Map<string, TaskRelationEntry[]>();
   const internal = new Map<string, InternalTaskRelationEntry[]>();
   const external = new Map<string, ExternalTaskRelationEntry[]>();
+  const analysisBySequenceId = new Map<string, InternalRelationAnalysis>();
+  const warningsByExternalLinkId = new Map<string, readonly ExternalRelationWarning[]>();
+  const tracePredecessors = new Map<string, RelationTraceEdge[]>();
+  const traceSuccessors = new Map<string, RelationTraceEdge[]>();
+  const drivingIds = new Set(analysis?.drivingSequenceIds ?? []);
+  const truncatedLeadIds = new Set(analysis?.truncatedLeadSequenceIds ?? []);
+  const outOfSequenceIds = new Set(analysis?.outOfSequenceSequenceIds ?? []);
 
   for (const sequence of sequences) {
+    const driving = drivingIds.has(sequence.id);
+    const warnings: InternalRelationWarning[] = [];
+    if (truncatedLeadIds.has(sequence.id)) warnings.push('truncated-lead');
+    if (outOfSequenceIds.has(sequence.id)) warnings.push('out-of-sequence');
+    const freeFloat = analysis?.sequenceFreeFloat[sequence.id];
+    analysisBySequenceId.set(sequence.id, {
+      driving,
+      ...(freeFloat !== undefined ? { freeFloat } : {}),
+      warnings,
+    });
     const asSuccessor: InternalTaskRelationEntry = {
       kind: 'internal',
       taskId: sequence.successorId,
@@ -62,6 +107,12 @@ export function buildTaskRelationIndex(
     append(successors, sequence.predecessorId, asPredecessor);
     append(internal, sequence.successorId, asSuccessor);
     append(internal, sequence.predecessorId, asPredecessor);
+    append(tracePredecessors, sequence.successorId, {
+      otherTaskId: sequence.predecessorId, sequenceId: sequence.id, driving,
+    });
+    append(traceSuccessors, sequence.predecessorId, {
+      otherTaskId: sequence.successorId, sequenceId: sequence.id, driving,
+    });
   }
 
   for (const task of tasks) {
@@ -75,6 +126,7 @@ export function buildTaskRelationIndex(
       };
       append(link.direction === 'predecessor' ? predecessors : successors, task.id, entry);
       append(external, task.id, entry);
+      warningsByExternalLinkId.set(link.id, link.sourceMissing ? ['source-missing'] : []);
     }
   }
 
@@ -83,6 +135,10 @@ export function buildTaskRelationIndex(
     successorsByTaskId: successors,
     internalByTaskId: internal,
     externalByTaskId: external,
+    analysisBySequenceId,
+    warningsByExternalLinkId,
+    tracePredecessorsByTaskId: tracePredecessors,
+    traceSuccessorsByTaskId: traceSuccessors,
   };
 }
 

@@ -254,6 +254,7 @@ export function TaskGridSurface({
     rows: viewRows,
     tasks,
     sequences,
+    cpmResult,
     assignments,
     resources,
     baselines,
@@ -294,7 +295,7 @@ export function TaskGridSurface({
     },
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendars,
-    customFieldDefs, dateNotation, project.id, project.wbsAutoNumber, resources, surfaceId,
+    cpmResult, customFieldDefs, dateNotation, project.id, project.wbsAutoNumber, resources, surfaceId,
     runGridMutation, scheduleStale, selectedTaskIds, sequences, tCommon, tTask, tasks, trace, viewRows,
   ]);
   const rowIndex = useMemo(() => createTaskGridRowIndex(viewRows), [viewRows]);

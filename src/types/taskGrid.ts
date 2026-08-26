@@ -45,6 +45,10 @@ export interface CellValidationError {
   taskId?: string;
   rowKey?: string;
   columnId?: TaskColumnId;
+  tokenIndex?: number;
+  start?: number;
+  end?: number;
+  cycle?: readonly string[];
   value?: unknown;
 }
 

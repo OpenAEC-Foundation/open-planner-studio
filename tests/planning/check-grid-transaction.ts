@@ -28,6 +28,19 @@ function nameEdit(taskId: string, value: unknown): CellEditIntent {
 function cellEdit(taskId: string, columnId: string, route: CellEditIntent['route'], value: unknown): CellEditIntent {
   return { kind: 'cell-edit', taskId, columnId: columnId as CellEditIntent['columnId'], route, value };
 }
+function relationSet(
+  taskId: string,
+  direction: RelationSetIntent['direction'],
+  wbsCodes: readonly string[],
+): RelationSetIntent {
+  return {
+    kind: 'relation-set', taskId, direction,
+    value: wbsCodes.map((wbsCode, index) => ({
+      kind: 'internal', wbsCode, relType: 'FS', lagText: '',
+      source: { index, start: index * 8, end: index * 8 + wbsCode.length, text: `${wbsCode} FS` },
+    })),
+  };
+}
 function observed(state: AppState): unknown {
   return {
     project: state.project, tasks: state.tasks, isDirty: state.isDirty,
@@ -35,6 +48,60 @@ function observed(state: AppState): unknown {
     resourceLoadResult: state.resourceLoadResult, notifications: state.ui.notifications,
     historyEvents: state.historyEvents, nextHistorySequence: state.nextHistorySequence,
   };
+}
+
+// Meerdere relatiecellen in één paste worden tegen hun gezamenlijke eindtoestand beoordeeld.
+// De eerste write maakt hier tijdelijk A->B->C->A; de tweede haalt B->C weg, zodat het eindresultaat
+// geldig is. De toevallige writevolgorde mag die geldige herschikking niet blokkeren.
+{
+  reset();
+  const a = S().addTask({ name: 'A' });
+  const b = S().addTask({ name: 'B' });
+  const c = S().addTask({ name: 'C' });
+  const wbsA = S().tasks.find(task => task.id === a)!.wbsCode;
+  useAppStore.setState(state => {
+    state.sequences = [
+      { id: 'ab', predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 },
+      { id: 'bc', predecessorId: b, successorId: c, type: 'FINISH_START', lagDays: 0 },
+    ];
+    state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+  });
+  const result = runGridMutation([{
+    kind: 'paste',
+    writes: [relationSet(c, 'successor', [wbsA]), relationSet(b, 'successor', [])],
+  }]);
+  eq('Relationele paste valideert de gezamenlijke eindgraaf', result.ok, true);
+  eq('Tijdelijke cyclus blokkeert geldig eindresultaat niet', S().sequences.map(sequence => (
+    [sequence.predecessorId, sequence.successorId]
+  )), [[a, b], [c, a]]);
+  eq('Meercellige relatiepaste blijft één undo-eenheid', S().historyEvents.length, 1);
+}
+
+// Twee cellen mogen niet stil verschillende opdrachten geven voor dezelfde relatie. Dit is geen
+// "laatste write wint": de hele paste wordt geweigerd en laat de live store ongemoeid.
+{
+  reset();
+  const a = S().addTask({ name: 'A' });
+  const b = S().addTask({ name: 'B' });
+  const wbsB = S().tasks.find(task => task.id === b)!.wbsCode;
+  useAppStore.setState(state => {
+    state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+  });
+  const before = JSON.stringify(observed(S()));
+  const result = runGridMutation([{
+    kind: 'paste',
+    writes: [relationSet(a, 'successor', [wbsB]), relationSet(b, 'predecessor', [])],
+  }]);
+  eq('Tegenspraak tussen overlappende relatiecellen faalt', result.ok, false);
+  eq('Tegenspraak benoemt relationSetConflict', result.ok ? null : result.errors[0]?.code, 'relationSetConflict');
+  eq('Tegenspraak laat store byte-identiek', JSON.stringify(observed(S())), before);
+  // Bewaak ook de omgekeerde invoervolgorde: conflictgedrag mag niet van arrayvolgorde afhangen.
+  const reversed = runGridMutation([{
+    kind: 'paste',
+    writes: [relationSet(b, 'predecessor', []), relationSet(a, 'successor', [wbsB])],
+  }]);
+  eq('Omgekeerde tegenspraak faalt eveneens', reversed.ok, false);
+  eq('Omgekeerde tegenspraak laat store byte-identiek', JSON.stringify(observed(S())), before);
 }
 
 // Leeg = geldige no-op: geen publicatie en geen history.
@@ -122,21 +189,32 @@ function observed(state: AppState): unknown {
   eq('Gefaalde paste laat alle bewaakte state byte-identiek', JSON.stringify(observed(S())), before);
 }
 
-// Paste mag toekomstige domeinwrites dragen, maar de transactiegrens weigert ze tot hun pure
-// planner bestaat. Een eerdere celwrite uit dezelfde paste mag daarbij nooit lekken.
+// Een relationele celset loopt door de pure planner en commit samen met een gewone celwrite in
+// exact dezelfde transactie: geen tussenpublicatie met alleen de naam of alleen de relatie.
 {
   reset();
   const taskId = S().addTask({ name: 'Relatiegrens' });
+  const predecessorId = S().addTask({ name: 'Voorganger' });
+  const predecessorWbs = S().tasks.find(task => task.id === predecessorId)!.wbsCode;
   useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false; });
   const relation: RelationSetIntent = {
-    kind: 'relation-set', taskId, direction: 'predecessor', value: ['1.2 FS+2d'],
+    kind: 'relation-set', taskId, direction: 'predecessor', value: [{
+      kind: 'internal', wbsCode: predecessorWbs, relType: 'FS', lagText: '+2d',
+      source: { index: 0, start: 0, end: 9, text: `${predecessorWbs} FS+2d` },
+    }],
   };
-  const paste: PasteIntent = { kind: 'paste', writes: [nameEdit(taskId, 'Mag niet landen'), relation] };
-  const before = JSON.stringify(observed(S()));
+  const paste: PasteIntent = { kind: 'paste', writes: [nameEdit(taskId, 'Relatie en naam landen'), relation] };
+  let publications = 0;
+  const unsubscribe = useAppStore.subscribe(() => { publications++; });
   const result = runGridMutation([paste]);
-  eq('Paste met nog niet aangesloten relatiewrite faalt', result.ok, false);
-  eq('Relatiewrite benoemt plannerNotAvailable', result.ok ? null : result.errors[0]?.code, 'plannerNotAvailable');
-  eq('Relatiewrite laat eerdere celwrite en alle state onaangeraakt', JSON.stringify(observed(S())), before);
+  unsubscribe();
+  eq('Paste met aangesloten relatiewrite slaagt', result.ok, true);
+  eq('Relatiepaste publiceert naam en relatie samen exact één keer', publications, 1);
+  eq('Relatiepaste schrijft de naam', S().tasks.find(task => task.id === taskId)?.name, 'Relatie en naam landen');
+  eq('Relatiepaste schrijft de gewenste relatie met lag', S().sequences.map(sequence => ({
+    predecessorId: sequence.predecessorId, successorId: sequence.successorId, type: sequence.type, lagDays: sequence.lagDays,
+  })), [{ predecessorId, successorId: taskId, type: 'FINISH_START', lagDays: 2 }]);
+  eq('Relatiepaste maakt één gezamenlijk history-event', S().historyEvents.length, 1);
 }
 
 // Dezelfde bronmutatie met exact dezelfde waarde dedupliceert tot één wijziging.
@@ -156,7 +234,7 @@ function observed(state: AppState): unknown {
 
 // Een relationele Excel-cel met een technisch ogende maar onbekende externe payload mag evenmin
 // een eerdere write uit dezelfde paste laten lekken. Task 17 bewijst de precieze parserfout apart;
-// deze check bewaakt hier de generieke atomaire grens totdat Task 18 de relatieplanner aansluit.
+// deze check bewaakt hier daarnaast de atomaire transactiegrens van de aangesloten relatieplanner.
 {
   reset();
   const taskId = S().addTask({ name: 'Externe suffix voor' });

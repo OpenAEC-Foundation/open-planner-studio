@@ -95,7 +95,7 @@ const task = {
   externalLinks: [{
     id: 'ext-1', direction: 'predecessor', relType: 'FS', lagDays: 0,
     anchorDate: '2025-12-30', sourceRef: { projectId: 'bron:1', taskId: 'bron-taak', taskName: 'Bron' },
-    sourceMissing: false,
+    sourceMissing: true,
   }],
   timephasedContours: [{ resourceUid: 7, periods: [{ kind: 'remaining', workMinutes: 30, minutes: 60, afterMinutes: 0 }] }],
   notes: [{ done: false, text: 'B', id: 'n-1' }],
@@ -139,7 +139,12 @@ const baseline: Baseline = {
 const ctx: TaskColumnContext = {
   projectId: 'project:1',
   tasksById: new Map([[task.id, task]]),
-  relationIndex: buildTaskRelationIndex([task], [sequence]),
+  relationIndex: buildTaskRelationIndex([task], [sequence], {
+    drivingSequenceIds: ['s-1'],
+    sequenceFreeFloat: { 's-1': 0 },
+    truncatedLeadSequenceIds: ['s-1'],
+    outOfSequenceSequenceIds: ['s-1'],
+  }),
   assignmentsByTaskId: new Map([[task.id, [assignment, assignment2, assignment3]]]),
   resourcesById: new Map([
     [resource.id, resource], [resource2.id, resource2], [resource3.id, resource3],
@@ -165,6 +170,19 @@ eq('ene relationIndex houdt de technische bronnen apart zonder opnieuw te scanne
     external: ctx.relationIndex.externalByTaskId.get(task.id)?.length,
   },
   { internal: 1, external: 1 });
+eq('ene relationIndex draagt driving, vrije speling en waarschuwingen per sequence-id',
+  ctx.relationIndex.analysisBySequenceId.get('s-1'), {
+    driving: true, freeFloat: 0, warnings: ['truncated-lead', 'out-of-sequence'],
+  });
+eq('ene relationIndex draagt sourceMissing als externe waarschuwing',
+  ctx.relationIndex.warningsByExternalLinkId.get('ext-1'), ['source-missing']);
+eq('ene relationIndex bouwt trace-input tijdens dezelfde sequencepass', {
+  predecessors: ctx.relationIndex.tracePredecessorsByTaskId.get(task.id),
+  successors: ctx.relationIndex.traceSuccessorsByTaskId.get('other'),
+}, {
+  predecessors: [{ otherTaskId: 'other', sequenceId: 's-1', driving: true }],
+  successors: [{ otherTaskId: task.id, sequenceId: 's-1', driving: true }],
+});
 
 eq('categorievolgorde is exact', TASK_COLUMN_CATEGORY_ORDER,
   ['task', 'planning', 'constraints', 'relations', 'resources', 'progress', 'computed', 'baseline', 'custom', 'technical']);

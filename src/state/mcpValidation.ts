@@ -21,6 +21,7 @@
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import { applyProgressInvariants } from './slices/taskSlice';
+import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 
 /** Per-item-fout: het aangesproken id + een leesbare reden (voor de per-item-rapportage van de
  *  tool-laag). */
@@ -44,61 +45,6 @@ type ReadableState = Pick<AppState, 'tasks' | 'sequences' | 'assignments'>;
  *  positief en eindig. 0/negatief/NaN is nooit een geldige toewijzing. */
 function isValidUnits(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n) && n > 0;
-}
-
-/**
- * Pure cyclusdetectie over een verzameling gerichte kanten (`predecessor → successor`). Spiegelt de
- * wit/grijs/zwart-DFS van `CPMSolver.detectCycle` en reconstrueert de kring-taken via een parent-map.
- * Retourneert de kring als taak-id-lijst (eerste == laatste), of `null` bij een acyclische graaf.
- */
-function detectCycleInEdges(edges: { predecessorId: string; successorId: string }[]): string[] | null {
-  const succ = new Map<string, string[]>();
-  const nodes = new Set<string>();
-  for (const e of edges) {
-    nodes.add(e.predecessorId);
-    nodes.add(e.successorId);
-    if (!succ.has(e.predecessorId)) succ.set(e.predecessorId, []);
-    succ.get(e.predecessorId)!.push(e.successorId);
-  }
-
-  const color = new Map<string, 0 | 1 | 2>(); // 0 = WHITE, 1 = GRAY, 2 = BLACK
-  const parent = new Map<string, string | null>();
-  for (const n of nodes) color.set(n, 0);
-
-  const dfs = (u: string): string[] | null => {
-    color.set(u, 1);
-    for (const v of succ.get(u) || []) {
-      if (color.get(v) === 1) {
-        // Terugkant ⇒ kring: reconstrueer v..u via de parent-keten.
-        const cycle: string[] = [v, u];
-        let cur = u;
-        while (cur !== v) {
-          const p = parent.get(cur);
-          if (p === null || p === undefined) break;
-          cycle.push(p);
-          cur = p;
-          if (cur === v) break;
-        }
-        cycle.reverse();
-        return cycle;
-      }
-      if (color.get(v) === 0) {
-        parent.set(v, u);
-        const c = dfs(v);
-        if (c) return c;
-      }
-    }
-    color.set(u, 2);
-    return null;
-  };
-
-  for (const n of nodes) {
-    if (color.get(n) === 0) {
-      const c = dfs(n);
-      if (c) return c;
-    }
-  }
-  return null;
 }
 
 export const validate = {

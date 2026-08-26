@@ -8,6 +8,7 @@ import type { Sequence } from '@/types/sequence';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Task } from '@/types/task';
 import type { DateNotation } from '@/types/view';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type {
   CellValidationError,
   GridIntent,
@@ -96,6 +97,7 @@ export interface CreateTaskGridAdapterInput {
   rows: readonly ViewRow[];
   tasks: readonly Task[];
   sequences: readonly Sequence[];
+  cpmResult?: CPMResult | null;
   assignments: readonly ResourceAssignment[];
   resources: readonly Resource[];
   baselines: readonly Baseline[];
@@ -198,7 +200,7 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
   const context: TaskColumnContext = {
     projectId: input.projectId,
     tasksById: new Map(input.tasks.map(task => [task.id, task] as const)),
-    relationIndex: buildTaskRelationIndex(input.tasks, input.sequences),
+    relationIndex: buildTaskRelationIndex(input.tasks, input.sequences, input.cpmResult),
     assignmentsByTaskId: buildAssignmentsByTaskId(input.assignments),
     resourcesById: new Map(input.resources.map(resource => [resource.id, resource] as const)),
     baselinesById: new Map(input.baselines.map(baseline => [baseline.id, baseline] as const)),

@@ -1,7 +1,7 @@
 import { produce } from 'immer';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { deriveViewRows } from './slices/viewSlice';
-import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
+import { buildTaskRelationIndex, type TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { buildTaskColumnRegistry, canonicalGridJson } from '@/engine/taskGrid/taskColumnRegistry';
 import { planTaskCellEdit } from '@/engine/taskGrid/taskEditPlan';
 import {
@@ -16,6 +16,13 @@ import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
 import { generateId } from '@/utils/id';
+import {
+  applyRelationMutationPlan,
+  isParsedRelationTokenArray,
+  planRelationSet,
+  planRelationSetInBatch,
+  validateFinalRelationGraph,
+} from '@/engine/taskGrid/relationPlan';
 import type { AppState } from './appStore';
 import type { AppSlice, DeferredNotification } from './slices/types';
 import type {
@@ -25,6 +32,7 @@ import type {
   GridResult,
   GridWriteIntent,
   AssignmentSetIntent,
+  RelationSetIntent,
   TaskColumnContext,
   TaskColumnDescriptor,
 } from '@/types/taskGrid';
@@ -107,7 +115,7 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
   const context: TaskColumnContext = {
     projectId: state.project.id,
     tasksById: new Map(state.tasks.map(task => [task.id, task])),
-    relationIndex: buildTaskRelationIndex(state.tasks, state.sequences),
+    relationIndex: buildTaskRelationIndex(state.tasks, state.sequences, state.cpmResult),
     assignmentsByTaskId,
     resourcesById: new Map(state.resources.map(resource => [resource.id, resource])),
     baselinesById: new Map(state.baselines.map(baseline => [baseline.id, baseline])),
@@ -172,6 +180,52 @@ function applyAssignmentSet(
       state, planned.value, () => generateId('asgn'), applyIndexes,
     ),
   };
+}
+
+function applyRelationSet(
+  state: AppState,
+  intent: RelationSetIntent,
+  inBatch = false,
+  relationIndex?: TaskRelationIndex,
+): GridResult<{ changed: boolean }, readonly CellValidationError[]> {
+  if (!isParsedRelationTokenArray(intent.value)) {
+    return { ok: false, errors: [validationError('invalidRelationTokens', { taskId: intent.taskId }, intent.value)] };
+  }
+  const planned = (inBatch ? planRelationSetInBatch : planRelationSet)({
+    tasks: state.tasks,
+    sequences: state.sequences,
+    ownerTaskId: intent.taskId,
+    direction: intent.direction,
+    tokens: intent.value,
+    relationIndex,
+  });
+  if (!planned.ok) {
+    return {
+      ok: false,
+      errors: planned.errors.map(error => ({
+        code: error.code,
+        messageKey: error.messageKey,
+        taskId: intent.taskId,
+        tokenIndex: error.tokenIndex,
+        start: error.start,
+        end: error.end,
+        cycle: error.cycle,
+        value: error.value,
+      })),
+    };
+  }
+  applyRelationMutationPlan(state, planned.value, {
+    sequenceId: () => generateId('seq'),
+    externalLinkId: () => generateId('extlink'),
+  });
+  if (planned.value.changed) {
+    if (state.datesAsRecorded) {
+      state.datesAsRecorded = false;
+      state.recordedDates = null;
+    }
+    markScheduleStale(state);
+  }
+  return { ok: true, value: { changed: planned.value.changed } };
 }
 
 function applyCellEdit(
@@ -241,21 +295,19 @@ export function prepareGridMutation(
   intents: readonly GridIntent[],
 ): GridResult<PreparedGridMutation, readonly CellValidationError[]> {
   const flattened = flattenIntents(intents);
-  const unavailable = flattened.find(intent => intent.kind === 'relation-set');
-  if (unavailable) {
-    return {
-      ok: false,
-      errors: [validationError('plannerNotAvailable', { taskId: unavailable.taskId }, unavailable)],
-    };
-  }
   const normalized = normalizeWrites(flattened);
   if (!normalized.ok) return normalized;
 
   const runtime = buildGridColumnRuntime(state);
+  let relationWriteCount = 0;
+  for (const write of normalized.value) {
+    if (write.kind === 'relation-set') relationWriteCount++;
+  }
   const before = createSnapshot(state as AppState);
   let errors: CellValidationError[] = [];
   const timephasedLossTaskIds = new Set<string>();
   const assignmentValidationTaskIds = new Set<string>();
+  const appliedRelationWrites: RelationSetIntent[] = [];
   const isolated = produce(state as AppState, draft => {
     const draftTasksById = new Map(draft.tasks.map(task => [task.id, task] as const));
     const draftTaskIndexById = new Map(draft.tasks.map((task, index) => [task.id, index] as const));
@@ -296,6 +348,59 @@ export function prepareGridMutation(
         if (!applied.ok) errors.push(...applied.errors);
         else for (const taskId of applied.value.timephasedGuidanceLostTaskIds) {
           timephasedLossTaskIds.add(taskId);
+        }
+      } else {
+        const applied = applyRelationSet(
+          draft as AppState,
+          write,
+          true,
+          relationWriteCount === 1 ? runtime.context.relationIndex : undefined,
+        );
+        if (!applied.ok) errors.push(...applied.errors);
+        else appliedRelationWrites.push(write);
+      }
+    }
+    if (errors.length === 0 && appliedRelationWrites.length > 0) {
+      const finalGraph = validateFinalRelationGraph({ tasks: draft.tasks, sequences: draft.sequences });
+      if (!finalGraph.ok) {
+        errors.push(...finalGraph.errors.map(error => ({
+          code: error.code,
+          messageKey: error.messageKey,
+          tokenIndex: error.tokenIndex,
+          start: error.start,
+          end: error.end,
+          cycle: error.cycle,
+          value: error.value,
+        })));
+      }
+    }
+    if (errors.length === 0 && appliedRelationWrites.length > 1) {
+      const finalRelationIndex = buildTaskRelationIndex(draft.tasks, draft.sequences, draft.cpmResult);
+      for (const write of appliedRelationWrites) {
+        if (!isParsedRelationTokenArray(write.value)) continue;
+        const replay = planRelationSetInBatch({
+          tasks: draft.tasks,
+          sequences: draft.sequences,
+          ownerTaskId: write.taskId,
+          direction: write.direction,
+          tokens: write.value,
+          relationIndex: finalRelationIndex,
+        });
+        if (!replay.ok) {
+          errors.push(...replay.errors.map(error => ({
+            code: error.code,
+            messageKey: error.messageKey,
+            taskId: write.taskId,
+            tokenIndex: error.tokenIndex,
+            start: error.start,
+            end: error.end,
+            cycle: error.cycle,
+            value: error.value,
+          })));
+        } else if (replay.value.changed) {
+          errors.push(validationError('relationSetConflict', { taskId: write.taskId }, {
+            direction: write.direction,
+          }));
         }
       }
     }
