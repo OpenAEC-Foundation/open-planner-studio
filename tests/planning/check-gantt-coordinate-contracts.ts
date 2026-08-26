@@ -4,7 +4,11 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { dateToX, MS_PER_DAY, xToDate, xToDayOffset } from '@/engine/renderer/timeAxis';
 import { buildCalendarAxis, buildWorkdayAxis, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { buildSharedAxis } from '@/components/canvas/ganttRenderOptions';
+import { isTimelineCanvasX } from '@/components/canvas/hooks/useCanvasLayer';
 import type { WorkCalendar } from '@/types/calendar';
+import { useAppStore } from '@/state/appStore';
+import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
+import { readGanttPalette } from '@/engine/renderer/themePalette';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -86,12 +90,74 @@ const root = process.cwd();
 const timeAxisSource = fs.readFileSync(path.join(root, 'src/engine/renderer/timeAxis.ts'), 'utf8');
 const workdayAxisSource = fs.readFileSync(path.join(root, 'src/engine/renderer/workdayAxis.ts'), 'utf8');
 const renderOptionsSource = fs.readFileSync(path.join(root, 'src/components/canvas/ganttRenderOptions.ts'), 'utf8');
+const rendererSource = fs.readFileSync(path.join(root, 'src/engine/renderer/GanttRenderer.ts'), 'utf8');
+const ganttCanvasSource = fs.readFileSync(path.join(root, 'src/components/canvas/GanttCanvas.tsx'), 'utf8');
+const timelineHookSources = [
+  'useCanvasLayer.ts',
+  'useBarDrag.ts',
+  'usePan.ts',
+  'useBoxSelect.ts',
+  'useDependencyDraw.ts',
+].map(file => fs.readFileSync(path.join(root, 'src/components/canvas/hooks', file), 'utf8')).join('\n');
 
 equal('timeAxis gebruikt chartOriginX', /chartOriginX:\s*number/.test(timeAxisSource), true);
 equal('timeAxis noemt de oude oorsprong niet meer', /taskTableWidth/.test(timeAxisSource), false);
 equal('workdayAxis gebruikt chartOriginX', /chartOriginX:\s*number/.test(workdayAxisSource), true);
 equal('workdayAxis noemt de oude oorsprong niet meer', /taskTableWidth/.test(workdayAxisSource), false);
 equal('SharedAxisInput gebruikt chartOriginX', /interface SharedAxisInput[\s\S]*?chartOriginX:\s*number/.test(renderOptionsSource), true);
+
+// Task 16B: ieder timelinecanvas heeft een lokale oorsprong 0. Randpunten zijn inclusief x=0 en
+// exclusief x=width; geen enkele gesture mag nog een DOM-paneelbreedte van canvas-x aftrekken.
+equal('timeline x=0 is geldig', isTimelineCanvasX(0, 640), true);
+equal('timeline x=width-1 is geldig', isTimelineCanvasX(639, 640), true);
+equal('timeline x=-1 is ongeldig', isTimelineCanvasX(-1, 640), false);
+equal('timeline x=width is ongeldig', isTimelineCanvasX(640, 640), false);
+
+// Echte renderer-hit-tests op beide uiterste geldige pixels. De taak begint exact op de lokale
+// oorsprong en loopt voorbij de rechterrand, zodat x=0 een resize-rand is en width-1 de balkbody.
+const globalRecord = globalThis as unknown as Record<string, unknown>;
+globalRecord.document = { documentElement: {} };
+globalRecord.getComputedStyle = () => ({ getPropertyValue: () => '' });
+const store = useAppStore.getState();
+store.newProject();
+store.addTask({ name: 'Randtaak' });
+const edgeBase = useAppStore.getState().tasks[0];
+const edgeTask = {
+  ...edgeBase,
+  time: {
+    ...edgeBase.time,
+    scheduleStart: '2026-08-24',
+    scheduleFinish: '2026-12-31',
+    earlyStart: '2026-08-24',
+    earlyFinish: '2026-12-31',
+    scheduleDuration: 94,
+  },
+};
+const edgeRenderer = new GanttRenderer({} as CanvasRenderingContext2D, {
+  rows: [{ kind: 'task', rowKey: edgeTask.id, task: edgeTask, depth: 0, dimmed: false }],
+  sequences: [],
+  calendar,
+  view: { ...useAppStore.getState().view, viewStartDate: '2026-08-24', zoom: 10, scrollX: 0, scrollY: 0 },
+  selectedTaskIds: [],
+  canvasWidth: 640,
+  canvasHeight: 240,
+  rowHeight: 28,
+  headerHeight: 50,
+  palette: readGanttPalette(),
+});
+const rowMidY = 64;
+equal('bar-resize raakt x=0', edgeRenderer.getTaskBarBounds(0, rowMidY)?.edge, 'left');
+equal('barbody raakt x=width-1', edgeRenderer.getTaskBarBounds(639, rowMidY)?.edge, 'body');
+equal('barhit weigert x=width', edgeRenderer.getTaskBarBounds(640, rowMidY), null);
+equal('relatiebron raakt x=0', edgeRenderer.getRelationSourceAt(0, rowMidY)?.id, edgeTask.id);
+equal('relatiebron raakt x=width-1', edgeRenderer.getRelationSourceAt(639, rowMidY)?.id, edgeTask.id);
+equal('relatiebron weigert x=width', edgeRenderer.getRelationSourceAt(640, rowMidY), null);
+
+equal('GanttRenderer kent geen taskTableWidth meer', /taskTableWidth/.test(rendererSource), false);
+equal('GanttRenderer tekent geen canvas-taaktabel meer', /drawTaskTable|columnHeaders/.test(rendererSource), false);
+equal('GanttRenderer heeft geen lokale tabelhit-tests meer', /isInTaskTable|isCollapseToggle|isAddButton/.test(rendererSource), false);
+equal('primaire gedeelde as begint letterlijk op 0', /buildSharedAxis\(\{[\s\S]*?chartOriginX:\s*0\b/.test(ganttCanvasSource), true);
+equal('timelinehooks trekken geen paneel- of tabelbreedte af', /taskTableWidth|leftPanelWidth/.test(timelineHookSources), false);
 
 if (diffs.length > 0) {
   console.error(`XX  gantt-coordinate-contracts: ${diffs.length} afwijking(en) van ${checks}`);

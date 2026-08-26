@@ -82,7 +82,7 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; ops: Op[] } {
 
 const CANVAS_W = 900;
 const CANVAS_H = 300;
-const TABLE_W = 300;
+const TABLE_W = 0;
 const ROW_H = 28;
 const HEADER_H = 50;
 
@@ -94,10 +94,8 @@ function baseOpts(rows: ViewRow[], zoom: number, scrollX: number, extra: Partial
     calendar: st.calendar,
     view: { ...st.view, zoom, scrollX, scrollY: 0, viewStartDate: '2026-08-01' },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth: CANVAS_W,
     canvasHeight: CANVAS_H,
-    taskTableWidth: TABLE_W,
     rowHeight: ROW_H,
     headerHeight: HEADER_H,
     ...extra,

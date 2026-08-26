@@ -22,7 +22,7 @@ export type GanttAction =
   | 'pan'
   | 'boxselect';
 
-export type GanttOwner = 'canvas' | 'DOM-grid/workspace' | 'timelinecanvas';
+export type GanttOwner = 'DOM-grid/workspace' | 'timelinecanvas';
 
 /** Iedere actie heeft precies één eigenaar; dubbele eventlisteners zijn niet toegestaan. */
 export const ganttEventOwnership = {

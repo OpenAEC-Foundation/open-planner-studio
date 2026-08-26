@@ -109,7 +109,7 @@ function hourTask(id: string, earlyStart: string, earlyFinish: string, splitGaps
   } as Task;
 }
 
-const W = 1400, H = 600, TTW = 300, ROWH = 28, HDRH = 60;
+const W = 1400, H = 600, ROWH = 28, HDRH = 60;
 function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { rects: RRect[]; lines: LineEv[] } {
   const { ctx, rects, lines } = makeCtx();
   const renderer = new GanttRenderer(ctx, {
@@ -119,12 +119,10 @@ function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { 
     effectiveCalById: new Map([['row0', HOUR_CAL], ['row1', HOUR_CAL], ['row2', HOUR_CAL], ['dayrow', DAY_CAL]]),
     view,
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     statusDate: view.viewStartDate,
     showProgressLine: false,
     canvasWidth: W,
     canvasHeight: H,
-    taskTableWidth: TTW,
     rowHeight: ROWH,
     headerHeight: HDRH,
     ...opts,

@@ -211,7 +211,7 @@ S().updateTask(ta.id, { time: { ...S().tasks[0].time, scheduleDuration: 5 } });
 S().updateTask(tb.id, { time: { ...S().tasks[1].time, scheduleDuration: 3 } });
 S().runCPM();
 
-function renderedGridDays(canvasWidth: number, zoom: number, scrollX: number, tableWidth: number): number[] {
+function renderedGridDays(canvasWidth: number, zoom: number, scrollX: number): number[] {
   const { ctx, verticalGridX } = makeRecordingCtx();
   const st = S();
   new GanttRenderer(ctx, {
@@ -220,39 +220,37 @@ function renderedGridDays(canvasWidth: number, zoom: number, scrollX: number, ta
     calendar: st.calendar,
     view: { ...st.view, zoom, scrollX, scrollY: 0 },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth,
     canvasHeight: CANVAS_HEIGHT,
-    taskTableWidth: tableWidth,
     rowHeight: 28,
     headerHeight: HEADER_HEIGHT,
   }).render();
   return verticalGridX;
 }
 
-function expectedGridX(canvasWidth: number, zoom: number, scrollX: number, tableWidth: number): number[] {
+function expectedGridX(canvasWidth: number, zoom: number, scrollX: number): number[] {
   const viewStart = new Date(S().view.viewStartDate);
   const visibleDays = Math.ceil(canvasWidth / zoom) + 2;
   const startOffset = oldStartOffset(scrollX, zoom); // de OUDE formule, onafhankelijk berekend
   const xs: number[] = [];
   for (let i = -1; i < visibleDays; i++) {
     const date = addCalendarDays(viewStart, startOffset + i);
-    xs.push(oldDateToXWithScroll(date, viewStart, tableWidth, zoom, scrollX));
+    xs.push(oldDateToXWithScroll(date, viewStart, 0, zoom, scrollX));
   }
   return xs;
 }
 
-const RENDER_CASES: Array<{ canvasWidth: number; zoom: number; scrollX: number; tableWidth: number }> = [
-  { canvasWidth: 1200, zoom: 22, scrollX: 0, tableWidth: 300 },
-  { canvasWidth: 1200, zoom: 22, scrollX: 137, tableWidth: 300 },
-  { canvasWidth: 1200, zoom: 7.5, scrollX: 950.5, tableWidth: 300 },
-  { canvasWidth: 1200, zoom: 100, scrollX: 0, tableWidth: 0 },
-  { canvasWidth: 800, zoom: 40, scrollX: 63, tableWidth: 150 },
+const RENDER_CASES: Array<{ canvasWidth: number; zoom: number; scrollX: number }> = [
+  { canvasWidth: 1200, zoom: 22, scrollX: 0 },
+  { canvasWidth: 1200, zoom: 22, scrollX: 137 },
+  { canvasWidth: 1200, zoom: 7.5, scrollX: 950.5 },
+  { canvasWidth: 1200, zoom: 100, scrollX: 0 },
+  { canvasWidth: 800, zoom: 40, scrollX: 63 },
 ];
 
 for (const c of RENDER_CASES) {
-  const actual = renderedGridDays(c.canvasWidth, c.zoom, c.scrollX, c.tableWidth);
-  const expected = expectedGridX(c.canvasWidth, c.zoom, c.scrollX, c.tableWidth);
+  const actual = renderedGridDays(c.canvasWidth, c.zoom, c.scrollX);
+  const expected = expectedGridX(c.canvasWidth, c.zoom, c.scrollX);
   checks++;
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     diffs.push(

@@ -1,5 +1,10 @@
 import { RefObject, useCallback, useEffect } from 'react';
 
+/** Lokale timelinegrens: de linker pixel is 0, de eerste pixel buiten beeld is exact `width`. */
+export function isTimelineCanvasX(x: number, width: number): boolean {
+  return x >= 0 && x < width;
+}
+
 // De 3× identieke dpr/resize/render-loop-boilerplate uit GanttCanvas (audit P20/B1): drie
 // canvas-lagen (primaire Gantt, secundair split-pane, histogram) deden elk exact dezelfde
 // dance — dpr-schaling, canvas-pixel/CSS-maat synchroniseren, een teken-callback, plus een

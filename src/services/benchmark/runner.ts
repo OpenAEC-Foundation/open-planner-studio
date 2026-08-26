@@ -216,10 +216,8 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
     calendar: data.calendar,
     view,
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth: RENDER_W,
     canvasHeight: RENDER_H,
-    taskTableWidth: 320,
     rowHeight: 22,
     headerHeight: 48,
   };

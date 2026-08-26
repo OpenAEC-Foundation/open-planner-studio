@@ -1,7 +1,7 @@
 import { RefObject, useEffect, useState } from 'react';
-import { useAppStore } from '@/state/appStore';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
+import { isTimelineCanvasX } from './useCanvasLayer';
 
 export interface DependencyDragState {
   sourceTaskId: string;
@@ -53,7 +53,7 @@ export function useDependencyDraw({
         const y = e.clientY - rect.top;
 
         const targetTask = renderer.getTaskAtY(y);
-        if (targetTask && targetTask.id !== depDragState.sourceTaskId && x >= useAppStore.getState().ui.leftPanelWidth) {
+        if (targetTask && targetTask.id !== depDragState.sourceTaskId && isTimelineCanvasX(x, rect.width)) {
           // Create Finish-to-Start dependency (default — ongewijzigd gedrag als de gebruiker de
           // hieronder geopende popover negeert/wegklikt). Issue #40: via de gedeelde wrapper, die
           // een geweigerd duplicaat meldt in plaats van stil niets te doen.

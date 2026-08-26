@@ -83,7 +83,7 @@ const [ta] = S().tasks;
 S().updateTask(ta.id, { time: { ...S().tasks[0].time, scheduleStart: '2026-01-01', scheduleDuration: 500 } });
 S().runCPM();
 
-const W = 1200, H = 600, TTW = 300, HEADER_H = 44;
+const W = 1200, H = 600, TTW = 0, HEADER_H = 44;
 const VIEW_START = '2026-11-15'; // vóór het Kerst/Nieuwjaar-blok, zodat het in het venster valt
 
 function renderHeaderOps(zoom: number, scrollX: number, compress: boolean): TextOp[] {
@@ -95,10 +95,8 @@ function renderHeaderOps(zoom: number, scrollX: number, compress: boolean): Text
     calendar: st.calendar,
     view: { ...st.view, zoom, scrollX, scrollY: 0, viewStartDate: VIEW_START },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth: W,
     canvasHeight: H,
-    taskTableWidth: TTW,
     rowHeight: 28,
     headerHeight: HEADER_H,
     compressNonWorkdays: compress,

@@ -121,7 +121,7 @@ const rows: ViewRow[] = [
   { kind: 'task', rowKey: hourMilestone.id, task: hourMilestone, depth: 0, dimmed: false },
 ];
 
-const W = 1200, H = 600, TTW = 300, ROWH = 28, HDRH = 60;
+const W = 1200, H = 600, TTW = 0, ROWH = 28, HDRH = 60;
 const st = S();
 const view = { ...st.view, scrollX: 0, scrollY: 0 };
 
@@ -132,14 +132,12 @@ const renderer = new GanttRenderer(ctx, {
   calendar: st.calendar,
   view,
   selectedTaskIds: [],
-  collapsedTaskIds: [],
   // statusDate + voortgangslijn AAN: drawProgressLine loopt óók door barGeometry en moet de
   // datumloze rijen zonder crash passeren.
   statusDate: view.viewStartDate,
   showProgressLine: true,
   canvasWidth: W,
   canvasHeight: H,
-  taskTableWidth: TTW,
   rowHeight: ROWH,
   headerHeight: HDRH,
 });

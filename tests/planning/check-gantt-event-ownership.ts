@@ -6,6 +6,8 @@ import {
   type GanttAction,
   type GanttOwner,
 } from '@/components/canvas/ganttEventOwnership';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const expectedCurrentOwners = {
   rowselect: 'DOM-grid/workspace',
@@ -48,6 +50,20 @@ for (const action of expectedActions) {
   if (owners[0] !== expectedCurrentOwners[action]) {
     diffs.push(`${action}: kreeg eigenaar ${JSON.stringify(owners[0])}, verwacht ${JSON.stringify(expectedCurrentOwners[action])}`);
   }
+}
+
+const root = process.cwd();
+const rendererSource = fs.readFileSync(path.join(root, 'src/engine/renderer/GanttRenderer.ts'), 'utf8');
+const canvasSource = fs.readFileSync(path.join(root, 'src/components/canvas/GanttCanvas.tsx'), 'utf8');
+const oldRowDragPath = path.join(root, 'src/components/canvas/hooks/useRowDrag.ts');
+
+checks++;
+if (/drawTaskTable|isInTaskTable|isCollapseToggle|isAddButton/.test(rendererSource)) {
+  diffs.push('timelinecanvas bevat nog teken- of hitcode van de oude canvas-taaktabel');
+}
+checks++;
+if (/useRowDrag|startRowDrag|rowDragState/.test(canvasSource) || fs.existsSync(oldRowDragPath)) {
+  diffs.push('canvas-rijsleep bestaat nog naast de DOM-grid-eigenaar');
 }
 
 if (diffs.length === 0) {

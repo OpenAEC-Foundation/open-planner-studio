@@ -112,7 +112,6 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   const pendingFit = useAppStore(s => s.view.pendingFit);
   const pendingFocusTaskId = useAppStore(s => s.view.pendingFocusTaskId);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-  const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const selectTask = useAppStore(s => s.selectTask);
   const selectTasks = useAppStore(s => s.selectTasks);
   const deselectAll = useAppStore(s => s.deselectAll);
@@ -122,8 +121,6 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   // een balk hetzelfde dependency-tekenen als shift+slepen. Dit is de ENIGE lezer die gedrag
   // stuurt; vóór deze fix werd de vlag alleen geschreven (dode modus, knop deed niets zichtbaars).
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
-  // Issue #21 punt 1 (fase 2): store-actie uit fase 1 — verplaatst één taak naar een exacte
-  // positie (reorder of reparent), gebruikt door useRowDrag bij mouseup.
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
   // Fase 2.10 golf 2 (contextmenu's): golf-1-helpers + bestaande taak-acties die het contextmenu
@@ -302,12 +299,6 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     [baselines, activeBaselineId],
   );
 
-  const columnHeaders = useMemo(() => ({
-    wbs: tTask('table.wbs'),
-    taskName: tTask('table.name'),
-    duration: tTask('table.duration'),
-  }), [tTask]);
-
   // Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
   // driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
   const trace = useMemo(
@@ -334,7 +325,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
   );
 
   // Issue #21 punt 5 (fase 2, ontwerp §10.1 — BINDEND): ÉÉN gedeelde `GanttAxis`-instantie voor de
-  // primaire Gantt-pane ÉN de Histogram (zelfde `taskTableWidth`/`effectiveView`, dus zelfde
+  // primaire Gantt-pane ÉN de Histogram (zelfde lokale oorsprong/effectiveView, dus zelfde
   // kolomindeling) — anders schuiven de resource-staafjes onder de verkeerde kolommen zodra de as
   // gecomprimeerd is. Fresh per render via de dep-array, geen cross-render cache (§2.5). De
   // secundaire split-view-pane (`drawSecondary`) heeft een eigen zoom/scrollX en bouwt daarom zijn
@@ -344,11 +335,11 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       calendar,
       compressNonWorkdays,
       viewStartDate: effectiveView.viewStartDate,
-      chartOriginX: taskTableWidth,
+      chartOriginX: 0,
       zoom: effectiveView.zoom,
       scrollX: effectiveView.scrollX,
     }),
-    [calendar, compressNonWorkdays, effectiveView, taskTableWidth],
+    [calendar, compressNonWorkdays, effectiveView],
   );
 
   // Content-span in dagen vanaf de effectieve origin — bewust ZONDER zoom/taskTableWidth, zodat
@@ -501,7 +492,6 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       calendar,
       view: effectiveView,
       selectedTaskIds,
-      collapsedTaskIds,
       cpmResult,
       statusDate,
       showStatusDateLine,
@@ -511,12 +501,10 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       trace,
       canvasWidth: width,
       canvasHeight: height,
-      taskTableWidth,
       rowHeight,
       headerHeight,
       localizedMonths,
       localizedWeekdays,
-      columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
       effectiveCalById,
@@ -544,12 +532,12 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     const renderer = new GanttRenderer(ctx, opts);
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, compressNonWorkdays, sharedAxis, canvasFontFamily, durationDrag, fontScale, rowHeight, headerHeight, tTask]);
+  }, [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, uiTheme, weekStartDay, enableQuarterHourZoom, taskTableWidth, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, totalContentWidth, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, compressNonWorkdays, sharedAxis, canvasFontFamily, durationDrag, fontScale, rowHeight, headerHeight, tTask]);
 
   useCanvasLayer({ canvasRef, containerRef, draw: drawPrimary });
 
   // --- Split view (fase 2.7, §10): secundair tijdvenster met eigen zoom/scrollX; gedeelde
-  // rijen + scrollY; geen canvas-taaktabel (taskTableWidth 0) — die tekent alleen links. ---
+  // rijen + scrollY en dezelfde lokale timeline-oorsprong 0. ---
   const drawSecondary = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     if (!splitView) return;
     // Zelfde >1px-drempel als bij `primaryChartWidth`: zonder die drempel zet elke render een
@@ -565,7 +553,6 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
         scrollX: splitView.secondaryScrollX,
       },
       selectedTaskIds,
-      collapsedTaskIds,
       cpmResult,
       statusDate,
       showStatusDateLine,
@@ -575,28 +562,24 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       trace,
       canvasWidth: width,
       canvasHeight: height,
-      taskTableWidth: 0,
       rowHeight,
       headerHeight,
       localizedMonths,
       localizedWeekdays,
-      columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
       effectiveCalById,
       barSplitMode,
-      // Deze drie voeden alléén de duurkolom (`drawTaskTable`, die bij `taskTableWidth <= 0` meteen
-      // terugkeert) en het sleep-pilletje. Dit pane heeft geen van beide, dus ze zijn hier inert —
+      // Deze drie voeden alleen het sleep-pilletje. Dit pane ondersteunt geen rand-sleep, dus ze
+      // zijn hier inert —
       // expliciet `undefined` in plaats van weggelaten, zodat het een keuze blijft en geen omissie.
       enableHourPlanning: undefined,
       durationDisplay: undefined,
       durationSuffixes: undefined,
       // WEL vullen: dit is geen tabelveld. Het label wordt in de CHART getekend
       // (`drawTaskBars` -> `drawExternalGhosts`), dus zonder dit toonde dit pane het
-      // hardgecodeerde NL 'verouderd' ongeacht de ingestelde taal. `tTask` staat daarom óók in de
-      // dep-array hieronder: hij ontbrak daar aanvankelijk en de taalwissel werkte alleen doordat
-      // `columnHeaders` (een TABELveld dat dit pane niet eens gebruikt) toevallig op `[tTask]`
-      // gememoized is. Haalt iemand dat inerte veld weg, dan bevriest de badge stil.
+      // hardgecodeerde NL 'verouderd' ongeacht de ingestelde taal. `tTask` staat daarom ook
+      // rechtstreeks in de dep-array hieronder.
       externalStaleLabel: tTask('externalLinks.stale'),
       // Rand-slepen gebeurt alleen in de primaire pane.
       durationDrag: undefined,
@@ -613,7 +596,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     }));
     secondaryRendererRef.current = renderer;
     renderer.render();
-  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, columnHeaders, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode, compressNonWorkdays, canvasFontFamily, fontScale, rowHeight, headerHeight, tTask]);
+  }, [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, trace, localizedMonths, localizedWeekdays, uiTheme, weekStartDay, enableQuarterHourZoom, statusDate, showStatusDateLine, showProgressLine, showBaselineOverlay, baselineOverlay, effectiveCalById, barSplitMode, compressNonWorkdays, canvasFontFamily, fontScale, rowHeight, headerHeight, tTask]);
 
   useCanvasLayer({
     canvasRef: secondaryCanvasRef,
@@ -1215,13 +1198,12 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
           takenlijst een strook achter die daar niets te zoeken heeft (de user: "het onderliggende
           paneel moet daar gewoon in doorlopen"). Als overlay houdt het canvas de volle hoogte en
           breedte en loopt het paneel eronder door tot de rand.
-          `dir="ltr"` op de pane-rij is FUNCTIONEEL: de renderer kent geen RTL (`isInTaskTable` is
-          letterlijk `canvasX < taskTableWidth`), dus de taaktabel wordt in ar/fa óók links
-          getekend. Liet je deze rij mirroren, dan wisselen primair en secundair pane visueel van
-          plek terwijl de mini-map-strook hieronder wél LTR gepind is — die kwam dan onder het
-          VERKEERDE pane te liggen (gemeten in ar). Dezelfde pin houdt bovendien de ratio-sleep
-          kloppend, die `clientX - rect.left` tegen `paneRowRef` rekent en dus een niet-gespiegelde
-          rij veronderstelt, én zet de overlay-balken hieronder aan de kant waar ze horen. */}
+          `dir="ltr"` op de pane-rij is FUNCTIONEEL: liet je deze rij mirroren, dan wisselen primair
+          en secundair pane visueel van plek terwijl de mini-map-strook hieronder wél LTR gepind is
+          — die kwam dan onder het VERKEERDE pane te liggen (gemeten in ar). Dezelfde pin houdt
+          bovendien de ratio-sleep kloppend, die `clientX - rect.left` tegen `paneRowRef` rekent en
+          dus een niet-gespiegelde rij veronderstelt, én zet de overlay-balken hieronder aan de kant
+          waar ze horen. */}
       <div ref={paneRowRef} className="flex-1 min-w-0 flex overflow-hidden relative" dir="ltr">
       <div
         ref={containerRef}

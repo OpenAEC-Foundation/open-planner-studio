@@ -15,6 +15,7 @@ const workspacePath = 'src/components/canvas/GanttWorkspace.tsx';
 const gridPath = 'src/components/task-grid/GanttTaskGrid.tsx';
 const app = read('src/App.tsx');
 const canvas = read('src/components/canvas/GanttCanvas.tsx');
+const renderer = read('src/engine/renderer/GanttRenderer.ts');
 
 ok('GanttWorkspace bestaat', exists(workspacePath));
 ok('GanttTaskGrid bestaat', exists(gridPath));
@@ -37,8 +38,8 @@ if (exists(gridPath)) {
     /TaskGridSurface/.test(grid) && /gantt-task-grid/.test(grid));
 }
 
-ok('Het primaire canvas draait timeline-only met tabelbreedte nul',
-  /const taskTableWidth = 0/.test(canvas));
+ok('De renderer is werkelijk timeline-only zonder verborgen canvas-taaktabel',
+  !/taskTableWidth|drawTaskTable|isInTaskTable|isCollapseToggle|isAddButton/.test(renderer));
 ok('Het canvas bevat geen tweede verticale DOM-scroller meer',
   !/data-testid=["']gantt-vscroll["']/.test(canvas));
 

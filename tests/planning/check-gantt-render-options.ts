@@ -418,8 +418,8 @@ const cpmDistinct = {
 // (1) Geen enkele waarde mag samenvallen met de default die de renderer zelf hanteert wanneer het
 // veld ontbreekt. Anders is de passthrough-check `x` vs `x` en overleeft een
 // bouwer die het veld hardcodeert. Dat gold eerder voor weekStartDay ('monday'), barSplitMode
-// ('selection'), showProgressLine/enableQuarterHourZoom/highContrast (false), collapsedTaskIds
-// ([]) en fontScale (1) — zeven vacuüme checks, alle gemeten met een negatieve controle.
+// ('selection'), showProgressLine/enableQuarterHourZoom/highContrast (false) en fontScale (1) —
+// zes vacuüme checks, alle gemeten met een negatieve controle.
 //
 // (2) De booleans mogen ook niet allemaal DEZELFDE waarde hebben. Stonden ze alle zes op `true`,
 // dan zijn ze onderling niet te onderscheiden en overleeft een kruisbedrading
@@ -431,7 +431,6 @@ const baseInput: GanttRenderOptionsInput = {
   calendar,
   view: { ...S().view, viewStartDate: '2027-02-25' },
   selectedTaskIds: [idB],
-  collapsedTaskIds: [idA],
   cpmResult: cpmDistinct,
   statusDate: '2027-04-01',
   showStatusDateLine: false,
@@ -441,12 +440,10 @@ const baseInput: GanttRenderOptionsInput = {
   trace: buildTrace('both', [idB], sequences, cpmDistinct),
   canvasWidth: 1200,
   canvasHeight: 800,
-  taskTableWidth: 300,
   rowHeight: 28,
   headerHeight: 50,
   localizedMonths: ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
   localizedWeekdays: ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'],
-  columnHeaders: { wbs: 'WBS', taskName: 'Taak', duration: 'Duur' },
   weekStartDay: 'sunday',
   enableQuarterHourZoom: true,
   effectiveCalById: new Map(),
@@ -493,7 +490,6 @@ const passthrough: [string, unknown, unknown][] = [
   ['calendar', optsOk.calendar, baseInput.calendar],
   ['view', optsOk.view, baseInput.view],
   ['selectedTaskIds', optsOk.selectedTaskIds, baseInput.selectedTaskIds],
-  ['collapsedTaskIds', optsOk.collapsedTaskIds, baseInput.collapsedTaskIds],
   ['statusDate', optsOk.statusDate, baseInput.statusDate],
   ['showStatusDateLine', optsOk.showStatusDateLine, baseInput.showStatusDateLine],
   ['showProgressLine', optsOk.showProgressLine, baseInput.showProgressLine],
@@ -502,12 +498,10 @@ const passthrough: [string, unknown, unknown][] = [
   ['trace', optsOk.trace, baseInput.trace],
   ['canvasWidth', optsOk.canvasWidth, baseInput.canvasWidth],
   ['canvasHeight', optsOk.canvasHeight, baseInput.canvasHeight],
-  ['taskTableWidth', optsOk.taskTableWidth, baseInput.taskTableWidth],
   ['rowHeight', optsOk.rowHeight, baseInput.rowHeight],
   ['headerHeight', optsOk.headerHeight, baseInput.headerHeight],
   ['localizedMonths', optsOk.localizedMonths, baseInput.localizedMonths],
   ['localizedWeekdays', optsOk.localizedWeekdays, baseInput.localizedWeekdays],
-  ['columnHeaders', optsOk.columnHeaders, baseInput.columnHeaders],
   ['weekStartDay', optsOk.weekStartDay, baseInput.weekStartDay],
   ['enableQuarterHourZoom', optsOk.enableQuarterHourZoom, baseInput.enableQuarterHourZoom],
   ['effectiveCalById', optsOk.effectiveCalById, baseInput.effectiveCalById],
@@ -536,7 +530,6 @@ if (optsOk.axis !== axis) diffs.push('30 axis: renderer krijgt niet dezelfde as-
 const optsSecondary = buildGanttRenderOptions({
   ...baseInput,
   view: { ...baseInput.view, zoom: 12, scrollX: 400 },
-  taskTableWidth: 0,
   enableHourPlanning: undefined,
   durationDisplay: undefined,
   durationSuffixes: undefined,
@@ -545,7 +538,6 @@ const optsSecondary = buildGanttRenderOptions({
   axis: undefined,
 });
 eq('31 secundair: geen eigen as (renderer bouwt hem zelf uit view+compressNonWorkdays)', optsSecondary.axis, undefined);
-eq('32 secundair: geen taaktabel', optsSecondary.taskTableWidth, 0);
 eq('33 secundair: geen sleep-pilletje', optsSecondary.durationDrag, undefined);
 eq('34 secundair: eigen zoom', optsSecondary.view.zoom, 12);
 eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
