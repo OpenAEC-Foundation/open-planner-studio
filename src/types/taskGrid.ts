@@ -123,6 +123,8 @@ export interface TaskColumnDescriptor {
   editorKind: 'text' | 'number' | 'percentage' | 'date' | 'datetime' | 'duration' | 'boolean' | 'enum' | 'color' | 'autocomplete' | 'relations' | 'custom' | 'none';
   editorOptions?: readonly { value: string; labelKey?: string; label?: string }[];
   defaultWidth: number;
+  /** Afgeleide plannerwaarde buiten de algemene categorie `computed`; volgt scheduleStale. */
+  scheduleDerived?: boolean;
   available(ctx: TaskColumnContext): boolean;
   readOnly: boolean | ((task: Task, ctx: TaskColumnContext) => boolean);
   read(task: Task, ctx: TaskColumnContext): unknown;

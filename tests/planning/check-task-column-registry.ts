@@ -109,6 +109,9 @@ const sequence: Sequence = {
   id: 's-1', predecessorId: 'other', successorId: task.id,
   type: 'FINISH_START', lagDays: 0,
 };
+const otherTask = {
+  ...task, id: 'other', name: 'Voorganger', wbsCode: '0.9', resourceIds: [], externalLinks: [],
+} as Task;
 const assignment: ResourceAssignment = {
   id: 'a-1', taskId: task.id, resourceId: 'r-1', unitsPerDay: 1,
   workWindowStart: '2026-01-01', workWindowFinish: '2026-01-05',
@@ -138,12 +141,13 @@ const baseline: Baseline = {
 };
 const ctx: TaskColumnContext = {
   projectId: 'project:1',
-  tasksById: new Map([[task.id, task]]),
-  relationIndex: buildTaskRelationIndex([task], [sequence], {
+  tasksById: new Map([[task.id, task], [otherTask.id, otherTask]]),
+  relationIndex: buildTaskRelationIndex([otherTask, task], [sequence], {
     drivingSequenceIds: ['s-1'],
     sequenceFreeFloat: { 's-1': 0 },
     truncatedLeadSequenceIds: ['s-1'],
     outOfSequenceSequenceIds: ['s-1'],
+    droppedSequenceIds: ['s-1'],
   }),
   assignmentsByTaskId: new Map([[task.id, [assignment, assignment2, assignment3]]]),
   resourcesById: new Map([
@@ -172,7 +176,7 @@ eq('ene relationIndex houdt de technische bronnen apart zonder opnieuw te scanne
   { internal: 1, external: 1 });
 eq('ene relationIndex draagt driving, vrije speling en waarschuwingen per sequence-id',
   ctx.relationIndex.analysisBySequenceId.get('s-1'), {
-    driving: true, freeFloat: 0, warnings: ['truncated-lead', 'out-of-sequence'],
+    driving: true, freeFloat: 0, warnings: ['dropped', 'truncated-lead', 'out-of-sequence'],
   });
 eq('ene relationIndex draagt sourceMissing als externe waarschuwing',
   ctx.relationIndex.warningsByExternalLinkId.get('ext-1'), ['source-missing']);
@@ -190,6 +194,18 @@ ok('registry zelf staat in dezelfde vaste categorievolgorde', registry.every((co
   index === 0 || TASK_COLUMN_CATEGORY_ORDER.indexOf(registry[index - 1].category)
     <= TASK_COLUMN_CATEGORY_ORDER.indexOf(column.category)));
 eq('registry-ids zijn uniek', new Set(registry.map(column => column.id)).size, registry.length);
+const relationDriving = registry.find(column => column.id === 'relation.driving')!;
+const relationFreeFloat = registry.find(column => column.id === 'relation.freeFloat')!;
+const relationWarnings = registry.find(column => column.id === 'relation.warnings')!;
+eq('relation.driving is apart, read-only en plannerafgeleid', {
+  exists: !!relationDriving, readOnly: relationDriving?.readOnly, derived: relationDriving?.scheduleDerived,
+  value: relationDriving?.format(relationDriving.read(task, ctx), task, ctx),
+}, { exists: true, readOnly: true, derived: true, value: '← 0.9' });
+eq('relation.freeFloat is een aparte read-only kolom per betrokken WBS',
+  relationFreeFloat.format(relationFreeFloat.read(task, ctx), task, ctx), '← 0.9: 0d');
+eq('relation.warnings is een aparte read-only kolom met alle indexmeldingen',
+  relationWarnings.format(relationWarnings.read(task, ctx), task, ctx),
+  '← 0.9: niet meegerekend, lead afgekapt, buiten volgorde; ← Bron: bron ontbreekt');
 ok('vaste naamkolom bestaat', registry.some(column => column.id === 'task.name'));
 ok('activity-codegenerator bevat project-id', registry.some(column => column.id === activityCodeColumnId(ctx.projectId, 'fase:1')));
 ok('custom-fieldgenerator bevat project-id', registry.some(column => column.id === customFieldColumnId(ctx.projectId, 'cf:1')));

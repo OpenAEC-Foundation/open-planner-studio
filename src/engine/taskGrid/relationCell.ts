@@ -115,6 +115,7 @@ export interface RelationCellItem {
   key: string;
   kind: TaskRelationEntry['kind'];
   relationId: string;
+  direction: ExternalDirection;
   label: string;
   clipboardText: string;
   otherTaskId: string;
@@ -145,6 +146,7 @@ export function buildRelationCellItems(input: {
         key: `external:${entry.link.id}`,
         kind: 'external',
         relationId: entry.link.id,
+        direction: input.direction,
         label: formatExternalRelationVisible(entry.link),
         clipboardText,
         otherTaskId: entry.otherTaskId,
@@ -164,6 +166,7 @@ export function buildRelationCellItems(input: {
       key: `internal:${entry.sequence.id}`,
       kind: 'internal',
       relationId: entry.sequence.id,
+      direction: input.direction,
       label,
       clipboardText: label,
       otherTaskId: entry.otherTaskId,
@@ -183,6 +186,59 @@ export function buildRelationCellItems(input: {
       },
     };
   });
+}
+
+/** Eén taakbrede projectie voor de drie read-only analysekolommen, zonder extra indexbouw. */
+export function buildTaskRelationAnalysisItems(
+  task: Task,
+  context: TaskColumnContext,
+): readonly RelationCellItem[] {
+  return (['predecessor', 'successor'] as const).flatMap(direction => buildRelationCellItems({
+    ownerTaskId: task.id,
+    direction,
+    entries: direction === 'predecessor'
+      ? context.relationIndex.predecessorsByTaskId.get(task.id) ?? []
+      : context.relationIndex.successorsByTaskId.get(task.id) ?? [],
+    context,
+  }));
+}
+
+function analysisReference(item: RelationCellItem): string {
+  if (item.parsedToken.kind === 'internal') return item.parsedToken.wbsCode;
+  const source = item.parsedToken.external.sourceRef;
+  return source.taskName || source.taskId;
+}
+
+function analysisPrefix(item: RelationCellItem): string {
+  return `${item.direction === 'predecessor' ? '←' : '→'} ${analysisReference(item)}`;
+}
+
+const WARNING_LABELS: Readonly<Record<string, string>> = {
+  dropped: 'niet meegerekend',
+  'truncated-lead': 'lead afgekapt',
+  'lead-exceeds-duration': 'lead groter dan voorgangerduur',
+  'out-of-sequence': 'buiten volgorde',
+  'source-missing': 'bron ontbreekt',
+};
+
+export function relationDrivingText(items: readonly RelationCellItem[]): string {
+  const values = items.filter(item => item.driving).map(analysisPrefix);
+  return values.length > 0 ? values.join('; ') : '—';
+}
+
+export function relationFreeFloatText(items: readonly RelationCellItem[]): string {
+  const values = items
+    .filter(item => item.kind === 'internal' && item.freeFloat !== undefined)
+    .map(item => `${analysisPrefix(item)}: ${item.freeFloat}d`);
+  return values.length > 0 ? values.join('; ') : '—';
+}
+
+export function relationWarningsText(items: readonly RelationCellItem[]): string {
+  const values = items
+    .filter(item => item.warnings.length > 0)
+    .map(item => `${analysisPrefix(item)}: ${item.warnings
+      .map(warning => WARNING_LABELS[warning] ?? warning).join(', ')}`);
+  return values.length > 0 ? values.join('; ') : '—';
 }
 
 export function relationCellText(items: readonly RelationCellItem[]): string {

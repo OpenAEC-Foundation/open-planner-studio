@@ -3,6 +3,7 @@ import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -34,9 +35,22 @@ const rows: ViewRow[] = [
   { kind: 'group', rowKey: 'groep-b', key: 'groep-b', label: 'Ploeg B', count: 1, depth: 0, levelIndex: 0, collapsed: false },
   { kind: 'task', rowKey: 'occurrence-b', task, depth: 1, dimmed: true },
 ];
+const predecessor = { ...task, id: 't-0', name: 'Voorganger', wbsCode: '1.0' } as Task;
+const relation = {
+  id: 'seq-1', predecessorId: predecessor.id, successorId: task.id,
+  type: 'FINISH_START', lagDays: 0,
+} as const;
+const cpmResult = {
+  error: null,
+  drivingSequenceIds: [relation.id],
+  sequenceFreeFloat: { [relation.id]: 0 },
+  truncatedLeadSequenceIds: [],
+  outOfSequenceSequenceIds: [],
+} as unknown as CPMResult;
 
 const baseInput = {
-  projectId: 'project-1', rows, tasks: [task], sequences: [], assignments: [], resources: [],
+  projectId: 'project-1', rows, tasks: [predecessor, task], sequences: [relation], cpmResult,
+  assignments: [], resources: [],
   baselines: [], activityCodeTypes: [], customFieldDefs: [], scheduleStale: true,
   wbsAutoNumber: false, selectedTaskIds: ['t-1'],
   labelForColumn: (key: string) => key,
@@ -89,6 +103,10 @@ eq('Berekende cel meldt stale zowel visueel als toegankelijk', (() => {
   const cell = gantt.getCell('occurrence-a', taskColumnId('task.time.totalFloat'));
   return { stale: cell?.stale, statusText: cell?.statusText };
 })(), { stale: true, statusText: 'taskGrid.status.stale' });
+eq('Plannerafgeleide relatiekolom meldt stale buiten de computed-categorie', (() => {
+  const cell = gantt.getCell('occurrence-a', taskColumnId('relation.freeFloat'));
+  return { stale: cell?.stale, statusText: cell?.statusText, text: cell?.text };
+})(), { stale: true, statusText: 'taskGrid.status.stale', text: '← 1.0: 0d' });
 eq('Boolean-editor krijgt een taalneutrale canonieke startwaarde',
   personalDates.getCell('occurrence-a', taskColumnId('task.isMilestone'))?.editText,
   'false');

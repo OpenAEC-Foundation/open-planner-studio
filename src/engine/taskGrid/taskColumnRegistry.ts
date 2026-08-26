@@ -23,10 +23,15 @@ import {
 } from '@/engine/taskGrid/fieldIds';
 import { taskRelations, type TaskRelationEntry } from '@/engine/taskGrid/relationIndex';
 import {
+  buildTaskRelationAnalysisItems,
   buildRelationCellItems,
   parseRelationCellText,
   relationCellClipboardText,
+  relationDrivingText,
+  relationFreeFloatText,
   relationCellText,
+  relationWarningsText,
+  type RelationCellItem,
 } from '@/engine/taskGrid/relationCell';
 import { isParsedRelationTokenArray } from '@/engine/taskGrid/relationPlan';
 import { parseDuration as parseDurationMinutes } from '@/utils/durationFormat';
@@ -57,6 +62,7 @@ interface ReadonlyColumnConfig {
   category: TaskColumnCategory;
   valueKind: ValueKind;
   defaultWidth?: number;
+  scheduleDerived?: boolean;
   read: Reader;
   format?: Formatter;
   copy?: (task: Task, ctx: TaskColumnContext) => string;
@@ -126,6 +132,7 @@ function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
     valueKind: config.valueKind,
     editorKind: 'none',
     defaultWidth: config.defaultWidth ?? 140,
+    scheduleDerived: config.scheduleDerived,
     available: config.available ?? (() => true),
     readOnly: true,
     read: config.read,
@@ -600,9 +607,28 @@ function fixedRelationColumns(): TaskColumnDescriptor[] {
     validate: value => isParsedRelationTokenArray(value) ? success(value) : failure('relations', value),
     planWrite: (value, task) => success([{ kind: 'relation-set', taskId: task.id, direction, value }]),
   });
+  const analysisItems = (task: Task, ctx: TaskColumnContext) => buildTaskRelationAnalysisItems(task, ctx);
   return [
     relationColumn('predecessor'),
     relationColumn('successor'),
+    readonlyColumn({
+      id: 'relation.driving', labelKey: 'relations.driving', category: 'relations', valueKind: 'text',
+      defaultWidth: 180, scheduleDerived: true,
+      read: analysisItems,
+      format: value => relationDrivingText(value as readonly RelationCellItem[]),
+    }),
+    readonlyColumn({
+      id: 'relation.freeFloat', labelKey: 'relations.freeFloat', category: 'relations', valueKind: 'text',
+      defaultWidth: 220, scheduleDerived: true,
+      read: analysisItems,
+      format: value => relationFreeFloatText(value as readonly RelationCellItem[]),
+    }),
+    readonlyColumn({
+      id: 'relation.warnings', labelKey: 'relations.warnings', category: 'relations', valueKind: 'text',
+      defaultWidth: 280, scheduleDerived: true,
+      read: analysisItems,
+      format: value => relationWarningsText(value as readonly RelationCellItem[]),
+    }),
     readonlyColumn({
       id: 'relation.internalTechnical', labelKey: 'taskGrid.columns.internalRelationData', category: 'technical', valueKind: 'technical',
       read: (task, ctx) => ctx.relationIndex.internalByTaskId.get(task.id) ?? [],

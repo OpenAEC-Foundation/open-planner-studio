@@ -12,6 +12,7 @@ function ok(label: string, value: boolean): void {
 
 const editor = read('src/components/task-grid/RelationCellEditor.tsx');
 const fullGrid = read('src/components/task-grid/FullTaskGrid.tsx');
+const styles = read('src/styles/globals.css');
 const dialog = read('src/components/dialogs/ExternalLinkDialog.tsx');
 const taskSlice = read('src/state/slices/taskSlice.ts');
 const registry = read('src/engine/taskGrid/taskColumnRegistry.ts');
@@ -40,6 +41,12 @@ ok('autocomplete toont WBS plus naam en draagt taak-idmetadata',
 ok('chipedit normaliseert posities zonder metadata tot tekst te reduceren',
   /normalizeRelationTokenSources/.test(editor)
     && /directValue:\s*relationTokens/.test(read('src/components/task-grid/TaskCellEditor.tsx')));
+ok('interactieve chipbesturing blijft binnen de editor en start geen rijselectie of rijdrag',
+  /data-task-editor-kind="relations"[\s\S]*?onPointerDown=\{event => event\.stopPropagation\(\)\}[\s\S]*?onMouseDown=\{event => event\.stopPropagation\(\)\}/.test(editor));
+ok('de actieve editorpop-over wordt niet door de ellipsiswrapper van de cel afgeknipt',
+  /createPortal\(editor, document\.body\)/.test(editor)
+    && /\.task-grid-relation-editor\s*\{[\s\S]*?position:\s*fixed/.test(styles)
+    && /window\.addEventListener\('scroll', updatePosition, true\)/.test(editor));
 ok('volledige tekstvervanging blijft een aparte strikte parserroute',
   /relations-raw/.test(editor)
     && /initialText === undefined[\s\S]*directValue: relationTokens/.test(read('src/components/task-grid/TaskCellEditor.tsx')));
@@ -52,6 +59,9 @@ ok('extern add/editdialoog ontvangt taskId plus optionele linkId en behoudt id v
     && /sameExternalLink/.test(taskSlice));
 ok('dialoog gebruikt dag- of datumtijdinput volgens uurmodus',
   /type=\{hourMode \? 'datetime-local' : 'date'\}/.test(dialog));
+ok('native datuminput houdt React-state bij via input en change',
+  /onInput=\{\(e\) => updateManualAnchor\(e\.currentTarget\.value\)\}/.test(dialog)
+    && /onChange=\{\(e\) => updateManualAnchor\(e\.currentTarget\.value\)\}/.test(dialog));
 ok('handmatige bronzijdewisseling vereist een expliciet aangeraakt nieuw anker',
   /sideChanged/.test(dialog)
     && /manualAnchorTouched/.test(dialog)

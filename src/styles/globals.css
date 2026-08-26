@@ -58,6 +58,13 @@
   white-space: nowrap;
 }
 
+/* Een editorpop-over is bewust breder/hoger dan zijn 28px-cel. De gewone celinhoud blijft
+ * ellipsized, maar de actieve editor mag niet door die wrapper worden afgeknipt: anders zijn
+ * dropdowns en chipknoppen wel in de DOM aanwezig maar fysiek niet aanklikbaar. */
+.task-grid-cell-content:has(> .task-grid-editor-host) {
+  overflow: visible;
+}
+
 .task-grid-cell {
   position: relative;
   padding-inline: 7px;
@@ -728,19 +735,24 @@
 }
 
 .task-grid-relation-editor {
-  position: absolute;
+  position: fixed;
   z-index: var(--z-dropdown);
-  inset-block-start: 0;
-  inset-inline-start: 0;
   display: grid;
   gap: 5px;
-  width: max(100%, 520px);
   max-width: min(680px, 85vw);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
   padding: 6px;
   color: var(--theme-text);
   background: var(--theme-surface-elevated);
   border: 1px solid var(--theme-accent);
   box-shadow: var(--shadow-pop);
+}
+
+.task-grid-relation-editor-anchor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .task-grid-relation-cell {

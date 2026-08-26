@@ -301,7 +301,8 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
     const readOnly = typeof descriptor.readOnly === 'function'
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
-    const stale = context.scheduleStale && descriptor.category === 'computed';
+    const stale = context.scheduleStale
+      && (descriptor.category === 'computed' || descriptor.scheduleDerived === true);
     return {
       text: typeof value === 'boolean' && input.labelForBoolean
         ? input.labelForBoolean(value)

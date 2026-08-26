@@ -1,5 +1,6 @@
 import type { Sequence } from '@/types/sequence';
 import type { ExternalLink, Task } from '@/types/task';
+import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 
 export interface InternalTaskRelationEntry {
   kind: 'internal';
@@ -19,7 +20,11 @@ export interface ExternalTaskRelationEntry {
 
 export type TaskRelationEntry = InternalTaskRelationEntry | ExternalTaskRelationEntry;
 
-export type InternalRelationWarning = 'truncated-lead' | 'out-of-sequence';
+export type InternalRelationWarning =
+  | 'dropped'
+  | 'truncated-lead'
+  | 'lead-exceeds-duration'
+  | 'out-of-sequence';
 export type ExternalRelationWarning = 'source-missing';
 
 export interface InternalRelationAnalysis {
@@ -40,6 +45,7 @@ export interface RelationIndexAnalysisInput {
   sequenceFreeFloat: Readonly<Record<string, number>>;
   truncatedLeadSequenceIds: readonly string[];
   outOfSequenceSequenceIds: readonly string[];
+  droppedSequenceIds?: readonly string[];
 }
 
 export interface TaskRelationIndex {
@@ -75,13 +81,26 @@ export function buildTaskRelationIndex(
   const tracePredecessors = new Map<string, RelationTraceEdge[]>();
   const traceSuccessors = new Map<string, RelationTraceEdge[]>();
   const drivingIds = new Set(analysis?.drivingSequenceIds ?? []);
+  const droppedIds = new Set(analysis?.droppedSequenceIds ?? []);
   const truncatedLeadIds = new Set(analysis?.truncatedLeadSequenceIds ?? []);
   const outOfSequenceIds = new Set(analysis?.outOfSequenceSequenceIds ?? []);
+  const tasksById = new Map(tasks.map(task => [task.id, task] as const));
 
   for (const sequence of sequences) {
     const driving = drivingIds.has(sequence.id);
     const warnings: InternalRelationWarning[] = [];
+    if (droppedIds.has(sequence.id)) warnings.push('dropped');
     if (truncatedLeadIds.has(sequence.id)) warnings.push('truncated-lead');
+    const predecessor = tasksById.get(sequence.predecessorId);
+    if (predecessor) {
+      const effectiveLag = resolveEffectiveLagDays(sequence, predecessor);
+      const predecessorDuration = predecessor.isMilestone
+        ? 0
+        : predecessor.time?.scheduleDuration ?? 0;
+      if (effectiveLag < 0 && Math.abs(effectiveLag) > predecessorDuration) {
+        warnings.push('lead-exceeds-duration');
+      }
+    }
     if (outOfSequenceIds.has(sequence.id)) warnings.push('out-of-sequence');
     const freeFloat = analysis?.sequenceFreeFloat[sequence.id];
     analysisBySequenceId.set(sequence.id, {

@@ -63,6 +63,10 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   const [manualTaskName, setManualTaskName] = useState<string>(existing?.sourceRef.taskName ?? '');
   const [manualAnchor, setManualAnchor] = useState<string>(existing?.anchorDate ?? '');
   const [manualAnchorTouched, setManualAnchorTouched] = useState(false);
+  const updateManualAnchor = (value: string) => {
+    setManualAnchor(value);
+    setManualAnchorTouched(true);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -199,7 +203,11 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
                   className="input"
                   type={hourMode ? 'datetime-local' : 'date'}
                   value={manualAnchor}
-                  onChange={(e) => { setManualAnchor(e.target.value); setManualAnchorTouched(true); }}
+                  // Native datevelden in sommige webviews publiceren hun afgeronde ISO-waarde via
+                  // `input` en pas later (of niet) via `change`. Beide routes zijn idempotent en
+                  // houden dezelfde gecontroleerde React-state bij.
+                  onInput={(e) => updateManualAnchor(e.currentTarget.value)}
+                  onChange={(e) => updateManualAnchor(e.currentTarget.value)}
                 />
                 {sideChanged && !manualAnchorTouched && (
                   <span className="text-[10px]" style={{ color: 'var(--warning, #d97706)' }}>

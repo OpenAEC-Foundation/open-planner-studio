@@ -1,4 +1,15 @@
-import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent, type Ref } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type Ref,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Zap } from 'lucide-react';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
@@ -23,6 +34,12 @@ interface RelationHover {
   x: number;
   y: number;
   item: RelationCellItem;
+}
+
+interface RelationEditorPosition {
+  left: number;
+  top: number;
+  width: number;
 }
 
 function relationLabelParts(label: string): { reference: string; detail: string } {
@@ -152,6 +169,10 @@ export function RelationCellEditor({
   onOpenExternal,
 }: RelationCellEditorProps) {
   const [query, setQuery] = useState('');
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const queryInputRef = useRef<HTMLInputElement>(null);
+  const [position, setPosition] = useState<RelationEditorPosition | null>(null);
   const [externalLagDrafts, setExternalLagDrafts] = useState<Record<string, string>>(() => {
     const values: Record<string, string> = {};
     for (const token of tokens) {
@@ -165,6 +186,42 @@ export function RelationCellEditor({
     () => relationTaskOptions(tasks, ownerTaskId, query),
     [ownerTaskId, query, tasks],
   );
+
+  const updatePosition = useCallback(() => {
+    if (rawText !== undefined || typeof window === 'undefined') return;
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const margin = 8;
+    const width = Math.max(280, Math.min(680, Math.max(520, rect.width), window.innerWidth - margin * 2));
+    const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+    const height = editorRef.current?.getBoundingClientRect().height ?? 0;
+    const preferredTop = rect.top;
+    const top = height > 0 && preferredTop + height > window.innerHeight - margin
+      ? Math.max(margin, rect.bottom - height)
+      : Math.max(margin, Math.min(preferredTop, window.innerHeight - margin));
+    setPosition(current => current
+      && current.left === left && current.top === top && current.width === width
+      ? current
+      : { left, top, width });
+  }, [rawText]);
+
+  useLayoutEffect(() => {
+    if (rawText !== undefined) return;
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [rawText, updatePosition]);
+
+  useLayoutEffect(() => {
+    if (!position) return;
+    updatePosition();
+    queryInputRef.current?.focus();
+  }, [options.length, position, tokens.length, updatePosition]);
 
   const externalDraftsValid = (
     candidates: readonly ParsedRelationToken[],
@@ -210,8 +267,19 @@ export function RelationCellEditor({
     );
   }
 
-  return (
-    <div {...inputProps} className="task-grid-relation-editor" data-task-editor-kind="relations">
+  const editor = position ? (
+    <div
+      {...inputProps}
+      ref={editorRef}
+      className="task-grid-relation-editor"
+      data-task-editor-kind="relations"
+      style={{ left: position.left, top: position.top, width: position.width }}
+      // Besturing binnen de cel is geen nieuwe cel-/rijselectie en mag ook geen rijdrag starten.
+      // Zonder deze grens herbouwde de Gantt-surface de editor al op pointer-down, vóór de klik op
+      // type, lag of verwijderen zijn lokale tokenstate kon bijwerken.
+      onPointerDown={event => event.stopPropagation()}
+      onMouseDown={event => event.stopPropagation()}
+    >
       <div className="task-grid-relation-tokens" role="list">
         {tokens.map((token, index) => {
           if (token.kind === 'internal') {
@@ -292,7 +360,11 @@ export function RelationCellEditor({
 
       <div className="task-grid-relation-add">
         <input
-          ref={inputRef}
+          ref={node => {
+            queryInputRef.current = node;
+            if (typeof inputRef === 'function') inputRef(node);
+            else if (inputRef) inputRef.current = node;
+          }}
           type="text"
           role="combobox"
           aria-label={label}
@@ -330,5 +402,12 @@ export function RelationCellEditor({
         </div>
       )}
     </div>
+  ) : null;
+
+  return (
+    <>
+      <span ref={anchorRef} className="task-grid-relation-editor-anchor" aria-hidden="true" />
+      {editor && typeof document !== 'undefined' ? createPortal(editor, document.body) : null}
+    </>
   );
 }

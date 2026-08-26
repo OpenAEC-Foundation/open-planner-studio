@@ -1,11 +1,15 @@
 import { buildTaskRelationIndex, taskRelations } from '@/engine/taskGrid/relationIndex';
 import {
   buildRelationCellItems,
+  buildTaskRelationAnalysisItems,
   normalizeRelationTokenSources,
   parseRelationCellText,
   relationCellClipboardText,
   relationCellText,
+  relationDrivingText,
+  relationFreeFloatText,
   relationTaskOptions,
+  relationWarningsText,
 } from '@/engine/taskGrid/relationCell';
 import { planRelationSet, type ParsedInternalRelationToken } from '@/engine/taskGrid/relationPlan';
 import type { Sequence } from '@/types/sequence';
@@ -23,7 +27,10 @@ function eq(label: string, got: unknown, want: unknown): void {
 function ok(label: string, value: boolean): void { eq(label, value, true); }
 
 function task(id: string, wbsCode: string, name: string, externalLinks?: ExternalLink[]): Task {
-  return { id, wbsCode, name, parentId: null, childIds: [], externalLinks } as unknown as Task;
+  return {
+    id, wbsCode, name, parentId: null, childIds: [], externalLinks, isMilestone: false,
+    time: { scheduleDuration: 5 },
+  } as unknown as Task;
 }
 
 const externalLink: ExternalLink = {
@@ -42,13 +49,14 @@ const tasks = [A, B, C, D];
 const sequences: Sequence[] = [
   { id: 'seq-fs', predecessorId: 'B', successorId: 'D', type: 'FINISH_START', lagDays: 2 },
   { id: 'seq-ss', predecessorId: 'C', successorId: 'D', type: 'START_START', lagDays: 0, lagPercent: 50 },
-  { id: 'seq-ff', predecessorId: 'A', successorId: 'D', type: 'FINISH_FINISH', lagDays: 3, lagUnit: 'ELAPSEDTIME' },
+  { id: 'seq-ff', predecessorId: 'A', successorId: 'D', type: 'FINISH_FINISH', lagDays: -10, lagUnit: 'ELAPSEDTIME' },
 ];
 const relationIndex = buildTaskRelationIndex(tasks, sequences, {
   drivingSequenceIds: ['seq-fs'],
   sequenceFreeFloat: { 'seq-fs': 0, 'seq-ss': 4 },
   truncatedLeadSequenceIds: ['seq-ss'],
   outOfSequenceSequenceIds: ['seq-ff'],
+  droppedSequenceIds: ['seq-ss'],
 });
 const context: TaskColumnContext = {
   projectId: 'project-local',
@@ -68,20 +76,29 @@ const items = buildRelationCellItems({
 eq('interne en externe labels komen uit hetzelfde readmodel', items.map(item => item.label), [
   '1.2 FS+2d',
   '1.4 SS+50%',
-  '1.5 FF+3ed',
+  '1.5 FF-10ed',
   '"Project, West" / "Fundering, fase 1" FS+2d',
 ]);
 eq('celtekst is de zichtbare volledige set', relationCellText(items),
-  '1.2 FS+2d; 1.4 SS+50%; 1.5 FF+3ed; "Project, West" / "Fundering, fase 1" FS+2d');
+  '1.2 FS+2d; 1.4 SS+50%; 1.5 FF-10ed; "Project, West" / "Fundering, fase 1" FS+2d');
 ok('clipboard bewaart voor extern de verliesloze payload', relationCellClipboardText(items).includes('⟦OPS-EXT/1:'));
 eq('driving en float komen uit de indexanalyse', items.slice(0, 3).map(item => [item.driving, item.freeFloat]), [
   [true, 0], [false, 4], [false, undefined],
 ]);
 eq('interne waarschuwingen blijven per relatie', items.slice(0, 3).map(item => item.warnings), [
-  [], ['truncated-lead'], ['out-of-sequence'],
+  [], ['dropped', 'truncated-lead'], ['lead-exceeds-duration', 'out-of-sequence'],
 ]);
+ok('lead groter dan voorgangerduur blijft als waarschuwing zichtbaar',
+  items[2]?.warnings.includes('lead-exceeds-duration') === true);
 eq('ontbrekende externe bron blijft zichtbaar als waarschuwing', items[3]?.warnings, ['source-missing']);
 ok('alle items tonen dat de berekening stale is', items.every(item => item.stale));
+
+const analysisItems = buildTaskRelationAnalysisItems(D, context);
+eq('drivingkolom toont richting en WBS', relationDrivingText(analysisItems), '← 1.2');
+eq('relationele vrije-spelingkolom toont alle berekende waarden',
+  relationFreeFloatText(analysisItems), '← 1.2: 0d; ← 1.4: 4d');
+eq('waarschuwingenkolom labelt elke betrokken relatie', relationWarningsText(analysisItems),
+  '← 1.4: niet meegerekend, lead afgekapt; ← 1.5: lead groter dan voorgangerduur, buiten volgorde; ← Fundering, fase 1: bron ontbreekt');
 eq('interactief opgebouwde interne tokens behouden relatie- en taakidentiteit', items[0]?.parsedToken, {
   kind: 'internal', wbsCode: '1.2', taskId: 'B', relType: 'FS', lagText: '+2d', relationId: 'seq-fs',
   source: { index: 0, start: 0, end: 9, text: '1.2 FS+2d' },
@@ -98,7 +115,7 @@ if (parsedCombined.ok) {
   eq('tokenposities wijzen in de oorspronkelijke celtekst', parsedCombined.value.map(token => [
     token.source.index, token.source.text,
   ]), [
-    [0, '1.2 FS+2d'], [1, '1.4 SS+50%'], [2, '1.5 FF+3ed'],
+    [0, '1.2 FS+2d'], [1, '1.4 SS+50%'], [2, '1.5 FF-10ed'],
     [3, items[3]?.clipboardText],
   ]);
 }
