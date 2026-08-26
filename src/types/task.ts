@@ -158,6 +158,9 @@ export type MspTaskType = 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
  */
 export type P6DurationType = 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
 
+/** P6/XER `complete_pct_type`: bronsoort van voortgang en restduur. */
+export type P6CompletePctType = 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
+
 /**
  * P6's eigen "Activity Type" (XER `TASK.task_type`): Task Dependent, Resource Dependent, Level of
  * Effort, Start Milestone, Finish Milestone, WBS Summary. ZES canonieke P6-tokens; zie
@@ -469,14 +472,17 @@ export interface Task {
    *  OPERATIONEEL uit af — TT_Mile/TT_FinMile resp. TT_LOE, zie X4a — maar dat zijn AFGELEIDEN, niet
    *  dit veld zelf, dat blijft de rauwe herkomst). Afwezig ⇒ geen .xer-herkomst (byte-identiek). */
   p6ActivityType?: P6ActivityType;
-  /** OPTIONEEL — herkomstvlag voor `time.resume`/`time.stop` (O6-patroon; zie `resumeFromActualElapsed`
-   *  in `types/project.ts` voor het precedent van een default-uit, uitsluitend-door-de-eigen-lezer-
-   *  gezette opt-invlag). P6 kent EIGEN suspend/resume-semantiek (XER `TASK.suspend_date`/
-   *  `resume_date`) die het bestaande MSP-conventiepad rond `time.resume`/`time.stop` (Z12-herwerk)
-   *  niet zonder meer deelt. DIT VELD IS EEN STUB: X0 (typecontract) legt alleen de aanwezigheid en
-   *  de naam vast — de XER-etappe se X7-taak meet EERST of/waar P6's suspend/resume-gedrag afwijkt
-   *  van de MSP-solversemantiek, en vult dit veld pas dan daadwerkelijk (geen enkele lezer zet het
-   *  vóór die meting). Default/afwezig ⇒ MSP-conventie, byte-identiek. */
+  /** `task_id` is slechts uniek binnen dit P6-project; beide bronidentiteiten blijven bewaard. */
+  p6ProjectId?: string;
+  p6TaskId?: string;
+  /** CP_Phys/CP_Units gebruiken hun bronrestduur en nooit percentage-afleiding in de solver. */
+  p6CompletePctType?: P6CompletePctType;
+  /** XER `expect_end_date`, pas actief met de expliciete projectscope-vlag uit X5. */
+  p6ExpectedFinish?: string;
+  /** P6-specifieke opt-in voor `time.resume`/`time.stop`. De XER-lezer zet dit
+   *  uitsluitend bij een volledig, chronologisch suspend/resume-paar; losse of
+   *  omgekeerde brondata blijft behouden maar activeert nooit de P6-route.
+   *  Default/afwezig behoudt de bestaande MSP-conventie. */
   p6SuspendResume?: boolean;
   /** Expliciete WBS-/samenvattingsidentiteit. `true` betekent dat de taak ook zonder kinderen een
    *  samenvatting blijft (bijvoorbeeld een lege PROJWBS-rij uit P6). `false` verwijdert alleen die

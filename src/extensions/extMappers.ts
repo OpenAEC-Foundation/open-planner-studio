@@ -328,6 +328,10 @@ export function toExtTask(t: Task): ExtTask {
     // mspTaskType/effortDriven hierboven.
     p6DurationType: t.p6DurationType,
     p6ActivityType: t.p6ActivityType,
+    p6ProjectId: t.p6ProjectId,
+    p6TaskId: t.p6TaskId,
+    p6CompletePctType: t.p6CompletePctType,
+    p6ExpectedFinish: t.p6ExpectedFinish,
     p6SuspendResume: t.p6SuspendResume,
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
@@ -379,6 +383,10 @@ export function fromExtTask(t: ExtTask): Task {
     // mspTaskType/effortDriven hierboven.
     p6DurationType: t.p6DurationType,
     p6ActivityType: t.p6ActivityType,
+    p6ProjectId: t.p6ProjectId,
+    p6TaskId: t.p6TaskId,
+    p6CompletePctType: t.p6CompletePctType,
+    p6ExpectedFinish: t.p6ExpectedFinish,
     p6SuspendResume: t.p6SuspendResume,
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,

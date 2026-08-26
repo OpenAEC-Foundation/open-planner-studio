@@ -16,6 +16,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type {
   P6ActivityType,
+  P6CompletePctType,
   P6DurationType,
   Task,
   TaskConstraint,
@@ -58,6 +59,7 @@ const ACTIVITY_TYPES: readonly P6ActivityType[] = [
 const DURATION_TYPES: readonly P6DurationType[] = [
   'DT_FixedDrtn', 'DT_FixedDUR2', 'DT_FixedRate', 'DT_FixedQty',
 ];
+const COMPLETE_PCT_TYPES: readonly P6CompletePctType[] = ['CP_Drtn', 'CP_Phys', 'CP_Units'];
 
 function canonicalToken<T extends string>(raw: string, values: readonly T[]): T | undefined {
   const folded = raw.trim().toLowerCase();
@@ -148,6 +150,13 @@ function statusOf(raw: string, row: XerRow, issues: XerEnumFallback[]): TaskStat
   if (token === 'tk_complete') return 'COMPLETED';
   fallback(issues, 'status', raw, 'NOT_STARTED', 'TASK', 'status_code', row.line);
   return 'NOT_STARTED';
+}
+
+function completePctTypeOf(raw: string, row: XerRow, issues: XerEnumFallback[]): P6CompletePctType {
+  const known = canonicalToken(raw, COMPLETE_PCT_TYPES);
+  if (known) return known;
+  fallback(issues, 'completePctType', raw, 'CP_Drtn', 'TASK', 'complete_pct_type', row.line);
+  return 'CP_Drtn';
 }
 
 function priorityOf(raw: string, row: XerRow, issues: XerEnumFallback[]): number {
@@ -402,8 +411,17 @@ function readXerProject(
       row.cells.duration_type ?? '', projectDefaultDuration, row, enumFallbacks,
     );
     const status = statusOf(row.cells.status_code ?? '', row, enumFallbacks);
+    const rawCompletePctType = row.cells.complete_pct_type ?? '';
+    const completePctType = completePctTypeOf(rawCompletePctType, row, enumFallbacks);
+    const completePercent = numberOf(tables, row, 'complete_pct');
     const physicalPercent = numberOf(tables, row, 'phys_complete_pct') ?? 0;
-    const completion = status === 'COMPLETED' ? 1 : Math.max(0, Math.min(1, physicalPercent / 100));
+    // Oudere/minimale XER-rijen missen vaak complete_pct_type/complete_pct. Behoud daar X4a's
+    // fysieke-percentage-terugval; alleen een expliciet CP_Drtn-record laat zijn percentage de
+    // restduur afleiden.
+    const completionPercent = completePctType === 'CP_Phys'
+      ? physicalPercent
+      : completePercent ?? physicalPercent;
+    const completion = status === 'COMPLETED' ? 1 : Math.max(0, Math.min(1, completionPercent / 100));
     const parentId = row.cells.wbs_id ? wbsTaskId(projectId, row.cells.wbs_id) : null;
     const time = createDefaultTaskTime(start, durationMinutes / (hoursPerDay * 60));
     time.scheduleFinish = finish;
@@ -412,16 +430,25 @@ function readXerProject(
     time.lateStart = start;
     time.lateFinish = finish;
     time.completion = completion;
+    const p6RemainingHours = completePctType === 'CP_Drtn' && completePercent !== null
+      ? durationHours * (1 - completion)
+      : remainingHours;
     if (hourMode) {
       time.durationMinutes = durationMinutes;
-      if (remainingHours !== null) time.remainingMinutes = Math.round(remainingHours * 60);
-    } else if (remainingHours !== null) {
-      time.remainingTime = remainingHours / hoursPerDay;
+      if (p6RemainingHours !== null) time.remainingMinutes = Math.round(p6RemainingHours * 60);
+    } else if (p6RemainingHours !== null) {
+      time.remainingTime = p6RemainingHours / hoursPerDay;
     }
     const actualStart = sourceInstant(row.cells.act_start_date ?? '', hourMode);
     const actualFinish = sourceInstant(row.cells.act_end_date ?? '', hourMode);
     if (actualStart) time.actualStart = actualStart;
     if (actualFinish) time.actualFinish = actualFinish;
+    const stop = sourceInstant(row.cells.suspend_date ?? '', hourMode);
+    const resume = sourceInstant(row.cells.resume_date ?? '', hourMode);
+    if (stop) time.stop = stop;
+    if (resume) time.resume = resume;
+    const validSuspendResume = stop !== undefined && resume !== undefined && parseInstant(stop) <= parseInstant(resume);
+    const expectedFinish = sourceInstant(row.cells.expect_end_date ?? '', hourMode);
 
     const isStartMilestone = activityType === 'TT_Mile';
     const isFinishMilestone = activityType === 'TT_FinMile';
@@ -446,6 +473,11 @@ function readXerProject(
         : {}),
       p6DurationType: durationType,
       p6ActivityType: activityType,
+      p6ProjectId: projectId,
+      p6TaskId: row.cells.task_id,
+      p6CompletePctType: completePctType,
+      ...(expectedFinish ? { p6ExpectedFinish: expectedFinish } : {}),
+      ...(validSuspendResume ? { p6SuspendResume: true } : {}),
       ...(activityType === 'TT_LOE' ? { isHammock: true } : {}),
       ...(() => {
         const constraint = constraintOf(

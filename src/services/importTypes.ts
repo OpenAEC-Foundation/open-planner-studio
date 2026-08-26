@@ -38,7 +38,7 @@ export interface XerCalendarIssueMetadata {
 }
 
 export interface XerEnumFallback {
-  family: 'activityType' | 'durationType' | 'status' | 'priority' | 'constraint' | 'relation';
+  family: 'activityType' | 'durationType' | 'completePctType' | 'status' | 'priority' | 'constraint' | 'relation';
   token: string;
   fallback: string;
   table: 'PROJECT' | 'TASK' | 'TASKPRED';

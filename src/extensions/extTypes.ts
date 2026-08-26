@@ -211,6 +211,10 @@ export interface ExtTask {
   p6DurationType?: 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
   /** X0 (XER-etappeplan) — P6's eigen Activity Type bij .xer-import. Zelfde nuance als `p6DurationType`. */
   p6ActivityType?: 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
+  p6ProjectId?: string;
+  p6TaskId?: string;
+  p6CompletePctType?: 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
+  p6ExpectedFinish?: string;
   /** X0 (XER-etappeplan) — herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/
    *  resume-herkomst (XER `suspend_date`/`resume_date`) i.p.v. de MSP-conventie. Stub tot de XER-
    *  etappe se X7-taak 'm daadwerkelijk zet. Spiegelt {@link import('@/types/task').Task}.p6SuspendResume. */

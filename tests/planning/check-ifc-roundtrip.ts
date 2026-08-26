@@ -249,7 +249,9 @@ const TM = {
   mspTaskType: 'FIXED_WORK', effortDriven: true,
   // X0 (XER-etappeplan, 2026-08-20) — drie nieuwe .xer-importvelden, nog GEEN IFC-pset (zie
   // TASK_CANON hieronder: skip, reden X9). Alleen hier gevuld voor de `Required<Task>`-volledigheid.
-  p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc', p6SuspendResume: true,
+  p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc',
+  p6ProjectId: 'P1', p6TaskId: 'T1', p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-07-31T17:00',
+  p6SuspendResume: true,
   isSummary: false,
   parentId: 't-p', childIds: [],
   resourceIds: [], // milestone zonder assignments ⇒ afgeleide resourceIds is leeg (H2-fix)
@@ -548,6 +550,10 @@ const TASK_CANON = {
   // round-trip). Zelfde taxonomie als `interferingFloat`/`isNearCritical`/`floatPath` hierboven.
   p6DurationType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
   p6ActivityType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
+  p6ProjectId: { skip: 'X7-bronidentiteit wacht op X9-IFC-wiring' },
+  p6TaskId: { skip: 'X7-bronidentiteit wacht op X9-IFC-wiring' },
+  p6CompletePctType: { skip: 'X7-brontype wacht op X9-IFC-wiring' },
+  p6ExpectedFinish: { skip: 'X7-brondatum wacht op X9-IFC-wiring' },
   p6SuspendResume: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
   isSummary: { skip: 'false is de afwezige default; expliciet true round-trippt in check-xer-reader' },
   parentId: { as: 'parent', get: (t: Task, k: Keys) => (t.parentId ? k.task(t.parentId) : null) },

@@ -1635,7 +1635,13 @@ export class CPMSolver {
             // vlag (default UIT) en haar hele RETAINED_LOGIC-vloer (de `else`-tak hieronder) zijn door
             // deze wijziging GEEN letter geraakt — alleen de `resumeOverride`-voorwaarde zelf kreeg de
             // extra `&&`-clausule.
-            const resumeOverride = t.resume && task.resourceIds.length <= 1 ? this.parseIn(progressCal, t.resume) : null;
+            // `time.resume` is universele brondata. Het MPP-pad blijft veldgedreven, maar een
+            // XER-taak mag nooit door kale veld-aanwezigheid als MPP behandeld worden: P6 activeert
+            // zijn eigen route alleen na de gevalideerde suspend/resume-opt-in.
+            const mayUseResume = task.p6ProjectId ? task.p6SuspendResume === true : true;
+            const resumeOverride = mayUseResume && t.resume && task.resourceIds.length <= 1
+              ? this.parseIn(progressCal, t.resume)
+              : null;
             if (resumeOverride && !isNaN(resumeOverride.getTime())) {
               remStart = resumeOverride;
               usedResumeOverride = true;
@@ -1873,6 +1879,14 @@ export class CPMSolver {
           // mechanisme afgeleide waarde). Normale niet-override-pad: `remStart` is per constructie
           // altijd ≥ `actualES`, dus deze wacht is daar een no-op.
           if (usedResumeOverride && ef < actualES) ef = actualES;
+          // X7: de verwachte einddatum is bewaarde P6-brondata totdat de X5-projectvlag hem
+          // expliciet activeert. Daardoor blijft dezelfde taak bij MSP/IFC en bij een uitgeschakelde
+          // P6-vlag volledig op de gewone restduurroute.
+          if (task.p6ProjectId && this.options.schedulingOptions?.useExpectedFinishDates === true
+              && task.p6ExpectedFinish) {
+            const expected = this.parseIn(progressCal, task.p6ExpectedFinish);
+            if (!isNaN(expected.getTime())) ef = expected;
+          }
           // Z8-HERWERKRONDE (LAAG 2 van de gelaagde beslistabel): een IN-PROGRESS-taak plant op haar
           // bestaande resume-/actuals-pad hierboven — GEEN Z8-venster-raadpleging. De EERSTE Z8-versie
           // deed dat nog wél; de herwerkronde liet die aanroep hier bewust vervallen (spiegelt de
