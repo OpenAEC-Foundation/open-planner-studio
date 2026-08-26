@@ -1,4 +1,4 @@
-import { isDraft, original } from 'immer';
+import { current, isDraft, original, type Draft } from 'immer';
 import type { WorkCalendar } from '@/types/calendar';
 import type { AppState } from './appStore';
 import type { DocumentPayload } from './documentContract';
@@ -98,8 +98,20 @@ void _assertPickHasNoExtras;
  * *guards; snapshot; mutatie*. Alle vier de aanroepers doen dat (`beginUndoable`, `withTransaction`,
  * `undo`, `redo`); `runInMcpTransaction` geeft sowieso plain state door.
  */
+/**
+ * Immer's `isDraft` is helaas geen TypeScript-typeguard. De runtimecheck is wel precies de
+ * contractgrens: alleen daarna mag `original()` een draft ontvangen. Dit houdt retained readonly
+ * broncatalogi buiten een ongegronde `any`-cast wanneer een documentstate door een producer loopt.
+ */
+function isAppStateDraft(state: AppState): state is Draft<AppState> {
+  return isDraft(state);
+}
+
 export function createSnapshot(s: AppState): Snapshot {
-  const base = (isDraft(s) ? (original(s) as AppState | undefined) : s) ?? s;
+  // Immer 11.1.4 typeert `original()` terecht als mogelijk undefined. De runtimegrens hierboven
+  // garandeert een draft; mocht een afwijkende Immer-implementatie toch geen basis teruggeven,
+  // dan levert `current()` binnen diezelfde draftgrens een plain, niet-intrekbare momentopname.
+  const base = isAppStateDraft(s) ? original(s) ?? current(s) : s;
   const snap = {} as Snapshot;
   for (const f of DOCUMENT_FIELDS) {
     if (f.snapshot === 'none') continue;

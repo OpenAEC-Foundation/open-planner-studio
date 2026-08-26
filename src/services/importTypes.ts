@@ -9,6 +9,7 @@ import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
 import type { XerResourceCatalog } from './xer/xerResources';
 import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
+import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
 
 export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 
@@ -141,6 +142,11 @@ export interface XerResourceMetadata {
   issues: XerResourceIssue[];
 }
 
+/** X8-bronbewijs: één readonly catalogus per geopend XER-bestand; projectvelden zijn losse views. */
+export interface XerMetadataMetadata {
+  catalog: XerMetadataCatalog;
+}
+
 /** Documentgebonden XER-brondata. Externe relaties zijn nadrukkelijk geen solverrelaties. */
 export interface XerImportMetadata {
   defaultCurrencyCode: string;
@@ -156,6 +162,8 @@ export interface XerImportMetadata {
   report: XerImportReport;
   /** X6 retained-data; baseline- en unscoped TASKRSRC-rijen blijven uitsluitend catalogusdata voor X9. */
   resources?: XerResourceMetadata;
+  /** X8 retained-data; X9 bepaalt de definitieve documentcontract-/IFC-serialisatie. */
+  metadata?: XerMetadataMetadata;
 }
 
 /**
