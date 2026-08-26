@@ -10,6 +10,7 @@ import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
 import type { XerResourceCatalog } from './xer/xerResources';
 import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
+import type { XerSourceArchive } from './xerSourceArchive';
 
 export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 
@@ -149,6 +150,8 @@ export interface XerMetadataMetadata {
 
 /** Documentgebonden XER-brondata. Externe relaties zijn nadrukkelijk geen solverrelaties. */
 export interface XerImportMetadata {
+  /** PROJECT.proj_id dat dit document binnen het gedeelde XER-bronarchief vertegenwoordigt. */
+  sourceProjectId?: string;
   defaultCurrencyCode: string;
   tableReport: XerTableReportMetadata;
   calendarIssues: XerCalendarIssueMetadata[];
@@ -260,6 +263,10 @@ export interface ImportResult {
   recordedFields?: Record<string, RecordedFieldKey[]>;
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
+  /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */
+  xerSourceArchive?: XerSourceArchive;
+  /** Selector uit OPS_XerDocument; bronproject binnen een self-contained IFC. */
+  xerSourceProjectId?: string;
 }
 
 /**

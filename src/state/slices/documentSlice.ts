@@ -163,6 +163,20 @@ function cloneXerImportMetadata(source: XerImportMetadata): XerImportMetadata {
   };
 }
 
+/** Herstel leest zelfstandige IFC's; identieke gevalideerde bronarchieven worden daarna één ref. */
+function shareRecoveredXerArchives(docs: readonly RecoveryDocInput[]): RecoveryDocInput[] {
+  const canonicalByDigest = new Map<string, NonNullable<RecoveryDocInput['xerSourceArchive']>>();
+  return docs.map(doc => {
+    const archive = doc.xerSourceArchive;
+    if (!archive) return doc;
+    const key = `${archive.byteLength}:${archive.sha256}`;
+    const canonical = canonicalByDigest.get(key);
+    if (canonical) return { ...doc, xerSourceArchive: canonical };
+    canonicalByDigest.set(key, archive);
+    return doc;
+  });
+}
+
 /** `"Basis (variant 3)"` → `"Basis"`; een naam zonder variant-suffix blijft ongewijzigd. Zo blijft de
  *  basisnaam stabiel wanneer je een variant-document opnieuw dupliceert (varianten-van-varianten). */
 const VARIANT_RE = /^(.*) \(variant (\d+)\)$/;
@@ -262,6 +276,10 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       fileHandle: null,
       isDirty: true,
       xerImportMetadata: src.xerImportMetadata ? cloneXerImportMetadata(src.xerImportMetadata) : null,
+      // De originele XER-bytes zijn immutable en worden doelbewust NIET gekloond: één runtimeobject
+      // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
+      xerSourceArchive: src.xerSourceArchive,
+      xerSourceProjectId: src.xerSourceProjectId,
     };
 
     set((s) => {
@@ -410,9 +428,10 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
 
   restoreDocuments: (docs, activeId) => {
     if (docs.length === 0) return;
-    const active = docs.find((d) => d.id === activeId) ?? docs[0];
+    const sharedDocs = shareRecoveredXerArchives(docs);
+    const active = sharedDocs.find((d) => d.id === activeId) ?? sharedDocs[0];
     set((s) => {
-      s.documents = castDraft(docs.map((d) => ({
+      s.documents = castDraft(sharedDocs.map((d) => ({
         id: d.id,
         payload: d.id === active.id ? null : payloadFromInput(d),
       })));

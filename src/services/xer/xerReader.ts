@@ -25,6 +25,7 @@ import type {
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
+import { createXerSourceArchive, detectXerSourcePresentation } from '@/services/xerSourceArchive';
 import { readXerCalendars } from './xerCalendarData';
 import { buildXerMetadataCatalog, materializeXerMetadata, type XerMetadataCatalog } from './xerMetadata';
 import { indexXerTaskResourceRows } from './xerResourceAssignments';
@@ -754,6 +755,7 @@ function readXerProject(
     activityCodeTypes: metadata.activityCodeTypes,
     customFieldDefs: metadata.customFieldDefs,
     xer: {
+      sourceProjectId: projectId,
       defaultCurrencyCode: tables.header.defaultCurrencyCode,
       tableReport: tables.report,
       calendarIssues: calendars.issues,
@@ -832,6 +834,22 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
       projectRowsIndex,
     ),
   );
+  // Precies één frozen bytearchief per ingelezen bestand. De projectmappers leveren alleen views;
+  // hier, ná alle projectdiagnostics, delen alle werkelijk geopende documenten dezelfde referentie.
+  const presentation = detectXerSourcePresentation(bytes);
+  const archive = createXerSourceArchive(bytes, {
+    ...presentation,
+    encoding: tables.report.encoding,
+    diagnostics: {
+      tableReport: tables.report,
+      scheduleOptions: scheduleOptionsIndex.sourceArchive.diagnostics,
+      relationResolutionIssues: projectRowsIndex.relationResolutionIssues,
+      resourceCatalogIssues: resourceCatalog.issues,
+      metadataCatalogIssues: metadataCatalog.issues,
+      importReport: assembled.report,
+    },
+  });
+  for (const document of assembled.documents) document.result.xerSourceArchive = archive;
   if (assembled.results.length > 0) {
     // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de
     // rapportberekening loopt uniform door dezelfde X4b-kern als een meervoudig bestand.

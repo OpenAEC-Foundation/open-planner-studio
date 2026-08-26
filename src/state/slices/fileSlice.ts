@@ -411,6 +411,11 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       if (cpmError) return { ok: false, error: cpmError };
 
       const state = get();
+      // X9: alleen IFC draagt het self-contained bytearchief plus de selector. Andere exports
+      // mogen planningdata aanbieden, maar zouden XER-only provenance/unknown cells stil wissen.
+      if (format !== 'ifc' && (state.xerSourceArchive || state.xerImportMetadata)) {
+        console.warn(`${format.toUpperCase()}-export: exact XER-bronarchief, onbekende tabellen/cellen, importdiagnostiek en projectrapport worden niet uitgedrukt; bewaar IFC voor verliesvrije archivering.`);
+      }
 
       let content: string;
       let ext: string;

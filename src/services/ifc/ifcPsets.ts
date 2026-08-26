@@ -1,6 +1,6 @@
 import type {
   Task, ConstraintType, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType,
-  P6CompletePctType,
+  P6CompletePctType, P6DurationType, P6ActivityType,
 } from '@/types/task';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 
@@ -84,6 +84,10 @@ export const PSET = {
   // Op de IfcWorkSchedule (autoritaire JSON-blob — alleen naam gedeeld).
   Baselines: 'OPS_Baselines',
   SchedulingOptions: 'OPS_SchedulingOptions',
+  /** X9: één projectcontainer met de exacte oorspronkelijke XER-bytes. */
+  XerSourceArchive: 'OPS_XerSourceArchive',
+  /** X9: selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
+  XerDocument: 'OPS_XerDocument',
   // Per kalender (afwijkende vorm — alleen naam gedeeld).
   Calendar: 'OPS_Calendar',
   // Bedrijfsbibliotheek-pool als autoritatief JSON-blob op het IfcProject (spec B1, §4).
@@ -460,17 +464,23 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       if (task.p6TaskId) props.push({ name: 'TaskId', value: `IFCTEXT(${ifcStr(task.p6TaskId)})` });
       if (task.p6CompletePctType) props.push({ name: 'CompletePctType', value: `IFCLABEL(${ifcStr(task.p6CompletePctType)})` });
       if (task.p6ExpectedFinish) props.push({ name: 'ExpectedFinish', value: `IFCTEXT(${ifcStr(task.p6ExpectedFinish)})` });
+      if (task.p6DurationType) props.push({ name: 'DurationType', value: `IFCLABEL(${ifcStr(task.p6DurationType)})` });
+      if (task.p6ActivityType) props.push({ name: 'ActivityType', value: `IFCLABEL(${ifcStr(task.p6ActivityType)})` });
       if (hasValidP6SuspendResume(task)) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.T.)' });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {
       const completePctTypes: readonly P6CompletePctType[] = ['CP_Drtn', 'CP_Phys', 'CP_Units'];
+      const durationTypes: readonly P6DurationType[] = ['DT_FixedDrtn', 'DT_FixedDUR2', 'DT_FixedRate', 'DT_FixedQty'];
+      const activityTypes: readonly P6ActivityType[] = ['TT_Task', 'TT_Rsrc', 'TT_LOE', 'TT_Mile', 'TT_FinMile', 'TT_WBS'];
       for (const { name, value } of props) {
         if (name === 'SuspendResume') { if (value === true) task.p6SuspendResume = true; continue; }
         if (typeof value !== 'string' || !value) continue;
         if (name === 'ProjectId') task.p6ProjectId = value;
         else if (name === 'TaskId') task.p6TaskId = value;
         else if (name === 'ExpectedFinish') task.p6ExpectedFinish = value;
+        else if (name === 'DurationType' && (durationTypes as readonly string[]).includes(value)) task.p6DurationType = value as P6DurationType;
+        else if (name === 'ActivityType' && (activityTypes as readonly string[]).includes(value)) task.p6ActivityType = value as P6ActivityType;
         else if (name === 'CompletePctType' && (completePctTypes as readonly string[]).includes(value)) {
           task.p6CompletePctType = value as P6CompletePctType;
         }
