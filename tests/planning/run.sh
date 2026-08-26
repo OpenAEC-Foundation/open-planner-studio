@@ -436,6 +436,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   GRIDCHECK="$DIR/.grid-nav.mjs"
   if bundle_check "$DIR/check-grid-nav.ts" "$GRIDCHECK"; then node "$GRIDCHECK" || STATUS=1; fi
 
+  # X11: documenttabstrip is ook bij 12+ open projecten volledig bereikbaar. De pure
+  # toetsenbord-/zichtbaarheidskern voorkomt dat tab 10–12 buiten Ctrl/Cmd-1..9 een dead-end
+  # worden; de browserproef controleert daarnaast de echte DOM en scrollcontainer.
+  DTNCHECK="$DIR/.document-tab-navigation.mjs"
+  if bundle_check "$DIR/check-document-tab-navigation.ts" "$DTNCHECK"; then node "$DTNCHECK" || STATUS=1; fi
+
   # Gantt-cull-regressie: de speling-band mag niet verdwijnen zolang hij zichtbaar is. De cull in
   # drawTaskBar keek alleen naar de BALK-extent, terwijl de band ná de balk doorloopt — een band die
   # nog honderden pixels in beeld stond verdween daardoor mee. Draait de echte renderer met een
