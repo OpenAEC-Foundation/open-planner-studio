@@ -144,7 +144,6 @@
     }
   },
   "relations": {
-    "title": "関係",
     "predecessor": "先行タスク",
     "successor": "後続タスク",
     "type": "タイプ",
@@ -152,10 +151,6 @@
     "driving": "駆動",
     "freeFloat": "フリーフロート",
     "warnings": "警告",
-    "addFromSelection": "選択から新しい関係を作成",
-    "addFromSelectionHint": "ちょうど 2 つのタスクを選択してください（先に先行タスク、次に後続タスク）",
-    "empty": "関係はまだありません。ガントチャートのバー間を Shift を押しながらドラッグするか、2 つのタスクを選択して上のボタンを使用してください。",
-    "notCalculated": "再計算（F5）すると駆動関係とフロートが表示されます",
     "warnTruncatedLead": "リードがプロジェクト開始で打ち切られました — 重複は完全には活用されません",
     "warnLeadExceedsDuration": "リードが先行タスクの期間より大きくなっています",
     "warnDropped": "計算に含まれていません"

@@ -106,7 +106,7 @@ export type DocumentChromeStyle = 'tabs' | 'rail' | 'switcher';
 
 export const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
 
-export type RibbonTab = 'file' | 'start' | 'planning' | 'resources' | 'relations' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report' | 'ai';
+export type RibbonTab = 'file' | 'start' | 'planning' | 'resources' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report' | 'ai';
 
 // Backstage view (Office-style File tab full-screen) — sub-section selectie
 export type BackstageSection =

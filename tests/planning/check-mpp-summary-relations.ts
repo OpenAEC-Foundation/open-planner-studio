@@ -172,7 +172,7 @@ if (!path) {
 
       // I2 (CPM-review): op een echt corpusbestand met kruisproduct-relaties moeten de vier relatie-
       // gekeyde velden ná foldSyntheticSequenceIds GEEN synthetische "::exp-N"-ids meer dragen — dat
-      // is precies wat RelationsPanel/StatusBar/ReportPanel/GanttCanvas/MCP-leestools als "de echte
+      // is precies wat taakgrids/StatusBar/ReportPanel/GanttCanvas/MCP-leestools als "de echte
       // relatie-id" herkennen (ze kennen alleen `s.sequences`).
       const relationKeyedIds = [
         ...cpm.drivingSequenceIds, ...cpm.truncatedLeadSequenceIds, ...cpm.outOfSequenceSequenceIds,

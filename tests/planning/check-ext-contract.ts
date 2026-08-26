@@ -388,7 +388,9 @@ for (const [naam, ext, bron, sleutels] of [
   for (const t of TABS) {
     eq(`27 ribbontabblad "${t}" mapt naar iets`, typeof fromExtRibbonTab(t), 'string');
   }
-  eq('27a en vandaag is dat één-op-één', TABS.map(fromExtRibbonTab), TABS.slice());
+  eq('27a bestaande extensies met relations landen na de overhaul op de volledige Tabel',
+    TABS.map(fromExtRibbonTab),
+    ['file', 'start', 'planning', 'resources', 'table', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai']);
 
   // Font-provider: de host mag NIET het object van de extensie bewaren, en `getBoldBytes` mag niet
   // als `undefined`-sleutel doorlekken (de pagineerder test op aanwezigheid).

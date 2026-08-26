@@ -144,7 +144,6 @@
     }
   },
   "relations": {
-    "title": "Beziehungen",
     "predecessor": "Vorgänger",
     "successor": "Nachfolger",
     "type": "Typ",
@@ -152,10 +151,6 @@
     "driving": "Maßgebend",
     "freeFloat": "Freier Puffer",
     "warnings": "Warnungen",
-    "addFromSelection": "Neue Beziehung aus Auswahl",
-    "addFromSelectionHint": "Wählen Sie genau zwei Aufgaben aus (zuerst den Vorgänger, dann den Nachfolger)",
-    "empty": "Noch keine Beziehungen. Ziehen Sie mit gedrückter Shift-Taste zwischen Balken im Gantt-Diagramm, oder wählen Sie zwei Aufgaben aus und verwenden Sie die Schaltfläche oben.",
-    "notCalculated": "Neu berechnen (F5), um maßgebende Beziehungen und Puffer zu sehen",
     "warnTruncatedLead": "Vorlauf am Projektstart gekappt — die Überlappung wird nicht vollständig genutzt",
     "warnLeadExceedsDuration": "Der Vorlauf ist größer als die Dauer des Vorgängers",
     "warnDropped": "Nicht in die Berechnung einbezogen"

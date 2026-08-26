@@ -82,7 +82,7 @@ export function solveProject(input: SolveProjectInput): CPMResult {
   const result = solver.solve();
   // I2 (CPM-review): de solver rekende op de GEËXPANDEERDE (synthetische) relatie-set, dus zijn
   // relatie-gekeyde velden dragen nog synthetische "::exp-N"-ids — geen enkele consument
-  // (RelationsPanel, StatusBar, ReportPanel, TaskDependenciesSection, GanttCanvas, MCP-leestools)
+  // (taakgrids, StatusBar, ReportPanel, TaskDependenciesSection, GanttCanvas, MCP-leestools)
   // kent die, want die lezen allemaal de store-`sequences` met de originele ids. Vouw ze terug
   // vóórdat het resultaat naar de aanroeper gaat.
   foldSyntheticSequenceIds(result);

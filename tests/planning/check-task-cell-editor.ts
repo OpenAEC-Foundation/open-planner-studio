@@ -217,12 +217,13 @@ const relationMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
-ok('Relatiecel opent de eigen tokeneditor met WBS, type, lag en externe route',
-  relationMarkup.includes('data-task-editor-kind="relations"')
-    && relationMarkup.includes('1.2 Beton storten')
-    && relationMarkup.includes('<option value="FS" selected="">FS</option>')
-    && relationMarkup.includes('value="+2d"')
-    && relationMarkup.includes('Externe relatie toevoegen'));
+// De interactieve editor staat sinds de clipping-fix in een document.body-portal. Een statische
+// serverrender heeft geen layout-effect en rendert daarom bewust alleen het celanker; de concrete
+// WBS/type/lag/externe besturing wordt structureel in check-relation-cell-editor gecontroleerd.
+ok('Relatiecel routeert naar de eigen portal-tokeneditor zonder de relationele waarde te verliezen',
+  relationMarkup.includes('task-grid-relation-editor-anchor')
+    && relationAdapter.descriptorsById.get(relationCell.columnId)?.editorKind === 'relations'
+    && relationAdapter.getCell(relationCell.rowKey, relationCell.columnId)?.editText === '1.2 FS+2d');
 const rawRelationMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   adapter: relationAdapter,
   cell: relationCell,

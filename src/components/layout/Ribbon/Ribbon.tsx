@@ -228,7 +228,7 @@ export function Ribbon() {
   }, [setUI]);
 
   const tabs: RibbonTab[] = [
-    'start', 'planning', 'resources', 'relations', 'beeld', 'instellingen', 'table', 'ifc', 'report',
+    'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report',
     ...(aiMode ? (['ai'] as RibbonTab[]) : []),
   ];
 

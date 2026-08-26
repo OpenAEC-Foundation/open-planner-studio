@@ -144,7 +144,6 @@
     }
   },
   "relations": {
-    "title": "Relazioni",
     "predecessor": "Predecessore",
     "successor": "Successore",
     "type": "Tipo",
@@ -152,10 +151,6 @@
     "driving": "Determinante",
     "freeFloat": "Margine libero",
     "warnings": "Avvisi",
-    "addFromSelection": "Nuova relazione dalla selezione",
-    "addFromSelectionHint": "Seleziona esattamente due attività (prima il predecessore, poi il successore)",
-    "empty": "Nessuna relazione. Trascina con Shift tra le barre nel Gantt, oppure seleziona due attività e usa il pulsante qui sopra.",
-    "notCalculated": "Ricalcola (F5) per vedere relazioni determinanti e margini",
     "warnTruncatedLead": "Anticipo troncato all'inizio del progetto — la sovrapposizione non è sfruttata del tutto",
     "warnLeadExceedsDuration": "L'anticipo è maggiore della durata del predecessore",
     "warnDropped": "Non inclusa nel calcolo"

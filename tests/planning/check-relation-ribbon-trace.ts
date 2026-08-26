@@ -73,6 +73,15 @@ ok('trace en surfacewissel veranderen selectie, view en history niet',
     && JSON.stringify(afterSurfaceSwitch.view) === viewBefore
     && afterSurfaceSwitch.historyEvents.length === historyBefore);
 
+const projectBeforeLegacyTab = useAppStore.getState().project;
+(useAppStore.getState().setUI as (updates: { activeRibbonTab: string }) => void)({ activeRibbonTab: 'relations' });
+const afterLegacyTab = useAppStore.getState();
+ok('herstelde oude relations-tabstaat migreert naar de volledige Tabel',
+  afterLegacyTab.ui.activeRibbonTab === 'table');
+ok('de tabmigratie raakt projectdata en historie niet',
+  afterLegacyTab.project === projectBeforeLegacyTab
+    && afterLegacyTab.historyEvents.length === historyBefore);
+
 const widgets = read('src/components/layout/Ribbon/ribbonWidgets.tsx');
 const config = read('src/components/layout/Ribbon/ribbonConfig.tsx');
 const gridAdapter = read('src/engine/taskGrid/taskGridAdapter.ts');

@@ -657,18 +657,17 @@ export function fromExtImportResult(r: ExtImportResult): ImportResult {
 /**
  * Ext-facing tabblad-id → intern tabblad-id.
  *
- * Vandaag is dat één-op-één, en de TABEL is het punt — niet de conversie. Zonder tabel zou een
- * interne hernoeming (`'beeld'` → `'view'`) stil doorlekken naar elk geïnstalleerd manifest; nu
- * breekt hij hier op de compiler en verhuist de vertaling naar deze ene regel. De `Record` over de
- * volledige `ExtRibbonTab`-unie dwingt bovendien af dat een NIEUW ext-tabblad ook echt ergens op
- * uitkomt: een gat geeft een compileerfout in plaats van `undefined` in de store.
+ * De publieke waarde `relations` blijft voor bestaande extensies geldig, maar landt sinds de
+ * tabel-overhaul op `table`: het zelfstandige paneel bestaat niet meer en de volledige taakgrid
+ * bevat nu alle relatiefunctionaliteit. De `Record` over de volledige `ExtRibbonTab`-unie dwingt
+ * af dat een nieuw ext-tabblad ook echt ergens op uitkomt.
  */
 const RIBBON_TAB_MAP: Record<ExtRibbonTab, RibbonTab> = {
   file: 'file',
   start: 'start',
   planning: 'planning',
   resources: 'resources',
-  relations: 'relations',
+  relations: 'table',
   beeld: 'beeld',
   instellingen: 'instellingen',
   table: 'table',

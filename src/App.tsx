@@ -11,7 +11,6 @@ import { TooltipHost } from '@/components/common/Tooltip';
 import { GanttWorkspace } from '@/components/canvas/GanttWorkspace';
 import { FullTaskGrid } from '@/components/task-grid/FullTaskGrid';
 import { ResourcePanel } from '@/components/panels/ResourcePanel';
-import { RelationsPanel } from '@/components/panels/RelationsPanel';
 import { PresentationHint } from '@/components/layout/PresentationHint';
 import { RightRail } from '@/components/layout/RightRail/RightRail';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
@@ -198,7 +197,7 @@ function AppContent() {
   // NIET meer in — de Gantt (incl. histogramstrook) blijft dan zichtbaar en de compacte
   // resource-lijst dockt in de rechter-rail (zie het dock-blok hieronder) in plaats van de hele
   // werkruimte te vervangen.
-  const isFullPanel = (showResourcePanel && !resourcePanelDocked) || activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
+  const isFullPanel = (showResourcePanel && !resourcePanelDocked) || activeTab === 'table' || activeTab === 'ifc' || activeTab === 'report';
   // Issue #46 (slot): de rechterkolom bestaat alleen zolang er minstens één railpaneel aan staat.
   // Zet de gebruiker ze allebei uit via hun lintknop, dan verdwijnt de kolom — inclusief de
   // ingeklapte strip, want er valt dan niets terug te halen.
@@ -281,7 +280,6 @@ function AppContent() {
             ) : (
               <Suspense fallback={null}>
                 {activeTab === 'table' && <FullTaskGrid />}
-                {activeTab === 'relations' && <RelationsPanel />}
                 {activeTab === 'ifc' && <IFCPanel />}
                 {activeTab === 'report' && <ReportPanel />}
               </Suspense>

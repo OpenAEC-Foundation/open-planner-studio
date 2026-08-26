@@ -173,6 +173,12 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
 
   setUI: (updates) =>
     set((s) => {
+      // Tabel-overhaul: oude sessie-/tour-/extensiestaat kan nog naar het verwijderde zelfstandige
+      // Relaties-tabblad wijzen. Alle functies daarvan wonen nu in de taakgrids en hun lintacties;
+      // herstel daarom naar de volledige Tabel zonder documentdata of historie te muteren.
+      if ((updates as { activeRibbonTab?: unknown }).activeRibbonTab === 'relations') {
+        (updates as Partial<UIState>).activeRibbonTab = 'table';
+      }
       // Als debugTerminalEnabled uitgezet wordt, forceer de terminal dicht.
       if (updates.debugTerminalEnabled === false) {
         (updates as Partial<UIState>).debugTerminalOpen = false;

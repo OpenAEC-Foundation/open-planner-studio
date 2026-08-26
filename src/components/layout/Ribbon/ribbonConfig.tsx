@@ -4,7 +4,7 @@ import {
   Plus, Play, Undo2, Redo2, ZoomIn, ZoomOut,
   FileText, FolderOpen, Save, Printer, Trash2,
   Calendar, Settings, Info, Clock,
-  ArrowRightLeft, Eye, EyeOff, SaveAll,
+  Eye, EyeOff, SaveAll,
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
@@ -335,13 +335,7 @@ const planningTab: RibbonTabConfig = [
   { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton] },
   {
     id: 'relations', labelKey: 'menu:ribbon.relations',
-    items: [
-      relationDropdownItem,
-      {
-        kind: 'button', id: 'manage', icon: <ArrowRightLeft size={20} />, labelKey: 'menu:ribbon.manage',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ activeRibbonTab: 'relations' }) }; },
-      },
-    ],
+    items: [relationDropdownItem],
   },
   traceGroup,
   {
@@ -584,12 +578,6 @@ const resourcesTab: RibbonTabConfig = [
   },
 ];
 
-const relationsTab: RibbonTabConfig = [
-  { id: 'relations', labelKey: 'menu:ribbon.relations', items: [relationDropdownItem] },
-  traceGroup,
-  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton] },
-];
-
 /**
  * Overzicht-groep (issue #35 punt 3): in- en uitklappen zijn APARTE knoppen, niet één toggle —
  * met een toggle kun je een gemengde selectie nooit in één keer dezelfde kant op zetten.
@@ -795,7 +783,6 @@ export const RIBBON_TABS: Record<Exclude<RibbonTab, 'file'>, RibbonTabConfig> = 
   start: startTab,
   planning: planningTab,
   resources: resourcesTab,
-  relations: relationsTab,
   beeld: beeldTab,
   instellingen: instellingenTab,
   table: tableTab,
