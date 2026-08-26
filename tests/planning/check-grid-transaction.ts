@@ -262,6 +262,97 @@ function observed(state: AppState): unknown {
   eq('Read-only intent benoemt readOnly', result.ok ? null : result.errors[0]?.code, 'readOnly');
 }
 
+// Task 12: verschillende bewaakte routes landen samen als één atomaire documentmutatie.
+{
+  reset();
+  const taskId = S().addTask({ name: 'Bewaakt' });
+  useAppStore.setState(state => {
+    state.historyEvents = [];
+    state.nextHistorySequence = 1;
+    state.isDirty = false;
+    state.scheduleStale = false;
+    state.project.statusDate = '2026-01-10';
+  });
+  const result = runGridMutation([
+    nameEdit(taskId, 'Bewaakt gewijzigd'),
+    cellEdit(taskId, 'task.time.completion', 'task-progress', 0.4),
+    cellEdit(taskId, 'task.constraint.type', 'task-constraint', 'SNET'),
+  ]);
+  const task = S().tasks.find(candidate => candidate.id === taskId);
+  eq('Gemengde bewaakte transactie slaagt', result.ok, true);
+  eq('Gemengde transactie landt alle drie routes', task ? {
+    name: task.name,
+    completion: task.time.completion,
+    status: task.status,
+    constraint: task.constraint,
+  } : null, {
+    name: 'Bewaakt gewijzigd', completion: 0.4, status: 'STARTED',
+    constraint: { type: 'SNET', date: task?.time.scheduleStart },
+  });
+  eq('Gemengde transactie maakt precies één history-event', S().historyEvents.length, 1);
+  eq('Planningrelevante route zet scheduleStale', S().scheduleStale, true);
+}
+
+// Een fout in de laatste bewaakte write rolt eerdere geldige writes volledig terug.
+{
+  reset();
+  const taskId = S().addTask({ name: 'Rollback bewaakt' });
+  useAppStore.setState(state => {
+    state.historyEvents = [];
+    state.nextHistorySequence = 1;
+    state.isDirty = false;
+    state.scheduleStale = false;
+    state.project.statusDate = '2026-01-10';
+  });
+  const before = JSON.stringify(observed(S()));
+  const result = runGridMutation([
+    nameEdit(taskId, 'Mag niet landen'),
+    cellEdit(taskId, 'task.time.actualFinish', 'task-progress', '2099-01-01'),
+  ]);
+  eq('Late ongeldige actual weigert de hele batch', result.ok, false);
+  eq('Late ongeldige actual heeft gerichte foutcode',
+    result.ok ? null : result.errors[0]?.code, 'actualAfterStatusDate');
+  eq('Late fout laat alle bekeken state byte-identiek', JSON.stringify(observed(S())), before);
+}
+
+// Duur-/datumedit wist alleen afgeleide timephased-sturing en meldt pas na de commit.
+{
+  reset();
+  const taskId = S().addTask({ name: 'Timephased grid' });
+  useAppStore.setState(state => {
+    const task = state.tasks.find(candidate => candidate.id === taskId)!;
+    task.timephasedFinishFloor = '2026-02-01';
+    task.timephasedStartAnchor = '2026-01-01';
+    task.timephasedDurationWalks = [{
+      anchor: '2026-01-01', resourceCalendarId: state.calendar.id, workMinutes: 300,
+    }];
+    task.timephasedContours = [{
+      resourceUid: null, periods: [{ afterMinutes: 0, minutes: 300, workMinutes: 300, kind: 'remaining' }],
+    }];
+    state.historyEvents = [];
+    state.nextHistorySequence = 1;
+    state.ui.notifications = [];
+    state.isDirty = false;
+    state.scheduleStale = false;
+  });
+  const result = runGridMutation([
+    cellEdit(taskId, 'task.time.scheduleDuration', 'task-schedule', 480),
+  ]);
+  const task = S().tasks.find(candidate => candidate.id === taskId);
+  eq('Duurtransactie slaagt', result.ok, true);
+  eq('Duurtransactie wist alleen bevroren sturing', task ? {
+    duration: task.time.scheduleDuration,
+    floor: task.timephasedFinishFloor,
+    anchor: task.timephasedStartAnchor,
+    walks: task.timephasedDurationWalks,
+    contourCount: task.timephasedContours?.length,
+  } : null, { duration: 1, contourCount: 1 });
+  eq('Duurtransactie maakt één event', S().historyEvents.length, 1);
+  eq('Timephased-verlies meldt precies eenmaal na commit',
+    S().ui.notifications.map(notification => notification.messageKey),
+    ['notifications.mppTimephasedSteeringLost']);
+}
+
 // Ook vaste technische en conditioneel read-only descriptors komen uit de registry.
 {
   reset();

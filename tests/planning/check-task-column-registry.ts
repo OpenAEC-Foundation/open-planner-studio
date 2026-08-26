@@ -314,7 +314,7 @@ function isReadOnly(column: TaskColumnDescriptor): boolean {
   return typeof column.readOnly === 'function' ? column.readOnly(task, ctx) : column.readOnly;
 }
 for (const column of registry) {
-  if (isReadOnly(column)) {
+  if (column.readOnly === true) {
     ok(`${column.id}: read-only gebruikt editor none`, column.editorKind === 'none');
     ok(`${column.id}: read-only heeft geen parser`, column.parse === undefined);
     ok(`${column.id}: read-only heeft geen validator`, column.validate === undefined);
@@ -328,7 +328,12 @@ for (const column of registry) {
       const validated = column.validate?.(parsed.value, task, ctx);
       if (validated?.ok) {
         const planned = column.planWrite?.(validated.value, task, ctx);
-        ok(`${column.id}: writer plant minstens één echte intent`, !!planned?.ok && planned.value.length > 0);
+        if (isReadOnly(column)) {
+          ok(`${column.id}: conditioneel read-only plant geen intent`,
+            planned?.ok === false && planned.errors[0]?.code === 'readOnly');
+        } else {
+          ok(`${column.id}: writer plant minstens één echte intent`, !!planned?.ok && planned.value.length > 0);
+        }
       }
     }
   }

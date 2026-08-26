@@ -44,6 +44,9 @@ const baseInput = {
 };
 const gantt = createTaskGridAdapter({ ...baseInput, surfaceId: 'gantt-task-grid' });
 const table = createTaskGridAdapter({ ...baseInput, surfaceId: 'full-task-grid' });
+const personalDates = createTaskGridAdapter({
+  ...baseInput, surfaceId: 'full-task-grid', dateNotation: 'dmy',
+});
 
 eq('Beide surfaces krijgen exact dezelfde rijprojectie', gantt.rows, table.rows);
 eq('Beide surfaces krijgen exact dezelfde beschikbare kolommen', gantt.availableColumns, table.availableColumns);
@@ -79,6 +82,21 @@ eq('Berekende cel meldt stale zowel visueel als toegankelijk', (() => {
   const cell = gantt.getCell('occurrence-a', taskColumnId('task.time.totalFloat'));
   return { stale: cell?.stale, statusText: cell?.statusText };
 })(), { stale: true, statusText: 'taskGrid.status.stale' });
+eq('Boolean-editor krijgt een taalneutrale canonieke startwaarde',
+  personalDates.getCell('occurrence-a', taskColumnId('task.isMilestone'))?.editText,
+  'false');
+eq('Datumeditor start in de persoonlijke notatie',
+  personalDates.getCell('occurrence-a', taskColumnId('task.time.scheduleStart'))?.editText,
+  '01-01-2026');
+const personalDatePlan = personalDates.planEdit(
+  'occurrence-a', taskColumnId('task.time.scheduleStart'), '07-01-2026',
+);
+eq('Persoonlijke datuminvoer wordt vóór het intent teruggebracht naar ISO',
+  personalDatePlan.ok ? personalDatePlan.value[0] : personalDatePlan,
+  {
+    kind: 'cell-edit', taskId: 't-1', columnId: 'task.time.scheduleStart',
+    route: 'task-schedule', value: '2026-01-07',
+  });
 
 const namePlan = gantt.planEdit('occurrence-a', taskColumnId('task.name'), 'Nieuwe naam');
 eq('Descriptorparser en writer leveren het domeinintent zonder store-actienaam', namePlan.ok ? namePlan.value : namePlan, [{

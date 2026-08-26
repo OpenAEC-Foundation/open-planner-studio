@@ -59,12 +59,14 @@ interface ReadonlyColumnConfig {
 
 interface EditableColumnConfig extends Omit<ReadonlyColumnConfig, 'copy'> {
   editorKind: Exclude<EditorKind, 'none'>;
+  editorOptions?: readonly { value: string; labelKey?: string; label?: string }[];
   readOnly?: (task: Task, ctx: TaskColumnContext) => boolean;
   route?: CellEditRoute;
   parse: Parser;
   validate: Validator;
   planWrite?: Writer;
   copy?: (task: Task, ctx: TaskColumnContext) => string;
+  editText?: (task: Task, ctx: TaskColumnContext) => string;
 }
 
 function success<T>(value: T): GridResult<T, readonly CellValidationError[]> {
@@ -143,12 +145,14 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     category: config.category,
     valueKind: config.valueKind,
     editorKind: config.editorKind,
+    editorOptions: config.editorOptions,
     defaultWidth: config.defaultWidth ?? 140,
     available: config.available ?? (() => true),
     readOnly: config.readOnly ?? false,
     read: config.read,
     format,
     copy,
+    editText: config.editText,
     tooltip: config.tooltip,
     parse: config.parse,
     validate: config.validate,
@@ -263,6 +267,13 @@ const TASK_STATUSES: readonly TaskStatus[] = ['NOT_STARTED', 'STARTED', 'COMPLET
 const MILESTONE_KINDS: readonly MilestoneKind[] = ['START', 'FINISH'];
 const CONSTRAINT_TYPES: readonly ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 const RESOURCE_CURVES: readonly ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+
+function enumOptions(prefix: string, values: readonly string[], optional = false) {
+  return [
+    ...(optional ? [{ value: '', labelKey: `${prefix}.none` }] : []),
+    ...values.map(value => ({ value, labelKey: `${prefix}.${value}` })),
+  ];
+}
 
 function compactArraySummary(value: unknown, noun: string): string {
   const count = Array.isArray(value) ? value.length : 0;
@@ -466,11 +477,11 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
     editableColumn({ id: 'task.name', labelKey: 'taskGrid.columns.name', category: 'task', valueKind: 'text', editorKind: 'text', defaultWidth: 220, read: task => task.name, parse: parseText, validate: value => typeof value === 'string' && value.trim() ? success(value) : failure('required', value) }),
     editableColumn({ id: 'task.description', labelKey: 'taskGrid.columns.description', category: 'task', valueKind: 'text', editorKind: 'text', defaultWidth: 280, read: task => task.description, parse: parseText, validate: value => typeof value === 'string' ? success(value) : failure('text', value) }),
     editableColumn({ id: 'task.wbsCode', labelKey: 'taskGrid.columns.wbs', category: 'task', valueKind: 'text', editorKind: 'text', read: task => task.wbsCode, readOnly: (_task, ctx) => ctx.wbsAutoNumber === true, parse: parseText, validate: value => typeof value === 'string' && value.trim() ? success(value) : failure('required', value) }),
-    editableColumn({ id: 'task.taskType', labelKey: 'taskGrid.columns.taskType', category: 'task', valueKind: 'enum', editorKind: 'enum', read: task => task.taskType, parse: enumParser(TASK_TYPES), validate: enumValidator(TASK_TYPES) }),
-    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', route: 'task-progress', read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
+    editableColumn({ id: 'task.taskType', labelKey: 'taskGrid.columns.taskType', category: 'task', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('taskType', TASK_TYPES), read: task => task.taskType, parse: enumParser(TASK_TYPES), validate: enumValidator(TASK_TYPES) }),
+    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('taskStatus', TASK_STATUSES), route: 'task-progress', read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
     editableColumn({ id: 'task.isMilestone', labelKey: 'taskGrid.columns.milestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
-    editableColumn({ id: 'task.milestoneKind', labelKey: 'taskGrid.columns.milestoneKind', category: 'planning', valueKind: 'enum', editorKind: 'enum', route: 'task-milestone', read: task => task.milestoneKind, parse: enumParser(MILESTONE_KINDS, true), validate: enumValidator(MILESTONE_KINDS, true) }),
-    editableColumn({ id: 'task.mandatory', labelKey: 'taskGrid.columns.mandatoryMilestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.mandatory, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.milestoneKind', labelKey: 'taskGrid.columns.milestoneKind', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('milestoneKind', MILESTONE_KINDS, true), route: 'task-milestone', read: task => task.milestoneKind, readOnly: task => !task.isMilestone, parse: enumParser(MILESTONE_KINDS, true), validate: enumValidator(MILESTONE_KINDS, true) }),
+    editableColumn({ id: 'task.mandatory', labelKey: 'taskGrid.columns.mandatoryMilestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.mandatory, readOnly: task => !task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
     editableColumn({ id: 'task.priority', labelKey: 'taskGrid.columns.priority', category: 'planning', valueKind: 'number', editorKind: 'number', read: task => task.priority, parse: parseNumber, validate: finiteNumber({ min: 0, max: 1000, integer: true }) }),
     readonlyColumn({ id: 'task.levelingDelay', labelKey: 'taskGrid.columns.levelingDelay', category: 'computed', valueKind: 'duration', read: task => task.levelingDelay }),
     readonlyColumn({ id: 'task.levelingDelayMinutes', labelKey: 'taskGrid.columns.levelingDelayMinutes', category: 'technical', valueKind: 'number', read: task => task.levelingDelayMinutes }),
@@ -501,21 +512,26 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.activityCodes.technical', labelKey: 'taskGrid.columns.activityCodeData', category: 'technical', valueKind: 'technical', read: task => task.activityCodes, format: value => value && typeof value === 'object' && Object.keys(value).length ? `${Object.keys(value).length} codetoewijzing(en)` : '—', copy: task => canonicalGridJson(task.activityCodes ?? {}) }),
     readonlyColumn({ id: 'task.customFields.technical', labelKey: 'taskGrid.columns.customFieldData', category: 'technical', valueKind: 'technical', read: task => task.customFields, format: value => value && typeof value === 'object' && Object.keys(value).length ? `${Object.keys(value).length} eigen veld(en)` : '—', copy: task => canonicalGridJson(task.customFields ?? {}) }),
     editableColumn({ id: 'task.color', labelKey: 'taskGrid.columns.color', category: 'task', valueKind: 'text', editorKind: 'color', read: task => task.color, parse: parseOptionalText, validate: value => value === undefined || typeof value === 'string' ? success(value) : failure('color', value) }),
-    editableColumn({ id: 'task.constraint.type', labelKey: 'taskGrid.columns.constraintType', category: 'constraints', valueKind: 'enum', editorKind: 'enum', route: 'task-constraint', read: task => task.constraint?.type ?? 'ASAP', parse: enumParser(CONSTRAINT_TYPES), validate: enumValidator(CONSTRAINT_TYPES) }),
+    editableColumn({ id: 'task.constraint.type', labelKey: 'taskGrid.columns.constraintType', category: 'constraints', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('constraintType', CONSTRAINT_TYPES), route: 'task-constraint', read: task => task.constraint?.type ?? 'ASAP', parse: enumParser(CONSTRAINT_TYPES), validate: enumValidator(CONSTRAINT_TYPES) }),
     editableColumn({ id: 'task.constraint.date', labelKey: 'taskGrid.columns.constraintDate', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.constraint?.date, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.constraint.hard', labelKey: 'taskGrid.columns.constraintHard', category: 'constraints', valueKind: 'boolean', editorKind: 'boolean', route: 'task-constraint', read: task => task.constraint?.hard, parse: parseBoolean, validate: validateBoolean }),
-    editableColumn({ id: 'task.constraint2.type', labelKey: 'taskGrid.columns.constraint2Type', category: 'constraints', valueKind: 'enum', editorKind: 'enum', route: 'task-constraint', read: task => task.constraint2?.type, parse: enumParser(CONSTRAINT_TYPES, true), validate: enumValidator(CONSTRAINT_TYPES, true) }),
+    editableColumn({ id: 'task.constraint.hard', labelKey: 'taskGrid.columns.constraintHard', category: 'constraints', valueKind: 'boolean', editorKind: 'boolean', route: 'task-constraint', read: task => task.constraint?.hard, readOnly: task => task.constraint?.type !== 'MSO' && task.constraint?.type !== 'MFO', parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.constraint2.type', labelKey: 'taskGrid.columns.constraint2Type', category: 'constraints', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('constraintType', CONSTRAINT_TYPES, true), route: 'task-constraint', read: task => task.constraint2?.type, parse: enumParser(CONSTRAINT_TYPES, true), validate: enumValidator(CONSTRAINT_TYPES, true) }),
     editableColumn({ id: 'task.constraint2.date', labelKey: 'taskGrid.columns.constraint2Date', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.constraint2?.date, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.isHammock', labelKey: 'taskGrid.columns.hammock', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-hammock', read: task => task.isHammock, parse: parseBoolean, validate: validateBoolean }),
+    editableColumn({ id: 'task.isHammock', labelKey: 'taskGrid.columns.hammock', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-hammock', read: task => task.isHammock, readOnly: task => task.isMilestone || task.childIds.length > 0, parse: parseBoolean, validate: validateBoolean }),
     editableColumn({ id: 'task.deadline', labelKey: 'taskGrid.columns.deadline', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.deadline, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.calendarId', labelKey: 'taskGrid.columns.calendar', category: 'planning', valueKind: 'text', editorKind: 'autocomplete', route: 'task-schedule', read: task => task.calendarId, parse: parseOptionalText, validate: validateAny }),
-    readonlyColumn({
+    editableColumn({
       id: 'task.notes', labelKey: 'taskGrid.columns.notes', category: 'task', valueKind: 'text', defaultWidth: 240,
+      editorKind: 'text',
       read: task => task.notes,
+      readOnly: task => (task.notes?.length ?? 0) > 1,
       format: value => Array.isArray(value) && value.length
         ? value.map(note => `${(note as { done: boolean }).done ? '✓' : '○'} ${(note as { text: string }).text}`).join('; ')
         : '—',
       copy: task => (task.notes ?? []).map(note => `${note.done ? '✓' : '○'} ${note.text}`).join('; '),
+      editText: task => task.notes?.[0]?.text ?? '',
+      parse: text => success(text.replace(/^[✓○]\s*/, '')),
+      validate: value => typeof value === 'string' ? success(value) : failure('text', value),
     }),
     readonlyColumn({
       id: 'task.notes.technical', labelKey: 'taskGrid.columns.noteData', category: 'technical', valueKind: 'technical',
@@ -530,8 +546,8 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
 
 function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
-    editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
-    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.scheduleDuration, readOnly: task => task.isHammock === true, format: value => value === undefined ? '—' : `${value}d`, copy: task => `${task.time.scheduleDuration}d`, parse: parseTaskDuration, validate: validateDuration }),
+    editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('durationType', ['WORKTIME', 'ELAPSEDTIME']), route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.scheduleDuration, readOnly: task => task.isHammock === true || (task.isMilestone && task.time.scheduleDuration === 0), format: value => value === undefined ? '—' : `${value}d`, copy: task => `${task.time.scheduleDuration}d`, parse: parseTaskDuration, validate: validateDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
     editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, parse: parseDate, validate: validateDate }),
@@ -667,6 +683,10 @@ function activityCodeColumns(input: TaskColumnRegistryInput): TaskColumnDescript
       category: 'custom',
       valueKind: 'enum',
       editorKind: 'autocomplete',
+      editorOptions: type.values.map(value => ({
+        value: value.id,
+        label: value.description ? `${value.code} — ${value.description}` : value.code,
+      })),
       route: 'activity-code',
       available: ctx => ctx.projectId === input.projectId,
       read: task => task.activityCodes?.[type.id],

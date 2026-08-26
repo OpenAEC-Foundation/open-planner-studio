@@ -42,6 +42,7 @@ const adapter = createTaskGridAdapter({
   tasks: [task], sequences: [], assignments: [], resources: [], baselines: [],
   activityCodeTypes: [], customFieldDefs: [], scheduleStale: false, wbsAutoNumber: false,
   selectedTaskIds: [], labelForColumn: key => key,
+  calendarOptions: [{ value: 'cal-bouw', label: 'Bouwkalender' }],
   callbacks: {
     onPrepareEdit: () => allowPrepare,
     onCommitEdit: (_target, intents) => {
@@ -90,6 +91,45 @@ const markup = renderToStaticMarkup(createElement(TaskCellEditor, {
 }));
 ok('Editor gebruikt de canonieke kopieerwaarde als startwaarde', markup.includes('value="Fundering"'));
 ok('Editor heeft een toegankelijke kolomnaam', markup.includes('aria-label="Taaknaam"'));
+const enumMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+  adapter,
+  cell: { rowKey: 'occ-1', columnId: taskColumnId('task.taskType') },
+  label: 'Taaktype',
+  messageForError,
+  labelForOption: (_key: string, value: string) => `OPTIE:${value}`,
+  onCancel: () => undefined,
+  onFocusCell: () => undefined,
+}));
+ok('Enumdescriptor rendert een echte dropdown',
+  enumMarkup.includes('<select') && enumMarkup.includes('data-task-editor-kind="enum"'));
+ok('Enumdropdown gebruikt de descriptoropties', enumMarkup.includes('OPTIE:CONSTRUCTION'));
+const booleanMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+  adapter,
+  cell: { rowKey: 'occ-1', columnId: taskColumnId('task.isMilestone') },
+  label: 'Mijlpaal',
+  messageForError,
+  labelForOption: (key: string, value: string) => key === 'boolean.true'
+    ? 'WAAR'
+    : key === 'boolean.false' ? 'ONWAAR' : value,
+  onCancel: () => undefined,
+  onFocusCell: () => undefined,
+}));
+ok('Booleandescriptor rendert een drie-toestandenkeuze',
+  booleanMarkup.includes('data-task-editor-kind="boolean"')
+    && /<option value="true"[^>]*>WAAR<\/option>/.test(booleanMarkup)
+    && /<option value="false"[^>]*>ONWAAR<\/option>/.test(booleanMarkup));
+const autocompleteMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+  adapter,
+  cell: { rowKey: 'occ-1', columnId: taskColumnId('task.calendarId') },
+  label: 'Kalender',
+  messageForError,
+  onCancel: () => undefined,
+  onFocusCell: () => undefined,
+}));
+ok('Autocomplete-editor koppelt een echte suggestielijst',
+  autocompleteMarkup.includes('data-task-editor-kind="autocomplete"')
+    && autocompleteMarkup.includes('<datalist')
+    && autocompleteMarkup.includes('Bouwkalender'));
 
 if (diffs.length) {
   console.error(`FAIL task-cell-editor: ${diffs.length}/${checks}`);

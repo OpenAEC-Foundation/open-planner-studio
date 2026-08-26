@@ -1,11 +1,13 @@
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
+import { copyGridEditorValue, parseGridEditorText } from '@/engine/taskGrid/editors';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Baseline } from '@/types/baseline';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Sequence } from '@/types/sequence';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Task } from '@/types/task';
+import type { DateNotation } from '@/types/view';
 import type {
   CellValidationError,
   GridIntent,
@@ -55,6 +57,7 @@ export interface TaskGridAdapterCell {
   text: string;
   value: unknown;
   copyText: string;
+  editText: string;
   readOnly: boolean;
   stale?: boolean;
   statusText?: string;
@@ -98,6 +101,8 @@ export interface CreateTaskGridAdapterInput {
   traceClassForTask?: (task: Task) => string | null;
   effectiveHoursPerDay?: (task: Task) => number;
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
+  dateNotation?: DateNotation;
+  calendarOptions?: readonly { value: string; label: string }[];
   callbacks?: TaskGridAdapterCallbacks;
 }
 
@@ -194,7 +199,14 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
     activityCodeTypes: input.activityCodeTypes,
     customFieldDefs: input.customFieldDefs,
     baselines: input.baselines,
-  }).filter(descriptor => descriptor.available(context));
+  }).filter(descriptor => descriptor.available(context)).map(descriptor => (
+    descriptor.id === 'task.calendarId' && input.calendarOptions
+      ? {
+          ...descriptor,
+          editorOptions: input.calendarOptions.map(option => ({ ...option })),
+        }
+      : descriptor
+  ));
   const descriptorsById = new Map(descriptors.map(descriptor => [descriptor.id, descriptor] as const));
   const selectedTaskIds = input.selectedTaskIds instanceof Set
     ? input.selectedTaskIds
@@ -271,6 +283,12 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       text: descriptor.format(value, task, context),
       value,
       copyText: descriptor.copy(task, context),
+      editText: descriptor.editText?.(task, context)
+        ?? (descriptor.editorKind === 'boolean'
+          ? value === true ? 'true' : value === false ? 'false' : ''
+          : input.dateNotation
+            ? copyGridEditorValue(descriptor, task, context, input.dateNotation)
+            : descriptor.copy(task, context)),
       readOnly,
       stale: stale || undefined,
       statusText: stale ? 'taskGrid.status.stale' : undefined,
@@ -298,7 +316,9 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
     if (readOnly || !descriptor.parse || !descriptor.planWrite) {
       return failure('readOnly', rowKey, columnId, task.id, text);
     }
-    const parsed = descriptor.parse(text, task, context);
+    const parsed = input.dateNotation
+      ? parseGridEditorText(descriptor, text, task, context, input.dateNotation)
+      : descriptor.parse(text, task, context);
     if (!parsed.ok) {
       return { ok: false, errors: withLocation(parsed.errors, rowKey, columnId, task.id, text) };
     }

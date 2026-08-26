@@ -1,4 +1,5 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
+import { assignTaskActivityCode, assignTaskCustomField } from '@/engine/taskMutationRules';
 import { generateId } from '@/utils/id';
 import { beginUndoable, finishMutation } from '../transaction';
 import type { AppSlice } from './types';
@@ -119,11 +120,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
       const current = task.activityCodes?.[typeId];
       if ((valueId ?? undefined) === current) return;
       beginUndoable(s);
-      if (valueId === null) {
-        if (task.activityCodes) delete task.activityCodes[typeId];
-      } else {
-        task.activityCodes = { ...(task.activityCodes ?? {}), [typeId]: valueId };
-      }
+      assignTaskActivityCode(task, typeId, valueId ?? undefined);
       finishMutation(s);
     });
     get().recomputeViewRows();
@@ -173,11 +170,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
       const current = task.customFields?.[defId];
       if ((value ?? undefined) === current) return;
       beginUndoable(s);
-      if (value === null) {
-        if (task.customFields) delete task.customFields[defId];
-      } else {
-        task.customFields = { ...(task.customFields ?? {}), [defId]: value };
-      }
+      assignTaskCustomField(task, defId, value ?? undefined);
       finishMutation(s);
     });
     get().recomputeViewRows();

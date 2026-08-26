@@ -117,12 +117,15 @@ export interface TaskColumnDescriptor {
   category: TaskColumnCategory;
   valueKind: 'text' | 'number' | 'boolean' | 'date' | 'datetime' | 'duration' | 'enum' | 'tokens' | 'technical';
   editorKind: 'text' | 'number' | 'percentage' | 'date' | 'datetime' | 'duration' | 'boolean' | 'enum' | 'color' | 'autocomplete' | 'relations' | 'custom' | 'none';
+  editorOptions?: readonly { value: string; labelKey?: string; label?: string }[];
   defaultWidth: number;
   available(ctx: TaskColumnContext): boolean;
   readOnly: boolean | ((task: Task, ctx: TaskColumnContext) => boolean);
   read(task: Task, ctx: TaskColumnContext): unknown;
   format(value: unknown, task: Task, ctx: TaskColumnContext): string;
   copy(task: Task, ctx: TaskColumnContext): string;
+  /** Starttekst voor de editor wanneer de canonieke kopieervorm rijkere markers bevat. */
+  editText?: (task: Task, ctx: TaskColumnContext) => string;
   tooltip?: (value: unknown, task: Task, ctx: TaskColumnContext) => string | null;
   parse?: (text: string, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
   validate?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;

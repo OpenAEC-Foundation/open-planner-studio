@@ -4,8 +4,12 @@ import {
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
-import { formatDate, parseDate, parseInstant } from '@/utils/dateUtils';
+import { formatDate } from '@/utils/dateUtils';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
+import {
+  applyProgressInvariants,
+  isActualPastStatusDate,
+} from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
 import { beginUndoable, finishMutation } from '../transaction';
@@ -208,69 +212,8 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
  * engine/view/dropTarget.ts). Gedeeld door `moveTasksTo`, dat na elke plaatsing opnieuw moet meten
  * waar een taak werkelijk geland is.
  */
-/**
- * T16-veeglijst-fix (B4-nasleep, Opus-her-check T15-fixronde — gepind als BEKENDE BEPERKING, hier
- * gefixt): `setActualStart`/`setActualFinish` vergeleken tot deze fix een RUWE actual-ISO-string
- * lexicografisch met `project.statusDate`. Dat werkt alleen zolang beide dezelfde precisie dragen
- * (twee date-only strings, of twee datetime-strings) — een uur-precieze `date` (`"2026-07-06T08:00"`)
- * is lexicografisch altijd "groter" dan een datumloze `statusDate` op DEZELFDE dag (`"2026-07-06"`),
- * dus zo'n actual werd stil geweigerd ongeacht de klokstand.
- *
- * Fix: bij een DATUMLOZE `statusDate` (`project.statusDate` bevat geen `T` — het gebruikelijke
- * dag-modus-geval, §3.4) wordt alleen de KALENDERDAG vergeleken (`parseDate`, tijd-component
- * genegeerd): elke klokstand OP de statusdatum-dag zelf is toegestaan, alleen een latere dag wordt
- * geweigerd — precies de bedoelde "geen actuals ná de statusdatum"-regel, zonder de precisiemismatch.
- * Draagt `statusDate` zelf al een tijd-component (uur-modus, §3.4), dan blijft de vergelijking op
- * volle instant-precisie (`parseInstant`) — dat geval was vóór deze fix al correct (gelijke precisie
- * aan weerszijden) en blijft dat, byte-identiek. */
-function isActualPastStatusDate(dateIso: string, statusDateIso: string): boolean {
-  if (!statusDateIso.includes('T')) {
-    return parseDate(dateIso).getTime() > parseDate(statusDateIso).getTime();
-  }
-  return parseInstant(dateIso).getTime() > parseInstant(statusDateIso).getTime();
-}
-
-/**
- * Voortgang-invarianten (§3.2), toegepast op een task-draft ná elke progress-mutatie:
- * actualFinish ⇒ completion 1 + actualStart + COMPLETED; completion 1 ⇒ actualFinish (default =
- * statusdatum, anders de taak se EIGEN geplande finish — MSP-semantiek: afvinken op 100% zonder
- * expliciete datum maakt de geplande datums de actuals, NOOIT "vandaag"); actualStart zonder
- * finish ⇒ STARTED; niets ⇒ NOT_STARTED; remainingTime = round(scheduleDuration × (1 − completion)).
- *
- * H1 (Opus-review T15-iteratie-2, app-brede regressie): vóór deze fix viel de `completion===1`-tak
- * zónder statusdatum terug op `formatDate(new Date())` ("vandaag"). Zolang `CPMSolver`'s VOLTOOID-
- * branch zelf ook een statusdatum vereiste was dat onschadelijk (de solver negeerde `actualFinish`
- * toch); sinds T15 (c2, `7a40a5ab`) is die branch UNCONDITIONEEL — een taak zonder statusdatum die
- * de gebruiker op 100% zet, teleporteerde daardoor letterlijk naar de dag van vandaag (en sleepte
- * haar opvolgers mee via de gewone FS-relatiewiskunde). De juiste terugval is de taak se EIGEN,
- * al-berekende finish (`earlyFinish` — bij een verse taak byte-identiek aan `scheduleFinish`, ná een
- * `runCPM` de laatst getoonde Gantt-datum): dat is precies wat MS Project zelf doet ("Mark on Track"/
- * 100%-invullen zonder statusdatum kopieert de GEPLANDE datums naar de actuals, nooit de kalenderdag
- * van vandaag). Zie `check-task-slice.ts`'s `prog-h1-geen-teleport-naar-vandaag`-case (B1, Opus-
- * her-check) voor het mutatiebewijs: een taak-anker in 2015 (ver vóór elke plausibele testdatum),
- * zodat de vandaag-fallback nooit toevallig met de verwachting kan samenvallen. Terugzetten naar
- * `formatDate(new Date())` laat die case rood uitslaan; dezelfde bundel pint ook dat `scheduleStale`
- * altijd gezet wordt (`prog-h1-stale-zonder-statusdatum`) — de `stale: !!s.project.statusDate`-poort
- * terugzetten in `setTaskProgress`/`setActualStart`/`setActualFinish` laat exact díé asserts rood
- * uitslaan.
- */
-export function applyProgressInvariants(task: Task, statusDate: string | undefined): void {
-  const time = task.time;
-  if (time.actualFinish) {
-    time.completion = 1;
-    if (!time.actualStart) time.actualStart = time.actualFinish;
-    task.status = 'COMPLETED';
-  } else if (time.completion >= 1) {
-    time.actualFinish = statusDate || time.earlyFinish || time.scheduleFinish;
-    if (!time.actualStart) time.actualStart = time.actualFinish;
-    task.status = 'COMPLETED';
-  } else if (time.actualStart) {
-    task.status = 'STARTED';
-  } else {
-    task.status = 'NOT_STARTED';
-  }
-  time.remainingTime = Math.round(time.scheduleDuration * (1 - time.completion));
-}
+// Compatibele export voor bestaande MCP-aanroepers; de ene implementatie leeft in taskEditPlan.
+export { applyProgressInvariants };
 
 export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
   tasks: [],

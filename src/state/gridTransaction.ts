@@ -3,8 +3,13 @@ import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/s
 import { deriveViewRows } from './slices/viewSlice';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { buildTaskColumnRegistry, canonicalGridJson } from '@/engine/taskGrid/taskColumnRegistry';
+import { planTaskCellEdit } from '@/engine/taskGrid/taskEditPlan';
+import { isHourCalendar } from '@/services/subdayIo';
+import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
+import { notifyTimephasedLoss } from './timephasedLossNotice';
+import { markScheduleStale } from './transaction';
 import type { AppState } from './appStore';
 import type { AppSlice, DeferredNotification } from './slices/types';
 import type {
@@ -27,6 +32,7 @@ export interface PreparedGridMutation {
     resourceLoadResult: ResourceLoadResult | null;
   };
   notifications: readonly DeferredNotification[];
+  timephasedLossCount: number;
   label: string;
 }
 
@@ -99,7 +105,10 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     resourcesById: new Map(state.resources.map(resource => [resource.id, resource])),
     baselinesById: new Map(state.baselines.map(baseline => [baseline.id, baseline])),
     scheduleStale: state.scheduleStale,
-    wbsAutoNumber: state.project.wbsAutoNumber,
+    wbsAutoNumber: state.project.wbsAutoNumber === true,
+    effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(
+      task, state.calendar, state.calendars,
+    )),
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: state.project.id,
@@ -131,40 +140,55 @@ function applyCellEdit(
   state: AppState,
   edit: CellEditIntent,
   runtime: GridColumnRuntime,
-): CellValidationError | null {
-  const task = state.tasks.find(candidate => candidate.id === edit.taskId);
-  if (!task) return validationError('taskNotFound', edit, edit.value);
+): GridResult<{ timephasedGuidanceLost: boolean }, readonly CellValidationError[]> {
+  const taskIndex = state.tasks.findIndex(candidate => candidate.id === edit.taskId);
+  const task = state.tasks[taskIndex];
+  if (!task) return { ok: false, errors: [validationError('taskNotFound', edit, edit.value)] };
   const columnId = String(edit.columnId);
   const descriptor = runtime.descriptors.get(columnId);
   if (!descriptor || !descriptor.available(runtime.context)) {
-    return validationError('plannerNotAvailable', edit, edit.value);
+    return { ok: false, errors: [validationError('plannerNotAvailable', edit, edit.value)] };
   }
   const readOnly = typeof descriptor.readOnly === 'function'
     ? descriptor.readOnly(task, runtime.context)
     : descriptor.readOnly;
-  if (readOnly) return validationError('readOnly', edit, edit.value);
+  if (readOnly) return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
   let value = edit.value;
   if (descriptor.validate) {
     const validated = descriptor.validate(value, task, runtime.context);
     if (!validated.ok) {
       const error = validated.errors[0] ?? validationError('invalid', edit, value);
-      return { ...error, taskId: edit.taskId, columnId: edit.columnId, value };
+      return { ok: false, errors: [{ ...error, taskId: edit.taskId, columnId: edit.columnId, value }] };
     }
     value = validated.value;
   }
 
-  // Task 6 legt de prepare/commitgrens. De bewaakte planners voor de overige routes worden in
-  // Tasks 12, 13 en 18 aangesloten; tot die tijd weigert de grens ze expliciet en atomair.
-  if (edit.route !== 'task-field') return validationError('plannerNotAvailable', edit, edit.value);
-  if (columnId === 'task.name') {
-    task.name = value as string;
-    return null;
+  const effectiveCalendar = effectiveCalendarOf(task, state.calendar, state.calendars);
+  const planned = planTaskCellEdit(task, { ...edit, value }, {
+    projectId: state.project.id,
+    wbsAutoNumber: state.project.wbsAutoNumber === true,
+    statusDate: state.project.statusDate,
+    calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
+    effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
+    hourMode: isHourCalendar(effectiveCalendar) === true,
+    activityCodeTypes: state.activityCodeTypes,
+    customFieldDefs: state.customFieldDefs,
+  });
+  if (!planned.ok) return planned;
+  if (planned.value.changed) {
+    state.tasks[taskIndex] = planned.value.task;
+    if (planned.value.scheduleStale) {
+      if (state.datesAsRecorded) {
+        state.datesAsRecorded = false;
+        state.recordedDates = null;
+      }
+      markScheduleStale(state);
+    }
   }
-  if (columnId === 'task.description') {
-    task.description = value as string;
-    return null;
-  }
-  return validationError('plannerNotAvailable', edit, edit.value);
+  return {
+    ok: true,
+    value: { timephasedGuidanceLost: planned.value.timephasedGuidanceLost },
+  };
 }
 
 function snapshotsShareAllFields(left: Snapshot, right: Snapshot): boolean {
@@ -192,10 +216,12 @@ export function prepareGridMutation(
   const runtime = buildGridColumnRuntime(state);
   const before = createSnapshot(state as AppState);
   let errors: CellValidationError[] = [];
+  const timephasedLossTaskIds = new Set<string>();
   const isolated = produce(state as AppState, draft => {
     for (const edit of normalized.value) {
-      const error = applyCellEdit(draft, edit, runtime);
-      if (error) errors.push(error);
+      const applied = applyCellEdit(draft, edit, runtime);
+      if (!applied.ok) errors.push(...applied.errors);
+      else if (applied.value.timephasedGuidanceLost) timephasedLossTaskIds.add(edit.taskId);
     }
   });
   if (errors.length > 0) return { ok: false, errors };
@@ -224,6 +250,7 @@ export function prepareGridMutation(
       after,
       derivedAfter: { viewRows, resourceLoadResult },
       notifications: [],
+      timephasedLossCount: timephasedLossTaskIds.size,
       label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',
     },
   };
@@ -261,6 +288,9 @@ function commitPreparedAgainstStore(
     }
   }
   for (const notification of prepared.notifications) get().notify(notification);
+  if (changed && prepared.timephasedLossCount > 0) {
+    notifyTimephasedLoss(get().notify, prepared.documentId, prepared.timephasedLossCount);
+  }
   return { ok: true, value: undefined };
 }
 
