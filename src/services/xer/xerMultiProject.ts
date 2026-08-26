@@ -39,11 +39,12 @@ function cloneMappedProject(result: XerReadResult): XerReadResult {
   const scheduleOptions = result.xer.scheduleOptions;
   const archive = scheduleOptions.sourceArchive;
   const resourceMetadata = result.xer.resources;
-  const { resources: _resources, ...xerWithoutResources } = result.xer;
+  const metadata = result.xer.metadata;
+  const { resources: _resources, metadata: _metadata, ...xerWithoutCatalogs } = result.xer;
   const clone = structuredClone({
     ...result,
     xer: {
-      ...xerWithoutResources,
+      ...xerWithoutCatalogs,
       scheduleOptions: {
         ...scheduleOptions,
         sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
@@ -57,6 +58,7 @@ function cloneMappedProject(result: XerReadResult): XerReadResult {
   // Raw TASKRSRC kan in rehab-2 52.640 rijen beslaan. Catalogus en raw projectview zijn bewust
   // referentie-identiek; structuredClone is uitsluitend voor de mutable documentprojectie.
   if (resourceMetadata) clone.xer.resources = resourceMetadata;
+  if (metadata) clone.xer.metadata = metadata;
   return clone;
 }
 

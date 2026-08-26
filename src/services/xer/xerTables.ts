@@ -141,18 +141,23 @@ const P6_NOTE_FIELDS = new Set([
   'ACCOUNT.acct_descr',
   'ROLES.role_descr',
   'RSRC.rsrc_notes',
+  'TASK.task_notes',
   'TASKMEMO.task_memo',
   'TASKPROC.proc_descr',
   'WBSMEMO.wbs_memo',
 ]);
 
-function decodeTextCell(table: string, field: string, raw: string): string {
-  const unquoted = raw.replace(/""/g, '"');
-  if (!P6_NOTE_FIELDS.has(`${table}.${field}`)) return unquoted;
-  const withoutContamination = Array.from(unquoted)
+/** Decodeer uitsluitend P6-notitievervuiling en de DEL-DEL-regelovergang. */
+export function decodeXerNoteText(raw: string): string {
+  const withoutContamination = Array.from(raw)
     .filter(char => ![0, 0xfeff, 0xfffe].includes(char.charCodeAt(0)))
     .join('');
   return withoutContamination.split('\u007f\u007f').join('\n');
+}
+
+function decodeTextCell(table: string, field: string, raw: string): string {
+  const unquoted = raw.replace(/""/g, '"');
+  return P6_NOTE_FIELDS.has(`${table}.${field}`) ? decodeXerNoteText(unquoted) : unquoted;
 }
 
 // Tabelset waarvoor de latere X3-X8-lagen data nodig kunnen hebben. De selectie volgt voor begrip

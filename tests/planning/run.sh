@@ -297,6 +297,18 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # X8: metadata wordt éénmaal file-wide gemapt; de wiringfixture bewaakt projectisolatie,
+  # FT_STATICTYPE, DEL-DEL en de verplichte TASKACTV-mutatietelling.
+  XERMETADATAWIRINGCHECK="$DIR/.xer-metadata-wiring.mjs"
+  if bundle_check "$DIR/check-xer-metadata-wiring.ts" "$XERMETADATAWIRINGCHECK"; then node "$XERMETADATAWIRINGCHECK" || STATUS=1; fi
+
+  # X8: onafhankelijke ruwe tellingen plus de twee zware openbare performanceprofielen.
+  XERMETADATACORPUSCHECK="$DIR/.xer-metadata-corpus.mjs"
+  if bundle_check "$DIR/check-xer-metadata-corpus.ts" "$XERMETADATACORPUSCHECK"; then
+    node "$XERMETADATACORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X6: onafhankelijke, hashgepinde corpusmeting. Deze draait eenmaal met expliciete GC, zodat
   # parser- en kernheapdelta's vergelijkbaar blijven en nooit in de tijdzonematrix vallen.
   XERRESOURCECORPUSCHECK="$DIR/.xer-resource-corpus.mjs"

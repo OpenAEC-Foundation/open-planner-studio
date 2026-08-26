@@ -152,9 +152,15 @@ function cloneXerResourceMetadata(source: XerResourceMetadata): XerResourceMetad
 }
 
 function cloneXerImportMetadata(source: XerImportMetadata): XerImportMetadata {
-  const { resources, ...withoutResources } = source;
-  const clone = deepClone(withoutResources);
-  return resources ? { ...clone, resources: cloneXerResourceMetadata(resources) } : clone;
+  const { resources, metadata, ...withoutCatalogs } = source;
+  const clone = deepClone(withoutCatalogs);
+  // X6/X8-catalogi zijn bestandsbreed, readonly brondata. Een documentduplicaat krijgt zijn eigen
+  // mutable projectmetadata maar nooit een tweede kopie van grote TASKRSRC/TASKACTV-catalogi.
+  return {
+    ...clone,
+    ...(resources ? { resources: cloneXerResourceMetadata(resources) } : {}),
+    ...(metadata ? { metadata } : {}),
+  };
 }
 
 /** `"Basis (variant 3)"` → `"Basis"`; een naam zonder variant-suffix blijft ongewijzigd. Zo blijft de
