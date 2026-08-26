@@ -14,6 +14,7 @@ export interface GridCellProps {
   pinnedLeft?: number;
   onPointerDown?: (cell: GridCellAddress, event: React.PointerEvent<HTMLDivElement>) => void;
   onDoubleClick?: (cell: GridCellAddress, event: React.MouseEvent<HTMLDivElement>) => void;
+  onContextMenu?: (cell: GridCellAddress, event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 export function GridCell({
@@ -28,6 +29,7 @@ export function GridCell({
   pinnedLeft,
   onPointerDown,
   onDoubleClick,
+  onContextMenu,
 }: GridCellProps) {
   const { registerCell } = useTaskGridContext();
   const ref = useCallback((node: HTMLDivElement | null) => {
@@ -64,6 +66,7 @@ export function GridCell({
       }}
       onPointerDown={event => onPointerDown?.(cell, event)}
       onDoubleClick={event => onDoubleClick?.(cell, event)}
+      onContextMenu={event => onContextMenu?.(cell, event)}
     >
       <span className="task-grid-cell-content">{model.content ?? model.text}</span>
       {model.statusText && <span className="sr-only">{model.statusText}</span>}

@@ -14,6 +14,11 @@ import type {
   ViewState, TimeScale, AppSlice, FilterNode, GroupLevel, SortLevel,
   SplitViewState, Layout,
 } from './types';
+import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
+import {
+  captureViewLayoutHistoryState,
+  type SessionHistoryDelta,
+} from '../sessionHistory';
 
 /** De invoer van de rijen-pijplijn op één plek: zo kunnen `recomputeViewRows` en de
  *  "alle banden"-acties niet uit elkaar lopen over welke weergave-instellingen gelden. */
@@ -258,6 +263,14 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   },
 
   applyLayout: (layout) => {
+    const beforeState = get();
+    const documentId = beforeState.activeDocumentId;
+    const surface = taskGridSurfaceForRibbonTab(beforeState.ui.activeRibbonTab);
+    const viewBefore = captureViewLayoutHistoryState(beforeState.view);
+    const gridBefore = {
+      columns: beforeState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
+      scrollX: beforeState.taskGridSurfaces[surface].scrollX,
+    };
     set((s) => {
       s.view.group = layout.group;
       s.view.sort = layout.sort;
@@ -266,5 +279,19 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
     get().applyTaskGridLayoutColumns(layout.columns);
     get().setTimeScale(layout.timeScale);
     get().recomputeViewRows();
+    const afterState = get();
+    const viewAfter = captureViewLayoutHistoryState(afterState.view);
+    const gridAfter = {
+      columns: afterState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
+      scrollX: afterState.taskGridSurfaces[surface].scrollX,
+    };
+    const deltas: SessionHistoryDelta[] = [];
+    if (documentId && JSON.stringify(viewBefore) !== JSON.stringify(viewAfter)) {
+      deltas.push({ kind: 'document-view', documentId, before: viewBefore, after: viewAfter });
+    }
+    if (JSON.stringify(gridBefore) !== JSON.stringify(gridAfter)) {
+      deltas.push({ kind: 'grid-preference', surface, before: gridBefore, after: gridAfter });
+    }
+    if (deltas.length > 0) afterState.recordSessionHistoryEvent(`Layout ${layout.name} toepassen`, deltas);
   },
 });

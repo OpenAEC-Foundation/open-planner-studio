@@ -88,6 +88,8 @@ export interface ColumnChooserProps {
   labels: ColumnChooserLabels;
   beforeOpen?: () => boolean;
   onChoose: (option: TaskGridColumnOption) => boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function nextFrame(callback: () => void): void {
@@ -102,8 +104,15 @@ export function ColumnChooser({
   labels,
   beforeOpen,
   onChoose,
+  open: controlledOpen,
+  onOpenChange,
 }: ColumnChooserProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
   const [query, setQuery] = useState('');
   const [openCategories, setOpenCategories] = useState<Set<TaskColumnCategory>>(() => new Set());
   const [panelPosition, setPanelPosition] = useState<CSSProperties | null>(null);

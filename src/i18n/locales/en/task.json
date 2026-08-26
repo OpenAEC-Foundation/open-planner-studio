@@ -17,7 +17,46 @@
     "milestone": "Milestone",
     "hoursPerDayTip": "h/day",
     "mixedWarning": "Mixed calendars — hours/day per calendar: {{list}}. Duration is shown per task in its own unit.",
-    "activeDuring": "In progress"
+    "activeDuring": "In progress",
+    "addColumn": "Add column",
+    "chooseColumn": "Choose column",
+    "recentColumns": "Recently used",
+    "noColumns": "Use + to add a column.",
+    "toggleSummary": "Expand or collapse summary task",
+    "calculatedReadOnly": "This calculated column cannot be edited."
+  },
+  "taskGrid": {
+    "category": {
+      "task": "Task",
+      "planning": "Planning",
+      "constraints": "Constraints",
+      "relations": "Relations",
+      "resources": "Resources",
+      "progress": "Progress",
+      "computed": "Calculated",
+      "baseline": "Baseline",
+      "custom": "Custom",
+      "technical": "Technical"
+    },
+    "status": {
+      "stale": "outdated"
+    },
+    "validation": {
+      "readOnly": "This calculated column cannot be edited.",
+      "invalid": "The entered value is not valid."
+    },
+    "controls": {
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "resize": "Resize",
+      "remove": "Remove",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "autoFit": "Auto fit",
+      "search": "Search",
+      "searchResults": "Search results",
+      "noResults": "No results"
+    }
   },
   "taskType": {
     "CONSTRUCTION": "Construction",

@@ -15,6 +15,10 @@ export interface DataGridDataRowModel {
   rowKey: string;
   depth: number;
   dimmed?: boolean;
+  selected?: boolean;
+  traceClass?: string | null;
+  dropZone?: 'before' | 'after' | 'nest' | null;
+  dragging?: boolean;
 }
 
 export interface DataGridGroupRowModel {

@@ -9,7 +9,7 @@ import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
 import { StatusBar } from '@/components/layout/StatusBar/StatusBar';
 import { TooltipHost } from '@/components/common/Tooltip';
 import { GanttCanvas } from '@/components/canvas/GanttCanvas';
-import { TableEditor } from '@/components/panels/TableEditor';
+import { FullTaskGrid } from '@/components/task-grid/FullTaskGrid';
 import { ResourcePanel } from '@/components/panels/ResourcePanel';
 import { RelationsPanel } from '@/components/panels/RelationsPanel';
 import { PresentationHint } from '@/components/layout/PresentationHint';
@@ -39,7 +39,7 @@ import { NotificationHost } from '@/components/layout/NotificationHost';
 // Code-splitting (pakket E2): componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
 // overlay renderen worden lazy geladen, zodat hun code niet in de eager first-load-bundel zit maar
 // pas wordt opgehaald bij openen. De altijd-gemounte chrome (TitleBar/Ribbon/StatusBar/GanttCanvas/
-// TaskPropertiesPanel/TableEditor/Resource-/Relations-panelen/DocumentChrome) blijft eager. Named
+// TaskPropertiesPanel/FullTaskGrid/Resource-/Relations-panelen/DocumentChrome) blijft eager. Named
 // exports ⇒ .then(m => ({ default: m.X })). Gedrag (welke conditie toont wat, welke props) ongewijzigd;
 // elke lazy-render zit in een <Suspense fallback={null}> — een dialoog/overlay die 1 frame later
 // verschijnt is prima.
@@ -276,11 +276,11 @@ function AppContent() {
             className="ui-card flex-1 flex overflow-hidden"
             {...(activeTab === 'report' ? { 'data-tour-anchor': 'report-panel' } : {})}
           >
-            {showResourcePanel ? (
+            {showResourcePanel && !resourcePanelDocked ? (
               <ResourcePanel />
             ) : (
               <Suspense fallback={null}>
-                {activeTab === 'table' && <TableEditor />}
+                {activeTab === 'table' && <FullTaskGrid />}
                 {activeTab === 'relations' && <RelationsPanel />}
                 {activeTab === 'ifc' && <IFCPanel />}
                 {activeTab === 'report' && <ReportPanel />}
@@ -301,7 +301,7 @@ function AppContent() {
             (dat deel van architect-besluit 5 staat overeind); nieuw is enkel de verticale as. Staat
             geen van beide panelen aan, dan is er geen kolom — vandaar `railHasPanel` hier en niet
             een lege `ui-card` in `RightRail`. Alle overige mechaniek zit in `RightRail`. */}
-        {!isFullPanel && railHasPanel && <RightRail />}
+        {(!isFullPanel || activeTab === 'table') && railHasPanel && <RightRail />}
       </div>
         </div>{/* /werkruimte-kolom */}
       </div>{/* /body-rij */}
@@ -330,7 +330,7 @@ function AppContent() {
         {showLevelingDialog && <LevelingDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
-        {showColumnsDialog && <ColumnsDialog />}
+        {showColumnsDialog && activeTab !== 'table' && <ColumnsDialog />}
         {showFilterDialog && <FilterDialog />}
         {showLayoutsDialog && <LayoutsDialog />}
         {showShortcutsDialog && <ShortcutsDialog />}

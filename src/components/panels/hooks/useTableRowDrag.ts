@@ -37,7 +37,7 @@ export interface TableRowDragState {
 
 export interface UseTableRowDragOptions {
   /** De VOLLEDIGE `viewRows` (inclusief groepsrijen) — `resolveDropTarget` indexeert hierin. */
-  rows: ViewRow[];
+  rows: readonly ViewRow[];
   tasksById: Map<string, Task>;
   moveTaskTo: (id: string, target: DropTarget) => void;
   /** Issue #26 (vervolgmelding): de huidige selectie. Sleep je een rij die daar deel van uitmaakt

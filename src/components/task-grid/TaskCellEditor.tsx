@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GridCellAddress } from '@/engine/taskGrid/selection';
 import type { TaskGridAdapter, TaskGridAdapterEventTarget } from '@/engine/taskGrid/taskGridAdapter';
 import type { ResourceCurve } from '@/types/resource';
@@ -91,6 +91,9 @@ export interface TaskCellEditorProps {
   onCancel: () => void;
   onFocusCell: (cell: GridCellAddress) => void;
   nextCell?: GridCellAddress;
+  previousCell?: GridCellAddress;
+  initialText?: string;
+  onCommitReady?: (commit: (() => GridEditorCommitResult) | null) => void;
 }
 
 /**
@@ -106,10 +109,13 @@ export function TaskCellEditor({
   onCancel,
   onFocusCell,
   nextCell,
+  previousCell,
+  initialText,
+  onCommitReady,
 }: TaskCellEditorProps) {
   const initialCell = adapter.getCell(cell.rowKey, cell.columnId);
   const [text, setText] = useState(
-    () => initialCell?.editText ?? '',
+    () => initialText ?? initialCell?.editText ?? '',
   );
   const [assignmentTokens, setAssignmentTokens] = useState<TaskAssignmentToken[]>(() => (
     Array.isArray(initialCell?.value)
@@ -129,21 +135,33 @@ export function TaskCellEditor({
   useEffect(() => {
     const node = inputRef.current;
     node?.focus();
-    if (node instanceof HTMLInputElement) node.select();
-  }, [cell.rowKey, cell.columnId]);
+    if (node instanceof HTMLInputElement) {
+      if (initialText === undefined) node.select();
+      else node.setSelectionRange(node.value.length, node.value.length);
+    }
+  }, [cell.rowKey, cell.columnId, initialText]);
+
+  const commit = useCallback((shiftKey = false): GridEditorCommitResult => {
+    const result = commitTaskCellEditorValue({
+      adapter, cell, text, messageForError,
+      ...(isAssignmentEditor ? { directValue: assignmentTokens } : {}),
+    });
+    const destination = shiftKey ? previousCell : nextCell;
+    return result.ok && destination ? { ...result, nextCell: destination } : result;
+  }, [adapter, assignmentTokens, cell, isAssignmentEditor, messageForError, nextCell, previousCell, text]);
+
+  useEffect(() => {
+    if (!onCommitReady) return;
+    onCommitReady(() => commit(false));
+    return () => onCommitReady(null);
+  }, [commit, onCommitReady]);
 
   return (
     <GridEditorHost
       cell={cell}
       onCancel={onCancel}
       onFocusCell={onFocusCell}
-      onCommit={() => {
-        const result = commitTaskCellEditorValue({
-          adapter, cell, text, messageForError,
-          ...(isAssignmentEditor ? { directValue: assignmentTokens } : {}),
-        });
-        return result.ok && nextCell ? { ...result, nextCell } : result;
-      }}
+      onCommit={commit}
     >
       {inputProps => (
         isAssignmentEditor ? (

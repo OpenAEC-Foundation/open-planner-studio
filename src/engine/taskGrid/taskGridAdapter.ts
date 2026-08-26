@@ -28,7 +28,14 @@ export interface TaskGridAdapterColumn {
 }
 
 export type TaskGridAdapterRow =
-  | { kind: 'data'; rowKey: string; depth: number; dimmed?: boolean }
+  | {
+      kind: 'data';
+      rowKey: string;
+      depth: number;
+      dimmed?: boolean;
+      selected?: boolean;
+      traceClass?: string | null;
+    }
   | { kind: 'group'; rowKey: string; label: string; count: number; depth: number; collapsed: boolean };
 
 export interface TaskGridTaskRowMeta {
@@ -98,6 +105,7 @@ export interface CreateTaskGridAdapterInput {
   wbsAutoNumber: boolean;
   selectedTaskIds: readonly string[] | ReadonlySet<string>;
   labelForColumn: (labelKey: string) => string;
+  labelForBoolean?: (value: boolean) => string;
   traceClassForTask?: (task: Task) => string | null;
   effectiveHoursPerDay?: (task: Task) => number;
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
@@ -255,6 +263,8 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       rowKey: row.rowKey,
       depth: row.depth,
       dimmed: row.dimmed,
+      selected: selectedTaskIds.has(row.task.id),
+      traceClass: input.traceClassForTask?.(row.task) ?? null,
     };
   });
   const availableColumns = descriptors.map<TaskGridAdapterColumn>(descriptor => ({
@@ -290,7 +300,9 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       : descriptor.readOnly;
     const stale = context.scheduleStale && descriptor.category === 'computed';
     return {
-      text: descriptor.format(value, task, context),
+      text: typeof value === 'boolean' && input.labelForBoolean
+        ? input.labelForBoolean(value)
+        : descriptor.format(value, task, context),
       value,
       copyText: descriptor.copy(task, context),
       editText: descriptor.editText?.(task, context)

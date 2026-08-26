@@ -935,15 +935,8 @@ export function TimeScaleGroupContent() {
 /**
  * Kolommen-knop — gedeelde binding voor de Beeld-tab (kleine knop) en de Tabel-tab (grote knop).
  *
- * De dialoog schrijft naar de persoonlijke `full-task-grid`-voorkeur, en die leest **alleen**
- * `TableEditor`. De takenlijst
- * naast de Gantt tekent drie vaste kolommen (WBS, naam, duur) in `GanttRenderer` en trekt zich er
- * niets van aan. `TableEditor` is bovendien alleen gemount op de Tabel-tab (`App.tsx`), dus wie de
- * knop vanaf de Beeld-tab gebruikt ziet per definitie niets veranderen. Dat verraste de melder.
- *
- * Zelfde aanpak als de dynamische tooltips uit issue #40/#49 (`ribbon.relationHint*`,
- * `ribbon.taskHint*`): de tooltip zegt vooraf wáár het effect landt, in plaats van achteraf uit te
- * leggen wat er niet gebeurde.
+ * De Tabel-surface bezit de ene gedeelde `ColumnChooser`. Vanaf Beeld schakelt deze binding daarom
+ * eerst naar Tabel en opent vervolgens diezelfde kiezer; er bestaat geen tweede kolomdefinitie meer.
  */
 export function useColumnsButtonBinding() {
   const { t: tMenu } = useTranslation('menu');
@@ -952,7 +945,7 @@ export function useColumnsButtonBinding() {
   const tableVisible = useAppStore(s => s.ui.activeRibbonTab === 'table' && !s.ui.showResourcePanel);
   return {
     title: tMenu(tableVisible ? 'ribbon.columnsHintTable' : 'ribbon.columnsHintGoToTable'),
-    onClick: () => setUI({ showColumnsDialog: true }),
+    onClick: () => setUI({ activeRibbonTab: 'table', showColumnsDialog: true }),
   };
 }
 

@@ -17,7 +17,46 @@
     "milestone": "Mijlpaal",
     "hoursPerDayTip": "u/dag",
     "mixedWarning": "Gemengde kalenders — uren/dag per kalender: {{list}}. Duur wordt per taak in de eigen eenheid getoond.",
-    "activeDuring": "In uitvoering"
+    "activeDuring": "In uitvoering",
+    "addColumn": "Kolom toevoegen",
+    "chooseColumn": "Kolom kiezen",
+    "recentColumns": "Laatst gebruikt",
+    "noColumns": "Voeg met + een kolom toe.",
+    "toggleSummary": "Samenvatting in- of uitklappen",
+    "calculatedReadOnly": "Deze berekende kolom kan niet worden bewerkt."
+  },
+  "taskGrid": {
+    "category": {
+      "task": "Taak",
+      "planning": "Planning",
+      "constraints": "Beperkingen",
+      "relations": "Relaties",
+      "resources": "Resources",
+      "progress": "Voortgang",
+      "computed": "Berekend",
+      "baseline": "Baseline",
+      "custom": "Aangepast",
+      "technical": "Technisch"
+    },
+    "status": {
+      "stale": "verouderd"
+    },
+    "validation": {
+      "readOnly": "Deze berekende kolom kan niet worden bewerkt.",
+      "invalid": "De ingevoerde waarde is niet geldig."
+    },
+    "controls": {
+      "collapse": "Inklappen",
+      "expand": "Uitklappen",
+      "resize": "Breedte wijzigen",
+      "remove": "Verwijderen",
+      "pin": "Vastzetten",
+      "unpin": "Losmaken",
+      "autoFit": "Automatisch passend maken",
+      "search": "Zoeken",
+      "searchResults": "Zoekresultaten",
+      "noResults": "Geen resultaten"
+    }
   },
   "taskType": {
     "CONSTRUCTION": "Bouw",

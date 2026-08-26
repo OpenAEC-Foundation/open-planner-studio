@@ -311,10 +311,8 @@ const scheduleGroup: RibbonGroupSpec = {
 };
 
 /**
- * Kolommen-groep op de Tabel-tab. De dialoog stuurt uitsluitend de kolommen van de Tabel-weergave
- * aan (de persoonlijke `full-task-grid`-voorkeur), dus dit is de enige tab waar hij direct zichtbaar effect
- * heeft. Hij blijft ook op de Beeld-tab staan — daar hoort hij bij Filteren/Groeperen/Sorteren —
- * maar met een tooltip die zegt waar het effect landt (zie `useColumnsButtonBinding`).
+ * Kolommen-groep op de Tabel-tab. De knop opent dezelfde gedeelde kiezer als de primaire plus in
+ * het grid; vanaf Beeld schakelt de gedeelde binding eerst naar deze surface.
  */
 const tableColumnsGroup: RibbonGroupSpec = {
   // Groepskop zonder beletselteken (`menu:ribbon.columns` is "Kolommen…", een knoplabel);
@@ -801,6 +799,7 @@ const tableTab: RibbonTabConfig = [
   editGroup,
   tasksGroup,
   scheduleGroup,
+  traceGroup,
   tableColumnsGroup,
 ];
 

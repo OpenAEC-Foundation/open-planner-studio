@@ -16,7 +16,7 @@ export interface GridEditorHostProps {
   cell: GridCellAddress;
   error?: DataGridError;
   onCancel: () => void;
-  onCommit: () => GridEditorCommitResult;
+  onCommit: (shiftKey: boolean) => GridEditorCommitResult;
   onFocusCell: (cell: GridCellAddress) => void;
   children: (inputProps: GridEditorInputProps) => ReactNode;
 }
@@ -46,7 +46,7 @@ export function GridEditorHost({
     if (event.key !== 'Enter') return;
     event.preventDefault();
     event.stopPropagation();
-    const result = onCommit();
+    const result = onCommit(event.shiftKey);
     if (!result.ok) {
       setCurrentError(result.error);
       grid?.announce(result.error.message);

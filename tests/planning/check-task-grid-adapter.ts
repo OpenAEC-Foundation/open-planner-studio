@@ -47,6 +47,11 @@ const table = createTaskGridAdapter({ ...baseInput, surfaceId: 'full-task-grid' 
 const personalDates = createTaskGridAdapter({
   ...baseInput, surfaceId: 'full-task-grid', dateNotation: 'dmy',
 });
+const englishBooleans = createTaskGridAdapter({
+  ...baseInput,
+  surfaceId: 'full-task-grid',
+  labelForBoolean: value => value ? 'Yes' : 'No',
+});
 
 eq('Beide surfaces krijgen exact dezelfde rijprojectie', gantt.rows, table.rows);
 eq('Beide surfaces krijgen exact dezelfde beschikbare kolommen', gantt.availableColumns, table.availableColumns);
@@ -85,6 +90,9 @@ eq('Berekende cel meldt stale zowel visueel als toegankelijk', (() => {
 eq('Boolean-editor krijgt een taalneutrale canonieke startwaarde',
   personalDates.getCell('occurrence-a', taskColumnId('task.isMilestone'))?.editText,
   'false');
+eq('Booleans krijgen voor schermweergave het locale label van de surface',
+  englishBooleans.getCell('occurrence-a', taskColumnId('task.isMilestone'))?.text,
+  'No');
 eq('Datumeditor start in de persoonlijke notatie',
   personalDates.getCell('occurrence-a', taskColumnId('task.time.scheduleStart'))?.editText,
   '01-01-2026');

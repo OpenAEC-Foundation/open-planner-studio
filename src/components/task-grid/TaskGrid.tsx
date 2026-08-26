@@ -59,6 +59,8 @@ export interface TaskGridProps extends CoreProps {
   beforeColumnAction?: () => boolean;
   /** De adapter scant alle actuele taak-occurrences en geeft null terug als de bron onderweg verdwijnt. */
   onComputeAutoFitWidth?: (columnId: TaskColumnId) => Promise<number | null>;
+  chooserOpen?: boolean;
+  onChooserOpenChange?: (open: boolean) => void;
 }
 
 function sameColumns(
@@ -88,6 +90,8 @@ export function TaskGrid({
   onRecordRecentColumn,
   beforeColumnAction,
   onComputeAutoFitWidth,
+  chooserOpen,
+  onChooserOpenChange,
   ...coreProps
 }: TaskGridProps) {
   const [previewWidths, setPreviewWidths] = useState<ReadonlyMap<TaskColumnId, number>>(
@@ -209,6 +213,8 @@ export function TaskGrid({
         recentIds={recentColumnIds}
         visibleIds={visibleIds}
         labels={labels.chooser}
+        open={chooserOpen}
+        onOpenChange={onChooserOpenChange}
         beforeOpen={allowAction}
         onChoose={option => {
           const added = commitAction(

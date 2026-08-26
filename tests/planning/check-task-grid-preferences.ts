@@ -389,6 +389,30 @@ eq('Layout toepassen op Gantt laat de Tabel-surface volledig ongemoeid',
 eq('Layouttoepassing blijft gebruikersstate en zet het project niet dirty',
   store.getState().isDirty, dirtyBefore);
 
+const compoundStore = createAppStore();
+compoundStore.getState().hydrateTaskGridPreferences(defaults);
+compoundStore.getState().setUI({ activeRibbonTab: 'table' });
+const compoundBeforeView = JSON.stringify(compoundStore.getState().view);
+const compoundBeforeGrid = JSON.stringify(compoundStore.getState().taskGridSurfaces['full-task-grid']);
+compoundStore.getState().applyLayout({
+  id: 'compound-layout',
+  name: 'Compound',
+  columns: [{ id: taskColumnId('task.name'), width: 333, pinned: true }],
+  group: [],
+  sort: [],
+  filter: null,
+  timeScale: 'month',
+});
+const compoundEvents = compoundStore.getState().historyEvents;
+const compoundEvent = compoundEvents[compoundEvents.length - 1];
+eq('Layoutapply publiceert documentview en surfacevoorkeur als één compound event',
+  compoundEvent?.deltas.map(delta => delta.kind), ['document-view', 'grid-preference']);
+compoundStore.getState().undo();
+eq('Eén undo herstelt de documentview van vóór de layout',
+  JSON.stringify(compoundStore.getState().view), compoundBeforeView);
+eq('Dezelfde undo herstelt ook de volledige surfacevoorkeur',
+  JSON.stringify(compoundStore.getState().taskGridSurfaces['full-task-grid']), compoundBeforeGrid);
+
 storage.clear();
 const oldLayouts: unknown[] = [{
   id: 'legacy-layout', name: 'Oud', columns: legacyDocumentColumns,

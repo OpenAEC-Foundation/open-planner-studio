@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type UIEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type UIEvent,
+} from 'react';
 import { computeVirtualWindow, minimalScrollTopForRow } from '@/engine/taskGrid/virtualization';
 import { resolveTaskGridCommand, type TaskGridCommand } from '@/engine/taskGrid/navigation';
 import { DataGridHeader, computePinnedColumnLayout, type DataGridHeaderProps } from './DataGridHeader';
@@ -24,15 +32,34 @@ export interface DataGridCoreProps {
   viewportHeight: number;
   viewportWidth: number;
   scrollTop: number;
+  scrollLeft?: number;
   overscan?: number;
   mode?: 'select' | 'edit';
   getCell: (row: DataGridDataRowModel, column: DataGridColumnModel) => DataGridCellModel;
   labels: DataGridLabels;
   onScrollTopChange?: (scrollTop: number) => void;
+  onScrollLeftChange?: (scrollLeft: number) => void;
   onToggleGroup?: (rowKey: string, collapsed: boolean) => void;
   onCommand?: (command: TaskGridCommand) => void;
   onCellPointerDown?: (cell: GridCellAddress, event: React.PointerEvent<HTMLDivElement>) => void;
   onCellDoubleClick?: (cell: GridCellAddress, event: React.MouseEvent<HTMLDivElement>) => void;
+  onCellContextMenu?: (cell: GridCellAddress, event: React.MouseEvent<HTMLDivElement>) => void;
+  onDataRowMouseDown?: (
+    row: DataGridDataRowModel,
+    absoluteIndex: number,
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => void;
+  onDataRowMouseMove?: (
+    row: DataGridDataRowModel,
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => void;
+  onDataRowMouseLeave?: (row: DataGridDataRowModel) => void;
+  onGroupContextMenu?: (
+    row: Extract<DataGridRowModel, { kind: 'group' }>,
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => void;
+  onCopy?: (event: React.ClipboardEvent<HTMLDivElement>) => void;
+  onPaste?: (event: React.ClipboardEvent<HTMLDivElement>) => void;
   onResizeStart?: DataGridHeaderProps['onResizeStart'];
   onResizePreview?: DataGridHeaderProps['onResizePreview'];
   onResizeCommit?: DataGridHeaderProps['onResizeCommit'];
@@ -81,15 +108,24 @@ export function DataGridCore({
   viewportHeight,
   viewportWidth,
   scrollTop,
+  scrollLeft = 0,
   overscan,
   mode = 'select',
   getCell,
   labels,
   onScrollTopChange,
+  onScrollLeftChange,
   onToggleGroup,
   onCommand,
   onCellPointerDown,
   onCellDoubleClick,
+  onCellContextMenu,
+  onDataRowMouseDown,
+  onDataRowMouseMove,
+  onDataRowMouseLeave,
+  onGroupContextMenu,
+  onCopy,
+  onPaste,
   onResizeStart,
   onResizePreview,
   onResizeCommit,
@@ -104,6 +140,10 @@ export function DataGridCore({
   const pendingFocusKeyRef = useRef<string | null>(null);
   const lastRequestedActiveKeyRef = useRef<string | null>(null);
   const [announcedMessage, setAnnouncedMessage] = useState('');
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container && container.scrollLeft !== scrollLeft) container.scrollLeft = scrollLeft;
+  }, [scrollLeft]);
   const virtual = useMemo(() => computeVirtualWindow({
     totalRows: rows.length,
     rowHeight,
@@ -234,6 +274,7 @@ export function DataGridCore({
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
     onScrollTopChange?.(event.currentTarget.scrollTop);
+    onScrollLeftChange?.(event.currentTarget.scrollLeft);
   };
 
   return (
@@ -256,6 +297,8 @@ export function DataGridCore({
         style={{ width: viewportWidth, height: headerHeight + viewportHeight }}
         onScroll={handleScroll}
         onKeyDown={handleKeyDown}
+        onCopy={onCopy}
+        onPaste={onPaste}
       >
         <DataGridHeader
           columns={columns}
@@ -288,6 +331,7 @@ export function DataGridCore({
                   aria-rowindex={mounted.ariaRowIndex}
                   className="task-grid-group-row"
                   style={{ height: rowHeight, minWidth: totalWidth }}
+                  onContextMenu={event => onGroupContextMenu?.(row, event)}
                 >
                   {columns.length > 0 && (
                     <div
@@ -321,9 +365,16 @@ export function DataGridCore({
                 aria-rowindex={mounted.ariaRowIndex}
                 data-grid-data-row="true"
                 data-grid-row-key={row.rowKey}
+                data-ops-row-index={mounted.index}
                 data-grid-dimmed={row.dimmed ? 'true' : undefined}
-                className="task-grid-data-row"
+                data-grid-row-selected={row.selected ? 'true' : undefined}
+                data-grid-drop-zone={row.dropZone ?? undefined}
+                data-grid-dragging={row.dragging ? 'true' : undefined}
+                className={`task-grid-data-row${row.traceClass ? ` ${row.traceClass}` : ''}`}
                 style={{ height: rowHeight, minWidth: totalWidth, gridTemplateColumns: template }}
+                onMouseDown={event => onDataRowMouseDown?.(row, mounted.index, event)}
+                onMouseMove={event => onDataRowMouseMove?.(row, event)}
+                onMouseLeave={() => onDataRowMouseLeave?.(row)}
               >
                 {columns.map((column, columnIndex) => {
                   const cell = { rowKey: row.rowKey, columnId: column.id };
@@ -341,6 +392,7 @@ export function DataGridCore({
                       pinnedLeft={pinned.leftByColumnId.get(column.id)}
                       onPointerDown={onCellPointerDown}
                       onDoubleClick={onCellDoubleClick}
+                      onContextMenu={onCellContextMenu}
                     />
                   );
                 })}

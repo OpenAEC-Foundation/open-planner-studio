@@ -876,15 +876,15 @@ function runSourceParity(): string[] {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const read = (p: string) => readFileSync(join(root, p), 'utf8');
   const sources: [string, string][] = [
-    ['src/components/panels/TableEditor.tsx', read('src/components/panels/TableEditor.tsx')],
+    ['src/components/task-grid/FullTaskGrid.tsx', read('src/components/task-grid/FullTaskGrid.tsx')],
     ['src/components/canvas/GanttCanvas.tsx', read('src/components/canvas/GanttCanvas.tsx')],
     ['src/engine/renderer/GanttRenderer.ts', read('src/engine/renderer/GanttRenderer.ts')],
   ];
   // (a) beide consumenten lezen dezelfde store-cache.
-  for (const name of ['TableEditor.tsx', 'GanttCanvas.tsx']) {
+  for (const name of ['FullTaskGrid.tsx', 'GanttCanvas.tsx']) {
     const [, src] = sources.find(([p]) => p.endsWith(name))!;
-    if (!/useAppStore\(s => s\.viewRows\)/.test(src)) {
-      diffs.push(`${name}: leest niet uit de gedeelde store-cache (useAppStore(s => s.viewRows))`);
+    if (!/useAppStore\((?:s|state) => (?:s|state)\.viewRows\)/.test(src)) {
+      diffs.push(`${name}: leest niet uit de gedeelde store-cache (useAppStore(... => ...viewRows))`);
     }
   }
   // (b) geen tweede flatten-pad meer.

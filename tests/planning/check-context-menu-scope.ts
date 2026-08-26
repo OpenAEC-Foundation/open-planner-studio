@@ -20,6 +20,8 @@
 // MOET als eerste staan: `shortcutRegistry` trekt `@/i18n/config` binnen, dat bij het laden al
 // `document.documentElement.dir` aanraakt.
 import './domShim';
+import fs from 'node:fs';
+import path from 'node:path';
 import { useAppStore } from '@/state/appStore';
 import { contextMenuOutlineScope, contextMenuBulk } from '@/components/canvas/contextMenuScope';
 import {
@@ -40,6 +42,19 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 
 const task = (id: string): Task | undefined => S().tasks.find(t => t.id === id);
+
+const fullTaskGridSource = fs.readFileSync(
+  path.join(process.cwd(), 'src/components/task-grid/FullTaskGrid.tsx'),
+  'utf8',
+);
+eq('00 FullTaskGrid gebruikt dezelfde contextmenu-bulkroute als de Gantt',
+  /contextMenuBulk\.remove/.test(fullTaskGridSource)
+    && /contextMenuBulk\.indent/.test(fullTaskGridSource)
+    && /contextMenuOutlineScope/.test(fullTaskGridSource),
+  true);
+eq('00b rechtermuisknop loopt niet eerst door de gewone celselectie heen',
+  /const selectCell[\s\S]*if \(event\.button !== 0\) return;[\s\S]*const gesture/.test(fullTaskGridSource),
+  true);
 
 /** Verse projectstate met vier root-taken; B/C/D worden de selectie, A blijft de controle. */
 function verseVier(): { a: string; b: string; c: string; d: string } {

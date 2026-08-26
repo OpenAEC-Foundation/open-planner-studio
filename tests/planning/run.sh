@@ -295,6 +295,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-grid-editors.ts" "$TGEDITORSCHECK"; then node "$TGEDITORSCHECK" || STATUS=1; fi
   TGASSIGNMENTSCHECK="$DIR/.task-grid-assignments.mjs"
   if bundle_check "$DIR/check-task-grid-assignments.ts" "$TGASSIGNMENTSCHECK"; then node "$TGASSIGNMENTSCHECK" || STATUS=1; fi
+  TGFULLSURFACECHECK="$DIR/.full-task-grid-surface.mjs"
+  if bundle_check "$DIR/check-full-task-grid-surface.ts" "$TGFULLSURFACECHECK"; then node "$TGFULLSURFACECHECK" || STATUS=1; fi
 
   # Gantt-cull-regressie: de speling-band mag niet verdwijnen zolang hij zichtbaar is. De cull in
   # drawTaskBar keek alleen naar de BALK-extent, terwijl de band ná de balk doorloopt — een band die
