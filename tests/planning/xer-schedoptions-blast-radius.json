@@ -774,8 +774,8 @@
         0,
         16,
         12,
-        12,
-        9,
+        13,
+        10,
         0
       ],
       "xerDefaultsNegativeFloatTasks": 37,
@@ -796,11 +796,11 @@
         "retainedLogic": {
           "movement": [
             67,
+            69,
+            1,
+            1,
             68,
-            1,
-            1,
-            67,
-            28,
+            29,
             0
           ],
           "chosenNegativeFloatTasks": 44,
@@ -836,10 +836,10 @@
           "movement": [
             0,
             0,
-            16,
+            15,
             12,
-            12,
-            7,
+            13,
+            8,
             0
           ],
           "chosenNegativeFloatTasks": 37,

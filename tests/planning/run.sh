@@ -239,6 +239,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERPROGRESSCHECK="$DIR/.xer-progress.mjs"
   if bundle_check "$DIR/check-xer-progress.ts" "$XERPROGRESSCHECK"; then node "$XERPROGRESSCHECK" || STATUS=1; fi
 
+  # X7: zelfstandig bronorakel voor P6 voortgang/suspend-resume, zonder productiereader.
+  XERPROGRESSCORPUSCHECK="$DIR/.xer-progress-corpus.mjs"
+  if bundle_check "$DIR/check-xer-progress-corpus.ts" "$XERPROGRESSCORPUSCHECK"; then
+    node "$XERPROGRESSCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X4b-multi-projectkern: documentselectie, aanwezige P6-baselines, volledige terugval bij
   # zelfverwijzing/cycli, solverloze cross-projectlinks en geïsoleerde documentpayloads. De twee
   # openbare acceptatiepins draaien uitsluitend wanneer OPS_XER_CORPUS beschikbaar is.
