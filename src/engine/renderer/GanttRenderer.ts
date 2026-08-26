@@ -220,7 +220,7 @@ export class GanttRenderer {
       calendar: this.projectEngine,
       compressNonWorkdays: !!opts.compressNonWorkdays,
       origin: this.viewStart,
-      taskTableWidth: opts.taskTableWidth,
+      chartOriginX: opts.taskTableWidth,
       zoom: opts.view.zoom,
       scrollX: opts.view.scrollX,
     });

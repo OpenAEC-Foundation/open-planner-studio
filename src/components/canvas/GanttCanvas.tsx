@@ -344,7 +344,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       calendar,
       compressNonWorkdays,
       viewStartDate: effectiveView.viewStartDate,
-      taskTableWidth,
+      chartOriginX: taskTableWidth,
       zoom: effectiveView.zoom,
       scrollX: effectiveView.scrollX,
     }),

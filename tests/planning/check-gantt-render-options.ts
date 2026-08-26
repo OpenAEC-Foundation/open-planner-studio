@@ -258,12 +258,12 @@ eq('02 effectiveViewStart: leeg takenlijst valt terug op viewStartDate − marge
   computeEffectiveViewStart([], '2027-03-01'), oldEffectiveViewStart([], '2027-03-01'));
 
 // 3 — sharedAxis + contentSpanDays. Twee assen (compressie aan/uit) × drie viewports. De viewports
-// met scrollX ≠ 0 en taskTableWidth ≠ 0 zitten er omdat een as die die twee negeert anders
+// met scrollX ≠ 0 en chartOriginX ≠ 0 zitten er omdat een as die die twee negeert anders
 // onopgemerkt bleef: met alles op 0 is `dateToX` er ongevoelig voor (negatieve controle gemeten).
 const VIEWPORTS = [
-  { taskTableWidth: 300, zoom: 30, scrollX: 0 },
-  { taskTableWidth: 300, zoom: 30, scrollX: 1750 },
-  { taskTableWidth: 0, zoom: 7.5, scrollX: 420 },
+  { chartOriginX: 300, zoom: 30, scrollX: 0 },
+  { chartOriginX: 300, zoom: 30, scrollX: 1750 },
+  { chartOriginX: 0, zoom: 7.5, scrollX: 420 },
 ];
 for (const compress of [false, true]) {
   const evs = computeEffectiveViewStart(tasks, '2027-03-01');
@@ -301,7 +301,7 @@ for (const compress of [false, true]) {
     365);
 }
 eq('06 contentSpanDays: leeg project ⇒ null', computeContentSpanDays([], '2027-03-01', false, buildSharedAxis({
-  calendar, compressNonWorkdays: false, viewStartDate: '2027-03-01', taskTableWidth: 0, zoom: 30, scrollX: 0,
+  calendar, compressNonWorkdays: false, viewStartDate: '2027-03-01', chartOriginX: 0, zoom: 30, scrollX: 0,
 })), null);
 
 // 7 — contentWidthFor: de bodem van 2000px en de lineaire tak.
@@ -401,7 +401,7 @@ eqDeep('19d histogramSeries: MATERIAL telt niet mee in de som over alle resource
 // ════════════════════════════════════════════════════════════════════════════
 
 const axis = buildSharedAxis({
-  calendar, compressNonWorkdays: false, viewStartDate: '2027-02-25', taskTableWidth: 300, zoom: 30, scrollX: 0,
+  calendar, compressNonWorkdays: false, viewStartDate: '2027-02-25', chartOriginX: 300, zoom: 30, scrollX: 0,
 });
 // De echte CPM-uitkomst heeft hier lege `violatedConstraintTaskIds` én `missedDeadlineTaskIds`, en
 // dan is `[]` vs `[]` geen vergelijking: je kunt de twee velden in de bouwer verwisselen en de

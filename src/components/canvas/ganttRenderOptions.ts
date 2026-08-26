@@ -86,14 +86,14 @@ export interface SharedAxisInput {
   compressNonWorkdays: boolean;
   /** ISO-datum van de EFFECTIEVE oorsprong (`computeEffectiveViewStart`), niet `view.viewStartDate`. */
   viewStartDate: string;
-  taskTableWidth: number;
+  chartOriginX: number;
   zoom: number;
   scrollX: number;
 }
 
 /**
  * Issue #21 punt 5 (fase 2, ontwerp §10.1 — BINDEND): ÉÉN gedeelde `GanttAxis`-instantie voor de
- * primaire Gantt-pane ÉN de Histogram (zelfde `taskTableWidth`/`effectiveView`, dus zelfde
+ * primaire Gantt-pane ÉN de Histogram (zelfde `chartOriginX`/`effectiveView`, dus zelfde
  * kolomindeling) — anders schuiven de resource-staafjes onder de verkeerde kolommen zodra de as
  * gecomprimeerd is.
  *
@@ -107,7 +107,7 @@ export function buildSharedAxis(input: SharedAxisInput): GanttAxis {
     calendar: engine,
     compressNonWorkdays: input.compressNonWorkdays,
     origin: parseDate(input.viewStartDate),
-    taskTableWidth: input.taskTableWidth,
+    chartOriginX: input.chartOriginX,
     zoom: input.zoom,
     scrollX: input.scrollX,
   });

@@ -175,7 +175,7 @@ for (const zoom of ZOOMS) {
 const ORIGIN = new Date(VIEW_START + 'T00:00:00.000Z');
 for (const zoom of ZOOMS) {
   for (const scrollX of SCROLLS) {
-    const axis = buildCalendarAxis({ origin: ORIGIN, taskTableWidth: TTW, zoom, scrollX });
+    const axis = buildCalendarAxis({ origin: ORIGIN, chartOriginX: TTW, zoom, scrollX });
     checks++;
     if (axis.dayIndexOf(ORIGIN) !== 0) {
       diffs.push(`CalendarAxis.dayIndexOf(origin) !== 0 bij z=${zoom} sx=${scrollX}: kreeg ${axis.dayIndexOf(ORIGIN)}`);
