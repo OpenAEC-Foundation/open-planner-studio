@@ -1885,7 +1885,13 @@ export class CPMSolver {
           // P6-vlag volledig op de gewone restduurroute.
           if (task.p6ProjectId && this.options.schedulingOptions?.useExpectedFinishDates === true
               && task.p6ExpectedFinish) {
-            const expected = this.parseIn(progressCal, task.p6ExpectedFinish);
+            const parsedExpected = this.parseIn(progressCal, task.p6ExpectedFinish);
+            // X7: date-only Expected Finish heeft dagprecisie, ook wanneer een ANDER X7-veld de
+            // taakkalender naar uurmodus promoveerde. Als finish-anker landt die datum daarom op
+            // het laatste effectieve band-einde van DEZELFDE dag; een echte timestamp blijft exact.
+            const expected = progressCal.isHourMode && !task.p6ExpectedFinish.includes('T')
+              ? this.dayLastBandEnd(progressCal, parsedExpected) ?? parsedExpected
+              : parsedExpected;
             if (!isNaN(expected.getTime())) ef = expected;
           }
           // Z8-HERWERKRONDE (LAAG 2 van de gelaagde beslistabel): een IN-PROGRESS-taak plant op haar

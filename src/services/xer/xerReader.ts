@@ -212,6 +212,11 @@ function sourceInstant(raw: string, hourMode: boolean): string | undefined {
   return formatInstant(parsed, hourMode ? 'hour' : 'day');
 }
 
+/** X7-broninstant: de vorm hoort bij dit ene veld, niet bij de kalender die een buurveld promoveert. */
+function sourceX7Instant(raw: string): string | undefined {
+  return sourceInstant(raw, hasClock(raw));
+}
+
 function activityTypeOf(
   raw: string,
   row: XerRow,
@@ -552,8 +557,8 @@ function readXerProject(
     const actualFinish = sourceInstant(row.cells.act_end_date ?? '', hourMode);
     if (actualStart) time.actualStart = actualStart;
     if (actualFinish) time.actualFinish = actualFinish;
-    const stop = sourceInstant(row.cells.suspend_date ?? '', hourMode);
-    const resume = sourceInstant(row.cells.resume_date ?? '', hourMode);
+    const stop = sourceX7Instant(row.cells.suspend_date ?? '');
+    const resume = sourceX7Instant(row.cells.resume_date ?? '');
     if (stop) time.stop = stop;
     if (resume) time.resume = resume;
     const validSuspendResume = hasValidP6SuspendResume({
@@ -561,7 +566,7 @@ function readXerProject(
       p6SuspendResume: true,
       time,
     });
-    const expectedFinish = sourceInstant(row.cells.expect_end_date ?? '', hourMode);
+    const expectedFinish = sourceX7Instant(row.cells.expect_end_date ?? '');
 
     const isStartMilestone = activityType === 'TT_Mile';
     const isFinishMilestone = activityType === 'TT_FinMile';
