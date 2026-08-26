@@ -26,7 +26,7 @@ const ISSUE_CODES = [
   'XER_UDF_MISSING_TYPE_ID', 'XER_UDF_DUPLICATE_TYPE_ID', 'XER_UDF_DUPLICATE_VALUE',
   'XER_UDF_DANGLING_TYPE', 'XER_UDF_DANGLING_ENTITY', 'XER_UDF_AMBIGUOUS_TASK',
   'XER_UDF_UNKNOWN_DATA_TYPE', 'XER_UDF_INVALID_VALUE', 'XER_UDF_DEFERRED_ENTITY',
-  'XER_NOTE_DUPLICATE_MEMO_ID', 'XER_NOTE_DANGLING_TASK', 'XER_NOTE_AMBIGUOUS_TASK',
+  'XER_NOTE_DUPLICATE_MEMO_ID', 'XER_NOTE_DANGLING_MEMO_TYPE', 'XER_NOTE_DANGLING_TASK', 'XER_NOTE_AMBIGUOUS_TASK',
 ] as const satisfies readonly XerMetadataIssueCode[];
 
 function compareText(left: string, right: string): number {
@@ -271,27 +271,41 @@ function mapNotes(
   tables: XerTables, owners: ReadonlyMap<string, readonly TaskOwner[]>, projections: Map<string, XerMetadataTaskProjection>,
   issues: XerMetadataIssue[], counts: Record<XerMetadataIssueCode, number>,
 ): void {
+  const append = (owner: TaskOwner, note: NonNullable<XerTaskMetadata['notes']>[number]) => {
+    const projection = ensureProjection(projections, owner);
+    projection.notes = [...(projection.notes ?? []), note];
+  };
+  // De notitievolgorde is een bestandscontract: TASK.task_notes eerst, daarna TASKNOTE en dan
+  // TASKMEMO; binnen elke brontabel blijft de fysieke %R-volgorde onaangeroerd. Zo is geen
+  // seq_num-interpretatie of deduplicatie nodig om gebruikersnotities stil te herschrijven.
   for (const row of tables.tables.get('TASK')?.rows ?? []) {
     if (!row.cells.task_notes) continue;
     const owner = resolveTask(row, row.cells.task_id?.trim() ?? '', owners, 'XER_NOTE_DANGLING_TASK', 'XER_NOTE_AMBIGUOUS_TASK', 'TASK', issues, counts);
     if (!owner) continue;
-    ensureProjection(projections, owner).notes = [{ id: `xer-note:task:${owner.taskId}`, text: row.cells.task_notes, done: false }];
+    append(owner, { id: `xer-note:task:${owner.taskId}`, text: row.cells.task_notes, done: false });
+  }
+  for (const row of tables.tables.get('TASKNOTE')?.rows ?? []) {
+    if (!row.cells.task_notes) continue;
+    const owner = resolveTask(row, row.cells.task_id?.trim() ?? '', owners, 'XER_NOTE_DANGLING_TASK', 'XER_NOTE_AMBIGUOUS_TASK', 'TASKNOTE', issues, counts);
+    if (!owner) continue;
+    append(owner, { id: `xer-note:tasknote:${row.line}`, text: row.cells.task_notes, done: false });
   }
   const memoTypes = new Set((tables.tables.get('MEMOTYPE')?.rows ?? []).map(row => row.cells.memo_type_id?.trim()).filter(Boolean));
-  const selected = new Map<string, XerRow>();
+  const firstMemoById = new Map<string, XerRow>();
   for (const row of tables.tables.get('TASKMEMO')?.rows ?? []) {
     const id = row.cells.memo_id?.trim() || `line-${row.line}`;
-    const previous = selected.get(id);
+    const previous = firstMemoById.get(id);
     if (previous) addIssue(issues, counts, { code: 'XER_NOTE_DUPLICATE_MEMO_ID', table: 'TASKMEMO', line: row.line, lines: [previous.line, row.line].sort((a, b) => a - b) });
-    if (!previous || compareRows(row, previous) < 0) selected.set(id, row);
+    else firstMemoById.set(id, row);
   }
-  for (const row of [...selected.values()].sort((a, b) => sequence(a) - sequence(b) || compareRows(a, b))) {
+  for (const row of tables.tables.get('TASKMEMO')?.rows ?? []) {
     if (!row.cells.task_memo) continue;
-    if (memoTypes.size > 0 && !memoTypes.has(row.cells.memo_type_id?.trim())) continue;
+    if (!memoTypes.has(row.cells.memo_type_id?.trim() ?? '')) {
+      addIssue(issues, counts, { code: 'XER_NOTE_DANGLING_MEMO_TYPE', table: 'TASKMEMO', line: row.line });
+    }
     const owner = resolveTask(row, row.cells.task_id?.trim() ?? '', owners, 'XER_NOTE_DANGLING_TASK', 'XER_NOTE_AMBIGUOUS_TASK', 'TASKMEMO', issues, counts);
     if (!owner) continue;
-    const projection = ensureProjection(projections, owner);
-    projection.notes = [...(projection.notes ?? []), { id: `xer-note:memo:${row.cells.memo_id?.trim() || `line-${row.line}`}`, text: row.cells.task_memo, done: false }];
+    append(owner, { id: `xer-note:memo:${row.cells.memo_id?.trim() || 'line'}:${row.line}`, text: row.cells.task_memo, done: false });
   }
 }
 
@@ -327,6 +341,7 @@ export function buildXerMetadataCatalog(tables: XerTables): XerMetadataCatalog {
       ACTVTYPE: tables.tables.get('ACTVTYPE')?.rows ?? [], ACTVCODE: tables.tables.get('ACTVCODE')?.rows ?? [],
       TASKACTV: tables.tables.get('TASKACTV')?.rows ?? [], UDFTYPE: tables.tables.get('UDFTYPE')?.rows ?? [],
       UDFVALUE: tables.tables.get('UDFVALUE')?.rows ?? [], MEMOTYPE: tables.tables.get('MEMOTYPE')?.rows ?? [],
+      TASKNOTE: tables.tables.get('TASKNOTE')?.rows ?? [],
       TASKMEMO: tables.tables.get('TASKMEMO')?.rows ?? [],
       TASK_NOTES: (tables.tables.get('TASK')?.rows ?? []).filter(row => Boolean(row.cells.task_notes)),
       deferredUdfValues: udf.deferred, unknownUdfTypes: udf.unknown,

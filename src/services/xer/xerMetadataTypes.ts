@@ -1,6 +1,7 @@
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type { Task } from '@/types/task';
 import type { XerRow } from './xerTables';
+import type { XerReadonly } from './xerResourceTypes';
 
 export type XerMetadataIssueCode =
   | 'XER_ACTIVITY_CODE_MISSING_TYPE_ID'
@@ -23,12 +24,13 @@ export type XerMetadataIssueCode =
   | 'XER_UDF_INVALID_VALUE'
   | 'XER_UDF_DEFERRED_ENTITY'
   | 'XER_NOTE_DUPLICATE_MEMO_ID'
+  | 'XER_NOTE_DANGLING_MEMO_TYPE'
   | 'XER_NOTE_DANGLING_TASK'
   | 'XER_NOTE_AMBIGUOUS_TASK';
 
 export interface XerMetadataIssue {
   code: XerMetadataIssueCode;
-  table: 'ACTVTYPE' | 'ACTVCODE' | 'TASKACTV' | 'UDFTYPE' | 'UDFVALUE' | 'TASK' | 'TASKMEMO';
+  table: 'ACTVTYPE' | 'ACTVCODE' | 'TASKACTV' | 'UDFTYPE' | 'UDFVALUE' | 'TASK' | 'TASKNOTE' | 'TASKMEMO';
   line: number;
   lines?: number[];
 }
@@ -49,27 +51,31 @@ export interface XerMetadataTaskProjection extends XerTaskMetadata {
  * bevroren X2-rijarrays: geen tweede celkopie, ook niet voor rehab-2's TASKACTV-massa. X9 wordt
  * eigenaar van de uiteindelijke byte-archivering; X8 bewaart hier de huidige broninformatie.
  */
-export interface XerMetadataCatalog {
-  readonly activityCodeTypes: readonly ActivityCodeType[];
-  readonly customFieldDefs: readonly CustomFieldDef[];
-  readonly taskProjections: readonly XerMetadataTaskProjection[];
+interface XerMetadataCatalogShape {
+  activityCodeTypes: ActivityCodeType[];
+  customFieldDefs: CustomFieldDef[];
+  taskProjections: XerMetadataTaskProjection[];
   /** Diep bevroren projectindex; materialisatie bezoekt uitsluitend deze projectgroep. */
-  readonly taskProjectionsByProject: Readonly<Record<string, readonly XerMetadataTaskProjection[]>>;
-  readonly issues: readonly XerMetadataIssue[];
-  readonly issueCounts: Readonly<Record<XerMetadataIssueCode, number>>;
-  readonly sourceData: {
-    readonly ACTVTYPE: readonly XerRow[];
-    readonly ACTVCODE: readonly XerRow[];
-    readonly TASKACTV: readonly XerRow[];
-    readonly UDFTYPE: readonly XerRow[];
-    readonly UDFVALUE: readonly XerRow[];
-    readonly MEMOTYPE: readonly XerRow[];
-    readonly TASKMEMO: readonly XerRow[];
-    readonly TASK_NOTES: readonly XerRow[];
-    readonly deferredUdfValues: readonly XerRow[];
-    readonly unknownUdfTypes: readonly XerRow[];
+  taskProjectionsByProject: Record<string, XerMetadataTaskProjection[]>;
+  issues: XerMetadataIssue[];
+  issueCounts: Record<XerMetadataIssueCode, number>;
+  sourceData: {
+    ACTVTYPE: XerRow[];
+    ACTVCODE: XerRow[];
+    TASKACTV: XerRow[];
+    UDFTYPE: XerRow[];
+    UDFVALUE: XerRow[];
+    MEMOTYPE: XerRow[];
+    TASKNOTE: XerRow[];
+    TASKMEMO: XerRow[];
+    TASK_NOTES: XerRow[];
+    deferredUdfValues: XerRow[];
+    unknownUdfTypes: XerRow[];
   };
 }
+
+/** X6's ene canonieke recursieve readonly-grens, nu over de volledige X8-catalogusgrafiek. */
+export type XerMetadataCatalog = XerReadonly<XerMetadataCatalogShape>;
 
 export interface XerMetadataProjectView {
   activityCodeTypes: ActivityCodeType[];

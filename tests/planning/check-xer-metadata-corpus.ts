@@ -59,6 +59,18 @@ function productProbe(path: string): ProductProbe {
   if (!line) throw new Error(`X8-geheugenprobe gaf geen meetregel terug voor ${path}.`);
   return JSON.parse(line.slice('X8_METADATA_PROBE '.length)) as ProductProbe;
 }
+/** Onafhankelijk van de product-allowlist: telt iedere %R in exact één bron-tabel. */
+function countRawTableRows(bytes: Uint8Array, wantedTable: string): number {
+  let table = '';
+  let count = 0;
+  for (const line of decode(bytes).split('\n')) {
+    const cells = line.replace(/\r$/, '').split('\t');
+    const marker = cells[0]?.trim();
+    if (marker === '%T') { table = cells[1]?.trim().toUpperCase() ?? ''; continue; }
+    if (marker === '%R' && table === wantedTable) count++;
+  }
+  return count;
+}
 const root = process.env.OPS_XER_CORPUS;
 if (!root) console.log('OK XER metadata-corpus: corpus niet aanwezig — corpuspoort overgeslagen');
 else {
@@ -77,6 +89,33 @@ else {
   ] as const;
   const diffs: string[] = []; const eq = (name: string, got: unknown, want: unknown) => { if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${name}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`); };
   eq('C1 onafhankelijke publieke totaaltelling', total, expected);
+  // HarbourPointe heeft geen TASK.task_notes als substituut: de 131 notities staan uitsluitend
+  // in TASKNOTE. Deze probe leest %T/%F/%R zelf, zodat een allowlist-gat niet door productiecode
+  // of een hergebruikte tokenizer kan worden verborgen.
+  const harbourPath = join(root, 'crawl-xer/HarbourPointe_AssistedLiving.xer');
+  eq('C1a HarbourPointe TASKNOTE-dossier bestaat', existsSync(harbourPath), true);
+  if (existsSync(harbourPath)) {
+    const bytes = new Uint8Array(readFileSync(harbourPath));
+    const tables = parseXerTables(bytes);
+    const catalog = buildXerMetadataCatalog(tables);
+    const opened = results(bytes);
+    const memory = productProbe(harbourPath);
+    const sourceData = catalog.sourceData;
+    eq('C1b HarbourPointe behoudt alle 131 TASKNOTE-rijen zero-copy van tokenisatie tot catalogus en projectie', {
+      raw: countRawTableRows(bytes, 'TASKNOTE'),
+      tokenized: tables.tables.get('TASKNOTE')?.rows.length ?? 0,
+      catalog: sourceData.TASKNOTE?.length ?? 0,
+      zeroCopy: sourceData.TASKNOTE === tables.tables.get('TASKNOTE')?.rows,
+      projected: opened.reduce((sum, result) => sum + result.tasks.reduce(
+        (taskSum, task) => taskSum + (task.notes?.filter(note => note.id.startsWith('xer-note:tasknote:')).length ?? 0), 0), 0),
+    }, { raw: 131, tokenized: 131, catalog: 131, zeroCopy: true, projected: 131 });
+    eq('C1c HarbourPointe TASKNOTE-pad blijft in een vers proces binnen de heappoort', {
+      documents: memory.documents,
+      rssBelow512MiB: memory.rssMiB < 512,
+      heapDeltaBelow256MiB: memory.heapDeltaMiB < 256,
+    }, { documents: opened.length, rssBelow512MiB: true, heapDeltaBelow256MiB: true });
+    console.log(`.   xer-metadata-perf: harbour tasknotes=131, documenten=${memory.documents}, readMs=${memory.readMs.toFixed(1)}, rssMiB=${memory.rssMiB.toFixed(1)}, heapDeltaMiB=${memory.heapDeltaMiB.toFixed(1)}`);
+  }
   for (const [name, label, links, types, values] of samples) {
     const path = join(root, label); eq(`C2 ${name}-bestand bestaat`, existsSync(path), true);
     if (!existsSync(path)) continue;
