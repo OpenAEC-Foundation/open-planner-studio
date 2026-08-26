@@ -271,6 +271,9 @@ export function shiftTask(task: Task, delta: number): Task {
   if (task.constraint) next.constraint = shiftConstraint(task.constraint, delta);
   if (task.constraint2) next.constraint2 = shiftConstraint(task.constraint2, delta);
   if (task.deadline !== undefined) next.deadline = shiftIso(task.deadline, delta);
+  if (task.p6ExpectedFinish !== undefined) {
+    next.p6ExpectedFinish = shiftIso(task.p6ExpectedFinish, delta);
+  }
   // Z8 (gemelde uitzondering op de bestandseigendom): de verdicts hierboven markeren deze twee als
   // 'shift' — dat is puur documentatie zonder DEZE regels, zie de moduleheader-waarschuwing bij
   // TASK_VERDICTS ("'keep'-voorschrift... betekent dat je de shift ook echt met de hand moet
