@@ -41,6 +41,7 @@ export function GridEditorHost({
       grid?.announce('');
       onCancel();
       onFocusCell(cell);
+      grid?.requestCellFocus(cell);
       return;
     }
     if (event.key !== 'Enter') return;
@@ -54,7 +55,9 @@ export function GridEditorHost({
     }
     setCurrentError(undefined);
     grid?.announce('');
-    onFocusCell(result.nextCell ?? cell);
+    const destination = result.nextCell ?? cell;
+    onFocusCell(destination);
+    grid?.requestCellFocus(destination);
   };
 
   return (

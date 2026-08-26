@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { computeVirtualWindow, minimalScrollTopForRow } from '@/engine/taskGrid/virtualization';
 import { resolveTaskGridCommand, type TaskGridCommand } from '@/engine/taskGrid/navigation';
+import { shouldRequestTaskGridCellFocus } from '@/engine/taskGrid/editLifecycle';
 import { DataGridHeader, computePinnedColumnLayout, type DataGridHeaderProps } from './DataGridHeader';
 import { GridCell } from './GridCell';
 import {
@@ -213,14 +214,18 @@ export function DataGridCore({
 
   const activeKey = selection.active ? gridCellKey(selection.active) : null;
   useEffect(() => {
-    if (lastRequestedActiveKeyRef.current === activeKey) return;
+    const shouldRequestFocus = shouldRequestTaskGridCellFocus({
+      mode,
+      activeKey,
+      lastRequestedActiveKey: lastRequestedActiveKeyRef.current,
+    });
     lastRequestedActiveKeyRef.current = activeKey;
-    if (!selection.active) {
+    if (!shouldRequestFocus || !selection.active) {
       pendingFocusKeyRef.current = null;
       return;
     }
     requestCellFocus(selection.active);
-  }, [activeKey, selection.active, requestCellFocus]);
+  }, [activeKey, mode, selection.active, requestCellFocus]);
 
   useEffect(() => {
     setAnnouncedMessage('');

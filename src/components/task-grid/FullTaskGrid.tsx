@@ -20,6 +20,7 @@ import { buildTrace } from '@/engine/taskGrid/trace';
 import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
 import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
+import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
 import { computeTaskGridAutoFitWidth } from '@/engine/taskGrid/preferences';
 import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
 import { taskRelations } from '@/engine/taskGrid/relationIndex';
@@ -374,8 +375,15 @@ export function TaskGridSurface({
   }, [rowIndex, selectedTaskIds, visibleColumnIds]);
 
   useEffect(() => {
-    if (editing && (!rowIndex.taskByRowKey.has(editing.cell.rowKey)
-      || !visibleColumnIds.includes(editing.cell.columnId))) {
+    if (!editing) return;
+    const liveRowExists = useAppStore.getState().viewRows.some(candidate => (
+      candidate.kind === 'task' && candidate.rowKey === editing.cell.rowKey
+    ));
+    if (shouldCancelTaskGridEdit({
+      indexedRowExists: rowIndex.taskByRowKey.has(editing.cell.rowKey),
+      liveRowExists,
+      columnVisible: visibleColumnIds.includes(editing.cell.columnId),
+    })) {
       commitEditorRef.current = null;
       setEditing(null);
     }

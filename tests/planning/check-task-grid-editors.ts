@@ -1,4 +1,8 @@
 import { planTaskCellEdit } from '@/engine/taskGrid/taskEditPlan';
+import {
+  shouldCancelTaskGridEdit,
+  shouldRequestTaskGridCellFocus,
+} from '@/engine/taskGrid/editLifecycle';
 import { activityCodeColumnId, customFieldColumnId, taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { CellEditIntent, CellEditRoute } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
@@ -11,6 +15,23 @@ function eq(label: string, got: unknown, want: unknown): void {
     diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
   }
 }
+
+eq('Insert-race bewaart edit zolang de nieuwe rij al live maar nog niet geindexeerd is',
+  shouldCancelTaskGridEdit({ indexedRowExists: false, liveRowExists: true, columnVisible: true }), false);
+eq('Edit blijft staan zodra de doelrij normaal geindexeerd is',
+  shouldCancelTaskGridEdit({ indexedRowExists: true, liveRowExists: true, columnVisible: true }), false);
+eq('Externe taakverwijdering annuleert de edit zodra rij en live state ontbreken',
+  shouldCancelTaskGridEdit({ indexedRowExists: false, liveRowExists: false, columnVisible: true }), true);
+eq('Kolomverwijdering annuleert de edit ook als de rij nog bestaat',
+  shouldCancelTaskGridEdit({ indexedRowExists: true, liveRowExists: true, columnVisible: false }), true);
+eq('Nieuwe actieve cel vraagt in selectiemodus focus',
+  shouldRequestTaskGridCellFocus({ mode: 'select', activeKey: 'taak-2\u0000task.name', lastRequestedActiveKey: 'taak-1\u0000task.name' }), true);
+eq('Dezelfde actieve cel vraagt niet opnieuw focus',
+  shouldRequestTaskGridCellFocus({ mode: 'select', activeKey: 'taak-2\u0000task.name', lastRequestedActiveKey: 'taak-2\u0000task.name' }), false);
+eq('Editor houdt focus als Insert tegelijk een nieuwe actieve cel kiest',
+  shouldRequestTaskGridCellFocus({ mode: 'edit', activeKey: 'taak-2\u0000task.name', lastRequestedActiveKey: 'taak-1\u0000task.name' }), false);
+eq('Zonder actieve cel is er niets te focussen',
+  shouldRequestTaskGridCellFocus({ mode: 'select', activeKey: null, lastRequestedActiveKey: 'taak-1\u0000task.name' }), false);
 
 const baseTask = {
   id: 't-1', name: 'Taak', description: '', wbsCode: '1', taskType: 'CONSTRUCTION',
