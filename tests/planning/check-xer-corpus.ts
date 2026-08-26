@@ -307,8 +307,10 @@ if (!root) {
       XER_TRAILING_RECORDS_AFTER_END: 5,
       XER_CURRENCY_NOT_FOUND: 2,
     },
-    unknownTables: 60,
-    unknownRows: 914,
+    // TASKNOTE is sinds X8 een retained bron-tabel: precies twee dossier-tabellen met samen
+    // 132 rijen verdwijnen daarom uit de onbekende X2-rapportage.
+    unknownTables: 58,
+    unknownRows: 782,
   });
 }
 

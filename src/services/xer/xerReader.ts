@@ -24,6 +24,7 @@ import type {
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { readXerCalendars } from './xerCalendarData';
+import { buildXerMetadataCatalog, materializeXerMetadata, type XerMetadataCatalog } from './xerMetadata';
 import { indexXerTaskResourceRows } from './xerResourceAssignments';
 import {
   buildXerResourceCatalog,
@@ -282,6 +283,7 @@ function readXerProject(
   scheduleOptionsIndex: XerScheduleOptionsIndex,
   projectId: string,
   resourceCatalog: XerResourceCatalog,
+  metadataCatalog: XerMetadataCatalog,
   taskResourceRowsByProject: ReadonlyMap<string, readonly XerRow[]>,
 ): XerReadResult {
   const projectRow = scheduleOptionsIndex.projectRowsById.get(projectId)?.row;
@@ -496,6 +498,18 @@ function readXerProject(
     if (parent && !parent.childIds.includes(task.id)) parent.childIds.push(task.id);
   }
 
+  // X8 projecteert uitsluitend na de bestandsbrede mapping. Daardoor kunnen identieke task_id's
+  // uit verschillende PROJECT-rijen nooit metadata naar elkaar lekken; de catalogus zelf blijft
+  // als readonly bronreferentie voor X9 gedeeld.
+  const metadata = materializeXerMetadata(metadataCatalog, projectId);
+  for (const [taskId, taskMetadata] of metadata.taskMetadata) {
+    const task = taskById.get(taskId);
+    if (!task) continue;
+    if (taskMetadata.activityCodes) task.activityCodes = taskMetadata.activityCodes;
+    if (taskMetadata.customFields) task.customFields = taskMetadata.customFields;
+    if (taskMetadata.notes) task.notes = taskMetadata.notes;
+  }
+
   // X6: projectresources zijn bewust mutable kopieën; de raw catalogus en TASKRSRC-cellen blijven
   // één maal geparseerde, bevroren bestandsdata. Dit voorkomt P×52.640 structuredClone-kopieën.
   const resourceResult = materializeXerResources(resourceCatalog, tables, {
@@ -587,6 +601,8 @@ function readXerProject(
     sequences,
     resources: resourceResult.resources,
     assignments: resourceResult.assignments,
+    activityCodeTypes: metadata.activityCodeTypes,
+    customFieldDefs: metadata.customFieldDefs,
     xer: {
       defaultCurrencyCode: tables.header.defaultCurrencyCode,
       tableReport: tables.report,
@@ -614,6 +630,7 @@ function readXerProject(
         assignments: resourceResult.sources.assignments,
         issues: resourceResult.issues,
       },
+      metadata: { catalog: metadataCatalog },
     },
   };
 }
@@ -634,11 +651,12 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
     if (calendarId) availableCalendarIds.add(calendarId);
   }
   const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds);
+  const metadataCatalog = buildXerMetadataCatalog(tables);
   const taskResourceRowsByProject = indexXerTaskResourceRows(tables);
   const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
   const assembled = assembleXerMultiProjectImport(
     tables,
-    projectId => readXerProject(tables, scheduleOptionsIndex, projectId, resourceCatalog, taskResourceRowsByProject),
+    projectId => readXerProject(tables, scheduleOptionsIndex, projectId, resourceCatalog, metadataCatalog, taskResourceRowsByProject),
   );
   if (assembled.results.length > 0) {
     // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de
