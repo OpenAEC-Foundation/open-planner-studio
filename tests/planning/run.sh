@@ -246,6 +246,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  XERPROJECTINDEXCHECK="$DIR/.xer-project-index.mjs"
+  if bundle_check "$DIR/check-xer-project-index.ts" "$XERPROJECTINDEXCHECK"; then node "$XERPROJECTINDEXCHECK" || STATUS=1; fi
+
   # X4b-multi-projectkern: documentselectie, aanwezige P6-baselines, volledige terugval bij
   # zelfverwijzing/cycli, solverloze cross-projectlinks en geïsoleerde documentpayloads. De twee
   # openbare acceptatiepins draaien uitsluitend wanneer OPS_XER_CORPUS beschikbaar is.

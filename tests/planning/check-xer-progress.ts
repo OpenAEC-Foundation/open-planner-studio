@@ -95,6 +95,22 @@ function solved(expectFlag: boolean): string | undefined {
 eq('X7-4 expect_end_date stuurt uitsluitend met de expliciete X5-vlag',
   [solved(false), solved(true)], ['2026-08-10T10:00', '2026-08-12T16:00']);
 
+function solvedResume(taskId: string): string | undefined {
+  const result = solveProject({
+    tasks: progress.tasks.filter(task => task.id === taskId),
+    sequences: [],
+    calendar: progress.calendar,
+    calendars: [progress.calendar, ...(progress.resourceCalendars ?? [])],
+    dataDate: progress.project.statusDate,
+    progressMode: progress.project.progressMode,
+    schedulingOptions: progress.project.schedulingOptions,
+    projectStartDate: progress.project.startDate,
+  });
+  return result.tasks.get(taskId)?.earlyFinish;
+}
+eq('X7-5 losse P6-resume blijft brondata en opent nooit de MSP-resume-route',
+  solvedResume('R'), '2026-08-10T14:00');
+
 const multi = readXER(bytes([
   'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
   '%T\tPROJECT',
@@ -108,9 +124,9 @@ const multi = readXER(bytes([
   '%E',
 ]));
 if (!isMultiDocumentImport(multi)) {
-  diffs.push('X7-5 projectfilter-fixture gaf geen meervoudige import terug');
+  diffs.push('X7-6 projectfilter-fixture gaf geen meervoudige import terug');
 } else {
-  eq('X7-5 file-wide index is lineair maar lekt geen gelijke task_id tussen projecten',
+  eq('X7-6 file-wide index is lineair maar lekt geen gelijke task_id tussen projecten',
     multi.documents.map(document => document.result.tasks.filter(task => !task.isSummary).map(task => [
       task.p6ProjectId, task.p6TaskId, task.name, task.p6CompletePctType, task.time.remainingTime,
     ])), [

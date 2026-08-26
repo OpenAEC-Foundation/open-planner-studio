@@ -53,6 +53,46 @@ export interface XerReadResult extends ImportResult {
 /** X4b: één XER kan nu één payload óf een geordende verzameling documentpayloads opleveren. */
 export type XerOpenResult = XerReadResult | XerMultiProjectImport;
 
+/** Eén bestandsbrede partitionering vóór per-projectmaterialisatie. */
+export interface XerProjectRowsIndex {
+  tasksByProject: ReadonlyMap<string, readonly XerRow[]>;
+  wbsByProject: ReadonlyMap<string, readonly XerRow[]>;
+  relationsByProject: ReadonlyMap<string, readonly XerRow[]>;
+  /** Testbaar operatiebewijs: iedere relevante bronrij precies éénmaal bezocht. */
+  visitCount: number;
+}
+
+export function indexXerProjectRows(tables: XerTables): XerProjectRowsIndex {
+  const tasksByProject = new Map<string, XerRow[]>();
+  const wbsByProject = new Map<string, XerRow[]>();
+  const relationsByProject = new Map<string, XerRow[]>();
+  const projectsByTaskId = new Map<string, Set<string>>();
+  let visitCount = 0;
+  const append = (map: Map<string, XerRow[]>, projectId: string, row: XerRow): void => {
+    const rows = map.get(projectId) ?? [];
+    rows.push(row);
+    map.set(projectId, rows);
+  };
+  for (const row of tables.tables.get('TASK')?.rows ?? []) {
+    visitCount++;
+    append(tasksByProject, row.cells.proj_id, row);
+    const taskProjects = projectsByTaskId.get(row.cells.task_id) ?? new Set<string>();
+    taskProjects.add(row.cells.proj_id);
+    projectsByTaskId.set(row.cells.task_id, taskProjects);
+  }
+  for (const row of tables.tables.get('PROJWBS')?.rows ?? []) { visitCount++; append(wbsByProject, row.cells.proj_id, row); }
+  for (const row of tables.tables.get('TASKPRED')?.rows ?? []) {
+    visitCount++;
+    const projects = new Set<string>();
+    if (row.cells.proj_id) projects.add(row.cells.proj_id);
+    else for (const projectId of projectsByTaskId.get(row.cells.task_id) ?? []) projects.add(projectId);
+    if (row.cells.pred_proj_id) projects.add(row.cells.pred_proj_id);
+    else for (const projectId of projectsByTaskId.get(row.cells.pred_task_id) ?? []) projects.add(projectId);
+    for (const projectId of projects) append(relationsByProject, projectId, row);
+  }
+  return { tasksByProject, wbsByProject, relationsByProject, visitCount };
+}
+
 const ACTIVITY_TYPES: readonly P6ActivityType[] = [
   'TT_Task', 'TT_Rsrc', 'TT_LOE', 'TT_Mile', 'TT_FinMile', 'TT_WBS',
 ];
@@ -292,6 +332,7 @@ function readXerProject(
   projectId: string,
   resourceCatalog: XerResourceCatalog,
   taskResourceRowsByProject: ReadonlyMap<string, readonly XerRow[]>,
+  projectRowsIndex: XerProjectRowsIndex,
 ): XerReadResult {
   const projectRow = scheduleOptionsIndex.projectRowsById.get(projectId)?.row;
   if (!projectRow) {
@@ -301,8 +342,7 @@ function readXerProject(
       { table: 'PROJECT', field: 'proj_id' },
     );
   }
-  const activityRows = (tables.tables.get('TASK')?.rows ?? [])
-    .filter(row => row.cells.proj_id === projectId);
+  const activityRows = projectRowsIndex.tasksByProject.get(projectId) ?? [];
   if (activityRows.length === 0) {
     throw new XerImportError(
       'XER_EMPTY_PROJECT',
@@ -310,13 +350,8 @@ function readXerProject(
       { table: 'TASK' },
     );
   }
-  const rawWbsRows = (tables.tables.get('PROJWBS')?.rows ?? [])
-    .filter(row => row.cells.proj_id === projectId);
-  const relationRows = (tables.tables.get('TASKPRED')?.rows ?? []).filter(row => {
-    const successorProjectId = row.cells.proj_id || projectId;
-    const predecessorProjectId = row.cells.pred_proj_id || successorProjectId;
-    return successorProjectId === projectId || predecessorProjectId === projectId;
-  });
+  const rawWbsRows = projectRowsIndex.wbsByProject.get(projectId) ?? [];
+  const relationRows = projectRowsIndex.relationsByProject.get(projectId) ?? [];
 
   // Identiteit en lokale eindpunten moeten vaststaan vóór maps, WBS-boom of relaties ontstaan.
   assertUniqueId(rawWbsRows, 'PROJWBS', 'wbs_id');
@@ -667,10 +702,11 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   }
   const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds);
   const taskResourceRowsByProject = indexXerTaskResourceRows(tables);
+  const projectRowsIndex = indexXerProjectRows(tables);
   const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
   const assembled = assembleXerMultiProjectImport(
     tables,
-    projectId => readXerProject(tables, scheduleOptionsIndex, projectId, resourceCatalog, taskResourceRowsByProject),
+    projectId => readXerProject(tables, scheduleOptionsIndex, projectId, resourceCatalog, taskResourceRowsByProject, projectRowsIndex),
   );
   if (assembled.results.length > 0) {
     // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de
