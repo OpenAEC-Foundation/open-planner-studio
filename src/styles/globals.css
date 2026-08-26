@@ -162,6 +162,84 @@
   height: 100%;
 }
 
+.gantt-workspace {
+  display: grid;
+  grid-template-columns: auto 5px minmax(0, 1fr);
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gantt-workspace-grid,
+.gantt-workspace-timeline {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gantt-workspace-grid {
+  display: flex;
+}
+
+.gantt-workspace-timeline {
+  display: flex;
+}
+
+.gantt-workspace-splitter {
+  position: relative;
+  z-index: 6;
+  width: 5px;
+  min-width: 5px;
+  padding: 0;
+  border: 0;
+  border-inline: 1px solid var(--theme-border);
+  background: var(--theme-surface-alt);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.gantt-workspace-splitter:hover,
+.gantt-workspace-splitter[data-resizing="true"],
+.gantt-workspace-splitter:focus-visible {
+  background: color-mix(in srgb, var(--theme-accent) 38%, var(--theme-surface-alt));
+  outline: none;
+}
+
+.gantt-task-grid {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gantt-task-grid > .task-grid-shell {
+  width: 100%;
+  height: 100%;
+}
+
+.gantt-task-grid-add-child {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  color: var(--theme-text-muted);
+  background: transparent;
+  line-height: 1;
+}
+
+.gantt-task-grid-add-child:hover,
+.gantt-task-grid-add-child:focus-visible {
+  color: var(--theme-accent);
+  background: var(--theme-hover);
+  outline: none;
+}
+
 .full-task-grid-name {
   min-width: 0;
   display: inline-flex;

@@ -8,7 +8,7 @@ import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
 import { StatusBar } from '@/components/layout/StatusBar/StatusBar';
 import { TooltipHost } from '@/components/common/Tooltip';
-import { GanttCanvas } from '@/components/canvas/GanttCanvas';
+import { GanttWorkspace } from '@/components/canvas/GanttWorkspace';
 import { FullTaskGrid } from '@/components/task-grid/FullTaskGrid';
 import { ResourcePanel } from '@/components/panels/ResourcePanel';
 import { RelationsPanel } from '@/components/panels/RelationsPanel';
@@ -38,7 +38,7 @@ import { NotificationHost } from '@/components/layout/NotificationHost';
 
 // Code-splitting (pakket E2): componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
 // overlay renderen worden lazy geladen, zodat hun code niet in de eager first-load-bundel zit maar
-// pas wordt opgehaald bij openen. De altijd-gemounte chrome (TitleBar/Ribbon/StatusBar/GanttCanvas/
+// pas wordt opgehaald bij openen. De altijd-gemounte chrome (TitleBar/Ribbon/StatusBar/GanttWorkspace/
 // TaskPropertiesPanel/FullTaskGrid/Resource-/Relations-panelen/DocumentChrome) blijft eager. Named
 // exports ⇒ .then(m => ({ default: m.X })). Gedrag (welke conditie toont wat, welke props) ongewijzigd;
 // elke lazy-render zit in een <Suspense fallback={null}> — een dialoog/overlay die 1 frame later
@@ -211,7 +211,7 @@ function AppContent() {
     return (
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
         <div className="flex-1 flex overflow-hidden">
-          <GanttCanvas />
+          <GanttWorkspace />
         </div>
         <PresentationHint />
         {/* Gebruikersmeldingen (bevinding K8) — óók in de presentatiemodus: hier is verder geen
@@ -291,7 +291,7 @@ function AppContent() {
           // Gantt Chart view — zwevende kaart (Gantt + tabel samen). data-tour-anchor
           // (tourstap 2: taaktabel + Gantt).
           <div className="ui-card flex-1 flex overflow-hidden" data-tour-anchor="gantt-panel">
-            <GanttCanvas />
+            <GanttWorkspace />
           </div>
         )}
 

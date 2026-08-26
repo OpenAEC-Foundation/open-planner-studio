@@ -8,22 +8,22 @@ import {
 } from '@/components/canvas/ganttEventOwnership';
 
 const expectedCurrentOwners = {
-  rowselect: 'canvas',
-  disclosure: 'canvas',
-  add: 'canvas',
-  'row-dubbelklik': 'canvas',
-  rowcontextmenu: 'canvas',
-  rowdrag: 'canvas',
-  tooltip: 'canvas',
-  splitter: 'canvas',
-  'vertical-scroll': 'canvas',
-  'horizontal-time-scroll': 'canvas',
-  'fit-to-project': 'canvas',
-  'focus-on-task': 'canvas',
-  bars: 'canvas',
-  dependencies: 'canvas',
-  pan: 'canvas',
-  boxselect: 'canvas',
+  rowselect: 'DOM-grid/workspace',
+  disclosure: 'DOM-grid/workspace',
+  add: 'DOM-grid/workspace',
+  'row-dubbelklik': 'DOM-grid/workspace',
+  rowcontextmenu: 'DOM-grid/workspace',
+  rowdrag: 'DOM-grid/workspace',
+  tooltip: 'DOM-grid/workspace',
+  splitter: 'DOM-grid/workspace',
+  'vertical-scroll': 'DOM-grid/workspace',
+  'horizontal-time-scroll': 'timelinecanvas',
+  'fit-to-project': 'timelinecanvas',
+  'focus-on-task': 'timelinecanvas',
+  bars: 'timelinecanvas',
+  dependencies: 'timelinecanvas',
+  pan: 'timelinecanvas',
+  boxselect: 'timelinecanvas',
 } as const satisfies Record<GanttAction, GanttOwner>;
 
 const expectedActions = Object.keys(expectedCurrentOwners) as GanttAction[];

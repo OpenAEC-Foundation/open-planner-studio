@@ -639,7 +639,7 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
     stripComments("return <p>Don't</p>; // BLIJFT STAAN"), "return <p>Don't</p>; // BLIJFT STAAN");
   // En op het echte bestand: commentaar eruit, code erin.
   eq('36f stripComments haalt commentaar uit het echte bestand', src.includes('K-item 33: de pure afleidingen'), false);
-  eq('36g stripComments laat de code van het echte bestand staan', src.includes('export function GanttCanvas()'), true);
+  eq('36g stripComments laat de code van het echte bestand staan', src.includes('export function GanttCanvas('), true);
 
   // Beide teken-paden (primair + split-view-secundair) lopen via de gedeelde bouwer. Het KOPPEL
   // van deze twee tellingen is de eigenlijke bewering: elke renderer die het component bouwt, moet

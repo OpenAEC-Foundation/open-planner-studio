@@ -43,9 +43,7 @@ import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import type { DataGridCellModel, DataGridDataRowModel } from './taskGridContext';
 import type { GridEditorCommitResult } from './GridEditorHost';
 import type { Task } from '@/types/task';
-import type { TaskColumnCategory, TaskColumnId } from '@/types/taskGrid';
-
-const SURFACE_ID = 'full-task-grid' as const;
+import type { TaskColumnCategory, TaskColumnId, TaskGridSurfaceId } from '@/types/taskGrid';
 
 interface EditingCell {
   cell: GridCellAddress;
@@ -173,7 +171,21 @@ function editorNeighbour(
   return row ? { rowKey: row.rowKey, columnId: cell.columnId } : undefined;
 }
 
-export function FullTaskGrid() {
+export interface TaskGridSurfaceProps {
+  surfaceId: TaskGridSurfaceId;
+  baseHeaderHeight?: number;
+  showSummaryAdd?: boolean;
+  doubleClickAction?: 'properties' | 'dialog';
+  onPlainTaskClick?: (task: Task) => void;
+}
+
+export function TaskGridSurface({
+  surfaceId,
+  baseHeaderHeight = 32,
+  showSummaryAdd = false,
+  doubleClickAction = 'properties',
+  onPlainTaskClick,
+}: TaskGridSurfaceProps) {
   const { t: tTask, i18n: taskI18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const calculatedReadOnlyFallback = taskI18n.resolvedLanguage === 'nl'
@@ -199,7 +211,7 @@ export function FullTaskGrid() {
   const showColumnsDialog = useAppStore(state => state.ui.showColumnsDialog);
   const collapsedTaskIds = useAppStore(state => state.ui.collapsedTaskIds);
   const selectedTaskIds = useAppStore(state => state.selectedTaskIds);
-  const surfacePreferences = useAppStore(state => state.taskGridSurfaces[SURFACE_ID]);
+  const surfacePreferences = useAppStore(state => state.taskGridSurfaces[surfaceId]);
   const recentColumnIds = useAppStore(state => state.recentTaskColumns);
   const selectTask = useAppStore(state => state.selectTask);
   const selectTasks = useAppStore(state => state.selectTasks);
@@ -237,7 +249,7 @@ export function FullTaskGrid() {
     [cpmResult, selectedTaskIds, sequences, traceMode],
   );
   const adapter = useMemo(() => createTaskGridAdapter({
-    surfaceId: SURFACE_ID,
+    surfaceId,
     projectId: project.id,
     rows: viewRows,
     tasks,
@@ -282,7 +294,7 @@ export function FullTaskGrid() {
     },
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendars,
-    customFieldDefs, dateNotation, project.id, project.wbsAutoNumber, resources,
+    customFieldDefs, dateNotation, project.id, project.wbsAutoNumber, resources, surfaceId,
     runGridMutation, scheduleStale, selectedTaskIds, sequences, tCommon, tTask, tasks, trace, viewRows,
   ]);
   const rowIndex = useMemo(() => createTaskGridRowIndex(viewRows), [viewRows]);
@@ -366,8 +378,14 @@ export function FullTaskGrid() {
     if (event.button !== 0) return;
     if (!sameCell(editing?.cell ?? null, cell) && !finishEditing()) return;
     const gesture = event.shiftKey ? 'extend' : event.ctrlKey || event.metaKey ? 'toggle-task' : 'replace';
-    applySelection(updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture));
-  }, [applySelection, editing?.cell, finishEditing, rowIndex, selection, visibleColumnIds]);
+    const next = updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
+    applySelection(next);
+    if (gesture === 'replace' && onPlainTaskClick) {
+      const meta = adapter.rowMetaByKey.get(cell.rowKey);
+      const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
+      if (task) onPlainTaskClick(task);
+    }
+  }, [adapter.rowMetaByKey, applySelection, editing?.cell, finishEditing, onPlainTaskClick, rowIndex, selection, tasksById, visibleColumnIds]);
 
   const startEdit = useCallback((cell: GridCellAddress, replacement?: string) => {
     const model = adapter.getCell(cell.rowKey, cell.columnId);
@@ -551,31 +569,54 @@ export function FullTaskGrid() {
       content: isName && task ? (
         <span className="full-task-grid-name" style={{ paddingInlineStart: row.depth * 14 }}>
           {task.childIds.length > 0 && (
-            <button
-              type="button"
-              className="full-task-grid-disclosure"
-              aria-label={tTask('table.toggleSummary', { defaultValue: 'Samenvatting in- of uitklappen' })}
-              aria-expanded={!collapsedTaskIds.includes(task.id)}
-              onPointerDown={event => event.stopPropagation()}
-              onClick={event => { event.stopPropagation(); toggleCollapse(task.id); }}
-            >
-              {collapsedTaskIds.includes(task.id) ? '▸' : '▾'}
-            </button>
+            <>
+              <button
+                type="button"
+                className="full-task-grid-disclosure"
+                aria-label={tTask('table.toggleSummary', { defaultValue: 'Samenvatting in- of uitklappen' })}
+                aria-expanded={!collapsedTaskIds.includes(task.id)}
+                onPointerDown={event => event.stopPropagation()}
+                onClick={event => { event.stopPropagation(); toggleCollapse(task.id); }}
+              >
+                {collapsedTaskIds.includes(task.id) ? '▸' : '▾'}
+              </button>
+              {showSummaryAdd && (
+                <button
+                  type="button"
+                  className="gantt-task-grid-add-child"
+                  aria-label={`${tTask('defaultTask', { defaultValue: 'Nieuwe taak' })}: ${task.name}`}
+                  onPointerDown={event => event.stopPropagation()}
+                  onClick={event => {
+                    event.stopPropagation();
+                    addTask({
+                      name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
+                      parentId: task.id,
+                    });
+                  }}
+                >
+                  +
+                </button>
+              )}
+            </>
           )}
           <span>{base.text}</span>
         </span>
       ) : undefined,
     };
-  }, [adapter, applySelection, collapsedTaskIds, editing, rowIndex, selection, tTask, tasksById, toggleCollapse, visibleColumnIds]);
+  }, [adapter, addTask, applySelection, collapsedTaskIds, editing, rowIndex, selection, showSummaryAdd, tTask, tasksById, toggleCollapse, visibleColumnIds]);
 
   const rowHeight = Math.max(20, Math.round(28 * uiFontScale / 100));
-  const headerHeight = Math.max(24, Math.round(32 * uiFontScale / 100));
+  const headerHeight = Math.max(24, Math.round(baseHeaderHeight * uiFontScale / 100));
   const viewportHeight = Math.max(0, size.height - headerHeight);
 
   return (
-    <div ref={containerRef} className="full-task-grid" data-task-grid-surface-id={SURFACE_ID}>
+    <div
+      ref={containerRef}
+      className={surfaceId === 'full-task-grid' ? 'full-task-grid' : 'gantt-task-grid'}
+      data-task-grid-surface-id={surfaceId}
+    >
       <TaskGrid
-        surfaceId="full-task-grid"
+        surfaceId={surfaceId}
         surfacePreferences={surfacePreferences}
         recentColumnIds={recentColumnIds}
         availableColumns={adapter.availableColumns}
@@ -591,7 +632,7 @@ export function FullTaskGrid() {
         mode={editing ? 'edit' : 'select'}
         getCell={getCell}
         onScrollTopChange={top => setScroll(view.scrollX, top)}
-        onScrollLeftChange={left => setTaskGridScrollX(SURFACE_ID, left)}
+        onScrollLeftChange={left => setTaskGridScrollX(surfaceId, left)}
         onToggleGroup={rowKey => {
           const row = viewRows.find(candidate => candidate.rowKey === rowKey);
           if (row?.kind === 'group') setCollapsedGroupKey(row.key, !row.collapsed);
@@ -605,7 +646,11 @@ export function FullTaskGrid() {
           const next = updateGridSelection(createEmptyGridSelection(), cell, rowIndex, visibleColumnIds, 'replace');
           setSelection(next);
           selectTask(meta.taskId, false);
-          setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+          if (doubleClickAction === 'dialog') {
+            setUI({ showTaskDialog: true, editingTaskId: meta.taskId });
+          } else {
+            setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+          }
         }}
         onCellContextMenu={(cell, event) => {
           event.preventDefault();
@@ -665,7 +710,7 @@ export function FullTaskGrid() {
           if (task) setHover({ task, x: event.clientX, y: event.clientY });
         }}
         onDataRowMouseLeave={() => setHover(null)}
-        onCommitColumns={(label, columns) => commitTaskGridColumns(SURFACE_ID, label, columns)}
+        onCommitColumns={(label, columns) => commitTaskGridColumns(surfaceId, label, columns)}
         onRecordRecentColumn={recordRecentTaskColumn}
         beforeColumnAction={finishEditing}
         onComputeAutoFitWidth={computeAutoFitWidth}
@@ -783,4 +828,8 @@ export function FullTaskGrid() {
       )}
     </div>
   );
+}
+
+export function FullTaskGrid() {
+  return <TaskGridSurface surfaceId="full-task-grid" />;
 }
