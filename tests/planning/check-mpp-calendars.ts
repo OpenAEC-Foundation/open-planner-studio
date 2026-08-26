@@ -917,10 +917,11 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
 // (dezelfde stilstaande-cursor-bug als HOOG-1a hierboven, maar dan 2000× in één kalender — het
 // aantal dat `MAX_CALENDAR_EXCEPTIONS` toestaat). Fix: `MAX_RECURRENCE_ITERATIONS` geklemd op
 // `MAX_RECURRENCE_DATES + 16` i.p.v. een los, groot getal (plus een nevenoptimalisatie: één
-// Date-allocatie minder per doorloop in de cursor-reset, zie `getMonthlyRelativeDates`) — hier
-// bewezen met exact dat ergste geval: 2000 records, elk gedegenereerd. Gemeten op deze machine:
-// ~1,1s (was 46,3s, een 42× verbetering — ruimer dan de ~27× die de theoretische
-// iteratie-reductie alleen voorspelt, dankzij de allocatie-nevenoptimalisatie).
+// Date-allocatie minder per doorloop in de cursor-reset, zie `getMonthlyRelativeDates`) én de
+// monotone-cursorcheck die een stilstaande maandcursor direct afbreekt — hier bewezen met exact
+// dat ergste geval: 2000 records, elk gedegenereerd. De test blijft corpusloos en bewaakt de
+// bestaande 5s-poort; de cursorcheck hoort de correcte uitkomst ruim daaronder te houden, terwijl
+// de oude 100.000-iteratievariant zonder deze check de historische 46,3s-regressie terugbrengt.
 //
 // MARGE-HERZIENING (M3, Opus-eindreview 2026-08-17, precedent: check-adapters-hours.ts se
 // T4-marge-herziening): 2s was ASYMMETRISCH krap. Lokaal herhaald gemeten: 1161-1224 ms — dat is
@@ -952,7 +953,7 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   const elapsedMs = Date.now() - start;
   const totalDates = contributions.reduce((sum, c) => sum + c.ownDates.length, 0);
   truthy(
-    `MIDDEN-A 2000 gedegenereerde MONTHLY-relatief-records: aantoonbaar snel (${elapsedMs}ms, geklemd op 5s) — was 46,3s vóór MAX_RECURRENCE_ITERATIONS=MAX_RECURRENCE_DATES+16 (gemeten ~1,1-1,2s op de implementatiemachine, ruime marge voor een tragere CI-machine)`,
+    `MIDDEN-A 2000 gedegenereerde MONTHLY-relatief-records: aantoonbaar snel (${elapsedMs}ms, geklemd op 5s) — was 46,3s vóór de iteratie- én monotone-cursorklem`,
     elapsedMs < 5000,
   );
   truthy('MIDDEN-A: 0 datums over alle 2000 records (allemaal gedegenereerd, geen enkele draagt bij)', totalDates === 0);
