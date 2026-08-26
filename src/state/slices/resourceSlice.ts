@@ -122,6 +122,9 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       if (!s.resources.some(r => r.id === resourceId)) return;
       // Weigeren (bevinding 1): 0/negatieve eenheden/dag is geen geldige toewijzing.
       if (!isValidUnits(unitsPerDay)) return;
+      // Eén resource kan per taak maar één assignment dragen. Zonder deze guard kan dezelfde
+      // invariant via de bestaande eigenschappen-/lint-route alsnog worden omzeild.
+      if (s.assignments.some(a => a.taskId === taskId && a.resourceId === resourceId)) return;
 
       beginUndoable(s);
 

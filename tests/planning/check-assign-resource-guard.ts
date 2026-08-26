@@ -26,8 +26,34 @@ const eq = (label: string, got: unknown, want: unknown) => {
 const idA = S().addTask({ name: 'A' });
 const idB = S().addTask({ name: 'B' });
 const resId = S().addResource({ name: 'Timmerman', type: 'LABOR', description: '', maxUnits: 1 });
+useAppStore.setState(state => {
+  const task = state.tasks.find(candidate => candidate.id === idA)!;
+  task.timephasedFinishFloor = '2026-02-01';
+  task.timephasedStartAnchor = '2026-01-01';
+  task.timephasedDurationWalks = [{
+    anchor: '2026-01-01', resourceCalendarId: state.calendar.id, workMinutes: 300,
+  }];
+  state.ui.notifications = [];
+});
 S().assignResource(idA, resId, 2);
 eq('01 sanity: geldige toewijzing bestaat', S().assignments.length, 1);
+eq('01b membership toevoegen wist beide timephased lagen', (() => {
+  const task = S().tasks.find(candidate => candidate.id === idA)!;
+  return {
+    floor: task.timephasedFinishFloor,
+    anchor: task.timephasedStartAnchor,
+    walks: task.timephasedDurationWalks,
+  };
+})(), {});
+eq('01c membership toevoegen meldt sturingsverlies eenmaal',
+  S().ui.notifications.map(notification => notification.messageKey),
+  ['notifications.mppTimephasedSteeringLost']);
+
+const undoBeforeDuplicate = S().historyEvents.filter(event => event.state === 'applied').length;
+S().assignResource(idA, resId, 9);
+eq('01d dubbele resource op dezelfde taak wordt geweigerd', S().assignments.length, 1);
+eq('01e dubbele resource maakt geen history-event',
+  S().historyEvents.filter(event => event.state === 'applied').length, undoBeforeDuplicate);
 
 // ── 1) Onbekend resourceId ⇒ stil geweigerd: geen toewijzing, geen resourceIds, geen snapshot. ──
 const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;

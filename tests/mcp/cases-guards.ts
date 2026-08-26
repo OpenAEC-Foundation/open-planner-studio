@@ -8,8 +8,8 @@
 // statusdatum ⇒ weigering, actuals zonder statusdatum ⇒ weigering met uitleg, actualFinish <
 // actualStart ⇒ weigering, actualFinish-wis op 100% ⇒ completion-reset, voortgang op summary ⇒
 // weigering, kringverwijzing in de voorgestelde batch ⇒ noCycle noemt de kring (+ store byte-
-// identiek binnen een transactie), dubbele toewijzing ⇒ assignmentAllowed weigert (+ bewijs dat de
-// store anders dubbel telt), onbekend task-id ⇒ per-item-fout uit tasksExist.
+// identiek binnen een transactie), dubbele toewijzing ⇒ assignmentAllowed én de store weigeren hem,
+// onbekend task-id ⇒ per-item-fout uit tasksExist.
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { validate, progress } from '@/state/mcpValidation';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
@@ -156,13 +156,12 @@ test('validate.assignmentAllowed weigert de DUBBELE toewijzing (duplicaat = dubb
   assert(first.ok, 'de eerste toewijzing hoort te worden toegestaan');
   store.getState().assignResource(t, r, 2);
 
-  // Bewijs dat de store ZELF geen dubbele-guard heeft: een tweede store-call maakt een DUPLICAAT en
-  // de gevraagde last telt dubbel (2 + 2 = 4 eenheden/dag op dezelfde taak-resource).
+  // De algemene store-route bewaakt dezelfde invariant als laatste vangrail voor niet-MCP-aanroepers.
   store.getState().assignResource(t, r, 2);
   const dupes = store.getState().assignments.filter((a) => a.taskId === t && a.resourceId === r);
-  assertEq(dupes.length, 2, 'de store maakt zonder guard een tweede (duplicaat-)toewijzing aan');
+  assertEq(dupes.length, 1, 'de store weigert een tweede (duplicaat-)toewijzing');
   const loadSum = dupes.reduce((sum, a) => sum + a.unitsPerDay, 0);
-  assertEq(loadSum, 4, 'de gevraagde last telt zo dubbel (2+2=4) — precies wat de guard moet voorkomen');
+  assertEq(loadSum, 2, 'de geweigerde duplicaat verhoogt de gevraagde last niet');
 
   // De guard weigert de tweede toewijzing (op een staat waarin de resource er al op zit).
   const second = validate.assignmentAllowed(store.getState(), t, r, 2);

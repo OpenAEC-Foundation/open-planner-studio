@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GridCellAddress } from '@/engine/taskGrid/selection';
 import type { TaskGridAdapter, TaskGridAdapterEventTarget } from '@/engine/taskGrid/taskGridAdapter';
-import type { CellValidationError } from '@/types/taskGrid';
+import type { ResourceCurve } from '@/types/resource';
+import type { CellValidationError, TaskAssignmentToken } from '@/types/taskGrid';
 import {
   GridEditorHost,
   type GridEditorCommitResult,
@@ -11,6 +12,7 @@ export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
   cell: GridCellAddress;
   text: string;
+  directValue?: unknown;
   messageForError: (messageKey: string, error: CellValidationError) => string;
 }
 
@@ -47,12 +49,8 @@ function localError(
 }
 
 /** Voert de synchrone prepare → plan → commitgrens uit zonder een store- of slicenaam te kennen. */
-export function commitTaskCellEditorValue({
-  adapter,
-  cell,
-  text,
-  messageForError,
-}: CommitTaskCellEditorValueInput): GridEditorCommitResult {
+export function commitTaskCellEditorValue(input: CommitTaskCellEditorValueInput): GridEditorCommitResult {
+  const { adapter, cell, text, messageForError } = input;
   const meta = adapter.rowMetaByKey.get(cell.rowKey);
   const target: TaskGridAdapterEventTarget = {
     surfaceId: adapter.surfaceId,
@@ -63,7 +61,9 @@ export function commitTaskCellEditorValue({
   if (adapter.callbacks.onPrepareEdit?.(target) === false) {
     return localError(cell, 'prepareRejected', messageForError);
   }
-  const planned = adapter.planEdit(cell.rowKey, cell.columnId, text);
+  const planned = Object.prototype.hasOwnProperty.call(input, 'directValue')
+    ? adapter.planValue(cell.rowKey, cell.columnId, input.directValue)
+    : adapter.planEdit(cell.rowKey, cell.columnId, text);
   if (!planned.ok) {
     const error = planned.errors[0];
     return error
@@ -107,10 +107,24 @@ export function TaskCellEditor({
   onFocusCell,
   nextCell,
 }: TaskCellEditorProps) {
+  const initialCell = adapter.getCell(cell.rowKey, cell.columnId);
   const [text, setText] = useState(
-    () => adapter.getCell(cell.rowKey, cell.columnId)?.editText ?? '',
+    () => initialCell?.editText ?? '',
   );
+  const [assignmentTokens, setAssignmentTokens] = useState<TaskAssignmentToken[]>(() => (
+    Array.isArray(initialCell?.value)
+      ? (initialCell.value as TaskAssignmentToken[]).map(token => ({ ...token }))
+      : []
+  ));
+  const [resourceQuery, setResourceQuery] = useState('');
   const descriptor = adapter.descriptorsById.get(cell.columnId);
+  const isAssignmentEditor = descriptor?.valueKind === 'tokens'
+    && String(descriptor.id).startsWith('assignment.');
+  const resourceOptions = descriptor?.editorOptions ?? [];
+  const resourceOptionById = new Map(resourceOptions.map(option => [option.value, option] as const));
+  const curves: readonly ResourceCurve[] = [
+    'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK',
+  ];
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
   useEffect(() => {
     const node = inputRef.current;
@@ -124,12 +138,138 @@ export function TaskCellEditor({
       onCancel={onCancel}
       onFocusCell={onFocusCell}
       onCommit={() => {
-        const result = commitTaskCellEditorValue({ adapter, cell, text, messageForError });
+        const result = commitTaskCellEditorValue({
+          adapter, cell, text, messageForError,
+          ...(isAssignmentEditor ? { directValue: assignmentTokens } : {}),
+        });
         return result.ok && nextCell ? { ...result, nextCell } : result;
       }}
     >
       {inputProps => (
-        descriptor?.editorKind === 'enum' && descriptor.editorOptions ? (
+        isAssignmentEditor ? (
+          <div
+            {...inputProps}
+            className="task-grid-assignment-editor"
+            data-task-editor-kind="assignment-tokens"
+          >
+            <div className="task-grid-assignment-tokens" role="list">
+              {assignmentTokens.map((token, index) => {
+                const option = resourceOptionById.get(token.resourceId);
+                const resourceLabel = option?.label
+                  ?? labelForOption(option?.labelKey ?? token.resourceId, token.resourceId);
+                return (
+                  <div
+                    key={token.assignmentId ?? token.resourceId}
+                    className="task-grid-assignment-token"
+                    role="listitem"
+                    data-assignment-resource-id={token.resourceId}
+                  >
+                    <span className="task-grid-assignment-resource">{resourceLabel}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={Number.isFinite(token.unitsPerDay) ? token.unitsPerDay : ''}
+                      aria-label={`${resourceLabel} — ${labelForOption('assignment.unitsPerDay', 'units')}`}
+                      onChange={event => setAssignmentTokens(current => current.map((item, itemIndex) => (
+                        itemIndex === index
+                          ? { ...item, unitsPerDay: event.currentTarget.valueAsNumber }
+                          : item
+                      )))}
+                    />
+                    <select
+                      value={token.curve ?? 'UNIFORM'}
+                      aria-label={`${resourceLabel} — ${labelForOption('assignment.curve', 'curve')}`}
+                      onChange={event => setAssignmentTokens(current => current.map((item, itemIndex) => (
+                        itemIndex === index
+                          ? {
+                              ...item,
+                              curve: event.currentTarget.value === 'UNIFORM'
+                                ? undefined
+                                : event.currentTarget.value as ResourceCurve,
+                            }
+                          : item
+                      )))}
+                    >
+                      {curves.map(curve => (
+                        <option key={curve} value={curve}>
+                          {labelForOption(`resourceCurve.${curve}`, curve)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      aria-label={`${labelForOption('assignment.remove', 'remove')} ${resourceLabel}`}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+                      }}
+                      onClick={() => setAssignmentTokens(current => (
+                        current.filter((_, itemIndex) => itemIndex !== index)
+                      ))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <input
+              ref={node => { inputRef.current = node; }}
+              type="text"
+              role="combobox"
+              aria-label={label}
+              aria-autocomplete="list"
+              aria-expanded={resourceQuery.trim().length > 0}
+              value={resourceQuery}
+              onChange={event => setResourceQuery(event.currentTarget.value)}
+              onKeyDown={event => {
+                if (event.key !== 'Enter' || resourceQuery.trim() === '') return;
+                const query = resourceQuery.trim().toLocaleLowerCase();
+                const candidates = resourceOptions.filter(option => (
+                  !assignmentTokens.some(token => token.resourceId === option.value)
+                  && (option.value.toLocaleLowerCase().includes(query)
+                    || option.label?.toLocaleLowerCase().includes(query))
+                ));
+                if (candidates.length !== 1) return;
+                event.preventDefault();
+                event.stopPropagation();
+                setAssignmentTokens(current => [...current, {
+                  resourceId: candidates[0].value, unitsPerDay: 1,
+                }]);
+                setResourceQuery('');
+              }}
+            />
+            {resourceQuery.trim() && (
+              <div className="task-grid-assignment-options" role="listbox">
+                {resourceOptions.filter(option => {
+                  const query = resourceQuery.trim().toLocaleLowerCase();
+                  return !assignmentTokens.some(token => token.resourceId === option.value)
+                    && (option.value.toLocaleLowerCase().includes(query)
+                      || option.label?.toLocaleLowerCase().includes(query));
+                }).map(option => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected="false"
+                    key={option.value}
+                    onMouseDown={event => event.preventDefault()}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+                    }}
+                    onClick={() => {
+                      setAssignmentTokens(current => [...current, {
+                        resourceId: option.value, unitsPerDay: 1,
+                      }]);
+                      setResourceQuery('');
+                    }}
+                  >
+                    {option.label ?? labelForOption(option.labelKey ?? option.value, option.value)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : descriptor?.editorKind === 'enum' && descriptor.editorOptions ? (
           <select
             {...inputProps}
             ref={node => { inputRef.current = node; }}

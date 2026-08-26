@@ -306,6 +306,17 @@ function assignmentLabel(assignment: ResourceAssignment, ctx: TaskColumnContext)
   return ctx.resourcesById.get(assignment.resourceId)?.name ?? assignment.resourceId;
 }
 
+function assignmentWindowText(
+  task: Task,
+  ctx: TaskColumnContext,
+  field: 'workWindowStart' | 'workWindowFinish',
+): string {
+  const values = assignments(task, ctx).flatMap(assignment => assignment[field]
+    ? [`${assignmentLabel(assignment, ctx)}: ${assignment[field]}`]
+    : []);
+  return values.length > 0 ? values.join('; ') : '—';
+}
+
 const STRUCTURED_CLIPBOARD_SEPARATOR = '\u2063';
 const ASSIGNMENT_CLIPBOARD_MARKER = `${STRUCTURED_CLIPBOARD_SEPARATOR}ops-assignment:`;
 const ACTIVITY_CODE_CLIPBOARD_MARKER = `${STRUCTURED_CLIPBOARD_SEPARATOR}ops-activity-code:`;
@@ -611,9 +622,13 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
   return [
     editableColumn({
       id: 'assignment.resources', labelKey: 'taskGrid.columns.assignedResources', category: 'resources', valueKind: 'tokens', editorKind: 'autocomplete', defaultWidth: 220,
-      read: (task, ctx) => assignments(task, ctx).map(item => item.resourceId),
+      read: assignmentTokens,
+      readOnly: task => task.isMilestone || task.childIds.length > 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length
-        ? value.map(id => ctx.resourcesById.get(String(id))?.name ?? String(id)).join(', ') : '—',
+        ? value.map(raw => {
+          const token = raw as TaskAssignmentToken;
+          return ctx.resourcesById.get(token.resourceId)?.name ?? token.resourceId;
+        }).join(', ') : '—',
       copy: (task, ctx) => {
         const tokens = assignmentTokens(task, ctx);
         return tokens.length === 0 ? '' : structuredClipboardText(
@@ -622,6 +637,7 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
           tokens,
         );
       },
+      editText: (task, ctx) => assignments(task, ctx).map(item => assignmentLabel(item, ctx)).join(', '),
       parse: parseAssignmentResources,
       validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignments'),
       planWrite: (value, task) => success([{
@@ -630,8 +646,8 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
     }),
     editableColumn({
       id: 'assignment.unitsPerDay', labelKey: 'taskGrid.columns.assignmentUnits', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
-      read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, resourceId: item.resourceId, unitsPerDay: item.unitsPerDay })),
-      readOnly: (task, ctx) => assignments(task, ctx).length === 0,
+      read: assignmentTokens,
+      readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || assignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; unitsPerDay: number };
         return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.unitsPerDay}`;
@@ -641,6 +657,8 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
         ASSIGNMENT_CLIPBOARD_MARKER,
         assignmentTokens(task, ctx),
       ),
+      editText: (task, ctx) => assignments(task, ctx)
+        .map(item => `${assignmentLabel(item, ctx)}: ${item.unitsPerDay}`).join('; '),
       parse: parseAssignmentUnits,
       validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignmentUnits'),
       planWrite: (value, task) => success([{
@@ -649,25 +667,27 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
     }),
     editableColumn({
       id: 'assignment.curve', labelKey: 'taskGrid.columns.assignmentCurve', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
-      read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, resourceId: item.resourceId, curve: item.curve ?? 'UNIFORM' })),
-      readOnly: (task, ctx) => assignments(task, ctx).length === 0,
+      read: assignmentTokens,
+      readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || assignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; curve: ResourceCurve };
-        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.curve}`;
+        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.curve ?? 'UNIFORM'}`;
       }).join('; ') : '—',
       copy: (task, ctx) => structuredClipboardText(
         assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.curve ?? 'UNIFORM'}`).join('; '),
         ASSIGNMENT_CLIPBOARD_MARKER,
         assignmentTokens(task, ctx),
       ),
+      editText: (task, ctx) => assignments(task, ctx)
+        .map(item => `${assignmentLabel(item, ctx)}: ${item.curve ?? 'UNIFORM'}`).join('; '),
       parse: parseAssignmentCurves,
       validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignmentCurve'),
       planWrite: (value, task) => success([{
         kind: 'assignment-set', taskId: task.id, tokens: value as readonly TaskAssignmentToken[],
       }]),
     }),
-    readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: value => compactArraySummary((value as unknown[]).filter(item => (item as { value?: string }).value), 'werkvenster'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
-    readonlyColumn({ id: 'assignment.workWindowFinish', labelKey: 'taskGrid.columns.workWindowFinish', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowFinish })), format: value => compactArraySummary((value as unknown[]).filter(item => (item as { value?: string }).value), 'werkvenster'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowFinish: item.workWindowFinish }))) }),
+    readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowStart'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
+    readonlyColumn({ id: 'assignment.workWindowFinish', labelKey: 'taskGrid.columns.workWindowFinish', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowFinish })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowFinish'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowFinish: item.workWindowFinish }))) }),
     readonlyColumn({ id: 'assignment.id', labelKey: 'taskGrid.columns.assignmentId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.id), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.id)) }),
     readonlyColumn({ id: 'assignment.taskId', labelKey: 'taskGrid.columns.assignmentTaskId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.taskId), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.taskId)) }),
     readonlyColumn({ id: 'assignment.resourceId', labelKey: 'taskGrid.columns.assignmentResourceId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.resourceId), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.resourceId)) }),

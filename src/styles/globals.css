@@ -414,6 +414,94 @@
   height: 100%;
 }
 
+.task-grid-editor-input {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding-inline: 5px;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-accent);
+  font: inherit;
+}
+
+.task-grid-assignment-editor {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: grid;
+  gap: 5px;
+  width: max(100%, 420px);
+  max-width: min(560px, 80vw);
+  padding: 6px;
+  color: var(--theme-text);
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-accent);
+  box-shadow: var(--shadow-pop);
+}
+
+.task-grid-assignment-tokens {
+  display: grid;
+  gap: 4px;
+}
+
+.task-grid-assignment-token {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) 76px 132px 26px;
+  gap: 4px;
+  align-items: center;
+}
+
+.task-grid-assignment-resource {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-grid-assignment-token input,
+.task-grid-assignment-token select,
+.task-grid-assignment-editor > input,
+.task-grid-assignment-token button,
+.task-grid-assignment-options button {
+  min-width: 0;
+  height: 26px;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  font: inherit;
+}
+
+.task-grid-assignment-token input,
+.task-grid-assignment-editor > input {
+  padding-inline: 5px;
+}
+
+.task-grid-assignment-token button,
+.task-grid-assignment-options button {
+  cursor: pointer;
+}
+
+.task-grid-assignment-token button:hover,
+.task-grid-assignment-options button:hover {
+  background: var(--theme-hover);
+}
+
+.task-grid-assignment-options {
+  display: grid;
+  max-height: 180px;
+  overflow: auto;
+  border-block-start: 1px solid var(--theme-border-light);
+}
+
+.task-grid-assignment-options button {
+  padding-inline: 6px;
+  text-align: start;
+  border: 0;
+  border-radius: 0;
+}
+
 .task-grid-editor-error {
   position: absolute;
   z-index: var(--z-dropdown);

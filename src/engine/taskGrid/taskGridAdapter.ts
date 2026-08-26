@@ -121,6 +121,11 @@ export interface TaskGridAdapter {
     columnId: TaskColumnId,
     text: string,
   ) => GridResult<readonly GridIntent[], readonly CellValidationError[]>;
+  planValue: (
+    rowKey: string,
+    columnId: TaskColumnId,
+    value: unknown,
+  ) => GridResult<readonly GridIntent[], readonly CellValidationError[]>;
 }
 
 function failure(
@@ -200,7 +205,12 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
     customFieldDefs: input.customFieldDefs,
     baselines: input.baselines,
   }).filter(descriptor => descriptor.available(context)).map(descriptor => (
-    descriptor.id === 'task.calendarId' && input.calendarOptions
+    descriptor.valueKind === 'tokens' && String(descriptor.id).startsWith('assignment.')
+      ? {
+          ...descriptor,
+          editorOptions: input.resources.map(resource => ({ value: resource.id, label: resource.name })),
+        }
+      : descriptor.id === 'task.calendarId' && input.calendarOptions
       ? {
           ...descriptor,
           editorOptions: input.calendarOptions.map(option => ({ ...option })),
@@ -322,7 +332,26 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
     if (!parsed.ok) {
       return { ok: false, errors: withLocation(parsed.errors, rowKey, columnId, task.id, text) };
     }
-    let value = parsed.value;
+    return planValue(rowKey, columnId, parsed.value);
+  }
+
+  function planValue(
+    rowKey: string,
+    columnId: TaskColumnId,
+    inputValue: unknown,
+  ): GridResult<readonly GridIntent[], readonly CellValidationError[]> {
+    const taskResult = resolveTask(rowKey, columnId, inputValue);
+    if (!taskResult.ok) return taskResult;
+    const task = taskResult.value;
+    const descriptor = descriptorsById.get(columnId);
+    if (!descriptor) return failure('plannerNotAvailable', rowKey, columnId, task.id, inputValue);
+    const readOnly = typeof descriptor.readOnly === 'function'
+      ? descriptor.readOnly(task, context)
+      : descriptor.readOnly;
+    if (readOnly || !descriptor.planWrite) {
+      return failure('readOnly', rowKey, columnId, task.id, inputValue);
+    }
+    let value = inputValue;
     if (descriptor.validate) {
       const validated = descriptor.validate(value, task, context);
       if (!validated.ok) {
@@ -347,5 +376,6 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
     getCell,
     copyCell,
     planEdit,
+    planValue,
   };
 }

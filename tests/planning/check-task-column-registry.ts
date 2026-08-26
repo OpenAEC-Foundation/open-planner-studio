@@ -111,6 +111,7 @@ const sequence: Sequence = {
 };
 const assignment: ResourceAssignment = {
   id: 'a-1', taskId: task.id, resourceId: 'r-1', unitsPerDay: 1,
+  workWindowStart: '2026-01-01', workWindowFinish: '2026-01-05',
 };
 const assignment2: ResourceAssignment = {
   id: 'a-2', taskId: task.id, resourceId: 'r-2', unitsPerDay: 0.5, curve: 'FRONT_LOADED',
@@ -224,6 +225,25 @@ for (const id of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.
 }
 
 const assignedResources = registry.find(column => column.id === 'assignment.resources')!;
+eq('Assignmenteditor blijft gesloten op summary en mijlpaal', [
+  (assignedResources.readOnly as (task: Task, ctx: TaskColumnContext) => boolean)(
+    { ...task, childIds: ['kind'] }, ctx,
+  ),
+  (assignedResources.readOnly as (task: Task, ctx: TaskColumnContext) => boolean)(
+    { ...task, isMilestone: true }, ctx,
+  ),
+], [true, true]);
+const workWindowStart = registry.find(column => column.id === 'assignment.workWindowStart')!;
+eq('Werkvenster toont resource-label en volledige waarde in plaats van alleen een telling',
+  workWindowStart.format(workWindowStart.read(task, ctx), task, ctx),
+  'Dubbele ploeg: 2026-01-01');
+eq('Werkvenster blijft canoniek en volledig kopieerbaar',
+  workWindowStart.copy(task, ctx),
+  canonicalGridJson([
+    { assignmentId: 'a-1', workWindowStart: '2026-01-01' },
+    { assignmentId: 'a-2' },
+    { assignmentId: 'a-3' },
+  ]));
 const ambiguousResource = assignedResources.parse!('Dubbele ploeg', task, ctx);
 eq('een handmatig dubbel resourcelabel wordt gericht geweigerd',
   ambiguousResource.ok ? null : ambiguousResource.errors[0].code, 'assignmentAmbiguous');

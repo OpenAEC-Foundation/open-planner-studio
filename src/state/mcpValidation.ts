@@ -13,10 +13,9 @@
 // (onbekende parentId, kring via de eind-runCPM) — dat is de laatste vangrail die de hele transactie
 // terugrolt. Deze validatielaag doet de RIJKERE, ZACHTE pre-checks vóór de mutatie, met per-item-
 // rapportage: onbekende task-id's, cyclus-detectie in een voorgestelde batch, en de vijf assignment-/
-// voortgangs-invarianten. De belangrijkste is de DUBBELE-TOEWIJZING-guard: `assignResource` maakt op
-// een bestaande (taak, resource)-combinatie gewoon een DUPLICAAT aan, waardoor de gevraagde last
-// dubbel telt in load én leveler (spec §Werkpakket 7) — die glipt door alle store-guards heen en moet
-// hier worden gevangen.
+// voortgangs-invarianten. De DUBBELE-TOEWIJZING-guard geeft de tool-laag een gerichte reden vóór de
+// mutatie en bewaakt ook een meegroeiende bulk-simulatie. De store houdt dezelfde invariant als
+// laatste vangrail vast, zodat geen andere aanroeper dubbeltelling in load of leveler kan invoeren.
 // =================================================================================================
 
 import type { AppState } from './appStore';
@@ -151,8 +150,8 @@ export const validate = {
    * Assignment-invarianten (spec §Werkpakket 7): een toewijzing mag alleen op een BLAD-taak
    * (`childIds` leeg), niet op een mijlpaal of verzameltaak, met `units > 0`, en — de belangrijkste —
    * er mag nog GEEN toewijzing van DEZELFDE resource op DEZELFDE taak bestaan. Die laatste is de
-   * dubbeltelling-guard: `assignResource` maakt hier anders een tweede (duplicaat-)toewijzing aan en
-   * de gevraagde last telt dubbel in load én leveler; geen enkele store-guard vangt dat.
+   * dubbeltelling-guard: de tool-laag kan zo vóór de mutatie een bruikbare per-itemreden geven en
+   * duplicaten binnen één gesimuleerde bulk herkennen. De store bewaakt dezelfde invariant opnieuw.
    */
   assignmentAllowed(state: ReadableState, taskId: string, resourceId: string, units: number): GuardResult {
     const task = state.tasks.find((t) => t.id === taskId);

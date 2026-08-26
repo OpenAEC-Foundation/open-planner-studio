@@ -4,12 +4,18 @@ import { deriveViewRows } from './slices/viewSlice';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { buildTaskColumnRegistry, canonicalGridJson } from '@/engine/taskGrid/taskColumnRegistry';
 import { planTaskCellEdit } from '@/engine/taskGrid/taskEditPlan';
+import {
+  applyTaskAssignmentPlan,
+  planTaskAssignmentSet,
+  type TaskAssignmentApplyIndexes,
+} from '@/engine/taskGrid/assignmentPlan';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
+import { generateId } from '@/utils/id';
 import type { AppState } from './appStore';
 import type { AppSlice, DeferredNotification } from './slices/types';
 import type {
@@ -18,6 +24,7 @@ import type {
   GridIntent,
   GridResult,
   GridWriteIntent,
+  AssignmentSetIntent,
   TaskColumnContext,
   TaskColumnDescriptor,
 } from '@/types/taskGrid';
@@ -119,21 +126,52 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
   return { descriptors: new Map(descriptors.map(descriptor => [descriptor.id, descriptor])), context };
 }
 
-function normalizeEdits(edits: readonly CellEditIntent[]): GridResult<readonly CellEditIntent[], readonly CellValidationError[]> {
-  const byTarget = new Map<string, CellEditIntent>();
+function normalizeWrites(writes: readonly GridWriteIntent[]): GridResult<readonly GridWriteIntent[], readonly CellValidationError[]> {
+  const unique: GridWriteIntent[] = [];
+  const byTarget = new Map<string, GridWriteIntent>();
   const errors: CellValidationError[] = [];
-  for (const edit of edits) {
-    const key = `${edit.taskId}\u0000${edit.columnId}`;
+  for (const write of writes) {
+    const key = write.kind === 'cell-edit'
+      ? `cell\u0000${write.taskId}\u0000${write.columnId}`
+      : write.kind === 'assignment-set'
+        ? `assignment\u0000${write.taskId}`
+        : `relation\u0000${write.taskId}\u0000${write.direction}`;
     const previous = byTarget.get(key);
     if (!previous) {
-      byTarget.set(key, edit);
-      continue;
-    }
-    if (canonicalGridJson(previous.value) !== canonicalGridJson(edit.value)) {
-      errors.push(validationError('conflictingDuplicate', edit, edit.value));
+      byTarget.set(key, write);
+      unique.push(write);
+    } else if (canonicalGridJson(previous) !== canonicalGridJson(write)) {
+      errors.push(validationError('conflictingDuplicate', { taskId: write.taskId }, write));
     }
   }
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, value: [...byTarget.values()] };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, value: unique };
+}
+
+function applyAssignmentSet(
+  state: AppState,
+  intent: AssignmentSetIntent,
+  assignmentsForTask: readonly AppState['assignments'][number][],
+  tasksById: ReadonlyMap<string, AppState['tasks'][number]>,
+  resourcesById: GridColumnRuntime['context']['resourcesById'],
+  applyIndexes: TaskAssignmentApplyIndexes,
+): GridResult<{ timephasedGuidanceLostTaskIds: readonly string[] }, readonly CellValidationError[]> {
+  const planned = planTaskAssignmentSet({
+    taskId: intent.taskId,
+    tokens: intent.tokens,
+    tasks: state.tasks,
+    resources: state.resources,
+    assignments: state.assignments,
+    assignmentsForTask,
+    tasksById,
+    resourcesById,
+  });
+  if (!planned.ok) return planned;
+  return {
+    ok: true,
+    value: applyTaskAssignmentPlan(
+      state, planned.value, () => generateId('asgn'), applyIndexes,
+    ),
+  };
 }
 
 function applyCellEdit(
@@ -203,25 +241,84 @@ export function prepareGridMutation(
   intents: readonly GridIntent[],
 ): GridResult<PreparedGridMutation, readonly CellValidationError[]> {
   const flattened = flattenIntents(intents);
-  const unavailable = flattened.find(intent => intent.kind !== 'cell-edit');
+  const unavailable = flattened.find(intent => intent.kind === 'relation-set');
   if (unavailable) {
     return {
       ok: false,
       errors: [validationError('plannerNotAvailable', { taskId: unavailable.taskId }, unavailable)],
     };
   }
-  const normalized = normalizeEdits(flattened as CellEditIntent[]);
+  const normalized = normalizeWrites(flattened);
   if (!normalized.ok) return normalized;
 
   const runtime = buildGridColumnRuntime(state);
   const before = createSnapshot(state as AppState);
   let errors: CellValidationError[] = [];
   const timephasedLossTaskIds = new Set<string>();
+  const assignmentValidationTaskIds = new Set<string>();
   const isolated = produce(state as AppState, draft => {
-    for (const edit of normalized.value) {
-      const applied = applyCellEdit(draft, edit, runtime);
-      if (!applied.ok) errors.push(...applied.errors);
-      else if (applied.value.timephasedGuidanceLost) timephasedLossTaskIds.add(edit.taskId);
+    const draftTasksById = new Map(draft.tasks.map(task => [task.id, task] as const));
+    const draftTaskIndexById = new Map(draft.tasks.map((task, index) => [task.id, index] as const));
+    const draftAssignmentsByTaskId = new Map<string, AppState['assignments']>();
+    for (const assignment of draft.assignments) {
+      const current = draftAssignmentsByTaskId.get(assignment.taskId);
+      if (current) current.push(assignment);
+      else draftAssignmentsByTaskId.set(assignment.taskId, [assignment]);
+    }
+    const assignmentApplyIndexes: TaskAssignmentApplyIndexes = {
+      assignmentsByTaskId: draftAssignmentsByTaskId,
+      assignmentsById: new Map(draft.assignments.map(assignment => [assignment.id, assignment] as const)),
+      usedAssignmentIds: new Set(draft.assignments.map(assignment => assignment.id)),
+      tasksById: draftTasksById,
+    };
+    for (const write of normalized.value) {
+      if (write.kind === 'cell-edit') {
+        const applied = applyCellEdit(draft, write, runtime);
+        if (!applied.ok) errors.push(...applied.errors);
+        else {
+          const currentTaskIndex = draftTaskIndexById.get(write.taskId);
+          if (currentTaskIndex !== undefined) {
+            draftTasksById.set(write.taskId, draft.tasks[currentTaskIndex]);
+          }
+          if (applied.value.timephasedGuidanceLost) timephasedLossTaskIds.add(write.taskId);
+        }
+        if (String(write.columnId) === 'task.isMilestone') assignmentValidationTaskIds.add(write.taskId);
+      } else if (write.kind === 'assignment-set') {
+        assignmentValidationTaskIds.add(write.taskId);
+        const applied = applyAssignmentSet(
+          draft,
+          write,
+          draftAssignmentsByTaskId.get(write.taskId) ?? [],
+          draftTasksById,
+          runtime.context.resourcesById,
+          assignmentApplyIndexes,
+        );
+        if (!applied.ok) errors.push(...applied.errors);
+        else for (const taskId of applied.value.timephasedGuidanceLostTaskIds) {
+          timephasedLossTaskIds.add(taskId);
+        }
+      }
+    }
+    if (errors.length === 0) {
+      for (const taskId of assignmentValidationTaskIds) {
+        const finalAssignments = draftAssignmentsByTaskId.get(taskId) ?? [];
+        if (finalAssignments.length === 0) continue;
+        const validated = planTaskAssignmentSet({
+          taskId,
+          tokens: finalAssignments.map(assignment => ({
+            assignmentId: assignment.id,
+            resourceId: assignment.resourceId,
+            unitsPerDay: assignment.unitsPerDay,
+            curve: assignment.curve,
+          })),
+          tasks: draft.tasks,
+          resources: draft.resources,
+          assignments: draft.assignments,
+          tasksById: draftTasksById,
+          resourcesById: runtime.context.resourcesById,
+        });
+        if (!validated.ok) errors.push(...validated.errors);
+      }
     }
   });
   if (errors.length > 0) return { ok: false, errors };
