@@ -2,7 +2,7 @@ import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/taskGrid';
 import type { ViewState } from '@/types/view';
 import type { AppState } from './appStore';
-import { deriveViewRows } from './slices/viewSlice';
+import { deriveViewRows } from './viewRows';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { ViewRow } from '@/engine/view/visibleRows';
 

@@ -4,12 +4,9 @@ import { createDefaultView } from '../defaults';
 export { createDefaultView };
 import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 import { getGanttChartWidth, clampGanttScroll } from '@/utils/ganttViewport';
-import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
-  allBandKeys, computeViewRows, firstTaskOccurrence,
-  type ViewRow, type ViewContext, type ViewRowOpts,
+  allBandKeys, firstTaskOccurrence, type ViewRow,
 } from '@/engine/view/visibleRows';
-import type { AppState } from '../appStore';
 import type {
   ViewState, TimeScale, AppSlice, FilterNode, GroupLevel, SortLevel,
   SplitViewState, Layout,
@@ -19,34 +16,8 @@ import {
   captureViewLayoutHistoryState,
   type SessionHistoryDelta,
 } from '../sessionHistory';
-
-/** De invoer van de rijen-pijplijn op één plek: zo kunnen `recomputeViewRows` en de
- *  "alle banden"-acties niet uit elkaar lopen over welke weergave-instellingen gelden. */
-function rowInputs(s: AppState): { opts: ViewRowOpts; ctx: ViewContext } {
-  return {
-    opts: {
-      filter: s.view.filter ?? null,
-      group: s.view.group ?? [],
-      sort: s.view.sort ?? [],
-      collapsedTaskIds: new Set(s.ui.collapsedTaskIds),
-      collapsedGroupKeys: new Set(s.view.collapsedGroupKeys ?? []),
-    },
-    ctx: {
-      activityCodeTypes: s.activityCodeTypes,
-      customFieldDefs: s.customFieldDefs,
-      resources: s.resources,
-      assignments: s.assignments,
-      // Vertaalde "(geen)"-label, door de consument (App) gezet — engine blijft i18n-vrij (§4.1).
-      noneLabel: getNoneLabelValue(),
-    },
-  };
-}
-
-/** Eén pure afleiding voor zowel gewone viewupdates als historymaterialisatie. */
-export function deriveViewRows(s: AppState): ViewRow[] {
-  const { opts, ctx } = rowInputs(s);
-  return computeViewRows(s.tasks, opts, ctx);
-}
+import { deriveViewRows, viewRowInputs } from '../viewRows';
+export { deriveViewRows } from '../viewRows';
 
 /**
  * Occurrence-expliciete helft van `focusOnTask`: de storeactie hieronder bewaart bewust alleen het
@@ -243,7 +214,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   collapseAllGroups: () => {
     const s = get();
     if ((s.view.group?.length ?? 0) === 0) return; // geen groepering ⇒ geen banden
-    const { opts, ctx } = rowInputs(s);
+    const { opts, ctx } = viewRowInputs(s);
     const keys = allBandKeys(s.tasks, opts, ctx);
     // Vervangen, niet aanvullen: `keys` is per definitie de complete set, en zo verdwijnen meteen
     // sleutels van banden die na een data-/groepeerwijziging niet meer bestaan.
