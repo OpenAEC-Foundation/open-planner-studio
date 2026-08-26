@@ -57,6 +57,7 @@ export interface DataGridHeaderProps {
   columns: readonly DataGridColumnModel[];
   height: number;
   viewportWidth: number;
+  textDirection?: 'ltr' | 'rtl';
   labels: DataGridLabels;
   onResizeStart?: (columnId: TaskColumnId, before: number) => boolean | void;
   onResizePreview?: (columnId: TaskColumnId, width: number) => void;
@@ -100,6 +101,7 @@ export function DataGridHeader({
   columns,
   height,
   viewportWidth,
+  textDirection = 'ltr',
   labels,
   onResizeStart,
   onResizePreview,
@@ -279,6 +281,7 @@ export function DataGridHeader({
       <div
         ref={contextMenuRef}
         role="menu"
+        dir={textDirection}
         aria-label={contextColumn.label}
         className="task-grid-header-context-menu"
         style={contextMenuPosition}
@@ -331,7 +334,7 @@ export function DataGridHeader({
         aria-rowindex={1}
         className="task-grid-header-row"
         data-grid-sticky-enabled={pinned.stickyEnabled ? 'true' : 'false'}
-        style={{ height, minWidth: totalWidth, gridTemplateColumns: template }}
+        style={{ height, minWidth: totalWidth, gridTemplateColumns: template, direction: 'ltr' }}
       >
         {columns.map((column, columnIndex) => {
           const left = pinned.leftByColumnId.get(column.id);
@@ -340,6 +343,7 @@ export function DataGridHeader({
             <div
             key={column.id}
             role="columnheader"
+            dir={textDirection}
             aria-colindex={columnIndex + 1}
             data-grid-pinned={column.pinned ? 'true' : undefined}
             className="task-grid-column-header"

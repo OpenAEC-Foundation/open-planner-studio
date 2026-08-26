@@ -19,6 +19,7 @@ export interface TaskGridCommandInput {
   columns: readonly TaskColumnId[];
   rowHeight: number;
   viewportHeight: number;
+  textDirection?: 'ltr' | 'rtl';
   isReadOnly: (cell: GridCellAddress) => boolean;
 }
 
@@ -83,8 +84,12 @@ export function resolveTaskGridCommand(input: TaskGridCommandInput): TaskGridCom
 
   if (event.key === 'ArrowUp' && !hasCommandModifier) return move(rowIndex - 1, columnIndex);
   if (event.key === 'ArrowDown' && !hasCommandModifier) return move(rowIndex + 1, columnIndex);
-  if (event.key === 'ArrowLeft' && !hasCommandModifier) return move(rowIndex, columnIndex - 1);
-  if (event.key === 'ArrowRight' && !hasCommandModifier) return move(rowIndex, columnIndex + 1);
+  if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && !hasCommandModifier) {
+    // De kolomstrook en pinning blijven als productcontract fysiek links-naar-rechts, ook wanneer
+    // de celinhoud RTL is. Pijlen volgen daarom de visuele buur; Tab hieronder volgt de DOM-volgorde.
+    const columnDelta = event.key === 'ArrowLeft' ? -1 : 1;
+    return move(rowIndex, columnIndex + columnDelta);
+  }
   if (event.key === 'Home') return hasCommandModifier ? move(0, 0) : move(rowIndex, 0);
   if (event.key === 'End') {
     return hasCommandModifier

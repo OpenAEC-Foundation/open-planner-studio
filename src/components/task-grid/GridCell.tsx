@@ -10,6 +10,7 @@ export interface GridCellProps {
   selected: boolean;
   active: boolean;
   rowHeight: number;
+  textDirection?: 'ltr' | 'rtl';
   stickyEnabled: boolean;
   pinnedLeft?: number;
   onPointerDown?: (cell: GridCellAddress, event: React.PointerEvent<HTMLDivElement>) => void;
@@ -25,6 +26,7 @@ export function GridCell({
   selected,
   active,
   rowHeight,
+  textDirection = 'ltr',
   stickyEnabled,
   pinnedLeft,
   onPointerDown,
@@ -41,6 +43,7 @@ export function GridCell({
     <div
       ref={ref}
       role="gridcell"
+      dir={textDirection}
       data-grid-data-cell="true"
       data-grid-cell-key={gridCellKey(cell)}
       data-grid-pinned={column.pinned ? 'true' : undefined}

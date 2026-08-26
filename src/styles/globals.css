@@ -181,6 +181,40 @@
     border-inline-start-color: Highlight;
     border-inline-start-style: dashed;
   }
+
+  .task-grid-cell[data-grid-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
+    box-shadow: inset 0 -2px 0 HighlightText;
+  }
+
+  .task-grid-cell[data-grid-active="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .task-grid-cell[data-grid-readonly="true"]::after {
+    border-color: GrayText;
+    border-style: dotted;
+  }
+
+  .task-grid-cell[data-grid-stale="true"] .task-grid-cell-content {
+    text-decoration: underline dotted;
+  }
+
+  .task-grid-cell[aria-invalid="true"] {
+    outline: 3px double Mark;
+    outline-offset: -3px;
+  }
+
+  .task-grid-relation-chip--driving {
+    font-weight: 700;
+    text-decoration: underline double;
+  }
+
+  .task-grid-relation-chip--warning {
+    text-decoration: underline wavy;
+  }
 }
 
 .task-grid-group-row,

@@ -17,7 +17,54 @@
     "interferingFloat": "Müdahale bolluğu",
     "isNearCritical": "Kritiğe yakın",
     "floatPath": "Bolluk yolu",
-    "activeDuring": "Devam ediyor"
+    "activeDuring": "Devam ediyor",
+    "addColumn": "Sütun ekle",
+    "chooseColumn": "Sütun seç",
+    "recentColumns": "Son kullanılanlar",
+    "noColumns": "+ ile bir sütun ekleyin.",
+    "toggleSummary": "Özet görevi genişlet veya daralt",
+    "calculatedReadOnly": "Bu hesaplanan sütun düzenlenemez."
+  },
+  "taskGrid": {
+    "columns": {
+      "activityCodeData":"Aktivite kodu verileri","actualDuration":"Gerçekleşen süre","actualFinish":"Gerçekleşen bitiş","actualStart":"Gerçekleşen başlangıç","assignedResources":"Atanan kaynaklar","assignmentCurve":"Atama eğrisi","assignmentId":"Atama kimliği","assignmentResourceId":"Atama kaynak kimliği","assignmentTaskId":"Atama görev kimliği","assignmentUnits":"Günlük atama birimleri","calendar":"Takvim","childIds":"Alt görev kimlikleri","color":"Renk","completion":"İlerleme","constraint2Date":"İkincil kısıtlama tarihi","constraint2Type":"İkincil kısıtlama türü","constraintDate":"Kısıtlama tarihi","constraintHard":"Kesin kısıtlama","constraintType":"Kısıtlama türü","critical":"Kritik","customFieldData":"Özel alan verileri","deadline":"Son tarih","description":"Açıklama","duration":"Süre","durationMinutes":"Süre (dakika)","durationType":"Süre türü","earlyFinish":"Erken bitiş","earlyStart":"Erken başlangıç","effortDriven":"Efor odaklı","externalRelationData":"Dış ilişki verileri","floatPath":"Bolluk yolu","freeFloat":"Serbest bolluk","hammock":"Hammock (türetilmiş süre)","interferingFloat":"Engelleyici bolluk","internalRelationData":"İç ilişki verileri","lateFinish":"Geç bitiş","lateStart":"Geç başlangıç","levelingDelay":"Kaynak dengeleme gecikmesi","levelingDelayElapsed":"Geçen dengeleme gecikmesi","levelingDelayMinutes":"Dengeleme gecikmesi (dakika)","mandatoryMilestone":"Zorunlu kilometre taşı","manuallyScheduled":"Elle planlandı","milestone":"Kilometre taşı","milestoneKind":"Kilometre taşı türü","mspTaskType":"Microsoft Project görev türü","name":"Görev adı","nearCritical":"Kritiğe yakın","noteData":"Not verileri","notes":"Notlar","parentId":"Üst görev kimliği","priority":"Dengeleme önceliği","remainingMinutes":"Kalan (dakika)","remainingTime":"Kalan (iş günü)","resourceIds":"Kaynak kimlikleri","resume":"Sürdürme tarihi","scheduleFinish":"Planlanan bitiş","scheduleStart":"Planlanan başlangıç","splitGaps":"Kesintiler","status":"Durum","stop":"Durdurma tarihi","taskId":"Görev kimliği","taskType":"Görev türü","timephasedContours":"Zaman aşamalı dağılımlar","timephasedDurationWalks":"Zaman aşamalı süre parçaları","timephasedFinishFloor":"Zaman aşamalı bitiş alt sınırı","timephasedStartAnchor":"Zaman aşamalı başlangıç çıpası","totalFloat":"Toplam bolluk","wbs":"İş kırılım yapısı (WBS)","workWindowFinish":"Çalışma penceresi bitişi","workWindowStart":"Çalışma penceresi başlangıcı"
+    },
+    "category": {
+      "task": "Görev", "planning": "Planlama", "constraints": "Kısıtlamalar", "relations": "İlişkiler", "resources": "Kaynaklar",
+      "progress": "İlerleme", "computed": "Hesaplanan", "baseline": "Temel plan", "custom": "Özel", "technical": "Teknik"
+    },
+    "status": { "stale": "eski" },
+    "validation": {
+      "readOnly": "Bu hesaplanan sütun düzenlenemez.",
+      "invalid": "Girilen değer geçerli değil.",
+      "relationToken": "Örneğin 1.2 FS+2d kullanın.",
+      "externalRelationRequiresDialog": "İlişki → Dış ilişki ekle… yoluyla bir dış görev ekleyin.",
+      "invalidLag": "Gecikme geçerli değil. Örneğin 2d, -1d veya 4h kullanın.",
+      "ambiguousWbs": "Bu WBS birden fazla kez geçiyor. Görevi öneri listesinden seçin.",
+      "unknownWbs": "Bu WBS’ye sahip bir görev yok.",
+      "taskIdentity": "Seçilen görev değişti. Görevi yeniden seçin.",
+      "cycle": "Bu değişiklik programda bir döngü oluşturur."
+    },
+    "controls": {
+      "collapse": "Daralt", "expand": "Genişlet", "resize": "Genişliği değiştir", "remove": "Kaldır", "pin": "Sabitle",
+      "unpin": "Sabitlemeyi kaldır", "autoFit": "Otomatik sığdır", "search": "Ara", "searchResults": "Arama sonuçları", "noResults": "Sonuç yok"
+    },
+    "history": {
+      "addColumn": "{{column}} sütununu ekle",
+      "removeColumn": "{{column}} sütununu kaldır",
+      "pinColumn": "{{column}} sütununu sabitle",
+      "unpinColumn": "{{column}} sütununun sabitlemesini kaldır",
+      "moveColumn": "{{column}} sütununu taşı",
+      "resizeColumn": "{{column}} sütununu yeniden boyutlandır",
+      "autoFitColumn": "{{column}} sütununu otomatik sığdır"
+    },
+    "summary": {
+      "activityCodeAssignments": "{{count}} aktivite kodu ataması",
+      "customFields": "{{count}} özel alan",
+      "internalRelations": "{{count}} iç ilişki",
+      "externalRelations": "{{count}} dış ilişki",
+      "baselineMissing": "Bu temel planda bulunmuyor"
+    }
   },
   "taskType": {
     "CONSTRUCTION": "İnşaat",
@@ -153,7 +200,16 @@
     "warnings": "Uyarılar",
     "warnTruncatedLead": "Öne alma proje başlangıcında kesildi — örtüşme tam kullanılmıyor",
     "warnLeadExceedsDuration": "Öne alma, öncülün süresinden daha büyük",
-    "warnDropped": "Hesaplamaya dahil edilmedi"
+    "warnDropped": "Hesaplamaya dahil edilmedi",
+    "warnOutOfSequence": "Sıra dışı",
+    "warnSourceMissing": "Kaynak eksik",
+    "jumpTask": "{{reference}} görevine git",
+    "externalTask": "Dış görev {{reference}}",
+    "controlType": "{{task}} — ilişki türü",
+    "controlLag": "{{task}} — gecikme",
+    "removeInternal": "{{task}} ile ilişkiyi kaldır",
+    "removeExternal": "{{task}} ile dış ilişkiyi kaldır",
+    "searchPlaceholder": "WBS veya görev adı"
   },
   "structure": {
     "title": "Kodlar ve alanlar",
@@ -241,6 +297,11 @@
     "pickTaskFirst": "Dış bağlantı eklemek için tek bir görev seçin.",
     "refreshedToast": "{{refreshed}} bağlantı noktası yenilendi, {{missing}} eski",
     "noSourcesToast": "Yenilenebilir dış kaynak yok (dosya yolu eksik).",
-    "notAvailableWeb": "Kaynak dosyaları okumak yalnızca masaüstü uygulamasında mümkündür; manuel yedeği kullanın."
+    "notAvailableWeb": "Kaynak dosyaları okumak yalnızca masaüstü uygulamasında mümkündür; manuel yedeği kullanın.",
+    "source": "Kaynak",
+    "sourceAvailable": "son kontrolde kullanılabilir",
+    "edit": "Dış ilişkiyi düzenle…",
+    "refreshSource": "Kaynağı yenile",
+    "deleteRelation": "İlişkiyi sil"
   }
 }

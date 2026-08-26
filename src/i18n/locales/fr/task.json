@@ -17,7 +17,54 @@
     "interferingFloat": "Marge interférente",
     "isNearCritical": "Quasi critique",
     "floatPath": "Chemin de marge",
-    "activeDuring": "En cours"
+    "activeDuring": "En cours",
+    "addColumn": "Ajouter une colonne",
+    "chooseColumn": "Choisir une colonne",
+    "recentColumns": "Utilisées récemment",
+    "noColumns": "Ajoutez une colonne avec +.",
+    "toggleSummary": "Développer ou réduire la tâche récapitulative",
+    "calculatedReadOnly": "Cette colonne calculée ne peut pas être modifiée."
+  },
+  "taskGrid": {
+    "columns": {
+      "activityCodeData":"Données des codes d’activité","actualDuration":"Durée réelle","actualFinish":"Fin réelle","actualStart":"Début réel","assignedResources":"Ressources affectées","assignmentCurve":"Courbe d’affectation","assignmentId":"ID d’affectation","assignmentResourceId":"ID de ressource de l’affectation","assignmentTaskId":"ID de tâche de l’affectation","assignmentUnits":"Unités d’affectation par jour","calendar":"Calendrier","childIds":"ID des tâches enfants","color":"Couleur","completion":"Avancement","constraint2Date":"Date de contrainte secondaire","constraint2Type":"Type de contrainte secondaire","constraintDate":"Date de contrainte","constraintHard":"Contrainte stricte","constraintType":"Type de contrainte","critical":"Critique","customFieldData":"Données des champs personnalisés","deadline":"Échéance","description":"Description","duration":"Durée","durationMinutes":"Durée (minutes)","durationType":"Type de durée","earlyFinish":"Fin au plus tôt","earlyStart":"Début au plus tôt","effortDriven":"Piloté par l’effort","externalRelationData":"Données des relations externes","floatPath":"Chemin de marge","freeFloat":"Marge libre","hammock":"Hamac (durée dérivée)","interferingFloat":"Marge d’interférence","internalRelationData":"Données des relations internes","lateFinish":"Fin au plus tard","lateStart":"Début au plus tard","levelingDelay":"Retard de nivellement","levelingDelayElapsed":"Retard de nivellement écoulé","levelingDelayMinutes":"Retard de nivellement (minutes)","mandatoryMilestone":"Jalon obligatoire","manuallyScheduled":"Planifiée manuellement","milestone":"Jalon","milestoneKind":"Type de jalon","mspTaskType":"Type de tâche Microsoft Project","name":"Nom de tâche","nearCritical":"Presque critique","noteData":"Données des notes","notes":"Notes","parentId":"ID de la tâche parente","priority":"Priorité de nivellement","remainingMinutes":"Restant (minutes)","remainingTime":"Restant (jours ouvrés)","resourceIds":"ID des ressources","resume":"Date de reprise","scheduleFinish":"Fin planifiée","scheduleStart":"Début planifié","splitGaps":"Interruptions","status":"État","stop":"Date d’arrêt","taskId":"ID de tâche","taskType":"Type de tâche","timephasedContours":"Profils chronologiques","timephasedDurationWalks":"Segments de durée chronologiques","timephasedFinishFloor":"Plancher de fin chronologique","timephasedStartAnchor":"Ancrage de début chronologique","totalFloat":"Marge totale","wbs":"Structure de découpage du projet (SDP)","workWindowFinish":"Fin de fenêtre de travail","workWindowStart":"Début de fenêtre de travail"
+    },
+    "category": {
+      "task": "Tâche", "planning": "Planification", "constraints": "Contraintes", "relations": "Relations", "resources": "Ressources",
+      "progress": "Avancement", "computed": "Calculé", "baseline": "Référence", "custom": "Personnalisé", "technical": "Technique"
+    },
+    "status": { "stale": "obsolète" },
+    "validation": {
+      "readOnly": "Cette colonne calculée ne peut pas être modifiée.",
+      "invalid": "La valeur saisie n’est pas valide.",
+      "relationToken": "Utilisez par exemple 1.2 FS+2d.",
+      "externalRelationRequiresDialog": "Ajoutez une tâche externe via Relation → Ajouter une relation externe…",
+      "invalidLag": "Le décalage n’est pas valide. Utilisez par exemple 2d, -1d ou 4h.",
+      "ambiguousWbs": "Cette SDP apparaît plusieurs fois. Choisissez la tâche dans la liste de suggestions.",
+      "unknownWbs": "Aucune tâche ne correspond à cette SDP.",
+      "taskIdentity": "La tâche sélectionnée a changé. Sélectionnez-la de nouveau.",
+      "cycle": "Cette modification créerait un cycle dans la planification."
+    },
+    "controls": {
+      "collapse": "Réduire", "expand": "Développer", "resize": "Modifier la largeur", "remove": "Supprimer", "pin": "Épingler",
+      "unpin": "Désépingler", "autoFit": "Ajuster automatiquement", "search": "Rechercher", "searchResults": "Résultats de recherche", "noResults": "Aucun résultat"
+    },
+    "history": {
+      "addColumn": "Ajouter la colonne {{column}}",
+      "removeColumn": "Supprimer la colonne {{column}}",
+      "pinColumn": "Épingler la colonne {{column}}",
+      "unpinColumn": "Désépingler la colonne {{column}}",
+      "moveColumn": "Déplacer la colonne {{column}}",
+      "resizeColumn": "Redimensionner la colonne {{column}}",
+      "autoFitColumn": "Ajuster automatiquement la colonne {{column}}"
+    },
+    "summary": {
+      "activityCodeAssignments": "{{count}} affectations de codes d’activité",
+      "customFields": "{{count}} champs personnalisés",
+      "internalRelations": "{{count}} relations internes",
+      "externalRelations": "{{count}} relations externes",
+      "baselineMissing": "Absent de cette référence"
+    }
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -153,7 +200,16 @@
     "warnings": "Avertissements",
     "warnTruncatedLead": "Avance tronquée au début du projet — le chevauchement n'est pas entièrement utilisé",
     "warnLeadExceedsDuration": "L'avance est supérieure à la durée du prédécesseur",
-    "warnDropped": "Non pris en compte dans le calcul"
+    "warnDropped": "Non pris en compte dans le calcul",
+    "warnOutOfSequence": "Hors séquence",
+    "warnSourceMissing": "Source manquante",
+    "jumpTask": "Accéder à la tâche {{reference}}",
+    "externalTask": "Tâche externe {{reference}}",
+    "controlType": "{{task}} — type de relation",
+    "controlLag": "{{task}} — décalage",
+    "removeInternal": "Supprimer la relation avec {{task}}",
+    "removeExternal": "Supprimer la relation externe avec {{task}}",
+    "searchPlaceholder": "SDP ou nom de tâche"
   },
   "structure": {
     "title": "Codes et champs",
@@ -241,6 +297,11 @@
     "pickTaskFirst": "Sélectionnez une seule tâche pour ajouter un lien externe.",
     "refreshedToast": "{{refreshed}} ancrage(s) actualisé(s), {{missing}} obsolète(s)",
     "noSourcesToast": "Aucune source externe actualisable (chemin de fichier manquant).",
-    "notAvailableWeb": "La lecture des fichiers source n'est possible que dans l'application de bureau ; utilisez la solution de secours manuelle."
+    "notAvailableWeb": "La lecture des fichiers source n'est possible que dans l'application de bureau ; utilisez la solution de secours manuelle.",
+    "source": "Source",
+    "sourceAvailable": "disponible lors de la dernière vérification",
+    "edit": "Modifier la relation externe…",
+    "refreshSource": "Actualiser la source",
+    "deleteRelation": "Supprimer la relation"
   }
 }

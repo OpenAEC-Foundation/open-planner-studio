@@ -108,6 +108,10 @@ export interface TaskColumnContext {
   resourcesById: ReadonlyMap<string, Resource>;
   baselinesById: ReadonlyMap<string, Baseline>;
   scheduleStale: boolean;
+  /** UI-tekst voor descriptorwaarden en tooltips, inclusief interpolatie. */
+  labelForText?: (key: string, values?: Readonly<Record<string, string | number>>) => string;
+  /** Schrijfrichting voor betekenisdragende pijlen; pinning blijft bewust fysiek links. */
+  textDirection?: 'ltr' | 'rtl';
   /** Projectinstellingen die alleen de descriptorbewerkbaarheid/-parser sturen. */
   wbsAutoNumber?: boolean;
   effectiveHoursPerDay?: (task: Task) => number;

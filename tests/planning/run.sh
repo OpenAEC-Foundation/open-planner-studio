@@ -295,6 +295,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-relation-ribbon-trace.ts" "$RELRIBBONTRACECHECK"; then node "$RELRIBBONTRACECHECK" || STATUS=1; fi
   RELPANELPARITYCHECK="$DIR/.relations-panel-parity.mjs"
   if bundle_check "$DIR/check-relations-panel-parity.ts" "$RELPANELPARITYCHECK"; then node "$RELPANELPARITYCHECK" || STATUS=1; fi
+  TGI18NCHECK="$DIR/.task-grid-i18n.mjs"
+  if bundle_check "$DIR/check-task-grid-i18n.ts" "$TGI18NCHECK"; then node "$TGI18NCHECK" || STATUS=1; fi
   TGARIACHECK="$DIR/.task-grid-aria.mjs"
   if bundle_check "$DIR/check-task-grid-aria.ts" "$TGARIACHECK"; then node "$TGARIACHECK" || STATUS=1; fi
   TGDOMCHECK="$DIR/.task-grid-dom-budget.mjs"

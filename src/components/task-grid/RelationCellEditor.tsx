@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Zap } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/engine/taskGrid/relationFormat';
 import {
   normalizeRelationTokenSources,
+  RELATION_WARNING_KEYS,
   relationTaskOptions,
   type RelationCellItem,
 } from '@/engine/taskGrid/relationCell';
@@ -48,16 +50,17 @@ function relationLabelParts(label: string): { reference: string; detail: string 
 }
 
 function ExternalRelationTooltipContent({ item }: { item: RelationCellItem }) {
+  const { t } = useTranslation('task');
   if (item.parsedToken.kind !== 'external') return null;
   const external = item.parsedToken.external;
   return (
     <>
       <div className="tooltip-title">{external.sourceRef.taskName || external.sourceRef.taskId}</div>
-      <div className="tooltip-row"><span className="tooltip-label">Project:</span><span className="tooltip-value">{external.sourceRef.projectName || external.sourceRef.projectId}</span></div>
-      <div className="tooltip-row"><span className="tooltip-label">Taak-ID:</span><span className="tooltip-value">{external.sourceRef.taskId}</span></div>
-      <div className="tooltip-row"><span className="tooltip-label">Bevroren anker:</span><span className="tooltip-value">{external.anchorDate}</span></div>
-      <div className="tooltip-row"><span className="tooltip-label">Bron:</span><span className="tooltip-value">{external.sourceMissing ? 'niet beschikbaar; bevroren datum blijft actief' : 'beschikbaar bij laatste controle'}</span></div>
-      {external.sourceRef.filePath && <div className="tooltip-row"><span className="tooltip-label">Bestand:</span><span className="tooltip-value">{external.sourceRef.filePath}</span></div>}
+      <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.projectId')}:</span><span className="tooltip-value">{external.sourceRef.projectName || external.sourceRef.projectId}</span></div>
+      <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.taskId')}:</span><span className="tooltip-value">{external.sourceRef.taskId}</span></div>
+      <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.anchorDate')}:</span><span className="tooltip-value">{external.anchorDate}</span></div>
+      <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.source')}:</span><span className="tooltip-value">{external.sourceMissing ? t('externalLinks.sourceMissing') : t('externalLinks.sourceAvailable')}</span></div>
+      {external.sourceRef.filePath && <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.sourceFile')}:</span><span className="tooltip-value">{external.sourceRef.filePath}</span></div>}
     </>
   );
 }
@@ -71,6 +74,7 @@ export interface RelationCellContentProps {
 
 /** Compacte celweergave; alleen de taakreferentie is interactief, type en lag blijven gewone tekst. */
 export function RelationCellContent({ items, onFocusTask, onHoverStart, onExternalContextMenu }: RelationCellContentProps) {
+  const { t } = useTranslation('task');
   const [hover, setHover] = useState<RelationHover | null>(null);
   useEffect(() => setHover(null), [items]);
   return (
@@ -79,9 +83,9 @@ export function RelationCellContent({ items, onFocusTask, onHoverStart, onExtern
         {items.map((item, index) => {
           const parts = relationLabelParts(item.label);
           const warningTitle = [
-            ...item.warnings,
-            ...(item.stale ? ['planning-verouderd'] : []),
-            ...(item.freeFloat !== undefined ? [`vrije speling: ${item.freeFloat}d`] : []),
+            ...item.warnings.map(warning => t(RELATION_WARNING_KEYS[warning] ?? warning, { defaultValue: warning })),
+            ...(item.stale ? [t('taskGrid.status.stale')] : []),
+            ...(item.freeFloat !== undefined ? [`${t('relations.freeFloat')}: ${item.freeFloat}d`] : []),
           ].join(' · ');
           return (
             <span
@@ -100,7 +104,9 @@ export function RelationCellContent({ items, onFocusTask, onHoverStart, onExtern
               <button
                 type="button"
                 className="task-grid-relation-jump"
-                aria-label={item.kind === 'internal' ? `Spring naar taak ${parts.reference}` : `Externe taak ${parts.reference}`}
+                aria-label={item.kind === 'internal'
+                  ? t('relations.jumpTask', { reference: parts.reference })
+                  : t('relations.externalTask', { reference: parts.reference })}
                 onMouseMove={event => {
                   event.stopPropagation();
                   onHoverStart?.();
@@ -120,8 +126,8 @@ export function RelationCellContent({ items, onFocusTask, onHoverStart, onExtern
                 {parts.reference}
               </button>
               {parts.detail && <span className="task-grid-relation-detail"> {parts.detail}</span>}
-              {item.driving && <Zap size={10} aria-label="Sturend" />}
-              {item.warnings.length > 0 && <AlertTriangle size={10} aria-label="Waarschuwing" />}
+              {item.driving && <Zap size={10} aria-label={t('relations.driving')} />}
+              {item.warnings.length > 0 && <AlertTriangle size={10} aria-label={t('relations.warnings')} />}
             </span>
           );
         })}
@@ -168,6 +174,7 @@ export function RelationCellEditor({
   onValidityChange,
   onOpenExternal,
 }: RelationCellEditorProps) {
+  const { t } = useTranslation('task');
   const [query, setQuery] = useState('');
   const anchorRef = useRef<HTMLSpanElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -289,7 +296,7 @@ export function RelationCellEditor({
               <div key={token.relationId ?? `${token.taskId ?? token.wbsCode}:${index}`} className="task-grid-relation-token" role="listitem">
                 <span className="task-grid-relation-reference" title={taskLabel}>{taskLabel}</span>
                 <select
-                  aria-label={`${taskLabel} — relatietype`}
+                  aria-label={t('relations.controlType', { task: taskLabel })}
                   value={token.relType}
                   onKeyDown={controlKeyDown}
                   onChange={event => replaceToken(index, {
@@ -299,12 +306,12 @@ export function RelationCellEditor({
                   {RELATION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
                 <input
-                  aria-label={`${taskLabel} — vertraging`}
+                  aria-label={t('relations.controlLag', { task: taskLabel })}
                   value={token.lagText}
                   placeholder="0d"
                   onChange={event => replaceToken(index, { ...token, lagText: event.currentTarget.value })}
                 />
-                <button type="button" aria-label={`Verwijder relatie met ${taskLabel}`} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+                <button type="button" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
               </div>
             );
           }
@@ -329,7 +336,7 @@ export function RelationCellEditor({
                 {sourceLabel}
               </button>
               <select
-                aria-label={`${sourceLabel} — relatietype`}
+                aria-label={t('relations.controlType', { task: sourceLabel })}
                 value={token.external.relType}
                 onKeyDown={controlKeyDown}
                 onChange={event => replaceToken(index, {
@@ -340,7 +347,7 @@ export function RelationCellEditor({
                 {compatibleTypes.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
               <input
-                aria-label={`${sourceLabel} — vertraging`}
+                aria-label={t('relations.controlLag', { task: sourceLabel })}
                 value={externalLagDrafts[key] ?? ''}
                 placeholder="0d"
                 onChange={event => {
@@ -352,7 +359,7 @@ export function RelationCellEditor({
                   if (lag) replaceToken(index, { ...token, external: { ...token.external, lag } });
                 }}
               />
-              <button type="button" aria-label={`Verwijder externe relatie met ${sourceLabel}`} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+              <button type="button" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
             </div>
           );
         })}
@@ -370,7 +377,7 @@ export function RelationCellEditor({
           aria-label={label}
           aria-autocomplete="list"
           aria-expanded={query.trim().length > 0}
-          placeholder="WBS of taaknaam"
+          placeholder={t('relations.searchPlaceholder')}
           value={query}
           onChange={event => setQuery(event.currentTarget.value)}
           onKeyDown={event => {
@@ -381,7 +388,7 @@ export function RelationCellEditor({
           }}
         />
         <button type="button" onKeyDown={controlKeyDown} onClick={() => onOpenExternal?.()}>
-          Externe relatie toevoegen…
+          {t('externalLinks.action')}
         </button>
       </div>
       {query.trim() && (

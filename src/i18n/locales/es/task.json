@@ -17,7 +17,67 @@
     "interferingFloat": "Holgura interferente",
     "isNearCritical": "Casi crítica",
     "floatPath": "Ruta de holgura",
-    "activeDuring": "En curso"
+    "activeDuring": "En curso",
+    "addColumn": "Añadir columna",
+    "chooseColumn": "Elegir columna",
+    "recentColumns": "Usadas recientemente",
+    "noColumns": "Añada una columna con +.",
+    "toggleSummary": "Expandir o contraer tarea de resumen",
+    "calculatedReadOnly": "Esta columna calculada no se puede editar."
+  },
+  "taskGrid": {
+    "columns": {
+      "activityCodeData": "Datos de códigos de actividad", "actualDuration": "Duración real", "actualFinish": "Fin real", "actualStart": "Inicio real",
+      "assignedResources": "Recursos asignados", "assignmentCurve": "Curva de asignación", "assignmentId": "Id. de asignación", "assignmentResourceId": "Id. de recurso de la asignación", "assignmentTaskId": "Id. de tarea de la asignación", "assignmentUnits": "Unidades de asignación por día",
+      "calendar": "Calendario", "childIds": "Id. de tareas secundarias", "color": "Color", "completion": "Progreso",
+      "constraint2Date": "Fecha de restricción secundaria", "constraint2Type": "Tipo de restricción secundaria", "constraintDate": "Fecha de restricción", "constraintHard": "Restricción estricta", "constraintType": "Tipo de restricción",
+      "critical": "Crítica", "customFieldData": "Datos de campos personalizados", "deadline": "Fecha límite", "description": "Descripción", "duration": "Duración", "durationMinutes": "Duración (minutos)", "durationType": "Tipo de duración",
+      "earlyFinish": "Fin temprano", "earlyStart": "Inicio temprano", "effortDriven": "Condicionada por el esfuerzo", "externalRelationData": "Datos de relaciones externas",
+      "floatPath": "Ruta de holgura", "freeFloat": "Holgura libre", "hammock": "Hamaca (duración derivada)", "interferingFloat": "Holgura interferente", "internalRelationData": "Datos de relaciones internas",
+      "lateFinish": "Fin tardío", "lateStart": "Inicio tardío", "levelingDelay": "Retraso de redistribución", "levelingDelayElapsed": "Retraso de redistribución transcurrido", "levelingDelayMinutes": "Retraso de redistribución (minutos)",
+      "mandatoryMilestone": "Hito obligatorio", "manuallyScheduled": "Programada manualmente", "milestone": "Hito", "milestoneKind": "Tipo de hito", "mspTaskType": "Tipo de tarea de Microsoft Project",
+      "name": "Nombre de tarea", "nearCritical": "Casi crítica", "noteData": "Datos de notas", "notes": "Notas", "parentId": "Id. de tarea principal", "priority": "Prioridad de redistribución",
+      "remainingMinutes": "Restante (minutos)", "remainingTime": "Restante (días laborables)", "resourceIds": "Id. de recursos", "resume": "Fecha de reanudación",
+      "scheduleFinish": "Fin programado", "scheduleStart": "Inicio programado", "splitGaps": "Interrupciones", "status": "Estado", "stop": "Fecha de detención", "taskId": "Id. de tarea", "taskType": "Tipo de tarea",
+      "timephasedContours": "Contornos por fases temporales", "timephasedDurationWalks": "Segmentos de duración por fases temporales", "timephasedFinishFloor": "Límite inferior de fin por fases temporales", "timephasedStartAnchor": "Anclaje de inicio por fases temporales",
+      "totalFloat": "Holgura total", "wbs": "Estructura de desglose del trabajo (EDT)", "workWindowFinish": "Fin de ventana de trabajo", "workWindowStart": "Inicio de ventana de trabajo"
+    },
+    "category": {
+      "task": "Tarea", "planning": "Planificación", "constraints": "Restricciones", "relations": "Relaciones", "resources": "Recursos",
+      "progress": "Progreso", "computed": "Calculado", "baseline": "Línea base", "custom": "Personalizado", "technical": "Técnico"
+    },
+    "status": { "stale": "obsoleto" },
+    "validation": {
+      "readOnly": "Esta columna calculada no se puede editar.",
+      "invalid": "El valor introducido no es válido.",
+      "relationToken": "Use, por ejemplo, 1.2 FS+2d.",
+      "externalRelationRequiresDialog": "Añada una tarea externa mediante Relación → Añadir relación externa…",
+      "invalidLag": "El desfase no es válido. Use, por ejemplo, 2d, -1d o 4h.",
+      "ambiguousWbs": "Esta EDT aparece varias veces. Elija la tarea en la lista de sugerencias.",
+      "unknownWbs": "No existe ninguna tarea con esta EDT.",
+      "taskIdentity": "La tarea seleccionada ha cambiado. Vuelva a elegirla.",
+      "cycle": "Este cambio crearía un ciclo en la planificación."
+    },
+    "controls": {
+      "collapse": "Contraer", "expand": "Expandir", "resize": "Cambiar ancho", "remove": "Quitar", "pin": "Fijar",
+      "unpin": "Desfijar", "autoFit": "Autoajustar", "search": "Buscar", "searchResults": "Resultados de búsqueda", "noResults": "Sin resultados"
+    },
+    "history": {
+      "addColumn": "Añadir la columna {{column}}",
+      "removeColumn": "Quitar la columna {{column}}",
+      "pinColumn": "Fijar la columna {{column}}",
+      "unpinColumn": "Desfijar la columna {{column}}",
+      "moveColumn": "Mover la columna {{column}}",
+      "resizeColumn": "Cambiar el ancho de la columna {{column}}",
+      "autoFitColumn": "Autoajustar la columna {{column}}"
+    },
+    "summary": {
+      "activityCodeAssignments": "{{count}} asignaciones de códigos de actividad",
+      "customFields": "{{count}} campos personalizados",
+      "internalRelations": "{{count}} relaciones internas",
+      "externalRelations": "{{count}} relaciones externas",
+      "baselineMissing": "No está presente en esta línea base"
+    }
   },
   "taskType": {
     "CONSTRUCTION": "Construcción",
@@ -153,7 +213,16 @@
     "warnings": "Advertencias",
     "warnTruncatedLead": "Adelanto truncado en el inicio del proyecto — la superposición no se aprovecha por completo",
     "warnLeadExceedsDuration": "El adelanto es mayor que la duración de la predecesora",
-    "warnDropped": "No incluida en el cálculo"
+    "warnDropped": "No incluida en el cálculo",
+    "warnOutOfSequence": "Fuera de secuencia",
+    "warnSourceMissing": "Falta el origen",
+    "jumpTask": "Ir a la tarea {{reference}}",
+    "externalTask": "Tarea externa {{reference}}",
+    "controlType": "{{task}} — tipo de relación",
+    "controlLag": "{{task}} — desfase",
+    "removeInternal": "Quitar la relación con {{task}}",
+    "removeExternal": "Quitar la relación externa con {{task}}",
+    "searchPlaceholder": "EDT o nombre de tarea"
   },
   "structure": {
     "title": "Códigos y campos",
@@ -241,6 +310,11 @@
     "pickTaskFirst": "Seleccione una sola tarea para añadir un enlace externo.",
     "refreshedToast": "{{refreshed}} anclaje(s) actualizado(s), {{missing}} obsoleto(s)",
     "noSourcesToast": "No hay fuentes externas actualizables (falta la ruta del archivo).",
-    "notAvailableWeb": "Leer archivos de origen solo es posible en la aplicación de escritorio; use la alternativa manual."
+    "notAvailableWeb": "Leer archivos de origen solo es posible en la aplicación de escritorio; use la alternativa manual.",
+    "source": "Origen",
+    "sourceAvailable": "disponible en la última comprobación",
+    "edit": "Editar relación externa…",
+    "refreshSource": "Actualizar origen",
+    "deleteRelation": "Eliminar relación"
   }
 }

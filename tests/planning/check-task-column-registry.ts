@@ -155,6 +155,18 @@ const ctx: TaskColumnContext = {
   ]),
   baselinesById: new Map([[baseline.id, baseline]]),
   scheduleStale: false,
+  labelForText: (key, values) => ({
+    'relations.warnDropped': 'niet meegerekend',
+    'relations.warnTruncatedLead': 'lead afgekapt',
+    'relations.warnLeadExceedsDuration': 'lead groter dan voorgangerduur',
+    'relations.warnOutOfSequence': 'buiten volgorde',
+    'relations.warnSourceMissing': 'bron ontbreekt',
+    'taskGrid.summary.activityCodeAssignments': `${values?.count} codetoewijzingen`,
+    'taskGrid.summary.customFields': `${values?.count} eigen velden`,
+    'taskGrid.summary.internalRelations': `${values?.count} interne relaties`,
+    'taskGrid.summary.externalRelations': `${values?.count} externe relaties`,
+    'taskGrid.summary.baselineMissing': 'Niet aanwezig in deze baseline',
+  }[key] ?? key),
   signedWorkDaysBetween: () => 42,
 };
 const registry = buildTaskColumnRegistry({

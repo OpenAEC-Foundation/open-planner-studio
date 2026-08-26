@@ -35,6 +35,7 @@ export interface DataGridCoreProps {
   scrollLeft?: number;
   overscan?: number;
   mode?: 'select' | 'edit';
+  textDirection?: 'ltr' | 'rtl';
   getCell: (row: DataGridDataRowModel, column: DataGridColumnModel) => DataGridCellModel;
   labels: DataGridLabels;
   onScrollTopChange?: (scrollTop: number) => void;
@@ -111,6 +112,7 @@ export function DataGridCore({
   scrollLeft = 0,
   overscan,
   mode = 'select',
+  textDirection = 'ltr',
   getCell,
   labels,
   onScrollTopChange,
@@ -259,6 +261,7 @@ export function DataGridCore({
       columns: columns.map(column => column.id),
       rowHeight,
       viewportHeight,
+      textDirection,
       isReadOnly: cell => {
         const rowIndex = rowIndexByKey.get(cell.rowKey);
         const columnIndex = columnIndexById.get(cell.columnId);
@@ -293,8 +296,9 @@ export function DataGridCore({
         aria-colcount={columns.length}
         tabIndex={activeMounted ? -1 : 0}
         className="task-grid-core"
+        dir={textDirection}
         data-grid-sticky-enabled={pinned.stickyEnabled ? 'true' : 'false'}
-        style={{ width: viewportWidth, height: headerHeight + viewportHeight }}
+        style={{ width: viewportWidth, height: headerHeight + viewportHeight, direction: 'ltr' }}
         onScroll={handleScroll}
         onKeyDown={handleKeyDown}
         onCopy={onCopy}
@@ -304,6 +308,7 @@ export function DataGridCore({
           columns={columns}
           height={headerHeight}
           viewportWidth={viewportWidth}
+          textDirection={textDirection}
           labels={labels}
           onResizeStart={onResizeStart}
           onResizePreview={onResizePreview}
@@ -330,7 +335,7 @@ export function DataGridCore({
                   role="row"
                   aria-rowindex={mounted.ariaRowIndex}
                   className="task-grid-group-row"
-                  style={{ height: rowHeight, minWidth: totalWidth }}
+                  style={{ height: rowHeight, minWidth: totalWidth, direction: 'ltr' }}
                   onContextMenu={event => onGroupContextMenu?.(row, event)}
                 >
                   {columns.length > 0 && (
@@ -338,6 +343,7 @@ export function DataGridCore({
                       role="gridcell"
                       aria-colindex={1}
                       aria-colspan={columns.length}
+                      dir={textDirection}
                       data-grid-group-cell="true"
                       className="task-grid-group-cell"
                       style={{ width: totalWidth, height: rowHeight, paddingInlineStart: 8 + row.depth * 14 }}
@@ -372,7 +378,7 @@ export function DataGridCore({
                 data-grid-drop-zone={row.dropZone ?? undefined}
                 data-grid-dragging={row.dragging ? 'true' : undefined}
                 className={`task-grid-data-row${row.traceClass ? ` ${row.traceClass}` : ''}`}
-                style={{ height: rowHeight, minWidth: totalWidth, gridTemplateColumns: template }}
+                style={{ height: rowHeight, minWidth: totalWidth, gridTemplateColumns: template, direction: 'ltr' }}
                 onMouseDown={event => onDataRowMouseDown?.(row, mounted.index, event)}
                 onMouseMove={event => onDataRowMouseMove?.(row, event)}
                 onMouseLeave={() => onDataRowMouseLeave?.(row)}
@@ -389,6 +395,7 @@ export function DataGridCore({
                       selected={selectedCell(cell, selection, rowIndexByKey, columnIndexById)}
                       active={sameCell(cell, selection.active)}
                       rowHeight={rowHeight}
+                      textDirection={textDirection}
                       stickyEnabled={pinned.stickyEnabled}
                       pinnedLeft={pinned.leftByColumnId.get(column.id)}
                       onPointerDown={onCellPointerDown}

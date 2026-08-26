@@ -17,7 +17,67 @@
     "interferingFloat": "Interferierender Puffer",
     "isNearCritical": "Beinahe kritisch",
     "floatPath": "Pufferpfad",
-    "activeDuring": "In Bearbeitung"
+    "activeDuring": "In Bearbeitung",
+    "addColumn": "Spalte hinzufügen",
+    "chooseColumn": "Spalte auswählen",
+    "recentColumns": "Zuletzt verwendet",
+    "noColumns": "Fügen Sie mit + eine Spalte hinzu.",
+    "toggleSummary": "Sammelvorgang ein- oder ausklappen",
+    "calculatedReadOnly": "Diese berechnete Spalte kann nicht bearbeitet werden."
+  },
+  "taskGrid": {
+    "columns": {
+      "activityCodeData": "Aktivitätscodedaten", "actualDuration": "Tatsächliche Dauer", "actualFinish": "Tatsächliches Ende", "actualStart": "Tatsächlicher Anfang",
+      "assignedResources": "Zugewiesene Ressourcen", "assignmentCurve": "Zuordnungskurve", "assignmentId": "Zuordnungs-ID", "assignmentResourceId": "Ressourcen-ID der Zuordnung", "assignmentTaskId": "Aufgaben-ID der Zuordnung", "assignmentUnits": "Zuordnungseinheiten pro Tag",
+      "calendar": "Kalender", "childIds": "IDs untergeordneter Aufgaben", "color": "Farbe", "completion": "Fortschritt",
+      "constraint2Date": "Datum der sekundären Einschränkung", "constraint2Type": "Typ der sekundären Einschränkung", "constraintDate": "Einschränkungsdatum", "constraintHard": "Harte Einschränkung", "constraintType": "Einschränkungstyp",
+      "critical": "Kritisch", "customFieldData": "Benutzerfelddaten", "deadline": "Stichtag", "description": "Beschreibung", "duration": "Dauer", "durationMinutes": "Dauer (Minuten)", "durationType": "Dauertyp",
+      "earlyFinish": "Frühestes Ende", "earlyStart": "Frühester Anfang", "effortDriven": "Aufwandsgesteuert", "externalRelationData": "Daten externer Beziehungen",
+      "floatPath": "Pufferpfad", "freeFloat": "Freier Puffer", "hammock": "Hammock (abgeleitete Dauer)", "interferingFloat": "Störender Puffer", "internalRelationData": "Daten interner Beziehungen",
+      "lateFinish": "Spätestes Ende", "lateStart": "Spätester Anfang", "levelingDelay": "Kapazitätsabgleichsverzögerung", "levelingDelayElapsed": "Verstrichene Abgleichsverzögerung", "levelingDelayMinutes": "Abgleichsverzögerung (Minuten)",
+      "mandatoryMilestone": "Verbindlicher Meilenstein", "manuallyScheduled": "Manuell geplant", "milestone": "Meilenstein", "milestoneKind": "Meilensteintyp", "mspTaskType": "Microsoft-Project-Aufgabentyp",
+      "name": "Aufgabenname", "nearCritical": "Nahezu kritisch", "noteData": "Notizdaten", "notes": "Notizen", "parentId": "ID der übergeordneten Aufgabe", "priority": "Abgleichspriorität",
+      "remainingMinutes": "Verbleibend (Minuten)", "remainingTime": "Verbleibend (Arbeitstage)", "resourceIds": "Ressourcen-IDs", "resume": "Fortsetzungsdatum",
+      "scheduleFinish": "Geplantes Ende", "scheduleStart": "Geplanter Anfang", "splitGaps": "Unterbrechungen", "status": "Status", "stop": "Stoppdatum", "taskId": "Aufgaben-ID", "taskType": "Aufgabentyp",
+      "timephasedContours": "Zeitphasenverläufe", "timephasedDurationWalks": "Zeitphasen-Dauersegmente", "timephasedFinishFloor": "Untergrenze des Zeitphasenendes", "timephasedStartAnchor": "Anker des Zeitphasenanfangs",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workWindowStart": "Anfang des Arbeitsfensters"
+    },
+    "category": {
+      "task": "Aufgabe", "planning": "Planung", "constraints": "Einschränkungen", "relations": "Beziehungen", "resources": "Ressourcen",
+      "progress": "Fortschritt", "computed": "Berechnet", "baseline": "Basisplan", "custom": "Benutzerdefiniert", "technical": "Technisch"
+    },
+    "status": { "stale": "veraltet" },
+    "validation": {
+      "readOnly": "Diese berechnete Spalte kann nicht bearbeitet werden.",
+      "invalid": "Der eingegebene Wert ist ungültig.",
+      "relationToken": "Verwenden Sie zum Beispiel 1.2 FS+2d.",
+      "externalRelationRequiresDialog": "Fügen Sie eine externe Aufgabe über Beziehung → Externe Beziehung hinzufügen… hinzu.",
+      "invalidLag": "Der Zeitabstand ist ungültig. Verwenden Sie zum Beispiel 2d, -1d oder 4h.",
+      "ambiguousWbs": "Diese WBS kommt mehrfach vor. Wählen Sie die Aufgabe aus der Vorschlagsliste.",
+      "unknownWbs": "Es gibt keine Aufgabe mit dieser WBS.",
+      "taskIdentity": "Die ausgewählte Aufgabe wurde inzwischen geändert. Wählen Sie sie erneut aus.",
+      "cycle": "Diese Änderung würde einen Zyklus im Terminplan erzeugen."
+    },
+    "controls": {
+      "collapse": "Einklappen", "expand": "Ausklappen", "resize": "Breite ändern", "remove": "Entfernen", "pin": "Anheften",
+      "unpin": "Lösen", "autoFit": "Automatisch anpassen", "search": "Suchen", "searchResults": "Suchergebnisse", "noResults": "Keine Ergebnisse"
+    },
+    "history": {
+      "addColumn": "Spalte {{column}} hinzufügen",
+      "removeColumn": "Spalte {{column}} entfernen",
+      "pinColumn": "Spalte {{column}} anheften",
+      "unpinColumn": "Spalte {{column}} lösen",
+      "moveColumn": "Spalte {{column}} verschieben",
+      "resizeColumn": "Breite der Spalte {{column}} ändern",
+      "autoFitColumn": "Spalte {{column}} automatisch anpassen"
+    },
+    "summary": {
+      "activityCodeAssignments": "{{count}} Aktivitätscode-Zuweisungen",
+      "customFields": "{{count}} benutzerdefinierte Felder",
+      "internalRelations": "{{count}} interne Beziehungen",
+      "externalRelations": "{{count}} externe Beziehungen",
+      "baselineMissing": "In diesem Basisplan nicht vorhanden"
+    }
   },
   "taskType": {
     "CONSTRUCTION": "Bau",
@@ -153,7 +213,16 @@
     "warnings": "Warnungen",
     "warnTruncatedLead": "Vorlauf am Projektstart gekappt — die Überlappung wird nicht vollständig genutzt",
     "warnLeadExceedsDuration": "Der Vorlauf ist größer als die Dauer des Vorgängers",
-    "warnDropped": "Nicht in die Berechnung einbezogen"
+    "warnDropped": "Nicht in die Berechnung einbezogen",
+    "warnOutOfSequence": "Außerhalb der Reihenfolge",
+    "warnSourceMissing": "Quelle fehlt",
+    "jumpTask": "Zu Aufgabe {{reference}} springen",
+    "externalTask": "Externe Aufgabe {{reference}}",
+    "controlType": "{{task}} — Beziehungstyp",
+    "controlLag": "{{task}} — Zeitabstand",
+    "removeInternal": "Beziehung mit {{task}} entfernen",
+    "removeExternal": "Externe Beziehung mit {{task}} entfernen",
+    "searchPlaceholder": "WBS oder Aufgabenname"
   },
   "structure": {
     "title": "Codes & Felder",
@@ -241,6 +310,11 @@
     "pickTaskFirst": "Wählen Sie einen einzelnen Vorgang aus, um eine externe Verknüpfung hinzuzufügen.",
     "refreshedToast": "{{refreshed}} Anker aktualisiert, {{missing}} veraltet",
     "noSourcesToast": "Keine aktualisierbaren externen Quellen (Dateipfad fehlt).",
-    "notAvailableWeb": "Quelldateien lesen ist nur in der Desktop-App möglich; verwenden Sie den manuellen Fallback."
+    "notAvailableWeb": "Quelldateien lesen ist nur in der Desktop-App möglich; verwenden Sie den manuellen Fallback.",
+    "source": "Quelle",
+    "sourceAvailable": "bei der letzten Prüfung verfügbar",
+    "edit": "Externe Beziehung bearbeiten…",
+    "refreshSource": "Quelle aktualisieren",
+    "deleteRelation": "Beziehung löschen"
   }
 }

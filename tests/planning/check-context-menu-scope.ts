@@ -62,9 +62,9 @@ eq('00b rechtermuisknop loopt niet eerst door de gewone celselectie heen',
 eq('00c externe relatieacties staan in het rechtsklikmenu en niet als celknoppen',
   /onExternalContextMenu/.test(relationCellSource)
     && /event\.preventDefault\(\)/.test(relationCellSource)
-    && /Bron vernieuwen/.test(fullTaskGridSource)
-    && /Relatie verwijderen/.test(fullTaskGridSource)
-    && !/Bron vernieuwen|Relatie verwijderen/.test(relationCellSource),
+    && /externalLinks\.refreshSource/.test(fullTaskGridSource)
+    && /externalLinks\.deleteRelation/.test(fullTaskGridSource)
+    && !/externalLinks\.(?:refreshSource|deleteRelation)/.test(relationCellSource),
   true);
 
 /** Verse projectstate met vier root-taken; B/C/D worden de selectie, A blijft de controle. */

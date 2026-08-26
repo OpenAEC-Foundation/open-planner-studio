@@ -206,9 +206,8 @@ export function TaskGridSurface({
 }: TaskGridSurfaceProps) {
   const { t: tTask, i18n: taskI18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
-  const calculatedReadOnlyFallback = taskI18n.resolvedLanguage === 'nl'
-    ? 'Deze berekende kolom kan niet worden bewerkt.'
-    : 'This calculated column cannot be edited.';
+  const calculatedReadOnlyFallback = tTask('table.calculatedReadOnly');
+  const textDirection = taskI18n.dir() === 'rtl' ? 'rtl' : 'ltr';
   const tasks = useAppStore(state => state.tasks);
   const sequences = useAppStore(state => state.sequences);
   const assignments = useAppStore(state => state.assignments);
@@ -309,6 +308,8 @@ export function TaskGridSurface({
       key => tTask(key, { defaultValue: key }),
     ),
     labelForBoolean: value => tCommon(value ? 'yes' : 'no'),
+    labelForText: (key, values) => tTask(key, { ...values, defaultValue: key }),
+    textDirection,
     trace,
     callbacks: {
       onPrepareEdit: () => true,
@@ -324,7 +325,7 @@ export function TaskGridSurface({
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendars,
     cpmResult, customFieldDefs, dateNotation, project.id, project.wbsAutoNumber, resources, surfaceId,
-    runGridMutation, scheduleStale, selectedTaskIds, sequences, tCommon, tTask, tasks, trace, viewRows,
+    runGridMutation, scheduleStale, selectedTaskIds, sequences, tCommon, tTask, tasks, textDirection, trace, viewRows,
   ]);
   const rowIndex = useMemo(() => createTaskGridRowIndex(viewRows), [viewRows]);
   const tasksById = useMemo(() => new Map(tasks.map(task => [task.id, task] as const)), [tasks]);
@@ -518,13 +519,13 @@ export function TaskGridSurface({
     },
     noColumns: tTask('table.noColumns', { defaultValue: 'Voeg met + een kolom toe.' }),
     history: {
-      addColumn: label => `Kolom ${label} toevoegen`,
-      removeColumn: label => `Kolom ${label} verwijderen`,
-      pinColumn: label => `Kolom ${label} vastzetten`,
-      unpinColumn: label => `Kolom ${label} losmaken`,
-      moveColumn: label => `Kolom ${label} verplaatsen`,
-      resizeColumn: label => `Kolom ${label} verbreden`,
-      autoFitColumn: label => `Kolom ${label} passend maken`,
+      addColumn: column => tTask('taskGrid.history.addColumn', { column }),
+      removeColumn: column => tTask('taskGrid.history.removeColumn', { column }),
+      pinColumn: column => tTask('taskGrid.history.pinColumn', { column }),
+      unpinColumn: column => tTask('taskGrid.history.unpinColumn', { column }),
+      moveColumn: column => tTask('taskGrid.history.moveColumn', { column }),
+      resizeColumn: column => tTask('taskGrid.history.resizeColumn', { column }),
+      autoFitColumn: column => tTask('taskGrid.history.autoFitColumn', { column }),
     },
   }), [tCommon, tTask]);
 
@@ -692,6 +693,7 @@ export function TaskGridSurface({
         scrollTop={view.scrollY}
         scrollLeft={surfacePreferences.scrollX}
         mode={editing ? 'edit' : 'select'}
+        textDirection={textDirection}
         getCell={getCell}
         onScrollTopChange={top => setScroll(view.scrollX, top)}
         onScrollLeftChange={left => setTaskGridScrollX(surfaceId, left)}
@@ -802,7 +804,7 @@ export function TaskGridSurface({
               relationId: externalRelationMenu.relationId,
             })}
           >
-            Externe relatie bewerken…
+            {tTask('externalLinks.edit')}
           </button>
           {externalRelationMenu.filePath && (
             <button
@@ -816,7 +818,7 @@ export function TaskGridSurface({
                 if (!result) setSurfaceError(tTask('externalLinks.notAvailableWeb', { defaultValue: 'Verversen is hier niet beschikbaar.' }));
               })(); }}
             >
-              Bron vernieuwen
+              {tTask('externalLinks.refreshSource')}
             </button>
           )}
           <button
@@ -825,7 +827,7 @@ export function TaskGridSurface({
             className="task-grid-relation-context-danger"
             onClick={() => removeExternalLink(externalRelationMenu.taskId, externalRelationMenu.relationId)}
           >
-            Relatie verwijderen
+            {tTask('externalLinks.deleteRelation')}
           </button>
         </div>
       )}

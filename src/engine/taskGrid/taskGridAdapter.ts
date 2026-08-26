@@ -109,6 +109,8 @@ export interface CreateTaskGridAdapterInput {
   selectedTaskIds: readonly string[] | ReadonlySet<string>;
   labelForColumn: (labelKey: string) => string;
   labelForBoolean?: (value: boolean) => string;
+  labelForText?: (key: string, values?: Readonly<Record<string, string | number>>) => string;
+  textDirection?: 'ltr' | 'rtl';
   trace?: TaskTrace;
   effectiveHoursPerDay?: (task: Task) => number;
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
@@ -206,6 +208,8 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
     resourcesById: new Map(input.resources.map(resource => [resource.id, resource] as const)),
     baselinesById: new Map(input.baselines.map(baseline => [baseline.id, baseline] as const)),
     scheduleStale: input.scheduleStale,
+    labelForText: input.labelForText,
+    textDirection: input.textDirection,
     wbsAutoNumber: input.wbsAutoNumber,
     effectiveHoursPerDay: input.effectiveHoursPerDay,
     signedWorkDaysBetween: input.signedWorkDaysBetween,

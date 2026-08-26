@@ -27,12 +27,13 @@ ok('relatietype en lag zijn buiten editmodus gewone tekst',
     && !/className="task-grid-relation-detail"[^>]*onClick/.test(editor));
 ok('externe hover toont bevroren anker en maakt geen lokale taak na',
   /ExternalRelationTooltipContent/.test(editor)
-    && /Bevroren anker:/.test(editor)
+    && /externalLinks\.anchorDate/.test(editor)
+    && /externalLinks\.sourceAvailable/.test(editor)
     && /sourceMissing/.test(editor));
 ok('rechtsklik op de externe token biedt uitsluitend buiten-de-celacties',
   /onExternalContextMenu/.test(editor)
-    && /Bron vernieuwen/.test(fullGrid)
-    && /Relatie verwijderen/.test(fullGrid)
+    && /externalLinks\.refreshSource/.test(fullGrid)
+    && /externalLinks\.deleteRelation/.test(fullGrid)
     && /task-grid-relation-context/.test(fullGrid));
 ok('autocomplete toont WBS plus naam en draagt taak-idmetadata',
   /relationTaskOptions/.test(editor)

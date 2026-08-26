@@ -94,11 +94,27 @@ eq('ontbrekende externe bron blijft zichtbaar als waarschuwing', items[3]?.warni
 ok('alle items tonen dat de berekening stale is', items.every(item => item.stale));
 
 const analysisItems = buildTaskRelationAnalysisItems(D, context);
+const warningLabel = (key: string): string => ({
+  'relations.warnDropped': 'niet meegerekend',
+  'relations.warnTruncatedLead': 'lead afgekapt',
+  'relations.warnLeadExceedsDuration': 'lead groter dan voorgangerduur',
+  'relations.warnOutOfSequence': 'buiten volgorde',
+  'relations.warnSourceMissing': 'bron ontbreekt',
+}[key] ?? key);
 eq('drivingkolom toont richting en WBS', relationDrivingText(analysisItems), '← 1.2');
 eq('relationele vrije-spelingkolom toont alle berekende waarden',
   relationFreeFloatText(analysisItems), '← 1.2: 0d; ← 1.4: 4d');
-eq('waarschuwingenkolom labelt elke betrokken relatie', relationWarningsText(analysisItems),
+eq('waarschuwingenkolom labelt elke betrokken relatie', relationWarningsText(analysisItems, warningLabel),
   '← 1.4: niet meegerekend, lead afgekapt; ← 1.5: lead groter dan voorgangerduur, buiten volgorde; ← Fundering, fase 1: bron ontbreekt');
+eq('RTL keert alleen de betekenisdragende relatiepijlen om', [
+  relationDrivingText(analysisItems, 'rtl'),
+  relationFreeFloatText(analysisItems, 'rtl'),
+  relationWarningsText(analysisItems, warningLabel, 'rtl'),
+], [
+  '→ 1.2',
+  '→ 1.2: 0d; → 1.4: 4d',
+  '→ 1.4: niet meegerekend, lead afgekapt; → 1.5: lead groter dan voorgangerduur, buiten volgorde; → Fundering, fase 1: bron ontbreekt',
+]);
 eq('interactief opgebouwde interne tokens behouden relatie- en taakidentiteit', items[0]?.parsedToken, {
   kind: 'internal', wbsCode: '1.2', taskId: 'B', relType: 'FS', lagText: '+2d', relationId: 'seq-fs',
   source: { index: 0, start: 0, end: 9, text: '1.2 FS+2d' },

@@ -106,6 +106,37 @@ eq('Grid heeft exact één bescheiden live region met de actieve fout',
   count(markup, /aria-live="polite"/g) === 1 && markup.includes('Naam is ongeldig'), true);
 eq('Pinned kolom staat één keer per taakrij plus één keer in de header', count(markup, /data-grid-pinned="true"/g), 4);
 
+const rtlMarkup = renderToStaticMarkup(createElement(DataGridCore, {
+  rows: rows.slice(0, 1),
+  columns,
+  selection: { ...selection, active: { rowKey: 'r-a', columnId: columns[0].id } },
+  rowHeight: 28,
+  headerHeight: 28,
+  viewportHeight: 28,
+  viewportWidth: 500,
+  scrollTop: 0,
+  textDirection: 'rtl',
+  getCell: (row, column) => ({ text: `${row.rowKey}:${column.label}`, readOnly: false }),
+  labels: {
+    grid: 'شبكة المهام',
+    collapseGroup: label => `${label} طي`,
+    expandGroup: label => `${label} توسيع`,
+    resizeColumn: label => `${label} تغيير الحجم`,
+    removeColumn: label => `${label} إزالة`,
+    pinColumn: 'تثبيت إلى اليسار',
+    unpinColumn: 'إلغاء التثبيت',
+    autoFitColumn: 'ملاءمة تلقائية',
+  },
+}));
+eq('RTL-grid houdt de fysieke kolom- en scrollrichting links-naar-rechts',
+  /role="grid"[^>]*dir="rtl"[^>]*style="[^"]*direction:ltr/.test(rtlMarkup), true);
+eq('RTL-kolomkoppen en datacellen houden hun eigen tekstrichting',
+  count(rtlMarkup, /role="columnheader"[^>]*dir="rtl"/g) === 3
+    && count(rtlMarkup, /role="gridcell"[^>]*dir="rtl"/g) === 3, true);
+eq('RTL-pinning blijft met een fysieke left-offset op nul werken',
+  /role="columnheader"[^>]*data-grid-pinned="true"[^>]*left:0/.test(rtlMarkup)
+    && /role="gridcell"[^>]*data-grid-pinned="true"[^>]*left:0/.test(rtlMarkup), true);
+
 const offscreenMarkup = renderToStaticMarkup(createElement(DataGridCore, {
   rows,
   columns,

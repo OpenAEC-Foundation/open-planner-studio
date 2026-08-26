@@ -17,7 +17,54 @@
     "interferingFloat": "Zapas interferujący",
     "isNearCritical": "Prawie krytyczne",
     "floatPath": "Ścieżka zapasu",
-    "activeDuring": "W toku"
+    "activeDuring": "W toku",
+    "addColumn": "Dodaj kolumnę",
+    "chooseColumn": "Wybierz kolumnę",
+    "recentColumns": "Ostatnio używane",
+    "noColumns": "Dodaj kolumnę za pomocą +.",
+    "toggleSummary": "Rozwiń lub zwiń zadanie sumaryczne",
+    "calculatedReadOnly": "Tej kolumny obliczeniowej nie można edytować."
+  },
+  "taskGrid": {
+    "columns": {
+      "activityCodeData":"Dane kodów czynności","actualDuration":"Rzeczywisty czas trwania","actualFinish":"Rzeczywiste zakończenie","actualStart":"Rzeczywiste rozpoczęcie","assignedResources":"Przydzielone zasoby","assignmentCurve":"Krzywa przydziału","assignmentId":"Identyfikator przydziału","assignmentResourceId":"Identyfikator zasobu przydziału","assignmentTaskId":"Identyfikator zadania przydziału","assignmentUnits":"Jednostki przydziału dziennie","calendar":"Kalendarz","childIds":"Identyfikatory zadań podrzędnych","color":"Kolor","completion":"Postęp","constraint2Date":"Data ograniczenia dodatkowego","constraint2Type":"Typ ograniczenia dodatkowego","constraintDate":"Data ograniczenia","constraintHard":"Twarde ograniczenie","constraintType":"Typ ograniczenia","critical":"Krytyczne","customFieldData":"Dane pól niestandardowych","deadline":"Termin ostateczny","description":"Opis","duration":"Czas trwania","durationMinutes":"Czas trwania (minuty)","durationType":"Typ czasu trwania","earlyFinish":"Najwcześniejsze zakończenie","earlyStart":"Najwcześniejsze rozpoczęcie","effortDriven":"Sterowane nakładem pracy","externalRelationData":"Dane relacji zewnętrznych","floatPath":"Ścieżka zapasu","freeFloat":"Zapas swobodny","hammock":"Hammock (czas pochodny)","interferingFloat":"Zapas zakłócający","internalRelationData":"Dane relacji wewnętrznych","lateFinish":"Najpóźniejsze zakończenie","lateStart":"Najpóźniejsze rozpoczęcie","levelingDelay":"Opóźnienie bilansowania","levelingDelayElapsed":"Upłynięte opóźnienie bilansowania","levelingDelayMinutes":"Opóźnienie bilansowania (minuty)","mandatoryMilestone":"Obowiązkowy kamień milowy","manuallyScheduled":"Planowane ręcznie","milestone":"Kamień milowy","milestoneKind":"Typ kamienia milowego","mspTaskType":"Typ zadania Microsoft Project","name":"Nazwa zadania","nearCritical":"Prawie krytyczne","noteData":"Dane notatek","notes":"Notatki","parentId":"Identyfikator zadania nadrzędnego","priority":"Priorytet bilansowania","remainingMinutes":"Pozostało (minuty)","remainingTime":"Pozostało (dni robocze)","resourceIds":"Identyfikatory zasobów","resume":"Data wznowienia","scheduleFinish":"Planowane zakończenie","scheduleStart":"Planowane rozpoczęcie","splitGaps":"Przerwy","status":"Stan","stop":"Data zatrzymania","taskId":"Identyfikator zadania","taskType":"Typ zadania","timephasedContours":"Kontury okresowe","timephasedDurationWalks":"Okresowe segmenty czasu trwania","timephasedFinishFloor":"Dolna granica okresowego zakończenia","timephasedStartAnchor":"Kotwica okresowego rozpoczęcia","totalFloat":"Zapas całkowity","wbs":"Struktura podziału pracy (SPP)","workWindowFinish":"Koniec okna pracy","workWindowStart":"Początek okna pracy"
+    },
+    "category": {
+      "task": "Zadanie", "planning": "Planowanie", "constraints": "Ograniczenia", "relations": "Relacje", "resources": "Zasoby",
+      "progress": "Postęp", "computed": "Obliczone", "baseline": "Plan bazowy", "custom": "Niestandardowe", "technical": "Techniczne"
+    },
+    "status": { "stale": "nieaktualne" },
+    "validation": {
+      "readOnly": "Tej kolumny obliczeniowej nie można edytować.",
+      "invalid": "Wprowadzona wartość jest nieprawidłowa.",
+      "relationToken": "Użyj na przykład 1.2 FS+2d.",
+      "externalRelationRequiresDialog": "Dodaj zadanie zewnętrzne przez Relacja → Dodaj relację zewnętrzną…",
+      "invalidLag": "Opóźnienie jest nieprawidłowe. Użyj na przykład 2d, -1d lub 4h.",
+      "ambiguousWbs": "Ta SPP występuje wielokrotnie. Wybierz zadanie z listy sugestii.",
+      "unknownWbs": "Nie istnieje zadanie z tą SPP.",
+      "taskIdentity": "Wybrane zadanie uległo zmianie. Wybierz je ponownie.",
+      "cycle": "Ta zmiana utworzyłaby cykl w harmonogramie."
+    },
+    "controls": {
+      "collapse": "Zwiń", "expand": "Rozwiń", "resize": "Zmień szerokość", "remove": "Usuń", "pin": "Przypnij",
+      "unpin": "Odepnij", "autoFit": "Dopasuj automatycznie", "search": "Szukaj", "searchResults": "Wyniki wyszukiwania", "noResults": "Brak wyników"
+    },
+    "history": {
+      "addColumn": "Dodaj kolumnę {{column}}",
+      "removeColumn": "Usuń kolumnę {{column}}",
+      "pinColumn": "Przypnij kolumnę {{column}}",
+      "unpinColumn": "Odepnij kolumnę {{column}}",
+      "moveColumn": "Przenieś kolumnę {{column}}",
+      "resizeColumn": "Zmień szerokość kolumny {{column}}",
+      "autoFitColumn": "Automatycznie dopasuj kolumnę {{column}}"
+    },
+    "summary": {
+      "activityCodeAssignments": "{{count}} przypisania kodów czynności",
+      "customFields": "{{count}} pola niestandardowe",
+      "internalRelations": "{{count}} relacje wewnętrzne",
+      "externalRelations": "{{count}} relacje zewnętrzne",
+      "baselineMissing": "Brak w tym planie bazowym"
+    }
   },
   "taskType": {
     "CONSTRUCTION": "Budowa",
@@ -153,7 +200,16 @@
     "warnings": "Ostrzeżenia",
     "warnTruncatedLead": "Wyprzedzenie ucięte na starcie projektu — nakładanie nie jest w pełni wykorzystane",
     "warnLeadExceedsDuration": "Wyprzedzenie jest większe niż czas trwania poprzednika",
-    "warnDropped": "Nieuwzględniona w obliczeniach"
+    "warnDropped": "Nieuwzględniona w obliczeniach",
+    "warnOutOfSequence": "Poza kolejnością",
+    "warnSourceMissing": "Brak źródła",
+    "jumpTask": "Przejdź do zadania {{reference}}",
+    "externalTask": "Zadanie zewnętrzne {{reference}}",
+    "controlType": "{{task}} — typ relacji",
+    "controlLag": "{{task}} — opóźnienie",
+    "removeInternal": "Usuń relację z {{task}}",
+    "removeExternal": "Usuń relację zewnętrzną z {{task}}",
+    "searchPlaceholder": "SPP lub nazwa zadania"
   },
   "structure": {
     "title": "Kody i pola",
@@ -241,6 +297,11 @@
     "pickTaskFirst": "Zaznacz jedno zadanie, aby dodać łącze zewnętrzne.",
     "refreshedToast": "Odświeżono kotwic: {{refreshed}}, nieaktualnych: {{missing}}",
     "noSourcesToast": "Brak źródeł zewnętrznych do odświeżenia (brak ścieżki pliku).",
-    "notAvailableWeb": "Odczyt plików źródłowych jest możliwy tylko w aplikacji desktopowej; użyj ręcznego rozwiązania zastępczego."
+    "notAvailableWeb": "Odczyt plików źródłowych jest możliwy tylko w aplikacji desktopowej; użyj ręcznego rozwiązania zastępczego.",
+    "source": "Źródło",
+    "sourceAvailable": "dostępne podczas ostatniej kontroli",
+    "edit": "Edytuj relację zewnętrzną…",
+    "refreshSource": "Odśwież źródło",
+    "deleteRelation": "Usuń relację"
   }
 }

@@ -516,8 +516,8 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.parentId', labelKey: 'taskGrid.columns.parentId', category: 'technical', valueKind: 'text', read: task => task.parentId }),
     readonlyColumn({ id: 'task.childIds', labelKey: 'taskGrid.columns.childIds', category: 'technical', valueKind: 'technical', read: task => task.childIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.childIds) }),
     readonlyColumn({ id: 'task.resourceIds', labelKey: 'taskGrid.columns.resourceIds', category: 'technical', valueKind: 'technical', read: task => task.resourceIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.resourceIds) }),
-    readonlyColumn({ id: 'task.activityCodes.technical', labelKey: 'taskGrid.columns.activityCodeData', category: 'technical', valueKind: 'technical', read: task => task.activityCodes, format: value => value && typeof value === 'object' && Object.keys(value).length ? `${Object.keys(value).length} codetoewijzing(en)` : '—', copy: task => canonicalGridJson(task.activityCodes ?? {}) }),
-    readonlyColumn({ id: 'task.customFields.technical', labelKey: 'taskGrid.columns.customFieldData', category: 'technical', valueKind: 'technical', read: task => task.customFields, format: value => value && typeof value === 'object' && Object.keys(value).length ? `${Object.keys(value).length} eigen veld(en)` : '—', copy: task => canonicalGridJson(task.customFields ?? {}) }),
+    readonlyColumn({ id: 'task.activityCodes.technical', labelKey: 'taskGrid.columns.activityCodeData', category: 'technical', valueKind: 'technical', read: task => task.activityCodes, format: (value, _task, ctx) => value && typeof value === 'object' && Object.keys(value).length ? ctx.labelForText?.('taskGrid.summary.activityCodeAssignments', { count: Object.keys(value).length }) ?? String(Object.keys(value).length) : '—', copy: task => canonicalGridJson(task.activityCodes ?? {}) }),
+    readonlyColumn({ id: 'task.customFields.technical', labelKey: 'taskGrid.columns.customFieldData', category: 'technical', valueKind: 'technical', read: task => task.customFields, format: (value, _task, ctx) => value && typeof value === 'object' && Object.keys(value).length ? ctx.labelForText?.('taskGrid.summary.customFields', { count: Object.keys(value).length }) ?? String(Object.keys(value).length) : '—', copy: task => canonicalGridJson(task.customFields ?? {}) }),
     editableColumn({ id: 'task.color', labelKey: 'taskGrid.columns.color', category: 'task', valueKind: 'text', editorKind: 'color', read: task => task.color, parse: parseOptionalText, validate: value => value === undefined || typeof value === 'string' ? success(value) : failure('color', value) }),
     editableColumn({ id: 'task.constraint.type', labelKey: 'taskGrid.columns.constraintType', category: 'constraints', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('constraintType', CONSTRAINT_TYPES), route: 'task-constraint', read: task => task.constraint?.type ?? 'ASAP', parse: enumParser(CONSTRAINT_TYPES), validate: enumValidator(CONSTRAINT_TYPES) }),
     editableColumn({ id: 'task.constraint.date', labelKey: 'taskGrid.columns.constraintDate', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.constraint?.date, parse: parseDate, validate: validateDate }),
@@ -615,30 +615,38 @@ function fixedRelationColumns(): TaskColumnDescriptor[] {
       id: 'relation.driving', labelKey: 'relations.driving', category: 'relations', valueKind: 'text',
       defaultWidth: 180, scheduleDerived: true,
       read: analysisItems,
-      format: value => relationDrivingText(value as readonly RelationCellItem[]),
+      format: (value, _task, ctx) => relationDrivingText(value as readonly RelationCellItem[], ctx.textDirection),
     }),
     readonlyColumn({
       id: 'relation.freeFloat', labelKey: 'relations.freeFloat', category: 'relations', valueKind: 'text',
       defaultWidth: 220, scheduleDerived: true,
       read: analysisItems,
-      format: value => relationFreeFloatText(value as readonly RelationCellItem[]),
+      format: (value, _task, ctx) => relationFreeFloatText(value as readonly RelationCellItem[], ctx.textDirection),
     }),
     readonlyColumn({
       id: 'relation.warnings', labelKey: 'relations.warnings', category: 'relations', valueKind: 'text',
       defaultWidth: 280, scheduleDerived: true,
       read: analysisItems,
-      format: value => relationWarningsText(value as readonly RelationCellItem[]),
+      format: (value, _task, ctx) => relationWarningsText(
+        value as readonly RelationCellItem[],
+        key => ctx.labelForText?.(key) ?? key,
+        ctx.textDirection,
+      ),
     }),
     readonlyColumn({
       id: 'relation.internalTechnical', labelKey: 'taskGrid.columns.internalRelationData', category: 'technical', valueKind: 'technical',
       read: (task, ctx) => ctx.relationIndex.internalByTaskId.get(task.id) ?? [],
-      format: value => compactArraySummary(value, 'interne relatie'),
+      format: (value, _task, ctx) => Array.isArray(value) && value.length
+        ? ctx.labelForText?.('taskGrid.summary.internalRelations', { count: value.length }) ?? String(value.length)
+        : '—',
       copy: (task, ctx) => canonicalGridJson(ctx.relationIndex.internalByTaskId.get(task.id) ?? []),
     }),
     readonlyColumn({
       id: 'relation.externalTechnical', labelKey: 'taskGrid.columns.externalRelationData', category: 'technical', valueKind: 'technical',
       read: (task, ctx) => ctx.relationIndex.externalByTaskId.get(task.id) ?? [],
-      format: value => compactArraySummary(value, 'externe relatie'),
+      format: (value, _task, ctx) => Array.isArray(value) && value.length
+        ? ctx.labelForText?.('taskGrid.summary.externalRelations', { count: value.length }) ?? String(value.length)
+        : '—',
       copy: (task, ctx) => canonicalGridJson(ctx.relationIndex.externalByTaskId.get(task.id) ?? []),
     }),
   ];
@@ -884,7 +892,9 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
           return snapshot ? baselineValue(fieldName, snapshot, task, ctx) : BASELINE_MISSING;
         },
         format: value => value === BASELINE_MISSING ? '—' : formatScalar(value),
-        tooltip: value => value === BASELINE_MISSING ? 'Niet aanwezig in deze baseline' : null,
+        tooltip: (value, _task, ctx) => value === BASELINE_MISSING
+          ? ctx.labelForText?.('taskGrid.summary.baselineMissing') ?? null
+          : null,
         copy: (task, ctx) => {
           const snapshot = taskIndex.get(task.id);
           return snapshot ? copyScalar(baselineValue(fieldName, snapshot, task, ctx)) : '';

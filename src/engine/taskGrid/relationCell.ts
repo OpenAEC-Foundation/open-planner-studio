@@ -209,35 +209,47 @@ function analysisReference(item: RelationCellItem): string {
   return source.taskName || source.taskId;
 }
 
-function analysisPrefix(item: RelationCellItem): string {
-  return `${item.direction === 'predecessor' ? '←' : '→'} ${analysisReference(item)}`;
+function analysisPrefix(item: RelationCellItem, textDirection: 'ltr' | 'rtl' = 'ltr'): string {
+  const pointsToPredecessor = textDirection === 'rtl' ? '→' : '←';
+  const pointsToSuccessor = textDirection === 'rtl' ? '←' : '→';
+  return `${item.direction === 'predecessor' ? pointsToPredecessor : pointsToSuccessor} ${analysisReference(item)}`;
 }
 
-const WARNING_LABELS: Readonly<Record<string, string>> = {
-  dropped: 'niet meegerekend',
-  'truncated-lead': 'lead afgekapt',
-  'lead-exceeds-duration': 'lead groter dan voorgangerduur',
-  'out-of-sequence': 'buiten volgorde',
-  'source-missing': 'bron ontbreekt',
+export const RELATION_WARNING_KEYS: Readonly<Record<string, string>> = {
+  dropped: 'relations.warnDropped',
+  'truncated-lead': 'relations.warnTruncatedLead',
+  'lead-exceeds-duration': 'relations.warnLeadExceedsDuration',
+  'out-of-sequence': 'relations.warnOutOfSequence',
+  'source-missing': 'relations.warnSourceMissing',
 };
 
-export function relationDrivingText(items: readonly RelationCellItem[]): string {
-  const values = items.filter(item => item.driving).map(analysisPrefix);
+export function relationDrivingText(
+  items: readonly RelationCellItem[],
+  textDirection: 'ltr' | 'rtl' = 'ltr',
+): string {
+  const values = items.filter(item => item.driving).map(item => analysisPrefix(item, textDirection));
   return values.length > 0 ? values.join('; ') : '—';
 }
 
-export function relationFreeFloatText(items: readonly RelationCellItem[]): string {
+export function relationFreeFloatText(
+  items: readonly RelationCellItem[],
+  textDirection: 'ltr' | 'rtl' = 'ltr',
+): string {
   const values = items
     .filter(item => item.kind === 'internal' && item.freeFloat !== undefined)
-    .map(item => `${analysisPrefix(item)}: ${item.freeFloat}d`);
+    .map(item => `${analysisPrefix(item, textDirection)}: ${item.freeFloat}d`);
   return values.length > 0 ? values.join('; ') : '—';
 }
 
-export function relationWarningsText(items: readonly RelationCellItem[]): string {
+export function relationWarningsText(
+  items: readonly RelationCellItem[],
+  labelWarning: (key: string) => string = key => key,
+  textDirection: 'ltr' | 'rtl' = 'ltr',
+): string {
   const values = items
     .filter(item => item.warnings.length > 0)
-    .map(item => `${analysisPrefix(item)}: ${item.warnings
-      .map(warning => WARNING_LABELS[warning] ?? warning).join(', ')}`);
+    .map(item => `${analysisPrefix(item, textDirection)}: ${item.warnings
+      .map(warning => labelWarning(RELATION_WARNING_KEYS[warning] ?? warning)).join(', ')}`);
   return values.length > 0 ? values.join('; ') : '—';
 }
 
