@@ -314,9 +314,14 @@ export function buildXerMetadataCatalog(tables: XerTables): XerMetadataCatalog {
   const activityCodeTypes = mapActivityCodes(tables, owners, projections, issues, counts);
   const udf = mapUdfs(tables, owners, projections, issues, counts);
   mapNotes(tables, owners, projections, issues, counts);
+  const taskProjections = [...projections.values()].sort((a, b) => compareText(a.projectId, b.projectId) || compareText(a.taskId, b.taskId));
+  const taskProjectionsByProject = Object.create(null) as Record<string, XerMetadataTaskProjection[]>;
+  for (const projection of taskProjections) {
+    (taskProjectionsByProject[projection.projectId] ??= []).push(projection);
+  }
   const catalog: XerMetadataCatalog = {
     activityCodeTypes, customFieldDefs: udf.definitions,
-    taskProjections: [...projections.values()].sort((a, b) => compareText(a.projectId, b.projectId) || compareText(a.taskId, b.taskId)),
+    taskProjections, taskProjectionsByProject,
     issues, issueCounts: counts,
     sourceData: {
       ACTVTYPE: tables.tables.get('ACTVTYPE')?.rows ?? [], ACTVCODE: tables.tables.get('ACTVCODE')?.rows ?? [],
@@ -333,8 +338,10 @@ export function buildXerMetadataCatalog(tables: XerTables): XerMetadataCatalog {
 /** Maak kleine, muteerbare documentdata zonder ooit de bestandsbrede raw-catalogus te kopiëren. */
 export function materializeXerMetadata(catalog: XerMetadataCatalog, projectId: string): XerMetadataProjectView {
   const taskMetadata = new Map<string, XerTaskMetadata>();
-  for (const projection of catalog.taskProjections) {
-    if (projection.projectId !== projectId) continue;
+  const projectProjections = catalog.taskProjectionsByProject[projectId] ?? [];
+  let visitedTaskProjectionCount = 0;
+  for (const projection of projectProjections) {
+    visitedTaskProjectionCount++;
     taskMetadata.set(projection.taskId, {
       ...(projection.activityCodes ? { activityCodes: { ...projection.activityCodes } } : {}),
       ...(projection.customFields ? { customFields: { ...projection.customFields } } : {}),
@@ -344,5 +351,6 @@ export function materializeXerMetadata(catalog: XerMetadataCatalog, projectId: s
   return {
     activityCodeTypes: catalog.activityCodeTypes.map(type => ({ ...type, values: type.values.map(value => ({ ...value })) })),
     customFieldDefs: catalog.customFieldDefs.map(definition => ({ ...definition })), taskMetadata,
+    visitedTaskProjectionCount,
   };
 }

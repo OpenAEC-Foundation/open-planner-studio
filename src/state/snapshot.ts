@@ -1,4 +1,4 @@
-import { isDraft, original, type Draft } from 'immer';
+import { current, isDraft, original, type Draft } from 'immer';
 import type { WorkCalendar } from '@/types/calendar';
 import type { AppState } from './appStore';
 import type { DocumentPayload } from './documentContract';
@@ -108,7 +108,10 @@ function isAppStateDraft(state: AppState): state is Draft<AppState> {
 }
 
 export function createSnapshot(s: AppState): Snapshot {
-  const base = isAppStateDraft(s) ? original(s) : s;
+  // Immer 11.1.4 typeert `original()` terecht als mogelijk undefined. De runtimegrens hierboven
+  // garandeert een draft; mocht een afwijkende Immer-implementatie toch geen basis teruggeven,
+  // dan levert `current()` binnen diezelfde draftgrens een plain, niet-intrekbare momentopname.
+  const base = isAppStateDraft(s) ? original(s) ?? current(s) : s;
   const snap = {} as Snapshot;
   for (const f of DOCUMENT_FIELDS) {
     if (f.snapshot === 'none') continue;

@@ -302,6 +302,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERMETADATAWIRINGCHECK="$DIR/.xer-metadata-wiring.mjs"
   if bundle_check "$DIR/check-xer-metadata-wiring.ts" "$XERMETADATAWIRINGCHECK"; then node "$XERMETADATAWIRINGCHECK" || STATUS=1; fi
 
+  XERMETADATAINDEXCHECK="$DIR/.xer-metadata-index.mjs"
+  if bundle_check "$DIR/check-xer-metadata-index.ts" "$XERMETADATAINDEXCHECK"; then node "$XERMETADATAINDEXCHECK" || STATUS=1; fi
+
+  XERMETADATAREVIEWCHECK="$DIR/.xer-metadata-review.mjs"
+  if bundle_check "$DIR/check-xer-metadata-review.ts" "$XERMETADATAREVIEWCHECK"; then node "$XERMETADATAREVIEWCHECK" || STATUS=1; fi
+
   # X8: onafhankelijke ruwe tellingen plus de twee zware openbare performanceprofielen.
   XERMETADATACORPUSCHECK="$DIR/.xer-metadata-corpus.mjs"
   if bundle_check "$DIR/check-xer-metadata-corpus.ts" "$XERMETADATACORPUSCHECK"; then

@@ -53,6 +53,8 @@ export interface XerMetadataCatalog {
   readonly activityCodeTypes: readonly ActivityCodeType[];
   readonly customFieldDefs: readonly CustomFieldDef[];
   readonly taskProjections: readonly XerMetadataTaskProjection[];
+  /** Diep bevroren projectindex; materialisatie bezoekt uitsluitend deze projectgroep. */
+  readonly taskProjectionsByProject: Readonly<Record<string, readonly XerMetadataTaskProjection[]>>;
   readonly issues: readonly XerMetadataIssue[];
   readonly issueCounts: Readonly<Record<XerMetadataIssueCode, number>>;
   readonly sourceData: {
@@ -73,4 +75,6 @@ export interface XerMetadataProjectView {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   taskMetadata: ReadonlyMap<string, XerTaskMetadata>;
+  /** Deterministische complexiteitspin: exact het aantal bezochte projecties uit de projectindex. */
+  visitedTaskProjectionCount: number;
 }
