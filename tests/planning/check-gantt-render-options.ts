@@ -691,6 +691,10 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
     (src.match(/externalStaleLabel:\s*tTask\(/g) ?? []).length, 2);
   eq('43 geen pane laat externalStaleLabel leeg',
     /externalStaleLabel:\s*undefined/.test(src), false);
+  eq('44 histogramas gebruikt pickerWidth als eigen chartOriginX',
+    /const histogramAxis[\s\S]{0,500}chartOriginX:\s*histogramPickerWidth/.test(src), true);
+  eq('45 HistogramRenderer krijgt pickerWidth en de primaire histogramas samen',
+    /new HistogramRenderer[\s\S]{0,500}pickerWidth:\s*histogramPickerWidth[\s\S]{0,500}axis:\s*histogramAxis/.test(src), true);
   }
 }
 

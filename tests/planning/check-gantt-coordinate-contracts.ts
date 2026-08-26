@@ -8,7 +8,8 @@ import { isTimelineCanvasX } from '@/components/canvas/hooks/useCanvasLayer';
 import type { WorkCalendar } from '@/types/calendar';
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { readGanttPalette } from '@/engine/renderer/themePalette';
+import { HistogramRenderer } from '@/engine/renderer/HistogramRenderer';
+import { readGanttPalette, readHistogramPalette } from '@/engine/renderer/themePalette';
 import { computeSplitPaneWidths, computeTimelineZoom, splitPanePrimaryWidthCss } from '@/utils/ganttViewport';
 
 const diffs: string[] = [];
@@ -99,7 +100,9 @@ const timeAxisSource = fs.readFileSync(path.join(root, 'src/engine/renderer/time
 const workdayAxisSource = fs.readFileSync(path.join(root, 'src/engine/renderer/workdayAxis.ts'), 'utf8');
 const renderOptionsSource = fs.readFileSync(path.join(root, 'src/components/canvas/ganttRenderOptions.ts'), 'utf8');
 const rendererSource = fs.readFileSync(path.join(root, 'src/engine/renderer/GanttRenderer.ts'), 'utf8');
+const histogramSource = fs.readFileSync(path.join(root, 'src/engine/renderer/HistogramRenderer.ts'), 'utf8');
 const ganttCanvasSource = fs.readFileSync(path.join(root, 'src/components/canvas/GanttCanvas.tsx'), 'utf8');
+const ganttWorkspaceSource = fs.readFileSync(path.join(root, 'src/components/canvas/GanttWorkspace.tsx'), 'utf8');
 const timelineHookSources = [
   'useCanvasLayer.ts',
   'useBarDrag.ts',
@@ -197,6 +200,46 @@ equal('splitlayout trekt de splitter vóór de ratioverdeling af',
 equal('primaire scrollbar begint lokaal op nul', /data-testid="gantt-hscroll"[\s\S]*?style=\{\{\s*left:\s*0\b/.test(ganttCanvasSource), true);
 equal('primaire scrollbar gebruikt de volledige timeline-contentbreedte',
   /data-testid="gantt-hscroll"[\s\S]*?width:\s*Math\.max\(1,\s*totalContentWidth\)/.test(ganttCanvasSource), true);
+
+// Task 16D: het histogram is een full-width workspacebaan. Alleen zijn resourcekiezer heeft een
+// semantische linkerbreedte; de datumplot begint exact op die breedte en deelt de primaire view.
+const histogramAxis = buildSharedAxis({
+  calendar,
+  compressNonWorkdays: false,
+  viewStartDate: '2026-08-24',
+  chartOriginX: 350,
+  zoom: 10,
+  scrollX: 0,
+});
+const histogram = new HistogramRenderer({} as CanvasRenderingContext2D, {
+  series: {
+    load: { '2026-08-24': 1 },
+    capacity: { '2026-08-24': 1 },
+    overSet: new Set<string>(),
+  },
+  picker: [{ label: 'Alle resources', overallocated: false }],
+  selectedResourceId: undefined,
+  view: useAppStore.getState().view,
+  canvasWidth: 1000,
+  canvasHeight: 120,
+  pickerWidth: 350,
+  labels: { unitsSuffix: 'u' },
+  palette: readHistogramPalette(),
+  axis: histogramAxis,
+});
+deepEqual('histogrampicker raakt de laatste pixel links van de plot',
+  histogram.pickerAt(349, 10), { id: undefined });
+equal('histogrampicker weigert de eerste plotpixel', histogram.pickerAt(350, 10), null);
+equal('histogramdatumhit weigert de laatste kiezerpixel', histogram.dayAt(349, 10), null);
+equal('histogramdatumhit raakt de eerste plotpixel', histogram.dayAt(350, 10), '2026-08-24');
+equal('histogram gebruikt pickerWidth als chartOriginX', histogram.dateAtX(350), '2026-08-24');
+equal('histogramcode kent alleen de semantische pickerWidth', /taskTableWidth/.test(histogramSource), false);
+equal('workspace bezit een full-width histogramhost',
+  /data-testid="gantt-histogram-host"/.test(ganttWorkspaceSource), true);
+equal('workspace geeft zijn linkerbreedte als histogramkiezerbreedte door',
+  /histogramPickerWidth=\{leftPanelWidth\}/.test(ganttWorkspaceSource), true);
+equal('GanttCanvas portaleert het histogram naar de workspacehost',
+  /createPortal\([\s\S]*?gantt-histogram/.test(ganttCanvasSource), true);
 
 if (diffs.length > 0) {
   console.error(`XX  gantt-coordinate-contracts: ${diffs.length} afwijking(en) van ${checks}`);

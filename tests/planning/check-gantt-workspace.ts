@@ -16,6 +16,7 @@ const gridPath = 'src/components/task-grid/GanttTaskGrid.tsx';
 const app = read('src/App.tsx');
 const canvas = read('src/components/canvas/GanttCanvas.tsx');
 const renderer = read('src/engine/renderer/GanttRenderer.ts');
+const styles = read('src/styles/globals.css');
 
 ok('GanttWorkspace bestaat', exists(workspacePath));
 ok('GanttTaskGrid bestaat', exists(gridPath));
@@ -28,6 +29,10 @@ if (exists(workspacePath)) {
     /<GanttTaskGrid/.test(workspace)
       && /data-testid=["']gantt-workspace-splitter["']/.test(workspace)
       && /<GanttCanvas/.test(workspace));
+  ok('Workspace bezit een full-width histogrambaan buiten grid en timeline',
+    /data-testid=["']gantt-histogram-host["']/.test(workspace)
+      && /histogramPickerWidth=\{leftPanelWidth\}/.test(workspace)
+      && /\.gantt-workspace-histogram[\s\S]*?grid-column:\s*1\s*\/\s*-1/.test(styles));
   ok('Workspace gebruikt en bewaart leftPanelWidth',
     /leftPanelWidth/.test(workspace) && /saveLeftPanelWidth/.test(workspace));
 }

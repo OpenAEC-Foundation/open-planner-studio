@@ -164,7 +164,8 @@
 
 .gantt-workspace {
   display: grid;
-  grid-template-columns: auto 5px minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
@@ -181,14 +182,38 @@
 
 .gantt-workspace-grid {
   display: flex;
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .gantt-workspace-timeline {
   display: flex;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.gantt-workspace-histogram {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+}
+
+.gantt-workspace-minimap {
+  display: flex;
+  grid-column: 2;
+  grid-row: 3;
+  min-width: 0;
 }
 
 .gantt-workspace-splitter {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: stretch;
+  justify-self: end;
   position: relative;
+  transform: translateX(50%);
   z-index: 6;
   width: 5px;
   min-width: 5px;

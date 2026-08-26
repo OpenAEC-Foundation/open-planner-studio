@@ -315,8 +315,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   GROCHECK="$DIR/.gantt-render-options.mjs"
   if bundle_check "$DIR/check-gantt-render-options.ts" "$GROCHECK"; then node "$GROCHECK" || STATUS=1; fi
 
-  # Tabel-overhaul Task 16: gedeelde kalender-/werkdagas benoemt de linkeroorsprong als
-  # chartOriginX en houdt de datum↔x-formule bij oorsprong 0 en niet-nul byte-identiek.
+  # Tabel-overhaul Task 16: timelinecanvassen hebben oorsprong 0; het full-width histogram houdt
+  # uitsluitend pickerWidth als semantische linkerzone en begint zijn primaire datumplot daar.
   GCCHECK="$DIR/.gantt-coordinate-contracts.mjs"
   if bundle_check "$DIR/check-gantt-coordinate-contracts.ts" "$GCCHECK"; then node "$GCCHECK" || STATUS=1; fi
 

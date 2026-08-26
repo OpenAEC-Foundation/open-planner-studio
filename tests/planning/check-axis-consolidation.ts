@@ -32,6 +32,8 @@ import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { dateToX, xToDate, xToDayOffset, MS_PER_DAY } from '@/engine/renderer/timeAxis';
 import { addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import fs from 'node:fs';
+import path from 'node:path';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -259,6 +261,39 @@ for (const c of RENDER_CASES) {
     );
   }
 }
+
+// ── 3. Structuurpoort voor de drie x-contracten van de tabeloverhaul ─────────────────────────
+// De oude naam mag nergens in de betrokken productiecode terugkomen. Alleen HistogramRenderer
+// houdt een linkerbreedte, en die heet semantisch pickerWidth.
+const sourceRoot = process.cwd();
+const originContractFiles = [
+  'src/components/canvas/GanttCanvas.tsx',
+  'src/components/canvas/MiniMap.tsx',
+  'src/components/canvas/ganttRenderOptions.ts',
+  'src/components/canvas/hooks/useBarDrag.ts',
+  'src/components/canvas/hooks/useBoxSelect.ts',
+  'src/components/canvas/hooks/useCanvasLayer.ts',
+  'src/components/canvas/hooks/useDependencyDraw.ts',
+  'src/components/canvas/hooks/usePan.ts',
+  'src/engine/renderer/GanttRenderer.ts',
+  'src/engine/renderer/HistogramRenderer.ts',
+  'src/engine/renderer/timeAxis.ts',
+  'src/engine/renderer/workdayAxis.ts',
+  'src/hooks/useGanttZoom.ts',
+  'src/hooks/useZoomShortcuts.ts',
+  'src/utils/ganttViewport.ts',
+];
+const oldOriginHits = originContractFiles.filter(file =>
+  fs.readFileSync(path.join(sourceRoot, file), 'utf8').includes('taskTableWidth'),
+);
+eq('oude taskTableWidth-naam ontbreekt in alle timeline-, as-, gesture- en histogramcode',
+  JSON.stringify(oldOriginHits), JSON.stringify([]));
+const histogramSource = fs.readFileSync(
+  path.join(sourceRoot, 'src/engine/renderer/HistogramRenderer.ts'),
+  'utf8',
+);
+eq('HistogramRenderer leidt chartOriginX exact eenmaal van pickerWidth af',
+  (histogramSource.match(/chartOriginX\s*=\s*opts\.pickerWidth/g) ?? []).length, 1);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

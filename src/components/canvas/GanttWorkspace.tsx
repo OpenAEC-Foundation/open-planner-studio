@@ -15,6 +15,8 @@ export function GanttWorkspace() {
   const leftPanelWidth = useAppStore(state => state.ui.leftPanelWidth);
   const setUI = useAppStore(state => state.setUI);
   const [revealRequest, setRevealRequest] = useState<GanttGridRevealRequest | null>(null);
+  const [histogramHost, setHistogramHost] = useState<HTMLDivElement | null>(null);
+  const [miniMapHost, setMiniMapHost] = useState<HTMLDivElement | null>(null);
 
   const splitter = useSplitter({
     min: TASK_TABLE_MIN_WIDTH,
@@ -66,8 +68,23 @@ export function GanttWorkspace() {
         }}
       />
       <div className="gantt-workspace-timeline">
-        <GanttCanvas revealRequest={revealRequest} />
+        <GanttCanvas
+          revealRequest={revealRequest}
+          histogramHost={histogramHost}
+          histogramPickerWidth={leftPanelWidth}
+          miniMapHost={miniMapHost}
+        />
       </div>
+      <div
+        ref={setHistogramHost}
+        className="gantt-workspace-histogram"
+        data-testid="gantt-histogram-host"
+      />
+      <div
+        ref={setMiniMapHost}
+        className="gantt-workspace-minimap"
+        data-testid="gantt-minimap-host"
+      />
     </div>
   );
 }

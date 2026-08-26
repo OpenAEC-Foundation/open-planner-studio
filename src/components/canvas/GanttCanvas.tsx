@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { GanttRenderer, GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
@@ -82,9 +83,17 @@ export interface GanttGridRevealRequest {
 
 export interface GanttCanvasProps {
   revealRequest?: GanttGridRevealRequest | null;
+  histogramHost: HTMLDivElement | null;
+  histogramPickerWidth: number;
+  miniMapHost: HTMLDivElement | null;
 }
 
-export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
+export function GanttCanvas({
+  revealRequest = null,
+  histogramHost,
+  histogramPickerWidth,
+  miniMapHost,
+}: GanttCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hScrollRef = useRef<HTMLDivElement>(null);
@@ -338,6 +347,21 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     [calendar, compressNonWorkdays, effectiveView],
   );
 
+  // Het full-width histogram deelt de primaire view-instellingen, maar zijn canvas begint bij de
+  // workspace-linkerrand. De resourcekiezer neemt daar `histogramPickerWidth` in; daarom krijgt
+  // deze as dezelfde datum/zoom/scroll als de primaire as en uitsluitend een andere lokale oorsprong.
+  const histogramAxis = useMemo(
+    () => buildSharedAxis({
+      calendar,
+      compressNonWorkdays,
+      viewStartDate: effectiveView.viewStartDate,
+      chartOriginX: histogramPickerWidth,
+      zoom: effectiveView.zoom,
+      scrollX: effectiveView.scrollX,
+    }),
+    [calendar, compressNonWorkdays, effectiveView, histogramPickerWidth],
+  );
+
   // Content-span in dagen vanaf de effectieve origin — bewust ZONDER zoom, zodat
   // dezelfde span ook voor het secundaire split-view-venster (eigen zoom) gebruikt
   // kan worden zonder de compressie-logica te dupliceren (issue #35 punt 1). `null` = leeg project.
@@ -387,11 +411,9 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
       view: effectiveView,
       canvasWidth: width,
       canvasHeight: height,
-      // Task 16D geeft de histogramkiezer een eigen semantische breedte; de tijdlijn zelf begint
-      // hier al lokaal op 0.
-      taskTableWidth: 0,
-      // Issue #21 punt 5 (fase 2, §10.1): dezelfde as-instantie als de primaire Gantt-pane.
-      axis: sharedAxis,
+      pickerWidth: histogramPickerWidth,
+      // De histogramas deelt de primaire view, maar gebruikt zijn kiezerbreedte als lokale oorsprong.
+      axis: histogramAxis,
       // Issue #25 punt 4: zelfde lettertypefamilie als de Gantt erboven en de DOM-chrome.
       fontFamily: canvasFontFamily,
       // Issue #60 (nazit uit de PR-review): zelfde tekstschaal als de Gantt erboven, anders staan
@@ -406,7 +428,7 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     });
     histogramRendererRef.current = renderer;
     renderer.render();
-  }, [histogramSeries, histogramPicker, histogramResourceId, effectiveView, resourceLoadResult, resources.length, tCommon, uiTheme, sharedAxis, canvasFontFamily, fontScale]);
+  }, [histogramSeries, histogramPicker, histogramResourceId, effectiveView, histogramPickerWidth, resourceLoadResult, resources.length, tCommon, uiTheme, histogramAxis, canvasFontFamily, fontScale, histogramHost]);
 
   useCanvasLayer({
     canvasRef: histogramCanvasRef,
@@ -1190,6 +1212,81 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
     st.setSplitView({ ...sv, secondaryScrollX: Math.max(0, next) });
   }, []);
 
+  const histogramPortal = histogramHost
+    ? createPortal(showHistogram ? (
+        <div data-testid="gantt-histogram" style={{ display: 'contents' }}>
+          <div
+            className="histogram-splitter"
+            onMouseDown={e => { e.preventDefault(); histogramSplitter.start(); }}
+            style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
+          />
+          <div
+            ref={histogramContainerRef}
+            className="relative overflow-hidden"
+            style={{ height: histogramHeight, flexShrink: 0 }}
+            data-tour-anchor="histogram-strip"
+          >
+            <canvas
+              ref={histogramCanvasRef}
+              className="absolute inset-0"
+              style={{ cursor: 'pointer' }}
+              onClick={handleHistogramClick}
+            />
+            {/* Verouderd-hint (A6): het histogram volgt de belasting direct, maar de CPM-datums
+                eronder kunnen na een datum-mutatie verouderd zijn — subtiel melden. */}
+            {scheduleStale && (
+              <div
+                className="absolute top-1 right-2 text-[10px] px-1.5 py-0.5 rounded pointer-events-none"
+                style={{ background: 'var(--theme-surface)', color: 'var(--theme-warning-text)', opacity: 0.9 }}
+              >
+                ⚠ {tCommon('resource.histogram.staleHint')}
+              </div>
+            )}
+            {histoTooltip && (
+              <HoverTooltip left={histoTooltip.x + 14} top={histoTooltip.y - 10}>
+                {/* Issue #58 geldt hier net zo goed: dit zijn resourcenamen, tot 9 regels. */}
+                {histoTooltip.lines.map((line, index) => (
+                  <div key={index} className={index === 0 ? 'tooltip-title' : 'tooltip-row'}>{line}</div>
+                ))}
+              </HoverTooltip>
+            )}
+          </div>
+        </div>
+      ) : null, histogramHost)
+    : null;
+
+  const miniMapPortal = miniMapHost
+    ? createPortal(showMiniMap ? (
+        <div className="flex w-full" dir="ltr" style={{ flexShrink: 0 }}>
+          <div
+            style={{
+              width: splitView
+                ? splitPanePrimaryWidthCss(splitView.ratio, SPLIT_RATIO_BAR_WIDTH)
+                : '100%',
+              flexShrink: 0,
+            }}
+          >
+            <MiniMap originDate={effectiveViewStart} timelineWidth={primaryTimelineWidth} />
+          </div>
+          {splitView && (
+            <>
+              <div style={{ width: SPLIT_RATIO_BAR_WIDTH, flexShrink: 0 }} />
+              <div className="flex-1 min-w-0">
+                <MiniMap
+                  originDate={effectiveViewStart}
+                  timelineWidth={secondaryTimelineWidth}
+                  scrollX={splitView.secondaryScrollX}
+                  zoom={splitView.secondaryZoom}
+                  onScrollXChange={handleSecondaryMiniScroll}
+                  testId="minimap-secondary"
+                />
+              </div>
+            </>
+          )}
+        </div>
+      ) : null, miniMapHost)
+    : null;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Pane-rij (§10). De scrollbalken zijn ZWEVENDE overlays binnen deze rij en binnen de panes
@@ -1337,90 +1434,6 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
         </>
       )}
       </div>
-      {/* Histogramstrook (fase 2.5, §6.4) — derde canvas met gedeelde X-as. Loopt over de volle
-          breedte, net als de pane-rij hierboven: sinds de scrollbalken overlays zijn, is er geen
-          goot meer om onder te blijven en dus ook geen opvulblokje meer nodig. */}
-      {showHistogram && (
-        <>
-          <div
-            className="histogram-splitter"
-            onMouseDown={e => { e.preventDefault(); histogramSplitter.start(); }}
-            style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
-          />
-          <div
-            ref={histogramContainerRef}
-            className="relative overflow-hidden"
-            style={{ height: histogramHeight, flexShrink: 0 }}
-            data-tour-anchor="histogram-strip"
-          >
-            <canvas
-              ref={histogramCanvasRef}
-              className="absolute inset-0"
-              style={{ cursor: 'pointer' }}
-              onClick={handleHistogramClick}
-            />
-            {/* Verouderd-hint (A6): het histogram volgt de belasting direct, maar de CPM-datums
-                eronder kunnen na een datum-mutatie verouderd zijn — subtiel melden. */}
-            {scheduleStale && (
-              <div
-                className="absolute top-1 right-2 text-[10px] px-1.5 py-0.5 rounded pointer-events-none"
-                style={{ background: 'var(--theme-surface)', color: 'var(--theme-warning-text)', opacity: 0.9 }}
-              >
-                ⚠ {tCommon('resource.histogram.staleHint')}
-              </div>
-            )}
-            {histoTooltip && (
-              <HoverTooltip left={histoTooltip.x + 14} top={histoTooltip.y - 10}>
-                {/* Issue #58 geldt hier net zo goed: dit zijn resourcenamen, tot 9 regels. */}
-                {histoTooltip.lines.map((l, i) => (
-                  <div key={i} className={i === 0 ? 'tooltip-title' : 'tooltip-row'}>{l}</div>
-                ))}
-              </HoverTooltip>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Mini-map (fase 2.7, §11): thumbnail van de hele projectperiode + viewport-kader.
-          Issue #35 punt 1: bij split view krijgt ELK pane een eigen strook — de tweede bestuurt
-          `splitView.secondaryScrollX`/`secondaryZoom` i.p.v. de gedeelde `view`. De breedte-
-          expressies (ratio-% + dezelfde 5px tussenruimte als de ratio-balk) zijn letterlijk die van
-          de pane-rij, zodat elke strook onder zijn eigen pane ligt. Zonder split view: één strook
-          over de volle breedte, exact zoals voorheen.
-          `dir="ltr"` pint de rij net als de pane-rij: de panes zelf spiegelen niet mee met de
-          leesrichting, dus deze stroken mogen dat ook niet — anders liggen ze in ar/fa onder het
-          verkeerde pane. Er is geen opvulblokje meer nodig: de verticale scrollbalk is een overlay
-          en neemt geen kolombreedte meer in. */}
-      {showMiniMap && (
-        <div className="flex" dir="ltr" style={{ flexShrink: 0 }}>
-          <div
-            style={{
-              width: splitView
-                ? splitPanePrimaryWidthCss(splitView.ratio, SPLIT_RATIO_BAR_WIDTH)
-                : '100%',
-              flexShrink: 0,
-            }}
-          >
-            <MiniMap originDate={effectiveViewStart} timelineWidth={primaryTimelineWidth} />
-          </div>
-          {splitView && (
-            <>
-              <div style={{ width: SPLIT_RATIO_BAR_WIDTH, flexShrink: 0 }} />
-              <div className="flex-1 min-w-0">
-                <MiniMap
-                  originDate={effectiveViewStart}
-                  timelineWidth={secondaryTimelineWidth}
-                  scrollX={splitView.secondaryScrollX}
-                  zoom={splitView.secondaryZoom}
-                  onScrollXChange={handleSecondaryMiniScroll}
-                  testId="minimap-secondary"
-                />
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
       {/* Context Menu */}
       {contextMenu && (
         <ContextMenu
@@ -1549,6 +1562,8 @@ export function GanttCanvas({ revealRequest = null }: GanttCanvasProps) {
           onClose={() => setRelationPopover(null)}
         />
       )}
+      {histogramPortal}
+      {miniMapPortal}
     </div>
   );
 }
