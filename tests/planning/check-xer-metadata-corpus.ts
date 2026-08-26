@@ -1,7 +1,10 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isMultiDocumentImport } from '@/services/importTypes';
+import { buildXerMetadataCatalog } from '@/services/xer/xerMetadata';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
+import { parseXerTables } from '@/services/xer/xerTables';
 
 interface Counts { actvtype: number; actvcode: number; taskactv: number; udftype: number; udfvalue: number; memotype: number; taskmemo: number; taskNotes: number; staticTypes: number; staticValues: number; }
 const empty = (): Counts => ({ actvtype: 0, actvcode: 0, taskactv: 0, udftype: 0, udfvalue: 0, memotype: 0, taskmemo: 0, taskNotes: 0, staticTypes: 0, staticValues: 0 });
@@ -29,6 +32,33 @@ function countRaw(bytes: Uint8Array): Counts {
 }
 function add(target: Counts, source: Counts): void { for (const key of Object.keys(target) as (keyof Counts)[]) target[key] += source[key]; }
 function results(bytes: Uint8Array): XerReadResult[] { const opened = readXER(bytes); return isMultiDocumentImport(opened) ? opened.results as XerReadResult[] : [opened]; }
+
+interface ProductProbe { documents: number; readMs: number; rssMiB: number; heapDeltaMiB: number; }
+const probePath = process.env.OPS_X8_METADATA_PROBE;
+if (probePath) {
+  // Een vers Node-proces voorkomt dat de onafhankelijke ruwe teller en de directe catalogusmeting
+  // het resident geheugen van de productreader kunstmatig ophogen.
+  global.gc?.();
+  const before = process.memoryUsage(); const started = performance.now();
+  const opened = results(new Uint8Array(readFileSync(probePath)));
+  const readMs = performance.now() - started;
+  global.gc?.();
+  const after = process.memoryUsage();
+  const probe: ProductProbe = {
+    documents: opened.length, readMs, rssMiB: after.rss / 1024 / 1024,
+    heapDeltaMiB: (after.heapUsed - before.heapUsed) / 1024 / 1024,
+  };
+  console.log(`X8_METADATA_PROBE ${JSON.stringify(probe)}`);
+  process.exit(0);
+}
+function productProbe(path: string): ProductProbe {
+  const output = execFileSync(process.execPath, ['--expose-gc', process.argv[1]!], {
+    cwd: process.cwd(), encoding: 'utf8', env: { ...process.env, OPS_X8_METADATA_PROBE: path },
+  });
+  const line = output.trim().split('\n').find(entry => entry.startsWith('X8_METADATA_PROBE '));
+  if (!line) throw new Error(`X8-geheugenprobe gaf geen meetregel terug voor ${path}.`);
+  return JSON.parse(line.slice('X8_METADATA_PROBE '.length)) as ProductProbe;
+}
 const root = process.env.OPS_XER_CORPUS;
 if (!root) console.log('OK XER metadata-corpus: corpus niet aanwezig — corpuspoort overgeslagen');
 else {
@@ -50,14 +80,26 @@ else {
   for (const [name, label, links, types, values] of samples) {
     const path = join(root, label); eq(`C2 ${name}-bestand bestaat`, existsSync(path), true);
     if (!existsSync(path)) continue;
-    const bytes = new Uint8Array(readFileSync(path)); const raw = countRaw(bytes); const started = performance.now(); const opened = results(bytes); const elapsedMs = performance.now() - started;
+    const bytes = new Uint8Array(readFileSync(path)); const raw = countRaw(bytes);
+    // De totale reader omvat ook de kalender-, X4b-, X5- en X6-paden en is daarom gevoelig voor
+    // hostbelasting. Meet X8 zelf apart op reeds geparste tabellen: de grens schaalt lineair met
+    // het werk (koppelingen plus UDF's), terwijl de referentie-identiteit hieronder een regressie
+    // naar P×raw-row-kopieën direct rood maakt.
+    const directProfile = (() => {
+      const tables = parseXerTables(bytes); const catalogStarted = performance.now();
+      const directCatalog = buildXerMetadataCatalog(tables);
+      return { catalogMs: performance.now() - catalogStarted, zeroCopy: directCatalog.sourceData.TASKACTV === tables.tables.get('TASKACTV')?.rows };
+    })();
+    const started = performance.now(); const opened = results(bytes); const elapsedMs = performance.now() - started;
     const catalog = opened[0]?.xer.metadata?.catalog;
     const mappedLinks = catalog?.taskProjections.reduce((sum, projection) => sum + Object.keys(projection.activityCodes ?? {}).length, 0);
-    eq(`C3 ${name}: onafhankelijke TASKACTV-telling en productprojectie`, { raw: raw.taskactv, mapped: mappedLinks, types: catalog?.activityCodeTypes.length, values: catalog?.activityCodeTypes.reduce((sum, type) => sum + type.values.length, 0), shared: opened.every(result => result.xer.metadata?.catalog === catalog) }, { raw: links, mapped: links, types, values, shared: true });
-    const rssMiB = process.memoryUsage().rss / 1024 / 1024;
-    eq(`C4 ${name}: volledige reader blijft onder 10 seconden`, elapsedMs < 10_000, true);
-    eq(`C5 ${name}: proces-RSS blijft onder 768 MiB`, rssMiB < 768, true);
-    console.log(`.   xer-metadata-perf: ${name} links=${links}, documenten=${opened.length}, readMs=${elapsedMs.toFixed(1)}, rssMiB=${rssMiB.toFixed(1)}`);
+    eq(`C3 ${name}: onafhankelijke TASKACTV-telling, productprojectie en zero-copy catalogus`, { raw: raw.taskactv, mapped: mappedLinks, types: catalog?.activityCodeTypes.length, values: catalog?.activityCodeTypes.reduce((sum, type) => sum + type.values.length, 0), shared: opened.every(result => result.xer.metadata?.catalog === catalog), zeroCopy: directProfile.zeroCopy }, { raw: links, mapped: links, types, values, shared: true, zeroCopy: true });
+    const maxCatalogMs = Math.max(750, (raw.taskactv + raw.udfvalue) * 0.05);
+    eq(`C4 ${name}: file-wide X8-mapping blijft lineair binnen de vaste werkbudgetgrens`, directProfile.catalogMs < maxCatalogMs, true);
+    const memory = productProbe(path);
+    eq(`C5 ${name}: verse productreader blijft onder 768 MiB RSS`, memory.rssMiB < 768, true);
+    eq(`C6 ${name}: verse productreader opent hetzelfde documentaantal`, memory.documents, opened.length);
+    console.log(`.   xer-metadata-perf: ${name} links=${links}, documenten=${opened.length}, catalogMs=${directProfile.catalogMs.toFixed(1)}/${maxCatalogMs.toFixed(1)}, readMs=${elapsedMs.toFixed(1)}, rssMiB=${memory.rssMiB.toFixed(1)}, heapDeltaMiB=${memory.heapDeltaMiB.toFixed(1)}`);
   }
   if (diffs.length) { for (const diff of diffs) console.error(`XX ${diff}`); process.exitCode = 1; }
   else console.log('OK XER metadata-corpus: onafhankelijke tellingen, projecties en performance groen');

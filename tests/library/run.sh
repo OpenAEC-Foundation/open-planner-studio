@@ -11,7 +11,9 @@ STATUS=0
 
 # Compile-afdwinging (fixture-/type-volledigheid) — dedicated tsconfig, want de hoofd-tsconfig
 # sluit tests/ uit.
-node "$TSC" --noEmit -p "$DIR/tsconfig.check.json" || STATUS=1
+# npm levert op POSIX een uitvoerbare shellshim in .bin; via `node` uitvoeren leest die shim als
+# JavaScript. Rechtstreeks starten werkt ook wanneer de bin een echte Node-entrypoint is.
+"$TSC" --noEmit -p "$DIR/tsconfig.check.json" || STATUS=1
 
 run_check() {
   local name="$1"
