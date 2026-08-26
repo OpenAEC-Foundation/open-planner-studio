@@ -139,19 +139,16 @@ export const MAX_RECURRENCE_DATES = 3_660;
  * ver boven wat één seconde nog acceptabel maakt. §7 van de hardingsdiscipline eist het ERGSTE geval
  * per BESTAND, niet het (goedkopere) geval per record.
  *
- * Fix: geklemd op `MAX_RECURRENCE_DATES + 16` i.p.v. een los getal. Elke LEGITIEME generatoraanroep
- * voegt per doorloop minstens één datum toe (DAILY/MONTHLY-absoluut/YEARLY-absoluut: exact 1 per
- * doorloop; WEEKLY: minstens 1 binnen de 7-dagen-binnenlus, tenzij de bitmap leeg is — precies het
- * gedegenereerde geval dat deze klem juist moet afvangen) — een legitiem patroon heeft dus hoogstens
- * `MAX_RECURRENCE_DATES` PRODUCTIEVE doorlopen nodig, plus een kleine marge voor "verspilde"
- * aanloop-bounces vóór de eerste geldige datum (MONTHLY/YEARLY-relatief kan een paar maand-/
- * jaar-stappen nodig hebben vóórdat de berekende datum boven `startDate` uitkomt — in de praktijk
- * hoogstens een paar doorlopen, 16 is een royale marge). Met deze waarde (3676) is het ERGSTE geval
- * per bestand 2000 × 3676 ≈ 7,35 miljoen iteraties — ~27× goedkoper dan de oude 200 miljoen, en
- * elke iteratie is simpele datum-rekenkunde (µs-schaal), dus dat blijft ruim binnen een seconde.
- * Mutatiebewijs: `check-mpp-calendars.ts`'s bestaande hostile-cases (occurrences=65535+165-jaars-
- * bereik) blijven groen, en een nieuwe fixture met 2000 gedegenereerde MONTHLY-relatief-records
- * termineert aantoonbaar binnen 1s (was 46,3s).
+ * Fix: geklemd op `MAX_RECURRENCE_DATES + 16` i.p.v. een los getal én een monotone-cursorcheck in
+ * `getMonthlyRelativeDates`. Elke LEGITIEME generatoraanroep voegt per doorloop minstens één datum
+ * toe (DAILY/MONTHLY-absoluut/YEARLY-absoluut: exact 1 per doorloop; WEEKLY: minstens 1 binnen de
+ * 7-dagen-binnenlus, tenzij de bitmap leeg is — precies het gedegenereerde geval dat de iteratieklem
+ * afvangt). Een patroon dat de maandcursor helemaal niet vooruitbrengt stopt nu na die eerste
+ * vaststelling; de onafhankelijke iteratieklem blijft als vangnet voor andere vormen van verspilde
+ * doorlopen in alle generatoren. Mutatiebewijs: `check-mpp-calendars.ts`'s bestaande hostile-cases
+ * (occurrences=65535+165-jaars-bereik) blijven groen, en de fixture met 2000 gedegenereerde
+ * MONTHLY-relatief-records termineert ruim binnen de 5s-poort (de historische 46,3s-regressie komt
+ * terug wanneer zowel deze cursorcheck als de verlaagde iteratieklem worden verwijderd).
  */
 export const MAX_RECURRENCE_ITERATIONS = MAX_RECURRENCE_DATES + 16;
 
@@ -365,6 +362,7 @@ function getMonthlyRelativeDates(startDate: Date, frequency: number, dayOfWeekVa
   let iterations = 0;
   while (dates.length < MAX_RECURRENCE_DATES && iterations < MAX_RECURRENCE_ITERATIONS && moreDates(date, dates.length, finishDate, occurrences)) {
     iterations++;
+    const cursor = date;
     date = dayNumber > 4 ? lastRelativeDay(date, dayOfWeekValue) : ordinalRelativeDay(date, dayNumber, dayOfWeekValue);
     if (date.getTime() >= startDate.getTime()) {
       dates.push(date);
@@ -375,7 +373,9 @@ function getMonthlyRelativeDates(startDate: Date, frequency: number, dayOfWeekVa
     // weggooide; jaar/maand hier al vastleggen en in één stap doorschuiven scheelt ~1/3 van de
     // Date-allocaties per doorloop (relevant op de HOOG-1a/MIDDEN-A-gedegenereerde-lus-paden, waar
     // deze reset duizenden keren per record kan draaien).
-    date = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + frequency, 1));
+    const nextDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + frequency, 1));
+    if (nextDate.getTime() <= cursor.getTime()) break;
+    date = nextDate;
   }
   return dates;
 }
