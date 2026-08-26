@@ -20,6 +20,7 @@ import { beginUndoable, finishMutation } from '../transaction';
 import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import {
   invalidateUndoneHistoryForScopes,
@@ -521,10 +522,13 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
 
     refreshAllExternalAnchors: async (labels) => {
       // Verzamel de distinct bron-bestandspaden uit alle links (fallback: geen pad ⇒ niet verversbaar).
-      const paths = new Set<string>();
+      const paths = new Map<string, string>();
       for (const task of get().tasks) {
         for (const link of task.externalLinks ?? []) {
-          if (link.sourceRef.filePath) paths.add(link.sourceRef.filePath);
+          const originalPath = link.sourceRef.filePath;
+          if (!originalPath) continue;
+          const normalizedPath = normalizeExternalSourcePath(originalPath);
+          if (normalizedPath !== null && !paths.has(normalizedPath)) paths.set(normalizedPath, originalPath);
         }
       }
 
@@ -540,7 +544,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
       // daarna één keer schrijven. Levert meteen één `runCPM` in plaats van N.
       const sourceDocs: ExternalSourceDoc[] = [];
-      for (const p of paths) {
+      for (const p of paths.values()) {
         const src = await get().parseExternalSource(p, labels);
         if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee (ongewijzigd gedrag)
         sourceDocs.push({

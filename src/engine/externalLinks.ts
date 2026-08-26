@@ -1,4 +1,7 @@
 import type { Task, ExternalLink } from '@/types/task';
+import { externalSourceSide, normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
+
+export { externalSourceSide };
 
 /**
  * Externe (cross-project) dependencies — verversen van het bevroren anker (fase 2.9, §4.5/§5.5).
@@ -32,22 +35,6 @@ export interface RefreshResult {
   changed: boolean;
 }
 
-/**
- * Welke zijde (start/finish) van de BRONTAAK het anker voedt, per richting + relType (§4.5-mapping).
- * De relType-conventie is voorganger→opvolger (eerste teken = voorganger-zijde, tweede = opvolger-zijde).
- * - `direction:'predecessor'` — de BRON is mijn voorganger ⇒ de bron-zijde is het EERSTE teken:
- *   FS/FF ⇒ `finish`, SS/SF ⇒ `start`.
- * - `direction:'successor'` — de BRON is mijn opvolger ⇒ de bron-zijde is het TWEEDE teken:
- *   FS/SS ⇒ `start`, FF/SF ⇒ `finish`.
- */
-export function externalSourceSide(
-  direction: ExternalLink['direction'],
-  relType: ExternalLink['relType'],
-): 'start' | 'finish' {
-  const letter = direction === 'predecessor' ? relType[0] : relType[1];
-  return letter === 'F' ? 'finish' : 'start';
-}
-
 /** De actuele anker-datum die `link` uit `srcTask` leest (§4.5-mapping); leeg ⇒ geen bruikbare datum. */
 export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
   const side = externalSourceSide(link.direction, link.relType);
@@ -56,10 +43,13 @@ export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
     : srcTask.time.earlyStart || srcTask.time.scheduleStart;
 }
 
-/** Matcht een link met `source`: primair op `sourceRef.projectId`, secundair (fallback) op `filePath`. */
-function linkMatchesSource(link: ExternalLink, source: ExternalSourceDoc): boolean {
+/** Matcht een link met `source`: primair op `sourceRef.projectId`, secundair (fallback) op genormaliseerd filePath. */
+export function linkMatchesSource(link: ExternalLink, source: ExternalSourceDoc): boolean {
   if (link.sourceRef.projectId && link.sourceRef.projectId === source.projectId) return true;
-  return !!link.sourceRef.filePath && !!source.filePath && link.sourceRef.filePath === source.filePath;
+  if (!link.sourceRef.filePath || !source.filePath) return false;
+  const linkPath = normalizeExternalSourcePath(link.sourceRef.filePath);
+  const sourcePath = normalizeExternalSourcePath(source.filePath);
+  return linkPath !== null && sourcePath !== null && linkPath === sourcePath;
 }
 
 /**

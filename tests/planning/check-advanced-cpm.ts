@@ -485,6 +485,31 @@ const rPath = refreshExternalAnchors([byPath], source);
 eq('155 filePath-fallback: gematcht ⇒ anker uit bron', rPath.tasks[0].externalLinks![0].anchorDate, SRC_ES);
 eq('156 filePath-fallback: projectId gecanonicaliseerd naar bron', rPath.tasks[0].externalLinks![0].sourceRef.projectId, 'SRC');
 
+// Exact dezelfde gedeelde lexicale identiteit als de clipboard-key: Windows-separators en alle
+// ASCII-caseverschillen matchen, ook als de legacy projectId fout is. Een relatief legacypad mag
+// daarentegen nooit toevallig matchen, zelfs niet wanneer beide rauwe strings gelijk zijn.
+const windowsSource: ExternalSourceDoc = {
+  ...source, projectId: 'SRC-WIN', filePath: 'C:/PROJECTEN/BRON.ifc',
+};
+const byWindowsPath: Task = mkTask('L4', 3, {
+  externalLinks: [extLink('fp-win', 'predecessor', 'SS', {
+    projectId: 'OUD-EN-FOUT', taskId: 'X', filePath: 'c:\\projecten\\.\\bron.IFC',
+  }, '2000-01-01', true)],
+});
+const rWindowsPath = refreshExternalAnchors([byWindowsPath], windowsSource);
+eq('156a genormaliseerde Windows-fallback matcht ondanks fout projectId',
+  rWindowsPath.tasks[0].externalLinks![0].anchorDate, SRC_ES);
+eq('156b genormaliseerde Windows-fallback canonicaliseert projectId',
+  rWindowsPath.tasks[0].externalLinks![0].sourceRef.projectId, 'SRC-WIN');
+const relativeSource: ExternalSourceDoc = { ...source, projectId: 'SRC-REL', filePath: 'relatief.ifc' };
+const relativeLegacy: Task = mkTask('L5', 3, {
+  externalLinks: [extLink('fp-rel', 'predecessor', 'SS', {
+    projectId: 'ANDERS', taskId: 'X', filePath: 'relatief.ifc',
+  }, '2000-01-01', true)],
+});
+const rRelative = refreshExternalAnchors([relativeLegacy], relativeSource);
+eq('156c ongeldig relatief legacypad matcht niet', rRelative.changed, false);
+
 // Byte-stabiliteit: een reeds-actueel document geeft dezelfde referentie terug (changed=false).
 const already = refreshExternalAnchors(rPath.tasks, source);
 eq('157 idempotent: tweede ververs ⇒ changed=false', already.changed, false);

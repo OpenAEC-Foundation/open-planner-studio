@@ -154,6 +154,25 @@ function observed(state: AppState): unknown {
   eq('Gelijke dubbele veldmutatie maakt één event', S().historyEvents.length, 1);
 }
 
+// Een relationele Excel-cel met een technisch ogende maar onbekende externe payload mag evenmin
+// een eerdere write uit dezelfde paste laten lekken. Task 17 bewijst de precieze parserfout apart;
+// deze check bewaakt hier de generieke atomaire grens totdat Task 18 de relatieplanner aansluit.
+{
+  reset();
+  const taskId = S().addTask({ name: 'Externe suffix voor' });
+  useAppStore.setState(state => {
+    state.historyEvents = []; state.nextHistorySequence = 1; state.ui.notifications = []; state.isDirty = false;
+  });
+  const before = JSON.stringify(observed(S()));
+  const unknownExternalToken = 'Project / Taak FS ⟦OPS-EXT/1:eyJ2IjoyfQ⟧';
+  const relation: RelationSetIntent = {
+    kind: 'relation-set', taskId, direction: 'predecessor', value: [unknownExternalToken],
+  };
+  const result = runGridMutation([{ kind: 'paste', writes: [nameEdit(taskId, 'Mag niet landen'), relation] }]);
+  eq('Paste met onbekende externe suffix faalt', result.ok, false);
+  eq('Onbekende externe suffix laat alle bewaakte state byte-identiek', JSON.stringify(observed(S())), before);
+}
+
 // Twee verschillende waarden voor hetzelfde onderliggende taakveld zijn een setbrede fout.
 {
   reset();

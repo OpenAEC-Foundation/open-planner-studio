@@ -281,6 +281,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-grid-virtualization.ts" "$TGVIRTCHECK"; then node "$TGVIRTCHECK" || STATUS=1; fi
   TGCLIPCHECK="$DIR/.task-grid-clipboard.mjs"
   if bundle_check "$DIR/check-task-grid-clipboard.ts" "$TGCLIPCHECK"; then node "$TGCLIPCHECK" || STATUS=1; fi
+  EXTRELFORMATCHECK="$DIR/.external-relation-format.mjs"
+  if bundle_check "$DIR/check-external-relation-format.ts" "$EXTRELFORMATCHECK"; then node "$EXTRELFORMATCHECK" || STATUS=1; fi
   TGARIACHECK="$DIR/.task-grid-aria.mjs"
   if bundle_check "$DIR/check-task-grid-aria.ts" "$TGARIACHECK"; then node "$TGARIACHECK" || STATUS=1; fi
   TGDOMCHECK="$DIR/.task-grid-dom-budget.mjs"
