@@ -17,6 +17,7 @@
     "xerSingleProjectRequired": "このインポートは XER ファイルごとに 1 つの P6 プロジェクトのみ対応します。",
     "xerEmptyProject": "この XER ファイルの P6 プロジェクトにはアクティビティがありません。",
     "xerDuplicateId": "XER ファイルに重複した WBS、アクティビティ、または関係 ID があります。",
+    "xerAmbiguousLocalRelation": "スコープのない XER 関係を 1 つのローカルプロジェクトに一意に割り当てられません。",
     "xerDanglingLocalRelation": "ローカル XER 関係が存在しないアクティビティを参照しています。",
     "xerEnumFallback": "XER {{family}}: 不明なトークン「{{token}}」のため「{{fallback}}」を使用しました。",
     "mppLegacy": "この .mpp ファイルは古い形式（Project 2007 以前）を使用しています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",

@@ -886,9 +886,9 @@
         2618,
         2618,
         1785,
-        504
+        505
       ],
-      "xerDefaultsNegativeFloatTasks": 543,
+      "xerDefaultsNegativeFloatTasks": 544,
       "defaults": {
         "totalFloatFinish": {
           "movement": [
@@ -950,9 +950,9 @@
             2618,
             2618,
             1639,
-            504
+            505
           ],
-          "chosenNegativeFloatTasks": 543,
+          "chosenNegativeFloatTasks": 544,
           "counterfactualNegativeFloatTasks": 38
         },
         "clampNegativeFreeFloat": {
@@ -4254,7 +4254,7 @@
             "measurable": 7602
           },
           "ff": {
-            "deviations": 704,
+            "deviations": 705,
             "measurable": 7221
           }
         },

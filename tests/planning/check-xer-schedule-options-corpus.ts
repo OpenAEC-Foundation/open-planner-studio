@@ -261,6 +261,72 @@ function movementProjects(
   return total;
 }
 
+interface TaskAxisMovement {
+  projectId: string;
+  taskId: string;
+  taskCode: string;
+  axis: BlastAxis;
+  before: string | number | boolean | undefined;
+  after: string | number | boolean | undefined;
+}
+
+// X7-reviewpunt 4: de vroegere 16→15-teller is geen CP_Drtn- of projectindexeffect. Deze vijftien
+// taakdelta's komen exact van X5's `preserveActualDatesInBackwardPass=true` tegenover de
+// house/counterfactual `false`. De pin bewaart taak + as + beide instanties; alleen een totaalteller
+// zou opnieuw een toevallig gelijk blijvende verschuiving kunnen verbergen.
+const TORTURE_PRESERVE_ACTUAL_LS_PIN = [
+  ['A1000', '2025-12-26T08:00', '2026-01-05T08:00'],
+  ['A2000', '2026-01-03T15:00', '2026-01-19T08:00'],
+  ['A2100', '2026-01-15T15:00', '2026-01-16T08:00'],
+  ['A2110', '2026-02-12T12:00', '2026-01-30T08:00'],
+  ['A2300', '2026-04-16T13:00', '2026-02-09T08:00'],
+  ['A3000', '2025-12-26T08:00', '2026-01-05T08:00'],
+  ['A3010', '2026-01-03T15:00', '2026-01-19T07:00'],
+  ['A3020', '2026-06-01T12:30', '2026-01-12T07:00'],
+  ['A3030', '2026-10-14T07:00', '2026-02-02T07:00'],
+  ['A4100', '2026-01-15T15:00', '2026-01-26T07:00'],
+  ['A4110', '2026-01-22T15:00', '2026-02-02T07:00'],
+  ['A4200', '2026-01-31T15:00', '2026-02-16T07:00'],
+  ['A4210', '2026-02-12T15:00', '2026-02-23T07:00'],
+  ['A4220', '2026-02-24T15:00', '2026-02-25T08:00'],
+  ['A4230', '2026-02-17T15:00', '2026-02-17T07:00'],
+] as const;
+
+function lateStartPin(details: readonly TaskAxisMovement[]): Array<readonly [string, unknown, unknown]> {
+  return details.filter(detail => detail.axis === 'ls')
+    .map(detail => [detail.taskId, detail.before, detail.after] as const);
+}
+
+function movementDetails(
+  before: readonly BlastSolvedProject[],
+  after: readonly BlastSolvedProject[],
+): TaskAxisMovement[] {
+  const afterByProject = new Map(after.map(project => [project.projectId, project]));
+  const details: TaskAxisMovement[] = [];
+  for (const project of before) {
+    const nextProject = afterByProject.get(project.projectId);
+    if (!nextProject) throw new Error(`detailmeting mist project ${project.projectId}`);
+    const nextById = new Map(nextProject.tasks.map(task => [task.sourceTaskId, task]));
+    for (const task of project.tasks) {
+      const next = nextById.get(task.sourceTaskId);
+      if (!next) throw new Error(`detailmeting mist taak ${project.projectId}/${task.sourceTaskId}`);
+      for (const axis of BLAST_AXES) {
+        const beforeValue = solvedTaskAxis(task, axis);
+        const afterValue = solvedTaskAxis(next, axis);
+        if (beforeValue !== afterValue) details.push({
+          projectId: project.projectId,
+          taskId: task.sourceTaskId,
+          taskCode: task.taskCode,
+          axis,
+          before: beforeValue,
+          after: afterValue,
+        });
+      }
+    }
+  }
+  return details;
+}
+
 function negativeFloatTasks(solved: readonly BlastSolvedProject[]): number {
   return solved.reduce((sum, project) => sum
     + project.tasks.filter(task => (task.totalFloatMinutes ?? 0) < 0).length, 0);
@@ -521,6 +587,9 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       throw new Error(`${id}: gecombineerde-XER-defaultuitlijning mislukt`);
     }
     addCounters(fidelity.xerDefaults, xerDefaultsFidelity.counters);
+    if (report === 'details' && id === '2a7732b5b99de2a5-1') {
+      console.log(`XER-DETAILS ${JSON.stringify(movementDetails(house, xerDefaults))}`);
+    }
 
     const defaultMeasurements = {} as Record<DefaultKey, DefaultMeasurement>;
     for (const key of DEFAULT_KEYS) {
@@ -539,6 +608,13 @@ function measureCorpus(root: string): BlastRadiusBaseline {
         chosenNegativeFloatTasks: negativeFloatTasks(chosen),
         counterfactualNegativeFloatTasks: negativeFloatTasks(counterfactual),
       };
+      if (id === '2a7732b5b99de2a5-1' && key === 'preserveActualDates') {
+        const counterfactualToChosen = movementDetails(counterfactual, chosen);
+        eq('torture per-taak/orakelpin: preserveActualDates false→true beweegt exact 15 late starts',
+          lateStartPin(counterfactualToChosen), TORTURE_PRESERVE_ACTUAL_LS_PIN);
+        eq('torture causaliteit: gecombineerde XER-defaultbeweging op late start is exact dezelfde X5-mutatie',
+          lateStartPin(movementDetails(house, xerDefaults)), TORTURE_PRESERVE_ACTUAL_LS_PIN);
+      }
       for (const [variant, solved] of [
         ['chosen', chosen],
         ['counterfactual', counterfactual],

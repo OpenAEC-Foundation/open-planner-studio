@@ -167,6 +167,7 @@ export function importErrorMessageKey(
   | 'notifications.xerSingleProjectRequired'
   | 'notifications.xerEmptyProject'
   | 'notifications.xerDuplicateId'
+  | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation' {
   const typed = err as { mppCode?: string; xerCode?: string } | null | undefined;
   if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
@@ -184,6 +185,7 @@ export function importErrorMessageKey(
     XER_SINGLE_PROJECT_REQUIRED: 'notifications.xerSingleProjectRequired',
     XER_EMPTY_PROJECT: 'notifications.xerEmptyProject',
     XER_DUPLICATE_ID: 'notifications.xerDuplicateId',
+    XER_AMBIGUOUS_LOCAL_RELATION: 'notifications.xerAmbiguousLocalRelation',
     XER_DANGLING_LOCAL_RELATION: 'notifications.xerDanglingLocalRelation',
   } as const;
   if (typed?.xerCode && typed.xerCode in xerKeys) {

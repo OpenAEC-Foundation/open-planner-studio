@@ -185,6 +185,7 @@ export type NotificationMessageKey =
   | 'notifications.xerSingleProjectRequired'
   | 'notifications.xerEmptyProject'
   | 'notifications.xerDuplicateId'
+  | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation'
   | 'notifications.xerEnumFallback'
   | 'notifications.mppSourceScheduleNotes'

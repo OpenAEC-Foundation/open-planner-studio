@@ -27,6 +27,7 @@ export type XerImportErrorCode =
   | 'XER_SINGLE_PROJECT_REQUIRED'
   | 'XER_EMPTY_PROJECT'
   | 'XER_DUPLICATE_ID'
+  | 'XER_AMBIGUOUS_LOCAL_RELATION'
   | 'XER_DANGLING_LOCAL_RELATION';
 
 export class XerImportError extends Error {

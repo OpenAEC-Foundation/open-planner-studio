@@ -247,8 +247,8 @@ const TM = {
   ] satisfies TaskTimephasedContour[],
   // Z14b — MSP's eigen task-type/effort-driven-vlag (eigenaarsbesluit 2026-08-18, punt 1).
   mspTaskType: 'FIXED_WORK', effortDriven: true,
-  // X0 (XER-etappeplan, 2026-08-20) — drie nieuwe .xer-importvelden, nog GEEN IFC-pset (zie
-  // TASK_CANON hieronder: skip, reden X9). Alleen hier gevuld voor de `Required<Task>`-volledigheid.
+  // X0/X7 (XER-etappeplan, 2026-08-20) — duration/activity blijven tot X9 zonder IFC-pset;
+  // de vijf X7-firewall-/bronvelden hieronder round-trippen al wel exact via OPS_P6Progress.
   p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc',
   p6ProjectId: 'P1', p6TaskId: 'T1', p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-07-31T17:00',
   p6SuspendResume: true,
@@ -544,17 +544,18 @@ const TASK_CANON = {
   timephasedContours: KEEP,
   // Z14b — MSP's eigen task-type/effort-driven-vlag (`OPS_MspTaskType`), puur data, geen verwijzing.
   mspTaskType: KEEP, effortDriven: KEEP,
-  // X0 (XER-etappeplan, 2026-08-20) — drie nieuwe .xer-importvelden: typecontract-only deze etappe
-  // (X0 raakt src/services/ifc/ NIET aan). Geen IFC-pset ⇒ geen echte round-trip-vergelijking
-  // mogelijk; de daadwerkelijke IFC-round-trip-wiring is XER-etappe se X9-taak (documentcontract/
-  // round-trip). Zelfde taxonomie als `interferingFloat`/`isNearCritical`/`floatPath` hierboven.
+  // X0 (XER-etappeplan, 2026-08-20) — duration/activity blijven typecontract-only tot de bredere
+  // X9-archiefetappe. Zelfde taxonomie als `interferingFloat`/`isNearCritical`/`floatPath` hierboven.
   p6DurationType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
   p6ActivityType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
-  p6ProjectId: { skip: 'X7-bronidentiteit wacht op X9-IFC-wiring' },
-  p6TaskId: { skip: 'X7-bronidentiteit wacht op X9-IFC-wiring' },
-  p6CompletePctType: { skip: 'X7-brontype wacht op X9-IFC-wiring' },
-  p6ExpectedFinish: { skip: 'X7-brondatum wacht op X9-IFC-wiring' },
-  p6SuspendResume: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
+  // X7-reviewfix: deze vijf velden vormen samen de P6-solverfirewall en bronidentiteit. Ze moeten
+  // vóór de bredere X9-archiefetappe al exact door IFC heen, anders kan een kale resume na reload
+  // onbedoeld MSP-semantiek erven.
+  p6ProjectId: KEEP,
+  p6TaskId: KEEP,
+  p6CompletePctType: KEEP,
+  p6ExpectedFinish: KEEP,
+  p6SuspendResume: KEEP,
   isSummary: { skip: 'false is de afwezige default; expliciet true round-trippt in check-xer-reader' },
   parentId: { as: 'parent', get: (t: Task, k: Keys) => (t.parentId ? k.task(t.parentId) : null) },
   childIds: { as: 'children', get: (t: Task, k: Keys) => t.childIds.map(c => k.task(c)).sort() },

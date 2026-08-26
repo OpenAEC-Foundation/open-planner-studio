@@ -17,6 +17,7 @@
     "xerSingleProjectRequired": "يدعم هذا الاستيراد مشروع P6 واحدًا فقط لكل ملف XER.",
     "xerEmptyProject": "لا يحتوي مشروع P6 في ملف XER هذا على أنشطة.",
     "xerDuplicateId": "يحتوي ملف XER على معرّف مكرر لـ WBS أو نشاط أو علاقة.",
+    "xerAmbiguousLocalRelation": "لا يمكن إسناد علاقة XER غير محددة النطاق بشكل قاطع إلى مشروع محلي واحد.",
     "xerDanglingLocalRelation": "تشير علاقة XER محلية إلى نشاط مفقود.",
     "xerEnumFallback": "XER {{family}}: الرمز «{{token}}» غير معروف؛ استُخدمت القيمة «{{fallback}}».",
     "mppLegacy": "يستخدم ملف .mpp هذا تنسيقًا قديمًا (Project 2007 أو أقدم). صدّره من MS Project بصيغة XML (ملف ← حفظ باسم ← XML) ثم افتح ذلك الملف.",

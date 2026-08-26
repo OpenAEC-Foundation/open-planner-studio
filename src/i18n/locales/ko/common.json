@@ -17,6 +17,7 @@
     "xerSingleProjectRequired": "이 가져오기는 XER 파일당 정확히 하나의 P6 프로젝트를 지원합니다.",
     "xerEmptyProject": "이 XER 파일의 P6 프로젝트에 활동이 없습니다.",
     "xerDuplicateId": "XER 파일에 중복된 WBS, 활동 또는 관계 ID가 있습니다.",
+    "xerAmbiguousLocalRelation": "범위가 없는 XER 관계를 하나의 로컬 프로젝트에 명확하게 할당할 수 없습니다.",
     "xerDanglingLocalRelation": "로컬 XER 관계가 누락된 활동을 참조합니다.",
     "xerEnumFallback": "XER {{family}}: 알 수 없는 토큰 ‘{{token}}’; ‘{{fallback}}’을 사용했습니다.",
     "mppLegacy": "이 .mpp 파일은 이전 형식(Project 2007 이하)을 사용합니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",

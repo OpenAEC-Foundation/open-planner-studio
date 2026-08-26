@@ -1,6 +1,9 @@
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { isMultiDocumentImport } from '@/services/importTypes';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
+import { XerImportError } from '@/services/xer/xerTables';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -59,6 +62,48 @@ eq('X7-1 complete_pct_type bewaart de onafhankelijke P6-voortgangsbron en identi
     ['P1', 'P', 'CP_Phys', 0.75, 360],
     ['P1', 'U', 'CP_Units', 0.5, 120],
   ]);
+
+const statusMatrix = read([
+  ...header,
+  '%R\tNS-P\tP1\tC1\tNS-P\tNiet gestart fysiek\tTT_Task\tTK_NotStart\tCP_Phys\t10\t75\t8\t6\t2026-08-03 08:00\t2026-08-03 16:00\t\t\t\t\t',
+  '%R\tNS-U\tP1\tC1\tNS-U\tNiet gestart eenheden\tTT_Task\tTK_NotStart\tCP_Units\t50\t10\t8\t2\t2026-08-03 08:00\t2026-08-03 16:00\t\t\t\t\t',
+  '%R\tNS-D\tP1\tC1\tNS-D\tNiet gestart duur\tTT_Task\tTK_NotStart\tCP_Drtn\t\t75\t8\t7\t2026-08-03 08:00\t2026-08-03 16:00\t\t\t\t\t',
+  '%R\tA-D\tP1\tC1\tA-D\tActief duur\tTT_Task\tTK_Active\tCP_Drtn\t25\t90\t8\t1\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t',
+  '%R\tA-P\tP1\tC1\tA-P\tActief fysiek\tTT_Task\tTK_Active\tCP_Phys\t10\t75\t8\t6\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t',
+  '%R\tA-U\tP1\tC1\tA-U\tActief eenheden\tTT_Task\tTK_Active\tCP_Units\t50\t10\t8\t2\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t',
+  '%R\tDONE\tP1\tC1\tDONE\tGereed\tTT_Task\tTK_Complete\tCP_Phys\t10\t75\t8\t0\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t2026-08-03 16:00\t\t\t',
+  '%E',
+]);
+const statusById = new Map(statusMatrix.tasks.map(task => [task.id, task]));
+eq('X7-1a expliciete P6-status leidt; de drie percentagefamilies blijven gescheiden',
+  ['NS-P', 'NS-U', 'NS-D', 'A-D', 'A-P', 'A-U', 'DONE'].map(id => {
+    const task = statusById.get(id)!;
+    return [id, task.status, task.time.completion, task.time.remainingMinutes];
+  }), [
+    ['NS-P', 'NOT_STARTED', 0, 360],
+    ['NS-U', 'NOT_STARTED', 0, 120],
+    ['NS-D', 'NOT_STARTED', 0, 420],
+    ['A-D', 'STARTED', 0.25, 360],
+    ['A-P', 'STARTED', 0.75, 360],
+    ['A-U', 'STARTED', 0.5, 120],
+    ['DONE', 'COMPLETED', 1, 0],
+  ]);
+
+let invalidPercentage: unknown;
+try {
+  read([
+    ...header,
+    '%R\tBAD\tP1\tC1\tBAD\tOngeldig percentage\tTT_Task\tTK_Active\tCP_Phys\t10\tniet-een-getal\t8\t6\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t',
+    '%E',
+  ]);
+} catch (error) {
+  invalidPercentage = error;
+}
+eq('X7-1b ongeldig relevant percentage faalt getypeerd en veldgericht', invalidPercentage instanceof XerImportError ? {
+  code: invalidPercentage.xerCode,
+  table: invalidPercentage.table,
+  field: invalidPercentage.field,
+} : invalidPercentage, { code: 'XER_INVALID_NUMBER', table: 'TASK', field: 'phys_complete_pct' });
 eq('X7-2 suspend/resume is universele brondata, maar uitsluitend een geldig P6-paar opent de bronvlag',
   ['SR', 'S', 'R', 'W'].map(id => {
     const task = byId.get(id)!;
@@ -110,6 +155,31 @@ function solvedResume(taskId: string): string | undefined {
 }
 eq('X7-5 losse P6-resume blijft brondata en opent nooit de MSP-resume-route',
   solvedResume('R'), '2026-08-10T14:00');
+
+const reloaded = readIFC(writeIFC(progress));
+const reloadedByCode = new Map(reloaded.tasks.map(task => [task.wbsCode, task]));
+eq('X7-5a writer→reader behoudt bronidentiteit, voortgangstype, verwacht einde en firewall',
+  ['SR', 'R'].map(code => {
+    const task = reloadedByCode.get(code)!;
+    return [code, task.p6ProjectId, task.p6TaskId, task.p6CompletePctType,
+      task.p6ExpectedFinish, task.p6SuspendResume, task.time.stop, task.time.resume];
+  }), [
+    ['SR', 'P1', 'SR', 'CP_Drtn', '2026-08-12T16:00', true, '2026-08-04T16:00', '2026-08-06T08:00'],
+    ['R', 'P1', 'R', 'CP_Drtn', undefined, undefined, undefined, '2026-08-06T08:00'],
+  ]);
+const reloadedLooseResume = reloadedByCode.get('R')!;
+const reloadedSolve = solveProject({
+  tasks: [reloadedLooseResume],
+  sequences: [],
+  calendar: reloaded.calendar,
+  calendars: [reloaded.calendar, ...(reloaded.resourceCalendars ?? [])],
+  dataDate: reloaded.project.statusDate,
+  progressMode: reloaded.project.progressMode,
+  schedulingOptions: reloaded.project.schedulingOptions,
+  projectStartDate: reloaded.project.startDate,
+});
+eq('X7-5b losse P6-resume erft ook ná IFC-reload nooit de MSP-resume-route',
+  reloadedSolve.tasks.get(reloadedLooseResume.id)?.earlyFinish, '2026-08-10T14:00');
 
 const multi = readXER(bytes([
   'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',

@@ -17,6 +17,7 @@
     "xerSingleProjectRequired": "此导入仅支持每个 XER 文件包含一个 P6 项目。",
     "xerEmptyProject": "此 XER 文件中的 P6 项目不包含作业。",
     "xerDuplicateId": "XER 文件包含重复的 WBS、作业或关系 ID。",
+    "xerAmbiguousLocalRelation": "未指定范围的 XER 关系无法明确分配给唯一的本地项目。",
     "xerDanglingLocalRelation": "本地 XER 关系引用了缺失的作业。",
     "xerEnumFallback": "XER {{family}}：未知标记“{{token}}”；已回退为“{{fallback}}”。",
     "mppLegacy": "此 .mpp 文件使用较旧的格式（Project 2007 或更早版本）。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",

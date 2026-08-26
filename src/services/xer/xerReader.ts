@@ -60,6 +60,14 @@ export interface XerProjectRowsIndex {
   relationsByProject: ReadonlyMap<string, readonly XerRow[]>;
   /** Testbaar operatiebewijs: iedere relevante bronrij precies éénmaal bezocht. */
   visitCount: number;
+  /** Ongescopeerde relaties die zonder gok niet aan precies één lokaal project zijn toe te wijzen. */
+  relationResolutionIssues: readonly {
+    reason: 'ambiguous' | 'dangling';
+    line: number;
+    field: 'task_id' | 'pred_task_id' | 'proj_id';
+    taskId: string;
+    predecessorTaskId: string;
+  }[];
 }
 
 export function indexXerProjectRows(tables: XerTables): XerProjectRowsIndex {
@@ -67,6 +75,12 @@ export function indexXerProjectRows(tables: XerTables): XerProjectRowsIndex {
   const wbsByProject = new Map<string, XerRow[]>();
   const relationsByProject = new Map<string, XerRow[]>();
   const projectsByTaskId = new Map<string, Set<string>>();
+  const relationResolutionIssues: Array<XerProjectRowsIndex['relationResolutionIssues'][number]> = [];
+  const unscopedRelationResolution = new Map<string, {
+    projectId?: string;
+    reason?: 'ambiguous' | 'dangling';
+    field?: 'task_id' | 'pred_task_id' | 'proj_id';
+  }>();
   let visitCount = 0;
   const append = (map: Map<string, XerRow[]>, projectId: string, row: XerRow): void => {
     const rows = map.get(projectId) ?? [];
@@ -83,14 +97,60 @@ export function indexXerProjectRows(tables: XerTables): XerProjectRowsIndex {
   for (const row of tables.tables.get('PROJWBS')?.rows ?? []) { visitCount++; append(wbsByProject, row.cells.proj_id, row); }
   for (const row of tables.tables.get('TASKPRED')?.rows ?? []) {
     visitCount++;
-    const projects = new Set<string>();
-    if (row.cells.proj_id) projects.add(row.cells.proj_id);
-    else for (const projectId of projectsByTaskId.get(row.cells.task_id) ?? []) projects.add(projectId);
-    if (row.cells.pred_proj_id) projects.add(row.cells.pred_proj_id);
-    else for (const projectId of projectsByTaskId.get(row.cells.pred_task_id) ?? []) projects.add(projectId);
-    for (const projectId of projects) append(relationsByProject, projectId, row);
+    const successorProjectId = (row.cells.proj_id ?? '').trim();
+    const predecessorProjectId = (row.cells.pred_proj_id ?? '').trim();
+    if (successorProjectId || predecessorProjectId) {
+      // Eén expliciete projectscope maakt een ontbrekende andere scope lokaal; twee verschillende
+      // scopes materialiseren dezelfde externe relatie aan beide documentzijden.
+      const projects = new Set([successorProjectId || predecessorProjectId, predecessorProjectId || successorProjectId]);
+      for (const projectId of projects) append(relationsByProject, projectId, row);
+      continue;
+    }
+
+    const cacheKey = `${row.cells.task_id}\u0000${row.cells.pred_task_id}`;
+    let resolution = unscopedRelationResolution.get(cacheKey);
+    if (!resolution) {
+      const successorProjects = projectsByTaskId.get(row.cells.task_id);
+      const predecessorProjects = projectsByTaskId.get(row.cells.pred_task_id);
+      if (!successorProjects?.size || !predecessorProjects?.size) {
+        resolution = {
+          reason: 'dangling',
+          field: !successorProjects?.size ? 'task_id' : 'pred_task_id',
+        };
+      } else {
+        // Doorsnede wordt per endpointpaar hoogstens éénmaal berekend. Daarmee kosten de 30
+        // herhaalde A→B-relaties in de schaalfixture één resolutie en 29 O(1)-cachehits, nooit
+        // 30×12 projectscans of 360 materialisaties.
+        const [smallest, other] = successorProjects.size <= predecessorProjects.size
+          ? [successorProjects, predecessorProjects]
+          : [predecessorProjects, successorProjects];
+        let onlyProjectId: string | undefined;
+        let matches = 0;
+        for (const projectId of smallest) {
+          if (!other.has(projectId)) continue;
+          onlyProjectId = projectId;
+          matches++;
+          if (matches > 1) break;
+        }
+        resolution = matches === 1
+          ? { projectId: onlyProjectId }
+          : { reason: 'ambiguous', field: 'proj_id' };
+      }
+      unscopedRelationResolution.set(cacheKey, resolution);
+    }
+    if (!resolution.projectId) {
+      relationResolutionIssues.push({
+        reason: resolution.reason ?? 'ambiguous',
+        line: row.line,
+        field: resolution.field ?? 'proj_id',
+        taskId: row.cells.task_id,
+        predecessorTaskId: row.cells.pred_task_id,
+      });
+      continue;
+    }
+    append(relationsByProject, resolution.projectId, row);
   }
-  return { tasksByProject, wbsByProject, relationsByProject, visitCount };
+  return { tasksByProject, wbsByProject, relationsByProject, visitCount, relationResolutionIssues };
 }
 
 const ACTIVITY_TYPES: readonly P6ActivityType[] = [
@@ -445,18 +505,26 @@ function readXerProject(
     const durationType = durationTypeOf(
       row.cells.duration_type ?? '', projectDefaultDuration, row, enumFallbacks,
     );
-    const status = statusOf(row.cells.status_code ?? '', row, enumFallbacks);
+    const rawStatus = row.cells.status_code ?? '';
+    const status = statusOf(rawStatus, row, enumFallbacks);
     const rawCompletePctType = row.cells.complete_pct_type ?? '';
     const completePctType = completePctTypeOf(rawCompletePctType, row, enumFallbacks);
     const completePercent = numberOf(tables, row, 'complete_pct');
     const physicalPercent = numberOf(tables, row, 'phys_complete_pct') ?? 0;
-    // Oudere/minimale XER-rijen missen vaak complete_pct_type/complete_pct. Behoud daar X4a's
-    // fysieke-percentage-terugval; alleen een expliciet CP_Drtn-record laat zijn percentage de
-    // restduur afleiden.
-    const completionPercent = completePctType === 'CP_Phys'
+    // Status is de leidende P6-toestand. Percentagekolommen verklaren uitsluitend de voortgang
+    // van een actieve taak; ze mogen een expliciete TK_NotStart nooit de solver-in-progressroute
+    // in trekken. CP_Drtn en CP_Units lezen complete_pct, CP_Phys leest uitsluitend
+    // phys_complete_pct — geen familie valt terug op de percentagekolom van een andere familie.
+    const completionPercent = rawCompletePctType.trim() === ''
       ? physicalPercent
-      : completePercent ?? physicalPercent;
-    const completion = status === 'COMPLETED' ? 1 : Math.max(0, Math.min(1, completionPercent / 100));
+      : completePctType === 'CP_Phys'
+        ? physicalPercent
+        : completePercent ?? 0;
+    const completion = status === 'COMPLETED'
+      ? 1
+      : rawStatus.trim() !== '' && status === 'NOT_STARTED'
+        ? 0
+        : Math.max(0, Math.min(1, completionPercent / 100));
     const parentId = row.cells.wbs_id ? wbsTaskId(projectId, row.cells.wbs_id) : null;
     const time = createDefaultTaskTime(start, durationMinutes / (hoursPerDay * 60));
     time.scheduleFinish = finish;
@@ -703,6 +771,21 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds);
   const taskResourceRowsByProject = indexXerTaskResourceRows(tables);
   const projectRowsIndex = indexXerProjectRows(tables);
+  const unresolvedRelation = projectRowsIndex.relationResolutionIssues[0];
+  if (unresolvedRelation) {
+    if (unresolvedRelation.reason === 'dangling') {
+      throw new XerImportError(
+        'XER_DANGLING_LOCAL_RELATION',
+        `Ongescopeerde TASKPRED op regel ${unresolvedRelation.line} verwijst naar een ontbrekend endpoint via ${unresolvedRelation.field}.`,
+        { table: 'TASKPRED', field: unresolvedRelation.field, line: unresolvedRelation.line },
+      );
+    }
+    throw new XerImportError(
+      'XER_AMBIGUOUS_LOCAL_RELATION',
+      `Ongescopeerde TASKPRED op regel ${unresolvedRelation.line} is ambigu: activiteiten '${unresolvedRelation.predecessorTaskId}' en '${unresolvedRelation.taskId}' identificeren niet één uniek lokaal project.`,
+      { table: 'TASKPRED', field: 'proj_id', line: unresolvedRelation.line },
+    );
+  }
   const projectRows = tables.tables.get('PROJECT')?.rows ?? [];
   const assembled = assembleXerMultiProjectImport(
     tables,

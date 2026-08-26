@@ -1,5 +1,6 @@
 import type {
   Task, ConstraintType, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType,
+  P6CompletePctType,
 } from '@/types/task';
 
 /**
@@ -63,6 +64,8 @@ export const PSET = {
   /** MSP's eigen Task Type + Effort-Driven-vlag (`Task.mspTaskType`/`effortDriven`) — puur data,
    *  geen rekengedrag (eigenaarsbesluit 2026-08-18, punt 1). */
   MspTaskType: 'OPS_MspTaskType',
+  /** X7: P6-bronidentiteit, voortgangsfamilie, verwacht einde en suspend/resume-firewall. */
+  P6Progress: 'OPS_P6Progress',
   /** Expliciete samenvattingsidentiteit voor een WBS-taak zonder kinderen. */
   Summary: 'OPS_Summary',
   // Structuur/waarden op project- of taak-niveau (afwijkende vorm — alleen naam gedeeld).
@@ -445,7 +448,35 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 15. Expliciete WBS-identiteit — nodig om een lege PROJWBS-samenvatting door IFC te bewaren.
+  // 15. X7 — precies de vijf velden die P6-voortgang en de resume-firewall na save/reload
+  //     betekenisvast houden. Dit is een smalle per-taak-pset; de bredere X9 raw-archive-etappe
+  //     blijft buiten scope. Golden rule: een taak zonder één van deze velden schrijft geen pset.
+  {
+    name: PSET.P6Progress, psetSeed: 'pset_p6prog_', relSeed: 'rel_p6prog_',
+    write(task) {
+      const props: PropSpec[] = [];
+      if (task.p6ProjectId) props.push({ name: 'ProjectId', value: `IFCTEXT(${ifcStr(task.p6ProjectId)})` });
+      if (task.p6TaskId) props.push({ name: 'TaskId', value: `IFCTEXT(${ifcStr(task.p6TaskId)})` });
+      if (task.p6CompletePctType) props.push({ name: 'CompletePctType', value: `IFCLABEL(${ifcStr(task.p6CompletePctType)})` });
+      if (task.p6ExpectedFinish) props.push({ name: 'ExpectedFinish', value: `IFCTEXT(${ifcStr(task.p6ExpectedFinish)})` });
+      if (task.p6SuspendResume === true) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.T.)' });
+      return props.length > 0 ? props : null;
+    },
+    apply(task, props) {
+      const completePctTypes: readonly P6CompletePctType[] = ['CP_Drtn', 'CP_Phys', 'CP_Units'];
+      for (const { name, value } of props) {
+        if (name === 'SuspendResume') { if (value === true) task.p6SuspendResume = true; continue; }
+        if (typeof value !== 'string' || !value) continue;
+        if (name === 'ProjectId') task.p6ProjectId = value;
+        else if (name === 'TaskId') task.p6TaskId = value;
+        else if (name === 'ExpectedFinish') task.p6ExpectedFinish = value;
+        else if (name === 'CompletePctType' && (completePctTypes as readonly string[]).includes(value)) {
+          task.p6CompletePctType = value as P6CompletePctType;
+        }
+      }
+    },
+  },
+  // 16. Expliciete WBS-identiteit — nodig om een lege PROJWBS-samenvatting door IFC te bewaren.
   //     Alleen `true` schrijft iets; alle bestaande taken blijven byte-identiek.
   {
     name: PSET.Summary, psetSeed: 'pset_sum_', relSeed: 'rel_sum_',

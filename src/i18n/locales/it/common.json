@@ -17,6 +17,7 @@
     "xerSingleProjectRequired": "Questa importazione supporta esattamente un progetto P6 per file XER.",
     "xerEmptyProject": "Il progetto P6 in questo file XER non contiene attività.",
     "xerDuplicateId": "Il file XER contiene un ID WBS, attività o relazione duplicato.",
+    "xerAmbiguousLocalRelation": "Una relazione XER senza ambito non può essere assegnata in modo univoco a un solo progetto locale.",
     "xerDanglingLocalRelation": "Una relazione XER locale fa riferimento a un’attività mancante.",
     "xerEnumFallback": "XER {{family}}: token sconosciuto «{{token}}»; usato «{{fallback}}».",
     "mppLegacy": "Questo file .mpp utilizza un formato precedente (Project 2007 o versioni precedenti). Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",

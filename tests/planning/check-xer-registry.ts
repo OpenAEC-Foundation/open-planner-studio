@@ -115,6 +115,7 @@ const errorKeys: ReadonlyArray<readonly [XerImportErrorCode, string]> = [
   ['XER_SINGLE_PROJECT_REQUIRED', 'notifications.xerSingleProjectRequired'],
   ['XER_EMPTY_PROJECT', 'notifications.xerEmptyProject'],
   ['XER_DUPLICATE_ID', 'notifications.xerDuplicateId'],
+  ['XER_AMBIGUOUS_LOCAL_RELATION', 'notifications.xerAmbiguousLocalRelation'],
   ['XER_DANGLING_LOCAL_RELATION', 'notifications.xerDanglingLocalRelation'],
 ];
 eq('6 iedere typed XER-fout heeft een eigen meldingssleutel',
