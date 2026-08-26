@@ -91,8 +91,25 @@ export interface TaskSlice {
   /** Externe (cross-project) dependency (fase 2.9, §4.5/§5.5): voeg een link toe (genereert de id),
    *  geeft de nieuwe link-id terug. Datum-beïnvloedend ⇒ scheduleStale. */
   addExternalLink: (taskId: string, link: Omit<ExternalLink, 'id'>) => string;
+  /** Vervang één externe link verliesloos met behoud van id; false bij verkeerde taak/link-id. */
+  updateExternalLink: (taskId: string, linkId: string, link: Omit<ExternalLink, 'id'>) => boolean;
   /** Verwijder een externe link van een taak (fase 2.9). Datum-beïnvloedend ⇒ scheduleStale. */
   removeExternalLink: (taskId: string, linkId: string) => void;
+}
+
+function sameExternalLink(left: ExternalLink, right: ExternalLink): boolean {
+  return left.id === right.id
+    && left.direction === right.direction
+    && left.relType === right.relType
+    && left.lagDays === right.lagDays
+    && left.lagMinutes === right.lagMinutes
+    && left.anchorDate === right.anchorDate
+    && left.sourceMissing === right.sourceMissing
+    && left.sourceRef.projectId === right.sourceRef.projectId
+    && left.sourceRef.projectName === right.sourceRef.projectName
+    && left.sourceRef.taskId === right.sourceRef.taskId
+    && left.sourceRef.taskName === right.sourceRef.taskName
+    && left.sourceRef.filePath === right.sourceRef.filePath;
 }
 
 /**
@@ -398,6 +415,28 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     });
     get().recomputeViewRows();
     return id;
+  },
+
+  updateExternalLink: (taskId, linkId, link) => {
+    let found = false;
+    let changed = false;
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      const index = task?.externalLinks?.findIndex(candidate => candidate.id === linkId) ?? -1;
+      if (!task?.externalLinks || index < 0) return;
+      found = true;
+      const current = task.externalLinks[index];
+      const next: ExternalLink = { ...link, id: linkId };
+      if (sameExternalLink(current, next)) return;
+      beginUndoable(s);
+      task.externalLinks = task.externalLinks.map((candidate, candidateIndex) => (
+        candidateIndex === index ? next : candidate
+      ));
+      finishMutation(s, { stale: true });
+      changed = true;
+    });
+    if (changed) get().recomputeViewRows();
+    return found;
   },
 
   removeExternalLink: (taskId, linkId) => {

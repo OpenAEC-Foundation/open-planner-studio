@@ -693,6 +693,182 @@
   border-radius: 0;
 }
 
+.task-grid-relation-editor {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: grid;
+  gap: 5px;
+  width: max(100%, 520px);
+  max-width: min(680px, 85vw);
+  padding: 6px;
+  color: var(--theme-text);
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-accent);
+  box-shadow: var(--shadow-pop);
+}
+
+.task-grid-relation-cell {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-grid-relation-chip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.task-grid-relation-jump {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--theme-accent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.task-grid-relation-detail {
+  color: var(--theme-text);
+}
+
+.task-grid-relation-chip--driving .task-grid-relation-detail,
+.task-grid-relation-chip--driving > svg {
+  color: var(--theme-accent);
+  font-weight: 700;
+}
+
+.task-grid-relation-chip--warning > svg {
+  color: var(--warning, #d97706);
+}
+
+.task-grid-relation-separator {
+  color: var(--theme-text-muted);
+}
+
+.task-grid-relation-tokens,
+.task-grid-relation-options {
+  display: grid;
+  gap: 4px;
+}
+
+.task-grid-relation-token {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 64px 86px 26px;
+  gap: 4px;
+  align-items: center;
+}
+
+.task-grid-relation-reference {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.task-grid-relation-reference {
+  padding: 0;
+  color: var(--theme-accent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.task-grid-relation-token input,
+.task-grid-relation-token select,
+.task-grid-relation-token > button:not(.task-grid-relation-reference),
+.task-grid-relation-add input,
+.task-grid-relation-add button,
+.task-grid-relation-options button {
+  min-width: 0;
+  height: 26px;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  font: inherit;
+}
+
+.task-grid-relation-token input,
+.task-grid-relation-add input {
+  padding-inline: 5px;
+}
+
+.task-grid-relation-add {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  gap: 4px;
+}
+
+.task-grid-relation-add button,
+.task-grid-relation-token > button:not(.task-grid-relation-reference),
+.task-grid-relation-options button {
+  cursor: pointer;
+}
+
+.task-grid-relation-options {
+  max-height: 180px;
+  overflow: auto;
+  border-block-start: 1px solid var(--theme-border-light);
+}
+
+.task-grid-relation-options button {
+  padding-inline: 6px;
+  text-align: start;
+  border: 0;
+  border-radius: 0;
+}
+
+.task-grid-relation-add button:hover,
+.task-grid-relation-token > button:hover,
+.task-grid-relation-options button:hover {
+  background: var(--theme-hover);
+}
+
+.task-grid-relation-context {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  display: grid;
+  min-width: 190px;
+  padding-block: 4px;
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-border);
+  border-radius: 5px;
+  box-shadow: var(--shadow-pop);
+}
+
+.task-grid-relation-context button {
+  padding: 6px 10px;
+  color: var(--theme-text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+}
+
+.task-grid-relation-context button:hover {
+  background: var(--theme-hover);
+}
+
+.task-grid-relation-context .task-grid-relation-context-danger {
+  color: var(--error);
+}
+
 .task-grid-editor-error {
   position: absolute;
   z-index: var(--z-dropdown);

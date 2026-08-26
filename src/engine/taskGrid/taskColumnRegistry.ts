@@ -22,6 +22,13 @@ import {
   type BaselineTaskColumnField,
 } from '@/engine/taskGrid/fieldIds';
 import { taskRelations, type TaskRelationEntry } from '@/engine/taskGrid/relationIndex';
+import {
+  buildRelationCellItems,
+  parseRelationCellText,
+  relationCellClipboardText,
+  relationCellText,
+} from '@/engine/taskGrid/relationCell';
+import { isParsedRelationTokenArray } from '@/engine/taskGrid/relationPlan';
 import { parseDuration as parseDurationMinutes } from '@/utils/durationFormat';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
@@ -278,24 +285,6 @@ function enumOptions(prefix: string, values: readonly string[], optional = false
 function compactArraySummary(value: unknown, noun: string): string {
   const count = Array.isArray(value) ? value.length : 0;
   return count === 0 ? '—' : `${count} ${noun}${count === 1 ? '' : 'en'}`;
-}
-
-function relationLabel(entry: TaskRelationEntry, ctx: TaskColumnContext): string {
-  if (entry.kind === 'external') {
-    const source = entry.link.sourceRef.taskName || entry.link.sourceRef.taskId;
-    const lag = entry.link.lagMinutes ?? entry.link.lagDays;
-    return `${source} (${entry.link.relType}${lag ? `+${lag}` : ''})`;
-  }
-  const other = ctx.tasksById.get(entry.otherTaskId);
-  const label = other ? `${other.wbsCode} ${other.name}`.trim() : entry.otherTaskId;
-  const seq = entry.sequence;
-  const short = seq.type === 'FINISH_START' ? 'FS'
-    : seq.type === 'START_START' ? 'SS'
-      : seq.type === 'FINISH_FINISH' ? 'FF' : 'SF';
-  const lag = seq.lagPercent !== undefined ? `${seq.lagPercent}%`
-    : seq.lagMinutes !== undefined ? `${seq.lagMinutes}m`
-      : seq.lagDays ? `${seq.lagDays}d` : '';
-  return `${label} (${short}${lag ? `+${lag}` : ''})`;
 }
 
 function assignments(task: Task, ctx: TaskColumnContext): readonly ResourceAssignment[] {
@@ -584,6 +573,12 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
 }
 
 function fixedRelationColumns(): TaskColumnDescriptor[] {
+  const cellItems = (
+    task: Task,
+    direction: 'predecessor' | 'successor',
+    entries: readonly TaskRelationEntry[],
+    ctx: TaskColumnContext,
+  ) => buildRelationCellItems({ ownerTaskId: task.id, direction, entries, context: ctx });
   const relationColumn = (direction: 'predecessor' | 'successor'): TaskColumnDescriptor => editableColumn({
     id: `relation.${direction}s`,
     labelKey: `taskGrid.columns.${direction}s`,
@@ -592,12 +587,17 @@ function fixedRelationColumns(): TaskColumnDescriptor[] {
     editorKind: 'relations',
     defaultWidth: 240,
     read: (task, ctx) => taskRelations(ctx.relationIndex, task.id, direction),
-    format: (value, _task, ctx) => Array.isArray(value) && value.length
-      ? (value as TaskRelationEntry[]).map(entry => relationLabel(entry, ctx)).join(', ')
+    format: (value, task, ctx) => Array.isArray(value) && value.length
+      ? relationCellText(cellItems(task, direction, value as TaskRelationEntry[], ctx))
       : '—',
-    copy: (task, ctx) => taskRelations(ctx.relationIndex, task.id, direction).map(entry => relationLabel(entry, ctx)).join(', '),
-    parse: text => success(parseTokens(text)),
-    validate: value => Array.isArray(value) && value.every(token => typeof token === 'string') ? success(value) : failure('relations', value),
+    copy: (task, ctx) => relationCellClipboardText(cellItems(
+      task, direction, taskRelations(ctx.relationIndex, task.id, direction), ctx,
+    )),
+    editText: (task, ctx) => relationCellText(cellItems(
+      task, direction, taskRelations(ctx.relationIndex, task.id, direction), ctx,
+    )),
+    parse: (text, task) => parseRelationCellText({ text, ownerTaskId: task.id, direction }),
+    validate: value => isParsedRelationTokenArray(value) ? success(value) : failure('relations', value),
     planWrite: (value, task) => success([{ kind: 'relation-set', taskId: task.id, direction, value }]),
   });
   return [

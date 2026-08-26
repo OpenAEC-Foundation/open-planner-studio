@@ -248,6 +248,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # "vandaag" — en dat scheduleStale altijd gezet wordt, ook zonder statusdatum.
   TSCHECK="$DIR/.task-slice-check.mjs"
   if bundle_check "$DIR/check-task-slice.ts" "$TSCHECK"; then node "$TSCHECK" || STATUS=1; fi
+  EXTEDITCHECK="$DIR/.external-link-edit.mjs"
+  if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 
   # Documentcontract-checks (audit P10, F1/F3 — key-gedreven capture/hydrate/reset, Snapshot-subset,
   # B3-regressie, recovery-round-trip; headless tegen de echte store, los van de CPM-cases).
@@ -285,6 +287,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-external-relation-format.ts" "$EXTRELFORMATCHECK"; then node "$EXTRELFORMATCHECK" || STATUS=1; fi
   RELSETPLANCHECK="$DIR/.relation-set-plan.mjs"
   if bundle_check "$DIR/check-relation-set-plan.ts" "$RELSETPLANCHECK"; then node "$RELSETPLANCHECK" || STATUS=1; fi
+  RELCELLCHECK="$DIR/.relation-cell.mjs"
+  if bundle_check "$DIR/check-relation-cell.ts" "$RELCELLCHECK"; then node "$RELCELLCHECK" || STATUS=1; fi
+  RELCELLEDITORCHECK="$DIR/.relation-cell-editor.mjs"
+  if bundle_check "$DIR/check-relation-cell-editor.ts" "$RELCELLEDITORCHECK"; then node "$RELCELLEDITORCHECK" || STATUS=1; fi
   TGARIACHECK="$DIR/.task-grid-aria.mjs"
   if bundle_check "$DIR/check-task-grid-aria.ts" "$TGARIACHECK"; then node "$TGARIACHECK" || STATUS=1; fi
   TGDOMCHECK="$DIR/.task-grid-dom-budget.mjs"

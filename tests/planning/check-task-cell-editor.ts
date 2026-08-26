@@ -8,6 +8,8 @@ import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { GridIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
+import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
+import { taskRelations } from '@/engine/taskGrid/relationIndex';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -186,6 +188,71 @@ eq('Gestructureerde editorcommit levert één volledige assignment-set', assignm
     { assignmentId: 'asgn-1', resourceId: 'res-1', unitsPerDay: 2, curve: 'BELL' },
     { resourceId: 'res-2', unitsPerDay: 1 },
   ],
+}]);
+
+const otherTask = {
+  ...task, id: 't-2', wbsCode: '1.2', name: 'Beton storten', time: { ...task.time },
+} as Task;
+let relationCommit: readonly GridIntent[] | null = null;
+const relationAdapter = createTaskGridAdapter({
+  surfaceId: 'full-task-grid', projectId: 'p-1',
+  rows: [{ kind: 'task', rowKey: 'occ-1', task, depth: 0, dimmed: false }],
+  tasks: [task, otherTask],
+  sequences: [{ id: 'seq-1', predecessorId: otherTask.id, successorId: task.id, type: 'FINISH_START', lagDays: 2 }],
+  assignments: [], resources: [], baselines: [], activityCodeTypes: [], customFieldDefs: [],
+  scheduleStale: false, wbsAutoNumber: false, selectedTaskIds: [], labelForColumn: key => key,
+  callbacks: {
+    onCommitEdit: (_target, intents) => {
+      relationCommit = intents;
+      return { ok: true, value: undefined };
+    },
+  },
+});
+const relationCell = { rowKey: 'occ-1', columnId: taskColumnId('relation.predecessors') };
+const relationMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+  adapter: relationAdapter,
+  cell: relationCell,
+  label: 'Voorgangers',
+  messageForError,
+  onCancel: () => undefined,
+  onFocusCell: () => undefined,
+}));
+ok('Relatiecel opent de eigen tokeneditor met WBS, type, lag en externe route',
+  relationMarkup.includes('data-task-editor-kind="relations"')
+    && relationMarkup.includes('1.2 Beton storten')
+    && relationMarkup.includes('<option value="FS" selected="">FS</option>')
+    && relationMarkup.includes('value="+2d"')
+    && relationMarkup.includes('Externe relatie toevoegen'));
+const rawRelationMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+  adapter: relationAdapter,
+  cell: relationCell,
+  label: 'Voorgangers',
+  initialText: '1',
+  messageForError,
+  onCancel: () => undefined,
+  onFocusCell: () => undefined,
+}));
+ok('Direct typen gebruikt volledige tekstvervanging zonder verborgen relatie-idmetadata',
+  rawRelationMarkup.includes('data-task-editor-kind="relations-raw"')
+    && rawRelationMarkup.includes('value="1"')
+    && !rawRelationMarkup.includes('data-task-editor-kind="relations"'));
+const relationItems = buildRelationCellItems({
+  ownerTaskId: task.id,
+  direction: 'predecessor',
+  entries: taskRelations(relationAdapter.context.relationIndex, task.id, 'predecessor'),
+  context: relationAdapter.context,
+});
+eq('Gestructureerde relatiecommit bewaart sequence-idmetadata buiten de zichtbare tekst',
+  commitTaskCellEditorValue({
+    adapter: relationAdapter,
+    cell: relationCell,
+    text: '',
+    directValue: relationItems.map(item => item.parsedToken),
+    messageForError,
+  }), { ok: true });
+eq('Relatie-editor levert één volledige gewenste relatie-set', relationCommit, [{
+  kind: 'relation-set', taskId: task.id, direction: 'predecessor',
+  value: relationItems.map(item => item.parsedToken),
 }]);
 
 if (diffs.length) {

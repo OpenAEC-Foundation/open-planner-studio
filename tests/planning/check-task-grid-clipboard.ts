@@ -217,7 +217,12 @@ function environment(
   const relationPaste = planTaskGridPaste('1.2 FS+2d', relationEnv);
   eq('Niet-celplanner blijft als atomische write in PasteIntent behouden',
     relationPaste.ok ? relationPaste.value.writes : relationPaste.errors,
-    [{ kind: 'relation-set', taskId: first.id, direction: 'predecessor', value: ['1.2 FS+2d'] }]);
+    [{
+      kind: 'relation-set', taskId: first.id, direction: 'predecessor', value: [{
+        kind: 'internal', wbsCode: '1.2', relType: 'FS', lagText: '+2d',
+        source: { index: 0, start: 0, end: 9, text: '1.2 FS+2d' },
+      }],
+    }]);
 
   const resources = taskColumnId('assignment.resources');
   const assignmentEnv = environment(rows, [resources], { rowKey: first.id, columnId: resources });

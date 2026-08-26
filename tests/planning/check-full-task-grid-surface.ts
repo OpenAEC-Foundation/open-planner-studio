@@ -37,6 +37,18 @@ if (fs.existsSync(fullGridPath)) {
       && !/labelForColumn:\s*labelKey\s*=>\s*tTask\(labelKey,\s*\{\s*defaultValue:\s*labelKey/.test(fullGrid));
   ok('De stale-status wordt voor het tonen vertaald',
     /statusText:\s*resolveGridStatusLabel\(\s*base\.statusText/.test(fullGrid));
+  ok('Relatiecellen delen issue-65-tooltip en focusOnTask in beide gridsurfaces',
+    /<RelationCellContent/.test(fullGrid)
+      && /onFocusTask=\{focusOnTask\}/.test(fullGrid)
+      && /buildRelationCellItems/.test(fullGrid));
+  ok('Externe relatietokens hebben een rechtsklikroute voor bewerken, verversen en verwijderen',
+    /onExternalContextMenu/.test(fullGrid)
+      && /refreshExternalAnchorsFrom/.test(fullGrid)
+      && /removeExternalLink/.test(fullGrid)
+      && /<ExternalLinkDialog/.test(fullGrid));
+  ok('De Gantt-plus gebruikt een lokale kolomkiezer en activeert niet onbedoeld de Tabel-tab',
+    /chooserOpen=\{surfaceId === 'full-task-grid' \? showColumnsDialog : undefined\}/.test(fullGrid)
+      && /onChooserOpenChange=\{surfaceId === 'full-task-grid'/.test(fullGrid));
 }
 
 ok('TableEditor bevat geen parallelle interne celrenderer meer',

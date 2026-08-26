@@ -324,6 +324,11 @@ export function formatExternalRelationClipboard(ownerTaskId: string, link: Exter
   return `${visible}${TOKEN_MARKER}${encodeBase64Url(payloadJson(payload))}${TOKEN_END}`;
 }
 
+/** Zichtbare helft van de canonieke clipboardvorm, voor celchips en editortekst. */
+export function formatExternalRelationVisible(link: ExternalLink): string {
+  return `${canonicalExternalSourceLabel(link.sourceRef)} ${link.relType}${formatExternalLagShort(canonicalLag(link))}`;
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

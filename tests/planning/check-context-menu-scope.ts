@@ -47,6 +47,10 @@ const fullTaskGridSource = fs.readFileSync(
   path.join(process.cwd(), 'src/components/task-grid/FullTaskGrid.tsx'),
   'utf8',
 );
+const relationCellSource = fs.readFileSync(
+  path.join(process.cwd(), 'src/components/task-grid/RelationCellEditor.tsx'),
+  'utf8',
+);
 eq('00 FullTaskGrid gebruikt dezelfde contextmenu-bulkroute als de Gantt',
   /contextMenuBulk\.remove/.test(fullTaskGridSource)
     && /contextMenuBulk\.indent/.test(fullTaskGridSource)
@@ -54,6 +58,13 @@ eq('00 FullTaskGrid gebruikt dezelfde contextmenu-bulkroute als de Gantt',
   true);
 eq('00b rechtermuisknop loopt niet eerst door de gewone celselectie heen',
   /const selectCell[\s\S]*if \(event\.button !== 0\) return;[\s\S]*const gesture/.test(fullTaskGridSource),
+  true);
+eq('00c externe relatieacties staan in het rechtsklikmenu en niet als celknoppen',
+  /onExternalContextMenu/.test(relationCellSource)
+    && /event\.preventDefault\(\)/.test(relationCellSource)
+    && /Bron vernieuwen/.test(fullTaskGridSource)
+    && /Relatie verwijderen/.test(fullTaskGridSource)
+    && !/Bron vernieuwen|Relatie verwijderen/.test(relationCellSource),
   true);
 
 /** Verse projectstate met vier root-taken; B/C/D worden de selectie, A blijft de controle. */

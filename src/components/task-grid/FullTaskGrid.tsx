@@ -10,6 +10,8 @@ import { useTranslation } from 'react-i18next';
 import { TaskGrid } from './TaskGrid';
 import type { TaskGridLabels } from './TaskGrid';
 import { TaskCellEditor } from './TaskCellEditor';
+import { RelationCellContent } from './RelationCellEditor';
+import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
@@ -19,6 +21,8 @@ import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
 import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
 import { computeTaskGridAutoFitWidth } from '@/engine/taskGrid/preferences';
+import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
+import { taskRelations } from '@/engine/taskGrid/relationIndex';
 import {
   createEmptyGridSelection,
   reconcileGridSelection,
@@ -40,6 +44,7 @@ import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { deleteTasksBulk } from '@/state/taskBulkActions';
 import { useAppStore } from '@/state/appStore';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
+import { buildImportLabels } from '@/i18n/importLabels';
 import type { DataGridCellModel, DataGridDataRowModel } from './taskGridContext';
 import type { GridEditorCommitResult } from './GridEditorHost';
 import type { Task } from '@/types/task';
@@ -61,6 +66,19 @@ interface GridContextMenuState {
   y: number;
   task: Task | null;
   group: { key: string; collapsed: boolean } | null;
+}
+
+interface ExternalRelationMenuState {
+  x: number;
+  y: number;
+  taskId: string;
+  relationId: string;
+  filePath?: string;
+}
+
+interface ExternalRelationDialogState {
+  taskId: string;
+  relationId?: string;
 }
 
 function useElementSize() {
@@ -215,6 +233,9 @@ export function TaskGridSurface({
   const recentColumnIds = useAppStore(state => state.recentTaskColumns);
   const selectTask = useAppStore(state => state.selectTask);
   const selectTasks = useAppStore(state => state.selectTasks);
+  const focusOnTask = useAppStore(state => state.focusOnTask);
+  const removeExternalLink = useAppStore(state => state.removeExternalLink);
+  const refreshExternalAnchorsFrom = useAppStore(state => state.refreshExternalAnchorsFrom);
   const addTask = useAppStore(state => state.addTask);
   const pasteTasks = useAppStore(state => state.pasteTasks);
   const taskClipboard = useAppStore(state => state.taskClipboard);
@@ -238,10 +259,24 @@ export function TaskGridSurface({
   const [surfaceError, setSurfaceError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
   const [contextMenu, setContextMenu] = useState<GridContextMenuState | null>(null);
+  const [externalRelationMenu, setExternalRelationMenu] = useState<ExternalRelationMenuState | null>(null);
+  const [externalRelationDialog, setExternalRelationDialog] = useState<ExternalRelationDialogState | null>(null);
   const commitEditorRef = useRef<(() => GridEditorCommitResult) | null>(null);
   const autoFitCacheRef = useRef(new Map<string, number>());
   const justDraggedRef = useRef(false);
   const { ref: containerRef, size } = useElementSize();
+
+  useEffect(() => {
+    if (!externalRelationMenu) return;
+    const close = () => setExternalRelationMenu(null);
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [externalRelationMenu]);
 
   const calendarEngine = useMemo(() => new CalendarEngine(calendar), [calendar]);
   const trace = useMemo(
@@ -551,6 +586,11 @@ export function TaskGridSurface({
               setEditing(null);
             }}
             onCommitReady={commit => { commitEditorRef.current = commit; }}
+            onOpenExternal={(taskId, relationId) => {
+              commitEditorRef.current = null;
+              setEditing(null);
+              setExternalRelationDialog({ taskId, ...(relationId ? { relationId } : {}) });
+            }}
           />
         ),
       };
@@ -558,6 +598,17 @@ export function TaskGridSurface({
     const meta = adapter.rowMetaByKey.get(row.rowKey);
     const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
     const isName = column.id === 'task.name';
+    const relationDirection = column.id === 'relation.predecessors'
+      ? 'predecessor'
+      : column.id === 'relation.successors' ? 'successor' : null;
+    const relationItems = task && relationDirection
+      ? buildRelationCellItems({
+          ownerTaskId: task.id,
+          direction: relationDirection,
+          entries: taskRelations(adapter.context.relationIndex, task.id, relationDirection),
+          context: adapter.context,
+        })
+      : [];
     return {
       text: base.text,
       readOnly: base.readOnly,
@@ -567,7 +618,24 @@ export function TaskGridSurface({
         key => tTask(key, { defaultValue: key }),
       ),
       title: base.title,
-      content: isName && task ? (
+      content: relationDirection && task && relationItems.length > 0 ? (
+        <RelationCellContent
+          items={relationItems}
+          onFocusTask={focusOnTask}
+          onHoverStart={() => setHover(null)}
+          onExternalContextMenu={(item, event) => {
+            const external = item.parsedToken.kind === 'external' ? item.parsedToken.external : null;
+            if (!external) return;
+            setExternalRelationMenu({
+              x: event.clientX,
+              y: event.clientY,
+              taskId: task.id,
+              relationId: item.relationId,
+              ...(external.sourceRef.filePath ? { filePath: external.sourceRef.filePath } : {}),
+            });
+          }}
+        />
+      ) : isName && task ? (
         <span className="full-task-grid-name" style={{ paddingInlineStart: row.depth * 14 }}>
           {task.childIds.length > 0 && (
             <>
@@ -604,7 +672,7 @@ export function TaskGridSurface({
         </span>
       ) : undefined,
     };
-  }, [adapter, addTask, applySelection, collapsedTaskIds, editing, rowIndex, selection, showSummaryAdd, tTask, tasksById, toggleCollapse, visibleColumnIds]);
+  }, [adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, rowIndex, selection, showSummaryAdd, tTask, tasksById, toggleCollapse, visibleColumnIds]);
 
   const rowHeight = Math.max(20, Math.round(28 * uiFontScale / 100));
   const headerHeight = Math.max(24, Math.round(baseHeaderHeight * uiFontScale / 100));
@@ -715,14 +783,65 @@ export function TaskGridSurface({
         onRecordRecentColumn={recordRecentTaskColumn}
         beforeColumnAction={finishEditing}
         onComputeAutoFitWidth={computeAutoFitWidth}
-        chooserOpen={showColumnsDialog}
-        onChooserOpenChange={open => setUI({ showColumnsDialog: open })}
+        chooserOpen={surfaceId === 'full-task-grid' ? showColumnsDialog : undefined}
+        onChooserOpenChange={surfaceId === 'full-task-grid'
+          ? open => setUI({ showColumnsDialog: open })
+          : undefined}
       />
       {surfaceError && <div className="full-task-grid-error" role="alert">{surfaceError}</div>}
       {hover && !editing && (
         <HoverTooltip left={hover.x + 16} top={hover.y - 10}>
           <TaskTooltipContent task={hover.task} />
         </HoverTooltip>
+      )}
+      {externalRelationMenu && (
+        <div
+          className="task-grid-relation-context"
+          role="menu"
+          style={{ left: externalRelationMenu.x, top: externalRelationMenu.y }}
+          onPointerDown={event => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setExternalRelationDialog({
+              taskId: externalRelationMenu.taskId,
+              relationId: externalRelationMenu.relationId,
+            })}
+          >
+            Externe relatie bewerken…
+          </button>
+          {externalRelationMenu.filePath && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { void (async () => {
+                const result = await refreshExternalAnchorsFrom(
+                  externalRelationMenu.filePath!,
+                  buildImportLabels(tCommon),
+                );
+                if (!result) setSurfaceError(tTask('externalLinks.notAvailableWeb', { defaultValue: 'Verversen is hier niet beschikbaar.' }));
+              })(); }}
+            >
+              Bron vernieuwen
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className="task-grid-relation-context-danger"
+            onClick={() => removeExternalLink(externalRelationMenu.taskId, externalRelationMenu.relationId)}
+          >
+            Relatie verwijderen
+          </button>
+        </div>
+      )}
+      {externalRelationDialog && (
+        <ExternalLinkDialog
+          taskId={externalRelationDialog.taskId}
+          {...(externalRelationDialog.relationId ? { linkId: externalRelationDialog.relationId } : {})}
+          onClose={() => setExternalRelationDialog(null)}
+        />
       )}
       {contextMenu && (
         <ContextMenu

@@ -43,7 +43,14 @@
     },
     "validation": {
       "readOnly": "This calculated column cannot be edited.",
-      "invalid": "The entered value is not valid."
+      "invalid": "The entered value is not valid.",
+      "relationToken": "Use a value such as 1.2 FS+2d.",
+      "externalRelationRequiresDialog": "Add an external task through Relation → Add external relation…",
+      "invalidLag": "The lag is invalid. Use a value such as 2d, -1d, or 4h.",
+      "ambiguousWbs": "This WBS occurs more than once. Choose the task from the suggestion list.",
+      "unknownWbs": "No task exists with this WBS.",
+      "taskIdentity": "The selected task has changed. Choose the task again.",
+      "cycle": "This change would create a cycle in the schedule."
     },
     "controls": {
       "collapse": "Collapse",

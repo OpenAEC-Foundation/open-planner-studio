@@ -43,7 +43,14 @@
     },
     "validation": {
       "readOnly": "Deze berekende kolom kan niet worden bewerkt.",
-      "invalid": "De ingevoerde waarde is niet geldig."
+      "invalid": "De ingevoerde waarde is niet geldig.",
+      "relationToken": "Gebruik bijvoorbeeld 1.2 FS+2d.",
+      "externalRelationRequiresDialog": "Voeg een externe taak toe via Relatie → Externe relatie toevoegen…",
+      "invalidLag": "De vertraging is niet geldig. Gebruik bijvoorbeeld 2d, -1d of 4u.",
+      "ambiguousWbs": "Deze WBS komt meerdere keren voor. Kies de taak uit de suggestielijst.",
+      "unknownWbs": "Er bestaat geen taak met deze WBS.",
+      "taskIdentity": "De gekozen taak is intussen gewijzigd. Kies de taak opnieuw.",
+      "cycle": "Deze wijziging zou een kring in de planning maken."
     },
     "controls": {
       "collapse": "Inklappen",

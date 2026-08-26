@@ -34,6 +34,8 @@ interface ParsedRelationTokenBase {
 export interface ParsedInternalRelationToken extends ParsedRelationTokenBase {
   kind: 'internal';
   wbsCode: string;
+  /** Onzichtbare metadata van een autocompletekeuze; vrije tekst heeft dit veld niet. */
+  taskId?: string;
   relType: ExternalRelationType;
   lagText: string;
 }
@@ -79,6 +81,7 @@ export function isParsedRelationTokenArray(value: unknown): value is readonly Pa
     if (token.kind === 'internal') {
       return typeof token.wbsCode === 'string'
         && token.wbsCode.length > 0
+        && (token.taskId === undefined || typeof token.taskId === 'string')
         && ['FS', 'SS', 'FF', 'SF'].includes(String(token.relType))
         && typeof token.lagText === 'string';
     }
@@ -411,7 +414,12 @@ function planRelationSetCore(
   const desiredExternal: DesiredExternal[] = [];
   for (const token of input.tokens) {
     if (token.kind === 'internal') {
-      const matches = tasksByWbs.get(token.wbsCode) ?? [];
+      const metadataTask = token.taskId ? tasksById.get(token.taskId) : undefined;
+      if (token.taskId && (!metadataTask || metadataTask.wbsCode !== token.wbsCode)) {
+        errors.push(tokenError(token, 'taskIdentity', token.taskId));
+        continue;
+      }
+      const matches = metadataTask ? [metadataTask] : tasksByWbs.get(token.wbsCode) ?? [];
       if (matches.length === 0) {
         errors.push(tokenError(token, 'unknownWbs', token.wbsCode));
         continue;

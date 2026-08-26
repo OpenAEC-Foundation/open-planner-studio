@@ -3,10 +3,14 @@ import type { GridCellAddress } from '@/engine/taskGrid/selection';
 import type { TaskGridAdapter, TaskGridAdapterEventTarget } from '@/engine/taskGrid/taskGridAdapter';
 import type { ResourceCurve } from '@/types/resource';
 import type { CellValidationError, TaskAssignmentToken } from '@/types/taskGrid';
+import type { TaskRelationEntry } from '@/engine/taskGrid/relationIndex';
+import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
+import type { ParsedRelationToken } from '@/engine/taskGrid/relationPlan';
 import {
   GridEditorHost,
   type GridEditorCommitResult,
 } from './GridEditorHost';
+import { RelationCellEditor } from './RelationCellEditor';
 
 export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
@@ -94,6 +98,7 @@ export interface TaskCellEditorProps {
   previousCell?: GridCellAddress;
   initialText?: string;
   onCommitReady?: (commit: (() => GridEditorCommitResult) | null) => void;
+  onOpenExternal?: (taskId: string, relationId?: string) => void;
 }
 
 /**
@@ -112,6 +117,7 @@ export function TaskCellEditor({
   previousCell,
   initialText,
   onCommitReady,
+  onOpenExternal,
 }: TaskCellEditorProps) {
   const initialCell = adapter.getCell(cell.rowKey, cell.columnId);
   const [text, setText] = useState(
@@ -124,6 +130,27 @@ export function TaskCellEditor({
   ));
   const [resourceQuery, setResourceQuery] = useState('');
   const descriptor = adapter.descriptorsById.get(cell.columnId);
+  const relationDirection = String(cell.columnId) === 'relation.predecessors'
+    ? 'predecessor'
+    : String(cell.columnId) === 'relation.successors' ? 'successor' : null;
+  const rowMeta = adapter.rowMetaByKey.get(cell.rowKey);
+  const ownerTaskId = rowMeta?.kind === 'task' ? rowMeta.taskId : null;
+  const isRelationEditor = descriptor?.editorKind === 'relations'
+    && relationDirection !== null
+    && ownerTaskId !== null;
+  const [relationTokens, setRelationTokens] = useState<readonly ParsedRelationToken[]>(() => {
+    if (!isRelationEditor || initialText !== undefined || !ownerTaskId || !relationDirection) return [];
+    const entries = Array.isArray(initialCell?.value)
+      ? initialCell.value as TaskRelationEntry[]
+      : [];
+    return buildRelationCellItems({
+      ownerTaskId,
+      direction: relationDirection,
+      entries,
+      context: adapter.context,
+    }).map(item => item.parsedToken);
+  });
+  const [relationValid, setRelationValid] = useState(true);
   const isAssignmentEditor = descriptor?.valueKind === 'tokens'
     && String(descriptor.id).startsWith('assignment.');
   const resourceOptions = descriptor?.editorOptions ?? [];
@@ -142,13 +169,23 @@ export function TaskCellEditor({
   }, [cell.rowKey, cell.columnId, initialText]);
 
   const commit = useCallback((shiftKey = false): GridEditorCommitResult => {
+    if (isRelationEditor && initialText === undefined && !relationValid) {
+      return localError(cell, 'invalidLag', messageForError);
+    }
     const result = commitTaskCellEditorValue({
       adapter, cell, text, messageForError,
-      ...(isAssignmentEditor ? { directValue: assignmentTokens } : {}),
+      ...(isAssignmentEditor
+        ? { directValue: assignmentTokens }
+        : isRelationEditor && initialText === undefined
+          ? { directValue: relationTokens }
+          : {}),
     });
     const destination = shiftKey ? previousCell : nextCell;
     return result.ok && destination ? { ...result, nextCell: destination } : result;
-  }, [adapter, assignmentTokens, cell, isAssignmentEditor, messageForError, nextCell, previousCell, text]);
+  }, [
+    adapter, assignmentTokens, cell, initialText, isAssignmentEditor, isRelationEditor,
+    messageForError, nextCell, previousCell, relationTokens, relationValid, text,
+  ]);
 
   useEffect(() => {
     if (!onCommitReady) return;
@@ -164,7 +201,21 @@ export function TaskCellEditor({
       onCommit={commit}
     >
       {inputProps => (
-        isAssignmentEditor ? (
+        isRelationEditor && ownerTaskId ? (
+          <RelationCellEditor
+            inputProps={inputProps}
+            inputRef={node => { inputRef.current = node; }}
+            label={label}
+            ownerTaskId={ownerTaskId}
+            tasks={[...adapter.context.tasksById.values()]}
+            tokens={relationTokens}
+            {...(initialText !== undefined ? { rawText: text } : {})}
+            onRawTextChange={setText}
+            onTokensChange={setRelationTokens}
+            onValidityChange={setRelationValid}
+            onOpenExternal={relationId => onOpenExternal?.(ownerTaskId, relationId)}
+          />
+        ) : isAssignmentEditor ? (
           <div
             {...inputProps}
             className="task-grid-assignment-editor"
