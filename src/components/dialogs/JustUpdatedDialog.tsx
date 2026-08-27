@@ -35,7 +35,7 @@ async function openExternal(url: string): Promise<boolean> {
  * blijft enkel de versiesprong over. Desktop-only qua trigger; de fetch werkt overal.
  */
 export function JustUpdatedDialog() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const setUI = useAppStore((s) => s.setUI);
   const justUpdated = useAppStore((s) => s.ui.justUpdated);
 
@@ -65,7 +65,7 @@ export function JustUpdatedDialog() {
   const showSmaller = sizeDelta !== null && sizeDelta < 0;
   const showLarger = sizeDelta !== null && sizeDelta > 0;
   const days = comparison?.daysBetween ?? null;
-  const release = getReleaseHighlights(justUpdated.to);
+  const release = getReleaseHighlights(justUpdated.to, i18n.language);
   const stats = release?.stats;
   const shownDays = stats?.daysSincePrevious ?? days;
   const openLink = (url: string) => { setOpenError(false); void openExternal(url).then(ok => setOpenError(!ok)); };

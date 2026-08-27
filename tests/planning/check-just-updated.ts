@@ -10,7 +10,7 @@ import {
   computeComparison,
   type GhRelease,
 } from '@/services/updater/releaseInfo';
-import { getReleaseHighlights, isSafeHighlightIcon } from '@/services/updater/releaseHighlights';
+import { getReleaseHighlights, hasLocalizedReleaseContent, isSafeHighlightIcon } from '@/services/updater/releaseHighlights';
 
 let failures = 0;
 function check(name: string, cond: boolean): void {
@@ -78,6 +78,7 @@ check('highlights: maximaal vier secundaire highlights', (highlights?.secondary.
 check('highlights: alleen whitelisted iconen', !!highlights && [highlights.primary, ...highlights.secondary].every(item => isSafeHighlightIcon(item.icon)));
 check('highlights: stats zijn lokaal beschikbaar', highlights?.stats.commitsSincePrevious === 360 && highlights.stats.addedCodeLines === 45066);
 check('highlights: onbekende versie valt veilig terug', getReleaseHighlights('1900.1.1') === null);
+check('highlights: alle 14 locales hebben release-inhoud', hasLocalizedReleaseContent('2026.8.1'));
 
 if (failures > 0) {
   console.error(`\nTOTAAL: ${failures} afwijking(en)`);
