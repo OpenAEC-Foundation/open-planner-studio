@@ -20,7 +20,9 @@ test('rapportpreview bundelt snelle kopwijzigingen en rastert niet blind alle pa
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const preview = page.locator('[data-tour-anchor="report-panel"] img').first();
   await expect(preview).toHaveAttribute('src', /^data:image\/png/, { timeout: 20_000 });
-  const initialCalls = await page.evaluate(() => (window as Window & { __opsPreviewDataUrls: number }).__opsPreviewDataUrls);
+  const initialCalls = await page.evaluate(() => (
+    (window as unknown as Window & { __opsPreviewDataUrls: number }).__opsPreviewDataUrls
+  ));
   expect(initialCalls).toBeLessThanOrEqual(3);
 
   const field = page.getByPlaceholder(/^(Company name|Bedrijfsnaam)$/);
@@ -29,6 +31,8 @@ test('rapportpreview bundelt snelle kopwijzigingen en rastert niet blind alle pa
   await field.fill('AB');
   await field.fill('ABC');
   await expect.poll(() => preview.getAttribute('src')).not.toBe(before);
-  const afterCalls = await page.evaluate(() => (window as Window & { __opsPreviewDataUrls: number }).__opsPreviewDataUrls);
+  const afterCalls = await page.evaluate(() => (
+    (window as unknown as Window & { __opsPreviewDataUrls: number }).__opsPreviewDataUrls
+  ));
   expect(afterCalls - initialCalls).toBeLessThanOrEqual(3);
 });
