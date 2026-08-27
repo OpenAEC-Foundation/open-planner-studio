@@ -682,7 +682,7 @@
       "none": "(geen)"
     },
     "presentation": {
-      "hint": "Druk op F11 om de presentatiemodus te sluiten"
+      "hint": "Druk op Esc of F11 om volledig scherm te verlaten."
     },
     "splitView": {
       "primary": "Primair",

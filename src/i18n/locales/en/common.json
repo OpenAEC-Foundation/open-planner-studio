@@ -682,7 +682,7 @@
       "none": "(none)"
     },
     "presentation": {
-      "hint": "Press F11 to exit presentation mode"
+      "hint": "Press Esc or F11 to exit full screen."
     },
     "splitView": {
       "primary": "Primary",

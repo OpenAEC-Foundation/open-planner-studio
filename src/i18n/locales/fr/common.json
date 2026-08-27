@@ -690,7 +690,7 @@
       "none": "(aucun)"
     },
     "presentation": {
-      "hint": "Appuyez sur F11 pour quitter le mode présentation"
+      "hint": "Appuyez sur Échap ou F11 pour quitter le plein écran."
     },
     "splitView": {
       "primary": "Principal",
