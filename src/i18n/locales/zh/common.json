@@ -252,6 +252,9 @@
     "openBadge": "已打开 {{count}} 个",
     "switchHint": "⌘1–9 切换",
     "openProject": "打开项目",
+    "newOrOpenTitle": "开始项目",
+    "newProject": "新建项目",
+    "openExistingProject": "打开现有项目",
     "allProjects": "所有项目",
     "active": "活动",
     "tasksWord": "任务",
@@ -675,7 +678,7 @@
       "none": "(无)"
     },
     "presentation": {
-      "hint": "按 F11 退出演示模式"
+      "hint": "按 Esc 或 F11 退出全屏模式。"
     },
     "splitView": {
       "primary": "主要",

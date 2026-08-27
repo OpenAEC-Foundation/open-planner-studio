@@ -3,7 +3,7 @@ import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
@@ -537,7 +537,7 @@ export class GanttRenderer {
 
     for (const h of this.opts.calendar.holidays) {
       const start = parseDate(h.startDate);
-      const end = parseDate(h.endDate);
+      const end = parseDate(holidayEndDate(h));
       const days = diffCalendarDays(start, end) + 1;
       const widthPx = days * zoom;
       if (widthPx < minWidthPx) continue; // te smal voor een leesbaar label
@@ -755,11 +755,10 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    // issue #21 punt 2 (vervolg, user-besluit): de HEADER toont áltijd de dagplanning-opbouw
-    // (maand/week/dag), ook met urenplanning aan — de oude dag/uur-band gaf een fontsprong en
-    // een lege uurrij. De uur-tiers leven alleen nog in de sleep-snapping (useBarDrag geeft
-    // de urenplanning-vlag wél door aan pickTiers).
-    const { major, mid, minor } = pickTiers(view.zoom, enableQH, false);
+    // De kopstrook volgt dezelfde tierkeuze als de uurinteractie. De oude harde `false` maakte
+    // de instelling “kwartieren tonen bij ver inzoomen” alleen voor snapping effectief: uren en
+    // kwartieren werden in de schermtijdlijn nooit getekend.
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH, this.opts.enableHourPlanning ?? false);
 
     // Visible date range. Issue #21 punt 5 (header-bugfix, vervolg fase 3 van
     // werkdagen-as-ontwerp.md §4.1/§10): via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`)

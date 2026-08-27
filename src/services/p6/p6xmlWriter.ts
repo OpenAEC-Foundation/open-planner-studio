@@ -2,7 +2,7 @@ import { Task, TaskConstraint } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 
@@ -173,7 +173,7 @@ function writeHolidayOrExceptions(lines: string[], indent: (level: number) => st
     lines.push(`${indent(3)}<HolidayOrException>`);
     lines.push(`${indent(4)}<Name>${escapeXML(h.name)}</Name>`);
     lines.push(`${indent(4)}<Date>${formatP6DateTime(h.startDate)}</Date>`);
-    lines.push(`${indent(4)}<FinishDate>${formatP6DateTime(h.endDate)}</FinishDate>`);
+    lines.push(`${indent(4)}<FinishDate>${formatP6DateTime(holidayEndDate(h))}</FinishDate>`);
     lines.push(`${indent(3)}</HolidayOrException>`);
   }
   lines.push(`${indent(2)}</HolidayOrExceptions>`);

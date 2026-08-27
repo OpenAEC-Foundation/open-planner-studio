@@ -255,6 +255,9 @@
     "openBadge": "{{count}} açık",
     "switchHint": "Geçiş için ⌘1–9",
     "openProject": "Proje aç",
+    "newOrOpenTitle": "Proje başlat",
+    "newProject": "Yeni proje",
+    "openExistingProject": "Mevcut projeyi aç",
     "allProjects": "Tüm projeler",
     "active": "Etkin",
     "tasksWord": "görev",
@@ -683,7 +686,7 @@
       "none": "(yok)"
     },
     "presentation": {
-      "hint": "Sunum modundan çıkmak için F11'e basın"
+      "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."
     },
     "splitView": {
       "primary": "Birincil",

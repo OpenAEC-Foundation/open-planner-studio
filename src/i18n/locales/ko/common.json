@@ -252,6 +252,9 @@
     "openBadge": "{{count}}개 열림",
     "switchHint": "⌘1–9 로 전환",
     "openProject": "프로젝트 열기",
+    "newOrOpenTitle": "프로젝트 시작",
+    "newProject": "새 프로젝트",
+    "openExistingProject": "기존 프로젝트 열기",
     "allProjects": "모든 프로젝트",
     "active": "활성",
     "tasksWord": "작업",
@@ -675,7 +678,7 @@
       "none": "(없음)"
     },
     "presentation": {
-      "hint": "F11 키를 눌러 프레젠테이션 모드를 종료하세요"
+      "hint": "Esc 또는 F11 키를 눌러 전체 화면을 종료하세요."
     },
     "splitView": {
       "primary": "기본",

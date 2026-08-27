@@ -261,6 +261,9 @@
     "openBadge": "Otwarte: {{count}}",
     "switchHint": "⌘1–9 aby przełączyć",
     "openProject": "Otwórz projekt",
+    "newOrOpenTitle": "Rozpocznij projekt",
+    "newProject": "Nowy projekt",
+    "openExistingProject": "Otwórz istniejący projekt",
     "allProjects": "Wszystkie projekty",
     "active": "Aktywny",
     "tasksWord": "zadania",
@@ -699,7 +702,7 @@
       "none": "(brak)"
     },
     "presentation": {
-      "hint": "Naciśnij F11, aby wyjść z trybu prezentacji"
+      "hint": "Naciśnij Esc lub F11, aby wyjść z trybu pełnoekranowego."
     },
     "splitView": {
       "primary": "Główny",
