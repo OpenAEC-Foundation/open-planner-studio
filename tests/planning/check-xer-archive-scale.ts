@@ -11,6 +11,7 @@ import {
   decodeXerSourceArchive,
   sha256Hex,
   XER_SOURCE_ARCHIVE_CHUNK_BYTES,
+  bindXerImportMetadataToArchive,
 } from '@/services/xerSourceArchive';
 import { createDefaultProject } from '@/state/defaults';
 
@@ -35,20 +36,13 @@ const measurements = [1, 8, 32].map(chunkCount => {
     documentViews: { 'P-SCALE': xer },
   };
   const readModel = createEmptyXerArchiveReadModel();
-  const { resources: resourceView, ...documentFields } = xer;
-  const documentMetadata: XerImportMetadata = {
-    ...documentFields,
-    ...(resourceView
-      ? { resources: { ...resourceView, catalog: readModel.resourceCatalog } }
-      : {}),
-    metadata: { catalog: readModel.metadataCatalog },
-  };
   const heapBefore = process.memoryUsage().heapUsed;
   const started = performance.now();
   const archive = createXerSourceArchive(bytes, {
     encoding: 'windows-1252', bom: 'none', newline: 'crlf', diagnostics,
     readModel,
   });
+  const documentMetadata: XerImportMetadata = bindXerImportMetadataToArchive(archive, 'P-SCALE');
   const ifc = writeIFC({
     project, calendar, tasks: [], sequences: [], resources: [], assignments: [],
     xerSourceArchive: archive, xer: documentMetadata,

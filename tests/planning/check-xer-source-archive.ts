@@ -11,6 +11,7 @@ import {
   decodeXerSourceArchive,
   detectXerSourcePresentation,
   sha256Hex,
+  withXerArchiveDocumentView,
 } from '@/services/xerSourceArchive';
 
 declare const process: { exit(code: number): never };
@@ -134,6 +135,45 @@ const utf16BePresentation = detectXerSourcePresentation(utf16('ERMHDR\n%T\tTASK\
 equal('14 UTF-16BE-BOM wordt vóór newlineclassificatie gedecodeerd',
   [utf16BePresentation.encoding, utf16BePresentation.bom, utf16BePresentation.newline],
   ['utf-16be', 'utf-16be', 'lf']);
+
+const unattachedArchive = createXerSourceArchive(new Uint8Array([1, 2, 3]), {
+  encoding: 'windows-1252', bom: 'none', newline: 'none',
+  diagnostics: createEmptyXerArchiveDiagnostics(), readModel: createEmptyXerArchiveReadModel(),
+});
+const callerView = createEmptyXerArchiveDocumentView('CALLER');
+const callerAssignments: never[] = [];
+const callerIssues: never[] = [];
+const callerMetadata = {
+  ...callerView,
+  scheduleOptions: {
+    ...callerView.scheduleOptions,
+    sourceArchive: createEmptyXerArchiveReadModel().scheduleOptionsSourceArchive,
+    sourceRows: [],
+  },
+  resources: {
+    catalog: createEmptyXerArchiveReadModel().resourceCatalog,
+    assignments: callerAssignments,
+    issues: callerIssues,
+  },
+};
+const attachedArchive = withXerArchiveDocumentView(unattachedArchive, callerMetadata);
+let callerArraysRemainMutable = true;
+try {
+  callerAssignments.push({ marker: 'late assignment' } as never);
+  callerIssues.push({ marker: 'late issue' } as never);
+} catch {
+  callerArraysRemainMutable = false;
+}
+truthy('15 missing-view-pad bevriest geen caller-owned assignment- of issuearray',
+  callerArraysRemainMutable
+  && !Object.isFrozen(callerAssignments)
+  && !Object.isFrozen(callerIssues));
+equal('16 latere caller-mutatie werkt niet als alias door in de immutable documentview',
+  [
+    attachedArchive.diagnostics.documentViews.CALLER?.resources?.assignments.length,
+    attachedArchive.diagnostics.documentViews.CALLER?.resources?.issues.length,
+  ],
+  [0, 0]);
 
 if (failures.length === 0) {
   console.log(`OK  xer-source-archive: alle checks groen (${checks})`);

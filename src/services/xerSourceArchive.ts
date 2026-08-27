@@ -7,6 +7,9 @@
 import type {
   XerImportMetadata,
   XerImportReport,
+  XerScheduleOptionsDiagnostic,
+  XerScheduleOptionsMetadata,
+  XerScheduleOptionsSourceArchive,
   XerTableReportMetadata,
 } from './importTypes';
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
@@ -35,14 +38,25 @@ export interface XerArchiveSourceRowV1 {
 export interface XerArchiveReadModelV1 {
   readonly schemaVersion: 1;
   readonly numberFormat: XerNumberFormatMetadata;
+  /** X5: de enige file-wide PROJECT/SCHEDOPTIONS-broncache. */
+  readonly scheduleOptionsSourceArchive: XerScheduleOptionsSourceArchive;
   readonly resourceCatalog: XerResourceCatalog;
   readonly metadataCatalog: XerMetadataCatalog;
   /** TASK-cellen blijven met lege/letterlijke tokens beschikbaar nadat de semantische taak is genormaliseerd. */
   readonly taskSourceRowsByProject: Readonly<Record<string, readonly XerArchiveSourceRowV1[]>>;
 }
 
-export type XerArchiveDocumentViewV1 = Omit<XerImportMetadata, 'resources' | 'metadata'> & {
+export type XerArchiveScheduleOptionsViewV1 = Omit<
+  XerScheduleOptionsMetadata,
+  'sourceArchive' | 'sourceRows'
+>;
+
+export type XerArchiveDocumentViewV1 = Omit<
+  XerImportMetadata,
+  'resources' | 'metadata' | 'scheduleOptions'
+> & {
   sourceProjectId: string;
+  scheduleOptions: XerArchiveScheduleOptionsViewV1;
   resources?: {
     assignments: XerTaskResourceSource[];
     issues: XerResourceIssue[];
@@ -53,7 +67,7 @@ export interface XerArchiveDiagnosticsV1 {
   readonly schemaVersion: 1;
   readonly file: {
     readonly tableReport: XerTableReportMetadata;
-    readonly scheduleOptions: readonly unknown[];
+    readonly scheduleOptions: readonly XerScheduleOptionsDiagnostic[];
     readonly relationResolutionIssues: readonly {
       reason: 'ambiguous' | 'dangling';
       line: number;
@@ -155,6 +169,7 @@ function buildXerSourceArchive(
   // moet V8 daarvoor extra heap-pagina's openen en blijft de verse reader onnodig veel RSS houden.
   validateXerArchiveDiagnosticsV1(presentation.diagnostics);
   validateXerArchiveReadModelV1(presentation.readModel);
+  validateArchiveMetadataRelations(presentation.diagnostics, presentation.readModel);
   const copiedDiagnostics = copyMetadata
     ? structuredClone(presentation.diagnostics)
     : presentation.diagnostics;
@@ -210,8 +225,7 @@ export function createEmptyXerArchiveDocumentView(sourceProjectId: string): XerA
     enumFallbacks: [],
     scheduleOptions: {
       source: 'xer-defaults', retainedSource: {}, fallbacks: [], diagnostics: [],
-      sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
-      sourceRowIndexes: [], sourceRows: [],
+      sourceRowIndexes: [],
     },
     externalRelations: [],
     externalLinks: [],
@@ -227,6 +241,7 @@ export function createEmptyXerArchiveReadModel(): XerArchiveReadModelV1 {
   return {
     schemaVersion: 1,
     numberFormat: { decimal: '.', group: null, source: 'default', currencyCode: '' },
+    scheduleOptionsSourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
     resourceCatalog: {
       resources: [], identities: [],
       rows: { resources: [], roles: [], rates: [], curves: [], assignments: [] },
@@ -268,21 +283,82 @@ export function parseXerArchiveMetadataPayload(value: unknown): XerArchiveMetada
   const payload = objectOf(value, 'archive-metadata');
   exactKeys(payload, ['schemaVersion', 'diagnostics', 'readModel'], 'archive-metadata');
   if (payload.schemaVersion !== 1) invalid('archive-metadata.schemaVersion is onbekend');
-  validateXerArchiveDiagnosticsV1(payload.diagnostics);
-  validateXerArchiveReadModelV1(payload.readModel);
-  return payload as unknown as XerArchiveMetadataPayloadV1;
+  const diagnostics = payload.diagnostics;
+  const readModel = payload.readModel;
+  validateXerArchiveDiagnosticsV1(diagnostics);
+  validateXerArchiveReadModelV1(readModel);
+  validateArchiveMetadataRelations(diagnostics, readModel);
+  return { schemaVersion: 1, diagnostics, readModel };
 }
 
-export function archiveDocumentView(source: XerImportMetadata): XerArchiveDocumentViewV1 {
-  const { resources, metadata: _metadata, ...documentFields } = source;
+function buildArchiveDocumentView(
+  source: XerImportMetadata,
+  transferOwnedProvenance: boolean,
+): XerArchiveDocumentViewV1 {
+  const {
+    resources,
+    metadata: _metadata,
+    scheduleOptions: { sourceArchive: _sourceArchive, sourceRows: _sourceRows, ...scheduleOptions },
+    ...documentFields
+  } = source;
   if (!source.sourceProjectId) invalid('documentview mist sourceProjectId');
   return {
     ...structuredClone(documentFields),
     sourceProjectId: source.sourceProjectId,
-    // Deze projectprojectie is zelf het te bewaren X6-bronbewijs. Het archive neemt ownership en
-    // bevriest de grafiek; een tweede structuredClone zou bij grote TASKRSRC-sets tientallen MiB
-    // identieke persistente data naast dezelfde documentview leggen.
-    ...(resources ? { resources: { assignments: resources.assignments, issues: resources.issues } } : {}),
+    scheduleOptions: structuredClone(scheduleOptions),
+    ...(resources ? {
+      resources: transferOwnedProvenance
+        ? { assignments: resources.assignments, issues: resources.issues }
+        : structuredClone({ assignments: resources.assignments, issues: resources.issues }),
+    } : {}),
+  };
+}
+
+/** Defensieve publieke grens: caller-owned provenance wordt nooit bevroren of als alias bewaard. */
+export function archiveDocumentView(source: XerImportMetadata): XerArchiveDocumentViewV1 {
+  return buildArchiveDocumentView(source, false);
+}
+
+/**
+ * Interne reader-ownershiptransfer. Alleen `readXER` gebruikt dit op vers gematerialiseerde
+ * projectmetadata die vóór deze call nergens als publiek resultaat is uitgegeven.
+ */
+export function archiveDocumentViewFromOwnedReaderMetadata(
+  source: XerImportMetadata,
+): XerArchiveDocumentViewV1 {
+  return buildArchiveDocumentView(source, true);
+}
+
+/** Herbouw één documentspecifieke runtimeview uitsluitend uit de canonieke archiefgrafiek. */
+export function bindXerImportMetadataToArchive(
+  archive: XerSourceArchive,
+  sourceProjectId: string,
+): XerImportMetadata {
+  const view = archive.diagnostics.documentViews[sourceProjectId];
+  if (!view) invalid('selector wijst naar ontbrekende documentview');
+  const sourceArchive = archive.readModel.scheduleOptionsSourceArchive;
+  const sourceRows = view.scheduleOptions.sourceRowIndexes.map((index, position) => {
+    const row = sourceArchive.rows[index];
+    if (!row) invalid(`documentview sourceRowIndexes[${position}] wijst buiten de X5-filecache`);
+    return row;
+  });
+  Object.freeze(sourceRows);
+  const { resources, ...documentFields } = view;
+  return {
+    ...structuredClone(documentFields),
+    scheduleOptions: {
+      ...structuredClone(view.scheduleOptions),
+      sourceArchive,
+      sourceRows,
+    },
+    ...(resources ? {
+      resources: {
+        catalog: archive.readModel.resourceCatalog,
+        assignments: resources.assignments,
+        issues: resources.issues,
+      },
+    } : {}),
+    metadata: { catalog: archive.readModel.metadataCatalog },
   };
 }
 
@@ -292,9 +368,9 @@ export function withXerArchiveDocumentView(
   const view = archiveDocumentView(source);
   if (archive.diagnostics.documentViews[view.sourceProjectId]) return archive;
   const diagnostics: XerArchiveDiagnosticsV1 = {
-    ...structuredClone(archive.diagnostics),
+    ...archive.diagnostics,
     documentViews: {
-      ...structuredClone(archive.diagnostics.documentViews),
+      ...archive.diagnostics.documentViews,
       [view.sourceProjectId]: view,
     },
   };
@@ -466,6 +542,27 @@ function nonNegativeInteger(value: unknown, path: string): number {
   return value;
 }
 
+function finiteNumber(value: unknown, path: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) invalid(`${path} is geen eindig getal`);
+  return value;
+}
+
+function nullableFiniteNumber(value: unknown, path: string): number | null {
+  return value === null ? null : finiteNumber(value, path);
+}
+
+function optionalStringFields(
+  value: Record<string, unknown>, keys: readonly string[], path: string,
+): void {
+  for (const key of keys) if (value[key] !== undefined) stringOf(value[key], `${path}.${key}`);
+}
+
+function optionalFiniteNumberFields(
+  value: Record<string, unknown>, keys: readonly string[], path: string,
+): void {
+  for (const key of keys) if (value[key] !== undefined) finiteNumber(value[key], `${path}.${key}`);
+}
+
 function oneOf<T extends string>(value: unknown, choices: readonly T[], path: string): T {
   if (typeof value !== 'string' || !(choices as readonly string[]).includes(value)) invalid(`${path} bevat onbekende enumwaarde`);
   return value as T;
@@ -581,9 +678,35 @@ function validateImportReport(value: unknown, path: string): void {
     oneOf(reason, ['self-reference', 'cycle', 'all-projects-baselines'], `${path}.baselineFallbackReasons[${index}]`));
 }
 
-function validateScheduleOptions(value: unknown, path: string): void {
+function validateScheduleOptionsDiagnostic(value: unknown, path: string): void {
+  const diagnostic = objectOf(value, path);
+  exactKeys(diagnostic, ['code', 'projectId', 'rowIndexes', 'lines'], path);
+  oneOf(diagnostic.code, ['XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID'], `${path}.code`);
+  stringOf(diagnostic.projectId, `${path}.projectId`);
+  for (const key of ['rowIndexes', 'lines'] as const) {
+    arrayOf(diagnostic[key], `${path}.${key}`).forEach((item, index) =>
+      nonNegativeInteger(item, `${path}.${key}[${index}]`));
+  }
+}
+
+function validateScheduleOptionsSourceArchive(value: unknown, path: string): void {
+  const archive = objectOf(value, path);
+  exactKeys(archive, ['rows', 'unmatchedScheduleOptionsRowIndexes', 'diagnostics'], path);
+  arrayOf(archive.rows, `${path}.rows`).forEach((row, index) => {
+    const item = objectOf(row, `${path}.rows[${index}]`);
+    exactKeys(item, ['table', 'line', 'cells'], `${path}.rows[${index}]`);
+    oneOf(item.table, ['PROJECT', 'SCHEDOPTIONS'], `${path}.rows[${index}].table`);
+    validateSourceRow({ line: item.line, cells: item.cells }, `${path}.rows[${index}]`);
+  });
+  arrayOf(archive.unmatchedScheduleOptionsRowIndexes, `${path}.unmatchedScheduleOptionsRowIndexes`)
+    .forEach((item, index) => nonNegativeInteger(item, `${path}.unmatchedScheduleOptionsRowIndexes[${index}]`));
+  arrayOf(archive.diagnostics, `${path}.diagnostics`)
+    .forEach((item, index) => validateScheduleOptionsDiagnostic(item, `${path}.diagnostics[${index}]`));
+}
+
+function validateScheduleOptionsView(value: unknown, path: string): void {
   const options = objectOf(value, path);
-  exactKeys(options, ['source', 'retainedSource', 'fallbacks', 'diagnostics', 'sourceArchive', 'sourceRowIndexes', 'sourceRows'], path);
+  exactKeys(options, ['source', 'retainedSource', 'fallbacks', 'diagnostics', 'sourceRowIndexes'], path);
   oneOf(options.source, ['schedoptions', 'xer-defaults'], `${path}.source`);
   const retained = objectOf(options.retainedSource, `${path}.retainedSource`);
   exactKeys(retained, ['sched_use_project_end_date_for_float'], `${path}.retainedSource`);
@@ -596,29 +719,159 @@ function validateScheduleOptions(value: unknown, path: string): void {
     stringOf(item.fallback, `${path}.fallbacks[${index}].fallback`);
     nonNegativeInteger(item.line, `${path}.fallbacks[${index}].line`);
   });
-  const archive = objectOf(options.sourceArchive, `${path}.sourceArchive`);
-  exactKeys(archive, ['rows', 'unmatchedScheduleOptionsRowIndexes', 'diagnostics'], `${path}.sourceArchive`);
-  arrayOf(archive.rows, `${path}.sourceArchive.rows`).forEach((row, index) => {
-    const item = objectOf(row, `${path}.sourceArchive.rows[${index}]`);
-    exactKeys(item, ['table', 'line', 'cells'], `${path}.sourceArchive.rows[${index}]`);
-    oneOf(item.table, ['PROJECT', 'SCHEDOPTIONS'], `${path}.sourceArchive.rows[${index}].table`);
-    validateSourceRow({ line: item.line, cells: item.cells }, `${path}.sourceArchive.rows[${index}]`);
-  });
-  for (const arrayPath of ['diagnostics', 'sourceRowIndexes'] as const) {
-    arrayOf(arrayPath === 'diagnostics' ? options.diagnostics : options.sourceRowIndexes, `${path}.${arrayPath}`)
-      .forEach((item, index) => arrayPath === 'diagnostics'
-        ? jsonValue(item, `${path}.${arrayPath}[${index}]`)
-        : nonNegativeInteger(item, `${path}.${arrayPath}[${index}]`));
+  arrayOf(options.diagnostics, `${path}.diagnostics`).forEach((item, index) =>
+    validateScheduleOptionsDiagnostic(item, `${path}.diagnostics[${index}]`));
+  arrayOf(options.sourceRowIndexes, `${path}.sourceRowIndexes`).forEach((item, index) =>
+    nonNegativeInteger(item, `${path}.sourceRowIndexes[${index}]`));
+}
+
+function validateResource(value: unknown, path: string): void {
+  const resource = objectOf(value, path);
+  exactKeys(resource, [
+    'id', 'name', 'type', 'description', 'costPerHour', 'availability', 'maxUnits', 'calendarId',
+    'availabilitySteps', 'unitOfMeasure', 'parentId', 'libraryOrigin',
+  ], path);
+  for (const key of ['id', 'name', 'description'] as const) stringOf(resource[key], `${path}.${key}`);
+  oneOf(resource.type, ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'], `${path}.type`);
+  finiteNumber(resource.maxUnits, `${path}.maxUnits`);
+  optionalFiniteNumberFields(resource, ['costPerHour', 'availability'], path);
+  optionalStringFields(resource, ['calendarId', 'unitOfMeasure', 'parentId'], path);
+  if (resource.availabilitySteps !== undefined) {
+    arrayOf(resource.availabilitySteps, `${path}.availabilitySteps`).forEach((stepValue, index) => {
+      const stepPath = `${path}.availabilitySteps[${index}]`;
+      const step = objectOf(stepValue, stepPath);
+      exactKeys(step, ['from', 'maxUnits'], stepPath);
+      stringOf(step.from, `${stepPath}.from`, false);
+      finiteNumber(step.maxUnits, `${stepPath}.maxUnits`);
+    });
   }
-  arrayOf(archive.unmatchedScheduleOptionsRowIndexes, `${path}.sourceArchive.unmatchedScheduleOptionsRowIndexes`)
-    .forEach((item, index) => nonNegativeInteger(item, `${path}.sourceArchive.unmatchedScheduleOptionsRowIndexes[${index}]`));
-  arrayOf(archive.diagnostics, `${path}.sourceArchive.diagnostics`).forEach((item, index) => jsonValue(item, `${path}.sourceArchive.diagnostics[${index}]`));
-  arrayOf(options.sourceRows, `${path}.sourceRows`).forEach((row, index) => {
-    const item = objectOf(row, `${path}.sourceRows[${index}]`);
-    exactKeys(item, ['table', 'line', 'cells'], `${path}.sourceRows[${index}]`);
-    oneOf(item.table, ['PROJECT', 'SCHEDOPTIONS'], `${path}.sourceRows[${index}].table`);
-    validateSourceRow({ line: item.line, cells: item.cells }, `${path}.sourceRows[${index}]`);
-  });
+  if (resource.libraryOrigin !== undefined) {
+    const origin = objectOf(resource.libraryOrigin, `${path}.libraryOrigin`);
+    exactKeys(origin, ['companyId', 'libraryItemId', 'poolVersion', 'syncedHash'], `${path}.libraryOrigin`);
+    stringOf(origin.companyId, `${path}.libraryOrigin.companyId`, false);
+    stringOf(origin.libraryItemId, `${path}.libraryOrigin.libraryItemId`, false);
+    nonNegativeInteger(origin.poolVersion, `${path}.libraryOrigin.poolVersion`);
+    if (origin.syncedHash !== undefined) stringOf(origin.syncedHash, `${path}.libraryOrigin.syncedHash`);
+  }
+}
+
+function validateEntityIdentity(value: unknown, path: string): void {
+  const identity = objectOf(value, path);
+  exactKeys(identity, ['kind', 'sourceId', 'internalId', 'line'], path);
+  oneOf(identity.kind, ['RESOURCE', 'ROLE'], `${path}.kind`);
+  stringOf(identity.sourceId, `${path}.sourceId`);
+  stringOf(identity.internalId, `${path}.internalId`);
+  nonNegativeInteger(identity.line, `${path}.line`);
+}
+
+function validateEntitySource(value: unknown, path: string): void {
+  const entity = objectOf(value, path);
+  exactKeys(entity, ['kind', 'sourceId', 'internalId'], path);
+  oneOf(entity.kind, ['RESOURCE', 'ROLE'], `${path}.kind`);
+  stringOf(entity.sourceId, `${path}.sourceId`);
+  stringOf(entity.internalId, `${path}.internalId`);
+}
+
+function validateResourceSource(value: unknown, path: string): void {
+  const source = objectOf(value, path);
+  exactKeys(source, [
+    'rawRow', 'sourceId', 'internalId', 'line', 'rawType', 'parentSourceId', 'calendarSourceId',
+    'defaultRoleSourceId', 'unitSourceId',
+  ], path);
+  validateSourceRow(source.rawRow, `${path}.rawRow`);
+  for (const key of ['sourceId', 'internalId', 'rawType'] as const) stringOf(source[key], `${path}.${key}`);
+  nonNegativeInteger(source.line, `${path}.line`);
+  optionalStringFields(source, ['parentSourceId', 'calendarSourceId', 'defaultRoleSourceId', 'unitSourceId'], path);
+}
+
+function validateRoleSource(value: unknown, path: string): void {
+  const source = objectOf(value, path);
+  exactKeys(source, ['rawRow', 'sourceId', 'internalId', 'line', 'name', 'shortName', 'description', 'parentSourceId'], path);
+  validateSourceRow(source.rawRow, `${path}.rawRow`);
+  for (const key of ['sourceId', 'internalId', 'name', 'shortName', 'description'] as const) stringOf(source[key], `${path}.${key}`);
+  nonNegativeInteger(source.line, `${path}.line`);
+  optionalStringFields(source, ['parentSourceId'], path);
+}
+
+function validateRateSource(value: unknown, path: string): void {
+  const source = objectOf(value, path);
+  exactKeys(source, ['rawRow', 'sourceId', 'internalId', 'entity', 'line', 'effectiveDate', 'maxUnitsPerTime', 'costs'], path);
+  validateSourceRow(source.rawRow, `${path}.rawRow`);
+  stringOf(source.sourceId, `${path}.sourceId`);
+  stringOf(source.internalId, `${path}.internalId`);
+  validateEntitySource(source.entity, `${path}.entity`);
+  nonNegativeInteger(source.line, `${path}.line`);
+  if (source.effectiveDate !== undefined) stringOf(source.effectiveDate, `${path}.effectiveDate`);
+  nullableFiniteNumber(source.maxUnitsPerTime, `${path}.maxUnitsPerTime`);
+  const costs = arrayOf(source.costs, `${path}.costs`);
+  if (costs.length !== 5) invalid(`${path}.costs is geen tuple van lengte 5`);
+  costs.forEach((cost, index) => nullableFiniteNumber(cost, `${path}.costs[${index}]`));
+}
+
+function validateCurveSource(value: unknown, path: string): void {
+  const source = objectOf(value, path);
+  exactKeys(source, ['rawRow', 'sourceId', 'internalId', 'line', 'name', 'rawPoints', 'numericPoints', 'bestFit'], path);
+  validateSourceRow(source.rawRow, `${path}.rawRow`);
+  for (const key of ['sourceId', 'internalId', 'name'] as const) stringOf(source[key], `${path}.${key}`);
+  nonNegativeInteger(source.line, `${path}.line`);
+  const rawPoints = arrayOf(source.rawPoints, `${path}.rawPoints`);
+  if (rawPoints.length !== 21) invalid(`${path}.rawPoints is geen tuple van lengte 21`);
+  rawPoints.forEach((point, index) => stringOf(point, `${path}.rawPoints[${index}]`));
+  if (source.numericPoints !== undefined) {
+    const numericPoints = arrayOf(source.numericPoints, `${path}.numericPoints`);
+    if (numericPoints.length !== 21) invalid(`${path}.numericPoints is geen tuple van lengte 21`);
+    numericPoints.forEach((point, index) => finiteNumber(point, `${path}.numericPoints[${index}]`));
+  }
+  if (source.bestFit !== undefined) oneOf(source.bestFit,
+    ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'], `${path}.bestFit`);
+}
+
+function validateTaskResourceSource(value: unknown, path: string): void {
+  const source = objectOf(value, path);
+  exactKeys(source, [
+    'rawRow', 'sourceId', 'internalId', 'taskSourceId', 'projectSourceId', 'line', 'entity',
+    'assignedRole', 'unitScale', 'quantities', 'curveSourceId', 'rawCurves', 'costs', 'rateType',
+    'costSourceType', 'rawResourceType',
+  ], path);
+  validateSourceRow(source.rawRow, `${path}.rawRow`);
+  for (const key of ['sourceId', 'internalId', 'taskSourceId'] as const) stringOf(source[key], `${path}.${key}`);
+  optionalStringFields(source, ['projectSourceId', 'curveSourceId', 'rateType', 'costSourceType', 'rawResourceType'], path);
+  nonNegativeInteger(source.line, `${path}.line`);
+  validateEntitySource(source.entity, `${path}.entity`);
+  if (source.assignedRole !== undefined) validateEntitySource(source.assignedRole, `${path}.assignedRole`);
+  oneOf(source.unitScale, ['DIRECT_FRACTION', 'MATERIAL_PER_HOUR'], `${path}.unitScale`);
+  const quantities = objectOf(source.quantities, `${path}.quantities`);
+  exactKeys(quantities, ['remaining', 'target', 'actualRegular', 'actualOvertime', 'thisPeriod', 'remainingPerHour', 'targetPerHour'], `${path}.quantities`);
+  optionalFiniteNumberFields(quantities, Object.keys(quantities), `${path}.quantities`);
+  const curves = objectOf(source.rawCurves, `${path}.rawCurves`);
+  exactKeys(curves, ['target', 'remaining', 'actual'], `${path}.rawCurves`);
+  optionalStringFields(curves, ['target', 'remaining', 'actual'], `${path}.rawCurves`);
+  const costs = objectOf(source.costs, `${path}.costs`);
+  exactKeys(costs, ['perQuantity', 'target', 'remaining', 'actualRegular', 'actualOvertime', 'thisPeriod'], `${path}.costs`);
+  optionalFiniteNumberFields(costs, Object.keys(costs), `${path}.costs`);
+}
+
+function validateExternalRelation(value: unknown, path: string): void {
+  const relation = objectOf(value, path);
+  exactKeys(relation, ['id', 'localProjectId', 'localTaskId', 'externalProjectId', 'externalTaskId', 'direction', 'type', 'lagMinutes'], path);
+  for (const key of ['id', 'localProjectId', 'localTaskId', 'externalProjectId', 'externalTaskId'] as const) stringOf(relation[key], `${path}.${key}`);
+  oneOf(relation.direction, ['predecessor', 'successor'], `${path}.direction`);
+  oneOf(relation.type, ['FS', 'SS', 'FF', 'SF'], `${path}.type`);
+  finiteNumber(relation.lagMinutes, `${path}.lagMinutes`);
+}
+
+function validateExternalLink(value: unknown, path: string): void {
+  const link = objectOf(value, path);
+  exactKeys(link, ['id', 'predecessor', 'successor', 'type', 'lagMinutes'], path);
+  stringOf(link.id, `${path}.id`);
+  for (const endpoint of ['predecessor', 'successor'] as const) {
+    const item = objectOf(link[endpoint], `${path}.${endpoint}`);
+    exactKeys(item, ['projectId', 'taskId'], `${path}.${endpoint}`);
+    stringOf(item.projectId, `${path}.${endpoint}.projectId`);
+    stringOf(item.taskId, `${path}.${endpoint}.taskId`);
+  }
+  oneOf(link.type, ['FS', 'SS', 'FF', 'SF'], `${path}.type`);
+  finiteNumber(link.lagMinutes, `${path}.lagMinutes`);
 }
 
 function validateDocumentView(value: unknown, projectId: string, path: string): void {
@@ -647,15 +900,17 @@ function validateDocumentView(value: unknown, projectId: string, path: string): 
     for (const key of ['token', 'fallback', 'field'] as const) stringOf(fallback[key], `${path}.enumFallbacks[${index}].${key}`);
     nonNegativeInteger(fallback.line, `${path}.enumFallbacks[${index}].line`);
   });
-  validateScheduleOptions(view.scheduleOptions, `${path}.scheduleOptions`);
-  for (const key of ['externalRelations', 'externalLinks'] as const) {
-    arrayOf(view[key], `${path}.${key}`).forEach((item, index) => jsonValue(item, `${path}.${key}[${index}]`));
-  }
+  validateScheduleOptionsView(view.scheduleOptions, `${path}.scheduleOptions`);
+  arrayOf(view.externalRelations, `${path}.externalRelations`).forEach((item, index) =>
+    validateExternalRelation(item, `${path}.externalRelations[${index}]`));
+  arrayOf(view.externalLinks, `${path}.externalLinks`).forEach((item, index) =>
+    validateExternalLink(item, `${path}.externalLinks[${index}]`));
   validateImportReport(view.report, `${path}.report`);
   if (view.resources !== undefined) {
     const resources = objectOf(view.resources, `${path}.resources`);
     exactKeys(resources, ['assignments', 'issues'], `${path}.resources`);
-    arrayOf(resources.assignments, `${path}.resources.assignments`).forEach((item, index) => jsonValue(item, `${path}.resources.assignments[${index}]`));
+    arrayOf(resources.assignments, `${path}.resources.assignments`).forEach((item, index) =>
+      validateTaskResourceSource(item, `${path}.resources.assignments[${index}]`));
     arrayOf(resources.issues, `${path}.resources.issues`).forEach((item, index) => validateResourceIssue(item, `${path}.resources.issues[${index}]`));
   }
 }
@@ -667,7 +922,8 @@ export function validateXerArchiveDiagnosticsV1(value: unknown): asserts value i
   const file = objectOf(diagnostics.file, 'diagnostics.file');
   exactKeys(file, ['tableReport', 'scheduleOptions', 'relationResolutionIssues', 'resourceCatalogIssues', 'metadataCatalogIssues', 'importReport'], 'diagnostics.file');
   validateTableReport(file.tableReport, 'diagnostics.file.tableReport');
-  arrayOf(file.scheduleOptions, 'diagnostics.file.scheduleOptions').forEach((item, index) => jsonValue(item, `diagnostics.file.scheduleOptions[${index}]`));
+  arrayOf(file.scheduleOptions, 'diagnostics.file.scheduleOptions').forEach((item, index) =>
+    validateScheduleOptionsDiagnostic(item, `diagnostics.file.scheduleOptions[${index}]`));
   arrayOf(file.relationResolutionIssues, 'diagnostics.file.relationResolutionIssues').forEach((issueValue, index) => {
     const issue = objectOf(issueValue, `diagnostics.file.relationResolutionIssues[${index}]`);
     exactKeys(issue, ['reason', 'line', 'field', 'taskId', 'predecessorTaskId'], `diagnostics.file.relationResolutionIssues[${index}]`);
@@ -688,9 +944,60 @@ export function validateXerArchiveDiagnosticsV1(value: unknown): asserts value i
   if (diagnostics.opaqueExtensions !== undefined) jsonValue(objectOf(diagnostics.opaqueExtensions, 'diagnostics.opaqueExtensions'), 'diagnostics.opaqueExtensions');
 }
 
+function validateActivityCodeType(value: unknown, path: string): void {
+  const type = objectOf(value, path);
+  exactKeys(type, ['id', 'name', 'values'], path);
+  stringOf(type.id, `${path}.id`);
+  stringOf(type.name, `${path}.name`);
+  arrayOf(type.values, `${path}.values`).forEach((valueItem, index) => {
+    const valuePath = `${path}.values[${index}]`;
+    const code = objectOf(valueItem, valuePath);
+    exactKeys(code, ['id', 'code', 'description', 'color'], valuePath);
+    stringOf(code.id, `${valuePath}.id`);
+    stringOf(code.code, `${valuePath}.code`);
+    optionalStringFields(code, ['description', 'color'], valuePath);
+  });
+}
+
+function validateCustomFieldDef(value: unknown, path: string): void {
+  const field = objectOf(value, path);
+  exactKeys(field, ['id', 'name', 'type'], path);
+  stringOf(field.id, `${path}.id`);
+  stringOf(field.name, `${path}.name`);
+  oneOf(field.type, ['text', 'number', 'integer', 'cost', 'date', 'boolean'], `${path}.type`);
+}
+
+function validateTaskProjection(value: unknown, path: string): void {
+  const projection = objectOf(value, path);
+  exactKeys(projection, ['projectId', 'taskId', 'activityCodes', 'customFields', 'notes'], path);
+  stringOf(projection.projectId, `${path}.projectId`);
+  stringOf(projection.taskId, `${path}.taskId`);
+  if (projection.activityCodes !== undefined) {
+    const codes = objectOf(projection.activityCodes, `${path}.activityCodes`);
+    for (const [key, code] of Object.entries(codes)) stringOf(code, `${path}.activityCodes.${key || '<empty>'}`);
+  }
+  if (projection.customFields !== undefined) {
+    const fields = objectOf(projection.customFields, `${path}.customFields`);
+    for (const [key, field] of Object.entries(fields)) {
+      if (typeof field === 'number') finiteNumber(field, `${path}.customFields.${key || '<empty>'}`);
+      else if (typeof field !== 'string' && typeof field !== 'boolean') invalid(`${path}.customFields.${key || '<empty>'} heeft een ongeldige waarde`);
+    }
+  }
+  if (projection.notes !== undefined) {
+    arrayOf(projection.notes, `${path}.notes`).forEach((noteValue, index) => {
+      const notePath = `${path}.notes[${index}]`;
+      const note = objectOf(noteValue, notePath);
+      exactKeys(note, ['id', 'text', 'done'], notePath);
+      stringOf(note.id, `${notePath}.id`);
+      stringOf(note.text, `${notePath}.text`);
+      booleanOf(note.done, `${notePath}.done`);
+    });
+  }
+}
+
 export function validateXerArchiveReadModelV1(value: unknown): asserts value is XerArchiveReadModelV1 {
   const model = objectOf(value, 'readModel');
-  exactKeys(model, ['schemaVersion', 'numberFormat', 'resourceCatalog', 'metadataCatalog', 'taskSourceRowsByProject'], 'readModel');
+  exactKeys(model, ['schemaVersion', 'numberFormat', 'scheduleOptionsSourceArchive', 'resourceCatalog', 'metadataCatalog', 'taskSourceRowsByProject'], 'readModel');
   if (model.schemaVersion !== 1) invalid('readModel.schemaVersion is onbekend');
   const numberFormat = objectOf(model.numberFormat, 'readModel.numberFormat');
   exactKeys(numberFormat, ['decimal', 'group', 'source', 'currencyCode'], 'readModel.numberFormat');
@@ -699,25 +1006,40 @@ export function validateXerArchiveReadModelV1(value: unknown): asserts value is 
   if (group === decimal) invalid('readModel.numberFormat.group is gelijk aan decimal');
   oneOf(numberFormat.source, ['currtype', 'default'], 'readModel.numberFormat.source');
   stringOf(numberFormat.currencyCode, 'readModel.numberFormat.currencyCode');
+  validateScheduleOptionsSourceArchive(model.scheduleOptionsSourceArchive, 'readModel.scheduleOptionsSourceArchive');
 
   const resources = objectOf(model.resourceCatalog, 'readModel.resourceCatalog');
   exactKeys(resources, ['resources', 'identities', 'rows', 'issues'], 'readModel.resourceCatalog');
-  for (const key of ['resources', 'identities'] as const) arrayOf(resources[key], `readModel.resourceCatalog.${key}`).forEach((item, index) => jsonValue(item, `readModel.resourceCatalog.${key}[${index}]`));
+  arrayOf(resources.resources, 'readModel.resourceCatalog.resources').forEach((item, index) =>
+    validateResource(item, `readModel.resourceCatalog.resources[${index}]`));
+  arrayOf(resources.identities, 'readModel.resourceCatalog.identities').forEach((item, index) =>
+    validateEntityIdentity(item, `readModel.resourceCatalog.identities[${index}]`));
   const resourceRows = objectOf(resources.rows, 'readModel.resourceCatalog.rows');
   exactKeys(resourceRows, ['resources', 'roles', 'rates', 'curves', 'assignments'], 'readModel.resourceCatalog.rows');
-  for (const key of ['resources', 'roles', 'rates', 'curves'] as const) {
-    arrayOf(resourceRows[key], `readModel.resourceCatalog.rows.${key}`).forEach((item, index) => jsonValue(item, `readModel.resourceCatalog.rows.${key}[${index}]`));
-  }
+  arrayOf(resourceRows.resources, 'readModel.resourceCatalog.rows.resources').forEach((item, index) =>
+    validateResourceSource(item, `readModel.resourceCatalog.rows.resources[${index}]`));
+  arrayOf(resourceRows.roles, 'readModel.resourceCatalog.rows.roles').forEach((item, index) =>
+    validateRoleSource(item, `readModel.resourceCatalog.rows.roles[${index}]`));
+  arrayOf(resourceRows.rates, 'readModel.resourceCatalog.rows.rates').forEach((item, index) =>
+    validateRateSource(item, `readModel.resourceCatalog.rows.rates[${index}]`));
+  arrayOf(resourceRows.curves, 'readModel.resourceCatalog.rows.curves').forEach((item, index) =>
+    validateCurveSource(item, `readModel.resourceCatalog.rows.curves[${index}]`));
   arrayOf(resourceRows.assignments, 'readModel.resourceCatalog.rows.assignments').forEach((row, index) => validateSourceRow(row, `readModel.resourceCatalog.rows.assignments[${index}]`));
   arrayOf(resources.issues, 'readModel.resourceCatalog.issues').forEach((item, index) => validateResourceIssue(item, `readModel.resourceCatalog.issues[${index}]`));
 
   const metadata = objectOf(model.metadataCatalog, 'readModel.metadataCatalog');
   exactKeys(metadata, ['activityCodeTypes', 'customFieldDefs', 'taskProjections', 'taskProjectionsByProject', 'issues', 'issueCounts', 'sourceData'], 'readModel.metadataCatalog');
-  for (const key of ['activityCodeTypes', 'customFieldDefs', 'taskProjections'] as const) arrayOf(metadata[key], `readModel.metadataCatalog.${key}`).forEach((item, index) => jsonValue(item, `readModel.metadataCatalog.${key}[${index}]`));
+  arrayOf(metadata.activityCodeTypes, 'readModel.metadataCatalog.activityCodeTypes').forEach((item, index) =>
+    validateActivityCodeType(item, `readModel.metadataCatalog.activityCodeTypes[${index}]`));
+  arrayOf(metadata.customFieldDefs, 'readModel.metadataCatalog.customFieldDefs').forEach((item, index) =>
+    validateCustomFieldDef(item, `readModel.metadataCatalog.customFieldDefs[${index}]`));
+  arrayOf(metadata.taskProjections, 'readModel.metadataCatalog.taskProjections').forEach((item, index) =>
+    validateTaskProjection(item, `readModel.metadataCatalog.taskProjections[${index}]`));
   const byProject = objectOf(metadata.taskProjectionsByProject, 'readModel.metadataCatalog.taskProjectionsByProject');
   for (const [projectId, projections] of Object.entries(byProject)) {
     if (!projectId) invalid('readModel.metadataCatalog.taskProjectionsByProject bevat lege selector');
-    arrayOf(projections, `readModel.metadataCatalog.taskProjectionsByProject.${projectId}`).forEach((item, index) => jsonValue(item, `readModel.metadataCatalog.taskProjectionsByProject.${projectId}[${index}]`));
+    arrayOf(projections, `readModel.metadataCatalog.taskProjectionsByProject.${projectId}`).forEach((item, index) =>
+      validateTaskProjection(item, `readModel.metadataCatalog.taskProjectionsByProject.${projectId}[${index}]`));
   }
   arrayOf(metadata.issues, 'readModel.metadataCatalog.issues').forEach((item, index) => validateMetadataIssue(item, `readModel.metadataCatalog.issues[${index}]`));
   const counts = objectOf(metadata.issueCounts, 'readModel.metadataCatalog.issueCounts');
@@ -732,6 +1054,26 @@ export function validateXerArchiveReadModelV1(value: unknown): asserts value is 
   for (const [projectId, rows] of Object.entries(taskRows)) {
     if (!projectId) invalid('readModel.taskSourceRowsByProject bevat lege selector');
     arrayOf(rows, `readModel.taskSourceRowsByProject.${projectId}`).forEach((row, index) => validateSourceRow(row, `readModel.taskSourceRowsByProject.${projectId}[${index}]`));
+  }
+}
+
+function validateArchiveMetadataRelations(
+  diagnostics: XerArchiveDiagnosticsV1,
+  readModel: XerArchiveReadModelV1,
+): void {
+  const rowCount = readModel.scheduleOptionsSourceArchive.rows.length;
+  const assertIndex = (index: number, path: string) => {
+    if (index >= rowCount) invalid(`${path} wijst buiten de X5-filecache`);
+  };
+  readModel.scheduleOptionsSourceArchive.unmatchedScheduleOptionsRowIndexes
+    .forEach((index, position) => assertIndex(index,
+      `readModel.scheduleOptionsSourceArchive.unmatchedScheduleOptionsRowIndexes[${position}]`));
+  readModel.scheduleOptionsSourceArchive.diagnostics.forEach((diagnostic, diagnosticIndex) =>
+    diagnostic.rowIndexes.forEach((index, position) => assertIndex(index,
+      `readModel.scheduleOptionsSourceArchive.diagnostics[${diagnosticIndex}].rowIndexes[${position}]`)));
+  for (const [projectId, view] of Object.entries(diagnostics.documentViews)) {
+    view.scheduleOptions.sourceRowIndexes.forEach((index, position) => assertIndex(index,
+      `diagnostics.documentViews.${projectId}.scheduleOptions.sourceRowIndexes[${position}]`));
   }
 }
 

@@ -26,7 +26,8 @@ import { normalizeImportedProgress } from '@/services/importNormalize';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import type { XerImportMetadata } from '@/services/importTypes';
 import {
-  createXerSourceArchiveFromOwnedMetadata, decodeXerBase64Chunk, parseXerArchiveMetadataPayload, sha256Hex,
+  bindXerImportMetadataToArchive, createXerSourceArchiveFromOwnedMetadata, decodeXerBase64Chunk,
+  parseXerArchiveMetadataPayload, sha256Hex,
   XER_SOURCE_ARCHIVE_CHUNK_BYTES,
   XER_SOURCE_ARCHIVE_SCHEMA_VERSION, type XerSourceArchive, type XerSourceArchiveBom,
   type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
@@ -203,20 +204,11 @@ function extractXerImportMetadata(
   archive: XerSourceArchive | undefined, sourceProjectId: string | undefined,
 ): XerImportMetadata | undefined {
   if (!archive || !sourceProjectId) return undefined;
-  const candidate = archive.diagnostics.documentViews[sourceProjectId];
-  if (!candidate) xerArchiveError('selector wijst naar ontbrekende documentview');
-  const { resources, ...documentFields } = candidate;
-  // Het documentmetadata-object en zijn gewone velden zijn zelfstandig. X6-provenance is readonly
-  // bronbewijs en deelt doelbewust de immutable archive-view; dupliceren maakt pas bij een echte
-  // documentduplicatie een mutable projectkopie. De bestandsbrede catalogus komt uit het readmodel.
-  const metadata = structuredClone(documentFields) as XerImportMetadata;
-  if (resources) metadata.resources = {
-    catalog: archive.readModel.resourceCatalog,
-    assignments: resources.assignments,
-    issues: resources.issues,
-  };
-  metadata.metadata = { catalog: archive.readModel.metadataCatalog };
-  return metadata;
+  try {
+    return bindXerImportMetadataToArchive(archive, sourceProjectId);
+  } catch (error) {
+    xerArchiveError(error instanceof Error ? error.message : 'selectorview is ongeldig');
+  }
 }
 
 function extractXerSourceProjectId(

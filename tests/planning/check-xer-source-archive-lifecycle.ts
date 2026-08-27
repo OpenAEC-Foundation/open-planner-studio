@@ -7,6 +7,7 @@ import {
   createXerSourceArchive,
   decodeXerSourceArchive,
   sha256Hex,
+  withXerArchiveDocumentView,
   XER_SOURCE_ARCHIVE_CHUNK_BYTES,
 } from '@/services/xerSourceArchive';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -83,7 +84,7 @@ const fakeIndexedDb = {
 const heapBefore = process.memoryUsage().heapUsed;
 const bytes = new Uint8Array(XER_SOURCE_ARCHIVE_CHUNK_BYTES * 3 + 17);
 for (let index = 0; index < bytes.length; index += 1) bytes[index] = index % 251;
-const archive = createXerSourceArchive(bytes, {
+const baseArchive = createXerSourceArchive(bytes, {
   encoding: 'windows-1252', bom: 'none', newline: 'crlf',
   diagnostics: { ...createEmptyXerArchiveDiagnostics(), opaqueExtensions: { fixture: { typed: true } } },
   readModel: createEmptyXerArchiveReadModel(),
@@ -101,6 +102,7 @@ const xer = {
   externalRelations: [], externalLinks: [],
   report: { projectsSeen: 1, documentsOpened: 1, emptyProjectsSkipped: 0, baselineProjectsExcluded: 0, baselinesMaterialized: 0, danglingBaselineReferences: 0, externalLinksPreserved: 0, baselineExclusionReverted: false, baselineFallbackReasons: [] },
 };
+const archive = withXerArchiveDocumentView(baseArchive, xer);
 
 store().newProject();
 store().applyOpenedImport({
@@ -156,13 +158,13 @@ const heapAfter = process.memoryUsage().heapUsed;
 expect('8 heapmeting is beschikbaar zonder tijdsdrempel', Number.isFinite(heapBefore) && Number.isFinite(heapAfter));
 console.log(`X9 archive lifecycle: heap-delta=${heapAfter - heapBefore} bytes; unique-runtime-archives=${new Set(recoveredArchives).size}`);
 
-const collisionArchive = createXerSourceArchive(bytes, {
+const collisionArchive = withXerArchiveDocumentView(createXerSourceArchive(bytes, {
   encoding: archive.encoding,
   bom: archive.bom,
   newline: archive.newline,
   diagnostics: { ...createEmptyXerArchiveDiagnostics(), opaqueExtensions: { fixture: { typed: false } } },
   readModel: createEmptyXerArchiveReadModel(),
-});
+}), xer);
 expect('9 collisionfixture heeft bewust dezelfde snelle hash+lengtesleutel maar andere metadata',
   collisionArchive.sha256 === archive.sha256
   && collisionArchive.byteLength === archive.byteLength

@@ -26,7 +26,8 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
-  archiveDocumentView,
+  archiveDocumentViewFromOwnedReaderMetadata,
+  bindXerImportMetadataToArchive,
   createXerSourceArchiveFromOwnedMetadata,
   detectXerSourcePresentation,
 } from '@/services/xerSourceArchive';
@@ -843,7 +844,7 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   const presentation = detectXerSourcePresentation(bytes);
   const documentViews = Object.fromEntries(assembled.documents.map(document => [
     document.projectId,
-    archiveDocumentView(document.result.xer),
+    archiveDocumentViewFromOwnedReaderMetadata(document.result.xer),
   ]));
   const taskSourceRowsByProject = Object.fromEntries(
     [...projectRowsIndex.tasksByProject].map(([projectId, rows]) => [projectId, rows]),
@@ -866,6 +867,7 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
     readModel: {
       schemaVersion: 1,
       numberFormat: tables.numberFormat,
+      scheduleOptionsSourceArchive: scheduleOptionsIndex.sourceArchive,
       resourceCatalog,
       metadataCatalog,
       taskSourceRowsByProject,
@@ -873,8 +875,7 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   });
   for (const document of assembled.documents) {
     document.result.xerSourceArchive = archive;
-    if (document.result.xer.resources) document.result.xer.resources.catalog = archive.readModel.resourceCatalog;
-    if (document.result.xer.metadata) document.result.xer.metadata.catalog = archive.readModel.metadataCatalog;
+    document.result.xer = bindXerImportMetadataToArchive(archive, document.projectId);
   }
   if (assembled.results.length > 0) {
     // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de

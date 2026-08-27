@@ -5,6 +5,7 @@ import {
   createEmptyXerArchiveDocumentView,
   createEmptyXerArchiveReadModel,
   createXerSourceArchive,
+  bindXerImportMetadataToArchive,
 } from '@/services/xerSourceArchive';
 import type { XerImportMetadata } from '@/services/importTypes';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
@@ -45,12 +46,7 @@ const diagnostics = {
 const archive = createXerSourceArchive(new TextEncoder().encode('%T\tUNKNOWN\r\n%F\tx\r\n%R\torigineel\r\n%E'), {
   encoding: 'windows-1252', bom: 'none', newline: 'crlf', diagnostics, readModel,
 });
-const { resources: resourceView, ...documentFields } = view;
-const xer: XerImportMetadata = {
-  ...documentFields,
-  ...(resourceView ? { resources: { ...resourceView, catalog: readModel.resourceCatalog } } : {}),
-  metadata: { catalog: readModel.metadataCatalog },
-};
+const xer: XerImportMetadata = bindXerImportMetadataToArchive(archive, 'P-X9-LOSS');
 useAppStore.setState({
   xerSourceArchive: archive,
   xerImportMetadata: xer,

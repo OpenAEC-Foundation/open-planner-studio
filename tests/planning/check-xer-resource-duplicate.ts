@@ -107,24 +107,27 @@ if (isMultiDocumentImport(parsed)) {
       lastRaw: true,
     });
 
-    eq('duplicateDocument kloont uitsluitend documentgebonden mutable XER-metadata', {
+    eq('duplicateDocument bouwt een documentspecifieke wrapper rond dezelfde canonieke provenance', {
       metadataCloned: duplicateMetadata !== sourceMetadata,
       resourceMetadataCloned: duplicateResources !== sourceResources,
-      assignmentArrayCloned: duplicateResources?.assignments !== sourceResources?.assignments,
-      assignmentCloned: duplicateProjectAssignment !== sourceProjectAssignment,
-      entityCloned: duplicateProjectAssignment?.entity !== sourceProjectAssignment.entity,
-      quantitiesCloned: duplicateProjectAssignment?.quantities !== sourceProjectAssignment.quantities,
-      costsCloned: duplicateProjectAssignment?.costs !== sourceProjectAssignment.costs,
-      rawCurvesCloned: duplicateProjectAssignment?.rawCurves !== sourceProjectAssignment.rawCurves,
+      assignmentArrayCanonical: duplicateResources?.assignments === sourceResources?.assignments,
+      assignmentCanonical: duplicateProjectAssignment === sourceProjectAssignment,
+      entityCanonical: duplicateProjectAssignment?.entity === sourceProjectAssignment.entity,
+      quantitiesCanonical: duplicateProjectAssignment?.quantities === sourceProjectAssignment.quantities,
+      costsCanonical: duplicateProjectAssignment?.costs === sourceProjectAssignment.costs,
+      rawCurvesCanonical: duplicateProjectAssignment?.rawCurves === sourceProjectAssignment.rawCurves,
+      x5CacheCanonical: duplicateMetadata?.scheduleOptions.sourceArchive
+        === sourceMetadata?.scheduleOptions.sourceArchive,
     }, {
       metadataCloned: true,
       resourceMetadataCloned: true,
-      assignmentArrayCloned: true,
-      assignmentCloned: true,
-      entityCloned: true,
-      quantitiesCloned: true,
-      costsCloned: true,
-      rawCurvesCloned: true,
+      assignmentArrayCanonical: true,
+      assignmentCanonical: true,
+      entityCanonical: true,
+      quantitiesCanonical: true,
+      costsCanonical: true,
+      rawCurvesCanonical: true,
+      x5CacheCanonical: true,
     });
   }
 }

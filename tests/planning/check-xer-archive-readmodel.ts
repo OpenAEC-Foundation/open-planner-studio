@@ -5,7 +5,11 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
-import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
+import {
+  decodeXerSourceArchive,
+  sha256Hex,
+  XerSourceArchiveValidationError,
+} from '@/services/xerSourceArchive';
 import { useAppStore } from '@/state/appStore';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { recoveryInputFromParsed } from '@/state/documentContract';
@@ -81,6 +85,7 @@ const archive = a.xerSourceArchive as typeof a.xerSourceArchive & {
   readModel?: {
     schemaVersion: number;
     numberFormat: unknown;
+    scheduleOptionsSourceArchive?: unknown;
     resourceCatalog: unknown;
     metadataCatalog: unknown;
   };
@@ -100,6 +105,15 @@ truthy('2a projectprovenance heeft geen tweede persistente bronkopie naast de im
   && b.xer?.resources?.assignments === b.xerSourceArchive?.diagnostics.documentViews['P-B']?.resources?.assignments
   && Object.isFrozen(a.xer?.resources?.assignments)
   && Object.isFrozen(a.xer?.resources?.assignments[0]));
+truthy('2b X5 bewaart precies één file-wide sourceArchive in het archive-readmodel',
+  a.xer?.scheduleOptions.sourceArchive === archive.readModel?.scheduleOptionsSourceArchive
+  && b.xer?.scheduleOptions.sourceArchive === archive.readModel?.scheduleOptionsSourceArchive
+  && a.xer?.scheduleOptions.sourceArchive === b.xer?.scheduleOptions.sourceArchive);
+truthy('2c X5-projectviews verwijzen met sourceRows naar die ene immutable filecache',
+  [a, b].every(result => result.xer?.scheduleOptions.sourceRows.every((row, index) =>
+    row === result.xer?.scheduleOptions.sourceArchive.rows[result.xer.scheduleOptions.sourceRowIndexes[index]!]))
+  && Object.isFrozen(a.xer?.scheduleOptions.sourceArchive)
+  && Object.isFrozen(a.xer?.scheduleOptions.sourceRows));
 equal('3 diagnostics hebben een getypeerde versie, file-view en beide projectviews',
   [archive.diagnostics.schemaVersion, Boolean(archive.diagnostics.file), Object.keys(archive.diagnostics.documentViews ?? {}).sort()],
   [1, true, ['P-A', 'P-B']]);
@@ -131,6 +145,16 @@ truthy('6 IFC-read gebruikt per document de catalogusrefs uit zijn archive-readm
 truthy('6a IFC-read materialiseert geen tweede X6-provenancekopie buiten zijn archive-documentview',
   roundTrips.every(result => result.xer?.resources?.assignments
     === result.xerSourceArchive?.diagnostics.documentViews[result.xerSourceProjectId ?? '']?.resources?.assignments));
+truthy('6b IFC-read bindt X5 sourceArchive/sourceRows opnieuw aan de ene archivecache',
+  roundTrips.every(result => {
+    const metadata = result.xer;
+    return metadata !== undefined
+      && metadata.scheduleOptions.sourceArchive === result.xerSourceArchive?.readModel.scheduleOptionsSourceArchive
+      && metadata.scheduleOptions.sourceRows.every((row, index) =>
+        row === result.xerSourceArchive?.readModel.scheduleOptionsSourceArchive.rows[
+          metadata.scheduleOptions.sourceRowIndexes[index]!
+        ]);
+  }));
 
 const diagnosticChunk = /IFCPROPERTYSINGLEVALUE\('DiagnosticsChunk000000',\$,IFCTEXT\('([A-Za-z0-9+/=]+)'\),\$\)/.exec(writeIFC(a));
 if (!diagnosticChunk) throw new Error('DiagnosticsChunk000000 ontbreekt');
@@ -161,6 +185,32 @@ let hostileNumberTyped = false;
 try { readIFC(ifcWithMetadataPayload(hostileNumberPayload)); }
 catch (error) { hostileNumberTyped = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
 truthy('7a hostile CURRTYPE-numberFormatvorm wordt getypeerd geweigerd', hostileNumberTyped);
+
+const reviewerCorruptions: readonly [string, (candidate: Record<string, unknown>) => void][] = [
+  ['X6 resourceobject [42]', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    (readModel.resourceCatalog as Record<string, unknown>).resources = [42];
+  }],
+  ['X8 activityCodeTypes [false]', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    (readModel.metadataCatalog as Record<string, unknown>).activityCodeTypes = [false];
+  }],
+  ['document externalLink zonder kernvelden', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = (diagnostics.documentViews as Record<string, Record<string, unknown>>);
+    views['P-A']!.externalLinks = [{ definitely: 'not-an-XerDocumentExternalLink' }];
+  }],
+];
+for (const [label, mutate] of reviewerCorruptions) {
+  const candidate = JSON.parse(new TextDecoder().decode(
+    Uint8Array.from(atob(diagnosticChunk[1]!), char => char.charCodeAt(0)),
+  )) as Record<string, unknown>;
+  mutate(candidate);
+  let rejected = false;
+  try { readIFC(ifcWithMetadataPayload(candidate)); }
+  catch (error) { rejected = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
+  truthy(`7b reviewerpayload ${label} wordt ondanks correcte hash getypeerd geweigerd`, rejected);
+}
 
 const toUtf16 = (text: string, endian: 'le' | 'be') => {
   const bytes = new Uint8Array(2 + text.length * 2);
@@ -211,6 +261,13 @@ truthy('9 projecttabs, duplicate en 100 undo/redo delen één archive/readmodel/
   && tabPayloads.every(document =>
     document.payload.xerImportMetadata?.resources?.catalog === archive.readModel?.resourceCatalog
     && document.payload.xerImportMetadata?.metadata?.catalog === archive.readModel?.metadataCatalog));
+truthy('9a duplicate houdt exact dezelfde X5-filecache en bronrijrefs',
+  tabPayloads.every(document => document.payload.xerImportMetadata?.scheduleOptions.sourceArchive
+    === archive.readModel?.scheduleOptionsSourceArchive
+    && document.payload.xerImportMetadata.scheduleOptions.sourceRows.every((row, index) =>
+      row === document.payload.xerImportMetadata?.scheduleOptions.sourceArchive.rows[
+        document.payload.xerImportMetadata.scheduleOptions.sourceRowIndexes[index]!
+      ])));
 const recoveredInputs = tabPayloads.map((document, index) => {
   const parsed = readIFC(writeIFC(buildWriteIFCInput(document.payload)));
   return recoveryInputFromParsed(parsed, { id: `readmodel-recovery-${index}`, filePath: null, isDirty: true });
@@ -225,6 +282,37 @@ truthy('10 IFC-per-document→readIFC→recovery herstelt één bruikbare gedeel
   && recoveredPayloads.every(document =>
     document.payload.xerImportMetadata?.resources?.catalog === recoveredArchive?.readModel.resourceCatalog
     && document.payload.xerImportMetadata?.metadata?.catalog === recoveredArchive?.readModel.metadataCatalog));
+truthy('10a recovery bindt alle projectprovenance aan de canonieke selectorview en X5-cache',
+  recoveredPayloads.every(document => {
+    const metadata = document.payload.xerImportMetadata;
+    const selector = metadata?.sourceProjectId;
+    const view = selector ? recoveredArchive?.diagnostics.documentViews[selector] : undefined;
+    return metadata !== null && metadata.resources !== undefined && view?.resources !== undefined
+      && metadata.resources.assignments === view.resources.assignments
+      && metadata.resources.issues === view.resources.issues
+      && metadata.scheduleOptions.sourceArchive === recoveredArchive?.readModel.scheduleOptionsSourceArchive
+      && metadata.scheduleOptions.sourceRows.every((row, index) =>
+        row === recoveredArchive?.readModel.scheduleOptionsSourceArchive.rows[
+          metadata.scheduleOptions.sourceRowIndexes[index]!
+        ]);
+  }));
+
+const missingSelectorArchive = recoveredArchive;
+let missingSelectorRejected = false;
+if (missingSelectorArchive && recoveredInputs[0]) {
+  try {
+    store().restoreDocuments([{
+      ...recoveredInputs[0],
+      id: 'missing-selector-view',
+      xerSourceArchive: missingSelectorArchive,
+      xer: recoveredInputs[0].xer ? { ...recoveredInputs[0].xer, sourceProjectId: 'ONTBREEKT' } : undefined,
+      xerSourceProjectId: 'ONTBREEKT',
+    }], 'missing-selector-view');
+  } catch (error) {
+    missingSelectorRejected = error instanceof XerSourceArchiveValidationError;
+  }
+}
+truthy('10b recovery weigert een ontbrekende selectorview hard en getypeerd', missingSelectorRejected);
 
 if (failures.length === 0) {
   console.log(`OK  xer-archive-readmodel: alle checks groen (${checks})`);

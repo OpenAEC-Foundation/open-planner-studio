@@ -306,6 +306,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERARCHIVEREADMODELCHECK="$DIR/.xer-archive-readmodel.mjs"
   if bundle_check "$DIR/check-xer-archive-readmodel.ts" "$XERARCHIVEREADMODELCHECK"; then node "$XERARCHIVEREADMODELCHECK" || STATUS=1; fi
 
+  XERARCHIVECHAINCHECK="$DIR/.xer-source-archive-chain.mjs"
+  if bundle_check "$DIR/check-xer-source-archive-chain.ts" "$XERARCHIVECHAINCHECK"; then node "$XERARCHIVECHAINCHECK" || STATUS=1; fi
+
   XERP6PRESENCECHECK="$DIR/.xer-p6-presence.mjs"
   if bundle_check "$DIR/check-xer-p6-presence.ts" "$XERP6PRESENCECHECK"; then node "$XERP6PRESENCECHECK" || STATUS=1; fi
 

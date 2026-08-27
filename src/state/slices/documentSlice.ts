@@ -16,7 +16,11 @@ import { resetUndoCoalescing } from '../transaction';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
-import type { XerSourceArchive } from '@/services/xerSourceArchive';
+import {
+  bindXerImportMetadataToArchive,
+  XerSourceArchiveValidationError,
+  type XerSourceArchive,
+} from '@/services/xerSourceArchive';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -152,7 +156,13 @@ function cloneXerResourceMetadata(source: XerResourceMetadata): XerResourceMetad
   };
 }
 
-function cloneXerImportMetadata(source: XerImportMetadata): XerImportMetadata {
+function cloneXerImportMetadata(
+  source: XerImportMetadata,
+  archive: XerSourceArchive | null,
+): XerImportMetadata {
+  if (archive && source.sourceProjectId) {
+    return bindXerImportMetadataToArchive(archive, source.sourceProjectId);
+  }
   const { resources, metadata, ...withoutCatalogs } = source;
   const clone = deepClone(withoutCatalogs);
   // X6/X8-catalogi zijn bestandsbreed, readonly brondata. Een documentduplicaat krijgt zijn eigen
@@ -197,25 +207,16 @@ function shareRecoveredXerArchives(docs: readonly RecoveryDocInput[]): RecoveryD
     doc: RecoveryDocInput,
     archive: XerSourceArchive,
   ): RecoveryDocInput => {
-    const metadata = doc.xer;
-    if (!metadata) return { ...doc, xerSourceArchive: archive };
+    const selector = doc.xerSourceProjectId ?? doc.xer?.sourceProjectId;
+    if (!selector) {
+      throw new XerSourceArchiveValidationError('XER-recovery mist een documentselector');
+    }
+    const metadata = bindXerImportMetadataToArchive(archive, selector);
     return {
       ...doc,
       xerSourceArchive: archive,
-      xer: {
-        ...metadata,
-        ...(metadata.resources
-          ? {
-              resources: {
-                ...metadata.resources,
-                catalog: archive.readModel.resourceCatalog,
-              },
-            }
-          : {}),
-        ...(metadata.metadata
-          ? { metadata: { catalog: archive.readModel.metadataCatalog } }
-          : {}),
-      },
+      xerSourceProjectId: selector,
+      xer: metadata,
     };
   };
   return docs.map(doc => {
@@ -329,7 +330,9 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       filePath: null,
       fileHandle: null,
       isDirty: true,
-      xerImportMetadata: src.xerImportMetadata ? cloneXerImportMetadata(src.xerImportMetadata) : null,
+      xerImportMetadata: src.xerImportMetadata
+        ? cloneXerImportMetadata(src.xerImportMetadata, src.xerSourceArchive)
+        : null,
       // De originele XER-bytes zijn immutable en worden doelbewust NIET gekloond: één runtimeobject
       // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
       xerSourceArchive: src.xerSourceArchive,
