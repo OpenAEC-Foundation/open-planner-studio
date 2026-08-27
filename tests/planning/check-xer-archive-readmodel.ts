@@ -36,13 +36,17 @@ const source = new TextEncoder().encode([
   '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
   '%R\tEUR\tcomma\tperiod',
   '%T\tPROJECT',
-  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
-  '%R\tP-A\tProject A\tC\t2026-08-01 08:00',
-  '%R\tP-B\tProject B\tC\t2026-08-01 08:00',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tsum_base_proj_id',
+  '%R\tP-A\tProject A\tC\t2026-08-01 08:00\tP-BASE',
+  '%R\tP-B\tProject B\tC\t2026-08-01 08:00\tP-MISSING',
+  '%R\tP-BASE\tRetained baseline\tC\t2026-07-01 08:00\t',
+  '%R\tP-EMPTY\tLeeg legacyproject\tC\t2026-08-01 08:00\t',
   '%T\tSCHEDOPTIONS',
   '%F\tproj_id',
   '%R\tP-A',
   '%R\tP-B',
+  '%R\tP-B',
+  '%R\tP-UNMATCHED',
   '%T\tCALENDAR',
   '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
   '%R\tC\tStandaard\t8\t40\t',
@@ -50,6 +54,10 @@ const source = new TextEncoder().encode([
   '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\tsuspend_date\tresume_date',
   '%R\tT-A\tP-A\tA-1\tTaak A\tC\t2026-08-01 08:00\t2026-08-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t\t\t',
   '%R\tT-B\tP-B\tB-1\tTaak B\tC\t2026-08-02 08:00\t2026-08-02 16:00\t8\tTT_Task\tDT_FixedRate\tTK_NotStart\tCP_Phys\t\t',
+  '%R\tT-BASE\tP-BASE\tBL-1\tBaselinedata\tC\t2026-07-01 08:00\t2026-07-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t\t\t',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\tproj_id\tpred_proj_id\ttask_id\tpred_task_id\tpred_type\tlag_hr_cnt',
+  '%R\tREL-AB\tP-B\tP-A\tT-B\tT-A\tPR_FS\t0',
   '%T\tROLES',
   '%F\trole_id\trole_name',
   '%R\tROLE-1\tUitvoerder',
@@ -62,7 +70,10 @@ const source = new TextEncoder().encode([
   '%T\tTASKRSRC',
   '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\trole_id\ttarget_qty_per_hr\tremain_qty_per_hr\tremain_qty\ttarget_qty',
   '%R\tAS-A\tP-A\tT-A\tR-1\tROLE-1\t0,5\t0,5\t4\t4',
+  '%R\tAS-A-UNLINKED\tP-A\tT-A-MISSING\tR-1\t\t0,1\t0,1\t1\t1',
+  '%R\tAS-A-UNLINKED-RESOURCE\tP-A\tT-A-MISSING-2\tR-MISSING\t\t0,1\t0,1\t1\t1',
   '%R\tAS-B\tP-B\tT-B\tR-1\t\t0,25\t0,25\t2\t2',
+  '%R\tAS-BASE\tP-BASE\tT-BASE\tR-1\t\t0,2\t0,2\t2\t2',
   '%T\tACTVTYPE',
   '%F\tactv_code_type_id\tactv_code_type\tseq_num',
   '%R\tTYPE\tFase\t1',
@@ -74,6 +85,7 @@ const source = new TextEncoder().encode([
   '%F\tproj_id\ttask_id\tactv_code_type_id\tactv_code_id',
   '%R\tP-A\tT-A\tTYPE\tV-A',
   '%R\tP-B\tT-B\tTYPE\tV-B',
+  '%R\tP-BASE\tT-BASE\tTYPE\tV-A',
   '%T\tUDFTYPE',
   '%F\tudf_type_id\ttable_name\tudf_type_label\tlogical_data_type',
   '%R\tUF\tTASK\tKeuze\tFT_STATICTYPE',
@@ -123,6 +135,49 @@ truthy('2c X5-projectviews verwijzen met sourceRows naar die ene immutable filec
 equal('3 diagnostics hebben een getypeerde versie, file-view en beide projectviews',
   [archive.diagnostics.schemaVersion, Boolean(archive.diagnostics.file), Object.keys(archive.diagnostics.documentViews ?? {}).sort()],
   [1, true, ['P-A', 'P-B']]);
+equal('3a rijke meerprojectfixture bewaart baseline, dangling verwijzing en leeg legacyproject zonder documentview', {
+  report: a.xer?.report,
+  baselineNames: a.baselines?.map(item => item.name),
+  sourceProjects: Object.keys(archive.readModel?.taskSourceRowsByProject ?? {}).sort(),
+  projectRows: archive.readModel?.scheduleOptionsSourceArchive?.rows
+    .filter(row => row.table === 'PROJECT').map(row => [row.cells.proj_id, row.cells.sum_base_proj_id]),
+  metadataTasks: archive.readModel?.metadataCatalog.taskProjections
+    .map(item => `${item.projectId}/${item.taskId}`),
+}, {
+  report: {
+    projectsSeen: 4, documentsOpened: 2, emptyProjectsSkipped: 1,
+    baselineProjectsExcluded: 1, baselinesMaterialized: 1, danglingBaselineReferences: 1,
+    externalLinksPreserved: 1, baselineExclusionReverted: false, baselineFallbackReasons: [],
+  },
+  baselineNames: ['Retained baseline'],
+  sourceProjects: ['P-A', 'P-B', 'P-BASE'],
+  projectRows: [['P-A', 'P-BASE'], ['P-B', 'P-MISSING'], ['P-BASE', ''], ['P-EMPTY', '']],
+  metadataTasks: ['P-A/T-A', 'P-B/T-B', 'P-BASE/T-BASE'],
+});
+equal('3b cross-project TASKPRED blijft brondata in beide endpointviews en wordt nooit lokale solverinvoer',
+  [a.xer?.externalRelations.map(item => [item.id, item.direction]),
+    b.xer?.externalRelations.map(item => [item.id, item.direction]),
+    a.xer?.externalLinks.map(item => item.id), b.xer?.externalLinks.map(item => item.id),
+    a.sequences.length, b.sequences.length],
+  [[['REL-AB', 'successor']], [['REL-AB', 'predecessor']], ['REL-AB'], ['REL-AB'], 0, 0]);
+equal('3c X6 bewaart gekoppelde, ongekoppelde en baseline-TASKRSRC als onderscheiden provenance', {
+  canonical: archive.readModel?.resourceCatalog.rows.assignments.map(row => row.cells.taskrsrc_id),
+  a: a.xer?.resources?.assignments.map(item => item.sourceId),
+  b: b.xer?.resources?.assignments.map(item => item.sourceId),
+  missing: a.xer?.resources?.issues.filter(item => item.code === 'XER_ASSIGNMENT_TASK_MISSING').map(item => item.sourceId),
+  skipped: a.xer?.resources?.issues.filter(item => item.fallback === 'SKIPPED').map(item => [item.code, item.sourceId]),
+}, {
+  canonical: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE', 'AS-B', 'AS-BASE'],
+  a: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE'], b: ['AS-B'],
+  missing: ['AS-A-UNLINKED'],
+  skipped: [['XER_ASSIGNMENT_TASK_MISSING', 'AS-A-UNLINKED'],
+    ['XER_ASSIGNMENT_RESOURCE_MISSING', 'AS-A-UNLINKED-RESOURCE']],
+});
+equal('3d X5 bewaart gewone, dubbele en unmatched SCHEDOPTIONS zonder bronverlies', {
+  diagnostics: archive.readModel?.scheduleOptionsSourceArchive.diagnostics.map(item => [item.projectId, item.rowIndexes.length]),
+  unmatched: archive.readModel?.scheduleOptionsSourceArchive.unmatchedScheduleOptionsRowIndexes.length,
+  sources: [a.xer?.scheduleOptions.source, b.xer?.scheduleOptions.source],
+}, { diagnostics: [['P-B', 2]], unmatched: 1, sources: ['schedoptions', 'xer-defaults'] });
 
 const roundTrips = [a, b].map(result => readIFC(writeIFC(result)));
 equal('4 per zelfstandig IFC herleven X6-resources, rates en projecttoewijzingen werkelijk',
@@ -131,7 +186,7 @@ equal('4 per zelfstandig IFC herleven X6-resources, rates en projecttoewijzingen
     rates: result.xer?.resources?.catalog?.rows.rates.length,
     assignments: result.xer?.resources?.assignments.map(item => item.sourceId),
   })), [
-    { catalogResources: 1, rates: 1, assignments: ['AS-A'] },
+    { catalogResources: 1, rates: 1, assignments: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE'] },
     { catalogResources: 1, rates: 1, assignments: ['AS-B'] },
   ]);
 equal('5 per zelfstandig IFC herleven X8-catalogus en documentspecifieke projectie werkelijk',
@@ -195,6 +250,14 @@ const ifcWithMetadataBytes = (encoded: Uint8Array) => {
 };
 const ifcWithMetadataPayload = (metadataPayload: Record<string, unknown>) =>
   ifcWithMetadataBytes(new TextEncoder().encode(JSON.stringify(metadataPayload)));
+const legacySelectorPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+const legacyTaskRows = (legacySelectorPayload.readModel as Record<string, unknown>)
+  .taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
+legacyTaskRows[''] = [];
+let legacySelectorAccepted = true;
+try { readIFC(ifcWithMetadataPayload(legacySelectorPayload)); }
+catch { legacySelectorAccepted = false; }
+truthy('6c lege legacy-taskselector blijft een geldige verliesvrije archiefgrens', legacySelectorAccepted);
 const byProject = ((payload.diagnostics as Record<string, unknown>).documentViews) as Record<string, Record<string, unknown>>;
 byProject['P-A']!.calendarIssues = [{
   code: 'XER_CALENDAR_RECOVERED', calendarId: 'C', line: 1, reason: 'fixture', resolution: 'BROKEN',
@@ -237,6 +300,79 @@ for (const [label, mutate] of reviewerCorruptions) {
 }
 
 const relationCorruptions: readonly [string, (candidate: Record<string, unknown>) => void][] = [
+  ['X8 canonieke én projectview wijzen coherent naar niet-bestaande T-A-GHOST', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const metadata = readModel.metadataCatalog as Record<string, unknown>;
+    const canonical = metadata.taskProjections as Array<Record<string, unknown>>;
+    const projections = metadata.taskProjectionsByProject as Record<string, Array<Record<string, unknown>>>;
+    const canonicalA = canonical.find(item => item.projectId === 'P-A' && item.taskId === 'T-A');
+    const projectA = projections['P-A']?.find(item => item.taskId === 'T-A');
+    if (!canonicalA || !projectA) throw new Error('X8 T-A-aanvalsdoel ontbreekt');
+    canonicalA.taskId = 'T-A-GHOST';
+    projectA.taskId = 'T-A-GHOST';
+  }],
+  ['X6 assignment kruist coherent als typed taskSourceId=T-B terwijl raw TASKRSRC T-A draagt', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const resources = views['P-A']!.resources as Record<string, unknown>;
+    const assignments = resources.assignments as Array<Record<string, unknown>>;
+    const assignment = assignments.find(item => item.sourceId === 'AS-A');
+    if (!assignment) throw new Error('X6 AS-A-aanvalsdoel ontbreekt');
+    assignment.taskSourceId = 'T-B';
+  }],
+  ['externalRelation gebruikt een niet-bestaand lokaal TASK-eindpunt T-A-GHOST', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    (views['P-A']!.externalRelations as Array<Record<string, unknown>>)[0]!.localTaskId = 'T-A-GHOST';
+  }],
+  ['beide externalRelations zijn weg maar hun afgeleide externalLink blijft bestaan', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    views['P-A']!.externalRelations = [];
+    views['P-B']!.externalRelations = [];
+  }],
+  ['externalLink is in beide endpointviews coherent omgebogen naar ghost-taken', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    for (const projectId of ['P-A', 'P-B']) {
+      const link = (views[projectId]!.externalLinks as Array<Record<string, unknown>>)[0]!;
+      (link.predecessor as Record<string, unknown>).taskId = 'T-A-GHOST';
+      (link.successor as Record<string, unknown>).taskId = 'T-B-GHOST';
+    }
+  }],
+  ['externalLink wijst naar niet-bestaand opvolgerproject en verdwijnt uit P-B terwijl bronrelatie blijft', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const link = (views['P-A']!.externalLinks as Array<Record<string, unknown>>)[0]!;
+    const successor = link.successor as Record<string, unknown>;
+    successor.projectId = 'P-NIET-BESTAAND';
+    successor.taskId = 'T-NIET-BESTAAND';
+    views['P-B']!.externalLinks = [];
+  }],
+  ['X5 PROJECT-bronrijen zijn omgewisseld en alle documentindexen volgen coherent mee', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const sourceArchive = readModel.scheduleOptionsSourceArchive as Record<string, unknown>;
+    const rows = sourceArchive.rows as Array<Record<string, unknown>>;
+    [rows[0], rows[1]] = [rows[1]!, rows[0]!];
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    for (const view of Object.values(views)) {
+      const schedule = view.scheduleOptions as Record<string, unknown>;
+      schedule.sourceRowIndexes = (schedule.sourceRowIndexes as number[]).map(index =>
+        index === 0 ? 1 : index === 1 ? 0 : index);
+    }
+  }],
+  ['X6 canonieke TASKRSRC-rijen en P-A-documentview zijn samen omgewisseld', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const resourceCatalog = readModel.resourceCatalog as Record<string, unknown>;
+    const rows = (resourceCatalog.rows as Record<string, unknown>).assignments as Array<Record<string, unknown>>;
+    [rows[0], rows[1]] = [rows[1]!, rows[0]!];
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const resources = views['P-A']!.resources as Record<string, unknown>;
+    const assignments = resources.assignments as Array<Record<string, unknown>>;
+    [assignments[0], assignments[1]] = [assignments[1]!, assignments[0]!];
+  }],
   ['X8-projectie onder P-A draagt projectId P-B', candidate => {
     const readModel = candidate.readModel as Record<string, unknown>;
     const metadata = readModel.metadataCatalog as Record<string, unknown>;
