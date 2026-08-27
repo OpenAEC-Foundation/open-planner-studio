@@ -1,17 +1,35 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Menu, Plus, X } from 'lucide-react';
+import { Menu, Plus } from 'lucide-react';
 import { useDocumentCards, useDocumentActions } from './useDocumentCards';
-import { documentTabKeyDestination, revealDocumentTab } from './documentTabNavigation';
+import { DocumentTabControl } from './DocumentTabControl';
+import {
+  documentTabCloseFocusTarget,
+  documentTabKeyDestination,
+  revealDocumentTab,
+} from './documentTabNavigation';
 import './DocumentChrome.css';
 
 /** A · Documenttabs — horizontale tabstrip onder het lint. */
 export function DocumentTabBar() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const cards = useDocumentCards();
   const { switchTo, closeWithGuard, openProject, openOverview } = useDocumentActions();
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
+  const previousDocumentIds = useRef(cards.map(card => card.id));
   const activeId = cards.find(card => card.isActive)?.id;
+  const direction = i18n.dir() === 'rtl' ? 'rtl' : 'ltr';
+
+  // Focus verschuift uitsluitend na een echte verwijdering uit de gecommitteerde kaartenlijst. Dit
+  // dekt schoon sluiten én de twee effectieve dirty-routes (opslaan/niet opslaan), ook wanneer een
+  // sluiting vanuit het projectoverzicht komt; annuleren laat de bestaande focus ongemoeid.
+  useLayoutEffect(() => {
+    const currentDocumentIds = cards.map(card => card.id);
+    const requestedDocumentId = previousDocumentIds.current.find(id => !currentDocumentIds.includes(id)) ?? null;
+    const focusTarget = documentTabCloseFocusTarget(previousDocumentIds.current, cards, requestedDocumentId);
+    previousDocumentIds.current = currentDocumentIds;
+    if (focusTarget) tabRefs.current.get(focusTarget)?.focus({ preventScroll: true });
+  }, [cards]);
 
   // Iedere route kan een document activeren; alleen hier kennen we de horizontale viewport.
   useEffect(() => {
@@ -26,12 +44,12 @@ export function DocumentTabBar() {
 
   const onTabKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>, cardId: string) => {
     if (event.target !== event.currentTarget) return;
-    const nextId = documentTabKeyDestination(cards.map(card => card.id), cardId, event.key);
+    const nextId = documentTabKeyDestination(cards.map(card => card.id), cardId, event.key, direction);
     if (!nextId) return;
     event.preventDefault();
     switchTo(nextId);
     focusTab(nextId);
-  }, [cards, focusTab, switchTo]);
+  }, [cards, direction, focusTab, switchTo]);
 
   return (
     <div className="ops-tabstrip" data-ops-tabstrip>
@@ -46,44 +64,19 @@ export function DocumentTabBar() {
       <div className="ops-tabstrip-viewport" data-ops-tabstrip-viewport>
         <div className="ops-tabstrip-tabs" role="tablist" aria-label={t('documents.overviewTitle')}>
           {cards.map((card, index) => (
-            <div
+            <DocumentTabControl
               key={card.id}
-              className="ops-tab-group"
-              role="presentation"
-            >
-              <button
-                ref={(element) => {
-                  if (element) tabRefs.current.set(card.id, element);
-                  else tabRefs.current.delete(card.id);
-                }}
-                id={`ops-document-tab-${card.id}`}
-                type="button"
-                role="tab"
-                aria-label={card.title}
-                aria-selected={card.isActive}
-                tabIndex={card.isActive ? 0 : -1}
-                className={`ops-tab${card.isActive ? ' active' : ''}`}
-                style={{ ['--doc-color' as string]: card.color } as React.CSSProperties}
-                title={card.fileName ?? card.title}
-                onClick={(event) => { switchTo(card.id); event.currentTarget.focus(); }}
-                onKeyDown={(event) => onTabKeyDown(event, card.id)}
-                data-ops-tab={card.id}
-                data-ops-tab-index={index + 1}
-              >
-                <span className="ops-dot" aria-hidden="true" />
-                <span className="ops-tab-name" aria-hidden="true">{card.title}</span>
-                {card.isDirty && <span className="ops-dirty-dot" aria-hidden="true" />}
-              </button>
-              <button
-                type="button"
-                className="ops-tab-close"
-                title={t('close')}
-                aria-label={`${t('close')} ${card.title}`}
-                onClick={(event) => { event.stopPropagation(); closeWithGuard(card); }}
-              >
-                <X size={11} />
-              </button>
-            </div>
+              card={card}
+              index={index}
+              closeLabel={t('close')}
+              tabRef={(element) => {
+                if (element) tabRefs.current.set(card.id, element);
+                else tabRefs.current.delete(card.id);
+              }}
+              onSelect={(event) => { switchTo(card.id); event.currentTarget.focus(); }}
+              onKeyDown={(event) => onTabKeyDown(event, card.id)}
+              onClose={(event) => { event.stopPropagation(); closeWithGuard(card); }}
+            />
           ))}
         </div>
       </div>

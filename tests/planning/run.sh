@@ -41,6 +41,7 @@ bundle_check () {
   # lekte mee zodra we stderr doorlieten. Dit dempt de samenvatting maar laat fouten staan.
   if ! "$ROOT/node_modules/.bin/esbuild" "$src" --log-level=error \
       --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+      --external:react-dom/server \
       --define:import.meta.env.DEV=false \
       --define:import.meta.env.PROD=true \
       --define:import.meta.env.MODE='"production"' \

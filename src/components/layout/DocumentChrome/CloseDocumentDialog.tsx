@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { documentTitle } from '@/utils/documents';
@@ -22,6 +23,14 @@ export function CloseDocumentDialog() {
   const closeDocument = useAppStore((s) => s.closeDocument);
   const switchDocument = useAppStore((s) => s.switchDocument);
   const saveFile = useAppStore((s) => s.saveFile);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const activeElement = document.activeElement;
+    openerRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+    cancelButtonRef.current?.focus();
+  }, [pendingId]);
 
   if (!pendingId) return null;
 
@@ -30,19 +39,33 @@ export function CloseDocumentDialog() {
   const fp = pendingId === activeId ? filePath : entry?.payload?.filePath ?? null;
   const name = documentTitle(fp, proj?.name ?? '') || t('project.untitled');
 
-  const cancel = () => setUI({ pendingCloseDocId: null });
+  const restoreOpenerFocus = () => {
+    const opener = openerRef.current;
+    requestAnimationFrame(() => {
+      if (opener?.isConnected) opener.focus();
+    });
+  };
+  const cancel = () => {
+    setUI({ pendingCloseDocId: null });
+    restoreOpenerFocus();
+  };
   const dontSave = () => { closeDocument(pendingId); setUI({ pendingCloseDocId: null }); };
   const save = async () => {
+    let closed = false;
     if (pendingId !== useAppStore.getState().activeDocumentId) switchDocument(pendingId);
     try {
       await saveFile();
       // Alleen sluiten als het opslaan ook echt lukte (bij een geannuleerde 'Opslaan als…' of een
       // schrijffout blijft isDirty staan → document open laten, geen werk verliezen).
-      if (!useAppStore.getState().isDirty) closeDocument(pendingId);
+      if (!useAppStore.getState().isDirty) {
+        closeDocument(pendingId);
+        closed = true;
+      }
     } finally {
       // Ongeacht de afloop moet de bevestiging weg, anders blokkeert een mislukte opslag de hele
       // app. Blijft nodig óók nu `saveFile` zelf vangt — verdedigingslinie tegen een throw hogerop.
       setUI({ pendingCloseDocId: null });
+      if (!closed) restoreOpenerFocus();
     }
   };
 
@@ -74,7 +97,7 @@ export function CloseDocumentDialog() {
           {t('documents.closeBody', { name })}
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button className="btn btn--secondary btn--sm" onClick={cancel}>{t('cancel')}</button>
+          <button ref={cancelButtonRef} className="btn btn--secondary btn--sm" onClick={cancel}>{t('cancel')}</button>
           <button className="btn btn--danger btn--sm" onClick={dontSave}>{t('documents.dontSave')}</button>
           <button className="btn btn--primary btn--sm" onClick={() => void save()}>{t('save')}</button>
         </div>
