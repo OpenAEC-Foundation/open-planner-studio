@@ -6,13 +6,20 @@ import { resolve } from 'node:path';
 import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CloseDocumentDialogControl } from '@/components/layout/DocumentChrome/CloseDocumentDialogControl';
-import { createCloseDocumentDialogActions } from '@/components/layout/DocumentChrome/closeDocumentActions';
+import {
+  createCloseDocumentActionGate,
+  createCloseDocumentDialogActions,
+  type CloseDocumentActionGate,
+} from '@/components/layout/DocumentChrome/closeDocumentActions';
 import { DocumentTabControl } from '@/components/layout/DocumentChrome/DocumentTabControl';
+import { DocumentTabList } from '@/components/layout/DocumentChrome/DocumentTabList';
+import type { DocumentCard } from '@/components/layout/DocumentChrome/useDocumentCards';
 import {
   DOCUMENT_TABPANEL_ID,
   documentTabCloseFocusTarget,
   documentTabId,
   documentTabKeyDestination,
+  focusDocumentTab,
   handleDocumentTabKeyDown,
   revealDocumentTab,
 } from '@/components/layout/DocumentChrome/documentTabNavigation';
@@ -25,9 +32,14 @@ import {
 // shortcutRegistry importeert de i18n-config, die bij initialisatie document/localStorage leest.
 // Zet alleen voor deze headless check het minimale DOM-contract neer vóór de dynamische import;
 // de productiehelpers zelf blijven DOM-vrij.
+const deferredAnimationFrames: FrameRequestCallback[] = [];
 Object.assign(globalThis, {
   document: { documentElement: {} },
   localStorage: { getItem: () => null, setItem: () => undefined },
+  requestAnimationFrame: (callback: FrameRequestCallback) => {
+    deferredAnimationFrames.push(callback);
+    return deferredAnimationFrames.length;
+  },
 });
 const { SHORTCUTS, matchesCombo } = await import('@/hooks/keyboard/shortcutRegistry');
 
@@ -188,7 +200,9 @@ eq('tab-id gebruikt de stabiele document-id-afleiding', documentTabId('doc-7'), 
 
 const calls: ScrollIntoViewOptions[] = [];
 revealDocumentTab({ scrollIntoView: (options?: ScrollIntoViewOptions) => { calls.push(options ?? {}); } });
-eq('actieve tab wordt minimaal in beide richtingen naar beeld gebracht', calls, [{ block: 'nearest', inline: 'nearest' }]);
+eq('actieve tab wordt zonder concurrerende smooth-scroll direct naar beeld gebracht', calls, [{
+  block: 'nearest', inline: 'nearest', behavior: 'instant',
+}]);
 
 // Kleinste passende renderharness: React render-to-string test de geproduceerde interactieve DOM
 // zonder een nieuw testframework. Toetsnavigatie en focusdoel hierboven gebruiken de letterlijke
@@ -216,24 +230,26 @@ eq('gerenderde sluitknop is een sibling van de tab', /role="tab"[\s\S]*?<\/butto
 function closeActionHarness(options?: {
   pendingId?: string;
   activeId?: string;
-  save?: (setDirty: (dirty: boolean) => void) => Promise<void>;
+  gate?: CloseDocumentActionGate;
+  effects?: string[];
+  save?: () => Promise<boolean>;
 }) {
-  const effects: string[] = [];
-  let dirty = true;
+  const effects = options?.effects ?? [];
   const pendingId = options?.pendingId ?? 'doc-2';
   let activeId = options?.activeId ?? 'doc-2';
   const actions = createCloseDocumentDialogActions({
+    gate: options?.gate,
     pendingId,
     getActiveDocumentId: () => activeId,
-    getIsDirty: () => dirty,
     switchDocument: (id) => { activeId = id; effects.push(`switch:${id}`); },
     closeDocument: (id) => { effects.push(`close:${id}`); },
     saveFile: async () => {
       effects.push('save');
-      await (options?.save?.((value) => { dirty = value; }) ?? Promise.resolve());
+      return options?.save ? options.save() : false;
     },
     clearPending: () => { effects.push('clear'); },
     restoreOpenerFocus: () => { effects.push('restoreFocus'); },
+    onSavePendingChange: (pending) => { effects.push(`pending:${pending}`); },
   });
   return { actions, effects };
 }
@@ -251,25 +267,56 @@ function closeActionHarness(options?: {
 {
   const { actions, effects } = closeActionHarness({
     activeId: 'doc-1',
-    save: async (setDirty) => { setDirty(false); },
+    save: async () => true,
   });
   await actions.save();
   eq('dirty Save wisselt, bewaart en sluit pas na schone commit', effects, [
-    'switch:doc-2', 'save', 'close:doc-2', 'clear',
+    'switch:doc-2', 'pending:true', 'save', 'close:doc-2', 'clear', 'pending:false',
   ]);
 }
 {
-  const { actions, effects } = closeActionHarness({ save: async () => undefined });
+  const { actions, effects } = closeActionHarness({ save: async () => false });
   await actions.save();
   eq('geannuleerde Save As laat document open, sluit dialoog en herstelt opener', effects, [
-    'save', 'clear', 'restoreFocus',
+    'pending:true', 'save', 'clear', 'restoreFocus', 'pending:false',
   ]);
 }
 {
   const { actions, effects } = closeActionHarness({ save: async () => { throw new Error('schrijffout'); } });
   await actions.save();
   eq('mislukte Save laat document open, sluit dialoog en herstelt opener', effects, [
-    'save', 'clear', 'restoreFocus',
+    'pending:true', 'save', 'clear', 'restoreFocus', 'pending:false',
+  ]);
+}
+{
+  let releaseSave: () => void = () => undefined;
+  const savePending = new Promise<void>((resolvePending) => { releaseSave = resolvePending; });
+  const gate = createCloseDocumentActionGate();
+  const effects: string[] = [];
+  const firstRender = closeActionHarness({
+    gate,
+    effects,
+    save: async () => {
+      await savePending;
+      return true;
+    },
+  });
+  const secondRender = closeActionHarness({
+    gate,
+    effects,
+    save: async () => {
+      await savePending;
+      return true;
+    },
+  });
+  const firstSave = firstRender.actions.save();
+  const secondSave = secondRender.actions.save();
+  secondRender.actions.discard();
+  secondRender.actions.cancel();
+  releaseSave();
+  await Promise.all([firstSave, secondSave]);
+  eq('pending Save is single-flight over dubbele activatie en concurrerende keuzes', effects, [
+    'pending:true', 'save', 'close:doc-2', 'clear', 'pending:false',
   ]);
 }
 
@@ -288,6 +335,91 @@ function findControl(
   return null;
 }
 
+// Werkelijke componentroute: DocumentTabList maakt twaalf echte DocumentTabControl-elementen.
+// De test vuurt hun echte keyhandlers zonder pauzes af en rendert na iedere synchrone storewissel
+// opnieuw. Een indexguard vóór de productiehelper blokkeert dan zichtbaar tab 10–12.
+const routeCards = (activeId: string): DocumentCard[] => ids.map((id, index) => ({
+  id,
+  title: `Project ${index + 1}`,
+  fileName: null,
+  code: `P${index + 1}`,
+  color: '#123456',
+  isActive: id === activeId,
+  isDirty: false,
+  taskCount: 0,
+  milestoneCount: 0,
+  criticalCount: 0,
+  endDate: null,
+  thumb: [],
+}));
+
+function runActualTabRoute(direction: 'ltr' | 'rtl', key: 'ArrowLeft' | 'ArrowRight') {
+  let activeRouteId = 'doc-9';
+  const focused: string[] = [];
+  const revealed: string[] = [];
+  const prevented: string[] = [];
+  const rovingChecks: boolean[] = [];
+  const tabElements = new Map(ids.map(id => [id, {
+    focus: () => { focused.push(id); },
+    scrollIntoView: () => { revealed.push(id); },
+  }]));
+
+  const listProps = () => ({
+    cards: routeCards(activeRouteId),
+    direction,
+    tablistLabel: 'Open projecten',
+    closeLabel: 'Sluiten',
+    tabRef: () => undefined,
+    switchTo: (id: string) => { activeRouteId = id; },
+    focusTab: (id: string) => { focusDocumentTab(tabElements, id); },
+    closeWithGuard: () => undefined,
+  });
+
+  for (const expectedId of ['doc-10', 'doc-11', 'doc-12', 'doc-1']) {
+    const list = DocumentTabList(listProps());
+    const control = findControl(list, element => {
+      const card = element.props.card as DocumentCard | undefined;
+      return card?.id === activeRouteId;
+    });
+    const renderedControl = control
+      ? DocumentTabControl(control.props as unknown as Parameters<typeof DocumentTabControl>[0])
+      : null;
+    const tab = findControl(renderedControl, element => element.props.role === 'tab');
+    const currentTarget = {};
+    (tab?.props.onKeyDown as ((event: unknown) => void) | undefined)?.({
+      key,
+      target: currentTarget,
+      currentTarget,
+      preventDefault: () => { prevented.push(expectedId); },
+    });
+
+    const rerendered = renderToStaticMarkup(createElement(DocumentTabList, listProps()));
+    const selectedPattern = new RegExp(
+      `id="ops-document-tab-${expectedId}"[^>]*aria-selected="true"[^>]*tabindex="0"`,
+    );
+    rovingChecks.push(selectedPattern.test(rerendered)
+      && (rerendered.match(/tabindex="0"/g)?.length ?? 0) === 1);
+  }
+  return { activeRouteId, focused, revealed, prevented, rovingChecks };
+}
+
+eq('werkelijke LTR-componentroute bereikt 9→10→11→12→1 zonder pauzes',
+  runActualTabRoute('ltr', 'ArrowRight'), {
+    activeRouteId: 'doc-1',
+    focused: ['doc-10', 'doc-11', 'doc-12', 'doc-1'],
+    revealed: ['doc-10', 'doc-11', 'doc-12', 'doc-1'],
+    prevented: ['doc-10', 'doc-11', 'doc-12', 'doc-1'],
+    rovingChecks: [true, true, true, true],
+  });
+eq('werkelijke RTL-componentroute bereikt 9→10→11→12→1 zonder pauzes',
+  runActualTabRoute('rtl', 'ArrowLeft'), {
+    activeRouteId: 'doc-1',
+    focused: ['doc-10', 'doc-11', 'doc-12', 'doc-1'],
+    revealed: ['doc-10', 'doc-11', 'doc-12', 'doc-1'],
+    prevented: ['doc-10', 'doc-11', 'doc-12', 'doc-1'],
+    rovingChecks: [true, true, true, true],
+  });
+
 const dialogEvents: string[] = [];
 const dialogControl = CloseDocumentDialogControl({
   title: 'Wijzigingen opslaan?',
@@ -295,6 +427,7 @@ const dialogControl = CloseDocumentDialogControl({
   cancelLabel: 'Annuleren',
   discardLabel: 'Niet opslaan',
   saveLabel: 'Opslaan',
+  busy: false,
   cancelButtonRef: null,
   onCancel: () => { dialogEvents.push('cancel'); },
   onDiscard: () => { dialogEvents.push('discard'); },
@@ -313,13 +446,32 @@ const discardControl = findControl(dialogControl, element => element.props['data
 eq("werkelijke Don't Save-knop is naar discard bedraad", dialogEvents, ['discard']);
 const renderedDialog = renderToStaticMarkup(createElement(CloseDocumentDialogControl, {
   title: 'Wijzigingen opslaan?', body: 'Project twee bevat wijzigingen.', cancelLabel: 'Annuleren',
-  discardLabel: 'Niet opslaan', saveLabel: 'Opslaan', cancelButtonRef: null,
+  discardLabel: 'Niet opslaan', saveLabel: 'Opslaan', busy: false, cancelButtonRef: null,
   onCancel: () => undefined, onDiscard: () => undefined, onSave: () => undefined,
 }));
 eq('gerenderde dialoog onderscheidt alle drie acties semantisch', [
   /data-ops-close-choice="cancel"/.test(renderedDialog),
   /data-ops-close-choice="discard"/.test(renderedDialog),
   /data-ops-close-choice="save"/.test(renderedDialog),
+], [true, true, true]);
+const blockedEvents: string[] = [];
+const busyDialog = CloseDocumentDialogControl({
+  title: 'Wijzigingen opslaan?', body: 'Opslaan loopt.', cancelLabel: 'Annuleren',
+  discardLabel: 'Niet opslaan', saveLabel: 'Opslaan', busy: true, cancelButtonRef: null,
+  onCancel: () => { blockedEvents.push('cancel'); },
+  onDiscard: () => { blockedEvents.push('discard'); },
+  onSave: () => { blockedEvents.push('save'); },
+});
+(busyDialog.props.onClick as (() => void) | undefined)?.();
+const busyCancel = findControl(busyDialog, element => element.props['data-ops-close-choice'] === 'cancel');
+const busyDiscard = findControl(busyDialog, element => element.props['data-ops-close-choice'] === 'discard');
+const busySave = findControl(busyDialog, element => element.props['data-ops-close-choice'] === 'save');
+(busyCancel?.props.onClick as (() => void) | undefined)?.();
+(busyDiscard?.props.onClick as (() => void) | undefined)?.();
+(busySave?.props.onClick as (() => void) | undefined)?.();
+eq('pending Save blokkeert backdrop en alle drie dialogacties', blockedEvents, []);
+eq('pending Save schakelt alle drie knoppen uit', [
+  busyCancel?.props.disabled, busyDiscard?.props.disabled, busySave?.props.disabled,
 ], [true, true, true]);
 
 // Supplementaire wiring-scan: de renderharness hierboven is de componentdekking. Deze kleine
@@ -334,8 +486,8 @@ const tabBarSource = readFileSync(resolve(
   process.cwd(),
   'src/components/layout/DocumentChrome/DocumentTabBar.tsx',
 ), 'utf8');
-eq('DocumentTabBar delegeert elke tabindex zonder indexguard aan de productiehandler',
-  tabBarSource.includes('onKeyDown={(event) => onTabKeyDown(event, card.id)}'), true);
+eq('DocumentTabBar gebruikt de functioneel geteste tablijstcomponent',
+  tabBarSource.includes('<DocumentTabList'), true);
 eq('DocumentTabBar geeft closefocus expliciet op zolang het overzicht open is',
   tabBarSource.includes('documentTabFocusTargetOutsideOverview(\n      projectOverviewOpen,'), true);
 const overviewSource = readFileSync(resolve(

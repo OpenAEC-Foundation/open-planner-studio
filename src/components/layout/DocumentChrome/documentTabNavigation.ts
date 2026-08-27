@@ -94,7 +94,23 @@ export interface RevealableDocumentTab {
   scrollIntoView(options?: ScrollIntoViewOptions): void;
 }
 
+export interface FocusableDocumentTab extends RevealableDocumentTab {
+  focus(options?: FocusOptions): void;
+}
+
+/** Focus en zichtbaarheid gebeuren in dezelfde key-eventtick op de al bestaande DOM-ref. */
+export function focusDocumentTab(
+  tabs: ReadonlyMap<string, FocusableDocumentTab>,
+  documentId: string,
+): boolean {
+  const tab = tabs.get(documentId);
+  if (!tab) return false;
+  tab.focus({ preventScroll: true });
+  revealDocumentTab(tab);
+  return true;
+}
+
 /** Houd de geactiveerde tab zichtbaar, zonder de verticale pagina-positie te verplaatsen. */
 export function revealDocumentTab(tab: RevealableDocumentTab): void {
-  tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  tab.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
 }

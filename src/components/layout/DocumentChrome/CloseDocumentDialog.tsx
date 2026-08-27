@@ -1,9 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { documentTitle } from '@/utils/documents';
 import { CloseDocumentDialogControl } from './CloseDocumentDialogControl';
-import { createCloseDocumentDialogActions } from './closeDocumentActions';
+import {
+  createCloseDocumentActionGate,
+  createCloseDocumentDialogActions,
+  type CloseDocumentActionGate,
+} from './closeDocumentActions';
 
 /**
  * Sluit-bevestiging met drie keuzes bij een document met niet-opgeslagen
@@ -24,11 +28,20 @@ export function CloseDocumentDialog() {
   const setUI = useAppStore((s) => s.setUI);
   const closeDocument = useAppStore((s) => s.closeDocument);
   const switchDocument = useAppStore((s) => s.switchDocument);
-  const saveFile = useAppStore((s) => s.saveFile);
+  const saveFileForDocument = useAppStore((s) => s.saveFileForDocument);
   const openerRef = useRef<HTMLElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const actionGateRef = useRef<CloseDocumentActionGate | null>(null);
+  const [savePending, setSavePending] = useState(false);
+  if (!actionGateRef.current) actionGateRef.current = createCloseDocumentActionGate();
 
   useEffect(() => {
+    if (!pendingId) {
+      actionGateRef.current = createCloseDocumentActionGate();
+      setSavePending(false);
+      return;
+    }
+    if (actionGateRef.current?.started) return;
     const activeElement = document.activeElement;
     openerRef.current = activeElement instanceof HTMLElement ? activeElement : null;
     cancelButtonRef.current?.focus();
@@ -46,14 +59,15 @@ export function CloseDocumentDialog() {
     if (opener?.isConnected) opener.focus({ preventScroll: true });
   };
   const actions = createCloseDocumentDialogActions({
+    gate: actionGateRef.current,
     pendingId,
     getActiveDocumentId: () => useAppStore.getState().activeDocumentId,
-    getIsDirty: () => useAppStore.getState().isDirty,
     switchDocument,
     closeDocument,
-    saveFile,
+    saveFile: () => saveFileForDocument(pendingId),
     clearPending: () => { setUI({ pendingCloseDocId: null }); },
     restoreOpenerFocus,
+    onSavePendingChange: setSavePending,
   });
 
   return (
@@ -63,6 +77,7 @@ export function CloseDocumentDialog() {
       cancelLabel={t('cancel')}
       discardLabel={t('documents.dontSave')}
       saveLabel={t('save')}
+      busy={savePending}
       cancelButtonRef={cancelButtonRef}
       onCancel={actions.cancel}
       onDiscard={actions.discard}

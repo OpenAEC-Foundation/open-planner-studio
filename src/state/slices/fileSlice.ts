@@ -12,7 +12,7 @@ import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
-import { hydratePayload, payloadFromImport } from '../documentContract';
+import { hydratePayload, payloadFromImport, type DocumentPayload } from '../documentContract';
 import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { beginUndoable, finishMutation } from '../transaction';
@@ -82,6 +82,8 @@ export interface FileSlice {
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
   openFile: (labels?: ImportLabels) => Promise<void>;
   saveFile: () => Promise<void>;
+  /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
+  saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
   exportAs: (format: ExportFormat) => Promise<ExportResult>;
   /** Exporteer het project + (spec §4) schrijf de gebonden bedrijfs-pool als tweede, LOS bestand
@@ -143,6 +145,74 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       // losse toasts de stapel te vullen.
       dedupeKey: 'saved-via-download',
     });
+  };
+
+  const saveSourceForDocument = (state: AppState, documentId: string): AppState | DocumentPayload | null => {
+    if (state.activeDocumentId === documentId) return state;
+    return state.documents.find(document => document.id === documentId)?.payload ?? null;
+  };
+
+  const commitSavedDocument = (
+    documentId: string,
+    savedSource: AppState,
+    destination?: { filePath: string; fileHandle: FileSystemFileHandle | null },
+  ): boolean => {
+    const currentSource = saveSourceForDocument(get(), documentId);
+    if (!currentSource) return false;
+    const unchanged = sameIFCSource(savedSource, currentSource);
+    set((state) => {
+      if (state.activeDocumentId === documentId) {
+        if (destination) {
+          state.filePath = destination.filePath;
+          state.fileHandle = destination.fileHandle;
+        }
+        if (unchanged) state.isDirty = false;
+        return;
+      }
+      const entry = state.documents.find(document => document.id === documentId);
+      if (!entry?.payload) return;
+      if (destination) {
+        entry.payload.filePath = destination.filePath;
+        entry.payload.fileHandle = destination.fileHandle;
+      }
+      if (unchanged) entry.payload.isDirty = false;
+    });
+    return unchanged;
+  };
+
+  const saveActiveDocument = async (expectedDocumentId?: string): Promise<boolean> => {
+    const state = get();
+    const documentId = state.activeDocumentId;
+    if (expectedDocumentId && expectedDocumentId !== documentId) return false;
+    const content = writeIFC(buildWriteIFCInput(state));
+
+    try {
+      const ref: FileRef | null = state.fileHandle
+        ? { kind: 'handle', handle: state.fileHandle }
+        : (isTauri() && state.filePath ? { kind: 'path', path: state.filePath } : null);
+
+      if (ref && await saveToRef(ref, content)) {
+        return commitSavedDocument(documentId, state);
+      }
+
+      const outcome = await saveFileDialog(
+        `${projectFileBase(state.project.name)}.ifc`,
+        content,
+        [{ name: 'IFC Files', extensions: ['ifc'] }],
+      );
+      if (!outcome) return false;
+      const saved = commitSavedDocument(documentId, state, {
+        filePath: outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name,
+        fileHandle: outcome.ref?.kind === 'handle' ? outcome.ref.handle : null,
+      });
+      await pushRecent(outcome.ref, outcome.name);
+      noticeIfDownloaded(outcome);
+      return saved;
+    } catch (err) {
+      console.error('Save failed:', err);
+      get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
+      return false;
+    }
   };
 
   return {
@@ -318,57 +388,12 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       }
     },
 
-    saveFile: async () => {
-      const state = get();
-      // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
-      // pad niet opnieuw velden kan laten vallen.
-      const content = writeIFC(buildWriteIFCInput(state));
-      // `state` is de momentopname vóór de eerste await. De opslaan-dialoog (en in Tauri de
-      // schrijfactie) kan minuten duren en de gebruiker kan ondertussen doorwerken; `content` is
-      // dan verouderd. Daarom mag `isDirty` pas worden gewist als de inhoud ná de await nog
-      // letterlijk dezelfde is — bepaald via `sameIFCSource` (bevinding K8b: anders stil verlies).
-
-      try {
-        // Bestaand opslaan-doel? Web: fileHandle. Tauri: het echte pad in filePath.
-        const ref: FileRef | null = state.fileHandle
-          ? { kind: 'handle', handle: state.fileHandle }
-          : (isTauri() && state.filePath ? { kind: 'path', path: state.filePath } : null);
-
-        if (ref && await saveToRef(ref, content)) {
-          // "Nog ongewijzigd?" bewust BUITEN de Immer-producer berekend met get(): binnen een draft
-          // is `s.tasks` e.d. een proxy en nóóit referentie-gelijk aan de plain array, dus een
-          // sameIFCSource(state, s) binnen de producer zou altijd false geven en isDirty nóóit
-          // meer wissen — een ergere regressie dan de bug die we hier repareren.
-          if (sameIFCSource(state, get())) set((s) => { s.isDirty = false; });
-          return;
-        }
-
-        // Geen (bruikbare) ref, of in-place opslaan geweigerd → opslaan-als.
-        const outcome = await saveFileDialog(
-          `${projectFileBase(state.project.name)}.ifc`,
-          content,
-          [{ name: 'IFC Files', extensions: ['ifc'] }],
-        );
-        if (!outcome) return;
-        // Opnieuw buiten de producer bepalen of er tijdens de dialoog iets gewijzigd is.
-        const unchanged = sameIFCSource(state, get());
-        set((s) => {
-          s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
-          s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
-          // Alleen "opgeslagen" als er tijdens de dialoog niets gewijzigd is; anders blijft het
-          // document terecht gewijzigd en houdt de gebruiker zijn sluitwaarschuwing.
-          if (unchanged) s.isDirty = false;
-        });
-        await pushRecent(outcome.ref, outcome.name);
-        noticeIfDownloaded(outcome);
-      } catch (err) {
-        console.error('Save failed:', err);
-        get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
-      }
-    },
+    saveFile: async () => { await saveActiveDocument(); },
+    saveFileForDocument: (documentId) => saveActiveDocument(documentId),
 
     saveFileAs: async () => {
       const state = get();
+      const documentId = state.activeDocumentId;
       // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
       // pad niet opnieuw velden kan laten vallen.
       const content = writeIFC(buildWriteIFCInput(state));
@@ -382,11 +407,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           [{ name: 'IFC Files', extensions: ['ifc'] }],
         );
         if (!outcome) return;
-        const unchanged = sameIFCSource(state, get());
-        set((s) => {
-          s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
-          s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
-          if (unchanged) s.isDirty = false;
+        commitSavedDocument(documentId, state, {
+          filePath: outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name,
+          fileHandle: outcome.ref?.kind === 'handle' ? outcome.ref.handle : null,
         });
         await pushRecent(outcome.ref, outcome.name);
         noticeIfDownloaded(outcome);

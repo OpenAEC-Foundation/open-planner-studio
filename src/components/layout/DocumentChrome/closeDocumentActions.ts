@@ -1,12 +1,21 @@
+export interface CloseDocumentActionGate {
+  started: boolean;
+}
+
+export function createCloseDocumentActionGate(): CloseDocumentActionGate {
+  return { started: false };
+}
+
 export interface CloseDocumentDialogActionDependencies {
+  gate?: CloseDocumentActionGate;
   pendingId: string;
   getActiveDocumentId: () => string;
-  getIsDirty: () => boolean;
   switchDocument: (id: string) => void;
   closeDocument: (id: string) => void;
-  saveFile: () => Promise<void>;
+  saveFile: () => Promise<boolean>;
   clearPending: () => void;
   restoreOpenerFocus: () => void;
+  onSavePendingChange: (pending: boolean) => void;
 }
 
 export interface CloseDocumentDialogActions {
@@ -23,31 +32,42 @@ export function createCloseDocumentDialogActions(
   dependencies: CloseDocumentDialogActionDependencies,
 ): CloseDocumentDialogActions {
   const {
+    gate = createCloseDocumentActionGate(),
     pendingId,
     getActiveDocumentId,
-    getIsDirty,
     switchDocument,
     closeDocument,
     saveFile,
     clearPending,
     restoreOpenerFocus,
+    onSavePendingChange,
   } = dependencies;
+
+  const claimAction = () => {
+    if (gate.started) return false;
+    gate.started = true;
+    return true;
+  };
 
   return {
     cancel: () => {
+      if (!claimAction()) return;
       clearPending();
       restoreOpenerFocus();
     },
     discard: () => {
+      if (!claimAction()) return;
       closeDocument(pendingId);
       clearPending();
     },
     save: async () => {
+      if (!claimAction()) return;
       let closed = false;
       if (pendingId !== getActiveDocumentId()) switchDocument(pendingId);
+      onSavePendingChange(true);
       try {
-        await saveFile();
-        if (!getIsDirty()) {
+        const saved = await saveFile();
+        if (saved) {
           closeDocument(pendingId);
           closed = true;
         }
@@ -57,6 +77,7 @@ export function createCloseDocumentDialogActions(
       } finally {
         clearPending();
         if (!closed) restoreOpenerFocus();
+        onSavePendingChange(false);
       }
     },
   };

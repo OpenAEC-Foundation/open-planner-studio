@@ -6,6 +6,7 @@ interface CloseDocumentDialogControlProps {
   cancelLabel: string;
   discardLabel: string;
   saveLabel: string;
+  busy: boolean;
   cancelButtonRef: Ref<HTMLButtonElement>;
   onCancel: () => void;
   onDiscard: () => void;
@@ -19,6 +20,7 @@ export function CloseDocumentDialogControl({
   cancelLabel,
   discardLabel,
   saveLabel,
+  busy,
   cancelButtonRef,
   onCancel,
   onDiscard,
@@ -26,8 +28,9 @@ export function CloseDocumentDialogControl({
 }: CloseDocumentDialogControlProps) {
   return (
     <div
-      onClick={onCancel}
+      onClick={busy ? undefined : onCancel}
       data-ops-close-dialog
+      aria-busy={busy}
       style={{
         position: 'absolute', inset: 0, zIndex: 80,
         background: 'rgba(15,16,20,0.55)', display: 'flex',
@@ -56,21 +59,24 @@ export function CloseDocumentDialogControl({
             ref={cancelButtonRef}
             className="btn btn--secondary btn--sm"
             data-ops-close-choice="cancel"
-            onClick={onCancel}
+            disabled={busy}
+            onClick={busy ? undefined : onCancel}
           >
             {cancelLabel}
           </button>
           <button
             className="btn btn--danger btn--sm"
             data-ops-close-choice="discard"
-            onClick={onDiscard}
+            disabled={busy}
+            onClick={busy ? undefined : onDiscard}
           >
             {discardLabel}
           </button>
           <button
             className="btn btn--primary btn--sm"
             data-ops-close-choice="save"
-            onClick={onSave}
+            disabled={busy}
+            onClick={busy ? undefined : onSave}
           >
             {saveLabel}
           </button>

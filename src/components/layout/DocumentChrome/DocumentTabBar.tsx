@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Menu, Plus } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { useDocumentCards, useDocumentActions } from './useDocumentCards';
-import { DocumentTabControl } from './DocumentTabControl';
+import { DocumentTabList } from './DocumentTabList';
 import {
   documentTabCloseFocusTarget,
-  handleDocumentTabKeyDown,
+  focusDocumentTab,
   revealDocumentTab,
 } from './documentTabNavigation';
 import { documentTabFocusTargetOutsideOverview } from './projectOverviewFocus';
@@ -45,15 +45,8 @@ export function DocumentTabBar() {
   }, [activeId]);
 
   const focusTab = useCallback((id: string) => {
-    requestAnimationFrame(() => tabRefs.current.get(id)?.focus());
+    focusDocumentTab(tabRefs.current, id);
   }, []);
-
-  const onTabKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>, cardId: string) => {
-    handleDocumentTabKeyDown(event, cards.map(card => card.id), cardId, direction, {
-      switchTo,
-      focusTab,
-    });
-  }, [cards, direction, focusTab, switchTo]);
 
   return (
     <div className="ops-tabstrip" data-ops-tabstrip>
@@ -66,23 +59,19 @@ export function DocumentTabBar() {
       </button>
 
       <div className="ops-tabstrip-viewport" data-ops-tabstrip-viewport>
-        <div className="ops-tabstrip-tabs" role="tablist" aria-label={t('documents.overviewTitle')}>
-          {cards.map((card, index) => (
-            <DocumentTabControl
-              key={card.id}
-              card={card}
-              index={index}
-              closeLabel={t('close')}
-              tabRef={(element) => {
-                if (element) tabRefs.current.set(card.id, element);
-                else tabRefs.current.delete(card.id);
-              }}
-              onSelect={(event) => { switchTo(card.id); event.currentTarget.focus(); }}
-              onKeyDown={(event) => onTabKeyDown(event, card.id)}
-              onClose={(event) => { event.stopPropagation(); closeWithGuard(card); }}
-            />
-          ))}
-        </div>
+        <DocumentTabList
+          cards={cards}
+          direction={direction}
+          tablistLabel={t('documents.overviewTitle')}
+          closeLabel={t('close')}
+          tabRef={(documentId, element) => {
+            if (element) tabRefs.current.set(documentId, element);
+            else tabRefs.current.delete(documentId);
+          }}
+          switchTo={switchTo}
+          focusTab={focusTab}
+          closeWithGuard={closeWithGuard}
+        />
       </div>
 
       <button
