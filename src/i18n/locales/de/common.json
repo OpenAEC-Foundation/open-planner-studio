@@ -682,7 +682,7 @@
       "none": "(keins)"
     },
     "presentation": {
-      "hint": "F11 drücken, um den Präsentationsmodus zu beenden"
+      "hint": "Esc oder F11 drücken, um den Vollbildmodus zu verlassen."
     },
     "splitView": {
       "primary": "Primär",

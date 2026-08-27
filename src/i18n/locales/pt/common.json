@@ -690,7 +690,7 @@
       "none": "(nenhum)"
     },
     "presentation": {
-      "hint": "Prima F11 para sair do modo de apresentação"
+      "hint": "Prima Esc ou F11 para sair do ecrã inteiro."
     },
     "splitView": {
       "primary": "Principal",

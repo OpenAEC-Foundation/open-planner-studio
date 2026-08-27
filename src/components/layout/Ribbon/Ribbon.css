@@ -28,7 +28,7 @@
   font-weight: 500;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   transition: all 0.15s ease;
-  cursor: default;
+  cursor: pointer;
   position: relative;
 }
 
@@ -140,7 +140,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  cursor: default;
+  cursor: pointer;
   transition: all 0.15s ease;
   min-width: 54px;
   gap: 4px;
@@ -314,7 +314,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--theme-text-dim);
-  cursor: default;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 .ribbon-collapse-toggle:hover {

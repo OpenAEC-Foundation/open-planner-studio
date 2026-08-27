@@ -674,7 +674,7 @@
       "none": "(无)"
     },
     "presentation": {
-      "hint": "按 F11 退出演示模式"
+      "hint": "按 Esc 或 F11 退出全屏模式。"
     },
     "splitView": {
       "primary": "主要",

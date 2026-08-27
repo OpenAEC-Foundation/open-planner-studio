@@ -674,7 +674,7 @@
       "none": "(없음)"
     },
     "presentation": {
-      "hint": "F11 키를 눌러 프레젠테이션 모드를 종료하세요"
+      "hint": "Esc 또는 F11 키를 눌러 전체 화면을 종료하세요."
     },
     "splitView": {
       "primary": "기본",
