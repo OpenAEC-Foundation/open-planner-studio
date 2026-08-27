@@ -2,7 +2,7 @@
 // import-cyclus met documentContract/snapshot te breken. Hier doorgegeven voor bestaande importers.
 import { createDefaultView } from '../defaults';
 export { createDefaultView };
-import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 import { getGanttChartWidth, clampGanttScroll } from '@/utils/ganttViewport';
 import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
@@ -95,7 +95,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
 
   setZoom: (zoom) =>
     set((s) => {
-      const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+      const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
       s.view.zoom = Math.max(0.5, Math.min(max, zoom));
     }),
 
@@ -107,7 +107,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   setTimeScale: (scale) => {
     const s = get();
     const oldZoom = s.view.zoom;
-    const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+    const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
     const newZoom = Math.max(0.5, Math.min(max, TIMESCALE_ZOOM[scale]));
     const chartW = getGanttChartWidth();
     if (chartW !== null && newZoom !== oldZoom) {

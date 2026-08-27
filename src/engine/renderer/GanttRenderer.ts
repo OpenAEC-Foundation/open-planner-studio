@@ -752,11 +752,10 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    // issue #21 punt 2 (vervolg, user-besluit): de HEADER toont áltijd de dagplanning-opbouw
-    // (maand/week/dag), ook met urenplanning aan — de oude dag/uur-band gaf een fontsprong en
-    // een lege uurrij. De uur-tiers leven alleen nog in de sleep-snapping (useBarDrag geeft
-    // de urenplanning-vlag wél door aan pickTiers).
-    const { major, mid, minor } = pickTiers(view.zoom, enableQH, false);
+    // De kopstrook volgt dezelfde tierkeuze als de uurinteractie. De oude harde `false` maakte
+    // de instelling “kwartieren tonen bij ver inzoomen” alleen voor snapping effectief: uren en
+    // kwartieren werden in de schermtijdlijn nooit getekend.
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH, this.opts.enableHourPlanning ?? false);
 
     // Visible date range. Issue #21 punt 5 (header-bugfix, vervolg fase 3 van
     // werkdagen-as-ontwerp.md §4.1/§10): via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`)

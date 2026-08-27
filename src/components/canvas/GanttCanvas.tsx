@@ -203,6 +203,7 @@ export function GanttCanvas() {
     showMiniMap,
     compressNonWorkdays,
     enableQuarterHourZoom,
+    enableHourPlanning,
     scrollMode,
     positionDivision,
     modifierMap,
@@ -504,8 +505,9 @@ export function GanttCanvas() {
       enableQuarterHourZoom,
       effectiveCalById,
       barSplitMode,
-      // Deze velden voeden alleen de ontbrekende taaktabel of primaire rand-sleep.
-      enableHourPlanning: undefined,
+      // De taaktabel ontbreekt hier, maar de tijdas is een volledig tweede viewport en moet
+      // dezelfde uren-/kwartier-tiers tonen als het primaire paneel.
+      enableHourPlanning,
       durationDisplay: undefined,
       durationSuffixes: undefined,
       externalStaleLabel: tTask('externalLinks.stale'),
@@ -519,7 +521,7 @@ export function GanttCanvas() {
       fontFamily: canvasFontFamily,
       fontScale,
     } : undefined
-  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, columnHeaders, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
+  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, columnHeaders, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
 
   useGanttRendererHost({
     containers: {
