@@ -15,7 +15,7 @@
  */
 import { renderReport, PrintOptions, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
-import { computePreviewRasterLimits, PREVIEW_MAX_RASTER_PIXELS, PREVIEW_MAX_SOURCE_PIXELS, PREVIEW_TARGET_PAGE_DENSITY } from '@/services/print/previewSafety';
+import { computePreviewRasterLimits, PREVIEW_MAX_SOURCE_PIXELS, PREVIEW_QUALITY_RASTER_BUDGETS } from '@/services/print/previewSafety';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task, TaskTime } from '@/types/task';
@@ -385,42 +385,35 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
 // De preview mag niet eerst een broncanvas en tientallen A1-pagina's zonder rasterbudget maken.
 // Dit is puur rekenwerk, dus de bescherming is toetsbaar zonder een browsercanvas te reserveren.
 {
-  // Normaal A3-landscape-paneel: de natuurlijke afbeeldingsbreedte moet duidelijk boven de
-  // CSS-breedte uitkomen. Alleen een groter page-canvas is niet genoeg als de bron lager dan de
-  // bestaande 2×-kwaliteit zou worden; daarom controleren we beide zijden van de keten.
+  // Alle kwaliteitsstanden houden exact dezelfde CSS-breedte. Alleen bron- en paginaresolutie
+  // lopen samen op, zodat een scherpe pagina nooit uit een lagere bron wordt uitvergroot.
   const cssWidth = 900;
-  const normal = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1);
-  const naturalWidth = 1_191 * normal.pageSupersample;
-  ok(normal.renderScale === 2,
-    `normale previewbron behoudt 2×-resolutie (got ${normal.renderScale})`);
-  ok(naturalWidth >= cssWidth * PREVIEW_TARGET_PAGE_DENSITY - 1,
-    `normale previewpagina is ${PREVIEW_TARGET_PAGE_DENSITY}× CSS-breedte (got ${naturalWidth})`);
-  const normalSourcePixels = 1_200 * normal.renderScale * 1_800 * normal.renderScale;
-  const normalPagePixels = normal.maxPages * 1_191 * 842 * normal.pageSupersample * normal.pageSupersample;
-  ok(normalSourcePixels + normalPagePixels <= PREVIEW_MAX_RASTER_PIXELS + 20_000,
-    'normale scherpe preview blijft binnen gezamenlijk rasterbudget');
-
-  // De drie gebruikersstanden veranderen uitsluitend de zichtbare previewbreedte. Dezelfde
-  // budgetfunctie moet daarom proportioneel meer rasterdichtheid vragen voor 125% en Detail,
-  // zonder de export-/pagineeropties aan te raken.
-  const fit = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', 900, 1);
-  const readable = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', 1_125, 1);
-  const detail = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', 1_800, 1);
-  ok(readable.pageSupersample > fit.pageSupersample,
-    'previewzoom 125% verhoogt alleen de benodigde previewrasterdichtheid');
-  ok(detail.pageSupersample > readable.pageSupersample,
-    'previewzoom Detail verhoogt de previewrasterdichtheid verder binnen budget');
+  const standard = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 1);
+  const high = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 2);
+  const maximum = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 3);
+  ok(high.renderScale > standard.renderScale && maximum.renderScale > high.renderScale,
+    '100/200/300% verhogen de bronresolutie proportioneel');
+  ok(high.pageSupersample > standard.pageSupersample && maximum.pageSupersample > high.pageSupersample,
+    '100/200/300% verhogen de paginaresolutie proportioneel');
+  ok(1_191 * standard.pageSupersample >= cssWidth - 1,
+    'Standaard behoudt minstens CSS×DPR-paginadichtheid');
+  ok(1_191 * high.pageSupersample >= cssWidth * 2 - 1,
+    'Hoog bereikt 2× CSS×DPR-paginadichtheid bij normaal rapport');
+  ok(1_191 * maximum.pageSupersample >= cssWidth * 3 - 1,
+    'Maximaal bereikt 3× CSS×DPR-paginadichtheid bij normaal rapport');
+  ok(maximum.maxPages <= high.maxPages,
+    'Maximaal houdt niet meer pagina’s tegelijk vast dan Hoog');
 }
 {
-  const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2);
+  const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2, 3);
   ok(20_000 * limits.renderScale * 10_000 * limits.renderScale <= PREVIEW_MAX_SOURCE_PIXELS + 1,
     `preview-basiscanvas blijft binnen pixelbudget (got ${limits.renderScale})`);
   const sourcePixels = 20_000 * limits.renderScale * 10_000 * limits.renderScale;
   const pagePixels = limits.maxPages * 2384 * 1684 * limits.pageSupersample * limits.pageSupersample;
-  ok(limits.maxPages >= 1 && sourcePixels + pagePixels <= PREVIEW_MAX_RASTER_PIXELS + 20_000,
+  ok(limits.maxPages >= 1 && sourcePixels + pagePixels <= PREVIEW_QUALITY_RASTER_BUDGETS[3] + 20_000,
     `A1-preview deelt bron- en paginabudget (got ${limits.maxPages} pagina's @ ${limits.pageSupersample})`);
-  ok(limits.pageSupersample >= (900 * 2 / 2384) - 0.01,
-    `zichtbare A1-preview volgt CSS×DPR zolang budget dat toestaat (got ${limits.pageSupersample})`);
+  ok(limits.pageSupersample > 0 && limits.maxPages === 1,
+    `extreme A1-preview blijft bruikbaar met alleen de zichtbare pagina (got ${limits.pageSupersample})`);
 }
 {
   const absurdlyLong = mkTask('very-long', 'Veilige lange tijdas', {

@@ -20,7 +20,7 @@
   "showBaselineOverlay": "Temel çizgi katmanını göster",
   "autoFit": "Kağıda otomatik sığdır",
   "zoom": "Yakınlaştırma:",
-  "previewZoom": { "label": "Önizleme boyutu", "fit": "Sığdır", "readable": "Okunabilir (125%)", "detail": "Ayrıntı (200%)" },
+  "previewQuality": { "label": "Önizleme kalitesi", "standard": "Standart (100%)", "high": "Yüksek (200%)", "maximum": "Maksimum (300%)" },
   "repeatHeader": "Üstbilgiyi her sayfada yinele",
   "reportFontScaleLabel": "Yazı boyutu:",
   "timelineColumnsLabel": "Zaman çizelgesi:",

@@ -20,7 +20,7 @@
   "showBaselineOverlay": "Show baseline overlay",
   "autoFit": "Auto-fit to paper",
   "zoom": "Zoom:",
-  "previewZoom": { "label": "Preview size", "fit": "Fit", "readable": "Readable (125%)", "detail": "Detail (200%)" },
+  "previewQuality": { "label": "Preview quality", "standard": "Standard (100%)", "high": "High (200%)", "maximum": "Maximum (300%)" },
   "repeatHeader": "Repeat header on each page",
   "reportFontScaleLabel": "Font size:",
   "timelineColumnsLabel": "Timeline over:",

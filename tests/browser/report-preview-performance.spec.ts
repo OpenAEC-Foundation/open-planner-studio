@@ -15,15 +15,16 @@ test('rapportpreview bundelt snelle kopwijzigingen en rastert niet blind alle pa
       return original.apply(this, args);
     };
     Object.defineProperty(window, '__opsPreviewDataUrls', { configurable: true, get: () => calls });
+    localStorage.setItem('ops-reportSettings', JSON.stringify({ previewZoom: '200' }));
   });
 
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const preview = page.locator('[data-tour-anchor="report-panel"] img').first();
   await expect(preview).toHaveAttribute('src', /^data:image\/png/, { timeout: 20_000 });
-  const previewZoom = page.getByLabel(/^(Preview size|Previewgrootte)$/);
-  await expect(previewZoom).toHaveText(/Readable \(125%\)|Leesbaar \(125%\)/);
+  const previewQuality = page.getByLabel(/^(Preview quality|Previewkwaliteit)$/);
+  await expect(previewQuality).toHaveText(/High \(200%\)|Hoog \(200%\)/);
   const previewPage = page.locator('[data-preview-page]').first();
-  await expect(previewPage).toHaveCSS('width', '1125px');
+  await expect(previewPage).toHaveCSS('width', '900px');
   const density = await preview.evaluate(image => {
     if (!(image instanceof HTMLImageElement)) throw new Error('preview is geen afbeelding');
     return { naturalWidth: image.naturalWidth, cssWidth: image.getBoundingClientRect().width };
@@ -45,18 +46,46 @@ test('rapportpreview bundelt snelle kopwijzigingen en rastert niet blind alle pa
   ));
   expect(afterCalls - initialCalls).toBeLessThanOrEqual(3);
 
-  // Deze keuze is puur voor lezen op het scherm: Passend behoudt de oude 900px-grens, Detail
-  // wordt breder dan de kolom en activeert dus diens bestaande horizontale scrollbar.
-  await previewZoom.click();
-  await page.getByRole('option', { name: /^(Fit|Passend)$/ }).click();
-  await expect(previewPage).toHaveCSS('width', '900px');
-  await previewZoom.click();
-  await page.getByRole('option', { name: /^(Detail \(200%\)|Detail \(200%\))$/ }).click();
-  await expect(previewPage).toHaveCSS('width', '1800px');
-  const overflow = await page.locator('[data-report-preview-viewport]').evaluate(node => ({
-    scrollWidth: node.scrollWidth,
-    clientWidth: node.clientWidth,
-  }));
-  expect(overflow.scrollWidth).toBeGreaterThan(overflow.clientWidth);
-  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').previewZoom)).toBe('200');
+});
+
+test('previewkwaliteit verhoogt rasterdichtheid zonder de papierschaal te wijzigen', async ({ page, ops: _ops }) => {
+  await seedProject(page, [
+    { name: 'Scherpe detailtaak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Tweede detailtaak', start: '2026-09-21', finish: '2026-10-02', durationDays: 10 },
+  ], 'Kwaliteit preview');
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  const preview = page.locator('[data-tour-anchor="report-panel"] img').first();
+  await expect(preview).toHaveAttribute('src', /^data:image\/png/, { timeout: 20_000 });
+  const quality = page.getByLabel(/^(Preview quality|Previewkwaliteit)$/);
+  const paper = page.locator('[data-preview-page]').first();
+  await expect(quality).toHaveText(/High \(200%\)|Hoog \(200%\)/);
+  await expect(paper).toHaveCSS('width', '900px');
+  const high = await preview.evaluate(image => image instanceof HTMLImageElement ? image.naturalWidth : 0);
+  expect(high).toBeGreaterThanOrEqual(900);
+  const highSrc = await preview.getAttribute('src');
+
+  await quality.click();
+  await page.getByRole('option', { name: /^(Standard \(100%\)|Standaard \(100%\))$/ }).click();
+  await expect(paper).toHaveCSS('width', '900px');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').previewQuality)).toBe('100');
+  await expect(quality).toHaveText(/Standard \(100%\)|Standaard \(100%\)/);
+  await expect.poll(() => preview.getAttribute('src')).not.toBe(highSrc);
+  const standardSrc = await preview.getAttribute('src');
+  const standard = await preview.evaluate(image => image instanceof HTMLImageElement ? image.naturalWidth : 0);
+  // De browser kan met een hogere DPR draaien. De pure contracttest bewijst de
+  // exacte 1×/2×/3× berekening; hier toetsen we de zichtbare, niet-dalende
+  // rasterdichtheid en dat een kwaliteitswissel echt een nieuw beeld oplevert.
+  expect(standard).toBeLessThanOrEqual(high);
+  const standardImageSrc = standardSrc;
+
+  await quality.click();
+  await page.getByRole('option', { name: /^(Maximum \(300%\)|Maximaal \(300%\))$/ }).click();
+  await expect(paper).toHaveCSS('width', '900px');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').previewQuality)).toBe('300');
+  await expect.poll(() => preview.getAttribute('src')).not.toBe(standardImageSrc);
+  const maximum = await preview.evaluate(image => image instanceof HTMLImageElement ? image.naturalWidth : 0);
+  expect(maximum).toBeGreaterThanOrEqual(high);
+  const overflow = await page.locator('[data-report-preview-viewport]').evaluate(node => node.scrollWidth - node.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').previewQuality)).toBe('300');
 });

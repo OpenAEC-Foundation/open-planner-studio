@@ -117,7 +117,7 @@ function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTable
 const SETTINGS_PANEL_DEFAULT_WIDTH = 256;
 const SETTINGS_PANEL_MIN_WIDTH = 200;
 const PREVIEW_FIT_WIDTH_PX = 900;
-const PREVIEW_ZOOM_WIDTH: Record<'125' | '200', number> = { '125': 1125, '200': 1800 };
+const PREVIEW_QUALITY_FACTORS: Record<'100' | '200' | '300', 1 | 2 | 3> = { '100': 1, '200': 2, '300': 3 };
 
 /** Eén papiervel in de preview: PNG-dataURL + echte puntmaat (voor de beeldverhouding). */
 interface PreviewPage {
@@ -231,9 +231,9 @@ export function ReportPanel() {
   const [statusLine, setStatusLine] = useState(DEFAULT_REPORT_SETTINGS.statusLine);
   // #54 — volg weergave: export tekent exact de viewRows van het scherm (WYSIWYG).
   const [followView, setFollowView] = useState(DEFAULT_REPORT_SETTINGS.followView);
-  // Alleen de zichtbare papiergrootte. Deze waarde gaat bewust NIET in PrintOptions: PDF en
-  // paginering mogen nooit veranderen door hoe groot iemand de preview op zijn scherm leest.
-  const [previewZoom, setPreviewZoom] = useState(DEFAULT_REPORT_SETTINGS.previewZoom);
+  // Alleen de rasterkwaliteit. Deze waarde gaat bewust NIET in PrintOptions: PDF en paginering
+  // mogen nooit veranderen door hoe scherp iemand de preview op zijn scherm leest.
+  const [previewQuality, setPreviewQuality] = useState(DEFAULT_REPORT_SETTINGS.previewQuality);
 
   // Instellingenkolom horizontaal sleepbaar (issue #38 punt 3) — vaste `w-64` bood geen enkel
   // handvat en de rechterkolom (live preview) kreeg dus nooit ruimte terug. Zelfde generieke
@@ -269,6 +269,11 @@ export function ReportPanel() {
   // Een ref (geen state) volstaat: de vlag hoeft geen re-render te veroorzaken, en het save-effect
   // wordt toch al opnieuw uitgevoerd door de state-updates van de hydratatie zelf.
   const hydratedRef = useRef(false);
+  // De preview is veel duurder dan het kleine settings-object. Wacht daarom met de
+  // eerste rastertaak tot alle opgeslagen opties in één React-batch zijn toegepast.
+  // Anders kan een opgeslagen instelling een korte reeks tussenstaten produceren
+  // die elk al pagina 0 (en soms 1) renderen voordat de laatste toestand wint.
+  const [reportSettingsHydrated, setReportSettingsHydrated] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -297,8 +302,9 @@ export function ReportPanel() {
       setReportFontScale(s.reportFontScale);
       setStatusLine(s.statusLine);
       setFollowView(s.followView);
-      setPreviewZoom(s.previewZoom);
+      setPreviewQuality(s.previewQuality);
       hydratedRef.current = true;
+      setReportSettingsHydrated(true);
     }, () => {
       // Lezen kan falen (localStorage geblokkeerd of gepartitioneerd, quota-gedoe). Zonder deze
       // handler blijft `hydratedRef` dan voor ALTIJD false en slaat het save-effect de rest van de
@@ -313,6 +319,7 @@ export function ReportPanel() {
       // voorkeuren. Precies het dataverlies dat deze guard moet voorkomen.
       if (cancelled) return;
       hydratedRef.current = true;
+      setReportSettingsHydrated(true);
     });
     return () => { cancelled = true; };
   }, []);
@@ -329,11 +336,11 @@ export function ReportPanel() {
     void saveReportSettings({
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
       showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation,
-      repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewZoom,
+      repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
-      reportFontScale, statusLine, followView, previewZoom]);
+      reportFontScale, statusLine, followView, previewQuality]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -344,10 +351,10 @@ export function ReportPanel() {
   const previewViewportRef = useRef<HTMLDivElement>(null);
   const previewJobRef = useRef<PreviewJob | null>(null);
   const previewGenerationRef = useRef(0);
+  const previewUserScrolledRef = useRef(false);
+  const previewInitialPageLimitRef = useRef(0);
   const [previewWidth, setPreviewWidth] = useState(0);
-  const previewCssWidth = previewZoom === 'fit'
-    ? Math.min(PREVIEW_FIT_WIDTH_PX, Math.max(1, previewWidth || PREVIEW_FIT_WIDTH_PX))
-    : PREVIEW_ZOOM_WIDTH[previewZoom];
+  const previewCssWidth = Math.min(PREVIEW_FIT_WIDTH_PX, Math.max(1, previewWidth || PREVIEW_FIT_WIDTH_PX));
 
   useEffect(() => {
     const node = previewViewportRef.current;
@@ -439,12 +446,19 @@ export function ReportPanel() {
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, followView, viewRows]);
+  // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
+  // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
+  // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
+  const previewOptionsSignature = useMemo(() => JSON.stringify(options), [options]);
 
   // Bouw eerst uitsluitend de zichtbare eerste pagina. Volgende pagina's komen pas uit dezelfde
   // broncanvas wanneer hun placeholder bijna in beeld komt. Daardoor blijft de PDF-pagineerlogica
   // identiek, maar blokkeert een groot rapport de Report-tab niet met tientallen canvassen.
   useEffect(() => {
+    if (!reportSettingsHydrated) return;
     const generation = ++previewGenerationRef.current;
+    previewUserScrolledRef.current = false;
+    previewInitialPageLimitRef.current = 0;
     let timer: number | undefined;
     let source: HTMLCanvasElement | undefined;
     const release = () => {
@@ -472,6 +486,7 @@ export function ReportPanel() {
       const cssPageWidth = previewCssWidth;
       const previewLimits = computePreviewRasterLimits(
         logicalWidth, logicalHeight, lowerPaper, options.orientation, cssPageWidth, window.devicePixelRatio,
+        PREVIEW_QUALITY_FACTORS[previewQuality],
       );
       source = document.createElement('canvas');
       renderPrintCanvas(source, tasks, sequences, calendar, projectName, options, previewLimits.renderScale);
@@ -517,9 +532,13 @@ export function ReportPanel() {
       };
       previewJobRef.current = { renderPage, release };
       setPreviewTotalPages(total);
+      // Laat nooit pagina 0 en 1 om beurten uit een cache van één pagina drukken. Een grote
+      // bron kan binnen het gezamenlijke budget slechts één zichtbare pagina toelaten; dan is
+      // pagina 1 pas werk voor een echte scrollactie.
+      previewInitialPageLimitRef.current = previewQuality !== '300' && previewLimits.maxPages > 1 ? 1 : 0;
       renderPage(0);
       // Tweede pagina krijgt spoedig voorrang zonder een hele serie pagina's synchroon te maken.
-      if (total > 1) timer = window.setTimeout(() => renderPage(1), 0);
+      if (total > 1 && previewInitialPageLimitRef.current === 1) timer = window.setTimeout(() => renderPage(1), 0);
     };
     // Wacht op het gevendorde Inter-font (family 'InterPDF') vóór de eerste render, zodat
     // measureText/afkapping deterministisch is (§5.2). ensureInterLoaded is idempotent; de
@@ -530,23 +549,74 @@ export function ReportPanel() {
       if (!cancelled) timer = window.setTimeout(renderPreview, 100);
     });
     return () => { cancelled = true; release(); };
-  }, [reportType, tasks, sequences, calendar, projectName, options, repeatHeader, previewCssWidth]);
+  }, [reportSettingsHydrated, reportType, tasks, sequences, calendar, projectName, previewOptionsSignature, repeatHeader, previewCssWidth, previewQuality]);
 
   // Observeer placeholders. De brede rootMargin levert de volgende pagina op vóór de gebruiker er
   // tegenaan scrolt, terwijl uit-beeld-pagina's nooit blind worden gerasterd.
   useEffect(() => {
     const root = previewViewportRef.current;
     if (!root || reportType !== 'gantt' || previewTotalPages === 0) return;
+    // Alleen een echte bedieningsbeweging in de preview mag meer dan de eerste pagina's
+    // vrijgeven. Een kale scroll-event is niet genoeg: scroll-anchoring tijdens het toevoegen
+    // van placeholders kan die ook zonder gebruikersactie veroorzaken.
+    let pointerStart: { x: number; y: number } | undefined;
+    let lastScrollTop = root.scrollTop;
+    let intentUntil = 0;
+    const markUserIntent = () => { intentUntil = performance.now() + 500; };
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaX !== 0 || event.deltaY !== 0) markUserIntent();
+    };
+    const onTouchMove = () => markUserIntent();
+    const onPointerDown = (event: PointerEvent) => { pointerStart = { x: event.clientX, y: event.clientY }; };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!pointerStart) return;
+      if (Math.abs(event.clientX - pointerStart.x) > 3 || Math.abs(event.clientY - pointerStart.y) > 3) markUserIntent();
+    };
+    const onPointerUp = () => { pointerStart = undefined; };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (root.contains(document.activeElement) && ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) markUserIntent();
+    };
+    const onScroll = () => {
+      const moved = root.scrollTop !== lastScrollTop;
+      lastScrollTop = root.scrollTop;
+      // Scroll-anchoring zonder recente bediening mag nooit een hele rapportreeks ontgrendelen.
+      if (moved && performance.now() <= intentUntil) {
+        previewUserScrolledRef.current = true;
+      }
+    };
+    root.addEventListener('wheel', onWheel, { passive: true });
+    root.addEventListener('touchmove', onTouchMove, { passive: true });
+    root.addEventListener('pointerdown', onPointerDown, { passive: true });
+    root.addEventListener('pointermove', onPointerMove, { passive: true });
+    root.addEventListener('pointerup', onPointerUp, { passive: true });
+    root.addEventListener('pointercancel', onPointerUp, { passive: true });
+    root.addEventListener('keydown', onKeyDown);
+    root.addEventListener('scroll', onScroll, { passive: true });
     const observer = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;
         const index = Number((entry.target as HTMLElement).dataset.previewPage);
+        // Een eerste IntersectionObserver-callback kan in sommige flexlayouts méér placeholders
+        // als "nabij" rapporteren dan visueel verwacht. Voor de eerste paint houden we daarom
+        // hard pagina 0 + 1 aan (of alleen 0 op Maximaal); verder werk begint pas na echt scrollen.
+        const initialLimit = previewInitialPageLimitRef.current;
+        if (!previewUserScrolledRef.current && index > initialLimit) continue;
         if (Number.isInteger(index)) previewJobRef.current?.renderPage(index);
       }
-    }, { root, rootMargin: '900px 0px' });
+    }, { root, rootMargin: previewQuality === '300' ? '0px' : '900px 0px' });
     root.querySelectorAll<HTMLElement>('[data-preview-page]').forEach(node => observer.observe(node));
-    return () => observer.disconnect();
-  }, [reportType, previewTotalPages, previewPages]);
+    return () => {
+      root.removeEventListener('wheel', onWheel);
+      root.removeEventListener('touchmove', onTouchMove);
+      root.removeEventListener('pointerdown', onPointerDown);
+      root.removeEventListener('pointermove', onPointerMove);
+      root.removeEventListener('pointerup', onPointerUp);
+      root.removeEventListener('pointercancel', onPointerUp);
+      root.removeEventListener('keydown', onKeyDown);
+      root.removeEventListener('scroll', onScroll);
+      observer.disconnect();
+    };
+  }, [reportType, previewTotalPages, previewPages, previewQuality]);
 
   const milestoneRows = useMilestoneRows();
   const varianceResult = useVarianceResult();
@@ -1097,17 +1167,17 @@ export function ReportPanel() {
         {reportType === 'gantt' ? (
           <div className="flex flex-col items-center gap-4">
             <div className="self-start flex items-center gap-2 text-xs" data-preview-zoom-control>
-              <label htmlFor="report-preview-zoom" className="text-text-secondary">{t('previewZoom.label')}</label>
+              <label htmlFor="report-preview-quality" className="text-text-secondary">{t('previewQuality.label')}</label>
               <Select
-                id="report-preview-zoom"
+                id="report-preview-quality"
                 className="min-w-40"
-                aria-label={t('previewZoom.label')}
-                value={previewZoom}
-                onChange={value => setPreviewZoom(value as 'fit' | '125' | '200')}
+                aria-label={t('previewQuality.label')}
+                value={previewQuality}
+                onChange={value => setPreviewQuality(value as '100' | '200' | '300')}
                 options={[
-                  { value: 'fit', label: t('previewZoom.fit') },
-                  { value: '125', label: t('previewZoom.readable') },
-                  { value: '200', label: t('previewZoom.detail') },
+                  { value: '100', label: t('previewQuality.standard') },
+                  { value: '200', label: t('previewQuality.high') },
+                  { value: '300', label: t('previewQuality.maximum') },
                 ]}
               />
             </div>
@@ -1119,7 +1189,7 @@ export function ReportPanel() {
                 data-preview-page={i}
                 className="bg-white"
                 style={{
-                  width: previewZoom === 'fit' ? `min(100%, ${PREVIEW_FIT_WIDTH_PX}px)` : `${previewCssWidth}px`,
+                  width: `min(100%, ${PREVIEW_FIT_WIDTH_PX}px)`,
                   aspectRatio: `${page?.wPt ?? 1} / ${page?.hPt ?? 1.414}`,
                   borderRadius: 'var(--radius-md)',
                   boxShadow: 'var(--shadow-card)',

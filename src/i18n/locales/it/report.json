@@ -20,7 +20,7 @@
   "showBaselineOverlay": "Mostra sovrapposizione baseline",
   "autoFit": "Adatta automaticamente alla pagina",
   "zoom": "Zoom:",
-  "previewZoom": { "label": "Dimensione anteprima", "fit": "Adatta", "readable": "Leggibile (125%)", "detail": "Dettaglio (200%)" },
+  "previewQuality": { "label": "Qualità anteprima", "standard": "Standard (100%)", "high": "Alta (200%)", "maximum": "Massima (300%)" },
   "repeatHeader": "Ripeti intestazione su ogni pagina",
   "reportFontScaleLabel": "Dimensione carattere:",
   "timelineColumnsLabel": "Cronologia su:",

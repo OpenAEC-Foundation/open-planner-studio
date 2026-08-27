@@ -20,7 +20,7 @@
   "showBaselineOverlay": "显示基线叠加层",
   "autoFit": "自动适配纸张",
   "zoom": "缩放：",
-  "previewZoom": { "label": "预览大小", "fit": "适合", "readable": "易读（125%）", "detail": "细节（200%）" },
+  "previewQuality": { "label": "预览质量", "standard": "标准（100%）", "high": "高（200%）", "maximum": "最高（300%）" },
   "repeatHeader": "在每页重复页眉",
   "reportFontScaleLabel": "字号：",
   "timelineColumnsLabel": "时间轴跨：",
