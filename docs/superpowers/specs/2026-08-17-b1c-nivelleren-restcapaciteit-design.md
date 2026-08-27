@@ -52,30 +52,61 @@ achterhaald maakten, alle drie in de code geverifieerd:
    **geblokkeerd met uitleg** — geen stille uitsluiting.
 2. **Matching via `libraryOrigin`-stempels** (companyId + libraryItemId), nooit via naam.
 3. **Alleen geopende documenten op deze machine** — zelfde beperking en hint als B1b.
-4. **Prestatiebudget met cijfers** (gemeten door de reviewer, Node, synthetisch project):
-   één nivelleerrun kost ~450 ms bij 40 boekende taken op het poolitem (n=200 taken totaal
-   ≈ 1,4 s; kwadratische kern `computePF`). Ontwerpconsequenties, bindend voor de UI (§7):
-   - doorrekenen gebeurt alleen op **discrete momenten**: paneel openen, "Verdeel
-     automatisch", loslaten van een handle of een toetsenbord-stap, pin- of
-     rangordewijziging — nooit per sleep-pixel;
-   - tijdens een doorrekening toont het paneel een bezig-toestand; budgetdoel ≤ ~2 s bij
-     vier documenten van realistische omvang, anders degradeert de flow zichtbaar (melding)
-     in plaats van stil te bevriezen;
-   - de kostenlabels in de rangordelijst ("alleen dit project laten opschuiven kost +N")
-     worden één keer per paneelopening berekend en gecachet tot invalidatie (§6a).
+3a. **"Datums zoals opgeslagen" (issue #63) = impliciet gepind.** Een document in die modus
+   meldt `counted: true` met datums die de motor niet berekend heeft, en `applyLeveling`
+   zou de modus stil verlaten en de opgeslagen datums overschrijven. Daarom: zo'n document
+   kan niet wijken (het staat als vaste last in het profiel, met een eigen label in de
+   fasestrook — "vastgezet: datums zoals opgeslagen") en B1c raakt zijn data nooit aan.
+   Wil de planner het laten meedoen, dan verlaat hij eerst bewust die modus in het document
+   zelf.
+4. **Prestatiebudget, meetbaar** (twee onafhankelijke metingen, Node, synthetische
+   projecten; kwadratische kern `computePF`): één nivelleerrun ≈ 117 ms bij 200 taken /
+   40 boekend, ≈ 405 ms bij 1000 taken / 40 boekend, ≈ 2,4 s bij 5000 taken, ≈ 2,9 s bij
+   1000 taken / 200 boekend. Bindende regels voor de UI (§7):
+   - **Ondersteunde schaal**: tot ~1000 taken per document en ~40 boekende taken per
+     poolitem is één verdeel-pass (één run per deelnemend document) ≤ ~0,5 s per document —
+     vier documenten ≈ ≤ 2 s, met bezig-toestand. Daarboven schakelt het paneel om:
+     doorrekenen gebeurt dan uitsluitend op de knoppen "Verdeel automatisch"/"Herbereken"
+     (handle-loslating rekent niet meer automatisch; het effectlabel toont "— druk op
+     Herbereken"). Dat ís de gedefinieerde degradatie; niets bevriest stil.
+   - Doorrekenen gebeurt alleen op **discrete momenten**: paneel openen, "Verdeel
+     automatisch"/"Herbereken", loslaten van een handle of een toetsenbord-stap, pin-,
+     rangorde- of gereedschapswijziging — nooit per sleep-pixel.
+   - **"Gevraagd X, dichtst haalbare Y" kost géén zoektocht**: het is één pass met het
+     gevraagde plafond; de dichtst haalbare stand is de benutting die uit diezelfde pass
+     rolt (benut ≤ plafond). Geen iteratie over kandidaat-plafonds.
+   - De kostenlabels in de rangordelijst ("alleen dit project laten opschuiven kost +N")
+     zijn elk óók een volledige run: ze worden alleen onder de ondersteunde schaal bij
+     paneelopening berekend en gecachet tot invalidatie (§6a); daarboven on-demand per knop.
 
 ## 4. Rekenkern
 
 ### W0 — voorwaardelijk werkpakket: split-bewuste lastspreiding
 
-Vóór de verdeler bestaat, moeten de drie lastlezers dezelfde dagen tellen als de motor:
-`computeResourceLoad`/`distributeUnits` (belasting alleen op échte werkdagen van een taak,
-gaten overslaan — bron: `splitGaps` + de kalenderwandeling die de renderer al doet), de
-bezettingskern (erft dit via `computeResourceLoad`) en de nivelleerder-boekhouding
-(`bookDemandAt`). W0 repareert daarmee ook de bestaande miscount van .mpp-splits in het
-B1b-overzicht en is als oplevering zelfstandig waardevol. Testplicht: een case met
-taakkalender ≠ projectkalender door beide paden (motor-boeking en `computeResourceLoad`)
-gehaald — de review vermoedt (hoog) dat die vandaag al uiteenlopen.
+Vóór de verdeler bestaat, moeten motor, lastlezers én renderer dezelfde dagen zien. Vier
+items, elk ook zonder B1c een reparatie van bestaand gedrag:
+
+1. **Split-bewuste lastverdeling.** `computeResourceLoad`/`distributeUnits` leggen belasting
+   alleen op échte werkdagen (gaten uit `splitGaps` overslaan); de bezettingskern erft dat.
+   **Curve-besluit** (dit verandert bestaande B1b-cijfers voor split-taken, en dat is de
+   reparatie): de werkcurve (BELL/EARLY_PEAK/…) wordt over de *werkdagen* gelegd — werkdag
+   *k* draagt gewicht *k* van de curve; gaten rekken de spanne, niet de verdeling.
+2. **Split-bewuste motor-boekhouding.** `bookDemandAt` boekt nu de eerste
+   `scheduleDuration` werkdagen vanaf de start — voor een gesplitste taak zijn dat de
+   verkeerde dagen. Boeking volgt dezelfde gat-bewuste wandeling als (1). Testplicht: een
+   case met taakkalender ≠ projectkalender door beide paden (motor-boeking én
+   `computeResourceLoad`) — de review vermoedt (hoog) dat die vandaag al uiteenlopen.
+3. **`levelingDelay` in één kalender-eenheid.** De leveler meet de delay op de
+   projectkalender (`workDaysBetween` op `projEngine`) maar de CPM past hem toe op de
+   táákkalender (`shiftByLevelingDelay` via `engineFor(task)`) — een taak met eigen
+   `calendarId` landt dus ergens anders dan de preview beloofde. Meten en toepassen worden
+   beide de taakkalender.
+4. **Renderer op de H1-as.** `splitBarGeometry.ts` loopt nog op de pre-H1-asinterpretatie
+   (`prevAfter = gap.afterMinutes` i.p.v. `afterMinutes + gapMinutes` cumulatief) en tekent
+   een taak met ≥2 gaten aantoonbaar fout (door de review gereproduceerd: tweede segment te
+   lang, derde segment achterstevoren ná het taakeinde). Repareren, en de suite laat
+   x-posities toetsen in plaats van alleen rechthoeken te tellen
+   (`check-split-bar-render.ts`).
 
 ### Het plaatsingsprotocol (de verdeler)
 
@@ -85,26 +116,52 @@ iedereen op zijn huidige plek → nergens rest). Het protocol is **sequentieel, 
 1. Bepaal de **vaste last**: per dag de som van (a) gepinde documenten en (b) documenten
    buiten de verdeling (niet in het conflict betrokken maar wel boekend op het poolitem).
    Uncounted documenten blokkeren de hele actie (§3.1) en komen hier dus nooit in voor.
-2. Plaats documenten **één voor één in rangorde** (nr. 1 eerst). Document *i* krijgt als
-   capaciteitsprofiel per dag:
-   `min( maxUnitsOn(projectresource, dag), maxUnitsOn(poolitem, dag) − vasteLast(dag) − Σ load van reeds geplaatste documenten(dag) )`
-   — de `min` met de eigen projectinzet voorkomt dat B1c een bibliotheekconflict oplost door
-   een projectconflict te maken (`computeResourceLoad` toetst een document tegen zijn éigen
-   resourcecapaciteit).
-3. Nr. 1 pakt zo als eerste zijn plek (hij "wijkt pas als het niet anders kan" — d.w.z. hij
-   nivelleert tegen alleen de vaste last); elk volgend document ziet de werkelijke boekingen
-   van iedereen vóór hem. Sequentieel-met-herberekende-rest garandeert een globaal haalbare
-   uitkomst: elk document is haalbaar t.o.v. alles wat al staat, dus de som blijft ≤
-   capaciteit. Eén pass, geen iteratie; de rangorde ís de fairness-knop.
-4. **Gedeeld grootboek per poolitem, niet per resourceId**: twee projectresources met
-   dezelfde `libraryOrigin`-stempel in één document sommeren in de bezettingskern
-   (`occupancy.ts`), dus de boeking en het profiel moeten op poolitem-niveau bijgehouden
-   worden — anders telt zo'n document de rest dubbel.
+2. Plaats documenten **één voor één in rangorde** (nr. 1 eerst). Er zijn **twee
+   grootboeken**, want de motor toetst per `resourceId` en de bibliotheekvraag leeft per
+   poolitem: (a) de bestaande per-resource-toets tegen de **eigen projectinzet**
+   (`maxUnitsOn(projectresource, dag)` — voorkomt dat B1c een bibliotheekconflict oplost
+   door een projectconflict te maken), én (b) een **gedeeld poolitem-grootboek** met
+   `maxUnitsOn(poolitem, dag) − vasteLast(dag) − Σ boekingen van reeds geplaatste
+   documenten(dag)`, geklemd op minimaal 0. Een dag past alleen als béíde toetsen slagen.
+   Twee gestempelde resources op hetzelfde poolitem in één document trekken zo van
+   hetzelfde poolitem-grootboek — geen dubbeltelling.
+3. Nr. 1 pakt als eerste zijn plek (hij nivelleert alleen tegen de vaste last); elk volgend
+   document ziet de werkelijke boekingen van zijn voorgangers. **Het
+   niet-plaatsbaar-geval is gedefinieerd, niet weggeboekt**: de huidige motor boekt bij
+   "geen slot" de vraag tóch in het grootboek (onvoorwaardelijke `bookDemandAt`), waardoor
+   het restprofiel negatief zou worden en elk volgend document mee zou cascaderen. In de
+   verdeler geldt daarom: kan een taak binnen plafond en profiel niet geplaatst worden, dan
+   wordt zijn vraag **niet** in het poolitem-grootboek geboekt maar als **tekort per
+   document** geregistreerd (eigen reden-code, zichtbaar in het voorstel); het restprofiel
+   blijft ≥ 0. De haalbaarheidsgarantie geldt zo voor wat wél geplaatst is: de som van
+   geplaatste boekingen blijft ≤ capaciteit. Een voorstel met tekorten is een geldige
+   preview maar blokkeert Toepassen (uitgeschakeld-met-reden, §4-concept stap 3). Eén pass,
+   geen iteratie; de rangorde ís de fairness-knop.
 
 Binnen één document plaatst de bestaande motor (`levelResources`): uitloop-modus =
-`levelingDelay` per taak (bestaand), onderbreek-modus = **gap-invoeging**, een
-solver-uitbreiding die pauzedagen kiest en als `splitGaps`-offsets op de taak schrijft
-(model, round-trip en rendering bestaan al — §2.1; alleen de plaatsingslogica is nieuw).
+`levelingDelay` per taak (bestaand), onderbreek-modus = **gap-invoeging**: de verdeler
+kiest pauzedagen en schrijft ze als `splitGaps` op de taak. Model, IFC-round-trip en
+(na W0.4) rendering bestaan — maar dit is méér dan plaatsingslogica; vier afspraken horen
+erbij, alle vier ontwerp:
+
+- **Herkomst.** `TaskSplitGap` krijgt een optioneel herkomstveld (`source?: 'leveling'`;
+  afwezig = importdata, byte-identiek voor bestaande bestanden), mee door de
+  `OPS_TaskSplits`-round-trip. `applyLeveling` (idempotent herschrijven), "nivellering
+  wissen" en "alles terugdraaien" raken uitsluitend leveling-gaps; importsplits zijn
+  brondata en blijven staan.
+- **Invalidatie.** Een bewerking die de tijdbasis van de taak raakt (duur, kalender,
+  handmatige datums, voortgang) wist de leveling-gaps van díé taak — een gat op een
+  verouderde as is geen planning maar ruis. Importsplits volgen dit niet (bestaand gedrag).
+- **As- en eenheidconversie.** `afterMinutes` ligt op MSP's cumulatieve elapsedWork-as (elk
+  gat telt zichzelf mee voor de positie van het volgende — de H1-definitie in
+  `duration.ts`) en wordt door de CPM afgelopen als **werk**minuten op de **taak**kalender.
+  De verdeler kiest pauzedagen dus op de taakkalender en schrijft ze via één gedeelde
+  conversieroutine naast `splitTotalSpanMinutes`; testplicht bij taakkalender ≠
+  projectkalender en niet-gehele `hoursPerDay`.
+- **In-progress.** MSP's eigen formulering is *"splits in **remaining** work"*. In v1
+  voegt de verdeler alleen gaps toe aan **niet-gestarte taken** (`completion === 0`);
+  gestarte taken wijken uitsluitend via uitloop. De restwerktak van de CPM
+  (vijfde aangrijpingspunt) blijft daarmee buiten schot.
 
 ### De naad in de nivelleerder — breder dan `capacityOf`
 
@@ -114,6 +171,14 @@ een restprofiel de verkeerde diagnose stellen; die worden in dezelfde beweging h
 - `calendarOk` leest `capacityOf(...) <= 0` nu als "kalender-onhaalbaar"; met een restprofiel
   is 0 de normale waarde van een volle dag. Kalender-haalbaarheid en capaciteit worden
   gescheiden getoetst.
+- De **conflictverzamelaar** mist de nul-guard die `fits` wél heeft: met een geklemd profiel
+  van 0 zou een dag met nul vraag als conflictdag gerapporteerd worden. Beide paden krijgen
+  dezelfde guard.
+- **`scanLimit`** (nu `totalWork + 10`) rust op het argument dat een volledig
+  geserialiseerde plaatsing binnen de som van de eigen taakduren past — dat geldt niet meer
+  zodra het grootboek externe vaste last bevat: het eerste vrije venster kan ver voorbij die
+  horizon liggen. De scan krijgt een horizon afgeleid van het restprofiel, en "geen venster
+  binnen de horizon" wordt een eigen, eerlijke reden in plaats van een verzonnen "geen slot".
 - `reasonFor`/`maxCapacityOf` vergelijken de piekvraag met de **projectresource**-capaciteit;
   met een restprofiel is dat betekenisloos. De reden-taxonomie (`LevelingReason`) krijgt
   nieuwe, eerlijke uitkomsten: *restcapaciteit vol* (anderen bezetten de pool), *plafond te
@@ -162,19 +227,29 @@ gedeelde afronding:
 - **Slapende documenten** gaan bij voorkeur via een **headless scratch-instantie**
   (`createAppStoreContext()`, §2.3): payload hydrateren, dezelfde acties draaien
   (undo-snapshot op de eigen stack, schrijven, doorrekenen), payload terug capturen. Zo
-  gelden `MAX_UNDO`, coalescing en het documentcontract vanzelf, in plaats van dat een
-  handgeschreven payload-spread ze nabootst. Het implementatieplan valideert dit mechanisme
-  als eerste (risico: verborgen singleton-randen zoals persistentie-subscripties); de
-  terugvaloptie is de payload-spread naar het patroon van `recalculateStaleSleepingDocuments`
-  — maar dan mét undo-snapshot vooraf in de payload-stack, iets wat dat patroon nu niet doet.
+  gelden `MAX_UNDO`, coalescing en het documentcontract vanzelf. **Twee bekende
+  singleton-randen worden expliciet dichtgezet** (door de review aangewezen; geen bestaande
+  poort dekt ze): (a) `runCPM` vuurt `emitExtensionEvent('schedule:calculated')` op een
+  app-globale luisteraar-map — extensies zouden cijfers krijgen van een document waar de
+  gebruiker niet naar kijkt; de emitter wordt context-bewust/injecteerbaar en staat in de
+  scratch-instantie uit. (b) `notify` schrijft in de `ui.notifications` van de eigen
+  context — in een scratch-instantie rendert niemand die; fouten uit de scratch-run
+  (cyclus, lege kalender) bubbelen daarom op als blokkerende reden in het voorstel, nooit
+  als onzichtbare melding. De terugvaloptie (payload-spread naar het patroon van
+  `recalculateStaleSleepingDocuments`, mét undo-snapshot vooraf in de payload-stack) is
+  kleiner maar eerlijk benoemd zwakker: hij omzeilt `beginUndoable` en moet
+  `MAX_UNDO`-trimming en coalescing zelf naborgen — precies wat het scratch-pad gratis
+  meekrijgt.
 
 Afspraken die in beide paden gelden:
 
-- **Scope-behoudend toepassen.** `applyLeveling` reset vandaag álle `levelingDelay`s en zet
-  dan alleen de nieuwe — een B1c-run (per definitie gescopet op één poolitem) zou daarmee
-  stilletjes eerdere nivellering buiten de scope wissen, en de interne baseline rekent ook
-  nog alsof die niet bestaat. B1c schrijft en resett uitsluitend taken binnen de scope, en de
-  baseline behoudt bestaande delays buiten de scope (zie ook het plafond-referentiepunt, §4).
+- **Scope-behoudend toepassen — op drie plekken.** `applyLeveling` reset vandaag álle
+  `levelingDelay`s, én de motor stript ze intern nóg een keer (`workTasks`), en de
+  plafond-baseline moet ze juist behouden. Selectief worden dus alle drie: de reset-lus in
+  `applyLeveling`, de interne strip in `levelResources`, en de baseline waarop het plafond
+  rekent — steeds "alleen taken binnen de scope". De moduleheader van de leveler voert de
+  volledige strip nu op als invariant; het implementatieplan valideert expliciet dat
+  `computePF` met behouden out-of-scope-delays overweg kan.
 - **De doorrekening wordt gepersisteerd.** Het voorstel is berekend op doorgerekende cijfers;
   toepassen zonder de nieuwe datums te schrijven zou payloads achterlaten waarop het
   toegepaste voorstel niet gebaseerd was. `cpmResult`/`scheduleStale` zitten als `'ref'` in
@@ -229,8 +304,10 @@ betrokken documenten. Het **vervalt met reden** — zichtbaar in het paneel, nie
 wijziging van rangorde, plafond, pin of gereedschapsstand (gewone hertriggering); elke
 mutatie in een betrokken document (actief: store-mutatie; slapend: payload-vervanging);
 sluiten of openen van een document dat op het poolitem boekt; en documentwissel. Het paneel
-bewaakt dit met een vingerafdruk per betrokken document (payload-referentie resp.
-undo-volgnummer van het actieve document). `resetDocumentScopedUI` leert dit paneel kennen.
+bewaakt dit met een vingerafdruk per betrokken document: payload-referentie voor slapers, en
+voor het actieve document een **monotone mutatieteller die de store-runtime exposeert**
+(nieuw, klein — het interne undo-volgnummer zit in een closure en `undoStack.length` is
+onbruikbaar door `MAX_UNDO`-trimming). `resetDocumentScopedUI` leert dit paneel kennen.
 
 ## 7. Plek in de UI
 
@@ -251,16 +328,22 @@ Project-equivalent erbij, en de pin/plafond-semantiek in gewone taal (einddatum 
 
 Headless, in de bestaande suites:
 
-- **W0**: split-bewuste lastverdeling (`computeResourceLoad` slaat gaten over; motor-boeking
-  en loadverdeling tellen dezelfde dagen, inclusief de taakkalender≠projectkalender-case);
-  bestaande .mpp-split-miscount als regressiecase.
+- **W0**: split-bewuste lastverdeling (`computeResourceLoad` slaat gaten over, curve over
+  werkdagen; motor-boeking en loadverdeling tellen dezelfde dagen, inclusief de
+  taakkalender≠projectkalender-case); bestaande .mpp-split-miscount als regressiecase;
+  `levelingDelay` gemeten én toegepast op de taakkalender; renderer-x-posities voor ≥2
+  gaten op de H1-as (de multi-gat-cases in `check-split-bar-render.ts` gebruiken nu
+  as-waardes die elkaar overlappen en het verschil maskeren — die worden vervangen).
 - **Verdeler**: float eerst; uitschieter minimaal; rangorde gerespecteerd (nr. 1 nivelleert
   alleen tegen vaste last); plafonds hard; plafond t.o.v. einddatum-mét-bestaande-delays;
   plafond onhaalbaar door deadline/backward-constraint ⇒ eigen reden; gepind document
   volledig ongemoeid én meegeteld als vaste last; priority-1000-document ⇒ "kan niet wijken";
   `min` met projectinzet; dubbele stempel in één document (gedeeld grootboek, niet dubbel);
-  som-≠-oplossing-geval; onderbreek-modus schrijft geldige `splitGaps` die door de bestaande
-  CPM/round-trip-checks heen komen.
+  som-≠-oplossing-geval; niet-plaatsbaar document ⇒ tekort geregistreerd, restprofiel
+  blijft ≥ 0, geen cascade naar latere documenten; document in "datums zoals opgeslagen"
+  ⇒ impliciet gepind; onderbreek-modus schrijft geldige `splitGaps` (mét herkomstveld,
+  door de `OPS_TaskSplits`-round-trip) die door de bestaande CPM-checks heen komen;
+  leveling-gaps gewist bij tijdbasis-bewerking terwijl importsplits blijven.
 - **Naad**: capaciteitsinjectie × reden-taxonomie (restprofiel-0 is geen kalender-mismatch);
   scope-behoudend toepassen laat delays buiten de scope staan.
 - **Store-niveau**: toepassen over actief + slapende documenten; "alles terugdraaien"
@@ -284,8 +367,12 @@ Headless, in de bestaande suites:
    2026-08-27.**
 3. ~~Float-benutting als last voor rang 1?~~ — **Nee; wie een project volledig wil bevriezen
    gebruikt de pin (§6), besloten 2026-08-27.**
-4. ~~Onderbrekingen pas in een tweede fase?~~ — **Vervallen: taak-splitsing bestaat al in
-   model/CPM/IFC/renderer; beide standen in v1 (besluit eigenaar 2026-08-27, §2.1).**
+4. **Onderbrekingen in v1 — besloten (eigenaar 2026-08-27), door de tweede review heropend
+   en beantwoord.** De review toonde aan dat gap-invoeging vier afspraken vergt die er
+   eerst niet stonden (herkomst, invalidatie, as-conversie, alleen niet-gestarte taken —
+   nu bindend in §4). Daarmee blijft de onderbreek-stand in v1, maar hij is duurder dan
+   "alleen plaatsingslogica"; wil de eigenaar bij nader inzien tóch klein beginnen, dan is
+   de schakelaar-naar-v2-variant het alternatief.
 5. **OPEN — Toepassen in handmatige modus.** B1b §4.3b liet de handmatige modus ongemoeid
    (alleen terugschrijven bij "Automatisch berekenen" aan). B1c's Toepassen schrijft én
    persisteert de doorrekening onvoorwaardelijk, omdat de gebruiker expliciet een
