@@ -571,6 +571,63 @@ for (const [label, expectedRule, mutate] of assignmentSkipCorruptions) {
     && rejection.message.includes(expectedRule));
 }
 
+const staleResourceSkipPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+{
+  const readModel = staleResourceSkipPayload.readModel as Record<string, unknown>;
+  const catalog = readModel.resourceCatalog as Record<string, unknown>;
+  const canonicalRows = (catalog.rows as Record<string, unknown>).assignments as Array<Record<string, unknown>>;
+  const canonicalRow = canonicalRows.find(row =>
+    (row.cells as Record<string, unknown>).taskrsrc_id === 'AS-A-UNLINKED-RESOURCE');
+  const diagnostics = staleResourceSkipPayload.diagnostics as Record<string, unknown>;
+  const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+  const resources = views['P-A']!.resources as Record<string, unknown>;
+  const assignment = (resources.assignments as Array<Record<string, unknown>>)
+    .find(item => item.sourceId === 'AS-A-UNLINKED-RESOURCE');
+  const issue = (resources.issues as Array<Record<string, unknown>>)
+    .find(item => item.sourceId === 'AS-A-UNLINKED-RESOURCE');
+  if (!canonicalRow || !assignment || issue?.code !== 'XER_ASSIGNMENT_RESOURCE_MISSING') {
+    throw new Error('A9-resourceaanvalsdoel ontbreekt of heeft niet de verwachte uitgangstoestand');
+  }
+  (canonicalRow.cells as Record<string, unknown>).rsrc_id = 'R-1';
+  const rawRow = assignment.rawRow as Record<string, unknown>;
+  (rawRow.cells as Record<string, unknown>).rsrc_id = 'R-1';
+  assignment.entity = { kind: 'RESOURCE', sourceId: 'R-1', internalId: 'xer-resource:R-1' };
+}
+let staleResourceSkipRejection: unknown;
+try { readIFC(ifcWithMetadataPayload(staleResourceSkipPayload)); }
+catch (error) { staleResourceSkipRejection = error; }
+truthy('7d A9 canonieke resource bestaat weer maar de oude RESOURCE_MISSING-diagnose blijft specifiek rood',
+  staleResourceSkipRejection instanceof IfcParseError
+  && staleResourceSkipRejection.reason === 'xer-source-archive'
+  && staleResourceSkipRejection.message.includes('TASKRSRC-skipdiagnostiek'));
+
+const missingResourceWithoutIssuePayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+{
+  const readModel = missingResourceWithoutIssuePayload.readModel as Record<string, unknown>;
+  const catalog = readModel.resourceCatalog as Record<string, unknown>;
+  const canonicalRows = (catalog.rows as Record<string, unknown>).assignments as Array<Record<string, unknown>>;
+  const canonicalRow = canonicalRows.find(row => (row.cells as Record<string, unknown>).taskrsrc_id === 'AS-A');
+  const diagnostics = missingResourceWithoutIssuePayload.diagnostics as Record<string, unknown>;
+  const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+  const resources = views['P-A']!.resources as Record<string, unknown>;
+  const assignment = (resources.assignments as Array<Record<string, unknown>>).find(item => item.sourceId === 'AS-A');
+  const issue = (resources.issues as Array<Record<string, unknown>>).find(item => item.sourceId === 'AS-A');
+  if (!canonicalRow || !assignment || issue) {
+    throw new Error('A10-resourceaanvalsdoel ontbreekt of heeft niet de verwachte uitgangstoestand');
+  }
+  (canonicalRow.cells as Record<string, unknown>).rsrc_id = 'R-GHOST';
+  const rawRow = assignment.rawRow as Record<string, unknown>;
+  (rawRow.cells as Record<string, unknown>).rsrc_id = 'R-GHOST';
+  assignment.entity = { kind: 'RESOURCE', sourceId: 'R-GHOST', internalId: 'xer-resource:R-GHOST' };
+}
+let missingResourceWithoutIssueRejection: unknown;
+try { readIFC(ifcWithMetadataPayload(missingResourceWithoutIssuePayload)); }
+catch (error) { missingResourceWithoutIssueRejection = error; }
+truthy('7d A10 canonieke resource ontbreekt nu maar zonder skipdiagnose wordt specifiek rood',
+  missingResourceWithoutIssueRejection instanceof IfcParseError
+  && missingResourceWithoutIssueRejection.reason === 'xer-source-archive'
+  && missingResourceWithoutIssueRejection.message.includes('TASKRSRC-skipdiagnostiek'));
+
 const remoteGhostPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 {
   const diagnostics = remoteGhostPayload.diagnostics as Record<string, unknown>;
