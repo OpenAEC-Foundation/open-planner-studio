@@ -41,6 +41,7 @@ bundle_check () {
   # lekte mee zodra we stderr doorlieten. Dit dempt de samenvatting maar laat fouten staan.
   if ! "$ROOT/node_modules/.bin/esbuild" "$src" --log-level=error \
       --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+      --external:react-dom/server \
       --define:import.meta.env.DEV=false \
       --define:import.meta.env.PROD=true \
       --define:import.meta.env.MODE='"production"' \
@@ -463,6 +464,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # opeten. Dat laatste is precies het soort regressie dat een "werkt de navigatie?"-test mist.
   GRIDCHECK="$DIR/.grid-nav.mjs"
   if bundle_check "$DIR/check-grid-nav.ts" "$GRIDCHECK"; then node "$GRIDCHECK" || STATUS=1; fi
+
+  # X11: documenttabstrip is ook bij 12+ open projecten volledig bereikbaar. De pure
+  # toetsenbord-/zichtbaarheidskern voorkomt dat tab 10–12 buiten Ctrl/Cmd-1..9 een dead-end
+  # worden; de browserproef controleert daarnaast de echte DOM en scrollcontainer.
+  DTNCHECK="$DIR/.document-tab-navigation.mjs"
+  if bundle_check "$DIR/check-document-tab-navigation.ts" "$DTNCHECK"; then node "$DTNCHECK" || STATUS=1; fi
 
   # Gantt-cull-regressie: de speling-band mag niet verdwijnen zolang hij zichtbaar is. De cull in
   # drawTaskBar keek alleen naar de BALK-extent, terwijl de band ná de balk doorloopt — een band die

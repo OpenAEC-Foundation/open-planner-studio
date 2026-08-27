@@ -35,6 +35,7 @@ import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
+import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
 
 // Code-splitting (pakket E2): componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
 // overlay renderen worden lazy geladen, zodat hun code niet in de eager first-load-bundel zit maar
@@ -100,6 +101,7 @@ function AppContent() {
   const uiFontFamily = useAppStore(s => s.ui.uiFontFamily);
   const uiFontScale = useAppStore(s => s.ui.uiFontScale);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
+  const activeDocumentId = useAppStore(s => s.activeDocumentId);
 
 
   // Recovery-restore bij opstarten (Tauri én web): detectie + RecoveryDialog-callbacks; levert ook
@@ -267,6 +269,11 @@ function AppContent() {
       <div
         className="flex flex-1 overflow-hidden ui-workspace"
         style={{ padding: 12, gap: 12 }}
+        {...(documentChromeStyle === 'tabs' ? {
+          id: DOCUMENT_TABPANEL_ID,
+          role: 'tabpanel' as const,
+          'aria-labelledby': documentTabId(activeDocumentId),
+        } : {})}
       >
         {isFullPanel ? (
           // Full panel views (Table, IFC, Report) — eigen kaart
