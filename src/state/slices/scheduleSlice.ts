@@ -124,6 +124,10 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       if (result.error) {
         s.cpmResult = result;
         s.resourceLoadResult = null;
+        // Een mislukte berekening laat de invoer niet actueel worden. Dit is ook belangrijk voor
+        // automatisch berekenen: de statusbalk mag de waarschuwing alleen tijdelijk onderdrukken
+        // terwijl een geplande solve nog kans heeft om te slagen.
+        s.scheduleStale = true;
         return;
       }
 
