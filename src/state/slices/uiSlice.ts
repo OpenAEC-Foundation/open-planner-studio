@@ -282,11 +282,20 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           existing.messageKey = n.messageKey;
           existing.params = n.params;
           existing.detail = n.detail;
+          // Optionele X10-uitbreidingen alleen aanraken wanneer de nieuwe melding ze werkelijk
+          // meebrengt. Zo blijven alle historische meldingen byte-identiek bij een dedupe-update.
+          if (n.detailLines !== undefined) existing.detailLines = [...n.detailLines];
+          if (n.helpArticleId !== undefined) existing.helpArticleId = n.helpArticleId;
           return;
         }
       }
       // 2. Nieuwe melding onderaan toevoegen.
-      s.ui.notifications.push({ ...n, id: `n${++notificationSeq}`, count: 1 });
+      s.ui.notifications.push({
+        ...n,
+        ...(n.detailLines !== undefined ? { detailLines: [...n.detailLines] } : {}),
+        id: `n${++notificationSeq}`,
+        count: 1,
+      });
       // 3. Begrens op MAX_NOTIFICATIONS. Bij overschrijding verwijderen we bij VOORKEUR de oudste
       //    `info`, en pas als die er niet is de oudste melding overall — een fout mag nooit door een
       //    info verdrongen worden (de cyclus-/opslaafout is juist degene die moet blijven staan).

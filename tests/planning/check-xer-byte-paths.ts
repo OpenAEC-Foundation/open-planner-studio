@@ -180,8 +180,8 @@ for (const [encoding, bytes] of encodings) {
 }
 
 // Fixronde 1, bevinding 2: parseOpenedFile → applyLoadedProject moet de XER-bronmetadata
-// documentgebonden behouden. De externe relatie blijft uitsluitend daar staan (geen Task-link),
-// en een enumterugval wordt met familie/token/fallback zichtbaar gemeld.
+// documentgebonden behouden. De externe relatie blijft uitsluitend daar staan (geen Task-link).
+// X10 rapporteert enumterugvallen vervolgens bestandbreed in de ene samengestelde XER-melding.
 const loadedState = useAppStore.getState() as ReturnType<typeof useAppStore.getState> & {
   xerImportMetadata?: {
     enumFallbacks: Array<{ family: string; token: string; fallback: string }>;
@@ -198,12 +198,14 @@ eq('documentroute: XER-metadata staat op het geladen document', {
   external: ['R-EXT'],
   taskExternalLinks: 0,
 });
-const fallbackNotice = loadedState.ui.notifications.find(
-  notice => notice.messageKey === ('notifications.xerEnumFallback' as typeof notice.messageKey),
+const importNotice = loadedState.ui.notifications.find(
+  notice => notice.messageKey === ('notifications.xerImportOpened' as typeof notice.messageKey),
 );
-eq('documentroute: enumterugval toont familie, token en fallback', fallbackNotice?.params, {
-  family: 'activityType', token: 'TT_Onbekend', fallback: 'TT_Task',
-});
+eq('documentroute: enumterugval zit in de ene samengestelde XER-melding',
+  importNotice?.detailLines?.find(line => line.messageKey === 'notifications.xerImportEnumFallbacks'), {
+    messageKey: 'notifications.xerImportEnumFallbacks',
+    params: { count: 1 },
+  });
 loadedState.newDocument();
 eq('documentroute: vers document erft geen XER-metadata',
   (useAppStore.getState() as typeof loadedState).xerImportMetadata, null);

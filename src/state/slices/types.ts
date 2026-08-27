@@ -188,9 +188,30 @@ export type NotificationMessageKey =
   | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation'
   | 'notifications.xerEnumFallback'
+  | 'notifications.xerImportOpened'
+  | 'notifications.xerImportProjectsSeen'
+  | 'notifications.xerImportEmptyProjectsSkipped'
+  | 'notifications.xerImportBaselineProjectsExcluded'
+  | 'notifications.xerImportBaselinesMaterialized'
+  | 'notifications.xerImportDanglingBaselineReferences'
+  | 'notifications.xerImportBaselineFallback'
+  | 'notifications.xerImportExternalLinks'
+  | 'notifications.xerImportEncoding'
+  | 'notifications.xerImportParserIssues'
+  | 'notifications.xerImportCalendarIssues'
+  | 'notifications.xerImportNumberIssues'
+  | 'notifications.xerImportEnumFallbacks'
+  | 'notifications.xerImportUnsupportedSemantics'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.mppTimephasedSteeringLost';
+
+/** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
+ * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
+export interface NotificationDetailLine {
+  messageKey: NotificationMessageKey;
+  params?: Record<string, string | number>;
+}
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */
@@ -202,6 +223,8 @@ export interface AppNotification {
   params?: Record<string, string | number>;
   /** Rauwe technische tekst (`err.message`) — BEWUST onvertaald. */
   detail?: string;
+  /** Optionele, vertaalde feiten onder de hoofdboodschap (X10: één XER-bestandsverslag). */
+  detailLines?: NotificationDetailLine[];
   /** Samenvouw-sleutel: een tweede melding met dezelfde sleutel wordt één regel met een teller. */
   dedupeKey?: string;
   /** Aantal samengevouwen voorkomens; 1 bij de eerste. */

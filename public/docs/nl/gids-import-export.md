@@ -120,11 +120,18 @@ ontwikkelaarsconsole toont dan exact welke items zijn weggelaten of vereenvoudig
 
 ## Importeren
 
-**Bestand → Openen** (of **Backstage → Openen**) accepteert `.ifc`-, `.csv`-, `.xml`- en
-`.mpp`-bestanden. Bij een `.xml`-bestand herkent de app zelf of het een Primavera P6- of een MS
-Project-bestand is, aan de hand van de inhoud. Zoals hierboven beschreven: een CSV- of P6-import
+**Bestand → Openen** (of **Backstage → Openen**) accepteert `.ifc`-, `.csv`-, `.xml`-, `.mpp`- en
+`.xer`-bestanden. Bij een `.xml`-bestand herkent de app zelf of het een Primavera P6- of een MS
+Project-bestand is, aan de hand van de inhoud. Zoals hierboven beschreven: een CSV- of Primavera P6 XML-import
 levert een project op **zonder baselines** (die stonden er niet in), terwijl IFC en MSPDI
 baselines wél meebrengen.
+
+Een `.xer`-bestand is Primavera P6's eigen uitwisselingsformaat. De app leest het rechtstreeks,
+maar schrijft geen `.xer` terug: na een bewerking sla je op als IFC. Eén XER kan meerdere huidige
+projecten en baselineprojecten bevatten; de huidige projecten openen als afzonderlijke documenten
+en bijbehorende baselines blijven aan hun project gekoppeld. Zie
+[Primavera P6 (.xer) openen](docs://gids-xer-import) voor de projectselectie, tekencodering,
+P6-getalnotatie en de bewaarde brondata.
 
 Een `.mpp`-bestand (het native Microsoft Project-formaat, Project 2010 t/m 2021) is een aparte
 route: die import is **alleen-lezen** — er bestaat geen `.mpp`-export, dus terugexporteren naar
@@ -149,7 +156,7 @@ extensies beschikbaar zijn.
 
 ## Verder lezen
 
-- Baselines gaan alleen mee via IFC en MS Project XML, niet via CSV of P6 — lees de gids
+- Baselines gaan alleen mee via IFC en MS Project XML, niet via CSV of Primavera P6 XML — lees de gids
   [Baselines & voortgang](docs://gids-baselines-voortgang) voor hoe je een baseline vastlegt.
 - Resources, toewijzingen en belastingscurves — lees de gids
   [Resources, histogram & nivellering](docs://gids-resources-histogram) voor hoe die tot stand komen

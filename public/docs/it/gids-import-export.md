@@ -108,6 +108,8 @@ riesportare verso MS Project passa per MSPDI XML. Vedi la guida
 [Aprire MS Project (.mpp)](docs://gids-msproject-import) per sapere cosa viene incluso e quali sono i
 limiti.
 
+Un file `.xer` è il formato di scambio di Primavera P6. Viene importato direttamente e, dopo la modifica, salvato come IFC; vedi [Aprire Primavera P6 (.xer)](docs://gids-xer-import).
+
 ## Importatori tramite estensioni
 
 Oltre ai formati fissi sopra descritti, le estensioni installate possono aggiungere i propri

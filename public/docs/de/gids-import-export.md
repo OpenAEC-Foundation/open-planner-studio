@@ -61,6 +61,8 @@ Diese Warnungen sind keine Schlamperei — sie sind eine bewusste, ausdrücklich
 
 Eine `.mpp`-Datei (das native Microsoft-Project-Format, Project 2010 bis 2021) ist ein eigener Weg: Dieser Import ist **nur lesend** — es gibt keinen `.mpp`-Export, ein Re-Export nach MS Project läuft daher über MSPDI-XML. Siehe die Anleitung [MS Project (.mpp) öffnen](docs://gids-msproject-import) für das, was mitkommt, und die Einschränkungen.
 
+Eine `.xer`-Datei ist das Austauschformat von Primavera P6. Sie wird direkt importiert und nach einer Bearbeitung als IFC gespeichert; siehe [Primavera P6 (.xer) öffnen](docs://gids-xer-import).
+
 ## Erweiterungs-Importer
 
 Über die festen Formate hinaus können installierte Erweiterungen eigene Importer hinzufügen — zum Beispiel für ein Format, das standardmäßig nicht unterstützt wird. Diese erscheinen unter **Backstage → Importieren**, jeweils mit eigenem Namen, Beschreibung und passenden Dateierweiterungen; ohne installierte Import-Erweiterungen ist dieser Abschnitt leer. Prüfen Sie **Backstage → Erweiterungen**, um zu sehen, was verfügbar ist.

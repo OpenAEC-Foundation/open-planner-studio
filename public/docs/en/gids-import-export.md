@@ -118,10 +118,16 @@ then shows exactly which items were dropped or simplified, and how many.
 
 ## Importing
 
-**File → Open** (or **Backstage → Open**) accepts `.ifc`, `.csv`, `.xml` and `.mpp` files. For an
+**File → Open** (or **Backstage → Open**) accepts `.ifc`, `.csv`, `.xml`, `.mpp` and `.xer` files. For an
 `.xml` file, the app detects on its own whether it's a Primavera P6 or an MS Project file, based on
-the content. As described above: a CSV or P6 import produces a project **without baselines** (there
+the content. As described above: a CSV or Primavera P6 XML import produces a project **without baselines** (there
 weren't any in the source), while IFC and MSPDI bring baselines along.
+
+A `.xer` file is Primavera P6's own exchange format. The app reads it directly but does not write
+`.xer` back: after editing, save as IFC. One XER can contain several current projects and baseline
+projects; current projects open as separate documents and matching baselines remain attached to
+their project. See [Opening Primavera P6 (.xer)](docs://gids-xer-import) for project selection,
+text encoding, P6 number notation and retained source data.
 
 A `.mpp` file (Microsoft Project's native format, Project 2010 through 2021) is a separate path:
 that import is **read-only** — there is no `.mpp` export, so exporting back to MS Project runs
@@ -144,7 +150,7 @@ section is empty. Check **Backstage → Extensions** to see what's available.
 
 ## Further reading
 
-- Baselines only come along via IFC and MS Project XML, not via CSV or P6 — read the guide
+- Baselines only come along via IFC and MS Project XML, not via CSV or Primavera P6 XML — read the guide
   [Baselines & progress](docs://gids-baselines-voortgang) for how to record a baseline.
 - Resources, assignments and loading curves — read the guide
   [Resources, histogram & leveling](docs://gids-resources-histogram) for how those are built before

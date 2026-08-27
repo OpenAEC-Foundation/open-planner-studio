@@ -7,7 +7,7 @@ import { openFileDialog, saveFileDialog, saveToRef, readFromRef, readBytesFromRe
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
-import type { AppSlice } from './types';
+import type { AppSlice, NotifyInput, NotificationDetailLine } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
@@ -34,6 +34,79 @@ export function isActivePristine(s: AppState): boolean {
     s.filePath === null &&
     !s.isDirty
   );
+}
+
+/** De in-app gids achter de ene bestandsbrede XER-openingsmelding. */
+export const XER_IMPORT_HELP_ARTICLE_ID = 'gids-xer-import';
+
+/**
+ * Vorm één gebruikerszichtbaar verslag uit uitsluitend de feiten die de XER-lezer bestandsbreed
+ * bewaart. Deze helper zit nadrukkelijk buiten `applyLoadedProject`: één XER kan twaalf documenten
+ * openen, maar is nog steeds één bestandsactie en dus één melding.
+ */
+export function xerImportNotice(results: readonly ImportResult[]): NotifyInput | undefined {
+  const xers = results.flatMap(result => result.xer ? [result.xer] : []);
+  const xer = xers[0];
+  if (!xer) return undefined;
+
+  // X9 bewaart de file-wide diagnostics precies eenmaal in het immutable bronarchief. De
+  // documentviews bevatten daarnaast de werkelijk projectgebonden keuzes (enum- en
+  // scheduling-terugvallen). Gebruik het archief zodra het er is, maar blijf ook bruikbaar voor
+  // een directe X4b-resultaatview vóórdat die in een archief is gebonden.
+  const archive = results.find(result => result.xerSourceArchive)?.xerSourceArchive;
+  const fileDiagnostics = archive?.diagnostics.file;
+  const report = fileDiagnostics?.importReport ?? xer.report;
+  const tableReport = fileDiagnostics?.tableReport ?? xer.tableReport;
+  const enumFallbacks = xers.reduce((total, item) => total + item.enumFallbacks.length, 0);
+  const scheduleFallbacks = xers.reduce((total, item) => total + item.scheduleOptions.fallbacks.length, 0);
+  const calendarIssues = xer.calendarIssues.length;
+  const numberIssues = tableReport.issues.filter(issue => /(?:NUMBER|DECIMAL)/.test(issue.code)).length
+    + xer.calendarIssues.filter(issue => issue.code === 'XER_CALENDAR_INVALID_PERIOD_HOURS').length;
+  const parserIssues = tableReport.issues.length - tableReport.issues
+    .filter(issue => /(?:NUMBER|DECIMAL)/.test(issue.code)).length;
+  // Deze regel is bewust smaller dan alle overige importdiagnostiek: alleen de P6-
+  // schedulingopties die naar een veilige semantische default terugvallen horen onder
+  // "unsupported semantics". Resource-/metadatacatalogusissues zijn afzonderlijke
+  // bron- of koppelproblemen, geen planningsemantiek, en mogen deze teller niet opblazen.
+  const unsupportedSemantics = scheduleFallbacks;
+  const detailLines: NotificationDetailLine[] = [
+    { messageKey: 'notifications.xerImportProjectsSeen', params: { count: report.projectsSeen } },
+  ];
+  const addCount = (count: number, messageKey: NotificationDetailLine['messageKey']) => {
+    if (count > 0) detailLines.push({ messageKey, params: { count } });
+  };
+
+  addCount(report.emptyProjectsSkipped, 'notifications.xerImportEmptyProjectsSkipped');
+  addCount(report.baselineProjectsExcluded, 'notifications.xerImportBaselineProjectsExcluded');
+  addCount(report.baselinesMaterialized, 'notifications.xerImportBaselinesMaterialized');
+  addCount(report.danglingBaselineReferences, 'notifications.xerImportDanglingBaselineReferences');
+  if (report.baselineExclusionReverted || report.baselineFallbackReasons.length > 0) {
+    detailLines.push({ messageKey: 'notifications.xerImportBaselineFallback' });
+  }
+  addCount(report.externalLinksPreserved, 'notifications.xerImportExternalLinks');
+
+  // UTF-8 zonder BOM is de standaard. Iedere andere gerapporteerde keuze is een daadwerkelijk
+  // detecteerbare bronfeit (BOM of Windows-1252-terugval) en verdient daarom uitleg; we beweren
+  // nadrukkelijk niet dat afzonderlijke rijen werden overgeslagen.
+  if (tableReport.encoding !== 'utf-8') {
+    detailLines.push({
+      messageKey: 'notifications.xerImportEncoding',
+      params: { encoding: tableReport.encoding },
+    });
+  }
+  addCount(parserIssues, 'notifications.xerImportParserIssues');
+  addCount(calendarIssues, 'notifications.xerImportCalendarIssues');
+  addCount(numberIssues, 'notifications.xerImportNumberIssues');
+  addCount(enumFallbacks, 'notifications.xerImportEnumFallbacks');
+  addCount(unsupportedSemantics, 'notifications.xerImportUnsupportedSemantics');
+
+  return {
+    severity: 'info',
+    messageKey: 'notifications.xerImportOpened',
+    params: { count: report.documentsOpened },
+    detailLines,
+    helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+  };
 }
 
 // `ExportFormat` woont nu in de formatRegistry (T1); hier her-exporteren zodat bestaande
@@ -267,18 +340,6 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         const shifted = countShiftedTasks(get().tasks, recorded.times);
         if (shifted > 0) set((s) => { s.recordedDates = { ...recorded, shifted }; });
       }
-      if (parsed.xer?.enumFallbacks.length) {
-        get().notify({
-          severity: 'info',
-          messageKey: 'notifications.xerEnumFallback',
-          params: {
-            family: parsed.xer.enumFallbacks.map(item => item.family).join(', '),
-            token: parsed.xer.enumFallbacks.map(item => item.token).join(', '),
-            fallback: parsed.xer.enumFallbacks.map(item => item.fallback).join(', '),
-          },
-          dedupeKey: 'xer-enum-fallback',
-        });
-      }
       if (opts.fit) get().requestFitToProject(); // Issue #16: canvas op het HELE project passen.
       // Relaties die de solver ECHT niet kon meerekenen (eigenaarsbesluit 2026-08-15): een
       // verzameltaak-eindpunt op zich is sinds `expandSummaryRelations` GEEN reden meer om te
@@ -345,6 +406,12 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         // actief blijft. Zo blijft koppeling-/librarygedrag gelijk aan herhaald enkelvoudig openen.
         get().runOpenBoundary();
       }
+
+      // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
+      // pas ná de volledige lus, anders ontstaat er één toast per nieuw document. Andere formats
+      // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
+      const notice = xerImportNotice(results);
+      if (notice) get().notify(notice);
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
       const activeId = openedDocumentIds[activeIndex];
