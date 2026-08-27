@@ -226,7 +226,12 @@ export function useGanttViewportCoordinator(
     const finishMillis = finish.getTime() + (hourMode ? 0 : MS_PER_DAY);
     const durationDays = (finishMillis - start.getTime()) / MS_PER_DAY;
     const middleDayOffset = ((start.getTime() + finishMillis) / 2 - origin.getTime()) / MS_PER_DAY;
-    const horizontal = computeFocusTaskHorizontal(durationDays, middleDayOffset, usableWidth);
+    const horizontal = current.view.pendingFocusTaskPreserveZoom
+      ? {
+          zoom: current.view.zoom,
+          scrollX: Math.max(0, middleDayOffset * current.view.zoom - usableWidth / 2),
+        }
+      : computeFocusTaskHorizontal(durationDays, middleDayOffset, usableWidth);
     const rowIndex = current.rows.findIndex(
       row => row.kind === 'task' && row.task.id === taskId,
     );
@@ -243,7 +248,7 @@ export function useGanttViewportCoordinator(
       rect.height,
     ));
     current.clearPendingFocusTask();
-    current.setZoom(horizontal.zoom);
+    if (!current.view.pendingFocusTaskPreserveZoom) current.setZoom(horizontal.zoom);
     current.setScroll(horizontal.scrollX, scrollY);
   }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.taskTableWidth, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, effectiveViewStart, contentWidthFor]);
 

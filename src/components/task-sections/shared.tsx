@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { forwardRef, useState, useEffect } from 'react';
 import type { ResourceCurve } from '@/types/resource';
 import type { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { formatDuration } from '@/utils/durationFormat';
@@ -92,7 +92,7 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
-export function Input({ value, onChange, type = 'text', min, max, step, disabled }: {
+export const Input = forwardRef<HTMLInputElement, {
   value: string | number;
   onChange: (v: string) => void;
   type?: string;
@@ -100,9 +100,10 @@ export function Input({ value, onChange, type = 'text', min, max, step, disabled
   max?: number;
   step?: number;
   disabled?: boolean;
-}) {
+}>(function Input({ value, onChange, type = 'text', min, max, step, disabled }, ref) {
   return (
     <input
+      ref={ref}
       type={type}
       value={value}
       onChange={e => onChange(e.target.value)}
@@ -113,7 +114,7 @@ export function Input({ value, onChange, type = 'text', min, max, step, disabled
       className="input !text-xs !px-2.5 !py-1.5 disabled:opacity-50"
     />
   );
-}
+});
 
 /**
  * Duurveld voor een uur-taak (§6.4): tekstinvoer die "20u"/"2d 4u"/"90m" via `parseDuration`
