@@ -1,10 +1,10 @@
 # B1c — Nivelleren tegen restcapaciteit (ontwerp)
 
-Datum: 2026-08-17 · Herzien: 2026-08-27, na hyperkritische review (NO-GO op de eerste versie,
-vijftien bevindingen) én rebase op main (472 commits, o.a. de .mpp-etappe en de
-store-runtime-verbouwing). Status: **concept, tweede ronde** — de eigenaarsbesluiten uit de
-prototyperondes staan; één nieuw beslispunt staat open (§11.5). De speelbare prototypes staan
-als privé-artifacts: "Wie wijkt?" (rondes 1–3) en "Interface-lab" (vier tune-bedieningen).
+Datum: 2026-08-17 · Herzien: 2026-08-27 — twee hyperkritische reviewronden (NO-GO →
+GO-MITS, alle punten verwerkt) én rebase op main (472 commits, o.a. de .mpp-etappe en de
+store-runtime-verbouwing). Status: **ontwerp compleet** — alle beslispunten besloten
+(§11); volgende stap: implementatieplan. De speelbare prototypes staan als
+privé-artifacts: "Wie wijkt?" (rondes 1–3) en "Interface-lab" (vier tune-bedieningen).
 
 ## 1. Doel en aanleiding
 
@@ -367,15 +367,11 @@ Headless, in de bestaande suites:
    2026-08-27.**
 3. ~~Float-benutting als last voor rang 1?~~ — **Nee; wie een project volledig wil bevriezen
    gebruikt de pin (§6), besloten 2026-08-27.**
-4. **Onderbrekingen in v1 — besloten (eigenaar 2026-08-27), door de tweede review heropend
-   en beantwoord.** De review toonde aan dat gap-invoeging vier afspraken vergt die er
-   eerst niet stonden (herkomst, invalidatie, as-conversie, alleen niet-gestarte taken —
-   nu bindend in §4). Daarmee blijft de onderbreek-stand in v1, maar hij is duurder dan
-   "alleen plaatsingslogica"; wil de eigenaar bij nader inzien tóch klein beginnen, dan is
-   de schakelaar-naar-v2-variant het alternatief.
-5. **OPEN — Toepassen in handmatige modus.** B1b §4.3b liet de handmatige modus ongemoeid
-   (alleen terugschrijven bij "Automatisch berekenen" aan). B1c's Toepassen schrijft én
-   persisteert de doorrekening onvoorwaardelijk, omdat de gebruiker expliciet een
-   schrijfactie uitvoert (§5). Akkoord dat een expliciete Toepassen-klik deze grens mag
-   verleggen, of moet B1c in handmatige modus iets terughoudender (bijv. wél delays/gaps
-   schrijven maar `scheduleStale` laten staan)?
+4. ~~Onderbrekingen in v1?~~ — **Ja, in v1** (besloten eigenaar 2026-08-27; na de tweede
+   review opnieuw voorgelegd mét de kosten — de vier bindende afspraken in §4 — en
+   herbevestigd). De schakelaar met beide standen is er vanaf de eerste oplevering.
+5. ~~Toepassen in handmatige modus?~~ — **Ja, Toepassen schrijft altijd** (besloten
+   eigenaar 2026-08-27): de expliciete klik is de toestemming; delays/gaps én de
+   doorrekening worden geschreven en gepersisteerd, ook met "Automatisch berekenen" uit;
+   één "alles terugdraaien" zet alles terug. Bewuste, opgeschreven grensverlegging op
+   B1b §4.3b.
