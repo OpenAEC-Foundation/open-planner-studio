@@ -388,6 +388,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SPLITBARCHECK="$DIR/.split-bar-render.mjs"
   if bundle_check "$DIR/check-split-bar-render.ts" "$SPLITBARCHECK"; then node "$SPLITBARCHECK" || STATUS=1; fi
 
+  # B1c-W0.4/W0.1: `splitWalk.ts` — de ENE gedeelde H1-as-wandeling en dag-enumeratie voor
+  # gesplitste taken (later geconsumeerd door splitBarGeometry/ResourceLoad/ResourceLeveler).
+  SPLITWALKCHECK="$DIR/.split-walk.mjs"
+  if bundle_check "$DIR/check-split-walk.ts" "$SPLITWALKCHECK"; then node "$SPLITWALKCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"
