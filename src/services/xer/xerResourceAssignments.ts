@@ -7,6 +7,10 @@ import type {
   XerResourceReadContext, XerResourceSource, XerRoleSource, XerTaskResourceSource,
 } from './xerResourceTypes';
 import { parseXerNumber, XerImportError, type XerRow, type XerTables } from './xerTables';
+import {
+  deriveXerAssignmentSkipExpectation,
+  xerAssignmentSourceId,
+} from './xerAssignmentProvenance';
 
 // MPXJ's XerUnitsHelper gebruikt 1.000.000 als afrondingsprecisie voor P6-werkhoeveelheden.
 // Dit is geen deler voor *_qty_per_hr: OPS gebruikt daar net als XER 1 = 100%.
@@ -111,6 +115,10 @@ export function readXerResourceAssignments(
   const resourceSourceById = new Map(resourceSources.map(source => [source.sourceId, source]));
   const resourceByInternalId = new Map(resources.map(resource => [resource.id, resource]));
   const roleById = new Map(roles.map(role => [role.sourceId, role]));
+  const availableResourceSourceIds = new Set(resourceSources
+    .filter(source => resourceByInternalId.has(source.internalId))
+    .map(source => source.sourceId));
+  const availableRoleSourceIds = new Set(roleById.keys());
   const roleRatesById = new Map<string, XerReadonly<XerResourceRateSource>[]>();
   for (const rate of rates) {
     if (rate.entity.kind !== 'ROLE') continue;
@@ -124,13 +132,19 @@ export function readXerResourceAssignments(
   const issues: XerResourceIssue[] = [];
   for (const row of rows) {
     const projectSourceId = row.cells.proj_id?.trim() || undefined;
-    const sourceId = row.cells.taskrsrc_id?.trim() || `line-${row.line}`;
+    const sourceId = xerAssignmentSourceId(row.cells, row.line);
     const taskSourceId = row.cells.task_id.trim();
     const resourceSourceId = row.cells.rsrc_id?.trim() || undefined;
     const roleSourceId = row.cells.role_id?.trim() || undefined;
     const entitySourceId = resourceSourceId ?? roleSourceId ?? '';
     const entityKind = resourceSourceId ? 'RESOURCE' as const : 'ROLE' as const;
     const entityInternalId = `${entityKind === 'RESOURCE' ? 'xer-resource' : 'xer-role'}:${entitySourceId}`;
+    const skipExpectation = deriveXerAssignmentSkipExpectation(
+      row.cells,
+      availableResourceSourceIds,
+      availableRoleSourceIds,
+      context.taskIds,
+    );
     const quantities = quantitiesOf(tables, row);
     const assignedRole = resourceSourceId && roleSourceId ? roleById.get(roleSourceId) : undefined;
     if (resourceSourceId && roleSourceId && !assignedRole) {
@@ -151,18 +165,20 @@ export function readXerResourceAssignments(
     if (entityKind === 'RESOURCE') {
       const source = resourceSourceById.get(entitySourceId);
       resource = source ? resourceByInternalId.get(source.internalId) : undefined;
-      if (!resource) {
+      if (skipExpectation === 'XER_ASSIGNMENT_RESOURCE_MISSING') {
         sources.push({ ...sourceBase, unitScale: 'DIRECT_FRACTION' });
         issues.push({ code: 'XER_ASSIGNMENT_RESOURCE_MISSING', table: 'TASKRSRC', line: row.line, sourceId, fallback: 'SKIPPED' });
         continue;
       }
+      if (!resource) throw new Error(`XER-resource-index mist '${entitySourceId}' na provenancevalidatie.`);
     } else {
       const role = roleById.get(entitySourceId);
-      if (!role) {
+      if (skipExpectation === 'XER_ASSIGNMENT_ROLE_MISSING') {
         sources.push({ ...sourceBase, unitScale: 'DIRECT_FRACTION' });
         issues.push({ code: 'XER_ASSIGNMENT_ROLE_MISSING', table: 'TASKRSRC', line: row.line, sourceId, fallback: 'SKIPPED' });
         continue;
       }
+      if (!role) throw new Error(`XER-role-index mist '${entitySourceId}' na provenancevalidatie.`);
       resource = roleResourceById.get(role.internalId);
       if (!resource) {
         const roleRates = roleRatesById.get(role.sourceId) ?? [];
@@ -177,7 +193,7 @@ export function readXerResourceAssignments(
     }
     const scaled = unitsPerDay(assignmentRate(quantities), resource, context);
     sources.push({ ...sourceBase, unitScale: scaled.scale });
-    if (!context.taskIds.has(taskSourceId)) {
+    if (skipExpectation === 'XER_ASSIGNMENT_TASK_MISSING') {
       issues.push({ code: 'XER_ASSIGNMENT_TASK_MISSING', table: 'TASKRSRC', line: row.line, sourceId, fallback: 'SKIPPED' });
       continue;
     }

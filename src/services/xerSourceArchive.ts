@@ -15,6 +15,12 @@ import type {
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
 import type { XerResourceCatalog } from './xer/xerResources';
 import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
+import {
+  deriveXerAssignmentSkipExpectation,
+  xerAssignmentSourceId,
+  type XerAssignmentSkipExpectation,
+  type XerAssignmentSkipReason,
+} from './xer/xerAssignmentProvenance';
 
 export const XER_SOURCE_ARCHIVE_SCHEMA_VERSION = 1;
 export const XER_SOURCE_ARCHIVE_CHUNK_BYTES = 196_608;
@@ -1109,7 +1115,8 @@ function validateArchiveMetadataRelations(
   for (const projection of readModel.metadataCatalog.taskProjections) {
     const identity = `${projection.projectId}\u0000${projection.taskId}`;
     if (projectionIdentities.has(identity)) invalid(`readModel.metadataCatalog.taskProjections bevat dubbele identiteit ${projection.projectId}/${projection.taskId}`);
-    if (!taskIdsByProject.get(projection.projectId)?.has(projection.taskId)) {
+    const projectionTaskIds = taskIdsByProject.get(projection.projectId);
+    if (projectionTaskIds && !projectionTaskIds.has(projection.taskId)) {
       invalid(`readModel.metadataCatalog.taskProjections wijst naar ontbrekende TASK-identiteit ${projection.projectId}/${projection.taskId}`);
     }
     projectionIdentities.add(identity);
@@ -1197,6 +1204,17 @@ function validateArchiveMetadataRelations(
     }
     previousAssignmentLine = row.line;
   }
+  const resourceSourceIds = new Set(readModel.resourceCatalog.rows.resources.map(source => source.sourceId));
+  const roleSourceIds = new Set(readModel.resourceCatalog.rows.roles.map(source => source.sourceId));
+  const expectedAssignmentSkip = (
+    row: XerArchiveReadModelV1['resourceCatalog']['rows']['assignments'][number],
+    projectId: string,
+  ): XerAssignmentSkipExpectation => deriveXerAssignmentSkipExpectation(
+    row.cells,
+    resourceSourceIds,
+    roleSourceIds,
+    taskIdsByProject.get(projectId),
+  );
 
   type ExternalLink = XerArchiveDocumentViewV1['externalLinks'][number];
   const linkKey = (link: ExternalLink): string => [
@@ -1204,6 +1222,21 @@ function validateArchiveMetadataRelations(
     link.successor.projectId, link.successor.taskId, link.type, link.lagMinutes,
   ].join('\u0000');
   const sourceLinks = new Map<string, ExternalLink>();
+  const assertOpenEndpointTask = (
+    endpointProjectId: string,
+    endpointTaskId: string,
+    path: string,
+    endpointKind: 'lokaal' | 'extern',
+  ): void => {
+    if (!diagnostics.documentViews[endpointProjectId]) return;
+    const endpointTaskIds = taskIdsByProject.get(endpointProjectId);
+    // Een vroege schema-1-documentview kan de volledige TASK-groep missen. Alleen dat werkelijk
+    // afwezige bronsignaal is legacy-onbeslisbaar; een aanwezige lege of gemuteerde groep is hard.
+    if (!endpointTaskIds) return;
+    if (!endpointTaskIds.has(endpointTaskId)) {
+      invalid(`${path} wijst naar ontbrekend ${endpointKind} TASK-eindpunt ${endpointProjectId}/${endpointTaskId}`);
+    }
+  };
   for (const [projectId, view] of Object.entries(diagnostics.documentViews)) {
     // Vroege schema-1-containerfixtures konden al een documentview bewaren terwijl de later
     // toegevoegde TASK-bronindex voor dat project volledig ontbrak. Zo'n legacyview blijft
@@ -1216,6 +1249,12 @@ function validateArchiveMetadataRelations(
       if (!taskIdsByProject.get(projectId)?.has(relation.localTaskId)) {
         invalid(`diagnostics.documentViews.${projectId}.externalRelations[${index}] wijst naar ontbrekend lokaal TASK-eindpunt`);
       }
+      assertOpenEndpointTask(
+        relation.externalProjectId,
+        relation.externalTaskId,
+        `diagnostics.documentViews.${projectId}.externalRelations[${index}]`,
+        'extern',
+      );
       const link: ExternalLink = relation.direction === 'predecessor' ? {
         id: relation.id,
         predecessor: { projectId: relation.externalProjectId, taskId: relation.externalTaskId },
@@ -1276,7 +1315,7 @@ function validateArchiveMetadataRelations(
         invalid(`diagnostics.documentViews.${projectId}.resources.assignments[${index}] staat niet in canonieke bronvolgorde`);
       }
       const rawRow = expectedAssignmentRows[index]!;
-      const sourceId = rawRow.cells.taskrsrc_id?.trim() || `line-${rawRow.line}`;
+      const sourceId = xerAssignmentSourceId(rawRow.cells, rawRow.line);
       const taskSourceId = rawRow.cells.task_id?.trim() ?? '';
       const resourceSourceId = rawRow.cells.rsrc_id?.trim() || undefined;
       const roleSourceId = rawRow.cells.role_id?.trim() || undefined;
@@ -1301,17 +1340,40 @@ function validateArchiveMetadataRelations(
           invalid(`diagnostics.documentViews.${projectId}.resources.assignments[${index}].${field} wijkt af van TASKRSRC.${rawField}`);
         }
       }
-      const assignmentWasSkipped = view.resources?.issues.some(issue =>
-        (issue.code === 'XER_ASSIGNMENT_TASK_MISSING'
-          || issue.code === 'XER_ASSIGNMENT_RESOURCE_MISSING'
-          || issue.code === 'XER_ASSIGNMENT_ROLE_MISSING')
-        && issue.sourceId === sourceId
-        && issue.line === rawRow.line
-        && issue.fallback === 'SKIPPED') ?? false;
-      if (!taskIdsByProject.get(projectId)?.has(taskSourceId) && !assignmentWasSkipped) {
-        invalid(`diagnostics.documentViews.${projectId}.resources.assignments[${index}] wijst naar ontbrekende lokale TASK-identiteit`);
-      }
     });
+    const skipCodes = new Set<XerAssignmentSkipReason>([
+      'XER_ASSIGNMENT_RESOURCE_MISSING',
+      'XER_ASSIGNMENT_ROLE_MISSING',
+      'XER_ASSIGNMENT_TASK_MISSING',
+    ]);
+    const actualSkipIssues = (view.resources?.issues ?? []).filter(
+      (issue): issue is XerResourceIssue & { code: XerAssignmentSkipReason } =>
+        skipCodes.has(issue.code as XerAssignmentSkipReason),
+    );
+    const expectedByIdentity = new Map<string, XerAssignmentSkipExpectation>();
+    for (const row of expectedAssignmentRows) {
+      const sourceId = xerAssignmentSourceId(row.cells, row.line);
+      expectedByIdentity.set(`${sourceId}\u0000${row.line}`, expectedAssignmentSkip(row, projectId));
+    }
+    const seenSkipIssueIdentities = new Set<string>();
+    for (const issue of actualSkipIssues) {
+      const identity = `${issue.sourceId}\u0000${issue.line}`;
+      const expected = expectedByIdentity.get(identity);
+      const exactEnvelope = issue.table === 'TASKRSRC' && issue.fallback === 'SKIPPED';
+      const exactCode = issue.code === expected;
+      const optionalLegacyTaskIssue = expected === 'LEGACY_TASK_UNKNOWN'
+        && issue.code === 'XER_ASSIGNMENT_TASK_MISSING';
+      if (!exactEnvelope || (!exactCode && !optionalLegacyTaskIssue)
+        || seenSkipIssueIdentities.has(identity)) {
+        invalid(`diagnostics.documentViews.${projectId}.resources.issues is geen exacte TASKRSRC-skipdiagnostiek`);
+      }
+      seenSkipIssueIdentities.add(identity);
+    }
+    for (const [identity, expected] of expectedByIdentity) {
+      if (expected && expected !== 'LEGACY_TASK_UNKNOWN' && !seenSkipIssueIdentities.has(identity)) {
+        invalid(`diagnostics.documentViews.${projectId}.resources.issues is geen exacte TASKRSRC-skipdiagnostiek`);
+      }
+    }
 
     const linkKeys = new Set<string>();
     for (const [index, link] of view.externalLinks.entries()) {
@@ -1321,6 +1383,18 @@ function validateArchiveMetadataRelations(
       if (link.predecessor.projectId !== projectId && link.successor.projectId !== projectId) {
         invalid(`diagnostics.documentViews.${projectId}.externalLinks[${index}] heeft geen lokaal eindpunt`);
       }
+      assertOpenEndpointTask(
+        link.predecessor.projectId,
+        link.predecessor.taskId,
+        `diagnostics.documentViews.${projectId}.externalLinks[${index}].predecessor`,
+        link.predecessor.projectId === projectId ? 'lokaal' : 'extern',
+      );
+      assertOpenEndpointTask(
+        link.successor.projectId,
+        link.successor.taskId,
+        `diagnostics.documentViews.${projectId}.externalLinks[${index}].successor`,
+        link.successor.projectId === projectId ? 'lokaal' : 'extern',
+      );
       if (taskIdsByProject.has(projectId) && !sourceLinks.has(key)) {
         invalid(`diagnostics.documentViews.${projectId}.externalLinks[${index}] is niet afgeleid uit een bewaarde TASKPRED-bronrelatie`);
       }

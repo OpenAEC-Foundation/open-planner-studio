@@ -53,6 +53,7 @@ const source = new TextEncoder().encode([
   '%T\tTASK',
   '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\tsuspend_date\tresume_date',
   '%R\tT-A\tP-A\tA-1\tTaak A\tC\t2026-08-01 08:00\t2026-08-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t\t\t',
+  '%R\tT-A2\tP-A\tA-2\tTaak A2\tC\t2026-08-03 08:00\t2026-08-03 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t\t\t',
   '%R\tT-B\tP-B\tB-1\tTaak B\tC\t2026-08-02 08:00\t2026-08-02 16:00\t8\tTT_Task\tDT_FixedRate\tTK_NotStart\tCP_Phys\t\t',
   '%R\tT-BASE\tP-BASE\tBL-1\tBaselinedata\tC\t2026-07-01 08:00\t2026-07-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t\t\t',
   '%T\tTASKPRED',
@@ -72,6 +73,8 @@ const source = new TextEncoder().encode([
   '%R\tAS-A\tP-A\tT-A\tR-1\tROLE-1\t0,5\t0,5\t4\t4',
   '%R\tAS-A-UNLINKED\tP-A\tT-A-MISSING\tR-1\t\t0,1\t0,1\t1\t1',
   '%R\tAS-A-UNLINKED-RESOURCE\tP-A\tT-A-MISSING-2\tR-MISSING\t\t0,1\t0,1\t1\t1',
+  '%R\tAS-A-ROLE-MISSING\tP-A\tT-A\t\tROLE-MISSING\t0,1\t0,1\t1\t1',
+  '%R\tAS-UNSCOPED\t\tT-A\tR-1\t\t0,1\t0,1\t1\t1',
   '%R\tAS-B\tP-B\tT-B\tR-1\t\t0,25\t0,25\t2\t2',
   '%R\tAS-BASE\tP-BASE\tT-BASE\tR-1\t\t0,2\t0,2\t2\t2',
   '%T\tACTVTYPE',
@@ -167,11 +170,12 @@ equal('3c X6 bewaart gekoppelde, ongekoppelde en baseline-TASKRSRC als ondersche
   missing: a.xer?.resources?.issues.filter(item => item.code === 'XER_ASSIGNMENT_TASK_MISSING').map(item => item.sourceId),
   skipped: a.xer?.resources?.issues.filter(item => item.fallback === 'SKIPPED').map(item => [item.code, item.sourceId]),
 }, {
-  canonical: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE', 'AS-B', 'AS-BASE'],
-  a: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE'], b: ['AS-B'],
+  canonical: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE', 'AS-A-ROLE-MISSING', 'AS-UNSCOPED', 'AS-B', 'AS-BASE'],
+  a: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE', 'AS-A-ROLE-MISSING'], b: ['AS-B'],
   missing: ['AS-A-UNLINKED'],
   skipped: [['XER_ASSIGNMENT_TASK_MISSING', 'AS-A-UNLINKED'],
-    ['XER_ASSIGNMENT_RESOURCE_MISSING', 'AS-A-UNLINKED-RESOURCE']],
+    ['XER_ASSIGNMENT_RESOURCE_MISSING', 'AS-A-UNLINKED-RESOURCE'],
+    ['XER_ASSIGNMENT_ROLE_MISSING', 'AS-A-ROLE-MISSING']],
 });
 equal('3d X5 bewaart gewone, dubbele en unmatched SCHEDOPTIONS zonder bronverlies', {
   diagnostics: archive.readModel?.scheduleOptionsSourceArchive.diagnostics.map(item => [item.projectId, item.rowIndexes.length]),
@@ -186,7 +190,7 @@ equal('4 per zelfstandig IFC herleven X6-resources, rates en projecttoewijzingen
     rates: result.xer?.resources?.catalog?.rows.rates.length,
     assignments: result.xer?.resources?.assignments.map(item => item.sourceId),
   })), [
-    { catalogResources: 1, rates: 1, assignments: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE'] },
+    { catalogResources: 1, rates: 1, assignments: ['AS-A', 'AS-A-UNLINKED', 'AS-A-UNLINKED-RESOURCE', 'AS-A-ROLE-MISSING'] },
     { catalogResources: 1, rates: 1, assignments: ['AS-B'] },
   ]);
 equal('5 per zelfstandig IFC herleven X8-catalogus en documentspecifieke projectie werkelijk',
@@ -253,11 +257,22 @@ const ifcWithMetadataPayload = (metadataPayload: Record<string, unknown>) =>
 const legacySelectorPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 const legacyTaskRows = (legacySelectorPayload.readModel as Record<string, unknown>)
   .taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
-legacyTaskRows[''] = [];
+delete legacyTaskRows['P-A'];
 let legacySelectorAccepted = true;
 try { readIFC(ifcWithMetadataPayload(legacySelectorPayload)); }
 catch { legacySelectorAccepted = false; }
-truthy('6c lege legacy-taskselector blijft een geldige verliesvrije archiefgrens', legacySelectorAccepted);
+truthy('6c volledig ontbrekende legacy-TASK-groep blijft een geldige verliesvrije archiefgrens', legacySelectorAccepted);
+const presentEmptyTaskGroupPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+const presentEmptyTaskRows = (presentEmptyTaskGroupPayload.readModel as Record<string, unknown>)
+  .taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
+presentEmptyTaskRows['P-A'] = [];
+let presentEmptyTaskGroupRejection: unknown;
+try { readIFC(ifcWithMetadataPayload(presentEmptyTaskGroupPayload)); }
+catch (error) { presentEmptyTaskGroupRejection = error; }
+truthy('6d aanwezige maar lege TASK-groep blijft hard gebonden en wordt specifiek geweigerd',
+  presentEmptyTaskGroupRejection instanceof IfcParseError
+  && presentEmptyTaskGroupRejection.reason === 'xer-source-archive'
+  && presentEmptyTaskGroupRejection.message.includes('ontbrekende TASK-identiteit'));
 const byProject = ((payload.diagnostics as Record<string, unknown>).documentViews) as Record<string, Record<string, unknown>>;
 byProject['P-A']!.calendarIssues = [{
   code: 'XER_CALENDAR_RECOVERED', calendarId: 'C', line: 1, reason: 'fixture', resolution: 'BROKEN',
@@ -472,6 +487,137 @@ for (const [label, mutate] of relationCorruptions) {
   truthy(`7c relationele reviewerpayload ${label} wordt met coherente chunks getypeerd geweigerd`, rejected);
 }
 
+const assignmentSkipCorruptions: readonly [string, string, (candidate: Record<string, unknown>) => void][] = [
+  ['A1 TASK_MISSING is herlabeld naar RESOURCE_MISSING terwijl de resource bestaat',
+    'TASKRSRC-skipdiagnostiek', candidate => {
+      const diagnostics = candidate.diagnostics as Record<string, unknown>;
+      const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+      const resources = views['P-A']!.resources as Record<string, unknown>;
+      const issues = resources.issues as Array<Record<string, unknown>>;
+      const issue = issues.find(item => item.sourceId === 'AS-A-UNLINKED');
+      if (!issue) throw new Error('A1-doelissue ontbreekt');
+      issue.code = 'XER_ASSIGNMENT_RESOURCE_MISSING';
+    }],
+  ['A2 een volledig geldige assignment draagt een verzonnen TASK_MISSING-issue',
+    'TASKRSRC-skipdiagnostiek', candidate => {
+      const diagnostics = candidate.diagnostics as Record<string, unknown>;
+      const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+      const resources = views['P-A']!.resources as Record<string, unknown>;
+      const assignments = resources.assignments as Array<Record<string, unknown>>;
+      const issues = resources.issues as Array<Record<string, unknown>>;
+      const assignment = assignments.find(item => item.sourceId === 'AS-A');
+      if (!assignment) throw new Error('A2-doelassignment ontbreekt');
+      issues.push({ code: 'XER_ASSIGNMENT_TASK_MISSING', table: 'TASKRSRC',
+        line: assignment.line, sourceId: assignment.sourceId, fallback: 'SKIPPED' });
+    }],
+  ['A3 RESOURCE_MISSING is herlabeld naar TASK_MISSING terwijl resource én taak ontbreken',
+    'TASKRSRC-skipdiagnostiek', candidate => {
+      const diagnostics = candidate.diagnostics as Record<string, unknown>;
+      const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+      const resources = views['P-A']!.resources as Record<string, unknown>;
+      const issues = resources.issues as Array<Record<string, unknown>>;
+      const issue = issues.find(item => item.sourceId === 'AS-A-UNLINKED-RESOURCE');
+      if (!issue) throw new Error('A3-doelissue ontbreekt');
+      issue.code = 'XER_ASSIGNMENT_TASK_MISSING';
+    }],
+  ['A4 ROLE_MISSING is herlabeld naar TASK_MISSING',
+    'TASKRSRC-skipdiagnostiek', candidate => {
+      const diagnostics = candidate.diagnostics as Record<string, unknown>;
+      const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+      const resources = views['P-A']!.resources as Record<string, unknown>;
+      const issues = resources.issues as Array<Record<string, unknown>>;
+      const issue = issues.find(item => item.sourceId === 'AS-A-ROLE-MISSING');
+      if (!issue) throw new Error('A4-doelissue ontbreekt');
+      issue.code = 'XER_ASSIGNMENT_TASK_MISSING';
+    }],
+  ['A6 een vereiste TASK_MISSING-diagnose ontbreekt volledig',
+    'TASKRSRC-skipdiagnostiek', candidate => {
+      const diagnostics = candidate.diagnostics as Record<string, unknown>;
+      const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+      const resources = views['P-A']!.resources as Record<string, unknown>;
+      const issues = resources.issues as Array<Record<string, unknown>>;
+      resources.issues = issues.filter(item => item.sourceId !== 'AS-A-UNLINKED');
+    }],
+  ['A7 een TASK_MISSING-diagnose komt dubbel voor',
+    'TASKRSRC-skipdiagnostiek', candidate => {
+      const diagnostics = candidate.diagnostics as Record<string, unknown>;
+      const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+      const resources = views['P-A']!.resources as Record<string, unknown>;
+      const issues = resources.issues as Array<Record<string, unknown>>;
+      const issue = issues.find(item => item.sourceId === 'AS-A-UNLINKED');
+      if (!issue) throw new Error('A7-doelissue ontbreekt');
+      issues.push(structuredClone(issue));
+    }],
+  ['A8 een TASK_MISSING-diagnose is aan de verkeerde bronregel gekoppeld',
+    'TASKRSRC-skipdiagnostiek', candidate => {
+      const diagnostics = candidate.diagnostics as Record<string, unknown>;
+      const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+      const resources = views['P-A']!.resources as Record<string, unknown>;
+      const issues = resources.issues as Array<Record<string, unknown>>;
+      const issue = issues.find(item => item.sourceId === 'AS-A-UNLINKED');
+      if (!issue) throw new Error('A8-doelissue ontbreekt');
+      issue.line = Number(issue.line) + 1;
+    }],
+];
+for (const [label, expectedRule, mutate] of assignmentSkipCorruptions) {
+  const candidate = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+  mutate(candidate);
+  let rejection: unknown;
+  try { readIFC(ifcWithMetadataPayload(candidate)); }
+  catch (error) { rejection = error; }
+  truthy(`7d ${label} raakt de specifieke getypeerde assignmentregel`,
+    rejection instanceof IfcParseError
+    && rejection.reason === 'xer-source-archive'
+    && rejection.message.includes(expectedRule));
+}
+
+const remoteGhostPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+{
+  const diagnostics = remoteGhostPayload.diagnostics as Record<string, unknown>;
+  const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+  const relation = (views['P-A']!.externalRelations as Array<Record<string, unknown>>)[0]!;
+  relation.externalTaskId = 'T-B-GHOST';
+  views['P-B']!.externalRelations = [];
+  for (const projectId of ['P-A', 'P-B']) {
+    const link = (views[projectId]!.externalLinks as Array<Record<string, unknown>>)[0]!;
+    (link.successor as Record<string, unknown>).taskId = 'T-B-GHOST';
+  }
+}
+let remoteGhostRejection: unknown;
+try { readIFC(ifcWithMetadataPayload(remoteGhostPayload)); }
+catch (error) { remoteGhostRejection = error; }
+truthy('7e A5 coherente externe ghost-taak in een open TASK-project raakt de specifieke endpointregel',
+  remoteGhostRejection instanceof IfcParseError
+  && remoteGhostRejection.reason === 'xer-source-archive'
+  && remoteGhostRejection.message.includes('ontbrekend extern TASK-eindpunt'));
+
+const taskGroupCorruptions: readonly [string, string, (candidate: Record<string, unknown>) => void][] = [
+  ['aanwezige TASK-groep is coherent naar een ghost-identiteit gewijzigd',
+    'ontbrekende TASK-identiteit', candidate => {
+      const readModel = candidate.readModel as Record<string, unknown>;
+      const groups = readModel.taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
+      const cells = groups['P-A']![0]!.cells as Record<string, unknown>;
+      cells.task_id = 'T-A-GHOST';
+    }],
+  ['aanwezige TASK-groep is buiten zijn bronvolgorde herschikt',
+    'staat niet in bronvolgorde', candidate => {
+      const readModel = candidate.readModel as Record<string, unknown>;
+      const groups = readModel.taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
+      [groups['P-A']![0], groups['P-A']![1]] = [groups['P-A']![1]!, groups['P-A']![0]!];
+    }],
+];
+for (const [label, expectedRule, mutate] of taskGroupCorruptions) {
+  const candidate = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+  mutate(candidate);
+  let rejection: unknown;
+  try { readIFC(ifcWithMetadataPayload(candidate)); }
+  catch (error) { rejection = error; }
+  truthy(`7f ${label} raakt de specifieke TASK-bronregel`,
+    rejection instanceof IfcParseError
+    && rejection.reason === 'xer-source-archive'
+    && rejection.message.includes(expectedRule));
+}
+
 const invalidUtf8Payload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 const invalidUtf8 = new TextEncoder().encode(JSON.stringify(invalidUtf8Payload));
 const currencyNeedle = new TextEncoder().encode('"currencyCode":"EUR"');
@@ -479,7 +625,7 @@ const currencyOffset = invalidUtf8.findIndex((_byte, index) =>
   currencyNeedle.every((needleByte, needleIndex) => invalidUtf8[index + needleIndex] === needleByte));
 if (currencyOffset < 0) throw new Error('UTF-8-testdoel currencyCode ontbreekt');
 invalidUtf8[currencyOffset + '"currencyCode":"'.length] = 0xff;
-truthy('7d niet-fatale controlemeter toont dat 0xff als U+FFFD geldige JSON zou blijven', (() => {
+truthy('7g niet-fatale controlemeter toont dat 0xff als U+FFFD geldige JSON zou blijven', (() => {
   try {
     const decoded = new TextDecoder().decode(invalidUtf8);
     return decoded.includes('\ufffdUR') && JSON.parse(decoded) !== null;
@@ -488,7 +634,7 @@ truthy('7d niet-fatale controlemeter toont dat 0xff als U+FFFD geldige JSON zou 
 let invalidUtf8Rejected = false;
 try { readIFC(ifcWithMetadataBytes(invalidUtf8)); }
 catch (error) { invalidUtf8Rejected = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
-truthy('7e correct gehashte diagnostics met ongeldige UTF-8 wordt getypeerd geweigerd', invalidUtf8Rejected);
+truthy('7h correct gehashte diagnostics met ongeldige UTF-8 wordt getypeerd geweigerd', invalidUtf8Rejected);
 
 const toUtf16 = (text: string, endian: 'le' | 'be') => {
   const bytes = new Uint8Array(2 + text.length * 2);
