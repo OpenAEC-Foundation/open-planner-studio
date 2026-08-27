@@ -25,7 +25,11 @@ import type {
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
-import { createXerSourceArchive, detectXerSourcePresentation } from '@/services/xerSourceArchive';
+import {
+  archiveDocumentView,
+  createXerSourceArchiveFromOwnedMetadata,
+  detectXerSourcePresentation,
+} from '@/services/xerSourceArchive';
 import { readXerCalendars } from './xerCalendarData';
 import { buildXerMetadataCatalog, materializeXerMetadata, type XerMetadataCatalog } from './xerMetadata';
 import { indexXerTaskResourceRows } from './xerResourceAssignments';
@@ -837,19 +841,41 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   // Precies één frozen bytearchief per ingelezen bestand. De projectmappers leveren alleen views;
   // hier, ná alle projectdiagnostics, delen alle werkelijk geopende documenten dezelfde referentie.
   const presentation = detectXerSourcePresentation(bytes);
-  const archive = createXerSourceArchive(bytes, {
+  const documentViews = Object.fromEntries(assembled.documents.map(document => [
+    document.projectId,
+    archiveDocumentView(document.result.xer),
+  ]));
+  const taskSourceRowsByProject = Object.fromEntries(
+    [...projectRowsIndex.tasksByProject].map(([projectId, rows]) => [projectId, rows]),
+  );
+  const archive = createXerSourceArchiveFromOwnedMetadata(bytes, {
     ...presentation,
     encoding: tables.report.encoding,
     diagnostics: {
-      tableReport: tables.report,
-      scheduleOptions: scheduleOptionsIndex.sourceArchive.diagnostics,
-      relationResolutionIssues: projectRowsIndex.relationResolutionIssues,
-      resourceCatalogIssues: resourceCatalog.issues,
-      metadataCatalogIssues: metadataCatalog.issues,
-      importReport: assembled.report,
+      schemaVersion: 1,
+      file: {
+        tableReport: tables.report,
+        scheduleOptions: scheduleOptionsIndex.sourceArchive.diagnostics,
+        relationResolutionIssues: projectRowsIndex.relationResolutionIssues,
+        resourceCatalogIssues: resourceCatalog.issues,
+        metadataCatalogIssues: metadataCatalog.issues,
+        importReport: assembled.report,
+      },
+      documentViews,
+    },
+    readModel: {
+      schemaVersion: 1,
+      numberFormat: tables.numberFormat,
+      resourceCatalog,
+      metadataCatalog,
+      taskSourceRowsByProject,
     },
   });
-  for (const document of assembled.documents) document.result.xerSourceArchive = archive;
+  for (const document of assembled.documents) {
+    document.result.xerSourceArchive = archive;
+    if (document.result.xer.resources) document.result.xer.resources.catalog = archive.readModel.resourceCatalog;
+    if (document.result.xer.metadata) document.result.xer.metadata.catalog = archive.readModel.metadataCatalog;
+  }
   if (assembled.results.length > 0) {
     // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de
     // rapportberekening loopt uniform door dezelfde X4b-kern als een meervoudig bestand.

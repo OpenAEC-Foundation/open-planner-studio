@@ -37,6 +37,46 @@ const header = [
   '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\tcomplete_pct_type\tcomplete_pct\tphys_complete_pct\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tsuspend_date\tresume_date\texpect_end_date',
 ] as const;
 
+const outputFirewall = read([
+  ...header.slice(0, -2),
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\ttarget_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tearly_start_date\tlate_end_date\ttotal_float_hr_cnt\trestart_date\treend_date\tdriving_path_flag',
+  '%R\tFW\tP1\tC1\tFW\tFirewall\tTT_Task\tTK_NotStart\t8\t2026-08-03 08:00\t2026-08-03 16:00\t2040-01-01 01:02\t2041-02-02 03:04\t999999\t2042-03-03 05:06\t2043-04-04 07:08\tY',
+  '%E',
+]);
+const cleanFirewall = read([
+  ...header.slice(0, -2),
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\ttarget_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+  '%R\tFW\tP1\tC1\tFW\tFirewall\tTT_Task\tTK_NotStart\t8\t2026-08-03 08:00\t2026-08-03 16:00',
+  '%E',
+]);
+const solveFirewall = (imported: XerReadResult) => {
+  const result = solveProject({
+    tasks: imported.tasks,
+    sequences: imported.sequences,
+    calendar: imported.calendar,
+    calendars: [imported.calendar, ...(imported.resourceCalendars ?? [])],
+    dataDate: imported.project.statusDate,
+    progressMode: imported.project.progressMode,
+    schedulingOptions: imported.project.schedulingOptions,
+    projectStartDate: imported.project.startDate,
+  });
+  const task = result.tasks.get('FW');
+  return task ? [task.earlyStart, task.earlyFinish, task.lateStart, task.lateFinish, task.totalFloat, task.freeFloat] : null;
+};
+eq('X7-0a verboden P6-uitvoercellen blijven exact in het archief-readmodel',
+  outputFirewall.xerSourceArchive?.readModel.taskSourceRowsByProject.P1?.[0]?.cells, {
+    task_id: 'FW', proj_id: 'P1', clndr_id: 'C1', task_code: 'FW', task_name: 'Firewall',
+    task_type: 'TT_Task', status_code: 'TK_NotStart', target_drtn_hr_cnt: '8',
+    target_start_date: '2026-08-03 08:00', target_end_date: '2026-08-03 16:00',
+    early_start_date: '2040-01-01 01:02', late_end_date: '2041-02-02 03:04',
+    total_float_hr_cnt: '999999', restart_date: '2042-03-03 05:06',
+    reend_date: '2043-04-04 07:08', driving_path_flag: 'Y',
+  });
+eq('X7-0b verboden P6 early/late/float/restart/reend/driving-output verandert de solve niet',
+  solveFirewall(outputFirewall), solveFirewall(cleanFirewall));
+
 const progress = read([
   ...header,
   // CP_Drtn: 25% van 8 uur laat exact 6 uur over; de tegenstrijdige bronrestduur is expres 1 uur.

@@ -16,6 +16,7 @@ import { resetUndoCoalescing } from '../transaction';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
+import type { XerSourceArchive } from '@/services/xerSourceArchive';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -165,15 +166,68 @@ function cloneXerImportMetadata(source: XerImportMetadata): XerImportMetadata {
 
 /** Herstel leest zelfstandige IFC's; identieke gevalideerde bronarchieven worden daarna één ref. */
 function shareRecoveredXerArchives(docs: readonly RecoveryDocInput[]): RecoveryDocInput[] {
-  const canonicalByDigest = new Map<string, NonNullable<RecoveryDocInput['xerSourceArchive']>>();
+  const canonicalByDigest = new Map<string, XerSourceArchive[]>();
+  const metadataCache = new WeakMap<XerSourceArchive, string>();
+  const canonicalMetadata = (archive: XerSourceArchive): string => {
+    const cached = metadataCache.get(archive);
+    if (cached !== undefined) return cached;
+    const stable = (value: unknown): string => {
+      if (value === null || typeof value !== 'object') return JSON.stringify(value);
+      if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+        .map(([key, child]) => `${JSON.stringify(key)}:${stable(child)}`).join(',')}}`;
+    };
+    const result = stable({ diagnostics: archive.diagnostics, readModel: archive.readModel });
+    metadataCache.set(archive, result);
+    return result;
+  };
+  const sameArchive = (left: XerSourceArchive, right: XerSourceArchive): boolean =>
+    left.schemaVersion === right.schemaVersion
+    && left.format === right.format
+    && left.byteLength === right.byteLength
+    && left.sha256 === right.sha256
+    && left.encoding === right.encoding
+    && left.bom === right.bom
+    && left.newline === right.newline
+    && left.byteChunks.length === right.byteChunks.length
+    && left.byteChunks.every((chunk, index) => chunk === right.byteChunks[index])
+    && canonicalMetadata(left) === canonicalMetadata(right);
+  const bindDocumentToArchive = (
+    doc: RecoveryDocInput,
+    archive: XerSourceArchive,
+  ): RecoveryDocInput => {
+    const metadata = doc.xer;
+    if (!metadata) return { ...doc, xerSourceArchive: archive };
+    return {
+      ...doc,
+      xerSourceArchive: archive,
+      xer: {
+        ...metadata,
+        ...(metadata.resources
+          ? {
+              resources: {
+                ...metadata.resources,
+                catalog: archive.readModel.resourceCatalog,
+              },
+            }
+          : {}),
+        ...(metadata.metadata
+          ? { metadata: { catalog: archive.readModel.metadataCatalog } }
+          : {}),
+      },
+    };
+  };
   return docs.map(doc => {
     const archive = doc.xerSourceArchive;
     if (!archive) return doc;
     const key = `${archive.byteLength}:${archive.sha256}`;
-    const canonical = canonicalByDigest.get(key);
-    if (canonical) return { ...doc, xerSourceArchive: canonical };
-    canonicalByDigest.set(key, archive);
-    return doc;
+    const candidates = canonicalByDigest.get(key) ?? [];
+    const canonical = candidates.find(candidate => sameArchive(candidate, archive));
+    if (canonical) return bindDocumentToArchive(doc, canonical);
+    candidates.push(archive);
+    canonicalByDigest.set(key, candidates);
+    return bindDocumentToArchive(doc, archive);
   });
 }
 

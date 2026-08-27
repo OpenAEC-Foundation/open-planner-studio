@@ -17,7 +17,8 @@ import { PSET, PER_TASK_PSETS, ifcStr } from './ifcPsets';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { projectFileBase } from '@/utils/documents';
 import {
-  createXerSourceArchive, decodeXerSourceArchive, XER_SOURCE_ARCHIVE_CHUNK_BYTES, type XerSourceArchive,
+  chunkXerArchiveBytes, encodeXerArchiveMetadataPayload, withXerArchiveDocumentView,
+  XER_SOURCE_ARCHIVE_CHUNK_BYTES, type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import {
   IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx,
@@ -328,11 +329,8 @@ function writeXerSourceArchive(
 ): void {
   if (!archive) return;
   if (!sourceProjectId) throw new Error('XER-bronarchief kan niet zonder OPS_XerDocument-selector worden opgeslagen.');
-  const archival = archiveWithDocumentMetadata(archive, sourceProjectId, xer);
-  const diagnosticBytes = new TextEncoder().encode(JSON.stringify(archival.diagnostics));
-  const diagnostics = createXerSourceArchive(diagnosticBytes, {
-    encoding: 'utf-8', bom: 'none', newline: 'none', diagnostics: {},
-  });
+  const archival = xer ? withXerArchiveDocumentView(archive, xer) : archive;
+  const diagnostics = chunkXerArchiveBytes(encodeXerArchiveMetadataPayload(archival));
   const props: number[] = [];
   const property = (name: string, value: string) => props.push(addLine(ctx, `xerarchive_prop_${name}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value},$)`));
   property('SchemaVersion', `IFCINTEGER(${archival.schemaVersion})`);
@@ -357,38 +355,6 @@ function writeXerSourceArchive(
   selector('SourceProjectId', `IFCTEXT(${ifcStr(sourceProjectId)})`);
   const selectorSet = addLine(ctx, 'pset_xerdocument', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_xerdocument'))},#${ownerHistId},${ifcStr(PSET.XerDocument)},$,(${selectorProps.map(id => `#${id}`).join(',')}))`);
   addLine(ctx, 'rel_xerdocument', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_xerdocument'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${selectorSet})`);
-}
-
-/** Voeg alleen bij handmatige API-gebruikers ontbrekende documentprovenance toe. */
-function archiveWithDocumentMetadata(
-  archive: XerSourceArchive, sourceProjectId: string, xer: XerImportMetadata | undefined,
-): XerSourceArchive {
-  if (!xer) return archive;
-  const current = archive.diagnostics.documentMetadataByProject;
-  if (current && typeof current === 'object' && !Array.isArray(current)
-    && Object.prototype.hasOwnProperty.call(current, sourceProjectId)) return archive;
-  const diagnostics = structuredClone(archive.diagnostics);
-  const record = diagnostics as Record<string, unknown>;
-  const existing = record.documentMetadataByProject;
-  const byProject = existing && typeof existing === 'object' && !Array.isArray(existing)
-    ? existing as Record<string, unknown> : {};
-  byProject[sourceProjectId] = archivalXerImportMetadata(xer);
-  record.documentMetadataByProject = byProject;
-  return createXerSourceArchive(decodeXerSourceArchive(archive), {
-    schemaVersion: archive.schemaVersion,
-    encoding: archive.encoding,
-    bom: archive.bom,
-    newline: archive.newline,
-    diagnostics: record,
-  });
-}
-
-function archivalXerImportMetadata(source: XerImportMetadata): Record<string, unknown> {
-  const { resources, metadata, ...documentFields } = source;
-  return JSON.parse(JSON.stringify({
-    ...documentFields,
-    ...(resources ? { resources: { assignments: resources.assignments, issues: resources.issues } } : {}),
-  })) as Record<string, unknown>;
 }
 
 // FIELD_MEASURE (IfcSimplePropertyTemplate.PrimaryMeasureType per custom-field-type) is verhuisd

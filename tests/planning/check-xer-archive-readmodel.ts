@@ -1,0 +1,235 @@
+// X9 reviewronde 1 — het exacte bytearchief draagt één versiegebonden, getypeerd readmodel.
+// De fixture gaat door de echte XER-reader en daarna per project door writeIFC/readIFC.
+import { isMultiDocumentImport } from '@/services/importTypes';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readXER } from '@/services/xer/xerReader';
+import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
+import { useAppStore } from '@/state/appStore';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { recoveryInputFromParsed } from '@/state/documentContract';
+
+declare const process: { exit(code: number): never };
+const failures: string[] = [];
+let checks = 0;
+const equal = (label: string, actual: unknown, expected: unknown) => {
+  checks += 1;
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    failures.push(`${label}: verwacht ${JSON.stringify(expected)}, kreeg ${JSON.stringify(actual)}`);
+  }
+};
+const truthy = (label: string, condition: boolean) => {
+  checks += 1;
+  if (!condition) failures.push(label);
+};
+
+const source = new TextEncoder().encode([
+  'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
+  '%T\tCURRTYPE',
+  '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+  '%R\tEUR\tcomma\tperiod',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+  '%R\tP-A\tProject A\tC\t2026-08-01 08:00',
+  '%R\tP-B\tProject B\tC\t2026-08-01 08:00',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC\tStandaard\t8\t40\t',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\tsuspend_date\tresume_date',
+  '%R\tT-A\tP-A\tA-1\tTaak A\tC\t2026-08-01 08:00\t2026-08-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t\t\t',
+  '%R\tT-B\tP-B\tB-1\tTaak B\tC\t2026-08-02 08:00\t2026-08-02 16:00\t8\tTT_Task\tDT_FixedRate\tTK_NotStart\tCP_Phys\t\t',
+  '%T\tROLES',
+  '%F\trole_id\trole_name',
+  '%R\tROLE-1\tUitvoerder',
+  '%T\tRSRC',
+  '%F\trsrc_id\trsrc_name\trsrc_type\tclndr_id\tdef_qty_per_hr\trole_id',
+  '%R\tR-1\tVakman\tRT_Labor\tC\t2\tROLE-1',
+  '%T\tRSRCRATE',
+  '%F\trsrc_rate_id\trsrc_id\tmax_qty_per_hr\tcost_per_qty\tstart_date',
+  '%R\tRATE-1\tR-1\t1\t25,50\t2026-08-01 00:00',
+  '%T\tTASKRSRC',
+  '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\trole_id\ttarget_qty_per_hr\tremain_qty_per_hr\tremain_qty\ttarget_qty',
+  '%R\tAS-A\tP-A\tT-A\tR-1\tROLE-1\t0,5\t0,5\t4\t4',
+  '%R\tAS-B\tP-B\tT-B\tR-1\t\t0,25\t0,25\t2\t2',
+  '%T\tACTVTYPE',
+  '%F\tactv_code_type_id\tactv_code_type\tseq_num',
+  '%R\tTYPE\tFase\t1',
+  '%T\tACTVCODE',
+  '%F\tactv_code_id\tactv_code_type_id\tshort_name\tseq_num',
+  '%R\tV-A\tTYPE\tA\t1',
+  '%R\tV-B\tTYPE\tB\t2',
+  '%T\tTASKACTV',
+  '%F\tproj_id\ttask_id\tactv_code_type_id\tactv_code_id',
+  '%R\tP-A\tT-A\tTYPE\tV-A',
+  '%R\tP-B\tT-B\tTYPE\tV-B',
+  '%T\tUDFTYPE',
+  '%F\tudf_type_id\ttable_name\tudf_type_label\tlogical_data_type',
+  '%R\tUF\tTASK\tKeuze\tFT_STATICTYPE',
+  '%T\tUDFVALUE',
+  '%F\tudf_type_id\tproj_id\tfk_id\tudf_text',
+  '%R\tUF\tP-A\tT-A\tAlleen A',
+  '%E',
+].join('\r\n'));
+
+const opened = readXER(source);
+if (!isMultiDocumentImport(opened)) throw new Error('De readmodel-fixture moet twee projecten openen');
+const [a, b] = opened.results;
+if (!a || !b || !a.xerSourceArchive) throw new Error('XER-resultaat mist project of archief');
+const archive = a.xerSourceArchive as typeof a.xerSourceArchive & {
+  readModel?: {
+    schemaVersion: number;
+    numberFormat: unknown;
+    resourceCatalog: unknown;
+    metadataCatalog: unknown;
+  };
+  diagnostics: Record<string, unknown> & { schemaVersion?: number; file?: unknown; documentViews?: Record<string, unknown> };
+};
+
+equal('1 archive-readmodel is versiegebonden en bewaart CURRTYPE exact',
+  [archive.readModel?.schemaVersion, archive.readModel?.numberFormat],
+  [1, { decimal: ',', group: '.', source: 'currtype', currencyCode: 'EUR' }]);
+truthy('2 beide documenten gebruiken de catalogi uit exact hetzelfde archive-readmodel',
+  a.xer?.resources?.catalog === archive.readModel?.resourceCatalog
+  && b.xer?.resources?.catalog === archive.readModel?.resourceCatalog
+  && a.xer?.metadata?.catalog === archive.readModel?.metadataCatalog
+  && b.xer?.metadata?.catalog === archive.readModel?.metadataCatalog);
+truthy('2a projectprovenance heeft geen tweede persistente bronkopie naast de immutable documentview',
+  a.xer?.resources?.assignments === a.xerSourceArchive?.diagnostics.documentViews['P-A']?.resources?.assignments
+  && b.xer?.resources?.assignments === b.xerSourceArchive?.diagnostics.documentViews['P-B']?.resources?.assignments
+  && Object.isFrozen(a.xer?.resources?.assignments)
+  && Object.isFrozen(a.xer?.resources?.assignments[0]));
+equal('3 diagnostics hebben een getypeerde versie, file-view en beide projectviews',
+  [archive.diagnostics.schemaVersion, Boolean(archive.diagnostics.file), Object.keys(archive.diagnostics.documentViews ?? {}).sort()],
+  [1, true, ['P-A', 'P-B']]);
+
+const roundTrips = [a, b].map(result => readIFC(writeIFC(result)));
+equal('4 per zelfstandig IFC herleven X6-resources, rates en projecttoewijzingen werkelijk',
+  roundTrips.map(result => ({
+    catalogResources: result.xer?.resources?.catalog?.resources.length,
+    rates: result.xer?.resources?.catalog?.rows.rates.length,
+    assignments: result.xer?.resources?.assignments.map(item => item.sourceId),
+  })), [
+    { catalogResources: 1, rates: 1, assignments: ['AS-A'] },
+    { catalogResources: 1, rates: 1, assignments: ['AS-B'] },
+  ]);
+equal('5 per zelfstandig IFC herleven X8-catalogus en documentspecifieke projectie werkelijk',
+  roundTrips.map(result => ({
+    catalogTypes: result.xer?.metadata?.catalog?.activityCodeTypes.map(type => type.id),
+    taskCodes: result.tasks.find(task => task.wbsCode === (result.xerSourceProjectId === 'P-A' ? 'A-1' : 'B-1'))?.activityCodes,
+    udf: result.tasks.find(task => task.wbsCode === 'A-1')?.customFields,
+  })), [
+    { catalogTypes: ['TYPE'], taskCodes: { TYPE: 'V-A' }, udf: { UF: 'Alleen A' } },
+    { catalogTypes: ['TYPE'], taskCodes: { TYPE: 'V-B' }, udf: undefined },
+  ]);
+truthy('6 IFC-read gebruikt per document de catalogusrefs uit zijn archive-readmodel', roundTrips.every(result => {
+  const readModel = (result.xerSourceArchive as typeof archive | undefined)?.readModel;
+  return result.xer?.resources?.catalog === readModel?.resourceCatalog
+    && result.xer?.metadata?.catalog === readModel?.metadataCatalog;
+}));
+truthy('6a IFC-read materialiseert geen tweede X6-provenancekopie buiten zijn archive-documentview',
+  roundTrips.every(result => result.xer?.resources?.assignments
+    === result.xerSourceArchive?.diagnostics.documentViews[result.xerSourceProjectId ?? '']?.resources?.assignments));
+
+const diagnosticChunk = /IFCPROPERTYSINGLEVALUE\('DiagnosticsChunk000000',\$,IFCTEXT\('([A-Za-z0-9+/=]+)'\),\$\)/.exec(writeIFC(a));
+if (!diagnosticChunk) throw new Error('DiagnosticsChunk000000 ontbreekt');
+const originalIfc = writeIFC(a);
+const payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(diagnosticChunk[1]!), char => char.charCodeAt(0)))) as Record<string, unknown>;
+const ifcWithMetadataPayload = (metadataPayload: Record<string, unknown>) => {
+  const encoded = new TextEncoder().encode(JSON.stringify(metadataPayload));
+  let binary = '';
+  for (const byte of encoded) binary += String.fromCharCode(byte);
+  return originalIfc
+    .replace(diagnosticChunk[1]!, btoa(binary))
+    .replace(/(IFCPROPERTYSINGLEVALUE\('DiagnosticsByteLength',\$,IFCINTEGER\()\d+(\),\$\))/, `$1${encoded.length}$2`)
+    .replace(/(IFCPROPERTYSINGLEVALUE\('DiagnosticsSha256',\$,IFCTEXT\(')[0-9a-f]{64}('\),\$\))/, `$1${sha256Hex(encoded)}$2`);
+};
+const byProject = ((payload.diagnostics as Record<string, unknown>).documentViews) as Record<string, Record<string, unknown>>;
+byProject['P-A']!.calendarIssues = [{
+  code: 'XER_CALENDAR_RECOVERED', calendarId: 'C', line: 1, reason: 'fixture', resolution: 'BROKEN',
+}];
+let hostileTyped = false;
+try { readIFC(ifcWithMetadataPayload(payload)); }
+catch (error) { hostileTyped = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
+truthy('7 hostile nested diagnostic-enum wordt totaal en getypeerd geweigerd', hostileTyped);
+
+const hostileNumberPayload = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(diagnosticChunk[1]!), char => char.charCodeAt(0)))) as Record<string, unknown>;
+const hostileNumberFormat = ((hostileNumberPayload.readModel as Record<string, unknown>).numberFormat) as Record<string, unknown>;
+hostileNumberFormat.decimal = ';';
+let hostileNumberTyped = false;
+try { readIFC(ifcWithMetadataPayload(hostileNumberPayload)); }
+catch (error) { hostileNumberTyped = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
+truthy('7a hostile CURRTYPE-numberFormatvorm wordt getypeerd geweigerd', hostileNumberTyped);
+
+const toUtf16 = (text: string, endian: 'le' | 'be') => {
+  const bytes = new Uint8Array(2 + text.length * 2);
+  bytes.set(endian === 'le' ? [0xff, 0xfe] : [0xfe, 0xff]);
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    bytes[2 + index * 2 + (endian === 'le' ? 0 : 1)] = code & 0xff;
+    bytes[2 + index * 2 + (endian === 'le' ? 1 : 0)] = code >>> 8;
+  }
+  return bytes;
+};
+const sourceText = new TextDecoder().decode(source);
+for (const endian of ['le', 'be'] as const) {
+  const encoded = toUtf16(sourceText, endian);
+  const utfOpened = readXER(encoded);
+  if (!isMultiDocumentImport(utfOpened)) throw new Error(`UTF-16${endian.toUpperCase()}-fixture moet multi-project zijn`);
+  const firstIfcRead = readIFC(writeIFC(utfOpened.results[0]!));
+  const secondIfcRead = readIFC(writeIFC(firstIfcRead));
+  equal(`8 UTF-16${endian.toUpperCase()} XER→IFC→IFC bewaart presentatie en bytes`, {
+    encoding: secondIfcRead.xerSourceArchive?.encoding,
+    bom: secondIfcRead.xerSourceArchive?.bom,
+    newline: secondIfcRead.xerSourceArchive?.newline,
+    bytes: secondIfcRead.xerSourceArchive
+      ? sha256Hex(decodeXerSourceArchive(secondIfcRead.xerSourceArchive))
+      : null,
+  }, {
+    encoding: endian === 'le' ? 'utf-16le' : 'utf-16be',
+    bom: endian === 'le' ? 'utf-16le' : 'utf-16be',
+    newline: 'crlf',
+    bytes: sha256Hex(encoded),
+  });
+}
+
+const store = () => useAppStore.getState();
+store().newProject();
+store().applyOpenedImport(opened, {
+  filePath: null, fileHandle: null, recompute: false, fit: false,
+  hourDataNotice: false, linkedOpen: false,
+});
+store().duplicateDocument();
+for (let index = 0; index < 100; index += 1) store().setProject({ description: `readmodel-${index}` });
+for (let index = 0; index < 100; index += 1) store().undo();
+for (let index = 0; index < 100; index += 1) store().redo();
+const tabPayloads = store().getOpenDocumentPayloads();
+truthy('9 projecttabs, duplicate en 100 undo/redo delen één archive/readmodel/catalogusgrafiek',
+  tabPayloads.length === 3
+  && new Set(tabPayloads.map(document => document.payload.xerSourceArchive)).size === 1
+  && tabPayloads.every(document =>
+    document.payload.xerImportMetadata?.resources?.catalog === archive.readModel?.resourceCatalog
+    && document.payload.xerImportMetadata?.metadata?.catalog === archive.readModel?.metadataCatalog));
+const recoveredInputs = tabPayloads.map((document, index) => {
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(document.payload)));
+  return recoveryInputFromParsed(parsed, { id: `readmodel-recovery-${index}`, filePath: null, isDirty: true });
+});
+store().restoreDocuments(recoveredInputs, recoveredInputs[0]!.id);
+const recoveredPayloads = store().getOpenDocumentPayloads();
+const recoveredArchive = recoveredPayloads[0]?.payload.xerSourceArchive;
+truthy('10 IFC-per-document→readIFC→recovery herstelt één bruikbare gedeelde catalogusgrafiek',
+  recoveredPayloads.length === 3
+  && recoveredArchive !== null
+  && new Set(recoveredPayloads.map(document => document.payload.xerSourceArchive)).size === 1
+  && recoveredPayloads.every(document =>
+    document.payload.xerImportMetadata?.resources?.catalog === recoveredArchive?.readModel.resourceCatalog
+    && document.payload.xerImportMetadata?.metadata?.catalog === recoveredArchive?.readModel.metadataCatalog));
+
+if (failures.length === 0) {
+  console.log(`OK  xer-archive-readmodel: alle checks groen (${checks})`);
+  process.exit(0);
+}
+console.log(`XX  xer-archive-readmodel: ${failures.length} afwijking(en) van ${checks}`);
+for (const failure of failures) console.log(`   - ${failure}`);
+process.exit(1);

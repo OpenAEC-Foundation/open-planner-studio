@@ -26,9 +26,10 @@ import { normalizeImportedProgress } from '@/services/importNormalize';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import type { XerImportMetadata } from '@/services/importTypes';
 import {
-  createXerSourceArchive, decodeXerBase64Chunk, sha256Hex, XER_SOURCE_ARCHIVE_CHUNK_BYTES,
+  createXerSourceArchiveFromOwnedMetadata, decodeXerBase64Chunk, parseXerArchiveMetadataPayload, sha256Hex,
+  XER_SOURCE_ARCHIVE_CHUNK_BYTES,
   XER_SOURCE_ARCHIVE_SCHEMA_VERSION, type XerSourceArchive, type XerSourceArchiveBom,
-  type XerSourceArchiveEncoding, type XerSourceArchiveNewline,
+  type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
 } from '@/services/xerSourceArchive';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
@@ -202,32 +203,20 @@ function extractXerImportMetadata(
   archive: XerSourceArchive | undefined, sourceProjectId: string | undefined,
 ): XerImportMetadata | undefined {
   if (!archive || !sourceProjectId) return undefined;
-  const all = archive.diagnostics.documentMetadataByProject;
-  if (all === undefined) return undefined;
-  if (!all || typeof all !== 'object' || Array.isArray(all)) xerArchiveError('documentMetadataByProject is geen object');
-  const candidate = (all as Record<string, unknown>)[sourceProjectId];
-  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) xerArchiveError('selector wijst naar ontbrekende documentmetadata');
-  const metadata = candidate as Record<string, unknown>;
-  if (metadata.sourceProjectId !== sourceProjectId
-    || typeof metadata.defaultCurrencyCode !== 'string'
-    || !metadata.tableReport || typeof metadata.tableReport !== 'object'
-    || !Array.isArray(metadata.calendarIssues)
-    || !Array.isArray(metadata.enumFallbacks)
-    || !metadata.scheduleOptions || typeof metadata.scheduleOptions !== 'object'
-    || !Array.isArray(metadata.externalRelations)
-    || !Array.isArray(metadata.externalLinks)
-    || !metadata.report || typeof metadata.report !== 'object') {
-    xerArchiveError('documentmetadata heeft niet het verwachte XER-contract');
-  }
-  const resources = metadata.resources;
-  if (resources !== undefined && (!resources || typeof resources !== 'object'
-    || Array.isArray(resources)
-    || !Array.isArray((resources as Record<string, unknown>).assignments)
-    || !Array.isArray((resources as Record<string, unknown>).issues))) {
-    xerArchiveError('X6-provenance heeft niet het verwachte contract');
-  }
-  // Een IFC-document krijgt een zelfstandige, mutable documentview; het bronarchief blijft frozen.
-  return structuredClone(metadata) as unknown as XerImportMetadata;
+  const candidate = archive.diagnostics.documentViews[sourceProjectId];
+  if (!candidate) xerArchiveError('selector wijst naar ontbrekende documentview');
+  const { resources, ...documentFields } = candidate;
+  // Het documentmetadata-object en zijn gewone velden zijn zelfstandig. X6-provenance is readonly
+  // bronbewijs en deelt doelbewust de immutable archive-view; dupliceren maakt pas bij een echte
+  // documentduplicatie een mutable projectkopie. De bestandsbrede catalogus komt uit het readmodel.
+  const metadata = structuredClone(documentFields) as XerImportMetadata;
+  if (resources) metadata.resources = {
+    catalog: archive.readModel.resourceCatalog,
+    assignments: resources.assignments,
+    issues: resources.issues,
+  };
+  metadata.metadata = { catalog: archive.readModel.metadataCatalog };
+  return metadata;
 }
 
 function extractXerSourceProjectId(
@@ -254,7 +243,9 @@ function archiveProps(entities: StepEntity[], entityMap: Map<string, StepEntity>
   const sets = entities.filter(entity => entity.type === 'IFCPROPERTYSET' && stripQuotes(entity.args[2] || '') === psetName);
   if (sets.length === 0) return undefined;
   if (sets.length !== 1) xerArchiveError(`Pset '${psetName}' komt ${sets.length} keer voor`);
-  const project = entities.find(entity => entity.type === 'IFCPROJECT');
+  const projects = entities.filter(entity => entity.type === 'IFCPROJECT');
+  if (projects.length !== 1) xerArchiveError(`Pset '${psetName}' vereist exact één IFCPROJECT; gevonden: ${projects.length}`);
+  const project = projects[0]!;
   const attachments = entities.filter(entity =>
     entity.type === 'IFCRELDEFINESBYPROPERTIES'
     && parseRef(entity.args[5] || '') === sets[0]!.id,
@@ -272,6 +263,33 @@ function archiveProps(entities: StepEntity[], entityMap: Map<string, StepEntity>
     values.set(name, parseTypedValue(prop.args[2] || ''));
   }
   return values;
+}
+
+function validateArchivePropertyOrder(
+  props: Map<string, unknown>, manifestNames: readonly string[], chunkCount: number, diagnosticsCount: number,
+): void {
+  const propertyBudget = props.size - manifestNames.length;
+  if (propertyBudget < 0
+    || chunkCount > propertyBudget
+    || diagnosticsCount > propertyBudget - chunkCount) {
+    xerArchiveError('chunkcounts overschrijden het werkelijk aanwezige propertybudget');
+  }
+  if (chunkCount + diagnosticsCount !== propertyBudget) {
+    xerArchiveError('chunkcounts passen niet exact bij het werkelijk aanwezige propertybudget');
+  }
+  let position = 0;
+  for (const actual of props.keys()) {
+    let expected: string;
+    if (position < manifestNames.length) {
+      expected = manifestNames[position]!;
+    } else if (position < manifestNames.length + chunkCount) {
+      expected = `ByteChunk${String(position - manifestNames.length).padStart(6, '0')}`;
+    } else {
+      expected = `DiagnosticsChunk${String(position - manifestNames.length - chunkCount).padStart(6, '0')}`;
+    }
+    if (actual !== expected) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
+    position += 1;
+  }
 }
 
 function nonNegativeSafeInteger(value: unknown, name: string): number {
@@ -329,26 +347,20 @@ function extractXerSourceArchive(entities: StepEntity[], entityMap: Map<string, 
     'SchemaVersion', 'Format', 'ByteLength', 'Sha256', 'Encoding', 'Bom', 'Newline',
     'ByteChunkSize', 'ByteChunkCount', 'DiagnosticsByteLength', 'DiagnosticsSha256', 'DiagnosticsChunkCount',
   ];
-  const orderedNames = [
-    ...manifestNames,
-    ...Array.from({ length: chunkCount }, (_, index) => `ByteChunk${String(index).padStart(6, '0')}`),
-    ...Array.from({ length: diagnosticsCount }, (_, index) => `DiagnosticsChunk${String(index).padStart(6, '0')}`),
-  ];
-  if (JSON.stringify([...props.keys()]) !== JSON.stringify(orderedNames)) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
+  validateArchivePropertyOrder(props, manifestNames, chunkCount, diagnosticsCount);
   const sourceBytes = concatArchiveChunks(props, 'ByteChunk', chunkCount, byteLength);
   const diagnosticBytes = concatArchiveChunks(props, 'DiagnosticsChunk', diagnosticsCount, diagnosticsLength);
   const sourceHash = requiredString(props, 'Sha256');
   const diagnosticsHash = requiredString(props, 'DiagnosticsSha256');
   if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) xerArchiveError('Sha256 is ongeldig of past niet bij de bytes');
   if (!/^[0-9a-f]{64}$/.test(diagnosticsHash) || sha256Hex(diagnosticBytes) !== diagnosticsHash) xerArchiveError('DiagnosticsSha256 is ongeldig of past niet bij de diagnostics');
-  let diagnostics: Record<string, unknown>;
+  let archiveMetadata: XerArchiveMetadataPayloadV1;
   try {
     const parsed: unknown = JSON.parse(new TextDecoder().decode(diagnosticBytes));
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) xerArchiveError('diagnostics is geen object');
-    diagnostics = parsed as Record<string, unknown>;
+    archiveMetadata = parseXerArchiveMetadataPayload(parsed);
   } catch (error) {
     if (error instanceof IfcParseError) throw error;
-    xerArchiveError('diagnostics is geen geldige JSON');
+    xerArchiveError(`diagnostics/readmodel is ongeldig: ${error instanceof Error ? error.message : 'geen geldige JSON'}`);
   }
   const encoding = requiredString(props, 'Encoding');
   const bom = requiredString(props, 'Bom');
@@ -356,7 +368,18 @@ function extractXerSourceArchive(entities: StepEntity[], entityMap: Map<string, 
   if (!(['utf-8', 'utf-16le', 'utf-16be', 'windows-1252'] as readonly string[]).includes(encoding)) xerArchiveError('Encoding is onbekend');
   if (!(['none', 'utf-8', 'utf-16le', 'utf-16be'] as readonly string[]).includes(bom)) xerArchiveError('Bom is onbekend');
   if (!(['lf', 'crlf', 'cr', 'mixed', 'none'] as readonly string[]).includes(newline)) xerArchiveError('Newline is onbekend');
-  return createXerSourceArchive(sourceBytes, { schemaVersion, encoding: encoding as XerSourceArchiveEncoding, bom: bom as XerSourceArchiveBom, newline: newline as XerSourceArchiveNewline, diagnostics });
+  try {
+    return createXerSourceArchiveFromOwnedMetadata(sourceBytes, {
+      schemaVersion,
+      encoding: encoding as XerSourceArchiveEncoding,
+      bom: bom as XerSourceArchiveBom,
+      newline: newline as XerSourceArchiveNewline,
+      diagnostics: archiveMetadata.diagnostics,
+      readModel: archiveMetadata.readModel,
+    });
+  } catch (error) {
+    xerArchiveError(`diagnostics/readmodel kon niet worden opgebouwd: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 // ── STEP-tekstscan: één quote-bewuste toestandsmachine voor álle lagen (bevinding K2) ───────────

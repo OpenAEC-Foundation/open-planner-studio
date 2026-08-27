@@ -466,7 +466,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       if (task.p6ExpectedFinish) props.push({ name: 'ExpectedFinish', value: `IFCTEXT(${ifcStr(task.p6ExpectedFinish)})` });
       if (task.p6DurationType) props.push({ name: 'DurationType', value: `IFCLABEL(${ifcStr(task.p6DurationType)})` });
       if (task.p6ActivityType) props.push({ name: 'ActivityType', value: `IFCLABEL(${ifcStr(task.p6ActivityType)})` });
-      if (hasValidP6SuspendResume(task)) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.T.)' });
+      if (task.p6SuspendResume === false) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.F.)' });
+      else if (hasValidP6SuspendResume(task)) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.T.)' });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {
@@ -474,7 +475,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       const durationTypes: readonly P6DurationType[] = ['DT_FixedDrtn', 'DT_FixedDUR2', 'DT_FixedRate', 'DT_FixedQty'];
       const activityTypes: readonly P6ActivityType[] = ['TT_Task', 'TT_Rsrc', 'TT_LOE', 'TT_Mile', 'TT_FinMile', 'TT_WBS'];
       for (const { name, value } of props) {
-        if (name === 'SuspendResume') { if (value === true) task.p6SuspendResume = true; continue; }
+        if (name === 'SuspendResume') { if (typeof value === 'boolean') task.p6SuspendResume = value; continue; }
         if (typeof value !== 'string' || !value) continue;
         if (name === 'ProjectId') task.p6ProjectId = value;
         else if (name === 'TaskId') task.p6TaskId = value;
