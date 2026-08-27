@@ -138,7 +138,12 @@ const duplicateRelation = ifc.replace(
 expect('15 dubbele propertyrelatie naar het archief wordt geweigerd',
   rejectsArchiveWith(duplicateRelation, 'hangt niet één-op-één'));
 
-if (failures.length === 0) { console.log('OK  ifc-xer-archive-container: alle checks groen (21)'); process.exit(0); }
+const legacyIfc = writeIFC({ project, calendar, tasks: [], sequences: [], resources: [], assignments: [] });
+const legacyRead = readIFC(legacyIfc);
+expect('16 geldige oudere IFC zonder XER-Psets blijft legacy-compatibel',
+  legacyRead.xerSourceArchive === undefined && legacyRead.xerSourceProjectId === undefined && legacyRead.xer === undefined);
+
+if (failures.length === 0) { console.log('OK  ifc-xer-archive-container: alle checks groen (22)'); process.exit(0); }
 console.log(`XX  ifc-xer-archive-container: ${failures.length} afwijking(en)`);
 for (const failure of failures) console.log(`   - ${failure}`);
 process.exit(1);

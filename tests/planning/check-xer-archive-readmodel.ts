@@ -1,5 +1,7 @@
 // X9 reviewronde 1 — het exacte bytearchief draagt één versiegebonden, getypeerd readmodel.
 // De fixture gaat door de echte XER-reader en daarna per project door writeIFC/readIFC.
+import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
@@ -37,6 +39,10 @@ const source = new TextEncoder().encode([
   '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
   '%R\tP-A\tProject A\tC\t2026-08-01 08:00',
   '%R\tP-B\tProject B\tC\t2026-08-01 08:00',
+  '%T\tSCHEDOPTIONS',
+  '%F\tproj_id',
+  '%R\tP-A',
+  '%R\tP-B',
   '%T\tCALENDAR',
   '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
   '%R\tC\tStandaard\t8\t40\t',
@@ -156,19 +162,39 @@ truthy('6b IFC-read bindt X5 sourceArchive/sourceRows opnieuw aan de ene archive
         ]);
   }));
 
-const diagnosticChunk = /IFCPROPERTYSINGLEVALUE\('DiagnosticsChunk000000',\$,IFCTEXT\('([A-Za-z0-9+/=]+)'\),\$\)/.exec(writeIFC(a));
-if (!diagnosticChunk) throw new Error('DiagnosticsChunk000000 ontbreekt');
 const originalIfc = writeIFC(a);
-const payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(diagnosticChunk[1]!), char => char.charCodeAt(0)))) as Record<string, unknown>;
-const ifcWithMetadataPayload = (metadataPayload: Record<string, unknown>) => {
-  const encoded = new TextEncoder().encode(JSON.stringify(metadataPayload));
-  let binary = '';
-  for (const byte of encoded) binary += String.fromCharCode(byte);
-  return originalIfc
-    .replace(diagnosticChunk[1]!, btoa(binary))
+const diagnosticChunkPattern = /IFCPROPERTYSINGLEVALUE\('DiagnosticsChunk(\d{6})',\$,IFCTEXT\('([A-Za-z0-9+/=]+)'\),\$\)/g;
+const diagnosticChunks = [...originalIfc.matchAll(diagnosticChunkPattern)]
+  .sort((left, right) => left[1]!.localeCompare(right[1]!));
+if (diagnosticChunks.length === 0) throw new Error('DiagnosticsChunk-container ontbreekt');
+const decodeBase64 = (value: string) => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+const diagnosticBytes = new Uint8Array(diagnosticChunks.reduce((total, chunk) => total + decodeBase64(chunk[2]!).length, 0));
+let diagnosticOffset = 0;
+for (const chunk of diagnosticChunks) {
+  const decoded = decodeBase64(chunk[2]!);
+  diagnosticBytes.set(decoded, diagnosticOffset);
+  diagnosticOffset += decoded.length;
+}
+const payload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+const ifcWithMetadataBytes = (encoded: Uint8Array) => {
+  const rebuiltChunks: string[] = [];
+  for (let offset = 0; offset < encoded.length; offset += 196_608) {
+    rebuiltChunks.push(Buffer.from(encoded.subarray(offset, offset + 196_608)).toString('base64'));
+  }
+  if (rebuiltChunks.length !== diagnosticChunks.length) {
+    throw new Error('Testfixture wijzigde onverwacht het diagnostics-chunkaantal');
+  }
+  let result = originalIfc;
+  for (let index = 0; index < diagnosticChunks.length; index += 1) {
+    result = result.replace(diagnosticChunks[index]![2]!, rebuiltChunks[index]!);
+  }
+  const independentSha256 = createHash('sha256').update(encoded).digest('hex');
+  return result
     .replace(/(IFCPROPERTYSINGLEVALUE\('DiagnosticsByteLength',\$,IFCINTEGER\()\d+(\),\$\))/, `$1${encoded.length}$2`)
-    .replace(/(IFCPROPERTYSINGLEVALUE\('DiagnosticsSha256',\$,IFCTEXT\(')[0-9a-f]{64}('\),\$\))/, `$1${sha256Hex(encoded)}$2`);
+    .replace(/(IFCPROPERTYSINGLEVALUE\('DiagnosticsSha256',\$,IFCTEXT\(')[0-9a-f]{64}('\),\$\))/, `$1${independentSha256}$2`);
 };
+const ifcWithMetadataPayload = (metadataPayload: Record<string, unknown>) =>
+  ifcWithMetadataBytes(new TextEncoder().encode(JSON.stringify(metadataPayload)));
 const byProject = ((payload.diagnostics as Record<string, unknown>).documentViews) as Record<string, Record<string, unknown>>;
 byProject['P-A']!.calendarIssues = [{
   code: 'XER_CALENDAR_RECOVERED', calendarId: 'C', line: 1, reason: 'fixture', resolution: 'BROKEN',
@@ -178,7 +204,7 @@ try { readIFC(ifcWithMetadataPayload(payload)); }
 catch (error) { hostileTyped = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
 truthy('7 hostile nested diagnostic-enum wordt totaal en getypeerd geweigerd', hostileTyped);
 
-const hostileNumberPayload = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(diagnosticChunk[1]!), char => char.charCodeAt(0)))) as Record<string, unknown>;
+const hostileNumberPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 const hostileNumberFormat = ((hostileNumberPayload.readModel as Record<string, unknown>).numberFormat) as Record<string, unknown>;
 hostileNumberFormat.decimal = ';';
 let hostileNumberTyped = false;
@@ -202,15 +228,131 @@ const reviewerCorruptions: readonly [string, (candidate: Record<string, unknown>
   }],
 ];
 for (const [label, mutate] of reviewerCorruptions) {
-  const candidate = JSON.parse(new TextDecoder().decode(
-    Uint8Array.from(atob(diagnosticChunk[1]!), char => char.charCodeAt(0)),
-  )) as Record<string, unknown>;
+  const candidate = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
   mutate(candidate);
   let rejected = false;
   try { readIFC(ifcWithMetadataPayload(candidate)); }
   catch (error) { rejected = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
   truthy(`7b reviewerpayload ${label} wordt ondanks correcte hash getypeerd geweigerd`, rejected);
 }
+
+const relationCorruptions: readonly [string, (candidate: Record<string, unknown>) => void][] = [
+  ['X8-projectie onder P-A draagt projectId P-B', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const metadata = readModel.metadataCatalog as Record<string, unknown>;
+    const projections = metadata.taskProjectionsByProject as Record<string, Array<Record<string, unknown>>>;
+    projections['P-A']![0]!.projectId = 'P-B';
+  }],
+  ['X8-projectindex dupliceert een canonieke projectie', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const metadata = readModel.metadataCatalog as Record<string, unknown>;
+    const projections = metadata.taskProjectionsByProject as Record<string, Array<Record<string, unknown>>>;
+    projections['P-A']!.push(structuredClone(projections['P-A']![0]!));
+  }],
+  ['X8-projectindex laat een canonieke projectie weg', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const metadata = readModel.metadataCatalog as Record<string, unknown>;
+    const projections = metadata.taskProjectionsByProject as Record<string, Array<Record<string, unknown>>>;
+    projections['P-A'] = [];
+  }],
+  ['X8-canonieke projectielijst staat niet in project-/taakvolgorde', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const metadata = readModel.metadataCatalog as Record<string, unknown>;
+    (metadata.taskProjections as Array<Record<string, unknown>>).reverse();
+  }],
+  ['X5-view P-A verwijst naar een bronrij van P-B', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const scheduleA = views['P-A']!.scheduleOptions as Record<string, unknown>;
+    const scheduleB = views['P-B']!.scheduleOptions as Record<string, unknown>;
+    (scheduleA.sourceRowIndexes as number[])[0] = (scheduleB.sourceRowIndexes as number[])[0]!;
+  }],
+  ['X5-view P-A verliest zijn verplichte PROJECT-rij door een verkeerd tabeltype', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const scheduleA = views['P-A']!.scheduleOptions as Record<string, unknown>;
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const sourceArchive = readModel.scheduleOptionsSourceArchive as Record<string, unknown>;
+    const rows = sourceArchive.rows as Array<Record<string, unknown>>;
+    rows[(scheduleA.sourceRowIndexes as number[])[0]!]!.table = 'SCHEDOPTIONS';
+  }],
+  ['X5-view P-A laat een canonieke bronrij weg', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const scheduleA = views['P-A']!.scheduleOptions as Record<string, unknown>;
+    (scheduleA.sourceRowIndexes as number[]).pop();
+  }],
+  ['X5-unmatched-index claimt een aan P-A gekoppelde SCHEDOPTIONS-rij', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const scheduleA = views['P-A']!.scheduleOptions as Record<string, unknown>;
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const sourceArchive = readModel.scheduleOptionsSourceArchive as Record<string, unknown>;
+    (sourceArchive.unmatchedScheduleOptionsRowIndexes as number[]).push(
+      (scheduleA.sourceRowIndexes as number[])[1]!,
+    );
+  }],
+  ['X6-assignment van P-A draagt projectSourceId P-B', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const resources = views['P-A']!.resources as Record<string, unknown>;
+    (resources.assignments as Array<Record<string, unknown>>)[0]!.projectSourceId = 'P-B';
+  }],
+  ['X6-assignment in een documentview verliest zijn vereiste projectSourceId', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    const resources = views['P-A']!.resources as Record<string, unknown>;
+    delete (resources.assignments as Array<Record<string, unknown>>)[0]!.projectSourceId;
+  }],
+  ['TASK-sourceview onder P-A draagt proj_id P-B', candidate => {
+    const readModel = candidate.readModel as Record<string, unknown>;
+    const taskRows = readModel.taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
+    const cells = taskRows['P-A']![0]!.cells as Record<string, unknown>;
+    cells.proj_id = 'P-B';
+  }],
+  ['externe documentrelatie onder P-A draagt localProjectId P-B', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    (views['P-A']!.externalRelations as Array<Record<string, unknown>>).push({
+      id: 'cross-project-probe', localProjectId: 'P-B', localTaskId: 'T-A',
+      externalProjectId: 'P-B', externalTaskId: 'T-B', direction: 'successor', type: 'FS', lagMinutes: 0,
+    });
+  }],
+  ['canonieke externalLink onder P-A heeft geen P-A-eindpunt', candidate => {
+    const diagnostics = candidate.diagnostics as Record<string, unknown>;
+    const views = diagnostics.documentViews as Record<string, Record<string, unknown>>;
+    (views['P-A']!.externalLinks as Array<Record<string, unknown>>).push({
+      id: 'detached-link-probe', predecessor: { projectId: 'P-B', taskId: 'T-B' },
+      successor: { projectId: 'P-C', taskId: 'T-C' }, type: 'FS', lagMinutes: 0,
+    });
+  }],
+];
+for (const [label, mutate] of relationCorruptions) {
+  const candidate = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+  mutate(candidate);
+  let rejected = false;
+  try { readIFC(ifcWithMetadataPayload(candidate)); }
+  catch (error) { rejected = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
+  truthy(`7c relationele reviewerpayload ${label} wordt met coherente chunks getypeerd geweigerd`, rejected);
+}
+
+const invalidUtf8Payload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
+const invalidUtf8 = new TextEncoder().encode(JSON.stringify(invalidUtf8Payload));
+const currencyNeedle = new TextEncoder().encode('"currencyCode":"EUR"');
+const currencyOffset = invalidUtf8.findIndex((_byte, index) =>
+  currencyNeedle.every((needleByte, needleIndex) => invalidUtf8[index + needleIndex] === needleByte));
+if (currencyOffset < 0) throw new Error('UTF-8-testdoel currencyCode ontbreekt');
+invalidUtf8[currencyOffset + '"currencyCode":"'.length] = 0xff;
+truthy('7d niet-fatale controlemeter toont dat 0xff als U+FFFD geldige JSON zou blijven', (() => {
+  try {
+    const decoded = new TextDecoder().decode(invalidUtf8);
+    return decoded.includes('\ufffdUR') && JSON.parse(decoded) !== null;
+  } catch { return false; }
+})());
+let invalidUtf8Rejected = false;
+try { readIFC(ifcWithMetadataBytes(invalidUtf8)); }
+catch (error) { invalidUtf8Rejected = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
+truthy('7e correct gehashte diagnostics met ongeldige UTF-8 wordt getypeerd geweigerd', invalidUtf8Rejected);
 
 const toUtf16 = (text: string, endian: 'le' | 'be') => {
   const bytes = new Uint8Array(2 + text.length * 2);

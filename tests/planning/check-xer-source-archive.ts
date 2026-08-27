@@ -96,7 +96,7 @@ equal('11 groot archief kent geen beleidsmatige bestandsgroottegrens', [...decod
 const blankLegacyFieldReadModel = {
   ...createEmptyXerArchiveReadModel(),
   taskSourceRowsByProject: {
-    'P-1': [{ line: 6, cells: { '': 'exact bewaarde celtekst', task_id: 'T-1' } }],
+    '': [{ line: 6, cells: { '': 'exact bewaarde celtekst', task_id: 'T-1' } }],
   },
 };
 let blankLegacyFieldArchive: ReturnType<typeof createXerSourceArchive> | undefined;
@@ -114,7 +114,7 @@ try {
   // De assertion hieronder rapporteert de compatibiliteitsregressie als gewone RED-check.
 }
 equal('12 lege legacy veldnaam en oorspronkelijke celtekst blijven in het bronreadmodel behouden',
-  blankLegacyFieldArchive?.readModel.taskSourceRowsByProject['P-1']?.[0]?.cells[''],
+  blankLegacyFieldArchive?.readModel.taskSourceRowsByProject['']?.[0]?.cells[''],
   'exact bewaarde celtekst');
 
 const utf16 = (value: string, endian: 'le' | 'be') => {

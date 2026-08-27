@@ -348,7 +348,7 @@ function extractXerSourceArchive(entities: StepEntity[], entityMap: Map<string, 
   if (!/^[0-9a-f]{64}$/.test(diagnosticsHash) || sha256Hex(diagnosticBytes) !== diagnosticsHash) xerArchiveError('DiagnosticsSha256 is ongeldig of past niet bij de diagnostics');
   let archiveMetadata: XerArchiveMetadataPayloadV1;
   try {
-    const parsed: unknown = JSON.parse(new TextDecoder().decode(diagnosticBytes));
+    const parsed: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(diagnosticBytes));
     archiveMetadata = parseXerArchiveMetadataPayload(parsed);
   } catch (error) {
     if (error instanceof IfcParseError) throw error;

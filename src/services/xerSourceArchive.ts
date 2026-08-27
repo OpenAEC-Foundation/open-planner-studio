@@ -375,6 +375,7 @@ export function withXerArchiveDocumentView(
     },
   };
   validateXerArchiveDiagnosticsV1(diagnostics);
+  validateArchiveMetadataRelations(diagnostics, archive.readModel);
   return deepFreeze({ ...archive, diagnostics });
 }
 
@@ -1037,7 +1038,6 @@ export function validateXerArchiveReadModelV1(value: unknown): asserts value is 
     validateTaskProjection(item, `readModel.metadataCatalog.taskProjections[${index}]`));
   const byProject = objectOf(metadata.taskProjectionsByProject, 'readModel.metadataCatalog.taskProjectionsByProject');
   for (const [projectId, projections] of Object.entries(byProject)) {
-    if (!projectId) invalid('readModel.metadataCatalog.taskProjectionsByProject bevat lege selector');
     arrayOf(projections, `readModel.metadataCatalog.taskProjectionsByProject.${projectId}`).forEach((item, index) =>
       validateTaskProjection(item, `readModel.metadataCatalog.taskProjectionsByProject.${projectId}[${index}]`));
   }
@@ -1052,7 +1052,6 @@ export function validateXerArchiveReadModelV1(value: unknown): asserts value is 
 
   const taskRows = objectOf(model.taskSourceRowsByProject, 'readModel.taskSourceRowsByProject');
   for (const [projectId, rows] of Object.entries(taskRows)) {
-    if (!projectId) invalid('readModel.taskSourceRowsByProject bevat lege selector');
     arrayOf(rows, `readModel.taskSourceRowsByProject.${projectId}`).forEach((row, index) => validateSourceRow(row, `readModel.taskSourceRowsByProject.${projectId}[${index}]`));
   }
 }
@@ -1061,19 +1060,185 @@ function validateArchiveMetadataRelations(
   diagnostics: XerArchiveDiagnosticsV1,
   readModel: XerArchiveReadModelV1,
 ): void {
-  const rowCount = readModel.scheduleOptionsSourceArchive.rows.length;
+  const sameValue = (left: unknown, right: unknown): boolean => {
+    if (Object.is(left, right)) return true;
+    if (Array.isArray(left) || Array.isArray(right)) {
+      return Array.isArray(left) && Array.isArray(right)
+        && left.length === right.length
+        && left.every((item, index) => sameValue(item, right[index]));
+    }
+    if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+    const leftObject = left as Record<string, unknown>;
+    const rightObject = right as Record<string, unknown>;
+    const leftKeys = Object.keys(leftObject).sort();
+    const rightKeys = Object.keys(rightObject).sort();
+    return leftKeys.length === rightKeys.length
+      && leftKeys.every((key, index) => key === rightKeys[index]
+        && sameValue(leftObject[key], rightObject[key]));
+  };
+  const sameIntegerSequence = (actual: readonly number[], expected: readonly number[], path: string) => {
+    if (actual.length !== expected.length || actual.some((value, index) => value !== expected[index])) {
+      invalid(`${path} is geen volledige canonieke indexreeks`);
+    }
+  };
+
+  // X8 bewaart één canonieke, op projectId+taskId gesorteerde lijst. De byProject-index is geen
+  // tweede waarheid: hij moet die lijst volledig, ondubbelzinnig en in dezelfde volgorde opdelen.
+  const expectedProjections = new Map<string, XerMetadataCatalog['taskProjections'] extends readonly (infer T)[] ? T[] : never>();
+  const projectionIdentities = new Set<string>();
+  let previousProjection: { projectId: string; taskId: string } | undefined;
+  for (const projection of readModel.metadataCatalog.taskProjections) {
+    const identity = `${projection.projectId}\u0000${projection.taskId}`;
+    if (projectionIdentities.has(identity)) invalid(`readModel.metadataCatalog.taskProjections bevat dubbele identiteit ${projection.projectId}/${projection.taskId}`);
+    projectionIdentities.add(identity);
+    if (previousProjection && (previousProjection.projectId > projection.projectId
+      || (previousProjection.projectId === projection.projectId && previousProjection.taskId > projection.taskId))) {
+      invalid('readModel.metadataCatalog.taskProjections staat niet in canonieke project-/taakvolgorde');
+    }
+    previousProjection = projection;
+    const group = expectedProjections.get(projection.projectId) ?? [];
+    group.push(projection);
+    expectedProjections.set(projection.projectId, group);
+  }
+  const actualProjectionKeys = Object.keys(readModel.metadataCatalog.taskProjectionsByProject);
+  if (actualProjectionKeys.length !== expectedProjections.size
+    || actualProjectionKeys.some(projectId => !expectedProjections.has(projectId))) {
+    invalid('readModel.metadataCatalog.taskProjectionsByProject partitioneert de canonieke projecties niet volledig');
+  }
+  for (const [projectId, expected] of expectedProjections) {
+    const actual = readModel.metadataCatalog.taskProjectionsByProject[projectId];
+    if (!actual || actual.length !== expected.length
+      || actual.some((projection, index) => projection.projectId !== projectId
+        || !sameValue(projection, expected[index]))) {
+      invalid(`readModel.metadataCatalog.taskProjectionsByProject.${projectId} is geen canonieke projectpartitie`);
+    }
+  }
+
+  // TASK-sourceviews mogen baselineprojecten bevatten waarvoor geen documentview bestaat. Binnen
+  // elke aanwezige groep blijven selector, identiteit en oorspronkelijke bronvolgorde wel hard.
+  for (const [projectId, rows] of Object.entries(readModel.taskSourceRowsByProject)) {
+    const taskIds = new Set<string>();
+    let previousLine = -1;
+    for (const [index, row] of rows.entries()) {
+      const rowProjectId = row.cells.proj_id?.trim() ?? '';
+      const taskId = row.cells.task_id?.trim() ?? '';
+      if (rowProjectId !== projectId) invalid(`readModel.taskSourceRowsByProject.${projectId}[${index}] kruist de projectselector`);
+      if (!taskId || taskIds.has(taskId)) invalid(`readModel.taskSourceRowsByProject.${projectId} bevat een lege of dubbele taakidentiteit`);
+      if (row.line <= previousLine) invalid(`readModel.taskSourceRowsByProject.${projectId} staat niet in bronvolgorde`);
+      taskIds.add(taskId);
+      previousLine = row.line;
+    }
+  }
+
+  const sourceArchive = readModel.scheduleOptionsSourceArchive;
+  const rowCount = sourceArchive.rows.length;
   const assertIndex = (index: number, path: string) => {
     if (index >= rowCount) invalid(`${path} wijst buiten de X5-filecache`);
   };
-  readModel.scheduleOptionsSourceArchive.unmatchedScheduleOptionsRowIndexes
-    .forEach((index, position) => assertIndex(index,
-      `readModel.scheduleOptionsSourceArchive.unmatchedScheduleOptionsRowIndexes[${position}]`));
-  readModel.scheduleOptionsSourceArchive.diagnostics.forEach((diagnostic, diagnosticIndex) =>
+  const projectIndexes = new Map<string, number[]>();
+  const scheduleIndexes = new Map<string, number[]>();
+  const sourceIndexesByProject = new Map<string, number[]>();
+  let scheduleTableStarted = false;
+  sourceArchive.rows.forEach((row, index) => {
+    const projectId = row.cells.proj_id?.trim() ?? '';
+    if (row.table === 'SCHEDOPTIONS') scheduleTableStarted = true;
+    else if (scheduleTableStarted) invalid('readModel.scheduleOptionsSourceArchive.rows doorbreekt PROJECT-voor-SCHEDOPTIONS-volgorde');
+    const target = row.table === 'PROJECT' ? projectIndexes : scheduleIndexes;
+    const indexes = target.get(projectId) ?? [];
+    indexes.push(index);
+    target.set(projectId, indexes);
+    const sourceIndexes = sourceIndexesByProject.get(projectId) ?? [];
+    sourceIndexes.push(index);
+    sourceIndexesByProject.set(projectId, sourceIndexes);
+  });
+  const expectedUnmatched = [...scheduleIndexes]
+    .filter(([projectId]) => !projectIndexes.has(projectId))
+    .flatMap(([, indexes]) => indexes);
+  sameIntegerSequence(sourceArchive.unmatchedScheduleOptionsRowIndexes, expectedUnmatched,
+    'readModel.scheduleOptionsSourceArchive.unmatchedScheduleOptionsRowIndexes');
+  const expectedScheduleDiagnostics = [...scheduleIndexes]
+    .filter(([, indexes]) => indexes.length > 1)
+    .map(([projectId, rowIndexes]) => ({
+      code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID' as const,
+      projectId,
+      rowIndexes,
+      lines: rowIndexes.map(index => sourceArchive.rows[index]!.line),
+    }));
+  if (!sameValue(sourceArchive.diagnostics, expectedScheduleDiagnostics)) {
+    invalid('readModel.scheduleOptionsSourceArchive.diagnostics is geen canonieke duplicaatdiagnostiek');
+  }
+  if (!sameValue(diagnostics.file.scheduleOptions, sourceArchive.diagnostics)) {
+    invalid('diagnostics.file.scheduleOptions wijkt af van de ene X5-filecache');
+  }
+  sourceArchive.diagnostics.forEach((diagnostic, diagnosticIndex) =>
     diagnostic.rowIndexes.forEach((index, position) => assertIndex(index,
       `readModel.scheduleOptionsSourceArchive.diagnostics[${diagnosticIndex}].rowIndexes[${position}]`)));
+
+  const linksById = new Map<string, { link: XerArchiveDocumentViewV1['externalLinks'][number]; owners: Set<string> }>();
   for (const [projectId, view] of Object.entries(diagnostics.documentViews)) {
     view.scheduleOptions.sourceRowIndexes.forEach((index, position) => assertIndex(index,
       `diagnostics.documentViews.${projectId}.scheduleOptions.sourceRowIndexes[${position}]`));
+    const expectedSourceIndexes = sourceIndexesByProject.get(projectId) ?? [];
+    sameIntegerSequence(view.scheduleOptions.sourceRowIndexes, expectedSourceIndexes,
+      `diagnostics.documentViews.${projectId}.scheduleOptions.sourceRowIndexes`);
+    if (rowCount > 0 && (projectIndexes.get(projectId)?.length ?? 0) !== 1) {
+      invalid(`diagnostics.documentViews.${projectId} heeft niet exact één PROJECT-bronrij`);
+    }
+    const projectScheduleIndexes = scheduleIndexes.get(projectId) ?? [];
+    const expectedSource = projectScheduleIndexes.length === 1 ? 'schedoptions' : 'xer-defaults';
+    if (view.scheduleOptions.source !== expectedSource) {
+      invalid(`diagnostics.documentViews.${projectId}.scheduleOptions.source past niet bij de X5-bronrijen`);
+    }
+    const expectedDiagnostics = sourceArchive.diagnostics.filter(item => item.projectId === projectId);
+    if (!sameValue(view.scheduleOptions.diagnostics, expectedDiagnostics)) {
+      invalid(`diagnostics.documentViews.${projectId}.scheduleOptions.diagnostics kruist de projectselector`);
+    }
+
+    const expectedAssignmentRows = readModel.resourceCatalog.rows.assignments.filter(row =>
+      (row.cells.proj_id?.trim() ?? '') === projectId);
+    const assignments = view.resources?.assignments ?? [];
+    if (assignments.length !== expectedAssignmentRows.length) {
+      invalid(`diagnostics.documentViews.${projectId}.resources.assignments is geen volledige projectpartitie`);
+    }
+    const assignmentIds = new Set<string>();
+    assignments.forEach((assignment, index) => {
+      const rawProjectId = assignment.rawRow.cells.proj_id?.trim() ?? '';
+      if (assignment.projectSourceId !== projectId || rawProjectId !== projectId) {
+        invalid(`diagnostics.documentViews.${projectId}.resources.assignments[${index}] kruist de projectselector`);
+      }
+      if (assignmentIds.has(assignment.sourceId)) {
+        invalid(`diagnostics.documentViews.${projectId}.resources.assignments bevat dubbele identiteit ${assignment.sourceId}`);
+      }
+      assignmentIds.add(assignment.sourceId);
+      if (!sameValue(assignment.rawRow, expectedAssignmentRows[index])) {
+        invalid(`diagnostics.documentViews.${projectId}.resources.assignments[${index}] staat niet in canonieke bronvolgorde`);
+      }
+    });
+
+    for (const [index, relation] of view.externalRelations.entries()) {
+      if (relation.localProjectId !== projectId) {
+        invalid(`diagnostics.documentViews.${projectId}.externalRelations[${index}] kruist de projectselector`);
+      }
+    }
+    const linkIds = new Set<string>();
+    for (const [index, link] of view.externalLinks.entries()) {
+      if (linkIds.has(link.id)) invalid(`diagnostics.documentViews.${projectId}.externalLinks bevat dubbele identiteit ${link.id}`);
+      linkIds.add(link.id);
+      if (link.predecessor.projectId !== projectId && link.successor.projectId !== projectId) {
+        invalid(`diagnostics.documentViews.${projectId}.externalLinks[${index}] heeft geen lokaal eindpunt`);
+      }
+      const known = linksById.get(link.id);
+      if (known && !sameValue(known.link, link)) invalid(`diagnostics.documentViews.externalLinks bevat botsende identiteit ${link.id}`);
+      if (known) known.owners.add(projectId);
+      else linksById.set(link.id, { link, owners: new Set([projectId]) });
+    }
+  }
+  for (const [linkId, { link, owners }] of linksById) {
+    for (const endpoint of [link.predecessor.projectId, link.successor.projectId]) {
+      if (diagnostics.documentViews[endpoint] && !owners.has(endpoint)) {
+        invalid(`diagnostics.documentViews.externalLinks.${linkId} ontbreekt in endpointproject ${endpoint}`);
+      }
+    }
   }
 }
 
