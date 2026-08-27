@@ -51,6 +51,7 @@ type MoveVerdict = 'shift' | 'keep' | 'derived' | 'n/a';
  */
 const TASK_TIME_VERDICTS = {
   durationType: 'n/a',            // enum
+  durationUnit: 'n/a',            // blijvende invoereenheid
   scheduleDuration: 'n/a',        // duur in werkdagen
   durationMinutes: 'n/a',         // duur in minuten
   scheduleStart: 'shift',         // HET anker: de solver leest dit voor taken zonder voorganger
@@ -143,6 +144,7 @@ const PROJECT_VERDICTS = {
   author: 'n/a', company: 'n/a', wbsAutoNumber: 'n/a',
   statusDate: 'shift',            // P6 data date (R5)
   progressMode: 'n/a', schedulingOptions: 'n/a',
+  defaultTaskDurationUnit: 'n/a',
   companyId: 'n/a', companyName: 'n/a',  // B1: statische bibliotheekbinding, geen planningsdatum
 } satisfies Record<keyof Project, MoveVerdict>;
 
@@ -192,7 +194,7 @@ export interface MoveProjectOptions {
 /**
  * VORMBEHOUDENDE shift van één ISO-waarde (§2). De modus wordt uit de STRING afgeleid, niet uit de
  * kalender: `project.statusDate` mag datetime zijn óók op een dag-kalender, en een gemengd
- * dag/uur-document (`ui.allowMixedDayHour`) heeft per taak een andere vorm — afleiden uit de
+ * dag/uur-document heeft per taak een andere vorm — afleiden uit de
  * effectieve kalender zou daar fout gaan, afleiden uit de string is per definitie correct.
  *
  * Δ is ALTIJD een geheel aantal kalenderdagen, ook in uur-modus: de gebruiker kiest een nieuwe

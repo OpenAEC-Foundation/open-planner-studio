@@ -39,7 +39,7 @@ als **Algemeen**, **Taal** en **Tijdlijn / Zoomen**.
 
 ## Tab Tijdlijn / Zoomen
 
-- **Urenplanning** — **Urenplanning inschakelen** zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair. Met de schakelaar aan verschijnt **Gemengde dag/uur-planning toestaan** (dag- en uur-taken in één project). Opent een bestand mét urenplanning terwijl de schakelaar uit staat, dan biedt een balk bovenin **Urenplanning aanzetten** aan. Zie [Kalenders & uren-planning](docs://gids-kalenders-uren).
+- **Urenplanning** — **Urenplanning inschakelen** zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ nieuwe taken starten in dagen; bestaande urentaken blijven exact bewaard. Met de schakelaar aan kunnen dag- en urentaken vanzelf naast elkaar bestaan. Zie [Kalenders & uren-planning](docs://gids-kalenders-uren).
 - **Duurweergave** — **Automatisch (eigen eenheid per taak)**, **Altijd dagen** of **Altijd uren**.
 - **Taakbalken bij onderbrekingen** — **Nooit opsplitsen**, **Opsplitsen bij selectie** of **Altijd opsplitsen**: of een balk visueel splitst rond niet-werkdagen.
 - **Tijd-as** — **Alleen werkbare dagen tonen** comprimeert de tijdlijn: weekenden en feestdagen uit de projectkalender worden overgeslagen, zodat een taak van 5 werkdagen precies 5 kolommen breed is, ongeacht wat de kalender daartussen doet.

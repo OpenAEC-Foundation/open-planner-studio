@@ -7,7 +7,7 @@ import { WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
 import {
-  effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
+  effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
 import type { ImportResult } from '@/services/importTypes';
 import {
@@ -367,6 +367,10 @@ function writeStructure(
   if (project.wbsAutoNumber !== undefined) {
     projSettingProps.push(addLine(ctx, '_ps_wbsauto',
       `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`));
+  }
+  if (project.defaultTaskDurationUnit) {
+    projSettingProps.push(addLine(ctx, '_ps_defaultdurationunit',
+      `IFCPROPERTYSINGLEVALUE('DefaultTaskDurationUnit',$,IFCLABEL(${ifcStr(project.defaultTaskDurationUnit)}),$)`));
   }
   if (project.statusDate) {
     projSettingProps.push(addLine(ctx, '_ps_statusdate',
@@ -857,7 +861,11 @@ function writeTask(
   // minuut-precies (`durationMinutes`, bron van waarheid; anders afgeleid uit de dag-duur). In
   // DAG-modus valt alles terug op het bestaande `T07:00:00`/`P0Y0M{days}D`-pad ⇒ byte-identiek.
   const dt = isHour ? ifcDateTimeHour : ifcDateTime;
-  const schedDurArg = isHour ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay)) : ifcDuration(t.scheduleDuration);
+  // De ISO-vorm bewaart de TAAK-eenheid: P…D = werkdagen, PT…H…M = werkuren. De kalender bepaalt
+  // alleen de datetime-precisie en plaatsing; een uurkalender maakt van een dagtaak geen urentaak.
+  const schedDurArg = taskDurationUnitForIo(task) === 'hours'
+    ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay))
+    : ifcDuration(t.scheduleDuration);
   // Voortgang (fase 2.6, §8.1) — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
   // hieronder): 14 StatusTime, 15 ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime,
   // 19 Completion. Golden rule: een taak zonder actuals houdt 14-18 op `$` ⇒ byte-identieke

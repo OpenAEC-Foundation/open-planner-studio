@@ -30,6 +30,21 @@
     "MAINTENANCE": "Manutenzione",
     "USERDEFINED": "Altro"
   },
+  "duration": {
+    "label": "Durata",
+    "unit": "Unità di durata",
+    "days": "Giorni",
+    "hours": "Ore",
+    "invalid": "Inserisci un numero intero di giorni o ore, ad esempio 2d o 12h.",
+    "enableHourPlanningFirst": "Attiva la pianificazione oraria per modificare questa attività in ore.",
+    "enableHourPlanning": "Attiva pianificazione oraria",
+    "requiresWorkBlocks": "Le ore richiedono un calendario con orari di lavoro concreti. Scegli tale calendario o aggiungi gli orari.",
+    "conversionNotExact": "Questa durata non può essere convertita esattamente in giorni interi con il calendario corrente. L'unità esistente viene mantenuta; inserisci un nuovo valore valido.",
+    "conversionProposal": "Proposta di conversione esatta: {{value}}. Applicala o mantieni l'unità corrente.",
+    "applyProposal": "Applica proposta",
+    "keepCurrent": "Mantieni",
+    "unitInfo": "L'unità scelta appartiene a questa attività. I giorni contano i giorni lavorativi; le ore contano le ore di lavoro nel calendario. Un altro calendario non cambia l'unità né la durata inserita, ma può cambiare la data di fine."
+  },
   "dialog": {
     "editTitle": "Modifica attività",
     "newTitle": "Nuova attività",

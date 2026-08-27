@@ -30,6 +30,21 @@
     "MAINTENANCE": "Wartung",
     "USERDEFINED": "Sonstiges"
   },
+  "duration": {
+    "label": "Dauer",
+    "unit": "Dauereinheit",
+    "days": "Tage",
+    "hours": "Stunden",
+    "invalid": "Geben Sie eine ganze Anzahl Tage oder Stunden ein, zum Beispiel 2d oder 12h.",
+    "enableHourPlanningFirst": "Aktivieren Sie die Stundenplanung, um diesen Stundenvorgang zu bearbeiten.",
+    "enableHourPlanning": "Stundenplanung aktivieren",
+    "requiresWorkBlocks": "Stunden erfordern einen Kalender mit konkreten Arbeitszeiten. Wählen Sie einen solchen Kalender oder fügen Sie Arbeitszeiten hinzu.",
+    "conversionNotExact": "Diese Dauer lässt sich im aktuellen Kalender nicht exakt in ganze Tage umrechnen. Die vorhandene Einheit bleibt erhalten; geben Sie selbst einen neuen gültigen Wert ein.",
+    "conversionProposal": "Exakter Umrechnungsvorschlag: {{value}}. Vorschlag anwenden oder aktuelle Einheit beibehalten.",
+    "applyProposal": "Vorschlag anwenden",
+    "keepCurrent": "Beibehalten",
+    "unitInfo": "Die gewählte Einheit gehört zu diesem Vorgang. Tage zählen Arbeitstage; Stunden zählen Arbeitsstunden innerhalb des Kalenders. Ein anderer Kalender ändert weder Einheit noch eingegebene Dauer, kann aber das Enddatum ändern."
+  },
   "dialog": {
     "editTitle": "Aufgabe bearbeiten",
     "newTitle": "Neue Aufgabe",

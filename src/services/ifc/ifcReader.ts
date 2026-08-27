@@ -673,7 +673,8 @@ function applyHourModeIFC(
     promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), true);
   }
 
-  // 3. Herinterpreteer de taken op een uur-kalender: minuut-precieze duur + echte tijden.
+  // 3. Herstel de echte tijden op taken met een uurkalender. De ISO-duurvorm die parseTaskTime al
+  //    las bepaalt onafhankelijk daarvan de taakidentiteit (P…D = dagen, PT… = uren).
   for (const t of tasks) {
     const effCal = effCalOf(t);
     if (!effCal.workTime) continue;
@@ -681,9 +682,14 @@ function applyHourModeIFC(
     if (!e) continue;
     const hpd = effCal.hoursPerDay;
     const durMin = isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.scheduleDuration] || ''));
-    const minutes = durMin != null ? durMin : Math.round(t.time.scheduleDuration * hpd * 60);
-    t.time.durationMinutes = minutes;
-    if (hpd > 0) t.time.scheduleDuration = minutes / (hpd * 60);
+    if (t.time.durationUnit === 'hours') {
+      const minutes = durMin != null ? durMin : (t.time.durationMinutes ?? 0);
+      t.time.durationMinutes = minutes;
+      // Compatibiliteitsafgeleide voor bestaande analyse/exportcode; nooit invoerbron.
+      if (hpd > 0) t.time.scheduleDuration = minutes / (hpd * 60);
+    } else {
+      t.time.durationMinutes = undefined;
+    }
     const toHour = (raw: string | undefined): string | undefined => {
       const q = stripQuotes(raw || '');
       return q && q !== '$' ? formatInstant(parseInstant(q), 'hour') : undefined;
@@ -828,6 +834,13 @@ function parseTaskTime(e: StepEntity): TaskTime {
   const time = {} as TaskTime;
   for (let i = 0; i < IFC_TASKTIME_SLOTS.length; i++) {
     IFC_TASKTIME_SLOTS[i].read?.(time, e.args[i], TASKTIME_READ_HELPERS);
+  }
+  const rawDuration = stripQuotes(e.args[TASKTIME_SLOT.scheduleDuration] || '');
+  const hasTimeComponent = /^-?P[^T]*T/i.test(rawDuration);
+  time.durationUnit = hasTimeComponent ? 'hours' : 'days';
+  if (hasTimeComponent) {
+    const minutes = isoDurationToMinutes(rawDuration);
+    if (minutes != null) time.durationMinutes = minutes;
   }
   return time;
 }
@@ -1063,6 +1076,8 @@ function extractStructure(
         const v = parseTypedValue(prop.args[2] || '');
         if (name === 'wbsAutoNumber') {
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
+        } else if (name === 'DefaultTaskDurationUnit') {
+          if (v === 'days' || v === 'hours') project.defaultTaskDurationUnit = v;
         } else if (name === 'StatusDate') {
           // Fase 2.6 (§8.2): P6 data date → project.statusDate.
           if (typeof v === 'string' && v) project.statusDate = v.substring(0, 10);

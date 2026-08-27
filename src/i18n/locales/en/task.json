@@ -30,6 +30,21 @@
     "MAINTENANCE": "Maintenance",
     "USERDEFINED": "Other"
   },
+  "duration": {
+    "label": "Duration",
+    "unit": "Duration unit",
+    "days": "Days",
+    "hours": "Hours",
+    "invalid": "Enter a whole number of days or hours, for example 2d or 12h.",
+    "enableHourPlanningFirst": "Enable hour planning to edit this hour task.",
+    "enableHourPlanning": "Enable hour planning",
+    "requiresWorkBlocks": "Hours require a calendar with concrete working times. Choose such a calendar or add working times.",
+    "conversionNotExact": "This duration cannot be converted exactly to whole days on the current calendar. The existing unit is retained; enter a new valid value yourself.",
+    "conversionProposal": "Exact conversion proposal: {{value}}. Apply it or retain the current unit.",
+    "applyProposal": "Apply proposal",
+    "keepCurrent": "Retain",
+    "unitInfo": "The selected unit belongs to this task. Days count working days; hours count working hours within the calendar. A different calendar does not change the unit or entered duration, but it may change the finish date."
+  },
   "dialog": {
     "editTitle": "Edit task",
     "newTitle": "New task",

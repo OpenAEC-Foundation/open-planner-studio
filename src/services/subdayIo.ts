@@ -262,6 +262,12 @@ export function isHourCalendar(cal: WorkCalendar | undefined): boolean {
   return !!cal?.workTime;
 }
 
+/** Een urentaak kan pas gepland worden wanneer ten minste één concreet werkblok bestaat. */
+export function hasConcreteWorkBlocks(calendar: WorkCalendar): boolean {
+  if (!calendar.workTime) return false;
+  return Object.values(calendar.workTime.byWeekday).some((bands) => bands.length > 0);
+}
+
 /**
  * True als een geladen project urenplanning-data draagt (§6.8): minstens één kalender met
  * `workTime` (uur-kalender) of minstens één taak met `durationMinutes`. Gebruikt om de
@@ -270,7 +276,14 @@ export function isHourCalendar(cal: WorkCalendar | undefined): boolean {
  */
 export function fileHasHourData(tasks: Task[], calendars: WorkCalendar[]): boolean {
   if (calendars.some(isHourCalendar)) return true;
-  return tasks.some((t) => t.time.durationMinutes != null);
+  return tasks.some((t) => taskDurationUnitForIo(t) === 'hours');
+}
+
+/** Zelfde deterministische legacy-regel als de documentmigratie, maar beschikbaar voor adapters.
+ * Writers moeten ook door tests/extensies aangeleverde pre-T1-objecten veilig kunnen bewaren. */
+export function taskDurationUnitForIo(task: Task): 'days' | 'hours' {
+  const legacy = task.time as Task['time'] & { durationUnit?: 'days' | 'hours' };
+  return legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
 }
 
 /**
@@ -279,7 +292,6 @@ export function fileHasHourData(tasks: Task[], calendars: WorkCalendar[]): boole
  * `durationMinutesOf` in de engine, maar zonder de engine-afhankelijkheid.
  */
 export function taskMinutesForWrite(task: Task, hoursPerDay: number): number {
-  const dm = task.time.durationMinutes;
-  if (dm != null) return dm;
+  if (taskDurationUnitForIo(task) === 'hours') return task.time.durationMinutes ?? 0;
   return Math.round(task.time.scheduleDuration * hoursPerDay * 60);
 }

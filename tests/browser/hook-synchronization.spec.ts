@@ -82,10 +82,10 @@ test('hook synchronization: een resourcetoewijzing wist geen niet-opgeslagen taa
   const dialog = page.getByRole('dialog');
   const name = dialog.locator('input').first();
   const description = dialog.locator('textarea').first();
-  const duration = dialog.locator('[data-ops-duration-days]');
+  const duration = dialog.locator('[data-ops-duration-value]');
   await name.fill('Nog niet opgeslagen naam');
   await description.fill('Nog niet opgeslagen omschrijving');
-  await duration.fill('13');
+  await duration.fill('13d');
 
   // In deze fixture zijn alleen de native constraint- en resourcekeuzevelden aanwezig; de
   // resourcekeuze staat na de constraint en is daarmee het laatste native select-element.
@@ -95,7 +95,7 @@ test('hook synchronization: een resourcetoewijzing wist geen niet-opgeslagen taa
 
   await expect(name).toHaveValue('Nog niet opgeslagen naam');
   await expect(description).toHaveValue('Nog niet opgeslagen omschrijving');
-  await expect(duration).toHaveValue('13');
+  await expect(duration).toHaveValue('13d');
   await dialog.locator('[data-ops-task-save]').click();
 
   await expect.poll(() => page.evaluate((id) => {

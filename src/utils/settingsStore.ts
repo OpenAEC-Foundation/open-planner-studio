@@ -301,10 +301,6 @@ export async function saveEnableHourPlanning(value: boolean): Promise<void> {
   await setSetting('enableHourPlanning', value);
 }
 
-export async function saveAllowMixedDayHour(value: boolean): Promise<void> {
-  await setSetting('allowMixedDayHour', value);
-}
-
 export async function saveDurationDisplay(value: DurationDisplay): Promise<void> {
   await setSetting('durationDisplay', value);
 }

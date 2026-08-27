@@ -102,7 +102,8 @@
     "hourPlanningSection": "Planificación por horas",
     "enableHourPlanning": "Activar planificación por horas",
     "enableHourPlanningHint": "Activa la programación por horas/minutos: una escala de tiempo horaria, turnos con bandas de horario laboral y barras de tarea con precisión de hora. Desactivado ⇒ la aplicación sigue siendo totalmente granular por días, como antes.",
-    "allowMixedDayHour": "Permitir planificación mixta de días/horas",
+    "defaultTaskDurationUnit": "Unidad predeterminada para tareas nuevas",
+    "defaultTaskDurationUnitHint": "Determina si las tareas nuevas comienzan en días laborables u horas de trabajo. Las tareas existentes no cambian.",
     "durationDisplay": "Visualización de la duración",
     "durationDisplayAuto": "Automática (unidad propia por tarea)",
     "durationDisplayDays": "Siempre días",
@@ -722,6 +723,8 @@
   "duration": {
     "suffixDay": "d",
     "suffixHour": "h",
+    "days": "Días",
+    "hours": "Horas",
     "suffixMinute": "m"
   },
   "shortcuts": {

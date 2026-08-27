@@ -304,7 +304,6 @@ export interface UIState {
   dateNotation: DateNotation;                // persisted — weergavenotatie voor datums (taak #53); opslag blijft ISO
   // --- Fase 2.8b: urenplanning-instellingen (§6.8); ontbrekende sleutel ⇒ default (geen reset) ---
   enableHourPlanning: boolean;               // persisted — hoofdschakelaar Urenplanning (default UIT)
-  allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')
   // Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-

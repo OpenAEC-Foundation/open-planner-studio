@@ -460,6 +460,7 @@ export function readP6XML(content: string): ImportResult {
       ...(constraint2 ? { constraint2 } : {}),
       time: {
         durationType: 'WORKTIME',
+        durationUnit: isHour ? 'hours' : 'days',
         scheduleDuration: durationDays,
         ...(durationMinutes != null ? { durationMinutes } : {}),
         scheduleStart: plannedStart,

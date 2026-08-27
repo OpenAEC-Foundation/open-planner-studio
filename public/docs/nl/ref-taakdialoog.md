@@ -36,8 +36,7 @@ Een checklist per taak: per regel een **afvink-hokje**, een tekstvak en een verw
 ## Tijd
 
 - **Startdatum** — toont de berekende vroegste start; een handmatige wijziging verankert de nieuwe datum als gepland startpunt.
-- **Duur (werkdagen)** — hele werkdagen; uitgeschakeld voor een mijlpaal.
-- Met **Urenplanning ingeschakeld** én een uur-kalender op de taak verschijnen drie gesynchroniseerde vakjes: **Dagen**, **Uren** en **Totaal uren** (alleen hele getallen). Zonder uur-kalender toont een hint: "Uren-invoer vereist een uur-kalender (werktijden)." Zie [Kalenders & uren-planning](docs://gids-kalenders-uren).
+- Dialoog en eigenschappenpaneel gebruiken dezelfde bediening **Duur [waarde] [Dagen | Uren]**. Typ bijvoorbeeld `2d`, `12h` of de invoeralias `12u`. Uren vereisen concrete werktijdblokken; zonder zulke blokken blijft de taak ongewijzigd. Zie [Kalenders & uren-planning](docs://gids-kalenders-uren).
 
 ## Hammock (afgeleide duur)
 

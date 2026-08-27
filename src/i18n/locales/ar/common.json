@@ -111,7 +111,8 @@
     "hourPlanningSection": "التخطيط بالساعات",
     "enableHourPlanning": "تفعيل التخطيط بالساعات",
     "enableHourPlanningHint": "يفعّل الجدولة بالساعة/الدقيقة: مقياس زمني بالساعات، ونوبات عمل ذات نطاقات أوقات عمل، وأشرطة مهام دقيقة على مستوى الساعة. عند الإيقاف ⇐ يبقى التطبيق مبنيًا بالكامل على اليوم كما كان.",
-    "allowMixedDayHour": "السماح بالتخطيط المختلط باليوم/الساعة",
+    "defaultTaskDurationUnit": "الوحدة الافتراضية للمهام الجديدة",
+    "defaultTaskDurationUnitHint": "تحدد ما إذا كانت المهام الجديدة تبدأ بأيام العمل أو ساعات العمل. لا تتغير المهام الحالية.",
     "durationDisplay": "عرض المدة",
     "durationDisplayAuto": "تلقائي (وحدة خاصة بكل مهمة)",
     "durationDisplayDays": "أيام دائمًا",
@@ -748,7 +749,9 @@
   },
   "duration": {
     "suffixDay": "ي",
-    "suffixHour": "س",
+    "suffixHour": "h",
+    "days": "أيام",
+    "hours": "ساعات",
     "suffixMinute": "د"
   },
   "shortcuts": {

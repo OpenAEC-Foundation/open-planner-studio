@@ -105,7 +105,8 @@
     "hourPlanningSection": "Planowanie godzinowe",
     "enableHourPlanning": "Włącz planowanie godzinowe",
     "enableHourPlanningHint": "Włącza planowanie godzinowo-minutowe: skalę czasu w godzinach, zmiany z pasmami czasu pracy i paski zadań z dokładnością do godziny. Wyłączone ⇒ aplikacja pozostaje w pełni dniowa, tak jak wcześniej.",
-    "allowMixedDayHour": "Zezwól na mieszane planowanie dniowo-godzinowe",
+    "defaultTaskDurationUnit": "Domyślna jednostka nowych zadań",
+    "defaultTaskDurationUnitHint": "Określa, czy nowe zadania zaczynają się w dniach roboczych, czy godzinach pracy. Istniejące zadania się nie zmieniają.",
     "durationDisplay": "Wyświetlanie czasu trwania",
     "durationDisplayAuto": "Automatycznie (własna jednostka dla zadania)",
     "durationDisplayDays": "Zawsze w dniach",
@@ -730,7 +731,9 @@
   },
   "duration": {
     "suffixDay": "d",
-    "suffixHour": "g",
+    "suffixHour": "h",
+    "days": "Dni",
+    "hours": "Godziny",
     "suffixMinute": "min"
   },
   "shortcuts": {

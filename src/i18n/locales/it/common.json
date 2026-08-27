@@ -102,7 +102,8 @@
     "hourPlanningSection": "Pianificazione oraria",
     "enableHourPlanning": "Attiva pianificazione oraria",
     "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
-    "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",
+    "defaultTaskDurationUnit": "Unità predefinita per le nuove attività",
+    "defaultTaskDurationUnitHint": "Stabilisce se le nuove attività iniziano in giorni lavorativi o ore di lavoro. Le attività esistenti non cambiano.",
     "durationDisplay": "Visualizzazione della durata",
     "durationDisplayAuto": "Automatica (unità propria per attività)",
     "durationDisplayDays": "Sempre giorni",
@@ -722,6 +723,8 @@
   "duration": {
     "suffixDay": "g",
     "suffixHour": "h",
+    "days": "Giorni",
+    "hours": "Ore",
     "suffixMinute": "m"
   },
   "shortcuts": {

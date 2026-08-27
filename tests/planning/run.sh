@@ -629,6 +629,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   NOTIFCHECK="$DIR/.notifications.mjs"
   if bundle_check "$DIR/check-notifications.ts" "$NOTIFCHECK"; then node "$NOTIFCHECK" || STATUS=1; fi
 
+  # T1: de duur-eenheid hoort bij de taak, inclusief kalenderplaatsing, legacy-migratie,
+  # compacte presentatie en IFC-roundtrip. Deze check draait ook in de tijdzone-matrix.
+  T1DURCHECK="$DIR/.task-duration-unit.mjs"
+  if bundle_check "$DIR/check-task-duration-unit.ts" "$T1DURCHECK"; then node "$T1DURCHECK" || STATUS=1; fi
+
   # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
   #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een
   #      eigen tsconfig die de check-batterijen typecheckt (`satisfies Required<...>`); een
@@ -637,7 +642,7 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   #      oude tsconfig.roundtrip.json dekte alleen deze ene batterij, de rest werd door esbuild
   #      gestript en dus nooit type-gecheckt.
   #  (2) De round-trip zelf: writeIFC→readIFC veld-voor-veld + idempotentie + KNOWN_GAPS.
-  node "$ROOT/node_modules/.bin/tsc" --noEmit -p "$DIR/tsconfig.check.json" || STATUS=1
+  "$ROOT/node_modules/.bin/tsc" --noEmit -p "$DIR/tsconfig.check.json" || STATUS=1
 
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi

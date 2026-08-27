@@ -99,7 +99,8 @@
     "hourPlanningSection": "Stundenplanung",
     "enableHourPlanning": "Stundenplanung aktivieren",
     "enableHourPlanningHint": "Aktiviert Stunden-/Minuten-Scheduling: eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken. Aus ⇒ die App bleibt wie bisher vollständig tagesgenau.",
-    "allowMixedDayHour": "Gemischte Tages-/Stundenplanung zulassen",
+    "defaultTaskDurationUnit": "Standardeinheit für neue Vorgänge",
+    "defaultTaskDurationUnitHint": "Legt fest, ob neue Vorgänge in Arbeitstagen oder Arbeitsstunden beginnen. Bestehende Vorgänge ändern sich nicht.",
     "durationDisplay": "Daueranzeige",
     "durationDisplayAuto": "Automatisch (eigene Einheit je Vorgang)",
     "durationDisplayDays": "Immer Tage",
@@ -712,7 +713,9 @@
   },
   "duration": {
     "suffixDay": "T",
-    "suffixHour": "Std",
+    "suffixHour": "h",
+    "days": "Tage",
+    "hours": "Stunden",
     "suffixMinute": "Min"
   },
   "shortcuts": {

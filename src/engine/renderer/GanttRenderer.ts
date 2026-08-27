@@ -5,7 +5,7 @@ import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
 import { WorkCalendar } from '@/types/calendar';
 import { isHourCalendar } from '@/services/subdayIo';
-import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
+import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
@@ -292,17 +292,20 @@ export class GanttRenderer {
     return this.colors.normal;
   }
 
-  /**
-   * Duurkolom-tekst (§6.5). Urenplanning UIT ⇒ byte-identiek het huidige `${scheduleDuration}d`.
-   * AAN ⇒ de eigen eenheid per taak via de Duurweergave-instelling (dag-taak "3d", uur-taak "20u").
-   */
+  /** Duurkolom-tekst (§6.5): de blijvende taakeenheid blijft óók zichtbaar wanneer de globale
+   * urenplanningsschakelaar uit staat; die schakelaar mag geïmporteerde urendata niet herinterpreteren. */
   private durationText(task: Task): string {
     // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
     // mijlpaal-met-duur (T15) toont haar EIGEN duur, niet "0d" (zelfde discriminator als de solver).
     if (isZeroDurationMilestone(task)) return '0d';
-    if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}d`;
     const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', this.opts.durationSuffixes);
+    return formatTaskDurationDisplay(
+      task,
+      cal,
+      this.opts.durationDisplay ?? 'auto',
+      this.opts.enableHourPlanning ?? false,
+      this.opts.durationSuffixes,
+    );
   }
 
   /** Kapt tekst af met een ellipsis zodra hij niet in `maxWidth` past (issue #38 punt 5): de
@@ -1605,7 +1608,6 @@ export class GanttRenderer {
       const minutes = task.time.durationMinutes ?? taskDurationMinutes(task, cal);
       return formatDuration(minutes, effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', sfx);
     }
-    if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}${sfx.day}`;
     return this.durationText(task);
   }
 

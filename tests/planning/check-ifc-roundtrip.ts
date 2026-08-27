@@ -197,7 +197,7 @@ const customFieldDefs = [
 // alleen voor milestones geschreven worden; scheduleDuration is dan per definitie 0. TX/TY: gewone
 // leaf-taken (duur>0, relaties, assignments).
 const plainTime = (start: string, finish: string, dur: number): TaskTime => ({
-  durationType: 'WORKTIME', scheduleDuration: dur,
+  durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: dur,
   scheduleStart: start, scheduleFinish: finish,
   earlyStart: start, earlyFinish: finish, lateStart: start, lateFinish: finish,
   freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
@@ -270,7 +270,7 @@ const TM = {
   calendarId: 'libcal',
   notes: [{ id: 'n1', text: 'Keuring', done: true }, { id: 'n2', text: 'Sleuteloverdracht', done: false }],
   time: {
-    durationType: 'WORKTIME', scheduleDuration: 0,
+    durationType: 'WORKTIME', durationUnit: 'hours', scheduleDuration: 0,
     durationMinutes: 480,           // (b) uur-modus-gap
     scheduleStart: '2026-07-24', scheduleFinish: '2026-07-24',
     earlyStart: '2026-07-24', earlyFinish: '2026-07-24', lateStart: '2026-07-24', lateFinish: '2026-07-24',
@@ -362,6 +362,7 @@ const project = {
   createdAt: '2026-01-01T00:00:00.000Z', modifiedAt: '2026-06-01T00:00:00.000Z', // (a) gaps
   author: 'Ir. Testz', company: 'Bouw BV',                                       // (a) gaps
   wbsAutoNumber: true, statusDate: '2026-07-25', progressMode: 'PROGRESS_OVERRIDE',
+  defaultTaskDurationUnit: 'days',
   companyId: 'c-fixture', companyName: 'Fixture Bouw BV',
   schedulingOptions: SCHED_OPTS,
 } satisfies Required<Project> & { schedulingOptions: Required<SchedulingOptions> };
@@ -485,7 +486,7 @@ const CALENDAR_CANON = {
 } satisfies CanonSpec<WorkCalendar>;
 
 const TIME_CANON = {
-  durationType: KEEP, scheduleDuration: KEEP,
+  durationType: KEEP, durationUnit: KEEP, scheduleDuration: KEEP,
   durationMinutes: { skip: '(b) UUR-modus-veld, n.v.t. in dag-modus; gedekt door check-adapters-hours.ts' },
   scheduleStart: KEEP, scheduleFinish: KEEP,
   earlyStart: KEEP, earlyFinish: KEEP, lateStart: KEEP, lateFinish: KEEP,
@@ -595,6 +596,7 @@ const PROJECT_CANON = {
   calendarId: { as: 'calendar', get: (p: Project, k: Keys) => k.cal(p.calendarId) },
   createdAt: KEEP, modifiedAt: KEEP, author: KEEP, company: KEEP,
   wbsAutoNumber: KEEP, statusDate: KEEP, progressMode: KEEP, schedulingOptions: KEEP,
+  defaultTaskDurationUnit: KEEP,
   // B1.1: bedrijfsbinding round-trippt via OPS_CompanyBinding.
   companyId: KEEP, companyName: KEEP,
 } satisfies CanonSpec<Project>;
@@ -754,7 +756,8 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(tmOut.time.interferingFloat === undefined && def(TM.time.interferingFloat), '(a) time.interferingFloat — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.isNearCritical === undefined && def(TM.time.isNearCritical), '(a) time.isNearCritical — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.floatPath === undefined && def(TM.time.floatPath), '(a) time.floatPath — afgeleid, OPS_Analysis niet meer geschreven');
-  assert(tmOut.time.durationMinutes === undefined && def(TM.time.durationMinutes), '(b) time.durationMinutes n.v.t. in dag-modus');
+  assert(tmOut.time.durationUnit === 'hours' && tmOut.time.durationMinutes === 480,
+    '(b) time.durationUnit/durationMinutes blijven native uren met exacte minuten');
   assert(tmOut.time.remainingMinutes === undefined && def(TM.time.remainingMinutes), '(b) time.remainingMinutes n.v.t. in dag-modus');
   assert(rMem.availability === undefined && def(RMember.availability), '(b) resource.availability (deprecated) niet geschreven');
   void txOut;
@@ -1435,6 +1438,7 @@ const rt2 = readIFC(writeIFC(rt1));
   const { mergeTaskTime, createDefaultTaskTime } = await import('@/utils/taskDefaults');
   const base: TaskTime = {
     ...createDefaultTaskTime('2026-08-01', 5),
+    durationUnit: 'hours',
     completion: 0.4,
     durationMinutes: 240,
     interferingFloat: 1.5,
@@ -1459,9 +1463,11 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(notMentioned.remainingTime === 1, `(10a) ontbrekende sleutel moet remainingTime behouden — kreeg ${notMentioned.remainingTime}`);
   assert(notMentioned.remainingMinutes === 60, `(10a) ontbrekende sleutel moet remainingMinutes behouden — kreeg ${notMentioned.remainingMinutes}`);
 
-  // Scenario 2: partial noemt ALLE 9 optionele velden EXPLICIET als `undefined` (bewuste clear) ⇒ allemaal gewist.
+  // Scenario 2: partial noemt alle optionele velden expliciet als `undefined`. De urenduurbron mag
+  // alleen atomair met een eenheidswissel worden gewist; daarom schakelt dit scenario naar dagen.
   const explicitlyCleared = mergeTaskTime(base, {
     scheduleStart: '2026-08-10',
+    durationUnit: 'days',
     durationMinutes: undefined,
     interferingFloat: undefined,
     isNearCritical: undefined,
@@ -1503,6 +1509,7 @@ const rt2 = readIFC(writeIFC(rt1));
     S().updateTask(id, {
       time: {
         ...full,
+        durationUnit: 'hours',
         completion: 0.4,
         durationMinutes: 240,
         actualStart: '2026-08-01',
@@ -1533,6 +1540,24 @@ const rt2 = readIFC(writeIFC(rt1));
 
   // Pad 1: taskSlice.updateTask rechtstreeks.
   S().newProject();
+  // De fixture zet hieronder bewust een urentaak op. Sinds T1 mag zo'n taak niet meer stil via de
+  // dagfallback worden opgelost; geef dit isolatiescenario daarom de concrete werkblokken die een
+  // geldige urentaak ook in productie nodig heeft.
+  const baseCalendar = S().calendar;
+  S().setCalendar({
+    ...baseCalendar,
+    workTime: {
+      byWeekday: {
+        1: [{ start: 420, end: 960 }],
+        2: [{ start: 420, end: 960 }],
+        3: [{ start: 420, end: 960 }],
+        4: [{ start: 420, end: 960 }],
+        5: [{ start: 420, end: 960 }],
+        6: [],
+        7: [],
+      },
+    },
+  });
   const id1 = S().addTask({ name: 'T14b-10b-taskslice' });
   setFullProgress(id1);
   S().updateTask(id1, { time: { scheduleStart: '2026-09-10', scheduleDuration: 4, durationType: 'WORKTIME' } as TaskTime });
@@ -1577,13 +1602,13 @@ const rt2 = readIFC(writeIFC(rt1));
   S().newProject();
   const id = S().addTask({ name: 'T14b-10c-clear' });
   const full = S().tasks.find(t => t.id === id)!.time;
-  S().updateTask(id, { time: { ...full, durationMinutes: 240 } });
+  S().updateTask(id, { time: { ...full, durationUnit: 'hours', durationMinutes: 240 } });
   assert(S().tasks.find(t => t.id === id)!.time.durationMinutes === 240, '(10c) opzet: durationMinutes moet eerst gezet zijn');
 
-  // Exact het TaskDialog-patroon: spread de bestaande tijd, zet de te wissen sleutel EXPLICIET op
-  // `undefined` (geen `delete`).
+  // Exact het TaskDialog-mijlpaalpatroon: spread de bestaande tijd, schakel atomair naar dagen en
+  // zet de niet-meer-geldige minutenbron expliciet op `undefined` (geen `delete`).
   const current = S().tasks.find(t => t.id === id)!.time;
-  const cleared = { ...current, durationMinutes: undefined };
+  const cleared = { ...current, durationUnit: 'days' as const, scheduleDuration: 0, durationMinutes: undefined };
   S().updateTask(id, { time: cleared });
 
   assert(S().tasks.find(t => t.id === id)!.time.durationMinutes === undefined,
@@ -1595,21 +1620,19 @@ const rt2 = readIFC(writeIFC(rt1));
   // mutatiebewijs op TaskDialog.tsx's eigen bronregels.
 }
 
-// (10d) TaskDialog.tsx-bronguard: geen `delete time.durationMinutes` meer, wél de twee `=
-//       undefined`-toewijzingen (mijlpaal-tak + dag-modus-tak). Dit repo heeft geen React-
-//       rendertest-harnas, dus dit is een bewuste, lichte bronvorm-check i.p.v. een component-test.
+// (10d) TaskDialog.tsx-bronguard: geen `delete time.durationMinutes` meer. De gewone duurwijziging
+//       loopt nu via de gedeelde TaskDurationField en heeft een echte browsertest; alleen de
+//       mijlpaal-tak wist hier nog rechtstreeks de minutenbron.
 {
   const taskDialogPath = join(HERE, '..', '..', 'src', 'components', 'dialogs', 'TaskDialog.tsx');
   const src = readFileSync(taskDialogPath, 'utf8');
   assert(!src.includes('delete time.durationMinutes'),
     '(10d) TaskDialog.tsx mag geen `delete time.durationMinutes` meer bevatten (zou de merge-sleutel weer laten verdwijnen)');
   const assignCount = (src.match(/time\.durationMinutes = undefined;/g) ?? []).length;
-  assert(assignCount === 2,
-    `(10d) TaskDialog.tsx moet precies 2× \`time.durationMinutes = undefined;\` bevatten (mijlpaal-tak + dag-modus-tak) — kreeg ${assignCount}`);
+  assert(assignCount === 1,
+    `(10d) TaskDialog.tsx moet precies 1× \`time.durationMinutes = undefined;\` bevatten (mijlpaal-tak; gewone duur loopt gedeeld) — kreeg ${assignCount}`);
 
-  // Mutatiebewijs (uitgevoerd): één van de twee `time.durationMinutes = undefined;`-regels in
-  // TaskDialog.tsx tijdelijk teruggezet naar `delete time.durationMinutes;` maakte BEIDE asserties
-  // hierboven ROOD (de `delete`-check ziet 'm weer, de telling zakt naar 1).
+  // Mutatiebewijs: de resterende toewijzing naar `delete` veranderen maakt beide checks rood.
 }
 
 // (10e) mspdiWriter.ts-vangnet: een kunstmatig-kapotte `time.completion` mag geen "NaN" in de

@@ -338,7 +338,7 @@ const H8: WorkCalendar = {
 } as unknown as WorkCalendar;
 function mkH(id: string, mins: number, extra: Partial<Task> = {}): Task {
   const t = mkTask(id, mins / 480, extra);           // scheduleStart 2026-06-01 (ongebruikt) → anker in H8
-  t.time = createDefaultTaskTime('2026-07-06', mins / 480);
+  t.time = createDefaultTaskTime('2026-07-06', mins / 480, 'hours');
   t.time.durationMinutes = mins;
   return t;
 }
@@ -810,7 +810,7 @@ const RCAL: WorkCalendar = {
 } as unknown as WorkCalendar;
 function mkProg(id: string, extra: Partial<Task> = {}): Task {
   const t = mkTask(id, 1, extra);
-  t.time = createDefaultTaskTime('2026-07-06', 1); // 2026-07-06 = ma
+  t.time = createDefaultTaskTime('2026-07-06', 1, 'hours'); // 2026-07-06 = ma
   t.time.durationMinutes = 480;
   t.time.completion = 0.5;
   t.time.actualStart = '2026-07-06T08:00';

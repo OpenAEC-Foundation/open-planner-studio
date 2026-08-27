@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { isHourCalendar, deriveHoursPerDay } from '@/services/subdayIo';
 import { formatDuration, type DurationUnit, type DurationSuffixes } from '@/utils/durationFormat';
 import type { DurationDisplay } from '@/types/view';
+import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 
 /**
  * Bouw de vertaalde duur-suffixen uit de i18n-`t` (common-namespace). Licht adapter-laagje zodat de PURE
@@ -44,7 +45,7 @@ export function effHoursPerDay(cal: WorkCalendar): number {
  */
 export function taskDurationMinutes(task: Task, cal: WorkCalendar): number {
   const hpd = effHoursPerDay(cal);
-  if (isHourCalendar(cal) && task.time.durationMinutes != null) return task.time.durationMinutes;
+  if (taskDurationUnit(task) === 'hours') return task.time.durationMinutes ?? 0;
   return task.time.scheduleDuration * hpd * 60;
 }
 
@@ -64,9 +65,28 @@ export function formatTaskDurationDisplay(
   enableHourPlanning: boolean,
   suffixes?: DurationSuffixes,
 ): string {
-  if (!enableHourPlanning) return `${task.isMilestone ? 0 : task.time.scheduleDuration}`;
-  if (task.isMilestone) return '0';
-  return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), unitFor(display), suffixes);
+  void enableHourPlanning;
+  if (isZeroDurationMilestone(task)) return '0';
+  const actualSuffixes: DurationSuffixes = {
+    day: suffixes?.day ?? 'd',
+    hour: suffixes?.hour ?? 'h',
+    minute: suffixes?.minute ?? 'm',
+  };
+  const nativeUnit = taskDurationUnit(task);
+  const minutes = taskDurationMinutes(task, cal);
+  const hpd = effHoursPerDay(cal);
+  const native = nativeUnit === 'days'
+    ? `${task.time.scheduleDuration}${actualSuffixes.day}`
+    : formatDuration(minutes, hpd, 'hours', actualSuffixes);
+
+  // Automatisch betekent letterlijk de door de gebruiker gekozen, blijvende taakeenheid. Houd de
+  // exacte kalenderwandeling voor een bewuste eenheidswissel in TaskDurationField; de renderer mag
+  // niet bij iedere tekenronde duizenden werkdagen doorlopen om een presentatie-equivalent te zoeken.
+  if (display === 'auto') return native;
+
+  const requested = unitFor(display);
+  if (requested === nativeUnit) return native;
+  return `${formatDuration(minutes, hpd, requested, actualSuffixes)}(${native})`;
 }
 
 /**
