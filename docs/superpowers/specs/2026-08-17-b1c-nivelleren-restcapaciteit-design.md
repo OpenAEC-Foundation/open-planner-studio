@@ -1,8 +1,9 @@
 # B1c — Nivelleren tegen restcapaciteit (ontwerp)
 
-Datum: 2026-08-17 · Status: **concept** — het interactieconcept is gekozen (besluit eigenaar:
-concept F, zie §3); het beslispunt over de tune-bediening (§6) staat nog open. Dit document is
-de neerslag van drie prototyperondes met de eigenaar op 2026-08-17; de speelbare prototypes
+Datum: 2026-08-17, bijgewerkt 2026-08-27 · Status: **concept** — het interactieconcept is
+gekozen (besluit eigenaar: concept F, §3) en de tune-bediening ook (besluit eigenaar
+2026-08-27: fasestrook-handles, §6). Resterende beslispunten: §11. Dit document is de
+neerslag van drie prototyperondes met de eigenaar op 2026-08-17; de speelbare prototypes
 staan als privé-artifacts: "Wie wijkt?" (rondes 1–3, zelfde link, versiegeschiedenis) en
 "Interface-lab" (vier tune-bedieningen).
 
@@ -107,16 +108,34 @@ documentgrenzen die er nu niet is. Opties (beslispunt §11): per document een ge
 plus één samenvattende melding met "alles terugdraaien"-knop, of een echte samengestelde
 undo-transactie (groter; raakt `snapshot.ts`/`transaction.ts`).
 
-## 6. De tune-bediening — OPEN beslispunt
+## 6. De tune-bediening: fasestrook-handles (besluit)
 
 Vier bedieningen zijn speelbaar vergeleken in het Interface-lab (zelfde verdeler, zelfde
-scenario): **ster met trekpunten** (idee eigenaar; buitenveelhoek = plafond, binnenvlak =
-werkelijk benut), **verdeelbalk** (tekort als balk met sleepbare wanden), **communicerende
-vaten** (direct aan de einddatum-uitkomst trekken, pins bevriezen een project) en
-**fasestrook-handles** (slepen in de tijdlijn zelf). Ze sluiten elkaar niet uit — het zijn
-abstractieniveaus (overzicht ↔ precisie) en het pin-idee is in elke bediening bruikbaar.
+scenario): ster met trekpunten (idee eigenaar; buitenveelhoek = plafond, binnenvlak =
+werkelijk benut), verdeelbalk (tekort als balk met sleepbare wanden), communicerende vaten
+(direct aan de einddatum-uitkomst trekken, pins bevriezen een project) en fasestrook-handles
+(slepen in de tijdlijn zelf). **Besluit eigenaar 2026-08-27: de fasestrook-handles.**
 
-Twee **systeembevindingen** uit het lab gelden voor élke bediening:
+Concreet: onder het voor/na-histogram staat per betrokken document een fasestrook (werkdagen
+van de fase, gearceerde pauzedagen, meetlat met float en overschrijding — zoals in de
+prototypes), met op het einde van elke strook een **sleepbare handle**. De handle zet het
+plafond "maximale uitloop van de einddatum" voor dat document (§3 stap 3); de nivelleerder
+benut nooit meer dan nodig, dus een strook kan een gestippelde staart tonen: *toegestaan maar
+niet benut*. Bediening: pointer-slepen (blijft werken buiten het element tijdens de sleep) én
+toetsenbord (`role="slider"`, pijltjes = één werkdag, Home/End, `aria-valuetext` met plafond,
+benutting en einddatum-effect). De bediening woont dus ín de tijdlijn — er is geen apart
+instelpaneel; het histogram erboven en de fasestroken eronder zijn samen de hele tune-stap.
+Waarom deze won: het is de meest planner-eigen plek (je ziet de kalenderconsequentie op de
+plaats waar hij valt), en hij hergebruikt de fasestrook-weergave die de voorstel-preview
+sowieso nodig heeft — de bediening is een handle op een bestaand element, geen extra visuele
+taal ernaast. De keerzijde uit het lab-oordeel (vraagt fijnmotoriek) wordt gedempt door de
+toetsenbordbediening en door snappen op hele werkdagen.
+
+Uit de andere drie bedieningen blijft één idee expliciet herbruikbaar genoteerd: **pins**
+(een document vastzetten op zijn huidige stand) uit de vaten-variant — additief toe te voegen
+aan de fasestroken als er in de praktijk behoefte blijkt.
+
+Twee **systeembevindingen** uit het lab gelden ook voor deze bediening:
 
 1. **De som garanderen is de oplossing niet garanderen**: 6 tekortdagen "netjes" verdelen kan
    alsnog tekort opleveren, omdat een pauze de staart van een fase naar een nieuwe drukke dag
@@ -129,8 +148,10 @@ Twee **systeembevindingen** uit het lab gelden voor élke bediening:
 
 Vanuit een conflictregel in `ResourceOccupancyView` (Resources-tab, derde weergave). De flow
 (stappen 0–3) is te groot voor een uitklapregel; voorzien als paneel/dialoog vanuit de
-conflictregel, met het bestaande histogram als voor/na-preview. Detaillering volgt in het
-implementatieplan na het §6-besluit.
+conflictregel. De opbouw volgt uit het §6-besluit: bovenin het histogram als voor/na-preview,
+daaronder de fasestroken-met-handles die zelf de tune-bediening zijn, met daarboven de
+gereedschapsschakelaar en de rangordelijst (stappen 0–2). Detaillering in het
+implementatieplan.
 
 ## 8. i18n en documentatie
 
@@ -154,7 +175,7 @@ meerdere payloads + terugdraaien + "uncounted document blokkeert".
 
 ## 11. Beslispunten voor de eigenaar
 
-1. **De tune-bediening** (§6): welke van de vier — of welke combinatie van abstractieniveaus.
+1. ~~De tune-bediening~~ — **besloten 2026-08-27: fasestrook-handles (§6).**
 2. **De undo-vorm** bij schrijven in meerdere documenten (§5).
 3. **Telt float-benutting als "last" voor rang 1?** In de prototypes niet (rang 1 kan
    pauzedagen krijgen zolang zijn einddatum staat); het alternatief — rang 1 houdt ook zijn
