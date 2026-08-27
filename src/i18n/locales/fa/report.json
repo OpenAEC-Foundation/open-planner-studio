@@ -20,6 +20,7 @@
   "showBaselineOverlay": "نمایش هم‌پوشانی خط مبنا",
   "autoFit": "تنظیم خودکار روی کاغذ",
   "zoom": "بزرگنمایی:",
+  "previewZoom": { "label": "اندازه پیش‌نمایش", "fit": "متناسب", "readable": "خوانا (125%)", "detail": "جزئیات (200%)" },
   "repeatHeader": "تکرار سرصفحه در هر صفحه",
   "reportFontScaleLabel": "اندازه قلم:",
   "timelineColumnsLabel": "خط زمانی روی:",

@@ -20,6 +20,7 @@
   "showBaselineOverlay": "Afficher la superposition de référence",
   "autoFit": "Ajustement automatique au papier",
   "zoom": "Zoom :",
+  "previewZoom": { "label": "Taille de l’aperçu", "fit": "Ajuster", "readable": "Lisible (125 %)", "detail": "Détail (200 %)" },
   "repeatHeader": "Répéter l'en-tête sur chaque page",
   "reportFontScaleLabel": "Taille de police :",
   "timelineColumnsLabel": "Chronologie sur :",

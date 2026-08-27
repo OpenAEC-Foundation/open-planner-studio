@@ -116,6 +116,8 @@ function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTable
  *  hieronder), net als de rechterpaneel-breedte in App.tsx. */
 const SETTINGS_PANEL_DEFAULT_WIDTH = 256;
 const SETTINGS_PANEL_MIN_WIDTH = 200;
+const PREVIEW_FIT_WIDTH_PX = 900;
+const PREVIEW_ZOOM_WIDTH: Record<'125' | '200', number> = { '125': 1125, '200': 1800 };
 
 /** Eén papiervel in de preview: PNG-dataURL + echte puntmaat (voor de beeldverhouding). */
 interface PreviewPage {
@@ -229,6 +231,9 @@ export function ReportPanel() {
   const [statusLine, setStatusLine] = useState(DEFAULT_REPORT_SETTINGS.statusLine);
   // #54 — volg weergave: export tekent exact de viewRows van het scherm (WYSIWYG).
   const [followView, setFollowView] = useState(DEFAULT_REPORT_SETTINGS.followView);
+  // Alleen de zichtbare papiergrootte. Deze waarde gaat bewust NIET in PrintOptions: PDF en
+  // paginering mogen nooit veranderen door hoe groot iemand de preview op zijn scherm leest.
+  const [previewZoom, setPreviewZoom] = useState(DEFAULT_REPORT_SETTINGS.previewZoom);
 
   // Instellingenkolom horizontaal sleepbaar (issue #38 punt 3) — vaste `w-64` bood geen enkel
   // handvat en de rechterkolom (live preview) kreeg dus nooit ruimte terug. Zelfde generieke
@@ -292,6 +297,7 @@ export function ReportPanel() {
       setReportFontScale(s.reportFontScale);
       setStatusLine(s.statusLine);
       setFollowView(s.followView);
+      setPreviewZoom(s.previewZoom);
       hydratedRef.current = true;
     }, () => {
       // Lezen kan falen (localStorage geblokkeerd of gepartitioneerd, quota-gedoe). Zonder deze
@@ -323,11 +329,11 @@ export function ReportPanel() {
     void saveReportSettings({
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
       showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation,
-      repeatHeader, timelineColumns, reportFontScale, statusLine, followView,
+      repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewZoom,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
-      reportFontScale, statusLine, followView]);
+      reportFontScale, statusLine, followView, previewZoom]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -339,6 +345,9 @@ export function ReportPanel() {
   const previewJobRef = useRef<PreviewJob | null>(null);
   const previewGenerationRef = useRef(0);
   const [previewWidth, setPreviewWidth] = useState(0);
+  const previewCssWidth = previewZoom === 'fit'
+    ? Math.min(PREVIEW_FIT_WIDTH_PX, Math.max(1, previewWidth || PREVIEW_FIT_WIDTH_PX))
+    : PREVIEW_ZOOM_WIDTH[previewZoom];
 
   useEffect(() => {
     const node = previewViewportRef.current;
@@ -460,7 +469,7 @@ export function ReportPanel() {
         tasks, sequences, calendar, projectName, options,
       );
       const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
-      const cssPageWidth = Math.min(900, Math.max(1, previewWidth || previewViewportRef.current?.clientWidth || 900));
+      const cssPageWidth = previewCssWidth;
       const previewLimits = computePreviewRasterLimits(
         logicalWidth, logicalHeight, lowerPaper, options.orientation, cssPageWidth, window.devicePixelRatio,
       );
@@ -521,7 +530,7 @@ export function ReportPanel() {
       if (!cancelled) timer = window.setTimeout(renderPreview, 100);
     });
     return () => { cancelled = true; release(); };
-  }, [reportType, tasks, sequences, calendar, projectName, options, repeatHeader, previewWidth]);
+  }, [reportType, tasks, sequences, calendar, projectName, options, repeatHeader, previewCssWidth]);
 
   // Observeer placeholders. De brede rootMargin levert de volgende pagina op vóór de gebruiker er
   // tegenaan scrolt, terwijl uit-beeld-pagina's nooit blind worden gerasterd.
@@ -1084,9 +1093,24 @@ export function ReportPanel() {
       </div>
 
       {/* Right: Live preview */}
-      <div ref={previewViewportRef} data-tour-anchor="report-panel" className="flex-1 overflow-auto p-4" style={{ background: 'var(--theme-bg)' }}>
+      <div ref={previewViewportRef} data-tour-anchor="report-panel" data-report-preview-viewport className="flex-1 overflow-auto p-4" style={{ background: 'var(--theme-bg)' }}>
         {reportType === 'gantt' ? (
           <div className="flex flex-col items-center gap-4">
+            <div className="self-start flex items-center gap-2 text-xs" data-preview-zoom-control>
+              <label htmlFor="report-preview-zoom" className="text-text-secondary">{t('previewZoom.label')}</label>
+              <Select
+                id="report-preview-zoom"
+                className="min-w-40"
+                aria-label={t('previewZoom.label')}
+                value={previewZoom}
+                onChange={value => setPreviewZoom(value as 'fit' | '125' | '200')}
+                options={[
+                  { value: 'fit', label: t('previewZoom.fit') },
+                  { value: '125', label: t('previewZoom.readable') },
+                  { value: '200', label: t('previewZoom.detail') },
+                ]}
+              />
+            </div>
             {Array.from({ length: previewTotalPages }, (_, i) => {
               const page = previewPages.get(i);
               return (
@@ -1095,7 +1119,7 @@ export function ReportPanel() {
                 data-preview-page={i}
                 className="bg-white"
                 style={{
-                  width: 'min(100%, 900px)',
+                  width: previewZoom === 'fit' ? `min(100%, ${PREVIEW_FIT_WIDTH_PX}px)` : `${previewCssWidth}px`,
                   aspectRatio: `${page?.wPt ?? 1} / ${page?.hPt ?? 1.414}`,
                   borderRadius: 'var(--radius-md)',
                   boxShadow: 'var(--shadow-card)',

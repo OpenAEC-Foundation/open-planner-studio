@@ -399,6 +399,17 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   const normalPagePixels = normal.maxPages * 1_191 * 842 * normal.pageSupersample * normal.pageSupersample;
   ok(normalSourcePixels + normalPagePixels <= PREVIEW_MAX_RASTER_PIXELS + 20_000,
     'normale scherpe preview blijft binnen gezamenlijk rasterbudget');
+
+  // De drie gebruikersstanden veranderen uitsluitend de zichtbare previewbreedte. Dezelfde
+  // budgetfunctie moet daarom proportioneel meer rasterdichtheid vragen voor 125% en Detail,
+  // zonder de export-/pagineeropties aan te raken.
+  const fit = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', 900, 1);
+  const readable = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', 1_125, 1);
+  const detail = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', 1_800, 1);
+  ok(readable.pageSupersample > fit.pageSupersample,
+    'previewzoom 125% verhoogt alleen de benodigde previewrasterdichtheid');
+  ok(detail.pageSupersample > readable.pageSupersample,
+    'previewzoom Detail verhoogt de previewrasterdichtheid verder binnen budget');
 }
 {
   const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2);

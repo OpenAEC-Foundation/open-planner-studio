@@ -20,6 +20,7 @@
   "showBaselineOverlay": "Mostrar superposición de línea base",
   "autoFit": "Ajuste automático al papel",
   "zoom": "Zoom:",
+  "previewZoom": { "label": "Tamaño de vista previa", "fit": "Ajustar", "readable": "Legible (125%)", "detail": "Detalle (200%)" },
   "repeatHeader": "Repetir encabezado en cada página",
   "reportFontScaleLabel": "Tamaño de letra:",
   "timelineColumnsLabel": "Cronograma en:",

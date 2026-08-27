@@ -20,6 +20,7 @@
   "showBaselineOverlay": "Baseline-Overlay anzeigen",
   "autoFit": "Automatisch an Papier anpassen",
   "zoom": "Zoom:",
+  "previewZoom": { "label": "Vorschaugröße", "fit": "Passend", "readable": "Lesbar (125 %)", "detail": "Detail (200 %)" },
   "repeatHeader": "Kopfzeile auf jeder Seite wiederholen",
   "reportFontScaleLabel": "Schriftgröße:",
   "timelineColumnsLabel": "Zeitleiste über:",

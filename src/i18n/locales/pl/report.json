@@ -20,6 +20,7 @@
   "showBaselineOverlay": "Pokaż nakładkę planu bazowego",
   "autoFit": "Dopasuj do papieru",
   "zoom": "Powiększenie:",
+  "previewZoom": { "label": "Rozmiar podglądu", "fit": "Dopasuj", "readable": "Czytelny (125%)", "detail": "Szczegół (200%)" },
   "repeatHeader": "Powtarzaj nagłówek na każdej stronie",
   "reportFontScaleLabel": "Rozmiar czcionki:",
   "timelineColumnsLabel": "Oś czasu na:",
