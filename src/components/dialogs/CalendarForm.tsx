@@ -17,8 +17,7 @@ import {
 import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
-
-const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+import { orderedWeekDays } from '@/utils/weekDays';
 
 /**
  * Presentational kalenderformulier (naam, werkdagen, uren, feestdagen) — kent geen store.
@@ -33,13 +32,10 @@ const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 export function CalendarForm({
   draft,
   onChange,
-  onNameConfirm,
   projectYearSpan,
 }: {
   draft: WorkCalendar;
   onChange: (patch: Partial<WorkCalendar>) => void;
-  /** Enter in het naamveld bewaart via de aanroeper, maar sluit de dialoog niet. */
-  onNameConfirm?: () => void;
   projectYearSpan?: { from: number; to: number };
 }) {
   const { t: tMenu } = useTranslation('menu');
@@ -207,12 +203,6 @@ export function CalendarForm({
         <input
           value={draft.name}
           onChange={e => onChange({ name: e.target.value })}
-          onKeyDown={e => {
-            if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
-            e.preventDefault();
-            e.stopPropagation();
-            onNameConfirm?.();
-          }}
           className={inputCls}
           autoFocus
         />
@@ -244,7 +234,7 @@ export function CalendarForm({
           </div>
         </div>
         <div className="flex gap-1.5">
-          {WEEK_DAYS.map(day => {
+          {orderedWeekDays(weekStartDay).map(day => {
             const active = draft.workDays.includes(day);
             return (
               <button

@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures/ops';
 
-test('kalenderdialoog bewaart de naam bij Enter zonder te sluiten en houdt kalenderkeuzes ondubbelzinnig', async ({ page, ops: _ops }) => {
+test('kalenderdialoog bewaart gewone enkelregelige velden bij Enter zonder te sluiten', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     s.setUI({ showCalendarDialog: true, enableHourPlanning: true, weekStartDay: 'sunday' });
@@ -14,6 +14,45 @@ test('kalenderdialoog bewaart de naam bij Enter zonder te sluiten en houdt kalen
 
   await expect(dialog).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().calendar.name)).toBe('Bouwkalender 2026');
+
+  const startHour = dialog.locator('input[type="number"]').first();
+  await startHour.fill('6');
+  await startHour.press('Enter');
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().calendar.workStartHour)).toBe(6);
+
+  const continuous = dialog.getByRole('button', { name: 'Continuous (24/7)' });
+  await continuous.focus();
+  await continuous.press('Enter');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Sat' })).toHaveClass(/bg-accent/);
+
+  await dialog.locator('[data-ops-cal-cancel]').click();
+});
+
+test('kalenderdialoog rangschikt beide zichtbare weekdagrijen volgens de eerste weekdag', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ showCalendarDialog: true, enableHourPlanning: true, weekStartDay: 'sunday' });
+  });
+
+  const dialog = page.locator('[data-ops-calendar-dialog]');
+  await expect(dialog).toBeVisible();
+  const name = dialog.locator('input').first();
+  await name.fill('Bouwkalender 2026');
+  await name.press('Enter');
+  await expect.poll(() => dialog.getByRole('button').evaluateAll(buttons => buttons
+    .map(button => button.textContent?.trim())
+    .filter((label): label is string => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].includes(label))))
+    .toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ weekStartDay: 'monday' }));
+  await expect.poll(() => dialog.getByRole('button').evaluateAll(buttons => buttons
+    .map(button => button.textContent?.trim())
+    .filter((label): label is string => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].includes(label))))
+    .toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ weekStartDay: 'sunday' }));
 
   await dialog.locator('button').filter({ hasText: 'Add holiday' }).click();
   const holidayEndSegments = dialog.getByRole('group', { name: 'Until' }).last().locator('input');
