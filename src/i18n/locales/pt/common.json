@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "Fechar notificação",
     "openFailed": "Falha ao abrir o arquivo",
+    "mppLegacy": "Este arquivo .mpp usa um formato antigo (Project 2007 ou anterior). Exporte-o no MS Project como XML (Arquivo → Salvar como → XML) e abra esse arquivo.",
+    "mppEncrypted": "Este arquivo .mpp está protegido por senha. Exporte-o no MS Project como XML (Arquivo → Salvar como → XML) e abra esse arquivo.",
     "saveFailed": "Falha ao salvar",
+    "librarySaveFailed": "Não foi possível guardar a biblioteca",
     "savedViaDownload": "Guardado como transferência: '{{name}}' está agora na sua pasta de transferências. Este ambiente não permite que a aplicação escreva diretamente no local escolhido.",
     "autoSaveFailed": "Falha no salvamento automático",
     "recoveryReadFailed": "Não foi possível ler o arquivo recuperado",
@@ -15,8 +18,18 @@
     "templateSaved": "Ramo guardado como modelo '{{name}}'",
     "relationCreated": "Relação criada: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Essa relação já existe",
-    "relationSummaryEndpoint": "Uma tarefa de resumo como extremidade não tem efeito na planificação. Ligue-a a uma tarefa sem subtarefas.",
-    "summaryRelationsIgnored": "{{total}} relação(ões) em tarefas de resumo não têm efeito na planificação."
+    "relationAncestorEndpoint": "Não é permitida uma relação entre uma tarefa e a sua própria tarefa de resumo ancestral.",
+    "summaryRelationsDropped": "{{total}} relação(ões) não puderam ser incluídas — consulte o painel de Relações para saber quais.",
+    "mppSourceScheduleNotes_one": "Este arquivo do MS Project contém {{count}} tarefa com um cronograma dividido, nivelado ou controlado por recursos. Ela é importada e exibida como está.",
+    "mppSourceScheduleNotes_many": "Este arquivo do MS Project contém {{count}} tarefas com um cronograma dividido, nivelado ou controlado por recursos. Elas são importadas e exibidas como estão.",
+    "mppSourceScheduleNotes_other": "Este arquivo do MS Project contém {{count}} tarefas com um cronograma dividido, nivelado ou controlado por recursos. Elas são importadas e exibidas como estão.",
+    "projectStartAnchorsClamped_one": "Início do projeto alterado: {{count}} âncora de tarefa sem predecessora nem restrição foi movida para a nova data de início.",
+    "projectStartAnchorsClamped_many": "Início do projeto alterado: {{count}} âncoras de tarefa sem predecessora nem restrição foram movidas para a nova data de início.",
+    "projectStartAnchorsClamped_other": "Início do projeto alterado: {{count}} âncoras de tarefa sem predecessora nem restrição foram movidas para a nova data de início.",
+    "mppTimephasedSteeringLost_one": "A distribuição de horas do MS Project não controla mais {{count}} tarefa após esta edição; a distribuição original permanece guardada no arquivo.",
+    "mppTimephasedSteeringLost_many": "A distribuição de horas do MS Project não controla mais {{count}} tarefas após esta edição; a distribuição original permanece guardada no arquivo.",
+    "mppTimephasedSteeringLost_other": "A distribuição de horas do MS Project não controla mais {{count}} tarefas após esta edição; a distribuição original permanece guardada no arquivo.",
+    "readMore": "Saiba mais"
   },
   "yes": "Sim",
   "no": "Não",
@@ -236,7 +249,8 @@
   },
   "project": {
     "untitled": "Novo planeamento",
-    "imported": "Projeto importado"
+    "imported": "Projeto importado",
+    "unassignedResource": "Não atribuído"
   },
   "documents": {
     "overviewTitle": "Projetos abertos",
@@ -539,7 +553,8 @@
       "capacity": "Capacidade",
       "documents": "Documentos",
       "selectHint": "Selecione um recurso para ver o histograma."
-    }
+    },
+    "color": "Cor"
   },
   "calendar": {
     "library": {
@@ -696,6 +711,14 @@
     "notice": "Este ficheiro contém planeamento por horas.",
     "enable": "Ativar planeamento por horas"
   },
+  "recordedDates": {
+    "offer_one": "O recálculo moveu {{count}} de {{total}} tarefas em relação às datas do ficheiro.",
+    "offer_many": "O recálculo moveu {{count}} de {{total}} tarefas em relação às datas do ficheiro.",
+    "offer_other": "O recálculo moveu {{count}} de {{total}} tarefas em relação às datas do ficheiro.",
+    "show": "Mostrar datas registadas",
+    "active": "Está a ver as datas tal como estão registadas no ficheiro. Não foi feito nenhum recálculo.",
+    "recalculate": "Recalcular"
+  },
   "duration": {
     "suffixDay": "d",
     "suffixHour": "h",
@@ -817,6 +840,10 @@
     "intro": "Gere um cronograma de teste e meça as fases principais. Não afeta o projeto aberto.",
     "sizeLabel": "Tamanho do cronograma",
     "tasksCount": "{{count}} tarefas",
+    "resourceLabel": "Número de recursos",
+    "resourcesNone": "Sem recursos",
+    "resourcesCount": "{{count}} recursos",
+    "networkHint": "Cada tarefa sem subtarefas recebe pelo menos uma relação; as tarefas de resumo continuam a ser um agregado das suas subtarefas.",
     "run": "Executar",
     "running": "Executando…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -850,5 +877,26 @@
     "detailRender": "{{rows}} linhas · {{w}}×{{h}}",
     "renderUnavailable": "renderização indisponível (sem contexto de canvas 2D)",
     "largeWarning": "Cronograma grande: isto pode demorar; a barra de progresso pode parecer congelada durante o cálculo."
+  },
+  "extConsent": {
+    "title": "Instalar a extensão?",
+    "author": "Autor",
+    "repository": "Repositório",
+    "originHeading": "Proveniência",
+    "sourceCatalog": "Do catálogo de extensões online",
+    "sourceZip": "De um ficheiro ZIP neste computador",
+    "sourceJs": "De um ficheiro JavaScript neste computador",
+    "verifiedChecksum": "Transferência verificada com a soma de verificação do catálogo.",
+    "verifiedNone": "O catálogo não fornece soma de verificação — esta transferência não foi verificada.",
+    "verifiedLocal": "Escolheu este ficheiro por si; não há fonte externa com que o verificar.",
+    "riskHeading": "Aquilo a que está a dizer que sim",
+    "riskBody": "Uma extensão é código que corre com os mesmos direitos que o próprio Open Planner Studio. Nada o delimita. Instale apenas extensões em cujo autor confia.",
+    "riskDesktop": "Na aplicação de ambiente de trabalho isso inclui: ler e escrever ficheiros em toda a sua pasta de utilizador, além do acesso a projetos, definições e área de transferência.",
+    "riskBrowser": "No navegador significa: acesso aos seus projetos e definições guardados, aos ficheiros a que deu acesso e à rede.",
+    "declaredHeading": "O que esta extensão declara usar",
+    "declaredNote": "É a declaração do autor, não uma restrição — o código pode fazer mais de qualquer forma.",
+    "declaredNone": "Nada declarado.",
+    "cancel": "Não instalar",
+    "confirm": "Instalar"
   }
 }

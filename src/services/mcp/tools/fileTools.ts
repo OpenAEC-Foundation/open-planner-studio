@@ -29,13 +29,12 @@
 // echte implementatie importeert `@tauri-apps/*` DYNAMISCH binnen een `isTauri()`-tak (anders breekt
 // de web-build), de headless tests spuiten een in-memory fs in.
 
-import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
-import { readCSV } from '@/services/csv/csvReader';
-import { parseProjectXml, isActivePristine } from '@/state/slices/fileSlice';
+import { isActivePristine } from '@/state/slices/fileSlice';
+import { parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { extensionOf } from '@/utils/filePath';
 import type { ImportResult } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
@@ -50,6 +49,7 @@ export interface McpFileFs {
   exists(path: string): Promise<boolean>;
   writeTextFile(path: string, content: string): Promise<void>;
   readTextFile(path: string): Promise<string>;
+  readFile(path: string): Promise<Uint8Array>;
 }
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
@@ -61,12 +61,13 @@ async function realFs(): Promise<McpFileFs> {
       'directe bestandssysteem-toegang. Gebruik daar Bestand → Openen/Exporteren.',
     );
   }
-  const { exists, readTextFile, writeTextFile, mkdir } = await import('@tauri-apps/plugin-fs');
+  const { exists, readTextFile, readFile, writeTextFile, mkdir } = await import('@tauri-apps/plugin-fs');
   const { homeDir } = await import('@tauri-apps/api/path');
   return {
     homeDir: () => homeDir(),
     exists: (p) => exists(p),
     readTextFile: (p) => readTextFile(p),
+    readFile: (p) => readFile(p),
     writeTextFile: async (p, content) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
       if (dir) await mkdir(dir, { recursive: true }); // no-op wanneer de map al bestaat
@@ -151,24 +152,17 @@ export function checkScope(home: string, input: string): ScopeCheck {
 
 // --- Formaatherkenning ---------------------------------------------------------------------------
 
-/** Leesbaar formaatlabel op basis van de extensie (de XML-variant wordt op inhoud gesnifft). */
-function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' {
-  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+/** Leesbaar formaatlabel op basis van de extensie (de XML-variant wordt op inhoud gesnifft).
+ *  `MPP14` (T8): de enige binaire indeling die dit pad kent — `.mpp` (MS Project 2010-2021,
+ *  alleen-lezen native lezer, zie `src/services/mpp/`). */
+function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' | 'MPP14' {
+  const ext = extensionOf(path);
   if (ext === 'csv') return 'CSV';
+  if (ext === 'mpp') return 'MPP14';
   if (ext === 'xml') {
     return content.includes('APIBusinessObjects') || content.includes('Primavera') ? 'P6-XML' : 'MSPDI-XML';
   }
   return 'IFC';
-}
-
-/** Parse volgens dezelfde regels als het bestaande open-pad (`fileSlice.openFile`). */
-function parseByExtension(path: string, content: string): ImportResult {
-  const ext = path.split('.').pop()?.toLowerCase() ?? '';
-  if (ext === 'csv') return readCSV(content);
-  if (ext === 'xml') return parseProjectXml(content);
-  // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal. `readIFC` valt dan terug op de Engelse
-  // default voor een bestand zonder IFCPROJECT (zie ImportLabels).
-  return readIFC(content);
 }
 
 // --- Annotaties ----------------------------------------------------------------------------------
@@ -259,7 +253,7 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'INTERNAL', `Kon het doelpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      const state = useAppStore.getState();
+      const state = ctx.app.store.getState();
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen.
       const content = writeIFC(buildWriteIFCInput(state));
@@ -270,7 +264,7 @@ export const fileTools: McpToolDef[] = [
       }
       return {
         ok: true,
-        envelope: buildEnvelope(),
+        envelope: buildEnvelope(ctx),
         data: {
           path,
           // Aantal TEKENS van het IFC-document (geen bytes: UTF-8 is multi-byte voor niet-ASCII
@@ -288,14 +282,17 @@ export const fileTools: McpToolDef[] = [
     description:
       'Lees een planningsbestand van schijf en open het als DOCUMENT (tabblad). Ondersteund: .ifc ' +
       '(native, volledig), .xml (Primavera P6 of MS Project MSPDI — het formaat wordt op inhoud ' +
-      'herkend) en .csv. Er wordt NIET samengevoegd met het huidige plan: een leeg-en-ongewijzigd ' +
+      'herkend), .csv en .mpp (MS Project 2010-2021, MPP14, alleen-lezen — oudere formaten en ' +
+      'wachtwoordbestanden geven een fout die vraagt om eerst als XML te exporteren). Er wordt NIET ' +
+      'samengevoegd met het huidige plan: een leeg-en-ongewijzigd ' +
       'actief tabblad wordt hergebruikt, anders komt er een nieuw tabblad bij; het resultaat wordt ' +
       'actief en het vervolgwerk landt daar. ' +
       'VERLIES PER FORMAAT — noem dit tegen de gebruiker: CSV bevat GEEN kalender (het document ' +
       'krijgt de standaardkalender, dus datums kunnen verschuiven!) en geen resources of ' +
-      'toewijzingen; P6-XML mapt Nonlabor-resources op EQUIPMENT; MSPDI is het rijkst na IFC. ' +
-      'Na een CSV-/XML-import heeft het document nog GEEN opslagdoel (opslaan schrijft altijd IFC, ' +
-      'dus het bronbestand wordt nooit overschreven); alleen een IFC-import neemt het bronpad over. ' +
+      'toewijzingen; P6-XML mapt Nonlabor-resources op EQUIPMENT; MPP bevat geen baselines/custom ' +
+      'fields; MSPDI is het rijkst na IFC. ' +
+      'Na een CSV-/XML-/MPP-import heeft het document nog GEEN opslagdoel (opslaan schrijft altijd ' +
+      'IFC, dus het bronbestand wordt nooit overschreven); alleen een IFC-import neemt het bronpad over. ' +
       'Gebruik altijd het `documentId` UIT DE RESPONS voor vervolgstappen — of het bestand in het ' +
       'bestaande tabblad of in een nieuw tabblad landde hangt af van de staat van de app. ' +
       'Kalender-id\'s zijn per document: herbouw een kalender in het importdocument met ' +
@@ -312,7 +309,7 @@ export const fileTools: McpToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absoluut bronpad binnen de home-map (.ifc / .xml / .csv; ~ mag)' },
+        path: { type: 'string', description: 'Absoluut bronpad binnen de home-map (.ifc / .xml / .csv / .mpp; ~ mag)' },
       },
       required: ['path'],
       additionalProperties: false,
@@ -336,7 +333,6 @@ export const fileTools: McpToolDef[] = [
       }
 
       let path: string;
-      let content: string;
       try {
         const scope = checkScope(await fs.homeDir(), raw.path);
         if (!scope.ok) return toolError(ctx, 'SCOPE', scope.reason);
@@ -344,32 +340,49 @@ export const fileTools: McpToolDef[] = [
       } catch (e) {
         return toolError(ctx, 'INTERNAL', `Kon het bronpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
       }
+      const readFormat = readFormatForFile(path);
+      // `content` blijft '' voor een binair formaat — puur voor `formatOf` (verderop) se sniffen
+      // op CSV/P6-XML/MSPDI-XML-inhoud; het OPSLAGDOEL-besluit hangt sinds T11 niet meer af van
+      // `formatOf`'s AI-facing label maar rechtstreeks van `readFormat.canBeSaveTarget` (zie
+      // verderop) — dus geen risico meer dat een binair formaat via `formatOf`'s IFC-terugval per
+      // ongeluk als opslagdoel-waardig zou worden gelezen.
+      let input: FormatInput;
       try {
-        content = await fs.readTextFile(path);
+        // T11 (T2-kwaliteitsreview-agenda stap 0 a): gedeelde isBinary?readFile:readTextFile-tak,
+        // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
+        input = await readFormatInput(path, fs);
       } catch (e) {
         return toolError(ctx, 'NOT_FOUND', `Kon '${path}' niet lezen: ${e instanceof Error ? e.message : String(e)}`);
       }
+      const content = input.text ?? '';
 
       let parsed: ImportResult;
       try {
-        parsed = parseByExtension(path, content);
+        // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
+        // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
+        // ImportLabels).
+        parsed = await parseOpenedFile(input);
       } catch (e) {
         return toolError(ctx, 'VALIDATION', `'${path}' kon niet worden gelezen als planning: ${e instanceof Error ? e.message : String(e)}`);
       }
 
       // Exact het bestaande laadpatroon (fileSlice.openFile): pristine tabblad hergebruiken, anders
       // een nieuw document — er is bewust geen merge.
-      const store = useAppStore.getState();
+      const store = ctx.app.store.getState();
       const reusedActiveTab = isActivePristine(store);
       if (!reusedActiveTab) store.newDocument();
       const format = formatOf(path, content);
-      // OPSLAGDOEL alleen bij een IFC-bron. Opslaan schrijft ALTIJD IFC; zou een geïmporteerd
-      // .csv-/.xml-pad het opslagdoel worden, dan overschrijft de eerstvolgende Ctrl+S van de user
-      // zijn eigen bronbestand met IFC-inhoud onder een .csv/.xml-naam. Zelfde motief als de genulde
-      // `filePath` van `duplicate_document`. Gevolg: na een CSV-/XML-import is het document
-      // "naamloos" en wordt opslaan een opslaan-als — precies wat je wilt.
-      useAppStore.getState().applyLoadedProject(parsed, {
-        filePath: format === 'IFC' ? path : null,
+      // OPSLAGDOEL alleen bij een formaat dat `canBeSaveTarget` draagt (T11 — vóór deze fix: `format
+      // === 'IFC' && !isBinary`, twee losse classificaties die uit elkaar konden lopen). Opslaan
+      // schrijft ALTIJD IFC; zou een geïmporteerd .csv-/.xml-/.mpp-pad het opslagdoel worden, dan
+      // overschrijft de eerstvolgende Ctrl+S van de user zijn eigen bronbestand met IFC-inhoud onder
+      // die naam. Zelfde motief als de genulde `filePath` van `duplicate_document`. Gevolg: na een
+      // CSV-/XML-/MPP-import is het document "naamloos" en wordt opslaan een opslaan-als — precies
+      // wat je wilt. `formatOf` blijft puur het AI-facing label (`format` hieronder, voor de respons
+      // en de notices) — de opslagdoel-beslissing leest voortaan uitsluitend `readFormat.
+      // canBeSaveTarget`, dezelfde registry-vlag als `fileSlice.ts`.
+      ctx.app.store.getState().applyLoadedProject(parsed, {
+        filePath: readFormat.canBeSaveTarget ? path : null,
         fileHandle: null,
         recompute: true,
         fit: true,
@@ -379,19 +392,21 @@ export const fileTools: McpToolDef[] = [
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
 
-      const after = useAppStore.getState();
+      const after = ctx.app.store.getState();
       const notices: string[] = [];
       if (format === 'CSV') {
         notices.push('CSV bevat geen kalender (het document draait nu op de STANDAARDkalender — datums kunnen afwijken) en geen resources/toewijzingen.');
       } else if (format === 'P6-XML') {
         notices.push('P6-XML: Nonlabor-resources zijn als EQUIPMENT geïmporteerd.');
+      } else if (format === 'MPP14') {
+        notices.push('MPP-import is alleen-lezen (best effort; baselines en custom fields komen niet mee). Opslaan schrijft IFC; export naar MS Project = MSPDI-XML.');
       }
       if (format !== 'IFC') {
         notices.push('Het document heeft nog GEEN opslagdoel: opslaan schrijft IFC, dus het bronbestand wordt niet overschreven — de gebruiker kiest bij opslaan een pad.');
       }
       return {
         ok: true,
-        envelope: buildEnvelope(),
+        envelope: buildEnvelope(ctx),
         data: {
           documentId: after.activeDocumentId,
           path,

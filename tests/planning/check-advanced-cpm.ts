@@ -8,6 +8,9 @@
 //
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { Task, TaskConstraint, ExternalLink } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -25,6 +28,7 @@ import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
 
 const diffs: string[] = [];
 let checks = 0;
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const eq = (label: string, got: unknown, want: unknown) => {
   checks++;
   if (got !== want) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
@@ -83,6 +87,16 @@ eq('05 fieldKind freeFloat = number', fieldKind(bk('freeFloat'), dummyCtx), 'num
 eq('06 fieldKind interferingFloat = number', fieldKind(bk('interferingFloat'), dummyCtx), 'number');
 eq('07 fieldKind isNearCritical = boolean', fieldKind(bk('isNearCritical'), dummyCtx), 'boolean');
 eq('08 fieldKind floatPath = number', fieldKind(bk('floatPath'), dummyCtx), 'number');
+
+// ── 1b) Issue #80: CPM-resultaten zijn hele weergegeven dagen ─────────────────────────────────
+// Het paneel heeft geen React-rendertestharnas. Deze lichte bronguard fixeert daarom de concrete
+// gebruikersweergave: vrije en interfererende speling mogen geen rekenartefacten met lange
+// decimalen tonen (zoals 2.2916666666666665), maar worden op de dichtstbijzijnde dag afgerond.
+const cpmResultSection = readFileSync(join(ROOT, 'src/components/task-sections/TaskCpmResultSection.tsx'), 'utf8');
+eq('08a CPM-paneel rondt vrije speling af op hele dagen',
+  /\{Math\.round\(task\.time\.freeFloat\)\} \{tCommon\('daysLong'\)\}/.test(cpmResultSection), true);
+eq('08b CPM-paneel rondt interfererende speling af op hele dagen',
+  /\{Math\.round\(task\.time\.interferingFloat\)\} \{tCommon\('daysLong'\)\}/.test(cpmResultSection), true);
 
 // ── 2) CPMResult-vormcontract: criticalPaths ALTIJD [criticalPath] (§3.5/§4.6) ─
 eq('09 criticalPaths lengte precies 1 (floatPaths uit)', rA.criticalPaths.length, 1);
@@ -729,6 +743,272 @@ eq('186 detector-gate CONTROLE: geen actuals + structureel te laat ⇒ violation
   // En op het blad zelf: interferingFloat/isNearCritical/floatPath gaan mee (idem gemist door de kopie).
   eq('195 blad: interferingFloat komt door', kid2.time.interferingFloat, 1);
 }
+
+// ── T8-rooktest: relatie op een taak die niet in de meegegeven set zit (samenvattingstaak) ────
+// `runCPM` (scheduleSlice.ts) geeft de solver alleen BLADTAKEN mee (`childIds.length === 0`); een
+// relatie die een WBS-samenvattingstaak raakt (in MS Project legaal — mspdiReader/ifcReader/
+// mppReader lezen 'm gewoon in, er wordt nergens op import gefilterd) verwijst dan naar een
+// taak-id dat niet in `tasks` zit. Vóór de guard in de CPMSolver-constructor duwde
+// `topologicalSort` dat fantoom-id de volgorde in (hij telt `inDegree` onvoorwaardelijk voor élke
+// `successorId`) en crashte de forward pass op een `this.tasks.get(id)!`-aanname zodra dat
+// fantoom-id in `order` viel (T8-rooktest, 870d339f60603f71 — hash-only §8: het bestand opende,
+// maar de planning bleef stil onberekend doordat `openFile`s catch de crash opslokte). Nu wordt de relatie genegeerd
+// i.p.v. de solver te laten crashen — de samenvattingstaak zelf blijft correct via de bestaande
+// rollup (`applyCpmResult`), alleen déze relatie legt geen dwang meer op.
+{
+  const x = mkTask('T8-X', 4);              // onafhankelijke bladtaak, "voorganger" van de samenvatting
+  const y = mkTask('T8-Y', 2);              // onafhankelijke bladtaak, "opvolger" van de samenvatting
+  const k1 = mkTask('T8-K1', 3, { parentId: 'T8-S' });
+  const k2 = mkTask('T8-K2', 5, { parentId: 'T8-S' });
+  // 'T8-S' (de samenvattingstaak zelf) wordt BEWUST NIET meegegeven — exact zoals runCPM leaf-only filtert.
+  const seqIntoSummary = fs('t8-seq-in', 'T8-X', 'T8-S');          // X -> S (S = geen bladtaak)
+  const seqOutOfSummary = fs('t8-seq-out', 'T8-S', 'T8-Y');        // S -> Y (S = geen bladtaak)
+  const seqBogus = fs('t8-seq-bogus', 'does-not-exist', 'T8-Y');   // algemene robuustheid: elk ontbrekend id
+
+  let threw = false;
+  let result: CPMResult | undefined;
+  try {
+    result = solve([x, y, k1, k2], [seqIntoSummary, seqOutOfSummary, seqBogus]);
+  } catch {
+    threw = true;
+  }
+  eq('196 T8: relatie op samenvattingstaak crasht de solver niet meer', threw, false);
+  eq('197 T8: geen circulaire-dependency-fout gemeld (de relaties zijn gewoon acyclisch)', result?.error, undefined);
+  eq(
+    '198 T8: de drie genegeerde relaties staan in droppedSequenceIds',
+    [...(result?.droppedSequenceIds ?? [])].sort().join(','),
+    ['t8-seq-bogus', 't8-seq-in', 't8-seq-out'].sort().join(','),
+  );
+  // X en Y zijn na het negeren twee gewone ONGEKOPPELDE bladtaken: ASAP op het anker, geen dwang
+  // van/naar de (afwezige) samenvatting. K2 (dur 5, de langste taak) bepaalt het projecteinde.
+  eq('199 T8: X (voormalig "voorganger" van S) start gewoon op het anker', result?.tasks.get('T8-X')?.earlyStart, '2026-06-01');
+  eq('200 T8: Y (voormalig "opvolger" van S) start gewoon op het anker (geen wachten op S)', result?.tasks.get('T8-Y')?.earlyStart, '2026-06-01');
+  eq('201 T8: K1/K2 rekenen normaal door — K2 (langste kind) is kritiek', result?.tasks.get('T8-K2')?.isCritical, true);
+}
+
+// ── T8-rooktest: een gewone relatie tussen twee bestaande bladtaken blijft ONAANGERAAKT ───────
+// Guard tegen over-filteren: de nieuwe constructor-check mag alleen relaties raken die een
+// afwezig taak-id aanraken, nooit relaties tussen taken die wél allebei meegegeven zijn.
+{
+  const a = mkTask('T8-A', 3);
+  const b = mkTask('T8-B', 2);
+  const result = solve([a, b], [fs('t8-normal', 'T8-A', 'T8-B')]);
+  eq('202 T8: normale relatie blijft ongemoeid — geen droppedSequenceIds', result.droppedSequenceIds, undefined);
+  eq('203 T8: normale relatie blijft ongemoeid — B start ná A (FS)', result.tasks.get('T8-B')?.earlyStart, '2026-06-04');
+}
+
+// ── Z8-herwerkronde-fixronde-2 ("laag 1/2-gat"): progressCal-substitutie ────────────────────────
+// Corpusloze motor-case (coordinator-eis 3, herwerkronde): een IN-PROGRESS-taak wier ENIGE
+// toewijzing een écht afwijkende, uur-modus resourcekalender draagt moet haar restwerk door DIE
+// kalender wandelen, niet door de taak-/projectkalender. RCAL biedt slechts 2u/dag (08:00-10:00)
+// tegenover H8's 8u/dag (08:00-16:00) — bij 240 resterende minuten (calendar-agnostische eenheid)
+// geven de twee kalenders AANTOONBAAR verschillende antwoorden, dus dit is geen toevalstreffer.
+const RCAL: WorkCalendar = {
+  id: 'rcal', name: 'rcal', description: 'rcal (2u/dag, corpusloos — Z8-fixronde-2)',
+  workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 10, hoursPerDay: 2, holidays: [],
+  workTime: { byWeekday: { 1: [{ start: 480, end: 600 }], 2: [{ start: 480, end: 600 }], 3: [{ start: 480, end: 600 }], 4: [{ start: 480, end: 600 }], 5: [{ start: 480, end: 600 }], 6: [], 7: [] } },
+} as unknown as WorkCalendar;
+function mkProg(id: string, extra: Partial<Task> = {}): Task {
+  const t = mkTask(id, 1, extra);
+  t.time = createDefaultTaskTime('2026-07-06', 1); // 2026-07-06 = ma
+  t.time.durationMinutes = 480;
+  t.time.completion = 0.5;
+  t.time.actualStart = '2026-07-06T08:00';
+  t.time.remainingMinutes = 240;
+  return t;
+}
+// IP1: WEL geactiveerd (walks.length===1, resourcekalender = RCAL, isHourMode) ⇒ progressCal=RCAL.
+const ip1 = mkProg('IP1', { timephasedDurationWalks: [{ anchor: '2026-07-06T08:00', resourceCalendarId: 'rcal' }] });
+const rIp1 = new CPMSolver([ip1], [], H8, [RCAL], {}).solve();
+const ip1r = rIp1.tasks.get('IP1')!;
+eq('204 Z8-fix2: progressCal=RCAL (2u/dag) ⇒ 240min restwerk loopt over 2 dagen', ip1r.earlyFinish, '2026-07-07T10:00');
+// IP2: GEEN walks (mutatie-equivalent van "terug naar de taakkalender") ⇒ progressCal=H8 blijft
+// staan — ZELFDE taak, ALLEEN het wandelkandidaat-veld ontbreekt. Ander antwoord bewijst dat IP1's
+// resultaat NIET toevallig met H8 samenvalt (d.w.z. dat `timephasedDurationWalks` daadwerkelijk het
+// verschil maakt). Dit IS de coordinator-geëiste mutatieproef, automatisch gepind: handmatig de
+// `progressCal`-substitutie in `CPMSolver.ts` tijdelijk uitschakelen (terug naar `let progressCal =
+// cal` zonder de `if`-tak) laat check 204 rood gaan (H8 geeft 12:00 i.p.v. RCAL se 10:00 twee dagen
+// later) — geverifieerd tijdens deze fixronde, ONGEWIJZIGD teruggezet ná verificatie.
+const ip2 = mkProg('IP2');
+const rIp2 = new CPMSolver([ip2], [], H8, [RCAL], {}).solve();
+const ip2r = rIp2.tasks.get('IP2')!;
+eq('205 Z8-fix2: zonder walk ⇒ progressCal blijft H8 (8u/dag) ⇒ zelfde dag klaar', ip2r.earlyFinish, '2026-07-06T12:00');
+eq('206 Z8-fix2: IP1 (RCAL) en IP2 (H8) geven AANTOONBAAR verschillende antwoorden', ip1r.earlyFinish !== ip2r.earlyFinish, true);
+
+// IP3: EF<ES-inversiewacht op het NIEUWE progressCal-getriggerde resumeOverride-pad (coordinator-eis
+// 4b). Een hostiel/inconsistent `resume`-veld (vóór de eigen `actualStart`) zou zonder de bestaande
+// `if (usedResumeOverride && ef < actualES) ef = actualES`-wacht een EF opleveren die vóór de ES
+// ligt. `progressCal !== cal` (RCAL i.p.v. H8) is hier de trigger — dus dit is specifiek het NIEUWE
+// pad uit deze fixronde, niet Z12's oorspronkelijke out-of-sequence-trigger.
+const ip3 = mkProg('IP3', {
+  timephasedDurationWalks: [{ anchor: '2026-07-06T08:00', resourceCalendarId: 'rcal' }],
+});
+ip3.time.resume = '2026-07-01T08:00'; // wo vóór actualStart (ma) — hostiel
+ip3.time.remainingMinutes = 60;
+const rIp3 = new CPMSolver([ip3], [], H8, [RCAL], {}).solve();
+const ip3r = rIp3.tasks.get('IP3')!;
+// Zonder de wacht zou ef = RCAL.addWorkMinutes(2026-07-01T08:00, 60) = 2026-07-01T09:00 zijn —
+// vóór actualES (2026-07-06T08:00). MET de wacht wordt ef geklemd op actualES.
+eq('207 Z8-fix2: EF<ES-wacht klemt ef op actualES (hostiel resume vóór actualStart)', ip3r.earlyFinish, '2026-07-06T08:00');
+eq('208 Z8-fix2: es blijft actualES, geen inversie', ip3r.earlyStart <= ip3r.earlyFinish, true);
+// Mutatiebewijs (uitgevoerd, ongewijzigd teruggezet): de `if (usedResumeOverride && ef < actualES)
+// ef = actualES;`-regel tijdelijk verwijderen laat check 207 rood gaan (ef = 2026-07-01T09:00 i.p.v.
+// 2026-07-06T08:00), en check 208 blijft toevallig groen (want dat zou dan es>ef zijn — 208 test dus
+// bewust de VOLLE inversie, niet alleen de exacte waarde).
+
+// ── Z8-herwerkronde: laag-3-venster beweegt mee met échte SF-druk (deferred item, vorige ronde) ──
+// H2-zorg (oorspronkelijke Opus-blokkade): een gelezen venster (laag 3, `timephasedFinishFloor`) mag
+// nooit een taak "bevriezen" tegen een LATERE, legitieme SF-vereiste-finish van een voorganger — de
+// bestaande `sfFinishFloor`-vergelijking in `timephasedFinish()` (`sfFinishFloor && sfFinishFloor >
+// windowValue ? sfFinishFloor : windowValue`) is precies daarvoor gebouwd. Deze case pint 'm: SF1
+// (langere duur) drukt via een START_FINISH-relatie een venster-gelezen taak SF2 later dan haar eigen
+// (gefixeerde) venster — earlyFinish moet meebewegen met SF1's duur, niet bevroren blijven op het
+// venster.
+// START_FINISH is START-gedreven (SF1's EIGEN duur beïnvloedt haar start niet — SF1 heeft geen
+// voorganger); de "+10 werkdagen"-druk moet dus via een keten vóór SF1 komen (PRE →FS→ SF1 →SF→
+// SF2), niet via SF1's eigen duur — anders is `sfFinishFloor` triggerloos (geverifieerd: SF1's
+// eigen duur variëren liet de floor ONVERANDERD, exact omdat SF alleen naar SF1's START kijkt).
+function sfChain(preDur: number) {
+  const pre = mkTask('SF-PRE', preDur);
+  const sf1 = mkTask('SF1', 1);
+  const sf2 = mkTask('SF2', 1, { timephasedFinishFloor: '2026-06-01T16:00' }); // uur-modus, laag 3
+  const seqs = [fs('sfp', 'SF-PRE', 'SF1'), lk('sf1', 'SF1', 'SF2', 'START_FINISH')];
+  return new CPMSolver([pre, sf1, sf2], seqs, H8, [], {}).solve().tasks.get('SF2')!;
+}
+const sf2aR = sfChain(1);
+// PRE dur1 (H8, 8u/dag) ⇒ SF1 start 2026-06-02T08:00 ⇒ SF-vereiste-finish voor SF2 = diezelfde
+// datum, al LATER dan het venster (2026-06-01T16:00) ⇒ sfFinishFloor wint (`meebewegen`).
+eq('209 Z8-deferred: SF-druk laat het venster winnen (niet bevroren)', sf2aR.earlyFinish, '2026-06-02T08:00');
+const sf2bR = sfChain(11); // +10 werkdagen op de keten vóór SF1
+eq('210 Z8-deferred: +10 werkdagen vóór SF1 ⇒ earlyFinish beweegt mee (niet bevroren op het venster)', sf2bR.earlyFinish !== sf2aR.earlyFinish, true);
+eq('211 Z8-deferred: SF-druk wint nu van het venster, ook 10 werkdagen verder', sf2bR.earlyFinish > '2026-06-01T16:00', true);
+// BEKENDE, NIET-GEBOUWDE RESTBEPERKING (buiten bestandseigendom `src/engine/scheduler/**`, gemeld
+// i.p.v. zelf gebouwd): dit dekt "meebewegen" via een ECHTE SF-relatiedruk — het bestaande, reeds
+// vóór deze fixronde gebouwde mechanisme. Een DIRECTE duur-mutatie op DEZELFDE taak (SF2 zelf 10
+// werkdagen langer maken, geen voorganger-relatie) laat `timephasedFinishFloor` ONGEWIJZIGD (het is
+// een letterlijk gelezen datum, geen afgeleide) — noch CPMSolver.ts, noch moveProject.ts (die
+// SHIFT't 'm alleen bij een volledige taak-VERPLAATSING, `shiftTask`) wist/valideert het veld bij
+// een losstaande duur-edit. Die invalidatie hoort thuis in de task-edit-actie (`taskSlice.ts`,
+// buiten mijn bestandseigendom) — genoemd als vervolgpunt in het eindrapport, niet hier gebouwd.
+
+// ── Z8-herwerkronde-slotronde: EF<ES-inversiewacht op de AUTO-tak (reviewer-eis 4) ──────────────
+// Een taak zonder voortgang met een STALE laag-3-venster (vóór haar eigen, door een voorganger-
+// druk ná dat venster geduwde `earlyStart`) mocht zonder wacht "eindigen vóór ze begint". PRE(dur5)
+// →FS→ INV(dur1, timephasedFinishFloor ver in het verleden): INV se earlyStart komt via de gewone
+// FS-druk ná het venster te liggen.
+const invPre = mkTask('INV-PRE', 5);
+const inv = mkTask('INV', 1, { timephasedFinishFloor: '2026-06-01T10:00' }); // ver vóór INV se eigen FS-druk
+const rInv = new CPMSolver([invPre, inv], [fs('invfs', 'INV-PRE', 'INV')], H8, [], {}).solve();
+const invR = rInv.tasks.get('INV')!;
+eq('212 Z8-slotronde: AUTO-tak EF<ES-wacht — ef geklemd op es (stale venster vóór voorganger-druk)', invR.earlyFinish, invR.earlyStart);
+eq('213 Z8-slotronde: es blijft de voorganger-gedreven 2026-06-08T08:00, niet het stale venster', invR.earlyStart, '2026-06-08T08:00');
+// Mutatiebewijs (uitgevoerd, ongewijzigd teruggezet): `if (tf && earlyFinish < earlyStart) earlyFinish
+// = earlyStart;` in CPMSolver.ts tijdelijk verwijderen laat check 212 rood gaan (ef zou het stale
+// venster 2026-06-01T10:00 blijven, vóór es 2026-06-08T08:00 — een echte inversie).
+
+// ── Z9b, acceptatiepunt (2): `applyAlap` mag `seqConstraint` niet vullen voor een MANUAL
+// opvolger — dat lekt anders een betekenisloze `sequenceFreeFloat`-invoer voor die relatie ──────
+// `CPMSolver.forwardPass` zet `seqConstraint` sowieso nooit voor een relatie die een manual taak
+// als opvolger heeft (haar eigen voorganger-lus wordt door de manual-`continue` nooit bereikt) —
+// dat laat de relatie in `scheduleAnalysis.computeScheduleResults` terecht ONGEZIEN (dezelfde
+// precedentie als een hammock-relatie). `applyAlap` draait ÁLTIJD op zijn ALAP-taak z'n VOLLEDIGE
+// successor-lijst (ongeacht wat voor taak elke opvolger is) zodra er OOK maar één andere opvolger
+// een geldige, eindige vrije speling geeft — zonder de Z9b-uitsluiting zou die laatste lus dan
+// óók voor de manual opvolger een `seqConstraint` schrijven, gebaseerd op de (eventueel ALAP-
+// verschoven) `early` van de VOORGANGER, terwijl de manual opvolger daar nooit op reageert.
+//
+// Opzet (spiegelt `cst-alap-with-succ` in cases-constraints.json, met een TWEEDE, manual opvolger
+// erbij): X (dur 6, drijft het project) en P (dur 2, ALAP) voeden allebei Q (dur 2) — dat geeft P
+// volop vrije speling op de P→Q-relatie, dus `applyAlap` schuift P daadwerkelijk op (P heeft dus
+// een eindige, positieve `ff` en bereikt de seqConstraint-herschrijflus). P heeft DAARNAAST een
+// tweede FS-opvolger M (manual, eigen rauw anker, geen relatie tot P of Q) — exact de situatie
+// waarin de lek kan optreden.
+{
+  const X = mkTask('Z9B2-X', 6);
+  const P = mkTask('Z9B2-P', 2, { constraint: { type: 'ALAP' } });
+  const Q = mkTask('Z9B2-Q', 2);
+  const M = mkTask('Z9B2-M', 2, { manuallyScheduled: true });
+  const seqPQ = fs('z9b2-pq', 'Z9B2-P', 'Z9B2-Q');
+  const seqXQ = fs('z9b2-xq', 'Z9B2-X', 'Z9B2-Q');
+  const seqPM = fs('z9b2-pm', 'Z9B2-P', 'Z9B2-M');
+  const r = solve([X, P, Q, M], [seqPQ, seqXQ, seqPM]);
+  // Precondition: P kreeg ECHT een ALAP-push (anders bereikt de seqConstraint-herschrijflus nooit
+  // haar manual-tegenhanger en test dit niets — een `ff<=0`/oneindige speling zou de hele lus
+  // overslaan, zie applyAlap se `if (!Number.isFinite(ff) || ff <= 0) continue;`).
+  eq('214 Z9b/applyAlap-precondition: P werd daadwerkelijk ALAP-opgeschoven (niet op haar vroegste anker)', r.tasks.get('Z9B2-P')!.earlyStart !== '2026-06-01', true);
+  // M's EIGEN datums zijn hoe dan ook ongemoeid (haar forwardPass-tak leest nooit een relatie) —
+  // dit bewijst NIET de fix, alleen dat de opzet verder klopt.
+  eq('215 Z9b/applyAlap: M houdt haar rauwe anker ongeacht P se ALAP-push', r.tasks.get('Z9B2-M')!.earlyStart, '2026-06-01');
+  // De kern van de fix: P->M draagt GEEN sequenceFreeFloat-invoer (de relatie blijft, net als een
+  // hammock-relatie, buiten de driving-/float-analyse — een AANWEZIGE maar betekenisloze invoer,
+  // ongeacht het teken, is het lek).
+  eq('216 Z9b/applyAlap: P->M krijgt GEEN sequenceFreeFloat-invoer (blijft ongezien, als een hammock-relatie)', Object.prototype.hasOwnProperty.call(r.sequenceFreeFloat, seqPM.id), false);
+  eq('217 Z9b/applyAlap: P->M staat niet in drivingSequenceIds', r.drivingSequenceIds.includes(seqPM.id), false);
+  // Contrast: P->Q (auto opvolger) draagt WEL een sequenceFreeFloat-invoer — de uitsluiting raakt
+  // dus specifiek de manual-opvolger-tak, niet de seqConstraint-herschrijving in het algemeen.
+  eq('218 Z9b/applyAlap-contrast: P->Q (auto) draagt WEL een sequenceFreeFloat-invoer', Object.prototype.hasOwnProperty.call(r.sequenceFreeFloat, seqPQ.id), true);
+}
+// Mutatiebewijs (uitgevoerd, teruggedraaid): de `if (succTask.manuallyScheduled) continue;`-regel
+// in de seqConstraint-herschrijflus van `CPMSolver.applyAlap` weghalen laat check 216 ROOD gaan
+// (P->M krijgt dan wél een `sequenceFreeFloat`-invoer, zie de toelichting bij `applyAlap`s
+// moduleheader in CPMSolver.ts).
+
+// ── Z9b, acceptatiepunt (3): `applyCpmResult.updateSummary` rolt een MANUAL samenvattingstaak
+// NIET op — ze houdt haar eigen `scheduleStart`/`scheduleFinish` ─────────────────────────────
+// Spiegelt de bestaande "187-195 rollup"-checks hierboven (K-item 30), maar nu met de
+// samenvattingstaak zelf `manuallyScheduled`. CORPUSBEWIJS (plan-§Z9b): het gemengde
+// corpusbestand droeg elf manual-verzameltaken wier berekende earlyStart/earlyFinish via de
+// onvoorwaardelijke min/max-rollup kwamen i.p.v. hun eigen datums.
+{
+  const mkid1 = mkTask('Z9B3-kid1', 5, { parentId: 'Z9B3-sum' });
+  const mkid2 = mkTask('Z9B3-kid2', 3, { parentId: 'Z9B3-sum' });
+  // Derde kind met datums NÁ de eigen finish van de manual samenvatting (2026-08-xx > 2026-07-03)
+  // — de andere richting dan kid1/kid2 (die vóór de samenvatting liggen). Een onvolledige fix zou
+  // bv. alleen het VROEGSTE-kind-geval (earlyStart) afdekken en een later kind alsnog via `max()`
+  // laten doorschieten in earlyFinish; dat is hier apart geasserteerd, niet impliciet door de
+  // eerdere checks (die kid1/kid2 gebruiken, allebei vóór de samenvatting).
+  const mkid3 = mkTask('Z9B3-kid3', 5, { parentId: 'Z9B3-sum' });
+  // Eigen, van de kinderen VOLLEDIG losstaande datums — geen enkel kind-veld valt hier toevallig
+  // mee samen, zodat een sluipende terugval naar de rollup meteen zichtbaar zou zijn.
+  const msum = mkTask('Z9B3-sum', 0, {
+    childIds: ['Z9B3-kid1', 'Z9B3-kid2', 'Z9B3-kid3'],
+    manuallyScheduled: true,
+    time: { ...createDefaultTaskTime('2026-07-01', 3), scheduleStart: '2026-07-01', scheduleFinish: '2026-07-03' },
+  });
+  const tasks = [msum, mkid1, mkid2, mkid3];
+  const result = {
+    tasks: new Map([
+      ['Z9B3-kid1', { earlyStart: '2026-06-01', earlyFinish: '2026-06-05', lateStart: '2026-06-03',
+        lateFinish: '2026-06-07', totalFloat: 2, freeFloat: 1, isCritical: true, interferingFloat: 1 }],
+      ['Z9B3-kid2', { earlyStart: '2026-06-02', earlyFinish: '2026-06-04', lateStart: '2026-06-08',
+        lateFinish: '2026-06-10', totalFloat: 4, freeFloat: 3, isCritical: false, interferingFloat: 1 }],
+      ['Z9B3-kid3', { earlyStart: '2026-08-01', earlyFinish: '2026-08-05', lateStart: '2026-08-03',
+        lateFinish: '2026-08-07', totalFloat: 2, freeFloat: 1, isCritical: false, interferingFloat: 1 }],
+    ]),
+    projectStart: '2026-06-01', projectEnd: '2026-08-05', criticalPath: ['Z9B3-kid1'],
+  } as unknown as Parameters<typeof applyCpmResult>[1];
+
+  applyCpmResult(tasks, result, { projectCalendar: CAL, calendars: [CAL] });
+
+  eq('219 Z9b/manual-rollup: earlyStart = eigen scheduleStart, NIET het vroegste kind', msum.time.earlyStart, '2026-07-01');
+  eq('220 Z9b/manual-rollup: earlyFinish = eigen scheduleFinish, NIET het laatste kind', msum.time.earlyFinish, '2026-07-03');
+  eq('221 Z9b/manual-rollup: lateStart = earlyStart (definitorisch, mirrort de manual-bladtaak-conventie)', msum.time.lateStart, '2026-07-01');
+  eq('222 Z9b/manual-rollup: lateFinish = earlyFinish', msum.time.lateFinish, '2026-07-03');
+  eq('223 Z9b/manual-rollup: totalFloat = 0 (definitorisch, niet het min-over-kinderen)', msum.time.totalFloat, 0);
+  eq('224 Z9b/manual-rollup: freeFloat = 0', msum.time.freeFloat, 0);
+  eq('225 Z9b/manual-rollup: interferingFloat = 0', msum.time.interferingFloat, 0);
+  // isCritical blijft WEL van de kinderen afgeleid (kid1 is critical).
+  eq('226 Z9b/manual-rollup: isCritical blijft van de kinderen afgeleid', msum.time.isCritical, true);
+  // Contrast: het blad zelf blijft ongemoeid door deze tak.
+  eq('227 Z9b/manual-rollup-contrast: kid1 zelf blijft ongewijzigd', mkid1.time.earlyStart, '2026-06-01');
+  // De andere richting: kid3 ligt NÁ de eigen finish van de samenvatting (2026-08-05 > 2026-07-03)
+  // — earlyFinish blijft toch de EIGEN datum, schiet niet door naar het latere kind.
+  eq('228 Z9b/manual-rollup-richting: een LATER kind (2026-08-05) duwt earlyFinish niet voorbij de eigen 2026-07-03', msum.time.earlyFinish, '2026-07-03');
+}
+// Mutatiebewijs (uitgevoerd, teruggedraaid): het `if (task.manuallyScheduled && children.length > 0)
+// {...; return;}`-blok in `applyCpmResult.updateSummary` weghalen laat checks 219/220 ROOD gaan
+// (earlyStart/earlyFinish rollen dan weer op uit de kinderen: '2026-06-01'/'2026-06-05' i.p.v. de
+// eigen '2026-07-01'/'2026-07-03').
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

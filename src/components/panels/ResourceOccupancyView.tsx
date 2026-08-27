@@ -19,10 +19,34 @@ import { parseDate, formatDate, addCalendarDays, diffDays } from '@/utils/dateUt
 const MAX_CONFLICT_DATES_SHOWN = 5;
 
 /** De bibliotheek-relevante snit van één documentpayload (§7-cache, zie `librarySlice`). */
-interface LibrarySlice {
+export interface LibrarySlice {
   resources: Resource[];
   assignments: ResourceAssignment[];
   tasks: Task[];
+}
+
+/** Alleen de documentvelden die het bezettingsoverzicht werkelijk leest. */
+type OccupancyPayload = Pick<
+  DocumentPayload,
+  | 'project'
+  | 'filePath'
+  | 'resources'
+  | 'assignments'
+  | 'tasks'
+  | 'sequences'
+  | 'calendar'
+  | 'calendars'
+  | 'scheduleStale'
+>;
+
+/**
+ * Expliciet cache-eigenaarsrecord. De company en de concrete poolreferentie zijn onderdeel van de
+ * sleutel; de WeakMap daarbinnen mag daarom uitsluitend payloads uit die ene context bevatten.
+ */
+export interface LibrarySliceCache {
+  companyId: string;
+  pool: CompanyPool;
+  slices: WeakMap<OccupancyPayload, LibrarySlice>;
 }
 
 /**
@@ -39,7 +63,7 @@ interface LibrarySlice {
  * de POOL-capaciteit via `maxUnitsOn` (§6). De kern filtert `resources` bovendien zelf op precies
  * dezelfde stempelvoorwaarde, dus vooraf snijden verandert zijn `stampedResources` niet.
  */
-function librarySlice(payload: DocumentPayload, companyId: string, poolItemIds: Set<string>): LibrarySlice {
+function librarySlice(payload: OccupancyPayload, companyId: string, poolItemIds: Set<string>): LibrarySlice {
   const resources = payload.resources.filter(r =>
     r.libraryOrigin !== undefined &&
     r.libraryOrigin.companyId === companyId &&
@@ -52,17 +76,36 @@ function librarySlice(payload: DocumentPayload, companyId: string, poolItemIds: 
 }
 
 /**
+ * Vind of bouw de bibliotheeksnit met een zichtbare company-/poolgrens. Dit is los van React
+ * gehouden zodat dezelfde payload-referentie aantoonbaar niet tussen twee bibliotheken kan lekken.
+ */
+export function resolveLibrarySliceCache(
+  current: LibrarySliceCache | undefined,
+  payload: OccupancyPayload,
+  companyId: string,
+  pool: CompanyPool,
+): { cache: LibrarySliceCache; slice: LibrarySlice } {
+  const cache = current?.companyId === companyId && current.pool === pool
+    ? current
+    : { companyId, pool, slices: new WeakMap<OccupancyPayload, LibrarySlice>() };
+  let slice = cache.slices.get(payload);
+  if (slice === undefined) {
+    slice = librarySlice(payload, companyId, new Set(pool.resources.map(resource => resource.id)));
+    cache.slices.set(payload, slice);
+  }
+  return { cache, slice };
+}
+
+/**
  * B1b — bezettingsoverzicht per bibliotheek over álle open documenten (spec
  * 2026-08-14-b1b-bezettingsoverzicht-design.md §5/§5a, herzien na critreview). Derde stand van de
  * Resources-schakelaar (`ui.resourcesView === 'occupancy'`, gerenderd vanuit `ResourcePanel` onder
  * dezelfde `linked`-conditie als de Bibliotheekweergave). Leesvenster: er valt hier niets te
  * muteren.
  *
- * Aanlevering (§4.4): de bestaande `getOpenDocumentPayloads()` (actief document via
- * `capturePayload`, de rest per referentie), per document gemapt naar `OccupancyDocInput` met de
- * titel-afleiding van de tabbladen (`documentTitle` + `untitledOrdinals`). De aanroep gebeurt
- * BINNEN de `useMemo` — als Zustand-selector is hij onbruikbaar (verse array per aanroep; zelfde
- * val die `useDocumentCards` ontwijkt). Geen nieuwe store-actie of -veld.
+ * Aanlevering (§4.4): het actieve document wordt uit expliciet geabonneerde top-level velden
+ * opgebouwd; slapende documenten komen per referentie uit `documents`. De zware memo leest dus
+ * geen verse storewaarde via een stabiele getter die onzichtbaar buiten zijn dependencylijst valt.
  *
  * Stale documenten (§4.3b): de kern rekent ze efemeer door op een kloon van hun taken — deze
  * weergave levert daarvoor `solveInput` aan (volledige taken/relaties + de projectopties) en zo'n
@@ -86,7 +129,7 @@ function librarySlice(payload: DocumentPayload, companyId: string, poolItemIds: 
  * ontwerptekst. Zolang de weergave openstaat is elke bewerking in het actieve document een
  * memo-invalidatie; zonder maatregel rekent dan de volledige load van álle N documenten opnieuw.
  * De `WeakMap` hier is gesleuteld op payload-referentie (slapende payloads zijn referentiestabiel,
- * het actieve document krijgt per `capturePayload` een vers object) en cachet de bibliotheek-snit
+ * het actieve document krijgt bij een relevante edit een nieuwe expliciete invoer) en cachet de bibliotheek-snit
  * van elk document (`librarySlice`). Wat het ontwerp beschrijft — de gecachte per-document-LOAD,
  * zodat alleen het actieve document nog rekent — kan hier niet: `computeLibraryOccupancy` rekent
  * die load intern en accepteert niets voorgerekends, en de kern openbreken valt buiten deze
@@ -102,20 +145,18 @@ function librarySlice(payload: DocumentPayload, companyId: string, poolItemIds: 
 export function ResourceOccupancyView({ companyId, pool }: { companyId: string; pool: CompanyPool }) {
   const { t, i18n } = useTranslation('common');
 
-  // §7-afhankelijkheden. De top-level velden van het actieve document staan hier uitsluitend als
-  // memo-triggers: `getOpenDocumentPayloads()` leest ze zelf vers via `capturePayload`, maar zonder
-  // deze subscriptions zou een bewerking in het actieve document de memo niet ongeldig maken.
-  // `project`/`filePath` zijn óók titel-invoer (documentTitle leest beide).
+  // §7-invoer. Elk actief documentveld dat de bezettingsberekening of titel leest, wordt
+  // geabonneerd en verderop tot één OccupancyPayload samengevoegd. Geen hidden getter-read.
   const documents = useAppStore(s => s.documents);
   const activeProject = useAppStore(s => s.project);
   const activeFilePath = useAppStore(s => s.filePath);
   const activeResources = useAppStore(s => s.resources);
   const activeAssignments = useAppStore(s => s.assignments);
   const activeTasks = useAppStore(s => s.tasks);
+  const activeSequences = useAppStore(s => s.sequences);
   const activeCalendar = useAppStore(s => s.calendar);
   const activeCalendars = useAppStore(s => s.calendars);
   const activeScheduleStale = useAppStore(s => s.scheduleStale);
-  const getOpenDocumentPayloads = useAppStore(s => s.getOpenDocumentPayloads);
 
   // §4.3b terugschrijfbesluit: staat "Automatisch berekenen" aan, dan worden verouderde SLAPENDE
   // documenten hier écht bijgewerkt in plaats van alleen efemeer doorgerekend (het actieve document
@@ -126,11 +167,32 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
 
   const untitledLabel = t('project.untitled');
 
-  // §7-cache: één `WeakMap` per (bibliotheek × poolsamenstelling) — de gecachte snit hangt van
-  // beide af, dus een andere bibliotheek of een gewijzigde pool krijgt een verse cache in plaats
-  // van een handmatige invalidatie. `pool` is een Immer-object: elke poolmutatie vervangt de
-  // referentie.
-  const sliceCache = useMemo(() => new WeakMap<DocumentPayload, LibrarySlice>(), [companyId, pool]);
+  const activeOccupancyPayload = useMemo<OccupancyPayload>(() => ({
+    project: activeProject,
+    filePath: activeFilePath,
+    resources: activeResources,
+    assignments: activeAssignments,
+    tasks: activeTasks,
+    sequences: activeSequences,
+    calendar: activeCalendar,
+    calendars: activeCalendars,
+    scheduleStale: activeScheduleStale,
+  }), [
+    activeProject, activeFilePath, activeResources, activeAssignments, activeTasks, activeSequences,
+    activeCalendar, activeCalendars, activeScheduleStale,
+  ]);
+
+  const openDocumentPayloads = useMemo(
+    () => documents.map(document => ({
+      id: document.id,
+      payload: document.id === activeDocumentId ? activeOccupancyPayload : document.payload!,
+    })),
+    [documents, activeDocumentId, activeOccupancyPayload],
+  );
+
+  // §7-cache: de ref bewaart maximaal één expliciet benoemde company/pool-context. Een andere
+  // bibliotheek of een nieuwe Immer-poolreferentie vervangt het hele record.
+  const sliceCacheRef = useRef<LibrarySliceCache | undefined>(undefined);
 
   // Hoeveel SLAPENDE documenten een verouderde planning dragen. Goedkoop (een scan over de
   // registry-entries, geen engine-werk) en het is de enige trigger die het effect hieronder nodig
@@ -167,20 +229,17 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   }, [autoCalcCPM, staleSleepingCount, recalculateStaleSleepingDocuments]);
 
   const { rows, anyUncountedStale, anyCountedStale, docColors } = useMemo(() => {
-    const payloads = getOpenDocumentPayloads();
+    const payloads = openDocumentPayloads;
     // Zelfde titel-afleiding als de tabbladen: rauwe titels eerst, dan volgnummers voor naamloze
     // documenten, dan het vertaalde label eromheen (zie `getOpenDocuments`/`useDocumentCards`).
     const rawTitles = payloads.map(({ payload }) => documentTitle(payload.filePath, payload.project.name));
     const ordinals = untitledOrdinals(rawTitles);
-    const poolItemIds = new Set(pool.resources.map(r => r.id));
     const inputs: OccupancyDocInput[] = payloads.map(({ id, payload }, i) => {
       // De titel hoort bewust NIET in de cache: die hangt aan de locale en aan de volgnummers van
       // de ándere documenten, niet aan deze payload.
-      let slice = sliceCache.get(payload);
-      if (slice === undefined) {
-        slice = librarySlice(payload, companyId, poolItemIds);
-        sliceCache.set(payload, slice);
-      }
+      const resolved = resolveLibrarySliceCache(sliceCacheRef.current, payload, companyId, pool);
+      sliceCacheRef.current = resolved.cache;
+      const { slice } = resolved;
       return {
         docId: id,
         title: displayDocumentTitle(rawTitles[i], ordinals[i], untitledLabel),
@@ -232,9 +291,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     }
     return { rows: sorted, anyUncountedStale, anyCountedStale, docColors };
   }, [
-    getOpenDocumentPayloads, sliceCache, documents, pool, companyId, untitledLabel, i18n.language,
-    activeProject, activeFilePath,
-    activeResources, activeAssignments, activeTasks, activeCalendar, activeCalendars, activeScheduleStale,
+    openDocumentPayloads, pool, companyId, untitledLabel, i18n.language,
   ]);
 
   // Uitklap (chevron) en histogram-selectie zijn twee losse assen: uitklappen toont de

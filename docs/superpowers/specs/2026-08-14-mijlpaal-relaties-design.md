@@ -3,6 +3,19 @@
 **Datum:** 2026-08-14
 **Status:** ontwerp, goedgekeurd — klaar voor implementatieplan
 
+> **Banner (2026-08-15, eigenaarsbesluit):** het §spookrelaties-deel van dit ontwerp — relaties met
+> een verzameltaak-eindpunt ALTIJD weigeren (§1, §3, §4, §5, §5a hieronder) — is ingehaald. Een
+> parallelle tak bouwde in dezelfde periode `expandSummaryRelations`
+> (`src/engine/scheduler/expandSummaryRelations.ts`), die zulke relaties naar de onderliggende
+> bladtaken doorrekent conform MS Project-semantiek. De eigenaar koos voor die semantiek: een
+> verzameltaak-eindpunt is sinds 2026-08-15 GEEN weigergrond meer — alleen een relatie tussen een
+> taak en zijn EIGEN (voor)ouder-samenvatting blijft geweigerd (`RelationRejection.ancestor` in
+> `src/state/relationRules.ts`, `isAncestorRelation`), want die zou de expansie een directe cyclus
+> laten genereren. Het mijlpaal-deel van dit ontwerp (§1, §4 voor zover het de hittest betreft) blijft
+> ONGEWIJZIGD van kracht. Dit document is NIET herschreven — lees §spookrelaties-passages hieronder
+> dus als geschiedenis, niet als huidig gedrag. Zie `docs/superpowers/specs/` voor het vervolg, en
+> `public/docs/nl/gids-relaties-constraints.md` voor de gebruikersgerichte, actuele beschrijving.
+
 ## Aanleiding
 
 Twee klachten die op één plek in de code samenkomen:

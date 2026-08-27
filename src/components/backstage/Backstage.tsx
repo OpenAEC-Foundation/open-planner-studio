@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
   Printer, Info, Settings, X, FileType, Puzzle, Upload, BookOpen, Compass, LifeBuoy, Building2,
 } from 'lucide-react';
 import { useAppStore, ExportFormat } from '@/state/appStore';
+import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { BackstageSection } from '@/state/slices/types';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { ProjectInfoPanelContent, type ProjectInfoPanelContentHandle } from '@/components/settings/ProjectInfoPanelContent';
@@ -17,6 +18,8 @@ import type { ExtensionImporter } from '@/state/slices/extensionSlice';
 import { supportsHandles } from '@/services/fileAccess';
 import { fromExtImportResult } from '@/extensions/extMappers';
 import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
+import { buildImportLabels } from '@/i18n/importLabels';
+import type { ImportLabels } from '@/services/importTypes';
 import './Backstage.css';
 
 export function Backstage() {
@@ -33,10 +36,10 @@ export function Backstage() {
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
   const isDirty = useAppStore(s => s.isDirty); // top-level = het actieve document
 
-  const closeBackstage = () => {
+  const closeBackstage = useCallback(() => {
     // Terug naar Start-tab
     setUI({ activeRibbonTab: 'start' });
-  };
+  }, [setUI]);
 
   const handleCloseProject = () => {
     // Backstage éérst dicht: de sluit-bevestiging hoort boven de gewone werkruimte te staan, niet
@@ -52,7 +55,7 @@ export function Backstage() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [closeBackstage]);
 
   const goTo = (s: BackstageSection) => setUI({ backstageSection: s });
 
@@ -65,7 +68,7 @@ export function Backstage() {
 
         {/* Actie-items: triggeren actie en sluiten backstage */}
         <ActionItem icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => { handleNewProject(); closeBackstage(); }} />
-        <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => { handleOpen(tCommon('project.imported')); closeBackstage(); }} />
+        <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); }} />
         <NavItem icon={<Clock size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
         {/* data-tour-anchor (fase 2.10, onderdeel 3, tourstap 6): voorbeelden-navitem. */}
         <NavItem icon={<BookOpen size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
@@ -165,9 +168,9 @@ function handleNewProject() {
   useAppStore.getState().setUI({ showNewProjectDialog: true });
 }
 
-// `importedProject` — de store-laag heeft geen `t(...)`; zie ImportLabels.
-function handleOpen(importedProject: string) {
-  void useAppStore.getState().openFile({ importedProject });
+// `labels` — de store-laag heeft geen `t(...)`; zie ImportLabels/buildImportLabels.
+function handleOpen(labels: ImportLabels) {
+  void useAppStore.getState().openFile(labels);
 }
 
 function handleSave() {
@@ -204,7 +207,7 @@ function RecentSection() {
               key={e.id}
               className="backstage-recent-item"
               onClick={() => {
-                void openRecentFile(e.id, { importedProject: tCommon('project.imported') });
+                void openRecentFile(e.id, buildImportLabels(tCommon));
                 setUI({ activeRibbonTab: 'start' });
               }}
             >
@@ -264,7 +267,7 @@ function ExamplesSection() {
       const res = await fetch(`${import.meta.env.BASE_URL}examples/${ex.file}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const content = await res.text();
-      openExampleFromString(content, ex.name, { importedProject: tCommon('project.imported') });
+      openExampleFromString(content, ex.name, buildImportLabels(tCommon));
       // Showcase-voorbeelden delen één demo-resourcebibliotheek (issue #19, user-verzoek): NA het
       // laden (openExampleFromString laadt bewust LOS), VOOR runCPM.
       if (ex.category === 'showcase') applyDemoLibraryToShowcaseProject();
@@ -363,12 +366,9 @@ function ExportSection() {
     if (!companyId) setAlsoPool(false);
   }, [companyId]);
 
-  const formats: { format: ExportFormat; label: string; desc: string; icon: string }[] = [
-    { format: 'csv',   label: tMenu('export.csvLabel'),   desc: tMenu('export.csvDesc'),   icon: 'CSV' },
-    { format: 'mspdi', label: tMenu('export.mspdiLabel'), desc: tMenu('export.mspdiDesc'), icon: 'XML' },
-    { format: 'p6',    label: tMenu('export.p6Label'),    desc: tMenu('export.p6Desc'),    icon: 'P6' },
-    { format: 'ifc',   label: tMenu('export.ifcLabel'),   desc: tMenu('export.ifcDesc'),   icon: 'IFC' },
-  ];
+  const formats: { format: ExportFormat; label: string; desc: string; icon: string }[] = EXPORT_FORMATS.map(
+    (f) => ({ format: f.format, label: tMenu(f.labelKey), desc: tMenu(f.descKey), icon: f.icon }),
+  );
 
   // K7: bij een cyclische planning geeft exportAs { ok: false } met cpmResult.error terug.
   // Backstage vervangt de hele body, dus GanttCanvas is hier niet gemonteerd en de cyclus-toast

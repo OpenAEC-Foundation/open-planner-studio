@@ -16,7 +16,8 @@
     "freeFloat": "شناوری آزاد",
     "interferingFloat": "شناوری مداخله‌گر",
     "isNearCritical": "نزدیک به بحرانی",
-    "floatPath": "مسیر شناوری"
+    "floatPath": "مسیر شناوری",
+    "activeDuring": "در حال انجام"
   },
   "taskType": {
     "CONSTRUCTION": "ساخت",
@@ -72,6 +73,8 @@
     "deadlineMissed": "مهلت گذشته است",
     "longFreePeriodWarning": "این وظیفه در یک دوره تعطیل {{days}} روزه قرار می‌گیرد ({{start}} تا {{end}}).",
     "longFreePeriodWarningNamed": "این وظیفه در {{name}} قرار می‌گیرد — یک دوره تعطیل {{days}} روزه ({{start}} تا {{end}}).",
+    "timephasedActive": "توزیع ساعات MS Project را دنبال می‌کند",
+    "timephasedLost": "توزیع ساعات MS Project پس از ویرایش دیگر اعمال نمی‌شود — توزیع اصلی در فایل نگه داشته می‌شود",
     "completion": "پیشرفت (%)",
     "progress": {
       "actualStart": "شروع واقعی",
@@ -88,9 +91,10 @@
     "freeFloat": "شناوری آزاد:",
     "criticalPath": "مسیر بحرانی:",
     "dependencies": "وابستگی‌ها",
+    "jumpToTask": "رفتن به وظیفه {{wbs}}",
     "relationPopoverTitle": "نوع رابطه",
     "driving": "رابطهٔ تعیین‌کننده (driving)",
-    "lag": "تأخیر (مثلاً 2d، 3ed، 50%، -25e%)",
+    "lag": "تأخیر (مثلاً 2d، 3ed، 2u، 50%، -25e%)",
     "recalculate": "محاسبه",
     "assignments": {
       "title": "تخصیص‌ها",
@@ -154,7 +158,7 @@
     "notCalculated": "برای دیدن روابط تعیین‌کننده و شناوری‌ها دوباره محاسبه کنید (F5)",
     "warnTruncatedLead": "پیش‌افت در شروع پروژه بریده شد — از هم‌پوشانی به‌طور کامل استفاده نمی‌شود",
     "warnLeadExceedsDuration": "پیش‌افت از مدت پیش‌نیاز بزرگ‌تر است",
-    "warnSummaryEndpoint": "بدون تأثیر: وظیفه خلاصه به عنوان نقطه پایانی"
+    "warnDropped": "در محاسبه لحاظ نشد"
   },
   "structure": {
     "title": "کدها و فیلدها",

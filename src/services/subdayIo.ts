@@ -10,11 +10,25 @@ import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
  * bij een echte afwijking van het enkelvoudige dag-patroon:
  *   (a) meer dan één band op een werkdag, of
  *   (b) een band die middernacht kruist (wrap), of
+ *   (b2) een band die een VOLLEDIGE dag beslaat (≥1440 min — "24 Hours"-kalender, zie hieronder), of
  *   (c) sub-dag-informatie elders in het bestand — een duur met een uren/minuten-component die niet
  *       op hele dagen valt, of datetimes met een echte tijd-van-de-dag die afwijkt van het
  *       synthetische anker (IFC `T07:00`, P6/MSPDI `T08:00`).
  * Anders blijft het scalar `workStartHour`/`workEndHour`-model staan (dag-modus) ⇒ een round-trip
  * van een dag-bestand blijft byte-identiek.
+ *
+ * (b2) — INSTRUMENTFIX (Z8-herwerkronde, 2026-08-18, gemeld — dit bestand valt buiten baan S se
+ * gewone eigendom, maar de coördinator autoriseerde één gerichte lezer-fix): MSP's ingebouwde
+ * "24 Hours"-basiskalender (en elke resource-kalender die 'm kopieert) codeert een werkdag als ÉÉN
+ * band `{start:0, end:1440}` — geen tweede band (a), geen middernacht-wrap (b, want `end`(1440) is
+ * niet `> 1440`). Zonder (b2) promoveerde zo'n kalender dus NOOIT naar uur-modus (`deviates` bleef
+ * `false`), tenzij een TAAK toevallig een eigen (c)-signaal droeg — en resource-kalenders die alleen
+ * via een TOEWIJZING (niet via `task.calendarId`) gebruikt worden krijgen nooit zo'n taak-signaal.
+ * Gevolg (corpusmeting, mpp14timephased.mpp): de "24 Hour"-resourcekalenders bleven dag-modus, en
+ * elke kalenderwandeling die ze als uur-kalender probeerde te gebruiken kreeg stil `isHourMode ===
+ * false` (`CalendarEngine`) i.p.v. een fout — een STIL lezer-defect, geen bewijs dat een
+ * kalenderwandeling-formule op deze kalenders niet zou werken. Corpusloze fixture:
+ * `check-mpp-calendars.ts` (of het bestand waar deze taak 'm plaatst).
  */
 
 const MIN_PER_DAY = 1440;
@@ -97,7 +111,8 @@ export function isSubDayMinutes(minutes: number, hoursPerDay: number): boolean {
  * Canonicaliseer rauwe per-weekdag-banden (minuten-vanaf-middernacht) volgens §3.2: `end > start`
  * (een wrap met niet-oplopende grens wordt `end += 1440`), per dag gesorteerd op start. Meldt
  * tegelijk of de banden AFWIJKEN van het enkelvoudige dag-patroon — discriminator (a) (>1 band op
- * een werkdag) of (b) (band over middernacht, `end > 1440`).
+ * een werkdag), (b) (band over middernacht, `end > 1440`) of (b2) (band die een volledige dag
+ * beslaat, `end − start ≥ 1440` — de "24 Hours"-instrumentfix, zie de moduleheader hierboven).
  */
 export function canonicalizeBands(
   raw: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>,
@@ -109,9 +124,11 @@ export function canonicalizeBands(
     if (list.length > 1) deviates = true; // (a)
     const norm = list
       .map((b) => {
+        const rawStart = b.start;
         let end = b.end;
         if (end <= b.start) end += MIN_PER_DAY; // ongeldige encoding → canoniek wrap
         if (end > MIN_PER_DAY) deviates = true; // (b) wrap over middernacht
+        if (end - rawStart >= MIN_PER_DAY) deviates = true; // (b2) volledige dag ("24 Hours")
         return { start: b.start, end };
       })
       .sort((a, b) => a.start - b.start);

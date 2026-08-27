@@ -46,8 +46,7 @@ export function CalendarDialog() {
     setLocalProjectId(st.project.calendarId);
     setSelectedId(cals.find(c => c.id === st.project.calendarId)?.id ?? cals[0]?.id ?? null);
     setReady(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ensureProjectCalendarInLibrary]);
 
   const selected = localCalendars.find(c => c.id === selectedId) ?? null;
   const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);

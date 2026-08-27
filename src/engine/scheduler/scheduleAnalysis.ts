@@ -3,8 +3,9 @@ import type { SchedulingOptions } from '@/types/project';
 import type { Sequence } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
 import type { CPMResult, CPMTaskResult } from './CPMSolver';
-import { parseDate, formatDate, formatInstant, type DateMode } from '@/utils/dateUtils';
+import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
 import { traceFrom } from './graphWalk';
+import { projectDurationOf } from './projectDuration';
 
 /**
  * Invoer voor de resultaat-post-pass (`computeScheduleResults`). Puur data + een handvol
@@ -34,7 +35,9 @@ export interface ScheduleAnalysisInput {
   projectEngine: CalendarEngine;
   // ── Aan de solver gebonden, stateless kalender-helpers (modus-bewust, §5) ──
   calendarFor: (task: Task) => CalendarEngine;
-  signedFloat: (a: Date, b: Date, eng: CalendarEngine) => number;
+  /** `task` optioneel (T8): ELAPSEDTIME ⇒ kale klok-span i.p.v. werkdag-telling, zie
+   *  `CPMSolver.signedFloat`/`duration.ts`'s `signedElapsedSpan`. */
+  signedFloat: (a: Date, b: Date, eng: CalendarEngine, task?: Task) => number;
   constraintInstant: (c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
   snapOnOrAfter: (eng: CalendarEngine, d: Date) => Date;
   snapOnOrBefore: (eng: CalendarEngine, d: Date) => Date;
@@ -75,6 +78,41 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     if (!cRaw || !succEarly || !succTask) continue;
     // Relatie-vrije-speling in de kalender van de OPVOLGER (diens vroegste start rekent daar, §5.2).
     // Uur-opvolger ⇒ fractionele-dag-float via `workMinutesBetween` (§5.5); dag ⇒ integer (byte-identiek).
+    //
+    // BEKENDE BEPERKING (T8-review M2/L3, herformulering T8-hercheck 2 — niet gefixt): deze
+    // berekening is NIET durationType-bewust — ze rekent altijd in WERKtijd
+    // (`workMinutesBetween`/`workDaysBetween`), ook wanneer de OPVOLGER van deze relatie (`succTask`
+    // hierboven — het is dié taak se eigen vroege start, `succEarly.es`, die hier tegen `reqStart`
+    // wordt afgezet) ELAPSEDTIME is.
+    //
+    // CORRECTIE (T8-hercheck 2): eerdere lezingen van dit blok suggereerden dat het probleem zat in
+    // "een NIET-elapsed opvolger wordt wél gesnapt, een elapsed opvolger niet" — dat is precies
+    // ANDERSOM. Sinds de T8-hercheck-BLOCKER-fix (`CPMSolver.snapSuccessorEarlyStart`/`ownAnchor`/
+    // `rootFloor`) is het juist zo dat `succEarly.es` voor een ELAPSEDTIME opvolger BEWUST NIET meer
+    // gesnapt wordt (die taak mag op een niet-werk-instant staan — dat is het hele punt van
+    // ELAPSEDTIME) — terwijl `reqStart` hier op de regel eronder (`snapOnOrAfter(succCal, cRaw)`)
+    // ONVOORWAARDELIJK wél snapt, ongeacht `succTask`'s durationType. Voor een ELAPSEDTIME opvolger
+    // vergelijkt deze berekening dus een GESNAPTE grens (`reqStart`) met een ONGESNAPTE waarde
+    // (`succEarly.es`) — geverifieerd (niet gegist, msp-23's probe-voorloper): dat geeft niet alleen
+    // een verkeerde EENHEID maar kan `reqStart > succEarly.es` opleveren (de grens ligt dan NÁ de
+    // taak se eigen vroege start), waarop `workDaysBetween`/`workMinutesBetween` hun eigen
+    // "endMs<startMs ⇒ 0"-vangnet raken — het resultaat is dan een STILLE, niet-voor-de-hand-liggende
+    // waarde (bv. −1) i.p.v. een crash, maar wel degelijk fout. Voor een NIET-ELAPSEDTIME opvolger
+    // (het gebruikelijke geval, ook in de meeste H1/H2-cases) blijft `succEarly.es` zelf al op een
+    // geldige werk-instant staan (ongewijzigd gedrag), dus daar telt dit blok nog steeds correct.
+    // GEVOLG ELDERS (T8-hercheck 3, gemeten feit): een `relFloat` die door dit gat ONTERECHT ≠ 0
+    // uitkomt (bv. de −1 hierboven, ook al zou de relatie eigenlijk driving moeten zijn — een FF+0
+    // bijvoorbeeld) sluit die relatie ook uit `drivingSequenceIds` hieronder (`if (relFloat === 0)
+    // drivingSequenceIds.push(seq.id)`) — dat raakt niet alleen de driving-markering zelf, maar ook
+    // `floatPath` (fase 2.9 golf 3) en de `longestPath`-kritiek-modus, die beide op
+    // `drivingSequenceIds` leunen om de kritieke keten(s) op te bouwen.
+    // Zie `msp-21-t8-review-m1-eenheden-float` voor het eenhedendeel van dit gat (A.ff=1 naast
+    // A.tf=2 op dezelfde taak — `signedElapsedSpan`'s doc-commentaar in `duration.ts` bevat het
+    // volledige eenhedenbesluit) en `msp-23`/`msp-24` in `cases-msp-pariteit.json` voor waar de
+    // gesnapt/ongesnapt-mismatch zelf optreedt (daar bewust NIET op `ff` geasserteerd, om dit gat
+    // niet te verwarren met wat die cases wél bewijzen). Een echte fix vergt een eigen ELAPSEDTIME-
+    // tak hier (`signedElapsedSpan`-stijl, gebaseerd op de ONgesnapte `cRaw`/`succEarly.es` i.p.v.
+    // werkdag-telling) — buiten de scope van deze fixronde; orkestrator registreert voor T13/T15.
     const succCal = calendarFor(succTask);
     const reqStart = snapOnOrAfter(succCal, cRaw);
     const relFloat = succCal.isHourMode
@@ -98,6 +136,16 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
   // vanaf de taak/taken met de grootste EF; bij ties (meerdere eindtaken met dezelfde grootste EF)
   // is de UNIE van alle peels kritiek. tf speelt in deze modus geen rol. Alleen opgebouwd in
   // longestPath-modus (anders leeg ⇒ geen effect). Hammocks worden pas in golf 4 speciaal behandeld.
+  // Handmatig gepland (Z9b): BEWUST GEEN `manuallyScheduled`-tegenhanger van de hammock-uitsluiting
+  // hierboven/hieronder. Een hammock is "een gevolg, geen oorzaak" (§4.4) — hij mag nooit als
+  // keten-EINDPUNT gelden, want zijn EF is zelf al een AFGELEIDE van zijn eigen finish-drivers. Een
+  // manual taak is het omgekeerde: haar EF is een ECHT, rechtstreeks anker (geen afleiding) — als
+  // dat toevallig de grootste EF van het project is, IS ze legitiem het eindpunt van het langste
+  // pad. `drivingSet`/`traceFrom` blijven hier vanzelf correct: `seqConstraint` wordt voor een
+  // relatie die een manual taak als OPVOLGER heeft nooit gezet (`CPMSolver.forwardPass`s manual-tak
+  // slaat de voorganger-lus over; `applyAlap` sluit haar sinds Z9b expliciet uit, zie de
+  // moduleheader daar) — zo'n relatie kan dus nooit in `drivingSequenceIds` belanden en `traceFrom`
+  // kan nooit "doorheen" een manual taak terugtracen via een relatie die ze feitelijk negeert.
   const longestPathCritical = new Set<string>();
   if (useLongestPath) {
     let maxEf = -Infinity;
@@ -135,7 +183,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       // Eindtaak: vrije speling = totale-speling-equivalent (finish kan opschuiven tot
       // lateFinish) — getekend: een deadline/late-zijde-constraint kan hem negatief maken.
       // Uur-taak ⇒ fractionele-dag-float (§5.5); dag ⇒ integer (byte-identiek).
-      freeFloat = signedFloat(early.ef, late.lf, cal);
+      freeFloat = signedFloat(early.ef, late.lf, cal, taskObj);
     } else {
       for (const seq of succs) {
         const ff = sequenceFreeFloat[seq.id];
@@ -152,8 +200,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // betekenisloos (de ES is een actual in het verleden) ⇒ alleen finish-zijde (LF−EF).
     const hasProgress = !!dataDate && (!!tt.actualStart || tt.completion > 0);
     const completed = !!dataDate && tt.completion >= 1;
-    const finishFloat = signedFloat(early.ef, late.lf, cal);
-    const startFloat = signedFloat(early.es, late.ls, cal);
+    const finishFloat = signedFloat(early.ef, late.lf, cal, taskObj);
+    const startFloat = signedFloat(early.es, late.ls, cal, taskObj);
     // TF-berekeningswijze (§3.4): default 'smallest' = min(finish,start) ⇒ byte-identiek. Een taak
     // met voortgang houdt zijn finish-zijde-float (bestaande invariant, §4.5), ongeacht de modus.
     let tf = hasProgress
@@ -175,9 +223,31 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       tf = 0;
       freeFloat = 0;
     }
+    // Handmatig gepland (Z9b, etappe "nul afwijkingen"): `CPMSolver.backwardPass` geeft een manual
+    // taak DEFINITORISCH `ls=es`/`lf=ef` (verplichte early-return, zelfde vorm als de hammock-tak
+    // — zie het docblock daar). tf/ff zouden op zo'n IDENTIEK es/ls-paar dus ALTIJD 0 moeten zijn,
+    // ongeacht welke dag het is — maar de generieke `signedFloat` hierboven is een WERKDAG-tellende
+    // formule, gebouwd om een venster tussen twee (potentieel verschillende) werk-instanten te
+    // meten, niet om "0" te garanderen op een paar identieke, mogelijk NIET-werk-instanten. Op een
+    // manual taak met een rauw anker BUITEN de werkband (bv. een zaterdag-mijlpaal) geeft die
+    // formule daardoor een ARTEFACT: gemeten tf=-1 (`msp-56-z9a-manual-anchor-raw-no-snap`, vóór
+    // deze fix bewust zonder tf/crit-assert gelaten — zie de note daar). Force tf=ff=0: dat is geen
+    // hammock-achtige "geen kritiek-signaal"-forcing (zie hieronder — `isCritical` wordt voor een
+    // manual taak NIET geforceerd), maar een correctie van de FORMULE-INVOER op een paar dat door
+    // constructie al identiek is. Op een werkdag-anker (het gewone geval, `msp-57`) gaf de formule
+    // toch al 0 — deze forcing is daar een no-op, geen gedragswijziging.
+    if (taskObj.manuallyScheduled) {
+      tf = 0;
+      freeFloat = 0;
+    }
     // Kritiek-definitie (§4.6): hammock ⇒ NOOIT kritiek (P6: LOE is een gevolg, geen oorzaak);
     // voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een driving-keten naar de
     // laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het huidige tf≤0).
+    // Handmatig gepland: BEWUST GEEN eigen forceringstak (in tegenstelling tot hammock) — "MS
+    // Project toont voor manual taken gewoon float" (plan-§Z9b): met tf hierboven al op 0 gezet,
+    // geeft de gewone `tf ≤ drempel`-regel het juiste (kritiek) antwoord vanzelf, zónder een
+    // hammock-achtige "nooit kritiek"-blindering. Een manual taak IS immers een echt anker (geen
+    // afgeleid gevolg zoals een hammock) en kan dus legitiem op het kritieke pad staan.
     const isCritical = isHammock
       ? false
       : completed
@@ -254,25 +324,16 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
   // degradatiepaden teruggeeft: leeg einde, duur 0.
   const hasSchedule = earlyDates.size > 0;
 
-  // Projectduur = werkdag-spanne van de vroegste start tot de laatste finish. Een project dat
-  // op één moment valt (uitsluitend mijlpalen, geen echt werk) heeft duur 0 i.p.v. de 1 die de
-  // inclusieve telling anders zou geven.
+  // Projectduur = werkdag-spanne van de vroegste start tot de laatste finish, MET de
+  // mijlpaal-alleen-uitzondering — gedeeld met de "datums zoals opgeslagen"-reconstructie via
+  // `projectDurationOf` (`projectDuration.ts`), zodat beide callsites dezelfde regel toepassen.
   // `projStart` blijft null bij nul early-resultaten (⟺ !hasSchedule) — dan is er niets te meten
   // en blijft de duur 0, i.p.v. de spanne "vandaag → epoch" die de oude terugval opleverde.
-  let projectDuration = 0;
   let projStart: Date | null = null;
   for (const { es } of earlyDates.values()) {
     if (!projStart || es < projStart) projStart = es;
   }
-  if (projStart) {
-    projectDuration = projectEngine.workDaysBetween(projStart, projectEnd);
-    if (formatDate(projStart) === formatDate(projectEnd)) {
-      const anyRealWork = [...tasks.values()].some(
-        (t) => !t.isMilestone && t.time.scheduleDuration > 0,
-      );
-      if (!anyRealWork) projectDuration = 0;
-    }
-  }
+  const projectDuration = projectDurationOf(projectEngine, projStart, projectEnd, tasks.values());
 
   // ── Fase 2.9 golf 3 (§4.6) — multiple float paths (POST-PASS op het VASTE resultaat) ──────────
   // De vroege datums veranderen NIET door het peelen: dit is een goedkope graaf-peel resp.

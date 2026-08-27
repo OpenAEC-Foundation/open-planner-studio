@@ -44,6 +44,20 @@ Zaten çalıştığınız yere bağlı olarak bir ilişki oluşturmanın üç yo
 
 **Belirleyici** sütunu, bir hesaplamadan sonra, hangi ilişkinin ardılın başlangıç veya bitiş tarihini gerçekte belirlediğini gösterir — birden fazla öncülü olan bir görev için bu, mutlaka en son oluşturduğunuz ilişki değildir, en geç (belirleyici) tarihe sahip olandır.
 
+## Özet görevlerdeki ilişkiler
+
+Bir ilişkiyi, alttaki görevlerden birine değil, doğrudan bir özet göreve (bir faz veya İş Kırılım Yapısı grubu) da yerleştirebilirsiniz. Open Planner Studio bu ilişkiyi otomatik olarak alttaki görevlere yansıtır — MS Project ile aynı yaklaşım:
+
+- **Öncül olarak özet görev**: alttaki her görev, ardılın öncülü haline gelir. Ardıl böylece etkili biçimde tüm fazı bekler — o fazda en son biten görev tarihi belirler.
+- **Ardıl olarak özet görev**: alttaki her görev, öncülün ardılı haline gelir. Fazdaki tüm görevler böylece aynı öncülü bekler.
+- **Her iki tarafta da özet görev**: bir taraftaki her görev, diğer taraftaki her görevle bir ilişki kazanır.
+
+Bu, öncül olarak özet görev içeren **FS ve FF** ile ardıl olarak özet görev içeren **FS ve SS** için tam olarak doğrudur. Öncül olarak özet görev içeren **SS/SF** ile ardıl olarak özet görev içeren **FF/SF** için — inşaat pratiğinde nadir görülen kombinasyonlar — Open Planner Studio bilinçli olarak güvenli tarafı planlar: kesinlikle gerekenden biraz daha geç olabilir, asla daha erken değil.
+
+## Bağlı bir göreve atlama
+
+Özellikler panelinde, her bağımlılık satırı bağlı görevin WBS numarasını tıklanabilir bir düğme olarak gösterir. Aynı ayrıntıları görmek için üzerine gelin — Gantt şemasındaki bir görev çubuğunun üzerine gelmekle aynı bilgiler (ad, WBS, süre, başlangıç/bitiş, durum, kritik yol, toplam bolluk). O görevi seçmek için tıklayın: Gantt şeması ona yakınlaşır ve kaydırılır, onu gizleyen daraltılmış her üst görevi otomatik olarak genişletir.
+
 ## Kısıtlama türleri
 
 Bir kısıtlama, ilişkilerinden bağımsız olarak bir göreve bir tarih sınırı dayatır. Open Planner Studio'nun, özellikler panelindeki **Kısıtlama** alanı üzerinden ayarlanan sekiz türü vardır:

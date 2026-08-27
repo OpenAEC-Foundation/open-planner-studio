@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { useTranslation } from 'react-i18next';
@@ -7,10 +7,14 @@ import { Sequence, SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence'
 import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
-import { hasSummaryEndpoint } from '@/state/relationRules';
 import { AlertTriangle, Plus, Trash2, Zap, Link2, RefreshCw } from 'lucide-react';
+import { buildImportLabels } from '@/i18n/importLabels';
 
 type SortKey = 'predecessor' | 'successor' | 'type' | 'lag' | 'driving' | 'freeFloat';
+
+function taskLabel(task: Task | undefined): string {
+  return task ? `${task.wbsCode ? task.wbsCode + ' ' : ''}${task.name}` : '?';
+}
 
 /**
  * Relatietabel (P6-stijl "Relationships"-weergave): alle relaties van het actieve document
@@ -54,20 +58,27 @@ export function RelationsPanel() {
     () => new Set(hasCalc ? cpmResult!.truncatedLeadSequenceIds : []),
     [hasCalc, cpmResult],
   );
+  // Relaties die de solver ECHT niet kon meerekenen (voorouder-guard, lege/kapotte tak, of de
+  // MAX_EXPANDED_RELATIONS-klem in `expandSummaryRelations`) — `droppedSequenceIds` draagt al
+  // ORIGINELE relatie-ids (`foldSyntheticSequenceIds` in `solveProject` vouwt de synthetische
+  // `::exp-N`-ids terug vóórdat het resultaat de store bereikt), dus een rechtstreekse `seq.id`-
+  // vergelijking hier is correct. Vervangt de oude `hasSummaryEndpoint`-markering (elke relatie MET
+  // een verzameltaak-eindpunt), die sinds het eigenaarsbesluit van 2026-08-15 niet meer klopt: zo'n
+  // relatie rekent normaal mee, tenzij de solver hem daadwerkelijk moest droppen.
+  const droppedSet = useMemo(
+    () => new Set(hasCalc ? cpmResult!.droppedSequenceIds ?? [] : []),
+    [hasCalc, cpmResult],
+  );
 
-  const label = (task: Task | undefined) =>
-    task ? `${task.wbsCode ? task.wbsCode + ' ' : ''}${task.name}` : '?';
-
-  const rowData = (seq: Sequence) => {
+  const rowData = useCallback((seq: Sequence) => {
     const pred = taskById.get(seq.predecessorId);
     const succ = taskById.get(seq.successorId);
     const effLag = pred ? resolveEffectiveLagDays(seq, pred) : 0;
     const predDur = pred && !pred.isMilestone ? pred.time.scheduleDuration : 0;
     const warnings: string[] = [];
-    // Spookrelatie: de solver krijgt alleen bladtaken, dus een verzameltaak-eindpunt betekent dat
-    // deze relatie geen enkel effect heeft. Afgeleid en niet opgeslagen, zodat een bladtaak die
-    // later een kind krijgt vanzelf meegaat.
-    if (hasSummaryEndpoint((id) => taskById.get(id), seq)) warnings.push(t('relations.warnSummaryEndpoint'));
+    // Écht gedropt door de solver (voorouder-guard, lege/kapotte tak, of de budgetklem) — niet
+    // langer "elke relatie met een verzameltaak-eindpunt", zie `droppedSet` hierboven.
+    if (droppedSet.has(seq.id)) warnings.push(t('relations.warnDropped'));
     if (truncatedSet.has(seq.id)) warnings.push(t('relations.warnTruncatedLead'));
     if (effLag < 0 && Math.abs(effLag) > predDur) warnings.push(t('relations.warnLeadExceedsDuration'));
     return {
@@ -79,15 +90,15 @@ export function RelationsPanel() {
       freeFloat: hasCalc ? cpmResult!.sequenceFreeFloat[seq.id] : undefined,
       warnings,
     };
-  };
+  }, [taskById, droppedSet, truncatedSet, t, drivingSet, hasCalc, cpmResult]);
 
   const rows = useMemo(() => {
     const data = sequences.map(rowData);
     if (!sortKey) return data;
     const cmp = (a: typeof data[number], b: typeof data[number]): number => {
       switch (sortKey) {
-        case 'predecessor': return label(a.pred).localeCompare(label(b.pred));
-        case 'successor': return label(a.succ).localeCompare(label(b.succ));
+        case 'predecessor': return taskLabel(a.pred).localeCompare(taskLabel(b.pred));
+        case 'successor': return taskLabel(a.succ).localeCompare(taskLabel(b.succ));
         case 'type': return a.seq.type.localeCompare(b.seq.type);
         case 'lag': return a.effLag - b.effLag;
         case 'driving': return Number(a.driving) - Number(b.driving);
@@ -95,8 +106,7 @@ export function RelationsPanel() {
       }
     };
     return [...data].sort((a, b) => cmp(a, b) * sortDir);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sequences, taskById, drivingSet, truncatedSet, hasCalc, cpmResult, sortKey, sortDir, t]);
+  }, [sequences, rowData, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -152,7 +162,7 @@ export function RelationsPanel() {
           {hasExternal && (
             <button
               onClick={() => { void (async () => {
-                const r = await refreshAllExternalAnchors({ importedProject: tCommon('project.imported') });
+                const r = await refreshAllExternalAnchors(buildImportLabels(tCommon));
                 setExtStatus(r.sources === 0
                   ? t('externalLinks.noSourcesToast')
                   : t('externalLinks.refreshedToast', { refreshed: r.refreshed, missing: r.missing }));
@@ -224,7 +234,7 @@ export function RelationsPanel() {
             style={{ minHeight: 28, borderBottom: '1px solid var(--theme-border-light)' }}
             onClick={() => selectPair(seq)}
           >
-            <div className="flex-1 min-w-[160px] px-2 truncate">{label(pred)}</div>
+            <div className="flex-1 min-w-[160px] px-2 truncate">{taskLabel(pred)}</div>
             <div className="w-[64px] px-1" onClick={e => e.stopPropagation()}>
               <select
                 value={seq.type}
@@ -244,7 +254,7 @@ export function RelationsPanel() {
                 onCommit={patch => updateSequence(seq.id, patch)}
               />
             </div>
-            <div className="flex-1 min-w-[160px] px-2 truncate">{label(succ)}</div>
+            <div className="flex-1 min-w-[160px] px-2 truncate">{taskLabel(succ)}</div>
             <div className="w-[70px] px-1 flex justify-center">
               {driving && (
                 <span title={t('properties.driving')} style={{ color: 'var(--theme-accent)' }}>
@@ -282,7 +292,7 @@ export function RelationsPanel() {
                 style={{ minHeight: 28, borderBottom: '1px solid var(--theme-border-light)' }}
                 onClick={() => selectTask(extTask.id)}
               >
-                <div className="flex-1 min-w-[140px] px-2 truncate">{label(extTask)}</div>
+                <div className="flex-1 min-w-[140px] px-2 truncate">{taskLabel(extTask)}</div>
                 <div className="w-[150px] px-2 truncate" style={{ color: 'var(--theme-text-dim)' }}>
                   {link.direction === 'predecessor' ? '← ' : '→ '}
                   {link.relType}{link.lagDays ? `+${link.lagDays}` : ''} · {link.sourceRef.taskName || link.sourceRef.taskId}
@@ -301,7 +311,7 @@ export function RelationsPanel() {
                   {link.sourceRef.filePath && (
                     <button title={t('externalLinks.refresh')} style={{ color: 'var(--theme-accent)' }}
                       onClick={() => { void (async () => {
-                        const r = await refreshExternalAnchorsFrom(link.sourceRef.filePath!, { importedProject: tCommon('project.imported') });
+                        const r = await refreshExternalAnchorsFrom(link.sourceRef.filePath!, buildImportLabels(tCommon));
                         if (r) setExtStatus(t('externalLinks.refreshedToast', { refreshed: r.refreshed, missing: r.missing }));
                         else setExtStatus(t('externalLinks.notAvailableWeb'));
                       })(); }}>

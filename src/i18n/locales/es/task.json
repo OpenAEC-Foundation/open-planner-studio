@@ -16,7 +16,8 @@
     "freeFloat": "Holgura libre",
     "interferingFloat": "Holgura interferente",
     "isNearCritical": "Casi crítica",
-    "floatPath": "Ruta de holgura"
+    "floatPath": "Ruta de holgura",
+    "activeDuring": "En curso"
   },
   "taskType": {
     "CONSTRUCTION": "Construcción",
@@ -72,6 +73,8 @@
     "deadlineMissed": "Fecha límite superada",
     "longFreePeriodWarning": "Esta tarea abarca un período no laborable de {{days}} días ({{start}} a {{end}}).",
     "longFreePeriodWarningNamed": "Esta tarea abarca {{name}} — un período no laborable de {{days}} días ({{start}} a {{end}}).",
+    "timephasedActive": "Sigue la distribución de horas de MS Project",
+    "timephasedLost": "La distribución de horas de MS Project ya no se aplica tras la edición — la distribución original se conserva en el archivo",
     "completion": "Progreso (%)",
     "progress": {
       "actualStart": "Inicio real",
@@ -88,9 +91,10 @@
     "freeFloat": "Holgura libre:",
     "criticalPath": "Ruta crítica:",
     "dependencies": "Dependencias",
+    "jumpToTask": "Ir a la tarea {{wbs}}",
     "relationPopoverTitle": "Tipo de relación",
     "driving": "Relación determinante (driving)",
-    "lag": "Desfase (ej. 2d, 3ed, 50%, -25e%)",
+    "lag": "Desfase (ej. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calcular",
     "assignments": {
       "title": "Asignaciones",
@@ -154,7 +158,7 @@
     "notCalculated": "Recalcule (F5) para ver las relaciones determinantes y las holguras",
     "warnTruncatedLead": "Adelanto truncado en el inicio del proyecto — la superposición no se aprovecha por completo",
     "warnLeadExceedsDuration": "El adelanto es mayor que la duración de la predecesora",
-    "warnSummaryEndpoint": "Sin efecto: tarea de resumen como extremo"
+    "warnDropped": "No incluida en el cálculo"
   },
   "structure": {
     "title": "Códigos y campos",

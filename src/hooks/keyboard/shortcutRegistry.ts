@@ -24,17 +24,17 @@
 // presentatie-afsluiting nooit meer bereiken.
 
 import { useAppStore } from '@/state/appStore';
+import type { UIState } from '@/state/slices/types';
 import type { AppState } from '@/state/appStore';
 import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
-import { isTreeMode } from '@/engine/view/visibleRows';
 // DOM-vrij en JSX-vrij bij constructie (zie de kop van dat bestand): de anker- en weergaveregels
 // voor nieuwe taken wonen daar zodat sneltoets, menu, lintknop én regressiebatterij letterlijk
 // dezelfde functie draaien.
-import { deleteTasksBulk } from '@/state/taskBulkActions';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { computeScrollToDate } from '@/utils/ganttViewport';
+// K-item 34: de acties die het lint EN het toetsenbord delen, staan nu één keer gedefinieerd.
+import { COMMANDS } from '@/state/commands';
 import i18n from '@/i18n/config';
-import { saveShowHistogram } from '@/utils/settingsStore';
 
 export type ShortcutCategory = 'file' | 'edit' | 'structure' | 'view' | 'nav';
 
@@ -67,15 +67,17 @@ export interface ShortcutDef {
  *  net zo goed modale overlays (welkomstdialoog: los dialoogvenster; rondleiding: sinds de
  *  fix voor doorklik-corruptie een écht modale overlay, zie TourOverlay.tsx) en ontbraken hier
  *  per abuis, waardoor bv. F2/Insert/Ctrl+A tijdens de rondleiding gewoon doorvuurden. */
-export function hasBlockingDialogOpen(): boolean {
-  const ui = useAppStore.getState().ui;
+export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): boolean {
   return (
     ui.showTaskDialog || ui.showProjectSettings || ui.showProjectInfoDialog ||
     ui.showSettingsDialog || ui.showCalendarDialog || ui.showUpdateDialog ||
     ui.showNewProjectDialog || ui.showFeedbackDialog || ui.showStructureDialog ||
     ui.showLevelingDialog || ui.showBaselineDialog || ui.showColumnsDialog ||
     ui.showFilterDialog || ui.showLayoutsDialog || ui.showProjectOverview ||
-    ui.presentationMode || ui.showTourOverlay || ui.showWelcomeDialog
+    ui.presentationMode || ui.showTourOverlay || ui.showWelcomeDialog ||
+    // K-item 38: de toestemmingsvraag bij een extensie-installatie is net zo goed modaal — hij
+    // wacht op een antwoord en er mag intussen niets aan de planning gebeuren.
+    ui.pendingExtensionConsent !== null
   );
 }
 
@@ -126,21 +128,21 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'file',
     labelKey: 'menu:ribbon.save',
     allowInInput: true,
-    run: (store) => { void store.saveFile(); },
+    run: COMMANDS.save.run,
   },
   {
     id: 'file.saveAs',
     combo: { key: 's', mod: true, shift: true },
     category: 'file',
     labelKey: 'menu:backstage.saveAs',
-    run: (store) => { void store.saveFileAs(); },
+    run: COMMANDS.saveAs.run,
   },
   {
     id: 'file.open',
     combo: { key: 'o', mod: true },
     category: 'file',
     labelKey: 'menu:ribbon.open',
-    run: (store) => { void store.openFile({ importedProject: i18n.t('project.imported', { ns: 'common' }) }); },
+    run: COMMANDS.open.run,
   },
   {
     id: 'file.newProject',
@@ -196,21 +198,21 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'z', mod: true },
     category: 'edit',
     labelKey: 'menu:commands.undo',
-    run: (store) => store.undo(),
+    run: COMMANDS.undo.run,
   },
   {
     id: 'edit.redo',
     combo: { key: 'y', mod: true },
     category: 'edit',
     labelKey: 'menu:commands.redo',
-    run: (store) => store.redo(),
+    run: COMMANDS.redo.run,
   },
   {
     id: 'edit.redoShiftZ',
     combo: { key: 'z', mod: true, shift: true },
     category: 'edit',
     labelKey: 'menu:commands.redo', // zelfde actie/label als edit.redo — alternatieve combinatie
-    run: (store) => store.redo(),
+    run: COMMANDS.redo.run,
   },
   {
     id: 'edit.delete',
@@ -218,9 +220,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'edit',
     labelKey: 'context.delete',
     when: hasSelection,
-    // Gedeelde bulk-route (één handeling = één undo-stap), zelfde als het contextmenu en de
-    // lintknop — een kale `deleteTask`-lus kostte hier N Ctrl+Z's.
-    run: (store) => deleteTasksBulk(store.selectedTaskIds),
+    run: COMMANDS.delete.run,
   },
   {
     id: 'edit.deleteBackspace',
@@ -228,7 +228,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'edit',
     labelKey: 'context.delete',
     when: hasSelection,
-    run: (store) => deleteTasksBulk(store.selectedTaskIds),
+    run: COMMANDS.delete.run,
   },
   // Let op volgorde: MOET na `view.exitFullscreen` staan (zie bestandskop).
   {
@@ -253,11 +253,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'structure',
     labelKey: 'context.indent',
     when: () => hasSelection() && !hasBlockingDialogOpen(),
-    // issue #26: buiten pure boommodus gebeurde er stil niets — nu legt de melding uit waarom.
-    run: (store) => {
-      if (isTreeMode(store.view)) store.indentTasks(store.selectedTaskIds);
-      else store.notifyStructureLocked();
-    },
+    run: COMMANDS.indent.run,
   },
   {
     id: 'structure.outdent',
@@ -265,11 +261,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'structure',
     labelKey: 'context.outdent',
     when: () => hasSelection() && !hasBlockingDialogOpen(),
-    // issue #26: zie structure.indent.
-    run: (store) => {
-      if (isTreeMode(store.view)) store.outdentTasks(store.selectedTaskIds);
-      else store.notifyStructureLocked();
-    },
+    run: COMMANDS.outdent.run,
   },
   // Aliassen (user-besluit tijdens golf 2): Alt+→/← naast de MS Project-conventie Alt+Shift+→/←
   // hierboven (die blijft bestaan). Zelfde `run`/`when` — puur een extra combo voor dezelfde actie.
@@ -282,10 +274,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'structure',
     labelKey: 'context.indent',
     when: () => hasSelection() && !hasBlockingDialogOpen(),
-    run: (store) => {
-      if (isTreeMode(store.view)) store.indentTasks(store.selectedTaskIds);
-      else store.notifyStructureLocked();
-    },
+    run: COMMANDS.indent.run,
   },
   {
     id: 'structure.outdentAlt',
@@ -293,10 +282,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     category: 'structure',
     labelKey: 'context.outdent',
     when: () => hasSelection() && !hasBlockingDialogOpen(),
-    run: (store) => {
-      if (isTreeMode(store.view)) store.outdentTasks(store.selectedTaskIds);
-      else store.notifyStructureLocked();
-    },
+    run: COMMANDS.outdent.run,
   },
   {
     id: 'structure.insertAbove',
@@ -402,14 +388,14 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: '=', mod: true },
     category: 'view',
     labelKey: 'menu:commands.zoomIn',
-    run: (store) => store.setZoom(store.view.zoom + 10),
+    run: COMMANDS.zoomIn.run,
   },
   {
     id: 'view.zoomOut',
     combo: { key: '-', mod: true },
     category: 'view',
     labelKey: 'menu:commands.zoomOut',
-    run: (store) => store.setZoom(store.view.zoom - 10),
+    run: COMMANDS.zoomOut.run,
   },
   {
     id: 'view.showShortcuts',
@@ -439,11 +425,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'h', mod: true, shift: true },
     category: 'view',
     labelKey: 'menu:ribbon.toggleHistogram',
-    run: (store) => {
-      const next = !store.ui.showHistogram;
-      store.setUI({ showHistogram: next });
-      void saveShowHistogram(next);
-    },
+    run: COMMANDS.toggleHistogram.run,
   },
 
   // --- Navigatie ---

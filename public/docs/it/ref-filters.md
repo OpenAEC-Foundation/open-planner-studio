@@ -27,6 +27,10 @@ In alto in ogni gruppo scegli come combinare le sue regole:
 
 L'icona del cestino dietro una regola rimuove quella regola; la crocetta in alto a destra di un gruppo annidato rimuove l'intero gruppo.
 
+## Salvare e riutilizzare i filtri
+
+Nella parte superiore della finestra Filtro, inserisci un **Nome** e fai clic su **Salva** per conservare le regole correnti come preimpostazione. I filtri salvati sono disponibili su questo dispositivo in ogni progetto; sostituiscono solo il filtro, mai colonne, raggruppamento, ordinamento o scala temporale. Scegli un filtro salvato dallo stesso elenco per applicarlo subito, oppure elimina la preimpostazione selezionata con il cestino.
+
 ## Applica, annulla e cancella
 
 - **Applica** attiva il filtro e chiude la finestra. Un filtro senza regole conta come "nessun filtro".

@@ -127,6 +127,11 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
   from the worktree directory name; the desktop window's `devUrl` and the
   auto-save recovery filename both follow it. Multiple worktrees can run
   `tauri:dev` at once without clobbering each other.
+- Call a UI change “working in the app” only after you have verified that the
+  active localhost server serves the worktree and commit containing that
+  change. If the change lives only in an isolated worktree, state its exact
+  localhost URL; never imply that another already-open localhost tab includes
+  it.
 
 ## Self-test harness
 

@@ -20,8 +20,6 @@
 // Exitcode = poort.
 import { useAppStore } from '@/state/appStore';
 
-declare const process: { exit(code: number): never };
-
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
   checks++;

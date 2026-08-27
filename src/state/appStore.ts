@@ -1,8 +1,9 @@
-import { create } from 'zustand';
+import { create, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 import { createProjectSlice, type ProjectSlice } from './slices/projectSlice';
 import { createTaskSlice, type TaskSlice } from './slices/taskSlice';
+import { createSelectionSlice, type SelectionSlice } from './slices/selectionSlice';
 import { createSequenceSlice, type SequenceSlice } from './slices/sequenceSlice';
 import { createResourceSlice, type ResourceSlice } from './slices/resourceSlice';
 import { createScheduleSlice, type ScheduleSlice } from './slices/scheduleSlice';
@@ -15,6 +16,7 @@ import { createDocumentSlice, type DocumentSlice } from './slices/documentSlice'
 import { createStructureSlice, type StructureSlice } from './slices/structureSlice';
 import { createBaselineSlice, type BaselineSlice } from './slices/baselineSlice';
 import { createLibrarySlice, type LibrarySlice } from './slices/librarySlice';
+import { createStoreRuntime, type StoreRuntime } from './runtime/storeRuntime';
 
 // Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
 export type { ExportFormat } from './slices/fileSlice';
@@ -28,6 +30,7 @@ enableMapSet();
  */
 export type AppState = ProjectSlice &
   TaskSlice &
+  SelectionSlice &
   SequenceSlice &
   ResourceSlice &
   ScheduleSlice &
@@ -41,21 +44,56 @@ export type AppState = ProjectSlice &
   BaselineSlice &
   LibrarySlice;
 
-export const useAppStore = create<AppState>()(
-  immer((...a) => ({
-    ...createProjectSlice(...a),
-    ...createTaskSlice(...a),
-    ...createSequenceSlice(...a),
-    ...createResourceSlice(...a),
-    ...createScheduleSlice(...a),
-    ...createHistorySlice(...a),
-    ...createViewSlice(...a),
-    ...createUiSlice(...a),
-    ...createFileSlice(...a),
-    ...createExtensionSlice(...a),
-    ...createDocumentSlice(...a),
-    ...createStructureSlice(...a),
-    ...createBaselineSlice(...a),
-    ...createLibrarySlice(...a),
-  }))
-);
+export type AppStore = UseBoundStore<
+  Mutate<StoreApi<AppState>, [['zustand/immer', never]]>
+>;
+
+export interface AppStoreContext {
+  /** Documentstate, undo/redo en niet-documentaire appstate van precies deze context. */
+  store: AppStore;
+  /** Undo-coalescing, batchdiepte, MCP-lease en timephased-verlies van precies deze context. */
+  runtime: StoreRuntime;
+}
+
+/**
+ * Bouw één onafhankelijke storecontext. Documentstate, undo/redo en uitvoeringsmetadata lekken niet
+ * tussen contexten. `ui` en `taskClipboard` zijn bewust niet documentgebonden: zij overleven een
+ * documentwissel binnen hun eigen context, maar worden evenmin met een andere context gedeeld.
+ *
+ * Batch-, MCP- en extensie-datafactories krijgen dit volledige object; zo kunnen zij state noch
+ * suppressie-/leasemetadata uit een singleton halen. App-lifecycleregistries buiten de
+ * Zustandfactory (plugininstances, eventbus en SDK-windowbinding) blijven bewust app-global; de
+ * gemounte productinterface en React-selectors binden die aan `appStoreContext` hieronder.
+ */
+export function createAppStoreContext(): AppStoreContext {
+  const runtime = createStoreRuntime();
+  const store = create<AppState>()(
+    immer((...a) => ({
+      ...createProjectSlice(runtime)(...a),
+      ...createTaskSlice(runtime)(...a),
+      ...createSelectionSlice(runtime)(...a),
+      ...createSequenceSlice(runtime)(...a),
+      ...createResourceSlice(runtime)(...a),
+      ...createScheduleSlice(runtime)(...a),
+      ...createHistorySlice(runtime)(...a),
+      ...createViewSlice(...a),
+      ...createUiSlice(...a),
+      ...createFileSlice(runtime)(...a),
+      ...createExtensionSlice(...a),
+      ...createDocumentSlice(runtime)(...a),
+      ...createStructureSlice(runtime)(...a),
+      ...createBaselineSlice(runtime)(...a),
+      ...createLibrarySlice(runtime)(...a),
+    })),
+  );
+  return { store, runtime };
+}
+
+/** Compatibiliteitsfactory voor callers die alleen de bekende Zustandvorm nodig hebben. */
+export function createAppStore(): AppStore {
+  return createAppStoreContext().store;
+}
+
+/** De gemounte productinterface blijft exact één appcontext gebruiken. */
+export const appStoreContext = createAppStoreContext();
+export const useAppStore = appStoreContext.store;

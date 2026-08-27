@@ -204,8 +204,9 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
-  const projectCalStepId = writeCalendar(ctx, calendar, ownerHistId);
-  writeCalendarGenerationMeta(ctx, projectCalStepId, calendar, ownerHistId);
+  const { calStepId: projectCalStepId, workingExceptionStepIds: projectWorkingExceptionStepIds }
+    = writeCalendar(ctx, calendar, ownerHistId);
+  writeCalendarGenerationMeta(ctx, projectCalStepId, calendar, ownerHistId, projectWorkingExceptionStepIds);
 
   // Work plan & schedule
   const startDates = tasks.map(t => t.time.scheduleStart).filter(Boolean).sort();
@@ -276,6 +277,12 @@ export function writeIFC(input: WriteIFCInput): string {
   // Resource assignments
   writeAssignments(ctx, assignments, ownerHistId);
   writeAssignmentMeta(ctx, tasks, assignments, ownerHistId);
+  // Z14 (etappe "nul afwijkingen") — timephased-venster (`workWindowStart`/`Finish`, Z0-veld) als
+  // eigen OPS_Timephased-JSON-pset, NAAST (niet in) het OPS_Assignments-pipe-formaat hierboven.
+  writeTimephasedMeta(ctx, tasks, assignments, ownerHistId);
+  // Z14b (Z8-nataak) — LAAG-4-kalenderwandelingen, eigen pset (kalendernaam-vertaling, zie de
+  // functie se eigen moduleheader voor waarom dit niet via PER_TASK_PSETS kan).
+  writeTimephasedDurationWalksMeta(ctx, tasks, ownerHistId);
 
   // Tasks -> WorkSchedule control
   if (tasks.length > 0) {
@@ -640,7 +647,15 @@ function shiftToPredefinedType(shift: WorkCalendar['shift']): string {
   }
 }
 
-function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number, key: string = '_calendar'): number {
+/** Terugkeerwaarde van `writeCalendar` (fase 3.8, T5-herziening): naast het STEP-id van de
+ *  `IFCWORKCALENDAR` zelf ook de STEP-ids van de werkende-uitzondering-`IFCWORKTIME`'s, zodat
+ *  `writeCalendarGenerationMeta` die als OPS-discriminator kan wegschrijven (zie aldaar). */
+interface WriteCalendarResult {
+  calStepId: number;
+  workingExceptionStepIds: number[];
+}
+
+function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number, key: string = '_calendar'): WriteCalendarResult {
   // Work time recurrence (weekdays)
   const dayNums = cal.workDays.join(',');
   let timePeriodRefs: string;
@@ -680,11 +695,40 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
     holidayRefs.push(`#${hId}`);
   }
 
-  const exceptStr = holidayRefs.length > 0 ? `(${holidayRefs.join(',')})` : '$';
+  // Werkende uitzonderingen als exception times (fase 3.8, T5 — HERZIEN 2026-08-15 na
+  // spec-reviewbevinding: zie het plandocument §T5). Zelfde `ExceptionTimes`-lijst als de
+  // feestdagen hierboven; de banden blijven als datadrager in een RecurrencePattern staan
+  // (`TimePeriods`, args[7]; DayComponent, args[2], blijft `$` — een enkele datumrange heeft geen
+  // weekdag-patroon nodig). MAAR de RecurrencePattern-ref is GEEN discriminator meer: IFC 4.3
+  // reserveert die niet voor werkende uitzonderingen, en een spec-conforme externe tool kan een
+  // RECURRENTE FEESTDAG ("elke 25 december") met exact zo'n gevulde ref schrijven. Het echte
+  // onderscheid is de OPS-pset-markering hieronder (`writeCalendarGenerationMeta`,
+  // `WorkingExceptionIds`) — de STEP-ids van deze IFCWORKTIME's worden daar expliciet
+  // weggeschreven, en de reader behandelt alléén een gemarkeerd id als werkende uitzondering
+  // (conservatief: ongemarkeerd + gevulde ref ⇒ nog steeds feestdag, het pre-T5-gedrag voor
+  // externe bestanden). Golden rule: `cal.workingExceptions` afwezig/leeg ⇒ deze lus doet niets,
+  // dus bestaande kalenders zonder werkende uitzonderingen blijven byte-identiek (geen nieuwe
+  // entiteiten, geen gewijzigde ExceptionTimes, geen nieuwe pset-property).
+  const workingExceptionRefs: string[] = [];
+  const workingExceptionStepIds: number[] = [];
+  for (const exc of cal.workingExceptions ?? []) {
+    const bandIds = (exc.bands ?? []).map((b) =>
+      addLine(ctx, '_excband', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end)}')`));
+    const bandRefs = bandIds.length > 0 ? `(${bandIds.map((i) => `#${i}`).join(',')})` : '$';
+    const excRecId = addLine(ctx, '_excrecurrence', `IFCRECURRENCEPATTERN(.DAILY.,$,$,$,$,$,$,${bandRefs})`);
+    const wId = addLine(ctx, `_workexc_${exc.name}`,
+      `IFCWORKTIME(${ifcStr(exc.name)},.PREDICTED.,$,#${excRecId},'${exc.startDate}','${exc.endDate}')`);
+    workingExceptionRefs.push(`#${wId}`);
+    workingExceptionStepIds.push(wId);
+  }
+
+  const allExceptionRefs = [...holidayRefs, ...workingExceptionRefs];
+  const exceptStr = allExceptionRefs.length > 0 ? `(${allExceptionRefs.join(',')})` : '$';
   // ObjectType (arg 4): alleen een label bij USERDEFINED-ploeg; anders `$` (byte-identiek).
   const objectType = cal.shift === 'USERDEFINED' ? ifcStr('USERDEFINED') : '$';
-  return addLine(ctx, key,
+  const calStepId = addLine(ctx, key,
     `IFCWORKCALENDAR(${ifcStr(guidOf(ctx, cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},${objectType},(#${workTimeId}),${exceptStr},${shiftToPredefinedType(cal.shift)})`);
+  return { calStepId, workingExceptionStepIds };
 }
 
 /**
@@ -693,15 +737,38 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
  * `OPS_StructureMeta`: `IFCPROPERTYSINGLEVALUE`s + `IFCRELDEFINESBYPROPERTIES`). Golden rule:
  * alleen geschreven wanneer `generation` bestaat — een letterlijke/legacy kalender (geen
  * `generation`) schrijft niets extra, dus bestaande bestanden blijven byte-identiek.
+ *
+ * Bugfix B2 (gebruikstest 2026-08): `HoursPerDay` idem golden-rule, alleen voor DAG-kalenders
+ * (`!cal.workTime` — uur-kalenders leiden hun `hoursPerDay` al correct af uit de banden, zie
+ * `deriveHoursPerDay`/`promoteHourCalendar` in `subdayIo.ts`, en die weg mag dit niet breken) en
+ * alleen wanneer de expliciete waarde AFWIJKT van wat de reader anders zou afleiden
+ * (`workEndHour − workStartHour`). Zonder die afwijking blijft de output ongewijzigd (byte-
+ * identiek); mét afwijking (bv. de standaard "Bouwkalender NL" 07-16 met een impliciet lunchuur,
+ * hoursPerDay 8 ≠ 16−7=9) overleeft de expliciete waarde nu de round-trip i.p.v. stilzwijgend te
+ * worden overschreven door de afgeleide span.
+ *
+ * T5-HERZIENING (2026-08-15, spec-reviewbevinding): `workingExceptionStepIds` — de STEP-ids van de
+ * werkende-uitzondering-`IFCWORKTIME`'s uit `writeCalendar` — worden hier als `WorkingExceptionIds`
+ * (JSON-array van STEP-id-strings) in HETZELFDE `OPS_Calendar`-pset weggeschreven. Dit IS de
+ * discriminator die de reader gebruikt om een werkende uitzondering van een (evt. recurrente)
+ * feestdag te onderscheiden — niet de aanwezigheid van een RecurrencePattern-ref, want die is geen
+ * IFC-gereserveerd signaal (zie `writeCalendar`). Golden rule: geen werkende uitzonderingen ⇒ geen
+ * property, dus deze tak alleen actief bij `workingExceptionStepIds.length > 0` — een kalender
+ * mét generation/libraryOrigin/hoursPerDayOverride maar ZONDER werkende uitzonderingen schrijft
+ * exact dezelfde pset-inhoud als vóór deze herziening.
  */
 function writeCalendarGenerationMeta(
   ctx: WriteContext,
   calStepId: number,
   cal: WorkCalendar,
   ownerHistId: number,
+  workingExceptionStepIds: number[],
 ): void {
   const gen = cal.generation;
-  if (!gen && !cal.libraryOrigin) return;
+  const derivedHoursPerDay = cal.workEndHour - cal.workStartHour;
+  const needsHoursPerDayOverride = !cal.workTime && cal.hoursPerDay !== derivedHoursPerDay;
+  const hasWorkingExceptions = workingExceptionStepIds.length > 0;
+  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions) return;
   const props: number[] = [];
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
@@ -722,6 +789,15 @@ function writeCalendarGenerationMeta(
   if (cal.libraryOrigin) {
     props.push(addLine(ctx, `_opscal_lo_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcStr(JSON.stringify(cal.libraryOrigin))}),$)`));
+  }
+  if (needsHoursPerDayOverride) {
+    props.push(addLine(ctx, `_opscal_hpd_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(${cal.hoursPerDay}),$)`));
+  }
+  if (hasWorkingExceptions) {
+    const idJson = JSON.stringify(workingExceptionStepIds.map(String));
+    props.push(addLine(ctx, `_opscal_wexc_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(idJson)}),$)`));
   }
   const setId = addLine(ctx, `_pset_opscal_${cal.id}`,
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_opscal_' + cal.id))},#${ownerHistId},${ifcStr(PSET.Calendar)},$,(${props.map(i => `#${i}`).join(',')}))`);
@@ -749,8 +825,8 @@ function writeCalendarLibrary(
   ownerHistId: number,
 ): void {
   for (const cal of calendars) {
-    const calStepId = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`);
-    writeCalendarGenerationMeta(ctx, calStepId, cal, ownerHistId);
+    const { calStepId, workingExceptionStepIds } = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`);
+    writeCalendarGenerationMeta(ctx, calStepId, cal, ownerHistId, workingExceptionStepIds);
 
     const resRefs = resources
       .filter(r => r.calendarId === cal.id)
@@ -899,6 +975,13 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
         `IFCPROPERTYSINGLEVALUE('UnitOfMeasure',$,IFCLABEL(${ifcStr(res.unitOfMeasure)}),$)`);
       props.push(`#${id}`);
     }
+    if (res.color) {
+      // #21: weergavekleur (hex) voor de resource-kleurmodi in de rapportexport. Presentatie, geen
+      // planningsdata — reist mee in het project-IFC zodat de export op elke machine gelijk kleurt.
+      const id = addLine(ctx, `_rescol_${res.id}`,
+        `IFCPROPERTYSINGLEVALUE('Color',$,IFCTEXT(${ifcStr(res.color)}),$)`);
+      props.push(`#${id}`);
+    }
     if (res.availabilitySteps && res.availabilitySteps.length > 0) {
       // Compacte encoding "from:maxUnits;from:maxUnits", chronologisch (B8).
       const encoded = [...res.availabilitySteps]
@@ -1012,5 +1095,94 @@ function writeAssignmentMeta(
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_asgn_' + task.id))},#${ownerHistId},${ifcStr(PSET.Assignments)},$,(${props.join(',')}))`);
     addLine(ctx, `_rel_asgn_${task.id}`,
       `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_asgn_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Z14 (etappe "nul afwijkingen") — `OPS_Timephased`-pset op de `IFCTASK`: het timephased-venster
+ * (`ResourceAssignment.workWindowStart`/`workWindowFinish`, Z0-veld, MS Project "contouring")
+ * van elke toewijzing van deze taak, als één autoritatief JSON-blob (`writeBaselineMeta`-vorm) —
+ * NIET het `OPS_Assignments`-pipe-formaat hierboven uitbreiden (dat zou de legacy-parse-symmetrie
+ * van dat formaat breken). Property-sleutel = EXACT dezelfde `"<resource-GUID>#<volgnummer>"` als
+ * `writeAssignmentMeta` gebruikt (zelfde `byTask`-groepering, zelfde resource-bestaans-filter, dus
+ * zelfde volgnummer) — dat is hoe de reader een venster weer aan de juiste toewijzing koppelt zonder
+ * het pipe-formaat zelf aan te raken. Golden rule: geen enkele toewijzing van de taak draagt een
+ * venster ⇒ geen pset (byte-identiek).
+ */
+function writeTimephasedMeta(
+  ctx: WriteContext,
+  tasks: Task[],
+  assignments: ResourceAssignment[],
+  ownerHistId: number,
+): void {
+  const byTask = new Map<string, ResourceAssignment[]>();
+  for (const a of assignments) {
+    if (!byTask.has(a.taskId)) byTask.set(a.taskId, []);
+    byTask.get(a.taskId)!.push(a);
+  }
+  for (const task of tasks) {
+    // Zelfde defensie/filter als writeAssignmentMeta hierboven — bepaalt hetzelfde `#index`.
+    const list = byTask.get(task.id)?.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0');
+    if (!list || list.length === 0) continue;
+    const windows: Record<string, { workWindowStart?: string; workWindowFinish?: string }> = {};
+    list.forEach((a, index) => {
+      if (a.workWindowStart === undefined && a.workWindowFinish === undefined) return;
+      const resGuid = guidOf(ctx, a.resourceId);
+      const propName = `${resGuid}#${index}`;
+      windows[propName] = {
+        ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
+        ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),
+      };
+    });
+    if (Object.keys(windows).length === 0) continue;
+    const propId = addLine(ctx, `_ps_tp_${task.id}`,
+      `IFCPROPERTYSINGLEVALUE('Windows',$,IFCTEXT(${ifcStr(JSON.stringify(windows))}),$)`);
+    const setId = addLine(ctx, `_pset_tp_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tp_' + task.id))},#${ownerHistId},${ifcStr(PSET.Timephased)},$,(#${propId}))`);
+    addLine(ctx, `_rel_tp_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_tp_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
+  }
+}
+
+/**
+ * Z14b (eigenaarsbesluit 2026-08-18, Z8-nataak) — `Task.timephasedDurationWalks` (LAAG 4) als
+ * eigen `OPS_TimephasedDurationWalks`-JSON-pset. NIET via `ifcPsets.PER_TASK_PSETS` (zie de
+ * `PSET.DurationWalks`-toelichting daar): `resourceCalendarId` is een app-interne
+ * kalenderverwijzing die bij inlezen een NIEUW, regenererend id krijgt.
+ *
+ * F1-FIXRONDE (spec-review op 526af9f9): de EERSTE versie vertaalde naar de kalenderNAAM — de
+ * reviewer bewees empirisch dat dat stille datacorruptie geeft zodra twee kalenders dezelfde naam
+ * dragen (de app dwingt naam-uniciteit nergens af). Fix: `resourceCalendarGuid` — dezelfde
+ * `guidOf(ctx, cal.id)` die de kalender se eigen `IFCWORKCALENDAR.GlobalId` bepaalt (per-constructie
+ * uniek, `guidOf`'s eigen botsingsdetectie garandeert dat). Omdat `guidOf` per `ctx` gememoïseerd is
+ * en élke kalender (project + bibliotheek) al vóór deze aanroep geschreven is (zie de aanroepvolgorde
+ * in `writeIFC`), levert een hernieuwde `guidOf`-aanroep hier BYTE-IDENTIEK dezelfde GUID als de
+ * bijbehorende `IFCWORKCALENDAR`-entiteit — spiegelt zo `writeBaselineMeta`'s taskId-GUID-remap-
+ * precedent exact, nu voor kalenders. Golden rule: geen taak met `timephasedDurationWalks` ⇒ geen pset.
+ *
+ * Z19 (residu-iteratie "nul afwijkingen") — `workMinutes` (apportionering bij >1 toewijzing, zie
+ * `Task.timephasedDurationWalks`'s eigen docstring) is een kalenderONAFHANKELIJK getal, geen
+ * verwijzing — conditioneel meegeschreven (spiegelt `mppReader.ts`'s eigen conditionele spread)
+ * zodat een PRECIES-1-toewijzing-walk (geen `workMinutes`) byte-identiek blijft.
+ */
+function writeTimephasedDurationWalksMeta(
+  ctx: WriteContext,
+  tasks: Task[],
+  ownerHistId: number,
+): void {
+  for (const task of tasks) {
+    const walks = task.timephasedDurationWalks;
+    if (!walks || walks.length === 0) continue;
+    const json = walks.map(w => ({
+      anchor: w.anchor,
+      resourceCalendarGuid: guidOf(ctx, w.resourceCalendarId),
+      ...(w.workMinutes !== undefined ? { workMinutes: w.workMinutes } : {}),
+    }));
+    const propId = addLine(ctx, `_ps_tpdw_${task.id}`,
+      `IFCPROPERTYSINGLEVALUE('DurationWalks',$,IFCTEXT(${ifcStr(JSON.stringify(json))}),$)`);
+    const setId = addLine(ctx, `_pset_tpdw_${task.id}`,
+      `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tpdw_' + task.id))},#${ownerHistId},${ifcStr(PSET.DurationWalks)},$,(#${propId}))`);
+    addLine(ctx, `_rel_tpdw_${task.id}`,
+      `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_tpdw_' + task.id))},#${ownerHistId},$,$,(${ref(ctx, `task_${task.id}`)}),#${setId})`);
   }
 }

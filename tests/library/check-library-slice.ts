@@ -2,18 +2,36 @@
 // Node (patroon tests/planning/check-move-assignment.ts). Persistentie (saveLibrary) valt in Node
 // stil terug (geen IndexedDB/Tauri) — we asserten alleen de in-memory state. Exitcode = poort.
 import { useAppStore } from '@/state/appStore';
-import { normalizeLoadedLibrary } from '@/state/slices/librarySlice';
+import { normalizeLoadedLibrary, persistLibrary } from '@/state/slices/librarySlice';
 import { computeCalendarHash, computeResourceHash, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { PoolImportDialog } from '@/components/dialogs/PoolImportDialog';
-import { DEFAULT_COMPANY_ID } from '@/types/library';
+import { DEFAULT_COMPANY_ID, createDefaultLibrary } from '@/types/library';
 import { DEMO_COMPANY_ID } from '@/services/library/demoLibrary';
-
-declare const process: { exit(code: number): never };
 
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
   checks++;
   if (!cond) { fails++; console.log(`   XX ${msg}`); }
+}
+
+// Issue #76: een mislukte achtergrondopslag van de bedrijfsbibliotheek mag niet
+// uitsluitend in de debugterminal belanden. De zichtbare melding krijgt één
+// dedupe-sleutel, zodat een blijvende schijffout de stapel niet vult.
+{
+  const library = createDefaultLibrary();
+  let notification: { severity: string; messageKey: string; detail?: string; dedupeKey?: string } | undefined;
+  await persistLibrary(
+    () => ({
+      ...library,
+      libraryLoaded: true,
+      notify: (input) => { notification = input; },
+    }),
+    async () => { throw new Error('schijf niet beschrijfbaar'); },
+  );
+  assert(notification?.severity === 'error', 'issue #76: mislukte bibliotheekopslag meldt een fout aan de gebruiker');
+  assert(notification?.messageKey === 'notifications.librarySaveFailed', 'issue #76: bibliotheekfout noemt expliciet dat de bibliotheek niet is opgeslagen');
+  assert(notification?.detail === 'schijf niet beschrijfbaar', 'issue #76: bibliotheekfout toont de technische oorzaak');
+  assert(notification?.dedupeKey === 'library-save', 'issue #76: herhaalde bibliotheekfouten worden samengevouwen');
 }
 
 const store = useAppStore.getState();

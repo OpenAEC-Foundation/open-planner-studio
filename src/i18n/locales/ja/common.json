@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "通知を閉じる",
     "openFailed": "ファイルを開けませんでした",
+    "mppLegacy": "この .mpp ファイルは古い形式（Project 2007 以前）を使用しています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
+    "mppEncrypted": "この .mpp ファイルはパスワードで保護されています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
     "saveFailed": "保存できませんでした",
+    "librarySaveFailed": "ライブラリを保存できませんでした",
     "savedViaDownload": "ダウンロードとして保存しました。「{{name}}」はダウンロードフォルダーにあります。この環境では、アプリが選択した場所に直接書き込むことはできません。",
     "autoSaveFailed": "自動保存に失敗しました",
     "recoveryReadFailed": "復元したファイルを読み込めませんでした",
@@ -15,8 +18,12 @@
     "templateSaved": "ブランチをテンプレート「{{name}}」として保存しました",
     "relationCreated": "関係を作成しました: {{predecessor}} → {{successor}}",
     "relationDuplicate": "この関係はすでに存在します",
-    "relationSummaryEndpoint": "サマリータスクを端点にしてもスケジュールには影響しません。サブタスクのないタスクにリンクしてください。",
-    "summaryRelationsIgnored": "サマリータスク上の {{total}} 件の関係はスケジュールに影響しません。"
+    "relationAncestorEndpoint": "タスクとその自身の(祖先)サマリータスクとの間の関係は許可されません。",
+    "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした — 詳細は関係パネルをご確認ください。",
+    "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
+    "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
+    "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
+    "readMore": "詳細を見る"
   },
   "yes": "はい",
   "no": "いいえ",
@@ -236,7 +243,8 @@
   },
   "project": {
     "untitled": "新しい計画",
-    "imported": "インポートしたプロジェクト"
+    "imported": "インポートしたプロジェクト",
+    "unassignedResource": "未割り当て"
   },
   "documents": {
     "overviewTitle": "開いているプロジェクト",
@@ -529,7 +537,8 @@
       "capacity": "キャパシティ",
       "documents": "ドキュメント",
       "selectHint": "ヒストグラムを表示するにはリソースを選択してください。"
-    }
+    },
+    "color": "色"
   },
   "calendar": {
     "library": {
@@ -686,6 +695,12 @@
     "notice": "このファイルには時間単位の計画が含まれています。",
     "enable": "時間計画を有効にする"
   },
+  "recordedDates": {
+    "offer_other": "再計算により、{{total}} 件中 {{count}} 件のタスクがファイル内の日付からずれました。",
+    "show": "記録された日付を表示",
+    "active": "ファイルに記録されている日付をそのまま表示しています。再計算は行われていません。",
+    "recalculate": "再計算"
+  },
   "duration": {
     "suffixDay": "日",
     "suffixHour": "時",
@@ -797,6 +812,10 @@
     "intro": "テストスケジュールを生成して主要フェーズを測定します。開いているプロジェクトには影響しません。",
     "sizeLabel": "スケジュールの規模",
     "tasksCount": "{{count}} タスク",
+    "resourceLabel": "リソース数",
+    "resourcesNone": "リソースなし",
+    "resourcesCount": "{{count}} 件のリソース",
+    "networkHint": "サブタスクを持たないタスクには必ず 1 つ以上の関係が設定されます。サマリータスクは子タスクの集計のままです。",
     "run": "実行",
     "running": "実行中…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -830,5 +849,26 @@
     "detailRender": "{{rows}} 行 · {{w}}×{{h}}",
     "renderUnavailable": "レンダリング利用不可（2D キャンバスコンテキストなし）",
     "largeWarning": "大規模なスケジュール: しばらく時間がかかることがあります。計算中は進捗バーが止まって見える場合があります。"
+  },
+  "extConsent": {
+    "title": "拡張機能をインストールしますか？",
+    "author": "作成者",
+    "repository": "リポジトリ",
+    "originHeading": "入手元",
+    "sourceCatalog": "オンライン拡張機能カタログから",
+    "sourceZip": "このコンピューター上の ZIP ファイルから",
+    "sourceJs": "このコンピューター上の JavaScript ファイルから",
+    "verifiedChecksum": "カタログのチェックサムでダウンロードを検証しました。",
+    "verifiedNone": "カタログにチェックサムがありません。このダウンロードは検証されていません。",
+    "verifiedLocal": "このファイルはご自身で選択したもので、照合できる外部の情報源はありません。",
+    "riskHeading": "同意する内容",
+    "riskBody": "拡張機能は Open Planner Studio 自身と同じ権限で動作するプログラムコードで、それを制限する仕組みはありません。作成者を信頼できる拡張機能だけをインストールしてください。",
+    "riskDesktop": "デスクトップアプリでは、ユーザーフォルダー内のあらゆる場所のファイルの読み書きに加え、プロジェクト・設定・クリップボードへのアクセスが含まれます。",
+    "riskBrowser": "ブラウザーでは、保存済みのプロジェクトと設定、アクセスを許可したファイル、およびネットワークへのアクセスを意味します。",
+    "declaredHeading": "この拡張機能が使用すると申告している項目",
+    "declaredNote": "これは作成者による申告であり、制限ではありません。コードはそれ以上のことも実行できます。",
+    "declaredNone": "申告なし。",
+    "cancel": "インストールしない",
+    "confirm": "インストール"
   }
 }

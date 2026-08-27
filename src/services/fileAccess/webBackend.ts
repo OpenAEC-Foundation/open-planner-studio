@@ -1,4 +1,5 @@
-import type { FileFilter, FileRef, OpenedFile, SaveOutcome } from './index';
+import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveOutcome } from './index';
+import { extensionOf } from '@/utils/filePath';
 
 const hasFSA = (): boolean => typeof window !== 'undefined' && 'showOpenFilePicker' in window;
 
@@ -31,6 +32,27 @@ function isPlatformRefusal(err: unknown): boolean {
 }
 
 /**
+ * Pre-check vóór we de FSA-picker openen: sommige embedded webviews (o.a. de Electron-webview
+ * van de Claude-desktopapp) laten `showOpenFilePicker`/`showSaveFilePicker` gewoon bestaan, maar
+ * blokkeren de feature via een permissions-policy. `document.featurePolicy.allowsFeature(...)`
+ * geeft dat dan vooraf `false` — zo vermijden we de zinloze picker-flits (kiezer verschijnt, en
+ * de eerstvolgende call gooit alsnog `NotAllowedError`/`SecurityError`).
+ *
+ * Defensief: `featurePolicy` (non-standaard, Chromium-only, en inmiddels afgebouwd ten gunste
+ * van Permissions Policy) kan ontbreken — dan geven we `false` terug (niet geblokkeerd) en laat
+ * de runtime-vangnetten hieronder het werk doen zodra de weigering zich daadwerkelijk voordoet.
+ */
+function featurePolicyBlocksFSA(): boolean {
+  const fp = typeof document !== 'undefined' ? document.featurePolicy : undefined;
+  if (!fp || typeof fp.allowsFeature !== 'function') return false;
+  try {
+    return fp.allowsFeature('file-system-access') === false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Gemeten 2026-07-30: in de embedded webview van de Claude-desktopapp (Electron 42 / Chrome 148)
  * bestáát de File System Access API volledig — `showSaveFilePicker`, `FileSystemWritableFileStream`
  * en `createWritable` zijn alle drie aanwezig, en OPFS-handles (die geen grant nodig hebben)
@@ -55,9 +77,31 @@ export function resetWebWriteRefusalForTests(): void {
   platformRefusesWrites = false;
 }
 
+/**
+ * Spiegelbeeld van `platformRefusesWrites`, maar voor het openen van bestanden: de picker
+ * verschijnt, maar `handle.getFile()`/de permissievraag gooit `NotAllowedError`/`SecurityError`
+ * (zelfde omgeving, zelfde policy-blokkade). Zodra dat één keer gebeurt, slaat elke volgende
+ * open-poging de kansloze picker over en gaat meteen naar `openViaInput`.
+ */
+let platformRefusesReads = false;
+
+/** Alleen voor tests/diagnose: is de input-terugval voor openen geactiveerd? */
+export function webReadRefusedByPlatform(): boolean {
+  return platformRefusesReads;
+}
+
+/** Alleen voor tests: zet de openen-detectie terug op onbekend. */
+export function resetWebReadRefusalForTests(): void {
+  platformRefusesReads = false;
+}
+
 // ---- Fallback (Firefox/Safari): <input type=file> + blob-download ----
 
-function openViaInput(filters: FileFilter[]): Promise<OpenedFile | null> {
+function isBinaryName(name: string, opts?: OpenDialogOpts): boolean {
+  return (opts?.binaryExtensions ?? []).includes(extensionOf(name));
+}
+
+function openViaInput(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -66,6 +110,11 @@ function openViaInput(filters: FileFilter[]): Promise<OpenedFile | null> {
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) { resolve(null); return; }
+      if (isBinaryName(file.name, opts)) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        resolve({ name: file.name, content: '', bytes, ref: null });
+        return;
+      }
       const content = await file.text();
       resolve({ name: file.name, content, ref: null });
     };
@@ -85,23 +134,41 @@ function downloadBlob(name: string, content: string): void {
 
 // ---- Publieke web-backend ----
 
-export async function openFileDialogWeb(filters: FileFilter[]): Promise<OpenedFile | null> {
-  if (hasFSA()) {
+export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
+  // Twee vangnetten tegen een policy-geblokkeerde FSA (gemeten in de Claude-desktopapp-webview,
+  // zie `featurePolicyBlocksFSA`): vooraf de picker-flits vermijden als de policy het al meldt,
+  // én — als de policy niets zegt of zich vergist — de doorlopende poging alsnog opvangen.
+  if (hasFSA() && !platformRefusesReads && !featurePolicyBlocksFSA()) {
     try {
       const [handle] = await window.showOpenFilePicker!({ multiple: false, types: toAcceptTypes(filters) });
       const file = await handle.getFile();
+      if (isBinaryName(file.name, opts)) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        return { name: file.name, content: '', bytes, ref: { kind: 'handle', handle } };
+      }
       const content = await file.text();
       return { name: file.name, content, ref: { kind: 'handle', handle } };
     } catch (err) {
+      // Annuleren blijft `null` — geen tweede picker via de input-terugval.
       if (isAbort(err)) return null;
+      // De omgeving (niet de gebruiker) weigert: dit gebeurt vóórdat er inhoud gelezen is
+      // (`getFile`/de impliciete permissievraag daarvóór), dus er is niets om kwijt te raken.
+      // Eenmalig terugvallen op de input-picker, en onthouden voor volgende keren.
+      if (isPlatformRefusal(err)) {
+        platformRefusesReads = true;
+        return openViaInput(filters, opts);
+      }
       throw err;
     }
   }
-  return openViaInput(filters);
+  return openViaInput(filters, opts);
 }
 
 export async function saveFileDialogWeb(defaultName: string, content: string, filters: FileFilter[]): Promise<SaveOutcome | null> {
-  if (hasFSA() && !platformRefusesWrites) {
+  // Zelfde policy-blokkade kan hier ook optreden (`showSaveFilePicker` bestaat, `createWritable`
+  // weigert) — de catch hieronder ving dat al af via `platformRefusesWrites`/de download-route,
+  // maar de featurePolicy-precheck bespaart ook hier de nutteloze picker-flits.
+  if (hasFSA() && !platformRefusesWrites && !featurePolicyBlocksFSA()) {
     try {
       const handle = await window.showSaveFilePicker!({ suggestedName: defaultName, types: toAcceptTypes(filters) });
       const writable = await handle.createWritable();
@@ -152,7 +219,22 @@ export async function saveToRefWeb(ref: FileRef, content: string): Promise<boole
   }
 }
 
-export async function readFromRefWeb(ref: FileRef): Promise<string | null> {
+/**
+ * Gedeelde permissie-dans voor een leesactie op een handle (T11, T2-kwaliteitsreview-agenda
+ * stap 0 b): `readFromRefWeb`/`readBytesFromRefWeb` waren tot deze refactor twee bijna-identieke
+ * kopieën van dezelfde read-grant-aanvraag, alleen verschillend in hoe ze de uiteindelijke `File`
+ * naar het resultaat vertalen (`.text()` vs. `new Uint8Array(await .arrayBuffer())`). `extract`
+ * draagt dat verschil; de rest (kind-guard, queryPermission/requestPermission, try/catch → `null`)
+ * blijft één plek.
+ *
+ * Geen `openViaInput`-terugval hier: een handle-ref komt uit "recente bestanden" en `<input
+ * type=file>` levert geen handle op om te heronthouden — een nieuwe kiezer zou een compleet
+ * andere UX zijn dan "dit recente bestand heropenen". In een omgeving die FSA-reads blokkeert
+ * (zie `featurePolicyBlocksFSA`/`platformRefusesReads`) kan een handle-ref dus per definitie
+ * nooit gelezen worden; de bestaande stille `null`-afhandeling (aanroepers verwijderen de entry
+ * dan gewoon uit de recente-bestandenlijst) is voor dát geval het juiste gedrag.
+ */
+async function readRefWeb<T>(ref: FileRef, extract: (file: File) => Promise<T>): Promise<T | null> {
   if (ref.kind !== 'handle') return null;
   const { handle } = ref;
   const opts: FileSystemHandlePermissionDescriptor = { mode: 'read' };
@@ -161,8 +243,16 @@ export async function readFromRefWeb(ref: FileRef): Promise<string | null> {
       if ((await handle.requestPermission?.(opts)) !== 'granted') return null;
     }
     const file = await handle.getFile();
-    return await file.text();
+    return await extract(file);
   } catch {
     return null;
   }
+}
+
+export function readFromRefWeb(ref: FileRef): Promise<string | null> {
+  return readRefWeb(ref, (file) => file.text());
+}
+
+export function readBytesFromRefWeb(ref: FileRef): Promise<Uint8Array | null> {
+  return readRefWeb(ref, async (file) => new Uint8Array(await file.arrayBuffer()));
 }

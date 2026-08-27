@@ -1,6 +1,9 @@
 // Contracten voor de MCP-bridge (fase 1) — BEVROREN na fase 0.
 // Normatief: docs/superpowers/specs/2026-07-24-mcp-bridge-design.md (v2.4).
 
+import type { AppStoreContext } from '@/state/appStore';
+import type { McpTransactions } from '@/state/runtime/createMcpTransactions';
+
 /** Envelop op elke tool-respons (spec §Sessie-semantiek). */
 export interface McpEnvelope {
   activeDocumentId: string;
@@ -10,6 +13,15 @@ export interface McpEnvelope {
   readOnly: boolean;
   /** Pad van de zojuist geschreven AI-backup; alleen gezet op de call die hem maakte. */
   backupCreated?: string;
+  /** Additieve contractuitbreiding (mpp-nul-data-etappe, zelfde precedent als `backupCreated`
+   *  hierboven en T22 bij `McpToolErr`): aantal taken waarvan DEZE mutatie de MSP-timephased-
+   *  sturing losliet (`clearTimephasedWindow`/`clearTimephasedDurationWalks` gaven `true` terug —
+   *  zie `taskDefaults.ts`). Alleen gezet, en > 0, op de call die het verlies veroorzaakte. De
+   *  in-app K8a-melding is het primaire kanaal (eenmalig per document per sessie, ziet de gebruiker
+   *  ook zonder AI-client); dit veld laat de AI-client het verlies ZONDER UI ook zien, zonder aan de
+   *  eenmalige-melding-gate te hangen — een tweede mutatie die opnieuw sturing loslaat (geen nieuwe
+   *  toast meer, zie `timephasedLossNotice.ts`) draagt dit veld dus gewoon opnieuw. */
+  timephasedGuidanceLost?: number;
 }
 
 export interface McpToolOk {
@@ -45,11 +57,22 @@ export type McpToolResult = McpToolOk | McpToolErr;
 /**
  * Backup-hook (implementatie volgt in de UI-baan; hier alleen het type zodat
  * tool-banen tegen een stub kunnen bouwen). Draait op de dispatch-grens,
- * vóór runInMcpTransaction. Resolve = backup-pad, of null (geen backup nodig).
+ * vóór de contextgebonden MCP-transactie. Resolve = backup-pad, of null (geen backup nodig).
  */
 export type EnsureBackupFn = (docId: string, kind: McpToolDef['kind']) => Promise<string | null>;
+export type MarkDuplicateBornFn = (docId: string) => void;
+
+/** Eén ondeelbare backupbinding: beide functies moeten dezelfde contextservice bezitten. */
+export interface McpBackupBinding {
+  ensureBackup: EnsureBackupFn;
+  markDuplicateBorn: MarkDuplicateBornFn;
+}
 
 export interface McpContext {
+  /** Store, runtime en app-host waarop dit request is gebonden. */
+  app: AppStoreContext;
+  /** Transacties en drafts die uitsluitend bij `app` horen. */
+  transactions: McpTransactions;
   /** Drift-anker: verwacht actief document-id (null vóór de eerste document-binding). */
   expectedDocId: string | null;
   /** tempId→realId-map; de batch-executor bezit en vult deze. */
@@ -58,6 +81,8 @@ export interface McpContext {
   paused: boolean;
   readOnly: boolean;
   ensureBackup: EnsureBackupFn;
+  /** Registreert een duplicaat bij exact dezelfde service als `ensureBackup`. */
+  markDuplicateBorn: MarkDuplicateBornFn;
 }
 
 export interface McpToolAnnotations {

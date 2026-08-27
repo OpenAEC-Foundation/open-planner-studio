@@ -11,11 +11,10 @@ import type {
   ImporterDefinition,
   RibbonButtonRegistration,
 } from './types';
-import type { ExtImportResult } from './extTypes';
-import { useAppStore } from '@/state/appStore';
-import { withTransaction } from '@/state/batchTransaction';
-import { appLog } from '@/services/debug/appLog';
-import { registerCjkFontProvider, type CjkFontProvider } from '@/services/pdf/fontRegistry';
+import type { ExtImportResult, ExtFontProvider } from './extTypes';
+import type { AppStoreContext } from '@/state/appStore';
+import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
+import { registerCjkFontProvider } from '@/services/pdf/fontRegistry';
 import {
   subscribeExtensionEvent,
   unsubscribeExtensionEvent,
@@ -34,17 +33,32 @@ import {
   fromExtTaskUpdates,
   fromExtSequenceInput,
   fromExtImportResult,
+  fromExtRibbonTab,
+  fromExtFontProvider,
 } from './extMappers';
 
 // Re-export zodat bestaande importers (index.ts) ongewijzigd blijven werken.
 export { emitExtensionEvent };
 
+/** Appbrede binding voor extensie-UI en meldingen; documentdata loopt hier bewust niet doorheen. */
+export interface ExtensionHostBinding {
+  app: AppStoreContext;
+  showNotification(
+    extensionId: string,
+    message: string,
+    type: 'info' | 'warning' | 'error',
+  ): void;
+}
+
 export function createExtensionApi(
   extensionId: string,
   permissions: ExtensionPermission[],
-  assets?: Record<string, Uint8Array>,
+  assets: Record<string, Uint8Array> | undefined,
+  document: AppStoreContext,
+  host: ExtensionHostBinding,
 ): ExtensionApi {
   const cleanupFns: (() => void)[] = [];
+  const batch = createBatchTransactions(document);
 
   const settingsPrefix = `ops-ext:${extensionId}:`;
 
@@ -53,13 +67,13 @@ export function createExtensionApi(
 
     importers: {
       register(def: ImporterDefinition) {
-        useAppStore.getState().addExtensionImporter({ ...def, extensionId });
+        host.app.store.getState().addExtensionImporter({ ...def, extensionId });
         cleanupFns.push(() => {
-          useAppStore.getState().removeExtensionImporter(extensionId, def.id);
+          host.app.store.getState().removeExtensionImporter(extensionId, def.id);
         });
       },
       unregister(id: string) {
-        useAppStore.getState().removeExtensionImporter(extensionId, id);
+        host.app.store.getState().removeExtensionImporter(extensionId, id);
       },
     },
 
@@ -67,25 +81,25 @@ export function createExtensionApi(
      *  (gemapt uit de Immer-bevroren store) — muteren ervan raakt de store niet. Schrijf via
      *  addTask/updateTask/addSequence en roep daarna recalculate() aan. */
     data: {
-      getProject: () => toExtProject(useAppStore.getState().project),
-      getCalendar: () => toExtCalendar(useAppStore.getState().calendar),
-      getTasks: () => useAppStore.getState().tasks.map(toExtTask),
-      getSequences: () => useAppStore.getState().sequences.map(toExtSequence),
-      getResources: () => useAppStore.getState().resources.map(toExtResource),
-      getAssignments: () => useAppStore.getState().assignments.map(toExtAssignment),
-      addTask: (task) => useAppStore.getState().addTask(fromExtTaskInput(task)),
+      getProject: () => toExtProject(document.store.getState().project),
+      getCalendar: () => toExtCalendar(document.store.getState().calendar),
+      getTasks: () => document.store.getState().tasks.map(toExtTask),
+      getSequences: () => document.store.getState().sequences.map(toExtSequence),
+      getResources: () => document.store.getState().resources.map(toExtResource),
+      getAssignments: () => document.store.getState().assignments.map(toExtAssignment),
+      addTask: (task) => document.store.getState().addTask(fromExtTaskInput(task)),
       updateTask: (id, updates) =>
-        useAppStore.getState().updateTask(id, fromExtTaskUpdates(updates)),
-      addSequence: (seq) => useAppStore.getState().addSequence(fromExtSequenceInput(seq)),
+        document.store.getState().updateTask(id, fromExtTaskUpdates(updates)),
+      addSequence: (seq) => document.store.getState().addSequence(fromExtSequenceInput(seq)),
       loadProject: (result: ExtImportResult) => {
-        const store = useAppStore.getState();
+        const store = document.store.getState();
         store.loadState(fromExtImportResult(result));
         store.runCPM();
       },
-      recalculate: () => useAppStore.getState().runCPM(),
+      recalculate: () => document.store.getState().runCPM(),
       // K-item 32: één snapshot voor de hele reeks i.p.v. één per mutatie — lineair in plaats van
       // kwadratisch, en één undo-stap voor wat de gebruiker als één handeling ziet.
-      batch: <T,>(fn: () => T): T => withTransaction(fn),
+      batch: <T,>(fn: () => T): T => batch.withTransaction(fn),
     },
 
     events: {
@@ -104,17 +118,18 @@ export function createExtensionApi(
 
     ui: {
       addRibbonButton(reg: RibbonButtonRegistration) {
-        useAppStore.getState().addExtensionRibbonButton({ ...reg, extensionId });
+        // Grensvertaling: ext-facing tabblad-id → intern tabblad-id (zie extMappers).
+        host.app.store.getState().addExtensionRibbonButton({
+          ...reg,
+          tab: fromExtRibbonTab(reg.tab),
+          extensionId,
+        });
         cleanupFns.push(() => {
-          useAppStore.getState().removeExtensionRibbonButton(extensionId, reg.label);
+          host.app.store.getState().removeExtensionRibbonButton(extensionId, reg.label);
         });
       },
       showNotification(message: string, type: 'info' | 'warning' | 'error' = 'info') {
-        // Zichtbaar in de debug-terminal via de app-log-bus.
-        // LogLevel: 'log' | 'info' | 'warn' | 'error' | 'event'
-        // 'warning' is geen geldige LogLevel; map naar 'warn'.
-        const level = type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'info';
-        appLog.emit(level, `ext:${extensionId}`, message);
+        host.showNotification(extensionId, message, type);
       },
     },
 
@@ -133,7 +148,7 @@ export function createExtensionApi(
     },
 
     pdfFonts: {
-      register(provider: CjkFontProvider) {
+      register(provider: ExtFontProvider) {
         // Valideer de provider-vorm vóór registratie — een extensie-fout mag de export-registry
         // niet met een half object vervuilen.
         if (!provider || typeof provider !== 'object') {
@@ -153,7 +168,8 @@ export function createExtensionApi(
         }
         // registerCjkFontProvider geeft een uitschrijf-functie terug; hang 'm aan cleanupFns zodat
         // disable/unload de provider automatisch verwijdert (net als importers/ribbon-knoppen).
-        const unregister = registerCjkFontProvider(provider);
+        // Grensvertaling: ext-facing provider → interne provider (zie extMappers).
+        const unregister = registerCjkFontProvider(fromExtFontProvider(provider));
         cleanupFns.push(unregister);
       },
     },
@@ -169,7 +185,7 @@ export function createExtensionApi(
     _cleanup() {
       cleanupFns.forEach((fn) => fn());
       cleanupFns.length = 0;
-      useAppStore.getState().removeAllExtensionUI(extensionId);
+      host.app.store.getState().removeAllExtensionUI(extensionId);
     },
   };
 

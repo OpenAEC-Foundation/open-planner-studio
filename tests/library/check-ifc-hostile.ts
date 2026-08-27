@@ -22,8 +22,6 @@ import type { Task } from '@/types/task';
 import type { Resource } from '@/types/resource';
 import type { CompanyPool } from '@/types/library';
 
-declare const process: { exit(code: number): never };
-
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
   checks++;

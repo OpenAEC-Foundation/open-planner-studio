@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Trash2 } from 'lucide-react';
 import { Dialog } from '@/components/common/Dialog';
 import {
-  fullFieldList, fieldOptions, fieldKind, operatorsForKind, selectOptions,
+  filterFieldList, fieldOptions, fieldKind, operatorsForKind, selectOptions,
   type FieldCatalogCtx,
 } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import { DateTextInput } from '@/components/common/DateTextInput';
-import type { FieldRef, FilterNode, FilterOperator } from '@/state/slices/types';
+import { generateId } from '@/utils/id';
+import { loadSavedFilters, saveSavedFilters } from '@/utils/settingsStore';
+import type { FieldRef, FilterNode, FilterOperator, SavedFilter } from '@/state/slices/types';
 
 type GroupNode = Extract<FilterNode, { kind: 'group' }>;
 type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
@@ -113,7 +115,7 @@ function RuleValueEditor({
     );
   }
 
-  if (kind === 'date') {
+  if (kind === 'date' || kind === 'activePeriod') {
     if (rule.operator === 'between') {
       return (
         <div className="flex items-center gap-1">
@@ -294,9 +296,18 @@ export function FilterDialog() {
   const [root, setRoot] = useState<GroupNode>(
     () => (viewFilter && viewFilter.kind === 'group' ? viewFilter : defaultGroup()),
   );
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [savedFilterName, setSavedFilterName] = useState('');
+  const [selectedSavedFilterId, setSelectedSavedFilterId] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadSavedFilters().then(filters => { if (!cancelled) setSavedFilters(filters); });
+    return () => { cancelled = true; };
+  }, []);
 
   const ctx: FieldCatalogCtx = useFieldCatalogCtx();
-  const fields = useMemo(() => fullFieldList(ctx), [ctx]);
+  const fields = useMemo(() => filterFieldList(ctx), [ctx]);
 
   const apply = () => {
     setFilter(root.children.length === 0 ? null : root);
@@ -306,6 +317,39 @@ export function FilterDialog() {
   const clear = () => {
     setRoot(defaultGroup());
     setFilter(null);
+    setSelectedSavedFilterId('');
+  };
+
+  const persistSavedFilters = (next: SavedFilter[]) => {
+    setSavedFilters(next);
+    void saveSavedFilters(next);
+  };
+
+  const selectSavedFilter = (id: string) => {
+    setSelectedSavedFilterId(id);
+    const saved = savedFilters.find(filter => filter.id === id);
+    if (!saved) return;
+    const filter = structuredClone(saved.filter) as GroupNode;
+    setRoot(filter);
+    setFilter(filter);
+  };
+
+  const saveCurrentFilter = () => {
+    if (root.children.length === 0) return;
+    const saved: SavedFilter = {
+      id: generateId('filter'),
+      name: savedFilterName.trim() || t('view.layout.name'),
+      filter: structuredClone(root),
+    };
+    persistSavedFilters([...savedFilters, saved]);
+    setSelectedSavedFilterId(saved.id);
+    setSavedFilterName('');
+  };
+
+  const removeSelectedSavedFilter = () => {
+    if (!selectedSavedFilterId) return;
+    persistSavedFilters(savedFilters.filter(filter => filter.id !== selectedSavedFilterId));
+    setSelectedSavedFilterId('');
   };
 
   return (
@@ -323,7 +367,38 @@ export function FilterDialog() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 text-xs flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2 border border-border rounded-[8px] p-2">
+            <select
+              value={selectedSavedFilterId}
+              onChange={e => selectSavedFilter(e.target.value)}
+              className="input !text-xs !px-2 !py-1 flex-1 min-w-[170px]"
+              aria-label={t('view.filter.title')}
+            >
+              <option value="">{t('view.layout.none')}</option>
+              {savedFilters.map(filter => <option key={filter.id} value={filter.id}>{filter.name}</option>)}
+            </select>
+            <button
+              onClick={removeSelectedSavedFilter}
+              disabled={!selectedSavedFilterId}
+              title={t('delete')}
+              aria-label={t('delete')}
+              className="btn btn--sm btn--secondary"
+              style={{ color: selectedSavedFilterId ? 'var(--error)' : undefined }}
+            >
+              <Trash2 size={13} />
+            </button>
+            <input
+              value={savedFilterName}
+              onChange={e => setSavedFilterName(e.target.value)}
+              placeholder={t('view.layout.name')}
+              aria-label={t('view.layout.name')}
+              className="input !text-xs !px-2 !py-1 flex-1 min-w-[120px]"
+            />
+            <button onClick={saveCurrentFilter} disabled={root.children.length === 0} className="btn btn--sm btn--secondary">
+              {t('save')}
+            </button>
+          </div>
           <GroupEditor node={root} depth={0} ctx={ctx} fields={fields} onChange={fn => setRoot(fn(root))} />
         </div>
 

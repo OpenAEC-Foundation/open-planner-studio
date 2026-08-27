@@ -9,7 +9,12 @@
 //   calendar?: { workDays?: number[], holidays?: {name,startDate,endDate}[] }  // default: SCHOON (ma-vr, geen feestdagen)
 //   anchor?: "YYYY-MM-DD"   // startdatum voor wortel-taken (default 2026-06-01)
 //   tasks: [{ name, dur?, start?, milestone?, constraint?, constraint2?, hammock?, deadline? }]
-//     dur in werkdagen (default 1); milestone => duur 0
+//     dur in werkdagen (default 1); milestone => duur 0, TENZIJ `dur` expliciet meegegeven is
+//              (T15, "mijlpaal-met-duur" — MSP staat `isMilestone=true` mét een reële duur toe en
+//              plant dan gewoon volgens die duur, zie CPMSolver.ts's `isZeroDurationMilestone`)
+//     durationType: WORKTIME (default) | ELAPSEDTIME (T8, MSP-pariteit) — ELAPSEDTIME rekent de
+//              taakduur zelf 24/7 in klokTIJD (precedent: lagUnit ELAPSEDTIME hierboven, zelfde
+//              semantiek toegepast op duur i.p.v. lag); afwezig => WORKTIME (byte-identiek)
 //     hammock: true => LOE/hammock (fase 2.9 §4.4); afgeleide span-duur (SS/FS=start-driver, FF/SF=finish-driver),
 //              eigen duur genegeerd, nooit kritiek, tf=ff=0
 //     constraint: { type: ASAP|ALAP|SNET|SNLT|FNET|FNLT|MSO|MFO, date? } (P6-soft; MSO/MFO = Start/Finish On)
@@ -51,7 +56,7 @@ import type { ResourceType, ResourceCurve } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDuration } from '@/utils/durationFormat';
-import type { WorkTimeBands } from '@/types/calendar';
+import type { WorkTimeBands, WorkingException } from '@/types/calendar';
 import { computeVariance } from '@/engine/variance';
 import {
   computeViewRows, isTreeMode, encodeBandKey, firstRowIndexByTask, NONE_RAWKEY,
@@ -64,6 +69,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { generateId } from '@/utils/id';
+import { isAncestorRelation } from '@/state/relationRules';
 
 const S = () => useAppStore.getState();
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
@@ -73,6 +79,20 @@ type Cal = {
   workDays?: number[]; holidays?: { name: string; startDate: string; endDate: string }[];
   /** Fase 2.8b (§3.2/§8.1): werktijd-banden ⇒ UUR-kalender. Afwezig ⇒ dag-kalender (byte-identiek). */
   workTime?: WorkTimeBands; shift?: Shift;
+  /** Fase 3.8 (T2/T13, MSP-pariteit): dag-uitzonderingen die een dag WERKEND maken. ADDITIEF —
+   *  afwezig ⇒ byte-identiek gedrag met vóór T13 (geen enkele bestaande case zet dit veld, dus geen
+   *  bestaande verwachting kan hierdoor wijzigen). Zelfde vorm als `WorkCalendar.workingExceptions`
+   *  (T2's model, `src/types/calendar.ts`) — de harness geeft 'm ongewijzigd door aan
+   *  `setCalendar`/`addCalendar`. */
+  workingExceptions?: WorkingException[];
+  /** Z7-fixronde-2 (MIDDEN): expliciete `hoursPerDay`-override voor een DAG-kalender (bij `workTime`
+   *  aanwezig wordt `hoursPerDay` toch AFGELEID uit de banden, zie `CalendarEngine.
+   *  computeDerivedHoursPerDay` — deze override is dus alleen zinvol zonder `workTime`). Afwezig ⇒
+   *  de default van `S().calendar` (8, byte-identiek voor elke bestaande case — geen enkele zet dit
+   *  veld). Nodig om een NIET-GEHELE `hoursPerDay` (bv. 8,4 — vrij invoerbaar via Projectinfo) op een
+   *  dag-kalender corpusloos te reproduceren; zonder deze knop is dat via de bestaande `Cal`-vorm niet
+   *  te zetten (`workTime` zou de taak juist naar de uur-modus-tak duwen, een ANDER codepad). */
+  hoursPerDay?: number;
 };
 interface CaseResource {
   name: string; type?: ResourceType; maxUnits?: number;
@@ -120,7 +140,7 @@ interface Case {
   calendar?: Cal; anchor?: string;
   /** Benoemde bibliotheek-kalenders (fase 2.8a, §10.1): taken verwijzen ernaar via tasks[].calendar.
    *  Fase 2.8b: optioneel `workTime`/`shift` ⇒ uur-kalender (§8.1). */
-  calendars?: { name: string; workDays?: number[]; holidays?: Cal['holidays']; workTime?: WorkTimeBands; shift?: Shift }[];
+  calendars?: { name: string; workDays?: number[]; holidays?: Cal['holidays']; workTime?: WorkTimeBands; shift?: Shift; workingExceptions?: Cal['workingExceptions'] }[];
   resources?: CaseResource[];
   /** Activity-code-types + waarden (fase 2.7 view-cases). */
   codes?: { name: string; values: { code: string; description?: string }[] }[];
@@ -143,6 +163,11 @@ interface Case {
      *  `parseDuration`) ⇒ `durationMinutes` op de taak; een getal ⇒ werkdagen (dag-modus, ongewijzigd). */
     name: string; dur?: number | string; start?: string; milestone?: boolean; milestoneKind?: 'START' | 'FINISH';
     mandatory?: boolean; parent?: string; deadline?: string;
+    /** T8 (MSP-pariteit, plan §BAAN S): WORKTIME (default, afwezig ⇒ byte-identiek) | ELAPSEDTIME —
+     *  de taakduur zelf loopt dan 24/7 in klokTIJD i.p.v. over werkdagen/-uren (zie `duration.ts`'s
+     *  `elapsedMinutesOf`/`addElapsedMinutes`/`subtractElapsedMinutes`, hergebruik van het
+     *  `resolveElapsedMinutes`-precedent voor relatie-lags). */
+    durationType?: 'WORKTIME' | 'ELAPSEDTIME';
     /** Fase 2.9 (§4.1/§4.2): `hard` op de PRIMAIRE constraint ⇒ logica-brekende Mandatory-pin
      *  (alleen zinvol op MSO/MFO). `date` mag een datetime zijn op een uur-taak (§4.1, S13). */
     constraint?: { type: string; date?: string; hard?: boolean };
@@ -173,10 +198,36 @@ interface Case {
     // actualStart/actualFinish via de dedicated acties; rawCompletion zet time.completion
     // RAUW (import-simulatie, geen invarianten) om het solver-vangnet (§4.2 tak 2b) te testen.
     completion?: number; actualStart?: string; actualFinish?: string; rawCompletion?: number;
+    /** Z12-herwerk (dossier out-of-sequence-actuals): rauw op `time.resume`/`time.stop` gezet, net
+     *  als `remainingMinutes` hierboven (import-simulatie — geen dedicated store-actie voor deze
+     *  twee, spiegelt `mppReader.ts`'s rechtstreekse veld-99/100-lezing). `resume` is het signaal
+     *  dat `CPMSolver.ts`'s out-of-sequence-tak activeert; `stop` rondt alleen mee, wordt door geen
+     *  enkele solverberekening gelezen. */
+    resume?: string; stop?: string;
     /** Activity-code-toewijzing: typenaam → code (fase 2.7 view-cases). */
     code?: Record<string, string>;
     /** Custom-field-waarde: veldnaam → waarde (fase 2.7 view-cases). */
     field?: Record<string, string | number | boolean>;
+    /** Z0 (etappe "nul afwijkingen"): typecontract-doorgifte, nog ONGEBRUIKT door de solver — zie
+     *  `Task.splitGaps`/`TaskSplitGap` (`src/types/task.ts`). Afwezig ⇒ geen splits (byte-identiek). */
+    splitGaps?: { afterMinutes: number; gapMinutes: number }[];
+    /** Z0: typecontract-doorgifte, nog ONGEBRUIKT door de solver — zie `Task.manuallyScheduled`.
+     *  Afwezig ⇒ normale (auto-geplande) taak (byte-identiek). */
+    manuallyScheduled?: boolean;
+    /** Z6: door `CPMSolver.forwardPass` toegepast (uur-/minuutprecisie, wint van `levelingDelay`
+     *  hieronder wanneer aanwezig) — zie `Task.levelingDelayMinutes`. Afwezig ⇒ `levelingDelay`
+     *  (werkdagen) blijft de bron (byte-identiek). */
+    levelingDelayMinutes?: number;
+    /** Z6: door `CPMSolver.forwardPass` toegepast — zie `Task.levelingDelayElapsed`. Afwezig ⇒
+     *  WORKTIME (byte-identiek). */
+    levelingDelayElapsed?: boolean;
+    /** Z13 (etappe "nul afwijkingen"): typecontract-doorgifte naar `Task.timephasedStartAnchor`/
+     *  `timephasedFinishFloor` — normaal UITSLUITEND door `mppReader.ts`'s Z8-laag-3 gezet, hier
+     *  rechtstreeks instelbaar om `CPMSolver.ts`'s `timephasedAnchorIsDegenerateResnap`/
+     *  `timephasedFinishFloorIsDegenerateResnap`-wacht corpusloos te reproduceren (zie die
+     *  toelichting in `forwardPass`). Afwezig ⇒ byte-identiek (geen laag-3-signaal). */
+    timephasedStartAnchor?: string;
+    timephasedFinishFloor?: string;
   }[];
   /** Fase 2.8b (§8.1): `lag` mag een string zijn — "4h"/"90m"/"2d" (via `parseDuration` in de
    *  VOORGANGER-kalender) ⇒ `lagMinutes`; een getal ⇒ `lagDays` (dag-modus, ongewijzigd). `lagMinutes`
@@ -221,6 +272,21 @@ interface TaskExpect {
   tf?: number; ff?: number; intf?: number;
   crit?: boolean; nearCrit?: boolean;
   floatPath?: number;
+  /** T8 (uurmodus-hammock-scheduleDuration-pin, T10-reviewtoevoeging): `task.time.scheduleDuration`/
+   *  `durationMinutes` NA de solve — voor hammocks worden deze door de forward-pass HERSCHREVEN
+   *  (afgeleide ES→EF-span, zie CPMSolver.ts), dus alleen dáár zinvol te pinnen. */
+  scheduleDuration?: number; durationMinutes?: number;
+  /** Z0-fixronde (Opus-review, BEVINDING 1): doorgifte-bewijs voor de vier Z0-typecontractvelden op
+   *  `Task` — ze bereiken de taak via de JSON-case-interpreter. Nog GEEN solver-gedrag (alle vier
+   *  zijn voorlopig ongebruikt); dit toetst uitsluitend dat `buildAndSolve` de waarde daadwerkelijk
+   *  doorgeeft aan `addTask`. `splitGapCount` i.p.v. de rauwe `splitGaps`-array: de generieke
+   *  `gv !== wv`-vergelijking in `runCase` (verderop) is referentiegelijkheid en zou een array altijd
+   *  ongelijk vinden; de LENGTE is als scalar wél mutatie-bewijsbaar zonder die vergelijking aan te
+   *  passen. */
+  manuallyScheduled?: boolean;
+  splitGapCount?: number;
+  levelingDelayMinutes?: number;
+  levelingDelayElapsed?: boolean;
 }
 
 interface CaseExpect {
@@ -262,6 +328,15 @@ type AfterOp =
   | { runCPM: true }
   | { undo: true }
   | { applyLevel: { constrainToFloat?: boolean; resources?: string[] } }
+  /** Z6-testtoevoeging: zet `Task.levelingDelay` (hele WERKdagen) rechtstreeks — dat veld wordt in
+   *  de echte app UITSLUITEND door `ResourceLeveler` gezet (`taskSlice.addTask` sluit het bewust
+   *  uit, zie de toelichting daar), maar de Z6-cases moeten de hele-dagen-terugval en de
+   *  ELAPSEDTIME-invariant-case (§"Invariant-waarschuwing", nul-afwijkingen-plan) corpusloos bouwen
+   *  ZONDER de volledige leveler (resources/toewijzingen) op te tuigen. `updateTask` accepteert
+   *  elk `Partial<Task>`-veld (geen allowlist zoals `addTask`), dus dit is geen omweg om een
+   *  productie-guard te omzeilen — puur een testgemak. Zet GEEN `scheduleStale`/`runCPM` zelf; een
+   *  navolgende `{ runCPM: true }` is vereist om het effect te zien. */
+  | { setLevelingDelay: { task: string; days: number } }
   /** Undo-orphan-regressie (fase 2.8a QA, fix 1): voeg een nieuwe bibliotheek-kalender toe EN
    *  zet hem meteen als projectdefault (spiegelt CalendarDialog "Als projectdefault") — precies
    *  de twee acties die de bug triggerde (addCalendar pusht een undo-snapshot, setProjectCalendar
@@ -301,6 +376,12 @@ function buildAndSolve(c: Case): {
     // (dag-modus, byte-identiek voor de 290).
     ...(c.calendar?.workTime ? { workTime: c.calendar.workTime } : {}),
     ...(c.calendar?.shift ? { shift: c.calendar.shift } : {}),
+    // T13 (§T2-afwijking): alleen wanneer expliciet gegeven ⇒ werkende uitzonderingen. Afwezig ⇒ géén
+    // workingExceptions-sleutel — byte-identiek voor elke bestaande case (additief, zie Cal se doc).
+    ...(c.calendar?.workingExceptions ? { workingExceptions: c.calendar.workingExceptions } : {}),
+    // Z7-fixronde-2 (MIDDEN): alleen wanneer expliciet gegeven ⇒ hoursPerDay-override. Afwezig ⇒
+    // de default van `base` (8) — byte-identiek voor elke bestaande case (additief, zie Cal se doc).
+    ...(c.calendar?.hoursPerDay != null ? { hoursPerDay: c.calendar.hoursPerDay } : {}),
   } as any);
   const anchor = c.anchor ?? '2026-06-01';
   S().setProject({ startDate: anchor });
@@ -318,6 +399,8 @@ function buildAndSolve(c: Case): {
       holidays: cal.holidays ?? [],
       ...(cal.workTime ? { workTime: cal.workTime } : {}),
       ...(cal.shift ? { shift: cal.shift } : {}),
+      // T13 (§T2-afwijking): zie de gelijknamige toevoeging bij setCalendar hierboven.
+      ...(cal.workingExceptions ? { workingExceptions: cal.workingExceptions } : {}),
     });
   }
 
@@ -394,7 +477,8 @@ function buildAndSolve(c: Case): {
     // afgeleide `scheduleDuration = minuten/(effHpd×60)`; een getal ⇒ werkdagen (dag-modus, ongewijzigd).
     let durDays: number;
     let durMinutes: number | undefined;
-    if (t.milestone) {
+    if (t.milestone && t.dur === undefined) {
+      // T15: het gebruikelijke pad — een mijlpaal ZONDER expliciete `dur` blijft byte-identiek 0.
       durDays = 0;
     } else if (typeof t.dur === 'string') {
       const effHpd = effHoursPerDayFor(t.calendar);
@@ -409,6 +493,8 @@ function buildAndSolve(c: Case): {
     if (durMinutes !== undefined) time.durationMinutes = durMinutes;
     // Rauwe override (§8.3-invariant): zet `durationMinutes` los van `scheduleDuration`.
     if (t.durationMinutesRaw !== undefined) time.durationMinutes = t.durationMinutesRaw;
+    // T8: afwezig => `createDefaultTaskTime`s default 'WORKTIME' blijft staan (byte-identiek).
+    if (t.durationType !== undefined) time.durationType = t.durationType;
     const id = S().addTask({
       name: t.name,
       isMilestone: !!t.milestone,
@@ -437,6 +523,16 @@ function buildAndSolve(c: Case): {
         })),
       } : {}),
       ...(t.deadline ? { deadline: t.deadline } : {}),
+      // Z0 (etappe "nul afwijkingen"): typecontract-doorgifte — de solver leest deze velden nog
+      // NERGENS (Task.splitGaps/manuallyScheduled/levelingDelayMinutes/levelingDelayElapsed bestaan
+      // alleen als type). Alle vier zijn per veld mutatie-bewezen doorgegeven aan `addTask`: de case
+      // "msp-14-z0-typecontract-passthrough" (cases-msp-pariteit.json) assert elk ervan via
+      // expect.tasks (manuallyScheduled/levelingDelayMinutes/levelingDelayElapsed rechtstreeks,
+      // splitGaps via de afgeleide `splitGapCount` in readTask — zie TaskExpect hierboven).
+      ...(t.splitGaps ? { splitGaps: t.splitGaps } : {}),
+      ...(t.manuallyScheduled !== undefined ? { manuallyScheduled: t.manuallyScheduled } : {}),
+      ...(t.levelingDelayMinutes !== undefined ? { levelingDelayMinutes: t.levelingDelayMinutes } : {}),
+      ...(t.levelingDelayElapsed !== undefined ? { levelingDelayElapsed: t.levelingDelayElapsed } : {}),
     });
     ids[t.name] = id;
     if (t.calendar !== undefined) {
@@ -467,12 +563,18 @@ function buildAndSolve(c: Case): {
       ...(l.lagUnit !== undefined ? { lagUnit: l.lagUnit as any } : {}),
       ...(l.lagPercent !== undefined ? { lagPercent: l.lagPercent } : {}),
     };
-    if (seqInput.predecessorId === seqInput.successorId) {
-      // Zelf-lus (edge-selfloop-01): `addSequence` weigert dit sinds de relatieregels (verwacht
-      // gedrag, zie relationRules.ts) en zou hem stil buiten de sequences houden — dan test dit
-      // harnas de CPM-solver z'n eigen kringdetectie nooit. Zo'n relatie kán nog steeds bestaan
-      // (bv. een corrupt/legacy IFC dat via `loadState` binnenkomt, ongefilterd door de guard), dus
-      // omzeil hier bewust de store-actie en zet 'm rechtstreeks — de solver moet 'm zelf afvangen.
+    // Zelf-lus (edge-selfloop-01) EN voorouder-relaties (wbs-summary-relation-ancestor-guard-01):
+    // `addSequence` weigert beide sinds de relatieregels (verwacht gedrag, zie relationRules.ts) en
+    // zou ze stil buiten de sequences houden — dan test dit harnas de CPM-solver/`expandSummaryRelations`
+    // z'n EIGEN guards nooit. Zulke relaties kunnen nog steeds bestaan (bv. een corrupt/legacy IFC of
+    // een P6/MSP-export die via `loadState` binnenkomt, ongefilterd door de aanmaak-guard — spec §5:
+    // bestaande exemplaren blijven behouden), dus omzeil hier bewust de store-actie en zet ze
+    // rechtstreeks — de solver-/expansielaag moet ze zelf afvangen, niet de aanmaak-validatie.
+    const lookup = (id: string) => S().tasks.find((t) => t.id === id);
+    if (
+      seqInput.predecessorId === seqInput.successorId
+      || isAncestorRelation(lookup, { predecessorId: seqInput.predecessorId, successorId: seqInput.successorId })
+    ) {
       useAppStore.setState((s) => {
         s.sequences.push({ ...seqInput, id: generateId('seq') });
       });
@@ -521,6 +623,27 @@ function buildAndSolve(c: Case): {
     if (t.remainingMinutes !== undefined) {
       const task = S().tasks.find((x) => x.id === id)!;
       S().updateTask(id, { time: { ...task.time, remainingMinutes: t.remainingMinutes } });
+    }
+    // Z12-herwerk — resume/stop, zelfde rauwe-override-vorm als remainingMinutes hierboven.
+    if (t.resume !== undefined) {
+      const task = S().tasks.find((x) => x.id === id)!;
+      S().updateTask(id, { time: { ...task.time, resume: t.resume } });
+    }
+    if (t.stop !== undefined) {
+      const task = S().tasks.find((x) => x.id === id)!;
+      S().updateTask(id, { time: { ...task.time, stop: t.stop } });
+    }
+    // Z13: `timephasedStartAnchor`/`timephasedFinishFloor` zijn TOP-LEVEL `Task`-velden (geen
+    // `time`-subveld) — `updateTask`'s `Object.assign(s.tasks[idx], rest)` (taskSlice.ts) zet ze
+    // dus rechtstreeks, ANDERS dan `resume`/`stop` hierboven die via `time` moeten. `addTask` zelf
+    // (buiten dit bestand se eigendom) kent deze twee velden niet — vandaar de post-patch hier,
+    // net als `levelingDelay` elders in dit bestand (regel ~743) al voor een ander top-level veld
+    // doet.
+    if (t.timephasedStartAnchor !== undefined) {
+      S().updateTask(id, { timephasedStartAnchor: t.timephasedStartAnchor });
+    }
+    if (t.timephasedFinishFloor !== undefined) {
+      S().updateTask(id, { timephasedFinishFloor: t.timephasedFinishFloor });
     }
   }
 
@@ -623,6 +746,10 @@ function buildAndSolve(c: Case): {
       void _cid;
       const newId = S().addCalendar({ ...calBase, name: op.addCalendarAsDefault.name });
       S().setProjectCalendar(newId);
+    } else if ('setLevelingDelay' in op) {
+      const tid = ids[op.setLevelingDelay.task];
+      if (!tid) throw new Error(`afterCPM.setLevelingDelay: onbekende taak "${op.setLevelingDelay.task}"`);
+      S().updateTask(tid, { levelingDelay: op.setLevelingDelay.days });
     }
   }
 
@@ -715,6 +842,15 @@ function readTask(name: string, ids: Record<string, string>) {
     tf: t.time.totalFloat, ff: t.time.freeFloat, crit: t.time.isCritical,
     // Fase 2.9 golf 2 (§4.6): interfererende speling (altijd), near-critical + float-path (optie-gated).
     intf: t.time.interferingFloat, nearCrit: t.time.isNearCritical, floatPath: t.time.floatPath,
+    // T8: rauw uitgelezen, geen KEYMAP-alias nodig (sleutelnaam == veldnaam).
+    scheduleDuration: t.time.scheduleDuration, durationMinutes: t.time.durationMinutes,
+    // Z0-fixronde: doorgifte-bewijs voor alle vier de nieuwe velden, zie TaskExpect hierboven.
+    // `splitGaps` zelf is een array (referentiegelijkheid onbruikbaar in de `!==`-vergelijking
+    // hieronder in `runCase`) — vandaar de LENGTE als scalar-observatie.
+    manuallyScheduled: t.manuallyScheduled,
+    splitGapCount: t.splitGaps?.length ?? 0,
+    levelingDelayMinutes: t.levelingDelayMinutes,
+    levelingDelayElapsed: t.levelingDelayElapsed,
   };
 }
 
@@ -1176,7 +1312,27 @@ const TASK_EXPECT_KEYS = {
   es: true, ef: true, ls: true, lf: true,
   tf: true, ff: true, intf: true,
   crit: true, nearCrit: true, floatPath: true,
+  scheduleDuration: true, durationMinutes: true,
+  manuallyScheduled: true, splitGapCount: true,
+  levelingDelayMinutes: true, levelingDelayElapsed: true,
 } satisfies Record<keyof TaskExpect, true>;
+
+// Z0 (etappe "nul afwijkingen"): vóór deze taak had `Case['tasks'][number]` GEEN allowlist — een
+// typefout in een taaksleutel (bv. "manualyScheduled") viel stil weg via de `...(t.x ? {...} : {})`
+// -spreads in `buildAndSolve` en de casus draaide gewoon door tegen het defaultgedrag, zonder ooit
+// het bedoelde veld te zetten. Zelfde bugklasse als K10b (`CASE_KEYS`/`EXPECT_KEYS`/
+// `TASK_EXPECT_KEYS` hierboven), nu voor de taak-INVOER i.p.v. de taak-VERWACHTING.
+const TASK_KEYS = {
+  name: true, dur: true, start: true, milestone: true, milestoneKind: true,
+  mandatory: true, parent: true, deadline: true, durationType: true,
+  constraint: true, constraint2: true, hammock: true, externalLinks: true,
+  priority: true, durationMinutesRaw: true, remainingMinutes: true, calendar: true,
+  assign: true, completion: true, actualStart: true, actualFinish: true, rawCompletion: true,
+  code: true, field: true,
+  splitGaps: true, manuallyScheduled: true, levelingDelayMinutes: true, levelingDelayElapsed: true,
+  resume: true, stop: true,
+  timephasedStartAnchor: true, timephasedFinishFloor: true,
+} satisfies Record<keyof Case['tasks'][number], true>;
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -1193,6 +1349,21 @@ function validateCaseKeys(file: string, raw: unknown, index: number): string[] {
 
   for (const k of Object.keys(raw)) {
     if (!known(CASE_KEYS, k)) errs.push(`${where}: onbekende sleutel "${k}" op casus-niveau`);
+  }
+
+  // Z0: taak-INVOER-sleutels tegen TASK_KEYS — zie de toelichting bij TASK_KEYS hierboven.
+  const rawTasks = raw.tasks;
+  if (rawTasks !== undefined) {
+    if (!Array.isArray(rawTasks)) {
+      errs.push(`${where}: "tasks" is geen array`);
+    } else {
+      rawTasks.forEach((t: unknown, ti: number) => {
+        if (!isPlainObject(t)) { errs.push(`${where}: tasks[${ti}] is geen object`); return; }
+        for (const k of Object.keys(t)) {
+          if (!known(TASK_KEYS, k)) errs.push(`${where}: onbekende sleutel "${k}" in tasks[${ti}]`);
+        }
+      });
+    }
   }
 
   const exp = raw.expect;

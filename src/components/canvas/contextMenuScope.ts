@@ -1,5 +1,5 @@
 import { useAppStore } from '@/state/appStore';
-import { applyToTaskIds, deleteTasksBulk } from '@/state/taskBulkActions';
+import { appTaskBulkActions } from '@/state/taskBulkActions';
 import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import type { Task } from '@/types/task';
 
@@ -33,7 +33,7 @@ export function contextMenuOutlineScope(taskId: string): string[] {
  */
 
 /**
- * De één-handeling-is-één-undo-stap-machinerie (`applyToTaskIds`) woont sinds de gelijktrekking
+ * De één-handeling-is-één-undo-stap-machinerie (`appTaskBulkActions`) woont sinds de gelijktrekking
  * van lintknop/Delete/Backspace in `src/state/taskBulkActions.ts` — de lint en de sneltoetsen
  * horen niet uit `components/canvas/` te importeren (zelfde afweging als bij issue #49 hierboven).
  */
@@ -83,7 +83,10 @@ export const contextMenuBulk = {
    */
   toggleMilestone(task: Task): void {
     const isMilestone = !task.isMilestone;
-    applyToTaskIds(contextMenuOutlineScope(task.id), (id) => useAppStore.getState().updateTask(id, { isMilestone }));
+    appTaskBulkActions.applyToTaskIds(
+      contextMenuOutlineScope(task.id),
+      (state, id) => state.updateTask(id, { isMilestone }),
+    );
   },
 
   setCalendar(taskId: string, calendarId: string | undefined): void {
@@ -93,15 +96,21 @@ export const contextMenuBulk = {
     const { tasks } = useAppStore.getState();
     const ids = contextMenuOutlineScope(taskId)
       .filter((id) => tasks.find((t) => t.id === id)?.calendarId !== calendarId);
-    applyToTaskIds(ids, (id) => useAppStore.getState().setTaskCalendar(id, calendarId));
+    appTaskBulkActions.applyToTaskIds(ids, (state, id) => state.setTaskCalendar(id, calendarId));
   },
 
   setProgress(taskId: string, completion: number): void {
-    applyToTaskIds(contextMenuOutlineScope(taskId), (id) => useAppStore.getState().setTaskProgress(id, completion));
+    appTaskBulkActions.applyToTaskIds(
+      contextMenuOutlineScope(taskId),
+      (state, id) => state.setTaskProgress(id, completion),
+    );
   },
 
   setPriority(taskId: string, priority: number): void {
-    applyToTaskIds(contextMenuOutlineScope(taskId), (id) => useAppStore.getState().updateTask(id, { priority }));
+    appTaskBulkActions.applyToTaskIds(
+      contextMenuOutlineScope(taskId),
+      (state, id) => state.updateTask(id, { priority }),
+    );
   },
 
   /**
@@ -110,11 +119,11 @@ export const contextMenuBulk = {
    * bestaat nergens in de app voor taken; ook de lintknop en Delete verwijderen de hele selectie
    * ongevraagd); de terugweg is Ctrl+Z, en dat is nu precies één stap voor de hele bulk.
    *
-   * De uitvoering zelf (`deleteTasksBulk`) is sindsdien de GEDEELDE route met de lintknop
+   * De uitvoering zelf (`appTaskBulkActions.deleteTasksBulk`) is de GEDEELDE route met de lintknop
    * Verwijderen en Delete/Backspace — zie `src/state/taskBulkActions.ts` voor de subboom- en
    * ouder+kind-semantiek.
    */
   remove(taskId: string): void {
-    deleteTasksBulk(contextMenuOutlineScope(taskId));
+    appTaskBulkActions.deleteTasksBulk(contextMenuOutlineScope(taskId));
   },
 };

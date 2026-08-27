@@ -5,7 +5,7 @@ Tasks that stand on their own don't shift when the schedule changes. Relations r
 ## What you'll learn here
 
 - The four relation types (FS/SS/FF/SF) and when to use each.
-- Where a relation can and can't attach — milestones can, summary tasks can't.
+- Where a relation can and can't attach — milestones and summary tasks both can; only a relation to your own (grand)parent phase is rejected.
 - Lag and lead, including percentage lag and elapsed-time lag (for example for concrete curing).
 - Adding relations three ways: dragging, selection, and the relations table.
 - All eight constraint types, plus the hard pin (P6 Mandatory) and the secondary constraint.
@@ -24,19 +24,20 @@ Every relation has a **Predecessor** and a **Successor**, and one of four types:
 
 Want to recognise these first three types in a real example? The "Verbouwing & Aanbouw Eengezinswoning" example contains an FS chain between the main phases, an SS overlap between the wall and roof work, and an FF link between the tiling and painting work.
 
-You can create such a relation between ordinary tasks and between milestones. A milestone has zero
-duration, but otherwise behaves like any other task: it can be a predecessor or a successor, and it
-can sit on the critical path. What you *can't* do is attach a relation to a **summary task** — a
-task that has subtasks of its own. The scheduling engine only calculates tasks without subtasks; a
-summary task's dates are then derived from its children afterwards. A relation to a summary task
-would show up, but it would have no effect at all on the schedule. If you want to link two phases
-together, connect the tasks themselves instead: the last task of one phase to the first task of the
-next — a milestone at the end of a phase works well for this.
+You can create such a relation between ordinary tasks and between milestones. A milestone normally
+has zero duration (if it's been given a duration greater than 0 itself — via an import, for
+example — it simply schedules with that duration), but otherwise behaves like any other task: it
+can be a predecessor or a successor, and it can sit on the critical path. You can also put a relation directly on a **summary task** — a task
+that has subtasks of its own: see the section below ("Relations on summary tasks") for how Open
+Planner Studio works such a relation through to the underlying tasks.
 
-If an opened file already contains a relation with a summary task as endpoint anyway — for example
-from Primavera P6 or MS Project, which do allow it — that relation is preserved and carried through
-unchanged on save. The Relations panel flags it as *no effect*, so you can see the schedule isn't
-calculating with it.
+One kind of link is rejected: a relation between a task and its own **(grand)parent summary task**
+(in either direction). Such a relation would effectively tie the task to its own phase — logically
+pointless, and without this rejection it could produce a cycle at calculation time that loops back
+through the task's own branch, which would make the whole calculation fail. If an opened file already
+contains such a relation anyway — for example from Primavera P6 or MS Project, which do allow it —
+it's preserved and carried through unchanged on save, but it doesn't count in the calculation: the
+Relations panel flags it as *not included*.
 
 ## Lag and lead
 
@@ -59,6 +60,26 @@ There are three ways to create a relation, depending on where you're already wor
 
 The **Driving** column shows, after a calculation, which relation actually determines the successor's start or finish date — for a task with multiple predecessors, that isn't necessarily the relation you created most recently, but the one with the latest (driving) date.
 
+## Relations on summary tasks
+
+You can also put a relation directly on a summary task (a phase or WBS group) instead of on one of the underlying tasks. Open Planner Studio automatically works this relation through to the underlying tasks — the same approach as MS Project:
+
+- **Summary as predecessor**: every underlying task itself becomes a predecessor of the successor. The successor effectively waits for the entire phase — the last task in that phase to finish determines the date.
+- **Summary as successor**: every underlying task itself becomes a successor of the predecessor. Every task in the phase waits for that same predecessor.
+- **Summary on both sides**: every task on one side gets a relation with every task on the other side.
+
+This is exact for **FS and FF** with a summary as predecessor, and for **FS and SS** with a summary as successor. For **SS/SF** with a summary as predecessor and **FF/SF** with a summary as successor — rare combinations in construction practice — Open Planner Studio deliberately plans on the safe side: possibly a bit later than strictly necessary, never earlier.
+
+## Jumping to a linked task
+
+In the properties panel, every dependency row shows the WBS number of the linked task as a
+clickable button. Hover over it to see the same details as hovering over a
+task bar in the Gantt chart (name, WBS, duration, start/finish, status, critical path, total
+float). Click it to select that task: the Gantt chart zooms and scrolls to it, automatically
+expanding any collapsed parent task that was hiding it.
+A gold WBS button is a predecessor of the selected task; a purple button is a successor.
+Long WBS numbers are truncated in the row, but remain fully visible in the hover details.
+
 ## Constraint types
 
 A constraint imposes a date boundary on a task, independent of its relations. Open Planner Studio has eight types, set via the **Constraint** field in the properties panel:
@@ -79,6 +100,8 @@ SNET/SNLT/FNET/FNLT are all **soft boundaries**: the CPM calculation takes them 
 MSO and MFO can additionally be made **hard** via the **Mandatory (pin logic)** checkbox, which only appears for these two types. This is the "P6 Mandatory" constraint from Primavera P6: the bar is fixed on the date, even if its predecessors logically contradict that. When you turn on a hard pin, Open Planner Studio shows a one-time warning: **a hard pin overrides the relationships — the bar is fixed on the date, even before its predecessors. A violation becomes negative float upstream.**
 
 So only use a hard pin when a date genuinely isn't negotiable and stands apart from the schedule's logic — for example a legally fixed handover date that stands regardless of progress. Do **not** use it as a rule of thumb for "I want this task to sit on that date": in that case a soft constraint (SNET/FNLT/etc.) or simply a well-planned chain of relations is almost always the better choice. A hard pin can squeeze the whole network upstream: if the preceding tasks want to run through the pin, negative float appears and propagates through the entire chain before the pinned task — a sign the schedule conflicts, not that the pin solved the problem.
+
+A **manually scheduled** task (that flag arises from a `.mpp` import) wins even over a hard pin: such a task keeps its own stored date regardless, and any constraint set on it at the same time — soft or hard — is ignored. That's not a bug but the same behavior MS Project itself has.
 
 ### Secondary constraint
 

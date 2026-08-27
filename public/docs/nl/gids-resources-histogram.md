@@ -79,6 +79,8 @@ Links van de staafjes, boven de taaktabel-kolom, staat de **resourcekiezer**: ee
 
 Klik je op een overbelaste staaf, dan toont een tooltip hoeveel taken op die dag bijdragen aan de belasting, met de eerste paar taaknamen — handig om snel te zien wélke combinatie van taken de overallocatie veroorzaakt zonder elke toewijzing los na te lopen.
 
+Selecteer je één of meer taken in de Gantt, dan wordt dit tijdelijk een taakcontext: de resourcekiezer, de histogramstaven en de tooltip gebruiken alleen de toewijzingen van die selectie. Het gedockte resourcepaneel toont in diezelfde situatie alleen de bijbehorende resources. Met Ctrl/Cmd- of Shift-selectie is dat de unie van de resources van alle geselecteerde taken. Wis de selectie, dan keren het volledige resourcelijstje en histogram terug; een eerder handmatig gekozen histogramresource blijft daarbij je voorkeur.
+
 Staat er "Herbereken (F5) om de belasting te tonen" in plaats van staafjes, dan is de planning nog niet (opnieuw) doorgerekend sinds de laatste wijziging — het histogram is, net als het kritieke pad, een momentopname die je zelf ververst.
 
 ## Het gedockte resourcepaneel

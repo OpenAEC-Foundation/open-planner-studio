@@ -44,6 +44,20 @@ Hay tres formas de crear una relación, según en qué parte ya esté trabajando
 
 La columna **Determinante** muestra, tras un cálculo, qué relación determina realmente la fecha de inicio o de fin de la sucesora — para una tarea con varias predecesoras, esa no es necesariamente la relación que creó más recientemente, sino la que tiene la fecha más tardía (determinante).
 
+## Relaciones en tareas de resumen
+
+También puede colocar una relación directamente en una tarea de resumen (una fase o grupo EDT) en lugar de en una de las tareas subyacentes. Open Planner Studio propaga automáticamente esa relación a las tareas subyacentes — el mismo enfoque que MS Project:
+
+- **Resumen como predecesora**: cada tarea subyacente se convierte ella misma en predecesora de la sucesora. Esta espera efectivamente a toda la fase — la tarea que termina en último lugar en esa fase determina la fecha.
+- **Resumen como sucesora**: cada tarea subyacente se convierte ella misma en sucesora de la predecesora. Todas las tareas de la fase esperan así a esa misma predecesora.
+- **Resumen en ambos lados**: cada tarea de un lado recibe una relación con cada tarea del otro lado.
+
+Esto es exacto para **FS y FF** con un resumen como predecesora, y para **FS y SS** con un resumen como sucesora. Para **SS/SF** con un resumen como predecesora y **FF/SF** con un resumen como sucesora — combinaciones poco frecuentes en la práctica de la construcción — Open Planner Studio planifica deliberadamente del lado seguro: posiblemente algo más tarde de lo estrictamente necesario, nunca antes.
+
+## Saltar a una tarea vinculada
+
+En el panel de propiedades, cada fila de dependencia muestra también el número WBS de la tarea vinculada como botón en el que se puede hacer clic. Pase el cursor sobre él para ver los mismos detalles que al pasar el cursor sobre una barra de tarea en el diagrama de Gantt (nombre, WBS, duración, inicio/fin, estado, ruta crítica, holgura total). Haga clic para seleccionar esa tarea: el diagrama de Gantt hace zoom y se desplaza hasta ella, y expande automáticamente cualquier tarea principal contraída que la ocultaba.
+
 ## Tipos de restricción
 
 Una restricción impone un límite de fecha a una tarea, con independencia de sus relaciones. Open Planner Studio tiene ocho tipos, que se establecen mediante el campo **Restricción** en el panel de propiedades:

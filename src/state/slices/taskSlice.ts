@@ -1,13 +1,16 @@
 import { Task, type ExternalLink } from '@/types/task';
-import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import type { Sequence } from '@/types/sequence';
-import type { ResourceAssignment } from '@/types/resource';
+import {
+  createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
+  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
+} from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, parseDate, parseInstant } from '@/utils/dateUtils';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
-import { beginUndoable, finishMutation } from '../transaction';
-import type { AppSlice, SiblingDirection } from './types';
+import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
+import { finishMutation } from '../transaction';
+import { notifyTimephasedLoss } from '../timephasedLossNotice';
+import type { AppSliceFactory, SiblingDirection } from './types';
 
 /**
  * Zelfstandige kopie van een takenselectie (incl. subtaken), de interne
@@ -16,16 +19,8 @@ import type { AppSlice, SiblingDirection } from './types';
  * App-state, géén projectdata: rondt niet door de IFC-laag en zit niet in
  * de undo/redo-snapshots.
  */
-export interface TaskClipboard {
-  tasks: Task[];
-  sequences: Sequence[];
-  assignments: ResourceAssignment[];
-}
-
 export interface TaskSlice {
   tasks: Task[];
-  selectedTaskIds: string[];
-  taskClipboard: TaskClipboard | null;
   addTask: (task: Partial<Task> & {
     name: string;
     /** Golf 1 (fase 2.10, Insert-sneltoets/contextmenu "invoegen boven/onder"): plaats de nieuwe
@@ -36,6 +31,8 @@ export interface TaskSlice {
   }) => string;
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
   deleteTask: (id: string) => void;
+  /** Verwijder meerdere taken en hun subbomen als precies één undoable storehandeling. */
+  deleteTasksBulk: (ids: readonly string[]) => void;
   /** Verplaats `id` onder een nieuwe ouder (null = root). `position` afwezig ⇒ byte-identiek aan het
    *  oude gedrag (achteraan childIds, rauwe array ongemoeid). `position` aanwezig ⇒ insert op die
    *  index — consistent in childIds (zichtbare volgorde niet-root, visibleRows.ts) ÉN in de rauwe
@@ -63,25 +60,10 @@ export interface TaskSlice {
    *  zelf blijft ongewijzigd. Verder identiek aan `moveTaskTo` (WBS-hernummering, `stale` alleen
    *  bij een echte reparent). */
   moveTasksTo: (ids: string[], target: { parentId: string | null; childIndex: number }) => void;
-  selectTask: (id: string, multi?: boolean, range?: boolean) => void;
-  selectTaskRange: (fromId: string, toId: string) => void;
-  deselectAll: () => void;
-  /** Golf 1 (fase 2.10, Ctrl/Cmd+A): selecteer alle ZICHTBARE taken — leest `viewRows` (dezelfde
-   *  zichtbaarheids-afleiding als de tabel/Gantt, respecteert dus ingeklapte groepen/summaries).
-   *  Geen undo: selectie is geen documentdata (zoals `selectTask`/`deselectAll` hierboven). */
-  selectAllTasks: () => void;
-  /** Golf 4 (fase 2.10, box-selection): zet de selectie op precies `ids` (vervangen), of voeg ze toe
-   *  aan de bestaande selectie (`additive`, Ctrl/Cmd tijdens het slepen). Geen undo: selectie is
-   *  geen documentdata (zelfde regel als `selectAllTasks`/`deselectAll` hierboven). */
-  selectTasks: (ids: string[], additive: boolean) => void;
   /** Golf 1 (fase 2.10, Ctrl/Cmd+Alt+↑/↓): verwissel `taskId` met zijn vorige/volgende sibling
    *  binnen dezelfde ouder (top-level: de root-lijst). No-op aan de rand. Puur volgorde — raakt
    *  GEEN tijden/CPM, dus (in tegenstelling tot de meeste taak-acties) GEEN scheduleStale. */
   reorderSibling: (taskId: string, direction: SiblingDirection) => void;
-  /** Kopieer de opgegeven takken (default: de huidige selectie) incl. subtaken naar het klembord. */
-  copyTasks: (ids?: string[]) => void;
-  /** Plak het klembord als nieuwe takken; geeft de nieuwe root-ids terug (leeg als er niets te plakken viel). */
-  pasteTasks: () => string[];
   /** Hernummer alle WBS-codes uit de boompositie (1.2.3.4) — de expliciete variant van wbsAutoNumber. */
   renumberWbs: () => void;
   /** Inspringen (MSP Alt+Shift+→): elke taak wordt kind van zijn voorgaande zichtbare sibling. */
@@ -158,16 +140,8 @@ function planTaskPlacement(
   const newParentId = target.parentId;
   if (newParentId !== null && !tasks.some(t => t.id === newParentId)) return null;
 
-  // Guard 3: cykel.
-  if (newParentId !== null) {
-    const bezocht = new Set<string>();
-    let cur: Task | undefined = newParentId === id ? task : tasks.find(t => t.id === newParentId);
-    while (cur && !bezocht.has(cur.id)) {
-      if (cur.id === id) return null; // newParentId is id zelf, of een afstammeling van id
-      bezocht.add(cur.id);
-      cur = cur.parentId ? tasks.find(t => t.id === cur!.parentId) : undefined;
-    }
-  }
+  // Guard 3: cykel — de nieuwe ouder is de taak zelf of een afstammeling ervan.
+  if (newParentId !== null && isSelfOrDescendant(tasks, newParentId, id)) return null;
 
   const oldParentId = task.parentId;
   const oldParent = oldParentId ? tasks.find(t => t.id === oldParentId) : undefined;
@@ -204,13 +178,11 @@ function planTaskPlacement(
 function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): void {
   const task = tasks.find(t => t.id === id);
   if (!task) return; // kan niet: guard 1 van planTaskPlacement dekt dit al (defensief).
-  const oldParent = task.parentId ? tasks.find(t => t.id === task.parentId) : undefined;
-  const newParent = plan.parentId ? tasks.find(t => t.id === plan.parentId) : undefined;
-
   // childIds (display-bron, zie visibleRows.ts): verwijderen uit oude ouder, invoegen in nieuwe.
-  if (oldParent) oldParent.childIds = oldParent.childIds.filter(cid => cid !== id);
-  task.parentId = plan.parentId;
-  if (newParent) newParent.childIds.splice(plan.index, 0, id);
+  // Eerst detach en dán attach — bij een verplaatsing BINNEN dezelfde ouder zou de omgekeerde
+  // volgorde de taak twee keer in de lijst zetten.
+  detachFromParent(tasks, id);
+  attachToParent(tasks, id, plan.parentId, plan.index);
 
   // Rauwe tasks-array (WBS/flatten + root-volgorde, zie utils/wbs.ts flattenOrder).
   const rawIdx = tasks.findIndex(t => t.id === id);
@@ -238,16 +210,51 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
  * engine/view/dropTarget.ts). Gedeeld door `moveTasksTo`, dat na elke plaatsing opnieuw moet meten
  * waar een taak werkelijk geland is.
  */
-function siblingIdsOf(tasks: Task[], parentId: string | null): string[] {
-  if (parentId === null) return tasks.filter(t => !t.parentId).map(t => t.id);
-  return tasks.find(t => t.id === parentId)?.childIds ?? [];
+/**
+ * T16-veeglijst-fix (B4-nasleep, Opus-her-check T15-fixronde — gepind als BEKENDE BEPERKING, hier
+ * gefixt): `setActualStart`/`setActualFinish` vergeleken tot deze fix een RUWE actual-ISO-string
+ * lexicografisch met `project.statusDate`. Dat werkt alleen zolang beide dezelfde precisie dragen
+ * (twee date-only strings, of twee datetime-strings) — een uur-precieze `date` (`"2026-07-06T08:00"`)
+ * is lexicografisch altijd "groter" dan een datumloze `statusDate` op DEZELFDE dag (`"2026-07-06"`),
+ * dus zo'n actual werd stil geweigerd ongeacht de klokstand.
+ *
+ * Fix: bij een DATUMLOZE `statusDate` (`project.statusDate` bevat geen `T` — het gebruikelijke
+ * dag-modus-geval, §3.4) wordt alleen de KALENDERDAG vergeleken (`parseDate`, tijd-component
+ * genegeerd): elke klokstand OP de statusdatum-dag zelf is toegestaan, alleen een latere dag wordt
+ * geweigerd — precies de bedoelde "geen actuals ná de statusdatum"-regel, zonder de precisiemismatch.
+ * Draagt `statusDate` zelf al een tijd-component (uur-modus, §3.4), dan blijft de vergelijking op
+ * volle instant-precisie (`parseInstant`) — dat geval was vóór deze fix al correct (gelijke precisie
+ * aan weerszijden) en blijft dat, byte-identiek. */
+function isActualPastStatusDate(dateIso: string, statusDateIso: string): boolean {
+  if (!statusDateIso.includes('T')) {
+    return parseDate(dateIso).getTime() > parseDate(statusDateIso).getTime();
+  }
+  return parseInstant(dateIso).getTime() > parseInstant(statusDateIso).getTime();
 }
 
 /**
  * Voortgang-invarianten (§3.2), toegepast op een task-draft ná elke progress-mutatie:
  * actualFinish ⇒ completion 1 + actualStart + COMPLETED; completion 1 ⇒ actualFinish (default =
- * statusdatum of vandaag); actualStart zonder finish ⇒ STARTED; niets ⇒ NOT_STARTED;
- * remainingTime = round(scheduleDuration × (1 − completion)).
+ * statusdatum, anders de taak se EIGEN geplande finish — MSP-semantiek: afvinken op 100% zonder
+ * expliciete datum maakt de geplande datums de actuals, NOOIT "vandaag"); actualStart zonder
+ * finish ⇒ STARTED; niets ⇒ NOT_STARTED; remainingTime = round(scheduleDuration × (1 − completion)).
+ *
+ * H1 (Opus-review T15-iteratie-2, app-brede regressie): vóór deze fix viel de `completion===1`-tak
+ * zónder statusdatum terug op `formatDate(new Date())` ("vandaag"). Zolang `CPMSolver`'s VOLTOOID-
+ * branch zelf ook een statusdatum vereiste was dat onschadelijk (de solver negeerde `actualFinish`
+ * toch); sinds T15 (c2, `7a40a5ab`) is die branch UNCONDITIONEEL — een taak zonder statusdatum die
+ * de gebruiker op 100% zet, teleporteerde daardoor letterlijk naar de dag van vandaag (en sleepte
+ * haar opvolgers mee via de gewone FS-relatiewiskunde). De juiste terugval is de taak se EIGEN,
+ * al-berekende finish (`earlyFinish` — bij een verse taak byte-identiek aan `scheduleFinish`, ná een
+ * `runCPM` de laatst getoonde Gantt-datum): dat is precies wat MS Project zelf doet ("Mark on Track"/
+ * 100%-invullen zonder statusdatum kopieert de GEPLANDE datums naar de actuals, nooit de kalenderdag
+ * van vandaag). Zie `check-task-slice.ts`'s `prog-h1-geen-teleport-naar-vandaag`-case (B1, Opus-
+ * her-check) voor het mutatiebewijs: een taak-anker in 2015 (ver vóór elke plausibele testdatum),
+ * zodat de vandaag-fallback nooit toevallig met de verwachting kan samenvallen. Terugzetten naar
+ * `formatDate(new Date())` laat die case rood uitslaan; dezelfde bundel pint ook dat `scheduleStale`
+ * altijd gezet wordt (`prog-h1-stale-zonder-statusdatum`) — de `stale: !!s.project.statusDate`-poort
+ * terugzetten in `setTaskProgress`/`setActualStart`/`setActualFinish` laat exact díé asserts rood
+ * uitslaan.
  */
 export function applyProgressInvariants(task: Task, statusDate: string | undefined): void {
   const time = task.time;
@@ -256,7 +263,7 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.completion >= 1) {
-    time.actualFinish = statusDate || formatDate(new Date());
+    time.actualFinish = statusDate || time.earlyFinish || time.scheduleFinish;
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.actualStart) {
@@ -267,15 +274,13 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
   time.remainingTime = Math.round(time.scheduleDuration * (1 - time.completion));
 }
 
-export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
+export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => ({
   tasks: [],
-  selectedTaskIds: [],
-  taskClipboard: null,
 
   addTask: (partial) => {
     const id = generateId('task');
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       const now = s.project.startDate || formatDate(new Date());
 
@@ -310,7 +315,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         priority: partial.priority ?? 500,
         parentId,
         childIds: [],
-        time: partial.time || createDefaultTaskTime(now, partial.isMilestone ? 0 : 5),
+        // T14b (gebruikstestbevinding, ernst hoog — dataverlies): een meegegeven `partial.time` wordt
+        // veld-voor-veld gemerged met de verse default i.p.v. ongewijzigd overgenomen — anders bleef
+        // een ontbrekend veld (bv. `completion`) `undefined` tot writeIFC crashte op
+        // `time.completion.toFixed(1)`. Zelfde regel in het MCP-pad: zie mcpTransaction.ts draft.addTask.
+        time: mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5), partial.time),
         resourceIds: partial.resourceIds || [],
         color: partial.color,
         constraint: partial.constraint,
@@ -328,6 +337,14 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         // QA-fix (fase 2.10, onderdeel 2, bevinding 4): notes werd hier vergeten — de andere
         // optionele velden (constraint2/isHammock/externalLinks/...) volgen wél al dit patroon.
         notes: partial.notes,
+        // Z0 (etappe "nul afwijkingen"): typecontract-doorgifte, nog ONGEBRUIKT door de solver —
+        // zelfde patroon als isHammock/externalLinks hierboven. Afwezig ⇒ undefined ⇒
+        // byte-identiek default-document. (`levelingDelay` zelf staat hier bewust NIET: dat veld
+        // wordt uitsluitend door de nivelleerder gezet, nooit via addTask.)
+        splitGaps: partial.splitGaps,
+        manuallyScheduled: partial.manuallyScheduled,
+        levelingDelayMinutes: partial.levelingDelayMinutes,
+        levelingDelayElapsed: partial.levelingDelayElapsed,
       };
 
       // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
@@ -375,26 +392,56 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
   },
 
   updateTask: (id, updates, opts) => {
+    // mpp-nul-data-etappe, DEEL 1 — buiten de Immer-producer bijgehouden (zelfde discipline als
+    // `fileSlice.ts`'s `applyLoadedProject`: `notify` doet zelf een `set()`, dus nooit ván bínnen
+    // een lopende producer aanroepen). `true` alleen bij een ECHT verlies, zie taskDefaults.ts.
+    let lostTimephasedGuidance = false;
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
-      beginUndoable(s, opts); // snapshot pas ná de guard, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
-      Object.assign(s.tasks[idx], updates);
+      runtime.beginUndoable(s, opts); // snapshot pas ná de guard, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
+      // T14b-vervolg (gebruikstestbevinding): `updates.time` (indien meegegeven) apart mergen tegen
+      // de BESTAANDE tijd van de taak i.p.v. 'm via Object.assign in zijn geheel te laten vervangen —
+      // anders wist een PARTIEEL time-object (bv. via de publieke `api.data.updateTask`, waar de
+      // `ExtTaskTime`-volledigheid niet op runtime wordt afgedwongen) stil bestaande verplichte velden
+      // (completion/floats/…) tot een lege plek diezelfde writeIFC-crash weer opende. Zie
+      // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
+      const { time, ...rest } = updates;
+      Object.assign(s.tasks[idx], rest);
+      if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
+      // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
+      // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
+      // voor de volledige triggerset-toelichting.
+      if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
+        const clearedWindow = clearTimephasedWindow(s.tasks[idx]);
+        // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee (zie
+        // `taskDefaults.ts`'s bijgewerkte docblok): een walk met bevroren `workMinutes` negeert een
+        // duur-/datum-/kalenderwijziging anders stilzwijgend.
+        const clearedWalks = timephasedDurationWalksHaveFrozenWork(s.tasks[idx])
+          && clearTimephasedDurationWalks(s.tasks[idx]);
+        lostTimephasedGuidance = clearedWindow || clearedWalks;
+      }
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       finishMutation(s, { stale: true });
     });
+    if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeViewRows();
   },
 
   setTaskCalendar: (taskId, calendarId) => {
+    // mpp-nul-data-etappe, DEEL 1 — zie `updateTask` hierboven.
+    let lostTimephasedGuidance = false;
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       task.calendarId = calendarId; // undefined = projectkalender
+      lostTimephasedGuidance = clearTimephasedWindow(task); // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts
       finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });
+    if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeViewRows();
   },
 
@@ -403,7 +450,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       const full: ExternalLink = { ...link, id };
       task.externalLinks = [...(task.externalLinks ?? []), full];
       finishMutation(s, { stale: true }); // een bevroren datum-grens is datum-beïnvloedend (§4.5).
@@ -418,7 +465,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       if (!task || !task.externalLinks) return;
       const next = task.externalLinks.filter((l) => l.id !== linkId);
       if (next.length === task.externalLinks.length) return; // no-op: niets verwijderd
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       task.externalLinks = next.length > 0 ? next : undefined;
       finishMutation(s, { stale: true });
     });
@@ -429,24 +476,13 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     set((s) => {
       const task = s.tasks.find(t => t.id === id);
       if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       // Remove from parent
-      if (task.parentId) {
-        const parent = s.tasks.find(t => t.id === task.parentId);
-        if (parent) {
-          parent.childIds = parent.childIds.filter(cid => cid !== id);
-        }
-      }
+      detachFromParent(s.tasks, id);
 
       // Remove child tasks recursively
-      const removeIds = new Set<string>();
-      const collectChildren = (taskId: string) => {
-        removeIds.add(taskId);
-        const t = s.tasks.find(tt => tt.id === taskId);
-        if (t) t.childIds.forEach(collectChildren);
-      };
-      collectChildren(id);
+      const removeIds = new Set(collectSubtreeIds(s.tasks, id));
 
       s.tasks = s.tasks.filter(t => !removeIds.has(t.id));
       s.sequences = s.sequences.filter(
@@ -456,6 +492,37 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
+    });
+    get().recomputeViewRows();
+  },
+
+  deleteTasksBulk: (ids) => {
+    const frozen = [...ids];
+    if (frozen.length === 0) return;
+    if (frozen.length === 1) {
+      get().deleteTask(frozen[0]);
+      return;
+    }
+
+    set((s) => {
+      const roots = frozen.filter((id) => s.tasks.some((task) => task.id === id));
+      if (roots.length === 0) return;
+      runtime.beginUndoable(s);
+
+      const removeIds = new Set<string>();
+      for (const id of roots) {
+        detachFromParent(s.tasks, id);
+        for (const subtreeId of collectSubtreeIds(s.tasks, id)) removeIds.add(subtreeId);
+      }
+
+      s.tasks = s.tasks.filter((task) => !removeIds.has(task.id));
+      s.sequences = s.sequences.filter(
+        (sequence) => !removeIds.has(sequence.predecessorId) && !removeIds.has(sequence.successorId),
+      );
+      s.assignments = s.assignments.filter((assignment) => !removeIds.has(assignment.taskId));
+      s.selectedTaskIds = s.selectedTaskIds.filter((id) => !removeIds.has(id));
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
   },
@@ -472,31 +539,17 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       // die haalt parentId daarom uit de kale `updateTask`-patch en roept in plaats daarvan dit aan).
       // `position` verandert deze guards NIET: een geweigerde move blijft ook mét positie geweigerd.
       if (newParentId != null) {
-        // Review issue #21 pt. 1: visited-set voorkomt een oneindige lus (app-bevriezing) op
-        // corrupte parentId-cycli die id zelf niet bevatten (bereikbaar via een corrupt IFC —
-        // extractNesting zet parentId zonder cykelcheck). flattenOrder overleeft zo'n cyclus
-        // al met een seen-set; deze walk nu ook.
-        const bezocht = new Set<string>();
-        let cur: Task | undefined = newParentId === id ? task : s.tasks.find(t => t.id === newParentId);
-        while (cur && !bezocht.has(cur.id)) {
-          if (cur.id === id) return; // newParentId is id zelf, of een afstammeling van id
-          bezocht.add(cur.id);
-          cur = cur.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
-        }
+        // Cyklusguard (review issue #21 pt. 1): de nieuwe ouder mag de taak zelf of een
+        // afstammeling ervan niet zijn — corrupte parentId-cycli zijn bereikbaar via een IFC
+        // waarin `extractNesting` de nesting zonder cyklusguard zet. Sinds K-item 35 de gedeelde
+        // functie; hier stond tot een review een vijfde handkopie inclusief eigen bezocht-set.
+        if (isSelfOrDescendant(s.tasks, newParentId, id)) return;
       }
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       // Remove from old parent
-      if (task.parentId) {
-        const oldParent = s.tasks.find(t => t.id === task.parentId);
-        if (oldParent) {
-          oldParent.childIds = oldParent.childIds.filter(c => c !== id);
-        }
-      }
-
-      // Add to new parent
-      task.parentId = newParentId;
+      detachFromParent(s.tasks, id);
 
       // Insert op `position` (T12), of — zonder positie — achteraan, volgens het dubbele-
       // volgorde-principe van de store-`addTask` met anker. WBS-nummering (flattenOrder) leest de
@@ -507,15 +560,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       // achteraan verscheen: gerapporteerde 3.1/3.2/3.3-bug, taskDialog "parent wijzigen").
       //
       // (1) childIds van de nieuwe ouder — zichtbare volgorde voor niet-root taken.
-      if (newParentId) {
-        const newParent = s.tasks.find(t => t.id === newParentId);
-        if (newParent) {
-          const at = position === undefined
-            ? newParent.childIds.length
-            : Math.max(0, Math.min(position, newParent.childIds.length));
-          newParent.childIds.splice(at, 0, id);
-        }
-      }
+      // `attachToParent` zet parentId én voegt geklemd in — hier stond diezelfde klem-en-splice
+      // tot een review nog een keer overgetypt.
+      attachToParent(s.tasks, id, newParentId, position);
       // (2) rauwe s.tasks-array — root-volgorde + WBS. Haal de taak eruit en zet 'm terug zó dat
       // hij — gerekend over alléén zijn siblings (taken met dezelfde parentId, in array-volgorde)
       // — op index `position` (of, zonder positie, achteraan) staat. Nakomelingen blijven staan
@@ -559,7 +606,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       const plan = planTaskPlacement(s.tasks, id, target, { rejectNoOp: true });
       if (!plan) return;
 
-      beginUndoable(s); // één undo-stap, géén coalesceKey (één aanroep per geslaagde move).
+      runtime.beginUndoable(s); // één undo-stap, géén coalesceKey (één aanroep per geslaagde move).
       applyTaskPlacement(s.tasks, id, plan);
 
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
@@ -636,7 +683,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
           // `id` er expliciet uit: `planTaskPlacement` klemt en telt tegen de siblinglijst ZÓNDER
           // de verplaatste taak (zie `siblingIdsAfterRemoval`). Meten we hier in de lijst MÉT `id`,
           // dan is de index één te hoog zodra `id` momenteel vóór de voorganger staat.
-          const siblingsZonderId = siblingIdsOf(s.tasks, target.parentId).filter(x => x !== id);
+          const siblingsZonderId = siblingIds(s.tasks, target.parentId).filter(x => x !== id);
           const vorigeIdx = siblingsZonderId.indexOf(vorigeId);
           // −1 kan alleen bij een kapotte boom: dan achteraan, net als de fallbacks elders.
           childIndex = vorigeIdx >= 0 ? vorigeIdx + 1 : siblingsZonderId.length;
@@ -652,12 +699,12 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         // Staat de taak al precies goed? Dan niets muteren (en dus ook geen undo-stap forceren),
         // maar wél als voorganger tellen — hij stáát immers op de doelpositie. `curIdx` (index MÉT
         // zichzelf) en `plan.index` (ZONDER zichzelf) zijn direct vergelijkbaar, zie guard 4.
-        const curIdx = siblingIdsOf(s.tasks, oudeOuder).indexOf(id);
+        const curIdx = siblingIds(s.tasks, oudeOuder).indexOf(id);
         if (plan.parentId !== oudeOuder || plan.index !== curIdx) {
           // Lazy snapshot: pas bij de EERSTE échte verplaatsing, één keer voor de hele groep.
           // Vóór enige draft-mutatie, zoals de conventie in state/transaction.ts voorschrijft.
           if (!snapshotPushed) {
-            beginUndoable(s);
+            runtime.beginUndoable(s);
             snapshotPushed = true;
           }
           applyTaskPlacement(s.tasks, id, plan);
@@ -705,16 +752,11 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         }
         if (!newParentId) continue;
         if (!snapshotPushed) {
-          beginUndoable(s);
+          runtime.beginUndoable(s);
           snapshotPushed = true;
         }
-        if (task.parentId) {
-          const oldParent = s.tasks.find(t => t.id === task.parentId);
-          if (oldParent) oldParent.childIds = oldParent.childIds.filter(c => c !== id);
-        }
-        task.parentId = newParentId;
-        const newParent = s.tasks.find(t => t.id === newParentId);
-        if (newParent) newParent.childIds.push(id);
+        detachFromParent(s.tasks, id);
+        attachToParent(s.tasks, id, newParentId);
         changed = true;
       }
       if (!changed) return;
@@ -762,7 +804,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         // Lazy snapshot: pas bij de EERSTE échte wijziging, zodat een volledig geweigerde poging
         // géén undo-stap oplevert — en meerdere taken samen precies één undo-stap.
         if (!snapshotPushed) {
-          beginUndoable(s);
+          runtime.beginUndoable(s);
           snapshotPushed = true;
         }
         applyTaskPlacement(s.tasks, id, plan);
@@ -774,70 +816,6 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     });
     get().recomputeViewRows();
   },
-
-  selectTask: (id, multi = false, range = false) =>
-    set((s) => {
-      if (range && s.selectedTaskIds.length > 0) {
-        // Shift+click: select range from last selected to clicked task
-        const lastSelected = s.selectedTaskIds[s.selectedTaskIds.length - 1];
-        const flatIds = s.tasks.map(t => t.id);
-        const fromIdx = flatIds.indexOf(lastSelected);
-        const toIdx = flatIds.indexOf(id);
-        if (fromIdx >= 0 && toIdx >= 0) {
-          const start = Math.min(fromIdx, toIdx);
-          const end = Math.max(fromIdx, toIdx);
-          const rangeIds = flatIds.slice(start, end + 1);
-          // Merge with existing selection (union)
-          const merged = new Set([...s.selectedTaskIds, ...rangeIds]);
-          s.selectedTaskIds = Array.from(merged);
-        } else {
-          s.selectedTaskIds = [id];
-        }
-      } else if (multi) {
-        const idx = s.selectedTaskIds.indexOf(id);
-        if (idx >= 0) {
-          s.selectedTaskIds.splice(idx, 1);
-        } else {
-          s.selectedTaskIds.push(id);
-        }
-      } else {
-        s.selectedTaskIds = [id];
-      }
-    }),
-
-  selectTaskRange: (fromId, toId) =>
-    set((s) => {
-      const flatIds = s.tasks.map(t => t.id);
-      const fromIdx = flatIds.indexOf(fromId);
-      const toIdx = flatIds.indexOf(toId);
-      if (fromIdx >= 0 && toIdx >= 0) {
-        const start = Math.min(fromIdx, toIdx);
-        const end = Math.max(fromIdx, toIdx);
-        s.selectedTaskIds = flatIds.slice(start, end + 1);
-      }
-    }),
-
-  deselectAll: () =>
-    set((s) => {
-      s.selectedTaskIds = [];
-    }),
-
-  selectAllTasks: () =>
-    set((s) => {
-      s.selectedTaskIds = s.viewRows
-        .filter((row): row is Extract<typeof row, { kind: 'task' }> => row.kind === 'task')
-        .map((row) => row.task.id);
-    }),
-
-  selectTasks: (ids, additive) =>
-    set((s) => {
-      if (!additive) {
-        s.selectedTaskIds = [...ids];
-        return;
-      }
-      const merged = new Set([...s.selectedTaskIds, ...ids]);
-      s.selectedTaskIds = Array.from(merged);
-    }),
 
   reorderSibling: (taskId, direction) => {
     set((s) => {
@@ -854,7 +832,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         if (swapIdx < 0 || swapIdx >= parent.childIds.length) return; // rand: no-op
         const otherId = parent.childIds[swapIdx];
 
-        beginUndoable(s);
+        runtime.beginUndoable(s);
         const tmp = parent.childIds[idx];
         parent.childIds[idx] = parent.childIds[swapIdx];
         parent.childIds[swapIdx] = tmp;
@@ -887,7 +865,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         const absA = s.tasks.findIndex(t => t.id === taskId);
         const absB = s.tasks.findIndex(t => t.id === otherId);
 
-        beginUndoable(s);
+        runtime.beginUndoable(s);
         const tmp = s.tasks[absA];
         s.tasks[absA] = s.tasks[absB];
         s.tasks[absB] = tmp;
@@ -900,123 +878,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     get().recomputeViewRows();
   },
 
-  copyTasks: (ids) =>
-    set((s) => {
-      const sourceIds = ids ?? s.selectedTaskIds;
-      if (sourceIds.length === 0) return;
-
-      // Selectie uitbreiden met alle (klein)kinderen, net als bij verwijderen.
-      const idSet = new Set<string>();
-      const collect = (taskId: string) => {
-        if (idSet.has(taskId)) return;
-        idSet.add(taskId);
-        const t = s.tasks.find(tt => tt.id === taskId);
-        if (t) t.childIds.forEach(collect);
-      };
-      sourceIds.forEach(collect);
-
-      const tasks = s.tasks.filter(t => idSet.has(t.id));
-      if (tasks.length === 0) return;
-
-      // Alleen relaties waarvan beide uiteinden mee gekopieerd worden.
-      const sequences = s.sequences.filter(
-        seq => idSet.has(seq.predecessorId) && idSet.has(seq.successorId),
-      );
-      const assignments = s.assignments.filter(a => idSet.has(a.taskId));
-
-      // Deep-clone: het klembord blijft geldig na latere edits/undo van de bron.
-      s.taskClipboard = JSON.parse(JSON.stringify({ tasks, sequences, assignments }));
-    }),
-
-  pasteTasks: () => {
-    const newRootIds: string[] = [];
-    set((s) => {
-      const clip = s.taskClipboard;
-      if (!clip || clip.tasks.length === 0) return;
-
-      beginUndoable(s);
-
-      const copiedIds = new Set(clip.tasks.map(t => t.id));
-      const resourceExists = new Set(s.resources.map(r => r.id));
-
-      // Geplakte roots komen als sibling van de (eerst) geselecteerde taak;
-      // zonder selectie op rootniveau.
-      const anchor = s.selectedTaskIds.length > 0
-        ? s.tasks.find(t => t.id === s.selectedTaskIds[0])
-        : undefined;
-      const targetParentId = anchor ? anchor.parentId : null;
-
-      // Verse id voor elke gekopieerde taak.
-      const idMap = new Map<string, string>();
-      for (const t of clip.tasks) idMap.set(t.id, generateId('task'));
-
-      for (const src of clip.tasks) {
-        const newId = idMap.get(src.id)!;
-        const parentInClip = !!src.parentId && copiedIds.has(src.parentId);
-        if (!parentInClip) newRootIds.push(newId);
-
-        const task: Task = {
-          ...JSON.parse(JSON.stringify(src)),
-          id: newId,
-          parentId: parentInClip ? idMap.get(src.parentId!)! : targetParentId,
-          childIds: src.childIds.filter(c => copiedIds.has(c)).map(c => idMap.get(c)!),
-          // Verweesde resourceverwijzingen overslaan.
-          resourceIds: src.resourceIds.filter(r => resourceExists.has(r)),
-        };
-        s.tasks.push(task);
-      }
-
-      // Nieuwe roots aan de doelouder hangen.
-      if (targetParentId) {
-        const parent = s.tasks.find(t => t.id === targetParentId);
-        if (parent) parent.childIds.push(...newRootIds);
-      }
-
-      // Interne relaties opnieuw aanmaken met de nieuwe ids. Spread behoudt óók de
-      // optionele lag-velden (lagUnit/lagPercent) — die vielen hier eerder stil weg.
-      for (const seq of clip.sequences) {
-        s.sequences.push({
-          ...seq,
-          id: generateId('seq'),
-          predecessorId: idMap.get(seq.predecessorId)!,
-          successorId: idMap.get(seq.successorId)!,
-        });
-      }
-
-      // Resource-toewijzingen opnieuw aanmaken (resources die niet meer bestaan overslaan).
-      // Spread behoudt óók het optionele curve-veld — net als bij sequences hierboven.
-      for (const a of clip.assignments) {
-        if (!resourceExists.has(a.resourceId)) continue;
-        s.assignments.push({
-          ...a,
-          id: generateId('asgn'),
-          taskId: idMap.get(a.taskId)!,
-        });
-      }
-
-      // WBS: geplakte takken zouden anders de codes van hun bron letterlijk dupliceren.
-      // Auto-nummering ⇒ hele boom; anders alleen de geplakte tak een afgeleide code geven.
-      if (s.project.wbsAutoNumber) {
-        applyWbsNumbering(s.tasks);
-      } else {
-        const codes = deriveWbsCodes(s.tasks);
-        for (const newId of idMap.values()) {
-          const t = s.tasks.find(x => x.id === newId);
-          const code = codes.get(newId);
-          if (t && code !== undefined) t.wbsCode = code;
-        }
-      }
-
-      s.selectedTaskIds = newRootIds;
-      finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
-    });
-    get().recomputeViewRows();
-    return newRootIds;
-  },
-
   renumberWbs: () => {
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       applyWbsNumbering(s.tasks);
       finishMutation(s);
     });
@@ -1027,7 +891,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     if (template.tasks.length === 0) return null;
     let newRootId: string | null = null;
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       const startDate = s.project.startDate || formatDate(new Date());
       const idMap = new Map<string, string>();
@@ -1088,7 +952,7 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
+      runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
       const completion = Math.max(0, Math.min(1, raw));
       task.time.completion = completion;
       // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
@@ -1098,8 +962,12 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
       if (completion < 1) task.time.actualFinish = undefined;
       applyProgressInvariants(task, s.project.statusDate);
-      // alleen datum-beïnvloedend mét statusdatum.
-      finishMutation(s, { stale: !!s.project.statusDate });
+      // H1 (Opus-review T15-iteratie-2): ALTIJD stale — sinds `applyProgressInvariants`'s
+      // completion===1-tak niet meer op een statusdatum leunt (die pint nu altijd op actuals/eigen
+      // finish, zie de toelichting daar) én de IN-PROGRESS-tak in CPMSolver (M1) evenmin, is elke
+      // voortgangsmutatie datum-beïnvloedend, met of zonder statusdatum. Het oude commentaar
+      // ("alleen datum-beïnvloedend mét statusdatum") was juist tot vóór die fixes.
+      finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
   },
@@ -1111,11 +979,16 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       if (!task) return;
       // Actuals liggen nooit ná de statusdatum: weigeren i.p.v. stil klemmen (§3.2, BESLIST).
       // Weigering pusht GÉÉN snapshot (return vóór beginUndoable) — ongewijzigd gedrag.
-      if (date && s.project.statusDate && date > s.project.statusDate) { accepted = false; return; }
-      beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
+      //
+      // T16-veeglijst-fix (was: BEKENDE BEPERKING, B4-nasleep, Opus-her-check T15-fixronde) —
+      // `isActualPastStatusDate` vergelijkt nu geparste instanten i.p.v. rauwe ISO-strings, zie die
+      // functie se toelichting voor de volledige analyse (het uur-precies-op-de-statusdatum-dag-gat).
+      if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
+      runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
       task.time.actualStart = date || undefined;
       applyProgressInvariants(task, s.project.statusDate);
-      finishMutation(s, { stale: !!s.project.statusDate });
+      // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
+      finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
     return accepted;
@@ -1126,14 +999,17 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      if (date && s.project.statusDate && date > s.project.statusDate) { accepted = false; return; }
-      beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
+      // T16-veeglijst-fix — zie `isActualPastStatusDate` se toelichting (zelfde functie als
+      // `setActualStart` hierboven, geen tweede, potentieel afdrijvende implementatie).
+      if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
+      runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
       task.time.actualFinish = date || undefined;
       // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default
       // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
       if (!date && task.time.completion >= 1) task.time.completion = 0;
       applyProgressInvariants(task, s.project.statusDate);
-      finishMutation(s, { stale: !!s.project.statusDate });
+      // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
+      finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
     return accepted;

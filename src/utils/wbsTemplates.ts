@@ -1,4 +1,5 @@
 import type { Task } from '@/types/task';
+import { collectSubtreeIds } from '@/state/taskTree';
 import type { Sequence } from '@/types/sequence';
 import { generateId } from '@/utils/id';
 
@@ -72,14 +73,12 @@ export function saveBranchAsWbsTemplate(
   allSequences: Sequence[],
 ): WbsTemplate {
   const byId = new Map(allTasks.map(t => [t.id, t]));
-  const branchIds: string[] = [];
-  const collect = (id: string) => {
-    const task = byId.get(id);
-    if (!task) return;
-    branchIds.push(id);
-    for (const childId of task.childIds) collect(childId);
-  };
-  collect(rootId);
+  // K-item 35: gedeelde verzamelaar i.p.v. een eigen recursie. Die eigen versie had GEEN
+  // bezocht-set en liep dus de stack over op een cyclische `childIds` — bereikbaar via een IFC
+  // waarin `extractNesting` de nesting zonder cyklusguard zet. Dit bestand werd bij de eerste
+  // ronde van item 35 over het hoofd gezien terwijl de modulekop van `taskTree.ts` het wél als
+  // vindplaats noemde; een review ving dat.
+  const branchIds = collectSubtreeIds(allTasks, rootId).filter(id => byId.has(id));
   const branchSet = new Set(branchIds);
 
   const localId = new Map(branchIds.map((id, i) => [id, `t${i + 1}`]));

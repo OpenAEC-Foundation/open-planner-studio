@@ -16,6 +16,7 @@ const backing = new Map<string, string>();
 
 import { test, assert, assertEq, run } from './harness';
 import {
+  createAppBackupService,
   createBackupService,
   ensureBackup as exportedEnsureBackup,
   sanitizeProjectName,
@@ -23,6 +24,7 @@ import {
   type BackupDeps,
 } from '@/services/mcp/backup';
 import { buildMcpContext } from '@/services/mcp/server';
+import { createAppStoreContext, appStoreContext } from '@/state/appStore';
 
 // --- Fake in-memory fs (pad → inhoud); readDir lijstt direct-kind-namen onder een map. -----------
 function makeFakeFs(opts?: { failWrite?: boolean }) {
@@ -230,6 +232,39 @@ test('sanitizeProjectName vervangt verboden tekens en valt terug op een default 
 test('buildMcpContext bekabelt de echte backup-service (referentie-identiteit met de export)', () => {
   const ctx = buildMcpContext();
   assert(ctx.ensureBackup === exportedEnsureBackup, 'buildMcpContext moet de echte ensureBackup-export leveren, niet de oude inline stub');
+});
+
+test('createAppBackupService(B) serialiseert B en gebruikt B\'s actieve document voor handmatige backup', async () => {
+  const A = appStoreContext;
+  A.store.getState().newProject();
+  A.store.getState().setProject({ name: 'Backup context A' });
+  A.store.getState().addTask({ name: 'Taak alleen in A' });
+
+  const B = createAppStoreContext();
+  B.store.getState().setProject({ name: 'Backup context B' });
+  B.store.getState().addTask({ name: 'Taak alleen in B' });
+  const bDocumentId = B.store.getState().activeDocumentId;
+  const { fs, files } = makeFakeFs();
+  let clock = 10_000;
+  const service = createAppBackupService(B, {
+    getFs: async () => fs,
+    autoBackupEnabled: async () => true,
+    now: () => clock++,
+  });
+
+  const autoPath = await service.ensureBackup(bDocumentId, 'mutate');
+  assert(autoPath !== null, 'de eerste B-mutatie hoort een B-backup te schrijven');
+  const autoIfc = files.get(autoPath!);
+  assert(typeof autoIfc === 'string' && autoIfc.includes('Backup context B') && autoIfc.includes('Taak alleen in B'),
+    'de automatische backup hoort B\'s project en taak te serialiseren');
+  assert(!autoIfc!.includes('Backup context A') && !autoIfc!.includes('Taak alleen in A'),
+    'de automatische B-backup mag geen singletondata uit A bevatten');
+
+  const manualPath = await service.makeManualBackup();
+  assert(manualPath.includes(`/ai-backups/${bDocumentId}/`),
+    'de handmatige backup hoort B\'s actieve document-id als submap te gebruiken');
+  assert(files.get(manualPath)?.includes('Backup context B') === true,
+    'de handmatige backup hoort eveneens uit B te komen');
 });
 
 await run();

@@ -6,6 +6,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Baseline } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
+import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
 
 /**
  * Eén gedeelde payload-vorm voor een ingelezen project (audit P1). De vier readers (`readIFC`,
@@ -38,6 +39,13 @@ export interface ImportLabels {
    * moment bakt daarmee in de naam, en de gebruiker hernoemt.
    */
   importedProject?: string;
+  /**
+   * Naam voor de ingebouwde "niet-toegewezen"-resource (MPP-uniqueID 0 — MS Project schrijft die
+   * altijd mee, ook in zijn eigen MSPDI-export als "Niet toegekend"; T7-spec-review, B3). Zelfde
+   * DATA-stempel-redenering als `importedProject`. Engelse default `'Unassigned'` — de vertaalde
+   * doorgifte volgt via T8, net als de andere `ImportLabels`-velden.
+   */
+  unassignedResource?: string;
 }
 
 export interface ImportResult {
@@ -57,4 +65,39 @@ export interface ImportResult {
   /** OPTIONEEL — een pool-bestand (spec B1, §4) draagt zijn autoritatieve pool-JSON in het
    *  OPS_Library-pset; een gewoon projectbestand niet. Afwezig ⇒ geen pool-bestand. */
   libraryPool?: CompanyPool;
+  /**
+   * OPTIONEEL — T12 (datumgetrouwheid-etappe, §9/O1), HERZIEN door Z16 (etappe "nul afwijkingen").
+   * Telling van taken met een aantoonbaar onderbroken, genivelleerde of resource-gedreven
+   * (timephased/contouring) planning in het bronbestand. Alleen `readMPP`
+   * (`services/mpp/mppReader.ts`) vult dit vooralsnog — de andere lezers laten het weg.
+   * Uitsluitend een IMPORT-TIJD-telling voor de eenmalige meldingen bij openen (`fileSlice.ts`,
+   * patroon `summaryRelationsDropped`); GEEN persistent taakveld en dus geen documentcontract-
+   * impact (§9/O3) — een taak die zo gemarkeerd was, verliest die markering bij de eerstvolgende
+   * opslaan/heropenen-cyclus, en dat is bewust zo.
+   *
+   * Z16: vóór deze etappe was dit `{ leveled, spanGt }` — `spanGt` was een AFGELEIDE PROXY (het
+   * MSP-eigen venster tussen start en finish, geteld in werkminuten, groter dan de MSP-eigen
+   * opgeslagen duur), nodig omdat splits en timephased-vensters toen nog niet zelf leesbaar waren.
+   * Sinds Z4 (`Task.splitGaps`) en Z8 (`Task.timephasedFinishFloor`/`timephasedDurationWalks`) zijn
+   * beide ECHT leesbaar — de proxy is vervangen door drie ECHTE tellingen, één per categorie uit de
+   * meldingstekst: `leveled` (`Task.levelingDelayMinutes` gezet), `split` (`Task.splitGaps` niet-
+   * leeg), `timephased` (`Task.timephasedFinishFloor` of `Task.timephasedDurationWalks` gezet).
+   * `total` blijft de VERENIGING van alle drie (een taak die meerdere signalen draagt telt in
+   * `total` maar één keer) — dat is het getal dat de melding toont. Zie `countScheduleNotes` in
+   * `mppReader.ts` voor de implementatie en `mpp14resource.mpp`'s "Contoured Task" (nu WEL geteld,
+   * via `timephased`) voor het gevolg: de vroegere "resource-contouring niet betrouwbaar
+   * detecteerbaar"-beperking is met de echte telling opgelost voor elke taak die een échte,
+   * gedecodeerde timephased-periode draagt.
+   */
+  sourceScheduleNotes?: { total: number; leveled: number; split: number; timephased: number };
+
+  /** OPTIONEEL — per taak-id welke IfcTaskTime-slots het bestand daadwerkelijk vulde: de zeven
+   *  REKENSLOTS (`RECORDED_SLOT_KEYS`) én de twee INVOERSLOTS ScheduleStart/ScheduleFinish
+   *  (`RECORDED_INPUT_SLOT_KEYS`) — de laatste twee zijn nodig als terugval-anker wanneer de
+   *  rekenslots leeg zijn (issue #63). Alleen `readIFC` levert dit; CSV/MSPDI/P6/extensie-import
+   *  kennen geen IfcTaskTime-slots en laten het weg. Nodig omdat `parseDateFromIFC` een `$`-slot als
+   *  "vandaag" inleest — na het parsen is een leeg slot niet meer van een echte datum te
+   *  onderscheiden. Een taak-id ZONDER IfcTaskTime krijgt een lege array (niet: ontbrekende sleutel)
+   *  — "geen enkel slot gevuld" is een uitspraak, "onbekend" niet. */
+  recordedFields?: Record<string, RecordedFieldKey[]>;
 }

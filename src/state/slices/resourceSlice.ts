@@ -1,9 +1,12 @@
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
-import { beginUndoable, finishMutation } from '../transaction';
+import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
+import { finishMutation } from '../transaction';
 import { syncProjectCalendar } from '../syncProjectCalendar';
-import type { AppSlice } from './types';
+import { clearTimephasedWindow, clearTimephasedDurationWalks } from '@/utils/taskDefaults';
+import { notifyTimephasedLoss } from '../timephasedLossNotice';
+import type { AppSliceFactory } from './types';
 
 /** Puur leesbaarheids-alias: `WorkCalendar` heeft al `id`/`name`, dus geen aparte intersectie
  *  nodig — een resource-kalender IS gewoon een `WorkCalendar` (zie fase 2.5-ontwerp §3.1). */
@@ -46,7 +49,7 @@ export interface ResourceSlice {
 const isValidUnits = (n: unknown): n is number =>
   typeof n === 'number' && Number.isFinite(n) && n > 0;
 
-export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
+export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => (set, get) => ({
   resources: [],
   assignments: [],
   calendars: [],
@@ -54,8 +57,12 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   addResource: (res) => {
     const id = generateId('res');
     set((s) => {
-      beginUndoable(s);
-      s.resources.push({ ...res, id });
+      runtime.beginUndoable(s);
+      // #21: automatische kleur bij aanmaak (B7) — eerste vrije paletkleur, tenzij de aanroeper
+      // zelf al een kleur meegaf (de resource-editor kan dat). Kleurloze resources vallen in de
+      // weergave terug op de deterministische hash — dit veld is dus puur gemak, geen vereiste.
+      const color = res.color ?? nextFreePaletteColor(s.resources);
+      s.resources.push({ ...res, id, color });
       finishMutation(s);
     });
     // A6: pure resource-mutatie → histogram direct verversen (geen runCPM, datums onaangeroerd).
@@ -76,7 +83,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         delete patch.maxUnits;
       }
       if (Object.keys(patch).length === 0) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       Object.assign(s.resources[idx], patch);
       finishMutation(s);
     });
@@ -87,7 +94,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   removeResource: (id) => {
     set((s) => {
       if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.resources = s.resources.filter(r => r.id !== id);
       s.assignments = s.assignments.filter(a => a.resourceId !== id);
       // Verweesde verwijzingen in task.resourceIds opruimen.
@@ -106,6 +113,9 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   },
 
   assignResource: (taskId, resourceId, unitsPerDay, curve) => {
+    // mpp-nul-data-etappe, DEEL 1 — zie `taskSlice.ts`'s `updateTask` voor de discipline (buiten
+    // de Immer-producer, `notify` doet zelf een `set()`).
+    let lostTimephasedGuidance = false;
     set((s) => {
       // Leaf-only, geen-milestone-assignment-regel (§2.4): vroege return, geen snapshot.
       const task = s.tasks.find(t => t.id === taskId);
@@ -118,15 +128,24 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       // Weigeren (bevinding 1): 0/negatieve eenheden/dag is geen geldige toewijzing.
       if (!isValidUnits(unitsPerDay)) return;
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       const id = generateId('asgn');
       s.assignments.push({ id, taskId, resourceId, unitsPerDay, curve });
       if (!task.resourceIds.includes(resourceId)) {
         task.resourceIds.push(resourceId);
       }
+      // Z14b (eigenaarsprincipe 2026-08-18, F2-fixronde) — "toewijzingen" is expliciet onderdeel
+      // van de edit-time-invalidatie-triggerset (zie `taskDefaults.ts`'s `clearTimephasedWindow`/
+      // `clearTimephasedDurationWalks`): een andere resource kan een andere resourcekalender
+      // betekenen, precies de Z8-laag-4-discriminator — dus BEIDE lagen wissen, niet alleen het
+      // laag-3-venster. `mcpTransaction.ts`'s `assignResource` is de gedocumenteerde tweeling.
+      const clearedWindow = clearTimephasedWindow(task);
+      const clearedWalks = clearTimephasedDurationWalks(task);
+      lostTimephasedGuidance = clearedWindow || clearedWalks;
       finishMutation(s);
     });
+    if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
@@ -143,7 +162,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         delete patch.unitsPerDay;
       }
       if (Object.keys(patch).length === 0) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       Object.assign(s.assignments[idx], patch);
       finishMutation(s);
     });
@@ -152,11 +171,13 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   },
 
   unassignResource: (assignmentId) => {
+    // mpp-nul-data-etappe, DEEL 1 — zie `assignResource` hierboven.
+    let lostTimephasedGuidance = false;
     set((s) => {
       const removed = s.assignments.find(a => a.id === assignmentId);
       if (!removed) return;
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       s.assignments = s.assignments.filter(a => a.id !== assignmentId);
       // task.resourceIds alleen opschonen als er geen andere toewijzing van
@@ -169,14 +190,25 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         const idx = task?.resourceIds.indexOf(removed.resourceId) ?? -1;
         if (task && idx >= 0) task.resourceIds.splice(idx, 1);
       }
+      // Z14b (F2-fixronde) — "toewijzingen"-trigger, beide lagen (zie assignResource hierboven).
+      const removedTask = s.tasks.find(t => t.id === removed.taskId);
+      if (removedTask) {
+        const clearedWindow = clearTimephasedWindow(removedTask);
+        const clearedWalks = clearTimephasedDurationWalks(removedTask);
+        lostTimephasedGuidance = clearedWindow || clearedWalks;
+      }
       finishMutation(s);
     });
+    if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
 
   moveAssignment: (assignmentId, newTaskId) => {
     let moved = false;
+    // mpp-nul-data-etappe, DEEL 1 — aantal taken dat sturing verloor (0, 1 of 2 — oude/nieuwe taak
+    // apart getoetst), zie `assignResource` hierboven voor de discipline.
+    let lostCount = 0;
     set((s) => {
       const assignment = s.assignments.find(a => a.id === assignmentId);
       if (!assignment) return;
@@ -190,7 +222,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       );
       if (alreadyOnTarget) return;
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       const oldTaskId = assignment.taskId;
       assignment.taskId = newTaskId;
@@ -209,9 +241,21 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       if (!newTask.resourceIds.includes(assignment.resourceId)) {
         newTask.resourceIds.push(assignment.resourceId);
       }
+      // Z14b (F2-fixronde) — "toewijzingen"-trigger raakt BEIDE taken, BEIDE lagen (zie
+      // assignResource hierboven).
+      const oldTaskForWindow = s.tasks.find(t => t.id === oldTaskId);
+      if (oldTaskForWindow) {
+        const clearedOldWindow = clearTimephasedWindow(oldTaskForWindow);
+        const clearedOldWalks = clearTimephasedDurationWalks(oldTaskForWindow);
+        if (clearedOldWindow || clearedOldWalks) lostCount++;
+      }
+      const clearedNewWindow = clearTimephasedWindow(newTask);
+      const clearedNewWalks = clearTimephasedDurationWalks(newTask);
+      if (clearedNewWindow || clearedNewWalks) lostCount++;
       finishMutation(s);
       moved = true;
     });
+    if (moved && lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     if (moved) {
       get().recomputeResourceLoad();
       get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -222,7 +266,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   addCalendar: (cal) => {
     const id = generateId('cal');
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendars.push({ ...cal, id });
       syncProjectCalendar(s); // houd de gedenormaliseerde projectkalender-cache in sync (§9.1).
       finishMutation(s, { stale: true }); // conservatief datum-beïnvloedend (§5.4).
@@ -235,7 +279,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
     set((s) => {
       const idx = s.calendars.findIndex(c => c.id === id);
       if (idx < 0) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
       // Pure naamswijziging raakt geen datums (§5.4); elke andere mutatie wél.
@@ -246,16 +290,26 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   },
 
   removeCalendar: (id) => {
+    // mpp-nul-data-etappe, DEEL 1 — deze twee acties kunnen VEEL taken tegelijk raken (loop over
+    // `s.tasks`), dus tellen zelf op i.p.v. één losse boolean; zie `assignResource` hierboven voor
+    // de discipline.
+    let lostCount = 0;
     set((s) => {
       if (!s.calendars.some(c => c.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendars = s.calendars.filter(c => c.id !== id);
       // Verweesde verwijzingen opruimen: resources én taken vallen terug op de projectkalender.
       for (const r of s.resources) {
         if (r.calendarId === id) r.calendarId = undefined;
       }
       for (const t of s.tasks) {
-        if (t.calendarId === id) t.calendarId = undefined;
+        if (t.calendarId === id) {
+          t.calendarId = undefined;
+          // Z14b (F3-fixronde) — dit is dezelfde "kalender"-trigger als `setTaskCalendar`, alleen
+          // via een ander pad (rechtstreekse mutatie i.p.v. de dedicated actie). Zonder deze
+          // aanroep bleef een bevroren Z8-venster staan terwijl de taak-kalender onder 'm wegviel.
+          if (clearTimephasedWindow(t)) lostCount++;
+        }
       }
       // Was dit de projectdefault, dan de projectkalender op een fallback zetten (§9.2).
       if (s.project.calendarId === id) {
@@ -269,12 +323,15 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       syncProjectCalendar(s);
       finishMutation(s, { stale: true });
     });
+    if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
   },
 
   commitCalendarLibrary: (calendars, projectCalendarId) => {
+    // mpp-nul-data-etappe, DEEL 1 — zie `removeCalendar` hierboven.
+    let lostCount = 0;
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendars = calendars;
       const ids = new Set(calendars.map(c => c.id));
       // Verweesde verwijzingen opruimen (spiegelt removeCalendar, §4.3/§9.2): resources én taken
@@ -283,7 +340,11 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         if (r.calendarId && !ids.has(r.calendarId)) r.calendarId = undefined;
       }
       for (const t of s.tasks) {
-        if (t.calendarId && !ids.has(t.calendarId)) t.calendarId = undefined;
+        if (t.calendarId && !ids.has(t.calendarId)) {
+          t.calendarId = undefined;
+          // Z14b (F3-fixronde) — zelfde reden als removeCalendar hierboven.
+          if (clearTimephasedWindow(t)) lostCount++;
+        }
       }
       // Projectdefault: het meegegeven id als het (nog) bestaat, anders de eerste entry (§9.2).
       if (ids.has(projectCalendarId)) {
@@ -294,6 +355,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       syncProjectCalendar(s);
       finishMutation(s, { stale: true });
     });
+    if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
   },
 });

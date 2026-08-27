@@ -1,15 +1,17 @@
-// Web-opslaan-terugvalchecks — de download-route als de omgeving schrijven weigert.
+// Web-opslaan/openen-terugvalchecks — de input/download-route als de omgeving FSA weigert.
 //
-// Waarom deze batterij bestaat (gemeten 2026-07-30). In de embedded webview van de Claude-
-// desktopapp (Electron 42 / Chrome 148) bestáát de File System Access API compleet:
-// `showSaveFilePicker`, `FileSystemWritableFileStream` en `createWritable` zijn alle drie
-// aanwezig, en OPFS-handles schrijven gewoon. Maar een handle uit de bestandskiezer krijgt daar
-// nooit een readwrite-grant, dus `createWritable` gooit `NotAllowedError`. De web-backend koos
-// zijn route op feature-detectie ("bestaat de API?") in plaats van op werking, en gaf de rauwe
-// DOMException door: de gebruiker kreeg "Failed to save" plus een browsertekst, en zijn werk
-// bleef ongeschreven — terwijl de download-route in diezelfde omgeving prima werkt.
+// Waarom deze batterij bestaat (gemeten 2026-07-30, uitgebreid 2026-08-15). In de embedded
+// webview van de Claude-desktopapp (Electron 42 / Chrome 148) bestáát de File System Access API
+// compleet: `showOpenFilePicker`, `showSaveFilePicker`, `FileSystemWritableFileStream` en
+// `createWritable` zijn alle vier aanwezig, en OPFS-handles schrijven gewoon. Maar de
+// permissions-policy van die omgeving blokkeert de feature zelf: een handle uit de bestandskiezer
+// krijgt nooit een grant, dus `createWritable` (opslaan) én `getFile` (openen) gooien
+// `NotAllowedError`. De web-backend koos zijn route puur op feature-detectie ("bestaat de API?")
+// in plaats van op werking, en gaf de rauwe DOMException door: bij opslaan "Failed to save", bij
+// openen "Failed to open file" plus een browsertekst — terwijl de input-/download-terugval in
+// diezelfde omgeving prima werkt.
 //
-// Deze checks leggen drie dingen vast:
+// Deze checks leggen vast (opslaan-pad):
 //   1. Een omgevingsweigering (NotAllowedError/SecurityError) valt terug op downloaden en levert
 //      een geslaagde `SaveOutcome` met `viaDownload` op — géén throw.
 //   2. Annuleren blijft `null` (geen fout, en zeker geen ongevraagde download), en een ECHTE
@@ -17,9 +19,17 @@
 //   3. Na één weigering slaat de backend de kansloze kiezer/permissieprompt over.
 // Plus: `saveFile` in de store zet die uitkomst om in de `info`-melding en géén `saveFailed`.
 //
+// En (openen-pad, sinds 2026-08-15):
+//   8. `document.featurePolicy.allowsFeature('file-system-access') === false` ⇒ de picker wordt
+//      niet eens geopend, meteen de input-terugval.
+//   9. Geen (bruikbare) featurePolicy, maar de picker/`getFile` gooit alsnog NotAllowedError ⇒
+//      één keer terugvallen op de input-terugval (en dat onthouden voor de volgende open-poging).
+//  10. Annuleren (AbortError uit de picker) blijft `null` — geen tweede picker via de terugval.
+//
 // Draait via run.sh. Exit 0 = alles groen.
 import {
   saveFileDialogWeb, saveToRefWeb, webWriteRefusedByPlatform, resetWebWriteRefusalForTests,
+  openFileDialogWeb, webReadRefusedByPlatform, resetWebReadRefusalForTests,
 } from '@/services/fileAccess/webBackend';
 import type { FileRef } from '@/services/fileAccess';
 
@@ -39,27 +49,54 @@ interface Downloaded { name: string; bytes: number }
 const downloads: Downloaded[] = [];
 let lastBlob: Blob | null = null;
 
+// Voor de open-terugval (`<input type=file>`): welk bestand "kiest" de gebruiker zodra
+// `openViaInput` de kiezer opent (`input.click()`)? `null` = de gebruiker annuleert.
+// Gestuurd per test, gelezen op het moment dat `createElement('input')` wordt aangeroepen.
+let nextInputFile: File | null = null;
+const createdTags: string[] = [];
+
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = {
   createElement: (tag: string) => {
-    if (tag !== 'a') throw new Error(`onverwacht element: ${tag}`);
-    const el = { href: '', download: '', click: () => { downloads.push({ name: el.download, bytes: lastBlob?.size ?? -1 }); } };
-    return el;
+    createdTags.push(tag);
+    if (tag === 'a') {
+      const el = { href: '', download: '', click: () => { downloads.push({ name: el.download, bytes: lastBlob?.size ?? -1 }); } };
+      return el;
+    }
+    if (tag === 'input') {
+      // Minimale `<input type=file>`-stub: `click()` simuleert synchroon de bestandskeuze —
+      // net als een echte klik uiteindelijk `onchange` (of bij annuleren het `cancel`-event)
+      // vuurt, alleen zonder de echte OS-kiezer ertussen.
+      const el = {
+        type: '', accept: '',
+        files: undefined as File[] | undefined,
+        onchange: null as (() => void | Promise<void>) | null,
+        _cancelHandler: null as (() => void) | null,
+        addEventListener(ev: string, cb: () => void) { if (ev === 'cancel') el._cancelHandler = cb; },
+        click() {
+          if (nextInputFile) { el.files = [nextInputFile]; void el.onchange?.(); }
+          else { el._cancelHandler?.(); }
+        },
+      };
+      return el;
+    }
+    throw new Error(`onverwacht element: ${tag}`);
   },
 };
 const realCreateObjectURL = URL.createObjectURL;
 URL.createObjectURL = ((b: Blob) => { lastBlob = b; return 'blob:stub'; }) as typeof realCreateObjectURL;
 URL.revokeObjectURL = (() => { /* niets */ }) as typeof URL.revokeObjectURL;
 
-/** Fabriceer een handle waarvan `createWritable` gooit wat wij willen. */
-type HandleOpts = { permission?: PermissionState; writeError?: DOMException | null };
+/** Fabriceer een handle waarvan `createWritable`/`getFile` gooit wat wij willen. */
+type HandleOpts = { permission?: PermissionState; writeError?: DOMException | null; getFileError?: DOMException | null };
 let pickerCalls = 0;
+let openPickerCalls = 0;
 let permissionCalls = 0;
 const makeHandle = (opts: HandleOpts): FileSystemFileHandle => ({
   kind: 'file',
   name: 'project.ifc',
   isSameEntry: () => Promise.resolve(false),
-  getFile: () => Promise.resolve(new File(['x'], 'project.ifc')),
+  getFile: () => (opts.getFileError ? Promise.reject(opts.getFileError) : Promise.resolve(new File(['x'], 'project.ifc'))),
   queryPermission: () => { permissionCalls++; return Promise.resolve(opts.permission ?? 'granted'); },
   requestPermission: () => { permissionCalls++; return Promise.resolve(opts.permission ?? 'granted'); },
   createWritable: () => {
@@ -79,6 +116,20 @@ function installWindow(handle: FileSystemFileHandle | null, pickerError?: DOMExc
       if (pickerError) return Promise.reject(pickerError);
       return Promise.resolve(handle!);
     },
+  };
+}
+
+/** Zet `window` op met een open-kiezer die `[handle]` teruggeeft (of `pickerError` gooit). */
+function installOpenWindow(handle: FileSystemFileHandle | null, pickerError?: DOMException) {
+  openPickerCalls = 0;
+  permissionCalls = 0;
+  g.window = {
+    showOpenFilePicker: () => {
+      openPickerCalls++;
+      if (pickerError) return Promise.reject(pickerError);
+      return Promise.resolve([handle!]);
+    },
+    showSaveFilePicker: () => Promise.reject(new Error('niet gebruikt in deze open-test')),
   };
 }
 
@@ -162,6 +213,49 @@ async function main() {
   eq('7b één melding, en dat is de download-info', notes, [{ sev: 'info', key: 'notifications.savedViaDownload' }]);
   eq('7c geen rauwe browserfout als detail', S().ui.notifications[0]?.detail, undefined);
   eq('7d het document geldt als opgeslagen', S().isDirty, false);
+
+  // ── 8. featurePolicy meldt vooraf een blokkade → meteen de input-terugval, geen picker ──────
+  resetWebReadRefusalForTests();
+  createdTags.length = 0;
+  nextInputFile = new File(['acht'], 'gekozen-8.ifc');
+  (g.document as { featurePolicy?: { allowsFeature: () => boolean } }).featurePolicy = { allowsFeature: () => false };
+  installOpenWindow(null);
+  let opened = await openFileDialogWeb(FILTERS);
+  eq('8a de FSA-picker wordt niet eens aangeroepen', openPickerCalls, 0);
+  eq('8b de input-terugval wordt wél gebruikt', createdTags.includes('input'), true);
+  eq('8c en levert het door de gebruiker gekozen bestand op', opened?.name, 'gekozen-8.ifc');
+  eq('8d featurePolicy-blokkade zet de open-weigering niet blijvend aan', webReadRefusedByPlatform(), false);
+  delete (g.document as { featurePolicy?: unknown }).featurePolicy;
+
+  // ── 9. Geen (bruikbare) featurePolicy, maar de picker faalt runtime → eenmalige terugval ────
+  // Dekt precies het gerapporteerde geval: `showOpenFilePicker` verschijnt en slaagt, maar
+  // `handle.getFile()` gooit `NotAllowedError` vóórdat er iets gelezen is.
+  resetWebReadRefusalForTests();
+  createdTags.length = 0;
+  nextInputFile = new File(['negen'], 'gekozen-9.ifc');
+  installOpenWindow(makeHandle({ getFileError: refused() }));
+  opened = await openFileDialogWeb(FILTERS);
+  eq('9a de picker wordt wél geprobeerd', openPickerCalls, 1);
+  eq('9b getFile-weigering valt terug op de input-terugval i.p.v. te gooien', createdTags.includes('input'), true);
+  eq('9c en levert alsnog het gekozen bestand op', opened?.name, 'gekozen-9.ifc');
+  eq('9d de weigering is onthouden', webReadRefusedByPlatform(), true);
+  // Tweede open-poging: geen nieuwe (kansloze) picker meer, meteen naar de input-terugval.
+  const openPickerCallsNaEerste = openPickerCalls;
+  nextInputFile = new File(['tien'], 'gekozen-9b.ifc');
+  opened = await openFileDialogWeb(FILTERS);
+  eq('9e geen tweede picker-aanroep na een onthouden weigering', openPickerCalls, openPickerCallsNaEerste);
+  eq('9f en toch weer een geslaagd resultaat via de terugval', opened?.name, 'gekozen-9b.ifc');
+
+  // ── 10. Annuleren (AbortError) blijft `null` — géén tweede picker via de terugval ───────────
+  resetWebReadRefusalForTests();
+  createdTags.length = 0;
+  nextInputFile = null;
+  installOpenWindow(null, new DOMException('The user aborted a request.', 'AbortError'));
+  opened = await openFileDialogWeb(FILTERS);
+  eq('10a annuleren geeft null', opened, null);
+  eq('10b de picker is precies één keer geprobeerd', openPickerCalls, 1);
+  eq('10c annuleren triggert géén input-terugval (dus geen tweede kiezer)', createdTags.includes('input'), false);
+  eq('10d annuleren zet de open-weigering niet aan', webReadRefusedByPlatform(), false);
 
   // ── Rapport ───────────────────────────────────────────────────────────────────────────────
   if (diffs.length === 0) {

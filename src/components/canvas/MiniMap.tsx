@@ -7,6 +7,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { MiniMapRenderer } from '@/engine/renderer/MiniMapRenderer';
+import { useCanvasLayer } from './hooks/useCanvasLayer';
 
 const MINIMAP_HEIGHT = 48;
 
@@ -44,7 +45,9 @@ export function MiniMap({
   const storeScrollX = useAppStore(s => s.view.scrollX);
   const storeZoom = useAppStore(s => s.view.zoom);
   const setScroll = useAppStore(s => s.setScroll);
-  const uiTheme = useAppStore(s => s.ui.uiTheme);
+  // De renderer leest zijn kleuren op paint-moment uit CSS. Deze primitive maakt de CSS-
+  // themawijziging een benoemde invalidatie in plaats van een schijnbaar ongebruikte dependency.
+  const themeRevision = useAppStore(s => s.ui.uiTheme);
 
   const scrollX = scrollXProp ?? storeScrollX;
   const zoom = zoomProp ?? storeZoom;
@@ -62,23 +65,11 @@ export function MiniMap({
   // Sleepstate: offset (in dagen) tussen de muispositie en de linkerrand van het kader.
   const [dragOffsetDays, setDragOffsetDays] = useState<number | null>(null);
 
-  const render = useCallback(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = container.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
+  const draw = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     const renderer = new MiniMapRenderer(ctx, {
       rows: viewRows,
-      canvasWidth: rect.width,
-      canvasHeight: rect.height,
+      canvasWidth: width,
+      canvasHeight: height,
       originDate,
       scrollX,
       zoom,
@@ -86,21 +77,14 @@ export function MiniMap({
     });
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, originDate, scrollX, zoom, chartWidth, uiTheme]);
+  }, [viewRows, originDate, scrollX, zoom, chartWidth]);
 
-  // Debounced redraw (§11/§17-risico 3): alleen op discrete wijzigingen, via rAF gecoalesced.
-  useEffect(() => {
-    const frame = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(frame);
-  }, [render]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const obs = new ResizeObserver(() => requestAnimationFrame(render));
-    obs.observe(container);
-    return () => obs.disconnect();
-  }, [render]);
+  useCanvasLayer({
+    canvasRef,
+    containerRef,
+    draw,
+    renderRevision: themeRevision,
+  });
 
   /** Zet een strip-x om naar de bijbehorende scrollX van het hoofdvenster. */
   const scrollXForMiniX = useCallback((miniX: number, offsetDays: number): number | null => {

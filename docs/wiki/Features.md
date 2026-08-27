@@ -7,7 +7,9 @@ identically in the desktop app and in the browser version — the same buttons, 
 
 - **Critical Path Method (CPM)** — automatic calculation of early/late start and finish dates, total and free float, and the critical path.
 - **Work Breakdown Structure (WBS)** — a hierarchical task structure with collapsible summary tasks.
-- **Relations** — Finish-Start, Start-Start, Finish-Finish and Start-Finish dependencies, each with a lag or lead in work days.
+- **Relations** — Finish-Start, Start-Start, Finish-Finish and Start-Finish dependencies, each with a
+  lag or lead in work days; relations can attach to milestones as well as ordinary tasks (not to
+  summary tasks, which are flagged as *no effect* if a loaded file already has one).
 - **Constraints** — start/finish constraints (such as Start No Earlier Than) for permits, deliveries and fixed dates.
 - **Milestones** — start, finish and mandatory inspection milestones.
 - **Baselines & progress** — capture baselines and track progress against them.
@@ -27,6 +29,9 @@ identically in the desktop app and in the browser version — the same buttons, 
 - **Assignments** — assign resources to tasks, with time-phased max-units availability.
 - **Histogram & leveling** — a resource histogram plus automatic leveling options, including
   leveling priority per task and leveling within slack only.
+- **Occupancy overview** — for multiple open projects drawing from the same library, a
+  cross-document view of where each resource is booked and where the combined booking exceeds
+  company capacity. See [Occupancy overview](docs://gids-bezettingsoverzicht) in the manual.
 
 ## Views & editing
 

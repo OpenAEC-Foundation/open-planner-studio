@@ -16,7 +16,8 @@
     "completion": "Voortgang",
     "milestone": "Mijlpaal",
     "hoursPerDayTip": "u/dag",
-    "mixedWarning": "Gemengde kalenders — uren/dag per kalender: {{list}}. Duur wordt per taak in de eigen eenheid getoond."
+    "mixedWarning": "Gemengde kalenders — uren/dag per kalender: {{list}}. Duur wordt per taak in de eigen eenheid getoond.",
+    "activeDuring": "In uitvoering"
   },
   "taskType": {
     "CONSTRUCTION": "Bouw",
@@ -91,6 +92,8 @@
     "deadlineMissed": "Deadline overschreden",
     "longFreePeriodWarning": "Deze taak loopt over een vrije periode van {{days}} dagen ({{start}} t/m {{end}}).",
     "longFreePeriodWarningNamed": "Deze taak loopt over {{name}} — een vrije periode van {{days}} dagen ({{start}} t/m {{end}}).",
+    "timephasedActive": "Volgt de urenverdeling uit MS Project",
+    "timephasedLost": "Urenverdeling uit MS Project niet meer toegepast na bewerking — oorspronkelijke verdeling blijft bewaard",
     "completion": "Voortgang (%)",
     "progress": {
       "actualStart": "Werkelijke start",
@@ -108,9 +111,10 @@
     "interferingFloat": "Interfererende speling:",
     "criticalPath": "Kritiek pad:",
     "dependencies": "Afhankelijkheden",
+    "jumpToTask": "Ga naar taak {{wbs}}",
     "relationPopoverTitle": "Type relatie",
     "driving": "Bepalende relatie (driving)",
-    "lag": "Lag (bv. 2d, 3ed, 50%, -25e%)",
+    "lag": "Lag (bv. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Bereken",
     "assignments": {
       "title": "Toewijzingen",
@@ -154,7 +158,7 @@
     "notCalculated": "Herbereken (F5) om bepalende relaties en speling te zien",
     "warnTruncatedLead": "Lead afgekapt op de projectstart — de overlap wordt niet volledig benut",
     "warnLeadExceedsDuration": "Lead is groter dan de duur van de voorganger",
-    "warnSummaryEndpoint": "Zonder effect: samenvattingstaak als eindpunt"
+    "warnDropped": "Niet meegerekend bij de berekening"
   },
   "structure": {
     "title": "Codes & velden",

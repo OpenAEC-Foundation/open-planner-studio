@@ -6,6 +6,232 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.8.1 — 2026-08-19
+
+A release built around one feature, taken all the way from a first read to full date-fidelity:
+native MS Project (.mpp) import — plus the mainline work that landed after v2026.8.0 was tagged
+(the "dates as recorded" mode, the WBS jump button, the active-between filter). About 357 commits
+since v2026.8.0 in total.
+
+### Added
+- **Open Planner Studio can now open MS Project (.mpp) files natively.** The format joins the
+  existing open pipeline — its own registry entry, a lazily loaded parser chunk, translated error
+  messages in all fourteen languages — with no external converter involved: the file's own binary
+  container (a Compound File Binary / OLE2 structure) is parsed directly, then its calendars,
+  tasks, hierarchy, constraints, relations, resources and assignments are read out of it.
+- **.mpp import is now date-faithful to the minute.** Across a 216-file test corpus, every file
+  now lands on exactly zero start, finish and same-day deviations after recalculation — no
+  exceptions — enforced by an always-on regression gate that fails the moment a single pinned
+  file drifts again or picks up an undocumented exception. Getting there took several new pieces
+  of scheduling engine, all shared with the rest of the app rather than bolted onto the .mpp path
+  alone: task splits are now a first-class feature — read from the source file, carried through
+  the critical-path calculation as per-segment remaining work, and drawn as genuinely broken bars
+  in the Gantt chart, the print preview and PDF export; leveling delay is read and applied to the
+  schedule to the minute; timephased (contoured) assignments now walk their own imported date
+  window and duration through the assigned resource's own calendar — holiday-aware, and correctly
+  apportioning work when a task carries more than one simultaneous assignment; manually scheduled
+  tasks follow genuine MS Project semantics, including how their fixed dates propagate to
+  successors; out-of-sequence progress is read from MS Project's own resume/stop fields instead of
+  being inferred; and the critical-path solver gained a handful of matching refinements — an
+  unsnapped raw anchor for root tasks that start exactly on a calendar band boundary, a
+  zero-duration milestone that no longer snaps past its own deadline, and a dedicated rule for
+  resumed out-of-sequence work.
+
+- **A "dates as recorded" mode** (issue #63): when a file's stored dates differ from what
+  recalculation produces, the app can now show the project exactly as the file recorded it — with
+  its own toolbar strip, an in-app guide article, and a working undo path back to the recalculated
+  schedule. Leaving the mode is explicit: any date-touching edit or a recalculation returns to
+  computed dates.
+- **A WBS jump button on dependencies** (issue #65): every dependency row in the task properties
+  panel now shows the linked task's WBS number as a clickable button — hover for the same details
+  as a Gantt bar tooltip, click to select the task while the chart zooms and scrolls to it,
+  auto-expanding any collapsed parents.
+- **An "active between" filter field** (issue #32): filter tasks on interval overlap with a date
+  range, using both start and finish.
+
+### Changed
+- **Nothing a .mpp file contains is thrown away on import, and edits only ever switch off derived
+  steering — never delete data.** Raw contour periods, MS Project's task-type and effort-driven
+  flags, and every other field added for date-fidelity round-trip through the project's IFC file
+  like the rest of the project data. Editing a task that MS Project was actively steering hour by
+  hour never silently drops what was read from the source; it only stops that hour-by-hour
+  distribution from applying going forward, and the underlying data stays in the document.
+- **Editing a task now says, at the moment you edit it, when the edit releases MS Project's
+  original hour-by-hour distribution.** A one-time in-app notice appears the first time this
+  happens in a document, and the task's properties panel carries a small marker so the state stays
+  visible afterwards — both link straight to the relevant section of the MS Project import guide.
+  An AI assistant working through the MCP bridge gets the same signal as a `timephasedGuidanceLost`
+  field on its response.
+- **Every user-facing notification in the app is now in-app.** The last native browser/OS confirm
+  dialog (removing a resource library company) was replaced by the app's own confirmation dialog;
+  only the file open/save pickers remain native, as they must.
+- **The .mpp opening notice now counts real signals instead of estimating them**, and the MS
+  Project import guides (Dutch and English) were rewritten so each claim points at the code or
+  test that backs it up.
+
+### Fixed
+- **Auto-save could fail on a fresh install because the application data directory did not exist
+  yet** (issue #72): the directory is now created before the first auto-save or library write.
+- **A calendar name collision on IFC round-trip could cross-contaminate two calendars.** Timephased
+  duration data translated its resource-calendar reference by calendar name, but the app never
+  enforced calendar names being unique — two identically named calendars with different working
+  hours could silently swap places after a save/reload. The translation now goes through the
+  calendar's own identity instead of its name.
+- **A finish-no-later-than or start-no-later-than deadline could push a milestone forward past
+  that very deadline.** A guard meant to keep those deadline types from affecting forward
+  scheduling ran too early and let a zero-duration milestone snap to (or past) the deadline anyway.
+- **Duration, date or duration-type edits did nothing on a task whose imported work distribution
+  had already been apportioned across more than one assignment.** The frozen, imported values kept
+  winning over the edit; such edits now correctly release that distribution instead of being
+  silently ignored.
+- **A calendar representing a full day as one continuous band failed to switch into hour-precision
+  mode.** Calendars in the "24 Hours" family (one continuous midnight-to-midnight band) were
+  missing a needed signal and silently stayed in day-precision mode, losing hour-level detail for
+  every resource on them. The fix lives in the shared sub-day calendar layer, so it applies to
+  IFC, MSPDI and Primavera imports as well as .mpp — an existing project with such a calendar
+  will now correctly promote to hour precision on open.
+- **Task durations computed against a non-whole-number workday length (for example 8.4 hours, a
+  value MS Project allows) could land one workday late.** A tiny floating-point rounding error was
+  read as "not finished yet" and added an extra workday that shouldn't have been there.
+
+### Documentation
+- **The MS Project import guide (Dutch and English) was rewritten around what the engine actually
+  does now**, not what it did at the start of this effort: split tasks are always visible, manually
+  scheduled tasks keep their own dates with no slack by design (not "shows slack"), leveling delay
+  is counted in both directions, and contoured assignments follow their imported window but are not
+  yet recomputed after a manual edit. The WBS guide and the relations/constraints guide each gained
+  a short note on how a manually scheduled task behaves (it doesn't roll up; it wins over a hard
+  pin). The import/export guide now spells out what each export format does with
+  manually-scheduled, leveling-delay, split and resume/stop data — CSV drops it silently, MSPDI and
+  P6 exports warn.
+
+## v2026.8.0 — 2026-08-17
+
+A release centred on cross-document resource visibility — a new occupancy overview per resource
+library — plus a round of relation-correctness fixes around milestones and summary tasks. About
+100 commits since v2026.7.14.
+
+### Added
+- **A resource-library occupancy overview across open documents (issue #19, the part v2026.7.13
+  left open).** A new pure core, `computeLibraryOccupancy` (`src/services/library/occupancy.ts`),
+  aggregates every open document's bookings against a resource library's pool items per ISO day and
+  flags days where the summed load exceeds a pool item's capacity — a double-booking that no single
+  project's own histogram can show, since each project only sees its own assignments. The Resources
+  tab gained a third view, `ResourceOccupancyView.tsx`, with a table and a per-pool-item histogram.
+  A background (non-active) document whose schedule is stale is recomputed on a throwaway clone of
+  its tasks (the same `solveProject` core `runCPM` uses, extracted in this release — see Changed) so
+  it still counts correctly with current dates, without touching that document's own stored state;
+  only a genuine solve failure (a cycle, missing solve input) falls back to showing the document's
+  bookings without numbers rather than risking numbers that are neither the old nor the new
+  schedule. When "Calculate automatically" is on, opening the overview now genuinely refreshes those
+  stale background documents in place (`recalculateStaleSleepingDocuments`) instead of leaving them
+  perpetually marked stale — no more switching to each tab and pressing F5. Documents get stable,
+  unique colours (assigned by order of first appearance, reusing the shared `DOC_PALETTE`) instead
+  of a hash that could collide, the histogram axis compresses non-working gaps, and the chart reads
+  left-to-right. New in-app guide "Resource occupancy overview" (NL+EN).
+- **Relations on milestones now work, and relations that land on a summary task ("phantom
+  relations") are surfaced instead of silently vanishing.** A milestone's diamond hit-test had
+  accidentally been reused to arm relation-dragging (since the sticky-Shift mode of v2026.7.14),
+  which blocked dragging a relation from a milestone even though the solver fully supports it as a
+  predecessor or successor; it now has its own dedicated hit-test, separate from the drag/resize
+  hit-test that deliberately excludes milestones. A relation whose endpoint is a summary task has no
+  effect on the schedule — the solver only sees leaf tasks — so a new pure rule module,
+  `src/state/relationRules.ts`, is now the single source of truth for what a relation endpoint is
+  allowed to be. Existing and imported "phantom" relations are kept (filtering them would destroy
+  information from the source file, e.g. a P6/MSP import) but are now marked in the Relations panel
+  and summarized in one notification after a file loads. Both the direct create path and the
+  reassign-an-existing-relation path (`planner_update_dependencies`, which writes endpoints straight
+  onto the draft and was a gap the create-path guard didn't cover) now reject a *new* summary-task
+  endpoint on the MCP side, sharing one rejection message between both tools; the backstop rejection
+  no longer claims a relation "already existed" for cases it doesn't actually know the reason for
+  (K3).
+- **New tasks now inherit `taskType` from their parent** instead of always falling back to the
+  construction-mode-wide default, on both the UI path (`addTask`) and the AI/MCP path
+  (`draft.addTask`, including inside nested `draft.addTasks` batches).
+- **Resource sets for the example projects.** Across the 24 example topologies in `examples/` —
+  eight of which ship with the app via `public/examples/manifest.json` — almost none carried
+  resources or assignments, so opening one showed an empty Resources tab and histogram. Eight
+  examples now carry realistic resource pools and assignments, all measured overallocation-free:
+  six base examples (canal house restoration, N279 bridge replacement, Wassenaar villa, offshore
+  wind turbine, Agriport data centre, Almere housing estate) and, in a follow-up pass, the two
+  remaining bundled ones (03 Kantoorgebouw Zuidas, 08 Zorgcentrum De Linde). The entry-level
+  showcase (verbouwing eengezinswoning) is deliberately left without resources. A new generator module, `scripts/example-resources.ts`, maps task names to
+  resources/assignments per example slug, feeding `topologyToSpec` alongside the existing pure
+  topology data.
+
+### Changed
+- **The CPM solve core was extracted out of `runCPM` (A3/M3).** `src/engine/scheduler/solveProject.ts`
+  now holds the pure leaf-filter → `CPMSolver` → `applyCpmResult` pipeline as a standalone function;
+  `runCPM` is a thin wrapper around it (stale flag, notifications, extension events,
+  `recomputeViewRows`). No behaviour changed for the interactive path — the planning suite passed
+  unmodified — but it is what lets the occupancy overview recompute a background document's schedule
+  without duplicating solver logic.
+- **Test-suite coverage gap closed: the standalone planning run now typechecks every `check-*.ts`
+  battery**, not only the IFC round-trip battery it happened to cover before (a new
+  `tsconfig.check.json` globs all of them); repo-level `npm run typecheck` already covered this, so
+  the gap was specific to running the suite standalone. Assorted `.gitignore` cleanup keeps test
+  bundle build artefacts (histogram, relation-rules, assign-resource-guard, and others) out of git
+  going forward instead of being caught one at a time after the fact.
+
+### Fixed
+- **WBS numbering could desync from the visible task order after `moveTask` without an explicit
+  position** — e.g. after changing a task's parent in the Task dialog, or via
+  `planner_move_task` — because the move only reordered `childIds` (which drives what's shown) and
+  left the underlying `tasks` array (which drives WBS numbering) untouched.
+- **Bulk delete now costs one undo step, on all three routes that trigger it** (context menu,
+  ribbon Delete button, Delete/Backspace) via a new shared `deleteTasksBulk` in
+  `src/state/taskBulkActions.ts` — deleting five tasks previously cost five separate `Ctrl+Z`s.
+- **An IFC `DATA;` section boundary is now read case-insensitively.** A file written by a
+  third-party tool with a lowercase `data;` token threw a hard "no data section" error on load; the
+  boundary check now folds case via character codes rather than assuming a specific casing.
+- **The web build now falls back to a download when the environment refuses to grant write
+  access**, instead of surfacing a raw `DOMException` as "Failed to save" with no way out. Measured
+  cause: some embedded webviews (e.g. inside the Claude desktop app) expose the full File System
+  Access API but never grant `createWritable` a read-write permission, unlike a real browser on the
+  same build and URL. The distinction is made on error type (`NotAllowedError`/`SecurityError`), not
+  on error text, which varies by browser and locale; a genuine write failure (full disk, a vanished
+  file) still surfaces as an error, and a user cancelling the picker still does nothing.
+- **`assignResource` rejects an unknown or `null` resourceId** instead of poisoning the document —
+  an assignment referencing a resource that doesn't exist (reachable via the dev bridge, or a
+  corrupted document) previously crashed every subsequent `writeIFC`, including every auto-save,
+  in `writeAssignmentMeta` → `guidOf`. `writeAssignmentMeta` also now skips assignments it can't
+  resolve, so documents/auto-save snapshots already in that state become saveable again, byte-
+  identical for healthy documents.
+- **MS Project (MSPDI) export silently dropped the active baseline.** `exportAs('mspdi')` called
+  `writeMSPDI` with too few arguments, so baselines fell back to their defaults even though
+  `readMSPDI` reads them back in — a real data-loss bug on the export path.
+- **Canvas text scale (issue #60), a renderer crash on tasks missing a date, and middle-click
+  panning (issue #52).** The `ui.uiFontScale` setting now also scales the Gantt canvas and its
+  histogram companion (fonts, row/header height, and the picker row all move together, including
+  hit-testing); a task missing a start or finish date used to blank the canvas every frame, and now
+  borrows the missing side from the other one, falling back to a visible one-day stub if both are
+  absent; and holding the middle mouse button now pans the canvas, without stealing the next
+  regular click or starting mid-gesture over a bar drag, relation draw, row drag, or box-select.
+- **`<html lang>` now follows the active locale** — screen readers previously announced every one of
+  the thirteen non-Dutch locales as Dutch.
+- **The Resources tab now opens in Project view by default (issue #64)**, with the resource-library
+  hint promoted to a real warning banner (`role="alert"`, icon, amber border); the Library view —
+  app-global, outside undo — is now a deliberate per-visit tab choice rather than the default,
+  which used to make "New resource" land in the library.
+- **The saved theme is now applied before first paint (issue #61)**, via an inline `<head>` script
+  reading the same storage key and legacy-name migration as `initTheme`, removing a dark-theme flash
+  when the user's preference was Light.
+- `npm audit fix` for three advisories introduced after v2026.7.14 (`brace-expansion`/`nanoid`
+  high, `postcss` moderate), resolved within existing semver ranges.
+
+### Documentation
+- **New in-app guide "Resource occupancy overview" (NL+EN)**, including the write-back behaviour
+  when "Calculate automatically" is on.
+- **The relations guide (`gids-relaties-constraints`, NL+EN) now explains relations on milestones
+  and on summary tasks**, using the established user-facing term "summary task" rather than the
+  internal Dutch code term `verzameltaak`.
+- **The two newest in-app guides — "Connecting an AI assistant (MCP)" and resource libraries — were
+  translated into the remaining twelve locales**, and six other guides (quick start, WBS planning,
+  reports/printing, resource histogram, keyboard shortcuts, settings reference) were brought back in
+  line with an nl/en source that had grown ahead of them, including the "resource dock" renaming.
+- Nine items confirmed fixed and removed from `docs/TODO.md`, each individually re-verified against
+  the current code or test output rather than trusted from its commit message.
+
 ## v2026.7.14 — 2026-07-30
 
 A release centred on Gantt-interaction polish, a reworked right-hand panel layout, and a round

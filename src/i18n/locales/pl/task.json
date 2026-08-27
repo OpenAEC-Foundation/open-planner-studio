@@ -16,7 +16,8 @@
     "freeFloat": "Zapas swobodny",
     "interferingFloat": "Zapas interferujący",
     "isNearCritical": "Prawie krytyczne",
-    "floatPath": "Ścieżka zapasu"
+    "floatPath": "Ścieżka zapasu",
+    "activeDuring": "W toku"
   },
   "taskType": {
     "CONSTRUCTION": "Budowa",
@@ -72,6 +73,8 @@
     "deadlineMissed": "Termin ostateczny przekroczony",
     "longFreePeriodWarning": "To zadanie obejmuje {{days}}-dniowy okres wolny od pracy ({{start}} do {{end}}).",
     "longFreePeriodWarningNamed": "To zadanie obejmuje {{name}} — {{days}}-dniowy okres wolny od pracy ({{start}} do {{end}}).",
+    "timephasedActive": "Podąża za rozkładem godzin z MS Project",
+    "timephasedLost": "Rozkład godzin z MS Project nie jest już stosowany po edycji — pierwotny rozkład pozostaje zachowany w pliku",
     "completion": "Postęp (%)",
     "progress": {
       "actualStart": "Rzeczywisty początek",
@@ -88,9 +91,10 @@
     "freeFloat": "Zapas swobodny:",
     "criticalPath": "Ścieżka krytyczna:",
     "dependencies": "Zależności",
+    "jumpToTask": "Przejdź do zadania {{wbs}}",
     "relationPopoverTitle": "Typ relacji",
     "driving": "Relacja wiodąca (driving)",
-    "lag": "Zwłoka (np. 2d, 3ed, 50%, -25e%)",
+    "lag": "Zwłoka (np. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Oblicz",
     "assignments": {
       "title": "Przydziały",
@@ -154,7 +158,7 @@
     "notCalculated": "Przelicz (F5), aby zobaczyć relacje wiodące i zapasy",
     "warnTruncatedLead": "Wyprzedzenie ucięte na starcie projektu — nakładanie nie jest w pełni wykorzystane",
     "warnLeadExceedsDuration": "Wyprzedzenie jest większe niż czas trwania poprzednika",
-    "warnSummaryEndpoint": "Bez wpływu: zadanie sumaryczne jako punkt końcowy"
+    "warnDropped": "Nieuwzględniona w obliczeniach"
   },
   "structure": {
     "title": "Kody i pola",

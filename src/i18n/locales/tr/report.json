@@ -17,6 +17,7 @@
   "showLegend": "Gösterge",
   "showTaskNames": "Çubuklarda görev adları",
   "showCompletion": "Tamamlanmayı göster",
+  "showBaselineOverlay": "Temel çizgi katmanını göster",
   "autoFit": "Kağıda otomatik sığdır",
   "zoom": "Yakınlaştırma:",
   "repeatHeader": "Üstbilgiyi her sayfada yinele",
@@ -40,11 +41,14 @@
   "legend": {
     "criticalPath": "Kritik yol",
     "normal": "Normal",
+    "baseline": "Temel çizgi",
     "milestone": "Kilometre taşı",
     "summary": "Özet",
     "float": "Bolluk",
     "completion": "Tamamlanma",
-    "relationStyle": "Belirleyici / belirleyici olmayan"
+    "relationStyle": "Belirleyici / belirleyici olmayan",
+    "categoriesMore_one": "… ve {{count}} kategori daha",
+    "categoriesMore_other": "… ve {{count}} kategori daha"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -102,5 +106,19 @@
     "total": "Kilometre taşları",
     "mandatoryCount": "Zorunlu",
     "lateCount": "Gecikmiş"
-  }
+  },
+  "barColorModeLabel": "Çubuk renkleri:",
+  "barColorMode_critical": "Kritik yol",
+  "barColorMode_auto": "Görev başına — otomatik",
+  "barColorMode_category": "Kategoriye göre",
+  "barColorFieldLabel": "Kategori alanı",
+  "barColorMissingField": "Bu alan bu projede yok. Geçici olarak görev türü kullanılıyor.",
+  "statusLineLabel": "Durum çizgisi:",
+  "statusLine_none": "Yok",
+  "statusLine_statusDate": "Durum tarihi çizgisi",
+  "statusLine_progress": "İlerleme çizgisi",
+  "statusLineHint": "Önce bir durum tarihi belirleyin",
+  "followView": "Görünüme uy (filtre, gruplama, sıralama)",
+  "statusDateLabel": "Durum tarihi",
+  "progressDateLabel": "İlerleme tarihi"
 }

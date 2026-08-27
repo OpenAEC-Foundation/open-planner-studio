@@ -16,7 +16,8 @@
     "freeFloat": "自由浮动",
     "interferingFloat": "干扰浮动",
     "isNearCritical": "接近关键",
-    "floatPath": "浮动路径"
+    "floatPath": "浮动路径",
+    "activeDuring": "进行中"
   },
   "taskType": {
     "CONSTRUCTION": "施工",
@@ -72,6 +73,8 @@
     "deadlineMissed": "已超过期限",
     "longFreePeriodWarning": "此任务跨越一个 {{days}} 天的非工作时段（{{start}} 至 {{end}}）。",
     "longFreePeriodWarningNamed": "此任务跨越{{name}} —— 一个为期 {{days}} 天的非工作时段（{{start}} 至 {{end}}）。",
+    "timephasedActive": "跟随 MS Project 的工时分布",
+    "timephasedLost": "编辑后不再应用 MS Project 的工时分布——原始分布仍保留在文件中",
     "completion": "进度（%）",
     "progress": {
       "actualStart": "实际开始",
@@ -88,9 +91,10 @@
     "freeFloat": "自由浮动：",
     "criticalPath": "关键路径：",
     "dependencies": "依赖关系",
+    "jumpToTask": "跳转到任务 {{wbs}}",
     "relationPopoverTitle": "关系类型",
     "driving": "驱动关系 (driving)",
-    "lag": "延时（例如 2d、3ed、50%、-25e%）",
+    "lag": "延时（例如 2d、3ed、2u、50%、-25e%）",
     "recalculate": "计算",
     "assignments": {
       "title": "分配",
@@ -154,7 +158,7 @@
     "notCalculated": "重新计算（F5）以查看驱动关系和浮动",
     "warnTruncatedLead": "提前量在项目开始处被截断——重叠未被完全利用",
     "warnLeadExceedsDuration": "提前量大于前置任务的工期",
-    "warnSummaryEndpoint": "无影响：摘要任务作为端点"
+    "warnDropped": "未计入计算"
   },
   "structure": {
     "title": "代码与字段",

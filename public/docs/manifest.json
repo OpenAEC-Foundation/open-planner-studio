@@ -211,6 +211,35 @@
       "cluster": "import-export"
     },
     {
+      "id": "gids-msproject-import",
+      "title": {
+        "nl": "MS Project (.mpp) openen",
+        "en": "Opening MS Project (.mpp)",
+        "de": "MS Project (.mpp) öffnen",
+        "fr": "Ouvrir MS Project (.mpp)",
+        "es": "Abrir MS Project (.mpp)",
+        "zh": "打开 MS Project（.mpp）",
+        "it": "Aprire MS Project (.mpp)",
+        "pt": "Abrir o MS Project (.mpp)",
+        "pl": "Otwieranie MS Project (.mpp)",
+        "tr": "MS Project (.mpp) dosyasını açma",
+        "ar": "فتح MS Project (.mpp)",
+        "ja": "MS Project（.mpp）を開く",
+        "ko": "MS Project(.mpp) 열기",
+        "fa": "باز کردن MS Project (.mpp)"
+      },
+      "layer": "gidsen",
+      "cluster": "msproject-import"
+    },
+    {
+      "id": "datums-zoals-opgeslagen",
+      "title": {
+        "nl": "Datums zoals opgeslagen",
+        "en": "Dates as recorded"
+      },
+      "layer": "gidsen"
+    },
+    {
       "id": "gids-ai-mcp",
       "title": {
         "nl": "AI-assistent koppelen (MCP)",

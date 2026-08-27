@@ -91,6 +91,9 @@ const BUILTIN_LABEL_KEY = {
   interferingFloat: 'table.interferingFloat',
   isNearCritical: 'table.isNearCritical',
   floatPath: 'table.floatPath',
+  // Filter-only synthetisch veld (issue-discussie #32) — nooit een kolom, maar de Record moet
+  // exhaustief blijven t.o.v. BuiltinFieldKey.
+  activeDuring: 'table.activeDuring',
 } as const satisfies Record<BuiltinFieldKey, string>;
 
 export function TableEditor() {
@@ -720,12 +723,25 @@ export function TableEditor() {
   const cellAlign = (f: FieldRef): 'left' | 'right' | 'center' =>
     (f.src === 'builtin' && BUILTIN_ALIGN[f.key]) || 'left';
 
+  const testFieldKey = (field: FieldRef): string => {
+    if (field.src === 'builtin') return field.key;
+    if (field.src === 'activityCode') return `activityCode:${field.typeId}`;
+    if (field.src === 'customField') return `customField:${field.defId}`;
+    return 'resource';
+  };
+
+  const isEditableColumn = (field: FieldRef, isSummary: boolean): boolean => {
+    if (field.src === 'builtin') return editableFields.includes(field.key);
+    return !isSummary && (field.src === 'activityCode' || field.src === 'customField');
+  };
+
   return (
     // tabIndex maakt het raster focusbaar zodat de toetsen hierboven aankomen (issue #26);
     // `outline-none` onderdrukt alleen de focusring die dat oplevert — de actieve CEL is de
     // zichtbare cursor, niet de hele tabel.
     <div
       ref={containerRef}
+      data-testid="task-table-editor"
       tabIndex={0}
       onKeyDown={handleGridKeyDown}
       className="flex-1 flex flex-col overflow-auto bg-surface outline-none"
@@ -874,6 +890,9 @@ export function TableEditor() {
                   return (
                     <div
                       key={index}
+                      data-testid="task-cell"
+                      data-task-id={task.id}
+                      data-field-key="name"
                       className="px-2 flex items-center gap-1 min-w-0"
                       style={{ flex: `1 0 ${col.width}px`, width: col.width, paddingLeft: 8 + depth * 16 }}
                     >
@@ -893,9 +912,13 @@ export function TableEditor() {
                   );
                 }
                 const align = cellAlign(col.field);
+                const isEditable = isEditableColumn(col.field, isSummary);
                 return (
                   <div
                     key={index}
+                    data-testid={isEditable ? 'task-cell' : undefined}
+                    data-task-id={isEditable ? task.id : undefined}
+                    data-field-key={isEditable ? testFieldKey(col.field) : undefined}
                     className="px-1 flex items-center min-w-0"
                     style={{
                       flex: `0 0 ${col.width}px`,

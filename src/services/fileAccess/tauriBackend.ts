@@ -1,14 +1,20 @@
-import type { FileFilter, FileRef, OpenedFile, SaveOutcome } from './index';
-import { ensureExtension } from '@/utils/filePath';
+import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveOutcome } from './index';
+import { ensureExtension, extensionOf } from '@/utils/filePath';
 
 const basename = (p: string): string => p.split(/[\\/]/).pop() || p;
 
-export async function openFileDialogTauri(filters: FileFilter[]): Promise<OpenedFile | null> {
+export async function openFileDialogTauri(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
   const { open } = await import('@tauri-apps/plugin-dialog');
-  const { readTextFile } = await import('@tauri-apps/plugin-fs');
   const selected = await open({ multiple: false, filters });
   if (!selected) return null;
   const path = selected as string;
+  const isBinary = (opts?.binaryExtensions ?? []).includes(extensionOf(path));
+  if (isBinary) {
+    const { readFile } = await import('@tauri-apps/plugin-fs');
+    const bytes = await readFile(path);
+    return { name: basename(path), content: '', bytes, ref: { kind: 'path', path } };
+  }
+  const { readTextFile } = await import('@tauri-apps/plugin-fs');
   const content = await readTextFile(path);
   return { name: basename(path), content, ref: { kind: 'path', path } };
 }
@@ -37,6 +43,16 @@ export async function readFromRefTauri(ref: FileRef): Promise<string | null> {
   try {
     const { readTextFile } = await import('@tauri-apps/plugin-fs');
     return await readTextFile(ref.path);
+  } catch {
+    return null;
+  }
+}
+
+export async function readBytesFromRefTauri(ref: FileRef): Promise<Uint8Array | null> {
+  if (ref.kind !== 'path') return null;
+  try {
+    const { readFile } = await import('@tauri-apps/plugin-fs');
+    return await readFile(ref.path);
   } catch {
     return null;
   }

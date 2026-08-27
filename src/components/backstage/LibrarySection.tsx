@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Building2, Plus, Trash2, Star, Download, Upload, ArrowUpFromLine, Pencil, Check, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { saveFileDialog } from '@/services/fileAccess';
+import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import type { WorkCalendar } from '@/types/calendar';
 import './LibrarySection.css';
 
@@ -86,13 +87,15 @@ export function LibrarySection() {
     }
   };
 
+  // mpp-nul-data-etappe, DEEL 3 (native-dialog-audit): lokale bevestigings-state i.p.v.
+  // `window.confirm()` — zelfde patroon als `LayoutsDialog.tsx`/`BaselineDialog.tsx` (fase 2.10,
+  // item 5/architect-besluit 4). Geen globale singleton; `onConfirm` draagt de vervolg-logica die
+  // voorheen ná de synchrone `window.confirm()`-return-waarde stond.
+  const [pendingRemoveCompany, setPendingRemoveCompany] = useState(false);
+
   // Bedrijf verwijderen (spec §5): meld hoeveel GEOPENDE documenten (actief + slapend) aan dit
   // bedrijf gekoppeld zijn — `removeCompany` ontkoppelt die expliciet (stempels strippen).
-  const onRemoveCompany = () => {
-    const n = countDocumentsLinkedTo(selected.id);
-    const msg = n > 0 ? t('companyLibrary.removeCompanyConfirmLinked', { count: n }) : t('companyLibrary.removeCompanyConfirm');
-    if (window.confirm(msg)) removeCompany(selected.id);
-  };
+  const onRemoveCompany = () => setPendingRemoveCompany(true);
 
   return (
     <div className="backstage-panel library-section">
@@ -226,6 +229,20 @@ export function LibrarySection() {
           </p>
         </section>
       </div>
+
+      {pendingRemoveCompany && (
+        // mpp-nul-data-etappe, DEEL 3 — vervangt `window.confirm()`, zie `onRemoveCompany` hierboven.
+        <ConfirmDialog
+          message={
+            countDocumentsLinkedTo(selected.id) > 0
+              ? t('companyLibrary.removeCompanyConfirmLinked', { count: countDocumentsLinkedTo(selected.id) })
+              : t('companyLibrary.removeCompanyConfirm')
+          }
+          danger
+          onConfirm={() => { removeCompany(selected.id); setPendingRemoveCompany(false); }}
+          onCancel={() => setPendingRemoveCompany(false)}
+        />
+      )}
     </div>
   );
 }

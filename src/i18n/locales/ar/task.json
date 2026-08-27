@@ -16,7 +16,8 @@
     "freeFloat": "الفائض الحر",
     "interferingFloat": "الفائض المتداخل",
     "isNearCritical": "شبه حرج",
-    "floatPath": "مسار الفائض"
+    "floatPath": "مسار الفائض",
+    "activeDuring": "قيد التنفيذ"
   },
   "taskType": {
     "CONSTRUCTION": "بناء",
@@ -72,6 +73,8 @@
     "deadlineMissed": "تم تجاوز الموعد النهائي",
     "longFreePeriodWarning": "تمتد هذه المهمة عبر فترة عطلة مدتها {{days}} يومًا ({{start}} إلى {{end}}).",
     "longFreePeriodWarningNamed": "تمتد هذه المهمة عبر {{name}} — فترة عطلة مدتها {{days}} يومًا ({{start}} إلى {{end}}).",
+    "timephasedActive": "تتبع توزيع الساعات من MS Project",
+    "timephasedLost": "لم يعد توزيع الساعات من MS Project مطبقًا بعد التعديل — يبقى التوزيع الأصلي محفوظًا في الملف",
     "completion": "التقدم (%)",
     "progress": {
       "actualStart": "البداية الفعلية",
@@ -88,9 +91,10 @@
     "freeFloat": "الفائض الحر:",
     "criticalPath": "المسار الحرج:",
     "dependencies": "التبعيات",
+    "jumpToTask": "الانتقال إلى المهمة {{wbs}}",
     "relationPopoverTitle": "نوع العلاقة",
     "driving": "علاقة حاكمة (driving)",
-    "lag": "التأخير (مثل 2d، 3ed، 50%، -25e%)",
+    "lag": "التأخير (مثل 2d، 3ed، 2u، 50%، -25e%)",
     "recalculate": "حساب",
     "assignments": {
       "title": "التخصيصات",
@@ -154,7 +158,7 @@
     "notCalculated": "أعد الحساب (F5) لعرض العلاقات الحاكمة والفوائض",
     "warnTruncatedLead": "تم قطع التقديم عند بداية المشروع — لا يُستفاد من التداخل بالكامل",
     "warnLeadExceedsDuration": "التقديم أكبر من مدة المهمة السابقة",
-    "warnSummaryEndpoint": "بلا تأثير: مهمة موجزة كنقطة نهاية"
+    "warnDropped": "لم يتم إدراجها في الحساب"
   },
   "structure": {
     "title": "الرموز والحقول",

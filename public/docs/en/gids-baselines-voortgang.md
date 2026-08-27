@@ -45,14 +45,14 @@ Actual dates can never be later than the status date — try to enter a later on
 
 The **status date** (**Baselines & progress** ribbon group on the Planning tab, **Status date** field) marks "today" within the schedule — the moment you recorded progress as of. Once it's set, it does two things at once:
 
-- Any task or milestone that hasn't started yet (0% complete, no actual start) cannot begin earlier than the status date, even if the logic (predecessors, relations) would otherwise allow an earlier start. Its calculated early start gets "floored" to the status date.
+- Any task or milestone that hasn't started yet (0% complete, no actual start) cannot begin earlier than the status date, even if the logic (predecessors, relations) would otherwise allow an earlier start. Its calculated early start gets "floored" to the status date — this is the P6 convention and applies by default. One exception: a project you imported from MS Project (`.mpp`) instead follows MS Project's own convention and does *not* floor unstarted tasks to the status date.
 - Tasks that have already started or finished keep their actual dates — those are never overwritten by the status date.
 
 You can see this exactly in the medium-sized showcase: with the status date set to 20 May 2027, several not-yet-started tasks (for example bricklaying and plumbing work on different houses) have their early start pinned exactly on that date, even though they run in different houses and would, without the status-date floor, have started on various, earlier dates.
 
 ### Why an unmarked milestone "shifts to the right"
 
-In the calculation a milestone is nothing more than a task with zero duration, so the same rule applies: if it hasn't been marked complete yet (no 100%, no actual date), its calculated date cannot fall before the status date. Keep pushing the status date forward without marking the milestone complete, and its displayed date in the Gantt keeps shifting right along with it, even though nothing has changed about the underlying tasks — the schedule is effectively saying "this moment can't lie in the past if you haven't checked it off yet." Once you do mark the milestone complete with an actual date, it snaps back to that fixed date and stops shifting.
+In the calculation a milestone is nothing more than a task with zero duration, so the same rule applies: if it hasn't been marked complete yet (no 100%, no actual date), its calculated date cannot fall before the status date. Keep pushing the status date forward without marking the milestone complete, and its displayed date in the Gantt keeps shifting right along with it, even though nothing has changed about the underlying tasks — the schedule is effectively saying "this moment can't lie in the past if you haven't checked it off yet." Once you do mark the milestone complete with an actual date, it snaps back to that fixed date and stops shifting. (The `.mpp` exception above applies here too: in a project imported from MS Project, an unmarked milestone does not shift along with the status date.)
 
 ## Out-of-sequence warnings
 

@@ -16,7 +16,8 @@
     "freeFloat": "자유 여유",
     "interferingFloat": "간섭 여유",
     "isNearCritical": "준임계",
-    "floatPath": "여유 경로"
+    "floatPath": "여유 경로",
+    "activeDuring": "진행 중"
   },
   "taskType": {
     "CONSTRUCTION": "건설",
@@ -72,6 +73,8 @@
     "deadlineMissed": "기한 초과",
     "longFreePeriodWarning": "이 작업은 {{days}}일간의 비근무 기간에 걸쳐 있습니다 ({{start}} ~ {{end}}).",
     "longFreePeriodWarningNamed": "이 작업은 {{name}} 기간에 걸쳐 있습니다 — {{days}}일간의 비근무 기간 ({{start}} ~ {{end}}).",
+    "timephasedActive": "MS Project의 시간 분배를 따릅니다",
+    "timephasedLost": "편집 후 MS Project의 시간 분배가 더 이상 적용되지 않습니다 — 원래 분배는 파일에 그대로 보존됩니다",
     "completion": "진행률 (%)",
     "progress": {
       "actualStart": "실제 시작",
@@ -88,9 +91,10 @@
     "freeFloat": "자유 여유:",
     "criticalPath": "크리티컬 패스:",
     "dependencies": "종속성",
+    "jumpToTask": "{{wbs}} 작업으로 이동",
     "relationPopoverTitle": "관계 유형",
     "driving": "주도 관계(드라이빙)",
-    "lag": "지연(예: 2d, 3ed, 50%, -25e%)",
+    "lag": "지연(예: 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "계산",
     "assignments": {
       "title": "할당",
@@ -154,7 +158,7 @@
     "notCalculated": "주도 관계와 여유를 보려면 다시 계산(F5)하세요",
     "warnTruncatedLead": "선행 시간이 프로젝트 시작에서 잘렸습니다 — 겹침이 완전히 활용되지 않습니다",
     "warnLeadExceedsDuration": "선행 시간이 선행 작업의 기간보다 큽니다",
-    "warnSummaryEndpoint": "효과 없음: 끝점이 요약 작업"
+    "warnDropped": "계산에 포함되지 않음"
   },
   "structure": {
     "title": "코드 및 필드",

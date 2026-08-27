@@ -198,6 +198,64 @@
       }
     },
     {
+      "id": "kal-workingexc-taskdur",
+      "title": "T13 (§T2-afwijking, e2e-vervolg op check-calendar-hours.ts's M3-M7): werkende zaterdag telt mee in een taakduur. Projectkalender ma-vr + workingExceptions[za 11 juli]. Taak A (dur 6) vanaf ma 6 juli zou zonder de uitzondering op ma 13 juli eindigen (6 werkdagen, weekend overgeslagen) — MET de uitzondering telt za 11 als 6e werkdag, dus ef=za 11 juli.",
+      "anchor": "2026-07-06",
+      "calendar": {
+        "workDays": [1, 2, 3, 4, 5],
+        "workingExceptions": [{ "name": "Werkende zaterdag", "startDate": "2026-07-11", "endDate": "2026-07-11" }]
+      },
+      "tasks": [{ "name": "A", "dur": 6 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-11" }
+        },
+        "projectEnd": "2026-07-11",
+        "error": false
+      }
+    },
+    {
+      "id": "kal-workingexc-hourbands",
+      "title": "T13 (§T2-afwijking, e2e-vervolg op check-calendar-hours.ts's M8-M10): werkende uitzondering met EIGEN banden op een uurkalender. Projectkalender ma-vr 08:00-16:00 (8u/dag) + workingExceptions[za 11 juli, banden 06:00-12:00]. Taak A (dur 9h) vanaf vr 10 juli 08:00: vrijdag levert 8u (08:00-16:00), het resterende 1u valt op za 11 juli — binnen de OVERRIDE-band (06:00-12:00, niet de gewone weekdagband), dus ef=za 11 juli 07:00 (06:00 + 1u), niet ma 13 juli (het weekend zou anders overgeslagen zijn).",
+      "anchor": "2026-07-10",
+      "calendar": {
+        "workDays": [1, 2, 3, 4, 5],
+        "workTime": { "byWeekday": {
+          "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }],
+          "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": []
+        } },
+        "workingExceptions": [{
+          "name": "Werkende zaterdag (halve dag)", "startDate": "2026-07-11", "endDate": "2026-07-11",
+          "bands": [{ "start": 360, "end": 720 }]
+        }]
+      },
+      "tasks": [{ "name": "A", "dur": "9h" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10T08:00", "ef": "2026-07-11T07:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "kal-workingexc-precedence",
+      "title": "T13 (§T2-afwijking, e2e-vervolg op check-calendar-hours.ts's M13-M18): een werkende uitzondering PRECEDEERT boven een feestdag op dezelfde datum. Projectkalender ma-vr, wo 8 juli is zowel holiday ALS workingException — de uitzondering wint, dus wo 8 telt gewoon mee als werkdag. Taak A (dur 5) vanaf ma 6 juli eindigt daardoor byte-identiek aan de holiday-loze baseline: vr 10 juli (niet ma 13 juli, wat zou gebeuren als de holiday ten onrechte zou winnen en wo 8 zou overslaan).",
+      "anchor": "2026-07-06",
+      "calendar": {
+        "workDays": [1, 2, 3, 4, 5],
+        "holidays": [{ "name": "Verkeerd feestdag (precedentietest)", "startDate": "2026-07-08", "endDate": "2026-07-08" }],
+        "workingExceptions": [{ "name": "Toch werkend (precedentie)", "startDate": "2026-07-08", "endDate": "2026-07-08" }]
+      },
+      "tasks": [{ "name": "A", "dur": 5 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
       "id": "kal-undo-orphan-projectdefault",
       "title": "Undo-orphan (fase 2.8a §9.1, QA-fix 1): nieuwe kalender toevoegen + meteen als projectdefault zetten (CalendarDialog 'Als projectdefault'), dan undo. addCalendar pusht een undo-snapshot, setProjectCalendar bewust niet (§9.3) — ná undo verdween de nieuwe entry uit `calendars` terwijl `project.calendarId` er nog naar wees. syncProjectCalendar moet dat herstellen via promoteProjectCalendarToLibrary (geen wees, geen datumwijziging).",
       "anchor": "2026-07-06",

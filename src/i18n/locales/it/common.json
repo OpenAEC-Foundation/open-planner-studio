@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "Chiudi notifica",
     "openFailed": "Apertura del file non riuscita",
+    "mppLegacy": "Questo file .mpp utilizza un formato precedente (Project 2007 o versioni precedenti). Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
+    "mppEncrypted": "Questo file .mpp è protetto da password. Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "saveFailed": "Salvataggio non riuscito",
+    "librarySaveFailed": "Impossibile salvare la libreria",
     "savedViaDownload": "Salvato come download: '{{name}}' si trova ora nella cartella dei download. Questo ambiente non consente all'applicazione di scrivere direttamente nella posizione scelta.",
     "autoSaveFailed": "Salvataggio automatico non riuscito",
     "recoveryReadFailed": "Impossibile leggere il file ripristinato",
@@ -15,8 +18,18 @@
     "templateSaved": "Ramo salvato come modello '{{name}}'",
     "relationCreated": "Relazione creata: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Questa relazione esiste già",
-    "relationSummaryEndpoint": "Un'attività di riepilogo come estremità non ha effetto sulla pianificazione. Collegala a un'attività senza sottoattività.",
-    "summaryRelationsIgnored": "{{total}} relazione/i su attività di riepilogo non hanno effetto sulla pianificazione."
+    "relationAncestorEndpoint": "Una relazione tra un'attività e la propria attività di riepilogo antenata non è consentita.",
+    "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse — vedi il pannello Relazioni per i dettagli.",
+    "mppSourceScheduleNotes_one": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Viene importata e mostrata così com'è.",
+    "mppSourceScheduleNotes_many": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
+    "mppSourceScheduleNotes_other": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
+    "projectStartAnchorsClamped_one": "Inizio del progetto spostato: {{count}} ancoraggio di attività senza predecessore né vincolo è stato spostato alla nuova data di inizio.",
+    "projectStartAnchorsClamped_many": "Inizio del progetto spostato: {{count}} ancoraggi di attività senza predecessore né vincolo sono stati spostati alla nuova data di inizio.",
+    "projectStartAnchorsClamped_other": "Inizio del progetto spostato: {{count}} ancoraggi di attività senza predecessore né vincolo sono stati spostati alla nuova data di inizio.",
+    "mppTimephasedSteeringLost_one": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
+    "mppTimephasedSteeringLost_many": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
+    "mppTimephasedSteeringLost_other": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
+    "readMore": "Ulteriori informazioni"
   },
   "yes": "Sì",
   "no": "No",
@@ -236,7 +249,8 @@
   },
   "project": {
     "untitled": "Nuova pianificazione",
-    "imported": "Progetto importato"
+    "imported": "Progetto importato",
+    "unassignedResource": "Non assegnato"
   },
   "documents": {
     "overviewTitle": "Progetti aperti",
@@ -539,7 +553,8 @@
       "capacity": "Capacità",
       "documents": "Documenti",
       "selectHint": "Seleziona una risorsa per vedere l'istogramma."
-    }
+    },
+    "color": "Colore"
   },
   "calendar": {
     "library": {
@@ -696,6 +711,14 @@
     "notice": "Questo file contiene una pianificazione oraria.",
     "enable": "Attiva pianificazione oraria"
   },
+  "recordedDates": {
+    "offer_one": "Il ricalcolo ha spostato {{count}} attività su {{total}} rispetto alle date del file.",
+    "offer_many": "Il ricalcolo ha spostato {{count}} attività su {{total}} rispetto alle date del file.",
+    "offer_other": "Il ricalcolo ha spostato {{count}} attività su {{total}} rispetto alle date del file.",
+    "show": "Mostra le date registrate",
+    "active": "Stai visualizzando le date come registrate nel file. Non è stato eseguito alcun ricalcolo.",
+    "recalculate": "Ricalcola"
+  },
   "duration": {
     "suffixDay": "g",
     "suffixHour": "h",
@@ -817,6 +840,10 @@
     "intro": "Genera una pianificazione di test e misura le fasi principali. Non tocca il progetto aperto.",
     "sizeLabel": "Dimensione della pianificazione",
     "tasksCount": "{{count}} attività",
+    "resourceLabel": "Numero di risorse",
+    "resourcesNone": "Nessuna risorsa",
+    "resourcesCount": "{{count}} risorse",
+    "networkHint": "Ogni attività senza sottoattività riceve almeno una relazione; le attività di riepilogo restano un totale delle attività figlie.",
     "run": "Esegui",
     "running": "In corso…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -850,5 +877,26 @@
     "detailRender": "{{rows}} righe · {{w}}×{{h}}",
     "renderUnavailable": "rendering non disponibile (nessun contesto canvas 2D)",
     "largeWarning": "Pianificazione grande: potrebbe richiedere un po'; la barra di avanzamento può sembrare bloccata durante il calcolo."
+  },
+  "extConsent": {
+    "title": "Installare l'estensione?",
+    "author": "Autore",
+    "repository": "Repository",
+    "originHeading": "Provenienza",
+    "sourceCatalog": "Dal catalogo estensioni online",
+    "sourceZip": "Da un file ZIP su questo computer",
+    "sourceJs": "Da un file JavaScript su questo computer",
+    "verifiedChecksum": "Download verificato con il checksum del catalogo.",
+    "verifiedNone": "Il catalogo non fornisce un checksum: questo download non è stato verificato.",
+    "verifiedLocal": "Hai scelto tu questo file; non esiste una fonte esterna con cui verificarlo.",
+    "riskHeading": "A cosa stai dicendo di sì",
+    "riskBody": "Un'estensione è codice che viene eseguito con gli stessi diritti di Open Planner Studio. Nulla lo delimita. Installa solo estensioni di cui ti fidi dell'autore.",
+    "riskDesktop": "Nell'app desktop ciò comprende: leggere e scrivere file ovunque nella tua cartella utente, oltre all'accesso a progetti, impostazioni e appunti.",
+    "riskBrowser": "Nel browser significa: accesso ai progetti e alle impostazioni salvate, ai file per cui hai concesso l'accesso e alla rete.",
+    "declaredHeading": "Ciò che questa estensione dichiara di usare",
+    "declaredNote": "È la dichiarazione dell'autore, non una restrizione: il codice può comunque fare di più.",
+    "declaredNone": "Nulla di dichiarato.",
+    "cancel": "Non installare",
+    "confirm": "Installa"
   }
 }

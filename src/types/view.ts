@@ -32,7 +32,11 @@ export type BuiltinFieldKey =
   | 'name' | 'wbsCode' | 'duration' | 'start' | 'finish'
   | 'totalFloat' | 'isCritical' | 'completion' | 'taskType' | 'isMilestone'
   // Fase 2.9 (§3.5): additieve analyse-velden — raken geen bestaand veld.
-  | 'freeFloat' | 'interferingFloat' | 'isNearCritical' | 'floatPath';
+  | 'freeFloat' | 'interferingFloat' | 'isNearCritical' | 'floatPath'
+  // Synthetisch filter-only veld (issue-discussie #32): "actief tussen" toetst start ÉN finish
+  // tegelijk tegen een periode (interval-overlap), dus geen sorteer-/groepeerbaar scalar-veld —
+  // zie FILTER_ONLY_BUILTIN_KEYS in fieldCatalog.ts.
+  | 'activeDuring';
 
 export type FieldRef =
   | { src: 'builtin'; key: BuiltinFieldKey }
@@ -60,6 +64,14 @@ export type FilterNode =
       value?: string | number | boolean | string[];
       value2?: string | number; // alleen 'between'
     };
+
+/** App-brede filterpreset. Bewust alleen het filter, zodat wisselen nooit kolommen, groepering,
+ * sortering of tijdschaal van de actuele weergave raakt. */
+export interface SavedFilter {
+  id: string;
+  name: string;
+  filter: FilterNode;
+}
 
 export interface GroupLevel {
   field: FieldRef;
@@ -115,4 +127,8 @@ export interface ViewState {
    *  GanttCanvas voert dan de fit-to-project uit (het kent de viewport-breedte, de store niet) en
    *  wist het meteen weer. Transient — bewust GEEN undo/redo (view zit niet in de snapshot). */
   pendingFit?: boolean;
+  /** "Spring naar taak"-signaal (issue #65): `focusOnTask` zet dit op de doel-taak-id; GanttCanvas
+   *  voert de zoom-/scrollberekening uit (kent de canvas-afmetingen, de store niet) en wist het
+   *  meteen weer. Transient — zelfde precedent als `pendingFit`. */
+  pendingFocusTaskId?: string;
 }

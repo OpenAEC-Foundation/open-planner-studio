@@ -69,9 +69,11 @@ async function loadTauri(): Promise<CompanyLibrary | null> {
 }
 
 async function saveTauri(lib: CompanyLibrary): Promise<void> {
-  const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+  const { writeTextFile, mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
-  const path = await join(await appDataDir(), LIBRARY_FILE);
+  const dir = await appDataDir();
+  await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
+  const path = await join(dir, LIBRARY_FILE);
   await writeTextFile(path, JSON.stringify(lib));
 }
 

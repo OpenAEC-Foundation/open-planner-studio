@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "Melding sluiten",
     "openFailed": "Bestand openen mislukt",
+    "mppLegacy": "Dit .mpp-bestand gebruikt een oud formaat (Project 2007 of ouder). Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
+    "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "saveFailed": "Opslaan mislukt",
+    "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
     "savedViaDownload": "Opgeslagen als download: '{{name}}' staat nu in je downloadmap. Deze omgeving staat de app niet toe rechtstreeks naar de gekozen locatie te schrijven.",
     "autoSaveFailed": "Automatisch opslaan mislukt",
     "recoveryReadFailed": "Hersteld bestand kon niet worden gelezen",
@@ -15,8 +18,15 @@
     "templateSaved": "Tak bewaard als sjabloon '{{name}}'",
     "relationCreated": "Relatie aangemaakt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Deze relatie bestaat al",
-    "relationSummaryEndpoint": "Een samenvattingstaak als eindpunt heeft geen effect op de planning. Koppel aan een taak zonder subtaken.",
-    "summaryRelationsIgnored": "{{total}} relatie(s) op samenvattingstaken hebben geen effect op de planning."
+    "relationAncestorEndpoint": "Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.",
+    "summaryRelationsDropped": "{{total}} relatie(s) konden niet worden meegerekend — zie het Relaties-paneel voor welke.",
+    "mppSourceScheduleNotes_one": "Dit MS Project-bestand bevat {{count}} taak met een onderbroken, genivelleerde of resource-gedreven planning. Die wordt als zodanig ingelezen en getoond.",
+    "mppSourceScheduleNotes_other": "Dit MS Project-bestand bevat {{count}} taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.",
+    "projectStartAnchorsClamped_one": "Projectstart verzet: {{count}} taakanker zonder voorganger of constraint is meegeschoven naar de nieuwe startdatum.",
+    "projectStartAnchorsClamped_other": "Projectstart verzet: {{count}} taakankers zonder voorganger of constraint zijn meegeschoven naar de nieuwe startdatum.",
+    "mppTimephasedSteeringLost_one": "De urenverdeling uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de oorspronkelijke verdeling blijft in het bestand bewaard.",
+    "mppTimephasedSteeringLost_other": "De urenverdeling uit MS Project stuurt {{count}} taken niet meer na deze bewerking; de oorspronkelijke verdeling blijft in het bestand bewaard.",
+    "readMore": "Lees meer"
   },
   "yes": "Ja",
   "no": "Nee",
@@ -236,7 +246,8 @@
   },
   "project": {
     "untitled": "Nieuwe planning",
-    "imported": "Geïmporteerd project"
+    "imported": "Geïmporteerd project",
+    "unassignedResource": "Niet toegekend"
   },
   "documents": {
     "overviewTitle": "Open projecten",
@@ -534,7 +545,8 @@
       "capacity": "Capaciteit",
       "documents": "Documenten",
       "selectHint": "Selecteer een resource om het histogram te zien."
-    }
+    },
+    "color": "Kleur"
   },
   "calendar": {
     "library": {
@@ -691,6 +703,13 @@
     "notice": "Dit bestand bevat urenplanning.",
     "enable": "Urenplanning aanzetten"
   },
+  "recordedDates": {
+    "offer_one": "Herberekening verschoof {{count}} van de {{total}} taken ten opzichte van de datums in het bestand.",
+    "offer_other": "Herberekening verschoof {{count}} van de {{total}} taken ten opzichte van de datums in het bestand.",
+    "show": "Opgeslagen datums tonen",
+    "active": "Je ziet de datums zoals ze in het bestand staan. Er is niet herberekend.",
+    "recalculate": "Herberekenen"
+  },
   "duration": {
     "suffixDay": "d",
     "suffixHour": "u",
@@ -807,6 +826,10 @@
     "intro": "Genereer een testplanning en meet de kernfasen. Dit raakt je open project niet aan.",
     "sizeLabel": "Planningsgrootte",
     "tasksCount": "{{count}} taken",
+    "resourceLabel": "Aantal resources",
+    "resourcesNone": "Geen resources",
+    "resourcesCount": "{{count}} resources",
+    "networkHint": "Elke taak zonder subtaken krijgt minstens één relatie; verzameltaken blijven een rollup over hun kinderen.",
     "run": "Uitvoeren",
     "running": "Bezig…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -840,5 +863,26 @@
     "detailRender": "{{rows}} rijen · {{w}}×{{h}}",
     "renderUnavailable": "render niet beschikbaar (geen 2D-canvascontext)",
     "largeWarning": "Grote planning: dit kan even duren; de voortgangsbalk kan tijdens het rekenen stilstaan."
+  },
+  "extConsent": {
+    "title": "Extensie installeren?",
+    "author": "Auteur",
+    "repository": "Repository",
+    "originHeading": "Herkomst",
+    "sourceCatalog": "Uit de online extensiecatalogus",
+    "sourceZip": "Uit een ZIP-bestand op deze computer",
+    "sourceJs": "Uit een JavaScript-bestand op deze computer",
+    "verifiedChecksum": "Download geverifieerd met de checksum uit de catalogus.",
+    "verifiedNone": "De catalogus geeft geen checksum — deze download is niet geverifieerd.",
+    "verifiedLocal": "Je koos dit bestand zelf; er is geen externe bron om tegen te verifiëren.",
+    "riskHeading": "Waar je ja tegen zegt",
+    "riskBody": "Een extensie is programmacode die draait met dezelfde rechten als Open Planner Studio zelf. Er is geen afscherming die dat inperkt. Installeer alleen extensies waarvan je de maker vertrouwt.",
+    "riskDesktop": "In de desktop-app betekent dat onder meer: bestanden lezen en schrijven in je hele gebruikersmap, plus toegang tot je projecten, instellingen en klembord.",
+    "riskBrowser": "In de browser betekent dat: toegang tot je opgeslagen projecten en instellingen, tot de bestanden waarvoor je toegang gaf, en tot het netwerk.",
+    "declaredHeading": "Wat deze extensie zegt te gebruiken",
+    "declaredNote": "Dit is de opgave van de maker, geen beperking — de code kan hoe dan ook meer.",
+    "declaredNone": "Niets opgegeven.",
+    "cancel": "Niet installeren",
+    "confirm": "Installeren"
   }
 }

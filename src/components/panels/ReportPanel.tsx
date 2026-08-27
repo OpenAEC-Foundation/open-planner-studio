@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { renderPrintCanvas, renderReport, REPORT_FONT_SCALES, PrintOptions } from '@/services/print/printPreview';
+import { measurePrintReport, renderPrintCanvas, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
+import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { projectFileBase } from '@/utils/documents';
@@ -10,15 +11,23 @@ import { paginateCanvasToPdfBytes, paginateCanvasToTiles } from '@/services/prin
 import { ensureInterLoaded, getInterFontBytes, getArabicFontBytes } from '@/services/pdf/fontLoader';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
+import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
+import {
+  barColorFieldOptions,
+  effectiveBarColorControl,
+} from '@/components/viewControls/barColorFieldOptions';
+import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { useSplitter } from '@/hooks/useSplitter';
 import { isTauri } from '@/utils/platform';
 import { DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings } from '@/utils/reportSettings';
+import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
 import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
 import type { VarianceRow } from '@/engine/variance';
 import type { PdfTableColumn } from '@/services/pdf/pdfTable';
 import type { TFunction } from 'i18next';
+import { buildBaselineOverlay } from '@/types/baseline';
 
 /** Reactieve datum-formatters — zelfde vorm als `useDisplayDate()` (Hooks mogen hier niet in, dit
  * bouwt de kolomspec buiten React-render-tijd op in `handleExportPDF`). */
@@ -101,11 +110,6 @@ function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTable
   ];
 }
 
-/** Render-schaal voor de gepagineerde preview (goedkoper dan de export; wordt toch verkleind getoond). */
-const PREVIEW_RENDER_SCALE = 2;
-/** Maximaal aantal papiervellen dat de preview toont (rest verwijst naar de export). */
-const PREVIEW_MAX_PAGES = 30;
-
 /** Instellingenkolom (issue #38 punt 3): startbreedte (oude vaste `w-64`) + sleepgrenzen. Geen
  *  eigen max-constante — de bovengrens is 50% van de kaartbreedte, dus dynamisch (zie `useSplitter`
  *  hieronder), net als de rechterpaneel-breedte in App.tsx. */
@@ -122,6 +126,7 @@ interface PreviewPage {
 export function ReportPanel() {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
+  const { t: tTask } = useTranslation('task');
   const dd = useDisplayDate();
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
@@ -136,10 +141,37 @@ export function ReportPanel() {
   const projectName = project.name || tCommon('project.untitled');
   const fileBase = projectFileBase(project.name);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
+  const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   // Issue #56: de lijnstijl van de relaties in het rapport volgt de P6-conventie van het scherm
   // (doorgetrokken = bepalend, gestreept = niet-bepalend). Die informatie zit alleen in `cpmResult`,
   // dus een echte subscription — anders ververst de preview niet na een F5/Bereken.
   const cpmResult = useAppStore(s => s.cpmResult);
+  // #21/#54 — bronnen voor de nieuwe exportopties: resources/toewijzingen (kleurmodi), de
+  // schermweergave-rijen (volg weergave) en de statusdatum (statuslijn). Echte subscriptions
+  // (geen getState): de live preview moet op al deze wijzigingen her-renderen.
+  const viewRows = useAppStore(s => s.viewRows);
+  const resources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
+  const baselines = useAppStore(s => s.baselines);
+  const activeBaselineId = useAppStore(s => s.activeBaselineId);
+  const barColorSelection = useAppStore(s => s.ui.barColorSelection);
+  const setUI = useAppStore(s => s.setUI);
+  const fieldCtx = useFieldCatalogCtx();
+  const barColorFields = barColorFieldOptions(fieldCtx);
+  const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
+  // `useTaskTypeLabels` bouwt per render een nieuw object. De inhoudssignatuur maakt voor het
+  // rapport een stabiele kopie: een preview-state-update mag `options` niet opnieuw maken, maar
+  // een echte taalwissel moet de labels wel vervangen.
+  const taskTypeLabelsSignature = JSON.stringify(fieldCtx.taskTypeLabels);
+  const reportTaskTypeLabels = useMemo<Record<string, string>>(
+    () => JSON.parse(taskTypeLabelsSignature) as Record<string, string>,
+    [taskTypeLabelsSignature],
+  );
+  const statusDate = project.statusDate;
+  const baselineOverlay = useMemo(
+    () => buildBaselineOverlay(baselines, activeBaselineId),
+    [baselines, activeBaselineId],
+  );
 
   // De rapportopties starten op de gedeelde defaults uit `reportSettings.ts` en worden vlak na de
   // eerste render overschreven door de opgeslagen voorkeuren (zie het hydratatie-effect verderop).
@@ -148,12 +180,14 @@ export function ReportPanel() {
   const [showFloat, setShowFloat] = useState(DEFAULT_REPORT_SETTINGS.showFloat);
   const [showDeps, setShowDeps] = useState(DEFAULT_REPORT_SETTINGS.showDeps);
   const [showWeekends, setShowWeekends] = useState(DEFAULT_REPORT_SETTINGS.showWeekends);
+  const [reportCompressNonWorkdays, setReportCompressNonWorkdays] = useState(DEFAULT_REPORT_SETTINGS.compressNonWorkdays);
   const [showLegend, setShowLegend] = useState(DEFAULT_REPORT_SETTINGS.showLegend);
   const [showTaskNames, setShowTaskNames] = useState(DEFAULT_REPORT_SETTINGS.showTaskNames);
   const [showCompletion, setShowCompletion] = useState(DEFAULT_REPORT_SETTINGS.showCompletion);
+  const [showBaselineOverlay, setShowBaselineOverlay] = useState(DEFAULT_REPORT_SETTINGS.showBaselineOverlay);
   const [autoFit, setAutoFit] = useState(DEFAULT_REPORT_SETTINGS.autoFit);
   const [customZoom, setCustomZoom] = useState(DEFAULT_REPORT_SETTINGS.customZoom);
-  const [paperSize, setPaperSize] = useState<'A3' | 'A4' | 'A1'>(DEFAULT_REPORT_SETTINGS.paperSize);
+  const [paperSize, setPaperSize] = useState<'A4' | 'A3' | 'A2' | 'A1'>(DEFAULT_REPORT_SETTINGS.paperSize);
   // K7: reden waarom de laatste export-poging is afgebroken (vandaag alleen een CPM-cyclus).
   // Tussenstand — bevinding K8 (prioriteitsitem 18) trekt dit samen tot één toast in uiSlice.
   const [exportError, setExportError] = useState<string | null>(null);
@@ -185,6 +219,10 @@ export function ReportPanel() {
   // die stuurt de app-chrome aan, deze alleen het papier. Werkt relatief (tekst/tabel groeien, de
   // tijdlijn-zoom niet) — zie de afleiding bij `ReportMetrics` in printPreview.ts.
   const [reportFontScale, setReportFontScale] = useState(DEFAULT_REPORT_SETTINGS.reportFontScale);
+  // #54 — statuslijn in de export: letterlijk drie opties (geen / statusdatumlijn / voortgangslijn).
+  const [statusLine, setStatusLine] = useState(DEFAULT_REPORT_SETTINGS.statusLine);
+  // #54 — volg weergave: export tekent exact de viewRows van het scherm (WYSIWYG).
+  const [followView, setFollowView] = useState(DEFAULT_REPORT_SETTINGS.followView);
 
   // Instellingenkolom horizontaal sleepbaar (issue #38 punt 3) — vaste `w-64` bood geen enkel
   // handvat en de rechterkolom (live preview) kreeg dus nooit ruimte terug. Zelfde generieke
@@ -234,9 +272,11 @@ export function ReportPanel() {
       setShowFloat(s.showFloat);
       setShowDeps(s.showDeps);
       setShowWeekends(s.showWeekends);
+      setReportCompressNonWorkdays(s.compressNonWorkdays);
       setShowLegend(s.showLegend);
       setShowTaskNames(s.showTaskNames);
       setShowCompletion(s.showCompletion);
+      setShowBaselineOverlay(s.showBaselineOverlay);
       setAutoFit(s.autoFit);
       setCustomZoom(s.customZoom);
       setPaperSize(s.paperSize);
@@ -244,6 +284,8 @@ export function ReportPanel() {
       setRepeatHeader(s.repeatHeader);
       setTimelineColumns(s.timelineColumns);
       setReportFontScale(s.reportFontScale);
+      setStatusLine(s.statusLine);
+      setFollowView(s.followView);
       hydratedRef.current = true;
     }, () => {
       // Lezen kan falen (localStorage geblokkeerd of gepartitioneerd, quota-gedoe). Zonder deze
@@ -273,13 +315,13 @@ export function ReportPanel() {
     // zonder vangnet levert elke verstelde optie een onafgevangen rejection op. Opslaan is
     // best-effort — mislukt het, dan blijft de instelling gewoon binnen deze sessie werken.
     void saveReportSettings({
-      reportType, showCritical, showFloat, showDeps, showWeekends, showLegend,
-      showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation,
-      repeatHeader, timelineColumns, reportFontScale,
+      reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
+      showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation,
+      repeatHeader, timelineColumns, reportFontScale, statusLine, followView,
     }).catch(() => {});
-  }, [reportType, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames,
-      showCompletion, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
-      reportFontScale]);
+  }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
+      showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
+      reportFontScale, statusLine, followView]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -289,47 +331,53 @@ export function ReportPanel() {
   const [previewTotalPages, setPreviewTotalPages] = useState(0);
 
   const locale = i18n.language;
-  const localizedMonths = getLocalizedMonths(locale);
-  const localizedMonthsShort = getLocalizedMonthsShort(locale);
-
-  const labels = {
-    noTasks: t('noTasks'),
-    printed: t('printed'),
-    legend: {
-      criticalPath: t('legend.criticalPath'),
-      normal: t('legend.normal'),
-      milestone: t('legend.milestone'),
-      summary: t('legend.summary'),
-      float: t('showFloat'),
-      completion: t('showCompletion', { defaultValue: 'Completion' }),
-      relationStyle: t('legend.relationStyle'),
-    },
-    tableHeaders: {
-      rowNum: '#',
-      wbs: t('tableHeaders.wbs'),
-      taskName: t('tableHeaders.taskName'),
-      start: t('tableHeaders.start'),
-      end: t('tableHeaders.end'),
-      duration: t('tableHeaders.duration'),
-      completion: t('tableHeaders.completion', { defaultValue: 'Volt.' }),
-    },
-    page: t('page', { defaultValue: 'Pagina' }),
-    of: t('of', { defaultValue: 'van' }),
-    today: t('today', { defaultValue: 'Vandaag' }),
-  };
-
-  const options: PrintOptions = {
+  // Eén waardeobject is de contractgrens tussen UI, preview en export. Daardoor kan geen van beide
+  // renderpaden per ongeluk een losse oude optie of vertaalde kop uit een eerdere render vasthouden.
+  const options = useMemo<PrintOptions>(() => ({
     showCritical, showFloat, showDeps, showWeekends, showLegend,
-    showTaskNames, showCompletion, autoFit, customZoom,
+    showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom,
     paperSize, orientation, companyName,
-    labels,
-    localizedMonths,
-    localizedMonthsShort,
+    labels: {
+      noTasks: t('noTasks'),
+      printed: t('printed'),
+      legend: {
+        criticalPath: t('legend.criticalPath'),
+        normal: t('legend.normal'),
+        nearCritical: tTask('table.isNearCritical'),
+        baseline: t('legend.baseline'),
+        milestone: t('legend.milestone'),
+        summary: t('legend.summary'),
+        float: t('showFloat'),
+        completion: t('showCompletion', { defaultValue: 'Completion' }),
+        relationStyle: t('legend.relationStyle'),
+      },
+      tableHeaders: {
+        rowNum: '#',
+        wbs: t('tableHeaders.wbs'),
+        taskName: t('tableHeaders.taskName'),
+        start: t('tableHeaders.start'),
+        end: t('tableHeaders.end'),
+        duration: t('tableHeaders.duration'),
+        completion: t('tableHeaders.completion', { defaultValue: 'Volt.' }),
+      },
+      page: t('page', { defaultValue: 'Pagina' }),
+      of: t('of', { defaultValue: 'van' }),
+      today: t('today', { defaultValue: 'Vandaag' }),
+      statusDate: t('statusDateLabel', { defaultValue: 'Statusdatum' }),
+      progressDate: t('progressDateLabel', { defaultValue: 'Voortgangsdatum' }),
+    },
+    localizedMonths: getLocalizedMonths(locale),
+    localizedMonthsShort: getLocalizedMonthsShort(locale),
     locale,
     projectStartDate: project.startDate,
     projectEndDate: project.endDate,
     projectAuthor: project.author,
     dateNotation,
+    // K-item 39: dezelfde weekdefinitie als de Gantt op het scherm. Zonder dit veld drukte het
+    // rapport altijd ISO-weeknummers op maandag af, ook als de gebruiker "week begint op zondag"
+    // had staan — hetzelfde project, twee antwoorden.
+    weekStartDay,
+    compressNonWorkdays: reportCompressNonWorkdays,
     timelineColumns,
     reportFontScale,
     // Issue #56 — welke relaties BEPALEND (driving) zijn is een `CPMResult`-veld dat bewust niet
@@ -337,7 +385,29 @@ export function ReportPanel() {
     // Bij een cyclus (`cpmResult.error`) of vóór de eerste berekening blijft het `undefined`, en
     // tekent het rapport alles neutraal doorgetrokken — dezelfde eerlijke terugval als het scherm.
     drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
-  };
+    // #21/#54 — gedeelde balkkleurkeuze, statuslijn en volg-weergave. `rows` alléén bij followView: zonder
+    // die optie tekent de export de volledige boom (oud gedrag, geen verrassingen).
+    barColorSelection,
+    activityCodeTypes: fieldCtx.activityCodeTypes,
+    customFieldDefs: fieldCtx.customFieldDefs,
+    taskTypeLabels: reportTaskTypeLabels,
+    barColorNoneLabel: tTask('structure.none'),
+    statusLine,
+    statusDate,
+    resources,
+    assignments,
+    baselineOverlay,
+    rows: followView ? viewRows : undefined,
+    barColorsLegendLabels: {
+      criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
+      categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
+    },
+  }), [showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, showBaselineOverlay,
+    autoFit, customZoom, paperSize, orientation, companyName, t, locale, project.startDate,
+    project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
+    cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
+    reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
+    assignments, baselineOverlay, followView, viewRows]);
 
   // Bereken de Gantt-preview als gepagineerde papiervellen — via dezelfde pagineer-engine als de
   // PDF-export (paginateCanvasToTiles), zodat de preview WYSIWYG-identiek is aan de export.
@@ -351,32 +421,43 @@ export function ReportPanel() {
     const renderPreview = () => {
       if (cancelled) return;
       const offscreen = document.createElement('canvas');
-      // Eerste render (schaal 1) → logische maten + naam-kolombreedte + kop-hoogte; tweede render → preview-raster.
-      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight } = renderPrintCanvas(
-        offscreen, tasks, sequences, calendar, projectName, options, 1,
+      // De eerste meting reserveert geen canvas. Op grond daarvan kiest de echte render een
+      // begrensde bronresolutie. Eerder werd altijd eerst een volledige 1×-canvas en daarna een
+      // 2×-canvas opgebouwd; bij veel rijen kon één klik op Auto-fit daardoor honderden MB's tot
+      // GB's reserveren vóór `maxPages` aan de beurt kwam.
+      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight } = measurePrintReport(
+        tasks, sequences, calendar, projectName, options,
       );
-      renderPrintCanvas(offscreen, tasks, sequences, calendar, projectName, options, PREVIEW_RENDER_SCALE);
+      const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
+      const previewLimits = computePreviewRasterLimits(
+        logicalWidth, logicalHeight, lowerPaper, options.orientation,
+      );
+      renderPrintCanvas(offscreen, tasks, sequences, calendar, projectName, options, previewLimits.renderScale);
       const tiles = paginateCanvasToTiles(offscreen, {
-        paperSize: paperSize.toLowerCase() as 'a4' | 'a3' | 'a1',
-        orientation,
-        mode: autoFit ? 'fit-width' : 'actual',
+        paperSize: lowerPaper,
+        orientation: options.orientation,
+        mode: options.autoFit ? 'fit-width' : 'actual',
         logicalWidth,
         logicalHeight,
         frozenColumnWidthPx: tableWidth,
         // Kop herhalen per pagina (issue #25 punt 1): de hoogte komt uit de render zelf; 0 = niet
         // herhalen (oud gedrag). De raster-tak wil px, de vector-tak een boolean.
         repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
-        timelineColumns,
+        timelineColumns: options.timelineColumns,
         supersample: 1, // preview: goedkoper; wordt toch verkleind weergegeven
         // De limiet hoort HIER, niet pas bij het uitsnijden hieronder: de pagineerder maakt per
         // pagina een volledig papier-canvas aan (A3 ≈ 4 MB RGBA), dus een rooster van 20×8 zou
         // ~640 MB rasteren waarvan we er 30 tonen — bij elke optiewijziging opnieuw. Met `maxPages`
         // worden de overige pagina's nooit getekend; `rows`/`cols` blijven het volledige rooster.
-        maxPages: PREVIEW_MAX_PAGES,
+        maxPages: previewLimits.maxPages,
       });
       // Goedkope dubbele bodem: mocht de pagineer-limiet ooit wegvallen, dan toont de preview nog
       // steeds niet meer dan PREVIEW_MAX_PAGES vellen. Het echte werk zit in `maxPages` hierboven.
-      const shown = tiles.pages.slice(0, PREVIEW_MAX_PAGES);
+      const shown = tiles.pages;
+      // De pagina-canvassen bevatten nu hun eigen pixels; maak de potentieel grootste tijdelijke
+      // buffer vrij vóór `toDataURL` de previewstrings opbouwt.
+      offscreen.width = 0;
+      offscreen.height = 0;
       setPreviewPages(shown.map(page => ({
         dataUrl: page.toDataURL('image/png'),
         wPt: tiles.pageWidthPt,
@@ -391,7 +472,7 @@ export function ReportPanel() {
     // cancelled-guard voorkomt dat een verouderde async-render na deps-wijziging/unmount nog toepast.
     void ensureInterLoaded().then(renderPreview);
     return () => { cancelled = true; };
-  }, [reportType, tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation, companyName, locale, dateNotation, repeatHeader, timelineColumns, reportFontScale, cpmResult]);
+  }, [reportType, tasks, sequences, calendar, projectName, options, repeatHeader]);
 
   const milestoneRows = useMilestoneRows();
   const varianceResult = useVarianceResult();
@@ -437,7 +518,7 @@ export function ReportPanel() {
     }
     setExportError(null);
 
-    const lowerPaper = paperSize.toLowerCase() as 'a4' | 'a3' | 'a1';
+    const lowerPaper = paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
     // Basisrichting van de export-taal: stuurt de bidi in het complexe RTL-tekst-pad van de vector-export.
     const exportBaseDir: 'ltr' | 'rtl' =
       RTL_LOCALES.includes((options.locale ?? '') as Locale) ? 'rtl' : 'ltr';
@@ -588,7 +669,8 @@ export function ReportPanel() {
     }
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
-  }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation, autoFit, writePdf, t, dd, milestoneRows, varianceResult]);
+  }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
+    autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;
@@ -713,10 +795,11 @@ export function ReportPanel() {
                 className="flex-1 min-w-0"
                 aria-label={t('paper')}
                 value={paperSize}
-                onChange={v => setPaperSize(v as 'A3' | 'A4' | 'A1')}
+                onChange={v => setPaperSize(v as 'A4' | 'A3' | 'A2' | 'A1')}
                 options={[
                   { value: 'A4', label: 'A4' },
                   { value: 'A3', label: 'A3' },
+                  { value: 'A2', label: 'A2' },
                   { value: 'A1', label: 'A1' },
                 ]}
               />
@@ -748,6 +831,87 @@ export function ReportPanel() {
               />
             </div>
 
+            {/* Eén app-globale balkkleurkeuze voor View en Report. De veldlijst is exact Group. */}
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="text-text-secondary w-20 flex-shrink-0">{t('barColorModeLabel')}</label>
+              <Select
+                className="flex-1 min-w-0"
+                aria-label={t('barColorModeLabel')}
+                value={barColorSelection.mode}
+                onChange={value => {
+                  if (value === 'critical' || value === 'auto') {
+                    const next = { mode: value } as const;
+                    setUI({ barColorSelection: next });
+                    void saveBarColorSelection(next);
+                    return;
+                  }
+                  const field = barColorControl.effective.mode === 'category'
+                    ? barColorControl.effective.field
+                    : barColorFields[0]?.field;
+                  if (!field) return;
+                  const next = { mode: 'category', field } as const;
+                  setUI({ barColorSelection: next });
+                  void saveBarColorSelection(next);
+                }}
+                options={[
+                  { value: 'critical', label: t('barColorMode_critical') },
+                  { value: 'auto', label: t('barColorMode_auto') },
+                  { value: 'category', label: t('barColorMode_category') },
+                ]}
+              />
+            </div>
+            {barColorSelection.mode === 'category' && barColorControl.effective.mode === 'category' && (
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-20 flex-shrink-0" aria-hidden="true" />
+                <Select
+                  className="flex-1 min-w-0"
+                  aria-label={t('barColorFieldLabel')}
+                  value={encodeFieldRef(barColorControl.effective.field)}
+                  onChange={value => {
+                    const next = { mode: 'category', field: decodeFieldRef(value) } as const;
+                    setUI({ barColorSelection: next });
+                    void saveBarColorSelection(next);
+                  }}
+                  options={barColorFields.map(option => ({
+                    value: encodeFieldRef(option.field),
+                    label: option.label,
+                  }))}
+                />
+              </div>
+            )}
+            {barColorControl.missingField && (
+              <p className="text-[10px] text-text-muted pl-[88px]" role="status">
+                {t('barColorMissingField')}
+              </p>
+            )}
+
+            {/* Statuslijn (issue #54 punt 1): letterlijk drie opties. Zonder statusdatum in het
+                project tekent geen van beide iets — de hint maakt dat zichtbaar i.p.v. stil. */}
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="text-text-secondary w-20 flex-shrink-0">{t('statusLineLabel')}</label>
+              <Select
+                className="flex-1 min-w-0"
+                aria-label={t('statusLineLabel')}
+                value={statusLine}
+                onChange={v => setStatusLine(v as typeof statusLine)}
+                options={[
+                  { value: 'none', label: t('statusLine_none') },
+                  { value: 'statusDate', label: t('statusLine_statusDate') },
+                  { value: 'progress', label: t('statusLine_progress') },
+                ]}
+              />
+            </div>
+            {statusLine !== 'none' && !statusDate && (
+              <p className="text-[11px] text-amber-600 mt-0.5">{t('statusLineHint')}</p>
+            )}
+
+            {/* Volg weergave (issue #54 punt 2): export = wat het scherm toont (filter, groepering,
+                sortering, inklapstatus). Uit (default) = de volledige takenboom, zoals altijd. */}
+            <label className="flex items-center gap-2 mt-1 min-w-0">
+              <input type="checkbox" checked={followView} onChange={e => setFollowView(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{t('followView')}</span>
+            </label>
+
             {/* Auto-fit checkbox */}
             <label className="flex items-center gap-2 mt-1 min-w-0">
               <input type="checkbox" checked={autoFit} onChange={e => setAutoFit(e.target.checked)} className="accent-accent flex-shrink-0" />
@@ -760,8 +924,8 @@ export function ReportPanel() {
                 <label className="text-text-secondary w-20 flex-shrink-0">{t('zoom', { defaultValue: 'Zoom:' })}</label>
                 <input
                   type="range"
-                  min={5}
-                  max={40}
+                  min={REPORT_MIN_ZOOM}
+                  max={REPORT_MAX_ZOOM}
                   value={customZoom}
                   onChange={e => setCustomZoom(Number(e.target.value))}
                   className="flex-1 min-w-0"
@@ -806,6 +970,10 @@ export function ReportPanel() {
               <span className="min-w-0">{t('showCompletion', { defaultValue: 'Voltooiing tonen' })}</span>
             </label>
             <label className="flex items-center gap-2 min-w-0">
+              <input data-ops-report-baseline-overlay type="checkbox" checked={showBaselineOverlay} onChange={e => setShowBaselineOverlay(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{t('showBaselineOverlay')}</span>
+            </label>
+            <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showCritical} onChange={e => setShowCritical(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showCriticalPath')}</span>
             </label>
@@ -816,6 +984,10 @@ export function ReportPanel() {
             <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showDependencies')}</span>
+            </label>
+            <label className="flex items-center gap-2 min-w-0">
+              <input data-ops-report-compress-workdays type="checkbox" checked={reportCompressNonWorkdays} onChange={e => setReportCompressNonWorkdays(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{tCommon('settings.compressNonWorkdays')}</span>
             </label>
             <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showWeekends} onChange={e => setShowWeekends(e.target.checked)} className="accent-accent flex-shrink-0" />

@@ -1,9 +1,9 @@
 import { isTauri } from '@/utils/platform';
 import {
-  openFileDialogTauri, saveFileDialogTauri, saveToRefTauri, readFromRefTauri,
+  openFileDialogTauri, saveFileDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
 } from './tauriBackend';
 import {
-  openFileDialogWeb, saveFileDialogWeb, saveToRefWeb, readFromRefWeb,
+  openFileDialogWeb, saveFileDialogWeb, saveToRefWeb, readFromRefWeb, readBytesFromRefWeb,
 } from './webBackend';
 
 /** Bestandsfilter (naam + extensies zonder punt), zoals de bestaande dialoog-aanroepen. */
@@ -24,8 +24,15 @@ export type FileRef =
 
 export interface OpenedFile {
   name: string;
+  /** Tekstinhoud; bij een binair formaat (opts.binaryExtensions) leeg — gebruik dan `bytes`. */
   content: string;
+  bytes?: Uint8Array;
   ref: FileRef | null;
+}
+
+export interface OpenDialogOpts {
+  /** Extensies (zonder punt, lowercase) die als bytes gelezen moeten worden i.p.v. tekst. */
+  binaryExtensions?: string[];
 }
 
 export interface SaveOutcome {
@@ -46,8 +53,8 @@ export function supportsHandles(): boolean {
 }
 
 /** Openen via picker/input. `null` = geannuleerd. */
-export function openFileDialog(filters: FileFilter[]): Promise<OpenedFile | null> {
-  return isTauri() ? openFileDialogTauri(filters) : openFileDialogWeb(filters);
+export function openFileDialog(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
+  return isTauri() ? openFileDialogTauri(filters, opts) : openFileDialogWeb(filters, opts);
 }
 
 /** Opslaan-als / export via picker. `null` = geannuleerd. */
@@ -64,4 +71,9 @@ export function saveToRef(ref: FileRef, content: string): Promise<boolean> {
 /** Inhoud van een bewaarde ref herlezen (recents heropenen). `null` bij fout/geweigerd. */
 export function readFromRef(ref: FileRef): Promise<string | null> {
   return isTauri() ? readFromRefTauri(ref) : readFromRefWeb(ref);
+}
+
+/** Bytes van een bewaarde ref herlezen (recents met een binair formaat). `null` bij fout/geweigerd. */
+export function readBytesFromRef(ref: FileRef): Promise<Uint8Array | null> {
+  return isTauri() ? readBytesFromRefTauri(ref) : readBytesFromRefWeb(ref);
 }

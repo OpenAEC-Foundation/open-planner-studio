@@ -1,9 +1,11 @@
 // Undo-grens-checks (bevinding uit het onderhoudbaarheidsonderzoek, prioriteitsitem 8) — headless
 // tegen de ECHTE Zustand-store, zelfde patroon als de andere check-scripts.
 //
-// Waarom deze batterij bestaat: de undo-stack was ONBEGRENSD, terwijl `createSnapshot` bij élke
-// bewerking de 'clone'-velden deep-cloont en de stacks ÍN het documentcontract zitten (dus élk
-// geopend document houdt zijn volledige historie vast). De grens `MAX_UNDO` lost dat op, maar
+// Waarom deze batterij bestaat: de undo-stack was ONBEGRENSD, terwijl `createSnapshot` toen bij
+// élke bewerking de projectdata deep-cloonde en de stacks ÍN het documentcontract zitten (dus élk
+// geopend document houdt zijn volledige historie vast). Die kloon is er sinds 2026-08-17 uit — de
+// snapshot deelt nu per referentie (zie `snapshot.ts`) — maar de grens blijft, en de coalescing
+// erachter net zo goed. De grens `MAX_UNDO` lost dat op, maar
 // raakt tegelijk de undo-COALESCING: die gebruikte `undoStack.length` als identiteit van een
 // lopende bewerkingsreeks, en die lengte is bij een volle stack constant. De identiteit is daarom
 // een monotoon volgnummer geworden. Geen enkele bestaande case duwt 100+ stappen door de stack,

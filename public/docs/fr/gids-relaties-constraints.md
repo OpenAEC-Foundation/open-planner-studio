@@ -44,6 +44,20 @@ Il existe trois façons de créer une relation, selon l'endroit où vous travail
 
 La colonne **Déterminante** indique, après un calcul, quelle relation détermine réellement la date de début ou de fin du successeur — pour une tâche avec plusieurs prédécesseurs, ce n'est pas nécessairement la relation que vous avez créée le plus récemment, mais celle dont la date (déterminante) est la plus tardive.
 
+## Relations sur les tâches récapitulatives
+
+Vous pouvez aussi placer une relation directement sur une tâche récapitulative (une phase ou un groupe WBS) plutôt que sur l'une des tâches sous-jacentes. Open Planner Studio répercute automatiquement cette relation sur les tâches sous-jacentes — la même approche que MS Project :
+
+- **Récapitulative en tant que prédécesseur** : chaque tâche sous-jacente devient elle-même prédécesseur du successeur. Celui-ci attend donc effectivement toute la phase — c'est la tâche qui se termine en dernier dans cette phase qui détermine la date.
+- **Récapitulative en tant que successeur** : chaque tâche sous-jacente devient elle-même successeur du prédécesseur. Toutes les tâches de la phase attendent donc ce même prédécesseur.
+- **Récapitulative des deux côtés** : chaque tâche d'un côté reçoit une relation avec chaque tâche de l'autre côté.
+
+Ceci est exact pour **FS et FF** avec une récapitulative en tant que prédécesseur, et pour **FS et SS** avec une récapitulative en tant que successeur. Pour **SS/SF** avec une récapitulative en tant que prédécesseur et **FF/SF** avec une récapitulative en tant que successeur — des combinaisons rares dans la pratique du bâtiment — Open Planner Studio planifie délibérément du côté sûr : peut-être un peu plus tard que strictement nécessaire, jamais plus tôt.
+
+## Aller à une tâche liée
+
+Dans le panneau des propriétés, chaque ligne de dépendance affiche aussi le numéro WBS de la tâche liée sous forme de bouton cliquable. Survolez-le pour voir les mêmes détails qu'en survolant une barre de tâche dans le diagramme de Gantt (nom, WBS, durée, début/fin, statut, chemin critique, marge totale). Cliquez dessus pour sélectionner cette tâche : le diagramme de Gantt zoome et défile jusqu'à elle, et développe automatiquement toute tâche parente repliée qui la cachait.
+
 ## Types de contrainte
 
 Une contrainte impose une limite de date à une tâche, indépendamment de ses relations. Open Planner Studio propose huit types, définis via le champ **Contrainte** du panneau des propriétés :

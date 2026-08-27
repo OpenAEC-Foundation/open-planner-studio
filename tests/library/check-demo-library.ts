@@ -5,8 +5,6 @@ import { useAppStore } from '@/state/appStore';
 import { DEMO_COMPANY_ID, buildDemoLibrarySeed } from '@/services/library/demoLibrary';
 import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
 
-declare const process: { exit(code: number): never };
-
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
   checks++;

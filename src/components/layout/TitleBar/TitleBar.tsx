@@ -6,6 +6,7 @@ import {
   FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings,
 } from 'lucide-react';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
+import { buildImportLabels } from '@/i18n/importLabels';
 
 // Het label van de feedback-knop roteert elke 10 minuten door deze drie.
 const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
@@ -81,7 +82,7 @@ export function TitleBar() {
           <button className="quick-access-btn" title={tMenu('ribbon.newProjectTitle')} onClick={() => setUI({ showNewProjectDialog: true })}>
             <FileText size={16} />
           </button>
-          <button className="quick-access-btn" title={tMenu('ribbon.open')} onClick={() => { void openFile({ importedProject: tCommon('project.imported') }); }}>
+          <button className="quick-access-btn" title={tMenu('ribbon.open')} onClick={() => { void openFile(buildImportLabels(tCommon)); }}>
             <FolderOpen size={16} />
           </button>
           <button className="quick-access-btn" title={tMenu('ribbon.saveTitle')} onClick={() => { void saveFile(); }}>

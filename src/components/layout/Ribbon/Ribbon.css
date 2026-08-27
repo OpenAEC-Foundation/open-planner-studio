@@ -121,6 +121,15 @@
   justify-content: flex-start;
 }
 
+/* Issue #78: vier kleine knoppen in één verticale stapel waren hoger dan de
+   inhoudsruimte van de groep en kwamen tegen het groepsbijschrift. Twee eigen
+   stapels houden Zoom +/- en Herstellen/Passend op project in een 2×2-grid. */
+.ribbon-time-scale-controls {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+}
+
 /* Ribbon Buttons - Default (Large) */
 .ribbon-btn {
   display: flex;

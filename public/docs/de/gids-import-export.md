@@ -57,7 +57,9 @@ Diese Warnungen sind keine Schlamperei — sie sind eine bewusste, ausdrücklich
 
 ## Importieren
 
-**Datei → Öffnen** (oder **Backstage → Öffnen**) akzeptiert `.ifc`-, `.csv`- und `.xml`-Dateien. Bei einer `.xml`-Datei erkennt die App selbst, ob es sich um eine Primavera-P6- oder eine MS-Project-Datei handelt, anhand des Inhalts. Wie oben beschrieben: Ein CSV- oder P6-Import erzeugt ein Projekt **ohne Baselines** (im Quelldokument gab es keine), während IFC und MSPDI Baselines mitbringen.
+**Datei → Öffnen** (oder **Backstage → Öffnen**) akzeptiert `.ifc`-, `.csv`-, `.xml`- und `.mpp`-Dateien. Bei einer `.xml`-Datei erkennt die App selbst, ob es sich um eine Primavera-P6- oder eine MS-Project-Datei handelt, anhand des Inhalts. Wie oben beschrieben: Ein CSV- oder P6-Import erzeugt ein Projekt **ohne Baselines** (im Quelldokument gab es keine), während IFC und MSPDI Baselines mitbringen.
+
+Eine `.mpp`-Datei (das native Microsoft-Project-Format, Project 2010 bis 2021) ist ein eigener Weg: Dieser Import ist **nur lesend** — es gibt keinen `.mpp`-Export, ein Re-Export nach MS Project läuft daher über MSPDI-XML. Siehe die Anleitung [MS Project (.mpp) öffnen](docs://gids-msproject-import) für das, was mitkommt, und die Einschränkungen.
 
 ## Erweiterungs-Importer
 

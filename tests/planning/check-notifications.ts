@@ -21,6 +21,8 @@ import { MAX_NOTIFICATIONS } from '@/state/slices/uiSlice';
 import { sameIFCSource } from '@/state/ifcSaveInput';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/timephasedLossNotice';
 import type { Sequence } from '@/types/sequence';
 
 const S = () => useAppStore.getState();
@@ -269,67 +271,231 @@ createRelationWithFeedback(rA, rB);
 eq('72 herhaald duplicaat vouwt samen', N().length, 2);
 eq('73 en telt', N()[1]?.count, 2);
 
-// Verzameltaak-eindpunt (spec 2026-08-14): dezelfde weigeringsweg als het duplicaat hierboven,
-// maar met een ANDERE reden — `REJECTION_MESSAGE['summary-endpoint']` zou zonder deze check
-// onopgemerkt naar de duplicaat-sleutel kunnen wijzen en de gebruiker "relatie bestaat al" tonen
-// voor een relatie die de solver toch al als spookrelatie zou weggooien.
+// Verzameltaak-eindpunt (eigenaarsbesluit 2026-08-15): dit is het OMGEKEERDE regressie-anker van
+// vóór het besluit — toen weigerde `addSequence` dit stil (spec 2026-08-14). Sinds
+// `expandSummaryRelations` zulke relaties naar bladtaken doorrekent (MS Project-semantiek), MOET
+// dit gewoon slagen: de aanmaak-melding komt terug, geen weigering.
+// Mutatiebewijs (uitgevoerd): met de oude `relationVerdict` (die `summary-endpoint` nog weigerde)
+// gaf dit `rel3 === null` en `messageKey === 'notifications.relationSummaryEndpoint'` — precies het
+// omgekeerde van wat hieronder gepind staat. Zie ook `check-relation-rules.ts` voor de bladmodule-kant.
 clearAll();
 S().newProject();
 const rFase = S().addTask({ name: 'Fase' });
-S().addTask({ name: 'Kind', parentId: rFase });
+const rKind = S().addTask({ name: 'Kind', parentId: rFase });
 const rLos = S().addTask({ name: 'Los' });
 const rel3 = createRelationWithFeedback(rFase, rLos);
-eq('74 een verzameltaak-eindpunt levert geen id op', rel3, null);
-eq('75 en geen relatie erbij', S().sequences.length, 0);
-eq('76 maar wél een melding', N().length, 1);
-eq('77 met de verzameltaak-sleutel', N()[0]?.messageKey, 'notifications.relationSummaryEndpoint');
+truthy('74 een verzameltaak-eindpunt levert nu WEL een id op (2026-08-15 eigenaarsbesluit)',
+  !!rel3 && S().sequences.some(q => q.id === rel3));
+eq('75 en meldt zich als gewone aanmaak, geen weigering', N().length, 1);
+eq('76 met de aanmaak-sleutel', N()[0]?.messageKey, 'notifications.relationCreated');
 
-// ── 10. Laadmelding voor bestaande spookrelaties (spec 2026-08-14) ─────────
-// `applyLoadedProject` (fileSlice.ts) filtert een geladen bestand NIET op relaties met een
-// verzameltaak-eindpunt (dat zou logica uit het bronbestand vernietigen), maar meldt ze wél één
-// keer — dit is de HELE gebruikerzichtbare kant van "bestaande spookrelaties blijven behouden",
-// juist het verhaal voor iemand die een P6/MSP-plan importeert. Niets bewaakte dit vóór deze check
-// (`grep -rn summaryRelationsIgnored tests/` gaf nul treffers): een verplaatst notify-blok, een
-// verwisselde bron (`s.sequences` i.p.v. `parsed.sequences`) of een verkeerd getikte messageKey
-// zou de suite groen laten terwijl de importeur niets meer ziet.
+// Alleen een relatie tussen een taak en zijn EIGEN (voor)ouder-samenvatting blijft geweigerd — dat
+// zou `expandSummaryRelations` een directe cyclus laten genereren (A→B én B→A).
+clearAll();
+const rel4 = createRelationWithFeedback(rKind, rFase);
+eq('77 een voorouder-relatie levert geen id op', rel4, null);
+eq('78 en geen extra relatie erbij (nog steeds precies de ene van hierboven)', S().sequences.length, 1);
+eq('79 maar wél een melding', N().length, 1);
+eq('80 met de voorouder-sleutel', N()[0]?.messageKey, 'notifications.relationAncestorEndpoint');
+
+// ── 10. Laadmelding voor relaties die de solver écht moet droppen (eigenaarsbesluit 2026-08-15) ──
+// `applyLoadedProject` (fileSlice.ts) filtert een geladen bestand NIET op relaties die
+// `expandSummaryRelations` niet naar bladtaken kan doorrekenen (dat zou logica uit het bronbestand
+// vernietigen), maar meldt ze wél één keer. Een gewone verzameltaak-relatie hoort HIER niet meer in
+// mee te tellen (die rekent gewoon door) — alleen een ECHTE drop (hier: de voorouder-guard) telt.
+// Mutatiebewijs (uitgevoerd): met de oude `hasSummaryEndpoint`-scan telde `seq-summary-ok` hieronder
+// óók mee (total: 2 i.p.v. 1) — precies het verschil dat dit blok bewaakt.
 clearAll();
 S().newProject();
 const lFase = S().addTask({ name: 'Fase' });
-S().addTask({ name: 'Kind', parentId: lFase });
-const lLos = S().addTask({ name: 'Los' });
+const lKind = S().addTask({ name: 'Kind', parentId: lFase });
+const lOther = S().addTask({ name: 'Los A' });
+const lLos = S().addTask({ name: 'Los B' });
 const lProject = S().project;
 const lTasks = S().tasks;
 clearAll();
 // `loadState` is de in-place-load-route (geen open-pad) en loopt, net als de drie open-paden,
 // door `applyLoadedProject` — de gedeelde implementatie die de melding pusht (fileSlice.ts).
+// `loadState` draait BEWUST geen `runCPM` (`recompute: false`), dus deze melding mag niet op
+// `cpmResult` leunen — zie de toelichting bij `expandSummaryRelations` in fileSlice.ts.
 S().loadState({
   project: lProject,
   calendar: createDefaultCalendar(),
   tasks: lTasks,
-  // Eén spookrelatie (Fase heeft een kind, dus is een verzameltaak) + één gewone relatie, om te
-  // bewijzen dat de `total`-parameter TELT in plaats van alleen "is er één" te signaleren.
   sequences: [
-    { id: 'seq-spook', predecessorId: lFase, successorId: lLos, type: 'FINISH_START', lagDays: 0 } as Sequence,
+    // Écht gedropt: Kind is de EIGEN bladafstammeling van zijn ouder Fase — de voorouder-guard.
+    { id: 'seq-ancestor', predecessorId: lKind, successorId: lFase, type: 'FINISH_START', lagDays: 0 } as Sequence,
+    // NIET gedropt: een gewone verzameltaak-relatie (Fase als voorganger) rekent door naar Kind.
+    { id: 'seq-summary-ok', predecessorId: lFase, successorId: lLos, type: 'FINISH_START', lagDays: 0 } as Sequence,
+    // NIET gedropt: een doodgewone blad-naar-blad relatie.
+    { id: 'seq-normal', predecessorId: lOther, successorId: lLos, type: 'FINISH_START', lagDays: 0 } as Sequence,
   ],
   resources: [],
   assignments: [],
 });
-eq('78 loadState met een spookrelatie meldt zich precies één keer', N().length, 1);
-eq('79 als info (geen fout — het bestand blijft geldig)', N()[0]?.severity, 'info');
-eq('80 met de spookrelatie-laadsleutel', N()[0]?.messageKey, 'notifications.summaryRelationsIgnored');
-eq('81 met het aantal spookrelaties als parameter', N()[0]?.params, { total: 1 });
+eq('81 loadState met precies één écht gedropte relatie meldt zich precies één keer', N().length, 1);
+eq('82 als info (geen fout — het bestand blijft geldig)', N()[0]?.severity, 'info');
+eq('83 met de drop-laadsleutel', N()[0]?.messageKey, 'notifications.summaryRelationsDropped');
+eq('84 met het aantal ECHT gedropte relaties (niet de gewone verzameltaak-relatie)', N()[0]?.params, { total: 1 });
 
-// Geen enkele spookrelatie in het bestand ⇒ geen melding (geen ruis bij een gezond bestand).
+// Geen enkele écht gedropte relatie in het bestand ⇒ geen melding (geen ruis bij een gezond
+// bestand) — óók niet als het bestand wél een (nu legale) verzameltaak-relatie bevat.
 clearAll();
 S().loadState({
   project: lProject,
   calendar: createDefaultCalendar(),
   tasks: lTasks,
-  sequences: [],
+  sequences: [
+    { id: 'seq-summary-ok-2', predecessorId: lFase, successorId: lLos, type: 'FINISH_START', lagDays: 0 } as Sequence,
+  ],
   resources: [],
   assignments: [],
 });
-eq('82 loadState zonder spookrelaties meldt niets', N().length, 0);
+eq('85 loadState zonder écht gedropte relaties meldt niets', N().length, 0);
+
+// ── 11. T12/Z16: MS Project-bestand met een onderbroken, genivelleerde of resource-gedreven
+// planning (§9/O1, herzien door Z16, etappe "nul afwijkingen") — melding bij openen. `applyLoadedProject`
+// (fileSlice.ts, niet `loadState` — dat laatste heeft een eigen, smaller parametertype zonder
+// `sourceScheduleNotes`) is de gedeelde implementatie die zowel de open-paden als `loadState` voedt;
+// hier direct aangeroepen zodat het `ImportResult`-veld `sourceScheduleNotes` (alleen door `readMPP`
+// gevuld, sinds Z16 met drie ECHTE tellingen — `leveled`/`split`/`timephased`, zie
+// `mppReader.ts`'s `countScheduleNotes` — in plaats van de vroegere `spanGt`-proxy) rechtstreeks
+// getest kan worden zonder een echt `.mpp`-bestand.
+clearAll();
+S().newProject();
+const t12Project = S().project;
+S().addTask({ name: 'Taak' });
+const t12Tasks = S().tasks;
+clearAll();
+S().applyLoadedProject({
+  project: t12Project,
+  calendar: createDefaultCalendar(),
+  tasks: t12Tasks,
+  sequences: [],
+  resources: [],
+  assignments: [],
+  sourceScheduleNotes: { total: 3, leveled: 1, split: 1, timephased: 1 },
+}, {});
+eq('86 sourceScheduleNotes.total > 0 meldt zich precies één keer', N().length, 1);
+eq('87 als info (geen fout — het bestand blijft geldig)', N()[0]?.severity, 'info');
+eq('88 met de mpp-detectie-sleutel', N()[0]?.messageKey, 'notifications.mppSourceScheduleNotes');
+eq('89 met het VERENIGDE aantal (total, niet leveled/split/timephased los)', N()[0]?.params, { count: 3 });
+eq('90 met de dedupe-sleutel mpp-split-leveled', N()[0]?.dedupeKey, 'mpp-split-leveled');
+
+// Geen `sourceScheduleNotes` (ander bronformaat dan `.mpp`, of een schoon `.mpp`-bestand —
+// `readMPP` laat het veld dan bewust weg, zie mppReader.ts) ⇒ geen melding.
+clearAll();
+S().applyLoadedProject({
+  project: t12Project,
+  calendar: createDefaultCalendar(),
+  tasks: t12Tasks,
+  sequences: [],
+  resources: [],
+  assignments: [],
+}, {});
+eq('91 zonder sourceScheduleNotes meldt niets', N().length, 0);
+
+// ── 12. mpp-nul-data-etappe, DEEL 1: bewerkmelding op MSP-timephased-sturing-verlies ─────────────
+// Wanneer een gebruikersbewerking daadwerkelijk `timephasedFinishFloor`/`timephasedStartAnchor`/
+// `timephasedDurationWalks` wist (`clearTimephasedWindow`/`clearTimephasedDurationWalks` in
+// `taskDefaults.ts`, gebruikt door `taskSlice.ts`/`resourceSlice.ts`/`mcpTransaction.ts`), hoort
+// daar één keer per document per sessie een informatieve melding over te komen — nooit bij een F5,
+// documentwissel, undo/redo, of een no-op-bewerking op een taak zonder sturing. Eigen document
+// (`newDocument`) zodat deze cases niet worden beïnvloed door eerdere `dedupeKey`-registraties in
+// dit bestand, en zodat de "eenmalig per document"-claim (`timephasedLossNotice.ts`) een schone lei
+// heeft voor de docId die deze cases gebruiken.
+clearAll();
+S().newDocument();
+const tphDocId = S().activeDocumentId;
+
+const tphA = S().addTask({ name: 'MSP-taak A', time: createDefaultTaskTime('2026-08-03', 5) });
+// Venster zetten via een NIET-trigger-update (spiegelt `check-task-slice.ts`'s `seedWindow`) —
+// zet het venster zonder het meteen weer te laten wissen.
+S().updateTask(tphA, {
+  timephasedFinishFloor: '2026-08-10T17:00',
+  timephasedStartAnchor: '2026-08-03T08:00',
+  timephasedContours: [{ resourceUid: 42, periods: [{ afterMinutes: 0, minutes: 240, workMinutes: 240, kind: 'actual' }] }],
+});
+eq('92 opzet: taak draagt een venster vóór de bewerking', S().tasks.find(t => t.id === tphA)?.timephasedFinishFloor, '2026-08-10T17:00');
+
+// De ECHTE bewerking: een duur-trigger (zie taskDefaults.ts's triggerset) — wist het venster.
+const beforeTphA = S().tasks.find(t => t.id === tphA)!;
+S().updateTask(tphA, { time: { ...beforeTphA.time, scheduleDuration: 7 } });
+eq('93 na de bewerking: venster is gewist', S().tasks.find(t => t.id === tphA)?.timephasedFinishFloor, undefined);
+eq('94 de melding verschijnt precies één keer', N().length, 1);
+eq('95 als info (geen fout — het bestand is niet beschadigd)', N()[0]?.severity, 'info');
+eq('96 met de mpp-timephased-sleutel', N()[0]?.messageKey, 'notifications.mppTimephasedSteeringLost');
+eq('97 met count 1 (één taak verloor sturing)', N()[0]?.params, { count: 1 });
+eq('98 met de per-document-dedupeKey', N()[0]?.dedupeKey, `mpp-timephased-lost-${tphDocId}`);
+eq('99 met een link naar de MS Project-gids', N()[0]?.helpArticleId, MPP_TIMEPHASED_HELP_ARTICLE_ID);
+
+// Tweede bewerking die OPNIEUW sturing loslaat (andere taak, zelfde document) ⇒ GEEN tweede
+// melding — "eenmalig per document per sessie" is de eis, niet "eenmalig per burst".
+clearAll();
+const tphB = S().addTask({ name: 'MSP-taak B', time: createDefaultTaskTime('2026-08-03', 5) });
+S().updateTask(tphB, {
+  timephasedFinishFloor: '2026-08-11T17:00',
+  timephasedStartAnchor: '2026-08-04T08:00',
+});
+const beforeTphB = S().tasks.find(t => t.id === tphB)!;
+S().updateTask(tphB, { time: { ...beforeTphB.time, scheduleDuration: 9 } });
+eq('100 opzet: ook taak B verloor zijn venster', S().tasks.find(t => t.id === tphB)?.timephasedFinishFloor, undefined);
+eq('101 maar GEEN tweede melding deze sessie (al gemeld voor dit document)', N().length, 0);
+
+// F5 (runCPM) meldt zichzelf niet — een gezonde herberekening raakt geen timephased-velden via
+// updateTask/setTaskCalendar (de solver muteert de Immer-draft rechtstreeks, zie taskDefaults.ts's
+// hoofddocblok "GEEN trigger"-paragraaf).
+clearAll();
+S().runCPM();
+eq('102 F5/runCPM meldt geen timephased-verlies', N().length, 0);
+
+// Documentwissel meldt zichzelf niet (geen updateTask/clearTimephasedWindow-aanroep).
+clearAll();
+const tphDocOther = S().newDocument();
+S().switchDocument(tphDocId);
+eq('103 documentwissel meldt geen timephased-verlies', N().length, 0);
+void tphDocOther;
+
+// Undo meldt zichzelf niet: het herstelt de vorige snapshot rechtstreeks (`restoreSnapshot`), zonder
+// via updateTask/clearTimephasedWindow te lopen.
+clearAll();
+S().undo();
+eq('104 undo meldt geen timephased-verlies', N().length, 0);
+S().redo();
+eq('105 redo meldt geen timephased-verlies', N().length, 0);
+
+// No-op-bewerking (duur-trigger) op een taak die NOOIT timephased-sturing droeg ⇒ geen melding —
+// `clearTimephasedWindow`/`clearTimephasedDurationWalks` geven dan `false` terug (niets gewist),
+// en de aanroepers melden uitsluitend bij een ECHT verlies.
+clearAll();
+S().newDocument();
+const tphNoop = S().addTask({ name: 'Geen MSP-herkomst', time: createDefaultTaskTime('2026-08-03', 5) });
+const beforeNoop = S().tasks.find(t => t.id === tphNoop)!;
+S().updateTask(tphNoop, { time: { ...beforeNoop.time, scheduleDuration: 3 } });
+eq('106 no-op-bewerking (geen sturing aanwezig) meldt niets', N().length, 0);
+
+// ── P1 (spec-review op 3fba671b, reviewer-probe): newProject()-lek in de meldings-gate ──────────
+// `newProject()` hergebruikt het ACTIEVE docId (geen `newDocument()`-aanroep eronder) — zonder
+// `clearTimephasedLossNoticeForDoc` (P1-fix, timephasedLossNotice.ts) zou een heel NIEUW project op
+// datzelfde tabblad de "al gemeld"-registratie van het VORIGE project overerven en dus NOOIT meer
+// melden, ook al verliest een taak in het NIEUWE project aantoonbaar sturing. `tphDocId` is al
+// gemeld (case 94-99 hierboven) — precies de voorwaarde voor het lek dat de reviewer bewees.
+clearAll();
+S().switchDocument(tphDocId);
+eq('107 opzet: terug op het al-gemelde document', S().activeDocumentId, tphDocId);
+const tphDocBeforeReset = S().activeDocumentId;
+S().newProject();
+eq('108 opzet: newProject() blijft op HETZELFDE docId (de voorwaarde voor het lek)',
+  S().activeDocumentId, tphDocBeforeReset);
+const tphC = S().addTask({ name: 'MSP-taak C (na newProject)', time: createDefaultTaskTime('2026-08-03', 5) });
+S().updateTask(tphC, {
+  timephasedFinishFloor: '2026-08-12T17:00',
+  timephasedStartAnchor: '2026-08-05T08:00',
+});
+const beforeTphC = S().tasks.find(t => t.id === tphC)!;
+S().updateTask(tphC, { time: { ...beforeTphC.time, scheduleDuration: 4 } });
+eq('109 na newProject() meldt een NIEUW sturingsverlies WÉÉR (P1-fix, was: stil dood)', N().length, 1);
+eq('110 met de mpp-timephased-sleutel', N()[0]?.messageKey, 'notifications.mppTimephasedSteeringLost');
 
 // ── Uitkomst ────────────────────────────────────────────────────────────────
 if (diffs.length) {

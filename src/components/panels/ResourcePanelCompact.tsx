@@ -1,6 +1,7 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { UnitsInput } from '@/components/common/UnitsInput';
+import { scopeTaskResources } from '@/utils/taskResourceScope';
 
 /**
  * Fase 2.10 (item 6, architect-besluit 6): compacte resource-lijst voor de gedockte rechter-rail
@@ -12,9 +13,12 @@ import { UnitsInput } from '@/components/common/UnitsInput';
  */
 export function ResourcePanelCompact() {
   const { t } = useTranslation('common');
-  const resources = useAppStore(s => s.resources);
+  const allResources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
+  const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
   const updateResource = useAppStore(s => s.updateResource);
+  const { resources } = scopeTaskResources(allResources, assignments, selectedTaskIds);
 
   if (resources.length === 0) {
     return (

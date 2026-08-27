@@ -48,12 +48,14 @@ export function DebugTerminal() {
   const lastSeenIdRef = useRef<number>(0);
   // Snapshot we render when paused — frozen until unpaused.
   const frozenRef = useRef<LogEntry[] | null>(null);
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
 
   // When pausing, freeze the current entries; on unpause, release.
   useEffect(() => {
-    if (paused) frozenRef.current = entries;
+    if (paused) frozenRef.current = entriesRef.current;
     else frozenRef.current = null;
-  }, [paused]); // intentionally only on paused-flip
+  }, [paused]);
 
   const visibleEntries = useMemo(() => {
     const source = paused && frozenRef.current ? frozenRef.current : entries;

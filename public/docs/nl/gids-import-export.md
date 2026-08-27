@@ -48,7 +48,11 @@ start/einde, kritiek (ja/nee), totale speling en omschrijving. Er gaan bewust **
 toewijzingen, kalenders of baselines** mee — CSV is puur een taken-tabel voor wie de planning in
 een spreadsheet wil bekijken of bewerken, niet een volwaardige projectuitwisseling. Bij het
 terug-**importeren** van een CSV-bestand blijven baselines dus leeg (er was niets om ze uit te
-lezen).
+lezen). Ook zonder waarschuwing verdwijnen: de vlag dat een taak **handmatig gepland** is, de
+sub-dag-precisie van een **nivelleervertraging**, **taak-splitsen** en **resume/stop**-
+hervattingsdata uit een `.mpp`-import — CSV heeft alleen plaats voor Start/Einde als platte datums,
+dus die extra informatie past er sowieso niet in. De rauwe Start/Einde-datums van een handmatig
+geplande taak blijven wél gewoon staan; alleen het feit dát ze handmatig zijn, gaat verloren.
 
 ### MS Project XML (MSPDI)
 
@@ -67,6 +71,15 @@ items het raakt:
   datums — MSPDI heeft geen native hammock/LOE-type.
 - **Taakaantekeningen** worden bewust **niet** geëxporteerd, ook al heeft MSPDI een `<Notes>`-veld:
   onze aantekeningen zijn een afvink-checklist-vorm die niet zuiver naar platte tekst vertaalt.
+- **Handmatig geplande taken** (`.mpp`-import) gaan zonder het native `<Manual>`-element mee — de datums zelf staan er wél (ze zitten al in
+  Start/Finish), alleen het feit dát MS Project ze als "Handmatig gepland" zou tonen niet.
+- De **sub-dag-precisie** van een nivelleervertraging gaat verloren — MSPDI kent geen native
+  `<LevelingDelay>`/`<LevelingDelayFormat>`-element voor onze minutennauwkeurige waarde.
+- **Gesplitste taken** en **gecontoureerde toewijzingen** gaan zonder het native
+  `<TimephasedData>`-element mee — de berekende datums zelf staan er wél, de segment-/
+  vensterinformatie niet.
+- **Resume/stop** (een taak die buiten de gewone voortgangslogica om is hervat) heeft geen native
+  `<Resume>`/`<Stop>`-element.
 - De **kritiek-pad-definitie** (near-critical-modus/drempel) en overige planningsopties zijn niet
   native uitdrukbaar in MSPDI en gaan dus verloren — die blijven alleen via IFC bewaard.
 
@@ -83,6 +96,20 @@ Dezelfde soort afweging als MSPDI, met een paar P6-specifieke eigenaardigheden:
   een gewone uren-lag — P6 heeft geen aparte lag-eenheid per relatie.
 - De **LATE_PEAK**-belastingscurve heeft geen P6-equivalent en wordt geëxporteerd als de dichtstbij
   liggende benadering ("Early Peak").
+- **Werkende kalenderuitzonderingen** (een dag die normaal vrij is maar expliciet als werkend is
+  aangemerkt, bijvoorbeeld een ingeroosterde zaterdag) worden weggelaten — P6-XML kent geen
+  schemaveld om zoiets per datum aan te geven. P6 modelleert een structureel afwijkend weekpatroon
+  zelf via een aparte werkweek-instelling, niet via losse datums, dus een automatische vertaling
+  zou het hele weekpatroon wijzigen in plaats van alleen de ene datum — dat wordt bewust niet
+  gegokt. De app waarschuwt (met het aantal) zodra dit een bestand raakt.
+- **Handmatig geplande taken** (`.mpp`-import) gaan hier verder dan bij MSPDI: P6 kent het begrip
+  "handmatig gepland" niet, dus zo'n taak exporteert als een gewone taak met berekende datums — in
+  tegenstelling tot MSPDI blijven de rauwe, opgeslagen datums zelf hier dus niet gegarandeerd staan.
+- De **sub-dag-precisie** van een nivelleervertraging gaat verloren — niet uitdrukbaar in P6-XML.
+- **Gesplitste taken** en **gecontoureerde toewijzingen** worden weggelaten — niet uitdrukbaar in
+  P6-XML.
+- **Resume/stop** (een taak die buiten de gewone voortgangslogica om is hervat) wordt weggelaten —
+  niet uitdrukbaar in P6-XML.
 - Planningsopties (net als bij MSPDI) worden niet geëxporteerd.
 
 Deze waarschuwingen zijn geen slordigheid — ze zijn een bewuste, expliciete keuze: liever een
@@ -93,10 +120,24 @@ ontwikkelaarsconsole toont dan exact welke items zijn weggelaten of vereenvoudig
 
 ## Importeren
 
-**Bestand → Openen** (of **Backstage → Openen**) accepteert `.ifc`-, `.csv`- en `.xml`-bestanden.
-Bij een `.xml`-bestand herkent de app zelf of het een Primavera P6- of een MS Project-bestand is,
-aan de hand van de inhoud. Zoals hierboven beschreven: een CSV- of P6-import levert een project
-op **zonder baselines** (die stonden er niet in), terwijl IFC en MSPDI baselines wél meebrengen.
+**Bestand → Openen** (of **Backstage → Openen**) accepteert `.ifc`-, `.csv`-, `.xml`- en
+`.mpp`-bestanden. Bij een `.xml`-bestand herkent de app zelf of het een Primavera P6- of een MS
+Project-bestand is, aan de hand van de inhoud. Zoals hierboven beschreven: een CSV- of P6-import
+levert een project op **zonder baselines** (die stonden er niet in), terwijl IFC en MSPDI
+baselines wél meebrengen.
+
+Een `.mpp`-bestand (het native Microsoft Project-formaat, Project 2010 t/m 2021) is een aparte
+route: die import is **alleen-lezen** — er bestaat geen `.mpp`-export, dus terugexporteren naar
+MS Project loopt via MSPDI-XML. Zie de gids [MS Project (.mpp) openen](docs://gids-msproject-import)
+voor wat er meekomt en wat de beperkingen zijn.
+
+Een kleine, technische kanttekening voor wie een taak met een **doorlooptijd-duur** ("elapsed",
+24/7-planning, negeert vrije dagen) importeert vanuit een bron die alleen een **datum** opgeeft
+zonder tijdstip — CSV, Primavera P6, een datumveld in IFC, of de AI-assistent — en die taak op een
+**uren-kalender** valt: zo'n taak start dan op middernacht (00:00) van de opgegeven datum, niet op
+het eerste werk-instant van die dag. Dit is bewust: een expliciet ingelezen tijdstip wordt nooit
+naar een andere kalenderdag verplaatst. Bij `.mpp`-import speelt dit niet, want dat formaat levert
+altijd een volledig tijdstip mee.
 
 ## Extensie-importers
 

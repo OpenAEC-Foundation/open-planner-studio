@@ -15,7 +15,7 @@ Het venster **Projectinformatie** bevat de metadata van het project plus de sect
 - **Projectnaam** — de naam in de titelbalk en het documenttabblad.
 - **Beschrijving** — vrije tekst.
 - **Ingenieur** en **Bedrijf** — vrije tekst; gaan mee in het IFC-bestand.
-- **Startdatum** — de projectstart waarvandaan de berekening rekent.
+- **Startdatum** — het vertrekpunt van de berekening. Een taak mét voorganger start nooit vóór deze datum; een taak zónder voorganger behoudt gewoon haar eigen, ingelezen datum, ook als die vóór de projectstart ligt — dat is nodig om een geïmporteerd bestand (bijvoorbeeld uit MS Project) exact zo te tonen als in het bronprogramma. Een harde Must-Start-On/Must-Finish-On-constraint doorbreekt beide regels: zo'n taak start altijd op de geconstrainde datum, mét of zónder voorganger, ook als die vóór de projectstart ligt. Zet je de startdatum hier naar een latere datum, dan schuift Open Planner Studio zulke te-vroege, losstaande taken automatisch mee naar de nieuwe startdatum — met een melding en met Ctrl+Z ongedaan te maken. Dat gebeurt alleen bij het bewust wijzigen van de startdatum, via Projectinfo of de AI-assistent — nooit bij het openen van een bestand.
 - **Einddatum** — informatief einde van het project.
 
 ## Berekening

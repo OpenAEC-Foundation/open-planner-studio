@@ -21,13 +21,15 @@
 //  14. move_project ⇒ verschuift de bestaande planning in één undo-stap
 //  15. save_baseline: stale ⇒ eerst herrekenen, baseline op verse datums + batchable:false in de def
 //  16. registratie/tools-list-vorm: zeven tools, prefix + description + vier annotaties
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import { createSnapshot } from '@/state/snapshot';
 import { shiftIso } from '@/engine/moveProject';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { parseDate, addCalendarDays, formatDate } from '@/utils/dateUtils';
 
 const store = useAppStore;
 
@@ -42,15 +44,11 @@ function reset(): void {
   store.getState().newProject();
 }
 
-function makeCtx(overrides: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(overrides: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...overrides,
-  };
+  });
 }
 
 function tool(name: string) {
@@ -478,11 +476,17 @@ test('clear_leveling: wist alle levelingDelays in één undo-stap', async () => 
 // =================================================================================================
 // 13) update_project — statusdatum + anker-semantiek van startDate
 // =================================================================================================
-test('update_project: statusdatum landt; startDate is ALLEEN anker voor nieuwe taken (verschuift niets)', async () => {
+test('update_project: statusdatum landt; startDate is GEEN volledige Δ-verschuiving zoals move_project (T7-review H1: wél de gerichte klem-uitzondering op een wortel-taak zonder voorganger/constraint)', async () => {
   reset();
-  const a = addTask('bestaand', 5);
+  const a = addTask('bestaand (wortel)', 5);
+  // Opvolger van `a` — heeft een voorganger, dus buiten de klem (T7b/H1: "wortel-taken zonder
+  // voorganger"). Bewijst dat `startDate` géén volledige `move_project`-stijl Δ-verschuiving doet:
+  // een taak met een voorganger blijft op zijn eigen (relatief bepaalde) anker staan.
+  const b = addTask('opvolger', 3);
+  store.getState().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
   store.getState().runCPM();
-  const startBefore = store.getState().tasks.find((t) => t.id === a)!.time.scheduleStart;
+  const bStartBefore = store.getState().tasks.find((t) => t.id === b)!.time.scheduleStart;
+  const aStartBefore = store.getState().tasks.find((t) => t.id === a)!.time.scheduleStart;
   const nieuweStart = shiftIso(store.getState().project.startDate, 40);
 
   const statusDatum = store.getState().project.startDate;
@@ -495,11 +499,45 @@ test('update_project: statusdatum landt; startDate is ALLEEN anker voor nieuwe t
   assertEq(store.getState().project.name, 'Renovatie Kade', 'naam gezet');
   assertEq(store.getState().project.statusDate, statusDatum, 'statusdatum gezet');
   assertEq(store.getState().project.startDate, nieuweStart, 'startDate gezet');
-  // ANKER-SEMANTIEK: de bestaande taak is NIET meegeschoven.
-  assertEq(store.getState().tasks.find((t) => t.id === a)!.time.scheduleStart, startBefore,
-    'bestaande taak is NIET verschoven door startDate');
+  // T7b/H1: `a` is een wortel-taak zonder voorganger/constraint mét een eigen anker vóór de nieuwe
+  // (latere) startDate — die klemt sinds deze fixronde óók via de MCP-tool mee, exact zoals de
+  // UI-variant (`projectSlice.setProject`) en gemeld via `anchorsClamped`.
+  //
+  // BUGFIX (T13, vóór mijn scope maar blokkeerde npm run verify): `nieuweStart` is een RUWE
+  // kalenderdag-shift (`shiftIso`, geen kalender-snap) — "vandaag + 40 dagen" kan op elke weekdag
+  // landen, ook een niet-werkdag. `clampProjectStartAnchors` klemt (per zijn eigen, hierboven
+  // geciteerde moduledoc) NOOIT naar zo'n ruwe datum zelf, maar naar de EERSTVOLGENDE
+  // werk-instant OP/NÁ die datum (`snapWorkInstantOnOrAfter`) — exact zoals de solver zelf snapt.
+  // Een `assertEq(..., nieuweStart, ...)` was dus een datum-afhankelijke flake: groen zolang
+  // "vandaag + 40" toevallig op een werkdag viel, rood zodra dat een weekend was (2026-08-17 + 40 =
+  // 2026-09-26, een zaterdag — precies zo'n geval).
+  //
+  // L2 (Opus-eindreview 2026-08-17): de eerste fix verving `assertEq` door een LOSSE band ("op/ná
+  // de nieuwe startDate, een echte werkdag, binnen 4 kalenderdagen speling") — dat verbergt een
+  // klem die bv. één dag te ver snapt net zo goed als een correcte klem, want beide vallen binnen
+  // de band. Scherper zonder de flake terug te halen: reken de EXACTE verwachte werkdag zelf uit,
+  // dag-voor-dag vanaf `nieuweStart`, met de ONAFHANKELIJKE `CalendarEngine.isWorkDay` (niet
+  // `snapWorkInstantOnOrAfter` zelf — dat zou de test weer tautologisch maken tegen de
+  // implementatie i.p.v. tegen de specificatie), en toets daar `assertEq` tegen. Nog steeds
+  // datum-onafhankelijk (geen hardgecodeerde kalenderdatum — werkt voor elke "vandaag"), maar een
+  // klem die één dag te ver snapt geeft nu een exacte rode regel i.p.v. een groene "binnen de band".
+  const aStartAfter = store.getState().tasks.find((t) => t.id === a)!.time.scheduleStart;
+  assert(aStartAfter !== aStartBefore, 'de wortel-taak zonder voorganger/constraint IS meegeklemd (anker gewijzigd)');
+  const clampEngine = new CalendarEngine(store.getState().calendar);
+  let expectedAnchor = parseDate(nieuweStart);
+  while (!clampEngine.isWorkDay(expectedAnchor)) {
+    expectedAnchor = addCalendarDays(expectedAnchor, 1);
+  }
+  assertEq(aStartAfter, formatDate(expectedAnchor),
+    'de wortel-taak klemt naar de EERSTE werkdag op/ná de nieuwe startDate (onafhankelijk dag-voor-dag berekend via CalendarEngine.isWorkDay, niet via snapWorkInstantOnOrAfter)');
+  assertEq(data.anchorsClamped, 1, 'de respons meldt het geklemde aantal');
+  // GEEN volledige Δ-verschuiving (dat blijft move_project): de OPVOLGER (heeft een voorganger, dus
+  // geen wortel-anker) blijft op zijn eigen, relatief bepaalde anker staan — startDate verschuift
+  // 'm niet mee zoals move_project dat zou doen.
+  assertEq(store.getState().tasks.find((t) => t.id === b)!.time.scheduleStart, bStartBefore,
+    'de opvolger (heeft een voorganger) is NIET verschoven door startDate');
   assert(/move_project/i.test(JSON.stringify(data)) || /move_project/i.test(tool('planner_update_project').description),
-    'de tool verwijst naar move_project voor het echt verschuiven');
+    'de tool verwijst naar move_project voor het écht volledig verschuiven van de hele planning');
 });
 
 test('update_project: statusDate null ⇒ sleutel ECHT verwijderd (niet als undefined blijven staan)', async () => {

@@ -1,26 +1,25 @@
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeCSV } from '@/services/csv/csvWriter';
-import { readCSV } from '@/services/csv/csvReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
-import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
-import { readP6XML } from '@/services/p6/p6xmlReader';
-import { openFileDialog, saveFileDialog, saveToRef, readFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
+import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport } from '../documentContract';
+import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { finishMutation } from '../transaction';
 import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
-import { hasSummaryEndpoint } from '@/state/relationRules';
+import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
@@ -36,19 +35,9 @@ export function isActivePristine(s: AppState): boolean {
   );
 }
 
-/** Kies de juiste XML-reader op basis van inhoudsmarkers (P6 vóór MS Project).
- *  Gooit bij een onbekend formaat i.p.v. stil als MSPDI te parsen.
- *  Geëxporteerd voor `planner_import_schedule` (MCP), dat dezelfde formaatherkenning gebruikt. */
-export function parseProjectXml(content: string) {
-  const isP6 = content.includes('APIBusinessObjects') || content.includes('Primavera');
-  const isMsProject =
-    content.includes('schemas.microsoft.com/project') || content.includes('<Project');
-  if (isP6) return readP6XML(content);
-  if (isMsProject) return readMSPDI(content);
-  throw new Error('Onbekend XML-formaat: geen MS Project- of Primavera-markers gevonden');
-}
-
-export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
+// `ExportFormat` woont nu in de formatRegistry (T1); hier her-exporteren zodat bestaande
+// importeurs (Backstage, via appStore) ongewijzigd blijven werken.
+export { type ExportFormat };
 
 /** Resultaat van `exportAs` (K7): bij een cyclische planning wordt de export afgebroken vóór de
  *  opslaan-dialoog en de CPM-cyclusfout (`cpmResult.error`) als boodschap meegegeven, zodat de
@@ -117,7 +106,7 @@ export interface FileSlice {
   applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => void;
 }
 
-export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
+export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
   // Voeg een geopend/opgeslagen bestand toe aan de recents (elke herbruikbare ref).
   const pushRecent = async (ref: FileRef | null, name: string) => {
     if (!ref) return; // fallback-web: geen herbruikbare ref → niet aan recents (spec §6)
@@ -176,22 +165,62 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         }
       });
+      // "Datums zoals opgeslagen" (issue #63): leg VÓÓR de solve vast wat het bestand zei. `set()`
+      // hierboven is synchroon en er zit niets tussenin, dus `get().tasks` hier is nog exact wat
+      // `hydratePayload` er net neerzette. Dat moet vóór de recompute hieronder: `payloadFromImport`
+      // geeft `parsed.tasks` per referentie door, dus `s.tasks`/`get().tasks` en `parsed.tasks` zijn
+      // dezelfde objecten — `runCPM` muteert ze in-place, dus na de solve zijn de gelezen waarden ook
+      // in `parsed` alweer overschreven.
+      const recorded = opts.recompute ? captureRecordedDates(get().tasks, parsed.recordedFields) : null;
       // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
       // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
       if (opts.recompute) get().runCPM();
+      // …en pas dán vergelijken. Nul verschil ⇒ niets in de state; de strook blijft dan onzichtbaar,
+      // precies zoals bedoeld.
+      if (recorded && recorded.total > 0) {
+        const shifted = countShiftedTasks(get().tasks, recorded.times);
+        if (shifted > 0) set((s) => { s.recordedDates = { ...recorded, shifted }; });
+      }
       if (opts.fit) get().requestFitToProject(); // Issue #16: canvas op het HELE project passen.
-      // Spookrelaties uit het bestand (spec 2026-08-14): relaties met een verzameltaak als eindpunt
-      // worden door de solver weggegooid. Ze worden bewust NIET gefilterd — dat zou logica uit het
-      // bronbestand vernietigen bij open + opslaan — maar wel één keer gemeld, want anders merkt
-      // niemand die een P6/MSP-plan importeert dat er logica stilvalt.
-      const byId = new Map(parsed.tasks.map((t) => [t.id, t]));
-      const ineffective = parsed.sequences.filter((seq) => hasSummaryEndpoint((id) => byId.get(id), seq)).length;
-      if (ineffective > 0) {
+      // Relaties die de solver ECHT niet kon meerekenen (eigenaarsbesluit 2026-08-15): een
+      // verzameltaak-eindpunt op zich is sinds `expandSummaryRelations` GEEN reden meer om te
+      // melden — die relaties rekenen gewoon mee. Wat overblijft is de voorouder-guard (een taak
+      // gekoppeld aan zijn eigen (voor)ouder-samenvatting), een lege/kapotte tak, of de
+      // MAX_EXPANDED_RELATIONS-klem — stuk voor stuk gevallen waarin de relatie écht geen effect
+      // heeft. Rechtstreeks `expandSummaryRelations` aanroepen i.p.v. op `cpmResult.
+      // droppedSequenceIds` leunen: die is alleen gevuld ná `runCPM`, en `loadState` (extensie-
+      // imports, devBridge) draait die BEWUST NIET (`opts.recompute: false`, zie `loadState` in
+      // `projectSlice.ts`) — de pure expansiefunctie geeft hier hetzelfde antwoord, ongeacht of er
+      // straks nog wordt doorgerekend, en zonder de timing-afhankelijkheid van `cpmResult`. Bewust
+      // NIET gefilterd uit het document — dat zou logica uit het bronbestand vernietigen bij open +
+      // opslaan — maar wel één keer gemeld, want anders merkt niemand die een P6/MSP-plan importeert
+      // dat er logica stilvalt.
+      const dropped = expandSummaryRelations(parsed.tasks, parsed.sequences).droppedSequenceIds.length;
+      if (dropped > 0) {
         get().notify({
           severity: 'info',
-          messageKey: 'notifications.summaryRelationsIgnored',
-          params: { total: ineffective },
-          dedupeKey: 'summary-relations-ignored',
+          messageKey: 'notifications.summaryRelationsDropped',
+          params: { total: dropped },
+          dedupeKey: 'summary-relations-dropped',
+        });
+      }
+      // T12 (§9/O1, mpp-datumgetrouwheid), HERSCHREVEN door Z16 (etappe "nul afwijkingen"): een
+      // `.mpp`-bestand met aantoonbaar onderbroken, genivelleerde of resource-gedreven
+      // (nivellering/splits/timephased-vensters) taken. VÓÓR Z16 was dit een excuus voor mogelijk
+      // afwijkende datums ("wij rekenen aaneengesloten door") — sinds Z1-Z15 rekent de motor die
+      // taken echt door zoals MS Project (zie `CPMSolver.ts`, `mppReader.ts`'s `countScheduleNotes`),
+      // dus de melding is nu uitsluitend INFORMATIEF: ze vertelt dát het bestand zulke taken bevat,
+      // niet dat de datums onbetrouwbaar zouden zijn. Alleen `readMPP` vult `sourceScheduleNotes`
+      // (ander formaat ⇒ `undefined` ⇒ geen melding). Zelfde patroon als `summaryRelationsDropped`
+      // hierboven: info, één keer per open, gededupliceerd op dedupeKey. Géén taakveld (§9/O3) —
+      // puur een import-tijd-telling voor deze melding.
+      const scheduleNotesTotal = parsed.sourceScheduleNotes?.total ?? 0;
+      if (scheduleNotesTotal > 0) {
+        get().notify({
+          severity: 'info',
+          messageKey: 'notifications.mppSourceScheduleNotes',
+          params: { count: scheduleNotesTotal },
+          dedupeKey: 'mpp-split-leveled',
         });
       }
       emitExtensionEvent(HOST_EVENTS.projectLoaded, {
@@ -203,34 +232,27 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
 
     openFile: async (labels) => {
       try {
-        const opened = await openFileDialog([
-          { name: 'All Supported', extensions: ['ifc', 'csv', 'xml'] },
-          { name: 'IFC Files', extensions: ['ifc'] },
-          { name: 'CSV Files', extensions: ['csv'] },
-          { name: 'XML Files', extensions: ['xml'] },
-        ]);
+        const opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
         if (!opened) return;
-        const ext = opened.name.split('.').pop()?.toLowerCase() || '';
-        let parsed: ImportResult;
-
-        if (ext === 'csv') {
-          parsed = readCSV(opened.content);
-        } else if (ext === 'xml') {
-          parsed = parseProjectXml(opened.content);
-        } else {
-          parsed = readIFC(opened.content, labels);
-        }
+        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
 
         // Multi-document: open het bestand in een eigen tabblad. Hergebruik het
         // actieve tabblad alleen als dat nog leeg en ongewijzigd is.
         if (!isActivePristine(get())) get().newDocument();
 
+        // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: via `canBeSaveTarget` op
+        // de registry-entry i.p.v. een `id === 'ifc'`-vergelijking hier). Opslaan schrijft altijd
+        // IFC-TEKST, dus élk ANDER bronformaat (csv/xml/mpp — niet uitsluitend binaire formaten)
+        // zou bij een naïeve toewijzing zijn eigen bronbestand met IFC-inhoud laten overschrijven
+        // door de eerstvolgende Ctrl+S. "Opslaan" wordt dan "opslaan-als". Zelfde vlag als de
+        // MCP-kant (`fileTools.ts` leest óók `canBeSaveTarget`).
+        const target = saveTargetFor(readFormatForFile(opened.name), opened.ref, opened.name);
+
         // Gedeelde load-implementatie; open-pad-semantiek: identiteit + opslaan-doel zetten,
         // direct doorrekenen + fitten en de uur-melding evalueren.
         get().applyLoadedProject(parsed, {
-          // Identiteit: echt pad (Tauri) of bestandsnaam (web); handle alleen als web-opslaan-doel.
-          filePath: opened.ref?.kind === 'path' ? opened.ref.path : opened.name,
-          fileHandle: opened.ref?.kind === 'handle' ? opened.ref.handle : null,
+          filePath: target.filePath,
+          fileHandle: target.fileHandle,
           recompute: true,
           fit: true,
           hourDataNotice: true,
@@ -241,11 +263,13 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         // markeren/vragen. Nooit tijdens de hydratatie zelf.
         get().runOpenBoundary();
 
-        // Recents: elke herbruikbare ref (Tauri-pad óf Chromium-handle).
+        // Recents: elke herbruikbare ref (Tauri-pad óf Chromium-handle) — óók bij een niet-IFC
+        // bronformaat: heropenen via recents moet blijven werken, alleen het OPSLAGDOEL wordt niet
+        // gezet (zie `target` hierboven).
         await pushRecent(opened.ref, opened.name);
       } catch (err) {
         console.error('Failed to open file:', err);
-        get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: (err as Error).message });
+        get().notify({ severity: 'error', messageKey: importErrorMessageKey(err), detail: (err as Error).message });
       }
     },
 
@@ -424,10 +448,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
     parseExternalSource: async (filePath: string, labels) => {
       if (!isTauri()) return null;
       try {
-        const { readTextFile } = await import('@tauri-apps/plugin-fs');
-        const content = await readTextFile(filePath);
-        const ext = filePath.split('.').pop()?.toLowerCase() || '';
-        const parsed = ext === 'csv' ? readCSV(content) : ext === 'xml' ? parseProjectXml(content) : readIFC(content, labels);
+        const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
+        const input = await readFormatInput(filePath, { readTextFile, readFile });
+        const parsed = await parseOpenedFile(input, labels);
         return {
           projectId: parsed.project.id,
           projectName: parsed.project.name,
@@ -449,8 +472,17 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       const result = refreshExternalAnchors(get().tasks, source);
       if (result.changed) {
         set((s) => {
+          // Wél een snapshot (issue #63, review taak 6). Dit was de énige
+          // `finishMutation({ stale: true })` zónder `beginUndoable` — een bewuste asymmetrie
+          // ("externe-anker-verversing is niet undoable") die niet houdbaar is zodra de modus
+          // "datums zoals opgeslagen" bestaat: `finishMutation` verlaat die modus, en zonder
+          // snapshot is het aanbod dan onherstelbaar weg (laden → aanbod → ankers verversen →
+          // weg, zonder weg terug). Erger nog, het breekt de invariant van `snapshot.ts`: een
+          // undo van een OUDERE bewerking zou `datesAsRecorded: true` terugzetten terwijl de
+          // ankers al ververst zijn. Deze verversing verandert taakdatums en draait meteen
+          // `runCPM` — een gewone, zichtbare datamutatie dus, en die hoort ongedaan te kunnen.
+          runtime.beginUndoable(s);
           s.tasks = result.tasks;
-          // Flag-only (bewuste asymmetrie): externe-anker-verversing is niet undoable.
           finishMutation(s, { stale: true });
         });
         get().recomputeViewRows();
@@ -467,44 +499,84 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           if (link.sourceRef.filePath) paths.add(link.sourceRef.filePath);
         }
       }
+
+      // ÉÉN GEBAAR = ÉÉN UNDO-STAP (review taak 6). Deze actie lustte eerder over
+      // `refreshExternalAnchorsFrom`, dat sinds issue #63 zelf een snapshot pusht — bij twee
+      // gewijzigde bronnen kostte de knop "Alles verversen" dan twee keer Ctrl+Z.
+      //
+      // De oplossing is NIET `withTransaction`/`enterBatch` om de lus heen: er zit een `await` in
+      // (bestanden inlezen), en de bulk-suppressie is module-state. Alles wat de gebruiker tijdens
+      // dat inlezen doet zou dan zijn eigen undo-stap verliezen en in deze stap opgaan.
+      //
+      // Daarom in twee fasen: eerst ALLE bronnen async inlezen zonder iets te muteren, dan de pure
+      // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
+      // daarna één keer schrijven. Levert meteen één `runCPM` in plaats van N.
+      const sourceDocs: ExternalSourceDoc[] = [];
+      for (const p of paths) {
+        const src = await get().parseExternalSource(p, labels);
+        if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee (ongewijzigd gedrag)
+        sourceDocs.push({
+          projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
+        });
+      }
+
+      let tasks = get().tasks;
       let refreshed = 0;
       let missing = 0;
-      let sources = 0;
-      for (const p of paths) {
-        const r = await get().refreshExternalAnchorsFrom(p, labels);
-        if (r) { refreshed += r.refreshed; missing += r.missing; sources++; }
+      let anyChanged = false;
+      for (const source of sourceDocs) {
+        const result = refreshExternalAnchors(tasks, source);
+        tasks = result.tasks; // ketenen: elke bron ververst zijn eigen links op het vorige resultaat
+        refreshed += result.refreshed;
+        missing += result.missing;
+        if (result.changed) anyChanged = true;
       }
-      return { refreshed, missing, sources };
+
+      if (anyChanged) {
+        set((s) => {
+          runtime.beginUndoable(s);
+          s.tasks = tasks;
+          finishMutation(s, { stale: true });
+        });
+        get().recomputeViewRows();
+        get().runCPM();
+      }
+      return { refreshed, missing, sources: sourceDocs.length };
     },
 
     openRecentFile: async (id: string, labels) => {
       const entry = get().recentFiles.find((e) => e.id === id);
       if (!entry) return;
-      const content = await readFromRef(entry.ref);
-      if (content === null) {
-        // Geweigerd of verdwenen → entry stil verwijderen.
+      // T8-spec-review (F2): ÉÉN keer opzoeken, twee keer gebruikt — `kind` voor de lees-tak
+      // (bytes vs tekst), `id` voor de opslagdoel-guard hieronder (F4).
+      const readFormat = readFormatForFile(entry.name);
+      const isBinary = readFormat.kind === 'binary';
+      const content = isBinary ? null : await readFromRef(entry.ref);
+      const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
+      // Bij een binair formaat is `content` altijd null (niet gelezen) — dan telt uitsluitend
+      // `bytes`; bij een tekstformaat is `bytes` altijd null — dan telt uitsluitend `content`.
+      // Exact hetzelfde null-pad (geweigerd/verdwenen → entry stil verwijderen) als voorheen.
+      if (isBinary ? bytes === null : content === null) {
         const list = await removeRecent(entry.id);
         set((s) => { s.recentFiles = list; });
         return;
       }
       try {
-        const ext = entry.name.split('.').pop()?.toLowerCase() || '';
-        let parsed: ImportResult;
-
-        if (ext === 'csv') {
-          parsed = readCSV(content);
-        } else if (ext === 'xml') {
-          parsed = parseProjectXml(content);
-        } else {
-          parsed = readIFC(content, labels);
-        }
+        const parsed = await parseOpenedFile(
+          { name: entry.name, text: content ?? undefined, bytes: bytes ?? undefined },
+          labels,
+        );
 
         if (!isActivePristine(get())) get().newDocument();
 
+        // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: `saveTargetFor` — zie
+        // openFile voor de volledige toelichting). `readFormat` is hierboven al opgezocht (F2).
+        const target = saveTargetFor(readFormat, entry.ref, entry.name);
+
         // Zelfde open-pad-semantiek als openFile (zie daar); loopt door de gedeelde implementatie.
         get().applyLoadedProject(parsed, {
-          filePath: entry.ref.kind === 'path' ? entry.ref.path : entry.name,
-          fileHandle: entry.ref.kind === 'handle' ? entry.ref.handle : null,
+          filePath: target.filePath,
+          fileHandle: target.fileHandle,
           recompute: true,
           fit: true,
           hourDataNotice: true,
@@ -514,11 +586,12 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         // Grens 1 (idem openFile): ná hydratatie de openings-check draaien.
         get().runOpenBoundary();
 
-        // MRU verversen: het net-geopende bestand naar boven.
+        // MRU verversen: het net-geopende bestand naar boven (óók bij een niet-IFC bronformaat —
+        // alleen het opslagdoel blijft leeg, zie `target` hierboven).
         await pushRecent(entry.ref, entry.name);
       } catch (err) {
         console.error('Failed to open recent file:', err);
-        get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: (err as Error).message });
+        get().notify({ severity: 'error', messageKey: importErrorMessageKey(err), detail: (err as Error).message });
       }
     },
 

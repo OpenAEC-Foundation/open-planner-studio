@@ -5,6 +5,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
 import type { ImportResult } from '@/services/importTypes';
@@ -30,8 +31,9 @@ import { syncProjectCalendar, promoteProjectCalendarToLibrary } from './syncProj
  *    expliciete uitzondering: `collapsedTaskIds` woont in `s.ui` (per-document geswapt, maar de
  *    rest van `ui` blijft app-globaal).
  *  - `fresh`: de verse default voor een nieuw, leeg document.
- *  - `snapshot`: de rol in de undo/redo-snapshot ('clone' = diepe JSON-kloon, 'ref' = per
- *    referentie/scalar, 'none' = niet in de snapshot). Zie `snapshot.ts` voor de per-veld-keuzes.
+ *  - `snapshot`: de rol in de undo/redo-snapshot ('data' = muteerbare projectdata, 'derived' =
+ *    afgeleid resultaat/scalar, 'none' = niet in de snapshot). Zie `snapshot.ts` voor de
+ *    per-veld-keuzes én voor waarom 'data' en 'derived' allebei per referentie worden bewaard.
  *  - `fromPayload` (optioneel): lees-migratie bij hydrate (defaults / legacy-alias / normalisatie).
  *
  * `capturePayload`/`hydratePayload`/`freshPayload` lopen key-gedreven over deze ENE lijst, zodat
@@ -56,6 +58,10 @@ export interface DocumentPayload {
   resourceLoadResult: ResourceLoadResult | null;
   /** "Verouderd"-vlag per document (A6) — leekt anders tussen documenten. */
   scheduleStale: boolean;
+  /** "Datums zoals opgeslagen" (issue #63) — zie `ScheduleSlice.recordedDates`. */
+  recordedDates: RecordedDatesState | null;
+  /** "Datums zoals opgeslagen" (issue #63) — zie `ScheduleSlice.datesAsRecorded`. */
+  datesAsRecorded: boolean;
   /** Baselines per document (fase 2.6). `statusDate`/`progressMode` rijden mee in `project`. */
   baselines: Baseline[];
   activeBaselineId: string | null;
@@ -111,10 +117,17 @@ export function recoveryInputFromParsed(parsed: ImportResult, meta: RecoveryDocM
   return { ...parsed, ...meta };
 }
 
-/** Rol van een documentveld in de undo/redo-snapshot. */
+/**
+ * Rol van een documentveld in de undo/redo-snapshot.
+ *
+ * De rollen 'data' en 'derived' zeggen allebei "dit veld zit IN de snapshot" en verschillen alleen
+ * in wát voor waarde het is; ze worden allebei per REFERENTIE opgeslagen. Dat mag omdat Immer de
+ * hele state na elke producer diep bevriest — zie de kop van `snapshot.ts` voor de invariant en
+ * waarom hier vroeger een diepe JSON-kloon stond.
+ */
 export type SnapshotRole =
-  | 'clone' // diepe JSON-kloon in de snapshot (muteerbare projectdata-arrays).
-  | 'ref' // per referentie/scalar (immutabele afgeleide resultaten + scalars).
+  | 'data' // muteerbare projectdata (heette 'clone' toen de snapshot nog diep kloonde).
+  | 'derived' // afgeleid resultaat of scalar (heette 'ref').
   | 'none'; // niet in de snapshot (selectie/view/pad/undo-stacks e.d.).
 
 interface FieldDesc<K extends keyof DocumentPayload, R extends SnapshotRole = SnapshotRole> {
@@ -168,28 +181,34 @@ export const DOCUMENT_FIELDS = [
   // Pakket H: `project` doet VOLLEDIG mee in de snapshot (was 'none' met een nauwe wbsAutoNumber-
   // projectie). Voorwaarde daarvoor — elke project-mutator pusht zelf een snapshot — is vervuld in
   // projectSlice; zie de kop van snapshot.ts.
-  field({ key: 'project', get: (s) => s.project, set: (s, v) => { s.project = v; }, fresh: createDefaultProject, snapshot: 'clone' }),
+  field({ key: 'project', get: (s) => s.project, set: (s, v) => { s.project = v; }, fresh: createDefaultProject, snapshot: 'data' }),
   // De gedenormaliseerde projectkalender-cache rijdt mee (§9.1): `restoreSnapshot` synct hem ná de
   // restore alsnog uit `calendars`, maar zonder eigen snapshot-waarde zou de undo-orphan-fallback
   // (`promoteProjectCalendarToLibrary`) de NIEUWE cache promoveren i.p.v. de oude.
-  field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'clone' }),
-  field({ key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'clone' }),
-  field({ key: 'sequences', get: (s) => s.sequences, set: (s, v) => { s.sequences = v; }, fresh: () => [], snapshot: 'clone' }),
-  field({ key: 'resources', get: (s) => s.resources, set: (s, v) => { s.resources = v; }, fresh: () => [], snapshot: 'clone' }),
-  field({ key: 'assignments', get: (s) => s.assignments, set: (s, v) => { s.assignments = v; }, fresh: () => [], snapshot: 'clone' }),
+  field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'data' }),
+  field({ key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'data' }),
+  field({ key: 'sequences', get: (s) => s.sequences, set: (s, v) => { s.sequences = v; }, fresh: () => [], snapshot: 'data' }),
+  field({ key: 'resources', get: (s) => s.resources, set: (s, v) => { s.resources = v; }, fresh: () => [], snapshot: 'data' }),
+  field({ key: 'assignments', get: (s) => s.assignments, set: (s, v) => { s.assignments = v; }, fresh: () => [], snapshot: 'data' }),
   field({
-    key: 'calendars', get: (s) => s.calendars, set: (s, v) => { s.calendars = v; }, fresh: () => [], snapshot: 'clone',
+    key: 'calendars', get: (s) => s.calendars, set: (s, v) => { s.calendars = v; }, fresh: () => [], snapshot: 'data',
     // Lees-alias (§4.2): oude payloads dragen `resourceCalendars`; nieuwe `calendars`.
     fromPayload: (p) => p.calendars ?? (p as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [],
   }),
-  field({ key: 'activityCodeTypes', get: (s) => s.activityCodeTypes, set: (s, v) => { s.activityCodeTypes = v; }, fresh: () => [], snapshot: 'clone', fromPayload: (p) => p.activityCodeTypes ?? [] }),
-  field({ key: 'customFieldDefs', get: (s) => s.customFieldDefs, set: (s, v) => { s.customFieldDefs = v; }, fresh: () => [], snapshot: 'clone', fromPayload: (p) => p.customFieldDefs ?? [] }),
+  field({ key: 'activityCodeTypes', get: (s) => s.activityCodeTypes, set: (s, v) => { s.activityCodeTypes = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.activityCodeTypes ?? [] }),
+  field({ key: 'customFieldDefs', get: (s) => s.customFieldDefs, set: (s, v) => { s.customFieldDefs = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.customFieldDefs ?? [] }),
   field({ key: 'selectedTaskIds', get: (s) => s.selectedTaskIds, set: (s, v) => { s.selectedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
-  field({ key: 'cpmResult', get: (s) => s.cpmResult, set: (s, v) => { s.cpmResult = v; }, fresh: () => null, snapshot: 'ref' }),
-  field({ key: 'resourceLoadResult', get: (s) => s.resourceLoadResult, set: (s, v) => { s.resourceLoadResult = v; }, fresh: () => null, snapshot: 'ref', fromPayload: (p) => p.resourceLoadResult ?? null }),
-  field({ key: 'scheduleStale', get: (s) => s.scheduleStale, set: (s, v) => { s.scheduleStale = v; }, fresh: () => false, snapshot: 'ref', fromPayload: (p) => p.scheduleStale ?? false }),
-  field({ key: 'baselines', get: (s) => s.baselines, set: (s, v) => { s.baselines = v; }, fresh: () => [], snapshot: 'clone', fromPayload: (p) => p.baselines ?? [] }),
-  field({ key: 'activeBaselineId', get: (s) => s.activeBaselineId, set: (s, v) => { s.activeBaselineId = v; }, fresh: () => null, snapshot: 'ref', fromPayload: (p) => p.activeBaselineId ?? null }),
+  field({ key: 'cpmResult', get: (s) => s.cpmResult, set: (s, v) => { s.cpmResult = v; }, fresh: () => null, snapshot: 'derived' }),
+  field({ key: 'resourceLoadResult', get: (s) => s.resourceLoadResult, set: (s, v) => { s.resourceLoadResult = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.resourceLoadResult ?? null }),
+  field({ key: 'scheduleStale', get: (s) => s.scheduleStale, set: (s, v) => { s.scheduleStale = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.scheduleStale ?? false }),
+  // "Datums zoals opgeslagen" (issue #63). `snapshot: 'derived'` net als cpmResult/scheduleStale:
+  // beide worden altijd als geheel vervangen, nooit in-place gemuteerd. Dat is precies wat Ctrl+Z
+  // nodig heeft — samen met `tasks` ('data') draait één undo de datums én de modus terug.
+  // De invariant uit snapshot.ts geldt: élke mutator van deze velden pusht een snapshot.
+  field({ key: 'recordedDates', get: (s) => s.recordedDates, set: (s, v) => { s.recordedDates = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.recordedDates ?? null }),
+  field({ key: 'datesAsRecorded', get: (s) => s.datesAsRecorded, set: (s, v) => { s.datesAsRecorded = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.datesAsRecorded ?? false }),
+  field({ key: 'baselines', get: (s) => s.baselines, set: (s, v) => { s.baselines = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.baselines ?? [] }),
+  field({ key: 'activeBaselineId', get: (s) => s.activeBaselineId, set: (s, v) => { s.activeBaselineId = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.activeBaselineId ?? null }),
   field({ key: 'view', get: (s) => s.view, set: (s, v) => { s.view = v; }, fresh: createDefaultView, snapshot: 'none', fromPayload: (p) => normalizeView(p.view) }),
   // Uitzondering: collapsedTaskIds woont in `s.ui` (wordt wél per-document geswapt).
   field({ key: 'collapsedTaskIds', get: (s) => s.ui.collapsedTaskIds, set: (s, v) => { s.ui.collapsedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
@@ -239,8 +258,8 @@ type AppGlobalKey =
   // Multi-document-boekhouding zelf — dit ís de laag die de rest swapt.
   | 'documents' | 'activeDocumentId'
   // Extensies: app-niveau data, geen projectdata (zie CLAUDE.md, *Extensiesysteem*).
-  | 'installedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
-  | 'catalogEntries' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
+  | 'installedExtensions' | 'quarantinedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
+  | 'catalogEntries' | 'catalogIssues' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
   // Resourcebibliotheek: app-globaal, net als extensies (zie CLAUDE.md, *Resourcebibliotheken*).
   | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded';
 

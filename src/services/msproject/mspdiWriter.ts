@@ -166,7 +166,14 @@ function writeCalendarBlock(
 
   lines.push(`${indent(3)}</WeekDays>`);
 
-  if (cal.holidays.length > 0) {
+  // T13 (§T2-afwijking, LAAG-7-afnemer): vóór deze taak schreef alleen `cal.holidays` naar
+  // `<Exceptions>` — `cal.workingExceptions` (T2/T3) verdween stil bij export, ook al kan
+  // `mspdiReader.ts` (T4) ze prima terug inlezen (`readRawMspdiExceptions`, `DayWorking=1` +
+  // `<WorkingTimes>`). Spiegelt die lezer exact: `DayWorking=1`, banden als `<WorkingTime>`-blokken
+  // wanneer aanwezig (afwezig/leeg ⇒ geen `<WorkingTimes>`-element — de lezer se banden-optioneel-
+  // fallback-keten (`types/calendar.ts`'s `WorkingException.bands`-doc) vangt dat dan zelf op).
+  const workingExceptions = cal.workingExceptions ?? [];
+  if (cal.holidays.length > 0 || workingExceptions.length > 0) {
     lines.push(`${indent(3)}<Exceptions>`);
     for (const h of cal.holidays) {
       lines.push(`${indent(4)}<Exception>`);
@@ -178,6 +185,28 @@ function writeCalendarBlock(
       lines.push(`${indent(5)}<Name>${escapeXML(h.name)}</Name>`);
       lines.push(`${indent(5)}<Type>1</Type>`);
       lines.push(`${indent(5)}<DayWorking>0</DayWorking>`);
+      lines.push(`${indent(4)}</Exception>`);
+    }
+    for (const we of workingExceptions) {
+      lines.push(`${indent(4)}<Exception>`);
+      lines.push(`${indent(5)}<EnteredByOccurrences>0</EnteredByOccurrences>`);
+      lines.push(`${indent(5)}<TimePeriod>`);
+      lines.push(`${indent(6)}<FromDate>${formatMSPDateTime(we.startDate)}</FromDate>`);
+      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(we.endDate)}</ToDate>`);
+      lines.push(`${indent(5)}</TimePeriod>`);
+      lines.push(`${indent(5)}<Name>${escapeXML(we.name)}</Name>`);
+      lines.push(`${indent(5)}<Type>1</Type>`);
+      lines.push(`${indent(5)}<DayWorking>1</DayWorking>`);
+      if (we.bands && we.bands.length > 0) {
+        lines.push(`${indent(5)}<WorkingTimes>`);
+        for (const b of we.bands) {
+          lines.push(`${indent(6)}<WorkingTime>`);
+          lines.push(`${indent(7)}<FromTime>${minutesToClock(b.start)}</FromTime>`);
+          lines.push(`${indent(7)}<ToTime>${minutesToClock(b.end)}</ToTime>`);
+          lines.push(`${indent(6)}</WorkingTime>`);
+        }
+        lines.push(`${indent(5)}</WorkingTimes>`);
+      }
       lines.push(`${indent(4)}</Exception>`);
     }
     lines.push(`${indent(3)}</Exceptions>`);
@@ -230,6 +259,50 @@ export function writeMSPDI(
   const noteCount = tasks.reduce((n, t) => n + (t.notes?.length ?? 0), 0);
   if (noteCount > 0) {
     console.warn(`MSPDI-export: ${noteCount} taak-aantekening(en) weggelaten — MSPDI's native <Notes>-element is bewust niet gebruikt (lossy voor de checklist-vorm, §6).`);
+  }
+
+  // H5 (eindreview T16c): een taak met ELAPSEDTIME-duur (T8, 24/7-klokrekenen — bv. uit een `.mpp`-
+  // import) draagt hier BEWUST géén native `<DurationFormat>`-elapsed-code (4/6/8/10/12, dezelfde
+  // set als `ELAPSED_DURATION_FORMATS` voor lag in `mspdiReader.ts`): de LEZER kent diezelfde
+  // task-level `<DurationFormat>` nog niet — die parseert alleen `<Duration>` (de kale ISO-8601-
+  // string, géén eenheids-/format-info) en zet `durationType` nooit op basis daarvan. Native
+  // schrijven zónder dat de lezer het terugleest zou een `.mpp → MSPDI-export → herimport`-cyclus
+  // de 24/7-semantiek stil laten omklappen naar WERKtijd-duur (fout, niet alleen verlies) — erger
+  // dan het huidige gedrag (waar dezelfde omklap al gebeurt, maar zonder de suggestie dat het
+  // "native round-trippt"). Vandaar de conservatieve keuze: weggelaten-met-warn, exact hetzelfde
+  // patroon als `resumeFromActualElapsed` hierboven, tot de lezer ook task-level `<DurationFormat>`
+  // begrijpt (eigen vervolgtaak).
+  const elapsedTaskCount = tasks.filter(t => t.time.durationType === 'ELAPSEDTIME').length;
+  if (elapsedTaskCount > 0) {
+    console.warn(`MSPDI-export: ${elapsedTaskCount} taak/taken met ELAPSEDTIME-duur (24/7-klokrekenen) geëxporteerd als gewone werktijd-duur — MSPDI-lezer kent task-level <DurationFormat> nog niet (§6).`);
+  }
+
+  // Z14 (etappe "nul afwijkingen"): MSPDI kent native <Manual>, <LevelingDelay>/<LevelingDelayFormat>
+  // en <TimephasedData>, maar onze LEZER leest geen van drieën. Exact hetzelfde ELAPSEDTIME/
+  // <DurationFormat>-precedent hierboven: native schrijven zonder terug te lezen is een stille
+  // semantiek-omklap en dus erger dan verlies — hier dus BEWUST alleen warnen, geen elementen
+  // schrijven. Native MSPDI-ondersteuning voor deze drie is een TODO voor een latere taak.
+  const manualCount = tasks.filter(t => t.manuallyScheduled).length;
+  if (manualCount > 0) {
+    console.warn(`MSPDI-export: ${manualCount} handmatig geplande taak/taken geëxporteerd zonder native <Manual> — MSPDI-lezer kent dat element nog niet (§6).`);
+  }
+  const levelingPrecisionCount = tasks.filter(t => t.levelingDelayMinutes != null).length;
+  if (levelingPrecisionCount > 0) {
+    console.warn(`MSPDI-export: ${levelingPrecisionCount} taak/taken met sub-dag-nivelleervertraging (levelingDelayMinutes) geëxporteerd zonder native <LevelingDelay>/<LevelingDelayFormat> — MSPDI-lezer kent die elementen nog niet (§6).`);
+  }
+  // Splits (Task.splitGaps, Z4) en gecontoureerde toewijzingen (ResourceAssignment.workWindowStart/
+  // Finish, Z0/Z14) zijn beide afgeleid uit hetzelfde timephased-mechanisme (§3(c) van het
+  // nul-afwijkingen-plan) — één warn voor <TimephasedData> dekt beide.
+  const splitTaskCount = tasks.filter(t => t.splitGaps && t.splitGaps.length > 0).length;
+  const contouredAssignmentCount = assignments.filter(a => a.workWindowStart || a.workWindowFinish).length;
+  if (splitTaskCount > 0 || contouredAssignmentCount > 0) {
+    console.warn(`MSPDI-export: ${splitTaskCount} gesplitste taak/taken en ${contouredAssignmentCount} gecontoureerde toewijzing(en) geëxporteerd zonder native <TimephasedData> — MSPDI-lezer kent dat element nog niet (§6).`);
+  }
+  // Z12-herwerk/Z14: MSP's eigen resume/stop-instanten (uit-volgorde-hervatting). MSPDI kent native
+  // <Resume>/<Stop>, maar onze lezer leest ze (nog) niet terug — zelfde conservatieve keuze.
+  const resumeStopCount = tasks.filter(t => t.time.resume || t.time.stop).length;
+  if (resumeStopCount > 0) {
+    console.warn(`MSPDI-export: ${resumeStopCount} taak/taken met resume/stop (uit-volgorde-hervatting) geëxporteerd zonder native <Resume>/<Stop> — MSPDI-lezer kent die elementen nog niet (§6).`);
   }
 
   // Fase 2.6 (§9.1): alleen de ACTIEVE baseline gaat naar MSPDI-slot 0 (Baseline Number 0).
@@ -290,6 +363,16 @@ export function writeMSPDI(
     if (so.makeOpenEndedCritical) lost.push('makeOpenEndedCritical');
     if (so.nearCriticalThreshold != null) lost.push('nearCriticalThreshold');
     if (so.floatPaths?.enabled) lost.push('floatPaths');
+    // T9 (Opus-review N1): geen MSPDI-equivalent voor deze MPP-eigen hervattingsconventie (zie
+    // `SchedulingOptions.resumeFromActualElapsed`, `CPMSolver.ts`) — zonder deze warn zou
+    // .mpp → MSPDI-export → herimport het veld geruisloos laten vallen en de gefixte datums van T9
+    // stil weer laten verschuiven bij die herimport.
+    if (so.resumeFromActualElapsed) lost.push('resumeFromActualElapsed');
+    // B1 (eindreview T16c, dossier (c)4-herdiagnose): idem — geen MSPDI-equivalent voor de
+    // niet-gestart-vloer-uitzondering (`SchedulingOptions.unstartedIgnoresStatusDate`); zonder deze
+    // warn zou dezelfde .mpp → MSPDI-export → herimport-route de niet-gestarte taken van een
+    // statusdatum-project weer stil ~jaren vooruit klemmen.
+    if (so.unstartedIgnoresStatusDate) lost.push('unstartedIgnoresStatusDate');
     if (lost.length > 0) {
       console.warn(`MSPDI-export: scheduling-opties ${lost.join('/')} niet native uitdrukbaar — weggelaten, alleen via IFC OPS_SchedulingOptions (§6).`);
     }
@@ -362,7 +445,11 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<OutlineLevel>${getOutlineLevel(task.wbsCode)}</OutlineLevel>`);
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);
     lines.push(`${indent(3)}<Milestone>${isMilestone ? 1 : 0}</Milestone>`);
-    lines.push(`${indent(3)}<PercentComplete>${Math.round(task.time.completion * 100)}</PercentComplete>`);
+    // T14b-vervolg (spec-review-bevinding): `completion` ongeguard vermenigvuldigen gaf `NaN` in de
+    // export zodra een taak (buiten de TS-typechecker om, extensie-/MCP-rand) toch met een
+    // `undefined` completion binnenkwam — dezelfde diepteverdediging als de IFC-writer
+    // (`ifcTaskSlots.ts`, `(w.task.time.completion ?? 0).toFixed(1)`), hier voor MSPDI.
+    lines.push(`${indent(3)}<PercentComplete>${Math.round((task.time.completion ?? 0) * 100)}</PercentComplete>`);
     // Actuals (fase 2.6, §9.1) — alleen wanneer gezet (golden rule). RemainingDuration afgeleid.
     if (task.time.actualStart) {
       lines.push(`${indent(3)}<ActualStart>${formatMSPDateTime(task.time.actualStart)}</ActualStart>`);

@@ -67,6 +67,11 @@ const TASK_TIME_VERDICTS = {
   floatPath: 'derived',
   actualStart: 'shift',           // R5 — schuift mee mét de statusdatum, zodat de voortgangs-vloer klopt
   actualFinish: 'shift',          // R5
+  resume: 'shift',                // Z12-herwerk — MSP's eigen hervattingsinstant, zelfde aard als
+                                   // actualStart/actualFinish (absoluut, kalender-geankerd feit uit
+                                   // het bestand); schuift mee, anders wijst een verplaatst project
+                                   // naar een RESUME-datum uit het verleden.
+  stop: 'shift',                  // Z12-herwerk — spiegelt resume hierboven.
   actualDuration: 'n/a',          // duur
   remainingTime: 'n/a',           // duur
   remainingMinutes: 'n/a',        // duur
@@ -77,6 +82,30 @@ const TASK_VERDICTS = {
   id: 'n/a', name: 'n/a', description: 'n/a', wbsCode: 'n/a', taskType: 'n/a', status: 'n/a',
   isMilestone: 'n/a', milestoneKind: 'n/a', mandatory: 'n/a', priority: 'n/a',
   levelingDelay: 'n/a',           // vertraging in werkdagen (relatief)
+  levelingDelayMinutes: 'n/a',    // Z0: subdag-precisie van levelingDelay, zelfde relatieve aard
+  levelingDelayElapsed: 'n/a',    // Z0: vlag bij levelingDelayMinutes, geen datum
+  splitGaps: 'n/a',                // Z0-fixronde (orkestratorbesluit BEVINDING 2): offset-gebaseerd
+                                    // (afterMinutes/gapMinutes) — geen datum erin, dus dezelfde
+                                    // taxonomie als levelingDelay hierboven ('n/a', niet 'keep':
+                                    // 'keep' is voor velden met een datum die je BEWUST niet
+                                    // verschuift, splitGaps heeft er nooit een gehad)
+  manuallyScheduled: 'n/a',        // Z0-fixronde (orkestratorbesluit BEVINDING 2): vlag, geen datum —
+                                    // zelfde taxonomie als isHammock hierboven; de datums eronder
+                                    // (time.*) schuiven al normaal mee via TASK_TIME_VERDICTS
+  timephasedFinishFloor: 'shift',  // Z8 (gemelde uitzondering op de bestandseigendom, zie het
+                                    // commitbericht): absoluut ISO-instant, zelfde aard als deadline
+                                    // hieronder — een projectverschuiving moet de vensterondergrens
+                                    // meeschuiven, anders klemt een verouderde floor de herberekende
+                                    // finish vast op de OUDE datum
+  timephasedStartAnchor: 'shift',  // Z8, idem — het RAUWE startanker-tegenhanger
+  timephasedDurationWalks: 'shift', // Z8-herwerkronde: array met een `anchor`-datum per item —
+                                    // zelfde motivering als `externalLinks` hieronder (array met een
+                                    // shiftbaar subveld); `resourceCalendarId` is een verwijzing,
+                                    // schuift niet mee
+  timephasedContours: 'n/a',       // Z14b: offset-gebaseerd (afterMinutes/minutes/workMinutes),
+                                    // geen datum erin — zelfde taxonomie als splitGaps hierboven
+  mspTaskType: 'n/a',              // Z14b: MSP-eigen enum, geen datum
+  effortDriven: 'n/a',             // Z14b: vlag, geen datum
   parentId: 'n/a', childIds: 'n/a',
   time: 'shift',                  // zie TASK_TIME_VERDICTS
   resourceIds: 'n/a', color: 'n/a', activityCodes: 'n/a',
@@ -122,6 +151,7 @@ const RESOURCE_VERDICTS = {
   availability: 'n/a', maxUnits: 'n/a', calendarId: 'n/a',
   availabilitySteps: 'shift',     // .from schuift: effective-dated capaciteit is PROJECT-planning
   unitOfMeasure: 'n/a', parentId: 'n/a',
+  color: 'n/a',                   // #21: weergavekleur — geen datum, verschuift niet mee
   libraryOrigin: 'n/a',           // B1: herkomststempel-metadata, geen planningsdatum
 } satisfies Record<keyof Resource, MoveVerdict>;
 
@@ -227,11 +257,28 @@ export function shiftTask(task: Task, delta: number): Task {
       scheduleFinish: shiftIso(t.scheduleFinish, delta),
       actualStart: shiftIso(t.actualStart, delta),
       actualFinish: shiftIso(t.actualFinish, delta),
+      resume: shiftIso(t.resume, delta),
+      stop: shiftIso(t.stop, delta),
     },
   };
   if (task.constraint) next.constraint = shiftConstraint(task.constraint, delta);
   if (task.constraint2) next.constraint2 = shiftConstraint(task.constraint2, delta);
   if (task.deadline !== undefined) next.deadline = shiftIso(task.deadline, delta);
+  // Z8 (gemelde uitzondering op de bestandseigendom): de verdicts hierboven markeren deze twee als
+  // 'shift' — dat is puur documentatie zonder DEZE regels, zie de moduleheader-waarschuwing bij
+  // TASK_VERDICTS ("'keep'-voorschrift... betekent dat je de shift ook echt met de hand moet
+  // implementeren").
+  if (task.timephasedFinishFloor !== undefined) {
+    next.timephasedFinishFloor = shiftIso(task.timephasedFinishFloor, delta);
+  }
+  if (task.timephasedStartAnchor !== undefined) {
+    next.timephasedStartAnchor = shiftIso(task.timephasedStartAnchor, delta);
+  }
+  if (task.timephasedDurationWalks) {
+    next.timephasedDurationWalks = task.timephasedDurationWalks.map((w) => ({
+      ...w, anchor: shiftIso(w.anchor, delta),
+    }));
+  }
   if (task.externalLinks) {
     next.externalLinks = task.externalLinks.map((l) => ({
       ...l,

@@ -43,7 +43,7 @@
 //  10. planner_update_calendar op een gestempelde kalender ⇒ stempel/hash met rust, 'deviated'
 //  11. planner_batch ⇒ omzeilt de gating niet; projectinzet blijft er wél schrijfbaar
 //  12. de bedoelde route (pool wijzigen) ⇒ beide kanten bewegen mee, blijft 'in-sync'
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { resourceTools } from '@/services/mcp/tools/resourceTools';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
@@ -62,13 +62,9 @@ store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
 function makeCtx(): McpContext {
-  return {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
-  };
+  });
 }
 async function call(name: string, args: unknown): Promise<McpToolResult> {
   const def = ALL.find((t) => t.name === name);

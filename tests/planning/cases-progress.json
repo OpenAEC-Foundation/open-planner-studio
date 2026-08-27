@@ -109,6 +109,31 @@
       }
     },
     {
+      "id": "prog-B1-unstarted-ignores-statusdate",
+      "title": "B1 (eindreview T16c, dossier (c)4-herdiagnose): MSP-pad — zelfde taakvorm als prog-datadate-floor, maar met unstartedIgnoresStatusDate ⇒ MS Project verschuift een niet-gestarte taak NIET automatisch naar de statusdatum. es blijft op de eigen anker (2026-07-06), NIET op de statusdatum (2026-07-08). Reconstructie van de reviewer-meting op calendar-exception-precedence.mpp (publiek MPXJ-fixture): zonder deze vlag klemde de solver een taak met eigen anker 2015-10-01 en statusdatum 2023-05-01 ~8 jaar vooruit; mét de vlag is het resultaat minuut-exact tegen MSP's eigen opgeslagen Start/Finish.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "schedulingOptions": { "unstartedIgnoresStatusDate": true },
+      "tasks": [ { "name": "X", "dur": 3, "start": "2026-07-06" } ],
+      "expect": {
+        "tasks": { "X": { "es": "2026-07-06", "ef": "2026-07-08" } },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-B1-p6-pad-behoudt-vloer",
+      "title": "B1-contrast (default UIT): zelfde taakvorm als prog-B1-unstarted-ignores-statusdate maar ZONDER de vlag ⇒ de bestaande P6-getrouwe vloer blijft byte-identiek (es op statusdatum) — bewaakt dat de nieuwe uitzondering een opt-in blijft en het P6-pad (MSPDI/P6/CSV/IFC-bronnen, statusdatum-gedreven planningen) de vloer behoudt.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "tasks": [ { "name": "X", "dur": 3, "start": "2026-07-06" } ],
+      "expect": {
+        "tasks": { "X": { "es": "2026-07-08", "ef": "2026-07-10" } },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
       "id": "prog-completed-pins-successor",
       "title": "Voltooide taak pint volledig: opvolger start ná de actualFinish (di 7), niet ná een verschoven plan-datum.",
       "anchor": "2026-07-06",
@@ -128,8 +153,8 @@
       }
     },
     {
-      "id": "prog-no-statusdate-noop",
-      "title": "Geen statusdatum = no-op: dezelfde completion/actuals maar zonder statusdatum ⇒ es/ef exact als plan (regressie-vangnet).",
+      "id": "prog-no-statusdate-completed-pins",
+      "title": "T15 (c2, herzien 2026-08-17, was 'prog-no-statusdate-noop'; c/f M1-herziening 2026-08-17): een VOLTOOIDE taak (completion===1, actualFinish gezet) blijft op haar actuals gepind ONGEACHT of het project een statusdatum heeft — de VOLTOOID-tak in CPMSolver gebruikt uitsluitend actualStart/actualFinish, nooit dataDate zelf. A pint op 07-06/07-07 i.p.v. door te lopen tot 07-10; B (IN PROGRESS, M1: ES pint óók zonder statusdatum op haar eigen actualStart, restwerk vanaf dezelfde actualStart) start na A's ACTUELE finish (FS+0 vanaf 07-07 ⇒ 07-08, gelijk aan B's eigen actualStart) en haar restwerk (round(5×0.6)=3 werkdagen) loopt vanaf die actualStart, geen volle 5 dagen meer; C volgt via gewone FS. Discriminerende zustercase voor M1 (actualStart ≠ planstart): prog-t15-inprogress-actualstart-pin hieronder.",
       "anchor": "2026-07-06",
       "tasks": [
         { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-07" },
@@ -142,11 +167,61 @@
       ],
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
-          "B": { "es": "2026-07-13", "ef": "2026-07-17" },
-          "C": { "es": "2026-07-20", "ef": "2026-07-24" }
+          "A": { "es": "2026-07-06", "ef": "2026-07-07" },
+          "B": { "es": "2026-07-08", "ef": "2026-07-10" },
+          "C": { "es": "2026-07-13", "ef": "2026-07-17" }
         },
-        "projectEnd": "2026-07-24",
+        "projectEnd": "2026-07-17",
+        "outOfSequenceSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-t15-completed-actualstart-weekend-ongesnapt",
+      "title": "T15 (c2): een VOLTOOIDE taak se actualStart mag op een niet-werkdag liggen — MSP snapt dat historische FEIT niet naar de eerstvolgende werkdag (bevinding: mpp14resource.mpp's 'Completed Task', actualStart za 2006-08-26, MSP-eigen SCHEDULED_START blijft za 08-26, niet ma 08-28). A (completion 1, actualStart za 2026-07-11, actualFinish ma 2026-07-13): es blijft op de zaterdag zelf.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-11", "actualFinish": "2026-07-13" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-11", "ef": "2026-07-13" }
+        },
+        "projectEnd": "2026-07-13",
+        "outOfSequenceSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-b4-inprogress-actualstart-weekend-ongesnapt",
+      "title": "B4 (Opus-her-check T15-fixronde): dezelfde historisch-feit-redenering als prog-t15-completed-actualstart-weekend-ongesnapt, nu voor een IN-PROGRESS (niet voltooide) taak — vóór deze fix snapte alleen de VOLTOOID-branch niet, de IN-PROGRESS-branch snapte een weekend-actualStart nog altijd naar de eerstvolgende werkdag (nieuwe asymmetrie, dezelfde taak kreeg een ander antwoord al naargelang completion <1 of ===1 stond). A (completion 0.4, GEEN actualFinish, actualStart za 2026-07-11, GEEN statusdatum): es blijft op de zaterdag zelf.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.4, "actualStart": "2026-07-11" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-11" }
+        },
+        "outOfSequenceSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-t15-inprogress-actualstart-pin",
+      "title": "T15 (M1, Opus-review-fixronde 2026-08-17, was 'prog-no-statusdate-inprogress-noop' — die case discrimineerde niet omdat actualStart==planstart, dus een echte no-op en een geslaagde pin zagen er toevallig identiek uit): een IN-PROGRESS-taak zónder statusdatum pint haar ES op haar EIGEN actualStart, óók als die van de geplande start afwijkt — zelfde MSP-redenering als de VOLTOOID-fix (H1/c2). A (dur 5, geplande start ma 2026-07-06, ECHT gestart op wo 2026-07-08, completion 0.4, geen statusdatum): es = actualStart (wo 07-08), NIET de geplande ma 07-06 (dat zou het oude, MSP-divergente no-op-gedrag zijn — hier bewust WEL discriminerend, want ES verschilt tussen beide lezingen ook al is de EF toevallig gelijk aan de kale-planning-EF). Restwerk round(5×0.6)=3 werkdagen vanaf actualStart ⇒ ef = wo+do+vr = 07-10.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.4, "actualStart": "2026-07-08" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-10",
         "outOfSequenceSet": [],
         "error": false
       }
@@ -156,6 +231,17 @@
       "title": "Out-of-sequence FS: opvolger gestart terwijl voorganger niet voltooid ⇒ relatie in outOfSequenceSet.",
       "anchor": "2026-07-06",
       "statusDate": "2026-07-08",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": { "outOfSequenceSet": [ ["A", "B", "FINISH_START"] ], "error": false }
+    },
+    {
+      "id": "prog-m2-oos-fs-geen-statusdatum",
+      "title": "M2 (Opus-review T15-iteratie-2): out-of-sequence FS ZONDER statusdatum — mutant van prog-oos-fs, `statusDate` weggelaten. `detectOutOfSequence` gebruikt `dataDate` nergens inhoudelijk (uitsluitend `actualStart`/`actualFinish`/de al-berekende voorganger-EF), dus de vroegere `if (!dataDate) return []`-poort was kunstmatig — een relatie kan aantoonbaar out-of-sequence zijn ongeacht of het project een statusbrede statusdatum heeft. Vóór deze fix was `outOfSequenceSet: []` op zo'n zonder-statusdatum-case een TAUTOLOGIE (detectie draaide sowieso nooit); deze case is de eerste die daadwerkelijk een niet-lege outOfSequenceSet zonder statusdatum bewijst.",
+      "anchor": "2026-07-06",
       "tasks": [
         { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" },
         { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" }
@@ -351,6 +437,184 @@
           "B": { "es": "2026-08-03", "ef": "2026-08-05" }
         },
         "projectEnd": "2026-08-05",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-T9-hervattingspunt-resumeFromActualElapsed",
+      "title": "T9 (mechanisme ii, MSP-pariteit): met resumeFromActualElapsed hervat het restwerk op actualStart + reeds-verstreken-duur (1 werkdag), doorgesnapt naar ma — NIET op de statusdatum/actualStart zelf. A(5d,20%) actualStart=statusDate=vr 10-07 ⇒ verstreken 1d ⇒ hervat ma 13-07 ⇒ EF do 16-07 (4 restdagen vanaf ma). Reconstructie uit het OzBuild-corpus (\"Create Technical Specification\": 20% van 5d, actualStart=statusDate, MSP EF exact 1 werkdag later dan de kale statusdatum-vloer) — zie CPMSolver.ts's resumeFromActualElapsed-toelichting voor de volledige afleiding.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-10",
+      "schedulingOptions": { "resumeFromActualElapsed": true },
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-10" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10", "ef": "2026-07-16" }
+        },
+        "projectEnd": "2026-07-16",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-T9-hervattingspunt-default-uit",
+      "title": "T9-contrast (mechanisme ii UIT per default): zelfde taakvorm als hierboven, GEEN resumeFromActualElapsed ⇒ het bestaande P6-getrouwe gedrag (max(statusdatum, voorganger-druk), Scenario A/B/C-semantiek) blijft byte-identiek — EF 1 werkdag VROEGER (wo 15-07) dan met de vlag. Bewaakt dat de nieuwe vloer een opt-in blijft en nooit stilzwijgend voor niet-MPP-bronnen aanslaat.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-10",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-10" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10", "ef": "2026-07-15" }
+        },
+        "projectEnd": "2026-07-15",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-T9-remaining-nul-hervattingspunt-onaangeroerd",
+      "title": "T9-M1 (Opus-review, vijandige case): remainingMinutes=0 terwijl completion<1 (inconsistente/afgeronde brondata) — de resumeFromActualElapsed-vloer mag hier NIET inslaan (die is per constructie de hervattingsPUNT voor restwerk, en er is geen restwerk). ZONDER de remaining>0-guard zou de finish één bandgat VOORBIJ de natuurlijke instant belanden (ma16:00 → di08:00, gemeten door de reviewer); MET de guard blijft de finish op het bestaande max(statusdatum, voorganger-druk)-punt (byte-identiek aan vóór T9 voor dit randgeval) — hier ma 08:00 (actualStart, geen voortgang van de klok). B4-NASLEEP (Opus-her-check T15-fixronde): `statusDate` hier bewust `T08:00` i.p.v. kaal `2026-07-06` — `setActualStart`'s weigeringsgrens (`date > s.project.statusDate`, projectSlice.ts) vergelijkt RUWE strings; `'2026-07-06T08:00' > '2026-07-06'` is WAAR (langere string, lexicografisch 'groter'), dus de kale variant liet de eigen actualStart van deze taak stil WEIGEREN — vóór B4 onzichtbaar omdat `snapOnOrAfter` de daardoor terugvallende (datumloze, dus middernacht-)actualStart toch weer naar 08:00 snapte, precies dezelfde masking als B2 bij relationMath. Met exact dezelfde tijdcomponent op beide velden faalt de vergelijking niet én blijft `dataDate` na de eigen snap-op-de-projectkalender identiek (middernacht 07-06 snapt tóch al naar 08:00) — geen gedragswijziging t.o.v. de oorspronkelijke bedoeling van deze case, wél een omzeiling van een ONGERELATEERDE, nog niet gerepareerde `setActualStart`-vergelijkingsbug (kandidaat voor een eigen taak: vergelijk geparste instanten, niet rauwe strings).",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-06T08:00",
+      "schedulingOptions": { "resumeFromActualElapsed": true },
+      "calendar": {
+        "workTime": {
+          "byWeekday": {
+            "1": [{ "start": 480, "end": 960 }],
+            "2": [{ "start": 480, "end": 960 }],
+            "3": [{ "start": 480, "end": 960 }],
+            "4": [{ "start": 480, "end": 960 }],
+            "5": [{ "start": 480, "end": 960 }],
+            "6": [],
+            "7": []
+          }
+        }
+      },
+      "tasks": [
+        { "name": "A", "dur": "8u", "completion": 0.5, "actualStart": "2026-07-06T08:00", "remainingMinutes": 0 }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T08:00" }
+        },
+        "projectEnd": "2026-07-06T08:00",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-T9-elapsed-restwerk-24-7",
+      "title": "T9-M2 (Opus-review): ELAPSEDTIME + voortgang moet 24/7-klokrekenen blijven (T8-precedent, addElapsedMinutes), NIET stil omklappen naar WORKTIME-werkdagen. A(6 elapsed dagen, ELAPSEDTIME) start vr 10-07, completion 50% ⇒ remaining 3 elapsed dagen ⇒ EF = vr 10-07 + 3 KALENDERdagen = ma 13-07 (NIET het weekend overslaand naar di 14-07, wat de WORKTIME-arithmetiek zou geven — 3 WERKdagen vanaf vrijdag: vr,ma,di). Geen resumeFromActualElapsed nodig — dit isoleert puur de reken-functiekeuze (addElapsedMinutes vs addWorkDaysChecked) in de voortgangstak zelf.",
+      "anchor": "2026-07-10",
+      "statusDate": "2026-07-10",
+      "tasks": [
+        { "name": "A", "dur": 6, "durationType": "ELAPSEDTIME", "start": "2026-07-10", "completion": 0.5, "actualStart": "2026-07-10" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10", "ef": "2026-07-13" }
+        },
+        "projectEnd": "2026-07-13",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-Z12-oos-resume-absent-byte-identiek",
+      "title": "Z12-herwerk (dossier out-of-sequence-actuals) — B.resume AFWEZIG: A (voltooid, actualFinish vr 07-10) → B (out-of-sequence: actualStart ma 07-06, vóór A's actualFinish). Zonder `time.resume` blijft de bestaande RETAINED_LOGIC-vloer ongewijzigd (voorganger-druk wint): B hervat op de eerste werkdag ná A's finish (ma 07-13) + 3 resterende werkdagen = wo 07-15. Zusje van prog-Z12-oos-resume-present-formula-wins hieronder, EXACT dezelfde topologie — het enige verschil is B's `resume`-veld, om aan te tonen dat afwezig ⇒ byte-identiek aan vóór Z12 (geen vlag meer nodig: mppReader.ts is de enige zetter van `resume`, dus een niet-.mpp-bron heeft dit veld domweg nooit).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-10" },
+        { "name": "B", "dur": 4, "start": "2026-07-06", "completion": 0.25, "actualStart": "2026-07-06" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
+          "B": { "es": "2026-07-06", "ef": "2026-07-15" }
+        },
+        "projectEnd": "2026-07-15",
+        "outOfSequenceSet": [ ["A", "B", "FINISH_START"] ],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-Z12-oos-resume-present-formula-wins",
+      "title": "Z12-herwerk (dossier out-of-sequence-actuals) — B.resume AANWEZIG (wo 07-08, spiegelt MPP-veld-id 99), EXACT dezelfde topologie als prog-Z12-oos-resume-absent-byte-identiek hierboven (A voltooid vr 07-10; B out-of-sequence, actualStart ma 07-06 vóór A's finish). Met `resume` gezet vervalt de voorganger-druk (ma 07-13) VOLLEDIG voor B — de solver rekent `finish = addWork(resume, remaining)`: wo 07-08 + 3 resterende werkdagen (do 07-09, vr 07-10) = vr 07-10. Corpusmeting (fase 1, scratchpad): deze formule is 17/17 exact op alle out-of-sequence-in-progress-bladtaken corpusbreed en 4/4 minuut-exact op de vier gemeten OzBuild-snapshots. Mutatiebewijs (samen met de zustercase): resume AFWEZIG geeft wo 07-15, resume AANWEZIG geeft vr 07-10 — twee verschillende antwoorden op DEZELFDE overige input bewijst dat het veld daadwerkelijk het gedrag stuurt.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-10" },
+        { "name": "B", "dur": 4, "start": "2026-07-06", "completion": 0.25, "actualStart": "2026-07-06", "resume": "2026-07-08" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
+          "B": { "es": "2026-07-06", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-10",
+        "outOfSequenceSet": [ ["A", "B", "FINISH_START"] ],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-Z19-resume-multi-assignment-guard",
+      "title": "Z19 (residu-iteratie 'nul afwijkingen', dossier 'resumeOverride-gate-verbreding') mutatiebewijs — EXACT dezelfde topologie/`resume`-waarde als prog-Z12-oos-resume-present-formula-wins hierboven, met ÉÉN verschil: B krijgt hier TWEE toewijzingen (R1+R2) i.p.v. nul. Corpusbevinding (mpp14assignmentfields.mpp, 'Task One', 2 toewijzingen units [1, 0.25]): `finish = addWork(resume, remaining)` rechtstreeks toepassen wijkt daar ~4,5 uur af van MSP's eigen antwoord — bij >1 GELIJKTIJDIGE toewijzing is het taak-brede `remaining`/`resume`-paar geen rechtlijnige kalenderwandeling meer (elke toewijzing wandelt haar eigen werk, geen partitie van de taakduur, zelfde les als het 'mpp14resource-apportionering'-dossier). De `resumeOverride`-gate in CPMSolver.ts eist daarom `task.resourceIds.length <= 1` — met 2 toewijzingen blijft de gate DICHT en valt B terug op de gewone RETAINED_LOGIC/voorganger-druk-vloer, EXACT zoals de resume-AFWEZIG-zustercase (prog-Z12-oos-resume-absent-byte-identiek): B hervat op de eerste werkdag ná A's finish (ma 07-13) + 3 resterende werkdagen = wo 07-15 — NIET vr 07-10 (wat de resume-formule zou geven als de guard hier ontbrak, zie de sustercase's identieke `resume`-waarde). Mutatiebewijs: identieke `resume`-waarde als de zustercase geeft hier een ANDER antwoord (wo 07-15 i.p.v. vr 07-10) uitsluitend door het toewijzingsaantal — bewijst dat `task.resourceIds.length` de gate daadwerkelijk stuurt.",
+      "anchor": "2026-07-06",
+      "resources": [{ "name": "R1", "maxUnits": 1 }, { "name": "R2", "maxUnits": 1 }],
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-10" },
+        { "name": "B", "dur": 4, "start": "2026-07-06", "completion": 0.25, "actualStart": "2026-07-06", "resume": "2026-07-08", "assign": [{ "res": "R1", "units": 1 }, { "res": "R2", "units": 1 }] }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
+          "B": { "es": "2026-07-06", "ef": "2026-07-15" }
+        },
+        "projectEnd": "2026-07-15",
+        "outOfSequenceSet": [ ["A", "B", "FINISH_START"] ],
+        "error": false
+      }
+    },
+    {
+      "id": "prog-Z19-resume-root-no-predecessor",
+      "title": "Z19 (residu-iteratie 'nul afwijkingen', reviewbevinding B3) mutatiebewijs — een WORTELtaak ZONDER enige voorganger draagt `resume`. Alle overige `resume`-cases in dit bestand hebben een FS-topologie (A->B); dit dossier se eigen vijf target-taken (Task 6-familie/mpp14timephased.mpp, Task 2/3/timephased-actual-overtime-work.mpp) zijn PRECIES zulke voorgangerloze wortels — de bestaande cases dekten dat gat dus niet. B (dur 4, completion 0.25, actualStart ma 07-06, resume wo 07-08, GEEN link, GEEN toewijzing) moet `finish = addWork(resume, remaining=3)` krijgen — exact dezelfde uitkomst als B's naamgenoot in prog-Z12-oos-resume-present-formula-wins (die WEL een FS-voorganger heeft), wat bewijst dat de gate hier op `t.resume && resourceIds.length<=1` draait, niet op een out-of-sequence-relatiefeit dat hier per constructie niet eens bestaat.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "B", "dur": 4, "start": "2026-07-06", "completion": 0.25, "actualStart": "2026-07-06", "resume": "2026-07-08" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-07-06", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
+      "id": "prog-Z12-p6-contrast-resume-forced-present",
+      "title": "Z12-herwerk mutatiebewijs (P6-contrastcase, §akkoord O6): EXACT de topologie van prog-B-oos-retained (cases-progress.json) — een P6-BRON hoort een out-of-sequence-taak gewoon achter haar voorganger te laten wachten (RETAINED_LOGIC's hele doel, correct antwoord daar: B ef = do 07-16, ZONDER `resume`). Deze case forceert B.resume = wo 07-08 OP DIEZELFDE P6-scenario (progressMode RETAINED_LOGIC, GEEN .mpp-herkomst — een échte P6-bron zou dit veld nooit dragen) en verwacht het FORMULE-gedreven, VAN-DE-P6-WAARHEID-AFWIJKENDE antwoord (B ef = addWork(wo 07-08, 3) = vr 07-10 — A's voorganger-druk wordt hier ONTERECHT genegeerd, want A is zelf ook niet voltooid dus telt als out-of-sequence-voorganger zodra B's actualStart vóór haar ligt). Dat de twee antwoorden (07-16 vs 07-10) uiteenlopen is precies het mutatiebewijs uit de opdracht: 'formule-pad forceren zonder een echte .mpp-herkomst → de contrastcase wijkt af van het correcte P6-antwoord' — `resume` hoort UITSLUITEND door `mppReader.ts` gezet te worden, nooit op P6-brondata, en dít is waarom.",
+      "anchor": "2026-07-06",
+      "statusDate": "2026-07-08",
+      "scheduleOptions": { "progressMode": "RETAINED_LOGIC" },
+      "tasks": [
+        { "name": "A", "dur": 5, "start": "2026-07-06", "completion": 0.2, "actualStart": "2026-07-06" },
+        { "name": "B", "dur": 5, "start": "2026-07-06", "completion": 0.4, "actualStart": "2026-07-06", "resume": "2026-07-08" }
+      ],
+      "links": [ { "pred": "A", "succ": "B", "type": "FINISH_START" } ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-13" },
+          "B": { "es": "2026-07-06", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-13",
+        "outOfSequenceSet": [ ["A", "B", "FINISH_START"] ],
         "error": false
       }
     }

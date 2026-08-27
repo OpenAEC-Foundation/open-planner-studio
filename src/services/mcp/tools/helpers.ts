@@ -5,21 +5,21 @@
 // F1-implementatie vervangen. De helpers hieronder zijn puur tool-laag-conventie: hoe een geslaagd
 // resultaat ná de transactie wordt verrijkt met verse, herrekende store-waarden, en hoe een
 // statisch-lege bulk zónder transactie wordt beantwoord.
-import { useAppStore } from '@/state/appStore';
+import type { AppState } from '@/state/appStore';
 import type { McpContext, McpToolOk, McpToolResult } from '../contracts';
 import { buildEnvelope } from './runtime';
 
 /** Envelop voor niet-transactionele antwoorden: store-envelop + de context-vlaggen. */
 export function okEnvelope(ctx: McpContext) {
-  const env = buildEnvelope();
+  const env = buildEnvelope(ctx);
   env.paused = ctx.paused;
   env.readOnly = ctx.readOnly;
   return env;
 }
 
 /** Herrekende datums per taak (ná de eind-runCPM uit de store gelezen). */
-export function freshDates(ids: string[]): { id: string; earlyStart: string; earlyFinish: string }[] {
-  const tasks = useAppStore.getState().tasks;
+export function freshDates(state: AppState, ids: string[]): { id: string; earlyStart: string; earlyFinish: string }[] {
+  const tasks = state.tasks;
   return ids.map((id) => {
     const t = tasks.find((x) => x.id === id);
     return { id, earlyStart: t?.time.earlyStart ?? '', earlyFinish: t?.time.earlyFinish ?? '' };
@@ -27,8 +27,8 @@ export function freshDates(ids: string[]): { id: string; earlyStart: string; ear
 }
 
 /** Projecteinde + optioneel de capped-taken (onwerkbaar-venster-signaal) uit het verse cpmResult. */
-export function projectEndInfo(): { projectEnd: string; cappedTaskIds?: string[] } {
-  const cpm = useAppStore.getState().cpmResult;
+export function projectEndInfo(state: AppState): { projectEnd: string; cappedTaskIds?: string[] } {
+  const cpm = state.cpmResult;
   const cappedTaskIds = cpm?.cappedTaskIds && cpm.cappedTaskIds.length > 0 ? cpm.cappedTaskIds : undefined;
   return { projectEnd: cpm?.projectEnd ?? '', ...(cappedTaskIds ? { cappedTaskIds } : {}) };
 }

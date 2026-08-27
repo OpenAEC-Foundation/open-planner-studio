@@ -22,13 +22,13 @@
 
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
-import { REPORT_FONT_SCALES } from '@/services/print/printPreview';
+import { REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 
 /** localStorage-sleutel (wordt door `setSetting` geprefixt tot `ops-reportSettings`). */
 const STORAGE_KEY = 'reportSettings';
 
 export type ReportType = 'gantt' | 'milestones' | 'variance';
-export type ReportPaperSize = 'A3' | 'A4' | 'A1';
+export type ReportPaperSize = 'A4' | 'A3' | 'A2' | 'A1';
 export type ReportOrientation = 'landscape' | 'portrait';
 
 export interface ReportSettings {
@@ -37,9 +37,12 @@ export interface ReportSettings {
   showFloat: boolean;
   showDeps: boolean;
   showWeekends: boolean;
+  /** Werkdagen-as alleen in het rapport; los van de scherm-Gantt-instelling. */
+  compressNonWorkdays: boolean;
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  showBaselineOverlay: boolean;
   autoFit: boolean;
   customZoom: number;
   paperSize: ReportPaperSize;
@@ -47,6 +50,10 @@ export interface ReportSettings {
   repeatHeader: boolean;
   timelineColumns: number;
   reportFontScale: number;
+  /** Statuslijn in de export (#54), letterlijk drie opties zoals gevraagd. */
+  statusLine: 'none' | 'statusDate' | 'progress';
+  /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus (#54). */
+  followView: boolean;
 }
 
 /**
@@ -60,9 +67,11 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   showFloat: true,
   showDeps: true,
   showWeekends: true,
+  compressNonWorkdays: false,
   showLegend: true,
   showTaskNames: true,
   showCompletion: true,
+  showBaselineOverlay: false,
   autoFit: true,
   customZoom: 22,
   paperSize: 'A3',
@@ -70,19 +79,22 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   repeatHeader: true,
   timelineColumns: 1,
   reportFontScale: 100,
+  statusLine: 'none',
+  followView: false,
 };
 
 /** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
 const REPORT_TYPES: readonly ReportType[] = ['gantt', 'milestones', 'variance'];
-const PAPER_SIZES: readonly ReportPaperSize[] = ['A3', 'A4', 'A1'];
+const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
+const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
 /** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
 const FONT_SCALES: readonly number[] = REPORT_FONT_SCALES;
 /** Grenzen van de zoom-slider resp. de tijdlijnkolommen-Select in het paneel. */
-const ZOOM_MIN = 5;
-const ZOOM_MAX = 40;
+const ZOOM_MIN = REPORT_MIN_ZOOM;
+const ZOOM_MAX = REPORT_MAX_ZOOM;
 const TIMELINE_COLUMNS_MIN = 1;
 const TIMELINE_COLUMNS_MAX = 8;
 
@@ -128,9 +140,11 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     showFloat: parseBoolean(s.showFloat) ?? d.showFloat,
     showDeps: parseBoolean(s.showDeps) ?? d.showDeps,
     showWeekends: parseBoolean(s.showWeekends) ?? d.showWeekends,
+    compressNonWorkdays: parseBoolean(s.compressNonWorkdays) ?? d.compressNonWorkdays,
     showLegend: parseBoolean(s.showLegend) ?? d.showLegend,
     showTaskNames: parseBoolean(s.showTaskNames) ?? d.showTaskNames,
     showCompletion: parseBoolean(s.showCompletion) ?? d.showCompletion,
+    showBaselineOverlay: parseBoolean(s.showBaselineOverlay) ?? d.showBaselineOverlay,
     autoFit: parseBoolean(s.autoFit) ?? d.autoFit,
     customZoom: parseClampedInt(s.customZoom, ZOOM_MIN, ZOOM_MAX) ?? d.customZoom,
     paperSize: parseEnum(PAPER_SIZES, s.paperSize) ?? d.paperSize,
@@ -138,6 +152,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     repeatHeader: parseBoolean(s.repeatHeader) ?? d.repeatHeader,
     timelineColumns: parseClampedInt(s.timelineColumns, TIMELINE_COLUMNS_MIN, TIMELINE_COLUMNS_MAX) ?? d.timelineColumns,
     reportFontScale: parseNumberChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
+    statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
+    followView: parseBoolean(s.followView) ?? d.followView,
   };
 }
 

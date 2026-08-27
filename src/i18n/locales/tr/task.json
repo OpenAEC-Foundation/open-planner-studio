@@ -16,7 +16,8 @@
     "freeFloat": "Serbest bolluk",
     "interferingFloat": "Müdahale bolluğu",
     "isNearCritical": "Kritiğe yakın",
-    "floatPath": "Bolluk yolu"
+    "floatPath": "Bolluk yolu",
+    "activeDuring": "Devam ediyor"
   },
   "taskType": {
     "CONSTRUCTION": "İnşaat",
@@ -72,6 +73,8 @@
     "deadlineMissed": "Son tarih aşıldı",
     "longFreePeriodWarning": "Bu görev, {{days}} günlük çalışmaya kapalı bir dönemi kapsıyor ({{start}} - {{end}}).",
     "longFreePeriodWarningNamed": "Bu görev {{name}} dönemini kapsıyor — {{days}} günlük çalışmaya kapalı bir dönem ({{start}} - {{end}}).",
+    "timephasedActive": "MS Project'ten gelen saat dağılımını izliyor",
+    "timephasedLost": "Düzenlemeden sonra MS Project'ten gelen saat dağılımı artık uygulanmıyor — özgün dağılım dosyada saklı kalıyor",
     "completion": "İlerleme (%)",
     "progress": {
       "actualStart": "Gerçek başlangıç",
@@ -88,9 +91,10 @@
     "freeFloat": "Serbest bolluk:",
     "criticalPath": "Kritik yol:",
     "dependencies": "Bağımlılıklar",
+    "jumpToTask": "{{wbs}} görevine git",
     "relationPopoverTitle": "İlişki türü",
     "driving": "Belirleyici ilişki (driving)",
-    "lag": "Gecikme (örn. 2d, 3ed, 50%, -25e%)",
+    "lag": "Gecikme (örn. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Hesapla",
     "assignments": {
       "title": "Atamalar",
@@ -154,7 +158,7 @@
     "notCalculated": "Belirleyici ilişkileri ve bollukları görmek için yeniden hesaplayın (F5)",
     "warnTruncatedLead": "Öne alma proje başlangıcında kesildi — örtüşme tam kullanılmıyor",
     "warnLeadExceedsDuration": "Öne alma, öncülün süresinden daha büyük",
-    "warnSummaryEndpoint": "Etkisiz: uç nokta olarak özet görev"
+    "warnDropped": "Hesaplamaya dahil edilmedi"
   },
   "structure": {
     "title": "Kodlar ve alanlar",

@@ -19,9 +19,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-declare const process: { exit(code: number): never };
-// Zie tests/library/node-builtins.d.ts voor de ambient module-declaraties van node:fs/url/path
-// (deze checksuite draait met `"types": []`, bewust géén @types/node).
+// node:fs/url/path en `process` komen sinds de I5-migratie (T3-kwaliteitsreview) uit de echte
+// @types/node-signatuur (`tsconfig.check.json` zet nu `"types": ["node"]`, net als
+// tests/planning/tsconfig.check.json) — geen lokale ambient shim meer nodig.
 
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {

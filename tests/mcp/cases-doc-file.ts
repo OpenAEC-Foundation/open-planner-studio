@@ -4,29 +4,30 @@
 // Draait headless tegen de ECHTE Zustand-store. De fs/Tauri-rand is GEFAKED via de geëxporteerde
 // dependency-naad `fileToolDeps.getFs` (in-memory bestandsmap) — er wordt in deze suite dus nooit
 // een echt bestand geschreven en `isTauri()` (die `window` leest) wordt nooit aangeraakt.
-// De T16-hook `markDuplicateBorn` loopt via `documentToolDeps` en wordt hier bespioneerd.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+// De T16-hook `markDuplicateBorn` loopt via de requestcontext en wordt hier bespioneerd.
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
-import { documentToolDeps } from '@/services/mcp/tools/documentTools';
 import { fileToolDeps, type McpFileFs } from '@/services/mcp/tools/fileTools';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+// T8-spec-review (B1): CFB-/Props-boilerplate NIET opnieuw uitschrijven — hergebruik de gedeelde
+// builders uit tests/planning/mppFixtures.ts (M6-fixturebouwers, ook door check-mpp-import.ts's
+// I4-fixture gebruikt). Sinds T11 (fixture-consolidatie) ook `buildVarMetaBytes` cross-suite van
+// daar — voorheen een vierde lokale kopie naast de drie in de planning-checks. Alleen de
+// TASK-specifieke encoders hieronder blijven lokaal, naar hetzelfde (getrimde, 1-taaks) patroon
+// als I4.
+import { buildNestedCfb, encodeCompObjFileFormat, encodePropsEntries, encodePropsSingleByteEntry, buildVarMetaBytes, type CfbTreeNode } from '../planning/mppFixtures';
 
 const S = () => useAppStore.getState();
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...over,
-  };
+  });
 }
 
 /** Roep een geregistreerde tool aan (sync of async) en geef het rauwe resultaat terug. */
@@ -54,20 +55,149 @@ async function callErr(name: string, args: unknown = {}, ctx: McpContext = makeC
 
 const HOME = '/home/tester';
 let files = new Map<string, string>();
+// T8-spec-review (B1): een LOSSE binaire kaart naast `files`. `readFile` gaf voorheen altijd
+// `new TextEncoder().encode(files.get(p))` terug — dat round-trippt alleen bytes die zelf geldige
+// UTF-8-tekst zijn. Een echte CFB/MPP-container is willekeurige binaire data (sectorkoppen e.d.),
+// dus dat pad zou 'm stilzwijgend corrumperen. `binFiles` draagt de bytes ONGEWIJZIGD.
+let binFiles = new Map<string, Uint8Array>();
+
+/** Zet een binair testbestand klaar (bv. een synthetische .mpp) — de bytes komen ongewijzigd
+ *  terug uit `readFile`, in tegenstelling tot `files` (tekst, via `readTextFile`). */
+function setBinaryFile(path: string, bytes: Uint8Array): void {
+  binFiles.set(path, bytes);
+}
+
+/** Call-log van `readFile` (T2-review A2): de fake bedient `readFile` en `readTextFile` uit
+ *  aparte kaarten, dus een verkeerde routering (bv. een binair formaat dat toch via
+ *  `readTextFile` binnenkomt) zou anders onzichtbaar blijven. T8 asserteert hierop dat een
+ *  binair formaat (.mpp) echt via het bytes-pad (`readFile`) loopt. */
+export const readFileCalls: string[] = [];
 
 function installFakeFs(): void {
   files = new Map<string, string>();
+  binFiles = new Map<string, Uint8Array>();
+  readFileCalls.length = 0;
   const fs: McpFileFs = {
     homeDir: async () => HOME,
-    exists: async (p) => files.has(p),
+    exists: async (p) => files.has(p) || binFiles.has(p),
     writeTextFile: async (p, c) => { files.set(p, c); },
     readTextFile: async (p) => {
       const v = files.get(p);
       if (v === undefined) throw new Error(`ENOENT: ${p}`);
       return v;
     },
+    readFile: async (p) => {
+      readFileCalls.push(p);
+      const bin = binFiles.get(p);
+      if (bin !== undefined) return bin;
+      const v = files.get(p);
+      if (v === undefined) throw new Error(`ENOENT: ${p}`);
+      return new TextEncoder().encode(v);
+    },
   };
   fileToolDeps.getFs = async () => fs;
+}
+
+// --- Minimale synthetische MPP14-fixture (T8-spec-review B1) -------------------------------------
+//
+// Eén taak, geen hiërarchie/mijlpaal/kalender — het testdoel hier is de MCP-ROUTERING (bytes-pad,
+// formaatherkenning, opslagdoel-guard), niet de MPP-veldlaag zelf (die heeft zijn eigen, veel
+// zwaardere dekking in tests/planning/check-mpp-import.ts's I4-fixture, waar dit patroon van is
+// afgeleid). `createTaskFieldMap`/`createResourceFieldMap`/… vallen terug op de LETTERLIJKE
+// default-offsets uit fieldMap14.ts zodra de Props geen eigen veldmap dragen (net als I4) — vandaar
+// dat er hier geen enkele FIELD_MAP-Props-sleutel wordt geschreven.
+const MPP_PASSWORD_FLAG_KEY = 893386752;
+const MPP_PROJECT_START_DATE_KEY = 37748738;
+const MPP_PROJECT_FINISH_DATE_KEY = 37748739;
+const MPP_MINUTES_PER_DAY_KEY = 37748765;
+const MPP_TITLE_KEY = 37748744;
+const MPP_TASK_FIXED_META_ITEM_SIZE = 47;
+
+function mppEncodeUnicodeStringAscii(s: string): Uint8Array {
+  const out = new Uint8Array(s.length * 2);
+  const view = new DataView(out.buffer);
+  for (let i = 0; i < s.length; i++) view.setUint16(i * 2, s.charCodeAt(i), true);
+  return out;
+}
+
+function mppTimestampBytes(time: number, days: number): Uint8Array {
+  const out = new Uint8Array(4);
+  const view = new DataView(out.buffer);
+  view.setUint16(0, time, true);
+  view.setUint16(2, days, true);
+  return out;
+}
+
+function mppInt32Payload(value: number): Uint8Array {
+  const out = new Uint8Array(4);
+  new DataView(out.buffer).setInt32(0, value, true);
+  return out;
+}
+
+/** Eén TBkndTask/FixedData-record (130 bytes) op de defaultoffsets uit fieldMap14.ts
+ *  (uniqueId@0, id@4, outlineLevel@40, scheduledDuration@42, scheduledStart@64/66,
+ *  scheduledFinish@68/70) — zelfde constructie als check-mpp-import.ts's I4-fixture. */
+function mppBuildTaskFixedDataRecord(): Uint8Array {
+  const out = new Uint8Array(130);
+  const view = new DataView(out.buffer);
+  view.setInt32(0, 10, true); // uniqueId
+  view.setInt32(4, 1, true); // id
+  view.setInt16(40, 1, true); // outlineLevel
+  view.setInt32(42, 4800, true); // 4800 tienden-van-minuut = 1 werkdag @ 480 min/dag
+  view.setInt16(56, 0, true); // constraintType = 0 (ASAP)
+  view.setUint16(64, 0, true); view.setUint16(66, 15000, true); // scheduledStart
+  view.setUint16(68, 0, true); view.setUint16(70, 15001, true); // scheduledFinish
+  view.setInt32(118, -1, true); // calendarUniqueId: geen taak-override
+  return out;
+}
+
+function mppBuildTaskFixedMetaBlob(): Uint8Array {
+  const items = 4; // drie no-op-vulrecords + het echte taakrecord, spiegelt I4's opzet
+  const out = new Uint8Array(16 + items * MPP_TASK_FIXED_META_ITEM_SIZE);
+  const view = new DataView(out.buffer);
+  view.setUint32(0, 0xfadfadba, true);
+  view.setInt32(8, items, true);
+  // item 3 (het echte record) wijst naar FixedData-offset 0; flags=0 (niet verwijderd).
+  const rec = 16 + 3 * MPP_TASK_FIXED_META_ITEM_SIZE;
+  view.setInt32(rec, 0, true);
+  view.setInt32(rec + 4, 0, true);
+  return out;
+}
+
+/** Bouwt een minimale, geldige MPP14-CFB met precies één taak ('Fixture'). `readMPP(...)` op deze
+ *  bytes geeft een `ImportResult` met 1 taak, geen exception — genoeg om de MCP-import_schedule-
+ *  route (bytes-pad, formaatherkenning, opslagdoel-guard) end-to-end te bewijzen. */
+function buildMinimalMppBytes(): Uint8Array {
+  const projectPropsBytes = encodePropsEntries([
+    { key: MPP_PROJECT_START_DATE_KEY, data: mppTimestampBytes(0, 15000) },
+    { key: MPP_PROJECT_FINISH_DATE_KEY, data: mppTimestampBytes(0, 15001) },
+    { key: MPP_MINUTES_PER_DAY_KEY, data: mppInt32Payload(480) },
+    { key: MPP_TITLE_KEY, data: mppEncodeUnicodeStringAscii('MCP Fixture Project') },
+  ]);
+
+  const nameBytes = mppEncodeUnicodeStringAscii('Fixture');
+  const var2Data = new Uint8Array(4 + nameBytes.length);
+  new DataView(var2Data.buffer).setInt32(0, nameBytes.length, true);
+  var2Data.set(nameBytes, 4);
+
+  const tree: Record<string, CfbTreeNode> = {
+    '\x01CompObj': { data: encodeCompObjFileFormat('MSProject.MPP14') },
+    Props14: { data: encodePropsSingleByteEntry(MPP_PASSWORD_FLAG_KEY, 0) },
+    '   114': {
+      children: {
+        Props: { data: projectPropsBytes },
+        TBkndTask: {
+          children: {
+            FixedMeta: { data: mppBuildTaskFixedMetaBlob() },
+            FixedData: { data: mppBuildTaskFixedDataRecord() },
+            VarMeta: { data: buildVarMetaBytes([{ uniqueId: 10, offset: 0, type: 14 }]) }, // 14 = varDataKey NAME
+            Var2Data: { data: var2Data },
+          },
+        },
+      },
+    },
+  };
+  return buildNestedCfb(tree);
 }
 installFakeFs();
 
@@ -234,22 +364,19 @@ test('duplicate_document: kopie actief, markDuplicateBorn aangeroepen, anker ver
   const sourceId = S().activeDocumentId;
 
   const born: string[] = [];
-  const origMark = documentToolDeps.markDuplicateBorn;
-  documentToolDeps.markDuplicateBorn = (id) => { born.push(id); };
-  try {
-    const ctx = makeCtx({ expectedDocId: sourceId });
-    const data = await callOk('planner_duplicate_document', {}, ctx);
-    assert(data.documentId !== sourceId, 'de kopie heeft een eigen document-id');
-    assertEq(S().activeDocumentId, data.documentId, 'de kopie is actief');
-    assertEq(ctx.expectedDocId, data.documentId, 'het drift-anker is meeverzet naar de kopie');
-    assertEq(born, [data.documentId], 'markDuplicateBorn is aangeroepen met het NIEUWE doc-id (T16-contract)');
-    assertEq(S().filePath, null, 'de kopie heeft geen bronbestand (anders overschrijft Ctrl+S de bron)');
-    assertEq(S().tasks.length, taskCount, 'de kopie draagt dezelfde taken');
-    assertEq(S().project.name, 'Basis (variant 2)', 'variant-naamnummering');
-    assertEq(data.title, 'Basis (variant 2)', 'de respons meldt de nieuwe titel');
-  } finally {
-    documentToolDeps.markDuplicateBorn = origMark;
-  }
+  const ctx = makeCtx({
+    expectedDocId: sourceId,
+    markDuplicateBorn: (id) => { born.push(id); },
+  });
+  const data = await callOk('planner_duplicate_document', {}, ctx);
+  assert(data.documentId !== sourceId, 'de kopie heeft een eigen document-id');
+  assertEq(S().activeDocumentId, data.documentId, 'de kopie is actief');
+  assertEq(ctx.expectedDocId, data.documentId, 'het drift-anker is meeverzet naar de kopie');
+  assertEq(born, [data.documentId], 'markDuplicateBorn is aangeroepen met het NIEUWE doc-id (T16-contract)');
+  assertEq(S().filePath, null, 'de kopie heeft geen bronbestand (anders overschrijft Ctrl+S de bron)');
+  assertEq(S().tasks.length, taskCount, 'de kopie draagt dezelfde taken');
+  assertEq(S().project.name, 'Basis (variant 2)', 'variant-naamnummering');
+  assertEq(data.title, 'Basis (variant 2)', 'de respons meldt de nieuwe titel');
 });
 
 test('duplicate_document: eigen naam via {name} en drift-fail wanneer de user van tabblad wisselde', async () => {
@@ -455,6 +582,36 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
   assertEq(ifc.format, 'IFC', 'IFC wordt als native formaat herkend');
   assertEq(S().filePath, ifcPath, 'een IFC-import neemt het bronpad wél over (opslaan = terugschrijven)');
   assertEq(ifc.filePath, ifcPath, 'en de respons meldt dat opslagdoel');
+});
+
+// T8-spec-review (B1, blokkerend): .mpp moet ECHT via het BYTES-pad (`readFile`, niet
+// `readTextFile`) binnenkomen, als 'MPP14' herkend worden mét de bijbehorende notice, en — als
+// binair bronformaat — GEEN opslagdoel krijgen. Gebruikt de minimale synthetische MPP14-fixture
+// hierboven (`buildMinimalMppBytes`) i.p.v. een corpusbestand: deze suite is bewust
+// corpus-onafhankelijk (zie de suite-tabel in CLAUDE.md), en het testdoel hier is de MCP-ROUTERING,
+// niet de veldlaag (die heeft zijn eigen dekking in tests/planning/check-mpp-import.ts).
+test('import_schedule: .mpp gaat via het bytes-pad, wordt als MPP14 herkend mét notice, en krijgt GEEN opslagdoel', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  const mppPath = `${HOME}/plan.mpp`;
+  setBinaryFile(mppPath, buildMinimalMppBytes());
+
+  const data = await callOk('planner_import_schedule', { path: mppPath });
+
+  // (1) routering: het pad kwam via `readFile` (bytes), NOOIT via `readTextFile`.
+  assertEq(readFileCalls, [mppPath], 'de .mpp-bron is via het BYTES-pad gelezen (readFileCalls)');
+  assert(!files.has(mppPath), 'de tekst-kaart (readTextFile) heeft dit pad nooit gezien');
+
+  // (2) formaatherkenning + notice.
+  assertEq(data.format, 'MPP14', 'formatOf herkent .mpp als MPP14');
+  assert(String(data.notice).includes('alleen-lezen'), 'de notice benoemt het alleen-lezen-karakter');
+  assert(String(data.notice).includes('MSPDI'), 'de notice wijst naar MSPDI-XML als exportroute');
+  assert(String(data.notice).includes('opslagdoel'), 'de notice benoemt ook het ontbrekende opslagdoel (formaat ≠ IFC)');
+
+  // (3) opslagdoel-guard: een binair bronformaat wordt nooit filePath, ook al importeerde het prima.
+  assertEq(S().filePath, null, 'na een MPP-import heeft het document GEEN opslagdoel');
+  assertEq(data.filePath, null, 'en de respons meldt dat ook');
+  assert(data.tasks >= 1, 'de fixture-taak is daadwerkelijk geïmporteerd (geen stille lege import)');
 });
 
 test('import_schedule: onbekend pad ⇒ NOT_FOUND, buiten de scope ⇒ SCOPE', async () => {

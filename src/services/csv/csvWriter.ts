@@ -42,6 +42,15 @@ export function writeCSV(
   _resources: Resource[],
   _assignments: ResourceAssignment[],
 ): string {
+  // H5 (eindreview T16c): de "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de
+  // relatie-lag hierboven, die "ed"/"e%" al schrijft) — een taak met ELAPSEDTIME-duur (T8, 24/7-
+  // klokrekenen, bv. uit een `.mpp`-import) schrijft daarom stil als gewone werktijd-duur.
+  // Weggelaten-met-warn, zelfde patroon als de andere exporters (`mspdiWriter.ts`/`p6xmlWriter.ts`).
+  const elapsedTaskCount = tasks.filter(t => t.time.durationType === 'ELAPSEDTIME').length;
+  if (elapsedTaskCount > 0) {
+    console.warn(`CSV-export: ${elapsedTaskCount} taak/taken met ELAPSEDTIME-duur (24/7-klokrekenen) geëxporteerd als gewone werktijd-duur — CSV kent geen elapsed-duurnotatie (§6).`);
+  }
+
   // Build predecessor map: successorId -> list of predecessor descriptions
   const predMap = new Map<string, string[]>();
   const taskByIdMap = new Map<string, Task>();

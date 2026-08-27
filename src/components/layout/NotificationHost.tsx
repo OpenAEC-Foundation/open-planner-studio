@@ -21,6 +21,7 @@ import type { AppNotification } from '@/state/slices/types';
 export function NotificationHost() {
   const notifications = useAppStore((s) => s.ui.notifications);
   const dismissNotification = useAppStore((s) => s.dismissNotification);
+  const openHelpArticle = useAppStore((s) => s.openHelpArticle);
   // Alle meldingsleutels wonen in `common` (de default-namespace) — zie `NotificationMessageKey`
   // voor waarom dat een eis is en geen toeval.
   const { t } = useTranslation();
@@ -56,6 +57,18 @@ export function NotificationHost() {
             {n.count > 1 && <span className="ops-toast-count">{`×${n.count}`}</span>}
           </div>
           {n.detail && <div className="ops-toast-detail">{n.detail}</div>}
+          {n.helpArticleId && (
+            // mpp-nul-data-etappe, "lees meer"-eigenaarseis: hergebruikt de bestaande Backstage →
+            // Help-navigatie (`openHelpArticle`), geen nieuw linkmechanisme. `stopPropagation` zodat
+            // de klik niet OOK de toast se eigen wegklik-handler (op de omringende div) triggert.
+            <button
+              type="button"
+              className="ops-textlink ops-toast-readmore"
+              onClick={(e) => { e.stopPropagation(); openHelpArticle(n.helpArticleId!); }}
+            >
+              {t('notifications.readMore')}
+            </button>
+          )}
         </div>
       ))}
     </div>

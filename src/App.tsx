@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue } from '@/utils/noneLabel';
 import { appLog } from '@/services/debug/appLog';
+import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -20,6 +21,7 @@ import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDoc
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
+import { useExitRecordedDates } from '@/hooks/useExitRecordedDates';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useRecoveryRestore } from '@/hooks/useRecoveryRestore';
 import { useUpdateCheck } from '@/hooks/useUpdateCheck';
@@ -31,6 +33,7 @@ import { UI_FONT_STACKS } from '@/utils/uiFont';
 import { HourDataNotice } from '@/components/layout/HourDataNotice';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
+import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 
 // Code-splitting (pakket E2): componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
@@ -49,6 +52,7 @@ const CalendarDialog = lazy(() => import('@/components/dialogs/CalendarDialog').
 const StructureDialog = lazy(() => import('@/components/dialogs/StructureDialog').then(m => ({ default: m.StructureDialog })));
 const UpdateDialog = lazy(() => import('@/components/dialogs/UpdateDialog').then(m => ({ default: m.UpdateDialog })));
 const JustUpdatedDialog = lazy(() => import('@/components/dialogs/JustUpdatedDialog').then(m => ({ default: m.JustUpdatedDialog })));
+const ExtensionConsentDialog = lazy(() => import('@/components/dialogs/ExtensionConsentDialog').then(m => ({ default: m.ExtensionConsentDialog })));
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
 const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
@@ -106,6 +110,11 @@ function AppContent() {
   // welkomstdialoog zodra de recovery-flow is afgehandeld.
   useSettingsBootstrap(recoveryResolved, recovery);
 
+  // Toestemmingsvraag bij extensie-installatie bedraden (K-item 38). MOET eager en vroeg: de
+  // faalstand van `askExtensionConsent` is WEIGEREN, dus zonder deze registratie zou een installatie
+  // stilzwijgend afketsen. De dialoog zelf blijft lazy; alleen de bedrading is eager.
+  useEffect(() => { installConsentDialogAsker(); }, []);
+
   // Bedrijfsbibliotheek laden bij opstarten (B1): zet de opgeslagen bibliotheek in de store en
   // hijst `libraryLoaded`, zodat latere mutaties persisteren (vóór dit punt is persist een no-op).
   // Fire-and-forget, maar mét .catch: een rejectende load (bv. IndexedDB stuk) mag nooit een
@@ -128,6 +137,10 @@ function AppContent() {
 
   // Automatisch berekenen: runCPM zodra de planning verouderd raakt (als de instelling aanstaat).
   useAutoCalcCPM();
+
+  // "Datums zoals opgeslagen" (issue #63): rekent één keer door zodra de modus via een BEWERKING
+  // wordt verlaten — F5 en de strook zelf roepen runCPM al rechtstreeks aan, dit dekt de rest.
+  useExitRecordedDates();
 
   // "(geen)"-bandlabel voor de gedeelde viewRows-pijplijn (fase 2.7, §4.1): de vertaalde
   // string wordt vanuit deze consument doorgegeven — de engine/store blijft i18n-vrij.
@@ -228,6 +241,12 @@ function AppContent() {
           "plakkende Shift" heeft aangezet — sleep dan in de Gantt van balk naar balk. */}
       <DependencyModeNotice />
 
+      {/* "Datums zoals opgeslagen"-strook (issue #63): aanbod ná het laden van een bestand waarvan
+          herberekening de datums verschoof, of de modus zelf zolang hij aan staat. Bewust BOVEN de
+          `activeTab === 'file'`-vertakking (net als de meldingen hierboven), zodat de strook
+          zichtbaar blijft in élke weergave — Gantt, tabel, rapport én Backstage. */}
+      <RecordedDatesNotice />
+
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
           Anders: gradient strip + main content. */}
       {activeTab === 'file' ? (
@@ -320,6 +339,7 @@ function AppContent() {
         {showTourOverlay && <TourOverlay />}
         <UpdateDialog />
         <PoolImportDialog />
+        <ExtensionConsentDialog />
         <LibraryLinkDialog />
         {recovery && (
           <RecoveryDialog

@@ -57,7 +57,9 @@ MSPDI 比 CSV 丰富得多：资源、分配（包括其负荷曲线）、日历
 
 ## 导入
 
-**文件 → 打开**（或 **Backstage → 打开**）接受 `.ifc`、`.csv` 和 `.xml` 文件。对于 `.xml` 文件，应用会根据内容自行检测它是 Primavera P6 文件还是 MS Project 文件。如上所述：CSV 或 P6 导入生成的项目**没有基线**（源文件中本来就没有），而 IFC 和 MSPDI 会随行携带基线。
+**文件 → 打开**（或 **Backstage → 打开**）接受 `.ifc`、`.csv`、`.xml` 和 `.mpp` 文件。对于 `.xml` 文件，应用会根据内容自行检测它是 Primavera P6 文件还是 MS Project 文件。如上所述：CSV 或 P6 导入生成的项目**没有基线**（源文件中本来就没有），而 IFC 和 MSPDI 会随行携带基线。
+
+`.mpp` 文件（Microsoft Project 的原生格式，Project 2010 至 2021）走的是另一条路径：该导入是**只读**的——不存在 `.mpp` 导出格式，因此重新导出到 MS Project 要走 MSPDI XML。参见指南[打开 MS Project（.mpp）](docs://gids-msproject-import)了解都保留了哪些内容以及有哪些限制。
 
 ## 扩展导入器
 

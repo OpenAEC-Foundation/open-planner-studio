@@ -1,0 +1,1348 @@
+{
+  "_readme": "Fase 3.8, plan 2026-08-15 (etappe 'MSP-pariteit'), BAAN S/T6 — pint de mijlpaal-instantconventie: een eindmijlpaal die via FS aan een voorganger hangt landt op MS Projects eigen klokstand (de rauwe voorganger-finish-instant, bv. di 17:00), niet op de eerstvolgende werk-instant erna (wo 08:00). H9 = 08:00-17:00 werkdag Ma-Vr (het gemeten 'MSP 17:00 → onze 08:00'-patroon uit §1.2 punt 3 van het plan gebruikt exact deze bandgrens). Anker = ma 6 juli 2026. Controle-cases bewaken dat de algemene snap-semantiek voor taken MET duur (duur>0 opvolgers) ongewijzigd blijft — dat is de dag-modus-byte-identieke invariant uit T6-acceptatiepunt 4 en de mutatie uit acceptatiepunt 3.",
+  "cases": [
+    {
+      "id": "msp-01-fs-finishms-op-bandeind",
+      "title": "FS+0 naar EINDmijlpaal (uur), voorganger eindigt exact op een band-eind (di 17:00): M landt op die rauwe instant, geen dag-erna-snap.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "18u" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T17:00",
+        "criticalPathSet": ["A", "M"],
+        "error": false
+      }
+    },
+    {
+      "id": "msp-01b-controle-fs-duurtaak-op-bandeind",
+      "title": "CONTROLE bij msp-01: FS+0 naar een GEWONE taak (duur 1d, geen mijlpaal) vanaf dezelfde di-17:00-voorganger — B start wél de eerstvolgende werk-instant (wo 08:00). De algemene snap-semantiek voor taken MET duur mag niet wijzigen.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "18u" },
+        { "name": "B", "dur": "9u" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true },
+          "B": { "es": "2026-07-08T08:00", "ef": "2026-07-08T17:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T17:00",
+        "criticalPathSet": ["A", "B"],
+        "error": false
+      }
+    },
+    {
+      "id": "msp-02-fs-finishms-op-bandeind-metlag",
+      "title": "FS+8u (1 werkdag op H9) naar EINDmijlpaal (uur) vanaf een di-17:00-voorganger: de lag telt gewoon mee (M op wo16:00, niet op de rauwe instant) — bewijst dat de nul-lag-kortsluiting een échte lag niet mag onderdrukken.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "18u" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lag": "8u" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-08T16:00", "ef": "2026-07-08T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T16:00",
+        "criticalPathSet": ["A", "M"],
+        "error": false
+      }
+    },
+    {
+      "id": "msp-01c-h1-uur-voorganger-dag-eindmijlpaal",
+      "title": "H1 (Opus-review): spiegel van msp-03 — UUR-voorganger A (H9) eindigt di 17:00 -> DAG-eindmijlpaal Mf via FS+0. Mf's datumSTRINGS zijn in de foutieve variant identiek aan de correcte (bug onzichtbaar in de datumweergave); de tf-assertie tegen de dag-referentie P(5d, projecteinde vrijdag) legt 'm wél vast.",
+      "note": "P is een onafhankelijke parallelle dagtaak zonder relatie naar A/Mf, uitsluitend om het projecteinde op vrijdag te zetten zodat Mf (sink, geen opvolger) een meetbare speling krijgt (LF = projectEnd via backwardPass). Rekenkern (`workDaysBetween`, CalendarEngine.ts): `totalDays = floor((endMs-startMs)/MS_PER_DAY)+1` — een spook-tijdscomponent van 17:00 op Mf.ef verkleint die ms-afstand met 17 uur t.o.v. de projecteinde-middernacht, genoeg om er een hele dag af te laten vallen (tf 3->2), ook al blijft `startIdx` (en dus de geformatteerde datum) hetzelfde.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A", "dur": "18u", "calendar": "H9" },
+        { "name": "Mf", "milestone": true, "milestoneKind": "FINISH" },
+        { "name": "P", "dur": 5 }
+      ],
+      "links": [{ "pred": "A", "succ": "Mf", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "Mf": { "es": "2026-07-07", "ef": "2026-07-07", "ls": "2026-07-10", "lf": "2026-07-10", "tf": 3, "crit": false },
+          "P": { "es": "2026-07-06", "ef": "2026-07-10", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-03-fs-crossmode-daypred-finishms-ongemoeid",
+      "title": "CONTROLE (crash-guard): FS+0 cross-modus, DAG-voorganger D(2d) -> uur-EINDmijlpaal Mf. `pe` is hier dag-modus (geen `workTime`) — de nieuwe nul-lag-kortsluiting moet dit pad NIET raken (anders crasht `nextWorkInstant` op de non-null assertion). Verwacht ongewijzigd: Mf op 07-07 08:00 (zusjes-case rr-fs-crossmode-daypred-hourfinishms in cases-hours-relations.json).",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "D", "dur": 2 },
+        { "name": "Mf", "milestone": true, "milestoneKind": "FINISH", "calendar": "H9" }
+      ],
+      "links": [{ "pred": "D", "succ": "Mf", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-07-06", "ef": "2026-07-07", "tf": 0, "crit": true },
+          "Mf": { "es": "2026-07-07T08:00", "ef": "2026-07-07T08:00", "tf": 0, "crit": true }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-04-m2-guard1-alleen-crosscalendar",
+      "title": "M2 (Opus-review): pint de FS-kortsluiting (relationMath, 'guard1') ONAFHANKELIJK van CPMSolver's snapSuccessorEarlyStart ('guard2'), via twee VERSCHILLENDE uur-kalenders. B is GEEN mijlpaal, dus guard2 blijft bij zijn eigen (correcte) gate en normaliseert via B's EIGEN kalender Q (09:00-18:00) — een aparte band-structuur dan A's P (08:00-17:00). Q's band bevat 17:00 WÉL (17:00<18:00), dus guard2's generieke terugval-snap kan een per-ongeluk verbrede guard1 hier NIET meer corrigeren: B.es wordt Tue17:00 i.p.v. wo09:00.",
+      "note": "Dit is de 'pad dat niet door de her-snap loopt'-constructie uit de review: guard2's terugval-snap (`snapOnOrAfter`) is een PURE functie van de binnenkomende instant en de EIGEN kalender van de opvolger — of guard1 kortgesloten heeft of niet, maakt voor die snap-uitkomst normaal niets uit (`nextWorkInstant` is idempotent, en bij gelijke kalenders P===Q vallen beide paden altijd samen). Met TWEE VERSCHILLENDE bandstructuren vallen ze NIET meer samen: `Q.nextWorkInstant(P.nextWorkInstant(Tue17:00)) = Q.nextWorkInstant(wo08:00) = wo09:00` (de huidige, correcte, niet-kortgesloten weg) tegenover `Q.nextWorkInstant(Tue17:00) = Tue17:00` (wat een verbrede guard1 zou opleveren, want 17:00 valt toevallig WEL binnen Q's band). Mutatiebewijs: verbreed guard1 se (relationMath, `succIsFinishMs`-wacht weg in de FS-tak) → B.es wordt Tue17:00T… i.p.v. 2026-07-08T09:00 — deze case ROOD, msp-01/msp-01b ONGEWIJZIGD (die delen dezelfde kalender voor pred/succ, dus daar zijn de twee paden altijd gelijk).",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "P", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+        { "name": "Q", "workTime": { "byWeekday": { "1": [{ "start": 540, "end": 1080 }], "2": [{ "start": 540, "end": 1080 }], "3": [{ "start": 540, "end": 1080 }], "4": [{ "start": 540, "end": 1080 }], "5": [{ "start": 540, "end": 1080 }], "6": [], "7": [] } } }
+      ],
+      "tasks": [
+        { "name": "A", "dur": "18u", "calendar": "P" },
+        { "name": "B", "dur": "9u", "calendar": "Q" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T17:00" },
+          "B": { "es": "2026-07-08T09:00", "ef": "2026-07-08T18:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-05-l1-ff-naar-eindmijlpaal",
+      "title": "L1 (Opus-review): FF+0 naar EINDmijlpaal (uur). A(H9,18u) eindigt di17:00; M(FF+0) landt op diezelfde rauwe instant i.p.v. eerst vooraf gesnapt te worden (vóór de fix ging `startFromFinish`'s mijlpaal-pass-through altijd al langs een onvoorwaardelijke `shiftLagPred`-snap). Dient TEGELIJK als M2 'guard2 alleen'-pin: dit pad loopt NIET door relationMath's FS-tak (guard1-FS), dus alleen CPMSolver's snapSuccessorEarlyStart (guard2) en de nieuwe FF-eigen kortsluiting (guard1-FF) kunnen 'm nog redden.",
+      "note": "Mutatiebewijs guard1-FS-onafhankelijkheid: draai UITSLUITEND de FS-tak-kortsluiting terug (relationMath) → msp-01 ROOD, deze case (msp-05) BLIJFT GROEN (bewijst dat guard1-FS hier geen rol speelt). Mutatiebewijs guard2: draai UITSLUITEND snapSuccessorEarlyStart terug (CPMSolver) → zowel msp-01 ALS msp-05 ROOD (guard2 is relatietype-onafhankelijk, de gedeelde laatste linie).",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A", "dur": "18u", "calendar": "H9" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "calendar": "H9" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07",
+        "criticalPathSet": ["A", "M"],
+        "error": false
+      }
+    },
+    {
+      "id": "msp-06-l1-sf-naar-eindmijlpaal-databdatevloer",
+      "title": "L1 (Opus-review, gefalsifieerd/herzien): een SF-band-eind-scenario BESTAAT wél — via de dataDate-vloer. Z is een nul-duur voorganger op taakkalender TC (08:00-17:00), niet-gestart (completion 0), met een eigen geplande start (ma08:00) vóór de statusdatum. De 'NIET GESTART'-vloer (CPMSolver, forwardPass) zet Z.es dan onvoorwaardelijk op `dataDate` — die zelf gesnapt is in de PROJECT-kalender PC (08:00-18:00), NIET in Z's eigen TC. Statusdatum di17:00 valt WÉL binnen PC's band (17:00<18:00, dus ongewijzigd) maar NIET binnen TC's band (17:00 is TC's band-eind, exclusief) — Z.es/ef landt zo op een voor TC 'vuile' instant. SF+0 van Z naar eindmijlpaal M erft die instant: mét de kortsluiting blijft 'm staan (M=di17:00), zonder wordt 'm eerst vooraf gesnapt (M=wo08:00).",
+      "note": "Weerlegt de eerdere 'pass-through, geen ander resultaat mogelijk'-claim in dit bestand: een taak-START is NIET altijd al [start,end)-geldig in de EIGEN kalender — de dataDate-vloer snapt in de PROJECT-kalender, die een andere bandstructuur kan hebben dan de taak-kalender. Mutatiebewijs: SF-arm van de kortsluiting terugdraaien (relationMath) → M.es/ef verwacht 2026-07-07T17:00, krijgt 2026-07-08T08:00 — deze case ROOD.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1080 }], "2": [{ "start": 480, "end": 1080 }], "3": [{ "start": 480, "end": 1080 }], "4": [{ "start": 480, "end": 1080 }], "5": [{ "start": 480, "end": 1080 }], "6": [], "7": [] } } },
+      "calendars": [{ "name": "TC", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "statusDate": "2026-07-07T17:00",
+      "tasks": [
+        { "name": "Z", "dur": 0, "completion": 0, "calendar": "TC" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "calendar": "TC" }
+      ],
+      "links": [{ "pred": "Z", "succ": "M", "type": "START_FINISH" }],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00" },
+          "M": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-06b-l3-fs-tweeling-databdatevloer",
+      "title": "L3 (Opus-review, tweelingcase van msp-06): identieke dataDate-vloer-constructie, maar via FS i.p.v. SF — pint dat het schrappen van `!predEndsBeginOfDay` in de FS-tak een bewuste verbreding is (relationMath.ts), niet ongebruikt commentaar. Z is een NIET-GESTARTE nul-duur-TAAK (geen mijlpaal) waarvan de ES via de dataDate-vloer op een voor TC 'vuile' instant landt; als voorganger van M (FS+0) is `predEndsBeginOfDay` hier de sturende vlag i.p.v. `succIsFinishMs` alleen.",
+      "note": "Vóór deze case was de FS-zijde van de L3-verbreding door geen enkele case gedekt: `!predEndsBeginOfDay` terugzetten in de FS-tak liet de volledige 470-suite groen. Mutatiebewijs: zet de exclusie terug → M.es/ef verwacht 2026-07-07T17:00, wordt 2026-07-08T08:00 — deze case ROOD.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1080 }], "2": [{ "start": 480, "end": 1080 }], "3": [{ "start": 480, "end": 1080 }], "4": [{ "start": 480, "end": 1080 }], "5": [{ "start": 480, "end": 1080 }], "6": [], "7": [] } } },
+      "calendars": [{ "name": "TC", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "statusDate": "2026-07-07T17:00",
+      "tasks": [
+        { "name": "Z", "dur": 0, "completion": 0, "calendar": "TC" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "calendar": "TC" }
+      ],
+      "links": [{ "pred": "Z", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00" },
+          "M": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-07-l2-elapsed-lag-nul",
+      "title": "L2 (Opus-review): FS met lagUnit ELAPSEDTIME en lagMinutes=0 naar EINDmijlpaal — dezelfde 'geen échte lag'-situatie als WORKTIME lag=0, maar deze arm ging vóór de fix altijd via `se.availableStart` (ongeacht 0 minuten) en landde dus nooit op de rauwe instant.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A", "dur": "18u", "calendar": "H9" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "calendar": "H9" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lagMinutes": 0, "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-08-l6-mijlpaal-keten",
+      "title": "L6.1: mijlpaal-na-mijlpaal-keten A -FS+0-> M1(FINISH) -FS+0-> M2(FINISH). Beide mijlpalen landen op DEZELFDE rauwe instant (di 17:00) als A; de keten blijft volledig kritiek (tf=0 overal) — bewijst dat `predStartsNextDay` (M1 als FINISH-voorganger van M2) de kortsluiting niet stoort.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A", "dur": "18u", "calendar": "H9" },
+        { "name": "M1", "milestone": true, "milestoneKind": "FINISH", "calendar": "H9" },
+        { "name": "M2", "milestone": true, "milestoneKind": "FINISH", "calendar": "H9" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "M1", "type": "FINISH_START" },
+        { "pred": "M1", "succ": "M2", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true },
+          "M1": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true },
+          "M2": { "es": "2026-07-07T17:00", "ef": "2026-07-07T17:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07",
+        "criticalPathSet": ["A", "M1", "M2"],
+        "error": false
+      }
+    },
+    {
+      "id": "msp-09-l6-gouden-invariant-uur",
+      "title": "L6.2: uur-modus-tegenhanger van de dag-modus 'gouden invariant' (cases-milestone-kinds.json, mk-03) — A1-FS->M(FINISH)-FS->B1 geeft B1 DEZELFDE datums als het rechtstreekse net A2-FS->B2 (identieke duur/kalender, parallel, geen onderlinge relatie).",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A1", "dur": "18u", "calendar": "H9" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "calendar": "H9" },
+        { "name": "B1", "dur": "9u", "calendar": "H9" },
+        { "name": "A2", "dur": "18u", "calendar": "H9" },
+        { "name": "B2", "dur": "9u", "calendar": "H9" }
+      ],
+      "links": [
+        { "pred": "A1", "succ": "M", "type": "FINISH_START" },
+        { "pred": "M", "succ": "B1", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "B2", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "B1": { "es": "2026-07-08T08:00", "ef": "2026-07-08T17:00" },
+          "B2": { "es": "2026-07-08T08:00", "ef": "2026-07-08T17:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-10-l6-negatieve-lag",
+      "title": "L6.3: FS-60min (lead) naar EINDmijlpaal vanaf dezelfde di17:00-voorganger — de mijlpaal landt 60 min VÓÓR de rauwe instant (di 16:00), binnen dezelfde band; bewijst dat `lagIsZero` een échte (negatieve) lag correct herkent en NIET kortsluit.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A", "dur": "18u", "calendar": "H9" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "calendar": "H9" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START", "lagMinutes": -60 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-07T17:00" },
+          "M": { "es": "2026-07-07T16:00", "ef": "2026-07-07T16:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-11-l6-bandeind-midden-op-de-dag",
+      "title": "L6.4: kalender met een middagpauze (08:00-12:00 + 13:00-17:00) — A eindigt op het EERSTE band-eind van de dag (12:00, geen dag-eind). M(FS+0, FINISH) landt op diezelfde 12:00, niet op 13:00 — bewijst dat de kortsluiting voor ELK band-eind werkt, niet alleen de laatste band van de dag.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "HLUNCH", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "2": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "3": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "4": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "5": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A", "dur": "4u", "calendar": "HLUNCH" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "calendar": "HLUNCH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T12:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-06T12:00", "ef": "2026-07-06T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-06",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-12-l6-vrijdag-blijft-vrijdag",
+      "title": "L6.5: weekend-rand-sanity — A (5 werkdagen op H9, ma08:00->vr17:00) -FS+0-> EINDmijlpaal M landt op vr17:00 ZELF, niet op de eerstvolgende werkdag (maandag erna). Bewijst dat de weekend-overspannende `nextWorkInstant`-scan (gebruikt voor de `lagIsZero`-vergelijking) de kortsluiting zelf niet stoort.",
+      "anchor": "2026-07-06",
+      "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
+      "tasks": [
+        { "name": "A", "dur": "45u", "calendar": "H9" },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH", "calendar": "H9" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-10T17:00", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-10T17:00", "ef": "2026-07-10T17:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-14-t8-elapsed-duur-klokdagen",
+      "title": "T8 (BAAN S, plan §T8): durationType ELAPSEDTIME rekent de taakduur zelf 24/7 in KLOKtijd — precedent resolveElapsedMinutes/de lagUnit===ELAPSEDTIME-takken in relationMath.ts, hier toegepast op DUUR i.p.v. lag. Taak van 2 elapsed dagen die vrijdag start eindigt zondag (48 kalenderuur later) — NIET maandag (de werkdag-stap zou het weekend overslaan). tf/ff=0 bewijst ook de T8-signedFloat-fix: A.es==A.ls en A.ef==A.lf, maar beide liggen op zondag (geen werkdag) — de oude workDaysBetween-1-telling gaf daar spook-tf=-1 (zie duration.ts's signedElapsedSpan).",
+      "anchor": "2026-07-10",
+      "tasks": [
+        { "name": "A", "dur": 2, "durationType": "ELAPSEDTIME" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10", "ef": "2026-07-12", "ls": "2026-07-10", "lf": "2026-07-12", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["A"],
+        "projectEnd": "2026-07-12",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-15-t8-uurmodus-elapsed-hammock-scheduleduration",
+      "title": "T8-reviewtoevoeging: een ELAPSEDTIME-hammock in UUR-modus herberekent scheduleDuration/durationMinutes KLOK-consistent. H spant vr 10 juli 08:00 -> ma 13 juli 08:00 (72 klokuur = 4320 min = 3,0 dagen). Twee alternatieve valkuilen die deze pin allebei vangt: (1) cal.workMinutesBetween(es,ef) i.p.v. de rauwe klok-ms-aftrek zou het weekend NIET meetellen -> 480 werkminuten = 1,0 dag (helemaal geen elapsed-onderscheid); (2) de T10-dubbele-deling-valkuil hier toegepast op de duur-herberekening i.p.v. de leeskant: 4320 klok-minuten gedeeld door hoursPerDay×60 i.p.v. de vaste klokdag 24×60 zou 9,0 dagen geven. Calendar = H8-band [480,960] (08:00-16:00, ma-vr, hoursPerDay=8) — zelfde kalender als hammock-hour-h8 in cases-advanced-cpm.json, dat de WORKTIME-tegenhanger van deze recompute pint. A = start-driver (SS, dur irrelevant — eigen duur-invoer wordt genegeerd), B = finish-driver-mijlpaal (FF) met een expliciete start exact op een volgende-week-maandag-bandbegin, zodat de span het weekend overspant.",
+      "anchor": "2026-07-10",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "2h" },
+        { "name": "B", "milestone": true, "start": "2026-07-13T08:00" },
+        { "name": "H", "dur": "8h", "hammock": true, "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "H", "type": "START_START" },
+        { "pred": "B", "succ": "H", "type": "FINISH_FINISH" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10T08:00", "ef": "2026-07-10T10:00" },
+          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T08:00" },
+          "H": { "es": "2026-07-10T08:00", "ef": "2026-07-13T08:00", "crit": false, "scheduleDuration": 3, "durationMinutes": 4320 }
+        },
+        "hammockNoFinishDriversSet": [],
+        "projectEnd": "2026-07-13T08:00",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-16-t8-review-h1-ff-elapsed-opvolger-dag",
+      "title": "T8-review H1 (repro): FF+0 dag-modus, WORKTIME-voorganger A(3d) -> ELAPSEDTIME-opvolger B(2 elapsed dagen). VOOR de fix rekende forwardDay's succBack in WERKdagen (se.addWorkingDaysSigned) i.p.v. B's eigen 24/7-klokduur: B.es kwam op 07-07 (1 werkdag terug vanaf A.ef) i.p.v. het correcte 07-06, met B.ef op 07-09 i.p.v. 07-08 — exact de reviewer-repro ('B.ef ná de driver'). FF+0 tekent B.ef GELIJK aan A.ef (kloktijd, ongeacht B's eigen duur); B.es volgt dan via B's eigen ELAPSEDTIME-terugstap (deps.startFromFinish, T8).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-07-06", "ef": "2026-07-08", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-17-t8-review-h1-ff-elapsed-opvolger-uur",
+      "title": "T8-review H1 (repro): FF+0 uur-modus, WORKTIME-voorganger A(8u, hele werkdag) -> ELAPSEDTIME-opvolger B(4 elapsed uur). VOOR de fix normaliseerde forwardHour's FF-tak de geëiste finish vooruit naar de eerstvolgende werk-instant (nextWorkInstant, want A.ef ligt exact OP een band-eind, dus [start,end)-conventie sluit 'm uit) vóórdat deze naar startFromFinish ging — dat schoof B.ef een hele nacht (16 klokuur) op naar de volgende dag, ruwweg de reviewer-repro ('2,5 dag mis' in een ander scenario). NA de fix (succElapsed onderdrukt die normalisatie, net als een eindmijlpaal al deed) landt B.ef exact op A.ef. Calendar = H8-band [480,960] (08:00-16:00, ma-vr).",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "8h" },
+        { "name": "B", "dur": "4h", "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-07-06T12:00", "ef": "2026-07-06T16:00", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-07-06T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-18-t8-review-h2-fs-elapsed-voorganger-dag",
+      "title": "T8-review H2 (repro): FS+0 dag-modus, ELAPSEDTIME-voorganger A(2 elapsed dagen, start vrijdag dus finish zondag) -> WORKTIME-opvolger B(1d). VOOR de fix kneep backwardDay's FS-tak (pe.prevWorkDayBefore) A's late finish onterecht terug naar vrijdag (A.tf=-2 — exact de reviewer-meting), ook al is zondag een volkomen legitieme finish voor een 24/7-taak. NA de fix (predElapsed slaat prevWorkDayBefore over, addCalendarDays(target,-1) is de juiste losse inverse) is A.lf=A.ef=zondag, tf=0. Invarianten: tf>=0 (geen late-constraint), ff<=tf, ls (07-10) niet vóór het eigen anker (07-10).",
+      "anchor": "2026-07-10",
+      "tasks": [
+        { "name": "A", "dur": 2, "durationType": "ELAPSEDTIME" },
+        { "name": "B", "dur": 1 }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10", "ef": "2026-07-12", "ls": "2026-07-10", "lf": "2026-07-12", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-07-13", "ef": "2026-07-13", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B"],
+        "projectEnd": "2026-07-13",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-19-t8-review-h2-fs-elapsed-voorganger-uur",
+      "title": "T8-review H2 (repro, uur-modus): FS+0, ELAPSEDTIME-voorganger A(40 elapsed uur vanaf vr 08:00, dus finish zo 00:00 — buiten elke werkband) -> WORKTIME-opvolger B(1u). VOOR de fix kneep backwardHour's FS-tak (pe.prevWorkInstant) A's late finish terug naar de vorige werk-instant (vrijdagband), een negatieve/te-krappe speling. NA de fix (predElapsed slaat prevWorkInstant over — nextWorkInstant is hier [start,end)-INCLUSIEF, dus de kale ongesnapte target is al de losse inverse, geen -1 nodig zoals in dag-modus) krijgt A een POSITIEVE speling (tf=32/24=1,333... dagen: het gat tussen zijn eigen vroege finish (zo 00:00) en de late finish die B's late-start toestaat (ma 08:00) — 32 klokuur). Invarianten: tf>=0, ff(0)<=tf, ls niet vóór het eigen anker (vr 08:00). A's `start` is EXPLICIET \"...T08:00\" gezet (T8-hercheck-BLOCKER-vervolg: `ownAnchor` snapt een kale datum-anchor voor een ELAPSEDTIME wortel-taak sinds de blocker-fix niet meer naar de eerste werk-instant van die dag — een kale \"2026-07-10\" zou nu rauw middernacht geven, niet vrijdag 08:00; dat wijzigde deze case's cijfers toen de blocker-fix landde, vandaar nu expliciet).",
+      "anchor": "2026-07-10",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "40h", "durationType": "ELAPSEDTIME", "start": "2026-07-10T08:00" },
+        { "name": "B", "dur": "1h" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10T08:00", "ef": "2026-07-12T00:00", "ls": "2026-07-11T16:00", "lf": "2026-07-13T08:00", "tf": 1.3333333333333333, "ff": 0 },
+          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T09:00", "tf": 0, "ff": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-13T09:00",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-20-t8-review-elapsed-keten",
+      "title": "T8-review, item 3 (elapsed->elapsed-keten): stress-test die H1 EN H2 in één keten combineert, dag-modus. A(3d WORKTIME) -FF+0-> B(2 elapsed dagen, H1: B is ELAPSEDTIME-opvolger) -FS+0-> C(1d WORKTIME, H2: B is ELAPSEDTIME-voorganger). Handmatig herleid: FF+0 tekent B.ef=A.ef=07-08(wo); B.es=B.ef-2 elapsed dagen=07-06(ma, via H1). C start de eerstvolgende werkdag ná B.ef=07-08(wo) => C.es=07-09(do). Terug: C is sink (tf=0) => C.ls=C.lf=07-09; H2-inverse (predElapsed op de B->C-relatie) geeft B.lf=addCalendarDays(07-09,-1)=07-08 — EXACT B's eigen ef => B.tf=0, en dat propageert door naar A.tf=0. Een volledig kritieke keten (tf=ff=0 overal) — bewijst dat de twee fixes elkaar niet tegenspreken wanneer dezelfde taak (B) tegelijk ELAPSEDTIME-opvolger (van A) én ELAPSEDTIME-voorganger (naar C) is.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "B", "dur": 2, "durationType": "ELAPSEDTIME" },
+        { "name": "C", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_FINISH" },
+        { "pred": "B", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-08", "ls": "2026-07-06", "lf": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
+          "B": { "es": "2026-07-06", "ef": "2026-07-08", "ls": "2026-07-06", "lf": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-07-09", "ef": "2026-07-09", "ls": "2026-07-09", "lf": "2026-07-09", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "B", "C"],
+        "projectEnd": "2026-07-09",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-21-t8-review-m1-eenheden-float",
+      "title": "T8-review M1 (eenhedenbesluit float, orkestratorbesluit — lokale MPXJ-broncheckout onder testdata-crawl/mpxj bevat alleen de `SlackCalculator`-interface, zonder MSP-implementatie (wel Primavera-slackcode aanwezig) — geen uitsluitsel over de eenheid die MS Project zelf toont voor een elapsed-taak se slack; TimeUnit.java bevestigt wél dat MPXJ's Duration-model native ELAPSED_DAYS/-HOURS/... kent, dus een per-taak-eenheid voor slack is een bestaand MPXJ-concept, geen verzinsel). Besluit: float van een ELAPSEDTIME-taak blijft in KALENDERdagen (signedElapsedSpan), ONGEMARKEERD naast WORKTIME-siblings die in WERKdagen rekenen — zelfde 'getal, andere eenheid'-patroon als scheduleDuration al kende vóór T8. Dit pint dat verschil DIRECT zichtbaar: A (ELAPSEDTIME, 1 dag, vr->za) en A2 (WORKTIME, 2 dagen, vr->ma) delen via FS+0 dezelfde sink C; A2 is de drijvende voorganger (tf=0, WERKdag-geteld) en C start dus dinsdag. A krijgt daardoor speling — maar UITGEDRUKT IN KALENDERdagen (tf=2: za->zo->ma), niet in werkdagen (dat zou hier tf=1 geven: alleen maandag is een werkdag in het za-zo-ma-venster). A.ff=1 is een ANDER getal dan A.tf=2 op DEZELFDE taak — dat is M2/L3's genoteerde beperking (de relatie-vrije-speling-berekening in scheduleAnalysis.ts is nog NIET elapsed-bewust) rechtstreeks zichtbaar, niet gefixt in deze ronde.",
+      "anchor": "2026-07-10",
+      "tasks": [
+        { "name": "A", "dur": 1, "durationType": "ELAPSEDTIME" },
+        { "name": "A2", "dur": 2 },
+        { "name": "C", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "A", "succ": "C", "type": "FINISH_START" },
+        { "pred": "A2", "succ": "C", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10", "ef": "2026-07-11", "ls": "2026-07-12", "lf": "2026-07-13", "tf": 2, "ff": 1, "crit": false },
+          "A2": { "es": "2026-07-10", "ef": "2026-07-13", "ls": "2026-07-10", "lf": "2026-07-13", "tf": 0, "ff": 0, "crit": true },
+          "C": { "es": "2026-07-14", "ef": "2026-07-14", "ls": "2026-07-14", "lf": "2026-07-14", "tf": 0, "ff": 0, "crit": true }
+        },
+        "criticalPathSet": ["A2", "C"],
+        "projectEnd": "2026-07-14",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-22-t8-review-m3-elapsed-klem-rode-pad",
+      "title": "T8-review M3 (rode-pad-fixture): een ELAPSEDTIME-taak met een absurde duur (dur=1e12 'dagen' — ongevalideerde invoer, bv. een tikfout via MCP `duration`) mag de solver NIET laten crashen. ZONDER klem zou elapsedMinutesOf 1e12x24x60=1,44e15 minuten teruggeven; x MS_PER_MIN(60000) = 8,64e19 ms — ver voorbij Date's representeerbare bereik (±8,64e15 ms). `new Date()` zelf gooit dan niet (levert stil een Invalid Date), maar de eerstvolgende `formatDate`/`toISOString()`-aanroep (overal in de solver/harness) gooit een ONGEVANGEN RangeError, die de harness als 'THREW: RangeError: Invalid time value' vangt — precies het mutatiebewijs in het commitbericht. MET de klem (MAX_ELAPSED_MINUTES=200.000 dagen, spiegelt CalendarEngine.MAX_DAYS) blijft de taak binnen bereik: A.ef landt exact 200.000 kalenderdagen na A.es (handmatig herleid: 2026-07-06 + 200.000 dagen = 2574-02-03, geverifieerd via Date.UTC-rekenkunde onafhankelijk van de solver).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 1000000000000, "durationType": "ELAPSEDTIME" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2574-02-03" }
+        },
+        "projectEnd": "2574-02-03",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-23-t8-review-blocker-ff-dag-weekend",
+      "title": "T8-hercheck-BLOCKER (repro): FF+0 dag-modus, WORKTIME A(5d, ma-vr) -> ELAPSEDTIME B(6 elapsed dagen) die op zaterdag moet LANDEN. VOOR de blocker-fix duwde de generieke her-snap ná forwardConstraint (`snapSuccessorEarlyStart`) B.es alsnog van zaterdag (07-04) naar maandag (07-06) — H1's al-correcte `forwardConstraint`-uitkomst werd één stap verderop weer overschreven. B.ef werd daardoor herberekend vanaf het verkeerde (gesnapte) B.es + 6 elapsed dagen = 2 dagen te laat (07-12 i.p.v. 07-10) — exact de reviewer-repro. Orkestratorbesluit: een ELAPSEDTIME-taak mag op een niet-werk-instant starten (MSP plant 24/7, de werkkalender is er niet op van toepassing). `Z` is een onafhankelijke, veel eerdere wortel-taak — puur om te voorkomen dat de `projectStart`-vloer (die ONVERANDERD blijft klemmen, ook voor elapsed-taken via `rootFloor`) B's zaterdag-landing zelf al zou optillen; dat is een orthogonaal, bestaand mechanisme (T7, §9/O2), geen onderdeel van deze repro. `ff` wordt hier BEWUST niet geasserteerd: dezelfde constructie (B's vroege start op een niet-werkdag) legt een SEPARAAT, al gedocumenteerd gat bloot in de relatie-vrije-speling (M2/L3 bij `scheduleAnalysis.ts` — A.ff komt hier op -1 uit, een ander mankement dan wat deze case bewijst; zie msp-21 voor het M2-mechanisme zelf).",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "Z", "dur": 1, "start": "2026-06-01" },
+        { "name": "A", "dur": 5, "start": "2026-07-06" },
+        { "name": "B", "dur": 6, "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
+          "B": { "es": "2026-07-04", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-24-t8-review-blocker-ff-uur-bandeind",
+      "title": "T8-hercheck-BLOCKER (repro, uur-modus): FF+0, WORKTIME A(8u, hele werkdag vr 08:00-16:00) -> ELAPSEDTIME B(24 elapsed uur) die exact op een BANDEIND van de vorige dag moet landen (do 16:00). VOOR de blocker-fix duwde `snapSuccessorEarlyStart` B.es van do 16:00 (band-eind, exclusief per de [start,end)-conventie) naar vr 08:00 — 16 klokuur te laat, exact de reviewer-repro. B.ef werd daardoor herberekend vanaf het verkeerde B.es + 24 elapsed uur = eveneens 16 uur te laat (za 08:00 i.p.v. vr 16:00). Ter onderscheid van msp-17 (die 4 elapsed uur gebruikt en toevallig NOOIT een band-grens raakt, dus de blocker daar niet zichtbaar maakte): 24 elapsed uur = precies één kalenderdag terug, wat het band-eind-exacte geval bewust opzoekt. `Z` idem als msp-23: een vroege onafhankelijke wortel-taak tegen de (ongewijzigde) projectStart-vloer.",
+      "anchor": "2026-06-01",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "Z", "dur": "1h", "start": "2026-06-01T08:00" },
+        { "name": "A", "dur": "8h", "start": "2026-07-10T08:00" },
+        { "name": "B", "dur": "24h", "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10T08:00", "ef": "2026-07-10T16:00" },
+          "B": { "es": "2026-07-09T16:00", "ef": "2026-07-10T16:00" }
+        },
+        "projectEnd": "2026-07-10T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-25-t8-review-blocker-sf-dag",
+      "title": "T8-hercheck-BLOCKER: het ontbrekende SF-geval (START_FINISH — de opvolger EINDIGT wanneer de voorganger START). A(1d, WORKTIME, expliciete start wo 07-08) -SF+0-> B(3 elapsed dagen, ELAPSEDTIME): B.ef=A.es=07-08 (kloktijd, ongeacht B's eigen duur, exact als FF maar geankerd op de START van de voorganger), dus B.es=B.ef-3 elapsed dagen=07-05 (ZONDAG). Dezelfde blocker-schending als msp-23/24 zou hier gelden: zonder de `snapSuccessorEarlyStart`-bypass zou B.es van zondag naar maandag (07-06) schuiven en B.ef één dag te laat herberekend worden (07-09 i.p.v. 07-08). `Z` idem als msp-23/24.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "Z", "dur": 1, "start": "2026-06-01" },
+        { "name": "A", "dur": 1, "start": "2026-07-08" },
+        { "name": "B", "dur": 3, "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08", "ef": "2026-07-08" },
+          "B": { "es": "2026-07-05", "ef": "2026-07-08" }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-26-t8-review-h2-crossmodus-bekende-beperking",
+      "title": "T8-hercheck, punt 3 (bekende-beperking-pin, GEEN fix): backwardHour's cross-modus-scanlus (dag-voorganger/uur-opvolger, arm (b) in relationMath.ts) doorzoekt uitsluitend WERKdagen van de dag-voorganger — voor een ELAPSEDTIME dag-voorganger A is dat een te smalle zoekruimte. Dit pint het HUIDIGE (bewust ongefixte) gedrag zodat een latere fix hem bewust omzet, niet stilzwijgend. A (ELAPSEDTIME, 2 dagen, vr->zo) -FS+0-> B (WORKTIME, 8u, op een uur-kalender H8). Verwacht (correct, MSP-pariteit, NIET wat deze case pint): A.tf zou 0 moeten zijn (A.ef=zo=B's vroegste mogelijke aanleiding, geen slappe). GEPIND (huidig, FOUT): de scanlus vindt de eerstvolgende WERKdag terug vanaf B's late start i.p.v. de eerstvolgende KALENDERdag ⇒ A.lf te vroeg (07-10 i.p.v. 07-12) ⇒ drie zichtbare symptomen: (1) A.ls (07-08) VÓÓR A's eigen anker (07-10) — schendt 'ls nooit vóór het eigen anker', (2) A.tf=-2 — NEGATIEF zonder enige constraint/deadline, (3) A.ff(0) > A.tf(-2) is weliswaar geen `ff>tf`-schending numeriek, maar A.ff=0 naast A.tf=-2 is zelf al onzinnig (geen enkele relatie zou hier moeten binden). Alle drie handmatig herleid uit de scanlus-semantiek en geverifieerd tegen de daadwerkelijke solver-uitvoer (niet gegist) — GEEN mutatiebewijs voor deze case (ze pint een bug, geen fix). Plan-registratie voor T13/T15: orkestrator.",
+      "anchor": "2026-07-10",
+      "calendars": [
+        { "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }
+      ],
+      "tasks": [
+        { "name": "A", "dur": 2, "durationType": "ELAPSEDTIME" },
+        { "name": "B", "dur": "8h", "calendar": "H8" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-10", "ef": "2026-07-12", "ls": "2026-07-08", "lf": "2026-07-10", "tf": -2, "ff": 0 },
+          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T16:00" }
+        },
+        "projectEnd": "2026-07-13",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-27-t8-review-blocker-ownanchor-rootfloor-ss",
+      "title": "T8-hercheck-BLOCKER, twee EXTRA gevonden hersnap-plekken (niet in de reviewer-repro's, gevonden via 'controleer meteen of er nóg zulke plekken zijn'): (1) `ownAnchor`/de her-snap ná de constraint voor een WORTEL-taak (`CPMSolver.forwardPass`'s `preds.length===0`-tak) — een ELAPSEDTIME wortel-taak met een eigen weekend-anker (A start zaterdag, GEEN voorganger) werd vóór deze fix alsnog naar maandag geduwd. (2) `rootFloor` — dezelfde wortel-taak levert de `projectStart`-VLOER (het minimum over alle wortel-taken); zonder bypass zou die vloer zélf al maandag zijn, wat via de vloer ook B (die WEL een voorganger heeft, dus niet via `ownAnchor` loopt) omhoog zou trekken, zelfs als `ownAnchor` A's EIGEN es al goed liet. Plus (3) de dag-modus-SS-succBack-fix (forwardDay se `addCalendarDays(base,lag)` i.p.v. `lagEng.addWorkingDaysSigned`) voor de ELAPSEDTIME-opvolger B via SS+0. Alle drie mét één case bewezen: A (ELAPSEDTIME, 2 dagen, EIGEN start zaterdag 07-11, GEEN voorganger) -SS+0-> B (ELAPSEDTIME, 1 dag). Correct: A.es blijft zaterdag (1+2), B.es=A.es=zaterdag (3, geen enkele vloer/snap trekt 'm naar maandag).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 2, "durationType": "ELAPSEDTIME", "start": "2026-07-11" },
+        { "name": "B", "dur": 1, "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-11", "ef": "2026-07-13" },
+          "B": { "es": "2026-07-11", "ef": "2026-07-12" }
+        },
+        "projectEnd": "2026-07-13",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-28-t8-review-uur-ss-bekende-beperking",
+      "title": "T8-hercheck 3 (bekende-beperking-pin, GEEN fix): het uur-SS-gat dat de reviewer construeerde — zie `forwardHour`'s START_START-tak in relationMath.ts, waar het al gedocumenteerd staat. `deps.shiftLagPred` normaliseert bij lag=0 zelf óók via `CalendarEngine.addWorkingMinutesSigned`'s `nextWorkInstant(base)`, in de VOORGANGER-engine — vóór de `succElapsed`-bypass (T8-hercheck-BLOCKER) ooit gezien wordt. A (ELAPSEDTIME, wortel, EIGEN anker za 09:00 — buiten elke werkband van de H8-kalender) -SS+0-> B (ELAPSEDTIME): B.es MOET gelijk zijn aan A.es (za 09:00, MSP-pariteit — een SS+0 tekent de opvolger-start exact op de voorganger-start, kloktijd, ongeacht beider werkkalender). GEPIND (huidig, FOUT): B.es landt op ma 08:00 — bijna twee volle dagen relatieschending, dezelfde klasse fout als de BLOCKER maar nu via de VOORGANGER-zijde van `shiftLagPred` i.p.v. de opvolger-zijde die de blocker-fix al afdekt. Niet gefixt (zie relationMath.ts): `shiftLagPred` is een gedeeld pad met 9 aanroepplekken; FF/SF ontsnappen via hun eigen `lagIsZero`-detectie-en-vervang-mechanisme (`landRawInstant`), SS heeft dat niet — een blinde aanpassing van het gedeelde pad zou FF/SF se zorgvuldig afgestemde gedrag kunnen meeraken. Deze case legt het HUIDIGE gedrag vast zodat een latere fix hem BEWUST omzet (rood wordt bij de fix, in plaats van dat niemand het merkt). Plan-registratie voor T13/T15: orkestrator.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "1h", "durationType": "ELAPSEDTIME", "start": "2026-07-11T09:00" },
+        { "name": "B", "dur": "1h", "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-11T09:00", "ef": "2026-07-11T10:00" },
+          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T09:00" }
+        },
+        "projectEnd": "2026-07-13T09:00",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-29-t15-mijlpaal-met-duur-dagmodus",
+      "title": "T15 (mijlpaal-met-duur, §9/O1 — 'géén uitzondering maar een solver-bug'): een taak met `milestone: true` ÉN een expliciete `dur` plant MSP-getrouw volgens die duur i.p.v. te collapsen naar 0 (bewijs: mpp14task.mpp/mpp14task-from2013.mpp — MSO-mijlpaal, duur 5 dagen, MSP-finish = start + 5 werkdagen). Wortel-taak M, dag-modus, geen voorganger: EF ligt 5 werkdagen ná ES, niet op ES zelf.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "M", "milestone": true, "dur": 5 }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-06", "ef": "2026-07-10", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-29b-controle-mijlpaal-zonder-duur-ongewijzigd",
+      "title": "CONTROLE bij msp-29: dezelfde opzet, maar M ZONDER expliciete `dur` — het bestaande gedrag (0-duur-mijlpaal, EF===ES) blijft byte-identiek. Bewaakt dat de nieuwe `isZeroDurationMilestone`-guard niets verandert voor het overgrote deel van het corpus (elke bestaande 0-duur-mijlpaal).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "M", "milestone": true }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-06", "ef": "2026-07-06", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-06",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-29c-t15-mijlpaal-met-duur-uurmodus",
+      "title": "T15, uur-modus variant (mirrort taskFlags-mpp14Project2010/2013.mpp, waar de mijlpaal-met-duur-bug in HOUR-mode zat en `milestoneKind` de scheduling extra kon verstoren): M op H9-kalender, `dur: '45u'` (5 volle werkdagen à 9u), geen `milestoneKind` gezet (spiegelt de mppReader-fix die 'm hier ook niet zou afleiden). EF landt 5 werkdagen later, niet op ES.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "M", "milestone": true, "dur": "45u" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "M": { "es": "2026-07-06T08:00", "ef": "2026-07-10T17:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-10T17:00",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-30-h3-mijlpaal-met-duur-elapsed-ff-weekend",
+      "title": "H3 (Opus-review T15-iteratie-2): mutant van msp-23 — B is nu ÓÓK `milestone: true` (met dezelfde reële duur/ELAPSEDTIME). Vóór H3 sloot de kale `task.isMilestone`-check in `snapSuccessorEarlyStart` de ELAPSEDTIME-bypass stil uit voor zo'n taak (want `!task.isMilestone` is dan `false`) — B.es zou dan alsnog van zaterdag naar maandag gesnapt worden (exact de T8-BLOCKER-regressie, nu via de mijlpaal-met-duur-combinatie). Verwachte uitkomst identiek aan msp-23 (B is voor de PLANNING geen mijlpaal, `isZeroDurationMilestone(B)===false`).",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "Z", "dur": 1, "start": "2026-06-01" },
+        { "name": "A", "dur": 5, "start": "2026-07-06" },
+        { "name": "B", "dur": 6, "durationType": "ELAPSEDTIME", "milestone": true }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
+          "B": { "es": "2026-07-04", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-10",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-31-h3-mijlpaal-met-duur-elapsed-wortel-weekend",
+      "title": "H3 (Opus-review T15-iteratie-2): mutant van msp-27 — A (wortel, ELAPSEDTIME, GEEN voorganger, eigen anker zaterdag) is nu ÓÓK `milestone: true` (met dezelfde reële duur). Vóór H3 sloten de kale `!task.isMilestone`-checks in de `rootFloor`-precompute (regel ~797) én de `rootElapsed`-tak (regel ~849) deze taak stil uit van de elapsed-bypass — haar EIGEN zaterdag-anker zou alsnog naar maandag gesnapt zijn (dezelfde T8-BLOCKER-regressie, nu op de wortel-taak-plek). Verwacht: A.es blijft zaterdag (identiek aan msp-27's A).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 2, "durationType": "ELAPSEDTIME", "milestone": true, "start": "2026-07-11" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-11", "ef": "2026-07-13" }
+        },
+        "projectEnd": "2026-07-13",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-32-h3-voltooide-mijlpaal-met-duur-ef-snap",
+      "title": "H3 (Opus-review T15-iteratie-2): een VOLTOOIDE mijlpaal-met-duur (completion=1, actualFinish op een NIET-werkdag, dus snapOnOrAfter/snapOnOrBefore geven verschillende uitkomsten — een discriminerende opzet). Vóór H3 nam de kale `task.isMilestone`-check in de VOLTOOID-tak de MIJLPAAL-tak (`snapOnOrAfter`, vooruit) — 'ze eindigt ná haar eigen actualFinish' (reviewer-meting): za 07-11 zou dan naar ma 07-13 zijn gesnapt. Na de fix (`isZeroDurationMilestone(A)===false`, want dur=5) geldt de NORMALE `snapOnOrBefore`-tak: ef blijft op vr 07-10 (de laatste werkdag óp-of-vóór de zaterdag-actualFinish).",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 5, "milestone": true, "start": "2026-07-06", "completion": 1, "actualStart": "2026-07-06", "actualFinish": "2026-07-11" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-10" }
+        },
+        "projectEnd": "2026-07-10",
+        "outOfSequenceSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "msp-33-b2-relationmath-succelapsed-echt-gepind",
+      "title": "B2 (Opus-her-check T15-fixronde): construeert een pad dat `relationMath.ts`'s `succElapsed` WEL rechtstreeks raakt (niet gemaskeerd door CPMSolver se eigen `startFromFinish`-guard) — de FF-forward-tak consulteert `succElapsed` uitsluitend binnen haar `elapsed`(LAG-eenheid)-tak (regel ~198-200), dus de lag zelf moet ELAPSEDTIME zijn (niet alleen de opvolger). A (ELAPSEDTIME, 3 kalenderdagen vanaf do 2026-07-09) eindigt op zo 2026-07-12 (een NIET-werkdag — met een gewone WORKTIME-taak kan `predResult.ef` dat nooit doen, vandaar dat A hier zelf ook ELAPSEDTIME is). B (milestone-met-duur, ELAPSEDTIME) hangt via FF+0 MET lagUnit=ELAPSEDTIME aan A: `reqFinish = succElapsed ? addCalendarDays(A.ef, 0) : nextWorkDay(addCalendarDays(A.ef, 0))` — bij de kale vlag (B.isMilestone=true, dus `succElapsed` ten onrechte `false`) zou dit ma 07-13 geven i.p.v. zo 07-12, en B.es zou een dag opschuiven. Dit slaagt NIET meer als de relationMath-conversie wordt teruggedraaid terwijl de CPMSolver-kant intact blijft (in tegenstelling tot msp-30/31, die wél gemaskeerd worden) — zie het mutatiebewijs in het commitbericht.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 3, "durationType": "ELAPSEDTIME", "start": "2026-07-09" },
+        { "name": "B", "dur": 2, "durationType": "ELAPSEDTIME", "milestone": true }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH", "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-09", "ef": "2026-07-12" },
+          "B": { "es": "2026-07-10", "ef": "2026-07-12" }
+        },
+        "projectEnd": "2026-07-12",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-34-b2-relationmath-succelapsed-uur-echt-gepind",
+      "title": "B2 (Opus-her-check T15-fixronde), uur-modus-tegenhanger van msp-33: `forwardHour`'s SS-tak (regel ~390-393) consulteert `succElapsed` ALLEEN binnen haar `elapsed`(LAG-eenheid)-tak, dus lagUnit=ELAPSEDTIME is verplicht. A (ELAPSEDTIME, wortel, EIGEN anker za 2026-07-11T09:00 — buiten elke werkband van de H9-kalender) -SS+0(lagUnit=ELAPSEDTIME)-> B (milestone-met-duur, ELAPSEDTIME): `raw = A.es + 0` = za 09:00; bij correcte `succElapsed` blijft B.es op die rauwe za-instant (24/7, geen snap); bij de kale vlag (B.isMilestone=true ⇒ succElapsed ten onrechte false) zou `snapOnOrAfter` B.es naar ma 08:00 duwen — bijna twee volle dagen verschil. Niet gemaskeerd door CPMSolver (die snapt hier niets meer terug, zie snapSuccessorEarlyStart se eigen isZeroDurationMilestone-bypass) — mutatiebewijs in het commitbericht.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "1u", "durationType": "ELAPSEDTIME", "start": "2026-07-11T09:00" },
+        { "name": "B", "dur": "2u", "durationType": "ELAPSEDTIME", "milestone": true }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_START", "lagUnit": "ELAPSEDTIME" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-11T09:00", "ef": "2026-07-11T10:00" },
+          "B": { "es": "2026-07-11T09:00", "ef": "2026-07-11T11:00" }
+        },
+        "projectEnd": "2026-07-11T11:00",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-13-l6-dagmodus-passthrough",
+      "title": "L6.6: expliciete DAG-modus-locale — A(3d) -FS+0-> EINDmijlpaal M op een pure dag-kalender (geen `workTime`) — `forwardHour` wordt hier niet eens aangeroepen (`forwardConstraint` dispatcht naar `forwardDay`), dus de T6-machinerie is hier per constructie afwezig. Zusjes-case: mk-01c in cases-milestone-kinds.json (dezelfde combinatie, dat bestand pint 'm al sinds vóór T6); hier lokaal herhaald zodat de dagmodus-byte-identieke invariant rechtstreeks náást de uur-cases in dit bestand staat.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "A", "dur": 3 },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06", "ef": "2026-07-08", "tf": 0, "crit": true },
+          "M": { "es": "2026-07-08", "ef": "2026-07-08", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-14-z0-typecontract-passthrough",
+      "title": "Z0-fixronde (Opus-review BEVINDING 1): doorgifte-bewijs voor de VIER Z0-typecontractvelden op `Task` — `splitGaps` (via de afgeleide `splitGapCount`), `manuallyScheduled`, `levelingDelayMinutes`, `levelingDelayElapsed` bereiken de taak via de JSON-case-interpreter (`buildAndSolve`'s `addTask`-spread). BIJGEWERKT (Z9a, handmatig-gepland-pin): alle vier velden lezen nu daadwerkelijk — `manuallyScheduled` WINT sinds Z9a van `splitGaps`/`levelingDelayMinutes`/`levelingDelayElapsed` op DEZELFDE taak (de manual-tak in `forwardPass` `continue`t vóór de leveling-/splits-optelling ooit bereikt wordt, zie CPMSolver.ts se precedentie-toelichting), dus A.ef/M.es/M.ef/projectEnd zijn nu A's RAUWE `scheduleFinish` (`createDefaultTaskTime('2026-07-06', 3)` → 2026-07-08 via de gewone `addBusinessDays`-uitkomst) i.p.v. de vroegere AUTO-berekening mét gat+vertraging (2026-07-09). `splitGapCount`/`levelingDelayMinutes`/`levelingDelayElapsed` blijven in `expect.tasks.A` staan als PURE veld-passthrough-bewijs (`readTask` leest ze rechtstreeks van het taakobject, ongeacht of de solver ze op déze taak gebruikt) — het doorgiftebewijs voor die drie loopt dus nog steeds mee, alleen niet meer via hún SOLVER-effect op déze specifieke taak (dat bewijs leveren de niet-manual `z6-...`/`z7-split-...`-cases elders al). Mutatiebewijs: de `manuallyScheduled`-doorgifte-spread weghalen uit `buildAndSolve` laat A weer AUTO plannen ⇒ A.ef/M.es/M.ef/projectEnd terug naar 2026-07-09 (de eerdere, nu manual-overrulede AUTO-uitkomst) ⇒ deze case ROOD. `splitGaps`/`levelingDelayMinutes`/`levelingDelayElapsed` los weghalen raakt uitsluitend de drie veld-cellen zelf (ROOD op die drie), niet A.ef/M.es/M.ef/projectEnd — de manual-tak negeert ze toch al, dus hun AFWEZIGHEID verandert niets aan de datums.",
+      "anchor": "2026-07-06",
+      "tasks": [
+        {
+          "name": "A", "dur": 3,
+          "splitGaps": [{ "afterMinutes": 120, "gapMinutes": 480 }],
+          "manuallyScheduled": true,
+          "levelingDelayMinutes": 45,
+          "levelingDelayElapsed": true
+        },
+        { "name": "M", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": {
+            "es": "2026-07-06", "ef": "2026-07-08", "tf": 0, "crit": true,
+            "manuallyScheduled": true, "splitGapCount": 1,
+            "levelingDelayMinutes": 45, "levelingDelayElapsed": true
+          },
+          "M": { "es": "2026-07-08", "ef": "2026-07-08", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-35-z10-sf-weekendgrens",
+      "title": "Z10 — corpusloze reproductie van mpp14relations.mpp/\"Task 5\": een SF+0-opvolger wiens duur exact de volledige capaciteit van de laatst-werkbare dag vóór een weekend beslaat. Mirror van de corpus-keten Task1-FS->Task2-SS+1d->Task3-FF->Task4-SF->Task5 (AM+PM-uurkalender 8u/dag, 08-12/13-17). Task4 (SF-voorganger) bereikt ma 2026-07-13T08:00 via de relatieketen (GEEN eigen anker — dat verschil met de eerste, verworpen reproductiepoging is precies de diagnose, zie `note`). Task5 (Opvolger, dur=1=8 werkuren) hangt via SF+0 aan Task4: reqFinish=Task4.ES=ma08:00. `startFromFinish` trekt 8 werkuren terug vanaf ma08:00 — verbruikt PRECIES vrijdags twee banden (4u+4u) en landt op vr08:00 (Task5.ES — matcht MSP en de huidige runtime al, dus GEEN afwijking op dit veld). Het SYMPTOOM (vóór de Z10-fix): `CPMSolver.forwardPass` herberekende Task5.EF UNIFORM als `addDuration(ES, duur)` VOORWAARTS — vr08:00 + 8 werkuren geeft vr17:00, niet het originele SF-anker ma08:00. MSP's eigen opgeslagen Task 5-Finish (mpp14relations.mpp) is ma08:00 — exact de SF-vereiste-finish. Mutatiebewijs: `forwardFinishFloor` (relationMath.ts) laten teruggeven `null` voor START_FINISH → deze case ROOD op Task5.ef (vr17:00 i.p.v. het gepinde ma08:00); herstel → groen.",
+      "note": "PROCESDOCUMENTATIE (§Z10-verplichte-werkwijze — 'reproduceert de case het niet, breid dan stapsgewijs uit; dát is de diagnose'). Eerste poging (2 taken, Voorganger als WORTELtaak met eigen `start: '2026-07-13'`, dus GEEN eigen voorganger) reproduceerde het corpussymptoom NIET — die gaf Opvolger.es=ma08:00/ef=ma17:00 (een ANDERE, tweede afwijking: Opvolger.ES zelf al fout, wat de corpus niet toont). Oorzaak: `CPMSolver.forwardPass`s `projectStart`-precompute-lus neemt het MINIMUM over ALLE worteltaken — met Voorganger als ENIGE worteltaak ligt die vloer op ma08:00 zélf, dus de correcte SF-kandidaat (vr08:00, chronologisch VÓÓR ma) verloor de `rawMax`-vergelijking tegen die (toevallig samenvallende) vloer. In de corpus is Task4 GEEN worteltaak (ze hangt zelf aan Task1 t/m Task3 via FS/SS/FF), dus de projectvloer ligt daar op Task1's do 09-21 — ruim vóór vr — en interfereert niet. Deze uitgebreide, 5-taken-keten-versie mirrort die topologie exact en reproduceert het symptoom WEL (geverifieerd met een directe `solveProject`-probe vóór deze case geschreven werd).\n\nSTALE-CORRECTIE (2026-08-18, Z10-fixronde 2, reviewbevinding 1): deze note claimde eerder dat `rr-sf-h8-zero`/`rr-sf-hbreak-zero` (cases-hours-relations.json) 'BEIDE ONGEWIJZIGD' bleven met een 'nacht/lunch-gat vs. weekend'-discriminator — dat was de stand ná de EERSTE Z10-commit (253609e2) en is sindsdien INGEHAALD: de orkestrator koos in de daaropvolgende fixronde (84b8bd86) expliciet de UNIFORME SF-ankerregel, geen weekend/binnen-dag-onderscheid (een discriminator zonder MSP-meting zou verzonnen semantiek zijn). `rr-sf-h8-zero`, `rr-sf-hbreak-zero`, `rr-sf-pred-finishms` (cases-hours-relations.json) en `sf-hour` (cases-hours.json) zijn dus WÉL bijgewerkt naar dezelfde regel als deze case, elk met eigen handberekening en motiveringscommentaar in dat bestand — niet 'zonder aangepaste verwachtingen' zoals hier eerder stond. Ook de kwalificatie 'HARDE SNET' voor die vier se A/M-voorganger was onjuist: de SNET-constraint in die cases zet nergens `hard: true` — het is een gewone (zachte) SNET, net als in andere SF-cases; hard-pin-gedrag is apart afgedekt (zie de `msp-36-z10-sf-hardpin-wint`-case (hieronder in dit bestand)). `forwardFinishFloor` raakt nog steeds uitsluitend START_FINISH (FINISH_FINISH blijft ongemoeid); geverifieerd door de volledige suite zonder verdere aanpassingen aan `cases-relations.json`/`cases-lag-advanced.json`.",
+      "anchor": "2026-07-06",
+      "calendar": {
+        "workTime": {
+          "byWeekday": {
+            "1": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "2": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "3": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "4": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "5": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "6": [],
+            "7": []
+          }
+        }
+      },
+      "tasks": [
+        { "name": "Task1", "start": "2026-07-09", "dur": 1 },
+        { "name": "Task2", "dur": 1 },
+        { "name": "Task3", "dur": 1 },
+        { "name": "Task4", "dur": 1 },
+        { "name": "Task5", "dur": 1 }
+      ],
+      "links": [
+        { "pred": "Task1", "succ": "Task2", "type": "FINISH_START" },
+        { "pred": "Task2", "succ": "Task3", "type": "START_START", "lagMinutes": 480 },
+        { "pred": "Task3", "succ": "Task4", "type": "FINISH_FINISH" },
+        { "pred": "Task4", "succ": "Task5", "type": "START_FINISH" }
+      ],
+      "expect": {
+        "tasks": {
+          "Task1": { "es": "2026-07-09T08:00", "ef": "2026-07-09T17:00" },
+          "Task2": { "es": "2026-07-10T08:00", "ef": "2026-07-10T17:00" },
+          "Task3": { "es": "2026-07-13T08:00", "ef": "2026-07-13T17:00" },
+          "Task4": { "es": "2026-07-13T08:00", "ef": "2026-07-13T17:00" },
+          "Task5": { "es": "2026-07-10T08:00", "ef": "2026-07-13T08:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-36-z10-sf-hardpin-wint",
+      "title": "Z10-fixronde 2 (reviewbevinding 3, BESLUIT orkestrator: de harde pin wint) — een SF-opvolger B met een harde MFO-pin (di 2026-07-07T14:00) mag door de SF-vloer (reqFinish=A.es=wo08:00) NIET voorbij zijn eigen pin geduwd worden. Zonder de wacht in CPMSolver.forwardPass (`hardFinishPin`-check vóór de `sfFinishFloor`-toepassing) gaf de reviewer se probe B.ef=wo08:00 (de vloer) terwijl B.lf op de pin (di14:00) bleef staan — EF>LF, tf=-0,25 — een schending van het hardPin-contract 'EF=LF=pin, tf=0'.",
+      "note": "Handberekening (single-band-kalender 8-16u): A(4u, SNET wo 07-08, ZACHT) → A.es=wo08:00, A.ef=wo08:00+4u=wo12:00. B(8u, MFO HARD di 07-07T14:00) via SF+0 van A: `hardPinFinish(B)` = di14:00 (de pin zelf, ONGEACHT de SF-vloer — dat is precies de fix). B.es/B.ls = `startFromFinish`/`subDuration` 8u terug vanaf di14:00: binnen di's eigen band (8,16] verbruikt 6u (14:00→08:00), resterende 2u loopt terug in ma's band (eind 16:00) → ma 07-06T14:00. B.ef=B.lf=di07-07T14:00, tf=0, kritiek. De SF-relatie zelf blijft daarmee semantisch ONVERZADIGD (B se pin ligt vóór A se eigen start, wo08:00) — dat manifesteert zich NIET als een fout op B (die is hard gepind en dus per contract tf=0) maar als NEGATIEVE speling op A zelf via de gewone backward-constraint-propagatie (A.lf wordt teruggetrokken door B se harde late-zijde): A.ls=di07-07T14:00, A.lf=wo07-08T10:00, A.tf=-0,25 — een normale, reeds bestaande CPM-uitkomst voor een overgeconstraineerd netwerk, niet iets dat deze fix zelf veroorzaakt of hoort op te lossen (`hardPinViolatedIds` blijft het aparte signaal voor pin-schendingen, ongewijzigd door deze taak). Mutatiebewijs: de `!hardFinishPin`-wacht in CPMSolver.forwardPass (vóór de `sfFinishFloor`-toepassing) weghalen → B.ef verspringt naar wo08:00 (de vloer wint alsnog over de pin) en B.tf wordt -0,25 → deze case ROOD op B.ef/B.tf (en A.ls/A.lf/A.tf schuiven ook, want projectEnd verandert); herstel → groen.",
+      "anchor": "2026-07-06",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "tasks": [
+        { "name": "A", "dur": "4u", "constraint": { "type": "SNET", "date": "2026-07-08" } },
+        { "name": "B", "dur": "8u", "constraint": { "type": "MFO", "date": "2026-07-07T14:00", "hard": true } }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "START_FINISH" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-07T14:00", "lf": "2026-07-08T10:00", "tf": -0.25, "crit": true },
+          "B": { "es": "2026-07-06T14:00", "ef": "2026-07-07T14:00", "ls": "2026-07-06T14:00", "lf": "2026-07-07T14:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "msp-37-z10-fs-finishms-cascade",
+      "title": "Z10-fixronde 2 (reviewbevinding 4, BESLUIT orkestrator: huidig gedrag pinnen). De SF-vloer op Task5 (msp-35-topologie) verandert Task5.ef van vr17:00 (vóór Z10) naar ma08:00 (ná Z10) — en Task6, een FINISH-mijlpaal die via FS+0 rechtstreeks aan Task5 hangt, erft die verschuiving 1-op-1 via `landRawInstant` (Task6 landt raw op Task5.ef, ongeacht welke waarde dat is). Dit is een correct, mechanisch gevolg van de uniforme SF-ankerregel — geen tweede bug — maar MSP-ongemeten: geen corpusbestand bevat deze exacte SF→FS-finish-mijlpaal-keten.",
+      "note": "MSP-ongemeten gevolg van de uniforme SF-ankerregel; een toekomstig corpusbestand dat dit tegenspreekt wint. Handberekening: Task5.ef = ma 07-13T08:00 (zie msp-35 voor de volledige afleiding). Task6 (FINISH-mijlpaal, FS+0 van Task5): `predEndsBeginOfDay`/`succIsFinishMs`-kortsluiting in forwardHour's FS-tak geeft `predDone = predResult.ef` rechtstreeks (Task5.ef, RAUW, geen dag-boundary-`+1`); `shiftLagPred` met lag=0 normaliseert naar `nextWorkInstant(predDone)` — die is al gelijk aan `predDone` zelf (ma08:00 is een geldige werk-instant) ⇒ `lagIsZero` ⇒ `landRawInstant(predDone)` geeft de rauwe ma07-13T08:00 ONGESNAPT terug. Task6.es=Task6.ef=ma07-13T08:00. Mutatiebewijs: `forwardFinishFloor` → `null` (dezelfde mutatie als msp-35) maakt Task5.ef weer vr07-10T17:00 → Task6 verspringt mee naar vr07-10T17:00 → deze case ROOD op Task5.ef/Task6.es/Task6.ef; herstel → groen (gedeeld mutatiebewijs met msp-35, apart genoteerd omdat het een ANDER veld/taak raakt).",
+      "anchor": "2026-07-06",
+      "calendar": {
+        "workTime": {
+          "byWeekday": {
+            "1": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "2": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "3": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "4": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "5": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+            "6": [],
+            "7": []
+          }
+        }
+      },
+      "tasks": [
+        { "name": "Task1", "start": "2026-07-09", "dur": 1 },
+        { "name": "Task2", "dur": 1 },
+        { "name": "Task3", "dur": 1 },
+        { "name": "Task4", "dur": 1 },
+        { "name": "Task5", "dur": 1 },
+        { "name": "Task6", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [
+        { "pred": "Task1", "succ": "Task2", "type": "FINISH_START" },
+        { "pred": "Task2", "succ": "Task3", "type": "START_START", "lagMinutes": 480 },
+        { "pred": "Task3", "succ": "Task4", "type": "FINISH_FINISH" },
+        { "pred": "Task4", "succ": "Task5", "type": "START_FINISH" },
+        { "pred": "Task5", "succ": "Task6", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "Task5": { "es": "2026-07-10T08:00", "ef": "2026-07-13T08:00" },
+          "Task6": { "es": "2026-07-13T08:00", "ef": "2026-07-13T08:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-38-z11-kruiskalender-identieke-banden-extra-werkdag",
+      "title": "Z11 (dossier kruis-kalender-FS-asymmetrie) — de discriminator-kant 'identieke gedeelde banden ⇒ opvolger-eerst', uur-modus. P38 (ma-vr 08:00-17:00) en Q38 delen IDENTIEKE ma-vr-banden maar Q38 werkt óók zaterdag (08:00-17:00) — extrapolatie naar uur-modus van het byte-onderbouwde DAG-modus-corpusgeval (T16c-M1, OzBuild), corpusloos gereconstrueerd. MSP-ONGEMETEN voor uur-modus zelf: geen corpusbestand bevat deze exacte combinatie in uur-modus — een toekomstig corpusbestand dat dit tegenspreekt wint (zie het Z10-precedent, msp-37).",
+      "note": "Handberekening: A(45u, P38) vanaf ma08:00 verbruikt precies 5×9u (elke dag exact één band) ⇒ A.ef=vr17:00. B (FS+0, Q38): vóór Z11 snapte de grens EERST in P38 (die zaterdag niet kent) ⇒ P38.nextWorkInstant(vr17:00)=ma-erna 08:00 ⇒ B.es=ma-erna 08:00 (FOUT, de bug). NA Z11 (calendarsAgreeOnSharedWorkdayBands(P38,Q38)=true, want de enige weekdag waarop ze verschillen — zaterdag — is voor P38 geen werkdag en telt dus niet mee) snapt de grens rechtstreeks in Q38: Q38.nextWorkInstant(vr17:00) — vr17:00 valt niet in [08:00,17:00) maar Q38 se zaterdag-band bestaat WEL ⇒ B.es=za08:00. Mutatiebewijs: de nieuwe discriminator-tak in `forwardDay`/`forwardHour` (relationMath.ts) terugdraaien (gedwongen voorganger-eerst) → deze case ROOD op B.es/B.ef (za08:00/za17:00 → ma-erna 08:00/17:00); herstel → groen.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "P38", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+        { "name": "Q38", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [{ "start": 480, "end": 1020 }], "7": [] } } }
+      ],
+      "tasks": [
+        { "name": "A", "dur": "45u", "calendar": "P38" },
+        { "name": "B", "dur": "9u", "calendar": "Q38" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-10T17:00" },
+          "B": { "es": "2026-07-11T08:00", "ef": "2026-07-11T17:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-39-z11-kruiskalender-verschillende-bandgrenzen",
+      "title": "Z11 (dossier kruis-kalender-FS-asymmetrie) — de discriminator-kant 'verschillende bandgrenzen ⇒ voorganger-eerst', uur-modus. R39 (ma-vr 08:00-17:00) en S39 (ma-vr 08:30-17:30, ZELFDE weekdagen maar ANDERE band-tijden) — een TWEEDE, van de guard-case (msp-04) los staande instantie van hetzelfde principe, met S39's band zó gekozen dat 'm het voorganger-finish-instant (vr17:00) toevallig BEVAT — precies de constructie die een opvolger-eerst-snap onterecht zou laten staan. MSP-ONGEMETEN: dit is een interne-consistentietoets tegen msp-04 (guard-case), geen MSP-meting op zich — de guard-case zelf leunt op ProjectLibre-semantiek/interne redenering, niet op een corpusbestand (zie §9); een toekomstig corpusbestand dat dit tegenspreekt wint.",
+      "note": "Handberekening: C(9u, R39) vanaf ma08:00 vult exact R39's ma-band (08:00-17:00) ⇒ C.ef=ma17:00. D (FS+0, S39), MET de discriminator (bandgrenzen verschillen: 480≠510, 1020≠1050 ⇒ calendarsAgreeOnSharedWorkdayBands=false ⇒ voorganger-eerst blijft staan): R39.nextWorkInstant(ma17:00) — ma17:00(=1020) valt niet in R39's band [480,1020) (rand-exclusief) ⇒ snapt naar di08:00 (R39 kent geen zaterdag/zondag) ⇒ S39.nextWorkInstant(di08:00) — di08:00(=480) valt vóór S39's band [510,1050) ⇒ snapt naar di08:30 ⇒ D.es=di08:30. Zónder de discriminator (opvolger-eerst geforceerd) zou S39.nextWorkInstant(ma17:00) rechtstreeks getoetst worden: ma17:00(=1020) valt WEL binnen S39's band [510,1050) (1020<1050) ⇒ blijft ma17:00 — D.es zou dan ma17:00 zijn, een heel andere (foute) dag. Mutatiebewijs: de discriminator geforceerd op 'opvolger-eerst' (calendarsAgreeOnSharedWorkdayBands altijd `true` laten teruggeven) → deze case ROOD op D.es/D.ef (ma17:00/ma18:00 i.p.v. di08:30/di09:30); msp-04 (guard-case) ROOD op dezelfde mutatie; herstel → beide groen.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "R39", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+        { "name": "S39", "workTime": { "byWeekday": { "1": [{ "start": 510, "end": 1050 }], "2": [{ "start": 510, "end": 1050 }], "3": [{ "start": 510, "end": 1050 }], "4": [{ "start": 510, "end": 1050 }], "5": [{ "start": 510, "end": 1050 }], "6": [], "7": [] } } }
+      ],
+      "tasks": [
+        { "name": "C", "dur": "9u", "calendar": "R39" },
+        { "name": "D", "dur": "1u", "calendar": "S39" }
+      ],
+      "links": [{ "pred": "C", "succ": "D", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "C": { "es": "2026-07-06T08:00", "ef": "2026-07-06T17:00" },
+          "D": { "es": "2026-07-07T08:30", "ef": "2026-07-07T09:30" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-40-z11-kruiskalender-dagmodus-extra-werkdag",
+      "title": "Z11 — direct bewijs voor de `forwardDay`-tak (het corpusgeval zelf is dag-modus: OzBuild's 'Standard'/'6 Day Week' dragen geen `workTime`). MF40 (ma-vr) en Z640 (ma-za) — dag-modus draagt geen bandtijden, dus `calendarsAgreeOnSharedWorkdayBands` is hier per definitie `true` (geen weekdag heeft ooit een bandverschil om op te struikelen) en de discriminator reduceert tot 'altijd opvolger-eerst bij lag=0' — precies de eerder (T16c-M1) al empirisch geverifieerde dag-modus-uitkomst.",
+      "note": "Handberekening: E(5 werkdagen, MF40) vanaf ma 2026-07-06 ⇒ E.ef=vr 2026-07-10 (identiek aan kal-scenario-1's P-taak). F (FS+0, Z640): vóór Z11 snapte `pe.nextWorkDayAfter(vr07-10)` EERST in MF40 (kent geen zaterdag) ⇒ ma 07-13 (FOUT). NA Z11: `se.nextWorkDayAfter(vr07-10)` snapt rechtstreeks in Z640, die zaterdag WEL kent ⇒ F.es=za 07-11. Mutatiebewijs: de nieuwe `lag===0`-kortsluiting in `forwardDay`'s FINISH_START-tak terugdraaien → deze case ROOD op F.es/F.ef (za07-11 → ma07-13); herstel → groen.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "MF40", "workDays": [1, 2, 3, 4, 5] },
+        { "name": "Z640", "workDays": [1, 2, 3, 4, 5, 6] }
+      ],
+      "tasks": [
+        { "name": "E", "dur": 5, "calendar": "MF40" },
+        { "name": "F", "dur": 1, "calendar": "Z640" }
+      ],
+      "links": [{ "pred": "E", "succ": "F", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "E": { "es": "2026-07-06", "ef": "2026-07-10" },
+          "F": { "es": "2026-07-11", "ef": "2026-07-11" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-41-z11-punt2-startmijlpaal-uitgesloten",
+      "title": "Z11-fixronde (Opus-review, punt 2, MIDDEN/verplicht) — een STARTmijlpaal-opvolger valt NIET door de nieuwe discriminator-tak, ook al zouden P41/Q41 'm anders (net als msp-38) triggeren. M (milestoneKind START) op Q41, FS+0 van A op P41 (identieke gedeelde banden + Q41 werkt óók zaterdag) — vóór Z11 had de FS-default-tak geen eigen kortsluiting voor een startmijlpaal-opvolger; die loopt gewoon door de generieke voorganger-eerst-weg. Pint dat Z11 die weg ONGEWIJZIGD laat.",
+      "note": "Handberekening: A(45u, P41) ⇒ A.ef=vr17:00 (identiek aan msp-38). M is `succIsStartMs` ⇒ de nieuwe `!succIsStartMs`-uitsluiting in `forwardHour`'s FS-tak (relationMath.ts) blokkeert de discriminator-tak, dus M loopt via de OUDE weg: `lagged=P41.nextWorkInstant(vr17:00)`=ma-erna 08:00 (P41 kent geen zaterdag) ⇒ M.es=Q41.availableStart(ma-erna 08:00)=ma-erna 08:00 (al geldig). M is 0-duur ⇒ M.ef=M.es. Zónder de uitsluiting zou M.es=za08:00 zijn geweest (dezelfde discriminator-shortcut als msp-38). Mutatiebewijs: `!succIsStartMs` weghalen uit de guard → deze case ROOD op M.es/M.ef (ma-erna 08:00 → za08:00); msp-38 blijft ONGEWIJZIGD (die raakt de uitsluiting niet, B is geen mijlpaal); herstel → groen.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "P41", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+        { "name": "Q41", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [{ "start": 480, "end": 1020 }], "7": [] } } }
+      ],
+      "tasks": [
+        { "name": "A", "dur": "45u", "calendar": "P41" },
+        { "name": "M", "milestone": true, "milestoneKind": "START", "calendar": "Q41" }
+      ],
+      "links": [{ "pred": "A", "succ": "M", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-10T17:00" },
+          "M": { "es": "2026-07-13T08:00", "ef": "2026-07-13T08:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-42-z11-punt2-elapsed-opvolger-uitgesloten",
+      "title": "Z11-fixronde (Opus-review, punt 2, MIDDEN/verplicht) — een ELAPSEDTIME-DUUR-opvolger (`succElapsed`, de opvolger se EIGEN duurtype — niet de lag-eenheid) valt NIET door de nieuwe discriminator-tak. E (durationType ELAPSEDTIME) op Q42, FS+0 (WORKTIME-lag, lag=0) van A op P42 (identieke gedeelde banden + Q42 werkt óók zaterdag) — vóór Z11 liep zo'n opvolger door dezelfde generieke voorganger-eerst-weg als een gewone taak; pint dat Z11 die weg ONGEWIJZIGD laat.",
+      "note": "Handberekening: A(45u, P42) ⇒ A.ef=vr17:00 (identiek aan msp-38). E is `succElapsed` ⇒ de nieuwe `!succElapsed`-uitsluiting blokkeert de discriminator-tak: `lagged=P42.nextWorkInstant(vr17:00)`=ma-erna 08:00 ⇒ E.es=Q42.availableStart(ma-erna 08:00)=ma-erna 08:00. E (2u elapsed) ⇒ E.ef=E.es+2u=ma-erna 10:00. Zónder de uitsluiting zou E.es=za08:00 zijn geweest. Mutatiebewijs: `!succElapsed` weghalen uit de guard → deze case ROOD op E.es/E.ef (ma-erna 08:00/10:00 → za08:00/10:00); herstel → groen.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "P42", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+        { "name": "Q42", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [{ "start": 480, "end": 1020 }], "7": [] } } }
+      ],
+      "tasks": [
+        { "name": "A", "dur": "45u", "calendar": "P42" },
+        { "name": "E", "dur": "2u", "durationType": "ELAPSEDTIME", "calendar": "Q42" }
+      ],
+      "links": [{ "pred": "A", "succ": "E", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-10T17:00" },
+          "E": { "es": "2026-07-13T08:00", "ef": "2026-07-13T10:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-43-z11-punt4-bandvolgorde-ongevoelig",
+      "title": "Z11-fixronde (Opus-review, punt 4, LAAG) — een kalender met meerdere banden per dag (gesplitste dienst) hoeft ze niet in chronologische volgorde op te slaan. P43 en Q43 dragen op ma-vr DEZELFDE twee banden (08:00-12:00, 13:00-17:00) maar Q43 slaat ze in OMGEKEERDE volgorde op; Q43 werkt daarnaast óók zaterdag. De discriminator moet de banden vóór vergelijking sorteren, anders ziet een positionele vergelijking een verzonnen verschil.",
+      "note": "Handberekening: A(40u, P43) vanaf ma08:00 verbruikt 2×240min/dag (twee gelijke banden) × 5 dagen = 2400min=40u exact ⇒ A.ef=vr17:00 (het eind van de TWEEDE band die dag). B (FS+0, Q43): `calendarsAgreeOnSharedWorkdayBands` sorteert Q43's (omgekeerde) vr-banden vóór vergelijking naar `[[08:00,12:00],[13:00,17:00]]` — identiek aan P43's ⇒ `true` ⇒ opvolger-eerst: Q43.nextWorkInstant(vr17:00) — 17:00 valt niet in [13:00,17:00) ⇒ snapt naar za se eerste band 08:00 ⇒ B.es=za08:00. B (4u) vult exact za se eerste band ⇒ B.ef=za12:00. Mutatiebewijs (sort weglaten in `calendarsAgreeOnSharedWorkdayBands`): de OMGEKEERDE Q43-array vergelijkt dan positioneel tegen P43's array en ziet een vals verschil (`{13:00-17:00}` op index 0 vs `{08:00-12:00}`) ⇒ discriminator ten onrechte `false` ⇒ voorganger-eerst ⇒ B.es zou ma-erna 08:00 worden (P43 kent geen zaterdag) — deze case ROOD op B.es/B.ef; herstel (sort terug) → groen.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "P43", "workTime": { "byWeekday": {
+          "1": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+          "2": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+          "3": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+          "4": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+          "5": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }],
+          "6": [], "7": []
+        } } },
+        { "name": "Q43", "workTime": { "byWeekday": {
+          "1": [{ "start": 780, "end": 1020 }, { "start": 480, "end": 720 }],
+          "2": [{ "start": 780, "end": 1020 }, { "start": 480, "end": 720 }],
+          "3": [{ "start": 780, "end": 1020 }, { "start": 480, "end": 720 }],
+          "4": [{ "start": 780, "end": 1020 }, { "start": 480, "end": 720 }],
+          "5": [{ "start": 780, "end": 1020 }, { "start": 480, "end": 720 }],
+          "6": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "7": []
+        } } }
+      ],
+      "tasks": [
+        { "name": "A", "dur": "40u", "calendar": "P43" },
+        { "name": "B", "dur": "4u", "calendar": "Q43" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-10T17:00" },
+          "B": { "es": "2026-07-11T08:00", "ef": "2026-07-11T12:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-44-z11-punt5-holiday-landingsdag",
+      "title": "Z11-fixronde (Opus-review, punt 5, LAAG) — een holiday bij de OPVOLGER op precies de landingsdag houdt voorganger-eerst in stand, ook al zou de opvolger's eigen `nextWorkInstant` daarna toevallig op de opvolger se 'extra werkdag' uitkomen. P44/Q44 zijn verder identiek aan msp-38 (P38/Q38, incl. Q44's extra zaterdag), maar Q44 heeft een holiday op precies de landingsdag (vrijdag 2026-07-10).",
+      "note": "Handberekening: A(45u, P44) ⇒ A.ef=vr17:00 (identiek aan msp-38, P44 heeft geen holiday). B (FS+0, Q44): `effectiveBandsOn(Q44, vr07-10)`=`[]` (holiday onderdrukt die dag) tegenover `effectiveBandsOn(P44, vr07-10)`=`[08:00,17:00)` — ASYMMETRISCH leeg ⇒ `calendarsAgreeOnSharedWorkdayBands`=`false` ⇒ voorganger-eerst blijft staan: `P44.nextWorkInstant(vr17:00)`=ma-erna 08:00 (P44 kent geen zaterdag) ⇒ B.es=Q44.availableStart(ma-erna 08:00)=ma-erna 08:00. Zonder de asymmetrie-wacht (bv. 'één kant leeg ⇒ toch `true`') zou de discriminator ten onrechte opvolger-eerst kiezen: `Q44.nextWorkInstant(vr17:00)` slaat de holiday-vrijdag over maar vindt Q44's WEL-werkende zaterdag ⇒ B.es zou za08:00 zijn geworden — exact de msp-04-foutvorm, nu via een holiday i.p.v. een structureel andere kalender. Mutatiebewijs: de asymmetrie-wacht in `calendarsAgreeOnSharedWorkdayBands` vervangen door 'één kant leeg ⇒ `true`' → deze case ROOD op B.es/B.ef (ma-erna 08:00/17:00 → za08:00/17:00); msp-38 ONGEWIJZIGD (daar is nergens een holiday, dus de wacht wordt daar nooit geraakt); herstel → groen.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "P44", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+        { "name": "Q44", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [{ "start": 480, "end": 1020 }], "7": [] } }, "holidays": [{ "name": "Q44-only landingsdag-feestdag", "startDate": "2026-07-10", "endDate": "2026-07-10" }] }
+      ],
+      "tasks": [
+        { "name": "A", "dur": "45u", "calendar": "P44" },
+        { "name": "B", "dur": "9u", "calendar": "Q44" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-10T17:00" },
+          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T17:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-45-z11-punt1-workingexception-landingsdag",
+      "title": "Z11-fixronde (Opus-review, punt 1, MIDDEN/verplicht) — de reviewer-probe: P45/Q45 delen een IDENTIEK STATISCH weekpatroon (ma-vr 08:00-17:00), maar Q45 draagt een werkende uitzondering op precies de landingsdag (vrijdag 2026-07-10) die de band DIE DAG verbreedt naar 08:00-18:00. Een discriminator die alleen de statische weekdagtabel vergelijkt ziet 'identiek' (geen exceptie in `workTime.byWeekday`) en zou ten onrechte opvolger-eerst kiezen — exact de msp-04-foutvorm, nu latent via een uitzondering i.p.v. een structureel andere kalender.",
+      "note": "Handberekening: A(45u, P45) ⇒ A.ef=vr17:00 (identiek aan msp-38, P45 heeft geen uitzondering). B (FS+0, Q45): `effectiveBandsOn(Q45, vr07-10)`=`[08:00,18:00)` (MET de uitzondering) tegenover `effectiveBandsOn(P45, vr07-10)`=`[08:00,17:00)` — VERSCHILLEND (1020≠1080) ⇒ `calendarsAgreeOnSharedWorkdayBands`=`false` ⇒ voorganger-eerst blijft staan: `P45.nextWorkInstant(vr17:00)`=ma-erna 08:00 (P45 kent geen zaterdag/uitzondering) ⇒ B.es=Q45.availableStart(ma-erna 08:00)=ma-erna 08:00. Zónder punt-1-fix (statische tabel i.p.v. `effectiveBandsOn`) zou de discriminator 'identiek' zeggen (P45/Q45's `workTime.byWeekday` is voor beide gelijk) ⇒ opvolger-eerst ⇒ `Q45.nextWorkInstant(vr17:00)` — vr17:00(=1020) valt WEL binnen Q45's VERBREDE band [08:00,18:00)=[480,1080) ⇒ blijft vr17:00 ONVERANDERD ⇒ B.es zou vr17:00 zijn geworden. Mutatiebewijs: `calendarsAgreeOnSharedWorkdayBands` terugzetten op de statische-weekdagtabel-vergelijking (zonder `onDate`/`effectiveBandsOn`) → deze case ROOD op B.es/B.ef (ma-erna 08:00/09:00 → vr17:00/18:00); msp-04/msp-38/msp-39 blijven ONGEWIJZIGD (geen van drieën gebruikt workingExceptions); herstel → groen.",
+      "anchor": "2026-07-06",
+      "calendars": [
+        { "name": "P45", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+        { "name": "Q45", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } }, "workingExceptions": [{ "name": "Verlengde vrijdag (landingsdag-uitzondering)", "startDate": "2026-07-10", "endDate": "2026-07-10", "bands": [{ "start": 480, "end": 1080 }] }] }
+      ],
+      "tasks": [
+        { "name": "A", "dur": "45u", "calendar": "P45" },
+        { "name": "B", "dur": "1u", "calendar": "Q45" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-07-06T08:00", "ef": "2026-07-10T17:00" },
+          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T09:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-46-z6-uur-precisie-plus-float",
+      "title": "Z6 acceptatiepunt 1a — uur-kalender, delay 90 min, VOORGANGER-gedreven (ankerregel): ES exact 90 werkminuten na het voorganger-anker, plus float-context (`Long` levert speling; `Short` verliest daar exact 90/540 werkdag van via de delay t.o.v. `ShortNoDelay`).",
+      "note": "Z6-fixronde (ANKERREGEL): `Short` heeft nu een voorganger `P0` (0-duur mijlpaal op 08:00) — zonder voorganger zou de vertraging NOOIT toegepast worden (het eigen anker is dan de bron van waarheid, zie CPMSolver.ts). Handberekening: band 08:00-17:00 (540 werkmin/dag). `Short.es` vóór delay = `P0`s finish = 08:00 (FS+0); `levelingDelayMinutes=90` ⇒ `cal.addWorkingMinutesSigned(08:00, 90)`=09:30 (binnen dezelfde band) ⇒ ES=09:30, EF=09:30+2u=11:30. Float: `Long` (40u, wortel, geen delay — de ankerregel raakt haar niet) bepaalt het projecteinde; `Short`/`ShortNoDelay` (beide 2u, `Short` met de 90-min-delay) delen dezelfde `lateFinish` (backward-DOORGIFTE is hier een no-op: geen van beiden heeft zelf een opvolger met een delay) ⇒ `tf` daalt voor `Short` met EXACT 90/540=1/6 werkdag t.o.v. `ShortNoDelay` (4.222222… → 4.055555…, mutatiebewezen: zie het commitbericht/CPMSolver.ts-docblok bij `subDuration`).",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "Long", "dur": "40u" },
+        { "name": "P0", "milestone": true, "start": "2026-06-01T08:00" },
+        { "name": "Short", "dur": "2u", "levelingDelayMinutes": 90 },
+        { "name": "ShortNoDelay", "dur": "2u" }
+      ],
+      "links": [{ "pred": "P0", "succ": "Short", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "Short": { "es": "2026-06-01T09:30", "ef": "2026-06-01T11:30", "tf": 4.055555555555555 },
+          "ShortNoDelay": { "tf": 4.222222222222222 }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-52-z6-ankerregel-wortel-genegeerd",
+      "title": "Z6-fixronde (ANKERREGEL, negatieve spiegel van msp-46) — dezelfde 90-min-delay op een WORTEL-taak (geen voorganger) wordt NIET toegepast: ES/EF byte-identiek aan een taak zonder delay.",
+      "note": "`A` is een wortel-taak (geen voorganger) met dezelfde `levelingDelayMinutes=90` als msp-46's `Short`, maar zonder de `P0`-voorganger. Ankerregel: `task.time.scheduleStart` is voor een `.mpp`-geïmporteerde wortel-taak MSP's EIGEN, al-berekende eindantwoord — onze delay daar nogmaals op toepassen zou 'm dubbel tellen (het bewezen mechanisme achter `mpp14barstyle.mpp`s regressie in de eerste Z6-oplevering). ES blijft dus op het rauwe anker (08:00), NIET 09:30. Mutatiebewijs: `!noPreds`-guard weghalen (delay ongeclausuleerd toepassen, zoals de eerste Z6-oplevering deed) → deze case ROOD (ES zou 09:30 worden) én `AControl` (identieke taak zonder delay) blijft toevallig hetzelfde (dus het contrast met `AControl` is het bewijs, niet de kale ES-waarde alleen).",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "A", "dur": "2u", "levelingDelayMinutes": 90 },
+        { "name": "AControl", "dur": "2u" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01T08:00", "ef": "2026-06-01T10:00" },
+          "AControl": { "es": "2026-06-01T08:00", "ef": "2026-06-01T10:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-53-z6-anker-regel-wortel-met-constraint",
+      "title": "Z6-fixronde (ANKERREGEL, ongemeten constraint-geval, expliciet gepind) — wortel-taak MET SNET-constraint EN delay: de ankerregel blijft gelden (nog steeds de `noPreds`-tak), de delay wordt genegeerd — ONGEMETEN in het corpus (0 van 19 delay-taken combineren wortel + constraint), dus hier expliciet vastgelegd i.p.v. aangenomen.",
+      "note": "`A` is een wortel-taak met een SNET-constraint op 10:00 (later dan haar eigen anker 08:00, dus bindend) ÉN `levelingDelayMinutes=90`. Gekozen regel: de `noPreds`-tak (wortel/eigen-anker) is de discriminator, ONGEACHT of een constraint dat anker vervolgens optilt — A.es blijft dus op de constraint-gesnapte 10:00, de 90-min-delay wordt NIET nog eens toegepast (zou 11:30 worden). Corpusmeting (CPMSolver.ts-docblok): van de 19 corpus/crawl-taken met een delay dragen er 11 een SNET/MSO-achtige constraint, en ALLE 11 hebben ook een voorganger — dit exacte scenario (wortel + constraint + delay) komt in het gemeten corpus niet voor.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "A", "dur": "2u", "constraint": { "type": "SNET", "date": "2026-06-01T10:00" }, "levelingDelayMinutes": 90 }
+      ],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-01T10:00", "ef": "2026-06-01T12:00" } },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-47-z6-delay-over-weekend",
+      "title": "Z6 acceptatiepunt 1b — delay over een weekend: werktijd telt, kalendertijd niet (voorganger-gedreven, ankerregel).",
+      "note": "Z6-fixronde: `A` heeft nu voorganger `P0` (0-duur mijlpaal op vrijdag 2026-06-05 15:00, binnen de band 08:00-17:00) i.p.v. een eigen ongebruikt anker — de ankerregel zou de delay anders genegeerd hebben. `A.es` vóór delay = `P0`s finish = vr 15:00 (FS+0). `levelingDelayMinutes=300` (5 werkuur): vrijdag resteert 15:00-17:00=120 werkmin, dus 300-120=180 werkmin schuiven door naar de eerstvolgende werkdag (maandag 2026-06-08, weekend telt niet mee) ⇒ 08:00+180min=11:00. ES=2026-06-08T11:00 — NIET vrijdag 20:00 (dat zou 300 kalenderminuten zijn, de ELAPSED-uitkomst van msp-48 hieronder).",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "P0", "milestone": true, "start": "2026-06-05T15:00" },
+        { "name": "A", "dur": "2u", "levelingDelayMinutes": 300 }
+      ],
+      "links": [{ "pred": "P0", "succ": "A", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-08T11:00", "ef": "2026-06-08T13:00" } },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-48-z6-elapsed-delay",
+      "title": "Z6 acceptatiepunt 1c — `levelingDelayElapsed` rekent 24/7 via `addElapsedMinutes`, niet via de kalender, MAAR het resultaat wordt terug de werkband ingesnapt (M1, Z6-fixronde): de taak zelf blijft WORKTIME.",
+      "note": "Z6-fixronde M1: de eerste oplevering pinde hier een OFF-BAND ES (vr 20:00) als 'correct' — het gemengde corpusbestand (a69fec157074d056) weerlegde dat: MSP's eigen SCHEDULED_START snapt zo'n geval terug naar het eerstvolgende geldige werk-instant (08:00), niet naar het kale kloktijd-resultaat. `A` heeft nu voorganger `P0` (0-duur mijlpaal vrijdag 2026-06-05 15:00). `A.es` vóór delay = vr 15:00. `levelingDelayMinutes=300` + `levelingDelayElapsed=true` ⇒ kale kloktijd-optelling (T8-precedent `addElapsedMinutes`): 15:00+5u=20:00 (zelfde dag) — DAARNA `snapOnOrAfter` (de taak zelf is WORKTIME, dus moet op een werk-instant landen): 20:00 valt na de vrijdagband (17:00) en er is geen latere band die dag ⇒ eerstvolgende werkdag = maandag 08:00. ES=2026-06-08T08:00, EF=+2u=10:00. Mutatiebewijs: `snapOnOrAfter`-stap weglaten → deze case ROOD (ES zou vr 20:00 blijven) én het gemengde corpusbestand kreeg zonder deze snap 2 sameday-afwijkingen (onze 04:49/03:39 tegen MSP's 08:00).",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "P0", "milestone": true, "start": "2026-06-05T15:00" },
+        { "name": "A", "dur": "2u", "levelingDelayMinutes": 300, "levelingDelayElapsed": true }
+      ],
+      "links": [{ "pred": "P0", "succ": "A", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-08T08:00", "ef": "2026-06-08T10:00" } },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-49-z6-volgorde-dependency-constraint-delay-plus-float",
+      "title": "Z6 acceptatiepunt 1d — delay op een taak MET voorganger ÉN constraint: de volgorde dependency → constraint → delay → voortgang is aantoonbaar díe en geen andere, plus de float-assert die de backward-spiegel-beslissing bewijst.",
+      "note": "P (2u, geen delay) start ma 2026-06-01 08:00 ⇒ P.ef=10:00 (dependency-grens voor A). A draagt EEN SNET-constraint op 13:00 (LATER dan de dependency-grens, dus bindend: max(10:00,13:00)=13:00) ÉN `levelingDelayMinutes=60`. Juiste volgorde (dependency → constraint → delay): 10:00 → constraint wint (13:00) → +60min delay = 14:00. Zou delay VÓÓR de constraint-toepassing gebeuren (fout, `delay → constraint`): 10:00+60min=11:00 → constraint wint alsnog (max(11:00,13:00)=13:00) → 13:00 ≠ 14:00 — dit cijfer (14:00 i.p.v. 13:00) is dus zelf al het volgorde-bewijs. `Long` (40u) levert de float-context; A.tf=3.5555555555555554 (mutatie-bewezen tijdens implementatie: een naïeve backward-spiegel — `subDuration` trekt de delay ook af — verlaagt dit naar 3.4444444444444446, exact ÉÉN delay-eenheid (60min=1/9 werkdag) te veel; zie het docblok bij `subDuration`/de vertraging-toepassing in `forwardPass`, CPMSolver.ts).",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "Long", "dur": "40u" },
+        { "name": "P", "dur": "2u" },
+        { "name": "A", "dur": "2u", "constraint": { "type": "SNET", "date": "2026-06-01T13:00" }, "levelingDelayMinutes": 60 }
+      ],
+      "links": [{ "pred": "P", "succ": "A", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-01T14:00", "ef": "2026-06-01T16:00", "tf": 3.5555555555555554 } },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-50-z6-invariant-elapsed-wortel-hele-dagen-delay",
+      "title": "Z6 acceptatiepunt 4 (invariant-waarschuwing) — ELAPSEDTIME-wortel-taak met opgeslagen anker op een NIET-werkdag (zaterdag, T8's `rootElapsed`-bypass) + een hele-dagen `levelingDelay`: de delay-toepassing mag `addWorkingDaysSigned`s eerste-argument-normalisatie (`nextWorkDay`) niet raken — anders duwt de delay het elapsed-anker alsnog de werkband in.",
+      "note": "A (ELAPSEDTIME, dur 2 dagen) heeft een opgeslagen anker op zaterdag 2026-06-06 (`rootElapsed`-tak in `forwardPass`: GEEN werkdag-snap, T8-precedent). `levelingDelay=2` (hele dagen, zoals de `ResourceLeveler` het zet) via `afterCPM.setLevelingDelay`. Met de Z6-fix (taak is elapsed ⇒ `addElapsedMinutes(zaterdag, 2×24×60)`, GEEN kalenderband-aanraking): ES=2026-06-08 (zaterdag+2 kalenderdagen=maandag, toevallig — het punt is dat de optelling NOOIT eerst naar een werkdag snapt). Mutatiebewijs (tijdens implementatie, teruggedraaid): zonder de `taskElapsed`-guard (het OUDE, ongeclausuleerde `cal.addWorkingDaysSigned(zaterdag, 2)`-pad) normaliseert `addWorkingDaysSigned` EERST naar `nextWorkDay(zaterdag)`=maandag 06-08, en telt DAARNA 2 werkdagen op ⇒ ES=2026-06-10 (woensdag) — 2 dagen later dan de correcte elapsed-uitkomst, exact de invariant-schending die dit acceptatiepunt vlagt.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "A", "dur": 2, "durationType": "ELAPSEDTIME", "start": "2026-06-06" }
+      ],
+      "afterCPM": [
+        { "setLevelingDelay": { "task": "A", "days": 2 } },
+        { "runCPM": true }
+      ],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-08", "ef": "2026-06-10" } },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-51-z6-invariant-elapsed-opvolger-hele-dagen-delay",
+      "title": "Z6 acceptatiepunt 4 (invariant-waarschuwing, spiegel-scenario) — ELAPSEDTIME-OPVOLGER (T8's `succElapsed`-bypass in `snapSuccessorEarlyStart`) waarvan de hele-dagen `levelingDelay` het anker over een weekend heen duwt: hetzelfde invariant-gevaar, nu via de opvolger-tak i.p.v. de wortel-tak.",
+      "note": "P (WORKTIME, 2 werkdagen) → A (ELAPSEDTIME, 2 dagen) via FS+0: A.es vóór delay = donderdag 2026-06-04 (een werkdag, GEEN bypass-symptoom op zichzelf — het punt is wat de DELAY ermee doet). `levelingDelay=2` (hele dagen) via `afterCPM.setLevelingDelay`. Met de Z6-fix (taak elapsed ⇒ `addElapsedMinutes`): ES=donderdag+2 kalenderdagen=zaterdag 2026-06-06 — een NIET-werkdag, wat voor een ELAPSEDTIME-taak legitiem is (T8: 24/7 per definitie). Mutatiebewijs (tijdens implementatie, teruggedraaid): zonder de `taskElapsed`-guard normaliseert `addWorkingDaysSigned` EERST naar `nextWorkDay`, dus donderdag (al een werkdag, no-op) +2 WERKdagen (weekend overgeslagen) ⇒ ES=maandag 2026-06-08 — de taak wordt tegen haar eigen ELAPSEDTIME-aard in de werkband geduwd, exact de invariant-schending.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "P", "dur": 2 },
+        { "name": "A", "dur": 2, "durationType": "ELAPSEDTIME" }
+      ],
+      "links": [{ "pred": "P", "succ": "A", "type": "FINISH_START", "lag": 1, "lagUnit": "ELAPSEDTIME" }],
+      "afterCPM": [
+        { "setLevelingDelay": { "task": "A", "days": 2 } },
+        { "runCPM": true }
+      ],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-06", "ef": "2026-06-08" } },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-54-z6-backward-doorgifte-spiegel",
+      "title": "Z6-fixronde B2 — backward-DOORGIFTE-spiegel: P→A(delay)→S. Zonder de spiegel krijgt P spookfloat (tf=delay, niet-kritiek) terwijl elke verschuiving van P via A's vaste delay 1-op-1 doorwerkt naar S/projectEnd — P hoort dus kritiek te zijn.",
+      "note": "P→A→S, alle FS+0, elk 2 werkdagen, geen delay. Ná de eerste `runCPM` krijgt A een `levelingDelay=2` (hele werkdagen, spiegelt hoe `ResourceLeveler` het zet) via `afterCPM.setLevelingDelay`, gevolgd door een herbereking. A's eigen ES/EF schuiven 2 werkdagen op (voorganger-gedreven, dus de delay wordt toegepast); S (laatste taak, bepaalt `projectEnd`) schuift daardoor evenveel mee ⇒ S blijft kritiek (tf=0) en A blijft kritiek (tf=0, ONGEWIJZIGD Z6-besluit: geen aftrek in `subDuration` zelf). ZONDER de backward-doorgifte-spiegel (B2) zou P's berekende `lateFinish` (via `backwardConstraint` op A's ONGESHIFTE late datums) een vaste 2 werkdagen speling tonen die ze niet heeft — mutatiebewezen (tijdelijk teruggedraaid): P.tf werd dan 2 i.p.v. 0, P.crit `false` i.p.v. `true`. Met de spiegel: P.tf=0, P kritiek — exact zoals verwacht, want P's eigen verschuiving zou 1-op-1 doorwerken naar S en dus naar `projectEnd`.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "P", "dur": 2 },
+        { "name": "A", "dur": 2 },
+        { "name": "S", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "P", "succ": "A", "type": "FINISH_START" },
+        { "pred": "A", "succ": "S", "type": "FINISH_START" }
+      ],
+      "afterCPM": [
+        { "setLevelingDelay": { "task": "A", "days": 2 } },
+        { "runCPM": true }
+      ],
+      "expect": {
+        "tasks": {
+          "P": { "es": "2026-06-01", "ef": "2026-06-02", "ls": "2026-06-01", "lf": "2026-06-02", "tf": 0, "crit": true },
+          "A": { "es": "2026-06-05", "ef": "2026-06-08", "tf": 0, "crit": true },
+          "S": { "es": "2026-06-09", "ef": "2026-06-10", "tf": 0, "crit": true }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-55-z6-coverage-taskelapsed-zonder-delayelapsed-vlag",
+      "title": "Z6-fixronde (dekkingsgat) — `taskElapsed && levelingDelayMinutes && !levelingDelayElapsed`: de TAAK zelf is ELAPSEDTIME maar de VERTRAGING draagt zelf geen elapsed-vlag — `shiftByLevelingDelay`s `(taskElapsed || task.levelingDelayElapsed)`-guard moet toch de elapsed-tak (`addElapsedMinutes`) kiezen, puur op basis van de taak se eigen aard.",
+      "note": "`A` (ELAPSEDTIME, voorganger-gedreven via `P0`) draagt `levelingDelayMinutes=900` ZONDER `levelingDelayElapsed`. Handberekening: `P0`s finish (mijlpaal 2026-06-05T17:00, WORKTIME-eigen kalenderband-snap duwt 'm naar de eerstvolgende werk-instant, maandag 2026-06-08T08:00 — 17:00 valt zelf buiten de halfopen band [08:00,17:00)) is A's pre-delay ES (elapsed-opvolger-bypass, `snapSuccessorEarlyStart`, geeft dat instant ONGEWIJZIGD door). +900 elapsed minuten (15u, `addElapsedMinutes`, GEEN kalenderband-toetsing want `taskElapsed`) = 2026-06-08T08:00 + 15u = 2026-06-08T23:00. Mutatiebewijs (tijdelijk toegepast, teruggedraaid): de `taskElapsed`-helft van de guard uitschakelen (`false && taskElapsed || task.levelingDelayElapsed`) laat de VERTRAGING dan als WORKTIME rekenen (`addWorkingMinutesSigned`, kalenderband-bewust) ⇒ ES verschuift naar 2026-06-09T14:00 — een ANDER instant, dus deze case discrimineert daadwerkelijk tussen de twee paden.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } },
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "P0", "milestone": true, "start": "2026-06-05T17:00" },
+        { "name": "A", "dur": 2, "durationType": "ELAPSEDTIME", "levelingDelayMinutes": 900 }
+      ],
+      "links": [{ "pred": "P0", "succ": "A", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": { "A": { "es": "2026-06-08T23:00", "ef": "2026-06-10T23:00" } },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-56-z9a-manual-anchor-raw-no-snap",
+      "title": "Z9a-acceptatiepunt (a) + Z9b-acceptatiepunt (tf/kritiek-forcing): een `manuallyScheduled`-mijlpaal geankerd op een NIET-werkdag (zaterdag 2026-06-06) houdt haar rauwe `scheduleStart`/`scheduleFinish` ONGESNAPT aan — de forwardPass-tak leest `task.time.scheduleStart` rechtstreeks via `parseIn` (GEEN `snapOnOrAfter`). Contrast: `B` is dezelfde mijlpaal op dezelfde datum ZONDER `manuallyScheduled` (AUTO) — díé volgt wél het gewone wortel-taak-pad (`ownAnchor`), dat een niet-werk-instant altijd naar de eerstvolgende werk-instant snapt (maandag 2026-06-08). Twee onafhankelijke wortel-taken, geen relatie ertussen — puur het ankerverschil. SINDS Z9b draagt `A` ook `tf`/`crit`-asserts: `ls=es`/`lf=ef` (backward-early-return) is hier op een NIET-werkdag-ankerpaar — precies het geval waarop de generieke werkdag-tellende `signedFloat` zonder forcing een artefact gaf (gemeten tf=-1, zie de Z9b-toelichting bij de manual-forcing in `scheduleAnalysis.ts`).",
+      "note": "Mutatiebewijs 1 (uitgevoerd, teruggedraaid): de manual-tak in `CPMSolver.forwardPass` tijdelijk zowel `es` ALS `ef` laten snappen (`this.snapOnOrAfter(cal, this.parseIn(...))` i.p.v. de rauwe `parseIn`, voor beide) laat `A.es`/`A.ef` verschuiven naar 2026-06-08 — identiek aan `B` — en deze case ROOD. Alléén `es` snappen is GEEN geldige mutatie op déze mijlpaal-case: de bestaande `ef<es`-inversiecorrectie (`if (ef < es) es = ef`) herstelt een gesnapte `es` (maandag) stil terug naar de rauwe `ef` (zaterdag, want een mijlpaal se `ef` blijft ongesnapt) zodra alleen `es` snapt — dat maskeert de mutatie volledig. Mutatiebewijs 2 (Z9b, uitgevoerd, teruggedraaid): de `if (taskObj.manuallyScheduled) { tf = 0; freeFloat = 0; }`-forcing in `scheduleAnalysis.computeScheduleResults` weghalen laat `A.tf` verschuiven van 0 naar -1 (het gemeten artefact van de werkdag-tellende `signedFloat` op een es/ls-paar dat zelf op een niet-werkdag ligt) — deze case ROOD op `A.tf`. GECORRIGEERD (Z9b-fixronde, was hier fout gedocumenteerd): `A.crit` blijft `true`, ook zonder de forcing — `isCritical = tf <= critThreshold` met drempel 0 slaagt op tf=-1 net zo goed als op tf=0 (-1≤0). De forcing repareert dus uitsluitend het `tf`-artefact, niet de kritiek-markering (die was hier toevallig al correct); zie de titel hierboven voor waarom de forcing desondanks nodig is (tf=-1 is zelf al fout, ongeacht wat `isCritical` ervan afleidt).",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "A", "milestone": true, "start": "2026-06-06", "manuallyScheduled": true },
+        { "name": "B", "milestone": true, "start": "2026-06-06" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-06", "ef": "2026-06-06", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-08", "ef": "2026-06-08", "tf": 0, "crit": true }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "msp-57-z9a-manual-pin-forward",
+      "title": "Z9a-acceptatiepunt (b) + mutatiepunt 3 (backward-early-return): `A` is `manuallyScheduled` (dur 2, ma 2026-06-01 ⇒ rauwe ef di 2026-06-02, ONGESNAPT). Haar AUTO-opvolger `B` (FS+0) rekent gewoon door vanaf die rauwe finish — normale FS-regel (opvolger start de eerstvolgende werkdag ná de voorganger-finish, `rel-fs-01-longshort`-precedent): B start wo 2026-06-03, ef do 2026-06-04. `C` is een ONGERELATEERDE, langere parallelle taak (dur 10, zelfde anker) die het projecteinde (vr 2026-06-12) bepaalt — dat geeft `B` (en dus, via de FS-relatie, backward-druk op `A`) ruime speling: zonder de verplichte manual-early-return in `backwardPass` zou de gewone backward-combinatie díé speling op `A` projecteren (`ls`/`lf` ver ná haar eigen rauwe anker) — de gepinde taak MOET juist `ls=es`/`lf=ef`/`tf=0` houden, ongeacht hoeveel speling haar opvolger heeft.",
+      "note": "Mutatiebewijs (uitgevoerd, teruggedraaid — `if (false && task.manuallyScheduled)` in `CPMSolver.backwardPass`): `A` erft dan de gewone FS-backward-bound van `B` (`B.ls` ligt ver na `B.es` dankzij `C`'s speling) — GEMETEN: `A.ls` 2026-06-01→2026-06-09, `A.lf` 2026-06-02→2026-06-10, `A.tf` 0→6, `A.crit` true→false, `criticalPathSet` {A,C}→{C} — deze case ROOD (61/64; ook `msp-14`/`msp-58` kleuren mee, want de mutatie schakelt de early-return voor ELKE manual taak uit, niet alleen deze). `A` staat WEL in `criticalPathSet` in de ONGEMUTEERDE (correcte) uitkomst: haar `es`/`ef` vallen op gewone werkdagen (ma/di), dus `ls=es`/`lf=ef` geeft hier tf=0 via de generieke `signedFloat`-formule al vóór enige forcing. Z9b VOEGDE later een expliciete `tf=ff=0`-forcing toe voor een manual taak (analoog aan de hammock-forcing, zie `scheduleAnalysis.ts`) — voor DEZE case (werkdag-anker) is dat een no-op (byte-identiek, tf was al 0); de non-triviale forcing zit in `msp-56` (niet-werkdag-anker). Er is BEWUST GEEN hammock-achtige `isCritical=false`-uitsluiting voor een manual taak toegevoegd — een manual taak is een echt anker en kan legitiem kritiek zijn, precies wat `A: crit=true` hier pint.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "A", "dur": 2, "start": "2026-06-01", "manuallyScheduled": true },
+        { "name": "B", "dur": 2 },
+        { "name": "C", "dur": 10, "start": "2026-06-01" }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "ls": "2026-06-01", "lf": "2026-06-02", "tf": 0, "crit": true },
+          "B": { "es": "2026-06-03", "ef": "2026-06-04", "tf": 6, "crit": false },
+          "C": { "es": "2026-06-01", "ef": "2026-06-12", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["A", "C"],
+        "error": false
+      }
+    },
+    {
+      "id": "msp-58-z9a-manual-wint-van-constraint",
+      "title": "Z9a-acceptatiepunt (c): een `manuallyScheduled`-taak MET een harde MSO-pin (2026-06-10, ver ná haar eigen anker 2026-06-01) negeert die constraint volledig — BESLUIT plan-§Z9a: manual wint. `A`'s `es`/`ef` blijven op haar rauwe anker; `applyForwardConstraints`/`hardPinStart` worden voor deze taak nooit bereikt (de manual-tak in `forwardPass` `continue`t vóór dat punt) — `violatedConstraintsSet` blijft dus leeg, ook al zou de MSO-pin (ná de rauwe start) een logica-brekende situatie zijn geweest als hij WEL was toegepast.",
+      "note": "Mutatiebewijs (uitgevoerd, teruggedraaid): de manual-`continue` in `forwardPass` verplaatsen naar NÁ `applyForwardConstraints` (zodat de MSO-pin alsnog wordt toegepast) laat `A.es`/`A.ef` verschuiven naar 2026-06-10 — deze case ROOD.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "A", "dur": 2, "start": "2026-06-01", "manuallyScheduled": true, "constraint": { "type": "MSO", "date": "2026-06-10", "hard": true } }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0 }
+        },
+        "violatedConstraintsSet": [],
+        "error": false
+      }
+    },
+    {
+      "id": "msp-59-z9b-alap-mag-manual-niet-duwen",
+      "title": "Z9b-acceptatiepunt (1, `applyAlap`): een `manuallyScheduled` taak MET een (legacy/geïmporteerd) `constraint.type === 'ALAP'`-veld wordt door `applyAlap` NIET vooruitgeschoven. `A` is manual, rauw anker 2026-06-01/06-02 (ma/di), FS-opvolger `B`. `C` is een ONGERELATEERDE, veel langere parallelle taak (dur 20, zelfde anker, ef vr 2026-06-26) die ook naar `B` een FS-relatie legt — dus `B` wordt in werkelijkheid door `C` gedreven (B start ma 2026-06-29), en de A→B-relatie heeft daardoor volop 'speling' t.o.v. A's eigen rauwe finish. Zonder de `manuallyScheduled`-uitsluiting in `applyAlap` zou de ALAP-tak die speling op `A` ZELF projecteren (`cal.addWorkingDaysSigned(early.es, ff)`) — de gepinde taak MOET juist op haar rauwe anker blijven staan, ongeacht of ze toevallig een ALAP-constraint meedraagt.",
+      "note": "Mutatiebewijs (uitgevoerd, teruggedraaid): de `if (task.manuallyScheduled) continue;`-regel in `CPMSolver.applyAlap` weghalen laat `A.es`/`A.ef` verschuiven van 2026-06-01/06-02 naar GEMETEN 2026-06-25/06-26 (niet 06-08/06-09, zoals hier eerder foutief stond — de ALAP-push volgt de volledige speling van de A→B-relatie, waarbij B zélf door C gedreven wordt; C's finish valt op 2026-06-26, dus A schuift mee tot vlak dáárvóór, niet tot B's eigen datum). `drivingSet` verschuift daarbij óók: de gemuteerde run toont zowel A|B|FINISH_START als C|B|FINISH_START als driving (A wordt door de mutatie zélf een tweede driver naar B) — deze case ROOD.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "A", "dur": 2, "start": "2026-06-01", "manuallyScheduled": true, "constraint": { "type": "ALAP" } },
+        { "name": "B", "dur": 2 },
+        { "name": "C", "dur": 20, "start": "2026-06-01" }
+      ],
+      "links": [
+        { "pred": "A", "succ": "B", "type": "FINISH_START" },
+        { "pred": "C", "succ": "B", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "B": { "es": "2026-06-29", "ef": "2026-06-30" },
+          "C": { "es": "2026-06-01", "ef": "2026-06-26" }
+        },
+        "drivingSet": [["C", "B", "FINISH_START"]],
+        "error": false
+      }
+    }
+  ]
+}

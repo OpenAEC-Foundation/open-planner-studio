@@ -12,7 +12,7 @@
 //
 // Elke test hieronder pint precies één van die faalvormen vast, via de losse tools ÉN via
 // `planner_batch` (twee ingangen naar dezelfde `*Core`-kern).
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
@@ -30,15 +30,11 @@ store.getState().undo();
 registerToolModules([taskTools, batchTools]);
 const batchDef = batchTools[0];
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...over,
-  };
+  });
 }
 
 function tool(name: string) {
@@ -180,6 +176,32 @@ test('update_tasks: onbekend veld ⇒ zachte weigering en GEEN enkele mutatie', 
   assertEq(t.time.scheduleDuration, 5, 'de duur is niet gewijzigd');
   assert(!('duration_days' in (t as unknown as Record<string, unknown>)), 'er is geen rommelveld op de taak beland');
   assertEq(okData(res).updated, [], 'niets als toegepast gerapporteerd');
+});
+
+// F5 (spec-review-fixronde op 526af9f9, plan-Z14 regel ~470) — de drie NIEUWE Z14b-velden
+// (mspTaskType/effortDriven/timephasedContours) zijn puur .mpp-importdata en horen dus, net als
+// isHammock/manuallyScheduled, met een GERICHTE `REJECT_HINTS`-reden geweigerd te worden — niet als
+// kaal "onbekend veld" (dat zou een agent niets leren over WAAROM).
+test('update_tasks: mspTaskType/effortDriven/timephasedContours zijn read-only (gerichte REJECT_HINTS, geen mutatie)', async () => {
+  reset();
+  const id = seedTask('Fundering', 5);
+
+  const res1 = await call('planner_update_tasks', { updates: [{ id, fields: { mspTaskType: 'FIXED_WORK' } }] });
+  assert(rejections(res1)[0].reason.includes("onbekend veld 'mspTaskType'"), `gerichte hint: ${rejections(res1)[0].reason}`);
+  assert(/importdata|\.mpp/.test(rejections(res1)[0].reason), `de reden legt uit WAAROM: ${rejections(res1)[0].reason}`);
+
+  const res2 = await call('planner_update_tasks', { updates: [{ id, fields: { effortDriven: true } }] });
+  assert(rejections(res2)[0].reason.includes("onbekend veld 'effortDriven'"), `gerichte hint: ${rejections(res2)[0].reason}`);
+
+  const res3 = await call('planner_update_tasks', {
+    updates: [{ id, fields: { timephasedContours: [{ resourceUid: 1, periods: [] }] } }],
+  });
+  assert(rejections(res3)[0].reason.includes("onbekend veld 'timephasedContours'"), `gerichte hint: ${rejections(res3)[0].reason}`);
+
+  const t = taskById(id)!;
+  assert(t.mspTaskType === undefined, 'mspTaskType niet gezet');
+  assert(t.effortDriven === undefined, 'effortDriven niet gezet');
+  assert(t.timephasedContours === undefined, 'timephasedContours niet gezet');
 });
 
 test('update_tasks: fields.time wordt geweigerd en laat de hele time-tak intact', async () => {
@@ -337,6 +359,84 @@ test('batch: mijlpaal + duration > 0 rolt de HELE batch terug (structurele stapf
   assertEq(res.ok, false, 'de batch faalt');
   assertEq((res as McpToolErr).code, 'VALIDATION', 'code VALIDATION');
   assertEq(store.getState().tasks.length, before, 'de eerste stap is teruggedraaid');
+});
+
+// =================================================================================================
+// D. mpp-nul-data-etappe (P2, spec-review op 3fba671b) — het `timephasedGuidanceLost`-envelopveld.
+// Additieve contractuitbreiding (McpEnvelope, zelfde precedent als `backupCreated` hierboven): een
+// mutatie die aantoonbaar MSP-timephased-sturing loslaat (`clearTimephasedWindow`/
+// `clearTimephasedDurationWalks` in taskDefaults.ts gaven `true` terug) draagt dit veld terug —
+// ONAFHANKELIJK van de in-app K8a-melding, die aan de eenmalige-per-document-gate hangt
+// (`timephasedLossNotice.ts`): het envelopveld draagt gewoon élke keer opnieuw mee, ook een TWEEDE
+// keer op hetzelfde document waar de app-melding stil blijft (de AI-client mag het altijd zien).
+// Deze cases toetsen daarom BEIDE kanalen apart, en steunen op `reset()` (== `newProject()`) tussen
+// cases voor een schone `ui.notifications`-lei — precies het pad dat de P1-fix repareerde: zónder
+// die fix zou de EERSTE case hier de meldings-gate voor dit docId voorgoed "al gemeld" maken, en zou
+// de assertie op `ui.notifications` in een latere case hier stil (en ten onrechte) falen.
+// =================================================================================================
+
+/** Zet timephased-sturing rechtstreeks op de taak — dit veld is via `planner_update_tasks` bewust
+ *  read-only (zie de REJECT_HINTS-test in sectie B hierboven), dus buiten de tool-allowlist om,
+ *  net als `seedTask`/`withStatusDate` hierboven. */
+function seedTimephasedWindow(id: string): void {
+  store.setState((s) => {
+    const t = s.tasks.find((x) => x.id === id)!;
+    t.timephasedFinishFloor = '2026-08-10T17:00';
+    t.timephasedStartAnchor = '2026-08-03T08:00';
+  });
+}
+
+test('update_tasks: een duur-wijziging die sturing loslaat draagt timephasedGuidanceLost + meldt zich (K8a)', async () => {
+  reset();
+  store.setState((s) => { s.ui.notifications = []; }); // schone lei (P1: reset() geeft ook een schone meldings-gate).
+  const id = seedTask('Met MSP-sturing', 5);
+  seedTimephasedWindow(id);
+  const res = await call('planner_update_tasks', { updates: [{ id, fields: { duration: 9 } }] });
+  okData(res);
+  assertEq(taskById(id)!.timephasedFinishFloor, undefined, 'opzet: het venster is écht gewist');
+  assert(res.ok && res.envelope.timephasedGuidanceLost === 1,
+    `envelope.timephasedGuidanceLost === 1 (kreeg: ${res.ok ? res.envelope.timephasedGuidanceLost : 'n/a'})`);
+  assertEq(store.getState().ui.notifications.length, 1, 'de K8a-melding verschijnt óók (P1: de gate was vers)');
+  assertEq(store.getState().ui.notifications[0]?.messageKey, 'notifications.mppTimephasedSteeringLost', 'met de juiste sleutel');
+});
+
+test('update_tasks: een duur-wijziging ZONDER sturing draagt het veld NIET en meldt niets', async () => {
+  reset();
+  store.setState((s) => { s.ui.notifications = []; });
+  const id = seedTask('Zonder MSP-sturing', 5);
+  const res = await call('planner_update_tasks', { updates: [{ id, fields: { duration: 9 } }] });
+  okData(res);
+  assert(res.ok && res.envelope.timephasedGuidanceLost === undefined,
+    `envelope.timephasedGuidanceLost blijft afwezig (kreeg: ${res.ok ? res.envelope.timephasedGuidanceLost : 'n/a'})`);
+  assertEq(store.getState().ui.notifications.length, 0, 'geen K8a-melding zonder een écht verlies');
+});
+
+test('batch: een update_tasks-stap die sturing loslaat draagt timephasedGuidanceLost mee via planner_batch', async () => {
+  reset();
+  store.setState((s) => { s.ui.notifications = []; });
+  const id = seedTask('Batch-MSP-sturing', 5);
+  seedTimephasedWindow(id);
+  const res = await batchDef.handler({
+    steps: [
+      { tool: 'planner_update_tasks', args: { updates: [{ id, fields: { duration: 11 } }] } },
+    ],
+  }, makeCtx());
+  const data = okData(res);
+  assertEq(data.steps.map((s: any) => s.status), ['uitgevoerd'], 'de stap liep');
+  assert(res.ok && res.envelope.timephasedGuidanceLost === 1,
+    `envelope.timephasedGuidanceLost === 1 via planner_batch (kreeg: ${res.ok ? res.envelope.timephasedGuidanceLost : 'n/a'})`);
+  assertEq(store.getState().ui.notifications.length, 1, 'de K8a-melding verschijnt ook via het batch-pad');
+});
+
+test('batch: een tweede sturingsverlies op hetzelfde document draagt het envelopveld WEER, ook al blijft de K8a-melding stil', async () => {
+  // Vervolg op de vorige case (BEWUST geen reset()): zelfde document, dat net al gemeld heeft.
+  const id2 = seedTask('Nog een MSP-sturing', 5);
+  seedTimephasedWindow(id2);
+  const res = await call('planner_update_tasks', { updates: [{ id: id2, fields: { duration: 6 } }] });
+  okData(res);
+  assert(res.ok && res.envelope.timephasedGuidanceLost === 1,
+    `envelope.timephasedGuidanceLost draagt WEER mee, ongeacht de meldings-gate (kreeg: ${res.ok ? res.envelope.timephasedGuidanceLost : 'n/a'})`);
+  assertEq(store.getState().ui.notifications.length, 1, 'maar de K8a-melding zelf blijft op 1 staan (eenmalig per document per sessie)');
 });
 
 await run();

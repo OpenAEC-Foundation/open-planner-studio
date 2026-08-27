@@ -9,6 +9,7 @@ Een extensie is een ZIP-bestand met twee bestanden — of een los `.js`-bestand 
   "id": "mijn-extensie",
   "name": "Mijn Extensie",
   "version": "1.0.0",
+  "apiVersion": "1.0",
   "minAppVersion": "2026.4.0",
   "author": "Jouw Naam",
   "description": "Wat de extensie doet.",
@@ -43,11 +44,127 @@ Gebruik `currentColor` voor `fill`/`stroke` zodat het icoon met het thema meekle
 `data.*`, `settings.*`, `assets.*` en `ui.showNotification` zijn **kern-API**: altijd beschikbaar, geen permissie nodig.
 
 De afdwinging is gecentraliseerd in `src/extensions/permissions.ts` (één tabel pad → permissie).
-`minAppVersion` wordt óók afgedwongen: is de app ouder, dan weigert de extensie te activeren (status `error`).
+
+### Wat de app wél en niet afdwingt
+
+Twee dingen zijn hard, en het verschil is belangrijk:
+
+- **Integriteit van een catalogus-installatie.** Draagt een catalogusentry een `sha256` van de
+  release-ZIP, dan wordt de download geverifieerd en bij het kleinste verschil geweigerd. Draagt hij
+  er geen, dan installeert de app wel maar meldt hij in de debug-terminal dat de download
+  ongeverifieerd is. Een aanwezige maar onleesbare hash is een weigering, niet een stille terugval.
+- **Afscherming van de rauwe host-globals.** `__TAURI_INTERNALS__`, `__TAURI__` en `__OPS__` zijn
+  binnen extensie-code geschaduwd op `undefined`. Alles wat een extensie legitiem nodig heeft loopt
+  via `require('open-planner-studio')` en de `api` die `onLoad` krijgt.
+
+> **Dit is geen sandbox.** Extensie-code draait in dezelfde realm als de app. `globalThis.__TAURI_INTERNALS__`
+> en `Function('return this')()` komen er nog steeds bij, en `filesystem`/`network` zijn dan ook
+> informatieve permissies zonder technische grens. Wat de afscherming oplevert is dat de
+> gedachteloze route dicht zit: wie er alsnog omheen gaat, doet dat aantoonbaar met opzet.
+> **Installeer alleen extensies waarvan je de bron vertrouwt.** Een echte grens vergt uitvoering in
+> een Web Worker of iframe; dat staat op de roadmap.
+
+### Toestemming bij installeren
+
+Precies omdát er geen grens is, vraagt de app bij **installeren** om bevestiging — één keer, op het
+moment waarop je de maker vertrouwt, niet bij elke activering. Wat de dialoog toont:
+
+- **wie en wat**: naam, versie, auteur, omschrijving en repository uit het manifest;
+- **herkomst**: catalogus of lokaal bestand, en of de download tegen een checksum geverifieerd is;
+- **wat het concreet betekent** op dit platform (desktop of browser);
+- **de gedeclareerde permissies** — nadrukkelijk als *voorgenomen gebruik*, niet als beperking.
+
+Dat laatste is een bewuste keuze. Een afvinklijst in Android-stijl zou lezen als "de extensie is
+hiertoe beperkt", en dat is aantoonbaar onwaar; dan is de dialoog erger dan geen dialoog.
+
+Weigeren laat niets achter: geen record in de opslag, geen registratie, en een al geïnstalleerde
+vorige versie blijft draaien. Kan de vraag niet gesteld worden (geen dialoog beschikbaar), dan wordt
+er **niet** geïnstalleerd — de faalstand is weigeren, niet stil doorlaten.
+
+Zelftests slaan de vraag over via `window.__OPS__.extensions.installFromZip`; de dialoog zelf stuur
+je aan met `window.__OPS__.extensions.consent.set(fn)` / `.reset()` (dev-only).
+
+### Twee versievelden, twee vragen
+
+`apiVersion` en `minAppVersion` lijken op elkaar maar beantwoorden verschillende vragen, en allebei
+worden ze bij het activeren afgedwongen (weigering ⇒ status `error` met de reden erbij).
+
+| veld | vraag | vorm |
+|---|---|---|
+| `minAppVersion` | *Welke app-FEATURES heb ik nodig?* | CalVer, bv. `2026.4.0` |
+| `apiVersion` | *Tegen welk extensie-CONTRACT ben ik gebouwd?* | semver, bv. `1.0` |
+
+De app-versie is CalVer en zegt alleen wanneer een build gemaakt is — daar valt geen brekende
+wijziging uit af te lezen. `apiVersion` doet dat wel:
+
+- **major** verschilt ⇒ geweigerd, in beide richtingen. Een andere major betekent dat `ExtensionApi`
+  of een `Ext*`-vorm brekend gewijzigd is.
+- **minor** hoger dan de host ⇒ geweigerd (je rekent op iets dat deze app nog niet heeft). Lager of
+  gelijk ⇒ prima: toevoegingen zijn achterwaarts compatibel.
+- **patch** speelt geen rol.
+
+`apiVersion` is **optioneel**. Laat je hem weg, dan laadt de extensie gewoon (manifesten van vóór dit
+veld blijven werken) maar logt de app een waarschuwing in de debug-terminal. Zet hem in nieuwe
+extensies wél: zonder dat veld merk je een contractwijziging pas als je code halverwege `onLoad`
+klapt. Een onleesbare waarde (`"v1.0"`, `"1.x"`) wordt geweigerd in plaats van als `0.0.0` gelezen.
+
+De huidige contractversie leest je uit met `require('open-planner-studio').apiVersion`.
 
 > **Migratie (audit P16):**
 > - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Manifesten die haar (of een andere onbekende waarde) noemen, blijven werken: onbekende permissies worden bij het activeren stil weggefilterd met een waarschuwing in de debug-terminal.
 > - `backstage` is nu de permissie voor `api.importers.*`. Bestaande importer-extensies die haar niet declareren blijven werken (warn-modus); **declareer `backstage` in nieuwe extensies met een importer** — in een toekomstige versie wordt dit hard.
+
+## Validatie, identiteit en quarantaine
+
+ZIP-, JavaScript-, catalogus- en IndexedDB-invoer begint als `unknown` en wordt veld voor veld naar
+een nieuw bekend object geparseerd. De uitvoerbare bron van dit contract is
+[`src/extensions/validation.ts`](../src/extensions/validation.ts); die module bevat ook de actuele
+limieten en is leidend wanneer deze uitleg en de code ooit uiteenlopen.
+
+Het veldbeleid in hoofdlijnen:
+
+- `id` is verplicht, maximaal 128 tekens, gebruikt alleen kleine letters, cijfers, punt,
+  underscore en streepje, en wordt nooit automatisch getrimd of naar lowercase omgezet;
+- `name`, `version`, `author`, `description`, `category`, `main`, versies, URL's, tags,
+  permissies en icoongrootte krijgen een expliciete type-, vorm- en lengtegrens;
+- onbekende objectvelden worden niet doorgedragen; de parser reconstrueert uitsluitend bekende
+  velden en maakt kopieën van arrays, assets en geneste waarden;
+- verse invoer met een onbekende permissie is ongeldig. Alleen reeds opgeslagen legacyrecords
+  mogen ontbrekende `permissions` en `minAppVersion` in geheugen aanvullen en onbekende oude
+  permissies wegfilteren met een waarschuwing;
+- `main` en assetnamen zijn relatieve POSIX-paden. Absolute paden, backslashes, NUL, lege
+  segmenten en `.`/`..` zijn verboden. ZIP-entrynamen worden vóór gebruik aan dezelfde soort
+  traversalcontrole onderworpen; dubbele namen na het eventueel verwijderen van één gedeelde
+  topmap zijn ongeldig;
+- uitgepakte ZIP-entries/assets zijn begrensd op 24 MiB per bestand en 48 MiB totaal; opgeslagen
+  `mainCode` is begrensd op 48 MiB UTF-8.
+
+Bij installatie vanuit de catalogus moeten de `id` en `version` uit de gevalideerde
+`manifest.json` exact overeenkomen met de gevalideerde catalogusentry. De app normaliseert geen
+hoofdletters, spaties of versienummers om een mismatch passend te maken. Een aanwezige checksum,
+de exacte identiteit, veilige ZIP-paden, consent en opslag zijn afzonderlijke poorten; falen vóór
+consent laat geen half geïnstalleerde extensie achter.
+
+De catalogus zelf heeft een atomair topcontract. Is dat topobject ongeldig, dan faalt de catalogus.
+Is één entry ongeldig of heeft hij een dubbel `id`, dan wordt alleen die entry overgeslagen en
+blijven latere geldige entries zichtbaar. De debuglog vermeldt hoeveel entries zijn overgeslagen.
+
+Bij startup leest de app ieder IndexedDB-record met zijn werkelijke opslagsleutel. Alleen records
+waarvan opslagsleutel, record-`id` en manifest-`id` exact overeenkomen en waarvan code/assets geldig
+zijn, worden uitvoerbaar. Een ongeldige entry gaat in **quarantaine**: de code wordt niet uitgevoerd,
+de kaart heeft geen aan/uit-schakelaar en blijft via de bewaarde echte opslagsleutel verwijderbaar.
+Eén kapot record blokkeert latere geldige records niet. Vlak vóór elke activatie wordt het record
+opnieuw gelezen en geparseerd, zodat een wijziging ná startup niet alsnog wordt uitgevoerd.
+
+Legacydefaults bestaan alleen in de genormaliseerde geheugenwaarde. Startup herschrijft zo'n oud
+record niet stil; pas een expliciete latere statuswrite bewaart de bekende genormaliseerde vorm. Een
+mislukte statuswrite verandert de feitelijke runtimekeuze niet: een ingeschakelde extensie blijft
+ingeschakeld en een uitgeschakelde blijft uitgeschakeld, met een zichtbare opslagfout op de kaart.
+
+Deze validatie is **geen JavaScript-sandbox**. Zij voorkomt dat ongeldige vormen, identiteiten en
+paden de loader passeren, maar geldige extensiecode draait nog steeds in dezelfde realm als de app.
+Consent blijft daarom een echte vertrouwensbeslissing: valide betekent structureel bruikbaar, niet
+veilig of geïsoleerd.
 
 ## main.js
 
@@ -221,11 +338,11 @@ Bestand → Extensies → **ZIP** of **JS** (lokaal bestand), of via de **Blader
 Bij een los `.js`-bestand mag het manifest als commentaarblok bovenaan:
 
 ````js
-/** @manifest { "id": "mijn-extensie", "name": "Mijn Extensie", "version": "1.0.0", "minAppVersion": "0.0.0", "author": "Ik", "description": "…", "category": "Utility", "main": "main.js", "permissions": [] } */
+/** @manifest { "id": "mijn-extensie", "name": "Mijn Extensie", "version": "1.0.0", "apiVersion": "1.0", "minAppVersion": "0.0.0", "author": "Ik", "description": "…", "category": "Utility", "main": "main.js", "permissions": [] } */
 ````
 
 ## Beperkingen
 
-- De sandbox is licht: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen voor `ribbon`/`events`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
+- Er is geen JavaScript-sandbox: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen voor `ribbon`/`events`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
 - Objecten uit `api.data.get*()` zijn **verse, muteerbare `Ext*`-kopieën** — muteren raakt de store niet; schrijf terug via de muterende API-functies.
 - Het `@manifest`-commentaarblok in een los .js-bestand moet een plat JSON-object zijn (geen geneste objecten).

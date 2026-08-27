@@ -5,7 +5,7 @@ Taken die los van elkaar staan, verschuiven niet mee als de planning verandert. 
 ## Wat je hier leert
 
 - De vier relatietypes (FS/SS/FF/SF) en wanneer je welke gebruikt.
-- Waar je een relatie wel en niet aan mag hangen — mijlpalen wel, samenvattingstaken niet.
+- Waar je een relatie wel en niet aan mag hangen — mijlpalen en samenvattingstaken kunnen allebei; alleen een relatie naar je eigen (voor)ouderfase wordt geweigerd.
 - Lag en lead, inclusief procentuele lag en doorlooptijd-lag (bijvoorbeeld voor uitharding van beton).
 - Relaties leggen op drie manieren: slepen, selectie, en de relatietabel.
 - Alle acht constraint-types, plus de harde pin (P6 Mandatory) en de secundaire constraint.
@@ -24,19 +24,20 @@ Elke relatie heeft een **Voorganger** en een **Opvolger**, en een van vier types
 
 Herken je deze drie eerste types graag in een echt voorbeeld? De showcase "Verbouwing & Aanbouw Eengezinswoning" bevat een FS-keten tussen de hoofdfasen, een SS-overlap tussen wand- en dakwerk, en een FF-koppeling tussen tegel- en schilderwerk.
 
-Je kunt zo'n relatie leggen tussen alle gewone taken en tussen mijlpalen. Een mijlpaal heeft duur 0,
-maar gedraagt zich verder als elke andere taak: hij kan voorganger én opvolger zijn, en hij kan op
-het kritieke pad liggen. Wat *niet* kan is een relatie aan een **samenvattingstaak** hangen — een
-taak die zelf subtaken heeft. De planningsmotor rekent alleen met taken zonder subtaken; de datums
-van een samenvattingstaak worden daarna afgeleid uit haar kinderen. Een relatie naar zo'n taak zou
-dus wel zichtbaar zijn, maar geen enkel effect hebben op de planning. Wil je twee fasen aan elkaar
-koppelen, leg de relatie dan tussen de taken zelf: de laatste taak van de ene fase naar de eerste
-taak van de volgende — een mijlpaal aan het eind van een fase werkt daar goed voor.
+Je kunt zo'n relatie leggen tussen alle gewone taken en tussen mijlpalen. Een mijlpaal heeft normaal
+gesproken duur 0 (heeft hij zelf een duur groter dan 0 gekregen — bijvoorbeeld via een import — dan
+plant hij gewoon met die duur), maar gedraagt zich verder als elke andere taak: hij kan voorganger
+én opvolger zijn, en hij kan op het kritieke pad liggen. Je kunt een relatie ook rechtstreeks op een **samenvattingstaak** leggen —
+een taak die zelf subtaken heeft: zie de sectie hieronder ("Relaties op samenvattingstaken") voor hoe
+Open Planner Studio zo'n relatie doorrekent naar de onderliggende taken.
 
-Bevat een geopend bestand toch een relatie met een samenvattingstaak als eindpunt — bijvoorbeeld uit
-Primavera P6 of MS Project, die dat wél toestaan — dan blijft die relatie bewaard en gaat hij bij het
-opslaan gewoon weer mee. In het Relaties-paneel staat hij gemarkeerd als *zonder effect*, zodat je
-ziet dat de planning er niet mee rekent.
+Eén koppeling wordt wél geweigerd: een relatie tussen een taak en zijn **eigen (voor)ouder-
+samenvatting** (in beide richtingen). Zo'n relatie zou de taak effectief aan zijn eigen fase binden —
+logisch zinloos, en zonder deze weigering zou hij bij het doorrekenen een kring kunnen laten ontstaan
+die via de eigen tak heen en terug loopt, wat de hele berekening laat vastlopen. Bevat een geopend
+bestand toch zo'n relatie — bijvoorbeeld uit Primavera P6 of MS Project, die dat wél toestaan — dan
+blijft hij bewaard en gaat hij bij het opslaan gewoon weer mee, maar hij telt niet mee in de
+berekening: in het Relaties-paneel staat hij gemarkeerd als *niet meegerekend*.
 
 ## Lag en lead
 
@@ -59,6 +60,26 @@ Er zijn drie manieren om een relatie aan te maken, afhankelijk van waar je toch 
 
 De kolom **Bepalend** (driving) laat na een berekening zien welke relatie daadwerkelijk de start- of einddatum van de opvolger bepaalt — bij een taak met meerdere voorgangers is dat niet per se de relatie die je het laatst hebt aangemaakt, maar degene met de laatste (bepalende) datum.
 
+## Relaties op samenvattingstaken
+
+Je kunt een relatie ook rechtstreeks op een samenvattingstaak leggen (een fase of WBS-groep) in plaats van op een van de onderliggende taken. Open Planner Studio rekent zo'n relatie automatisch door naar de onderliggende taken — dezelfde aanpak als MS Project:
+
+- **Samenvatting als voorganger**: elke onderliggende taak wordt zelf voorganger van de opvolger. Die wacht dus effectief op de hele fase — de laatst afgeronde taak in die fase bepaalt de datum.
+- **Samenvatting als opvolger**: elke onderliggende taak wordt zelf opvolger van de voorganger. Alle taken in de fase wachten dus op diezelfde voorganger.
+- **Samenvatting aan beide kanten**: elke taak aan de ene kant krijgt een relatie met elke taak aan de andere kant.
+
+Dit is exact voor **FS en FF** met een samenvatting als voorganger, en voor **FS en SS** met een samenvatting als opvolger. Voor **SS/SF** met een samenvatting als voorganger en **FF/SF** met een samenvatting als opvolger — zeldzame combinaties in de bouwpraktijk — plant Open Planner Studio bewust aan de veilige kant: mogelijk iets later dan strikt nodig, nooit vroeger.
+
+## Naar een gekoppelde taak springen
+
+In het eigenschappenpaneel toont elke afhankelijkheidsregel het WBS-nummer van de gekoppelde taak
+als klikbare knop. Hover erover voor dezelfde details als bij
+het hoveren over een taakbalk in het Gantt-diagram (naam, WBS, duur, start/finish, status, kritiek
+pad, total float). Klik erop om die taak te selecteren: het Gantt-diagram zoomt en scrolt ernaartoe,
+en klapt automatisch elke ingeklapte oudertaak uit als de gekoppelde taak daardoor verborgen was.
+Een gouden WBS-knop is een voorganger van de geselecteerde taak; een paarse knop is een opvolger.
+Lange WBS-nummers worden in de regel afgekapt, maar blijven volledig zichtbaar in de hoverdetails.
+
 ## Constraint-types
 
 Een constraint legt een datumgrens op een taak, los van zijn relaties. Open Planner Studio kent acht types, in te stellen via het veld **Constraint** in het eigenschappenpaneel:
@@ -79,6 +100,8 @@ SNET/SNLT/FNET/FNLT zijn allemaal **zachte grenzen**: de CPM-berekening houdt er
 MSO en MFO kunnen bovendien **hard** gemaakt worden via het vinkje **Verplicht (pin logica)**, dat alleen verschijnt bij deze twee types. Dit is de "P6 Mandatory"-constraint uit Primavera P6: de balk wordt op de datum vastgezet, ook als zijn voorgangers dat logisch tegenspreken. Bij het aanzetten van een harde pin toont Open Planner Studio eenmalig een waarschuwing: **een harde pin overschrijft de relaties — de balk wordt op de datum vastgezet, ook vóór z'n voorgangers. Overtreding wordt negatieve speling stroomopwaarts.**
 
 Gebruik een harde pin dus alleen wanneer een datum werkelijk niet onderhandelbaar is en losstaat van de logica van de planning — bijvoorbeeld een wettelijk vastgelegde opleverdatum die vaststaat ongeacht voortgang. Gebruik hem **niet** als vuistregel voor "ik wil dat deze taak op die datum staat": in dat geval is een zachte constraint (SNET/FNLT/etc.) of gewoon een goed geplande keten van relaties vrijwel altijd de betere keuze. Een harde pin kan het hele netwerk stroomopwaarts knellen: als de voorgaande taken door de pin heen willen lopen, ontstaat er negatieve speling die zich door de hele keten vóór de gepinde taak voortplant — een teken dat de planning conflicteert, niet dat de pin het probleem oplost.
+
+Een **handmatig geplande** taak (die vlag ontstaat bij een `.mpp`-import) wint zelfs van een harde pin: zo'n taak houdt hoe dan ook haar eigen opgeslagen datum, en een tegelijk ingestelde constraint — zacht of hard — wordt genegeerd. Dat is geen bug maar hetzelfde gedrag als in MS Project zelf.
 
 ### Secundaire constraint
 

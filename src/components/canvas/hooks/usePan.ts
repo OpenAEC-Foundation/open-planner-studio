@@ -60,7 +60,7 @@ export function usePan({ setScroll, justBoxSelectedRef }: UsePanOptions) {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [panState, setScroll]);
+  }, [panState, setScroll, justBoxSelectedRef]);
 
   return { panState, startPan: setPanState, active: !!panState };
 }

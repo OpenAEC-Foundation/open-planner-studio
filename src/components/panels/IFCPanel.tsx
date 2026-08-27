@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { buildImportLabels } from '@/i18n/importLabels';
 
 export function IFCPanel() {
   const { t } = useTranslation('menu');
@@ -47,7 +48,7 @@ export function IFCPanel() {
 
   const handleApply = useCallback(() => {
     try {
-      const data = readIFC(content, { importedProject: tCommon('project.imported') });
+      const data = readIFC(content, buildImportLabels(tCommon));
       loadState(data);
       setViewStartDate(data.project.startDate);
       runCPM();
@@ -60,7 +61,7 @@ export function IFCPanel() {
         detail: (err as Error).message,
       });
     }
-  }, [content, loadState, setViewStartDate, runCPM, notify]);
+  }, [content, loadState, setViewStartDate, runCPM, notify, tCommon]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(content);

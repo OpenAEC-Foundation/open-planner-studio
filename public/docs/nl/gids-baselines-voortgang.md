@@ -45,14 +45,14 @@ Werkelijke datums kunnen nooit ná de statusdatum liggen — vul je toch een lat
 
 De **statusdatum** (lintgroep **Baselines & voortgang** op het tabblad Planning, veld **Statusdatum**) markeert "vandaag" binnen de planning — het moment waarop je de voortgang hebt vastgelegd. Zodra hij gezet is, doet hij twee dingen tegelijk:
 
-- Elke taak of mijlpaal die nog niet is gestart (0% voltooid, geen werkelijke start) kan niet vroeger beginnen dan de statusdatum, ook al zou de logica (voorgangers, relaties) een eerdere start toestaan. Zijn berekende vroegste start wordt op de statusdatum "gevloerd".
+- Elke taak of mijlpaal die nog niet is gestart (0% voltooid, geen werkelijke start) kan niet vroeger beginnen dan de statusdatum, ook al zou de logica (voorgangers, relaties) een eerdere start toestaan. Zijn berekende vroegste start wordt op de statusdatum "gevloerd" — dit is de P6-conventie en geldt standaard. Eén uitzondering: een project dat je vanuit MS Project (`.mpp`) hebt geïmporteerd, volgt in plaats daarvan MS Projects eigen conventie en vloert niet-gestarte taken juist níét op de statusdatum.
 - Taken die al wél zijn gestart of afgerond, houden hun werkelijke datums — die worden nooit door de statusdatum overschreven.
 
 Dit is precies zichtbaar in de middelgrote showcase: met de statusdatum op 20 mei 2027 hebben meerdere nog-niet-gestarte taken (bijvoorbeeld het metselwerk en het loodgieterswerk van verschillende woningen) hun vroegste start exact op die datum staan, ook al lopen ze in verschillende woningen en zouden ze zonder de statusdatum-vloer op uiteenlopende, eerdere data zijn begonnen.
 
 ### Waarom een niet-afgemelde mijlpaal "naar rechts schuift"
 
-Een mijlpaal is in de berekening niets anders dan een taak zonder duur, dus dezelfde regel geldt: is hij nog niet afgemeld (geen 100%, geen werkelijke datum), dan kan zijn berekende datum niet vóór de statusdatum liggen. Zet je de statusdatum steeds verder op zonder de mijlpaal af te melden, dan schuift zijn getoonde datum in de Gantt steeds mee naar rechts, ook al is er aan de onderliggende taken niets veranderd — de planning zegt in feite: "dit moment kan niet in het verleden liggen als je het nog niet hebt afgevinkt". Zodra je de mijlpaal wél afmeldt met een werkelijke datum, valt hij weer terug op die vaste datum en stopt hij met meeschuiven.
+Een mijlpaal is in de berekening niets anders dan een taak zonder duur, dus dezelfde regel geldt: is hij nog niet afgemeld (geen 100%, geen werkelijke datum), dan kan zijn berekende datum niet vóór de statusdatum liggen. Zet je de statusdatum steeds verder op zonder de mijlpaal af te melden, dan schuift zijn getoonde datum in de Gantt steeds mee naar rechts, ook al is er aan de onderliggende taken niets veranderd — de planning zegt in feite: "dit moment kan niet in het verleden liggen als je het nog niet hebt afgevinkt". Zodra je de mijlpaal wél afmeldt met een werkelijke datum, valt hij weer terug op die vaste datum en stopt hij met meeschuiven. (Ook hier geldt de `.mpp`-uitzondering hierboven: in een uit MS Project geïmporteerd project schuift een niet-afgemelde mijlpaal niet mee met de statusdatum.)
 
 ## Out-of-sequence-meldingen
 

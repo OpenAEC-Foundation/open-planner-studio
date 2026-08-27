@@ -1,8 +1,9 @@
-import { RefObject, useEffect, useState } from 'react';
+import { RefObject, useCallback, useEffect, useState } from 'react';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
 import { resolveDropTarget, type DropTarget } from '@/engine/view/dropTarget';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import { ROW_DRAG_THRESHOLD } from './constants';
 
 /** Issue #21 punt 1 (fase 2): rijsleep vanaf de takentabel, nog ONDER de drempel — nog geen
@@ -62,34 +63,56 @@ interface UseRowDragOptions {
 export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo, selectedTaskIds, moveTasksTo, justRowDraggedRef, headerHeight }: UseRowDragOptions) {
   const [rowDragCandidate, setRowDragCandidate] = useState<RowDragCandidate | null>(null);
   const [rowDragState, setRowDragState] = useState<RowDragState | null>(null);
+  const optionsRef = useLatestRef({
+    canvasRef,
+    rendererRef,
+    rows,
+    tasksById,
+    moveTaskTo,
+    selectedTaskIds,
+    moveTasksTo,
+    justRowDraggedRef,
+    headerHeight,
+  });
+  const candidateRef = useLatestRef(rowDragCandidate);
+  const dragStateRef = useLatestRef(rowDragState);
+  const candidateActive = rowDragCandidate !== null;
+  const dragActive = rowDragState !== null;
 
-  const computeHover = (clientY: number, draggedTaskId: string): { rowIndex: number; zone: 'before' | 'after' | 'nest'; target: DropTarget | null } | null => {
-    const canvas = canvasRef.current;
-    const renderer = rendererRef.current;
+  const computeHover = useCallback((clientY: number, draggedTaskId: string): { rowIndex: number; zone: 'before' | 'after' | 'nest'; target: DropTarget | null } | null => {
+    const current = optionsRef.current;
+    const canvas = current.canvasRef.current;
+    const renderer = current.rendererRef.current;
     if (!canvas || !renderer) return null;
     const rect = canvas.getBoundingClientRect();
     const y = clientY - rect.top;
-    if (y < headerHeight) return null; // boven de tijdlijnheader is geen droptarget
+    if (y < current.headerHeight) return null; // boven de tijdlijnheader is geen droptarget
     const rowIndex = renderer.getRowIndex(y);
     const zone = renderer.getRowZone(y);
     // draggedTaskId gaat mee zodat de resolver compenseert voor de remove-dan-insert-verschuiving
     // bij herordenen binnen dezelfde ouder (review issue #21 pt. 1 fase 2).
-    return { rowIndex, zone, target: resolveDropTarget(rows, rowIndex, zone, tasksById, draggedTaskId) };
-  };
+    return {
+      rowIndex,
+      zone,
+      target: resolveDropTarget(current.rows, rowIndex, zone, current.tasksById, draggedTaskId),
+    };
+  }, [optionsRef]);
 
   // Kandidaatfase: nog onder de drempel. Bij overschrijding (verticale beweging, |dy| — dit is
   // een verticaal gebaar, geen hypot zoals box-select) promoveren we tot een echte rijsleep;
   // onder de drempel bij mouseup gebeurt niets (de gewone klik-afhandeling selecteert dan).
   useEffect(() => {
-    if (!rowDragCandidate) return;
+    if (!candidateActive) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const dy = e.clientY - rowDragCandidate.startClientY;
+      const current = candidateRef.current;
+      if (!current) return;
+      const dy = e.clientY - current.startClientY;
       if (Math.abs(dy) < ROW_DRAG_THRESHOLD) return;
       setRowDragCandidate(null);
-      const hover = computeHover(e.clientY, rowDragCandidate.taskId);
+      const hover = computeHover(e.clientY, current.taskId);
       setRowDragState({
-        taskId: rowDragCandidate.taskId,
+        taskId: current.taskId,
         currentClientX: e.clientX,
         currentClientY: e.clientY,
         dropTarget: hover?.target ?? null,
@@ -106,8 +129,7 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowDragCandidate]);
+  }, [candidateActive, candidateRef, computeHover]);
 
   // Gepromoveerde fase: doelrij+zone continu herberekenen (geen mutatie!) zodat een eventuele
   // indicator altijd het actuele doel toont. mouseup = de ENIGE plek waar `moveTaskTo` wordt
@@ -116,10 +138,12 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
   // niet, hier is er geen deselect-risico maar wél een niet-bedoelde moveTaskTo-aanroep als de
   // globale Escape-listener eerst iets anders zou triggeren.
   useEffect(() => {
-    if (!rowDragState) return;
+    if (!dragActive) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const hover = computeHover(e.clientY, rowDragState.taskId);
+      const current = dragStateRef.current;
+      if (!current) return;
+      const hover = computeHover(e.clientY, current.taskId);
       setRowDragState(prev => prev ? {
         ...prev,
         currentClientX: e.clientX,
@@ -131,16 +155,19 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
     };
 
     const handleMouseUp = () => {
-      if (rowDragState.dropTarget) {
+      const current = dragStateRef.current;
+      const options = optionsRef.current;
+      if (current?.dropTarget) {
         // Onderdeel van een meervoudige selectie ⇒ de hele groep mee (issue #26-vervolgmelding);
         // anders exact het oude pad. `moveTasksTo` doet de groep in één undo-stap.
-        const groepssleep = selectedTaskIds.length > 1 && selectedTaskIds.includes(rowDragState.taskId);
-        if (groepssleep) moveTasksTo(selectedTaskIds, rowDragState.dropTarget);
-        else moveTaskTo(rowDragState.taskId, rowDragState.dropTarget);
+        const groepssleep = options.selectedTaskIds.length > 1
+          && options.selectedTaskIds.includes(current.taskId);
+        if (groepssleep) options.moveTasksTo(options.selectedTaskIds, current.dropTarget);
+        else options.moveTaskTo(current.taskId, current.dropTarget);
       }
       // Geen geldig doel (bv. cykel, buiten de lijst) ⇒ stille no-op — de store-actie zelf guardt
       // cykels ook al, dus dit is een dubbele bodem, geen enige bescherming.
-      justRowDraggedRef.current = true;
+      options.justRowDraggedRef.current = true;
       armJustRowDraggedClear();
       setRowDragState(null);
     };
@@ -148,7 +175,7 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopImmediatePropagation();
-      justRowDraggedRef.current = true;
+      optionsRef.current.justRowDraggedRef.current = true;
       armJustRowDraggedClear();
       setRowDragState(null);
     };
@@ -161,7 +188,9 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
     // bubble-keten) eerst en consumeert 'm daar al — deze listener wist 'm dan idempotent nog
     // een keer. Bij een klik BUITEN het canvas is dit de enige plek die de vlag opruimt.
     function armJustRowDraggedClear(): void {
-      window.addEventListener('click', () => { justRowDraggedRef.current = false; }, { once: true });
+      window.addEventListener('click', () => {
+        optionsRef.current.justRowDraggedRef.current = false;
+      }, { once: true });
     }
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -172,8 +201,7 @@ export function useRowDrag({ canvasRef, rendererRef, rows, tasksById, moveTaskTo
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowDragState, moveTaskTo, moveTasksTo, selectedTaskIds, justRowDraggedRef]);
+  }, [dragActive, dragStateRef, optionsRef, computeHover]);
 
   return {
     rowDragCandidate,

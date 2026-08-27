@@ -19,6 +19,10 @@ src-tauri/gen/
 # Playwright MCP self-test artifacts
 .playwright-mcp/
 
+# Playwright browser-test artifacts
+playwright-report/
+test-results/
+
 # Visual brainstorm companion mockups
 .superpowers/
 
@@ -26,6 +30,7 @@ src-tauri/gen/
 qa/
 
 # Gegenereerde wiki (build-artefact van scripts/publish-wiki.mjs)
+tests/planning/.*.mjs
 .wiki-build/
 .wiki-repo/
 

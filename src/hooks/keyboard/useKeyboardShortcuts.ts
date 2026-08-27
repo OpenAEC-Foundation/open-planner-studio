@@ -6,6 +6,7 @@ import { SHORTCUTS, matchesCombo } from './shortcutRegistry';
 // Zelfde bron als `shortcutRegistry` (dat al `i18n.t` gebruikt voor default-taaknamen): deze
 // voorpoort spiegelt de `file.open`-entry daar, dus spiegelt hij ook hóé het label wordt opgehaald.
 import i18n from '@/i18n/config';
+import { buildImportLabels } from '@/i18n/importLabels';
 
 const isProduction = import.meta.env.PROD;
 
@@ -55,7 +56,7 @@ export function useKeyboardShortcuts() {
         if (e.key === 'F5') runCPM();
         else if (ctrlB && e.shiftKey && e.key.toLowerCase() === 's') void saveFileAs();
         else if (ctrlB && e.key.toLowerCase() === 's') void saveFile();
-        else if (ctrlB && e.key.toLowerCase() === 'o') void openFile({ importedProject: i18n.t('project.imported', { ns: 'common' }) });
+        else if (ctrlB && e.key.toLowerCase() === 'o') void openFile(buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
         // S2 (V1/V3-vondst): dezelfde "geen dialoog open"-guard als de `file.newProject`-entry in
         // shortcutRegistry.ts — zonder guard opende Ctrl+N de projectwizard óver een al openstaande
         // dialoog heen (twee overlays, wizard onbereikbaar).

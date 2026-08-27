@@ -44,6 +44,20 @@ Es gibt drei Möglichkeiten, eine Beziehung zu erstellen, je nachdem, wo Sie ber
 
 Die Spalte **Maßgebend** zeigt nach einer Berechnung, welche Beziehung den Anfangs- oder Endtermin des Nachfolgers tatsächlich bestimmt — bei einer Aufgabe mit mehreren Vorgängern ist das nicht zwingend die Beziehung, die Sie zuletzt erstellt haben, sondern die mit dem spätesten (maßgebenden) Datum.
 
+## Beziehungen auf Sammelvorgängen
+
+Sie können eine Beziehung auch direkt auf einen Sammelvorgang (eine Phase oder WBS-Gruppe) legen, statt auf einen der zugrunde liegenden Vorgänge. Open Planner Studio rechnet eine solche Beziehung automatisch auf die zugrunde liegenden Vorgänge durch — derselbe Ansatz wie MS Project:
+
+- **Sammelvorgang als Vorgänger**: Jeder zugrunde liegende Vorgang wird selbst zum Vorgänger des Nachfolgers. Dieser wartet also effektiv auf die gesamte Phase — der zuletzt fertiggestellte Vorgang dieser Phase bestimmt das Datum.
+- **Sammelvorgang als Nachfolger**: Jeder zugrunde liegende Vorgang wird selbst zum Nachfolger des Vorgängers. Alle Vorgänge der Phase warten also auf denselben Vorgänger.
+- **Sammelvorgang auf beiden Seiten**: Jeder Vorgang auf der einen Seite erhält eine Beziehung zu jedem Vorgang auf der anderen Seite.
+
+Dies ist exakt für **FS und FF** mit einem Sammelvorgang als Vorgänger sowie für **FS und SS** mit einem Sammelvorgang als Nachfolger. Für **SS/SF** mit einem Sammelvorgang als Vorgänger und **FF/SF** mit einem Sammelvorgang als Nachfolger — seltene Kombinationen in der Baupraxis — plant Open Planner Studio bewusst auf der sicheren Seite: möglicherweise etwas später als unbedingt nötig, nie früher.
+
+## Zu einer verknüpften Aufgabe springen
+
+Im Eigenschaftenbereich zeigt jede Abhängigkeitszeile die WBS-Nummer der verknüpften Aufgabe als klickbare Schaltfläche. Fahren Sie mit der Maus darüber, um dieselben Details wie beim Überfahren eines Balkens im Gantt-Diagramm zu sehen (Name, WBS, Dauer, Anfang/Ende, Status, kritischer Pfad, Gesamtpuffer). Klicken Sie darauf, um diese Aufgabe auszuwählen: Das Gantt-Diagramm zoomt und scrollt dorthin und klappt automatisch jede eingeklappte übergeordnete Aufgabe aus, die sie verborgen hat.
+
 ## Einschränkungstypen
 
 Eine Einschränkung legt eine Datumsgrenze für eine Aufgabe fest, unabhängig von ihren Beziehungen. Open Planner Studio hat acht Typen, eingestellt über das Feld **Einschränkung** im Eigenschaftenbereich:

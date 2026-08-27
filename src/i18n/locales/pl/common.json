@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "Zamknij powiadomienie",
     "openFailed": "Nie udało się otworzyć pliku",
+    "mppLegacy": "Ten plik .mpp używa starszego formatu (Project 2007 lub starszy). Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
+    "mppEncrypted": "Ten plik .mpp jest zabezpieczony hasłem. Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
     "saveFailed": "Nie udało się zapisać",
+    "librarySaveFailed": "Nie można było zapisać biblioteki",
     "savedViaDownload": "Zapisano jako pobrany plik: '{{name}}' znajduje się teraz w folderze pobierania. To środowisko nie pozwala aplikacji zapisywać bezpośrednio w wybranej lokalizacji.",
     "autoSaveFailed": "Błąd autozapisu",
     "recoveryReadFailed": "Nie udało się odczytać odzyskanego pliku",
@@ -15,8 +18,21 @@
     "templateSaved": "Gałąź zapisana jako szablon '{{name}}'",
     "relationCreated": "Utworzono relację: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Taka relacja już istnieje",
-    "relationSummaryEndpoint": "Zadanie sumaryczne jako punkt końcowy nie ma wpływu na harmonogram. Połącz z zadaniem bez podzadań.",
-    "summaryRelationsIgnored": "Relacje na zadaniach sumarycznych bez wpływu na harmonogram: {{total}}."
+    "relationAncestorEndpoint": "Relacja między zadaniem a jego własnym nadrzędnym zadaniem sumarycznym jest niedozwolona.",
+    "summaryRelationsDropped": "Relacje, których nie udało się uwzględnić w obliczeniach (zobacz panel Relacje, aby sprawdzić które): {{total}}.",
+    "mppSourceScheduleNotes_one": "Ten plik MS Project zawiera {{count}} zadanie z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Jest ono importowane i wyświetlane w takiej postaci.",
+    "mppSourceScheduleNotes_few": "Ten plik MS Project zawiera {{count}} zadania z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
+    "mppSourceScheduleNotes_many": "Ten plik MS Project zawiera {{count}} zadań z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
+    "mppSourceScheduleNotes_other": "Ten plik MS Project zawiera {{count}} zadania z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
+    "projectStartAnchorsClamped_one": "Start projektu przesunięty: {{count}} kotwica zadania bez poprzednika lub ograniczenia została przesunięta na nową datę rozpoczęcia.",
+    "projectStartAnchorsClamped_few": "Start projektu przesunięty: {{count}} kotwice zadań bez poprzednika lub ograniczenia zostały przesunięte na nową datę rozpoczęcia.",
+    "projectStartAnchorsClamped_many": "Start projektu przesunięty: {{count}} kotwic zadań bez poprzednika lub ograniczenia zostało przesuniętych na nową datę rozpoczęcia.",
+    "projectStartAnchorsClamped_other": "Start projektu przesunięty: {{count}} kotwicy zadań bez poprzednika lub ograniczenia zostało przesuniętych na nową datę rozpoczęcia.",
+    "mppTimephasedSteeringLost_one": "{{count}} zadanie straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
+    "mppTimephasedSteeringLost_few": "{{count}} zadania straciły powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
+    "mppTimephasedSteeringLost_many": "{{count}} zadań straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
+    "mppTimephasedSteeringLost_other": "{{count}} zadania straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
+    "readMore": "Dowiedz się więcej"
   },
   "yes": "Tak",
   "no": "Nie",
@@ -236,7 +252,8 @@
   },
   "project": {
     "untitled": "Nowy harmonogram",
-    "imported": "Zaimportowany projekt"
+    "imported": "Zaimportowany projekt",
+    "unassignedResource": "Nieprzypisany"
   },
   "documents": {
     "overviewTitle": "Otwarte projekty",
@@ -544,7 +561,8 @@
       "capacity": "Zdolność",
       "documents": "Dokumenty",
       "selectHint": "Wybierz zasób, aby zobaczyć histogram."
-    }
+    },
+    "color": "Kolor"
   },
   "calendar": {
     "library": {
@@ -701,6 +719,15 @@
     "notice": "Ten plik zawiera planowanie godzinowe.",
     "enable": "Włącz planowanie godzinowe"
   },
+  "recordedDates": {
+    "offer_one": "Ponowne przeliczenie przesunęło {{count}} z {{total}} zadań względem dat w pliku.",
+    "offer_few": "Ponowne przeliczenie przesunęło {{count}} z {{total}} zadań względem dat w pliku.",
+    "offer_many": "Ponowne przeliczenie przesunęło {{count}} z {{total}} zadań względem dat w pliku.",
+    "offer_other": "Ponowne przeliczenie przesunęło {{count}} z {{total}} zadań względem dat w pliku.",
+    "show": "Pokaż zapisane daty",
+    "active": "Widzisz daty takie, jak zostały zapisane w pliku. Nie wykonano ponownego przeliczenia.",
+    "recalculate": "Przelicz"
+  },
   "duration": {
     "suffixDay": "d",
     "suffixHour": "g",
@@ -827,6 +854,10 @@
     "intro": "Wygeneruj testowy harmonogram i zmierz główne fazy. Nie wpływa to na otwarty projekt.",
     "sizeLabel": "Rozmiar harmonogramu",
     "tasksCount": "{{count}} zadań",
+    "resourceLabel": "Liczba zasobów",
+    "resourcesNone": "Brak zasobów",
+    "resourcesCount": "{{count}} zasobów",
+    "networkHint": "Każde zadanie bez podzadań otrzymuje co najmniej jedno powiązanie; zadania sumaryczne pozostają zestawieniem swoich podzadań.",
     "run": "Uruchom",
     "running": "Trwa…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -860,5 +891,26 @@
     "detailRender": "{{rows}} wierszy · {{w}}×{{h}}",
     "renderUnavailable": "renderowanie niedostępne (brak kontekstu canvas 2D)",
     "largeWarning": "Duży harmonogram: może to chwilę potrwać; pasek postępu może wydawać się zatrzymany podczas obliczeń."
+  },
+  "extConsent": {
+    "title": "Zainstalować rozszerzenie?",
+    "author": "Autor",
+    "repository": "Repozytorium",
+    "originHeading": "Pochodzenie",
+    "sourceCatalog": "Z internetowego katalogu rozszerzeń",
+    "sourceZip": "Z pliku ZIP na tym komputerze",
+    "sourceJs": "Z pliku JavaScript na tym komputerze",
+    "verifiedChecksum": "Pobranie zweryfikowano sumą kontrolną z katalogu.",
+    "verifiedNone": "Katalog nie podaje sumy kontrolnej — tego pobrania nie zweryfikowano.",
+    "verifiedLocal": "Ten plik wybrałeś samodzielnie; nie ma zewnętrznego źródła do weryfikacji.",
+    "riskHeading": "Na co się zgadzasz",
+    "riskBody": "Rozszerzenie to kod, który działa z tymi samymi uprawnieniami co sam Open Planner Studio. Nic go nie ogranicza. Instaluj tylko rozszerzenia, których autorowi ufasz.",
+    "riskDesktop": "W aplikacji desktopowej obejmuje to: odczyt i zapis plików w całym folderze użytkownika oraz dostęp do projektów, ustawień i schowka.",
+    "riskBrowser": "W przeglądarce oznacza to: dostęp do zapisanych projektów i ustawień, do plików, na które udzielono dostępu, oraz do sieci.",
+    "declaredHeading": "Co to rozszerzenie deklaruje",
+    "declaredNote": "To deklaracja autora, a nie ograniczenie — kod i tak może więcej.",
+    "declaredNone": "Nic nie zadeklarowano.",
+    "cancel": "Nie instaluj",
+    "confirm": "Zainstaluj"
   }
 }

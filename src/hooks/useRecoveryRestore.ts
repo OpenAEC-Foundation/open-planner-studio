@@ -6,6 +6,7 @@ import { documentTitle } from '@/utils/documents';
 import type { RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
 import { recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
 import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
+import { buildImportLabels } from '@/i18n/importLabels';
 
 // In-app herstel-dialoog (vervangt de native OS-`ask()`): de gedetecteerde
 // recovery-payload + de callbacks om te herstellen/verwerpen/uitstellen. Lokale
@@ -36,6 +37,9 @@ export function useRecoveryRestore(): RecoveryRestore {
   // De reader heeft zelf geen `t(...)`; het label voor een snapshot zónder IFCPROJECT gaat mee.
   // (Snapshots zijn door OPS zelf geschreven en hebben er altijd een — dit is een vangnet.)
   const { t } = useTranslation('common');
+  // Recovery is een opstartbewerking, geen taalreactieve weergave. De vertaler van die ene sessie
+  // blijft daarom stabiel wanneer de gebruiker tijdens of na de check van taal wisselt.
+  const startupTRef = useRef(t);
   const [recovery, setRecovery] = useState<RecoveryState | null>(null);
   // Gezet op exact dezelfde momenten als `autoSaveEnabled.current = true` (dezelfde
   // `finish()`-closure).
@@ -65,7 +69,7 @@ export function useRecoveryRestore(): RecoveryRestore {
         let failed = 0;
         for (const d of loaded.docs) {
           try {
-            const parsed = readIFC(d.ifc, { importedProject: t('project.imported') });
+            const parsed = readIFC(d.ifc, buildImportLabels(startupTRef.current));
             // Welke velden bij crashherstel meegaan bepaalt `recoveryInputFromParsed` (bevinding
             // K3) — deze hook houdt bewust geen veldkennis.
             restored.push(recoveryInputFromParsed(parsed, {

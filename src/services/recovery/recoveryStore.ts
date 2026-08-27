@@ -212,9 +212,10 @@ export function planRecoveryClear(
 }
 
 async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<void> {
-  const { writeTextFile, readDir, readTextFile, exists, remove, rename } = await import('@tauri-apps/plugin-fs');
+  const { writeTextFile, readDir, readTextFile, exists, remove, rename, mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
+  await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
 
   /**
    * Schrijf-en-vervang in twee stappen (bevinding K4). `writeTextFile` truncate't het doelbestand

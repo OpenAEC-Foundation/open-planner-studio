@@ -4,7 +4,14 @@
     "noEmit": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "types": []
+    // I5 (T3-kwaliteitsreview): was `[]` met een losse `node-builtins.d.ts`-ambient-shim voor
+    // node:fs/url/path + een `declare const process` per check-bestand. Die shim declareerde een
+    // VERSE ambient module voor 'node:fs' — en omdat `tsconfig.tests.json` heel `tests/` in één
+    // programma neemt, gold die smalle shim (alleen een utf8-overload) ook voor bestanden buiten
+    // tests/library/ die 'm nooit bedoelden, zoals tests/planning/check-mpp-import.ts (binair
+    // lezen zonder encoding). Nu net als tests/planning/tsconfig.check.json: de echte
+    // @types/node-signatuur.
+    "types": ["node"]
   },
   "include": [
     "check-library-ops.ts",
@@ -15,7 +22,6 @@
     "check-ifc-hostile.ts",
     "check-i18n-plurals.ts",
     "check-occupancy.ts",
-    "node-builtins.d.ts",
     "../../src/types/file-system-access.d.ts"
   ]
 }

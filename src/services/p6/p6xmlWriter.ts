@@ -149,7 +149,19 @@ function writeStandardWorkWeek(lines: string[], indent: (level: number) => strin
 }
 
 /** Feestdagen/exceptions (fase 2.8a, §8.3): `<HolidayOrExceptions>` — golden rule: geen
- *  feestdagen ⇒ geen element. */
+ *  feestdagen ⇒ geen element.
+ *
+ *  T13 (§T2-afwijking, LAAG-7-afnemer): `cal.workingExceptions` (fase 3.8, T2/T3 — dag-uitzonderingen
+ *  die een dag WERKEND maken) wordt hier bewust NIET geschreven. `<HolidayOrException>` heeft in het
+ *  P6-XML-schema geen `DayWorking`-achtig veld (alleen `Name`/`Date`/`FinishDate`, geverifieerd tegen
+ *  `p6xmlReader.ts`'s `parseP6HolidayOrExceptions` — die leest elk element onvoorwaardelijk als
+ *  NIET-werkend, er is geen tegenhanger van MSPDI's `DayWorking=1`-vlag). Een P6-conforme "werkende
+ *  uitzondering" bestaat structureel niet in dit schema; P6 zelf modelleert een ingeroosterde
+ *  extra werkdag door de datum aan `<StandardWorkWeek>` toe te voegen (een project-brede
+ *  weekpatroon-wijziging, geen per-datum-uitzondering) — dat is een fundamenteel ander model dan
+ *  `WorkingException` en NIET veilig automatisch te vertalen (het zou het hele weekpatroon voor
+ *  ALLE datums wijzigen, niet alleen de ene). Zie de `console.warn` in `writeP6XML` hieronder en
+ *  `docs/library.md`/T16 (gidsupdate) voor de gebruikersvoorlichting. */
 function writeHolidayOrExceptions(lines: string[], indent: (level: number) => string, cal: WorkCalendar): void {
   if (cal.holidays.length === 0) return;
   lines.push(`${indent(2)}<HolidayOrExceptions>`);
@@ -202,6 +214,48 @@ export function writeP6XML(
   const noteCount = tasks.reduce((n, t) => n + (t.notes?.length ?? 0), 0);
   if (noteCount > 0) {
     console.warn(`P6-export: ${noteCount} taak-aantekening(en) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
+  }
+
+  // H5 (eindreview T16c): P6 kent per activity geen "24/7, negeer de kalender"-duurtype (elke
+  // activity rekent tegen een kalender — geen ELAPSEDTIME-equivalent geverifieerd in het P6-XML-
+  // schema, zelfde UNVERIFIED-voorzichtigheid als de scheduling-opties hierboven); een taak met
+  // ELAPSEDTIME-duur (T8, bv. uit een `.mpp`-import) exporteert daarom stil als gewone werktijd-duur
+  // ⇒ weggelaten-met-warn, exact het hammock-/externalLinks-patroon hierboven.
+  const elapsedTaskCount = tasks.filter(t => t.time.durationType === 'ELAPSEDTIME').length;
+  if (elapsedTaskCount > 0) {
+    console.warn(`P6-export: ${elapsedTaskCount} taak/taken met ELAPSEDTIME-duur (24/7-klokrekenen) geëxporteerd als gewone werktijd-duur — geen P6-equivalent (§6).`);
+  }
+
+  // T13 (§T2-afwijking, LAAG-7-afnemer): werkende uitzonderingen (fase 3.8, T2/T3) — zie de
+  // uitgebreide toelichting bij `writeHolidayOrExceptions` hierboven voor WAAROM dit structureel
+  // niet uitdrukbaar is in het P6-XML-schema (geen `DayWorking`-vlag op `<HolidayOrException>`).
+  // Geteld over de projectkalender ÉN alle bibliotheekkalenders die daadwerkelijk geschreven worden.
+  const workingExcCount = [calendar, ...resourceCalendars].reduce((n, c) => n + (c.workingExceptions?.length ?? 0), 0);
+  if (workingExcCount > 0) {
+    console.warn(`P6-export: ${workingExcCount} werkende kalenderuitzondering(en) weggelaten — niet uitdrukbaar in P6-XML (geen DayWorking-vlag op HolidayOrException, §6).`);
+  }
+
+  // Z14 (etappe "nul afwijkingen") — vier nieuwe velden zonder geverifieerde P6-representatie:
+  // exact het hammock-/externalLinks-patroon hierboven (weglaten-met-warn i.p.v. gokken op een
+  // UNVERIFIED P6-veldnaam).
+  const manualCount = tasks.filter(t => t.manuallyScheduled).length;
+  if (manualCount > 0) {
+    console.warn(`P6-export: ${manualCount} handmatig geplande taak/taken geëxporteerd als gewone taak met berekende datums — geen geverifieerd P6-equivalent (§6).`);
+  }
+  const levelingPrecisionCount = tasks.filter(t => t.levelingDelayMinutes != null).length;
+  if (levelingPrecisionCount > 0) {
+    console.warn(`P6-export: ${levelingPrecisionCount} taak/taken met sub-dag-nivelleervertraging (levelingDelayMinutes) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
+  }
+  // Splits en gecontoureerde toewijzingen delen dezelfde timephased-oorsprong (§3(c) van het
+  // nul-afwijkingen-plan, zelfde redenering als de MSPDI-warn) — één gecombineerde warn.
+  const splitTaskCount = tasks.filter(t => t.splitGaps && t.splitGaps.length > 0).length;
+  const contouredAssignmentCount = assignments.filter(a => a.workWindowStart || a.workWindowFinish).length;
+  if (splitTaskCount > 0 || contouredAssignmentCount > 0) {
+    console.warn(`P6-export: ${splitTaskCount} gesplitste taak/taken en ${contouredAssignmentCount} gecontoureerde toewijzing(en) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
+  }
+  const resumeStopCount = tasks.filter(t => t.time.resume || t.time.stop).length;
+  if (resumeStopCount > 0) {
+    console.warn(`P6-export: ${resumeStopCount} taak/taken met resume/stop (uit-volgorde-hervatting) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
   }
 
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');

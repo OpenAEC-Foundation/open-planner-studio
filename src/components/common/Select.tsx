@@ -63,6 +63,13 @@ export function Select({
   const selectedLabel = selectedIndex >= 0 ? options[selectedIndex].label : undefined;
 
   const firstEnabled = options.findIndex(o => !o.disabled);
+  // De keuzelijst leest deze twee waarden uitsluitend op de gesloten→open-grens. Tijdens een
+  // open sessie mogen nieuwe opties de toetsenbordcursor niet terugzetten; bij een volgende open
+  // sessie moeten de dan actuele selectie en eerste geldige optie juist wel worden gebruikt.
+  const selectedIndexRef = useRef(selectedIndex);
+  const firstEnabledRef = useRef(firstEnabled);
+  selectedIndexRef.current = selectedIndex;
+  firstEnabledRef.current = firstEnabled;
   const lastEnabled = (() => {
     for (let i = options.length - 1; i >= 0; i--) if (!options[i].disabled) return i;
     return -1;
@@ -101,9 +108,10 @@ export function Select({
   // On open, initialise highlight to the selected (or first enabled) option.
   useEffect(() => {
     if (open) {
-      setHighlight(selectedIndex >= 0 ? selectedIndex : firstEnabled);
+      setHighlight(
+        selectedIndexRef.current >= 0 ? selectedIndexRef.current : firstEnabledRef.current,
+      );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Keep the highlighted option scrolled into view.

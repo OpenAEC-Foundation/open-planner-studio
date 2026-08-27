@@ -14,6 +14,9 @@ import { useAppStore, test, assert, assertEq, run } from './harness';
 import { validate, progress } from '@/state/mcpValidation';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { createSnapshot } from '@/state/snapshot';
+import { createAppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
 
 const store = useAppStore;
 
@@ -278,5 +281,69 @@ test('validate.milestoneDuration: mijlpaal met duur>0 ⇒ fout, duur 0 / geen mi
   assertEq(validate.milestoneDuration({ isMilestone: false, time: { scheduleDuration: 5 } as any }), null, 'gewone taak ⇒ geen fout');
   assertEq(validate.milestoneDuration({ isMilestone: true }), null, 'mijlpaal zonder expliciete time ⇒ geen fout (duur wordt 0)');
 });
+
+// =================================================================================================
+// 6) Contextfactory-vangrails: solverrollback en strikt synchrone callback
+// =================================================================================================
+test('solvercycle in factory B rolt B volledig terug en laat A bytegelijk', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  B.store.getState().addTask({ name: 'warmup' });
+  B.store.getState().undo();
+  const a = B.store.getState().addTask({ name: 'factory-cycle-A' });
+  const b = B.store.getState().addTask({ name: 'factory-cycle-B' });
+  B.store.getState().runCPM();
+  const txB = createMcpTransactions(B);
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+  const bVoor = JSON.stringify(createSnapshot(B.store.getState()));
+  const undoVoor = B.store.getState().undoStack.length;
+  const redoVoor = JSON.stringify(B.store.getState().redoStack);
+
+  const result = txB.run(() => {
+    txB.draft.addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+    txB.draft.addSequence({ predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
+  });
+
+  assert(!result.ok, 'de eindsolver hoort de kring te weigeren');
+  assertEq(JSON.stringify(createSnapshot(B.store.getState())), bVoor,
+    'B hoort inclusief cpmResult exact terug te rollen');
+  assertEq(B.store.getState().undoStack.length, undoVoor, 'B-undo hoort na solverrollback gelijk te zijn');
+  assertEq(JSON.stringify(B.store.getState().redoStack), redoVoor, 'B-redo hoort na solverrollback gelijk te zijn');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor, 'solverrollback in B mag A niet raken');
+});
+
+test('een thenable uit de callback wordt runtime geweigerd en volledig teruggerold', () => {
+  const context = createAppStoreContext();
+  context.store.getState().addTask({ name: 'warmup' });
+  context.store.getState().undo();
+  const tx = createMcpTransactions(context);
+  const voor = JSON.stringify(createSnapshot(context.store.getState()));
+  const stacksVoor = {
+    undo: context.store.getState().undoStack.length,
+    redo: context.store.getState().redoStack.length,
+  };
+  const unsafeRun = tx.run as unknown as (
+    fn: () => unknown,
+  ) => { ok: true; value: unknown; timephasedGuidanceLost: number } | { ok: false; error: string };
+
+  const result = unsafeRun(() => {
+    tx.draft.addTask({ name: 'verdwijnt-door-thenable' });
+    return Promise.resolve('asynchroon');
+  });
+
+  assert(!result.ok && /synchroon|thenable|promise/i.test(result.error),
+    'de runtimeguard hoort een herkenbare synchroniciteitsfout te geven');
+  assertEq(JSON.stringify(createSnapshot(context.store.getState())), voor,
+    'de thenable-weigering hoort de documentstate volledig terug te rollen');
+  assertEq({ undo: context.store.getState().undoStack.length, redo: context.store.getState().redoStack.length },
+    stacksVoor, 'de thenable-weigering hoort undo/redo exact te herstellen');
+});
+
+if (false) {
+  const context = createAppStoreContext();
+  const tx = createMcpTransactions(context);
+  // @ts-expect-error MCP-transacties zijn strikt synchroon; Promise-return is type-ongeldig.
+  tx.run(async () => 'niet-toegestaan');
+}
 
 await run();

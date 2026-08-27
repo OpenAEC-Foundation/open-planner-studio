@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "Benachrichtigung schließen",
     "openFailed": "Datei konnte nicht geöffnet werden",
+    "mppLegacy": "Diese .mpp-Datei verwendet ein altes Format (Project 2007 oder älter). Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
+    "mppEncrypted": "Diese .mpp-Datei ist passwortgeschützt. Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
     "saveFailed": "Speichern fehlgeschlagen",
+    "librarySaveFailed": "Bibliothek konnte nicht gespeichert werden",
     "savedViaDownload": "Als Download gespeichert: '{{name}}' liegt jetzt in Ihrem Download-Ordner. Diese Umgebung erlaubt der App nicht, direkt an den gewählten Ort zu schreiben.",
     "autoSaveFailed": "Automatisches Speichern fehlgeschlagen",
     "recoveryReadFailed": "Wiederhergestellte Datei konnte nicht gelesen werden",
@@ -15,8 +18,15 @@
     "templateSaved": "Zweig als Vorlage '{{name}}' gespeichert",
     "relationCreated": "Beziehung erstellt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Diese Beziehung besteht bereits",
-    "relationSummaryEndpoint": "Eine Sammelaufgabe als Endpunkt hat keine Auswirkung auf den Terminplan. Verknüpfen Sie sie mit einer Aufgabe ohne Unteraufgaben.",
-    "summaryRelationsIgnored": "{{total}} Beziehung(en) an Sammelaufgaben haben keine Auswirkung auf den Terminplan."
+    "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
+    "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden — siehe das Beziehungen-Panel für Details.",
+    "mppSourceScheduleNotes_one": "Diese MS-Project-Datei enthält {{count}} Vorgang mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Er wird so eingelesen und angezeigt.",
+    "mppSourceScheduleNotes_other": "Diese MS-Project-Datei enthält {{count}} Vorgänge mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Sie werden so eingelesen und angezeigt.",
+    "projectStartAnchorsClamped_one": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurde auf das neue Startdatum verschoben.",
+    "projectStartAnchorsClamped_other": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurden auf das neue Startdatum verschoben.",
+    "mppTimephasedSteeringLost_one": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgang nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
+    "mppTimephasedSteeringLost_other": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgänge nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
+    "readMore": "Mehr erfahren"
   },
   "yes": "Ja",
   "no": "Nein",
@@ -236,7 +246,8 @@
   },
   "project": {
     "untitled": "Neue Planung",
-    "imported": "Importiertes Projekt"
+    "imported": "Importiertes Projekt",
+    "unassignedResource": "Nicht zugewiesen"
   },
   "documents": {
     "overviewTitle": "Offene Projekte",
@@ -534,7 +545,8 @@
       "capacity": "Kapazität",
       "documents": "Dokumente",
       "selectHint": "Wählen Sie eine Ressource aus, um das Histogramm zu sehen."
-    }
+    },
+    "color": "Farbe"
   },
   "calendar": {
     "library": {
@@ -691,6 +703,13 @@
     "notice": "Diese Datei enthält stundenbasierte Planung.",
     "enable": "Stundenplanung aktivieren"
   },
+  "recordedDates": {
+    "offer_one": "Die Neuberechnung hat {{count}} von {{total}} Vorgängen gegenüber den Terminen in der Datei verschoben.",
+    "offer_other": "Die Neuberechnung hat {{count}} von {{total}} Vorgängen gegenüber den Terminen in der Datei verschoben.",
+    "show": "Aufgezeichnete Termine anzeigen",
+    "active": "Sie sehen die Termine so, wie sie in der Datei aufgezeichnet sind. Es wurde nicht neu berechnet.",
+    "recalculate": "Neu berechnen"
+  },
   "duration": {
     "suffixDay": "T",
     "suffixHour": "Std",
@@ -807,6 +826,10 @@
     "intro": "Erzeugen Sie einen Testterminplan und messen Sie die Kernphasen. Ihr geöffnetes Projekt bleibt unberührt.",
     "sizeLabel": "Terminplangröße",
     "tasksCount": "{{count}} Vorgänge",
+    "resourceLabel": "Anzahl Ressourcen",
+    "resourcesNone": "Keine Ressourcen",
+    "resourcesCount": "{{count}} Ressourcen",
+    "networkHint": "Jeder Vorgang ohne Untervorgänge erhält mindestens eine Verknüpfung; Sammelvorgänge bleiben eine Aggregation ihrer Untervorgänge.",
     "run": "Ausführen",
     "running": "Läuft…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -840,5 +863,26 @@
     "detailRender": "{{rows}} Zeilen · {{w}}×{{h}}",
     "renderUnavailable": "Rendering nicht verfügbar (kein 2D-Canvas-Kontext)",
     "largeWarning": "Großer Terminplan: das kann eine Weile dauern; der Fortschrittsbalken kann während der Berechnung eingefroren wirken."
+  },
+  "extConsent": {
+    "title": "Erweiterung installieren?",
+    "author": "Autor",
+    "repository": "Repository",
+    "originHeading": "Herkunft",
+    "sourceCatalog": "Aus dem Online-Erweiterungskatalog",
+    "sourceZip": "Aus einer ZIP-Datei auf diesem Rechner",
+    "sourceJs": "Aus einer JavaScript-Datei auf diesem Rechner",
+    "verifiedChecksum": "Download anhand der Prüfsumme aus dem Katalog verifiziert.",
+    "verifiedNone": "Der Katalog liefert keine Prüfsumme — dieser Download wurde nicht verifiziert.",
+    "verifiedLocal": "Sie haben diese Datei selbst gewählt; es gibt keine externe Quelle zum Abgleich.",
+    "riskHeading": "Wozu Sie Ja sagen",
+    "riskBody": "Eine Erweiterung ist Programmcode, der mit denselben Rechten läuft wie Open Planner Studio selbst. Nichts grenzt ihn ein. Installieren Sie nur Erweiterungen, deren Autor Sie vertrauen.",
+    "riskDesktop": "In der Desktop-App gehört dazu: Dateien überall in Ihrem Benutzerordner lesen und schreiben, dazu Zugriff auf Ihre Projekte, Einstellungen und die Zwischenablage.",
+    "riskBrowser": "Im Browser bedeutet das: Zugriff auf Ihre gespeicherten Projekte und Einstellungen, auf die Dateien, für die Sie Zugriff erteilt haben, und auf das Netzwerk.",
+    "declaredHeading": "Was diese Erweiterung zu nutzen angibt",
+    "declaredNote": "Das ist die Angabe des Autors, keine Beschränkung — der Code kann ohnehin mehr.",
+    "declaredNone": "Nichts angegeben.",
+    "cancel": "Nicht installieren",
+    "confirm": "Installieren"
   }
 }

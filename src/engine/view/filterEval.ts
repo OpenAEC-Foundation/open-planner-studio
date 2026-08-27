@@ -20,12 +20,61 @@ export interface ViewContext {
 /** Ruwe, vergelijkbare veldwaarde (filter/sort). `resource` levert een array van namen. */
 export type FieldValue = string | number | boolean | string[] | undefined;
 
-/** Namen van de aan de taak toegewezen resources (join via assignments, §5.3). */
+/**
+ * Indexen op een `ViewContext`, lui gebouwd en gecachet op de context-INSTANTIE (K-item 36).
+ *
+ * Waarom een WeakMap en geen extra velden op `ViewContext`: de context wordt op drie plekken
+ * opgebouwd (`viewSlice.buildViewInput`, `TableEditor`, de benchmark-runner) en die zouden alle
+ * drie de indexen moeten vullen — precies het soort met-de-hand-bijhouden dat elders in dit
+ * traject is opgeruimd. De cache is veilig omdat élke bouwplek een VERS objectliteraal maakt
+ * (viewSlice per recompute, TableEditor via een `useMemo` op de array-identiteiten) en Immer bij
+ * elke wijziging nieuwe arrays teruggeeft: een gewijzigde `assignments` betekent dus altijd een
+ * nieuwe context en daarmee een nieuwe index. Een WeakMap laat de oude bovendien vanzelf vallen.
+ */
+interface ViewIndexes {
+  assignmentsByTask: Map<string, ResourceAssignment[]>;
+  resourceById: Map<string, Resource>;
+}
+const indexCache = new WeakMap<ViewContext, ViewIndexes>();
+
+function indexesFor(ctx: ViewContext): ViewIndexes {
+  const hit = indexCache.get(ctx);
+  if (hit) return hit;
+  const assignmentsByTask = new Map<string, ResourceAssignment[]>();
+  for (const a of ctx.assignments) {
+    const list = assignmentsByTask.get(a.taskId);
+    if (list) list.push(a);
+    else assignmentsByTask.set(a.taskId, [a]);
+  }
+  const resourceById = new Map<string, Resource>();
+  // `!has` en niet kaal `set`: `Map.set` houdt bij een dubbele id de LAATSTE, terwijl de
+  // `find()` die dit verving de EERSTE koos. Onbereikbaar met de huidige id-generatie, maar deze
+  // wijziging hoort een pure prestatiewijziging te zijn en dan mag ook een onbereikbaar
+  // semantisch verschil er niet in sluipen.
+  for (const r of ctx.resources) if (!resourceById.has(r.id)) resourceById.set(r.id, r);
+  const built = { assignmentsByTask, resourceById };
+  indexCache.set(ctx, built);
+  return built;
+}
+
+/**
+ * Namen van de aan de taak toegewezen resources (join via assignments, §5.3).
+ *
+ * Draaide hiervóór twee volledige scans PER TAAK — `assignments.filter(...)` plus een
+ * `resources.find(...)` per treffer — terwijl `visibleRows` deze functie voor élke taak aanroept.
+ * Dat is O(taken × toewijzingen × resources) op het pad dat na iedere mutatie opnieuw loopt
+ * (`recomputeViewRows`). Met de index erboven is het O(toewijzingen van deze taak).
+ */
 export function resourceNames(task: Task, ctx: ViewContext): string[] {
-  return ctx.assignments
-    .filter(a => a.taskId === task.id)
-    .map(a => ctx.resources.find(r => r.id === a.resourceId)?.name)
-    .filter((n): n is string => !!n);
+  const { assignmentsByTask, resourceById } = indexesFor(ctx);
+  const mine = assignmentsByTask.get(task.id);
+  if (!mine) return [];
+  const out: string[] = [];
+  for (const a of mine) {
+    const name = resourceById.get(a.resourceId)?.name;
+    if (name) out.push(name);
+  }
+  return out;
 }
 
 /** Komma-gescheiden resource-namen voor de resource-kolom (§5.3). */
@@ -137,6 +186,22 @@ export function applyOperator(
 }
 
 /**
+ * "Actief tussen"-synthetisch filterveld (issue-discussie #32): een taak is actief in [van, tot]
+ * wanneer haar eigen interval [start, finish] dát overlapt — de klassieke interval-overlaptest
+ * (start ≤ tot ÉN finish ≥ van). Dit past niet in de generieke resolver: die levert per veld één
+ * scalar die de operator tegen `value`/`value2` legt, terwijl deze check start ÉN finish
+ * tegelijk nodig heeft. Vandaar de special-case hier in plaats van een uitbreiding van
+ * `resolveField`/`applyOperator`. ISO-datums vergelijken lexicografisch correct (zie `cmp`).
+ */
+function evaluateActiveDuring(task: Task, value?: string | number | boolean | string[], value2?: string | number): boolean {
+  if (typeof value !== 'string' || typeof value2 !== 'string') return false;
+  const start = task.time.earlyStart || task.time.scheduleStart;
+  const finish = task.time.earlyFinish || task.time.scheduleFinish;
+  if (!start || !finish) return false;
+  return start <= value2 && finish >= value;
+}
+
+/**
  * Evalueer een filterknoop op één taak (§6.2). Een lege groep matcht alles (neutraal element).
  */
 export function evaluate(node: FilterNode, task: Task, ctx: ViewContext): boolean {
@@ -145,6 +210,9 @@ export function evaluate(node: FilterNode, task: Task, ctx: ViewContext): boolea
     return node.op === 'AND'
       ? node.children.every(c => evaluate(c, task, ctx))
       : node.children.some(c => evaluate(c, task, ctx));
+  }
+  if (node.field.src === 'builtin' && node.field.key === 'activeDuring') {
+    return evaluateActiveDuring(task, node.value, node.value2);
   }
   const v = resolveField(node.field, task, ctx);
   return applyOperator(node.operator, v, node.value, node.value2);

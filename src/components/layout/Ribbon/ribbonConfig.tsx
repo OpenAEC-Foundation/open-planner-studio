@@ -8,21 +8,23 @@ import {
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays,
+  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3,
 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { COMMANDS } from '@/state/commands';
+import { useCommandBinding } from './useCommandBinding';
 import { createRelationWithFeedback } from '@/state/relationActions';
-import { deleteTasksBulk } from '@/state/taskBulkActions';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import {
-  saveShowHistogram, saveShowBaselineOverlay, saveShowProgressLine, saveShowStatusDateLine,
+  saveShowBaselineOverlay, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
 } from '@/utils/settingsStore';
 import type { RibbonTab } from '@/state/slices/types';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, TemplatesDropdown, RecentFilesDropdown,
+  ScreenColorsPopoverButton,
   ExportDropdown, ResourceAssignDropdown, LayoutGroupContent, PresentationGroupContent,
   TimeScaleGroupContent, DisplayGroupContent, OverallocationIndicator, IfcInfo,
   useColumnsButtonBinding,
@@ -254,15 +256,11 @@ const fileGroup: RibbonGroupSpec = {
         },
         {
           kind: 'small', id: 'save', icon: <Save size={14} />, labelKey: 'menu:ribbon.save',
-          use: () => { const saveFile = useAppStore(s => s.saveFile); return { onClick: () => { void saveFile(); } }; },
+          use: () => useCommandBinding(COMMANDS.save),
         },
         {
           kind: 'small', id: 'open', icon: <FolderOpen size={14} />, labelKey: 'menu:ribbon.open',
-          use: () => {
-            const openFile = useAppStore(s => s.openFile);
-            const { t: tCommon } = useTranslation('common');
-            return { onClick: () => { void openFile({ importedProject: tCommon('project.imported') }); } };
-          },
+          use: () => useCommandBinding(COMMANDS.open),
         },
       ],
     },
@@ -272,7 +270,7 @@ const fileGroup: RibbonGroupSpec = {
       kind: 'stack', id: 'fileStack2', items: [
         {
           kind: 'small', id: 'saveAs', icon: <SaveAll size={14} />, labelKey: 'menu:backstage.saveAs',
-          use: () => { const saveFileAs = useAppStore(s => s.saveFileAs); return { onClick: () => { void saveFileAs(); } }; },
+          use: () => useCommandBinding(COMMANDS.saveAs),
         },
         { kind: 'component', id: 'recentFiles', Component: RecentFilesDropdown },
         { kind: 'component', id: 'export', Component: ExportDropdown },
@@ -293,31 +291,15 @@ const editGroup: RibbonGroupSpec = {
       kind: 'stack', id: 'editStack', items: [
         {
           kind: 'small', id: 'undo', icon: <Undo2 size={14} />, labelKey: 'menu:ribbon.undo',
-          use: () => {
-            const undo = useAppStore(s => s.undo);
-            const disabled = useAppStore(s => s.undoStack.length === 0);
-            return { onClick: () => undo(), disabled };
-          },
+          use: () => useCommandBinding(COMMANDS.undo),
         },
         {
           kind: 'small', id: 'redo', icon: <Redo2 size={14} />, labelKey: 'menu:ribbon.redo',
-          use: () => {
-            const redo = useAppStore(s => s.redo);
-            const disabled = useAppStore(s => s.redoStack.length === 0);
-            return { onClick: () => redo(), disabled };
-          },
+          use: () => useCommandBinding(COMMANDS.redo),
         },
         {
           kind: 'small', id: 'delete', icon: <Trash2 size={14} />, labelKey: 'menu:ribbon.delete', danger: true,
-          use: () => {
-            const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-            return {
-              // Gedeelde bulk-route (één handeling = één undo-stap), zelfde als het contextmenu
-              // en Delete/Backspace — een kale `deleteTask`-lus kostte hier N Ctrl+Z's.
-              onClick: () => { deleteTasksBulk(selectedTaskIds); },
-              disabled: selectedTaskIds.length === 0,
-            };
-          },
+          use: () => useCommandBinding(COMMANDS.delete),
         },
       ],
     },
@@ -359,11 +341,11 @@ const startTab: RibbonTabConfig = [
         kind: 'stack', id: 'zoomStack', items: [
           {
             kind: 'small', id: 'zoomIn', icon: <ZoomIn size={14} />, labelKey: 'menu:ribbon.zoomIn',
-            use: () => { const setZoom = useAppStore(s => s.setZoom); const zoom = useAppStore(s => s.view.zoom); return { onClick: () => setZoom(zoom + 10) }; },
+            use: () => useCommandBinding(COMMANDS.zoomIn),
           },
           {
             kind: 'small', id: 'zoomOut', icon: <ZoomOut size={14} />, labelKey: 'menu:ribbon.zoomOut',
-            use: () => { const setZoom = useAppStore(s => s.setZoom); const zoom = useAppStore(s => s.view.zoom); return { onClick: () => setZoom(zoom - 5) }; },
+            use: () => useCommandBinding(COMMANDS.zoomOut),
           },
         ],
       },
@@ -438,32 +420,23 @@ const planningTab: RibbonTabConfig = [
         kind: 'stack', id: 'structureStack2', items: [
           {
             kind: 'small', id: 'indent', icon: <IndentIncrease size={14} />, labelKey: 'menu:ribbon.indent',
+            // Aanvulling op de gedeelde binding: buiten boommodus krijgt de UITGESCHAKELDE knop
+            // een tooltip die uitlegt waarom. De sneltoets kan dat niet en toont in plaats daarvan
+            // een melding — zie de toelichting bij `COMMANDS.indent`.
             use: () => {
-              const view = useAppStore(s => s.view);
-              const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-              const indentTasks = useAppStore(s => s.indentTasks);
+              const binding = useCommandBinding(COMMANDS.indent);
+              const treeMode = useAppStore(s => isTreeMode(s.view));
               const { t: tCommon } = useTranslation('common');
-              const treeMode = isTreeMode(view);
-              return {
-                onClick: () => indentTasks(selectedTaskIds),
-                disabled: selectedTaskIds.length === 0 || !treeMode,
-                title: !treeMode ? tCommon('view.structureLockedHint') : undefined,
-              };
+              return { ...binding, title: !treeMode ? tCommon('view.structureLockedHint') : undefined };
             },
           },
           {
             kind: 'small', id: 'outdent', icon: <IndentDecrease size={14} />, labelKey: 'menu:ribbon.outdent',
             use: () => {
-              const view = useAppStore(s => s.view);
-              const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-              const outdentTasks = useAppStore(s => s.outdentTasks);
+              const binding = useCommandBinding(COMMANDS.outdent);
+              const treeMode = useAppStore(s => isTreeMode(s.view));
               const { t: tCommon } = useTranslation('common');
-              const treeMode = isTreeMode(view);
-              return {
-                onClick: () => outdentTasks(selectedTaskIds),
-                disabled: selectedTaskIds.length === 0 || !treeMode,
-                title: !treeMode ? tCommon('view.structureLockedHint') : undefined,
-              };
+              return { ...binding, title: !treeMode ? tCommon('view.structureLockedHint') : undefined };
             },
           },
         ],
@@ -544,13 +517,12 @@ const dockResourcePanelButton: RibbonButtonSpec = {
 
 const toggleHistogramButton: RibbonButtonSpec = {
   kind: 'button', id: 'toggleHistogram', icon: <BarChart3 size={20} />, labelKey: 'menu:ribbon.toggleHistogram',
+  // Aanvulling op de gedeelde binding: een schakelaar toont zijn STAND. Het omzetten zelf
+  // (inclusief het persisteren) zit in het commando, gedeeld met Ctrl+Shift+H.
   use: () => {
-    const showHistogram = useAppStore(s => s.ui.showHistogram);
-    const setUI = useAppStore(s => s.setUI);
-    return {
-      active: showHistogram,
-      onClick: () => { const next = !showHistogram; setUI({ showHistogram: next }); void saveShowHistogram(next); },
-    };
+    const binding = useCommandBinding(COMMANDS.toggleHistogram);
+    const active = useAppStore(s => s.ui.showHistogram);
+    return { ...binding, active };
   },
 };
 
@@ -779,6 +751,21 @@ const beeldTab: RibbonTabConfig = [
               const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
               const setUI = useAppStore(s => s.setUI);
               return { active: showStatusDateLine, onClick: () => { const next = !showStatusDateLine; setUI({ showStatusDateLine: next }); void saveShowStatusDateLine(next); } };
+            },
+          },
+        ],
+      },
+      // De vaste linthoogte draagt drie kleine knoppen per stack. Kleurmodus en resource-accent
+      // vormen daarom samen de tweede verticale kolom, niet twee losse horizontale groepsitems.
+      {
+        kind: 'stack', id: 'colorAccentStack', items: [
+          { kind: 'component', id: 'screenColors', Component: ScreenColorsPopoverButton },
+          {
+            kind: 'small', id: 'toggleResourceAccent', icon: <Palette size={14} />, labelKey: 'menu:ribbon.toggleResourceAccent',
+            use: () => {
+              const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
+              const setUI = useAppStore(s => s.setUI);
+              return { active: showResourceAccent, onClick: () => { const next = !showResourceAccent; setUI({ showResourceAccent: next }); void saveShowResourceAccent(next); } };
             },
           },
         ],

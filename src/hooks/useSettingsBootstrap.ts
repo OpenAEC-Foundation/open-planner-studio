@@ -23,7 +23,7 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     // Recente bestanden leven in IndexedDB (async, met eenmalige localStorage-migratie) —
     // één keer bij opstart in de store hydrateren.
     void useAppStore.getState().hydrateRecentFiles();
-  }, []);
+  }, [setUI]);
 
   // First-startup-ervaring (fase 2.10, onderdeel 3, §3): toont de WelcomeDialog bij een verse
   // `!loadWelcomeSeen()`. Eigen ref-guard (`welcomeChecked`) naar het recovery-/update-check-

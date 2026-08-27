@@ -76,6 +76,50 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
       .map(cid => byId.get(cid))
       .filter(Boolean) as Task[];
 
+    // Handmatig gepland (Z9b, etappe "nul afwijkingen"): in MS Project rolt een manual
+    // SAMENVATTINGSTAAK NIET op — ze houdt haar eigen opgeslagen start/finish. CORPUSBEWIJS: het
+    // gemengde corpusbestand droeg elf manual-verzameltaken (childIds 2..28) wier berekende
+    // earlyStart/earlyFinish via de onvoorwaardelijke min/max-rollup hieronder kwamen i.p.v. hun
+    // eigen datums — precies deze afwijkingen moeten door deze tak verdwijnen.
+    //
+    // Wisselwerking met Z9a (item 4, plan-§Z9b): een manual samenvattingstaak komt NOOIT in de
+    // CPM-graaf — `runCPM`/`projectSlice` geven de solver alleen BLADtaken mee (`childIds.length
+    // === 0`, zie het T8-docblock verderop in dit bestand en `CPMSolver.ts`s eigen leaf-only-
+    // aanname), dus `result.tasks.get(taskId)` in de hoofdlus hierboven is voor haar altijd
+    // `undefined` en de `if (!r) continue`-guard slaat haar sowieso over. Haar `earlyStart`/
+    // `earlyFinish` komen dus NERGENS uit een forwardPass — dit is de EERSTE en ENIGE plek in de
+    // hele keten waar ze gezet worden, niet een "overschrijving" van een eerder CPM-resultaat.
+    // `time.scheduleStart`/`scheduleFinish` dragen voor een manual taak (blad ÉN samenvatting)
+    // sinds Z9a al het juiste veldpaar (`mppReader.ts`s `resolveScheduleField`) — deze tak
+    // respecteert dat gewoon, net als de manual-tak in `CPMSolver.forwardPass`.
+    //
+    // `es`/`ef` als STRINGS vergeleken: `scheduleStart`/`scheduleFinish` zijn altijd ISO-
+    // genormaliseerde datum(tijd)-strings (`YYYY-MM-DD` of `YYYY-MM-DDTHH:mm`), dus lexicografische
+    // vergelijking is hier datumvergelijking — spiegelt de `ef<es`-inversiecorrectie van de manual-
+    // bladtak in `CPMSolver.forwardPass` defensief (geen corpusgeval gevonden dat dit raakt).
+    //
+    // Late datums/floats zijn NIET corpus-gemeten (de fidelity-check meet uitsluitend start/
+    // finish) — hier gepind op dezelfde DEFINITORISCHE conventie als de manual-bladtaak-forcing in
+    // `scheduleAnalysis.ts` (ls=es/lf=ef ⇒ tf=ff=0): met eigen, van de kinderen losgekoppelde
+    // datums zou een kinderen-afgeleide late datum/float onzinnig zijn (kan negatief of enorm
+    // uitvallen t.o.v. de eigen span). `isCritical` blijft WEL van de kinderen afgeleid — of een
+    // fase kritiek werk bevat is, anders dan de datums zelf, geen eigenschap die de eigen
+    // opgeslagen datums tegenspreekt.
+    if (task.manuallyScheduled && children.length > 0) {
+      const es = task.time.scheduleStart;
+      const ef = task.time.scheduleFinish;
+      const [start, finish] = ef < es ? [ef, es] : [es, ef];
+      task.time.earlyStart = start;
+      task.time.earlyFinish = finish;
+      task.time.lateStart = start;
+      task.time.lateFinish = finish;
+      task.time.totalFloat = 0;
+      task.time.freeFloat = 0;
+      task.time.interferingFloat = 0;
+      task.time.isCritical = children.some(c => c.time.isCritical);
+      return;
+    }
+
     if (children.length > 0) {
       const starts = children.map(c => c.time.earlyStart).sort();
       const finishes = children.map(c => c.time.earlyFinish).sort();

@@ -17,7 +17,7 @@ runs as a desktop app on Windows, macOS and Linux, and directly in your browser.
 
 ## Documentation
 
-- **Guides** — task-focused walkthroughs: [Planning & WBS](Planning-and-WBS), [Relations & constraints](Relations-and-constraints), [Calendars & hour planning](Calendars-and-hour-planning), [Resources, histogram & leveling](Resources-histogram-and-leveling), [Resource libraries](Resource-libraries), [Baselines & progress](Baselines-and-progress), [Critical path & advanced analysis](Critical-path-and-advanced-analysis), [Import/export](Import-export), [Connecting an AI assistant (MCP)](Connecting-an-AI-assistant), [Reports & printing](Reports-and-printing) and [Keyboard shortcuts & controls](Keyboard-shortcuts-and-controls).
+- **Guides** — task-focused walkthroughs: [Planning & WBS](Planning-and-WBS), [Relations & constraints](Relations-and-constraints), [Calendars & hour planning](Calendars-and-hour-planning), [Resources, histogram & leveling](Resources-histogram-and-leveling), [Resource libraries](Resource-libraries), [Occupancy overview](Occupancy-overview), [Baselines & progress](Baselines-and-progress), [Critical path & advanced analysis](Critical-path-and-advanced-analysis), [Import/export](Import-export), [Connecting an AI assistant (MCP)](Connecting-an-AI-assistant), [Reports & printing](Reports-and-printing) and [Keyboard shortcuts & controls](Keyboard-shortcuts-and-controls).
 - **Reference** — per-dialog and per-feature reference articles (see the sidebar).
 - **[Changelog](Changelog)** — notable changes per release.
 

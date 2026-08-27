@@ -41,3 +41,15 @@ interface Window {
   showOpenFilePicker?(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
   showSaveFilePicker?(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
 }
+
+// De (non-standaard, Chromium-only) Feature Policy-introspectie-API. TypeScript's lib.dom.d.ts
+// kent deze niet (meer) — hij is nooit gestandaardiseerd en inmiddels afgebouwd ten gunste van
+// Permissions Policy, maar embedded Chromium-webviews (o.a. Electron) rapporteren via dit pad nog
+// wél of `file-system-access` door de policy geblokkeerd is, terwijl de API zelf gewoon bestaat.
+interface FeaturePolicy {
+  allowsFeature(feature?: string, origin?: string): boolean;
+}
+
+interface Document {
+  featurePolicy?: FeaturePolicy;
+}

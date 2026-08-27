@@ -27,6 +27,7 @@ export function DocumentTabBar() {
           title={card.fileName ?? card.title}
           onClick={() => switchTo(card.id)}
           data-ops-tab={card.id}
+          data-testid="document-tab"
         >
           <span className="ops-dot" />
           <span className="ops-tab-name">{card.title}</span>

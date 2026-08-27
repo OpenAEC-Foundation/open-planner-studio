@@ -13,11 +13,10 @@
 // fouten i.p.v. te gooien — een tool-respons hoort een gestructureerde `McpToolResult` te zijn, niet
 // een JSON-RPC-transportfout.
 
-import { useAppStore } from '@/state/appStore';
 import type { AppState } from '@/state/appStore';
-import { runInMcpTransaction } from '@/state/mcpTransaction';
 import { hasBlockingDialogOpen } from '@/hooks/keyboard/shortcutRegistry';
 import type { DocumentInfo } from '@/state/slices/documentSlice';
+import type { UIState } from '@/state/slices/types';
 import { displayDocumentTitle } from '@/utils/documents';
 import type {
   McpContext,
@@ -47,9 +46,9 @@ export interface MutationOutcome {
  *  (b) een vaste Engelse terugval in de MCP-laag zelf.
  *
  * Gekozen: **(b)**. Drie redenen. (1) Precedent: `services/mcp/backup.ts` doet met
- * `sanitizeProjectName` → `'project'` al precies dit. (2) De naad past niet: `buildEnvelope()` zet
- * `documentTitle` in ELK antwoord en neemt bindend géén `ctx` (zie de comment hieronder) — een
- * label-parameter zou door de hele dispatcher, de bridge-eventlaag en elke tool heen moeten. (3)
+ * `sanitizeProjectName` → `'project'` al precies dit. (2) De naad past niet: `buildEnvelope(ctx)` zet
+ * `documentTitle` in ELK antwoord; een label-parameter zou door de bridge-eventlaag en elke tool
+ * heen moeten. (3)
  * MCP is AI-facing, niet gebruikersgericht: de AI-client vertaalt zelf naar de taal van het gesprek.
  *
  * De waarde is letterlijk de `en`-vertaling van `common:project.untitled`, zodat de AI dezelfde term
@@ -84,13 +83,12 @@ export function mcpDocumentTitle(info: DocumentInfo | undefined): string {
  *     readOnly` zijn een snapshot bij `buildMcpContext`; die gelijkheid geldt NIET meer zodra er een
  *     async grens tussen zit — tijdens de backup-await in `runMutateTool` kan de user de pauze-/
  *     alleen-lezen-schakelaar nog omzetten. Live lezen is dus bewust en gewenst: de envelop toont de
- *     status op respons-moment, en blijft — omdat de bindende signatuur `buildEnvelope()` géén ctx
- *     neemt — óók zonder ctx gezaghebbend.
+ *     status op respons-moment. De requestcontext bepaalt uitsluitend welke store live wordt gelezen.
  * `backupCreated` wordt hier NIET gezet — alleen `runMutateTool` voegt het toe op de call die de
  * backup maakte (spec regel 132: "vermeld in de envelop van die eerste mutatie").
  */
-export function buildEnvelope(): McpEnvelope {
-  const s = useAppStore.getState();
+export function buildEnvelope(ctx: McpContext): McpEnvelope {
+  const s = ctx.app.store.getState();
   const active = s.getOpenDocuments().find((d) => d.isActive);
   return {
     activeDocumentId: s.activeDocumentId,
@@ -118,10 +116,10 @@ const BLOCKING_UI_FLAGS = [
 ] as const;
 
 /** Naam van de eerste open blokkerende ui-vlag, of null wanneer er geen open staat. */
-function blockingDialogName(): string | null {
-  const ui = useAppStore.getState().ui as unknown as Record<string, unknown>;
+function blockingDialogName(ui: UIState): string | null {
+  const flags = ui as unknown as Record<string, unknown>;
   for (const flag of BLOCKING_UI_FLAGS) {
-    if (ui[flag]) return flag;
+    if (flags[flag]) return flag;
   }
   return null;
 }
@@ -150,10 +148,10 @@ export class McpStepError extends Error {
  * Een `McpToolErr` met de live envelop, waarvan `paused`/`readOnly` uit `ctx` worden overschreven —
  * zodat een foutrespons de veiligheidsvlaggen toont zoals de wrapper ze bij binnenkomst zag (de
  * guards evalueren immers tegen `ctx`). Alle guard-/foutpaden lopen hierlangs; de succes-envelop
- * gebruikt bewust de LIVE `buildEnvelope()` (respons-moment, zie de comment daar).
+ * gebruikt bewust de LIVE `buildEnvelope(ctx)` (respons-moment, zie de comment daar).
  */
 export function toolError(ctx: McpContext, code: McpErrorCode, message: string): McpToolErr {
-  const envelope = buildEnvelope();
+  const envelope = buildEnvelope(ctx);
   envelope.paused = ctx.paused;
   envelope.readOnly = ctx.readOnly;
   return { ok: false, code, error: message, envelope };
@@ -191,8 +189,9 @@ export function preBackupGuards(ctx: McpContext): McpToolErr | null {
   if (ctx.readOnly) {
     return toolError(ctx, 'READ_ONLY', 'De AI-bridge staat in alleen-lezen-modus; muterende tools zijn geweigerd zolang die actief is.');
   }
-  if (hasBlockingDialogOpen()) {
-    const name = blockingDialogName() ?? 'een dialoog';
+  const ui = ctx.app.store.getState().ui;
+  if (hasBlockingDialogOpen(ui)) {
+    const name = blockingDialogName(ui) ?? 'een dialoog';
     return toolError(ctx, 'DIALOG_OPEN', `Er staat een dialoog open (${name}); sluit die eerst voordat de AI wijzigingen maakt.`);
   }
   return null;
@@ -204,7 +203,7 @@ export function preBackupGuards(ctx: McpContext): McpToolErr | null {
  * het actieve doc ⇒ `DOC_DRIFT`; is het nog null ⇒ deze (eerste) muterende stap bindt het anker.
  */
 function driftGuard(ctx: McpContext): McpToolErr | null {
-  const activeId = useAppStore.getState().activeDocumentId;
+  const activeId = ctx.app.store.getState().activeDocumentId;
   if (ctx.expectedDocId !== null && ctx.expectedDocId !== activeId) {
     return toolError(
       ctx,
@@ -227,13 +226,14 @@ function driftGuard(ctx: McpContext): McpToolErr | null {
  * mutaties). Een throw uit `fn` wordt een `INTERNAL`-fout — nooit een throw naar de dispatcher.
  */
 export function runReadTool(ctx: McpContext, fn: (s: AppState) => unknown): McpToolResult {
-  if (hasBlockingDialogOpen()) {
-    const name = blockingDialogName() ?? 'een dialoog';
+  const ui = ctx.app.store.getState().ui;
+  if (hasBlockingDialogOpen(ui)) {
+    const name = blockingDialogName(ui) ?? 'een dialoog';
     return toolError(ctx, 'DIALOG_OPEN', `Er staat een dialoog open (${name}); sluit die eerst voordat de AI de planning leest.`);
   }
   try {
-    const data = fn(useAppStore.getState());
-    return { ok: true, envelope: buildEnvelope(), data };
+    const data = fn(ctx.app.store.getState());
+    return { ok: true, envelope: buildEnvelope(ctx), data };
   } catch (e) {
     return toolError(ctx, 'INTERNAL', e instanceof Error ? e.message : String(e));
   }
@@ -257,7 +257,7 @@ export function runReadTool(ctx: McpContext, fn: (s: AppState) => unknown): McpT
  *      switch_document"); het reeds geschreven backup-bestand blijft dan onschadelijk staan (spec
  *      regel 131 staat dat expliciet toe). Is `expectedDocId` nog null, dan bindt deze eerste mutatie
  *      het anker aan het (post-await) actieve doc.
- *   6. `runInMcpTransaction(fn…)` — synchroon, dus geen verdere tabwissel mogelijk; bij succes komen
+ *   6. `ctx.transactions.run(fn…)` — synchroon, dus geen verdere tabwissel mogelijk; bij succes komen
  *      `outcome.data` + `itemRejections` in de Ok-respons. Een transactie-fout wordt een `McpToolErr`:
  *      gooit de handler een `McpStepError`, dan wint díe code; anders classificeert
  *      `mapTransactionError` de foutstring als `CYCLE`/`VALIDATION`.
@@ -275,7 +275,7 @@ export async function runMutateTool(
   //     §Volgorde & atomiciteit). De backup keyt op het doc-id ZOALS HET NU is (pre-await): een
   //     eventuele tabwissel gebeurt pas tijdens de await hieronder, en de drift-check daarna vangt
   //     dat af. Mislukt de backup ⇒ weigeren vóór er iets gemuteerd is (geen rollback nodig).
-  const backupDocId = useAppStore.getState().activeDocumentId;
+  const backupDocId = ctx.app.store.getState().activeDocumentId;
   let backupPath: string | null = null;
   try {
     backupPath = await ctx.ensureBackup(backupDocId, kind);
@@ -292,14 +292,10 @@ export async function runMutateTool(
   // (6) de eigenlijke mutatie als één atomaire, ongedaan-maakbare transactie. Een handler mag een
   //     `McpStepError` gooien om een precieze code te forceren; die vangen we hier op (zijn code
   //     overleeft de transactie-rollback, de kale foutstring niet) en zetten we óm in een McpToolErr.
-  let outcome: MutationOutcome | undefined;
-  // Bewust ZONDER `= null`-initialisatie: een `let x = null` laat de control-flow-analyse `x` als
-  // "definitief null" over de closure-grens dragen (⇒ `never` ná de call). Een kale union-declaratie
-  // behoudt het type dat de closure-assign nodig heeft.
   let stepError: McpStepError | undefined;
-  const res = runInMcpTransaction(() => {
+  const res = ctx.transactions.run(() => {
     try {
-      outcome = fn();
+      return fn();
     } catch (e) {
       if (e instanceof McpStepError) stepError = e;
       throw e; // door laten gaan zodat de transactie schoon terugrolt
@@ -312,11 +308,14 @@ export async function runMutateTool(
     return toolError(ctx, mapTransactionError(res.error), res.error);
   }
 
-  const envelope = buildEnvelope();
+  const envelope = buildEnvelope(ctx);
   if (backupPath) envelope.backupCreated = backupPath;
-  const ok: McpToolResult = { ok: true, envelope, data: outcome!.data };
-  if (outcome!.itemRejections && outcome!.itemRejections.length > 0) {
-    ok.itemRejections = outcome!.itemRejections;
+  // mpp-nul-data-etappe, DEEL 1 — zie het docblok bij `McpEnvelope.timephasedGuidanceLost`.
+  if (res.timephasedGuidanceLost > 0) envelope.timephasedGuidanceLost = res.timephasedGuidanceLost;
+  const outcome = res.value;
+  const ok: McpToolResult = { ok: true, envelope, data: outcome.data };
+  if (outcome.itemRejections && outcome.itemRejections.length > 0) {
+    ok.itemRejections = outcome.itemRejections;
   }
   return ok;
 }
@@ -330,16 +329,17 @@ export async function runMutateTool(
  * onterecht op drift te falen.
  */
 export function bindExpectedDoc(ctx: McpContext): void {
-  ctx.expectedDocId = useAppStore.getState().activeDocumentId;
+  ctx.expectedDocId = ctx.app.store.getState().activeDocumentId;
 }
 
 // --- Niet-transactionele guard ------------------------------------------------------------------
 
 /**
  * Dezelfde guards als `runMutateTool` (pauze → alleen-lezen → dialoog → drift + anker-binding), maar
- * ZONDER de AI-backup en ZONDER `runInMcpTransaction`. Voor tools die niet in een MCP-transactie
- * horen: `undo`/`redo` beheren hun eigen undo-stack, en `run_cpm` is een pure recompute (pusht per
- * invariant geen undo-snapshot). Er is hier geen async grens, dus de drift-check volgt direct op de
+ * ZONDER de AI-backup en ZONDER `ctx.transactions.run`. Voor tools die niet in een MCP-transactie
+ * horen: `undo`/`redo` beheren hun eigen undo-stack, en `run_cpm` is een recompute die de undo-stack
+ * alleen raakt wanneer hij "datums zoals opgeslagen" verlaat (issue #63) — dan is dat juist gewenst,
+ * want die herberekening overschrijft de opgeslagen datums. Er is hier geen async grens, dus de drift-check volgt direct op de
  * dialoog-guard. Retourneert een `McpToolErr` bij een blokkade, anders `null` (de tool mag door).
  */
 export function guardNonTransactional(ctx: McpContext): McpToolErr | null {

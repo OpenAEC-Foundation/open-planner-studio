@@ -44,6 +44,20 @@ Istnieją trzy sposoby utworzenia relacji, w zależności od tego, gdzie akurat 
 
 Kolumna **Wiodąca** pokazuje, po obliczeniu, która relacja rzeczywiście decyduje o dacie początku lub końca następnika — dla zadania z wieloma poprzednikami niekoniecznie jest to relacja utworzona najniedawniej, lecz ta z najpóźniejszą (wiodącą) datą.
 
+## Relacje na zadaniach sumarycznych
+
+Relację można też umieścić bezpośrednio na zadaniu sumarycznym (fazie lub grupie WBS) zamiast na jednym z zadań podrzędnych. Open Planner Studio automatycznie przenosi taką relację na zadania podrzędne — tak samo jak robi to MS Project:
+
+- **Zadanie sumaryczne jako poprzednik**: każde zadanie podrzędne samo staje się poprzednikiem następnika. Następnik czeka więc faktycznie na całą fazę — datę wyznacza zadanie, które kończy się w tej fazie jako ostatnie.
+- **Zadanie sumaryczne jako następnik**: każde zadanie podrzędne samo staje się następnikiem poprzednika. Wszystkie zadania w fazie czekają więc na tego samego poprzednika.
+- **Zadanie sumaryczne po obu stronach**: każde zadanie po jednej stronie otrzymuje relację z każdym zadaniem po drugiej stronie.
+
+Jest to dokładne dla **FS i FF** z zadaniem sumarycznym jako poprzednikiem oraz dla **FS i SS** z zadaniem sumarycznym jako następnikiem. Dla **SS/SF** z zadaniem sumarycznym jako poprzednikiem oraz **FF/SF** z zadaniem sumarycznym jako następnikiem — rzadkich kombinacji w praktyce budowlanej — Open Planner Studio celowo planuje po bezpiecznej stronie: może nieco później niż ściśle konieczne, nigdy wcześniej.
+
+## Przechodzenie do powiązanego zadania
+
+W panelu właściwości każdy wiersz zależności pokazuje także numer WBS powiązanego zadania jako klikalny przycisk. Najedź na niego kursorem, aby zobaczyć te same szczegóły co przy najechaniu na pasek zadania na wykresie Gantta (nazwa, WBS, czas trwania, początek/koniec, status, ścieżka krytyczna, zapas całkowity). Kliknij, aby zaznaczyć to zadanie: wykres Gantta przybliża się i przewija do niego, automatycznie rozwijając każde zwinięte zadanie nadrzędne, które je ukrywało.
+
 ## Typy ograniczeń
 
 Ograniczenie narzuca granicę daty na zadanie, niezależnie od jego relacji. Open Planner Studio ma osiem typów, ustawianych przez pole **Ograniczenie** w panelu właściwości:

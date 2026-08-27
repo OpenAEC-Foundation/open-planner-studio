@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from '../appStore';
+import type { StoreRuntime } from '../runtime/storeRuntime';
 
 /**
  * StateCreator-alias voor alle slices: eerste generic is de VOLLEDIGE store
@@ -8,6 +9,7 @@ import type { AppState } from '../appStore';
  * Type-only import van AppState → de import-cyclus is compile-time-only en veilig.
  */
 export type AppSlice<T> = StateCreator<AppState, [['zustand/immer', never]], [], T>;
+export type AppSliceFactory<T> = (runtime: StoreRuntime) => AppSlice<T>;
 
 // View-/render-contract-types wonen nu in `@/types/view` (fase 1, thema E). Hier her-geëxporteerd
 // zodat state-laag-consumenten (slices, componenten) hun bestaande imports niet hoeven te wijzigen;
@@ -15,14 +17,16 @@ export type AppSlice<T> = StateCreator<AppState, [['zustand/immer', never]], [],
 // (DATE_NOTATIONS, DURATION_DISPLAYS, BAR_SPLIT_MODES) blijven hieronder in de state-laag.
 import type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
-  BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode,
+  BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
   GroupLevel, SortLevel, Layout, SplitViewState, ViewState,
 } from '@/types/view';
+import type { BarColorSelection } from '@/types/barColor';
 export type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
-  BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode,
+  BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
   GroupLevel, SortLevel, Layout, SplitViewState, ViewState,
 };
+export type { BarColorSelection };
 
 // MCP-bridge (fase 1): status-shape voor de AI-serverindicator in de ui-state. Type-only import →
 // geen runtime-cyclus (contracts.ts is dependency-vrij).
@@ -160,6 +164,7 @@ export type NotificationSeverity = 'error' | 'info';
 export type NotificationMessageKey =
   | 'notifications.openFailed'
   | 'notifications.saveFailed'
+  | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
   | 'notifications.autoSaveFailed'
   | 'notifications.recoveryReadFailed'
@@ -169,8 +174,13 @@ export type NotificationMessageKey =
   | 'notifications.templateSaved'
   | 'notifications.relationCreated'
   | 'notifications.relationDuplicate'
-  | 'notifications.relationSummaryEndpoint'
-  | 'notifications.summaryRelationsIgnored';
+  | 'notifications.relationAncestorEndpoint'
+  | 'notifications.summaryRelationsDropped'
+  | 'notifications.mppLegacy'
+  | 'notifications.mppEncrypted'
+  | 'notifications.mppSourceScheduleNotes'
+  | 'notifications.projectStartAnchorsClamped'
+  | 'notifications.mppTimephasedSteeringLost';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */
@@ -186,6 +196,12 @@ export interface AppNotification {
   dedupeKey?: string;
   /** Aantal samengevouwen voorkomens; 1 bij de eerste. */
   count: number;
+  /** Optioneel — id van een in-app-documentatieartikel (`public/docs/<taal>/<id>.md`) dat deze
+   *  melding toelicht (mpp-nul-data-etappe, "lees meer"-eigenaarseis). Aanwezig ⇒ `NotificationHost`
+   *  toont een "Lees meer"-link die `openHelpArticle` aanroept (Backstage → Help opent op dat
+   *  artikel). Geen manifest-validatie hier — zelfde vrijheid als een `docs://`-link in een
+   *  gids-artikel zelf (`miniMarkdown.tsx`); `verify:docs` bewaakt dat het artikel-id bestaat. */
+  helpArticleId?: string;
 }
 
 /** Wat een aanroeper meegeeft; `id` en `count` vult de store. */
@@ -271,6 +287,11 @@ export interface UIState {
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt (fase 2.6)
   showProgressLine: boolean;                // persisted — voortgangslijn in de Gantt (fase 2.6)
   showStatusDateLine: boolean;              // persisted — statusdatumlijn in de Gantt (fase 2.6)
+  /** #21: dun streepje in de resourcekleur onder taakbalken (scherm-accent; de balkvulling zelf
+   *  blijft kritiek-pad-gekleurd — resourcekleuren gelden voor de export, dit is het schermsignaal). */
+  showResourceAccent: boolean;               // persisted
+  /** #21: canonieke app-globale balkkleurkeuze; scherm en rapport delen deze selectie. */
+  barColorSelection: BarColorSelection;       // persisted
   presentationMode: boolean;                // session — presentatie-modus (fase 2.7, §9); niet gepersisteerd
   showMiniMap: boolean;                     // persisted — mini-map naast/onder de Gantt (fase 2.7, §11)
   // --- Fase 2.7 golf 3: dialogen (§5.5/§6/§13.1/§8) ---
@@ -301,6 +322,13 @@ export interface UIState {
   /** session — ingebouwde benchmark-tool (pakket S) open. Draait geïsoleerd op gegenereerde
    *  data; raakt het open project/de store niet aan. */
   showBenchmarkDialog: boolean;
+  /** session — de lopende toestemmingsvraag bij het installeren van een extensie (K-item 38), of
+   *  `null` als er geen vraag openstaat. Bevat de gegevens die de dialoog toont; het ANTWOORD gaat
+   *  niet via de store maar via de resolver in `extensions/consent.ts` — een promise-resolver hoort
+   *  niet in state thuis. Bewust `unknown` getypeerd: `slices/types.ts` is een bladmodule voor de
+   *  hele state-laag en mag niet van `@/extensions` afhangen (verify:cycles). De dialoog cast naar
+   *  `ExtensionConsentRequest`. */
+  pendingExtensionConsent: unknown | null;
   // --- B1 (bedrijfsbibliotheken): Backstage-sectie Bibliotheek-dialogen ---
   /** session — pool-importdialoog open (met demping-waarschuwing). */
   showPoolImportDialog: boolean;
@@ -366,6 +394,12 @@ export interface UIState {
    *  (niet per document): `UIState` wordt als geheel niet geswapt — `collapsedTaskIds` is de énige
    *  uitzondering die per document meegaat, dus `documentContract.ts` blijft ongemoeid. */
   notifications: AppNotification[];
+  /** session — eenmalig verzoek om Backstage → Help te openen op een SPECIFIEK artikel (mpp-nul-
+   *  data-etappe, "lees meer"-link vanuit een melding of het eigenschappenpaneel). Gezet door
+   *  `openHelpArticle`, geconsumeerd (en direct weer op `null` gezet) door `HelpPanel` — zelfde
+   *  eenmalig-verzoek-patroon als `pendingNewResource` hierboven. App-globale UI-state, geen
+   *  documentdata. */
+  pendingHelpArticleId: string | null;
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

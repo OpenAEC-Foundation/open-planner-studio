@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 // Generieke sleep-splitter — hetzelfde patroon dat door de app werd gedupliceerd
 // (rechterpaneel-rand in App, tabel/chart-rand in GanttCanvas): losse drag-state,
@@ -26,17 +27,19 @@ export interface Splitter {
 
 export function useSplitter(opts: UseSplitterOptions): Splitter {
   const [isResizing, setIsResizing] = useState(false);
+  const optsRef = useLatestRef(opts);
 
   useEffect(() => {
     if (!isResizing) return;
     const handleMouseMove = (e: MouseEvent) => {
-      const maxW = typeof opts.max === 'function' ? opts.max() : opts.max;
-      const size = Math.min(maxW, Math.max(opts.min, opts.computeSize(e)));
-      opts.onResize(size);
+      const current = optsRef.current;
+      const maxW = typeof current.max === 'function' ? current.max() : current.max;
+      const size = Math.min(maxW, Math.max(current.min, current.computeSize(e)));
+      current.onResize(size);
     };
     const handleMouseUp = () => {
       setIsResizing(false);
-      opts.onCommit?.();
+      optsRef.current.onCommit?.();
     };
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -44,7 +47,7 @@ export function useSplitter(opts: UseSplitterOptions): Splitter {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing]);
+  }, [isResizing, optsRef]);
 
   return { isResizing, start: () => setIsResizing(true) };
 }

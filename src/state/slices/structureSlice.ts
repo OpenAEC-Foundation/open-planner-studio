@@ -1,7 +1,7 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { generateId } from '@/utils/id';
-import { beginUndoable, finishMutation } from '../transaction';
-import type { AppSlice } from './types';
+import { finishMutation } from '../transaction';
+import type { AppSliceFactory } from './types';
 
 /**
  * Structuurdefinities (fase 2.2): activity-code-types en custom fields, per document
@@ -32,14 +32,14 @@ export interface StructureSlice {
   setTaskCustomField: (taskId: string, defId: string, value: CustomFieldValue | null) => void;
 }
 
-export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
+export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) => (set, get) => ({
   activityCodeTypes: [],
   customFieldDefs: [],
 
   addActivityCodeType: (name) => {
     const id = generateId('act');
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.activityCodeTypes.push({ id, name, values: [] });
       finishMutation(s);
     });
@@ -51,7 +51,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const t = s.activityCodeTypes.find(x => x.id === id);
       if (!t || t.name === name) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       t.name = name;
       finishMutation(s);
     });
@@ -61,7 +61,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
   removeActivityCodeType: (id) => {
     set((s) => {
       if (!s.activityCodeTypes.some(x => x.id === id)) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.activityCodeTypes = s.activityCodeTypes.filter(x => x.id !== id);
       for (const task of s.tasks) {
         if (task.activityCodes && id in task.activityCodes) delete task.activityCodes[id];
@@ -79,7 +79,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const t = s.activityCodeTypes.find(x => x.id === typeId);
       if (!t) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       t.values.push({ ...value, id });
       finishMutation(s);
     });
@@ -91,7 +91,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const v = s.activityCodeTypes.find(x => x.id === typeId)?.values.find(x => x.id === valueId);
       if (!v) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       Object.assign(v, patch);
       finishMutation(s);
     });
@@ -102,7 +102,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const t = s.activityCodeTypes.find(x => x.id === typeId);
       if (!t || !t.values.some(v => v.id === valueId)) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       t.values = t.values.filter(v => v.id !== valueId);
       for (const task of s.tasks) {
         if (task.activityCodes?.[typeId] === valueId) delete task.activityCodes[typeId];
@@ -118,7 +118,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
       if (!task) return;
       const current = task.activityCodes?.[typeId];
       if ((valueId ?? undefined) === current) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       if (valueId === null) {
         if (task.activityCodes) delete task.activityCodes[typeId];
       } else {
@@ -132,7 +132,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
   addCustomField: (name, type) => {
     const id = generateId('cfd');
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.customFieldDefs.push({ id, name, type });
       finishMutation(s);
     });
@@ -144,7 +144,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
     set((s) => {
       const d = s.customFieldDefs.find(x => x.id === id);
       if (!d || d.name === name) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       d.name = name;
       finishMutation(s);
     });
@@ -154,7 +154,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
   removeCustomField: (id) => {
     set((s) => {
       if (!s.customFieldDefs.some(x => x.id === id)) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.customFieldDefs = s.customFieldDefs.filter(x => x.id !== id);
       for (const task of s.tasks) {
         if (task.customFields && id in task.customFields) delete task.customFields[id];
@@ -172,7 +172,7 @@ export const createStructureSlice: AppSlice<StructureSlice> = (set, get) => ({
       if (!task) return;
       const current = task.customFields?.[defId];
       if ((value ?? undefined) === current) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       if (value === null) {
         if (task.customFields) delete task.customFields[defId];
       } else {

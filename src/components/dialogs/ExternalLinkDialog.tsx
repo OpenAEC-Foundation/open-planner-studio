@@ -5,6 +5,7 @@ import { X, Link2, FileDown } from 'lucide-react';
 import { Dialog } from '@/components/common/Dialog';
 import type { Task, ExternalLink } from '@/types/task';
 import { externalSourceSide } from '@/engine/externalLinks';
+import { buildImportLabels } from '@/i18n/importLabels';
 
 type Direction = ExternalLink['direction'];
 type RelType = ExternalLink['relType'];
@@ -56,7 +57,7 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
     let cancelled = false;
     if (manual || !sourceFile) { setSource(null); setSourceTaskId(''); return; }
     setLoading(true);
-    void parseExternalSource(sourceFile, { importedProject: tCommon('project.imported') }).then((res) => {
+    void parseExternalSource(sourceFile, buildImportLabels(tCommon)).then((res) => {
       if (cancelled) return;
       setSource(res);
       setSourceTaskId(res?.tasks[0]?.id ?? '');

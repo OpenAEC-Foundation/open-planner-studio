@@ -4,7 +4,7 @@ The **Filter** window controls which tasks are visible — in the Gantt and on t
 
 ## Opening
 
-**View** → ribbon group **Display** → **Filter…**. The button stays highlighted while a filter is active. **Esc**, the close cross or a click outside the window closes without applying.
+**View** → ribbon group **Display** → **Filter…**. The button stays highlighted while a filter is active. If you have no saved filters yet, it opens the Filter window directly. Otherwise its arrow also opens your saved filters, so choosing one applies it immediately; **Clear** switches the active filter off. **Esc**, the close cross or a click outside the window closes without applying.
 
 ## Groups: all or any
 
@@ -26,6 +26,10 @@ At the top of each group you choose how its rules combine:
 - **Value** — the input follows the field type (text box, number, date or picker); **is empty** has no value input.
 
 The trash icon behind a rule removes that rule; the cross at the top right of a nested group removes the whole group.
+
+## Save and reuse filters
+
+At the top of the Filter window, type a **Name** and click **Save** to store the current rules as a filter preset. Saved filters are available on this device in every project; they only replace the filter, never your columns, grouping, sorting or time scale. Choose a saved filter from the same list to apply it immediately, or remove the selected preset with the trash button.
 
 ## Apply, cancel and clear
 

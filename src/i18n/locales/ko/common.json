@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "알림 닫기",
     "openFailed": "파일을 열 수 없습니다",
+    "mppLegacy": "이 .mpp 파일은 이전 형식(Project 2007 이하)을 사용합니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
+    "mppEncrypted": "이 .mpp 파일은 암호로 보호되어 있습니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
     "saveFailed": "저장하지 못했습니다",
+    "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
     "savedViaDownload": "다운로드로 저장했습니다. '{{name}}' 파일이 다운로드 폴더에 있습니다. 이 환경에서는 앱이 선택한 위치에 직접 쓸 수 없습니다.",
     "autoSaveFailed": "자동 저장 실패",
     "recoveryReadFailed": "복구된 파일을 읽을 수 없습니다",
@@ -15,8 +18,12 @@
     "templateSaved": "분기가 '{{name}}' 템플릿으로 저장되었습니다",
     "relationCreated": "관계를 만들었습니다: {{predecessor}} → {{successor}}",
     "relationDuplicate": "이 관계는 이미 있습니다",
-    "relationSummaryEndpoint": "요약 작업을 끝점으로 사용해도 일정에 영향을 주지 않습니다. 하위 작업이 없는 작업에 연결하세요.",
-    "summaryRelationsIgnored": "요약 작업의 관계 {{total}}개는 일정에 영향을 주지 않습니다."
+    "relationAncestorEndpoint": "작업과 자신의 (조상) 요약 작업 간의 관계는 허용되지 않습니다.",
+    "summaryRelationsDropped": "{{total}}개의 관계를 계산에 포함할 수 없었습니다 — 어떤 관계인지는 관계 패널에서 확인하세요.",
+    "mppSourceScheduleNotes_other": "이 MS Project 파일에는 분할되었거나 평준화되었거나 리소스 기반으로 조정된 작업이 {{count}}개 포함되어 있습니다. 있는 그대로 가져와 표시됩니다.",
+    "projectStartAnchorsClamped_other": "프로젝트 시작일이 변경되었습니다. 선행 작업이나 제약 조건이 없는 작업 기준점 {{count}}개를 새 시작일로 이동했습니다.",
+    "mppTimephasedSteeringLost_other": "이 편집 이후 MS Project의 시간 분배가 더 이상 {{count}}개 작업을 제어하지 않습니다. 원래 분배는 파일에 그대로 보존됩니다.",
+    "readMore": "더 알아보기"
   },
   "yes": "예",
   "no": "아니오",
@@ -236,7 +243,8 @@
   },
   "project": {
     "untitled": "새 계획",
-    "imported": "가져온 프로젝트"
+    "imported": "가져온 프로젝트",
+    "unassignedResource": "미할당"
   },
   "documents": {
     "overviewTitle": "열린 프로젝트",
@@ -529,7 +537,8 @@
       "capacity": "용량",
       "documents": "문서",
       "selectHint": "히스토그램을 보려면 리소스를 선택하세요."
-    }
+    },
+    "color": "색상"
   },
   "calendar": {
     "library": {
@@ -686,6 +695,12 @@
     "notice": "이 파일에는 시간 단위 계획이 포함되어 있습니다.",
     "enable": "시간 단위 계획 사용"
   },
+  "recordedDates": {
+    "offer_other": "다시 계산으로 인해 {{total}}개 작업 중 {{count}}개가 파일에 기록된 날짜에서 벗어났습니다.",
+    "show": "기록된 날짜 표시",
+    "active": "파일에 기록된 날짜를 그대로 보고 있습니다. 다시 계산되지 않았습니다.",
+    "recalculate": "다시 계산"
+  },
   "duration": {
     "suffixDay": "일",
     "suffixHour": "시",
@@ -797,6 +812,10 @@
     "intro": "테스트 일정을 생성하고 핵심 단계를 측정합니다. 열려 있는 프로젝트에는 영향을 주지 않습니다.",
     "sizeLabel": "일정 규모",
     "tasksCount": "{{count}}개 작업",
+    "resourceLabel": "리소스 수",
+    "resourcesNone": "리소스 없음",
+    "resourcesCount": "리소스 {{count}}개",
+    "networkHint": "하위 작업이 없는 모든 작업에는 관계가 하나 이상 생깁니다. 요약 작업은 하위 작업의 집계로 유지됩니다.",
     "run": "실행",
     "running": "실행 중…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -830,5 +849,26 @@
     "detailRender": "{{rows}}개 행 · {{w}}×{{h}}",
     "renderUnavailable": "렌더링 불가 (2D 캔버스 컨텍스트 없음)",
     "largeWarning": "큰 일정: 시간이 걸릴 수 있으며, 계산 중에는 진행 표시줄이 멈춘 것처럼 보일 수 있습니다."
+  },
+  "extConsent": {
+    "title": "확장을 설치할까요?",
+    "author": "작성자",
+    "repository": "저장소",
+    "originHeading": "출처",
+    "sourceCatalog": "온라인 확장 카탈로그에서",
+    "sourceZip": "이 컴퓨터의 ZIP 파일에서",
+    "sourceJs": "이 컴퓨터의 JavaScript 파일에서",
+    "verifiedChecksum": "카탈로그의 체크섬으로 다운로드를 검증했습니다.",
+    "verifiedNone": "카탈로그에 체크섬이 없습니다 — 이 다운로드는 검증되지 않았습니다.",
+    "verifiedLocal": "이 파일은 직접 선택한 것으로, 대조할 외부 출처가 없습니다.",
+    "riskHeading": "무엇에 동의하는지",
+    "riskBody": "확장은 Open Planner Studio 자체와 동일한 권한으로 실행되는 코드이며, 이를 제한하는 장치는 없습니다. 작성자를 신뢰할 수 있는 확장만 설치하세요.",
+    "riskDesktop": "데스크톱 앱에서는 사용자 폴더 전체의 파일 읽기와 쓰기, 그리고 프로젝트·설정·클립보드 접근이 포함됩니다.",
+    "riskBrowser": "브라우저에서는 저장된 프로젝트와 설정, 접근을 허용한 파일, 그리고 네트워크에 대한 접근을 뜻합니다.",
+    "declaredHeading": "이 확장이 사용한다고 밝힌 항목",
+    "declaredNote": "작성자의 신고일 뿐 제한이 아닙니다 — 코드는 그보다 더 많은 일을 할 수 있습니다.",
+    "declaredNone": "신고된 항목 없음.",
+    "cancel": "설치 안 함",
+    "confirm": "설치"
   }
 }

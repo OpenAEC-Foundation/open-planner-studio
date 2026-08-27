@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "关闭通知",
     "openFailed": "打开文件失败",
+    "mppLegacy": "此 .mpp 文件使用较旧的格式（Project 2007 或更早版本）。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
+    "mppEncrypted": "此 .mpp 文件受密码保护。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
     "saveFailed": "保存失败",
+    "librarySaveFailed": "无法保存库",
     "savedViaDownload": "已保存为下载文件：“{{name}}”现在位于您的下载文件夹中。当前环境不允许应用直接写入您选择的位置。",
     "autoSaveFailed": "自动保存失败",
     "recoveryReadFailed": "无法读取恢复的文件",
@@ -15,8 +18,12 @@
     "templateSaved": "分支已保存为模板“{{name}}”",
     "relationCreated": "已创建关系：{{predecessor}} → {{successor}}",
     "relationDuplicate": "该关系已存在",
-    "relationSummaryEndpoint": "以摘要任务作为端点对计划没有影响。请链接到没有子任务的任务。",
-    "summaryRelationsIgnored": "{{total}} 条位于摘要任务上的关系对计划没有影响。"
+    "relationAncestorEndpoint": "不允许在任务与其自身的（上级）汇总任务之间建立关系。",
+    "summaryRelationsDropped": "{{total}} 个关系未能计入计算——详情请查看关系面板。",
+    "mppSourceScheduleNotes_other": "此 MS Project 文件中有 {{count}} 项任务的计划被拆分、资源平衡或按资源驱动调整过。系统会按原样导入并显示。",
+    "projectStartAnchorsClamped_other": "项目开始日期已更改：{{count}} 个没有前置任务或限制的任务起点已移至新的开始日期。",
+    "mppTimephasedSteeringLost_other": "此次编辑后，MS Project 的工时分布不再驱动 {{count}} 项任务；原始分布仍保留在文件中。",
+    "readMore": "了解更多"
   },
   "yes": "是",
   "no": "否",
@@ -236,7 +243,8 @@
   },
   "project": {
     "untitled": "新建计划",
-    "imported": "导入的项目"
+    "imported": "导入的项目",
+    "unassignedResource": "未分配"
   },
   "documents": {
     "overviewTitle": "打开的项目",
@@ -529,7 +537,8 @@
       "capacity": "产能",
       "documents": "文档",
       "selectHint": "选择一个资源以查看直方图。"
-    }
+    },
+    "color": "颜色"
   },
   "calendar": {
     "library": {
@@ -686,6 +695,12 @@
     "notice": "此文件包含按小时的计划。",
     "enable": "启用小时计划"
   },
+  "recordedDates": {
+    "offer_other": "重新计算使 {{total}} 个任务中的 {{count}} 个偏离了文件中记录的日期。",
+    "show": "显示记录的日期",
+    "active": "你正在查看文件中记录的日期，尚未重新计算。",
+    "recalculate": "重新计算"
+  },
   "duration": {
     "suffixDay": "天",
     "suffixHour": "时",
@@ -797,6 +812,10 @@
     "intro": "生成测试计划并衡量核心阶段。不会影响您当前打开的项目。",
     "sizeLabel": "计划规模",
     "tasksCount": "{{count}} 个任务",
+    "resourceLabel": "资源数量",
+    "resourcesNone": "无资源",
+    "resourcesCount": "{{count}} 个资源",
+    "networkHint": "每个没有子任务的任务至少有一条关系；摘要任务仍是其子任务的汇总。",
     "run": "运行",
     "running": "运行中…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -830,5 +849,26 @@
     "detailRender": "{{rows}} 行 · {{w}}×{{h}}",
     "renderUnavailable": "无法渲染（无 2D 画布上下文）",
     "largeWarning": "大型计划：可能需要一些时间；计算期间进度条可能看起来停滞。"
+  },
+  "extConsent": {
+    "title": "安装扩展？",
+    "author": "作者",
+    "repository": "代码仓库",
+    "originHeading": "来源",
+    "sourceCatalog": "来自在线扩展目录",
+    "sourceZip": "来自本机的 ZIP 文件",
+    "sourceJs": "来自本机的 JavaScript 文件",
+    "verifiedChecksum": "已使用目录中的校验和验证此次下载。",
+    "verifiedNone": "目录未提供校验和——本次下载未经验证。",
+    "verifiedLocal": "此文件由你自行选择；没有外部来源可供校验。",
+    "riskHeading": "你同意的内容",
+    "riskBody": "扩展是与 Open Planner Studio 本身拥有相同权限运行的程序代码，没有任何机制加以限制。请只安装你信任其作者的扩展。",
+    "riskDesktop": "在桌面应用中，这包括：读写你用户目录下任意位置的文件，以及访问你的项目、设置和剪贴板。",
+    "riskBrowser": "在浏览器中，这意味着：访问你已保存的项目和设置、你已授权的文件，以及网络。",
+    "declaredHeading": "此扩展声明会使用的功能",
+    "declaredNote": "这是作者的声明，而非限制——代码无论如何都能做得更多。",
+    "declaredNone": "未声明任何内容。",
+    "cancel": "不安装",
+    "confirm": "安装"
   }
 }

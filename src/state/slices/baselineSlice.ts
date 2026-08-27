@@ -1,7 +1,7 @@
 import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { beginUndoable, finishMutation } from '../transaction';
-import type { AppSlice } from './types';
+import { finishMutation } from '../transaction';
+import type { AppSliceFactory } from './types';
 
 export interface BaselineSlice {
   baselines: Baseline[];
@@ -16,14 +16,14 @@ export interface BaselineSlice {
   setActiveBaseline: (id: string | null) => void;
 }
 
-export const createBaselineSlice: AppSlice<BaselineSlice> = (set) => ({
+export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => (set) => ({
   baselines: [],
   activeBaselineId: null,
 
   saveBaseline: (name) => {
     const id = generateId('baseline');
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       // Snapshot de CPM-early-datums (= de balk zoals getekend, §2.1) per leaf-taak; fallback op
       // de schedule-datums voor het geval er nog nooit een runCPM is geweest.
       const leaves = s.tasks.filter((t) => t.childIds.length === 0);
@@ -51,7 +51,7 @@ export const createBaselineSlice: AppSlice<BaselineSlice> = (set) => ({
   deleteBaseline: (id) =>
     set((s) => {
       if (!s.baselines.some((b) => b.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.baselines = s.baselines.filter((b) => b.id !== id);
       if (s.activeBaselineId === id) {
         s.activeBaselineId = s.baselines.length ? s.baselines[s.baselines.length - 1].id : null;
@@ -63,7 +63,7 @@ export const createBaselineSlice: AppSlice<BaselineSlice> = (set) => ({
     set((s) => {
       const b = s.baselines.find((x) => x.id === id);
       if (!b) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       b.name = name;
       finishMutation(s);
     }),
@@ -71,7 +71,7 @@ export const createBaselineSlice: AppSlice<BaselineSlice> = (set) => ({
   setActiveBaseline: (id) =>
     set((s) => {
       if (s.activeBaselineId === id) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.activeBaselineId = id;
       finishMutation(s);
     }),

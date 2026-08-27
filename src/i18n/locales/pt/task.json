@@ -16,7 +16,8 @@
     "freeFloat": "Folga livre",
     "interferingFloat": "Folga interferente",
     "isNearCritical": "Quase crítica",
-    "floatPath": "Caminho de folga"
+    "floatPath": "Caminho de folga",
+    "activeDuring": "Em andamento"
   },
   "taskType": {
     "CONSTRUCTION": "Construção",
@@ -72,6 +73,8 @@
     "deadlineMissed": "Prazo ultrapassado",
     "longFreePeriodWarning": "Esta tarefa atravessa um período não útil de {{days}} dias ({{start}} a {{end}}).",
     "longFreePeriodWarningNamed": "Esta tarefa atravessa {{name}} — um período não útil de {{days}} dias ({{start}} a {{end}}).",
+    "timephasedActive": "Segue a distribuição de horas do MS Project",
+    "timephasedLost": "Distribuição de horas do MS Project não é mais aplicada após a edição — a distribuição original permanece guardada no arquivo",
     "completion": "Progresso (%)",
     "progress": {
       "actualStart": "Início real",
@@ -88,9 +91,10 @@
     "freeFloat": "Folga livre:",
     "criticalPath": "Caminho crítico:",
     "dependencies": "Dependências",
+    "jumpToTask": "Ir para a tarefa {{wbs}}",
     "relationPopoverTitle": "Tipo de relação",
     "driving": "Relação determinante (driving)",
-    "lag": "Atraso (ex.: 2d, 3ed, 50%, -25e%)",
+    "lag": "Atraso (ex.: 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calcular",
     "assignments": {
       "title": "Atribuições",
@@ -154,7 +158,7 @@
     "notCalculated": "Recalcule (F5) para ver relações determinantes e folgas",
     "warnTruncatedLead": "Avanço truncado no início do projeto — a sobreposição não é totalmente aproveitada",
     "warnLeadExceedsDuration": "O avanço é maior do que a duração da predecessora",
-    "warnSummaryEndpoint": "Sem efeito: tarefa de resumo como extremidade"
+    "warnDropped": "Não incluída no cálculo"
   },
   "structure": {
     "title": "Códigos e campos",

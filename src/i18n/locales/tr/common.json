@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "Bildirimi kapat",
     "openFailed": "Dosya açılamadı",
+    "mppLegacy": "Bu .mpp dosyası eski bir biçim kullanıyor (Project 2007 veya daha eski). MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
+    "mppEncrypted": "Bu .mpp dosyası parola ile korunuyor. MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
     "saveFailed": "Kaydetme başarısız",
+    "librarySaveFailed": "Kitaplık kaydedilemedi",
     "savedViaDownload": "İndirme olarak kaydedildi: '{{name}}' artık indirmeler klasörünüzde. Bu ortam uygulamanın seçtiğiniz konuma doğrudan yazmasına izin vermiyor.",
     "autoSaveFailed": "Otomatik kaydetme başarısız",
     "recoveryReadFailed": "Kurtarılan dosya okunamadı",
@@ -15,8 +18,15 @@
     "templateSaved": "Dal, '{{name}}' şablonu olarak kaydedildi",
     "relationCreated": "İlişki oluşturuldu: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Bu ilişki zaten var",
-    "relationSummaryEndpoint": "Uç nokta olarak bir özet görev planlamayı etkilemez. Alt görevi olmayan bir göreve bağlayın.",
-    "summaryRelationsIgnored": "Özet görevlerdeki {{total}} ilişki planlamayı etkilemiyor."
+    "relationAncestorEndpoint": "Bir görev ile kendi üst özet görevi arasında ilişki kurulmasına izin verilmez.",
+    "summaryRelationsDropped": "{{total}} ilişki hesaplamaya dahil edilemedi — hangileri olduğunu görmek için İlişkiler panelini kontrol edin.",
+    "mppSourceScheduleNotes_one": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
+    "mppSourceScheduleNotes_other": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
+    "projectStartAnchorsClamped_one": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
+    "projectStartAnchorsClamped_other": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
+    "mppTimephasedSteeringLost_one": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
+    "mppTimephasedSteeringLost_other": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
+    "readMore": "Daha fazla bilgi"
   },
   "yes": "Evet",
   "no": "Hayır",
@@ -236,7 +246,8 @@
   },
   "project": {
     "untitled": "Yeni planlama",
-    "imported": "İçe aktarılan proje"
+    "imported": "İçe aktarılan proje",
+    "unassignedResource": "Atanmamış"
   },
   "documents": {
     "overviewTitle": "Açık projeler",
@@ -534,7 +545,8 @@
       "capacity": "Kapasite",
       "documents": "Belgeler",
       "selectHint": "Histogramı görmek için bir kaynak seçin."
-    }
+    },
+    "color": "Renk"
   },
   "calendar": {
     "library": {
@@ -691,6 +703,13 @@
     "notice": "Bu dosya saat bazlı planlama içeriyor.",
     "enable": "Saat planlamasını aç"
   },
+  "recordedDates": {
+    "offer_one": "Yeniden hesaplama, dosyadaki tarihlere göre {{total}} görevden {{count}} tanesini kaydırdı.",
+    "offer_other": "Yeniden hesaplama, dosyadaki tarihlere göre {{total}} görevden {{count}} tanesini kaydırdı.",
+    "show": "Kaydedilen tarihleri göster",
+    "active": "Tarihleri dosyada kaydedildiği şekilde görüntülüyorsunuz. Herhangi bir yeniden hesaplama yapılmadı.",
+    "recalculate": "Yeniden hesapla"
+  },
   "duration": {
     "suffixDay": "g",
     "suffixHour": "s",
@@ -807,6 +826,10 @@
     "intro": "Bir test programı oluşturun ve temel aşamaları ölçün. Açık projenizi etkilemez.",
     "sizeLabel": "Program boyutu",
     "tasksCount": "{{count}} görev",
+    "resourceLabel": "Kaynak sayısı",
+    "resourcesNone": "Kaynak yok",
+    "resourcesCount": "{{count}} kaynak",
+    "networkHint": "Alt görevi olmayan her görev en az bir ilişki alır; özet görevler alt görevlerinin toplamı olarak kalır.",
     "run": "Çalıştır",
     "running": "Çalışıyor…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -840,5 +863,26 @@
     "detailRender": "{{rows}} satır · {{w}}×{{h}}",
     "renderUnavailable": "çizim kullanılamıyor (2D tuval bağlamı yok)",
     "largeWarning": "Büyük program: bu biraz sürebilir; hesaplama sırasında ilerleme çubuğu donmuş görünebilir."
+  },
+  "extConsent": {
+    "title": "Uzantı kurulsun mu?",
+    "author": "Yazar",
+    "repository": "Depo",
+    "originHeading": "Kaynak",
+    "sourceCatalog": "Çevrimiçi uzantı kataloğundan",
+    "sourceZip": "Bu bilgisayardaki bir ZIP dosyasından",
+    "sourceJs": "Bu bilgisayardaki bir JavaScript dosyasından",
+    "verifiedChecksum": "İndirme, katalogdaki sağlama toplamıyla doğrulandı.",
+    "verifiedNone": "Katalog sağlama toplamı vermiyor — bu indirme doğrulanmadı.",
+    "verifiedLocal": "Bu dosyayı kendiniz seçtiniz; karşılaştırılacak harici bir kaynak yok.",
+    "riskHeading": "Neye evet diyorsunuz",
+    "riskBody": "Uzantı, Open Planner Studio'nun kendisiyle aynı haklarla çalışan program kodudur. Onu sınırlayan bir şey yok. Yalnızca yazarına güvendiğiniz uzantıları kurun.",
+    "riskDesktop": "Masaüstü uygulamasında bu şunları içerir: kullanıcı klasörünüzün her yerinde dosya okuma ve yazma, ayrıca projelerinize, ayarlarınıza ve panonuza erişim.",
+    "riskBrowser": "Tarayıcıda bu şu anlama gelir: kayıtlı projelerinize ve ayarlarınıza, erişim verdiğiniz dosyalara ve ağa erişim.",
+    "declaredHeading": "Bu uzantının kullandığını belirttikleri",
+    "declaredNote": "Bu, yazarın beyanıdır, bir kısıtlama değil — kod yine de fazlasını yapabilir.",
+    "declaredNone": "Hiçbir şey belirtilmemiş.",
+    "cancel": "Kurma",
+    "confirm": "Kur"
   }
 }

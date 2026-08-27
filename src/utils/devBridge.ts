@@ -3,11 +3,19 @@ import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { readCSV } from '@/services/csv/csvReader';
+import { parseOpenedFile, readFormatInput } from '@/services/formatRegistry';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb, installFromZipBlob } from '@/extensions';
-import type { ExtensionManifest, InstalledExtension } from '@/extensions/types';
+import type { ExpectedExtensionIdentity, InstallOutcome } from '@/extensions';
+import type { ExtensionManifest, ReadyExtension } from '@/extensions/types';
+import { parseExtensionManifest, parseStoredExtension } from '@/extensions/validation';
+import {
+  getAllExtensionRecordsFromDb,
+  quarantineIdForStorageKey,
+} from '@/extensions/extensionLoader';
+import { setConsentAsker, resetConsentAsker, type ConsentAsker } from '@/extensions';
 import { copyScreenshotToClipboard } from '@/services/feedback/feedbackService';
 import { isTauri } from '@/utils/platform';
+import { lastSize, paintCount, taskBarPoint } from '@/utils/ganttTestDriver';
 
 /**
  * Dev-only inspectie- en controle-haak voor geautomatiseerd zelf-testen.
@@ -73,12 +81,14 @@ async function saveToPath(path: string) {
   return { path, bytes: content.length };
 }
 
-/** Niveau 2 — lees een bestand van schijf en laad het in de store (route op extensie). Tauri-only. */
+/** Niveau 2 — lees een bestand van schijf en laad het in de store (route op extensie). Tauri-only.
+ *  Dev-only gedragsverbetering (T1): loopt nu via de formatRegistry, dus `.xml` wordt hier ook
+ *  herkend (voorheen viel dat stil terug op IFC). T2: binaire formaten worden als bytes gelezen
+ *  i.p.v. tekst. */
 async function openFromPath(path: string) {
-  const { readTextFile } = await import('@tauri-apps/plugin-fs');
-  const content = await readTextFile(path);
-  const ext = path.split('.').pop()?.toLowerCase() ?? '';
-  const parsed = ext === 'csv' ? readCSV(content) : readIFC(content);
+  const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
+  const input = await readFormatInput(path, { readTextFile, readFile });
+  const parsed = await parseOpenedFile(input);
   useAppStore.getState().loadState(parsed);
   return { path, ...counts(useAppStore.getState()) };
 }
@@ -87,11 +97,38 @@ async function openFromPath(path: string) {
 async function installExtensionFromCode(
   manifest: ExtensionManifest,
   mainCode: string,
-): Promise<InstalledExtension | undefined> {
-  await saveExtensionToDb({ id: manifest.id, manifest, mainCode, enabled: true });
-  useAppStore.getState().registerExtension({ id: manifest.id, manifest, status: 'disabled' });
-  await enableExtension(manifest.id);
-  return useAppStore.getState().installedExtensions[manifest.id];
+): Promise<ReadyExtension | undefined> {
+  const parsed = parseExtensionManifest(manifest, 'fresh');
+  if (!parsed.ok) throw new Error(parsed.error);
+  const validatedManifest = parsed.value;
+  await saveExtensionToDb({
+    id: validatedManifest.id,
+    manifest: validatedManifest,
+    mainCode,
+    enabled: true,
+  });
+  useAppStore.getState().registerReadyExtension({
+    kind: 'ready',
+    id: validatedManifest.id,
+    manifest: validatedManifest,
+    status: 'disabled',
+  });
+  await enableExtension(validatedManifest.id);
+  return useAppStore.getState().installedExtensions[validatedManifest.id];
+}
+
+async function scanStoredExtensions(): Promise<Array<{
+  storageKey: IDBValidKey;
+  ok: boolean;
+  reason?: string;
+}>> {
+  const records = await getAllExtensionRecordsFromDb();
+  return records.map(({ storageKey, value }) => {
+    const parsed = parseStoredExtension(value, storageKey);
+    return parsed.ok
+      ? { storageKey, ok: true }
+      : { storageKey, ok: false, reason: parsed.error };
+  });
 }
 
 interface OpsCommand {
@@ -205,6 +242,12 @@ export interface OpsDevBridge {
   store: typeof useAppStore;
   /** In-memory log-bus: `.snapshot()` geeft gelogde regels + opgevangen fouten. */
   log: typeof appLog;
+  /** Observer-only Gantt-naad voor echte browserinteractie; bevat bewust geen setter of dragfunctie. */
+  gantt: {
+    taskBarPoint: typeof taskBarPoint;
+    paintCount: typeof paintCount;
+    lastSize: typeof lastSize;
+  };
   /** Niveau 1: serialiseer→parse round-trip, meet dataverlies (werkt ook in de browser). */
   roundTrip: typeof roundTrip;
   /** Niveau 2 (Tauri): schrijf de state als IFC naar een expliciet pad. */
@@ -214,8 +257,20 @@ export interface OpsDevBridge {
   /** Dev-only extensie-haken voor zelftests. */
   extensions: {
     installFromCode: typeof installExtensionFromCode;
-    /** Installeer via het echte ZIP-pad (parse → assets → opslaan → activeren). */
-    installFromZip: typeof installFromZipBlob;
+    /** Alleen lezen en valideren; activeert, registreert, verwijdert en herschrijft niets. */
+    scanStored: typeof scanStoredExtensions;
+    /** Pure observatienaad voor stabiele, typebewuste quarantaine-identiteiten. */
+    quarantineIdForKey: typeof quarantineIdForStorageKey;
+    /** Installeer via het echte ZIP-pad (parse → assets → opslaan → activeren), MET de
+     *  vertrouwensvraag overgeslagen — een zelftest heeft geen mens die een dialoog wegklikt.
+     *  De dialoog zelf test je via `__OPS__.extensions.consent`. */
+    installFromZip: (blob: Blob, expected?: ExpectedExtensionIdentity) => Promise<InstallOutcome>;
+    /** Haken op de toestemmingsvraag (K-item 38), zodat een zelftest zowel het toestaan- als het
+     *  weigeren-pad kan aansturen zonder de echte dialoog. */
+    consent: {
+      set: (fn: (req: unknown) => Promise<boolean>) => void;
+      reset: () => void;
+    };
     enable: typeof enableExtension;
     disable: typeof disableExtension;
     remove: typeof removeExtension;
@@ -243,12 +298,20 @@ export function installDevBridge(): void {
   window.__OPS__ = {
     store: useAppStore,
     log: appLog,
+    gantt: { taskBarPoint, paintCount, lastSize },
     roundTrip,
     saveToPath,
     openFromPath,
     extensions: {
       installFromCode: installExtensionFromCode,
-      installFromZip: installFromZipBlob,
+      scanStored: scanStoredExtensions,
+      quarantineIdForKey: quarantineIdForStorageKey,
+      installFromZip: (blob: Blob, expected?: ExpectedExtensionIdentity) =>
+        installFromZipBlob(blob, expected, { assumeConsent: true }),
+      consent: {
+        set: (fn) => setConsentAsker(fn as unknown as ConsentAsker),
+        reset: resetConsentAsker,
+      },
       enable: enableExtension,
       disable: disableExtension,
       remove: removeExtension,

@@ -44,6 +44,20 @@ Ci sono tre modi per creare una relazione, a seconda di dove stai già lavorando
 
 La colonna **Determinante** mostra, dopo un calcolo, quale relazione determina effettivamente la data di inizio o di fine del successore — per un'attività con più predecessori, non è necessariamente la relazione creata più di recente, ma quella con la data (determinante) più tardiva.
 
+## Relazioni sulle attività di riepilogo
+
+È possibile impostare una relazione anche direttamente su un'attività di riepilogo (una fase o un gruppo WBS) invece che su una delle attività sottostanti. Open Planner Studio propaga automaticamente questa relazione alle attività sottostanti — lo stesso approccio di MS Project:
+
+- **Riepilogo come predecessore**: ogni attività sottostante diventa essa stessa predecessore del successore. Questo attende quindi di fatto l'intera fase — l'attività che termina per ultima in quella fase determina la data.
+- **Riepilogo come successore**: ogni attività sottostante diventa essa stessa successore del predecessore. Tutte le attività della fase attendono quindi lo stesso predecessore.
+- **Riepilogo su entrambi i lati**: ogni attività da un lato riceve una relazione con ogni attività dall'altro lato.
+
+Questo è esatto per **FS e FF** con un riepilogo come predecessore, e per **FS e SS** con un riepilogo come successore. Per **SS/SF** con un riepilogo come predecessore e **FF/SF** con un riepilogo come successore — combinazioni rare nella pratica edilizia — Open Planner Studio pianifica deliberatamente dal lato sicuro: possibilmente un po' più tardi dello stretto necessario, mai prima.
+
+## Passare a un'attività collegata
+
+Nel pannello delle proprietà, ogni riga di dipendenza mostra anche il numero WBS dell'attività collegata come pulsante cliccabile. Passa il mouse sopra per vedere gli stessi dettagli che si vedono passando il mouse su una barra attività nel diagramma di Gantt (nome, WBS, durata, inizio/fine, stato, percorso critico, margine totale). Fai clic per selezionare quell'attività: il diagramma di Gantt esegue lo zoom e scorre fino a essa, ed espande automaticamente ogni attività madre compressa che la nascondeva.
+
 ## Tipi di vincolo
 
 Un vincolo impone un limite di data su un'attività, indipendentemente dalle sue relazioni. Open Planner Studio ha otto tipi, impostati tramite il campo **Vincolo** nel pannello delle proprietà:

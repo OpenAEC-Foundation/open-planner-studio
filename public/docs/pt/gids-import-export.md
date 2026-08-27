@@ -92,10 +92,16 @@ mostra então exatamente quais os itens que foram descartados ou simplificados, 
 
 ## Importar
 
-**Ficheiro → Abrir** (ou **Backstage → Abrir**) aceita ficheiros `.ifc`, `.csv` e `.xml`. Para um ficheiro
+**Ficheiro → Abrir** (ou **Backstage → Abrir**) aceita ficheiros `.ifc`, `.csv`, `.xml` e `.mpp`. Para um ficheiro
 `.xml`, a aplicação deteta por si própria se é um ficheiro Primavera P6 ou MS Project, com base no
 conteúdo. Como descrito acima: uma importação CSV ou P6 produz um projeto **sem baselines** (não havia
 nenhuma na origem), enquanto o IFC e o MSPDI trazem as baselines consigo.
+
+Um ficheiro `.mpp` (o formato nativo do Microsoft Project, Project 2010 a 2021) segue um caminho à
+parte: essa importação é **apenas de leitura** — não existe exportação `.mpp`, por isso reexportar
+para o MS Project passa pelo MSPDI XML. Veja o guia
+[Abrir o MS Project (.mpp)](docs://gids-msproject-import) para saber o que é trazido e quais são as
+limitações.
 
 ## Importadores de extensões
 

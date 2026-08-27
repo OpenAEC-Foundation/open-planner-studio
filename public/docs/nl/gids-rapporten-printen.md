@@ -28,18 +28,39 @@ Het scherm is in twee kolommen opgedeeld: links een instellingenpaneel met boven
 Een volledige, opgemaakte afdruk van de Gantt-balken — dit is het enige rapporttype met een
 instellingenblok:
 
-- **Papier**: A4, A3 of A1.
+- **Papier**: A4, A3, A2 of A1.
 - **Oriëntatie**: liggend of staand.
-- **Auto-fit op papier** (aan = de planning schaalt automatisch naar het gekozen formaat) of een
-  handmatige **zoom**-schuif als je auto-fit uitzet.
+- **Auto-fit op papier** (aan = de tijdas automatisch naar het gekozen formaat comprimeert) of een
+  handmatige **zoom**-schuif als je auto-fit uitzet. Ook bij een meerjarige planning blijven de
+  activiteitenkolom en rapporttekst daarbij even groot op A4, A3, A2 en A1; alleen de tijdas wordt
+  dichter of ruimer.
 - **Lettergrootte** — 90, 100, 110 of 125%; schaalt de rapporttekst, rijhoogte en kop/voet mee, los
   van het zoomniveau hierboven.
 - **Kop op elke pagina herhalen** — standaard aan; houdt de rapportkop zichtbaar op elke afgedrukte
   pagina in plaats van alleen de eerste.
 - **Tijdlijn over** — verdeelt de Gantt-tijdlijn over 1 tot 8 pagina's naast elkaar; alleen
-  beschikbaar met auto-fit aan.
+  beschikbaar met auto-fit aan. Kies meer pagina's wanneer je de tijdas minder wilt comprimeren
+  zonder de tabeltekst kleiner te maken.
 - Aan/uit-schakelaars voor **taaknamen op staafjes**, **voltooiing tonen**, **kritiek pad**,
   **speling tonen**, **afhankelijkheden**, **weekenden** en **legenda**.
+- **Balkkleuren** — één keuze die het Gantt-scherm en het rapport samen gebruiken. *Kritiek pad*
+  geeft het vertrouwde rood/oranje/blauw; *Per taak — automatisch* geeft iedere taak een vaste
+  paletkleur; met *Op categorie* kiest u een veld uit dezelfde lijst als bij **Groeperen**. Kies
+  bijvoorbeeld **Taaktype** om constructie, installatie en sloop ieder één kleur te geven, of de
+  activiteitcode **Discipline** om per discipline te kleuren. Ook WBS, gebruikersvelden en
+  **Resource** zijn beschikbaar. Bij Resource wordt een taak met meerdere partijen gesegmenteerd
+  naar verhouding van hun inzet. Taken zonder waarde krijgen neutraal grijs. Buiten *Kritiek pad*
+  houdt een **rode rand** de kritieke taken herkenbaar en toont de legenda alleen de waarden die in
+  het rapport voorkomen. Verandert u deze keuze onder **Beeld**, dan staat hij hier meteen gelijk
+  — en andersom. Bestaat een eerder gekozen projectveld niet in het huidige project, dan gebruikt
+  de app tijdelijk Taaktype zonder uw keuze te vergeten.
+- **Statuslijn** — *Geen* (standaard), *Statusdatumlijn* (een verticale stippellijn op de
+  statusdatum van het project) of *Voortgangslijn* (dezelfde zigzaglijn als op het scherm: per taak
+  een uitstulping naar de voortgangspositie). Zonder statusdatum in het project tekent niets —
+  stel er eerst één in via de projectgegevens; het paneel wijst u daarop.
+- **Volg weergave** — staat dit aan, dan print de export precies wat u op het scherm ziet: het
+  actieve filter, de groepering, de sortering én ingeklapte groepen blijven ingeklapt. Uit
+  (standaard) print de export de volledige takenboom.
 - Een **bedrijf**-veld (vult automatisch de projectinstelling, maar is hier los aanpasbaar) en de
   **auteur** (alleen-lezen, uit de projectgegevens).
 

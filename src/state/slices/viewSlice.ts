@@ -46,14 +46,24 @@ export interface ViewSlice {
   setTimeScale: (scale: TimeScale) => void;
   setScroll: (x: number, y: number) => void;
   setViewStartDate: (date: string) => void;
-  /** Vraag ná het openen/laden van een document een fit-to-project aan (issue #16): het HELE project
-   *  moet in beeld komen (zoals Ctrl+0), niet alleen het begin. Zet enkel het `pendingFit`-signaal;
-   *  de GanttCanvas voert de eigenlijke fit uit (die kent de viewport-breedte) en wist het signaal.
-   *  Alleen aan te roepen vanaf laadpaden (openFile/openRecentFile/voorbeeld) — NIET bij undo/redo of
-   *  herberekeningen. Een leeg project blijft "vandaag" (de canvas slaat de fit dan over). */
+  /** Vraag een fit-to-project aan (issue #16): het HELE project moet in beeld komen (zoals Ctrl+0),
+   *  niet alleen het begin. Zet enkel het `pendingFit`-signaal; de GanttCanvas voert de eigenlijke
+   *  fit uit (die kent de viewport-breedte) en wist het signaal. Twee soorten aanroepers: laadpaden
+   *  (openFile/openRecentFile/voorbeeld) en een expliciete gebruikersactie (Ctrl+0, canvas-
+   *  contextmenu, ribbon-knop Beeld → Tijdschaal, issue #78) — NIET bij undo/redo of herberekeningen.
+   *  Een leeg project blijft "vandaag" (de canvas slaat de fit dan over). */
   requestFitToProject: () => void;
   /** Wis het `pendingFit`-signaal (door de GanttCanvas aangeroepen nadat de fit is uitgevoerd). */
   clearPendingFit: () => void;
+  /** "Spring naar taak" (issue #65): klapt de oudersketen van `taskId` uit, selecteert 'm, en
+   *  zet het `pendingFocusTaskId`-signaal — naar het patroon van `requestFitToProject`.
+   *  GanttCanvas kent de canvas-afmetingen en de bijgewerkte `viewRows` (ná het uitklappen) en
+   *  voert daar de echte zoom-/scrollberekening uit (`computeFocusTaskHorizontal`/
+   *  `computeFocusTaskScrollY` in `ganttViewport.ts`). */
+  focusOnTask: (taskId: string) => void;
+  /** Wis het `pendingFocusTaskId`-signaal (door GanttCanvas aangeroepen nadat de sprong is
+   *  uitgevoerd). */
+  clearPendingFocusTask: () => void;
   /** Kies de resource die de histogramstrook toont (undefined = alle renewables samen). */
   setHistogramResource: (resourceId?: string) => void;
   /** Split view (§10): twee tijdvensters binnen één document; undefined = uit. */
@@ -143,6 +153,19 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   clearPendingFit: () =>
     set((s) => {
       s.view.pendingFit = false;
+    }),
+
+  focusOnTask: (taskId) => {
+    get().expandAncestorsOf(taskId);
+    get().selectTask(taskId);
+    set((s) => {
+      s.view.pendingFocusTaskId = taskId;
+    });
+  },
+
+  clearPendingFocusTask: () =>
+    set((s) => {
+      s.view.pendingFocusTaskId = undefined;
     }),
 
   setHistogramResource: (resourceId) =>

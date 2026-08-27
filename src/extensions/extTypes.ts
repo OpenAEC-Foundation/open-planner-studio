@@ -66,6 +66,19 @@ export interface ExtHoliday {
   endDate: string;   // ISO date
 }
 
+/** Eén dag-uitzondering die een dag WERKEND maakt (fase 3.8, T2; MS Project: "werkende
+ *  uitzondering"). Spiegelt `WorkingException`. T13 (§T2-afwijking, LAAG-7-afnemer): vóór deze
+ *  taak ontbrak dit veld op `ExtCalendar` volledig — een extensie die een kalender via
+ *  `toExtCalendar`/`fromExtCalendar` round-trippede (lezen, iets anders wijzigen, terugschrijven)
+ *  wiste zo stilzwijgend elke workingException. */
+export interface ExtWorkingException {
+  name: string;
+  startDate: string; // ISO date
+  endDate: string;   // ISO date
+  /** Banden in minuten-vanaf-middernacht. Leeg/afwezig ⇒ de weekdag-standaardbanden gelden. */
+  bands?: { start: number; end: number }[];
+}
+
 /** Ext-facing werkkalender. Spiegelt {@link import('@/types/calendar').WorkCalendar}. */
 export interface ExtCalendar {
   id: string;
@@ -82,6 +95,8 @@ export interface ExtCalendar {
   workTime?: ExtWorkTimeBands;
   /** Ploeg-classificatie. undefined ⇒ FIRST. */
   shift?: 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
+  /** Dag-uitzonderingen die een dag WERKEND maken (fase 3.8, T2/T13). Afwezig ⇒ geen. */
+  workingExceptions?: ExtWorkingException[];
 }
 
 // ── Taak ──
@@ -117,6 +132,11 @@ export interface ExtTaskTime {
   remainingMinutes?: number;
   /** 0.0 – 1.0. */
   completion: number;
+  /** Z14 (Z12-herwerk) — MSP's eigen hervattingsinstant voor een out-of-sequence-taak. Spiegelt
+   *  {@link import('@/types/task').TaskTime}.resume. */
+  resume?: string;
+  /** Z14 (Z12-herwerk) — spiegelt `resume`. Spiegelt {@link import('@/types/task').TaskTime}.stop. */
+  stop?: string;
 }
 
 /** Datum-constraint. Spiegelt {@link import('@/types/task').TaskConstraint}. */
@@ -168,6 +188,38 @@ export interface ExtTask {
   /** Leveling-prioriteit (0–1000, default 500). */
   priority: number;
   levelingDelay?: number;
+  /** Z0/Z14 — subdag-precisie van `levelingDelay` (MSP-tienden-van-minuut, hier hele minuten).
+   *  Aanwezig ⇒ bron van waarheid; afwezig ⇒ `levelingDelay` (hele werkdagen) blijft de bron. */
+  levelingDelayMinutes?: number;
+  /** Z0/Z14 — begeleidt `levelingDelayMinutes`: true = kloktijd (ELAPSED) i.p.v. werktijd. */
+  levelingDelayElapsed?: boolean;
+  /** Z0/Z14 — werkonderbrekingen (MS Project "split"), offset-gebaseerd t.o.v. de taakstart.
+   *  Spiegelt {@link import('@/types/task').TaskSplitGap}. */
+  splitGaps?: { afterMinutes: number; gapMinutes: number }[];
+  /** Z0/Z14 — handmatig geplande taak (MS Project "Manually Scheduled"): de solver respecteert
+   *  `time.scheduleStart`/`scheduleFinish` dan RAUW (geen kalendersnap/relatiedruk/constraints). */
+  manuallyScheduled?: boolean;
+  /** Z14b (eigenaarsbesluit 2026-08-18, punt 1) — MSP's eigen Task Type bij .mpp-import. Puur data.
+   *  Sinds de main-merge vóór v2026.8.1 reist dit veld mee door de VOLLEDIGE vertaling
+   *  (`fromExtTask`, contract-poort `check-ext-contract.ts`); alleen de create-/update-paden
+   *  (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts`'s `REJECT_HINTS`) laten het buiten. */
+  mspTaskType?: 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
+  /** Z14b — MSP's "Effort Driven"-vlag bij .mpp-import. Puur data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. */
+  effortDriven?: boolean;
+  /** Z14b (eigenaarsprincipe 2026-08-18) — rauwe, gedecodeerde .mpp-contourperiodes; de bron ONDER
+   *  `splitGaps`, blijft ALTIJD staan (ook ná een bewerking die het Z8-venster invalideert). Puur
+   *  data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. Spiegelt {@link import('@/types/task').
+   *  TaskTimephasedContour}. */
+  timephasedContours?: { resourceUid: number | null; periods: { afterMinutes: number; minutes: number; workMinutes: number; kind: 'actual' | 'remaining' }[] }[];
+  /** Volledige-round-trip-velden (main-merge vóór v2026.8.1): de drie afgeleide-sturing-velden uit
+   *  de .mpp-import reizen mee door de VOLLEDIGE Ext-vertaling zodat een extensie-round-trip geen
+   *  data vernietigt (zelfde principe als de IFC-round-trip). Ze zijn géén invoer voor de create-/
+   *  update-paden — daar blijven ze bewust buiten (zie `fromExtTaskInput`). ISO-instants. */
+  timephasedFinishFloor?: string;
+  /** Zie `timephasedFinishFloor`. */
+  timephasedStartAnchor?: string;
+  /** Zie `timephasedFinishFloor`. */
+  timephasedDurationWalks?: { anchor: string; resourceCalendarId: string; workMinutes?: number }[];
   /** WBS-ouder; null = top-level. */
   parentId: string | null;
   /** WBS-kinderen. */
@@ -228,6 +280,8 @@ export interface ExtResource {
   availabilitySteps?: ExtAvailabilityStep[];
   unitOfMeasure?: string;
   parentId?: string;
+  /** Optionele weergavekleur voor resource-accenten en resourcegekleurde balken. */
+  color?: string;
 }
 
 /** Ext-facing resource-toewijzing. Spiegelt {@link import('@/types/resource').ResourceAssignment}. */
@@ -238,6 +292,52 @@ export interface ExtAssignment {
   /** Eenheden per werkdag (1 = 100%). */
   unitsPerDay: number;
   curve?: 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK';
+  /** Z8-werkvenster (.mpp-import) — volledige-round-trip-velden, zie `ExtTask.timephasedFinishFloor`. */
+  workWindowStart?: string;
+  /** Zie `workWindowStart`. */
+  workWindowFinish?: string;
+}
+
+// ── UI-contract: ribbontabbladen ──
+
+/**
+ * Ext-facing ribbontabblad. Spiegelt {@link import('@/state/slices/types').RibbonTab}.
+ *
+ * Waarom een eigen unie en niet gewoon `RibbonTab` importeren (wat `types.ts` hiervóór deed): dan
+ * is het interne tabblad-id ONDERDEEL VAN HET PUBLIEKE CONTRACT. Hernoemt de app ooit `'beeld'`
+ * naar `'view'` — een puur interne opruiming — dan breekt elke geïnstalleerde extensie die een knop
+ * op dat tabblad zet, zonder dat iemand dat als contractwijziging herkent. Met deze unie ertussen
+ * verhuist zo'n rename naar {@link import('./extMappers').fromExtRibbonTab} en merkt extensie-code
+ * er niets van.
+ *
+ * `'ai'` staat er bewust in, ook al verschijnt dat tabblad alleen met AI-modus aan: het weglaten zou
+ * een bestaand manifest ongeldig maken en de zichtbaarheid is sowieso een UI-beslissing, geen
+ * contract-beslissing.
+ */
+export type ExtRibbonTab =
+  | 'file' | 'start' | 'planning' | 'resources' | 'relations'
+  | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report' | 'ai';
+
+// ── PDF-fontproviders ──
+
+/**
+ * Ext-facing font-provider voor de vector-PDF-export (permissie `pdf-fonts`). Spiegelt
+ * {@link import('@/services/pdf/fontRegistry').CjkFontProvider}.
+ *
+ * Zelfde reden als hierboven: `CjkFontProvider` is een intern service-type dat mag veranderen —
+ * bijvoorbeeld doordat de pagineerder een extra gewicht of een andere dekkingsvraag nodig heeft.
+ * De grens ligt in {@link import('./extMappers').fromExtFontProvider}.
+ */
+export interface ExtFontProvider {
+  /** Stabiele identiteit (diagnose/dedup). Twee providers met dezelfde `id` ⇒ de laatste wint. */
+  id: string;
+  /** True als dit font een echte glyph heeft voor `codepoint`. Snelle voorfilter; de pagineerder
+   *  verifieert de daadwerkelijke glyph-aanwezigheid daarna zelf. */
+  covers(codepoint: number): boolean;
+  /** Rauwe glyf-TTF-bytes van het Regular-gewicht (lazy; mag cachen). */
+  getRegularBytes(): Promise<Uint8Array>;
+  /** Optioneel: idem voor Bold. Ontbreekt hij ⇒ Regular wordt hergebruikt. */
+  getBoldBytes?(): Promise<Uint8Array>;
 }
 
 // ── Importresultaat ──

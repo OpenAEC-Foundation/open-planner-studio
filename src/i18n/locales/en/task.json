@@ -16,7 +16,8 @@
     "completion": "Progress",
     "milestone": "Milestone",
     "hoursPerDayTip": "h/day",
-    "mixedWarning": "Mixed calendars — hours/day per calendar: {{list}}. Duration is shown per task in its own unit."
+    "mixedWarning": "Mixed calendars — hours/day per calendar: {{list}}. Duration is shown per task in its own unit.",
+    "activeDuring": "In progress"
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -91,6 +92,8 @@
     "deadlineMissed": "Deadline missed",
     "longFreePeriodWarning": "This task runs through a {{days}}-day non-working period ({{start}} to {{end}}).",
     "longFreePeriodWarningNamed": "This task runs through {{name}} — a {{days}}-day non-working period ({{start}} to {{end}}).",
+    "timephasedActive": "Follows the hour distribution from MS Project",
+    "timephasedLost": "MS Project hour distribution no longer applied after editing — the original distribution stays in the file",
     "completion": "Progress (%)",
     "progress": {
       "actualStart": "Actual start",
@@ -108,9 +111,10 @@
     "interferingFloat": "Interfering float:",
     "criticalPath": "Critical path:",
     "dependencies": "Dependencies",
+    "jumpToTask": "Go to task {{wbs}}",
     "relationPopoverTitle": "Relation type",
     "driving": "Driving relationship",
-    "lag": "Lag (e.g. 2d, 3ed, 50%, -25e%)",
+    "lag": "Lag (e.g. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calculate",
     "assignments": {
       "title": "Assignments",
@@ -154,7 +158,7 @@
     "notCalculated": "Recalculate (F5) to see driving and float",
     "warnTruncatedLead": "Lead truncated at the project start — the overlap is not fully used",
     "warnLeadExceedsDuration": "Lead is larger than the predecessor's duration",
-    "warnSummaryEndpoint": "No effect: summary task as endpoint"
+    "warnDropped": "Not included in the calculation"
   },
   "structure": {
     "title": "Codes & fields",

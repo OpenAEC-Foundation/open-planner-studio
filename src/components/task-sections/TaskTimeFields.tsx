@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import type { WorkCalendar } from '@/types/calendar';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
+import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { formatDuration } from '@/utils/durationFormat';
@@ -36,7 +37,10 @@ export function TaskTimeFields({ task, onChange }: {
   };
 
   const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
-  const hourTask = enableHourPlanning && isHourCalendar(cal) && !task.isMilestone;
+  // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
+  // mijlpaal-met-duur (T15) op een uur-kalender hoort gewoon het uur-duurveld te krijgen, niet
+  // stilzwijgend naar het dag-pad geduwd te worden (dat forceerde hieronder value=0+disabled).
+  const hourTask = enableHourPlanning && isHourCalendar(cal) && !isZeroDurationMilestone(task);
 
   // Getoonde start = berekende start, consistent met Gantt/tabel/tooltip/TaskDialog
   // (`earlyStart || scheduleStart`). `scheduleStart` blijft de GEPLANDE anker — zie
@@ -87,10 +91,12 @@ export function TaskTimeFields({ task, onChange }: {
               return (
                 <Input
                   type="number"
-                  value={task.isMilestone ? 0 : task.time.scheduleDuration}
+                  // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag —
+                  // een mijlpaal-met-duur toont/bewerkt haar eigen duur, zoals elke andere taak.
+                  value={isZeroDurationMilestone(task) ? 0 : task.time.scheduleDuration}
                   onChange={v => updateTime('scheduleDuration', parseInt(v) || 0)}
                   min={0}
-                  disabled={task.isMilestone}
+                  disabled={isZeroDurationMilestone(task)}
                 />
               );
             }

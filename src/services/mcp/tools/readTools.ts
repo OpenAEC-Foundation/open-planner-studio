@@ -10,12 +10,18 @@
 // `ToolError`-code teruggeven (VALIDATION bij een onbekend id / ontbrekende baseline) i.p.v. de
 // generieke INTERNAL die een kale throw zou opleveren.
 //
-// `get_resource_histogram` roept `ensureFreshSchedule` aan (herrekent ALLEEN als stale; pusht nooit
-// een undo-snapshot — staleGuard-invariant) en meldt in de data of het (her)berekend is; dat is de
-// enige leestool die de store-cache raakt, en dat is een versheids-refresh, geen mutatie — de
-// annotatie blijft `readOnlyHint:true` (spec: readOnlyHint op ALLE leestools).
+// `get_resource_histogram` roept `ensureFreshSchedule` aan (herrekent ALLEEN als stale of nog nooit
+// gerekend) en meldt in de data of het (her)berekend is; dat is de enige leestool die de store-cache
+// raakt, en dat is een versheids-refresh, geen mutatie — de annotatie blijft `readOnlyHint:true`
+// (spec: readOnlyHint op ALLE leestools).
+//
+// SINDS ISSUE #63 pusht `runCPM` in één geval wél een undo-snapshot: het verlaten van "datums zoals
+// opgeslagen". Dat raakt deze leestool NIET, en dat is geen toeval maar een afgedwongen eigenschap:
+// `ensureFreshSchedule` doet alleen iets bij `scheduleStale` of `cpmResult === null`, en in de modus
+// is `scheduleStale` altijd `false` (`showRecordedDates` zet hem zo, `markScheduleStale` houdt hem
+// zo) én `cpmResult` altijd gevuld (de reconstructie). "Modus aan én verouderd" is dus onbereikbaar
+// — vastgelegd in check-recorded-dates.ts (10.C). Daarmee blijft `readOnlyHint:true` verdedigbaar.
 
-import { useAppStore } from '@/state/appStore';
 import type { AppState } from '@/state/appStore';
 import { ensureFreshSchedule } from '../staleGuard';
 import { runReadTool, toolError } from './runtime';
@@ -466,6 +472,19 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.milestoneKind ? { milestoneKind: task.milestoneKind } : {}),
     ...(task.isHammock ? { isHammock: true } : {}),
     ...(task.mandatory ? { mandatory: true } : {}),
+    // F5 (spec-review-fixronde op 526af9f9, plan-Z14 regel ~470) — leeskant-rand: elk veld dat de
+    // .mpp-import (Z0/Z4/Z14b) op de taak zet, moet ook via de MCP-bridge leesbaar zijn, anders kan
+    // een AI-client een geïmporteerd project niet inspecteren. `manuallyScheduled`/`splitGaps`/
+    // `levelingDelayMinutes` bestonden al als Task-veld (Z0/Z4) maar ontbraken hier nog; `mspTaskType`/
+    // `effortDriven`/`timephasedContours` zijn Z14b-nieuw. Alle zes READ-ONLY via de bridge: ook
+    // `manuallyScheduled` heeft een REJECT_HINTS-entry (O3: "conform het isHammock-patroon", en
+    // isHammock is zelf via de bridge afgewezen) — mutatie-bewezen door de her-check-probe.
+    ...(task.manuallyScheduled ? { manuallyScheduled: true } : {}),
+    ...(task.splitGaps && task.splitGaps.length > 0 ? { splitGaps: task.splitGaps } : {}),
+    ...(task.levelingDelayMinutes != null ? { levelingDelayMinutes: task.levelingDelayMinutes } : {}),
+    ...(task.mspTaskType ? { mspTaskType: task.mspTaskType } : {}),
+    ...(task.effortDriven ? { effortDriven: true } : {}),
+    ...(task.timephasedContours && task.timephasedContours.length > 0 ? { timephasedContours: task.timephasedContours } : {}),
     parentId: task.parentId,
     childIds: task.childIds,
     duration: tt.scheduleDuration,
@@ -656,7 +675,7 @@ interface HistogramArgs {
   bucket?: unknown;
 }
 
-function getResourceHistogram(args: HistogramArgs) {
+function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
   // H10 — VALIDEREN VÓÓR DE (potentieel dure) RECOMPUTE. Drie stille faalgevallen zaten hier:
   //   - `bucket` werd gecoërceerd (`bucket: 'day'` werd stil 'week');
   //   - niet-string `resourceIds` werden weggefilterd; viel alles weg, dan werd `scoped` false en
@@ -677,7 +696,7 @@ function getResourceHistogram(args: HistogramArgs) {
     if (args.resourceIds.some((x) => typeof x !== 'string' || x === '')) {
       throw new ToolError('VALIDATION', '`resourceIds` mag alleen niet-lege resource-id-strings bevatten.');
     }
-    const known = new Set(useAppStore.getState().resources.map((r) => r.id));
+    const known = new Set(ctx.app.store.getState().resources.map((r) => r.id));
     const unknown = (args.resourceIds as string[]).filter((id) => !known.has(id));
     if (unknown.length > 0) {
       throw new ToolError('VALIDATION',
@@ -686,11 +705,11 @@ function getResourceHistogram(args: HistogramArgs) {
     resourceIds = args.resourceIds as string[];
   }
 
-  // Vers herrekenen wanneer stale of nog nooit gerekend — pusht nooit een undo-snapshot
-  // (staleGuard-invariant). Dit is de enige leestool die de cache raakt; het is een
-  // versheids-refresh, geen mutatie.
-  const fresh = ensureFreshSchedule();
-  const s = useAppStore.getState(); // verse state ná een eventuele recompute
+  // Vers herrekenen wanneer stale of nog nooit gerekend. Dit is de enige leestool die de cache
+  // raakt; het is een versheids-refresh, geen mutatie — en hij kan de undo-stack niet raken, want
+  // "datums zoals opgeslagen" is onbereikbaar in combinatie met stale/nooit-gerekend (zie de kop).
+  const fresh = ensureFreshSchedule(ctx.app);
+  const s = ctx.app.store.getState(); // verse contextstate ná een eventuele recompute
 
   const bucket: 'dag' | 'week' = args.bucket === 'dag' ? 'dag' : 'week';
   const from = typeof args.van === 'string' ? args.van : undefined;
@@ -990,7 +1009,11 @@ export const readTools: McpToolDef[] = [
       'Detail van één taak (`taskId` verplicht): metadata, duur/durationType, vroege/late datums, ' +
       'total/free float, kritiek-vlag, voortgang (+actuals), constraints (primair/secundair) en ' +
       'deadline, de effectieve kalender, ouder/kinderen, alle toewijzingen (resource, units/dag, ' +
-      'curve) en voorgangers/opvolgers (met type + lag). Onbekend id ⇒ nette NOT_FOUND. ' +
+      'curve) en voorgangers/opvolgers (met type + lag). Bij een uit .mpp geïmporteerde taak, indien ' +
+      'aanwezig: READ-ONLY `manuallyScheduled` (handmatig gepland), ' +
+      'READ-ONLY `splitGaps` (werkonderbrekingen), `levelingDelayMinutes`, `mspTaskType` (MSP Task ' +
+      'Type: FIXED_UNITS/FIXED_DURATION/FIXED_WORK), `effortDriven` en `timephasedContours` (rauwe ' +
+      'contourperiodes — puur data, geen rekengedrag). Onbekend id ⇒ nette NOT_FOUND. ' +
       'NAAMDRIFT LEZEN↔SCHRIJVEN: `wbs` heet bij het schrijven `wbsCode`, en `calendar.effectiveId` ' +
       'heet daar `calendarId` (let op: `effectiveId` kan de PROJECTkalender zijn — dan staat er geen ' +
       'eigen `calendarId` op de taak, zie `calendar.isProjectDefault`). ' +
@@ -1084,7 +1107,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, () => getResourceHistogram((args ?? {}) as HistogramArgs)),
+    handler: (args, ctx) => readTool(ctx, () => getResourceHistogram(ctx, (args ?? {}) as HistogramArgs)),
   },
   {
     name: 'planner_get_calendars',

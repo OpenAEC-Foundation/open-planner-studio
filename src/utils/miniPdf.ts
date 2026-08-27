@@ -229,7 +229,7 @@ const POINTS_PER_INCH = 72;
  *
  * `printPreview.renderPrintCanvas` tekent op een high-DPI-canvas: `canvas.width/height` zijn
  * rasterpixels (`logische maat * devicePixelRatio`), terwijl `canvas.style.width/height` de
- * logische CSS-pixelmaat op 96 DPI is — dezelfde maat waarop de paginaformaten (A4/A3/A1) in
+ * logische CSS-pixelmaat op 96 DPI is — dezelfde maat waarop de paginaformaten (A4/A3/A2/A1) in
  * `PAPER_SIZES` zijn gebaseerd. De paginamaat in punten moet dus uit de logische maat komen
  * (anders wordt de PDF-pagina 2-3x te groot op een retina-scherm); de rasterpixels blijven
  * gewoon de JPEG-resolutie.

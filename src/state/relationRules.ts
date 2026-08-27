@@ -20,7 +20,16 @@ export interface RelationEndpoints {
   successorId: string;
 }
 
-export type RelationRejection = 'self' | 'unknown-task' | 'summary-endpoint' | 'duplicate';
+/**
+ * `summary-endpoint` bestond hier tot het eigenaarsbesluit van 2026-08-15: relaties met een
+ * verzameltaak-eindpunt werden toen ALTIJD geweigerd. Sinds `expandSummaryRelations`
+ * (`src/engine/scheduler/expandSummaryRelations.ts`) zulke relaties naar bladtaken doorrekent
+ * (MS Project-semantiek), is dat te grofmazig — alleen een `ancestor`-relatie (een taak gekoppeld
+ * aan zijn eigen (voor)ouder-samenvatting) blijft principieel zinloos: dat zou de expansie letterlijk
+ * A→B ÉN B→A laten genereren, een directe cyclus. Zie `docs/superpowers/specs/2026-08-14-mijlpaal-
+ * relaties-design.md` (met de banner van 2026-08-15 bovenaan) voor de volledige voorgeschiedenis.
+ */
+export type RelationRejection = 'self' | 'unknown-task' | 'ancestor' | 'duplicate';
 
 export type RelationVerdict = { ok: true } | { ok: false; reason: RelationRejection };
 
@@ -37,43 +46,70 @@ export type TaskLookup = (id: string) => Task | undefined;
 
 /**
  * Is deze taak een verzameltaak — een taak MET subtaken? Een onbekende taak (`undefined`) is dat
- * níét: zie de toelichting bij `hasSummaryEndpoint`. Eén predicaat, gedeeld door `hasSummaryEndpoint`
- * (het PAAR) en de MCP-toollaag (`dependencyTools.ts`), die per KANT moet weten of een eindpunt een
- * verzameltaak is — een bestaande relatie mag een verzameltaak-eindpunt houden zolang je dat eindpunt
- * niet verlegt (spec §5: bestaande exemplaren blijven behouden én beheersbaar).
+ * níét. Sinds het eigenaarsbesluit van 2026-08-15 heeft GEEN productiecode meer een directe
+ * afhankelijkheid op deze functie: `relationVerdict` leunt niet meer op dit predicaat (een
+ * verzameltaak-eindpunt is nu legaal, zie `isAncestorRelation` hieronder voor de regel die wél nog
+ * weigert), en de drie oude UI-/MCP-lezers (RelationsPanel, fileSlice, dependencyTools) lezen sinds
+ * dat besluit `cpmResult.droppedSequenceIds` resp. `isAncestorRelation` in plaats van dit predicaat.
+ * `GanttRenderer.getRelationSourceAt` dupliceert het CONCEPT `childIds.length > 0` inline (die
+ * renderer importeert bewust niets uit `@/state`) maar staat een verzameltaak als relatiebron
+ * sindsdien juist WÉL toe — dat is dus geen lockstep-lezer van deze functie. Blijft geëxporteerd
+ * als algemeen, headless-getest predicaat (`tests/planning/check-relation-rules.ts`); niet
+ * verwijderd omdat "is dit een WBS-samenvatting" een op zichzelf staand, herbruikbaar begrip is.
  */
 export function isSummaryTask(task: Task | undefined): boolean {
   return (task?.childIds.length ?? 0) > 0;
 }
 
 /**
- * Heeft deze relatie een eindpunt zonder effect op de planning?
- *
- * `runCPM` geeft alleen BLADtaken aan de solver (`tasks.filter(t => t.childIds.length === 0)`) en
- * `CPMSolver` leest relaties in met optional chaining, dus een verzameltaak-eindpunt betekent dat
- * de relatie stil wordt weggegooid — een spookrelatie: opgeslagen, getekend, geëxporteerd, zonder
- * enig effect.
- *
- * MIJLPALEN ZIJN EXPLICIET WÉL TOEGESTAAN. Een mijlpaal is een bladtaak met duur 0; de solver
- * ondersteunt hem volledig als voorganger én opvolger. Dat hij in de Gantt geen relatie kon armen
- * was een neveneffect van een hittest die voor slepen/resizen geschreven is.
- *
- * Een ONBEKEND eindpunt geeft `false`, niet `true`. Binnen `relationVerdict` is dat onbereikbaar
- * (`unknown-task` vangt eerder af), maar het Relaties-paneel roept deze functie los aan per
- * bestaande rij, en een relatie naar een verdwenen taak hoort daar niet als verzameltaak-
- * spookrelatie gemarkeerd te worden. Zie spec §5: bestaande `self`/`unknown-task`-relaties worden
- * bewust niet gemarkeerd.
- *
- * Aparte functie náást `relationVerdict` omdat de paneelmarkering hem per BESTAANDE rij nodig
- * heeft: daar is `relationVerdict` onbruikbaar, want elke bestaande relatie is haar eigen duplicaat.
+ * Is `maybeAncestorId` een (voor)ouder van `id` in de WBS-boom (via `parentId` omhoog)? Cyclusvast:
+ * een corrupte `parentId`-keten kan hier nooit een oneindige lus geven — een reeds bezochte id breekt
+ * de lus af (en geeft `false`: een echte cyclus in `parentId` is zelf al een datafout, geen antwoord
+ * op deze vraag).
  */
-export function hasSummaryEndpoint(lookup: TaskLookup, seq: RelationEndpoints): boolean {
-  return isSummaryTask(lookup(seq.predecessorId)) || isSummaryTask(lookup(seq.successorId));
+function isAncestor(lookup: TaskLookup, maybeAncestorId: string, id: string): boolean {
+  const visited = new Set<string>();
+  let current = lookup(id)?.parentId ?? null;
+  while (current) {
+    if (current === maybeAncestorId) return true;
+    if (visited.has(current)) return false;
+    visited.add(current);
+    current = lookup(current)?.parentId ?? null;
+  }
+  return false;
+}
+
+/**
+ * Is dit een relatie tussen een taak en zijn EIGEN (voor)ouder-samenvatting (in beide richtingen)?
+ * Dit is de ENIGE nog geweigerde vorm van een relatie die een verzameltaak raakt (eigenaarsbesluit
+ * 2026-08-15, zie `RelationRejection`-doc): `expandSummaryRelations` zou zo'n relatie letterlijk
+ * A→B ÉN B→A laten genereren (elke bladafstammeling van de ene kant is óók een bladafstammeling van
+ * de andere kant), een directe cyclus die de HELE CPM-solve laat mislukken. In een boom (één
+ * `parentId` per taak) is "delen predIds/succIds bladafstammelingen" equivalent aan "de een is
+ * (voor)ouder van de ander" — vandaar dat deze functie via `parentId` omhoog loopt i.p.v. de volledige
+ * bladafstammelingenlijst te bouwen zoals `expandSummaryRelations.leafDescendantsOf` doet (die heeft
+ * de VOLLEDIGE lijst nodig om te expanderen; wij hebben hier alleen een ja/nee-vraag).
+ *
+ * DIE EQUIVALENTIE GELDT ALLEEN ALS `parentId` EN `childIds` ELKAARS SPIEGEL ZIJN (taak X in
+ * `parent.childIds` ⇔ `X.parentId === parent.id`, over de hele boom). Bij een corrupte/inconsistente
+ * boom (bv. een IFC-/import-artefact waar een kind wél in `childIds` staat maar zijn eigen `parentId`
+ * elders — of nergens — naar wijst) kunnen deze functie (leunt op `parentId`) en de solver-eigen guard
+ * in `expandSummaryRelations` (leunt op `childIds` via `leafDescendantsOf`) verschillend oordelen over
+ * dezelfde relatie. Dat is GEACCEPTEERD gedrag, geen bug om hier op te lossen: de aanmaak-weigering
+ * (dit bestand) en de solver-guard (expandSummaryRelations) zijn twee onafhankelijke vangnetten met
+ * elk hun eigen, hier expliciet benoemde aanname — geen van beide claimt de ANDERE te vervangen.
+ *
+ * Bewust GEEN bredere `summary-endpoint`-weigering meer: een relatie náár (niet van-en-naar-elkaar)
+ * een verzameltaak rekent sinds `expandSummaryRelations` gewoon volwaardig mee.
+ */
+export function isAncestorRelation(lookup: TaskLookup, seq: RelationEndpoints): boolean {
+  return isAncestor(lookup, seq.predecessorId, seq.successorId)
+    || isAncestor(lookup, seq.successorId, seq.predecessorId);
 }
 
 /**
  * Mag deze NIEUWE relatie erbij? Volgorde is bewust: structurele problemen eerst, duplicaat als
- * laatste — een verzameltaak-relatie die toevallig ook al bestaat moet het inhoudelijke probleem
+ * laatste — een voorouder-relatie die toevallig ook al bestaat moet het inhoudelijke probleem
  * melden, niet "bestaat al".
  */
 export function relationVerdict(
@@ -82,19 +118,13 @@ export function relationVerdict(
   seq: RelationEndpoints & { type: SequenceType },
 ): RelationVerdict {
   if (seq.predecessorId === seq.successorId) return { ok: false, reason: 'self' };
-  // Eén keer oplossen i.p.v. vier keer (twee via deze functie, twee via `hasSummaryEndpoint`): op
-  // het MCP-batchpad draait dit per relatie over een Immer-draft, en de dubbele lookup was gemeten
-  // goed voor een ~6× tragere batch (3000 taken / 1500 relaties: 798ms → 4645ms).
-  // Dit lost de dubbele lookup op, niet de trage lookup: `draft.addSequence` zoekt zelf nog
-  // lineair over de Immer-draft per relatie, dus er blijft een restpost staan (dezelfde meting:
-  // 692ms zonder taak-lookup vs. 2601ms nu, ~3,8×). Dat is een bewuste handhavingsgrens, geen gat —
-  // `classifyDeps` (`taskTools.ts`) heeft de hele batch al met een Map gevalideerd vóór deze functie
-  // draait; dit is de backstop die ook een direct store-pad (buiten MCP om) dekt, niet de plek waar
-  // de batch-performance vandaan moet komen.
   const pred = lookup(seq.predecessorId);
   const succ = lookup(seq.successorId);
   if (!pred || !succ) return { ok: false, reason: 'unknown-task' };
-  if (isSummaryTask(pred) || isSummaryTask(succ)) return { ok: false, reason: 'summary-endpoint' };
+  // Een verzameltaak-eindpunt is sinds 2026-08-15 legaal (expandSummaryRelations rekent ermee door);
+  // alleen een relatie tussen een taak en zijn EIGEN (voor)ouder-samenvatting blijft zinloos —
+  // zie `isAncestorRelation`.
+  if (isAncestorRelation(lookup, seq)) return { ok: false, reason: 'ancestor' };
   // Exacte duplicaten weren, maar meerdere TYPES tussen hetzelfde paar blijven toegestaan
   // (bv. SS+FF als ladder-koppeling) — anders verdwijnt de tweede relatie stil.
   const exists = sequences.some(

@@ -4,8 +4,6 @@
  * een extensie = manifest.json + main.js (CommonJS, exporteert onLoad/onUnload),
  * verpakt als ZIP of los .js-bestand, opgeslagen in IndexedDB.
  */
-import type { RibbonTab } from '@/state/slices/types';
-import type { CjkFontProvider } from '@/services/pdf/fontRegistry';
 import type {
   ExtProject,
   ExtCalendar,
@@ -14,6 +12,8 @@ import type {
   ExtResource,
   ExtAssignment,
   ExtImportResult,
+  ExtRibbonTab,
+  ExtFontProvider,
 } from './extTypes';
 
 // ── Categorieën & permissies ──
@@ -57,6 +57,13 @@ export interface ExtensionManifest {
   id: string;
   name: string;
   version: string;
+  /**
+   * Semver van het EXTENSIE-CONTRACT waartegen deze extensie gebouwd is (bv. `"1.0"`), los van
+   * `minAppVersion`. Zie `apiVersion.ts` voor waarom die twee verschillende vragen beantwoorden.
+   * Optioneel: manifesten van vóór K-item 37 missen hem en blijven gewoon laden (met een warn).
+   */
+  apiVersion?: string;
+  /** Minimale APP-versie (CalVer) — een uitspraak over features, niet over het contract. */
   minAppVersion: string;
   author: string;
   description: string;
@@ -68,14 +75,47 @@ export interface ExtensionManifest {
   icon?: string;             // inline SVG-string of emoji
 }
 
-// ── Geïnstalleerde extensie (runtime-record in de store) ──
+export type ParseResult<T> =
+  | { ok: true; value: T; warnings: string[] }
+  | { ok: false; error: string };
 
-export interface InstalledExtension {
+export interface CatalogIssue {
+  index: number;
+  idHint?: string;
+  error: string;
+}
+
+// ── Gevalideerde extensies en onuitvoerbare opslagrecords ──
+
+export interface ReadyExtension {
+  kind: 'ready';
   id: string;
   manifest: ExtensionManifest;
   status: ExtensionStatus;
   error?: string;
 }
+
+/** Gevalideerde, in geheugen genormaliseerde vorm van één IndexedDB-record. */
+export interface ReadyStoredExtension {
+  id: string;
+  manifest: ExtensionManifest;
+  mainCode: string;
+  enabled: boolean;
+  assets?: Record<string, Uint8Array>;
+  legacyWarnings: string[];
+  storageKey: IDBValidKey;
+}
+
+export interface QuarantinedExtension {
+  kind: 'quarantined';
+  quarantineId: string;
+  storageKey: IDBValidKey;
+  displayName: string;
+  reason: string;
+  status: 'quarantined';
+}
+
+export type ExtensionRecord = ReadyExtension | QuarantinedExtension;
 
 // ── Plugin-interface (wat main.js exporteert) ──
 
@@ -100,7 +140,7 @@ export interface ImporterDefinition {
 // ── Ribbon-registratie ──
 
 export interface RibbonButtonRegistration {
-  tab: RibbonTab;             // bv. 'start' of 'planning'
+  tab: ExtRibbonTab;          // bv. 'start' of 'planning' — ext-facing unie, zie extTypes.ts
   group: string;              // groepslabel in de ribbon
   label: string;
   icon?: string;              // inline SVG-string
@@ -113,13 +153,14 @@ export interface RibbonButtonRegistration {
 export interface ExtensionApi {
   readonly extensionId: string;
 
-  /** Registratie van import-formaten (verschijnen in Backstage → Importeren). */
+  /** Appbrede registratie van import-formaten (verschijnen in Backstage → Importeren). */
   importers: {
     register(def: ImporterDefinition): void;
     unregister(id: string): void;
   };
 
-  /** Lees-/schrijftoegang tot de planningsdata. `get*` levert VERSE, MUTEERBARE kopieën (Ext*-DTO's,
+  /** Lees-/schrijftoegang tot de expliciet door de host gebonden documentcontext. `get*` levert
+   *  VERSE, MUTEERBARE kopieën (Ext*-DTO's,
    *  géén bevroren store-objecten): muteren van het resultaat raakt de store NIET — schrijf via
    *  addTask/updateTask/addSequence. Mutaties lopen via store-acties (die zelf undo-snapshots pushen);
    *  na bulk-wijzigingen zelf recalculate() aanroepen. */
@@ -163,7 +204,7 @@ export interface ExtensionApi {
     emit(event: string, data?: unknown): void;
   };
 
-  /** UI-registratie. */
+  /** Appbrede UI-registratie; deze volgt de hostbinding, niet de documentcontext. */
   ui: {
     addRibbonButton(reg: RibbonButtonRegistration): void;
     showNotification(message: string, type?: 'info' | 'warning' | 'error'): void;
@@ -182,7 +223,7 @@ export interface ExtensionApi {
    * disable/unload automatisch weer uitgeschreven (net als importers/ribbon-knoppen).
    */
   pdfFonts: {
-    register(provider: CjkFontProvider): void;
+    register(provider: ExtFontProvider): void;
   };
 
   /**
@@ -215,8 +256,21 @@ export interface CatalogEntry {
   description: string;
   category: ExtensionCategory;
   tags: string[];
+  /** Zie `ExtensionManifest.apiVersion`. Afwezig ⇒ onbekend; de catalogus toont dan geen
+   *  contract-compatibiliteit. */
+  apiVersion?: string;
   minAppVersion: string;
   repository: string;
   downloadUrl: string;        // wijst naar een release-ZIP
+  /**
+   * Hex-gecodeerde SHA-256 van de ZIP achter `downloadUrl` (K-item 38). Aanwezig ⇒ de installatie
+   * VERIFIEERT de download en weigert bij een verschil; afwezig ⇒ installeren mag, met een
+   * waarschuwing in de debug-terminal.
+   *
+   * Waarom optioneel: de catalogus is een extern bestand (`open-planner-studio-extensions`) dat
+   * niet met deze app meebeweegt. Het hard eisen zou elke bestaande entry onbruikbaar maken; het
+   * doel is dat een entry MET hash niet meer stil vervangen kan worden.
+   */
+  sha256?: string;
   icon?: string;
 }

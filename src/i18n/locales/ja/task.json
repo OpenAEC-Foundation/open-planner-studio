@@ -16,7 +16,8 @@
     "freeFloat": "フリーフロート",
     "interferingFloat": "干渉フロート",
     "isNearCritical": "準クリティカル",
-    "floatPath": "フロートパス"
+    "floatPath": "フロートパス",
+    "activeDuring": "進行中"
   },
   "taskType": {
     "CONSTRUCTION": "建設",
@@ -72,6 +73,8 @@
     "deadlineMissed": "期限超過",
     "longFreePeriodWarning": "このタスクは {{days}} 日間の非稼働期間にまたがっています（{{start}} 〜 {{end}}）。",
     "longFreePeriodWarningNamed": "このタスクは{{name}} にまたがっています — {{days}} 日間の非稼働期間（{{start}} 〜 {{end}}）。",
+    "timephasedActive": "MS Project の時間配分に従っています",
+    "timephasedLost": "編集後、MS Project の時間配分は適用されなくなりました — 元の配分はファイルに保存されたままです",
     "completion": "進捗（%）",
     "progress": {
       "actualStart": "実績開始",
@@ -88,9 +91,10 @@
     "freeFloat": "フリーフロート：",
     "criticalPath": "クリティカルパス：",
     "dependencies": "依存関係",
+    "jumpToTask": "タスク {{wbs}} へ移動",
     "relationPopoverTitle": "関係の種類",
     "driving": "駆動関係（ドライビング）",
-    "lag": "ラグ（例: 2d、3ed、50%、-25e%）",
+    "lag": "ラグ（例: 2d、3ed、2u、50%、-25e%）",
     "recalculate": "計算",
     "assignments": {
       "title": "割り当て",
@@ -154,7 +158,7 @@
     "notCalculated": "再計算（F5）すると駆動関係とフロートが表示されます",
     "warnTruncatedLead": "リードがプロジェクト開始で打ち切られました — 重複は完全には活用されません",
     "warnLeadExceedsDuration": "リードが先行タスクの期間より大きくなっています",
-    "warnSummaryEndpoint": "効果なし: 端点がサマリータスク"
+    "warnDropped": "計算に含まれていません"
   },
   "structure": {
     "title": "コードとフィールド",

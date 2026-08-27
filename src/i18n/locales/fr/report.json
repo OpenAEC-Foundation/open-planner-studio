@@ -17,6 +17,7 @@
   "showLegend": "Légende",
   "showTaskNames": "Noms des tâches sur les barres",
   "showCompletion": "Afficher l'avancement",
+  "showBaselineOverlay": "Afficher la superposition de référence",
   "autoFit": "Ajustement automatique au papier",
   "zoom": "Zoom :",
   "repeatHeader": "Répéter l'en-tête sur chaque page",
@@ -42,11 +43,15 @@
   "legend": {
     "criticalPath": "Chemin critique",
     "normal": "Normal",
+    "baseline": "Référence",
     "milestone": "Jalon",
     "summary": "Résumé",
     "float": "Marge",
     "completion": "Avancement",
-    "relationStyle": "Déterminante / non déterminante"
+    "relationStyle": "Déterminante / non déterminante",
+    "categoriesMore_one": "… et {{count}} catégorie de plus",
+    "categoriesMore_many": "… et {{count}} catégories de plus",
+    "categoriesMore_other": "… et {{count}} catégories de plus"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -104,5 +109,19 @@
     "total": "Jalons",
     "mandatoryCount": "Obligatoires",
     "lateCount": "En retard"
-  }
+  },
+  "barColorModeLabel": "Couleurs des barres :",
+  "barColorMode_critical": "Chemin critique",
+  "barColorMode_auto": "Par tâche — automatique",
+  "barColorMode_category": "Par catégorie",
+  "barColorFieldLabel": "Champ de catégorie",
+  "barColorMissingField": "Ce champ n’existe pas dans ce projet. Le type de tâche est utilisé temporairement.",
+  "statusLineLabel": "Ligne d’état :",
+  "statusLine_none": "Aucune",
+  "statusLine_statusDate": "Ligne de date d’état",
+  "statusLine_progress": "Ligne d’avancement",
+  "statusLineHint": "Définissez d’abord une date d’état",
+  "followView": "Suivre la vue (filtre, groupe, tri)",
+  "statusDateLabel": "Date d’état",
+  "progressDateLabel": "Date d’avancement"
 }

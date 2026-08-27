@@ -27,6 +27,10 @@ En la parte superior de cada grupo elige cómo se combinan sus reglas:
 
 El icono de papelera detrás de una regla elimina esa regla; la cruz en la esquina superior derecha de un grupo anidado elimina todo el grupo.
 
+## Guardar y reutilizar filtros
+
+En la parte superior de la ventana de filtros, escriba un **Nombre** y haga clic en **Guardar** para conservar las reglas actuales como preajuste. Los filtros guardados están disponibles en este dispositivo en todos los proyectos; solo sustituyen el filtro, nunca las columnas, agrupación, ordenación ni escala temporal. Elija un filtro guardado de la misma lista para aplicarlo de inmediato, o elimine el preajuste seleccionado con la papelera.
+
 ## Aplicar, cancelar y borrar
 
 - **Aplicar** activa el filtro y cierra la ventana. Un filtro sin reglas cuenta como "sin filtro".

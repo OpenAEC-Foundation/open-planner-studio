@@ -1249,6 +1249,271 @@
       }
     },
     {
+      "id": "wbs-relation-touches-summary-01",
+      "title": "Vervolg op het T8-rooktest-scenario: relaties die een WBS-samenvattingstaak (P) rechtstreeks raken — X->P en P->Y — zijn in MS Project legaal, maar de solver rekent alleen bladtaken. Sinds de samenvattingsrelatie-propagatie (expandSummaryRelations) worden zulke relaties niet meer genegeerd maar herschreven naar bladtaak-relaties: X->P wordt X->K1 + X->K2 (X is nu voorganger van BEIDE kinderen), P->Y wordt K1->Y + K2->Y (Y wacht op BEIDE kinderen). Resultaat: X->{K1,K2}->Y, een diamant. K2 (dur5, het langste kind) is de kritieke tak; K1 (dur3) krijgt 2 werkdagen speling. X is kritiek (het voedt de kritieke K2 zonder speling); Y is kritiek (wacht op de kritieke K2). projectEnd=06-11 (Y.ef), projectDuration=9 werkdagen (06-01..06-11 min het weekend).",
+      "tasks": [
+        { "name": "X", "dur": 2 },
+        { "name": "Y", "dur": 2 },
+        { "name": "P" },
+        { "name": "K1", "dur": 3, "parent": "P" },
+        { "name": "K2", "dur": 5, "parent": "P" }
+      ],
+      "links": [
+        { "pred": "X", "succ": "P", "type": "FINISH_START", "lag": 0 },
+        { "pred": "P", "succ": "Y", "type": "FINISH_START", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0, "crit": true },
+          "K1": { "es": "2026-06-03", "ef": "2026-06-05", "tf": 2, "crit": false },
+          "K2": { "es": "2026-06-03", "ef": "2026-06-09", "tf": 0, "crit": true },
+          "Y": { "es": "2026-06-10", "ef": "2026-06-11", "tf": 0, "crit": true },
+          "P": { "es": "2026-06-03", "ef": "2026-06-09", "crit": true }
+        },
+        "criticalPathSet": ["X", "K2", "Y"],
+        "projectEnd": "2026-06-11",
+        "projectDuration": 9,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-pred-01",
+      "title": "Samenvattingsrelatie-propagatie, vorm 1: de samenvatting is VOORGANGER. P (K1 dur3, K2 dur5, parallel, geen relatie tussen de kinderen) -> X (dur2) via FS. expandSummaryRelations herschrijft dit naar K1->X + K2->X: X wacht op BEIDE kinderen, dus effectief op de hele tak (de CPM-max doet het werk — geen aparte 'laatste kind'-berekening nodig). K2 (het langste kind) is driving: X start pas de werkdag ná K2's finish (06-09 -> 06-08 volgt niet, want 06-06/07 is weekend: eerstvolgende werkdag na 06-05 is 06-08). K1 krijgt 2 werkdagen speling t.o.v. K2. projectEnd=06-09 (X.ef), projectDuration=7.",
+      "tasks": [
+        { "name": "P" },
+        { "name": "K1", "dur": 3, "parent": "P" },
+        { "name": "K2", "dur": 5, "parent": "P" },
+        { "name": "X", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "P", "succ": "X", "type": "FINISH_START", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "K1": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 2, "crit": false },
+          "K2": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "P": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true },
+          "X": { "es": "2026-06-08", "ef": "2026-06-09", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["K2", "X"],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-succ-01",
+      "title": "Samenvattingsrelatie-propagatie, vorm 2: de samenvatting is OPVOLGER. X (dur2) -> P (K1 dur3, K2 dur5, parallel) via FS. expandSummaryRelations herschrijft dit naar X->K1 + X->K2: BEIDE kinderen wachten op dezelfde voorganger X, onafhankelijk van elkaar. K1 en K2 starten dus tegelijk (06-03, de werkdag ná X.ef). K2 (het langste kind) heeft geen eigen opvolger meer (P is geen echte solver-knoop) en bepaalt het projecteinde; K1 krijgt 2 werkdagen speling t.o.v. dat einde. projectEnd=06-09 (K2.ef), projectDuration=7.",
+      "tasks": [
+        { "name": "X", "dur": 2 },
+        { "name": "P" },
+        { "name": "K1", "dur": 3, "parent": "P" },
+        { "name": "K2", "dur": 5, "parent": "P" }
+      ],
+      "links": [
+        { "pred": "X", "succ": "P", "type": "FINISH_START", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 0, "crit": true },
+          "K1": { "es": "2026-06-03", "ef": "2026-06-05", "tf": 2, "crit": false },
+          "K2": { "es": "2026-06-03", "ef": "2026-06-09", "tf": 0, "crit": true },
+          "P": { "es": "2026-06-03", "ef": "2026-06-09", "crit": true }
+        },
+        "criticalPathSet": ["X", "K2"],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-both-01",
+      "title": "Samenvattingsrelatie-propagatie, vorm 3: BEIDE kanten zijn een samenvatting — kruisproduct. P1 (K1a dur3, K1b dur5, parallel) -> P2 (K2a dur2, K2b dur4, parallel) via FS. expandSummaryRelations herschrijft dit naar het volledige kruisproduct: K1a->K2a, K1a->K2b, K1b->K2a, K1b->K2b — elk kind van P2 wacht dus op BEIDE kinderen van P1. K1b (langste kind van P1) en K2b (langste kind van P2, en zonder eigen opvolger dus zelf projecteinde-bepalend) vormen de kritieke keten; K1a en K2a krijgen elk 2 werkdagen speling. projectEnd=06-11 (K2b.ef), projectDuration=9.",
+      "tasks": [
+        { "name": "P1" },
+        { "name": "K1a", "dur": 3, "parent": "P1" },
+        { "name": "K1b", "dur": 5, "parent": "P1" },
+        { "name": "P2" },
+        { "name": "K2a", "dur": 2, "parent": "P2" },
+        { "name": "K2b", "dur": 4, "parent": "P2" }
+      ],
+      "links": [
+        { "pred": "P1", "succ": "P2", "type": "FINISH_START", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "K1a": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 2, "crit": false },
+          "K1b": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "P1": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true },
+          "K2a": { "es": "2026-06-08", "ef": "2026-06-09", "tf": 2, "crit": false },
+          "K2b": { "es": "2026-06-08", "ef": "2026-06-11", "tf": 0, "crit": true },
+          "P2": { "es": "2026-06-08", "ef": "2026-06-11", "crit": true }
+        },
+        "criticalPathSet": ["K1b", "K2b"],
+        "projectEnd": "2026-06-11",
+        "projectDuration": 9,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-nested-01",
+      "title": "Samenvattingsrelatie-propagatie, vorm 4: GENESTE samenvattingen. TOPP bevat alleen MIDP (zelf een samenvatting), MIDP bevat de echte bladkinderen G1 (dur3) en G2 (dur5). TOPP -> X (dur2) via FS: expandSummaryRelations daalt recursief door MIDP af tot de bladtaken en herschrijft dit naar G1->X + G2->X — identiek qua uitkomst aan vorm 1 (pred-01), maar nu twee WBS-niveaus diep. Bewijst dat de expansie niet stopt bij het eerste kind-niveau. G2 (langste) is driving; G1 krijgt 2 werkdagen speling. Zowel MIDP als TOPP rollen op tot dezelfde es/ef als hun kritieke afstammeling. projectEnd=06-09 (X.ef), projectDuration=7.",
+      "tasks": [
+        { "name": "TOPP" },
+        { "name": "MIDP", "parent": "TOPP" },
+        { "name": "G1", "dur": 3, "parent": "MIDP" },
+        { "name": "G2", "dur": 5, "parent": "MIDP" },
+        { "name": "X", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "TOPP", "succ": "X", "type": "FINISH_START", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "G1": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 2, "crit": false },
+          "G2": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "MIDP": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true },
+          "TOPP": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true },
+          "X": { "es": "2026-06-08", "ef": "2026-06-09", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["G2", "X"],
+        "projectEnd": "2026-06-09",
+        "projectDuration": 7,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-ancestor-guard-01",
+      "title": "CPM-review C1 (blokkerend): een relatie tussen een taak en zijn EIGEN (voor)ouder-samenvatting mag de solve niet slopen. P (samenvatting) heeft K1 (dur3) en K2 (dur5) als bladkinderen, zonder relatie tussen K1/K2 onderling. Drie ongeldige relaties: K1->P (SUB als voorganger van zijn EIGEN ouder-samenvatting TOP), P->K1 (TOP als voorganger van zijn EIGEN kind SUB — de spiegeling), en P->P (letterlijk zelfde samenvatting aan beide kanten). Zonder de vooroudersguard zou minstens P->P een kruisproduct met K1<->K2 heen-en-terug genereren (K1->K2 ÉN K2->K1) — een directe 2-cyclus die de HELE solve laat mislukken (error, geen enkele datum meer, ook niet voor taken die met dit alles niets te maken hebben). Alle drie worden nu stil gedropt (geen crash), en de vierde, volledig ONGERELATEERDE relatie X->Y rekent gewoon door — bewijst dat de guard alleen de foute relaties raakt, niet de rest van het document. K1/K2 rollen op als een gewone ongekoppelde WBS-parallel (identiek aan wbs-parallel-01): K2 (langste) is kritiek en bepaalt projectEnd=06-05; X->Y (X dur2, Y dur2 na X) eindigt eerder (06-04) en is dus niet kritiek.",
+      "tasks": [
+        { "name": "P" },
+        { "name": "K1", "dur": 3, "parent": "P" },
+        { "name": "K2", "dur": 5, "parent": "P" },
+        { "name": "X", "dur": 2 },
+        { "name": "Y", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "K1", "succ": "P", "type": "FINISH_START", "lag": 0 },
+        { "pred": "P", "succ": "K1", "type": "FINISH_START", "lag": 0 },
+        { "pred": "P", "succ": "P", "type": "FINISH_START", "lag": 0 },
+        { "pred": "X", "succ": "Y", "type": "FINISH_START", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "K1": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 2, "crit": false },
+          "K2": { "es": "2026-06-01", "ef": "2026-06-05", "tf": 0, "crit": true },
+          "P": { "es": "2026-06-01", "ef": "2026-06-05", "crit": true },
+          "X": { "es": "2026-06-01", "ef": "2026-06-02", "tf": 1, "crit": false },
+          "Y": { "es": "2026-06-03", "ef": "2026-06-04", "tf": 1, "crit": false }
+        },
+        "criticalPathSet": ["K2"],
+        "projectEnd": "2026-06-05",
+        "projectDuration": 5,
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-conservative-ss-pred-01",
+      "title": "CPM-review I3: SS met een samenvatting als VOORGANGER is CONSERVATIEF TE LAAT, geen exacte MS Project-semantiek — gedocumenteerd en hier gepind. P bevat K1 (dur3, ongebonden, start op anker) en K2 (dur5, start pas na Q via FS, dus LATER dan K1). MS Project's ware 'samenvatting-start' is de VROEGSTE kind-start (K1, 06-01); expandSummaryRelations genereert echter één SS-relatie per kind, en de forward-pass neemt de MAX over alle inkomende relatie-constraints — dus X wacht op de LAATSTE kind-start (K2), niet de vroegste. X start dus later dan MS Project zou plannen, nooit vroeger (de veilige kant in bouwplanning) — dat is precies de garantie die hier gepind wordt.",
+      "tasks": [
+        { "name": "Q", "dur": 2 },
+        { "name": "P" },
+        { "name": "K1", "dur": 3, "parent": "P" },
+        { "name": "K2", "dur": 5, "parent": "P" },
+        { "name": "X", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "Q", "succ": "K2", "type": "FINISH_START", "lag": 0 },
+        { "pred": "P", "succ": "X", "type": "START_START", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "Q": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "K1": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "K2": { "es": "2026-06-03", "ef": "2026-06-09" },
+          "P": { "es": "2026-06-01", "ef": "2026-06-09" },
+          "X": { "es": "2026-06-03", "ef": "2026-06-04" }
+        },
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-conservative-sf-pred-01",
+      "title": "CPM-review I3: SF met een samenvatting als VOORGANGER is eveneens CONSERVATIEF TE LAAT, om dezelfde reden als SS (zie wbs-summary-relation-conservative-ss-pred-01) — de MAX-over-kind-starts i.p.v. MS Project's MIN-over-kind-starts. Zelfde boom (K1 dur3 ongebonden, K2 dur5 na Q), nu met X via SF: X's finish hangt af van P's start, en die wordt via het kruisproduct bepaald door de LAATST startende kind (K2), niet de vroegste (K1). Gedocumenteerd gedrag, hier gepind.",
+      "tasks": [
+        { "name": "Q", "dur": 2 },
+        { "name": "P" },
+        { "name": "K1", "dur": 3, "parent": "P" },
+        { "name": "K2", "dur": 5, "parent": "P" },
+        { "name": "X", "dur": 2 }
+      ],
+      "links": [
+        { "pred": "Q", "succ": "K2", "type": "FINISH_START", "lag": 0 },
+        { "pred": "P", "succ": "X", "type": "START_FINISH", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "Q": { "es": "2026-06-01", "ef": "2026-06-02" },
+          "K1": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "K2": { "es": "2026-06-03", "ef": "2026-06-09" },
+          "P": { "es": "2026-06-01", "ef": "2026-06-09" },
+          "X": { "es": "2026-06-02", "ef": "2026-06-03" }
+        },
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-conservative-ff-succ-01",
+      "title": "CPM-review I3: FF met een samenvatting als OPVOLGER is CONSERVATIEF en een vorm die MS Project op een samenvatting zelf al ontmoedigt/verbiedt. X (dur6, lang genoeg om bindend te zijn) -> P (FF): expandSummaryRelations dwingt ELK kind (K1 dur3 én K2 dur5, beide van nature vroeger klaar dan X) om te voldoen aan een finish-eis die eigenlijk alleen voor de samenvatting als GEHEEL (het laatst afgeronde kind) zou moeten gelden — ook het vroege kind K1 wordt hierdoor later gepland dan zijn eigen duur zou vereisen. Gedocumenteerd gedrag, hier gepind.",
+      "tasks": [
+        { "name": "X", "dur": 6 },
+        { "name": "P" },
+        { "name": "K1", "dur": 3, "parent": "P" },
+        { "name": "K2", "dur": 5, "parent": "P" }
+      ],
+      "links": [
+        { "pred": "X", "succ": "P", "type": "FINISH_FINISH", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "X": { "es": "2026-06-01", "ef": "2026-06-08" },
+          "K1": { "es": "2026-06-04", "ef": "2026-06-08" },
+          "K2": { "es": "2026-06-02", "ef": "2026-06-08" },
+          "P": { "es": "2026-06-02", "ef": "2026-06-08" }
+        },
+        "projectEnd": "2026-06-08",
+        "error": false
+      }
+    },
+    {
+      "id": "wbs-summary-relation-conservative-sf-succ-01",
+      "title": "CPM-review I3: SF met een samenvatting als OPVOLGER — zelfde conservatieve, door MS Project zelf al ontmoedigde vorm als FF-opvolger (zie wbs-summary-relation-conservative-ff-succ-01), nu met X's START (i.p.v. finish) als bindende eis voor élk kind afzonderlijk i.p.v. alleen voor de samenvatting als geheel. Z (dur5, ongebonden) -> X (FS) duwt X's start naar 06-08 (ná het weekend), zodat de SF-eis voor K1/K2 daadwerkelijk bindt — zonder die vertraging zou X's start op het projectanker vallen en de eis toevallig al voldaan zijn door de eigen duur van de kinderen, wat niets zou aantonen. Gedocumenteerd gedrag, hier gepind.",
+      "tasks": [
+        { "name": "Z", "dur": 5 },
+        { "name": "X", "dur": 6 },
+        { "name": "P" },
+        { "name": "K1", "dur": 3, "parent": "P" },
+        { "name": "K2", "dur": 5, "parent": "P" }
+      ],
+      "links": [
+        { "pred": "Z", "succ": "X", "type": "FINISH_START", "lag": 0 },
+        { "pred": "X", "succ": "P", "type": "START_FINISH", "lag": 0 }
+      ],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-06-01", "ef": "2026-06-05" },
+          "X": { "es": "2026-06-08", "ef": "2026-06-15" },
+          "K1": { "es": "2026-06-04", "ef": "2026-06-08" },
+          "K2": { "es": "2026-06-02", "ef": "2026-06-08" },
+          "P": { "es": "2026-06-02", "ef": "2026-06-08" }
+        },
+        "projectEnd": "2026-06-15",
+        "error": false
+      }
+    },
+    {
       "id": "edge-empty-project-01",
       "title": "Leeg project (nul taken), gewone runCPM zonder verdere acties. Er is geen enkele earlyFinish, dus geen projecteinde: projectEnd moet LEEG zijn en projectDuration 0 — dezelfde vorm die de foutterugval (emptyResult) al teruggaf. Bewaakt de bron-invariant uit pakket P: de projectEnd-accumulator start op new Date(0), dus zonder guard zou hier 1970-01-01 uitkomen en als een echte einddatum lezen (statusbalk, documentstatistiek, baseline, Move Project). Geen fout: een leeg project is geen degradatiepad.",
       "tasks": [],
@@ -1256,6 +1521,130 @@
         "projectEnd": "",
         "projectDuration": 0,
         "error": false
+      }
+    },
+    {
+      "id": "edge-root-project-start-floor-workday-noop-01",
+      "title": "Ná T7 (plan-§9/O2, optie B) is dit geen vloer-no-op meer maar het gewone default-pad: projectstart ma 17-08-2026 (al een werkdag), wortel-taak zonder afwijkende eigen start (scheduleStart == projectstart, addTask default = project.startDate). Regressie-anker tegen een te agressieve clamp op het meest voorkomende pad — geen enkele taak wijkt hier af, dus er valt niets te klemmen, noch in de solver (T7), noch in `setProject` (T7b).",
+      "anchor": "2026-08-17",
+      "tasks": [
+        { "name": "Fundering", "dur": 3 }
+      ],
+      "expect": {
+        "tasks": {
+          "Fundering": { "es": "2026-08-17", "ef": "2026-08-19" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "edge-root-keeps-early-anchor-day-01",
+      "title": "T7-review H2 (CI-dekking): een wortel-taak (geen voorganger, geen constraint) met een eigen start VÓÓR de projectstart houdt die start aan — de kern van T7 (§9/O2, 'een ingelezen anker wordt nooit door de vloer overruled'), dag-modus. Vóór T7 klemde `rootFloor` dit naar de anker (06-01); sinds T7 (`CPMSolver.ownAnchor`, ongeklemd) blijft F op zijn eigen 05-01. Mutatiebewijs: `ownAnchor` terugzetten naar het oude `rootFloor`-gedrag (max met de vloer) maakt deze case ROOD (es zou 06-01 worden i.p.v. 05-01).",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "F", "dur": 3, "start": "2026-05-01" }
+      ],
+      "expect": {
+        "tasks": {
+          "F": { "es": "2026-05-01", "ef": "2026-05-05" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "edge-root-keeps-early-anchor-hour-01",
+      "title": "T7-review H2 (CI-dekking, uurmodus): zelfde kern als de dag-variant hierboven, nu met een uur-kalender (ma-vr 08:00-16:00) en een projectstart op een WERKDAG (ma 17-08) om weekend-snap-ambiguïteit te vermijden. Wortel-taak 'Fundering' (3 dagen, gewone — niet-expliciet-uur — duur) met een eigen start vr 14-08 (vóór de projectstart): houdt die start aan, gesnapt naar de eerste werkband (08:00) — GEEN vooruitklem naar de projectstart. Verwachte waarden empirisch bevestigd tegen de live solver (dezelfde cijfers als de oorspronkelijke, inmiddels vervallen 'hoofdscenario'-case vóór deze review de betekenis omdraaide). Mutatiebewijs: `ownAnchor` terugzetten naar het oude `rootFloor`-gedrag maakt deze case ROOD (es zou 2026-08-17T08:00 worden i.p.v. 2026-08-14T08:00).",
+      "anchor": "2026-08-17",
+      "calendar": {
+        "workTime": { "byWeekday": {
+          "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }],
+          "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }],
+          "5": [{ "start": 480, "end": 960 }], "6": [], "7": []
+        } }
+      },
+      "tasks": [
+        { "name": "Fundering", "dur": 3, "start": "2026-08-14" }
+      ],
+      "expect": {
+        "tasks": {
+          "Fundering": { "es": "2026-08-14T08:00", "ef": "2026-08-18T16:00" }
+        },
+        "error": false
+      }
+    },
+    {
+      "id": "edge-root-floor-vs-snet-after-01",
+      "title": "Projectstart-vloer-review: SNET NÁ de projectstart (06-10) op een wortel-taak blijft gewoon bindend — de vloer (anker 06-01, geen eigen afwijkende start) is hier al door de constraint overstemd. Pin tegen een toekomstige regressie die de constraint zou laten verdwijnen achter de vloer.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "B", "dur": 2, "constraint": { "type": "SNET", "date": "2026-06-10" } }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-10" } }
+      }
+    },
+    {
+      "id": "edge-root-floor-vs-snet-before-01",
+      "title": "Projectstart-vloer-review: SNET VÓÓR de projectstart (05-25) op een wortel-taak wint NIET van de vloer — een SNET is een ondergrens ('niet eerder dan'), geen pin, dus hij kan de al-op-de-projectstart-staande vloer (anker 06-01) niet naar een eerdere datum trekken. `applyForwardConstraints` raist `es` alleen als de constraint-datum ná de al-bepaalde `es` valt (§4.1) — 05-25 < 06-01, dus geen effect.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "B", "dur": 2, "constraint": { "type": "SNET", "date": "2026-05-25" } }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-01" } }
+      }
+    },
+    {
+      "id": "edge-root-floor-own-start-later-01",
+      "title": "Projectstart-vloer-review: een wortel-taak met een eigen (constraint-loze) start ná de projectstart (06-15, anker 06-01) blijft gewoon op zijn eigen start — de vloer is een ondergrens, geen anker die een latere eigen start naar zich toe zou trekken.",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "B", "dur": 2, "start": "2026-06-15" }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-06-15" } }
+      }
+    },
+    {
+      "id": "edge-root-floor-vs-hard-mso-01",
+      "title": "Projectstart-vloer-review: een HARDE MSO-pin (05-27, vóór de projectstart-anker 06-01) wint onvoorwaardelijk van de vloer — `applyForwardConstraints` controleert `hardPinStart` EERST en retourneert dan meteen, vóór `rootFloor` ooit gezien wordt (§4.2). tf=0 (LS=ES/LF=EF op de pin, geen opvolgers om de late datum anders te zetten).",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "B", "dur": 2, "constraint": { "type": "MSO", "date": "2026-05-27", "hard": true } }
+      ],
+      "expect": {
+        "tasks": { "B": { "es": "2026-05-27", "tf": 0 } }
+      }
+    },
+    {
+      "id": "edge-early-root-vs-longer-chain-no-negative-float-01",
+      "title": "Her-ijkt ná T7 (plan-§9/O2, orkestratorbesluit 2026-08-15 — optie B, review-bevinding M3): NIET meer vloer-afhankelijk — deze case is VROEGE-ROOT-afhankelijk, en juist DAARDOOR nu waardevol. F's eigen start (2026-05-01, vóór de anker 06-01) wordt sinds T7 NIET meer geklemd (`CPMSolver.ownAnchor`, ongeklemd) en blijft dus echt op 05-01 staan — meer dan een maand vóór L's 18-werkdagen-keten. Bewaakt dat een sterk vervroegde, ongerelateerde wortel-taak nog steeds een correcte (grote, positieve) tf krijgt — geen negatief-float-artefact of inconsistentie tussen de forward- en backward-pass, ook niet over zo'n groot gat heen. (De oude id bevatte 'floor'; hernoemd omdat er geen klem meer in het spel is — zie ook check-project-start-anchor.ts voor de bewerkbescherming die dit scenario in de UI/MCP nog wél afvangt.)",
+      "anchor": "2026-06-01",
+      "tasks": [
+        { "name": "F", "dur": 3, "start": "2026-05-01" },
+        { "name": "L", "dur": 18 }
+      ],
+      "expect": {
+        "tasks": {
+          "F": { "es": "2026-05-01", "ef": "2026-05-05", "tf": 36, "ff": 36, "crit": false },
+          "L": { "es": "2026-06-01", "ef": "2026-06-24", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["L"],
+        "projectEnd": "2026-06-24"
+      }
+    },
+    {
+      "id": "edge-root-floor-own-seven-day-calendar-01",
+      "title": "Her-verankerd ná T7 (plan-§9/O2, optie B): niet langer een vloer-klem-test (die logica verhuisde uit de solver naar `projectSlice.setProject`), maar bewaakt nog steeds het EIGENLIJKE onderwerp — een wortel-taak zonder voorganger snapt zijn EIGEN anker in zijn EIGEN kalender (`CPMSolver.ownAnchor(eng, ...)` met `eng` = de taak-kalender, niet de projectkalender). Start op za 15-08 (op de projectstart, dus geen klem-scenario meer nodig) op een EIGEN 7-daagse kalender (weekendploeg, geen weekend) blijft dus zaterdag; zou `ownAnchor` per ongeluk de PROJECTkalender (ma-vr) gebruiken, dan schoof hij door naar maandag 17-08.",
+      "anchor": "2026-08-15",
+      "calendars": [
+        { "name": "Weekendploeg", "workDays": [1, 2, 3, 4, 5, 6, 7] }
+      ],
+      "tasks": [
+        { "name": "Weekendploeg-taak", "dur": 2, "calendar": "Weekendploeg", "start": "2026-08-15" }
+      ],
+      "expect": {
+        "tasks": { "Weekendploeg-taak": { "es": "2026-08-15" } }
       }
     }
   ]

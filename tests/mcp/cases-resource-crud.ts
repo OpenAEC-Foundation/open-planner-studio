@@ -26,7 +26,7 @@
 //  16. schemapoort (dispatcher): onbekende TOP-LEVEL sleutel ⇒ VALIDATION vóór enige mutatie
 //  17. IFC-round-trip: elk schrijfbaar veld overleeft opslaan + herladen
 //  18. tooldefinitie-vorm: prefix, description, vier annotaties, batchable + batchStep
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { resourceTools } from '@/services/mcp/tools/resourceTools';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { readTools } from '@/services/mcp/tools/readTools';
@@ -50,15 +50,11 @@ function reset(): void {
   store.getState().newProject();
 }
 
-function makeCtx(overrides: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(overrides: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...overrides,
-  };
+  });
 }
 
 const ALL_DEFS = [...resourceTools, ...calendarResourceTools, ...readTools, ...batchTools];

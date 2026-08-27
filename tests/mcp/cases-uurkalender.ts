@@ -20,7 +20,7 @@
 //   9. onbekende velden ketsen af; de afgeleide leesvelden komen terug als `ignoredFields`
 //  10. ALLES ook via `planner_batch` (de schemapoort + batchStep-pad)
 //  11. IFC-round-trip van workTime/shift/generation — het native formaat moet het dragen
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { readTools } from '@/services/mcp/tools/readTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
@@ -44,15 +44,10 @@ registerToolModules([readTools, calendarResourceTools, batchTools]);
 
 // --- helpers -------------------------------------------------------------------------------------
 
-function makeCtx(overrides: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(overrides: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...overrides,
-  };
+  });
 }
 
 function toolDef(name: string) {

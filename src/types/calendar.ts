@@ -23,6 +23,31 @@ export interface WorkCalendar {
   /** OPTIONEEL — herkomststempel wanneer deze kalender een kopie uit een bedrijfsbibliotheek is
    *  (spec B1, §2). Afwezig ⇒ handmatige/gegenereerde kalender. */
   libraryOrigin?: LibraryOrigin;
+  /** OPTIONEEL — dag-uitzonderingen die een dag WERKEND maken (fase 3.8, MSP-pariteit T2; MS Project:
+   *  "werkende uitzondering"). Afwezig ⇒ byte-identiek gedrag met vóór deze taak: geen enkele bestaande
+   *  dag- of uur-lus raakt dit veld. INVARIANT (afgedwongen door de parser, T3/T4, niet hier): een datum
+   *  komt nooit tegelijk in `holidays` én in `workingExceptions` voor. */
+  workingExceptions?: WorkingException[];
+}
+
+/** Dag-uitzondering die werktijd TOEVOEGT/AANPAST op een anders niet-werkende dag (fase 3.8, T2;
+ *  MS Project: "werkende uitzondering"). Precedentie t.o.v. `holidays` wordt door de parser opgelost
+ *  (T3/T4) — de engine leest deze lijst alleen en gaat uit van een reeds per-datum-unieke invoer. */
+export interface WorkingException {
+  name: string;
+  startDate: string; // ISO 8601 date
+  endDate: string;   // ISO 8601 date
+  /** Banden in minuten-vanaf-middernacht, zelfde canonieke vorm als `WorkTimeBands` (§3.2: `end > start`,
+   *  een wrap-band mag `end ∈ (1440, 2880]`). Leeg/afwezig ⇒ FALLBACK-KETEN (fase 3.8, T2-review
+   *  MIDDEN-2 — orkestratorbesluit, raakt alleen ons eigen model: MPXJ produceert nooit band-loos):
+   *  (1) de eigen weekdag-banden van de kalender op díé weekdag (`workTime.byWeekday[dow]`), als die
+   *  niet leeg zijn; anders (2) de STANDAARD-werkdagbanden van de kalender — de banden van de eerste
+   *  `workDays`-weekdag die wél banden heeft (`CalendarEngine.computeStandardWorkdayBands`). Zónder deze
+   *  fallback zou een band-loze uitzondering op een dag zonder eigen weekdagbanden (bv. een werkende
+   *  zaterdag in een ma-vr-uurkalender) `isWorkDay`=true maar `workMinutesBetween`=0 opleveren — dag- en
+   *  uurmodus zouden elkaar tegenspreken en ResourceLoad/workdayAxis een werkdag zonder capaciteit zien.
+   *  In dag-modus telt de dag simpelweg als werkend zonder banden-detail (banden zijn daar irrelevant). */
+  bands?: { start: number; end: number }[];
 }
 
 /**

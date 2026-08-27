@@ -4,7 +4,7 @@ import { X, Gauge, Copy, Check, Play, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import type { TFunction } from 'i18next';
-import { BENCHMARK_SIZES } from '@/services/benchmark/generateProject';
+import { BENCHMARK_SIZES, BENCHMARK_RESOURCE_COUNTS, DEFAULT_RESOURCE_COUNT } from '@/services/benchmark/generateProject';
 import {
   runBenchmark, formatResultsMarkdown, formatBytes,
   type BenchmarkResult, type ProgressUpdate, type PhaseId,
@@ -45,6 +45,7 @@ export function BenchmarkDialog() {
   const close = () => { if (!running) setUI({ showBenchmarkDialog: false }); };
 
   const [size, setSize] = useState<number>(1000);
+  const [resourceCount, setResourceCount] = useState<number>(DEFAULT_RESOURCE_COUNT);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [result, setResult] = useState<BenchmarkResult | null>(null);
@@ -62,6 +63,7 @@ export function BenchmarkDialog() {
     try {
       const r = await runBenchmark({
         size,
+        resourceCount,
         version: __APP_VERSION__,
         onProgress: (u) => setProgress(u),
       });
@@ -70,7 +72,7 @@ export function BenchmarkDialog() {
       setRunning(false);
       setProgress(null);
     }
-  }, [size]);
+  }, [size, resourceCount]);
 
   const copy = useCallback(async () => {
     if (!result) return;
@@ -145,6 +147,32 @@ export function BenchmarkDialog() {
               <span>{t('benchmark.largeWarning')}</span>
             </p>
           )}
+        </div>
+
+        {/* Aantal resources */}
+        <div>
+          <div className="font-semibold mb-2">{t('benchmark.resourceLabel')}</div>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('benchmark.resourceLabel')}>
+            {BENCHMARK_RESOURCE_COUNTS.map((n) => (
+              <button
+                key={n}
+                role="radio"
+                aria-checked={resourceCount === n}
+                disabled={running}
+                onClick={() => setResourceCount(n)}
+                className={
+                  'px-3 py-1.5 rounded-[8px] border text-xs transition-colors disabled:opacity-40 ' +
+                  (resourceCount === n
+                    ? 'bg-accent/10 border-accent text-text-primary font-semibold'
+                    : 'bg-surface border-border text-text-secondary hover:bg-surface-hover')
+                }
+                data-ops-benchmark-resources={n}
+              >
+                {n === 0 ? t('benchmark.resourcesNone') : t('benchmark.resourcesCount', { count: n })}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-text-secondary">{t('benchmark.networkHint')}</p>
         </div>
 
         {/* Run-knop + voortgang */}

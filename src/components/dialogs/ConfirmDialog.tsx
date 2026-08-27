@@ -19,8 +19,12 @@ export interface ConfirmDialogProps {
  * Fase 2.10 (item 5): generieke in-app bevestigingsdialoog ter vervanging van `window.confirm()`.
  * Puur presentationeel (geen store-koppeling) — chrome/keyboard-gedrag exact naar `RecoveryDialog`
  * (Escape=annuleren, Enter=bevestigen). Bedoeld om BOVEN een reeds openstaande dialoog te stapelen
- * (de 3 call-sites — LayoutsDialog/BaselineDialog — zijn zelf al `fixed inset-0`-overlays met
- * `z-50`), dus deze laag gebruikt `z-[60]`, boven de aanroepende dialoog.
+ * (LayoutsDialog/BaselineDialog/AiConnectionGroup zijn zelf al `fixed inset-0`-overlays met `z-50`),
+ * dus deze laag gebruikt `z-[60]`, boven de aanroepende dialoog. Sinds de mpp-nul-data-etappe
+ * (native-dialog-audit) is er een vierde call-site, `LibrarySection.tsx` (Backstage → Bibliotheek,
+ * bedrijf verwijderen) — die stapelt ANDERS: Backstage is zelf geen `fixed inset-0`-dialoog, dus
+ * daar is dit de EERSTE modale laag in plaats van een stapelend tweede laagje; de `z-[60]` werkt
+ * daar net zo goed (er is simpelweg niets onder om boven uit te steken).
  */
 export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, cancelLabel, danger }: ConfirmDialogProps) {
   const { t } = useTranslation('common');

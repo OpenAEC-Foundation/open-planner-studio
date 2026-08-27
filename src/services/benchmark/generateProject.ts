@@ -47,6 +47,20 @@ const RESOURCE_POOL: { name: string; type: ResourceType; maxUnits: number; costP
   { name: 'Steiger',         type: 'EQUIPMENT',     maxUnits: 1, costPerHour: 30 },
 ];
 
+/** Aantal resources dat de UI aanbiedt. `RESOURCE_POOL.length` (8) blijft de standaard: dat is de
+ *  stand waarmee alle eerdere benchmarkcijfers gemeten zijn. */
+export const BENCHMARK_RESOURCE_COUNTS = [0, 4, 8, 25, 80, 250] as const;
+export const DEFAULT_RESOURCE_COUNT = RESOURCE_POOL.length;
+
+export interface BenchmarkOptions {
+  /** Deterministische seed; gelijke seed + gelijke opties ⇒ bit-identieke data. */
+  seed?: number;
+  /** Aantal resources (0 = geen resources en dus geen toewijzingen). Geklemd op 0…2000. Boven de
+   *  acht poolrollen worden de rollen hergebruikt met een genummerd achtervoegsel
+   *  ("Timmerlieden 2"), zodat de typeverdeling en de kostenspreiding realistisch blijven. */
+  resourceCount?: number;
+}
+
 const SEQ_TYPES: { type: SequenceType; w: number }[] = [
   { type: 'FINISH_START', w: 0.70 },
   { type: 'START_START',  w: 0.18 },
@@ -97,10 +111,16 @@ export interface GeneratedProject extends ImportResult {
  *
  * Structuur (realistisch WBS): twee niveaus verzameltaken (fasen → subfasen) met daaronder
  * leaf-taken en mijlpalen. Verhouding ~10% verzameltaken + ~6% mijlpalen ⇒ de rest leaf-werktaken.
- * Relaties (~1,3 per leaf-taak) lopen ALTIJD van een eerder-gecreëerde naar een later-gecreëerde
- * leaf-taak ⇒ gegarandeerd acyclisch. FS/SS/FF met af en toe een lag.
+ * Relaties lopen ALTIJD van een eerder-gecreëerde naar een later-gecreëerde leaf-taak ⇒
+ * gegarandeerd acyclisch. FS/SS/FF met af en toe een lag. ELKE leaf-taak zit in het netwerk (zie de
+ * ruggengraat hieronder); daarbovenop verdichting tot ~1,3 relatie per leaf-taak.
+ *
+ * `opts.resourceCount` bepaalt het aantal resources (standaard acht — de stand waarmee de eerdere
+ * benchmarkcijfers gemeten zijn). Bij nul zijn er geen resources en geen toewijzingen.
  */
-export function generateBenchmarkProject(size: number, seed = 0x5eed): GeneratedProject {
+export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = {}): GeneratedProject {
+  const seed = opts.seed ?? 0x5eed;
+  const resourceCount = Math.max(0, Math.min(2000, Math.round(opts.resourceCount ?? DEFAULT_RESOURCE_COUNT)));
   const rnd = mulberry32(seed ^ (size * 2654435761));
   const projectStart = '2026-01-05'; // een maandag
   const startYear = 2026;
@@ -165,9 +185,15 @@ export function generateBenchmarkProject(size: number, seed = 0x5eed): Generated
   }
 
   // Subfasen (verzameltaken onder een willekeurige top-fase).
+  // Eerst één subfase per top-fase (round-robin), daarna pas loten. Puur loten liet top-fasen
+  // zónder kinderen achter, en zo'n lege verzameltaak telt voor de solver als LEAF — dus als een
+  // taak die nergens in het relatienetwerk zit. Dit niveau is echt nodig: bij 5.000 taken bleven er
+  // met alleen loten 28 zulke taken over.
   const subWbsCounter = new Map<string, number>();
   for (let i = 0; i < nSubSummaries; i++) {
-    const parentId = topSummaryIds[Math.floor(rnd() * topSummaryIds.length)];
+    const parentId = i < topSummaryIds.length
+      ? topSummaryIds[i]
+      : topSummaryIds[Math.floor(rnd() * topSummaryIds.length)];
     const parent = taskById.get(parentId)!;
     const n = (subWbsCounter.get(parentId) ?? 0) + 1;
     subWbsCounter.set(parentId, n);
@@ -187,7 +213,12 @@ export function generateBenchmarkProject(size: number, seed = 0x5eed): Generated
   const leafTaskIds: string[] = [];
 
   const addLeaf = (isMilestone: boolean, idx: number) => {
-    const parentId = leafParents[Math.floor(rnd() * leafParents.length)];
+    // Zelfde round-robin-eerst als bij de subfasen hierboven. Op dit niveau is het een garantie en
+    // geen reparatie: ~90% van de taken verdeelt zich over ~6,5% ouders, dus loten dekt in de
+    // praktijk toch elke subfase. Hij staat er zodat het een belofte is en geen kansspel.
+    const parentId = idx < leafParents.length
+      ? leafParents[idx]
+      : leafParents[Math.floor(rnd() * leafParents.length)];
     const parent = taskById.get(parentId)!;
     const n = (leafWbsCounter.get(parentId) ?? 0) + 1;
     leafWbsCounter.set(parentId, n);
@@ -225,45 +256,87 @@ export function generateBenchmarkProject(size: number, seed = 0x5eed): Generated
     if (makeMs) msLeft--;
   }
 
-  // --- Relaties (~1,3 per leaf-taak, acyclisch: predecessor komt altijd eerder) --------------
+  // NB — waarom `leafTaskIds` hier gelijk is aan "alles wat de solver als leaf ziet". Het criterium
+  // van de solver is `childIds.length === 0`, niet "als verzameltaak bedoeld". Een verzameltaak die
+  // door de loting geen enkel kind kreeg zou dus een leaf zijn die buiten het netwerk valt. Dat kan
+  // niet meer: de twee round-robins hierboven geven élke top-fase een subfase en élke subfase een
+  // blad, vóórdat er geloot wordt. Hier stond een reparatielus voor dat geval; die bleek
+  // onbereikbaar (de aantallen laten nSub < nTop of totalLeaves < leafParents niet toe) en is
+  // daarom weg in plaats van als schijnvangnet te blijven staan.
+  // `check-benchmark-generator.ts` toetst de invariant zelf, dus verschuiven die aantallen ooit,
+  // dan valt het daar om en niet stilzwijgend hier.
+
+  // --- Relaties: ELKE leaf-taak zit in het netwerk, acyclisch (predecessor komt altijd eerder) ---
+  //
+  // Hiervóór werden alleen ~1,3 × leaf willekeurige kanten getrokken. Dat liet, juist bij grotere
+  // planningen, een staart leaf-taken ZONDER enige relatie achter — losse taken die de solver
+  // meteen op de projectstart legt en die dus niets zeggen over hoe de app zich met een echt
+  // netwerk gedraagt. Nu gebeurt het in twee stappen:
+  //
+  //  1. RUGGENGRAAT — elke leaf behalve de allereerste krijgt gegarandeerd een voorganger, gekozen
+  //     binnen hetzelfde venster van 25 als hieronder. Daarmee heeft élke leaf-taak minstens één
+  //     relatie (de eerste via zijn opvolger) en blijft de graaf samenhangend.
+  //  2. VERDICHTING — daarbovenop willekeurige extra kanten tot de doeldichtheid, precies zoals
+  //     het al deed, zodat het geen kale ketting wordt maar een netwerk met samenloop.
+  //
+  // Verzameltaken doen bewust NIET mee: hun datums zijn een rollup over hun kinderen, dus een
+  // relatie op een verzameltaak zou de meting vertroebelen in plaats van realistischer maken.
   const sequences: Sequence[] = [];
-  const targetEdges = Math.round(leafTaskIds.length * 1.3);
   const seen = new Set<string>();
   let seqCounter = 0;
-  let attempts = 0;
-  while (sequences.length < targetEdges && attempts < targetEdges * 6) {
-    attempts++;
-    // Kies een opvolger (niet de allereerste) en een eerdere voorganger binnen een venster.
-    const si = 1 + Math.floor(rnd() * (leafTaskIds.length - 1));
-    const window = Math.min(si, 25);
-    const pi = si - 1 - Math.floor(rnd() * window);
-    if (pi < 0 || pi >= si) continue;
+
+  const addEdge = (pi: number, si: number): boolean => {
+    if (pi < 0 || pi >= si) return false;
     const predecessorId = leafTaskIds[pi];
     const successorId = leafTaskIds[si];
     const key = `${predecessorId}>${successorId}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return false;
     seen.add(key);
     const type = pickSeqType(rnd());
     const lagDays = rnd() < 0.15 ? Math.floor(rnd() * 5) - 1 : 0; // af en toe een (kleine) lag/lead
-    sequences.push({
-      id: `bm-seq-${seqCounter++}`,
-      predecessorId, successorId, type, lagDays,
-    });
+    sequences.push({ id: `bm-seq-${seqCounter++}`, predecessorId, successorId, type, lagDays });
+    return true;
+  };
+
+  // 1. Ruggengraat.
+  for (let si = 1; si < leafTaskIds.length; si++) {
+    const window = Math.min(si, 25);
+    addEdge(si - 1 - Math.floor(rnd() * window), si);
+  }
+
+  // 2. Verdichting tot de doeldichtheid (ondergrens: wat de ruggengraat al opleverde).
+  const targetEdges = Math.max(sequences.length, Math.round(leafTaskIds.length * 1.3));
+  let attempts = 0;
+  while (sequences.length < targetEdges && attempts < targetEdges * 6) {
+    attempts++;
+    const si = 1 + Math.floor(rnd() * (leafTaskIds.length - 1));
+    const window = Math.min(si, 25);
+    addEdge(si - 1 - Math.floor(rnd() * window), si);
   }
 
   // --- Resources + toewijzingen -----------------------------------------------
-  const resources: Resource[] = RESOURCE_POOL.map((r, i) => ({
-    id: `bm-res-${i}`,
-    name: r.name,
-    type: r.type,
-    description: '',
-    maxUnits: r.maxUnits,
-    costPerHour: r.costPerHour,
-  }));
+  // Het aantal is instelbaar (`opts.resourceCount`). Boven de acht poolrollen worden de rollen
+  // hergebruikt met een rondenummer erachter, zodat de typeverdeling (arbeid/ploeg/materieel/
+  // onderaannemer), de capaciteiten en de uurtarieven blijven kloppen in plaats van dat er
+  // naamloze klonen bij komen. Nul resources is een geldige keuze: dan zijn er ook geen
+  // toewijzingen, wat precies de vergelijking "met en zonder resourcebelasting" mogelijk maakt.
+  const resources: Resource[] = Array.from({ length: resourceCount }, (_, i) => {
+    const rol = RESOURCE_POOL[i % RESOURCE_POOL.length];
+    const ronde = Math.floor(i / RESOURCE_POOL.length);
+    return {
+      id: `bm-res-${i}`,
+      name: ronde === 0 ? rol.name : `${rol.name} ${ronde + 1}`,
+      type: rol.type,
+      description: '',
+      maxUnits: rol.maxUnits,
+      costPerHour: rol.costPerHour,
+    };
+  });
 
   const assignments: ResourceAssignment[] = [];
   let asgCounter = 0;
   for (const leafId of leafTaskIds) {
+    if (resources.length === 0) break;
     const task = taskById.get(leafId)!;
     if (task.isMilestone) continue;
     // ~60% van de werktaken krijgt 1 resource, ~15% een tweede.

@@ -57,7 +57,9 @@ Bu uyarılar özensizlik değildir — kasıtlı, açık bir seçimdir: düşür
 
 ## İçe aktarma
 
-**Dosya → Aç** (veya **Backstage → Aç**), `.ifc`, `.csv` ve `.xml` dosyalarını kabul eder. Bir `.xml` dosyası için, uygulama içeriğe dayanarak bunun bir Primavera P6 mı yoksa bir MS Project dosyası mı olduğunu kendisi tespit eder. Yukarıda açıklandığı gibi: bir CSV veya P6 içe aktarımı **baseline'sız** bir proje üretir (kaynakta hiç yoktu), IFC ve MSPDI ise baseline'ları birlikte getirir.
+**Dosya → Aç** (veya **Backstage → Aç**), `.ifc`, `.csv`, `.xml` ve `.mpp` dosyalarını kabul eder. Bir `.xml` dosyası için, uygulama içeriğe dayanarak bunun bir Primavera P6 mı yoksa bir MS Project dosyası mı olduğunu kendisi tespit eder. Yukarıda açıklandığı gibi: bir CSV veya P6 içe aktarımı **baseline'sız** bir proje üretir (kaynakta hiç yoktu), IFC ve MSPDI ise baseline'ları birlikte getirir.
+
+Bir `.mpp` dosyası (Microsoft Project'in yerel biçimi, Project 2010–2021) ayrı bir yol izler: bu içe aktarma **salt okunurdur** — bir `.mpp` dışa aktarımı yoktur, bu yüzden MS Project'e yeniden dışa aktarma MSPDI XML üzerinden yapılır. Neyin geldiğini ve sınırlamaların neler olduğunu görmek için [MS Project (.mpp) dosyasını açma](docs://gids-msproject-import) kılavuzuna bakın.
 
 ## Uzantı içe aktarıcıları
 

@@ -1313,6 +1313,393 @@
         "projectEnd": "2026-06-09",
         "error": false
       }
+    },
+    {
+      "id": "z7-split-a-single-gap",
+      "title": "Z7 (plan-§Z7, acceptatiepunt (a)) — aangrijpingspunt 1 (`addDurationChecked`): taak 5d met één gat van 2 werkdagen (na 2 dagen werk, offset 960 werkminuten) ⇒ EF 7 werkdagen na start (5+2), NIET 5. `afterMinutes:960` = 2×8u×60 (na dag 2), `gapMinutes:960` = 2×8u×60 (2 volle werkdagen gat). Mon 2026-06-01 + 7 werkdagen = di 2026-06-09 (week1 vol + 2 dagen week2).",
+      "tasks": [
+        { "name": "A", "dur": 5, "splitGaps": [{ "afterMinutes": 960, "gapMinutes": 960 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-09", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-b-two-gaps",
+      "title": "Z7 (acceptatiepunt (b)) — twee gaten op de CUMULATIEVE as-positie (Z7-fixronde-H1-correctie: `afterMinutes` staat NIET op een zuivere-werkduur-as die bij elk gat weer bij 0 werk begint — het is MSP's eigen `elapsedWorkMinutes`-as, die een voorgaand gat al meetelt). Gat 1 (960→1440, 1 dag) begint op zuivere werkdag 2; gat 2 se `afterMinutes:2880` ligt op de AS ná gat 1, wat overeenkomt met zuivere werkdag 5 (2880−480 as-minuten-van-gat-1 = 2400 werkminuten = dag 5), NIET dag 6 — de wandeling (`splitTotalSpanMinutes`) rekent dit correct af. Totaal: 10d duur + 2×1d gat = 12 werkdagen. Mon 2026-06-01 + 12 werkdagen = ma 2026-06-16 (twee volle weken + 2 dagen).",
+      "tasks": [
+        { "name": "B", "dur": 10, "splitGaps": [
+          { "afterMinutes": 960, "gapMinutes": 480 },
+          { "afterMinutes": 2880, "gapMinutes": 480 }
+        ] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "B": { "es": "2026-06-01", "ef": "2026-06-16", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-16",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-c-gap-adjacent-to-weekend",
+      "title": "Z7 (acceptatiepunt (c)) — 'gat dat op/nabij een weekend valt telt niet dubbel': ZELFDE totaal als z7-split-a (5d + gat 2d = 7 werkdagen), maar het gat begint hier na dag 3 (offset 1440 min, einde woensdag) i.p.v. na dag 2 — het gat overspant dus donderdag+vrijdag, RECHT tegen het weekend aan. Positie-onafhankelijkheid is de kern van de Z7-canonieke regel (`duration.ts`'s moduleheader: addWorkDaysChecked/addWorkMinutes zijn zuivere tel-functies, het AANTAL bepaalt de aankomst, niet de interne opbouw) — de EF moet BYTE-IDENTIEK zijn aan z7-split-a (2026-06-09), ondanks de andere gat-positie. Was de weekend-overgang per ongeluk dubbel meegeteld (bv. door het gat als kale kalenderdagen i.p.v. werkdagen te tellen), dan zou dit EEN ANDERE EF geven dan z7-split-a.",
+      "tasks": [
+        { "name": "C", "dur": 5, "splitGaps": [{ "afterMinutes": 1440, "gapMinutes": 960 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "C": { "es": "2026-06-01", "ef": "2026-06-09", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-d-in-progress",
+      "title": "Z7 (acceptatiepunt (d), DE KERNCASE — raakt aangrijpingspunt 2, de IN-PROGRESS-tak in forwardPass, die EEN EIGEN duur-optelling heeft en NIET door addDurationChecked loopt) — taak 10d, completion 30% (⇒ remaining=7d, reeds-afgewerkt=3d=1440 werkminuten), actualStart = eigen start (2026-06-01, geen statusdatum). Gat van 2 werkdagen (960 min) op offset 1920 (na dag 4 — dus VOLLEDIG in het restwerkvenster [1440,4800), niet in het reeds-afgewerkte deel) ⇒ restwerk 7+2=9 werkdagen vanaf remStart (=actualStart, want geen statusdatum en geen voorganger-druk). EF = 2026-06-01 + 9 werkdagen = do 2026-06-11. Mutatiebewijs (verplicht, plan-§Z7 punt 3): de gaten-optelling ALLEEN uit deze IN-PROGRESS-tak weghalen (CPMSolver.ts, `remainingWithGaps`-blok) maakt DEZE case ROOD (EF terug naar 2026-06-08, 7 werkdagen zonder het gat) TERWIJL z7-split-a/z7-split-b groen BLIJVEN (die lopen niet door de IN-PROGRESS-tak) — dat is het bewijs dat aangrijpingspunt 2 een EIGEN, apart geraakte plek is, geen gratis neveneffect van aangrijpingspunt 1.",
+      "tasks": [
+        { "name": "D", "dur": 10, "completion": 0.3, "actualStart": "2026-06-01",
+          "splitGaps": [{ "afterMinutes": 1920, "gapMinutes": 960 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-06-01", "ef": "2026-06-11" }
+        },
+        "projectEnd": "2026-06-11",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-e-ff-successor-startfromfinish",
+      "title": "Z7 (acceptatiepunt (e)) — aangrijpingspunt 4 (`startFromFinish`/`finishFromStart`, gebruikt door de FF/SF-armen in relationMath.ts): R(3d, geen gaten) --FF+0--> S(2d + gat 1d = 3d totaal). De FF-forward-arm (relationMath.ts, case FINISH_FINISH) berekent S.ES via `deps.startFromFinish(se, reqFinish=R.ef, S)` — die functie moet S se EIGEN gat meetellen, anders trekt ze maar 2 (i.p.v. 3) werkdagen terug vanaf reqFinish en landt S.ES te LAAT. R.ef = 2026-06-03 (Mon+3wd). S se totale duur (2+1 gat) = 3wd, dus S.ES = R.ef terug-3-werkdagen = 2026-06-01 (exact R se eigen start — geen toeval: R en S hebben nu dezelfde effectieve lengte). S.EF = addDurationChecked(S.ES, S) = 2026-06-01 + 3wd = 2026-06-03 (aangrijpingspunt 1, bevestigt hetzelfde venster). Mutatiebewijs (handmatig geverifieerd tijdens implementatie, niet in deze suite herhaald): de gaten-optelling ALLEEN uit `startFromFinish` weghalen (met `addDurationChecked` ongewijzigd) geeft S.ES=2026-06-02 (1 dag te laat, want maar 2wd teruggeteld) en S.EF=2026-06-04 (idem 1 dag te laat) — beide velden wijken dan af van deze pin.",
+      "tasks": [
+        { "name": "R", "dur": 3 },
+        { "name": "S", "dur": 2, "splitGaps": [{ "afterMinutes": 480, "gapMinutes": 480 }] }
+      ],
+      "links": [{ "pred": "R", "succ": "S", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "R": { "es": "2026-06-01", "ef": "2026-06-03" },
+          "S": { "es": "2026-06-01", "ef": "2026-06-03" }
+        },
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-f-float-subduration-mirror",
+      "title": "Z7 (acceptatiepunt (f)) — aangrijpingspunt 3 (`subDuration`, backward LF⊖duur⇒LS, spiegel van `addDurationChecked`): LONG(10d, geen gaten) en SPLIT(5d + gat 2d = 7d totaal) zijn twee parallelle FS-voorgangers van mijlpaal END; LONG is kritiek (langste pad) en dwingt END.lf=2026-06-12 af, dat via de gewone FS-backward-spiegel ALLE voorgangers (dus ook SPLIT) hun lateFinish=2026-06-12 geeft. SPLIT.ls = subDuration(2026-06-12, SPLIT) MOET de 7d totaal aftrekken (niet 5d) ⇒ 2026-06-04 (7 werkdagen terug vanaf 12 juni, over het weekend heen). tf(SPLIT) = 3 werkdagen (ES 06-01 → LS 06-04). Mutatiebewijs (handmatig geverifieerd tijdens implementatie): `subDuration` ONGEWIJZIGD laten (alleen `addDurationChecked` gat-bewust) geeft SPLIT.ls=2026-06-08 (5d terug i.p.v. 7d, spookfloat tf=5 i.p.v. 3) — LS-ES klopt dan niet meer met LF-EF, exact de 'spookfloat' die het docblok bij `subDuration` beschrijft.",
+      "tasks": [
+        { "name": "LONG", "dur": 10 },
+        { "name": "SPLIT", "dur": 5, "splitGaps": [{ "afterMinutes": 960, "gapMinutes": 960 }] },
+        { "name": "END", "milestone": true, "milestoneKind": "FINISH" }
+      ],
+      "links": [
+        { "pred": "LONG", "succ": "END", "type": "FINISH_START" },
+        { "pred": "SPLIT", "succ": "END", "type": "FINISH_START" }
+      ],
+      "expect": {
+        "tasks": {
+          "LONG": { "es": "2026-06-01", "ef": "2026-06-12", "ls": "2026-06-01", "lf": "2026-06-12", "tf": 0, "crit": true },
+          "SPLIT": { "es": "2026-06-01", "ef": "2026-06-09", "ls": "2026-06-04", "lf": "2026-06-12", "tf": 3, "crit": false },
+          "END": { "es": "2026-06-12", "ef": "2026-06-12", "tf": 0, "crit": true }
+        },
+        "criticalPathSet": ["LONG", "END"],
+        "projectEnd": "2026-06-12",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-c2-gap-one-minute-over-old-edge",
+      "title": "Z7-fixronde (H1, VERPLICHTE over-de-rand-variant) — over-de-rand-versie van z7-split-c: de EERSTE (geklemde-venster) implementatie vergeleek een gat tegen een VAST venster `[0, duur)` en trunceerde elk gat waarvan `afterMinutes+gapMinutes` boven die grens uitkwam. Uur-kalender H8 (enkele band 08:00-16:00, 480 min/dag), taak C2 duur 2400 min (5d) met één gat dat PRECIES 1 minuut over de oude venstergrens (2400) heen loopt: `afterMinutes:1441, gapMinutes:960` ⇒ gapEinde 2401. Correcte (as-wandelende) uitkomst: volledige 960 min gat meegeteld ⇒ totaal 3360 min = exact 7 werkdagen ⇒ EF 2026-07-14T16:00. Mutatiebewijs (handmatig uitgevoerd tijdens de fixronde, ONGEWIJZIGD-code teruggezet ná meting): de EERSTE (geklemde) implementatie trunceerde het gat tot 959 min (2400−1441) ⇒ totaal 3359 min ⇒ EF 2026-07-14T15:59 — PRECIES 1 minuut te vroeg, dus deze case was onder die code ROOD.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "C2", "dur": "2400m", "splitGaps": [{ "afterMinutes": 1441, "gapMinutes": 960 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "C2": { "es": "2026-07-06T08:00", "ef": "2026-07-14T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-14T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-e2-ff-gap-one-minute-over-old-edge",
+      "title": "Z7-fixronde (H1, VERPLICHTE over-de-rand-variant) — over-de-rand-versie van z7-split-e: raakt aangrijpingspunt 4 (`startFromFinish`). Uur-kalender H8, R2 (duur 4800 min = 10d, geen gaten) → R2.ef = 2026-07-17T16:00 (10 werkdagen vanaf ma 07-06). S2 (FF+0-opvolger van R2) heeft eigen duur 1920 min (4d) met gat `afterMinutes:961, gapMinutes:960` (gapEinde 1921, PRECIES 1 minuut over de oude vensterrand van 1920) ⇒ correcte totale duur 1920+960=2880 min (6d). S2.es = `startFromFinish(R2.ef, S2)` = 6 werkdagen terug vanaf 2026-07-17T16:00 = 2026-07-10T08:00 (geverifieerd: S2.ef komt daarmee weer exact uit op R2.ef, de FF-invariant). Mutatiebewijs (handmatig uitgevoerd tijdens de fixronde): de EERSTE (geklemde) implementatie trunceerde het gat tot 959 min ⇒ totaal 2879 min ⇒ S2.es = 2026-07-10T08:01 — PRECIES 1 minuut te laat, dus deze case was onder die code ROOD.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "R2", "dur": "4800m" },
+        { "name": "S2", "dur": "1920m", "splitGaps": [{ "afterMinutes": 961, "gapMinutes": 960 }] }
+      ],
+      "links": [{ "pred": "R2", "succ": "S2", "type": "FINISH_FINISH" }],
+      "expect": {
+        "tasks": {
+          "R2": { "es": "2026-07-06T08:00", "ef": "2026-07-17T16:00" },
+          "S2": { "es": "2026-07-10T08:00", "ef": "2026-07-17T16:00" }
+        },
+        "projectEnd": "2026-07-17T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-h3a-offset-ge-duration-genegeerd",
+      "title": "Z7-fixronde (H3, grensgedrag EXPLICIET gepind) — 'offset ≥ duur ⇒ genegeerd': taak H3A duur 2400 min (5d) met een gat dat PRECIES op de duurgrens begint (`afterMinutes:2400, gapMinutes:960` — dus géén enkele werk-minuut van het gat valt vóór het einde van de taak se eigen duur) ⇒ het gat wordt NIET meegeteld, EF is BYTE-IDENTIEK aan een 5-daagse taak zonder gaten (2026-07-10T16:00). Dit volgt automatisch uit `splitTotalSpanMinutes`s wandeling (een gat wordt pas overgestoken als het VOORAFGAANDE werksegment het doel nog niet haalt/evenaart) — geen aparte trunceerregel nodig, maar wel expliciet gepind zodat een toekomstige regressie hier zichtbaar wordt.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "H3A", "dur": "2400m", "splitGaps": [{ "afterMinutes": 2400, "gapMinutes": 960 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "H3A": { "es": "2026-07-06T08:00", "ef": "2026-07-10T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-10T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-h3b-gap-op-completedspan-start-telt-mee",
+      "title": "Z7-fixronde (H3, grensgedrag EXPLICIET gepind) — 'gat dat EXACT op completedSpan begint telt mee': taak H3B duur 4800 min (10d), completion 50% ⇒ totalSpan 4800, remaining 2400, completedSpan = 4800−2400 = 2400 min. Gat `afterMinutes:2400` (EXACT op de completedSpan-grens), `gapMinutes:480` ⇒ het volledige gat valt in het RESTWERK-venster (aangrijpingspunt 2) en telt voluit mee: restwerk-as-lengte = (totalAxis(4800)=5280) − (completedAxis(2400)=2400) = 2880 min = remaining(2400)+gat(480). EF = remStart(2026-07-06T08:00, actualStart, geen statusdatum) + 2880 min = 6 werkdagen ⇒ 2026-07-13T16:00.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "H3B", "dur": "4800m", "completion": 0.5, "actualStart": "2026-07-06T08:00",
+          "splitGaps": [{ "afterMinutes": 2400, "gapMinutes": 480 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "H3B": { "es": "2026-07-06T08:00", "ef": "2026-07-13T16:00" }
+        },
+        "projectEnd": "2026-07-13T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-h3c-gap-eindigend-op-completedspan-telt-niet-mee",
+      "title": "Z7-fixronde (H3, grensgedrag EXPLICIET gepind) — spiegel van h3b: 'gat dat EXACT op completedSpan EINDIGT telt NIET mee': zelfde H3B-opzet (duur 4800 min, completion 50%, completedSpan 2400), maar het gat EINDIGT nu precies op de grens (`afterMinutes:1920, gapMinutes:480` ⇒ gapEinde 1920+480=2400) — het gat ligt dus VOLLEDIG in het reeds-afgewerkte deel en draagt NIETS bij aan het restwerk: restwerk-as-lengte = totalAxis(4800)=5280 − completedAxis(2400)=2880 = 2400 = PRECIES de zuivere remaining (geen gat-bijdrage). EF = 2026-07-06T08:00 + 2400 min (5 werkdagen) = 2026-07-10T16:00 — BYTE-IDENTIEK aan een gatloze 50%-taak.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "H3C", "dur": "4800m", "completion": 0.5, "actualStart": "2026-07-06T08:00",
+          "splitGaps": [{ "afterMinutes": 1920, "gapMinutes": 480 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "H3C": { "es": "2026-07-06T08:00", "ef": "2026-07-10T16:00" }
+        },
+        "projectEnd": "2026-07-10T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-split-h-hostile-remaining-boven-totalspan",
+      "title": "Z7-fixronde (H2, vijandige-invoer-klem) — `t.remainingMinutes` (rauw, bv. via MCP gezet) GROTER dan de eigen totale duur ⇒ `completedSpan = totalSpan − remaining` zou zonder klem NEGATIEF worden. Taak HOSTILE: duur 2400 min (5d), completion 50% (genegeerd, want `remainingMinutes` overstemt), `remainingMinutes:999999`, één gat `{afterMinutes:960, gapMinutes:480}`. Met de klem (`Math.max(0, …)`) valt `completedSpan` terug op 0 — het restwerk-venster wordt dan het VOLLEDIGE `[0, totalSpan)`-venster (dezelfde uitkomst als 0% voltooid): restwerk-as = totalAxis(2400) = 2880 min ⇒ EF = 2026-07-06T08:00 + 2880 min (6 werkdagen) = 2026-07-13T16:00 — een EINDIGE, zinnige datum. Mutatiebewijs (handmatig uitgevoerd tijdens de fixronde): zonder de klem viel `completedSpan` negatief en de (ongewijzigde) as-wandeling liep door tot een absurde datum ver in de toekomst (2034-06-30, geverifieerd) — deze case was dus ROOD (of op zijn minst een onzinnig antwoord) vóór de klem.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "HOSTILE", "dur": "2400m", "completion": 0.5, "actualStart": "2026-07-06T08:00",
+          "remainingMinutes": 999999, "splitGaps": [{ "afterMinutes": 960, "gapMinutes": 480 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "HOSTILE": { "es": "2026-07-06T08:00", "ef": "2026-07-13T16:00" }
+        },
+        "projectEnd": "2026-07-13T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z6-fixronde-levelingdelayminutes-dagkalender-geen-crash",
+      "title": "Z7-fixronde (EXTRA, buiten splits maar in dezelfde bestanden — reviewbevinding) — `Task.levelingDelayMinutes` op een DAG-kalender crashte vóór deze fixronde: `shiftByLevelingDelay` riep onvoorwaardelijk `CalendarEngine.addWorkingMinutesSigned` aan, een UUR-modus-primitief die intern `this.bandCache!` gebruikt — die cache bestaat alleen op een uur-kalender (`workTime` aanwezig), dus een dag-kalender crashte met 'Cannot read properties of undefined'. `mppReader.ts` zet `levelingDelayMinutes` op `raw.levelingDelayRaw !== 0` ONGEACHT het kalendertype, dus dit was een ECHT, bereikbaar importpad. Fix: op een dag-kalender wordt `levelingDelayMinutes` omgerekend naar hele werkdagen (`Math.sign/round`-conventie, spiegelt `resolveEffectiveLagDays`) en toegepast via `addWorkingDaysSigned`. Case: P(2d, dag-kalender, geen voorganger) --FS--> Q(3d, `levelingDelayMinutes:960` = 2 volle werkdagen op 8u/dag). Zonder de fix: crash. Met de fix: Q se forward-constraint-ES (wo 2026-06-03, de dag na P.ef) schuift 2 werkdagen ⇒ Q.es = vr 2026-06-05; Q.ef = 3 werkdagen later = di 2026-06-09.",
+      "tasks": [
+        { "name": "P", "dur": 2 },
+        { "name": "Q", "dur": 3, "levelingDelayMinutes": 960 }
+      ],
+      "links": [{ "pred": "P", "succ": "Q", "type": "FINISH_START" }],
+      "expect": {
+        "tasks": {
+          "Q": { "es": "2026-06-05", "ef": "2026-06-09" }
+        },
+        "projectEnd": "2026-06-09",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-fixronde2-midden-hpd-niet-geheel-gapless",
+      "title": "Z7-fixronde-2 (MIDDEN, WORTELFIX — dag-modus-regressie, reviewbevinding) — de vier aangrijpingspunten gebruikten `splitTotalSpanDays` ONVOORWAARDELIJK, óók zonder `splitGaps`: `(scheduleDuration×hoursPerDay×60)/(hoursPerDay×60)` is bij een NIET-GEHELE `hoursPerDay` (hier 8,4 — vrij invoerbaar via Projectinfo, en aanwezig in `.mpp`-kalenders; corpus mist dit toevallig want daar staat alles op hpd 8, exact in binair) GEEN exacte 3 maar 3.0000000000000004 — `addWorkDaysChecked`s `while(remaining>0){…;remaining--;}` ziet die epsilon als 'nog niet klaar' en doet er één werkdag te veel bij. Taak A (3d, GEEN gaten) op een hpd-8,4-kalender: correcte EF is 2026-06-03 (woe, 3 werkdagen vanaf ma 06-01) — NIET 06-04. Fix (reviewer-voorstel, letterlijk gevolgd): `splitTotalSpanDays` houdt nu de EXACTE integer-basis (`durationDaysOf`, rauw `scheduleDuration` terug, geen vermenigvuldiging) aan en telt alleen de gat-TOESLAG (hier nul, want geen gaten) er fractioneel bij op — gatloze taken lopen daardoor weer BYTE-IDENTIEK het pad van vóór Z7. Mutatiebewijs (handmatig uitgevoerd tijdens de fixronde, code ná meting hersteld): de vorige, onvoorwaardelijke `splitTotalSpanMinutes(...)/(hoursPerDay×60)`-vorm teruggezet gaf EF 2026-06-04 (één werkdag te laat) voor PRECIES deze case — dus deze case was daaronder ROOD.",
+      "calendar": { "hoursPerDay": 8.4 },
+      "tasks": [
+        { "name": "A", "dur": 3 }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01", "ef": "2026-06-03", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-06-03",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-fixronde2-laag1-gat-veel-langer-dan-duur",
+      "title": "Z7-fixronde-2 (LAAG 1, reviewer-suggestie) — een gat VEEL langer dan de taak se eigen duur (10d taak + 15 werkdagen gat, ver voorbij de 1-minuut-randcases van fixronde 1) — vangt een toekomstige klem-/venster-regressie harder dan de precisie-randgevallen: als er ooit weer een `[0, duur)`-achtig venster sluipt, trunceert dat een gat van deze grootte drastisch zichtbaar (niet slechts 1 minuut). Taak D (10d, dag-kalender hpd 8) met gat `{afterMinutes: 1440 (na dag 3), gapMinutes: 7200 (15 werkdagen)}` ⇒ totaal 10+15=25 werkdagen. Mon 2026-06-01 + 25 werkdagen (5 volle weken) = vr 2026-07-03.",
+      "tasks": [
+        { "name": "D", "dur": 10, "splitGaps": [{ "afterMinutes": 1440, "gapMinutes": 7200 }] }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "D": { "es": "2026-06-01", "ef": "2026-07-03", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-03",
+        "error": false
+      }
+    },
+    {
+      "id": "z7-fixronde2-laag2-gapless-hostile-remaining-ongeklemd",
+      "title": "Z7-fixronde-2 (LAAG 2, klem-ASYMMETRIE — bewust gedocumenteerd, niet symmetrisch gemaakt; zie het commentaar bij `remainingWithGaps` in CPMSolver.ts voor de volledige motivering) — deze case PINT het bewuste verschil: een taak MET gaten klemt `completedSpanMinutes` op 0 bij een hostiel te grote `remainingMinutes` (valt terug op 'volledige duur+gaten, als 0% voltooid', zie `z7-split-h-hostile-remaining-boven-totalspan`); een GATLOZE taak met datzelfde hostiele `remainingMinutes` heeft geen analoge `completedSpan`-berekening en gaat dus ONGEKLEMD naar `addWorkMinutes` — een EINDIGE maar bewust-ver-in-de-toekomst datum, exact het pre-Z7-gedrag voor `remainingMinutes` (geen bovengrens t.o.v. de eigen duur in het datamodel, dat symmetrisch 'fixen' zou progress-tracking buiten Z7-scope wijzigen zonder bewijs dat dat gewenst is). Taak GAPLESS_HOSTILE (uur-kalender H8, 5d/2400min, completion 50%, `remainingMinutes:999999`, GEEN `splitGaps`) ⇒ EF 2034-06-29T10:39 (999999 werkminuten vanaf 2026-07-06T08:00, ONGEWIJZIGD gedrag — deze case verandert niet van waarde als de klem-asymmetrie ooit gedocumenteerd blijft; ze zou wél rood worden als iemand de gatloze tak alsnog stilzwijgend gaat klemmen).",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "GAPLESS_HOSTILE", "dur": "2400m", "completion": 0.5, "actualStart": "2026-07-06T08:00",
+          "remainingMinutes": 999999 }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "GAPLESS_HOSTILE": { "es": "2026-07-06T08:00", "ef": "2034-06-29T10:39" }
+        },
+        "projectEnd": "2034-06-29T10:39",
+        "error": false
+      }
+    },
+    {
+      "id": "z13-root-anchor-band-eind-rauw",
+      "title": "Z13 (dossier 'rauw anker zonder constraint', corpusbewijs `mpxj/junit/data/timephased-prorated-cost-resource.mpp` taak 'No Progress - Actual Cost'): een WORTEL-taak (geen voorganger, geen constraint, niet handmatig) wier eigen `scheduleStart` EXACT op het LAATSTE band-eind van zijn kalenderdag ligt (ma 16:00 op een 08:00-16:00-band) behoudt dat rauwe instant als `es` — MSP snapt zo'n gedegenereerd anker NIET naar de eerstvolgende werkbandstart (`ownAnchor`s nieuwe `isExactBandEnd`-vrijstelling). De DUUR-optelling (`addDurationChecked`) rekent daarbij vanaf de EERSTE band van diezelfde kalenderdag (08:00) i.p.v. vanaf het band-eind zelf, anders verliest de eigen kalenderdag van het anker een volledige werkdag in `addWorkMinutes`s minuut-lus.",
+      "note": "Mutatiebewijs 1 (gemeten, reviewer-fixronde): `isExactBandEnd`-kortsluiting in `ownAnchor` verwijderen (CPMSolver.ts) → Z.es verwacht ma 2026-07-06T16:00, wordt di 2026-07-07T08:00 (het rauwe anker gesnapt naar de volgende werkbandstart), Z.ef verwacht 2026-07-08T16:00, wordt 2026-07-09T16:00 (de gesnapte, dus niet meer band-eind-zijnde `es` triggert ook `addDurationChecked`s eigen band-eind-wacht niet meer) — DEZE case, 'z13-root-anchor-band-eind-timephased-override-genegeerd' ÉN 'z13-root-anchor-band-eind-speling' (alle drie delen dezelfde band-eind-anchor via `ownAnchor`) ROOD (gemeten: `advanced-cpm 68/71`), en het echte corpusbestand (hash 552a5519b49ae682) valt terug naar 1 start- + 1 finish-afwijking (de oorspronkelijke dossierstand — de laag-3-negatie zelf blijft correct werken, maar levert dan geen bruikbaar alternatief meer omdat `ownAnchor` niet langer het rauwe anker teruggeeft). Mutatiebewijs 2 (dag-eerste-band-wacht terug): `totalMinutes > 0 && this.isExactBandEnd(...)`-guard in `addDurationChecked` verwijderen (laat `walkStart` altijd `start` blijven) → Z.ef verwacht 2026-07-08T16:00, wordt 2026-07-09T16:00 (één werkdag te laat) — dezelfde drie cases ROOD (`addDurationChecked` is de gedeelde EF-berekening), corpusbestand valt terug naar 1 finish-afwijking.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "Z", "start": "2026-07-06T16:00", "dur": "24u" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-07-06T16:00", "ef": "2026-07-08T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z13-root-anchor-band-interieur-controle",
+      "title": "Z13-controle (fixronde ná Opus-afkeuring 6f4c903f, punt B2 — was 'band-begin-controle' op 08:00, EXACT band-begin, en bleek NIET discriminerend): dezelfde kalender/duur als 'z13-root-anchor-band-eind-rauw', maar Z start op een band-INTERIEUR instant (10:00, midden op de dag) i.p.v. het band-eind — de normale, veruit meest voorkomende situatie. `isExactBandEnd` moet hier `false` leveren, dus `ownAnchor`/`addDurationChecked` blijven byte-identiek aan vóór Z13: de duur-optelling loopt gewoon vanaf 10:00 zelf, GEEN dag-eerste-band-krediet.",
+      "note": "Mutatiebewijs (gemeten, reviewer-fixronde — de vorige versie van deze case, start 08:00 EXACT band-begin, ving de bedoelde mutatie NIET: op de (start,end]-conventie valt een exact band-begin altijd terug op het VORIGE band-eind, dus een lek in `isExactBandEnd` dat alleen normale werk-instanten raakt vuurt daar nooit op — 10:00, midden op de dag, wél): `isExactBandEnd`s slotregel (`return d.getTime() === lastBandEndMs`) vervangen door `return true` (elk hour-mode-instant met ≥1 band die dag telt dan als 'band-eind') → Z.ef verwacht 2026-07-09T10:00, wordt 2026-07-08T16:00 (te vroeg — `addDurationChecked` verlegt `walkStart` dan ten onrechte naar 08:00, dag-eerste-band-krediet terwijl er niets te crediteren valt) — deze case (en 'z13-root-anchor-tussen-band-eind-controle' hieronder, zelfde mutatie) ROOD; geïsoleerd geverifieerd tegen alleen de vijf `z13-*`-cases: 3/5 groen, precies deze twee rood.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "Z", "start": "2026-07-06T10:00", "dur": "24u" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-07-06T10:00", "ef": "2026-07-09T10:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-09T10:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z13-root-anchor-tussen-band-eind-controle",
+      "title": "Z13-controle (fixronde ná Opus-afkeuring 6f4c903f, punt B4 — de blast-radius-versmalling naar het LAATSTE band-eind van de dag): een wortel-taak op een 08:00-12:00/13:00-17:00-kalender (lunchpauze) met een anker EXACT op het TUSSEN-band-eind (12:00, het einde van de OCHTEND-band) — niet het laatste band-eind van de dag (dat is 17:00). `isExactBandEnd` moet hier `false` leveren (corpusincidentie op een tussen-band-eind: 0), dus dit blijft het BESTAANDE, ongewijzigde snap-gedrag: 12:00 snapt door naar de eerstvolgende bandstart (13:00, dezelfde dag).",
+      "note": "Mutatiebewijs (gemeten, reviewer-fixronde): `isExactBandEnd`s slotregel vervangen door `return true` (dezelfde mutatie als 'z13-root-anchor-band-interieur-controle' hierboven — beide cases toetsen dezelfde slotvergelijking, elk vanuit een andere hoek) → Z.es verwacht 2026-07-06T13:00, wordt 2026-07-06T12:00 (het tussen-band-eind blijft dan ten onrechte rauw), Z.ef verwacht 2026-07-07T12:00, wordt 2026-07-06T17:00 — deze case ROOD; geïsoleerd geverifieerd tegen alleen de vijf `z13-*`-cases: 3/5 groen, precies deze en de band-interieur-case rood.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "2": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "3": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "4": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "5": [{ "start": 480, "end": 720 }, { "start": 780, "end": 1020 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "Z", "start": "2026-07-06T12:00", "dur": "8u" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-07-06T13:00", "ef": "2026-07-07T12:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-07T12:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z13-root-anchor-band-eind-speling",
+      "title": "Z13-float-spiegel (fixronde ná Opus-afkeuring 6f4c903f, punt B3): dezelfde band-eind-wortel-taak Z als 'z13-root-anchor-band-eind-rauw', maar nu NAAST een langere, ONGERELATEERDE taak LONG (Maandag 08:00, 5 werkdagen) die het projecteinde — en dus Z's `lateFinish` — 2 werkdagen ná Z's eigen `ef` duwt. `subDuration`s band-eind-spiegel moet die speling CALENDAR-bewust doorgeven: `lf-ef` (2 werkdagen: do+vr) moet gelijk zijn aan `ls-es` (2 werkdagen: di+wo), niet — zoals vóór de B3-fix — één werkdag te weinig.",
+      "note": "Mutatiebewijs: de algemene `dayFirstBandStart(natural)===natural`-toets in `subDuration` vervangen door de oude, alleen-nul-speling-toets (`dayFirstBandStart(rawOwn)===natural`) → Z.ls verwacht 2026-07-08T16:00, wordt 2026-07-08T08:00 (LS 8 uur te vroeg — de mirror-tak vuurt dan niet en `subtractWorkMinutes` levert het KALE resultaat, `natural` ongewijzigd terug), dus `tf` verwacht 2, wordt 2 dagen min 8 uur — deze case ROOD.",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "Z", "start": "2026-07-06T16:00", "dur": "24u" },
+        { "name": "LONG", "start": "2026-07-06T08:00", "dur": "40u" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-07-06T16:00", "ef": "2026-07-08T16:00", "ls": "2026-07-08T16:00", "lf": "2026-07-10T16:00", "tf": 2, "crit": false },
+          "LONG": { "es": "2026-07-06T08:00", "ef": "2026-07-10T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-10T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z13-root-anchor-band-eind-timephased-override-genegeerd",
+      "title": "Z13 (FINISH-tegenhanger van het corpusgeval; fixronde ná Opus-afkeuring 6f4c903f, punt B1 — de discriminator is versimpeld naar een INVOER-conditie): dezelfde band-eind-wortel-taak als 'z13-root-anchor-band-eind-rauw', maar nu MET `timephasedStartAnchor`/`timephasedFinishFloor` gezet op WILLEKEURIGE waarden (niet gerelateerd aan enige her-snap van Z's eigen anker) — de regel is: een wortel-taak met een gedegenereerd band-eind-anker negeert laag 3 ALTIJD, ongeacht wat laag 3 concreet draagt (de vorige versie discrimineerde op een bytegelijkheid met onze eigen vóór-Z13-berekening — gemeten overbodig, geschrapt; zie CPMSolver.ts). Z landt dus op DEZELFDE `es`/`ef` als 'z13-root-anchor-band-eind-rauw', niet op de laag-3-waarden.",
+      "note": "Mutatiebewijs: `timephasedAnchorIsDegenerateResnap`/`timephasedFinishFloorIsDegenerateResnap` op `false` vastzetten (of de `timephasedAnchor`/`tf`-toewijzingen die ze gaten NIET conditioneel maken) → Z.es verwacht 2026-07-06T16:00, wordt 2026-07-10T09:00; Z.ef verwacht 2026-07-08T16:00, wordt 2026-07-11T09:00 — DEZE case (als enige — de overige `z13-*`-cases dragen geen `timephasedStartAnchor`/`timephasedFinishFloor`, dus die mutatie raakt ze niet) ROOD, en het echte corpusbestand valt terug naar 1 start- + 1 finish-afwijking (de oorspronkelijke dossierstand).",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "Z", "start": "2026-07-06T16:00", "dur": "24u",
+          "timephasedStartAnchor": "2026-07-10T09:00", "timephasedFinishFloor": "2026-07-11T09:00" }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-07-06T16:00", "ef": "2026-07-08T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-08T16:00",
+        "error": false
+      }
+    },
+    {
+      "id": "z13-hercheck-r1-b7-gating-snet-override",
+      "title": "Z13-hercheck R1 (Z20-veeglijst): `subDuration`s B7-gating (`actualEarlyStart.getTime() === rawOwn.getTime()`) was mutatie-onbewaakt — geen enkele bestaande z13-case zet een BINDENDE constraint op een band-eind-wortel-taak, dus `preds.length===0 && isExactBandEnd(rawOwn)` (de noodzakelijke-maar-niet-voldoende voorwaarden) waren nooit alléén onder toezicht. Zelfde band-eind-wortel-taak Z als 'z13-root-anchor-band-eind-rauw' (start ma 07-06T16:00, band-eind op de 08:00-16:00-kalender), maar nu met een SNET-constraint op wo 07-08T08:00 die `applyForwardConstraints` WEL laat winnen van `ownAnchor`s rauwe anker (wo 08:00 > ma 16:00): Z.es wordt dus wo 08:00, niet het rauwe ma 16:00-anker. `actualEarlyStart` (wo 08:00) !== `rawOwn` (ma 16:00) ⇒ de B7-gating hoort de band-eind-spiegel NIET te laten vuren, en `subDuration` geeft gewoon `natural` terug (de kale terugtelling van 24 werkuur vanaf Z's eigen `ef`, die toevallig al exact op wo 08:00 landt — een normale, gedegenereerde-anker-vrije LS).",
+      "note": "Mutatiebewijs (gemeten): de `actualEarlyStart.getTime() === rawOwn.getTime()`-clausule uit de `if` in `subDuration` (CPMSolver.ts, B7-gating) weghalen — de resterende voorwaarden (`totalMinutes>0 && preds.length===0 && task.time.scheduleStart && actualEarlyStart`) blijven dan alsnog voldaan (Z is een wortel-taak met een band-eind-scheduleStart), dus de spiegel vuurt ALSNOG: `natural` (wo 08:00) is zelf de eerste band van zijn dag (`dayFirstBandStart(natural)===natural`), dus `mirrored = dayLastBandEnd(natural)` = wo 16:00 wordt teruggegeven i.p.v. wo 08:00 → Z.ls verwacht 2026-07-08T08:00, wordt 2026-07-08T16:00 (8 uur te laat), Z.tf verwacht 0, wordt negatief — deze case ROOD. Teruggedraaid weer groen; geen andere z13-case raakt deze mutatie (ze dragen geen bindende constraint op hun band-eind-wortel-taak).",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
+      "anchor": "2026-07-06",
+      "tasks": [
+        { "name": "Z", "start": "2026-07-06T16:00", "dur": "24u", "constraint": { "type": "SNET", "date": "2026-07-08T08:00" } }
+      ],
+      "links": [],
+      "expect": {
+        "tasks": {
+          "Z": { "es": "2026-07-08T08:00", "ef": "2026-07-10T16:00", "ls": "2026-07-08T08:00", "lf": "2026-07-10T16:00", "tf": 0, "crit": true }
+        },
+        "projectEnd": "2026-07-10T16:00",
+        "error": false
+      }
     }
   ]
 }

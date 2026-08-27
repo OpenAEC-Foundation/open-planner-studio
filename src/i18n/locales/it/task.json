@@ -16,7 +16,8 @@
     "freeFloat": "Margine libero",
     "interferingFloat": "Margine interferente",
     "isNearCritical": "Quasi critica",
-    "floatPath": "Percorso di margine"
+    "floatPath": "Percorso di margine",
+    "activeDuring": "In corso"
   },
   "taskType": {
     "CONSTRUCTION": "Costruzione",
@@ -72,6 +73,8 @@
     "deadlineMissed": "Scadenza superata",
     "longFreePeriodWarning": "Questa attività attraversa un periodo non lavorativo di {{days}} giorni ({{start}} - {{end}}).",
     "longFreePeriodWarningNamed": "Questa attività attraversa {{name}} — un periodo non lavorativo di {{days}} giorni ({{start}} - {{end}}).",
+    "timephasedActive": "Segue la distribuzione oraria di MS Project",
+    "timephasedLost": "Distribuzione oraria di MS Project non più applicata dopo la modifica — la distribuzione originale resta conservata nel file",
     "completion": "Progresso (%)",
     "progress": {
       "actualStart": "Inizio effettivo",
@@ -88,9 +91,10 @@
     "freeFloat": "Margine libero:",
     "criticalPath": "Percorso critico:",
     "dependencies": "Dipendenze",
+    "jumpToTask": "Vai all'attività {{wbs}}",
     "relationPopoverTitle": "Tipo di relazione",
     "driving": "Relazione determinante (driving)",
-    "lag": "Ritardo (es. 2d, 3ed, 50%, -25e%)",
+    "lag": "Ritardo (es. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calcola",
     "assignments": {
       "title": "Assegnazioni",
@@ -154,7 +158,7 @@
     "notCalculated": "Ricalcola (F5) per vedere relazioni determinanti e margini",
     "warnTruncatedLead": "Anticipo troncato all'inizio del progetto — la sovrapposizione non è sfruttata del tutto",
     "warnLeadExceedsDuration": "L'anticipo è maggiore della durata del predecessore",
-    "warnSummaryEndpoint": "Senza effetto: attività di riepilogo come estremità"
+    "warnDropped": "Non inclusa nel calcolo"
   },
   "structure": {
     "title": "Codici e campi",

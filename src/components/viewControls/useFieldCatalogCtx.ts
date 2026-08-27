@@ -23,6 +23,7 @@ export function useFieldCatalogCtx(): FieldCatalogCtx {
       // Fase 2.9 (§3.5): additieve analyse-velden.
       freeFloat: tTask('table.freeFloat'), interferingFloat: tTask('table.interferingFloat'),
       isNearCritical: tTask('table.isNearCritical'), floatPath: tTask('table.floatPath'),
+      activeDuring: tTask('table.activeDuring'),
     },
     taskTypeLabels,
     resourceLabel: tTask('column.resource'),

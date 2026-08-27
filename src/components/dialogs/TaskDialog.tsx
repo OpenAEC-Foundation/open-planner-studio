@@ -73,6 +73,10 @@ export function TaskDialog() {
   const projectCal = useAppStore(s => s.calendar);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  // De dialoog bevat zowel een lokale draft als relationele secties die direct de store muteren
+  // (zoals resourcetoewijzingen). Een storemutatie mag de nog niet opgeslagen draft nooit opnieuw
+  // initialiseren; alleen openen of naar een andere taak wisselen begint een nieuwe sessie.
+  const initializedSessionRef = useRef<string | null>(null);
 
   // Effectieve kalender van de (bewerkte) taak volgt de kalender-dropdown live (§6.4): de drie
   // uur-vakjes verschijnen zodra Urenplanning aan staat én de gekozen kalender uur-modus is.
@@ -83,7 +87,14 @@ export function TaskDialog() {
   const totalHours = durDays * hpd + durHours;
 
   useEffect(() => {
-    if (!showTaskDialog) return;
+    if (!showTaskDialog) {
+      initializedSessionRef.current = null;
+      return;
+    }
+
+    const sessionKey = editingTaskId ? `task:${editingTaskId}` : 'new-task';
+    if (initializedSessionRef.current === sessionKey) return;
+    initializedSessionRef.current = sessionKey;
 
     if (editingTask) {
       setDraft({ ...editingTask });
@@ -146,7 +157,12 @@ export function TaskDialog() {
       if (startDate !== shownStart) time.scheduleStart = startDate;
       if (draft.isMilestone) {
         time.scheduleDuration = 0;
-        delete time.durationMinutes;
+        // T14b-vervolg (spec-review): `= undefined` i.p.v. `delete` — de STORE-updateTask-merge
+        // (`mergeTaskTime`, taskDefaults.ts) onderscheidt "sleutel aanwezig met undefined" (bewuste
+        // clear) van "sleutel afwezig" (behoud bestaande waarde) via `'veld' in partial`. Een
+        // `delete` hier zou de sleutel laten verdwijnen vóórdat `updateTask` 'm ziet, en de merge zou
+        // 'm dan verwarren met "niet genoemd" — en de oude durationMinutes stil laten staan.
+        time.durationMinutes = undefined;
       } else if (useHour) {
         time.scheduleDuration = derivedDays;
         time.durationMinutes = durationMinutes;
@@ -162,7 +178,9 @@ export function TaskDialog() {
           // bron behouden: durationMinutes + scheduleDuration blijven staan
         } else {
           time.scheduleDuration = durDays;
-          delete time.durationMinutes;
+          // T14b-vervolg: `= undefined`, niet `delete` — zie de toelichting hierboven bij de
+          // mijlpaal-tak.
+          time.durationMinutes = undefined;
         }
       }
       updateTask(editingTask.id, {
@@ -407,7 +425,11 @@ export function TaskDialog() {
           {editingTask && (
             <>
               <TaskCpmResultSection taskId={editingTask.id} />
-              <TaskDependenciesSection taskId={editingTask.id} />
+              {/* interactive=false (hyperkritische review issue #65): de dialoog kan op elk
+                  tabblad open staan (F2), dus zonder gegarandeerd gemonte GanttCanvas kan het
+                  "spring naar taak"-signaal nooit worden opgepikt — de sprongknop hoort daarom
+                  alleen in het eigenschappenpaneel. */}
+              <TaskDependenciesSection taskId={editingTask.id} interactive={false} />
               <TaskAssignmentsSection taskId={editingTask.id} />
               <TaskCodesFieldsSection taskId={editingTask.id} />
             </>

@@ -21,6 +21,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { ProgressMode, SchedulingOptions } from '@/types/project';
 import { CPMSolver, type CPMResult } from './CPMSolver';
 import { applyCpmResult } from './applyCpmResult';
+import { expandSummaryRelations, foldSyntheticSequenceIds } from './expandSummaryRelations';
 
 /** Invoer van één doorrekening — plain data, geen store. */
 export interface SolveProjectInput {
@@ -38,6 +39,14 @@ export interface SolveProjectInput {
   progressMode?: ProgressMode;
   /** `project.schedulingOptions` — project-scoped reken-opties (fase 2.9). */
   schedulingOptions?: SchedulingOptions;
+  /** `project.startDate` — ondergrens (`rootFloor`) voor de early-start-berekening van ELKE taak
+   *  MET voorganger (T7-review M2: niet uitsluitend tegen relatie-leads — ook een gewone FS/FF-
+   *  relatie met lag 0 van een vroege wortel-taak wordt hier gevloerd; alleen de gebruikers-
+   *  zichtbare `truncatedLeadIds`-markering is wél lead-specifiek). Harde constraints (MSO/MFO)
+   *  winnen van deze vloer. SINDS T7 (§9/O2) klemt deze optie NIET meer de eigen ES van een taak
+   *  zónder voorganger — die start op zijn eigen, ingelezen `scheduleStart` (`ownAnchor`), ook als
+   *  die vóór de projectstart ligt; "een ingelezen anker wordt nooit door de vloer overruled". */
+  projectStartDate?: string;
 }
 
 /**
@@ -56,14 +65,34 @@ export function solveProject(input: SolveProjectInput): CPMResult {
   // Per-taak-kalender (fase 2.8a, §5.1): de solver krijgt de projectdefault + de bibliotheek en
   // bouwt zelf een engine-cache; taken zonder eigen calendarId rekenen in de projectkalender.
   const leafTasks = input.tasks.filter(t => t.childIds.length === 0);
-  const solver = new CPMSolver(leafTasks, input.sequences, input.calendar, input.calendars, {
+  // Samenvattingsrelatie-propagatie (MS Project-semantiek): relaties die een WBS-samenvattingstaak
+  // raken worden herschreven naar equivalente bladtaak-relaties vóórdat de solver ze ziet — de
+  // solver kent alleen bladtaken. Dit hoort in de kern (niet in `runCPM`), zodat óók het
+  // bezettingsoverzicht (B1b §4.3b) en elke andere afnemer dezelfde semantiek krijgen.
+  const { sequences: expandedSequences, droppedSequenceIds: expansionDropped } =
+    expandSummaryRelations(input.tasks, input.sequences);
+  const solver = new CPMSolver(leafTasks, expandedSequences, input.calendar, input.calendars, {
     dataDate: input.dataDate,
     progressMode: input.progressMode,
     // Fase 2.9 golf 0: project-scoped reken-opties doorgeven. De solver leest ze nog nergens
     // gedragswijzigend (afwezig/leeg ⇒ byte-identiek); de latere golven activeren ze.
     schedulingOptions: input.schedulingOptions,
+    projectStartDate: input.projectStartDate,
   });
   const result = solver.solve();
+  // I2 (CPM-review): de solver rekende op de GEËXPANDEERDE (synthetische) relatie-set, dus zijn
+  // relatie-gekeyde velden dragen nog synthetische "::exp-N"-ids — geen enkele consument
+  // (RelationsPanel, StatusBar, ReportPanel, TaskDependenciesSection, GanttCanvas, MCP-leestools)
+  // kent die, want die lezen allemaal de store-`sequences` met de originele ids. Vouw ze terug
+  // vóórdat het resultaat naar de aanroeper gaat.
+  foldSyntheticSequenceIds(result);
+  // Relaties die de expansie zelf niet kon representeren (lege/kapotte tak, of de
+  // MAX_EXPANDED_RELATIONS-klem) horen in hetzelfde kanaal als de solver-eigen guard.
+  // Dedupliceren: expansionDropped draagt al originele ids, maar zou in theorie kunnen
+  // overlappen met wat de solver zelf al (gefold) droppte.
+  if (expansionDropped.length > 0) {
+    result.droppedSequenceIds = [...new Set([...(result.droppedSequenceIds ?? []), ...expansionDropped])];
+  }
 
   // Cyclus gedetecteerd: resultaat (met fout) teruggeven en niets terugschrijven.
   if (result.error) return result;

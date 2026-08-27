@@ -10,7 +10,7 @@
 // weigering; undo maakt de laatste tool-mutatie in ÉÉN stap ongedaan; run_cpm ververst stale;
 // registry-registratie via registerToolModules + tools/list-vorm via de dispatcher; plus de guards
 // (paused/readOnly/drift) en de backup-hook.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
@@ -33,15 +33,11 @@ function reset(): void {
 
 /** Een schone context met een no-op backup die geen backup nodig acht (null). expectedDocId gebonden
  *  aan het huidige actieve document (geen drift). */
-function makeCtx(overrides: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(overrides: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...overrides,
-  };
+  });
 }
 
 function tool(name: string) {

@@ -49,15 +49,20 @@ export function unknownTypeReason(raw: unknown): string {
 }
 
 /**
- * Weigeringstekst voor een verzameltaak-eindpunt (spec 2026-08-14). Dit is MCP-agent-tekst, geen
- * regel — de regel zelf (`isSummaryTask`/`hasSummaryEndpoint`) staat in de bladmodule
- * `state/relationRules.ts`, die geen Nederlandse volzinnen kent (alleen types en predicaten). De
- * twee enige lezers zijn `classifyDeps` (taskTools.ts, NIEUWE relaties) en `classifyDepUpdates`
- * (dependencyTools.ts, het VERHANGEN van een bestaand eindpunt) — exact de twee modules waarvoor
- * deze gedeelde veldlaag al bestaat.
+ * Weigeringstekst voor een voorouder-relatie (eigenaarsbesluit 2026-08-15). Dit is MCP-agent-tekst,
+ * geen regel — de regel zelf (`isAncestorRelation`) staat in de bladmodule `state/relationRules.ts`,
+ * die geen Nederlandse volzinnen kent (alleen types en predicaten). De twee enige lezers zijn
+ * `classifyDeps` (taskTools.ts, NIEUWE relaties) en `classifyDepUpdates` (dependencyTools.ts, het
+ * VERHANGEN van een bestaand eindpunt) — exact de twee modules waarvoor deze gedeelde veldlaag al
+ * bestaat.
+ *
+ * Een gewoon verzameltaak-eindpunt is GEEN weigergrond meer: `expandSummaryRelations` rekent zo'n
+ * relatie door naar de onderliggende bladtaken (MS Project-semantiek). Alleen een relatie tussen een
+ * taak en zijn EIGEN (voor)ouder-samenvatting blijft zinloos — die zou de expansie een directe cyclus
+ * laten genereren.
  */
-export const SUMMARY_ENDPOINT_REJECTION =
-  'een verzameltaak als voorganger of opvolger heeft geen effect op de planning; koppel aan een taak zonder subtaken';
+export const ANCESTOR_RELATION_REJECTION =
+  'een relatie tussen een taak en zijn eigen voorouder-samenvattingstaak (directe ouder of hoger) is niet toegestaan (in beide richtingen)';
 
 /** FS/SS/FF/SF-afkorting voor de compacte relatienotatie (leeskant). */
 export function seqAbbrev(type: SequenceType): string {

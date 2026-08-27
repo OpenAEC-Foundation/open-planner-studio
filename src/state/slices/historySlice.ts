@@ -1,6 +1,5 @@
 import { createSnapshot, restoreSnapshot, type Snapshot } from '../snapshot';
-import { resetUndoCoalescing, pushUndoSnapshot } from '../transaction';
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
 
 export interface HistorySlice {
   undoStack: Snapshot[];
@@ -9,14 +8,14 @@ export interface HistorySlice {
   redo: () => void;
 }
 
-export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
+export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (set, get) => ({
   undoStack: [],
   redoStack: [],
 
   undo: () => {
     // Een undo breekt elke lopende coalesce-reeks af (pakket H): de eerstvolgende keyed mutatie
     // moet gegarandeerd een verse snapshot pushen.
-    resetUndoCoalescing();
+    runtime.resetUndoCoalescing();
     set((s) => {
       if (s.undoStack.length === 0) return;
       s.redoStack.push(createSnapshot(s));
@@ -26,11 +25,11 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
   },
 
   redo: () => {
-    resetUndoCoalescing(); // idem als bij undo — zie daar.
+    runtime.resetUndoCoalescing(); // idem als bij undo — zie daar.
     set((s) => {
       if (s.redoStack.length === 0) return;
       // Via de helper, zodat de MAX_UNDO-grens en het coalesce-volgnummer op één plek blijven.
-      pushUndoSnapshot(s);
+      runtime.pushUndoSnapshot(s);
       restoreSnapshot(s, s.redoStack.pop()!);
     });
     get().recomputeViewRows();

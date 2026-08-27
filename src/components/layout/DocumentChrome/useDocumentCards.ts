@@ -6,6 +6,7 @@ import {
   untitledOrdinals, displayDocumentTitle,
   type ThumbBar,
 } from '@/utils/documents';
+import { buildImportLabels } from '@/i18n/importLabels';
 
 export interface DocumentCard {
   id: string;
@@ -107,7 +108,7 @@ export function useDocumentActions() {
   const closeOverview = useCallback(() => setUI({ showProjectOverview: false }), [setUI]);
   // De store-laag heeft geen `t(...)`; het label voor een bestand zónder IFCPROJECT gaat mee.
   const openProject = useCallback(
-    () => { void openFile({ importedProject: t('project.imported') }); },
+    () => { void openFile(buildImportLabels(t)); },
     [openFile, t],
   );
 

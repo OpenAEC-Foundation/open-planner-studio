@@ -3,7 +3,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
 import { Project, SchedulingOptions } from '@/types/project';
-import { WorkCalendar, Holiday, CalendarGeneration } from '@/types/calendar';
+import { WorkCalendar, Holiday, CalendarGeneration, WorkingException } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import type { LibraryOrigin } from '@/types/library';
@@ -19,7 +19,8 @@ import {
 } from './ifcConstants';
 import { PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
 import {
-  IFC_TASKTIME_SLOTS, TASK_SLOT, TASKTIME_SLOT, type TaskTimeReadHelpers,
+  IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT,
+  type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import {
@@ -107,15 +108,22 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
-  const { tasks, taskStepIdMap, taskTimeEntities } = extractTasks(entities, entityMap, baselineTaskStepIds);
+  const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(entities, entityMap, baselineTaskStepIds);
   const sequences = extractSequences(entities, entityMap, taskStepIdMap);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
-  const resourceCalendars = extractCalendarLibrary(
+  const { calendars: resourceCalendars, idByGuid: calendarIdByGuid } = extractCalendarLibrary(
     entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap,
   );
+  // Z14b (F1) — de PROJECTkalender zit niet in `extractCalendarLibrary`'s bibliotheek-lus (die sluit
+  // 'm expliciet uit); haar GUID→id hoort wel in dezelfde vertaaltabel. Zelfde "eerste IFCWORKCALENDAR
+  // in het bestand"-conventie als `extractCalendar`/`extractCalendarLibrary` zelf hanteren.
+  const projectCalendarEntityForGuid = entities.find(e => e.type === 'IFCWORKCALENDAR');
+  if (projectCalendarEntityForGuid) {
+    calendarIdByGuid.set(stripQuotes(projectCalendarEntityForGuid.args[0] || ''), calendar.id);
+  }
   // Fase 2.8b (§7.1, golf 4): uur-modus-post-pass. Ná extractCalendarLibrary zodat elke
   // `task.calendarId` (en dus de effectieve kalender) is geresolved. Zet `workTime` op kalenders
   // die afwijken van het dag-patroon (discriminator a/b/c) en herinterpreteert de duren/datetimes
@@ -128,9 +136,14 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   // de assignments-volgorde, die op zijn beurt uit de STEP-volgorde komt).
   reconstructResourceIds(tasks, assignments);
   const libraryPoolOut: { value: import('@/types/library').CompanyPool | undefined } = { value: undefined };
+  const projectStartRecorded = { value: false };
   const { activityCodeTypes, customFieldDefs } = extractStructure(
-    entities, entityMap, project, tasks, taskStepIdMap, libraryPoolOut,
+    entities, entityMap, project, tasks, taskStepIdMap, libraryPoolOut, projectStartRecorded,
   );
+  // Z14b (Z8-nataak, F1-fixronde) — LAAG-4-kalenderwandelingen, eigen pset (zie de functie se
+  // moduleheader voor waarom dit niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
+  // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).
+  extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
   // Fase 3 (P11): OPS_Leveling wordt nu binnen extractStructure via de per-taak-registry gedispatcht
   // (samen met de andere zeven per-taak-psets) — geen losse extractLevelingMeta-aanroep meer.
 
@@ -145,11 +158,29 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
   normalizeImportedProgress(tasks, project.statusDate);
 
+  // Projectstart niet in het bestand (geen gevuld IFCWORKPLAN-slot en geen OPS_ProjectSettings,
+  // zie de ''-sentinel bij de projectbouw) ⇒ afleiden uit de vroegste taak-scheduleStart in plaats
+  // van "vandaag" te verzinnen: een verzonnen datum is geen invoer en mag dus ook niet via de
+  // T7-projectstart-vloer (`CPMSolver.rootFloor`) taken mét voorgangers naar de leesdatum tillen.
+  // Pas als het bestand ook geen enkele taakstart draagt, valt hij terug op vandaag (leeg project).
+  // MAAR (critreview-bevinding 1): heeft het OPS-pset het veld GEZEGD — óók als "bewust leeg" —
+  // dan is leeg een uitspraak van de gebruiker en blijft hij leeg; afleiden zou de round-trip van
+  // een leeggemaakte startdatum corrumperen (writer codeert dat als NominalValue $).
+  if (!project.startDate && !projectStartRecorded.value) {
+    let earliest = '';
+    for (const t of tasks) {
+      const st = t.time?.scheduleStart;
+      if (st && (!earliest || st < earliest)) earliest = st;
+    }
+    project.startDate = earliest ? earliest.substring(0, 10) : formatDate(new Date());
+  }
+
   return {
     project, calendar, tasks, sequences, resources, assignments,
     activityCodeTypes, customFieldDefs, resourceCalendars,
     baselines, activeBaselineId,
     libraryPool: libraryPoolOut.value,
+    recordedFields,
   };
 }
 
@@ -477,6 +508,42 @@ function parseDurationDays(s: string): number {
   return 0;
 }
 
+/**
+ * Review-follow-up (2026-08, op bugfix B1) — het dag-deel (`P{d}D`, VÓÓR een eventuele `T`) van een
+ * ISO-8601-duur, in minuten. Bewust LOKAAL hier (niet in `subdayIo.ts`'s `isoDurationToMinutes`,
+ * die drie andere aanroepers heeft — schedule-/remaining-duur in de uur-modus-post-pass — die
+ * ongetest zouden meeveranderen): deze functie bestaat uitsluitend voor de lag-leestak hierboven,
+ * die zelf ook alleen een VERDEDIGENDE tak is voor bestanden van andere tools (onze eigen schrijver,
+ * `minutesToIsoDuration`, emitteert nooit een dag-component vóór `T`, dus dit raakt nooit de eigen
+ * round-trip).
+ *
+ * KEUZE + ONDERBOUWING: geïnterpreteerd als KALENDERTIJD (1D = 1440 minuten), niet als werkdag ×
+ * hoursPerDay. Twee redenen: (1) ISO 8601 zelf is kalendertijd — de WORKTIME/ELAPSEDTIME-duiding
+ * (`IfcLagTime.DurationType`) stuurt pas LATER hoe de resulterende hoeveelheid tegen een kalender
+ * wordt afgezet (`CPMSolver.resolveElapsedMinutes` rekent een dag-lag bij ELAPSEDTIME ook al ×24×60,
+ * exact deze conventie); (2) een werkdag-interpretatie zou de kalender van de VOORGANGER-taak nodig
+ * hebben (`hoursPerDay`), die op dit punt in de reader niet beschikbaar is (sequences worden vóór de
+ * kalenderbibliotheek/taak-kalender-toewijzing geëxtraheerd) — gokken met een impliciete 8u-default
+ * zou een tweede, ONGEDOCUMENTEERDE aanname toevoegen. Bij een WORKTIME-lag blijft de resulterende
+ * `lagMinutes` dus licht ruw (kalenderminuten i.p.v. werkminuten) voor dit randgeval — een bewuste,
+ * gedocumenteerde afweging, geen stille correctheidsclaim; het alternatief (het dag-deel laten
+ * verdwijnen, zoals vóór deze fix) is strikt slechter.
+ *
+ * Geen dag-component vóór `T` (het normale eigen-schrijver-pad) ⇒ 0, dus geen gedragswijziging voor
+ * bestaande bestanden of de andere twee ondersteunde lag-lay-outs.
+ */
+function isoDurationLeadingDaysMinutes(iso: string): number {
+  const MIN_PER_CALENDAR_DAY = 1440;
+  const clean = iso.trim();
+  const neg = clean.startsWith('-');
+  const tIdx = clean.indexOf('T');
+  const datePart = tIdx >= 0 ? clean.slice(0, tIdx) : '';
+  const dayMatch = datePart.match(/(\d+)D/);
+  if (!dayMatch) return 0;
+  const days = parseInt(dayMatch[1], 10);
+  return (neg ? -days : days) * MIN_PER_CALENDAR_DAY;
+}
+
 function parseTaskType(s: string): TaskType {
   // IFC-specifieke normalisatie: STEP-enum-punten strippen (`.CONSTRUCTION.` → `CONSTRUCTION`).
   const clean = s.replace(/\./g, '').trim();
@@ -537,7 +604,13 @@ function extractProject(
     // Omschrijving uit de IFCWORKPLAN.Description-slot (waar de writer 'm schrijft), met terugval op
     // de IFCPROJECT.Description-slot; `$`/leeg ⇒ '' (voorheen kwam letterlijk '$' terug — een bug).
     description: ifcSlotText(wp?.args[3]) || ifcSlotText(proj?.args[3]),
-    startDate: wp ? parseDateFromIFC(wp.args[12] || '') : formatDate(new Date()),
+    // Geen IFCWORKPLAN, of een IFCWORKPLAN met een LEEG StartTime-slot ($) ⇒ startdatum hier LEEG
+    // laten; `readIFC` leidt hem dan af uit de vroegste taakstart (en pas als óók die ontbreekt:
+    // vandaag). Voorheen stond hier direct "vandaag" — verzonnen data die via de T7-projectstart-
+    // vloer taken mét voorgangers naar de leesdatum tilde (main-merge vóór v2026.8.1,
+    // check-recorded-dates 9A/9B; het lege-slot-geval: critreview-bevinding 4). `parseDateFromIFC`
+    // wordt bewust alleen op een niet-lege slottekst losgelaten — op '' levert hij zelf "vandaag".
+    startDate: wp && ifcSlotText(wp.args[12]) ? parseDateFromIFC(wp.args[12]) : '',
     endDate: wp ? parseDateFromIFC(wp.args[13] || '') : '',
     calendarId: 'cal-default',
     // createdAt/modifiedAt: default = nu; overschreven door het OPS_ProjectSettings-pset in
@@ -628,17 +701,41 @@ function applyHourModeIFC(
   }
 }
 
+/**
+ * Welke slots vulde dit IfcTaskTime écht? `$`, leeg en afwezig tellen NIET mee. Rekenslots
+ * (`RECORDED_SLOT_KEYS`) én de twee invoerslots ScheduleStart/ScheduleFinish
+ * (`RECORDED_INPUT_SLOT_KEYS`) tellen allebei mee — de tweelagenkeuze in "datums zoals opgeslagen"
+ * heeft de aanwezigheid van BEIDE nodig (kwaliteitsreview MOET 1): zonder de invoerslots hier kon de
+ * terugvallaag een `$`-ScheduleStart niet onderscheiden van een écht geëxporteerde datum.
+ *
+ * Bewust hier en niet in de slot-`read`-descriptors: `read` krijgt de rauwe arg al binnen, maar zijn
+ * contract (`read?(t, arg, p)`) zou voor alle twintig slots moeten wijzigen om deze ene uitkomst
+ * naar buiten te krijgen. De arg-index staat via `TASKTIME_SLOT` toch al ter beschikking.
+ */
+function recordedSlotsOf(e: StepEntity): RecordedFieldKey[] {
+  const out: RecordedFieldKey[] = [];
+  for (const key of ALL_RECORDED_SLOT_KEYS) {
+    const arg = e.args[TASKTIME_SLOT[key]];
+    if (arg && arg !== '$') out.push(key);
+  }
+  return out;
+}
+
 function extractTasks(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   baselineTaskStepIds: Set<string> = new Set(),
-): { tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity> } {
+): { tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>; recordedFields: Record<string, RecordedFieldKey[]> } {
   const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
   const taskStepIdMap = new Map<string, string>(); // STEP #id -> our task id
   // Fase 2.8b (§7.1): onze taak-id → IFCTASKTIME-entiteit, zodat de uur-modus-post-pass de rauwe
   // duur-/datetime-strings kan herlezen zodra de effectieve kalender bekend is.
   const taskTimeEntities = new Map<string, StepEntity>();
+  // Aanwezigheidsregistratie voor "datums zoals opgeslagen": per taak-id de rekenslots die het
+  // bestand echt vulde. Een taak ZONDER IfcTaskTime krijgt een lege lijst (niet: ontbrekend) —
+  // "geen enkel slot gevuld" is een uitspraak, "onbekend" niet.
+  const recordedFields: Record<string, RecordedFieldKey[]> = {};
 
   for (const te of taskEntities) {
     const id = generateId('task');
@@ -661,14 +758,10 @@ function extractTasks(
 
     // Parse IfcTaskTime reference
     const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
-    let time: TaskTime;
-    if (taskTimeRef) {
-      const ttEntity = entityMap.get(taskTimeRef);
-      time = ttEntity ? parseTaskTime(ttEntity) : createDefaultTaskTime(formatDate(new Date()), 5);
-      if (ttEntity) taskTimeEntities.set(id, ttEntity);
-    } else {
-      time = createDefaultTaskTime(formatDate(new Date()), 5);
-    }
+    const ttEntity = taskTimeRef ? entityMap.get(taskTimeRef) : undefined;
+    const time = ttEntity ? parseTaskTime(ttEntity) : createDefaultTaskTime(formatDate(new Date()), 5);
+    if (ttEntity) taskTimeEntities.set(id, ttEntity);
+    recordedFields[id] = ttEntity ? recordedSlotsOf(ttEntity) : [];
 
     const isMilestone = te.args[isMilestoneIdx]?.includes('T') || false;
     if (isMilestone) time.scheduleDuration = 0;
@@ -701,7 +794,7 @@ function extractTasks(
     });
   }
 
-  return { tasks, taskStepIdMap, taskTimeEntities };
+  return { tasks, taskStepIdMap, taskTimeEntities, recordedFields };
 }
 
 /** Optionele datum/duur uit een IfcTaskTime-slot: `$`/leeg ⇒ undefined (geen "vandaag"-fallback,
@@ -779,12 +872,40 @@ function extractSequences(
           // Ratio → procent; afronden tegen floating-point-ruis (0.33*100 = 33.000000000000004).
           lagPercent = Math.round(parseFloat(ratioMatch[1]) * 100 * 1e6) / 1e6;
         } else if (durMatch) {
-          lagDays = parseDurationDays(durMatch[1]);
-          lagMinutes = isoDurationToMinutes(stripQuotes(durMatch[1])) ?? undefined;
+          // Bugfix B1 (gebruikstest 2026-08): EERST `lagMinutes` proberen (discriminator (c),
+          // subdayIo/mspdiReader-conventie "geen dag-afronding"). Een duur MET tijdcomponent
+          // (`PT2H0M0S`) is minuut-precies ⇒ `lagDays` blijft 0, nooit de grove uur→dag-ceil van
+          // `parseDurationDays` (die was bedoeld voor kale `PT8H`-duren van vóór fase 2.8b, zónder
+          // `lagMinutes`-veld — nu overbodig én fout: elke duur met een H/M/S-component parseert ook
+          // via `isoDurationToMinutes`, dus de ceil-tak werd altijd samen met een correcte
+          // `lagMinutes` geraakt en overschreef die stilzwijgend met een afgeronde dag (2u → +1d).
+          // Alleen een PUUR dag-duur (`P{d}D`, geen `T`) levert `isoDurationToMinutes === null` en
+          // valt terug op `parseDurationDays`.
+          const raw = stripQuotes(durMatch[1]);
+          const timeMinutes = isoDurationToMinutes(raw);
+          if (timeMinutes != null) {
+            // Review-follow-up (2026-08): GEMENGDE vorm (`P1DT2H0M0S`) uit een vreemd bestand — onze
+            // eigen schrijver emitteert nooit een dag-component vóór de `T` (zie `minutesToIsoDuration`),
+            // maar deze soepel-lezen-tak bestaat juist voor andermans bestanden. Zonder dit zou het
+            // dag-deel stil verdwijnen (`isoDurationLeadingDaysMinutes` hieronder). Samen optellen i.p.v.
+            // kiezen voorkomt dataverlies aan beide kanten.
+            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
+            lagDays = 0;
+          } else {
+            lagMinutes = undefined;
+            lagDays = parseDurationDays(durMatch[1]);
+          }
         } else if (lagValue.startsWith("'")) {
-          // Ongetypte duur-string (soepel lezen van andermans bestanden).
-          lagDays = parseDurationDays(lagValue);
-          lagMinutes = isoDurationToMinutes(stripQuotes(lagValue)) ?? undefined;
+          // Ongetypte duur-string (soepel lezen van andermans bestanden) — zelfde volgorde als hierboven.
+          const raw = stripQuotes(lagValue);
+          const timeMinutes = isoDurationToMinutes(raw);
+          if (timeMinutes != null) {
+            lagMinutes = timeMinutes + isoDurationLeadingDaysMinutes(raw);
+            lagDays = 0;
+          } else {
+            lagMinutes = undefined;
+            lagDays = parseDurationDays(lagValue);
+          }
         } else {
           // Legacy-lay-out: de duur staat in arg 5.
           lagDays = parseDurationDays(lagEntity.args[4] || '');
@@ -840,6 +961,9 @@ function extractStructure(
   tasks: Task[],
   taskStepIdMap: Map<string, string>,
   libraryPoolOut: { value: import('@/types/library').CompanyPool | undefined },
+  // Critreview-bevinding 1 (v2026.8.1): het OPS-pset kan "bewust leeg" zeggen — de aanroeper mag
+  // de startdatum dan NIET alsnog afleiden. Presentie is een aparte uitspraak naast de waarde.
+  projectStartRecorded: { value: boolean },
 ): { activityCodeTypes: ActivityCodeType[]; customFieldDefs: CustomFieldDef[] } {
   let activityCodeTypes: ActivityCodeType[] = [];
   let customFieldDefs: CustomFieldDef[] = [];
@@ -953,7 +1077,7 @@ function extractStructure(
           // Ontbreekt het veld helemaal (bestand van vóór deze versie of van een ander tool), dan
           // komen we hier niet en blijft die WORKPLAN-terugval staan — gedrag exact als voorheen.
           const date = typeof v === 'string' ? v.substring(0, 10) : '';
-          if (name === 'ProjectStartDate') project.startDate = date;
+          if (name === 'ProjectStartDate') { project.startDate = date; projectStartRecorded.value = true; }
           else project.endDate = date;
         } else if (name === 'CreatedAt') {
           // Fase 3 (H2): project-aanmaakdatum als verbatim ISO-instant (spiegel van writeStructure).
@@ -1103,6 +1227,10 @@ function extractResourceMeta(
           res.costPerHour = value;
         } else if (name === 'UnitOfMeasure' && typeof value === 'string') {
           res.unitOfMeasure = value;
+        } else if (name === 'Color' && typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
+          // #21: weergavekleur — alleen een geldige #rrggbb-hex accepteren (hostiele/mistorde
+          // invoer valt stil terug op "geen kleur" i.p.v. rommel in de kleurmodi te krijgen).
+          res.color = value;
         } else if (name === 'AvailabilitySteps' && typeof value === 'string') {
           const steps: AvailabilityStep[] = value
             .split(';')
@@ -1271,6 +1399,82 @@ function extractCalendarLibraryOrigin(
   return undefined;
 }
 
+/**
+ * Bugfix B2 (gebruikstest 2026-08) — expliciete `HoursPerDay` teruglezen uit het `OPS_Calendar`-
+ * pset (spiegel van `writeCalendarGenerationMeta`'s `needsHoursPerDayOverride`-tak). BEWUST
+ * losstaand van `extractCalendarGeneration`/`extractCalendarLibraryOrigin` — zelfde reden: een
+ * kalender met ALLEEN een `HoursPerDay`-afwijking (geen generation, geen libraryOrigin) mag 'm
+ * niet mislopen. Geen/corrupte property ⇒ `undefined` (fallback blijft de bestaande
+ * `workEndHour − workStartHour`-derivatie in `buildCalendarFromEntity`).
+ */
+function extractCalendarHoursPerDay(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): number | undefined {
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const objectRefs = parseRefs(rel.args[4] || '');
+    if (!objectRefs.includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+
+    for (const prop of props) {
+      if (stripQuotes(prop.args[0] || '') !== 'HoursPerDay') continue;
+      const value = parseTypedValue(prop.args[2] || '');
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * T5-HERZIENING (2026-08-15, spec-reviewbevinding: zie het plandocument §T5) — het STEP-id-signaal
+ * dat een `IFCWORKTIME` in `ExceptionTimes` een WERKENDE UITZONDERING is, i.p.v. een feestdag.
+ * Spiegel van `writeCalendarGenerationMeta`'s `WorkingExceptionIds`-property in hetzelfde
+ * `OPS_Calendar`-pset als generation/libraryOrigin/hoursPerDay. BEWUST geen discriminator op
+ * `IfcWorkTime.RecurrencePattern` (args[3]): IFC 4.3 reserveert die ref niet voor werkende
+ * uitzonderingen — een spec-conforme externe tool kan een RECURRENTE FEESTDAG ("elke 25 december")
+ * met exact zo'n gevulde ref schrijven, en die zou dan zonder deze pset-check als werkdag
+ * ingelezen worden (bewezen met een geconstrueerd fragment in de spec-review). Geen/corrupte
+ * property ⇒ `undefined` — de aanroeper valt dan terug op "alles in ExceptionTimes is een
+ * feestdag", het conservatieve pre-T5-gedrag voor bestanden zonder deze markering.
+ */
+function extractWorkingExceptionStepIds(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Set<string> | undefined {
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const objectRefs = parseRefs(rel.args[4] || '');
+    if (!objectRefs.includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+
+    for (const prop of props) {
+      if (stripQuotes(prop.args[0] || '') !== 'WorkingExceptionIds') continue;
+      const value = parseTypedValue(prop.args[2] || '');
+      if (typeof value !== 'string' || !value) continue;
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
+          return new Set(parsed);
+        }
+      } catch { /* corrupte JSON: negeren — valt terug op "alles is feestdag" */ }
+    }
+  }
+  return undefined;
+}
+
 /** Bouwt een `WorkCalendar` uit een `IFCWORKCALENDAR`-entiteit: naam/omschrijving/feestdagen
  *  (bestaand), plus (fase 2.8a, §8.1) werkdagen/uren teruggelezen uit de
  *  `WorkingTimes`-keten (args[5] → IFCWORKTIME → RecurrencePattern-ref → IFCRECURRENCEPATTERN
@@ -1350,19 +1554,73 @@ function buildCalendarFromEntity(
   else if (predef.includes('THIRDSHIFT')) calendar.shift = 'THIRD';
   else if (predef.includes('USERDEFINED')) calendar.shift = 'USERDEFINED';
 
+  // ExceptionTimes (args[6]) draagt zowel feestdagen als werkende uitzonderingen (fase 3.8, T5,
+  // HERZIEN 2026-08-15 na spec-reviewbevinding — zie het plandocument §T5). Het onderscheid is de
+  // OPS-pset-markering (`extractWorkingExceptionStepIds`), NIET de aanwezigheid van een gevulde
+  // RecurrencePattern-ref (args[3]): een spec-conforme externe tool kan een RECURRENTE FEESTDAG
+  // ("elke 25 december") met precies zo'n gevulde ref schrijven, en die zou dan zonder deze
+  // pset-check als WERKDAG worden ingelezen — een regressie t.o.v. het conservatieve pre-T5-gedrag.
+  // Geen markering (eigen bestand van vóór deze herziening, of extern) ⇒ alles in ExceptionTimes
+  // is een feestdag, óók met een gevulde recurrence-ref.
+  const workingExceptionIds = extractWorkingExceptionStepIds(cal.id, entities, entityMap);
   const exceptionRefs = parseRefs(cal.args[6] || '');
   const holidays: Holiday[] = [];
+  const workingExceptions: WorkingException[] = [];
   for (const ref of exceptionRefs) {
     const wt = entityMap.get(ref);
-    if (wt && wt.type === 'IFCWORKTIME') {
+    if (!wt || wt.type !== 'IFCWORKTIME') continue;
+    if (!workingExceptionIds?.has(ref)) {
       holidays.push({
         name: stripQuotes(wt.args[0] || '') || 'Feestdag',
         startDate: parseDateFromIFC(wt.args[4] || ''),
         endDate: parseDateFromIFC(wt.args[5] || ''),
       });
+      continue;
     }
+    // OPS-gemarkeerd als werkende uitzondering. De banden zitten — indien geschreven — nog steeds
+    // in de RecurrencePattern-ref (args[3] → TimePeriods, args[7]); DayComponent is hier altijd
+    // leeg. Canoniseren naar `end > start` (§3.2-conventie, `WorkingException.bands`): een
+    // wrap-band komt als tijd-van-de-dag terug (`e ≤ s`) en krijgt hier `+1440` terug, precies
+    // zoals de hoofd-werktijdlus hierboven het aan `canonicalizeBands` overlaat.
+    const bands: { start: number; end: number }[] = [];
+    const excRecRef = parseRef(wt.args[3] || '');
+    if (excRecRef) {
+      const excRec = entityMap.get(excRecRef);
+      if (excRec && excRec.type === 'IFCRECURRENCEPATTERN') {
+        for (const bRef of parseRefs(excRec.args[7] || '')) {
+          const tp = entityMap.get(bRef);
+          if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
+          const s = clockToMinutes(stripQuotes(tp.args[0] || ''));
+          let e = clockToMinutes(stripQuotes(tp.args[1] || ''));
+          if (s != null && e != null) {
+            if (e <= s) e += 1440;
+            bands.push({ start: s, end: e });
+          }
+        }
+      }
+    }
+    workingExceptions.push({
+      name: stripQuotes(wt.args[0] || '') || 'Werkende uitzondering',
+      startDate: parseDateFromIFC(wt.args[4] || ''),
+      endDate: parseDateFromIFC(wt.args[5] || ''),
+      ...(bands.length > 0 ? { bands } : {}),
+    });
   }
-  if (holidays.length > 0) calendar.holidays = holidays;
+  // Bugfix B2 (eindreview T16c, gemeten: 204/213 crawl + 3/3 bedrijfsbestanden geraakt, ook
+  // auto-save): `calendar.holidays` is een VERPLICHT veld (`WorkCalendar.holidays: Holiday[]`,
+  // geen `?`) — een lege lijst is een geldige, betekenisvolle waarde ("deze kalender heeft geen
+  // feestdagen"), geen "veld ontbrak". Omdat deze functie uitsluitend wordt aangeroepen wanneer de
+  // `IFCWORKCALENDAR`-ENTITEIT zelf bestaat (`extractCalendar`/`extractCalendarLibrary` vallen pas
+  // op `createDefaultCalendar()` terug als de entiteit zelf ontbreekt), is de hierboven uit
+  // `ExceptionTimes` gelezen `holidays`-lijst de volledige waarheid voor dít bestand — ook als hij
+  // leeg is. De oude `if (holidays.length > 0)`-guard liet een lege lijst stil de
+  // `createDefaultCalendar()`-bouwmodus-defaults (29 NL-feestdagen) laten staan: een `.mpp` met 0
+  // feestdagen kreeg ze er bij de eerste IFC-save alsnog bij. `workingExceptions` blijft WEL
+  // conditioneel: dat veld is optioneel (`?:`) en elke lezer in de codebase (`mspdiReader.ts`,
+  // `mppCalendars.ts`, `extMappers.ts`) houdt "geen uitzonderingen" bewust op `undefined` i.p.v.
+  // een expliciete lege array — beide zijn overal `?? []`-equivalent, dus geen gedragsverschil.
+  calendar.holidays = holidays;
+  if (workingExceptions.length > 0) calendar.workingExceptions = workingExceptions;
 
   // §4.3/§8.2 golden rule: createDefaultCalendar() zet altijd `generation` (nieuwe projecten zijn
   // per definitie gegenereerd) — een uit IFC gelezen kalender is dat NIET tenzij de OPS_Calendar-
@@ -1370,6 +1628,15 @@ function buildCalendarFromEntity(
   delete calendar.generation;
   calendar.generation = extractCalendarGeneration(cal.id, entities, entityMap);
   calendar.libraryOrigin = extractCalendarLibraryOrigin(cal.id, entities, entityMap);
+
+  // Bugfix B2 (gebruikstest 2026-08): expliciete `HoursPerDay` uit het `OPS_Calendar`-pset heeft
+  // voorrang boven de hierboven afgeleide `workEndHour − workStartHour` (die alleen een fallback
+  // is voor bestanden zonder deze pset-waarde — legacy/andere tools). Golden rule: ontbreekt de
+  // property, dan blijft de derivatie hierboven ongewijzigd staan. Voor uur-kalenders overschrijft
+  // de latere `promoteHourCalendar`-post-pass dit sowieso met de band-afgeleide waarde
+  // (`deriveHoursPerDay`), dus deze override raakt alleen dag-kalenders — precies de bedoeling.
+  const hpdOverride = extractCalendarHoursPerDay(cal.id, entities, entityMap);
+  if (hpdOverride != null) calendar.hoursPerDay = hpdOverride;
 
   return calendar;
 }
@@ -1386,6 +1653,13 @@ function buildCalendarFromEntity(
  * dus elke rel resolvet hier via precies één van de twee maps. Eén kalender kan zo door zowel een
  * resource- als een taak-rel worden aangewezen — de STEP-id van het `IFCWORKCALENDAR` dedupt de
  * kalender zelf (`calByStepId`) zodat hij maar één keer in de bibliotheek terechtkomt.
+ *
+ * Z14b-fixronde (F1) — retourneert sinds deze fix ook `idByGuid` (`IFCWORKCALENDAR.GlobalId` →
+ * onze verse `WorkCalendar.id`): de STABIELE, per-constructie-unieke sleutel die
+ * `extractTimephasedDurationWalksMeta` nodig heeft om `resourceCalendarId` te vertalen. GEEN
+ * naam-gebaseerde vertaling (zie de F1-toelichting bij `extractTimephasedDurationWalksMeta`): twee
+ * kalenders met dezelfde naam zijn een geldige, niet-afgedwongen toestand (de app kent geen
+ * naam-uniciteitseis) en zouden op naam stilzwijgend naar elkaars kalender resolven.
  */
 function extractCalendarLibrary(
   entities: StepEntity[],
@@ -1394,12 +1668,13 @@ function extractCalendarLibrary(
   resourceStepIdMap: Map<string, string>,
   tasks: Task[],
   taskStepIdMap: Map<string, string>,
-): WorkCalendar[] {
+): { calendars: WorkCalendar[]; idByGuid: Map<string, string> } {
   const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
   const resourceById = new Map(resources.map(r => [r.id, r]));
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const calendars: WorkCalendar[] = [];
   const calByStepId = new Map<string, WorkCalendar>(); // IFCWORKCALENDAR STEP-id -> onze kalender
+  const idByGuid = new Map<string, string>(); // Z14b (F1) — IFCWORKCALENDAR.GlobalId -> onze kalender-id
 
   for (const ce of entities) {
     if (ce.type !== 'IFCRELASSIGNSTOCONTROL') continue;
@@ -1415,6 +1690,7 @@ function extractCalendarLibrary(
       cal.id = generateId('rescal');
       calByStepId.set(controlRef, cal);
       calendars.push(cal);
+      idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id); // Z14b (F1)
     }
 
     const relatedRefs = parseRefs(ce.args[4] || '');
@@ -1448,14 +1724,21 @@ function extractCalendarLibrary(
     cal.id = generateId('rescal');
     calByStepId.set(ce.id, cal);
     calendars.push(cal);
+    idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id); // Z14b (F1)
   }
 
-  return calendars;
+  return { calendars, idByGuid };
 }
 
 interface AssignmentMeta {
   unitsPerDay: number;
   curve?: ResourceCurve;
+}
+
+/** Z14 — één gelezen timephased-venster (`OPS_Timephased`, spiegel van `writeTimephasedMeta`). */
+interface WindowMeta {
+  workWindowStart?: string;
+  workWindowFinish?: string;
 }
 
 /** Per-taak verzamelde OPS_Assignments-meta: nieuw formaat (`GUID#N`-propnamen) als
@@ -1479,6 +1762,11 @@ interface TaskAssignmentMeta {
  * last-wins-dedupen) óf de kale resource-GUID (legacy, pre-M3-bestanden); waarde =
  * `"unitsPerDay|curve"`. Ontbreekt de pset-entry (legacy bestand) dan geldt de bestaande
  * fallback `unitsPerDay: 1, curve: undefined`.
+ *
+ * Z14 (etappe "nul afwijkingen"): leest in dezelfde sweep ook `OPS_Timephased` — het
+ * timephased-venster (`workWindowStart`/`workWindowFinish`) per assignment, spiegel van
+ * `writeTimephasedMeta`. Aparte pset, zelfde `GUID#N`-sleutelconventie, geen wijziging aan het
+ * `OPS_Assignments`-pipe-formaat hierboven.
  */
 function extractAssignments(
   entities: StepEntity[],
@@ -1488,11 +1776,52 @@ function extractAssignments(
 ): ResourceAssignment[] {
   // 1. OPS_Assignments-psets per taak verzamelen: taskStepRef -> TaskAssignmentMeta.
   const metaByTask = new Map<string, TaskAssignmentMeta>();
+  // Z14 — OPS_Timephased-psets per taak verzamelen: taskStepRef -> resource-GUID -> wachtrij
+  // van WindowMeta (zelfde `GUID#N`-volgnummer-conventie als de queues hierboven, maar dan uit
+  // één JSON-blob-property ('Windows') i.p.v. losse IFCPROPERTYSINGLEVALUE's per assignment).
+  const windowsByTask = new Map<string, Map<string, WindowMeta[]>>();
   for (const rel of entities) {
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
     if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    if (stripQuotes(pset.args[2] || '') !== PSET.Assignments) continue;
+    const psetName = stripQuotes(pset.args[2] || '');
+
+    if (psetName === PSET.Timephased) {
+      const windowProp = parseRefs(pset.args[4] || '')
+        .map(r => entityMap.get(r))
+        .find((p): p is StepEntity =>
+          !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === 'Windows');
+      const raw = windowProp ? parseTypedValue(windowProp.args[2] || '') : undefined;
+      if (typeof raw !== 'string' || !raw) continue;
+      let parsed: unknown;
+      try { parsed = JSON.parse(raw); } catch { continue; }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+      const indexed: { guid: string; index: number; meta: WindowMeta }[] = [];
+      for (const [key, val] of Object.entries(parsed as Record<string, unknown>)) {
+        const m = key.match(/^(.+)#(\d+)$/);
+        if (!m || !val || typeof val !== 'object') continue;
+        const vv = val as Record<string, unknown>;
+        const meta: WindowMeta = {
+          ...(typeof vv.workWindowStart === 'string' ? { workWindowStart: vv.workWindowStart } : {}),
+          ...(typeof vv.workWindowFinish === 'string' ? { workWindowFinish: vv.workWindowFinish } : {}),
+        };
+        if (meta.workWindowStart === undefined && meta.workWindowFinish === undefined) continue;
+        indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
+      }
+      indexed.sort((a, b) => a.index - b.index);
+      for (const objRef of parseRefs(rel.args[4] || '')) {
+        let taskWindows = windowsByTask.get(objRef);
+        if (!taskWindows) { taskWindows = new Map(); windowsByTask.set(objRef, taskWindows); }
+        for (const { guid, meta } of indexed) {
+          let queue = taskWindows.get(guid);
+          if (!queue) { queue = []; taskWindows.set(guid, queue); }
+          queue.push(meta);
+        }
+      }
+      continue;
+    }
+
+    if (psetName !== PSET.Assignments) continue;
 
     const props = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
@@ -1556,6 +1885,9 @@ function extractAssignments(
       // (elke herhaling van dezelfde resource in RelatedObjects is een eigen assignment);
       // val terug op de legacy kale-GUID-meta voor pre-M3-bestanden.
       const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
+      // Z14 — timephased-venster, zelfde wachtrij-consumptie als `meta` hierboven (geen legacy-tak:
+      // OPS_Timephased is nieuw, er bestaan geen pre-Z14-bestanden die het al schreven).
+      const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
 
       // 'UNIFORM' is de writer-default (a.curve ?? 'UNIFORM') — canonicaliseer terug naar
       // undefined zodat undefined en 'UNIFORM' round-trippen naar dezelfde waarde
@@ -1566,6 +1898,8 @@ function extractAssignments(
         resourceId: resId,
         unitsPerDay: meta?.unitsPerDay ?? 1,
         ...(meta?.curve && meta.curve !== 'UNIFORM' ? { curve: meta.curve } : {}),
+        ...(window?.workWindowStart !== undefined ? { workWindowStart: window.workWindowStart } : {}),
+        ...(window?.workWindowFinish !== undefined ? { workWindowFinish: window.workWindowFinish } : {}),
       });
     }
   }
@@ -1702,6 +2036,74 @@ function extractBaselines(
   }
 
   return { baselines, activeBaselineId };
+}
+
+/**
+ * Z14b (Z8-nataak, eigenaarsbesluit 2026-08-18) — `OPS_TimephasedDurationWalks` teruglezen (spiegel
+ * van `ifcWriter.writeTimephasedDurationWalksMeta`): PER TAAK via `IFCRELDEFINESBYPROPERTIES` (niet
+ * globaal zoals `extractBaselines` — dit is taak-eigen data, geen projectbrede lijst).
+ *
+ * F1-FIXRONDE (spec-review op 526af9f9): de EERSTE versie vertaalde `resourceCalendarId` via de
+ * kalenderNAAM. De reviewer bewees empirisch dat dat stille datacorruptie geeft — de app dwingt
+ * kalendernaam-uniciteit NERGENS af, dus twee kalenders met dezelfde naam dedupliceerden op de
+ * naam→id-Map en beide taken resolven na round-trip naar dezelfde, voor minstens één van de twee
+ * VERKEERDE kalender, zonder waarschuwing. Fix: `resourceCalendarGuid` (de `IFCWORKCALENDAR.
+ * GlobalId`, per-constructie uniek — `guidOf`'s eigen botsingsdetectie garandeert dat, zie
+ * ifcWriter.ts) i.p.v. de naam, vertaald via `calendarIdByGuid` (`extractCalendarLibrary`'s nieuwe
+ * `idByGuid`-uitvoer + de projectkalender-toevoeging in `readIFC` — vandaar dat deze functie NA
+ * `extractCalendarLibrary` draait). Spiegelt zo `OPS_Baselines`' taskId-GUID-remap-precedent
+ * exact, alleen voor kalenders i.p.v. taken.
+ *
+ * Een GUID die niet in `calendarIdByGuid` voorkomt (dangling: de kalender bestaat niet meer, of een
+ * extern-geschreven bestand droeg een andere GUID-vorm) laat die ENE walk-entry VALLEN — spiegelt
+ * het eigenaarsprincipe (liever geen afgeleide sturing dan een onbetrouwbare) i.p.v. een rauwe GUID
+ * als kalender-id te laten doorsijpelen naar `resolveCalendar`.
+ */
+function extractTimephasedDurationWalksMeta(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  tasks: Task[],
+  taskStepIdMap: Map<string, string>,
+  calendarIdByGuid: ReadonlyMap<string, string>,
+): void {
+  const taskById = new Map(tasks.map(t => [t.id, t]));
+
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.DurationWalks) continue;
+    const prop = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .find((p): p is StepEntity =>
+        !!p && p.type === 'IFCPROPERTYSINGLEVALUE' && stripQuotes(p.args[0] || '') === 'DurationWalks');
+    const raw = prop ? parseTypedValue(prop.args[2] || '') : undefined;
+    if (typeof raw !== 'string' || !raw) continue;
+    let parsed: unknown;
+    try { parsed = JSON.parse(raw); } catch { continue; }
+    if (!Array.isArray(parsed)) continue;
+    // Z19 — `workMinutes` (apportionering bij >1 toewijzing) is OPTIONEEL: een oudere IFC (vóór
+    // Z19) of een PRECIES-1-toewijzing-walk draagt 'm niet, spiegelt `ifcWriter.ts`'s conditionele
+    // spread. `typeof ... === 'number'` (niet `!== undefined`) sluit ook een corrupt non-number-veld
+    // uit i.p.v. het rauw door te laten.
+    const isValidWalk = (w: unknown): w is { anchor: string; resourceCalendarGuid: string; workMinutes?: number } =>
+      !!w && typeof w === 'object'
+      && typeof (w as { anchor?: unknown }).anchor === 'string'
+      && typeof (w as { resourceCalendarGuid?: unknown }).resourceCalendarGuid === 'string'
+      && ((w as { workMinutes?: unknown }).workMinutes === undefined || typeof (w as { workMinutes?: unknown }).workMinutes === 'number');
+    if (parsed.length === 0 || !parsed.every(isValidWalk)) continue;
+    const walks = (parsed as { anchor: string; resourceCalendarGuid: string; workMinutes?: number }[])
+      .map(w => ({
+        anchor: w.anchor, resourceCalendarId: calendarIdByGuid.get(w.resourceCalendarGuid),
+        ...(w.workMinutes !== undefined ? { workMinutes: w.workMinutes } : {}),
+      }))
+      .filter((w): w is { anchor: string; resourceCalendarId: string; workMinutes?: number } => w.resourceCalendarId !== undefined);
+    if (walks.length === 0) continue;
+    for (const objRef of parseRefs(rel.args[4] || '')) {
+      const taskId = taskStepIdMap.get(objRef);
+      const task = taskId ? taskById.get(taskId) : undefined;
+      if (task) task.timephasedDurationWalks = walks;
+    }
+  }
 }
 
 /**

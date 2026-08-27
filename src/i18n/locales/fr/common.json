@@ -5,7 +5,10 @@
   "notifications": {
     "dismiss": "Fermer la notification",
     "openFailed": "Échec de l'ouverture du fichier",
+    "mppLegacy": "Ce fichier .mpp utilise un ancien format (Project 2007 ou antérieur). Exportez-le depuis MS Project au format XML (Fichier → Enregistrer sous → XML) et ouvrez ce fichier.",
+    "mppEncrypted": "Ce fichier .mpp est protégé par un mot de passe. Exportez-le depuis MS Project au format XML (Fichier → Enregistrer sous → XML) et ouvrez ce fichier.",
     "saveFailed": "Échec de l'enregistrement",
+    "librarySaveFailed": "La bibliothèque n'a pas pu être enregistrée",
     "savedViaDownload": "Enregistré sous forme de téléchargement : '{{name}}' se trouve maintenant dans votre dossier de téléchargements. Cet environnement ne permet pas à l'application d'écrire directement à l'emplacement choisi.",
     "autoSaveFailed": "Échec de l'enregistrement automatique",
     "recoveryReadFailed": "Le fichier récupéré n'a pas pu être lu",
@@ -15,8 +18,18 @@
     "templateSaved": "Branche enregistrée comme modèle '{{name}}'",
     "relationCreated": "Relation créée : {{predecessor}} → {{successor}}",
     "relationDuplicate": "Cette relation existe déjà",
-    "relationSummaryEndpoint": "Une tâche récapitulative comme extrémité n'a aucun effet sur le planning. Reliez-la plutôt à une tâche sans sous-tâches.",
-    "summaryRelationsIgnored": "{{total}} relation(s) sur des tâches récapitulatives n'ont aucun effet sur le planning."
+    "relationAncestorEndpoint": "Une relation entre une tâche et sa propre tâche récapitulative parente (ou ancêtre) n'est pas autorisée.",
+    "summaryRelationsDropped": "{{total}} relation(s) n'ont pas pu être prises en compte — voir le panneau Relations pour savoir lesquelles.",
+    "mppSourceScheduleNotes_one": "Ce fichier MS Project contient {{count}} tâche à la planification fractionnée, lissée ou pilotée par les ressources. Elle est importée et affichée telle quelle.",
+    "mppSourceScheduleNotes_many": "Ce fichier MS Project contient {{count}} tâches à la planification fractionnée, lissée ou pilotée par les ressources. Elles sont importées et affichées telles quelles.",
+    "mppSourceScheduleNotes_other": "Ce fichier MS Project contient {{count}} tâches à la planification fractionnée, lissée ou pilotée par les ressources. Elles sont importées et affichées telles quelles.",
+    "projectStartAnchorsClamped_one": "Début de projet déplacé : {{count}} ancre de tâche sans prédécesseur ni contrainte a été déplacée vers la nouvelle date de début.",
+    "projectStartAnchorsClamped_many": "Début de projet déplacé : {{count}} ancres de tâche sans prédécesseur ni contrainte ont été déplacées vers la nouvelle date de début.",
+    "projectStartAnchorsClamped_other": "Début de projet déplacé : {{count}} ancres de tâche sans prédécesseur ni contrainte ont été déplacées vers la nouvelle date de début.",
+    "mppTimephasedSteeringLost_one": "La répartition horaire de MS Project ne pilote plus {{count}} tâche après cette modification ; la répartition d'origine reste conservée dans le fichier.",
+    "mppTimephasedSteeringLost_many": "La répartition horaire de MS Project ne pilote plus {{count}} tâches après cette modification ; la répartition d'origine reste conservée dans le fichier.",
+    "mppTimephasedSteeringLost_other": "La répartition horaire de MS Project ne pilote plus {{count}} tâches après cette modification ; la répartition d'origine reste conservée dans le fichier.",
+    "readMore": "En savoir plus"
   },
   "yes": "Oui",
   "no": "Non",
@@ -236,7 +249,8 @@
   },
   "project": {
     "untitled": "Nouvelle planification",
-    "imported": "Projet importé"
+    "imported": "Projet importé",
+    "unassignedResource": "Non assigné"
   },
   "documents": {
     "overviewTitle": "Projets ouverts",
@@ -539,7 +553,8 @@
       "capacity": "Capacité",
       "documents": "Documents",
       "selectHint": "Sélectionnez une ressource pour voir l'histogramme."
-    }
+    },
+    "color": "Couleur"
   },
   "calendar": {
     "library": {
@@ -696,6 +711,14 @@
     "notice": "Ce fichier contient une planification horaire.",
     "enable": "Activer la planification horaire"
   },
+  "recordedDates": {
+    "offer_one": "Le recalcul a déplacé {{count}} tâches sur {{total}} par rapport aux dates du fichier.",
+    "offer_many": "Le recalcul a déplacé {{count}} tâches sur {{total}} par rapport aux dates du fichier.",
+    "offer_other": "Le recalcul a déplacé {{count}} tâches sur {{total}} par rapport aux dates du fichier.",
+    "show": "Afficher les dates enregistrées",
+    "active": "Vous voyez les dates telles qu'elles sont enregistrées dans le fichier. Aucun recalcul n'a été effectué.",
+    "recalculate": "Recalculer"
+  },
   "duration": {
     "suffixDay": "j",
     "suffixHour": "h",
@@ -817,6 +840,10 @@
     "intro": "Générez un planning de test et mesurez les phases principales. Cela n'affecte pas votre projet ouvert.",
     "sizeLabel": "Taille du planning",
     "tasksCount": "{{count}} tâches",
+    "resourceLabel": "Nombre de ressources",
+    "resourcesNone": "Aucune ressource",
+    "resourcesCount": "{{count}} ressources",
+    "networkHint": "Chaque tâche sans sous-tâches reçoit au moins une relation ; les tâches récapitulatives restent un cumul de leurs enfants.",
     "run": "Exécuter",
     "running": "En cours…",
     "progress": "{{phase}} ({{index}}/{{total}})",
@@ -850,5 +877,26 @@
     "detailRender": "{{rows}} lignes · {{w}}×{{h}}",
     "renderUnavailable": "rendu indisponible (pas de contexte canvas 2D)",
     "largeWarning": "Grand planning : cela peut prendre un moment ; la barre de progression peut sembler figée pendant le calcul."
+  },
+  "extConsent": {
+    "title": "Installer l'extension ?",
+    "author": "Auteur",
+    "repository": "Dépôt",
+    "originHeading": "Origine",
+    "sourceCatalog": "Depuis le catalogue d'extensions en ligne",
+    "sourceZip": "Depuis un fichier ZIP sur cet ordinateur",
+    "sourceJs": "Depuis un fichier JavaScript sur cet ordinateur",
+    "verifiedChecksum": "Téléchargement vérifié avec la somme de contrôle du catalogue.",
+    "verifiedNone": "Le catalogue ne fournit aucune somme de contrôle — ce téléchargement n'a pas été vérifié.",
+    "verifiedLocal": "Vous avez choisi ce fichier vous-même ; il n'existe aucune source externe pour le vérifier.",
+    "riskHeading": "Ce que vous acceptez",
+    "riskBody": "Une extension est du code qui s'exécute avec les mêmes droits qu'Open Planner Studio lui-même. Rien ne le limite. N'installez que des extensions dont vous faites confiance à l'auteur.",
+    "riskDesktop": "Dans l'application de bureau, cela comprend : lire et écrire des fichiers partout dans votre dossier utilisateur, ainsi que l'accès à vos projets, réglages et presse-papiers.",
+    "riskBrowser": "Dans le navigateur, cela signifie : l'accès à vos projets et réglages enregistrés, aux fichiers auxquels vous avez donné accès, et au réseau.",
+    "declaredHeading": "Ce que cette extension déclare utiliser",
+    "declaredNote": "C'est la déclaration de l'auteur, pas une restriction — le code peut faire davantage.",
+    "declaredNone": "Rien de déclaré.",
+    "cancel": "Ne pas installer",
+    "confirm": "Installer"
   }
 }

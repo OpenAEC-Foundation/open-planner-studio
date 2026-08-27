@@ -15,7 +15,7 @@
 // SCHRIJFKANT SPREEKT DE LEESKANT (harde eis): de veldnamen zijn identiek aan de T18-leestools —
 // `assignmentId`, `unitsPerDay`, `curve`. Een AI die `get_task` leest kan die id's/velden dus
 // rechtstreeks in `manage_assignments` terugstoppen.
-import type { McpToolDef, McpToolOk } from '../contracts';
+import type { McpContext, McpToolDef, McpToolOk } from '../contracts';
 import {
   guardNonTransactional,
   McpStepError,
@@ -26,8 +26,7 @@ import {
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
 import { enrichOk, okDirect, projectEndInfo } from './helpers';
-import { useAppStore } from '@/state/appStore';
-import { draft } from '@/state/mcpTransaction';
+import type { AppState } from '@/state/appStore';
 import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { validate } from '@/state/mcpValidation';
 import { resolveCalendarHolidays } from '../calendarGenerate';
@@ -64,7 +63,7 @@ const curveReason = (v: unknown): string =>
   `onbekende curve '${String(v)}'; geldige waarden zijn ${RESOURCE_CURVES.join(', ')} (hoofdlettergevoelig)`;
 
 type Rejection = { id: string; reason: string };
-type StoreState = ReturnType<typeof useAppStore.getState>;
+type StoreState = AppState;
 
 /** Kalenderdagen tussen twee ISO-datums; 0 zodra één van beide ontbreekt (leeg projecteinde). */
 function safeDiffDays(a: string, b: string): number {
@@ -616,8 +615,8 @@ function parseUpdateCalendar(args: unknown): CalendarItem[] | string {
 }
 
 /** Synchrone, transactie-vrije kern van `update_calendar` (zie de batchStep-noot in taskTools.ts). */
-function updateCalendarCore(items: CalendarItem[]): MutationOutcome {
-    const { plans, rejections } = classifyCalendars(useAppStore.getState(), items);
+function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOutcome {
+    const { plans, rejections } = classifyCalendars(ctx.app.store.getState(), items);
     const rows: Record<string, unknown>[] = [];
     for (const plan of plans) {
       const item = plan.item;
@@ -643,7 +642,7 @@ function updateCalendarCore(items: CalendarItem[]): MutationOutcome {
         if (wantsHolidays) {
           const r = resolveHolidaysForItem(
             item,
-            calendarSpan(useAppStore.getState(), true),
+            calendarSpan(ctx.app.store.getState(), true),
             { holidays: base.holidays, generation: base.generation },
           );
           cal.holidays = r.holidays;
@@ -657,7 +656,7 @@ function updateCalendarCore(items: CalendarItem[]): MutationOutcome {
         // Expliciete herkomst (de leesvorm) wint altijd — ook zonder feestdagen-opgave.
         if (item.generation === null) delete cal.generation;
         else if (item.generation !== undefined) cal.generation = { ...item.generation };
-        const newId = draft.addCalendar(cal);
+        const newId = ctx.transactions.draft.addCalendar(cal);
         // M7 — MAAK DE GEËRFDE FEESTDAGEN ZICHTBAAR. De basis is `createDefaultCalendar()`, en die
         // levert in bouwmodus (de default) een VOLLEDIGE NL-feestdagenset mét `generation`. Een
         // agent die "een lege kalender" aanmaakt kreeg dus stilzwijgend ~30 NL-feestdagen mee,
@@ -668,7 +667,7 @@ function updateCalendarCore(items: CalendarItem[]): MutationOutcome {
           : item.holidays !== undefined
             ? 'holidays'
             : item.rawHolidays !== undefined ? 'rawHolidays' : 'app-default';
-        const created = useAppStore.getState().calendars.find((c) => c.id === newId)!;
+        const created = ctx.app.store.getState().calendars.find((c) => c.id === newId)!;
         const createdDur = durationCalOf(created);
         rows.push({
           id: newId, requestedId: item.id, created: true, promoted: false, becameLiteral,
@@ -687,10 +686,10 @@ function updateCalendarCore(items: CalendarItem[]): MutationOutcome {
       // dus transactie-veilig.
       let promoted = false;
       if (plan.needsPromotion) {
-        useAppStore.getState().ensureProjectCalendarInLibrary();
+        ctx.app.store.getState().ensureProjectCalendarInLibrary();
         promoted = true;
       }
-      const existing = useAppStore.getState().calendars.find((c) => c.id === plan.targetId);
+      const existing = ctx.app.store.getState().calendars.find((c) => c.id === plan.targetId);
       if (!existing) {
         // Kan alleen bij een defect in de promotie — harde stap-fout i.p.v. stil doorgaan.
         throw new McpStepError('NOT_FOUND', `kalender '${plan.targetId}' bestaat niet (na promotie)`);
@@ -706,7 +705,7 @@ function updateCalendarCore(items: CalendarItem[]): MutationOutcome {
       if (wantsHolidays) {
         const r = resolveHolidaysForItem(
           item,
-          calendarSpan(useAppStore.getState(), false),
+          calendarSpan(ctx.app.store.getState(), false),
           { holidays: existing.holidays, generation: existing.generation },
         );
         updates.holidays = r.holidays;
@@ -731,9 +730,9 @@ function updateCalendarCore(items: CalendarItem[]): MutationOutcome {
       if (item.workTime === null && existing.workTime !== undefined) dropKeys.push('workTime');
       if (item.shift === null && existing.shift !== undefined) dropKeys.push('shift');
 
-      draft.updateCalendar(plan.targetId, updates);
+      ctx.transactions.draft.updateCalendar(plan.targetId, updates);
       if (dropKeys.length > 0) {
-        useAppStore.setState((s) => {
+        ctx.app.store.setState((s) => {
           const idx = s.calendars.findIndex((c) => c.id === plan.targetId);
           if (idx >= 0) for (const k of dropKeys) delete s.calendars[idx][k];
           // De gedenormaliseerde projectkalender-cache moet de entry blijven volgen (§9.1);
@@ -745,7 +744,7 @@ function updateCalendarCore(items: CalendarItem[]): MutationOutcome {
       }
 
       // Duur-gevolgen ná de mutatie, tegen de VERSE kalender + de (onaangeroerde) taken.
-      const sAfter = useAppStore.getState();
+      const sAfter = ctx.app.store.getState();
       const updated = sAfter.calendars.find((c) => c.id === plan.targetId)!;
       const afterDur = durationCalOf(updated);
       const effects = durationEffects(tasksOnCalendar(sAfter, plan.targetId), beforeDur, afterDur);
@@ -950,10 +949,10 @@ const updateCalendar: BatchStepTool = {
     },
     required: ['calendars'],
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseUpdateCalendar(args);
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return updateCalendarCore(parsed);
+    return updateCalendarCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseUpdateCalendar(args);
@@ -963,19 +962,20 @@ const updateCalendar: BatchStepTool = {
     // Lege-batch-snelpad: statisch nul uitvoerbare items ⇒ direct Ok mét de weigeringen, zónder
     // transactie/backup/snapshot/redo-wipe.
     {
-      const pre = classifyCalendars(useAppStore.getState(), items);
+      const state = ctx.app.store.getState();
+      const pre = classifyCalendars(state, items);
       if (pre.plans.length === 0) {
         const g = guardNonTransactional(ctx);
         if (g) return g;
-        return okDirect(ctx, { calendars: [], warnings: [], projectEnd: projectEndInfo().projectEnd }, pre.rejections);
+        return okDirect(ctx, { calendars: [], warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
 
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateCalendarCore(items));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateCalendarCore(ctx, items));
 
     return enrichOk(res, () => {
       const rows = ((res as McpToolOk).data as { calendars: Record<string, unknown>[] }).calendars;
-      const { projectEnd, cappedTaskIds } = projectEndInfo();
+      const { projectEnd, cappedTaskIds } = projectEndInfo(ctx.app.store.getState());
       // WP7-beleid: een onwerkbaar venster is een WAARSCHUWING, geen fout — de kalenderwijziging
       // blijft gecommit; de AI hoort dit prominent aan de user te melden.
       const warnings: string[] = [];
@@ -1018,7 +1018,7 @@ const updateCalendar: BatchStepTool = {
       }
       // De schakelaar Urenplanning is puur UI (de solver rekent sowieso uur-native): meld het, want
       // de gebruiker ziet zijn uurkalender anders nergens terug in de app.
-      if (rows.some((r) => r.mode === 'hour') && !useAppStore.getState().ui.enableHourPlanning) {
+      if (rows.some((r) => r.mode === 'hour') && !ctx.app.store.getState().ui.enableHourPlanning) {
         warnings.push(
           'Er staat nu een UUR-kalender in dit document terwijl de app-instelling "Urenplanning" UIT staat. ' +
           'De planning wordt wél uur-native gerekend, maar de app toont geen uur-invoer/-weergave totdat de ' +
@@ -1164,8 +1164,8 @@ function parseAssignments(args: unknown): AssignmentAction[] | string {
 }
 
 /** Synchrone, transactie-vrije kern van `manage_assignments`. */
-function manageAssignmentsCore(actions: AssignmentAction[]): MutationOutcome {
-    const { plans, rejections } = classifyAssignments(useAppStore.getState(), actions);
+function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): MutationOutcome {
+    const { plans, rejections } = classifyAssignments(ctx.app.store.getState(), actions);
     const added: Record<string, unknown>[] = [];
     const updated: string[] = [];
     const moved: { assignmentId: string; taskId: string }[] = [];
@@ -1173,7 +1173,7 @@ function manageAssignmentsCore(actions: AssignmentAction[]): MutationOutcome {
     for (const { action } of plans) {
       switch (action.action) {
         case 'add': {
-          const id = draft.assignResource(action.taskId, action.resourceId, action.unitsPerDay, action.curve);
+          const id = ctx.transactions.draft.assignResource(action.taskId, action.resourceId, action.unitsPerDay, action.curve);
           added.push({
             assignmentId: id,
             taskId: action.taskId,
@@ -1187,17 +1187,17 @@ function manageAssignmentsCore(actions: AssignmentAction[]): MutationOutcome {
           const patch: { unitsPerDay?: number; curve?: ResourceCurve } = {};
           if (action.unitsPerDay !== undefined) patch.unitsPerDay = action.unitsPerDay;
           if (action.curve !== undefined) patch.curve = action.curve;
-          draft.updateAssignment(action.assignmentId, patch);
+          ctx.transactions.draft.updateAssignment(action.assignmentId, patch);
           updated.push(action.assignmentId);
           break;
         }
         case 'move': {
-          draft.moveAssignment(action.assignmentId, action.taskId);
+          ctx.transactions.draft.moveAssignment(action.assignmentId, action.taskId);
           moved.push({ assignmentId: action.assignmentId, taskId: action.taskId });
           break;
         }
         case 'remove': {
-          draft.unassignResource(action.assignmentId);
+          ctx.transactions.draft.unassignResource(action.assignmentId);
           removed.push(action.assignmentId);
           break;
         }
@@ -1250,10 +1250,10 @@ const manageAssignments: BatchStepTool = {
   },
   // Zie de batchStep-noot in taskTools.ts: het lege-batch-snelpad is puur transactie-vermijding en
   // dus overbodig binnen een batch (die bezit de transactie al).
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseAssignments(args);
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return manageAssignmentsCore(parsed);
+    return manageAssignmentsCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsedActions = parseAssignments(args);
@@ -1262,23 +1262,24 @@ const manageAssignments: BatchStepTool = {
 
     // Lege-batch-snelpad (zie T19-reviewfix Issue 2).
     {
-      const pre = classifyAssignments(useAppStore.getState(), actions);
+      const state = ctx.app.store.getState();
+      const pre = classifyAssignments(state, actions);
       if (pre.plans.length === 0) {
         const g = guardNonTransactional(ctx);
         if (g) return g;
         return okDirect(
           ctx,
-          { added: [], updated: [], moved: [], removed: [], projectEnd: projectEndInfo().projectEnd },
+          { added: [], updated: [], moved: [], removed: [], projectEnd: projectEndInfo(state).projectEnd },
           pre.rejections,
         );
       }
     }
 
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => manageAssignmentsCore(actions));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => manageAssignmentsCore(ctx, actions));
 
     return enrichOk(res, () => ({
       ...((res as McpToolOk).data as object),
-      projectEnd: projectEndInfo().projectEnd,
+      projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd,
     }));
   },
 };
@@ -1287,13 +1288,23 @@ const manageAssignments: BatchStepTool = {
 // planner_level_resources (spec §level_resources-contract)
 //
 // Volgorde: guards → `ensureFreshSchedule` (WP8-patroon: een stale planning maakt de before/after-
-// delta's onzin; `runCPM` pusht per invariant nooit een undo-snapshot, dus dit kost geen undo-stap)
+// delta's onzin). Dat kost geen undo-stap, en de reden is NIET "we zitten in een transactie" — deze
+// `ensureFreshSchedule` draait juist BUITEN elke transactie, vóór `runMutateTool`. De reden is die
+// van `save_baseline` hieronder: `runCPM` raakt de undo-stack alleen bij het verlaten van "datums
+// zoals opgeslagen" (issue #63), en modus-aan-én-stale is onbereikbaar (zie staleGuard.ts).
+// Daarop rust ook de belofte "er ontstaat geen ongedaan-maak-stap" in de `dryRun`-beschrijving.
 // → preview → optioneel commit. `dryRun` gaat NIET door een transactie: er valt niets te backuppen
 // of terug te rollen (`levelResources` is een pure preview-berekening op de store).
 // De respons draagt ALTIJD het volledige LevelingResult.
 // =================================================================================================
 
-function levelingData(r: LevelingResult, dryRun: boolean, recomputed: boolean, constrainToFloat: boolean) {
+function levelingData(
+  state: AppState,
+  r: LevelingResult,
+  dryRun: boolean,
+  recomputed: boolean,
+  constrainToFloat: boolean,
+) {
   const calendarDays = safeDiffDays(r.projectEndBefore, r.projectEndAfter);
   const unresolvedCount = Object.keys(r.unresolved).length;
   const warnings: string[] = [];
@@ -1313,7 +1324,7 @@ function levelingData(r: LevelingResult, dryRun: boolean, recomputed: boolean, c
   // `projectEndAfter` is de VOORSPELLING van de nivelleerder; `projectEnd` is wat er ná de
   // eind-runCPM daadwerkelijk in de store staat. Bij `dryRun` is dat per definitie de ONgewijzigde
   // planning (== projectEndBefore) — beide meegeven maakt het verschil expliciet i.p.v. impliciet.
-  const { projectEnd, cappedTaskIds } = projectEndInfo();
+  const { projectEnd, cappedTaskIds } = projectEndInfo(state);
   if (cappedTaskIds) {
     warnings.push(
       `Onwerkbaar venster: ${cappedTaskIds.length} taak/taken passen niet binnen hun kalender (zie cappedTaskIds).`,
@@ -1337,7 +1348,10 @@ function levelingData(r: LevelingResult, dryRun: boolean, recomputed: boolean, c
 }
 
 /** Args-vorm van `level_resources`; string = foutboodschap. */
-function parseLeveling(args: unknown): { options: LevelingOptions; constrainToFloat: boolean; dryRun: boolean } | string {
+function parseLeveling(
+  args: unknown,
+  state: AppState,
+): { options: LevelingOptions; constrainToFloat: boolean; dryRun: boolean } | string {
   const a = (args ?? {}) as { constrainToFloat?: unknown; resourceIds?: unknown; dryRun?: unknown };
   if (a.constrainToFloat !== undefined && typeof a.constrainToFloat !== 'boolean') {
     return '`constrainToFloat` moet een boolean zijn';
@@ -1360,7 +1374,7 @@ function parseLeveling(args: unknown): { options: LevelingOptions; constrainToFl
     }
     const bad = a.resourceIds.filter((x) => typeof x !== 'string' || x === '');
     if (bad.length > 0) return "`resourceIds` mag alleen niet-lege resource-id-strings bevatten";
-    const known = new Set(useAppStore.getState().resources.map((r) => r.id));
+    const known = new Set(state.resources.map((r) => r.id));
     const unknown = (a.resourceIds as string[]).filter((id) => !known.has(id));
     if (unknown.length > 0) {
       return `onbekende resource-id(s): ${unknown.join(', ')} — nivelleren zou dan stil niets doen; ` +
@@ -1380,18 +1394,19 @@ function parseLeveling(args: unknown): { options: LevelingOptions; constrainToFl
 
 /**
  * Synchrone, transactie-vrije kern van `level_resources`. Draait ZELF `ensureFreshSchedule` (nodig
- * voor kloppende before/after-delta\'s; `runCPM` pusht geen undo-snapshot). Dat overlapt met de
+ * voor kloppende before/after-delta\'s; kost geen undo-stap omdat modus-aan-én-stale onbereikbaar is —
+ * zie de kop van deze tool en staleGuard.ts, NIET omdat er een transactie omheen zou staan). Dat overlapt met de
  * `recomputeMidBatch` die `planner_batch` vóór een levelingstap doet — bewust: de kern moet ook
  * kloppen als de leveling de EERSTE stap van de batch is en de store al stale de batch in ging.
  */
-function levelResourcesCore(p: { options: LevelingOptions; dryRun: boolean }): MutationOutcome {
-  const fresh = ensureFreshSchedule();
+function levelResourcesCore(ctx: McpContext, p: { options: LevelingOptions; dryRun: boolean }): MutationOutcome {
+  const fresh = ensureFreshSchedule(ctx.app);
   if (fresh.error) {
     throw new McpStepError('VALIDATION', `planning kon niet worden herrekend vóór het nivelleren: ${fresh.error}`);
   }
-  const preview = useAppStore.getState().levelResources(p.options);
+  const preview = ctx.app.store.getState().levelResources(p.options);
   // `dryRun` muteert per contract niets — binnen een batch dus een pure preview-stap.
-  if (!p.dryRun) draft.applyLeveling(preview);
+  if (!p.dryRun) ctx.transactions.draft.applyLeveling(preview);
   return { data: preview };
 }
 
@@ -1432,13 +1447,13 @@ const levelResources: BatchStepTool = {
       },
     },
   },
-  batchStep(args) {
-    const parsed = parseLeveling(args);
+  batchStep(args, ctx) {
+    const parsed = parseLeveling(args, ctx.app.store.getState());
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return levelResourcesCore(parsed);
+    return levelResourcesCore(ctx, parsed);
   },
   async handler(args, ctx) {
-    const parsed = parseLeveling(args);
+    const parsed = parseLeveling(args, ctx.app.store.getState());
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const { options, constrainToFloat, dryRun } = parsed;
 
@@ -1447,20 +1462,26 @@ const levelResources: BatchStepTool = {
     const g = guardNonTransactional(ctx);
     if (g) return g;
 
-    const fresh = ensureFreshSchedule();
+    const fresh = ensureFreshSchedule(ctx.app);
     if (fresh.error) {
       return toolError(ctx, 'VALIDATION', `planning kon niet worden herrekend vóór het nivelleren: ${fresh.error}`);
     }
 
     if (dryRun) {
-      const preview = useAppStore.getState().levelResources(options);
-      return okDirect(ctx, levelingData(preview, true, fresh.recomputed, constrainToFloat), []);
+      const preview = ctx.app.store.getState().levelResources(options);
+      return okDirect(ctx, levelingData(ctx.app.store.getState(), preview, true, fresh.recomputed, constrainToFloat), []);
     }
 
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome =>
-      levelResourcesCore({ options, dryRun: false }));
+      levelResourcesCore(ctx, { options, dryRun: false }));
     return enrichOk(res, () =>
-      levelingData((res as McpToolOk).data as LevelingResult, false, fresh.recomputed, constrainToFloat),
+      levelingData(
+        ctx.app.store.getState(),
+        (res as McpToolOk).data as LevelingResult,
+        false,
+        fresh.recomputed,
+        constrainToFloat,
+      ),
     );
   },
 };
@@ -1469,10 +1490,10 @@ const levelResources: BatchStepTool = {
 // planner_clear_leveling
 // =================================================================================================
 /** Synchrone, transactie-vrije kern van `clear_leveling`; niets te wissen ⇒ geen mutatie. */
-function clearLevelingCore(): MutationOutcome {
-  const count = useAppStore.getState().tasks.filter((t) => t.levelingDelay !== undefined).length;
+function clearLevelingCore(ctx: McpContext): MutationOutcome {
+  const count = ctx.app.store.getState().tasks.filter((t) => t.levelingDelay !== undefined).length;
   if (count === 0) return { data: { cleared: 0 } };
-  draft.clearLeveling();
+  ctx.transactions.draft.clearLeveling();
   return { data: { cleared: count } };
 }
 
@@ -1490,20 +1511,21 @@ const clearLeveling: BatchStepTool = {
   // herberekenbare waarden — ze wissen vernietigt geen ingevoerde data.
   annotations: { ...STD_ANNOT, idempotentHint: true },
   inputSchema: { type: 'object', properties: {} },
-  batchStep() {
-    return clearLevelingCore();
+  batchStep(_args, ctx) {
+    return clearLevelingCore(ctx);
   },
   async handler(_args, ctx) {
-    const count = useAppStore.getState().tasks.filter((t) => t.levelingDelay !== undefined).length;
+    const state = ctx.app.store.getState();
+    const count = state.tasks.filter((t) => t.levelingDelay !== undefined).length;
     // No-op-snelpad (spiegelt de store-`clearLeveling`-guard): niets te wissen ⇒ geen transactie,
     // geen undo-snapshot, geen redo-wipe.
     if (count === 0) {
       const g = guardNonTransactional(ctx);
       if (g) return g;
-      return okDirect(ctx, { cleared: 0, projectEnd: projectEndInfo().projectEnd }, []);
+      return okDirect(ctx, { cleared: 0, projectEnd: projectEndInfo(state).projectEnd }, []);
     }
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => clearLevelingCore());
-    return enrichOk(res, () => ({ cleared: count, projectEnd: projectEndInfo().projectEnd }));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => clearLevelingCore(ctx));
+    return enrichOk(res, () => ({ cleared: count, projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd }));
   },
 };
 
@@ -1630,11 +1652,15 @@ const STATUS_DATE_NOTE =
 
 /** Synchrone, transactie-vrije kern van `update_project`. */
 function updateProjectCore(
+  ctx: McpContext,
   p: { updates: Partial<Project>; clearStatusDate: boolean; clearProgressMode: boolean; touched: string[] },
 ): MutationOutcome {
-  draft.setProject(p.updates);
+  // T7-review H1: `draft.setProject` levert nu het aantal wortel-ankers dat het klemde (zelfde
+  // bewerkbescherming als de UI, `projectSlice.setProject`) — meegeven in `data` zodat óók het
+  // `planner_batch`-pad (dat rechtstreeks `updateProjectCore` gebruikt, zonder `enrichOk`) dit ziet.
+  const anchorsClamped = ctx.transactions.draft.setProject(p.updates);
   if (p.clearStatusDate || p.clearProgressMode) {
-    useAppStore.setState((s) => {
+    ctx.app.store.setState((s) => {
       // `delete` i.p.v. `= undefined`: de IFC-serialisatie en de solver-defaults lezen op
       // sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`).
       if (p.clearStatusDate) delete s.project.statusDate;
@@ -1646,6 +1672,7 @@ function updateProjectCore(
   return {
     data: {
       updated: p.touched,
+      ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
       ...(p.updates.statusDate ? { statusDateNote: STATUS_DATE_NOTE } : {}),
     },
   };
@@ -1660,10 +1687,17 @@ const updateProject: BatchStepTool = {
     'af in de planning; lege string wist hem), `progressMode` (RETAINED_LOGIC of PROGRESS_OVERRIDE — ' +
     'hoe de solver werk buiten de volgorde afhandelt; null = terug naar de default RETAINED_LOGIC) en ' +
     '`startDate`. Een ONBEKEND veld wordt geweigerd met de toegestane lijst erbij — er wordt nooit ' +
-    'stil iets weggegooid. BELANGRIJK over `startDate`: dat is UITSLUITEND het anker voor ' +
-    'NIEUW aan te maken taken — het verschuift GEEN enkele bestaande taak. Wil je de hele bestaande ' +
-    'planning opschuiven, gebruik dan `planner_move_project`. Zet `startDate` dus vóór add_tasks, ' +
-    'niet erna. NET ZO BELANGRIJK over `statusDate`: dat is GEEN passief label maar de DATA DATE ' +
+    'stil iets weggegooid. BELANGRIJK over `startDate`: het is het anker voor NIEUW aan te maken ' +
+    'taken en verschuift de REST van de bestaande planning niet — geen enkele taak-EIND schuift mee, ' +
+    'behalve het eind van de geklemde ankers zelf, dat duurbehoudend meeschuift. ' +
+    'Sinds T7b is er wél één gerichte uitzondering (bewerkbescherming, geen Δ-verschuiving): een ' +
+    'LATERE `startDate` klemt bestaande taak-ankers die zónder voorganger en zónder constraint vóór ' +
+    'de nieuwe startdatum staan, vooruit náár die datum (de respons meldt `anchorsClamped`) — zo blijft een ' +
+    'wortel-taak niet stil vóór het officiële projectbegin hangen na het verzetten van de start. Een ' +
+    'taak met een voorganger, een constraint, of een start ná de nieuwe datum blijft ongemoeid. Wil ' +
+    'je de HELE bestaande planning (elk anker, elke taak) Δ dagen opschuiven, gebruik dan ' +
+    '`planner_move_project`. Zet `startDate` dus vóór add_tasks, niet erna. NET ZO BELANGRIJK over ' +
+    '`statusDate`: dat is GEEN passief label maar de DATA DATE ' +
     'uit P6/MSP, en die HERSCHIKT de planning. Werk dat nog niet begonnen is (completion 0) mag niet ' +
     'meer vóór de statusdatum liggen en wordt naar die datum vooruitgeschoven; op een planning ' +
     'zónder enige voortgang schuift dus ALLES mee — inclusief de eerste mijlpaal — en verspringt het ' +
@@ -1700,10 +1734,10 @@ const updateProject: BatchStepTool = {
     },
     additionalProperties: false,
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseUpdateProject(args);
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return updateProjectCore(parsed);
+    return updateProjectCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseUpdateProject(args);
@@ -1716,14 +1750,23 @@ const updateProject: BatchStepTool = {
     // `staleBefore` reist mee omdat een verouderd `cpmResult` het voor-getal onbetrouwbaar maakt —
     // dan is het verschil geen zuiver statusdatum-effect en moet de AI dat kunnen zien.
     const statusDateTouched = touched.includes('statusDate');
-    const before = useAppStore.getState();
+    const before = ctx.app.store.getState();
     const projectEndBefore = statusDateTouched ? (before.cpmResult?.projectEnd ?? null) : null;
     const staleBefore = before.scheduleStale;
 
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateProjectCore(parsed));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateProjectCore(ctx, parsed));
+    // T7-review H1: `enrichOk` hieronder OVERSCHRIJFT `res.data` met wat `build()` teruggeeft — dus
+    // het `anchorsClamped`-getal dat `updateProjectCore` er net inzette moet er vóór die overschrijving
+    // uit gelezen worden (binnen `build()`'s closure heeft `res.data` op dat moment nog de OUDE,
+    // niet-verrijkte waarde — `enrichOk` roept `build()` immers aan vóórdat het toewijst).
+    const anchorsClamped =
+      res.ok && res.data && typeof res.data === 'object' && 'anchorsClamped' in res.data
+        ? (res.data as { anchorsClamped: number }).anchorsClamped
+        : 0;
     return enrichOk(res, () => {
-      const p = useAppStore.getState().project;
-      const projectEnd = projectEndInfo().projectEnd;
+      const state = ctx.app.store.getState();
+      const p = state.project;
+      const projectEnd = projectEndInfo(state).projectEnd;
       return {
         updated: touched,
         project: {
@@ -1731,7 +1774,15 @@ const updateProject: BatchStepTool = {
           statusDate: p.statusDate ?? null, progressMode: p.progressMode ?? null,
         },
         // Herinnering in de payload zelf: de AI leest data vaak eerder dan de beschrijving.
-        note: '`startDate` is alleen het anker voor NIEUWE taken; gebruik planner_move_project om de bestaande planning te verschuiven.',
+        // T7-review H1: dit beloofde tot nu toe onvoorwaardelijk dat GEEN enkele bestaande taak
+        // verschuift — sinds de bewerkbescherming klopt dat niet meer voor de uitzondering
+        // hieronder (`anchorsClamped`).
+        note: '`startDate` is het anker voor NIEUWE taken en verschuift de REST van de bestaande ' +
+          'planning niet. Uitzondering (bewerkbescherming, geen Δ-verschuiving): bij een LATERE ' +
+          'startDate schuiven wortel-taken zonder voorganger/constraint die vóór de nieuwe datum ' +
+          'staan mee náár die datum — zie `anchorsClamped`. Gebruik planner_move_project om de ' +
+          'HELE bestaande planning (elk anker) te verschuiven.',
+        ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
         ...(statusDateTouched
           ? {
               statusDateEffect: {
@@ -1762,7 +1813,8 @@ const updateProject: BatchStepTool = {
 // `requestFitToProject`), en `runInMcpTransaction` draait aan het eind nóg een keer `runCPM`. Dat is
 // één overbodige herberekening. Het alternatief — de verschuif-logica hier nabouwen zonder de
 // trailing recompute — zou de enige bron van waarheid dupliceren en bij elke wijziging in
-// `moveProject` stil uit de pas gaan lopen. `runCPM` is idempotent en pusht geen undo-snapshot
+// `moveProject` stil uit de pas gaan lopen. `runCPM` is idempotent en pusht binnen de transactie
+// geen undo-snapshot
 // (invariant a), dus de dubbele run is puur rekenwerk, geen semantisch verschil.
 // =================================================================================================
 /** Vormvalidatie van `move_project`; string = foutboodschap. */
@@ -1784,8 +1836,8 @@ function parseMoveProject(args: unknown): { newStartDate: string; shiftBaselines
  * verschuiving naar de datum waar het project al staat een hele batch laten terugrollen op een
  * no-op): Δ=0 ⇒ `moved: false` zonder enige mutatie, precies zoals de losse call.
  */
-function moveProjectCore(p: { newStartDate: string; shiftBaselines: boolean }): MutationOutcome {
-  const s0 = useAppStore.getState();
+function moveProjectCore(ctx: McpContext, p: { newStartDate: string; shiftBaselines: boolean }): MutationOutcome {
+  const s0 = ctx.app.store.getState();
   const delta = computeMoveDelta(s0.project.startDate, p.newStartDate);
   if (!Number.isFinite(delta)) {
     throw new McpStepError('VALIDATION', `kan de verschuiving niet bepalen vanaf projectstart '${s0.project.startDate}'`);
@@ -1793,7 +1845,7 @@ function moveProjectCore(p: { newStartDate: string; shiftBaselines: boolean }): 
   if (delta === 0) {
     return { data: { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'de projectstart is al deze datum' } };
   }
-  const out = useAppStore.getState().moveProject(p.newStartDate, { shiftBaselines: p.shiftBaselines });
+  const out = ctx.app.store.getState().moveProject(p.newStartDate, { shiftBaselines: p.shiftBaselines });
   if (!out.moved) throw new McpStepError('VALIDATION', `verschuiven naar '${p.newStartDate}' leverde geen wijziging op`);
   return { data: out };
 }
@@ -1818,17 +1870,17 @@ const moveProject: BatchStepTool = {
     },
     required: ['newStartDate'],
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseMoveProject(args);
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return moveProjectCore(parsed);
+    return moveProjectCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseMoveProject(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const { newStartDate, shiftBaselines } = parsed;
 
-    const s0 = useAppStore.getState();
+    const s0 = ctx.app.store.getState();
     const delta = computeMoveDelta(s0.project.startDate, newStartDate);
     if (!Number.isFinite(delta)) {
       return toolError(ctx, 'VALIDATION', `kan de verschuiving niet bepalen vanaf projectstart '${s0.project.startDate}'`);
@@ -1839,17 +1891,17 @@ const moveProject: BatchStepTool = {
       if (g) return g;
       return okDirect(
         ctx,
-        { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'de projectstart is al deze datum', projectEnd: projectEndInfo().projectEnd },
+        { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'de projectstart is al deze datum', projectEnd: projectEndInfo(s0).projectEnd },
         [],
       );
     }
     const projectEndBefore = s0.cpmResult?.projectEnd ?? '';
 
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => moveProjectCore(parsed));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => moveProjectCore(ctx, parsed));
 
     return enrichOk(res, () => {
       const out = (res as McpToolOk).data as { moved: boolean; deltaDays: number; taskCount: number };
-      const { projectEnd, cappedTaskIds } = projectEndInfo();
+      const { projectEnd, cappedTaskIds } = projectEndInfo(ctx.app.store.getState());
       const endDeltaDays = safeDiffDays(projectEndBefore, projectEnd);
       return {
         ...out,
@@ -1903,27 +1955,29 @@ const saveBaseline: McpToolDef = {
     const g = guardNonTransactional(ctx);
     if (g) return g;
 
-    // WP8: eerst herrekenen bij een stale planning (runCPM pusht geen undo-snapshot).
-    const fresh = ensureFreshSchedule();
+    // WP8: eerst herrekenen bij een stale planning (runCPM pusht hier geen undo-snapshot: "modus
+    // aan én stale" is onbereikbaar, zie de kop van readTools.ts).
+    const fresh = ensureFreshSchedule(ctx.app);
     if (fresh.error) {
       return toolError(ctx, 'VALIDATION', `planning kon niet worden herrekend vóór de baseline: ${fresh.error}`);
     }
 
-    const name = (a.name as string | undefined) || `Baseline ${useAppStore.getState().baselines.length + 1}`;
+    const name = (a.name as string | undefined) || `Baseline ${ctx.app.store.getState().baselines.length + 1}`;
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => {
-      const id = useAppStore.getState().saveBaseline(name);
+      const id = ctx.app.store.getState().saveBaseline(name);
       return { data: { baselineId: id } };
     });
 
     return enrichOk(res, () => {
       const id = ((res as McpToolOk).data as { baselineId: string }).baselineId;
-      const bl = useAppStore.getState().baselines.find((b) => b.id === id);
+      const state = ctx.app.store.getState();
+      const bl = state.baselines.find((b) => b.id === id);
       return {
         baselineId: id,
         name,
         recomputed: fresh.recomputed,
         taskCount: bl?.tasks.length ?? 0,
-        projectEnd: bl?.projectEnd ?? projectEndInfo().projectEnd,
+        projectEnd: bl?.projectEnd ?? projectEndInfo(state).projectEnd,
       };
     });
   },

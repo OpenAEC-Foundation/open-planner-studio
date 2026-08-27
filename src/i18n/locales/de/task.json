@@ -16,7 +16,8 @@
     "freeFloat": "Freier Puffer",
     "interferingFloat": "Interferierender Puffer",
     "isNearCritical": "Beinahe kritisch",
-    "floatPath": "Pufferpfad"
+    "floatPath": "Pufferpfad",
+    "activeDuring": "In Bearbeitung"
   },
   "taskType": {
     "CONSTRUCTION": "Bau",
@@ -72,6 +73,8 @@
     "deadlineMissed": "Stichtag überschritten",
     "longFreePeriodWarning": "Diese Aufgabe erstreckt sich über einen arbeitsfreien Zeitraum von {{days}} Tagen ({{start}} bis {{end}}).",
     "longFreePeriodWarningNamed": "Diese Aufgabe erstreckt sich über {{name}} — einen arbeitsfreien Zeitraum von {{days}} Tagen ({{start}} bis {{end}}).",
+    "timephasedActive": "Folgt der Stundenverteilung aus MS Project",
+    "timephasedLost": "Stundenverteilung aus MS Project nach der Bearbeitung nicht mehr angewendet — die ursprüngliche Verteilung bleibt in der Datei erhalten",
     "completion": "Fortschritt (%)",
     "progress": {
       "actualStart": "Ist-Anfang",
@@ -88,9 +91,10 @@
     "freeFloat": "Freier Puffer:",
     "criticalPath": "Kritischer Pfad:",
     "dependencies": "Abhängigkeiten",
+    "jumpToTask": "Zur Aufgabe {{wbs}} springen",
     "relationPopoverTitle": "Beziehungstyp",
     "driving": "Maßgebende Beziehung (driving)",
-    "lag": "Verzögerung (z.B. 2d, 3ed, 50%, -25e%)",
+    "lag": "Verzögerung (z.B. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Berechnen",
     "assignments": {
       "title": "Zuweisungen",
@@ -154,7 +158,7 @@
     "notCalculated": "Neu berechnen (F5), um maßgebende Beziehungen und Puffer zu sehen",
     "warnTruncatedLead": "Vorlauf am Projektstart gekappt — die Überlappung wird nicht vollständig genutzt",
     "warnLeadExceedsDuration": "Der Vorlauf ist größer als die Dauer des Vorgängers",
-    "warnSummaryEndpoint": "Ohne Wirkung: Sammelaufgabe als Endpunkt"
+    "warnDropped": "Nicht in die Berechnung einbezogen"
   },
   "structure": {
     "title": "Codes & Felder",
