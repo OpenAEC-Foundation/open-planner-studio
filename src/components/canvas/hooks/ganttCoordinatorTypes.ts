@@ -82,6 +82,7 @@ export interface GanttViewportCoordinatorInput {
   showMiniMap: boolean;
   compressNonWorkdays: boolean;
   enableQuarterHourZoom: boolean;
+  enableHourPlanning: boolean;
   scrollMode: ScrollMode;
   positionDivision: PositionDivision;
   modifierMap: ModifierMap;

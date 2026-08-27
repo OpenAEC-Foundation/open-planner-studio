@@ -2,6 +2,7 @@ import type { UIState, AppSlice, NotifyInput } from './types';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
+import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 
 export interface UiSlice {
   ui: UIState;
@@ -246,7 +247,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         }
       }
       Object.assign(s.ui, updates);
-      const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+      const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
       if (s.view.zoom > max) s.view.zoom = max;
     }),
 

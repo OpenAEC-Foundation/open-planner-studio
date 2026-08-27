@@ -20,6 +20,7 @@ import {
   setGanttScrollBounds,
 } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
+import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { MS_PER_DAY } from '@/engine/renderer/timeAxis';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import {
@@ -53,9 +54,16 @@ export function useGanttViewportCoordinator(
   const latest = useRef(input);
   latest.current = input;
 
+  // Ook zonder taken moet de tijdlijn de concrete kalenderuitzonderingen kunnen bereiken. Een
+  // feestdag is dan de enige domeindatum die de gebruiker naar de Gantt kan willen pannen.
+  const calendarNavigationDates = useMemo(() => ({
+    starts: input.calendar.holidays.map(holiday => holiday.startDate),
+    ends: input.calendar.holidays.map(holiday => holiday.endDate || holiday.startDate),
+  }), [input.calendar.holidays]);
+
   const effectiveViewStart = useMemo(
-    () => computeEffectiveViewStart(input.tasks, input.view.viewStartDate),
-    [input.tasks, input.view.viewStartDate],
+    () => computeEffectiveViewStart(input.tasks, input.view.viewStartDate, calendarNavigationDates.starts),
+    [input.tasks, input.view.viewStartDate, calendarNavigationDates.starts],
   );
   const effectiveView = useMemo(
     () => ({ ...input.view, viewStartDate: effectiveViewStart }),
@@ -78,8 +86,9 @@ export function useGanttViewportCoordinator(
       effectiveViewStart,
       input.compressNonWorkdays,
       sharedAxis,
+      calendarNavigationDates.ends,
     ),
-    [input.tasks, effectiveViewStart, input.compressNonWorkdays, sharedAxis],
+    [input.tasks, effectiveViewStart, input.compressNonWorkdays, sharedAxis, calendarNavigationDates.ends],
   );
   const contentWidthFor = useCallback(
     (zoom: number, tableWidth: number) => computeContentWidth(contentSpanDays, zoom, tableWidth),
@@ -135,6 +144,7 @@ export function useGanttViewportCoordinator(
       current.tasks,
       rect.width - current.taskTableWidth,
       current.enableQuarterHourZoom,
+      current.enableHourPlanning,
     );
     if (!fit) return;
     current.setZoom(fit.zoom);
@@ -147,6 +157,7 @@ export function useGanttViewportCoordinator(
     taskTableWidth: input.taskTableWidth,
     view: input.view,
     enableQuarterHourZoom: input.enableQuarterHourZoom,
+    enableHourPlanning: input.enableHourPlanning,
     scrollMode: input.scrollMode,
     positionDivision: input.positionDivision,
     modifierMap: input.modifierMap,
@@ -176,13 +187,14 @@ export function useGanttViewportCoordinator(
       current.tasks,
       rect.width - current.taskTableWidth,
       current.enableQuarterHourZoom,
+      current.enableHourPlanning,
     );
     current.clearPendingFit();
     if (!fit) return;
     current.setZoom(fit.zoom);
     current.setViewStartDate(fit.viewStartDate);
     current.setScroll(fit.scrollX, 0);
-  }, [input.view.pendingFit, input.tasks, input.taskTableWidth, input.enableQuarterHourZoom, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll]);
+  }, [input.view.pendingFit, input.tasks, input.taskTableWidth, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll]);
 
   useEffect(() => {
     const current = latest.current;
@@ -306,7 +318,7 @@ export function useGanttViewportCoordinator(
           requestedZoom,
           anchorX,
           taskTableWidth: 0,
-          maxZoom: current.enableQuarterHourZoom ? 1000 : 400,
+          maxZoom: maxGanttZoom(current.enableQuarterHourZoom, current.enableHourPlanning),
         });
         if (next) current.setSplitView({
           ...currentSplit,

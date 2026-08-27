@@ -19,6 +19,7 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { ZOOM_STEP, DEFAULT_ZOOM, computeAnchoredZoom } from '@/utils/ganttViewport';
+import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 
 const S = () => useAppStore.getState();
 
@@ -81,6 +82,21 @@ eq('03e ongewijzigde geankerde zoom is een expliciete no-op', computeAnchoredZoo
   taskTableWidth: 0,
   maxZoom: 400,
 }), null);
+
+// G1: uren- en kwartierlabels zijn alleen bruikbaar als de zoomgrens de breedte van hun cellen
+// toelaat. Bewaak zowel de pure grens als de twee store-paden die alle zoomgebaar-/ribbonresultaten
+// uiteindelijk klemmen.
+eq('03f dagmodus blijft tot 400 px/dag begrensd', maxGanttZoom(false, false), 400);
+eq('03g urenmodus bereikt 1000 px/dag', maxGanttZoom(false, true), 1000);
+eq('03h kwartiermodus bereikt 4000 px/dag', maxGanttZoom(true, true), 4000);
+S().setUI({ enableHourPlanning: true, enableQuarterHourZoom: false });
+S().setZoom(1000);
+eq('03i setZoom kapt urenmodus niet voortijdig af', S().view.zoom, 1000);
+S().setUI({ enableQuarterHourZoom: true });
+S().setTimeScale('hour');
+eq('03j tijdschaal uur blijft bereikbaar met kwartiermodus aan', S().view.zoom, 1000);
+S().setZoom(4000);
+eq('03k setZoom bereikt de kwartiergrens', S().view.zoom, 4000);
 
 // ── 2) Bron: geen kale zoomwaarden meer naast setZoom. ───────────────────────
 {

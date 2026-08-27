@@ -7,7 +7,7 @@
 
 import { parseDate, diffCalendarDays, addCalendarDays, formatDate } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
-import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 
 /**
  * Zoomstap van de IN-/UITZOOM-knoppen en -sneltoetsen (K-item 34). Additief, niet
@@ -94,7 +94,11 @@ export function computeAnchoredZoom(input: AnchoredZoomInput): { zoom: number; s
  *    er ooit een render-memo overheen is gegaan. Of een importer werkelijk zo'n datum kan
  *    opleveren is niet vastgesteld — maar een guard van één regel is goedkoper dan dat uitzoeken.
  */
-export function computeEffectiveViewStart(tasks: Task[], viewStartDate: string): string {
+export function computeEffectiveViewStart(
+  tasks: Task[],
+  viewStartDate: string,
+  navigationStartDates: string[] = [],
+): string {
   let earliest = parseDate(viewStartDate);
   for (const task of tasks) {
     const start = task.time.earlyStart || task.time.scheduleStart || task.time.lateStart;
@@ -102,6 +106,14 @@ export function computeEffectiveViewStart(tasks: Task[], viewStartDate: string):
       const d = parseDate(start);
       if (d.getTime() < earliest.getTime()) earliest = d;
     }
+  }
+  // Een lege Gantt is niet automatisch een tijdloze Gantt: een kalender kan al concrete
+  // uitzonderingen bevatten voordat de eerste taak bestaat. Neem het begin van zulke periodes mee
+  // als mogelijke oorsprong, zodat een oudere vrije dag niet links van de onbereikbare scrollgrens
+  // blijft liggen. Ongeldige importwaarden slaan we net als ongeldige taakdatums veilig over.
+  for (const date of navigationStartDates) {
+    const parsed = parseDate(date);
+    if (!Number.isNaN(parsed.getTime()) && parsed.getTime() < earliest.getTime()) earliest = parsed;
   }
   // Onparseerbaar (leeg, corrupte import): geef de invoer onveranderd terug in plaats van te
   // gooien. De aanroeper rekent dan met een datum die net zo min klopt als zijn invoer, maar de
@@ -132,6 +144,7 @@ export function computeFitToProject(
   tasks: Task[],
   usableWidth: number,
   enableQuarterHourZoom: boolean,
+  enableHourPlanning = false,
 ): FitToProject | null {
   if (tasks.length === 0 || usableWidth <= 0) return null;
   let minStart: string | null = null;
@@ -151,7 +164,7 @@ export function computeFitToProject(
   }
   if (!minStart || !maxFinish) return null;
   const span = Math.max(1, diffCalendarDays(parseDate(minStart), parseDate(maxFinish)) + 1);
-  const max = enableQuarterHourZoom ? 1000 : 400;
+  const max = maxGanttZoom(enableQuarterHourZoom, enableHourPlanning);
   const zoom = Math.max(0.5, Math.min(max, usableWidth / span));
   // De renderer-origin op scrollX=0 is (minStart − ORIGIN_PADDING_DAYS); scroll door
   // ORIGIN_PADDING_DAYS·zoom zodat minStart op de chart-linkerrand landt en maxFinish exact op
