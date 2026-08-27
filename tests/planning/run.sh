@@ -301,6 +301,30 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERCHUNKCHECK="$DIR/.xer-chunk-boundary.mjs"
   if bundle_check "$DIR/check-xer-chunk-boundary.ts" "$XERCHUNKCHECK"; then node "$XERCHUNKCHECK" || STATUS=1; fi
 
+  XERARCHIVELIFECYCLECHECK="$DIR/.xer-source-archive-lifecycle.mjs"
+  if bundle_check "$DIR/check-xer-source-archive-lifecycle.ts" "$XERARCHIVELIFECYCLECHECK"; then node "$XERARCHIVELIFECYCLECHECK" || STATUS=1; fi
+
+  XERARCHIVEREADMODELCHECK="$DIR/.xer-archive-readmodel.mjs"
+  if bundle_check "$DIR/check-xer-archive-readmodel.ts" "$XERARCHIVEREADMODELCHECK"; then node "$XERARCHIVEREADMODELCHECK" || STATUS=1; fi
+
+  XERARCHIVECHAINCHECK="$DIR/.xer-source-archive-chain.mjs"
+  if bundle_check "$DIR/check-xer-source-archive-chain.ts" "$XERARCHIVECHAINCHECK"; then node "$XERARCHIVECHAINCHECK" || STATUS=1; fi
+
+  XERP6PRESENCECHECK="$DIR/.xer-p6-presence.mjs"
+  if bundle_check "$DIR/check-xer-p6-presence.ts" "$XERP6PRESENCECHECK"; then node "$XERP6PRESENCECHECK" || STATUS=1; fi
+
+  XERARCHIVESCALECHECK="$DIR/.xer-archive-scale.mjs"
+  if bundle_check "$DIR/check-xer-archive-scale.ts" "$XERARCHIVESCALECHECK"; then node "$XERARCHIVESCALECHECK" || STATUS=1; fi
+
+  XERP6XMLPARITYCHECK="$DIR/.xer-p6xml-parity.mjs"
+  if bundle_check "$DIR/check-xer-p6xml-parity.ts" "$XERP6XMLPARITYCHECK"; then node "$XERP6XMLPARITYCHECK" || STATUS=1; fi
+
+  XERX9VERDICTSCHECK="$DIR/.xer-x9-verdicts.mjs"
+  if bundle_check "$DIR/check-xer-x9-verdicts.ts" "$XERX9VERDICTSCHECK"; then node "$XERX9VERDICTSCHECK" || STATUS=1; fi
+
+  XEREXPORTLOSSCHECK="$DIR/.xer-export-loss.mjs"
+  if bundle_check "$DIR/check-xer-export-loss.ts" "$XEREXPORTLOSSCHECK"; then node "$XEREXPORTLOSSCHECK" || STATUS=1; fi
+
   # X4a eerste echte productmeting: readXER + de gedeelde solveProject-keten tegen precies de twee
   # onafhankelijke acht-taaks P6-orakels uit het brief.
   XERPRODUCTFIDCHECK="$DIR/.xer-product-fidelity.mjs"
@@ -310,6 +334,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # dev-bridge; de MCP-route heeft dezelfde drie fixtures in tests/mcp/cases-doc-file.ts.
   XERBYTEPATHCHECK="$DIR/.xer-byte-paths.mjs"
   if bundle_check "$DIR/check-xer-byte-paths.ts" "$XERBYTEPATHCHECK"; then node "$XERBYTEPATHCHECK" || STATUS=1; fi
+
+  # X9 — exact bronarchief en de self-contained IFC-manifest/chunkcontainer.
+  XERSOURCEARCHIVECHECK="$DIR/.xer-source-archive.mjs"
+  if bundle_check "$DIR/check-xer-source-archive.ts" "$XERSOURCEARCHIVECHECK"; then node "$XERSOURCEARCHIVECHECK" || STATUS=1; fi
+
+  IFCXERARCHIVECHECK="$DIR/.ifc-xer-archive-container.mjs"
+  if bundle_check "$DIR/check-ifc-xer-archive-container.ts" "$IFCXERARCHIVECHECK"; then node "$IFCXERARCHIVECHECK" || STATUS=1; fi
 
   # X6: RSRC/RSRCRATE/TASKRSRC, immutable retained bronrijen en het X4b-aliasingcontract.
   # De check is datumvrij en draait daarom slechts eenmaal buiten de tijdzonematrix.

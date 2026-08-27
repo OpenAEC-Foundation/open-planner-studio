@@ -544,10 +544,10 @@ const TASK_CANON = {
   timephasedContours: KEEP,
   // Z14b — MSP's eigen task-type/effort-driven-vlag (`OPS_MspTaskType`), puur data, geen verwijzing.
   mspTaskType: KEEP, effortDriven: KEEP,
-  // X0 (XER-etappeplan, 2026-08-20) — duration/activity blijven typecontract-only tot de bredere
-  // X9-archiefetappe. Zelfde taxonomie als `interferingFloat`/`isNearCritical`/`floatPath` hierboven.
-  p6DurationType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
-  p6ActivityType: { skip: 'nog geen IFC-pset — typecontract-only, X0 (XER-etappeplan); wiring volgt in X9' },
+  // X9 — dezelfde smalle OPS_P6Progress-Pset bewaart ook de twee P6-taaktypen; puur brondata,
+  // nooit solverinvoer.
+  p6DurationType: KEEP,
+  p6ActivityType: KEEP,
   // X7-reviewfix: deze vijf velden vormen samen de P6-solverfirewall en bronidentiteit. Ze moeten
   // vóór de bredere X9-archiefetappe al exact door IFC heen, anders kan een kale resume na reload
   // onbedoeld MSP-semantiek erven.

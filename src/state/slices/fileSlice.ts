@@ -20,6 +20,7 @@ import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
@@ -42,7 +43,9 @@ export { type ExportFormat };
 /** Resultaat van `exportAs` (K7): bij een cyclische planning wordt de export afgebroken vóór de
  *  opslaan-dialoog en de CPM-cyclusfout (`cpmResult.error`) als boodschap meegegeven, zodat de
  *  aanroeper die kan tonen i.p.v. stilletjes niets te doen. */
-export type ExportResult = { ok: true } | { ok: false; error: string };
+export type ExportResult =
+  | { ok: true; warnings: readonly XerExportLossWarning[] }
+  | { ok: false; error: string };
 
 /** Opties voor `applyLoadedProject` — de één gedeelde "vul de actieve document-state met een
  *  geparsed project"-implementatie (audit P5/F6). Elke variant (de drie open-paden + `loadState`)
@@ -434,6 +437,10 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       if (cpmError) return { ok: false, error: cpmError };
 
       const state = get();
+      const warnings = detectXerExportLoss(format, {
+        hasSourceArchive: state.xerSourceArchive !== null,
+        hasImportMetadata: state.xerImportMetadata !== null,
+      });
 
       let content: string;
       let ext: string;
@@ -479,7 +486,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       const outcome = await saveFileDialog(`${projectFileBase(state.project.name)}.${ext}`, content, filters);
       if (outcome) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
-      return { ok: true };
+      return { ok: true, warnings };
     },
 
     exportProjectWithPool: async (): Promise<ExportResult> => {
@@ -494,16 +501,16 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       const projectContent = writeIFC(buildWriteIFCInput(state));
       const base = projectFileBase(state.project.name);
       const outcome = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
-      if (!outcome) return { ok: true }; // dialoog geannuleerd — geen fout
+      if (!outcome) return { ok: true, warnings: [] }; // dialoog geannuleerd — geen fout
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       // 2. De pool ernaast (los bestand), alleen als het project aan een bedrijf gebonden is.
       const companyId = state.project.companyId;
-      if (!companyId) return { ok: true };
+      if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);
-      if (!poolContent) return { ok: true };
+      if (!poolContent) return { ok: true, warnings: [] };
       noticeIfDownloaded(await saveFileDialog(`${base}-bibliotheek.ifc`, poolContent, [{ name: 'IFC Files', extensions: ['ifc'] }]));
-      return { ok: true };
+      return { ok: true, warnings: [] };
     },
 
     recentFiles: [],

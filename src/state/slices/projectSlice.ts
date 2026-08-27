@@ -26,6 +26,7 @@ import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import type { AppSlice } from './types';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import type { XerImportMetadata } from '@/services/importTypes';
+import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
@@ -83,6 +84,8 @@ export interface ProjectSlice {
   fileHandle: FileSystemFileHandle | null;
   /** XER-herkomst van het actieve document; externe relaties blijven solverloze brondata. */
   xerImportMetadata: XerImportMetadata | null;
+  xerSourceArchive: XerSourceArchive | null;
+  xerSourceProjectId: string | null;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -168,6 +171,8 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
   filePath: null,
   fileHandle: null,
   xerImportMetadata: null,
+  xerSourceArchive: null,
+  xerSourceProjectId: null,
 
   setProject: (updates) => {
     // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B, ná escalatie T7 + de

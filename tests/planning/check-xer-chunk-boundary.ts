@@ -6,7 +6,9 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 const root = join(here, '..', '..');
 const srcRoot = join(root, 'src');
 const allowed = join('src', 'services', 'formatRegistry.ts');
-const marker = '@/services/xer';
+// Alleen de parsermap is lazy. Het bytearchief is een algemene service omdat
+// de IFC-reader/-writer die zonder de parserchunk moet kunnen gebruiken.
+const marker = '@/services/xer/';
 const diffs: string[] = [];
 let dynamicImportFound = false;
 
@@ -30,6 +32,18 @@ for (const file of walk(srcRoot)) {
 if (!dynamicImportFound) diffs.push('de lazy XER-import ontbreekt in formatRegistry.ts');
 const vite = readFileSync(join(root, 'vite.config.ts'), 'utf8');
 if (!vite.includes("return 'xer-reader'")) diffs.push('vite.config.ts mist de xer-reader manual chunk');
+const archiveModule = join(srcRoot, 'services', 'xerSourceArchive.ts');
+try {
+  statSync(archiveModule);
+} catch {
+  diffs.push('xerSourceArchive.ts ontbreekt buiten de lazy XER-parsermap');
+}
+try {
+  statSync(join(srcRoot, 'services', 'xer', 'xerSourceArchive.ts'));
+  diffs.push('xerSourceArchive.ts staat nog in de lazy XER-parsermap');
+} catch {
+  // Verwacht: de algemene archiefservice mag de parserchunk niet vergroten.
+}
 
 // De productielezer mag P6's opgeslagen rekenantwoord nooit als invoer gebruiken. Houd de
 // expliciete §4-verbodslijst hier statisch dicht: ook een toekomstige, ogenschijnlijk handige

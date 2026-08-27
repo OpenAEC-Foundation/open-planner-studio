@@ -16,6 +16,11 @@ import { resetUndoCoalescing } from '../transaction';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
+import {
+  bindXerImportMetadataToArchive,
+  XerSourceArchiveValidationError,
+  type XerSourceArchive,
+} from '@/services/xerSourceArchive';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -151,7 +156,13 @@ function cloneXerResourceMetadata(source: XerResourceMetadata): XerResourceMetad
   };
 }
 
-function cloneXerImportMetadata(source: XerImportMetadata): XerImportMetadata {
+function cloneXerImportMetadata(
+  source: XerImportMetadata,
+  archive: XerSourceArchive | null,
+): XerImportMetadata {
+  if (archive && source.sourceProjectId) {
+    return bindXerImportMetadataToArchive(archive, source.sourceProjectId);
+  }
   const { resources, metadata, ...withoutCatalogs } = source;
   const clone = deepClone(withoutCatalogs);
   // X6/X8-catalogi zijn bestandsbreed, readonly brondata. Een documentduplicaat krijgt zijn eigen
@@ -161,6 +172,64 @@ function cloneXerImportMetadata(source: XerImportMetadata): XerImportMetadata {
     ...(resources ? { resources: cloneXerResourceMetadata(resources) } : {}),
     ...(metadata ? { metadata } : {}),
   };
+}
+
+/** Herstel leest zelfstandige IFC's; identieke gevalideerde bronarchieven worden daarna één ref. */
+function shareRecoveredXerArchives(docs: readonly RecoveryDocInput[]): RecoveryDocInput[] {
+  const canonicalByDigest = new Map<string, XerSourceArchive[]>();
+  const metadataCache = new WeakMap<XerSourceArchive, string>();
+  const canonicalMetadata = (archive: XerSourceArchive): string => {
+    const cached = metadataCache.get(archive);
+    if (cached !== undefined) return cached;
+    const stable = (value: unknown): string => {
+      if (value === null || typeof value !== 'object') return JSON.stringify(value);
+      if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+        .map(([key, child]) => `${JSON.stringify(key)}:${stable(child)}`).join(',')}}`;
+    };
+    const result = stable({ diagnostics: archive.diagnostics, readModel: archive.readModel });
+    metadataCache.set(archive, result);
+    return result;
+  };
+  const sameArchive = (left: XerSourceArchive, right: XerSourceArchive): boolean =>
+    left.schemaVersion === right.schemaVersion
+    && left.format === right.format
+    && left.byteLength === right.byteLength
+    && left.sha256 === right.sha256
+    && left.encoding === right.encoding
+    && left.bom === right.bom
+    && left.newline === right.newline
+    && left.byteChunks.length === right.byteChunks.length
+    && left.byteChunks.every((chunk, index) => chunk === right.byteChunks[index])
+    && canonicalMetadata(left) === canonicalMetadata(right);
+  const bindDocumentToArchive = (
+    doc: RecoveryDocInput,
+    archive: XerSourceArchive,
+  ): RecoveryDocInput => {
+    const selector = doc.xerSourceProjectId ?? doc.xer?.sourceProjectId;
+    if (!selector) {
+      throw new XerSourceArchiveValidationError('XER-recovery mist een documentselector');
+    }
+    const metadata = bindXerImportMetadataToArchive(archive, selector);
+    return {
+      ...doc,
+      xerSourceArchive: archive,
+      xerSourceProjectId: selector,
+      xer: metadata,
+    };
+  };
+  return docs.map(doc => {
+    const archive = doc.xerSourceArchive;
+    if (!archive) return doc;
+    const key = `${archive.byteLength}:${archive.sha256}`;
+    const candidates = canonicalByDigest.get(key) ?? [];
+    const canonical = candidates.find(candidate => sameArchive(candidate, archive));
+    if (canonical) return bindDocumentToArchive(doc, canonical);
+    candidates.push(archive);
+    canonicalByDigest.set(key, candidates);
+    return bindDocumentToArchive(doc, archive);
+  });
 }
 
 /** `"Basis (variant 3)"` → `"Basis"`; een naam zonder variant-suffix blijft ongewijzigd. Zo blijft de
@@ -261,7 +330,13 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       filePath: null,
       fileHandle: null,
       isDirty: true,
-      xerImportMetadata: src.xerImportMetadata ? cloneXerImportMetadata(src.xerImportMetadata) : null,
+      xerImportMetadata: src.xerImportMetadata
+        ? cloneXerImportMetadata(src.xerImportMetadata, src.xerSourceArchive)
+        : null,
+      // De originele XER-bytes zijn immutable en worden doelbewust NIET gekloond: één runtimeobject
+      // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
+      xerSourceArchive: src.xerSourceArchive,
+      xerSourceProjectId: src.xerSourceProjectId,
     };
 
     set((s) => {
@@ -410,9 +485,10 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
 
   restoreDocuments: (docs, activeId) => {
     if (docs.length === 0) return;
-    const active = docs.find((d) => d.id === activeId) ?? docs[0];
+    const sharedDocs = shareRecoveredXerArchives(docs);
+    const active = sharedDocs.find((d) => d.id === activeId) ?? sharedDocs[0];
     set((s) => {
-      s.documents = castDraft(docs.map((d) => ({
+      s.documents = castDraft(sharedDocs.map((d) => ({
         id: d.id,
         payload: d.id === active.id ? null : payloadFromInput(d),
       })));

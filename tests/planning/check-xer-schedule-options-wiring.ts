@@ -388,27 +388,42 @@ eq('RecoveryDocInput behoudt één gedeeld file-wide bronarchief',
     === recoveredDocuments[1]?.payload.xerImportMetadata?.scheduleOptions.sourceArchive,
   true);
 
-eq('10 bestaand project-IFC dekt schedulingOptions/progressMode; retained XER-metadata blijft expliciet X9',
+eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen',
   (multiOpened.results as XerReadResult[]).map(result => {
     const roundTripped = readIFC(writeIFC(result));
     return {
       name: roundTripped.project.name,
       progressMode: roundTripped.project.progressMode,
       schedulingOptions: roundTripped.project.schedulingOptions,
-      xerMetadataSerialized: roundTripped.xer,
+      xer: {
+        sourceProjectId: roundTripped.xer?.sourceProjectId,
+        source: roundTripped.xer?.scheduleOptions.source,
+        retained: roundTripped.xer?.scheduleOptions.retainedSource,
+        report: roundTripped.xer?.report,
+      },
     };
   }), [
     {
       name: 'Project A', progressMode: 'PROGRESS_OVERRIDE',
       schedulingOptions: projectA?.project.schedulingOptions,
-      xerMetadataSerialized: undefined,
+      xer: {
+        sourceProjectId: projectA?.xer.sourceProjectId,
+        source: projectA?.xer.scheduleOptions.source,
+        retained: projectA?.xer.scheduleOptions.retainedSource,
+        report: projectA?.xer.report,
+      },
     },
     {
       // RETAINED_LOGIC is IFC's bestaande canonieke default en komt daarom als `undefined` terug;
       // de solversemantiek blijft retained. Een expliciete PROGRESS_OVERRIDE hierboven blijft staan.
       name: 'Project B', progressMode: undefined,
       schedulingOptions: projectB?.project.schedulingOptions,
-      xerMetadataSerialized: undefined,
+      xer: {
+        sourceProjectId: projectB?.xer.sourceProjectId,
+        source: projectB?.xer.scheduleOptions.source,
+        retained: projectB?.xer.scheduleOptions.retainedSource,
+        report: projectB?.xer.report,
+      },
     },
   ]);
 

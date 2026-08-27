@@ -208,6 +208,27 @@ test('update_tasks: mspTaskType/effortDriven/timephasedContours zijn read-only (
   assert(t.timephasedContours === undefined, 'timephasedContours niet gezet');
 });
 
+test('X9: p6DurationType/p6ActivityType zijn via de echte MCP-update runtime read-only', async () => {
+  reset();
+  const id = seedTask('P6-brondata', 5);
+  const before = JSON.stringify(taskById(id));
+
+  for (const [field, value] of [
+    ['p6DurationType', 'DT_FixedRate'],
+    ['p6ActivityType', 'TT_LOE'],
+  ] as const) {
+    const res = await call('planner_update_tasks', {
+      updates: [{ id, fields: { [field]: value } }],
+    });
+    const rejection = rejections(res)[0];
+    assert(rejection?.reason.includes(`onbekend veld '${field}'`), `de runtimeweigering noemt ${field}`);
+    assert(/P6|\.xer|importdata/.test(rejection?.reason ?? ''), `de runtimeweigering motiveert ${field}`);
+    assertEq(okData(res).updated, [], `${field} is niet als toegepast gerapporteerd`);
+  }
+
+  assertEq(JSON.stringify(taskById(id)), before, 'beide geweigerde MCP-calls laten de taak byte-identiek');
+});
+
 test('update_tasks: fields.time wordt geweigerd en laat de hele time-tak intact', async () => {
   reset();
   withStatusDate();

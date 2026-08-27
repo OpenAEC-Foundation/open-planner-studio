@@ -20,7 +20,7 @@ export type IFCSaveSource = Pick<
   | 'calendars'
   | 'baselines'
   | 'activeBaselineId'
->;
+> & Partial<Pick<DocumentPayload, 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId'>>;
 
 /**
  * Bouw de VOLLEDIGE `writeIFC`-invoer uit de state/payload. Eén plek bepaalt welke velden
@@ -42,6 +42,9 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     resourceCalendars: src.calendars,
     baselines: src.baselines,
     activeBaselineId: src.activeBaselineId,
+    xer: src.xerImportMetadata ?? undefined,
+    xerSourceArchive: src.xerSourceArchive ?? undefined,
+    xerSourceProjectId: src.xerSourceProjectId ?? undefined,
   };
 }
 
@@ -49,7 +52,7 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
  *  deze lijst aan het type, zodat hij niet stil kan afdrijven van `buildWriteIFCInput`. */
 const IFC_SAVE_KEYS = [
   'project', 'calendar', 'tasks', 'sequences', 'resources', 'assignments',
-  'activityCodeTypes', 'customFieldDefs', 'calendars', 'baselines', 'activeBaselineId',
+  'activityCodeTypes', 'customFieldDefs', 'calendars', 'baselines', 'activeBaselineId', 'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;
