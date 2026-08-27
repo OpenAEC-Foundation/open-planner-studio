@@ -22,6 +22,18 @@ export type InsertWhere = 'above' | 'below';
 export type NewTaskInput = Partial<Task> & { name: string };
 
 /**
+ * Rond elke gewone taak-toevoegactie identiek af: de nieuwe taak is de enige selectie, de
+ * bestaande Gantt-focusroute toont rij en datum zonder de zoomkeuze te wijzigen, en het
+ * eigenschappenpaneel zet de naam klaar om meteen te overschrijven.
+ */
+function finishNewTask(id: string): string {
+  const store = useAppStore.getState();
+  store.focusOnTask(id, { preserveZoom: true });
+  store.setUI({ showPropertiesPanel: true, pendingTaskNameFocusId: id });
+  return id;
+}
+
+/**
  * Het ANKER voor "Invoegen boven/onder" over een reikwijdte (issue #45, nasleep): de BOVENSTE
  * (`above`) respectievelijk ONDERSTE (`below`) taak van de reikwijdte, in de volgorde ZOALS DE
  * GEBRUIKER ZE OP HET SCHERM ZIET (`viewRows`).
@@ -131,13 +143,13 @@ function meldGeblokkeerd(): void {
 export function addTaskNearSelection(partial: NewTaskInput): string {
   const store = useAppStore.getState();
   const scope = store.selectedTaskIds;
-  if (scope.length === 0) return store.addTask(partial);
+  if (scope.length === 0) return finishNewTask(store.addTask(partial));
   if (!canInsertRelative()) {
     meldGeblokkeerd();
-    return store.addTask(partial);
+    return finishNewTask(store.addTask(partial));
   }
   const anchorId = insertAnchorForScope(scope, 'below');
-  return store.addTask(anchorId ? { ...partial, position: { anchorId, where: 'below' } } : partial);
+  return finishNewTask(store.addTask(anchorId ? { ...partial, position: { anchorId, where: 'below' } } : partial));
 }
 
 /**
@@ -158,10 +170,10 @@ export function insertTaskRelativeToScope(
 ): string | null {
   const store = useAppStore.getState();
   const anchorId = insertAnchorForScope(scope, where);
-  if (!anchorId) return store.addTask(partial);
+  if (!anchorId) return finishNewTask(store.addTask(partial));
   if (!canInsertRelative()) {
     meldGeblokkeerd();
     return null;
   }
-  return store.addTask({ ...partial, position: { anchorId, where } });
+  return finishNewTask(store.addTask({ ...partial, position: { anchorId, where } }));
 }

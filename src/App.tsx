@@ -16,6 +16,7 @@ import { PresentationHint } from '@/components/layout/PresentationHint';
 import { RightRail } from '@/components/layout/RightRail/RightRail';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
 import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
+import { NewOrOpenProjectDialog } from '@/components/dialogs/NewOrOpenProjectDialog';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
@@ -76,6 +77,7 @@ function AppContent() {
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const showProjectInfoDialog = useAppStore(s => s.ui.showProjectInfoDialog);
   const showNewProjectDialog = useAppStore(s => s.ui.showNewProjectDialog);
+  const showNewOrOpenProjectDialog = useAppStore(s => s.ui.showNewOrOpenProjectDialog);
   const showSettingsDialog = useAppStore(s => s.ui.showSettingsDialog);
   const showCalendarDialog = useAppStore(s => s.ui.showCalendarDialog);
   const showStructureDialog = useAppStore(s => s.ui.showStructureDialog);
@@ -322,6 +324,7 @@ function AppContent() {
           laden van een chunk is onzichtbaar. */}
       <Suspense fallback={null}>
         <TaskDialog />
+        {showNewOrOpenProjectDialog && <NewOrOpenProjectDialog />}
         {(showProjectInfoDialog || showNewProjectDialog) && <ProjectInfoDialog />}
         {showSettingsDialog && <SettingsDialog />}
         {showCalendarDialog && <CalendarDialog />}

@@ -102,6 +102,8 @@ export function createDefaultUI(): UIState {
     showProjectOverview: false,
     pendingCloseDocId: null,
     showNewProjectDialog: false,
+    showNewOrOpenProjectDialog: false,
+    pendingTaskNameFocusId: null,
     showFeedbackDialog: false,
     showStructureDialog: false,
     traceMode: 'off',

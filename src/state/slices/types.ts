@@ -251,6 +251,10 @@ export interface UIState {
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
+  /** Compacte keuze na een plusknop in de projectkiezer; maakt pas na een keuze iets aan/open. */
+  showNewOrOpenProjectDialog: boolean;
+  /** Een pas gemaakte taak krijgt éénmalig de naamfocus in het eigenschappenpaneel. */
+  pendingTaskNameFocusId: string | null;
   showFeedbackDialog: boolean;              // session — feedback-dialoog open
   showStructureDialog: boolean;             // session — codes & velden-beheer open
   traceMode: TraceMode;                     // session — path tracing rond de geselecteerde taak

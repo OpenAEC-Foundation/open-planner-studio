@@ -60,7 +60,7 @@ export interface ViewSlice {
    *  GanttCanvas kent de canvas-afmetingen en de bijgewerkte `viewRows` (ná het uitklappen) en
    *  voert daar de echte zoom-/scrollberekening uit (`computeFocusTaskHorizontal`/
    *  `computeFocusTaskScrollY` in `ganttViewport.ts`). */
-  focusOnTask: (taskId: string) => void;
+  focusOnTask: (taskId: string, opts?: { preserveZoom?: boolean }) => void;
   /** Wis het `pendingFocusTaskId`-signaal (door GanttCanvas aangeroepen nadat de sprong is
    *  uitgevoerd). */
   clearPendingFocusTask: () => void;
@@ -155,17 +155,19 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
       s.view.pendingFit = false;
     }),
 
-  focusOnTask: (taskId) => {
+  focusOnTask: (taskId, opts) => {
     get().expandAncestorsOf(taskId);
     get().selectTask(taskId);
     set((s) => {
       s.view.pendingFocusTaskId = taskId;
+      s.view.pendingFocusTaskPreserveZoom = opts?.preserveZoom;
     });
   },
 
   clearPendingFocusTask: () =>
     set((s) => {
       s.view.pendingFocusTaskId = undefined;
+      s.view.pendingFocusTaskPreserveZoom = undefined;
     }),
 
   setHistogramResource: (resourceId) =>
