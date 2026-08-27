@@ -1,10 +1,10 @@
 # B1c — Nivelleren tegen restcapaciteit (ontwerp)
 
-Datum: 2026-08-17, bijgewerkt 2026-08-27 · Status: **concept** — het interactieconcept is
-gekozen (besluit eigenaar: concept F, §3) en de tune-bediening ook (besluit eigenaar
-2026-08-27: fasestrook-handles, §6). Resterende beslispunten: §11. Dit document is de
-neerslag van drie prototyperondes met de eigenaar op 2026-08-17; de speelbare prototypes
-staan als privé-artifacts: "Wie wijkt?" (rondes 1–3, zelfde link, versiegeschiedenis) en
+Datum: 2026-08-17, bijgewerkt 2026-08-27 · Status: **ontwerp compleet** — alle beslispunten
+zijn door de eigenaar besloten (concept F §3; fasestrook-handles §6; undo-vorm §5;
+float-en-pin §11.3). Volgende stap: implementatieplan voor F1. Dit document is de neerslag
+van drie prototyperondes met de eigenaar op 2026-08-17; de speelbare prototypes staan als
+privé-artifacts: "Wie wijkt?" (rondes 1–3, zelfde link, versiegeschiedenis) en
 "Interface-lab" (vier tune-bedieningen).
 
 ## 1. Doel en aanleiding
@@ -83,12 +83,18 @@ van een vlak `maxUnits`-getal; `capacityOf(resId, dag)` in `ResourceLeveler.ts` 
 de natuurlijke naad.
 
 **Nieuwe invoervorm.** De nivelleerder moet per document een plafond *"maximale uitloop van de
-einddatum = X werkdagen"* accepteren, in plaats van alleen "nivelleer dit document".
+einddatum = X werkdagen"* accepteren, in plaats van alleen "nivelleer dit document" — plus een
+**pin-vlag** per document: gepind = de boeking ligt volledig vast (ook binnen float) en telt
+alleen als vaste last mee in het capaciteitsprofiel.
 
 **Fasering (reële faseringsgrens, besluit ronde 3):**
 
 - **F1 — uitloop-modus** op de bestaande motor: `levelingDelay` per taak, capaciteitsprofiel
   per dag erin, plafonds erop. Geen nieuwe motorcapaciteit; uitleverbaar als eerste stap.
+  In F1 is er nog géén gereedschapskeuze in de UI: stap 0 (de schakelaar, met het
+  prijskaartje van beide standen) verschijnt pas met F2 — een schakelaar met één werkende
+  stand zou dood UI zijn. De F1-flow begint dus bij de rangorde; de fasestroken tonen er
+  geschoven blokken (gestippelde omtrek op de oude plek), nog geen gearceerde pauzedagen.
 - **F2 — onderbreek-modus**: taak-splitsing (een fase in segmenten met pauzedagen ertussen).
   Raakt het taakmodel, de renderer (gesplitste balken), de IFC-round-trip en de motor; eigen
   ontwerpronde waard zodra F1 staat.
@@ -102,11 +108,10 @@ functie bovenop de bestaande bouwstenen (`DailyLoad`, `maxUnitsOn`, `CalendarEng
 Toepassen schrijft in élk document dat in het voorstel meedoet — ook slapende. Mechanisme:
 zelfde patroon als B1b's `recalculateStaleSleepingDocuments` (payload-clone → solve →
 volledige payload-spread terug), maar nu mét `levelingDelay`-wijzigingen en dus mét
-dirty-markering. **Open ontwerpprobleem: de undo-stap.** De undo-stack is per document; een
-verdeling over drie documenten vraagt een samengestelde ongedaan-maak-actie over
-documentgrenzen die er nu niet is. Opties (beslispunt §11): per document een gewone undo-stap
-plus één samenvattende melding met "alles terugdraaien"-knop, of een echte samengestelde
-undo-transactie (groter; raakt `snapshot.ts`/`transaction.ts`).
+dirty-markering. **De undo-vorm (besluit eigenaar 2026-08-27):** per document een gewone
+undo-stap op de bestaande per-document-stack, gebundeld onder één samenvattende melding met
+een "alles terugdraaien"-knop. Geen samengestelde undo-transactie over documentgrenzen —
+die raakt `snapshot.ts`/`transaction.ts` en kan altijd nog als de praktijk erom vraagt.
 
 ## 6. De tune-bediening: fasestrook-handles (besluit)
 
@@ -131,9 +136,12 @@ sowieso nodig heeft — de bediening is een handle op een bestaand element, geen
 taal ernaast. De keerzijde uit het lab-oordeel (vraagt fijnmotoriek) wordt gedempt door de
 toetsenbordbediening en door snappen op hele werkdagen.
 
-Uit de andere drie bedieningen blijft één idee expliciet herbruikbaar genoteerd: **pins**
-(een document vastzetten op zijn huidige stand) uit de vaten-variant — additief toe te voegen
-aan de fasestroken als er in de praktijk behoefte blijkt.
+Uit de vaten-variant komt de **pin mee naar v1** (besluit eigenaar 2026-08-27): per
+fasestrook een vastzetknopje dat het document volledig bevriest — einddatum én werkdagen.
+Een gepind document doet niet mee in de verdeling, ook niet binnen zijn float; de verdeler
+behandelt zijn boeking als vaste last (hij telt gewoon mee in het capaciteitsprofiel). De
+pin is daarmee hét gereedschap voor "houd ook je dágen" — zie §11.3 voor het besluit
+waarom float-benutting verder niet als last telt.
 
 Twee **systeembevindingen** uit het lab gelden ook voor deze bediening:
 
@@ -162,9 +170,10 @@ MS Project-equivalent erbij.
 ## 9. Tests
 
 Headless, in de bestaande suites: verdeler-cases (float eerst, uitschieter minimaal, rangorde
-gerespecteerd, plafonds hard, som-≠-oplossing-geval), restcapaciteitsprofiel-afleiding uit de
-occupancy-kern, uitloop-oplosser (hele fasen, geen gaten), en store-niveau: toepassen over
-meerdere payloads + terugdraaien + "uncounted document blokkeert".
+gerespecteerd, plafonds hard, gepind document volledig ongemoeid, som-≠-oplossing-geval),
+restcapaciteitsprofiel-afleiding uit de occupancy-kern, uitloop-oplosser (hele fasen, geen
+gaten), en store-niveau: toepassen over meerdere payloads + terugdraaien + "uncounted
+document blokkeert".
 
 ## 10. Buiten scope (bewust)
 
@@ -173,10 +182,12 @@ meerdere payloads + terugdraaien + "uncounted document blokkeert".
 - Cross-machine boekingen — wacht op gedeelde opslag/sync (B1.1-beperking).
 - MCP-tools voor de verdeler — triviaal additief zodra gevraagd.
 
-## 11. Beslispunten voor de eigenaar
+## 11. Beslispunten voor de eigenaar — alle besloten (2026-08-27)
 
-1. ~~De tune-bediening~~ — **besloten 2026-08-27: fasestrook-handles (§6).**
-2. **De undo-vorm** bij schrijven in meerdere documenten (§5).
-3. **Telt float-benutting als "last" voor rang 1?** In de prototypes niet (rang 1 kan
-   pauzedagen krijgen zolang zijn einddatum staat); het alternatief — rang 1 houdt ook zijn
-   dágen — maakt verdelingen duurder maar voorspelbaarder.
+1. ~~De tune-bediening~~ — **fasestrook-handles (§6).**
+2. ~~De undo-vorm~~ — **per document een gewone undo-stap, gebundeld onder één melding met
+   "alles terugdraaien"-knop (§5).**
+3. ~~Telt float-benutting als "last" voor rang 1?~~ — **Nee: "ontzien" beschermt de
+   einddatum, niet de werkdagen; schuiven binnen float blijft toegestaan en wordt zichtbaar
+   getoond in de fasestrook. Wie een project volledig wil bevriezen (einddatum én werkdagen)
+   gebruikt de pin, die in v1 meekomt (§6).**
