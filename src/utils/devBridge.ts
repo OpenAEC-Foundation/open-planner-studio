@@ -2,9 +2,9 @@ import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
-import { readIFC } from '@/services/ifc/ifcReader';
 import {
   parseOpenedFile,
+  readIFCWithXerReconstruction,
   readFormatForFile,
   readFormatInput,
   saveTargetFor,
@@ -51,12 +51,12 @@ function stateSnapshot(s: AppState) {
 }
 
 /** Niveau 1 — serialiseer de huidige state naar IFC en parse 'm terug; meet dataverlies. Werkt ook in de browser. */
-function roundTrip() {
+async function roundTrip() {
   const s = useAppStore.getState();
   const content = writeIFC(buildWriteIFCInput(s));
   // Geen `labels`: dev-only zelftesthaak (`window.__OPS__`), geen productie-UI — `readIFC` valt
   // terug op de Engelse default voor een bestand zonder IFCPROJECT (zie ImportLabels).
-  const parsed = readIFC(content);
+  const parsed = await readIFCWithXerReconstruction(content);
   const before = counts(s);
   const after = {
     tasks: parsed.tasks.length,

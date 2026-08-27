@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { documentTitle } from '@/utils/documents';
 import type { RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
 import { recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
@@ -66,7 +66,7 @@ export function useRecoveryRestore(): RecoveryRestore {
         let failed = 0;
         for (const d of loaded.docs) {
           try {
-            const parsed = readIFC(d.ifc, buildImportLabels(t));
+            const parsed = await readIFCWithXerReconstruction(d.ifc, buildImportLabels(t));
             // Welke velden bij crashherstel meegaan bepaalt `recoveryInputFromParsed` (bevinding
             // K3) — deze hook houdt bewust geen veldkennis.
             restored.push(recoveryInputFromParsed(parsed, {

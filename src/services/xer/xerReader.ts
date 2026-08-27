@@ -11,6 +11,7 @@
 import type {
   ImportResult, XerEnumFallback, XerExternalRelation, XerImportMetadata,
 } from '@/services/importTypes';
+import { registerXerArchiveReconstructor } from '@/services/ifc/ifcReader';
 import { getCalendarBands, promoteHourCalendar } from '@/services/subdayIo';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence, SequenceType } from '@/types/sequence';
@@ -30,6 +31,7 @@ import {
   bindXerImportMetadataToArchive,
   createXerSourceArchiveFromOwnedMetadata,
   detectXerSourcePresentation,
+  type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import { readXerCalendars } from './xerCalendarData';
 import { buildXerMetadataCatalog, materializeXerMetadata, type XerMetadataCatalog } from './xerMetadata';
@@ -888,3 +890,17 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
     { table: 'TASK' },
   );
 }
+
+/** Herbouw de volledige X9-runtimegrafiek uit uitsluitend de canonieke XER-bronbytes. */
+export function reconstructXerSourceArchiveFromBytes(bytes: Uint8Array): XerSourceArchive {
+  const opened = readXER(bytes);
+  const first = 'kind' in opened ? opened.results[0] : opened;
+  if (!first?.xerSourceArchive) {
+    throw new Error('De XER-bron leverde geen reconstruerbaar bronarchief op.');
+  }
+  return first.xerSourceArchive;
+}
+
+// Module-initialisatie gebeurt uitsluitend in de lazy XER-chunk (formatRegistry). Vanaf dat
+// moment kan de synchrone IFC-reader compacte bronarchieven reconstrueren zonder parser-import.
+registerXerArchiveReconstructor(reconstructXerSourceArchiveFromBytes);

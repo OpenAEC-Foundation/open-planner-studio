@@ -24,6 +24,12 @@ import {
 
 export const XER_SOURCE_ARCHIVE_SCHEMA_VERSION = 1;
 export const XER_SOURCE_ARCHIVE_CHUNK_BYTES = 196_608;
+/**
+ * IFC-envelopeversie. De runtime-archivevorm blijft schema 1: alleen de persistente container
+ * verandert. Schema 2 bewaart geen projecteerbare metadata, maar reconstrueert die uit de bytes.
+ */
+export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION = 2;
+export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT = 'raw-source-reconstruction-v1';
 
 export type XerSourceArchiveEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 export type XerSourceArchiveBom = 'utf-8' | 'utf-16le' | 'utf-16be' | 'none';

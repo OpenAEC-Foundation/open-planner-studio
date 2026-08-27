@@ -342,6 +342,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   IFCXERARCHIVECHECK="$DIR/.ifc-xer-archive-container.mjs"
   if bundle_check "$DIR/check-ifc-xer-archive-container.ts" "$IFCXERARCHIVECHECK"; then node "$IFCXERARCHIVECHECK" || STATUS=1; fi
 
+  # X9-compactopslag: schema-2 bewaart alleen de gehashte bronbytes; diagnostics/readmodel
+  # worden bij lezen opnieuw uit die zelfstandige bron afgeleid. Schema-1 blijft invoerbaar.
+  XERARCHIVECOMPACTCHECK="$DIR/.xer-archive-compact.mjs"
+  if bundle_check "$DIR/check-xer-archive-compact.ts" "$XERARCHIVECOMPACTCHECK"; then node "$XERARCHIVECOMPACTCHECK" || STATUS=1; fi
+
   # X6: RSRC/RSRCRATE/TASKRSRC, immutable retained bronrijen en het X4b-aliasingcontract.
   # De check is datumvrij en draait daarom slechts eenmaal buiten de tijdzonematrix.
   XERRESOURCESCHECK="$DIR/.xer-resources.mjs"

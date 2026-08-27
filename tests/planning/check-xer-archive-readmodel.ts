@@ -15,6 +15,7 @@ import {
 import { useAppStore } from '@/state/appStore';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { recoveryInputFromParsed } from '@/state/documentContract';
+import { writeExpandedLegacyXerArchiveFixture } from './xerArchiveLegacyFixture';
 
 declare const process: { exit(code: number): never };
 const failures: string[] = [];
@@ -221,7 +222,7 @@ truthy('6b IFC-read bindt X5 sourceArchive/sourceRows opnieuw aan de ene archive
         ]);
   }));
 
-const originalIfc = writeIFC(a);
+const originalIfc = writeExpandedLegacyXerArchiveFixture(a);
 const diagnosticChunkPattern = /IFCPROPERTYSINGLEVALUE\('DiagnosticsChunk(\d{6})',\$,IFCTEXT\('([A-Za-z0-9+/=]+)'\),\$\)/g;
 const diagnosticChunks = [...originalIfc.matchAll(diagnosticChunkPattern)]
   .sort((left, right) => left[1]!.localeCompare(right[1]!));

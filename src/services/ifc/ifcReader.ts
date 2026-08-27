@@ -28,7 +28,8 @@ import type { XerImportMetadata } from '@/services/importTypes';
 import {
   bindXerImportMetadataToArchive, createXerSourceArchiveFromOwnedMetadata, decodeXerBase64Chunk,
   parseXerArchiveMetadataPayload, sha256Hex,
-  XER_SOURCE_ARCHIVE_CHUNK_BYTES,
+  XER_SOURCE_ARCHIVE_CHUNK_BYTES, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT,
+  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION,
   XER_SOURCE_ARCHIVE_SCHEMA_VERSION, type XerSourceArchive, type XerSourceArchiveBom,
   type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
 } from '@/services/xerSourceArchive';
@@ -42,6 +43,18 @@ import {
 // registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
 
 const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+
+type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceArchive;
+let xerArchiveReconstructor: XerArchiveReconstructor | null = null;
+
+/**
+ * De compacte IFC-envelope blijft synchroon leesbaar nadat de lazy XER-chunk is geladen.
+ * De parser registreert zichzelf bij module-initialisatie; de gewone IFC-hoofdbundel houdt
+ * daardoor geen statische afhankelijkheid op de zware XER-reader.
+ */
+export function registerXerArchiveReconstructor(reconstructor: XerArchiveReconstructor): void {
+  xerArchiveReconstructor = reconstructor;
+}
 
 interface StepEntity {
   id: string; // STEP entity ID (may include letters, e.g. "300T")
@@ -284,6 +297,23 @@ function validateArchivePropertyOrder(
   }
 }
 
+function validateCompactArchivePropertyOrder(
+  props: Map<string, unknown>, manifestNames: readonly string[], chunkCount: number,
+): void {
+  const propertyBudget = props.size - manifestNames.length;
+  if (propertyBudget < 0 || chunkCount !== propertyBudget) {
+    xerArchiveError('chunkcount past niet exact bij het werkelijk aanwezige propertybudget');
+  }
+  let position = 0;
+  for (const actual of props.keys()) {
+    const expected = position < manifestNames.length
+      ? manifestNames[position]!
+      : `ByteChunk${String(position - manifestNames.length).padStart(6, '0')}`;
+    if (actual !== expected) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
+    position += 1;
+  }
+}
+
 function nonNegativeSafeInteger(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) xerArchiveError(`${name} is geen niet-negatief safe integer`);
   return value;
@@ -325,6 +355,9 @@ function extractXerSourceArchive(entities: StepEntity[], entityMap: Map<string, 
   const props = archiveProps(entities, entityMap, PSET.XerSourceArchive);
   if (!props) return undefined;
   const schemaVersion = nonNegativeSafeInteger(props.get('SchemaVersion'), 'SchemaVersion');
+  if (schemaVersion === XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION) {
+    return extractCompactXerSourceArchive(props);
+  }
   if (schemaVersion !== XER_SOURCE_ARCHIVE_SCHEMA_VERSION) xerArchiveError(`onbekend SchemaVersion ${schemaVersion}`);
   if (requiredString(props, 'Format') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer');
   const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
@@ -371,6 +404,41 @@ function extractXerSourceArchive(entities: StepEntity[], entityMap: Map<string, 
     });
   } catch (error) {
     xerArchiveError(`diagnostics/readmodel kon niet worden opgebouwd: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/** Schema 2 bevat alleen de bronbytes. Alle afleidbare X9-caches herleven uit die bron. */
+function extractCompactXerSourceArchive(props: Map<string, unknown>): XerSourceArchive {
+  if (requiredString(props, 'Format') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer');
+  if (requiredString(props, 'StorageFormat') !== XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT) {
+    xerArchiveError('StorageFormat is onbekend');
+  }
+  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
+  const chunkSize = nonNegativeSafeInteger(props.get('ByteChunkSize'), 'ByteChunkSize');
+  if (chunkSize !== XER_SOURCE_ARCHIVE_CHUNK_BYTES) xerArchiveError(`ByteChunkSize is niet ${XER_SOURCE_ARCHIVE_CHUNK_BYTES}`);
+  const chunkCount = nonNegativeSafeInteger(props.get('ByteChunkCount'), 'ByteChunkCount');
+  if (chunkCount !== Math.ceil(byteLength / chunkSize)) xerArchiveError('ByteChunkCount past niet bij ByteLength');
+  const manifestNames = [
+    'SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256', 'ByteChunkSize', 'ByteChunkCount',
+  ];
+  validateCompactArchivePropertyOrder(props, manifestNames, chunkCount);
+  const sourceBytes = concatArchiveChunks(props, 'ByteChunk', chunkCount, byteLength);
+  const sourceHash = requiredString(props, 'Sha256');
+  if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) {
+    xerArchiveError('Sha256 is ongeldig of past niet bij de bytes');
+  }
+  try {
+    if (!xerArchiveReconstructor) {
+      xerArchiveError('compacte bron vereist de lazy XER-reader vóór reconstructie');
+    }
+    const archive = xerArchiveReconstructor(sourceBytes);
+    if (archive.sha256 !== sourceHash || archive.byteLength !== byteLength) {
+      xerArchiveError('gereconstrueerd archief past niet bij de canonieke bronbytes');
+    }
+    return archive;
+  } catch (error) {
+    if (error instanceof IfcParseError) throw error;
+    xerArchiveError(`compacte bron kon niet worden gereconstrueerd: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

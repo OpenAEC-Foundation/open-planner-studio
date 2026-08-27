@@ -11,7 +11,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 
 declare const process: {
   exit(code: number): never;
-  memoryUsage(): { heapUsed: number };
+  resourceUsage(): { maxRSS: number };
 };
 
 const failures: string[] = [];
@@ -126,7 +126,6 @@ const source = new TextEncoder().encode([
   '%E',
 ].join('\r\n'));
 
-const heapBefore = process.memoryUsage().heapUsed;
 const opened = readXER(source);
 if (!isMultiDocumentImport(opened)) throw new Error('Twaalfprojectenfixture opende niet als multi-document');
 expect('1 echte XER-reader opent twaalf afzonderlijke projecten', opened.results.length === 12);
@@ -220,10 +219,10 @@ expect('13 recovery bewaart documentspecifieke semantiek en projectselectie',
   && new Set(recovered.map(document => document.payload.xerSourceProjectId)).size === 12);
 await clearRecovery();
 
-const heapAfter = process.memoryUsage().heapUsed;
-expect('14 schaalproef levert finite heapmetingen zonder absolute tijd- of groottelimiet',
-  Number.isFinite(heapBefore) && Number.isFinite(heapAfter));
-console.log(`X9 12-project chain: heap-delta=${heapAfter - heapBefore} bytes; archives=${new Set(recovered.map(document => document.payload.xerSourceArchive)).size}; x5-caches=${new Set(recovered.map(document => document.payload.xerImportMetadata?.scheduleOptions.sourceArchive)).size}`);
+const peakRssKiB = process.resourceUsage().maxRSS;
+expect('14 schaalproef rapporteert OS-gemeten peak RSS zonder absolute tijd- of groottelimiet',
+  Number.isFinite(peakRssKiB) && peakRssKiB > 0);
+console.log(`X9 12-project chain: peak-rss=${peakRssKiB}KiB; archives=${new Set(recovered.map(document => document.payload.xerSourceArchive)).size}; x5-caches=${new Set(recovered.map(document => document.payload.xerImportMetadata?.scheduleOptions.sourceArchive)).size}`);
 
 if (failures.length === 0) {
   console.log(`OK  xer-source-archive-chain: alle checks groen (${checks})`);

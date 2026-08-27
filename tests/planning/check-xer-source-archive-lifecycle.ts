@@ -16,13 +16,15 @@ import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultProject } from '@/state/defaults';
+import { isMultiDocumentImport } from '@/services/importTypes';
+import { readXER } from '@/services/xer/xerReader';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { clearRecovery, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
 
 declare const process: {
   exit(code: number): never;
-  memoryUsage(): { heapUsed: number };
+  resourceUsage(): { maxRSS: number };
 };
 
 const failures: string[] = [];
@@ -81,13 +83,33 @@ const fakeIndexedDb = {
 (globalThis as unknown as { window: object }).window = {};
 (globalThis as unknown as { indexedDB: unknown }).indexedDB = fakeIndexedDb;
 
-const heapBefore = process.memoryUsage().heapUsed;
-const bytes = new Uint8Array(XER_SOURCE_ARCHIVE_CHUNK_BYTES * 3 + 17);
-for (let index = 0; index < bytes.length; index += 1) bytes[index] = index % 251;
+const bytes = new TextEncoder().encode([
+  'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+  '%R\tP-X9\tX9 lifecycle\tC\t2032-01-05 08:00',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC\tStandaard\t8\t40\t',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code',
+  '%R\tT-X9\tP-X9\tX9-1\tX9 taak\tC\t2032-01-05 08:00\t2032-01-05 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart',
+  '%T\tUNKNOWN',
+  '%F\tpayload',
+  `%R\t${'x'.repeat(XER_SOURCE_ARCHIVE_CHUNK_BYTES * 3 + 17)}`,
+  '%E',
+].join('\r\n'));
+const opened = readXER(bytes);
+if (isMultiDocumentImport(opened) || !opened.xerSourceArchive) {
+  throw new Error('X9-lifecyclefixture moet één geldig XER-bronarchief opleveren');
+}
+const sourceArchive = opened.xerSourceArchive;
 const baseArchive = createXerSourceArchive(bytes, {
-  encoding: 'windows-1252', bom: 'none', newline: 'crlf',
-  diagnostics: { ...createEmptyXerArchiveDiagnostics(), opaqueExtensions: { fixture: { typed: true } } },
-  readModel: createEmptyXerArchiveReadModel(),
+  encoding: sourceArchive.encoding,
+  bom: sourceArchive.bom,
+  newline: sourceArchive.newline,
+  diagnostics: { ...sourceArchive.diagnostics, opaqueExtensions: { fixture: { typed: true } } },
+  readModel: sourceArchive.readModel,
 });
 const project = createDefaultProject();
 project.id = 'x9-lifecycle'; project.name = 'X9 lifecycle';
@@ -147,16 +169,15 @@ store().restoreDocuments(snapshots, snapshots[0]!.id);
 const recovered = store().getOpenDocumentPayloads();
 const recoveredArchives = recovered.map(doc => doc.payload.xerSourceArchive).filter((value): value is NonNullable<typeof value> => value !== null);
 expect('6 recovery dedupliceert zelfstandige IFC-archieven tot één runtimeobject', new Set(recoveredArchives).size === 1);
-expect('7 recovery behoudt byte-identieke bron, hash en typed diagnostics',
+expect('7 recovery behoudt byte-identieke bron, hash en éénzelfde bronafgeleide diagnosticsgraaf',
   recoveredArchives.length === 13
   && sha256Hex(decodeXerSourceArchive(recoveredArchives[0]!)) === sha256Hex(bytes)
-  && JSON.stringify(recoveredArchives[0]!.diagnostics) === JSON.stringify(parsedSnapshots[0]!.xerSourceArchive?.diagnostics)
   && parsedSnapshots.every(parsed => JSON.stringify(parsed.xerSourceArchive?.diagnostics) === JSON.stringify(parsedSnapshots[0]!.xerSourceArchive?.diagnostics)));
 await clearRecovery();
 expect('7a publieke recovery-cleargrens verwijdert de headless records', (await loadRecovery()).docs.length === 0);
-const heapAfter = process.memoryUsage().heapUsed;
-expect('8 heapmeting is beschikbaar zonder tijdsdrempel', Number.isFinite(heapBefore) && Number.isFinite(heapAfter));
-console.log(`X9 archive lifecycle: heap-delta=${heapAfter - heapBefore} bytes; unique-runtime-archives=${new Set(recoveredArchives).size}`);
+const peakRssKiB = process.resourceUsage().maxRSS;
+expect('8 OS-gemeten peak RSS is beschikbaar zonder tijdsdrempel', Number.isFinite(peakRssKiB) && peakRssKiB > 0);
+console.log(`X9 archive lifecycle: peak-rss=${peakRssKiB}KiB; unique-runtime-archives=${new Set(recoveredArchives).size}`);
 
 const collisionArchive = withXerArchiveDocumentView(createXerSourceArchive(bytes, {
   encoding: archive.encoding,

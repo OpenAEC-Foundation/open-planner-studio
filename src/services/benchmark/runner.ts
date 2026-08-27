@@ -13,7 +13,7 @@ import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelation
 // de app doet — precies het soort meting waar je beslissingen op baseert.
 import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { GanttRenderer, type GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import { computeViewRows, type ViewRow } from '@/engine/view/visibleRows';
 import type { ViewContext } from '@/engine/view/filterEval';
@@ -187,7 +187,7 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
     const t0 = performance.now();
     // Geen `labels`: dienstlaag zonder `t(...)` — de benchmark leest zijn eigen zojuist geschreven IFC. `readIFC` valt dan terug op de Engelse
     // default voor een bestand zonder IFCPROJECT (zie ImportLabels).
-    const parsed = readIFC(ifc);
+    const parsed = await readIFCWithXerReconstruction(ifc);
     readSamples.push(performance.now() - t0);
     parsedTasks = parsed.tasks.length;
     await yieldToUi();

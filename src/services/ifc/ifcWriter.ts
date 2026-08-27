@@ -9,7 +9,7 @@ import { Baseline } from '@/types/baseline';
 import {
   effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
 } from '@/services/subdayIo';
-import type { ImportResult, XerImportMetadata } from '@/services/importTypes';
+import type { ImportResult } from '@/services/importTypes';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
@@ -17,8 +17,8 @@ import { PSET, PER_TASK_PSETS, ifcStr } from './ifcPsets';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { projectFileBase } from '@/utils/documents';
 import {
-  chunkXerArchiveBytes, encodeXerArchiveMetadataPayload, withXerArchiveDocumentView,
-  XER_SOURCE_ARCHIVE_CHUNK_BYTES, type XerSourceArchive,
+  XER_SOURCE_ARCHIVE_CHUNK_BYTES, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT,
+  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION, type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import {
   IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx,
@@ -209,7 +209,7 @@ export function writeIFC(input: WriteIFCInput): string {
   // Project. Description (arg 3) draagt project.description (fase 3, H2) — de reader leest 'm terug
   // uit de IFCWORKPLAN.Description-slot, met terugval op deze.
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(guidOf(ctx, project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
-  writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId, xer);
+  writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
@@ -325,33 +325,27 @@ export function writeIFC(input: WriteIFCInput): string {
 /** X9 — één self-contained Pset met manifest én deterministisch geordende bytes. */
 function writeXerSourceArchive(
   ctx: WriteContext, ownerHistId: number, archive: XerSourceArchive | undefined, sourceProjectId: string | undefined,
-  xer: XerImportMetadata | undefined,
 ): void {
   if (!archive) return;
   if (!sourceProjectId) throw new Error('XER-bronarchief kan niet zonder OPS_XerDocument-selector worden opgeslagen.');
-  const archival = xer ? withXerArchiveDocumentView(archive, xer) : archive;
-  const diagnostics = chunkXerArchiveBytes(encodeXerArchiveMetadataPayload(archival));
+  if (!archive.diagnostics.documentViews[sourceProjectId]) {
+    throw new Error('XER-bronarchief kan niet zonder geldige OPS_XerDocument-selector worden opgeslagen.');
+  }
   const props: number[] = [];
   const property = (name: string, value: string) => props.push(addLine(ctx, `xerarchive_prop_${name}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value},$)`));
-  property('SchemaVersion', `IFCINTEGER(${archival.schemaVersion})`);
-  property('Format', `IFCLABEL(${ifcStr(archival.format)})`);
-  property('ByteLength', `IFCINTEGER(${archival.byteLength})`);
-  property('Sha256', `IFCTEXT(${ifcStr(archival.sha256)})`);
-  property('Encoding', `IFCLABEL(${ifcStr(archival.encoding)})`);
-  property('Bom', `IFCLABEL(${ifcStr(archival.bom)})`);
-  property('Newline', `IFCLABEL(${ifcStr(archival.newline)})`);
+  property('SchemaVersion', `IFCINTEGER(${XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION})`);
+  property('Format', `IFCLABEL(${ifcStr(archive.format)})`);
+  property('StorageFormat', `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)})`);
+  property('ByteLength', `IFCINTEGER(${archive.byteLength})`);
+  property('Sha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
   property('ByteChunkSize', `IFCINTEGER(${XER_SOURCE_ARCHIVE_CHUNK_BYTES})`);
-  property('ByteChunkCount', `IFCINTEGER(${archival.byteChunks.length})`);
-  property('DiagnosticsByteLength', `IFCINTEGER(${diagnostics.byteLength})`);
-  property('DiagnosticsSha256', `IFCTEXT(${ifcStr(diagnostics.sha256)})`);
-  property('DiagnosticsChunkCount', `IFCINTEGER(${diagnostics.byteChunks.length})`);
-  archival.byteChunks.forEach((chunk, index) => property(`ByteChunk${String(index).padStart(6, '0')}`, `IFCTEXT(${ifcStr(chunk)})`));
-  diagnostics.byteChunks.forEach((chunk, index) => property(`DiagnosticsChunk${String(index).padStart(6, '0')}`, `IFCTEXT(${ifcStr(chunk)})`));
+  property('ByteChunkCount', `IFCINTEGER(${archive.byteChunks.length})`);
+  archive.byteChunks.forEach((chunk, index) => property(`ByteChunk${String(index).padStart(6, '0')}`, `IFCTEXT(${ifcStr(chunk)})`));
   const setId = addLine(ctx, 'pset_xerarchive', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_xerarchive'))},#${ownerHistId},${ifcStr(PSET.XerSourceArchive)},$,(${props.map(id => `#${id}`).join(',')}))`);
   addLine(ctx, 'rel_xerarchive', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_xerarchive'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${setId})`);
   const selectorProps: number[] = [];
   const selector = (name: string, value: string) => selectorProps.push(addLine(ctx, `xerdoc_prop_${name}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value},$)`));
-  selector('ArchiveSha256', `IFCTEXT(${ifcStr(archival.sha256)})`);
+  selector('ArchiveSha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
   selector('SourceProjectId', `IFCTEXT(${ifcStr(sourceProjectId)})`);
   const selectorSet = addLine(ctx, 'pset_xerdocument', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_xerdocument'))},#${ownerHistId},${ifcStr(PSET.XerDocument)},$,(${selectorProps.map(id => `#${id}`).join(',')}))`);
   addLine(ctx, 'rel_xerdocument', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_xerdocument'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${selectorSet})`);

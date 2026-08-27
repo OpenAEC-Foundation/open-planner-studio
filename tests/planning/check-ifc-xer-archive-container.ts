@@ -1,39 +1,49 @@
 // X9 — IFC-container voor het zelfstandige XER-bronarchief. Geen reader-mock: echte STEP-tekst
-// gaat door writeIFC én readIFC.
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
-import { createDefaultProject } from '@/state/defaults';
+// gaat door writeIFC én readIFC. De bron is geldige XER, want schema 2 reconstrueert daaruit.
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import {
-  createEmptyXerArchiveDiagnostics,
-  createEmptyXerArchiveReadModel,
-  createXerSourceArchive,
   decodeXerSourceArchive,
   sha256Hex,
 } from '@/services/xerSourceArchive';
+import { readXER } from '@/services/xer/xerReader';
 
 declare const process: { exit(code: number): never };
 const failures: string[] = [];
 const expect = (label: string, condition: boolean) => { if (!condition) failures.push(label); };
 
-const bytes = new Uint8Array(196_608 + 5);
-for (let i = 0; i < bytes.length; i++) bytes[i] = i % 251;
-const archive = createXerSourceArchive(bytes, {
-  encoding: 'windows-1252', bom: 'utf-8', newline: 'crlf',
-  diagnostics: createEmptyXerArchiveDiagnostics(), readModel: createEmptyXerArchiveReadModel(),
-});
-const project = createDefaultProject();
-project.id = 'OPS-XER-PROJECT'; project.name = 'XER archief';
-const calendar = createDefaultCalendar(); project.calendarId = calendar.id;
-const ifc = writeIFC({ project, calendar, tasks: [], sequences: [], resources: [], assignments: [], xerSourceArchive: archive, xer: {
-  sourceProjectId: 'P6-ARCHIVE', defaultCurrencyCode: '', tableReport: { encoding: 'windows-1252', endMarkerSeen: true, issues: [], unknownTables: [] },
-  calendarIssues: [], enumFallbacks: [], scheduleOptions: { source: 'xer-defaults', retainedSource: {}, fallbacks: [], diagnostics: [], sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] }, sourceRowIndexes: [], sourceRows: [] },
-  externalRelations: [{ id: 'EXT-1', localProjectId: 'P6-ARCHIVE', localTaskId: 'A', externalProjectId: 'B', externalTaskId: 'B', direction: 'predecessor', type: 'FS', lagMinutes: 15 }],
-  externalLinks: [{ id: 'LINK-1', predecessor: { projectId: 'B', taskId: 'B' }, successor: { projectId: 'P6-ARCHIVE', taskId: 'A' }, type: 'FS', lagMinutes: 15 }],
-  report: { projectsSeen: 2, documentsOpened: 1, emptyProjectsSkipped: 1, baselineProjectsExcluded: 0, baselinesMaterialized: 0, danglingBaselineReferences: 0, externalLinksPreserved: 1, baselineExclusionReverted: false, baselineFallbackReasons: [] },
-  resources: { catalog: {} as never, assignments: [], issues: [{ code: 'XER_RESOURCE_TYPE_FALLBACK', table: 'RSRC', line: 1, sourceId: 'R', fallback: 'LABOR' }] },
-} });
+const sourceText = [
+  'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+  '%R\tP6-ARCHIVE\tContainerfixture\tC\t2026-08-01 08:00',
+  '%T\tSCHEDOPTIONS',
+  '%F\tschedoptions_id\tproj_id\tsched_use_expect_end_flag',
+  '%R\tSO\tP6-ARCHIVE\tY',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC\tStandaard\t8\t40\t',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code',
+  '%R\tA\tP6-ARCHIVE\tA-1\tArchieftaak\tC\t2026-08-01 08:00\t2026-08-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart',
+  '%T\tRSRC',
+  '%F\trsrc_id\trsrc_name\trsrc_type\tclndr_id\tdef_qty_per_hr',
+  '%R\tR\tVakman\tRT_Labor\tC\t1',
+  '%T\tTASKRSRC',
+  '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\trole_id\ttarget_qty_per_hr\tremain_qty\ttarget_qty',
+  '%R\tAS\tP6-ARCHIVE\tA\tR\t\t1\t8\t8',
+  '%T\tUNKNOWN',
+  '%F\tpayload',
+  `%R\t${'x'.repeat(196_608)}`,
+  '%E',
+].join('\r\n');
+const bytes = new TextEncoder().encode(sourceText);
+const opened = readXER(bytes);
+if ('kind' in opened) throw new Error('Containerfixture moet één XER-document openen');
+const archive = opened.xerSourceArchive;
+if (!archive || !opened.xer) throw new Error('Containerfixture mist XER-bronarchief');
+const ifc = writeIFC(opened);
 
 expect('1 schrijft precies één manifestcontainer', (ifc.match(/OPS_XerSourceArchive/g) ?? []).length === 1);
 expect('2 schrijft selector met P6-project', ifc.includes('OPS_XerDocument') && ifc.includes('P6-ARCHIVE'));
@@ -43,19 +53,12 @@ expect('4 archive wordt uit IFC herlezen', read.xerSourceArchive !== undefined);
 if (read.xerSourceArchive) {
   expect('5 bytes zijn exact gelijk', sha256Hex(decodeXerSourceArchive(read.xerSourceArchive)) === sha256Hex(bytes));
   expect('6 projectselector herleeft naast het archief', read.xerSourceProjectId === 'P6-ARCHIVE');
-  expect('6a externe links, projectrapport en X6-provenance herleven uit diagnostics',
-    JSON.stringify({
-      links: read.xer?.externalLinks,
-      report: read.xer?.report,
-      provenance: read.xer?.resources && {
-        assignments: read.xer.resources.assignments,
-        issues: read.xer.resources.issues,
-      },
-    }) === JSON.stringify({
-      links: [{ id: 'LINK-1', predecessor: { projectId: 'B', taskId: 'B' }, successor: { projectId: 'P6-ARCHIVE', taskId: 'A' }, type: 'FS', lagMinutes: 15 }],
-      report: { projectsSeen: 2, documentsOpened: 1, emptyProjectsSkipped: 1, baselineProjectsExcluded: 0, baselinesMaterialized: 0, danglingBaselineReferences: 0, externalLinksPreserved: 1, baselineExclusionReverted: false, baselineFallbackReasons: [] },
-      provenance: { assignments: [], issues: [{ code: 'XER_RESOURCE_TYPE_FALLBACK', table: 'RSRC', line: 1, sourceId: 'R', fallback: 'LABOR' }] },
-    }));
+  expect('6a X5- en X6-bronmateriaal herleeft uit de compacte bronreconstructie',
+    read.xer?.sourceProjectId === 'P6-ARCHIVE'
+    && (read.xer.scheduleOptions.sourceRows.length ?? 0) > 0
+    && read.xer.resources?.assignments.length === 1
+    && read.xer.resources.assignments[0]?.sourceId === 'AS'
+    && read.xer.resources.assignments[0]?.rawRow.cells.taskrsrc_id === 'AS');
 }
 const rejectsArchive = (value: string) => {
   try { readIFC(value); return false; }
@@ -89,7 +92,7 @@ expect('8 ontbrekende chunk valt niet stil terug naar legacy-IFC', rejectsArchiv
 expect('9 mismatchende bronhash valt niet stil terug naar legacy-IFC', rejectsArchive(ifc.replace(archive.sha256, `0${archive.sha256.slice(1)}`)));
 expect('10 verkeerde manifestchunkgrootte valt niet stil terug naar legacy-IFC', rejectsArchive(ifc.replace('IFCINTEGER(196608)', 'IFCINTEGER(196607)')));
 expect('10a onbekende archiefschemaversie wordt getypeerd geweigerd',
-  rejectsArchiveWith(replaceIntegerProperty(ifc, 'SchemaVersion', 2), 'SchemaVersion'));
+  rejectsArchiveWith(replaceIntegerProperty(ifc, 'SchemaVersion', 3), 'SchemaVersion'));
 expect('10b mismatchende ByteLength wordt vóór samenvoegen getypeerd geweigerd',
   rejectsArchiveWith(ifc.replace(`IFCINTEGER(${bytes.length})`, `IFCINTEGER(${bytes.length + 1})`), 'heeft'));
 const reorderedChunks = ifc
@@ -111,12 +114,9 @@ const hugeBytes = replaceIntegerProperty(
 );
 expect('11 enorme coherente bytecount wordt vóór Array.from/allocatie getypeerd geweigerd',
   rejectsArchiveWith(hugeBytes, 'propertybudget'));
-const hugeDiagnostics = replaceIntegerProperty(
-  replaceIntegerProperty(ifc, 'DiagnosticsByteLength', hugeLength),
-  'DiagnosticsChunkCount', hugeCount,
-);
-expect('12 enorme coherente diagnosticscount wordt vóór Array.from/allocatie getypeerd geweigerd',
-  rejectsArchiveWith(hugeDiagnostics, 'propertybudget'));
+const injectedDiagnostics = ifc.replace('ByteChunk000000', 'DiagnosticsChunk000000');
+expect('12 schema-2 accepteert geen ingespoten uitgebreide diagnosticschunk',
+  rejectsArchiveWith(injectedDiagnostics, 'geordend'));
 
 const projectLine = ifc.split('\n').find(line => line.includes('=IFCPROJECT('));
 if (!projectLine) throw new Error('IFCPROJECT ontbreekt in fixture');
@@ -138,7 +138,7 @@ const duplicateRelation = ifc.replace(
 expect('15 dubbele propertyrelatie naar het archief wordt geweigerd',
   rejectsArchiveWith(duplicateRelation, 'hangt niet één-op-één'));
 
-const legacyIfc = writeIFC({ project, calendar, tasks: [], sequences: [], resources: [], assignments: [] });
+const legacyIfc = writeIFC({ project: opened.project, calendar: opened.calendar, tasks: [], sequences: [], resources: [], assignments: [] });
 const legacyRead = readIFC(legacyIfc);
 expect('16 geldige oudere IFC zonder XER-Psets blijft legacy-compatibel',
   legacyRead.xerSourceArchive === undefined && legacyRead.xerSourceProjectId === undefined && legacyRead.xer === undefined);

@@ -4,10 +4,11 @@
 // gedrag ongewijzigd (fase 3.8 etappe 1, taak T1).
 
 import { readIFC } from '@/services/ifc/ifcReader';
+import { XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT } from '@/services/xerSourceArchive';
 import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readP6XML } from '@/services/p6/p6xmlReader';
-import type { ImportLabels, OpenedImport } from '@/services/importTypes';
+import type { ImportLabels, ImportResult, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
 import { extensionOf } from '@/utils/filePath';
 
@@ -44,6 +45,20 @@ function parseProjectXml(content: string): OpenedImport {
   throw new Error('Onbekend XML-formaat: geen MS Project- of Primavera-markers gevonden');
 }
 
+/**
+ * Lees IFC met behoud van de lazy XER-chunkgrens. Alleen een schema-2-envelope laadt de parser;
+ * gewone IFC en historische schema-1-archieven blijven op het bestaande synchrone hoofdpad.
+ */
+export async function readIFCWithXerReconstruction(
+  content: string,
+  labels: ImportLabels = {},
+): Promise<ImportResult> {
+  if (content.includes(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)) {
+    await import('@/services/xer/xerReader');
+  }
+  return readIFC(content, labels);
+}
+
 /** Default-formaat bij een onbekende extensie (bestaand gedrag: de else-tak van alle vijf
  *  kopieën). Een APARTE, benoemde const-entry (T1-restpunt) i.p.v. `READ_FORMATS.find(...)!` —
  *  zo kan de default nooit "zoek 'm op en forceer met `!`" zijn (een niet-gevonden id zou dat stil
@@ -51,7 +66,7 @@ function parseProjectXml(content: string): OpenedImport {
  *  dus herordenen wisselt 'm nooit stilzwijgend. */
 const IFC_FORMAT: ReadFormat = {
   id: 'ifc', extensions: ['ifc'], kind: 'text', filterName: 'IFC Files', canBeSaveTarget: true,
-  read: async (i, labels) => readIFC(i.text ?? '', labels),
+  read: async (i, labels) => readIFCWithXerReconstruction(i.text ?? '', labels),
 };
 
 // Volgorde = filtervolgorde in openFile ('All Supported' met ifc,csv,xml,mpp,xer).
