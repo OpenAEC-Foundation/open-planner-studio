@@ -15,7 +15,7 @@
  */
 import { renderReport, PrintOptions, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
-import { computePreviewRasterLimits, PREVIEW_MAX_RASTER_PIXELS, PREVIEW_MAX_SOURCE_PIXELS } from '@/services/print/previewSafety';
+import { computePreviewRasterLimits, PREVIEW_MAX_RASTER_PIXELS, PREVIEW_MAX_SOURCE_PIXELS, PREVIEW_TARGET_PAGE_DENSITY } from '@/services/print/previewSafety';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task, TaskTime } from '@/types/task';
@@ -384,6 +384,22 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
 // ── 7. Veilige grote rapportpreview (#74) ────────────────────────────────────────────────────
 // De preview mag niet eerst een broncanvas en tientallen A1-pagina's zonder rasterbudget maken.
 // Dit is puur rekenwerk, dus de bescherming is toetsbaar zonder een browsercanvas te reserveren.
+{
+  // Normaal A3-landscape-paneel: de natuurlijke afbeeldingsbreedte moet duidelijk boven de
+  // CSS-breedte uitkomen. Alleen een groter page-canvas is niet genoeg als de bron lager dan de
+  // bestaande 2×-kwaliteit zou worden; daarom controleren we beide zijden van de keten.
+  const cssWidth = 900;
+  const normal = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1);
+  const naturalWidth = 1_191 * normal.pageSupersample;
+  ok(normal.renderScale === 2,
+    `normale previewbron behoudt 2×-resolutie (got ${normal.renderScale})`);
+  ok(naturalWidth >= cssWidth * PREVIEW_TARGET_PAGE_DENSITY - 1,
+    `normale previewpagina is ${PREVIEW_TARGET_PAGE_DENSITY}× CSS-breedte (got ${naturalWidth})`);
+  const normalSourcePixels = 1_200 * normal.renderScale * 1_800 * normal.renderScale;
+  const normalPagePixels = normal.maxPages * 1_191 * 842 * normal.pageSupersample * normal.pageSupersample;
+  ok(normalSourcePixels + normalPagePixels <= PREVIEW_MAX_RASTER_PIXELS + 20_000,
+    'normale scherpe preview blijft binnen gezamenlijk rasterbudget');
+}
 {
   const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2);
   ok(20_000 * limits.renderScale * 10_000 * limits.renderScale <= PREVIEW_MAX_SOURCE_PIXELS + 1,

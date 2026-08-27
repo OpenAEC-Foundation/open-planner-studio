@@ -14,6 +14,13 @@ export const PREVIEW_MAX_RASTER_PIXELS = 18_000_000;
 export const PREVIEW_MAX_PAGE_PIXELS = PREVIEW_MAX_RASTER_PIXELS - PREVIEW_MAX_SOURCE_PIXELS;
 export const PREVIEW_RENDER_SCALE = 2;
 export const PREVIEW_MAX_PAGES = 30;
+/**
+ * Een page-canvas krijgt bewust meer pixels dan zijn CSS-breedte. Exact 1× CSS×DPR is technisch
+ * niet onscherp, maar laat dunne rasterlijnen en kleine rapporttekst bij browser-resampling nog
+ * zacht ogen. 1,5× is voor normale A4/A3-previews zichtbaar scherper zonder de broncanvas boven
+ * de bestaande 2×-kwaliteit te dwingen; uitzonderlijk grote rapporten worden hieronder begrensd.
+ */
+export const PREVIEW_TARGET_PAGE_DENSITY = 1.5;
 
 export interface PreviewRasterLimits {
   /** Rasterpixels per logische px voor de tijdelijke broncanvas. */
@@ -52,7 +59,9 @@ export function computePreviewRasterLimits(
   const paper = PAPER_PT[paperSize];
   const pageWidth = orientation === 'landscape' ? paper.height : paper.width;
   const pageHeight = orientation === 'landscape' ? paper.width : paper.height;
-  const wantedSupersample = (Math.max(1, cssPageWidth) * Math.max(1, devicePixelRatio)) / pageWidth;
+  const wantedSupersample = (
+    Math.max(1, cssPageWidth) * Math.max(1, devicePixelRatio) * PREVIEW_TARGET_PAGE_DENSITY
+  ) / pageWidth;
   const pagePixelArea = Math.max(1, pageWidth * pageHeight);
   const pageBudget = Math.max(1, PREVIEW_MAX_RASTER_PIXELS - logicalPixels * renderScale * renderScale);
   const pageSupersample = Math.max(1 / Math.max(pageWidth, pageHeight), Math.min(

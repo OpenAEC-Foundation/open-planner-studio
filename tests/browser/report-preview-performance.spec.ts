@@ -20,6 +20,11 @@ test('rapportpreview bundelt snelle kopwijzigingen en rastert niet blind alle pa
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const preview = page.locator('[data-tour-anchor="report-panel"] img').first();
   await expect(preview).toHaveAttribute('src', /^data:image\/png/, { timeout: 20_000 });
+  const density = await preview.evaluate(image => {
+    if (!(image instanceof HTMLImageElement)) throw new Error('preview is geen afbeelding');
+    return { naturalWidth: image.naturalWidth, cssWidth: image.getBoundingClientRect().width };
+  });
+  expect(density.naturalWidth).toBeGreaterThanOrEqual(density.cssWidth * 1.4);
   const initialCalls = await page.evaluate(() => (
     (window as unknown as Window & { __opsPreviewDataUrls: number }).__opsPreviewDataUrls
   ));
