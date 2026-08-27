@@ -7,7 +7,8 @@ import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { projectFileBase } from '@/utils/documents';
 import { computeHighResScale } from '@/utils/miniPdf';
-import { paginateCanvasToPdfBytes, paginateCanvasToTiles } from '@/services/print/paginate';
+import { paginateCanvasToPdfBytes, paginateCanvasToTile } from '@/services/print/paginate';
+import { computeTileLayout } from '@/services/print/tileLayout';
 import { ensureInterLoaded, getInterFontBytes, getArabicFontBytes } from '@/services/pdf/fontLoader';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
@@ -121,6 +122,11 @@ interface PreviewPage {
   dataUrl: string;
   wPt: number;
   hPt: number;
+}
+
+interface PreviewJob {
+  renderPage: (index: number) => void;
+  release: () => void;
 }
 
 export function ReportPanel() {
@@ -327,8 +333,24 @@ export function ReportPanel() {
   const varianceRef = useRef<HTMLDivElement>(null);
 
   // Gepagineerde Gantt-preview: dezelfde tegels als de PDF-export (gedeelde pagineer-engine).
-  const [previewPages, setPreviewPages] = useState<PreviewPage[]>([]);
+  const [previewPages, setPreviewPages] = useState<Map<number, PreviewPage>>(() => new Map());
   const [previewTotalPages, setPreviewTotalPages] = useState(0);
+  const previewViewportRef = useRef<HTMLDivElement>(null);
+  const previewJobRef = useRef<PreviewJob | null>(null);
+  const previewGenerationRef = useRef(0);
+  const [previewWidth, setPreviewWidth] = useState(0);
+
+  useEffect(() => {
+    const node = previewViewportRef.current;
+    if (!node) return;
+    let last = 0;
+    const observer = new ResizeObserver(entries => {
+      const width = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (width > 0 && width !== last) { last = width; setPreviewWidth(width); }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const locale = i18n.language;
   // Eén waardeobject is de contractgrens tussen UI, preview en export. Daardoor kan geen van beide
@@ -409,18 +431,27 @@ export function ReportPanel() {
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, followView, viewRows]);
 
-  // Bereken de Gantt-preview als gepagineerde papiervellen — via dezelfde pagineer-engine als de
-  // PDF-export (paginateCanvasToTiles), zodat de preview WYSIWYG-identiek is aan de export.
+  // Bouw eerst uitsluitend de zichtbare eerste pagina. Volgende pagina's komen pas uit dezelfde
+  // broncanvas wanneer hun placeholder bijna in beeld komt. Daardoor blijft de PDF-pagineerlogica
+  // identiek, maar blokkeert een groot rapport de Report-tab niet met tientallen canvassen.
   useEffect(() => {
+    const generation = ++previewGenerationRef.current;
+    let timer: number | undefined;
+    let source: HTMLCanvasElement | undefined;
+    const release = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = undefined;
+      if (source) { source.width = 0; source.height = 0; source = undefined; }
+      if (previewJobRef.current?.release === release) previewJobRef.current = null;
+    };
     if (reportType !== 'gantt') {
-      setPreviewPages([]);
+      release();
       setPreviewTotalPages(0);
       return;
     }
     let cancelled = false;
     const renderPreview = () => {
       if (cancelled) return;
-      const offscreen = document.createElement('canvas');
       // De eerste meting reserveert geen canvas. Op grond daarvan kiest de echte render een
       // begrensde bronresolutie. Eerder werd altijd eerst een volledige 1×-canvas en daarna een
       // 2×-canvas opgebouwd; bij veel rijen kon één klik op Auto-fit daardoor honderden MB's tot
@@ -429,14 +460,16 @@ export function ReportPanel() {
         tasks, sequences, calendar, projectName, options,
       );
       const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
+      const cssPageWidth = Math.min(900, Math.max(1, previewWidth || previewViewportRef.current?.clientWidth || 900));
       const previewLimits = computePreviewRasterLimits(
-        logicalWidth, logicalHeight, lowerPaper, options.orientation,
+        logicalWidth, logicalHeight, lowerPaper, options.orientation, cssPageWidth, window.devicePixelRatio,
       );
-      renderPrintCanvas(offscreen, tasks, sequences, calendar, projectName, options, previewLimits.renderScale);
-      const tiles = paginateCanvasToTiles(offscreen, {
+      source = document.createElement('canvas');
+      renderPrintCanvas(source, tasks, sequences, calendar, projectName, options, previewLimits.renderScale);
+      const tileOptions = {
         paperSize: lowerPaper,
         orientation: options.orientation,
-        mode: options.autoFit ? 'fit-width' : 'actual',
+        mode: options.autoFit ? 'fit-width' as const : 'actual' as const,
         logicalWidth,
         logicalHeight,
         frozenColumnWidthPx: tableWidth,
@@ -444,35 +477,67 @@ export function ReportPanel() {
         // herhalen (oud gedrag). De raster-tak wil px, de vector-tak een boolean.
         repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
         timelineColumns: options.timelineColumns,
-        supersample: 1, // preview: goedkoper; wordt toch verkleind weergegeven
-        // De limiet hoort HIER, niet pas bij het uitsnijden hieronder: de pagineerder maakt per
-        // pagina een volledig papier-canvas aan (A3 ≈ 4 MB RGBA), dus een rooster van 20×8 zou
-        // ~640 MB rasteren waarvan we er 30 tonen — bij elke optiewijziging opnieuw. Met `maxPages`
-        // worden de overige pagina's nooit getekend; `rows`/`cols` blijven het volledige rooster.
-        maxPages: previewLimits.maxPages,
-      });
-      // Goedkope dubbele bodem: mocht de pagineer-limiet ooit wegvallen, dan toont de preview nog
-      // steeds niet meer dan PREVIEW_MAX_PAGES vellen. Het echte werk zit in `maxPages` hierboven.
-      const shown = tiles.pages;
-      // De pagina-canvassen bevatten nu hun eigen pixels; maak de potentieel grootste tijdelijke
-      // buffer vrij vóór `toDataURL` de previewstrings opbouwt.
-      offscreen.width = 0;
-      offscreen.height = 0;
-      setPreviewPages(shown.map(page => ({
-        dataUrl: page.toDataURL('image/png'),
-        wPt: tiles.pageWidthPt,
-        hPt: tiles.pageHeightPt,
-      })));
-      // Het VOLLEDIGE paginatotaal (dus niet `tiles.pages.length` — dat is met `maxPages` bewust
-      // afgekapt): de gebruiker moet "5 van 160" kunnen zien, ook al rasteren we er maar 30.
-      setPreviewTotalPages(tiles.rows * tiles.cols);
+        supersample: previewLimits.pageSupersample,
+      };
+      const layout = computeTileLayout(tileOptions);
+      const total = layout.rows * layout.cols;
+      const rendered = new Set<number>();
+      const renderPage = (index: number) => {
+        if (cancelled || generation !== previewGenerationRef.current || !source || rendered.has(index)) return;
+        // De grens voorkomt dat een extreem lang rapport alsnog een onbeperkte afbeeldingscache wordt.
+        // Oude, niet-zichtbare pagina's worden vervangen; daardoor kan verder scrollen altijd de
+        // juiste pagina materialiseren in plaats van na de eerste N pagina's dood te lopen.
+        if (rendered.size >= previewLimits.maxPages) {
+          const oldest = rendered.values().next().value;
+          if (oldest !== undefined) {
+            rendered.delete(oldest);
+            setPreviewPages(previous => {
+              const next = new Map(previous); next.delete(oldest); return next;
+            });
+          }
+        }
+        rendered.add(index);
+        const page = paginateCanvasToTile(source, tileOptions, index);
+        if (!page || cancelled || generation !== previewGenerationRef.current) { page && (page.width = page.height = 0); return; }
+        const result = { dataUrl: page.toDataURL('image/png'), wPt: layout.pageWidthPt, hPt: layout.pageHeightPt };
+        page.width = 0; page.height = 0;
+        setPreviewPages(previous => {
+          if (generation !== previewGenerationRef.current) return previous;
+          const next = new Map(previous); next.set(index, result); return next;
+        });
+      };
+      previewJobRef.current = { renderPage, release };
+      setPreviewTotalPages(total);
+      renderPage(0);
+      // Tweede pagina krijgt spoedig voorrang zonder een hele serie pagina's synchroon te maken.
+      if (total > 1) timer = window.setTimeout(() => renderPage(1), 0);
     };
     // Wacht op het gevendorde Inter-font (family 'InterPDF') vóór de eerste render, zodat
     // measureText/afkapping deterministisch is (§5.2). ensureInterLoaded is idempotent; de
     // cancelled-guard voorkomt dat een verouderde async-render na deps-wijziging/unmount nog toepast.
-    void ensureInterLoaded().then(renderPreview);
-    return () => { cancelled = true; };
-  }, [reportType, tasks, sequences, calendar, projectName, options, repeatHeader]);
+    void ensureInterLoaded().then(() => {
+      // Type-, optie- en splitterevents komen vaak in reeksen. Eén korte rustperiode voorkomt een
+      // complete bronrender per tussenstand, zonder de eerste preview merkbaar uit te stellen.
+      if (!cancelled) timer = window.setTimeout(renderPreview, 100);
+    });
+    return () => { cancelled = true; release(); };
+  }, [reportType, tasks, sequences, calendar, projectName, options, repeatHeader, previewWidth]);
+
+  // Observeer placeholders. De brede rootMargin levert de volgende pagina op vóór de gebruiker er
+  // tegenaan scrolt, terwijl uit-beeld-pagina's nooit blind worden gerasterd.
+  useEffect(() => {
+    const root = previewViewportRef.current;
+    if (!root || reportType !== 'gantt' || previewTotalPages === 0) return;
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const index = Number((entry.target as HTMLElement).dataset.previewPage);
+        if (Number.isInteger(index)) previewJobRef.current?.renderPage(index);
+      }
+    }, { root, rootMargin: '900px 0px' });
+    root.querySelectorAll<HTMLElement>('[data-preview-page]').forEach(node => observer.observe(node));
+    return () => observer.disconnect();
+  }, [reportType, previewTotalPages, previewPages]);
 
   const milestoneRows = useMilestoneRows();
   const varianceResult = useVarianceResult();
@@ -1019,30 +1084,34 @@ export function ReportPanel() {
       </div>
 
       {/* Right: Live preview */}
-      <div className="flex-1 overflow-auto p-4" style={{ background: 'var(--theme-bg)' }}>
+      <div ref={previewViewportRef} data-tour-anchor="report-panel" className="flex-1 overflow-auto p-4" style={{ background: 'var(--theme-bg)' }}>
         {reportType === 'gantt' ? (
           <div className="flex flex-col items-center gap-4">
-            {previewPages.map((page, i) => (
+            {Array.from({ length: previewTotalPages }, (_, i) => {
+              const page = previewPages.get(i);
+              return (
               <div
                 key={i}
+                data-preview-page={i}
                 className="bg-white"
                 style={{
                   width: 'min(100%, 900px)',
-                  aspectRatio: `${page.wPt} / ${page.hPt}`,
+                  aspectRatio: `${page?.wPt ?? 1} / ${page?.hPt ?? 1.414}`,
                   borderRadius: 'var(--radius-md)',
                   boxShadow: 'var(--shadow-card)',
                   overflow: 'hidden',
                 }}
               >
-                <img src={page.dataUrl} alt="" style={{ display: 'block', width: '100%', height: '100%' }} />
+                {page && <img src={page.dataUrl} alt="" style={{ display: 'block', width: '100%', height: '100%' }} />}
               </div>
-            ))}
-            {previewTotalPages > previewPages.length && (
+              );
+            })}
+            {previewTotalPages > previewPages.size && (
               <div className="text-xs text-text-secondary text-center py-2">
                 {/* `count` (geen eigen `n`) zodat i18next echt pluraliseert: de sleutel bestaat nu
                     in alle 14 locales met de juiste CLDR-categorieën, dus de hardgecodeerde
                     Nederlandse `defaultValue` — die iedereen ongeacht taal te zien kreeg — is weg. */}
-                {t('previewPageLimit', { count: previewTotalPages - previewPages.length })}
+                {t('previewPageLimit', { count: previewTotalPages - previewPages.size })}
               </div>
             )}
           </div>

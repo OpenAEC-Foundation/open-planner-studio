@@ -15,7 +15,7 @@
  */
 import { renderReport, PrintOptions, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
-import { computePreviewRasterLimits, PREVIEW_MAX_PAGE_PIXELS, PREVIEW_MAX_SOURCE_PIXELS } from '@/services/print/previewSafety';
+import { computePreviewRasterLimits, PREVIEW_MAX_RASTER_PIXELS, PREVIEW_MAX_SOURCE_PIXELS } from '@/services/print/previewSafety';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task, TaskTime } from '@/types/task';
@@ -385,11 +385,15 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
 // De preview mag niet eerst een broncanvas en tientallen A1-pagina's zonder rasterbudget maken.
 // Dit is puur rekenwerk, dus de bescherming is toetsbaar zonder een browsercanvas te reserveren.
 {
-  const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape');
+  const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2);
   ok(20_000 * limits.renderScale * 10_000 * limits.renderScale <= PREVIEW_MAX_SOURCE_PIXELS + 1,
     `preview-basiscanvas blijft binnen pixelbudget (got ${limits.renderScale})`);
-  ok(limits.maxPages >= 1 && limits.maxPages * 2384 * 1684 <= PREVIEW_MAX_PAGE_PIXELS + 10_000,
-    `A1-preview beperkt tegelijk vastgehouden pagina's (got ${limits.maxPages})`);
+  const sourcePixels = 20_000 * limits.renderScale * 10_000 * limits.renderScale;
+  const pagePixels = limits.maxPages * 2384 * 1684 * limits.pageSupersample * limits.pageSupersample;
+  ok(limits.maxPages >= 1 && sourcePixels + pagePixels <= PREVIEW_MAX_RASTER_PIXELS + 20_000,
+    `A1-preview deelt bron- en paginabudget (got ${limits.maxPages} pagina's @ ${limits.pageSupersample})`);
+  ok(limits.pageSupersample >= (900 * 2 / 2384) - 0.01,
+    `zichtbare A1-preview volgt CSS×DPR zolang budget dat toestaat (got ${limits.pageSupersample})`);
 }
 {
   const absurdlyLong = mkTask('very-long', 'Veilige lange tijdas', {

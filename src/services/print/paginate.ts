@@ -104,6 +104,54 @@ export interface PaginatedTiles {
   rows: number;
 }
 
+/** Maak precies één pagina uit het volledige rooster. Dit is de preview-route: de PDF-export
+ * blijft via {@link paginateCanvasToTiles} alle pagina's synchroon en volledig opbouwen. */
+export function paginateCanvasToTile(
+  canvas: HTMLCanvasElement,
+  opts: PaginateOptions,
+  pageIndex: number,
+): HTMLCanvasElement | undefined {
+  const layout = computeTileLayout(opts);
+  const totalPages = layout.rows * layout.cols;
+  if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= totalPages) return undefined;
+
+  const rowIndex = Math.floor(pageIndex / layout.cols);
+  const columnIndex = pageIndex % layout.cols;
+  const row = layout.bodyRows[rowIndex];
+  const column = layout.columns[columnIndex];
+  if (!row || !column) return undefined;
+
+  const srcScale = opts.logicalWidth > 0 ? canvas.width / opts.logicalWidth : 1;
+  const pxPt = opts.supersample ?? SUPERSAMPLE;
+  const pageCanvasW = Math.max(1, Math.round(layout.pageWidthPt * pxPt));
+  const pageCanvasH = Math.max(1, Math.round(layout.pageHeightPt * pxPt));
+  const pageCanvas = document.createElement('canvas');
+  pageCanvas.width = pageCanvasW;
+  pageCanvas.height = pageCanvasH;
+  const ctx = pageCanvas.getContext('2d');
+  if (!ctx) throw new Error('paginateCanvasToTile: kon 2D-context niet verkrijgen');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, pageCanvasW, pageCanvasH);
+  for (const win of column.xWindows) {
+    const destXpx = win.pageX * pxPt;
+    const destWpx = win.srcW * layout.scale * pxPt;
+    if (layout.repeatHeaderPx > 0) {
+      drawTile(ctx, canvas, srcScale, win.srcX, 0, win.srcW, layout.repeatHeaderPx,
+        destXpx, layout.marginPt * pxPt, destWpx, layout.repeatHeaderPx * layout.scale * pxPt);
+    }
+    drawTile(ctx, canvas, srcScale, win.srcX, row.srcY, win.srcW, row.srcH,
+      destXpx, layout.bodyTopPt * pxPt, destWpx, row.srcH * layout.scale * pxPt);
+  }
+  ctx.fillStyle = '#999999';
+  ctx.font = `${Math.round(8 * pxPt)}px sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`${pageIndex + 1} / ${totalPages}`, (layout.pageWidthPt - layout.marginPt) * pxPt,
+    (layout.pageHeightPt - layout.marginPt * 0.5) * pxPt);
+  return pageCanvas;
+}
+
 /** Supersample-factor: teken op punt-resolutie × deze factor voor scherpe tekst; MediaBox blijft de echte puntmaat. */
 const SUPERSAMPLE = 2;
 

@@ -9,7 +9,9 @@ import { PAPER_PT, type Orientation, type PaperSize } from './tileLayout';
 // rapporten worden teruggeschaald; vóór deze grens werd ook de alledaagse preview uitgezoomd en
 // vervolgens op papierformaat opgeblazen.
 export const PREVIEW_MAX_SOURCE_PIXELS = 12_000_000;
-export const PREVIEW_MAX_PAGE_PIXELS = 12_000_000;
+/** Bron + actieve previewpagina's delen dit budget; zo telt supersampling werkelijk mee. */
+export const PREVIEW_MAX_RASTER_PIXELS = 18_000_000;
+export const PREVIEW_MAX_PAGE_PIXELS = PREVIEW_MAX_RASTER_PIXELS - PREVIEW_MAX_SOURCE_PIXELS;
 export const PREVIEW_RENDER_SCALE = 2;
 export const PREVIEW_MAX_PAGES = 30;
 
@@ -18,6 +20,8 @@ export interface PreviewRasterLimits {
   renderScale: number;
   /** Aantal complete papiercanvassen dat de preview tegelijk mag vasthouden. */
   maxPages: number;
+  /** Pixels per PDF-punt voor zichtbare pagina's, begrensd door CSS-grootte × DPR en budget. */
+  pageSupersample: number;
 }
 
 /**
@@ -29,6 +33,9 @@ export function computePreviewRasterLimits(
   logicalHeight: number,
   paperSize: PaperSize,
   orientation: Orientation,
+  cssPageWidth = 900,
+  devicePixelRatio = 1,
+  activePages = 2,
 ): PreviewRasterLimits {
   const width = Number.isFinite(logicalWidth) ? Math.max(1, logicalWidth) : 1;
   const height = Number.isFinite(logicalHeight) ? Math.max(1, logicalHeight) : 1;
@@ -45,8 +52,15 @@ export function computePreviewRasterLimits(
   const paper = PAPER_PT[paperSize];
   const pageWidth = orientation === 'landscape' ? paper.height : paper.width;
   const pageHeight = orientation === 'landscape' ? paper.width : paper.height;
-  const pixelsPerPage = Math.max(1, Math.round(pageWidth) * Math.round(pageHeight));
-  const maxPages = Math.max(1, Math.min(PREVIEW_MAX_PAGES, Math.floor(PREVIEW_MAX_PAGE_PIXELS / pixelsPerPage)));
+  const wantedSupersample = (Math.max(1, cssPageWidth) * Math.max(1, devicePixelRatio)) / pageWidth;
+  const pagePixelArea = Math.max(1, pageWidth * pageHeight);
+  const pageBudget = Math.max(1, PREVIEW_MAX_RASTER_PIXELS - logicalPixels * renderScale * renderScale);
+  const pageSupersample = Math.max(1 / Math.max(pageWidth, pageHeight), Math.min(
+    wantedSupersample,
+    Math.sqrt(pageBudget / (pagePixelArea * Math.max(1, activePages))),
+  ));
+  const pixelsPerPage = Math.max(1, Math.ceil(pagePixelArea * pageSupersample * pageSupersample));
+  const maxPages = Math.max(1, Math.min(PREVIEW_MAX_PAGES, Math.floor(pageBudget / pixelsPerPage)));
 
-  return { renderScale, maxPages };
+  return { renderScale, maxPages, pageSupersample };
 }
