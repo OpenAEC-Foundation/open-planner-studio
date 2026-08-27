@@ -38,6 +38,35 @@ export function documentTabKeyDestination(
   }
 }
 
+export interface DocumentTabKeyEvent {
+  key: string;
+  target: unknown;
+  currentTarget: unknown;
+  preventDefault(): void;
+}
+
+export interface DocumentTabKeyActions {
+  switchTo(documentId: string): void;
+  focusTab(documentId: string): void;
+}
+
+/** Volledige key-eventbeslissing die de tabcomponent zonder eigen indexguard gebruikt. */
+export function handleDocumentTabKeyDown(
+  event: DocumentTabKeyEvent,
+  documentIds: readonly string[],
+  activeDocumentId: string,
+  direction: DocumentTabDirection,
+  actions: DocumentTabKeyActions,
+): string | null {
+  if (event.target !== event.currentTarget) return null;
+  const nextId = documentTabKeyDestination(documentIds, activeDocumentId, event.key, direction);
+  if (!nextId) return null;
+  event.preventDefault();
+  actions.switchTo(nextId);
+  actions.focusTab(nextId);
+  return nextId;
+}
+
 export interface DocumentTabFocusState {
   id: string;
   isActive: boolean;

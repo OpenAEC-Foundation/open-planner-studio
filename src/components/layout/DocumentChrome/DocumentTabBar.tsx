@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Menu, Plus } from 'lucide-react';
+import { useAppStore } from '@/state/appStore';
 import { useDocumentCards, useDocumentActions } from './useDocumentCards';
 import { DocumentTabControl } from './DocumentTabControl';
 import {
   documentTabCloseFocusTarget,
-  documentTabKeyDestination,
+  handleDocumentTabKeyDown,
   revealDocumentTab,
 } from './documentTabNavigation';
+import { documentTabFocusTargetOutsideOverview } from './projectOverviewFocus';
 import './DocumentChrome.css';
 
 /** A · Documenttabs — horizontale tabstrip onder het lint. */
@@ -15,6 +17,7 @@ export function DocumentTabBar() {
   const { t, i18n } = useTranslation('common');
   const cards = useDocumentCards();
   const { switchTo, closeWithGuard, openProject, openOverview } = useDocumentActions();
+  const projectOverviewOpen = useAppStore((state) => state.ui.showProjectOverview);
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
   const previousDocumentIds = useRef(cards.map(card => card.id));
   const activeId = cards.find(card => card.isActive)?.id;
@@ -26,10 +29,13 @@ export function DocumentTabBar() {
   useLayoutEffect(() => {
     const currentDocumentIds = cards.map(card => card.id);
     const requestedDocumentId = previousDocumentIds.current.find(id => !currentDocumentIds.includes(id)) ?? null;
-    const focusTarget = documentTabCloseFocusTarget(previousDocumentIds.current, cards, requestedDocumentId);
+    const focusTarget = documentTabFocusTargetOutsideOverview(
+      projectOverviewOpen,
+      documentTabCloseFocusTarget(previousDocumentIds.current, cards, requestedDocumentId),
+    );
     previousDocumentIds.current = currentDocumentIds;
     if (focusTarget) tabRefs.current.get(focusTarget)?.focus({ preventScroll: true });
-  }, [cards]);
+  }, [cards, projectOverviewOpen]);
 
   // Iedere route kan een document activeren; alleen hier kennen we de horizontale viewport.
   useEffect(() => {
@@ -43,12 +49,10 @@ export function DocumentTabBar() {
   }, []);
 
   const onTabKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>, cardId: string) => {
-    if (event.target !== event.currentTarget) return;
-    const nextId = documentTabKeyDestination(cards.map(card => card.id), cardId, event.key, direction);
-    if (!nextId) return;
-    event.preventDefault();
-    switchTo(nextId);
-    focusTab(nextId);
+    handleDocumentTabKeyDown(event, cards.map(card => card.id), cardId, direction, {
+      switchTo,
+      focusTab,
+    });
   }, [cards, direction, focusTab, switchTo]);
 
   return (
