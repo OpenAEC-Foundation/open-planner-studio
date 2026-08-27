@@ -45,7 +45,7 @@ const RELEASES: Record<string, ReleaseHighlights> = {
       { icon: 'tasks', category: 'TASKS', title: 'Consistent task types', description: 'New child tasks inherit their parent task type.', docsId: 'gids-plannen-wbs' },
       { icon: 'examples', category: 'EXAMPLES', title: 'Richer example projects', description: 'Bundled examples now include realistic resource sets.', docsId: 'gids-resources-histogram' },
     ],
-    stats: { daysSincePrevious: 2, commitsSincePrevious: 360, addedCodeLines: 45065 },
+    stats: { daysSincePrevious: 2, commitsSincePrevious: 360, addedCodeLines: 45066 },
   },
 };
 

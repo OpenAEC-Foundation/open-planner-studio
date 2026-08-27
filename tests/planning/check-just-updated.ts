@@ -76,7 +76,7 @@ const highlights = getReleaseHighlights('v2026.8.1');
 check('highlights: huidige release heeft primaire highlight', highlights?.primary !== undefined);
 check('highlights: maximaal vier secundaire highlights', (highlights?.secondary.length ?? 99) <= 4);
 check('highlights: alleen whitelisted iconen', !!highlights && [highlights.primary, ...highlights.secondary].every(item => isSafeHighlightIcon(item.icon)));
-check('highlights: stats zijn lokaal beschikbaar', highlights?.stats.commitsSincePrevious === 360 && highlights.stats.addedCodeLines === 45065);
+check('highlights: stats zijn lokaal beschikbaar', highlights?.stats.commitsSincePrevious === 360 && highlights.stats.addedCodeLines === 45066);
 check('highlights: onbekende versie valt veilig terug', getReleaseHighlights('1900.1.1') === null);
 
 if (failures > 0) {
