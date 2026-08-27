@@ -33,15 +33,19 @@ const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 export function CalendarForm({
   draft,
   onChange,
+  onNameConfirm,
   projectYearSpan,
 }: {
   draft: WorkCalendar;
   onChange: (patch: Partial<WorkCalendar>) => void;
+  /** Enter in het naamveld bewaart via de aanroeper, maar sluit de dialoog niet. */
+  onNameConfirm?: () => void;
   projectYearSpan?: { from: number; to: number };
 }) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const weekStartDay = useAppStore(s => s.ui.weekStartDay);
 
   const [showGenerator, setShowGenerator] = useState(false);
   // Werktijden-UI (§6.6): eigen presets (app-niveau localStorage), banden-editor achter een knop,
@@ -183,7 +187,7 @@ export function CalendarForm({
 
   const addHoliday = () => {
     const today = new Date().toISOString().slice(0, 10);
-    onChange({ holidays: [...draft.holidays, { name: '', startDate: today, endDate: today }] });
+    onChange({ holidays: [...draft.holidays, { name: '', startDate: today, endDate: '' }] });
   };
 
   const removeHoliday = (index: number) => {
@@ -203,6 +207,12 @@ export function CalendarForm({
         <input
           value={draft.name}
           onChange={e => onChange({ name: e.target.value })}
+          onKeyDown={e => {
+            if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+            e.preventDefault();
+            e.stopPropagation();
+            onNameConfirm?.();
+          }}
           className={inputCls}
           autoFocus
         />
@@ -374,7 +384,7 @@ export function CalendarForm({
 
           {/* Banden-editor: zichtbaar zodra de kalender in uur-modus is (elke uur-preset), tenzij ingeklapt. */}
           {draft.workTime && !bandsCollapsed && (
-            <WorkTimeEditor bands={draft.workTime} onChange={applyBands} />
+            <WorkTimeEditor bands={draft.workTime} onChange={applyBands} weekStartDay={weekStartDay} />
           )}
         </div>
       )}

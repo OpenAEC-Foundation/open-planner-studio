@@ -22,9 +22,11 @@ function toHM(min: number): string {
 export function WorkTimeEditor({
   bands,
   onChange,
+  weekStartDay,
 }: {
   bands: WorkTimeBands;
   onChange: (bands: WorkTimeBands) => void;
+  weekStartDay: 'monday' | 'sunday';
 }) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -60,13 +62,14 @@ export function WorkTimeEditor({
   // Toont de pauze-hint zodra een werkdag meer dan één band heeft (een gat = pauze). Dekt de
   // afgeleide pauze uit de scalar-seed (QA-fix §2.3) én handmatig toegevoegde pauzes.
   const hasBreak = WEEK_DAYS.some((wd) => (bands.byWeekday[wd] ?? []).length > 1);
+  const orderedWeekDays = weekStartDay === 'sunday' ? [7, 1, 2, 3, 4, 5, 6] as const : WEEK_DAYS;
 
   const timeCls =
     'px-1.5 py-1 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[6px] text-text-primary focus:outline-none focus:border-accent';
 
   return (
     <div className="border border-border rounded-[10px] p-3 flex flex-col gap-2 bg-surface-alt" data-ops-worktime-editor>
-      {WEEK_DAYS.map((wd) => {
+      {orderedWeekDays.map((wd) => {
         const list = bands.byWeekday[wd] ?? [];
         return (
           <div key={wd} className="flex flex-col gap-1 border-b border-[var(--theme-border-light)] pb-2 last:border-0">

@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Copy, Trash2, Star } from 'lucide-react';
-import type { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, type WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
@@ -54,10 +54,20 @@ export function CalendarDialog() {
   // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).
   const cancel = () => setUI({ showCalendarDialog: false });
 
+  // Lege einddatums zijn in de editor bewust toegestaan: bij opslag worden zij canoniek dezelfde
+  // dag als de startdatum. Zo blijft het domeinmodel en alle bestaande readers/schrijvers eenduidig.
+  const commit = () => {
+    const calendars = localCalendars.map(calendar => ({
+      ...calendar,
+      holidays: calendar.holidays.map(holiday => ({ ...holiday, endDate: holidayEndDate(holiday) })),
+    }));
+    commitCalendarLibrary(calendars, localProjectId);
+    runCPM();
+  };
+
   // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
   const confirm = () => {
-    commitCalendarLibrary(localCalendars, localProjectId);
-    runCPM();
+    commit();
     setUI({ showCalendarDialog: false });
   };
 
@@ -186,6 +196,7 @@ export function CalendarDialog() {
                   key={selected.id}
                   draft={selected}
                   onChange={patchSelected}
+                  onNameConfirm={commit}
                   projectYearSpan={projectYearSpan}
                 />
               </>

@@ -31,6 +31,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName }: 
   const { options: taskTypeOptions } = useTaskTypeLabels();
   const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
   const calendars = useAppStore(s => s.calendars);
+  const projectCalendar = useAppStore(s => s.calendar);
 
   return (
     <>
@@ -74,7 +75,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName }: 
           value={task.calendarId ?? ''}
           onChange={v => onCalendarChange(v || undefined)}
           options={[
-            { value: '', label: t('properties.calendarProject') },
+            { value: '', label: `${t('properties.calendarProject')}: ${projectCalendar.name}` },
             ...calendars.map(c => ({ value: c.id, label: c.name })),
           ]}
         />
