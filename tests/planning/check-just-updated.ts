@@ -10,6 +10,7 @@ import {
   computeComparison,
   type GhRelease,
 } from '@/services/updater/releaseInfo';
+import { getReleaseHighlights, isSafeHighlightIcon } from '@/services/updater/releaseHighlights';
 
 let failures = 0;
 function check(name: string, cond: boolean): void {
@@ -61,16 +62,22 @@ check('find: huidige op tag (met v-prefix tolerantie)', found.current?.tag_name 
 check('find: vorige slaat prerelease over', found.previous?.tag_name === 'v2026.7.10');
 
 const cmp = computeComparison(found.current!, found.previous, 'native', 'windows');
-check('compare: body van huidige', cmp.currentBody === 'Nieuw in .11');
 check('compare: 12 dagen', cmp.daysBetween === 12);
 check('compare: 3 MB kleiner (negatief)', cmp.sizeDeltaBytes === -3_000_000);
 check('compare: huidige grootte', cmp.currentSizeBytes === 12_000_000);
 
-// Geen vorige release → size/tijd null, body blijft.
+// Geen vorige release → size/tijd null.
 const soloCmp = computeComparison(found.current!, null, 'native', 'windows');
 check('compare: zonder vorige → daysBetween null', soloCmp.daysBetween === null);
 check('compare: zonder vorige → sizeDelta null', soloCmp.sizeDeltaBytes === null);
-check('compare: zonder vorige → body wel', soloCmp.currentBody === 'Nieuw in .11');
+
+// ── lokaal visueel manifest ────────────────────────────────────────
+const highlights = getReleaseHighlights('v2026.8.1');
+check('highlights: huidige release heeft primaire highlight', highlights?.primary !== undefined);
+check('highlights: maximaal vier secundaire highlights', (highlights?.secondary.length ?? 99) <= 4);
+check('highlights: alleen whitelisted iconen', !!highlights && [highlights.primary, ...highlights.secondary].every(item => isSafeHighlightIcon(item.icon)));
+check('highlights: stats zijn lokaal beschikbaar', highlights?.stats.commitsSincePrevious === 360 && highlights.stats.addedCodeLines === 45065);
+check('highlights: onbekende versie valt veilig terug', getReleaseHighlights('1900.1.1') === null);
 
 if (failures > 0) {
   console.error(`\nTOTAAL: ${failures} afwijking(en)`);

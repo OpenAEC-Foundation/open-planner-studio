@@ -345,7 +345,7 @@
       "sameSize": "بنفس حجم الإصدار السابق",
       "daysSincePrevious": "منذ الإصدار السابق: {{count}} يوم",
       "currentOnly": "أنت تستخدم الآن الإصدار {{version}}",
-      "whatsNewButton": "الجديد"
+      "whatsNewButton": "الجديد", "newVersion": "إصدار جديد", "readGuide": "اقرأ الدليل", "fullNotes": "عرض ملاحظات الإصدار الكاملة", "openFailed": "تعذر فتح ملاحظات الإصدار.", "inNumbers": "هذا التحديث بالأرقام", "days": "أيام منذ الإصدار السابق", "commits": "التزامات منذ الإصدار السابق", "codeLines": "أسطر كود مضافة", "codeLinesHint": "أسطر مضافة إجمالاً في التطبيق وRust والبرامج النصية والاختبارات.", "smallerLabel": "حزمة أصغر", "largerLabel": "حزمة أكبر", "acknowledge": "مفهوم"
     }
   },
   "statusWarnings": {

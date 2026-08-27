@@ -330,7 +330,7 @@
       "sameSize": "이전 버전과 동일한 크기",
       "daysSincePrevious": "이전 릴리스 이후: {{count}}일",
       "currentOnly": "현재 {{version}} 버전을 사용 중입니다",
-      "whatsNewButton": "새로운 기능"
+      "whatsNewButton": "새로운 기능", "newVersion": "새 버전", "readGuide": "가이드 읽기", "fullNotes": "전체 릴리스 노트 보기", "openFailed": "릴리스 노트를 열 수 없습니다.", "inNumbers": "이번 업데이트 수치", "days": "이전 릴리스 이후 일수", "commits": "이전 릴리스 이후 커밋", "codeLines": "추가된 코드 줄", "codeLinesHint": "앱, Rust, 스크립트 및 테스트의 추가 줄입니다.", "smallerLabel": "더 작은 패키지", "largerLabel": "더 큰 패키지", "acknowledge": "확인"
     }
   },
   "statusWarnings": {

@@ -339,7 +339,7 @@
       "sameSize": "Taki sam rozmiar jak poprzednia wersja",
       "daysSincePrevious": "Od poprzedniego wydania: {{count}} dni",
       "currentOnly": "Używasz teraz wersji {{version}}",
-      "whatsNewButton": "Co nowego"
+      "whatsNewButton": "Co nowego", "newVersion": "Nowa wersja", "readGuide": "Przeczytaj przewodnik", "fullNotes": "Pełne informacje o wydaniu", "openFailed": "Nie można otworzyć informacji o wydaniu.", "inNumbers": "Ta aktualizacja w liczbach", "days": "dni od poprzedniego wydania", "commits": "commity od poprzedniego wydania", "codeLines": "dodane linie kodu", "codeLinesHint": "Dodane linie aplikacji, Rust, skryptów i testów.", "smallerLabel": "mniejszy pakiet", "largerLabel": "większy pakiet", "acknowledge": "Rozumiem"
     }
   },
   "statusWarnings": {

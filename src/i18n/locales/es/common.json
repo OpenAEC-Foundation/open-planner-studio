@@ -336,7 +336,7 @@
       "sameSize": "Del mismo tamaño que la versión anterior",
       "daysSincePrevious": "Desde la versión anterior: {{count}} días",
       "currentOnly": "Ahora estás usando la versión {{version}}",
-      "whatsNewButton": "Novedades"
+      "whatsNewButton": "Novedades", "newVersion": "Nueva versión", "readGuide": "Leer la guía", "fullNotes": "Ver notas de versión completas", "openFailed": "No se pudieron abrir las notas de versión.", "inNumbers": "Esta actualización en cifras", "days": "días desde la versión anterior", "commits": "commits desde la versión anterior", "codeLines": "líneas de código añadidas", "codeLinesHint": "Líneas añadidas en aplicación, Rust, scripts y pruebas.", "smallerLabel": "paquete más pequeño", "largerLabel": "paquete más grande", "acknowledge": "Entendido"
     }
   },
   "statusWarnings": {
