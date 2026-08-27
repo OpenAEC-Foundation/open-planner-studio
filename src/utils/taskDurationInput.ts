@@ -11,21 +11,36 @@ export interface ParsedTaskDuration {
   explicitUnit: boolean;
 }
 
+function safeWhole(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 /** Eén taakduur-parser voor dialoog en eigenschappenpaneel. `u` blijft invoeralias; output gebruikt h. */
 export function parseTaskDurationInput(input: string, selectedUnit: TaskDurationUnit): ParsedTaskDuration | null {
   const value = input.trim().toLowerCase();
   const days = value.match(/^(\d+)d$/);
-  if (days) return { unit: 'days', scheduleDuration: Number(days[1]), explicitUnit: true };
+  if (days) {
+    const amount = safeWhole(days[1]);
+    return amount == null ? null : { unit: 'days', scheduleDuration: amount, explicitUnit: true };
+  }
   const hours = value.match(/^(\d+)[hu](?:\s*(\d+)m)?$/);
   if (hours) {
+    const hourAmount = safeWhole(hours[1]);
+    const minuteAmount = safeWhole(hours[2] ?? '0');
+    const durationMinutes = hourAmount == null || minuteAmount == null
+      ? Number.NaN
+      : hourAmount * 60 + minuteAmount;
+    if (!Number.isSafeInteger(durationMinutes)) return null;
     return {
       unit: 'hours',
-      durationMinutes: Number(hours[1]) * 60 + Number(hours[2] ?? 0),
+      durationMinutes,
       explicitUnit: true,
     };
   }
   if (/^\d+$/.test(value)) {
-    const amount = Number(value);
+    const amount = safeWhole(value);
+    if (amount == null || (selectedUnit === 'hours' && !Number.isSafeInteger(amount * 60))) return null;
     return selectedUnit === 'days'
       ? { unit: 'days', scheduleDuration: amount, explicitUnit: false }
       : { unit: 'hours', durationMinutes: amount * 60, explicitUnit: false };
@@ -70,6 +85,7 @@ export function proposeTaskDurationConversion(
   }
 
   const wanted = task.time.durationMinutes ?? 0;
+  if (wanted === 0) return { unit: 'days', scheduleDuration: 0, explicitUnit: true };
   let accumulated = 0;
   for (let days = 1; days <= 200_000; days++) {
     accumulated += workMinutesForDay(engine, day);

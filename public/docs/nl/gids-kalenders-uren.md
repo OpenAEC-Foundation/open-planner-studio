@@ -70,7 +70,7 @@ Je kunt de selector gebruiken of een suffix typen:
 
 Een expliciet suffix wint dus altijd van de selector en synchroniseert die selector. Normale handmatige invoer gebruikt gehele dagen of gehele uren. Minuutprecisie die al uit een import of bestand komt, blijft echter exact bewaard en wordt nooit stil afgerond.
 
-Bij import gebruikt Open Planner Studio de taakeenheid die het bronformaat zelf opgeeft. IFC onderscheidt dag- en uurduur in de ISO-duur, en Microsoft Project/MSPDI bewaart de duurindeling per taak. Een formaat zonder zo'n keuze krijgt één vaste regel: P6 `PlannedDuration` is uren voor gewone activiteiten, terwijl CSV-duur als dagen wordt gelezen. De kalender of een toevallig geheel aantal daguren verandert die regel niet.
+Bij import bewaart Open Planner Studio een expliciete taakeenheid wanneer het bronformaat die kan leveren. IFC onderscheidt dag- en uurduur in zijn ISO-duur. Door Open Planner Studio geëxporteerde MSPDI- en P6 XML-bestanden dragen de expliciete keuze per taak mee; externe of oudere bestanden zonder die markering behouden de compatibele kalenderprecisieregel. CSV-duur wordt als dagen gelezen. Een toevallig geheel aantal daguren verandert een expliciete keuze nooit.
 
 Een echte nulduur-mijlpaal heeft geen bewerkbare eenheid. Ook samenvattingstaken en hammocktaken tonen een afgeleide duur; daar voeg je geen tweede handmatige duurbron aan toe.
 

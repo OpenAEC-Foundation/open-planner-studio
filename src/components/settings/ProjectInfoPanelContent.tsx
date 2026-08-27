@@ -251,7 +251,11 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         // verdwijnen ⇒ leeg wordt `undefined` (byte-identiek met "geen opties").
         const patch: Partial<Project> = {
           name, description, author, company, startDate, endDate,
-          defaultTaskDurationUnit: canDefaultToHours ? defaultTaskDurationUnit : 'days',
+          // Een tijdelijk verborgen of momenteel onbruikbare uurdefault blijft documentdata.
+          // Nieuwe taken vallen in taskSlice veilig terug op dagen zolang de capability of
+          // concrete werkblokken ontbreken; alleen deze voorkeur hier stil terugzetten zou een
+          // ongerelateerde metadata-edit echter dataverlies laten veroorzaken.
+          defaultTaskDurationUnit,
         };
         let soChanged = false;
         if (calcTouched) {

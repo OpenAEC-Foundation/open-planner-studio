@@ -172,6 +172,8 @@ deepEq('suffix h kiest uren', parseTaskDurationInput('12h', 'days'), { unit: 'ho
 deepEq('Nederlandse u blijft invoeralias', parseTaskDurationInput('12u', 'days'), { unit: 'hours', durationMinutes: 720, explicitUnit: true });
 eq('negatieve dagen worden geweigerd', parseTaskDurationInput('-2d', 'days'), null);
 eq('negatieve uren worden geweigerd', parseTaskDurationInput('-2h', 'hours'), null);
+eq('onveilig groot daggetal wordt geweigerd', parseTaskDurationInput('999999999999999999999d', 'days'), null);
+eq('onveilig groot uurgetal wordt geweigerd', parseTaskDurationInput('999999999999999999999h', 'hours'), null);
 eq('compacte invoerweergave gebruikt universeel h', formatTaskDurationInput(hour12), '12h');
 eq('bestaande minuutprecisie blijft zichtbaar', formatTaskDurationInput({ ...hour12, time: { ...hour12.time, durationMinutes: 725 } }), '12h 5m');
 eq('kalender zonder werkblokken wordt herkend', hasConcreteWorkBlocks({ ...h8, workTime: undefined }), false);
@@ -185,6 +187,7 @@ eq('bestaande urentaak zonder werkblokken krijgt geen dagfallback', hourWithoutB
 eq('geblokkeerde solve bewaart uur-unit', hourWithoutBlocks.time.durationUnit, 'hours');
 eq('geblokkeerde solve bewaart exacte minuten', hourWithoutBlocks.time.durationMinutes, 720);
 deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
 eq('12h wordt niet stil naar 1,5d afgerond', proposeTaskDurationConversion(hour12, 'days', h8), null);
 deepEq('16h wordt exact naar 2d voorgesteld', proposeTaskDurationConversion(task('hours', 16), 'days', h8), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
 

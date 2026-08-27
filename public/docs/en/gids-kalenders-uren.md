@@ -70,7 +70,7 @@ Use the selector or type a suffix:
 
 An explicit suffix therefore always wins and synchronises the selector. Normal manual entry uses whole days or whole hours. Minute precision already present in an import or file remains exact and is never silently rounded.
 
-On import, Open Planner Studio uses the task unit supplied by the source format. IFC distinguishes day and hour durations in the ISO duration, while Microsoft Project/MSPDI stores a duration format per task. A format without such a choice gets one fixed rule: P6 `PlannedDuration` is treated as hours for ordinary activities, while CSV duration is read as days. The calendar, or a coincidental whole number of day-hours, never changes that rule.
+On import, Open Planner Studio preserves an explicit task unit when the source format can supply one. IFC distinguishes day and hour durations in its ISO duration. MSPDI and P6 XML files exported by Open Planner Studio carry the explicit choice with each task; foreign or older files without that marker keep the compatible calendar-precision rule. CSV duration is read as days. A coincidental whole number of day-hours never changes an explicit choice.
 
 A genuine zero-duration milestone has no editable unit. Summary and hammock tasks also show derived duration; they do not gain a competing manual source.
 

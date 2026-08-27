@@ -121,3 +121,20 @@ test('uren zonder concrete werkblokken en niet-exacte omzetting muteren de taak 
     return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
   }, hourTaskId)).toEqual({ unit: 'hours', minutes: 720 });
 });
+
+test('een conversievoorstel lekt niet naar een andere geselecteerde taak', async ({ page, ops: _ops }) => {
+  await seedDurationTask(page, 'hours', 16);
+  const duration = page.locator('[data-ops-task-duration]').first();
+  await duration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
+  await page.getByRole('option', { name: /^(Days|Dagen)$/ }).click();
+  await expect(duration.locator('[data-ops-duration-message]')).toContainText(/(2d)/i);
+  await expect(duration.getByRole('button', { name: /^(Apply proposal|Voorstel toepassen)$/ })).toBeVisible();
+
+  const nextTaskId = await seedDurationTask(page, 'hours', 24);
+  await expect(duration.locator('[data-ops-duration-value]')).toHaveValue('24h');
+  await expect(duration.locator('[data-ops-duration-message]')).toBeHidden();
+  await expect.poll(() => page.evaluate((id) => {
+    const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
+    return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
+  }, nextTaskId)).toEqual({ unit: 'hours', minutes: 1440 });
+});

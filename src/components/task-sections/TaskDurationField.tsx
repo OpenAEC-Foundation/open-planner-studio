@@ -41,7 +41,13 @@ export function TaskDurationField({ task, calendar, onChange }: {
   const derived = isZeroDurationMilestone(task) || task.childIds.length > 0 || !!task.isHammock;
   const hourEditBlocked = task.time.durationUnit === 'hours' && !enableHourPlanning;
 
-  useEffect(() => setValue(seed), [seed]);
+  useEffect(() => {
+    setValue(seed);
+    // Een conversievoorstel hoort bij precies deze taak én kalenderwandeling. Zonder reset kon
+    // een voorstel van taak A na selectie- of kalenderwissel nog op taak B worden toegepast.
+    setProposal(null);
+    setMessage(null);
+  }, [task.id, seed, calendar]);
 
   const apply = (parsed: ParsedTaskDuration) => {
     const time = { ...task.time, durationUnit: parsed.unit };

@@ -130,8 +130,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   roundTrip('MSPDI', p.tasks, p.sequences, p.calendar, p.resourceCalendars ?? [], false);
 }
 
-// Een uurkalender kan dag- en urentaken mengen. MSPDI's DurationFormat moet die keuze bewaren;
-// alleen naar de kalender kijken zou de 2d-taak na export/import stil als 16h herinterpreteren.
+// Een uurkalender kan dag- en urentaken mengen. De expliciete adaptermarkering moet die keuze
+// bewaren; alleen naar de kalender kijken zou de 2d-taak na export/import stil als 16h lezen.
 {
   const daySeed = mk('t-day-on-bands', 'Twee werkdagen', '4', '2026-07-06T08:00', '2026-07-07T16:00', 960);
   const dayOnBands: Task = {
@@ -159,6 +159,21 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const foreignBack = readMSPDI(foreign).tasks.find((task) => task.name === 'Twee werkdagen');
   eq('MSPDI legacy: taskmarker zonder OPS-projectdefinitie wordt genegeerd', foreignBack?.time.durationUnit, 'hours');
   eq('MSPDI legacy: uurkalender behoudt de oude minutenbron', foreignBack?.time.durationMinutes, 960);
+
+  const p6Xml = writeP6XML(project, H8, [dayOnBands, tasks[0]], [], [], []);
+  const p6Back = readP6XML(p6Xml);
+  const p6DayBack = p6Back.tasks.find((task) => task.name === 'Twee werkdagen');
+  const p6HourBack = p6Back.tasks.find((task) => task.name === 'Metselen');
+  eq('P6 mixed: dagtaak op uurkalender bewaart days', p6DayBack?.time.durationUnit, 'days');
+  eq('P6 mixed: dagtaak bewaart twee werkdagen', p6DayBack?.time.scheduleDuration, 2);
+  eq('P6 mixed: dagtaak krijgt geen concurrerende minutenbron', p6DayBack?.time.durationMinutes, undefined);
+  eq('P6 mixed: urentaak naast dagtaak bewaart hours', p6HourBack?.time.durationUnit, 'hours');
+  eq('P6 mixed: urentaak bewaart exacte minuten', p6HourBack?.time.durationMinutes, 1200);
+
+  const foreignP6 = p6Xml.replace(/\s*<UDFType>[\s\S]*?<\/UDFType>/, '');
+  const foreignP6Back = readP6XML(foreignP6).tasks.find((task) => task.name === 'Twee werkdagen');
+  eq('P6 legacy: UDF-waarde zonder OPS-definitie wordt genegeerd', foreignP6Back?.time.durationUnit, 'hours');
+  eq('P6 legacy: uurkalender behoudt de oude minutenbron', foreignP6Back?.time.durationMinutes, 960);
 }
 
 // ── Review-follow-up (2026-08, op bugfix B1): GEMENGDE ISO-duur uit een VREEMD bestand ─────────────

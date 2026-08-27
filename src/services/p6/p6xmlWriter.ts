@@ -3,8 +3,12 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
-import { effectiveCalendarByTask, isHourCalendar, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
+import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
+
+/** OPS-eigen, schema-native P6-UDF waarmee gemengde dag-/urentaken exact terugkomen. */
+export const OPS_P6_DURATION_UNIT_UDF_TITLE = 'OPS_TaskDurationUnit';
+export const OPS_P6_DURATION_UNIT_UDF_OBJECT_ID = 1;
 
 // Curve-/contour-naammapping (fase 2.5, §8.3): P6 kent geen `LATE_PEAK`-curve — beste
 // benadering is 'Early Peak' (gedocumenteerd verlies, zie verliesmatrix §8.4). UNIFORM wordt
@@ -313,6 +317,17 @@ export function writeP6XML(
   }
   lines.push(`${indent(1)}</Project>`);
 
+  // P6 heeft geen native dag/uur-vlag per activity: PlannedDuration zelf staat altijd in uren.
+  // Een Text-UDF is wel een officiële uitbreidingsroute. De reader vertrouwt deze waarden alleen
+  // wanneer ook deze exacte definitie aanwezig is; vreemde/legacy P6 houdt zo de oude
+  // kalenderprecisie-classificatie.
+  lines.push(`${indent(1)}<UDFType>`);
+  lines.push(`${indent(2)}<ObjectId>${OPS_P6_DURATION_UNIT_UDF_OBJECT_ID}</ObjectId>`);
+  lines.push(`${indent(2)}<SubjectArea>Activity</SubjectArea>`);
+  lines.push(`${indent(2)}<Title>${OPS_P6_DURATION_UNIT_UDF_TITLE}</Title>`);
+  lines.push(`${indent(2)}<DataType>Text</DataType>`);
+  lines.push(`${indent(1)}</UDFType>`);
+
   // Calendar
   lines.push(`${indent(1)}<Calendar>`);
   lines.push(`${indent(2)}<ObjectId>1</ObjectId>`);
@@ -421,9 +436,9 @@ export function writeP6XML(
     // Fase 2.8b (§7.2): uur-taak ⇒ PlannedDuration in fractionele uren uit de minuten (geen
     // dag-afronding); dag-taak ⇒ het bestaande `dagen × hpd`-pad (byte-identiek).
     const effCal = effCalByTask.get(task.id);
-    const isHour = isHourCalendar(effCal);
+    const isHour = task.time.durationUnit === 'hours';
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
-    const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, calendar.hoursPerDay);
+    const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, effHpd);
     lines.push(`${indent(2)}<PlannedDuration>${plannedDur}</PlannedDuration>`);
     lines.push(`${indent(2)}<PlannedStartDate>${formatP6DateTime(task.time.earlyStart || task.time.scheduleStart)}</PlannedStartDate>`);
     lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(task.time.earlyFinish || task.time.scheduleFinish)}</PlannedFinishDate>`);
@@ -470,6 +485,16 @@ export function writeP6XML(
     const taskCalObjId = (task.calendarId && calObjMap.get(task.calendarId)) || 1;
     lines.push(`${indent(2)}<CalendarObjectId>${taskCalObjId}</CalendarObjectId>`);
     lines.push(`${indent(1)}</Activity>`);
+  }
+
+  for (const task of leafTasks) {
+    const foreignObjectId = taskObjMap.get(task.id)!;
+    lines.push(`${indent(1)}<UDFValue>`);
+    lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
+    lines.push(`${indent(2)}<ForeignObjectId>${foreignObjectId}</ForeignObjectId>`);
+    lines.push(`${indent(2)}<UDFTypeObjectId>${OPS_P6_DURATION_UNIT_UDF_OBJECT_ID}</UDFTypeObjectId>`);
+    lines.push(`${indent(2)}<Text>${task.time.durationUnit}</Text>`);
+    lines.push(`${indent(1)}</UDFValue>`);
   }
 
   // Relationships (sequences). P6 kent geen procent-lag en geen lag-eenheid per relatie
