@@ -3,7 +3,7 @@ import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
 import { Project, SchedulingOptions } from '@/types/project';
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
 import {
@@ -691,7 +691,7 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
   const holidayRefs: string[] = [];
   for (const holiday of cal.holidays) {
     const hId = addLine(ctx, `_holiday_${holiday.name}`,
-      `IFCWORKTIME(${ifcStr(holiday.name)},.PREDICTED.,$,$,'${holiday.startDate}','${holiday.endDate}')`);
+      `IFCWORKTIME(${ifcStr(holiday.name)},.PREDICTED.,$,$,'${holiday.startDate}','${holidayEndDate(holiday)}')`);
     holidayRefs.push(`#${hId}`);
   }
 

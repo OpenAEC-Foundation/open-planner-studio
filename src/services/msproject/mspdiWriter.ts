@@ -2,7 +2,7 @@ import { Task, TaskConstraint } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { projectFileBase } from '@/utils/documents';
 import {
@@ -180,7 +180,7 @@ function writeCalendarBlock(
       lines.push(`${indent(5)}<EnteredByOccurrences>0</EnteredByOccurrences>`);
       lines.push(`${indent(5)}<TimePeriod>`);
       lines.push(`${indent(6)}<FromDate>${formatMSPDateTime(h.startDate)}</FromDate>`);
-      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(h.endDate)}</ToDate>`);
+      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(holidayEndDate(h))}</ToDate>`);
       lines.push(`${indent(5)}</TimePeriod>`);
       lines.push(`${indent(5)}<Name>${escapeXML(h.name)}</Name>`);
       lines.push(`${indent(5)}<Type>1</Type>`);

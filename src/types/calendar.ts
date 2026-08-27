@@ -79,3 +79,8 @@ export interface Holiday {
   startDate: string; // ISO 8601 date
   endDate: string;   // ISO 8601 date
 }
+
+/** Een lege einddatum uit de kalenderdialoog is een eendaagse feestdag. */
+export function holidayEndDate(holiday: Holiday): string {
+  return holiday.endDate || holiday.startDate;
+}

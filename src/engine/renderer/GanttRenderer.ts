@@ -3,7 +3,7 @@ import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
@@ -534,7 +534,7 @@ export class GanttRenderer {
 
     for (const h of this.opts.calendar.holidays) {
       const start = parseDate(h.startDate);
-      const end = parseDate(h.endDate);
+      const end = parseDate(holidayEndDate(h));
       const days = diffCalendarDays(start, end) + 1;
       const widthPx = days * zoom;
       if (widthPx < minWidthPx) continue; // te smal voor een leesbaar label
