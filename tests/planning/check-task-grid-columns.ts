@@ -10,7 +10,6 @@ import {
   taskGridAutoFitValueVersion,
 } from '@/engine/taskGrid/preferences';
 import { buildColumnChooserModel, type TaskGridColumnOption } from '@/components/task-grid/ColumnChooser';
-import { resizeGuidelineLeft } from '@/components/task-grid/DataGridCore';
 import { resolveColumnDropTarget, type ColumnHeaderRect } from '@/components/task-grid/DataGridHeader';
 import { TaskGrid, type TaskGridLabels } from '@/components/task-grid/TaskGrid';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -216,24 +215,6 @@ eq('Een zichtbare header biedt verwijderen en resizen zonder sorteersignaal', [
   oneColumnMarkup.includes('role="separator"'),
   oneColumnMarkup.toLocaleLowerCase().includes('sort'),
 ], [true, true, false]);
-
-// ── resizeGuidelineLeft (browserreview, observatie 3b) ────────────────────────────────────────
-// De volledige-hoogte hulplijn tijdens kolomresize moet exact op de RECHTERRAND van de kolom die
-// actief geresized wordt landen, in content-space (vóór aftrek van scrollLeft — zie de render in
-// DataGridCore.tsx voor waarom dat de juiste ruimte is voor een `position:sticky`-overlay).
-{
-  const cols = [
-    { id: id('a'), label: 'A', width: 40, pinned: false },
-    { id: id('b'), label: 'B', width: 100, pinned: false },
-    { id: id('c'), label: 'C', width: 60, pinned: false },
-  ];
-  eq('Geen actieve resize ⇒ geen hulplijn', resizeGuidelineLeft(cols, null), null);
-  eq('Eerste kolom: rechterrand op zijn eigen breedte', resizeGuidelineLeft(cols, id('a')), 40);
-  eq('Middelste kolom: cumulatief tot en met die kolom', resizeGuidelineLeft(cols, id('b')), 140);
-  eq('Laatste kolom: cumulatief tot de totale breedte', resizeGuidelineLeft(cols, id('c')), 200);
-  eq('Kolom niet (meer) aanwezig ⇒ geen hulplijn', resizeGuidelineLeft(cols, id('verwijderd')), null);
-  eq('Lege kolommenlijst ⇒ geen hulplijn', resizeGuidelineLeft([], id('a')), null);
-}
 
 // ── resolveColumnDropTarget (browserreview, observatie 7) ─────────────────────────────────────
 // Gebiedsdekkende kolomherordening: elke positie in de headerbalk moet een geldig doel opleveren,

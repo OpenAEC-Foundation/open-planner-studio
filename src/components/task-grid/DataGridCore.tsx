@@ -70,40 +70,12 @@ export interface DataGridCoreProps {
   onTogglePinned?: DataGridHeaderProps['onTogglePinned'];
   onAutoFitColumn?: DataGridHeaderProps['onAutoFitColumn'];
   onReorderColumn?: DataGridHeaderProps['onReorderColumn'];
-  /** Browserreview, observatie 3b: de kolom die MOMENTEEL actief geresized wordt (via de handle of
-   *  het toetsenbord), of `null` buiten een resize. Drijft de volledige-hoogte hulplijn — zie
-   *  `resizeGuidelineLeft`. */
-  resizeGuidelineColumnId?: TaskColumnId | null;
 }
 
 /** Eén eigenaar voor een herkende gridtoets: annuleer browsergedrag, stop bubbling en voer exact
  * één gridopdracht uit — behalve 'exit-to-container' (Escape in selectiemodus), die het event
  * bewust laat doorbubbelen naar de globale `edit.deselect`-sneltoets. De losse functie houdt
  * dezelfde native-eventketen regressietestbaar. */
-/**
- * Browserreview, observatie 3b: de kolomresize-hulplijn moet de VOLLEDIGE zichtbare tabelhoogte
- * bestrijken (header + rijen), niet alleen de headerrij — vóór deze fix bestond de "hulplijn"
- * puur uit de hover-/focusachtergrond van `.task-grid-resize-handle`, die `position:absolute` is
- * ten opzichte van de HEADERCEL zelf (`inset-block:0` op een cel van ~28px hoog), dus zichtbaar
- * losstaand van de rijen eronder. Deze pure functie berekent alleen de X-positie (content-space,
- * dus vóór aftrek van scrollLeft — de hulplijn leeft in dezelfde horizontaal scrollende laag als
- * de kolommen zelf, zie de render hieronder) van de RECHTERRAND van de kolom die actief geresized
- * wordt. `null` zodra die kolom niet (meer) in `columns` voorkomt — bv. net verwijderd terwijl de
- * resize nog "actief" leek.
- */
-export function resizeGuidelineLeft(
-  columns: readonly DataGridColumnModel[],
-  columnId: TaskColumnId | null,
-): number | null {
-  if (columnId === null) return null;
-  let x = 0;
-  for (const column of columns) {
-    x += column.width;
-    if (column.id === columnId) return x;
-  }
-  return null;
-}
-
 export function dispatchDataGridKeyCommand(
   event: Pick<KeyboardEvent<HTMLDivElement>, 'preventDefault' | 'stopPropagation'>,
   command: TaskGridCommand,
@@ -218,7 +190,6 @@ export function DataGridCore({
   onTogglePinned,
   onAutoFitColumn,
   onReorderColumn,
-  resizeGuidelineColumnId = null,
 }: DataGridCoreProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cellsRef = useRef(new Map<string, HTMLDivElement>());
@@ -240,7 +211,6 @@ export function DataGridCore({
   const pinned = useMemo(() => computePinnedColumnLayout(columns, viewportWidth), [columns, viewportWidth]);
   const totalWidth = columns.reduce((total, column) => total + column.width, 0);
   const template = columns.map(column => `${column.width}px`).join(' ');
-  const guidelineLeft = resizeGuidelineLeft(columns, resizeGuidelineColumnId);
   const rowIndexByKey = useMemo(
     () => new Map(rows.map((row, index) => [row.rowKey, index] as const)),
     [rows],
@@ -398,31 +368,6 @@ export function DataGridCore({
           if (shouldHandleDataGridClipboardEvent(event)) onPaste?.(event);
         }}
       >
-        {guidelineLeft !== null && (
-          // Browserreview, observatie 3b: MOET vóór `<DataGridHeader>` in de DOM staan — een
-          // `position:sticky`-element start zijn "natuurlijke" (ongescrolde) positie op de plek waar
-          // het in de gewone flow zou staan, en plakt pas daarna aan `top:0` zodra scrollen het
-          // anders naar boven zou duwen. Ná de header renderen zou die natuurlijke positie op de
-          // ONDERKANT van de header leggen (getest: de lijn begon dan pas bij y = headerHeight, niet
-          // bij y = 0) — vóór de header renderen geeft 'm exact dezelfde starthoogte als de header
-          // zelf, dus de lijn bestrijkt zowel de header als alle rijen eronder. Alleen `top` (geen
-          // `left`) is gezet, dus de VERTICALE as plakt aan de bovenkant van déze scrollcontainer —
-          // precies zoals de headerrij zelf — terwijl de HORIZONTALE positie (via
-          // `marginInlineStart`, niet `left`, want dat zou ook horizontaal plakken) gewoon meescrollt
-          // met de kolommen. `height:0` op de buitenste laag houdt 'm buiten de flow (geen invloed op
-          // scrollHeight); de binnenste laag is `position:absolute` op die buitenste laag en tekent
-          // de daadwerkelijke lijn, met `overflow:visible` (default) zodat ze buiten de 0-hoge
-          // buitenste doos mag uitsteken.
-          <div
-            className="task-grid-resize-guideline"
-            style={{ marginInlineStart: guidelineLeft }}
-          >
-            <span
-              className="task-grid-resize-guideline-line"
-              style={{ height: headerHeight + viewportHeight }}
-            />
-          </div>
-        )}
         <DataGridHeader
           columns={columns}
           height={headerHeight}
