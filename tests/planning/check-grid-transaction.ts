@@ -906,6 +906,49 @@ function observed(state: AppState): unknown {
     commitSource.indexOf('activeDocumentId') < commitSource.indexOf('set(state =>'), true);
 }
 
+// Napunt 2 (onafhankelijke eindreview op 62b37ea6): task.isHammock zit zowel in
+// CONTROLLER_COLUMN_IDS als heeft zelf een conditionele readOnly (isMilestone || childIds > 0).
+// Tegencase van de reviewer: een samenvattende taak (childIds > 0) met isHammock=true, geplakt met
+// {isHammock: false, duur: 5d}. Vóór de fixed-point-lus in gridTransaction.ts werd isHammock
+// terecht overgeslagen, maar scheduleDuration daardoor TEN ONRECHTE als schrijfbaar beoordeeld
+// (de gedeelde controllertoestanden namen optimistisch aan dat isHammock wél zou worden
+// toegepast) — de write faalde dan hard op de VERKEERDE cel. Beide cellen moeten nu netjes
+// overgeslagen worden, met precies één geaggregeerde melding.
+{
+  reset();
+  const parentId = S().addTask({ name: 'Samenvattende taak', isHammock: true });
+  const childId = S().addTask({ name: 'Kind' });
+  useAppStore.setState(state => {
+    const parent = state.tasks.find(candidate => candidate.id === parentId)!;
+    const child = state.tasks.find(candidate => candidate.id === childId)!;
+    parent.childIds = [childId];
+    child.parentId = parentId;
+  });
+  const before = S().tasks.find(candidate => candidate.id === parentId)!;
+  eq('Uitgangspunt: de samenvattende taak is een hangmat mét kinderen',
+    [before.isHammock, before.childIds.length > 0], [true, true]);
+
+  const paste: PasteIntent = {
+    kind: 'paste',
+    writes: [
+      cellEdit(parentId, 'task.isHammock', 'task-hammock', false),
+      cellEdit(parentId, 'task.time.scheduleDuration', 'task-schedule', 480),
+    ],
+    allowSkippingReadOnlyCells: true,
+  };
+  const result = runGridMutation([paste]);
+  eq('De transactie slaagt (geen harde weigering op de verkeerde cel)', result.ok, true);
+  const after = S().tasks.find(candidate => candidate.id === parentId)!;
+  eq('isHammock blijft onaangeraakt (kan nooit jointly writable worden: niets raakt childIds)',
+    after.isHammock, before.isHammock);
+  eq('scheduleDuration blijft óók onaangeraakt (was alleen "schrijfbaar" dankzij de nooit-toegepaste isHammock-write)',
+    after.time.scheduleDuration, before.time.scheduleDuration);
+  eq('Precies één geaggregeerde melding over overgeslagen cellen',
+    S().ui.notifications.filter(n => n.messageKey === 'notifications.pasteSkippedReadOnly').length, 1);
+  eq('De melding telt beide overgeslagen cellen samen (isHammock + scheduleDuration)',
+    S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly')?.params?.count, 2);
+}
+
 if (diffs.length > 0) {
   console.error(`FAIL grid-transaction: ${diffs.length}/${checks} afwijkingen`);
   for (const diff of diffs) console.error(`  - ${diff}`);

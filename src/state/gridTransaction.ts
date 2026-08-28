@@ -499,67 +499,87 @@ function applyCellEdits(
   const CONTROLLER_COLUMN_IDS = new Set([
     'task.isMilestone', 'task.isHammock', 'task.constraint.type', 'task.constraint2.type',
   ]);
-  let sharedControllerStates: readonly { task: AppState['tasks'][number] }[] | null = null;
-  const buildControllerStates = (excludeEdit: CellEditIntent): readonly { task: AppState['tasks'][number] }[] => {
-    const controllerEdits = validatedEdits.filter(
-      candidate => candidate !== excludeEdit && CONTROLLER_COLUMN_IDS.has(String(candidate.columnId)),
-    );
-    const states: { task: AppState['tasks'][number] }[] = [{ task }];
-    for (let prefixLength = 1; prefixLength <= controllerEdits.length; prefixLength++) {
-      const projected = planTaskCellEdits(task, controllerEdits.slice(0, prefixLength), environment);
-      if (projected.ok) states.push({ task: projected.value.task });
-    }
-    return states;
-  };
 
-  // FIX 6 (§8.6): bij een echte paste worden hier gevonden conditioneel niet-schrijfbare cellen
-  // EXCLUSIEF gehouden uit de finale write in plaats van de hele taak te blokkeren. `edits` mogen
-  // hier bewust wél in `validatedEdits` blijven staan tijdens de rest van deze controle — een
-  // overgeslagen cel is per definitie geen controller (zie de uitleg bij CONTROLLER_COLUMN_IDS),
-  // dus haar aanwezigheid in latere prefixprojecties voor ANDERE cellen verandert niets. Pas na de
-  // hele lus wordt de definitieve schrijflijst gefilterd.
+  // Napunt 2 (onafhankelijke eindreview): `task.isHammock` staat zowel IN CONTROLLER_COLUMN_IDS
+  // als heeft zelf een conditionele readOnly (`task.isMilestone || task.childIds.length > 0`).
+  // Op een samenvattende taak (childIds > 0) kan de isHammock-cel dus NOOIT jointly writable
+  // worden — geen enkele andere write in een paste raakt childIds of isMilestone. Wordt zo'n
+  // isHammock-write daarom overgeslagen (FIX 6), dan was het OPTIMISTISCHE oordeel dat een
+  // gelijktijdig geplakte task.time.scheduleDuration daardoor "jointly writable" is fout: de
+  // gedeelde controller-toestandenreeks nam aan dat isHammock wél zou worden toegepast, terwijl
+  // die write zelf nooit doorgaat. Concreet: samenvattende taak, isHammock=true, plak
+  // {isHammock: false, duur: 5d} ⇒ isHammock wordt (terecht) overgeslagen, maar scheduleDuration
+  // werd ten onrechte als schrijfbaar beoordeeld en de write faalde dan hard op de VERKEERDE cel
+  // ("readOnly task.time.scheduleDuration" in plaats van een nette skip van beide cellen).
+  //
+  // De lus hieronder herhaalt daarom tot een vast punt: na elke nieuw ontdekte skip worden de
+  // gedeelde controllertoestanden herbouwd UITSLUITEND uit de nog niet overgeslagen edits, en
+  // wordt elke nog niet overgeslagen conditionele cel opnieuw beoordeeld. Zo eindigt dit geval
+  // netjes als "beide cellen overgeslagen + één geaggregeerde melding" in plaats van een
+  // misleidende foutmelding op de verkeerde cel. Zonder `skipReadOnlyCells` (Delete/clear, of een
+  // enkele celedit) faalt de eerste niet-schrijfbare cel nog steeds direct — de lus draait dan
+  // hooguit één keer, want de functie retourneert voordat een tweede pas ooit nodig is.
   const skippedConditionalEdits = new Set<CellEditIntent>();
-  for (const edit of validatedEdits) {
-    const descriptor = runtime.descriptors.get(String(edit.columnId));
-    if (!descriptor || typeof descriptor.readOnly !== 'function'
-      || !descriptor.readOnly(task, runtime.context)) continue;
-    const { tasksById: projectedTasksById, context: projectedContext } = ensureProjectedContext();
+  let passFoundNewSkip = true;
+  while (passFoundNewSkip) {
+    passFoundNewSkip = false;
+    const activeEdits = validatedEdits.filter(candidate => !skippedConditionalEdits.has(candidate));
+    let sharedControllerStates: readonly { task: AppState['tasks'][number] }[] | null = null;
+    const buildControllerStates = (excludeEdit: CellEditIntent): readonly { task: AppState['tasks'][number] }[] => {
+      const controllerEdits = activeEdits.filter(
+        candidate => candidate !== excludeEdit && CONTROLLER_COLUMN_IDS.has(String(candidate.columnId)),
+      );
+      const states: { task: AppState['tasks'][number] }[] = [{ task }];
+      for (let prefixLength = 1; prefixLength <= controllerEdits.length; prefixLength++) {
+        const projected = planTaskCellEdits(task, controllerEdits.slice(0, prefixLength), environment);
+        if (projected.ok) states.push({ task: projected.value.task });
+      }
+      return states;
+    };
 
-    // De vrijwel altijd genomen, snelle tak: de gecontroleerde cel is zelf geen controllerveld
-    // (dat zijn wbsCode/milestoneKind/mandatory/constraint.hard/isHammock/scheduleDuration/notes),
-    // dus de gedeelde controller-alleen-toestandenreeks van deze taak dekt precies dezelfde
-    // uitkomsten als de oude, uitputtende prefixlus — nu zonder ze telkens opnieuw te herplannen.
-    if (!CONTROLLER_COLUMN_IDS.has(String(edit.columnId))) {
-      if (!sharedControllerStates) sharedControllerStates = buildControllerStates(edit);
+    for (const edit of activeEdits) {
+      const descriptor = runtime.descriptors.get(String(edit.columnId));
+      if (!descriptor || typeof descriptor.readOnly !== 'function'
+        || !descriptor.readOnly(task, runtime.context)) continue;
+      const { tasksById: projectedTasksById, context: projectedContext } = ensureProjectedContext();
+
+      // De vrijwel altijd genomen, snelle tak: de gecontroleerde cel is zelf geen controllerveld
+      // (dat zijn wbsCode/milestoneKind/mandatory/constraint.hard/scheduleDuration/notes — NIET
+      // isHammock, zie hierboven), dus de gedeelde controller-alleen-toestandenreeks van deze taak
+      // dekt precies dezelfde uitkomsten als de oude, uitputtende prefixlus — nu zonder ze telkens
+      // opnieuw te herplannen, en ZONDER inmiddels overgeslagen controllers mee te rekenen.
+      if (!CONTROLLER_COLUMN_IDS.has(String(edit.columnId))) {
+        if (!sharedControllerStates) sharedControllerStates = buildControllerStates(edit);
+        let jointlyWritable = false;
+        for (const state of sharedControllerStates) {
+          projectedTasksById.set(task.id, state.task);
+          if (!descriptor.readOnly(state.task, projectedContext)) { jointlyWritable = true; break; }
+        }
+        if (!jointlyWritable) {
+          if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); passFoundNewSkip = true; continue; }
+          return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+        }
+        continue;
+      }
+
+      // De gecontroleerde cel is zelf (ook) een controllerveld (vandaag alleen `task.isHammock`).
+      // Valt terug op de oorspronkelijke, uitputtende prefixcontrole — zelfde semantiek, geen
+      // snelkoppeling — over de nog niet overgeslagen overige edits van deze pas.
+      const otherEdits = activeEdits.filter(candidate => candidate !== edit);
       let jointlyWritable = false;
-      for (const state of sharedControllerStates) {
-        projectedTasksById.set(task.id, state.task);
-        if (!descriptor.readOnly(state.task, projectedContext)) { jointlyWritable = true; break; }
+      for (let prefixLength = 1; prefixLength <= otherEdits.length; prefixLength++) {
+        const projected = planTaskCellEdits(task, otherEdits.slice(0, prefixLength), environment);
+        if (!projected.ok) continue;
+        projectedTasksById.set(task.id, projected.value.task);
+        if (!descriptor.readOnly(projected.value.task, projectedContext)) {
+          jointlyWritable = true;
+          break;
+        }
       }
       if (!jointlyWritable) {
-        if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); continue; }
+        if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); passFoundNewSkip = true; continue; }
         return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
       }
-      continue;
-    }
-
-    // Zeldzame/toekomstige uitzondering: de gecontroleerde cel is zelf (ook) een controllerveld.
-    // Geen enkele huidige descriptor doet dit, maar mocht dat ooit veranderen, dan valt dit terug
-    // op de oorspronkelijke, uitputtende prefixcontrole — zelfde semantiek, geen snelkoppeling.
-    const otherEdits = validatedEdits.filter(candidate => candidate !== edit);
-    let jointlyWritable = false;
-    for (let prefixLength = 1; prefixLength <= otherEdits.length; prefixLength++) {
-      const projected = planTaskCellEdits(task, otherEdits.slice(0, prefixLength), environment);
-      if (!projected.ok) continue;
-      projectedTasksById.set(task.id, projected.value.task);
-      if (!descriptor.readOnly(projected.value.task, projectedContext)) {
-        jointlyWritable = true;
-        break;
-      }
-    }
-    if (!jointlyWritable) {
-      if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); continue; }
-      return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
     }
   }
   skippedReadOnlyCount += skippedConditionalEdits.size;
