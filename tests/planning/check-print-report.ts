@@ -15,7 +15,12 @@
  */
 import { renderReport, PrintOptions, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
-import { computePreviewRasterLimits, PREVIEW_MAX_PAGE_PIXELS } from '@/services/print/previewSafety';
+import {
+  computePreviewRasterLimits,
+  PREVIEW_MAX_PAGE_PIXELS,
+  PREVIEW_MAX_RASTER_PIXELS,
+  PREVIEW_QUALITY_RASTER_BUDGETS,
+} from '@/services/print/previewSafety';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task, TaskTime } from '@/types/task';
@@ -385,34 +390,38 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
 // De preview mag niet eerst een broncanvas en tientallen A1-pagina's zonder rasterbudget maken.
 // Dit is puur rekenwerk, dus de bescherming is toetsbaar zonder een browsercanvas te reserveren.
 {
-  // Alle kwaliteitsstanden houden exact dezelfde CSS-breedte. Alleen bron- en paginaresolutie
-  // lopen samen op, zodat een scherpe pagina nooit uit een lagere bron wordt uitvergroot.
+  // Alle kwaliteitsstanden houden exact dezelfde CSS-breedte. De dichtheden liggen bewust rond
+  // de fysieke schermresolutie: snel half-native, Hoog driekwart en Maximaal native.
   const cssWidth = 900;
   const standard = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 1);
   const high = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 2);
   const maximum = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 3);
-  ok(high.renderScale > standard.renderScale && maximum.renderScale > high.renderScale,
-    '100/200/300% verhogen de bronresolutie proportioneel');
-  ok(high.pageSupersample > standard.pageSupersample && maximum.pageSupersample > high.pageSupersample,
-    '100/200/300% verhogen de paginaresolutie proportioneel');
-  ok(1_191 * standard.pageSupersample >= cssWidth - 1,
-    'Standaard behoudt minstens CSS×DPR-paginadichtheid');
-  ok(1_191 * high.pageSupersample >= cssWidth * 2 - 1,
-    'Hoog bereikt 2× CSS×DPR-paginadichtheid bij normaal rapport');
-  ok(1_191 * maximum.pageSupersample >= cssWidth * 3 - 1,
-    'Maximaal bereikt 3× CSS×DPR-paginadichtheid bij normaal rapport');
+  ok(high.pageSupersample >= standard.pageSupersample * 1.49
+    && maximum.pageSupersample >= high.pageSupersample * 1.32,
+    'Standaard/Hoog/Maximaal verhogen de paginaresolutie in zichtbare stappen');
+  ok(1_191 * standard.pageSupersample >= cssWidth * 0.5 - 1,
+    'Standaard gebruikt de snelle halve CSS×DPR-paginadichtheid');
+  ok(1_191 * high.pageSupersample >= cssWidth * 0.75 - 1,
+    'Hoog bereikt driekwart CSS×DPR-paginadichtheid bij normaal rapport');
+  ok(1_191 * maximum.pageSupersample >= cssWidth - 1,
+    'Maximaal bereikt native CSS×DPR-paginadichtheid bij normaal rapport');
   ok(maximum.maxPages <= high.maxPages,
     'Maximaal houdt niet meer pagina’s tegelijk vast dan Hoog');
 }
 {
-  const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2, 3);
-  const pagePixels = limits.maxPages * 2384 * 1684 * limits.pageSupersample * limits.pageSupersample;
-  ok(pagePixels <= PREVIEW_MAX_PAGE_PIXELS + 20_000,
-    `A1-preview begrenst één zichtbare page-local buffer (got ${pagePixels})`);
-  ok(limits.renderScale === 6,
-    `page-local bronbemonstering volgt kwaliteit × DPR zonder rapporthoogte (got ${limits.renderScale})`);
-  ok(limits.pageSupersample > 0 && limits.maxPages === 1,
-    `extreme A1-preview blijft bruikbaar met alleen de zichtbare pagina (got ${limits.pageSupersample})`);
+  for (const quality of [1, 2, 3] as const) {
+    const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2, quality);
+    const onePagePixels = 2384 * 1684 * limits.pageSupersample * limits.pageSupersample;
+    const cachedPixels = limits.maxPages * onePagePixels;
+    ok(onePagePixels <= PREVIEW_MAX_PAGE_PIXELS + 20_000,
+      `A1-preview begrenst iedere page-local buffer op kwaliteit ${quality} (got ${onePagePixels})`);
+    ok(cachedPixels <= PREVIEW_QUALITY_RASTER_BUDGETS[quality] + 40_000,
+      `A1-preview respecteert het eigen cachebudget op kwaliteit ${quality} (got ${cachedPixels})`);
+    ok(limits.pageSupersample > 0 && limits.maxPages >= 2,
+      `extreme A1-preview houdt twee aangrenzende pagina’s bruikbaar op kwaliteit ${quality} (got ${limits.maxPages})`);
+  }
+  ok(PREVIEW_QUALITY_RASTER_BUDGETS[3] === PREVIEW_MAX_RASTER_PIXELS,
+    'het maximale kwaliteitsbudget blijft de globale rastergrens');
 }
 {
   const absurdlyLong = mkTask('very-long', 'Veilige lange tijdas', {

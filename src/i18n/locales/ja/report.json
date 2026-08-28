@@ -20,7 +20,7 @@
   "showBaselineOverlay": "ベースライン オーバーレイを表示",
   "autoFit": "用紙に自動調整",
   "zoom": "ズーム：",
-  "previewQuality": { "label": "プレビュー品質", "standard": "標準 (100%)", "high": "高 (200%)", "maximum": "最大 (300%)" },
+  "previewQuality": { "label": "プレビュー品質", "standard": "標準", "high": "高", "maximum": "最大" },
   "repeatHeader": "各ページにヘッダーを繰り返す",
   "reportFontScaleLabel": "文字サイズ：",
   "timelineColumnsLabel": "タイムライン：",

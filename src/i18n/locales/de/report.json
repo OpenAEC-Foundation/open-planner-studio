@@ -20,7 +20,7 @@
   "showBaselineOverlay": "Baseline-Overlay anzeigen",
   "autoFit": "Automatisch an Papier anpassen",
   "zoom": "Zoom:",
-  "previewQuality": { "label": "Vorschauqualität", "standard": "Standard (100 %)", "high": "Hoch (200 %)", "maximum": "Maximal (300 %)" },
+  "previewQuality": { "label": "Vorschauqualität", "standard": "Standard", "high": "Hoch", "maximum": "Maximal" },
   "repeatHeader": "Kopfzeile auf jeder Seite wiederholen",
   "reportFontScaleLabel": "Schriftgröße:",
   "timelineColumnsLabel": "Zeitleiste über:",
