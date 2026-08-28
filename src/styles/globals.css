@@ -106,8 +106,23 @@
   opacity: 0.58;
 }
 
-.task-grid-data-row[data-grid-row-selected="true"] {
-  box-shadow: inset 3px 0 0 var(--theme-accent);
+/* Browserreview, observatie 4: de rij-indicators (selectiebalk, drop-zone tijdens rijsleep) waren
+ * tot nu toe een `box-shadow: inset` op de RIJ zelf — maar een box-shadow van een element schildert
+ * ALTIJD vóór zijn eigen kinderen (de schilderorde is achtergrond/rand/box-shadow, dan pas
+ * children), en elke `.task-grid-cell` heeft een eigen ONdoorzichtige achtergrond. Onder elke kolom
+ * met inhoud (dus praktisch de hele tabelbreedte) werd de balk/lijn daardoor volledig overschilderd
+ * door de cellen erboven — zichtbaar bleef alleen het smalle restje rijbreedte VOORBIJ de laatste
+ * kolom. Twee bijna-onzichtbare lijnen die daar toevallig samenvallen (bv. "after" van rij N en
+ * "before" van rij N+1, beide maar 2px uit elkaar) konden zo als "twee oranje lijnen" ogen, en de
+ * selectiebalk op de gesleepte rij zelf was al net zo onzichtbaar.
+ *
+ * Fix: de indicator is nu een `::before`-pseudo-element, `position:absolute` op de rij (die
+ * daarvoor `position:relative` krijgt) met `z-index` boven de hoogste celwaarde (actieve cel = 4
+ * `!important`) — een pseudo-element ligt zo als een eigen laag BOVEN alle cellen, ongeacht wat
+ * daaronder staat. `pointer-events:none` houdt 'm buiten alle hit-testing (klikken/slepen blijven
+ * op de cellen zelf werken). */
+.task-grid-data-row {
+  position: relative;
 }
 
 .task-grid-data-row[data-grid-row-selected="true"] .task-grid-cell {
@@ -118,15 +133,28 @@
   opacity: 0.56;
 }
 
-.task-grid-data-row[data-grid-drop-zone="before"] {
+.task-grid-data-row[data-grid-row-selected="true"]::before,
+.task-grid-data-row[data-grid-drop-zone]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.task-grid-data-row[data-grid-row-selected="true"]::before {
+  box-shadow: inset 3px 0 0 var(--theme-accent);
+}
+
+.task-grid-data-row[data-grid-drop-zone="before"]::before {
   box-shadow: inset 0 2px 0 var(--theme-accent);
 }
 
-.task-grid-data-row[data-grid-drop-zone="after"] {
+.task-grid-data-row[data-grid-drop-zone="after"]::before {
   box-shadow: inset 0 -2px 0 var(--theme-accent);
 }
 
-.task-grid-data-row[data-grid-drop-zone="nest"] {
+.task-grid-data-row[data-grid-drop-zone="nest"]::before {
   box-shadow: inset 0 0 0 2px var(--theme-accent);
 }
 
