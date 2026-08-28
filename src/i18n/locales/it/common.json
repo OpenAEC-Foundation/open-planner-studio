@@ -28,6 +28,9 @@
     "mppTimephasedSteeringLost_one": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
     "mppTimephasedSteeringLost_many": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
     "mppTimephasedSteeringLost_other": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
+    "pasteSkippedReadOnly_one": "{{count}} cella ignorata: è di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
+    "pasteSkippedReadOnly_many": "{{count}} celle ignorate: sono di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
+    "pasteSkippedReadOnly_other": "{{count}} celle ignorate: sono di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
     "readMore": "Ulteriori informazioni"
   },
   "yes": "Sì",

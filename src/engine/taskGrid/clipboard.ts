@@ -148,9 +148,13 @@ function targetRectangle(
   const sourceRows = source.length;
   const sourceColumns = source[0]?.length ?? 0;
   const selectedIsLarger = selected.rows.length > 1 || selected.columns.length > 1;
-  if (sourceRows === 1 && sourceColumns === 1 && selectedIsLarger) return { ok: true, value: selected };
+  // Excel-semantiek (§8.6-besluit, FIX 6): een R×K-klembord vult een geselecteerde rechthoek
+  // waarvan de afmetingen een GEHEEL veelvoud zijn van R×K, door het bronblok te herhalen (tegels).
+  // Een 1×1-bron was hier altijd al een speciaal geval van dit patroon (elk formaat is een veelvoud
+  // van 1×1); die uitzonderingsregel is nu overbodig — de modulo-toets dekt hem vanzelf mee.
   if (selectedIsLarger) {
-    return selected.rows.length === sourceRows && selected.columns.length === sourceColumns
+    return sourceRows > 0 && sourceColumns > 0
+      && selected.rows.length % sourceRows === 0 && selected.columns.length % sourceColumns === 0
       ? { ok: true, value: selected }
       : fail('pasteDimensions', source);
   }
@@ -171,17 +175,35 @@ function targetRectangle(
   };
 }
 
+export interface TaskGridPasteOptions {
+  /**
+   * FIX 6-besluit (§8.6): een plak (Ctrl+V) die statisch berekende doelcellen raakt, weigert niet
+   * meer de hele transactie — die cellen worden overgeslagen en de rest gaat atomair door, met één
+   * geaggregeerde melding (zie `PreparedGridMutation.skippedReadOnlyCount` in gridTransaction.ts;
+   * de conditioneel-schrijfbare tegenhanger van deze skip zit daar, niet hier, want alleen de
+   * gezamenlijke-eindtoestandcontrole weet of zo'n cel via een ANDERE write alsnog schrijfbaar
+   * wordt). BEWUST `false` als default: `planTaskGridClear` (Delete/Backspace) hergebruikt deze
+   * functie met een lege bron en behoudt zijn bestaande "één niet-leegbare cel ⇒ volledige
+   * rollback"-semantiek (zie de zevende review-evidence, FIX 1) — alleen de echte Ctrl+V-route in
+   * FullTaskGrid.tsx zet dit expliciet aan.
+   */
+  skipReadOnlyCells?: boolean;
+}
+
 export function planTaskGridPaste(
   text: string,
   environment: TaskGridClipboardEnvironment,
+  options: TaskGridPasteOptions = {},
 ): GridResult<PasteIntent, readonly CellValidationError[]> {
   const parsed = parseTaskGridTsv(text);
   if (!parsed.ok) return parsed;
   const target = targetRectangle(parsed.value, environment);
   if (!target.ok) return target;
-  const fill = parsed.value.length === 1 && parsed.value[0].length === 1;
+  const sourceRows = parsed.value.length;
+  const sourceColumns = parsed.value[0]?.length ?? 0;
   const writes: GridWriteIntent[] = [];
   const byTarget = new Map<string, unknown>();
+  let skippedReadOnlyCount = 0;
 
   for (let rowOffset = 0; rowOffset < target.value.rows.length; rowOffset++) {
     const rowKey = target.value.rows[rowOffset];
@@ -189,7 +211,10 @@ export function planTaskGridPaste(
     for (let columnOffset = 0; columnOffset < target.value.columns.length; columnOffset++) {
       const columnId = target.value.columns[columnOffset];
       const cell = { rowKey, columnId };
-      const source = fill ? parsed.value[0][0] : parsed.value[rowOffset][columnOffset];
+      // Excel-tegelherhaling (§8.6-besluit, FIX 6): de bron wordt modulo zijn eigen afmetingen
+      // geïndexeerd. Voor een 1×1-bron (het oude "fill"-geval) is dat altijd `parsed.value[0][0]`;
+      // voor een R×K-bron die de selectie een geheel aantal keer vult, herhaalt dit hetzelfde blok.
+      const source = parsed.value[rowOffset % sourceRows][columnOffset % sourceColumns];
       const descriptor = environment.descriptors.get(columnId);
       if (!descriptor || !descriptor.available(environment.context)) {
         return { ok: false, errors: [error('plannerNotAvailable', source, cell, task.id)] };
@@ -200,6 +225,7 @@ export function planTaskGridPaste(
       // beoordeeld.
       const planWrite = descriptor.planWriteUnchecked ?? descriptor.planWrite;
       if (!descriptor.parse || !planWrite) {
+        if (options.skipReadOnlyCells) { skippedReadOnlyCount++; continue; }
         return { ok: false, errors: [error('readOnly', source, cell, task.id)] };
       }
       const parsedValue = parseGridEditorText(
@@ -252,7 +278,15 @@ export function planTaskGridPaste(
       writes.push(...planned.value);
     }
   }
-  return { ok: true, value: { kind: 'paste', writes } };
+  return {
+    ok: true,
+    value: {
+      kind: 'paste',
+      writes,
+      ...(options.skipReadOnlyCells ? { allowSkippingReadOnlyCells: true } : {}),
+      ...(skippedReadOnlyCount > 0 ? { skippedReadOnlyCount } : {}),
+    },
+  };
 }
 
 export function planTaskGridClear(

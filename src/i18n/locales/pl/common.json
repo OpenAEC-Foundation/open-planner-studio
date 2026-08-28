@@ -31,6 +31,10 @@
     "mppTimephasedSteeringLost_few": "{{count}} zadania straciły powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
     "mppTimephasedSteeringLost_many": "{{count}} zadań straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
     "mppTimephasedSteeringLost_other": "{{count}} zadania straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
+    "pasteSkippedReadOnly_one": "{{count}} komórka pominięta: jest tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
+    "pasteSkippedReadOnly_few": "{{count}} komórki pominięte: są tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
+    "pasteSkippedReadOnly_many": "{{count}} komórek pominiętych: są tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
+    "pasteSkippedReadOnly_other": "{{count}} komórki pominięte: są tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
     "readMore": "Dowiedz się więcej"
   },
   "yes": "Tak",

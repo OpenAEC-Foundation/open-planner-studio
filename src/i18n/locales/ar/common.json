@@ -37,6 +37,12 @@
     "mppTimephasedSteeringLost_few": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} مهام بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
     "mppTimephasedSteeringLost_many": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} مهمة بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
     "mppTimephasedSteeringLost_other": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} من المهام بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
+    "pasteSkippedReadOnly_zero": "لم يتم تخطي أي خلية للقراءة فقط.",
+    "pasteSkippedReadOnly_one": "تم تخطي خلية واحدة للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "pasteSkippedReadOnly_two": "تم تخطي خليتين للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "pasteSkippedReadOnly_few": "تم تخطي {{count}} خلايا للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "pasteSkippedReadOnly_many": "تم تخطي {{count}} خلية للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "pasteSkippedReadOnly_other": "تم تخطي {{count}} من الخلايا للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
     "readMore": "اقرأ المزيد"
   },
   "yes": "نعم",

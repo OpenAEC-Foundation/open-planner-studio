@@ -778,20 +778,39 @@ toegepast.
 
 De hele paste wordt geweigerd als:
 
-- één doelcel read-only of berekend is;
 - één waarde niet geparseerd kan worden;
-- één domeinregel faalt;
+- één domeinregel faalt (behalve de read-only-uitzondering hieronder);
 - een relatie zelfverwijzend, dubbel, cyclisch, ambigu of anderszins verboden wordt;
 - dezelfde onderliggende taak door dubbele groepsvoorkomens tegenstrijdige waarden zou krijgen;
 - het bereik buiten de beschikbare taakrijen of kolommen valt.
 
-Er bestaat geen gedeeltelijk resultaat. De foutmelding noemt de eerste fout én het celadres; waar
-zinvol worden alle gevonden foutcellen tegelijk gemarkeerd. Schrijft een gegroepeerd bereik dezelfde
-waarde tweemaal naar exact hetzelfde taakveld, dan dedupliceert de transactie dat; twee verschillende
-waarden voor hetzelfde taakveld zijn een fout.
+Er bestaat voor deze gevallen geen gedeeltelijk resultaat. De foutmelding noemt de eerste fout én
+het celadres; waar zinvol worden alle gevonden foutcellen tegelijk gemarkeerd. Schrijft een
+gegroepeerd bereik dezelfde waarde tweemaal naar exact hetzelfde taakveld, dan dedupliceert de
+transactie dat; twee verschillende waarden voor hetzelfde taakveld zijn een fout.
 
-Een 1×1 klembordwaarde mag een geselecteerde rechthoek vullen. Een grotere matrix plakt vanaf de
-actieve cel; als de bestaande selectie meer dan één cel bevat, moeten de afmetingen exact passen.
+**Read-only doelcellen worden overgeslagen, niet geweigerd (FIX 6, eindreview-besluit).** Eén
+doelcel die read-only is — statisch berekend (bijvoorbeeld een technische kolom) of conditioneel
+(bijvoorbeeld `task.wbsCode` met automatische nummering aan, of mijlpaalmetadata zonder
+`task.isMilestone` in dezelfde paste) — blokkeert niet langer de hele transactie. Die cel wordt
+overgeslagen; de overige cellen van de paste gaan atomair door onder dezelfde alles-of-niets-regels
+als hierboven. Na een succesvolle commit met minstens één overgeslagen cel toont de app precies één
+melding via het bestaande K8a-kanaal met het totaal aantal overgeslagen cellen
+(`notifications.pasteSkippedReadOnly`, i18n in alle veertien locales met correcte CLDR-
+pluralvormen). Deze uitzondering geldt uitsluitend voor een echte Ctrl+V-paste
+(`TaskGridPasteOptions.skipReadOnlyCells` in clipboard.ts); Delete/Backspace
+(`planTaskGridClear`) behoudt bewust de oude harde weigering — "één niet-leegbare cel ⇒ volledige
+rollback" blijft daar de regel (zie FIX 1 uit de review-evidence). Een harde write die wél doorgaat
+maar zelf faalt (ongeldige waarde, domeinregel, cyclus) blijft de hele transactie terugrollen —
+alleen de read-only-uitkomst wordt overgeslagen in plaats van geweigerd.
+
+**Excel-tegelherhaling.** Een klembordblok van R rijen × K kolommen mag een geselecteerde
+rechthoek vullen wanneer de afmetingen van de selectie een GEHEEL veelvoud zijn van R×K, door het
+bronblok herhaald te "tegelen" (rij-, kolom- of blokherhaling). Een 1×1-bron was hiervan altijd al
+een speciaal geval (elk formaat is een veelvoud van 1×1) en heeft dus geen aparte regel meer nodig.
+Past de selectie niet op een geheel veelvoud, dan geldt de bestaande vanaf-actieve-cel-plak: een
+grotere matrix plakt vanaf de actieve cel, en als de bestaande selectie meer dan één cel bevat,
+moeten de afmetingen dan alsnog exact passen.
 
 ### 8.7 Atomaire UI-transactie
 

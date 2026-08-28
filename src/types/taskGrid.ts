@@ -98,6 +98,17 @@ export type GridWriteIntent = CellEditIntent | RelationSetIntent | AssignmentSet
 export interface PasteIntent {
   kind: 'paste';
   writes: readonly GridWriteIntent[];
+  /** FIX 6 (§8.6): gezet naar `TaskGridPasteOptions.skipReadOnlyCells` (clipboard.ts). Alleen een
+   *  echte Ctrl+V-paste zet dit aan; `planTaskGridClear` (Delete/Backspace) laat het weg en behoudt
+   *  zijn bestaande "één niet-leegbare cel ⇒ volledige rollback"-semantiek. gridTransaction.ts leest
+   *  dit om te bepalen of conditioneel read-only cellen tijdens de transactie mogen worden
+   *  overgeslagen in plaats van de hele taak te blokkeren. */
+  allowSkippingReadOnlyCells?: boolean;
+  /** Aantal statisch berekende doelcellen die deze paste al bij het plannen oversloeg (alleen
+   *  gezet wanneer `allowSkippingReadOnlyCells` aanstond). gridTransaction.ts telt hier zijn eigen,
+   *  tijdens de transactie ontdekte overgeslagen cellen (conditioneel read-only) bovenop voor de
+   *  ÉÉN geaggregeerde melding. */
+  skippedReadOnlyCount?: number;
 }
 
 export type GridIntent = GridWriteIntent | PasteIntent;

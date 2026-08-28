@@ -51,6 +51,10 @@ export interface PreparedGridMutation {
   };
   notifications: readonly DeferredNotification[];
   timephasedLossCount: number;
+  /** FIX 6 (§8.6): aantal doelcellen die deze paste oversloeg omdat ze read-only waren — statisch
+   *  berekend (clipboard.ts) of conditioneel bleken (deze module, applyCellEdits) — bij een echte
+   *  Ctrl+V-paste in plaats van de hele transactie te blokkeren. 0 buiten die route. */
+  skippedReadOnlyCount: number;
   label: string;
 }
 
@@ -404,20 +408,29 @@ function applyCellEdits(
   // plaats van O(document). De caller vervangt nooit posities in `state.tasks` (alleen elementen
   // op dezelfde index), dus deze kaart blijft geldig zolang deze functie draait.
   taskIndexById: ReadonlyMap<string, number>,
-): GridResult<{ timephasedGuidanceLost: boolean }, readonly CellValidationError[]> {
+  // FIX 6 (§8.6): alleen een echte Ctrl+V-paste zet dit aan (zie `skipReadOnlyCells` in
+  // clipboard.ts en `pasteIntentPresent` in prepareGridMutation hieronder). Een enkele celedit of
+  // Delete/Backspace (via `planTaskGridClear`) behoudt de bestaande harde weigering.
+  skipReadOnlyCells: boolean,
+): GridResult<{ timephasedGuidanceLost: boolean; skippedReadOnlyCount: number }, readonly CellValidationError[]> {
   const first = edits[0];
-  if (!first) return { ok: true, value: { timephasedGuidanceLost: false } };
+  if (!first) return { ok: true, value: { timephasedGuidanceLost: false, skippedReadOnlyCount: 0 } };
   const taskIndex = taskIndexById.get(first.taskId) ?? -1;
   const task = taskIndex >= 0 ? state.tasks[taskIndex] : undefined;
   if (!task) return { ok: false, errors: [validationError('taskNotFound', first, first.value)] };
   const validatedEdits: CellEditIntent[] = [];
+  let skippedReadOnlyCount = 0;
   for (const edit of edits) {
     const descriptor = runtime.descriptors.get(String(edit.columnId));
     if (!descriptor || !descriptor.available(runtime.context)) {
       return { ok: false, errors: [validationError('plannerNotAvailable', edit, edit.value)] };
     }
-    // Statisch berekende kolommen zijn nooit onderdeel van een gezamenlijke eindtoestand.
+    // Statisch berekende kolommen zijn nooit onderdeel van een gezamenlijke eindtoestand. Bij een
+    // echte paste wordt deze cel overgeslagen in plaats van de hele transactie te blokkeren — in
+    // de praktijk raakt clipboard.ts (met `skipReadOnlyCells` aan) deze tak hier al niet meer,
+    // maar deze weg blijft als achtervang voor elke andere aanroeper.
     if (descriptor.readOnly === true) {
+      if (skipReadOnlyCells) { skippedReadOnlyCount++; continue; }
       return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
     }
     let value = edit.value;
@@ -499,6 +512,13 @@ function applyCellEdits(
     return states;
   };
 
+  // FIX 6 (§8.6): bij een echte paste worden hier gevonden conditioneel niet-schrijfbare cellen
+  // EXCLUSIEF gehouden uit de finale write in plaats van de hele taak te blokkeren. `edits` mogen
+  // hier bewust wél in `validatedEdits` blijven staan tijdens de rest van deze controle — een
+  // overgeslagen cel is per definitie geen controller (zie de uitleg bij CONTROLLER_COLUMN_IDS),
+  // dus haar aanwezigheid in latere prefixprojecties voor ANDERE cellen verandert niets. Pas na de
+  // hele lus wordt de definitieve schrijflijst gefilterd.
+  const skippedConditionalEdits = new Set<CellEditIntent>();
   for (const edit of validatedEdits) {
     const descriptor = runtime.descriptors.get(String(edit.columnId));
     if (!descriptor || typeof descriptor.readOnly !== 'function'
@@ -516,7 +536,10 @@ function applyCellEdits(
         projectedTasksById.set(task.id, state.task);
         if (!descriptor.readOnly(state.task, projectedContext)) { jointlyWritable = true; break; }
       }
-      if (!jointlyWritable) return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+      if (!jointlyWritable) {
+        if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); continue; }
+        return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+      }
       continue;
     }
 
@@ -535,11 +558,16 @@ function applyCellEdits(
       }
     }
     if (!jointlyWritable) {
+      if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); continue; }
       return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
     }
   }
+  skippedReadOnlyCount += skippedConditionalEdits.size;
+  const finalEdits = skippedConditionalEdits.size > 0
+    ? validatedEdits.filter(edit => !skippedConditionalEdits.has(edit))
+    : validatedEdits;
 
-  const planned = planTaskCellEdits(task, validatedEdits, environment);
+  const planned = planTaskCellEdits(task, finalEdits, environment);
   if (!planned.ok) return planned;
   if (planned.value.changed) {
     state.tasks[taskIndex] = planned.value.task;
@@ -553,7 +581,7 @@ function applyCellEdits(
   }
   return {
     ok: true,
-    value: { timephasedGuidanceLost: planned.value.timephasedGuidanceLost },
+    value: { timephasedGuidanceLost: planned.value.timephasedGuidanceLost, skippedReadOnlyCount },
   };
 }
 
@@ -573,6 +601,17 @@ export function prepareGridMutation(
   if (!normalized.ok) return normalized;
   const orderedWrites = orderWritesForDependentTransitions(normalized.value);
 
+  // FIX 6 (§8.6): alleen aanwezig op een PasteIntent die daar expliciet om vroeg (zie
+  // `TaskGridPasteOptions.skipReadOnlyCells` in clipboard.ts) — Delete/Backspace (`planTaskGridClear`)
+  // laat dit veld weg en behoudt zijn bestaande harde weigering.
+  const skipReadOnlyCells = intents.some(
+    intent => intent.kind === 'paste' && intent.allowSkippingReadOnlyCells === true,
+  );
+  const skippedReadOnlyFromPlanning = intents.reduce(
+    (total, intent) => total + (intent.kind === 'paste' ? intent.skippedReadOnlyCount ?? 0 : 0),
+    0,
+  );
+
   const runtime = buildGridColumnRuntime(state);
   let relationWriteCount = 0;
   for (const write of orderedWrites) {
@@ -583,6 +622,7 @@ export function prepareGridMutation(
   const timephasedLossTaskIds = new Set<string>();
   const assignmentValidationTaskIds = new Set<string>();
   const appliedRelationWrites: RelationSetIntent[] = [];
+  let skippedReadOnlyFromTransaction = 0;
   const isolated = produce(state as AppState, draft => {
     const draftTasksById = new Map(draft.tasks.map(task => [task.id, task] as const));
     const draftTaskIndexById = new Map(draft.tasks.map((task, index) => [task.id, index] as const));
@@ -611,7 +651,7 @@ export function prepareGridMutation(
         if (appliedCellTaskIds.has(write.taskId)) continue;
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
-        const applied = applyCellEdits(draft, taskWrites, runtime, draftTaskIndexById);
+        const applied = applyCellEdits(draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells);
         if (!applied.ok) errors.push(...applied.errors);
         else {
           const currentTaskIndex = draftTaskIndexById.get(write.taskId);
@@ -619,6 +659,7 @@ export function prepareGridMutation(
             draftTasksById.set(write.taskId, draft.tasks[currentTaskIndex]);
           }
           if (applied.value.timephasedGuidanceLost) timephasedLossTaskIds.add(write.taskId);
+          skippedReadOnlyFromTransaction += applied.value.skippedReadOnlyCount;
         }
         if (taskWrites.some(item => String(item.columnId) === 'task.isMilestone')) {
           assignmentValidationTaskIds.add(write.taskId);
@@ -741,6 +782,7 @@ export function prepareGridMutation(
       derivedAfter: { viewRows, resourceLoadResult },
       notifications: [],
       timephasedLossCount: timephasedLossTaskIds.size,
+      skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
       label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',
     },
   };
@@ -780,6 +822,16 @@ function commitPreparedAgainstStore(
   for (const notification of prepared.notifications) get().notify(notification);
   if (changed && prepared.timephasedLossCount > 0) {
     notifyTimephasedLoss(get().notify, prepared.documentId, prepared.timephasedLossCount);
+  }
+  // FIX 6 (§8.6): ongeacht `changed` — ook een paste die UITSLUITEND read-only doelcellen raakte
+  // (dus per saldo niets schreef) moet de gebruiker vertellen dat er iets is overgeslagen, anders
+  // oogt de paste als een stille no-op.
+  if (prepared.skippedReadOnlyCount > 0) {
+    get().notify({
+      severity: 'info',
+      messageKey: 'notifications.pasteSkippedReadOnly',
+      params: { count: prepared.skippedReadOnlyCount },
+    });
   }
   return { ok: true, value: undefined };
 }

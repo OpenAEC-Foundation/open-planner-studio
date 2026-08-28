@@ -167,6 +167,56 @@ function liveEnvironment(
   };
 }
 
+/** Zoals `liveEnvironment`, maar over meerdere taken tegelijk — nodig voor FIX 6 (§8.6):
+ * Excel-tegelherhaling (R×K-bron op een veelvoud-selectie) en het overslaan van read-only
+ * doelcellen bewijzen zich alleen over een echte meerrijige selectie. */
+function liveMultiRowEnvironment(
+  taskIds: readonly string[],
+  visibleColumns: readonly TaskColumnId[],
+): TaskGridClipboardEnvironment {
+  const state = S();
+  const liveDescriptors = buildTaskColumnRegistry({
+    projectId: state.project.id,
+    activityCodeTypes: state.activityCodeTypes,
+    customFieldDefs: state.customFieldDefs,
+    baselines: state.baselines,
+  });
+  const assignmentsByTaskId = new Map<string, typeof state.assignments>();
+  for (const assignment of state.assignments) {
+    const current = assignmentsByTaskId.get(assignment.taskId);
+    if (current) current.push(assignment);
+    else assignmentsByTaskId.set(assignment.taskId, [assignment]);
+  }
+  const liveContext: TaskColumnContext = {
+    projectId: state.project.id,
+    tasksById: new Map(state.tasks.map(candidate => [candidate.id, candidate])),
+    relationIndex: buildTaskRelationIndex(state.tasks, state.sequences, state.cpmResult),
+    assignmentsByTaskId,
+    resourcesById: new Map(state.resources.map(resource => [resource.id, resource])),
+    baselinesById: new Map(state.baselines.map(baseline => [baseline.id, baseline])),
+    scheduleStale: state.scheduleStale,
+    wbsAutoNumber: state.project.wbsAutoNumber === true,
+    effectiveHoursPerDay: () => 8,
+  };
+  const rows = taskIds.map(taskId => taskRow(state.tasks.find(candidate => candidate.id === taskId)!));
+  const rowIndex = createTaskGridRowIndex(rows);
+  const start = { rowKey: rows[0].rowKey, columnId: visibleColumns[0] };
+  const end = { rowKey: rows[rows.length - 1].rowKey, columnId: visibleColumns[visibleColumns.length - 1] };
+  const selection = updateGridSelection(
+    updateGridSelection(createEmptyGridSelection(), start, rowIndex, visibleColumns, 'replace'),
+    end, rowIndex, visibleColumns, 'extend',
+  );
+  return {
+    selection,
+    rowIndex,
+    columns: visibleColumns,
+    descriptors: new Map(liveDescriptors.map(descriptor => [descriptor.id, descriptor])),
+    context: liveContext,
+    dateNotation: 'dmy',
+    booleanLabels: { true: 'Oui', false: 'Non' },
+  };
+}
+
 function planAndCommitPaste(
   taskId: string,
   visibleColumns: readonly TaskColumnId[],
@@ -599,6 +649,125 @@ function planAndCommitPaste(
       task: S().tasks.find(candidate => candidate.id === conflictingTarget),
       assignments: S().assignments,
     }), beforeConflict);
+}
+
+// ── FIX 6 (§8.6, eindreview): Excel-tegelherhaling + read-only-cellen overslaan in een plak ────
+{
+  S().newProject();
+  const descColumn = [taskColumnId('task.description')];
+
+  // 1) Rij-herhaling: een 2×1-bron vult een 4×1-selectie door zichzelf te herhalen (A,B,A,B).
+  {
+    const ids = [0, 1, 2, 3].map(index => S().addTask({ name: `Rijherhaling ${index}` }));
+    const env = liveMultiRowEnvironment(ids, descColumn);
+    const planned = planTaskGridPaste('A\r\nB', env);
+    eq('2×1-bron plant 4 writes op een 4×1-selectie (tegelherhaling)',
+      planned.ok ? planned.value.writes.length : planned.errors, 4);
+    const committed = planned.ok ? S().runGridMutation([planned.value]) : planned;
+    eq('Rijherhaling committeert', committed.ok, true);
+    eq('Rijherhaling herhaalt de bron A,B,A,B over de vier rijen',
+      ids.map(id => S().tasks.find(task => task.id === id)?.description), ['A', 'B', 'A', 'B']);
+  }
+
+  // 2) Blokherhaling: een 2×2-bron vult een 2×4-selectie (twee tegels naast elkaar).
+  {
+    const ids = [0, 1].map(index => S().addTask({ name: `Blokherhaling ${index}` }));
+    // Vier tekstkolommen (geen number/enum), zodat de tegelherhaling op even/oneven kolomposities
+    // consistent tekst blijft: kolom 0 en 2 krijgen bronkolom 0 (N1/N2), kolom 1 en 3 bronkolom 1
+    // (D1/D2) — task.notes is de tweede vrije tekstkolom naast description.
+    const blockColumns = [
+      taskColumnId('task.name'), taskColumnId('task.notes'),
+      taskColumnId('task.description'), taskColumnId('task.color'),
+    ];
+    const env = liveMultiRowEnvironment(ids, blockColumns);
+    const planned = planTaskGridPaste('N1\tD1\r\nN2\tD2', env);
+    eq('2×2-bron plant 8 writes op een 2×4-selectie (blok tegelt horizontaal)',
+      planned.ok ? planned.value.writes.length : planned.errors, 8);
+    const committed = planned.ok ? S().runGridMutation([planned.value]) : planned;
+    eq('Blokherhaling committeert', committed.ok, true);
+    const first = S().tasks.find(task => task.id === ids[0]);
+    const second = S().tasks.find(task => task.id === ids[1]);
+    eq('Blok herhaalt zijn bronkolommen in het tweede tegelpaar',
+      [first?.name, first?.notes?.[0]?.text, first?.description, first?.color],
+      ['N1', 'D1', 'N1', 'D1']);
+    eq('Blokherhaling geldt ook voor de tweede rij',
+      [second?.name, second?.notes?.[0]?.text, second?.description, second?.color],
+      ['N2', 'D2', 'N2', 'D2']);
+  }
+
+  // 3) Niet-passend veelvoud: een 2×1-bron op een 3×1-selectie past niet en wordt geweigerd —
+  //    de bestaande vanaf-actieve-cel-plak blijft dan gelden (hier: 3 > 2 beschikbare rijen na de
+  //    actieve cel, dus alsnog pasteBounds/pasteDimensions, geen stille afkap of foutieve tiling).
+  {
+    const ids = [0, 1, 2].map(index => S().addTask({ name: `Nietpassend ${index}` }));
+    const env = liveMultiRowEnvironment(ids, descColumn);
+    const planned = planTaskGridPaste('A\r\nB', env);
+    eq('2×1-bron op een 3×1-selectie (geen geheel veelvoud) wordt geweigerd', planned.ok, false);
+    eq('Geen van de drie taken is aangeraakt door de geweigerde plak (blijft de verse lege waarde)',
+      ids.map(id => S().tasks.find(task => task.id === id)?.description), ['', '', '']);
+  }
+
+  // 4) Auto-WBS-plak: task.wbsCode is conditioneel read-only zolang wbsAutoNumber aanstaat. De
+  //    plak slaat die cellen over (in plaats van de hele transactie te weigeren) en de rest — hier
+  //    task.description — gaat gewoon door. Eén geaggregeerde K8a-melding meldt het aantal.
+  {
+    useAppStore.setState(state => { state.ui.notifications = []; });
+    S().setWbsAutoNumber(true);
+    const ids = [0, 1].map(index => S().addTask({ name: `AutoWBS ${index}` }));
+    const wbsBefore = ids.map(id => S().tasks.find(task => task.id === id)?.wbsCode);
+    const wbsColumns = [taskColumnId('task.wbsCode'), taskColumnId('task.description')];
+    const env = liveMultiRowEnvironment(ids, wbsColumns);
+    const planned = planTaskGridPaste('999\tKlaar 1\r\n999\tKlaar 2', env, { skipReadOnlyCells: true });
+    eq('Auto-WBS-plak plant nog steeds beide beschrijvingswrites', planned.ok, true);
+    const committed = planned.ok ? S().runGridMutation([planned.value]) : planned;
+    eq('Auto-WBS-plak committeert (geen volledige weigering meer)', committed.ok, true);
+    eq('De WBS-code zelf blijft onaangeraakt (auto-nummering, niet de geplakte "999")',
+      ids.map(id => S().tasks.find(task => task.id === id)?.wbsCode), wbsBefore);
+    eq('De niet-read-only kolom (omschrijving) gaat wél door',
+      ids.map(id => S().tasks.find(task => task.id === id)?.description), ['Klaar 1', 'Klaar 2']);
+    eq('Precies één geaggregeerde melding over overgeslagen cellen',
+      S().ui.notifications.filter(n => n.messageKey === 'notifications.pasteSkippedReadOnly').length, 1);
+    eq('De melding telt beide overgeslagen WBS-cellen samen',
+      S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly')?.params?.count, 2);
+  }
+
+  // 5) Mijlpaalmetadata-case uit de reviewbrief: task.milestoneKind/task.mandatory plakken zonder
+  //    task.isMilestone in dezelfde paste blijven conditioneel read-only (niets in déze transactie
+  //    zet isMilestone aan) — vroeger weigerde dat de hele transactie; nu worden alleen die twee
+  //    cellen overgeslagen terwijl overige schrijfbare cellen (naam) gewoon doorgaan.
+  {
+    useAppStore.setState(state => { state.ui.notifications = []; });
+    const targetId = S().addTask({ name: 'Mijlpaalmetadata voor' });
+    const metadataColumns = [
+      taskColumnId('task.name'), taskColumnId('task.milestoneKind'), taskColumnId('task.mandatory'),
+    ];
+    const env = liveMultiRowEnvironment([targetId], metadataColumns);
+    const planned = planTaskGridPaste('Mijlpaalmetadata na\tStart\tOui', env, { skipReadOnlyCells: true });
+    eq('Mijlpaalmetadata-plak plant zonder isMilestone in dezelfde paste', planned.ok, true);
+    const committed = planned.ok ? S().runGridMutation([planned.value]) : planned;
+    eq('Mijlpaalmetadata-plak committeert (naam gaat door, metadata wordt overgeslagen)', committed.ok, true);
+    const after = S().tasks.find(task => task.id === targetId);
+    eq('De naam is bijgewerkt', after?.name, 'Mijlpaalmetadata na');
+    eq('milestoneKind/mandatory blijven ongemoeid: de taak is nog geen mijlpaal',
+      [after?.isMilestone, after?.milestoneKind, after?.mandatory], [false, null, null]);
+    eq('De melding telt beide overgeslagen mijlpaalmetadatacellen samen',
+      S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly')?.params?.count, 2);
+  }
+
+  // 6) Delete/Backspace (planTaskGridClear) behoudt de BESTAANDE "één niet-leegbare cel ⇒
+  //    volledige rollback"-semantiek: skipReadOnlyCells staat daar bewust NIET aan (zie FIX 1 in
+  //    de review-evidence — dit is een andere UX-vraag dan een echte Ctrl+V-paste).
+  {
+    S().setWbsAutoNumber(true);
+    const targetId = S().addTask({ name: 'Clear blijft hard' });
+    const before = S().tasks.find(task => task.id === targetId);
+    const clearColumns = [taskColumnId('task.wbsCode'), taskColumnId('task.description')];
+    const env = liveMultiRowEnvironment([targetId], clearColumns);
+    const cleared = planTaskGridClear(env);
+    eq('Delete via planTaskGridClear weigert nog steeds volledig op een read-only WBS-cel',
+      cleared.ok ? S().runGridMutation([cleared.value]).ok : cleared.ok, false);
+    eq('Clear-weigering raakt de taak niet', S().tasks.find(task => task.id === targetId), before);
+  }
 }
 
 if (diffs.length > 0) {

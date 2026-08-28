@@ -883,7 +883,9 @@ export function TaskGridSurface({
         }}
         onPaste={event => {
           if (!finishEditing()) return;
-          const planned = planTaskGridPaste(event.clipboardData.getData('text/plain'), clipboardEnvironment());
+          const planned = planTaskGridPaste(
+            event.clipboardData.getData('text/plain'), clipboardEnvironment(), { skipReadOnlyCells: true },
+          );
           if (!planned.ok) {
             setSurfaceError(tTask(planned.errors[0]?.messageKey ?? 'taskGrid.validation.invalid', { defaultValue: 'Plakken is voor deze selectie niet mogelijk.' }));
             return;

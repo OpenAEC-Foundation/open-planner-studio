@@ -25,6 +25,8 @@
     "projectStartAnchorsClamped_other": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurden auf das neue Startdatum verschoben.",
     "mppTimephasedSteeringLost_one": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgang nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
     "mppTimephasedSteeringLost_other": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgänge nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
+    "pasteSkippedReadOnly_one": "{{count}} Zelle übersprungen: Sie ist schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
+    "pasteSkippedReadOnly_other": "{{count}} Zellen übersprungen: Sie sind schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
     "readMore": "Mehr erfahren"
   },
   "yes": "Ja",

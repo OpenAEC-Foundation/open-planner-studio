@@ -28,6 +28,9 @@
     "mppTimephasedSteeringLost_one": "La distribución de horas de MS Project ya no controla {{count}} tarea después de esta edición; la distribución original se conserva en el archivo.",
     "mppTimephasedSteeringLost_many": "La distribución de horas de MS Project ya no controla {{count}} tareas después de esta edición; la distribución original se conserva en el archivo.",
     "mppTimephasedSteeringLost_other": "La distribución de horas de MS Project ya no controla {{count}} tareas después de esta edición; la distribución original se conserva en el archivo.",
+    "pasteSkippedReadOnly_one": "Se omitió {{count}} celda: es de solo lectura (por ejemplo, un código WBS numerado automáticamente o una columna calculada).",
+    "pasteSkippedReadOnly_many": "Se omitieron {{count}} celdas: son de solo lectura (por ejemplo, un código WBS numerado automáticamente o una columna calculada).",
+    "pasteSkippedReadOnly_other": "Se omitieron {{count}} celdas: son de solo lectura (por ejemplo, un código WBS numerado automáticamente o una columna calculada).",
     "readMore": "Leer más"
   },
   "yes": "Sí",

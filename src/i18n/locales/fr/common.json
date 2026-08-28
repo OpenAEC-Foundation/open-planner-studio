@@ -28,6 +28,9 @@
     "mppTimephasedSteeringLost_one": "La répartition horaire de MS Project ne pilote plus {{count}} tâche après cette modification ; la répartition d'origine reste conservée dans le fichier.",
     "mppTimephasedSteeringLost_many": "La répartition horaire de MS Project ne pilote plus {{count}} tâches après cette modification ; la répartition d'origine reste conservée dans le fichier.",
     "mppTimephasedSteeringLost_other": "La répartition horaire de MS Project ne pilote plus {{count}} tâches après cette modification ; la répartition d'origine reste conservée dans le fichier.",
+    "pasteSkippedReadOnly_one": "{{count}} cellule ignorée : elle est en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
+    "pasteSkippedReadOnly_many": "{{count}} cellules ignorées : elles sont en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
+    "pasteSkippedReadOnly_other": "{{count}} cellules ignorées : elles sont en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
     "readMore": "En savoir plus"
   },
   "yes": "Oui",

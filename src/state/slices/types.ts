@@ -175,7 +175,8 @@ export type NotificationMessageKey =
   | 'notifications.mppEncrypted'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
-  | 'notifications.mppTimephasedSteeringLost';
+  | 'notifications.mppTimephasedSteeringLost'
+  | 'notifications.pasteSkippedReadOnly';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */

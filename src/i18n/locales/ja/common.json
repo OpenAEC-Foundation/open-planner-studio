@@ -22,6 +22,7 @@
     "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
+    "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "readMore": "詳細を見る"
   },
   "yes": "はい",
