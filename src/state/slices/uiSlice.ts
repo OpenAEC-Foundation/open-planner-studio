@@ -135,9 +135,10 @@ export function createDefaultUI(): UIState {
     // App.tsx hydrateert bij opstart uit localStorage (loadConstructionMode).
     constructionMode: true,
     dateNotation: 'dmy',
-    // Urenplanning-defaults — hoofdschakelaar uit, duurweergave automatisch,
+    // Urenplanning-defaults — hoofdschakelaar uit, gemengd toegestaan,
     // duurweergave automatisch, balk-opsplitsing bij selectie.
     enableHourPlanning: false,
+    allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
     // Issue #21 punt 5 (fase 2): default UIT (§0/§7.1 user-besluit).

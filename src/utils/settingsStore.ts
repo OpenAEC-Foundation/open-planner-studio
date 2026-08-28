@@ -301,6 +301,11 @@ export async function saveEnableHourPlanning(value: boolean): Promise<void> {
   await setSetting('enableHourPlanning', value);
 }
 
+/** App-brede UI-poort: de bestaande `ops-allowMixedDayHour`-sleutel blijft ongewijzigd leesbaar. */
+export async function saveAllowMixedDayHour(value: boolean): Promise<void> {
+  await setSetting('allowMixedDayHour', value);
+}
+
 export async function saveDurationDisplay(value: DurationDisplay): Promise<void> {
   await setSetting('durationDisplay', value);
 }

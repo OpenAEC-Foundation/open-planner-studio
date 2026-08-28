@@ -7,6 +7,8 @@ import { solveProject } from '@/engine/scheduler/solveProject';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { createAppStoreContext } from '@/state/appStore';
+import { loadAllSettings } from '@/utils/settingsRegistry';
+import { saveAllowMixedDayHour } from '@/utils/settingsStore';
 import {
   formatTaskDurationInput,
   parseTaskDurationInput,
@@ -178,6 +180,13 @@ eq('onveilig groot daggetal wordt geweigerd', parseTaskDurationInput('9999999999
 eq('onveilig groot uurgetal wordt geweigerd', parseTaskDurationInput('999999999999999999999h', 'hours'), null);
 eq('invoerweergave bevat geen uur-suffix naast de afzonderlijke unitkiezer', formatTaskDurationInput(hour12), '12');
 eq('bestaande minuutprecisie blijft als numerieke uren zichtbaar', formatTaskDurationInput({ ...hour12, time: { ...hour12.time, durationMinutes: 725 } }), '12.083333');
+
+// De gemengde-planningpoort is app-breed en mag de taakeenheid nooit als neveneffect wijzigen.
+localStorage.removeItem('ops-allowMixedDayHour');
+eq('ontbrekende gemengde-voorkeur laat de store-default intact', (await loadAllSettings()).allowMixedDayHour, undefined);
+await saveAllowMixedDayHour(false);
+eq('gemengde-voorkeur bewaart de bestaande ops-sleutel', localStorage.getItem('ops-allowMixedDayHour'), 'false');
+eq('gemengde-voorkeur hydrateert declaratief', (await loadAllSettings()).allowMixedDayHour, false);
 eq('kalender zonder werkblokken wordt herkend', hasConcreteWorkBlocks({ ...h8, workTime: undefined }), false);
 eq('uurkeuze zonder werkblokken heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', { ...h8, workTime: undefined }), null);
 const hourWithoutBlocks = { ...hour12, time: { ...hour12.time } };

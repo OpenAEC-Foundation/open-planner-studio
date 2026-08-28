@@ -102,6 +102,7 @@
     "hourPlanningSection": "Planeamento por horas",
     "enableHourPlanning": "Ativar planeamento por horas",
     "enableHourPlanningHint": "Ativa o escalonamento por hora/minuto: uma escala de tempo horária, turnos com faixas de horário de trabalho e barras de tarefa com precisão à hora. Desativado ⇒ a aplicação permanece totalmente granular por dias, como antes.",
+    "allowMixedDayHour": "Permitir planeamento misto de dias/horas",
     "defaultTaskDurationUnit": "Unidade predefinida para novas tarefas",
     "defaultTaskDurationUnitHint": "Define se as novas tarefas começam em dias úteis ou horas de trabalho. As tarefas existentes não mudam.",
     "durationDisplay": "Exibição da duração",

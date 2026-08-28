@@ -1,11 +1,12 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures/ops';
+import { expect, test, waitForOps } from './fixtures/ops';
 
 async function seedDurationTask(page: Page, unit: 'days' | 'hours' = 'days', amount = 2): Promise<string> {
   return page.evaluate(({ nativeUnit, nativeAmount }) => {
     const state = window.__OPS__!.store.getState();
     state.setUI({
       enableHourPlanning: true,
+      allowMixedDayHour: true,
       showPropertiesPanel: true,
       rightPanelCollapsed: false,
     });
@@ -120,6 +121,72 @@ test('duurwaarde blijft de brede primaire invoer met controls op normale, gelijk
   expect(Math.abs(dialogGeometry.info.height - dialogGeometry.unit.height)).toBeLessThanOrEqual(2);
 });
 
+test('de app-brede uren- en gemengde-planningpoorten regelen beide gedeelde duurvelden zonder taakdata te herschrijven', async ({ page, ops: _ops }) => {
+  const taskId = await seedDurationTask(page, 'hours', 12);
+  const panelDuration = page.locator('[data-ops-task-duration]').first();
+  await openDialog(page, taskId);
+  const dialogDuration = page.getByRole('dialog').locator('[data-ops-task-duration]');
+
+  const assertControls = async (visible: boolean) => {
+    for (const field of [panelDuration, dialogDuration]) {
+      const unit = field.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ });
+      const info = field.locator('[data-ops-duration-info]');
+      if (visible) {
+        await expect(unit).toBeVisible();
+        await expect(info).toBeVisible();
+      } else {
+        await expect(unit).toHaveCount(0);
+        await expect(info).toHaveCount(0);
+        const geometry = await field.locator('[data-ops-duration-value]').evaluate((input) => {
+          const rect = input.getBoundingClientRect();
+          return { height: rect.height, width: rect.width };
+        });
+        expect(geometry.height).toBeGreaterThanOrEqual(28);
+        expect(geometry.height).toBeLessThanOrEqual(30);
+        expect(geometry.width).toBeGreaterThan(150);
+      }
+    }
+  };
+
+  // Hoofdschakelaar uit wint, ook als de bewaarde gemengde voorkeur aan staat.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: false, allowMixedDayHour: true }));
+  await assertControls(false);
+  await expect(panelDuration.locator('[data-ops-duration-value]')).toBeDisabled();
+
+  // Uren aan maar gemengd uit verbergt uitsluitend de eenheidsbediening. De bestaande urentaak
+  // blijft intact en de numerieke waarde is weer bewerkbaar.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: true, allowMixedDayHour: false }));
+  await assertControls(false);
+  await expect(panelDuration.locator('[data-ops-duration-value]')).toBeEnabled();
+  await expect.poll(() => page.evaluate((id) => {
+    const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
+    return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
+  }, taskId)).toEqual({ unit: 'hours', minutes: 720 });
+
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: true, allowMixedDayHour: true }));
+  await assertControls(true);
+});
+
+test('gemengde dag/uur-planning is een verborgen onderliggende, gepersisteerde instelling', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('ops-allowMixedDayHour', 'false');
+    window.__OPS__!.store.getState().setUI({ allowMixedDayHour: false, showSettingsDialog: true });
+  });
+  const settings = page.getByRole('dialog', { name: /^(Settings|Instellingen)$/ });
+  await settings.getByRole('button', { name: /^(Timeline \/ Zoom|Tijdlijn \/ Zoomen)$/ }).click();
+  const mixed = settings.getByLabel(/^(Allow mixed day\/hour planning|Gemengde dag\/uur-planning toestaan)$/);
+  await expect(mixed).toHaveCount(0);
+
+  await settings.getByLabel(/^(Enable hour planning|Urenplanning inschakelen)$/).check();
+  await expect(mixed).not.toBeChecked();
+  await mixed.check();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-allowMixedDayHour'))).toBe('true');
+
+  await page.reload();
+  await waitForOps(page);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.allowMixedDayHour)).toBe(true);
+});
+
 test('duurinfo is met hover en toetsenbordfocus bereikbaar en legt het vaste contract uit', async ({ page, ops: _ops }) => {
   await seedDurationTask(page);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ rightPanelWidth: 200 }));
@@ -158,6 +225,11 @@ test('duurinfo is met hover en toetsenbordfocus bereikbaar en legt het vaste con
     onTopAtOverlap: true,
   });
 
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: false }));
+  await expect(tooltip).toBeHidden();
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: true }));
+  await expect(tooltip).toBeHidden();
+
   await page.mouse.move(1, 1);
   await expect(tooltip).toBeHidden();
   await info.focus();
@@ -182,7 +254,7 @@ test('uren zonder concrete werkblokken en niet-exacte omzetting muteren de taak 
   const hourDuration = page.locator('[data-ops-task-duration]').first();
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: false }));
   await expect(hourDuration.locator('[data-ops-duration-value]')).toBeDisabled();
-  await expect(hourDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ })).toBeDisabled();
+  await expect(hourDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ })).toHaveCount(0);
   await expect(hourDuration.locator('[data-ops-duration-hour-planning-blocked]'))
     .toContainText(/(enable hour planning|schakel urenplanning)/i);
   await hourDuration.locator('[data-ops-duration-hour-planning-blocked]').getByRole('button').click();

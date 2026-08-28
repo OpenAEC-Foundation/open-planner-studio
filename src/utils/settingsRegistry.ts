@@ -180,6 +180,7 @@ export const SETTINGS: SettingDescriptor[] = [
 
   // Urenplanning (fase 2.8b, §6.8)
   setting({ key: 'enableHourPlanning', field: 'enableHourPlanning', parse: parseBoolean }),
+  setting({ key: 'allowMixedDayHour', field: 'allowMixedDayHour', parse: parseBoolean }),
   setting({ key: 'durationDisplay', field: 'durationDisplay', parse: parseEnum(DURATION_DISPLAYS) }),
   setting({ key: 'barSplitMode', field: 'barSplitMode', parse: parseEnum(BAR_SPLIT_MODES) }),
 

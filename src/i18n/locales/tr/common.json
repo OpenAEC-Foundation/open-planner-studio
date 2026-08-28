@@ -99,6 +99,7 @@
     "hourPlanningSection": "Saat planlaması",
     "enableHourPlanning": "Saat planlamasını etkinleştir",
     "enableHourPlanningHint": "Saat/dakika zamanlamasını açar: saatlik zaman ölçeği, çalışma saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları. Kapalı ⇒ uygulama önceki gibi tamamen gün bazlı kalır.",
+    "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",
     "defaultTaskDurationUnit": "Yeni görevler için varsayılan birim",
     "defaultTaskDurationUnitHint": "Yeni görevlerin iş günüyle mi çalışma saatiyle mi başlayacağını belirler. Mevcut görevler değişmez.",
     "durationDisplay": "Süre gösterimi",

@@ -43,7 +43,7 @@ Regenerating adds missing years while retaining manually entered closures.
 
 ### Enabling hour planning
 
-Open **Settings → Timeline / Zoom** and turn on **Enable hour planning**. This main switch makes hour input, hour-precise scheduling and the hour timescale available. Day tasks remain available; mixed planning is inherent while hour planning is enabled.
+Open **Settings → Timeline / Zoom** and turn on **Enable hour planning**. This main switch makes hour input, hour-precise scheduling and the hour timescale available. Also turn on **Allow mixed day/hour planning** below it when you want to choose a unit per task; without that second preference the compact duration input remains visible, but the Days/Hours choice does not.
 
 When hour planning is off, new tasks use **Days**. Existing or imported hour tasks are not converted or rounded. Their hour value remains stored. Before editing such a duration, Open Planner Studio asks you to enable hour planning.
 

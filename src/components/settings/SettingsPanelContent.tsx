@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
 import { UITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
@@ -58,6 +58,7 @@ export function SettingsPanelContent() {
   const constructionMode = useAppStore(s => s.ui.constructionMode);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
   const aiMode = useAppStore(s => s.ui.aiMode);
@@ -127,6 +128,11 @@ export function SettingsPanelContent() {
   const applyEnableHourPlanning = (value: boolean) => {
     setUI({ enableHourPlanning: value });
     void saveEnableHourPlanning(value);
+  };
+
+  const applyAllowMixedDayHour = (value: boolean) => {
+    setUI({ allowMixedDayHour: value });
+    void saveAllowMixedDayHour(value);
   };
 
   const applyDurationDisplay = (value: DurationDisplay) => {
@@ -313,6 +319,16 @@ export function SettingsPanelContent() {
                 <span>{t('settings.enableHourPlanning')}</span>
               </label>
               <p className="scrollzoom-hint">{t('settings.enableHourPlanningHint')}</p>
+              {enableHourPlanning && (
+                <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={allowMixedDayHour}
+                    onChange={e => applyAllowMixedDayHour(e.target.checked)}
+                  />
+                  <span>{t('settings.allowMixedDayHour')}</span>
+                </label>
+              )}
             </div>
             <div className="settings-section">
               <h3>{t('settings.durationDisplay')}</h3>

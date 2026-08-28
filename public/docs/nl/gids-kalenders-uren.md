@@ -43,7 +43,7 @@ Opnieuw genereren voegt ontbrekende jaren toe en laat handmatig ingevoerde strem
 
 ### Urenplanning inschakelen
 
-Open **Instellingen → Tijdlijn / Zoomen** en zet **Urenplanning inschakelen** aan. Deze hoofdschakelaar maakt uurinvoer, uurprecieze planning en de uur-tijdschaal beschikbaar. Dagtaken blijven gewoon mogelijk; gemengd plannen is vanzelf beschikbaar zodra urenplanning aan staat.
+Open **Instellingen → Tijdlijn / Zoomen** en zet **Urenplanning inschakelen** aan. Deze hoofdschakelaar maakt uurinvoer, uurprecieze planning en de uur-tijdschaal beschikbaar. Zet daaronder ook **Gemengde dag/uur-planning toestaan** aan als je de eenheid per taak wilt kunnen kiezen; zonder die tweede voorkeur blijft de compacte duurinvoer zichtbaar, maar niet de Dagen/Uren-keuze.
 
 Staat urenplanning uit, dan krijgen nieuwe taken de eenheid **Dagen**. Bestaande of geïmporteerde urentaken worden niet geconverteerd en niet afgerond. Hun uurwaarde blijft bewaard. Voor je zo'n duur kunt bewerken, vraagt Open Planner Studio om urenplanning in te schakelen.
 

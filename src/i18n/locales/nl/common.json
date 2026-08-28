@@ -99,6 +99,7 @@
     "hourPlanningSection": "Urenplanning",
     "enableHourPlanning": "Urenplanning inschakelen",
     "enableHourPlanningHint": "Zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair zoals voorheen.",
+    "allowMixedDayHour": "Gemengde dag/uur-planning toestaan",
     "defaultTaskDurationUnit": "Standaardeenheid voor nieuwe taken",
     "defaultTaskDurationUnitHint": "Bepaalt of nieuwe taken standaard in werkdagen of werkuren beginnen. Bestaande taken veranderen niet.",
     "durationDisplay": "Duurweergave",

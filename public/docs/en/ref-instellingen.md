@@ -39,7 +39,7 @@ the settings themselves and what they do are identical either way; this article 
 
 ## Timeline / Zoom tab
 
-- **Hour planning** — **Enable hour planning** turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ new tasks start in days; existing hour tasks remain exact. With the switch on, day and hour tasks can naturally coexist. See [Calendars & hour planning](docs://gids-kalenders-uren).
+- **Hour planning** — **Enable hour planning** turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular. When it is on, **Allow mixed day/hour planning** appears; only when that is also on can you choose a unit per task. Existing hour tasks are never converted. See [Calendars & hour planning](docs://gids-kalenders-uren).
 - **Duration display** — **Automatic (native unit per task)**, **Always days** or **Always hours**.
 - **Task bars at interruptions** — **Never split**, **Split when selected** or **Always split**: whether a bar visually splits around non-working days.
 - **Timeline axis** — **Show only working days** compresses the timeline: weekends and holidays from the project calendar are skipped, so a 5-workday task is exactly 5 columns wide, whatever the calendar between them looks like.

@@ -32,6 +32,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
 }) {
   const { t } = useTranslation('task');
   const enableHourPlanning = useAppStore((s) => s.ui.enableHourPlanning);
+  const allowMixedDayHour = useAppStore((s) => s.ui.allowMixedDayHour);
   const setUI = useAppStore((s) => s.setUI);
   const seed = formatTaskDurationInput(task);
   const [value, setValue] = useState(seed);
@@ -43,6 +44,12 @@ export function TaskDurationField({ task, calendar, onChange }: {
   const infoId = useId();
   const derived = isZeroDurationMilestone(task) || task.childIds.length > 0 || !!task.isHammock;
   const hourEditBlocked = task.time.durationUnit === 'hours' && !enableHourPlanning;
+  const showUnitControls = enableHourPlanning && allowMixedDayHour;
+
+  // De portal mag niet als oude hoverstatus terugkomen wanneer de app-brede UI-poort opnieuw opent.
+  useEffect(() => {
+    if (!showUnitControls) setInfoVisible(false);
+  }, [showUnitControls]);
 
   useEffect(() => {
     setValue(seed);
@@ -149,47 +156,51 @@ export function TaskDurationField({ task, calendar, onChange }: {
           className="input h-9 min-w-0 flex-1 !px-2.5 !py-0 !text-xs disabled:opacity-50"
           data-ops-duration-value
         />
-        <div className="w-20 shrink-0">
-          <Select
-            aria-label={t('duration.unit')}
-            className="ops-select__trigger--duration"
-            value={task.time.durationUnit}
-            onChange={(next) => requestUnit(next as TaskDurationUnit)}
-            disabled={derived || hourEditBlocked}
-            options={[
-              { value: 'days', label: t('duration.days') },
-              { value: 'hours', label: t('duration.hours') },
-            ]}
-          />
-        </div>
-        <span className="inline-flex aspect-square shrink-0 self-stretch">
-          <button
-            ref={infoButtonRef}
-            type="button"
-            className="inline-flex h-full w-full items-center justify-center rounded-[5px] text-text-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-            aria-label={t('duration.unitInfo')}
-            aria-describedby={infoVisible ? infoId : undefined}
-            onMouseEnter={showInfo}
-            onMouseLeave={() => setInfoVisible(false)}
-            onFocus={showInfo}
-            onBlur={() => setInfoVisible(false)}
-            data-ops-duration-info
-          >
-            <Info size={14} aria-hidden="true" />
-          </button>
-          {infoVisible && infoAnchor && (
-            <HoverTooltip
-              left={infoAnchor.left}
-              top={infoAnchor.top}
-              placement="before-anchor"
-              anchorWidth={infoAnchor.width}
-              className="duration-unit-tooltip"
-              id={infoId}
-            >
-              {t('duration.unitInfo')}
-            </HoverTooltip>
-          )}
-        </span>
+        {showUnitControls && (
+          <>
+            <div className="w-20 shrink-0">
+              <Select
+                aria-label={t('duration.unit')}
+                className="ops-select__trigger--duration"
+                value={task.time.durationUnit}
+                onChange={(next) => requestUnit(next as TaskDurationUnit)}
+                disabled={derived || hourEditBlocked}
+                options={[
+                  { value: 'days', label: t('duration.days') },
+                  { value: 'hours', label: t('duration.hours') },
+                ]}
+              />
+            </div>
+            <span className="inline-flex aspect-square shrink-0 self-stretch">
+              <button
+                ref={infoButtonRef}
+                type="button"
+                className="inline-flex h-full w-full items-center justify-center rounded-[5px] text-text-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                aria-label={t('duration.unitInfo')}
+                aria-describedby={infoVisible ? infoId : undefined}
+                onMouseEnter={showInfo}
+                onMouseLeave={() => setInfoVisible(false)}
+                onFocus={showInfo}
+                onBlur={() => setInfoVisible(false)}
+                data-ops-duration-info
+              >
+                <Info size={14} aria-hidden="true" />
+              </button>
+              {infoVisible && infoAnchor && (
+                <HoverTooltip
+                  left={infoAnchor.left}
+                  top={infoAnchor.top}
+                  placement="before-anchor"
+                  anchorWidth={infoAnchor.width}
+                  className="duration-unit-tooltip"
+                  id={infoId}
+                >
+                  {t('duration.unitInfo')}
+                </HoverTooltip>
+              )}
+            </span>
+          </>
+        )}
       </div>
       {hourEditBlocked && (
         <div className="text-[10px] text-text-secondary" data-ops-duration-hour-planning-blocked>
