@@ -538,10 +538,20 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   // uit elkaar worden gehouden is wél legitiem en bestaat bewust: Escape sluit eerst de
   // presentatiemodus (`view.exitFullscreen`, met `when`) en deselecteert pas daarna
   // (`edit.deselect`). Aliassen delen hun labelKey (Alt+→ naast Alt+Shift+→) maar nooit hun combo.
+  //
+  // "Onbereikbaar" is een zinloos begrip voor een displayOnly-entry ZELF (niet alleen als eerdere
+  // blokkeerder, dat filterde hieronder al): `useKeyboardShortcuts` slaat elke displayOnly-entry
+  // over vóórdat matching ooit gebeurt (`if (entry.displayOnly) continue;`), dus zo'n entry werd
+  // sowieso nooit via deze dispatcher afgevuurd — positie ten opzichte van een eerdere entry is
+  // dan irrelevant. Grid-Escape (`grid.exitSelection`) staat bijvoorbeeld bewust ná het echte,
+  // onvoorwaardelijke `edit.deselect` op dezelfde combinatie: hij bestaat uitsluitend om in het
+  // Sneltoetsen-venster te tonen dat Escape ook binnen een gridcel werkt (zie DataGridCore.tsx,
+  // dat het event bewust laat doorbubbelen naar `edit.deselect`), niet om zelf te dispatchen.
   const sleutel = (c: { key: string; mod?: boolean; shift?: boolean; alt?: boolean }) =>
     `${c.key.toLowerCase()}|${!!c.mod}|${!!c.shift}|${!!c.alt}`;
   const onbereikbaar: string[] = [];
   for (let i = 0; i < SHORTCUTS.length; i++) {
+    if (SHORTCUTS[i].displayOnly) continue;
     const k = sleutel(SHORTCUTS[i].combo);
     for (let j = 0; j < i; j++) {
       if (SHORTCUTS[j].displayOnly) continue;

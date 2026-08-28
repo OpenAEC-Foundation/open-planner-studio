@@ -73,15 +73,27 @@ export interface DataGridCoreProps {
 }
 
 /** Eén eigenaar voor een herkende gridtoets: annuleer browsergedrag, stop bubbling en voer exact
- * één gridopdracht uit. De losse functie houdt dezelfde native-eventketen regressietestbaar. */
+ * één gridopdracht uit — behalve 'exit-to-container' (Escape in selectiemodus), die het event
+ * bewust laat doorbubbelen naar de globale `edit.deselect`-sneltoets. De losse functie houdt
+ * dezelfde native-eventketen regressietestbaar. */
 export function dispatchDataGridKeyCommand(
   event: Pick<KeyboardEvent<HTMLDivElement>, 'preventDefault' | 'stopPropagation'>,
   command: TaskGridCommand,
   onCommand: (command: TaskGridCommand) => void,
 ): boolean {
   if (command.kind === 'unhandled') return false;
-  event.preventDefault();
-  event.stopPropagation();
+  // Napunt 1 (onafhankelijke eindreview): 'exit-to-container' (Escape in selectiemodus) mag het
+  // event NIET opsouperen. De globale `edit.deselect`-sneltoets (shortcutRegistry.ts, altijd actief
+  // op kale Escape, `skipPreventDefault: true`) hoort ook binnen een gefocuste gridcel te blijven
+  // afvuren — deselectAll, traceMode/showDependencyMode uit, net als vóór FIX 1. De globale poort
+  // (`shouldHandleGlobalShortcutEvent`) toetst `!event.defaultPrevented`, dus zowel preventDefault
+  // als stopPropagation moeten hier achterwege blijven, anders bereikt Escape de window-listener
+  // nooit. De grid regelt uitsluitend zijn eigen focusverplaatsing; het globale deselect-gedrag komt
+  // via de normale bubbel — geen dubbele uitvoering, want de grid roept dat gedrag zelf niet aan.
+  if (command.kind !== 'exit-to-container') {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   onCommand(command);
   return true;
 }

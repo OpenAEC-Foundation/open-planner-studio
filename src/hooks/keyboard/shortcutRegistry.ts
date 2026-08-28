@@ -568,6 +568,19 @@ export const SHORTCUTS: ShortcutDef[] = [
     displayOnly: true,
     run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
   },
+  {
+    // Napunt 1 (onafhankelijke eindreview op b0107289): Escape in selectiemodus verplaatst de
+    // focus naar de gridcontainer ÉN laat het event doorbubbelen naar `edit.deselect` hierboven
+    // (dispatchDataGridKeyCommand slaat preventDefault/stopPropagation bewust over voor dit
+    // commando) — functioneel dezelfde uitkomst als de globale Escape, dus dezelfde, al vertaalde
+    // labelKey hergebruikt in plaats van een bijna-identieke nieuwe sleutel toe te voegen.
+    id: 'grid.exitSelection',
+    combo: { key: 'Escape' },
+    category: 'grid',
+    labelKey: 'shortcuts.edit.deselect',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af; bubbelt door naar edit.deselect */ },
+  },
 ];
 
 /** Vergelijkt een KeyboardEvent met een combo: elk veld moet EXACT overeenkomen (afwezig ⇒ moet
