@@ -634,6 +634,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   T1DURCHECK="$DIR/.task-duration-unit.mjs"
   if bundle_check "$DIR/check-task-duration-unit.ts" "$T1DURCHECK"; then node "$T1DURCHECK" || STATUS=1; fi
 
+  # K2: scalaire pauzevelden leiden effectief werktijd af, blokkeren ongeldige patronen en
+  # overleven IFC, undo/redo en documentwissel.
+  BREAKCHECK="$DIR/.calendar-breaks.mjs"
+  if bundle_check "$DIR/check-calendar-breaks.ts" "$BREAKCHECK"; then node "$BREAKCHECK" || STATUS=1; fi
+
   # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
   #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een
   #      eigen tsconfig die de check-batterijen typecheckt (`satisfies Required<...>`); een

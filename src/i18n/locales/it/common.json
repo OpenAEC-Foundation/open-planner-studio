@@ -611,6 +611,10 @@
       "night": "Turno notturno",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "Inizio pausa", "duration": "Durata pausa (minuti)", "hint": "Le fasce di lavoro vengono calcolate automaticamente. Durata 0 elimina la pausa.",
+      "errors": { "invalidDuration": "La durata deve essere un numero intero di minuti non negativo.", "outsideWorkingDay": "La pausa deve rientrare interamente nella giornata lavorativa.", "consumesWorkingDay": "La pausa non può occupare tutta la giornata lavorativa." }
+    },
     "worktime": {
       "section": "Orari di lavoro",
       "derivedHpd": "Ore/giorno derivate:",

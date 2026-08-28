@@ -595,6 +595,10 @@
       "night": "夜班",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "休息开始时间", "duration": "休息时长（分钟）", "hint": "工作时段会自动推导。时长为 0 表示连续工作日。",
+      "errors": { "invalidDuration": "休息时长必须是大于或等于 0 的整数分钟。", "outsideWorkingDay": "休息必须完全在设定的工作日内。", "consumesWorkingDay": "休息不能占用整个工作日。" }
+    },
     "worktime": {
       "section": "工作时间",
       "derivedHpd": "推算的小时/天：",

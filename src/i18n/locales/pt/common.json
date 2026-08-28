@@ -611,6 +611,10 @@
       "night": "Turno noturno",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "Início da pausa", "duration": "Duração da pausa (minutos)", "hint": "Os períodos de trabalho são calculados automaticamente. Duração 0 remove a pausa.",
+      "errors": { "invalidDuration": "A duração deve ser um número inteiro de minutos igual ou superior a 0.", "outsideWorkingDay": "A pausa deve ficar totalmente dentro do dia de trabalho.", "consumesWorkingDay": "A pausa não pode ocupar todo o dia de trabalho." }
+    },
     "worktime": {
       "section": "Horários de trabalho",
       "derivedHpd": "Horas/dia derivadas:",

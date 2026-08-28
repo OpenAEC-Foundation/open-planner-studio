@@ -785,7 +785,9 @@ function writeCalendarGenerationMeta(
   const derivedHoursPerDay = cal.workEndHour - cal.workStartHour;
   const needsHoursPerDayOverride = !cal.workTime && cal.hoursPerDay !== derivedHoursPerDay;
   const hasWorkingExceptions = workingExceptionStepIds.length > 0;
-  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions) return;
+  const hasSimpleBreak = !cal.workTime
+    && (cal.simpleBreakStartMinute !== undefined || cal.simpleBreakDurationMinutes !== undefined);
+  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions && !hasSimpleBreak) return;
   const props: number[] = [];
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
@@ -810,6 +812,18 @@ function writeCalendarGenerationMeta(
   if (needsHoursPerDayOverride) {
     props.push(addLine(ctx, `_opscal_hpd_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(${cal.hoursPerDay}),$)`));
+  }
+  // IFC kent geen semantisch "eenvoudig pauzepatroon". Bewaar het daarom als OPS-metadata,
+  // uitsluitend wanneer de gebruiker de nieuwe velden werkelijk heeft gezet.
+  if (hasSimpleBreak) {
+    if (cal.simpleBreakStartMinute !== undefined) {
+      props.push(addLine(ctx, `_opscal_breakstart_${cal.id}`,
+        `IFCPROPERTYSINGLEVALUE('SimpleBreakStart',$,IFCINTEGER(${cal.simpleBreakStartMinute}),$)`));
+    }
+    if (cal.simpleBreakDurationMinutes !== undefined) {
+      props.push(addLine(ctx, `_opscal_breakduration_${cal.id}`,
+        `IFCPROPERTYSINGLEVALUE('SimpleBreakDuration',$,IFCINTEGER(${cal.simpleBreakDurationMinutes}),$)`));
+    }
   }
   if (hasWorkingExceptions) {
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));

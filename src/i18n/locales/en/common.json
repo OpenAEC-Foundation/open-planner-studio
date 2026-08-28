@@ -603,6 +603,16 @@
       "night": "Night shift",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "Break starts",
+      "duration": "Break duration (minutes)",
+      "hint": "Set a break start and duration; net hours and working-time bands are derived automatically. Set duration to 0 for a continuous working day.",
+      "errors": {
+        "invalidDuration": "Break duration must be a whole number of minutes of 0 or more.",
+        "outsideWorkingDay": "The break must fall entirely within the configured working day.",
+        "consumesWorkingDay": "The break cannot take up the whole working day."
+      }
+    },
     "worktime": {
       "section": "Working times",
       "derivedHpd": "Derived hours/day:",

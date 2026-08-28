@@ -1447,6 +1447,31 @@ function extractCalendarHoursPerDay(
   return undefined;
 }
 
+/** Leest het optionele eenvoudige scalar-pauzepatroon uit `OPS_Calendar`. */
+function extractCalendarSimpleBreak(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> {
+  const result: Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> = {};
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+    for (const prop of props) {
+      const value = parseTypedValue(prop.args[2] || '');
+      if (typeof value !== 'number' || !Number.isInteger(value)) continue;
+      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakStart') result.simpleBreakStartMinute = value;
+      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakDuration') result.simpleBreakDurationMinutes = value;
+    }
+  }
+  return result;
+}
+
 /**
  * T5-HERZIENING (2026-08-15, spec-reviewbevinding: zie het plandocument §T5) — het STEP-id-signaal
  * dat een `IFCWORKTIME` in `ExceptionTimes` een WERKENDE UITZONDERING is, i.p.v. een feestdag.
@@ -1510,6 +1535,7 @@ function buildCalendarFromEntity(
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
   // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
   calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
+  Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
 
   // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
   // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes
@@ -1539,7 +1565,9 @@ function buildCalendarFromEntity(
     }
     // Scalar uit de EERSTE periode — houdt de dag-kalender byte-identiek (de post-pass promoveert
     // pas naar uur-modus bij een echte afwijking, discriminator a/b/c).
-    if (timePeriodRefs.length > 0) {
+    if (timePeriodRefs.length > 0
+      && calendar.simpleBreakStartMinute === undefined
+      && calendar.simpleBreakDurationMinutes === undefined) {
       const tp = entityMap.get(timePeriodRefs[0]);
       if (tp && tp.type === 'IFCTIMEPERIOD') {
         const startHour = parseInt(stripQuotes(tp.args[0] || '').split(':')[0], 10);
@@ -1551,6 +1579,16 @@ function buildCalendarFromEntity(
         }
       }
     }
+    // Een IFC met urentaken kan de effectieve twee pauzebanden dragen. Herstel voor zo'n
+    // eenvoudige kalender de scalaire randen uit de buitenste band, zonder hem tot handmatige
+    // weekbanden te promoveren. De formulierbediening kent (bewust) hele start/einduren.
+    if ((calendar.simpleBreakStartMinute !== undefined || calendar.simpleBreakDurationMinutes !== undefined)
+      && periods.length > 0) {
+      const first = periods[0]!;
+      const last = periods[periods.length - 1]!;
+      calendar.workStartHour = Math.floor(first.start / 60);
+      calendar.workEndHour = Math.ceil(last.end / 60);
+    }
     break; // writer schrijft precies één werktijdslot in WorkingTimes
   }
 
@@ -1560,7 +1598,14 @@ function buildCalendarFromEntity(
   const rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
   for (const d of days) rawByWeekday[d as 1] = periods.map(p => ({ ...p }));
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
-  registerCalendarBands(calendar, { canonical: bands, deviates });
+  // Bij ons scalar-pauzepatroon kunnen effectieve banden in IFC staan omdat een urentaak ze nodig
+  // had. Ze zijn dan transport, geen per-weekdag-bewerking: laat de eenvoudige UI-vorm intact.
+  registerCalendarBands(calendar, {
+    canonical: bands,
+    deviates: (calendar.simpleBreakStartMinute !== undefined || calendar.simpleBreakDurationMinutes !== undefined)
+      ? false
+      : deviates,
+  });
 
   // Ploeg-classificatie uit `PredefinedType` (arg 7) → `shift` (§7.1). `.FIRSTSHIFT.`/afwezig ⇒
   // undefined (byte-identiek — de schrijver emitteert `.FIRSTSHIFT.` voor undefined).

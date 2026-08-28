@@ -40,6 +40,7 @@ import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import { distributeUnits, maxUnitsOn } from './ResourceLoad';
 import { parseDate, formatDate } from '@/utils/dateUtils';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 export interface LevelingOptions {
   /** true = smoothing: alleen binnen de totale float schuiven, einddatum heilig, onoplosbare
@@ -102,7 +103,7 @@ export function levelResources(
   // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
   cpmOptions: CPMOptions = {},
 ): LevelingResult {
-  const projEngine = new CalendarEngine(projectCalendar);
+  const projEngine = new CalendarEngine(calendarForEngine(projectCalendar));
 
   // Geselecteerde renewables: default alle non-material, anders de opgegeven ids ∩ non-material.
   const renewable = resources.filter(r => r.type !== 'MATERIAL');
@@ -115,7 +116,9 @@ export function levelResources(
   const resById = new Map(resources.map(r => [r.id, r]));
   const engineByRes = new Map<string, CalendarEngine>();
   for (const r of selectedResources) {
-    engineByRes.set(r.id, new CalendarEngine(resolveCalendar(r.calendarId, resourceCalendars, projectCalendar)));
+    engineByRes.set(r.id, new CalendarEngine(calendarForEngine(
+      resolveCalendar(r.calendarId, resourceCalendars, projectCalendar),
+    )));
   }
   const capacityOf = (resId: string, iso: string): number => {
     const r = resById.get(resId);

@@ -8,6 +8,7 @@ import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { CalendarForm } from './CalendarForm';
 import { Dialog } from '@/components/common/Dialog';
+import { scalarBreakIssue } from '@/utils/effectiveWorkTime';
 
 /**
  * Resource-kalender-editor (fase 2.5, §3.4) — hergebruikt `CalendarForm`, net als de
@@ -55,6 +56,12 @@ export function ResourceCalendarDialog({
   );
 
   const handleApply = () => {
+    if (scalarBreakIssue(
+      draft.workStartHour * 60,
+      draft.workEndHour * 60,
+      draft.simpleBreakStartMinute,
+      draft.simpleBreakDurationMinutes,
+    )) return;
     if (poolCompanyId) {
       if (existing) {
         updatePoolCalendar(poolCompanyId, existing.id, draft);
@@ -99,7 +106,12 @@ export function ResourceCalendarDialog({
           <button onClick={onClose} className="btn btn--sm btn--secondary">
             {tCommon('cancel')}
           </button>
-          <button onClick={handleApply} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">
+          <button onClick={handleApply} disabled={scalarBreakIssue(
+            draft.workStartHour * 60,
+            draft.workEndHour * 60,
+            draft.simpleBreakStartMinute,
+            draft.simpleBreakDurationMinutes,
+          ) !== undefined} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40">
             {tCommon('apply')}
           </button>
         </div>

@@ -595,6 +595,10 @@
       "night": "夜勤",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "休憩開始", "duration": "休憩時間（分）", "hint": "勤務時間帯は自動的に導出されます。0 分は連続勤務日です。",
+      "errors": { "invalidDuration": "休憩時間は 0 以上の整数分でなければなりません。", "outsideWorkingDay": "休憩は設定した勤務日の範囲内でなければなりません。", "consumesWorkingDay": "休憩が勤務日全体を占めることはできません。" }
+    },
     "worktime": {
       "section": "稼働時間",
       "derivedHpd": "算出された時間/日：",

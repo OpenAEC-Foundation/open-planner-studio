@@ -25,6 +25,7 @@ All edits — including new/duplicate/delete — happen in a working copy. **App
 - **Name** — free name.
 - **Work days** — buttons **Mon** through **Sun**; on = working day. Presets: **Mon–Fri** (standard week, 07–16 h, 8 h/day) and **Continuous (24/7)**.
 - **Start (hour)** / **End (hour)** / **Hours per day** — the day-wide working time. Hidden once the calendar has working-time bands and hour planning is on; the bands then drive the times.
+- **Break starts** / **Break duration (minutes)** — the simple pattern for a scalar calendar. Start defaults to 12:00; duration determines the derived net hours and work bands. Duration 0 means no break. The dialog refuses a break outside the working day or one that consumes it all.
 
 ## Working times (only with hour planning enabled)
 

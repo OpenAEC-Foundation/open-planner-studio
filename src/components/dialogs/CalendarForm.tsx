@@ -18,6 +18,21 @@ import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
 import { orderedWeekDays } from '@/utils/weekDays';
+import { scalarBreakIssue, simpleBreakNetHours } from '@/utils/effectiveWorkTime';
+
+function minutesToTime(value: number): string {
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function timeToMinutes(value: string): number | undefined {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return undefined;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60 ? hours * 60 + minutes : undefined;
+}
 
 /**
  * Presentational kalenderformulier (naam, werkdagen, uren, feestdagen) — kent geen store.
@@ -54,6 +69,18 @@ export function CalendarForm({
   const [savingPreset, setSavingPreset] = useState(false);
   const [presetName, setPresetName] = useState('');
   const hourMode = isHourCalendar(draft);
+  const scalarBreakError = scalarBreakIssue(
+    draft.workStartHour * 60,
+    draft.workEndHour * 60,
+    draft.simpleBreakStartMinute,
+    draft.simpleBreakDurationMinutes,
+  );
+  // Oude scalar-kalenders hebben nog geen velden, maar hun zichtbare waarden moeten het bestaande
+  // gedrag verklaren: 07:00–16:00 / 8 uur toont daarom de afgeleide 12:00 / 60 min, terwijl
+  // 08:00–16:00 / 8 uur terecht 0 minuten toont.
+  const inferredSimpleBreakDuration = Math.max(0, Math.round(
+    (draft.workEndHour - draft.workStartHour - draft.hoursPerDay) * 60,
+  ));
 
   useEffect(() => { void loadWorkTimePresets().then(setOwnPresets); }, []);
 
@@ -68,6 +95,8 @@ export function CalendarForm({
       workStartHour: patch.workStartHour,
       workEndHour: patch.workEndHour,
       hoursPerDay: patch.hoursPerDay,
+      simpleBreakStartMinute: patch.simpleBreakStartMinute,
+      simpleBreakDurationMinutes: patch.simpleBreakDurationMinutes,
       ...(description !== undefined ? { description } : null),
     });
     // Elke uur-preset ⇒ editor meteen open/zichtbaar (uitgeklapt); dag-preset heeft geen editor.
@@ -119,6 +148,10 @@ export function CalendarForm({
       workTime: bands,
       hoursPerDay: deriveHoursPerDay(bands, draft.hoursPerDay),
       workDays: workDaysFromBands(bands),
+      // Handmatige weekbanden zijn absoluut leidend; laat geen oud scalar-pauzepatroon als
+      // tweede bron naast deze expliciete keuze bestaan.
+      simpleBreakStartMinute: undefined,
+      simpleBreakDurationMinutes: undefined,
     });
   };
   const [genParams, setGenParams] = useState<HolidayGenParams>(() =>
@@ -165,15 +198,37 @@ export function CalendarForm({
     onChange({ workDays });
   };
 
+  // Het eenvoudige patroon is geen tweede engineformule: de netto uren worden alleen als
+  // gebruikersfeedback uit hetzelfde effectieve-worktime-model afgeleid. Expliciete weekbanden
+  // blijven volledig buiten dit pad en dus absoluut leidend.
+  const patchSimpleBreak = (patch: Partial<WorkCalendar>) => {
+    // Als een bestaande scalarkalender voor het eerst alleen een begintijd krijgt, leg dan ook
+    // zijn reeds zichtbare (historisch afgeleide) duur vast. Anders zou 07:00–16:00/8u bij zo'n
+    // ene wijziging ongemerkt van een uur pauze naar nul minuten springen.
+    const materializedLegacyDuration = patch.simpleBreakStartMinute !== undefined
+      && draft.simpleBreakDurationMinutes === undefined
+      ? { simpleBreakDurationMinutes: inferredSimpleBreakDuration }
+      : {};
+    const next = { ...draft, ...patch, ...materializedLegacyDuration };
+    const netHours = simpleBreakNetHours(next);
+    onChange({ ...patch, ...materializedLegacyDuration, ...(netHours !== undefined ? { hoursPerDay: netHours } : {}) });
+  };
+
   // Presets (fase 2.8a, §13/out-of-scope — "24/7"-kalender was al gedefinieerd in het ontwerp als
   // workDays [1..7]-preset, maar had geen knop; alleen handmatig 7 dagen aanvinken). Echte
   // dag/nacht-PLOEGEN (twee elkaar afwisselende kalenders) blijven fase 2.8b — dit is uitsluitend
   // de ene-doorlopende-kalender-preset. "Ma-vr" ernaast herstelt symmetrisch de standaard.
   const applyContinuousPreset = () => {
-    onChange({ workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24 });
+    onChange({
+      workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
+      simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+    });
   };
   const applyWeekdaysPreset = () => {
-    onChange({ workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8 });
+    onChange({
+      workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8,
+      simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+    });
   };
 
   const updateHoliday = (index: number, patch: Partial<Holiday>) => {
@@ -257,6 +312,7 @@ export function CalendarForm({
       {/* Work hours — scalar-UI (dag-kalender). Verborgen in uur-modus mét Urenplanning aan; dan
           stuurt de banden-editor de tijden en toont de sectie hieronder de afgeleide hoursPerDay. */}
       {!(enableHourPlanning && hourMode) && (
+        <>
         <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-text-secondary font-medium">
@@ -267,7 +323,7 @@ export function CalendarForm({
               min={0}
               max={23}
               value={draft.workStartHour}
-              onChange={e => onChange({ workStartHour: Number(e.target.value) })}
+              onChange={e => patchSimpleBreak({ workStartHour: Number(e.target.value) })}
               className={inputCls}
             />
           </div>
@@ -280,7 +336,7 @@ export function CalendarForm({
               min={0}
               max={24}
               value={draft.workEndHour}
-              onChange={e => onChange({ workEndHour: Number(e.target.value) })}
+              onChange={e => patchSimpleBreak({ workEndHour: Number(e.target.value) })}
               className={inputCls}
             />
           </div>
@@ -295,10 +351,59 @@ export function CalendarForm({
               step={0.5}
               value={draft.hoursPerDay}
               onChange={e => onChange({ hoursPerDay: Number(e.target.value) })}
-              className={inputCls}
+              className={inputCls + (draft.simpleBreakStartMinute !== undefined || draft.simpleBreakDurationMinutes !== undefined ? ' opacity-60' : '')}
+              disabled={draft.simpleBreakStartMinute !== undefined || draft.simpleBreakDurationMinutes !== undefined}
             />
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-3" data-ops-simple-break>
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium" htmlFor="ops-simple-break-start">
+              {tCommon('calendar.simpleBreak.start')}
+            </label>
+            <input
+              id="ops-simple-break-start"
+              type="time"
+              value={minutesToTime(draft.simpleBreakStartMinute ?? 12 * 60)}
+              onChange={e => {
+                const minute = timeToMinutes(e.target.value);
+                if (minute !== undefined) patchSimpleBreak({ simpleBreakStartMinute: minute });
+              }}
+              className={inputCls}
+              data-ops-simple-break-start
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium" htmlFor="ops-simple-break-duration">
+              {tCommon('calendar.simpleBreak.duration')}
+            </label>
+            <input
+              id="ops-simple-break-duration"
+              type="number"
+              min={0}
+              max={24 * 60}
+              step={5}
+              value={draft.simpleBreakDurationMinutes ?? inferredSimpleBreakDuration}
+              onChange={e => patchSimpleBreak({
+                // De zichtbare standaard 12:00 moet ook daadwerkelijk in het model landen als
+                // de gebruiker alleen de duur invult (geen beginveld-event nodig).
+                simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60,
+                simpleBreakDurationMinutes: Number(e.target.value),
+              })}
+              className={inputCls}
+              data-ops-simple-break-duration
+            />
+          </div>
+          <p className="col-span-2 text-[11px] text-text-secondary">
+            {tCommon('calendar.simpleBreak.hint')}
+          </p>
+          {scalarBreakError && (
+            <p className="col-span-2 text-[11px] text-red-600" role="alert" data-ops-simple-break-error>
+              {tCommon(`calendar.simpleBreak.errors.${scalarBreakError}` as const)}
+            </p>
+          )}
+        </div>
+        </>
       )}
 
       {/* Werktijden / ploegen (§6.6) — alleen met Urenplanning aan; anders exact de 2.8a scalar-UI. */}

@@ -603,6 +603,10 @@
       "night": "Gece vardiyası",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "Mola başlangıcı", "duration": "Mola süresi (dakika)", "hint": "Çalışma aralıkları otomatik türetilir. 0 süre molayı kaldırır.",
+      "errors": { "invalidDuration": "Süre 0 veya daha büyük tam dakika olmalıdır.", "outsideWorkingDay": "Mola çalışma günü içinde olmalıdır.", "consumesWorkingDay": "Mola tüm çalışma gününü kaplayamaz." }
+    },
     "worktime": {
       "section": "Çalışma saatleri",
       "derivedHpd": "Türetilmiş saat/gün:",

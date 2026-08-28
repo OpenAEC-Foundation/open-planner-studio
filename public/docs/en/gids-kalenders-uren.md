@@ -51,7 +51,9 @@ In **Project information**, also choose **Default unit for new tasks: Days/Hours
 
 ## Working-time bands and shifts
 
-Every valid calendar supports both day and hour tasks. If a calendar has no manually entered per-weekday bands, Open Planner Studio derives them purely from its working days, start and end time, and **Hours per day**. A classic 07:00–16:00 calendar with 8 net hours therefore becomes 07:00–12:00 and 13:00–16:00; 08:00–16:00 with 8 hours remains one band. The per-weekday editor and shift presets, such as **Day shift**, **2 shifts**, **3 shifts**, **Night shift** and **24/7**, always take precedence and refine that derivation. A night band can cross midnight.
+Every valid calendar supports both day and hour tasks. If a calendar has no manually entered per-weekday bands, Open Planner Studio derives them from the simple pattern. Set **Break starts** (12:00 by default) and **Break duration** in minutes. For example, 07:00–16:00 with a 60-minute break starting at 12:00 becomes 07:00–12:00 and 13:00–16:00. 09:00–17:00 with a 30-minute break at 12:00 becomes 09:00–12:00 and 12:30–17:00. A duration of 0 means one continuous band, so 08:00–16:00 without a break remains 08:00–16:00. Net hours per day follow this pattern.
+
+The break must fit entirely within the working day and cannot consume it all. The dialog blocks Apply and explains the invalid value when it does not. Older calendars without the two break fields retain their exact existing behavior: their difference between clock span and **Hours per day** is still derived as a midday gap. The per-weekday editor and shift presets, such as **Day shift**, **2 shifts**, **3 shifts**, **Night shift** and **24/7**, always take precedence: once you set bands there, those are the source of truth. A night band can cross midnight.
 
 **Hours per day** helps with presentation but does not determine a task unit. Day tasks continue to count working days; an hour task uses only the effective bands. Only an empty or invalid calendar cannot schedule hours. There is no silent task, unit or calendar conversion and no rounding.
 

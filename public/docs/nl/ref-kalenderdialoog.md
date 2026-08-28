@@ -25,6 +25,7 @@ Alle bewerkingen — ook nieuw/dupliceren/verwijderen — gebeuren in een werkko
 - **Naam** — vrije naam.
 - **Werkdagen** — knoppen **Ma** t/m **Zo**; aan = werkdag. Presets: **Ma–vr** (standaardweek, 07–16 u, 8 u/dag) en **Continu (24/7)**.
 - **Begin (uur)** / **Einde (uur)** / **Uren per dag** — de dag-brede werktijd. Verborgen zodra de kalender werktijd-banden heeft én Urenplanning aan staat; dan sturen de banden de tijden.
+- **Pauze begint** / **Pauzeduur (minuten)** — het eenvoudige patroon voor een scalaire kalender. De begintijd is standaard 12:00; de duur bepaalt de afgeleide netto uren en werkbanden. Duur 0 betekent geen pauze. De dialoog weigert een pauze buiten de werkdag of een pauze die de hele dag inneemt.
 
 ## Werktijden (alleen met Urenplanning ingeschakeld)
 

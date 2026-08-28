@@ -603,6 +603,10 @@
       "night": "Nachtschicht",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "Pausenbeginn", "duration": "Pausendauer (Minuten)", "hint": "Arbeitszeitbänder werden automatisch abgeleitet. Dauer 0 bedeutet einen durchgehenden Arbeitstag.",
+      "errors": { "invalidDuration": "Die Pausendauer muss eine ganze Minutenanzahl ab 0 sein.", "outsideWorkingDay": "Die Pause muss vollständig innerhalb des Arbeitstags liegen.", "consumesWorkingDay": "Die Pause darf nicht den ganzen Arbeitstag einnehmen." }
+    },
     "worktime": {
       "section": "Arbeitszeiten",
       "derivedHpd": "Abgeleitete Stunden/Tag:",

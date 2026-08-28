@@ -23,6 +23,8 @@ export interface WorkTimePatch {
   workStartHour: number;
   workEndHour: number;
   hoursPerDay: number;
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
 }
 
 const WEEKDAYS = [1, 2, 3, 4, 5];
@@ -62,6 +64,7 @@ export function shiftPresetPatch(key: ShiftPresetKey): WorkTimePatch {
       return {
         workTime: undefined, shift: undefined,
         workDays: [...WEEKDAYS], workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
+        simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
       };
     case 'two-shift':
       return {
@@ -173,6 +176,8 @@ export interface WorkTimePreset {
   workStartHour: number;
   workEndHour: number;
   hoursPerDay: number;
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
 }
 
 /** Snapshot de werktijd-velden van een kalender als eigen preset. */
@@ -185,6 +190,8 @@ export function presetFromCalendar(id: string, name: string, cal: WorkCalendar):
     workStartHour: cal.workStartHour,
     workEndHour: cal.workEndHour,
     hoursPerDay: cal.hoursPerDay,
+    simpleBreakStartMinute: cal.simpleBreakStartMinute,
+    simpleBreakDurationMinutes: cal.simpleBreakDurationMinutes,
   };
 }
 
@@ -194,5 +201,7 @@ export function patchFromPreset(p: WorkTimePreset): WorkTimePatch {
   return {
     workTime: p.workTime, shift: p.shift,
     workDays, workStartHour: p.workStartHour, workEndHour: p.workEndHour, hoursPerDay: p.hoursPerDay,
+    simpleBreakStartMinute: p.simpleBreakStartMinute,
+    simpleBreakDurationMinutes: p.simpleBreakDurationMinutes,
   };
 }

@@ -611,6 +611,10 @@
       "night": "Équipe de nuit",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "Début de la pause", "duration": "Durée de la pause (minutes)", "hint": "Les plages de travail sont déduites automatiquement. Une durée de 0 supprime la pause.",
+      "errors": { "invalidDuration": "La durée doit être un nombre entier de minutes supérieur ou égal à 0.", "outsideWorkingDay": "La pause doit être entièrement comprise dans la journée de travail.", "consumesWorkingDay": "La pause ne peut pas couvrir toute la journée de travail." }
+    },
     "worktime": {
       "section": "Horaires de travail",
       "derivedHpd": "Heures/jour dérivées :",

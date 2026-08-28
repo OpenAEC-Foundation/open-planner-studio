@@ -611,6 +611,10 @@
       "night": "Turno de noche",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "start": "Inicio de la pausa", "duration": "Duración de la pausa (minutos)", "hint": "Las franjas de trabajo se calculan automáticamente. Duración 0 elimina la pausa.",
+      "errors": { "invalidDuration": "La duración debe ser un número entero de minutos igual o mayor que 0.", "outsideWorkingDay": "La pausa debe estar completamente dentro de la jornada laboral.", "consumesWorkingDay": "La pausa no puede ocupar toda la jornada laboral." }
+    },
     "worktime": {
       "section": "Horarios de trabajo",
       "derivedHpd": "Horas/día derivadas:",
