@@ -67,6 +67,36 @@ test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling',
   expect(restored.redoDepth).toBe(before.redoDepth + 1);
 });
 
+// Een Gantt-balk is niet alleen een datumgreep: een overwegend verticale sleep moet dezelfde
+// structurele verplaatsing opleveren als het bestaande slepen van de taakrij. Zonder die route
+// verschuift een kleine X-afwijking de datum en blijft de taak onterecht op zijn oude plek staan.
+test('Gantt-balk vertical slepen verplaatst de taak zonder haar datums te wijzigen', async ({ page, ops: _ops }) => {
+  const [firstId, secondId, thirdId] = await seedProject(page, [
+    { name: 'Balk die verhuist', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Balk-doel', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Blijft derde', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ]);
+  const before = await state(page);
+  const source = await barPoint(page, firstId);
+  const target = await barPoint(page, secondId);
+
+  await page.mouse.move(source.x, source.y);
+  await page.mouse.down();
+  // Een lichte X-afwijking maakt dit een realistische, maar nog steeds ondubbelzinnig verticale
+  // sleep. De onderkant van de doelrij is de bestaande "na deze taak"-zone.
+  await page.mouse.move(source.x + 2, target.y + 10, { steps: 5 });
+  await page.mouse.up();
+
+  await expect.poll(() => state(page).then(snapshot => snapshot.tasks.map(task => task.id)))
+    .toEqual([secondId, firstId, thirdId]);
+  const after = await state(page);
+  expect(after.tasks.find(task => task.id === firstId)).toMatchObject({
+    scheduleStart: '2026-09-07',
+    scheduleFinish: '2026-09-18',
+  });
+  expect(after.undoDepth).toBe(before.undoDepth + 1);
+});
+
 for (const edge of ['left', 'right'] as const) {
   test(`Gantt ${edge}-randdrag wijzigt de juiste grens in één undoable handeling`, async ({ page, ops: _ops }) => {
     const [taskId] = await seedProject(page, [{

@@ -37,6 +37,8 @@ export interface ReportSettings {
   showFloat: boolean;
   showDeps: boolean;
   showWeekends: boolean;
+  /** Werkdagen-as alleen in het rapport; los van de scherm-Gantt-instelling. */
+  compressNonWorkdays: boolean;
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
@@ -65,6 +67,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   showFloat: true,
   showDeps: true,
   showWeekends: true,
+  compressNonWorkdays: false,
   showLegend: true,
   showTaskNames: true,
   showCompletion: true,
@@ -137,6 +140,7 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     showFloat: parseBoolean(s.showFloat) ?? d.showFloat,
     showDeps: parseBoolean(s.showDeps) ?? d.showDeps,
     showWeekends: parseBoolean(s.showWeekends) ?? d.showWeekends,
+    compressNonWorkdays: parseBoolean(s.compressNonWorkdays) ?? d.compressNonWorkdays,
     showLegend: parseBoolean(s.showLegend) ?? d.showLegend,
     showTaskNames: parseBoolean(s.showTaskNames) ?? d.showTaskNames,
     showCompletion: parseBoolean(s.showCompletion) ?? d.showCompletion,

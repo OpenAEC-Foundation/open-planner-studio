@@ -10,7 +10,7 @@ import { printableWidthLogicalPx } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema — nu uit het centrale themapalet (audit C5/P17). De naam
 // `PRINT_COLORS` blijft behouden zodat de teken-aanroepen ongewijzigd zijn; waarden zijn identiek.
 import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
-import { dateToX as axisDateToX } from '@/engine/renderer/timeAxis';
+import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { snapToChoice } from '@/utils/numberChoice';
 // Balkkleurmodi (#21 punt 1-nieuw): pure adviesmodule — de printlaag vertaalt alleen naar
@@ -193,6 +193,8 @@ export interface PrintOptions {
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  /** Dezelfde tijdas-instelling als de scherm-Gantt: niet-werkdagen krijgen geen rapportkolom. */
+  compressNonWorkdays?: boolean;
   /** De actieve baseline als grijze onderbalk, gelijk aan de hoofd-Gantt (#81). */
   showBaselineOverlay?: boolean;
   autoFit: boolean;
@@ -555,7 +557,20 @@ export function renderReport(
   minDate = addCalendarDays(minDate, -7);
   maxDate = addCalendarDays(maxDate, 14);
 
-  const totalDays = diffCalendarDays(minDate, maxDate);
+  const calendarDays = diffCalendarDays(minDate, maxDate);
+
+  // Het rapport heeft eigen tekenlogica, maar géén eigen datum-as: dezelfde resolver als de
+  // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
+  // werkdag valt gecontroleerd terug op de gewone kalender-as).
+  const calEngine = new CalendarEngine(calendar);
+  const compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
+  const measureAxis = resolveGanttAxis({
+    calendar: calEngine, compressNonWorkdays: compressed,
+    origin: minDate, taskTableWidth: 0, zoom: 1, scrollX: 0,
+  });
+  const timelineDays = compressed
+    ? Math.max(1, Math.ceil(measureAxis.daySpan(minDate, maxDate)))
+    : calendarDays;
 
   // Calculate zoom: auto-fit or custom
   // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden (issue #25 punt 5).
@@ -578,39 +593,35 @@ export function renderReport(
   const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
 
   let zoom: number;
-  if (options.autoFit && totalDays > 0) {
-    zoom = availableChartWidth / totalDays;
+  if (options.autoFit && timelineDays > 0) {
+    zoom = availableChartWidth / timelineDays;
   } else {
     zoom = options.customZoom || 22;
   }
 
-  const chartWidth = totalDays * zoom;
+  const chartWidth = timelineDays * zoom;
   const canvasWidth = m.tableWidth + chartWidth;
   // Rij-aantal voor de hoogte: ALLE printrijen (taken + groepsbanden) — de banden zijn volle rijen.
   const canvasHeight = m.totalHeaderHeight + printRows.length * m.rowHeight + m.footerHeight;
-
-  // T13 (§T2-afwijking, LAAG-7-afnemer): vóór deze taak bouwde deze functie een EIGEN holidaySet
-  // en gebruikte ze `dow === 6 || dow === 7` als hardcoded weekend-check — beide genegeerd
-  // `calendar.workingExceptions` volledig, dus een werkende zaterdag/uitzondering printte gewoon
-  // als vrij. Eén `CalendarEngine`-instantie (dezelfde bron van waarheid als de solver/renderer)
-  // vervangt beide: `isWorkDay` kent de volledige precedentie (workingExceptions > holidays >
-  // workDays), en `isHoliday` blijft apart om holiday- en weekend-shading visueel te onderscheiden
-  // (rood vs. grijs, ongewijzigd t.o.v. vóór deze taak). Byte-identiek zonder workingExceptions:
-  // `isWorkDay`/`isHoliday` herberekenen exact dezelfde holidaySet/workDays-uitkomst als de oude
-  // ad-hoc logica hierboven.
-  const calEngine = new CalendarEngine(calendar);
 
   // Verkrijg de Draw2D-backend zodra de logische afmetingen bekend zijn (canvas-backend neemt de
   // dpr-scale + maat-setup over; vector-backend werkt 1:1 in logische px).
   const d2d = makeDraw2D(canvasWidth, canvasHeight);
 
-  // Helper: date to X. Gedeeld met GanttRenderer/HistogramRenderer via `timeAxis.dateToX`
-  // (issue #21 punt 5, fase 0-consolidatie); print heeft geen scrollX ⇒ `scrollX=0`. `minDate`/
-  // `date` komen hier altijd uit `parseDate` (middernacht UTC), dus de fractionele
-  // `daysFromStart`-berekening in `axisDateToX` is voor print altijd een geheel getal — identiek
-  // aan de vroegere `diffCalendarDays(minDate, date) * zoom` (die intern ook afrondt, maar op een
-  // al-geheel verschil is dat een no-op).
-  const dateToX = (date: Date) => axisDateToX(date, minDate, m.tableWidth, zoom, 0);
+  // Eén gedeelde as voor álle rapportgeometrie (balken, pijlen, status-/vandaaglijnen én raster).
+  // Daarmee kan een PDF nooit andere werkdagen overslaan dan de scherm-Gantt of raster-preview.
+  const axis = resolveGanttAxis({
+    calendar: calEngine, compressNonWorkdays: compressed,
+    origin: minDate, taskTableWidth: m.tableWidth, zoom, scrollX: 0,
+  });
+  const dateToX = (date: Date) => axis.dateToX(date);
+  const firstTimelineIndex = Math.ceil(axis.dayIndexOf(minDate));
+  const timelineDates = Array.from(
+    { length: timelineDays },
+    (_, index) => compressed
+      ? axis.dateAtIndex(firstTimelineIndex + index)
+      : addCalendarDays(minDate, index),
+  );
   const chartTop = m.totalHeaderHeight;
   const chartBottom = canvasHeight - m.footerHeight;
   const rowToY = (i: number) => m.totalHeaderHeight + i * m.rowHeight;
@@ -628,11 +639,18 @@ export function renderReport(
 
   // ---- GANTT CHART AREA ----
 
-  // Grid background - weekend/holiday shading. T13: via CalendarEngine (zie de moduleuitleg
-  // hierboven bij `calEngine`) — een werkende uitzondering (bv. een ingeroosterde zaterdag) is
-  // hierdoor géén van beide meer en print dus ongeschaduwd, zoals elke gewone werkdag.
-  if (options.showWeekends && totalDays <= MAX_DAILY_WEEKEND_STEPS && zoom >= 0.5) {
-    for (let i = 0; i < totalDays; i++) {
+  // Op de gecomprimeerde as vervangen weekbanden de niet-bestaande weekendkolommen als visueel
+  // weekritme. Op de gewone kalender-as blijft de bestaande weekend-/feestdagarcering bytegelijk.
+  if (compressed) {
+    const weekStartDay = options.weekStartDay ?? 'monday';
+    for (const date of timelineDates) {
+      if (getWeekNumberFor(date, weekStartDay) % 2 === 1) {
+        d2d.fillStyle = PRINT_COLORS.gridWeekBand;
+        d2d.fillRect(dateToX(date), chartTop, zoom, chartBottom - chartTop);
+      }
+    }
+  } else if (options.showWeekends && calendarDays <= MAX_DAILY_WEEKEND_STEPS && zoom >= 0.5) {
+    for (let i = 0; i < calendarDays; i++) {
       const date = addCalendarDays(minDate, i);
       const x = dateToX(date);
       const dateStr = formatDate(date);
@@ -665,18 +683,22 @@ export function renderReport(
   // onderscheiden is.
   const gridStep = Math.max(
     1,
-    Math.ceil(totalDays / MAX_DAILY_GRID_STEPS),
+    Math.ceil(timelineDates.length / MAX_DAILY_GRID_STEPS),
     Math.ceil(1 / Math.max(zoom, 0.000_001)),
   );
-  for (let i = 0; i < totalDays; i += gridStep) {
-    const date = addCalendarDays(minDate, i);
+  for (let i = 0; i < timelineDates.length; i += gridStep) {
+    const date = timelineDates[i];
     const x = dateToX(date);
     const dow = isoDayOfWeek(date);
 
     d2d.strokeStyle = PRINT_COLORS.grid;
     // K-item 39: de zwaardere weeklijn valt op de INGESTELDE eerste dag van de week, net als op het
     // scherm (`GanttRenderer`: `dayOfWeek === (weekStartDay === 'sunday' ? 7 : 1)`).
-    d2d.lineWidth = dow === (options.weekStartDay === 'sunday' ? 7 : 1) ? 0.8 : 0.2;
+    const weekStartDay = options.weekStartDay ?? 'monday';
+    const startsWeek = compressed
+      ? i === 0 || getWeekNumberFor(date, weekStartDay) !== getWeekNumberFor(timelineDates[i - 1], weekStartDay)
+      : dow === (weekStartDay === 'sunday' ? 7 : 1);
+    d2d.lineWidth = startsWeek ? 0.8 : 0.2;
     d2d.beginPath();
     d2d.moveTo(x, chartTop);
     d2d.lineTo(x, chartBottom);
@@ -1055,7 +1077,10 @@ export function renderReport(
   drawStatusReferenceLine?.();
 
   // ---- TIMELINE HEADER ----
-  drawTimelineHeader(d2d, m, canvasWidth, minDate, totalDays, zoom, dateToX, options, todayVisible ? todayX : null, statusLineX);
+  drawTimelineHeader(
+    d2d, m, canvasWidth, minDate, calendarDays, timelineDates, compressed, zoom, dateToX, options,
+    todayVisible ? todayX : null, statusLineX,
+  );
 
   // ---- TASK TABLE ----
   drawTaskTable(d2d, m, printRows, canvasHeight, cols, options);
@@ -1287,7 +1312,9 @@ function drawTimelineHeader(
   m: ReportMetrics,
   canvasWidth: number,
   minDate: Date,
-  totalDays: number,
+  calendarDays: number,
+  timelineDates: Date[],
+  compressed: boolean,
   zoom: number,
   dateToX: (d: Date) => number,
   options: PrintOptions,
@@ -1349,7 +1376,7 @@ function drawTimelineHeader(
   // Rechterrand (x) van het laatst getekende maand-/weeklabel, om overlap te vermijden (klacht 7).
   let lastMonthLabelRight = -Infinity;
   let lastWeekLabelRight = -Infinity;
-  const endExclusive = addCalendarDays(minDate, totalDays);
+  const endExclusive = addCalendarDays(minDate, calendarDays);
 
   // Maand- en weekkoppen hoeven niet eerst alle tussenliggende dagen te bezoeken. Bij een
   // meerjarenproject kan de dagzoom kleiner dan één pixel zijn, maar deze twee grenzen blijven
@@ -1359,7 +1386,7 @@ function drawTimelineHeader(
   // blijft hij precies één maand.
   const monthStep = Math.max(
     zoom * 28 < 1 ? 12 : 1,
-    Math.ceil(totalDays / (28 * MAX_DAILY_GRID_STEPS)),
+    Math.ceil(calendarDays / (28 * MAX_DAILY_GRID_STEPS)),
   );
   let monthCursor = new Date(Date.UTC(minDate.getUTCFullYear(), minDate.getUTCMonth(), 1));
   while (monthCursor < endExclusive) {
@@ -1391,7 +1418,7 @@ function drawTimelineHeader(
 
   // Bij minder dan één pixel per week is een weekraster onzichtbaar. Niet tekenen voorkomt dat
   // een planning met een veel te groot datumbereik tienduizenden kalenderobjecten maakt.
-  if (zoom * 7 >= 1 && totalDays <= MAX_DAILY_GRID_STEPS * 7) {
+  if (zoom * (compressed ? 5 : 7) >= 1 && calendarDays <= MAX_DAILY_GRID_STEPS * 7) {
     const firstWeekOffset = (weekStartDow - isoDayOfWeek(minDate) + 7) % 7;
     let weekCursor = addCalendarDays(minDate, firstWeekOffset);
     while (weekCursor < endExclusive) {
@@ -1427,13 +1454,12 @@ function drawTimelineHeader(
 
   // Dagcijfers zijn alleen zichtbaar op een brede tijdas. Beperk ook daar de iteratie bij een
   // handmatig extreem grote rapportcanvas; maand/weekkoppen hierboven blijven dan beschikbaar.
-  if (zoom > 15 && totalDays <= MAX_DAILY_GRID_STEPS) {
-    for (let i = 0; i < totalDays; i++) {
-      const date = addCalendarDays(minDate, i);
+  if (zoom > 15 && timelineDates.length <= MAX_DAILY_GRID_STEPS) {
+    for (const date of timelineDates) {
       const x = dateToX(date);
       const dow = isoDayOfWeek(date);
       const dayNum = date.getUTCDate();
-      if (dow !== 6 && dow !== 7) { // Skip weekend days for cleaner display
+      if (compressed || (dow !== 6 && dow !== 7)) { // Weekenddagen staan alleen op de gewone kalender-as.
         d2d.fillStyle = PRINT_COLORS.textSecondary;
         d2d.font = m.font(7);
         d2d.textAlign = 'center';

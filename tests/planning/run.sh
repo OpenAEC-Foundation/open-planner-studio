@@ -361,6 +361,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SFLCHECK="$DIR/.saved-filters.mjs"
   if bundle_check "$DIR/check-saved-filters.ts" "$SFLCHECK"; then node "$SFLCHECK" || STATUS=1; fi
 
+  # Rapportoptie voor de werkdagen-as (#21): staat bewust in ops-reportSettings, zodat de
+  # rapportlay-out niet met de algemene scherminstelling meeschakelt.
+  RWDSETTINGSCHECK="$DIR/.report-working-days-setting.mjs"
+  if bundle_check "$DIR/check-report-working-days-setting.ts" "$RWDSETTINGSCHECK"; then node "$RWDSETTINGSCHECK" || STATUS=1; fi
+
   # Renderer-datumloos-regressie (TODO-item 2026-07-28): `barGeometry` (en `drawMilestone`) gooide
   # per frame een TypeError op een taak zonder start-/finishdatums (`undefined.includes('T')`) en
   # liet de hele Gantt zwart. Draait de echte renderer over datumloze leaf-/summary-/mijlpaal-rijen:
@@ -435,6 +440,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   HCCHECK="$DIR/.header-compress.mjs"
   if bundle_check "$DIR/check-header-compress.ts" "$HCCHECK"; then node "$HCCHECK" || STATUS=1; fi
 
+  # Om-en-om weekbanden onder compressie (issue #21 punt 2): met de gecomprimeerde as vervalt de
+  # weekend-arcering — in de praktijk dé visuele weekscheiding. De gecomprimeerde tak van
+  # drawGridBackground tint daarom de kolommen van ONEVEN weeknummers (`palette.gridWeekBand`).
+  # Bewijst: band ⇔ weeknummer-pariteit op elke zichtbare kolom (grens = weekStartDay, zelfde als
+  # de dikke weeklijn, voor 'monday' én 'sunday'), scroll-invariantie van de banding, en NUL
+  # band-fills zodra compressie uit staat (dat pad blijft byte-identiek).
+  WBCHECK="$DIR/.week-banding.mjs"
+  if bundle_check "$DIR/check-week-banding.ts" "$WBCHECK"; then node "$WBCHECK" || STATUS=1; fi
+
   # i18n-pluralisatie-contract voor de telsleutels van "Project verplaatsen…". Een ontbrekende
   # plural-categorie valt bij i18next NIET terug op de _other van dezelfde taal maar op fallbackLng,
   # en zet er dus Engels neer (in het Pools al zichtbaar bij twee items). Deze check eist per taal
@@ -487,6 +501,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # kleurmodi + legenda — via opnemende Draw2D, zelfde renderer als preview én vector-PDF.
   PRTEXPCHECK="$DIR/.print-report.mjs"
   if bundle_check "$DIR/check-print-report.ts" "$PRTEXPCHECK"; then node "$PRTEXPCHECK" || STATUS=1; fi
+
+  # Issue #21 punt 2 — wanneer alleen werkdagen tonen aan staat, gebruikt het rapport dezelfde
+  # gecomprimeerde as als de scherm-Gantt en vervangt het verdwenen weekendarcering door weekbanden.
+  PRTCOMPRESSCHECK="$DIR/.print-compress-week-banding.mjs"
+  if bundle_check "$DIR/check-print-compress-week-banding.ts" "$PRTCOMPRESSCHECK"; then node "$PRTCOMPRESSCHECK" || STATUS=1; fi
 
   # Resource-accent op het scherm (#21): dun streepje resourcekleur onder bladbalken, gesegmenteerd
   # naar rato van unitsPerDay; zonder vlag niets extra. ECHTE GanttRenderer met opnemende ctx-stub.

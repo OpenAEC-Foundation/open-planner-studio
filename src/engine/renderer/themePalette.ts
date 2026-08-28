@@ -65,6 +65,13 @@ export interface GanttPalette {
   surface: string;
   grid: string;
   gridWeekend: string;
+  /** Om-en-om weekband in de GECOMPRIMEERDE modus (issue #21 punt 2): de achtergrondtint van de
+   *  dagkolommen van oneven ISO-weken. Onder compressie bestaan weekendkolommen niet meer, dus de
+   *  weekendarcering — de enige visuele weekscheiding — vervalt daar; deze band neemt die rol
+   *  over. Aparte var (géén hergebruik van `gridWeekend`): de band bedekt hele weken (5+ kolommen
+   *  aaneen) i.p.v. losse dagen en moet dus per thema onafhankelijk subtieler afgesteld kunnen
+   *  worden. */
+  gridWeekBand: string;
   border: string;
   text: string;
   textSecondary: string;
@@ -112,6 +119,7 @@ export function readGanttPalette(): GanttPalette {
     surface: v('--theme-surface-alt', '#F6F8FB'),
     grid: v('--theme-border-light', '#EDF0F5'),
     gridWeekend: v('--theme-grid-weekend', '#EFF2F7'),
+    gridWeekBand: v('--theme-grid-week-band', '#F1F4F9'),
     border: v('--theme-border', '#E2E7EE'),
     text: v('--theme-text', '#333845'),
     textSecondary: v('--theme-text-dim', '#5B6472'),
@@ -213,6 +221,10 @@ export const PRINT_PALETTE = {
   surface: '#f8f9fa',
   grid: '#e5e7eb',
   gridWeekend: '#f0f1f3',
+  // Weekbanden horen alleen op de gecomprimeerde werkdagen-as: daar bestaan geen weekendkolommen
+  // meer om de weekgrens te lezen. Lichter dan `gridWeekend`, omdat een heel weekvlak rustiger
+  // moet blijven dan twee losse vrije dagen (issue #21 punt 2).
+  gridWeekBand: '#f1f4f9',
   gridHoliday: '#fef3c7',
   border: '#d1d5db',
   borderDark: '#9ca3af',

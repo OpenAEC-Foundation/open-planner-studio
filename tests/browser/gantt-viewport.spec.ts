@@ -202,6 +202,41 @@ test('Gantt viewport: de werkdag-as onthult een bestaande berekende taak zonder 
   expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
 });
 
+test('Gantt viewport: pijlnavigatie onthult op de werkdag-as de volgende verborgen taak zonder zoomsprong', async ({ page, ops: _ops }) => {
+  const [nearId, farId] = await seedProject(page, [
+    { name: 'Toets werkdag begin', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },
+    { name: 'Toets werkdag doel', start: '2028-07-03', finish: '2028-07-14', durationDays: 10 },
+  ]);
+  const gantt = page.getByTestId('gantt-primary-canvas');
+  const bounds = await primaryCanvasBounds(page);
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ compressNonWorkdays: true });
+    s.runCPM();
+    s.setZoom(60);
+    s.setScroll(0, 0);
+  });
+  const nearPoint = await barPoint(page, nearId);
+  const farPoint = await barPoint(page, farId);
+  expect(farPoint.x).toBeGreaterThan(bounds.x + bounds.width);
+
+  // De klik in de linker taaktabel vestigt zowel de gewone éénvoudige selectie als canvasfocus.
+  await page.mouse.click(bounds.x + 120, nearPoint.y);
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([nearId]);
+  await expect(gantt).toBeFocused();
+  const before = await state(page);
+
+  await page.keyboard.press('ArrowDown');
+
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([farId]);
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
+  const after = await state(page);
+  expect(after.view.zoom).toBe(before.view.zoom);
+  const revealed = await barPoint(page, farId);
+  expect(revealed.x).toBeGreaterThanOrEqual(bounds.x + after.ui.leftPanelWidth);
+  expect(revealed.x).toBeLessThanOrEqual(bounds.x + bounds.width);
+});
+
 test('Gantt viewport: een nieuwe taak blijft bij werkdagcompressie zichtbaar zonder viewportvlucht', async ({ page, ops: _ops }) => {
   const [, farId] = await seedProject(page, [
     { name: 'Vroege basis', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },

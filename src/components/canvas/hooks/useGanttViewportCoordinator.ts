@@ -144,7 +144,6 @@ export function useGanttViewportCoordinator(
       rect.width - current.taskTableWidth,
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
-      current.calendar.holidays.map(holiday => holiday.startDate),
     );
     if (!fit) return;
     current.setZoom(fit.zoom);

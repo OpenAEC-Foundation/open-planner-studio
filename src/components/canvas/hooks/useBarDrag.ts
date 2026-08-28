@@ -7,6 +7,7 @@ import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { ROW_DRAG_THRESHOLD } from './constants';
 
 // Monotone teller: geeft élk sleep-gebaar een UNIEKE coalesce-key (`bardrag:<taskId>:<n>`). Zo vloeit
 // een reeks per-mousemove `updateTask`-commits samen tot ÉÉN undo-stap, terwijl twee opeenvolgende
@@ -17,6 +18,7 @@ export interface DragState {
   taskId: string;
   edge: 'left' | 'right' | 'body';
   startX: number;
+  startY: number;
   originalStart: string;
   originalFinish: string;
   originalDuration: number;
@@ -38,6 +40,13 @@ interface UseBarDragOptions {
   /** Actuele taaklezing tijdens native mousemove-events; de coördinator bindt deze aan zijn context. */
   getTask: (id: string) => Task | undefined;
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
+  /** Een overwegend verticale sleep op een balkbody wordt door de coördinator aan de bestaande
+   * rijsleep overgedragen. Randen blijven uitsluitend duur-grepen. */
+  onVerticalBodyDrag?: (candidate: {
+    taskId: string;
+    startClientX: number;
+    startClientY: number;
+  }) => void;
 }
 
 // Balk-sleep (resize links/rechts + verplaatsen), dag- én uur-taken. Bezit zijn eigen `dragState`
@@ -54,7 +63,7 @@ interface UseBarDragOptions {
 // `addCalendarDays`). Toggle uit ⇒ ongewijzigd. De UUR-tak (`handleHourDrag`) blijft BEWUST op het
 // oude lineaire ms-pad (§6 van het ontwerp: een uur-balk die een naad kruist tekent bij compressie
 // "over de naad heen" — bekende, gedocumenteerde v1-beperking, geen regressie t.o.v. vandaag).
-export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask, updateTask }: UseBarDragOptions) {
+export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask, updateTask, onVerticalBodyDrag }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
   // De kaart met effectieve taakkalenders verandert ook wanneer een live drag de taak muteert. Het
   // effect wordt dan terecht met actuele kalenderinvoer herstart, maar dat mag geen nieuw
@@ -99,6 +108,10 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     // grijpen), maar terugkeren naar Δ0 ná een beweging herstelt de originele duur weer (zie fix
     // bij de guard hieronder).
     let lastAppliedDelta = 0;
+    // De balkbody heeft twee betekenisvolle richtingen. Kies pas na dezelfde korte drempel als de
+    // rijsleep één as, zodat een natuurlijke diagonale beweging nooit zowel datum als structuur
+    // verandert. Randen zijn bewust altijd horizontale duur-grepen.
+    let direction: 'undecided' | 'horizontal' = 'undecided';
 
     // Snap-quantum (§6.3): de actieve minor-tier, maar NOOIT fijner dan 60 min (kwartier-snap
     // bestaat niet). Zo is het quantum bij uur-zoom 1 uur en bij lagere zoom grover (dag/week);
@@ -169,6 +182,24 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (dragState.edge === 'body' && direction === 'undecided') {
+        const deltaX = e.clientX - dragState.startX;
+        const deltaY = e.clientY - dragState.startY;
+        if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < ROW_DRAG_THRESHOLD) return;
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          // Delegatie vóór elke updateTask-aanroep: verticale verplaatsing verandert nooit datums
+          // en blijft één undo-stap via useRowDrag → moveTaskTo/moveTasksTo.
+          onVerticalBodyDrag?.({
+            taskId: dragState.taskId,
+            startClientX: dragState.startX,
+            startClientY: dragState.startY,
+          });
+          undoKeyRef.current = null;
+          setDragState(null);
+          return;
+        }
+        direction = 'horizontal';
+      }
       const pixelDelta = e.clientX - dragState.startX;
       if (isHourDrag) {
         handleHourDrag(pixelDelta);
@@ -266,6 +297,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     compressNonWorkdays,
     getTask,
     updateTask,
+    onVerticalBodyDrag,
   ]);
 
   return { dragState, startBarDrag, active: !!dragState };

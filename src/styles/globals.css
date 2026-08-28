@@ -141,6 +141,9 @@
   --theme-active-border: #EA580C;
   --theme-warning-text: #F59E0B;
   --theme-grid-weekend: rgba(255, 255, 255, 0.035);
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): dekt hele weken (5+ kolommen
+     aaneen), dus bewust nog subtieler dan de per-dag weekend-arcering hierboven. */
+  --theme-grid-week-band: rgba(255, 255, 255, 0.028);
   --theme-bar-float: #10B981;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -196,6 +199,9 @@
   --theme-active-border: #C2410C;
   --theme-warning-text: #946200;
   --theme-grid-weekend: #E6EBF2;
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): subtieler dan de weekend-
+     arcering, want hij bedekt hele weken i.p.v. losse dagkolommen. */
+  --theme-grid-week-band: #EFF3F8;
   --theme-bar-float: #059669;
   --theme-critical-text: #D12020;
   --theme-input-bg: #FFFFFF;
@@ -242,6 +248,10 @@
      (1.23:1 vs #000, 1.16:1 vs #0a0a0a) — was onzichtbaar toen hij uit
      input-bg #000000 (= bg) werd getekend. */
   --theme-grid-weekend: #1c1c1c;
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): iets zwakker dan de
+     weekend-band maar nog zichtbaar op #0a0a0a (de band moet als vlak leesbaar blijven,
+     niet als per-dag-arcering concurreren). */
+  --theme-grid-week-band: #141414;
   /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
   --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */

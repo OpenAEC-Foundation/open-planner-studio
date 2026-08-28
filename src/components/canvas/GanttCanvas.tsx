@@ -1,4 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import {
+  useCallback,
+  useMemo,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
@@ -323,6 +328,50 @@ export function GanttCanvas() {
     if (finishX > visibleLeft && startX < visibleRight) return;
     state.setScroll(Math.max(0, startX - tableWidth - 40), currentView.scrollY);
   }, [canvasRef, sharedAxis]);
+
+  /**
+   * Issue #87: de primaire taaktabel en de balken delen één canvas en daarmee één focusoppervlak.
+   * De pijltjes volgen uitsluitend taken die in de huidige `viewRows` zichtbaar zijn: filters,
+   * sortering, groepering en ingeklapte takken veranderen de loopvolgorde dus niet stiekem.
+   */
+  const handleTaskCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLCanvasElement>) => {
+    if (
+      (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
+      || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
+    ) return;
+    const taskRows = viewRows.filter(
+      (row): row is Extract<typeof row, { kind: 'task' }> => row.kind === 'task',
+    );
+    if (taskRows.length === 0) return;
+
+    const selectedId = selectedTaskIds[selectedTaskIds.length - 1];
+    const selectedIndex = taskRows.findIndex(row => row.task.id === selectedId);
+    const step = event.key === 'ArrowUp' ? -1 : 1;
+    const currentIndex = selectedIndex >= 0
+      ? selectedIndex
+      : step > 0 ? 0 : taskRows.length - 1;
+    const nextIndex = Math.max(0, Math.min(taskRows.length - 1, currentIndex + (selectedIndex >= 0 ? step : 0)));
+    const nextTask = taskRows[nextIndex].task;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (selectedId === nextTask.id) return;
+    selectTask(nextTask.id);
+
+    // Houd de nieuw gekozen rij bruikbaar zichtbaar, zonder de doelgerichte zoom van
+    // `focusOnTask` te activeren. De formule is dezelfde als die van GanttRenderer.rowToY.
+    const rowIndex = viewRows.findIndex(row => row.kind === 'task' && row.task.id === nextTask.id);
+    const canvasHeight = event.currentTarget.getBoundingClientRect().height;
+    if (rowIndex >= 0 && canvasHeight > headerHeight) {
+      const rowTop = headerHeight + rowIndex * rowHeight - view.scrollY;
+      const rowBottom = rowTop + rowHeight;
+      if (rowTop < headerHeight) setScroll(view.scrollX, rowIndex * rowHeight);
+      else if (rowBottom > canvasHeight) {
+        setScroll(view.scrollX, (rowIndex + 1) * rowHeight - (canvasHeight - headerHeight));
+      }
+    }
+    revealTaskIfOffscreen(nextTask);
+  }, [viewRows, selectedTaskIds, selectTask, headerHeight, rowHeight, view.scrollX, view.scrollY, setScroll, revealTaskIfOffscreen]);
   const addChildTask = useCallback((parentId: string) => {
     addTask({ name: defaultTaskName, parentId });
   }, [addTask, defaultTaskName]);
@@ -360,6 +409,21 @@ export function GanttCanvas() {
     revealTaskIfOffscreen,
     clearHistogramTooltip: histogramInteraction.clearTooltip,
   });
+
+  // Canvas is wel tabbable, maar krijgt bij een gepositioneerde canvas-klik niet in elke browser
+  // automatisch DOM-focus. Doe dat expliciet op de bestaande klikroutes, zodat muis én Tab naar
+  // precies hetzelfde ↑/↓-oppervlak leiden.
+  const focusCanvas = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
+    event.currentTarget.focus({ preventScroll: true });
+  }, []);
+  const handlePrimaryClick = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
+    focusCanvas(event);
+    pointer.onClick(event);
+  }, [focusCanvas, pointer]);
+  const handleHistogramClick = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
+    focusCanvas(event);
+    histogramInteraction.onClick(event);
+  }, [focusCanvas, histogramInteraction]);
 
   // Issue #51: alleen een actieve RAND-sleep voedt de bestaande duurpil in de renderer.
   const durationDrag = useMemo(
@@ -539,7 +603,8 @@ export function GanttCanvas() {
   }, rendererHost);
 
   // Selectie-klik in het secundaire pane (bandkop → collapse-toggle, net als links).
-  const handleSecondaryClick = useCallback((e: React.MouseEvent) => {
+  const handleSecondaryClick = useCallback((e: ReactMouseEvent<HTMLCanvasElement>) => {
+    e.currentTarget.focus({ preventScroll: true });
     const canvas = secondaryCanvasRef.current;
     const renderer = secondaryRendererRef.current;
     if (!canvas || !renderer) return;
@@ -583,9 +648,11 @@ export function GanttCanvas() {
         <canvas
           ref={canvasRef}
           data-testid="gantt-primary-canvas"
-          className="absolute inset-0"
+          tabIndex={0}
+          className="absolute inset-0 outline-none"
           style={{ cursor: pointer.cursor }}
-          onClick={pointer.onClick}
+          onClick={handlePrimaryClick}
+          onKeyDown={handleTaskCanvasKeyDown}
           onDoubleClick={pointer.onDoubleClick}
           onMouseDown={pointer.onMouseDown}
           onMouseMove={pointer.onMouseMove}
@@ -713,8 +780,10 @@ export function GanttCanvas() {
             <canvas
               ref={secondaryCanvasRef}
               data-testid="gantt-secondary-canvas"
-              className="absolute inset-0"
+              tabIndex={0}
+              className="absolute inset-0 outline-none"
               onClick={handleSecondaryClick}
+              onKeyDown={handleTaskCanvasKeyDown}
             />
             {/* Eigen zwevende horizontale balk (issue #35 punt 1): dit pane heeft een EIGEN
                 tijdvenster (`secondaryScrollX`/`secondaryZoom`) en geen taaktabel — drawSecondary
@@ -774,9 +843,11 @@ export function GanttCanvas() {
             <canvas
               ref={histogramCanvasRef}
               data-testid="gantt-histogram-canvas"
-              className="absolute inset-0"
+              tabIndex={0}
+              className="absolute inset-0 outline-none"
               style={{ cursor: 'pointer' }}
-              onClick={histogramInteraction.onClick}
+              onClick={handleHistogramClick}
+              onKeyDown={histogramInteraction.onKeyDown}
             />
             {/* Verouderd-hint (A6): het histogram volgt de belasting direct, maar de CPM-datums
                 eronder kunnen na een datum-mutatie verouderd zijn — subtiel melden. */}

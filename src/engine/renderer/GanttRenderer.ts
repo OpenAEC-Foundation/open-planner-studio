@@ -468,9 +468,29 @@ export class GanttRenderer {
         const x = this.axis.dateToX(date);
         const dayOfWeek = isoDayOfWeek(date);
 
-        // Geen arcering: `dateAtIndex` op de werkdagen-as geeft ALTIJD een echte werkdag terug
-        // (§2.2: de prefix-som is per definitie een rij werkdag-indices) — er is niets om te
+        // Geen weekend-arcering: `dateAtIndex` op de werkdagen-as geeft ALTIJD een echte werkdag
+        // terug (§2.2: de prefix-som is per definitie een rij werkdag-indices) — er is niets om te
         // arceren (§4.2: "de arcering vervalt volledig").
+        //
+        // Issue #21 punt 2 — om-en-om weekbanden: juist DIE weggevallen arcering was de enige
+        // visuele weekscheiding ("je gebruikt de weekenddagen als visuele scheiding, die zijn
+        // namelijk lichter"). Daarom krijgen hier de kolommen van ONEVEN weeknummers een licht
+        // getinte achtergrond en de even weken de neutrale canvas-kleur. De pariteit hangt BEWUST
+        // aan het WEEKNUMMER (via `getWeekNumberFor`, dezelfde bron als het "W{n}"-headerlabel)
+        // en niet aan "om en om vanaf de beeldrand": nummer-pariteit is scroll-invariant, terwijl
+        // een beeldrand-telling de hele banding zou laten verspringen bij elke horizontale
+        // scroll/zoom — precies wat storend is. `weekStartDay` gaat mee, zodat de bandgrens op
+        // exact dezelfde dag valt als de dikke weekscheidingslijn hieronder (ma bij 'monday',
+        // zo bij 'sunday'). Bekend en geaccepteerd randgeval: rond de jaarwissel kunnen twee
+        // aangrenzende weken dezelfde pariteit hebben (W53→W1 is oneven→oneven); de dikke weeklijn
+        // markeert die ene grens dan alsnog, en de band blijft consistent met het getoonde
+        // weeknummer. Alleen in deze gecomprimeerde tak — niet-gecomprimeerd is de
+        // weekend-arcering zelf de scheiding en blijft dat pad byte-identiek.
+        if (getWeekNumberFor(date, this.opts.weekStartDay ?? 'monday') % 2 === 1) {
+          ctx.fillStyle = this.colors.gridWeekBand;
+          ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
+        }
+
         ctx.strokeStyle = this.colors.grid;
         ctx.lineWidth = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1) ? 1 : 0.5;
         ctx.beginPath();

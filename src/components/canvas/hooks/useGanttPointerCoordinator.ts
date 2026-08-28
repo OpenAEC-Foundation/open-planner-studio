@@ -73,16 +73,6 @@ export function useGanttPointerCoordinator(
     (taskId: string) => latestTasks.current.find(candidate => candidate.id === taskId),
     [latestTasks],
   );
-  const barDrag = useBarDrag({
-    zoom: view.zoom,
-    enableQuarterHourZoom,
-    enableHourPlanning,
-    calendar,
-    effectiveCalById: effectiveCalendarByTaskId,
-    compressNonWorkdays,
-    getTask,
-    updateTask,
-  });
   const pan = usePan({ setScroll, justBoxSelectedRef });
   const boxSelect = useBoxSelect({
     canvasRef,
@@ -102,6 +92,28 @@ export function useGanttPointerCoordinator(
     moveTasksTo,
     justRowDraggedRef,
     headerHeight,
+  });
+  const startRowDrag = rowDrag.startRowDrag;
+  // Alleen de boomweergave heeft een eenduidige structurele doelvolgorde. Een verticale
+  // balkgesture geeft daar zijn kandidaat door aan dezelfde rijsleep als de taakrij links;
+  // gesorteerde/gegroepeerde weergaven behouden dus hun bestaande blokkering.
+  const startVerticalBarDrag = useCallback((candidate: {
+    taskId: string;
+    startClientX: number;
+    startClientY: number;
+  }) => {
+    startRowDrag(candidate);
+  }, [startRowDrag]);
+  const barDrag = useBarDrag({
+    zoom: view.zoom,
+    enableQuarterHourZoom,
+    enableHourPlanning,
+    calendar,
+    effectiveCalById: effectiveCalendarByTaskId,
+    compressNonWorkdays,
+    getTask,
+    updateTask,
+    onVerticalBodyDrag: treeMode ? startVerticalBarDrag : undefined,
   });
   const onRelationDrawn = useCallback((sourceTaskId: string, targetTaskId: string, x: number, y: number) => {
     setRelationPopover({ sourceTaskId, targetTaskId, x, y });
@@ -271,12 +283,14 @@ export function useGanttPointerCoordinator(
         event.preventDefault();
         return;
       }
-      // 7. Gewone balkbody/rand start precies één move/resize-gebaar.
+      // 7. Gewone balkbody/rand start precies één gebaar. Alleen de body kiest na de drempel
+      // horizontaal (datum) of verticaal (de bestaande rijsleep); een rand blijft duur-slepen.
       event.preventDefault();
       barDrag.startBarDrag({
         taskId: hit.task.id,
         edge: hit.edge,
         startX: event.clientX,
+        startY: event.clientY,
         originalStart: hit.task.time.earlyStart || hit.task.time.scheduleStart,
         originalFinish: hit.task.time.earlyFinish || hit.task.time.scheduleFinish,
         originalDuration: hit.task.time.scheduleDuration,

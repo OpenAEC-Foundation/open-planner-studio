@@ -180,6 +180,7 @@ export function ReportPanel() {
   const [showFloat, setShowFloat] = useState(DEFAULT_REPORT_SETTINGS.showFloat);
   const [showDeps, setShowDeps] = useState(DEFAULT_REPORT_SETTINGS.showDeps);
   const [showWeekends, setShowWeekends] = useState(DEFAULT_REPORT_SETTINGS.showWeekends);
+  const [reportCompressNonWorkdays, setReportCompressNonWorkdays] = useState(DEFAULT_REPORT_SETTINGS.compressNonWorkdays);
   const [showLegend, setShowLegend] = useState(DEFAULT_REPORT_SETTINGS.showLegend);
   const [showTaskNames, setShowTaskNames] = useState(DEFAULT_REPORT_SETTINGS.showTaskNames);
   const [showCompletion, setShowCompletion] = useState(DEFAULT_REPORT_SETTINGS.showCompletion);
@@ -271,6 +272,7 @@ export function ReportPanel() {
       setShowFloat(s.showFloat);
       setShowDeps(s.showDeps);
       setShowWeekends(s.showWeekends);
+      setReportCompressNonWorkdays(s.compressNonWorkdays);
       setShowLegend(s.showLegend);
       setShowTaskNames(s.showTaskNames);
       setShowCompletion(s.showCompletion);
@@ -313,11 +315,11 @@ export function ReportPanel() {
     // zonder vangnet levert elke verstelde optie een onafgevangen rejection op. Opslaan is
     // best-effort — mislukt het, dan blijft de instelling gewoon binnen deze sessie werken.
     void saveReportSettings({
-      reportType, showCritical, showFloat, showDeps, showWeekends, showLegend,
+      reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
       showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation,
       repeatHeader, timelineColumns, reportFontScale, statusLine, followView,
     }).catch(() => {});
-  }, [reportType, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames,
+  }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
       reportFontScale, statusLine, followView]);
 
@@ -375,6 +377,7 @@ export function ReportPanel() {
     // rapport altijd ISO-weeknummers op maandag af, ook als de gebruiker "week begint op zondag"
     // had staan — hetzelfde project, twee antwoorden.
     weekStartDay,
+    compressNonWorkdays: reportCompressNonWorkdays,
     timelineColumns,
     reportFontScale,
     // Issue #56 — welke relaties BEPALEND (driving) zijn is een `CPMResult`-veld dat bewust niet
@@ -401,7 +404,7 @@ export function ReportPanel() {
     },
   }), [showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, showBaselineOverlay,
     autoFit, customZoom, paperSize, orientation, companyName, t, locale, project.startDate,
-    project.endDate, project.author, dateNotation, weekStartDay, timelineColumns, reportFontScale,
+    project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, followView, viewRows]);
@@ -981,6 +984,10 @@ export function ReportPanel() {
             <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showDependencies')}</span>
+            </label>
+            <label className="flex items-center gap-2 min-w-0">
+              <input data-ops-report-compress-workdays type="checkbox" checked={reportCompressNonWorkdays} onChange={e => setReportCompressNonWorkdays(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{tCommon('settings.compressNonWorkdays')}</span>
             </label>
             <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showWeekends} onChange={e => setShowWeekends(e.target.checked)} className="accent-accent flex-shrink-0" />
