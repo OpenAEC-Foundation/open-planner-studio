@@ -277,6 +277,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # opeten. Dat laatste is precies het soort regressie dat een "werkt de navigatie?"-test mist.
   GRIDCHECK="$DIR/.grid-nav.mjs"
   if bundle_check "$DIR/check-grid-nav.ts" "$GRIDCHECK"; then node "$GRIDCHECK" || STATUS=1; fi
+  RDICHECK="$DIR/.row-drag-intent.mjs"
+  if bundle_check "$DIR/check-row-drag-intent.ts" "$RDICHECK"; then node "$RDICHECK" || STATUS=1; fi
   TGSELCHECK="$DIR/.task-grid-selection.mjs"
   if bundle_check "$DIR/check-task-grid-selection.ts" "$TGSELCHECK"; then node "$TGSELCHECK" || STATUS=1; fi
   TGVIRTCHECK="$DIR/.task-grid-virtualization.mjs"
