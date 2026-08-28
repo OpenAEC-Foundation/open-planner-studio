@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAppStore, useAppStore, type AppState } from '@/state/appStore';
 import { commitPreparedGridMutation, prepareGridMutation, runGridMutation, type PreparedGridMutation } from '@/state/gridTransaction';
+import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import type { CellEditIntent, PasteIntent, RelationSetIntent } from '@/types/taskGrid';
 
 const diffs: string[] = [];
@@ -11,6 +12,10 @@ let checks = 0;
 function eq(label: string, got: unknown, want: unknown): void {
   checks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
+}
+function ok(label: string, condition: boolean): void {
+  checks++;
+  if (!condition) diffs.push(label);
 }
 const S = () => useAppStore.getState();
 function reset(): void {
@@ -904,6 +909,83 @@ function observed(state: AppState): unknown {
   eq('Kritieke commit bevat exact één storeproducer', (commitSource.match(/\bset\s*\(/g) ?? []).length, 1);
   eq('Kritieke commit controleert document vóór de producer',
     commitSource.indexOf('activeDocumentId') < commitSource.indexOf('set(state =>'), true);
+}
+
+// Aanbeveling 4 (onafhankelijke eindreview): CONTROLLER_COLUMN_IDS in gridTransaction.ts is een
+// met de hand onderhouden set, gebaseerd op de aanname dat precies deze vier velden ooit de
+// conditionele readOnly-uitkomst van een ANDERE cel bepalen. Die aanname is niet automatisch
+// afleidbaar uit de registry (readOnly is een ondoorzichtige functie `(task, ctx) => boolean`,
+// geen gestructureerde afhankelijkheidslijst) — deze pin bewaakt 'm daarom EXPLICIET: hij faalt
+// zodra de registry een NIEUWE conditioneel read-only, echt via cell-edit schrijfbare kolom krijgt
+// (of een bestaande verdwijnt) zonder dat dit gecertificeerde overzicht wordt bijgewerkt. Dat
+// dwingt een bewuste herbeoordeling van CONTROLLER_COLUMN_IDS af in plaats van een stille
+// aanname die uit de pas gaat lopen.
+{
+  let root = process.cwd();
+  if (!existsSync(join(root, 'package.json'))) {
+    root = dirname(fileURLToPath(import.meta.url));
+    while (!existsSync(join(root, 'package.json')) && dirname(root) !== root) root = dirname(root);
+  }
+  const gridTransactionSource = readFileSync(join(root, 'src/state/gridTransaction.ts'), 'utf8');
+  const controllerSetLiteral = /const CONTROLLER_COLUMN_IDS = new Set\(\[\n([\s\S]*?)\n {2}\]\);/
+    .exec(gridTransactionSource)?.[1] ?? '';
+  const controllerIdsInSource = [...controllerSetLiteral.matchAll(/'([^']+)'/g)].map(match => match[1]).sort();
+  eq('CONTROLLER_COLUMN_IDS in de bron bevat exact de vier gecertificeerde controllervelden',
+    controllerIdsInSource,
+    ['task.constraint.type', 'task.constraint2.type', 'task.isHammock', 'task.isMilestone'].sort());
+
+  const registryDescriptors = buildTaskColumnRegistry({
+    projectId: 'aanbeveling-4-pin', activityCodeTypes: [], customFieldDefs: [], baselines: [],
+  });
+  const byId = new Map(registryDescriptors.map(descriptor => [String(descriptor.id), descriptor]));
+  const conditionallyReadOnlyCellEditIds = registryDescriptors
+    .filter(descriptor => typeof descriptor.readOnly === 'function'
+      && typeof descriptor.parse === 'function' && typeof descriptor.planWrite === 'function')
+    .map(descriptor => String(descriptor.id))
+    .filter(id => !id.startsWith('assignment.'))
+    .sort();
+  eq('Exact overzicht van conditioneel read-only, echt via cell-edit schrijfbare kolommen',
+    conditionallyReadOnlyCellEditIds,
+    [
+      'task.constraint.hard', 'task.isHammock', 'task.mandatory', 'task.milestoneKind',
+      'task.notes', 'task.time.scheduleDuration', 'task.wbsCode',
+    ].sort());
+  for (const controllerId of controllerIdsInSource) {
+    ok(`Controllerveld ${controllerId} bestaat als echte, via cell-edit schrijfbare kolom`,
+      byId.has(controllerId) && typeof byId.get(controllerId)?.parse === 'function');
+  }
+
+  // Stilzwijgende aanname 1 (task.childIds): de conditionele readOnly-functies van isHammock e.a.
+  // lezen task.childIds.length, maar childIds staat NOOIT in CONTROLLER_COLUMN_IDS. Dat is veilig
+  // omdat childIds nooit los via een cel-paste schrijfbaar is (readonlyColumn, geen parse/
+  // planWrite) — er bestaat structureel geen CellEditIntent-route die childIds binnen dezelfde
+  // transactie kan veranderen, dus de aanname "childIds blijft constant tijdens één paste" hoeft
+  // niet apart bewaakt te worden zolang dit klopt.
+  const childIdsDescriptor = byId.get('task.childIds');
+  ok('task.childIds is nooit los via een paste schrijfbaar (geen parse-functie)',
+    childIdsDescriptor !== undefined && typeof childIdsDescriptor.parse !== 'function');
+
+  // Stilzwijgende aanname 2 (ctx.assignmentsByTaskId): assignment.resources/unitsPerDay/curve zijn
+  // ZELF ook conditioneel read-only (mede via `assignments(task, ctx).length === 0`, dus via
+  // ctx.assignmentsByTaskId), maar staan bewust NIET in CONTROLLER_COLUMN_IDS of het bovenstaande
+  // overzicht. Dat is veilig zolang hun writes altijd een AssignmentSetIntent opleveren
+  // ('assignment-set'), nooit een CellEditIntent ('cell-edit') — dan lopen ze structureel NOOIT
+  // door applyCellEdits' conditionele controle (die uitsluitend CellEditIntent[] ziet), en hoeft
+  // ctx.assignmentsByTaskId geen deel te zijn van CONTROLLER_COLUMN_IDS.
+  for (const assignmentId of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.curve']) {
+    const descriptor = byId.get(assignmentId);
+    ok(`${assignmentId} bestaat en is conditioneel read-only (leest ctx.assignmentsByTaskId)`,
+      descriptor !== undefined && typeof descriptor.readOnly === 'function');
+    // planWriteUnchecked is de rauwe writer (slaat de eigen readOnly-check bewust over — dat is
+    // precies waarom clipboard.ts 'm gebruikt voor de gezamenlijke-eindtoestandplanning), dus een
+    // minimale nep-taak/-context volstaat om alleen de vorm van de opgeleverde intent te toetsen.
+    const written = descriptor?.planWriteUnchecked?.(
+      [], { id: 'aanbeveling-4-pin-task' } as unknown as Parameters<NonNullable<typeof descriptor.planWriteUnchecked>>[1],
+      {} as unknown as Parameters<NonNullable<typeof descriptor.planWriteUnchecked>>[2],
+    );
+    ok(`${assignmentId} schrijft via 'assignment-set', niet via 'cell-edit' (nooit CONTROLLER_COLUMN_IDS nodig)`,
+      written?.ok === true && written.value[0]?.kind === 'assignment-set');
+  }
 }
 
 // Napunt 2 (onafhankelijke eindreview op 62b37ea6): task.isHammock zit zowel in

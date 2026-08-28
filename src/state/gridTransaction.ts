@@ -496,6 +496,21 @@ function applyCellEdits(
   // writes. `orderWritesForDependentTransitions` heeft de controllers al in hun canonieke
   // onderlinge volgorde gezet, dus filteren op deze vier id's uit `validatedEdits` behoudt precies
   // die volgorde.
+  //
+  // Aanbeveling 4 (onafhankelijke eindreview): deze set is met de hand onderhouden, niet uit de
+  // registry afgeleid (`readOnly` is een ondoorzichtige `(task, ctx) => boolean`, geen
+  // gestructureerde afhankelijkheidslijst). Twee stilzwijgende aannames die daarbij horen:
+  // (1) `task.childIds` staat hier bewust NIET in, ook al lezen isHammock e.a. childIds.length —
+  //     childIds is nooit los via een cel-paste schrijfbaar (readonlyColumn, geen parse/planWrite),
+  //     dus er is structureel geen CellEditIntent-route die childIds binnen dezelfde transactie
+  //     kan veranderen; (2) `ctx.assignmentsByTaskId` staat hier ook NIET in, ook al zijn
+  //     assignment.resources/unitsPerDay/curve zelf ook conditioneel read-only via
+  //     `assignments(task, ctx).length === 0` — hun writes leveren altijd een AssignmentSetIntent
+  //     op ('assignment-set'), nooit een CellEditIntent ('cell-edit'), dus ze lopen structureel
+  //     nooit door déze conditionele controle (die uitsluitend CellEditIntent[] ziet). Beide
+  //     aannames staan gepind in `check-grid-transaction.ts` (sectie "Aanbeveling 4"): die pin
+  //     faalt zodra de registry hier niet meer bij past, zodat een wijziging bewust gecertificeerd
+  //     moet worden in plaats van deze set stilzwijgend te laten verouderen.
   const CONTROLLER_COLUMN_IDS = new Set([
     'task.isMilestone', 'task.isHammock', 'task.constraint.type', 'task.constraint2.type',
   ]);
