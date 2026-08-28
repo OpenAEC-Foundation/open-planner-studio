@@ -30,6 +30,7 @@ export type TaskGridCommand =
   | { kind: 'cancel-edit'; cell: GridCellAddress }
   | { kind: 'clear-cells' }
   | { kind: 'insert-task'; afterRowKey: string; targetColumnId: TaskColumnId }
+  | { kind: 'exit-to-container' }
   | { kind: 'unhandled' };
 
 function startEdit(input: TaskGridCommandInput, replacement?: string): TaskGridCommand {
@@ -62,6 +63,13 @@ export function resolveTaskGridCommand(input: TaskGridCommandInput): TaskGridCom
     }
     return { kind: 'unhandled' };
   }
+
+  // WCAG 2.1.2: Escape in selectmodus (er is geen editor open — die tak hierboven vangt Escape
+  // tijdens edit al af) geeft een expliciete, altijd beschikbare uitgang uit de grid. De actieve
+  // cel blijft de logische selectie, maar de browserfocus verhuist naar de gridcontainer (die
+  // buiten de normale taborde staat), zodat een daaropvolgende Tab niet eerst weer door de cellen
+  // hoeft te lopen maar meteen het grid verlaat.
+  if (event.key === 'Escape') return { kind: 'exit-to-container' };
 
   const hasCommandModifier = event.ctrlKey || event.metaKey;
   if (hasCommandModifier && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
@@ -113,9 +121,13 @@ export function resolveTaskGridCommand(input: TaskGridCommandInput): TaskGridCom
     return move(targetTaskIndex, columnIndex);
   }
   if (event.key === 'Tab' && !hasCommandModifier) {
+    // WCAG 2.1.2 (geen toetsenbordval): op de allerlaatste cel geeft Tab, en op de allereerste cel
+    // geeft Shift+Tab, 'unhandled' terug in plaats van op de eigen positie te klemmen. Zonder deze
+    // uitzondering annuleert DataGridCore altijd `preventDefault`/`stopPropagation` (zie
+    // `dispatchDataGridKeyCommand`) en kan de browserfocus de grid nooit verlaten via Tab.
     const linear = rowIndex * columns.length + columnIndex + (event.shiftKey ? -1 : 1);
-    const clamped = Math.max(0, Math.min(rows.length * columns.length - 1, linear));
-    return move(Math.floor(clamped / columns.length), clamped % columns.length, false);
+    if (linear < 0 || linear > rows.length * columns.length - 1) return { kind: 'unhandled' };
+    return move(Math.floor(linear / columns.length), linear % columns.length, false);
   }
   if ((event.key === 'Enter' || event.key === 'F2') && !hasCommandModifier) return startEdit(input);
   if ((event.key === 'Delete' || event.key === 'Backspace') && !hasCommandModifier) return { kind: 'clear-cells' };

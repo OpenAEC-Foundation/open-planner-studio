@@ -530,11 +530,15 @@ typen en plakken.
 ### 7.2 Navigatie
 
 - Pijlen: één cel verplaatsen.
-- Tab / Shift+Tab: volgende/vorige cel, met doorloop naar de volgende/vorige taakrij.
+- Tab / Shift+Tab: volgende/vorige cel, met doorloop naar de volgende/vorige taakrij. Op de
+  allerlaatste cel geeft Tab, en op de allereerste cel geeft Shift+Tab, de toets terug aan de
+  browser (WCAG 2.1.2, geen toetsenbordval) — zie hieronder.
 - Enter of F2: actieve bewerkbare cel bewerken.
 - Tijdens bewerken: Enter commit en gaat één taakrij omlaag; Shift+Enter commit en gaat omhoog.
 - Direct typen: vervangt de bestaande celinhoud en start bewerken.
-- Escape: annuleert en herstelt de oude waarde.
+- Escape: annuleert en herstelt de oude waarde tijdens bewerken. In selectiemodus (geen editor
+  open) verhuist Escape de browserfocus naar de gridcontainer zonder de actieve cel te wijzigen —
+  ook dit is de expliciete uitgang uit de grid, zie hieronder.
 - Insert: maakt via de bestaande bewaakte invoegroute een taak en opent direct de naamcel.
 - Home / End: eerste/laatste zichtbare kolom van de taakrij.
 - Ctrl+Home / Ctrl+End: eerste/laatste taakcel van de zichtbare grid.
@@ -543,6 +547,17 @@ typen en plakken.
 
 Navigatie telt alle zichtbare kolommen, ook read-only kolommen. Enter/F2 op read-only toont geen
 editor; de cel blijft wel selecteerbaar en kopieerbaar.
+
+**Geen toetsenbordval (WCAG 2.1.2).** `resolveTaskGridCommand` klemde Tab/Shift+Tab voorheen op de
+eigen positie aan de randen van de grid, en `DataGridCore` annuleert elk afgehandeld toetsenbord-
+event (`preventDefault` + `stopPropagation`). Het gevolg: op de allerlaatste cel kon Tab, en op de
+allereerste cel Shift+Tab, de grid nooit verlaten. Het besluit: aan die twee randen geeft
+`resolveTaskGridCommand` `{ kind: 'unhandled' }` terug, zodat het native browsergedrag de focus
+naar het volgende/vorige focusbare element buiten de grid verplaatst. Daarnaast krijgt Escape in
+selectiemodus een expliciete, altijd beschikbare uitgang: `{ kind: 'exit-to-container' }` verplaatst
+de DOM-focus naar de gridcontainer (die zelf geen taborde-stop is), zonder de logische actieve cel
+te wijzigen. Een daaropvolgende Tab hoeft zo niet eerst weer door de cellen te lopen om de grid te
+verlaten.
 
 ### 7.3 Klik en dubbelklik
 

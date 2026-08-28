@@ -316,6 +316,11 @@ export function DataGridCore({
       },
     });
     dispatchDataGridKeyCommand(event, command, onCommand);
+    // WCAG 2.1.2: Escape in selectmodus geeft een expliciete uitgang. De logische selectie
+    // (`selection.active`) blijft ongewijzigd, maar de DOM-focus verhuist naar de gridcontainer,
+    // die zelf geen taborde-stop is (`tabIndex={activeMounted ? -1 : 0}`) — een daaropvolgende Tab
+    // verlaat het grid dus meteen, zonder eerst weer een cel te bezoeken.
+    if (command.kind === 'exit-to-container') containerRef.current?.focus();
   };
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {

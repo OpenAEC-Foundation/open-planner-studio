@@ -5,6 +5,11 @@ import {
   shouldHandleDataGridClipboardEvent,
   synchronizeDataGridScrollPosition,
 } from '@/components/task-grid/DataGridCore';
+import { resolveTaskGridCommand } from '@/engine/taskGrid/navigation';
+import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
+import { taskColumnId } from '@/engine/taskGrid/fieldIds';
+import type { Task } from '@/types/task';
+import type { ViewRow } from '@/engine/view/visibleRows';
 
 const failures: string[] = [];
 let checks = 0;
@@ -57,6 +62,59 @@ for (const key of ['Delete', 'Backspace']) {
   eq(`${key}: nul globale taakverwijderingen`, globalDeleteCount, 0);
   eq(`${key}: hetzelfde native event is geannuleerd`, event.defaultPrevented, true);
   eq(`${key}: hetzelfde native event is aan de gridgrens gestopt`, event.cancelBubble, true);
+}
+
+// WCAG 2.1.2, echte modules end-to-end: Tab op de allerlaatste cel en Shift+Tab op de allereerste
+// cel moeten via de volledige dispatchketen (resolveTaskGridCommand → dispatchDataGridKeyCommand)
+// `unhandled` opleveren, zodat `preventDefault`/`stopPropagation` NIET worden aangeroepen en de
+// native browserfocusverplaatsing kan doorgaan.
+{
+  const taskRows: ViewRow[] = ['ta', 'tb'].map(id => ({
+    kind: 'task', rowKey: id, task: { id } as Task, depth: 0, dimmed: false,
+  }));
+  const columns = [taskColumnId('name'), taskColumnId('duration')];
+  const rowIndex = createTaskGridRowIndex(taskRows);
+  const resolve = (activeCell: { rowKey: string; columnId: typeof columns[number] }, shiftKey: boolean) =>
+    resolveTaskGridCommand({
+      event: { key: 'Tab', shiftKey },
+      mode: 'select',
+      active: activeCell,
+      rowIndex,
+      columns,
+      rowHeight: 36,
+      viewportHeight: 72,
+      isReadOnly: () => false,
+    });
+
+  const lastCellCommand = resolve({ rowKey: 'tb', columnId: columns[1] }, false);
+  const lastCellEvent = new Event('keydown', { cancelable: true }) as Event & { key: string };
+  Object.defineProperty(lastCellEvent, 'key', { value: 'Tab' });
+  let lastCellHandled = false;
+  const lastCellDispatched = dispatchDataGridKeyCommand(
+    lastCellEvent as unknown as React.KeyboardEvent<HTMLDivElement>,
+    lastCellCommand,
+    () => { lastCellHandled = true; },
+  );
+  eq('Tab op de laatste cel resolvet naar unhandled', lastCellCommand.kind, 'unhandled');
+  eq('Tab op de laatste cel wordt niet gedispatcht', lastCellDispatched, false);
+  eq('Tab op de laatste cel roept preventDefault niet aan', lastCellEvent.defaultPrevented, false);
+  eq('Tab op de laatste cel stopt de bubbel niet', lastCellEvent.cancelBubble, false);
+  eq('Tab op de laatste cel roept onCommand niet aan', lastCellHandled, false);
+
+  const firstCellCommand = resolve({ rowKey: 'ta', columnId: columns[0] }, true);
+  const firstCellEvent = new Event('keydown', { cancelable: true }) as Event & { key: string };
+  Object.defineProperty(firstCellEvent, 'key', { value: 'Tab' });
+  let firstCellHandled = false;
+  const firstCellDispatched = dispatchDataGridKeyCommand(
+    firstCellEvent as unknown as React.KeyboardEvent<HTMLDivElement>,
+    firstCellCommand,
+    () => { firstCellHandled = true; },
+  );
+  eq('Shift+Tab op de eerste cel resolvet naar unhandled', firstCellCommand.kind, 'unhandled');
+  eq('Shift+Tab op de eerste cel wordt niet gedispatcht', firstCellDispatched, false);
+  eq('Shift+Tab op de eerste cel roept preventDefault niet aan', firstCellEvent.defaultPrevented, false);
+  eq('Shift+Tab op de eerste cel stopt de bubbel niet', firstCellEvent.cancelBubble, false);
+  eq('Shift+Tab op de eerste cel roept onCommand niet aan', firstCellHandled, false);
 }
 
 if (failures.length > 0) {

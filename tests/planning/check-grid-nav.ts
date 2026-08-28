@@ -167,7 +167,24 @@ for (const control of ['text', 'number', 'select', 'other'] as GridControlKind[]
   eq('Ctrl+pijl-links blijft voor bestaande structuurshortcut', command('ArrowLeft', { ctrlKey: true }), { kind: 'unhandled' });
   eq('Ctrl+pijl-rechts blijft voor bestaande structuurshortcut', command('ArrowRight', { ctrlKey: true }), { kind: 'unhandled' });
   eq('Cmd+pijl-links blijft voor bestaande structuurshortcut', command('ArrowLeft', { metaKey: true }), { kind: 'unhandled' });
-  eq('Escape vanuit selectie is ongemoeid', command('Escape'), { kind: 'unhandled' });
+  eq('Escape vanuit selectie geeft een expliciete uitgang naar de gridcontainer', command('Escape'), { kind: 'exit-to-container' });
+
+  // WCAG 2.1.2 (issue eindreview): op de allerlaatste cel geeft Tab, en op de allereerste cel geeft
+  // Shift+Tab, `unhandled` — niet klemmen op de eigen positie. Zonder deze uitzondering kan de
+  // browserfocus de grid nooit via Tab verlaten, want DataGridCore annuleert elk afgehandeld
+  // toetsenbordevent (preventDefault + stopPropagation).
+  eq('Tab op de allerlaatste cel verlaat de grid',
+    command('Tab', { activeCell: { rowKey: 't4', columnId: taskColumns[2] } }),
+    { kind: 'unhandled' });
+  eq('Shift+Tab op de allereerste cel verlaat de grid',
+    command('Tab', { shiftKey: true, activeCell: { rowKey: 't1', columnId: taskColumns[0] } }),
+    { kind: 'unhandled' });
+  eq('Tab op de een-na-laatste kolom van de laatste rij blijft binnen de grid',
+    command('Tab', { activeCell: { rowKey: 't4', columnId: taskColumns[1] } }),
+    { kind: 'move', cell: { rowKey: 't4', columnId: taskColumns[2] }, extend: false });
+  eq('Shift+Tab op de tweede cel van de eerste rij blijft binnen de grid',
+    command('Tab', { shiftKey: true, activeCell: { rowKey: 't1', columnId: taskColumns[1] } }),
+    { kind: 'move', cell: { rowKey: 't1', columnId: taskColumns[0] }, extend: false });
   eq('Geen actieve cel levert unhandled', resolveTaskGridCommand({
     event: { key: 'Enter' }, mode: 'select', active: null, rowIndex: taskRowIndex, columns: taskColumns,
     rowHeight: 36, viewportHeight: 72, isReadOnly: () => false,
