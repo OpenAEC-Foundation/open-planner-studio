@@ -20,7 +20,7 @@ import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { clearRecovery, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
+import { clearRecovery, fullRecoverySave, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
 
 declare const process: {
   exit(code: number): never;
@@ -152,12 +152,12 @@ expect('5 redo verandert evenmin de archive-ref', store().xerSourceArchive === a
 
 const serializedSnapshots = thirteen.map(doc => writeIFC(buildWriteIFCInput(doc.payload)));
 await clearRecovery();
-await saveRecovery(thirteen[0]!.id, thirteen.map((doc, index) => ({
+await saveRecovery(fullRecoverySave(thirteen[0]!.id, thirteen.map((doc, index) => ({
   id: doc.id,
   ifc: serializedSnapshots[index]!,
   filePath: null,
   isDirty: true,
-})));
+}))));
 const loadedRecovery = await loadRecovery();
 expect('5a publieke headless recovery-backend bewaart alle zelfstandige IFC-snapshots',
   loadedRecovery.docs.length === 13 && loadedRecovery.activeDocumentId === thirteen[0]!.id);

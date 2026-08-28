@@ -347,6 +347,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERARCHIVECOMPACTCHECK="$DIR/.xer-archive-compact.mjs"
   if bundle_check "$DIR/check-xer-archive-compact.ts" "$XERARCHIVECOMPACTCHECK"; then node "$XERARCHIVECOMPACTCHECK" || STATUS=1; fi
 
+  # X9: drie verse corpusprocessen. maxRSS is de OS-gemeten piek van de hele IFC- of
+  # recoveryketen, niet een misleidende netto heapdelta.
+  XERARCHIVERECOVERYCORPUSCHECK="$DIR/.xer-archive-recovery-corpus.mjs"
+  if bundle_check "$DIR/check-xer-archive-recovery-corpus.ts" "$XERARCHIVERECOVERYCORPUSCHECK"; then
+    node "$XERARCHIVERECOVERYCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X6: RSRC/RSRCRATE/TASKRSRC, immutable retained bronrijen en het X4b-aliasingcontract.
   # De check is datumvrij en draait daarom slechts eenmaal buiten de tijdzonematrix.
   XERRESOURCESCHECK="$DIR/.xer-resources.mjs"
@@ -761,6 +769,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # voorstel om snapshots op taakaantal te filteren.
   RECCHECK="$DIR/.recovery-integrity.mjs"
   if bundle_check "$DIR/check-recovery-integrity.ts" "$RECCHECK"; then node "$RECCHECK" || STATUS=1; fi
+
+  # X9 recoverydelta: inhoud volgt uitsluitend IFCSaveSource/sameIFCSource. Eén wijziging geeft
+  # één upsert; actieve-tab-, pad- en dirtymetadata schrijven alleen het manifest.
+  RECDELTACHECK="$DIR/.recovery-delta.mjs"
+  if bundle_check "$DIR/check-recovery-delta.ts" "$RECDELTACHECK"; then node "$RECDELTACHECK" || STATUS=1; fi
 
   # Recovery-isolatie tussen instanties (bevinding K5). De opruimlogica veegde op PREFIX door de
   # gedeelde appDataDir. Twee gelijktijdige vensters wisten daarmee elkaars snapshots — en omdat

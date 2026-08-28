@@ -2,7 +2,7 @@
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { clearRecovery, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
+import { clearRecovery, fullRecoverySave, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
 import { readXER } from '@/services/xer/xerReader';
 import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
 import { useAppStore } from '@/state/appStore';
@@ -178,12 +178,12 @@ expect('9 iedere zelfstandige IFC is zonder siblingstate heropenbaar met exacte 
     && result.xerSourceProjectId === result.xer?.sourceProjectId));
 
 await clearRecovery();
-await saveRecovery(thirteen[0]!.id, thirteen.map((document, index) => ({
+await saveRecovery(fullRecoverySave(thirteen[0]!.id, thirteen.map((document, index) => ({
   id: document.id,
   ifc: ifcs[index]!,
   filePath: null,
   isDirty: true,
-})));
+}))));
 const loaded = await loadRecovery();
 expect('10 headless recoveryStore laadt alle dertien zelfstandige IFC-snapshots', loaded.docs.length === 13);
 const recoveryInputs = loaded.docs.map(document => recoveryInputFromParsed(
