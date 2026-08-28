@@ -9,6 +9,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult } from './CPMSolver';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
+import { enumerateTaskWorkDays } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, getWeekStart } from '@/utils/dateUtils';
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
@@ -115,15 +116,44 @@ export interface ResourceLoadResult {
   overallocatedDays: Record<string, string[]>;
 }
 
+/** Kalender-engine voor de TAAKkalender van `task` — spiegelt `CPMSolver.calendarFor`
+ *  (`resolveCalendar(task.calendarId, registry, projectCalendar)`) exact: dezelfde bron
+ *  (`task.calendarId`) en dezelfde fallback (geen/onbekende id ⇒ projectkalender), dat is dus
+ *  óók de engine waarmee de CPM de duur en de splits van de taak rekent. Gecachet per calendarId
+ *  (`cache`, per aanroep van `computeResourceLoad`/`computeHistogramReport` een verse Map) zodat
+ *  taken op dezelfde kalender geen nieuwe `CalendarEngine` per taak bouwen. Gedeeld door beide
+ *  mappings hieronder — één definitie, geen tweede die stil kan afdrijven (B1c-W0.1). */
+function engineForTask(
+  task: Task,
+  cache: Map<string, CalendarEngine>,
+  projectEngine: CalendarEngine,
+  calendarRegistry: WorkCalendar[],
+  projectCalendar: WorkCalendar,
+): CalendarEngine {
+  const key = task.calendarId ?? '';
+  let eng = cache.get(key);
+  if (!eng) {
+    eng = key === ''
+      ? projectEngine
+      : new CalendarEngine(resolveCalendar(task.calendarId, calendarRegistry, projectCalendar));
+    cache.set(key, eng);
+  }
+  return eng;
+}
+
 /**
  * Berekent dag-granulaire belasting/capaciteit/overallocatie over alle resources+toewijzingen.
- * Logica (resources-ontwerp §4.2):
+ * Logica (resources-ontwerp §4.2, dag-mapping herzien in B1c-W0.1):
  *  1. Filter assignments op leaf-taken zonder milestone (defensieve dubbele bewaking t.o.v.
  *     de assignResource-enforcement — mocht een oud bestand toch een ongeldige assignment
  *     bevatten).
  *  2-3. Per assignment: verdeel de eenheden over de curve en accumuleer per resource per dag,
- *     gemapt op de werkdagen tussen earlyStart/earlyFinish volgens de PROJECTKALENDER (de
- *     CPM-datums — resource-kalenders sturen de CPM-datums niet aan).
+ *     gemapt op de ECHTE werkdagen van de taak vanaf `earlyStart` (`enumerateTaskWorkDays`,
+ *     `splitWalk.ts`) — de kalender van de TAAK (`engineForTask`, dezelfde engine als de CPM-duur/
+ *     -splits), met `splitGaps`-pauzedagen overgeslagen. Vóór B1c-W0.1 werd hier onvoorwaardelijk
+ *     de projectkalender gebruikt en werden pauzedagen niet overgeslagen — beide zijn bewust
+ *     gerepareerd gedrag, zie `docs/superpowers/specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md`
+ *     §W0.
  *  4. Capaciteit per resource per dag: maxUnits (met availabilitySteps) op werkdagen van de
  *     resource-kalender (of de projectkalender als geen calendarId gezet is), 0 op niet-werkdagen.
  *  5. Materiaal telt gewoon mee voor overallocatie (leveler slaat het straks over, deze functie
@@ -143,6 +173,10 @@ export function computeResourceLoad(
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const projectEngine = new CalendarEngine(projectCalendar);
+  // W0: de dag-mapping volgt de TAAKkalender (dezelfde engine waarmee de CPM duur en splits
+  // rekent — zie `engineForTask` hierboven), niet onvoorwaardelijk de projectkalender. Cache per
+  // calendarId, één Map per aanroep van deze functie.
+  const taskEngineCache = new Map<string, CalendarEngine>();
 
   // 1. Leaf-only, geen mijlpalen (dubbele bewaking t.o.v. resourceSlice.assignResource, §2.4).
   const validAssignments = assignments.filter(a => {
@@ -157,7 +191,8 @@ export function computeResourceLoad(
     const days = distributeUnits(a.unitsPerDay, durationDays, a.curve ?? 'UNIFORM');
     if (days.length === 0) continue;
 
-    const workDayIsos = enumerateWorkDays(projectEngine, task.time.earlyStart, task.time.earlyFinish);
+    const taskEngine = engineForTask(task, taskEngineCache, projectEngine, resourceCalendars, projectCalendar);
+    const workDayIsos = enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
     const bucket = load[a.resourceId];
@@ -279,6 +314,9 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const projectEngine = new CalendarEngine(calendar);
+  // W0: zelfde taakkalender-mapping als computeResourceLoad (zie `engineForTask` hierboven) — één
+  // definitie, gecachet per calendarId voor deze aanroep.
+  const taskEngineCache = new Map<string, CalendarEngine>();
 
   // 1. Per-assignment dag-verdeling — dezelfde filter/mapping als computeResourceLoad (leaf, geen
   //    milestone), zodat de veroorzaker-bijdragen exact optellen tot de per-resource-dagbelasting.
@@ -294,7 +332,8 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     if (!task || task.isMilestone || task.childIds.length > 0) continue;
     const dist = distributeUnits(a.unitsPerDay, task.time.scheduleDuration, a.curve ?? 'UNIFORM');
     if (dist.length === 0) continue;
-    const workDayIsos = enumerateWorkDays(projectEngine, task.time.earlyStart, task.time.earlyFinish);
+    const taskEngine = engineForTask(task, taskEngineCache, projectEngine, calendars, calendar);
+    const workDayIsos = enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, task.time.scheduleDuration);
     const daily = new Map<string, number>();
     for (let i = 0; i < dist.length && i < workDayIsos.length; i++) {
       const iso = workDayIsos[i];

@@ -393,6 +393,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SPLITWALKCHECK="$DIR/.split-walk.mjs"
   if bundle_check "$DIR/check-split-walk.ts" "$SPLITWALKCHECK"; then node "$SPLITWALKCHECK" || STATUS=1; fi
 
+  # B1c-W0.1: `computeResourceLoad`/`computeHistogramReport` volgen nu de ECHTE werkdagen van een
+  # taak — splitGaps-pauzedagen overgeslagen, mapping op de TAAKkalender i.p.v. onvoorwaardelijk de
+  # projectkalender (via `enumerateTaskWorkDays`/`splitWalk.ts`).
+  RESLOADSPLITSCHECK="$DIR/.resource-load-splits.mjs"
+  if bundle_check "$DIR/check-resource-load-splits.ts" "$RESLOADSPLITSCHECK"; then node "$RESLOADSPLITSCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

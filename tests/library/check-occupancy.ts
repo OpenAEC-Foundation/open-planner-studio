@@ -786,5 +786,43 @@ let afterPayload: DocumentPayload | null = null;
     'case 21: een nieuwe poolreferentie kan geen slice uit de vorige pool hergebruiken');
 }
 
+// ── Case 22 (B1c-W0.1): splitGaps — dailyLoad bevat de pauzedagen NIET, de werkdagen wél ─────────
+// Zelfde referentiegaten als `check-split-walk.ts`/`check-resource-load-splits.ts`: taak van 3
+// werkdagen met twee gaten van 1 werkdag na resp. dag 1 en aspositie 1440 ⇒ de taak werkt op de
+// 1e/3e/5e kalenderdag van de spanne, niet op de 2e/4e (pauzedagen). Dit dekt dat de bezettingskern
+// (via `computeResourceLoad`) de W0.1-fix meekrijgt, niet alleen de directe aanroepers.
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
+  const splitTask: Task = {
+    ...task('d1-t1', '2026-08-03', '2026-08-07', 3),
+    splitGaps: [
+      { afterMinutes: 480, gapMinutes: 480 },
+      { afterMinutes: 1440, gapMinutes: 480 },
+    ],
+  };
+  const d1 = doc('d1', {
+    resources: [stamped('d1-r1', 'lib-1')],
+    tasks: [splitTask],
+    assignments: [assign('d1-a1', 'd1-t1', 'd1-r1', 1)],
+  });
+  const { rows } = computeLibraryOccupancy('c1', p, [d1]);
+  const booking = rows[0]?.docs[0];
+
+  assert(rows.length === 1 && booking !== undefined, 'case 22: de gesplitste taak levert een rij en een booking op');
+  assert(
+    booking !== undefined &&
+      Object.keys(booking.dailyLoad).sort().join(',') === ['2026-08-03', '2026-08-05', '2026-08-07'].join(','),
+    `case 22: dailyLoad bevat alleen de werkdagen 08-03/08-05/08-07 (kreeg ${JSON.stringify(Object.keys(booking?.dailyLoad ?? {}).sort())})`,
+  );
+  assert(
+    booking !== undefined && booking.dailyLoad['2026-08-04'] === undefined && booking.dailyLoad['2026-08-06'] === undefined,
+    'case 22: de pauzedagen 08-04/08-06 dragen géén last',
+  );
+  assert(
+    booking !== undefined && booking.dailyLoad['2026-08-03'] === 1 && booking.dailyLoad['2026-08-05'] === 1 && booking.dailyLoad['2026-08-07'] === 1,
+    'case 22: elke werkdag draagt de volle 1 eenheid (UNIFORM-curve)',
+  );
+}
+
 console.log(`occupancy: ${checks - fails}/${checks} groen`);
 process.exit(fails > 0 ? 1 : 0);
