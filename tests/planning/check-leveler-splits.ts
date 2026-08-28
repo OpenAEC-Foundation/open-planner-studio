@@ -614,6 +614,120 @@ console.log('-- leveler-splits: voltooide taak is onverplaatsbaar, boekt als vas
     Object.keys(r12b.unresolved).sort(), ['h3']);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 13 (eindpoortronde W0, slot — W1, reviewer-probe M): een taak IN UITVOERING
+// (`(actualStart || completion > 0) && completion < 1`) is EVENZEER onverplaatsbaar als een
+// voltooide taak — `CPMSolver.forwardPass`'s IN-UITVOERING-tak (~regel 1458-1844) plant haar,
+// net als de VOLTOOID-tak, onvoorwaardelijk op haar actuals/restwerk en negeert `levelingDelay`
+// volledig. Geval 12 dekte alleen VOLTOOID; deze fix breidt `fixedLoadIds` uit naar `isImmovableTask`
+// (voltooid ÓF in uitvoering). Zelfde SCENARIOKEUZE als geval 12 (priority omgedraaid: B laag, de
+// concurrent hoog) — anders zou de eligibility-sortering B toevallig als eerste plaatsen en zou zelfs
+// de oude code (die een taak-in-uitvoering nog als gewone movable taak behandelt) hem nooit hoeven te
+// verschuiven, geen bewijskracht.
+//
+// Sub-geval A: concurrent met ELDERS ruimte moet er ECHT omheen — waarneembare boeking, GEEN
+// onopgeloste conflicten.
+// Sub-geval B: eerlijkheid van `unresolved` — een concurrent ZONDER speling kan nergens anders heen
+// en moet dus ECHT (en ALLEEN zij, niet B) in `unresolved` belanden.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: taak IN UITVOERING is onverplaatsbaar, boekt als vaste last (geval 13, W1/probe M) --');
+{
+  // Sub-geval A: concurrent met speling routeert er succesvol omheen.
+  const bABase = task('b13a', '2026-06-01', '2026-06-01', 1, { priority: 100 }); // laag — zie SCENARIOKEUZE
+  const b13a: Task = {
+    ...bABase,
+    time: { ...bABase.time, completion: 0.5, actualStart: '2026-06-01' }, // in uitvoering, geen actualFinish
+  };
+  const z13a = task('z13a', '2026-06-01', '2026-06-01', 1, { priority: 900 }); // hoog
+
+  const resourceRA = res('r13a', 1);
+  const assignmentsA = [assign('b13a-r13a', 'b13a', 'r13a', 1), assign('z13a-r13a', 'z13a', 'r13a', 1)];
+
+  const cpmResultA = stubCpmResult('2026-06-01');
+  const r13a = levelResources(
+    [b13a, z13a], [], [resourceRA], assignmentsA, PROJECT_CAL, [], cpmResultA, LEVEL_OPTS,
+  );
+
+  eq('B (in uitvoering, LAGE prioriteit) krijgt NOOIT een levelingDelay', r13a.delays['b13a'], undefined);
+  ok('Z (hoge prioriteit) wijkt écht: B\'s boeking is een vaste last, ondanks haar hogere prioriteit',
+    (r13a.delays['z13a'] ?? 0) > 0);
+  ok('sub-geval A is volledig opgelost — geen onopgeloste conflicten', Object.keys(r13a.unresolved).length === 0);
+
+  // Sub-geval B: concurrent ZONDER speling belandt eerlijk in `unresolved`, B zelf nooit.
+  const bBBase = task('b13b', '2026-06-01', '2026-06-01', 1, { priority: 100 });
+  const b13b: Task = {
+    ...bBBase,
+    time: { ...bBBase.time, completion: 0.5, actualStart: '2026-06-01' },
+  };
+  const z13b = task('z13b', '2026-06-01', '2026-06-01', 1, { priority: 900 });
+
+  const resourceRB = res('r13b', 1);
+  const assignmentsB = [assign('b13b-r13b', 'b13b', 'r13b', 1), assign('z13b-r13b', 'z13b', 'r13b', 1)];
+
+  const cpmResultB = stubCpmResult('2026-06-01');
+  const SMOOTH_OPTS13: LevelingOptions = { constrainToFloat: true };
+  const r13b = levelResources(
+    [b13b, z13b], [], [resourceRB], assignmentsB, PROJECT_CAL, [], cpmResultB, SMOOTH_OPTS13,
+  );
+
+  eq('B (in uitvoering) krijgt NOOIT een levelingDelay, ook niet in smoothing-modus', r13b.delays['b13b'], undefined);
+  eq('Z krijgt geen delay (bleef op haar eigen PF staan — het venster liet geen slot toe)',
+    r13b.delays['z13b'], undefined);
+  eq('ALLEEN Z belandt in unresolved — B doet niet mee aan de eligibility-lus en kan er dus nooit in staan',
+    Object.keys(r13b.unresolved).sort(), ['z13b']);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 14 (eindpoortronde W0, slot — W2, reviewer-probe N2): de leveler-zijde van de VOLTOOID-
+// mapping in `occurrenceFor` was ongedekt voor een MEERDAAGSE taak — geval 12 se voltooide taken zijn
+// allemaal ÉÉNdaags, dus een mutatie die `|| isCompletedTask` uit `occurrenceFor` verwijdert bleef
+// daar onopgemerkt groen. Dit geval bouwt de showcase-bevinding rechtstreeks na op de LEVELER
+// (niet — zoals de vorige ronde — alleen op `ResourceLoad.ts`): "Roof structure — House 1"
+// (completion=1, actualStart 04-29, actualFinish 05-04 via snapOnOrBefore, scheduleDuration=5) met
+// een feestdagenblok op 05-05/05-06 net ná haar echte einde. H1's ECHTE werkdagen (04-29..05-04,
+// het weekend 05-02/05-03 overslaand) zijn woe/do/vr/ma — 4 dagen, NIET de 5 die een kale
+// `scheduleDuration`-werkdagenwandeling (die de feestdagen zou overslaan en doorlopen tot en met de
+// FANTOOMDAG do 05-07) zou opleveren.
+//
+// Twee concurrenten op dezelfde resource: één op de fantoomdag 05-07 (hoeft NIET te wijken — H1
+// boekt daar met de fix niets), één op de ECHTE laatste werkdag 05-04 (moet WÉL wijken — H1 bezet
+// die dag echt).
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: meerdaagse voltooide taak over een feestdagenblok (geval 14, W2/probe N2) --');
+{
+  // Ma-vr, met een feestdagenblok op di 05-05/woe 05-06 — net ná H1's echte einde (05-04).
+  const HOLIDAY_CAL: WorkCalendar = {
+    id: 'cal-holiday-leveler', name: 'feestdagen', description: '', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
+    holidays: [{ name: 'blokvakantie', startDate: '2026-05-05', endDate: '2026-05-06' }],
+  };
+  const h1Base = task('h1-n2', '2026-04-29', '2026-05-04', 5, { priority: 500 }); // scheduleDuration=5: stale plan
+  const h1n2: Task = {
+    ...h1Base,
+    time: { ...h1Base.time, completion: 1, actualStart: '2026-04-29', actualFinish: '2026-05-04' },
+  };
+  const tPhantom = task('t14-phantom', '2026-05-07', '2026-05-07', 1, { priority: 500 });
+  const tReal = task('t14-real', '2026-05-04', '2026-05-04', 1, { priority: 500 });
+
+  const resourceR = res('r14', 1);
+  const assignments = [
+    assign('h1-n2-r14', 'h1-n2', 'r14', 1),
+    assign('t14-phantom-r14', 't14-phantom', 'r14', 1),
+    assign('t14-real-r14', 't14-real', 'r14', 1),
+  ];
+
+  const cpmResult = stubCpmResult('2026-05-07');
+  const r14 = levelResources(
+    [h1n2, tPhantom, tReal], [], [resourceR], assignments, HOLIDAY_CAL, [], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('H1 (voltooid, meerdaags) krijgt NOOIT een levelingDelay', r14.delays['h1-n2'], undefined);
+  eq('concurrent op de FANTOOMDAG 05-07 hoeft niet te wijken — H1 boekt daar niets (fix)',
+    r14.delays['t14-phantom'], undefined);
+  ok('concurrent op de ECHTE laatste werkdag 05-04 moet wél wijken — H1 bezet die dag echt',
+    (r14.delays['t14-real'] ?? 0) > 0);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveler-splits: alle checks groen (${checks})`);

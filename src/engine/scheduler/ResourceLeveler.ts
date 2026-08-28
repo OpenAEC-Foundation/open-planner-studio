@@ -12,11 +12,14 @@
 //    volgen wél hun (mogelijk verschoven) voorgangers — MSP "Do Not Level"-semantiek (§5.4, A4).
 //  - De eligibility-lus kiest telkens de hoogst gesorteerde taak (§5.2) waarvan álle voorgangers
 //    al een definitieve positie hebben; niet-verschuifbare taken (geen vraag / mijlpaal / summary /
-//    VOLTOOID — `completion >= 1 && actualFinish`, eindpoortronde W0) gelden meteen als geplaatst.
-//    Een voltooide taak boekt haar vraag WEL als vaste last (op haar eigen actuals-gedreven
-//    positie, vóór de eligibility-lus, zie `fixedLoadIds`), maar krijgt NOOIT een `levelingDelay` —
-//    `CPMSolver.forwardPass`'s VOLTOOID-tak plant zo'n taak onvoorwaardelijk op `actualStart`/
-//    `actualFinish` en negeert `levelingDelay` volledig, dus een delay zou een stille no-op zijn.
+//    ONVERPLAATSBAAR — VOLTOOID (`completion >= 1 && actualFinish`) ÓF IN UITVOERING (`(actualStart
+//    || completion > 0) && completion < 1`), eindpoortronde W0/W1 — `isImmovableTask`) gelden meteen
+//    als geplaatst. Zo'n taak boekt haar vraag WEL als vaste last (op haar eigen actuals-/restwerk-
+//    gedreven positie, vóór de eligibility-lus, zie `fixedLoadIds`), maar krijgt NOOIT een
+//    `levelingDelay` — `CPMSolver.forwardPass`'s VOLTOOID- én IN-UITVOERING-tak plannen zo'n taak
+//    allebei onvoorwaardelijk op haar actuals/restwerk en negeren `levelingDelay` volledig, dus een
+//    delay zou een stille no-op zijn (W1: dit gold al voor VOLTOOID; IN UITVOERING was het gat dat
+//    reviewer-probe M blootlegde — een halverwege-taak kreeg nog een genegeerde delay).
 //  - PF wordt afgeleid door de bestaande `CPMSolver` te herdraaien op een werkkopie waarin de
 //    al-geplaatste taken hun `levelingDelay` hebben en de gekozen taak (nog) niet — dan is de ES
 //    van de gekozen taak per constructie zijn PF, mét volledige relatie-/lag-/constraint-logica.
@@ -229,9 +232,28 @@ export function levelResources(
   // vertaalde vorm wordt bewust hergebruikt i.p.v. een aparte kale variant: één formule, geen tweede
   // die stil kan afdrijven.
   const isCompletedTask = (task: Task): boolean => task.time.completion >= 1 && !!task.time.actualFinish;
+  // IN UITVOERING (eindpoortronde W0, slot — W1): spiegelt CPMSolver.forwardPass's TWEEDE
+  // voortgangs-conditie EXACT (~regel 1458: `(t.actualStart || t.completion > 0) && t.completion <
+  // 1`) — díe tak plant, net als de VOLTOOID-tak, onvoorwaardelijk op actualStart/restwerk en eindigt
+  // ook in een `continue` die `levelingDelay` nooit raadpleegt (regel ~1843-1844: `results.set(...);
+  // continue;`). Een taak in uitvoering is dus EVENZEER onverplaatsbaar voor de leveler — reviewer-
+  // probe M: zonder deze uitbreiding kreeg zo'n taak nog een stille no-op-delay (CPM negeert 'm
+  // toch), bleef ze op haar werkelijke datum staan, en herleefde het conflict stil.
+  const isInProgressTask = (task: Task): boolean =>
+    (!!task.time.actualStart || task.time.completion > 0) && task.time.completion < 1;
+  // BREED (voor `fixedLoadIds` hieronder): VOLTOOID ÓF IN UITVOERING — beide takken in
+  // `CPMSolver.forwardPass` negeren `levelingDelay`, dus beide horen NOOIT een delay te krijgen en
+  // WEL als vaste last te boeken.
+  const isImmovableTask = (task: Task): boolean => isCompletedTask(task) || isInProgressTask(task);
   const occurrenceFor = (task: Task, startDate: Date): string[] => {
     if (isNaN(startDate.getTime())) return [];
     const taskEngine = engineForTask(task);
+    // SMAL op `isCompletedTask` — BEWUST NIET samengevoegd met `isInProgressTask` (W1): voor een
+    // VOLTOOIDE taak is `earlyFinish` gezaghebbend uit de actuals afgeleid (zie hieronder), maar voor
+    // een taak IN UITVOERING komt `earlyFinish` uit de restduur-berekening (CPMSolver.forwardPass se
+    // `remaining`-tak) — daar is de GEWONE `scheduleDuration`-werkdagenwandeling vanaf `earlyStart`
+    // wél juist, want die weerspiegelt exact hetzelfde restwerk waaruit CPM ook `earlyFinish` afleidt.
+    // Alleen de BOEKING (via `fixedLoadIds`) hoeft breed te zijn, deze dagenset-mapping niet.
     if (task.time.durationType === 'ELAPSEDTIME' || isCompletedTask(task)) {
       const base = baseline.tasks.get(task.id);
       const rawStart = base?.earlyStart ?? task.time.earlyStart;
@@ -267,18 +289,18 @@ export function levelResources(
     }
   }
 
-  // Indeling: movable (mag schuiven) vs. gefixeerd (vastgepind) vs. ONVERPLAATSBAAR (voltooid,
-  // eindpoortronde W0) vs. geen vraag op selectie. Een voltooide taak (§5.4-uitbreiding: `completion
-  // >= 1 && actualFinish`) is geen "vastgepind" (priority 1000, volgt nog wél voorgangers via PF) —
-  // ze is nog strenger: ze staat ONVOORWAARDELIJK op haar actuals, ongeacht priority, en gaat dus NOOIT
-  // door `findSlot` OF het pinned-pad. Zie `fixedLoadIds` hieronder voor de boeking.
+  // Indeling: movable (mag schuiven) vs. gefixeerd (vastgepind) vs. ONVERPLAATSBAAR (voltooid ÓF in
+  // uitvoering — `isImmovableTask`, eindpoortronde W0/W1) vs. geen vraag op selectie. Zo'n taak is
+  // geen "vastgepind" (priority 1000, volgt nog wél voorgangers via PF) — ze is nog strenger: ze
+  // staat ONVOORWAARDELIJK op haar actuals/restwerk, ongeacht priority, en gaat dus NOOIT door
+  // `findSlot` OF het pinned-pad. Zie `fixedLoadIds` hieronder voor de boeking.
   const hasDemand = (id: string) => demandByTask.has(id);
   const movableIds: string[] = [];
   const pinnedIds: string[] = [];
   const fixedLoadIds: string[] = [];
   for (const t of tasks) {
     if (!hasDemand(t.id)) continue;             // geen vraag op geselecteerde renewables → niet verschuiven
-    if (isCompletedTask(t)) { fixedLoadIds.push(t.id); continue; } // voltooid — vóór de pin-check
+    if (isImmovableTask(t)) { fixedLoadIds.push(t.id); continue; } // voltooid/in uitvoering — vóór de pin-check
     if (t.priority === 1000) pinnedIds.push(t.id); // vastgepind (§5.4)
     else movableIds.push(t.id);
   }
@@ -360,17 +382,20 @@ export function levelResources(
   const placed = new Set<string>();
   for (const t of tasks) if (!active.has(t.id)) placed.add(t.id);
 
-  // VOLTOOID (eindpoortronde W0): vóór de eligibility-lus als VASTE LAST geboekt — op hun EIGEN
-  // (ongeschoven) baseline-earlyStart, nooit een levelingDelay. `placed` bevat ze al (hierboven, via
-  // de `!active.has`-lus); dit boekt alleen hun vraag zodat movable/vastgepinde taken die er straks
-  // langs moeten het conflict ECHT zien. Reden waarom dit NIET via het pinned-pad in de hoofdlus kan:
-  // `CPMSolver.forwardPass`'s VOLTOOID-tak (~regel 1420-1456 in CPMSolver.ts) plant deze taken
-  // onvoorwaardelijk op `actualStart`/`actualFinish` en NEGEERT `levelingDelay` volledig — een delay
-  // toekennen zou een stille no-op zijn (het conflict herleeft na de volgende `runCPM`, `unresolved`
-  // zou dan ten onrechte leeg blijven terwijl er wél een botsing is). Vandaar: geen delay-poging, geen
-  // findSlot-scan, alleen de boeking — het conflict blijft zichtbaar via de MOVABLE/PINNED taken die
-  // er straks omheen moeten (of, bij een botsing tussen twee voltooide taken onderling, blijft gewoon
-  // bestaan — dat is dan een ECHTE, gerapporteerde overallocatie, geen leveler-taak om op te lossen).
+  // ONVERPLAATSBAAR — voltooid ÓF in uitvoering (eindpoortronde W0/W1): vóór de eligibility-lus als
+  // VASTE LAST geboekt — op hun EIGEN (ongeschoven) baseline-earlyStart, nooit een levelingDelay.
+  // `placed` bevat ze al (hierboven, via de `!active.has`-lus); dit boekt alleen hun vraag zodat
+  // movable/vastgepinde taken die er straks langs moeten het conflict ECHT zien. Reden waarom dit
+  // NIET via het pinned-pad in de hoofdlus kan: `CPMSolver.forwardPass`'s VOLTOOID-tak (~regel 1420-
+  // 1456 in CPMSolver.ts) én haar IN-UITVOERING-tak (~regel 1458-1844, W1) planten deze taken allebei
+  // onvoorwaardelijk op respectievelijk `actualStart`/`actualFinish` of `actualStart` + restwerk, en
+  // NEGEREN `levelingDelay` volledig — een delay toekennen zou een stille no-op zijn (het conflict
+  // herleeft na de volgende `runCPM`, `unresolved` zou dan ten onrechte leeg blijven terwijl er wél
+  // een botsing is; reviewer-probe M pinde dit specifiek voor de IN-UITVOERING-tak). Vandaar: geen
+  // delay-poging, geen findSlot-scan, alleen de boeking — het conflict blijft zichtbaar via de
+  // MOVABLE/PINNED taken die er straks omheen moeten (of, bij een botsing tussen twee onverplaatsbare
+  // taken onderling, blijft gewoon bestaan — dat is dan een ECHTE, gerapporteerde overallocatie, geen
+  // leveler-taak om op te lossen).
   for (const id of fixedLoadIds) {
     const startIso = baseEs(id);
     bookDemandAt(id, parseDate(startIso));
