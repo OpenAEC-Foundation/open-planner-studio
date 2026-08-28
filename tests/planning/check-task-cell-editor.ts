@@ -104,9 +104,19 @@ const enumMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
-ok('Enumdescriptor rendert een echte dropdown',
-  enumMarkup.includes('<select') && enumMarkup.includes('data-task-editor-kind="enum"'));
-ok('Enumdropdown gebruikt de descriptoropties', enumMarkup.includes('OPTIE:CONSTRUCTION'));
+// Browserreview, observatie 5: geen kaal native <select> meer (dat toonde bij het starten van
+// bewerken geen uitgeklapte lijst — pijltjes cyclen alleen de waarde). `Select`
+// (src/components/common/Select.tsx) met `autoOpen` vervangt 'm; `aria-expanded="true"` op de
+// trigger bewijst dat de editor meteen UITGEKLAPT start i.p.v. pas na een tweede interactie. De
+// eigenlijke optielijst rendert via een portal naar `document.body`, dat in deze Node-testomgeving
+// (geen jsdom) niet bestaat — `Select` slaat de portal dan bewust over (zie de SSR-guard in
+// Select.tsx), dus die lijst is hier niet los te controleren; dat gebeurt live in de browser.
+ok('Enumdescriptor rendert Select (geen kaal native <select> meer), al uitgeklapt',
+  !enumMarkup.includes('<select')
+    && enumMarkup.includes('data-task-editor-kind="enum"')
+    && enumMarkup.includes('ops-select__trigger')
+    && enumMarkup.includes('aria-expanded="true"'));
+ok('Enumdropdown toont de huidige waarde via de descriptoropties', enumMarkup.includes('OPTIE:CONSTRUCTION'));
 const booleanMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   adapter,
   cell: { rowKey: 'occ-1', columnId: taskColumnId('task.isMilestone') },
@@ -115,10 +125,11 @@ const booleanMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
-ok('Booleandescriptor rendert een drie-toestandenkeuze',
-  booleanMarkup.includes('data-task-editor-kind="boolean"')
-    && /<option value="true"[^>]*>WAAR<\/option>/.test(booleanMarkup)
-    && /<option value="false"[^>]*>ONWAAR<\/option>/.test(booleanMarkup));
+ok('Booleandescriptor rendert Select (geen kaal native <select> meer), al uitgeklapt',
+  !booleanMarkup.includes('<select')
+    && booleanMarkup.includes('data-task-editor-kind="boolean"')
+    && booleanMarkup.includes('ops-select__trigger')
+    && booleanMarkup.includes('aria-expanded="true"'));
 const autocompleteMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   adapter,
   cell: { rowKey: 'occ-1', columnId: taskColumnId('task.calendarId') },

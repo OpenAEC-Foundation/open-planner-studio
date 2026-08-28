@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { Select } from '@/components/common/Select';
 import type { GridCellAddress } from '@/engine/taskGrid/selection';
 import type { TaskGridAdapter, TaskGridAdapterEventTarget } from '@/engine/taskGrid/taskGridAdapter';
 import type { ResourceCurve } from '@/types/resource';
@@ -16,6 +17,7 @@ import type { ParsedRelationToken } from '@/engine/taskGrid/relationPlan';
 import {
   GridEditorHost,
   type GridEditorCommitResult,
+  type GridEditorInputProps,
 } from './GridEditorHost';
 import { RelationCellEditor } from './RelationCellEditor';
 
@@ -184,6 +186,13 @@ export function TaskCellEditor({
     'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK',
   ];
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  // Browserreview, observatie 5: `commit()` leest hieruit i.p.v. rechtstreeks uit de `text`-state.
+  // De enum/boolean-editor commit meteen bij het kiezen (klik of Enter — zie de onChange hieronder),
+  // in DEZELFDE synchrone afhandeling als de `setText`-aanroep die de keuze vastlegt. Zonder deze
+  // ref zou `commit` (via zijn `useCallback`-closure) nog de VORIGE render se `text` zien, want React
+  // herrendert pas ná deze functie — een ref is wél meteen bij, dus altijd de verse waarde.
+  const textRef = useRef(text);
+  textRef.current = text;
   useEffect(() => {
     const node = inputRef.current;
     node?.focus();
@@ -198,7 +207,7 @@ export function TaskCellEditor({
       return localError(cell, 'invalidLag', messageForError);
     }
     const result = commitTaskCellEditorValue({
-      adapter, cell, text, messageForError,
+      adapter, cell, text: textRef.current, messageForError,
       ...(isAssignmentEditor
         ? { directValue: assignmentTokens }
         : isRelationEditor && initialText === undefined
@@ -209,7 +218,7 @@ export function TaskCellEditor({
     return result.ok && destination ? { ...result, nextCell: destination } : result;
   }, [
     adapter, assignmentTokens, cell, initialText, isAssignmentEditor, isRelationEditor,
-    messageForError, nextCell, previousCell, relationTokens, relationValid, text,
+    messageForError, nextCell, previousCell, relationTokens, relationValid,
   ]);
 
   useEffect(() => {
@@ -217,6 +226,24 @@ export function TaskCellEditor({
     onCommitReady(() => commit(false));
     return () => onCommitReady(null);
   }, [commit, onCommitReady]);
+
+  // Browserreview, observatie 5: gedeeld door de enum- en boolean-editor. Een klik op een optie
+  // heeft geen keydown om op te bubbelen, dus commit hier ZELF, meteen na het bijwerken van
+  // `textRef`/`text` — niet via `commit()`s closure (die pas ná de eerstvolgende render de nieuwe
+  // waarde ziet), maar via de synthetische Enter naar `inputProps.onKeyDown`, die `commit()` intern
+  // aanroept en dan al wél `textRef.current` (synchroon bijgewerkt) leest. Diezelfde weg voor een
+  // Enter-keuze in `Select` zelf: die stopt de propagatie van zijn eigen Enter (zie Select.tsx),
+  // dus dit is de ENIGE plek die de commit voor een gekozen waarde triggert — geen dubbele afhandeling.
+  const commitPickedValue = (value: string, inputProps: GridEditorInputProps) => {
+    textRef.current = value;
+    setText(value);
+    inputProps.onKeyDown({
+      key: 'Enter',
+      shiftKey: false,
+      preventDefault: () => {},
+      stopPropagation: () => {},
+    } as KeyboardEvent<HTMLElement>);
+  };
 
   return (
     <GridEditorHost
@@ -371,35 +398,54 @@ export function TaskCellEditor({
             )}
           </div>
         ) : descriptor?.editorKind === 'enum' && descriptor.editorOptions ? (
-          <select
-            {...inputProps}
-            ref={node => { inputRef.current = node; }}
-            aria-label={label}
-            value={text}
-            onChange={event => setText(event.currentTarget.value)}
+          // Browserreview, observatie 5: een kaal native <select> toont bij het starten van
+          // bewerken geen uitgeklapte lijst — pijltjes cyclen alleen de waarde, zonder overzicht van
+          // alle opties. `Select` (src/components/common/Select.tsx) is het bestaande, volwaardige
+          // component (open/highlight/typeahead/Enter-commit/Escape-annuleer) — hier met `autoOpen`
+          // zodat de volledige lijst er meteen staat. `onKeyDown={inputProps.onKeyDown}` op de
+          // WRAPPER (niet op Select zelf, dat kent die prop niet) vangt Escape door: Select's eigen
+          // Escape-afhandeling stopt de propagatie niet, dus dezelfde toets sluit zowel de lijst als
+          // annuleert de celbewerking. Enter/klik op een optie roept `onChange` hieronder aan, die
+          // de commit ZELF triggert via een synthetische Enter naar `inputProps.onKeyDown` — Select
+          // stopt bij een echte keuze wél de propagatie van zijn eigen Enter, dus geen dubbele commit.
+          <div
             className="task-grid-editor-input"
             data-task-editor-kind="enum"
+            onKeyDown={inputProps.onKeyDown}
           >
-            {descriptor.editorOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label ?? labelForOption(option.labelKey ?? option.value, option.value)}
-              </option>
-            ))}
-          </select>
+            <Select
+              autoOpen
+              aria-label={label}
+              aria-invalid={inputProps['aria-invalid']}
+              aria-describedby={inputProps['aria-describedby']}
+              value={text}
+              options={descriptor.editorOptions.map(option => ({
+                value: option.value,
+                label: option.label ?? labelForOption(option.labelKey ?? option.value, option.value),
+              }))}
+              onChange={value => commitPickedValue(value, inputProps)}
+            />
+          </div>
         ) : descriptor?.editorKind === 'boolean' ? (
-          <select
-            {...inputProps}
-            ref={node => { inputRef.current = node; }}
-            aria-label={label}
-            value={text}
-            onChange={event => setText(event.currentTarget.value)}
+          <div
             className="task-grid-editor-input"
             data-task-editor-kind="boolean"
+            onKeyDown={inputProps.onKeyDown}
           >
-            <option value="">—</option>
-            <option value="true">{adapter.booleanLabels?.true ?? 'true'}</option>
-            <option value="false">{adapter.booleanLabels?.false ?? 'false'}</option>
-          </select>
+            <Select
+              autoOpen
+              aria-label={label}
+              aria-invalid={inputProps['aria-invalid']}
+              aria-describedby={inputProps['aria-describedby']}
+              value={text}
+              options={[
+                { value: '', label: '—' },
+                { value: 'true', label: adapter.booleanLabels?.true ?? 'true' },
+                { value: 'false', label: adapter.booleanLabels?.false ?? 'false' },
+              ]}
+              onChange={value => commitPickedValue(value, inputProps)}
+            />
+          </div>
         ) : dateEditorKind ? (
           <div className="task-grid-date-editor">
             <input
