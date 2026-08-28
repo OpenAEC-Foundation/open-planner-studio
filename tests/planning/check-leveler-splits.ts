@@ -237,6 +237,85 @@ console.log('-- leveler-splits: ELAPSEDTIME-taak boekt spanne-geklemd, niet als 
   ok('geen onopgeloste conflicten', Object.keys(r3.unresolved).length === 0);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 4 (ELAPSEDTIME-delay-EENHEID, reviewronde taak 4): de delay-METING voor een ELAPSEDTIME-taak
+// moet in dezelfde eenheid rekenen als `CPMSolver.forwardPass`'s `shiftByLevelingDelay` bij de
+// TOEPASSING gebruikt. Die functie kent voor `task.levelingDelay` TWEE aparte takken (CPMSolver.ts,
+// `shiftByLevelingDelay`): WORKTIME schuift `eng.addWorkingDaysSigned(date, delay)` — hele
+// WERKdagen op de taak-eigen kalender; ELAPSEDTIME schuift `addElapsedMinutes(date, delay*24*60)` —
+// KALE kalenderdagen, 24/7, ONGEACHT welke dagen werkdagen zijn. Geval 2 hierboven bewees al dat de
+// meting op de juiste KALENDER moet rekenen (taak- i.p.v. projectkalender); dit geval bewijst dat ze
+// ook in de juiste EENHEID moet rekenen (kale kalenderdagen i.p.v. werkdagen) — reviewer-repro op
+// commit 9ac2ed49: de delay-meting rekende voor ELKE `durationType` in werkdagen, dus voor een
+// ELAPSEDTIME-taak gaf dat een AFSTAND die niet overeenkomt met wat `addElapsedMinutes` bij
+// toepassing werkelijk verschuift.
+//
+// Scenario: taak D (WORKTIME, prio 900) en taak E (ELAPSEDTIME, "duur" 1 — dus een span van 1
+// KALENDERdag, prio 100) willen beide vrijdag 2026-06-05 op dezelfde resource (cap 1, projectkalender
+// ma-vr). D plaatst het eerst (hoogste prioriteit) en claimt vrijdag; E moet wijken. `findSlot`s
+// kandidaat-scan (bewust ongemoeid, projectkalender) vindt maandag 06-08 als eerstvolgende vrije
+// projectkalender-werkdag — GEEN ELAPSEDTIME-specifieke keuze, dus dit geval test de EENHEID van de
+// meting, niet die scan (zoals de taakomschrijving vroeg).
+//   - OUDE (foute) meting: `workDaysBetween(vr, ma)` op de (project)kalender = 2 werkdagen (vr, ma)
+//     ⇒ delay 1. Toegepast via `addElapsedMinutes(vrijdag, 1×24×60)` = vrijdag + 1 KALENDERdag =
+//     ZATERDAG 06-06 — twee dagen naast de dag waarop E daadwerkelijk geboekt is (maandag).
+//   - NIEUWE (correcte) meting: kale kalenderdagen tussen vr en ma (`diffCalendarDays`) = 3 ⇒ delay
+//     3. Toegepast via `addElapsedMinutes(vrijdag, 3×24×60)` = vrijdag + 3 kalenderdagen = MAANDAG
+//     06-08 — exact de dag waarop `bookDemandAt` E al boekte. Dat is de sluitring die dit geval dichtmaakt.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: ELAPSEDTIME-delay gemeten in kalenderdagen, niet werkdagen (geval 4) --');
+{
+  const taskD = task('d4', '2026-06-05', '2026-06-05', 1, { priority: 900 });
+  const taskEBase = task('e4', '2026-06-05', '2026-06-05', 1, { priority: 100 });
+  const taskE: Task = { ...taskEBase, time: { ...taskEBase.time, durationType: 'ELAPSEDTIME' } };
+
+  const resourceR = res('r4', 1);
+  const assignments = [assign('d4-r4', 'd4', 'r4', 1), assign('e4-r4', 'e4', 'r4', 1)];
+
+  const cpmResult = stubCpmResult('2026-06-05');
+  const r4 = levelResources(
+    [taskD, taskE], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('D (hoogste prioriteit) plaatst op haar eigen PF, geen delay', r4.delays['d4'], undefined);
+  eq('E wijkt met delay 3 — kale KALENDERdagen tussen vr en ma, niet werkdagen',
+    r4.delays['e4'], 3);
+  ok('geen onopgeloste conflicten', Object.keys(r4.unresolved).length === 0);
+
+  // Sluit de cirkel: zet levelingDelay op E zoals `applyLeveling` zou doen, draai `solveProject` met
+  // DEZELFDE kalender, en bewijs dat de ELAPSEDTIME-toepassing exact de dag oplevert waarop
+  // `bookDemandAt` E al boekte (maandag 06-08) — NIET de zaterdag die de OUDE (werkdagen-)meting zou
+  // hebben opgeleverd.
+  const solvedTasks: Task[] = [
+    { ...taskD, time: { ...taskD.time }, levelingDelay: r4.delays['d4'] },
+    { ...taskE, time: { ...taskE.time }, levelingDelay: r4.delays['e4'] },
+  ];
+  const solved = solveProject({
+    tasks: solvedTasks, sequences: [], calendar: PROJECT_CAL, calendars: [],
+  });
+  ok('solveProject rekent zonder fout door', !solved.error);
+  const eResult = solvedTasks.find(t => t.id === 'e4')!;
+  eq("E's earlyStart landt op maandag 2026-06-08 — de dag waarop bookDemandAt haar al boekte",
+    eResult.time.earlyStart, '2026-06-08');
+
+  // Negatieve controle: de OUDE (werkdagen-)meting (delay=1) zou via `addElapsedMinutes` — dat
+  // ONDERDEEL van `shiftByLevelingDelay` bestond al vóór deze fix en is hier ongewijzigd — op
+  // zaterdag 06-06 zijn geland: een dag die de nivelleerder nooit geboekt heeft. Bewijst dat de oude
+  // preview/CPM-divergentie voor ELAPSEDTIME-taken geen constructie-artefact van deze test is.
+  const oldDelayTasks: Task[] = [
+    { ...taskD, time: { ...taskD.time }, levelingDelay: undefined },
+    { ...taskE, time: { ...taskE.time }, levelingDelay: 1 },
+  ];
+  const oldSolved = solveProject({
+    tasks: oldDelayTasks, sequences: [], calendar: PROJECT_CAL, calendars: [],
+  });
+  ok('(negatieve controle) solveProject rekent zonder fout door', !oldSolved.error);
+  const oldEResult = oldDelayTasks.find(t => t.id === 'e4')!;
+  eq('(negatieve controle) de OUDE delay-eenheid (1 werkdag) zou E op zaterdag 06-06 hebben laten '
+    + 'landen — niet de maandag waarop ze geboekt is',
+    oldEResult.time.earlyStart, '2026-06-06');
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveler-splits: alle checks groen (${checks})`);

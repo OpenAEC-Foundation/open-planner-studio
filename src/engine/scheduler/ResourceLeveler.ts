@@ -324,13 +324,26 @@ export function levelResources(
 
     bookDemandAt(pick, startDate);
     placedStartIso.set(pick, formatDate(startDate));
-    // B1c-W0.3: gemeten op de TAAKkalender van `pick`, niet de projectkalender — `levelingDelay`
-    // wordt door `CPMSolver.forwardPass` (`shiftByLevelingDelay`) óók op de taak-eigen kalender
-    // toegepast (`addWorkingDaysSigned`), dus de preview moet op DEZELFDE kalender meten. Vóór deze
-    // fix maten preview en toepassing op verschillende kalenders: bij een taak op een afwijkende
-    // taakkalender beloofde de preview een datum die `applyLeveling`→`runCPM` niet waarmaakte (zie
-    // `check-leveler-splits.ts`s tweede geval, dat de twee metingen expliciet uit elkaar trekt).
-    const delay = engineForTask(taskById.get(pick)!).workDaysBetween(pf, startDate) - 1; // beide werkdagen, inclusieve telling −1
+    // B1c-W0.3: gemeten in DEZELFDE eenheid als `CPMSolver.forwardPass`'s `shiftByLevelingDelay`
+    // (CPMSolver.ts) straks bij de TOEPASSING van deze `levelingDelay` gebruikt — twee aparte takken,
+    // niet één kalender-keuze:
+    //  - WORKTIME: hele WERKdagen op de taak-eigen kalender (`eng.addWorkingDaysSigned`) — dus hier
+    //    `workDaysBetween` op de TAAKkalender, niet de projectkalender (−1 corrigeert voor de
+    //    INCLUSIEVE werkdagentelling: beide grenzen tellen mee, `addWorkingDaysSigned` stapt exclusief
+    //    vanaf de startdag).
+    //  - ELAPSEDTIME: kale KALENDERdagen, 24/7 (`addElapsedMinutes(date, task.levelingDelay*24*60)`)
+    //    — geen kalenderbewuste telling, dus simpelweg het aantal kalenderdagen tussen pf en
+    //    startDate (`diffCalendarDays`), ZONDER de −1: die correctie hoort bij de inclusieve
+    //    werkdagentelling hierboven en is hier niet van toepassing (`addElapsedMinutes` verschuift
+    //    een kale datum-instant, geen "aantal gepasseerde werkdagen").
+    // Reviewronde taak 4: vóór deze splitsing mat de ELAPSEDTIME-tak hier ook in werkdagen — dat gaf
+    // een andere afstand dan `shiftByLevelingDelay` bij toepassing daadwerkelijk verschuift (zie
+    // `check-leveler-splits.ts`s ELAPSEDTIME-delay-geval, dat de twee metingen expliciet uit elkaar
+    // trekt en via `solveProject` bewijst dat de toepassing weer op de geboekte dag landt).
+    const pickedTask = taskById.get(pick)!;
+    const delay = pickedTask.time.durationType === 'ELAPSEDTIME'
+      ? diffCalendarDays(pf, startDate)
+      : engineForTask(pickedTask).workDaysBetween(pf, startDate) - 1;
     if (delay > 0) delays[pick] = delay;
     if (slotUnresolved.length > 0) {
       unresolved[pick] = slotUnresolved;
