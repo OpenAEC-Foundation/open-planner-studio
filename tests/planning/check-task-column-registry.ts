@@ -266,7 +266,7 @@ for (const id of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.
   if (!validated.ok) continue;
   const planned = column.planWrite!(validated.value, task, ctx);
   eq(`${id}: writer plant exact één volledige assignment-set op ids`, planned.ok ? planned.value : planned, [{
-    kind: 'assignment-set', taskId: task.id, tokens: expectedAssignmentTokens,
+    kind: 'assignment-set', taskId: task.id, columnId: column.id, tokens: expectedAssignmentTokens,
   }]);
 }
 
@@ -319,7 +319,7 @@ const parsedEmptyAssignments = assignedResources.parse!('', task, emptyAssignmen
 eq('een lege assignmentcel plant een lege volledige set', parsedEmptyAssignments.ok
   ? assignedResources.planWrite!(parsedEmptyAssignments.value, task, emptyAssignmentCtx)
   : parsedEmptyAssignments, {
-  ok: true, value: [{ kind: 'assignment-set', taskId: task.id, tokens: [] }],
+  ok: true, value: [{ kind: 'assignment-set', taskId: task.id, columnId: assignedResources.id, tokens: [] }],
 });
 
 const activityCopy = activityCode.copy(task, ctx);

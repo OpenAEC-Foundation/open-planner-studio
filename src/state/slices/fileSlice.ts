@@ -493,14 +493,18 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
     },
 
     refreshExternalAnchorsFrom: async (filePath: string, labels) => {
+      const targetDocumentId = get().activeDocumentId;
       const src = await get().parseExternalSource(filePath, labels);
       if (!src) return null;
+      if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0 };
       const source: ExternalSourceDoc = {
         projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
       };
       const result = refreshExternalAnchors(get().tasks, source);
       if (result.changed) {
+        let applied = false;
         set((s) => {
+          if (s.activeDocumentId !== targetDocumentId) return;
           // Wél een snapshot (issue #63, review taak 6). Dit was de énige
           // `finishMutation({ stale: true })` zónder `beginUndoable` — een bewuste asymmetrie
           // ("externe-anker-verversing is niet undoable") die niet houdbaar is zodra de modus
@@ -513,14 +517,18 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           beginUndoable(s);
           s.tasks = result.tasks;
           finishMutation(s, { stale: true });
+          applied = true;
         });
-        get().recomputeViewRows();
-        get().runCPM();
+        if (applied) {
+          get().recomputeViewRows();
+          get().runCPM();
+        }
       }
       return { refreshed: result.refreshed, missing: result.missing };
     },
 
     refreshAllExternalAnchors: async (labels) => {
+      const targetDocumentId = get().activeDocumentId;
       // Verzamel de distinct bron-bestandspaden uit alle links (fallback: geen pad ⇒ niet verversbaar).
       const paths = new Map<string, string>();
       for (const task of get().tasks) {
@@ -552,12 +560,38 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         });
       }
 
+      if (get().activeDocumentId !== targetDocumentId) {
+        return { refreshed: 0, missing: 0, sources: sourceDocs.length };
+      }
+
+      // Een IFC-kopie bewaart terecht zijn persistente project-id. Staan twee verschillende
+      // bronpaden met zo'n gedeelde id in dezelfde bulkactie, dan is project-id alleen niet langer
+      // onderscheidend: de eerste bron zou anders beide links verversen en de tweede beide opnieuw.
+      // Alleen in die aantoonbaar ambigue groep eisen we daarom het genormaliseerde bronpad. Een
+      // gewone enkelbronverversing blijft project-id-primair, zodat een verplaatst bestand werkt.
+      const pathsByProjectId = new Map<string, Set<string>>();
+      for (const source of sourceDocs) {
+        const projectId = source.projectId.trim();
+        const sourcePath = normalizeExternalSourcePath(source.filePath ?? '');
+        if (!projectId || sourcePath === null) continue;
+        const sourcePaths = pathsByProjectId.get(projectId) ?? new Set<string>();
+        sourcePaths.add(sourcePath);
+        pathsByProjectId.set(projectId, sourcePaths);
+      }
+      const ambiguousProjectIds = new Set(
+        [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
+      );
+
       let tasks = get().tasks;
       let refreshed = 0;
       let missing = 0;
       let anyChanged = false;
       for (const source of sourceDocs) {
-        const result = refreshExternalAnchors(tasks, source);
+        const result = refreshExternalAnchors(
+          tasks,
+          source,
+          ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
+        );
         tasks = result.tasks; // ketenen: elke bron ververst zijn eigen links op het vorige resultaat
         refreshed += result.refreshed;
         missing += result.missing;
@@ -565,13 +599,18 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       }
 
       if (anyChanged) {
+        let applied = false;
         set((s) => {
+          if (s.activeDocumentId !== targetDocumentId) return;
           beginUndoable(s);
           s.tasks = tasks;
           finishMutation(s, { stale: true });
+          applied = true;
         });
-        get().recomputeViewRows();
-        get().runCPM();
+        if (applied) {
+          get().recomputeViewRows();
+          get().runCPM();
+        }
       }
       return { refreshed, missing, sources: sourceDocs.length };
     },

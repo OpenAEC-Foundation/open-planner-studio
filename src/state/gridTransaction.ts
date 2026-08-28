@@ -3,7 +3,10 @@ import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/s
 import { deriveViewRows } from './slices/viewSlice';
 import { buildTaskRelationIndex, type TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { buildTaskColumnRegistry, canonicalGridJson } from '@/engine/taskGrid/taskColumnRegistry';
-import { planTaskCellEdit } from '@/engine/taskGrid/taskEditPlan';
+import {
+  planTaskCellEdits,
+  type TaskEditPlanEnvironment,
+} from '@/engine/taskGrid/taskEditPlan';
 import {
   applyTaskAssignmentPlan,
   planTaskAssignmentSet,
@@ -79,7 +82,7 @@ function getDefaultStore(): { get: StoreGet; set: StoreSet } {
 
 function validationError(
   code: string,
-  intent?: Partial<CellEditIntent>,
+  intent?: { taskId?: string; columnId?: CellEditIntent['columnId'] },
   value?: unknown,
 ): CellValidationError {
   return {
@@ -142,7 +145,7 @@ function normalizeWrites(writes: readonly GridWriteIntent[]): GridResult<readonl
     const key = write.kind === 'cell-edit'
       ? `cell\u0000${write.taskId}\u0000${write.columnId}`
       : write.kind === 'assignment-set'
-        ? `assignment\u0000${write.taskId}`
+        ? `assignment\u0000${write.taskId}\u0000${write.columnId}`
         : `relation\u0000${write.taskId}\u0000${write.direction}`;
     const previous = byTarget.get(key);
     if (!previous) {
@@ -155,6 +158,137 @@ function normalizeWrites(writes: readonly GridWriteIntent[]): GridResult<readonl
   return errors.length > 0 ? { ok: false, errors } : { ok: true, value: unique };
 }
 
+/**
+ * Een paste volgt de visuele kolomvolgorde, maar domeincontrollers zoals mijlpaal- en
+ * constrainttype veranderen tijdens dezelfde transactie welke cellen schrijfbaar zijn. Orden
+ * alleen writes van dezelfde taak rond zulke overgangen; onafhankelijke writes behouden hun
+ * oorspronkelijke volgorde.
+ */
+function orderWritesForDependentTransitions(
+  writes: readonly GridWriteIntent[],
+): readonly GridWriteIntent[] {
+  const targets = new Map<string, boolean>();
+  const hammockTargets = new Map<string, boolean>();
+  const primaryConstraintTargets = new Map<string, string>();
+  const secondaryConstraintTargets = new Map<string, string | undefined>();
+  for (const write of writes) {
+    if (write.kind !== 'cell-edit') continue;
+    const columnId = String(write.columnId);
+    if (columnId === 'task.isMilestone' && typeof write.value === 'boolean') {
+      targets.set(write.taskId, write.value);
+    } else if (columnId === 'task.isHammock' && typeof write.value === 'boolean') {
+      hammockTargets.set(write.taskId, write.value);
+    } else if (columnId === 'task.constraint.type' && typeof write.value === 'string') {
+      primaryConstraintTargets.set(write.taskId, write.value);
+    } else if (columnId === 'task.constraint2.type'
+      && (write.value === undefined || typeof write.value === 'string')) {
+      secondaryConstraintTargets.set(write.taskId, write.value);
+    }
+  }
+  const assignmentTaskIds = new Set(writes.flatMap(write => (
+    write.kind === 'assignment-set' ? [write.taskId] : []
+  )));
+  if (targets.size === 0 && hammockTargets.size === 0 && primaryConstraintTargets.size === 0
+    && secondaryConstraintTargets.size === 0 && assignmentTaskIds.size === 0) return writes;
+
+  // Lege afhankelijke cellen uit een volledige taakrij zijn redundant wanneer de geplakte
+  // controller ze in de eindtoestand juist uitschakelt. Niet-lege tegenstrijdige waarden blijven
+  // staan en worden door de domeinplanner atomair geweigerd.
+  const isEmptyDependentValue = (value: unknown): boolean => (
+    value === undefined || value === '' || value === false
+  );
+  const filtered = writes.filter(write => {
+    if (write.kind !== 'cell-edit' || !isEmptyDependentValue(write.value)) return true;
+    const columnId = String(write.columnId);
+    const primary = primaryConstraintTargets.get(write.taskId);
+    if ((primary === 'ASAP' || primary === 'ALAP')
+      && (columnId === 'task.constraint.date' || columnId === 'task.constraint.hard')) return false;
+    if (primary !== undefined && primary !== 'MSO' && primary !== 'MFO'
+      && columnId === 'task.constraint.hard') return false;
+    const secondary = secondaryConstraintTargets.get(write.taskId);
+    if ((secondary === undefined || secondary === 'ASAP' || secondary === 'ALAP')
+      && secondaryConstraintTargets.has(write.taskId)
+      && columnId === 'task.constraint2.date') return false;
+    return true;
+  });
+
+  const ordered = [...filtered];
+  const affectedTaskIds = new Set([
+    ...targets.keys(), ...hammockTargets.keys(),
+    ...primaryConstraintTargets.keys(), ...secondaryConstraintTargets.keys(),
+    ...assignmentTaskIds,
+  ]);
+  for (const taskId of affectedTaskIds) {
+    const targetMilestone = targets.get(taskId);
+    const targetHammock = hammockTargets.get(taskId);
+    const positions: number[] = [];
+    const taskWrites: GridWriteIntent[] = [];
+    ordered.forEach((write, index) => {
+      if (write.taskId !== taskId) return;
+      positions.push(index);
+      taskWrites.push(write);
+    });
+    const rank = (write: GridWriteIntent): number => {
+      let value = 0;
+      if (targetMilestone === true) {
+        // Alle celwrites van één taak worden als één gezamenlijke eindtoestand toegepast zodra
+        // de eerste celwrite aan de beurt is. Een lege assignmentwrite moet daarom vóór iedere
+        // cel uit die groep staan: hij wist bestaande assignments voordat de mijlpaalovergang ze
+        // conditioneel onbeschikbaar maakt. Niet-lege assignments blijven na de overgang staan
+        // en worden als een tegenstrijdige eindtoestand atomair geweigerd.
+        if (write.kind === 'assignment-set') value += write.tokens.length === 0 ? -100 : 10;
+        if (write.kind === 'cell-edit' && String(write.columnId) === 'task.isHammock') {
+          value += write.value === false || write.value === undefined ? -30 : 10;
+        }
+      }
+      if (targetMilestone === undefined && targetHammock === true
+        && write.kind === 'assignment-set') {
+        value += write.tokens.length === 0 ? -30 : 10;
+      }
+      if ((targetMilestone === false || (targetMilestone === undefined && targetHammock === false))
+        && write.kind === 'assignment-set') value += 10;
+      if (write.kind === 'assignment-set') {
+        if (String(write.columnId) === 'assignment.resources') value -= 20;
+        else value += 20;
+      }
+      if (write.kind !== 'cell-edit') return value;
+      const columnId = String(write.columnId);
+      const isMilestoneMetadata = columnId === 'task.milestoneKind'
+        || columnId === 'task.mandatory';
+      if (targetMilestone === true) {
+        if (columnId === 'task.time.scheduleDuration') value -= 30;
+        if (columnId === 'task.isHammock' && (write.value === false || write.value === undefined)) value -= 40;
+        if (columnId === 'task.isMilestone') value -= 20;
+        if (isMilestoneMetadata) value += 10;
+      } else if (targetMilestone === false) {
+        // Metadata is in de beginstaat nog schrijfbaar. Verwerk die eerst; de overgang ruimt
+        // metadata daarna volgens het domeincontract op. Duur volgt juist ná de overgang.
+        if (isMilestoneMetadata) value -= 30;
+        if (columnId === 'task.isMilestone') value -= 20;
+      }
+      // Een expliciete mijlpaalovergang heeft al de strengere gecombineerde volgorde hierboven.
+      // Zonder zo'n overgang moet duur vóór "hangmat aan" en juist ná "hangmat uit" landen.
+      if (targetMilestone === undefined && targetHammock !== undefined) {
+        if (targetHammock === true && columnId === 'task.time.scheduleDuration') value -= 30;
+        if (columnId === 'task.isHammock') value -= 20;
+      }
+      if (primaryConstraintTargets.has(taskId)) {
+        if (columnId === 'task.constraint.type') value -= 10;
+      }
+      if (secondaryConstraintTargets.has(taskId)) {
+        if (columnId === 'task.constraint2.type') value -= 10;
+      }
+      return value;
+    };
+    const ranked = taskWrites
+      .map((write, index) => ({ write, index, rank: rank(write) }))
+      .sort((left, right) => left.rank - right.rank || left.index - right.index)
+      .map(item => item.write);
+    positions.forEach((position, index) => { ordered[position] = ranked[index]; });
+  }
+  return ordered;
+}
+
 function applyAssignmentSet(
   state: AppState,
   intent: AssignmentSetIntent,
@@ -163,9 +297,35 @@ function applyAssignmentSet(
   resourcesById: GridColumnRuntime['context']['resourcesById'],
   applyIndexes: TaskAssignmentApplyIndexes,
 ): GridResult<{ timephasedGuidanceLostTaskIds: readonly string[] }, readonly CellValidationError[]> {
+  const columnId = String(intent.columnId);
+  if (columnId !== 'assignment.resources'
+    && columnId !== 'assignment.unitsPerDay'
+    && columnId !== 'assignment.curve') {
+    return { ok: false, errors: [validationError('plannerNotAvailable', intent, intent.tokens)] };
+  }
+  let tokens = intent.tokens;
+  if (columnId !== 'assignment.resources') {
+    const currentByResourceId = new Map(assignmentsForTask.map(assignment => [assignment.resourceId, assignment] as const));
+    const incomingByResourceId = new Map(tokens.map(token => [token.resourceId, token] as const));
+    if (currentByResourceId.size !== incomingByResourceId.size
+      || [...currentByResourceId.keys()].some(resourceId => !incomingByResourceId.has(resourceId))) {
+      return { ok: false, errors: [validationError('readOnly', intent, intent.tokens)] };
+    }
+    tokens = assignmentsForTask.map(assignment => {
+      const incoming = incomingByResourceId.get(assignment.resourceId)!;
+      return {
+        assignmentId: assignment.id,
+        resourceId: assignment.resourceId,
+        unitsPerDay: columnId === 'assignment.unitsPerDay' ? incoming.unitsPerDay : assignment.unitsPerDay,
+        ...(columnId === 'assignment.curve'
+          ? (incoming.curve ? { curve: incoming.curve } : {})
+          : (assignment.curve ? { curve: assignment.curve } : {})),
+      };
+    });
+  }
   const planned = planTaskAssignmentSet({
     taskId: intent.taskId,
-    tokens: intent.tokens,
+    tokens,
     tasks: state.tasks,
     resources: state.resources,
     assignments: state.assignments,
@@ -228,35 +388,44 @@ function applyRelationSet(
   return { ok: true, value: { changed: planned.value.changed } };
 }
 
-function applyCellEdit(
+function applyCellEdits(
   state: AppState,
-  edit: CellEditIntent,
+  edits: readonly CellEditIntent[],
   runtime: GridColumnRuntime,
 ): GridResult<{ timephasedGuidanceLost: boolean }, readonly CellValidationError[]> {
-  const taskIndex = state.tasks.findIndex(candidate => candidate.id === edit.taskId);
+  const first = edits[0];
+  if (!first) return { ok: true, value: { timephasedGuidanceLost: false } };
+  const taskIndex = state.tasks.findIndex(candidate => candidate.id === first.taskId);
   const task = state.tasks[taskIndex];
-  if (!task) return { ok: false, errors: [validationError('taskNotFound', edit, edit.value)] };
-  const columnId = String(edit.columnId);
-  const descriptor = runtime.descriptors.get(columnId);
-  if (!descriptor || !descriptor.available(runtime.context)) {
-    return { ok: false, errors: [validationError('plannerNotAvailable', edit, edit.value)] };
-  }
-  const readOnly = typeof descriptor.readOnly === 'function'
-    ? descriptor.readOnly(task, runtime.context)
-    : descriptor.readOnly;
-  if (readOnly) return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
-  let value = edit.value;
-  if (descriptor.validate) {
-    const validated = descriptor.validate(value, task, runtime.context);
-    if (!validated.ok) {
-      const error = validated.errors[0] ?? validationError('invalid', edit, value);
-      return { ok: false, errors: [{ ...error, taskId: edit.taskId, columnId: edit.columnId, value }] };
+  if (!task) return { ok: false, errors: [validationError('taskNotFound', first, first.value)] };
+  const validatedEdits: CellEditIntent[] = [];
+  for (const edit of edits) {
+    const descriptor = runtime.descriptors.get(String(edit.columnId));
+    if (!descriptor || !descriptor.available(runtime.context)) {
+      return { ok: false, errors: [validationError('plannerNotAvailable', edit, edit.value)] };
     }
-    value = validated.value;
+    // Statisch berekende kolommen zijn nooit onderdeel van een gezamenlijke eindtoestand.
+    if (descriptor.readOnly === true) {
+      return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+    }
+    let value = edit.value;
+    if (descriptor.validate) {
+      const validated = descriptor.validate(value, task, runtime.context);
+      if (!validated.ok) {
+        const error = validated.errors[0] ?? validationError('invalid', edit, value);
+        return { ok: false, errors: [{ ...error, taskId: edit.taskId, columnId: edit.columnId, value }] };
+      }
+      value = validated.value;
+    }
+    validatedEdits.push({ ...edit, value });
   }
 
-  const effectiveCalendar = effectiveCalendarOf(task, state.calendar, state.calendars);
-  const planned = planTaskCellEdit(task, { ...edit, value }, {
+  const calendarEdit = validatedEdits.find(edit => String(edit.columnId) === 'task.calendarId');
+  const taskForCalendar = calendarEdit
+    ? { ...task, calendarId: calendarEdit.value as string | undefined }
+    : task;
+  const effectiveCalendar = effectiveCalendarOf(taskForCalendar, state.calendar, state.calendars);
+  const environment: TaskEditPlanEnvironment = {
     projectId: state.project.id,
     wbsAutoNumber: state.project.wbsAutoNumber === true,
     statusDate: state.project.statusDate,
@@ -265,7 +434,44 @@ function applyCellEdit(
     hourMode: isHourCalendar(effectiveCalendar) === true,
     activityCodeTypes: state.activityCodeTypes,
     customFieldDefs: state.customFieldDefs,
-  });
+  };
+
+  // Algemene gezamenlijke-eindtoestandvalidatie voor conditioneel schrijfbare cellen. Een cel mag
+  // worden geschreven wanneer zij in de beginstaat al schrijfbaar is, of wanneer de OVERIGE
+  // writes van dezelfde taak haar controller in een schrijfbare toestand zetten. De eigen write
+  // telt bewust niet mee: zo kan een compacte notitiecel zichzelf niet openzetten door eerst de
+  // meerdere notities te overschrijven. Dit vervangt de oude kolom-id-whitelist volledig.
+  for (const edit of validatedEdits) {
+    const descriptor = runtime.descriptors.get(String(edit.columnId));
+    if (!descriptor || typeof descriptor.readOnly !== 'function'
+      || !descriptor.readOnly(task, runtime.context)) continue;
+    const otherEdits = validatedEdits.filter(candidate => candidate !== edit);
+    let jointlyWritable = false;
+    // Controleer elke geldige controllerprojectie die de overige writes in hun canonieke volgorde
+    // bereiken. Dat omvat zowel vóór als ná een overgang: bij hangmat→mijlpaal is duur alleen
+    // tussen die twee controllers schrijfbaar, maar de eindtoestand canonicaliseert hem daarna
+    // terecht naar nul. De eigen write ontbreekt uit iedere projectie en kan zichzelf dus nooit
+    // openzetten.
+    for (let prefixLength = 1; prefixLength <= otherEdits.length; prefixLength++) {
+      const projected = planTaskCellEdits(task, otherEdits.slice(0, prefixLength), environment);
+      if (!projected.ok) continue;
+      const projectedTasksById = new Map(runtime.context.tasksById);
+      projectedTasksById.set(task.id, projected.value.task);
+      const projectedContext: TaskColumnContext = {
+        ...runtime.context,
+        tasksById: projectedTasksById,
+      };
+      if (!descriptor.readOnly(projected.value.task, projectedContext)) {
+        jointlyWritable = true;
+        break;
+      }
+    }
+    if (!jointlyWritable) {
+      return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+    }
+  }
+
+  const planned = planTaskCellEdits(task, validatedEdits, environment);
   if (!planned.ok) return planned;
   if (planned.value.changed) {
     state.tasks[taskIndex] = planned.value.task;
@@ -297,10 +503,11 @@ export function prepareGridMutation(
   const flattened = flattenIntents(intents);
   const normalized = normalizeWrites(flattened);
   if (!normalized.ok) return normalized;
+  const orderedWrites = orderWritesForDependentTransitions(normalized.value);
 
   const runtime = buildGridColumnRuntime(state);
   let relationWriteCount = 0;
-  for (const write of normalized.value) {
+  for (const write of orderedWrites) {
     if (write.kind === 'relation-set') relationWriteCount++;
   }
   const before = createSnapshot(state as AppState);
@@ -323,9 +530,20 @@ export function prepareGridMutation(
       usedAssignmentIds: new Set(draft.assignments.map(assignment => assignment.id)),
       tasksById: draftTasksById,
     };
-    for (const write of normalized.value) {
+    const cellWritesByTaskId = new Map<string, CellEditIntent[]>();
+    for (const write of orderedWrites) {
+      if (write.kind !== 'cell-edit') continue;
+      const current = cellWritesByTaskId.get(write.taskId);
+      if (current) current.push(write);
+      else cellWritesByTaskId.set(write.taskId, [write]);
+    }
+    const appliedCellTaskIds = new Set<string>();
+    for (const write of orderedWrites) {
       if (write.kind === 'cell-edit') {
-        const applied = applyCellEdit(draft, write, runtime);
+        if (appliedCellTaskIds.has(write.taskId)) continue;
+        appliedCellTaskIds.add(write.taskId);
+        const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
+        const applied = applyCellEdits(draft, taskWrites, runtime);
         if (!applied.ok) errors.push(...applied.errors);
         else {
           const currentTaskIndex = draftTaskIndexById.get(write.taskId);
@@ -334,7 +552,9 @@ export function prepareGridMutation(
           }
           if (applied.value.timephasedGuidanceLost) timephasedLossTaskIds.add(write.taskId);
         }
-        if (String(write.columnId) === 'task.isMilestone') assignmentValidationTaskIds.add(write.taskId);
+        if (taskWrites.some(item => String(item.columnId) === 'task.isMilestone')) {
+          assignmentValidationTaskIds.add(write.taskId);
+        }
       } else if (write.kind === 'assignment-set') {
         assignmentValidationTaskIds.add(write.taskId);
         const applied = applyAssignmentSet(

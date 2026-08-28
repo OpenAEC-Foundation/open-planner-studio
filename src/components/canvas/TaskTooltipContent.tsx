@@ -37,7 +37,9 @@ export function TaskTooltipContent({ task }: { task: Task }) {
       </div>
       <div className="tooltip-row">
         <span className="tooltip-label">{tTask('tooltip.status')}:</span>
-        <span className="tooltip-value">{task.status}</span>
+        <span className="tooltip-value">
+          {tTask(`taskStatus.${task.status}`, { defaultValue: task.status })}
+        </span>
       </div>
       <div className="tooltip-row">
         <span className="tooltip-label">{tTask('table.critical')}:</span>

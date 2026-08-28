@@ -43,6 +43,22 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('Gewone klik zet enkelvoudig bereik', selected.range, { start: cell(ids[1], 1), end: cell(ids[1], 1) });
   eq('Gewone klik selecteert taak', selected.selectedTaskIds, [ids[1]]);
   eq('Gewone klik zet actieve taak', selected.activeTaskId, ids[1]);
+  eq('Herhaalde klik op dezelfde cel behoudt exact hetzelfde selectieobject',
+    updateGridSelection(selected, cell(ids[1], 1), indexed(rows), columns, 'replace') === selected,
+    true);
+}
+
+// De domeinsetter mag een byte-identieke selectie niet opnieuw publiceren. Anders renderen de
+// volledige grid, statusbalk en eigenschappenrail opnieuw terwijl de gebruiker dezelfde cel klikt.
+{
+  S().selectTasks([ids[1]], false, ids[1]);
+  let publications = 0;
+  const unsubscribe = useAppStore.subscribe(() => { publications++; });
+  const before = S();
+  S().selectTasks([ids[1]], false, ids[1]);
+  unsubscribe();
+  eq('Identieke selectTasks-aanroep publiceert geen storewijziging', publications, 0);
+  eq('Identieke selectTasks-aanroep behoudt dezelfde storestate', S() === before, true);
 }
 
 // Shift-rechthoek over een groepskop: kop draagt afstand maar levert geen taak/cellen.

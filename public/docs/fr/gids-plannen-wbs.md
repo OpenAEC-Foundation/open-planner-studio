@@ -74,8 +74,8 @@ L'onglet du ruban **Tableau** affiche cette même structure sous forme de grille
 utile lorsque vous saisissez ou corrigez beaucoup de tâches à la fois : un simple clic sur une cellule
 modifiable démarre immédiatement l'édition avec la valeur existante sélectionnée, les touches
 fléchées déplacent un curseur de cellule sans l'ouvrir, **F2**/**Entrée** ouvre la cellule actuelle
-pour édition, et **Tab**/**Maj+Tab** sur une ligne sélectionnée l'indente/la désindente, comme
-Alt+→/←. Atteindre **Entrée** ou **↓** sur la toute dernière ligne crée une nouvelle tâche sœur
+pour édition, et **Tab**/**Maj+Tab** passe à la cellule suivante/précédente, puis à la ligne de tâche
+suivante/précédente. L'indentation reste sur **Alt+→**/**Alt+←**. Atteindre **Entrée** ou **↓** sur la toute dernière ligne crée une nouvelle tâche sœur
 directement à cet endroit, avec le curseur déjà dans sa cellule de nom, pour que vous puissiez
 continuer toute une liste sans toucher la souris — cela ne fonctionne qu'en vue arborescente normale,
 car avec un filtre, un tri ou un regroupement actif, la nouvelle tâche pourrait tomber directement

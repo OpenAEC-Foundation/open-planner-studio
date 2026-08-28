@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "工作时间", "ELAPSEDTIME": "已用时间" },
   "table": {
     "title": "表格",
     "wbs": "WBS",
@@ -46,7 +47,7 @@
       "cycle": "此更改会在计划中形成循环。"
     },
     "controls": {
-      "collapse": "折叠", "expand": "展开", "resize": "更改宽度", "remove": "移除", "pin": "固定",
+      "collapse": "折叠", "expand": "展开", "resize": "更改宽度", "resizeTaskGrid": "调整任务网格大小", "remove": "移除", "pin": "固定",
       "unpin": "取消固定", "autoFit": "自动调整", "search": "搜索", "searchResults": "搜索结果", "noResults": "无结果"
     },
     "history": {
@@ -59,12 +60,20 @@
       "autoFitColumn": "自动调整列 {{column}}"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} 个活动代码分配",
-      "customFields": "{{count}} 个自定义字段",
-      "internalRelations": "{{count}} 个内部关系",
-      "externalRelations": "{{count}} 个外部关系",
-      "baselineMissing": "此基准中不存在"
+      "activityCodeAssignments_other": "{{count}} 个活动代码分配",
+      "customFields_other": "{{count}} 个自定义字段",
+      "internalRelations_other": "{{count}} 个内部关系",
+      "externalRelations_other": "{{count}} 个外部关系",
+      "baselineMissing": "此基准中不存在",
+      "baselineVarianceStart": "开始差异",
+      "baselineVarianceFinish": "完成差异",
+      "baselineVarianceDuration": "工期差异"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "未开始",
+    "STARTED": "进行中",
+    "COMPLETED": "已完成"
   },
   "taskType": {
     "CONSTRUCTION": "施工",
@@ -278,7 +287,9 @@
     "directionSuccessor": "后续任务（我 → 外部）",
     "relType": "关系类型",
     "lag": "延迟（工作日）",
+    "lagPlaceholder": "0d 或 2h",
     "anchorDate": "锚点日期",
+    "chooseNewAnchorAfterSideChange": "请选择新的锚点：关系类型现在使用源任务的另一侧。",
     "manualTitle": "手动（备用方式）",
     "manualHint": "手头没有文件？粘贴外部任务的项目 ID 和任务 ID。",
     "projectId": "项目 ID",

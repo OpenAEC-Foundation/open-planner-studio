@@ -104,6 +104,25 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   contextMenuBulk.toggleMilestone(task(c)!);
   eq('08 mijlpaal: anker is mijlpaal ⇒ hele selectie wordt gewone taak',
     [b, c, d].map(id => !!task(id)?.isMilestone), [false, false, false]);
+
+  // Een uit MSP geimporteerde mijlpaal mag een echte duur hebben. De contextmenu-route gebruikt
+  // dezelfde P6-transitie als de grid en dialoog: uitvinken ruimt alleen mijlpaalmetadata op en
+  // verzint of normaliseert geen duur.
+  S().updateTask(c, {
+    isMilestone: true,
+    milestoneKind: 'FINISH',
+    mandatory: true,
+    time: { ...task(c)!.time, scheduleDuration: 3, durationMinutes: 1440 },
+  });
+  S().selectTasks([c], false);
+  contextMenuBulk.toggleMilestone(task(c)!);
+  eq('08b geimporteerde mijlpaal uitvinken bewaart duur en wist alleen mijlpaalmetadata', {
+    milestone: task(c)?.isMilestone,
+    kind: task(c)?.milestoneKind,
+    mandatory: task(c)?.mandatory,
+    duration: task(c)?.time.scheduleDuration,
+    minutes: task(c)?.time.durationMinutes,
+  }, { milestone: false, duration: 3, minutes: 1440 });
 }
 
 // ── 2) Kalender toewijzen ───────────────────────────────────────────────────────────────────

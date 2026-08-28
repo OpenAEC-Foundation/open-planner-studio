@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "زمان کاری", "ELAPSEDTIME": "زمان سپری‌شده" },
   "table": {
     "title": "جدول",
     "wbs": "WBS",
@@ -46,7 +47,7 @@
       "cycle": "این تغییر یک چرخه در برنامه ایجاد می‌کند."
     },
     "controls": {
-      "collapse": "بستن", "expand": "باز کردن", "resize": "تغییر عرض", "remove": "حذف", "pin": "ثابت کردن",
+      "collapse": "بستن", "expand": "باز کردن", "resize": "تغییر عرض", "resizeTaskGrid": "تغییر اندازه شبکه وظایف", "remove": "حذف", "pin": "ثابت کردن",
       "unpin": "برداشتن تثبیت", "autoFit": "تنظیم خودکار", "search": "جستجو", "searchResults": "نتایج جستجو", "noResults": "نتیجه‌ای نیست"
     },
     "history": {
@@ -59,12 +60,24 @@
       "autoFitColumn": "تنظیم خودکار ستون {{column}}"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} تخصیص کد فعالیت",
-      "customFields": "{{count}} فیلد سفارشی",
-      "internalRelations": "{{count}} رابطه داخلی",
-      "externalRelations": "{{count}} رابطه خارجی",
-      "baselineMissing": "در این خط مبنا وجود ندارد"
+      "activityCodeAssignments_one": "{{count}} تخصیص کد فعالیت",
+      "activityCodeAssignments_other": "{{count}} تخصیص کد فعالیت",
+      "customFields_one": "{{count}} فیلد سفارشی",
+      "customFields_other": "{{count}} فیلد سفارشی",
+      "internalRelations_one": "{{count}} رابطه داخلی",
+      "internalRelations_other": "{{count}} رابطه داخلی",
+      "externalRelations_one": "{{count}} رابطه خارجی",
+      "externalRelations_other": "{{count}} رابطه خارجی",
+      "baselineMissing": "در این خط مبنا وجود ندارد",
+      "baselineVarianceStart": "انحراف شروع",
+      "baselineVarianceFinish": "انحراف پایان",
+      "baselineVarianceDuration": "انحراف مدت"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "شروع نشده",
+    "STARTED": "در حال انجام",
+    "COMPLETED": "تکمیل‌شده"
   },
   "taskType": {
     "CONSTRUCTION": "ساخت",
@@ -278,7 +291,9 @@
     "directionSuccessor": "پسنیاز (من ← خارجی)",
     "relType": "نوع رابطه",
     "lag": "تأخیر (روز کاری)",
+    "lagPlaceholder": "0d یا 2h",
     "anchorDate": "تاریخ لنگر",
+    "chooseNewAnchorAfterSideChange": "یک لنگر جدید انتخاب کنید: نوع رابطه اکنون از سمت دیگر وظیفه منبع استفاده می‌کند.",
     "manualTitle": "دستی (جایگزین)",
     "manualHint": "فایلی در دسترس نیست؟ شناسهٔ پروژه و شناسهٔ وظیفهٔ وظیفهٔ خارجی را جای‌گذاری کنید.",
     "projectId": "شناسهٔ پروژه",

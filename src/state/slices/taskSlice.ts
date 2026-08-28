@@ -470,6 +470,9 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
       );
       s.assignments = s.assignments.filter(a => !removeIds.has(a.taskId));
       s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
+      if (s.activeTaskId && removeIds.has(s.activeTaskId)) {
+        s.activeTaskId = s.selectedTaskIds[0] ?? null;
+      }
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
@@ -890,7 +893,10 @@ export const createTaskSlice: AppSlice<TaskSlice> = (set, get) => ({
         }
       }
 
-      if (newRootId) s.selectedTaskIds = [newRootId];
+      if (newRootId) {
+        s.selectedTaskIds = [newRootId];
+        s.activeTaskId = newRootId;
+      }
       finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();

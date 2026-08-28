@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,10 +19,14 @@ import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { contextMenuBulk, contextMenuOutlineScope } from '@/components/canvas/contextMenuScope';
 import { buildTrace } from '@/engine/taskGrid/trace';
 import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
-import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
+import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
 import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
-import { computeTaskGridAutoFitWidth } from '@/engine/taskGrid/preferences';
+import {
+  computeTaskGridAutoFitWidth,
+  taskGridAutoFitValueVersion,
+} from '@/engine/taskGrid/preferences';
+import { nextTaskGridMenuIndex } from '@/engine/taskGrid/menuNavigation';
 import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
 import { taskRelations } from '@/engine/taskGrid/relationIndex';
 import {
@@ -33,6 +38,7 @@ import {
 } from '@/engine/taskGrid/selection';
 import {
   copyTaskGridSelection,
+  planTaskGridClear,
   planTaskGridPaste,
   type TaskGridClipboardEnvironment,
 } from '@/engine/taskGrid/clipboard';
@@ -42,7 +48,6 @@ import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
-import { deleteTasksBulk } from '@/state/taskBulkActions';
 import { useAppStore } from '@/state/appStore';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -52,17 +57,20 @@ import type { Task } from '@/types/task';
 import type { TaskColumnCategory, TaskColumnId, TaskGridSurfaceId } from '@/types/taskGrid';
 
 interface EditingCell {
+  documentId: string;
   cell: GridCellAddress;
   replacement?: string;
 }
 
 interface HoverState {
+  documentId: string;
   task: Task;
   x: number;
   y: number;
 }
 
 interface GridContextMenuState {
+  documentId: string;
   x: number;
   y: number;
   task: Task | null;
@@ -70,14 +78,17 @@ interface GridContextMenuState {
 }
 
 interface ExternalRelationMenuState {
+  documentId: string;
   x: number;
   y: number;
   taskId: string;
   relationId: string;
   filePath?: string;
+  trigger: HTMLElement;
 }
 
 interface ExternalRelationDialogState {
+  documentId: string;
   taskId: string;
   relationId?: string;
 }
@@ -156,6 +167,12 @@ function humanizeTaskGridKey(labelKey: string): string {
 }
 
 function resolveColumnLabel(labelKey: string, translate: (key: string) => string): string {
+  const dynamicSeparator = labelKey.indexOf(' — ');
+  if (dynamicSeparator > 0) {
+    const prefix = labelKey.slice(0, dynamicSeparator);
+    const fieldKey = labelKey.slice(dynamicSeparator + 3);
+    return `${prefix} — ${resolveColumnLabel(fieldKey, translate)}`;
+  }
   const direct = translate(labelKey);
   if (direct !== labelKey) return direct;
   const alias = COLUMN_LABEL_ALIASES[labelKey];
@@ -194,7 +211,6 @@ export interface TaskGridSurfaceProps {
   surfaceId: TaskGridSurfaceId;
   baseHeaderHeight?: number;
   showSummaryAdd?: boolean;
-  doubleClickAction?: 'properties' | 'dialog';
   onPlainTaskClick?: (task: Task) => void;
 }
 
@@ -202,13 +218,13 @@ export function TaskGridSurface({
   surfaceId,
   baseHeaderHeight = 32,
   showSummaryAdd = false,
-  doubleClickAction = 'properties',
   onPlainTaskClick,
 }: TaskGridSurfaceProps) {
   const { t: tTask, i18n: taskI18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const calculatedReadOnlyFallback = tTask('table.calculatedReadOnly');
   const textDirection = taskI18n.dir() === 'rtl' ? 'rtl' : 'ltr';
+  const activeDocumentId = useAppStore(state => state.activeDocumentId);
   const tasks = useAppStore(state => state.tasks);
   const sequences = useAppStore(state => state.sequences);
   const assignments = useAppStore(state => state.assignments);
@@ -229,6 +245,7 @@ export function TaskGridSurface({
   const showColumnsDialog = useAppStore(state => state.ui.showColumnsDialog);
   const collapsedTaskIds = useAppStore(state => state.ui.collapsedTaskIds);
   const selectedTaskIds = useAppStore(state => state.selectedTaskIds);
+  const publishedActiveTaskId = useAppStore(state => state.activeTaskId);
   const surfacePreferences = useAppStore(state => state.taskGridSurfaces[surfaceId]);
   const recentColumnIds = useAppStore(state => state.recentTaskColumns);
   const selectTask = useAppStore(state => state.selectTask);
@@ -263,30 +280,52 @@ export function TaskGridSurface({
   const [externalRelationDialog, setExternalRelationDialog] = useState<ExternalRelationDialogState | null>(null);
   const commitEditorRef = useRef<(() => GridEditorCommitResult) | null>(null);
   const autoFitCacheRef = useRef(new Map<string, number>());
+  const externalRelationMenuRef = useRef<HTMLDivElement | null>(null);
+  const previousDocumentIdRef = useRef(activeDocumentId);
   const justDraggedRef = useRef(false);
   const { ref: containerRef, size } = useElementSize();
 
+  const closeExternalRelationMenu = useCallback((restoreFocus: boolean) => {
+    const trigger = externalRelationMenu?.trigger;
+    const canRestore = restoreFocus
+      && externalRelationMenu?.documentId === activeDocumentId
+      && trigger?.isConnected;
+    setExternalRelationMenu(null);
+    if (canRestore) requestAnimationFrame(() => trigger.focus());
+  }, [activeDocumentId, externalRelationMenu]);
+
   useEffect(() => {
-    if (!externalRelationMenu) return;
-    const close = () => setExternalRelationMenu(null);
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    if (!externalRelationMenu || externalRelationMenu.documentId !== activeDocumentId) return;
+    externalRelationMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    const close = () => closeExternalRelationMenu(false);
     window.addEventListener('pointerdown', close);
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', close);
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [externalRelationMenu]);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [activeDocumentId, closeExternalRelationMenu, externalRelationMenu]);
+
+  useEffect(() => {
+    if (previousDocumentIdRef.current === activeDocumentId) return;
+    previousDocumentIdRef.current = activeDocumentId;
+    commitEditorRef.current = null;
+    autoFitCacheRef.current.clear();
+    setSelection(createEmptyGridSelection());
+    setEditing(null);
+    setSurfaceError(null);
+    setHover(null);
+    setContextMenu(null);
+    setExternalRelationMenu(null);
+    setExternalRelationDialog(null);
+  }, [activeDocumentId]);
 
   const calendarEngine = useMemo(() => new CalendarEngine(calendar), [calendar]);
+  const calendarOptions = useMemo(() => [calendar, ...calendars]
+    .filter((item, index, all) => all.findIndex(candidate => candidate.id === item.id) === index)
+    .map(item => ({ value: item.id, label: item.name })), [calendar, calendars]);
   const trace = useMemo(
     () => buildTrace(traceMode, selectedTaskIds, sequences, cpmResult),
     [cpmResult, selectedTaskIds, sequences, traceMode],
   );
-  const adapter = useMemo(() => createTaskGridAdapter({
-    surfaceId,
+  const adapterDomain = useMemo(() => createTaskGridAdapterDomain({
     projectId: project.id,
-    rows: viewRows,
     tasks,
     sequences,
     cpmResult,
@@ -297,11 +336,8 @@ export function TaskGridSurface({
     customFieldDefs,
     scheduleStale,
     wbsAutoNumber: project.wbsAutoNumber === true,
-    selectedTaskIds,
     dateNotation,
-    calendarOptions: [calendar, ...calendars]
-      .filter((item, index, all) => all.findIndex(candidate => candidate.id === item.id) === index)
-      .map(item => ({ value: item.id, label: item.name })),
+    calendarOptions,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(task, calendar, calendars)),
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
     labelForColumn: labelKey => resolveColumnLabel(
@@ -309,12 +345,29 @@ export function TaskGridSurface({
       key => tTask(key, { defaultValue: key }),
     ),
     labelForBoolean: value => tCommon(value ? 'yes' : 'no'),
-    labelForText: (key, values) => tTask(key, { ...values, defaultValue: key }),
+    labelForText: (key, values) => key.startsWith('resource.curve.')
+      ? tCommon(key, { ...values, defaultValue: key })
+      : tTask(key, { ...values, defaultValue: key }),
     textDirection,
+  }), [
+    activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions,
+    cpmResult, customFieldDefs, dateNotation, project.id, project.wbsAutoNumber, resources,
+    scheduleStale, sequences, tCommon, tTask, tasks, textDirection,
+  ]);
+  const adapter = useMemo(() => createTaskGridAdapter({
+    surfaceId,
+    rows: viewRows,
+    selectedTaskIds,
     trace,
     callbacks: {
       onPrepareEdit: () => true,
       onCommitEdit: (_target, intents) => {
+        if (useAppStore.getState().activeDocumentId !== activeDocumentId) {
+          return {
+            ok: false,
+            errors: [{ code: 'documentChanged', messageKey: 'taskGrid.validation.invalid' }],
+          };
+        }
         const result = runGridMutation(intents);
         if (result.ok) {
           setEditing(null);
@@ -323,10 +376,8 @@ export function TaskGridSurface({
         return result;
       },
     },
-  }), [
-    activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendars,
-    cpmResult, customFieldDefs, dateNotation, project.id, project.wbsAutoNumber, resources, surfaceId,
-    runGridMutation, scheduleStale, selectedTaskIds, sequences, tCommon, tTask, tasks, textDirection, trace, viewRows,
+  }, adapterDomain), [
+    activeDocumentId, adapterDomain, runGridMutation, selectedTaskIds, surfaceId, trace, viewRows,
   ]);
   const rowIndex = useMemo(() => createTaskGridRowIndex(viewRows), [viewRows]);
   const tasksById = useMemo(() => new Map(tasks.map(task => [task.id, task] as const)), [tasks]);
@@ -344,7 +395,10 @@ export function TaskGridSurface({
   useEffect(() => {
     setSelection(current => {
       if (!current.active) {
-        const selectedRows = selectedTaskIds
+        const preferredTaskIds = publishedActiveTaskId
+          ? [publishedActiveTaskId, ...selectedTaskIds.filter(id => id !== publishedActiveTaskId)]
+          : selectedTaskIds;
+        const selectedRows = preferredTaskIds
           .flatMap(id => rowIndex.taskRows.filter(row => row.task.id === id));
         const selected = selectedRows[0] ?? rowIndex.taskRows[0];
         const columnId = visibleColumnIds[0];
@@ -366,16 +420,21 @@ export function TaskGridSurface({
       );
       const samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length
         && current.selectedTaskIds.every(id => selectedTaskIds.includes(id));
-      return samePublishedSelection
+      const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
+      return samePublishedSelection && samePublishedActiveTask
         ? reconciled
-        : { ...reconciled, selectedTaskIds: [...selectedTaskIds] };
+        : {
+            ...reconciled,
+            selectedTaskIds: [...selectedTaskIds],
+            activeTaskId: publishedActiveTaskId,
+          };
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;
-  }, [rowIndex, selectedTaskIds, visibleColumnIds]);
+  }, [publishedActiveTaskId, rowIndex, selectedTaskIds, visibleColumnIds]);
 
   useEffect(() => {
-    if (!editing) return;
+    if (!editing || editing.documentId !== activeDocumentId) return;
     const liveRowExists = useAppStore.getState().viewRows.some(candidate => (
       candidate.kind === 'task' && candidate.rowKey === editing.cell.rowKey
     ));
@@ -387,10 +446,16 @@ export function TaskGridSurface({
       commitEditorRef.current = null;
       setEditing(null);
     }
-  }, [editing, rowIndex, visibleColumnIds]);
+  }, [activeDocumentId, editing, rowIndex, visibleColumnIds]);
 
   const finishEditing = useCallback((): boolean => {
     if (!editing) return true;
+    if (editing.documentId !== useAppStore.getState().activeDocumentId) {
+      commitEditorRef.current = null;
+      setEditing(null);
+      setSurfaceError(null);
+      return true;
+    }
     const result = commitEditorRef.current?.();
     if (!result) return false;
     if (!result.ok) {
@@ -405,7 +470,7 @@ export function TaskGridSurface({
 
   const applySelection = useCallback((next: GridSelectionState) => {
     setSelection(next);
-    selectTasks([...next.selectedTaskIds], false);
+    selectTasks([...next.selectedTaskIds], false, next.activeTaskId);
     setSurfaceError(null);
   }, [selectTasks]);
 
@@ -417,7 +482,7 @@ export function TaskGridSurface({
     if (!sameCell(editing?.cell ?? null, cell) && !finishEditing()) return;
     const gesture = event.shiftKey ? 'extend' : event.ctrlKey || event.metaKey ? 'toggle-task' : 'replace';
     const next = updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
-    applySelection(next);
+    if (next !== selection) applySelection(next);
     if (gesture === 'replace' && onPlainTaskClick) {
       const meta = adapter.rowMetaByKey.get(cell.rowKey);
       const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
@@ -431,9 +496,11 @@ export function TaskGridSurface({
       setSurfaceError(calculatedReadOnlyFallback);
       return;
     }
-    setEditing(replacement === undefined ? { cell } : { cell, replacement });
+    setEditing(replacement === undefined
+      ? { documentId: activeDocumentId, cell }
+      : { documentId: activeDocumentId, cell, replacement });
     setSurfaceError(null);
-  }, [adapter, calculatedReadOnlyFallback]);
+  }, [activeDocumentId, adapter, calculatedReadOnlyFallback]);
 
   const clipboardEnvironment = useCallback((): TaskGridClipboardEnvironment => ({
     selection,
@@ -442,7 +509,8 @@ export function TaskGridSurface({
     descriptors: adapter.descriptorsById,
     context: adapter.context,
     dateNotation,
-  }), [adapter.context, adapter.descriptorsById, dateNotation, rowIndex, selection, visibleColumnIds]);
+    booleanLabels: { true: tCommon('yes'), false: tCommon('no') },
+  }), [adapter.context, adapter.descriptorsById, dateNotation, rowIndex, selection, tCommon, visibleColumnIds]);
 
   const handleCommand = useCallback((command: TaskGridCommand) => {
     if (command.kind === 'move') {
@@ -466,7 +534,19 @@ export function TaskGridSurface({
     }
     if (command.kind === 'clear-cells') {
       if (!finishEditing()) return;
-      deleteTasksBulk(selection.selectedTaskIds);
+      const planned = planTaskGridClear(clipboardEnvironment());
+      if (!planned.ok) {
+        setSurfaceError(tTask(planned.errors[0]?.messageKey ?? 'taskGrid.validation.invalid', {
+          defaultValue: 'Wissen is voor deze selectie niet mogelijk.',
+        }));
+        return;
+      }
+      const result = runGridMutation([planned.value]);
+      if (!result.ok) {
+        setSurfaceError(tTask(result.errors[0]?.messageKey ?? 'taskGrid.validation.invalid', {
+          defaultValue: 'Wissen is mislukt.',
+        }));
+      }
       return;
     }
     if (command.kind === 'insert-task') {
@@ -482,9 +562,9 @@ export function TaskGridSurface({
       selectTask(id, false);
       const cell = { rowKey: live.rowKey, columnId: command.targetColumnId };
       setSelection(updateGridSelection(createEmptyGridSelection(), cell, createTaskGridRowIndex(useAppStore.getState().viewRows), visibleColumnIds, 'replace'));
-      setEditing({ cell, replacement: '' });
+      setEditing({ documentId: activeDocumentId, cell, replacement: '' });
     }
-  }, [calculatedReadOnlyFallback, finishEditing, rowIndex, selectTask, selection, startEdit, tTask, visibleColumnIds, applySelection]);
+  }, [activeDocumentId, applySelection, calculatedReadOnlyFallback, clipboardEnvironment, finishEditing, rowIndex, runGridMutation, selectTask, selection, startEdit, tTask, visibleColumnIds]);
 
   const { startRowDrag, dragState, active: rowDragActive } = useTableRowDrag({
     rows: viewRows,
@@ -552,22 +632,28 @@ export function TaskGridSurface({
       headerText: option.label,
       rows: rowIndex.taskRows.map(row => {
         const value = descriptor.read(row.task, adapter.context);
+        const visibleText = adapter.getCell(row.rowKey, columnId)?.text ?? '';
         return {
           rowKey: row.rowKey,
-          text: descriptor.autoFitText(row.task, adapter.context),
-          valueVersion: JSON.stringify(value),
+          text: visibleText,
+          valueVersion: taskGridAutoFitValueVersion(
+            value,
+            visibleText,
+            context2d.font,
+            activeDocumentId,
+          ),
         };
       }),
       cache: autoFitCacheRef.current,
       measureText: text => context2d.measureText(text).width,
     });
-  }, [adapter, rowIndex.taskRows, uiFontScale]);
+  }, [activeDocumentId, adapter, rowIndex.taskRows, uiFontScale]);
 
   const getCell = useCallback((row: DataGridDataRowModel, column: { id: TaskColumnId; label: string }): DataGridCellModel => {
     const base = adapter.getCell(row.rowKey, column.id);
     if (!base) return { text: '', readOnly: true };
     const cell = { rowKey: row.rowKey, columnId: column.id };
-    if (editing && sameCell(editing.cell, cell)) {
+    if (editing?.documentId === activeDocumentId && sameCell(editing.cell, cell)) {
       return {
         text: base.text,
         readOnly: false,
@@ -577,11 +663,14 @@ export function TaskGridSurface({
             adapter={adapter}
             cell={cell}
             label={column.label}
+            calendarPickerLabel={column.label}
             initialText={editing.replacement}
             previousCell={editorNeighbour(cell, rowIndex.taskRows, -1)}
             nextCell={editorNeighbour(cell, rowIndex.taskRows, 1)}
             messageForError={messageKey => tTask(messageKey, { defaultValue: 'De ingevoerde waarde is niet geldig.' })}
-            labelForOption={(labelKey, value) => tTask(labelKey, { defaultValue: value })}
+            labelForOption={(labelKey, value) => labelKey.startsWith('resource.curve.')
+              ? tCommon(labelKey, { defaultValue: value })
+              : tTask(labelKey, { defaultValue: value })}
             onCancel={() => { commitEditorRef.current = null; setEditing(null); setSurfaceError(null); }}
             onFocusCell={next => {
               applySelection(updateGridSelection(selection, next, rowIndex, visibleColumnIds, 'replace'));
@@ -591,7 +680,11 @@ export function TaskGridSurface({
             onOpenExternal={(taskId, relationId) => {
               commitEditorRef.current = null;
               setEditing(null);
-              setExternalRelationDialog({ taskId, ...(relationId ? { relationId } : {}) });
+              setExternalRelationDialog({
+                documentId: activeDocumentId,
+                taskId,
+                ...(relationId ? { relationId } : {}),
+              });
             }}
           />
         ),
@@ -629,10 +722,13 @@ export function TaskGridSurface({
             const external = item.parsedToken.kind === 'external' ? item.parsedToken.external : null;
             if (!external) return;
             setExternalRelationMenu({
+              documentId: activeDocumentId,
               x: event.clientX,
               y: event.clientY,
               taskId: task.id,
               relationId: item.relationId,
+              trigger: event.currentTarget.closest<HTMLElement>('[role="gridcell"]')
+                ?? event.currentTarget,
               ...(external.sourceRef.filePath ? { filePath: external.sourceRef.filePath } : {}),
             });
           }}
@@ -674,11 +770,30 @@ export function TaskGridSurface({
         </span>
       ) : undefined,
     };
-  }, [adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, rowIndex, selection, showSummaryAdd, tTask, tasksById, toggleCollapse, visibleColumnIds]);
+  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, rowIndex, selection, showSummaryAdd, tTask, tasksById, toggleCollapse, visibleColumnIds]);
 
   const rowHeight = Math.max(20, Math.round(28 * uiFontScale / 100));
   const headerHeight = Math.max(24, Math.round(baseHeaderHeight * uiFontScale / 100));
   const viewportHeight = Math.max(0, size.height - headerHeight);
+  const handleExternalRelationMenuKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeExternalRelationMenu(true);
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .filter(item => !item.hasAttribute('disabled'));
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+    const nextIndex = nextTaskGridMenuIndex(
+      event.key as 'ArrowDown' | 'ArrowUp' | 'Home' | 'End',
+      currentIndex,
+      items.length,
+    );
+    if (nextIndex === null) return;
+    event.preventDefault();
+    items[nextIndex]?.focus();
+  }, [closeExternalRelationMenu]);
 
   return (
     <div
@@ -700,7 +815,7 @@ export function TaskGridSurface({
         viewportWidth={size.width}
         scrollTop={view.scrollY}
         scrollLeft={surfacePreferences.scrollX}
-        mode={editing ? 'edit' : 'select'}
+        mode={editing?.documentId === activeDocumentId ? 'edit' : 'select'}
         textDirection={textDirection}
         getCell={getCell}
         onScrollTopChange={top => setScroll(view.scrollX, top)}
@@ -716,13 +831,8 @@ export function TaskGridSurface({
           const meta = adapter.rowMetaByKey.get(cell.rowKey);
           if (meta?.kind !== 'task') return;
           const next = updateGridSelection(createEmptyGridSelection(), cell, rowIndex, visibleColumnIds, 'replace');
-          setSelection(next);
-          selectTask(meta.taskId, false);
-          if (doubleClickAction === 'dialog') {
-            setUI({ showTaskDialog: true, editingTaskId: meta.taskId });
-          } else {
-            setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
-          }
+          applySelection(next);
+          setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
         }}
         onCellContextMenu={(cell, event) => {
           event.preventDefault();
@@ -734,9 +844,19 @@ export function TaskGridSurface({
           if (!task) return;
           const taskScope = selectedTaskIds.includes(task.id) ? selectedTaskIds : [task.id];
           const next = updateGridSelection(createEmptyGridSelection(), cell, rowIndex, visibleColumnIds, 'replace');
-          setSelection({ ...next, selectedTaskIds: [...taskScope] });
-          if (!selectedTaskIds.includes(task.id)) selectTask(task.id, false);
-          setContextMenu({ x: event.clientX, y: event.clientY, task, group: null });
+          const scopedSelection = {
+            ...next,
+            selectedTaskIds: [...taskScope],
+            activeTaskId: task.id,
+          };
+          applySelection(scopedSelection);
+          setContextMenu({
+            documentId: activeDocumentId,
+            x: event.clientX,
+            y: event.clientY,
+            task,
+            group: null,
+          });
         }}
         onGroupContextMenu={(row, event) => {
           event.preventDefault();
@@ -745,6 +865,7 @@ export function TaskGridSurface({
           const source = viewRows.find(candidate => candidate.rowKey === row.rowKey);
           if (source?.kind !== 'group') return;
           setContextMenu({
+            documentId: activeDocumentId,
             x: event.clientX,
             y: event.clientY,
             task: null,
@@ -779,7 +900,7 @@ export function TaskGridSurface({
           if (rowDragActive || contextMenu) { setHover(null); return; }
           const meta = adapter.rowMetaByKey.get(row.rowKey);
           const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
-          if (task) setHover({ task, x: event.clientX, y: event.clientY });
+          if (task) setHover({ documentId: activeDocumentId, task, x: event.clientX, y: event.clientY });
         }}
         onDataRowMouseLeave={() => setHover(null)}
         onCommitColumns={(label, columns) => commitTaskGridColumns(surfaceId, label, columns)}
@@ -792,25 +913,31 @@ export function TaskGridSurface({
           : undefined}
       />
       {surfaceError && <div className="full-task-grid-error" role="alert">{surfaceError}</div>}
-      {hover && !editing && (
+      {hover?.documentId === activeDocumentId && !editing && (
         <HoverTooltip left={hover.x + 16} top={hover.y - 10}>
           <TaskTooltipContent task={hover.task} />
         </HoverTooltip>
       )}
-      {externalRelationMenu && (
+      {externalRelationMenu?.documentId === activeDocumentId && (
         <div
+          ref={externalRelationMenuRef}
           className="task-grid-relation-context"
           role="menu"
           style={{ left: externalRelationMenu.x, top: externalRelationMenu.y }}
           onPointerDown={event => event.stopPropagation()}
+          onKeyDown={handleExternalRelationMenuKeyDown}
         >
           <button
             type="button"
             role="menuitem"
-            onClick={() => setExternalRelationDialog({
-              taskId: externalRelationMenu.taskId,
-              relationId: externalRelationMenu.relationId,
-            })}
+            onClick={() => {
+              setExternalRelationDialog({
+                documentId: activeDocumentId,
+                taskId: externalRelationMenu.taskId,
+                relationId: externalRelationMenu.relationId,
+              });
+              closeExternalRelationMenu(false);
+            }}
           >
             {tTask('externalLinks.edit')}
           </button>
@@ -818,13 +945,19 @@ export function TaskGridSurface({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { void (async () => {
+              onClick={() => {
+                const filePath = externalRelationMenu.filePath!;
+                closeExternalRelationMenu(false);
+                void (async () => {
                 const result = await refreshExternalAnchorsFrom(
-                  externalRelationMenu.filePath!,
+                  filePath,
                   buildImportLabels(tCommon),
                 );
-                if (!result) setSurfaceError(tTask('externalLinks.notAvailableWeb', { defaultValue: 'Verversen is hier niet beschikbaar.' }));
-              })(); }}
+                if (!result && useAppStore.getState().activeDocumentId === activeDocumentId) {
+                  setSurfaceError(tTask('externalLinks.notAvailableWeb', { defaultValue: 'Verversen is hier niet beschikbaar.' }));
+                }
+                })();
+              }}
             >
               {tTask('externalLinks.refreshSource')}
             </button>
@@ -833,20 +966,25 @@ export function TaskGridSurface({
             type="button"
             role="menuitem"
             className="task-grid-relation-context-danger"
-            onClick={() => removeExternalLink(externalRelationMenu.taskId, externalRelationMenu.relationId)}
+            onClick={() => {
+              if (useAppStore.getState().activeDocumentId === activeDocumentId) {
+                removeExternalLink(externalRelationMenu.taskId, externalRelationMenu.relationId);
+              }
+              closeExternalRelationMenu(false);
+            }}
           >
             {tTask('externalLinks.deleteRelation')}
           </button>
         </div>
       )}
-      {externalRelationDialog && (
+      {externalRelationDialog?.documentId === activeDocumentId && (
         <ExternalLinkDialog
           taskId={externalRelationDialog.taskId}
           {...(externalRelationDialog.relationId ? { linkId: externalRelationDialog.relationId } : {})}
           onClose={() => setExternalRelationDialog(null)}
         />
       )}
-      {contextMenu && (
+      {contextMenu?.documentId === activeDocumentId && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}

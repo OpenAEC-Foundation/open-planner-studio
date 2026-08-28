@@ -1,4 +1,5 @@
 import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
+import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
 import {
   applyProgressInvariants,
@@ -224,19 +225,13 @@ function applyMilestoneEdit(
   if (id === 'task.isMilestone') {
     if (typeof edit.value !== 'boolean') return failure('boolean', edit);
     if (task.isMilestone !== edit.value) {
-      task.isMilestone = edit.value;
-      if (edit.value) {
-        scheduleChanged = task.time.scheduleDuration !== 0 || task.time.durationMinutes !== undefined;
-        task.time.scheduleDuration = 0;
-        delete task.time.durationMinutes;
-      } else {
-        task.milestoneKind = undefined;
-        task.mandatory = undefined;
-        if (task.time.scheduleDuration === 0) {
-          task.time.scheduleDuration = 5;
-          scheduleChanged = true;
-        }
-      }
+      const transition = taskMilestoneTransition(task, edit.value);
+      scheduleChanged = transition.time !== undefined
+        && (task.time.scheduleDuration !== transition.time.scheduleDuration
+          || task.time.durationMinutes !== transition.time.durationMinutes);
+      const { time, ...fields } = transition;
+      Object.assign(task, fields);
+      if (time) task.time = time;
     }
   } else if (id === 'task.milestoneKind') {
     if (!task.isMilestone) return failure('milestoneRequired', edit);
@@ -379,6 +374,7 @@ function nextConstraintType(
 function applyConstraintEdit(
   task: Task,
   edit: CellEditIntent,
+  validatePair = true,
 ): GridResult<void, readonly CellValidationError[]> {
   const id = String(edit.columnId);
   let result: GridResult<void, readonly CellValidationError[]> = { ok: true, value: undefined };
@@ -405,8 +401,151 @@ function applyConstraintEdit(
     task.deadline = edit.value;
   } else return failure('plannerNotAvailable', edit);
   if (!result.ok) return result;
-  const pair = validateConstraintPair(task.constraint, task.constraint2);
-  if (!pair.ok) return failure(`constraintPair.${pair.issues[0]}`, edit, pair.issues);
+  if (validatePair) {
+    const pair = validateConstraintPair(task.constraint, task.constraint2);
+    if (!pair.ok) return failure(`constraintPair.${pair.issues[0]}`, edit, pair.issues);
+  }
+  return { ok: true, value: undefined };
+}
+
+function applyProgressEdits(
+  task: Task,
+  edits: readonly CellEditIntent[],
+  environment: TaskEditPlanEnvironment,
+): GridResult<void, readonly CellValidationError[]> {
+  const byId = new Map(edits.map(edit => [String(edit.columnId), edit] as const));
+  const first = edits[0]!;
+  const statusEdit = byId.get('task.status');
+  const completionEdit = byId.get('task.time.completion');
+  const actualStartEdit = byId.get('task.time.actualStart');
+  const actualFinishEdit = byId.get('task.time.actualFinish');
+  const actualDurationEdit = byId.get('task.time.actualDuration');
+  const remainingEdit = byId.get('task.time.remainingTime');
+
+  if (statusEdit && (typeof statusEdit.value !== 'string'
+    || !TASK_STATUSES.includes(statusEdit.value as TaskStatus))) return failure('enum', statusEdit);
+  if (completionEdit && (!finite(completionEdit.value)
+    || completionEdit.value < 0 || completionEdit.value > 1)) return failure('percentage', completionEdit);
+  for (const edit of [actualStartEdit, actualFinishEdit]) {
+    if (!edit) continue;
+    if (!optionalString(edit.value)) return failure('date', edit);
+    if (edit.value && environment.statusDate && isActualPastStatusDate(edit.value, environment.statusDate)) {
+      return failure('actualAfterStatusDate', edit);
+    }
+  }
+  for (const edit of [actualDurationEdit, remainingEdit]) {
+    if (edit && edit.value !== undefined && (!finite(edit.value) || edit.value < 0)) {
+      return failure('duration', edit);
+    }
+  }
+  if ((actualDurationEdit || remainingEdit)
+    && (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0)) {
+    return failure('calendarHours', actualDurationEdit ?? remainingEdit ?? first);
+  }
+
+  const hoursPerDay = environment.effectiveHoursPerDay;
+  const total = environment.hourMode
+    ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
+    : task.time.scheduleDuration;
+  const toDays = (value: number): number => value / (hoursPerDay * 60);
+  let desiredCompletion = completionEdit ? completionEdit.value as number : undefined;
+  const derivedCompletions: number[] = [];
+  if (actualDurationEdit?.value !== undefined) {
+    const own = environment.hourMode ? actualDurationEdit.value as number : toDays(actualDurationEdit.value as number);
+    derivedCompletions.push(total > 0 ? Math.max(0, Math.min(1, own / total)) : 1);
+  }
+  if (remainingEdit?.value !== undefined) {
+    const own = environment.hourMode ? remainingEdit.value as number : toDays(remainingEdit.value as number);
+    derivedCompletions.push(total > 0 ? Math.max(0, Math.min(1, 1 - own / total)) : 1);
+  }
+  if (derivedCompletions.some(value => Math.abs(value - derivedCompletions[0]!) > 1e-9)
+    || (desiredCompletion !== undefined
+      && derivedCompletions.some(value => Math.abs(value - desiredCompletion!) > 1e-9))) {
+    return failure('conflictingProgressInputs', completionEdit ?? actualDurationEdit ?? remainingEdit ?? first);
+  }
+  desiredCompletion ??= derivedCompletions[0];
+
+  const desiredStatus = statusEdit?.value as TaskStatus | undefined;
+  let desiredActualStart = actualStartEdit ? (actualStartEdit.value as string | undefined) || undefined : task.time.actualStart;
+  let desiredActualFinish = actualFinishEdit ? (actualFinishEdit.value as string | undefined) || undefined : task.time.actualFinish;
+  // Niet meegeschreven actuals zijn geen expliciete gewenste invoer. Een completion/status-write
+  // moet ze in een brede paste precies zo kunnen canonicaliseren als bij een enkelvoudige edit.
+  if (!actualFinishEdit && ((desiredCompletion !== undefined && desiredCompletion < 1)
+    || desiredStatus === 'STARTED' || desiredStatus === 'NOT_STARTED')) {
+    desiredActualFinish = undefined;
+  }
+  if (!actualStartEdit && desiredStatus === 'NOT_STARTED') desiredActualStart = undefined;
+  if (desiredActualFinish) {
+    if ((desiredCompletion !== undefined && desiredCompletion !== 1)
+      || (desiredStatus !== undefined && desiredStatus !== 'COMPLETED')) {
+      return failure('conflictingProgressInputs', actualFinishEdit ?? completionEdit ?? statusEdit ?? first);
+    }
+    desiredCompletion = 1;
+  }
+  if (desiredStatus === 'COMPLETED') {
+    if ((desiredCompletion !== undefined && desiredCompletion !== 1)
+      || (actualFinishEdit && !desiredActualFinish)) {
+      return failure('conflictingProgressInputs', statusEdit!);
+    }
+    desiredCompletion = 1;
+  } else if (desiredStatus === 'NOT_STARTED') {
+    if ((desiredCompletion !== undefined && desiredCompletion !== 0)
+      || (actualStartEdit && !!desiredActualStart) || (actualFinishEdit && !!desiredActualFinish)) {
+      return failure('conflictingProgressInputs', statusEdit!);
+    }
+    desiredCompletion = 0;
+  } else if (desiredStatus === 'STARTED') {
+    if ((desiredCompletion !== undefined && desiredCompletion >= 1) || desiredActualFinish) {
+      return failure('conflictingProgressInputs', statusEdit!);
+    }
+    desiredCompletion ??= task.time.completion >= 1 ? 0 : task.time.completion;
+  }
+  if (desiredActualStart && desiredActualFinish
+    && parseInstant(desiredActualFinish).getTime() < parseInstant(desiredActualStart).getTime()) {
+    return failure('actualFinishBeforeStart', actualFinishEdit ?? actualStartEdit ?? first);
+  }
+
+  if (actualDurationEdit) {
+    task.time.actualDuration = actualDurationEdit.value === undefined
+      ? undefined
+      : toDays(actualDurationEdit.value as number);
+  }
+  if (remainingEdit) {
+    task.time.remainingTime = remainingEdit.value === undefined
+      ? undefined
+      : toDays(remainingEdit.value as number);
+    task.time.remainingMinutes = environment.hourMode && remainingEdit.value !== undefined
+      ? remainingEdit.value as number
+      : undefined;
+  }
+  if (actualStartEdit) task.time.actualStart = desiredActualStart;
+  if (actualFinishEdit) task.time.actualFinish = desiredActualFinish;
+  if (desiredCompletion !== undefined) {
+    task.time.completion = desiredCompletion;
+    if (desiredCompletion > 0 && !task.time.actualStart) {
+      task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+    }
+    if (desiredCompletion < 1 && !actualFinishEdit) task.time.actualFinish = undefined;
+  }
+  if (desiredStatus === 'NOT_STARTED') {
+    task.time.actualStart = undefined;
+    task.time.actualFinish = undefined;
+  } else if (desiredStatus === 'STARTED') {
+    task.time.actualFinish = undefined;
+    task.time.actualStart ||= task.time.earlyStart || task.time.scheduleStart;
+  }
+  applyProgressInvariants(task, environment.statusDate);
+  if (remainingEdit) {
+    task.time.remainingTime = remainingEdit.value === undefined
+      ? undefined
+      : toDays(remainingEdit.value as number);
+    task.time.remainingMinutes = environment.hourMode && remainingEdit.value !== undefined
+      ? remainingEdit.value as number
+      : undefined;
+  }
+  if (desiredStatus !== undefined && task.status !== desiredStatus) {
+    return failure('conflictingProgressInputs', statusEdit!);
+  }
   return { ok: true, value: undefined };
 }
 
@@ -492,6 +631,83 @@ export function planTaskCellEdit(
     || edit.route === 'task-constraint'
     || edit.route === 'task-hammock'
     || String(edit.columnId) === 'task.priority';
+  return {
+    ok: true,
+    value: {
+      task: next,
+      changed: JSON.stringify(task) !== JSON.stringify(next),
+      timephasedGuidanceLost,
+      scheduleStale,
+    },
+  };
+}
+
+/**
+ * Plant alle celwrites van één taak als één gewenste taaktoestand. Constraintparen en
+ * voortgangsvelden worden pas na de volledige groep gecanonicaliseerd en gevalideerd; hun
+ * tijdelijke tussenstanden zijn geen gebruikersdata en mogen de uitkomst niet bepalen.
+ */
+export function planTaskCellEdits(
+  task: Task,
+  edits: readonly CellEditIntent[],
+  environment: TaskEditPlanEnvironment,
+): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
+  if (edits.length === 0) {
+    return {
+      ok: true,
+      value: { task, changed: false, timephasedGuidanceLost: false, scheduleStale: false },
+    };
+  }
+  if (edits.length === 1) return planTaskCellEdit(task, edits[0], environment);
+  for (const edit of edits) {
+    if (task.id !== edit.taskId) return failure('taskMismatch', edit);
+    const expected = expectedRoute(String(edit.columnId));
+    if (!expected) return failure('plannerNotAvailable', edit);
+    if (expected !== edit.route) return failure('routeMismatch', edit);
+  }
+
+  let next = cloneTaskForEdit(task);
+  let timephasedGuidanceLost = false;
+  let scheduleStale = false;
+  const constraintEdits = edits.filter(edit => edit.route === 'task-constraint');
+  const progressEdits = edits.filter(edit => edit.route === 'task-progress');
+  for (const edit of edits) {
+    if (edit.route === 'task-constraint' || edit.route === 'task-progress') continue;
+    const planned = planTaskCellEdit(next, edit, environment);
+    if (!planned.ok) return planned;
+    next = planned.value.task;
+    timephasedGuidanceLost ||= planned.value.timephasedGuidanceLost;
+    scheduleStale ||= planned.value.scheduleStale;
+  }
+  if (constraintEdits.length > 0) {
+    const constraintRank = (edit: CellEditIntent): number => {
+      const id = String(edit.columnId);
+      if (id === 'task.constraint.type') return 0;
+      if (id === 'task.constraint2.type') return 1;
+      if (id === 'task.constraint.date') return 2;
+      if (id === 'task.constraint2.date') return 3;
+      if (id === 'task.constraint.hard') return 4;
+      return 5;
+    };
+    const ordered = constraintEdits
+      .map((edit, index) => ({ edit, index, rank: constraintRank(edit) }))
+      .sort((left, right) => left.rank - right.rank || left.index - right.index)
+      .map(item => item.edit);
+    for (const edit of ordered) {
+      const applied = applyConstraintEdit(next, edit, false);
+      if (!applied.ok) return applied;
+    }
+    const pair = validateConstraintPair(next.constraint, next.constraint2);
+    if (!pair.ok) {
+      return failure(`constraintPair.${pair.issues[0]}`, ordered[ordered.length - 1], pair.issues);
+    }
+    scheduleStale = true;
+  }
+  if (progressEdits.length > 0) {
+    const applied = applyProgressEdits(next, progressEdits, environment);
+    if (!applied.ok) return applied;
+    scheduleStale = true;
+  }
   return {
     ok: true,
     value: {

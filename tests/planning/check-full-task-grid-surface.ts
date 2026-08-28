@@ -17,6 +17,7 @@ const tableEditor = read('src/components/panels/TableEditor.tsx');
 const ribbonConfig = read('src/components/layout/Ribbon/ribbonConfig.tsx');
 const englishTaskLocale = read('src/i18n/locales/en/task.json');
 const dutchTaskLocale = read('src/i18n/locales/nl/task.json');
+const propertiesPanel = read('src/components/panels/TaskPropertiesPanel.tsx');
 
 ok('App importeert FullTaskGrid als de volledige Tabel-surface',
   /import\s+\{\s*FullTaskGrid\s*\}\s+from\s+'@\/components\/task-grid\/FullTaskGrid'/.test(app));
@@ -46,10 +47,43 @@ if (fs.existsSync(fullGridPath)) {
       && /refreshExternalAnchorsFrom/.test(fullGrid)
       && /removeExternalLink/.test(fullGrid)
       && /<ExternalLinkDialog/.test(fullGrid));
+  ok('Open editors en relatiemenu’s zijn aan het actieve document gebonden',
+    /activeDocumentId/.test(fullGrid)
+      && /documentId:\s*activeDocumentId/.test(fullGrid)
+      && /editing\?\.documentId\s*===\s*activeDocumentId/.test(fullGrid)
+      && /externalRelationDialog\?\.documentId\s*===\s*activeDocumentId/.test(fullGrid));
+  ok('Het externe-relatiemenu focust een menu-item en ondersteunt volledige pijltoetsnavigatie',
+    /externalRelationMenuRef/.test(fullGrid)
+      && /nextTaskGridMenuIndex/.test(fullGrid)
+      && /ArrowDown/.test(fullGrid)
+      && /Home/.test(fullGrid)
+      && /externalRelationMenu\?\.trigger/.test(fullGrid));
+  ok('Auto-fit meet de werkelijk gelokaliseerde celtekst en bindt de cache aan document en font',
+    /adapter\.getCell\(row\.rowKey,\s*columnId\)/.test(fullGrid)
+      && /taskGridAutoFitValueVersion/.test(fullGrid)
+      && /activeDocumentId/.test(fullGrid));
   ok('De Gantt-plus gebruikt een lokale kolomkiezer en activeert niet onbedoeld de Tabel-tab',
     /chooserOpen=\{surfaceId === 'full-task-grid' \? showColumnsDialog : undefined\}/.test(fullGrid)
       && /onChooserOpenChange=\{surfaceId === 'full-task-grid'/.test(fullGrid));
+  const clearCommand = /if \(command\.kind === 'clear-cells'\) \{([\s\S]*?)\n    \}/.exec(fullGrid)?.[1] ?? '';
+  ok('Delete en Backspace plannen een atomaire cel-clear en verwijderen geen taken',
+    /planTaskGridClear\(clipboardEnvironment\(\)\)/.test(clearCommand)
+      && !/deleteTasksBulk/.test(clearCommand));
+  ok('Pastevalidatie gebruikt geen hardgecodeerde enabledByBatch-whitelist meer',
+    !read('src/state/gridTransaction.ts').includes('enabledByBatch'));
+  ok('Selectiewissels gebruiken een vooraf gebouwde adapterdomeinprojectie',
+    /createTaskGridAdapter\(\{[\s\S]*?selectedTaskIds[\s\S]*?\}, adapterDomain\)/.test(fullGrid));
+  const adapterDomainMemo = fullGrid.match(
+    /const adapterDomain = useMemo\([\s\S]*?\n  const adapter = useMemo/,
+  )?.[0] ?? '';
+  ok('De stabiele adapterdomeinmemo hangt niet van selectedTaskIds af',
+    adapterDomainMemo.length > 0 && !adapterDomainMemo.includes('selectedTaskIds'));
 }
+
+ok('Het eigenschappenpaneel volgt de actieve taak, ook binnen een meervoudige selectie',
+  /activeTaskId/.test(propertiesPanel)
+    && !/selectedTaskIds\.length\s*>\s*1/.test(propertiesPanel)
+    && /tasks\.find\(t\s*=>\s*t\.id\s*===\s*activeTaskId\)/.test(propertiesPanel));
 
 ok('TableEditor bevat geen parallelle interne celrenderer meer',
   !/function FieldCell|const renderCell\s*=|const renderColumnCell\s*=/.test(tableEditor));

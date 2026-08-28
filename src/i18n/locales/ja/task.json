@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "稼働時間", "ELAPSEDTIME": "経過時間" },
   "table": {
     "title": "テーブル",
     "wbs": "WBS",
@@ -46,7 +47,7 @@
       "cycle": "この変更によりスケジュールに循環が発生します。"
     },
     "controls": {
-      "collapse": "折りたたむ", "expand": "展開", "resize": "幅を変更", "remove": "削除", "pin": "固定",
+      "collapse": "折りたたむ", "expand": "展開", "resize": "幅を変更", "resizeTaskGrid": "タスクグリッドのサイズを変更", "remove": "削除", "pin": "固定",
       "unpin": "固定を解除", "autoFit": "自動調整", "search": "検索", "searchResults": "検索結果", "noResults": "結果なし"
     },
     "history": {
@@ -59,12 +60,20 @@
       "autoFitColumn": "列 {{column}} を自動調整"
     },
     "summary": {
-      "activityCodeAssignments": "アクティビティコード割り当て {{count}} 件",
-      "customFields": "カスタムフィールド {{count}} 件",
-      "internalRelations": "内部依存関係 {{count}} 件",
-      "externalRelations": "外部依存関係 {{count}} 件",
-      "baselineMissing": "このベースラインには存在しません"
+      "activityCodeAssignments_other": "アクティビティコード割り当て {{count}} 件",
+      "customFields_other": "カスタムフィールド {{count}} 件",
+      "internalRelations_other": "内部依存関係 {{count}} 件",
+      "externalRelations_other": "外部依存関係 {{count}} 件",
+      "baselineMissing": "このベースラインには存在しません",
+      "baselineVarianceStart": "開始差異",
+      "baselineVarianceFinish": "終了差異",
+      "baselineVarianceDuration": "期間差異"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "未開始",
+    "STARTED": "進行中",
+    "COMPLETED": "完了"
   },
   "taskType": {
     "CONSTRUCTION": "建設",
@@ -278,7 +287,9 @@
     "directionSuccessor": "後続（自分 → 外部）",
     "relType": "関係タイプ",
     "lag": "ラグ（稼働日）",
+    "lagPlaceholder": "0d または 2h",
     "anchorDate": "アンカー日付",
+    "chooseNewAnchorAfterSideChange": "新しいアンカーを選択してください。関係タイプはソースタスクの反対側を使用するようになりました。",
     "manualTitle": "手動（フォールバック）",
     "manualHint": "ファイルが手元にない場合は、外部タスクのプロジェクトIDとタスクIDを貼り付けてください。",
     "projectId": "プロジェクトID",

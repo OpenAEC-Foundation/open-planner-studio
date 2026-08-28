@@ -50,6 +50,95 @@ function observed(state: AppState): unknown {
   };
 }
 
+// Een meercellige paste moet mijlpaalovergangen semantisch ordenen, niet op basis van de
+// toevallige links-naar-rechtsvolgorde van de zichtbare kolommen.
+{
+  function runMilestonePaste(initialMilestone: boolean, milestoneFirst: boolean): {
+    ok: boolean; milestone?: boolean; duration?: number;
+  } {
+    reset();
+    const taskId = S().addTask({ name: 'Volgorde', isMilestone: initialMilestone });
+    const milestone = cellEdit(taskId, 'task.isMilestone', 'task-milestone', !initialMilestone);
+    const duration = cellEdit(taskId, 'task.time.scheduleDuration', 'task-schedule', 480);
+    const result = runGridMutation([{
+      kind: 'paste',
+      writes: milestoneFirst ? [milestone, duration] : [duration, milestone],
+    } satisfies PasteIntent]);
+    const task = S().tasks.find(candidate => candidate.id === taskId);
+    return { ok: result.ok, milestone: task?.isMilestone, duration: task?.time.scheduleDuration };
+  }
+
+  const toMilestoneLeft = runMilestonePaste(false, true);
+  const toMilestoneRight = runMilestonePaste(false, false);
+  eq('Gewone taak naar mijlpaal slaagt in beide kolomvolgordes',
+    [toMilestoneLeft.ok, toMilestoneRight.ok], [true, true]);
+  eq('Gewone taak naar mijlpaal heeft in beide volgordes dezelfde eindtoestand',
+    [toMilestoneLeft.milestone, toMilestoneLeft.duration],
+    [toMilestoneRight.milestone, toMilestoneRight.duration]);
+  eq('Mijlpaalovergang dwingt in beide volgordes duur nul af',
+    [toMilestoneLeft.milestone, toMilestoneLeft.duration], [true, 0]);
+
+  const fromMilestoneLeft = runMilestonePaste(true, true);
+  const fromMilestoneRight = runMilestonePaste(true, false);
+  eq('Mijlpaal naar gewone taak slaagt in beide kolomvolgordes',
+    [fromMilestoneLeft.ok, fromMilestoneRight.ok], [true, true]);
+  eq('Mijlpaal naar gewone taak bewaart in beide volgordes de geplakte duur',
+    [fromMilestoneLeft.milestone, fromMilestoneLeft.duration], [false, 1]);
+  eq('Omgekeerde kolomvolgorde levert exact dezelfde gewone taak op',
+    [fromMilestoneRight.milestone, fromMilestoneRight.duration], [false, 1]);
+}
+
+// De volledige mijlpaalgroep wordt tegen de gezamenlijke eindtoestand toegepast. Bij uitzetten
+// mogen milestoneKind/mandatory tijdens dezelfde paste dus niet read-only worden vóór hun writes
+// zijn verwerkt. Alle 24 kolomvolgordes moeten exact dezelfde gewone taak opleveren, zowel met
+// lege als met gevulde bronmetadata (de overgang wist metadata uiteindelijk altijd).
+{
+  function permutations<T>(values: readonly T[]): T[][] {
+    if (values.length <= 1) return [[...values]];
+    return values.flatMap((value, index) => permutations([
+      ...values.slice(0, index), ...values.slice(index + 1),
+    ]).map(rest => [value, ...rest]));
+  }
+
+  for (const metadata of [
+    { kind: undefined, mandatory: undefined },
+    { kind: 'START', mandatory: false },
+    { kind: 'FINISH', mandatory: true },
+  ] as const) {
+    const outcomes: unknown[] = [];
+    for (const order of permutations(['flag', 'duration', 'kind', 'mandatory'] as const)) {
+      reset();
+      const taskId = S().addTask({
+        name: 'Volledige mijlpaalpasta', isMilestone: true,
+        milestoneKind: 'FINISH', mandatory: true,
+      });
+      const writes = {
+        flag: cellEdit(taskId, 'task.isMilestone', 'task-milestone', false),
+        duration: cellEdit(taskId, 'task.time.scheduleDuration', 'task-schedule', 960),
+        kind: cellEdit(taskId, 'task.milestoneKind', 'task-milestone', metadata.kind),
+        mandatory: cellEdit(taskId, 'task.mandatory', 'task-milestone', metadata.mandatory),
+      };
+      const result = runGridMutation([{
+        kind: 'paste', writes: order.map(key => writes[key]),
+      } satisfies PasteIntent]);
+      const task = S().tasks.find(candidate => candidate.id === taskId);
+      outcomes.push({
+        ok: result.ok,
+        isMilestone: task?.isMilestone,
+        duration: task?.time.scheduleDuration,
+        milestoneKind: task?.milestoneKind,
+        mandatory: task?.mandatory,
+      });
+    }
+    const expected = {
+      ok: true, isMilestone: false, duration: 2,
+      milestoneKind: undefined, mandatory: undefined,
+    };
+    eq(`Mijlpaal uitzetten met metadata ${JSON.stringify(metadata)} slaagt in alle 24 volgordes`,
+      outcomes, Array.from({ length: 24 }, () => expected));
+  }
+}
+
 // Meerdere relatiecellen in één paste worden tegen hun gezamenlijke eindtoestand beoordeeld.
 // De eerste write maakt hier tijdelijk A->B->C->A; de tweede haalt B->C weg, zodat het eindresultaat
 // geldig is. De toevallige writevolgorde mag die geldige herschikking niet blokkeren.
@@ -390,6 +479,244 @@ function observed(state: AppState): unknown {
   eq('Planningrelevante route zet scheduleStale', S().scheduleStale, true);
 }
 
+// Gekoppelde taakvelden worden tegen één gewenste eindtoestand beoordeeld. Geen tijdelijke
+// constraint- of actualtoestand en geen visuele kolomvolgorde mag het resultaat bepalen.
+{
+  for (const reverse of [false, true]) {
+    reset();
+    const taskId = S().addTask({ name: `Constraintpaar ${reverse}` });
+    useAppStore.setState(state => {
+      const task = state.tasks.find(candidate => candidate.id === taskId)!;
+      task.constraint = { type: 'SNET', date: '2026-01-01' };
+      task.constraint2 = { type: 'SNLT', date: '2026-01-02' };
+      state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+    });
+    const primary = cellEdit(taskId, 'task.constraint.type', 'task-constraint', 'FNLT');
+    const secondary = cellEdit(taskId, 'task.constraint2.type', 'task-constraint', 'FNET');
+    const result = runGridMutation([{
+      kind: 'paste', writes: reverse ? [secondary, primary] : [primary, secondary],
+    }]);
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    eq(`Geldig gezamenlijk constraintpaar slaagt ${reverse}`, result.ok, true);
+    eq(`Constraintpaar eindigt onafhankelijk van volgorde ${reverse}`,
+      [task.constraint?.type, task.constraint2?.type], ['FNLT', 'FNET']);
+  }
+
+  for (const reverse of [false, true]) {
+    reset();
+    const taskId = S().addTask({ name: `Actualvenster ${reverse}` });
+    useAppStore.setState(state => {
+      const task = state.tasks.find(candidate => candidate.id === taskId)!;
+      task.time.actualStart = '2026-01-01';
+      task.time.actualFinish = '2026-01-02';
+      task.time.completion = 1;
+      task.status = 'COMPLETED';
+      state.project.statusDate = '2026-12-31';
+      state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+    });
+    const start = cellEdit(taskId, 'task.time.actualStart', 'task-progress', '2026-01-03');
+    const finish = cellEdit(taskId, 'task.time.actualFinish', 'task-progress', '2026-01-04');
+    const result = runGridMutation([{
+      kind: 'paste', writes: reverse ? [finish, start] : [start, finish],
+    }]);
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    eq(`Geldig gezamenlijk actualvenster slaagt ${reverse}`, result.ok, true);
+    eq(`Actualvenster eindigt onafhankelijk van volgorde ${reverse}`,
+      [task.time.actualStart, task.time.actualFinish], ['2026-01-03', '2026-01-04']);
+  }
+
+  const conflictOutcomes: unknown[] = [];
+  for (const reverse of [false, true]) {
+    reset();
+    const taskId = S().addTask({ name: `Voortgangsconflict ${reverse}` });
+    useAppStore.setState(state => {
+      state.project.statusDate = '2026-01-10';
+      state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+    });
+    const before = JSON.stringify(observed(S()));
+    const status = cellEdit(taskId, 'task.status', 'task-progress', 'COMPLETED');
+    const completion = cellEdit(taskId, 'task.time.completion', 'task-progress', 0.5);
+    const result = runGridMutation([{
+      kind: 'paste', writes: reverse ? [completion, status] : [status, completion],
+    }]);
+    conflictOutcomes.push({
+      ok: result.ok,
+      code: result.ok ? null : result.errors[0]?.code,
+      unchanged: JSON.stringify(observed(S())) === before,
+    });
+  }
+  eq('Tegenstrijdige status en completion falen in beide volgordes', conflictOutcomes, [
+    { ok: false, code: 'conflictingProgressInputs', unchanged: true },
+    { ok: false, code: 'conflictingProgressInputs', unchanged: true },
+  ]);
+
+  const completedOutcomes: unknown[] = [];
+  for (const reverse of [false, true]) {
+    reset();
+    const taskId = S().addTask({ name: `Afgerond consistent ${reverse}` });
+    useAppStore.setState(state => {
+      state.project.statusDate = '2026-01-10';
+      state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+    });
+    const status = cellEdit(taskId, 'task.status', 'task-progress', 'COMPLETED');
+    const completion = cellEdit(taskId, 'task.time.completion', 'task-progress', 1);
+    const result = runGridMutation([{
+      kind: 'paste', writes: reverse ? [completion, status] : [status, completion],
+    }]);
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    completedOutcomes.push({
+      ok: result.ok,
+      status: task.status,
+      completion: task.time.completion,
+      actualStart: task.time.actualStart,
+      actualFinish: task.time.actualFinish,
+    });
+  }
+  eq('Consistente afgeronde voortgang is volgorde-onafhankelijk', completedOutcomes, [
+    completedOutcomes[0], completedOutcomes[0],
+  ]);
+
+  const durationOutcomes: unknown[] = [];
+  for (const reverse of [false, true]) {
+    reset();
+    const taskId = S().addTask({ name: `Duurpaar consistent ${reverse}` });
+    useAppStore.setState(state => {
+      state.project.statusDate = '2026-01-10';
+      state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+    });
+    const actual = cellEdit(taskId, 'task.time.actualDuration', 'task-progress', 2 * 8 * 60);
+    const remaining = cellEdit(taskId, 'task.time.remainingTime', 'task-progress', 3 * 8 * 60);
+    const result = runGridMutation([{
+      kind: 'paste', writes: reverse ? [remaining, actual] : [actual, remaining],
+    }]);
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    durationOutcomes.push({
+      ok: result.ok,
+      status: task.status,
+      completion: task.time.completion,
+      actualDuration: task.time.actualDuration,
+      remainingTime: task.time.remainingTime,
+    });
+  }
+  eq('Consistente werkelijk/resterende duur is volgorde-onafhankelijk', durationOutcomes, [
+    durationOutcomes[0], durationOutcomes[0],
+  ]);
+
+  const durationConflictOutcomes: unknown[] = [];
+  for (const reverse of [false, true]) {
+    reset();
+    const taskId = S().addTask({ name: `Duurpaar conflict ${reverse}` });
+    useAppStore.setState(state => {
+      state.project.statusDate = '2026-01-10';
+      state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+    });
+    const before = JSON.stringify(observed(S()));
+    const actual = cellEdit(taskId, 'task.time.actualDuration', 'task-progress', 2 * 8 * 60);
+    const remaining = cellEdit(taskId, 'task.time.remainingTime', 'task-progress', 2 * 8 * 60);
+    const result = runGridMutation([{
+      kind: 'paste', writes: reverse ? [remaining, actual] : [actual, remaining],
+    }]);
+    durationConflictOutcomes.push({
+      ok: result.ok,
+      code: result.ok ? null : result.errors[0]?.code,
+      unchanged: JSON.stringify(observed(S())) === before,
+    });
+  }
+  eq('Tegenstrijdige werkelijk/resterende duur faalt in beide volgordes', durationConflictOutcomes, [
+    { ok: false, code: 'conflictingProgressInputs', unchanged: true },
+    { ok: false, code: 'conflictingProgressInputs', unchanged: true },
+  ]);
+
+  const unrelatedCellOutcomes: unknown[] = [];
+  for (const progressColumn of ['task.time.completion', 'task.status'] as const) {
+    for (const includeDescription of [false, true]) {
+      reset();
+      const taskId = S().addTask({ name: `Voltooid met nevenveld ${progressColumn}` });
+      useAppStore.setState(state => {
+        const task = state.tasks.find(candidate => candidate.id === taskId)!;
+        task.status = 'COMPLETED';
+        task.time.completion = 1;
+        task.time.actualStart = '2026-01-01';
+        task.time.actualFinish = '2026-01-05';
+        state.project.statusDate = '2026-01-10';
+        state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+      });
+      const writes = [progressColumn === 'task.status'
+        ? cellEdit(taskId, progressColumn, 'task-progress', 'STARTED')
+        : cellEdit(taskId, progressColumn, 'task-progress', 0.5)];
+      if (includeDescription) writes.push(cellEdit(taskId, 'task.description', 'task-field', 'Nevenveld'));
+      const result = runGridMutation([{ kind: 'paste', writes }]);
+      const task = S().tasks.find(candidate => candidate.id === taskId)!;
+      unrelatedCellOutcomes.push({
+        progressColumn, includeDescription, ok: result.ok, status: task.status,
+        completion: task.time.completion, actualFinish: task.time.actualFinish,
+        description: task.description,
+      });
+    }
+  }
+  eq('Een ongerelateerde cel verandert de geldigheid van dezelfde voortgangswijziging niet',
+    unrelatedCellOutcomes, [
+      { progressColumn: 'task.time.completion', includeDescription: false, ok: true, status: 'STARTED', completion: 0.5, actualFinish: undefined, description: '' },
+      { progressColumn: 'task.time.completion', includeDescription: true, ok: true, status: 'STARTED', completion: 0.5, actualFinish: undefined, description: 'Nevenveld' },
+      { progressColumn: 'task.status', includeDescription: false, ok: true, status: 'STARTED', completion: 0, actualFinish: undefined, description: '' },
+      { progressColumn: 'task.status', includeDescription: true, ok: true, status: 'STARTED', completion: 0, actualFinish: undefined, description: 'Nevenveld' },
+    ]);
+
+  const permutations = <T>(values: readonly T[]): T[][] => values.length <= 1
+    ? [[...values]]
+    : values.flatMap((value, index) => permutations([
+      ...values.slice(0, index), ...values.slice(index + 1),
+    ]).map(rest => [value, ...rest]));
+  const tripleOutcomes: unknown[] = [];
+  for (const order of permutations(['hammock', 'milestone', 'duration'] as const)) {
+    reset();
+    const taskId = S().addTask({ name: 'Hangmat naar mijlpaal', isHammock: true });
+    const writes = {
+      hammock: cellEdit(taskId, 'task.isHammock', 'task-hammock', false),
+      milestone: cellEdit(taskId, 'task.isMilestone', 'task-milestone', true),
+      duration: cellEdit(taskId, 'task.time.scheduleDuration', 'task-schedule', 480),
+    };
+    const result = runGridMutation([{ kind: 'paste', writes: order.map(key => writes[key]) }]);
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    tripleOutcomes.push({ ok: result.ok, isHammock: task.isHammock, isMilestone: task.isMilestone, duration: task.time.scheduleDuration });
+  }
+  eq('Hangmat uit, mijlpaal aan en duur zijn in alle zes volgordes gelijk', tripleOutcomes,
+    Array.from({ length: 6 }, () => ({ ok: true, isHammock: undefined, isMilestone: true, duration: 0 })));
+
+  const calendarDurationOutcomes: unknown[] = [];
+  for (const reverse of [false, true]) {
+    reset();
+    const taskId = S().addTask({ name: `Kalender plus duur ${reverse}` });
+    useAppStore.setState(state => {
+      state.calendars.push({
+        ...state.calendar, id: 'hour-6', name: 'Zes uur', hoursPerDay: 6,
+        workStartHour: 8, workEndHour: 14,
+        workTime: { byWeekday: {
+          1: [{ start: 480, end: 840 }], 2: [{ start: 480, end: 840 }],
+          3: [{ start: 480, end: 840 }], 4: [{ start: 480, end: 840 }],
+          5: [{ start: 480, end: 840 }], 6: [], 7: [],
+        } },
+      });
+      state.historyEvents = []; state.nextHistorySequence = 1; state.isDirty = false;
+    });
+    const calendar = cellEdit(taskId, 'task.calendarId', 'task-schedule', 'hour-6');
+    const duration = cellEdit(taskId, 'task.time.scheduleDuration', 'task-schedule', 480);
+    const result = runGridMutation([{
+      kind: 'paste', writes: reverse ? [duration, calendar] : [calendar, duration],
+    }]);
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    calendarDurationOutcomes.push({
+      ok: result.ok, calendarId: task.calendarId,
+      scheduleDuration: task.time.scheduleDuration, durationMinutes: task.time.durationMinutes,
+    });
+  }
+  eq('Kalender plus duur gebruikt in beide volgordes de uiteindelijke zes-uurskalender',
+    calendarDurationOutcomes, [
+      { ok: true, calendarId: 'hour-6', scheduleDuration: 480 / 360, durationMinutes: 480 },
+      { ok: true, calendarId: 'hour-6', scheduleDuration: 480 / 360, durationMinutes: 480 },
+    ]);
+}
+
 // Een fout in de laatste bewaakte write rolt eerdere geldige writes volledig terug.
 {
   reset();
@@ -467,6 +794,25 @@ function observed(state: AppState): unknown {
     eq(`${label} faalt`, result.ok, false);
     eq(`${label} benoemt readOnly`, result.ok ? null : result.errors[0]?.code, 'readOnly');
   }
+}
+
+// Algemene eindtoestandvalidatie mag een conditioneel veld niet door zijn eigen write laten
+// openzetten. Een taak met meerdere notities blijft via de compacte tabelcel read-only.
+{
+  reset();
+  const taskId = S().addTask({ name: 'Meerdere notities' });
+  S().updateTask(taskId, {
+    notes: [
+      { id: 'n-1', text: 'Eerste', done: false },
+      { id: 'n-2', text: 'Tweede', done: false },
+    ],
+  });
+  const result = runGridMutation([
+    cellEdit(taskId, 'task.notes', 'task-field', 'Overschrijf alles'),
+  ]);
+  eq('Conditioneel veld kan zichzelf niet schrijfbaar maken', result.ok, false);
+  eq('Zelf-openende notitiecel blijft readOnly',
+    result.ok ? null : result.errors[0]?.code, 'readOnly');
 }
 
 // Solverfout blijft door gridcommit én de daaropvolgende undo/redo zonder schijnbelasting.

@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "Arbeitszeit", "ELAPSEDTIME": "Verstrichene Zeit" },
   "table": {
     "title": "Tabelle",
     "wbs": "WBS",
@@ -59,7 +60,7 @@
       "cycle": "Diese Änderung würde einen Zyklus im Terminplan erzeugen."
     },
     "controls": {
-      "collapse": "Einklappen", "expand": "Ausklappen", "resize": "Breite ändern", "remove": "Entfernen", "pin": "Anheften",
+      "collapse": "Einklappen", "expand": "Ausklappen", "resize": "Breite ändern", "resizeTaskGrid": "Aufgabenraster skalieren", "remove": "Entfernen", "pin": "Anheften",
       "unpin": "Lösen", "autoFit": "Automatisch anpassen", "search": "Suchen", "searchResults": "Suchergebnisse", "noResults": "Keine Ergebnisse"
     },
     "history": {
@@ -72,12 +73,24 @@
       "autoFitColumn": "Spalte {{column}} automatisch anpassen"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} Aktivitätscode-Zuweisungen",
-      "customFields": "{{count}} benutzerdefinierte Felder",
-      "internalRelations": "{{count}} interne Beziehungen",
-      "externalRelations": "{{count}} externe Beziehungen",
-      "baselineMissing": "In diesem Basisplan nicht vorhanden"
+      "activityCodeAssignments_one": "{{count}} Aktivitätscode-Zuweisung",
+      "activityCodeAssignments_other": "{{count}} Aktivitätscode-Zuweisungen",
+      "customFields_one": "{{count}} benutzerdefiniertes Feld",
+      "customFields_other": "{{count}} benutzerdefinierte Felder",
+      "internalRelations_one": "{{count}} interne Beziehung",
+      "internalRelations_other": "{{count}} interne Beziehungen",
+      "externalRelations_one": "{{count}} externe Beziehung",
+      "externalRelations_other": "{{count}} externe Beziehungen",
+      "baselineMissing": "In diesem Basisplan nicht vorhanden",
+      "baselineVarianceStart": "Abweichung Anfang",
+      "baselineVarianceFinish": "Abweichung Ende",
+      "baselineVarianceDuration": "Abweichung Dauer"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "Nicht begonnen",
+    "STARTED": "In Bearbeitung",
+    "COMPLETED": "Abgeschlossen"
   },
   "taskType": {
     "CONSTRUCTION": "Bau",
@@ -291,7 +304,9 @@
     "directionSuccessor": "Nachfolger (ich → extern)",
     "relType": "Beziehungstyp",
     "lag": "Abstand (Arbeitstage)",
+    "lagPlaceholder": "0d oder 2h",
     "anchorDate": "Ankertermin",
+    "chooseNewAnchorAfterSideChange": "Wählen Sie einen neuen Anker: Der Beziehungstyp verwendet jetzt die andere Seite des Quellvorgangs.",
     "manualTitle": "Manuell (Fallback)",
     "manualHint": "Keine Datei zur Hand? Fügen Sie die Projekt-ID und Vorgangs-ID des externen Vorgangs ein.",
     "projectId": "Projekt-ID",

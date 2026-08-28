@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "Tempo de trabalho", "ELAPSEDTIME": "Tempo decorrido" },
   "table": {
     "title": "Tabela",
     "wbs": "WBS",
@@ -46,7 +47,7 @@
       "cycle": "Esta alteração criaria um ciclo no planeamento."
     },
     "controls": {
-      "collapse": "Recolher", "expand": "Expandir", "resize": "Alterar largura", "remove": "Remover", "pin": "Fixar",
+      "collapse": "Recolher", "expand": "Expandir", "resize": "Alterar largura", "resizeTaskGrid": "Redimensionar a grelha de tarefas", "remove": "Remover", "pin": "Fixar",
       "unpin": "Desafixar", "autoFit": "Ajustar automaticamente", "search": "Pesquisar", "searchResults": "Resultados da pesquisa", "noResults": "Sem resultados"
     },
     "history": {
@@ -59,12 +60,28 @@
       "autoFitColumn": "Ajustar automaticamente a coluna {{column}}"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} atribuições de códigos de atividade",
-      "customFields": "{{count}} campos personalizados",
-      "internalRelations": "{{count}} relações internas",
-      "externalRelations": "{{count}} relações externas",
-      "baselineMissing": "Não existe nesta linha de base"
+      "activityCodeAssignments_one": "{{count}} atribuição de código de atividade",
+      "activityCodeAssignments_many": "{{count}} atribuições de códigos de atividade",
+      "activityCodeAssignments_other": "{{count}} atribuições de códigos de atividade",
+      "customFields_one": "{{count}} campo personalizado",
+      "customFields_many": "{{count}} campos personalizados",
+      "customFields_other": "{{count}} campos personalizados",
+      "internalRelations_one": "{{count}} relação interna",
+      "internalRelations_many": "{{count}} relações internas",
+      "internalRelations_other": "{{count}} relações internas",
+      "externalRelations_one": "{{count}} relação externa",
+      "externalRelations_many": "{{count}} relações externas",
+      "externalRelations_other": "{{count}} relações externas",
+      "baselineMissing": "Não existe nesta linha de base",
+      "baselineVarianceStart": "Desvio de início",
+      "baselineVarianceFinish": "Desvio de fim",
+      "baselineVarianceDuration": "Desvio de duração"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "Não iniciada",
+    "STARTED": "Em andamento",
+    "COMPLETED": "Concluída"
   },
   "taskType": {
     "CONSTRUCTION": "Construção",
@@ -278,7 +295,9 @@
     "directionSuccessor": "Sucessora (eu → externa)",
     "relType": "Tipo de relação",
     "lag": "Atraso (dias úteis)",
+    "lagPlaceholder": "0d ou 2h",
     "anchorDate": "Data de ancoragem",
+    "chooseNewAnchorAfterSideChange": "Escolha uma nova âncora: o tipo de relação agora usa o outro lado da tarefa de origem.",
     "manualTitle": "Manual (alternativa)",
     "manualHint": "Não tem o ficheiro à mão? Cole o id de projeto e o id de tarefa da tarefa externa.",
     "projectId": "Id de projeto",

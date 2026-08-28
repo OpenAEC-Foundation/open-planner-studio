@@ -248,6 +248,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       recordedDates: src.recordedDates,
       datesAsRecorded: src.datesAsRecorded,
       selectedTaskIds: [],
+      activeTaskId: null,
       view: deepClone(src.view),
       collapsedTaskIds: deepClone(src.collapsedTaskIds),
       filePath: null,

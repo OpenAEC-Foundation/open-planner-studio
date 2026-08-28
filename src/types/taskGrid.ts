@@ -80,6 +80,8 @@ export interface RelationSetIntent {
 export interface AssignmentSetIntent {
   kind: 'assignment-set';
   taskId: string;
+  /** De assignmentkolom die deze set heeft gepland. Membership mag alleen via resources wijzigen. */
+  columnId: TaskColumnId;
   tokens: readonly TaskAssignmentToken[];
 }
 
@@ -140,5 +142,8 @@ export interface TaskColumnDescriptor {
   parse?: (text: string, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
   validate?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
   planWrite?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<readonly GridWriteIntent[], readonly CellValidationError[]>;
+  /** Zelfde writer zonder conditionele read-onlyvoorpoort. Alleen de meercellige pasteplanner
+   * gebruikt dit; de atomaire transactielaag beoordeelt schrijfbaarheid tegen de geordende draft. */
+  planWriteUnchecked?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<readonly GridWriteIntent[], readonly CellValidationError[]>;
   autoFitText(task: Task, ctx: TaskColumnContext): string;
 }

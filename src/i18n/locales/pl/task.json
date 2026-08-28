@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "Czas pracy", "ELAPSEDTIME": "Czas, który upłynął" },
   "table": {
     "title": "Tabela",
     "wbs": "WBS",
@@ -46,7 +47,7 @@
       "cycle": "Ta zmiana utworzyłaby cykl w harmonogramie."
     },
     "controls": {
-      "collapse": "Zwiń", "expand": "Rozwiń", "resize": "Zmień szerokość", "remove": "Usuń", "pin": "Przypnij",
+      "collapse": "Zwiń", "expand": "Rozwiń", "resize": "Zmień szerokość", "resizeTaskGrid": "Zmień rozmiar siatki zadań", "remove": "Usuń", "pin": "Przypnij",
       "unpin": "Odepnij", "autoFit": "Dopasuj automatycznie", "search": "Szukaj", "searchResults": "Wyniki wyszukiwania", "noResults": "Brak wyników"
     },
     "history": {
@@ -59,12 +60,32 @@
       "autoFitColumn": "Automatycznie dopasuj kolumnę {{column}}"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} przypisania kodów czynności",
-      "customFields": "{{count}} pola niestandardowe",
-      "internalRelations": "{{count}} relacje wewnętrzne",
-      "externalRelations": "{{count}} relacje zewnętrzne",
-      "baselineMissing": "Brak w tym planie bazowym"
+      "activityCodeAssignments_one": "{{count}} przypisanie kodu czynności",
+      "activityCodeAssignments_few": "{{count}} przypisania kodów czynności",
+      "activityCodeAssignments_many": "{{count}} przypisań kodów czynności",
+      "activityCodeAssignments_other": "{{count}} przypisania kodu czynności",
+      "customFields_one": "{{count}} pole niestandardowe",
+      "customFields_few": "{{count}} pola niestandardowe",
+      "customFields_many": "{{count}} pól niestandardowych",
+      "customFields_other": "{{count}} pola niestandardowego",
+      "internalRelations_one": "{{count}} relacja wewnętrzna",
+      "internalRelations_few": "{{count}} relacje wewnętrzne",
+      "internalRelations_many": "{{count}} relacji wewnętrznych",
+      "internalRelations_other": "{{count}} relacji wewnętrznej",
+      "externalRelations_one": "{{count}} relacja zewnętrzna",
+      "externalRelations_few": "{{count}} relacje zewnętrzne",
+      "externalRelations_many": "{{count}} relacji zewnętrznych",
+      "externalRelations_other": "{{count}} relacji zewnętrznej",
+      "baselineMissing": "Brak w tym planie bazowym",
+      "baselineVarianceStart": "Odchylenie rozpoczęcia",
+      "baselineVarianceFinish": "Odchylenie zakończenia",
+      "baselineVarianceDuration": "Odchylenie czasu trwania"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "Nierozpoczęte",
+    "STARTED": "W toku",
+    "COMPLETED": "Ukończone"
   },
   "taskType": {
     "CONSTRUCTION": "Budowa",
@@ -278,7 +299,9 @@
     "directionSuccessor": "Następnik (ja → zewnętrzny)",
     "relType": "Typ relacji",
     "lag": "Zwłoka (dni robocze)",
+    "lagPlaceholder": "0d lub 2h",
     "anchorDate": "Data zakotwiczenia",
+    "chooseNewAnchorAfterSideChange": "Wybierz nową kotwicę: typ relacji używa teraz drugiej strony zadania źródłowego.",
     "manualTitle": "Ręcznie (rozwiązanie zastępcze)",
     "manualHint": "Nie masz pliku pod ręką? Wklej identyfikator projektu i identyfikator zadania zadania zewnętrznego.",
     "projectId": "Identyfikator projektu",

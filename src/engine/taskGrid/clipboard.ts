@@ -1,5 +1,5 @@
 import { canonicalGridJson } from '@/engine/taskGrid/taskColumnRegistry';
-import { copyGridEditorValue, parseGridEditorText } from './editors';
+import { copyGridEditorValue, parseGridEditorText, type TaskGridBooleanLabels } from './editors';
 import { gridSelectionCells, type GridCellAddress, type GridSelectionState } from './selection';
 import type { TaskGridRowIndex } from './rowIndex';
 import type { DateNotation } from '@/types/view';
@@ -20,6 +20,7 @@ export interface TaskGridClipboardEnvironment {
   descriptors: ReadonlyMap<TaskColumnId, TaskColumnDescriptor>;
   context: TaskColumnContext;
   dateNotation: DateNotation;
+  booleanLabels?: TaskGridBooleanLabels;
 }
 
 function error(
@@ -129,7 +130,9 @@ export function copyTaskGridSelection(
     for (const columnId of rectangle.columns) {
       const descriptor = environment.descriptors.get(columnId);
       if (!descriptor || !descriptor.available(environment.context)) return fail('plannerNotAvailable', columnId);
-      values.push(copyGridEditorValue(descriptor, row.task, environment.context, environment.dateNotation));
+      values.push(copyGridEditorValue(
+        descriptor, row.task, environment.context, environment.dateNotation, environment.booleanLabels,
+      ));
     }
     matrix.push(values);
   }
@@ -191,13 +194,17 @@ export function planTaskGridPaste(
       if (!descriptor || !descriptor.available(environment.context)) {
         return { ok: false, errors: [error('plannerNotAvailable', source, cell, task.id)] };
       }
-      const readOnly = typeof descriptor.readOnly === 'function'
-        ? descriptor.readOnly(task, environment.context)
-        : descriptor.readOnly;
-      if (readOnly || !descriptor.parse || !descriptor.planWrite) {
+      // Statisch berekende kolommen hebben geen ongecontroleerde writer en blijven hier al rood.
+      // Conditionele schrijfbaarheid (mijlpaal, constraint, hammock, assignments) kan echter door
+      // een andere cel in dezelfde paste veranderen en wordt daarom pas op de transactiedraft
+      // beoordeeld.
+      const planWrite = descriptor.planWriteUnchecked ?? descriptor.planWrite;
+      if (!descriptor.parse || !planWrite) {
         return { ok: false, errors: [error('readOnly', source, cell, task.id)] };
       }
-      const parsedValue = parseGridEditorText(descriptor, source, task, environment.context, environment.dateNotation);
+      const parsedValue = parseGridEditorText(
+        descriptor, source, task, environment.context, environment.dateNotation, environment.booleanLabels,
+      );
       if (!parsedValue.ok) {
         const first = parsedValue.errors[0] ?? error('invalid', source);
         return { ok: false, errors: [{ ...first, taskId: task.id, rowKey, columnId, value: source }] };
@@ -209,11 +216,6 @@ export function planTaskGridPaste(
         const first = validated.errors[0] ?? error('invalid', source);
         return { ok: false, errors: [{ ...first, taskId: task.id, rowKey, columnId, value: source }] };
       }
-      const planned = descriptor.planWrite(validated.value, task, environment.context);
-      if (!planned.ok) {
-        const first = planned.errors[0] ?? error('invalid', source);
-        return { ok: false, errors: [{ ...first, taskId: task.id, rowKey, columnId, value: source }] };
-      }
       const key = `${task.id}\u0000${columnId}`;
       const previous = byTarget.get(key);
       if (byTarget.has(key)) {
@@ -223,6 +225,30 @@ export function planTaskGridPaste(
         continue;
       }
       byTarget.set(key, validated.value);
+
+      // Een kopie die semantisch dezelfde waarde terugplakt is geen bewerking. Vergelijk de
+      // geparseerde/geverifieerde canonieke waarden, niet de zichtbare tekst: dat houdt persoonlijke
+      // datumnotatie, gelokaliseerde booleans en duurweergave correct. De duplicatecontrole staat
+      // bewust hierboven, zodat twee occurrences met verschillende bronwaarden ook rood blijven
+      // wanneer één van beide toevallig gelijk is aan de huidige cel.
+      const currentText = copyGridEditorValue(
+        descriptor, task, environment.context, environment.dateNotation, environment.booleanLabels,
+      );
+      const parsedCurrent = parseGridEditorText(
+        descriptor, currentText, task, environment.context, environment.dateNotation, environment.booleanLabels,
+      );
+      const validatedCurrent = parsedCurrent.ok && descriptor.validate
+        ? descriptor.validate(parsedCurrent.value, task, environment.context)
+        : parsedCurrent;
+      if (validatedCurrent.ok
+        && canonicalGridJson(validatedCurrent.value) === canonicalGridJson(validated.value)) {
+        continue;
+      }
+      const planned = planWrite(validated.value, task, environment.context);
+      if (!planned.ok) {
+        const first = planned.errors[0] ?? error('invalid', source);
+        return { ok: false, errors: [{ ...first, taskId: task.id, rowKey, columnId, value: source }] };
+      }
       writes.push(...planned.value);
     }
   }

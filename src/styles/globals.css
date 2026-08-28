@@ -691,6 +691,28 @@
   font: inherit;
 }
 
+.task-grid-date-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+}
+
+.task-grid-date-editor .task-grid-editor-input {
+  border-inline-end: 0;
+}
+
+.task-grid-date-picker {
+  width: 2.25rem;
+  min-width: 0;
+  height: 100%;
+  padding: 0 2px;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-accent);
+  font: inherit;
+}
+
 .task-grid-assignment-editor {
   position: absolute;
   z-index: var(--z-dropdown);

@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "Work time", "ELAPSEDTIME": "Elapsed time" },
   "table": {
     "title": "Table",
     "wbs": "WBS",
@@ -128,6 +129,7 @@
       "collapse": "Collapse",
       "expand": "Expand",
       "resize": "Resize",
+      "resizeTaskGrid": "Resize task grid",
       "remove": "Remove",
       "pin": "Pin",
       "unpin": "Unpin",
@@ -146,12 +148,24 @@
       "autoFitColumn": "Auto-fit column {{column}}"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} activity code assignments",
-      "customFields": "{{count}} custom fields",
-      "internalRelations": "{{count}} internal relationships",
-      "externalRelations": "{{count}} external relationships",
-      "baselineMissing": "Not present in this baseline"
+      "activityCodeAssignments_one": "{{count}} activity code assignment",
+      "activityCodeAssignments_other": "{{count}} activity code assignments",
+      "customFields_one": "{{count}} custom field",
+      "customFields_other": "{{count}} custom fields",
+      "internalRelations_one": "{{count}} internal relationship",
+      "internalRelations_other": "{{count}} internal relationships",
+      "externalRelations_one": "{{count}} external relationship",
+      "externalRelations_other": "{{count}} external relationships",
+      "baselineMissing": "Not present in this baseline",
+      "baselineVarianceStart": "Start variance",
+      "baselineVarianceFinish": "Finish variance",
+      "baselineVarianceDuration": "Duration variance"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "Not started",
+    "STARTED": "In progress",
+    "COMPLETED": "Completed"
   },
   "taskType": {
     "CONSTRUCTION": "Construction",
@@ -365,7 +379,9 @@
     "directionSuccessor": "Successor (me → external)",
     "relType": "Relationship type",
     "lag": "Lag (work days)",
+    "lagPlaceholder": "0d or 2h",
     "anchorDate": "Anchor date",
+    "chooseNewAnchorAfterSideChange": "Choose a new anchor: the relationship type now uses the other side of the source task.",
     "manualTitle": "Manual (fallback)",
     "manualHint": "No file at hand? Paste the external task's project id and task id.",
     "projectId": "Project id",

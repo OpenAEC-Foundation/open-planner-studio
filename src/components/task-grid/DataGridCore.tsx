@@ -72,6 +72,30 @@ export interface DataGridCoreProps {
   onReorderColumn?: DataGridHeaderProps['onReorderColumn'];
 }
 
+/** Eén eigenaar voor een herkende gridtoets: annuleer browsergedrag, stop bubbling en voer exact
+ * één gridopdracht uit. De losse functie houdt dezelfde native-eventketen regressietestbaar. */
+export function dispatchDataGridKeyCommand(
+  event: Pick<KeyboardEvent<HTMLDivElement>, 'preventDefault' | 'stopPropagation'>,
+  command: TaskGridCommand,
+  onCommand: (command: TaskGridCommand) => void,
+): boolean {
+  if (command.kind === 'unhandled') return false;
+  event.preventDefault();
+  event.stopPropagation();
+  onCommand(command);
+  return true;
+}
+
+type ClosestClipboardTarget = { closest?: (selector: string) => unknown };
+
+/** Composite editors houden hun tekstklembord; alleen een gewone gridcel gebruikt TSV. */
+export function shouldHandleDataGridClipboardEvent(event: {
+  target: EventTarget | ClosestClipboardTarget | null;
+}): boolean {
+  return !(event.target as ClosestClipboardTarget | null)
+    ?.closest?.('input, textarea, select, [contenteditable="true"]');
+}
+
 function sameCell(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
   return left?.rowKey === right?.rowKey && left?.columnId === right?.columnId;
 }
@@ -99,6 +123,23 @@ function selectedCell(
 function nextFrame(callback: () => void): void {
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(callback);
   else setTimeout(callback, 0);
+}
+
+interface DataGridScrollTarget {
+  scrollTop: number;
+  scrollLeft: number;
+}
+
+/** Houd de werkelijke scrollcontainer gelijk aan de gecontroleerde scrollprops. Dit is ook nodig
+ * bij programmatische Gantt-sprongen: virtualisatie rekent met `scrollTop`, terwijl de browser de
+ * DOM-viewport anders op de oude positie laat staan. */
+export function synchronizeDataGridScrollPosition(
+  container: DataGridScrollTarget,
+  scrollTop: number,
+  scrollLeft: number,
+): void {
+  if (container.scrollTop !== scrollTop) container.scrollTop = scrollTop;
+  if (container.scrollLeft !== scrollLeft) container.scrollLeft = scrollLeft;
 }
 
 export function DataGridCore({
@@ -145,8 +186,8 @@ export function DataGridCore({
   const [announcedMessage, setAnnouncedMessage] = useState('');
   useEffect(() => {
     const container = containerRef.current;
-    if (container && container.scrollLeft !== scrollLeft) container.scrollLeft = scrollLeft;
-  }, [scrollLeft]);
+    if (container) synchronizeDataGridScrollPosition(container, scrollTop, scrollLeft);
+  }, [scrollLeft, scrollTop]);
   const virtual = useMemo(() => computeVirtualWindow({
     totalRows: rows.length,
     rowHeight,
@@ -266,7 +307,6 @@ export function DataGridCore({
       columns: columns.map(column => column.id),
       rowHeight,
       viewportHeight,
-      textDirection,
       isReadOnly: cell => {
         const rowIndex = rowIndexByKey.get(cell.rowKey);
         const columnIndex = columnIndexById.get(cell.columnId);
@@ -275,9 +315,7 @@ export function DataGridCore({
         return !row || row.kind !== 'data' || !column || getCell(row, column).readOnly;
       },
     });
-    if (command.kind === 'unhandled') return;
-    event.preventDefault();
-    onCommand(command);
+    dispatchDataGridKeyCommand(event, command, onCommand);
   };
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
@@ -301,13 +339,17 @@ export function DataGridCore({
         aria-colcount={columns.length}
         tabIndex={activeMounted ? -1 : 0}
         className="task-grid-core"
-        dir={textDirection}
+        dir="ltr"
         data-grid-sticky-enabled={pinned.stickyEnabled ? 'true' : 'false'}
         style={{ width: viewportWidth, height: headerHeight + viewportHeight, direction: 'ltr' }}
         onScroll={handleScroll}
         onKeyDown={handleKeyDown}
-        onCopy={onCopy}
-        onPaste={onPaste}
+        onCopy={event => {
+          if (shouldHandleDataGridClipboardEvent(event)) onCopy?.(event);
+        }}
+        onPaste={event => {
+          if (shouldHandleDataGridClipboardEvent(event)) onPaste?.(event);
+        }}
       >
         <DataGridHeader
           columns={columns}

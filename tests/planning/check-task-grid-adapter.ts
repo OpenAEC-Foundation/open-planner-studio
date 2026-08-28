@@ -29,6 +29,10 @@ const task = {
     isCritical: true, completion: 0,
   },
 } as Task;
+const preciseTask = {
+  ...task,
+  time: { ...task.time, scheduleStart: '2026-01-01T08:30:45.123Z' },
+} as Task;
 const rows: ViewRow[] = [
   { kind: 'group', rowKey: 'groep-a', key: 'groep-a', label: 'Ploeg A', count: 1, depth: 0, levelIndex: 0, collapsed: false },
   { kind: 'task', rowKey: 'occurrence-a', task, depth: 1, dimmed: false },
@@ -63,10 +67,40 @@ const table = createTaskGridAdapter({ ...baseInput, surfaceId: 'full-task-grid' 
 const personalDates = createTaskGridAdapter({
   ...baseInput, surfaceId: 'full-task-grid', dateNotation: 'dmy',
 });
+const americanDates = createTaskGridAdapter({
+  ...baseInput, surfaceId: 'full-task-grid', dateNotation: 'mdy',
+});
+const isoOrderedDates = createTaskGridAdapter({
+  ...baseInput, surfaceId: 'full-task-grid', dateNotation: 'ymd',
+});
 const englishBooleans = createTaskGridAdapter({
   ...baseInput,
   surfaceId: 'full-task-grid',
   labelForBoolean: value => value ? 'Yes' : 'No',
+});
+const localizedEnums = createTaskGridAdapter({
+  ...baseInput,
+  surfaceId: 'full-task-grid',
+  labelForText: key => ({
+    'taskStatus.NOT_STARTED': 'Niet gestart',
+    'taskType.CONSTRUCTION': 'Bouw',
+  }[key] ?? key),
+});
+const localizedAssignmentCurve = createTaskGridAdapter({
+  ...baseInput,
+  surfaceId: 'full-task-grid',
+  resources: [{ id: 'res-1', name: 'Ploeg Noord', type: 'LABOR', description: '', maxUnits: 1 }],
+  assignments: [{
+    id: 'asgn-1', taskId: task.id, resourceId: 'res-1', unitsPerDay: 1, curve: 'FRONT_LOADED',
+  }],
+  labelForText: key => key === 'resource.curve.frontLoaded' ? 'Vroeg belast' : key,
+});
+const preciseDates = createTaskGridAdapter({
+  ...baseInput,
+  surfaceId: 'full-task-grid',
+  tasks: [predecessor, preciseTask],
+  rows: rows.map(row => row.kind === 'task' ? { ...row, task: preciseTask } : row),
+  dateNotation: 'dmy',
 });
 
 eq('Beide surfaces krijgen exact dezelfde rijprojectie', gantt.rows, table.rows);
@@ -113,9 +147,43 @@ eq('Boolean-editor krijgt een taalneutrale canonieke startwaarde',
 eq('Booleans krijgen voor schermweergave het locale label van de surface',
   englishBooleans.getCell('occurrence-a', taskColumnId('task.isMilestone'))?.text,
   'No');
+eq('Booleans krijgen voor klembord dezelfde lokale tekst als op het scherm',
+  englishBooleans.getCell('occurrence-a', taskColumnId('task.isMilestone'))?.copyText,
+  'No');
+eq('Statusenum wordt in de zichtbare cel vertaald',
+  localizedEnums.getCell('occurrence-a', taskColumnId('task.status'))?.text,
+  'Niet gestart');
+eq('Taaktype-enum wordt in de zichtbare cel vertaald',
+  localizedEnums.getCell('occurrence-a', taskColumnId('task.taskType'))?.text,
+  'Bouw');
+eq('Assignmentcurve wordt in de zichtbare cel vertaald maar houdt zijn canonieke edittekst', (() => {
+  const cell = localizedAssignmentCurve.getCell('occurrence-a', taskColumnId('assignment.curve'));
+  return { text: cell?.text, editText: cell?.editText };
+})(), { text: 'Ploeg Noord: Vroeg belast', editText: 'Ploeg Noord: FRONT_LOADED' });
 eq('Datumeditor start in de persoonlijke notatie',
   personalDates.getCell('occurrence-a', taskColumnId('task.time.scheduleStart'))?.editText,
   '01-01-2026');
+eq('Normale datumcel gebruikt dezelfde persoonlijke notatie als de editor',
+  personalDates.getCell('occurrence-a', taskColumnId('task.time.scheduleStart'))?.text,
+  '01-01-2026');
+eq('Ook maand-dag-jaar gebruikt voor cel en editor exact dezelfde persoonlijke notatie', (() => {
+  const cell = americanDates.getCell('occurrence-a', taskColumnId('task.time.scheduleStart'));
+  return [cell?.text, cell?.editText];
+})(), ['01-01-2026', '01-01-2026']);
+eq('Ook jaar-maand-dag gebruikt voor cel en editor exact dezelfde persoonlijke notatie', (() => {
+  const cell = isoOrderedDates.getCell('occurrence-a', taskColumnId('task.time.scheduleStart'));
+  return [cell?.text, cell?.editText];
+})(), ['2026-01-01', '2026-01-01']);
+eq('Een gewone tekstcel houdt de volledige celtekst beschikbaar als bestaande tooltip',
+  gantt.getCell('occurrence-a', taskColumnId('task.description'))?.title,
+  'Beton');
+eq('Datumtitel bewaart de volledige canonieke waarde inclusief seconden en tijdzone',
+  preciseDates.getCell('occurrence-a', taskColumnId('task.time.scheduleStart'))?.title,
+  '2026-01-01T08:30:45.123Z');
+eq('Datumcel blijft ondanks de volledige titel in persoonlijke minuutprecisie staan', (() => {
+  const cell = preciseDates.getCell('occurrence-a', taskColumnId('task.time.scheduleStart'));
+  return [cell?.text, cell?.editText, cell?.copyText];
+})(), ['01-01-2026 08:30', '01-01-2026 08:30', '01-01-2026 08:30']);
 const personalDatePlan = personalDates.planEdit(
   'occurrence-a', taskColumnId('task.time.scheduleStart'), '07-01-2026',
 );

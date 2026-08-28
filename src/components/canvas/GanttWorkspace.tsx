@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { useSplitter } from '@/hooks/useSplitter';
 import {
@@ -9,20 +10,35 @@ import {
 import type { Task } from '@/types/task';
 import { GanttTaskGrid } from '@/components/task-grid/GanttTaskGrid';
 import { GanttCanvas, type GanttGridRevealRequest } from './GanttCanvas';
+import { clampTaskGridWidth, effectiveTaskGridMax } from './ganttSplitter';
 
 export function GanttWorkspace() {
+  const { t } = useTranslation('task');
   const workspaceRef = useRef<HTMLDivElement>(null);
   const leftPanelWidth = useAppStore(state => state.ui.leftPanelWidth);
   const setUI = useAppStore(state => state.setUI);
   const [revealRequest, setRevealRequest] = useState<GanttGridRevealRequest | null>(null);
   const [histogramHost, setHistogramHost] = useState<HTMLDivElement | null>(null);
   const [miniMapHost, setMiniMapHost] = useState<HTMLDivElement | null>(null);
+  const [workspaceWidth, setWorkspaceWidth] = useState(TASK_TABLE_MAX_WIDTH + 180);
+  const taskGridMax = effectiveTaskGridMax(workspaceWidth);
+  const renderedLeftPanelWidth = clampTaskGridWidth(leftPanelWidth, workspaceWidth);
+
+  useEffect(() => {
+    const node = workspaceRef.current;
+    if (!node) return;
+    const update = () => setWorkspaceWidth(node.getBoundingClientRect().width);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const splitter = useSplitter({
     min: TASK_TABLE_MIN_WIDTH,
     max: () => {
-      const width = workspaceRef.current?.getBoundingClientRect().width ?? TASK_TABLE_MAX_WIDTH;
-      return Math.min(TASK_TABLE_MAX_WIDTH, Math.max(TASK_TABLE_MIN_WIDTH, width - 180));
+      const width = workspaceRef.current?.getBoundingClientRect().width ?? workspaceWidth;
+      return effectiveTaskGridMax(width);
     },
     computeSize: event => {
       const rect = workspaceRef.current?.getBoundingClientRect();
@@ -40,16 +56,16 @@ export function GanttWorkspace() {
 
   return (
     <div ref={workspaceRef} className="gantt-workspace" data-testid="gantt-workspace">
-      <div className="gantt-workspace-grid" style={{ width: leftPanelWidth }}>
+      <div className="gantt-workspace-grid" style={{ width: renderedLeftPanelWidth }}>
         <GanttTaskGrid onPlainTaskClick={revealTask} />
       </div>
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize task grid"
+        aria-label={t('taskGrid.controls.resizeTaskGrid')}
         aria-valuemin={TASK_TABLE_MIN_WIDTH}
-        aria-valuemax={TASK_TABLE_MAX_WIDTH}
-        aria-valuenow={Math.round(leftPanelWidth)}
+        aria-valuemax={taskGridMax}
+        aria-valuenow={renderedLeftPanelWidth}
         tabIndex={0}
         data-testid="gantt-workspace-splitter"
         className="gantt-workspace-splitter"
@@ -59,9 +75,9 @@ export function GanttWorkspace() {
           if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
           event.preventDefault();
           const direction = event.key === 'ArrowLeft' ? -1 : 1;
-          const next = Math.min(
-            TASK_TABLE_MAX_WIDTH,
-            Math.max(TASK_TABLE_MIN_WIDTH, leftPanelWidth + direction * (event.shiftKey ? 40 : 10)),
+          const next = clampTaskGridWidth(
+            renderedLeftPanelWidth + direction * (event.shiftKey ? 40 : 10),
+            workspaceWidth,
           );
           setUI({ leftPanelWidth: next });
           void saveLeftPanelWidth(next);
@@ -71,7 +87,7 @@ export function GanttWorkspace() {
         <GanttCanvas
           revealRequest={revealRequest}
           histogramHost={histogramHost}
-          histogramPickerWidth={leftPanelWidth}
+          histogramPickerWidth={renderedLeftPanelWidth}
           miniMapHost={miniMapHost}
         />
       </div>

@@ -65,12 +65,37 @@ const initial = createDefaultTaskGridPreferences({
   projectId: '', activityCodeTypeIds: [], customFieldDefIds: [],
 });
 
+/** Scroll-events komen tijdens trackpad- en muiswielgebruik iedere frame binnen. De zichtbare
+ *  Zustand-state blijft direct actueel, maar de synchrone localStorage-write wacht tot de gebruiker
+ *  even gestopt is. Niet-scrollmutaties slaan meteen op en annuleren een ouder scrolltimer. */
+const TASK_GRID_SCROLL_PERSIST_DELAY_MS = 120;
+
 export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
   // Per store-instantie, buiten de serialiseerbare Zustand-state. `hydratePayload` kan hierdoor de
   // oude actieve `view.columns` veilig weg-normaliseren zonder de eenmalige migratiebron te verliezen.
   // Na een expliciete nieuwe voorkeur of een bootstrap-hydrate is de bron definitief irrelevant.
   let preferencesReady = false;
   let pendingLegacyColumns: PendingLegacyTaskGridColumns | null = null;
+  let scrollPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const cancelScheduledScrollPersistence = () => {
+    if (scrollPersistenceTimer === null) return;
+    clearTimeout(scrollPersistenceTimer);
+    scrollPersistenceTimer = null;
+  };
+
+  const persistImmediately = (preferences: PersistedTaskGridPreferencesV1) => {
+    cancelScheduledScrollPersistence();
+    void saveTaskGridPreferences(preferences);
+  };
+
+  const scheduleScrollPersistence = () => {
+    cancelScheduledScrollPersistence();
+    scrollPersistenceTimer = setTimeout(() => {
+      scrollPersistenceTimer = null;
+      void saveTaskGridPreferences(payloadFromState(get()));
+    }, TASK_GRID_SCROLL_PERSIST_DELAY_MS);
+  };
 
   const markPreferencesReady = () => {
     preferencesReady = true;
@@ -102,7 +127,7 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
         state.taskGridSurfaces[surface].columns = normalized;
         persisted = payloadFromState(state);
       });
-      if (persisted) void saveTaskGridPreferences(persisted);
+      if (persisted) persistImmediately(persisted);
     },
 
     commitTaskGridColumns: (surface, label, columns) => {
@@ -123,19 +148,17 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
       });
       if (!recorded) return;
       markPreferencesReady();
-      if (persisted) void saveTaskGridPreferences(persisted);
+      if (persisted) persistImmediately(persisted);
     },
 
     setTaskGridScrollX: (surface, scrollX) => {
       const normalized = normalizeTaskGridScrollX(scrollX);
       if (normalized === null) return;
       markPreferencesReady();
-      let persisted: PersistedTaskGridPreferencesV1 | null = null;
       set((state) => {
         state.taskGridSurfaces[surface].scrollX = normalized;
-        persisted = payloadFromState(state);
       });
-      if (persisted) void saveTaskGridPreferences(persisted);
+      scheduleScrollPersistence();
     },
 
     recordRecentTaskColumn: (id) => {
@@ -145,7 +168,7 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
         state.recentTaskColumns = recordRecentTaskColumnId(state.recentTaskColumns, id);
         persisted = payloadFromState(state);
       });
-      if (persisted) void saveTaskGridPreferences(persisted);
+      if (persisted) persistImmediately(persisted);
     },
 
     applyTaskGridLayoutColumns: (columns) => {

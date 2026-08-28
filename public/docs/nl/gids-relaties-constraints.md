@@ -7,7 +7,7 @@ Taken die los van elkaar staan, verschuiven niet mee als de planning verandert. 
 - De vier relatietypes (FS/SS/FF/SF) en wanneer je welke gebruikt.
 - Waar je een relatie wel en niet aan mag hangen — mijlpalen en samenvattingstaken kunnen allebei; alleen een relatie naar je eigen (voor)ouderfase wordt geweigerd.
 - Lag en lead, inclusief procentuele lag en doorlooptijd-lag (bijvoorbeeld voor uitharding van beton).
-- Relaties leggen op drie manieren: slepen, selectie, en de relatietabel.
+- Relaties leggen op drie manieren: slepen, selectie, en voorganger-/opvolgercellen in de taakgrid.
 - Alle acht constraint-types, plus de harde pin (P6 Mandatory) en de secundaire constraint.
 - Het verschil tussen een deadline en een constraint.
 
@@ -37,11 +37,11 @@ logisch zinloos, en zonder deze weigering zou hij bij het doorrekenen een kring 
 die via de eigen tak heen en terug loopt, wat de hele berekening laat vastlopen. Bevat een geopend
 bestand toch zo'n relatie — bijvoorbeeld uit Primavera P6 of MS Project, die dat wél toestaan — dan
 blijft hij bewaard en gaat hij bij het opslaan gewoon weer mee, maar hij telt niet mee in de
-berekening: in het Relaties-paneel staat hij gemarkeerd als *niet meegerekend*.
+berekening: de relatiewaarschuwingenkolom in de taakgrid markeert hem als *niet meegerekend*.
 
 ## Lag en lead
 
-Een relatie hoeft niet op nul te staan: een **lag** (positief) voegt wachttijd toe tussen voorganger en opvolger, een **lead** (negatief, uitgedrukt als een negatief getal) laat de opvolger juist eerder beginnen — een bewuste overlap. Het lag-veld (**Lag**, in het eigenschappenpaneel en in de relatietabel) accepteert een korte notatie:
+Een relatie hoeft niet op nul te staan: een **lag** (positief) voegt wachttijd toe tussen voorganger en opvolger, een **lead** (negatief, uitgedrukt als een negatief getal) laat de opvolger juist eerder beginnen — een bewuste overlap. Het lag-veld (**Lag**, in het eigenschappenpaneel en in de editor van een voorganger-/opvolgercel) accepteert een korte notatie:
 
 - `2d` — 2 werkdagen lag (de standaard-eenheid: dagen op de projectkalender).
 - `3ed` — 3 **doorlooptijd**-dagen (elapsed days): kalenderdagen die ook in het weekend of op feestdagen doorlopen. Dit is de eenheid die je wilt voor bijvoorbeeld het **uitharden van beton**: het beton hardt ook op zaterdag en zondag uit, dus een lag van "3 werkdagen" zou de uithardingstijd onderschatten als er een weekend tussen valt. Zet in dat geval de lag op elapsed-eenheid.
@@ -55,8 +55,8 @@ Een negatief getal (lead) betekent dat de opvolger al start terwijl de voorgange
 Er zijn drie manieren om een relatie aan te maken, afhankelijk van waar je toch al aan het werk bent:
 
 1. **Slepen in het Gantt-diagram**: houd **Shift** ingedrukt en sleep van de balk van de voorganger naar de balk van de opvolger. Zodra je loslaat, ontstaat direct een FS-relatie met lag 0, en verschijnt meteen het venster **Type relatie** — daarin pas je het type (FS/SS/FF/SF) en de lag aan zonder het eigenschappenpaneel te hoeven openen.
-2. **Selectie + knop**: selecteer eerst de voorganger, houd Ctrl/Cmd ingedrukt en selecteer daarna de opvolger (in die volgorde). Zijn er zo precies twee taken geselecteerd, klik dan op **Relatie** — dezelfde knop die anders de afhankelijkheids-tekenmodus omschakelt, te vinden op het tabblad **Start**, in de lintgroep **Relaties** op het tabblad **Planning**, of op het losse tabblad **Relaties** — en er wordt meteen een FS-relatie met vertraging 0 aangemaakt, zonder dat het venster Relatietype opent. Het tabblad **Relaties** heeft in de tabelwerkbalk ook een eigen knop **Nieuwe relatie uit selectie** die hetzelfde doet. Wijzig achteraf het type of de vertraging in de relatietabel als je iets anders dan een gewone FS nodig hebt.
-3. **Rechtstreeks in de relatietabel**: open het tabblad **Relaties** (via **Beheer** in de lintgroep Relaties). De tabel toont per relatie de kolommen **Voorganger**, **Type**, **Lag**, **Opvolger**, **Bepalend** en **Vrije speling** — type en lag zijn hier direct te bewerken, ook voor relaties die je eerder via slepen of selectie hebt aangemaakt.
+2. **Selectie + knop**: selecteer eerst de voorganger, houd Ctrl/Cmd ingedrukt en selecteer daarna de opvolger (in die volgorde). Zijn er zo precies twee taken geselecteerd, kies dan **Relatie → Geselecteerde taken koppelen** op het tabblad **Start**, **Planning** of **Tabel**. Er wordt meteen een FS-relatie met vertraging 0 aangemaakt. Open het relatietoken daarna in de taakgrid als je type of lag wilt wijzigen.
+3. **Rechtstreeks in de taakgrid**: voeg via het plusje de kolom **Voorgangers** of **Opvolgers** toe. Open een cel, zoek op WBS/taaknaam en stel FS/SS/FF/SF plus lag in. Bestaande relatietokens kun je openen om ze te wijzigen of verwijderen; vrije speling, bepalende status en waarschuwingen zijn als aparte kolommen beschikbaar.
 
 De kolom **Bepalend** (driving) laat na een berekening zien welke relatie daadwerkelijk de start- of einddatum van de opvolger bepaalt — bij een taak met meerdere voorgangers is dat niet per se de relatie die je het laatst hebt aangemaakt, maar degene met de laatste (bepalende) datum.
 

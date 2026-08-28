@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server.browser';
 import {
@@ -44,6 +45,7 @@ const adapter = createTaskGridAdapter({
   tasks: [task], sequences: [], assignments: [], resources: [], baselines: [],
   activityCodeTypes: [], customFieldDefs: [], scheduleStale: false, wbsAutoNumber: false,
   selectedTaskIds: [], labelForColumn: key => key,
+  labelForBoolean: value => value ? 'WAAR' : 'ONWAAR',
   calendarOptions: [{ value: 'cal-bouw', label: 'Bouwkalender' }],
   callbacks: {
     onPrepareEdit: () => allowPrepare,
@@ -110,9 +112,6 @@ const booleanMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   cell: { rowKey: 'occ-1', columnId: taskColumnId('task.isMilestone') },
   label: 'Mijlpaal',
   messageForError,
-  labelForOption: (key: string, value: string) => key === 'boolean.true'
-    ? 'WAAR'
-    : key === 'boolean.false' ? 'ONWAAR' : value,
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
@@ -132,6 +131,20 @@ ok('Autocomplete-editor koppelt een echte suggestielijst',
   autocompleteMarkup.includes('data-task-editor-kind="autocomplete"')
     && autocompleteMarkup.includes('<datalist')
     && autocompleteMarkup.includes('Bouwkalender'));
+const dateMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+  adapter,
+  cell: { rowKey: 'occ-1', columnId: taskColumnId('task.deadline') },
+  label: 'Start',
+  calendarPickerLabel: 'Kies startdatum',
+  messageForError,
+  onCancel: () => undefined,
+  onFocusCell: () => undefined,
+}));
+ok('Datumeditor combineert persoonlijke tekstinvoer met een echte kalenderkiezer',
+  dateMarkup.includes('data-task-editor-kind="date"')
+    && dateMarkup.includes('data-task-editor-picker="date"')
+    && dateMarkup.includes('type="date"')
+    && dateMarkup.includes('aria-label="Kies startdatum"'));
 
 let assignmentCommit: readonly GridIntent[] | null = null;
 const assignmentAdapter = createTaskGridAdapter({
@@ -168,10 +181,33 @@ ok('Assignmentcel opent een inline tokeneditor en geen los paneel',
     && assignmentMarkup.includes('data-assignment-resource-id="res-1"')
     && assignmentMarkup.includes('role="combobox"')
     && !assignmentMarkup.includes('ops-assignment'));
-ok('Assignmenttoken toont units, curve en verwijdering binnen dezelfde editor',
-  assignmentMarkup.includes('value="1.5"')
-    && assignmentMarkup.includes('<option value="BELL" selected="">BELL</option>')
-    && assignmentMarkup.includes('aria-label="remove Ploeg Noord"'));
+ok('Resourcekolom toont alleen lidmaatschap en geen units/curvebesturing',
+  assignmentMarkup.includes('aria-label="remove Ploeg Noord"')
+    && !assignmentMarkup.includes('type="number"')
+    && !assignmentMarkup.includes('<option value="BELL"'));
+const unitsMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+  adapter: assignmentAdapter,
+  cell: { rowKey: 'occ-1', columnId: taskColumnId('assignment.unitsPerDay') },
+  label: 'Units', messageForError, onCancel: () => undefined, onFocusCell: () => undefined,
+}));
+ok('Unitskolom toont alleen units en geen membership- of curvebesturing',
+  unitsMarkup.includes('type="number"')
+    && !unitsMarkup.includes('role="combobox"')
+    && !unitsMarkup.includes('<option value="BELL"'));
+const curveMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
+  adapter: assignmentAdapter,
+  cell: { rowKey: 'occ-1', columnId: taskColumnId('assignment.curve') },
+  label: 'Curve', messageForError, onCancel: () => undefined, onFocusCell: () => undefined,
+}));
+ok('Curvekolom toont alleen curve en geen membership- of unitsbesturing',
+  curveMarkup.includes('<option value="BELL" selected="">BELL</option>')
+    && !curveMarkup.includes('role="combobox"')
+    && !curveMarkup.includes('type="number"'));
+const editorSource = fs.readFileSync('src/components/task-grid/TaskCellEditor.tsx', 'utf8');
+ok('Assignment-updaters bewaren native eventwaarden voordat React de updater uitvoert',
+  editorSource.includes('const unitsPerDay = event.currentTarget.valueAsNumber;')
+    && editorSource.includes('const curve = event.currentTarget.value as ResourceCurve;')
+    && !/setAssignmentTokens\([\s\S]{0,300}event\.currentTarget/.test(editorSource));
 const directAssignment = commitTaskCellEditorValue({
   adapter: assignmentAdapter,
   cell: assignmentCell,
@@ -184,7 +220,7 @@ const directAssignment = commitTaskCellEditorValue({
 });
 eq('Gestructureerde editorcommit slaat de verliesrijke tekstparser over', directAssignment, { ok: true });
 eq('Gestructureerde editorcommit levert één volledige assignment-set', assignmentCommit, [{
-  kind: 'assignment-set', taskId: 't-1', tokens: [
+  kind: 'assignment-set', taskId: 't-1', columnId: taskColumnId('assignment.resources'), tokens: [
     { assignmentId: 'asgn-1', resourceId: 'res-1', unitsPerDay: 2, curve: 'BELL' },
     { resourceId: 'res-2', unitsPerDay: 1 },
   ],

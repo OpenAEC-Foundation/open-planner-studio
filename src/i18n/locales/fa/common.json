@@ -18,7 +18,7 @@
     "relationCreated": "رابطه ایجاد شد: از {{predecessor}} به {{successor}}",
     "relationDuplicate": "این رابطه از قبل وجود دارد",
     "relationAncestorEndpoint": "رابطه بین یک وظیفه و وظیفه خلاصه نیای (والد) خودش مجاز نیست.",
-    "summaryRelationsDropped": "{{total}} رابطه نتوانست در محاسبه لحاظ شود — برای مشاهده اینکه کدام‌ها، پنل روابط را بررسی کنید.",
+    "summaryRelationsDropped": "{{total}} رابطه در محاسبه لحاظ نشد. ستون‌های پیش‌نیازها و پس‌نیازها را بررسی کنید.",
     "mppSourceScheduleNotes_one": "این فایل MS Project شامل {{count}} وظیفه با زمان‌بندی شکسته‌شده، تراز‌شده یا منابع‌محور است. به همین صورت وارد و نمایش داده می‌شود.",
     "mppSourceScheduleNotes_other": "این فایل MS Project شامل {{count}} وظیفه با زمان‌بندی شکسته‌شده، تراز‌شده یا منابع‌محور است. به همین صورت وارد و نمایش داده می‌شوند.",
     "projectStartAnchorsClamped_one": "شروع پروژه جابه‌جا شد: {{count}} لنگر وظیفه بدون پیش‌نیاز یا محدودیت به تاریخ شروع جدید منتقل شد.",

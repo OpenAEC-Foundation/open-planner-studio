@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "Çalışma süresi", "ELAPSEDTIME": "Geçen süre" },
   "table": {
     "title": "Tablo",
     "wbs": "WBS",
@@ -46,7 +47,7 @@
       "cycle": "Bu değişiklik programda bir döngü oluşturur."
     },
     "controls": {
-      "collapse": "Daralt", "expand": "Genişlet", "resize": "Genişliği değiştir", "remove": "Kaldır", "pin": "Sabitle",
+      "collapse": "Daralt", "expand": "Genişlet", "resize": "Genişliği değiştir", "resizeTaskGrid": "Görev ızgarasını yeniden boyutlandır", "remove": "Kaldır", "pin": "Sabitle",
       "unpin": "Sabitlemeyi kaldır", "autoFit": "Otomatik sığdır", "search": "Ara", "searchResults": "Arama sonuçları", "noResults": "Sonuç yok"
     },
     "history": {
@@ -59,12 +60,24 @@
       "autoFitColumn": "{{column}} sütununu otomatik sığdır"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} aktivite kodu ataması",
-      "customFields": "{{count}} özel alan",
-      "internalRelations": "{{count}} iç ilişki",
-      "externalRelations": "{{count}} dış ilişki",
-      "baselineMissing": "Bu temel planda bulunmuyor"
+      "activityCodeAssignments_one": "{{count}} aktivite kodu ataması",
+      "activityCodeAssignments_other": "{{count}} aktivite kodu ataması",
+      "customFields_one": "{{count}} özel alan",
+      "customFields_other": "{{count}} özel alan",
+      "internalRelations_one": "{{count}} iç ilişki",
+      "internalRelations_other": "{{count}} iç ilişki",
+      "externalRelations_one": "{{count}} dış ilişki",
+      "externalRelations_other": "{{count}} dış ilişki",
+      "baselineMissing": "Bu temel planda bulunmuyor",
+      "baselineVarianceStart": "Başlangıç sapması",
+      "baselineVarianceFinish": "Bitiş sapması",
+      "baselineVarianceDuration": "Süre sapması"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "Başlamadı",
+    "STARTED": "Devam ediyor",
+    "COMPLETED": "Tamamlandı"
   },
   "taskType": {
     "CONSTRUCTION": "İnşaat",
@@ -278,7 +291,9 @@
     "directionSuccessor": "Ardıl (ben → dış)",
     "relType": "İlişki türü",
     "lag": "Gecikme (iş günü)",
+    "lagPlaceholder": "0d veya 2h",
     "anchorDate": "Bağlantı noktası tarihi",
+    "chooseNewAnchorAfterSideChange": "Yeni bir bağlantı noktası seçin: ilişki türü artık kaynak görevin diğer tarafını kullanıyor.",
     "manualTitle": "Manuel (yedek)",
     "manualHint": "Elinizde dosya yok mu? Dış görevin proje kimliğini ve görev kimliğini yapıştırın.",
     "projectId": "Proje kimliği",

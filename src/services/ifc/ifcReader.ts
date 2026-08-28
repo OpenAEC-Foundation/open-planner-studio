@@ -102,13 +102,22 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
     entityMap.set(e.id, e);
   }
 
+  // Taakidentiteit moet vóór `extractTasks` bekend zijn. Externe links bewaren het taak-id van een
+  // geparseerde bron; een nieuw willekeurig id bij iedere parse maakte een echte Tauri-refresh van
+  // hetzelfde IFC-bestand daardoor altijd `sourceMissing`. Nieuwe OPS-bestanden dragen het
+  // oorspronkelijke id in OPS_TaskIdentity; oudere/andere IFC-bestanden vallen stabiel terug op
+  // hun IFCTASK.GlobalId.
+  const taskIdentityByStepId = extractTaskIdentityByStepId(entities, entityMap);
+
   // Extract project
   const project = extractProject(entities, entityMap, labels);
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
-  const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(entities, entityMap, baselineTaskStepIds);
+  const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(
+    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId,
+  );
   const sequences = extractSequences(entities, entityMap, taskStepIdMap);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
@@ -568,6 +577,7 @@ function extractProject(
 ): Project {
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const wp = entities.find(e => e.type === 'IFCWORKPLAN');
+  const projectGlobalId = proj ? ifcSlotText(proj.args[0]) : '';
 
   // Auteur/organisatie uit de owner-history-keten (IFCOWNERHISTORY → IFCPERSONANDORGANIZATION →
   // IFCPERSON.FamilyName / IFCORGANIZATION.Name; spiegel van wat de writer schrijft). Via de keten
@@ -588,7 +598,9 @@ function extractProject(
   }
 
   return {
-    id: generateId('proj'),
+    id: projectGlobalId
+      ? `proj-ifc-${projectGlobalId}`
+      : `proj-ifc-step-${proj?.id ?? wp?.id ?? 'missing'}`,
     // Twee verschillende gevallen, bewust verschillend afgehandeld:
     //
     //  1. Er ís een IFCPROJECT. Dan telt zijn naamslot — óók als die leeg is. `ifcSlotText`, niet
@@ -721,10 +733,66 @@ function recordedSlotsOf(e: StepEntity): RecordedFieldKey[] {
   return out;
 }
 
+/**
+ * STEP-id van IFCTASK → door OPS opgeslagen intern taak-id.
+ *
+ * Dit is opzettelijk een kleine pre-pass naast de algemene per-taak-psetdispatch: die algemene
+ * dispatch krijgt pas bestaande Task-objecten. Identiteit bepaalt juist met welk id die objecten,
+ * sequence-maps en recordedFields vanaf het begin worden gemaakt.
+ */
+function extractTaskIdentityByStepId(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET'
+      || stripQuotes(pset.args[2] || '') !== PSET.TaskIdentity) continue;
+    let internalId: string | undefined;
+    for (const propRef of parseRefs(pset.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE'
+        || stripQuotes(prop.args[0] || '') !== 'InternalTaskId') continue;
+      const value = parseTypedValue(prop.args[2] || '');
+      if (isValidPersistedIfcId(value)) internalId = value;
+    }
+    if (!internalId) continue;
+    for (const objectRef of parseRefs(rel.args[4] || '')) {
+      if (entityMap.get(objectRef)?.type === 'IFCTASK') out.set(objectRef, internalId);
+    }
+  }
+  return out;
+}
+
+function isValidPersistedIfcId(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 256
+    && !Array.from(value).some(character => {
+      const code = character.codePointAt(0) ?? 0;
+      return code <= 31 || code === 127;
+    });
+}
+
+function stableIfcTaskId(
+  taskEntity: StepEntity,
+  persistedIds: Map<string, string>,
+  usedIds: Set<string>,
+): string {
+  const globalId = ifcSlotText(taskEntity.args[TASK_SLOT.globalId]);
+  const base = persistedIds.get(taskEntity.id)
+    ?? (globalId ? `task-ifc-${globalId}` : `task-ifc-step-${taskEntity.id}`);
+  let id = base;
+  for (let duplicate = 2; usedIds.has(id); duplicate++) id = `${base}-dup-${duplicate}`;
+  usedIds.add(id);
+  return id;
+}
+
 function extractTasks(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   baselineTaskStepIds: Set<string> = new Set(),
+  persistedIds: Map<string, string> = new Map(),
 ): { tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>; recordedFields: Record<string, RecordedFieldKey[]> } {
   const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
@@ -736,9 +804,10 @@ function extractTasks(
   // bestand echt vulde. Een taak ZONDER IfcTaskTime krijgt een lege lijst (niet: ontbrekend) —
   // "geen enkel slot gevuld" is een uitspraak, "onbekend" niet.
   const recordedFields: Record<string, RecordedFieldKey[]> = {};
+  const usedIds = new Set<string>();
 
   for (const te of taskEntities) {
-    const id = generateId('task');
+    const id = stableIfcTaskId(te, persistedIds, usedIds);
     taskStepIdMap.set(te.id, id);
 
     // Twee IFCTASK-lay-outs (L1-fix, zie writeTask): spec-conform IFC 4.3 telt 13 args
@@ -1061,7 +1130,9 @@ function extractStructure(
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
         const name = stripQuotes(prop.args[0] || '');
         const v = parseTypedValue(prop.args[2] || '');
-        if (name === 'wbsAutoNumber') {
+        if (name === 'InternalProjectId') {
+          if (isValidPersistedIfcId(v)) project.id = v;
+        } else if (name === 'wbsAutoNumber') {
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
         } else if (name === 'StatusDate') {
           // Fase 2.6 (§8.2): P6 data date → project.statusDate.

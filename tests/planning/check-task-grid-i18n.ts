@@ -23,6 +23,11 @@ const TASK_GRID_KEYS = [
   'taskGrid.category.custom',
   'taskGrid.category.technical',
   'taskGrid.status.stale',
+  'taskStatus.NOT_STARTED',
+  'taskStatus.STARTED',
+  'taskStatus.COMPLETED',
+  'durationType.WORKTIME',
+  'durationType.ELAPSEDTIME',
   'taskGrid.validation.readOnly',
   'taskGrid.validation.invalid',
   'taskGrid.validation.relationToken',
@@ -49,11 +54,10 @@ const TASK_GRID_KEYS = [
   'taskGrid.history.moveColumn',
   'taskGrid.history.resizeColumn',
   'taskGrid.history.autoFitColumn',
-  'taskGrid.summary.activityCodeAssignments',
-  'taskGrid.summary.customFields',
-  'taskGrid.summary.internalRelations',
-  'taskGrid.summary.externalRelations',
   'taskGrid.summary.baselineMissing',
+  'properties.assignments.unitsPerDay',
+  'properties.assignments.curve',
+  'properties.assignments.remove',
   'relations.jumpTask',
   'relations.externalTask',
   'relations.controlType',
@@ -80,6 +84,7 @@ const TASK_GRID_KEYS = [
   'externalLinks.edit',
   'externalLinks.refreshSource',
   'externalLinks.deleteRelation',
+  'externalLinks.lagPlaceholder',
 ] as const;
 
 const root = process.cwd();
@@ -89,6 +94,10 @@ const registrySource = fs.readFileSync(
 );
 const COLUMN_KEYS = [...new Set(
   [...registrySource.matchAll(/labelKey: '(taskGrid\.columns\.[^']+)'/g)].map(match => match[1]),
+)].sort();
+const COUNTED_TASK_GRID_KEYS = [...new Set(
+  [...registrySource.matchAll(/labelForText\?\.\(\s*'([^']+)'\s*,\s*\{\s*count\s*:/g)]
+    .map(match => match[1]),
 )].sort();
 const REQUIRED_KEYS = [...TASK_GRID_KEYS, ...COLUMN_KEYS];
 const failures: string[] = [];
@@ -120,6 +129,62 @@ for (const key of REQUIRED_KEYS) {
   }
 }
 
+ok('De checker vindt alle vier registryteksten die met count worden aangeroepen',
+  COUNTED_TASK_GRID_KEYS.length === 4);
+for (const key of COUNTED_TASK_GRID_KEYS) {
+  for (const locale of LOCALES) {
+    const taskLocale = taskByLocale.get(locale);
+    ok(`${locale}: ${key} gebruikt geen kale sleutel die CLDR-selectie omzeilt`,
+      at(taskLocale, key) === undefined);
+    const categories = new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
+    for (const category of categories) {
+      const pluralKey = key.replace(/([^.]+)$/, `$1_${category}`);
+      const value = at(taskLocale, pluralKey);
+      ok(`${locale}: ${pluralKey} bestaat voor de CLDR-categorie ${category}`,
+        typeof value === 'string' && value.trim().length > 0);
+      ok(`${locale}: ${pluralKey} interpoleert exact count`,
+        typeof value === 'string' && JSON.stringify(variables(value)) === JSON.stringify(['count']));
+    }
+  }
+}
+
+const commonByLocale = new Map(LOCALES.map(locale => [locale, readJson(locale, 'common')] as const));
+const relationColumnWords: Record<(typeof LOCALES)[number], readonly [string, string]> = {
+  ar: ['السابقة', 'اللاحقة'],
+  de: ['Vorgänger', 'Nachfolger'],
+  en: ['Predecessors', 'Successors'],
+  es: ['Predecesores', 'Sucesores'],
+  fa: ['پیش‌نیازها', 'پس‌نیازها'],
+  fr: ['Prédécesseurs', 'Successeurs'],
+  it: ['Predecessori', 'Successori'],
+  ja: ['先行タスク', '後続タスク'],
+  ko: ['선행 작업', '후속 작업'],
+  nl: ['voorganger', 'opvolger'],
+  pl: ['Poprzedniki', 'Następniki'],
+  pt: ['Predecessoras', 'Sucessoras'],
+  tr: ['Öncüller', 'Ardıllar'],
+  zh: ['前置任务', '后续任务'],
+};
+for (const locale of LOCALES) {
+  const value = at(commonByLocale.get(locale), 'notifications.summaryRelationsDropped');
+  const [predecessor, successor] = relationColumnWords[locale];
+  ok(`${locale}: importwaarschuwing verwijst naar beide relatiekolommen`,
+    typeof value === 'string' && value.includes(predecessor) && value.includes(successor));
+}
+for (const key of [
+  'resource.curve.uniform',
+  'resource.curve.frontLoaded',
+  'resource.curve.backLoaded',
+  'resource.curve.bell',
+  'resource.curve.earlyPeak',
+  'resource.curve.latePeak',
+] as const) {
+  for (const locale of LOCALES) {
+    const value = at(commonByLocale.get(locale), key);
+    ok(`${locale}: ${key} bestaat en is niet leeg`, typeof value === 'string' && value.trim().length > 0);
+  }
+}
+
 const english = taskByLocale.get('en')!;
 for (const key of [
   'taskGrid.history.addColumn',
@@ -139,6 +204,10 @@ for (const key of [
 
 const relationEditor = fs.readFileSync(path.join(root, 'src/components/task-grid/RelationCellEditor.tsx'), 'utf8');
 const fullGrid = fs.readFileSync(path.join(root, 'src/components/task-grid/FullTaskGrid.tsx'), 'utf8');
+const cellEditor = fs.readFileSync(path.join(root, 'src/components/task-grid/TaskCellEditor.tsx'), 'utf8');
+const ganttWorkspace = fs.readFileSync(path.join(root, 'src/components/canvas/GanttWorkspace.tsx'), 'utf8');
+const taskTooltip = fs.readFileSync(path.join(root, 'src/components/canvas/TaskTooltipContent.tsx'), 'utf8');
+const externalLinkDialog = fs.readFileSync(path.join(root, 'src/components/dialogs/ExternalLinkDialog.tsx'), 'utf8');
 const relationCell = fs.readFileSync(path.join(root, 'src/engine/taskGrid/relationCell.ts'), 'utf8');
 const registry = registrySource;
 const navigation = fs.readFileSync(path.join(root, 'src/engine/taskGrid/navigation.ts'), 'utf8');
@@ -161,7 +230,45 @@ ok('technische samenvattingen en baselinetooltip gebruiken vertaalsleutels',
   registry.includes('taskGrid.summary.activityCodeAssignments')
     && registry.includes('taskGrid.summary.baselineMissing')
     && !registry.includes('codetoewijzing(en)')
-    && !registry.includes('Niet aanwezig in deze baseline'));
+    && !registry.includes('Niet aanwezig in deze baseline')
+    && !/compactArraySummary\(value, '(?:onderbreking|duurwandeling|contour|notitie)'\)/.test(registry));
+ok('Gantt-splitter en externe ankerwaarschuwing lopen door i18n',
+  ganttWorkspace.includes("t('taskGrid.controls.resizeTaskGrid')")
+    && !ganttWorkspace.includes('Resize task grid')
+    && externalLinkDialog.includes("t('externalLinks.chooseNewAnchorAfterSideChange')")
+    && !externalLinkDialog.includes('Kies een nieuw anker:'));
+ok('Het gedeelde Gantt- en tabelhoverpaneel toont een vertaald taakstatuslabel',
+  taskTooltip.includes('taskStatus.${task.status}') && !taskTooltip.includes('>{task.status}<'));
+ok('Externe lagplaceholder loopt door i18n en bevat geen hard Nederlands voorbeeld',
+  externalLinkDialog.includes("t('externalLinks.lagPlaceholder')")
+    && !externalLinkDialog.includes('0d of 2u'));
+ok('Dynamische baselinekolommen gebruiken gelokaliseerde veldnamen',
+  registry.includes('taskGrid.summary.baselineVarianceStart')
+    && registry.includes('taskGrid.summary.baselineVarianceFinish')
+    && registry.includes('taskGrid.summary.baselineVarianceDuration')
+    && !registry.includes('`${baseline.name} — ${fieldName}`'));
+ok('Cel-editor gebruikt bestaande assignment- en curvelabels plus adapterbooleans',
+  cellEditor.includes("properties.assignments.unitsPerDay")
+    && cellEditor.includes("properties.assignments.curve")
+    && cellEditor.includes("properties.assignments.remove")
+    && cellEditor.includes('CURVE_KEY[curve]')
+    && cellEditor.includes('adapter.booleanLabels')
+    && !cellEditor.includes("labelForOption('assignment.unitsPerDay'")
+    && !cellEditor.includes("labelForOption('assignment.curve'")
+    && !cellEditor.includes("labelForOption('assignment.remove'")
+    && !cellEditor.includes('resourceCurve.')
+    && !cellEditor.includes("'boolean.true'")
+    && !cellEditor.includes("'boolean.false'"));
+ok('Assignment-validatie staat op de focusbare invoervelden en niet op de samengestelde wrapper',
+  /className="task-grid-assignment-editor"[\s\S]{0,120}>/.test(cellEditor)
+    && !/className="task-grid-assignment-editor"[\s\S]{0,120}aria-invalid/.test(cellEditor)
+    && (cellEditor.match(/aria-invalid=\{inputProps\['aria-invalid'\]\}/g)?.length ?? 0) >= 3
+    && (cellEditor.match(/aria-describedby=\{inputProps\['aria-describedby'\]\}/g)?.length ?? 0) >= 3);
+ok('Relatie-validatie staat op type-, lag- en zoekvelden en niet op de samengestelde wrapper',
+  relationEditor.includes('const validationProps = {')
+    && (relationEditor.match(/<select\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 2
+    && (relationEditor.match(/<input\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 3
+    && !/<div[^>]*className="task-grid-relation-editor"[^>]*validationProps/.test(relationEditor));
 
 ok('RTL-pijlnavigatie volgt de fysieke buren en laat Tab in logische volgorde',
   navigation.includes("const columnDelta = event.key === 'ArrowLeft' ? -1 : 1")

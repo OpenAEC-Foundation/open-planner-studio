@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "Werktijd", "ELAPSEDTIME": "Verstreken tijd" },
   "table": {
     "title": "Tabel",
     "wbs": "WBS",
@@ -128,6 +129,7 @@
       "collapse": "Inklappen",
       "expand": "Uitklappen",
       "resize": "Breedte wijzigen",
+      "resizeTaskGrid": "Breedte van takenraster wijzigen",
       "remove": "Verwijderen",
       "pin": "Vastzetten",
       "unpin": "Losmaken",
@@ -146,12 +148,24 @@
       "autoFitColumn": "Kolom {{column}} passend maken"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} codetoewijzingen",
-      "customFields": "{{count}} eigen velden",
-      "internalRelations": "{{count}} interne relaties",
-      "externalRelations": "{{count}} externe relaties",
-      "baselineMissing": "Niet aanwezig in deze baseline"
+      "activityCodeAssignments_one": "{{count}} codetoewijzing",
+      "activityCodeAssignments_other": "{{count}} codetoewijzingen",
+      "customFields_one": "{{count}} eigen veld",
+      "customFields_other": "{{count}} eigen velden",
+      "internalRelations_one": "{{count}} interne relatie",
+      "internalRelations_other": "{{count}} interne relaties",
+      "externalRelations_one": "{{count}} externe relatie",
+      "externalRelations_other": "{{count}} externe relaties",
+      "baselineMissing": "Niet aanwezig in deze baseline",
+      "baselineVarianceStart": "Startafwijking",
+      "baselineVarianceFinish": "Eindafwijking",
+      "baselineVarianceDuration": "Duurafwijking"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "Niet gestart",
+    "STARTED": "Bezig",
+    "COMPLETED": "Voltooid"
   },
   "taskType": {
     "CONSTRUCTION": "Bouw",
@@ -365,7 +379,9 @@
     "directionSuccessor": "Opvolger (ik → extern)",
     "relType": "Relatietype",
     "lag": "Lag (werkdagen)",
+    "lagPlaceholder": "0d of 2u",
     "anchorDate": "Ankerdatum",
+    "chooseNewAnchorAfterSideChange": "Kies een nieuw anker: het relatietype gebruikt nu de andere zijde van de brontaak.",
     "manualTitle": "Handmatig (fallback)",
     "manualHint": "Geen bestand bij de hand? Plak de project-id en taak-id van de externe taak.",
     "projectId": "Project-id",

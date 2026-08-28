@@ -25,12 +25,11 @@ Een externe koppeling rekent niet live mee met het bronproject. Bij het toevoege
 
 ## Beheer, verversen en bron-ontbreekt
 
-Bestaande koppelingen staan in het Relaties-paneel onder **Externe koppelingen**:
+Bestaande koppelingen staan als tokens in de taakgridkolommen **Voorgangers** en **Opvolgers**:
 
 - Per koppeling: de brontaak, het type, het anker, en een **verouderd**-badge zodra de bron niet (meer) geladen kon worden — met de toelichting "bron niet geladen — her-importeer om te verversen".
-- **Ververs deze koppeling** — herleest het bronbestand van deze ene koppeling en werkt het anker bij.
-- **Ververs externe ankers** — herleest élk gerefereerd bronbestand en werkt alle ankers plus de verouderd-status bij. Na afloop meldt een statusregel hoeveel ankers ververst zijn en hoeveel verouderd bleven.
-- **Verwijderen** — haalt de koppeling weg.
+- Rechtsklik een token voor **Externe relatie bewerken**, **Bron vernieuwen** of **Relatie verwijderen**.
+- **Relatie → Alle externe relaties vernieuwen** in het lint herleest alle beschikbare bronbestanden en werkt hun ankers bij.
 - Verversen leest bestanden en kan dus alleen in de desktop-app; de browser-versie meldt "Bronbestanden lezen kan alleen in de desktop-app; gebruik de handmatige fallback."
 
 ## Verder lezen

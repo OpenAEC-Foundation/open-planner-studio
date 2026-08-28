@@ -18,7 +18,7 @@
     "relationCreated": "Relation created: {{predecessor}} → {{successor}}",
     "relationDuplicate": "That relation already exists",
     "relationAncestorEndpoint": "A relation between a task and its own (grand)parent summary task is not allowed.",
-    "summaryRelationsDropped": "{{total}} relation(s) could not be included in the calculation — see the Relations panel for which.",
+    "summaryRelationsDropped": "{{total}} relation(s) could not be included in the calculation. Check the Predecessors and Successors columns.",
     "mppSourceScheduleNotes_one": "This MS Project file contains {{count}} task with a split, leveled, or resource-driven schedule. It is imported and shown as such.",
     "mppSourceScheduleNotes_other": "This MS Project file contains {{count}} tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.",
     "projectStartAnchorsClamped_one": "Project start moved: {{count}} task anchor without a predecessor or constraint was shifted to the new start date.",

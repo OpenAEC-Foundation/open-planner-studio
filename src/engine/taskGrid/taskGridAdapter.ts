@@ -1,6 +1,6 @@
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
-import { copyGridEditorValue, parseGridEditorText } from '@/engine/taskGrid/editors';
+import { copyGridEditorValue, parseGridEditorText, type TaskGridBooleanLabels } from '@/engine/taskGrid/editors';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Baseline } from '@/types/baseline';
 import type { Resource, ResourceAssignment } from '@/types/resource';
@@ -92,10 +92,8 @@ export interface TaskGridAdapterCallbacks {
   onHover?: (target: TaskGridAdapterEventTarget | null) => void;
 }
 
-export interface CreateTaskGridAdapterInput {
-  surfaceId: TaskGridSurfaceId;
+export interface CreateTaskGridAdapterDomainInput {
   projectId: string;
-  rows: readonly ViewRow[];
   tasks: readonly Task[];
   sequences: readonly Sequence[];
   cpmResult?: CPMResult | null;
@@ -106,17 +104,40 @@ export interface CreateTaskGridAdapterInput {
   customFieldDefs: readonly CustomFieldDef[];
   scheduleStale: boolean;
   wbsAutoNumber: boolean;
-  selectedTaskIds: readonly string[] | ReadonlySet<string>;
   labelForColumn: (labelKey: string) => string;
   labelForBoolean?: (value: boolean) => string;
   labelForText?: (key: string, values?: Readonly<Record<string, string | number>>) => string;
   textDirection?: 'ltr' | 'rtl';
-  trace?: TaskTrace;
   effectiveHoursPerDay?: (task: Task) => number;
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
   dateNotation?: DateNotation;
   calendarOptions?: readonly { value: string; label: string }[];
+}
+
+export interface CreateTaskGridAdapterProjectionInput {
+  surfaceId: TaskGridSurfaceId;
+  rows: readonly ViewRow[];
+  selectedTaskIds: readonly string[] | ReadonlySet<string>;
+  trace?: TaskTrace;
   callbacks?: TaskGridAdapterCallbacks;
+}
+
+export type CreateTaskGridAdapterInput = CreateTaskGridAdapterDomainInput
+  & CreateTaskGridAdapterProjectionInput;
+
+/**
+ * De selectie-onafhankelijke readmodel-laag van het taakraster. Een surface mag deze één keer
+ * memoizen op domeinwijzigingen en daarna goedkoop verschillende rijselecties projecteren.
+ */
+export interface TaskGridAdapterDomain {
+  context: TaskColumnContext;
+  descriptors: readonly TaskColumnDescriptor[];
+  descriptorsById: ReadonlyMap<TaskColumnId, TaskColumnDescriptor>;
+  availableColumns: readonly TaskGridAdapterColumn[];
+  dateNotation?: DateNotation;
+  booleanLabels?: TaskGridBooleanLabels;
+  labelForBoolean?: (value: boolean) => string;
+  labelForText?: (key: string, values?: Readonly<Record<string, string | number>>) => string;
 }
 
 export interface TaskGridAdapter {
@@ -126,6 +147,8 @@ export interface TaskGridAdapter {
   rowMetaByKey: ReadonlyMap<string, TaskGridRowMeta>;
   descriptorsById: ReadonlyMap<TaskColumnId, TaskColumnDescriptor>;
   context: TaskColumnContext;
+  dateNotation?: DateNotation;
+  booleanLabels?: TaskGridBooleanLabels;
   callbacks: TaskGridAdapterCallbacks;
   getCell: (rowKey: string, columnId: TaskColumnId) => TaskGridAdapterCell | null;
   copyCell: (rowKey: string, columnId: TaskColumnId) => string | null;
@@ -195,11 +218,10 @@ function buildAssignmentsByTaskId(
   return result;
 }
 
-/**
- * Pure domein-naar-gridprojectie. Beide taakoppervlakken krijgen dezelfde input en kunnen daardoor
- * niet verschillen in rijwaarden, bewerkbaarheid of de intents die een bewerking oplevert.
- */
-export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGridAdapter {
+/** Bouwt uitsluitend het dure, selectie-onafhankelijke domeindeel van de gridadapter. */
+export function createTaskGridAdapterDomain(
+  input: CreateTaskGridAdapterDomainInput,
+): TaskGridAdapterDomain {
   const context: TaskColumnContext = {
     projectId: input.projectId,
     tasksById: new Map(input.tasks.map(task => [task.id, task] as const)),
@@ -233,11 +255,51 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       : descriptor
   ));
   const descriptorsById = new Map(descriptors.map(descriptor => [descriptor.id, descriptor] as const));
-  const selectedTaskIds = input.selectedTaskIds instanceof Set
-    ? input.selectedTaskIds
-    : new Set(input.selectedTaskIds);
+  const availableColumns = descriptors.map<TaskGridAdapterColumn>(descriptor => ({
+    id: descriptor.id,
+    label: input.labelForColumn(descriptor.labelKey),
+    category: descriptor.category,
+    defaultWidth: descriptor.defaultWidth,
+    align: alignForDescriptor(descriptor),
+  }));
+  return {
+    context,
+    descriptors,
+    descriptorsById,
+    availableColumns,
+    dateNotation: input.dateNotation,
+    booleanLabels: input.labelForBoolean
+      ? { true: input.labelForBoolean(true), false: input.labelForBoolean(false) }
+      : undefined,
+    labelForBoolean: input.labelForBoolean,
+    labelForText: input.labelForText,
+  };
+}
+
+/**
+ * Pure domein-naar-gridprojectie. Beide taakoppervlakken krijgen dezelfde input en kunnen daardoor
+ * niet verschillen in rijwaarden, bewerkbaarheid of de intents die een bewerking oplevert.
+ *
+ * De tweeargumentenvorm gebruikt een vooraf gebouwd domein en is de productroute voor snelle
+ * selectiewissels. De eenargumentvorm blijft een handige atomaire fabriek voor losse consumers.
+ */
+export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGridAdapter;
+export function createTaskGridAdapter(
+  input: CreateTaskGridAdapterProjectionInput,
+  domain: TaskGridAdapterDomain,
+): TaskGridAdapter;
+export function createTaskGridAdapter(
+  input: CreateTaskGridAdapterInput | CreateTaskGridAdapterProjectionInput,
+  providedDomain?: TaskGridAdapterDomain,
+): TaskGridAdapter {
+  const projection = input as CreateTaskGridAdapterProjectionInput;
+  const domain = providedDomain ?? createTaskGridAdapterDomain(input as CreateTaskGridAdapterInput);
+  const { context, descriptorsById, availableColumns } = domain;
+  const selectedTaskIds = projection.selectedTaskIds instanceof Set
+    ? projection.selectedTaskIds
+    : new Set(projection.selectedTaskIds);
   const rowMetaByKey = new Map<string, TaskGridRowMeta>();
-  const rows = input.rows.map<TaskGridAdapterRow>(row => {
+  const rows = projection.rows.map<TaskGridAdapterRow>(row => {
     if (row.kind === 'group') {
       rowMetaByKey.set(row.rowKey, {
         rowKey: row.rowKey,
@@ -262,7 +324,7 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       depth: row.depth,
       dimmed: row.dimmed,
       selected: selectedTaskIds.has(row.task.id),
-      traceClass: taskGridTraceClass(classifyTraceTask(input.trace, row.task.id)),
+      traceClass: taskGridTraceClass(classifyTraceTask(projection.trace, row.task.id)),
       tooltipData: { task: row.task },
     });
     return {
@@ -271,16 +333,9 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       depth: row.depth,
       dimmed: row.dimmed,
       selected: selectedTaskIds.has(row.task.id),
-      traceClass: taskGridTraceClass(classifyTraceTask(input.trace, row.task.id)),
+      traceClass: taskGridTraceClass(classifyTraceTask(projection.trace, row.task.id)),
     };
   });
-  const availableColumns = descriptors.map<TaskGridAdapterColumn>(descriptor => ({
-    id: descriptor.id,
-    label: input.labelForColumn(descriptor.labelKey),
-    category: descriptor.category,
-    defaultWidth: descriptor.defaultWidth,
-    align: alignForDescriptor(descriptor),
-  }));
 
   function resolveTask(
     rowKey: string,
@@ -307,22 +362,43 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
       : descriptor.readOnly;
     const stale = context.scheduleStale
       && (descriptor.category === 'computed' || descriptor.scheduleDerived === true);
+    const enumOption = descriptor.valueKind === 'enum'
+      ? descriptor.editorOptions?.find(option => option.value === value)
+      : undefined;
+    const enumLabelKey = enumOption && 'labelKey' in enumOption ? enumOption.labelKey : undefined;
+    const translatedEnum = enumOption?.label
+      ?? (enumLabelKey && domain.labelForText ? domain.labelForText(enumLabelKey) : undefined);
+    const text = typeof value === 'boolean' && domain.labelForBoolean
+      ? domain.labelForBoolean(value)
+      : translatedEnum ?? (domain.dateNotation
+        && (descriptor.valueKind === 'date' || descriptor.valueKind === 'datetime')
+        && typeof value === 'string'
+        ? copyGridEditorValue(descriptor, task, context, domain.dateNotation)
+        : descriptor.format(value, task, context));
+    const title = descriptor.tooltip?.(value, task, context)
+      ?? ((descriptor.valueKind === 'date' || descriptor.valueKind === 'datetime') && typeof value === 'string'
+        ? value
+        : descriptor.valueKind === 'technical' ? descriptor.copy(task, context) : text);
+    const booleanLabels = domain.booleanLabels;
+    const copyText = domain.dateNotation
+      ? copyGridEditorValue(descriptor, task, context, domain.dateNotation, booleanLabels)
+      : typeof value === 'boolean' && booleanLabels
+        ? booleanLabels[value ? 'true' : 'false']
+        : descriptor.copy(task, context);
     return {
-      text: typeof value === 'boolean' && input.labelForBoolean
-        ? input.labelForBoolean(value)
-        : descriptor.format(value, task, context),
+      text,
       value,
-      copyText: descriptor.copy(task, context),
+      copyText,
       editText: descriptor.editText?.(task, context)
         ?? (descriptor.editorKind === 'boolean'
           ? value === true ? 'true' : value === false ? 'false' : ''
-          : input.dateNotation
-            ? copyGridEditorValue(descriptor, task, context, input.dateNotation)
+          : domain.dateNotation
+            ? copyGridEditorValue(descriptor, task, context, domain.dateNotation, booleanLabels)
             : descriptor.copy(task, context)),
       readOnly,
       stale: stale || undefined,
       statusText: stale ? 'taskGrid.status.stale' : undefined,
-      title: descriptor.tooltip?.(value, task, context) ?? undefined,
+      title: title && title !== '—' ? title : undefined,
     };
   }
 
@@ -346,8 +422,9 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
     if (readOnly || !descriptor.parse || !descriptor.planWrite) {
       return failure('readOnly', rowKey, columnId, task.id, text);
     }
-    const parsed = input.dateNotation
-      ? parseGridEditorText(descriptor, text, task, context, input.dateNotation)
+    const booleanLabels = domain.booleanLabels;
+    const parsed = domain.dateNotation || booleanLabels
+      ? parseGridEditorText(descriptor, text, task, context, domain.dateNotation ?? 'dmy', booleanLabels)
       : descriptor.parse(text, task, context);
     if (!parsed.ok) {
       return { ok: false, errors: withLocation(parsed.errors, rowKey, columnId, task.id, text) };
@@ -386,13 +463,15 @@ export function createTaskGridAdapter(input: CreateTaskGridAdapterInput): TaskGr
   }
 
   return {
-    surfaceId: input.surfaceId,
+    surfaceId: projection.surfaceId,
     rows,
     availableColumns,
     rowMetaByKey,
     descriptorsById,
     context,
-    callbacks: input.callbacks ?? {},
+    dateNotation: domain.dateNotation,
+    booleanLabels: domain.booleanLabels,
+    callbacks: projection.callbacks ?? {},
     getCell,
     copyCell,
     planEdit,

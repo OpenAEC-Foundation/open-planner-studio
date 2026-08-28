@@ -6,6 +6,11 @@
 - **App:** Open Planner Studio v2026.8.1, draaiend uit deze worktree op `http://127.0.0.1:3008/`
 - **Browseroppervlak:** Codex-webview, 1280 × 720 CSS-pixels
 
+Op 2026-08-27 is na de zesde review aanvullend dezelfde worktree rechtstreeks via Vite op poort
+3018 gecontroleerd. Vooraf is in het daadwerkelijk geleverde bronbestand een unieke marker uit de
+nieuwe scrollpersistentie aangetroffen; daarmee was dit aantoonbaar de bedoelde worktree en geen
+server uit een andere checkout. De aanvullende proef staat afzonderlijk in de tabel hieronder.
+
 Dit document maakt bewust onderscheid tussen interactief bewijs en geautomatiseerde poorten. Beide
 zijn afgerond; een groene headless check vervangt nergens de gevraagde echte gebruikershandeling.
 
@@ -42,9 +47,18 @@ gecommit en focus ging naar dezelfde kolom van de volgende rij.
 | Mini-map en histogram | **Bewezen** | Beide zijn op de 10k-fixture ingeschakeld, visueel gecontroleerd en daarna weer uitgeschakeld. Zie `06-gantt-10000-minimap-histogram-en-dark.jpg`. |
 | Gantt splitweergave | **Bewezen** | Rij/bar-uitlijning en de gescheiden taakgrid/tijdlijn bleven correct met histogram en resourcegedeelte. Zie `baseline-gantt-dark-split-histogram.jpg` en `baseline-gantt-light-split-histogram.jpg`. |
 | Duplicate resourcegroepen | **Bewezen** | Gegroepeerd op resource groeide de De Vaart-fixture van 261 naar 328 rijen. `Walls, floor 1 — Tower A` verscheen onder `Steel fixers` én `Tower crane`; selectie van één voorkomen gaf beide dezelfde taakfocus, maar slechts één actieve cel. Zie `17-resource-groups-duplicate-task-en-dark.jpg`. |
-| Spreadsheet/TSV copy-paste | **Bewezen** | Twee taaknaamcellen zijn met Shift+pijl geselecteerd, met `Ctrl+C` gekopieerd en met `Ctrl+V` op twee andere rijen geplakt. Beide doelwaarden veranderden in de juiste volgorde. Eén `Ctrl+Z` herstelde beide originele namen. Dit bewijst de spreadsheet-TSV-route, niet een apart gestart Microsoft Excel-proces. |
+| Spreadsheet/TSV copy-paste | **Bewezen** | In de app zijn twee taaknaamcellen met Shift+pijl geselecteerd, met `Ctrl+C` gekopieerd en met `Ctrl+V` op twee andere rijen geplakt; één `Ctrl+Z` herstelde beide namen. Aanvullend schreef LibreOffice Calc dezelfde productie-TSV naar een echt XLSX-bestand en terug: 2×7 cellen, multiline tekst, persoonlijke datum en datumtijd, duur, percentage, interne relatie en twee volledige `OPS-EXT/1`-payloads bleven semantisch behouden. Calc normaliseerde alleen `37.5%`/`100%` naar `37.50%`/`100.00%`. Dit bewijst de Calc/XLSX-grens, niet Microsoft Excel zelf. |
+| Native klembordroute in een editor | **Bewezen** | Een opgeslagen taaknaam `Alpha` is in de open editor gewijzigd in het nog niet gecommitte `Draft`. `Ctrl+A`, `Ctrl+C`, Escape en plakken in een andere taaknaam-editor leverde `Draft` op. De browsertekstselectie bezat dus het klembord; de grid kopieerde niet stilletjes de opgeslagen celwaarde `Alpha`. |
+| Delete en Backspace in een cel | **Bewezen** | Op de gecontroleerde worktreepoort is een taak gemaakt, de kolom **Description** toegevoegd en de cel gevuld. Delete maakte alleen die cel leeg: de rij bleef zichtbaar en `Tasks: 1` bleef staan. Na opnieuw vullen deed Backspace exact hetzelfde. De tijdelijke kolom is daarna via het kolommenu verwijderd. |
 | Externe relatie zonder bron | **Bewezen** | Bij `Car park paving` (`8.16`) toonde de voorgangercel naast interne `8.15 FS Driving` ook `Site Works Subcontractor / Site ready for main contractor paving FS`, met waarschuwingicoon en toegankelijke titel `Source missing`. |
+| Datumanker bij dag→uur | **Bewezen** | In dagmodus is via **Link → Add external relation…** een privacyvrije testrelatie met anker `2026-08-26` gemaakt. Na inschakeling van uurplanning en omzetting van de projectkalender naar **2 shifts** opende dezelfde bestaande relatie een native `datetime-local` met waarde `2026-08-26T00:00`. Urenplanning en de tijdelijke voorgangerkolom zijn daarna teruggezet. |
+| Externe relatiedialoog met Escape en Enter | **Bewezen** | Escape vanuit **Project id** sloot de dialoog zonder de ene testtaak te verwijderen of wijzigen. Na heropenen en geldig invullen voerde Enter vanuit **Task name** de primaire actie uit: de dialoog sloot en **Refresh all external relations** werd beschikbaar. |
+| Datumanker bij uur→dag | **Bewezen** | In uurmodus is het bestaande anker op `2026-08-26T13:45` gezet. Na terugzetten van de projectkalender naar **Day shift** opende dezelfde relatie een native `date` met `2026-08-26`. Ongewijzigd opslaan en terugkeren naar **2 shifts** leverde opnieuw exact `2026-08-26T13:45`; de dagprojectie vernietigt de verborgen tijd dus niet. |
+| Alle externe relaties verversen in Tauri | **Bewezen** | In de echte desktop-app is via de toegankelijke lintbesturing **Relatie → Alle externe relaties vernieuwen** uitgevoerd en na de tweede review herhaald. Het doel begon met anker `2026-07-01` en `sourceMissing=true`; na de zichtbare UI-actie stond het anker op `2026-09-02`, `sourceMissing=false` en waren bronnaam, project-id en taak-id canoniek. `OPS_TaskIdentity`, `InternalProjectId` en deterministische GlobalId-terugvallen repareren de gevonden identiteitsfouten. Bron, voor en na staan als gehashte IFC naast dit dossier en worden 5/5 door `check-tauri-refresh-evidence.ts` gecontroleerd. |
 | Relatie-hoverpariteit | **Bewezen** | Hover op dezelfde taakrij toonde het bestaande Gantt-taakpaneel met naam, WBS, duur, start/einde, status, critical en total float. Zie `14-gantt-task-hover-en-dark.jpg`. |
+| Gelokaliseerde technische waarden | **Bewezen** | Het gedeelde taak-hoverpaneel toonde status `Not started` en de tabel toonde taaktype `Construction`, niet de ruwe enumwaarden `NOT_STARTED` en `CONSTRUCTION`. De assignmentcurve gebruikt dezelfde labelroute; de adapterpoort bewaakt daarnaast dat kopiëren en bewerken wel de canonieke enumwaarde houden. |
+| Assignment-editors per kolom | **Bewezen** | Met tijdelijke resource `Testploeg` openden drie verschillende cellen drie beperkte editors: Resources alleen de membership-combobox, Units/day alleen de numerieke spinbutton `Testploeg — Units/day`, en Curve alleen de curve-combobox `Testploeg — Curve`. Geen van deze cellen opende de brede gecombineerde assignment-editor. |
+| Ongeldige assignmentunits en ARIA | **Bewezen** | Waarde `-1` liet de Units/day-editor open met zichtbare Nederlandse fouttekst. De actieve spinbutton had `aria-invalid=true` en een `aria-describedby` naar het concrete foutbericht. De eerste proef onthulde daarbij een echte React-crash doordat een uitgesteld state-updater nog `event.currentTarget` las; na het vastleggen van de invoerwaarde vóór de updater is dezelfde handeling zonder crash herhaald en als bronregressie toegevoegd. |
 | Voorgangertrace | **Bewezen** | De tabeltrace markeerde veertien bepalende voorgangers, de focustaak apart en vervaagde overige gemounte rijen. Zie `16-table-predecessor-trace-fade-en-dark.jpg`. |
 | Pinned overflow | **Bewezen** | Met 992 px aan gepinde kolommen in een gridviewport van 954 px werd sticky voor het hele blok uitgeschakeld; alle koppen bleven in normale volgorde zonder overlap. De oorspronkelijke gebruikersvoorkeuren zijn daarna hersteld. Zie `13-table-pinned-overflow-en-dark.jpg`. |
 | Keyboardresize | **Bewezen** | Op `Task name` gaf pijl-rechts 8 px en Shift+pijl-rechts 32 px: 220 → 228 → 260, exact 40 px. Daarna is 260 → 220 teruggezet. |
@@ -84,6 +98,7 @@ meegeleverde fictieve De Vaart-voorbeeld. Ze bevatten geen gebruikersdata.
 | Gantt | brede Chrome-viewport 1280 × 720 | [`22-gantt-wide-1280-en-dark.jpg`](../../../artifacts/tabel-overhaul/22-gantt-wide-1280-en-dark.jpg) |
 | Gantt | smalle Chrome-viewport 640 × 720 | [`23-gantt-narrow-640-en-dark.jpg`](../../../artifacts/tabel-overhaul/23-gantt-narrow-640-en-dark.jpg) |
 | Gantt | 200% Chrome-paginaweergave | [`24-gantt-page-zoom-200-en-dark.jpg`](../../../artifacts/tabel-overhaul/24-gantt-page-zoom-200-en-dark.jpg) |
+| Tauri | extern anker na zichtbare verversactie | [`tabel-overhaul-review-tauri-refresh.png`](./tabel-overhaul-review-tauri-refresh.png), SHA-256 `779897f10f2f8528f12e20132f853b613e943fa90ef5abb78261a5704a03eb50` |
 
 De full Table én Gantt hebben daarmee blijvend bewijs voor licht/donker/high-contrast, Nederlands,
 een taal met lange labels en RTL. De vier laatste Gantt-opnamen zijn in schone, afzonderlijke
@@ -92,18 +107,27 @@ userinstellingen zijn daarna teruggezet op Engels/donker.
 
 ## Geautomatiseerde poorten
 
-Deze resultaten zijn na de Task 22C-focusfix opnieuw en met hun werkelijke procesexit vastgelegd:
+Deze resultaten zijn na verwerking van de zesde implementatiereview opnieuw en met hun werkelijke
+procesexit vastgelegd:
 
 | Commando | Resultaat | Relevante telling |
 |---|---:|---|
 | `npm run typecheck` | exit 0 | productie- en test-`tsconfig` zonder fouten |
 | `npm run lint` | exit 0 | ESLint op `src` zonder fouten |
-| `bash tests/planning/run.sh` | exit 0 | onder meer editors 38/38, ARIA 39/39, i18n 4299/4299, performance 23/23, volledige solvermatrix 560/560 en vijf groene tijdzones |
+| `bash tests/planning/run.sh` | exit 0 | onder meer klembord 101/101, gridtransactie 152/152, assignment 44/44, task-cell-editor 23/23, adapter 58/58, voorkeuren 72/72, i18n 4607/4607, externe-linkdialoog 13/13, recorded-dates 206/206, IFC 168/168, Tauri-bewijs 5/5, volledige solvermatrix 560/560 en vijf groene tijdzones |
 | `npm run verify` | exit 0 | typecheck, lint, alle testreeksen, voorbeelden, documentatie, 13 locales, importcycli en audit volledig groen; audit: 0 kwetsbaarheden |
 
-De performancepoort mat in de volledige eindrun mediaan 193,11 ms voor de relation-index, 0,29 ms
-voor navigatie, 0,45 ms voor selectie en 0,018 ms voor het virtuele venster. Dit is aanvullend op
+De performancepoort mat in de volledige eindrun mediaan 163,07 ms voor de relation-index, 0,18 ms
+voor navigatie, 0,27 ms voor selectie en 0,008 ms voor het virtuele venster. Dit is aanvullend op
 het drie-runsbewijs in `tabel-overhaul-performance.md`.
+
+De eerste volledige run na de zesde review was terecht rood: de gerichte checks hadden een volledige
+mijlpaalrij met duur, hammock en een lege resourcecel niet geraakt. Vier van 101 klembordchecks
+faalden met `assignmentTaskUnavailable`, omdat de gegroepeerde mijlpaalcellen vóór de lege
+assignmentwrite werden uitgevoerd. Lege assignmentwrites die bestaande toewijzingen moeten wissen
+staan nu vóór de gezamenlijke mijlpaalovergang; niet-lege, tegenstrijdige assignments blijven rood.
+Daarna eindigden klembord 101/101, gridtransactie 152/152 en assignments 44/44 afzonderlijk groen en
+eindigde de volledige herstart van `npm run verify` met exitcode 0.
 
 Een eerdere volledige verify vond precies één inhoudelijke poortfout: 132 ontbrekende teksten voor
 de nieuwe relatiedropdown, verdeeld over twaalf niet-Nederlandse locale-bestanden. Na aanvulling gaf
@@ -121,9 +145,17 @@ Na de scenario's zijn filter, resourcegroepering, relatie-trace, extra voorgange
 mini-map en histogram uitgezet. De Gantt-kolommen staan weer op WBS 140 px, Task name 220 px en
 Duration 140 px; de volledige Tabel staat weer op zijn oorspronkelijke kolommen en alleen WBS is
 gepind. Taal en thema staan weer op Engels/donker en het eigenschappenpaneel staat weer open.
+De tijdelijke kolom **Assignment curve** uit de zesde review is via het echte kolomcontextmenu
+verwijderd. Na een volledige paginaherlading bevatte de Tabel opnieuw exact de negen standaardkolommen
+van WBS tot en met Progress en geen assignmentcurve.
+De laatste externe-linkproef zette daarnaast uurplanning weer uit, herstelde **Day shift**, verwijderde
+de tijdelijk toegevoegde voorgangerkolom, verwierp het tijdelijke project en stopte de gecontroleerde
+lokale server; poort 3018 weigerde daarna verbinding.
 
-## Resterende productrisico's
+## Aanvullende reviewreparaties
 
-Er staan na de uitgevoerde interactieve scenario's en geautomatiseerde poorten geen bekende open
-Task 22C-productrisico's in dit bewijs. Diffhygiëne, markeerwoordscan en stagecontrole worden direct
-voor de commit apart uitgevoerd, omdat die de exacte commitinhoud beoordelen.
+Na dit oorspronkelijke eindbewijs zijn negen punten opnieuw onderzocht. Het afzonderlijke dossier
+`tabel-overhaul-review-fixes.md` bevat de exacte verwerking, de echte productbenchmark, de
+Calc/XLSX-rondreis en de desktopverversing. De oorspronkelijke exitcodes hierboven blijven een
+historisch verslag van de toen geteste codebasis; zij worden pas vervangen door nieuwe eindcodes
+nadat alle reviewreparaties én hun aangepaste bewijstests opnieuw volledig zijn gedraaid.

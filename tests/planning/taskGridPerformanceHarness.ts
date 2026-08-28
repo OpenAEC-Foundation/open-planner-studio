@@ -1,5 +1,6 @@
 import { resolveTaskGridCommand } from '@/engine/taskGrid/navigation';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
+import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
 import { createTaskGridRowIndex, type TaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
 import { createEmptyGridSelection, updateGridSelection } from '@/engine/taskGrid/selection';
 import { computeVirtualWindow } from '@/engine/taskGrid/virtualization';
@@ -18,11 +19,14 @@ export const TASK_GRID_PERFORMANCE_COUNTS = Object.freeze({
   viewportHeight: 900,
   overscan: 8,
   commandCount: 1_000,
+  selectionAdapterTaskCount: 3_000,
+  selectionAdapterRelationCount: 2_999,
 });
 
 export const TASK_GRID_PERFORMANCE_BUDGETS = Object.freeze({
   relationIndexMs: 500,
   commandBatchMs: 100,
+  selectionAdapterMs: 2,
   virtualWindowMs: 5,
 });
 
@@ -40,6 +44,7 @@ export interface TaskGridPerformanceSamples {
   relationIndex: number[];
   navigationCommands: number[];
   selectionCommands: number[];
+  selectionAdapter: number[];
   virtualWindow: number[];
 }
 
@@ -53,6 +58,7 @@ export interface TaskGridPerformanceBenchmark {
     relationIndex: number;
     navigationCommands: number;
     selectionCommands: number;
+    selectionAdapter: number;
     virtualWindow: number;
   };
   mountedRows: number;
@@ -163,6 +169,22 @@ export function runTaskGridPerformanceBenchmark(
     viewportHeight: counts.viewportHeight,
     isReadOnly: () => false,
   };
+  const selectionAdapterTasks = fixture.tasks.slice(0, counts.selectionAdapterTaskCount);
+  const selectionAdapterRows = fixture.rows.slice(0, counts.selectionAdapterTaskCount);
+  const selectionAdapterSequences = fixture.sequences.slice(0, counts.selectionAdapterRelationCount);
+  const selectionAdapterDomain = createTaskGridAdapterDomain({
+    projectId: 'performance-project',
+    tasks: selectionAdapterTasks,
+    sequences: selectionAdapterSequences,
+    assignments: [],
+    resources: [],
+    baselines: [],
+    activityCodeTypes: [],
+    customFieldDefs: [],
+    scheduleStale: false,
+    wbsAutoNumber: false,
+    labelForColumn: labelKey => labelKey,
+  });
 
   const relationIndex = measure(() => {
     const index = buildTaskRelationIndex(fixture.tasks, fixture.sequences);
@@ -192,6 +214,18 @@ export function runTaskGridPerformanceBenchmark(
     }
     return selection.active?.rowKey.length ?? 0;
   }, warmups, runs);
+  let selectedAdapterTask = 0;
+  const selectionAdapter = measure(() => {
+    selectedAdapterTask = selectedAdapterTask === 0 ? counts.selectionAdapterTaskCount - 1 : 0;
+    const adapter = createTaskGridAdapter({
+      surfaceId: 'full-task-grid',
+      rows: selectionAdapterRows,
+      selectedTaskIds: [`task-${selectedAdapterTask}`],
+    }, selectionAdapterDomain);
+    const selectedRow = adapter.rows[selectedAdapterTask];
+    return adapter.rowMetaByKey.size
+      + (selectedRow?.kind === 'data' && selectedRow.selected ? 1 : 0);
+  }, warmups, runs);
   const virtualWindow = measure(() => {
     const result = computeVirtualWindow(virtualInput);
     return result.startIndex + result.endIndexExclusive;
@@ -207,11 +241,12 @@ export function runTaskGridPerformanceBenchmark(
     budgetsMs: TASK_GRID_PERFORMANCE_BUDGETS,
     warmups,
     runs,
-    samplesMs: { relationIndex, navigationCommands, selectionCommands, virtualWindow },
+    samplesMs: { relationIndex, navigationCommands, selectionCommands, selectionAdapter, virtualWindow },
     mediansMs: {
       relationIndex: median(relationIndex),
       navigationCommands: median(navigationCommands),
       selectionCommands: median(selectionCommands),
+      selectionAdapter: median(selectionAdapter),
       virtualWindow: median(virtualWindow),
     },
     mountedRows,

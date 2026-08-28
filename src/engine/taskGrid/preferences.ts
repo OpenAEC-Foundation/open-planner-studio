@@ -250,6 +250,17 @@ export interface ComputeTaskGridAutoFitWidthInput {
   yieldToMain?: () => Promise<void>;
 }
 
+/** Cache-identiteit voor precies de tekst die de gebruiker ziet. De onderliggende domeinwaarde
+ * alleen is onvoldoende: taal, resource-naam, actief document en font kunnen de breedte wijzigen. */
+export function taskGridAutoFitValueVersion(
+  value: unknown,
+  visibleText: string,
+  font: string,
+  documentId: string,
+): string {
+  return JSON.stringify([value, visibleText, font, documentId]);
+}
+
 function defaultAutoFitYield(): Promise<void> {
   if (typeof requestIdleCallback === 'function') {
     return new Promise(resolve => requestIdleCallback(() => resolve(), { timeout: 50 }));

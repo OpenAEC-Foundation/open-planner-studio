@@ -30,6 +30,10 @@ const fixture = createTaskGridPerformanceFixture();
 eq('Generator maakt exact 50.000 zichtbare taakrijen', fixture.rows.length, 50_000);
 eq('Generator maakt exact 24 zichtbare kolommen', fixture.columns.length, 24);
 eq('Generator maakt exact 100.000 interne relaties', fixture.sequences.length, 100_000);
+eq('Selectie-adapterfixture gebruikt exact 3.000 taken en 2.999 relaties', [
+  fixture.counts.selectionAdapterTaskCount,
+  fixture.counts.selectionAdapterRelationCount,
+], [3_000, 2_999]);
 eq('Generator publiceert de canonieke aantallen', fixture.counts, TASK_GRID_PERFORMANCE_COUNTS);
 eq('Generator houdt een stabiele controlevingerafdruk', fixture.fingerprint,
   'task-0|task-49999|sequence-0:task-0>task-1|sequence-99999:task-49999>task-1');
@@ -102,6 +106,8 @@ if (!relaxed) {
     result.mediansMs.navigationCommands <= TASK_GRID_PERFORMANCE_BUDGETS.commandBatchMs);
   ok(`1.000 selectiecommando's blijven <= ${TASK_GRID_PERFORMANCE_BUDGETS.commandBatchMs} ms`,
     result.mediansMs.selectionCommands <= TASK_GRID_PERFORMANCE_BUDGETS.commandBatchMs);
+  ok(`selectie→adapterprojectie blijft <= ${TASK_GRID_PERFORMANCE_BUDGETS.selectionAdapterMs} ms`,
+    result.mediansMs.selectionAdapter <= TASK_GRID_PERFORMANCE_BUDGETS.selectionAdapterMs);
   ok(`virtual-windowberekening blijft <= ${TASK_GRID_PERFORMANCE_BUDGETS.virtualWindowMs} ms`,
     result.mediansMs.virtualWindow <= TASK_GRID_PERFORMANCE_BUDGETS.virtualWindowMs);
 } else {
@@ -113,7 +119,7 @@ if (!relaxed) {
   })}`);
 }
 
-const measurementLine = `medianen ms: relationIndex=${result.mediansMs.relationIndex.toFixed(2)}, navigatie=${result.mediansMs.navigationCommands.toFixed(2)}, selectie=${result.mediansMs.selectionCommands.toFixed(2)}, virtualWindow=${result.mediansMs.virtualWindow.toFixed(3)}`;
+const measurementLine = `medianen ms: relationIndex=${result.mediansMs.relationIndex.toFixed(2)}, navigatie=${result.mediansMs.navigationCommands.toFixed(2)}, selectie=${result.mediansMs.selectionCommands.toFixed(2)}, selectieAdapter=${result.mediansMs.selectionAdapter.toFixed(2)}, virtualWindow=${result.mediansMs.virtualWindow.toFixed(3)}`;
 
 if (failures.length > 0) {
   console.error(`FAIL task-grid-performance: ${failures.length}/${checks}`);

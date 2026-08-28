@@ -1,5 +1,6 @@
 import './domStub';
 import { planTaskAssignmentSet } from '@/engine/taskGrid/assignmentPlan';
+import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { createAppStore } from '@/state/appStore';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
@@ -116,7 +117,7 @@ const invalidCurve = plan('t-leaf', [
 eq('Onbekende curve wordt geweigerd', invalidCurve.ok ? null : invalidCurve.errors[0]?.code, 'assignmentCurve');
 
 function assignmentIntent(taskId: string, tokens: readonly TaskAssignmentToken[]): AssignmentSetIntent {
-  return { kind: 'assignment-set', taskId, tokens };
+  return { kind: 'assignment-set', taskId, columnId: taskColumnId('assignment.resources'), tokens };
 }
 
 function transactionState(store: ReturnType<typeof createAppStore>) {

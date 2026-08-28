@@ -237,7 +237,7 @@ equal('histogramcode kent alleen de semantische pickerWidth', /taskTableWidth/.t
 equal('workspace bezit een full-width histogramhost',
   /data-testid="gantt-histogram-host"/.test(ganttWorkspaceSource), true);
 equal('workspace geeft zijn linkerbreedte als histogramkiezerbreedte door',
-  /histogramPickerWidth=\{leftPanelWidth\}/.test(ganttWorkspaceSource), true);
+  /histogramPickerWidth=\{renderedLeftPanelWidth\}/.test(ganttWorkspaceSource), true);
 equal('GanttCanvas portaleert het histogram naar de workspacehost',
   /createPortal\([\s\S]*?gantt-histogram/.test(ganttCanvasSource), true);
 

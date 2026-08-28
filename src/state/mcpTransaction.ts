@@ -554,6 +554,9 @@ export const draft = {
       );
       s.assignments = s.assignments.filter((a) => !removeIds.has(a.taskId));
       s.selectedTaskIds = s.selectedTaskIds.filter((sid) => !removeIds.has(sid));
+      if (s.activeTaskId && removeIds.has(s.activeTaskId)) {
+        s.activeTaskId = s.selectedTaskIds[0] ?? null;
+      }
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
     });

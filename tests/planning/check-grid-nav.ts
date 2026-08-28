@@ -118,7 +118,7 @@ for (const control of ['text', 'number', 'select', 'other'] as GridControlKind[]
     key: string,
     options: {
       mode?: 'select' | 'edit'; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean;
-      activeCell?: typeof active; readOnly?: boolean; viewportHeight?: number; textDirection?: 'ltr' | 'rtl';
+      activeCell?: typeof active; readOnly?: boolean; viewportHeight?: number;
     } = {},
   ) => resolveTaskGridCommand({
     event: { key, shiftKey: options.shiftKey, ctrlKey: options.ctrlKey, metaKey: options.metaKey },
@@ -128,15 +128,14 @@ for (const control of ['text', 'number', 'select', 'other'] as GridControlKind[]
     columns: taskColumns,
     rowHeight: 36,
     viewportHeight: options.viewportHeight ?? 72,
-    textDirection: options.textDirection,
     isReadOnly: options.readOnly ? () => true : () => false,
   });
 
   eq('Taakgrid pijl omhoog', command('ArrowUp'), { kind: 'move', cell: { rowKey: 't1', columnId: taskColumns[1] }, extend: false });
   eq('Taakgrid pijl omlaag slaat groepskop over', command('ArrowDown'), { kind: 'move', cell: { rowKey: 't3', columnId: taskColumns[1] }, extend: false });
   eq('Taakgrid Shift+pijl breidt uit', command('ArrowRight', { shiftKey: true }), { kind: 'move', cell: { rowKey: 't2', columnId: taskColumns[2] }, extend: true });
-  eq('Taakgrid RTL+pijl-links volgt de fysieke buur links', command('ArrowLeft', { textDirection: 'rtl' }), { kind: 'move', cell: { rowKey: 't2', columnId: taskColumns[0] }, extend: false });
-  eq('Taakgrid RTL+pijl-rechts volgt de fysieke buur rechts', command('ArrowRight', { textDirection: 'rtl' }), { kind: 'move', cell: { rowKey: 't2', columnId: taskColumns[2] }, extend: false });
+  eq('Taakgrid pijl-links volgt de fysieke buur links', command('ArrowLeft'), { kind: 'move', cell: { rowKey: 't2', columnId: taskColumns[0] }, extend: false });
+  eq('Taakgrid pijl-rechts volgt de fysieke buur rechts', command('ArrowRight'), { kind: 'move', cell: { rowKey: 't2', columnId: taskColumns[2] }, extend: false });
   eq('Taakgrid Home', command('Home'), { kind: 'move', cell: { rowKey: 't2', columnId: taskColumns[0] }, extend: false });
   eq('Taakgrid End', command('End'), { kind: 'move', cell: { rowKey: 't2', columnId: taskColumns[2] }, extend: false });
   eq('Taakgrid Ctrl+Home', command('Home', { ctrlKey: true }), { kind: 'move', cell: { rowKey: 't1', columnId: taskColumns[0] }, extend: false });
@@ -149,10 +148,6 @@ for (const control of ['text', 'number', 'select', 'other'] as GridControlKind[]
   eq('Taakgrid Shift+Tab loopt terug',
     command('Tab', { shiftKey: true, activeCell: { rowKey: 't2', columnId: taskColumns[0] } }),
     { kind: 'move', cell: { rowKey: 't1', columnId: taskColumns[2] }, extend: false });
-  eq('Taakgrid RTL laat Tab in logische DOM-volgorde',
-    command('Tab', { textDirection: 'rtl', activeCell: { rowKey: 't2', columnId: taskColumns[2] } }),
-    { kind: 'move', cell: { rowKey: 't3', columnId: taskColumns[0] }, extend: false });
-
   eq('Enter vanuit selectie start editor', command('Enter'), { kind: 'start-edit', cell: active });
   eq('F2 vanuit selectie start editor', command('F2'), { kind: 'start-edit', cell: active });
   eq('Enter op read-only geeft expliciet readonly', command('Enter', { readOnly: true }), { kind: 'readonly', cell: active });

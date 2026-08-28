@@ -85,6 +85,7 @@ const withinBudgets = {
   relationIndex: mediansMs.relationIndex <= benchmark.budgetsMs.relationIndexMs,
   navigationCommands: mediansMs.navigationCommands <= benchmark.budgetsMs.commandBatchMs,
   selectionCommands: mediansMs.selectionCommands <= benchmark.budgetsMs.commandBatchMs,
+  selectionAdapter: mediansMs.selectionAdapter <= benchmark.budgetsMs.selectionAdapterMs,
   virtualWindow: mediansMs.virtualWindow <= benchmark.budgetsMs.virtualWindowMs,
 };
 const report = {

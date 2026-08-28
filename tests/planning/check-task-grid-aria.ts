@@ -129,7 +129,7 @@ const rtlMarkup = renderToStaticMarkup(createElement(DataGridCore, {
   },
 }));
 eq('RTL-grid houdt de fysieke kolom- en scrollrichting links-naar-rechts',
-  /role="grid"[^>]*dir="rtl"[^>]*style="[^"]*direction:ltr/.test(rtlMarkup), true);
+  /role="grid"[^>]*dir="ltr"[^>]*style="[^"]*direction:ltr/.test(rtlMarkup), true);
 eq('RTL-kolomkoppen en datacellen houden hun eigen tekstrichting',
   count(rtlMarkup, /role="columnheader"[^>]*dir="rtl"/g) === 3
     && count(rtlMarkup, /role="gridcell"[^>]*dir="rtl"/g) === 3, true);
@@ -163,6 +163,40 @@ eq('Ongemounte actieve cel geeft tijdelijk precies één tabstop aan de containe
   count(offscreenMarkup, /tabindex="0"/g), 1);
 eq('Ongemounte actieve cel maakt geen tweede schijn-actieve cel',
   count(offscreenMarkup, /data-grid-active="true"/g), 0);
+
+const largeRows: DataGridRowModel[] = Array.from({ length: 200 }, (_, index) => ({
+  kind: 'data', rowKey: `large-${index}`, depth: 0,
+}));
+const externallyScrolledMarkup = renderToStaticMarkup(createElement(DataGridCore, {
+  rows: largeRows,
+  columns,
+  selection: {
+    ...selection,
+    active: { rowKey: 'large-150', columnId: columns[1].id },
+  },
+  rowHeight: 28,
+  headerHeight: 28,
+  viewportHeight: 84,
+  viewportWidth: 500,
+  scrollTop: 150 * 28 + 0.5,
+  overscan: 0,
+  getCell: (row, column) => ({ text: `${row.rowKey}:${column.label}`, readOnly: false }),
+  labels: {
+    grid: 'Groot takenraster',
+    collapseGroup: label => `${label} inklappen`,
+    expandGroup: label => `${label} uitklappen`,
+    resizeColumn: label => `${label} breder of smaller maken`,
+    removeColumn: label => `${label} verwijderen`,
+    pinColumn: 'Links vastzetten',
+    unpinColumn: 'Links losmaken',
+    autoFitColumn: 'Breedte automatisch',
+  },
+}));
+eq('Externe sprong op 200 rijen monteert zichtbare rijen rond taak 150',
+  externallyScrolledMarkup.includes('large-150')
+    && count(externallyScrolledMarkup, /data-grid-data-row=/g) > 0, true);
+eq('Externe sprong houdt rij nul buiten de gevirtualiseerde viewport',
+  externallyScrolledMarkup.includes('large-0:'), false);
 
 const pinnedFits = computePinnedColumnLayout(columns, 500);
 eq('Pinned blok past en krijgt één cumulatieve left-offset', pinnedFits.stickyEnabled, true);

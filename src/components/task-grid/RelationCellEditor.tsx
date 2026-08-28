@@ -175,6 +175,10 @@ export function RelationCellEditor({
   onOpenExternal,
 }: RelationCellEditorProps) {
   const { t } = useTranslation('task');
+  const validationProps = {
+    'aria-invalid': inputProps['aria-invalid'],
+    'aria-describedby': inputProps['aria-describedby'],
+  };
   const [query, setQuery] = useState('');
   const anchorRef = useRef<HTMLSpanElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -276,7 +280,7 @@ export function RelationCellEditor({
 
   const editor = position ? (
     <div
-      {...inputProps}
+      onKeyDown={inputProps.onKeyDown}
       ref={editorRef}
       className="task-grid-relation-editor"
       data-task-editor-kind="relations"
@@ -296,6 +300,7 @@ export function RelationCellEditor({
               <div key={token.relationId ?? `${token.taskId ?? token.wbsCode}:${index}`} className="task-grid-relation-token" role="listitem">
                 <span className="task-grid-relation-reference" title={taskLabel}>{taskLabel}</span>
                 <select
+                  {...validationProps}
                   aria-label={t('relations.controlType', { task: taskLabel })}
                   value={token.relType}
                   onKeyDown={controlKeyDown}
@@ -306,6 +311,7 @@ export function RelationCellEditor({
                   {RELATION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
                 <input
+                  {...validationProps}
                   aria-label={t('relations.controlLag', { task: taskLabel })}
                   value={token.lagText}
                   placeholder="0d"
@@ -336,6 +342,7 @@ export function RelationCellEditor({
                 {sourceLabel}
               </button>
               <select
+                {...validationProps}
                 aria-label={t('relations.controlType', { task: sourceLabel })}
                 value={token.external.relType}
                 onKeyDown={controlKeyDown}
@@ -347,6 +354,7 @@ export function RelationCellEditor({
                 {compatibleTypes.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
               <input
+                {...validationProps}
                 aria-label={t('relations.controlLag', { task: sourceLabel })}
                 value={externalLagDrafts[key] ?? ''}
                 placeholder="0d"
@@ -367,6 +375,7 @@ export function RelationCellEditor({
 
       <div className="task-grid-relation-add">
         <input
+          {...validationProps}
           ref={node => {
             queryInputRef.current = node;
             if (typeof inputRef === 'function') inputRef(node);

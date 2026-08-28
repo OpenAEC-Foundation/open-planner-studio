@@ -109,14 +109,14 @@ export function canonicalGridJson(value: unknown): string {
 
 function formatScalar(value: unknown): string {
   if (value === undefined || value === null || value === '') return '—';
-  if (typeof value === 'boolean') return value ? 'Ja' : 'Nee';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'object') return canonicalGridJson(value);
   return String(value);
 }
 
 function copyScalar(value: unknown): string {
   if (value === undefined || value === null) return '';
-  if (typeof value === 'boolean') return value ? 'Ja' : 'Nee';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'object') return canonicalGridJson(value);
   return String(value);
 }
@@ -171,6 +171,7 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     parse: config.parse,
     validate: config.validate,
     planWrite,
+    planWriteUnchecked: rawPlanWrite,
     autoFitText: (task, ctx) => format(config.read(task, ctx), task, ctx),
   };
 }
@@ -281,6 +282,14 @@ const TASK_STATUSES: readonly TaskStatus[] = ['NOT_STARTED', 'STARTED', 'COMPLET
 const MILESTONE_KINDS: readonly MilestoneKind[] = ['START', 'FINISH'];
 const CONSTRAINT_TYPES: readonly ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 const RESOURCE_CURVES: readonly ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+const RESOURCE_CURVE_LABEL_KEYS: Readonly<Record<ResourceCurve, string>> = {
+  UNIFORM: 'resource.curve.uniform',
+  FRONT_LOADED: 'resource.curve.frontLoaded',
+  BACK_LOADED: 'resource.curve.backLoaded',
+  BELL: 'resource.curve.bell',
+  EARLY_PEAK: 'resource.curve.earlyPeak',
+  LATE_PEAK: 'resource.curve.latePeak',
+};
 
 function enumOptions(prefix: string, values: readonly string[], optional = false) {
   return [
@@ -289,9 +298,11 @@ function enumOptions(prefix: string, values: readonly string[], optional = false
   ];
 }
 
-function compactArraySummary(value: unknown, noun: string): string {
+function compactArraySummary(value: unknown, labelKey: string, ctx: TaskColumnContext): string {
   const count = Array.isArray(value) ? value.length : 0;
-  return count === 0 ? '—' : `${count} ${noun}${count === 1 ? '' : 'en'}`;
+  if (count === 0) return '—';
+  const label = ctx.labelForText?.(labelKey) ?? labelKey;
+  return `${label}: ${count}`;
 }
 
 function assignments(task: Task, ctx: TaskColumnContext): readonly ResourceAssignment[] {
@@ -380,6 +391,8 @@ function validateAssignmentTokens(
 ): GridResult<unknown, readonly CellValidationError[]> {
   if (!Array.isArray(value)) return failure(code, value);
   const currentById = new Map(assignments(task, ctx).map(item => [item.id, item] as const));
+  const normalized: TaskAssignmentToken[] = [];
+  let removedForeignIdentity = false;
   const resourceIds = new Set<string>();
   const assignmentIds = new Set<string>();
   for (const raw of value) {
@@ -392,16 +405,32 @@ function validateAssignmentTokens(
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) return failure(code, raw);
     if (resourceIds.has(token.resourceId)) return failure('assignmentDuplicateResource', token.resourceId);
     resourceIds.add(token.resourceId);
-    if (token.assignmentId !== undefined) {
-      if (typeof token.assignmentId !== 'string' || assignmentIds.has(token.assignmentId)) {
-        return failure('assignmentDuplicateId', token.assignmentId);
+    let assignmentId = token.assignmentId;
+    if (assignmentId !== undefined) {
+      if (typeof assignmentId !== 'string' || assignmentIds.has(assignmentId)) {
+        return failure('assignmentDuplicateId', assignmentId);
       }
-      const current = currentById.get(token.assignmentId);
-      if (!current || current.resourceId !== token.resourceId) return failure('assignmentIdentity', raw);
-      assignmentIds.add(token.assignmentId);
+      const current = currentById.get(assignmentId);
+      // Een volledige assignmentcel die naar een andere taak wordt geplakt draagt ids van de
+      // brontaak. Op het doel is resource-identiteit leidend en ontstaat een nieuwe assignment.
+      // Bestaat de id wél op dit doel, dan blijft een resourcewisseling streng verboden.
+      if (current && current.resourceId !== token.resourceId) return failure('assignmentIdentity', raw);
+      if (current) assignmentIds.add(assignmentId);
+      else {
+        assignmentId = undefined;
+        removedForeignIdentity = true;
+      }
     }
+    normalized.push({
+      ...(assignmentId ? { assignmentId } : {}),
+      resourceId: token.resourceId,
+      unitsPerDay: token.unitsPerDay,
+      ...(token.curve ? { curve: token.curve } : {}),
+    });
   }
-  return success(value);
+  // Zelfde taak: behoud exact de bestaande payload, inclusief sleutelvolgorde voor canonieke
+  // deduplicatie. Andere taak: verwijder uitsluitend de niet-overdraagbare assignment-id's.
+  return success(removedForeignIdentity ? normalized : value);
 }
 
 const parseAssignmentResources: Parser = (text, task, ctx) => {
@@ -495,19 +524,22 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.levelingDelayElapsed', labelKey: 'taskGrid.columns.levelingDelayElapsed', category: 'technical', valueKind: 'boolean', read: task => task.levelingDelayElapsed }),
     readonlyColumn({
       id: 'task.splitGaps', labelKey: 'taskGrid.columns.splitGaps', category: 'planning', valueKind: 'technical',
-      read: task => task.splitGaps, format: value => compactArraySummary(value, 'onderbreking'),
+      read: task => task.splitGaps,
+      format: (value, _task, ctx) => compactArraySummary(value, 'taskGrid.columns.splitGaps', ctx),
       copy: task => canonicalGridJson(task.splitGaps ?? []),
     }),
     readonlyColumn({ id: 'task.timephasedFinishFloor', labelKey: 'taskGrid.columns.timephasedFinishFloor', category: 'technical', valueKind: 'datetime', read: task => task.timephasedFinishFloor }),
     readonlyColumn({ id: 'task.timephasedStartAnchor', labelKey: 'taskGrid.columns.timephasedStartAnchor', category: 'technical', valueKind: 'datetime', read: task => task.timephasedStartAnchor }),
     readonlyColumn({
       id: 'task.timephasedDurationWalks', labelKey: 'taskGrid.columns.timephasedDurationWalks', category: 'technical', valueKind: 'technical',
-      read: task => task.timephasedDurationWalks, format: value => compactArraySummary(value, 'duurwandeling'),
+      read: task => task.timephasedDurationWalks,
+      format: (value, _task, ctx) => compactArraySummary(value, 'taskGrid.columns.timephasedDurationWalks', ctx),
       copy: task => canonicalGridJson(task.timephasedDurationWalks ?? []),
     }),
     readonlyColumn({
       id: 'task.timephasedContours', labelKey: 'taskGrid.columns.timephasedContours', category: 'technical', valueKind: 'technical',
-      read: task => task.timephasedContours, format: value => compactArraySummary(value, 'contour'),
+      read: task => task.timephasedContours,
+      format: (value, _task, ctx) => compactArraySummary(value, 'taskGrid.columns.timephasedContours', ctx),
       copy: task => canonicalGridJson(task.timephasedContours ?? []),
     }),
     readonlyColumn({ id: 'task.manuallyScheduled', labelKey: 'taskGrid.columns.manuallyScheduled', category: 'technical', valueKind: 'boolean', read: task => task.manuallyScheduled }),
@@ -542,7 +574,8 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
     }),
     readonlyColumn({
       id: 'task.notes.technical', labelKey: 'taskGrid.columns.noteData', category: 'technical', valueKind: 'technical',
-      read: task => task.notes, format: value => compactArraySummary(value, 'notitie'),
+      read: task => task.notes,
+      format: (value, _task, ctx) => compactArraySummary(value, 'taskGrid.columns.notes', ctx),
       copy: task => canonicalGridJson(task.notes ?? []),
     }),
   ];
@@ -675,7 +708,8 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       parse: parseAssignmentResources,
       validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignments'),
       planWrite: (value, task) => success([{
-        kind: 'assignment-set', taskId: task.id, tokens: value as readonly TaskAssignmentToken[],
+        kind: 'assignment-set', taskId: task.id, columnId: taskColumnId('assignment.resources'),
+        tokens: value as readonly TaskAssignmentToken[],
       }]),
     }),
     editableColumn({
@@ -696,7 +730,8 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       parse: parseAssignmentUnits,
       validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignmentUnits'),
       planWrite: (value, task) => success([{
-        kind: 'assignment-set', taskId: task.id, tokens: value as readonly TaskAssignmentToken[],
+        kind: 'assignment-set', taskId: task.id, columnId: taskColumnId('assignment.unitsPerDay'),
+        tokens: value as readonly TaskAssignmentToken[],
       }]),
     }),
     editableColumn({
@@ -705,7 +740,9 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || assignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; curve: ResourceCurve };
-        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.curve ?? 'UNIFORM'}`;
+        const curve = item.curve ?? 'UNIFORM';
+        const curveLabel = ctx.labelForText?.(RESOURCE_CURVE_LABEL_KEYS[curve]) ?? curve;
+        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${curveLabel}`;
       }).join('; ') : '—',
       copy: (task, ctx) => structuredClipboardText(
         assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.curve ?? 'UNIFORM'}`).join('; '),
@@ -717,7 +754,8 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       parse: parseAssignmentCurves,
       validate: (value, task, ctx) => validateAssignmentTokens(value, task, ctx, 'assignmentCurve'),
       planWrite: (value, task) => success([{
-        kind: 'assignment-set', taskId: task.id, tokens: value as readonly TaskAssignmentToken[],
+        kind: 'assignment-set', taskId: task.id, columnId: taskColumnId('assignment.curve'),
+        tokens: value as readonly TaskAssignmentToken[],
       }]),
     }),
     readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowStart'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
@@ -872,6 +910,16 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
     'start', 'finish', 'duration', 'varianceStart', 'varianceFinish', 'varianceDuration',
     'isMilestone', 'milestoneKind',
   ];
+  const fieldLabelKeys: Readonly<Record<BaselineTaskColumnField, string>> = {
+    start: 'taskGrid.columns.scheduleStart',
+    finish: 'taskGrid.columns.scheduleFinish',
+    duration: 'taskGrid.columns.duration',
+    varianceStart: 'taskGrid.summary.baselineVarianceStart',
+    varianceFinish: 'taskGrid.summary.baselineVarianceFinish',
+    varianceDuration: 'taskGrid.summary.baselineVarianceDuration',
+    isMilestone: 'taskGrid.columns.milestone',
+    milestoneKind: 'taskGrid.columns.milestoneKind',
+  };
   for (const baseline of input.baselines) {
     // Expliciet één indexbouw per baseline. De descriptor-readers doen alleen Map.get(task.id).
     const taskIndex = new Map(baseline.tasks.map(task => [task.taskId, task] as const));
@@ -883,7 +931,7 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
             : fieldName === 'duration' ? 'duration' : 'number';
       result.push(readonlyColumn({
         id: baselineColumnId(input.projectId, baseline.id, fieldName),
-        labelKey: `${baseline.name} — ${fieldName}`,
+        labelKey: `${baseline.name} — ${fieldLabelKeys[fieldName]}`,
         category: technical ? 'technical' : 'baseline',
         valueKind,
         available: ctx => ctx.projectId === input.projectId && ctx.baselinesById.has(baseline.id),

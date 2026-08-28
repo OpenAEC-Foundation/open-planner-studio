@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -144,18 +145,13 @@ export function TaskDialog() {
       // en de drift na herberekenen herintroduceren.
       const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
       if (startDate !== shownStart) time.scheduleStart = startDate;
-      if (draft.isMilestone) {
-        time.scheduleDuration = 0;
-        // T14b-vervolg (spec-review): `= undefined` i.p.v. `delete` — de STORE-updateTask-merge
-        // (`mergeTaskTime`, taskDefaults.ts) onderscheidt "sleutel aanwezig met undefined" (bewuste
-        // clear) van "sleutel afwezig" (behoud bestaande waarde) via `'veld' in partial`. Een
-        // `delete` hier zou de sleutel laten verdwijnen vóórdat `updateTask` 'm ziet, en de merge zou
-        // 'm dan verwarren met "niet genoemd" — en de oude durationMinutes stil laten staan.
-        time.durationMinutes = undefined;
-      } else if (useHour) {
+      const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
+      if (milestoneTransition.time) {
+        Object.assign(time, milestoneTransition.time);
+      } else if (!draft.isMilestone && useHour) {
         time.scheduleDuration = derivedDays;
         time.durationMinutes = durationMinutes;
-      } else {
+      } else if (!draft.isMilestone) {
         // Dag-modus-tak (Urenplanning uit of dag-kalender). Speciaal geval: staat de schakelaar UIT
         // terwijl de effectieve kalender tóch uur-modus is (bv. net geladen uur-bestand), dan toont
         // het enkele Dagen-vakje slechts de hele-dagen-benadering; laat de minuut-bron ONGEMOEID

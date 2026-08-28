@@ -7,10 +7,12 @@ import {
   removeTaskGridColumn,
   resizeTaskGridColumn,
   setTaskGridColumnPinned,
+  taskGridAutoFitValueVersion,
 } from '@/engine/taskGrid/preferences';
 import { buildColumnChooserModel, type TaskGridColumnOption } from '@/components/task-grid/ColumnChooser';
 import { TaskGrid, type TaskGridLabels } from '@/components/task-grid/TaskGrid';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
+import { nextTaskGridMenuIndex } from '@/engine/taskGrid/menuNavigation';
 import { createEmptyGridSelection } from '@/engine/taskGrid/selection';
 import type { TaskGridColumnPreference } from '@/types/taskGrid';
 import { createElement } from 'react';
@@ -123,6 +125,18 @@ await computeTaskGridAutoFitWidth({
   cache: measureCache, measureText, chunkSize: 500, yieldToMain: async () => undefined,
 });
 eq('De per-rij/per-kolom/valueversion-cache voorkomt hermeting van alle datacellen', measured, 1);
+eq('Auto-fit-cache-identiteit verandert met zichtbare tekst, font en document', [
+  taskGridAutoFitValueVersion('WORKTIME', 'Werktijd', '12px sans-serif', 'doc-a'),
+  taskGridAutoFitValueVersion('WORKTIME', 'Work time', '12px sans-serif', 'doc-a'),
+  taskGridAutoFitValueVersion('WORKTIME', 'Werktijd', '14px sans-serif', 'doc-a'),
+  taskGridAutoFitValueVersion('WORKTIME', 'Werktijd', '12px sans-serif', 'doc-b'),
+].every((value, index, all) => all.indexOf(value) === index), true);
+eq('Contextmenu-pijlen lopen cyclisch door alle acties', [
+  nextTaskGridMenuIndex('ArrowDown', 2, 3),
+  nextTaskGridMenuIndex('ArrowUp', 0, 3),
+  nextTaskGridMenuIndex('Home', 2, 3),
+  nextTaskGridMenuIndex('End', 0, 3),
+], [0, 2, 0, 2]);
 
 const labels: TaskGridLabels = {
   grid: 'Takenraster',

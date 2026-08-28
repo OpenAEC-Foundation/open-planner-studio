@@ -37,6 +37,26 @@ function isBrowserShortcut(e: KeyboardEvent): boolean {
   );
 }
 
+/** Een component die dezelfde keydown al heeft afgehandeld, bezit het event volledig. */
+export function shouldHandleGlobalShortcutEvent(
+  event: Pick<KeyboardEvent, 'defaultPrevented'>,
+): boolean {
+  return !event.defaultPrevented;
+}
+
+type ClosestTarget = { closest?: (selector: string) => unknown };
+
+/** Ctrl/Cmd+C/V blijft binnen een taakgrid van de native copy/paste-eventketen. */
+export function shouldYieldClipboardShortcutToTaskGrid(event: {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  target: EventTarget | ClosestTarget | null;
+}): boolean {
+  if (!(event.ctrlKey || event.metaKey) || !['c', 'v'].includes(event.key.toLowerCase())) return false;
+  return !!(event.target as ClosestTarget | null)?.closest?.('.task-grid-core');
+}
+
 export function useKeyboardShortcuts() {
   // Alleen nog nodig voor de losstaande productie-only browser-sneltoets-voorpoort hieronder
   // (bewust ongemoeid gelaten, zie shortcutRegistry.ts). Alle overige sneltoetsen lopen via
@@ -49,6 +69,7 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (!shouldHandleGlobalShortcutEvent(e)) return;
       // Block browser shortcuts in production but still run app actions
       if (isProduction && isBrowserShortcut(e)) {
         e.preventDefault();
@@ -66,6 +87,7 @@ export function useKeyboardShortcuts() {
 
       const target = e.target as HTMLElement;
       const isTypingTarget = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      if (shouldYieldClipboardShortcutToTaskGrid(e)) return;
 
       // Sneltoets-register (fase 2.10): matcht in volgorde, stopt bij de EERSTE hit — exact het
       // prioriteitsgedrag van de vroegere if-keten (zie shortcutRegistry.ts voor de

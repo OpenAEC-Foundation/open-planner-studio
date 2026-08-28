@@ -117,8 +117,64 @@ function environment(
   }
   return {
     selection, rowIndex, columns: visibleColumns, descriptors: descriptorMap,
-    context, dateNotation: 'dmy',
+    context, dateNotation: 'dmy', booleanLabels: { true: 'Oui', false: 'Non' },
   };
+}
+
+function liveEnvironment(
+  taskId: string,
+  visibleColumns: readonly TaskColumnId[],
+): TaskGridClipboardEnvironment {
+  const state = S();
+  const task = state.tasks.find(candidate => candidate.id === taskId)!;
+  const liveDescriptors = buildTaskColumnRegistry({
+    projectId: state.project.id,
+    activityCodeTypes: state.activityCodeTypes,
+    customFieldDefs: state.customFieldDefs,
+    baselines: state.baselines,
+  });
+  const assignmentsByTaskId = new Map<string, typeof state.assignments>();
+  for (const assignment of state.assignments) {
+    const current = assignmentsByTaskId.get(assignment.taskId);
+    if (current) current.push(assignment);
+    else assignmentsByTaskId.set(assignment.taskId, [assignment]);
+  }
+  const liveContext: TaskColumnContext = {
+    projectId: state.project.id,
+    tasksById: new Map(state.tasks.map(candidate => [candidate.id, candidate])),
+    relationIndex: buildTaskRelationIndex(state.tasks, state.sequences, state.cpmResult),
+    assignmentsByTaskId,
+    resourcesById: new Map(state.resources.map(resource => [resource.id, resource])),
+    baselinesById: new Map(state.baselines.map(baseline => [baseline.id, baseline])),
+    scheduleStale: state.scheduleStale,
+    wbsAutoNumber: state.project.wbsAutoNumber === true,
+    effectiveHoursPerDay: () => 8,
+  };
+  const rows = [taskRow(task)];
+  const rowIndex = createTaskGridRowIndex(rows);
+  const start = { rowKey: task.id, columnId: visibleColumns[0] };
+  const end = { rowKey: task.id, columnId: visibleColumns[visibleColumns.length - 1] };
+  let selection = updateGridSelection(createEmptyGridSelection(), start, rowIndex, visibleColumns, 'replace');
+  if (visibleColumns.length > 1) selection = updateGridSelection(selection, end, rowIndex, visibleColumns, 'extend');
+  return {
+    selection,
+    rowIndex,
+    columns: visibleColumns,
+    descriptors: new Map(liveDescriptors.map(descriptor => [descriptor.id, descriptor])),
+    context: liveContext,
+    dateNotation: 'dmy',
+    booleanLabels: { true: 'Oui', false: 'Non' },
+  };
+}
+
+function planAndCommitPaste(
+  taskId: string,
+  visibleColumns: readonly TaskColumnId[],
+  text: string,
+): { planned: boolean; committed: boolean } {
+  const planned = planTaskGridPaste(text, liveEnvironment(taskId, visibleColumns));
+  if (!planned.ok) return { planned: false, committed: false };
+  return { planned: true, committed: S().runGridMutation([planned.value]).ok };
 }
 
 // Kopie volgt visuele volgorde; groepskop levert geen lege TSV-rij.
@@ -185,8 +241,8 @@ function environment(
     { rowKey: duplicateRows[0].rowKey, columnId: optionalDate },
     { rowKey: duplicateRows[1].rowKey, columnId: optionalDate },
   ));
-  eq('Gelijke undefined-writes uit lege optionele cellen dedupliceren ook',
-    emptyOptional.ok ? emptyOptional.value.writes.length : emptyOptional.errors, 1);
+  eq('Gelijke undefined-writes uit lege optionele cellen verdwijnen als gezamenlijke no-op',
+    emptyOptional.ok ? emptyOptional.value.writes.length : emptyOptional.errors, 0);
 }
 
 // Registryparsers en read-only gelden vóór er één PasteIntent ontstaat.
@@ -198,7 +254,7 @@ function environment(
     ['boolean', taskColumnId('task.isMilestone'), 'ja', true],
     ['enum', taskColumnId('task.taskType'), 'installation', 'INSTALLATION'],
     ['datum', taskColumnId('task.constraint.date'), '31-12-2026', '2026-12-31'],
-    ['datumtijd', taskColumnId('task.time.scheduleStart'), '31-12-2026 08:45', '2026-12-31T08:45'],
+    ['datumtijd', taskColumnId('task.time.scheduleStart'), '30-12-2026 08:45', '2026-12-30T08:45'],
     ['duur', taskColumnId('task.time.scheduleDuration'), '2d 4u', 1200],
     ['leeg', taskColumnId('task.description'), '', ''],
   ];
@@ -211,6 +267,19 @@ function environment(
         : planned.ok ? planned.value.writes : planned.errors,
       expected);
   }
+
+  const localizedBoolean = taskColumnId('task.isMilestone');
+  const localizedBooleanEnv = environment(rows, [localizedBoolean], {
+    rowKey: first.id, columnId: localizedBoolean,
+  });
+  eq('Gelokaliseerde boolean wordt in dezelfde taal gekopieerd',
+    copyTaskGridSelection(localizedBooleanEnv), { ok: true, value: 'Non' });
+  const localizedBooleanPaste = planTaskGridPaste('Oui', localizedBooleanEnv);
+  eq('Gelokaliseerde boolean wordt vanuit het klembord teruggeparsed',
+    localizedBooleanPaste.ok && localizedBooleanPaste.value.writes[0]?.kind === 'cell-edit'
+      ? localizedBooleanPaste.value.writes[0].value
+      : localizedBooleanPaste,
+    true);
 
   const predecessors = taskColumnId('relation.predecessors');
   const relationEnv = environment(rows, [predecessors], { rowKey: first.id, columnId: predecessors });
@@ -227,9 +296,9 @@ function environment(
   const resources = taskColumnId('assignment.resources');
   const assignmentEnv = environment(rows, [resources], { rowKey: first.id, columnId: resources });
   const assignmentClear = planTaskGridPaste('', assignmentEnv);
-  eq('Assignmentplanner blijft eveneens als atomische write in PasteIntent behouden',
+  eq('Lege assignment op een al lege taak verdwijnt als no-op vóór PasteIntent',
     assignmentClear.ok ? assignmentClear.value.writes : assignmentClear.errors,
-    [{ kind: 'assignment-set', taskId: first.id, tokens: [] }]);
+    []);
 
   const computed = taskColumnId('task.time.totalFloat');
   const computedEnv = environment(rows, [computed], { rowKey: first.id, columnId: computed });
@@ -261,6 +330,275 @@ function environment(
   eq('Clear plant twee lege waarden', cleared.ok
     ? cleared.value.writes.map(write => write.kind === 'cell-edit' ? write.value : write)
     : cleared.errors, ['', '']);
+}
+
+// Productieketen: dynamisch schrijfbare cellen worden tegen de gezamenlijke paste-eindtoestand
+// beoordeeld. Deze regressies lopen bewust via planTaskGridPaste én de echte storetransactie.
+{
+  S().newProject();
+  const ordinaryNoop = S().addTask({ name: 'Ongewijzigd doel' });
+  S().setWbsAutoNumber(true);
+  const noopCases = [
+    {
+      label: 'auto-WBS en naam',
+      columns: [taskColumnId('task.wbsCode'), taskColumnId('task.name')],
+    },
+    {
+      label: 'mijlpaalmetadata zonder mijlpaalkolom',
+      columns: [taskColumnId('task.milestoneKind'), taskColumnId('task.mandatory')],
+    },
+    {
+      label: 'harde pin zonder constrainttypekolom',
+      columns: [taskColumnId('task.constraint.hard')],
+    },
+  ];
+  for (const noopCase of noopCases) {
+    const env = liveEnvironment(ordinaryNoop, noopCase.columns);
+    const copied = copyTaskGridSelection(env);
+    const planned = copied.ok ? planTaskGridPaste(copied.value, env) : copied;
+    eq(`${noopCase.label}: ongewijzigde conditionele cellen plannen nul writes`,
+      planned.ok ? planned.value.writes.length : planned.errors, 0);
+    const beforeHistory = S().historyEvents.length;
+    const committed = planned.ok ? S().runGridMutation([planned.value]) : planned;
+    eq(`${noopCase.label}: no-op paste commit zonder fout`, committed.ok, true);
+    eq(`${noopCase.label}: no-op paste maakt geen historyevent`,
+      S().historyEvents.length, beforeHistory);
+  }
+
+  const changedMetadata = planTaskGridPaste(
+    'START',
+    liveEnvironment(ordinaryNoop, [taskColumnId('task.milestoneKind')]),
+  );
+  const changedMetadataCommit = changedMetadata.ok
+    ? S().runGridMutation([changedMetadata.value])
+    : changedMetadata;
+  eq('Mijlpaalmetadata mag zichzelf zonder controller niet schrijfbaar maken',
+    changedMetadataCommit.ok, false);
+  eq('Zelf-openende mijlpaalmetadata blijft readOnly',
+    changedMetadataCommit.ok ? null : changedMetadataCommit.errors[0]?.code, 'readOnly');
+
+  S().newProject();
+  const milestoneTask = S().addTask({ name: 'Wordt mijlpaal' });
+  const milestoneColumns = [
+    taskColumnId('task.isMilestone'),
+    taskColumnId('task.milestoneKind'),
+    taskColumnId('task.mandatory'),
+  ];
+  eq('Gewone taak → mijlpaal plant en commit via de echte clipboardketen',
+    planAndCommitPaste(milestoneTask, milestoneColumns, 'Oui\tSTART\tOui'),
+    { planned: true, committed: true });
+  eq('Clipboardketen levert de gezamenlijke mijlpaaleindtoestand', (() => {
+    const task = S().tasks.find(candidate => candidate.id === milestoneTask)!;
+    return [task.isMilestone, task.milestoneKind, task.mandatory, task.time.scheduleDuration];
+  })(), [true, 'START', true, 0]);
+
+  for (const reverse of [false, true]) {
+    S().newProject();
+    const taskId = S().addTask({ name: `Volledige mijlpaalrij ${reverse}` });
+    const columns = reverse ? [
+      taskColumnId('task.mandatory'),
+      taskColumnId('task.milestoneKind'),
+      taskColumnId('task.isMilestone'),
+      taskColumnId('assignment.resources'),
+      taskColumnId('task.isHammock'),
+      taskColumnId('task.time.scheduleDuration'),
+    ] : [
+      taskColumnId('task.time.scheduleDuration'),
+      taskColumnId('task.isHammock'),
+      taskColumnId('assignment.resources'),
+      taskColumnId('task.isMilestone'),
+      taskColumnId('task.milestoneKind'),
+      taskColumnId('task.mandatory'),
+    ];
+    const text = reverse
+      ? 'Oui\tSTART\tOui\t\tNon\t0d'
+      : '0d\tNon\t\tOui\tSTART\tOui';
+    eq(`Volledige mijlpaalrij met duur, hammock en lege assignments ${reverse}`,
+      planAndCommitPaste(taskId, columns, text), { planned: true, committed: true });
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    eq(`Volledige mijlpaalrij eindtoestand ${reverse}`,
+      [task.isMilestone, task.milestoneKind, task.mandatory, task.isHammock ?? false,
+        task.time.scheduleDuration, S().assignments.filter(item => item.taskId === taskId).length],
+      [true, 'START', true, false, 0, 0]);
+  }
+
+  for (const reverse of [false, true]) {
+    S().newProject();
+    const taskId = S().addTask({ name: `Constraint ${reverse}` });
+    const columns = reverse
+      ? [taskColumnId('task.constraint.hard'), taskColumnId('task.constraint.type')]
+      : [taskColumnId('task.constraint.type'), taskColumnId('task.constraint.hard')];
+    const text = reverse ? 'Oui\tMSO' : 'MSO\tOui';
+    eq(`Constrainttype + hard commit onafhankelijk van kolomvolgorde ${reverse}`,
+      planAndCommitPaste(taskId, columns, text), { planned: true, committed: true });
+    eq(`Constrainttype + hard gezamenlijke eindtoestand ${reverse}`,
+      S().tasks.find(candidate => candidate.id === taskId)?.constraint,
+      { type: 'MSO', date: S().tasks.find(candidate => candidate.id === taskId)?.time.scheduleStart, hard: true });
+  }
+
+  const constraintOrders = [
+    ['type', 'date', 'hard'], ['type', 'hard', 'date'],
+    ['date', 'type', 'hard'], ['date', 'hard', 'type'],
+    ['hard', 'type', 'date'], ['hard', 'date', 'type'],
+  ] as const;
+  for (const [index, order] of constraintOrders.entries()) {
+    S().newProject();
+    const taskId = S().addTask({ name: `Volledige constraint ${index}` });
+    const values = { type: 'MSO', date: '27-08-2026', hard: 'Oui' };
+    const ids = {
+      type: taskColumnId('task.constraint.type'),
+      date: taskColumnId('task.constraint.date'),
+      hard: taskColumnId('task.constraint.hard'),
+    };
+    eq(`Constraint type/datum/hard permutatie ${index} commit`,
+      planAndCommitPaste(taskId, order.map(key => ids[key]), order.map(key => values[key]).join('\t')),
+      { planned: true, committed: true });
+    eq(`Constraint type/datum/hard permutatie ${index} eindtoestand`,
+      S().tasks.find(candidate => candidate.id === taskId)?.constraint,
+      { type: 'MSO', date: '2026-08-27', hard: true });
+  }
+
+  for (const reverse of [false, true]) {
+    S().newProject();
+    const taskId = S().addTask({ name: `Mijlpaal naar hammockveld ${reverse}`, isMilestone: true });
+    const columns = reverse
+      ? [taskColumnId('task.isHammock'), taskColumnId('task.isMilestone')]
+      : [taskColumnId('task.isMilestone'), taskColumnId('task.isHammock')];
+    eq(`Mijlpaal uit + hammock uit commit onafhankelijk van kolomvolgorde ${reverse}`,
+      planAndCommitPaste(taskId, columns, 'Non\tNon'), { planned: true, committed: true });
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    eq(`Mijlpaal/hammock eindtoestand ${reverse}`,
+      [task.isMilestone, task.isHammock ?? false], [false, false]);
+  }
+
+  // Ook de hangmatschakelaar is een controller: duur en assignments zijn in de gezamenlijke
+  // eindtoestand alleen schrijfbaar vóór respectievelijk ná die overgang.
+  for (const reverse of [false, true]) {
+    S().newProject();
+    const taskId = S().addTask({ name: `Hangmat uit met duur ${reverse}`, isHammock: true });
+    const columns = reverse
+      ? [taskColumnId('task.time.scheduleDuration'), taskColumnId('task.isHammock')]
+      : [taskColumnId('task.isHammock'), taskColumnId('task.time.scheduleDuration')];
+    const text = reverse ? '5d\tNon' : 'Non\t5d';
+    eq(`Hangmat uit + duur commit onafhankelijk van kolomvolgorde ${reverse}`,
+      planAndCommitPaste(taskId, columns, text), { planned: true, committed: true });
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    eq(`Hangmat uit + duur eindtoestand ${reverse}`,
+      [task.isHammock ?? false, task.time.scheduleDuration], [false, 5]);
+  }
+
+  for (const reverse of [false, true]) {
+    S().newProject();
+    const resourceId = S().addResource({
+      name: `Hangmatploeg ${reverse}`, type: 'LABOR', description: '', maxUnits: 4,
+    });
+    const taskId = S().addTask({ name: `Hangmat aan zonder resources ${reverse}` });
+    S().assignResource(taskId, resourceId, 1);
+    const columns = reverse
+      ? [taskColumnId('task.isHammock'), taskColumnId('assignment.resources')]
+      : [taskColumnId('assignment.resources'), taskColumnId('task.isHammock')];
+    const text = reverse ? 'Oui\t' : '\tOui';
+    eq(`Resources leeg + hangmat aan commit onafhankelijk van kolomvolgorde ${reverse}`,
+      planAndCommitPaste(taskId, columns, text), { planned: true, committed: true });
+    const task = S().tasks.find(candidate => candidate.id === taskId)!;
+    eq(`Resources leeg + hangmat aan eindtoestand ${reverse}`,
+      [task.isHammock ?? false, S().assignments.filter(item => item.taskId === taskId).length],
+      [true, 0]);
+  }
+
+  S().newProject();
+  const resourceId = S().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 4 });
+  const sourceTaskId = S().addTask({ name: 'Bron met assignment' });
+  const emptyTargetId = S().addTask({ name: 'Leeg doel' });
+  S().assignResource(sourceTaskId, resourceId, 2, 'BELL');
+  const assignmentColumns = [
+    taskColumnId('assignment.resources'),
+    taskColumnId('assignment.unitsPerDay'),
+    taskColumnId('assignment.curve'),
+  ];
+  const copiedAssignments = copyTaskGridSelection(liveEnvironment(sourceTaskId, assignmentColumns));
+  const assignmentPaste = copiedAssignments.ok
+    ? planAndCommitPaste(emptyTargetId, assignmentColumns, copiedAssignments.value)
+    : { planned: false, committed: false };
+  eq('Resources + units + curve plakken naar lege taak doorloopt de echte keten',
+    assignmentPaste, { planned: true, committed: true });
+  eq('Assignment-eindtoestand bewaart resource, tempo en curve',
+    S().assignments.filter(assignment => assignment.taskId === emptyTargetId)
+      .map(assignment => [assignment.resourceId, assignment.unitsPerDay, assignment.curve]),
+    [[resourceId, 2, 'BELL']]);
+
+  const existingTargetId = S().addTask({ name: 'Bestaand doel' });
+  S().assignResource(existingTargetId, resourceId, 0.5);
+  const existingPaste = copiedAssignments.ok
+    ? planAndCommitPaste(existingTargetId, assignmentColumns, copiedAssignments.value)
+    : { planned: false, committed: false };
+  eq('Resources + units + curve vervangen een bestaande assignment als één eindtoestand',
+    existingPaste, { planned: true, committed: true });
+  eq('Bestaande assignment krijgt bronwaarden zonder bron-id over te nemen',
+    S().assignments.filter(assignment => assignment.taskId === existingTargetId)
+      .map(assignment => [assignment.resourceId, assignment.unitsPerDay, assignment.curve]),
+    [[resourceId, 2, 'BELL']]);
+
+  // Units en curve zijn afgeleide editors van bestaand assignmentlidmaatschap. Zonder een
+  // resources-write in dezelfde transactie mogen zij een lege taak nooit stil een assignment
+  // geven, ook niet wanneer hun rijke klembordpayload alle bronvelden bevat.
+  for (const column of [taskColumnId('assignment.unitsPerDay'), taskColumnId('assignment.curve')]) {
+    const emptyId = S().addTask({ name: `Leeg doel voor ${column}` });
+    const copied = copyTaskGridSelection(liveEnvironment(sourceTaskId, [column]));
+    const before = JSON.stringify({
+      task: S().tasks.find(task => task.id === emptyId),
+      assignments: S().assignments,
+      history: S().historyEvents,
+    });
+    const planned = copied.ok ? planTaskGridPaste(copied.value, liveEnvironment(emptyId, [column])) : copied;
+    const committed = planned.ok ? S().runGridMutation([planned.value]) : planned;
+    eq(`${column} alleen naar lege taak wordt geweigerd`, committed.ok, false);
+    eq(`${column} alleen rolt taak, assignments en history byte-identiek terug`, JSON.stringify({
+      task: S().tasks.find(task => task.id === emptyId),
+      assignments: S().assignments,
+      history: S().historyEvents,
+    }), before);
+  }
+
+  // Iedere visuele volgorde van de drie assignmentkolommen gebruikt dezelfde volledige payload.
+  const assignmentOrders = [
+    assignmentColumns,
+    [assignmentColumns[0], assignmentColumns[2], assignmentColumns[1]],
+    [assignmentColumns[1], assignmentColumns[0], assignmentColumns[2]],
+    [assignmentColumns[1], assignmentColumns[2], assignmentColumns[0]],
+    [assignmentColumns[2], assignmentColumns[0], assignmentColumns[1]],
+    [assignmentColumns[2], assignmentColumns[1], assignmentColumns[0]],
+  ];
+  for (const [index, order] of assignmentOrders.entries()) {
+    const targetId = S().addTask({ name: `Assignmentvolgorde ${index}` });
+    const copied = copyTaskGridSelection(liveEnvironment(sourceTaskId, order));
+    const result = copied.ok
+      ? planAndCommitPaste(targetId, order, copied.value)
+      : { planned: false, committed: false };
+    eq(`Assignmentkolomvolgorde ${index} commit`, result, { planned: true, committed: true });
+    eq(`Assignmentkolomvolgorde ${index} eindtoestand`,
+      S().assignments.filter(assignment => assignment.taskId === targetId)
+        .map(assignment => [assignment.resourceId, assignment.unitsPerDay, assignment.curve]),
+      [[resourceId, 2, 'BELL']]);
+  }
+
+  // Een tegenstrijdige eindtoestand (mijlpaal mét assignment) wordt volledig teruggerold.
+  const conflictingTarget = S().addTask({ name: 'Atomair conflict' });
+  const beforeConflict = JSON.stringify({
+    task: S().tasks.find(candidate => candidate.id === conflictingTarget),
+    assignments: S().assignments,
+  });
+  const assignmentCell = copiedAssignments.ok ? copiedAssignments.value.split('\t')[0] : '';
+  const conflictColumns = [taskColumnId('task.isMilestone'), taskColumnId('assignment.resources')];
+  const conflict = planTaskGridPaste(`Oui\t${assignmentCell}`, liveEnvironment(conflictingTarget, conflictColumns));
+  const committedConflict = conflict.ok ? S().runGridMutation([conflict.value]) : null;
+  eq('Tegenstrijdige mijlpaal + assignment wordt door de transactielaag geweigerd',
+    committedConflict?.ok, false);
+  eq('Tegenstrijdige samengestelde paste rolt taak en assignments volledig terug',
+    JSON.stringify({
+      task: S().tasks.find(candidate => candidate.id === conflictingTarget),
+      assignments: S().assignments,
+    }), beforeConflict);
 }
 
 if (diffs.length > 0) {

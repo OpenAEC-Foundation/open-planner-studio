@@ -18,7 +18,7 @@
     "relationCreated": "Relación creada: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Esa relación ya existe",
     "relationAncestorEndpoint": "No se permite una relación entre una tarea y su propia tarea de resumen antecesora.",
-    "summaryRelationsDropped": "{{total}} relación(es) no se pudieron incluir en el cálculo — consulte el panel de relaciones para ver cuáles.",
+    "summaryRelationsDropped": "{{total}} relación(es) no se pudieron incluir en el cálculo. Revise las columnas Predecesores y Sucesores.",
     "mppSourceScheduleNotes_one": "Este archivo de MS Project contiene {{count}} tarea con una planificación dividida, nivelada o determinada por recursos. Se importa y se muestra tal cual.",
     "mppSourceScheduleNotes_many": "Este archivo de MS Project contiene {{count}} tareas con una planificación dividida, nivelada o determinada por recursos. Se importan y se muestran tal cual.",
     "mppSourceScheduleNotes_other": "Este archivo de MS Project contiene {{count}} tareas con una planificación dividida, nivelada o determinada por recursos. Se importan y se muestran tal cual.",

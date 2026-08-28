@@ -510,6 +510,37 @@ const relativeLegacy: Task = mkTask('L5', 3, {
 const rRelative = refreshExternalAnchors([relativeLegacy], relativeSource);
 eq('156c ongeldig relatief legacypad matcht niet', rRelative.changed, false);
 
+// Twee bestanden kunnen door openen/opslaan-als dezelfde persistente project-id dragen. De gewone
+// enkelbronverversing blijft project-id-primair (een verplaatst bestand moet blijven werken), maar
+// de bulkroute moet twee gelijktijdig gelezen bronnen met diezelfde id op pad kunnen scheiden.
+const duplicateProjectTask: Task = mkTask('L6', 3, {
+  externalLinks: [
+    extLink('same-id-a', 'predecessor', 'FS', {
+      projectId: 'DUPLICATE-PROJECT', taskId: 'X', filePath: '/tmp/kopie-a.ifc',
+    }, '2001-01-01', false),
+    extLink('same-id-b', 'predecessor', 'FS', {
+      projectId: 'DUPLICATE-PROJECT', taskId: 'X', filePath: '/tmp/kopie-b.ifc',
+    }, '2002-02-02', false),
+  ],
+});
+const duplicateSourceA: ExternalSourceDoc = {
+  projectId: 'DUPLICATE-PROJECT', filePath: '/tmp/kopie-a.ifc', projectName: 'Kopie A',
+  tasks: [srcTask('X', '2026-08-03', '2026-08-05')],
+};
+const duplicateSourceB: ExternalSourceDoc = {
+  projectId: 'DUPLICATE-PROJECT', filePath: '/tmp/kopie-b.ifc', projectName: 'Kopie B',
+  tasks: [srcTask('X', '2026-09-07', '2026-09-11')],
+};
+const duplicateAfterA = refreshExternalAnchors([duplicateProjectTask], duplicateSourceA, 'file-path');
+const duplicateAfterB = refreshExternalAnchors(duplicateAfterA.tasks, duplicateSourceB, 'file-path');
+const duplicateLinks = new Map(duplicateAfterB.tasks[0].externalLinks!.map(link => [link.id, link]));
+eq('156d gelijke project-id: pad A krijgt alleen anker A',
+  duplicateLinks.get('same-id-a')!.anchorDate, '2026-08-05');
+eq('156e gelijke project-id: pad B krijgt alleen anker B',
+  duplicateLinks.get('same-id-b')!.anchorDate, '2026-09-11');
+eq('156f gelijke project-id: bron A ververst exact één link', duplicateAfterA.refreshed, 1);
+eq('156g gelijke project-id: bron B ververst exact één link', duplicateAfterB.refreshed, 1);
+
 // Byte-stabiliteit: een reeds-actueel document geeft dezelfde referentie terug (changed=false).
 const already = refreshExternalAnchors(rPath.tasks, source);
 eq('157 idempotent: tweede ververs ⇒ changed=false', already.changed, false);

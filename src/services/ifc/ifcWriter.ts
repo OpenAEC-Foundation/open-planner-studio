@@ -364,6 +364,11 @@ function writeStructure(
   // Projectsettings — wbsAutoNumber (fase 2.2) + statusDate/progressMode (fase 2.6, §8.2).
   // Golden rule: elk veld alleen wanneer gezet; geen enkel veld ⇒ geen OPS_ProjectSettings-pset.
   const projSettingProps: number[] = [];
+  // Externe bronverversing bewaart naast taak-id ook project-id. Zonder deze waarde kreeg hetzelfde
+  // IFC-bestand bij iedere parse een nieuw project-id, zodat een ververste link nooit een blijvend
+  // canonieke bronidentiteit had. Oudere bestanden vallen in de reader terug op IFC GlobalId.
+  projSettingProps.push(addLine(ctx, '_ps_projectid',
+    `IFCPROPERTYSINGLEVALUE('InternalProjectId',$,IFCTEXT(${ifcStr(project.id)}),$)`));
   if (project.wbsAutoNumber !== undefined) {
     projSettingProps.push(addLine(ctx, '_ps_wbsauto',
       `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`));

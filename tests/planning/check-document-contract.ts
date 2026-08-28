@@ -115,12 +115,13 @@ const doc2 = flat(capturePayload(S()));
 
 // (a1) Geen lek naar document 2: elk veld dat we in doc1 afwijkend zetten, mag in doc2 niet opduiken.
 for (const key of ['tasks', 'resources', 'assignments', 'activityCodeTypes', 'customFieldDefs',
-  'selectedTaskIds', 'collapsedTaskIds', 'baselines', 'cpmResult', 'filePath', 'calendars',
+  'selectedTaskIds', 'activeTaskId', 'collapsedTaskIds', 'baselines', 'cpmResult', 'filePath', 'calendars',
   'recordedDates', 'datesAsRecorded'] as const) {
   ne(`a1 geen lek naar doc2: ${key}`, doc2[key], expected[key]);
 }
 truthy('a1 doc2 verse tasks leeg', S().tasks.length === 0);
 truthy('a1 doc2 verse selectie leeg', S().selectedTaskIds.length === 0);
+eq('a1 doc2 heeft geen actieve taak', S().activeTaskId, null);
 truthy('a1 doc2 verse geschiedenis leeg', historyDepthsForActiveScope(S()).undoDepth === 0);
 eq('a1 doc2 vers filePath null', S().filePath, null);
 
@@ -281,6 +282,7 @@ truthy('d recovery: isDirty', S().isDirty === true);
 truthy('d recovery: cpmResult doorgerekend (niet null)', S().cpmResult !== null);
 eq('d recovery: cpmResult beslaat het herstelde document', S().cpmResult?.criticalPath, ['task-rec-b']);
 eq('d recovery: selectedTaskIds vers leeg', S().selectedTaskIds, []);
+eq('d recovery: activeTaskId vers leeg', S().activeTaskId, null);
 eq('d recovery: sessiehistory vers leeg', S().historyEvents.filter(event => event.state === 'applied').length, 0);
 
 // Inactief document rec-a kwam via de registry (payloadFromInput) — switch en controleer.

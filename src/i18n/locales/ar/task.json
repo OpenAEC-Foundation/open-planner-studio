@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "وقت العمل", "ELAPSEDTIME": "الوقت المنقضي" },
   "table": {
     "title": "الجدول",
     "wbs": "WBS",
@@ -115,7 +116,7 @@
       "cycle": "سيؤدي هذا التغيير إلى إنشاء دورة في الجدول."
     },
     "controls": {
-      "collapse": "طي", "expand": "توسيع", "resize": "تغيير العرض", "remove": "إزالة", "pin": "تثبيت",
+      "collapse": "طي", "expand": "توسيع", "resize": "تغيير العرض", "resizeTaskGrid": "تغيير حجم شبكة المهام", "remove": "إزالة", "pin": "تثبيت",
       "unpin": "إلغاء التثبيت", "autoFit": "ملاءمة تلقائية", "search": "بحث", "searchResults": "نتائج البحث", "noResults": "لا توجد نتائج"
     },
     "history": {
@@ -128,12 +129,40 @@
       "autoFitColumn": "ملاءمة العمود {{column}} تلقائيًا"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} تعيينات لرموز الأنشطة",
-      "customFields": "{{count}} حقول مخصصة",
-      "internalRelations": "{{count}} علاقات داخلية",
-      "externalRelations": "{{count}} علاقات خارجية",
-      "baselineMissing": "غير موجود في هذا الخط الأساس"
+      "activityCodeAssignments_zero": "{{count}} تعيينات لرموز الأنشطة",
+      "activityCodeAssignments_one": "{{count}} تعيين لرمز نشاط",
+      "activityCodeAssignments_two": "{{count}} تعيينان لرموز الأنشطة",
+      "activityCodeAssignments_few": "{{count}} تعيينات لرموز الأنشطة",
+      "activityCodeAssignments_many": "{{count}} تعيينًا لرموز الأنشطة",
+      "activityCodeAssignments_other": "{{count}} تعيين لرموز الأنشطة",
+      "customFields_zero": "{{count}} حقول مخصصة",
+      "customFields_one": "{{count}} حقل مخصص",
+      "customFields_two": "{{count}} حقلان مخصصان",
+      "customFields_few": "{{count}} حقول مخصصة",
+      "customFields_many": "{{count}} حقلاً مخصصًا",
+      "customFields_other": "{{count}} حقل مخصص",
+      "internalRelations_zero": "{{count}} علاقات داخلية",
+      "internalRelations_one": "{{count}} علاقة داخلية",
+      "internalRelations_two": "{{count}} علاقتان داخليتان",
+      "internalRelations_few": "{{count}} علاقات داخلية",
+      "internalRelations_many": "{{count}} علاقة داخلية",
+      "internalRelations_other": "{{count}} علاقة داخلية",
+      "externalRelations_zero": "{{count}} علاقات خارجية",
+      "externalRelations_one": "{{count}} علاقة خارجية",
+      "externalRelations_two": "{{count}} علاقتان خارجيتان",
+      "externalRelations_few": "{{count}} علاقات خارجية",
+      "externalRelations_many": "{{count}} علاقة خارجية",
+      "externalRelations_other": "{{count}} علاقة خارجية",
+      "baselineMissing": "غير موجود في هذا الخط الأساس",
+      "baselineVarianceStart": "انحراف البدء",
+      "baselineVarianceFinish": "انحراف الانتهاء",
+      "baselineVarianceDuration": "انحراف المدة"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "لم تبدأ",
+    "STARTED": "قيد التنفيذ",
+    "COMPLETED": "مكتملة"
   },
   "taskType": {
     "CONSTRUCTION": "بناء",
@@ -347,7 +376,9 @@
     "directionSuccessor": "خلف (أنا ← خارجي)",
     "relType": "نوع العلاقة",
     "lag": "الإبطاء (أيام عمل)",
+    "lagPlaceholder": "0d أو 2h",
     "anchorDate": "تاريخ المرساة",
+    "chooseNewAnchorAfterSideChange": "اختر مرساة جديدة: يستخدم نوع العلاقة الآن الجانب الآخر من مهمة المصدر.",
     "manualTitle": "يدوي (بديل)",
     "manualHint": "لا يوجد ملف في متناول اليد؟ الصق معرّف المشروع ومعرّف المهمة للمهمة الخارجية.",
     "projectId": "معرّف المشروع",

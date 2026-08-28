@@ -4,11 +4,10 @@ Datum: 2026-08-26
 Build: a63cce5451ca352d24d102baff167229034139fc
 
 Alle routes hieronder zijn op dezelfde lokale build uitgevoerd in een tijdelijk project met vier
-taken en de keten 1 → 2 → 3 → 4. De webbuild kan een handmatige externe relatie zonder lokaal
-bestand wel beheren, maar niet uit een Tauri-bestand verversen. Daarom is in beide oppervlakken ook
-de concrete melding voor die grens gecontroleerd; het werkelijk herlezen, wijzigen en als vermist
-markeren van een bronbestand wordt aanvullend afgedekt door `check-recorded-dates.ts` en
-`check-advanced-cpm.ts`.
+taken en de keten 1 → 2 → 3 → 4. De oorspronkelijke webproef kon een handmatige externe relatie
+zonder lokaal bestand beheren en controleerde daar de concrete grensmelding. Het werkelijk
+herlezen van een bronbestand is daarna ook via de zichtbare lintactie in een echte Tauri-runtime
+uitgevoerd; dat aanvullende desktopbewijs staat onder de tabel.
 
 | Eis-id | Oppervlak | Status | Waarneming |
 |---|---|---|---|
@@ -28,3 +27,35 @@ markeren van een bronbestand wordt aanvullend afgedekt door `check-recorded-date
 | predecessor-trace | Volledige Tabel | GREEN | Met taak 2 actief gaf alleen Voorgangers `predecessor-driving, focus, dimmed, dimmed`; de rol bleef behouden bij de wissel van oppervlak. |
 | successor-trace | Gantt-taskgrid | GREEN | Met taak 2 actief gaf alleen Opvolgers de rollen `dimmed, focus, successor, dimmed`. |
 | successor-trace | Volledige Tabel | GREEN | Met beide knoppen actief waren de rollen `predecessor-driving, focus, successor-driving, dimmed`; beide lintknoppen bleven bruikbaar. |
+
+## Aanvullende desktopproef: werkelijk bronbestand verversen
+
+De desktop-app draaide rechtstreeks uit deze worktree. Een tijdelijk bronproject is als IFC
+opgeslagen; een doelproject kreeg een verouderde externe voorganger naar die bron. Via de
+toegankelijkheidsboom is niet een storefunctie maar de zichtbare lintbediening aangeroepen:
+
+1. keuzeknop **Relatie** openen;
+2. menu-item **Alle externe relaties vernieuwen** activeren;
+3. doelproject opnieuw als IFC opslaan en inhoudelijk vergelijken.
+
+Voor de actie had de link anker `2026-07-01` en `sourceMissing=true`. Na de actie was het anker
+`2026-09-02`, `sourceMissing=false`, met de canonieke project- en taakidentiteit uit het
+bronbestand. De app had daarna een berekend schema (`cpm=true`). Het blijvende beeldbewijs is
+[`tabel-overhaul-review-tauri-refresh.png`](./tabel-overhaul-review-tauri-refresh.png), SHA-256
+`779897f10f2f8528f12e20132f853b613e943fa90ef5abb78261a5704a03eb50`.
+
+Na de tweede implementatiereview is dezelfde zichtbare desktopactie herhaald en zijn ook de exacte
+bestanden blijvend vastgelegd: [`bron`](./tabel-overhaul-tauri-refresh-source.ifc),
+[`voor`](./tabel-overhaul-tauri-refresh-before.ifc) en
+[`na`](./tabel-overhaul-tauri-refresh-after.ifc). `check-tauri-refresh-evidence.ts` opent deze drie
+met de productiereader en bewaakt hun hashes, anker, ontbrekend-status, bronproject, brontaak en
+stabiele identiteit; de controle eindigde met 5/5 groen.
+
+Deze proef vond eerst een echte fout: de IFC-lezer maakte bij iedere parse een nieuwe interne
+taak-id. Daardoor kon een opgeslagen externe link de taak na herlezen niet terugvinden. De tweede
+bewijscontrole vond dezelfde fout vervolgens op projectniveau. De writer schrijft nu
+`OPS_TaskIdentity.InternalTaskId` en `OPS_ProjectSettings.InternalProjectId`; de reader gebruikt
+die waarden en valt voor oudere IFC's deterministisch terug op de desbetreffende IFC-`GlobalId`.
+De regressietest bewijst zowel twee opeenvolgende reads als lezen→schrijven→lezen.
+`check-ifc-roundtrip` eindigde met exitcode 0 en 168 groene checks; de herhaalde echte
+Tauri-verversing rapporteerde één ververste en nul ontbrekende bronnen.

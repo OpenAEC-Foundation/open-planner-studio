@@ -51,6 +51,8 @@ export interface DocumentPayload {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   selectedTaskIds: string[];
+  /** Actieve taak voor het enkelvoudige eigenschappenpaneel; los van de meervoudige taakset. */
+  activeTaskId: string | null;
   cpmResult: CPMResult | null;
   /** Afgeleide belasting per document (A5): anders toont het histogram na een tabwissel dat van het
    *  vórige document. */
@@ -196,6 +198,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'activityCodeTypes', get: (s) => s.activityCodeTypes, set: (s, v) => { s.activityCodeTypes = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.activityCodeTypes ?? [] }),
   field({ key: 'customFieldDefs', get: (s) => s.customFieldDefs, set: (s, v) => { s.customFieldDefs = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.customFieldDefs ?? [] }),
   field({ key: 'selectedTaskIds', get: (s) => s.selectedTaskIds, set: (s, v) => { s.selectedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
+  field({ key: 'activeTaskId', get: (s) => s.activeTaskId, set: (s, v) => { s.activeTaskId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.activeTaskId ?? null }),
   field({ key: 'cpmResult', get: (s) => s.cpmResult, set: (s, v) => { s.cpmResult = v; }, fresh: () => null, snapshot: 'derived' }),
   // Afleidbare cache: blijft per document opgeslagen voor slapende tabs, maar hoort niet in undo.
   // Historymaterialisatie berekent hem vóór publicatie opnieuw uit het herstelde target.

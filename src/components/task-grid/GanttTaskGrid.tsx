@@ -16,7 +16,6 @@ export function GanttTaskGrid({ onPlainTaskClick }: GanttTaskGridProps) {
       surfaceId="gantt-task-grid"
       baseHeaderHeight={50}
       showSummaryAdd
-      doubleClickAction="dialog"
       onPlainTaskClick={onPlainTaskClick}
     />
   );

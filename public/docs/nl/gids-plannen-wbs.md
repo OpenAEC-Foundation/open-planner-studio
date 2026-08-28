@@ -93,8 +93,9 @@ box-selectie) en de hele selectie sleept en landt samen.
 Het lint-tabblad **Tabel** toont diezelfde structuur als een gewoon, bewerkbaar raster, handig als je
 in één keer veel taken invoert of corrigeert: één klik op een bewerkbare cel start meteen de
 bewerking met de bestaande waarde geselecteerd, de pijltjestoetsen verplaatsen een celcursor zonder
-hem te openen, **F2**/**Enter** opent de huidige cel voor bewerking, en **Tab**/**Shift+Tab** op een
-geselecteerde rij springt hem in/uit, net als Alt+→/←. **Enter** of **↓** op de allerlaatste rij maakt
+hem te openen, **F2**/**Enter** opent de huidige cel voor bewerking, en **Tab**/**Shift+Tab** gaat naar
+de volgende/vorige cel en loopt door naar de volgende/vorige taakrij. Inspringen en uitspringen
+blijven **Alt+→**/**Alt+←**. **Enter** of **↓** op de allerlaatste rij maakt
 daar meteen een nieuwe zustertaak met de cursor al in de naamcel, zodat je een hele lijst kunt
 doorwerken zonder de muis aan te raken — dit werkt alleen in de gewone boomweergave, want met een
 filter, sortering of groepering actief zou de nieuwe taak meteen buiten beeld kunnen vallen, dus

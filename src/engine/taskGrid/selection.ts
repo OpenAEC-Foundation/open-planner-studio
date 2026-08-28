@@ -46,6 +46,10 @@ function sameOrderedIds(left: readonly string[], right: readonly string[]): bool
   return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
+function sameCellAddress(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
+  return left?.rowKey === right?.rowKey && left?.columnId === right?.columnId;
+}
+
 function visibleSelectedTaskIds(
   selectedTaskIds: readonly string[],
   rowIndex: TaskGridRowIndex,
@@ -77,9 +81,18 @@ export function updateGridSelection(
   gesture: GridSelectionGesture,
 ): GridSelectionState {
   const row = rowIndex.taskByRowKey.get(cell.rowKey);
-  if (!row || !columns.includes(cell.columnId)) return { ...state };
+  if (!row || !columns.includes(cell.columnId)) return state as GridSelectionState;
 
-  if (gesture === 'replace') return singleCellSelection(cell, row.task.id);
+  if (gesture === 'replace') {
+    const alreadySingleCell = sameCellAddress(state.active, cell)
+      && sameCellAddress(state.anchor, cell)
+      && sameCellAddress(state.range?.start ?? null, cell)
+      && sameCellAddress(state.range?.end ?? null, cell)
+      && state.activeTaskId === row.task.id
+      && state.selectedTaskIds.length === 1
+      && state.selectedTaskIds[0] === row.task.id;
+    return alreadySingleCell ? state as GridSelectionState : singleCellSelection(cell, row.task.id);
+  }
 
   if (gesture === 'toggle-task') {
     const selectedTaskIds = [...state.selectedTaskIds];

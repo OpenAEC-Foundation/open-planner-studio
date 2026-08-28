@@ -799,17 +799,19 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   const t2 = S().addTask({ name: 'Met link naar bron B' });
   const link = (id: string, filePath: string): ExternalLink => ({
     id, direction: 'predecessor', relType: 'FS', anchorDate: '2020-01-01',
-    sourceRef: { projectId: '', taskId: 'X', filePath }, sourceMissing: false,
+    sourceRef: { projectId: 'gedeelde-bron-id', taskId: 'X', filePath }, sourceMissing: false,
   });
   S().updateTask(t1, { externalLinks: [link('l1', '/bron-a.ifc')] });
   S().updateTask(t2, { externalLinks: [link('l2', '/bron-b.ifc')] });
 
   // `parseExternalSource` leest een echt bestand via de Tauri-fs; hier vervangen we die ene actie
   // door een stub, zodat de LUS eromheen (het onderwerp van deze test) headless te meten is.
-  const brontaak = mk('X', { earlyStart: '2026-05-04', earlyFinish: '2026-05-08' });
   useAppStore.setState({
     parseExternalSource: async (filePath: string) => ({
-      projectId: `proj${filePath}`, projectName: 'Bron', filePath, tasks: [brontaak],
+      projectId: 'gedeelde-bron-id', projectName: 'Bron', filePath,
+      tasks: [mk('X', filePath === '/bron-a.ifc'
+        ? { earlyStart: '2026-05-04', earlyFinish: '2026-05-08' }
+        : { earlyStart: '2026-06-01', earlyFinish: '2026-06-05' })],
     }),
   });
 
@@ -823,7 +825,8 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('12d de link van bron A draagt het verse anker',
     S().tasks.find((t) => t.id === t1)!.externalLinks![0].anchorDate, '2026-05-08');
   eq('12e de link van bron B draagt het verse anker — het ketenen verliest de eerste bron niet',
-    S().tasks.find((t) => t.id === t2)!.externalLinks![0].anchorDate, '2026-05-08');
+    S().tasks.find((t) => t.id === t2)!.externalLinks![0].anchorDate, '2026-06-05');
+  eq('12e2 gelijke project-id laat iedere bron exact zijn eigen pad verversen', res.refreshed, 2);
 
   // Eén undo draait het hele gebaar terug.
   S().undo();
@@ -831,6 +834,43 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
     S().tasks.find((t) => t.id === t1)!.externalLinks![0].anchorDate, '2020-01-01');
   eq('12g één undo herstelt het anker van bron B',
     S().tasks.find((t) => t.id === t2)!.externalLinks![0].anchorDate, '2020-01-01');
+}
+
+// ── (13) Async externe verversing blijft aan het startdocument gebonden ───────────────
+{
+  S().newProject();
+  const taskA = S().addTask({ name: 'Document A' });
+  const link = (id: string, anchorDate: string): ExternalLink => ({
+    id, direction: 'predecessor', relType: 'FS', anchorDate,
+    sourceRef: { projectId: 'bron', taskId: 'X', filePath: '/bron.ifc' }, sourceMissing: false,
+  });
+  S().updateTask(taskA, { externalLinks: [link('a-link', '2026-01-01')] });
+  const documentA = S().activeDocumentId;
+  let releaseRead!: () => void;
+  const waitForRead = new Promise<void>(resolve => { releaseRead = resolve; });
+  const brontaak = mk('X', { earlyStart: '2026-03-01', earlyFinish: '2026-03-05' });
+  useAppStore.setState({
+    parseExternalSource: async (filePath: string) => {
+      await waitForRead;
+      return { projectId: 'bron', projectName: 'Bron', filePath, tasks: [brontaak] };
+    },
+  });
+
+  const refreshing = S().refreshAllExternalAnchors();
+  S().newDocument();
+  const documentB = S().activeDocumentId;
+  const taskB = S().addTask({ name: 'Document B' });
+  S().updateTask(taskB, { externalLinks: [link('b-link', '2026-02-01')] });
+  releaseRead();
+  const result = await refreshing;
+
+  eq('13a een verversing meldt na documentwissel geen mutatie in het nieuwe document', result.refreshed, 0);
+  eq('13b document B houdt zijn eigen anker',
+    S().tasks.find(task => task.id === taskB)!.externalLinks![0].anchorDate, '2026-02-01');
+  const sleepingA = S().documents.find(document => document.id === documentA)?.payload;
+  eq('13c het slapende document A wordt niet buiten zijn historygrens overschreven',
+    sleepingA?.tasks.find(task => task.id === taskA)!.externalLinks![0].anchorDate, '2026-01-01');
+  eq('13d de gebruiker blijft in document B', S().activeDocumentId, documentB);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

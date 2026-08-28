@@ -1,4 +1,5 @@
 import { useAppStore } from '@/state/appStore';
+import { buildManualExternalLinkSubmission } from '@/components/dialogs/ExternalLinkDialog';
 import type { ExternalLink } from '@/types/task';
 
 const S = () => useAppStore.getState();
@@ -32,6 +33,19 @@ eq('verkeerde taak/link-combinatie wordt geweigerd', S().updateExternalLink(task
 eq('geweigerde update maakt geen history-event', S().historyEvents.length, beforeGuards);
 eq('exacte no-op wordt als geldige bestaande link herkend', S().updateExternalLink(taskId, linkId, original), true);
 eq('exacte no-op maakt geen history-event', S().historyEvents.length, beforeGuards);
+
+const dialogNoOp = buildManualExternalLinkSubmission({
+  existing: { id: linkId, ...original }, direction: original.direction, relType: original.relType,
+  lag: { lagDays: original.lagDays }, projectId: original.sourceRef.projectId,
+  taskId: original.sourceRef.taskId, taskName: original.sourceRef.taskName ?? '',
+  anchor: '2026-08-24', anchorTouched: false,
+});
+eq('dialooghelper bewaart gezonde bestandsbron bij onaangeraakt opslaan', dialogNoOp, {
+  direction: original.direction, relType: original.relType, lagDays: original.lagDays,
+  anchorDate: original.anchorDate, sourceRef: original.sourceRef, sourceMissing: original.sourceMissing,
+});
+eq('dialoog-no-op wordt door de echte store geaccepteerd', S().updateExternalLink(taskId, linkId, dialogNoOp), true);
+eq('dialoog-no-op maakt geen history en geen nieuwe stale-overgang', S().historyEvents.length, beforeGuards);
 
 const edited: Omit<ExternalLink, 'id'> = {
   direction: 'predecessor', relType: 'SS', lagMinutes: 90,

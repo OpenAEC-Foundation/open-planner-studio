@@ -18,7 +18,7 @@
     "relationCreated": "関係を作成しました: {{predecessor}} → {{successor}}",
     "relationDuplicate": "この関係はすでに存在します",
     "relationAncestorEndpoint": "タスクとその自身の(祖先)サマリータスクとの間の関係は許可されません。",
-    "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした — 詳細は関係パネルをご確認ください。",
+    "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした。先行タスク列と後続タスク列を確認してください。",
     "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",

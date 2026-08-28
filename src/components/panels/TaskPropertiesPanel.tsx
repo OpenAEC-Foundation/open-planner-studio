@@ -31,7 +31,7 @@ import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFiel
 export function TaskPropertiesPanel() {
   const { t } = useTranslation('task');
 
-  const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
+  const activeTaskId = useAppStore(s => s.activeTaskId);
   const tasks = useAppStore(s => s.tasks);
   const updateTask = useAppStore(s => s.updateTask);
   const deleteTask = useAppStore(s => s.deleteTask);
@@ -43,7 +43,7 @@ export function TaskPropertiesPanel() {
   const setActualStart = useAppStore(s => s.setActualStart);
   const setActualFinish = useAppStore(s => s.setActualFinish);
 
-  if (selectedTaskIds.length === 0) {
+  if (!activeTaskId) {
     return (
       <div className="p-3 text-xs text-text-secondary">
         {t('properties.selectPrompt')}
@@ -51,15 +51,7 @@ export function TaskPropertiesPanel() {
     );
   }
 
-  if (selectedTaskIds.length > 1) {
-    return (
-      <div className="p-3 text-xs text-text-secondary">
-        {t('properties.multiSelect', { count: selectedTaskIds.length })}
-      </div>
-    );
-  }
-
-  const task = tasks.find(t => t.id === selectedTaskIds[0]);
+  const task = tasks.find(t => t.id === activeTaskId);
   if (!task) return null;
 
   const update = (updates: Partial<Task>) => {

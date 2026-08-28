@@ -2,9 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GridCellAddress } from '@/engine/taskGrid/selection';
 import type { TaskGridAdapter, TaskGridAdapterEventTarget } from '@/engine/taskGrid/taskGridAdapter';
 import type { ResourceCurve } from '@/types/resource';
+import { CURVE_KEY } from '@/components/task-sections/shared';
 import type { CellValidationError, TaskAssignmentToken } from '@/types/taskGrid';
 import type { TaskRelationEntry } from '@/engine/taskGrid/relationIndex';
 import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
+import {
+  formatGridDate,
+  formatGridDateTime,
+  parseGridDate,
+  parseGridDateTime,
+} from '@/engine/taskGrid/editors';
 import type { ParsedRelationToken } from '@/engine/taskGrid/relationPlan';
 import {
   GridEditorHost,
@@ -90,6 +97,7 @@ export interface TaskCellEditorProps {
   adapter: TaskGridAdapter;
   cell: GridCellAddress;
   label: string;
+  calendarPickerLabel?: string;
   messageForError: CommitTaskCellEditorValueInput['messageForError'];
   labelForOption?: (labelKey: string, value: string) => string;
   onCancel: () => void;
@@ -109,6 +117,7 @@ export function TaskCellEditor({
   adapter,
   cell,
   label,
+  calendarPickerLabel = label,
   messageForError,
   labelForOption = (_labelKey, value) => value,
   onCancel,
@@ -130,6 +139,18 @@ export function TaskCellEditor({
   ));
   const [resourceQuery, setResourceQuery] = useState('');
   const descriptor = adapter.descriptorsById.get(cell.columnId);
+  const dateNotation = adapter.dateNotation ?? 'dmy';
+  const dateEditorKind = descriptor?.editorKind === 'date' || descriptor?.editorKind === 'datetime'
+    ? descriptor.editorKind
+    : null;
+  const pickerValue = dateEditorKind === 'date'
+    ? parseGridDate(text, dateNotation) ?? ''
+    : dateEditorKind === 'datetime'
+      ? (() => {
+          const parsed = parseGridDateTime(text, dateNotation);
+          return parsed?.length === 10 ? `${parsed}T00:00` : parsed ?? '';
+        })()
+      : '';
   const relationDirection = String(cell.columnId) === 'relation.predecessors'
     ? 'predecessor'
     : String(cell.columnId) === 'relation.successors' ? 'successor' : null;
@@ -153,6 +174,10 @@ export function TaskCellEditor({
   const [relationValid, setRelationValid] = useState(true);
   const isAssignmentEditor = descriptor?.valueKind === 'tokens'
     && String(descriptor.id).startsWith('assignment.');
+  const assignmentColumnId = isAssignmentEditor ? String(descriptor?.id) : null;
+  const editsAssignmentMembership = assignmentColumnId === 'assignment.resources';
+  const editsAssignmentUnits = assignmentColumnId === 'assignment.unitsPerDay';
+  const editsAssignmentCurve = assignmentColumnId === 'assignment.curve';
   const resourceOptions = descriptor?.editorOptions ?? [];
   const resourceOptionById = new Map(resourceOptions.map(option => [option.value, option] as const));
   const curves: readonly ResourceCurve[] = [
@@ -217,7 +242,7 @@ export function TaskCellEditor({
           />
         ) : isAssignmentEditor ? (
           <div
-            {...inputProps}
+            onKeyDown={inputProps.onKeyDown}
             className="task-grid-assignment-editor"
             data-task-editor-kind="assignment-tokens"
           >
@@ -234,41 +259,46 @@ export function TaskCellEditor({
                     data-assignment-resource-id={token.resourceId}
                   >
                     <span className="task-grid-assignment-resource">{resourceLabel}</span>
-                    <input
+                    {editsAssignmentUnits && <input
+                      ref={index === 0 ? node => { inputRef.current = node; } : undefined}
+                      aria-invalid={inputProps['aria-invalid']}
+                      aria-describedby={inputProps['aria-describedby']}
                       type="number"
                       min="0"
                       step="any"
                       value={Number.isFinite(token.unitsPerDay) ? token.unitsPerDay : ''}
-                      aria-label={`${resourceLabel} — ${labelForOption('assignment.unitsPerDay', 'units')}`}
-                      onChange={event => setAssignmentTokens(current => current.map((item, itemIndex) => (
-                        itemIndex === index
-                          ? { ...item, unitsPerDay: event.currentTarget.valueAsNumber }
-                          : item
-                      )))}
-                    />
-                    <select
+                      aria-label={`${resourceLabel} — ${labelForOption('properties.assignments.unitsPerDay', 'units')}`}
+                      onChange={event => {
+                        const unitsPerDay = event.currentTarget.valueAsNumber;
+                        setAssignmentTokens(current => current.map((item, itemIndex) => (
+                          itemIndex === index ? { ...item, unitsPerDay } : item
+                        )));
+                      }}
+                    />}
+                    {editsAssignmentCurve && <select
+                      ref={index === 0 ? node => { inputRef.current = node; } : undefined}
+                      aria-invalid={inputProps['aria-invalid']}
+                      aria-describedby={inputProps['aria-describedby']}
                       value={token.curve ?? 'UNIFORM'}
-                      aria-label={`${resourceLabel} — ${labelForOption('assignment.curve', 'curve')}`}
-                      onChange={event => setAssignmentTokens(current => current.map((item, itemIndex) => (
-                        itemIndex === index
-                          ? {
-                              ...item,
-                              curve: event.currentTarget.value === 'UNIFORM'
-                                ? undefined
-                                : event.currentTarget.value as ResourceCurve,
-                            }
-                          : item
-                      )))}
+                      aria-label={`${resourceLabel} — ${labelForOption('properties.assignments.curve', 'curve')}`}
+                      onChange={event => {
+                        const curve = event.currentTarget.value as ResourceCurve;
+                        setAssignmentTokens(current => current.map((item, itemIndex) => (
+                          itemIndex === index
+                            ? { ...item, curve: curve === 'UNIFORM' ? undefined : curve }
+                            : item
+                        )));
+                      }}
                     >
                       {curves.map(curve => (
                         <option key={curve} value={curve}>
-                          {labelForOption(`resourceCurve.${curve}`, curve)}
+                          {labelForOption(CURVE_KEY[curve], curve)}
                         </option>
                       ))}
-                    </select>
-                    <button
+                    </select>}
+                    {editsAssignmentMembership && <button
                       type="button"
-                      aria-label={`${labelForOption('assignment.remove', 'remove')} ${resourceLabel}`}
+                      aria-label={`${labelForOption('properties.assignments.remove', 'remove')} ${resourceLabel}`}
                       onKeyDown={event => {
                         if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
                       }}
@@ -277,13 +307,15 @@ export function TaskCellEditor({
                       ))}
                     >
                       ×
-                    </button>
+                    </button>}
                   </div>
                 );
               })}
             </div>
-            <input
+            {editsAssignmentMembership && <input
               ref={node => { inputRef.current = node; }}
+              aria-invalid={inputProps['aria-invalid']}
+              aria-describedby={inputProps['aria-describedby']}
               type="text"
               role="combobox"
               aria-label={label}
@@ -307,8 +339,8 @@ export function TaskCellEditor({
                 }]);
                 setResourceQuery('');
               }}
-            />
-            {resourceQuery.trim() && (
+            />}
+            {editsAssignmentMembership && resourceQuery.trim() && (
               <div className="task-grid-assignment-options" role="listbox">
                 {resourceOptions.filter(option => {
                   const query = resourceQuery.trim().toLocaleLowerCase();
@@ -365,9 +397,39 @@ export function TaskCellEditor({
             data-task-editor-kind="boolean"
           >
             <option value="">—</option>
-            <option value="true">{labelForOption('boolean.true', 'true')}</option>
-            <option value="false">{labelForOption('boolean.false', 'false')}</option>
+            <option value="true">{adapter.booleanLabels?.true ?? 'true'}</option>
+            <option value="false">{adapter.booleanLabels?.false ?? 'false'}</option>
           </select>
+        ) : dateEditorKind ? (
+          <div className="task-grid-date-editor">
+            <input
+              {...inputProps}
+              ref={node => { inputRef.current = node; }}
+              type="text"
+              aria-label={label}
+              value={text}
+              onChange={event => setText(event.currentTarget.value)}
+              className="task-grid-editor-input"
+              data-task-editor-kind={dateEditorKind}
+            />
+            <input
+              {...inputProps}
+              type={dateEditorKind === 'date' ? 'date' : 'datetime-local'}
+              step={dateEditorKind === 'datetime' ? 60 : undefined}
+              aria-label={calendarPickerLabel}
+              value={pickerValue}
+              onChange={event => {
+                const value = event.currentTarget.value;
+                setText(value === ''
+                  ? ''
+                  : dateEditorKind === 'date'
+                    ? formatGridDate(value, dateNotation)
+                    : formatGridDateTime(value, dateNotation));
+              }}
+              className="task-grid-date-picker"
+              data-task-editor-picker={dateEditorKind}
+            />
+          </div>
         ) : (
           <>
           <input

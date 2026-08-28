@@ -11,12 +11,11 @@
 //   3. daardoor vuurde de per-document `try/catch` in `useRecoveryRestore` nooit en werd zo'n
 //      snapshot als volwaardig document aangeboden — en na het herstellen ook nog gewist.
 //
-// Het ergste geval is niet het lege document maar het HALVE: bij een op 80 % afgekapte snapshot
-// kwamen vrijwel alle taken terug en geen enkele relatie. Een compleet ogende planning zonder
-// logicanetwerk, zonder crash en zonder melding. Assertie 3c hieronder legt precies dat vast: de
-// afgekapte tekst bevat nog vrijwel alle IFCTASK-regels en geen enkele IFCRELSEQUENCE — dus zónder
-// de integriteitspoort ZOU een parser hier een half project uitspugen. Draai deze batterij tegen
-// de oude `readIFC` en 3a/4a/5a vallen om; dat is het bewijs dat ze de bug vangen.
+// Het ergste geval is niet het lege document maar het HALVE: een snapshot kan na alle taken maar
+// vóór of midden in de relaties afbreken. Dan ontstaat een compleet ogende planning zonder het
+// volledige logicanetwerk, zonder crash en zonder melding. Assertie 3c knipt daarom op echte
+// STEP-recordgrenzen. Vaste percentages zijn ongeschikt: een verliesloze nieuwe pset mag de
+// byteverhouding van het bestand veranderen zonder deze herstelpoort inhoudelijk te wijzigen.
 //
 // Bewust NIET getest, want bewust NIET gebouwd: een drempel op taakaantal. Een leeg-maar-echt
 // project (verse wizard, kalender en resources ingericht) is legitiem en moet gewoon herstellen —
@@ -98,21 +97,27 @@ for (const pct of [70, 80, 90]) {
     afgekapt.startsWith('ISO-10303-21;') && !afgekapt.includes('END-ISO-10303-21;'));
 }
 {
-  // 3c De pijnlijke meting uit de review, hier als tekst-eigenschap vastgelegd. De writer schrijft
-  //    de IFCRELSEQUENCE-regels ná de taken, dus een afgekapt bestand verliest éérst het complete
-  //    logicanetwerk en pas daarna taken. Gemeten op deze fixture (10 taken, 9 relaties, 8857
-  //    bytes): 70 % → 6 taken / 0 relaties, 80 % → 9 taken / 0 relaties, 90 % → 10 taken /
-  //    6 relaties. Een parser zonder integriteitspoort levert hier dus een compleet ógende planning
-  //    zonder logicanetwerk — erger dan een leeg document. De asserties leggen de EIGENSCHAP vast,
-  //    niet de exacte bytegrenzen (die schuiven mee met de writer).
+  // 3c De pijnlijke meting uit de review, als structurele STEP-eigenschap vastgelegd. De writer
+  //    schrijft alle IFCTASK-regels vóór IFCRELSEQUENCE. We knippen één keer direct vóór de eerste
+  //    relatie en één keer vóór de vijfde: zo bewijst de test exact het lege en halve netwerk,
+  //    onafhankelijk van extra verliesloze psets die later aan de writer worden toegevoegd.
   const tel = (s: string, naald: string) => s.split(naald).length - 1;
-  const bij80 = VOLLEDIG.slice(0, Math.floor(VOLLEDIG.length * 0.8));
-  const bij90 = VOLLEDIG.slice(0, Math.floor(VOLLEDIG.length * 0.9));
-  truthy('3c1 op 80% staat het overgrote deel van de taken er nog (>=8 van 10)', tel(bij80, 'IFCTASK(') >= 8);
-  eq('3c2 op 80% staat er geen enkele IFCRELSEQUENCE meer', tel(bij80, 'IFCRELSEQUENCE('), 0);
-  truthy('3c3 op 90% staan alle taken er, maar niet alle relaties',
-    tel(bij90, 'IFCTASK(') === 10 && tel(bij90, 'IFCRELSEQUENCE(') > 0 && tel(bij90, 'IFCRELSEQUENCE(') < 9);
-  eq('3c4 het volledige bestand heeft alle 9 relaties wél', tel(VOLLEDIG, 'IFCRELSEQUENCE('), 9);
+  const eersteRelatie = VOLLEDIG.indexOf('IFCRELSEQUENCE(');
+  let vijfdeRelatie = eersteRelatie;
+  for (let nummer = 2; nummer <= 5; nummer++) {
+    vijfdeRelatie = VOLLEDIG.indexOf('IFCRELSEQUENCE(', vijfdeRelatie + 1);
+  }
+  truthy('3c0 fixture bevat minstens vijf relaties op vindbare STEP-grenzen',
+    eersteRelatie > 0 && vijfdeRelatie > eersteRelatie);
+  const zonderNetwerk = VOLLEDIG.slice(0, eersteRelatie);
+  const halfNetwerk = VOLLEDIG.slice(0, vijfdeRelatie);
+  eq('3c1 vóór de eerste relatie staan alle tien taken al in de snapshot', tel(zonderNetwerk, 'IFCTASK('), 10);
+  eq('3c2 vóór de eerste relatie staat nog geen IFCRELSEQUENCE', tel(zonderNetwerk, 'IFCRELSEQUENCE('), 0);
+  eq('3c3 vóór de vijfde relatie staan alle taken maar slechts vier relaties',
+    [tel(halfNetwerk, 'IFCTASK('), tel(halfNetwerk, 'IFCRELSEQUENCE(')], [10, 4]);
+  eistFout('3c4 beide structureel halve snapshots worden geweigerd (zonder netwerk)', zonderNetwerk, 'truncated');
+  eistFout('3c5 beide structureel halve snapshots worden geweigerd (half netwerk)', halfNetwerk, 'truncated');
+  eq('3c6 het volledige bestand heeft alle 9 relaties wél', tel(VOLLEDIG, 'IFCRELSEQUENCE('), 9);
 }
 
 // ── 4. Onzin-invoer: geen STEP-bestand ────────────────────────────────────────────────────────

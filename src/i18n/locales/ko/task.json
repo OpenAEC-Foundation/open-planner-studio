@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "작업 시간", "ELAPSEDTIME": "경과 시간" },
   "table": {
     "title": "테이블",
     "wbs": "WBS",
@@ -46,7 +47,7 @@
       "cycle": "이 변경으로 일정에 순환 관계가 생깁니다."
     },
     "controls": {
-      "collapse": "접기", "expand": "펼치기", "resize": "너비 변경", "remove": "제거", "pin": "고정",
+      "collapse": "접기", "expand": "펼치기", "resize": "너비 변경", "resizeTaskGrid": "작업 그리드 크기 조정", "remove": "제거", "pin": "고정",
       "unpin": "고정 해제", "autoFit": "자동 맞춤", "search": "검색", "searchResults": "검색 결과", "noResults": "결과 없음"
     },
     "history": {
@@ -59,12 +60,20 @@
       "autoFitColumn": "{{column}} 열 자동 맞춤"
     },
     "summary": {
-      "activityCodeAssignments": "활동 코드 할당 {{count}}개",
-      "customFields": "사용자 지정 필드 {{count}}개",
-      "internalRelations": "내부 관계 {{count}}개",
-      "externalRelations": "외부 관계 {{count}}개",
-      "baselineMissing": "이 기준선에 없음"
+      "activityCodeAssignments_other": "활동 코드 할당 {{count}}개",
+      "customFields_other": "사용자 지정 필드 {{count}}개",
+      "internalRelations_other": "내부 관계 {{count}}개",
+      "externalRelations_other": "외부 관계 {{count}}개",
+      "baselineMissing": "이 기준선에 없음",
+      "baselineVarianceStart": "시작 차이",
+      "baselineVarianceFinish": "완료 차이",
+      "baselineVarianceDuration": "기간 차이"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "시작 안 함",
+    "STARTED": "진행 중",
+    "COMPLETED": "완료"
   },
   "taskType": {
     "CONSTRUCTION": "건설",
@@ -278,7 +287,9 @@
     "directionSuccessor": "후행(나 → 외부)",
     "relType": "관계 유형",
     "lag": "지연(작업일)",
+    "lagPlaceholder": "0d 또는 2h",
     "anchorDate": "앵커 날짜",
+    "chooseNewAnchorAfterSideChange": "새 앵커를 선택하세요. 이제 관계 유형이 원본 작업의 반대쪽을 사용합니다.",
     "manualTitle": "수동(대체)",
     "manualHint": "파일이 없나요? 외부 작업의 프로젝트 ID와 작업 ID를 붙여넣으세요.",
     "projectId": "프로젝트 ID",

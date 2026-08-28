@@ -90,8 +90,9 @@ or a box-select) and the whole selection drags and drops together.
 The **Table** ribbon tab shows this same structure as a plain, editable grid, useful when you're
 entering or correcting a lot of tasks at once: a single click on any editable cell starts editing
 immediately with the existing value selected, the arrow keys move a cell cursor without opening it,
-**F2**/**Enter** opens the current cell for editing, and **Tab**/**Shift+Tab** on a selected row
-indent/outdent it, same as Alt+→/←. Reaching **Enter** or **↓** on the very last row creates a new
+**F2**/**Enter** opens the current cell for editing, and **Tab**/**Shift+Tab** moves to the next or
+previous cell, continuing onto the next or previous task row. Indenting and outdenting remain
+**Alt+→**/**Alt+←**. Reaching **Enter** or **↓** on the very last row creates a new
 sibling task right there with the cursor already in its name cell, so you can keep a whole list going
 without touching the mouse — this only works in the plain tree view, since a filter, sort or grouping
 active could make the new task fall straight out of view, so the app asks first instead of silently

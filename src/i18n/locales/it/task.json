@@ -1,4 +1,5 @@
 {
+  "durationType": { "WORKTIME": "Tempo lavorativo", "ELAPSEDTIME": "Tempo trascorso" },
   "table": {
     "title": "Tabella",
     "wbs": "WBS",
@@ -46,7 +47,7 @@
       "cycle": "Questa modifica creerebbe un ciclo nella pianificazione."
     },
     "controls": {
-      "collapse": "Comprimi", "expand": "Espandi", "resize": "Modifica larghezza", "remove": "Rimuovi", "pin": "Blocca",
+      "collapse": "Comprimi", "expand": "Espandi", "resize": "Modifica larghezza", "resizeTaskGrid": "Ridimensiona la griglia delle attività", "remove": "Rimuovi", "pin": "Blocca",
       "unpin": "Sblocca", "autoFit": "Adatta automaticamente", "search": "Cerca", "searchResults": "Risultati della ricerca", "noResults": "Nessun risultato"
     },
     "history": {
@@ -59,12 +60,28 @@
       "autoFitColumn": "Adatta automaticamente la colonna {{column}}"
     },
     "summary": {
-      "activityCodeAssignments": "{{count}} assegnazioni di codici attività",
-      "customFields": "{{count}} campi personalizzati",
-      "internalRelations": "{{count}} relazioni interne",
-      "externalRelations": "{{count}} relazioni esterne",
-      "baselineMissing": "Non presente in questa baseline"
+      "activityCodeAssignments_one": "{{count}} assegnazione di codice attività",
+      "activityCodeAssignments_many": "{{count}} assegnazioni di codici attività",
+      "activityCodeAssignments_other": "{{count}} assegnazioni di codici attività",
+      "customFields_one": "{{count}} campo personalizzato",
+      "customFields_many": "{{count}} campi personalizzati",
+      "customFields_other": "{{count}} campi personalizzati",
+      "internalRelations_one": "{{count}} relazione interna",
+      "internalRelations_many": "{{count}} relazioni interne",
+      "internalRelations_other": "{{count}} relazioni interne",
+      "externalRelations_one": "{{count}} relazione esterna",
+      "externalRelations_many": "{{count}} relazioni esterne",
+      "externalRelations_other": "{{count}} relazioni esterne",
+      "baselineMissing": "Non presente in questa baseline",
+      "baselineVarianceStart": "Scostamento inizio",
+      "baselineVarianceFinish": "Scostamento fine",
+      "baselineVarianceDuration": "Scostamento durata"
     }
+  },
+  "taskStatus": {
+    "NOT_STARTED": "Non iniziata",
+    "STARTED": "In corso",
+    "COMPLETED": "Completata"
   },
   "taskType": {
     "CONSTRUCTION": "Costruzione",
@@ -278,7 +295,9 @@
     "directionSuccessor": "Successore (io → esterno)",
     "relType": "Tipo di relazione",
     "lag": "Ritardo (giorni lavorativi)",
+    "lagPlaceholder": "0d o 2h",
     "anchorDate": "Data di ancoraggio",
+    "chooseNewAnchorAfterSideChange": "Scegli un nuovo ancoraggio: il tipo di relazione ora usa l’altro lato dell’attività di origine.",
     "manualTitle": "Manuale (soluzione alternativa)",
     "manualHint": "Non hai il file a portata di mano? Incolla l'id progetto e l'id attività dell'attività esterna.",
     "projectId": "Id progetto",

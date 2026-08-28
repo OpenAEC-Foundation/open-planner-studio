@@ -18,7 +18,7 @@
     "relationCreated": "관계를 만들었습니다: {{predecessor}} → {{successor}}",
     "relationDuplicate": "이 관계는 이미 있습니다",
     "relationAncestorEndpoint": "작업과 자신의 (조상) 요약 작업 간의 관계는 허용되지 않습니다.",
-    "summaryRelationsDropped": "{{total}}개의 관계를 계산에 포함할 수 없었습니다 — 어떤 관계인지는 관계 패널에서 확인하세요.",
+    "summaryRelationsDropped": "{{total}}개의 관계를 계산에 포함할 수 없었습니다. 선행 작업과 후속 작업 열을 확인하세요.",
     "mppSourceScheduleNotes_other": "이 MS Project 파일에는 분할되었거나 평준화되었거나 리소스 기반으로 조정된 작업이 {{count}}개 포함되어 있습니다. 있는 그대로 가져와 표시됩니다.",
     "projectStartAnchorsClamped_other": "프로젝트 시작일이 변경되었습니다. 선행 작업이나 제약 조건이 없는 작업 기준점 {{count}}개를 새 시작일로 이동했습니다.",
     "mppTimephasedSteeringLost_other": "이 편집 이후 MS Project의 시간 분배가 더 이상 {{count}}개 작업을 제어하지 않습니다. 원래 분배는 파일에 그대로 보존됩니다.",

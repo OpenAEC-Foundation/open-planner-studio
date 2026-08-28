@@ -19,7 +19,6 @@ export interface TaskGridCommandInput {
   columns: readonly TaskColumnId[];
   rowHeight: number;
   viewportHeight: number;
-  textDirection?: 'ltr' | 'rtl';
   isReadOnly: (cell: GridCellAddress) => boolean;
 }
 

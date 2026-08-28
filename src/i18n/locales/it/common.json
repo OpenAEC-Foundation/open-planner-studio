@@ -18,7 +18,7 @@
     "relationCreated": "Relazione creata: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Questa relazione esiste già",
     "relationAncestorEndpoint": "Una relazione tra un'attività e la propria attività di riepilogo antenata non è consentita.",
-    "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse — vedi il pannello Relazioni per i dettagli.",
+    "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse. Controlla le colonne Predecessori e Successori.",
     "mppSourceScheduleNotes_one": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Viene importata e mostrata così com'è.",
     "mppSourceScheduleNotes_many": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
     "mppSourceScheduleNotes_other": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",

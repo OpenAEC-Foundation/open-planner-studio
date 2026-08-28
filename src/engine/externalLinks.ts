@@ -35,6 +35,11 @@ export interface RefreshResult {
   changed: boolean;
 }
 
+/** Normaal blijft de persistente project-id primair en is het pad alleen fallback. De bulkverversing
+ * gebruikt `file-path` uitsluitend wanneer twee tegelijk gelezen bronnen dezelfde project-id
+ * claimen; zo worden kopieën uit elkaar gehouden zonder een verplaatst enkel bronbestand te breken. */
+export type ExternalSourceMatchScope = 'project-or-path' | 'file-path';
+
 /** De actuele anker-datum die `link` uit `srcTask` leest (§4.5-mapping); leeg ⇒ geen bruikbare datum. */
 export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
   const side = externalSourceSide(link.direction, link.relType);
@@ -43,9 +48,16 @@ export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
     : srcTask.time.earlyStart || srcTask.time.scheduleStart;
 }
 
-/** Matcht een link met `source`: primair op `sourceRef.projectId`, secundair (fallback) op genormaliseerd filePath. */
-export function linkMatchesSource(link: ExternalLink, source: ExternalSourceDoc): boolean {
-  if (link.sourceRef.projectId && link.sourceRef.projectId === source.projectId) return true;
+/** Matcht een link met `source`: normaal primair op project-id en secundair op genormaliseerd pad.
+ * `file-path` is de begrensde ambiguïteitsmodus voor meerdere bronnen met dezelfde project-id. */
+export function linkMatchesSource(
+  link: ExternalLink,
+  source: ExternalSourceDoc,
+  matchScope: ExternalSourceMatchScope = 'project-or-path',
+): boolean {
+  if (matchScope === 'project-or-path'
+    && link.sourceRef.projectId
+    && link.sourceRef.projectId === source.projectId) return true;
   if (!link.sourceRef.filePath || !source.filePath) return false;
   const linkPath = normalizeExternalSourcePath(link.sourceRef.filePath);
   const sourcePath = normalizeExternalSourcePath(source.filePath);
@@ -59,7 +71,11 @@ export function linkMatchesSource(link: ExternalLink, source: ExternalSourceDoc)
  * op `sourceRef.taskId`. Gevonden ⇒ anker bijgewerkt + `sourceMissing=false` + `sourceRef` gecanonicaliseerd;
  * niet gevonden (bron wél geladen, taak weg) ⇒ oud anker behouden + `sourceMissing=true`.
  */
-export function refreshExternalAnchors(tasks: Task[], source: ExternalSourceDoc): RefreshResult {
+export function refreshExternalAnchors(
+  tasks: Task[],
+  source: ExternalSourceDoc,
+  matchScope: ExternalSourceMatchScope = 'project-or-path',
+): RefreshResult {
   const srcById = new Map(source.tasks.map((t) => [t.id, t]));
   let refreshed = 0;
   let missing = 0;
@@ -69,7 +85,7 @@ export function refreshExternalAnchors(tasks: Task[], source: ExternalSourceDoc)
     if (!task.externalLinks || task.externalLinks.length === 0) return task;
     let taskChanged = false;
     const links = task.externalLinks.map((link): ExternalLink => {
-      if (!linkMatchesSource(link, source)) return link; // andere bron ⇒ ongemoeid
+      if (!linkMatchesSource(link, source, matchScope)) return link; // andere bron ⇒ ongemoeid
 
       const srcTask = srcById.get(link.sourceRef.taskId);
       if (!srcTask) {

@@ -2,7 +2,8 @@
 
 **Datum:** 2026-08-24
 
-**Status:** GO na zesde hyperkritische review — wacht op eigenaarreview
+**Status:** specontwerp GO; vijf implementatie-eindreviews NO-GO, alle bevindingen verwerkt en
+zesde volledige herreview nog uit te voeren
 
 **Branch:** `codex/tabel-overhaul`
 **Bronnen:** vault-notitie “tabel weergave revisie”, gekoppelde issues en de in deze sessie
@@ -704,6 +705,14 @@ De eerste twee en de twee UNC-vormen moeten per paar exact dezelfde SHA-256-key 
 Het origineel in `sourceRef.filePath` blijft ongewijzigd voor tonen en daadwerkelijk lezen. Een
 legacy pad dat deze functie afwijst valt terug op de hierboven begrensde `id-only`-route. Er bestaan
 dus niet twee verschillende padnormalisaties voor refresh en klembord.
+
+Bij een gewone verversing blijft de persistente project-id het primaire matchanker en is het
+genormaliseerde pad fallback; daardoor blijft een bewust geselecteerd, verplaatst bronbestand
+bruikbaar. Alleen wanneer **Alles verversen** in één actie twee verschillende genormaliseerde
+bronpaden inleest die dezelfde project-id claimen, is die id aantoonbaar ambigu. Binnen uitsluitend
+die groep matcht iedere bron dan verplicht op zijn eigen genormaliseerde pad. Links zonder een
+bruikbaar pad worden in zo'n ambigue groep veilig overgeslagen in plaats van door de laatst gelezen
+kopie te worden overschreven. Project- en document-id's worden hiervoor niet herschreven.
 
 De parser behandelt dit als volgt:
 
@@ -1450,7 +1459,9 @@ Dit is een kerncontract van `DataGridCore`, geen testwens achteraf:
   §6.3 wordt sticky voor het hele pinned blok tijdelijk uitgezet, zodat kolommen niet over elkaar
   heen liggen en de ARIA-volgorde gelijk blijft.
 - Pijl-links/rechts bewegen naar de visueel aangrenzende cel; Tab volgt de logische kolomvolgorde.
-  Dit wordt apart in RTL getest. “Links vastzetten” blijft als productbesluit fysiek links.
+  Dit wordt apart in RTL getest. De gridstructuur zelf houdt daarom altijd fysieke LTR-volgorde
+  en LTR-scrollcoördinaten; kop- en celinhoud krijgen afzonderlijk de taalrichting van de locale.
+  “Links vastzetten” blijft als productbesluit fysiek links.
 - Plus, min en resizegreep hebben een naam, focusstatus en toetsenbordactie. Resize ondersteunt naast
   pointerdrag ook een toetsenbordstap en auto-fit.
 - Een editor/popover krijgt focus zonder de gridcursor te verliezen. Escape sluit hem en brengt
@@ -1768,3 +1779,254 @@ De toekomstige helpers en gridruntime bestaan volgens de harde poort nog niet; r
 visueel bewijs horen daarom bij implementatie en zijn niet als reeds uitgevoerd gepresenteerd. Het
 implementatieplan moet daarnaast expliciet plaatsen waar een bij open/import/recovery beschikbare
 `cpmResult` vóór de ene activatiepublicatie in de payload wordt gezet.
+
+## 25. Eerste implementatie-eindreview: NO-GO en verwerking
+
+Na voltooiing van de implementatietaken is de volledige spec tegenover code, tests en bewijs gelegd.
+Die eerste implementatie-eindreview gaf **NO-GO** met negen bevindingen. Geen ervan wordt door deze
+tekst alleen als gesloten beschouwd; de volledige scope wordt na de eindpoort opnieuw beoordeeld.
+
+- **[BEVESTIGD · blokkerend]** De Relaties-tab was verwijderd zonder echte desktopproef van
+  **Alle externe relaties vernieuwen**. Verwerkt met een zichtbare Tauri-UI-proef. Die vond een
+  werkelijke identiteitfout: IFCTASK kreeg bij iedere parse een nieuwe interne id. IFC schrijft nu
+  `OPS_TaskIdentity.InternalTaskId`; oude bestanden vallen deterministisch terug op GlobalId.
+  Herhaald lezen, lezen→schrijven→lezen en de zichtbare verversactie behouden nu de brontaak.
+- **[BEVESTIGD · blokkerend]** Mijlpaalomschakeling verzon in enkele routes vijf dagen en was niet
+  centraal. `taskMilestoneTransition` bepaalt nu alle vier routes. Gewone taak→mijlpaal is
+  P6-nulduur; mijlpaal→gewone taak bewaart de aanwezige duur; een reeds aanwezige geïmporteerde
+  mijlpaal met duur blijft bij een no-op bytegelijk.
+- **[BEVESTIGD · hoog]** Het eerste vóór/na-performancebewijs mat tweemaal dezelfde implementatie.
+  De claim is ingetrokken. Een nieuwe productprobe vergelijkt plancommit `446324ce` met de huidige
+  grid via dezelfde 10.000-taken-IFC en dezelfde lintklik: mediaan 3.407,3 ms/230.303 elementen
+  tegenover 88,0 ms/926 elementen, twee warmups en negen runs per versie.
+- **[BEVESTIGD · hoog]** Dubbelklik op Gantt en Tabel had verschillende gevolgen. De
+  oppervlakafhankelijke dialoogroute is verwijderd; beide grids selecteren dezelfde cel/taak en
+  gebruiken het bestaande eigenschappenpaneel.
+- **[BEVESTIGD · hoog]** Er stonden nieuwe hardgecodeerde labels en onvolledige vertalingen in
+  registry, technische samenvattingen en externe-linkwaarschuwing. Alle gebruikerslabels lopen nu
+  via i18n; alle veertien taaklocales dragen dezelfde sleutels.
+- **[BEVESTIGD · midden]** Volledige afgekorte celinhoud was niet aangetoond. De adapter levert nu
+  een volledige cel-`title`; gewone tekst en datum/datumtijd houden daarmee hun complete waarde
+  bereikbaar zonder knop of apart paneel.
+- **[BEVESTIGD · midden]** Splitterslepen gebruikte een dynamische bovengrens, maar toetsenbord en
+  ARIA hielden 800 px. Eén helper berekent nu voor pointer, toetsenbord, klem en `aria-valuemax`
+  dezelfde grens uit de gemeten werkruimtebreedte.
+- **[BEVESTIGD · midden]** “Excel round-trip” was alleen intern gridkopiëren. De claim is vernauwd:
+  interne Ctrl+C/Ctrl+V en Ctrl+Z blijven apart bewezen; LibreOffice Calc heeft daarnaast echte
+  productie-TSV via XLSX heen en terug geschreven. Microsoft Excel zelf wordt niet geclaimd.
+- **[BEVESTIGD · midden]** Datumdisplay gebruikte ISO terwijl editor en klembord persoonlijke
+  notatie gebruikten. Display, edit en copy volgen nu dezelfde `dmy`/`mdy`/`ymd`-voorkeur; de
+  canonieke waarde blijft als volledige titel beschikbaar.
+
+Het uitvoerige dossier met ruwe benchmark-JSON, Tauri-screenshot, Calc-uitvoer en exitcodes staat
+in `docs/superpowers/evidence/tabel-overhaul-review-fixes.md`. De tweede implementatie-eindreview
+mag pas starten nadat de volledige verificatie opnieuw met exitcode 0 is afgerond. Een eventuele GO
+wordt in een afzonderlijke volgende sectie vastgelegd; tot dat moment blijft deze status NO-GO.
+
+## 26. Tweede implementatie-eindreview: NO-GO en verwerking
+
+Dezelfde zware reviewklasse beoordeelde na de volledige groene eindpoort opnieuw de hele scope en
+gaf **NO-GO** met zes bevindingen. De reparaties hieronder zijn daarna met rode regressietests
+begonnen en opnieuw door de volledige planningssuite gehaald; de derde review moet ze nog
+onafhankelijk sluiten.
+
+- **[BEVESTIGD · blokkerend]** Delete/Backspace routeerde in de React-surface naar het verwijderen
+  van alle geselecteerde taken, terwijl de pure klembordlaag al een atomaire lege celpaste kende.
+  De UI gebruikt nu `planTaskGridClear`; een niet-leegbare cel blokkeert de hele clear zonder enige
+  mutatie. Taakverwijdering blijft uitsluitend achter de bestaande expliciete verwijderactie.
+- **[BEVESTIGD · blokkerend]** Een meercellige paste met `task.isMilestone` en duur hing af van de
+  links-naar-rechtskolomvolgorde, omdat read-only tijdens dezelfde draft opnieuw werd beoordeeld.
+  Writes van dezelfde taak worden nu semantisch rond de overgang geordend: duur vóór aanzetten,
+  duur ná uitzetten en mijlpaalmetadata ná aanzetten. Beide kolomvolgordes hebben exact dezelfde
+  eindtoestand en blijven één transactie.
+- **[BEVESTIGD · hoog]** De desktopverversing had geen zelfstandig controleerbare voor/na-artefacten.
+  Bron-IFC, doel vóór en doel na staan nu naast het dossier met vaste SHA-256-hashes en een
+  planningscheck die ze via de productiereader opent. Die controle vond aanvullend dat ook het
+  project-id per parse wisselde. OPS schrijft daarom nu `InternalProjectId` in
+  `OPS_ProjectSettings`; oudere bestanden vallen deterministisch terug op `IFCPROJECT.GlobalId`.
+- **[BEVESTIGD · midden]** De datumeditor voldeed niet aan §8.1: hij bood alleen tekstinvoer. Datum
+  en datumtijd combineren nu persoonlijke tekstinvoer met een native kalender-/datumtijdkiezer;
+  de kiezer vertaalt terug naar dezelfde persoonlijke notatie en de writer houdt ISO.
+- **[BEVESTIGD · midden]** Booleanweergave was vertaald, maar kopiëren schreef hard `Ja`/`Nee` en
+  plakken kende alleen Nederlands/Engels. Adapter en klembord krijgen nu dezelfde lokale waar/onwaar-
+  labels; gelokaliseerde waarden roundtrippen, terwijl `true`/`false` canonieke terugval blijven.
+- **[BEVESTIGD · midden]** Datumtitels gebruikten de op minuten afgekorte displaytekst en verloren
+  seconden, milliseconden en tijdzone. De zichtbare cel, editor en copy blijven persoonlijke
+  minuutprecisie gebruiken; de bestaande gewone celtitel draagt de volledige canonieke waarde.
+
+Na deze verwerking eindigden typecheck, lint en `git diff --check` met exitcode 0. De volledige
+`bash tests/planning/run.sh` eindigde eveneens met exitcode 0: 560/560 rekengevallen, 168/168
+IFC-rondreiscontroles, 5/5 vastgelegde Tauri-bewijscontroles en alle vijf tijdzones groen. Dit is
+verificatiebewijs, nog geen onafhankelijke review-GO.
+
+## 27. Derde implementatie-eindreview: NO-GO en verwerking
+
+De derde review is opnieuw door dezelfde zware reviewklasse over de **volledige** implementatie
+uitgevoerd. Hij gaf **NO-GO**: twee eerdere blokkades bleken via aangrenzende routes nog open en
+één editorlaag gebruikte sleutels die in geen enkele locale bestonden. De review bevestigde de
+overige vier reparaties uit §26 en sloot ook IFC-identiteit, Tauri-artefacten, productbenchmark,
+dubbelklikpariteit, celhover, splittergrens, spreadsheetbewijs en persoonlijke datumnotatie.
+
+- **[BEVESTIGD · blokkerend]** De grid maakte bij Delete/Backspace wel een cel-clear, maar het
+  gebubbelde native event bereikte daarna ook de globale sneltoetslistener en kon alsnog de
+  geselecteerde taken verwijderen. `DataGridCore` stopt nu de eventpropagatie na een afgehandelde
+  gridopdracht en de globale listener keert defensief terug voor ieder `defaultPrevented` event.
+  Een gedragstest voert hetzelfde cancelable event eerst onbehandeld en daarna afgehandeld door de
+  globale beslisgrens voor zowel Delete als Backspace.
+- **[BEVESTIGD · blokkerend]** De semantische sortering dekte vlag plus duur, maar niet
+  `milestoneKind` en `mandatory` bij uitzetten. Die metadata werd halverwege read-only. Voor een
+  overgang naar gewone taak wordt metadata nu verwerkt terwijl de begintoestand nog een mijlpaal
+  is, daarna ruimt de ene domeinovergang haar op en ten slotte landt de gewone duur. De regressiematrix
+  doorloopt lege, afwijkende en gevulde metadata in alle 24 kolomvolgordes: 72 samengestelde pastes
+  hebben exact dezelfde geldige eindtoestand.
+- **[BEVESTIGD · hoog]** De editor vroeg niet-bestaande `assignment.*`, `resourceCurve.*` en
+  `boolean.*`-sleutels op. Assignmentbediening hergebruikt nu de bestaande
+  `properties.assignments.*`-teksten, de zes curves gebruiken de bestaande
+  `resource.curve.*`-teksten uit `common` en booleankeuzes gebruiken exact dezelfde lokale labels
+  als adapter en klembord. De i18n-regressie leest de echte veertien taak- én common-resources en
+  faalt ook wanneer die oude dynamische sleutels terugkomen.
+
+Na verwerking eindigden de gerichte toetsenbord-, transactie-, editor-, surface- en i18n-checks
+respectievelijk 4/4, 137/137, 20/20, 15/15 en 4473/4473 groen. Typecheck, lint en
+`git diff --check` eindigden met exitcode 0. De volledige planningssuite eindigde met exitcode 0:
+560/560, IFC 168/168, Tauri-artefacten 5/5 en vijf tijdzones groen. Daarna eindigde ook de volledige
+`npm run verify` met exitcode 0, inclusief bibliotheek, MCP, ontwikkelserver, voorbeelden,
+30 artikelen × 14 talen, localevergelijking, 449 importmodules en audit met nul kwetsbaarheden.
+Dit blijft verificatiebewijs; de vierde onafhankelijke herreview moet nog GO geven.
+
+## 28. Vierde implementatie-eindreview: NO-GO en verwerking
+
+De vierde review is opnieuw door de zware reviewklasse over de **volledige** implementatie,
+specificatie en bewijsset uitgevoerd. Hij gaf **NO-GO** met één blokkerende productfout en drie
+bewijs-/afwerkingspunten. De review bevestigde dat de eerdere Delete/Backspace-productroute,
+mijlpaal→gewone-taaktransactie en editorvertalingen waren gerepareerd.
+
+- **[BEVESTIGD · blokkerend]** `planTaskGridPaste` beoordeelde dynamische schrijfbaarheid nog tegen
+  de begintaak. Daardoor faalde een geldige gezamenlijke eindtoestand al vóór de transactielaag,
+  onder meer gewone taak→mijlpaal met metadata, `MSO` plus hard constraint en mijlpaal uit plus
+  hangmat uit. De klembordplanner doet nu alleen de statische kolomgrens en bouwt ongecontroleerde
+  schrijfintenties; de ene geïsoleerde transactiedraft ordent en valideert de gezamenlijke
+  eindtoestand. De productiepadmatrix loopt via `planTaskGridPaste` én `runGridMutation`, bevat alle
+  zes constraint- en assignmentkolomvolgordes, beide mijlpaalvolgordes, atomaire conflictsituaties
+  en aanvullend beide hangmat-/duur- en hangmat-/resourcevolgordes.
+- **[BEVESTIGD · midden]** De externe-lagdialoog bevatte nog de hardgecodeerde placeholder
+  `0d of 2u`. `externalLinks.lagPlaceholder` bestaat nu in alle veertien taaklocales en de bronpoort
+  verbiedt de oude literal.
+- **[BEVESTIGD · midden]** Het toetsenbordbewijs testte alleen een beslishelper. De check gebruikt
+  nu de echte `DataGridCore`-dispatch op hetzelfde cancelable event als de globale beslisgrens.
+  Aanvullend is de werkelijke app op de gecontroleerde worktreepoort bediend: Delete en Backspace
+  maakten een gevulde beschrijvingscel leeg, terwijl de taakrij en teller op één taak bleven staan.
+- **[BEVESTIGD · midden]** Een opgeslagen datumzonder tijd kon in uurmodus als ongeldige waarde in
+  een native `datetime-local` terechtkomen. De dialoog normaliseert de invoergrens naar
+  `T00:00`, maar bewaart een ongewijzigd bestaand canoniek anker. De pure regressie dekt datum,
+  datumtijd, leeg en dagmodus; in de echte app is een relatie met `2026-08-26` gemaakt in dagmodus,
+  de projectkalender naar twee ploegen omgezet en dezelfde relatie daarna geopend als
+  `datetime-local` met waarde `2026-08-26T00:00`.
+
+De reviewreparatie bracht ook één aangrenzende hangmatroute aan het licht: `hangmat uit + duur`
+kon nog van de zichtbare kolomvolgorde afhangen. Die overgang gebruikt nu dezelfde
+eindtoestandsordening. De gerichte klembordcheck eindigt met 97/97 groen. De daaropvolgende
+volledige planningssuite eindigde met exitcode 0: 560/560 rekengevallen, 168/168
+IFC-rondreiscontroles, 5/5 vastgelegde Tauri-bewijscontroles en alle vijf tijdzones groen. De
+daaropvolgende volledige `npm run verify` eindigde eveneens met exitcode 0: typecheck, lint, alle
+testreeksen, bibliotheek, MCP, ontwikkelserver, voorbeelden, 30 artikelen × 14 talen,
+localevergelijking, 449 importmodules en audit waren groen; de audit vond nul kwetsbaarheden. Dit is
+nog geen onafhankelijke review-GO; de vijfde review beoordeelt opnieuw de hele scope.
+
+## 29. Vijfde implementatie-eindreview: NO-GO en verwerking
+
+De vijfde review is opnieuw door de zware reviewklasse over de **volledige** implementatie,
+specificatie, transactielaag en bewijsset uitgevoerd. Hij gaf **NO-GO** met twee blokkerende
+transactiefouten, twee hoge externe-linkfouten en één middelzware uur-/dagweergavefout. De reviewer
+bevestigde de eerdere Delete/Backspace-, mijlpaal-, hangmat-, vertaal- en relationele
+klembordreparaties, maar vond aangrenzende routes die nog niet door dezelfde eindtoestandsregels
+werden beschermd.
+
+- **[BEVESTIGD · blokkerend]** `assignment.unitsPerDay` en `assignment.curve` konden via de
+  ongecontroleerde meercellige writer zelfstandig een nieuwe toewijzing maken. Ieder
+  assignment-intent draagt nu verplicht zijn bronkolom. Alleen `assignment.resources` mag
+  lidmaatschap wijzigen; units en curve mogen uitsluitend bestaande toewijzingen van dezelfde
+  resources aanpassen en bewaren daarbij id en de niet-bewerkte assignmentvelden.
+- **[BEVESTIGD · blokkerend]** Meerdere celwrites van één taak werden nog achtereenvolgens tegen
+  tijdelijke tussenstanden gevalideerd. Daardoor kon een geldig nieuw constraintpaar falen en
+  konden actualdatums of status/completion door kolomvolgorde verschillen. `planTaskCellEdits`
+  vormt nu per taak één gewenste toestand: beide constraints worden pas samen gevalideerd en alle
+  voortgangsvelden worden éénmaal als groep gecanonicaliseerd. Geldige paren slagen in beide
+  volgordes; tegenstrijdige status, completion, werkelijk duur en resterende duur falen atomair met
+  `conflictingProgressInputs`.
+- **[BEVESTIGD · hoog]** Een ongewijzigde bewerking van een gezonde bestandslink zette
+  `sourceMissing=true`; de brede spread van `sourceRef` kon bovendien oude bestandsidentiteit bij
+  een nieuwe handmatige bron bewaren. De submitbuilder onderscheidt nu expliciet een echte no-op,
+  het wissen van een optionele naam en een identiteitswijziging. De no-op bewaart projectnaam,
+  bestandspad, bronstatus en canoniek anker; een nieuwe identiteit krijgt geen oude
+  projectnaam/bestandspad mee.
+- **[BEVESTIGD · hoog]** De externe-linkdialoog had geen werkende Escape- of Enter-route. Hij gebruikt
+  nu dezelfde `Dialog`-grens als de rest van de app met `onCancel` en `onConfirm`. De broncheck
+  bewaakt de productiebedrading; in de echte app sloot Escape zonder taakverlies en voegde Enter
+  vanuit een geldig veld de relatie toe.
+- **[BEVESTIGD · midden]** Een bestaande datumtijd bleef bij uur→dag als `datetime-local` zichtbaar.
+  De inputsoort volgt nu uitsluitend de huidige kalender van de eigentaak. In dagmodus projecteert
+  de dialoog alleen het datumdeel; ongewijzigd opslaan bewaart de verborgen canonieke tijd. In de
+  echte app werd `2026-08-26T13:45` in dagmodus `2026-08-26` en na ongewijzigd opslaan en terugkeer
+  naar uurmodus opnieuw exact `2026-08-26T13:45`.
+
+De gerichte controles eindigden met assignment 44/44, klembord 101/101, gridtransactie 149/149,
+registry 526/526, editor 20/20, externe-linkdialoog 12/12 en externe-linkbewerking 12/12 groen. De
+volledige planningssuite eindigde met exitcode 0: 560/560 rekengevallen, 168/168 IFC-rondreis,
+5/5 Tauri-artefactcontroles en alle vijf tijdzones groen. Daarna eindigde `npm run verify` met
+exitcode 0: typecheck, lint, alle testreeksen, bibliotheek, MCP, ontwikkelserver, voorbeelden,
+30 artikelen × 14 talen, localevergelijking, 449 importmodules zonder cyclus en audit met nul
+kwetsbaarheden. Dit blijft verificatiebewijs; de zesde onafhankelijke herreview moet nog GO geven.
+
+## 30. Zesde implementatie-eindreview: NO-GO en verwerking
+
+De zesde volledige review gaf opnieuw **NO-GO**. Vijf blokkades betroffen eventeigenaarschap,
+gezamenlijke taaktoestanden en documentidentiteit; drie hoge punten betroffen externe ankers,
+zichtbare enumtekst en kolomspecifieke assignments; twee middelzware punten betroffen
+toegankelijkheid en een achterhaalde verwijzing naar het verwijderde Relaties-paneel. De reviewer
+bevestigde tegelijk de gebruikersopslag, lintknoppen, hover/trace, IFC-identiteit, gewone
+activatieroutes en het ongemoeid laten van de geavanceerde resourceweergave.
+
+- Ctrl/Cmd+C en V worden binnen een actieve tabel-editor door het native invoerveld afgehandeld;
+  alleen een gewone geselecteerde gridcel gebruikt TSV. De globale sneltoetslaag en de gridroot
+  hanteren dezelfde grens.
+- Alle celwrites van één taak worden tegen één gewenste eindtoestand gepland. Dit sluit de gevonden
+  combinaties voortgang+nevenveld, hangmat uit+mijlpaal aan+duur en kalender+duur onder de nieuwe
+  kalender, onafhankelijk van kolomvolgorde.
+- Een externe verversing legt het doeldocument vóór de asynchrone bronread vast en past na een
+  documentwissel niets toe. Een handmatige identiteitswijziging kan zonder nieuw aangeraakt anker
+  evenmin het oude bronanker erven.
+- Assignmentresources, units en curve openen elk uitsluitend hun eigen bediening. Validatiefouten
+  staan op het werkelijk focusbare invoerveld. Dezelfde browserproef vond en repareerde bovendien
+  een React-crash bij units/curve: native eventwaarden worden nu vóór de state-updater vastgelegd.
+- Status, taaktype en assignmentcurve gebruiken zichtbare locale labels; canonieke enumwaarden
+  blijven alleen in de interne edit-/klembordgrens. Alle veertien locales bevatten de drie
+  taakstatuslabels. De importwaarschuwing verwijst in iedere taal naar voorganger- en
+  opvolgerkolommen, niet naar het verwijderde paneel.
+- Horizontale scroll blijft direct in de gebruikersstate staan, maar een scrollburst wordt tot één
+  uitgestelde `localStorage`-write samengevoegd. Een tussentijdse gewone voorkeurwijziging annuleert
+  de timer, zodat een oud scrollsnapshot geen nieuwere kolommen kan overschrijven.
+
+De gerichte regressies eindigden met gridtransactie 152/152, externe-linkdialoog 13/13,
+toetsenbordroutering 14/14, adapter 58/58, externe verversing 206/206, editor 23/23,
+gebruikersvoorkeuren 72/72 en i18n 4607/4607 groen. Typecheck, lint en `git diff --check` eindigden
+met exitcode 0. De browser bewees een onopgeslagen editorwaarde `Draft` via native Ctrl+C/V,
+afzonderlijke assignmentbedieningen, een gekoppelde `aria-invalid`-fout zonder crash, een werkende
+curvewijziging en een vertaald statuslabel. Dit is nog geen onafhankelijke GO; de volledige eindpoort
+en zevende brede herreview volgen.
+
+De eerste volledige eindpoort vond daarna nog één samengestelde grens die niet in de gerichte set
+zat: een volledige mijlpaalrij met duur, hammock en een lege resourcecel gaf vier afwijkingen in de
+101 klembordchecks. De gezamenlijke celgroep werd bij de eerste cel uitgevoerd en passeerde daardoor
+de lege assignmentwrite die bestaande toewijzingen vóór de mijlpaalovergang hoort te wissen. Lege
+assignmentwrites staan nu vóór iedere cel uit zo'n mijlpaalgroep; niet-lege assignments blijven een
+tegenstrijdige en dus geweigerde eindtoestand. Klembord 101/101, gridtransactie 152/152 en assignments
+44/44 eindigden daarna afzonderlijk groen.
+
+De volledige herstart van `npm run verify` eindigde met exitcode 0. Daarbij waren onder meer de
+solvermatrix 560/560, IFC 168/168, Tauri-bewijs 5/5, alle vijf tijdzones, 35 MCP-reeksen,
+ontwikkelserverintegratie, voorbeelden, 30 artikelen × 14 talen, alle 13 locales, 449 importmodules
+en de audit met nul kwetsbaarheden groen. De tijdelijke gebruikerskolom **Assignment curve** is via
+het echte Tabel-contextmenu verwijderd; na paginaherlading stonden exact de negen standaardkolommen
+zonder curve. De bewijsserver is daarna gestopt en poort 3018 weigerde verbinding. De zevende brede
+herreview blijft nodig voordat deze implementatie als GO geldt.

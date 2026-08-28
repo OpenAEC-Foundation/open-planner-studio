@@ -320,6 +320,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-grid-assignments.ts" "$TGASSIGNMENTSCHECK"; then node "$TGASSIGNMENTSCHECK" || STATUS=1; fi
   TGFULLSURFACECHECK="$DIR/.full-task-grid-surface.mjs"
   if bundle_check "$DIR/check-full-task-grid-surface.ts" "$TGFULLSURFACECHECK"; then node "$TGFULLSURFACECHECK" || STATUS=1; fi
+  TGKEYROUTECHECK="$DIR/.task-grid-keyboard-event-routing.mjs"
+  if bundle_check "$DIR/check-keyboard-event-routing.ts" "$TGKEYROUTECHECK"; then node "$TGKEYROUTECHECK" || STATUS=1; fi
+  EXTLDIALOGCHECK="$DIR/.external-link-dialog.mjs"
+  if bundle_check "$DIR/check-external-link-dialog.ts" "$EXTLDIALOGCHECK"; then node "$EXTLDIALOGCHECK" || STATUS=1; fi
   GANTTWORKSPACECHECK="$DIR/.gantt-workspace.mjs"
   if bundle_check "$DIR/check-gantt-workspace.ts" "$GANTTWORKSPACECHECK"; then node "$GANTTWORKSPACECHECK" || STATUS=1; fi
 

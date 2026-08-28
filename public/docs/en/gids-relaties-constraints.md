@@ -7,7 +7,7 @@ Tasks that stand on their own don't shift when the schedule changes. Relations r
 - The four relation types (FS/SS/FF/SF) and when to use each.
 - Where a relation can and can't attach — milestones and summary tasks both can; only a relation to your own (grand)parent phase is rejected.
 - Lag and lead, including percentage lag and elapsed-time lag (for example for concrete curing).
-- Adding relations three ways: dragging, selection, and the relations table.
+- Adding relations three ways: dragging, selection, and predecessor/successor cells in the task grid.
 - All eight constraint types, plus the hard pin (P6 Mandatory) and the secondary constraint.
 - The difference between a deadline and a constraint.
 
@@ -37,11 +37,11 @@ pointless, and without this rejection it could produce a cycle at calculation ti
 through the task's own branch, which would make the whole calculation fail. If an opened file already
 contains such a relation anyway — for example from Primavera P6 or MS Project, which do allow it —
 it's preserved and carried through unchanged on save, but it doesn't count in the calculation: the
-Relations panel flags it as *not included*.
+task grid's relation-warning column flags it as *not included*.
 
 ## Lag and lead
 
-A relation doesn't have to be zero: a **lag** (positive) adds wait time between predecessor and successor, a **lead** (negative, entered as a negative number) lets the successor start earlier — a deliberate overlap. The lag field (**Lag**, in the properties panel and in the relations table) accepts a short notation:
+A relation doesn't have to be zero: a **lag** (positive) adds wait time between predecessor and successor, a **lead** (negative, entered as a negative number) lets the successor start earlier — a deliberate overlap. The lag field (**Lag**, in the properties panel and in the predecessor/successor cell editor) accepts a short notation:
 
 - `2d` — 2 work days of lag (the default unit: days on the project calendar).
 - `3ed` — 3 **elapsed** days: calendar days that also run through weekends or holidays. This is the unit you want for, for example, **concrete curing**: concrete keeps curing on Saturday and Sunday too, so a lag of "3 work days" would underestimate the curing time if a weekend falls in between. In that case, set the lag to the elapsed unit.
@@ -55,8 +55,8 @@ A negative number (lead) means the successor starts while the predecessor is sti
 There are three ways to create a relation, depending on where you're already working:
 
 1. **Dragging in the Gantt chart**: hold **Shift** and drag from the predecessor's bar to the successor's bar. As soon as you release, an FS relation with lag 0 is created immediately, and the **Relation type** window appears right away — there you can adjust the type (FS/SS/FF/SF) and the lag without having to open the properties panel.
-2. **Selection + button**: select the predecessor first, hold Ctrl/Cmd and select the successor next (in that order). With exactly two tasks selected this way, click **Link** — the same button that otherwise toggles dependency-drawing mode, found on the **Start** tab, the **Relations** ribbon group on the **Planning** tab, or the dedicated **Relations** tab — and it creates an FS relation with lag 0 immediately, without opening the Relation type window. The **Relations** tab also has its own **New relation from selection** button in the table toolbar that does the same thing. Either way, adjust the type or lag afterwards in the relations table if you need something other than a plain FS.
-3. **Directly in the relations table**: open the **Relations** tab (via **Manage** in the Relations ribbon group). The table shows, per relation, the columns **Predecessor**, **Type**, **Lag**, **Successor**, **Driving** and **Free float** — type and lag can be edited directly here, including for relations you created earlier by dragging or selection.
+2. **Selection + button**: select the predecessor first, hold Ctrl/Cmd and select the successor next (in that order). With exactly two tasks selected this way, choose **Relation → Link selected tasks** on the **Start**, **Planning**, or **Table** ribbon tab. This immediately creates an FS relation with lag 0. Open its token in the task grid afterwards if you need another type or lag.
+3. **Directly in the task grid**: add the **Predecessors** or **Successors** column via the plus button. Open a cell to search by WBS/task name and set FS/SS/FF/SF plus lag. Existing relation tokens can be opened to edit or remove them; related free float, driving state, and warnings are available as separate columns.
 
 The **Driving** column shows, after a calculation, which relation actually determines the successor's start or finish date — for a task with multiple predecessors, that isn't necessarily the relation you created most recently, but the one with the latest (driving) date.
 

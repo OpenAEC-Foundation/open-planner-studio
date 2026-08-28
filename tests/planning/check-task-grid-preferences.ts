@@ -39,12 +39,16 @@ function ok(label: string, condition: boolean): void {
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
+  writes = 0;
   get length(): number { return this.values.size; }
   clear(): void { this.values.clear(); }
   getItem(key: string): string | null { return this.values.get(key) ?? null; }
   key(index: number): string | null { return [...this.values.keys()][index] ?? null; }
   removeItem(key: string): void { this.values.delete(key); }
-  setItem(key: string, value: string): void { this.values.set(key, String(value)); }
+  setItem(key: string, value: string): void {
+    this.writes++;
+    this.values.set(key, String(value));
+  }
 }
 
 const storage = new MemoryStorage();
@@ -313,11 +317,23 @@ eq('Persoonlijke kolomwijziging zet het project niet dirty', store.getState().is
 const persistedAfterColumns = JSON.parse(storage.getItem('ops-taskGridPreferences')!) as PersistedTaskGridPreferencesV1;
 eq('State en gepersisteerde Gantt-kolommen zijn dezelfde gevalideerde payload',
   persistedAfterColumns.surfaces['gantt-task-grid'], store.getState().taskGridSurfaces['gantt-task-grid']);
-store.getState().setTaskGridScrollX('full-task-grid', 987);
+const writesBeforeScrollBurst = storage.writes;
+for (const scrollX of [120, 240, 480, 760, 987]) {
+  store.getState().setTaskGridScrollX('full-task-grid', scrollX);
+}
 eq('Scroll is per surface onafhankelijk', {
   gantt: store.getState().taskGridSurfaces['gantt-task-grid'].scrollX,
   table: store.getState().taskGridSurfaces['full-task-grid'].scrollX,
 }, { gantt: 0, table: 987 });
+eq('Een scrollburst schrijft niet synchroon naar localStorage', storage.writes, writesBeforeScrollBurst);
+await new Promise(resolve => setTimeout(resolve, 180));
+eq('Een scrollburst wordt samengevoegd tot precies één persist-write',
+  storage.writes, writesBeforeScrollBurst + 1);
+const persistedAfterScroll = JSON.parse(
+  storage.getItem('ops-taskGridPreferences')!,
+) as PersistedTaskGridPreferencesV1;
+eq('De samengevoegde persist-write bewaart de laatste scrollstand',
+  persistedAfterScroll.surfaces['full-task-grid'].scrollX, 987);
 for (let index = 0; index < 12; index++) store.getState().recordRecentTaskColumn(taskColumnId(`store-${index}`));
 eq('Store bewaart één gedeelde MRU van tien', store.getState().recentTaskColumns,
   Array.from({ length: 10 }, (_, i) => `store-${11 - i}`));

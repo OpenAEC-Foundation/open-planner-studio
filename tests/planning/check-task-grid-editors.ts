@@ -139,12 +139,35 @@ const milestoneOffTask = {
   time: { ...baseTask.time, scheduleDuration: 0 },
 } as Task;
 const milestoneOff = plan('task.isMilestone', 'task-milestone', false, milestoneOffTask);
-eq('Mijlpaal uit herstelt bruikbare duur en wist mijlpaalmetadata', milestoneOff.ok ? {
+eq('Mijlpaal uit verzint geen duur en wist mijlpaalmetadata', milestoneOff.ok ? {
   milestone: milestoneOff.value.task.isMilestone,
   kind: milestoneOff.value.task.milestoneKind,
   mandatory: milestoneOff.value.task.mandatory,
   duration: milestoneOff.value.task.time.scheduleDuration,
-} : milestoneOff, { milestone: false, duration: 5 });
+} : milestoneOff, { milestone: false, duration: 0 });
+const importedDurationMilestone = {
+  ...baseTask, isMilestone: true, milestoneKind: undefined, mandatory: undefined,
+  time: { ...baseTask.time, scheduleDuration: 3, durationMinutes: 1440 },
+} as Task;
+const unchangedImportedMilestone = plan(
+  'task.isMilestone', 'task-milestone', true, importedDurationMilestone,
+);
+eq('Ongewijzigde geimporteerde mijlpaal-met-duur wordt niet genormaliseerd',
+  unchangedImportedMilestone.ok ? {
+    duration: unchangedImportedMilestone.value.task.time.scheduleDuration,
+    minutes: unchangedImportedMilestone.value.task.time.durationMinutes,
+  } : unchangedImportedMilestone,
+  { duration: 3, minutes: 1440 });
+const importedMilestoneOff = plan(
+  'task.isMilestone', 'task-milestone', false, importedDurationMilestone,
+);
+eq('Uitvinken van een geimporteerde mijlpaal bewaart de bestaande duur',
+  importedMilestoneOff.ok ? {
+    milestone: importedMilestoneOff.value.task.isMilestone,
+    duration: importedMilestoneOff.value.task.time.scheduleDuration,
+    minutes: importedMilestoneOff.value.task.time.durationMinutes,
+  } : importedMilestoneOff,
+  { milestone: false, duration: 3, minutes: 1440 });
 eq('Mijlpaalsoort op een gewone taak wordt geweigerd',
   plan('task.milestoneKind', 'task-milestone', 'START').ok, false);
 
