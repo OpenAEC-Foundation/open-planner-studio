@@ -23,7 +23,6 @@ import { HoverTooltip } from './HoverTooltip';
 import { TaskTooltipContent } from './TaskTooltipContent';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
-import { dateToX as axisDateToX } from '@/engine/renderer/timeAxis';
 import { saveLeftPanelWidth, saveHistogramHeight } from '@/utils/settingsStore';
 // K-item 33: de pure afleidingen achter de weergave + de opbouw van `GanttRenderOptions`. Ze zijn
 // hierheen verhuisd zodat ze headless te controleren zijn; de `useMemo`-aanroepen hieronder blijven
@@ -310,18 +309,20 @@ export function GanttCanvas() {
     const rect = canvas.getBoundingClientRect();
     const usableWidth = rect.width - tableWidth;
     if (usableWidth <= 0) return;
-    const origin = parseDate(effectiveViewStart);
     const hourMode = startString.includes('T') || finishString.includes('T');
     const start = hourMode ? parseInstant(startString) : parseDate(startString);
     const finish = hourMode ? parseInstant(finishString) : parseDate(finishString);
-    const startX = axisDateToX(start, origin, tableWidth, currentView.zoom, 0);
-    const finishX = axisDateToX(finish, origin, tableWidth, currentView.zoom, 0)
+    // De gedeelde as is ook bij werkdagencompressie de renderbron. Tel scrollX er weer bij op
+    // om van scherm- naar contentcoördinaten terug te gaan, waarna de zichtbaarheidstest exact
+    // dezelfde positie gebruikt als de getekende balk.
+    const startX = sharedAxis.dateToX(start) + currentView.scrollX;
+    const finishX = sharedAxis.dateToX(finish) + currentView.scrollX
       + (hourMode ? 0 : currentView.zoom);
     const visibleLeft = tableWidth + currentView.scrollX;
     const visibleRight = visibleLeft + usableWidth;
     if (finishX > visibleLeft && startX < visibleRight) return;
     state.setScroll(Math.max(0, startX - tableWidth - 40), currentView.scrollY);
-  }, [canvasRef, effectiveViewStart]);
+  }, [canvasRef, sharedAxis]);
   const addChildTask = useCallback((parentId: string) => {
     addTask({ name: defaultTaskName, parentId });
   }, [addTask, defaultTaskName]);

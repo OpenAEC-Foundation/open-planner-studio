@@ -115,17 +115,56 @@ test('Gantt viewport: Ctrl+0 past de hele projectspan en reset Y', async ({ page
   });
   await expect.poll(() => state(page).then(s => s.view.scrollY)).toBeGreaterThan(0);
   const before = await state(page);
+  const paintsBefore = await page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'));
 
   await page.keyboard.press('Control+0');
 
   await expect.poll(() => state(page).then(s => s.view.scrollY)).toBe(0);
+  await expect.poll(() => state(page).then(s => s.view.viewStartDate)).toBe('2026-01-05');
   await expect.poll(() => state(page).then(s => s.view.zoom)).not.toBe(before.view.zoom);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'))).toBeGreaterThan(paintsBefore);
   const bounds = await primaryCanvasBounds(page);
   const tableWidth = (await state(page)).ui.leftPanelWidth;
   const first = await barPoint(page, ids[0]);
   const last = await barPoint(page, ids.at(-1)!);
   expect(first.x).toBeGreaterThanOrEqual(bounds.x + tableWidth);
   expect(last.x).toBeLessThanOrEqual(bounds.x + bounds.width);
+});
+
+test('Gantt viewport: een gewone klik in de takenlijst onthult alleen een verborgen balk', async ({ page, ops: _ops }) => {
+  const [nearId, farId] = await seedProject(page, [
+    { name: 'Nabije balk', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },
+    { name: 'Verborgen balk', start: '2028-07-03', finish: '2028-07-14', durationDays: 10 },
+  ]);
+  const bounds = await primaryCanvasBounds(page);
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setZoom(60);
+    s.setScroll(0, 0);
+  });
+  const farPoint = await barPoint(page, farId);
+  const nearPoint = await barPoint(page, nearId);
+  const tableClick = { x: bounds.x + 120, y: farPoint.y };
+  expect(farPoint.x).toBeGreaterThan(bounds.x + bounds.width);
+  const before = await state(page);
+
+  await page.mouse.click(tableClick.x, tableClick.y);
+
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([farId]);
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
+  const afterPlainClick = await state(page);
+  expect(afterPlainClick.view.zoom).toBe(before.view.zoom);
+
+  await page.keyboard.down('Control');
+  await page.mouse.click(bounds.x + 120, nearPoint.y);
+  await page.keyboard.up('Control');
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual(expect.arrayContaining([nearId, farId]));
+  expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
+
+  await page.keyboard.down('Shift');
+  await page.mouse.click(bounds.x + 120, farPoint.y);
+  await page.keyboard.up('Shift');
+  expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
 });
 
 test('Gantt viewport: WBS-focusklik centreert taak en wist het pending signaal', async ({ page, ops: _ops }) => {

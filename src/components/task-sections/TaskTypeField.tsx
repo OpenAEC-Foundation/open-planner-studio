@@ -8,8 +8,13 @@ import {
   addPersonalTaskType, getPersonalTaskTypes, removePersonalTaskType, renamePersonalTaskType, subscribePersonalTaskTypes,
 } from '@/services/taskTypes/personalTaskTypes';
 import { Dialog } from '@/components/common/Dialog';
+import { Select, type SelectOption } from '@/components/common/Select';
 import { Field } from './shared';
 
+const GROUP_BUILTIN = '__ops_task_type_group_builtin__';
+const GROUP_PERSONAL = '__ops_task_type_group_personal__';
+const GROUP_PROJECT = '__ops_task_type_group_project__';
+const SEPARATOR = '__ops_task_type_separator__';
 const ACTION_NEW = '__ops_new_task_type__';
 const ACTION_MANAGE = '__ops_manage_task_types__';
 const customValue = (id: string) => `custom:${id}`;
@@ -33,6 +38,37 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
   const projectOnly = project.filter(p => !personal.some(g => g.id === p.id));
   const selected = task.customTaskTypeId ? customValue(task.customTaskTypeId) : task.taskType;
   const selectedProject = task.customTaskTypeId ? project.find(x => x.id === task.customTaskTypeId) : undefined;
+  const options: SelectOption[] = [
+    { value: GROUP_BUILTIN, label: t('taskType.builtinGroup'), disabled: true },
+    ...TASK_TYPES.filter(type => type !== 'USERDEFINED').map(type => ({ value: type, label: t(`taskType.${type}`) })),
+    ...(!task.customTaskTypeId && task.taskType === 'USERDEFINED'
+      ? [{ value: 'USERDEFINED', label: t('taskType.USERDEFINED') }]
+      : []),
+    ...(personal.length > 0
+      ? [
+          { value: GROUP_PERSONAL, label: t('taskType.personalGroup'), disabled: true },
+          ...personal.map(type => ({
+            value: customValue(type.id),
+            label: type.id === task.customTaskTypeId && selectedProject ? selectedProject.name : type.name,
+          })),
+        ]
+      : []),
+    ...(projectOnly.length > 0
+      ? [
+          { value: GROUP_PROJECT, label: t('taskType.projectGroup'), disabled: true },
+          ...projectOnly.map(type => ({ value: customValue(type.id), label: type.name })),
+        ]
+      : []),
+    ...(selectedProject && !personal.some(type => type.id === selectedProject.id) && !projectOnly.some(type => type.id === selectedProject.id)
+      ? [{ value: selected, label: selectedProject.name }]
+      : []),
+    ...(task.customTaskTypeId && !selectedProject
+      ? [{ value: selected, label: t('taskType.USERDEFINED') }]
+      : []),
+    { value: SEPARATOR, label: '────────────', disabled: true },
+    { value: ACTION_NEW, label: t('taskType.new') },
+    { value: ACTION_MANAGE, label: t('taskType.manage') },
+  ];
   const chooseCustom = (type: CustomTaskType) => {
     if (materializeProjectType) ensureProjectTaskType(type);
     onChange({ taskType: 'USERDEFINED', customTaskTypeId: type.id });
@@ -56,39 +92,24 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
 
   return <>
     <Field label={t('properties.type')}>
-      <select
-        aria-label={t('properties.type')}
-        data-ops-task-type
-        className="input !text-xs !px-2.5 !py-1.5"
-        value={selected}
-        onChange={event => {
-          const value = event.currentTarget.value;
-          if (value === ACTION_NEW) { setName(''); setDialog('new'); return; }
-          if (value === ACTION_MANAGE) { setDialog('manage'); return; }
-          if (value.startsWith('custom:')) {
-            const type = [...personal, ...project].find(x => x.id === value.slice(7));
-            if (type) chooseCustom(type);
-            return;
-          }
-          onChange({ taskType: value as TaskType, customTaskTypeId: undefined });
-        }}
-      >
-        <optgroup label={t('taskType.builtinGroup')}>
-          {TASK_TYPES.filter(type => type !== 'USERDEFINED').map(type => <option key={type} value={type}>{t(`taskType.${type}`)}</option>)}
-          {!task.customTaskTypeId && task.taskType === 'USERDEFINED' && <option value="USERDEFINED">{t('taskType.USERDEFINED')}</option>}
-        </optgroup>
-        {personal.length > 0 && <optgroup label={t('taskType.personalGroup')}>
-          {personal.map(type => <option key={type.id} value={customValue(type.id)}>{type.id === task.customTaskTypeId && selectedProject ? selectedProject.name : type.name}</option>)}
-        </optgroup>}
-        {projectOnly.length > 0 && <optgroup label={t('taskType.projectGroup')}>
-          {projectOnly.map(type => <option key={type.id} value={customValue(type.id)}>{type.name}</option>)}
-        </optgroup>}
-        {selectedProject && !personal.some(type => type.id === selectedProject.id) && !projectOnly.some(type => type.id === selectedProject.id) && <option value={selected}>{selectedProject.name}</option>}
-        {task.customTaskTypeId && !selectedProject && <option value={selected}>{t('taskType.USERDEFINED')}</option>}
-        <option disabled>────────────</option>
-        <option value={ACTION_NEW}>{t('taskType.new')}</option>
-        <option value={ACTION_MANAGE}>{t('taskType.manage')}</option>
-      </select>
+      <div data-ops-task-type>
+        <Select
+          aria-label={t('properties.type')}
+          className="!text-xs !px-2.5 !py-1.5"
+          value={selected}
+          options={options}
+          onChange={value => {
+            if (value === ACTION_NEW) { setName(''); setDialog('new'); return; }
+            if (value === ACTION_MANAGE) { setDialog('manage'); return; }
+            if (value.startsWith('custom:')) {
+              const type = [...personal, ...project].find(x => x.id === value.slice(7));
+              if (type) chooseCustom(type);
+              return;
+            }
+            onChange({ taskType: value as TaskType, customTaskTypeId: undefined });
+          }}
+        />
+      </div>
     </Field>
 
     {dialog === 'new' && <Dialog

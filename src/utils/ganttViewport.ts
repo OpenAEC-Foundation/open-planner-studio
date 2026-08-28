@@ -145,6 +145,7 @@ export function computeFitToProject(
   usableWidth: number,
   enableQuarterHourZoom: boolean,
   enableHourPlanning = false,
+  navigationStartDates: string[] = [],
 ): FitToProject | null {
   if (tasks.length === 0 || usableWidth <= 0) return null;
   let minStart: string | null = null;
@@ -166,10 +167,13 @@ export function computeFitToProject(
   const span = Math.max(1, diffCalendarDays(parseDate(minStart), parseDate(maxFinish)) + 1);
   const max = maxGanttZoom(enableQuarterHourZoom, enableHourPlanning);
   const zoom = Math.max(0.5, Math.min(max, usableWidth / span));
-  // De renderer-origin op scrollX=0 is (minStart − ORIGIN_PADDING_DAYS); scroll door
-  // ORIGIN_PADDING_DAYS·zoom zodat minStart op de chart-linkerrand landt en maxFinish exact op
-  // de rechterrand → alles past edge-to-edge.
-  return { zoom, viewStartDate: minStart, scrollX: ORIGIN_PADDING_DAYS * zoom };
+  // De renderer kan zijn oorsprong verder naar links trekken voor kalenderuitzonderingen. Een fit
+  // die blind met alleen `ORIGIN_PADDING_DAYS` rekent, zet dan wel de juiste zoom maar laat het
+  // project te ver naar rechts staan. Gebruik exact zijn effectieve oorsprong en pan van daaruit
+  // naar de eerste taak; zonder zulke uitzonderingen blijft dit 14 × zoom en dus byte-identiek.
+  const effectiveStart = computeEffectiveViewStart(tasks, minStart, navigationStartDates);
+  const scrollX = Math.max(0, diffCalendarDays(parseDate(effectiveStart), parseDate(minStart)) * zoom);
+  return { zoom, viewStartDate: minStart, scrollX };
 }
 
 /** Kleine marge (in dagen) die vóór de doeldatum zichtbaar blijft, zodat hij niet exact tegen de

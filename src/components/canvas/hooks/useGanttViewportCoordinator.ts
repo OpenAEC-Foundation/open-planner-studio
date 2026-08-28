@@ -145,6 +145,7 @@ export function useGanttViewportCoordinator(
       rect.width - current.taskTableWidth,
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
+      current.calendar.holidays.map(holiday => holiday.startDate),
     );
     if (!fit) return;
     current.setZoom(fit.zoom);
@@ -188,13 +189,14 @@ export function useGanttViewportCoordinator(
       rect.width - current.taskTableWidth,
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
+      calendarNavigationDates.starts,
     );
     current.clearPendingFit();
     if (!fit) return;
     current.setZoom(fit.zoom);
     current.setViewStartDate(fit.viewStartDate);
     current.setScroll(fit.scrollX, 0);
-  }, [input.view.pendingFit, input.tasks, input.taskTableWidth, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll]);
+  }, [input.view.pendingFit, input.tasks, input.taskTableWidth, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, calendarNavigationDates.starts]);
 
   useEffect(() => {
     const current = latest.current;
