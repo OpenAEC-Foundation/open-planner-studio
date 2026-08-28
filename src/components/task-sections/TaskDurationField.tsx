@@ -41,14 +41,20 @@ export function TaskDurationField({ task, calendar, onChange }: {
   const [infoVisible, setInfoVisible] = useState(false);
   const [infoAnchor, setInfoAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
+  const awaitFreshInfoHover = useRef(false);
   const infoId = useId();
   const derived = isZeroDurationMilestone(task) || task.childIds.length > 0 || !!task.isHammock;
   const hourEditBlocked = task.time.durationUnit === 'hours' && !enableHourPlanning;
   const showUnitControls = enableHourPlanning && allowMixedDayHour;
 
-  // De portal mag niet als oude hoverstatus terugkomen wanneer de app-brede UI-poort opnieuw opent.
+  // Een knop die precies onder een stilstaande muis terugkomt, krijgt van React opnieuw een
+  // mouseenter zonder dat de gebruiker opnieuw heeft gehoverd. Eis daarom eerst een echte leave;
+  // focus blijft wel meteen een geldige, afzonderlijke toetsenbordactie.
   useEffect(() => {
-    if (!showUnitControls) setInfoVisible(false);
+    if (!showUnitControls) {
+      awaitFreshInfoHover.current = true;
+      setInfoVisible(false);
+    }
   }, [showUnitControls]);
 
   useEffect(() => {
@@ -127,6 +133,16 @@ export function TaskDurationField({ task, calendar, onChange }: {
     setInfoVisible(true);
   };
 
+  const showInfoOnHover = () => {
+    if (awaitFreshInfoHover.current) return;
+    showInfo();
+  };
+
+  const hideInfoOnMouseLeave = () => {
+    awaitFreshInfoHover.current = false;
+    setInfoVisible(false);
+  };
+
   useEffect(() => {
     if (!infoVisible) return;
     window.addEventListener('resize', syncInfoAnchor);
@@ -178,8 +194,8 @@ export function TaskDurationField({ task, calendar, onChange }: {
                 className="inline-flex h-full w-full items-center justify-center rounded-[5px] text-text-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                 aria-label={t('duration.unitInfo')}
                 aria-describedby={infoVisible ? infoId : undefined}
-                onMouseEnter={showInfo}
-                onMouseLeave={() => setInfoVisible(false)}
+                onMouseEnter={showInfoOnHover}
+                onMouseLeave={hideInfoOnMouseLeave}
                 onFocus={showInfo}
                 onBlur={() => setInfoVisible(false)}
                 data-ops-duration-info

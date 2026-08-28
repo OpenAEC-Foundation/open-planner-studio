@@ -188,7 +188,7 @@ test('gemengde dag/uur-planning is een verborgen onderliggende, gepersisteerde i
 });
 
 test('duurinfo is met hover en toetsenbordfocus bereikbaar en legt het vaste contract uit', async ({ page, ops: _ops }) => {
-  await seedDurationTask(page);
+  const taskId = await seedDurationTask(page);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ rightPanelWidth: 200 }));
   const info = page.locator('[data-ops-duration-info]').first();
   await info.hover();
@@ -231,11 +231,30 @@ test('duurinfo is met hover en toetsenbordfocus bereikbaar en legt het vaste con
   await expect(tooltip).toBeHidden();
 
   await page.mouse.move(1, 1);
+  await info.hover();
+  await expect(tooltip).toBeVisible();
+  await page.mouse.move(1, 1);
   await expect(tooltip).toBeHidden();
   await info.focus();
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toContainText(/(days count working days|dagen tellen werkdagen)/i);
   await expect(tooltip).toContainText(/(hours count working hours|uren tellen werkuren)/i);
+
+  // De dialoog gebruikt hetzelfde veld, maar krijgt een eigen DOM-insertie en focusketen.
+  await openDialog(page, taskId);
+  const dialogInfo = page.getByRole('dialog').locator('[data-ops-duration-info]');
+  await dialogInfo.hover();
+  await expect(tooltip).toBeVisible();
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: false }));
+  await expect(tooltip).toBeHidden();
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: true }));
+  await expect(tooltip).toBeHidden();
+  await page.mouse.move(1, 1);
+  await dialogInfo.hover();
+  await expect(tooltip).toBeVisible();
+  await page.mouse.move(1, 1);
+  await dialogInfo.focus();
+  await expect(tooltip).toBeVisible();
 });
 
 test('uren zonder concrete werkblokken en niet-exacte omzetting muteren de taak niet', async ({ page, ops: _ops }) => {
