@@ -422,6 +422,31 @@
   background: color-mix(in srgb, var(--theme-accent) 38%, transparent);
 }
 
+/* Browserreview, observatie 3b: vóór deze regels was de enige visuele terugkoppeling tijdens het
+ * resizen de hover-/focusachtergrond van `.task-grid-resize-handle` zelf — die zit ABSOLUUT
+ * gepositioneerd op de HEADERCEL (28px hoog), dus zichtbaar losstaand van de rijen eronder. Deze
+ * hulplijn is een APARTE laag: `.task-grid-resize-guideline` plakt (position:sticky, alleen `top`)
+ * verticaal aan de bovenkant van de scrollcontainer — zoals de headerrij zelf — terwijl de
+ * horizontale positie via `margin-inline-start` (geen `left`, dat zou ook horizontaal plakken)
+ * gewoon met de kolommen meescrollt. `height:0` houdt de buitenste laag buiten de flow (geen
+ * invloed op scrollHeight); de binnenste `-line` staat `position:absolute` op die laag met de
+ * eigenlijke hoogte (headerHeight + viewportHeight, inline gezet) en tekent de streep.
+ */
+.task-grid-resize-guideline {
+  position: sticky;
+  top: 0;
+  height: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.task-grid-resize-guideline-line {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  background: var(--theme-accent);
+}
+
 .task-grid-shell {
   position: relative;
   width: fit-content;

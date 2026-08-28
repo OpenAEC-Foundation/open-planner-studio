@@ -121,6 +121,14 @@ export function TaskGrid({
     }];
   }), [surfacePreferences.columns, optionsById, previewWidths]);
 
+  // Browserreview, observatie 3b: `previewWidths` bevat NOOIT meer dan één sleutel tegelijk — hij
+  // wordt bij `onResizeStart` altijd eerst leeggemaakt, dus "precies één entry" betekent
+  // betrouwbaar "deze kolom wordt nu actief geresized" (handle of toetsenbord). Drijft de
+  // volledige-hoogte hulplijn in DataGridCore.
+  const resizeGuidelineColumnId = previewWidths.size === 1
+    ? ([...previewWidths.keys()][0] as TaskColumnId)
+    : null;
+
   const allowAction = () => beforeColumnAction?.() !== false;
 
   const commitAction = (
@@ -156,6 +164,7 @@ export function TaskGrid({
         {...coreProps}
         columns={columns}
         labels={labels}
+        resizeGuidelineColumnId={resizeGuidelineColumnId}
         onRemoveColumn={columnId => {
           const option = optionsById.get(columnId);
           if (!option) return;
