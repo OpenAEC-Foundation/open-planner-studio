@@ -1,9 +1,7 @@
-// Z15 (etappe "nul afwijkingen") — gedeelde afleiding van de ABSOLUTE segmentgrenzen van een
-// gesplitste taak (`Task.splitGaps`, Z4), gebruikt door zowel de Gantt-canvas (`GanttRenderer`,
-// `drawTaskBar`) als de print-/PDF-teken laag (`printPreview.ts`, via de `Draw2D`-abstractie —
-// bedient zowel de rasterpreview als de vector-PDF). Eén bron voor de kalenderwandeling houdt
-// beide tekenpaden gegarandeerd in sync (zelfde precedent als `timeAxis.dateToX`, hierboven
-// aangehaald: GanttRenderer/HistogramRenderer deelden vroeger een VERBATIM gekopieerde functie).
+// Z15 → B1c-W0: de wandeling zelf leeft in `engine/scheduler/splitWalk.ts` (één bron voor
+// renderer, print, lastlezer en nivelleerder — zie dat moduleheader voor de H1-as-semantiek,
+// dag/uur-modus-keuze, overlap-samenvoeging en taakeinde-klem). Deze module blijft de import-plek
+// voor de tekenpaden (`GanttRenderer`, `printPreview`) — puur re-export, geen eigen logica meer.
 //
 // O5 (orkestratorbesluit 2026-08-17, plan-§10): een ECHTE split (`Task.splitGaps`, uit een
 // .mpp-import afgeleid) tekent ALTIJD gesplitst — een werkonderbreking is DATA, geen
@@ -11,112 +9,4 @@
 // kalender-necking sturen (de calendar-only "toon werkblokken"-weergave); een taak met
 // `splitGaps` bereikt die tak nooit. Deze module weet niets van `barSplitMode` — dat blijft aan
 // de aanroeper.
-
-import type { TaskSplitGap } from '@/types/task';
-import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-
-export interface SplitSegmentBounds {
-  start: Date;
-  end: Date;
-}
-
-/**
- * Segmentgrenzen (Date-paren) voor een taak met `Task.splitGaps`, gewandeld vanaf `taskStart` met
- * de bestaande `CalendarEngine`-primitieven — GEEN eigen kalenderlogica hier (plan-§8-checklist).
- * Deze functie wandelt CUMULATIEF (niet losse `addWorkMinutes(start, afterMinutes)`-aanroepen per
- * gat): `addWorkMinutes` is optelbaar — twee opeenvolgende wandelingen van a en b werkminuten
- * landen op hetzelfde punt als één wandeling van a+b minuten.
- *
- * DE AS (H1, de enige juiste lezing — zie `TaskSplitGap`'s docblok in `task.ts` en het
- * wandelalgoritme van `splitTotalSpanMinutes` in `duration.ts`, waarvan deze lus het datum-
- * equivalent is). `afterMinutes` is de POSITIE VAN HET GAT OP MSP'S CUMULATIEVE
- * `elapsedWorkMinutes`-as, en die as telt de eerdere gaten AL MEE. Het zuivere werksegment vóór een
- * gat is dus `gat.afterMinutes − asPositie`, waarbij `asPositie` na elk gat naar
- * `gat.afterMinutes + gat.gapMinutes` springt — NIET naar `gat.afterMinutes` (dat was de oude,
- * foute lezing: die telde elk voorgaand gat dubbel, waardoor de segmenten ná het tweede gat te
- * breed werden en de laatste grens vóór het taakeinde uit kon komen, d.w.z. een achterstevoren
- * getekend segment).
- *
- * Defensief, met dezelfde regels als `splitTotalSpanMinutes` (`splitGaps` is afgeleide data en kan
- * via een handgemaakte IFC/JSON-import of MCP corrupt binnenkomen): NaN/Infinity/`gapMinutes<=0`
- * wordt overgeslagen, en een gat dat (deels) binnen een voorgaand gat valt wordt op de as geklemd —
- * die twee vallen dan samen tot ÉÉN gat en leveren dus ook één werkonderbreking in beeld op, precies
- * zoals de CPM-spanne ze telt. Elke grens wordt bovendien op `taskEnd` geklemd, zodat geen enkel
- * segment ooit voorbij (of achterstevoren over) het balkeinde getekend wordt.
- *
- * DAG- VS UUR-MODUS (verplicht uit te leggen, plan-Z15). `afterMinutes`/`gapMinutes` zijn ALTIJD
- * werkminuten, ongeacht de kalendermodus van de taak (ze komen uit de .mpp-timephased-decoder, die
- * geen dag/uur-onderscheid kent, zie `mppTimephased.ts`). In UUR-modus (`hourMode=true`) wandelt
- * deze functie daarom met `CalendarEngine.addWorkMinutes` (minuutprecisie — dezelfde primitief als
- * Z4's eigen meetreferentie gebruikt om de MSP-finish te reproduceren). In DAG-modus bestaat die
- * precisie NIET: `addWorkMinutes` leunt op `calendar.workTime!.byWeekday` en GOOIT op een
- * dag-kalender (`workTime` is daar `undefined` — zie `CalendarEngine.bandsStartingOn`, dat de
- * non-null-assertion onvoorwaardelijk doet). Dag-taken tekenen sowieso nooit binnen-de-dag (de
- * dag-tak van `barGeometry`/printPreview's balklus rondt altijd op hele dagen af), dus deze functie
- * rondt in dag-modus elke minutenwaarde af op hele werkdagen (`Math.round(minuten /
- * (hoursPerDay*60))`) en wandelt met `addWorkingDaysSigned` — de bestaande "zuivere offset"-
- * primitief (begindag telt NIET als "dag 1", i.t.t. `addWorkDays`/`addWorkDaysChecked`) die
- * `Z6`/`levelingDelay` in `CPMSolver.forwardPass` voor precies dit doel al gebruikt. Een gat
- * kleiner dan een halve werkdag rondt af naar 0 werkdagen en levert dus geen zichtbaar segment op
- * in dag-modus — een gedocumenteerde precisiegrens (de bar-x-as heeft daar geen sub-dag-resolutie
- * om zo'n gat sowieso te tonen), geen bug. De spiegelkant geldt óók: een gat van een halve werkdag
- * of net erboven rondt OP naar één hele werkdag en tekent dus breder dan het werkelijke gat —
- * dezelfde half-rondt-van-nul-af-conventie als `CPMSolver.resolveEffectiveLagDays` voor lags in
- * dag-modus.
- *
- * ELKE grens (behalve de allereerste `taskStart` en de allerlaatste `taskEnd`) is EXCLUSIEF: het
- * startpunt van het volgende segment — net als de bestaande uur-modus-necking
- * (`CalendarEngine.workIntervalsBetween`) al doet. De aanroeper zet deze grenzen daarom recht-toe-
- * recht-aan om naar schermcoördinaten (`dateToX(...)`, zonder extra "+zoom voor de inclusieve
- * laatste dag"-correctie) — behalve voor de allereerste/-laatste grens, waar de aanroeper de AL
- * BEKENDE `x1`/`x2` van de volle-extent-balkgeometrie hergebruikt (die dragen die correctie al).
- *
- * `gaps.length === 0` ⇒ één segment `[taskStart, taskEnd]` (geen split) — de aanroeper hoeft deze
- * functie dus niet zelf te guarden op een lege/afwezige `splitGaps`-array.
- */
-export function computeSplitSegments(
-  gaps: TaskSplitGap[] | undefined,
-  taskStart: Date,
-  taskEnd: Date,
-  hourMode: boolean,
-  eng: CalendarEngine,
-): SplitSegmentBounds[] {
-  if (!gaps || gaps.length === 0) return [{ start: taskStart, end: taskEnd }];
-  if (taskEnd.getTime() <= taskStart.getTime()) return [{ start: taskStart, end: taskEnd }];
-  const sorted = [...gaps].sort((a, b) => a.afterMinutes - b.afterMinutes);
-  const minutesPerDay = Math.max(1, eng.hoursPerDay * 60);
-  const endMs = taskEnd.getTime();
-
-  const walk = (from: Date, minutes: number): Date => {
-    if (minutes <= 0) return from;
-    const to = hourMode
-      ? eng.addWorkMinutes(from, minutes)
-      : (() => {
-          const days = Math.round(minutes / minutesPerDay);
-          return days > 0 ? eng.addWorkingDaysSigned(from, days) : from;
-        })();
-    return to.getTime() > endMs ? taskEnd : to;
-  };
-
-  const segments: SplitSegmentBounds[] = [];
-  let cursor = taskStart;
-  let axisPos = 0;
-  for (const gap of sorted) {
-    if (!Number.isFinite(gap.afterMinutes) || !Number.isFinite(gap.gapMinutes) || gap.gapMinutes <= 0) continue;
-    const gapStartAxis = Math.max(gap.afterMinutes, axisPos);
-    const gapEndAxis = gap.afterMinutes + gap.gapMinutes;
-    if (gapEndAxis <= gapStartAxis) continue; // volledig door een voorgaand gat opgeslokt
-    const workBefore = gapStartAxis - axisPos;
-    if (workBefore > 0 || segments.length === 0) {
-      const gapStart = walk(cursor, workBefore);
-      segments.push({ start: cursor, end: gapStart });
-      cursor = gapStart;
-    }
-    // `workBefore === 0` met al een segment op de lijst ⇒ dit gat sluit naadloos op het vorige aan:
-    // geen werkblok ertussen, dus geen extra segment — het gat wordt gewoon verlengd.
-    cursor = walk(cursor, gapEndAxis - gapStartAxis);
-    axisPos = gapEndAxis;
-  }
-  segments.push({ start: cursor, end: taskEnd });
-  return segments;
-}
+export { computeSplitSegments, type SplitSegmentBounds } from '@/engine/scheduler/splitWalk';

@@ -71,6 +71,19 @@ const gapsWithNaN: TaskSplitGap[] = [...gaps.slice(0, 1), { afterMinutes: NaN, g
 eq('NaN-gat genegeerd: gelijk aan zonder dat gat',
    splitDayPattern(gapsWithNaN, 480, 3), splitDayPattern(gaps.slice(0, 1), 480, 3));
 
+// Overlappende gaten vallen samen tot ÉÉN blok (zelfde klemregel als `computeSplitSegments` en
+// `splitTotalSpanMinutes`): gat 1 beslaat de as [480,1440) (1 werkdag na dag 1, 2 dagen gat), gat 2
+// begint op 960 — middenin gat 1 — en ligt dus geklemd op 1440, doorlopend tot 1920 (nog 1 dag
+// gat). Zonder samenvoeging zou dit een apart `{work:0, gap:1}`-blok opleveren; met samenvoeging
+// wordt het gat van het eerste blok verlengd tot 3 dagen in plaats van een los nul-werk-blok.
+const overlappingDayGaps: TaskSplitGap[] = [
+  { afterMinutes: 480, gapMinutes: 960 },  // as [480,1440) — 2 dagen gat na dag 1
+  { afterMinutes: 960, gapMinutes: 960 },  // begint middenin gat 1 ⇒ geklemd op 1440, tot 1920
+];
+eq('overlappende gaten ⇒ samengevoegd tot één gat-blok (geen los nul-werk-blok)',
+   splitDayPattern(overlappingDayGaps, 480, 4),
+   [{ work: 1, gap: 3 }, { work: 3, gap: 0 }]);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // enumerateTaskWorkDays
 // ═══════════════════════════════════════════════════════════════════════════
@@ -134,6 +147,62 @@ console.log('-- split-walk: computeSplitSegments (hourMode=true, uur-modus) --')
     eq('segment 2 start (na 30 min gat)', formatInstant(hourSegs[1].start, 'hour'), '2026-06-01T10:30');
     eq('segment 2 einde = taakeinde', formatInstant(hourSegs[1].end, 'hour'), '2026-06-01T12:00');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// computeSplitSegments — overlappende gaten, taakeinde-klem, vijandige invoer
+// (geport uit `check-split-bar-render.ts`s Deel 0e/0f — zelfde referentiegevallen)
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- split-walk: computeSplitSegments — overlap, taakeinde-klem, vijandige invoer --');
+{
+  // Overlappende gaten vallen samen tot ÉÉN werkonderbreking: gat 1 beslaat de as [120,240), gat 2
+  // begint op 180 — middenin gat 1 — en ligt dus geklemd op 240, doorlopend tot 300. Samen één
+  // onderbreking over de as [120,300) ⇒ 10:00-13:00, dus TWEE werkblokken, niet drie (een naïeve
+  // wandeling die het tweede gat een eigen — nul-brede — segment geeft zou er drie tellen).
+  const overlapGaps: TaskSplitGap[] = [
+    { afterMinutes: 120, gapMinutes: 120 },
+    { afterMinutes: 180, gapMinutes: 120 },
+  ];
+  const overlapSegs = computeSplitSegments(
+    overlapGaps, parseInstant('2026-06-01T08:00'), parseInstant('2026-06-01T14:00'), true, hourEng);
+  eq('overlappende gaten ⇒ 2 werkblokken (samengevoegd tot één onderbreking)',
+    overlapSegs.map(s => [formatInstant(s.start, 'hour'), formatInstant(s.end, 'hour')]),
+    [['2026-06-01T08:00', '2026-06-01T10:00'], ['2026-06-01T13:00', '2026-06-01T14:00']]);
+}
+{
+  // Vijandige invoer (NaN/Infinity/gapMinutes<=0) wordt overgeslagen ⇒ één doorlopende balk.
+  const hostileSegs = computeSplitSegments(
+    [{ afterMinutes: NaN, gapMinutes: 60 }, { afterMinutes: 120, gapMinutes: 0 },
+      { afterMinutes: 60, gapMinutes: -120 }, { afterMinutes: Infinity, gapMinutes: 60 }],
+    parseInstant('2026-06-01T08:00'), parseInstant('2026-06-01T16:00'), true, hourEng);
+  eq('ontaarde gaten worden overgeslagen ⇒ één doorlopende balk',
+    hostileSegs.map(s => [formatInstant(s.start, 'hour'), formatInstant(s.end, 'hour')]),
+    [['2026-06-01T08:00', '2026-06-01T16:00']]);
+}
+{
+  // Een gat ver voorbij het taakeinde (corrupte `afterMinutes`) mag geen segmentgrens ná
+  // `taskEnd` opleveren en al helemaal geen achterstevoren lopend segment.
+  const wildEnd = parseDate('2026-06-05');
+  const wild = computeSplitSegments(
+    [{ afterMinutes: 480, gapMinutes: 480 }, { afterMinutes: 100000, gapMinutes: 480 }],
+    parseDate('2026-06-01'), wildEnd, false, eng);
+  const endMs = wildEnd.getTime();
+  ok('geen enkele segmentgrens komt voorbij het taakeinde',
+    wild.every(s => s.start.getTime() <= endMs && s.end.getTime() <= endMs));
+  ok('geen enkel segment loopt achterstevoren', wild.every(s => s.end.getTime() >= s.start.getTime()));
+}
+{
+  // `taskEnd <= taskStart` (corrupte input) kortsluit meteen naar één segment — de gaten-as wordt
+  // niet eens aangeraakt.
+  const sameInstant = parseDate('2026-06-03');
+  const degenerate = computeSplitSegments(gaps, sameInstant, sameInstant, false, eng);
+  eq('taskEnd === taskStart ⇒ één (nul-breed) segment, geen crash',
+    degenerate, [{ start: sameInstant, end: sameInstant }]);
+  const invertedEnd = parseDate('2026-06-01');
+  const invertedStart = parseDate('2026-06-05');
+  const inverted = computeSplitSegments(gaps, invertedStart, invertedEnd, false, eng);
+  eq('taskEnd < taskStart ⇒ één segment, ongewijzigd doorgegeven',
+    inverted, [{ start: invertedStart, end: invertedEnd }]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
