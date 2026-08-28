@@ -532,35 +532,6 @@
   outline: none;
 }
 
-.task-grid-header-context-menu {
-  position: fixed;
-  z-index: var(--z-contextmenu);
-  min-width: 170px;
-  display: grid;
-  padding: 4px;
-  background: var(--theme-surface-elevated);
-  border: 1px solid var(--theme-border);
-  border-radius: 5px;
-  box-shadow: var(--shadow-pop);
-}
-
-.task-grid-header-context-menu button {
-  min-height: 28px;
-  padding: 5px 9px;
-  color: var(--theme-text);
-  background: transparent;
-  border: 0;
-  border-radius: 3px;
-  font: inherit;
-  text-align: start;
-}
-
-.task-grid-header-context-menu button:hover,
-.task-grid-header-context-menu button:focus-visible {
-  background: var(--theme-hover);
-  outline: none;
-}
-
 .task-grid-column-chooser-anchor {
   position: absolute;
   z-index: calc(var(--z-sticky) + 1);
@@ -843,6 +814,11 @@
   border-radius: 0;
 }
 
+/* Browserreview, observatie 6 (tweede plek met dezelfde afwijking): dit paneel portaalt naar
+ * document.body (RelationCellEditor.tsx) zonder eigen `font-size` — zonder deze regel erven al zijn
+ * kinderen (chips, tokens, invoervelden — geen van allen zet zelf een font-size) html/body's volle
+ * `calc(13px * --ui-font-scale)` i.p.v. de compacte roosterdichtheid. `.task-grid-column-chooser`
+ * (dezelfde soort portal-popup) had dit al goed; hier hetzelfde patroon toegepast. */
 .task-grid-relation-editor {
   position: fixed;
   z-index: var(--z-dropdown);
@@ -856,6 +832,8 @@
   background: var(--theme-surface-elevated);
   border: 1px solid var(--theme-accent);
   box-shadow: var(--shadow-pop);
+  font-family: var(--font-body);
+  font-size: 11px;
 }
 
 .task-grid-relation-editor-anchor {

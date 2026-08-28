@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Minus } from 'lucide-react';
+import { CONTEXT_MENU_CONTAINER_CLASS, CONTEXT_MENU_ITEM_CLASS } from '@/components/canvas/ContextMenu';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import type { TaskColumnId } from '@/types/taskGrid';
 import type { DataGridColumnModel, DataGridLabels } from './taskGridContext';
@@ -278,12 +279,20 @@ export function DataGridHeader({
 
   const contextMenuPortal = contextMenu && contextColumn && typeof document !== 'undefined'
     ? createPortal(
+      // Browserreview, observatie 6: was `className="task-grid-header-context-menu"` (globals.css)
+      // met eigen, losse maatvoering — `font: inherit` in een createPortal naar `document.body` erft
+      // daardoor html/body's volle `calc(13px * --ui-font-scale)` i.p.v. de compacte `text-xs` van
+      // het taakmenu (ContextMenu.tsx). Nu dezelfde getokeniseerde klassen als dat menu
+      // (CONTEXT_MENU_CONTAINER_CLASS/CONTEXT_MENU_ITEM_CLASS, geëxporteerd vanuit ContextMenu.tsx)
+      // — één bron voor de maatvoering, zodat ze niet opnieuw uit elkaar kunnen groeien. De
+      // role="menu"/role="menuitem"-opbouw blijft van dit menu zelf (dat is al zo ingericht;
+      // ContextMenu.tsx's eigen MenuItem heeft die ARIA-rollen niet).
       <div
         ref={contextMenuRef}
         role="menu"
         dir={textDirection}
         aria-label={contextColumn.label}
-        className="task-grid-header-context-menu"
+        className={CONTEXT_MENU_CONTAINER_CLASS}
         style={contextMenuPosition}
         onKeyDown={event => {
           if (event.key !== 'Escape') return;
@@ -295,6 +304,7 @@ export function DataGridHeader({
         <button
           type="button"
           role="menuitem"
+          className={`${CONTEXT_MENU_ITEM_CLASS} text-text-primary`}
           onClick={() => {
             onTogglePinned?.(contextColumn.id, !contextColumn.pinned);
             closeContextMenu(true);
@@ -305,6 +315,7 @@ export function DataGridHeader({
         <button
           type="button"
           role="menuitem"
+          className={`${CONTEXT_MENU_ITEM_CLASS} text-text-primary`}
           onClick={() => {
             onAutoFitColumn?.(contextColumn.id);
             closeContextMenu(true);
@@ -315,6 +326,7 @@ export function DataGridHeader({
         <button
           type="button"
           role="menuitem"
+          className={`${CONTEXT_MENU_ITEM_CLASS} text-text-primary`}
           onClick={() => {
             onRemoveColumn?.(contextColumn.id);
             closeContextMenu(false);
