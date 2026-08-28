@@ -5,8 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import {
-  fromExtCalendar, fromExtProject, fromExtSequence, fromExtTask,
-  toExtCalendar, toExtProject, toExtSequence, toExtTask,
+  fromExtCalendar, fromExtProject, fromExtSequence, fromExtTask, toExtTask,
 } from '@/extensions/extMappers';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -918,21 +917,97 @@ function productBaseline(corpus: readonly XerCorpusFile[], manifest: XerCorpusMa
   });
   const hostileExt = readXER(bytes);
   if (isMultiDocumentImport(hostileExt)) throw new Error('X12 extensiesolvefixture moet enkelproject zijn');
+  const hostilePredecessor = hostileExt.tasks.find(task => task.wbsCode === 'PRED');
+  const hostileSourceTask = hostileExt.tasks.find(task => task.wbsCode === 'FLOOR');
+  const hostileSequence = hostileExt.sequences.find(sequence => sequence.successorId === hostileSourceTask?.id);
+  if (!hostilePredecessor || !hostileSourceTask || !hostileSequence) {
+    throw new Error('X12 extensiesolvefixture mist PRED → FLOOR');
+  }
+  // Dit object stelt rechtstreeks een ongetypeerde JS-extensieruntime voor. Er loopt bewust geen
+  // `toExtProject`/`toExtTask` vóór: die uitleesmappers zouden de vervalste invoer al saneren en
+  // daarmee precies de from-extensiongrens maskeren die deze fixture moet bewaken.
+  const hostileRuntimeProject = {
+    ...hostileExt.project,
+    schedulingOptions: {
+      ...hostileExt.project.schedulingOptions,
+      p6Source: 'XER',
+      p6UseTaskPlannedStartFloor: true,
+      p6PreserveZeroDurationConstraintInstants: true,
+    },
+  } as unknown as Parameters<typeof fromExtProject>[0];
+  const hostileRuntimeTask = {
+    ...hostileSourceTask,
+    time: {
+      ...hostileSourceTask.time,
+      completion: 0.5,
+      actualStart: '2026-01-01T08:00',
+      actualFinish: undefined,
+      remainingTime: 1,
+      remainingMinutes: 480,
+      resume: '2026-01-06T08:00',
+      stop: undefined,
+    },
+    p6DurationType: 'DT_FixedDUR2',
+    p6ActivityType: 'TT_Rsrc',
+    p6ProjectId: 'FORGED-PROJECT',
+    p6TaskId: 'FORGED-TASK',
+    p6CompletePctType: 'CP_Phys',
+    p6ExpectedFinish: '2026-01-30T17:00',
+    p6SuspendResume: true,
+  } as unknown as Parameters<typeof fromExtTask>[0];
+  const importedHostileTask = fromExtTask(hostileRuntimeTask);
   const genericExtensionImport: ImportResult = {
     ...hostileExt,
-    project: fromExtProject(toExtProject(hostileExt.project)),
-    calendar: fromExtCalendar(toExtCalendar(hostileExt.calendar)),
-    tasks: hostileExt.tasks.map(task => fromExtTask(toExtTask(task))),
-    sequences: hostileExt.sequences.map(sequence => fromExtSequence(toExtSequence(sequence))),
+    project: fromExtProject(hostileRuntimeProject),
+    calendar: fromExtCalendar({ ...hostileExt.calendar } as Parameters<typeof fromExtCalendar>[0]),
+    // De echte netwerkrelatie blijft bewust in de hostile invoer. Zonder PRED → FLOOR is de
+    // planned-start-floor niet te onderscheiden van een gewone worteltaakstart en meet deze
+    // fixture een objectvorm in plaats van de solveruitkomst die door de vervalste vlag wijzigt.
+    tasks: [
+      fromExtTask({ ...hostilePredecessor } as Parameters<typeof fromExtTask>[0]),
+      importedHostileTask,
+    ],
+    sequences: [fromExtSequence({ ...hostileSequence } as Parameters<typeof fromExtSequence>[0])],
   };
+  const hostileSolve = solveProject({
+    tasks: genericExtensionImport.tasks,
+    sequences: genericExtensionImport.sequences,
+    calendar: genericExtensionImport.calendar,
+    calendars: genericExtensionImport.resourceCalendars ?? [],
+    dataDate: genericExtensionImport.project.statusDate,
+    progressMode: genericExtensionImport.project.progressMode,
+    schedulingOptions: genericExtensionImport.project.schedulingOptions,
+    projectStartDate: genericExtensionImport.project.startDate,
+    projectEndDate: genericExtensionImport.project.endDate,
+  });
+  if (hostileSolve.error) throw new Error(`X12 hostile extensiesolve faalt: ${hostileSolve.error}`);
+  const hostileSolvedTask = hostileSolve.tasks.get(importedHostileTask.id);
   eq('X12 generieke extensie-import kan interne P6-opties niet via de echte solve activeren', {
     projectSource: genericExtensionImport.project.schedulingOptions?.p6Source,
-    calendarSource: genericExtensionImport.calendar.p6Source,
-    result: resultOf(genericExtensionImport),
+    plannedStartFloor: genericExtensionImport.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
+    taskProvenance: {
+      p6DurationType: importedHostileTask.p6DurationType,
+      p6ActivityType: importedHostileTask.p6ActivityType,
+      p6ProjectId: importedHostileTask.p6ProjectId,
+      p6TaskId: importedHostileTask.p6TaskId,
+      p6CompletePctType: importedHostileTask.p6CompletePctType,
+      p6ExpectedFinish: importedHostileTask.p6ExpectedFinish,
+      p6SuspendResume: importedHostileTask.p6SuspendResume,
+    },
+    solvedEarlyStart: hostileSolvedTask?.earlyStart,
+    solvedEarlyFinish: hostileSolvedTask?.earlyFinish,
+    appliedEarlyStart: hostileSolvedTask?.earlyStart,
   }, {
     projectSource: undefined,
-    calendarSource: undefined,
-    result: offResult,
+    plannedStartFloor: undefined,
+    taskProvenance: {},
+    // Zonder vervalste P6-bronstempel blijft de planned-start-floor inert. De generieke solver
+    // kiest hier zijn gewone project-/netwerkvenster; een mutatie die `fromExtProject` met een
+    // objectspread laat terugschrijven activeert de P6-vloer en maakt precies deze solve-assert
+    // rood (FLOOR schuift dan naar zijn geplande 5 januari-anker).
+    solvedEarlyStart: '2026-01-01T08:00',
+    solvedEarlyFinish: '2026-01-06T16:00',
+    appliedEarlyStart: '2026-01-01T08:00',
   });
 }
 

@@ -332,8 +332,8 @@ export function toExtTask(t: Task): ExtTask {
     // create-/update-paden (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts` REJECT_HINTS).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
-    // X0 (XER-etappeplan): drie nieuwe .xer-importvelden — zelfde onvoorwaardelijke doorgifte als
-    // mspTaskType/effortDriven hierboven.
+    // X0/X12: P6/XER-herkomst is READ-ONLY voor extensies. `toExtTask` toont de bronvelden voor
+    // analyse; `fromExtTask` hieronder accepteert ze bewust niet als generieke invoer.
     p6DurationType: t.p6DurationType,
     p6ActivityType: t.p6ActivityType,
     p6ProjectId: t.p6ProjectId,
@@ -387,15 +387,9 @@ export function fromExtTask(t: ExtTask): Task {
     // (`fromExtTaskInput`, extensie-API) blijven hier bewust buiten (leeskant-alleen-besluit F5).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
-    // X0 (XER-etappeplan): drie nieuwe .xer-importvelden — zelfde onvoorwaardelijke doorgifte als
-    // mspTaskType/effortDriven hierboven.
-    p6DurationType: t.p6DurationType,
-    p6ActivityType: t.p6ActivityType,
-    p6ProjectId: t.p6ProjectId,
-    p6TaskId: t.p6TaskId,
-    p6CompletePctType: t.p6CompletePctType,
-    p6ExpectedFinish: t.p6ExpectedFinish,
-    p6SuspendResume: t.p6SuspendResume,
+    // X12-herreview: de zeven P6/XER-velden zijn bronprovenance, geen publieke generieke invoer.
+    // De native XER-reader en het IFC-round-trippad materialiseren ze rechtstreeks op `Task`;
+    // een ongetypeerde extensiepayload mag via deze mapper geen P6-solverroute activeren.
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,

@@ -38,6 +38,7 @@ import {
   toExtProject, fromExtProject,
   toExtCalendar, fromExtCalendar,
   toExtTask, fromExtTask,
+  fromExtImportResult,
   toExtTaskTime, fromExtTaskTime,
   toExtSequence, fromExtSequence,
   toExtResource, fromExtResource,
@@ -139,7 +140,10 @@ const LEES_ALLEEN_EXT = {
   project: [] as readonly string[],
   calendar: ['p6Source', 'p6NonWorkPenaltyDates'] as readonly string[],
   resource: [] as readonly string[],
-  task: [] as readonly string[],
+  task: [
+    'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId',
+    'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
+  ] as readonly string[],
   taskTime: [] as readonly string[],
   sequence: ['p6StartAtPredecessorFinishBoundary'] as readonly string[],
   assignment: [] as readonly string[],
@@ -325,6 +329,59 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   });
 }
 
+{
+  const exposed = toExtTask(VOL_TASK);
+  const imported = fromExtTask(exposed);
+  eq('X12 P6-taakherkomst is zichtbaar in het read-model maar generieke invoer activeert haar niet', {
+    exposed: {
+      p6DurationType: exposed.p6DurationType,
+      p6ActivityType: exposed.p6ActivityType,
+      p6ProjectId: exposed.p6ProjectId,
+      p6TaskId: exposed.p6TaskId,
+      p6CompletePctType: exposed.p6CompletePctType,
+      p6ExpectedFinish: exposed.p6ExpectedFinish,
+      p6SuspendResume: exposed.p6SuspendResume,
+    },
+    imported: {
+      p6DurationType: imported.p6DurationType,
+      p6ActivityType: imported.p6ActivityType,
+      p6ProjectId: imported.p6ProjectId,
+      p6TaskId: imported.p6TaskId,
+      p6CompletePctType: imported.p6CompletePctType,
+      p6ExpectedFinish: imported.p6ExpectedFinish,
+      p6SuspendResume: imported.p6SuspendResume,
+    },
+  }, {
+    exposed: {
+      p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc',
+      p6ProjectId: 'P1', p6TaskId: 'T1', p6CompletePctType: 'CP_Phys',
+      p6ExpectedFinish: '2026-06-11T17:00', p6SuspendResume: true,
+    },
+    imported: {},
+  });
+
+  const p6Keys = [
+    'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId',
+    'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
+  ];
+  const hostileTask = { ...exposed } as ExtTask;
+  const added = fromExtTaskInput({ ...hostileTask, name: 'kwaadaardige extensietaak' });
+  const updated = fromExtTaskUpdates(hostileTask);
+  const importedResult = fromExtImportResult({
+    project: toExtProject(VOL_PROJECT),
+    calendar: toExtCalendar(VOL_CALENDAR),
+    tasks: [hostileTask], sequences: [], resources: [], assignments: [],
+  });
+  const presentP6Keys = (value: object): string[] =>
+    p6Keys.filter(key => Object.prototype.hasOwnProperty.call(value, key));
+  eq('X12 geen enkel from-extensionpad accepteert P6-taakprovenance', {
+    full: presentP6Keys(imported),
+    add: presentP6Keys(added),
+    update: presentP6Keys(updated),
+    importResult: presentP6Keys(importedResult.tasks[0]),
+  }, { full: [], add: [], update: [], importResult: [] });
+}
+
 const VOL_RESOURCE = {
   id: 'r1', name: 'Kraan', type: 'EQUIPMENT', description: 'omschrijving',
   costPerHour: 120, availability: 1, maxUnits: 2, calendarId: 'cal2',
@@ -423,7 +480,9 @@ for (const [naam, ext, bron, sleutels] of [
     fromExtProject(toExtProject(VOL_PROJECT)), stripNietPubliek(VOL_PROJECT, [...NIET_PUBLIEK.project, ...LEES_ALLEEN_EXT.project]));
   eq('20 kalender round-trip',
     fromExtCalendar(toExtCalendar(VOL_CALENDAR)), stripNietPubliek(VOL_CALENDAR, [...NIET_PUBLIEK.calendar, ...LEES_ALLEEN_EXT.calendar]));
-  eq('21 taak round-trip', fromExtTask(toExtTask(VOL_TASK)), VOL_TASK);
+  eq('21 taak-readmodel reist alleen naar buiten; P6-herkomst komt generiek niet terug',
+    fromExtTask(toExtTask(VOL_TASK)),
+    stripNietPubliek(VOL_TASK, [...NIET_PUBLIEK.task, ...LEES_ALLEEN_EXT.task]));
   eq('22 relatie round-trip bewaart geen native-XER-solvervlag via generieke extensie-invoer',
     fromExtSequence(toExtSequence(VOL_SEQUENCE)),
     stripNietPubliek(VOL_SEQUENCE, [...NIET_PUBLIEK.sequence, ...LEES_ALLEEN_EXT.sequence]));

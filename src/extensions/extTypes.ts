@@ -211,18 +211,18 @@ export interface ExtTask {
   mspTaskType?: 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
   /** Z14b — MSP's "Effort Driven"-vlag bij .mpp-import. Puur data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. */
   effortDriven?: boolean;
-  /** X0 (XER-etappeplan) — P6's eigen Duration Type bij .xer-import. Puur data; zelfde vertaal-/
-   *  zetbaarheidsnuance als `mspTaskType` (volledige vertaling, buiten de create-/update-paden). */
+  /** X0/X12 — P6's eigen Duration Type bij .xer-import. Uitsluitend read-model voor extensies:
+   *  `toExtTask` toont het, maar geen enkel generiek from-extensionpad mag het terugschrijven. */
   p6DurationType?: 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
-  /** X0 (XER-etappeplan) — P6's eigen Activity Type bij .xer-import. Zelfde nuance als `p6DurationType`. */
+  /** X0/X12 — P6's eigen Activity Type bij .xer-import. Zelfde read-onlygrens als `p6DurationType`. */
   p6ActivityType?: 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
   p6ProjectId?: string;
   p6TaskId?: string;
   p6CompletePctType?: 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
   p6ExpectedFinish?: string;
-  /** X0 (XER-etappeplan) — herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/
-   *  resume-herkomst (XER `suspend_date`/`resume_date`) i.p.v. de MSP-conventie. Stub tot de XER-
-   *  etappe se X7-taak 'm daadwerkelijk zet. Spiegelt {@link import('@/types/task').Task}.p6SuspendResume. */
+  /** X0/X12 — read-only herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/
+   *  resume-herkomst (XER `suspend_date`/`resume_date`) i.p.v. de MSP-conventie. Alleen native
+   *  XER-/IFC-paden zetten haar intern. Spiegelt {@link import('@/types/task').Task}.p6SuspendResume. */
   p6SuspendResume?: boolean;
   /** Z14b (eigenaarsprincipe 2026-08-18) — rauwe, gedecodeerde .mpp-contourperiodes; de bron ONDER
    *  `splitGaps`, blijft ALTIJD staan (ook ná een bewerking die het Z8-venster invalideert). Puur
