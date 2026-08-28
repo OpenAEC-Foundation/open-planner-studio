@@ -38,8 +38,9 @@ import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
-import { distributeUnits, maxUnitsOn } from './ResourceLoad';
-import { parseDate, formatDate } from '@/utils/dateUtils';
+import { distributeUnits, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
+import { enumerateTaskWorkDays } from './splitWalk';
+import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 
 export interface LevelingOptions {
   /** true = smoothing: alleen binnen de totale float schuiven, einddatum heilig, onoplosbare
@@ -117,6 +118,24 @@ export function levelResources(
   for (const r of selectedResources) {
     engineByRes.set(r.id, new CalendarEngine(resolveCalendar(r.calendarId, resourceCalendars, projectCalendar)));
   }
+
+  // Kalender-engine voor de TAAKkalender (B1c-W0.2/W0.3) — spiegelt `ResourceLoad.ts`s
+  // `engineForTask`/`CPMSolver.calendarFor` EXACT: dezelfde bron (`task.calendarId`), dezelfde
+  // fallback (geen/onbekende id ⇒ projectkalender). Gecachet per calendarId, gedeeld door zowel de
+  // boeking (`bookDemandAt`) als de delay-meting hieronder — vóór deze fix rekenden die twee
+  // (en de lastlezer) stilzwijgend op VERSCHILLENDE kalenders (zie het commitbericht van ec4004db).
+  const taskEngineCache = new Map<string, CalendarEngine>();
+  const engineForTask = (task: Task): CalendarEngine => {
+    const key = task.calendarId ?? '';
+    let eng = taskEngineCache.get(key);
+    if (!eng) {
+      eng = key === ''
+        ? projEngine
+        : new CalendarEngine(resolveCalendar(task.calendarId, resourceCalendars, projectCalendar));
+      taskEngineCache.set(key, eng);
+    }
+    return eng;
+  };
   const capacityOf = (resId: string, iso: string): number => {
     const r = resById.get(resId);
     const eng = engineByRes.get(resId);
@@ -209,11 +228,35 @@ export function levelResources(
   // Geplaatste posities (voor boekhouding/debug): iso-startdag.
   const placedStartIso = new Map<string, string>();
 
-  // Boek de dagvraag van een taak af vanaf een gegeven startdag (projectkalender-werkdagen).
+  // Boek de dagvraag van een taak af vanaf een gegeven startdag — op de TAAKkalender, split-bewust
+  // (B1c-W0.2). Vóór deze fix boekte dit onvoorwaardelijk `dur` AANEENGESLOTEN projectkalender-
+  // werkdagen (`nextWorkDays`), net als de lastlezer vóór B1c-W0.1: een gesplitste taak boekte ten
+  // onrechte op haar eigen pauzedagen (die dan als "bezet" golden voor andere taken, terwijl de
+  // taak er zelf niet werkt — het gat dat `check-leveler-splits.ts`s eerste geval repareert) en een
+  // taak op een afwijkende taakkalender boekte op de verkeerde dagen.
   const bookDemandAt = (taskId: string, startDate: Date): string[] => {
     const task = taskById.get(taskId)!;
     const dur = task.time.scheduleDuration;
-    const occ = nextWorkDays(projEngine, startDate, dur);
+    const taskEngine = engineForTask(task);
+    // ELAPSEDTIME: `scheduleDuration` is voor zo'n taak KALENDERdagen, niet werkdagen
+    // (`duration.ts`'s `elapsedMinutesOf`-docblok, hetzelfde besluit als `ResourceLoad.ts`'s
+    // `computeResourceLoad`) — `enumerateTaskWorkDays` zou dat getal als werkdagen-telling lezen en
+    // ver voorbij de echte spanne doorlopen. ANDERS dan `ResourceLoad` (die altijd op de ONGEWIJZIGDE
+    // `earlyStart` boekt) kan de leveler een taak op een ANDERE dag boeken dan haar CPM-`earlyStart`
+    // (een delay/smoothing-verschuiving) — de spanne wordt daarom niet blind van `task.time`
+    // overgenomen, maar VERTAALD over dezelfde kalenderdagen-offset als `startDate` t.o.v. de
+    // oorspronkelijke `earlyStart` verschoven is, zodat de spanlengte (en dus de gebruikte curve-
+    // waarden) exact gelijk blijft aan de ongeschoven taak.
+    const occ = task.time.durationType === 'ELAPSEDTIME'
+      ? enumerateWorkDays(
+          taskEngine,
+          formatDate(startDate),
+          formatDate(addCalendarDays(
+            parseDate(task.time.earlyFinish),
+            diffCalendarDays(parseDate(task.time.earlyStart), startDate),
+          )),
+        )
+      : enumerateTaskWorkDays(task.splitGaps, taskEngine, formatDate(startDate), dur);
     const byRes = demandByTask.get(taskId)!;
     for (const [resId, arr] of byRes) {
       for (let i = 0; i < arr.length && i < occ.length; i++) book(resId, occ[i], arr[i]);
@@ -281,7 +324,13 @@ export function levelResources(
 
     bookDemandAt(pick, startDate);
     placedStartIso.set(pick, formatDate(startDate));
-    const delay = projEngine.workDaysBetween(pf, startDate) - 1; // beide werkdagen, inclusieve telling −1
+    // B1c-W0.3: gemeten op de TAAKkalender van `pick`, niet de projectkalender — `levelingDelay`
+    // wordt door `CPMSolver.forwardPass` (`shiftByLevelingDelay`) óók op de taak-eigen kalender
+    // toegepast (`addWorkingDaysSigned`), dus de preview moet op DEZELFDE kalender meten. Vóór deze
+    // fix maten preview en toepassing op verschillende kalenders: bij een taak op een afwijkende
+    // taakkalender beloofde de preview een datum die `applyLeveling`→`runCPM` niet waarmaakte (zie
+    // `check-leveler-splits.ts`s tweede geval, dat de twee metingen expliciet uit elkaar trekt).
+    const delay = engineForTask(taskById.get(pick)!).workDaysBetween(pf, startDate) - 1; // beide werkdagen, inclusieve telling −1
     if (delay > 0) delays[pick] = delay;
     if (slotUnresolved.length > 0) {
       unresolved[pick] = slotUnresolved;
@@ -326,6 +375,17 @@ export function levelResources(
    *  waarin elke benodigde resource elke dag genoeg restcapaciteit heeft. `ls` != null (smoothing)
    *  begrenst het venster; geen slot binnen het venster → blijf op PF (mét conflict) en meld de
    *  conflictdagen + reden (§5.5 stap 4c/4d/4e, A3). */
+  //
+  // BEWUST NIET split-/taakkalender-bewust gemaakt in B1c-W0.2/W0.3: de KANDIDAAT-SCAN hieronder
+  // stapt nog altijd met `projEngine.nextWorkDay(After)` — de projectkalender, niet de taakkalender
+  // van `taskId` — en de per-kandidaat capaciteitscheck (`occ` via `nextWorkDays`) telt nog altijd
+  // `dur` AANEENGESLOTEN werkdagen i.p.v. de echte (split-/taakkalender-bewuste) werkdagen. Alleen de
+  // UITEINDELIJKE boeking (`bookDemandAt`, hierboven) en de delay-MÉTING (hieronder in de hoofdlus)
+  // zijn deze golf gecorrigeerd. Dat is een bestaande beperking, geen nieuwe: de kandidaat-scan zelf
+  // verdwijnt pas in de verdeler-fase (zie de moduleheader/spec §W0.2/W0.3). `check-leveler-splits.ts`s
+  // tweede geval bewijst juist DOOR deze beperking heen dat de delay-meting nu wél op de taakkalender
+  // rekent — het gekozen startpunt komt uit deze projectkalender-scan, maar de gemeten afstand ertoe
+  // (en de latere CPM-toepassing van die afstand) gebruiken allebei de taakkalender.
   function findSlot(
     taskId: string,
     pf: Date,

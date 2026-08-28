@@ -399,6 +399,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RESLOADSPLITSCHECK="$DIR/.resource-load-splits.mjs"
   if bundle_check "$DIR/check-resource-load-splits.ts" "$RESLOADSPLITSCHECK"; then node "$RESLOADSPLITSCHECK" || STATUS=1; fi
 
+  # B1c-W0.2/W0.3: `ResourceLeveler.ts` boekt (`bookDemandAt`) en meet de delay-eenheid nu ook op de
+  # TAAKkalender, split-bewust — het derde (en laatste) gat naast de renderer (W0.4/W0.1) en
+  # `computeResourceLoad` (W0.1).
+  LEVELERSPLITSCHECK="$DIR/.leveler-splits.mjs"
+  if bundle_check "$DIR/check-leveler-splits.ts" "$LEVELERSPLITSCHECK"; then node "$LEVELERSPLITSCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"
