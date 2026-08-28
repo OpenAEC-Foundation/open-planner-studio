@@ -1,12 +1,18 @@
 // check-leveler-splits.ts — de nivelleerder boekt en meet op de TAAKkalender, split-bewust
-// (B1c-W0.2/W0.3). `ResourceLeveler.ts`s `bookDemandAt` (boeking) en de delay-meting in de
-// eligibility-lus rekenden tot deze fix onvoorwaardelijk op AANEENGESLOTEN projectkalender-
-// werkdagen (`nextWorkDays`/`projEngine.workDaysBetween`) — dezelfde generatie bug die
-// `check-split-walk.ts` (H1-as) en `check-resource-load-splits.ts` (lastlezer) al repareerden voor
-// de renderer resp. `computeResourceLoad`. Deze suite sluit het derde gat: de nivelleerder zelf.
+// (B1c-W0.2/W0.3), met de plaatsings-as gelijkgetrokken aan de meet-as, een verse baseline-spanne
+// voor ELAPSEDTIME-boeking en guards op lege datums (kwaliteitsronde taak 4, C1/C2/I3/I4/I5/I6/M9).
+// `ResourceLeveler.ts`s `bookDemandAt` (boeking) en de delay-meting in de eligibility-lus rekenden
+// oorspronkelijk onvoorwaardelijk op AANEENGESLOTEN projectkalender-werkdagen — dezelfde generatie
+// bug die `check-split-walk.ts` (H1-as) en `check-resource-load-splits.ts` (lastlezer) al
+// repareerden voor de renderer resp. `computeResourceLoad`. Eerste reparatieronde (B1c-W0.2/W0.3,
+// commit 9ac2ed49/23082edd) verhuisde de METING naar de taakkalender maar liet de KANDIDAAT-scan
+// (waar mag een taak beginnen) op de projectkalender staan — de oude "−1"-aftrek absorbeerde dat
+// verschil toevallig stil zólang er capaciteitsdruk was, maar gaf bij NUL druk een spookvertraging.
+// Deze ronde trekt de plaatsings-as gelijk met de meet-as (C1/C2) en deelt de dagenset tussen
+// conflictdetectie en boeking (I5/I6).
 //
-// Twee groepen, elk vergelijkbaar met check-resource-load-splits.ts's helperstijl (`task()`/`res()`/
-// `assign()`), maar roept `levelResources` rechtstreeks aan (zie `tests/planning/harness.ts`s
+// Helperstijl vergelijkbaar met check-resource-load-splits.ts's `task()`/`res()`/`assign()`, maar
+// roept `levelResources` rechtstreeks aan (zie `tests/planning/harness.ts`s
 // `S().levelResources({...})`-aanroep voor de vorm van de invoer).
 //
 // Draait via run.sh. Exit 0 = alles groen.
@@ -39,7 +45,7 @@ const PROJECT_CAL: WorkCalendar = {
 };
 
 // Zesdaagse kalender: ma-za werkdagen — zelfde vorm als `check-resource-load-splits.ts`s
-// `SIX_DAY_CAL`, hier hergebruikt om de taakkalender/projectkalender-divergentie in geval 2 te tonen.
+// `SIX_DAY_CAL`, hier hergebruikt om de taakkalender/projectkalender-divergentie te tonen.
 const SIX_DAY_CAL: WorkCalendar = {
   id: 'cal-six-day-leveler', name: 'zesdaags', description: '', workDays: [1, 2, 3, 4, 5, 6],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
@@ -117,30 +123,28 @@ console.log('-- leveler-splits: gesplitste taak boekt alleen haar echte werkdage
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Geval 2 (delay-eenheid, B1c-W0.3): de delay wordt gemeten op de TAAKkalender van de wijkende taak,
-// niet de projectkalender — en die meting moet overeenkomen met wat de latere CPM-toepassing
-// (`CPMSolver.forwardPass`'s `shiftByLevelingDelay`, die ALTIJD op de taak-eigen kalender rekent)
-// werkelijk doet.
-//
-// SCENARIOKEUZE (zie de takenomschrijving se "LET OP"): de kandidaat-SCAN van `findSlot` blijft deze
-// golf op de projectkalender stappen (bewust, zie het commentaar bij `findSlot` in
-// `ResourceLeveler.ts`) — vanaf vrijdag 06-05 is de eerstvolgende PROJECTkalender-werkdag dus
-// maandag 06-08, nooit zaterdag (die is voor de projectkalender geen werkdag, dus `findSlot` scant
-// er nooit naartoe). Taak C (6-daagse kalender, zaterdag = werkdag) wijkt daardoor van PF=vrijdag
-// naar start=maandag. Op de PROJECTkalender (ma-vr) zijn dat 2 werkdagen (vr, ma) ⇒ delay 1 — de
-// OUDE (foute) meting. Op C's EIGEN taakkalender (ma-za) zijn dat 3 werkdagen (vr, za, ma) ⇒ delay 2
-// — de NIEUWE, correcte meting. Het verschil is precies het bewijsstuk: past de CPM-forward-pass de
-// OUDE delay (1) toe op C's taakkalender, dan land ze op ZATERDAG 06-06 (1 werkdag ná vrijdag op een
-// kalender waar zaterdag werkt) — een dag die de nivelleerder nooit geboekt heeft (booking gebeurde
-// op maandag). Past ze de NIEUWE delay (2) toe, dan land ze exact op MAANDAG 06-08 — dezelfde dag
-// als de preview-boeking. Dat is de sluitring die deze golf dichtmaakt.
+// Geval 2 (delay op de taakkalender, MET capaciteitsdruk, B1c-W0.3 + kwaliteitsronde taak 4 C1/C2):
+// taak C (6-daagse kalender, zaterdag = werkdag) botst met taak D op vrijdag en moet wijken. Sinds
+// C1/C2 stapt de kandidaat-SCAN nu ook op C's EIGEN kalender, dus de eerstvolgende kandidaat ná een
+// bezette vrijdag is ZATERDAG (een taak-werkdag) — niet meer maandag zoals vóór deze ronde (toen de
+// scan nog aaneengesloten op de projectkalender stapte en zaterdag oversloeg). Dat is precies de
+// bedoeling van C1/C2: C's WERKELIJKE eerstvolgende vrije dag is zaterdag, dus haar delay is nu 1
+// (vr→za), niet de kunstmatig opgeblazen 2 (vr→za→ma op de OUDE projectkalender-scan) uit de vorige
+// ronde. Sluit de cirkel: dezelfde delay via `solveProject` toegepast (`shiftByLevelingDelay` rekent
+// altijd al op de taak-eigen kalender) landt exact op diezelfde zaterdag.
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('-- leveler-splits: delay gemeten op de taakkalender (geval 2) --');
+console.log('-- leveler-splits: delay op de taakkalender, met capaciteitsdruk (geval 2) --');
 {
   const taskD = task('d', '2026-06-05', '2026-06-05', 1, { priority: 900 }); // projectkalender
   const taskC = task('c', '2026-06-05', '2026-06-05', 1, { priority: 100, calendarId: 'cal-six-day-leveler' });
 
-  const resourceR = res('r2', 1);
+  // De RESOURCE zelf krijgt ook de zesdaagse kalender: `capacityOf` rekent op de RESOURCE-kalender,
+  // niet de taakkalender (zelfde principe als `ResourceLoad.ts`'s `computeResourceLoad` — een
+  // resource zonder eigen kalender valt terug op de projectkalender, en dan is zaterdag daar
+  // capaciteit 0, ongeacht wat C's EIGEN kalender zegt — een genuine, geen vals-positief conflict).
+  // Zonder deze regel test dit geval per ongeluk de resource-capaciteitskant i.p.v. de kandidaat-as
+  // (C1/C2) die hier bewezen moet worden.
+  const resourceR = res('r2', 1, { calendarId: 'cal-six-day-leveler' });
   const assignments = [assign('d-r2', 'd', 'r2', 1), assign('c-r2', 'c', 'r2', 1)];
 
   const cpmResult = stubCpmResult('2026-06-05');
@@ -149,14 +153,13 @@ console.log('-- leveler-splits: delay gemeten op de taakkalender (geval 2) --');
   );
 
   eq('D (hoogste prioriteit) plaatst op haar eigen PF, geen delay', r2.delays['d'], undefined);
-  eq('C wijkt met delay 2 — gemeten op haar EIGEN (zesdaagse) taakkalender, niet de projectkalender',
-    r2.delays['c'], 2);
+  eq('C wijkt met delay 1 — de kandidaat-scan vindt zaterdag (C.EIGEN werkdag) als eerstvolgende vrije dag',
+    r2.delays['c'], 1);
   ok('geen onopgeloste conflicten', Object.keys(r2.unresolved).length === 0);
 
-  // Sluit de cirkel: zet levelingDelay op C zoals `applyLeveling` zou doen (§5.6/Z6: UITSLUITEND
-  // `ResourceLeveler` zet dit veld), draai `solveProject` met DEZELFDE kalenders, en bewijs dat de
-  // CPM-toepassing exact de dag oplevert die de preview-boeking beloofde (maandag 06-08) — NIET de
-  // zaterdag die de OUDE (projectkalender-)meting zou hebben oovergeleverd.
+  // Sluit de cirkel: zet levelingDelay op C zoals `applyLeveling` zou doen, draai `solveProject` met
+  // DEZELFDE kalenders, en bewijs dat de CPM-toepassing exact de dag oplevert die de preview-boeking
+  // beloofde (zaterdag 06-06).
   const solvedTasks: Task[] = [
     { ...taskD, time: { ...taskD.time }, levelingDelay: r2.delays['d'] },
     { ...taskC, time: { ...taskC.time }, levelingDelay: r2.delays['c'] },
@@ -166,57 +169,28 @@ console.log('-- leveler-splits: delay gemeten op de taakkalender (geval 2) --');
   });
   ok('solveProject rekent zonder fout door', !solved.error);
   const cResult = solvedTasks.find(t => t.id === 'c')!;
-  eq("C's earlyStart landt op maandag 2026-06-08 — de dag die de preview-boeking beloofde",
-    cResult.time.earlyStart, '2026-06-08');
-
-  // Negatieve controle: de OUDE meting (delay=1, op de projectkalender) zou C — via dezelfde
-  // taakkalender-toepassing in `CPMSolver.forwardPass`, die dit onderdeel altijd al deed — op
-  // zaterdag 06-06 hebben laten landen: een dag die de nivelleerder nooit geboekt heeft. Bewijst dat
-  // de oude preview/CPM-divergentie geen constructie-artefact van deze test is, maar een echt gat.
-  const oldDelayTasks: Task[] = [
-    { ...taskD, time: { ...taskD.time }, levelingDelay: undefined },
-    { ...taskC, time: { ...taskC.time }, levelingDelay: 1 },
-  ];
-  const oldSolved = solveProject({
-    tasks: oldDelayTasks, sequences: [], calendar: PROJECT_CAL, calendars: [SIX_DAY_CAL],
-  });
-  ok('(negatieve controle) solveProject rekent zonder fout door', !oldSolved.error);
-  const oldCResult = oldDelayTasks.find(t => t.id === 'c')!;
-  eq('(negatieve controle) de OUDE delay-eenheid (1, projectkalender) zou C op zaterdag 06-06 hebben '
-    + 'laten landen — niet de maandag die de boeking beloofde',
-    oldCResult.time.earlyStart, '2026-06-06');
+  eq("C's earlyStart landt op zaterdag 2026-06-06 — de dag die de preview-boeking beloofde",
+    cResult.time.earlyStart, '2026-06-06');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Geval 3 (ELAPSEDTIME-bevinding, B1c-W0.2): ELAPSEDTIME-taken belanden GEWOON in `demandByTask` —
-// er is in `ResourceLeveler.ts` geen filter op `durationType` (alleen op mijlpaal/verzameltaak/
-// duur≤0, net als `ResourceLoad.ts`s `computeResourceLoad`). Zonder een eigen tak zou `bookDemandAt`
-// `scheduleDuration` via `enumerateTaskWorkDays` als een WERKDAGEN-telling lezen — voor ELAPSEDTIME
-// is dat getal KALENDERdagen (`duration.ts`s `elapsedMinutesOf`-docblok) — en dus veel te ver
-// doorlopen. Deze fix geeft ELAPSEDTIME-taken dezelfde, spanne-geklemde behandeling als
-// `ResourceLoad.ts`, maar VERTAALD over de eventuele delay-verschuiving (`ResourceLoad` boekt altijd
-// op de ongewijzigde `earlyStart`, de leveler kan een taak op een ANDERE dag boeken).
-//
-// Referentiegeval: taak E (ELAPSEDTIME, "duur" 3 — dus een span van 3 KALENDERdagen) heeft de
-// HOOGSTE prioriteit en dus GEEN concurrent voor haar eigen slot — ze plaatst op haar eigen PF
-// (vrijdag 06-05), delay 0, ONVERSCHOVEN. Dat is bewust: `findSlot`s eigen kandidaat-SCAN (bewust
-// niet gefixed deze golf, zie het commentaar bij `findSlot`) telt `dur` nog als AANEENGESLOTEN
-// projectkalender-werkdagen i.p.v. de echte ELAPSEDTIME-kalenderdagenspan — zou E hier moeten
-// wijken, dan zou die aparte, hier ONGEMOEIDE onnauwkeurigheid het scenario vervuilen (de scan zou
-// een 3-werkdagen-venster zoeken i.p.v. de echte 3-kalenderdagenspan, en toevallig weer op een
-// volledig-werkdagen-venster landen — geen bewijs voor DEZE fix meer). Door E ONVERSCHOVEN te
-// laten plaatsen isoleert dit geval precies `bookDemandAt`s eigen ELAPSEDTIME-tak: haar span
-// 06-05..06-07 bevat maar één projectkalender-werkdag (vrijdag zelf, want zaterdag/zondag zijn geen
-// werkdagen). Taak F (lage prioriteit) wil vervolgens maandag 06-08 op dezelfde resource.
-//   - VÓÓR de fix (dur als AANEENGESLOTEN-werkdagen-telling, oude `nextWorkDays`-boeking): E zou
-//     "3 werkdagen" vanaf vrijdag boeken — vr 06-05, MA 06-08, di 06-09 — en zo ten onrechte ook
-//     maandag bezetten. F zou dan moeten wijken (delay > 0).
-//   - NÁ de fix: E's boeking blijft geklemd op haar eigen 3-kalenderdaagse span (uitsluitend
+// Geval 3 (ELAPSEDTIME-boeking spanne-geklemd, B1c-W0.2/I3): taak E (ELAPSEDTIME, "duur" 2 —
+// dus een span van 2 KALENDERdagen, hoogste prioriteit, geen concurrent) plaatst onverschoven op
+// haar eigen PF (vrijdag 06-05). CPM berekent haar span zelf (`addElapsedMinutes(start,
+// duur×24×60)`): vrijdag + 2 kalenderdagen = zondag 06-07 — dus de span 06-05..06-07 bevat maar één
+// projectkalender-werkdag (vrijdag zelf; zaterdag/zondag zijn geen werkdagen). Taak F (lage
+// prioriteit) wil vervolgens maandag 06-08 op dezelfde resource.
+//   - VÓÓR de fix (dur als AANEENGESLOTEN-werkdagen-telling): E zou "2 werkdagen" vanaf vrijdag
+//     boeken — vr 06-05, MA 06-08 — en zo ten onrechte ook maandag bezetten. F zou moeten wijken.
+//   - NÁ de fix: E's boeking blijft geklemd op haar eigen 2-kalenderdaagse span (uitsluitend
 //     vrijdag), dus raakt maandag niet aan. F krijgt geen delay.
+// LET OP (I3): de span komt uit de VERSE `baseline`, niet uit de `earlyStart`/`earlyFinish` die op
+// de testfixture staan — die twee MOETEN dus overeenkomen met wat CPM zelf voor duur 2 berekent
+// (vrijdag..zondag), anders test dit geval een fixture die met zichzelf in tegenspraak is.
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-splits: ELAPSEDTIME-taak boekt spanne-geklemd, niet als werkdagen-telling (geval 3) --');
 {
-  const taskEBase = task('e', '2026-06-05', '2026-06-07', 3, { priority: 900 });
+  const taskEBase = task('e', '2026-06-05', '2026-06-07', 2, { priority: 900 });
   const taskE: Task = { ...taskEBase, time: { ...taskEBase.time, durationType: 'ELAPSEDTIME' } };
   const taskF = task('f', '2026-06-08', '2026-06-08', 1, { priority: 100 });
 
@@ -238,54 +212,54 @@ console.log('-- leveler-splits: ELAPSEDTIME-taak boekt spanne-geklemd, niet als 
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Geval 4 (ELAPSEDTIME-delay-EENHEID, reviewronde taak 4): de delay-METING voor een ELAPSEDTIME-taak
-// moet in dezelfde eenheid rekenen als `CPMSolver.forwardPass`'s `shiftByLevelingDelay` bij de
-// TOEPASSING gebruikt. Die functie kent voor `task.levelingDelay` TWEE aparte takken (CPMSolver.ts,
-// `shiftByLevelingDelay`): WORKTIME schuift `eng.addWorkingDaysSigned(date, delay)` — hele
-// WERKdagen op de taak-eigen kalender; ELAPSEDTIME schuift `addElapsedMinutes(date, delay*24*60)` —
-// KALE kalenderdagen, 24/7, ONGEACHT welke dagen werkdagen zijn. Geval 2 hierboven bewees al dat de
-// meting op de juiste KALENDER moet rekenen (taak- i.p.v. projectkalender); dit geval bewijst dat ze
-// ook in de juiste EENHEID moet rekenen (kale kalenderdagen i.p.v. werkdagen) — reviewer-repro op
-// commit 9ac2ed49: de delay-meting rekende voor ELKE `durationType` in werkdagen, dus voor een
-// ELAPSEDTIME-taak gaf dat een AFSTAND die niet overeenkomt met wat `addElapsedMinutes` bij
-// toepassing werkelijk verschuift.
+// Geval 4 (ELAPSEDTIME-delay-EENHEID + waarneembare boeking, reviewronde taak 4 + kwaliteitsronde
+// taak 4 C1/C2): de delay-METING voor een ELAPSEDTIME-taak rekent in kale KALENDERdagen
+// (`diffCalendarDays`), niet werkdagen — dezelfde eenheid als `CPMSolver.shiftByLevelingDelay`s
+// `addElapsedMinutes(date, delay×24×60)`-tak bij TOEPASSING gebruikt.
 //
-// Scenario: taak D (WORKTIME, prio 900) en taak E (ELAPSEDTIME, "duur" 1 — dus een span van 1
-// KALENDERdag, prio 100) willen beide vrijdag 2026-06-05 op dezelfde resource (cap 1, projectkalender
-// ma-vr). D plaatst het eerst (hoogste prioriteit) en claimt vrijdag; E moet wijken. `findSlot`s
-// kandidaat-scan (bewust ongemoeid, projectkalender) vindt maandag 06-08 als eerstvolgende vrije
-// projectkalender-werkdag — GEEN ELAPSEDTIME-specifieke keuze, dus dit geval test de EENHEID van de
-// meting, niet die scan (zoals de taakomschrijving vroeg).
-//   - OUDE (foute) meting: `workDaysBetween(vr, ma)` op de (project)kalender = 2 werkdagen (vr, ma)
-//     ⇒ delay 1. Toegepast via `addElapsedMinutes(vrijdag, 1×24×60)` = vrijdag + 1 KALENDERdag =
-//     ZATERDAG 06-06 — twee dagen naast de dag waarop E daadwerkelijk geboekt is (maandag).
-//   - NIEUWE (correcte) meting: kale kalenderdagen tussen vr en ma (`diffCalendarDays`) = 3 ⇒ delay
-//     3. Toegepast via `addElapsedMinutes(vrijdag, 3×24×60)` = vrijdag + 3 kalenderdagen = MAANDAG
-//     06-08 — exact de dag waarop `bookDemandAt` E al boekte. Dat is de sluitring die dit geval dichtmaakt.
+// SCENARIOKEUZE (herzien t.o.v. de vorige ronde, ná C1/C2). Taak D (WORKTIME, prio 900) en taak E
+// (ELAPSEDTIME, "duur" 4 — een span van 4 KALENDERdagen, prio 100) willen beide vrijdag 2026-06-05
+// op dezelfde resource. D claimt vrijdag eerst. Sinds C1/C2 is ELKE kalenderdag een geldige
+// ELAPSEDTIME-kandidaat (`nextCandidateAfterFor` stapt voor ELAPSEDTIME met `addCalendarDays`, niet
+// een werkdag-snap) — E's eerstvolgende kandidaat ná de bezette vrijdag is dus ZATERDAG (niet meer
+// maandag, de kunstmatige projectkalender-vertraging uit de vorige ronde). Op zaterdag (span
+// za..wo, want de 4-kalenderdaagse span verschuift MEE) is er geen conflict meer met D (die alleen
+// vrijdag bezet) — E "past" er, met delay 1 (kale kalenderdagen vr→za).
+//
+// Om E's BOEKING zelf waarneembaar te maken (niet enkel de delay-METING) staat er een DERDE taak G
+// (lage prioriteit) die MAANDAG 2026-06-08 wil — een dag binnen E's geboekte span (za..wo). G moet
+// daardoor ZELF wijken; dat maakt een mutatie die `bookDemandAt`s ELAPSEDTIME-tak breekt (maar de
+// delay-meting intact laat) rood, zoals de dekking vroeg.
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('-- leveler-splits: ELAPSEDTIME-delay gemeten in kalenderdagen, niet werkdagen (geval 4) --');
+console.log('-- leveler-splits: ELAPSEDTIME-delay in kalenderdagen + waarneembare boeking (geval 4) --');
 {
   const taskD = task('d4', '2026-06-05', '2026-06-05', 1, { priority: 900 });
-  const taskEBase = task('e4', '2026-06-05', '2026-06-05', 1, { priority: 100 });
+  const taskEBase = task('e4', '2026-06-05', '2026-06-09', 4, { priority: 100 });
   const taskE: Task = { ...taskEBase, time: { ...taskEBase.time, durationType: 'ELAPSEDTIME' } };
+  const taskG = task('g4', '2026-06-08', '2026-06-08', 1, { priority: 10 });
 
   const resourceR = res('r4', 1);
-  const assignments = [assign('d4-r4', 'd4', 'r4', 1), assign('e4-r4', 'e4', 'r4', 1)];
+  const assignments = [
+    assign('d4-r4', 'd4', 'r4', 1),
+    assign('e4-r4', 'e4', 'r4', 1),
+    assign('g4-r4', 'g4', 'r4', 1),
+  ];
 
-  const cpmResult = stubCpmResult('2026-06-05');
+  const cpmResult = stubCpmResult('2026-06-09');
   const r4 = levelResources(
-    [taskD, taskE], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+    [taskD, taskE, taskG], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
   );
 
   eq('D (hoogste prioriteit) plaatst op haar eigen PF, geen delay', r4.delays['d4'], undefined);
-  eq('E wijkt met delay 3 — kale KALENDERdagen tussen vr en ma, niet werkdagen',
-    r4.delays['e4'], 3);
+  eq('E wijkt met delay 1 — kale KALENDERdag vr→za (elke kalenderdag is een geldige ELAPSEDTIME-kandidaat, C1/C2)',
+    r4.delays['e4'], 1);
+  ok('G moet wijken: E boekt maandag daadwerkelijk (waarneembare boeking, dekking geval 4)',
+    (r4.delays['g4'] ?? 0) > 0);
   ok('geen onopgeloste conflicten', Object.keys(r4.unresolved).length === 0);
 
   // Sluit de cirkel: zet levelingDelay op E zoals `applyLeveling` zou doen, draai `solveProject` met
   // DEZELFDE kalender, en bewijs dat de ELAPSEDTIME-toepassing exact de dag oplevert waarop
-  // `bookDemandAt` E al boekte (maandag 06-08) — NIET de zaterdag die de OUDE (werkdagen-)meting zou
-  // hebben opgeleverd.
+  // `bookDemandAt` E al boekte (zaterdag 06-06).
   const solvedTasks: Task[] = [
     { ...taskD, time: { ...taskD.time }, levelingDelay: r4.delays['d4'] },
     { ...taskE, time: { ...taskE.time }, levelingDelay: r4.delays['e4'] },
@@ -295,25 +269,180 @@ console.log('-- leveler-splits: ELAPSEDTIME-delay gemeten in kalenderdagen, niet
   });
   ok('solveProject rekent zonder fout door', !solved.error);
   const eResult = solvedTasks.find(t => t.id === 'e4')!;
-  eq("E's earlyStart landt op maandag 2026-06-08 — de dag waarop bookDemandAt haar al boekte",
-    eResult.time.earlyStart, '2026-06-08');
+  eq("E's earlyStart landt op zaterdag 2026-06-06 — de dag waarop bookDemandAt haar al boekte",
+    eResult.time.earlyStart, '2026-06-06');
+}
 
-  // Negatieve controle: de OUDE (werkdagen-)meting (delay=1) zou via `addElapsedMinutes` — dat
-  // ONDERDEEL van `shiftByLevelingDelay` bestond al vóór deze fix en is hier ongewijzigd — op
-  // zaterdag 06-06 zijn geland: een dag die de nivelleerder nooit geboekt heeft. Bewijst dat de oude
-  // preview/CPM-divergentie voor ELAPSEDTIME-taken geen constructie-artefact van deze test is.
-  const oldDelayTasks: Task[] = [
-    { ...taskD, time: { ...taskD.time }, levelingDelay: undefined },
-    { ...taskE, time: { ...taskE.time }, levelingDelay: 1 },
-  ];
-  const oldSolved = solveProject({
-    tasks: oldDelayTasks, sequences: [], calendar: PROJECT_CAL, calendars: [],
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 5 (C1-dekking): een taak op een 6-daagse kalender ZONDER capaciteitsdruk (geen concurrent)
+// hoort delay 0 te krijgen, ook als haar PF op een dag valt die voor de PROJECTkalender geen
+// werkdag is (zaterdag) maar voor haar EIGEN kalender wél. VÓÓR C1 snapte de (movable) kandidaat-
+// scan met `projEngine.nextWorkDay`, dus PF=zaterdag werd altijd naar maandag geduwd — een
+// spookvertraging zonder enig echt conflict (reviewer-probes K/A/E/J). NÁ C1 is de eerste kandidaat
+// `engineForTask(taak).nextWorkDay(pf)`, en zaterdag IS een werkdag op de zesdaagse kalender, dus de
+// taak plaatst meteen op haar eigen PF.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: 6-daagse taak zonder capaciteitsdruk ⇒ geen spookvertraging (geval 5, C1) --');
+{
+  // 2026-06-06 is een zaterdag.
+  const taskH = task('h5', '2026-06-06', '2026-06-06', 1, {
+    priority: 500, calendarId: 'cal-six-day-leveler',
   });
-  ok('(negatieve controle) solveProject rekent zonder fout door', !oldSolved.error);
-  const oldEResult = oldDelayTasks.find(t => t.id === 'e4')!;
-  eq('(negatieve controle) de OUDE delay-eenheid (1 werkdag) zou E op zaterdag 06-06 hebben laten '
-    + 'landen — niet de maandag waarop ze geboekt is',
-    oldEResult.time.earlyStart, '2026-06-06');
+  // Resource krijgt dezelfde zesdaagse kalender — anders toont `capacityOf` (RESOURCE-kalender,
+  // zie geval 2's toelichting) 0 op zaterdag en test dit geval per ongeluk de resource-capaciteit
+  // i.p.v. de kandidaat-as.
+  const resourceR = res('r5', 1, { calendarId: 'cal-six-day-leveler' });
+  const assignments = [assign('h5-r5', 'h5', 'r5', 1)];
+
+  const cpmResult = stubCpmResult('2026-06-06');
+  const r5 = levelResources(
+    [taskH], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('geen enkele taak krijgt een delay — de taak plaatst meteen op haar eigen (weekend-)PF', r5.delays, {});
+  ok('geen onopgeloste conflicten', Object.keys(r5.unresolved).length === 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 6 (C2-dekking): dezelfde spookvertraging, maar dan voor een VASTGEPINDE taak (priority
+// 1000) — het pinned-pad in de eligibility-lus snapte VÓÓR C2 ook onvoorwaardelijk met
+// `projEngine.nextWorkDay`. Een gepinde taak op een 6-daagse kalender met PF op zaterdag (geen
+// concurrent, dus geen echt conflict — vastgepinde taken scannen toch al niet op capaciteit) hoort
+// dus ook delay 0 te krijgen.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: vastgepinde 6-daagse taak, PF in het weekend ⇒ geen delay (geval 6, C2) --');
+{
+  // 2026-06-06 is een zaterdag; taak P heeft geen voorgangers, dus PF = haar eigen (ongesnapte)
+  // scheduleStart-anker (`ownAnchor`) — precies zoals een gewone wortel-taak.
+  const taskP = task('p6', '2026-06-06', '2026-06-06', 1, {
+    priority: 1000, calendarId: 'cal-six-day-leveler',
+  });
+  const resourceR = res('r6', 1);
+  const assignments = [assign('p6-r6', 'p6', 'r6', 1)];
+
+  const cpmResult = stubCpmResult('2026-06-06');
+  const r6 = levelResources(
+    [taskP], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('vastgepinde taak krijgt geen delay — snapt op haar EIGEN kalender-as, niet de projectkalender', r6.delays, {});
+  ok('geen onopgeloste conflicten', Object.keys(r6.unresolved).length === 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 7 (boekingskant van `engineForTask` op een gesplitste taak op een AFWIJKENDE kalender):
+// taak S (zesdaagse kalender, splitGaps) begint donderdag 06-04 (een zesdaagse werkdag), werkt 3
+// zesdaagse-werkdagen met een gat van 1 zesdaagse-werkdag na dag 2. Op de zesdaagse as: dag1=do
+// 06-04, dag2=vr 06-05, gat=1 werkdag (za 06-06, want zaterdag IS een werkdag op deze kalender),
+// dag3=de eerstvolgende zesdaagse werkdag ná het gat = ma 06-08 (zondag is ook op deze kalender
+// vrij). S werkt dus do/vr/ma, met ZATERDAG als haar eigen pauze — een dag die de PROJECTkalender
+// toch al nooit als werkdag zou tellen, dus dat op zichzelf bewijst nog niets. Het discriminerende
+// bewijs zit in MAANDAG: had `bookDemandAt` de PROJECTkalender gebruikt (i.p.v. `engineForTask`s
+// zesdaagse kalender) voor de split-wandeling, dan was de telling van "de eerstvolgende werkdag ná
+// het gat" ANDERS uitgekomen (de wandeling zelf loopt over de kalender van de ENGINE die je
+// meegeeft) — hier geverifieerd door een concurrent op maandag (S's ECHTE derde werkdag) ÉN een
+// concurrent op zaterdag (S's pauzedag, die vrij moet blijven) tegelijk te toetsen.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: gesplitste taak op een afwijkende (zesdaagse) kalender boekt correct (geval 7) --');
+{
+  const taskS = task('s7', '2026-06-04', '2026-06-08', 3, {
+    priority: 900, calendarId: 'cal-six-day-leveler',
+    splitGaps: [{ afterMinutes: 960, gapMinutes: 480 }], // na 2 werkdagen (2×480 min): 1 werkdag gat
+  });
+  // Concurrent 1: wil MAANDAG 06-08 — S's ECHTE derde werkdag. Moet wijken (S bezet maandag echt).
+  const taskConflictMonday = task('t7-mon', '2026-06-08', '2026-06-08', 1, { priority: 100 });
+  // Concurrent 2: wil ZATERDAG 06-06 — S's eigen pauzedag. Hoeft NIET te wijken (S werkt er niet).
+  // Krijgt ZELF ook de zesdaagse kalender: op de projectkalender is zaterdag toch al nooit een
+  // kandidaat (haar eigen kandidaat-as zou meteen naar maandag snappen, los van S's boeking), dus
+  // zonder deze kalender test dit geval niets over S's boeking.
+  const taskFreeSaturday = task('t7-sat', '2026-06-06', '2026-06-06', 1, {
+    priority: 50, calendarId: 'cal-six-day-leveler',
+  });
+
+  // Resource krijgt dezelfde zesdaagse kalender — anders toont `capacityOf` (RESOURCE-kalender,
+  // zie geval 2's toelichting) 0 op zaterdag, los van of S daar wel of niet boekt.
+  const resourceR = res('r7', 1, { calendarId: 'cal-six-day-leveler' });
+  const assignments = [
+    assign('s7-r7', 's7', 'r7', 1),
+    assign('t7-mon-r7', 't7-mon', 'r7', 1),
+    assign('t7-sat-r7', 't7-sat', 'r7', 1),
+  ];
+
+  const cpmResult = stubCpmResult('2026-06-08');
+  const r7 = levelResources(
+    [taskS, taskConflictMonday, taskFreeSaturday], [], [resourceR], assignments,
+    PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('S plaatst op haar eigen PF, geen delay (hoogste prioriteit)', r7.delays['s7'], undefined);
+  ok('de concurrent op MAANDAG moet wijken — S bezet daar echt (haar derde werkdag op de zesdaagse as)',
+    (r7.delays['t7-mon'] ?? 0) > 0);
+  eq('de concurrent op ZATERDAG hoeft niet te wijken — dat is S\'s eigen pauzedag, niet een geboekte dag',
+    r7.delays['t7-sat'], undefined);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 8 (I3, reviewer-probe F): een STALE opgeslagen spanne op een ELAPSEDTIME-taak mag de
+// boeking niet sturen — de VERSE baseline-spanne (CPM herrekend uit `scheduleStart` + `duur`) is de
+// bron van waarheid, niet de mogelijk-verouderde `task.time.earlyStart/earlyFinish` op het
+// binnenkomende taakobject. Taak G: ELAPSEDTIME, "duur" 5 (dus een ECHTE CPM-span van
+// 2026-06-01..2026-06-06), maar met een opzettelijk STALE, INCONSISTENTE opgeslagen spanne van
+// slechts 1 dag (06-01..06-01) — alsof de taak sinds een eerdere duurwijziging niet herrekend is.
+// Een hogere-prioriteit concurrent claimt woensdag 06-03 (binnen G's ECHTE span, cap 1). Gebruikte
+// `bookDemandAt` de stale 1-daagse spanne, dan zou G's boeking het conflict op 06-03 nooit zien
+// (haar "spanne" zou allang voorbij zijn) en zou G onterecht delay 0 krijgen. Met de verse baseline
+// ziet G het conflict wél en wijkt — delay 3, exact het reviewer-repro-getal.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: verse baseline-spanne wint van een stale opgeslagen spanne (geval 8, I3/probe F) --');
+{
+  const taskGBase = task('g8', '2026-06-01', '2026-06-01', 5, { priority: 500 }); // STALE: 1-daagse spanne
+  const taskG: Task = { ...taskGBase, time: { ...taskGBase.time, durationType: 'ELAPSEDTIME' } };
+  const taskConflict = task('t8-conflict', '2026-06-03', '2026-06-03', 1, { priority: 900 });
+
+  const resourceR = res('r8', 1);
+  const assignments = [assign('g8-r8', 'g8', 'r8', 1), assign('t8-r8', 't8-conflict', 'r8', 1)];
+
+  const cpmResult = stubCpmResult('2026-06-06');
+  const r8 = levelResources(
+    [taskG, taskConflict], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('de concurrent (hoogste prioriteit) plaatst op haar eigen PF, geen delay', r8.delays['t8-conflict'], undefined);
+  eq('G ziet het conflict op 06-03 ONDANKS de stale opgeslagen spanne — verse baseline wint (I3)',
+    r8.delays['g8'], 3);
+  ok('geen onopgeloste conflicten', Object.keys(r8.unresolved).length === 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 9 (I4, probe G): lege/onparseerbare `earlyStart`/`earlyFinish` op een ELAPSEDTIME-taak
+// mogen `bookDemandAt`/`occurrenceFor` niet laten crashen (`RangeError` via `formatDate`/
+// `toISOString` op een Invalid Date, ontstaan uit `addCalendarDays(parseDate(''), …)`). Taak K heeft
+// een geldige `scheduleStart` (de baseline-solve slaagt dus gewoon) maar LEGE `earlyStart`/
+// `earlyFinish` op het binnenkomende taakobject — precies de categorie "stale/gewiste cache-velden"
+// die deze module elders al als input verwacht. De VERSE baseline (I3) levert voor deze taak sowieso
+// een geldige, herrekende spanne, dus de guard is hier vooral verdediging-in-diepte: het bewijs is
+// dat `levelResources` niet crasht en een zinnig resultaat teruggeeft.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: lege earlyStart/earlyFinish crashen niet (geval 9, I4/probe G) --');
+{
+  const taskKBase = task('k9', '2026-06-01', '2026-06-01', 2, { priority: 500 });
+  const taskK: Task = {
+    ...taskKBase,
+    time: { ...taskKBase.time, durationType: 'ELAPSEDTIME', earlyStart: '', earlyFinish: '' },
+  };
+  const resourceR = res('r9', 1);
+  const assignments = [assign('k9-r9', 'k9', 'r9', 1)];
+
+  const cpmResult = stubCpmResult('2026-06-02');
+  let threw: unknown;
+  let r9: ReturnType<typeof levelResources> | undefined;
+  try {
+    r9 = levelResources([taskK], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS);
+  } catch (e) {
+    threw = e;
+  }
+  ok('levelResources crasht niet op lege earlyStart/earlyFinish', threw === undefined);
+  ok('resultaat komt terug (geen exceptie onderweg gesmoord)', r9 !== undefined);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

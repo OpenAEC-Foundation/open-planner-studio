@@ -136,6 +136,25 @@ export function levelResources(
     }
     return eng;
   };
+
+  // Kandidaat-as (C1/C2, kwaliteitsronde taak 4): WAAR een taak mag STARTEN volgt nu dezelfde as als
+  // waarmee de delay verderop gemeten wordt — niet langer onvoorwaardelijk de projectkalender. Voor
+  // een taak zonder eigen `calendarId` is `engineForTask` === `projEngine`, dus dit is byte-identiek
+  // voor elke bestaande case zonder taak-`calendarId` (de 25 cases in `cases-resource-leveling.json`
+  // zetten er geen één). ELAPSEDTIME kent geen werkdagbegrip — daar is ELKE kalenderdag een geldige
+  // kandidaat, spiegelt `CPMSolver.shiftByLevelingDelay`s `addElapsedMinutes`-tak (evenmin een
+  // werkdaggrens). Vóór deze fix bleef de kandidaat-SCAN op de projectkalender staan terwijl de
+  // delay-METING (B1c-W0.3) al naar de taakkalender was verhuisd: de oude "−1"-aftrek absorbeerde
+  // dat verschil toevallig stil zólang er capaciteitsdruk was (de gemeten afstand naar een écht
+  // wijkmoment klopte toch), maar bij NUL capaciteitsdruk (findSlot vindt meteen een slot op de
+  // eerste projectkalender-kandidaat) gaf het een spookvertraging: de kalenderafstand tussen die
+  // projectkalender-snap en de taakkalender-PF, terwijl er helemaal geen conflict was en de delay 0
+  // hoorde te zijn (reviewer-probes K/A/E/J).
+  const nextCandidateFor = (task: Task, d: Date): Date =>
+    task.time.durationType === 'ELAPSEDTIME' ? d : engineForTask(task).nextWorkDay(d);
+  const nextCandidateAfterFor = (task: Task, d: Date): Date =>
+    task.time.durationType === 'ELAPSEDTIME' ? addCalendarDays(d, 1) : engineForTask(task).nextWorkDayAfter(d);
+
   const capacityOf = (resId: string, iso: string): number => {
     const r = resById.get(resId);
     const eng = engineByRes.get(resId);
@@ -176,6 +195,44 @@ export function levelResources(
     baseline.tasks.get(id)?.lateStart ?? taskById.get(id)!.time.lateStart;
   const baseFloat = (id: string): number =>
     baseline.tasks.get(id)?.totalFloat ?? taskById.get(id)!.time.totalFloat;
+
+  // Dagenset (I5/I6, kwaliteitsronde taak 4) die `task`, gestart op `startDate`, daadwerkelijk boekt
+  // — GEDEELD door zowel de kandidaat-capaciteitscheck in `findSlot` als de uiteindelijke boeking in
+  // `bookDemandAt`. Vóór deze deling konden conflictdetectie en boeking op een ANDERE dagenset
+  // rekenen (voor split-/afwijkende-kalendertaken met name): de scan zag een aaneengesloten-
+  // werkdagenvenster terwijl de boeking al split-/taakkalender-bewust was. Eén functie, twee
+  // afnemers — hetzelfde patroon als `distributeUnits` voor het histogram/de leveler (§5.7).
+  //
+  // ELAPSEDTIME (I3): de spanne komt uit de VERSE baseline (`baseline.tasks.get`, dezelfde bron als
+  // `baseEs`/`baseLs` hierboven), NIET de mogelijk-STALE `task.time.earlyStart/earlyFinish` — die
+  // velden zijn exact de "stale na een taakwijziging zonder F5"-categorie waar deze module elders al
+  // tegen guardt (zie de `cpmOptions`-toelichting hierboven). De KALENDERSPANNE (van earlyStart tot
+  // earlyFinish) blijft bij een verschuiving gelijk aan de baseline-spanne — het AANTAL werkdagen
+  // daarbinnen NIET per se (dat hangt af van welke kalenderdagen in de VERSCHOVEN spanne toevallig op
+  // een werkdag vallen), vandaar dat hieronder de spanne zelf (niet een werkdagentelling) getransleerd
+  // wordt over de kalenderdagen-offset tussen `startDate` en de baseline-`earlyStart`.
+  //
+  // I4: een lege/onparseerbare datum (bv. na een handgemaakte MCP/JSON-invoer, of een corrupte
+  // `startDate` die ergens bovenstrooms toch een Invalid Date bleek) levert GEEN boeking op (`[]`) —
+  // de taak wordt overgeslagen, zoals de baseline-solve zelf ook degradeert i.p.v. te crashen (§169-
+  // 172 hierboven) — i.p.v. een `RangeError` verderop in `formatDate`/`toISOString` op een Invalid Date.
+  const occurrenceFor = (task: Task, startDate: Date): string[] => {
+    if (isNaN(startDate.getTime())) return [];
+    const taskEngine = engineForTask(task);
+    if (task.time.durationType === 'ELAPSEDTIME') {
+      const base = baseline.tasks.get(task.id);
+      const rawStart = base?.earlyStart ?? task.time.earlyStart;
+      const rawFinish = base?.earlyFinish ?? task.time.earlyFinish;
+      if (!rawStart || !rawFinish) return [];
+      const origStart = parseDate(rawStart);
+      const origFinish = parseDate(rawFinish);
+      if (isNaN(origStart.getTime()) || isNaN(origFinish.getTime())) return [];
+      const shiftDays = diffCalendarDays(origStart, startDate);
+      const shiftedFinish = addCalendarDays(origFinish, shiftDays);
+      return enumerateWorkDays(taskEngine, formatDate(startDate), formatDate(shiftedFinish));
+    }
+    return enumerateTaskWorkDays(task.splitGaps, taskEngine, formatDate(startDate), task.time.scheduleDuration);
+  };
 
   // Dagvraag per taak per geselecteerde resource: som van distributeUnits over alle assignments
   // van die taak op die resource (multi-assignment naar dezelfde resource telt op — §4.2).
@@ -228,35 +285,12 @@ export function levelResources(
   // Geplaatste posities (voor boekhouding/debug): iso-startdag.
   const placedStartIso = new Map<string, string>();
 
-  // Boek de dagvraag van een taak af vanaf een gegeven startdag — op de TAAKkalender, split-bewust
-  // (B1c-W0.2). Vóór deze fix boekte dit onvoorwaardelijk `dur` AANEENGESLOTEN projectkalender-
-  // werkdagen (`nextWorkDays`), net als de lastlezer vóór B1c-W0.1: een gesplitste taak boekte ten
-  // onrechte op haar eigen pauzedagen (die dan als "bezet" golden voor andere taken, terwijl de
-  // taak er zelf niet werkt — het gat dat `check-leveler-splits.ts`s eerste geval repareert) en een
-  // taak op een afwijkende taakkalender boekte op de verkeerde dagen.
+  // Boek de dagvraag van een taak af vanaf een gegeven startdag — via `occurrenceFor` hierboven
+  // (I5/I6, kwaliteitsronde taak 4: dezelfde dagenset als `findSlot`s capaciteitscheck gebruikt,
+  // zodat conflictdetectie en boeking niet meer uit elkaar kunnen lopen).
   const bookDemandAt = (taskId: string, startDate: Date): string[] => {
     const task = taskById.get(taskId)!;
-    const dur = task.time.scheduleDuration;
-    const taskEngine = engineForTask(task);
-    // ELAPSEDTIME: `scheduleDuration` is voor zo'n taak KALENDERdagen, niet werkdagen
-    // (`duration.ts`'s `elapsedMinutesOf`-docblok, hetzelfde besluit als `ResourceLoad.ts`'s
-    // `computeResourceLoad`) — `enumerateTaskWorkDays` zou dat getal als werkdagen-telling lezen en
-    // ver voorbij de echte spanne doorlopen. ANDERS dan `ResourceLoad` (die altijd op de ONGEWIJZIGDE
-    // `earlyStart` boekt) kan de leveler een taak op een ANDERE dag boeken dan haar CPM-`earlyStart`
-    // (een delay/smoothing-verschuiving) — de spanne wordt daarom niet blind van `task.time`
-    // overgenomen, maar VERTAALD over dezelfde kalenderdagen-offset als `startDate` t.o.v. de
-    // oorspronkelijke `earlyStart` verschoven is, zodat de spanlengte (en dus de gebruikte curve-
-    // waarden) exact gelijk blijft aan de ongeschoven taak.
-    const occ = task.time.durationType === 'ELAPSEDTIME'
-      ? enumerateWorkDays(
-          taskEngine,
-          formatDate(startDate),
-          formatDate(addCalendarDays(
-            parseDate(task.time.earlyFinish),
-            diffCalendarDays(parseDate(task.time.earlyStart), startDate),
-          )),
-        )
-      : enumerateTaskWorkDays(task.splitGaps, taskEngine, formatDate(startDate), dur);
+    const occ = occurrenceFor(task, startDate);
     const byRes = demandByTask.get(taskId)!;
     for (const [resId, arr] of byRes) {
       for (let i = 0; i < arr.length && i < occ.length; i++) book(resId, occ[i], arr[i]);
@@ -304,6 +338,7 @@ export function levelResources(
 
     // PF: draai de CPMSolver op de werkkopie (geplaatste taken hebben hun delay; `pick` niet).
     const pf = computePF(pick, workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
+    const pickedTask = taskById.get(pick)!;
 
     let startDate: Date;
     let slotUnresolved: string[] = [];
@@ -311,8 +346,10 @@ export function levelResources(
     if (pinnedSet.has(pick)) {
       // Vastgepind (§5.4/A4): volgt zijn (mogelijk verschoven) voorgangers via PF, maar schuift NIET
       // voor capaciteit — geen scan. Boeking op PF valt zo samen met de finale CPM-positie (waar de
-      // pin zijn voorgangers volgt), i.p.v. op de stale oorspronkelijke earlyStart.
-      startDate = projEngine.nextWorkDay(pf);
+      // pin zijn voorgangers volgt), i.p.v. op de stale oorspronkelijke earlyStart. Snapt op de
+      // TAAKkalender-as (C1, kwaliteitsronde taak 4), niet de projectkalender — dezelfde as als de
+      // delay-meting hieronder en `findSlot`s kandidaat-scan.
+      startDate = nextCandidateFor(pickedTask, pf);
     } else {
       // Smoothing-venster uit de VERSE baseline lateStart (A2), niet uit de stale cpmResult.
       const ls = options.constrainToFloat ? parseDate(baseLs(pick)) : null;
@@ -340,7 +377,6 @@ export function levelResources(
     // een andere afstand dan `shiftByLevelingDelay` bij toepassing daadwerkelijk verschuift (zie
     // `check-leveler-splits.ts`s ELAPSEDTIME-delay-geval, dat de twee metingen expliciet uit elkaar
     // trekt en via `solveProject` bewijst dat de toepassing weer op de geboekte dag landt).
-    const pickedTask = taskById.get(pick)!;
     const delay = pickedTask.time.durationType === 'ELAPSEDTIME'
       ? diffCalendarDays(pf, startDate)
       : engineForTask(pickedTask).workDaysBetween(pf, startDate) - 1;
@@ -367,9 +403,16 @@ export function levelResources(
     const tr = trial.tasks.get(t.id)?.earlyStart;
     if (!cur || !tr || cur === tr) continue;
     const from = parseDate(cur), to = parseDate(tr);
-    const delta = to >= from
-      ? projEngine.workDaysBetween(from, to) - 1
-      : -(projEngine.workDaysBetween(to, from) - 1);
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) continue; // I4-precedent: geen crash op onparseerbare datums
+    // M9 (kwaliteitsronde taak 4): gemeten op DEZELFDE as als de delay hierboven — taakkalender-
+    // werkdagen (WORKTIME) of kale kalenderdagen (ELAPSEDTIME) — niet langer onvoorwaardelijk de
+    // projectkalender. Anders toont de preview "0 werkdagen" naast twee zichtbaar verschillende data.
+    const eng = engineForTask(t);
+    const delta = t.time.durationType === 'ELAPSEDTIME'
+      ? diffCalendarDays(from, to)
+      : to >= from
+        ? eng.workDaysBetween(from, to) - 1
+        : -(eng.workDaysBetween(to, from) - 1);
     shifts[t.id] = { oldStart: cur, newStart: tr, delta };
   }
 
@@ -384,44 +427,46 @@ export function levelResources(
 
   // --- lokale helpers (sluiten over booked/demandByTask/capacityOf/projEngine) ---
 
-  /** Scan vanaf PF dag-voor-dag naar de eerste aaneengesloten run van werkdagen (lengte = duur)
-   *  waarin elke benodigde resource elke dag genoeg restcapaciteit heeft. `ls` != null (smoothing)
-   *  begrenst het venster; geen slot binnen het venster → blijf op PF (mét conflict) en meld de
-   *  conflictdagen + reden (§5.5 stap 4c/4d/4e, A3). */
-  //
-  // BEWUST NIET split-/taakkalender-bewust gemaakt in B1c-W0.2/W0.3: de KANDIDAAT-SCAN hieronder
-  // stapt nog altijd met `projEngine.nextWorkDay(After)` — de projectkalender, niet de taakkalender
-  // van `taskId` — en de per-kandidaat capaciteitscheck (`occ` via `nextWorkDays`) telt nog altijd
-  // `dur` AANEENGESLOTEN werkdagen i.p.v. de echte (split-/taakkalender-bewuste) werkdagen. Alleen de
-  // UITEINDELIJKE boeking (`bookDemandAt`, hierboven) en de delay-MÉTING (hieronder in de hoofdlus)
-  // zijn deze golf gecorrigeerd. Dat is een bestaande beperking, geen nieuwe: de kandidaat-scan zelf
-  // verdwijnt pas in de verdeler-fase (zie de moduleheader/spec §W0.2/W0.3). `check-leveler-splits.ts`s
-  // tweede geval bewijst juist DOOR deze beperking heen dat de delay-meting nu wél op de taakkalender
-  // rekent — het gekozen startpunt komt uit deze projectkalender-scan, maar de gemeten afstand ertoe
-  // (en de latere CPM-toepassing van die afstand) gebruiken allebei de taakkalender.
+  /** Scan vanaf PF dag-voor-dag naar de eerste kandidaat waarop elke benodigde resource genoeg
+   *  restcapaciteit heeft voor de volle (split-/taakkalender-bewuste) dagvraag. `ls` != null
+   *  (smoothing) begrenst het venster; geen slot binnen het venster → blijf op de gesnapte PF (mét
+   *  conflict) en meld de conflictdagen + reden (§5.5 stap 4c/4d/4e, A3).
+   *
+   *  KWALITEITSRONDE TAAK 4 (C1/C2/I5/I6). Vóór deze ronde bleef de kandidaat-AS (waar mag een taak
+   *  beginnen) op de projectkalender staan terwijl de delay-METING al naar de taakkalender was
+   *  verhuisd (B1c-W0.3) — de oude "−1"-aftrek absorbeerde dat verschil toevallig stil zólang er
+   *  capaciteitsdruk was, maar bij NUL druk (meteen een fit op de eerste projectkalender-kandidaat)
+   *  gaf het een spookvertraging voor elke taak op een afwijkende kalender. Twee reparaties:
+   *   - de kandidaat-AS (`cand`/`next`) loopt nu via `nextCandidateFor`/`nextCandidateAfterFor` —
+   *     dezelfde taakkalender/ELAPSEDTIME-kalenderdagen-as als de delay-meting in de hoofdlus;
+   *   - de dagenset per kandidaat (`occ`) komt nu uit `occurrenceFor`, GEDEELD met `bookDemandAt` —
+   *     vóór deze deling kon de conflictdetectie een ANDERE dagenset zien dan wat uiteindelijk
+   *     geboekt werd (voor split-/afwijkende-kalendertaken met name), dus `calendarOk`/`reasonFor`/
+   *     de conflictdagenlijst konden dagen noemen waarop de taak niet eens werkt. */
   function findSlot(
     taskId: string,
     pf: Date,
     ls: Date | null,
   ): { start: Date; unresolved: string[]; reason?: LevelingReason } {
     const task = taskById.get(taskId)!;
-    const dur = task.time.scheduleDuration;
     const byRes = demandByTask.get(taskId)!;
 
-    let cand = projEngine.nextWorkDay(pf);
+    let cand = nextCandidateFor(task, pf);
     let calendarFeasibleSeen = false; // is er überhaupt een venster waar élke vraagdag óók een resource-werkdag is?
     let guard = 0;
     while (guard++ < scanLimit) {
-      const occ = nextWorkDays(projEngine, cand, dur);
+      const occ = occurrenceFor(task, cand);
       if (!calendarFeasibleSeen && calendarOk(byRes, occ)) calendarFeasibleSeen = true;
       if (fits(byRes, occ)) return { start: cand, unresolved: [] };
-      const next = projEngine.nextWorkDayAfter(cand);
+      const next = nextCandidateAfterFor(task, cand);
       if (ls && next > ls) break; // volgende kandidaat valt buiten de float — geen slot
       cand = next;
     }
 
-    // Geen slot: blijf op PF, verzamel de conflictdagen (waar de vraag de restcapaciteit overschrijdt).
-    const occ = nextWorkDays(projEngine, pf, dur);
+    // Geen slot: blijf op de gesnapte PF, verzamel de conflictdagen (waar de vraag de restcapaciteit
+    // overschrijdt) — dezelfde dagenset (`occurrenceFor`) als de boeking straks zou gebruiken.
+    const snappedPf = nextCandidateFor(task, pf);
+    const occ = occurrenceFor(task, snappedPf);
     const conflicts: string[] = [];
     for (const [resId, arr] of byRes) {
       for (let i = 0; i < arr.length && i < occ.length; i++) {
@@ -429,7 +474,7 @@ export function levelResources(
       }
     }
     return {
-      start: projEngine.nextWorkDay(pf),
+      start: snappedPf,
       unresolved: [...new Set(conflicts)].sort(),
       reason: reasonFor(byRes, calendarFeasibleSeen),
     };
@@ -470,20 +515,6 @@ export function levelResources(
     }
     return true;
   }
-}
-
-/** De eerste `count` werkdagen (volgens `engine`) op of ná `start`, inclusief `start` als het een
- *  werkdag is. Voor een taak van `count` werkdagen die op `start` begint. */
-function nextWorkDays(engine: CalendarEngine, start: Date, count: number): string[] {
-  const isos: string[] = [];
-  let current = engine.nextWorkDay(new Date(start.getTime()));
-  let guard = 0;
-  while (isos.length < count && guard++ < 200_000) {
-    isos.push(formatDate(current));
-    if (isos.length >= count) break;
-    current = engine.nextWorkDayAfter(current);
-  }
-  return isos;
 }
 
 /** Precedence-feasible start van `taskId`: herdraai de CPMSolver op de werkkopie (waarin de
