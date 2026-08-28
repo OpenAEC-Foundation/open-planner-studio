@@ -156,3 +156,47 @@ test('histogram splitter persisteert pas bij mouseup en paints worden weer stil'
     .toBe(height);
   await waitForTwoQuietWindows(page);
 });
+
+test('Gantt: pijltjestoetsen volgen de zichtbare taken zodra het canvas focus heeft', async ({ page, ops: _ops }) => {
+  const [firstId, secondId, thirdId] = await seedProject(page, [
+    { name: 'Toets taak een', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Toets taak twee', start: '2026-09-21', finish: '2026-10-02', durationDays: 10 },
+    { name: 'Toets taak drie', start: '2026-10-05', finish: '2026-10-16', durationDays: 10 },
+  ]);
+  const gantt = page.getByTestId('gantt-primary-canvas');
+  const taskTableWidth = (await state(page)).ui.leftPanelWidth;
+  // Header = 50px, standaardrij = 28px: klik op de kaartzijde van rij twee. De rijselectie
+  // gebruikt daar dezelfde Gantt-hit-test als op een balk, maar blijft zoom-onafhankelijk.
+  await gantt.click({ position: { x: taskTableWidth + 40, y: 50 + 28 + 14 } });
+  await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([secondId]);
+  await expect(gantt).toBeFocused();
+
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([thirdId]);
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([secondId]);
+
+  // Aan de bovengrens blijft de selectie op de eerste zichtbare taak staan.
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([firstId]);
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([firstId]);
+});
+
+test('histogram: pijltjestoetsen volgen resources zodra het histogram focus heeft', async ({ page, ops: _ops }) => {
+  const { overId, spareId } = await seedResourceLoad(page);
+  const histogram = page.getByTestId('gantt-histogram-canvas');
+
+  await clickPickerRow(page, 1);
+  await expect.poll(() => state(page).then(snapshot => snapshot.view.histogramResourceId)).toBe(overId);
+  await expect(histogram).toBeFocused();
+
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => state(page).then(snapshot => snapshot.view.histogramResourceId)).toBe(spareId);
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => state(page).then(snapshot => snapshot.view.histogramResourceId)).toBe(overId);
+
+  // De verzamelrij is het eerste item in dezelfde selector en dus de vorige stap.
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => state(page).then(snapshot => snapshot.view.histogramResourceId)).toBeNull();
+});

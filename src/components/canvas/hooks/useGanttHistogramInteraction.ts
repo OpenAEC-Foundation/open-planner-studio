@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent, RefObject } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, RefObject } from 'react';
 import type { HistogramRenderer } from '@/engine/renderer/HistogramRenderer';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
@@ -24,6 +24,7 @@ interface GanttHistogramInteractionInput {
 interface GanttHistogramInteraction {
   tooltip: GanttHistogramTooltip | null;
   onClick: (event: ReactMouseEvent<HTMLCanvasElement>) => void;
+  onKeyDown: (event: ReactKeyboardEvent<HTMLCanvasElement>) => void;
   clearTooltip: () => void;
 }
 
@@ -99,5 +100,29 @@ export function useGanttHistogramInteraction(
     });
   }, [canvasRef, rendererRef, selectResource, formatContributionLabel, contributingTaskNames, clearTooltip]);
 
-  return { tooltip, onClick, clearTooltip };
+  /**
+   * De resourcelijst is getekend op het canvas, dus heeft geen DOM-listbox die de pijltjes al
+   * gratis afhandelt. De volgorde is expres dezelfde als `buildHistogramPicker`: eerst de
+   * verzamelrij, daarna de projectresources. Kale pijltjes blijven binnen dit focusoppervlak;
+   * gemodificeerde pijltjes behoren aan bestaande globale sneltoetsen toe.
+   */
+  const onKeyDown = useCallback((event: ReactKeyboardEvent<HTMLCanvasElement>) => {
+    if (
+      (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
+      || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
+    ) return;
+
+    const ids: (string | undefined)[] = [undefined, ...resources.map(resource => resource.id)];
+    if (ids.length <= 1) return;
+    const currentIndex = ids.indexOf(selectedResourceId);
+    const step = event.key === 'ArrowUp' ? -1 : 1;
+    const nextIndex = Math.max(0, Math.min(ids.length - 1, currentIndex + step));
+    event.preventDefault();
+    event.stopPropagation();
+    if (nextIndex === currentIndex) return;
+    selectResource(ids[nextIndex]);
+    clearTooltip();
+  }, [resources, selectedResourceId, selectResource, clearTooltip]);
+
+  return { tooltip, onClick, onKeyDown, clearTooltip };
 }
