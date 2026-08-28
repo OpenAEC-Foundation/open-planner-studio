@@ -1,5 +1,6 @@
 import { useSyncExternalStore, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Pencil, Trash2 } from 'lucide-react';
 import type { Task, TaskType } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
 import { TASK_TYPES } from '@/types/task';
@@ -133,7 +134,7 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
       <div className="flex flex-col gap-1"><span className="text-[10px] uppercase text-text-secondary">{t('taskType.builtinGroup')}</span>{TASK_TYPES.filter(x => x !== 'USERDEFINED').map(type => <div key={type} className="text-xs opacity-60">{t(`taskType.${type}`)} · {t('taskType.fixed')}</div>)}</div>
       <div className="flex flex-col gap-2"><span className="text-[10px] uppercase text-text-secondary">{t('taskType.personalGroup')}</span>
         {personal.length === 0 && <span className="text-xs text-text-secondary">{t('taskType.empty')}</span>}
-        {personal.map(type => editingId === type.id ? <div className="flex gap-2" key={type.id}><input autoFocus value={name} onChange={e => setName(e.target.value)} className="input !text-xs flex-1" /><button className="btn btn--sm btn--primary" onClick={() => rename(type.id)}>{tCommon('save')}</button></div> : <div className="flex items-center gap-2 text-xs" key={type.id}><span className="flex-1">{type.name}</span><button className="btn btn--sm btn--secondary" onClick={() => { setEditingId(type.id); setName(type.name); }}>{t('taskType.rename')}</button><button className="btn btn--sm btn--secondary" onClick={() => deleteType(type.id)}>{t('taskType.remove')}</button></div>)}
+        {personal.map(type => editingId === type.id ? <div className="flex gap-2" key={type.id}><input autoFocus value={name} onChange={e => setName(e.target.value)} className="input !text-xs flex-1" /><button className="btn btn--sm btn--primary" onClick={() => rename(type.id)}>{tCommon('save')}</button></div> : <div className="flex items-center gap-2 text-xs" key={type.id}><span className="flex-1">{type.name}</span><button className="p-1 rounded-[6px] hover:bg-surface-hover text-text-secondary" onClick={() => { setEditingId(type.id); setName(type.name); }} aria-label={t('taskType.rename')} title={t('taskType.rename')}><Pencil size={12} /></button><button className="p-1 rounded-[6px] hover:bg-surface-hover text-text-secondary hover:text-red-500" onClick={() => deleteType(type.id)} aria-label={t('taskType.remove')} title={t('taskType.remove')}><Trash2 size={12} /></button></div>)}
       </div>
       {projectOnly.length > 0 && <div className="flex flex-col gap-2"><span className="text-[10px] uppercase text-text-secondary">{t('taskType.projectGroup')}</span>{projectOnly.map(type => <div className="flex items-center gap-2 text-xs" key={type.id}><span className="flex-1">{type.name}</span><button className="btn btn--sm btn--secondary" onClick={() => addPersonalTaskType(type.name, type.id)}>{t('taskType.addToMine')}</button></div>)}</div>}
       <div className="flex justify-end"><button className="btn btn--sm btn--primary" onClick={() => setDialog(null)}>{tCommon('close')}</button></div>

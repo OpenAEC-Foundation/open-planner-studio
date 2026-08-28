@@ -53,7 +53,15 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   await page.getByRole('option', { name: /^(Manage task types|Taaktypen beheren)/ }).click();
 
   const manager = page.locator('[data-ops-task-type-manager]');
-  await manager.getByRole('button', { name: /^(Edit|Bewerken)$/ }).click();
+  const editButton = manager.getByRole('button', { name: /^(Edit|Bewerken)$/ });
+  const removeButton = manager.getByRole('button', { name: /^(Remove|Verwijderen)$/ });
+  await expect(editButton).toHaveAttribute('title', /^(Edit|Bewerken)$/);
+  await expect(removeButton).toHaveAttribute('title', /^(Remove|Verwijderen)$/);
+  expect(await editButton.locator('svg').count()).toBe(1);
+  expect(await removeButton.locator('svg').count()).toBe(1);
+  await editButton.focus();
+  await expect(editButton).toBeFocused();
+  await editButton.click();
   await manager.getByRole('textbox').fill('Werkvoorbereiding');
   await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
   await expect(manager).toContainText('Werkvoorbereiding');
@@ -68,7 +76,7 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   });
 
   page.once('dialog', dialog => void dialog.accept());
-  await manager.getByRole('button', { name: /^(Remove|Verwijderen)$/ }).click();
+  await removeButton.click();
   await expect(manager.getByText(/^(?:From this project|Uit dit project)$/)).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ops-personalTaskTypes') ?? '[]'))).toEqual([]);
   expect(await page.evaluate((id) => {
@@ -178,4 +186,17 @@ test('taaktypen blijven bruikbaar in RTL en corrupte app-opslag wordt veilig gen
   const viewportWidth = await page.evaluate(() => window.innerWidth);
   expect(box!.x + box!.width).toBeLessThanOrEqual(viewportWidth);
   await expect(dialog.getByRole('textbox')).toBeFocused();
+  await dialog.getByRole('textbox').fill('نوع مراجعة');
+  await dialog.getByRole('button', { name: 'إنشاء' }).click();
+
+  await selector.getByRole('button').click();
+  const managerOptions = page.getByRole('listbox').getByRole('option');
+  await managerOptions.nth((await managerOptions.count()) - 1).click();
+  const manager = page.locator('[data-ops-task-type-manager]');
+  const editButton = manager.getByRole('button', { name: 'تحرير' });
+  const removeButton = manager.getByRole('button', { name: 'حذف' });
+  await expect(editButton).toHaveAttribute('title', 'تحرير');
+  await expect(removeButton).toHaveAttribute('title', 'حذف');
+  expect(await editButton.locator('svg').count()).toBe(1);
+  expect(await removeButton.locator('svg').count()).toBe(1);
 });

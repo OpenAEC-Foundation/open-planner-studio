@@ -167,6 +167,70 @@ test('Gantt viewport: een gewone klik in de takenlijst onthult alleen een verbor
   expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
 });
 
+test('Gantt viewport: de werkdag-as onthult een bestaande berekende taak zonder schaalwijziging', async ({ page, ops: _ops }) => {
+  const [nearId, farId] = await seedProject(page, [
+    { name: 'Werkdag begin', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },
+    { name: 'Werkdag doel', start: '2028-07-03', finish: '2028-07-14', durationDays: 10 },
+  ]);
+  const bounds = await primaryCanvasBounds(page);
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ compressNonWorkdays: true });
+    s.runCPM();
+    s.setZoom(60);
+    s.setScroll(0, 0);
+  });
+  const farPoint = await barPoint(page, farId);
+  const nearPoint = await barPoint(page, nearId);
+  expect(farPoint.x).toBeGreaterThan(bounds.x + bounds.width);
+  const before = await state(page);
+
+  await page.mouse.click(bounds.x + 120, farPoint.y);
+
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([farId]);
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
+  const afterPlainClick = await state(page);
+  expect(afterPlainClick.view.zoom).toBe(before.view.zoom);
+  const revealed = await barPoint(page, farId);
+  expect(revealed.x).toBeGreaterThanOrEqual(bounds.x + afterPlainClick.ui.leftPanelWidth);
+  expect(revealed.x).toBeLessThanOrEqual(bounds.x + bounds.width);
+
+  await page.keyboard.down('Control');
+  await page.mouse.click(bounds.x + 120, nearPoint.y);
+  await page.keyboard.up('Control');
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual(expect.arrayContaining([nearId, farId]));
+  expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
+});
+
+test('Gantt viewport: een nieuwe taak blijft bij werkdagcompressie zichtbaar zonder viewportvlucht', async ({ page, ops: _ops }) => {
+  const [, farId] = await seedProject(page, [
+    { name: 'Vroege basis', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },
+    { name: 'Late bestaande taak', start: '2028-07-03', finish: '2028-07-14', durationDays: 10 },
+  ]);
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ compressNonWorkdays: true });
+    s.setZoom(60);
+    s.setScroll(100_000, 0);
+  });
+  await page.evaluate((id) => window.__OPS__!.store.getState().selectTask(id), farId);
+  await expect(page.getByRole('button', { name: /New task directly below the selection|Nieuwe taak direct onder de selectie/ })).toBeVisible();
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
+  const before = await state(page);
+
+  await page.getByRole('button', { name: /New task directly below the selection|Nieuwe taak direct onder de selectie/ }).click();
+
+  await expect.poll(() => state(page).then(s => s.tasks.length)).toBe(3);
+  const after = await state(page);
+  const newTaskId = after.selectedTaskIds[0];
+  expect(after.selectedTaskIds).toHaveLength(1);
+  expect(after.view.zoom).toBe(before.view.zoom);
+  const bounds = await primaryCanvasBounds(page);
+  const newBar = await barPoint(page, newTaskId);
+  expect(newBar.x).toBeGreaterThanOrEqual(bounds.x + after.ui.leftPanelWidth);
+  expect(newBar.x).toBeLessThanOrEqual(bounds.x + bounds.width);
+});
+
 test('Gantt viewport: WBS-focusklik centreert taak en wist het pending signaal', async ({ page, ops: _ops }) => {
   const inputs = manyTasks('Focustussen', 46);
   inputs[0] = { name: 'Focusbron', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 };

@@ -21,7 +21,6 @@ import {
 } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
-import { MS_PER_DAY } from '@/engine/renderer/timeAxis';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import {
   HISTOGRAM_MAX_HEIGHT,
@@ -221,13 +220,18 @@ export function useGanttViewportCoordinator(
       current.clearPendingFocusTask();
       return;
     }
-    const origin = parseDate(effectiveViewStart);
     const hourMode = startString.includes('T') || finishString.includes('T');
     const start = hourMode ? parseInstant(startString) : parseDate(startString);
     const finish = hourMode ? parseInstant(finishString) : parseDate(finishString);
-    const finishMillis = finish.getTime() + (hourMode ? 0 : MS_PER_DAY);
-    const durationDays = (finishMillis - start.getTime()) / MS_PER_DAY;
-    const middleDayOffset = ((start.getTime() + finishMillis) / 2 - origin.getTime()) / MS_PER_DAY;
+    // `sharedAxis` bevat de actuele scrollX. Tel hem eerst terug op om contentcoördinaten te
+    // krijgen; de resulterende eenheden zijn kalenderdagen op de gewone as en werkdagen onder
+    // "Show only working days". Zo rekent de focusroute exact in dezelfde eenheden als de
+    // renderer én de horizontale scrollgrens.
+    const startContentX = sharedAxis.dateToX(start) + current.view.scrollX - current.taskTableWidth;
+    const finishContentX = sharedAxis.dateToX(finish) + current.view.scrollX
+      - current.taskTableWidth + (hourMode ? 0 : current.view.zoom);
+    const durationDays = (finishContentX - startContentX) / current.view.zoom;
+    const middleDayOffset = (startContentX + finishContentX) / (2 * current.view.zoom);
     const horizontal = current.view.pendingFocusTaskPreserveZoom
       ? {
           zoom: current.view.zoom,
@@ -252,7 +256,7 @@ export function useGanttViewportCoordinator(
     current.clearPendingFocusTask();
     if (!current.view.pendingFocusTaskPreserveZoom) current.setZoom(horizontal.zoom);
     current.setScroll(horizontal.scrollX, scrollY);
-  }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.taskTableWidth, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, effectiveViewStart, contentWidthFor]);
+  }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.taskTableWidth, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, sharedAxis, contentWidthFor]);
 
   useEffect(() => {
     const element = primaryHScrollRef.current;
