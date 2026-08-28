@@ -7,6 +7,7 @@ import { solveProject } from '@/engine/scheduler/solveProject';
 import {
   fromExtCalendar, fromExtProject, fromExtSequence, fromExtTask, toExtTask,
 } from '@/extensions/extMappers';
+import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
@@ -139,7 +140,10 @@ function solveProductProjects(imports: readonly ImportResult[]): XerSolvedProjec
   return [...byProjectId.values()];
 }
 
-function productBaseline(corpus: readonly XerCorpusFile[], manifest: XerCorpusManifest): ProductBaseline {
+async function productBaseline(
+  corpus: readonly XerCorpusFile[],
+  manifest: XerCorpusManifest,
+): Promise<ProductBaseline> {
   const target = buildXerTargetBaseline(corpus, manifest);
   if (target.errors.length > 0) throw new Error(`X1-manifest/grondwaarheid faalt: ${target.errors.join('; ')}`);
   const byLabel = new Map(corpus.map(file => [file.label, file]));
@@ -399,8 +403,8 @@ function productBaseline(corpus: readonly XerCorpusFile[], manifest: XerCorpusMa
       normalErrors: [], absurdErrors: [], sixAxesChanged: true, drivingChanged: true,
     });
 
-    const ifcNormal = readIFC(writeIFC(normal));
-    const ifcAbsurd = readIFC(writeIFC(absurd));
+    const ifcNormal = await readIFCWithXerReconstruction(writeIFC(normal));
+    const ifcAbsurd = await readIFCWithXerReconstruction(writeIFC(absurd));
     eq(`X12 ${statusCase.id}: XER→solve→IFC→solve laat forbidden output niet teruglekken`,
       axes(ifcAbsurd), axes(ifcNormal));
 
@@ -1211,7 +1215,7 @@ function productBaseline(corpus: readonly XerCorpusFile[], manifest: XerCorpusMa
 
   // De vlag is niet alleen opgeslagen metadata: na XER → IFC → inlezen moet hij nog steeds de
   // exacte 17:00-boundary dragen. Dit maakt de IFC-ronde een datumpariteitscheck, geen velddump.
-  const roundTripped = readIFC(writeIFC(imported));
+  const roundTripped = await readIFCWithXerReconstruction(writeIFC(imported));
   const roundTripSolve = solveProject({
     tasks: roundTripped.tasks,
     sequences: roundTripped.sequences,
@@ -1408,7 +1412,8 @@ function productBaseline(corpus: readonly XerCorpusFile[], manifest: XerCorpusMa
   };
   const xerForIfc = readXER(projectionBytes);
   if (isMultiDocumentImport(xerForIfc)) throw new Error('X12 XER-naar-IFC-fixture moet enkelproject zijn');
-  const ifcRoundTrip = readIFC(writeIFC(xerForIfc));
+  // De officiële async ingang reconstrueert de XER-provenance koud uit de IFC-bronbytes.
+  const ifcRoundTrip = await readIFCWithXerReconstruction(writeIFC(xerForIfc));
   const directForParity = readXER(projectionBytes);
   if (isMultiDocumentImport(directForParity)) throw new Error('X12 directe pariteitsfixture moet enkelproject zijn');
   eq('X12 XER-naar-IFC bewaart P6-provenance en alle zes solve-assen', {
@@ -1430,7 +1435,10 @@ function productBaseline(corpus: readonly XerCorpusFile[], manifest: XerCorpusMa
   delete ordinaryIfcSource.calendar.p6Source;
   delete ordinaryDirect.project.schedulingOptions?.p6Source;
   delete ordinaryDirect.calendar.p6Source;
-  const ordinaryIfc = readIFC(writeIFC(ordinaryIfcSource));
+  // Zonder XER-archief blijft dit bewust een gewone IFC en dus een synchrone read-probe.
+  const ordinaryIfc = readIFC(writeIFC({
+    ...ordinaryIfcSource, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
+  }));
   eq('X12 gewone IFC zonder XER-bronstempels blijft zesassig formaatneutraal', {
     projectSource: ordinaryIfc.project.schedulingOptions?.p6Source,
     calendarSource: ordinaryIfc.calendar.p6Source,
@@ -1551,7 +1559,7 @@ else if (!existsSync(corpusRoot)) diffs.push('OPS_XER_CORPUS wijst niet naar een
 else {
   const corpus = listXerFiles(corpusRoot).map(path => ({ label: relative(corpusRoot, path).split('\\').join('/'), bytes: readFileSync(path) }));
   const manifest = JSON.parse(readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
-  const measured = productBaseline(corpus, manifest);
+  const measured = await productBaseline(corpus, manifest);
   if (REPORT === 'baseline') console.log(JSON.stringify(measured, null, 2));
   else if (REPORT === 'summary' || REPORT === 'detail') {
     const entries = Object.entries(measured.files);
