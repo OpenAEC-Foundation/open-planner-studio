@@ -26,8 +26,10 @@
 // gaf vóór B1c-W0.1 een vervormd resultaat (`computeResourceLoad` kapte toen af op
 // min(scheduleDuration, werkdagen-in-de-verouderde-spanne)). Sinds B1c-W0.1 mapt
 // `computeResourceLoad` bewust exact `scheduleDuration` werkdagen vanaf het (verouderde)
-// `earlyStart` — geen afkap meer — dus zonder vangnet zou het document gewoon zijn OUDE planning
-// tonen, cijfermatig kloppend maar niet wat de gebruiker nu bedoelt (de invoer is inmiddels
+// `earlyStart` — geen afkap meer, het TOTAAL van de curve blijft altijd behouden. Zonder vangnet
+// zou het document dus met een HYBRIDE van oud en nieuw meetellen (het oude `earlyStart` met een
+// `scheduleDuration` die intussen al de nieuwe invoer kan weerspiegelen), niet met een zuivere
+// "oude planning" — en dat is sowieso niet wat de gebruiker nu bedoelt (de invoer is immers
 // veranderd, vandaar `scheduleStale`). Precies dáárvoor bestaat de efemere solve (§4.3b): een
 // document dat wél kan doorrekenen telt mee met VERSE cijfers; kan dat niet, dan telt het — nog
 // steeds — niet mee, zodat er nooit oude cijfers als actueel worden voorgespiegeld. Zulke documenten

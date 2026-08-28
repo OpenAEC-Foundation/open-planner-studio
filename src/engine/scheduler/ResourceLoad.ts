@@ -164,8 +164,11 @@ function engineForTask(
  *     kapt ze de verdeling af op min(dagen, werkdagen-in-de-verouderde-spanne) — een uitkomst die
  *     noch de oude, noch de nieuwe planning is. Door gewoon `scheduleDuration` dagen vanaf
  *     `earlyStart` te lopen, blijft het TOTAAL van de curve altijd behouden (nooit stil een deel
- *     laten verdwijnen) en landt de belasting herkenbaar op de oude datums totdat er echt herrekend
- *     wordt — zie ook `docs/superpowers/specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md`
+ *     laten verdwijnen) — dat behouden totaal is de dragende garantie, niet een precieze dagindeling:
+ *     bij stale data is `earlyStart` het oude anker maar kan `scheduleDuration` al de nieuwe invoer
+ *     weerspiegelen (een bewerking die de duur wijzigt zonder meteen te herrekenen), dus de uitkomst
+ *     is dan een HYBRIDE van oud en nieuw, geen zuivere "oude planning" — zie ook
+ *     `docs/superpowers/specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md`
  *     §W0. `enumerateTaskWorkDays` zelf kent hoe dan ook geen eindgrens (in tegenstelling tot
  *     `computeSplitSegments` in `splitWalk.ts`, dat een renderer-balk wél op `taskEnd` klemt — een
  *     balk MOET binnen zijn eigen grenzen tekenen; een lastlezer mag, en moet hier bewust, verder
@@ -174,12 +177,19 @@ function engineForTask(
  *     UITZONDERING — ELAPSEDTIME: voor zo'n taak is `scheduleDuration` KALENDERdagen, niet
  *     werkdagen (`duration.ts`'s `elapsedMinutesOf`-docblok) — `enumerateTaskWorkDays` zou dat getal
  *     als werkdagen-telling lezen en voorbij `earlyFinish` doorlopen (bv. duur 10 over een spanne
- *     met een weekend erin). Voor ELAPSEDTIME-taken blijft de mapping daarom de OUDE vorm:
- *     `enumerateWorkDays(taskEngine, earlyStart, earlyFinish)` — de werkdagen van de taakkalender
- *     BINNEN de opgegeven spanne (`splitGaps` wordt hier niet toegepast; ELAPSEDTIME-taken hebben in
- *     de praktijk geen `splitGaps`). De bestaande min-klem in de accumulatielus (`i < days.length &&
- *     i < workDayIsos.length`) zorgt dat een curve die méér dagen telt dan er werkdagen in de spanne
- *     zitten, gewoon aan het eind afkapt — precies het gedrag van vóór B1c-W0.1.
+ *     met een weekend erin). Voor ELAPSEDTIME-taken gebruikt de mapping daarom een DERDE variant —
+ *     geen restauratie van het pre-W0.1-gedrag: `enumerateWorkDays(taskEngine, earlyStart,
+ *     earlyFinish)` loopt weliswaar (net als vóór W0.1) over de spanne in plaats van een
+ *     dagenteling, maar op `taskEngine` — dezelfde `engineForTask`-taakkalender als de andere twee
+ *     takken hierboven, niet onvoorwaardelijk de projectkalender. De taakkalender-lijn van deze fix
+ *     geldt dus ook hier; alleen het "loop tot `earlyFinish`, niet `scheduleDuration` werkdagen
+ *     verder"-gedrag is bewust ongewijzigd t.o.v. vóór W0.1. `splitGaps` wordt in deze tak niet
+ *     toegepast — een BEWUSTE, begrensde beperking, geen aanname over de invoer: de `.mpp`-lezer
+ *     poort `splitGaps` niet op `durationType`, dus een ELAPSEDTIME-taak mét gaten is mogelijk (al
+ *     zeldzaam) en boekt in dat geval gewoon door op wat voor een WORKTIME-taak een pauzedag zou
+ *     zijn. De bestaande min-klem in de accumulatielus (`i < days.length && i < workDayIsos.length`)
+ *     zorgt dat een curve die méér dagen telt dan er werkdagen in de spanne zitten, gewoon aan het
+ *     eind afkapt.
  *  4. Capaciteit per resource per dag: maxUnits (met availabilitySteps) op werkdagen van de
  *     resource-kalender (of de projectkalender als geen calendarId gezet is), 0 op niet-werkdagen.
  *     Dit is de RESOURCE-kalender, niet per se de taakkalender: werkt een taak (op haar eigen
