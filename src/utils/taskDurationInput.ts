@@ -3,6 +3,7 @@ import { addCalendarDays, parseDate } from '@/utils/dateUtils';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task, TaskDurationUnit } from '@/types/task';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 
 export interface ParsedTaskDuration {
   unit: TaskDurationUnit;
@@ -78,7 +79,9 @@ export function proposeTaskDurationConversion(
 ): ParsedTaskDuration | null {
   if (target === task.time.durationUnit) return null;
   if (!hasConcreteWorkBlocks(calendar)) return null;
-  const engine = new CalendarEngine(calendar);
+  const effectiveCalendar = calendarWithEffectiveWorkTime(calendar);
+  if (!effectiveCalendar) return null;
+  const engine = new CalendarEngine(effectiveCalendar);
   let day = nextWorkDay(engine, parseDate(task.time.earlyStart || task.time.scheduleStart));
 
   if (target === 'hours') {

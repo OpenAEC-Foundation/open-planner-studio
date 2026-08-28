@@ -38,7 +38,7 @@
     "invalid": "2d 또는 12h처럼 정수 일수나 시간 수를 입력하세요.",
     "enableHourPlanningFirst": "이 시간 작업을 편집하려면 시간 계획을 켜세요.",
     "enableHourPlanning": "시간 계획 켜기",
-    "requiresWorkBlocks": "시간에는 구체적인 근무 시간대가 있는 달력이 필요합니다. 해당 달력을 선택하거나 근무 시간을 추가하세요.",
+    "requiresWorkBlocks": "이 달력에는 유효한 근무 시간이 없습니다. 근무일과 근무 시간을 확인하세요.",
     "conversionNotExact": "이 기간은 현재 달력에서 정수 일수로 정확히 변환할 수 없습니다. 기존 단위를 유지하므로 새 유효 값을 직접 입력하세요.",
     "conversionProposal": "정확한 변환 제안: {{value}}. 적용하거나 현재 단위를 유지하세요.",
     "applyProposal": "제안 적용",

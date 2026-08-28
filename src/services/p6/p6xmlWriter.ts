@@ -4,6 +4,7 @@ import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/typ
 import { Project } from '@/types/project';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
 
 /** OPS-eigen, schema-native P6-UDF waarmee gemengde dag-/urentaken exact terugkomen. */
@@ -126,16 +127,19 @@ export const P6_DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
  *  werkdagen (`cal.workDays`) krijgen een `<WorkTime>`-blok, niet-werkdagen blijven leeg (P6 leest
  *  afwezigheid van `WorkTime` als niet-werkend). Altijd geschreven (geen golden-rule-gate: er
  *  zijn geen bestaande P6-golden-bestanden om te breken, en dit was tot nu toe een gat, §8.4). */
-function writeStandardWorkWeek(lines: string[], indent: (level: number) => string, cal: WorkCalendar): void {
+function writeStandardWorkWeek(
+  lines: string[], indent: (level: number) => string, cal: WorkCalendar, includeEffectiveScalarBands = false,
+): void {
+  const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
   lines.push(`${indent(2)}<StandardWorkWeek>`);
   for (let day = 1; day <= 7; day++) {
     lines.push(`${indent(3)}<StandardWorkHour>`);
     lines.push(`${indent(4)}<DayOfWeek>${P6_DAY_NAMES[day]}</DayOfWeek>`);
-    if (cal.workTime) {
+    if (workTime) {
       // Fase 2.8b (§7.2): UUR-kalender ⇒ ALLE banden van deze weekdag als aparte <WorkTime>-blokken
       // (pauze/split-shift/nachtploeg). Een wrap-band (`end > 1440`) emitteert het eind als
       // tijd-van-de-dag (`end % 1440`, via `minutesToClock`), waaruit de reader de wrap herkent.
-      for (const b of cal.workTime.byWeekday[day as 1] ?? []) {
+      for (const b of workTime.byWeekday[day as 1] ?? []) {
         lines.push(`${indent(4)}<WorkTime>`);
         lines.push(`${indent(5)}<Start>${minutesToClock(b.start)}</Start>`);
         lines.push(`${indent(5)}<Finish>${minutesToClock(b.end)}</Finish>`);
@@ -292,6 +296,10 @@ export function writeP6XML(
 
   // Fase 2.8b (§7.2): effectieve kalender per taak → uur- vs dag-modus.
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
+  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
+    const calendarId = task.time.durationUnit === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    return calendarId ? [calendarId] : [];
+  }));
 
   // WBS elements (parent tasks)
   const wbsTasks = tasks.filter(t => t.childIds.length > 0);
@@ -336,7 +344,7 @@ export function writeP6XML(
   lines.push(`${indent(2)}<HoursPerDay>${calendar.hoursPerDay}</HoursPerDay>`);
   lines.push(`${indent(2)}<HoursPerWeek>${calendar.hoursPerDay * calendar.workDays.length}</HoursPerWeek>`);
   lines.push(`${indent(2)}<HoursPerMonth>${calendar.hoursPerDay * 20}</HoursPerMonth>`);
-  writeStandardWorkWeek(lines, indent, calendar);
+  writeStandardWorkWeek(lines, indent, calendar, hourTaskCalendarIds.has(calendar.id));
   writeHolidayOrExceptions(lines, indent, calendar);
   lines.push(`${indent(1)}</Calendar>`);
 
@@ -352,7 +360,7 @@ export function writeP6XML(
     lines.push(`${indent(2)}<HoursPerDay>${cal.hoursPerDay}</HoursPerDay>`);
     lines.push(`${indent(2)}<HoursPerWeek>${cal.hoursPerDay * cal.workDays.length}</HoursPerWeek>`);
     lines.push(`${indent(2)}<HoursPerMonth>${cal.hoursPerDay * 20}</HoursPerMonth>`);
-    writeStandardWorkWeek(lines, indent, cal);
+    writeStandardWorkWeek(lines, indent, cal, hourTaskCalendarIds.has(cal.id));
     writeHolidayOrExceptions(lines, indent, cal);
     lines.push(`${indent(1)}</Calendar>`);
   }

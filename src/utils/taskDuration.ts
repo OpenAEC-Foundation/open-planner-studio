@@ -114,14 +114,14 @@ export function detectMixedCalendars(
     const hpd = effHoursPerDay(cal);
     hpdSet.add(hpd);
     const hour = isHourCalendar(cal);
-    if (hour) hasHour = true;
-    else hasDay = true;
     if (!seen.has(cal.id)) seen.set(cal.id, { id: cal.id, name: cal.name, hpd, isHour: hour });
   };
   consider(projectCal);
   for (const t of tasks) {
     if (t.isMilestone) continue;
     consider(effectiveCalendarOf(t, projectCal, library));
+    if (taskDurationUnit(t) === 'hours') hasHour = true;
+    else hasDay = true;
   }
   const hpds = [...hpdSet].sort((a, b) => a - b);
   // §6.5: waarschuw zodra het project duur-eenheden mengt — óf verschillende effectieve daglengtes

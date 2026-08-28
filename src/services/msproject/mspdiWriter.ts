@@ -8,6 +8,7 @@ import { projectFileBase } from '@/utils/documents';
 import {
   effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 
 /**
  * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
@@ -134,6 +135,7 @@ function writeCalendarBlock(
   cal: WorkCalendar,
   uid: number,
   isBaseCalendar: boolean,
+  includeEffectiveScalarBands = false,
 ): void {
   lines.push(`${indent(2)}<Calendar>`);
   lines.push(`${indent(3)}<UID>${uid}</UID>`);
@@ -147,7 +149,8 @@ function writeCalendarBlock(
 
     // Fase 2.8b (§7.3): UUR-kalender ⇒ ALLE banden van deze weekdag als aparte <WorkingTime>-blokken;
     // een wrap-band emitteert het eind als tijd-van-de-dag (`end % 1440`).
-    const hourBands = cal.workTime ? (cal.workTime.byWeekday[day as 1] ?? []) : null;
+    const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
+    const hourBands = workTime ? (workTime.byWeekday[day as 1] ?? []) : null;
     const dayWorking = hourBands ? hourBands.length > 0 : isWorkDay;
     lines.push(`${indent(4)}<WeekDay>`);
     lines.push(`${indent(5)}<DayType>${mspDay}</DayType>`);
@@ -396,11 +399,15 @@ export function writeMSPDI(
 
   // Fase 2.8b (§7.3): effectieve kalender per taak → uur- vs dag-modus.
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
+  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
+    const calendarId = taskDurationUnitForIo(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    return calendarId ? [calendarId] : [];
+  }));
 
   lines.push(`${indent(1)}<Calendars>`);
-  writeCalendarBlock(lines, indent, calendar, 1, true);
+  writeCalendarBlock(lines, indent, calendar, 1, true, hourTaskCalendarIds.has(calendar.id));
   for (const cal of libraryCalendars) {
-    writeCalendarBlock(lines, indent, cal, calUidMap.get(cal.id)!, false);
+    writeCalendarBlock(lines, indent, cal, calUidMap.get(cal.id)!, false, hourTaskCalendarIds.has(cal.id));
   }
   lines.push(`${indent(1)}</Calendars>`);
 

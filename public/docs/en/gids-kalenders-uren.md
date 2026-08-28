@@ -8,7 +8,7 @@ This guide explains the complete model. It is for planners who want to use day t
 
 A **day task** counts whole workable calendar days. `2d` means two available working days. A working day containing ten hours still counts as one day; so does a day containing eight hours. Weekends, holidays and other non-working days do not count.
 
-An **hour task** counts exact working minutes within the concrete working-time bands of the task calendar. `12h` therefore consumes twelve actual working hours. On an eight-hour calendar that is one full day plus four hours. On a ten-hour calendar it is one full day plus two hours.
+An **hour task** counts exact working minutes within the effective working-time bands of the task calendar. `12h` therefore consumes twelve actual working hours. On an eight-hour calendar that is one full day plus four hours. On a ten-hour calendar it is one full day plus two hours.
 
 The central rule is:
 
@@ -51,7 +51,9 @@ In **Project information**, also choose **Default unit for new tasks: Days/Hours
 
 ## Working-time bands and shifts
 
-An hour task requires concrete working-time bands. Set them per weekday in the calendar editor or start with a shift preset such as **Day shift**, **2 shifts**, **3 shifts**, **Night shift** or **24/7**. A night band can cross midnight.
+Every valid calendar supports both day and hour tasks. If a calendar has no manually entered per-weekday bands, Open Planner Studio derives them purely from its working days, start and end time, and **Hours per day**. A classic 07:00–16:00 calendar with 8 net hours therefore becomes 07:00–12:00 and 13:00–16:00; 08:00–16:00 with 8 hours remains one band. The per-weekday editor and shift presets, such as **Day shift**, **2 shifts**, **3 shifts**, **Night shift** and **24/7**, always take precedence and refine that derivation. A night band can cross midnight.
+
+**Hours per day** helps with presentation but does not determine a task unit. Day tasks continue to count working days; an hour task uses only the effective bands. Only an empty or invalid calendar cannot schedule hours. There is no silent task, unit or calendar conversion and no rounding.
 
 The derived **Hours per day** helps with presentation, but it does not determine a task's unit. Without concrete bands the scheduler cannot know exactly where twelve working hours fit. If you select **Hours** for a task whose calendar has no bands, Open Planner Studio changes nothing. It explains that you must choose a calendar with working times or add them first. There is no day fallback and no rounding.
 
@@ -125,7 +127,7 @@ A resource can have its own calendar, for example for a subcontractor on a four-
 
 **Hours cannot be selected**
 
-First check that **Enable hour planning** is on. Then check whether the effective task calendar has concrete working-time bands. Otherwise choose a suitable calendar or add working times.
+First check that **Enable hour planning** is on. Then check whether the effective task calendar has valid working days, times and hours per day. Manual weekday bands are optional: without them the planner derives effective working times automatically.
 
 **Changing calendar changes the finish date**
 

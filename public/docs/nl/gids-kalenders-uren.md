@@ -8,7 +8,7 @@ Deze gids legt het volledige model uit. Hij is bedoeld voor planners die dagtake
 
 Een **dagtaak** telt gehele werkbare kalenderdagen. `2d` betekent twee beschikbare werkdagen. Een werkdag met tien werkuren telt nog steeds als één dag; een werkdag met acht uur ook. Weekenden, feestdagen en andere niet-werkdagen tellen niet mee.
 
-Een **urentaak** telt exacte werkminuten binnen de concrete werktijdblokken van de taakkalender. `12h` gebruikt dus werkelijk twaalf werkuren. Op een kalender van acht uur per dag is dat één volledige dag plus vier uur. Op een kalender van tien uur per dag is het één volledige dag plus twee uur.
+Een **urentaak** telt exacte werkminuten binnen de effectieve werktijdblokken van de taakkalender. `12h` gebruikt dus werkelijk twaalf werkuren. Op een kalender van acht uur per dag is dat één volledige dag plus vier uur. Op een kalender van tien uur per dag is het één volledige dag plus twee uur.
 
 Hieruit volgt de hoofdregel:
 
@@ -51,9 +51,9 @@ Kies in **Projectinformatie** ook **Standaardeenheid voor nieuwe taken: Dagen/Ur
 
 ## Werktijdblokken en ploegen
 
-Een urentaak vereist concrete werktijdblokken. In de kalendereditor kun je die per weekdag instellen of beginnen met een ploegpreset, zoals **Dagdienst**, **2 ploegen**, **3 ploegen**, **Nachtploeg** of **24/7**. Een nachtblok kan over middernacht lopen.
+Iedere geldige kalender ondersteunt dag- én urentaken. Heeft een kalender nog geen handmatige blokken per weekdag, dan leidt Open Planner Studio ze puur af uit de werkdagen, begin- en eindtijd en **Uren per dag**. Een klassieke bouwkalender van 07:00–16:00 met 8 netto uur krijgt zo 07:00–12:00 en 13:00–16:00; 08:00–16:00 met 8 uur blijft één band. De per-weekdag-editor en ploegpresets, zoals **Dagdienst**, **2 ploegen**, **3 ploegen**, **Nachtploeg** en **24/7**, hebben altijd voorrang en verfijnen deze afleiding. Een nachtblok kan over middernacht lopen.
 
-De afgeleide waarde **Uren per dag** helpt bij presentatie, maar bepaalt niet de eenheid van een taak. Zonder concrete blokken weet de planner niet waar twaalf werkuren precies passen. Kies je daarom **Uren** voor een taak waarvan de kalender geen blokken bevat, dan verandert Open Planner Studio niets. Je krijgt de uitleg om eerst een kalender met werktijden te kiezen of werktijden toe te voegen. Er is geen dagfallback en geen afronding.
+De afgeleide waarde **Uren per dag** helpt bij presentatie, maar bepaalt niet de eenheid van een taak. Dagtaken blijven werkdagen tellen; een urentaak gebruikt uitsluitend de effectieve bands. Alleen een lege of ongeldige kalender kan uren niet plannen. Er is geen stille taak-, eenheid- of kalenderconversie en geen afronding.
 
 ## Duur per taak invoeren
 
@@ -125,7 +125,7 @@ Een resource kan een eigen kalender krijgen, bijvoorbeeld voor een onderaannemer
 
 **Uren kan niet worden gekozen**
 
-Controleer eerst of **Urenplanning inschakelen** aan staat. Controleer daarna of de effectieve taakkalender concrete werktijdblokken heeft. Kies anders een passende kalender of voeg werktijden toe.
+Controleer eerst of **Urenplanning inschakelen** aan staat. Controleer daarna of de effectieve taakkalender geldige werkdagen, tijden en uren per dag heeft. Handmatige weekblokken zijn optioneel: zonder die blokken leidt de planner de effectieve werktijden automatisch af.
 
 **Een kalenderwissel verandert de einddatum**
 

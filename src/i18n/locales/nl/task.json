@@ -38,7 +38,7 @@
     "invalid": "Voer een geheel aantal dagen of uren in, bijvoorbeeld 2d of 12h.",
     "enableHourPlanningFirst": "Schakel urenplanning in om deze urentaak te bewerken.",
     "enableHourPlanning": "Urenplanning inschakelen",
-    "requiresWorkBlocks": "Uren vereisen een kalender met concrete werktijden. Kies zo'n kalender of voeg werktijden toe.",
+    "requiresWorkBlocks": "Deze kalender heeft geen geldige werktijden. Controleer de werkdagen en werktijden.",
     "conversionNotExact": "Deze duur kan op de huidige kalender niet exact naar gehele dagen worden omgezet. De bestaande eenheid blijft behouden; voer zelf een nieuwe geldige waarde in.",
     "conversionProposal": "Exact omzetvoorstel: {{value}}. Pas dit voorstel toe of behoud de huidige eenheid.",
     "applyProposal": "Voorstel toepassen",
@@ -62,7 +62,7 @@
     "durationDays": "Dagen",
     "durationHours": "Uren",
     "durationTotalHours": "Totaal uren",
-    "hourCalendarHint": "Uren-invoer vereist een uur-kalender (werktijden)."
+    "hourCalendarHint": "Uren-invoer gebruikt de werktijden van de taak-kalender."
   },
   "properties": {
     "task": "Taak",

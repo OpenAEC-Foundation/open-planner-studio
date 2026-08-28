@@ -38,7 +38,7 @@
     "invalid": "Saisissez un nombre entier de jours ou d'heures, par exemple 2d ou 12h.",
     "enableHourPlanningFirst": "Activez la planification horaire pour modifier cette tâche en heures.",
     "enableHourPlanning": "Activer la planification horaire",
-    "requiresWorkBlocks": "Les heures nécessitent un calendrier avec des horaires de travail concrets. Choisissez ce calendrier ou ajoutez des horaires.",
+    "requiresWorkBlocks": "Ce calendrier n'a pas d'horaires de travail valides. Vérifiez ses jours et horaires de travail.",
     "conversionNotExact": "Cette durée ne peut pas être convertie exactement en jours entiers avec le calendrier actuel. L'unité existante est conservée ; saisissez vous-même une nouvelle valeur valide.",
     "conversionProposal": "Proposition de conversion exacte : {{value}}. Appliquez-la ou conservez l'unité actuelle.",
     "applyProposal": "Appliquer la proposition",

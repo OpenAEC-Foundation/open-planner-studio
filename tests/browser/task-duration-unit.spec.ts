@@ -257,17 +257,43 @@ test('duurinfo is met hover en toetsenbordfocus bereikbaar en legt het vaste con
   await expect(tooltip).toBeVisible();
 });
 
-test('uren zonder concrete werkblokken en niet-exacte omzetting muteren de taak niet', async ({ page, ops: _ops }) => {
+test('scalaire standaardkalender converteert naar uren met middagpauze; ongeldige data blokkeert veilig', async ({ page, ops: _ops }) => {
   const dayTaskId = await seedDurationTask(page, 'days', 2);
   await page.evaluate(() => {
     const state = window.__OPS__!.store.getState();
-    state.setCalendar({ ...state.calendar, workTime: undefined });
+    state.setCalendar({ ...state.calendar, workStartHour: 7, workEndHour: 16, hoursPerDay: 8, workTime: undefined });
   });
   const duration = page.locator('[data-ops-task-duration]').first();
   await duration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
   await page.getByRole('option', { name: /^(Hours|Uren)$/ }).click();
-  await expect(duration.locator('[data-ops-duration-message]')).toContainText(/(concrete working times|concrete werktijden)/i);
-  await expect.poll(() => page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.time.durationUnit, dayTaskId)).toBe('days');
+  await expect(duration.locator('[data-ops-duration-message]')).toContainText(/16h/i);
+  await duration.getByRole('button', { name: /^(Apply proposal|Voorstel toepassen)$/ }).click();
+  await duration.locator('[data-ops-duration-value]').fill('12h');
+  await duration.locator('[data-ops-duration-value]').blur();
+  await expect.poll(() => page.evaluate((id) => {
+    const state = window.__OPS__!.store.getState();
+    state.runCPM();
+    const task = state.tasks.find(candidate => candidate.id === id)!;
+    return { unit: task.time.durationUnit, minutes: task.time.durationMinutes, finish: task.time.earlyFinish };
+  }, dayTaskId)).toEqual({ unit: 'hours', minutes: 720, finish: '2026-09-08T11:00' });
+
+  // De geplande start is 07:00. Acht uur eindigt alleen via de afgeleide 12:00-13:00-pauze op
+  // maandag 16:00; een ruwe 07:00-16:00-band zou ten onrechte maandag 15:00 opleveren.
+  await duration.locator('[data-ops-duration-value]').fill('8h');
+  await duration.locator('[data-ops-duration-value]').blur();
+  await expect.poll(() => page.evaluate((id) => {
+    const state = window.__OPS__!.store.getState();
+    state.runCPM();
+    return state.tasks.find(candidate => candidate.id === id)!.time.earlyFinish;
+  }, dayTaskId)).toBe('2026-09-07T16:00');
+
+  await page.evaluate(() => {
+    const state = window.__OPS__!.store.getState();
+    state.setCalendar({ ...state.calendar, workDays: [], workTime: undefined });
+  });
+  await duration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
+  await page.getByRole('option', { name: /^(Days|Dagen)$/ }).click();
+  await expect(duration.locator('[data-ops-duration-message]')).toContainText(/(valid working times|geldige werktijden)/i);
 
   const hourTaskId = await seedDurationTask(page, 'hours', 12);
   const hourDuration = page.locator('[data-ops-task-duration]').first();

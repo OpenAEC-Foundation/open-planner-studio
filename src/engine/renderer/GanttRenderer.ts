@@ -4,11 +4,11 @@ import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
-import { isHourCalendar } from '@/services/subdayIo';
+import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 // #21: resource-accent — dezelfde pure toewijzings-module als de printlaag (één definitie van
 // "welke resources kleuren welke taak"), geen tweede implementatie in de renderer.
@@ -387,8 +387,16 @@ export class GanttRenderer {
    *  dag-kalender staat / geen kalendermap is meegegeven — dan wordt er niet opgesplitst. */
   private engineFor(task: Task): CalendarEngine | null {
     const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    if (!isHourCalendar(cal)) return null;
-    return this.engineForAnyMode(task);
+    if (taskDurationUnit(task) !== 'hours') return null;
+    const effectiveCalendar = calendarWithEffectiveWorkTime(cal);
+    if (!effectiveCalendar) return null;
+    const key = `${cal.id}\u0000effective-hour`;
+    let eng = this.engineCache.get(key);
+    if (!eng) {
+      eng = new CalendarEngine(effectiveCalendar);
+      this.engineCache.set(key, eng);
+    }
+    return eng;
   }
 
   /** Of een uur-taakbalk in werkblok-segmenten wordt getekend (§6.9): 'always' ⇒ altijd,

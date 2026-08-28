@@ -15,6 +15,7 @@ import {
   proposeTaskDurationConversion,
 } from '@/utils/taskDurationInput';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { Project } from '@/types/project';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import type { Task } from '@/types/task';
@@ -78,6 +79,9 @@ function unitOf(time: Task['time']): string | undefined {
 
 const h8 = calendar('H8', 8, 960);
 const h10 = calendar('H10', 10, 1080);
+const scalarH8: WorkCalendar = {
+  ...h8, id: 'Scalar-H8', workStartHour: 7, workEndHour: 16, hoursPerDay: 8, workTime: undefined,
+};
 const day2 = task('days', 2);
 const hour12 = task('hours', 12);
 const zeroDay = task('days', 0);
@@ -107,6 +111,7 @@ eq('2d eindigt op H8 na twee volledige werkdagen', finishOn(day2, h8), '2026-07-
 eq('2d eindigt op H10 na twee volledige werkdagen', finishOn(day2, h10), '2026-07-07T18:00');
 eq('12h verdeelt op H8 als 8+4 uur', finishOn(hour12, h8), '2026-07-07T12:00');
 eq('12h verdeelt op H10 als 10+2 uur', finishOn(hour12, h10), '2026-07-07T10:00');
+eq('12h op scalaire 07-16/8u-kalender plant over de middagpauze', finishOn(hour12, scalarH8), '2026-07-07T11:00');
 eq('0d zonder mijlpaalvlag blijft een nulpunt op de start', finishOn(zeroDay, h8), '2026-07-06T08:00');
 eq('0h zonder mijlpaalvlag blijft een nulpunt op de start', finishOn(zeroHour, h8), '2026-07-06T08:00');
 const missingHourSource = task('hours', 1);
@@ -187,16 +192,26 @@ eq('ontbrekende gemengde-voorkeur laat de store-default intact', (await loadAllS
 await saveAllowMixedDayHour(false);
 eq('gemengde-voorkeur bewaart de bestaande ops-sleutel', localStorage.getItem('ops-allowMixedDayHour'), 'false');
 eq('gemengde-voorkeur hydrateert declaratief', (await loadAllSettings()).allowMixedDayHour, false);
-eq('kalender zonder werkblokken wordt herkend', hasConcreteWorkBlocks({ ...h8, workTime: undefined }), false);
-eq('uurkeuze zonder werkblokken heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', { ...h8, workTime: undefined }), null);
-const hourWithoutBlocks = { ...hour12, time: { ...hour12.time } };
-const hourWithoutBlocksResult = solveProject({
-  tasks: [hourWithoutBlocks], sequences: [], calendar: { ...h8, workTime: undefined }, calendars: [],
+deepEq('scalaire 07-16/8u-bandresolver materialiseert de middagpauze', effectiveWorkTimeBands(scalarH8)?.byWeekday[1], [
+  { start: 420, end: 720 }, { start: 780, end: 960 },
+]);
+eq('scalaire kalender levert effectieve werkblokken', hasConcreteWorkBlocks(scalarH8), true);
+deepEq('2d op scalaire 07-16/8u-kalender krijgt exact 16h als voorstel',
+  proposeTaskDurationConversion(day2, 'hours', scalarH8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+const scalarBeforeSolve = JSON.stringify(scalarH8);
+const hourOnScalar = { ...hour12, time: { ...hour12.time } };
+const hourOnScalarResult = solveProject({
+  tasks: [hourOnScalar], sequences: [], calendar: scalarH8, calendars: [],
   projectStartDate: '2026-07-06',
 });
-eq('bestaande urentaak zonder werkblokken krijgt geen dagfallback', hourWithoutBlocksResult.error?.includes('concrete werkblokken'), true);
-eq('geblokkeerde solve bewaart uur-unit', hourWithoutBlocks.time.durationUnit, 'hours');
-eq('geblokkeerde solve bewaart exacte minuten', hourWithoutBlocks.time.durationMinutes, 720);
+eq('bestaande urentaak op scalaire kalender plant zonder waarschuwing', hourOnScalarResult.error, undefined);
+eq('scalar-oplossing muteert de opgeslagen kalender niet', JSON.stringify(scalarH8), scalarBeforeSolve);
+eq('scalar-oplossing bewaart uur-unit', hourOnScalar.time.durationUnit, 'hours');
+eq('scalar-oplossing bewaart exacte minuten', hourOnScalar.time.durationMinutes, 720);
+const invalidScalar = { ...scalarH8, id: 'invalid-scalar', workDays: [] };
+eq('lege scalaire kalender heeft geen effectieve werkblokken', hasConcreteWorkBlocks(invalidScalar), false);
+eq('lege scalaire kalender heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', invalidScalar), null);
+eq('lege scalaire kalender geeft een duidelijke validatiefout', solveError(hour12, invalidScalar), 'Kalender heeft geen werkdagen ingesteld');
 deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
 deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
 eq('12h wordt niet stil naar 1,5d afgerond', proposeTaskDurationConversion(hour12, 'days', h8), null);
@@ -216,8 +231,8 @@ const noBandsContext = createAppStoreContext();
 noBandsContext.store.getState().setUI({ enableHourPlanning: true });
 noBandsContext.store.getState().setProject({ defaultTaskDurationUnit: 'hours' });
 noBandsContext.store.getState().addTask({ name: 'Veilige dagtaak zonder werkblokken' });
-eq('urenprojectdefault maakt zonder concrete werkblokken geen onplanbare urentaak',
-  noBandsContext.store.getState().tasks[0]?.time.durationUnit, 'days');
+eq('urenprojectdefault maakt op de geldige scalaire standaardkalender een urentaak',
+  noBandsContext.store.getState().tasks[0]?.time.durationUnit, 'hours');
 const beforeUnitChange = store.getState().tasks[0]!;
 store.getState().updateTask(storeTaskId, {
   time: { ...beforeUnitChange.time, durationUnit: 'days', scheduleDuration: 2, durationMinutes: undefined },
@@ -266,6 +281,15 @@ eq('IFC roundtrip maakt geen concurrerende minutenbron op dagtaak', reloadedDay.
 eq('IFC roundtrip bewaart uur-unit', reloadedHour.time.durationUnit, 'hours');
 eq('IFC roundtrip bewaart minuten exact', reloadedHour.time.durationMinutes, 720);
 eq('IFC roundtrip bewaart projectstandaard', reloaded.project.defaultTaskDurationUnit, 'hours');
+
+const scalarIfc = writeIFC({
+  project: { ...project, calendarId: scalarH8.id }, calendar: scalarH8, tasks: [day2, hour12], sequences: [], resources: [], assignments: [],
+});
+eq('IFC exporteert de scalaire middagpauze wanneer een urentaak die kalender gebruikt',
+  scalarIfc.includes("IFCTIMEPERIOD('07:00:00','12:00:00')") && scalarIfc.includes("IFCTIMEPERIOD('13:00:00','16:00:00')"), true);
+eq('IFC-export muteert de scalaire kalender niet', scalarH8.workTime, undefined);
+const scalarReloadedHour = readIFC(scalarIfc).tasks.find((candidate) => candidate.name === 'hours')!;
+eq('IFC-roundtrip bewaart urentaak op scalaire kalender', scalarReloadedHour.time.durationMinutes, 720);
 
 if (failures.length > 0) {
   for (const failure of failures) console.log(`XX  ${failure}`);

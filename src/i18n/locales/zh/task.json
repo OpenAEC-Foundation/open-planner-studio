@@ -38,7 +38,7 @@
     "invalid": "请输入整数天数或小时数，例如 2d 或 12h。",
     "enableHourPlanningFirst": "请启用小时计划后再编辑此小时任务。",
     "enableHourPlanning": "启用小时计划",
-    "requiresWorkBlocks": "小时任务需要具有具体工作时间段的日历。请选择此类日历或添加工作时间。",
+    "requiresWorkBlocks": "此日历没有有效的工作时间。请检查工作日和工作时间。",
     "conversionNotExact": "此工期无法在当前日历中精确转换为整数天。现有单位将保留；请自行输入新的有效值。",
     "conversionProposal": "精确转换建议：{{value}}。应用该建议或保留当前单位。",
     "applyProposal": "应用建议",

@@ -1,5 +1,6 @@
 import type { Task } from '@/types/task';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 
 /**
  * Fase 2.8b (golf 4, ontwerpdoc §7) — gedeelde sub-dag-precisie-helpers voor de IFC/P6/MSPDI-
@@ -262,10 +263,9 @@ export function isHourCalendar(cal: WorkCalendar | undefined): boolean {
   return !!cal?.workTime;
 }
 
-/** Een urentaak kan pas gepland worden wanneer ten minste één concreet werkblok bestaat. */
+/** Een urentaak kan gepland worden wanneer expliciete óf afleidbare geldige werkbands bestaan. */
 export function hasConcreteWorkBlocks(calendar: WorkCalendar): boolean {
-  if (!calendar.workTime) return false;
-  return Object.values(calendar.workTime.byWeekday).some((bands) => bands.length > 0);
+  return !!effectiveWorkTimeBands(calendar);
 }
 
 /**

@@ -2,6 +2,7 @@ import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
 import type { SchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import {
@@ -312,16 +313,28 @@ export class CPMSolver {
     }
   }
 
-  /** Engine voor een concrete kalender (gecachet op kalender-id). */
-  private engineForCal(cal: WorkCalendar): CalendarEngine {
-    let e = this.engineCache.get(cal.id);
-    if (!e) { e = new CalendarEngine(cal); this.engineCache.set(cal.id, e); }
+  /**
+   * Engine voor een concrete kalender. Voor een urentaak materialiseren we een eventueel scalar
+   * model alléén in deze afgeleide engine; de persistente kalender en alle dagtaken blijven
+   * ongewijzigd daggranulair. De afzonderlijke cache-sleutel voorkomt een moduslek tussen beide.
+   */
+  private engineForCal(cal: WorkCalendar, effectiveHourBands = false): CalendarEngine {
+    const key = effectiveHourBands ? `${cal.id}\u0000effective-hour` : cal.id;
+    let e = this.engineCache.get(key);
+    if (!e) {
+      const engineCalendar = effectiveHourBands ? calendarWithEffectiveWorkTime(cal) : cal;
+      e = new CalendarEngine(engineCalendar ?? cal);
+      this.engineCache.set(key, e);
+    }
     return e;
   }
 
   /** De kalender-engine waarin de duur/constraints/float van `task` rekenen (§5.2). */
   private calendarFor(task: Task): CalendarEngine {
-    return this.engineForCal(resolveCalendar(task.calendarId, this.registry, this.projectCal));
+    return this.engineForCal(
+      resolveCalendar(task.calendarId, this.registry, this.projectCal),
+      taskDurationUnit(task) === 'hours',
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -933,7 +946,7 @@ export class CPMSolver {
       if (taskDurationUnit(task) === 'hours'
         && task.time.durationType === 'WORKTIME'
         && !this.calendarFor(task).isHourMode) {
-        return emptyResult(`Uurtaak "${task.name}" vereist een kalender met concrete werkblokken`);
+        return emptyResult(`Uurtaak "${task.name}" heeft geen geldige werktijden in zijn kalender`);
       }
     }
 
@@ -1476,6 +1489,7 @@ export class CPMSolver {
       if (task.timephasedDurationWalks && task.timephasedDurationWalks.length === 1) {
         const candidate = this.engineForCal(
           resolveCalendar(task.timephasedDurationWalks[0].resourceCalendarId, this.registry, this.projectCal),
+          taskDurationUnit(task) === 'hours',
         );
         if (candidate.isHourMode) progressCal = candidate;
       }
@@ -2214,7 +2228,7 @@ export class CPMSolver {
       if (durMin != null) {
         for (const walk of task.timephasedDurationWalks) {
           const resCal = resolveCalendar(walk.resourceCalendarId, this.registry, this.projectCal);
-          const resEng = this.engineForCal(resCal);
+          const resEng = this.engineForCal(resCal, taskDurationUnit(task) === 'hours');
           if (!resEng.isHourMode) continue;
           // Z19-apportionering: `workMinutes` (alleen gezet bij >1 toewijzing) wint van de volle
           // taakduur — zie het docblok hierboven.

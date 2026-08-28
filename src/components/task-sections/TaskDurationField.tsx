@@ -138,6 +138,16 @@ export function TaskDurationField({ task, calendar, onChange }: {
     showInfo();
   };
 
+  // Na het terugplaatsen van de bediening kan de browser een verlate mouseenter afleveren voor
+  // de positie die al onder de cursor lag. Een daadwerkelijke pointerbeweging op de nieuwe knop is
+  // wél nieuwe interactie en heft die wachttijd op; zo blijft de tooltip na herinschakelen dicht,
+  // maar werkt de eerstvolgende echte hover zonder een tweede rondje.
+  const showInfoOnPointerMove = () => {
+    if (!awaitFreshInfoHover.current) return;
+    awaitFreshInfoHover.current = false;
+    showInfo();
+  };
+
   const hideInfoOnMouseLeave = () => {
     awaitFreshInfoHover.current = false;
     setInfoVisible(false);
@@ -196,6 +206,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
                 aria-describedby={infoVisible ? infoId : undefined}
                 onMouseEnter={showInfoOnHover}
                 onMouseLeave={hideInfoOnMouseLeave}
+                onPointerMove={showInfoOnPointerMove}
                 onFocus={showInfo}
                 onBlur={() => setInfoVisible(false)}
                 data-ops-duration-info
