@@ -153,9 +153,39 @@ function engineForTask(
  *     -splits), met `splitGaps`-pauzedagen overgeslagen. Vóór B1c-W0.1 werd hier onvoorwaardelijk
  *     de projectkalender gebruikt en werden pauzedagen niet overgeslagen — beide zijn bewust
  *     gerepareerd gedrag, zie `docs/superpowers/specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md`
- *     §W0.
+ *     §W0. `enumerateTaskWorkDays` is dag-granulair: een gat dat in uur-modus is opgegeven wordt op
+ *     hele werkdagen afgerond (bestaand gedrag van `splitDayPattern`, zie `splitWalk.ts`).
+ *
+ *     BESLUIT — earlyFinish wordt genegeerd (behalve ELAPSEDTIME, zie hieronder): de mapping loopt
+ *     exact `scheduleDuration` werkdagen vanaf `earlyStart`, ongeacht wat `earlyFinish` zegt. Dat is
+ *     bewust: bij een STALE taak (opgeslagen datums achterhaald t.o.v. de invoer, bv. het
+ *     bezettingsoverzicht vóór een efemere doorrekening) lopen `scheduleDuration` en
+ *     `earlyStart..earlyFinish` per definitie uiteen. Zou de mapping op `earlyFinish` klemmen, dan
+ *     kapt ze de verdeling af op min(dagen, werkdagen-in-de-verouderde-spanne) — een uitkomst die
+ *     noch de oude, noch de nieuwe planning is. Door gewoon `scheduleDuration` dagen vanaf
+ *     `earlyStart` te lopen, blijft het TOTAAL van de curve altijd behouden (nooit stil een deel
+ *     laten verdwijnen) en landt de belasting herkenbaar op de oude datums totdat er echt herrekend
+ *     wordt — zie ook `docs/superpowers/specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md`
+ *     §W0. `enumerateTaskWorkDays` zelf kent hoe dan ook geen eindgrens (in tegenstelling tot
+ *     `computeSplitSegments` in `splitWalk.ts`, dat een renderer-balk wél op `taskEnd` klemt — een
+ *     balk MOET binnen zijn eigen grenzen tekenen; een lastlezer mag, en moet hier bewust, verder
+ *     lopen dan een verouderde `earlyFinish`).
+ *
+ *     UITZONDERING — ELAPSEDTIME: voor zo'n taak is `scheduleDuration` KALENDERdagen, niet
+ *     werkdagen (`duration.ts`'s `elapsedMinutesOf`-docblok) — `enumerateTaskWorkDays` zou dat getal
+ *     als werkdagen-telling lezen en voorbij `earlyFinish` doorlopen (bv. duur 10 over een spanne
+ *     met een weekend erin). Voor ELAPSEDTIME-taken blijft de mapping daarom de OUDE vorm:
+ *     `enumerateWorkDays(taskEngine, earlyStart, earlyFinish)` — de werkdagen van de taakkalender
+ *     BINNEN de opgegeven spanne (`splitGaps` wordt hier niet toegepast; ELAPSEDTIME-taken hebben in
+ *     de praktijk geen `splitGaps`). De bestaande min-klem in de accumulatielus (`i < days.length &&
+ *     i < workDayIsos.length`) zorgt dat een curve die méér dagen telt dan er werkdagen in de spanne
+ *     zitten, gewoon aan het eind afkapt — precies het gedrag van vóór B1c-W0.1.
  *  4. Capaciteit per resource per dag: maxUnits (met availabilitySteps) op werkdagen van de
  *     resource-kalender (of de projectkalender als geen calendarId gezet is), 0 op niet-werkdagen.
+ *     Dit is de RESOURCE-kalender, niet per se de taakkalender: werkt een taak (op haar eigen
+ *     kalender) op een dag die de resource-kalender niet als werkdag kent, dan is capaciteit daar 0
+ *     en telt de dag automatisch mee in `overallocatedDays` — bewust: de resource kán daar simpelweg
+ *     niet werken, dus is dat een echt (en niet een vals-positief) conflict.
  *  5. Materiaal telt gewoon mee voor overallocatie (leveler slaat het straks over, deze functie
  *     niet — expliciete beslissing, zie §4.2 punt 5).
  *  6. overallocatedDays = dagen waar load > capacity.
@@ -192,7 +222,12 @@ export function computeResourceLoad(
     if (days.length === 0) continue;
 
     const taskEngine = engineForTask(task, taskEngineCache, projectEngine, resourceCalendars, projectCalendar);
-    const workDayIsos = enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
+    // ELAPSEDTIME: scheduleDuration is KALENDERdagen, niet werkdagen (zie het docblok hierboven) —
+    // de oude, op earlyFinish geklemde mapping blijft hier gelden i.p.v. enumerateTaskWorkDays, die
+    // het getal als een werkdagen-telling zou lezen en voorbij earlyFinish zou doorlopen.
+    const workDayIsos = task.time.durationType === 'ELAPSEDTIME'
+      ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
+      : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
     const bucket = load[a.resourceId];
@@ -330,10 +365,14 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   for (const a of assignments) {
     const task = taskById.get(a.taskId);
     if (!task || task.isMilestone || task.childIds.length > 0) continue;
-    const dist = distributeUnits(a.unitsPerDay, task.time.scheduleDuration, a.curve ?? 'UNIFORM');
+    const durationDays = task.time.scheduleDuration;
+    const dist = distributeUnits(a.unitsPerDay, durationDays, a.curve ?? 'UNIFORM');
     if (dist.length === 0) continue;
     const taskEngine = engineForTask(task, taskEngineCache, projectEngine, calendars, calendar);
-    const workDayIsos = enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, task.time.scheduleDuration);
+    // ELAPSEDTIME: zelfde uitzondering als computeResourceLoad hierboven — zie het docblok daar.
+    const workDayIsos = task.time.durationType === 'ELAPSEDTIME'
+      ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
+      : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
     const daily = new Map<string, number>();
     for (let i = 0; i < dist.length && i < workDayIsos.length; i++) {
       const iso = workDayIsos[i];

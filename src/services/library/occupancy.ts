@@ -22,9 +22,15 @@
 //
 // VANGNET (§4.3, het gedrag van vóór 4.3b) — wanneer de efemere solve niet kan of faalt (geen
 // solve-invoer meegegeven, een relatiecyclus, een solverfout): dan telt het document NIET mee. Bij
-// een stale document lopen `scheduleDuration` en `earlyStart..earlyFinish` per definitie uiteen, en
-// `computeResourceLoad` kapt de verdeling af op min(dagen, werkdagen) — het resultaat is dan noch
-// de oude noch de nieuwe planning en kan echte conflictdagen als groen maskeren. Zulke documenten
+// een stale document lopen `scheduleDuration` en `earlyStart..earlyFinish` per definitie uiteen; dat
+// gaf vóór B1c-W0.1 een vervormd resultaat (`computeResourceLoad` kapte toen af op
+// min(scheduleDuration, werkdagen-in-de-verouderde-spanne)). Sinds B1c-W0.1 mapt
+// `computeResourceLoad` bewust exact `scheduleDuration` werkdagen vanaf het (verouderde)
+// `earlyStart` — geen afkap meer — dus zonder vangnet zou het document gewoon zijn OUDE planning
+// tonen, cijfermatig kloppend maar niet wat de gebruiker nu bedoelt (de invoer is inmiddels
+// veranderd, vandaar `scheduleStale`). Precies dáárvoor bestaat de efemere solve (§4.3b): een
+// document dat wél kan doorrekenen telt mee met VERSE cijfers; kan dat niet, dan telt het — nog
+// steeds — niet mee, zodat er nooit oude cijfers als actueel worden voorgespiegeld. Zulke documenten
 // blijven wél zichtbaar: elke boeking (= toewijzingen op aan het poolitem gestempelde resources)
 // verschijnt als ongetelde booking (`counted: false`) zonder cijfers, zodat er niets stil
 // verdwijnt en de gebruiker weet wat te doen (document activeren, F5).

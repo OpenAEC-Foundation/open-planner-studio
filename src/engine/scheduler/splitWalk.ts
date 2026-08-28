@@ -55,7 +55,11 @@
 // nooit een segmentgrens ná `taskEnd` opleveren, en al helemaal niet een segment dat achterstevoren
 // loopt (`end < start`) doordat de wandeling het taakeinde voorbij zou schieten. Een taak waarvan
 // `taskEnd <= taskStart` is (eveneens corrupte/hostiele input) levert daarom ook meteen kortsluiting
-// op: één segment `[taskStart, taskEnd]`, zonder de gaten-as ook maar aan te raken.
+// op: één segment `[taskStart, taskEnd]`, zonder de gaten-as ook maar aan te raken. `enumerateTaskWorkDays`
+// hieronder klemt bewust NIET op een taakeinde — die kent er geen: een renderer-balk MOET binnen
+// haar eigen grenzen tekenen, maar een lastlezer (`ResourceLoad`) mapt bewust exact `durationDays`
+// werkdagen vanaf `taskStart`, ook voorbij een (mogelijk verouderde) `earlyFinish` — zie het
+// earlyFinish-besluit in `ResourceLoad.ts`'s `computeResourceLoad`-docblok.
 //
 // Consumenten: `splitBarGeometry` (renderer/print), `ResourceLoad` (histogram/bezetting),
 // `ResourceLeveler` (boekhouding). Eén wandeling, drie lezers — dat is het hele punt van deze

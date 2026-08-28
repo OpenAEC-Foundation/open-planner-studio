@@ -12,6 +12,10 @@
 //     verdwijnt niet in de weeksom).
 //  4. Week-capaciteit: capaciteit 2/dag, 5 werkdagen, maar 2 belaste dagen ⇒ `capacity` = 10
 //     (niet 4 — de onderschattingsbug uit de review).
+//  5. (reviewronde taak 3, B1c-W0.1) Gesplitste taak (`splitGaps`) ⇒ de dagbuckets op de pauzedagen
+//     tonen géén last — `computeHistogramReport` deelt dezelfde `enumerateTaskWorkDays`-mapping als
+//     `computeResourceLoad`, maar had tot deze case geen eigen dekking (terugdraaien van de W0.1-fix
+//     in de histogram-helft bleef groen zonder deze test).
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { computeHistogramReport } from '@/engine/scheduler/ResourceLoad';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -131,6 +135,35 @@ test('week-capaciteit: 2/dag × 5 werkdagen = 10, ook al zijn maar 2 dagen belas
   // 2 belaste dagen (load 1+1=2), maar capaciteit telt alle 5 werkdagen van ma-vr: 5 × 2 = 10.
   assertEq(bucket.load, 2, 'week-load = 2 belaste dagen');
   assertEq(bucket.capacity, 10, 'week-capaciteit = 5 werkdagen × maxUnits 2 (niet 4)');
+});
+
+// ── Eis 5 (reviewronde taak 3): gesplitste taak ⇒ dagbuckets op de pauzedagen zijn leeg ──────────
+test('gesplitste taak: histogram-dagbuckets tonen geen last op de pauzedagen', () => {
+  cleanProject();
+  const rId = S().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 2 });
+  // Zelfde referentiegaten als check-split-walk.ts/check-resource-load-splits.ts: taak 06-01..06-05
+  // (CPM rekent earlyFinish uit inclusief de twee gat-dagen), werkt op 06-01/06-03/06-05.
+  const t1 = S().addTask({
+    name: 'T1', isMilestone: false, parentId: null,
+    time: createDefaultTaskTime('2026-06-01', 3),
+    splitGaps: [
+      { afterMinutes: 480, gapMinutes: 480 },
+      { afterMinutes: 1440, gapMinutes: 480 },
+    ],
+  });
+  S().assignResource(t1, rId, 1);
+  S().runCPM();
+  assertEq(S().tasks.find(t => t.id === t1)!.time.earlyFinish, '2026-06-05', 'setup: CPM rekent de gaten mee in earlyFinish');
+
+  const report = computeHistogramReport({ ...sources(), bucket: 'dag' });
+  const res = report.resources.find(r => r.resourceId === rId)!;
+  const onDay = (iso: string) => res.buckets.find(b => b.start === iso);
+
+  assertEq(onDay('2026-06-01')?.load, 1, 'werkdag 06-01 draagt last');
+  assertEq(onDay('2026-06-02')?.load, 0, 'pauzedag 06-02 draagt geen last');
+  assertEq(onDay('2026-06-03')?.load, 1, 'werkdag 06-03 (ná het eerste gat) draagt last');
+  assertEq(onDay('2026-06-04')?.load, 0, 'pauzedag 06-04 draagt geen last');
+  assertEq(onDay('2026-06-05')?.load, 1, 'werkdag 06-05 (ná het tweede gat) draagt last');
 });
 
 await run();
