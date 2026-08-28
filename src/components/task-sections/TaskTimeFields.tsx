@@ -43,7 +43,10 @@ export function TaskTimeFields({ task, onChange }: {
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
       <span className="ui-card-header !text-xs">{t('properties.time')}</span>
 
-      <div className="grid grid-cols-2 gap-2">
+      {/* In de smalle rechterrail zou de helft van een tweekolomsrij de duurwaarde weer tot een
+          strookje drukken. Start en duur blijven dezelfde velden, maar krijgen hier elk de volle
+          paneelbreedte; de dialoog heeft onafhankelijk daarvan voldoende ruimte voor twee kolommen. */}
+      <div className="grid grid-cols-1 gap-2">
         <Field label={t('properties.start')}>
           <DateTextInput
             className="input !text-xs !px-2.5 !py-1.5"

@@ -75,6 +75,47 @@ test('dialoog en eigenschappenpaneel gebruiken exact dezelfde duurbediening en s
   }, taskId)).toEqual({ unit: 'days', days: 2, minutes: undefined });
 });
 
+test('duurwaarde blijft de brede primaire invoer met controls op normale, gelijke hoogte', async ({ page, ops: _ops }) => {
+  const taskId = await seedDurationTask(page);
+  const panelDuration = page.locator('[data-ops-task-duration]').first();
+
+  const panelGeometry = await panelDuration.evaluate((field) => {
+    const input = field.querySelector<HTMLElement>('[data-ops-duration-value]')!;
+    const unit = field.querySelector<HTMLElement>('[aria-label="Duration unit"]')!;
+    const info = field.querySelector<HTMLElement>('[data-ops-duration-info]')!;
+    const rect = (element: HTMLElement) => element.getBoundingClientRect();
+    return {
+      input: { width: rect(input).width, height: rect(input).height },
+      unit: { width: rect(unit).width, height: rect(unit).height },
+      info: { width: rect(info).width, height: rect(info).height },
+    };
+  });
+
+  expect(panelGeometry.input.width).toBeGreaterThan(panelGeometry.unit.width);
+  expect(panelGeometry.input.height).toBeGreaterThanOrEqual(32);
+  expect(Math.abs(panelGeometry.input.height - panelGeometry.unit.height)).toBeLessThanOrEqual(2);
+  expect(Math.abs(panelGeometry.info.height - panelGeometry.unit.height)).toBeLessThanOrEqual(2);
+
+  await openDialog(page, taskId);
+  const dialogDuration = page.getByRole('dialog').locator('[data-ops-task-duration]');
+  const dialogGeometry = await dialogDuration.evaluate((field) => {
+    const input = field.querySelector<HTMLElement>('[data-ops-duration-value]')!;
+    const unit = field.querySelector<HTMLElement>('[aria-label="Duration unit"]')!;
+    const info = field.querySelector<HTMLElement>('[data-ops-duration-info]')!;
+    const rect = (element: HTMLElement) => element.getBoundingClientRect();
+    return {
+      input: { width: rect(input).width, height: rect(input).height },
+      unit: { width: rect(unit).width, height: rect(unit).height },
+      info: { width: rect(info).width, height: rect(info).height },
+    };
+  });
+
+  expect(dialogGeometry.input.width).toBeGreaterThan(dialogGeometry.unit.width);
+  expect(dialogGeometry.input.height).toBeGreaterThanOrEqual(32);
+  expect(Math.abs(dialogGeometry.input.height - dialogGeometry.unit.height)).toBeLessThanOrEqual(2);
+  expect(Math.abs(dialogGeometry.info.height - dialogGeometry.unit.height)).toBeLessThanOrEqual(2);
+});
+
 test('duurinfo is met hover en toetsenbordfocus bereikbaar en legt het vaste contract uit', async ({ page, ops: _ops }) => {
   await seedDurationTask(page);
   const info = page.locator('[data-ops-duration-info]').first();

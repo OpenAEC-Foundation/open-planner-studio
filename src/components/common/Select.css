@@ -39,6 +39,13 @@
   cursor: not-allowed;
 }
 
+/* Een taakeenheid is een kort suffix naast een waardeveld. Houd de trigger daarom compact zonder
+   de normale controlhoogte of leesbaarheid van het gekozen woord op te offeren. */
+.ops-select__trigger.ops-select__trigger--duration {
+  gap: var(--sp-1);
+  padding-inline: var(--sp-1);
+}
+
 .ops-select__value {
   /* Zonder `min-width: 0` blijft dit een flex-item met `min-width: auto`, en omdat de tekst
      `white-space: nowrap` heeft is de min-content-breedte gelijk aan de volledige, ongewrapte

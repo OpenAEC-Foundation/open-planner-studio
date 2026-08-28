@@ -109,7 +109,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
 
   return (
     <div className="flex flex-col gap-1.5" data-ops-task-duration>
-      <div className="flex items-center gap-1.5">
+      <div className="flex min-w-0 items-center gap-1.5">
         <input
           type="text"
           value={value}
@@ -123,23 +123,26 @@ export function TaskDurationField({ task, calendar, onChange }: {
           }}
           disabled={derived || hourEditBlocked}
           aria-label={t('duration.label')}
-          className="input !text-xs !px-2.5 !py-1.5 min-w-0 flex-1 disabled:opacity-50"
+          className="input min-w-0 flex-1 disabled:opacity-50"
           data-ops-duration-value
         />
-        <Select
-          aria-label={t('duration.unit')}
-          value={task.time.durationUnit}
-          onChange={(next) => requestUnit(next as TaskDurationUnit)}
-          disabled={derived || hourEditBlocked}
-          options={[
-            { value: 'days', label: t('duration.days') },
-            { value: 'hours', label: t('duration.hours') },
-          ]}
-        />
-        <span className="relative inline-flex">
+        <div className="w-20 shrink-0">
+          <Select
+            aria-label={t('duration.unit')}
+            className="ops-select__trigger--duration"
+            value={task.time.durationUnit}
+            onChange={(next) => requestUnit(next as TaskDurationUnit)}
+            disabled={derived || hourEditBlocked}
+            options={[
+              { value: 'days', label: t('duration.days') },
+              { value: 'hours', label: t('duration.hours') },
+            ]}
+          />
+        </div>
+        <span className="relative inline-flex aspect-square shrink-0 self-stretch">
           <button
             type="button"
-            className="p-1 rounded-[5px] text-text-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            className="inline-flex h-full w-full items-center justify-center rounded-[5px] text-text-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             aria-label={t('duration.unitInfo')}
             aria-describedby={infoVisible ? infoId : undefined}
             onMouseEnter={() => setInfoVisible(true)}
