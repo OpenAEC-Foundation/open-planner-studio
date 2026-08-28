@@ -537,6 +537,83 @@ console.log('-- leveler-splits: taak op ruimere kalender dan haar resource krijg
   ok('geen onopgeloste conflicten', Object.keys(r11.unresolved).length === 0);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 12 (eindpoortronde W0, showcase "rijwoningen-de-akkers"): een VOLTOOIDE taak
+// (`completion>=1 && actualFinish`) is ONVERPLAATSBAAR — nooit een `levelingDelay`, want
+// `CPMSolver.forwardPass`'s VOLTOOID-tak plant haar onvoorwaardelijk op haar actuals en negeert
+// `levelingDelay` volledig (een delay zou een stille no-op zijn — precies de showcase-bevinding:
+// House 1 kreeg voorheen `levelingDelay=15`, maar bleef gewoon op haar actuals staan, en het
+// conflict met House 2 herleefde stil zonder dat `unresolved` het meldde). Haar vraag telt WEL als
+// vaste last in het grootboek.
+//
+// SCENARIOKEUZE — priority bewust OMGEDRAAID (H1 laag, concurrent hoog): zonder dat zou de
+// eligibility-sortering H1 toevallig ALS EERSTE plaatsen (gelijke prioriteit, stabiele
+// aanmaakvolgorde), en dan zou zelfs de OUDE code (die een voltooide taak nog als een gewone
+// movable taak behandelt) hem nooit hoeven te verschuiven — geen bewijskracht. Met H1 op lage
+// prioriteit test dit geval het ECHTE verschil: vóór deze fix zou de hoger-geprioriteerde
+// concurrent EERST het vak claimen en zou H1 (behandeld als gewone movable taak) daarna MOETEN
+// wijken — een `levelingDelay` krijgen die `CPMSolver.forwardPass`'s VOLTOOID-tak straks gewoon
+// negeert, zodat H1 in werkelijkheid op haar actuals blijft staan terwijl de concurrent DENKT het
+// veld voor zich te hebben: een stille, herlevende dubbele boeking — exact de showcase-bevinding
+// (House 1 kreeg `levelingDelay=15`, bleef op haar actuals, conflict met House 2 herleefde stil).
+//
+// Sub-geval A: concurrent met ELDERS ruimte (geen smoothing-venster) moet er ECHT omheen —
+// waarneembare boeking (net als geval 4/10), dus GEEN onopgeloste conflicten.
+// Sub-geval B: eerlijkheid van `unresolved` — een concurrent ZONDER speling (nul totale float, want
+// ze deelt met H1b de laatste earlyFinish van het tweetal-universum) kan nergens anders heen binnen
+// haar smoothing-venster (`constrainToFloat: true`) en moet dus ECHT (en ALLEEN zij, niet H1b) in
+// `unresolved` belanden.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: voltooide taak is onverplaatsbaar, boekt als vaste last (geval 12) --');
+{
+  // Sub-geval A: concurrent met speling routeert er succesvol omheen.
+  const h1aBase = task('h1a', '2026-06-01', '2026-06-01', 1, { priority: 100 }); // laag — zie SCENARIOKEUZE
+  const h1a: Task = {
+    ...h1aBase,
+    time: { ...h1aBase.time, completion: 1, actualStart: '2026-06-01', actualFinish: '2026-06-01' },
+  };
+  const h2a = task('h2a', '2026-06-01', '2026-06-01', 1, { priority: 900 }); // hoog
+
+  const resourceRA = res('r12a', 1);
+  const assignmentsA = [assign('h1a-r12a', 'h1a', 'r12a', 1), assign('h2a-r12a', 'h2a', 'r12a', 1)];
+
+  const cpmResultA = stubCpmResult('2026-06-01');
+  const r12a = levelResources(
+    [h1a, h2a], [], [resourceRA], assignmentsA, PROJECT_CAL, [], cpmResultA, LEVEL_OPTS,
+  );
+
+  eq('H1 (voltooid, LAGE prioriteit) krijgt NOOIT een levelingDelay — negeert de prioriteitsstrijd volledig',
+    r12a.delays['h1a'], undefined);
+  ok('H2 (hoge prioriteit) wijkt écht: H1\'s boeking is een vaste last, waarneembaar via een echte delay ondanks haar hogere prioriteit',
+    (r12a.delays['h2a'] ?? 0) > 0);
+  ok('sub-geval A is volledig opgelost — geen onopgeloste conflicten', Object.keys(r12a.unresolved).length === 0);
+
+  // Sub-geval B: concurrent ZONDER speling (nul float — deelt de laatste earlyFinish met H1b, er is
+  // niets dat haar verder kan absorberen) belandt eerlijk in `unresolved`, ipv stil te verdwijnen —
+  // en H1b zelf mag daar NOOIT in verschijnen (ze doet niet eens mee aan de eligibility-lus).
+  const h1bBase = task('h1b', '2026-06-01', '2026-06-01', 1, { priority: 100 }); // laag
+  const h1b: Task = {
+    ...h1bBase,
+    time: { ...h1bBase.time, completion: 1, actualStart: '2026-06-01', actualFinish: '2026-06-01' },
+  };
+  const h3 = task('h3', '2026-06-01', '2026-06-01', 1, { priority: 900 }); // hoog
+
+  const resourceRB = res('r12b', 1);
+  const assignmentsB = [assign('h1b-r12b', 'h1b', 'r12b', 1), assign('h3-r12b', 'h3', 'r12b', 1)];
+
+  const cpmResultB = stubCpmResult('2026-06-01');
+  const SMOOTH_OPTS: LevelingOptions = { constrainToFloat: true };
+  const r12b = levelResources(
+    [h1b, h3], [], [resourceRB], assignmentsB, PROJECT_CAL, [], cpmResultB, SMOOTH_OPTS,
+  );
+
+  eq('H1b (voltooid) krijgt NOOIT een levelingDelay, ook niet in smoothing-modus', r12b.delays['h1b'], undefined);
+  eq('H3 krijgt geen delay (bleef op haar eigen PF staan — het venster liet geen slot toe)',
+    r12b.delays['h3'], undefined);
+  eq('ALLEEN H3 belandt in unresolved — H1b doet niet mee aan de eligibility-lus en kan er dus nooit in staan',
+    Object.keys(r12b.unresolved).sort(), ['h3']);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveler-splits: alle checks groen (${checks})`);

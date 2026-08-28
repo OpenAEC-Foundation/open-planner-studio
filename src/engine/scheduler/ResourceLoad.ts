@@ -190,6 +190,21 @@ function engineForTask(
  *     zijn. De bestaande min-klem in de accumulatielus (`i < days.length && i < workDayIsos.length`)
  *     zorgt dat een curve die méér dagen telt dan er werkdagen in de spanne zitten, gewoon aan het
  *     eind afkapt.
+ *
+ *     TWEEDE UITZONDERING — VOLTOOID (`completion >= 1 && actualFinish`, eindpoortronde W0): dezelfde
+ *     `enumerateWorkDays(taskEngine, earlyStart, earlyFinish)`-vorm als de ELAPSEDTIME-tak, om een
+ *     andere reden. Het BESLUIT hierboven ("earlyFinish wordt genegeerd") rust op de aanname dat
+ *     `earlyFinish` STALE kan zijn t.o.v. `scheduleDuration` — maar voor een VOLTOOIDE taak is
+ *     `earlyFinish` niet stale, hij is GEZAGHEBBEND: `CPMSolver.forwardPass`'s VOLTOOID-tak heeft hem
+ *     zojuist onvoorwaardelijk uit `actualStart`/`actualFinish` afgeleid (§ "VOLTOOID: volledig gepind
+ *     op actuals" aldaar), niet uit `scheduleDuration`. De stale-data-rechtvaardiging geldt hier dus
+ *     niet, en `scheduleDuration` werkdagen vanaf `earlyStart` doorlopen kan een reëel voltooide taak
+ *     over een feestdagenblok heen laten doorschieten — precies het scenario van de showcase
+ *     "rijwoningen-de-akkers" (Roof structure — House 1: completion=1, CPM-earlyFinish 05-04 via
+ *     `snapOnOrBefore`, maar `scheduleDuration`=5 werkdagen vanaf `earlyStart` 04-29 landt via het
+ *     05-05/05-06-feestdagenblok op 05-07 — House 2's eigen startdag, een fantoomoverallocatie).
+ *     Splits/gaten worden ook hier niet toegepast (zelfde begrensde beperking als de ELAPSEDTIME-tak):
+ *     een voltooide taak se echte verloop staat al vast in de actuals, niet in `splitGaps`.
  *  4. Capaciteit per resource per dag: maxUnits (met availabilitySteps) op werkdagen van de
  *     resource-kalender (of de projectkalender als geen calendarId gezet is), 0 op niet-werkdagen.
  *     Dit is de RESOURCE-kalender, niet per se de taakkalender: werkt een taak (op haar eigen
@@ -235,7 +250,9 @@ export function computeResourceLoad(
     // ELAPSEDTIME: scheduleDuration is KALENDERdagen, niet werkdagen (zie het docblok hierboven) —
     // de oude, op earlyFinish geklemde mapping blijft hier gelden i.p.v. enumerateTaskWorkDays, die
     // het getal als een werkdagen-telling zou lezen en voorbij earlyFinish zou doorlopen.
-    const workDayIsos = task.time.durationType === 'ELAPSEDTIME'
+    // VOLTOOID (eindpoortronde W0): earlyFinish is voor zo'n taak GEZAGHEBBEND, niet stale (zie het
+    // docblok hierboven) — dezelfde op-earlyFinish-geklemde vorm, andere reden.
+    const workDayIsos = task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
       ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
       : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 
@@ -379,8 +396,9 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     const dist = distributeUnits(a.unitsPerDay, durationDays, a.curve ?? 'UNIFORM');
     if (dist.length === 0) continue;
     const taskEngine = engineForTask(task, taskEngineCache, projectEngine, calendars, calendar);
-    // ELAPSEDTIME: zelfde uitzondering als computeResourceLoad hierboven — zie het docblok daar.
-    const workDayIsos = task.time.durationType === 'ELAPSEDTIME'
+    // ELAPSEDTIME/VOLTOOID: zelfde twee uitzonderingen als computeResourceLoad hierboven — zie het
+    // docblok daar.
+    const workDayIsos = task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
       ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
       : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
     const daily = new Map<string, number>();

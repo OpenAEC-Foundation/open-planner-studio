@@ -190,6 +190,49 @@ console.log('-- resource-load-splits: ELAPSEDTIME — belasting stopt op earlyFi
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// (d) VOLTOOID (eindpoortronde W0): een voltooide taak (`completion>=1 && actualFinish`) mapt op
+// `earlyStart..earlyFinish` — GEEN `scheduleDuration`-werkdagenwandeling — omdat `earlyFinish` voor
+// zo'n taak GEZAGHEBBEND is (CPMSolver.forwardPass's VOLTOOID-tak leidt hem onvoorwaardelijk uit de
+// actuals af), niet stale. Nagebouwde showcase-bevinding "rijwoningen-de-akkers" in het klein: taak
+// D (completion=1, actualStart/-Finish 06-01..06-03) is echt in 3 kalenderdagen klaar, maar draagt
+// nog `scheduleDuration=5` (het oorspronkelijke, ingehaalde plan). Een feestdagenblok op 06-04/06-05
+// (net ná haar echte earlyFinish) zit precies in het gat tussen "waar earlyFinish zegt dat ze stopt"
+// en "waar een 5-WERKDAGEN-wandeling vanaf earlyStart zou landen als de feestdagen worden
+// overgeslagen" — vóór deze fix zou die wandeling doorlopen tot 06-08/06-09 (twee dagen voorbij haar
+// echte einde), precies het "House 1 duwt een fantoomlast op House 2's startdag"-patroon.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- resource-load-splits: VOLTOOIDE taak mapt op earlyStart..earlyFinish, niet voorbij (geval d) --');
+{
+  // Ma-vr, met een feestdagenblok op do 06-04/vr 06-05 — net ná de taak se echte einde (06-03).
+  const HOLIDAY_CAL: WorkCalendar = {
+    id: 'cal-holiday-load', name: 'feestdagen', description: '', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
+    holidays: [
+      { name: 'blokvakantie', startDate: '2026-06-04', endDate: '2026-06-05' },
+    ],
+  };
+  const base = task('t-d', '2026-06-01', '2026-06-03', 5); // scheduleDuration=5: het (stale) oorspronkelijke plan
+  const taskD: Task = {
+    ...base,
+    time: { ...base.time, completion: 1, actualStart: '2026-06-01', actualFinish: '2026-06-03' },
+  };
+  const resourceR = res('r-d', 5);
+  const assignments = [assign('a-d', 't-d', 'r-d', 1)];
+
+  const result = computeResourceLoad([resourceR], assignments, [taskD], HOLIDAY_CAL, []);
+  const daily = result.load['r-d'] ?? {};
+
+  eq('laatste echte werkdag (06-03, earlyFinish) draagt last', daily['2026-06-03'], 1);
+  eq('06-08 (voorbij earlyFinish, de oude 5-werkdagen-wandeling-bug) draagt geen last', daily['2026-06-08'], undefined);
+  eq('06-09 (voorbij earlyFinish, idem) draagt geen last', daily['2026-06-09'], undefined);
+  eq(
+    'exact de 3 echte werkdagen binnen 06-01..06-03, geen dag erbuiten',
+    Object.keys(daily).sort(),
+    ['2026-06-01', '2026-06-02', '2026-06-03'],
+  );
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  resource-load-splits: alle checks groen (${checks})`);

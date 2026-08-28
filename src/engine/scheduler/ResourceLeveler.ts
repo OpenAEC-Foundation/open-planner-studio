@@ -11,8 +11,12 @@
 //    vastgepinde taken (priority 1000) lopen door de lus: ze schuiven NIET voor capaciteit, maar
 //    volgen wél hun (mogelijk verschoven) voorgangers — MSP "Do Not Level"-semantiek (§5.4, A4).
 //  - De eligibility-lus kiest telkens de hoogst gesorteerde taak (§5.2) waarvan álle voorgangers
-//    al een definitieve positie hebben; niet-verschuifbare taken (geen vraag / mijlpaal / summary)
-//    gelden meteen als geplaatst.
+//    al een definitieve positie hebben; niet-verschuifbare taken (geen vraag / mijlpaal / summary /
+//    VOLTOOID — `completion >= 1 && actualFinish`, eindpoortronde W0) gelden meteen als geplaatst.
+//    Een voltooide taak boekt haar vraag WEL als vaste last (op haar eigen actuals-gedreven
+//    positie, vóór de eligibility-lus, zie `fixedLoadIds`), maar krijgt NOOIT een `levelingDelay` —
+//    `CPMSolver.forwardPass`'s VOLTOOID-tak plant zo'n taak onvoorwaardelijk op `actualStart`/
+//    `actualFinish` en negeert `levelingDelay` volledig, dus een delay zou een stille no-op zijn.
 //  - PF wordt afgeleid door de bestaande `CPMSolver` te herdraaien op een werkkopie waarin de
 //    al-geplaatste taken hun `levelingDelay` hebben en de gekozen taak (nog) niet — dan is de ES
 //    van de gekozen taak per constructie zijn PF, mét volledige relatie-/lag-/constraint-logica.
@@ -216,10 +220,19 @@ export function levelResources(
   // `startDate` die ergens bovenstrooms toch een Invalid Date bleek) levert GEEN boeking op (`[]`) —
   // de taak wordt overgeslagen, zoals de baseline-solve zelf ook degradeert i.p.v. te crashen (§169-
   // 172 hierboven) — i.p.v. een `RangeError` verderop in `formatDate`/`toISOString` op een Invalid Date.
+  // VOLTOOID (eindpoortronde W0): dezelfde vorm als de ELAPSEDTIME-tak, samengevoegd tot één
+  // conditie — earlyFinish is voor zo'n taak niet stale maar GEZAGHEBBEND (CPMSolver.forwardPass's
+  // VOLTOOID-tak, ~regel 1420-1456, plant onvoorwaardelijk op actualStart/actualFinish), zie het
+  // BESLUIT bij `ResourceLoad.ts`'s docblok voor de volledige motivering (die twee functies delen nu
+  // exact deze conditie). Voor een voltooide taak boekt de leveler ALTIJD op haar eigen (ongeschoven)
+  // positie — zie `fixedLoadIds` hieronder — dus `shiftDays` is hier in de praktijk 0, maar de
+  // vertaalde vorm wordt bewust hergebruikt i.p.v. een aparte kale variant: één formule, geen tweede
+  // die stil kan afdrijven.
+  const isCompletedTask = (task: Task): boolean => task.time.completion >= 1 && !!task.time.actualFinish;
   const occurrenceFor = (task: Task, startDate: Date): string[] => {
     if (isNaN(startDate.getTime())) return [];
     const taskEngine = engineForTask(task);
-    if (task.time.durationType === 'ELAPSEDTIME') {
+    if (task.time.durationType === 'ELAPSEDTIME' || isCompletedTask(task)) {
       const base = baseline.tasks.get(task.id);
       const rawStart = base?.earlyStart ?? task.time.earlyStart;
       const rawFinish = base?.earlyFinish ?? task.time.earlyFinish;
@@ -254,12 +267,18 @@ export function levelResources(
     }
   }
 
-  // Indeling: movable (mag schuiven) vs. gefixeerd (vastgepind of geen vraag op selectie).
+  // Indeling: movable (mag schuiven) vs. gefixeerd (vastgepind) vs. ONVERPLAATSBAAR (voltooid,
+  // eindpoortronde W0) vs. geen vraag op selectie. Een voltooide taak (§5.4-uitbreiding: `completion
+  // >= 1 && actualFinish`) is geen "vastgepind" (priority 1000, volgt nog wél voorgangers via PF) —
+  // ze is nog strenger: ze staat ONVOORWAARDELIJK op haar actuals, ongeacht priority, en gaat dus NOOIT
+  // door `findSlot` OF het pinned-pad. Zie `fixedLoadIds` hieronder voor de boeking.
   const hasDemand = (id: string) => demandByTask.has(id);
   const movableIds: string[] = [];
   const pinnedIds: string[] = [];
+  const fixedLoadIds: string[] = [];
   for (const t of tasks) {
     if (!hasDemand(t.id)) continue;             // geen vraag op geselecteerde renewables → niet verschuiven
+    if (isCompletedTask(t)) { fixedLoadIds.push(t.id); continue; } // voltooid — vóór de pin-check
     if (t.priority === 1000) pinnedIds.push(t.id); // vastgepind (§5.4)
     else movableIds.push(t.id);
   }
@@ -333,12 +352,30 @@ export function levelResources(
     return creationIndex.get(a)! - creationIndex.get(b)!;
   };
   // Zowel movable als pinned lopen door de lus (pinned volgt voorgangers, maar schuift niet voor
-  // capaciteit — A4). Niet-actieve taken (geen vraag / mijlpaal / summary) gelden meteen als geplaatst.
+  // capaciteit — A4). Niet-actieve taken (geen vraag / mijlpaal / summary / VOLTOOID) gelden meteen
+  // als geplaatst — `fixedLoadIds` zit hier bewust ook niet in `active`.
   const active = new Set<string>([...pinnedIds, ...movableIds]);
   const sortedActive = [...active].sort(cmp);
 
   const placed = new Set<string>();
   for (const t of tasks) if (!active.has(t.id)) placed.add(t.id);
+
+  // VOLTOOID (eindpoortronde W0): vóór de eligibility-lus als VASTE LAST geboekt — op hun EIGEN
+  // (ongeschoven) baseline-earlyStart, nooit een levelingDelay. `placed` bevat ze al (hierboven, via
+  // de `!active.has`-lus); dit boekt alleen hun vraag zodat movable/vastgepinde taken die er straks
+  // langs moeten het conflict ECHT zien. Reden waarom dit NIET via het pinned-pad in de hoofdlus kan:
+  // `CPMSolver.forwardPass`'s VOLTOOID-tak (~regel 1420-1456 in CPMSolver.ts) plant deze taken
+  // onvoorwaardelijk op `actualStart`/`actualFinish` en NEGEERT `levelingDelay` volledig — een delay
+  // toekennen zou een stille no-op zijn (het conflict herleeft na de volgende `runCPM`, `unresolved`
+  // zou dan ten onrechte leeg blijven terwijl er wél een botsing is). Vandaar: geen delay-poging, geen
+  // findSlot-scan, alleen de boeking — het conflict blijft zichtbaar via de MOVABLE/PINNED taken die
+  // er straks omheen moeten (of, bij een botsing tussen twee voltooide taken onderling, blijft gewoon
+  // bestaan — dat is dan een ECHTE, gerapporteerde overallocatie, geen leveler-taak om op te lossen).
+  for (const id of fixedLoadIds) {
+    const startIso = baseEs(id);
+    bookDemandAt(id, parseDate(startIso));
+    placedStartIso.set(id, startIso);
+  }
 
   const delays: Record<string, number> = {};
   const unresolved: Record<string, string[]> = {};
