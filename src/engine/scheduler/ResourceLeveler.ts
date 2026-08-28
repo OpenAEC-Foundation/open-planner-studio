@@ -298,8 +298,25 @@ export function levelResources(
     return occ;
   };
 
-  // Zoekhorizon: i.p.v. een vaste 5000-dagen-scan (A3b) een data-gedreven grens — zelfs een volledig
+  // Zoekhorizon: i.p.v. een vaste 5000-dagen-scan (A3b) een data-gedreven grens — een volledig
   // geserialiseerde plaatsing (elke taak achter elkaar) past binnen de som van alle taakduren + marge.
+  //
+  // L4 (slotronde taak 4): dit is sinds C1/C2 een ONDERGRENS-argument, geen exacte garantie. Twee
+  // redenen waarom de kandidaat-scan méér STAPPEN kan nodig hebben dan `totalWork` (in werkdagen)
+  // suggereert:
+  //  - ELAPSEDTIME-kandidaten stappen per KALENDERdag (`nextCandidateAfterFor`), niet per werkdag —
+  //    de horizon in KALENDERDAGEN is dus krapper dan in werkdagen (ruwweg 5/7 van `scanLimit`
+  //    werkdagen-equivalent aan kalenderdagen-stappen, bij een ma-vr-kalender): elke week kost twee
+  //    "verspilde" stappen (za/zo) die geen werkdag opleveren.
+  //  - een gesplitste taak (`splitGaps`) beslaat MEER kalenderdagen dan haar `scheduleDuration` (die
+  //    telt alleen werkdagen, de pauzedagen zitten er niet in) — `totalWork` telt dus de werk-INHOUD,
+  //    niet de volle kalenderspanne die een serialisatie van gesplitste taken werkelijk in beslag zou
+  //    nemen.
+  // De `+10`/`Math.max(…, 30)`-marge ving dit tot dusver in de praktijk op (geen enkele bestaande case
+  // of nieuwe testcase raakt de grens), maar is bewust geen wiskundig bewijs — een pathologisch
+  // scenario (veel korte ELAPSEDTIME-taken, elk met een spanne die net in een weekend valt) kan de
+  // grens in theorie nog raken. Vergroot de marge dan, i.p.v. de grens helemaal te laten vallen (de
+  // A3b-motivatie — een vaste 5000-dagen-scan was traag op grote projecten — blijft gelden).
   const totalWork = tasks.reduce((sum, t) => sum + (t.isMilestone ? 0 : Math.max(0, t.time.scheduleDuration)), 0);
   const scanLimit = Math.max(totalWork + 10, 30);
 
@@ -457,7 +474,19 @@ export function levelResources(
     while (guard++ < scanLimit) {
       const occ = occurrenceFor(task, cand);
       if (!calendarFeasibleSeen && calendarOk(byRes, occ)) calendarFeasibleSeen = true;
-      if (fits(byRes, occ)) return { start: cand, unresolved: [] };
+      // L1 (slotronde taak 4): een LEEG kandidaatvenster (`occ.length === 0`) telt NIET als passend.
+      // `fits` is triviaal waar op een lege dagenset (de binnenlus over `occ` loopt gewoon nul keer),
+      // en sinds ELAPSEDTIME-kandidaten per KALENDERdag stappen (C1/C2) kan een korte elapsed-spanne
+      // volledig in een weekend vallen — dan levert `occurrenceFor` `[]` (geen enkele projectkalender-
+      // werkdag in die spanne). Zonder deze guard "past" de taak daar, wordt ze daar geplaatst, en
+      // verdwijnt haar vraag stilzwijgend uit het boekhoudgrootboek (niets wordt geboekt, want
+      // `bookDemandAt` boekt ook via `occurrenceFor` en loopt dus over dezelfde lege set) — reviewer-
+      // probe L: D bezet vrijdag, E (elapsed, duur 1) krijgt delay 1 maar haar vraag ontbreekt volledig
+      // in het grootboek. BEWUST NIET `calendarOk` als extra voorwaarde: die is STRENGER dan nodig — hij
+      // eist dat ELKE vraagdag een resource-werkdag heeft, wat geval 4's bewuste min-klem (een
+      // vraag-array die langer is dan `occ`, `i < arr.length && i < occ.length`) ten onrechte zou laten
+      // afketsen. `occ.length > 0` is de minimale, correcte voorwaarde: er moet gewoon IETS te boeken zijn.
+      if (occ.length > 0 && fits(byRes, occ)) return { start: cand, unresolved: [] };
       const next = nextCandidateAfterFor(task, cand);
       if (ls && next > ls) break; // volgende kandidaat valt buiten de float — geen slot
       cand = next;

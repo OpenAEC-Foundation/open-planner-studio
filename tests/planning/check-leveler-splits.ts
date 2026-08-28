@@ -414,14 +414,25 @@ console.log('-- leveler-splits: verse baseline-spanne wint van een stale opgesla
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Geval 9 (I4, probe G): lege/onparseerbare `earlyStart`/`earlyFinish` op een ELAPSEDTIME-taak
-// mogen `bookDemandAt`/`occurrenceFor` niet laten crashen (`RangeError` via `formatDate`/
-// `toISOString` op een Invalid Date, ontstaan uit `addCalendarDays(parseDate(''), …)`). Taak K heeft
-// een geldige `scheduleStart` (de baseline-solve slaagt dus gewoon) maar LEGE `earlyStart`/
-// `earlyFinish` op het binnenkomende taakobject — precies de categorie "stale/gewiste cache-velden"
-// die deze module elders al als input verwacht. De VERSE baseline (I3) levert voor deze taak sowieso
-// een geldige, herrekende spanne, dus de guard is hier vooral verdediging-in-diepte: het bewijs is
-// dat `levelResources` niet crasht en een zinnig resultaat teruggeeft.
+// Geval 9 (I4, probe G — verdediging-in-diepte, EERLIJKE SCOPE na slotronde-taak-4-reviewbevinding
+// L2): lege/onparseerbare `earlyStart`/`earlyFinish` op een ELAPSEDTIME-taak mochten VÓÓR I3
+// `bookDemandAt` laten crashen (`RangeError` via `formatDate`/`toISOString` op een Invalid Date uit
+// `addCalendarDays(parseDate(''), …)`). Taak K heeft een geldige `scheduleStart` (de baseline-solve
+// slaagt dus gewoon) maar LEGE `earlyStart`/`earlyFinish` op het binnenkomende taakobject.
+//
+// Dit geval claimt NIET dat de `!rawStart`/`isNaN`-guards in `occurrenceFor` hier daadwerkelijk
+// geraakt worden — reviewer-mutatie N4 (die guards verwijderen) bleef op dit geval groen, en dat is
+// verwacht: sinds I3 leest `occurrenceFor` voor ELAPSEDTIME EERST `baseline.tasks.get(task.id)`, en
+// die is voor een taak met een geldige `scheduleStart` altijd aanwezig met een geldige, herrekende
+// spanne (CPMSolver's eigen guard laat de HELE solve al falen bij een ongeldige `scheduleStart`, dus
+// een taak die de baseline wél haalt heeft per constructie een geldig resultaat) — de stale/lege
+// `task.time.earlyStart/earlyFinish` worden hier dus nooit gelezen, ongeacht of de guard bestaat. Wat
+// dit geval WEL bewijst: `levelResources` crasht niet meer op deze ooit-gevaarlijke invoervorm via de
+// publieke API — de crash zelf is al door de I3-omleiding (verse baseline i.p.v. de stale velden)
+// verholpen; de guards in `occurrenceFor` blijven verdediging-in-diepte voor een pad dat via de
+// publieke API niet construeerbaar bleek (een taak met geldige `scheduleStart` maar zónder entry in
+// `baseline.tasks` vereist dat de hele solve faalt, en dan keert `levelResources` al bij de
+// `baseline.error`-guard (regel ~188) terug, ver vóór `occurrenceFor` wordt aangeroepen).
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-splits: lege earlyStart/earlyFinish crashen niet (geval 9, I4/probe G) --');
 {
@@ -443,6 +454,87 @@ console.log('-- leveler-splits: lege earlyStart/earlyFinish crashen niet (geval 
   }
   ok('levelResources crasht niet op lege earlyStart/earlyFinish', threw === undefined);
   ok('resultaat komt terug (geen exceptie onderweg gesmoord)', r9 !== undefined);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 10 (L1, reviewer-probe L): een LEEG kandidaatvenster telt niet als passend. `fits(byRes, [])`
+// is triviaal waar (de binnenlus over `occ` loopt nul keer), en sinds ELAPSEDTIME-kandidaten per
+// KALENDERdag stappen (C1/C2) kan een korte elapsed-spanne volledig in een weekend vallen — dan
+// levert `occurrenceFor` `[]` (geen enkele projectkalender-werkdag in die spanne).
+//
+// Scenario (spiegelt de reviewer-repro): taak D (WORKTIME, prio 900) claimt vrijdag 2026-06-05 op de
+// resource. Taak E (ELAPSEDTIME, "duur" 1 — een span van 1 KALENDERdag, prio 100) wil ook vrijdag en
+// moet wijken. Haar kandidaat-scan stapt per kalenderdag: vr (echt bezet, occ=['vr']) → za (haar
+// span za..zo bevat GEEN projectkalender-werkdag, occ=[]) → zo (span zo..ma bevat wél een werkdag,
+// occ=['ma']).
+//   - VÓÓR de fix: `fits(byRes, [])` op zaterdag is triviaal waar ⇒ E "past" daar, plaatst op
+//     zaterdag (delay 1), maar boekt NERGENS iets — haar vraag verdwijnt stilzwijgend uit het
+//     grootboek. Een concurrent F die vervolgens maandag wil (E's ECHTE dag, ware de scan correct)
+//     zou dan GEEN delay krijgen — een vals-vrije dag.
+//   - NÁ de fix: het lege venster op zaterdag wordt overgeslagen; E plaatst pas op zondag (delay 2),
+//     met een ECHTE boeking op maandag (haar verschoven span zo..ma bevat precies één werkdag). F
+//     moet daardoor wél wijken — haar vraag is zichtbaar in het grootboek gebleven.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: leeg kandidaatvenster telt niet als passend (geval 10, L1/probe L) --');
+{
+  const taskD = task('d10', '2026-06-05', '2026-06-05', 1, { priority: 900 });
+  const taskEBase = task('e10', '2026-06-05', '2026-06-05', 1, { priority: 100 });
+  const taskE: Task = { ...taskEBase, time: { ...taskEBase.time, durationType: 'ELAPSEDTIME' } };
+  // Concurrent op MAANDAG (E's ECHTE geboekte dag bij een correcte scan) — moet wijken ALLEEN als
+  // E's vraag daadwerkelijk in het grootboek staat.
+  const taskF = task('f10', '2026-06-08', '2026-06-08', 1, { priority: 10 });
+
+  const resourceR = res('r10', 1);
+  const assignments = [
+    assign('d10-r10', 'd10', 'r10', 1),
+    assign('e10-r10', 'e10', 'r10', 1),
+    assign('f10-r10', 'f10', 'r10', 1),
+  ];
+
+  const cpmResult = stubCpmResult('2026-06-08');
+  const r10 = levelResources(
+    [taskD, taskE, taskF], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('D plaatst op haar eigen PF, geen delay', r10.delays['d10'], undefined);
+  eq('E slaat het lege weekend-venster over: delay 2 (vr→zo), niet de vals-vrije 1 (vr→za)',
+    r10.delays['e10'], 2);
+  ok('F moet wijken: E\'s vraag staat echt in het grootboek (op maandag), niet spoorloos verdwenen',
+    (r10.delays['f10'] ?? 0) > 0);
+  ok('geen onopgeloste conflicten', Object.keys(r10.unresolved).length === 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 11 (L5-dekking): een taak op een RUIMERE kalender dan haar resource krijgt WÉL een echte,
+// capaciteit-gedreven delay — dit houdt de as-oorzaak (C1/C2, spookvertraging zonder capaciteitsdruk,
+// gevallen 5/6) strikt gescheiden van de capaciteits-oorzaak (een resource die op een dag simpelweg
+// niet kan werken, ongeacht wat de taakkalender zegt — hetzelfde principe als `ResourceLoad.ts`).
+//
+// Taak MOV (zesdaagse kalender, dus zaterdag = werkdag) start op zaterdag 2026-06-06 — haar EIGEN
+// kandidaat-as vindt dat meteen een geldige kandidaat (geen axis-spook, C1 werkt correct). Maar haar
+// RESOURCE heeft GEEN eigen kalender (valt terug op de projectkalender, ma-vr) — de resource kan op
+// zaterdag simpelweg niet werken. Dat is een ECHT capaciteitsconflict, geen kandidaat-as-bug: MOV
+// wijkt naar maandag, met delay 1 (za→ma, 2 werkdagen op haar EIGEN kalender min 1).
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: taak op ruimere kalender dan haar resource krijgt een echte, capaciteit-gedreven delay (geval 11, L5) --');
+{
+  // 2026-06-06 is een zaterdag.
+  const taskMov = task('mov11', '2026-06-06', '2026-06-06', 1, {
+    priority: 500, calendarId: 'cal-six-day-leveler',
+  });
+  // Resource ZONDER eigen kalender (valt terug op PROJECT_CAL, ma-vr) — bewust GEEN zesdaagse
+  // kalender, in tegenstelling tot geval 2/5/7: hier is het capaciteitsverschil precies het punt.
+  const resourceR = res('r11', 1);
+  const assignments = [assign('mov11-r11', 'mov11', 'r11', 1)];
+
+  const cpmResult = stubCpmResult('2026-06-06');
+  const r11 = levelResources(
+    [taskMov], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('MOV wijkt met delay 1 — echte capaciteitsdruk (resource kan zaterdag niet werken), geen axis-spook',
+    r11.delays['mov11'], 1);
+  ok('geen onopgeloste conflicten', Object.keys(r11.unresolved).length === 0);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
