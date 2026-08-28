@@ -1,7 +1,7 @@
 // X9-compactopslag — corpusloze contracttest voor een zelfstandig, uit ruwe bytes herbouwd archief.
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
 import {

@@ -1,6 +1,6 @@
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { isMultiDocumentImport } from '@/services/importTypes';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
 import type { ImportResult } from '@/services/importTypes';

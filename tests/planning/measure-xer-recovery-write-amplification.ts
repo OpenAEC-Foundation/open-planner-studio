@@ -1,17 +1,19 @@
 /**
- * Bewust RODE meetfixture voor het losstaande delta-recoverypakket.
+ * Snelle, corpusloze opslaggrensmeting voor het gelande delta-recoverypakket. Deze check draait
+ * expliciet via `tests/planning/run.sh`; de echte OZB/rehab-proef staat daarnaast in
+ * `check-xer-archive-recovery-corpus.ts`.
  *
- * Niet als `check-*.ts` benoemd en daarom niet aan `tests/planning/run.sh` toegevoegd: de huidige
- * recoverycontracten accepteren volledige `RecoveryDocContent[]` en schrijven iedere aangeleverde
- * IFC opnieuw. Deze fixture moet pas groen worden wanneer dat pakket als één geheel verandert.
- *
- * Implementatieknip:
+ * Contractknip:
  *   1. `src/hooks/useAutoSave.ts` vergelijkt `IFCSaveSource` met `sameIFCSource` (isDirty is geen
  *      revisie-id) en biedt alle manifestmetadata plus uitsluitend nieuwe/gewijzigde IFC-upserts aan;
  *   2. Tauri schrijft een v3-manifest naar immutable generatie-snapshots, rename't het manifest als
  *      commitpoint en ruimt alleen ná die commit op; v1/v2 blijven leesbaar;
  *   3. IndexedDB doet upserts, manifest en deletes in één strikte readwrite-transactie, zonder de
  *      losse `idbPut`-helpers; een schrijffout promoot de persisted baseline nooit.
+ *
+ * De grens is structureel: één gewijzigde documentinhoud = één doc-upsert plus één manifest-put
+ * in één transactie. Walltime en RSS horen hier bewust niet thuis; die worden in verse processen
+ * gemeten en informatief gelogd door de corpuscheck.
  */
 import { clearRecovery, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
 

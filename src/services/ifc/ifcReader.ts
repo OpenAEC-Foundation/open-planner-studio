@@ -44,16 +44,14 @@ import {
 
 const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
 
-type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceArchive;
-let xerArchiveReconstructor: XerArchiveReconstructor | null = null;
+/** Expliciete injectienaad: de compacte schema-2-envelope bewaart alleen bronbytes; de zware,
+ * lazy XER-reader levert de afleiding daarvan uitsluitend via de officiële async ingang. */
+export type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceArchive;
 
-/**
- * De compacte IFC-envelope blijft synchroon leesbaar nadat de lazy XER-chunk is geladen.
- * De parser registreert zichzelf bij module-initialisatie; de gewone IFC-hoofdbundel houdt
- * daardoor geen statische afhankelijkheid op de zware XER-reader.
- */
-export function registerXerArchiveReconstructor(reconstructor: XerArchiveReconstructor): void {
-  xerArchiveReconstructor = reconstructor;
+export interface IfcReadOptions {
+  /** Alleen `readIFCWithXerReconstruction` vult dit. De lage sync-lezer mag schema-2 nooit
+   * afhankelijk maken van een toevallig eerder geïmporteerde module. */
+  reconstructXerArchive?: XerArchiveReconstructor;
 }
 
 interface StepEntity {
@@ -115,7 +113,11 @@ export const DEFAULT_IMPORTED_PROJECT_NAME = 'Imported project';
  * alleen de projectnaam voor een bestand zónder `IFCPROJECT`. Weglaten is toegestaan en levert de
  * Engelse default; zie `ImportLabels`.
  */
-export function readIFC(content: string, labels: ImportLabels = {}): ImportResult {
+export function readIFC(
+  content: string,
+  labels: ImportLabels = {},
+  options: IfcReadOptions = {},
+): ImportResult {
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project (K4).
   assertIfcIntegrity(content);
   const entities = parseSTEP(content);
@@ -126,7 +128,7 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
 
   // Extract project
   const project = extractProject(entities, entityMap, labels);
-  const xerSourceArchive = extractXerSourceArchive(entities, entityMap);
+  const xerSourceArchive = extractXerSourceArchive(entities, entityMap, options.reconstructXerArchive);
   const xerSourceProjectId = extractXerSourceProjectId(entities, entityMap, xerSourceArchive);
   const xer = extractXerImportMetadata(xerSourceArchive, xerSourceProjectId);
   const calendar = extractCalendar(entities, entityMap);
@@ -351,12 +353,16 @@ function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count:
 }
 
 /** Lees en valideer vóór allocatie de self-contained X9-container; afwezig blijft legacy-compatibel. */
-function extractXerSourceArchive(entities: StepEntity[], entityMap: Map<string, StepEntity>): XerSourceArchive | undefined {
+function extractXerSourceArchive(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  reconstructXerArchive: XerArchiveReconstructor | undefined,
+): XerSourceArchive | undefined {
   const props = archiveProps(entities, entityMap, PSET.XerSourceArchive);
   if (!props) return undefined;
   const schemaVersion = nonNegativeSafeInteger(props.get('SchemaVersion'), 'SchemaVersion');
   if (schemaVersion === XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION) {
-    return extractCompactXerSourceArchive(props);
+    return extractCompactXerSourceArchive(props, reconstructXerArchive);
   }
   if (schemaVersion !== XER_SOURCE_ARCHIVE_SCHEMA_VERSION) xerArchiveError(`onbekend SchemaVersion ${schemaVersion}`);
   if (requiredString(props, 'Format') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer');
@@ -408,7 +414,10 @@ function extractXerSourceArchive(entities: StepEntity[], entityMap: Map<string, 
 }
 
 /** Schema 2 bevat alleen de bronbytes. Alle afleidbare X9-caches herleven uit die bron. */
-function extractCompactXerSourceArchive(props: Map<string, unknown>): XerSourceArchive {
+function extractCompactXerSourceArchive(
+  props: Map<string, unknown>,
+  reconstructXerArchive: XerArchiveReconstructor | undefined,
+): XerSourceArchive {
   if (requiredString(props, 'Format') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer');
   if (requiredString(props, 'StorageFormat') !== XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT) {
     xerArchiveError('StorageFormat is onbekend');
@@ -428,10 +437,13 @@ function extractCompactXerSourceArchive(props: Map<string, unknown>): XerSourceA
     xerArchiveError('Sha256 is ongeldig of past niet bij de bytes');
   }
   try {
-    if (!xerArchiveReconstructor) {
-      xerArchiveError('compacte bron vereist de lazy XER-reader vóór reconstructie');
+    if (!reconstructXerArchive) {
+      xerArchiveError(
+        'compacte bron vereist readIFCWithXerReconstruction; de lage synchrone readIFC-ingang ' +
+        'laadt de XER-reader bewust niet zelf',
+      );
     }
-    const archive = xerArchiveReconstructor(sourceBytes);
+    const archive = reconstructXerArchive(sourceBytes);
     if (archive.sha256 !== sourceHash || archive.byteLength !== byteLength) {
       xerArchiveError('gereconstrueerd archief past niet bij de canonieke bronbytes');
     }

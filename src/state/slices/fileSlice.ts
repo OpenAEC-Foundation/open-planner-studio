@@ -1,10 +1,9 @@
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { openFileDialog, saveFileDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
-import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, type ExportFormat } from '@/services/formatRegistry';
+import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSlice, NotifyInput, NotificationDetailLine } from './types';
@@ -183,7 +182,7 @@ export interface FileSlice {
   /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
-  openExampleFromString: (content: string, name: string, labels?: ImportLabels) => void;
+  openExampleFromString: (content: string, name: string, labels?: ImportLabels) => Promise<void>;
   /** Eén gedeelde load-implementatie (audit P5/F6): vul de ACTIEVE document-state met een geparsed
    *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/extensie-event).
    *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
@@ -732,9 +731,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       }
     },
 
-    openExampleFromString: (content: string, name: string, labels) => {
+    openExampleFromString: async (content: string, name: string, labels) => {
       try {
-        const parsed = readIFC(content, labels);
+        const parsed = await readIFCWithXerReconstruction(content, labels);
 
         // Zelfde multi-document-gedrag als openFile: hergebruik het actieve
         // tabblad alleen als dat nog leeg en ongewijzigd is, anders nieuw tabblad.

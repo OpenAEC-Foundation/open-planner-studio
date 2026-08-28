@@ -116,7 +116,7 @@ async function installExtensionFromCode(
   return useAppStore.getState().installedExtensions[manifest.id];
 }
 
-interface OpsCommand {
+export interface OpsCommand {
   id?: string;
   op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest';
   args?: Record<string, unknown>;
@@ -131,7 +131,7 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
     case 'getState':
       return { ok: true, result: stateSnapshot(useAppStore.getState()) };
     case 'roundTrip':
-      return { ok: true, result: roundTrip() };
+      return { ok: true, result: await roundTrip() };
     case 'save': {
       const path = cmd.args?.path as string | undefined;
       if (!path) return { ok: false, error: 'missing args.path' };
@@ -184,6 +184,14 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
   }
 }
 
+/** Serializeer precies de payload die de Tauri-poller naar res.json schrijft. Geëxporteerd voor de
+ * headless contracttest: een Promise in `result` stringifyt naar `{}` en mag nooit onzichtbaar
+ * worden achter een browser-only rooktest. */
+export async function serializeOpsTestResponse(cmd: OpsCommand): Promise<string> {
+  const res = await runOp(cmd);
+  return JSON.stringify({ id: cmd.id, ...res });
+}
+
 /**
  * Tier 2 poller: bestandssysteem-controlekanaal in de échte Tauri-runtime.
  * Leest `<appDataDir>/ops-test/cmd.json`, voert uit, schrijft `res.json`.
@@ -212,8 +220,7 @@ async function startOpsTestPoller(): Promise<void> {
         await writeTextFile(resPath, JSON.stringify({ ok: false, error: 'invalid JSON' }));
         return;
       }
-      const res = await runOp(cmd);
-      await writeTextFile(resPath, JSON.stringify({ id: cmd.id, ...res }));
+      await writeTextFile(resPath, await serializeOpsTestResponse(cmd));
     } catch (err) {
       try { await writeTextFile(resPath, JSON.stringify({ ok: false, error: String(err) })); } catch { /* leeg */ }
     }

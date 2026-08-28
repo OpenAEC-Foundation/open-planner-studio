@@ -1,7 +1,7 @@
 // X9 — IFC-container voor het zelfstandige XER-bronarchief. Geen reader-mock: echte STEP-tekst
 // gaat door writeIFC én readIFC. De bron is geldige XER, want schema 2 reconstrueert daaruit.
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import {
   decodeXerSourceArchive,

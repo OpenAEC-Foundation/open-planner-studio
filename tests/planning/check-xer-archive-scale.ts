@@ -1,5 +1,5 @@
 // X9 reviewronde 1 — relatieve schaalproef op 1/8/32 decoded chunks, zonder tijdsdrempel.
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import {
   decodeXerSourceArchive,

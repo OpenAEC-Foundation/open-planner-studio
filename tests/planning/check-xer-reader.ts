@@ -6,7 +6,7 @@ import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelation
 import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 
 const diffs: string[] = [];
 let checks = 0;

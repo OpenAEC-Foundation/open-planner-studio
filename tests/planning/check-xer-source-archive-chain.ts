@@ -1,6 +1,6 @@
 // X9 fixronde 2 — één echte twaalfprojectenketen door reader, store, IFC en headless recovery.
 import { isMultiDocumentImport } from '@/services/importTypes';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { clearRecovery, fullRecoverySave, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
 import { readXER } from '@/services/xer/xerReader';

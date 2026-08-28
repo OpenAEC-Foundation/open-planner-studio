@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import type { XerScheduleOptionsMetadata } from '@/services/xer/xerScheduleOptions';

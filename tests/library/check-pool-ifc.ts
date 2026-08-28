@@ -27,7 +27,7 @@ const pool: CompanyPool = {
 };
 
 const ifc = writePoolIFC(pool);
-const back = readPoolIFC(ifc);
+const back = await readPoolIFC(ifc);
 
 assert(back.companyId === 'c1', 'pool round-trip: companyId');
 assert(back.companyName === 'Aannemer BV', 'pool round-trip: companyName');
@@ -40,14 +40,14 @@ assert(back.resources.find(r => r.id === 'pr2')?.unitOfMeasure === 'm3', 'pool r
 
 // Idempotentie: tweede round-trip byte-stabiel op de JSON-pool.
 const ifc2 = writePoolIFC(back);
-const back2 = readPoolIFC(ifc2);
+const back2 = await readPoolIFC(ifc2);
 assert(JSON.stringify(back) === JSON.stringify(back2), 'pool round-trip: idempotent');
 
 // Een gewoon projectbestand draagt geen OPS_Library ⇒ readPoolIFC gooit.
 let threw = false;
 try {
   const projIfc = writePoolIFC(pool).replace(/OPS_Library/g, 'OPS_Iets_Anders');
-  readPoolIFC(projIfc);
+  await readPoolIFC(projIfc);
 } catch { threw = true; }
 assert(threw, 'readPoolIFC gooit op een bestand zonder OPS_Library');
 
@@ -70,7 +70,7 @@ function injectPoolJson(ifc: string, json: string): string {
   const hostileIfc = injectPoolJson(writePoolIFC(pool), '{}');
   let back: CompanyPool | undefined;
   let didThrow = false;
-  try { back = readPoolIFC(hostileIfc); } catch { didThrow = true; }
+  try { back = await readPoolIFC(hostileIfc); } catch { didThrow = true; }
   assert(!didThrow, 'F2: readPoolIFC gooit niet op een `{}`-poolblob');
   assert(Array.isArray(back?.calendars) && back.calendars.length === 0, 'F2: `{}`-blob ⇒ calendars is een lege array (geen crash op .length)');
   assert(Array.isArray(back?.resources) && back.resources.length === 0, 'F2: `{}`-blob ⇒ resources is een lege array (geen crash op .length)');
@@ -89,7 +89,7 @@ function injectPoolJson(ifc: string, json: string): string {
   const hostileIfc2 = injectPoolJson(writePoolIFC(pool), partialJson);
   let back2: CompanyPool | undefined;
   let didThrow2 = false;
-  try { back2 = readPoolIFC(hostileIfc2); } catch { didThrow2 = true; }
+  try { back2 = await readPoolIFC(hostileIfc2); } catch { didThrow2 = true; }
   assert(!didThrow2, 'F2: readPoolIFC gooit niet als de pool-JSON geen `resources`-sleutel draagt');
   assert(Array.isArray(back2?.resources) && back2.resources.length === 0, 'F2: ontbrekende resources-sleutel ⇒ lege array (niet undefined)');
   assert(back2?.calendars.length === 1 && back2.calendars[0].id === 'pc1', 'F2: de WEL-aanwezige calendars-sleutel blijft intact naast de ontbrekende resources');

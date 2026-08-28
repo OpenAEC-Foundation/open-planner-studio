@@ -1,5 +1,5 @@
 import { isMultiDocumentImport } from '@/services/importTypes';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { payloadFromImport } from '@/state/documentContract';
 import { readXER } from '@/services/xer/xerReader';

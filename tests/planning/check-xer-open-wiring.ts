@@ -3,7 +3,7 @@ import { isMultiDocumentImport } from '@/services/importTypes';
 import type { XerMultiProjectImport } from '@/services/xer/xerMultiProject';
 import { useAppStore } from '@/state/appStore';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

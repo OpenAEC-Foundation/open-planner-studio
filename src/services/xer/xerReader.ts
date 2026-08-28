@@ -11,7 +11,6 @@
 import type {
   ImportResult, XerEnumFallback, XerExternalRelation, XerImportMetadata,
 } from '@/services/importTypes';
-import { registerXerArchiveReconstructor } from '@/services/ifc/ifcReader';
 import { getCalendarBands, promoteHourCalendar } from '@/services/subdayIo';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence, SequenceType } from '@/types/sequence';
@@ -900,7 +899,3 @@ export function reconstructXerSourceArchiveFromBytes(bytes: Uint8Array): XerSour
   }
   return first.xerSourceArchive;
 }
-
-// Module-initialisatie gebeurt uitsluitend in de lazy XER-chunk (formatRegistry). Vanaf dat
-// moment kan de synchrone IFC-reader compacte bronarchieven reconstrueren zonder parser-import.
-registerXerArchiveReconstructor(reconstructXerSourceArchiveFromBytes);

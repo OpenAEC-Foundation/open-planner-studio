@@ -1,6 +1,6 @@
 // X9 reviewronde 1 — false is een aanwezige P6-waarde; raw XER-cellen blijven daarnaast exact.
 import { activeImportResult } from '@/services/importTypes';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
 

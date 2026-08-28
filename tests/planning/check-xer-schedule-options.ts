@@ -6,7 +6,7 @@ import {
   XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS,
   XER_SCHEDULING_DEFAULTS,
 } from '@/services/xer/xerScheduleOptions';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { parseXerTables } from '@/services/xer/xerTables';
 import type { WorkCalendar } from '@/types/calendar';

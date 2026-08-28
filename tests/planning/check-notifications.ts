@@ -208,7 +208,7 @@ eq('49 newProject wist de meldingen niet', N().length, 1);
 // Een onleesbaar voorbeeldbestand: `readIFC` gooit sinds K4 een IfcParseError. Vroeger ging dat
 // naar `console.error` en zag de gebruiker een leeg scherm zonder uitleg.
 clearAll();
-S().openExampleFromString('dit is geen IFC', 'kapot.ifc');
+await S().openExampleFromString('dit is geen IFC', 'kapot.ifc');
 eq('50 een onleesbaar bestand meldt zich', N().length, 1);
 eq('51 als fout', N()[0]?.severity, 'error');
 eq('52 met de open-sleutel', N()[0]?.messageKey, 'notifications.openFailed');

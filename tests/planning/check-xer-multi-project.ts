@@ -19,7 +19,7 @@ import { computeVariance } from '@/engine/variance';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { payloadFromImport } from '@/state/documentContract';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
 
 const diffs: string[] = [];

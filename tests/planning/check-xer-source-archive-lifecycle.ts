@@ -10,7 +10,7 @@ import {
   withXerArchiveDocumentView,
   XER_SOURCE_ARCHIVE_CHUNK_BYTES,
 } from '@/services/xerSourceArchive';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';

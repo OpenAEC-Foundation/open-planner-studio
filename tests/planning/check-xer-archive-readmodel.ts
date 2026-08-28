@@ -3,7 +3,7 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { isMultiDocumentImport } from '@/services/importTypes';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';

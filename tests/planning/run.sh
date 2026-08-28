@@ -347,6 +347,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERARCHIVECOMPACTCHECK="$DIR/.xer-archive-compact.mjs"
   if bundle_check "$DIR/check-xer-archive-compact.ts" "$XERARCHIVECOMPACTCHECK"; then node "$XERARCHIVECOMPACTCHECK" || STATUS=1; fi
 
+  # X9 reviewfix 1: schema-2 XER-bronarchieven moeten in een nieuw Node-proces via de ENIGE
+  # officiële asynchrone IFC-ingang zelfstandig herleven; de lage sync-lezer moet veilig verwijzen.
+  XERARCHIVECOLDREADCHECK="$DIR/.xer-archive-cold-read.mjs"
+  if bundle_check "$DIR/check-xer-archive-cold-read.ts" "$XERARCHIVECOLDREADCHECK"; then node "$XERARCHIVECOLDREADCHECK" || STATUS=1; fi
+
   # X9: drie verse corpusprocessen. maxRSS is de OS-gemeten piek van de hele IFC- of
   # recoveryketen, niet een misleidende netto heapdelta.
   XERARCHIVERECOVERYCORPUSCHECK="$DIR/.xer-archive-recovery-corpus.mjs"
@@ -775,6 +780,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RECDELTACHECK="$DIR/.recovery-delta.mjs"
   if bundle_check "$DIR/check-recovery-delta.ts" "$RECDELTACHECK"; then node "$RECDELTACHECK" || STATUS=1; fi
 
+  # X9 recovery-opslaggrens: één van twaalf gewijzigde documenten geeft één doc-upsert plus één
+  # manifest-put in exact één IndexedDB-readwrite-transactie; actieve-tabwissel is metadata-only.
+  RECWRITEAMPCHECK="$DIR/.recovery-write-amplification.mjs"
+  if bundle_check "$DIR/measure-xer-recovery-write-amplification.ts" "$RECWRITEAMPCHECK"; then node "$RECWRITEAMPCHECK" || STATUS=1; fi
+
   # Recovery-isolatie tussen instanties (bevinding K5). De opruimlogica veegde op PREFIX door de
   # gedeelde appDataDir. Twee gelijktijdige vensters wisten daarmee elkaars snapshots — en omdat
   # de productie-base (`recovery`) een prefix is van elke dev-base (`recovery.<slug>`), wiste één
@@ -792,6 +802,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # in het documentcontract, dan verdwijnt een opslaanfout bij een tabwissel of een Ctrl+Z.
   NOTIFCHECK="$DIR/.notifications.mjs"
   if bundle_check "$DIR/check-notifications.ts" "$NOTIFCHECK"; then node "$NOTIFCHECK" || STATUS=1; fi
+
+  # X9 reviewfix 2: res.json van de Tauri-dev-poller mag geen onopgeloste Promise als `{}`
+  # serialiseren wanneer de round-tripopdracht async werkt.
+  DEVBRIDGEPOLLERCHECK="$DIR/.dev-bridge-poller.mjs"
+  if bundle_check "$DIR/check-dev-bridge-poller.ts" "$DEVBRIDGEPOLLERCHECK"; then node "$DEVBRIDGEPOLLERCHECK" || STATUS=1; fi
 
   # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
   #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een
