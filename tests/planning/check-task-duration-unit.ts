@@ -168,14 +168,16 @@ eq('geforceerde urenweergave houdt dagbron herkenbaar', formatTaskDurationDispla
 
 // Dialoog en paneel delen deze ene parser/conversielaag.
 deepEq('suffix d kiest dagen', parseTaskDurationInput('2d', 'hours'), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
+deepEq('voluit days kiest dagen', parseTaskDurationInput('4 days', 'hours'), { unit: 'days', scheduleDuration: 4, explicitUnit: true });
 deepEq('suffix h kiest uren', parseTaskDurationInput('12h', 'days'), { unit: 'hours', durationMinutes: 720, explicitUnit: true });
+deepEq('voluit hours kiest uren', parseTaskDurationInput('12 hours', 'days'), { unit: 'hours', durationMinutes: 720, explicitUnit: true });
 deepEq('Nederlandse u blijft invoeralias', parseTaskDurationInput('12u', 'days'), { unit: 'hours', durationMinutes: 720, explicitUnit: true });
 eq('negatieve dagen worden geweigerd', parseTaskDurationInput('-2d', 'days'), null);
 eq('negatieve uren worden geweigerd', parseTaskDurationInput('-2h', 'hours'), null);
 eq('onveilig groot daggetal wordt geweigerd', parseTaskDurationInput('999999999999999999999d', 'days'), null);
 eq('onveilig groot uurgetal wordt geweigerd', parseTaskDurationInput('999999999999999999999h', 'hours'), null);
-eq('compacte invoerweergave gebruikt universeel h', formatTaskDurationInput(hour12), '12h');
-eq('bestaande minuutprecisie blijft zichtbaar', formatTaskDurationInput({ ...hour12, time: { ...hour12.time, durationMinutes: 725 } }), '12h 5m');
+eq('invoerweergave bevat geen uur-suffix naast de afzonderlijke unitkiezer', formatTaskDurationInput(hour12), '12');
+eq('bestaande minuutprecisie blijft als numerieke uren zichtbaar', formatTaskDurationInput({ ...hour12, time: { ...hour12.time, durationMinutes: 725 } }), '12.083333');
 eq('kalender zonder werkblokken wordt herkend', hasConcreteWorkBlocks({ ...h8, workTime: undefined }), false);
 eq('uurkeuze zonder werkblokken heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', { ...h8, workTime: undefined }), null);
 const hourWithoutBlocks = { ...hour12, time: { ...hour12.time } };

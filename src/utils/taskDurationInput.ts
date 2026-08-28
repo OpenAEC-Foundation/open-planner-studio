@@ -16,21 +16,21 @@ function safeWhole(value: string): number | null {
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
-/** Eén taakduur-parser voor dialoog en eigenschappenpaneel. `u` blijft invoeralias; output gebruikt h. */
+/** Eén taakduur-parser voor dialoog en eigenschappenpaneel. `u` blijft invoeralias naast `h`. */
 export function parseTaskDurationInput(input: string, selectedUnit: TaskDurationUnit): ParsedTaskDuration | null {
   const value = input.trim().toLowerCase();
-  const days = value.match(/^(\d+)d$/);
+  const days = value.match(/^(\d+)\s*(?:d|day|days)$/);
   if (days) {
     const amount = safeWhole(days[1]);
     return amount == null ? null : { unit: 'days', scheduleDuration: amount, explicitUnit: true };
   }
-  const hours = value.match(/^(\d+)[hu](?:\s*(\d+)m)?$/);
+  const hours = value.match(/^(\d+)(?:\.(\d+))?\s*(?:h|u|hour|hours)(?:\s*(\d+)m)?$/);
   if (hours) {
-    const hourAmount = safeWhole(hours[1]);
-    const minuteAmount = safeWhole(hours[2] ?? '0');
-    const durationMinutes = hourAmount == null || minuteAmount == null
-      ? Number.NaN
-      : hourAmount * 60 + minuteAmount;
+    const hourAmount = Number(`${hours[1]}${hours[2] ? `.${hours[2]}` : ''}`);
+    const minuteAmount = safeWhole(hours[3] ?? '0');
+    const durationMinutes = Number.isFinite(hourAmount) && minuteAmount != null
+      ? Math.round(hourAmount * 60) + minuteAmount
+      : Number.NaN;
     if (!Number.isSafeInteger(durationMinutes)) return null;
     return {
       unit: 'hours',
@@ -38,22 +38,28 @@ export function parseTaskDurationInput(input: string, selectedUnit: TaskDuration
       explicitUnit: true,
     };
   }
-  if (/^\d+$/.test(value)) {
-    const amount = safeWhole(value);
-    if (amount == null || (selectedUnit === 'hours' && !Number.isSafeInteger(amount * 60))) return null;
+  const numeric = value.match(/^(\d+)(?:\.(\d+))?$/);
+  if (numeric) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || (numeric[2] && selectedUnit === 'days')) return null;
+    if (selectedUnit === 'hours') {
+      const durationMinutes = Math.round(amount * 60);
+      if (!Number.isSafeInteger(durationMinutes)) return null;
+      return { unit: 'hours', durationMinutes, explicitUnit: false };
+    }
+    const wholeDays = safeWhole(value);
+    if (wholeDays == null) return null;
     return selectedUnit === 'days'
-      ? { unit: 'days', scheduleDuration: amount, explicitUnit: false }
-      : { unit: 'hours', durationMinutes: amount * 60, explicitUnit: false };
+      ? { unit: 'days', scheduleDuration: wholeDays, explicitUnit: false }
+      : { unit: 'hours', durationMinutes: wholeDays * 60, explicitUnit: false };
   }
   return null;
 }
 
 export function formatTaskDurationInput(task: Task): string {
-  if (task.time.durationUnit === 'days') return `${task.time.scheduleDuration}d`;
+  if (task.time.durationUnit === 'days') return String(task.time.scheduleDuration);
   const minutes = task.time.durationMinutes ?? 0;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+  return (minutes / 60).toFixed(6).replace(/(?:\.0+|(\.\d*?)0+)$/, '$1');
 }
 
 function workMinutesForDay(engine: CalendarEngine, day: Date): number {

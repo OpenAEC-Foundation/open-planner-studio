@@ -43,7 +43,10 @@
    de normale controlhoogte of leesbaarheid van het gekozen woord op te offeren. */
 .ops-select__trigger.ops-select__trigger--duration {
   gap: var(--sp-1);
+  height: 2.25rem;
+  padding-block: 0;
   padding-inline: var(--sp-1);
+  font-size: 0.75rem;
 }
 
 .ops-select__value {

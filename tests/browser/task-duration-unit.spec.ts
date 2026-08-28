@@ -47,32 +47,34 @@ async function openDialog(page: Page, taskId: string): Promise<void> {
   await expect(page.getByRole('dialog')).toBeVisible();
 }
 
-test('dialoog en eigenschappenpaneel gebruiken exact dezelfde duurbediening en suffixregels', async ({ page, ops: _ops }) => {
-  const taskId = await seedDurationTask(page);
+test('dialoog en eigenschappenpaneel normaliseren duur zonder redundante suffix naast de unitkiezer', async ({ page, ops: _ops }) => {
+  const taskId = await seedDurationTask(page, 'days', 4);
   const panelDuration = page.locator('[data-ops-task-duration]').first();
   await expect(panelDuration).toBeVisible();
-  await panelDuration.locator('[data-ops-duration-value]').fill('12u');
+  await expect(panelDuration.locator('[data-ops-duration-value]')).toHaveValue('4');
+  await panelDuration.locator('[data-ops-duration-value]').fill('12 hours');
   await panelDuration.locator('[data-ops-duration-value]').blur();
 
   await expect.poll(() => page.evaluate((id) => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
     return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
   }, taskId)).toEqual({ unit: 'hours', minutes: 720 });
-  await expect(panelDuration.locator('[data-ops-duration-value]')).toHaveValue('12h');
+  await expect(panelDuration.locator('[data-ops-duration-value]')).toHaveValue('12');
 
   await openDialog(page, taskId);
   const dialogDuration = page.getByRole('dialog').locator('[data-ops-task-duration]');
-  await expect(dialogDuration.locator('[data-ops-duration-value]')).toHaveValue('12h');
+  await expect(dialogDuration.locator('[data-ops-duration-value]')).toHaveValue('12');
   await expect(dialogDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ })).toHaveText(/^(Hours|Uren)$/);
-  await dialogDuration.locator('[data-ops-duration-value]').fill('2d');
+  await dialogDuration.locator('[data-ops-duration-value]').fill('4 days');
   await dialogDuration.locator('[data-ops-duration-value]').blur();
+  await expect(dialogDuration.locator('[data-ops-duration-value]')).toHaveValue('4');
   await expect(dialogDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ })).toHaveText(/^(Days|Dagen)$/);
   await page.getByRole('dialog').locator('[data-ops-task-save]').click();
 
   await expect.poll(() => page.evaluate((id) => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
     return { unit: task.time.durationUnit, days: task.time.scheduleDuration, minutes: task.time.durationMinutes };
-  }, taskId)).toEqual({ unit: 'days', days: 2, minutes: undefined });
+  }, taskId)).toEqual({ unit: 'days', days: 4, minutes: undefined });
 });
 
 test('duurwaarde blijft de brede primaire invoer met controls op normale, gelijke hoogte', async ({ page, ops: _ops }) => {
@@ -92,7 +94,8 @@ test('duurwaarde blijft de brede primaire invoer met controls op normale, gelijk
   });
 
   expect(panelGeometry.input.width).toBeGreaterThan(panelGeometry.unit.width);
-  expect(panelGeometry.input.height).toBeGreaterThanOrEqual(32);
+  expect(panelGeometry.input.height).toBeGreaterThanOrEqual(28);
+  expect(panelGeometry.input.height).toBeLessThanOrEqual(30);
   expect(Math.abs(panelGeometry.input.height - panelGeometry.unit.height)).toBeLessThanOrEqual(2);
   expect(Math.abs(panelGeometry.info.height - panelGeometry.unit.height)).toBeLessThanOrEqual(2);
 
@@ -111,19 +114,49 @@ test('duurwaarde blijft de brede primaire invoer met controls op normale, gelijk
   });
 
   expect(dialogGeometry.input.width).toBeGreaterThan(dialogGeometry.unit.width);
-  expect(dialogGeometry.input.height).toBeGreaterThanOrEqual(32);
+  expect(dialogGeometry.input.height).toBeGreaterThanOrEqual(28);
+  expect(dialogGeometry.input.height).toBeLessThanOrEqual(30);
   expect(Math.abs(dialogGeometry.input.height - dialogGeometry.unit.height)).toBeLessThanOrEqual(2);
   expect(Math.abs(dialogGeometry.info.height - dialogGeometry.unit.height)).toBeLessThanOrEqual(2);
 });
 
 test('duurinfo is met hover en toetsenbordfocus bereikbaar en legt het vaste contract uit', async ({ page, ops: _ops }) => {
   await seedDurationTask(page);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ rightPanelWidth: 200 }));
   const info = page.locator('[data-ops-duration-info]').first();
   await info.hover();
   const tooltip = page.getByRole('tooltip');
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toContainText(/(unit belongs to this task|eenheid hoort bij deze taak)/i);
   await expect(tooltip).toContainText(/(different calendar|andere kalender)/i);
+  const geometry = await page.evaluate(() => {
+    const infoButton = document.querySelector<HTMLElement>('[data-ops-duration-info]')!;
+    const tooltipElement = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+    const gantt = document.querySelector<HTMLElement>('[data-testid="gantt-primary-canvas"]')!;
+    const infoRect = infoButton.getBoundingClientRect();
+    const tooltipRect = tooltipElement.getBoundingClientRect();
+    const ganttRect = gantt.getBoundingClientRect();
+    const overlapLeft = Math.max(tooltipRect.left, ganttRect.left);
+    const overlapRight = Math.min(tooltipRect.right, ganttRect.right);
+    const overlapTop = Math.max(tooltipRect.top, ganttRect.top);
+    const overlapBottom = Math.min(tooltipRect.bottom, ganttRect.bottom);
+    const x = (overlapLeft + overlapRight) / 2;
+    const y = (overlapTop + overlapBottom) / 2;
+    return {
+      isBodyPortal: tooltipElement.parentElement === document.body,
+      leftOfInfo: tooltipRect.right <= infoRect.left - 4,
+      inViewport: tooltipRect.left >= 0 && tooltipRect.right <= window.innerWidth && tooltipRect.top >= 0 && tooltipRect.bottom <= window.innerHeight,
+      overlapsGantt: overlapLeft < overlapRight && overlapTop < overlapBottom,
+      onTopAtOverlap: tooltipElement.contains(document.elementFromPoint(x, y)),
+    };
+  });
+  expect(geometry).toEqual({
+    isBodyPortal: true,
+    leftOfInfo: true,
+    inViewport: true,
+    overlapsGantt: true,
+    onTopAtOverlap: true,
+  });
 
   await page.mouse.move(1, 1);
   await expect(tooltip).toBeHidden();
@@ -172,7 +205,7 @@ test('een conversievoorstel lekt niet naar een andere geselecteerde taak', async
   await expect(duration.getByRole('button', { name: /^(Apply proposal|Voorstel toepassen)$/ })).toBeVisible();
 
   const nextTaskId = await seedDurationTask(page, 'hours', 24);
-  await expect(duration.locator('[data-ops-duration-value]')).toHaveValue('24h');
+  await expect(duration.locator('[data-ops-duration-value]')).toHaveValue('24');
   await expect(duration.locator('[data-ops-duration-message]')).toBeHidden();
   await expect.poll(() => page.evaluate((id) => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;

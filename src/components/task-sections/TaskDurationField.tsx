@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Select } from '@/components/common/Select';
+import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { useAppStore } from '@/state/appStore';
 import { saveEnableHourPlanning } from '@/utils/settingsStore';
 import {
@@ -37,6 +38,8 @@ export function TaskDurationField({ task, calendar, onChange }: {
   const [message, setMessage] = useState<string | null>(null);
   const [proposal, setProposal] = useState<ParsedTaskDuration | null>(null);
   const [infoVisible, setInfoVisible] = useState(false);
+  const [infoAnchor, setInfoAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
+  const infoButtonRef = useRef<HTMLButtonElement>(null);
   const infoId = useId();
   const derived = isZeroDurationMilestone(task) || task.childIds.length > 0 || !!task.isHammock;
   const hourEditBlocked = task.time.durationUnit === 'hours' && !enableHourPlanning;
@@ -107,6 +110,26 @@ export function TaskDurationField({ task, calendar, onChange }: {
     setMessage(null);
   };
 
+  const syncInfoAnchor = () => {
+    const rect = infoButtonRef.current?.getBoundingClientRect();
+    if (rect) setInfoAnchor({ left: rect.left, top: rect.top, width: rect.width });
+  };
+
+  const showInfo = () => {
+    syncInfoAnchor();
+    setInfoVisible(true);
+  };
+
+  useEffect(() => {
+    if (!infoVisible) return;
+    window.addEventListener('resize', syncInfoAnchor);
+    window.addEventListener('scroll', syncInfoAnchor, true);
+    return () => {
+      window.removeEventListener('resize', syncInfoAnchor);
+      window.removeEventListener('scroll', syncInfoAnchor, true);
+    };
+  }, [infoVisible]);
+
   return (
     <div className="flex flex-col gap-1.5" data-ops-task-duration>
       <div className="flex min-w-0 items-center gap-1.5">
@@ -123,7 +146,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
           }}
           disabled={derived || hourEditBlocked}
           aria-label={t('duration.label')}
-          className="input min-w-0 flex-1 disabled:opacity-50"
+          className="input h-9 min-w-0 flex-1 !px-2.5 !py-0 !text-xs disabled:opacity-50"
           data-ops-duration-value
         />
         <div className="w-20 shrink-0">
@@ -139,28 +162,32 @@ export function TaskDurationField({ task, calendar, onChange }: {
             ]}
           />
         </div>
-        <span className="relative inline-flex aspect-square shrink-0 self-stretch">
+        <span className="inline-flex aspect-square shrink-0 self-stretch">
           <button
+            ref={infoButtonRef}
             type="button"
             className="inline-flex h-full w-full items-center justify-center rounded-[5px] text-text-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             aria-label={t('duration.unitInfo')}
             aria-describedby={infoVisible ? infoId : undefined}
-            onMouseEnter={() => setInfoVisible(true)}
+            onMouseEnter={showInfo}
             onMouseLeave={() => setInfoVisible(false)}
-            onFocus={() => setInfoVisible(true)}
+            onFocus={showInfo}
             onBlur={() => setInfoVisible(false)}
             data-ops-duration-info
           >
             <Info size={14} aria-hidden="true" />
           </button>
-          {infoVisible && (
-            <span
+          {infoVisible && infoAnchor && (
+            <HoverTooltip
+              left={infoAnchor.left}
+              top={infoAnchor.top}
+              placement="before-anchor"
+              anchorWidth={infoAnchor.width}
+              className="duration-unit-tooltip"
               id={infoId}
-              role="tooltip"
-              className="absolute right-0 top-full z-[10000] mt-1 w-[min(260px,calc(100vw-24px))] rounded-[5px] border border-border bg-surface px-2 py-1 text-[11px] normal-case leading-[1.3] text-text shadow-lg"
             >
               {t('duration.unitInfo')}
-            </span>
+            </HoverTooltip>
           )}
         </span>
       </div>
