@@ -278,7 +278,10 @@ export interface TaskGridPasteBenchmark {
   budgetMs: number;
   writeCount: number;
   prepared: boolean;
-  elapsedMs: number;
+  warmups: number;
+  runs: number;
+  samplesMs: number[];
+  medianMs: number;
 }
 
 /**
@@ -313,7 +316,7 @@ function syntheticPasteText(descriptor: TaskColumnDescriptor, rowIndex: number, 
   }
 }
 
-export function runTaskGridPasteBenchmark(): TaskGridPasteBenchmark {
+export function runTaskGridPasteBenchmark(warmups = 2, runs = 9): TaskGridPasteBenchmark {
   const { taskCount, columnCount } = TASK_GRID_PASTE_PERFORMANCE_COUNTS;
   const store = useAppStore;
   const S = () => store.getState();
@@ -376,15 +379,28 @@ export function runTaskGridPasteBenchmark(): TaskGridPasteBenchmark {
   if (!planned.ok) throw new Error('Paste-benchmarkfixture kon zichzelf niet plannen — geen geldig 2.000×27-blok');
   const writeCount = planned.value.writes.length;
 
-  const startedAt = performance.now();
-  const result = S().runGridMutation([planned.value]);
-  const elapsedMs = performance.now() - startedAt;
+  // Aanbeveling 3 (onafhankelijke eindreview): één sample zonder warmup was gevoelig voor
+  // CPU-druk (de reviewer zag 5.049 ms rood en 2.935 ms net groen op hetzelfde werk). `runGridMutation`
+  // wordt hier — net als de review's eigen wbsCode-repro — zonder `skipReadOnlyCells` gepland, dus
+  // de conditionele wbsCode-cel weigert de HELE transactie vóór er ooit gecommit wordt: de store
+  // blijft na elke sample ongewijzigd, dus dezelfde voorbereide `PasteIntent` mag veilig
+  // `warmups + runs` keer herhaald worden op precies dezelfde 2.000-taken-fixture, net als
+  // `runTaskGridPerformanceBenchmark` hierboven doet.
+  let prepared = false;
+  const samplesMs = measure(() => {
+    const result = S().runGridMutation([planned.value]);
+    prepared = result.ok || result.errors.length > 0;
+    return prepared ? 1 : 0;
+  }, warmups, runs);
 
   return {
     counts: TASK_GRID_PASTE_PERFORMANCE_COUNTS,
     budgetMs: TASK_GRID_PERFORMANCE_BUDGETS.pasteCommitMs,
     writeCount,
-    prepared: result.ok || result.errors.length > 0,
-    elapsedMs,
+    prepared,
+    warmups,
+    runs,
+    samplesMs,
+    medianMs: median(samplesMs),
   };
 }
