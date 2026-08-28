@@ -31,6 +31,21 @@
     "USERDEFINED": "기타",
     "builtinGroup": "기본 제공 유형", "personalGroup": "내 작업 유형", "projectGroup": "이 프로젝트에서", "new": "+ 새 작업 유형…", "manage": "작업 유형 관리…", "newTitle": "새 작업 유형", "manageTitle": "작업 유형 관리", "name": "이름", "fixed": "고정", "empty": "개인 작업 유형이 아직 없습니다.", "rename": "편집", "remove": "삭제", "addToMine": "내 작업 유형에 추가", "confirmRemove": "이 유형은 열린 프로젝트에서 사용됩니다. 내 작업 유형에서 삭제할까요? 프로젝트 사본은 유지됩니다."
   },
+  "duration": {
+    "label": "기간",
+    "unit": "기간 단위",
+    "days": "일",
+    "hours": "시간",
+    "invalid": "2d 또는 12h처럼 정수 일수나 시간 수를 입력하세요.",
+    "enableHourPlanningFirst": "이 시간 작업을 편집하려면 시간 계획을 켜세요.",
+    "enableHourPlanning": "시간 계획 켜기",
+    "requiresWorkBlocks": "이 달력에는 유효한 근무 시간이 없습니다. 근무일과 근무 시간을 확인하세요.",
+    "conversionNotExact": "이 기간은 현재 달력에서 정수 일수로 정확히 변환할 수 없습니다. 기존 단위를 유지하므로 새 유효 값을 직접 입력하세요.",
+    "conversionProposal": "정확한 변환 제안: {{value}}. 적용하거나 현재 단위를 유지하세요.",
+    "applyProposal": "제안 적용",
+    "keepCurrent": "유지",
+    "unitInfo": "선택한 단위는 이 작업에 속합니다. 일은 근무일을 세고, 시간은 달력 안의 근무 시간을 셉니다. 다른 달력은 단위나 입력한 기간을 바꾸지 않지만 완료 날짜는 바꿀 수 있습니다."
+  },
   "dialog": {
     "editTitle": "작업 편집",
     "newTitle": "새 작업",

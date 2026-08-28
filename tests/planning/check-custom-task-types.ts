@@ -44,6 +44,36 @@ for (const [format, parsed] of [
   eq(`${format}: catalogus`, parsed.customTaskTypes, [custom]);
 }
 
+// Integratieregressie T1 × F3: P6 en IFC bewaren beide onafhankelijke contracten tegelijk.
+// De taaktype-UDF/-property mag de expliciete uur-eenheid niet overschrijven (of omgekeerd).
+const hourTask: Task = {
+  ...task,
+  id: 'task-gevel-uur',
+  name: 'Uurcontrole',
+  time: {
+    ...task.time,
+    durationUnit: 'hours',
+    durationMinutes: 90,
+    scheduleDuration: 90 / (calendar.hoursPerDay * 60),
+    scheduleStart: `${project.startDate}T08:00`,
+    scheduleFinish: `${project.startDate}T09:30`,
+    earlyStart: `${project.startDate}T08:00`,
+    earlyFinish: `${project.startDate}T09:30`,
+    lateStart: `${project.startDate}T08:00`,
+    lateFinish: `${project.startDate}T09:30`,
+  },
+};
+const p6Combined = readP6XML(writeP6XML(project, calendar, [hourTask], [], [], [], [], [custom]));
+const ifcCombined = readIFC(writeIFC({
+  project, calendar, tasks: [hourTask], sequences: [], resources: [], assignments: [], customTaskTypes: [custom],
+}));
+for (const [format, parsed] of [['P6', p6Combined], ['IFC', ifcCombined]] as const) {
+  eq(`${format}: combinatie taaktype`, parsed.tasks[0]?.customTaskTypeId, custom.id);
+  eq(`${format}: combinatie catalogus`, parsed.customTaskTypes, [custom]);
+  eq(`${format}: combinatie uur-eenheid`, parsed.tasks[0]?.time.durationUnit, 'hours');
+  eq(`${format}: combinatie minuten`, parsed.tasks[0]?.time.durationMinutes, 90);
+}
+
 // Een vreemd CSV-type zonder OPS-id blijft projectlokaal USERDEFINED en wordt nooit een builtin.
 const foreign = readCSV('Name;Task Type\nExterne classificatie;Vendor activity\n');
 eq('vreemde CSV-classificatie', foreign.tasks[0]?.taskType, 'USERDEFINED');

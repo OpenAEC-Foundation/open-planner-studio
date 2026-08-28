@@ -13,7 +13,11 @@ import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
-import { WORKCONTOUR_TO_CURVE } from './mspdiWriter';
+import {
+  OPS_DURATION_UNIT_FIELD_ID,
+  OPS_DURATION_UNIT_FIELD_NAME,
+  WORKCONTOUR_TO_CURVE,
+} from './mspdiWriter';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
   promoteHourCalendar, registerCalendarBands,
@@ -54,6 +58,45 @@ import type { RecurrenceSpec, RawException, HolidayBudget } from '@/services/cal
 
 /** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
 const MSP_TIME_ANCHOR = '08:00:00';
+
+function taskDurationType(te: Element): 'WORKTIME' | 'ELAPSEDTIME' {
+  const format = Number.parseInt(getElementText(te, 'DurationFormat'), 10);
+  return [4, 6, 8, 10, 12].includes(format) ? 'ELAPSEDTIME' : 'WORKTIME';
+}
+
+function hasOpsDurationUnitDefinition(root: Element): boolean {
+  const containers = root.getElementsByTagName('ExtendedAttributes');
+  for (let i = 0; i < containers.length; i++) {
+    if (containers[i].parentElement !== root) continue;
+    const definitions = containers[i].getElementsByTagName('ExtendedAttribute');
+    for (let j = 0; j < definitions.length; j++) {
+      if (getElementText(definitions[j], 'FieldID') === OPS_DURATION_UNIT_FIELD_ID
+        && getElementText(definitions[j], 'FieldName') === OPS_DURATION_UNIT_FIELD_NAME) return true;
+    }
+  }
+  return false;
+}
+
+function explicitOpsDurationUnit(te: Element, enabled: boolean): 'days' | 'hours' | undefined {
+  if (!enabled) return undefined;
+  const values = te.getElementsByTagName('ExtendedAttribute');
+  for (let i = 0; i < values.length; i++) {
+    if (values[i].parentElement !== te) continue;
+    if (getElementText(values[i], 'FieldID') !== OPS_DURATION_UNIT_FIELD_ID) continue;
+    const value = getElementText(values[i], 'Value');
+    if (value === 'days' || value === 'hours') return value;
+  }
+  return undefined;
+}
+
+/**
+ * Alleen een door OPS zelf gedefinieerde marker is een expliciete taakeenheid. DurationFormat is in
+ * MSPDI een presentatieformaat en mag een bestaand uurproject dus niet stil herinterpreteren. Een
+ * vreemd of legacy bestand zonder marker volgt exact de pre-T1-regel: uurkalender => minutenbron.
+ */
+function taskDurationUnit(te: Element, hourCalendar: boolean, opsMarkerEnabled: boolean): 'days' | 'hours' {
+  return explicitOpsDurationUnit(te, opsMarkerEnabled) ?? (hourCalendar ? 'hours' : 'days');
+}
 
 /** SPEC-REVIEW-FIX (blokkerend, op 3dd6c3ba) — bovengrens op het aantal `<Calendar>`-elementen dat
  *  de resource-kalenderlus in `readMSPDI` materialiseert. Vóór deze klem was de lus ONBEGRENSD: elke
@@ -238,6 +281,7 @@ export function readMSPDI(content: string): ImportResult {
   }
 
   const root = doc.documentElement;
+  const opsDurationUnitMarkerEnabled = hasOpsDurationUnitDefinition(root);
 
   // Parse project
   const project = parseProject(root);
@@ -383,8 +427,11 @@ export function readMSPDI(content: string): ImportResult {
 
     const durationStr = getElementText(te, 'Duration');
     // Duur: uur ⇒ minuten (bron van waarheid, geen afronding, §7.3); dag ⇒ het bestaande dag-pad.
-    const durationMinutes = isHour ? (mspDurationMinutes(durationStr) ?? 0) : undefined;
-    const duration = isHour ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0) : parseMSPDuration(durationStr, hoursPerDay);
+    const durationUnit = taskDurationUnit(te, isHour, opsDurationUnitMarkerEnabled);
+    const durationMinutes = durationUnit === 'hours' ? (mspDurationMinutes(durationStr) ?? 0) : undefined;
+    const duration = durationUnit === 'hours'
+      ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0)
+      : parseMSPDuration(durationStr, effHpd);
     const start = isHour ? parseMSPInstant(getElementText(te, 'Start')) : parseMSPDate(getElementText(te, 'Start'));
     const finish = isHour ? parseMSPInstant(getElementText(te, 'Finish')) : parseMSPDate(getElementText(te, 'Finish'));
     const isMilestone = getElementInt(te, 'Milestone') === 1;
@@ -424,8 +471,8 @@ export function readMSPDI(content: string): ImportResult {
     const actualStart = actualStartRaw ? (isHour ? parseMSPInstant(actualStartRaw) : parseMSPDate(actualStartRaw)) : undefined;
     const actualFinish = actualFinishRaw ? (isHour ? parseMSPInstant(actualFinishRaw) : parseMSPDate(actualFinishRaw)) : undefined;
     // RemainingDuration: uur ⇒ minuten; dag ⇒ het bestaande dag-pad.
-    const remainingMinutes = isHour && remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined;
-    const remainingTime = !isHour && remainingRaw ? parseMSPDuration(remainingRaw, hoursPerDay) : undefined;
+    const remainingMinutes = durationUnit === 'hours' && remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined;
+    const remainingTime = durationUnit === 'days' && remainingRaw ? parseMSPDuration(remainingRaw, effHpd) : undefined;
 
     let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
     if (percentComplete >= 100) status = 'COMPLETED';
@@ -481,7 +528,11 @@ export function readMSPDI(content: string): ImportResult {
       parentId: null,
       childIds: [],
       time: {
-        durationType: 'WORKTIME',
+        durationType: taskDurationType(te),
+        // DurationFormat bepaalt in MSPDI de schrijfnotatie (en elapsed-vlag), niet een
+        // afzonderlijke dagtaaksemantiek. De bestaande precisiediscriminator bepaalt de
+        // blijvende OPS-eenheid zodat de geplande brondata niet van betekenis verandert.
+        durationUnit,
         scheduleDuration: duration,
         ...(durationMinutes != null ? { durationMinutes } : {}),
         scheduleStart: start,

@@ -25,6 +25,7 @@ import { freshPayload, hydratePayload } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
+import { deriveHoursPerDay } from '@/services/subdayIo';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
@@ -40,6 +41,7 @@ export interface NewProjectOptions {
   endDate?: string;
   calendar: WorkCalendar;
   phaseNames: string[];
+  defaultTaskDurationUnit?: 'days' | 'hours';
 }
 
 /** Uitkomst van een `moveProject`-commit. */
@@ -463,28 +465,40 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       proj.startDate = opts.startDate || proj.startDate;
       proj.endDate = opts.endDate ?? '';
       proj.calendarId = opts.calendar.id;
+      proj.defaultTaskDurationUnit = opts.defaultTaskDurationUnit ?? 'days';
 
       // Reset-pad (audit P10): start van een verse payload en override alleen de wizard-velden.
       // hydratePayload vult §4.4 de bibliotheek met de wizard-kalender (promote) en synct de cache.
       const payload = freshPayload();
       payload.project = proj;
       payload.calendar = opts.calendar;
-      payload.tasks = opts.phaseNames.map((name, i) => ({
-        id: generateId('task'),
-        name,
-        description: '',
-        wbsCode: String(i + 1),
-        // Bouwmodus (2026-07-13): wizard-fasen krijgen in bouw-agnostische modus een neutraal
-        // taaktype (USERDEFINED) i.p.v. CONSTRUCTION.
-        taskType: s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED',
-        status: 'NOT_STARTED',
-        isMilestone: false,
-        priority: 500,
-        parentId: null,
-        childIds: [],
-        time: createDefaultTaskTime(proj.startDate, 5),
-        resourceIds: [],
-      }));
+      const phaseHoursPerDay = opts.calendar.workTime
+        ? deriveHoursPerDay(opts.calendar.workTime, opts.calendar.hoursPerDay)
+        : opts.calendar.hoursPerDay;
+      payload.tasks = opts.phaseNames.map((name, i) => {
+        const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit);
+        if (time.durationUnit === 'hours') {
+          time.scheduleDuration = phaseHoursPerDay > 0
+            ? (time.durationMinutes ?? 0) / (phaseHoursPerDay * 60)
+            : 0;
+        }
+        return {
+          id: generateId('task'),
+          name,
+          description: '',
+          wbsCode: String(i + 1),
+          // Bouwmodus (2026-07-13): wizard-fasen krijgen in bouw-agnostische modus een neutraal
+          // taaktype (USERDEFINED) i.p.v. CONSTRUCTION.
+          taskType: s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED',
+          status: 'NOT_STARTED' as const,
+          isMilestone: false,
+          priority: 500,
+          parentId: null,
+          childIds: [],
+          time,
+          resourceIds: [],
+        };
+      });
       // Een leeg project (template 'Leeg') is nog niet 'dirty'; met fasen wél.
       payload.isDirty = opts.phaseNames.length > 0;
       hydratePayload(s, payload);

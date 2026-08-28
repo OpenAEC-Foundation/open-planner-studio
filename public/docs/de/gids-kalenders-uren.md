@@ -47,7 +47,7 @@ Sehen Sie einen 4-Tage-Ressourcenkalender in der Praxis: Die Installateure in [N
 
 Standardmäßig arbeitet Open Planner Studio vollständig in **Tagesgenauigkeit** — jede Aufgabe hat eine Dauer in ganzen (Arbeits-)Tagen. Für Aufgaben, die Sie lieber nach Stunden planen (denken Sie an einen Betonier, der um 7:00 Uhr beginnt und um 14:00 Uhr, lange bevor das Wetter umschlägt, fertig sein muss), gibt es die optionale **Stundenplanung**.
 
-Aktivieren Sie den Hauptschalter über **Einstellungen → Zeitachse / Zoom → Stundenplanung aktivieren**. Das fügt eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken hinzu; bei ausgeschaltetem Schalter arbeitet die App vollständig wie bisher, in Tagesgenauigkeit. Es gibt außerdem die Option **Gemischte Tages-/Stundenplanung zulassen**, die Sie aktivieren, wenn Sie sowohl tages- als auch stundenbasierte Aufgaben im selben Projekt kombinieren möchten (siehe unten).
+Aktivieren Sie den Hauptschalter über **Einstellungen → Zeitachse / Zoom → Stundenplanung aktivieren**. Das fügt eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken hinzu; bei ausgeschaltetem Schalter beginnen neue Vorgänge in Tagen und vorhandene Stundenwerte bleiben erhalten.
 
 ## Arbeitszeitbänder und Schichten
 
@@ -71,7 +71,7 @@ Genau so werden Betonieraufgaben in der Praxis terminiert: eine Aufgabe „Vloer
 
 ## Mischung aus tages- und stundenbasierten Aufgaben
 
-Ein Projekt muss nicht vollständig auf Stunden laufen, um von der Stundenplanung zu profitieren: Mit aktiviertem **Gemischte Tages-/Stundenplanung zulassen** können tagesbasierte Aufgaben (auf dem regulären Projektkalender) und stundenbasierte Aufgaben (auf einem Stundenkalender) im selben Terminplan nebeneinander existieren und miteinander in Beziehung stehen. In diesem Fall zeigt die Aufgabentabelle die Dauer jeder Aufgabe in ihrer eigenen Einheit — eine Tagesaufgabe in Tagen, eine Stundenaufgabe in Stunden — und warnt unten in der Tabelle, wenn Aufgaben mit unterschiedlichen Stunden-pro-Tag nebeneinander laufen, damit klar bleibt, welche Vergleiche gleichartig sind und welche nicht.
+Ein Projekt muss nicht vollständig auf Stunden laufen, um von der Stundenplanung zu profitieren: Bei aktivierter Stundenplanung können tagesbasierte und stundenbasierte Aufgaben im selben Terminplan nebeneinander existieren und miteinander in Beziehung stehen. Die Einheit gehört dabei zur Aufgabe und wird nicht aus ihrem Kalender abgeleitet.
 
 ## Weiterlesen
 

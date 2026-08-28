@@ -283,6 +283,8 @@ export function readCSV(content: string): ImportResult {
       childIds: [],
       time: {
         durationType: 'WORKTIME',
+        // CSV draagt geen per-taak-eenheid: een naakte CSV-duur is deterministisch dagen.
+        durationUnit: 'days',
         scheduleDuration: row.duration,
         scheduleStart: row.start,
         scheduleFinish: row.finish,

@@ -162,6 +162,7 @@ export function toExtProject(p: Project): ExtProject {
     wbsAutoNumber: p.wbsAutoNumber,
     statusDate: p.statusDate,
     progressMode: p.progressMode,
+    defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
@@ -181,6 +182,7 @@ export function fromExtProject(p: ExtProject): Project {
     wbsAutoNumber: p.wbsAutoNumber,
     statusDate: p.statusDate,
     progressMode: p.progressMode,
+    defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
@@ -224,6 +226,7 @@ export function fromExtCalendar(c: ExtCalendar): WorkCalendar {
 export function toExtTaskTime(tt: TaskTime): ExtTaskTime {
   return {
     durationType: tt.durationType,
+    durationUnit: tt.durationUnit,
     scheduleDuration: tt.scheduleDuration,
     durationMinutes: tt.durationMinutes,
     scheduleStart: tt.scheduleStart,
@@ -271,6 +274,7 @@ export function fromExtTaskTime(tt: ExtTaskTime): TaskTime {
   const finish = tt.scheduleFinish ?? start;
   return {
     durationType: tt.durationType ?? 'WORKTIME',
+    durationUnit: tt.durationUnit ?? (tt.durationMinutes != null ? 'hours' : 'days'),
     scheduleDuration: tt.scheduleDuration ?? 0,
     durationMinutes: tt.durationMinutes,
     scheduleStart: start,

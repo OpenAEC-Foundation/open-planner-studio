@@ -377,7 +377,8 @@ function createMcpDraft(
    *
    * Verschil met `updateTaskFields`: hier kan een aanroeper per constructie geen hele geneste tak
    * meegeven — `timePatch` kent alleen `scheduleDuration`, `durationType` en de expliciete
-   * `clearDurationMinutes`. Dat laatste is nodig omdat `durationMinutes` op een uur-kalender de BRON
+   * `durationUnit` en `clearDurationMinutes`. Dat laatste is nodig omdat `durationMinutes` bij een
+   * urentaak de BRON
    * VAN WAARHEID is (`durationDaysOf`): een achtergebleven minutenwaarde zou een zojuist gezette
    * dag-duur stil overrulen. `delete` (niet `= undefined`) houdt het Task-object schoon voor de
    * IFC-round-trip. Onbekend id ⇒ stille no-op (zoals `updateTaskFields`).
@@ -385,7 +386,7 @@ function createMcpDraft(
   patchTaskFields(
     id: string,
     top: Partial<Task>,
-    timePatch?: { scheduleDuration?: number; durationType?: DurationType; clearDurationMinutes?: boolean },
+    timePatch?: { scheduleDuration?: number; durationUnit?: 'days' | 'hours'; durationMinutes?: number; durationType?: DurationType; clearDurationMinutes?: boolean },
   ): void {
     store.setState((s) => {
       const idx = s.tasks.findIndex((t) => t.id === id);
@@ -395,6 +396,8 @@ function createMcpDraft(
       let timeTouched = false;
       if (timePatch) {
         if (timePatch.scheduleDuration !== undefined) { task.time.scheduleDuration = timePatch.scheduleDuration; timeTouched = true; }
+        if (timePatch.durationUnit !== undefined) { task.time.durationUnit = timePatch.durationUnit; timeTouched = true; }
+        if (timePatch.durationMinutes !== undefined) { task.time.durationMinutes = timePatch.durationMinutes; timeTouched = true; }
         if (timePatch.durationType !== undefined) { task.time.durationType = timePatch.durationType; timeTouched = true; }
         if (timePatch.clearDurationMinutes) { delete task.time.durationMinutes; timeTouched = true; }
       }

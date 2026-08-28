@@ -57,7 +57,7 @@ agrupa como **General**, **Idioma** y **Línea de tiempo / Zoom**.
 
 ## Pestaña Línea de tiempo / Zoom
 
-- **Planificación por horas** — **Activar planificación por horas** activa la programación por horas/minutos: una escala de tiempo horaria, turnos con bandas de horario laboral y barras de tarea con precisión de hora. Desactivado ⇒ la aplicación se mantiene totalmente granular por días. Con el interruptor activado, aparece **Permitir planificación mixta de días/horas** (tareas de día y de hora en un proyecto). Si abre un archivo que contiene planificación por horas mientras el interruptor está desactivado, una barra arriba ofrece **Activar planificación por horas**. Vea [Calendarios y planificación por horas](docs://gids-kalenders-uren).
+- **Planificación por horas** — **Activar planificación por horas** activa la programación por horas/minutos, las bandas de trabajo y la escala horaria. Desactivada, las tareas nuevas comienzan en días y las tareas horarias existentes conservan su valor exacto. Activada, las tareas de días y horas pueden convivir. Vea [Calendarios y planificación por horas](docs://gids-kalenders-uren).
 - **Visualización de la duración** — **Automática (unidad propia por tarea)**, **Siempre días** o **Siempre horas**.
 - **Barras de tarea en las interrupciones** — **No dividir nunca**, **Dividir al seleccionar** o **Dividir siempre**: si una barra se divide visualmente en torno a los días no laborables.
 - **Eje temporal** — **Mostrar solo días laborables** comprime la línea de tiempo: los fines de

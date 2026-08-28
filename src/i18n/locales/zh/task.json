@@ -31,6 +31,21 @@
     "USERDEFINED": "其他",
     "builtinGroup": "内置类型", "personalGroup": "我的任务类型", "projectGroup": "来自此项目", "new": "+ 新建任务类型…", "manage": "管理任务类型…", "newTitle": "新建任务类型", "manageTitle": "管理任务类型", "name": "名称", "fixed": "固定", "empty": "尚无个人任务类型。", "rename": "编辑", "remove": "删除", "addToMine": "添加到我的任务类型", "confirmRemove": "此类型正在当前项目中使用。要从我的任务类型中删除吗？项目副本将保留。"
   },
+  "duration": {
+    "label": "工期",
+    "unit": "工期单位",
+    "days": "天",
+    "hours": "小时",
+    "invalid": "请输入整数天数或小时数，例如 2d 或 12h。",
+    "enableHourPlanningFirst": "请启用小时计划后再编辑此小时任务。",
+    "enableHourPlanning": "启用小时计划",
+    "requiresWorkBlocks": "此日历没有有效的工作时间。请检查工作日和工作时间。",
+    "conversionNotExact": "此工期无法在当前日历中精确转换为整数天。现有单位将保留；请自行输入新的有效值。",
+    "conversionProposal": "精确转换建议：{{value}}。应用该建议或保留当前单位。",
+    "applyProposal": "应用建议",
+    "keepCurrent": "保留",
+    "unitInfo": "所选单位属于此任务。天数计算工作日；小时数计算日历内的工作小时。更换日历不会改变单位或输入的工期，但可能改变完成日期。"
+  },
   "dialog": {
     "editTitle": "编辑任务",
     "newTitle": "新建任务",

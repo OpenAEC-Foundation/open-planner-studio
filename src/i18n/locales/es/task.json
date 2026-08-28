@@ -31,6 +31,21 @@
     "USERDEFINED": "Otro",
     "builtinGroup": "Tipos integrados", "personalGroup": "Mis tipos de tarea", "projectGroup": "De este proyecto", "new": "+ Nuevo tipo de tarea…", "manage": "Gestionar tipos de tarea…", "newTitle": "Nuevo tipo de tarea", "manageTitle": "Gestionar tipos de tarea", "name": "Nombre", "fixed": "Fijo", "empty": "Aún no hay tipos de tarea personales.", "rename": "Editar", "remove": "Eliminar", "addToMine": "Añadir a mis tipos de tarea", "confirmRemove": "Este tipo se usa en el proyecto abierto. ¿Eliminarlo de Mis tipos de tarea? La copia del proyecto se conserva."
   },
+  "duration": {
+    "label": "Duración",
+    "unit": "Unidad de duración",
+    "days": "Días",
+    "hours": "Horas",
+    "invalid": "Introduce un número entero de días u horas, por ejemplo 2d o 12h.",
+    "enableHourPlanningFirst": "Activa la planificación por horas para editar esta tarea horaria.",
+    "enableHourPlanning": "Activar planificación por horas",
+    "requiresWorkBlocks": "Este calendario no tiene horarios de trabajo válidos. Comprueba sus días y horarios laborables.",
+    "conversionNotExact": "Esta duración no se puede convertir exactamente en días enteros con el calendario actual. Se conserva la unidad existente; introduce tú un valor nuevo válido.",
+    "conversionProposal": "Propuesta de conversión exacta: {{value}}. Aplícala o conserva la unidad actual.",
+    "applyProposal": "Aplicar propuesta",
+    "keepCurrent": "Conservar",
+    "unitInfo": "La unidad elegida pertenece a esta tarea. Los días cuentan días laborables; las horas cuentan horas de trabajo dentro del calendario. Otro calendario no cambia la unidad ni la duración introducida, pero puede cambiar la fecha de fin."
+  },
   "dialog": {
     "editTitle": "Editar tarea",
     "newTitle": "Nueva tarea",

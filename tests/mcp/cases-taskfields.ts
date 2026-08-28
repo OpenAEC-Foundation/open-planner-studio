@@ -15,6 +15,7 @@
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
+import { readTools } from '@/services/mcp/tools/readTools';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
 
@@ -27,7 +28,7 @@ store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
 // De batch-tool heeft de echte taak-tools in de registry nodig.
-registerToolModules([taskTools, batchTools]);
+registerToolModules([taskTools, batchTools, readTools]);
 const batchDef = batchTools[0];
 
 function makeCtx(over: McpContextOverrides = {}): McpContext {
@@ -38,7 +39,7 @@ function makeCtx(over: McpContextOverrides = {}): McpContext {
 }
 
 function tool(name: string) {
-  const def = taskTools.find((t) => t.name === name);
+  const def = [...taskTools, ...readTools].find((t) => t.name === name);
   if (!def) throw new Error(`tool ontbreekt: ${name}`);
   return def;
 }
@@ -170,7 +171,7 @@ test('update_tasks: onbekend veld ⇒ zachte weigering en GEEN enkele mutatie', 
   assertEq(rej.length, 1, 'precies één zachte weigering');
   assertEq(rej[0].id, id, 'de weigering noemt de taak');
   assert(rej[0].reason.includes("onbekend veld 'duration_days'"), `bruikbare reden: ${rej[0].reason}`);
-  assert(/duration, durationType/.test(rej[0].reason), `de reden somt de toegestane velden op: ${rej[0].reason}`);
+  assert(/duration, durationUnit, durationType/.test(rej[0].reason), `de reden somt de toegestane velden op: ${rej[0].reason}`);
   const t = taskById(id)!;
   assertEq(t.name, 'Fundering', 'de naam is NIET gewijzigd (alles-of-niets per item)');
   assertEq(t.time.scheduleDuration, 5, 'de duur is niet gewijzigd');
@@ -248,6 +249,52 @@ test('update_tasks: een duur-wijziging WIST een achtergebleven durationMinutes (
   const t = taskById(id)!;
   assertEq(t.time.scheduleDuration, 6, 'de dag-duur is gezet');
   assertEq(t.time.durationMinutes, undefined, 'de minuten-bron is gewist (anders zou die de dag-duur stil overrulen)');
+});
+
+test('add/update/get_task: uren zijn een expliciete native eenheid en round-trippen via MCP', async () => {
+  reset();
+  store.setState((s) => {
+    s.calendar.workTime = {
+      byWeekday: {
+        1: [{ start: 480, end: 960 }], 2: [{ start: 480, end: 960 }],
+        3: [{ start: 480, end: 960 }], 4: [{ start: 480, end: 960 }],
+        5: [{ start: 480, end: 960 }], 6: [], 7: [],
+      },
+    };
+  });
+  const created = okData(await call('planner_add_tasks', {
+    tasks: [{ tempId: 'tmp-hour', name: 'Uurtaak', duration: 12, durationUnit: 'hours' }],
+  }));
+  const id = created.created['tmp-hour'];
+  let task = taskById(id)!;
+  assertEq(task.time.durationUnit, 'hours', 'aanmaak bewaart hours als native eenheid');
+  assertEq(task.time.durationMinutes, 720, 'aanmaak bewaart exact 720 minuten');
+  assertEq(task.time.scheduleDuration, 1.5, 'afgeleid dagequivalent volgt de 8-uurskalender');
+
+  okData(await call('planner_update_tasks', {
+    updates: [{ id, fields: { duration: 10, durationUnit: 'hours' } }],
+  }));
+  task = taskById(id)!;
+  assertEq(task.time.durationMinutes, 600, 'update wijzigt de native uurbron');
+  const read = okData(await call('planner_get_task', { taskId: id }));
+  assertEq(read.duration, 10, 'get_task geeft de native uurwaarde terug');
+  assertEq(read.durationUnit, 'hours', 'get_task benoemt de native eenheid');
+});
+
+test('durationUnit zonder duration en uren zonder werkblokken worden geweigerd zonder herinterpretatie', async () => {
+  reset();
+  // Een scalaire standaardkalender is bewust een geldige, afleidbare uurbron. Maak de kalender
+  // daarom werkelijk onbruikbaar i.p.v. alleen de optionele opgeslagen banden te verwijderen.
+  store.setState((s) => { delete s.calendar.workTime; s.calendar.workDays = []; });
+  const id = seedTask('Dagen', 2);
+  const unitOnly = await call('planner_update_tasks', { updates: [{ id, fields: { durationUnit: 'hours' } }] });
+  assert(/samen met `duration`/.test(rejections(unitOnly)[0].reason), 'unit-only legt de atomaire wijzigingsregel uit');
+  const noBlocks = await call('planner_update_tasks', {
+    updates: [{ id, fields: { duration: 12, durationUnit: 'hours' } }],
+  });
+  assert(/concrete werkblokken/.test(rejections(noBlocks)[0].reason), 'urentaak zonder blokken wordt gericht geweigerd');
+  assertEq(taskById(id)!.time.durationUnit, 'days', 'de bestaande dagidentiteit bleef behouden');
+  assertEq(taskById(id)!.time.scheduleDuration, 2, 'de bestaande daghoeveelheid bleef behouden');
 });
 
 test('update_tasks: constraint / deadline / calendarId — gevalideerd, niet blind gemerged', async () => {

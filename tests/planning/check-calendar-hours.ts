@@ -281,6 +281,10 @@ eq('L8  seed(0-24,24u): één band [0,1440]', JSON.stringify(seed247.byWeekday[1
 // seedScalarBands direct: 06:00-18:00 op 10u (12 klokuren, 10 netto ⇒ 2u pauze rond 12:00) ⇒ som 600m.
 const bnd = seedScalarBands(360, 1080, 10);
 eq('L9  seedScalarBands(6-18,10u) som=600m (=10u)', bnd.reduce((s, x) => s + (x.end - x.start), 0), 600);
+const seed9175 = seedScalarBands(540, 1020, 7.5);
+eq('L10 seed(9-17,7.5u) legt de 30m pauze direct na 12:00', JSON.stringify(seed9175), JSON.stringify([
+  { start: 540, end: 720 }, { start: 750, end: 1020 },
+]));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // M) Fase 3.8 (T2, MSP-pariteit) — werkende uitzonderingen (`WorkCalendar.workingExceptions`).

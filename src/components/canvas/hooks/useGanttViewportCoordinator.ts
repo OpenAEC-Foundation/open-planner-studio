@@ -55,10 +55,10 @@ export function useGanttViewportCoordinator(
 
   // Ook zonder taken moet de tijdlijn de concrete kalenderuitzonderingen kunnen bereiken. Een
   // feestdag is dan de enige domeindatum die de gebruiker naar de Gantt kan willen pannen.
-  const calendarNavigationDates = useMemo(() => ({
+  const calendarNavigationDates = useMemo(() => input.tasks.length === 0 ? ({
     starts: input.calendar.holidays.map(holiday => holiday.startDate),
     ends: input.calendar.holidays.map(holiday => holiday.endDate || holiday.startDate),
-  }), [input.calendar.holidays]);
+  }) : ({ starts: [], ends: [] }), [input.calendar.holidays, input.tasks.length]);
 
   const effectiveViewStart = useMemo(
     () => computeEffectiveViewStart(input.tasks, input.view.viewStartDate, calendarNavigationDates.starts),

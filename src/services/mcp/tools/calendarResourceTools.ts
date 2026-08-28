@@ -35,10 +35,8 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { computeMoveDelta } from '@/engine/moveProject';
 import { diffDays } from '@/utils/dateUtils';
 import { deriveHoursPerDay, workDaysFromBands } from '@/services/subdayIo';
-import { durationDaysOf, type DurationCalendar } from '@/engine/scheduler/duration';
 import type { GeneratorCountry, HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { CalendarGeneration, Holiday, WorkCalendar, WorkTimeBands } from '@/types/calendar';
-import type { Task } from '@/types/task';
 import type { ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
@@ -154,8 +152,8 @@ const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Num
 // velden niet: `workTime` (uurbanden), `shift` (ploeg) en `generation` — die laatste zelfs onder
 // ANDERE sleutelnamen (`generate: {country, region, bouwvak}` tegenover de leesvorm
 // `{ruleSetId, region, breakChoice, …}`). Een uurkalender bouwde in het doeldocument dus stil op als
-// DAG-kalender, en dat herdefinieert de duur van elke taak eraan (zie `duration.ts`: `durationMinutes`
-// telt UITSLUITEND op een uur-kalender). Sindsdien:
+// DAG-kalender, waardoor exacte urentaken niet planbaar zijn totdat er weer concrete banden bestaan.
+// Hun gekozen eenheid en native hoeveelheid blijven daarbij altijd onaangeroerd. Sindsdien:
 //
 //   RICHTING VAN DE NAAMDRIFT — de SCHRIJFKANT accepteert de LEESVORM, de leeskant blijft zoals hij
 //   is. `generation` IS het opgeslagen modelveld (`WorkCalendar.generation`, round-trippend door
@@ -529,44 +527,12 @@ function calendarFieldPatch(item: CalendarItem, existing: Pick<WorkCalendar, 'ho
   return patch;
 }
 
-// ── Dag↔uur-omschakeling: de duur-gevolgen ZICHTBAAR maken ───────────────────────────────────────
-//
-// `durationMinutes` is bron van waarheid UITSLUITEND op een uur-kalender (`duration.ts`, invariant
-// Bevinding 2). Een kalender van dag- naar uur-modus brengen (of terug) HERDEFINIEERT dus de duur van
-// elke taak die eraan hangt — inclusief álle taken zonder eigen `calendarId` zodra het de
-// projectkalender betreft. De kalenderdialoog doet die omschakeling zonder één woord; hier mag dat
-// niet stil gebeuren: de respons draagt per taak de oude en de nieuwe effectieve duur.
+// ── Dag↔uur-kalenderomschakeling ────────────────────────────────────────────────────────────────
+// Een kalender bepaalt alleen de plaatsing. Een moduswissel mag dus uitsluitend als planningseffect
+// worden gemeld; `durationUnit`, `scheduleDuration` en `durationMinutes` blijven onaangeroerd.
 
-/** Het `DurationCalendar`-contract van een kalender-object: uur-modus zodra `workTime` bestaat, met
- *  de MODALE band-som als `hoursPerDay` — exact wat `CalendarEngine` intern doet. */
-function durationCalOf(cal: Pick<WorkCalendar, 'workTime' | 'hoursPerDay'>): DurationCalendar {
-  return cal.workTime
-    ? { isHourMode: true, hoursPerDay: deriveHoursPerDay(cal.workTime, cal.hoursPerDay) }
-    : { isHourMode: false, hoursPerDay: cal.hoursPerDay };
-}
-
-/** De taken wier EFFECTIEVE kalender `calId` is; taken zónder eigen kalender vallen terug op de
- *  projectkalender, dus die tellen mee zodra `calId` de projectkalender is. */
-function tasksOnCalendar(s: StoreState, calId: string): Task[] {
-  const isProjectCal = calId === s.calendar.id;
-  return s.tasks.filter((t) => (t.calendarId ? t.calendarId === calId : isProjectCal));
-}
-
-const round3 = (v: number): number => Math.round(v * 1000) / 1000;
-
-/** Taken wier effectieve duur (in eigen-kalender-werkdagen) door de wijziging verandert. */
-function durationEffects(
-  tasks: Task[],
-  before: DurationCalendar,
-  after: DurationCalendar,
-): { taskId: string; name: string; beforeDays: number; afterDays: number }[] {
-  const rows: { taskId: string; name: string; beforeDays: number; afterDays: number }[] = [];
-  for (const t of tasks) {
-    const b = round3(durationDaysOf(t, before));
-    const a = round3(durationDaysOf(t, after));
-    if (b !== a) rows.push({ taskId: t.id, name: t.name, beforeDays: b, afterDays: a });
-  }
-  return rows;
+function calendarMode(cal: Pick<WorkCalendar, 'workTime'>): 'hour' | 'day' {
+  return cal.workTime ? 'hour' : 'day';
 }
 
 /**
@@ -668,13 +634,15 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
             ? 'holidays'
             : item.rawHolidays !== undefined ? 'rawHolidays' : 'app-default';
         const created = ctx.app.store.getState().calendars.find((c) => c.id === newId)!;
-        const createdDur = durationCalOf(created);
+        const createdMode = calendarMode(created);
         rows.push({
           id: newId, requestedId: item.id, created: true, promoted: false, becameLiteral,
           holidayCount: cal.holidays.length,
           holidaysFrom,
-          mode: createdDur.isHourMode ? 'hour' : 'day',
-          hoursPerDayEffective: createdDur.hoursPerDay,
+          mode: createdMode,
+          hoursPerDayEffective: created.workTime
+            ? deriveHoursPerDay(created.workTime, created.hoursPerDay)
+            : created.hoursPerDay,
           ...(created.shift ? { shift: created.shift } : {}),
           ...(ignoredFields.length > 0 ? { ignoredFields } : {}),
         });
@@ -694,8 +662,8 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         // Kan alleen bij een defect in de promotie — harde stap-fout i.p.v. stil doorgaan.
         throw new McpStepError('NOT_FOUND', `kalender '${plan.targetId}' bestaat niet (na promotie)`);
       }
-      // Duur-ijkpunt VÓÓR de mutatie (primitieven, dus veilig over de Immer-producer heen).
-      const beforeDur = durationCalOf(existing);
+      // Modus-ijkpunt vóór de mutatie; native taakduren worden nooit geconverteerd.
+      const beforeMode = calendarMode(existing);
       const updates = calendarFieldPatch(item, existing) as Partial<WorkCalendar>;
       let becameLiteral = false;
       // `draft.updateCalendar` doet een Object.assign en kan dus geen sleutel VERWIJDEREN; alles wat
@@ -730,6 +698,21 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       if (item.workTime === null && existing.workTime !== undefined) dropKeys.push('workTime');
       if (item.shift === null && existing.shift !== undefined) dropKeys.push('shift');
 
+      // Een expliciete urentaak bewaart haar minuten onafhankelijk van de kalender. Zonder concrete
+      // banden kan de solver die minuten echter niet langs werkende tijd plaatsen. Weiger daarom
+      // vóór de mutatie: een rollback achteraf zou een halve kalenderwijziging kunnen laten lekken.
+      if (dropKeys.includes('workTime')) {
+        const state = ctx.app.store.getState();
+        const hasAffectedHourTask = state.tasks.some((task) => task.time.durationUnit === 'hours'
+          && (task.calendarId ?? state.calendar.id) === plan.targetId);
+        if (hasAffectedHourTask) {
+          throw new McpStepError(
+            'VALIDATION',
+            `kan concrete werkblokken niet verwijderen: kalender '${plan.targetId}' wordt gebruikt door een urentaak`,
+          );
+        }
+      }
+
       ctx.transactions.draft.updateCalendar(plan.targetId, updates);
       if (dropKeys.length > 0) {
         ctx.app.store.setState((s) => {
@@ -743,22 +726,20 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         });
       }
 
-      // Duur-gevolgen ná de mutatie, tegen de VERSE kalender + de (onaangeroerde) taken.
+      // Alleen planningseffecten ná de mutatie; de taken zelf zijn onaangeroerd.
       const sAfter = ctx.app.store.getState();
       const updated = sAfter.calendars.find((c) => c.id === plan.targetId)!;
-      const afterDur = durationCalOf(updated);
-      const effects = durationEffects(tasksOnCalendar(sAfter, plan.targetId), beforeDur, afterDur);
+      const afterMode = calendarMode(updated);
       rows.push({
         id: plan.targetId, created: false, promoted, becameLiteral,
-        mode: afterDur.isHourMode ? 'hour' : 'day',
-        ...(beforeDur.isHourMode !== afterDur.isHourMode
-          ? { modeChangedFrom: beforeDur.isHourMode ? 'hour' : 'day' }
+        mode: afterMode,
+        ...(beforeMode !== afterMode
+          ? { modeChangedFrom: beforeMode, taskDurationsPreserved: true }
           : {}),
-        hoursPerDayEffective: afterDur.hoursPerDay,
+        hoursPerDayEffective: updated.workTime
+          ? deriveHoursPerDay(updated.workTime, updated.hoursPerDay)
+          : updated.hoursPerDay,
         ...(updated.shift ? { shift: updated.shift } : {}),
-        ...(effects.length > 0
-          ? { durationChangedTaskCount: effects.length, durationEffects: effects.slice(0, 50) }
-          : {}),
         ...(ignoredFields.length > 0 ? { ignoredFields } : {}),
       });
     }
@@ -836,11 +817,11 @@ const updateCalendar: BatchStepTool = {
     '`ignoredFields`. Gebruik `generate` (land/regio/bouwvak) óf `generation` (herkomst van meegestuurde ' +
     'dagen), nooit allebei — `generate` DRAAIT de generator over de projectspanne van DIT document, ' +
     '`generation` schrijft alleen de herkomst. ' +
-    'UUR- VS DAG-KALENDER — GEVAARLIJK: `workTime` maakt er een UUR-kalender van (`null` zet hem terug op ' +
-    'DAG). Alleen op een uur-kalender is de `durationMinutes` van een taak de bron van waarheid, dus zo\'n ' +
-    'omschakeling HERDEFINIEERT de duur van elke taak die eraan hangt — inclusief alle taken zónder eigen ' +
-    'kalender wanneer het de projectkalender betreft. De respons meldt dat per kalender als `mode`, ' +
-    '`modeChangedFrom` en `durationEffects` (per taak `beforeDays` → `afterDays`); meld die aan de gebruiker. ' +
+    'UUR- VS DAG-KALENDER: `workTime` maakt er een UUR-kalender van (`null` zet hem terug op DAG). ' +
+    'Een kalenderwijziging verandert NOOIT de gekozen eenheid of native hoeveelheid van een taak. ' +
+    'Wel kunnen begin/eindverdeling en projecteinde veranderen; een urentaak is zonder concrete ' +
+    'werkblokken niet doorrekenbaar. De respons meldt een moduswissel als `modeChangedFrom` en bevestigt ' +
+    'met `taskDurationsPreserved: true` dat de taakduren niet zijn geconverteerd. ' +
     '`workDays` en `hoursPerDay` worden uit de banden AFGELEID zodra je `workTime` meegeeft (zoals de ' +
     'kalenderdialoog doet); geef je ze toch mee, dan mag `workDays` de banden niet tegenspreken. ' +
     'BEWAREN IN HET BESTAND (IFC): een nieuw aangemaakte kalender waaraan GEEN taak en geen resource ' +
@@ -995,25 +976,14 @@ const updateCalendar: BatchStepTool = {
           '`rawHolidays` was opgegeven. Wil je een kalender zonder feestdagen, geef dan `generate: { country: "none" }`.',
         );
       }
-      // H5 — DAG↔UUR IS GEEN COSMETISCHE WIJZIGING. `durationMinutes` telt alleen op een uur-kalender,
-      // dus de omschakeling herdefinieert de duur van elke taak eraan. Nooit stil.
+      // Een moduswissel kan de planning verschuiven, maar nooit een taakeenheid/hoeveelheid wijzigen.
       const switched = rows.filter((r) => r.modeChangedFrom !== undefined);
       if (switched.length > 0) {
         warnings.push(
           `${switched.length} kalender(s) wisselden van modus: ` +
           `${switched.map((r) => `${r.id}: ${r.modeChangedFrom} → ${r.mode}`).join(', ')}. ` +
-          'Op een UUR-kalender is `durationMinutes` van een taak de bron van waarheid; op een DAG-kalender ' +
-          'telt uitsluitend de duur in werkdagen. Let op: taken zónder eigen kalender hangen aan de ' +
-          'PROJECTkalender en schakelen dus mee.',
-        );
-      }
-      const affected = rows.filter((r) => (r.durationChangedTaskCount as number | undefined) !== undefined);
-      if (affected.length > 0) {
-        const total = affected.reduce((n, r) => n + (r.durationChangedTaskCount as number), 0);
-        warnings.push(
-          `EFFECTIEVE DUUR GEWIJZIGD: ${total} taak/taken hebben door deze kalenderwijziging een andere duur ` +
-          'gekregen (zie `durationEffects` per kalender: `beforeDays` → `afterDays` in werkdagen). ' +
-          'De planning is hierop herrekend — meld dit aan de gebruiker.',
+          'De gekozen eenheid en native hoeveelheid van elke taak blijven behouden. Alleen de ' +
+          'planning kan verschuiven; urentaken vereisen concrete werkblokken om door te rekenen.',
         );
       }
       // De schakelaar Urenplanning is puur UI (de solver rekent sowieso uur-native): meld het, want

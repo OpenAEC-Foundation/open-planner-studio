@@ -811,11 +811,11 @@
         }
       },
       "tasks": [
-        { "name": "Task1", "start": "2026-07-09", "dur": 1 },
-        { "name": "Task2", "dur": 1 },
-        { "name": "Task3", "dur": 1 },
-        { "name": "Task4", "dur": 1 },
-        { "name": "Task5", "dur": 1 }
+        { "name": "Task1", "start": "2026-07-09", "dur": "8u" },
+        { "name": "Task2", "dur": "8u" },
+        { "name": "Task3", "dur": "8u" },
+        { "name": "Task4", "dur": "8u" },
+        { "name": "Task5", "dur": "8u" }
       ],
       "links": [
         { "pred": "Task1", "succ": "Task2", "type": "FINISH_START" },
@@ -873,11 +873,11 @@
         }
       },
       "tasks": [
-        { "name": "Task1", "start": "2026-07-09", "dur": 1 },
-        { "name": "Task2", "dur": 1 },
-        { "name": "Task3", "dur": 1 },
-        { "name": "Task4", "dur": 1 },
-        { "name": "Task5", "dur": 1 },
+        { "name": "Task1", "start": "2026-07-09", "dur": "8u" },
+        { "name": "Task2", "dur": "8u" },
+        { "name": "Task3", "dur": "8u" },
+        { "name": "Task4", "dur": "8u" },
+        { "name": "Task5", "dur": "8u" },
         { "name": "Task6", "milestone": true, "milestoneKind": "FINISH" }
       ],
       "links": [

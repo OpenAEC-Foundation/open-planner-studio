@@ -100,6 +100,8 @@
     "enableHourPlanning": "فعال‌سازی برنامه‌ریزی ساعتی",
     "enableHourPlanningHint": "زمان‌بندی ساعت/دقیقه را فعال می‌کند: یک مقیاس زمانی ساعتی، شیفت‌های دارای بازه‌های ساعت کاری و نوارهای وظیفه با دقت ساعتی. خاموش ⇐ برنامه مانند قبل کاملاً بر پایه روز باقی می‌ماند.",
     "allowMixedDayHour": "اجازه دادن به برنامه‌ریزی ترکیبی روز/ساعت",
+    "defaultTaskDurationUnit": "واحد پیش‌فرض وظایف جدید",
+    "defaultTaskDurationUnitHint": "مشخص می‌کند وظایف جدید با روز کاری یا ساعت کاری شروع شوند. وظایف موجود تغییر نمی‌کنند.",
     "durationDisplay": "نمایش مدت",
     "durationDisplayAuto": "خودکار (واحد اختصاصی هر وظیفه)",
     "durationDisplayDays": "همیشه روز",
@@ -715,7 +717,9 @@
   },
   "duration": {
     "suffixDay": "ر",
-    "suffixHour": "س",
+    "suffixHour": "h",
+    "days": "روز",
+    "hours": "ساعت",
     "suffixMinute": "د"
   },
   "shortcuts": {

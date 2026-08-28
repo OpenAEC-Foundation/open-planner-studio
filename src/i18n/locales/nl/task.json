@@ -44,6 +44,21 @@
     "addToMine": "Toevoegen aan mijn taaktypen",
     "confirmRemove": "Dit type wordt in het geopende project gebruikt. Verwijderen uit Mijn taaktypen? De projectkopie blijft behouden."
   },
+  "duration": {
+    "label": "Duur",
+    "unit": "Duureenheid",
+    "days": "Dagen",
+    "hours": "Uren",
+    "invalid": "Voer een geheel aantal dagen of uren in, bijvoorbeeld 2d of 12h.",
+    "enableHourPlanningFirst": "Schakel urenplanning in om deze urentaak te bewerken.",
+    "enableHourPlanning": "Urenplanning inschakelen",
+    "requiresWorkBlocks": "Deze kalender heeft geen geldige werktijden. Controleer de werkdagen en werktijden.",
+    "conversionNotExact": "Deze duur kan op de huidige kalender niet exact naar gehele dagen worden omgezet. De bestaande eenheid blijft behouden; voer zelf een nieuwe geldige waarde in.",
+    "conversionProposal": "Exact omzetvoorstel: {{value}}. Pas dit voorstel toe of behoud de huidige eenheid.",
+    "applyProposal": "Voorstel toepassen",
+    "keepCurrent": "Behouden",
+    "unitInfo": "De gekozen eenheid hoort bij deze taak. Dagen tellen werkdagen; uren tellen werkuren binnen de kalender. Een andere kalender verandert de eenheid of ingevoerde duur niet, maar kan wel de einddatum veranderen."
+  },
   "dialog": {
     "editTitle": "Taak bewerken",
     "newTitle": "Nieuwe taak",
@@ -61,7 +76,7 @@
     "durationDays": "Dagen",
     "durationHours": "Uren",
     "durationTotalHours": "Totaal uren",
-    "hourCalendarHint": "Uren-invoer vereist een uur-kalender (werktijden)."
+    "hourCalendarHint": "Uren-invoer gebruikt de werktijden van de taak-kalender."
   },
   "properties": {
     "task": "Taak",
