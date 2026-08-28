@@ -170,6 +170,7 @@ test('Gantt: pijltjestoetsen volgen de zichtbare taken zodra het canvas focus he
   await gantt.click({ position: { x: taskTableWidth + 40, y: 50 + 28 + 14 } });
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([secondId]);
   await expect(gantt).toBeFocused();
+  await expect(gantt).toHaveClass(/outline-none/);
 
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([thirdId]);
@@ -190,6 +191,7 @@ test('histogram: pijltjestoetsen volgen resources zodra het histogram focus heef
   await clickPickerRow(page, 1);
   await expect.poll(() => state(page).then(snapshot => snapshot.view.histogramResourceId)).toBe(overId);
   await expect(histogram).toBeFocused();
+  await expect(histogram).toHaveClass(/outline-none/);
 
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => state(page).then(snapshot => snapshot.view.histogramResourceId)).toBe(spareId);

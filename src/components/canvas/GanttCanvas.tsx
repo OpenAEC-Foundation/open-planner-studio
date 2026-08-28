@@ -646,7 +646,7 @@ export function GanttCanvas() {
           ref={canvasRef}
           data-testid="gantt-primary-canvas"
           tabIndex={0}
-          className="absolute inset-0"
+          className="absolute inset-0 outline-none"
           style={{ cursor: pointer.cursor }}
           onClick={handlePrimaryClick}
           onKeyDown={handleTaskCanvasKeyDown}
@@ -778,7 +778,7 @@ export function GanttCanvas() {
               ref={secondaryCanvasRef}
               data-testid="gantt-secondary-canvas"
               tabIndex={0}
-              className="absolute inset-0"
+              className="absolute inset-0 outline-none"
               onClick={handleSecondaryClick}
               onKeyDown={handleTaskCanvasKeyDown}
             />
@@ -841,7 +841,7 @@ export function GanttCanvas() {
               ref={histogramCanvasRef}
               data-testid="gantt-histogram-canvas"
               tabIndex={0}
-              className="absolute inset-0"
+              className="absolute inset-0 outline-none"
               style={{ cursor: 'pointer' }}
               onClick={handleHistogramClick}
               onKeyDown={histogramInteraction.onKeyDown}
