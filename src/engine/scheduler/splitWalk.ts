@@ -144,6 +144,12 @@ export function computeSplitSegments(
  * `computeSplitSegments`). Dit verandert `enumerateTaskWorkDays`s uitkomst niet (een nul-werk-blok
  * verbruikte toch al geen dagen); het houdt alleen de blokstructuur zelf kloppend voor toekomstige
  * lezers ervan. `durationDays <= 0` ⇒ één leeg blok; geen `gaps` ⇒ één blok van de volle duur.
+ *
+ * INVARIANT VOOR LEZERS: het SLOTBLOK (altijd het restant `durationDays - used`) wordt, anders dan
+ * de tussenliggende blokken, onvoorwaardelijk gepusht — ook als dat `work: 0` oplevert (de laatste
+ * gaten consumeren dan exact tot het taakeinde). Een lezer die op "geen enkel blok heeft
+ * `work === 0`" leunt, moet dus zowel het eerste als het laatste blok als uitzondering behandelen;
+ * elk blok DAARTUSSEN heeft altijd `work > 0`.
  */
 export function splitDayPattern(
   gaps: TaskSplitGap[] | undefined,

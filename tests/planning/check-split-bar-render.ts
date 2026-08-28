@@ -5,9 +5,13 @@
 // GLOBALE progressEnd, selectiering over de volle extent) — alleen gevoed vanuit de kalender-
 // necking (`barSplitMode`). Deze taak voedt `segs` daarnaast uit `Task.splitGaps` (Z4: ECHTE MS
 // Project-splits, uit een .mpp-import afgeleid), met dezelfde `split`-vlag, via de gedeelde
-// afleiding `computeSplitSegments` (`src/engine/renderer/splitBarGeometry.ts`) — gebruikt door
-// zowel `GanttRenderer` als `printPreview.ts` (via de `Draw2D`-abstractie: bedient zowel de
-// rasterpreview als de vector-PDF).
+// afleiding `computeSplitSegments` — de implementatie leeft sinds B1c-W0.4 in
+// `src/engine/scheduler/splitWalk.ts`; `src/engine/renderer/splitBarGeometry.ts` is een dunne
+// re-export, gebruikt door zowel `GanttRenderer` als `printPreview.ts` (via de `Draw2D`-
+// abstractie: bedient zowel de rasterpreview als de vector-PDF). De semantiek van de wandeling zelf
+// (H1-as, overlap-samenvoeging, taakeinde-klem, vijandige invoer) wordt getoetst in
+// `check-split-walk.ts` — dit bestand toetst alleen het RENDER-specifieke gedrag (x-posities,
+// rects, necking-connector, voortgangsvulling).
 //
 // O5 (orkestratorbesluit 2026-08-17, plan-§10): een ECHTE split tekent ALTIJD gesplitst, ongeacht
 // `barSplitMode` (die blijft uitsluitend de kalender-necking sturen). Model naar
@@ -174,39 +178,10 @@ eq(
     '2026-06-01T08:00', '2026-06-01T16:00', true, hourEng),
 );
 
-// ── 0e. Overlappende gaten vallen samen tot ÉÉN werkonderbreking — dezelfde klemregel als
-//    `splitTotalSpanMinutes` (`duration.ts`) hanteert, dus het aantal zichtbare werkblokken komt
-//    overeen met wat de CPM-spanne telt. Gat 1 beslaat de as [120,240); gat 2 begint op 180 en
-//    ligt dus middenin gat 1 — geklemd op 240, doorlopend tot 300. Samen één onderbreking over de
-//    as [120,300), dus 10:00-13:00. ────────────────────────────────────────────────────────────
-eq(
-  'overlappende gaten ⇒ 2 werkblokken (samengevoegd tot één onderbreking)',
-  segStrings([{ afterMinutes: 120, gapMinutes: 120 }, { afterMinutes: 180, gapMinutes: 120 }],
-    '2026-06-01T08:00', '2026-06-01T14:00', true, hourEng),
-  '2026-06-01T08:00→2026-06-01T10:00 | 2026-06-01T13:00→2026-06-01T14:00',
-);
-
-// ── 0f. Vijandige invoer (`splitGaps` is afgeleide data en kan via IFC/MCP corrupt binnenkomen):
-//    NaN/Infinity/niet-positieve gatlengtes worden overgeslagen, en geen enkele grens komt ooit
-//    voorbij het taakeinde te liggen. ──────────────────────────────────────────────────────────
-eq(
-  'ontaarde gaten (NaN/Infinity/gapMinutes<=0) worden overgeslagen ⇒ één doorlopende balk',
-  segStrings(
-    [{ afterMinutes: NaN, gapMinutes: 60 }, { afterMinutes: 120, gapMinutes: 0 },
-      { afterMinutes: 60, gapMinutes: -120 }, { afterMinutes: Infinity, gapMinutes: 60 }],
-    '2026-06-01T08:00', '2026-06-01T16:00', true, hourEng),
-  '2026-06-01T08:00→2026-06-01T16:00',
-);
-{
-  const wild = computeSplitSegments(
-    [{ afterMinutes: 480, gapMinutes: 480 }, { afterMinutes: 100000, gapMinutes: 480 }],
-    parseInstant('2026-06-01'), parseInstant('2026-06-05'), false, dayEng,
-  );
-  const endMs = parseInstant('2026-06-05').getTime();
-  ok('geen enkele segmentgrens komt voorbij het taakeinde',
-    wild.every(s => s.start.getTime() <= endMs && s.end.getTime() <= endMs));
-  ok('geen enkel segment loopt achterstevoren', wild.every(s => s.end.getTime() >= s.start.getTime()));
-}
+// ── 0e/0f verhuisd naar `check-split-walk.ts` (reviewronde taak 2, B1c-W0.4-vervolg): overlappende
+//    gaten die samenvallen tot één werkonderbreking, en vijandige invoer (NaN/Infinity/niet-
+//    positieve gatlengtes, geen grens voorbij het taakeinde) zijn semantiek van de wandeling zelf,
+//    niet van de renderer — dat bestand is nu de canonieke plek voor die cases.
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Deel A — GanttRenderer (canvas)

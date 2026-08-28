@@ -204,6 +204,34 @@ console.log('-- split-walk: computeSplitSegments — overlap, taakeinde-klem, vi
   eq('taskEnd < taskStart ⇒ één segment, ongewijzigd doorgegeven',
     inverted, [{ start: invertedStart, end: invertedEnd }]);
 }
+{
+  // Gat op aspositie 0 (begint DIRECT bij taakstart): `workBefore === 0` voor het állereerste gat
+  // wordt — anders dan bij een later gat — WEL gepusht (het gedocumenteerde "eerste segment altijd
+  // erbij"-uitzondering), dus dit levert een nul-breed openingssegment op met `start === taskStart`.
+  const zeroAxisStart = parseInstant('2026-06-01T08:00');
+  const zeroAxisEnd = parseInstant('2026-06-01T12:00');
+  const zeroAxisSegs = computeSplitSegments(
+    [{ afterMinutes: 0, gapMinutes: 60 }], zeroAxisStart, zeroAxisEnd, true, hourEng);
+  eq('gat op aspositie 0 ⇒ nul-breed openingssegment + het echte werkblok erna',
+    zeroAxisSegs, [{ start: zeroAxisStart, end: zeroAxisStart }, { start: parseInstant('2026-06-01T09:00'), end: zeroAxisEnd }]);
+  ok('nul-breed openingssegment start === taskStart',
+    zeroAxisSegs[0].start.getTime() === zeroAxisStart.getTime() && zeroAxisSegs[0].end.getTime() === zeroAxisStart.getTime());
+}
+{
+  // Taakeinde-klem die een segment TOT NUL BREEDTE reduceert: 1 werkdag werk (06-01→06-02, exact
+  // het taakeinde), gevolgd door een enorm gat dat de wandeling ver voorbij `taskEnd` zou duwen.
+  // Zonder de klem zou het slotsegment `{cursor(ver in de toekomst), taskEnd}` zijn — een
+  // ACHTERSTEVOREN lopend segment (`end < start`). Met de klem wordt `cursor` op `taskEnd`
+  // vastgezet, dus het slotsegment is nul-breed (`taskEnd → taskEnd`), nooit omgekeerd.
+  const clampStart = parseDate('2026-06-01');
+  const clampEnd = parseDate('2026-06-02');
+  const clampSegs = computeSplitSegments(
+    [{ afterMinutes: 480, gapMinutes: 99999 }], clampStart, clampEnd, false, eng);
+  eq('taakeinde-klem ⇒ twee segmenten, het tweede nul-breed', clampSegs,
+    [{ start: clampStart, end: clampEnd }, { start: clampEnd, end: clampEnd }]);
+  ok('geen enkel segment loopt achterstevoren (klem voorkomt end < start)',
+    clampSegs.every(s => s.end.getTime() >= s.start.getTime()));
+}
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
