@@ -475,6 +475,13 @@ export interface Task {
   /** `task_id` is slechts uniek binnen dit P6-project; beide bronidentiteiten blijven bewaard. */
   p6ProjectId?: string;
   p6TaskId?: string;
+  /**
+   * Fail-closed XER-provenance: de bron-TASK droeg werkelijk zowel `target_start_date` als
+   * `target_end_date`. Dit bewaart uitsluitend de aanwezigheid van broninvoer — nooit P6's
+   * opgeslagen early/late- of floatuitkomst — zodat een readerfallback of later berekende
+   * `scheduleStart` niet als bronfeit kan worden verward.
+   */
+  p6ExplicitTargetWindow?: boolean;
   /** CP_Phys/CP_Units gebruiken hun bronrestduur en nooit percentage-afleiding in de solver. */
   p6CompletePctType?: P6CompletePctType;
   /** XER `expect_end_date`, pas actief met de expliciete projectscope-vlag uit X5. */

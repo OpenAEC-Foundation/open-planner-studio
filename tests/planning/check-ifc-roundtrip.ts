@@ -260,7 +260,7 @@ const TM = {
   // X0/X7 (XER-etappeplan, 2026-08-20) — duration/activity blijven tot X9 zonder IFC-pset;
   // de vijf X7-firewall-/bronvelden hieronder round-trippen al wel exact via OPS_P6Progress.
   p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc',
-  p6ProjectId: 'P1', p6TaskId: 'T1', p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-07-31T17:00',
+  p6ProjectId: 'P1', p6TaskId: 'T1', p6ExplicitTargetWindow: true, p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-07-31T17:00',
   p6SuspendResume: true,
   isSummary: false,
   parentId: 't-p', childIds: [],
@@ -575,6 +575,7 @@ const TASK_CANON = {
   // onbedoeld MSP-semantiek erven.
   p6ProjectId: KEEP,
   p6TaskId: KEEP,
+  p6ExplicitTargetWindow: KEEP,
   p6CompletePctType: KEEP,
   p6ExpectedFinish: KEEP,
   p6SuspendResume: KEEP,
@@ -1383,7 +1384,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     timephasedContours: [{ resourceUid: 3, periods: [{ afterMinutes: 0, minutes: 60, workMinutes: 60, kind: 'actual' }] }],
     // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde compact-optionele
     // doorgifte als de drie Z14b-velden hierboven.
-    p6DurationType: 'DT_FixedQty', p6ActivityType: 'TT_LOE', p6SuspendResume: true,
+    p6DurationType: 'DT_FixedQty', p6ActivityType: 'TT_LOE', p6ExplicitTargetWindow: true, p6SuspendResume: true,
   };
   const mapped8e = toExtTask(withFields);
   assert(mapped8e.mspTaskType === 'FIXED_DURATION', `(8e) toExtTask moet mspTaskType doorgeven — kreeg ${mapped8e.mspTaskType}`);
@@ -1394,6 +1395,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   );
   assert(mapped8e.p6DurationType === 'DT_FixedQty', `(8e) toExtTask moet p6DurationType doorgeven — kreeg ${mapped8e.p6DurationType}`);
   assert(mapped8e.p6ActivityType === 'TT_LOE', `(8e) toExtTask moet p6ActivityType doorgeven — kreeg ${mapped8e.p6ActivityType}`);
+  assert(mapped8e.p6ExplicitTargetWindow === true, `(8e) toExtTask moet p6ExplicitTargetWindow doorgeven — kreeg ${mapped8e.p6ExplicitTargetWindow}`);
   assert(mapped8e.p6SuspendResume === true, `(8e) toExtTask moet p6SuspendResume doorgeven — kreeg ${mapped8e.p6SuspendResume}`);
 
   const withoutFields: Task = {
@@ -1407,6 +1409,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(mapped8eNeg.timephasedContours === undefined, `(8e) zonder timephasedContours blijft toExtTask.timephasedContours undefined — kreeg ${mapped8eNeg.timephasedContours}`);
   assert(mapped8eNeg.p6DurationType === undefined, `(8e) zonder p6DurationType blijft toExtTask.p6DurationType undefined — kreeg ${mapped8eNeg.p6DurationType}`);
   assert(mapped8eNeg.p6ActivityType === undefined, `(8e) zonder p6ActivityType blijft toExtTask.p6ActivityType undefined — kreeg ${mapped8eNeg.p6ActivityType}`);
+  assert(mapped8eNeg.p6ExplicitTargetWindow === undefined, `(8e) zonder p6ExplicitTargetWindow blijft toExtTask.p6ExplicitTargetWindow undefined — kreeg ${mapped8eNeg.p6ExplicitTargetWindow}`);
   assert(mapped8eNeg.p6SuspendResume === undefined, `(8e) zonder p6SuspendResume blijft toExtTask.p6SuspendResume undefined — kreeg ${mapped8eNeg.p6SuspendResume}`);
 
   // Mutatiebewijs (uitgevoerd): de drie nieuwe regels in `toExtTask` tijdelijk verwijderd maakt de

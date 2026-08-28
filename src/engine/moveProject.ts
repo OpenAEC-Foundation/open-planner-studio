@@ -109,7 +109,7 @@ const TASK_VERDICTS = {
   effortDriven: 'n/a',             // Z14b: vlag, geen datum
   p6DurationType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
   p6ActivityType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
-  p6ProjectId: 'n/a', p6TaskId: 'n/a', p6CompletePctType: 'n/a',
+  p6ProjectId: 'n/a', p6TaskId: 'n/a', p6ExplicitTargetWindow: 'n/a', p6CompletePctType: 'n/a',
   p6ExpectedFinish: 'shift',       // X7: opgeslagen absolute P6-brondatum verschuift mee
   p6SuspendResume: 'n/a',          // X0 (XER-etappeplan): herkomstvlag, geen datum zelf — de
                                     // datums eronder (time.resume/stop) schuiven al mee via

@@ -218,6 +218,8 @@ export interface ExtTask {
   p6ActivityType?: 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
   p6ProjectId?: string;
   p6TaskId?: string;
+  /** Read-only XER-provenance: de bron-TASK droeg een expliciet target start-/finishvenster. */
+  p6ExplicitTargetWindow?: boolean;
   p6CompletePctType?: 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
   p6ExpectedFinish?: string;
   /** X0/X12 — read-only herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/

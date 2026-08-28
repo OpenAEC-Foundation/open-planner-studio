@@ -338,6 +338,7 @@ export function toExtTask(t: Task): ExtTask {
     p6ActivityType: t.p6ActivityType,
     p6ProjectId: t.p6ProjectId,
     p6TaskId: t.p6TaskId,
+    p6ExplicitTargetWindow: t.p6ExplicitTargetWindow,
     p6CompletePctType: t.p6CompletePctType,
     p6ExpectedFinish: t.p6ExpectedFinish,
     p6SuspendResume: t.p6SuspendResume,

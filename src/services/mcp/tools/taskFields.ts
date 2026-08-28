@@ -148,6 +148,7 @@ const REJECT_HINTS: Record<string, string> = {
   // agent-invoervorm"-redenering als mspTaskType/effortDriven hierboven.
   p6DurationType: 'P6\'s eigen Duration Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
   p6ActivityType: 'P6\'s eigen Activity Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
+  p6ExplicitTargetWindow: 'de P6-XER-provenance voor een expliciet targetvenster is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
   p6SuspendResume: 'de P6-suspend/resume-herkomstvlag is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
 };
 

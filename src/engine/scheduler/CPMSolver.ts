@@ -13,6 +13,7 @@ import {
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
+import { usesP6CompletedDataDateWindow as isP6CompletedDataDateCandidate } from '@/utils/p6CompletedTargetWindow';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
 } from './relationMath';
@@ -367,6 +368,15 @@ export class CPMSolver {
 
   private p6XerOption(value: boolean | undefined): boolean {
     return this.options.schedulingOptions?.p6Source === 'XER' && value === true;
+  }
+
+  /**
+   * Fail-closed discriminator voor P6's completed data-date-route. Alleen de XER-reader kan de
+   * expliciete TASK-windowpresence zetten; een fallback of later berekende `scheduleStart` kan
+   * deze route dus nooit activeren. Geen opgeslagen P6-uitkomst wordt gelezen.
+   */
+  private usesP6CompletedDataDateWindow(task: Task): boolean {
+    return this.dataDate !== null && isP6CompletedDataDateCandidate(task, this.options.schedulingOptions);
   }
 
   /** Smalle P6-XER-resultaatprojectie; de CalendarEngine-primitieven blijven formaatneutraal. */
@@ -1622,6 +1632,22 @@ export class CPMSolver {
       }
       {
         const t = task.time;
+        const p6CompletedAtDataDate = t.actualFinish && t.completion >= 1
+          && this.usesP6CompletedDataDateWindow(task);
+        if (p6CompletedAtDataDate) {
+          // P6's completed-bladactiviteit blijft niet op haar historische actual-window staan:
+          // de toegestane statusdatum is haar forward referentie en nul restwerk eindigt op het
+          // voorafgaande werkinstant. Dit reconstrueert P6's statusdatumsemantiek zonder een
+          // opgeslagen early/late- of floatkolom te lezen. De bronpoort is fail-closed; andere
+          // formaten, milestones en suspend/resume behouden de bestaande actual-tak hieronder.
+          const es = this.snapOnOrAfter(progressCal, dataDate!);
+          const ef = progressCal.prevWorkInstant(es);
+          if (this.options.schedulingOptions?.preserveActualDatesInBackwardPass === true) {
+            for (const seq of preds) this.seqConstraint.delete(seq.id);
+          }
+          results.set(taskId, { es, ef });
+          continue;
+        }
         if (t.actualFinish && t.completion >= 1) {
           // (1) VOLTOOID: volledig gepind op actuals — geen forward-drift voorbij actualFinish.
           // B4 (Opus-her-check T15-fixronde): `snapActualForward` i.p.v. een kale parse — snapt
@@ -2793,11 +2819,12 @@ export class CPMSolver {
       const task = this.tasks.get(taskId)!;
       const succs = this.successors.get(taskId) || [];
 
-      // Brongebonden XER-beleid: een voltooide activiteit houdt haar geregistreerde actual-window
-      // aan de late zijde. Dit leest uitsluitend toegestane actuals; opgeslagen XER early/late/
-      // float-uitkomsten zijn bewust nooit solverinvoer. Niet-XER-projecten behouden hun bestaande
-      // gedrag. De raw-XER-meetlat bewaakt deze beleidskeuze afzonderlijk van haar bronuitkomsten.
-      if (preserveActualDates && task.time.actualFinish && task.time.completion >= 1) {
+      // Brongebonden XER-beleid: een voltooide activiteit houdt normaal haar geregistreerde
+      // actual-window aan de late zijde. De smalle completed-taskbronvorm gebruikt echter de
+      // bestaande P6-statusdatum/netwerksemantiek; opgeslagen XER early/late/float-uitkomsten zijn op beide
+      // paden bewust nooit solverinvoer. Niet-XER en mijlpalen behouden hun bestaande gedrag.
+      if (preserveActualDates && task.time.actualFinish && task.time.completion >= 1
+        && !this.usesP6CompletedDataDateWindow(task)) {
         const ed = earlyDates.get(taskId)!;
         results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
         continue;
@@ -2883,7 +2910,8 @@ export class CPMSolver {
         if (!succResult || !succTask) continue;
         // Een voltooide P6-opvolger beschrijft historie en mag de late finish van een nog open
         // voorganger niet door haar historische actual finish terugtrekken.
-        if (preserveActualDates && succTask.time.actualFinish && succTask.time.completion >= 1) continue;
+        if (preserveActualDates && succTask.time.actualFinish && succTask.time.completion >= 1
+          && !this.usesP6CompletedDataDateWindow(succTask)) continue;
         // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen

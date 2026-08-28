@@ -7,6 +7,7 @@ import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
 import { traceFrom } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isZeroDurationMilestone } from './duration';
+import { usesP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
 
 /**
  * Invoer voor de resultaat-post-pass (`computeScheduleResults`). Puur data + een handvol
@@ -229,6 +230,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
     const tt = taskObj.time;
     const completed = !!dataDate && tt.completion >= 1;
+    const p6CompletedDataDateWindow = completed
+      && usesP6CompletedDataDateWindow(taskObj, so);
     const finishFloat = signedFloat(early.ef, late.lf, cal, taskObj);
     const startFloat = signedFloat(early.es, late.ls, cal, taskObj);
     // Een EXPLICIETE P6-modus geldt ook voor lopende taken: start = LS−ES, finish = LF−EF en
@@ -346,7 +349,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // Serialisatie (§2.4/§5): de MODUS van de eigen kalender is de enige discriminator — dag-taak ⇒
     // `formatDate` (byte-identiek), uur-taak ⇒ `YYYY-MM-DDTHH:mm`.
     const mode = modeOf(cal);
-    const displayActualLate = completed && so?.preserveActualDatesInBackwardPass === true;
+    const displayActualLate = completed && so?.preserveActualDatesInBackwardPass === true
+      && !p6CompletedDataDateWindow;
     taskResults.set(taskId, {
       earlyStart: formatInstant(early.es, mode),
       earlyFinish: formatInstant(early.ef, mode),

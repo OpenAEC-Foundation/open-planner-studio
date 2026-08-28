@@ -598,10 +598,13 @@ function readXerProject(
   for (const row of activityRows) {
     const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
     const hourMode = effectiveCalendar.workTime !== undefined;
-    let start = sourceInstant(row.cells.target_start_date ?? '', hourMode)
+    const explicitTargetStart = sourceInstant(row.cells.target_start_date ?? '', hourMode);
+    const explicitTargetFinish = sourceInstant(row.cells.target_end_date ?? '', hourMode);
+    const hasExplicitTargetWindow = explicitTargetStart !== undefined && explicitTargetFinish !== undefined;
+    let start = explicitTargetStart
       ?? sourceInstant(projectRow.cells.last_recalc_date ?? '', hourMode)
       ?? '1970-01-01';
-    let finish = sourceInstant(row.cells.target_end_date ?? '', hourMode) ?? start;
+    let finish = explicitTargetFinish ?? start;
     // P6 XER kan een TT_FinMile op de eerste minuut ná een werkbandgrens serialiseren met gelijke
     // target start/finish. Voor deze nulduur-activiteit is die minuut een grenscodering, geen werk:
     // de mijlpaal hoort bij de bandstart en de finishzijde bij het vorige werkbandeinde. De regel is
@@ -735,6 +738,7 @@ function readXerProject(
       p6ActivityType: activityType,
       p6ProjectId: projectId,
       p6TaskId: row.cells.task_id,
+      ...(hasExplicitTargetWindow ? { p6ExplicitTargetWindow: true } : {}),
       ...(completePctType ? { p6CompletePctType: completePctType } : {}),
       ...(expectedFinish ? { p6ExpectedFinish: expectedFinish } : {}),
       ...(validSuspendResume ? { p6SuspendResume: true } : {}),

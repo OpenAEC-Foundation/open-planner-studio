@@ -297,6 +297,7 @@ S().updateTask(kT1, {
   // via OPS_P6Progress door de echte recovery-IFC-keten hieronder.
   p6ProjectId: 'P6-K3',
   p6TaskId: 'P6-T1',
+  p6ExplicitTargetWindow: true,
   p6CompletePctType: 'CP_Phys',
   p6ExpectedFinish: '2031-03-12',
   p6SuspendResume: true,
@@ -305,15 +306,16 @@ S().updateTask(kT1, {
 const k3X7 = (candidate: Task | undefined) => [
   candidate?.p6ProjectId,
   candidate?.p6TaskId,
+  candidate?.p6ExplicitTargetWindow,
   candidate?.p6CompletePctType,
   candidate?.p6ExpectedFinish,
   candidate?.p6SuspendResume,
 ];
-const k3X7Expected = ['P6-K3', 'P6-T1', 'CP_Phys', '2031-03-12', true];
+const k3X7Expected = ['P6-K3', 'P6-T1', true, 'CP_Phys', '2031-03-12', true];
 eq('d K3 X7 setup: bronvelden en firewall gezet', k3X7(S().tasks.find(t => t.id === kT1)), k3X7Expected);
 S().undo();
 eq('d K3 X7 undo: hele veldgroep terug naar afwezig', k3X7(S().tasks.find(t => t.id === kT1)),
-  [undefined, undefined, undefined, undefined, undefined]);
+  [undefined, undefined, undefined, undefined, undefined, undefined]);
 S().redo();
 eq('d K3 X7 redo: hele veldgroep exact hersteld', k3X7(S().tasks.find(t => t.id === kT1)), k3X7Expected);
 const k3DocumentId = S().activeDocumentId;

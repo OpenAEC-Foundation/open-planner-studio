@@ -97,7 +97,7 @@ const EXT_TASK_KEYS = keys<ExtTask>()([
   'timephasedFinishFloor', 'timephasedStartAnchor', 'timephasedDurationWalks',
   // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde behandeling als de
   // .mpp-velden hierboven.
-  'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
+  'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow', 'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
 ] as const);
 
 const EXT_SEQUENCE_KEYS = keys<ExtSequence>()([
@@ -141,7 +141,7 @@ const LEES_ALLEEN_EXT = {
   calendar: ['p6Source', 'p6NonWorkPenaltyDates'] as readonly string[],
   resource: [] as readonly string[],
   task: [
-    'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId',
+    'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow',
     'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
   ] as readonly string[],
   taskTime: [] as readonly string[],
@@ -206,7 +206,7 @@ const VOL_TASK = {
   // de .mpp-velden hierboven (de round-trip-check vergelijkt via JSON.stringify).
   p6DurationType: 'DT_FixedDUR2',
   p6ActivityType: 'TT_Rsrc',
-  p6ProjectId: 'P1', p6TaskId: 'T1', p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-06-11T17:00',
+  p6ProjectId: 'P1', p6TaskId: 'T1', p6ExplicitTargetWindow: true, p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-06-11T17:00',
   p6SuspendResume: true,
   timephasedContours: [{ resourceUid: 3, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 240, kind: 'remaining' }] }],
   timephasedFinishFloor: '2026-06-10T17:00',
@@ -338,6 +338,7 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
       p6ActivityType: exposed.p6ActivityType,
       p6ProjectId: exposed.p6ProjectId,
       p6TaskId: exposed.p6TaskId,
+      p6ExplicitTargetWindow: exposed.p6ExplicitTargetWindow,
       p6CompletePctType: exposed.p6CompletePctType,
       p6ExpectedFinish: exposed.p6ExpectedFinish,
       p6SuspendResume: exposed.p6SuspendResume,
@@ -347,6 +348,7 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
       p6ActivityType: imported.p6ActivityType,
       p6ProjectId: imported.p6ProjectId,
       p6TaskId: imported.p6TaskId,
+      p6ExplicitTargetWindow: imported.p6ExplicitTargetWindow,
       p6CompletePctType: imported.p6CompletePctType,
       p6ExpectedFinish: imported.p6ExpectedFinish,
       p6SuspendResume: imported.p6SuspendResume,
@@ -354,14 +356,14 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   }, {
     exposed: {
       p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc',
-      p6ProjectId: 'P1', p6TaskId: 'T1', p6CompletePctType: 'CP_Phys',
+      p6ProjectId: 'P1', p6TaskId: 'T1', p6ExplicitTargetWindow: true, p6CompletePctType: 'CP_Phys',
       p6ExpectedFinish: '2026-06-11T17:00', p6SuspendResume: true,
     },
     imported: {},
   });
 
   const p6Keys = [
-    'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId',
+    'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow',
     'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
   ];
   const hostileTask = { ...exposed } as ExtTask;

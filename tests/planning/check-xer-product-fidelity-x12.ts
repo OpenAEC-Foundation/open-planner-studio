@@ -719,6 +719,8 @@ async function productBaseline(
   ].join('\n'));
   const imported = readXER(bytes);
   if (isMultiDocumentImport(imported)) throw new Error('X12 P6 case-09-fixture moet enkelproject zijn');
+  eq('X12 P6 case 09: statusdatumfallback is geen expliciet TASK-window',
+    imported.tasks.find(task => task.wbsCode === 'B100')?.p6ExplicitTargetWindow, undefined);
   const solved = solveImported(imported).tasks;
   const open = solved.find(task => task.taskCode === 'A100');
   const completed = solved.find(task => task.taskCode === 'B100');
@@ -1547,6 +1549,154 @@ async function productBaseline(
     effectiveHoursPerDay: 10,
     totalFloatMinutes: 600,
     freeFloatMinutes: 600,
+  });
+}
+
+// X12 completed/actual-pakket. P6's opgeslagen early/late zijn uitsluitend de onafhankelijke
+// meetlat; deze fixture maakt ze daarom NIET tot productinvoer. Het broncontract dat de
+// productketen wel ontvangt is de XER-taskwindow (`target_*`), de status en de actuals. De
+// completed XER-activiteit moet zijn P6-planningswindow behouden wanneer haar geregistreerde
+// historie daarvan afwijkt. De aanvullende vormen bewaken dat de grens smal blijft: meerdere
+// assignments zijn niet causaal, actieve taken en completed milestones vallen er buiten en een
+// gewone/IFC-taak behoudt de bestaande actual-semantiek.
+{
+  type CompletedFixtureKind = 'completed-task' | 'active-task' | 'completed-milestone';
+  const completedPackageBytes = (
+    kind: CompletedFixtureKind, assignments: 0 | 2 = 0, rawOutput: 'oracle' | 'mutated' = 'oracle',
+  ) => {
+    const completed = kind !== 'active-task';
+    const milestone = kind === 'completed-milestone';
+    const remTargetLink = kind === 'active-task' ? 'N' : 'Y';
+    const targetStart = '2026-01-02 08:00';
+    const targetFinish = milestone ? targetStart : '2026-01-02 16:00';
+    const actualStart = kind === 'active-task' ? '2026-01-07 08:00' : '2026-01-08 08:00';
+    const actualFinish = completed ? (milestone ? actualStart : '2026-01-08 16:00') : '';
+    // Dit zijn bewust uitsluitend orakelcellen in de fixture: de readerwhitelist verbiedt ze.
+    const rawEarlyStart = rawOutput === 'oracle' ? '2026-01-05 08:00' : '2040-11-04 08:00';
+    const rawEarlyFinish = rawOutput === 'oracle' ? '2026-01-02 16:00' : '2040-11-03 16:00';
+    const rawLateStart = rawOutput === 'oracle' ? '2026-01-02 08:00' : '2040-11-03 08:00';
+    const rawLateFinish = rawOutput === 'oracle' ? '2026-01-02 16:00' : '2040-11-03 16:00';
+    const lines = [
+      'ERMHDR\t23.12\t2026-01-05\t\t\t\t\t\tEUR',
+      '%T\tCALENDAR',
+      '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+      `%R\tC1\tStandaard 5x8\tCA_Base\t8\t40\t${fiveDayCalendarData('08:00', '16:00')}`,
+      '%T\tPROJECT',
+      '%F\tproj_id\tproj_short_name\tclndr_id\trem_target_link_flag\tlast_recalc_date\tplan_start_date\tplan_end_date',
+      `%R\tP\tCompleted package\tC1\t${remTargetLink}\t2026-01-05 08:00\t${targetStart}\t${targetFinish}`,
+      '%T\tTASK',
+      '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tearly_start_date\tearly_end_date\tlate_start_date\tlate_end_date\ttotal_float_hr_cnt\tfree_float_hr_cnt',
+      `%R\tT1\tP\tC1\tA100\tCompleted fidelity\t${milestone ? 'TT_Mile' : 'TT_Task'}\tDT_FixedDUR2\t${completed ? 'TK_Complete' : 'TK_Active'}\tCP_Drtn\t${milestone ? '0' : '8'}\t${completed ? '0' : '4'}\t${targetStart}\t${targetFinish}\t${actualStart}\t${actualFinish}\t${milestone ? actualStart : rawEarlyStart}\t${milestone ? actualStart : rawEarlyFinish}\t${milestone ? actualStart : rawLateStart}\t${milestone ? actualStart : rawLateFinish}\t0\t0`,
+    ];
+    if (assignments === 2) {
+      lines.push(
+        '%T\tRSRC',
+        '%F\trsrc_id\trsrc_name\trsrc_type\tdef_qty_per_hr',
+        '%R\tR1\tEerste resource\tRT_Labor\t1',
+        '%R\tR2\tTweede resource\tRT_Labor\t1',
+        '%T\tTASKRSRC',
+        '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\ttarget_qty_per_hr',
+        '%R\tAR1\tP\tT1\tR1\t1',
+        '%R\tAR2\tP\tT1\tR2\t1',
+      );
+    }
+    lines.push('%E');
+    return new TextEncoder().encode(lines.join('\n'));
+  };
+  const one = readXER(completedPackageBytes('completed-task'));
+  const oneRawMutated = readXER(completedPackageBytes('completed-task', 0, 'mutated'));
+  const two = readXER(completedPackageBytes('completed-task', 2));
+  const active = readXER(completedPackageBytes('active-task'));
+  const milestone = readXER(completedPackageBytes('completed-milestone'));
+  if (isMultiDocumentImport(one) || isMultiDocumentImport(oneRawMutated) || isMultiDocumentImport(two)
+    || isMultiDocumentImport(active) || isMultiDocumentImport(milestone)) {
+    throw new Error('X12 completed/actual-fixtures moeten elk één project opleveren');
+  }
+  const resultOf = (input: ImportResult) => solveImported(input).tasks.find(task => task.taskCode === 'A100');
+  const oneResult = resultOf(one);
+  const oneRawMutatedResult = resultOf(oneRawMutated);
+  const twoResult = resultOf(two);
+  const activeResult = resultOf(active);
+  const milestoneResult = resultOf(milestone);
+  eq('X12 F1 completed gewone XER-taak volgt de toegestane P6-statusdatum, niet actuals of raw output', {
+    explicitTargetWindow: one.tasks.find(task => task.wbsCode === 'A100')?.p6ExplicitTargetWindow,
+    earlyStart: oneResult?.earlyStart, earlyFinish: oneResult?.earlyFinish,
+    lateStart: oneResult?.lateStart, lateFinish: oneResult?.lateFinish,
+    totalFloatMinutes: oneResult?.totalFloatMinutes, freeFloatMinutes: oneResult?.freeFloatMinutes,
+  }, {
+    explicitTargetWindow: true,
+    earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-02T16:00',
+    lateStart: '2026-01-02T08:00', lateFinish: '2026-01-02T16:00',
+    totalFloatMinutes: 0, freeFloatMinutes: 0,
+  });
+  eq('X12 F1 raw early/late-mutatatie beïnvloedt de solver niet', {
+    oracleAxes: [oneResult?.earlyStart, oneResult?.earlyFinish, oneResult?.lateStart, oneResult?.lateFinish],
+    mutatedAxes: [oneRawMutatedResult?.earlyStart, oneRawMutatedResult?.earlyFinish,
+      oneRawMutatedResult?.lateStart, oneRawMutatedResult?.lateFinish],
+  }, {
+    oracleAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-02T08:00', '2026-01-02T16:00'],
+    mutatedAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-02T08:00', '2026-01-02T16:00'],
+  });
+  // De statusdatum, taakprovenance en gewone geplande start moeten ook na de native opslaggrens
+  // aanwezig blijven; XER-archiefreconstructie levert daarmee dezelfde brongebonden route op.
+  const oneReloaded = await readIFCWithXerReconstruction(writeIFC(one));
+  const oneReloadedResult = resultOf(oneReloaded);
+  eq('X12 F1 XER→IFC→reload behoudt alleen de completed data-datesemantiek', {
+    explicitTargetWindow: oneReloaded.tasks.find(task => task.wbsCode === 'A100')?.p6ExplicitTargetWindow,
+    axes: [oneReloadedResult?.earlyStart, oneReloadedResult?.earlyFinish,
+      oneReloadedResult?.lateStart, oneReloadedResult?.lateFinish],
+  }, {
+    explicitTargetWindow: true,
+    axes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-02T08:00', '2026-01-02T16:00'],
+  });
+  eq('X12 F2 meerdere XER-assignments veranderen completed-bronsemantiek niet', {
+    assignmentCount: two.assignments.length,
+    axes: [twoResult?.earlyStart, twoResult?.earlyFinish, twoResult?.lateStart, twoResult?.lateFinish],
+  }, {
+    assignmentCount: 2,
+    axes: [oneResult?.earlyStart, oneResult?.earlyFinish, oneResult?.lateStart, oneResult?.lateFinish],
+  });
+  eq('X12 F3 active XER-taak behoudt bestaande actual-startsemantiek', {
+    earlyStart: activeResult?.earlyStart,
+  }, { earlyStart: '2026-01-07T08:00' });
+  eq('X12 F4 completed milestone valt buiten completed-taskbronsemantiek', {
+    earlyStart: milestoneResult?.earlyStart, earlyFinish: milestoneResult?.earlyFinish,
+    lateStart: milestoneResult?.lateStart, lateFinish: milestoneResult?.lateFinish,
+  }, {
+    earlyStart: '2026-01-08T08:00', earlyFinish: '2026-01-08T08:00',
+    lateStart: '2026-01-08T08:00', lateFinish: '2026-01-08T08:00',
+  });
+
+  // F5: hetzelfde TaskTime-paar zonder de twee XER-provenancevoorwaarden moet het generieke
+  // (en daarna gewone IFC-)gedrag behouden. Geen raw P6-uitkomst wordt op dit pad opgeslagen,
+  // ingelezen of aan de solver doorgegeven.
+  const generic: ImportResult = {
+    ...one,
+    project: { ...one.project, schedulingOptions: undefined },
+    tasks: one.tasks.map(({ p6ProjectId: _project, p6TaskId: _task, p6ActivityType: _activity, p6DurationType: _duration, p6ExplicitTargetWindow: _window, ...task }) => task),
+    xer: undefined,
+    xerSourceArchive: undefined,
+    xerSourceProjectId: undefined,
+  };
+  const genericIfc = readIFC(writeIFC(generic));
+  const genericTask = (input: ImportResult) => {
+    const cpm = solveProject({
+      tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
+      calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
+      progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+      projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
+    });
+    if (cpm.error) throw new Error(`X12 F5 generieke solve faalde: ${cpm.error}`);
+    return input.tasks.find(task => task.wbsCode === 'A100');
+  };
+  const genericResult = genericTask(generic);
+  const genericIfcResult = genericTask(genericIfc);
+  eq('X12 F5 generiek en gewoon IFC behouden bestaande actualdatumsemantiek', {
+    generic: [genericResult?.time.earlyStart, genericResult?.time.earlyFinish],
+    ifc: [genericIfcResult?.time.earlyStart, genericIfcResult?.time.earlyFinish],
+  }, {
+    generic: ['2026-01-08T08:00', '2026-01-08T16:00'],
+    ifc: ['2026-01-08T08:00', '2026-01-08T16:00'],
   });
 }
 
