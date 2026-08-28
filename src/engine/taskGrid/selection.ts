@@ -152,12 +152,16 @@ export function reconcileGridSelection(
   nextColumns: readonly TaskColumnId[],
 ): GridSelectionState {
   if (!state.active || nextColumns.length === 0 || nextRows.taskRows.length === 0) {
-    return createEmptyGridSelection();
+    const empty = createEmptyGridSelection();
+    return sameGridSelection(empty, state) ? state : empty;
   }
 
   const oldRowIndex = previousRows.absoluteIndexByRowKey.get(state.active.rowKey) ?? 0;
   const row = nextRows.taskByRowKey.get(state.active.rowKey) ?? nearestIndexedTaskRow(nextRows, oldRowIndex);
-  if (!row) return createEmptyGridSelection();
+  if (!row) {
+    const empty = createEmptyGridSelection();
+    return sameGridSelection(empty, state) ? state : empty;
+  }
 
   const oldColumnIndex = Math.max(0, previousColumns.indexOf(state.active.columnId));
   const columnId = nextColumns.includes(state.active.columnId)
@@ -180,11 +184,12 @@ export function reconcileGridSelection(
     && validCell(state.range.start, nextRows, nextColumns)
     && validCell(state.range.end, nextRows, nextColumns);
   if (!canKeepRange) {
-    return singleCellSelection(active, row.task.id, reconciledAdditiveIds ?? [row.task.id]);
+    const next = singleCellSelection(active, row.task.id, reconciledAdditiveIds ?? [row.task.id]);
+    return sameGridSelection(next, state) ? state : next;
   }
 
   const range = state.range!;
-  return {
+  const next: GridSelectionState = {
     active,
     anchor: state.anchor,
     range,
@@ -192,4 +197,21 @@ export function reconcileGridSelection(
       ?? uniqueTaskIds(indexedTaskRowsInRange(nextRows, range.start.rowKey, range.end.rowKey)),
     activeTaskId: row.task.id,
   };
+  return sameGridSelection(next, state) ? state : next;
+}
+
+/**
+ * FIX 8a (eindreview): `reconcileGridSelection` bouwde altijd een NIEUW object, ook wanneer de
+ * inhoud byte-voor-byte gelijk bleef aan `state` — elke selectieklik kostte daardoor een volledige
+ * gridrender, ook zonder werkelijke wijziging. Structurele gelijkheid (niet referentiegelijkheid)
+ * over alle vijf velden bepaalt hier of de OUDE referentie teruggegeven mag worden.
+ */
+function sameGridSelection(left: Readonly<GridSelectionState>, right: Readonly<GridSelectionState>): boolean {
+  return left.activeTaskId === right.activeTaskId
+    && sameCellAddress(left.active, right.active)
+    && sameCellAddress(left.anchor, right.anchor)
+    && sameCellAddress(left.range?.start ?? null, right.range?.start ?? null)
+    && sameCellAddress(left.range?.end ?? null, right.range?.end ?? null)
+    && (left.range === null) === (right.range === null)
+    && sameOrderedIds(left.selectedTaskIds, right.selectedTaskIds);
 }

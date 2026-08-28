@@ -531,12 +531,24 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       const targetDocumentId = get().activeDocumentId;
       // Verzamel de distinct bron-bestandspaden uit alle links (fallback: geen pad ⇒ niet verversbaar).
       const paths = new Map<string, string>();
+      // FIX 8c (eindreview, onderzoek): `normalizeExternalSourcePath` geeft null voor zowel "geen
+      // pad" als "een pad dat niet lexicaal absoluut is" (relatief). Het tweede geval is BEREIKBAAR:
+      // `OPS_ExternalLink` schrijft `task.externalLinks` ongefilterd als één JSON-blob weg
+      // (ifcPsets.ts) en leest 'm bij het laden ook ongevalideerd terug — een van elders aangeleverd
+      // of met de hand bewerkt IFC-bestand kan dus een relatief `sourceRef.filePath` bevatten. Zo'n
+      // pad kan de app nooit betrouwbaar herlezen (er is geen vaste "relatief-ten-opzichte-van"-map),
+      // dus het blijft terecht overgeslagen als bron — maar voorheen verdween die link daardoor
+      // volledig onzichtbaar uit de hele bewerking (niet in `refreshed`, niet in `missing`). Hij telt
+      // nu mee in `missing`, zodat de bestaande toast ("N ververst, M ontbrekend") de gebruiker
+      // tenminste laat weten dat er iets niet kon, in plaats van stilzwijgend niets te doen.
+      let unusablePathCount = 0;
       for (const task of get().tasks) {
         for (const link of task.externalLinks ?? []) {
           const originalPath = link.sourceRef.filePath;
           if (!originalPath) continue;
           const normalizedPath = normalizeExternalSourcePath(originalPath);
-          if (normalizedPath !== null && !paths.has(normalizedPath)) paths.set(normalizedPath, originalPath);
+          if (normalizedPath === null) { unusablePathCount++; continue; }
+          if (!paths.has(normalizedPath)) paths.set(normalizedPath, originalPath);
         }
       }
 
@@ -584,7 +596,10 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
 
       let tasks = get().tasks;
       let refreshed = 0;
-      let missing = 0;
+      // Begint bij `unusablePathCount` (zie hierboven) — een link met een pad dat nooit een bron kon
+      // worden telt hier mee als "ontbrekend", net als een link waarvan de bron wél gelezen werd maar
+      // de betreffende taak niet meer bevatte.
+      let missing = unusablePathCount;
       let anyChanged = false;
       for (const source of sourceDocs) {
         const result = refreshExternalAnchors(

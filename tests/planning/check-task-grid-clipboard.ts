@@ -1,4 +1,5 @@
 import { useAppStore } from '@/state/appStore';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -768,6 +769,45 @@ function planAndCommitPaste(
       cleared.ok ? S().runGridMutation([cleared.value]).ok : cleared.ok, false);
     eq('Clear-weigering raakt de taak niet', S().tasks.find(task => task.id === targetId), before);
   }
+}
+
+// FIX 8b (eindreview, onderzoek): de no-op-eliminatie in clipboard.ts vergelijkt de geparseerde
+// bronwaarde tegen de geparseerde HUIDIGE waarde, en beide parses gebruiken hetzelfde `task`-
+// object — dus altijd de kalender van VÓÓR de paste, ook als diezelfde paste ook task.calendarId
+// wijzigt. De review vermoedde dat dit een echte wijziging stil kan wegfilteren. Empirisch
+// onderzocht met een controllerkolom (kalender) samen met een afhankelijke kolom (duur) waarvan
+// de weergegeven tekst gelijk blijft:
+{
+  S().newProject();
+  const fastCalendarId = S().addCalendar({ ...createDefaultCalendar(), name: 'Kalender4u', hoursPerDay: 4 });
+  const taskId = S().addTask({ name: 'Kalender + duur' });
+  S().updateTask(taskId, { time: { ...S().tasks.find(t => t.id === taskId)!.time, scheduleDuration: 5 } });
+
+  const columns = [taskColumnId('task.calendarId'), taskColumnId('task.time.scheduleDuration')];
+  const env = liveMultiRowEnvironment([taskId], columns);
+  // "5d" is exact de tekst die de duurcel nu al toont (copy() geeft `${scheduleDuration}d`) — de
+  // gebruiker plakt bewust dezelfde duurtekst terug, samen met een NIEUWE kalender.
+  const planned = planTaskGridPaste(`${fastCalendarId}\t5d`, env);
+  eq('Kalender+duur-plak plant alleen de kalenderwrite (duur blijft, tekstueel, een no-op)',
+    planned.ok ? planned.value.writes.map(write => write.kind === 'cell-edit' ? String(write.columnId) : write) : planned.errors,
+    ['task.calendarId']);
+  const committed = planned.ok ? S().runGridMutation([planned.value]) : planned;
+  eq('Kalender+duur-plak committeert', committed.ok, true);
+  const after = S().tasks.find(task => task.id === taskId);
+  eq('De kalender is gewijzigd', after?.calendarId, fastCalendarId);
+  // BEVINDING: dit is GEEN gat dat "verplaats de vergelijking naar de eindtoestand" simpelweg kan
+  // dichten. scheduleDuration is een kalenderRELATIEVE dagteller; "5d" blijft na deze paste
+  // letterlijk 5 — precies wat de gebruiker plakte, nu onder de nieuwe 4u/dag-kalender (dus minder
+  // totale uren, wat de bedoeling van een kalenderwissel is). Een variant die de duur-write NIET
+  // elimineert is apart geprobeerd (met dezelfde, onder de OUDE kalender geparseerde 2.400
+  // minuten): die komt via de eindtoestand-omgeving (die de NIEUWE kalender al meerekent) uit op
+  // scheduleDuration = 10 — een getal dat de gebruiker nooit typte en dat de paste onvoorspelbaarder
+  // maakt, niet correcter. Een echte fix vereist dat de duurcel opnieuw wordt GEPARSED onder de
+  // kalender die de paste zelf meebrengt (in plaats van louter "niet elimineren") — een structurele
+  // wijziging die buiten de scope van deze gerichte reparatie valt. Deze regressie legt daarom het
+  // GEDRAG vast zoals het nu is (voorspelbaar, tekstgetrouw) in plaats van het te "verplaatsen".
+  eq('De duur blijft letterlijk 5 (tekstgetrouw, kalenderrelatief) — niet stil herrekend naar 10',
+    after?.time.scheduleDuration, 5);
 }
 
 if (diffs.length > 0) {

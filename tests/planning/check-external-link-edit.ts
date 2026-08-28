@@ -1,6 +1,20 @@
 import { useAppStore } from '@/state/appStore';
 import { buildManualExternalLinkSubmission } from '@/components/dialogs/ExternalLinkDialog';
-import type { ExternalLink } from '@/types/task';
+import type { ExternalLink, Task } from '@/types/task';
+
+/** Minimale bladtaak voor een gestubte `parseExternalSource`-bron; alleen de velden die
+ *  `refreshExternalAnchors` leest. Zelfde patroon als `mk` in check-recorded-dates.ts. */
+const stubbedSourceTask = (id: string): Task => ({
+  id, name: id, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+  isMilestone: false, priority: 5, parentId: null, childIds: [], resourceIds: [],
+  time: {
+    durationType: 'WORKTIME', scheduleDuration: 5,
+    scheduleStart: '2026-05-04', scheduleFinish: '2026-05-08',
+    earlyStart: '2026-05-04', earlyFinish: '2026-05-08',
+    lateStart: '2026-05-04', lateFinish: '2026-05-08',
+    freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
+  },
+});
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -62,6 +76,43 @@ eq('bewerking maakt de planning stale', S().scheduleStale, true);
 
 S().undo();
 eq('één undo herstelt de volledige oude externe link', current(), { id: linkId, ...original });
+
+// FIX 8c (eindreview, onderzoek): `normalizeExternalSourcePath` geeft null voor zowel "geen pad"
+// als "een niet-lexicaal-absoluut (relatief) pad". `OPS_ExternalLink` schrijft `externalLinks`
+// ongefilterd als één JSON-blob weg (ifcPsets.ts) en leest 'm ook ongevalideerd terug — een van
+// elders aangeleverd of met de hand bewerkt IFC-bestand kan dus een relatief `sourceRef.filePath`
+// bevatten. Zo'n pad kan de app nooit betrouwbaar herlezen (geen vaste "relatief-ten-opzichte-
+// van"-map) en blijft dus terecht overgeslagen als leesbare bron — maar telde voorheen NERGENS
+// mee: niet in `refreshed`, niet in `missing`. Hij telt nu mee in `missing`.
+{
+  S().newProject();
+  const relativeTaskId = S().addTask({ name: 'Link met relatief pad' });
+  S().updateTask(relativeTaskId, {
+    externalLinks: [{
+      id: 'rel-link', direction: 'predecessor', relType: 'FS', anchorDate: '2020-01-01',
+      sourceRef: { projectId: 'relatieve-bron', taskId: 'X', filePath: 'gedeeld/west.ops' },
+      sourceMissing: false,
+    }],
+  });
+  const absoluteTaskId = S().addTask({ name: 'Link met absoluut pad' });
+  S().updateTask(absoluteTaskId, {
+    externalLinks: [{
+      id: 'abs-link', direction: 'predecessor', relType: 'FS', anchorDate: '2020-01-01',
+      sourceRef: { projectId: 'absolute-bron', taskId: 'Y', filePath: '/echte/bron.ops' },
+      sourceMissing: false,
+    }],
+  });
+  useAppStore.setState({
+    parseExternalSource: async (filePath: string) => ({
+      projectId: 'absolute-bron', projectName: 'Bron', filePath, tasks: [stubbedSourceTask('Y')],
+    }),
+  });
+  const relativePathResult = await S().refreshAllExternalAnchors();
+  eq('een relatief bronpad wordt niet als leesbare bron verzameld (kan niet betrouwbaar herlezen)',
+    relativePathResult.sources, 1);
+  eq('diezelfde link telt nu mee als "ontbrekend" i.p.v. nergens', relativePathResult.missing, 1);
+  eq('de wél absolute bron is gewoon ververst', relativePathResult.refreshed, 1);
+}
 
 if (diffs.length) {
   console.error(`XX external-link-edit: ${diffs.length}/${checks} checks rood`);

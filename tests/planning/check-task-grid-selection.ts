@@ -18,6 +18,10 @@ function eq(label: string, got: unknown, want: unknown): void {
     diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
   }
 }
+function ok(label: string, condition: boolean): void {
+  checks++;
+  if (!condition) diffs.push(label);
+}
 
 const S = () => useAppStore.getState();
 S().newProject();
@@ -166,6 +170,33 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('Reconcile bewaart exacte duplicate occurrence via rowKey',
     reconcileGridSelection(duplicate, indexed(duplicateRows), indexed([...duplicateRows].reverse()), columns, columns).active,
     cell('band-b/taak', 0));
+}
+
+// FIX 8a (eindreview): een ongewijzigde reconciliatie moet dezelfde OBJECTREFERENTIE teruggeven,
+// niet alleen een structureel gelijke kopie — anders kost elke selectieklik een volledige
+// gridrender, ook zonder werkelijke wijziging. Referentiegelijkheid (`===`), niet alleen
+// structurele gelijkheid, is hier de eigenlijke poort.
+{
+  const rows = ids.slice(0, 3).map(id => taskRow(id));
+  const rowIndex = indexed(rows);
+  const sel = updateGridSelection(createEmptyGridSelection(), cell(ids[0], 0), rowIndex, columns, 'replace');
+  const again = reconcileGridSelection(sel, rowIndex, rowIndex, columns, columns);
+  ok('Reconciliatie zonder wijziging geeft dezelfde referentie terug (again === sel)', again === sel);
+
+  const extended = updateGridSelection(sel, cell(ids[1], 1), rowIndex, columns, 'extend');
+  const extendedAgain = reconcileGridSelection(extended, rowIndex, rowIndex, columns, columns);
+  ok('Ook een meercellige (range-)selectie geeft dezelfde referentie terug zonder wijziging',
+    extendedAgain === extended);
+
+  const changedRows = indexed([...rows].slice(1));
+  const changed = reconcileGridSelection(sel, rowIndex, changedRows, columns, columns);
+  ok('Een ECHTE wijziging (verdwenen actieve rij) geeft juist NIET dezelfde referentie terug',
+    changed !== sel);
+
+  const empty = createEmptyGridSelection();
+  const emptyAgain = reconcileGridSelection(empty, rowIndex, rowIndex, columns, columns);
+  ok('Een reeds lege selectie blijft dezelfde referentie (geen actieve cel om te reconciliëren)',
+    emptyAgain === empty);
 }
 
 // De rij-index wordt buiten het commando gememoized: een gewone klik mag geen 50.000 rijen scannen.
